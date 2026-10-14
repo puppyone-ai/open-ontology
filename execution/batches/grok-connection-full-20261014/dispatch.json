@@ -8,7 +8,7 @@
     "write_paths": [
       "tools/mysql-preview"
     ],
-    "status": "same_owner_original_default_entry_and_continuous_exits",
+    "status": "same_owner_reserved_shared_completed_receipt_provenance_gate",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 105,
     "prior_pid": 72621,
@@ -116,7 +116,7 @@
     "write_paths": [
       "tools/opensearch-preview"
     ],
-    "status": "same_owner_original_default_entry_and_continuous_exits",
+    "status": "same_owner_reserved_current_g12_acl_and_pack_dependency",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 268,
     "prior_session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
@@ -128,7 +128,7 @@
   {
     "task": "postgresql",
     "session_uuid": "27ca3ccc-e673-4832-8415-0462d4227a64",
-    "pid": 99653,
+    "pid": 80014,
     "prompt": "execution/batches/grok-connection-full-20261014/postgresql-complete-project-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
     "write_paths": [
@@ -137,34 +137,34 @@
       "crates/oo-gateway/src/bin/install-column-acl.rs",
       "docs/07-gateway.md"
     ],
-    "status": "same_owner_persistent_original_exits",
+    "status": "same_owner_fixed_mixed_acl_and_current_full_pg_exits",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 285,
     "prior_session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
     "prior_delivery": "Macdebug rejection paths only; no actual ACL advance or Linux/full one-command proof",
     "effort_handoff_previous_pid": 32956,
     "effort_handoff_was_live": true,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-persistent-original-exits.md",
-    "prior_pid": 60008,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-persistent-exact-mixed-current-s5.md",
+    "prior_pid": 99653,
     "max_turns": 1000,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
   },
   {
     "task": "starrocks",
     "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-    "pid": 54954,
+    "pid": 76215,
     "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
     "write_paths": [
       "tools/starrocks-preview"
     ],
-    "status": "same_owner_original_product_exits_fixed_dependencies",
+    "status": "same_owner_original_c4_c5_automatic_maintenance_exits",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 130,
     "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-    "prior_pid": 69464,
+    "prior_pid": 54954,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-shared-money-linked-exits.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-original-capture-maintenance.md",
     "max_turns": 1000
   },
   {

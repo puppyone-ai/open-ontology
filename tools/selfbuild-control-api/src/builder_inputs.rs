@@ -1,8 +1,10 @@
-//! Trusted catalog bytes to the existing `pg-builder` seal and cards.
+//! Trusted catalog bytes to the existing producer.
 //!
-//! `seal_request` and `assemble_cards` are the producer. A catalog that is not
-//! `oo.source.pgsql/v1` goes to `import_seal`, which records the compiler
-//! refusal. That refusal is not `seal.json`. A draft is not a model result.
+//! `oo.source.pgsql/v1` uses `seal_request` and `assemble_cards`. Another
+//! `oo.source.*` dictionary keeps its protocol and is not sealed. A trusted
+//! `oo.pipeline.sealed-import-catalog/v1` or collection uses the existing
+//! sealed-import compiler. Compiler acceptance is not outcome `sealed` and
+//! does not write `seal.json`. Bytes the compiler refuses stay a refusal.
 //! This module does not retag a protocol, invent an OOS type, or call the
 //! native catalog command.
 
@@ -17,6 +19,7 @@ pub const CARDS_PROTOCOL: &str = "oo.pg-builder.cards/v1";
 
 const NATIVE_REQUEST: &str = "oo.pipeline.native-sealed-catalog/v1";
 const NATIVE_CATALOG: &str = "oo.pipeline.sealed-import-catalog/v1";
+const NATIVE_COLLECTION: &str = "oo.pipeline.sealed-import-collection/v1";
 const NATIVE_COMMAND: &str = "oo-pipeline catalog-import-native";
 
 pub struct Prepared {
@@ -33,6 +36,9 @@ pub fn prepare(catalog_bytes: &[u8], profile_bytes: &[u8], comments_bytes: Optio
         .ok()
         .and_then(|value| value.get("protocol").and_then(Value::as_str).map(str::to_owned))
         .unwrap_or_default();
+    if protocol == NATIVE_CATALOG || protocol == NATIVE_COLLECTION {
+        return prepare_native_import(&protocol, catalog_text);
+    }
     if protocol != PGSQL_PROTOCOL {
         return refuse_foreign(&protocol, catalog_text);
     }
@@ -127,6 +133,32 @@ fn protocol_of(catalog_bytes: &[u8]) -> String {
         .ok()
         .and_then(|value| value.get("protocol").and_then(Value::as_str).map(str::to_owned))
         .unwrap_or_default()
+}
+
+fn prepare_native_import(protocol: &str, catalog_text: &str) -> Prepared {
+    let producer = if protocol == NATIVE_COLLECTION { "oo_builder::compile_sealed_import_collection" } else { "oo_builder::compile_sealed_import_catalog" };
+    let compiled = if protocol == NATIVE_COLLECTION {
+        oo_builder::compile_sealed_import_collection(catalog_text)
+    } else {
+        oo_builder::compile_sealed_import_catalog(catalog_text)
+    };
+    match compiled {
+        Ok(_) => stamp_native(&finish(protocol, "compiled", "the existing sealed-import compiler accepted the catalog", producer, None, None, None), "draft_compiled"),
+        Err(error) => stamp_native(&finish(protocol, &error.code, error.message, producer, None, None, None), "compiler_refused"),
+    }
+}
+
+fn stamp_native(prepared: &Prepared, outcome: &str) -> Prepared {
+    let mut document: Value = serde_json::from_slice(&prepared.document).unwrap_or(Value::Null);
+    if let Some(object) = document.as_object_mut() {
+        object.insert("cards_written".to_owned(), json!(false));
+        object.insert("native_catalog_called".to_owned(), json!(false));
+        object.insert("outcome".to_owned(), json!(outcome));
+        object.insert("published".to_owned(), json!(false));
+        object.insert("ready".to_owned(), json!(false));
+        object.insert("seal_written".to_owned(), json!(false));
+    }
+    Prepared { document: producer_bytes(&document), seal: None, cards: None }
 }
 
 fn refuse_foreign(protocol: &str, catalog_text: &str) -> Prepared {

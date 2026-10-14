@@ -53,43 +53,6 @@
   },
   "managed_live_grok_handles": [
     {
-      "task": "mysql",
-      "session_uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
-      "pid": 49893,
-      "prompt": "execution/batches/grok-connection-full-20261014/mysql-compact-whole-fallback.md",
-      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql.log",
-      "write_paths": [
-        "tools/mysql-preview"
-      ],
-      "status": "same_owner_original_default_entry_and_continuous_exits",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 105,
-      "prior_pid": 72621,
-      "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
-      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/mysql-persistent-shared-8fa-exits.md",
-      "max_turns": 1000
-    },
-    {
-      "task": "mariadb",
-      "session_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
-      "pid": 61786,
-      "prompt": "execution/batches/grok-connection-full-20261014/mariadb-compact-whole-continue.md",
-      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb.log",
-      "write_paths": [
-        "tools/mariadb-preview"
-      ],
-      "status": "same_owner_collect_inflight_corrected_s5_no_new_create",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 207,
-      "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
-      "prior_session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
-      "prior_pid": 54952,
-      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-collect-running-s5.md",
-      "max_turns": 1000
-    },
-    {
       "task": "clickhouse",
       "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
       "pid": 49895,
@@ -126,27 +89,9 @@
       "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-owned-default-current.md"
     },
     {
-      "task": "opensearch",
-      "session_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
-      "pid": 49897,
-      "prompt": "execution/batches/grok-connection-full-20261014/opensearch-compact-whole-continue.md",
-      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/opensearch.log",
-      "write_paths": [
-        "tools/opensearch-preview"
-      ],
-      "status": "same_owner_original_default_entry_and_continuous_exits",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 268,
-      "prior_session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
-      "prior_pid": 6094,
-      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/opensearch-persistent-shared-8fa-exits.md",
-      "max_turns": 1000
-    },
-    {
       "task": "postgresql",
       "session_uuid": "27ca3ccc-e673-4832-8415-0462d4227a64",
-      "pid": 99653,
+      "pid": 80014,
       "prompt": "execution/batches/grok-connection-full-20261014/postgresql-complete-project-handoff.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
       "write_paths": [
@@ -155,64 +100,34 @@
         "crates/oo-gateway/src/bin/install-column-acl.rs",
         "docs/07-gateway.md"
       ],
-      "status": "same_owner_persistent_original_exits",
+      "status": "same_owner_fixed_mixed_acl_and_current_full_pg_exits",
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 285,
       "prior_session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
       "prior_delivery": "Macdebug rejection paths only; no actual ACL advance or Linux/full one-command proof",
       "effort_handoff_previous_pid": 32956,
       "effort_handoff_was_live": true,
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-persistent-original-exits.md",
-      "prior_pid": 60008,
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-persistent-exact-mixed-current-s5.md",
+      "prior_pid": 99653,
       "max_turns": 1000,
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
       "task": "starrocks",
       "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-      "pid": 54954,
+      "pid": 76215,
       "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
       "write_paths": [
         "tools/starrocks-preview"
       ],
-      "status": "same_owner_original_product_exits_fixed_dependencies",
+      "status": "same_owner_original_c4_c5_automatic_maintenance_exits",
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 130,
       "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-      "prior_pid": 69464,
+      "prior_pid": 54954,
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-shared-money-linked-exits.md",
-      "max_turns": 1000
-    },
-    {
-      "task": "sqlserver",
-      "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
-      "pid": 58938,
-      "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-complete-fast-handoff.md",
-      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
-      "write_paths": [
-        "tools/mssql-preview",
-        "testing/dl01-targets/mssql",
-        "crates/oo-pipeline/src/native_update.rs",
-        "crates/oo-pipeline/src/native_binding.rs",
-        "crates/oo-pipeline/src/target_installer.rs",
-        "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql",
-        "tools/source-admission/src/capture.rs",
-        "tools/job-worker/src/native_schedule.rs",
-        "tools/job-worker/NATIVE-SCHEDULE.md",
-        "tools/job-worker/tests/closed_loop.rs"
-      ],
-      "status": "same_owner_original_c2_cancel_and_current_pack_exits",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 0,
-      "prior_session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
-      "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete",
-      "effort_handoff_previous_pid": 32957,
-      "effort_handoff_was_live": true,
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-persistent-c2-worker-owned.md",
-      "prior_pid": 42235,
-      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-original-capture-maintenance.md",
       "max_turns": 1000
     },
     {
@@ -2116,5 +2031,7 @@
   "latest_shared_linux_dependency_intake": "共享8fa9968c3 LinuxRust1.94实际deadline测试raw与API f7fd0ffc SHA已核、不可变固定private复制；同owner Maria54952可安装自有API并只对原已确认失败请求一次必要修正S5。共享原d28ca4bd扩展overlay.rs/builder_inputs.rs/tests/builder_inputs.rs sole writer，同UUID54950推进Oracle/Mongo/SQL后代真实目录维护；Star原owner54954接回自有API/Gateway修binding ontology_version及原完整链，shared不再写Starfixture。未额外分割组件、模型cache/成功导入不重放，正式/完整0/10不晋级。证据execution/reviews/grok-connection-resume-20261014/shared-8fa-linux-intake.json。",
   "latest_sql_c2_write_transfer": "SQL原source同UUID58938/max1000接收旧74 quiescent且clean的native_schedule.rs/NATIVE-SCHEDULE.md/tests/closed_loop.rs唯一写权，修真实C2取消active_task未释放；旧batch记录current_exclusive_writer_transfer，不增加新owner/功能分母。实际C2两周期gen6/7 CT4/5 gold0 enabled60000ms，当前Pack仍待nonPG共享维护；原g5 whole-run-3对话不冒g7。共享54950/Maria54952/Star54954按固定8fa Linux制品继续，原完整/正式0/10不晋级。",
   "latest_maria_inflight_collection": "Maria作者真实报告已在自有f7fd固定API启动唯一纠正b_08cd92f885d7366bb2253b5aef0d215c，S0–S4通过/S5在途、deadline180000；CLI54952已实际终态，后台S5非终态，不宣布完成或重复create。相同UUID2b95896a恢复61786/max1000专门收同build并继续原完整产品链，旧timeout/499及100006行金样保留。此为作者在途状态，完整源/正式0/10不晋级。",
-  "latest_doris_and_sql_fixed_staged_intake": "Doris8647f7446 staged完整S0–S10/currentg10/109typedcells0/2turnverified/recovery artifacts19SHA独立匹配；receipt owner5106与实际aa427不符且作者记录临时恢复全局registry/sharedproductflow旧pin，原证据保留，当前shared源码clean且product_flow=固定8fa，不晋级完整源。原Doris同UUID66796 max1000按现行官方身份续完整default持续链，明确禁止任何foreign restore/journal漂白；SQL0af固定2源码SHA及gen6/7手触发C2状态收取，native_serve=false/Pack仅g5仍缺自主持续与current代。证据execution/reviews/grok-connection-resume-20261014/{doris-staged-current-intake,sqlserver-staged-current-c2-intake}.json，完整/正式0/10原分母不变。"
+  "latest_doris_and_sql_fixed_staged_intake": "Doris8647f7446 staged完整S0–S10/currentg10/109typedcells0/2turnverified/recovery artifacts19SHA独立匹配；receipt owner5106与实际aa427不符且作者记录临时恢复全局registry/sharedproductflow旧pin，原证据保留，当前shared源码clean且product_flow=固定8fa，不晋级完整源。原Doris同UUID66796 max1000按现行官方身份续完整default持续链，明确禁止任何foreign restore/journal漂白；SQL0af固定2源码SHA及gen6/7手触发C2状态收取，native_serve=false/Pack仅g5仍缺自主持续与current代。证据execution/reviews/grok-connection-resume-20261014/{doris-staged-current-intake,sqlserver-staged-current-c2-intake}.json，完整/正式0/10原分母不变。",
+  "latest_mysql_real_dialogue_intake": "MySQL r4真实纠正两轮dialogue verdict verified/2QID与完整原始artifacts已收；同身份b_f234ec1c成功stage复用/noAPIcall/noS5，但prove_whole因旧producerSHA与current invoker22ac矛盾source_not_fresh。原receipt与raw保持不可变，shared54950 sole owner需修真实保留producer/current pinned invocation边界，不accept arbitrary historical copy、不重放confirm/import。root原journal registrySHA=null，whole-run-8fa仍operator bootstrap，普通installed六字段无recipe/out的真实run仍需原source退出；MySQL49893实际终态，sameowner保留等共享，不冒完整/正式0/10。证据execution/reviews/grok-connection-resume-20261014/mysql-corrected-dialogue-current-intake.json。",
+  "latest_star_os_pg_current_intake": "Star55e455505固定sourceSHA及真实2turnverified/8591tokens/unsampled全量gold0收取，mixed3/5/13当前保留，无新S5；原C4 not_run/disabled schedule/defaultordinarywhole未退出，sameUUID76215继续。OpenSearch a675880c8两IUD六capture g7..12 readerwrites0/实际supervisor66510 enabled1000ms quiet203 nofire，rawreceiptSHA79c4182b已保留；新g12 versus旧g6Pack/权限导致SCHEMA_INVALID，故source闭环未完成。PG99653已terminal，旧watcher多次历史run/tail0不可作新成功；相同UUID80014 max1000收已编per-tableELF真实混合ACL固定交付并解OS当前精确列权限/原PG本runS5candidatesinvalid后全链。无新独立review、全源/正式0/10不晋级。证据execution/reviews/grok-connection-resume-20261014/{starrocks-dialogue-current-intake,opensearch-current-g12-progress-intake}.json。"
 }

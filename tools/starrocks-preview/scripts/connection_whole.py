@@ -562,6 +562,12 @@ def install_cli():
     os.chmod(wrapper, 0o700)
 
 
+def stamp_ontology_version(binding, reviewed):
+    """Copy effective_oos.ontology_version. Role, identity, and pin are not rewritten."""
+    binding["ontology_version"] = reviewed["effective_oos"]["ontology_version"]
+    return binding
+
+
 def refresh_gateway(run_dir):
     pack = json.loads((run_dir / "product/pack.json").read_text())
     native = pack["native_maintenance"]
@@ -572,6 +578,7 @@ def refresh_gateway(run_dir):
     effective = json.loads((artifact / "effective.json").read_text())
     binding = json.loads((GW_DIR / "reviewed/w45_native/binding.json").read_text())
     binding.update({"artifact_sha256": hashlib.sha256(json.dumps(command["catalog"], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest(), "catalog_version": effective["catalog_version"], "schema_hash": reviewed["provenance"]["collection_sha256"], "generation": max(item["source_generation"] for item in command["catalog"]["binding_vector"]), "binding_vector": command["catalog"]["binding_vector"]})
+    stamp_ontology_version(binding, reviewed)
     folder = GW_DIR / "reviewed/w45_native"
     for name, body in (("binding.json", binding), ("native-input.json", command), ("command.json", reviewed)):
         (folder / name).write_text(json.dumps(body, sort_keys=True, separators=(",", ":")))
@@ -610,9 +617,14 @@ def refresh_gateway(run_dir):
 def dialogue(run_dir):
     truth = {"count": {"expected_named_facts": {"row_count": "1"}}, "label": {"expected_named_facts": {"label": "conn_live"}}}
     write(run_dir / "dialogue-truth.json", truth)
+    # knowledge_search already returns INDEX, manifest, and table excerpts, so a
+    # "then cat the returned path" question is answered without knowledge_cat.
+    # The named fact object is only facts and evidence; query_id stays inside evidence.
+    count = "Call knowledge_cat with path tables/oo_w45_sr.uniq_dim.md, describe with table oo_w45_sr.uniq_dim, and freshness before you answer. A knowledge_search excerpt does not replace knowledge_cat. Then query SELECT COUNT(*) AS row_count FROM oo_w45_sr.uniq_dim. The final message is bare JSON with exactly two keys, facts and evidence. facts.row_count is the observed cell as a string. evidence.row_count has only query_id, column, and row; column is row_count and row is 0. Put query_id only inside evidence."
+    label = "Query SELECT label FROM oo_w45_sr.uniq_dim WHERE dim_id = 17. The final message is bare JSON with exactly two keys, facts and evidence. facts.label is the observed cell as a string. evidence.label has only query_id, column, and row; column is label and row is 0. No other keys."
     config = {"oo_cli": str(BASE / "oo-cli"), "gateway": "http://" + (GW_DIR / "listen.addr").read_text().strip(), "transport": "local-development", "auth": "external", "gateway_token_file": str(GW_DIR / "client-conn.token"), "model_origin": "http://127.0.0.1:8317", "model": "grok-4.7", "model_bearer_file": "/tmp/oo-product-model-20261012/bearer", "independent_truth_file": str(run_dir / "dialogue-truth.json"), "independent_gateway_audit_file": str(GW_DIR / "wal"), "max_tool_rounds": 12, "questions": [
-        {"truth_key": "count", "prompt": "Call knowledge_search with nonempty query uniq, then knowledge_cat on the returned installed Pack path, describe oo_w45_sr.uniq_dim, and freshness. Then query SELECT COUNT(*) AS row_count FROM oo_w45_sr.uniq_dim."},
-        {"truth_key": "label", "prompt": "Query SELECT label FROM oo_w45_sr.uniq_dim WHERE dim_id = 17. Return the observed label."},
+        {"truth_key": "count", "prompt": count},
+        {"truth_key": "label", "prompt": label},
     ]}
     write(run_dir / "dialogue-config.json", config)
     proc = subprocess.run([sys.executable, str(ROOT / "tools/agent-product-verifier/dialogue.py"), "--config", str(run_dir / "dialogue-config.json"), "--out", str(run_dir / "dialogue")], capture_output=True, timeout=900)

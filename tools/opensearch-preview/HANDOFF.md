@@ -1,6 +1,6 @@
 # Handoff
 
-Goal sign-off is open. The minimum gate on run `4458418024444808b4bf3731b53b6cb7` stands. The C5 period is configured at 1000 ms and the schedule is disabled. No persistent worker is in process. A further generation waits on root's per-table ACL compiler. This source will not GRANT and will not edit `onboard.py`.
+Goal sign-off is open. The minimum gate on run `4458418024444808b4bf3731b53b6cb7` stands. The same binding is now generation 12, enabled, period 1000 ms, C5 reconcile. Observer pid 66510 steps only when a shadow-copy probe sees a row diff. Quiet ticks have not advanced past 12. The public gateway is stale because its catalog is still generation 6 while `max(run_generation)` is 12. Generation 12's physical table has no `oo_r_ledger` column SELECT. This source will not GRANT, will not rebind that catalog, and will not edit `onboard.py`.
 
 Owner domain remains `tools/opensearch-preview`. Shared onboard, product flow, dialogue, gateway, pipeline, and governance sources were not edited. Customer fixture stayed read-only. No push.
 
@@ -17,8 +17,9 @@ Owner domain remains `tools/opensearch-preview`. Shared onboard, product flow, d
 - Listeners on 127.0.0.1: 18441 identity, 18443 API list, 18462 product API, 19462 gateway.
 - API process `/api serve` is ELF `025aceded6cc922c0a10cb2e9d535ccc433ad6f082e5c1c3b86f4797cafc50ae`.
 - Gateway process image is ELF `e253d0c0ed6283288418cb9a1566ba7b9d1f7e8011c9b0a78a24727fa80cf5dc`.
-- Lease: generation 6, binding `79fc4bb0-5676-41d7-8f53-b345cbb94e55`, task `71f9b4f6-4f76-4e92-acb4-c60d155b24ea`, enabled false, load `awaiting_publish`.
-- No host writer for this run was running at handoff. Other sessions' processes were left alone.
+- Lease: generation 12, binding `79fc4bb0-5676-41d7-8f53-b345cbb94e55`, task `0e919da4-9fce-4e5d-8a96-b58bc3d4ac74`, enabled true, period 1000, load `awaiting_publish`.
+- Observer pid 66510 runs `c5-observe.py --seconds 28800`. It is not `native-serve`. A quiet source does not enqueue a pin.
+- Other sessions' processes were left alone, including shared pid 54950 (`d28ca4bd`) and PG pid 99653.
 - CA and cookie material stays path-referenced under `~/.cache/oo-dl01w1-71/native-identity-private`. Nothing from those files was printed or committed.
 - Git lock `/tmp/oo-dl01-wave1-git.lock` is the shared flock. Foreign staged paths were not reset.
 
@@ -32,11 +33,11 @@ Owner domain remains `tools/opensearch-preview`. Shared onboard, product flow, d
 
 ## Do not repeat
 
-Recovery CAS, the generation-6 `native-step`, the live cancel, and the paid dialogue. S5 for this build is the existing file above. Do not `--resume` this run: the global registry digest is no longer `51308e7a…`. Do not rewrite the journal to match it.
+Recovery CAS, the paid dialogue, and the live cancel `q_JjCRmU3gOeVVrRxFkL39YtYryr`. S5 for this build is the existing file above. Do not `--resume` this run. The global registry digest is now `29ddf63d82d24b623683b980a722fa7cef8535769c8cfb920be4ea6274eaacd2`; the opensearch row is still whole. Do not rewrite the journal. Do not hand-GRANT generation 12 and do not install the generation-6 pack or catalog onto it.
 
 ## Root case
 
-Per-table ACL compile for a generation after 6. `oo_r_ledger` has no default table SELECT. Shared resume drift when another engine rewrites `engines.json` stays with root `d28ca4bd`.
+Per-table column ACL for `_oo.pt_673a7926ef6d97ac56fbe19b6fcf10ce4357a5e17f30d95ea28a926d7d20`, then a maintenance rebind whose bound generation equals `max(run_generation)`. `oo_r_ledger` has no default table SELECT. The public error after these rounds is `StaleGeneration` surfaced as `policy catalog is not available`. Shared resume drift stays with `d28ca4bd`.
 
 ## Source after current
 

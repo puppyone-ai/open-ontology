@@ -2797,3 +2797,9 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 Doris8647f7446 staged完整S0–S10/currentg10/109typedcells0/2turnverified/recovery artifacts19SHA独立匹配；receipt owner5106与实际aa427不符且作者记录临时恢复全局registry/sharedproductflow旧pin，原证据保留，当前shared源码clean且product_flow=固定8fa，不晋级完整源。原Doris同UUID66796 max1000按现行官方身份续完整default持续链，明确禁止任何foreign restore/journal漂白；SQL0af固定2源码SHA及gen6/7手触发C2状态收取，native_serve=false/Pack仅g5仍缺自主持续与current代。证据execution/reviews/grok-connection-resume-20261014/{doris-staged-current-intake,sqlserver-staged-current-c2-intake}.json，完整/正式0/10原分母不变。
+
+
+2026-10-14 MySQL r4真实纠正两轮dialogue verdict verified/2QID与完整原始artifacts已收；同身份b_f234ec1c成功stage复用/noAPIcall/noS5，但prove_whole因旧producerSHA与current invoker22ac矛盾source_not_fresh。原receipt与raw保持不可变，shared54950 sole owner需修真实保留producer/current pinned invocation边界，不accept arbitrary historical copy、不重放confirm/import。root原journal registrySHA=null，whole-run-8fa仍operator bootstrap，普通installed六字段无recipe/out的真实run仍需原source退出；MySQL49893实际终态，sameowner保留等共享，不冒完整/正式0/10。证据execution/reviews/grok-connection-resume-20261014/mysql-corrected-dialogue-current-intake.json。
+
+
+2026-10-14 Star55e455505固定sourceSHA及真实2turnverified/8591tokens/unsampled全量gold0收取，mixed3/5/13当前保留，无新S5；原C4 not_run/disabled schedule/defaultordinarywhole未退出，sameUUID76215继续。OpenSearch a675880c8两IUD六capture g7..12 readerwrites0/实际supervisor66510 enabled1000ms quiet203 nofire，rawreceiptSHA79c4182b已保留；新g12 versus旧g6Pack/权限导致SCHEMA_INVALID，故source闭环未完成。PG99653已terminal，旧watcher多次历史run/tail0不可作新成功；相同UUID80014 max1000收已编per-tableELF真实混合ACL固定交付并解OS当前精确列权限/原PG本runS5candidatesinvalid后全链。无新独立review、全源/正式0/10不晋级。证据execution/reviews/grok-connection-resume-20261014/{starrocks-dialogue-current-intake,opensearch-current-g12-progress-intake}.json。

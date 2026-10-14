@@ -86,7 +86,7 @@ pub async fn maintenance(config: &AppConfig, row: &BuildRow, value: &Value, body
         let sha = value.get("catalog_sha256").and_then(Value::as_str).filter(|s| hex64(s)).ok_or_else(ApiError::malformed)?;
         let rebound = native_source_rebind(config, row, sha)?;
         if let Some(previous) = latest_native_rebind(&client, row).await? {
-            check_generation_progress(&previous["binding_vector"], &rebound["catalog"]["binding_vector"])?;
+            check_generation_progress(recorded_progress(&previous), &rebound["progress_vector"])?;
         }
         response["native_maintenance"] = compile_native_maintenance(config, row, &docs, Some(&rebound))?;
     }
@@ -998,6 +998,81 @@ fn semantic_basis(mut value: Value) -> Value {
     value
 }
 
+fn recorded_progress(receipt: &Value) -> &Value {
+    if receipt.get("progress_vector").and_then(Value::as_array).is_some() { &receipt["progress_vector"] } else { &receipt["binding_vector"] }
+}
+
+fn compile_maintenance_catalog(catalog: &Value) -> Result<oo_builder::SealedImportDraft, ApiError> {
+    let text = crate::canonical::canonical_json(catalog);
+    match catalog.get("protocol").and_then(Value::as_str) {
+        Some(oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL) => oo_builder::compile_sealed_import_collection(&text),
+        Some(oo_core::sealed_import::SEALED_IMPORT_CATALOG_PROTOCOL) => oo_builder::compile_sealed_import_catalog(&text),
+        _ => return Err(ApiError::pack_refused()),
+    }.map_err(|_| ApiError::pack_refused())
+}
+
+/// Per-table progress. A collection uses the compiler's binding vector, never the draft's high-watermark generation.
+/// A single catalog uses its own table fields and does not gain a binding_vector.
+fn maintenance_progress(catalog: &Value, compiled: &oo_builder::SealedImportDraft) -> Result<Value, ApiError> {
+    if catalog.get("protocol").and_then(Value::as_str) == Some(oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL) {
+        return compiled.binding_vector.clone().filter(|vector| vector.as_array().is_some_and(|rows| !rows.is_empty())).ok_or_else(ApiError::pack_refused);
+    }
+    let tables = catalog.get("tables").and_then(Value::as_array).ok_or_else(ApiError::pack_refused)?;
+    if tables.len() != compiled.tables.len() { return Err(ApiError::pack_refused()); }
+    let mut rows = Vec::with_capacity(tables.len());
+    for table in tables {
+        let schema = table.get("logical_schema").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+        let name = table.get("logical_table").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+        let dataset = format!("{schema}.{name}");
+        if !compiled.tables.iter().any(|item| item.dataset == dataset) { return Err(ApiError::pack_refused()); }
+        rows.push(json!({
+            "dataset": dataset,
+            "input_digest": catalog["input_digest"],
+            "run_id": catalog["run_id"],
+            "source_generation": catalog["source_generation"],
+            "source_id": catalog["source_id"],
+            "stored_physical": table["stored_physical"],
+            "target_generation": catalog["target_generation"]
+        }));
+    }
+    Ok(Value::Array(rows))
+}
+
+fn same_sealed_identity(old: &Value, new: &Value) -> bool {
+    for key in ["capture", "config_digest", "engine", "hook_checked", "schema_digest", "source_id", "source_introspection", "state", "tool_hook_digest", "type_digest"] {
+        if new[key] != old[key] { return false; }
+    }
+    let quality = |value: &Value| { let mut q = value["quality"].clone(); if let Some(object) = q.as_object_mut() { object.remove("stored_rows"); } q };
+    quality(new) == quality(old)
+}
+
+fn rebind_sealed_catalogs(command_catalog: &Value, catalog: &Value) -> Result<Value, ApiError> {
+    let protocol = catalog.get("protocol").and_then(Value::as_str);
+    if protocol.is_none() || protocol != command_catalog.get("protocol").and_then(Value::as_str) { return Err(ApiError::pack_refused()); }
+    let old = compile_maintenance_catalog(command_catalog)?;
+    let new = compile_maintenance_catalog(catalog)?;
+    if old.columns != new.columns { return Err(ApiError::pack_refused()); }
+    let progress = maintenance_progress(catalog, &new)?;
+    check_generation_progress(&maintenance_progress(command_catalog, &old)?, &progress)?;
+    if protocol == Some(oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL) {
+        let before = command_catalog.get("entries").and_then(Value::as_array).ok_or_else(ApiError::pack_refused)?;
+        let after = catalog.get("entries").and_then(Value::as_array).ok_or_else(ApiError::pack_refused)?;
+        for old_entry in before {
+            let new_entry = after.iter().find(|entry| entry["tables"][0]["logical_schema"] == old_entry["tables"][0]["logical_schema"] && entry["tables"][0]["logical_table"] == old_entry["tables"][0]["logical_table"]).ok_or_else(ApiError::pack_refused)?;
+            if !same_sealed_identity(old_entry, new_entry) { return Err(ApiError::pack_refused()); }
+        }
+    } else if !same_sealed_identity(command_catalog, catalog) {
+        return Err(ApiError::pack_refused());
+    } else {
+        let before = command_catalog.get("tables").and_then(Value::as_array).ok_or_else(ApiError::pack_refused)?;
+        let after = catalog.get("tables").and_then(Value::as_array).ok_or_else(ApiError::pack_refused)?;
+        for old_table in before {
+            if !after.iter().any(|table| table["logical_schema"] == old_table["logical_schema"] && table["logical_table"] == old_table["logical_table"]) { return Err(ApiError::pack_refused()); }
+        }
+    }
+    Ok(progress)
+}
+
 fn check_generation_progress(previous: &Value, current: &Value) -> Result<(), ApiError> {
     let previous = previous.as_array().ok_or_else(ApiError::pack_refused)?;
     let current = current.as_array().ok_or_else(ApiError::pack_refused)?;
@@ -1025,10 +1100,7 @@ fn native_source_rebind(config: &AppConfig, row: &BuildRow, expected_sha: &str) 
     let original = |name: &str| std::fs::read(root.join(name)).map_err(|_| ApiError::not_ready()).and_then(|b| parse(&b));
     let command = original("native-model-output/command.json")?;
     let catalog = read("catalog.json")?;
-    if catalog["protocol"] != oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL || command["catalog"]["protocol"] != catalog["protocol"] { return Err(ApiError::pack_refused()); }
-    let old = oo_builder::compile_sealed_import_collection(&crate::canonical::canonical_json(&command["catalog"])).map_err(|_| ApiError::pack_refused())?;
-    let new = oo_builder::compile_sealed_import_collection(&crate::canonical::canonical_json(&catalog)).map_err(|_| ApiError::pack_refused())?;
-    if old.columns != new.columns || read("native-model.json")? != original("native-model.json")?
+    if read("native-model.json")? != original("native-model.json")?
         || hashes.get("rules.json").map(String::as_str) != original("S2.request.json")?["rules_sha256"].as_str()
         || semantic_basis(read("source_semantics.json")?) != semantic_basis(original("S0.response.json")?["source_adapt"]["source_semantics"].clone()) { return Err(ApiError::pack_refused()); }
     let mut allowed: Vec<String> = original("native-model.json")?["visibility"]["datasets"].as_array().ok_or_else(ApiError::pack_refused)?.iter().flat_map(|d| d["columns"].as_array().into_iter().flatten().filter_map(|c| c.as_str().map(|c| format!("{}.{}",d["dataset"].as_str().unwrap_or(""),c)))).collect();
@@ -1036,18 +1108,8 @@ fn native_source_rebind(config: &AppConfig, row: &BuildRow, expected_sha: &str) 
     let role = model["visibility"]["role"].as_str().ok_or_else(ApiError::pack_refused)?;
     let mut declared: Vec<String> = read("roles.json")?["roles"][role].as_array().ok_or_else(ApiError::pack_refused)?.iter().map(|v| v.as_str().map(str::to_owned).ok_or_else(ApiError::pack_refused)).collect::<Result<_,_>>()?;
     allowed.sort(); declared.sort(); if allowed != declared { return Err(ApiError::pack_refused()); }
-    check_generation_progress(&command["catalog"]["binding_vector"], &catalog["binding_vector"])?;
-    let before = command["catalog"]["entries"].as_array().ok_or_else(ApiError::pack_refused)?;
-    let after = catalog["entries"].as_array().ok_or_else(ApiError::pack_refused)?;
-    for old in before {
-        let new = after.iter().find(|e| e["tables"][0]["logical_schema"] == old["tables"][0]["logical_schema"] && e["tables"][0]["logical_table"] == old["tables"][0]["logical_table"]).ok_or_else(ApiError::pack_refused)?;
-        for key in ["source_id", "engine", "config_digest", "schema_digest", "type_digest", "capture", "state", "hook_checked", "source_introspection", "tool_hook_digest"] {
-            if new[key] != old[key] { return Err(ApiError::pack_refused()); }
-        }
-        let quality = |v: &Value| { let mut q=v["quality"].clone(); if let Some(o)=q.as_object_mut(){o.remove("stored_rows");} q };
-        if quality(new) != quality(old) { return Err(ApiError::pack_refused()); }
-    }
-    Ok(json!({"catalog":catalog,"catalog_sha256":expected_sha,"bundle_files":hashes}))
+    let progress = rebind_sealed_catalogs(&command["catalog"], &catalog)?;
+    Ok(json!({"catalog":catalog,"catalog_sha256":expected_sha,"bundle_files":hashes,"progress_vector":progress}))
 }
 
 async fn latest_native_rebind(client: &Client, row: &BuildRow) -> Result<Option<Value>, ApiError> {
@@ -1114,7 +1176,7 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs, r
     let mut visibility = read(&original.join("visibility.json"))?;
     if rebound.is_some() { visibility["catalog_version"] = json!(compiled.identity_hash); }
     let pack = oo_builder::compile_role_pack(&crate::canonical::canonical_json(&effective), &crate::canonical::canonical_json(&visibility)).map_err(|error| { eprintln!("native-maintenance role refused: {}", error.code); ApiError::pack_refused() })?;
-    let receipt = json!({"protocol":"oo.selfbuild-control-api/native-maintenance/v1","build_id":row.build_id,"overlay_effective_sha256":docs.effective_sha,"curated_sha256":docs.curated_sha,"generated_sha256":docs.generated_sha,"reviewed_sha256":sha256_hex(reviewed_text.as_bytes()),"source_unit_corrections":source_unit_corrections,"source_fact_corrections":source_fact_corrections,"effective_sha256":canonical_sha256(&effective),"pack_digest":pack.pack_digest,"manifest_sha256":pack.manifest_sha256,"publication":"not_published","llm_calls":0,"source_rebind":rebound.map(|v| json!({"catalog_sha256":v["catalog_sha256"],"bundle_files":v["bundle_files"],"binding_vector":v["catalog"]["binding_vector"],"original_command_sha256":original_command_sha,"original_decisions_sha256":original_decisions_sha,"rebound_decisions_sha256":canonical_sha256(&command["decisions"])}))});
+    let receipt = json!({"protocol":"oo.selfbuild-control-api/native-maintenance/v1","build_id":row.build_id,"overlay_effective_sha256":docs.effective_sha,"curated_sha256":docs.curated_sha,"generated_sha256":docs.generated_sha,"reviewed_sha256":sha256_hex(reviewed_text.as_bytes()),"source_unit_corrections":source_unit_corrections,"source_fact_corrections":source_fact_corrections,"effective_sha256":canonical_sha256(&effective),"pack_digest":pack.pack_digest,"manifest_sha256":pack.manifest_sha256,"publication":"not_published","llm_calls":0,"source_rebind":rebound.map(|v| json!({"catalog_sha256":v["catalog_sha256"],"bundle_files":v["bundle_files"],"binding_vector":if v["catalog"]["protocol"]==oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL { v["catalog"]["binding_vector"].clone() } else { Value::Null },"progress_vector":v["progress_vector"],"original_command_sha256":original_command_sha,"original_decisions_sha256":original_decisions_sha,"rebound_decisions_sha256":canonical_sha256(&command["decisions"])}))});
     let digest = canonical_sha256(&receipt);
     let dest = root.join("native-maintenance").join(&digest);
     let mut files = BTreeMap::new();
@@ -1140,7 +1202,7 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs, r
 mod source_money_tests {
     use super::{ensure_source_money, project_native_source_money, semantic_basis};
     use crate::oosyaml::generated_from_inputs;
-    use serde_json::json;
+    use serde_json::{json, Value};
     use std::collections::BTreeMap;
 
     #[test]
@@ -1209,5 +1271,218 @@ mod source_money_tests {
         model.datasets.get_mut("oo_w141.shipments").unwrap().columns.get_mut("price").unwrap().classification_state = "confirmed".to_owned();
         assert!(project_native_source_money(&mut effective, &model, &units).is_err());
         assert!(project_native_source_money(&mut json!({"datasets":[]}), &model, &units).is_err());
+    }
+
+    fn hex_tag(seed: &str) -> String {
+        let mut text = seed.to_owned();
+        while text.len() < 60 { text.push('a'); }
+        text.truncate(60);
+        text
+    }
+
+    fn one_catalog(engine: &str, source_id: &str, schema: &str, table: &str, columns: &[(&str, i64)], source_generation: i64, target_generation: i64, run_id: &str, input_digest: &str, tag: &str) -> Value {
+        let shadow = hex_tag(tag);
+        let mut preimage = String::new();
+        oo_core::sealed_import::push_schema_table(&mut preimage, schema, table);
+        for (name, oid) in columns { oo_core::sealed_import::push_schema_column(&mut preimage, name, *oid, -1, None); }
+        let schema_digest = oo_core::api::payload_sha256(preimage.as_bytes());
+        let digest = "a".repeat(64);
+        let typed: Vec<Value> = columns.iter().enumerate().map(|(index, (name, oid))| json!({
+            "caveat": null, "key": false, "logical_name": name, "oid": oid, "source_type": null,
+            "stored_physical": format!("pc_{}", hex_tag(&format!("{tag}{index:02}"))), "typmod": -1
+        })).collect();
+        json!({
+            "capture": "sealed_import", "config_digest": digest, "engine": engine, "hook_checked": false,
+            "input_digest": input_digest, "protocol": oo_core::sealed_import::SEALED_IMPORT_CATALOG_PROTOCOL,
+            "quality": {"loss_concealed": false, "manifest_reject_count": 0, "payload_includes_reject_lines": false, "stored_omits_manifest_rejects": false, "stored_rejected_rows": 0, "stored_rows": [{
+                "accepted_rows": 1, "attnum": null, "batch_id": "t0.b0", "key_digest": null, "kind": "batch",
+                "physical_name": format!("pt_{shadow}"), "reason": null, "rejected_rows": 0, "row_index": null, "value_len": null
+            }]},
+            "run_id": run_id, "schema_digest": schema_digest, "shadows_queried": false,
+            "source_generation": source_generation, "source_id": source_id, "source_introspection": "not_used", "state": "awaiting_publish",
+            "tables": [{"accepted_rows": 1, "canonical_digest": digest, "columns": typed, "logical_schema": schema, "logical_table": table, "rejects": [], "stored_namespace": format!("pn_{shadow}"), "stored_physical": format!("pt_{shadow}")}],
+            "target_generation": target_generation, "tool_hook_digest": digest, "type_digest": digest
+        })
+    }
+
+    fn collection_of(entries: Vec<Value>) -> Value {
+        let binding_vector: Vec<Value> = entries.iter().map(|entry| {
+            let table = &entry["tables"][0];
+            json!({
+                "config_digest": entry["config_digest"],
+                "dataset": format!("{}.{}", table["logical_schema"].as_str().unwrap(), table["logical_table"].as_str().unwrap()),
+                "input_digest": entry["input_digest"], "run_id": entry["run_id"], "schema_digest": entry["schema_digest"],
+                "source_generation": entry["source_generation"], "source_id": entry["source_id"],
+                "stored_namespace": table["stored_namespace"], "stored_physical": table["stored_physical"],
+                "target_generation": entry["target_generation"], "type_digest": entry["type_digest"]
+            })
+        }).collect();
+        let mut document = json!({"binding_vector": binding_vector, "entries": entries, "protocol": oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL});
+        document["collection_sha256"] = json!(crate::canonical::sha256_hex(crate::canonical::canonical_json(&document).as_bytes()));
+        document
+    }
+
+    #[test]
+    fn oracle_catalog_advances_without_a_fabricated_vector() {
+        let old = one_catalog("oracle", "oo_oracle", "shop", "orders", &[("id", 23)], 3, 3, "de8276fc-8634-4543-994f-ce82a46a3c18", &"a".repeat(64), "aa");
+        let new = one_catalog("oracle", "oo_oracle", "shop", "orders", &[("id", 23)], 5, 5, "beecbbc7-8dda-4779-81ba-6ff0383f72ec", &"b".repeat(64), "aa");
+        let progress = super::rebind_sealed_catalogs(&old, &new).expect("oracle advance");
+        assert!(new.get("binding_vector").is_none());
+        assert_eq!(progress[0]["dataset"], "shop.orders");
+        assert_eq!(progress[0]["source_generation"], 5);
+        assert_eq!(progress[0]["target_generation"], 5);
+        assert_eq!(progress[0]["run_id"], "beecbbc7-8dda-4779-81ba-6ff0383f72ec");
+        assert_eq!(progress[0]["input_digest"], "b".repeat(64));
+        assert_eq!(progress[0]["stored_physical"], new["tables"][0]["stored_physical"]);
+        let mut rewound = new.clone();
+        rewound["source_generation"] = json!(2);
+        rewound["target_generation"] = json!(2);
+        assert!(super::rebind_sealed_catalogs(&old, &rewound).is_err());
+        let mut drifted = old.clone();
+        let replacement = format!("pt_{}", hex_tag("bb"));
+        drifted["tables"][0]["stored_physical"] = json!(replacement.clone());
+        drifted["quality"]["stored_rows"][0]["physical_name"] = json!(replacement);
+        assert!(super::rebind_sealed_catalogs(&old, &drifted).is_err());
+        let mut illegal = new.clone();
+        illegal["schema_digest"] = json!("ab".repeat(32));
+        assert!(super::rebind_sealed_catalogs(&old, &illegal).is_err());
+        let mut foreign = new.clone();
+        foreign["source_id"] = json!("other_source");
+        assert!(super::rebind_sealed_catalogs(&old, &foreign).is_err());
+    }
+
+    #[test]
+    fn mongo_collection_keeps_each_table_generation() {
+        let old = collection_of(vec![
+            one_catalog("mongodb", "oo_mongo", "shop", "orders", &[("id", 23)], 3, 3, "de8276fc-8634-4543-994f-ce82a46a3c18", &"a".repeat(64), "c1"),
+            one_catalog("mongodb", "oo_mongo", "shop", "lines", &[("id", 23)], 6, 6, "beecbbc7-8dda-4779-81ba-6ff0383f72ec", &"b".repeat(64), "c2"),
+        ]);
+        let new = collection_of(vec![
+            one_catalog("mongodb", "oo_mongo", "shop", "orders", &[("id", 23)], 5, 5, "f9992961-632f-4c51-a85d-710733e2c398", &"c".repeat(64), "c1"),
+            one_catalog("mongodb", "oo_mongo", "shop", "lines", &[("id", 23)], 7, 7, "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", &"d".repeat(64), "c2"),
+        ]);
+        let progress = super::rebind_sealed_catalogs(&old, &new).expect("mongo advance");
+        let orders = progress.as_array().unwrap().iter().find(|row| row["dataset"] == "shop.orders").unwrap();
+        let lines = progress.as_array().unwrap().iter().find(|row| row["dataset"] == "shop.lines").unwrap();
+        assert_eq!(orders["source_generation"], 5);
+        assert_eq!(lines["source_generation"], 7);
+        let compiled = oo_builder::compile_sealed_import_collection(&crate::canonical::canonical_json(&new)).unwrap();
+        assert_eq!(compiled.source_generation, 7);
+        assert_eq!(compiled.binding_vector.as_ref(), Some(&progress));
+        assert_ne!(orders["source_generation"].as_i64(), Some(compiled.source_generation));
+        let mut rewind = new.clone();
+        rewind["entries"][0]["source_generation"] = json!(4);
+        rewind["entries"][0]["target_generation"] = json!(4);
+        rewind["binding_vector"][0]["source_generation"] = json!(4);
+        rewind["binding_vector"][0]["target_generation"] = json!(4);
+        rewind.as_object_mut().unwrap().remove("collection_sha256");
+        rewind["collection_sha256"] = json!(crate::canonical::sha256_hex(crate::canonical::canonical_json(&rewind).as_bytes()));
+        assert!(super::rebind_sealed_catalogs(&new, &rewind).is_err());
+        assert!(super::rebind_sealed_catalogs(&old, &new["entries"][0]).is_err());
+    }
+
+    #[test]
+    fn oracle_bundle_rebind_refuses_permission_rewind_without_writes() {
+        let root = std::env::temp_dir().join(format!("oo-rebind-{}-{}", std::process::id(), "oracle"));
+        let _ = std::fs::remove_dir_all(&root);
+        let bundle = root.join("bundle");
+        let work = root.join("work");
+        let old = one_catalog("oracle", "oo_oracle", "shop", "orders", &[("id", 23), ("note", 25)], 3, 3, "de8276fc-8634-4543-994f-ce82a46a3c18", &"a".repeat(64), "d0");
+        let new = one_catalog("oracle", "oo_oracle", "shop", "orders", &[("id", 23), ("note", 25)], 5, 5, "beecbbc7-8dda-4779-81ba-6ff0383f72ec", &"b".repeat(64), "d0");
+        write_oracle_bundle(&bundle, &new, &["shop.orders.id", "shop.orders.note"]);
+        let rules = std::fs::read(bundle.join("rules.json")).unwrap();
+        let rules_sha = crate::canonical::sha256_hex(&rules);
+        let semantics = std::fs::read(bundle.join("source_semantics.json")).unwrap();
+        let model = std::fs::read(bundle.join("native-model.json")).unwrap();
+        write_oracle_build(&work, &old, &rules_sha, &semantics, &model);
+        let config = oracle_config(&work, &bundle);
+        let row = oracle_row();
+        let sha = crate::canonical::sha256_hex(&std::fs::read(bundle.join("catalog.json")).unwrap());
+        let rebound = super::native_source_rebind(&config, &row, &sha).expect("bundle advance");
+        assert!(rebound["catalog"].get("binding_vector").is_none());
+        assert_eq!(rebound["progress_vector"][0]["source_generation"], 5);
+        assert_eq!(rebound["progress_vector"][0]["target_generation"], 5);
+        assert_eq!(std::fs::read(bundle.join("catalog.json")).unwrap(), serde_json::to_vec(&new).unwrap());
+        let mut roles: Value = serde_json::from_slice(&std::fs::read(bundle.join("roles.json")).unwrap()).unwrap();
+        roles["roles"]["analyst"] = json!(["shop.orders.id"]);
+        std::fs::write(bundle.join("roles.json"), serde_json::to_vec(&roles).unwrap()).unwrap();
+        crate::sealed::write_manifest(&bundle).unwrap();
+        let narrowed = dir_bytes(&root);
+        assert!(super::native_source_rebind(&config, &row, &sha).is_err());
+        assert_eq!(dir_bytes(&root), narrowed);
+        write_oracle_bundle(&bundle, &old, &["shop.orders.id", "shop.orders.note"]);
+        write_oracle_build(&work, &new, &rules_sha, &semantics, &model);
+        let rewind_sha = crate::canonical::sha256_hex(&std::fs::read(bundle.join("catalog.json")).unwrap());
+        let parked = dir_bytes(&root);
+        assert!(super::native_source_rebind(&config, &row, &rewind_sha).is_err());
+        assert_eq!(dir_bytes(&root), parked);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    fn write_oracle_bundle(dir: &std::path::Path, catalog: &Value, roles: &[&str]) {
+        std::fs::create_dir_all(dir).unwrap();
+        std::fs::write(dir.join("catalog.json"), serde_json::to_vec(catalog).unwrap()).unwrap();
+        std::fs::write(dir.join("profile.json"), br#"{"protocol":"oo.source.oracle.profile/v1"}"#).unwrap();
+        std::fs::write(dir.join("source_semantics.json"), br#"{"consistency_grade":"T","protocol":"oo.source.oracle.semantics/v1","quality":{"rows":1,"typed_cell_differences":0,"typed_cells":1},"source_id":"oo_oracle"}"#).unwrap();
+        std::fs::write(dir.join("read_logic.json"), br#"{"executed":false}"#).unwrap();
+        std::fs::write(dir.join("rules.json"), br#"{"columns":[],"relationships":[]}"#).unwrap();
+        std::fs::write(dir.join("suggestions.json"), br#"{"certified":false,"merged":false,"ready":false}"#).unwrap();
+        std::fs::write(dir.join("generation.json"), br#"{"llm_calls":0,"outcome":"structural_draft"}"#).unwrap();
+        std::fs::write(dir.join("roles.json"), serde_json::to_vec(&json!({"contract":"oo.selfbuild-control-api/sealed-roles/v1","roles":{"analyst":roles}})).unwrap()).unwrap();
+        std::fs::write(dir.join("native-model.json"), br#"{"dataset":"shop.orders","settings":{"project":"oracle"},"visibility":{"datasets":[{"columns":["id","note"],"dataset":"shop.orders"}],"project":"oracle","role":"analyst"}}"#).unwrap();
+        crate::sealed::write_manifest(dir).unwrap();
+    }
+
+    fn write_oracle_build(work: &std::path::Path, catalog: &Value, rules_sha: &str, semantics: &[u8], model: &[u8]) {
+        let root = work.join("builds").join("b_739b3a14d1167f50b5f48ae22a8317e2");
+        std::fs::create_dir_all(root.join("native-model-output")).unwrap();
+        std::fs::write(root.join("native-model-output").join("command.json"), serde_json::to_vec(&json!({"catalog": catalog, "decisions": [], "settings": {"catalog_version": "pending"}})).unwrap()).unwrap();
+        std::fs::write(root.join("native-model.json"), model).unwrap();
+        std::fs::write(root.join("S2.request.json"), serde_json::to_vec(&json!({"rules_sha256": rules_sha})).unwrap()).unwrap();
+        let semantics: Value = serde_json::from_slice(semantics).unwrap();
+        std::fs::write(root.join("S0.response.json"), serde_json::to_vec(&json!({"source_adapt": {"source_semantics": semantics}})).unwrap()).unwrap();
+    }
+
+    fn oracle_row() -> crate::store::BuildRow {
+        crate::store::BuildRow {
+            build_id: "b_739b3a14d1167f50b5f48ae22a8317e2".into(), project_id: "oracle".into(), status: "open".into(), stage: "S10".into(),
+            identity_revision: 1, input_sha256: "a".repeat(64), failure_code: None, body_sha256: "b".repeat(64), config_commit: "c".into(),
+            source_ref: "s".into(), allowance_id: "a".into(), subject: "owner".into(), role_name: "owner".into(), child_exited: true, child_pid: None, lease_generation: 1,
+        }
+    }
+
+    fn oracle_config(work: &std::path::Path, bundle: &std::path::Path) -> crate::config::AppConfig {
+        let endpoint = crate::config::Endpoint { host: "127.0.0.1".into(), port: 1, database: "d".into(), user: "u".into(), password_file: "pw".into(), ca_file: "ca".into(), server_name: "db".into() };
+        crate::config::AppConfig {
+            deployment_origins: vec![],
+            listen: crate::config::Listen { bind: "127.0.0.1:1".into(), cert_file: "c".into(), key_file: "k".into() },
+            identity: crate::config::IdentityCfg { origin: "https://127.0.0.1".into(), ca_file: "ca".into() },
+            postgres: endpoint.clone(), work_dir: work.display().to_string(), model_cache_dir: "cache".into(),
+            binaries: crate::config::Binaries { catalog: "c".into(), pg_builder: "p".into(), rules: "r".into(), suggestions: "s".into(), review_ledger: "l".into() },
+            projects: vec![crate::config::ProjectCfg {
+                project_id: "oracle".into(), config_commit: "c".into(), source_ref: "s".into(), allowance_id: "a".into(), llm_secret_ref: "secret://llm".into(), source_secret_ref: "secret://source".into(),
+                source: crate::config::SourceCfg { host: "127.0.0.1".into(), port: 1, database: "d".into(), username: "u".into(), password_file: "pw".into(), ca_file: "ca".into(), tables: vec![("shop".into(), "orders".into())] },
+                sample_policy: "none".into(), rules_auto_accept: "none".into(),
+                llm: crate::config::LlmCfg { bearer_file: "b".into(), origin: "http://127.0.0.1:8317".into(), model_id: "grok-4.7".into() },
+                role_policy_file: "r".into(), hidden_columns: vec![], visible_columns: vec![], sealed_bundle: bundle.display().to_string(),
+                source_protocol: Some(crate::config::SourceProtocol { catalog: "oo.pipeline.sealed-import-catalog/v1".into(), profile: "oo.source.oracle.profile/v1".into(), semantics: "oo.source.oracle.semantics/v1".into(), source_commit: "0".repeat(40), semantics_commit: "0".repeat(40), type_basis: vec![], schema_audit: vec![] }),
+            }],
+            ledger: endpoint, principals: vec![],
+        }
+    }
+
+    fn dir_bytes(dir: &std::path::Path) -> Vec<(String, Vec<u8>)> {
+        let mut out = Vec::new();
+        fn walk(dir: &std::path::Path, prefix: &str, out: &mut Vec<(String, Vec<u8>)>) {
+            let mut entries: Vec<_> = std::fs::read_dir(dir).unwrap().map(|entry| entry.unwrap().path()).collect();
+            entries.sort();
+            for path in entries {
+                let name = path.file_name().unwrap().to_string_lossy();
+                let rel = if prefix.is_empty() { name.to_string() } else { format!("{prefix}/{name}") };
+                if path.is_dir() { walk(&path, &rel, out); } else { out.push((rel, std::fs::read(&path).unwrap())); }
+            }
+        }
+        walk(dir, "", &mut out);
+        out
     }
 }
