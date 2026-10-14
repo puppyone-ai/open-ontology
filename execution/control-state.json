@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-13T20:19:23.967968+08:00",
+  "as_of": "2026-10-14T17:47:52.711401+08:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -53,6 +53,41 @@
   },
   "managed_live_grok_handles": [
     {
+      "task": "mysql",
+      "session_uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
+      "pid": 49893,
+      "prompt": "execution/batches/grok-connection-full-20261014/mysql-compact-whole-fallback.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql.log",
+      "write_paths": [
+        "tools/mysql-preview"
+      ],
+      "status": "same_owner_original_default_entry_and_continuous_exits",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 105,
+      "prior_pid": 72621,
+      "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/mysql-persistent-shared-8fa-exits.md",
+      "max_turns": 1000
+    },
+    {
+      "task": "clickhouse",
+      "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
+      "pid": 49895,
+      "prompt": "execution/batches/grok-connection-full-20261014/clickhouse.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse.log",
+      "write_paths": [
+        "tools/clickhouse-preview"
+      ],
+      "status": "same_owner_original_default_entry_and_continuous_exits",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 142,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+      "prior_pid": 80121,
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/clickhouse-persistent-shared-8fa-exits.md",
+      "max_turns": 1000
+    },
+    {
       "task": "doris",
       "session_uuid": "aa427924-9c4b-4a5e-ae15-9a2aef414d44",
       "pid": 99651,
@@ -70,6 +105,24 @@
       "max_turns": 1000,
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
       "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-original-exits.md"
+    },
+    {
+      "task": "opensearch",
+      "session_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
+      "pid": 49897,
+      "prompt": "execution/batches/grok-connection-full-20261014/opensearch-compact-whole-continue.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/opensearch.log",
+      "write_paths": [
+        "tools/opensearch-preview"
+      ],
+      "status": "same_owner_original_default_entry_and_continuous_exits",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 268,
+      "prior_session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
+      "prior_pid": 6094,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/opensearch-persistent-shared-8fa-exits.md",
+      "max_turns": 1000
     },
     {
       "task": "postgresql",
@@ -2015,5 +2068,6 @@
     "shared_entry_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
     "policy": "same owner max1000 Grok4.7/xhigh; Oracle/Mongo actual future-generation pack refusal, registry drift, local180sec and retained product stage idempotence remain full product dependencies; no full count promotion"
   },
-  "latest_shared_fixed_intake": "共享20e84f8a76e443c3f65b16ded4c0c8216deb6702固定收取：6源码Git blob及2Linux ELF SHA共8项匹配，原始报告/receipt不可变副本在私有shared-fixed-20e84f8a7。真实Star retained3394-token S5→S0–S10→currentPack/CLI已证、balance拒；对话未verified，共享其他源后续catalog维护/registry/localbudget仍原owner推进。证据execution/reviews/grok-connection-resume-20261014/shared-money-staged-intake.json；仅阶段性作者证据，不是完整源/独立复审/整版通过，原0/10完整入口及0/10正式签收不变。"
+  "latest_shared_fixed_intake": "共享20e84f8a76e443c3f65b16ded4c0c8216deb6702固定收取：6源码Git blob及2Linux ELF SHA共8项匹配，原始报告/receipt不可变副本在私有shared-fixed-20e84f8a7。真实Star retained3394-token S5→S0–S10→currentPack/CLI已证、balance拒；对话未verified，共享其他源后续catalog维护/registry/localbudget仍原owner推进。证据execution/reviews/grok-connection-resume-20261014/shared-money-staged-intake.json；仅阶段性作者证据，不是完整源/独立复审/整版通过，原0/10完整入口及0/10正式签收不变。",
+  "latest_shared_entry_resume_intake": "共享8fa9968c3固定归档9/9 hosttests通过，保留首次archive遗漏operator依赖失败；selected entry resume、completed product同身份复用及local180生成源码落地。MySQL49893/ClickHouse49895/OpenSearch49897原UUID max1000接续完整普通入口/持续全链；非PG维护API与Maria新deadline ELF/真实请求仍待共享sole writer。证据execution/reviews/grok-connection-resume-20261014/shared-8fa-entry-intake.json，仅联结开发不晋级完整/正式0/10。"
 }
