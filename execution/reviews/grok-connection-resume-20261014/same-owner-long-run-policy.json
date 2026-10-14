@@ -1,0 +1,60 @@
+{
+  "observed_at": "2026-10-14T06:55:22.605834+00:00",
+  "policy": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops",
+  "active_processes": [
+    {
+      "task": "mysql",
+      "pid": 54848,
+      "uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7"
+    },
+    {
+      "task": "oracle",
+      "pid": 62932,
+      "uuid": "18ce4925-f24a-42eb-9471-87772c654e29"
+    },
+    {
+      "task": "mariadb",
+      "pid": 46690,
+      "uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138"
+    },
+    {
+      "task": "mongodb",
+      "pid": 12715,
+      "uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc"
+    },
+    {
+      "task": "clickhouse",
+      "pid": 83392,
+      "uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989"
+    },
+    {
+      "task": "doris",
+      "pid": 56747,
+      "uuid": "aa427924-9c4b-4a5e-ae15-9a2aef414d44"
+    },
+    {
+      "task": "opensearch",
+      "pid": 46692,
+      "uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a"
+    },
+    {
+      "task": "postgresql",
+      "pid": 60008,
+      "uuid": "27ca3ccc-e673-4832-8415-0462d4227a64"
+    },
+    {
+      "task": "starrocks",
+      "pid": 46694,
+      "uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a"
+    },
+    {
+      "task": "sqlserver",
+      "pid": 51920,
+      "uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16"
+    }
+  ],
+  "preserved_waiting_owner": "shared-entry/d28ca4bd-fd30-4f4e-9672-9492cb9db031",
+  "ordinary_wait_seconds": 600,
+  "model": "grok-4.7/xhigh",
+  "acceptance_changed": false
+}
