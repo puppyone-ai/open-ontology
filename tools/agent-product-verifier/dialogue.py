@@ -18,6 +18,8 @@ def model_view(name, body):
         return {**{k: body[k] for k in keys if k in body},
                 'current_bindings': [m for m in body.get('mappings', []) if m.get('bound') is True],
                 'warnings': compact_warnings(body.get('warnings', []))}
+    if name == 'knowledge_search' and body.get('hits') == []:
+        return {**body, 'hint': 'no pack file matched; search one short word from the table or file name, then cat a returned path'}
     if name == 'query':
         keys = ('columns', 'rows', 'returned_rows', 'truncated', 'truncation_reasons',
                 'query_id', 'knowledge_version', 'policy_version', 'sources', 'freshness', 'hints')
@@ -267,6 +269,16 @@ def freeze_selection(cfg, gold, gold_bytes):
     return manifest, questions
 
 
+def tool_error_returned(name, body):
+    if name in {'validate', 'query'} and body.get('class') == 'gateway' and body.get('code') in {'COLUMN_NOT_ALLOWED', 'STATEMENT_NOT_ALLOWED', 'FUNCTION_NOT_ALLOWED'}:
+        return True
+    if body.get('class') == 'usage' and (
+            (name == 'describe' and body.get('message') == 'table is not public')
+            or (name == 'knowledge_cat' and body.get('message') == 'path is not public')):
+        return True
+    return name == 'knowledge_cat' and body.get('class') == 'gateway' and body.get('code') == 'SCHEMA_INVALID' and body.get('message') == 'knowledge path is not in this pack'
+
+
 def coverage_nudge(used, step, limit):
     missing = sorted(REQUIRED_TOOLS - used)
     if missing and step + 1 < limit:
@@ -290,7 +302,7 @@ def main():
     bearer=private(cfg['model_bearer_file']); private(cfg['gateway_token_file'])
     common=['--json','--gateway',cfg['gateway'],'--transport',cfg['transport'],'--auth',cfg['auth'],'--token-file',cfg['gateway_token_file']]
     if cfg.get('ca_file'): common += ['--ca-file',cfg['ca_file']]
-    tools=[{'type':'function','function':{'name':name,'description':('Read an installed relative Pack file path returned by knowledge_search; never use / or a guessed path' if name == 'knowledge_cat' else 'Describe an exact schema.table name returned by tables' if name == 'describe' else 'Read actual role-bound OO Gateway '+name),
+    tools=[{'type':'function','function':{'name':name,'description':('Read an installed relative Pack file path returned by knowledge_search; never use / or a guessed path' if name == 'knowledge_cat' else 'Describe an exact schema.table name returned by tables' if name == 'describe' else 'Search pack files with one short word from a table or file name. Pass a returned path to knowledge_cat.' if name == 'knowledge_search' else 'Read actual role-bound OO Gateway '+name),
        'parameters':{'type':'object','properties':{k:{'type':v} for k,v in args.items()},'required':list(args),'additionalProperties':False}}} for name,args in TOOLS.items()]
     messages=[{'role':'system','content':'Use OO tools autonomously to inspect role knowledge, schema, freshness, validate and query. Preserve exact decimal and original source type/quality warnings. Never infer a value without evidence. Include query_id in factual answers. You cannot use direct DB or source credentials.'}]
     transcript=[]; query_ids=set(); used=set(); answers=[]; turn_history=[]
@@ -336,7 +348,7 @@ def main():
                 choice = {'type': 'function', 'function': {'name': 'query'}}
             payload={'model':model_name,'reasoning_effort':'low','messages':messages,'tools':tools,'tool_choice':choice}
             req=urllib.request.Request(cfg['model_origin']+'/v1/chat/completions',data=json.dumps(payload).encode(),headers={'Content-Type':'application/json','Authorization':'Bearer '+bearer})
-            with urllib.request.urlopen(req,timeout=120) as response: model=json.load(response)
+            with urllib.request.urlopen(req,timeout=180) as response: model=json.load(response)
             msg=model['choices'][0]['message']; messages.append(msg); transcript.append({'turn':turn,'step':step,'model':model})
             (out/'transcript.json').write_text(json.dumps(transcript,indent=2)+'\n')
             calls=msg.get('tool_calls',[])
@@ -369,14 +381,7 @@ def main():
                 view=model_view(name,body)
                 transcript.append({'turn':turn,'tool':name,'arguments':args,'exit':proc.returncode,'response':body,'model_view':view})
                 (out/'transcript.json').write_text(json.dumps(transcript,indent=2)+'\n')
-                if proc.returncode and not (
-                    (name in {'validate', 'query'}
-                     and body.get('class') == 'gateway'
-                     and body.get('code') in {'COLUMN_NOT_ALLOWED', 'STATEMENT_NOT_ALLOWED', 'FUNCTION_NOT_ALLOWED'})
-                    or (body.get('class') == 'usage' and (
-                        (name == 'describe' and body.get('message') == 'table is not public')
-                        or (name == 'knowledge_cat' and body.get('message') == 'path is not public')))
-                ):
+                if proc.returncode and not tool_error_returned(name, body):
                     raise ValueError('OO CLI tool failed: '+name)
                 messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps({'exit':proc.returncode,'response':view})})
         else: raise ValueError('model exhausted tool rounds')
