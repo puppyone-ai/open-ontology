@@ -65,21 +65,26 @@
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 105,
       "prior_pid": 83388,
-      "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad"
+      "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
       "task": "oracle",
       "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
-      "pid": 10751,
+      "pid": 62932,
       "prompt": "execution/batches/grok-connection-full-20261014/oracle.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle.log",
       "write_paths": [
         "tools/oracle-preview"
       ],
-      "status": "resumed_s0_s10_pack_gateway_dialogue",
+      "status": "same_owner_long_run",
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 395,
-      "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete"
+      "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete",
+      "prior_pid": 10751,
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/oracle-long-run-continuation.md",
+      "max_turns": 1000,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
       "task": "mariadb",
@@ -95,7 +100,8 @@
       "initial_log_bytes": 207,
       "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
       "prior_session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
-      "prior_pid": 3051
+      "prior_pid": 3051,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
       "task": "mongodb",
@@ -108,7 +114,8 @@
       ],
       "status": "resumed_self_provisioned_complete_product_chain",
       "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 327
+      "initial_log_bytes": 327,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
       "task": "clickhouse",
@@ -121,7 +128,8 @@
       ],
       "status": "pid_live_initial_observation",
       "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 142
+      "initial_log_bytes": 142,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
       "task": "doris",
@@ -138,7 +146,8 @@
       "initial_log_bytes": 218,
       "prior_pid": 83393,
       "prior_session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
-      "max_turns": 200
+      "max_turns": 200,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
       "task": "opensearch",
@@ -153,7 +162,8 @@
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 268,
       "prior_session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
-      "prior_pid": 12716
+      "prior_pid": 12716,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
       "task": "postgresql",
@@ -176,7 +186,8 @@
       "effort_handoff_was_live": true,
       "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-xhigh-handoff.md",
       "prior_pid": 37471,
-      "max_turns": 200
+      "max_turns": 200,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
       "task": "starrocks",
@@ -191,7 +202,8 @@
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 130,
       "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-      "prior_pid": 83396
+      "prior_pid": 83396,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     },
     {
       "task": "sqlserver",
@@ -216,24 +228,8 @@
       "effort_handoff_previous_pid": 32957,
       "effort_handoff_was_live": true,
       "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-xhigh-handoff.md",
-      "prior_pid": 37472
-    },
-    {
-      "task": "shared-entry",
-      "session_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
-      "pid": 51922,
-      "prompt": "execution/batches/grok-connection-full-20261014/shared-entry-complete-fast-handoff.md",
-      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
-      "write_paths": [
-        "tools/source-onboarding"
-      ],
-      "status": "complete_fast_handoff",
-      "executor": "grok-4.7/xhigh",
-      "initial_log_bytes": 120,
-      "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
-      "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive",
-      "prior_pid": 6230,
-      "prior_session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2"
+      "prior_pid": 37472,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
     }
   ],
   "process_observation": {
@@ -1181,7 +1177,7 @@
   },
   "reliable_concurrency": {
     "target": 15,
-    "current_managed_executors": 11,
+    "current_managed_executors": 10,
     "source_engineers": 10,
     "shared_critical_reviews": 0,
     "duplicate_consumers_removed": 5,
@@ -1288,7 +1284,9 @@
     "dialogue_model": "gpt-6.1-sol",
     "dialogue_reasoning_effort": "low",
     "dialogue_proxy_url_and_key": "unchanged active proxy client key reused privately; authenticated exact model completion200",
-    "native_subagents_authorized": false
+    "native_subagents_authorized": false,
+    "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops",
+    "next_resume_max_turns": 1000
   },
   "native_handoff_receipt": "execution/batches/native-full-source-20261012/grok-terminal-handoff.json",
   "product_model_runtime": {
@@ -1459,13 +1457,14 @@
         "prior_native_agent": "/root/mysql_connection_whole",
         "executor": "grok_cli",
         "session_uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
-        "pid": 54848
+        "pid": 54848,
+        "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
       },
       {
         "source": "oracle",
         "model": "grok-4.7",
         "reasoning": "xhigh",
-        "status": "resumed_s0_s10_pack_gateway_dialogue",
+        "status": "same_owner_long_run",
         "write_paths": [
           "tools/oracle-preview",
           "/tmp/oo-oracle-connection-whole",
@@ -1475,7 +1474,8 @@
         "prior_native_agent": "/root/oracle_connection_whole",
         "executor": "grok_cli",
         "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
-        "pid": 10751
+        "pid": 62932,
+        "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
       },
       {
         "source": "mariadb",
@@ -1491,7 +1491,8 @@
         "prior_native_agent": "/root/mariadb_connection_whole",
         "executor": "grok_cli",
         "session_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
-        "pid": 46690
+        "pid": 46690,
+        "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
       },
       {
         "source": "mongodb",
@@ -1507,7 +1508,8 @@
         "prior_native_agent": "/root/mongodb_connection_whole",
         "executor": "grok_cli",
         "session_uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc",
-        "pid": 12715
+        "pid": 12715,
+        "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
       },
       {
         "source": "clickhouse",
@@ -1523,7 +1525,8 @@
         "prior_native_agent": "/root/clickhouse_connection_whole",
         "executor": "grok_cli",
         "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
-        "pid": 83392
+        "pid": 83392,
+        "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
       },
       {
         "source": "doris",
@@ -1540,7 +1543,8 @@
         "prior_native_agent": "/root/doris_connection_whole",
         "executor": "grok_cli",
         "session_uuid": "aa427924-9c4b-4a5e-ae15-9a2aef414d44",
-        "pid": 56747
+        "pid": 56747,
+        "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
       },
       {
         "source": "opensearch",
@@ -1556,7 +1560,8 @@
         "prior_native_agent": "/root/opensearch_connection_whole",
         "executor": "grok_cli",
         "session_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
-        "pid": 46692
+        "pid": 46692,
+        "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
       },
       {
         "source": "postgresql",
@@ -1572,7 +1577,8 @@
         "prior_native_agent": "/root/pg_runtime_finish",
         "executor": "grok_cli",
         "session_uuid": "27ca3ccc-e673-4832-8415-0462d4227a64",
-        "pid": 60008
+        "pid": 60008,
+        "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
       },
       {
         "source": "starrocks",
@@ -1588,7 +1594,8 @@
         "prior_native_agent": "/root/star_runtime_finish",
         "executor": "grok_cli",
         "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-        "pid": 46694
+        "pid": 46694,
+        "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
       },
       {
         "source": "sqlserver",
@@ -1605,7 +1612,8 @@
         "prior_native_agent": "/root/sqlserver_whole_closure",
         "executor": "grok_cli",
         "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
-        "pid": 51920
+        "pid": 51920,
+        "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
       }
     ],
     "shared_entry": {
@@ -1658,21 +1666,26 @@
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 105,
         "prior_pid": 83388,
-        "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad"
+        "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
       },
       {
         "task": "oracle",
         "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
-        "pid": 10751,
+        "pid": 62932,
         "prompt": "execution/batches/grok-connection-full-20261014/oracle.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle.log",
         "write_paths": [
           "tools/oracle-preview"
         ],
-        "status": "resumed_s0_s10_pack_gateway_dialogue",
+        "status": "same_owner_long_run",
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 395,
-        "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete"
+        "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete",
+        "prior_pid": 10751,
+        "resume_prompt": "execution/batches/grok-connection-full-20261014/oracle-long-run-continuation.md",
+        "max_turns": 1000,
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
       },
       {
         "task": "mariadb",
@@ -1688,7 +1701,8 @@
         "initial_log_bytes": 207,
         "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
         "prior_session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
-        "prior_pid": 3051
+        "prior_pid": 3051,
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
       },
       {
         "task": "mongodb",
@@ -1701,7 +1715,8 @@
         ],
         "status": "resumed_self_provisioned_complete_product_chain",
         "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 327
+        "initial_log_bytes": 327,
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
       },
       {
         "task": "clickhouse",
@@ -1714,7 +1729,8 @@
         ],
         "status": "pid_live_initial_observation",
         "executor": "grok-4.7/xhigh",
-        "initial_log_bytes": 142
+        "initial_log_bytes": 142,
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
       },
       {
         "task": "doris",
@@ -1731,7 +1747,8 @@
         "initial_log_bytes": 218,
         "prior_pid": 83393,
         "prior_session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
-        "max_turns": 200
+        "max_turns": 200,
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
       },
       {
         "task": "opensearch",
@@ -1746,7 +1763,8 @@
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 268,
         "prior_session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
-        "prior_pid": 12716
+        "prior_pid": 12716,
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
       },
       {
         "task": "postgresql",
@@ -1769,7 +1787,8 @@
         "effort_handoff_was_live": true,
         "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-xhigh-handoff.md",
         "prior_pid": 37471,
-        "max_turns": 200
+        "max_turns": 200,
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
       },
       {
         "task": "starrocks",
@@ -1784,7 +1803,8 @@
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 130,
         "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-        "prior_pid": 83396
+        "prior_pid": 83396,
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
       },
       {
         "task": "sqlserver",
@@ -1809,7 +1829,8 @@
         "effort_handoff_previous_pid": 32957,
         "effort_handoff_was_live": true,
         "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-xhigh-handoff.md",
-        "prior_pid": 37472
+        "prior_pid": 37472,
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
       },
       {
         "task": "shared-entry",
@@ -1820,13 +1841,15 @@
         "write_paths": [
           "tools/source-onboarding"
         ],
-        "status": "complete_fast_handoff",
+        "status": "waiting_real_source_whole_dependency_same_owner_reserved",
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 120,
         "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
         "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive",
         "prior_pid": 6230,
-        "prior_session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2"
+        "prior_session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+        "next_action": "resume same UUID only when source whole/current catalog/API dependency ready, no empty model loop"
       },
       {
         "task": "infra",
@@ -1841,7 +1864,8 @@
         "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 13,
         "prior_delivery": "Docker API recovered; OIDC not serving; scope incomplete",
-        "receipt": "execution/reviews/grok-connection-resume-20261014/identity-restoration-intake.json"
+        "receipt": "execution/reviews/grok-connection-resume-20261014/identity-restoration-intake.json",
+        "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
       }
     ],
     "disk_observed_free_gib": 67,
@@ -1866,7 +1890,7 @@
     "identity_health": "root verified TLS/OIDC anonymous401 and fixture admin200, original config binding preserved",
     "identity_intake": "execution/reviews/grok-connection-resume-20261014/identity-restoration-intake.json",
     "token_receipt": "execution/reviews/grok-connection-resume-20261014/ended-session-token-receipt.json",
-    "next_terminal_handoff_policy": "fresh compact handoff, bounded reads and fixed artifact reuse; every Grok CLI grok-4.7/xhigh per latest human; no native subagents, duplicate writers, weakened whole exits or token savings claims without evidence",
+    "next_terminal_handoff_policy": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops",
     "sqlserver_partial_intake": "execution/reviews/grok-connection-resume-20261014/sqlserver-code-progress-intake.json",
     "source_admission_owner": {
       "task": "sqlserver",
@@ -1876,7 +1900,8 @@
     "latest_effort_handoff": "execution/reviews/grok-connection-resume-20261014/xhigh-handoff-receipt.json",
     "ordinary_wait_seconds": 600,
     "latest_concurrency_handoff": "execution/reviews/grok-connection-resume-20261014/concurrency-fast-handoff.json",
-    "postgres_acl_fixed_intake": "execution/reviews/grok-connection-resume-20261014/postgres-acl-fixed-intake.json"
+    "postgres_acl_fixed_intake": "execution/reviews/grok-connection-resume-20261014/postgres-acl-fixed-intake.json",
+    "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops"
   },
   "archived_native_agent_status": [
     {
@@ -1985,5 +2010,6 @@
   ],
   "latest_grok_effort_instruction": "2026-10-14 最新用户指定全部Grok CLI为grok-4.7/xhigh：PG、SQL前low CLI核实终态后同UUID接续，实际argv已验证；短交接/定点阅读/复用固定制品继续控Token，不降低reasoning。原生子智能体仍禁用，十源完整退出、原Plan/分母和统一审阅门槛不变，签收计数未晋级。",
   "latest_human_wait_and_concurrency": "2026-10-14 最新用户将固定clock等待改600秒，OS真实退出事件立即收取，不短轮询。11个Grok4.7/xhigh任务已派发（活动数以逐PID观察为准）：十源唯一完整owner+共享一键入口；Maria/OpenSearch/Star旧CLI及hostwriter终态后新短完整上下文续接，SQL source f73094b92及自有官方PG/snapshot仅组件进度保留，新owner继续lease/CAS/CT和全部产品出口，共享entry接真实run契约阻断并只写自己域。真实OpenSearch新run44584180失败在current policy catalog/cancel、Star678cdbda失败在APIHTTPError，不计完成。CPU/编译固定上限解除，以实际资源/独占依赖控制，不为凑15派重复源writer或空任务。完整一键0/10、历史作者9/10、正式0/10及原Plan/整版退出不变。",
-  "latest_product_dependencies": "2026-10-14 PG退出即验：固定50fd9d462共享ACL已实测LinuxELF aea3dad54671b9608a2ab1a739a2160681bc9cd8f4eacf08a49ce3c45a79cf05，root逐bytes核hash及自有库当前同role第2代列权限，原server日志有旧列REVOKE/新列GRANT/故障ROLLBACK；私有固定ELF已供各源复用，回执postgres-acl-fixed-intake.json。不计PG全链或独立批准；合法postgres项目200/verified/0build、错误项目403由PG唯一新短owner继续，禁止不确定modelcreate重复。Doris新whole-3 resume仍refused，不计完成，新唯一owner保持immutable-run约束补全。当前任务仍十源+共享入口、Grok4.7/xhigh、clock600秒；全链/签收计数不晋级。"
+  "latest_product_dependencies": "2026-10-14 PG退出即验：固定50fd9d462共享ACL已实测LinuxELF aea3dad54671b9608a2ab1a739a2160681bc9cd8f4eacf08a49ce3c45a79cf05，root逐bytes核hash及自有库当前同role第2代列权限，原server日志有旧列REVOKE/新列GRANT/故障ROLLBACK；私有固定ELF已供各源复用，回执postgres-acl-fixed-intake.json。不计PG全链或独立批准；合法postgres项目200/verified/0build、错误项目403由PG唯一新短owner继续，禁止不确定modelcreate重复。Doris新whole-3 resume仍refused，不计完成，新唯一owner保持immutable-run约束补全。当前任务仍十源+共享入口、Grok4.7/xhigh、clock600秒；全链/签收计数不晋级。",
+  "latest_long_run_instruction": "2026-10-14 最新直接用户纠正：每位负责人必须持续长跑到其原完整闭环才宣布完成/退场，不再短交接或替换上下文；已运行任务不中断。CLI提前停止不等于任务完成，先收实际背景、以原UUID/同owner继续原全部出口，后续Grok续跑max-turns1000；Oracle原18ce4925同会话已续。真实外部阻断保持pending/owner保留，不能伪造完成；共享入口原d28ca4bd保留待实际source依赖，不做空模型loop。所有开发Grok4.7/xhigh、普通clock等待600秒/退出事件即收、独占/实际资源/原Plan全出口保持。原一键完整0/10、历史作者9/10、正式0/10，不新增分母。"
 }
