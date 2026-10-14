@@ -147,6 +147,29 @@ def batch_id(source_id, generation):
         raise RuntimeError('batch identity')
     return f"{uuid.uuid5(uuid.NAMESPACE_URL, source_id + ':' + str(generation))}_{generation}"
 
+def diff_rows(rows):
+    out=[]
+    for row in rows:
+        text=row['pg_jsonb_text']
+        key=json.loads(text)['_id']['$oid']
+        if not isinstance(key,str) or not key:raise RuntimeError('diff key')
+        out.append({'key':key,'canonical':text})
+    if len({item['key'] for item in out})!=len(out):raise RuntimeError('diff key')
+    return out
+
+def official_diff(config, directory, before_rows, after_rows):
+    # Full-snapshot import refuses a nonempty tombstone list. This witness is the
+    # official two-read diff; deletes are absent keys, and the loader list stays empty.
+    request={'before':diff_rows(before_rows),'after':diff_rows(after_rows),'tombstones':[]}
+    write(directory/'diff-sync-request.json', request)
+    run([config['preview_bin'],'--diff-sync','--request',str(directory/'diff-sync-request.json'),'--out',str(directory/'diff-sync.json')], directory, 'diff-sync')
+    witness=json.loads((directory/'diff-sync.json').read_text())
+    if witness.get('protocol')!='oo.mongodb-preview.sync-diff/v1' or witness.get('converged') is not True or not isinstance(witness.get('deletes'),list):
+        raise RuntimeError('official diff witness refused')
+    if witness.get('import_invoked') is not False or witness.get('generation_created') is not False:
+        raise RuntimeError('diff witness invoked import')
+    return witness
+
 def main():
     config=json.loads(pathlib.Path(sys.argv[1]).read_text()); job=json.load(sys.stdin)
     if job['source_id']!=config['source_id'] or job['method']!='C5':raise RuntimeError('source identity')
@@ -172,6 +195,12 @@ def main():
     write(directory/'seal-request.json',{'rows':seal});write(directory/'canonical.json',{'rows':canonical})
     run([config['preview_bin'],'--seal-docs','--request',str(directory/'seal-request.json'),'--out',str(directory/'seal.json')],directory,'seal')
     if any(row['outcome']!='sealed' for row in json.loads((directory/'seal.json').read_text())['rows']):raise RuntimeError('document seal refused')
+    if parent:
+        previous=directory.parent/str(job['acknowledged_pin'])/'canonical.json'
+        if not previous.is_file():raise RuntimeError('parent canonical absent')
+        before=json.loads(previous.read_text())['rows']
+    else:before=[]
+    official_diff(config, directory, before, canonical)
     arrow_environment=dict(os.environ,FROZEN_ARROW=str(directory/'typed-19.arrow'),CANONICAL_JSON=str(directory/'canonical.json'),OUT_ARROW=str(directory/'full-20.arrow'),OUT_STREAM=str(directory/'full-20.ipc'),OUT_IDENTITY=str(directory/'identity.json'))
     run([config['doc_arrow_bin']],directory,'arrow20',arrow_environment)
     schema=json.loads(pathlib.Path(config['schema']).read_text());types=json.loads(pathlib.Path(config['types']).read_text())
@@ -202,4 +231,17 @@ def main():
     write(directory/'request.json',request)
     print(json.dumps(request,separators=(',',':')))
 
-if __name__=='__main__':main()
+def _self_check():
+    before=[{'pg_jsonb_text':'{"_id":{"$oid":"aa"},"code":"A"}'},{'pg_jsonb_text':'{"_id":{"$oid":"bb"},"code":"B"}'}]
+    after=[{'pg_jsonb_text':'{"_id":{"$oid":"bb"},"code":"C"}'},{'pg_jsonb_text':'{"_id":{"$oid":"cc"},"code":"D"}'}]
+    request={'before':diff_rows(before),'after':diff_rows(after),'tombstones':[]}
+    assert [item['key'] for item in request['before']]==['aa','bb']
+    assert request['after'][1]['canonical'].endswith('"D"}') and request['tombstones']==[]
+    try:diff_rows([{'pg_jsonb_text':'{"_id":{"$oid":"aa"}}'},{'pg_jsonb_text':'{"_id":{"$oid":"aa"}}'}])
+    except RuntimeError:pass
+    else:raise AssertionError('duplicate key')
+
+if __name__=='__main__':
+    if len(sys.argv)==2 and sys.argv[1]=='--self-check':
+        _self_check();print('ok');raise SystemExit(0)
+    main()

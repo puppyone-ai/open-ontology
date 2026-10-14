@@ -327,6 +327,43 @@ fn copy_matching_cache_evidence(source_root: &str, dest_dir: &Path, evidence: &s
     }
 }
 
+fn copy_retained_completion(source_root: &str, dest_dir: &Path, evidence: &str) {
+    if source_root.is_empty() || evidence.is_empty() {
+        return;
+    }
+    let path = PathBuf::from(source_root).join("pg-builder/retained-completion.json");
+    let Ok(bytes) = std::fs::read(&path) else {
+        return;
+    };
+    let Ok(value) = serde_json::from_slice::<Value>(&bytes) else {
+        return;
+    };
+    if value.get("protocol").and_then(Value::as_str) != Some("oo.pg-builder.retained-completion/v1")
+        || value.get("outcome").and_then(Value::as_str) == Some("validated")
+        || value.get("evidence_hash").and_then(Value::as_str) != Some(evidence)
+    {
+        return;
+    }
+    if std::fs::create_dir_all(dest_dir).is_err() {
+        return;
+    }
+    let target = dest_dir.join("retained-completion.json");
+    if std::fs::symlink_metadata(&target).is_ok() {
+        return;
+    }
+    if write_private(&target, &bytes).is_err() {
+        return;
+    }
+    let envelope = path.with_file_name("retained-envelope.private.json");
+    let Ok(envelope_bytes) = std::fs::read(&envelope) else {
+        return;
+    };
+    let envelope_target = dest_dir.join("retained-envelope.private.json");
+    if std::fs::symlink_metadata(&envelope_target).is_err() {
+        let _ = write_private(&envelope_target, &envelope_bytes);
+    }
+}
+
 fn cards_evidence(path: &Path) -> Option<String> {
     let bytes = std::fs::read(path).ok()?;
     let value: Value = serde_json::from_slice(&bytes).ok()?;
@@ -361,7 +398,13 @@ async fn invoke_native(spec: InvokeSpec) -> ModelResult {
         let path = model_path.with_file_name("native-source-contract.json");
         if std::fs::write(&path, serde_json::to_vec(contract).unwrap_or_default()).is_err() { return ModelResult { kind: ModelKind::Failed { detail: "builder.native_config_absent" }, spawned: false }; }
         args.extend(["--source-contract".to_owned(), path_str(&path)]);
+    } else {
+        let facts = model_path.with_file_name("source-money-facts.json");
+        if facts.is_file() {
+            args.extend(["--source-contract".to_owned(), path_str(&facts)]);
+        }
     }
+    copy_retained_completion(&spec.model_cache_dir, &spec.cache_path.join("pg-builder"), &evidence);
     let result = spawn_one(&spec, &needles, args, Duration::from_secs(300)).await;
     zeroize_needles(&mut needles);
     if result.killed { return ModelResult { kind: ModelKind::Canceled, spawned: true }; }

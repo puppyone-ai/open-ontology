@@ -29,6 +29,8 @@ pub const DEPENDENCY_SHA: &str = "dbcf4df24eb4eb12710e6c9561829d2390aea387";
 pub const SEALED_PROMPT_VERSION: &str = "oo.pg-builder.sealed-decisions/v1";
 const RESULT_PROTOCOL: &str = "oo.pg-builder.sealed-import/v1";
 const DECISION_PROTOCOL: &str = "oo.pg-builder.sealed-decisions/v1";
+const MONEY_FACTS_PROTOCOL: &str = "oo.pg-builder.source-money-facts/v1";
+const RETAINED_PROTOCOL: &str = "oo.pg-builder.retained-completion/v1";
 const ROLE_PACK_COMPILER: &str = "oo-builder/role-pack/v1";
 
 const PROMPT: &str = "\
@@ -147,6 +149,12 @@ pub fn draft_with_source_contract(catalog_json: &str, contract: Option<&Value>) 
 fn validate_source_contract(draft: &SealedImportDraft, catalog: &Value, contract: Option<&Value>) -> Result<(), PgBuilderError> {
     let names: std::collections::BTreeSet<&str> = draft.columns.iter().map(|column| column.dataset.as_str()).collect();
     let mut effective = json!({"datasets": names.into_iter().map(|dataset| json!({"dataset":dataset})).collect::<Vec<_>>()});
+    if contract.and_then(|value| value.get("protocol")).and_then(Value::as_str) == Some(MONEY_FACTS_PROTOCOL) {
+        // A caveat catalog still needs its own contract. Money facts do not satisfy that.
+        crate::source_contract::project_sealed_source_contract(&mut effective, catalog, None)?;
+        let contract = contract.ok_or_else(|| PgBuilderError::new("money_facts.schema", "sealed source money facts were refused"))?;
+        return parse_money_facts(draft, contract).map(|_| ()).map_err(money_facts_error);
+    }
     crate::source_contract::project_sealed_source_contract(&mut effective, catalog, contract)
 }
 
@@ -221,6 +229,27 @@ pub fn sealed_build(input: &mut SealedBuild<'_>) -> Result<u8, PgBuilderError> {
             "not_opened",
             0,
             Some(&identity),
+        );
+    }
+    let model_input_sha = sha256_hex(user_text.as_bytes());
+    if let Some(retained) = read_retained(input, &evidence_hash, &model_input_sha)? {
+        write_retained_envelope(input, &retained.identity)?;
+        let _ = fs::write(input.out_dir.join("model-response.bin"), retained.content.as_bytes());
+        return finish(
+            input,
+            &draft,
+            &settings,
+            &visibility,
+            &catalog_value,
+            &run_id,
+            &evidence_hash,
+            &input_sha,
+            &user_text,
+            &retained.content,
+            "retained",
+            "not_opened",
+            retained.attempt,
+            Some(&retained.identity),
         );
     }
     let chat = chat_request(input.config, PROMPT, &user_text)?;
@@ -358,17 +387,18 @@ fn finish(
             return refuse_structural(input, draft, input_sha, evidence_hash, cache, socket, attempt, "not_parsed");
         }
     };
-    let decisions = match bind_model(draft, &parsed_decisions, input.reviewer_by, input.reviewer_at) {
-        Ok(rows) => rows,
+    let bound = match bind_model(draft, &parsed_decisions, input.reviewer_by, input.reviewer_at, input.source_contract) {
+        Ok(bound) => bound,
         Err(reason) => {
             return refuse_structural(input, draft, input_sha, evidence_hash, cache, socket, attempt, reason);
         }
     };
+    let decisions = bound.decisions;
     if matches!(input.config.price, Price::Unknown) {
         let mut document = refused(
             draft,
             "cost_unknown",
-            if cache == "hit" { "cache_hit" } else { "called" },
+            model_state(cache),
             "not_produced",
             socket,
             input_sha,
@@ -401,18 +431,20 @@ fn finish(
         .get("effective_oos")
         .cloned()
         .ok_or_else(|| PgBuilderError::new("compiler.contract", "the reviewed document has no effective document"))?;
-    if let Err(err) = crate::source_contract::project_sealed_source_contract(&mut effective, catalog_value, input.source_contract) {
-        return refuse_compiler(
-            input,
-            draft,
-            input_sha,
-            evidence_hash,
-            cache,
-            socket,
-            attempt,
-            &err.code,
-            err.message,
-        );
+    if input.source_contract.and_then(|value| value.get("protocol")).and_then(Value::as_str) != Some(MONEY_FACTS_PROTOCOL) {
+        if let Err(err) = crate::source_contract::project_sealed_source_contract(&mut effective, catalog_value, input.source_contract) {
+            return refuse_compiler(
+                input,
+                draft,
+                input_sha,
+                evidence_hash,
+                cache,
+                socket,
+                attempt,
+                &err.code,
+                err.message,
+            );
+        }
     }
     let effective_text = canonical_json(&effective);
     let visibility_text = canonical_json(visibility);
@@ -450,7 +482,7 @@ fn finish(
     document["dependency_sha"] = json!(DEPENDENCY_SHA);
     document["evidence_hash"] = json!(evidence_hash);
     document["input_sha256"] = json!(input_sha);
-    document["model"] = json!(if cache == "hit" { "cache_hit" } else { "called" });
+    document["model"] = json!(model_state(cache));
     document["model_input_sha256"] = json!(sha256_hex(user_text.as_bytes()));
     document["pack"] = json!("produced");
     document["pack_digest"] = json!(pack.pack_digest);
@@ -465,6 +497,16 @@ fn finish(
     }
     if let Some((prompt, completion, total)) = usage {
         document["usage"] = json!({"prompt_tokens": prompt, "completion_tokens": completion, "total_tokens": total});
+    }
+    if let Some(facts) = input.source_contract.and_then(|value| parse_money_facts(draft, value).ok()) {
+        document["source_money_projection"] = json!({
+            "columns_sha256": facts.columns_sha256,
+            "corrections": bound.corrections,
+            "protocol": MONEY_FACTS_PROTOCOL,
+            "provenance": "sealed_source_rule",
+            "raw_response_sha256": sha256_hex(content.as_bytes()),
+            "source_rules_sha256": facts.source_rules_sha256
+        });
     }
     write_json(&input.out_dir.join("result.json"), &document)?;
     if cache != "hit" {
@@ -498,7 +540,7 @@ fn refuse_structural(
     let mut document = refused(
         draft,
         "structural_draft",
-        if cache == "hit" { "cache_hit" } else { "called" },
+        model_state(cache),
         "not_produced",
         socket,
         input_sha,
@@ -528,7 +570,7 @@ fn refuse_compiler(
     let mut document = refused(
         draft,
         "compiler_refused",
-        if cache == "hit" { "cache_hit" } else { "called" },
+        model_state(cache),
         "not_produced",
         socket,
         input_sha,
@@ -808,12 +850,150 @@ fn rendered_names(artifact: &str, dataset: &str) -> Result<Vec<String>, PgBuilde
     Ok(names)
 }
 
+fn model_state(cache: &str) -> &'static str {
+    match cache {
+        "hit" => "cache_hit",
+        "retained" => "retained",
+        _ => "called",
+    }
+}
+
+fn money_facts_error(reason: &'static str) -> PgBuilderError {
+    let code = match reason {
+        "drift" => "money_facts.drift",
+        "duplicate" => "money_facts.duplicate",
+        "column" => "money_facts.column",
+        "unit" => "money_facts.unit",
+        "pii" => "money_facts.pii",
+        "semantic" => "money_facts.semantic",
+        _ => "money_facts.schema",
+    };
+    PgBuilderError::new(code, "sealed source money facts were refused")
+}
+
+fn hex64(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+}
+
+struct MoneyFacts {
+    source_rules_sha256: String,
+    columns_sha256: String,
+    pii: std::collections::BTreeMap<String, String>,
+}
+
+struct BoundModel {
+    decisions: Vec<Value>,
+    corrections: Vec<Value>,
+}
+
+struct RetainedCompletion {
+    content: String,
+    attempt: u32,
+    identity: ResponseIdentity,
+}
+
+fn parse_money_facts(draft: &SealedImportDraft, value: &Value) -> Result<MoneyFacts, &'static str> {
+    let map = value.as_object().ok_or("schema")?;
+    if map.len() != 4 || map.get("protocol").and_then(Value::as_str) != Some(MONEY_FACTS_PROTOCOL) {
+        return Err("schema");
+    }
+    let source_rules_sha256 = map.get("source_rules_sha256").and_then(Value::as_str).ok_or("drift")?;
+    let columns_sha256 = map.get("columns_sha256").and_then(Value::as_str).ok_or("drift")?;
+    if !hex64(source_rules_sha256) || !hex64(columns_sha256) {
+        return Err("drift");
+    }
+    let columns = map.get("columns").and_then(Value::as_array).ok_or("schema")?;
+    if columns.is_empty() || sha256_hex(canonical_json(&Value::Array(columns.clone())).as_bytes()) != columns_sha256 {
+        return Err(if columns.is_empty() { "schema" } else { "drift" });
+    }
+    let known: std::collections::BTreeSet<String> = draft.columns.iter().map(|column| format!("{}.{}", column.dataset, column.name)).collect();
+    let mut pii = std::collections::BTreeMap::new();
+    for row in columns {
+        let row = row.as_object().ok_or("schema")?;
+        if row.len() != 4 {
+            return Err("schema");
+        }
+        let column = row.get("column").and_then(Value::as_str).ok_or("column")?;
+        if row.get("semantic_type").and_then(Value::as_str) != Some("money") {
+            return Err("semantic");
+        }
+        if row.get("unit").and_then(Value::as_str) != Some("unspecified") {
+            return Err("unit");
+        }
+        let level = row.get("pii").and_then(Value::as_str).ok_or("pii")?;
+        if !matches!(level, "none" | "personal" | "sensitive" | "restricted") {
+            return Err("pii");
+        }
+        if !known.contains(column) {
+            return Err("column");
+        }
+        if pii.insert(column.to_owned(), level.to_owned()).is_some() {
+            return Err("duplicate");
+        }
+    }
+    Ok(MoneyFacts {
+        source_rules_sha256: source_rules_sha256.to_owned(),
+        columns_sha256: columns_sha256.to_owned(),
+        pii,
+    })
+}
+
+fn read_retained(input: &SealedBuild<'_>, evidence: &str, model_input_sha: &str) -> Result<Option<RetainedCompletion>, PgBuilderError> {
+    let path = input.cache_dir.join("pg-builder").join("retained-completion.json");
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let bytes = fs::read(&path).map_err(|_| PgBuilderError::new("cache.read", "the retained completion could not be read"))?;
+    let value: Value = serde_json::from_slice(&bytes).map_err(|_| PgBuilderError::new("cache.read", "the retained completion is not JSON"))?;
+    if value.get("protocol").and_then(Value::as_str) != Some(RETAINED_PROTOCOL) {
+        return Ok(None);
+    }
+    if value.get("outcome").and_then(Value::as_str) == Some("validated") {
+        return Err(PgBuilderError::new("cache.refused", "a retained completion is not a validated cache"));
+    }
+    if value.get("evidence_hash").and_then(Value::as_str) != Some(evidence)
+        || value.get("model_input_sha256").and_then(Value::as_str) != Some(model_input_sha)
+    {
+        return Ok(None);
+    }
+    let content = value.get("model_content").and_then(Value::as_str).unwrap_or("");
+    if content.is_empty() {
+        return Err(PgBuilderError::new("cache.refused", "the retained completion has no model content"));
+    }
+    let attempt = value.get("attempt").and_then(Value::as_u64).unwrap_or(0);
+    if attempt == 0 || attempt > u64::from(u32::MAX) {
+        return Err(PgBuilderError::new("cache.refused", "the retained completion has no attempt"));
+    }
+    let identity = value
+        .get("response_identity")
+        .and_then(|item| ResponseIdentity::read(item, &input.config.model_id))
+        .ok_or_else(|| PgBuilderError::new("cache.refused", "the retained completion has no response identity"))?;
+    Ok(Some(RetainedCompletion { content: content.to_owned(), attempt: attempt as u32, identity }))
+}
+
+fn write_retained_envelope(input: &SealedBuild<'_>, identity: &ResponseIdentity) -> Result<(), PgBuilderError> {
+    let path = input.cache_dir.join("pg-builder").join("retained-envelope.private.json");
+    if !path.is_file() {
+        return Ok(());
+    }
+    let bytes = fs::read(&path).map_err(|_| PgBuilderError::new("cache.read", "the retained envelope could not be read"))?;
+    if sha256_hex(&bytes) != identity.envelope_sha256 {
+        return Err(PgBuilderError::new("cache.refused", "the retained envelope does not match its identity"));
+    }
+    let mut file = fs::OpenOptions::new().create(true).truncate(true).write(true).mode(0o600)
+        .open(input.out_dir.join("model-envelope.private.json"))
+        .map_err(|_| PgBuilderError::new("output.write", "the retained envelope could not be created"))?;
+    file.write_all(&bytes).map_err(|_| PgBuilderError::new("output.write", "the retained envelope could not be written"))?;
+    Ok(())
+}
+
 fn bind_model(
     draft: &SealedImportDraft,
     value: &Value,
     reviewer_by: &str,
     reviewer_at: &str,
-) -> Result<Vec<Value>, &'static str> {
+    source_contract: Option<&Value>,
+) -> Result<BoundModel, &'static str> {
     let map = value.as_object().ok_or("not_object")?;
     // The live completion may omit the envelope key. A different protocol, or any
     // key besides protocol and columns, is still a structural refusal.
@@ -829,7 +1009,14 @@ fn bind_model(
     if rows.len() != draft.columns.len() {
         return Err("column_count");
     }
-    let mut bound = Vec::with_capacity(rows.len());
+    let facts = match source_contract {
+        Some(contract) if contract.get("protocol").and_then(Value::as_str) == Some(MONEY_FACTS_PROTOCOL) => {
+            Some(parse_money_facts(draft, contract)?)
+        }
+        _ => None,
+    };
+    let mut decisions = Vec::with_capacity(rows.len());
+    let mut corrections = Vec::new();
     for (row, column) in rows.iter().zip(draft.columns.iter()) {
         let row = row.as_object().ok_or("column")?;
         if row.len() != 5 {
@@ -855,20 +1042,43 @@ fn bind_model(
             "schema_hash": if draft.binding_vector.is_some() { &draft.identity_hash } else { &draft.schema_digest },
             "semantic_type": semantic
         });
-        match unit {
-            Value::Null => {
-                if semantic == "money" {
-                    return Err("money_unit");
+        let id = format!("{dataset}.{name}");
+        if let Some(fact_pii) = facts.as_ref().and_then(|facts| facts.pii.get(&id)) {
+            if semantic != "money" {
+                return Err("drift");
+            }
+            match unit {
+                Value::Null => decision["unit"] = json!("unspecified"),
+                Value::String(text) if text == "unspecified" => decision["unit"] = json!(text),
+                Value::String(_) => return Err("money_unit"),
+                _ => return Err("unit"),
+            }
+            if pii != fact_pii {
+                decision["pii"] = json!(fact_pii);
+            }
+            if decision["unit"] != row["unit"] || decision["pii"] != row["pii"] {
+                corrections.push(json!({
+                    "column": id,
+                    "model_candidate": Value::Object(row.clone()),
+                    "source_declared": {"column": name, "dataset": dataset, "pii": fact_pii, "semantic_type": "money", "unit": "unspecified"}
+                }));
+            }
+        } else {
+            match unit {
+                Value::Null => {
+                    if semantic == "money" {
+                        return Err("money_unit");
+                    }
                 }
+                Value::String(text) if text != "unknown" && semantic == "money" => {
+                    decision["unit"] = json!(text);
+                }
+                _ => return Err("unit"),
             }
-            Value::String(text) if text != "unknown" && semantic == "money" => {
-                decision["unit"] = json!(text);
-            }
-            _ => return Err("unit"),
         }
-        bound.push(decision);
+        decisions.push(decision);
     }
-    Ok(bound)
+    Ok(BoundModel { decisions, corrections })
 }
 
 fn decision_request(draft: &SealedImportDraft) -> Value {
@@ -1408,5 +1618,245 @@ mod tests {
         assert_eq!(result["outcome"], "structural_draft");
         assert_eq!(result["reason"], "money_unit");
         assert_eq!(result["pack"], "not_produced");
+    }
+
+    fn declared_price() -> Price {
+        Price::Declared { per_total_token: "0.000001".into(), units: 1, scale: 6 }
+    }
+
+    fn money_facts(column: &str, pii: &str, unit: &str) -> Value {
+        let columns = json!([{"column": column, "pii": pii, "semantic_type": "money", "unit": unit}]);
+        json!({
+            "columns": columns,
+            "columns_sha256": sha256_hex(canonical_json(&columns).as_bytes()),
+            "protocol": "oo.pg-builder.source-money-facts/v1",
+            "source_rules_sha256": "ab".repeat(32)
+        })
+    }
+
+    fn hidden_cost(mut visibility: Value) -> Value {
+        visibility["datasets"][0]["columns"] = json!(["shipment_id"]);
+        visibility
+    }
+
+    struct Held {
+        code: u8,
+        result: Value,
+        calls: u32,
+        out: std::path::PathBuf,
+    }
+
+    fn hold(content: &str, contract: Option<Value>, visibility_value: Value, retained: bool, bad_envelope: bool) -> Result<Held, PgBuilderError> {
+        let cfg = config(declared_price());
+        let settings = settings();
+        let catalog = catalog();
+        let out = std::env::temp_dir().join(format!("oo-money-{}-{}-{}", std::process::id(), sha256_hex(content.as_bytes()), u8::from(bad_envelope)));
+        let _ = fs::remove_dir_all(&out);
+        let cache = out.join("cache");
+        fs::create_dir_all(cache.join("pg-builder")).unwrap();
+        let old_key = "f".repeat(64);
+        let old_cache = json!({"evidence_hash":"old","input_sha256":old_key,"model_content":"{\"unit\":\"USD\"}","outcome":"validated","protocol":"oo.pg-builder.sealed-cache/v1"});
+        fs::write(cache.join("pg-builder").join(format!("{old_key}.json")), canonical_json(&old_cache)).unwrap();
+        if retained {
+            let draft = compile_input(&catalog).unwrap();
+            let model_input_sha = sha256_hex(canonical_json(&decision_request(&draft)).as_bytes());
+            let envelope: &[u8] = if bad_envelope { b"not-the-envelope" } else { br#"{"id":"chatcmpl-kept"}"# };
+            let envelope_sha = if bad_envelope { "c".repeat(64) } else { sha256_hex(envelope) };
+            let kept = json!({
+                "attempt": 1,
+                "evidence_hash": sha256_hex(catalog.as_bytes()),
+                "model_content": content,
+                "model_input_sha256": model_input_sha,
+                "protocol": "oo.pg-builder.retained-completion/v1",
+                "response_identity": {"envelope_sha256": envelope_sha, "id": "chatcmpl-kept", "model": "grok-4.7", "usage": {"completion_tokens": 20, "prompt_tokens": 10, "total_tokens": 30}}
+            });
+            fs::write(cache.join("pg-builder").join("retained-completion.json"), canonical_json(&kept)).unwrap();
+            fs::write(cache.join("pg-builder").join("retained-envelope.private.json"), envelope).unwrap();
+        }
+        let mut transport = ScriptedTransport {
+            http_status: 500,
+            content: content.to_owned(),
+            finish_reason: "stop".to_owned(),
+            usage: Some((10, 20, 30)),
+            calls: 0,
+            refusal: Some("unavailable"),
+            bodies: Vec::new(),
+        };
+        if !retained {
+            transport.http_status = 200;
+            transport.refusal = None;
+        }
+        let contract_kept = contract.clone();
+        let mut build = SealedBuild {
+            config: &cfg,
+            token: "token-not-logged",
+            catalog_json: &catalog,
+            settings: &settings,
+            visibility: &visibility_value,
+            source_contract: contract_kept.as_ref(),
+            reviewer_by: "ada.owner",
+            reviewer_at: "2026-10-10",
+            dataset: "logistics.shipments",
+            cache_dir: &cache,
+            out_dir: &out,
+            target: None,
+            transport: &mut transport,
+        };
+        let code = sealed_build(&mut build)?;
+        let result: Value = serde_json::from_str(&fs::read_to_string(out.join("result.json")).unwrap()).unwrap();
+        let calls = transport.calls;
+        assert_eq!(fs::read_to_string(cache.join("pg-builder").join(format!("{old_key}.json"))).unwrap(), canonical_json(&old_cache));
+        Ok(Held { code, result, calls, out })
+    }
+
+    #[test]
+    fn declared_unspecified_projects_a_null_money_unit_and_hides_sensitive() {
+        let facts = money_facts("logistics.shipments.cost_amount", "sensitive", "unspecified");
+        let content = decisions(false);
+        let held = hold(&content, Some(facts), hidden_cost(visibility()), true, false).unwrap();
+        assert_eq!(held.calls, 0);
+        assert_eq!(held.code, 0);
+        assert_eq!(held.result["outcome"], "packed");
+        assert_eq!(held.result["cache"], "retained");
+        assert_eq!(held.result["model"], "retained");
+        assert_eq!(held.result["socket"], "not_opened");
+        assert_eq!(held.result["attempt"], 1);
+        assert_eq!(held.result["response_identity"]["usage"]["total_tokens"], 30);
+        assert_eq!(held.result["source_money_projection"]["provenance"], "sealed_source_rule");
+        assert_eq!(held.result["source_money_projection"]["source_rules_sha256"], "ab".repeat(32));
+        assert_eq!(held.result["source_money_projection"]["raw_response_sha256"], sha256_hex(content.as_bytes()));
+        assert_eq!(fs::read(held.out.join("model-response.bin")).unwrap(), content.as_bytes());
+        assert_eq!(fs::read(held.out.join("model-envelope.private.json")).unwrap(), br#"{"id":"chatcmpl-kept"}"#);
+        assert!(content.contains("\"unit\":null"));
+        let decisions: Value = serde_json::from_str(&fs::read_to_string(held.out.join("decisions.json")).unwrap()).unwrap();
+        let cost = decisions.as_array().unwrap().iter().find(|row| row["column"] == "cost_amount").unwrap();
+        assert_eq!(cost["unit"], "unspecified");
+        assert_eq!(cost["pii"], "sensitive");
+        assert_eq!(cost["semantic_type"], "money");
+        assert!(cost.get("source_rules_sha256").is_none());
+        let effective: Value = serde_json::from_str(&fs::read_to_string(held.out.join("effective.json")).unwrap()).unwrap();
+        let column = effective["datasets"][0]["columns"].as_array().unwrap().iter().find(|row| row["name"] == "cost_amount").unwrap();
+        assert_eq!(column["unit"], "unspecified");
+        assert_eq!(column["semantic_type"], "money");
+        assert_eq!(column["pii"], "sensitive");
+        let pack = fs::read_to_string(held.out.join("role-pack/pack.json")).unwrap();
+        assert!(!pack.contains("cost_amount"));
+        assert!(!pack.contains("USD") && !pack.contains("CNY"));
+        let cached = fs::read_dir(held.out.join("cache/pg-builder")).unwrap().flatten().find_map(|entry| {
+            let value: Value = serde_json::from_slice(&fs::read(entry.path()).ok()?).ok()?;
+            (value.get("protocol").and_then(Value::as_str) == Some("oo.pg-builder.sealed-cache/v1")
+                && value.get("model_content").and_then(Value::as_str) == Some(content.as_str()))
+                .then_some(value)
+        }).unwrap();
+        assert_eq!(cached["outcome"], "validated");
+        let _ = fs::remove_dir_all(&held.out);
+    }
+
+    #[test]
+    fn retained_envelope_mismatch_does_not_open_the_socket() {
+        let facts = money_facts("logistics.shipments.cost_amount", "sensitive", "unspecified");
+        match hold(&decisions(false), Some(facts), hidden_cost(visibility()), true, true) {
+            Err(err) => assert_eq!(err.code, "oo.pg-builder/v1/cache.refused"),
+            Ok(_) => panic!("envelope mismatch packed"),
+        }
+    }
+
+    #[test]
+    fn money_facts_refuse_before_the_socket() {
+        let price = declared_price();
+        let bad = [
+            (money_facts("logistics.shipments.missing", "none", "unspecified"), "oo.pg-builder/v1/money_facts.column"),
+            ({
+                let mut facts = money_facts("logistics.shipments.cost_amount", "none", "unspecified");
+                let column = facts["columns"][0].clone();
+                facts["columns"].as_array_mut().unwrap().push(column);
+                facts["columns_sha256"] = json!(sha256_hex(canonical_json(&facts["columns"]).as_bytes()));
+                facts
+            }, "oo.pg-builder/v1/money_facts.duplicate"),
+            ({
+                let mut facts = money_facts("logistics.shipments.cost_amount", "none", "unspecified");
+                facts["columns_sha256"] = json!("d".repeat(64));
+                facts
+            }, "oo.pg-builder/v1/money_facts.drift"),
+            (money_facts("logistics.shipments.cost_amount", "none", "USD"), "oo.pg-builder/v1/money_facts.unit"),
+            ({
+                let mut facts = money_facts("logistics.shipments.cost_amount", "none", "unspecified");
+                facts["default_unit"] = json!("USD");
+                facts
+            }, "oo.pg-builder/v1/money_facts.schema"),
+        ];
+        for (facts, code_name) in bad {
+            let (code, result, calls) = run_with(&facts, &decisions(false));
+            assert_eq!(calls, 0, "{code_name}");
+            assert_eq!(code, 1, "{code_name}");
+            assert_eq!(result["outcome"], "compiler_refused");
+            assert_eq!(result["code"], code_name);
+            assert_eq!(result["model"], "not_called");
+            assert_eq!(result["pack"], "not_produced");
+            let _ = price;
+        }
+    }
+
+    fn run_with(facts: &Value, content: &str) -> (u8, Value, u32) {
+        let cfg = config(declared_price());
+        let settings = settings();
+        let visibility = visibility();
+        let catalog = catalog();
+        let out = std::env::temp_dir().join(format!("oo-money-refuse-{}-{}", std::process::id(), sha256_hex(canonical_json(facts).as_bytes())));
+        let _ = fs::remove_dir_all(&out);
+        let cache = out.join("cache");
+        fs::create_dir_all(&cache).unwrap();
+        let mut transport = ScriptedTransport {
+            http_status: 200,
+            content: content.to_owned(),
+            finish_reason: "stop".to_owned(),
+            usage: Some((10, 20, 30)),
+            calls: 0,
+            refusal: None,
+            bodies: Vec::new(),
+        };
+        let mut build = SealedBuild {
+            config: &cfg,
+            token: "token-not-logged",
+            catalog_json: &catalog,
+            settings: &settings,
+            visibility: &visibility,
+            source_contract: Some(facts),
+            reviewer_by: "ada.owner",
+            reviewer_at: "2026-10-10",
+            dataset: "logistics.shipments",
+            cache_dir: &cache,
+            out_dir: &out,
+            target: None,
+            transport: &mut transport,
+        };
+        let code = sealed_build(&mut build).expect("refuse");
+        let result: Value = serde_json::from_str(&fs::read_to_string(out.join("result.json")).unwrap()).unwrap();
+        let calls = transport.calls;
+        let _ = fs::remove_dir_all(&out);
+        (code, result, calls)
+    }
+
+    #[test]
+    fn disagreed_unit_and_semantic_drift_stay_unpacked() {
+        let facts = money_facts("logistics.shipments.cost_amount", "none", "unspecified");
+        let usd = decisions(true);
+        let held = hold(&usd, Some(facts.clone()), visibility(), false, false).unwrap();
+        assert_eq!(held.calls, 1);
+        assert_eq!(held.result["outcome"], "structural_draft");
+        assert_eq!(held.result["reason"], "money_unit");
+        assert_eq!(held.result["pack"], "not_produced");
+        assert_eq!(fs::read(held.out.join("model-response.bin")).unwrap(), usd.as_bytes());
+        assert!(!held.out.join("cache/pg-builder").read_dir().unwrap().flatten().any(|entry| {
+            let text = fs::read_to_string(entry.path()).unwrap_or_default();
+            text.contains("\"outcome\":\"validated\"") && text.contains(&usd)
+        }));
+        let quantity = usd.replace("\"semantic_type\":\"money\",\"unit\":\"USD\"", "\"semantic_type\":\"quantity\",\"unit\":null");
+        let drifted = hold(&quantity, Some(facts), visibility(), false, false).unwrap();
+        assert_eq!(drifted.calls, 1);
+        assert_eq!(drifted.result["reason"], "drift");
+        assert_eq!(drifted.result["pack"], "not_produced");
+        let _ = fs::remove_dir_all(&held.out);
+        let _ = fs::remove_dir_all(&drifted.out);
     }
 }

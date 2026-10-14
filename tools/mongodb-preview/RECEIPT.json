@@ -11,11 +11,13 @@
   "gateway_dialogue_outcome": "verified",
   "product_receipt_gateway_dialogue_complete": false,
   "missing": [
-    "owner ACK and publish",
+    "publication remains not_published",
     "formal acceptance remains 0/10",
     "source_acceptance remains false",
     "load_state remains awaiting_publish",
-    "no crashed-loader retry was run"
+    "pinned API ELF 025aceded6cc922c0a10cb2e9d535ccc433ad6f082e5c1c3b86f4797cafc50ae has no source_generation_advanced trigger; maintenance POST returned 400 malformed",
+    "gateway still serves generation 3; no generation-6 dialogue",
+    "six-field onboard is not registered"
   ],
   "pins": {
     "2": {
@@ -40,12 +42,60 @@
       "rows": 14,
       "tombstone_count": 0,
       "state": "awaiting_publish"
+    },
+    "5": {
+      "task": "122129f4-ad45-43bb-9f6c-cb2fd3bb151e",
+      "state": "failed",
+      "last_error": "attempt_exhausted"
+    },
+    "6": {
+      "task": "debcdac5-c68e-45c2-8b3e-49331e30179c",
+      "generation": 4,
+      "rows": 14,
+      "tombstone_count": 0,
+      "official_diff": "empty",
+      "state": "awaiting_publish"
+    },
+    "7": {
+      "task": "c370a116-d7eb-4e22-8ffd-04bc06a68a62",
+      "generation": 5,
+      "rows": 14,
+      "tombstone_count": 0,
+      "official_diff": {
+        "inserts": ["c141d04141eef041000000a5"],
+        "updates": ["c141d04141eef04100000009"],
+        "deletes": ["c141d04141eef0410000000a"]
+      },
+      "state": "awaiting_publish"
+    },
+    "8": {
+      "task": "682b7b2a-86d6-49a1-803b-5a8d476f23bb",
+      "run_id": "00ea0ddd-4059-4fb7-8dad-111fd886bed9",
+      "generation": 6,
+      "physical": "pt_f0adc89ba57a841ed6de15a2e50f99b59ccda032910633b03b21d99d0b09",
+      "rows": 14,
+      "tombstone_count": 0,
+      "official_diff": {
+        "inserts": ["c141d04141eef0410000000a"],
+        "updates": ["c141d04141eef0410000000b"],
+        "deletes": ["c141d04141eef041000000a5"]
+      },
+      "state": "awaiting_publish"
     }
   },
   "typed_gold": {
     "generation_2_cells": 280,
     "generation_3_cells": 280,
+    "generation_5_cells": 280,
+    "generation_6_cells": 280,
     "cells_differ": 0
+  },
+  "maintenance_gen6": {
+    "http_status": 400,
+    "error": "malformed",
+    "llm_calls": 0,
+    "candidate_catalog_file_sha256": "d47149ce3df1801eb97379c418d8007d0b549afaab9f2c760e296319743e31b5",
+    "live_bundle_restored_catalog_file_sha256": "4533e8e4804c6ce4e430f4de105cf7261db6ba68a4922ba0f7b704ff7645e81e"
   },
   "s5": {
     "build_id": "b_b75b3a9cb45465e439ee99608c80e5e3",

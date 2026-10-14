@@ -78,6 +78,24 @@ fn count_sql(table: &Table) -> Result<ReadSql,Fail> {
     let rel=relation(&table.object)?;
     Ok(ReadSql(if table.prior.is_some(){format!("SELECT COUNT_BIG(*) AS row_count FROM CHANGETABLE(CHANGES {rel}, @P1) AS ct")}else{format!("SELECT COUNT_BIG(*) AS row_count FROM {rel}")}))
 }
+fn audit_events(rows: &[Row]) -> Result<Vec<Value>, Fail> {
+    let mut events=Vec::with_capacity(rows.len());
+    for row in rows {
+        let succeeded=match row.get_column_data(2).map_err(|_|Fail::new("audit_unreadable","audit succeeded"))? {
+            ColumnData::Bit(Some(value))=>*value,
+            ColumnData::U8(Some(value))=>*value!=0,
+            _=>return Err(Fail::new("audit_unreadable","audit succeeded type")),
+        };
+        events.push(json!({"event_time":audit_nvarchar(row,0)?,"action_id":audit_nvarchar(row,1)?,"succeeded":succeeded,"reader":audit_nvarchar(row,3)?,"application_name":audit_nvarchar(row,4)?,"statement":audit_nvarchar(row,5)?}));
+    }
+    Ok(events)
+}
+fn audit_nvarchar(row: &Row, index: usize) -> Result<Option<String>, Fail> {
+    match row.get_column_data(index).map_err(|_| Fail::new("audit_unreadable", "audit column"))? {
+        ColumnData::String(value) => Ok(value.as_ref().map(|item| item.to_string())),
+        _ => Err(Fail::new("audit_unreadable", "audit column type")),
+    }
+}
 async fn rows(client: &mut SqlClient, sql: ReadSql, params: &[&dyn ToSql], deadline: Instant, secret: &str) -> Result<Vec<Row>,Fail> {
     let left=deadline.checked_duration_since(Instant::now()).filter(|v|!v.is_zero()).ok_or_else(||Fail::new("deadline_exceeded","capture deadline elapsed"))?;
     match timeout(left,async {
@@ -361,19 +379,22 @@ pub async fn run_audit_export(customer:&Customer,now_ms:u64,file_glob:&str,reade
     let budget=command_budget(customer,now_ms)?;
     let deadline=Instant::now()+budget;
     let mut client=connect(build_config(customer,&secret.0,budget)?,budget,&secret.0).await?;
-    let outcome=async {
+    let outcome: Result<Value, Fail>=async {
         let params:[&dyn ToSql;3]=[&file_glob,&reader,&application];
-        let sql=ReadSql("SELECT CONVERT(nvarchar(40), event_time, 127) AS event_time, RTRIM(action_id) AS action_id, succeeded, session_server_principal_name AS reader, application_name, statement FROM sys.fn_get_audit_file(@P1, DEFAULT, DEFAULT) WHERE session_server_principal_name = @P2 AND application_name = @P3 FOR JSON PATH".into());
-        let output=rows(&mut client,sql,&params,deadline,&secret.0).await?;
-        let mut text=String::new();
-        for row in output {
-            match row.get_column_data(0).map_err(|_|Fail::new("audit_unreadable","audit JSON column"))? {
-                ColumnData::String(Some(v))=>text.push_str(v),_=>return Err(Fail::new("audit_unreadable","audit JSON payload missing"))
-            }
-            if text.len()>16*1024*1024 {return Err(Fail::new("audit_budget","audit bytes exceed 16MiB"));}
+        // FOR JSON PATH is split into ~2033-char client rows. A live CT audit crossed that
+        // boundary and the pieces were not one JSON value. Columns stay under the boundary.
+        let sql="SELECT CONVERT(nvarchar(40), event_time, 127) AS event_time, RTRIM(action_id) AS action_id, succeeded, session_server_principal_name AS reader, application_name, statement FROM sys.fn_get_audit_file(@P1, DEFAULT, DEFAULT) WHERE session_server_principal_name = @P2 AND application_name = @P3";
+        // The audit file trails the session. Two identical non-empty reads mean it has settled.
+        let mut settled=None;
+        let mut previous=None;
+        for _ in 0..12 {
+            let events=audit_events(&rows(&mut client,ReadSql(sql.into()),&params,deadline,&secret.0).await?)?;
+            if previous.as_ref()==Some(&events) && !events.is_empty() { settled=Some(events); break; }
+            previous=Some(events);
+            if deadline.saturating_duration_since(Instant::now())<std::time::Duration::from_secs(1) { break; }
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
-        let events:Value=serde_json::from_str(&text).map_err(|_|Fail::new("audit_unreadable","audit events not JSON"))?;
-        if !events.is_array(){return Err(Fail::new("audit_unreadable","audit events must be array"));}
+        let events=settled.or(previous).filter(|items| !items.is_empty()).ok_or_else(|| Fail::new("audit_unreadable","audit events not flushed"))?;
         Ok(json!({"protocol":"oo.mssql-preview.raw-audit/v1","tds_query_executed":true,"audit_observer":customer.endpoint.username,"reader":reader,"application_name":application,"events":events}))
     }.await;
     shutdown(client,if matches!(&outcome,Err(e) if e.code=="deadline_exceeded"){Cleanup::AttentionThenClose}else{Cleanup::Close}).await;

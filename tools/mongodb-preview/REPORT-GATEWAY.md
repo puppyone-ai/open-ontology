@@ -9,3 +9,5 @@ Cancel held `ACCESS EXCLUSIVE` on `pt_f367b2f66a214283fdac52b817df957734aebac021
 `dialogue.py` first run used `grok-4.7` and `grok-4.7-build`, called search, describe, freshness, and query, and missed `knowledge_cat`. That transcript stays in `dialogue/`. The second run called `knowledge_search`, `knowledge_cat`, `describe`, `freshness`, and `query`. Verdict outcome `verified`. Response models `grok-4.7` and `grok-4.7-build`. Query ids `q_7RA3j7qCUNBwUzn9XgAR7YJ9eL` and `q_NG4FYlGG0tCWMzbt49tb7It0Ht`. Audit sha256 `2b53b0d0423ead3f74ec562fd5acada3e22613e834641c85f5aa6e86386034c8`. Truth sha256 `d01c3c1935a7f7215fbccaf330f22d4ca3e7612c975e4ac104d1d0ac767d1433`. Second-run usage prompt 9301, completion 1256, total 10557. No response was written by hand.
 
 `published` stays false. Formal acceptance stays 0/10. `complete` stays false. Owner ACK and publication were not performed.
+
+The gateway still serves the generation-3 pack. No new dialogue was run. A dialogue against this pack would not describe generations 5 and 6. Freshness was not promoted.
