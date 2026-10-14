@@ -73,6 +73,7 @@ pub const VERSION_NATIVE_PG_GROUP_RECEIPT: &str = "native-pg-group-receipt/v1";
 pub const VERSION_NATIVE_PG_GROUP_PRIOR: &str = "native-pg-group-prior/v1";
 pub const VERSION_NATIVE_PG_GROUP_GENERATION: &str = "native-pg-group-generation/v1";
 pub const VERSION_NATIVE_SQLSERVER_CT: &str = "native-sqlserver-ct/v1";
+pub const VERSION_NATIVE_GTID_TRANSACTION: &str = "native-gtid-transaction/v1";
 pub const VERSION_NATIVE_PG_SINGLE_TRANSACTION: &str = "native-pg-single-transaction/v1";
 
 /// Frozen SHA-256 of `0002_target_segment_null_expand.sql`.
@@ -104,6 +105,7 @@ const FILE_NATIVE_PG_GROUP_RECEIPT: &str = "0019_native_pg_group_receipt.sql";
 const FILE_NATIVE_PG_GROUP_PRIOR: &str = "0020_native_pg_group_prior.sql";
 const FILE_NATIVE_PG_GROUP_GENERATION: &str = "0021_native_pg_group_generation.sql";
 const FILE_NATIVE_SQLSERVER_CT: &str = "0023_native_sqlserver_ct.sql";
+const FILE_NATIVE_GTID_TRANSACTION: &str = "0024_native_gtid_transaction.sql";
 const FILE_NATIVE_PG_SINGLE_TRANSACTION: &str = "0022_native_pg_single_transaction.sql";
 const FILE_JOBS_MIRROR_REBIND: &str = "0005_mirror_rebind_expand.sql";
 const FILE_JOBS_MIRROR_RETRY: &str = "0006_mirror_retry_run_at_expand.sql";
@@ -133,6 +135,7 @@ const SCRIPT_NATIVE_PG_GROUP_RECEIPT: &str = include_str!("../migrations/0019_na
 const SCRIPT_NATIVE_PG_GROUP_PRIOR: &str = include_str!("../migrations/0020_native_pg_group_prior.sql");
 const SCRIPT_NATIVE_PG_GROUP_GENERATION: &str = include_str!("../migrations/0021_native_pg_group_generation.sql");
 const SCRIPT_NATIVE_SQLSERVER_CT: &str = include_str!("../migrations/0023_native_sqlserver_ct.sql");
+const SCRIPT_NATIVE_GTID_TRANSACTION: &str = include_str!("../migrations/0024_native_gtid_transaction.sql");
 const SCRIPT_NATIVE_PG_SINGLE_TRANSACTION: &str = include_str!("../migrations/0022_native_pg_single_transaction.sql");
 const SCRIPT_JOBS_MIRROR_REBIND: &str = include_str!("../../oo-jobs/migrations/0005_mirror_rebind_expand.sql");
 const SCRIPT_JOBS_MIRROR_RETRY: &str = include_str!("../../oo-jobs/migrations/0006_mirror_retry_run_at_expand.sql");
@@ -263,6 +266,8 @@ pub fn compiled_native_pg_group_generation_digest() -> String {
 }
 
 pub fn compiled_native_sqlserver_ct_digest() -> String { sha256_hex(SCRIPT_NATIVE_SQLSERVER_CT.as_bytes()) }
+
+pub fn compiled_native_gtid_transaction_digest() -> String { sha256_hex(SCRIPT_NATIVE_GTID_TRANSACTION.as_bytes()) }
 
 pub fn compiled_native_pg_single_transaction_digest() -> String {
     sha256_hex(SCRIPT_NATIVE_PG_SINGLE_TRANSACTION.as_bytes())
@@ -1496,6 +1501,44 @@ pub async fn install_native_sqlserver_ct(conn: &mut PgConnection) -> Result<(), 
     tx.commit().await.map_err(database_error)
 }
 
+/// Install the GTID 5-tuple after the SQL Server CT marker. Prior hashes stay fixed.
+pub async fn install_native_gtid_transaction(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_sqlserver_ct_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_SQLSERVER_CT), Some(row)
+        if row_exact(row, VERSION_NATIVE_SQLSERVER_CT, &prior, FILE_NATIVE_SQLSERVER_CT)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "gtid transaction requires exact sqlserver ct schema".to_string() });
+    }
+    let digest = compiled_native_gtid_transaction_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_GTID_TRANSACTION) {
+        if !row_exact(row, VERSION_NATIVE_GTID_TRANSACTION, &digest, FILE_NATIVE_GTID_TRANSACTION) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_GTID_TRANSACTION.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_GTID_TRANSACTION).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_GTID_TRANSACTION, &digest, FILE_NATIVE_GTID_TRANSACTION)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
 /// Apply the jobs-owner mirror recovery successor only on a target with jobs.
 pub async fn install_jobs_mirror_rebind(conn: &mut PgConnection) -> Result<(), InstallError> {
     let principal = read_principal(conn).await?;
@@ -2701,6 +2744,11 @@ mod tests {
         assert!(SCRIPT_NATIVE_SQLSERVER_CT.contains("'mssql-ct-version/v1'"));
         assert!(SCRIPT_NATIVE_SQLSERVER_CT.contains("native_sqlserver_ct_copy_forward"));
         assert!(install_order_calls_catalog_before_empty());
+        assert!(SCRIPT_NATIVE_GTID_TRANSACTION.contains("_oo.native_gtid_transaction_read(text,text,text,integer,numeric)") || SCRIPT_NATIVE_GTID_TRANSACTION.contains("p_source text,\n  p_codec text,\n  p_lineage text,\n  p_epoch integer,\n  p_pos numeric"));
+        assert!(SCRIPT_NATIVE_GTID_TRANSACTION.contains("native_gtid_transaction_commit"));
+        assert!(SCRIPT_NATIVE_GTID_TRANSACTION.contains("native_source_instance_register"));
+        assert!(!SCRIPT_NATIVE_GTID_TRANSACTION.contains("CREATE OR REPLACE FUNCTION _oo.native_transaction_commit"));
+        assert!(!SCRIPT_NATIVE_GTID_TRANSACTION.contains("GREATEST"));
     }
 
     fn install_order_calls_catalog_before_empty() -> bool {

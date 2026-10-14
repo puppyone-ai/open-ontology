@@ -374,7 +374,248 @@ def seed_committed_cycle(run_dir):
             target.write_bytes(file.read_bytes())
             os.chmod(target, 0o600)
 
+PRODUCT_RECEIPT = Path('/Users/redux/.cache/oo-postgresql-connection-whole/product-s5-c9295d3e/product/product-receipt.json')
+PRODUCT_PACK = Path('/tmp/oo-pg46-runtime-finish/continuous/gateway/packs/pg46_full.json')
+SERVED_PACK = Path('/tmp/oo-pg46-runtime-finish/continuous/gateway/packs/pg46_continuous_fixture.json')
+PUBLIC_GOLD = Path('/Users/redux/.cache/oo-postgresql-connection-whole/gateway-current-c9295d3e/public-cli/gold.json')
+CANCEL_VERDICT = Path('/Users/redux/.cache/oo-postgresql-connection-whole/gateway-current-c9295d3e/live-cancel/verdict.json')
+DIALOGUE_GOLD = Path('/Users/redux/.cache/oo-postgresql-connection-whole/random-dialogue/gold.json')
+BOUND_GENERATIONS = Path('/Users/redux/.cache/oo-postgresql-connection-whole/random-dialogue/observed-bound-generations.json')
+OLD_POINTER = Path('/Users/redux/.cache/oo-postgresql-connection-whole/onboard/input.json.run.json')
+OLD_RECIPE = Path('/Users/redux/.cache/oo-postgresql-connection-whole/onboard/recipe.json')
+PRODUCT_PACK_SHA = '7557a6d878e3898eef070f9f8344d913316604e82567721defcaa4be64d7a240'
+SERVED_PACK_SHA = '0fc4d62c995f2a5c39ed94a59a6c6a3a7d6eb3b31310d8cea30e7fa9cad48e73'
+SERVED_PACK_DIGEST = '9194fc50dfcbd068872bd493a0bc6fecba602a2a5ba259e2b757bfdf11d1dae4'
+DIALOGUE_GOLD_SHA = 'ae1043e3e93ac704c1bdb1706f60d086ef2b25a68efb88cb16be25e63751a37d'
+GENERATIONS = {
+    'customer_east.delivery_notes': 5,
+    'public.hubs': 4,
+    'public.shipments': 4,
+    'public.tracking_events': 4,
+}
+GOLD_ROWS = {
+    'hubs': '2002|-18446744071708554617',
+    'notes': '47|1234.7500',
+    'shipments': '8004|10000000000000024700365001754003708.9636',
+    'tracking': '90003|70000000004',
+}
+PROTECTED = (PRODUCT_RECEIPT, PRODUCT_PACK, SERVED_PACK, PUBLIC_GOLD, CANCEL_VERDICT, DIALOGUE_GOLD, BOUND_GENERATIONS, OLD_POINTER, OLD_RECIPE)
+
+def target_sql(database, sql):
+    return subprocess.check_output(['docker', 'exec', 'oo-dl01w1-46-native', 'psql', '-U', 'postgres', '-d', database, '-X', '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql], timeout=30).decode().strip()
+
+def reuse_decision(facts):
+    """Bind the sealed product to this source. A different role string is not a new approval."""
+    if facts['generations'] != GENERATIONS:
+        raise RuntimeError('generation_vector')
+    if facts['slot_flush'] != '0/40715A8':
+        raise RuntimeError('slot_moved')
+    if facts['product_pack_sha256'] != PRODUCT_PACK_SHA or facts['served_pack_sha256'] != SERVED_PACK_SHA:
+        raise RuntimeError('pack_sha')
+    if facts['product_pack_sha256'] == facts['served_pack_sha256'] or facts['product_role'] == facts['served_role']:
+        raise RuntimeError('pack_collapsed')
+    if facts['product_role'] != 'oo_r_pg46_full' or facts['served_role'] != 'oo_r_pg46_continuous_fixture':
+        raise RuntimeError('role')
+    if facts['served_pack_digest'] != SERVED_PACK_DIGEST or not facts['table_bytes_same']:
+        raise RuntimeError('field_permissions')
+    if facts['gold'] != GOLD_ROWS or facts['dialogue_gold_sha256'] != DIALOGUE_GOLD_SHA:
+        raise RuntimeError('gold')
+    if facts['full_target_columns'] != 38 or facts['full_target_tables'] != 0 or facts['full_dst_columns'] != 38:
+        raise RuntimeError('approved_role_privileges')
+    if facts['continuous_target_columns'] != 38 or facts['continuous_target_tables'] != 0:
+        raise RuntimeError('served_role_privileges')
+    if facts['full_member'] != 'oo_pg46_preview_login' or facts['continuous_member'] != 'oo_pg46_continuous_login':
+        raise RuntimeError('membership')
+    if facts['numeric_scale'] != {'customer_east.delivery_notes.amount': 4, 'public.shipments.cost_amount': 4}:
+        raise RuntimeError('numeric_scale')
+    receipt = facts['receipt']
+    s5 = receipt.get('s5') or {}
+    if receipt.get('build_id') != 'b_ca53577181af9bb17a34a862644e900f' or receipt.get('native_role_pack_sha256') != PRODUCT_PACK_SHA:
+        raise RuntimeError('receipt')
+    if s5.get('outcome') != 'validated' or s5.get('cache_hit') is not False or s5.get('llm_calls') != 1 or s5.get('model') != 'grok-4.7-build':
+        raise RuntimeError('s5')
+    stages = {item.get('stage') for item in receipt.get('stages') or [] if item.get('status') == 'succeeded'}
+    if stages < {f'S{i}' for i in range(11)}:
+        raise RuntimeError('stages')
+    runs = facts['dialogue_runs']
+    if len(runs) != 2 or any(item.get('outcome') != 'verified' or item.get('pack_sha256') != SERVED_PACK_SHA or item.get('role') != 'oo_r_pg46_continuous_fixture' or item.get('source_generation') != 5 for item in runs):
+        raise RuntimeError('dialogue')
+    if len({item.get('seed') for item in runs}) != 2:
+        raise RuntimeError('dialogue')
+    return {
+        'protocol': 'oo.postgres.entry-callback/v1',
+        'whole': False,
+        'published': False,
+        'formal_signoff': False,
+        'full_product_chain_complete': False,
+        'reuse': True,
+        'no_overwrite': True,
+        'receipt_rewritten': False,
+        'copied_private_verdict': False,
+        'customer_writes': 0,
+        'source_context': {
+            'source_id': 'oo_pg46_finish',
+            'source_database': EXPECTED['database'],
+            'source_host': EXPECTED['host'],
+            'target_database': 'pg46_finish_target_v2',
+            'target_instance': 'oo-dl01w1-46-native',
+            'slot': 'pg46_finish_slot',
+            'confirmed_flush_lsn': facts['slot_flush'],
+            'restart_lsn': facts['slot_restart'],
+            'current_wal_lsn': facts['current_wal'],
+            'slot_active': facts['slot_active'],
+            'slot_status': facts['slot_status'],
+            'generations': GENERATIONS,
+            'identity_source_generation': 5,
+            'identity_basis': 'latest bound run_generation only; the other three tables stay at 4',
+            'product_role': facts['product_role'],
+            'product_role_member': facts['full_member'],
+            'product_role_pack_sha256': PRODUCT_PACK_SHA,
+            'served_role': facts['served_role'],
+            'served_role_member': facts['continuous_member'],
+            'served_role_pack_sha256': SERVED_PACK_SHA,
+            'served_pack_digest': SERVED_PACK_DIGEST,
+            'pack_relation': 'table files, ontology, catalog, policy, and knowledge match; only the role string differs; the served role is not the product role',
+            'approved_role_privileges': {
+                'pg46_finish_target_v2': {'column_select': 38, 'table': 0},
+                'dst_native_r2': {'column_select': 38, 'table': 0},
+            },
+            'served_role_privileges': {'pg46_finish_target_v2': {'column_select': 38, 'table': 0}},
+            'empty_database_fill_would_apply': False,
+            'empty_database_fill_executed': True,
+            'numeric_scale': facts['numeric_scale'],
+        },
+        'reused': {
+            'build_id': receipt['build_id'],
+            's5_outcome': s5['outcome'],
+            's5_cache_hit': False,
+            's5_llm_calls': 1,
+            's5_model': s5['model'],
+            'product_receipt_sha256': facts['receipt_sha256'],
+            'public_gold_sha256': facts['public_gold_sha256'],
+            'cancel_query_id': facts['cancel_query_id'],
+            'dialogue_gold_sha256': DIALOGUE_GOLD_SHA,
+            'dialogue_runs': facts['dialogue_runs'],
+        },
+        'blocked_on': {
+            'owner': '38240',
+            'symbols': ['prove_whole', 'c1_continuous', 'product_flow_reuse', 'full_role_dialogue'],
+            'reason': 'sealed-review wrote reviewed/pg46_full_current for oo_r_pg46_full and oo_pg46_preview_login. command sha256 440072bce796d3eb6ea2e82815bf58a60f74b4f89c24df72ac543dbeeae06788 equals the c929 product reviewed bytes. The old reviewed/pg46_full binding sha256 3534ba42e851f8108ca8eccdef37dd34b8187003f33f052d1ba93a6359a34fd8 is unchanged. Public hubs and notes counts matched the source, a wrong schema was refused, and a live cancel recorded sqlstate 57014. The generation-6 source transaction is already committed and was not repeated. connection_cycle.release_unapplied refuses pin 6 because task 894ced2d-70dd-4fe1-896a-f6080323e364 is failed with 8 producer process_attempts. Watermark stays 5 and slot pg46_finish_slot stays inactive at 0/40715A8. Whole stays false until that fence is released by the existing consumer, the product_flow reuse maintenance call, and two new full-role dialogues exit.',
+        },
+        'not_run': ['connection_cycle', 'dump', 'import', 's5', 'publish_bundle', 'align_gateway', 'dialogue', 'grant'],
+    }
+
+def collect_facts():
+    slot = source_sql("SELECT active::text || '|' || restart_lsn::text || '|' || confirmed_flush_lsn::text || '|' || pg_current_wal_lsn()::text || '|' || wal_status FROM pg_replication_slots WHERE slot_name = 'pg46_finish_slot'")
+    active, restart, flush, wal, status = slot.split('|')
+    generations = {}
+    for line in target_sql('pg46_finish_target_v2', "SELECT logical_namespace || '|' || logical_table || '|' || mx::text FROM (SELECT logical_namespace, logical_table, max(run_generation) AS mx FROM _oo.physical_mappings WHERE level = 't' GROUP BY logical_namespace, logical_table) AS bound").splitlines():
+        namespace, table, generation = line.split('|')
+        generations[namespace + '.' + table] = int(generation)
+    scales = {}
+    for line in source_sql("SELECT table_schema || '.' || table_name || '.' || column_name || '|' || numeric_scale::text FROM information_schema.columns WHERE (table_schema, table_name, column_name) IN (('customer_east','delivery_notes','amount'),('public','shipments','cost_amount')) ORDER BY 1").splitlines():
+        name, scale = line.split('|')
+        scales[name] = int(scale)
+    gold = {}
+    queries = {
+        'hubs': "SELECT COUNT(*)||'|'||COALESCE(SUM(capacity_grams),0) FROM public.hubs",
+        'notes': "SELECT COUNT(*)||'|'||COALESCE(SUM(amount),0) FROM customer_east.delivery_notes",
+        'shipments': "SELECT COUNT(*)||'|'||COALESCE(SUM(cost_amount),0) FROM public.shipments",
+        'tracking': "SELECT COUNT(*)||'|'||COALESCE(MAX(event_id),0) FROM public.tracking_events",
+    }
+    for name, sql in queries.items():
+        gold[name] = source_sql(sql)
+    product = json.loads(PRODUCT_PACK.read_text())
+    served = json.loads(SERVED_PACK.read_text())
+    same = True
+    for left, right in zip(product['files'], served['files']):
+        if left.get('path') in {'README.md', 'manifest.json'}:
+            continue
+        same = same and left.get('sha256') == right.get('sha256')
+    product_manifest = json.loads(next(item['text'] for item in product['files'] if item.get('path') == 'manifest.json'))
+    served_manifest = json.loads(next(item['text'] for item in served['files'] if item.get('path') == 'manifest.json'))
+    runs = []
+    for name in ('run-1', 'run-2'):
+        folder = DIALOGUE_GOLD.parent / name
+        verdict = json.loads((folder / 'verdict.json').read_text())
+        selection = json.loads((folder / 'selection.json').read_text())
+        identity = selection.get('identity') or {}
+        runs.append({
+            'run': name,
+            'outcome': verdict.get('outcome'),
+            'seed': verdict.get('seed'),
+            'pack_sha256': identity.get('pack_sha256'),
+            'role': identity.get('role'),
+            'source_generation': identity.get('source_generation'),
+            'audit_sha256': verdict.get('audit_sha256'),
+        })
+    cancel = json.loads(CANCEL_VERDICT.read_text())
+    return {
+        'slot_active': active == 'true',
+        'slot_restart': restart,
+        'slot_flush': flush,
+        'current_wal': wal,
+        'slot_status': status,
+        'generations': generations,
+        'numeric_scale': scales,
+        'gold': gold,
+        'product_pack_sha256': sha(PRODUCT_PACK),
+        'served_pack_sha256': sha(SERVED_PACK),
+        'served_pack_digest': served.get('pack_digest'),
+        'product_role': product_manifest.get('role'),
+        'served_role': served_manifest.get('role'),
+        'table_bytes_same': same and product_manifest.get('catalog_version') == served_manifest.get('catalog_version') and product_manifest.get('ontology_version') == served_manifest.get('ontology_version'),
+        'full_target_columns': int(target_sql('pg46_finish_target_v2', "SELECT count(*) FROM information_schema.column_privileges WHERE grantee = 'oo_r_pg46_full'")),
+        'full_target_tables': int(target_sql('pg46_finish_target_v2', "SELECT count(*) FROM information_schema.table_privileges WHERE grantee = 'oo_r_pg46_full'")),
+        'full_dst_columns': int(target_sql('dst_native_r2', "SELECT count(*) FROM information_schema.column_privileges WHERE grantee = 'oo_r_pg46_full'")),
+        'continuous_target_columns': int(target_sql('pg46_finish_target_v2', "SELECT count(*) FROM information_schema.column_privileges WHERE grantee = 'oo_r_pg46_continuous_fixture'")),
+        'continuous_target_tables': int(target_sql('pg46_finish_target_v2', "SELECT count(*) FROM information_schema.table_privileges WHERE grantee = 'oo_r_pg46_continuous_fixture'")),
+        'full_member': target_sql('pg46_finish_target_v2', "SELECT u.rolname FROM pg_auth_members m JOIN pg_roles g ON g.oid = m.roleid JOIN pg_roles u ON u.oid = m.member WHERE g.rolname = 'oo_r_pg46_full'"),
+        'continuous_member': target_sql('pg46_finish_target_v2', "SELECT u.rolname FROM pg_auth_members m JOIN pg_roles g ON g.oid = m.roleid JOIN pg_roles u ON u.oid = m.member WHERE g.rolname = 'oo_r_pg46_continuous_fixture'"),
+        'receipt': json.loads(PRODUCT_RECEIPT.read_text()),
+        'receipt_sha256': sha(PRODUCT_RECEIPT),
+        'public_gold_sha256': sha(PUBLIC_GOLD),
+        'dialogue_gold_sha256': sha(DIALOGUE_GOLD),
+        'dialogue_runs': runs,
+        'cancel_query_id': cancel.get('query_id'),
+    }
+
+def reuse_entry(config, run_dir):
+    cfg = json.loads(Path(config).read_text())
+    for key, value in EXPECTED.items():
+        if cfg.get(key) != value:
+            raise RuntimeError('connection is not the authorized owned fixture')
+    run_dir = Path(run_dir)
+    if not run_dir.is_dir():
+        raise RuntimeError('run directory is absent')
+    before = {str(path): sha(path) for path in PROTECTED}
+    if '105aa78b9a914e48b126687fc05ae03d' not in OLD_POINTER.read_text():
+        raise RuntimeError('failed run pointer moved')
+    facts = collect_facts()
+    callback = reuse_decision(facts)
+    after = {str(path): sha(path) for path in PROTECTED}
+    if after != before:
+        raise RuntimeError('protected artifact changed')
+    callback['no_overwrite'] = True
+    callback['protected_sha256'] = {Path(path).name: digest for path, digest in sorted(before.items())}
+    write(run_dir / 'entry-callback.json', callback)
+    write(run_dir / 'whole.json', {
+        'protocol': 'oo.postgres.connection-whole/v1',
+        'build_id': facts['receipt']['build_id'],
+        'full_product_chain_complete': False,
+        'periodic_insert_update_delete_verified': False,
+        'recovery_verified': False,
+        'reuse': True,
+        'no_overwrite': True,
+        'published': False,
+        'native_amd64_nightly': 'external_gate_not_claimed',
+        'entry_callback': 'entry-callback.json',
+    })
+    print(json.dumps({'whole': False, 'reuse': True, 'slot_active': facts['slot_active'], 'flush': facts['slot_flush']}))
+    return callback
+
 def execute(config, run_dir):
+    raise RuntimeError('whole execute replays dump, import, and the model; normal entry is reuse_entry')
     import connection_cycle
     cfg = json.loads(Path(config).read_text())
     for key, value in EXPECTED.items():
@@ -487,7 +728,7 @@ def main():
         parser.error('config and run are required')
     args.config, args.run = config, run_dir
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    execute(args.config, args.run)
+    reuse_entry(args.config, args.run)
 
 if __name__ == '__main__':
     main()

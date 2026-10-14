@@ -441,6 +441,36 @@ class RunnerTests(unittest.TestCase):
                 pf.Flow(c,out).run(reuse_product=str(src), reuse_receipt=m.digest(src/'product-receipt.json'))
             self.assertFalse((out/'product-receipt.json').exists())
             self.assertEqual((src/'product-receipt.json').read_bytes(), raw)
+    def test_collection_binds_producer_schema_digests(self):
+        digest_a, digest_b, collection='a1'*32, 'b2'*32, 'c3'*32
+        rows=[{'dataset':'s.t','source_id':'sr_w45_native','source_generation':3,'schema_digest':digest_a},{'dataset':'s.u','source_id':'sr_w45_native','source_generation':19,'schema_digest':digest_b}]
+        entries=[{'schema_digest':digest_a},{'schema_digest':digest_b}]
+        command={'catalog':{'protocol':m.COLLECTION,'collection_sha256':collection,'binding_vector':rows,'entries':entries}}
+        visibility={'role':'oo_r_reader','catalog_version':collection}
+        native={'protocol':'oo.selfbuild-control-api/native-maintenance/v1','build_id':'b_fixture','pack_digest':'22'*32,'llm_calls':0,'publication':'not_published','artifact_revision':'66'*32,'source_rebind':{'catalog_sha256':'77'*32,'binding_vector':rows}}
+        role={'status':200,'request':{'policy_version':'oos/v1','role':'oo_r_reader'},'response':{'contract':'oo.selfbuild-control-api/role-pack/v1','operation':'compileRolePack','build_id':'b_fixture','role':'oo_r_reader','policy_version':'oos/v1','pack_sha256':'33'*32,'llm_calls':0,'native_maintenance':native}}
+        maintained={'status':200,'request':{'catalog_sha256':'77'*32,'trigger':'source_generation_advanced'},'response':{'operation':'postMaintenance','trigger':'source_generation_advanced','build_id':'b_fixture','llm_calls':0,'native_maintenance':native}}
+        overlay={'contract':'oo.selfbuild-control-api/overlay/v1','operation':'getOverlay','build_id':'b_fixture','llm_calls':0}
+        product={'producer':'tools/source-onboarding/product_flow.py','producer_sha256':'ab'*32,'build_id':'b_fixture','native_role_pack_sha256':'11'*32}
+        pack=json.dumps({'protocol':'oo.builder.role-pack/v1','pack_digest':'22'*32}).encode()
+        got=m.maintenance_consumption(product,'cd'*32,'11'*32,pack,command,visibility,json.dumps(role).encode(),json.dumps(maintained).encode(),0,0,json.dumps(overlay).encode())
+        self.assertEqual(got['schema_digests'],[digest_a,digest_b])
+        self.assertNotIn('schema_digest',got)
+        self.assertEqual(got['source_id'],'sr_w45_native')
+        self.assertEqual(got['source_generation'],19)
+        self.assertEqual(got['catalog_version'],collection)
+        self.assertNotEqual(got['catalog_version'],digest_a)
+        bad=json.loads(json.dumps(command)); bad['catalog']['entries'][1]['schema_digest']='d4'*32
+        with self.assertRaisesRegex(m.Refused,'maintenance_schema'):
+            m.maintenance_consumption(product,'cd'*32,'11'*32,pack,bad,visibility,json.dumps(role).encode(),json.dumps(maintained).encode(),0,0,json.dumps(overlay).encode())
+        invented=json.loads(json.dumps(command)); invented['catalog']['schema_digest']=digest_a
+        with self.assertRaisesRegex(m.Refused,'maintenance_schema'):
+            m.maintenance_consumption(product,'cd'*32,'11'*32,pack,invented,visibility,json.dumps(role).encode(),json.dumps(maintained).encode(),0,0,json.dumps(overlay).encode())
+        split=json.loads(json.dumps(command)); split['catalog']['binding_vector'][1]['source_id']='other'
+        echoed=json.loads(json.dumps(native)); echoed['source_rebind']['binding_vector']=split['catalog']['binding_vector']
+        role['response']['native_maintenance']=echoed; maintained['response']['native_maintenance']=echoed
+        with self.assertRaisesRegex(m.Refused,'maintenance_source'):
+            m.maintenance_consumption(product,'cd'*32,'11'*32,pack,split,visibility,json.dumps(role).encode(),json.dumps(maintained).encode(),0,0,json.dumps(overlay).encode())
     def test_duplicate_keys(self):
         with self.assertRaisesRegex(m.Refused,'duplicate_key'):json.loads('{"a":1,"a":2}',object_pairs_hook=m.pairs)
     def test_inline_secret(self):

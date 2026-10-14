@@ -731,7 +731,7 @@ fn write_pack(
                 "large_table_row_threshold": 1_000_000,
                 "max_columns": 64,
                 "max_functions": 1,
-                "max_operators": 64,
+                "max_operators": 66,
                 "max_tables": 16,
                 "unknown_rows": "zero"
             },
@@ -1927,6 +1927,59 @@ mod tests {
         assert_eq!(body["messages"][0]["content"].as_str().unwrap(), PROMPT);
         assert_eq!(body["messages"][1]["content"].as_str().unwrap(), with_facts);
         assert!(!body["messages"][0]["content"].as_str().unwrap().contains("USD"));
+        let _ = fs::remove_dir_all(&out);
+    }
+
+    #[test]
+    fn authority_catalog_emits_max_operators_66_inside_the_gateway_window() {
+        let cfg = config(Price::Declared { per_total_token: "0.000001".into(), units: 1, scale: 6 });
+        let settings = settings();
+        let visibility = visibility();
+        let catalog = catalog();
+        let out = std::env::temp_dir().join(format!("oo-w06-sealed-authority-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&out);
+        let cache = out.join("cache");
+        fs::create_dir_all(&cache).unwrap();
+        let mut transport = ScriptedTransport {
+            http_status: 200,
+            content: decisions(true),
+            finish_reason: "stop".to_owned(),
+            usage: Some((11, 22, 33)),
+            calls: 0,
+            refusal: None,
+            bodies: Vec::new(),
+        };
+        let mut build = SealedBuild {
+            config: &cfg,
+            token: "token-not-logged",
+            catalog_json: &catalog,
+            settings: &settings,
+            visibility: &visibility,
+            source_contract: None,
+            reviewer_by: "ada.owner",
+            reviewer_at: "2026-10-10",
+            dataset: "logistics.shipments",
+            cache_dir: &cache,
+            out_dir: &out,
+            target: Some(SealedTarget {
+                host: "127.0.0.1",
+                port: 5432,
+                database: "preview",
+                user: "oo_r_reader",
+                login: "oo_r_reader",
+                ca_file: "/tmp/ca.pem",
+                password_file: "/tmp/pw",
+            }),
+            transport: &mut transport,
+        };
+        assert_eq!(sealed_build(&mut build).unwrap(), 0);
+        let authority: Value = serde_json::from_str(&fs::read_to_string(out.join("authority.json")).unwrap()).unwrap();
+        let operators = authority["catalog"]["max_operators"].as_u64().unwrap();
+        assert_eq!(operators, 66);
+        assert!((54..=128).contains(&operators));
+        assert_eq!(authority["catalog"]["max_columns"], 64);
+        assert_eq!(authority["catalog"]["max_functions"], 1);
+        assert_eq!(authority["catalog"]["max_tables"], 16);
         let _ = fs::remove_dir_all(&out);
     }
 }

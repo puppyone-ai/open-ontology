@@ -1,0 +1,50 @@
+{
+  "fixed_onboarding_source": "ad79da858",
+  "fixed_builder_budget_source": "58013c791",
+  "fixed_onboarding_tests": {
+    "archive": "/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/oo-root-shared-ad79-fixed-59f9mrpm",
+    "tests": 13,
+    "exit": 0
+  },
+  "first_archive_attempt": "missing tools/operator-control path, git archive128; retained failure, corrected actual operator recipe path; not product failure or test success",
+  "actual_maintenance_consumption": {
+    "path": "/tmp/oo-starrocks-connection-whole/reuse-product-3/maintenance-consumption.json",
+    "sha256": "2d98e54cc56d04030a8952ff67ad18dc748026c6795003aad41d6c6dcebb0afe",
+    "build_id": "b_31ad89c06a4855921f66d5cb8555bb21",
+    "source_id": "sr_w45_native",
+    "source_generation": 19,
+    "schema_digests": [
+      "c007794adbad86050957fc41f20ab833b21d83e29468aa5cbc691697e116ecbe",
+      "60edded6edb1495f3ad00b6daa1035ec630a5a3a14e5fd2669d2a94e0cbf3be3",
+      "f654475d4fba6ffa2a043230ecc554b763d928994775aff3c6198978f5b7cfe1",
+      "0f9f85107b1adf8270f1b39f475171af3cf7e489b814b09678e368a76f8288e9",
+      "88540c5a4fe9404d8ab742da4de4bed4e4e4824980a30a03167c96a34ea0cc09"
+    ],
+    "receipt_unchanged_sha256": "7e3d3e8ecbb36525dc5000b4839a6a0f442d6768a779d5424eecf98c18016b0d",
+    "raw_official_calls": [
+      {
+        "response_path": "/tmp/oo-starrocks-connection-whole/reuse-product-3/0004-current-maintenance.response.json",
+        "response_sha256": "002aa326ff582aa450372f4f48e4f119a98345b42e6f3de8a41d18ee0eee42b9",
+        "exit_path": "/tmp/oo-starrocks-connection-whole/reuse-product-3/0004-current-maintenance.exit.json",
+        "exit": 0,
+        "HTTP_status": 200
+      },
+      {
+        "response_path": "/tmp/oo-starrocks-connection-whole/reuse-product-3/0005-current-role-pack.response.json",
+        "response_sha256": "76cc55af704abcf708c384f1388c0e387ed62e14626b1f8f11e2f229aba94387",
+        "exit_path": "/tmp/oo-starrocks-connection-whole/reuse-product-3/0005-current-role-pack.exit.json",
+        "exit": 0,
+        "HTTP_status": 200
+      },
+      {
+        "response_path": "/tmp/oo-starrocks-connection-whole/reuse-product-3/0006-current-overlay.response.json",
+        "response_sha256": "4da05f9d6d07071ecf32357c8ed7ea1eb99030b1373cae4d6e34e8e56ac7ccfd",
+        "exit_path": "/tmp/oo-starrocks-connection-whole/reuse-product-3/0006-current-overlay.exit.json",
+        "exit": 0,
+        "HTTP_status": 200
+      }
+    ]
+  },
+  "scope": "shared actual samebuild current collection-schema consumption + fixed13 unit tests; not source whole/default newrun directdialogue completion; Builder Linux test author evidence remains pending collection",
+  "full_source_count_delta": 0
+}

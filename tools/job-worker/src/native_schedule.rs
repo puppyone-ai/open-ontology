@@ -210,14 +210,25 @@ async fn verify_c1_applied(config:&Config,source:&str,database:&str,request:&Val
  let table=request.get("logical_table").and_then(Value::as_str).ok_or_else(||Error::new("position"))?;
  let generation=request.get("source_generation").and_then(Value::as_i64).ok_or_else(||Error::new("position"))?;
  let pos=request.get("applied_pos").and_then(Value::as_str).ok_or_else(||Error::new("position"))?;
+ let kind=c1_codec_closed(request)?;
  let codec=request.get("position_codec").and_then(Value::as_str).ok_or_else(||Error::new("position"))?;
- if !["pg-commit-lsn/v1","snapshot-zero/v1"].contains(&codec) {return Err(Error::new("position"))}
  let run=result.get("run_id").and_then(Value::as_str).ok_or_else(||Error::new("target_generation"))?;
  let physical=result.get("physical_name").and_then(Value::as_str).ok_or_else(||Error::new("target_generation"))?;
  let target_generation=result.get("target_generation").and_then(Value::as_i64).ok_or_else(||Error::new("target_generation"))?;
  let digest=result.get("payload_digest").and_then(Value::as_str).ok_or_else(||Error::new("target_generation"))?;
  let batch=request.get("batch_id").and_then(Value::as_str).ok_or_else(||Error::new("target_generation"))?;
- let valid:bool=target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.table_freshness f JOIN _oo.source_watermark w ON w.source=f.source JOIN _oo.full_import_run r ON r.run_id=$7::text::uuid JOIN _oo.full_import_table ft ON ft.run_id=r.run_id JOIN _oo.apply_receipts ar ON ar.source=r.source_id AND ar.table_generation=ft.physical_name WHERE f.source=$1 AND f.schema_name=$2 AND f.table_name=$3 AND f.source_generation=$4 AND f.last_pos=$5::text::numeric AND f.physical_name=$8 AND w.position_codec=$6 AND w.applied_pos>=$5::text::numeric AND r.state='awaiting_publish' AND r.source_id=$1 AND r.source_generation=$4 AND r.target_generation=$9 AND ft.schema_ident=$2 AND ft.table_ident=$3 AND ft.physical_name=$8 AND ft.exhausted AND ar.txn_or_batch_id=$10 AND ar.payload_digest=$11 AND ar.applied_pos=$5::text::numeric AND ar.txn_complete)",&[&source,&schema,&table,&generation,&pos,&codec,&run,&physical,&target_generation,&batch,&digest]).await.map_err(Error::sql)?.get(0);
+ let valid:bool=if kind=="legacy" {
+  target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.table_freshness f JOIN _oo.source_watermark w ON w.source=f.source JOIN _oo.full_import_run r ON r.run_id=$7::text::uuid JOIN _oo.full_import_table ft ON ft.run_id=r.run_id JOIN _oo.apply_receipts ar ON ar.source=r.source_id AND ar.table_generation=ft.physical_name WHERE f.source=$1 AND f.schema_name=$2 AND f.table_name=$3 AND f.source_generation=$4 AND f.last_pos=$5::text::numeric AND f.physical_name=$8 AND w.position_codec=$6 AND w.applied_pos>=$5::text::numeric AND r.state='awaiting_publish' AND r.source_id=$1 AND r.source_generation=$4 AND r.target_generation=$9 AND ft.schema_ident=$2 AND ft.table_ident=$3 AND ft.physical_name=$8 AND ft.exhausted AND ar.txn_or_batch_id=$10 AND ar.payload_digest=$11 AND ar.applied_pos=$5::text::numeric AND ar.txn_complete)",&[&source,&schema,&table,&generation,&pos,&codec,&run,&physical,&target_generation,&batch,&digest]).await.map_err(Error::sql)?.get(0)
+ } else {
+  let lineage=request.get("position_lineage").and_then(Value::as_str).ok_or_else(||Error::new("position"))?;
+  let epoch=i32::try_from(request.get("source_epoch").and_then(Value::as_i64).ok_or_else(||Error::new("position"))?).map_err(|_|Error::new("position"))?;
+  let grade=request.get("consistency_grade").and_then(Value::as_str).ok_or_else(||Error::new("position"))?;
+  if kind=="gtid" {
+   let attestation:Option<String>=target.query_one("SELECT _oo.native_gtid_transaction_read($1,$2,$3,$4,$5::text::numeric)::text",&[&source,&codec,&lineage,&epoch,&pos]).await.map_err(Error::sql)?.get(0);
+   if attestation.is_none() {return Err(Error::new("target_generation"))}
+  }
+  target.query_one("SELECT EXISTS(SELECT 1 FROM _oo.table_freshness f JOIN _oo.source_watermark w ON w.source=f.source JOIN _oo.source_instance i ON i.source=w.source AND i.source_epoch=w.source_epoch AND i.measured_id=w.position_lineage JOIN _oo.full_import_run r ON r.run_id=$7::text::uuid JOIN _oo.full_import_table ft ON ft.run_id=r.run_id JOIN _oo.apply_receipts ar ON ar.source=r.source_id AND ar.table_generation=ft.physical_name WHERE f.source=$1 AND f.schema_name=$2 AND f.table_name=$3 AND f.source_generation=$4 AND f.last_pos=$5::text::numeric AND f.physical_name=$8 AND w.position_codec=$6 AND w.position_lineage=$12 AND w.source_epoch=$13 AND w.applied_pos=$5::text::numeric AND w.consistency_grade=$14 AND (($15 AND w.cross_table_consistent) OR (NOT $15 AND NOT w.cross_table_consistent)) AND r.state='awaiting_publish' AND r.source_id=$1 AND r.source_generation=$4 AND r.target_generation=$9 AND ft.schema_ident=$2 AND ft.table_ident=$3 AND ft.physical_name=$8 AND ft.exhausted AND ar.txn_or_batch_id=$10 AND ar.payload_digest=$11 AND ar.applied_pos=$5::text::numeric AND ar.txn_complete)",&[&source,&schema,&table,&generation,&pos,&codec,&run,&physical,&target_generation,&batch,&digest,&lineage,&epoch,&grade,&(kind=="gtid")]).await.map_err(Error::sql)?.get(0)
+ };
  if !valid {return Err(Error::new("target_generation"))} Ok(())
 }
 async fn verify_group_applied(config:&Config,source:&str,database:&str,request:&Value,result:&Value)->Result<()> {
@@ -494,13 +505,18 @@ async fn apply(config:&Config,c:&mut tokio_postgres::Client,project:&str,worker:
    };
    if input.get("protocol").and_then(Value::as_str)!=Some("oo.jobs.native-producer/v1") || input.get("binding").and_then(Value::as_str)!=Some(&binding) || input.get("pin").and_then(Value::as_i64)!=Some(pin) || input.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || input.get("method").and_then(Value::as_str)!=Some(&m.method) || input.get("acknowledged_source_generation").and_then(Value::as_i64)!=Some(base) {return Err(Error::new("producer_input"))}
    let value=exec(config,&m.producer,"producer",serde_json::to_vec(&input).unwrap(),None,None,&binding,pin,project,task,worker,generation,None).await?;
+   let nochange=m.method=="C5" && value.get("protocol").and_then(Value::as_str)==Some("oo.jobs.native-c5-nochange/v1");
    let protocol=if group {"oo.jobs.native-transaction-producer/v1"} else if baseline {"oo.jobs.native-baseline-producer/v1"} else {request_protocol(&m.method)};
-   if value.get("protocol").and_then(Value::as_str)!=Some(protocol) || value.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || value.get("capture_method").and_then(Value::as_str)!=Some(method_token(&m.method)?){return Err(Error::new("source_binding"))}
+   if nochange {c5_nochange_shape(&value,&binding,pin,&m.source_id,base)?;}
+   else if value.get("protocol").and_then(Value::as_str)!=Some(protocol) || value.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || value.get("capture_method").and_then(Value::as_str)!=Some(method_token(&m.method)?){return Err(Error::new("source_binding"))}
    let s=serde_json::to_string(&value).unwrap();
    let n=c.execute("UPDATE jw_native.occurrences o SET request=$2::text::jsonb FROM jobs.tasks t WHERE o.task_id=t.id AND t.id=$1::text::uuid AND t.state='running' AND t.lease_owner=$3 AND t.generation=$4 AND t.lease_until>clock_timestamp() AND o.request IS NULL",&[&task,&s,&worker,&generation]).await.map_err(Error::sql)?;
    if n!=1{return Err(Error::new("lost_lease"))}value
   }
  };
+ if m.method=="C5" && request.get("protocol").and_then(Value::as_str)==Some("oo.jobs.native-c5-nochange/v1") {
+  return finish_c5_nochange(c,project,worker,task,generation,&binding,pin,&m.source_id,&database,base,&request).await;
+ }
  let protocol=if group {"oo.jobs.native-transaction-producer/v1"} else if baseline {"oo.jobs.native-baseline-producer/v1"} else {request_protocol(&m.method)};
  if request.get("protocol").and_then(Value::as_str)!=Some(protocol) || request.get("source_id").and_then(Value::as_str)!=Some(&m.source_id) || request.get("capture_method").and_then(Value::as_str)!=Some(method_token(&m.method)?){return Err(Error::new("source_binding"))}
  if request.get("source_generation").and_then(Value::as_i64)!=Some(base+1) {return Err(Error::new("source_generation"))}
@@ -768,6 +784,115 @@ pub async fn serve(config:&Config,project:&str,worker:&str,seconds:u64)->Result<
  }
 }
 
+fn c1_codec_closed(request:&Value)->Result<&'static str> {
+ let codec=request.get("position_codec").and_then(Value::as_str).ok_or_else(||Error::new("position"))?;
+ let grade=request.get("consistency_grade").and_then(Value::as_str).unwrap_or("");
+ match codec {
+  "pg-commit-lsn/v1"|"snapshot-zero/v1"=>Ok("legacy"),
+  "mariadb-gtid/v1"|"mysql-gtid/v1"=>{
+   if grade!="T" || !gtid_request_closed(codec, request) {return Err(Error::new("position"))}
+   Ok("gtid")
+  }
+  "mongo-cluster-time/v1"=>{
+   if (grade!="S0" && grade!="B") || request.get("cross_table_consistent").and_then(Value::as_bool)==Some(true) || !mongo_request_closed(request) {return Err(Error::new("position"))}
+   Ok("mongo")
+  }
+  _=>Err(Error::new("position")),
+ }
+}
+fn gtid_request_closed(codec:&str, request:&Value)->bool {
+ let lineage=request.get("position_lineage").and_then(Value::as_str).unwrap_or("");
+ let pos=request.get("applied_pos").and_then(Value::as_str).unwrap_or("");
+ let txn=request.get("txn_id").and_then(Value::as_str).unwrap_or("");
+ let epoch=request.get("source_epoch").and_then(Value::as_i64);
+ epoch.is_some_and(|value| (0..=i64::from(i32::MAX)).contains(&value))
+  && !lineage.contains(',') && !pos.contains(',') && !txn.contains(',') && !txn.contains('/') && !pos.contains('/') && !pos.contains(':')
+  && match codec {
+   "mariadb-gtid/v1"=>{
+    maria_pair(lineage).is_some_and(|(domain, server)| gtid_digits(pos, true) && txn==format!("{domain}-{server}-{pos}"))
+   }
+   "mysql-gtid/v1"=>{
+    lineage.strip_prefix("mysql.").is_some_and(|uuid| mysql_uuid_text(uuid) && gtid_digits(pos, false) && txn==format!("{uuid}:{pos}"))
+   }
+   _=>false,
+  }
+}
+#[cfg(test)]
+fn gtid_family_order(left:&Value, right:&Value)->std::result::Result<std::cmp::Ordering, ()> {
+ if !gtid_request_closed(left.get("position_codec").and_then(Value::as_str).unwrap_or(""), left) || left.get("position_codec")!=right.get("position_codec") || left.get("position_lineage")!=right.get("position_lineage") || left.get("source_epoch")!=right.get("source_epoch") {
+  return Err(());
+ }
+ let left_pos=left.get("applied_pos").and_then(Value::as_str).ok_or(())?;
+ let right_pos=right.get("applied_pos").and_then(Value::as_str).ok_or(())?;
+ Ok(left_pos.len().cmp(&right_pos.len()).then(left_pos.cmp(right_pos)))
+}
+fn mongo_request_closed(request:&Value)->bool {
+ let lineage=request.get("position_lineage").and_then(Value::as_str).unwrap_or("");
+ let pos=request.get("applied_pos").and_then(Value::as_str).unwrap_or("");
+ let epoch=request.get("source_epoch").and_then(Value::as_i64);
+ let bytes=lineage.as_bytes();
+ epoch.is_some_and(|value| (0..=i64::from(i32::MAX)).contains(&value))
+  && !bytes.is_empty() && bytes.len()<=128 && bytes[0].is_ascii_lowercase()
+  && bytes.iter().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_'|b'.'|b':'|b'-'))
+  && !lineage.contains(',') && (1..=38).contains(&pos.len()) && pos.bytes().all(|byte| byte.is_ascii_digit()) && (pos.len()==1 || pos.as_bytes()[0]!=b'0') && pos!="0"
+}
+fn maria_pair(lineage:&str)->Option<(u32, u32)> {
+ let rest=lineage.strip_prefix('d')?;
+ let (domain, server)=rest.split_once(".s")?;
+ let domain=canonical_u32_text(domain)?;
+ let server=canonical_u32_text(server).filter(|value| *value!=0)?;
+ Some((domain, server))
+}
+fn canonical_u32_text(text:&str)->Option<u32> {
+ let bytes=text.as_bytes();
+ if bytes.is_empty() || bytes.len()>10 || !bytes.iter().all(|byte| byte.is_ascii_digit()) || (bytes.len()>1 && bytes[0]==b'0') {return None}
+ text.parse().ok()
+}
+fn gtid_digits(pos:&str, zero_ok:bool)->bool {
+ let bytes=pos.as_bytes();
+ !bytes.is_empty() && bytes.len()<=20 && bytes.iter().all(|byte| byte.is_ascii_digit()) && (bytes.len()==1 || bytes[0]!=b'0') && pos.parse::<u64>().is_ok() && (zero_ok || pos!="0")
+}
+fn mysql_uuid_text(text:&str)->bool {
+ let mut parts=text.split('-');
+ for width in [8,4,4,4,12] {
+  let Some(part)=parts.next() else {return false};
+  if part.len()!=width || !part.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) {return false}
+ }
+ parts.next().is_none()
+}
+fn c5_nochange_shape(request:&Value, binding:&str, pin:i64, source:&str, base:i64)->Result<String> {
+ if request.get("protocol").and_then(Value::as_str)!=Some("oo.jobs.native-c5-nochange/v1")
+  || request.get("binding").and_then(Value::as_str)!=Some(binding)
+  || request.get("pin").and_then(Value::as_i64)!=Some(pin)
+  || request.get("source_id").and_then(Value::as_str)!=Some(source)
+  || request.get("method").and_then(Value::as_str)!=Some("C5")
+  || request.get("capture_method").and_then(Value::as_str)!=Some("c5_diff") {return Err(Error::new("source_binding"))}
+ if request.get("acknowledged_source_generation").and_then(Value::as_i64)!=Some(base) || request.get("source_generation").and_then(Value::as_i64)!=Some(base) {return Err(Error::new("source_generation"))}
+ if request.get("empty_diff").and_then(Value::as_bool)!=Some(true) || request.get("data_gen").and_then(Value::as_bool)!=Some(false) || request.get("apply").and_then(Value::as_bool)!=Some(false) || request.get("ack").and_then(Value::as_bool)!=Some(false) {return Err(Error::new("source_binding"))}
+ if let Some(codec)=request.get("position_codec") {
+  if codec.as_str()!=Some("snapshot-zero/v1") {return Err(Error::new("position"))}
+ }
+ let source_digest=request.get("source_digest").and_then(Value::as_str).ok_or_else(||Error::new("source_binding"))?;
+ let parent=request.get("parent_digest").and_then(Value::as_str).ok_or_else(||Error::new("parent_digest"))?;
+ if !is_hex64(source_digest) || !is_hex64(parent) || request.pointer("/snapshot/kind").and_then(Value::as_str)!=Some("c5_cycle") || request.pointer("/snapshot/value").and_then(Value::as_str)!=Some(source_digest) {return Err(Error::new("parent_digest"))}
+ Ok(parent.to_string())
+}
+fn is_hex64(value:&str)->bool { value.len()==64 && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) }
+async fn finish_c5_nochange(c:&mut tokio_postgres::Client, project:&str, worker:&str, task:&str, generation:i64, binding:&str, pin:i64, source:&str, database:&str, base:i64, request:&Value)->Result<()> {
+ let parent=c5_nochange_shape(request, binding, pin, source, base)?;
+ let stored:Option<String>=c.query_opt("SELECT COALESCE(o.request->>'input_digest', o.request #>> '{snapshot,value}') FROM jw_native.watermarks w JOIN jw_native.occurrences o ON o.task_id=w.task_id WHERE w.binding_id=$1::text::uuid AND w.source_generation=$2",&[&binding,&base]).await.map_err(Error::sql)?.and_then(|row| row.get(0));
+ if stored.as_deref()!=Some(parent.as_str()) {return Err(Error::new("parent_digest"))}
+ let tx=c.transaction().await.map_err(Error::sql)?;
+ let done=lease::complete_success(&tx, project, task, worker, generation).await?;
+ if done.status!=LeaseStatus::Succeeded {return Err(Error::new("lost_lease"))}
+ let result=json!({"protocol":"oo.jobs.native-c5-nochange/v1","source_id":source,"source_generation":base,"empty_diff":true,"data_gen":false,"apply":false,"ack":false});
+ tx.execute("UPDATE jw_native.occurrences SET result=$2::text::jsonb WHERE task_id=$1::text::uuid",&[&task,&result.to_string()]).await.map_err(Error::sql)?;
+ let n=tx.execute("UPDATE jw_native.source_progress SET active_task_id=NULL WHERE source_id=$1 AND target_database=$2 AND active_task_id=$3::text::uuid AND COALESCE(source_generation,0)=$4",&[&source,&database,&task,&base]).await.map_err(Error::sql)?;
+ if n!=1 {return Err(Error::new("source_active"))}
+ tx.commit().await.map_err(Error::sql)?;
+ println!("complete=nochange binding={binding} pin={pin} task={task} generation={generation} source_generation={base}");
+ Ok(())
+}
 fn method_token(method:&str)->Result<&'static str> {
  match method {"C1"=>Ok("c1_cdc"),"C2"=>Ok("c2_change_feed"),"C3"=>Ok("c3_cursor"),"C4"=>Ok("c4_partition"),"C5"=>Ok("c5_diff"),_=>Err(Error::new("method"))}
 }
@@ -970,6 +1095,42 @@ mod invocation_tests {
   assert!(frozen["entries"][0].get("lease_id").is_none());
   let mut changed=frozen.clone();changed["entries"][1]["applied_pos"]=json!("47774449");
   assert!(group_loader_request(&changed,"binding",1,"pg",3,task,7).is_err());
+ }
+ #[test]
+ fn gtid_codecs_and_mongo_weak_grade_do_not_cross_families() {
+  let maria=json!({"position_codec":"mariadb-gtid/v1","position_lineage":"d0.s1","source_epoch":1,"applied_pos":"7","txn_id":"0-1-7","consistency_grade":"T"});
+  let mysql=json!({"position_codec":"mysql-gtid/v1","position_lineage":"mysql.1bc0749a-c3f5-11f1-9a89-6e5583e808c4","source_epoch":1,"applied_pos":"17","txn_id":"1bc0749a-c3f5-11f1-9a89-6e5583e808c4:17","consistency_grade":"T"});
+  assert_eq!(c1_codec_closed(&maria).unwrap(),"gtid");
+  assert_eq!(c1_codec_closed(&mysql).unwrap(),"gtid");
+  assert!(c1_codec_closed(&json!({"position_codec":"mariadb-gtid/v1","position_lineage":"d0.s1","source_epoch":1,"applied_pos":"7","txn_id":"0-1-7,0-1-8","consistency_grade":"T"})).is_err());
+  let mut other=maria.clone(); other["position_lineage"]=json!("d0.s2"); other["txn_id"]=json!("0-2-7");
+  assert!(gtid_family_order(&maria,&other).is_err());
+  assert!(gtid_family_order(&maria,&mysql).is_err());
+  let mut later=maria.clone(); later["applied_pos"]=json!("8"); later["txn_id"]=json!("0-1-8");
+  assert_eq!(gtid_family_order(&maria,&later).unwrap(), std::cmp::Ordering::Less);
+  let mongo=json!({"position_codec":"mongo-cluster-time/v1","position_lineage":"rs0","source_epoch":2,"applied_pos":"15","consistency_grade":"S0","cross_table_consistent":false});
+  assert_eq!(c1_codec_closed(&mongo).unwrap(),"mongo");
+  let mut weak=mongo.clone(); weak["consistency_grade"]=json!("B");
+  assert_eq!(c1_codec_closed(&weak).unwrap(),"mongo");
+  weak["consistency_grade"]=json!("T");
+  assert!(c1_codec_closed(&weak).is_err());
+  assert!(c1_codec_closed(&json!({"position_codec":"mongo-resume-token/v1","consistency_grade":"S0"})).is_err());
+  assert!(c1_codec_closed(&json!({"position_codec":"snapshot-zero/v1","consistency_grade":"S0","applied_pos":"0"})).is_ok());
+ }
+ #[test]
+ fn c5_nochange_binds_parent_and_refuses_a_fake_advance() {
+  let digest="ab".repeat(32);
+  let parent="cd".repeat(32);
+  let request=json!({"protocol":"oo.jobs.native-c5-nochange/v1","binding":"b","pin":3,"source_id":"oo_dl01w1_44","method":"C5","capture_method":"c5_diff","acknowledged_source_generation":12,"source_generation":12,"empty_diff":true,"snapshot":{"kind":"c5_cycle","value":digest},"source_digest":digest,"parent_digest":parent,"data_gen":false,"apply":false,"ack":false});
+  assert_eq!(c5_nochange_shape(&request,"b",3,"oo_dl01w1_44",12).unwrap(), parent);
+  let mut fake=request.clone(); fake["source_generation"]=json!(13);
+  assert!(c5_nochange_shape(&fake,"b",3,"oo_dl01w1_44",12).is_err());
+  let mut wrong_source=request.clone(); wrong_source["source_id"]=json!("other");
+  assert!(c5_nochange_shape(&wrong_source,"b",3,"oo_dl01w1_44",12).is_err());
+  let mut codec=request.clone(); codec["position_codec"]=json!("mariadb-gtid/v1");
+  assert!(c5_nochange_shape(&codec,"b",3,"oo_dl01w1_44",12).is_err());
+  let mut parent_bad=request.clone(); parent_bad["parent_digest"]=json!("zz".repeat(32));
+  assert!(c5_nochange_shape(&parent_bad,"b",3,"oo_dl01w1_44",12).is_err());
  }
 }
 

@@ -1193,6 +1193,7 @@ mod tests {
             arrow_schema_sha256: digest,
             partition_scope: None,
             transaction_scope: None,
+            gtid_scope: None,
         }
     }
 

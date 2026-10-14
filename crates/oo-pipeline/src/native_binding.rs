@@ -258,6 +258,8 @@ pub struct ResolvedCapture {
     /// Source-observed C4 scope, equal to the hash-bound capturer payload.
     pub partition_scope: Option<serde_json::Value>,
     pub transaction_scope: Option<serde_json::Value>,
+    /// Registered Maria or MySQL GTID instance. Separate from a PostgreSQL xid.
+    pub gtid_scope: Option<serde_json::Value>,
 }
 
 /// Closed native products admitted by the real source capture boundary.
@@ -549,6 +551,7 @@ fn resolved_capture(
         arrow_schema_sha256: parsed.arrow_schema_sha256.clone().unwrap_or_default(),
         partition_scope: parsed.partition_scope.clone(),
         transaction_scope: parsed.transaction_scope.clone(),
+        gtid_scope: parsed.gtid_scope.clone(),
     }
 }
 
@@ -583,6 +586,7 @@ struct ParsedBinding {
     fields: Vec<BoundField>,
     partition_scope: Option<serde_json::Value>,
     transaction_scope: Option<serde_json::Value>,
+    gtid_scope: Option<serde_json::Value>,
 }
 
 /// How an admission file matched a binding. Neither variant is `admitted`.
@@ -879,6 +883,11 @@ fn parse_binding(binding: &serde_json::Value) -> Result<ParsedBinding, &'static 
     let transaction_scope = binding.get("transaction_scope").cloned();
     if transaction_scope.is_some() && (!matches!(binding.get("source_engine").and_then(serde_json::Value::as_str), Some("postgres" | "postgresql"))
         || partition_scope.is_some()) { return Err("schema"); }
+    let gtid_scope = binding.get("gtid_scope").cloned();
+    if let Some(scope) = gtid_scope.as_ref() {
+        if transaction_scope.is_some() || partition_scope.is_some() { return Err("schema"); }
+        validate_gtid_scope(scope, binding)?;
+    }
     let mut parsed_fields = Vec::with_capacity(fields.len());
     for field in fields {
         let source_oid = match field.get("source_oid") {
@@ -983,7 +992,76 @@ fn parse_binding(binding: &serde_json::Value) -> Result<ParsedBinding, &'static 
         fields: parsed_fields,
         partition_scope,
         transaction_scope,
+        gtid_scope,
     })
+}
+
+fn validate_gtid_scope(scope: &serde_json::Value, binding: &serde_json::Value) -> Result<(), &'static str> {
+    const KEYS: &[&str] = &[
+        "codec", "lineage", "source_epoch", "applied_pos", "txn_id", "measured_id", "config_digest", "schema_digest",
+    ];
+    let object = scope.as_object().ok_or("schema")?;
+    if object.len() != KEYS.len() || KEYS.iter().any(|key| !object.contains_key(*key)) { return Err("schema"); }
+    let engine = binding.get("source_engine").and_then(serde_json::Value::as_str).ok_or("schema")?;
+    let codec = scope["codec"].as_str().ok_or("schema")?;
+    let lineage = scope["lineage"].as_str().ok_or("schema")?;
+    let measured = scope["measured_id"].as_str().ok_or("schema")?;
+    let pos = scope["applied_pos"].as_str().ok_or("schema")?;
+    let txn = scope["txn_id"].as_str().ok_or("schema")?;
+    let epoch = scope["source_epoch"].as_i64().filter(|value| (0..=i64::from(i32::MAX)).contains(value)).ok_or("schema")?;
+    let config = scope["config_digest"].as_str().ok_or("schema")?;
+    let schema = scope["schema_digest"].as_str().ok_or("schema")?;
+    if !hex64(config) || !hex64(schema) || binding.get("config_digest").and_then(serde_json::Value::as_str) != Some(config)
+        || binding.get("schema_digest").and_then(serde_json::Value::as_str) != Some(schema) || measured != lineage {
+        return Err("schema");
+    }
+    if lineage.contains(',') || pos.contains(',') || txn.contains(',') || txn.contains('/') || pos.contains('/') || pos.contains(':') {
+        return Err("schema");
+    }
+    let _ = epoch;
+    match (engine, codec) {
+        ("mariadb", "mariadb-gtid/v1") => {
+            let (domain, server) = maria_binding_lineage(lineage).ok_or("schema")?;
+            if !gtid_digits(pos, true) || txn != format!("{domain}-{server}-{pos}") { return Err("schema"); }
+        }
+        ("mysql", "mysql-gtid/v1") => {
+            let uuid = lineage.strip_prefix("mysql.").filter(|text| mysql_binding_uuid(text)).ok_or("schema")?;
+            if !gtid_digits(pos, false) || txn != format!("{uuid}:{pos}") { return Err("schema"); }
+        }
+        _ => return Err("schema"),
+    }
+    Ok(())
+}
+
+fn maria_binding_lineage(lineage: &str) -> Option<(u32, u32)> {
+    let rest = lineage.strip_prefix('d')?;
+    let (domain, server) = rest.split_once(".s")?;
+    let domain = canonical_binding_u32(domain)?;
+    let server = canonical_binding_u32(server).filter(|value| *value != 0)?;
+    Some((domain, server))
+}
+
+fn canonical_binding_u32(text: &str) -> Option<u32> {
+    let bytes = text.as_bytes();
+    if bytes.is_empty() || bytes.len() > 10 || !bytes.iter().all(|byte| byte.is_ascii_digit()) || (bytes.len() > 1 && bytes[0] == b'0') {
+        return None;
+    }
+    text.parse().ok()
+}
+
+fn gtid_digits(pos: &str, zero_ok: bool) -> bool {
+    let bytes = pos.as_bytes();
+    !bytes.is_empty() && bytes.len() <= 20 && bytes.iter().all(|byte| byte.is_ascii_digit())
+        && (bytes.len() == 1 || bytes[0] != b'0') && pos.parse::<u64>().is_ok() && (zero_ok || pos != "0")
+}
+
+fn mysql_binding_uuid(text: &str) -> bool {
+    let mut parts = text.split('-');
+    for width in [8, 4, 4, 4, 12] {
+        let Some(part) = parts.next() else { return false };
+        if part.len() != width || !part.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) { return false; }
+    }
+    parts.next().is_none()
 }
 
 fn validate_partition_scope(
@@ -1078,6 +1156,7 @@ pub struct ServerRegistration {
     pub fields: Vec<BoundField>,
     pub partition_scope: Option<serde_json::Value>,
     pub transaction_scope: Option<serde_json::Value>,
+    pub gtid_scope: Option<serde_json::Value>,
     /// SHA-256 of the registry with the receipt stamp replaced by 64 zero digits.
     pub preimage_sha256: String,
     /// SHA-256 of the receipt file named by the registry stamp.
@@ -1240,6 +1319,7 @@ pub fn open_server_registration(
         fields: Vec::new(),
         partition_scope: None,
         transaction_scope: binding.get("transaction_scope").cloned(),
+        gtid_scope: binding.get("gtid_scope").cloned(),
         preimage_sha256: preimage,
         receipt_sha256: receipt_sha,
         catalog_sha256: catalog_sha,
@@ -1432,6 +1512,10 @@ fn verify_inputs(
     if let Some(scope) = binding.transaction_scope.as_ref() {
         let capturer: serde_json::Value = serde_json::from_slice(&_receipt).map_err(|_| "nonadmitted")?;
         if capturer.get("transaction_scope") != Some(scope) { return Err("nonadmitted"); }
+    }
+    if let Some(scope) = binding.gtid_scope.as_ref() {
+        let capturer: serde_json::Value = serde_json::from_slice(&_receipt).map_err(|_| "nonadmitted")?;
+        if capturer.get("gtid_scope") != Some(scope) { return Err("nonadmitted"); }
     }
     let catalog_bytes = read_hashed(&binding.catalog_path, &binding.catalog_sha256)?;
     let admission = read_capped(Path::new(&binding.receipt_path))?;
@@ -1934,6 +2018,28 @@ mod tests {
         assert_eq!(read_hashed(&path, digest), Err("nonadmitted"));
         assert_eq!(read_capture_receipt(&path, digest).unwrap().len(), 2_329_469);
         assert_eq!(read_capture_receipt(&path, DIGEST), Err("digest_mismatch"));
+    }
+
+    #[test]
+    fn gtid_scope_is_a_registered_instance_and_not_a_postgres_xid() {
+        let digest = "ab".repeat(32);
+        let mut binding = serde_json::json!({"source_engine":"mariadb","config_digest":digest,"schema_digest":digest});
+        let scope = serde_json::json!({"codec":"mariadb-gtid/v1","lineage":"d0.s1","source_epoch":1,"applied_pos":"7","txn_id":"0-1-7","measured_id":"d0.s1","config_digest":digest,"schema_digest":digest});
+        assert_eq!(validate_gtid_scope(&scope, &binding), Ok(()));
+        let mut set = scope.clone();
+        set["txn_id"] = serde_json::json!("0-1-7,0-1-8");
+        assert_eq!(validate_gtid_scope(&set, &binding), Err("schema"));
+        let mut caller = scope.clone();
+        caller["epoch_source"] = serde_json::json!("caller");
+        assert_eq!(validate_gtid_scope(&caller, &binding), Err("schema"));
+        binding["source_engine"] = serde_json::json!("postgres");
+        assert_eq!(validate_gtid_scope(&scope, &binding), Err("schema"));
+        binding["source_engine"] = serde_json::json!("mysql");
+        let mysql = serde_json::json!({"codec":"mysql-gtid/v1","lineage":"mysql.1bc0749a-c3f5-11f1-9a89-6e5583e808c4","source_epoch":4,"applied_pos":"17","txn_id":"1bc0749a-c3f5-11f1-9a89-6e5583e808c4:17","measured_id":"mysql.1bc0749a-c3f5-11f1-9a89-6e5583e808c4","config_digest":digest,"schema_digest":digest});
+        assert_eq!(validate_gtid_scope(&mysql, &binding), Ok(()));
+        let mut xid = scope.clone();
+        xid["xid"] = serde_json::json!(7);
+        assert_eq!(validate_gtid_scope(&xid, &binding), Err("schema"));
     }
 
     #[test]
