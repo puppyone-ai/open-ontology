@@ -25,30 +25,30 @@
   {
     "task": "oracle",
     "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
-    "pid": 52662,
+    "pid": 92264,
     "prompt": "execution/batches/grok-connection-full-20261014/oracle.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle.log",
     "write_paths": [
       "tools/oracle-preview"
     ],
-    "status": "same_owner_live_fixed_schema_actual_consumer_and_source_facts",
+    "status": "same_owner_live_remaining_original_product_exits",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 395,
     "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete",
-    "prior_pid": 93896,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/oracle-persistent-schema-fixed-random-full.md",
+    "prior_pid": 52662,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/oracle-persistent-current-g7-random-default-whole.md",
     "max_turns": 1000,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "verified batch C3/C5, S1 if same SCN proven",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 76822
+    "tool_handle": 10212
   },
   {
     "task": "mariadb",
     "session_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
-    "pid": 63283,
+    "pid": 91290,
     "prompt": "execution/batches/grok-connection-full-20261014/mariadb-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb.log",
     "write_paths": [
@@ -64,21 +64,21 @@
       "tools/source-capture-policy/CONTRACT.md",
       "crates/oo-gateway/src/query_executor.rs"
     ],
-    "status": "same_owner_live_true_c1_apply_and_random_full_source",
+    "status": "same_owner_live_remaining_original_product_exits",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 207,
     "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
     "prior_session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
-    "prior_pid": 12033,
+    "prior_pid": 63283,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-real-transaction-and-random-whole.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-gtid-installed-contract-whole.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 MariaDB binlog",
     "rust_core_required": true,
     "shared_c1_codec_boundary": "sole shared GTID acceptance/compare/checkpoint/native_update writer; source MySQL/Mongo/SQL consumers use fixed contract, no shared writes",
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 3078
+    "tool_handle": 7219
   },
   {
     "task": "mongodb",
@@ -205,25 +205,25 @@
   {
     "task": "starrocks",
     "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-    "pid": 61000,
+    "pid": 93337,
     "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
     "write_paths": [
       "tools/starrocks-preview"
     ],
-    "status": "same_owner_live_actual_policy_and_random_full_source",
+    "status": "same_owner_live_remaining_original_product_exits",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 130,
     "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-    "prior_pid": 20132,
+    "prior_pid": 61000,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-auto-period-current-random-full.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-current-g19-default-random-whole.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "applicable C4 partition refresh or documented C3/C5",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 90217
+    "tool_handle": 67643
   },
   {
     "task": "sqlserver",
@@ -241,7 +241,8 @@
       "tools/job-worker/src/native_schedule.rs",
       "tools/job-worker/NATIVE-SCHEDULE.md",
       "tools/job-worker/tests/closed_loop.rs",
-      "crates/oo-pipeline/src/native_catalog.rs"
+      "crates/oo-pipeline/src/native_catalog.rs",
+      "crates/oo-pipeline/migrations/0024_native_gtid_transaction.sql"
     ],
     "status": "same_owner_original_c2_rust_current_delta_catalog_export",
     "executor": "grok-4.7/xhigh",
