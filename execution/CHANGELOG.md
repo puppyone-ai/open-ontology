@@ -1107,3 +1107,5 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 2026-10-14 最新用户指定全部Grok CLI为grok-4.7/xhigh：PG、SQL前low CLI核实终态后同UUID接续，实际argv已验证；短交接/定点阅读/复用固定制品继续控Token，不降低reasoning。原生子智能体仍禁用，十源完整退出、原Plan/分母和统一审阅门槛不变，签收计数未晋级。
 
 2026-10-14 最新用户将固定clock等待改600秒，OS真实退出事件立即收取，不短轮询。11个Grok4.7/xhigh任务已派发（活动数以逐PID观察为准）：十源唯一完整owner+共享一键入口；Maria/OpenSearch/Star旧CLI及hostwriter终态后新短完整上下文续接，SQL source f73094b92及自有官方PG/snapshot仅组件进度保留，新owner继续lease/CAS/CT和全部产品出口，共享entry接真实run契约阻断并只写自己域。真实OpenSearch新run44584180失败在current policy catalog/cancel、Star678cdbda失败在APIHTTPError，不计完成。CPU/编译固定上限解除，以实际资源/独占依赖控制，不为凑15派重复源writer或空任务。完整一键0/10、历史作者9/10、正式0/10及原Plan/整版退出不变。
+
+2026-10-14 PG退出即验：固定50fd9d462共享ACL已实测LinuxELF aea3dad54671b9608a2ab1a739a2160681bc9cd8f4eacf08a49ce3c45a79cf05，root逐bytes核hash及自有库当前同role第2代列权限，原server日志有旧列REVOKE/新列GRANT/故障ROLLBACK；私有固定ELF已供各源复用，回执postgres-acl-fixed-intake.json。不计PG全链或独立批准；合法postgres项目200/verified/0build、错误项目403由PG唯一新短owner继续，禁止不确定modelcreate重复。Doris新whole-3 resume仍refused，不计完成，新唯一owner保持immutable-run约束补全。当前任务仍十源+共享入口、Grok4.7/xhigh、clock600秒；全链/签收计数不晋级。

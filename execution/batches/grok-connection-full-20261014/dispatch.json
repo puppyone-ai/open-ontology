@@ -104,9 +104,9 @@
   },
   {
     "task": "postgresql",
-    "session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
-    "pid": 37471,
-    "prompt": "execution/batches/grok-connection-full-20261014/postgresql-compact-complete.md",
+    "session_uuid": "27ca3ccc-e673-4832-8415-0462d4227a64",
+    "pid": 60008,
+    "prompt": "execution/batches/grok-connection-full-20261014/postgresql-complete-project-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
     "write_paths": [
       "tools/postgres-preview",
@@ -114,14 +114,16 @@
       "crates/oo-gateway/src/bin/install-column-acl.rs",
       "docs/07-gateway.md"
     ],
-    "status": "resumed_xhigh_latest_human",
+    "status": "full_project_handoff",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 285,
-    "prior_session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
+    "prior_session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
     "prior_delivery": "Macdebug rejection paths only; no actual ACL advance or Linux/full one-command proof",
     "effort_handoff_previous_pid": 32956,
     "effort_handoff_was_live": true,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-xhigh-handoff.md"
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-xhigh-handoff.md",
+    "prior_pid": 37471,
+    "max_turns": 200
   },
   {
     "task": "starrocks",
