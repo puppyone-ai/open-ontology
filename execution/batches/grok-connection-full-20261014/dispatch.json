@@ -68,7 +68,7 @@
       "crates/oo-gateway/src/query_executor.rs",
       "tools/source-capture-policy/src/model.rs"
     ],
-    "status": "durable_same_Maria_whole_actual_installer_C1_baseline_producer",
+    "status": "terminal_402_quota_exhausted_original_code_resources_retained",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 207,
     "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
@@ -121,7 +121,7 @@
       "tools/agent-product-verifier/tests/test_dialogue.py",
       "tools/agent-product-verifier/CONTRACT.md"
     ],
-    "status": "durable_fresh_same_whole_source_current_default_actual_consumer",
+    "status": "terminal_402_quota_exhausted_original_code_resources_retained",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 142,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
@@ -173,7 +173,7 @@
       "testing/dl01-driver-preflight/opensearch/scripts/native_c5_product_producer.py",
       "testing/dl01-driver-preflight/opensearch/scripts/test_c5_nochange.py"
     ],
-    "status": "durable_fresh_same_OS_full_source_real_Rust_nochange483_consumer",
+    "status": "terminal_402_quota_exhausted_original_code_resources_retained",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 268,
     "prior_session_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
@@ -272,7 +272,7 @@
       "crates/oo-pipeline/migrations/0025_native_c1_source_epoch.sql",
       "tools/source-admission/tests"
     ],
-    "status": "durable_fresh_same_SQL_whole_actual_C1_admission_epoch_repair_consumers",
+    "status": "terminal_402_quota_exhausted_original_code_resources_retained",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 0,
     "prior_session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
