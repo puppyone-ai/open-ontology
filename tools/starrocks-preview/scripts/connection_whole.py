@@ -593,20 +593,34 @@ def refresh_gateway(run_dir):
     os.chmod(token, 0o600)
 
 
-def dialogue(run_dir):
-    truth = {"count": {"expected_named_facts": {"row_count": "1"}}, "label": {"expected_named_facts": {"label": "conn_live"}}}
-    write(run_dir / "dialogue-truth.json", truth)
-    # knowledge_search already returns INDEX, manifest, and table excerpts, so a
-    # "then cat the returned path" question is answered without knowledge_cat.
-    # The named fact object is only facts and evidence; query_id stays inside evidence.
-    count = "Call knowledge_cat with path tables/oo_w45_sr.uniq_dim.md, describe with table oo_w45_sr.uniq_dim, and freshness before you answer. A knowledge_search excerpt does not replace knowledge_cat. Then query SELECT COUNT(*) AS row_count FROM oo_w45_sr.uniq_dim. The final message is bare JSON with exactly two keys, facts and evidence. facts.row_count is the observed cell as a string. evidence.row_count has only query_id, column, and row; column is row_count and row is 0. Put query_id only inside evidence."
-    label = "Query SELECT label FROM oo_w45_sr.uniq_dim WHERE dim_id = 17. The final message is bare JSON with exactly two keys, facts and evidence. facts.label is the observed cell as a string. evidence.label has only query_id, column, and row; column is label and row is 0. No other keys."
-    config = {"oo_cli": str(BASE / "oo-cli"), "gateway": "http://" + (GW_DIR / "listen.addr").read_text().strip(), "transport": "local-development", "auth": "external", "gateway_token_file": str(GW_DIR / "client-conn.token"), "model_origin": "http://127.0.0.1:8317", "model": "grok-4.7", "model_bearer_file": "/tmp/oo-product-model-20261012/bearer", "independent_truth_file": str(run_dir / "dialogue-truth.json"), "independent_gateway_audit_file": str(GW_DIR / "wal"), "max_tool_rounds": 12, "questions": [
-        {"truth_key": "count", "prompt": count},
-        {"truth_key": "label", "prompt": label},
-    ]}
+def dialogue(run_dir, source_generation):
+    """Run the pinned verifier on a fresh bank. run4 is history, not this result."""
+    out = run_dir / "dialogue"
+    if out.exists():
+        raise RuntimeError("dialogue out already exists")
+    for path in (SECOND_GOLD, SECOND_BANK, SECOND_PRIOR, SECOND_HISTORY, ROLE_PACK):
+        if not path.is_file() or path.is_symlink():
+            raise RuntimeError("dialogue input is absent")
+    config = {
+        "oo_cli": str(BASE / "oo-cli"),
+        "gateway": "http://" + (GW_DIR / "listen.addr").read_text().strip(),
+        "transport": "local-development",
+        "auth": "external",
+        "gateway_token_file": str(GW_DIR / "client-conn-e0c2.token"),
+        "model_origin": "http://127.0.0.1:8317",
+        "model": "grok-4.7",
+        "model_bearer_file": "/tmp/oo-product-model-20261012/bearer",
+        "independent_truth_file": str(SECOND_GOLD),
+        "independent_gateway_audit_file": str(GW_DIR / "wal"),
+        "max_tool_rounds": 12,
+        "question_bank": str(SECOND_BANK),
+        "sample_size": 2,
+        "history_file": str(SECOND_HISTORY),
+        "prior_manifest": str(SECOND_PRIOR),
+        "identity": {"source_id": "sr_w45_native", "source_generation": source_generation, "pack_sha256": sha(ROLE_PACK), "role": "oo_r_w45_native"},
+    }
     write(run_dir / "dialogue-config.json", config)
-    proc = subprocess.run([sys.executable, str(ROOT / "tools/agent-product-verifier/dialogue.py"), "--config", str(run_dir / "dialogue-config.json"), "--out", str(run_dir / "dialogue")], capture_output=True, timeout=900)
+    proc = subprocess.run([sys.executable, str(DIALOGUE_PROGRAM), "--config", str(run_dir / "dialogue-config.json"), "--out", str(out)], capture_output=True, timeout=1200)
     kept(proc, run_dir / "dialogue-call")
     if proc.returncode:
         raise RuntimeError("dialogue failed")
@@ -653,9 +667,20 @@ def cancel_query(run_dir):
 MANIFEST_NAMES = {"journal.json", "driver-config.json", "lock"}
 STEP_LOG = re.compile(r"^[0-9]+\.(stdout|stderr)$")
 ROLE_PACK = REUSED_BUILD / "native-maintenance/a62b017d99e97c7b29f28f90291148605a79b4b5e49cc7d24dc277704d1e9e22/role-pack.json"
-GRAIN_DIALOGUE = BASE / "random-dialogue/run3-grain"
-GRAIN_GOLD = BASE / "random-dialogue/independent-gold-grain.json"
+SECOND_GOLD = BASE / "random-dialogue/run5-source/independent-gold.json"
+SECOND_BANK = BASE / "random-dialogue/run5-source/question-bank.json"
+SECOND_PRIOR = BASE / "random-dialogue/run5-source/prior-manifest.json"
+SECOND_HISTORY = BASE / "random-dialogue/run5-source/history.json"
 DIALOGUE_PROGRAM = ROOT / "tools/agent-product-verifier/dialogue.py"
+DATE_ELF = "e0c2b73d4ed312ea92dc822436e665961a41d96ccf507a2903d37bcf5ac7c664"
+PRODUCT_RECEIPT = "7e3d3e8ecbb36525dc5000b4839a6a0f442d6768a779d5424eecf98c18016b0d"
+SCHEMA_DIGESTS = [
+    "c007794adbad86050957fc41f20ab833b21d83e29468aa5cbc691697e116ecbe",
+    "60edded6edb1495f3ad00b6daa1035ec630a5a3a14e5fd2669d2a94e0cbf3be3",
+    "f654475d4fba6ffa2a043230ecc554b763d928994775aff3c6198978f5b7cfe1",
+    "0f9f85107b1adf8270f1b39f475171af3cf7e489b814b09678e368a76f8288e9",
+    "88540c5a4fe9404d8ab742da4de4bed4e4e4824980a30a03167c96a34ea0cc09",
+]
 POLICY_CATALOG = ROOT / "crates/oo-gateway/src/policy_catalog.rs"
 
 
@@ -723,7 +748,7 @@ def load_json(path):
     return json.loads(path.read_text())
 
 
-def exit_checks(binding, tables, source_generation, target_generation):
+def exit_checks(binding, tables, source_generation, target_generation, run_dir=None):
     """Read the existing product, role, gateway, gold, dialogue, WAL, cancel, and recovery evidence.
 
     Generation equality is current_generation_bound. It does not set whole.
@@ -772,6 +797,13 @@ def exit_checks(binding, tables, source_generation, target_generation):
         gaps.append("product-3 receipt was not cited by a same-build reuse that left the S5 bytes unchanged")
     elif load_json(reuse_dir / "maintenance-consumption.json") is None:
         gaps.append("product reuse cited product-3 but maintenance_consumption refused maintenance_schema")
+    run_dir = Path(run_dir) if run_dir else None
+    this_receipt = None if run_dir is None else run_dir / "product/product-receipt.json"
+    this_sha = sha(this_receipt) if this_receipt is not None and this_receipt.is_file() and not this_receipt.is_symlink() else None
+    this_cons = load_json(run_dir / "product/maintenance-consumption.json") if run_dir else None
+    this_s5 = run_dir / "product/S5.response.json" if run_dir else None
+    if this_sha != PRODUCT_RECEIPT or this_s5 is None or this_s5.exists() or not isinstance(this_cons, dict) or this_cons.get("source_id") != "sr_w45_native" or this_cons.get("source_generation") != 19 or this_cons.get("maintenance_llm_calls") != 0 or this_cons.get("schema_digest") is not None or this_cons.get("schema_digests") != SCHEMA_DIGESTS or this_cons.get("product_receipt_sha256") != PRODUCT_RECEIPT:
+        gaps.append("this run did not invoke product_flow reuse of product-3")
     stage_files = {}
     for index in range(11):
         body = load_json(REUSED_BUILD / ("S%d.response.json" % index))
@@ -787,24 +819,8 @@ def exit_checks(binding, tables, source_generation, target_generation):
     if sha(RETAINED_GOLD) != RETAINED_GOLD_SHA:
         gaps.append("retained typed gold mismatch")
     dialogue_verdict = None
-    verdict = load_json(GRAIN_DIALOGUE / "verdict.json")
-    selection = load_json(GRAIN_DIALOGUE / "selection.json")
     prior = load_json(BASE / "random-dialogue/run2/selection.json")
-    gold_sha = sha(GRAIN_GOLD) if GRAIN_GOLD.is_file() else None
     prior_ids = set(prior.get("semantic_ids") or []) if isinstance(prior, dict) else set()
-    selected = selection.get("semantic_ids") if isinstance(selection, dict) else None
-    identity = selection.get("identity") if isinstance(selection, dict) else None
-    tools = set(verdict.get("tools") or []) if isinstance(verdict, dict) else set()
-    dialogue_ok = (
-        isinstance(verdict, dict) and verdict.get("outcome") == "verified" and type(verdict.get("turns")) is int and verdict["turns"] >= 2
-        and verdict.get("selection") == "random" and verdict.get("counts_as_random") is True
-        and {"query", "freshness", "describe", "knowledge_cat"} <= tools
-        and isinstance(selected, list) and len(selected) >= 2 and not prior_ids.intersection(selected)
-        and any(isinstance(item, str) and item.startswith("part_event_rows_") for item in selected)
-        and isinstance(identity, dict) and identity.get("pack_sha256") == role_sha and identity.get("source_generation") == source_generation
-        and gold_sha is not None and verdict.get("gold_sha256") == gold_sha and verdict.get("truth_sha256") == gold_sha
-        and identities["dialogue_program_sha256"] == "0aefc0b5b283abbf4c4845269cd99fe444de76ae1c273f456bebc49bfbb9096a"
-    )
     fresh = load_json(BASE / "random-dialogue/run4-fresh/verdict.json")
     fresh_selection = load_json(BASE / "random-dialogue/run4-fresh/selection.json")
     fresh_gold_path = BASE / "random-dialogue/independent-gold-run4.json"
@@ -826,18 +842,43 @@ def exit_checks(binding, tables, source_generation, target_generation):
         and fresh_gold is not None and fresh.get("gold_sha256") == fresh_gold and fresh.get("truth_sha256") == fresh_gold
         and identities["dialogue_program_sha256"] == "816ffbaefc30bd5e2fd633c44a2dc4c20d21db5cd7eff8ad09eb3ba9810d7afc"
     )
-    accepted = verdict if dialogue_ok else fresh if fresh_ok else None
-    if dialogue_ok:
-        dialogue_verdict = "random-dialogue/run3-grain/verdict.json"
-    elif fresh_ok:
-        dialogue_verdict = "random-dialogue/run4-fresh/verdict.json"
+    if not fresh_ok:
+        gaps.append("root-verified current-pack random run4 is absent")
+    second = load_json(run_dir / "dialogue/verdict.json") if run_dir else None
+    second_selection = load_json(run_dir / "dialogue/selection.json") if run_dir else None
+    second_ids = second_selection.get("semantic_ids") if isinstance(second_selection, dict) else None
+    second_identity = second_selection.get("identity") if isinstance(second_selection, dict) else None
+    second_tools = set(second.get("tools") or []) if isinstance(second, dict) else set()
+    second_gold = sha(SECOND_GOLD) if SECOND_GOLD.is_file() else None
+    blocked = set(used)
+    if isinstance(fresh_ids, list):
+        blocked.update(item for item in fresh_ids if isinstance(item, str))
+    prior_doc = load_json(SECOND_PRIOR)
+    if isinstance(prior_doc, dict):
+        blocked.update(item for item in (prior_doc.get("semantic_ids") or []) if isinstance(item, str))
     else:
-        gaps.append("repo dialogue has no verified fresh two-turn random exit")
+        gaps.append("prior semantic ids were not loaded")
+    second_ok = (
+        isinstance(second, dict) and second.get("outcome") == "verified" and type(second.get("turns")) is int and second["turns"] >= 2
+        and second.get("selection") == "random" and second.get("counts_as_random") is True
+        and {"query", "freshness", "describe", "knowledge_cat"} <= second_tools
+        and isinstance(second_ids, list) and len(second_ids) >= 2 and not blocked.intersection(second_ids)
+        and second.get("semantic_ids") == second_ids
+        and isinstance(second_identity, dict) and second_identity.get("pack_sha256") == role_sha and second_identity.get("source_generation") == source_generation
+        and second_identity.get("source_id") == "sr_w45_native" and second_identity.get("role") == "oo_r_w45_native"
+        and second_gold is not None and second.get("gold_sha256") == second_gold and second.get("truth_sha256") == second_gold
+        and identities["dialogue_program_sha256"] == "816ffbaefc30bd5e2fd633c44a2dc4c20d21db5cd7eff8ad09eb3ba9810d7afc"
+        and fresh_ok
+    )
+    if second_ok:
+        dialogue_verdict = "dialogue/verdict.json"
+    else:
+        gaps.append("this run has no second fresh two-turn on the current pack")
     wal = GW_DIR / "wal"
     complete = sorted(wal.glob("*-complete.wal")) if wal.is_dir() else []
     if not complete:
         gaps.append("gateway completion wal is absent")
-    elif accepted is not None:
+    else:
         seen = set()
         for path in complete:
             for line in path.read_bytes().splitlines():
@@ -846,7 +887,12 @@ def exit_checks(binding, tables, source_generation, target_generation):
                         seen.update(query_ids_of(json.loads(line)))
                     except json.JSONDecodeError:
                         continue
-        if not set(accepted.get("query_ids") or []) <= seen:
+        groups = []
+        if fresh_ok:
+            groups.append(set(fresh.get("query_ids") or []))
+        if second_ok:
+            groups.append(set(second.get("query_ids") or []))
+        if any(not group or not group <= seen for group in groups):
             gaps.append("dialogue query ids are not in the gateway completion wal")
     cancel = load_json(BASE / "cancel-verify-3/cancel/receipt.json")
     recovery = subprocess.run(["docker", "exec", W, "ls", "-1", EVIDENCE + "/" + RECOVERY_BINDING], capture_output=True, text=True, timeout=20)
@@ -899,7 +945,7 @@ def exit_checks(binding, tables, source_generation, target_generation):
         gaps.append("lower(), a hidden column, or the original label query did not keep its expected result")
     serve = subprocess.run(["docker", "exec", GW, "sha256sum", "/oo-gateway"], capture_output=True, text=True, timeout=120)
     gateway_sha = serve.stdout.split()[0] if serve.returncode == 0 and serve.stdout else None
-    if gateway_sha != "b922e1c4393af12f272a0d1bf8f49596d210667469988a1e6d13354766877577":
+    if gateway_sha != DATE_ELF:
         gaps.append("running gateway is not the date source ELF")
     elf_names = sorted(path.name for path in Path("/Users/redux/.cache/oo-dl01w1-73/fixed-elf").glob("oo-gateway*"))
     iud_verified = source_generation == 19 and target_generation != source_generation and tables.get("uniq_dim") == 19 and int(binding.get("generation", -1)) == 19
@@ -910,8 +956,9 @@ def exit_checks(binding, tables, source_generation, target_generation):
         "full_product_chain_complete": False,
         "periodic_insert_update_delete_verified": iud_verified,
         "recovery_verified": recovery_verified,
-        "product_receipt": None,
+        "product_receipt": "product/product-receipt.json" if this_sha == PRODUCT_RECEIPT else None,
         "dialogue_verdict": dialogue_verdict,
+        "prior_current_pack_dialogue": "random-dialogue/run4-fresh/verdict.json" if fresh_ok else None,
         "gaps": gaps,
         "identities": identities,
         "stage_files": stage_files,
@@ -997,7 +1044,22 @@ def execute(config, out):
         "c4_this_round": "not_run",
         "customer_writes": 0,
     }
-    checked = exit_checks(binding, tables, source_generation, target_generation)
+    flow_error = None
+    dialogue_error = None
+    try:
+        product(run_dir, None, sha(catalog))
+    except RuntimeError as exc:
+        flow_error = str(exc)
+    try:
+        dialogue(run_dir, source_generation)
+    except RuntimeError as exc:
+        dialogue_error = str(exc)
+    checked = exit_checks(binding, tables, source_generation, target_generation, run_dir)
+    if flow_error:
+        checked["gaps"].append("product_flow reuse failed: " + flow_error)
+    if dialogue_error:
+        checked["gaps"].append("dialogue.py failed: " + dialogue_error)
+    checked["whole"] = not checked["gaps"]
     callback.update(checked)
     callback["blocked_on"] = {
         "owner": "shared",
@@ -1006,7 +1068,10 @@ def execute(config, out):
         "date_comparison": checked["date_comparison"],
         "provenance": "d28 current-pack maintenance provenance stays with root. This entry does not rewrite the product receipt or the shared registry.",
     }
-    callback["not_invoked"] = ["prove_recovery", "native-fire", "point_api", "refresh_gateway", "Flow.run", "new_s5", "sql_guard_whitelist"]
+    not_invoked = ["prove_recovery", "native-fire", "point_api", "refresh_gateway", "new_s5", "sql_guard_whitelist"]
+    if flow_error:
+        not_invoked.append("Flow.run")
+    callback["not_invoked"] = not_invoked
     write(run_dir / "entry-callback.json", callback)
     write(BASE / "pg-mixed-vector.json", callback)
     if checked["whole"]:
