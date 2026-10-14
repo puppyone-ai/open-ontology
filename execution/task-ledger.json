@@ -9067,5 +9067,14 @@
       "SQL controloffset.sql",
       "Maria model.rs history_lost"
     ]
+  },
+  "latest_three_sources_true_dependency_reserved": {
+    "note": "2026-10-14 三source终态后真实reserve：Mongo32231 b52697bec fixed删OpaqueKeyString解析，作者Linux7c1test/原spool14snapshot8delta15currentgold0/hello rs0term2、S0idle末组无barrier写入，debug09d9 SHA/raw尚待rootintake不代applyACK；仅sharedproducer依赖，不再同阶段采样。Oracle30182当前四类Pack身份（file/semantic/HTTPid/旧S5receipt）不同正确保留，callback交shared38240正式derivedPackchain；g7 latest13:50依旧next_at12:03:50/pin7无自动worker，produceralive不满足period。Doris31161新native卡wholefalse awaitingrun可装但实际wrappercallbackexit2，current原同build维护修订dad79609/current54381Pack/catalog12cfb必须合法联结旧ed7c S5；period2真实43rows125cells8empty并非旧109，root记录限定scope修正不抹历史。三owner/资源/独占保留等真实shared接口，源码与失败永久；原完整/正式0/10、random3/10、分母/集中审阅不变。",
+    "tasks": [
+      "mongodb",
+      "oracle",
+      "doris"
+    ],
+    "acceptance_count_delta": 0
   }
 }

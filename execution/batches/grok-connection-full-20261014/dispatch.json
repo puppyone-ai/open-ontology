@@ -31,7 +31,7 @@
     "write_paths": [
       "tools/oracle-preview"
     ],
-    "status": "same_owner_live_exact_original_contract_and_default_entry",
+    "status": "terminal_reserved_current_pack_derived_gate_and_Rust_schedule",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 395,
     "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete",
@@ -90,7 +90,7 @@
     "write_paths": [
       "tools/mongodb-preview"
     ],
-    "status": "same_owner_live_exact_original_contract_and_default_entry",
+    "status": "terminal_reserved_fixed_b526_no_opaque_decode_shared_producer",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 327,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
@@ -138,7 +138,7 @@
       "tools/doris-preview",
       "testing/dl01-driver-preflight/doris/reader"
     ],
-    "status": "same_owner_live_exact_original_contract_and_default_entry",
+    "status": "terminal_reserved_native_recipe_current_official_provenance",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 218,
     "prior_pid": 4370,
