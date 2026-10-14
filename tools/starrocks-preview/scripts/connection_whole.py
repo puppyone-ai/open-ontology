@@ -517,43 +517,18 @@ def wait_api():
 
 
 def product(run_dir, commit, catalog_sha):
+    """Cite product-3. A new config would miss the retained hash and open another build."""
+    del commit
+    if catalog_sha != "2806c6788644b2a5ee0f1b3083de466744a406a58be938fde1c0e83e1d3c9e6b":
+        raise RuntimeError("catalog is not the retained product catalog")
     out = run_dir / "product"
-    out.mkdir(mode=0o700, exist_ok=True)
-    config = {
-        "endpoint": API_ORIGIN, "origin": "https://127.0.0.1:18441", "ca": CA,
-        "identity_origin": "https://127.0.0.1:18441", "identity_ca": ID_CA,
-        "cookies": {"admin": str(COOKIES / "fixture-admin.cookie"), "reviewer": str(COOKIES / "fixture-reviewer.cookie"), "owner": str(COOKIES / "fixture-owner.cookie")},
-        "operator_sha256": sha(ROOT / "tools/selfbuild-control-api/recipes/operator.py"),
-        "export_oos_sha256": sha(ROOT / "tools/selfbuild-control-api/recipes/export_oos.py"),
-        "fixture_authorized": True,
-        "create": {"allowance_id": "starrocks_native_allow", "config_commit": commit, "llm_secret_ref": "secret://llm/starrocks", "project_id": "starrocks", "source_ref": "starrocks_native_current"},
-        "work_dir_container": "/owned/work", "work_dir_host": "/tmp/oo-star-runtime-finish/work",
-        "catalog_sha256": catalog_sha, "model_deadline_seconds": 1500,
-    }
-    path = run_dir / "product-config.json"
-    write(path, config)
-    flow = ROOT / "tools/source-onboarding/product_flow.py"
-    prep = subprocess.run([sys.executable, str(flow), "--config", str(path), "--out", str(out), "--prepare-only"], capture_output=True, timeout=1700)
-    kept(prep, run_dir / "product-prepare")
-    if prep.returncode:
-        raise RuntimeError("product prepare failed")
-    overlay = json.loads((out / "prepared-overlay.json").read_text())
-    reviews = []
-    columns = []
-    for column in overlay["columns"]:
-        name = column["dataset"] + "." + column["name"]
-        if name.startswith("oo_w45_sr.pk_accounts.") and name.rsplit(".", 1)[1] in {"account_id", "balance", "nickname"}:
-            continue
-        columns.append(name)
-        if column["classification_state"] == "pending" and column["pii"] == "none":
-            reviews.append({"name": name, "binds_fact": column["fact_sha256"], "decision": "confirmed"})
-    decisions = {"reviews": reviews, "confirm_columns": columns, "role": "oo_r_w45_native", "fixture_authorized": True}
-    decision_path = run_dir / "decisions.json"
-    write(decision_path, decisions)
-    done = subprocess.run([sys.executable, str(flow), "--config", str(path), "--out", str(out), "--decisions", str(decision_path)], capture_output=True, timeout=300)
-    kept(done, run_dir / "product-decide")
+    if out.exists():
+        raise RuntimeError("product out already exists")
+    out.mkdir(mode=0o700, exist_ok=False)
+    done = subprocess.run([sys.executable, str(ROOT / "tools/source-onboarding/product_flow.py"), "--config", "/tmp/oo-star-money-product/product-config.json", "--out", str(out), "--reuse-product", "/tmp/oo-star-money-product/product-3", "--reuse-receipt", "7e3d3e8ecbb36525dc5000b4839a6a0f442d6768a779d5424eecf98c18016b0d"], capture_output=True, timeout=300)
+    kept(done, run_dir / "product-reuse")
     if done.returncode:
-        raise RuntimeError("product decisions failed")
+        raise RuntimeError("product reuse refused")
 
 
 def install_cli():
@@ -779,16 +754,34 @@ def exit_checks(binding, tables, source_generation, target_generation):
         gaps.append("official current maintenance response is not the succeeded postMaintenance")
     elif not isinstance(api, dict) or api.get("status") != 200 or not isinstance(api_body, dict) or api_body.get("operation") != "compileRolePack" or api_body.get("published") is not False:
         gaps.append("official current role pack response is not the unpublished compileRolePack")
-    if (REUSED_BUILD / "product-receipt.json").exists():
-        gaps.append("product receipt appeared at the reused build; this entry does not adopt or rewrite it")
-    else:
-        gaps.append("product adopt interface missing: Flow.completed requires product-receipt.json in the same out and does not adopt build " + REUSED_BUILD.name + " without POST /review, /confirm, or /role-pack")
+    retained_receipt = Path("/tmp/oo-star-money-product/product-3/product-receipt.json")
+    reuse_dir = BASE / "reuse-product-3"
+    receipt_sha = sha(retained_receipt) if retained_receipt.is_file() and not retained_receipt.is_symlink() else None
+    s5_file = REUSED_BUILD / "S5.response.json"
+    s5_sha = sha(s5_file) if s5_file.is_file() and not s5_file.is_symlink() else None
+    reuse_maint = load_json(reuse_dir / "0001-current-maintenance.response.json")
+    reuse_role = load_json(reuse_dir / "0002-current-role-pack.response.json")
+    cited = (
+        receipt_sha == "7e3d3e8ecbb36525dc5000b4839a6a0f442d6768a779d5424eecf98c18016b0d"
+        and s5_sha == "4007ecdd7e21198103e56b8267534de62af774e11d74ac81d8ff8e549f39070a"
+        and isinstance(reuse_maint, dict) and reuse_maint.get("status") == 200
+        and isinstance(reuse_role, dict) and reuse_role.get("status") == 200
+        and not (REUSED_BUILD / "product-receipt.json").exists()
+    )
+    if not cited:
+        gaps.append("product-3 receipt was not cited by a same-build reuse that left the S5 bytes unchanged")
+    elif load_json(reuse_dir / "maintenance-consumption.json") is None:
+        gaps.append("product reuse cited product-3 but maintenance_consumption refused maintenance_schema")
     stage_files = {}
     for index in range(11):
         body = load_json(REUSED_BUILD / ("S%d.response.json" % index))
         stage_files["S%d" % index] = None if body is None else body.get("outcome") or body.get("stage")
-    if stage_files.get("S9") is None or stage_files.get("S10") is None:
-        gaps.append("build directory has no S9/S10 response; S0-S10 provenance stays on the maintenance response and is not a product receipt")
+    receipt_doc = load_json(retained_receipt)
+    receipt_stages = {item.get("stage"): item for item in (receipt_doc or {}).get("stages") or [] if isinstance(item, dict)}
+    s9 = receipt_stages.get("S9") or {}
+    s10 = receipt_stages.get("S10") or {}
+    if s9.get("status") != "succeeded" or s10.get("status") != "succeeded" or s9.get("output_sha256") != s10.get("output_sha256") or not str(s9.get("output_sha256") or "").startswith("246858"):
+        gaps.append("product-3 receipt does not show S9 and S10 succeeded with the same output hash")
     if int(binding.get("generation", -1)) != tables.get("uniq_dim") or binding.get("ontology_version") != "ont-starrocks-native-c5-g13":
         gaps.append("gateway binding is not the live uniq_dim generation with ontology ont-starrocks-native-c5-g13")
     if sha(RETAINED_GOLD) != RETAINED_GOLD_SHA:
@@ -812,15 +805,39 @@ def exit_checks(binding, tables, source_generation, target_generation):
         and gold_sha is not None and verdict.get("gold_sha256") == gold_sha and verdict.get("truth_sha256") == gold_sha
         and identities["dialogue_program_sha256"] == "0aefc0b5b283abbf4c4845269cd99fe444de76ae1c273f456bebc49bfbb9096a"
     )
+    fresh = load_json(BASE / "random-dialogue/run4-fresh/verdict.json")
+    fresh_selection = load_json(BASE / "random-dialogue/run4-fresh/selection.json")
+    fresh_gold_path = BASE / "random-dialogue/independent-gold-run4.json"
+    fresh_gold = sha(fresh_gold_path) if fresh_gold_path.is_file() else None
+    used = set(prior_ids)
+    for name in ("run1", "run3-grain"):
+        old = load_json(BASE / "random-dialogue" / name / "selection.json")
+        if isinstance(old, dict):
+            used.update(item for item in (old.get("semantic_ids") or []) if isinstance(item, str))
+    fresh_ids = fresh_selection.get("semantic_ids") if isinstance(fresh_selection, dict) else None
+    fresh_identity = fresh_selection.get("identity") if isinstance(fresh_selection, dict) else None
+    fresh_tools = set(fresh.get("tools") or []) if isinstance(fresh, dict) else set()
+    fresh_ok = (
+        isinstance(fresh, dict) and fresh.get("outcome") == "verified" and type(fresh.get("turns")) is int and fresh["turns"] >= 2
+        and fresh.get("selection") == "random" and fresh.get("counts_as_random") is True
+        and {"query", "freshness", "describe", "knowledge_cat"} <= fresh_tools
+        and isinstance(fresh_ids, list) and len(fresh_ids) >= 2 and not used.intersection(fresh_ids)
+        and isinstance(fresh_identity, dict) and fresh_identity.get("pack_sha256") == role_sha and fresh_identity.get("source_generation") == source_generation
+        and fresh_gold is not None and fresh.get("gold_sha256") == fresh_gold and fresh.get("truth_sha256") == fresh_gold
+        and identities["dialogue_program_sha256"] == "816ffbaefc30bd5e2fd633c44a2dc4c20d21db5cd7eff8ad09eb3ba9810d7afc"
+    )
+    accepted = verdict if dialogue_ok else fresh if fresh_ok else None
     if dialogue_ok:
         dialogue_verdict = "random-dialogue/run3-grain/verdict.json"
+    elif fresh_ok:
+        dialogue_verdict = "random-dialogue/run4-fresh/verdict.json"
     else:
-        gaps.append("repo dialogue 80aec7764 grain run is not a verified random exit")
+        gaps.append("repo dialogue has no verified fresh two-turn random exit")
     wal = GW_DIR / "wal"
     complete = sorted(wal.glob("*-complete.wal")) if wal.is_dir() else []
     if not complete:
         gaps.append("gateway completion wal is absent")
-    elif dialogue_ok:
+    elif accepted is not None:
         seen = set()
         for path in complete:
             for line in path.read_bytes().splitlines():
@@ -829,7 +846,7 @@ def exit_checks(binding, tables, source_generation, target_generation):
                         seen.update(query_ids_of(json.loads(line)))
                     except json.JSONDecodeError:
                         continue
-        if not set(verdict.get("query_ids") or []) <= seen:
+        if not set(accepted.get("query_ids") or []) <= seen:
             gaps.append("dialogue query ids are not in the gateway completion wal")
     cancel = load_json(BASE / "cancel-verify-3/cancel/receipt.json")
     recovery = subprocess.run(["docker", "exec", W, "ls", "-1", EVIDENCE + "/" + RECOVERY_BINDING], capture_output=True, text=True, timeout=20)
@@ -837,11 +854,13 @@ def exit_checks(binding, tables, source_generation, target_generation):
     if not recovery_verified:
         gaps.append("original cancel 57014 or recovery directory is not intact")
     operators = {}
-    for line in psql("SELECT o.oid::text || ' ' || tl.typname || '=' || tr.typname || ' ' || p.proname FROM pg_operator o JOIN pg_type tl ON tl.oid=o.oprleft JOIN pg_type tr ON tr.oid=o.oprright JOIN pg_proc p ON p.oid=o.oprcode WHERE o.oprname='=' AND tl.typname IN ('text','date') AND tr.typname=tl.typname ORDER BY 1").splitlines():
-        oid, signature, function = line.split()
-        operators[oid] = (signature, function)
+    for line in psql("SELECT o.oid::text || ' ' || p.oid::text || ' ' || tl.typname || '=' || tr.typname || ' ' || p.proname FROM pg_operator o JOIN pg_type tl ON tl.oid=o.oprleft JOIN pg_type tr ON tr.oid=o.oprright JOIN pg_proc p ON p.oid=o.oprcode JOIN pg_namespace n ON n.oid=o.oprnamespace WHERE n.nspname='pg_catalog' AND o.oprname='=' AND tl.typname IN ('text','date') AND tr.typname=tl.typname ORDER BY 1").splitlines():
+        operator_oid, procedure_oid, signature, function = line.split()
+        operators[signature] = (operator_oid, procedure_oid, function)
     policy = POLICY_CATALOG.read_text()
-    date_refused = '("date", "date")' not in policy and '("text", "text")' in policy and operators.get("1093") == ("date=date", "date_eq") and operators.get("98") == ("text=text", "texteq")
+    date_live = operators.get("date=date")
+    text_live = operators.get("text=text")
+    admitted = '("date", "date")' in policy and '("text", "text")' in policy
     refusals = []
     folder = BASE / "cli-g19-now"
     if folder.is_dir():
@@ -850,22 +869,38 @@ def exit_checks(binding, tables, source_generation, target_generation):
             if isinstance(body, dict) and body.get("code") in {"FUNCTION_NOT_ALLOWED", "STATEMENT_NOT_ALLOWED"}:
                 refusals.append({"file": path.name, "code": body.get("code"), "message": body.get("message")})
     date_gap = {
-        "function": "date_eq",
-        "oid": 1093,
+        "function": None if date_live is None else date_live[2],
+        "operator_oid": None if date_live is None else date_live[0],
+        "procedure_oid": None if date_live is None else date_live[1],
         "signature": "date=date",
-        "varchar_function": "texteq",
-        "varchar_oid": 98,
-        "varchar_signature": "text=text",
+        "varchar_function": None if text_live is None else text_live[2],
+        "varchar_operator_oid": None if text_live is None else text_live[0],
+        "varchar_procedure_oid": None if text_live is None else text_live[1],
+        "admitted": admitted,
         "loader": "crates/oo-gateway/src/policy_catalog.rs COMPARISON_SIGNATURES",
         "refusals": refusals,
         "shared_path": True,
     }
-    if date_refused:
-        gaps.append("shared sql_guard has no date=date signature: function date_eq oid 1093; varchar uses texteq oid 98")
-    else:
-        gaps.append("date comparison root cause drifted from date_eq oid 1093 versus texteq oid 98")
+    if not admitted or date_live is None or date_live[2] != "date_eq" or date_live[0] == date_live[1]:
+        gaps.append("date=date is not an admitted pg_catalog date_eq comparator distinct from its procedure")
+    if text_live is None or text_live[2] != "texteq" or text_live[0] == text_live[1]:
+        gaps.append("text=text is not pg_catalog texteq with a distinct procedure oid")
+    proof = BASE / "date-elf-b922"
+    def proof_body(name):
+        return load_json(proof / name)
+    bucket_rows = proof_body("bucket.json").get("rows") if isinstance(proof_body("bucket.json"), dict) else None
+    metric_rows = proof_body("metric.json").get("rows") if isinstance(proof_body("metric.json"), dict) else None
+    lower_code = proof_body("lower.json").get("code") if isinstance(proof_body("lower.json"), dict) else None
+    hidden_code = proof_body("hidden.json").get("code") if isinstance(proof_body("hidden.json"), dict) else None
+    label_rows = proof_body("label.json").get("rows") if isinstance(proof_body("label.json"), dict) else None
+    if bucket_rows != [["2"]] or metric_rows != [["1"]]:
+        gaps.append("installed gateway date filters are not the independent source counts 2 and 1")
+    if lower_code != "FUNCTION_NOT_ALLOWED" or hidden_code != "COLUMN_NOT_ALLOWED" or label_rows != [["conn_live"]]:
+        gaps.append("lower(), a hidden column, or the original label query did not keep its expected result")
     serve = subprocess.run(["docker", "exec", GW, "sha256sum", "/oo-gateway"], capture_output=True, text=True, timeout=120)
     gateway_sha = serve.stdout.split()[0] if serve.returncode == 0 and serve.stdout else None
+    if gateway_sha != "b922e1c4393af12f272a0d1bf8f49596d210667469988a1e6d13354766877577":
+        gaps.append("running gateway is not the date source ELF")
     elf_names = sorted(path.name for path in Path("/Users/redux/.cache/oo-dl01w1-73/fixed-elf").glob("oo-gateway*"))
     iud_verified = source_generation == 19 and target_generation != source_generation and tables.get("uniq_dim") == 19 and int(binding.get("generation", -1)) == 19
     whole = not gaps
