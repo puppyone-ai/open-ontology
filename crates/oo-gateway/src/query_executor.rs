@@ -535,6 +535,10 @@ pub struct WatermarkObserved {
     pub applied_pos: String,
     /// State text from the row.
     pub state: String,
+    /// `position_codec` text. MariaDB is admitted only with its lineage.
+    pub codec: String,
+    /// `position_lineage` text. A MariaDB domain or server outside this value does not pass.
+    pub lineage: String,
 }
 
 /// One apply receipt matched to a visible logical table.
@@ -552,6 +556,10 @@ pub struct ReceiptObserved {
     pub applied_pos: String,
     /// Position codec text from the row.
     pub codec: String,
+    /// `position_lineage` text from the receipt.
+    pub lineage: String,
+    /// `source_epoch` from the receipt. MariaDB admits one epoch for the watermark lineage.
+    pub source_epoch: i32,
     /// Cross-table flag from the row.
     pub cross_table_consistent: bool,
     /// Partial transaction flag from the row.
@@ -2278,6 +2286,7 @@ async fn read_quality_rows(
         absorb_rows(name, &rows, tables, &mut held, &mut snapshot)?;
     }
     project_held(&held, &mut snapshot);
+    bind_maria_epoch(&mut snapshot);
     Ok(snapshot)
 }
 
@@ -2296,7 +2305,8 @@ fn probe_sql(name: &str) -> &'static str {
         }
         "source_watermark" => {
             "SELECT source::text, consistency::text, cross_table_consistent, \
-             applied_pos::text, COALESCE(state, '') FROM _oo.source_watermark"
+             applied_pos::text, COALESCE(state, ''), position_codec::text, \
+             position_lineage::text FROM _oo.source_watermark"
         }
         "table_quality" => {
             "SELECT schema_name::text, table_name::text, \
@@ -2316,7 +2326,8 @@ fn probe_sql(name: &str) -> &'static str {
         "apply_receipts" => {
             "SELECT source::text, table_generation::text, applied_pos::text, \
              position_codec::text, cross_table_consistent, partial_txn, \
-             COALESCE(to_char(target_commit_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'), '') \
+             COALESCE(to_char(target_commit_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'), ''), \
+             position_lineage::text, source_epoch::int4 \
              FROM _oo.apply_receipts"
         }
         "full_import_run" => {
@@ -2401,12 +2412,19 @@ fn absorb_rows(
                 };
                 let cross: bool = row.try_get(2).map_err(decode)?;
                 let state: String = row.try_get(4).map_err(decode)?;
+                let codec: String = row.try_get(5).map_err(decode)?;
+                let lineage: String = row.try_get(6).map_err(decode)?;
+                if !watermark_identity(&codec, &lineage, &applied_pos) {
+                    continue;
+                }
                 snapshot.watermarks.push(WatermarkObserved {
                     source,
                     consistency,
                     cross_table_consistent: cross,
                     applied_pos,
                     state,
+                    codec,
+                    lineage,
                 });
             }
         }
@@ -2456,7 +2474,18 @@ fn absorb_rows(
                 };
                 let applied_pos: String = row.try_get(2).map_err(decode)?;
                 let codec: String = row.try_get(3).map_err(decode)?;
-                if !position_text(&applied_pos) || !codec_text(&codec) {
+                let lineage: String = row.try_get(7).map_err(decode)?;
+                let source_epoch: i32 = row.try_get(8).map_err(decode)?;
+                if !receipt_identity(&codec, &lineage, &applied_pos, source_epoch) {
+                    continue;
+                }
+                if codec == "mariadb-gtid/v1"
+                    && !snapshot.watermarks.iter().any(|mark| {
+                        mark.source == source
+                            && mark.codec == "mariadb-gtid/v1"
+                            && mark.lineage == lineage
+                    })
+                {
                     continue;
                 }
                 snapshot.receipts.push(ReceiptObserved {
@@ -2466,6 +2495,8 @@ fn absorb_rows(
                     run_generation: item.run_generation,
                     applied_pos,
                     codec,
+                    lineage,
+                    source_epoch,
                     cross_table_consistent: row.try_get(4).map_err(decode)?,
                     partial_txn: row.try_get(5).map_err(decode)?,
                     target_commit_at: row.try_get(6).map_err(decode)?,
@@ -2623,8 +2654,108 @@ fn watermark_position(value: Option<String>) -> Option<String> {
 fn codec_text(value: &str) -> bool {
     matches!(
         value,
-        "pg-commit-lsn/v1" | "mysql-binlog-pos/v1" | "batch-cursor-us/v1" | "snapshot-zero/v1"
+        "pg-commit-lsn/v1"
+            | "mysql-binlog-pos/v1"
+            | "batch-cursor-us/v1"
+            | "snapshot-zero/v1"
+            | "mariadb-gtid/v1"
     )
+}
+
+fn canonical_u32(text: &str) -> Option<u32> {
+    let bytes = text.as_bytes();
+    if bytes.is_empty()
+        || bytes.len() > 10
+        || !bytes.iter().all(|byte| byte.is_ascii_digit())
+        || (bytes.len() > 1 && bytes[0] == b'0')
+    {
+        return None;
+    }
+    text.parse().ok()
+}
+
+fn maria_lineage(lineage: &str) -> bool {
+    let Some(rest) = lineage.strip_prefix('d') else {
+        return false;
+    };
+    let Some((domain, server)) = rest.split_once(".s") else {
+        return false;
+    };
+    let Some(server) = canonical_u32(server) else {
+        return false;
+    };
+    canonical_u32(domain).is_some() && server >= 1
+}
+
+fn maria_seq(pos: &str) -> bool {
+    let bytes = pos.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 20
+        && bytes.iter().all(|byte| byte.is_ascii_digit())
+        && (bytes.len() == 1 || bytes[0] != b'0')
+        && pos.parse::<u64>().is_ok()
+}
+
+fn watermark_identity(codec: &str, lineage: &str, applied_pos: &str) -> bool {
+    if codec == "mariadb-gtid/v1" {
+        return maria_lineage(lineage) && maria_seq(applied_pos);
+    }
+    position_text(applied_pos)
+}
+
+fn receipt_identity(codec: &str, lineage: &str, applied_pos: &str, epoch: i32) -> bool {
+    if !position_text(applied_pos) || !codec_text(codec) {
+        return false;
+    }
+    if codec == "mariadb-gtid/v1" {
+        return maria_lineage(lineage) && maria_seq(applied_pos) && epoch >= 0;
+    }
+    true
+}
+
+fn bind_maria_epoch(snapshot: &mut QualitySnapshot) {
+    let mut sources = std::collections::BTreeSet::new();
+    for mark in &snapshot.watermarks {
+        if mark.codec == "mariadb-gtid/v1" {
+            sources.insert(mark.source.clone());
+        }
+    }
+    for item in &snapshot.receipts {
+        if item.codec == "mariadb-gtid/v1" {
+            sources.insert(item.source.clone());
+        }
+    }
+    for source in sources {
+        let lineages: Vec<String> = snapshot
+            .watermarks
+            .iter()
+            .filter(|mark| mark.source == source && mark.codec == "mariadb-gtid/v1")
+            .map(|mark| mark.lineage.clone())
+            .collect();
+        let lineage = if lineages.len() == 1 && lineages.iter().all(|item| item == &lineages[0]) {
+            Some(lineages[0].clone())
+        } else {
+            None
+        };
+        let Some(lineage) = lineage else {
+            snapshot.watermarks.retain(|mark| mark.source != source || mark.codec != "mariadb-gtid/v1");
+            snapshot.receipts.retain(|item| item.source != source || item.codec != "mariadb-gtid/v1");
+            continue;
+        };
+        snapshot.receipts.retain(|item| {
+            item.source != source || item.codec != "mariadb-gtid/v1" || item.lineage == lineage
+        });
+        let epochs: std::collections::BTreeSet<i32> = snapshot
+            .receipts
+            .iter()
+            .filter(|item| item.source == source && item.codec == "mariadb-gtid/v1")
+            .map(|item| item.source_epoch)
+            .collect();
+        if epochs.len() != 1 {
+            snapshot.watermarks.retain(|mark| mark.source != source || mark.codec != "mariadb-gtid/v1");
+            snapshot.receipts.retain(|item| item.source != source || item.codec != "mariadb-gtid/v1");
+        }
+    }
 }
 
 const CAPTURE_METHODS: &[&str] = &[
@@ -2770,6 +2901,7 @@ async fn observe_quality_rows(
         absorb_rows(name, &rows, tables, &mut held, &mut snapshot).map_err(|_| ())?;
     }
     project_held(&held, &mut snapshot);
+    bind_maria_epoch(&mut snapshot);
     Ok(snapshot)
 }
 
@@ -3903,6 +4035,70 @@ mod tests {
         assert_eq!(super::watermark_position(Some("+12345678901234567890".into())), Some("+12345678901234567890".into()));
         assert_eq!(super::watermark_position(Some("-1".into())), None);
         assert_eq!(super::watermark_position(Some(String::new())), None);
+    }
+
+    fn maria_mark(lineage: &str, pos: &str) -> super::WatermarkObserved {
+        super::WatermarkObserved {
+            source: "logistics".into(),
+            consistency: "transactional".into(),
+            cross_table_consistent: true,
+            applied_pos: pos.into(),
+            state: "lagging".into(),
+            codec: "mariadb-gtid/v1".into(),
+            lineage: lineage.into(),
+        }
+    }
+
+    fn maria_receipt(lineage: &str, pos: &str, epoch: i32) -> super::ReceiptObserved {
+        super::ReceiptObserved {
+            source: "logistics".into(),
+            schema: "logistics".into(),
+            table: "hubs".into(),
+            run_generation: 1,
+            applied_pos: pos.into(),
+            codec: "mariadb-gtid/v1".into(),
+            lineage: lineage.into(),
+            source_epoch: epoch,
+            cross_table_consistent: true,
+            partial_txn: false,
+            target_commit_at: String::new(),
+        }
+    }
+
+    #[test]
+    fn mariadb_watermark_requires_lineage_and_one_epoch() {
+        assert!(!super::watermark_identity("mariadb-gtid/v1", "0-1-7", "7"));
+        assert!(!super::watermark_identity("mariadb-gtid/v1", "d0.s1", "0-1-7"));
+        assert!(super::watermark_identity("mariadb-gtid/v1", "d1.s1", "7"));
+        assert!(!super::watermark_identity("mariadb-gtid/v1", "d0.s0", "7"));
+        assert!(!super::watermark_identity("mariadb-gtid/v1", "d0.s2", "07"));
+        assert!(super::watermark_identity("mariadb-gtid/v1", "d0.s1", "7"));
+        assert!(super::watermark_identity("pg-commit-lsn/v1", "src_main", "10"));
+        let mut same = super::QualitySnapshot::blank("read");
+        same.watermarks.push(maria_mark("d0.s1", "7"));
+        same.receipts.push(maria_receipt("d0.s1", "7", 1));
+        same.receipts.push(maria_receipt("d1.s1", "7", 1));
+        super::bind_maria_epoch(&mut same);
+        assert_eq!(same.watermarks.len(), 1);
+        assert_eq!(same.receipts.len(), 1);
+        assert_eq!(same.receipts[0].lineage, "d0.s1");
+        let mut other_server = super::QualitySnapshot::blank("read");
+        other_server.watermarks.push(maria_mark("d0.s1", "7"));
+        other_server.receipts.push(maria_receipt("d0.s2", "7", 1));
+        super::bind_maria_epoch(&mut other_server);
+        assert!(other_server.watermarks.is_empty());
+        assert!(other_server.receipts.is_empty());
+        let mut other_epoch = super::QualitySnapshot::blank("read");
+        other_epoch.watermarks.push(maria_mark("d0.s1", "7"));
+        other_epoch.receipts.push(maria_receipt("d0.s1", "7", 1));
+        other_epoch.receipts.push(maria_receipt("d0.s1", "6", 2));
+        super::bind_maria_epoch(&mut other_epoch);
+        assert!(other_epoch.watermarks.is_empty());
+        assert!(other_epoch.receipts.is_empty());
+        let mut bare = super::QualitySnapshot::blank("read");
+        bare.watermarks.push(maria_mark("d0.s1", "7"));
+        super::bind_maria_epoch(&mut bare);
+        assert!(bare.watermarks.is_empty());
     }
     #[test]
     fn quality_mapping_requires_the_vector_source() {

@@ -104,7 +104,7 @@
   {
     "task": "clickhouse",
     "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
-    "pid": 29571,
+    "pid": 89435,
     "prompt": "execution/batches/grok-connection-full-20261014/clickhouse.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse.log",
     "write_paths": [
@@ -113,18 +113,18 @@
       "tools/agent-product-verifier/tests/test_dialogue.py",
       "tools/agent-product-verifier/CONTRACT.md"
     ],
-    "status": "same_owner_live_random_dialogue_and_original_full_source",
+    "status": "same_owner_live_random_raw_and_current_auto_full_source",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 142,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "prior_pid": 609,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/clickhouse-persistent-random-dialogue-whole.md",
+    "prior_pid": 29571,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/clickhouse-persistent-random-raw-current-autonomous-full.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "applicable C4 parts/partition refresh or documented C3/C5",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 75145
+    "tool_handle": 30151
   },
   {
     "task": "doris",

@@ -1246,3 +1246,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 共享53810终态9709e5fe3已批准source-money-facts入真实versioned模型请求，root核Linux1.94原始8/32tests退出0与release0519SHA/旧fd63sourceblob，交原PG消费一次必要corrected不同请求，旧USD/裸array/raw成本不变。Oracle c44当前g5作者admin200/rolePack200/15typedcells0回执，但两个模型随机1失败/无第二、默认入口及新自动IUD未跑，不能full；broker交验收器原Click核真实emptysearch工具与输出shape问题。共享同d28ca86947/42237继续实际公共registered六字段默认入口+新random/currentsource对齐证明，不组件32tests后停止。验收scope依赖原count0/10，不独立review、不新功能分母。证据execution/reviews/grok-connection-resume-20261014/shared970-source-facts-linux-intake.json。
+
+
+2026-10-14 Click29571终态fixed9485942实跑最小检索提示/typed路径拒返回model，root固定archive13tests过。作者g11两新随机语义题组：qty=4明细+总行数，对qty>0计数+SUMqty；seed6786660486996411019/8282653012199417601不同，4QID/WAL已报告，但报告未给可定位raw绝对目录且惯常whole-run/random-dialogue不存在，故root未随机子出口验收，要求同owner89435/30151补raw/gold冻结/实际身份。必要现有自有表新uniqueIDs自动两IUD周期已授权，无需另一库/新S5，原普通六字段合法stage复用仍真实验、不能把新fixture条件当阻断。Oracle真实emptysearch/输出shape失败交唯一验收器writer必要rootcause校正，不包装raw/降facts验证。原全源完整/正式0/10、计数未变。intakeexecution/reviews/grok-connection-resume-20261014/random948-fixed-intake.json。
