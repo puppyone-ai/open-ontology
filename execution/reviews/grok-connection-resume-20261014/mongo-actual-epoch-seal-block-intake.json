@@ -1,0 +1,12 @@
+{
+  "probe_path": "/tmp/oo-mongodb-connection-whole/c1-apply-blocked-20261015.json",
+  "sha256": "6c7b530441ae7d7d0c7733970e78651d37e1b1284ebe91a8250ccd6371fdc8d0",
+  "scope": "author observed internal Mongo actual seal/epoch mismatch; no claim root replayed product/author Linux tests",
+  "source_initial_rows": 14,
+  "source_delta_rows": 8,
+  "grade": "S0",
+  "actual_applied": false,
+  "actual_ACK": false,
+  "owners": "Maria8436f928 native_update caller, SQL7df SQLinstaller/scheduler/new0025 only",
+  "full_source_count_delta": 0
+}

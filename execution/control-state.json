@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-15T00:42:22.273870+08:00",
+  "as_of": "2026-10-15T00:48:13.750508+08:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -2266,63 +2266,56 @@
       "task": "oracle",
       "pid": 83403,
       "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
-      "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+      "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
       "tool_handle": null
     },
     {
       "task": "mariadb",
       "pid": 98649,
       "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
-      "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
-      "tool_handle": null
-    },
-    {
-      "task": "mongodb",
-      "pid": 10014,
-      "session_uuid": "3005fbfd-413f-49ba-81dc-3649a8304ef1",
-      "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+      "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
       "tool_handle": null
     },
     {
       "task": "clickhouse",
       "pid": 7630,
       "session_uuid": "c420eabd-594b-49ee-93d9-82d75fb6f17d",
-      "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+      "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
       "tool_handle": null
     },
     {
       "task": "doris",
       "pid": 7632,
       "session_uuid": "edc3dd87-daf4-45d4-a062-2b897d7d837b",
-      "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+      "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
       "tool_handle": null
     },
     {
       "task": "opensearch",
       "pid": 5834,
       "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
-      "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+      "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
       "tool_handle": null
     },
     {
       "task": "postgresql",
       "pid": 2203,
       "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
-      "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+      "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
       "tool_handle": null
     },
     {
       "task": "starrocks",
       "pid": 2201,
       "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
-      "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+      "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
       "tool_handle": null
     },
     {
       "task": "sqlserver",
       "pid": 2205,
       "session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
-      "confirmed_as_of": "2026-10-15T00:42:22.273870+08:00",
+      "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
       "tool_handle": null
     }
   ],
@@ -2654,5 +2647,68 @@
     ],
     "full_accepted": 0,
     "random_verified": 4
+  },
+  "latest_Mongo_actual_seal_epoch_dependency": {
+    "at": "2026-10-15T00:48:13.750508+08:00",
+    "note": "2026-10-15 Mongo10014实际退出即收：S0副本集原14initial/8delta未targetApply/ACK，owned target还0010 seal无mongo codec/source_epoch；Rust classify60已支持弱S0/B并非当前拒，作者只更新gap提示/Darwin1.98小测未Linux/未fixedproduct不计源码交付。0024 qualitySeal 23args/watermarkINSERT不写actualsource_epoch而schedulerMongo核真实source_instance measuredid=rs0+epoch，root交broker精确ABI给原MariaRustcaller/SQL7df，后者唯一本新0025migration允许保持已经安装0024/5122 immutable、不改旧checksum/原PG函数语义；term2不能epoch/nohandwritten数字/noC5降级。该dependency元数据phase读取未确认不称即时RPC；sourcewriterterminalreserve停止paididle/原sourceinputs未动，其他actual8长跑。Plan/计数/Goal/整版/支持矩阵原full0/10/random4/10无晋级；原源码dirty保持不rootcommit，原失败原件可追。",
+    "managed_live": [
+      {
+        "task": "oracle",
+        "pid": 83403,
+        "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
+        "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "mariadb",
+        "pid": 98649,
+        "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
+        "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "clickhouse",
+        "pid": 7630,
+        "session_uuid": "c420eabd-594b-49ee-93d9-82d75fb6f17d",
+        "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "doris",
+        "pid": 7632,
+        "session_uuid": "edc3dd87-daf4-45d4-a062-2b897d7d837b",
+        "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "opensearch",
+        "pid": 5834,
+        "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
+        "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "postgresql",
+        "pid": 2203,
+        "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
+        "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "starrocks",
+        "pid": 2201,
+        "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
+        "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "sqlserver",
+        "pid": 2205,
+        "session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
+        "confirmed_as_of": "2026-10-15T00:48:13.750508+08:00",
+        "tool_handle": null
+      }
+    ],
+    "probe_intake": "execution/reviews/grok-connection-resume-20261014/mongo-actual-epoch-seal-block-intake.json"
   }
 }
