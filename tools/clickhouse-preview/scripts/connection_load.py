@@ -45,8 +45,9 @@ def main():
         binding=json.loads((sealed/'registry.json').read_text())['bindings'][0]
         generation=binding['source_generation'];label=f'g{generation}-{part["partition_id"]}'
         source_id=binding['source_id']
-        prior=json.loads(t.psql('prior-'+label,f"SELECT row_to_json(r) FROM (SELECT current_signature,acknowledged FROM _oo.native_partition_state WHERE source='{binding['source_id']}' AND schema_name='{binding['partition_scope']['logical_schema']}' AND table_name='{binding['partition_scope']['logical_table']}' AND partition_id='{part['partition_id']}') r;").decode() or '{}')
-        if prior.get('acknowledged') is True and prior.get('current_signature')==part.get('current_signature'):
+        prior=json.loads(t.psql('prior-'+label,f"SELECT row_to_json(r) FROM (SELECT current_signature,acknowledged,observed_partition_ids FROM _oo.native_partition_state WHERE source='{binding['source_id']}' AND schema_name='{binding['partition_scope']['logical_schema']}' AND table_name='{binding['partition_scope']['logical_table']}' AND partition_id='{part['partition_id']}') r;").decode() or '{}')
+        same_ids=list(prior.get('observed_partition_ids') or [])==list(binding['partition_scope'].get('observed_partition_ids') or [])
+        if prior.get('acknowledged') is True and prior.get('current_signature')==part.get('current_signature') and same_ids:
             skipped.append({'partition':part['partition_id'],'generation':generation,'reason':'acked_signature'});continue
         if prior and prior.get('acknowledged') is False and not raw_json(run,'load-'+label):
             raise RuntimeError('prior partition not ACKed; recovery required')

@@ -1,0 +1,75 @@
+{
+  "policy": "latest direct user restores original capture methods and Rust-first product core; no C5 substitution for C1",
+  "authoritative_files_sha256": {
+    "docs/database-support/03-change-capture-and-consistency.md": "9666b770faa2a392d710abe78f17d3df18698584a00db17be99ddaa7eddb735d",
+    "docs/database-support/04-database-profiles.md": "5a1b548ca4a05d372281b275337468ca334d8fe0570a20b4af38a9e99acfdf23",
+    "docs/17-rust-implementation.md": "f16f770e29dc02537a71c734b9355e21812ef65a2fc60880e22543a95bf29534",
+    "docs/04-pipeline.md": "61e157eccd1a168d17b5808fd9c104c943bb794c2de93acc071fc83ee1ae8088",
+    "specs/open-ontology-v0.1-plan.md": "b9866302d88dcfbddc416f91eed9fdf6f0488eca794f8f96ed613c2075afc4ce",
+    "execution/reviews/full-source-original-requirements-audit-20261012.md": "da8e6160918ba1232359cf37277b66dd8fd26a88d3632e803fa265ea26b11bff"
+  },
+  "sources": {
+    "mysql": {
+      "required": "C1 binlog CDC",
+      "docs": "docs/database-support/04-database-profiles.md §2; docs/04-pipeline.md; SP03-W02/SP04-W01–03",
+      "position": "GTID/source lineage, ROW/FULL, transaction boundaries, L0/Lend/applied/ACK",
+      "snapshot": "initial CDC-first snapshot or explicit batch capability only; C5 not C1 exit"
+    },
+    "mariadb": {
+      "required": "C1 MariaDB binlog",
+      "docs": "profiles §2; DBX-W06; SP04",
+      "position": "domain-server-sequence distinct codec/connector; transaction/applied/ACK",
+      "snapshot": "C5 is separate batch/reconcile proof, not original C1 completion"
+    },
+    "postgresql": {
+      "required": "C1 logical decoding",
+      "docs": "profiles §3; SP04-W01–03",
+      "position": "LSN, publication/slot DBA, transactional apply/applied/slot ACK",
+      "snapshot": "CDC-first snapshot initial only, preserve existing live slot"
+    },
+    "mongodb": {
+      "required": "C1 change stream on replica-set/sharded target",
+      "docs": "profiles §10; DBP6; DBX-W11",
+      "position": "resume token opaque; clusterTime not conflated, txn proof before gradeT, POSITION_EXPIRED",
+      "snapshot": "standalone C5 is allowed standalone capability only; self-provision replica-set fixture for primary C1 route"
+    },
+    "sqlserver": {
+      "required": "documented C1 native CDC or C2 Change Tracking",
+      "docs": "profiles §4; DBX-W08/DBP2",
+      "position": "real LSN/CT version and retention/snapshot semantics, no fake T on CT",
+      "snapshot": "current real C2 allowed; C5 cannot replace declared CT/CDC"
+    },
+    "oracle": {
+      "required": "verified batch C3/C5, S1 if same SCN proven",
+      "docs": "profiles §5; DBX-W09/DBP1",
+      "position": "real SCN/snapshot guarantee only, C3 delete reconcile caveat",
+      "snapshot": "allowed batch; LogMiner C1 off without separate ADR/R1w/permissions"
+    },
+    "clickhouse": {
+      "required": "applicable C4 parts/partition refresh or documented C3/C5",
+      "docs": "profiles §9.6; DBX-W10",
+      "position": "FINAL/delete async/partition epoch/CAS/ACK and actual grade",
+      "snapshot": "C5 allowed where applicable; no logCDC claim"
+    },
+    "doris": {
+      "required": "applicable C4 partition refresh or documented C3/C5",
+      "docs": "profiles §9.6; DBX-W10",
+      "position": "partition epoch/tablemodel; no external CDC for supported2.x/3.x",
+      "snapshot": "allowed method per table, not C1"
+    },
+    "starrocks": {
+      "required": "applicable C4 partition refresh or documented C3/C5",
+      "docs": "profiles §9.6; DBX-W10",
+      "position": "Primary/Unique/Duplicate semantics; real partition/deletion coverage",
+      "snapshot": "allowed per table, not C1"
+    },
+    "opensearch": {
+      "required": "C5 reconcile or C3 with explicit delete reconciliation",
+      "docs": "profiles §10; DBX-W11",
+      "position": "PIT/search_after, mapping schema, B actual consistency",
+      "snapshot": "C5 correct; no logCDC claim"
+    }
+  },
+  "no_source_acceptance_change": true,
+  "read_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md"
+}

@@ -31,3 +31,6 @@ PG/MySQL/MariaDB有C1日志路线，SQL Server有C1或C2，MongoDB C1须副本�
 ## 当前行动边界
 
 本轮先记录需求审计，依据上述原文审计及人类明确选择同步纠正Goal/台账的逐源捕获表述；DL顺序不变。05/41既有唯一Grok工程师完成封存语义/doc保真原子公共能力仍有效，不是完整源签收。公共原子能力fixed后联结原全部要求，无需让每个源重复开发公共Self-build/Loader/Gateway。完整源工程师负责其真正逐源旅程和验收证据；缺外部凭据/DBA实例/审批就保留原门槛及精确blocked条件，不用假成功替代。
+
+
+2026-10-14 最新用户纠正已先重读原DBX capture/profiles03/04、docs17Rust、原Plan SP03/SP04/DBX和原需求审计：MySQL/MariaDB/PG原C1日志，Mongo主replica-set C1changeStream，SQLC1/C2，Oracle batchC3/C5+LogMiner单ADR默认OFF，OLAP C4/C3/C5、OS C5/C3。MySQL native C5代码与此前快照成功只按batch证据保留，不能代C1；不统一降级，data行DML不逐行重建ontology/LLM/人工刷新Pack才恢复query。Rust平台核心/现有上游DebeziumJVM协议复用，Python/shell仅最小fixture测试/胶水，不另扩产品算法。十源原owner卡及机器contract重申原路线，未削目标/分母/退出；三C1源同UUID88533/88535/88537及shared88539实际接续长跑，Oracle93896/SQL93898接入已固定47c currentcatalogAPI，4个既有live正确路线作者卡追加原文约束。完整/正式0/10不晋级。卡execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md，机器production-route-contract.json含6原文SHA。
