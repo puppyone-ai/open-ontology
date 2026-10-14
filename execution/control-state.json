@@ -1981,14 +1981,20 @@
     "source_total": 10,
     "acceptance_count_delta": 0,
     "legacy_dialogue_preserved": true,
-    "fixed_verifier_commit": "9485942f83d3ff914830f88560e34b256129fd00",
-    "fixed_tests_passed": 13,
+    "fixed_verifier_commit": "2056b4c95",
+    "fixed_tests_passed": 15,
     "passed_sources": [
       "clickhouse",
       "opensearch",
       "doris",
       "postgresql"
-    ]
+    ],
+    "current_verified_generations": {
+      "clickhouse": 17,
+      "opensearch": 12,
+      "doris": 19,
+      "postgresql": "continuous fixture latest5/per-table4..5; approvednormal role pending"
+    }
   },
   "latest_random_dialogue_requirement": "2026-10-14 用户新增真实随机CLI+Agent测试：每源两次新随机两轮、不同语义问题序列；模型自主任意合法OOCLI，首次调用前冻结seed/选题/source与Pack身份/独立源侧gold，成功QID绑定独立WAL，resume同题/同gold、seed回放不计新随机。旧固定问题和负例证据保留，不代新增出口。唯一共享验收器writer为原ClickHouse26ae6875，同UUID29571/handle75145长跑完成真实本源示范及原全链；十源作者只读固定接口并准备自有私有题库。当前实现及真实随机验收pending，完整/正式0/10不晋级、功能分母不增加、无新独立组件审阅。卡：execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md。",
   "latest_doris_current_source_continuation": {
@@ -2199,5 +2205,6 @@
     "old_terminal_uuid": "27ca3ccc-e673-4832-8415-0462d4227a64",
     "pid": 72778,
     "same_full_capability": true
-  }
+  },
+  "latest_structured_final_and_click17_actual": "2026-10-14 Click64845 terminal2056b4c95 final动态JSONschema固定，root15tests过无gold注入/错facts拒；actualcurrentg17两fresh2turn(run2旧格式真实fact证+run3新schema两terminal响应)全部源独立FINAL5scalar与gold相等，four QIDadmitcomplete/replayfactgrounding已核，run3 transcript记录真实response_format json_schema及providerresponses/usage。独立小probeHTTP200 response体因目录0600未保存不作支持证据，不重复probe。source17 pack846/raw新body与语义seq不交，sourceQAcurrent刷新既有Click测试子出口非新增源计数；当前random4/10、原full/正式0/10保持。卡pin/currentrolemaintenance+retainednewrun公共接口仍f525 sole，不改旧S5receipt144强匹current846，sourceowner/resourcesreserved不paid重跑成功QAs。intakes dialogue2056-structured-final-fixed-intake.json / clickhouse17-structured-random-actual-intake.json。"
 }

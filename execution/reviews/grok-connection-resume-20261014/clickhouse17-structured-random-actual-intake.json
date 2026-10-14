@@ -1,0 +1,89 @@
+{
+  "source": "clickhouse",
+  "source_generation": 17,
+  "fixed_verifier_schema_commit": "2056b4c95",
+  "verifier_prev_run2": "original948 verified facts retained; run3 newfixed2056 realstructuredfinal",
+  "independent_source": {
+    "path": "/tmp/oo-root-click-g17-random-source-check/source.stdout",
+    "sha256": "4c3a90cb1caae561b73b5731d5d60710e8b842da719b22de9366edf03acd594e",
+    "exit": 0,
+    "method": "existingreadonly identity5 direct FINAL scalar reads; nogateway-derivedgold"
+  },
+  "gold_sha256": "3e8432105710baefd4f2586239640003ea76a96fd4695f93f8d722486a605dd3",
+  "all_five_source_facts_match": true,
+  "records": [
+    {
+      "path": "/Users/redux/.cache/oo-source-onboarding/runs/c2c83cdbf24740a19338c87df7d7957f/random-dialogue-final/run-2",
+      "seed": 7034469301950511230,
+      "semantic_ids": [
+        "filter.reading_105_qty",
+        "aggregate.row_count"
+      ],
+      "QIDs_admit_complete_verified": [
+        "q_23saqZe9pAgUa5S5EkbUvEsPzs",
+        "q_rXA0WH5ysWcoPObR5WLutgkWTZ"
+      ],
+      "hashes": {
+        "selection.json": "72f3e35b2f222e978e2ae7a61015add359374387e1ab24ab2ff2692ad09c2395",
+        "verdict.json": "70ef005d39980c3c81c148aabf8d7b0d4927b69f05a734342b8dbd8a86909b60",
+        "transcript.json": "c4086fbb8f6046ee01dbcb69369b88960bdd4c7117d3edd12cf70d97acc15e50"
+      },
+      "structured_final_actual_records": []
+    },
+    {
+      "path": "/Users/redux/.cache/oo-source-onboarding/runs/c2c83cdbf24740a19338c87df7d7957f/random-dialogue-final/run-3",
+      "seed": 5996236298555399069,
+      "semantic_ids": [
+        "detail.qty_4_reading",
+        "aggregate.sum_qty"
+      ],
+      "QIDs_admit_complete_verified": [
+        "q_KAlaiz4ZBrGBmz7sc57oEyNbnz",
+        "q_ey9YzXqx9Gk0yvhIV5df2sMx9A"
+      ],
+      "hashes": {
+        "selection.json": "b8aac233d3cdebd5df2f93be5d8b4e1436eb074f9e5dd9e08c2816c3e63dad9a",
+        "verdict.json": "c077a3be26f0f969621d31915ff2e93ab547adac1492540b5ce722b0effeb684",
+        "transcript.json": "847b7c436ac0ba25fbdd6774555a5037d6ffaf6d93095af9597953361ee15622"
+      },
+      "structured_final_actual_records": [
+        {
+          "turn": 0,
+          "format": "json_schema",
+          "response_model": "grok-4.7-build",
+          "usage": {
+            "completion_tokens": 57,
+            "total_tokens": 3389,
+            "prompt_tokens": 3332,
+            "prompt_tokens_details": {
+              "cached_tokens": 1152
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0
+            }
+          }
+        },
+        {
+          "turn": 1,
+          "format": "json_schema",
+          "response_model": "grok-4.7",
+          "usage": {
+            "completion_tokens": 323,
+            "total_tokens": 1922,
+            "prompt_tokens": 1599,
+            "prompt_tokens_details": {
+              "cached_tokens": 192
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 280
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "scope": "currentg17 two actual disjoint random2turn facts+QIDWAL verified; run3 upstream structured final supported in actualrealresponses; ordinaryretainedproduct/maintenancegate/sourcefull pending",
+  "probe_missing_body": "separatecompatibilityprobe200 response notsaved duewrongdirmode; notused as positiveevidence",
+  "full_source_count_delta": 0,
+  "formal_count_delta": 0
+}

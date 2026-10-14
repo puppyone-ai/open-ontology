@@ -115,7 +115,7 @@
       "tools/agent-product-verifier/tests/test_dialogue.py",
       "tools/agent-product-verifier/CONTRACT.md"
     ],
-    "status": "same_owner_durable_structured_terminal_actual_current_full",
+    "status": "terminal_reserved_fixed2056_current17_qa_and_normal_reuse_dependency",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 142,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",

@@ -4,6 +4,8 @@
 
 The caller deploys its own actual fixed Selfbuild API project against **this run's** sealed bundle. This helper calls existing `recipes/operator.py` unchanged: actual OIDC identity/current, current CSRF, real role cookies, TLS verification, real HTTP responses. It never uses closed_loop's synthetic identity fixture, hardcoded cards or canned bundle. New source identity requires a real S5; do not copy a provider response/cache or an old build. If `product-receipt.json` already records this config sha256, the same `build_id` and the same `catalog_sha256`, the helper does not call confirm, S5, create, or import again. It calls the official same-build maintenance route `source_generation_advanced` and `compileRolePack` through `operator.py`, and writes `maintenance-consumption.json` beside the unchanged receipt. A different config, pin or catalog is `product_resume_drift`. The receipt stays.
 
+An empty `--out` still creates a build. A recipe, not the six connection fields, may pass `--reuse-product DIR --reuse-receipt SHA`. `DIR` is an owner-private completed product and `SHA` is that directory's `product-receipt.json`. The helper checks the config hash, build, catalog, S5, model, source ref, and role pack, binds those immutable files into the new out, and then makes the official maintenance call. It does not create. It does not copy the old maintenance responses. A mismatch refuses before any engine registry write, and the retained receipt bytes stay.
+
 Private `product.json` fields:
 
 - `endpoint`, `origin`, `ca`, `identity_origin`, `identity_ca`.
