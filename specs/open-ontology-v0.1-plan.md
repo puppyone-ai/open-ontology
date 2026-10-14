@@ -1,5 +1,9 @@
 # Open Ontology v0.1 开发执行 Plan
 
+## 2026-10-14 连接信息一键完整链与自备E2E前置
+
+2026-10-14 用户重申本轮须完成十源从连接信息到本地一键、完整S0–S10、同步维护Pack、实际Gateway/CLI及准确对话；九源作者历史预览不等于本入口完成。用户明确所有E2E前置由源作者自行准备，不再索取测试数据/数据库端点。十源各唯一工程师+共享入口工程师长跑，native GPT6.1Sol low，独占源码，固定前置制品复用，必要新S5一次真实调用而非跨源伪cache。SQLServer本机可做官方SQL2022真实仿真E2E须明确架构，原生amd64认证门槛单列不假通过。统一独立审阅仍在十源完整链后；原完整退出、五版次序、正式签收0/10不变。
+
 ## 2026-10-14 PG完整作者链收取
 
 PG完整作者预览收取：原4a64ed0a9真实S0–S10/维护Pack/Agent对话证据与新5038a03b5 worker、753dd2de4 capture、固定2ff Loader完整持续链并列。973项固定hash核验，真实两周期100053/100054行全量typed diff0、同UUID before-CAS恢复无第二COPY、变vector拒绝无副作用，CAS+diff后ACK/peek0；新官方Pack/ACL/Gateway六query逐行匹配独立source gold，deny/WAL齐。新增模型0。完整作者9/10，正式0/10，SQLServer真实原生amd64外部门槛待；未来ACK和Pack维护为显式owner流程、服务验后暂停、外部WALcollector未配及历史STALE_DATA保留，不冒自主发布/客户nightly。证据：execution/reviews/native-model-switch-20261012/postgres-author-preview-intake-20261014.json。原Plan/分母/父项、集成/发行/支持等级未晋级；无整版签收，不切PRODUCT-LOOPS/Goal，前端无变更。
@@ -2734,3 +2738,7 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 ### 2026-10-13 MariaDB完整作者预览入账
 
 完整作者预览3/10（MySQL、OpenSearch、MariaDB），正式完整签收0/10。Maria6cc58d0c7原整源24项本地SHA全核，root真实原4turn9facts8WAL及2次validate拒绝重放exit0；预执行拒绝无ID正确，原失败保留。Oracle803249a9c四轮gold/6WAL通过但Pack文档消费harness失败保留。74/79真实队列恢复已交，PG实际numeric参数序列化缺口修复中；Mongo币种未知被USD覆盖，71修语义保真、73修whCode消费；不再次调用已成功S5。 Gateway共享固定194个Git证据blob已核d706d879a清单SHA d566fdc7a405cda5af752f1510b9d62f3d96a744c4e70f19ddfae181332137d9。开发、集成、发行及等级分母不变；不勾父项、不切PRODUCT-LOOPS、不改整体Goal范围。净化远端snapshot39a9ebc79对应本地c2277974，非重写开发历史。
+
+2026-10-14 固定共享入口3a8950483：private连接/pinned recipe恢复验证，真实OIDC及S0–S10 API编排，host3tests通过；本组件不计十源一键完成。源各自fresh capture/Loader/API继续，SQL CT codec由唯一SQLowner补native_update/target_installer/0023新迁移，旧迁移hash不变；PG唯一API owner修观测metadata叶子漂移，语义与权限仍严格。所有前置源作者自备，旧TLS失败保留不绕过。当前一键完整0/10、历史作者9/10、正式0/10。
+
+2026-10-14 最新人类执行者切换：原生子智能体临时禁用，活动列表实测仅root，恢复GrokCLI十二个完整长跑任务（十源+共享一键入口+唯一infra恢复）。dispatch位于batches/grok-connection-full-20261014/dispatch.json；现有dirty源码/失败/固定制品/DB卷保留，未知交互Grok不kill不计管理并发。磁盘实测47GiB可用但Dockerps超时，infra唯一受控恢复owner；不增加数据库/重复build。原一键完整0/10、历史作者9/10、正式0/10不变，统一十源审阅及原退出保留。

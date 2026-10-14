@@ -61,7 +61,7 @@ def compare(generation, selected_table=None):
             continue
         mapped.setdefault(table, {})[column] = physical
     types = subprocess.run(["docker", "exec", "oo-dl01w1-06-mysql", "mysql",
-                            "--defaults-extra-file=/tmp/native-reader.cnf", "-NBe",
+                            "--defaults-file=/tmp/native-reader.cnf", "-NBe",
                             "select table_name,column_name,data_type from information_schema.columns "
                             "where table_schema='native_mysql_20261012' order by table_name,ordinal_position"],
                            capture_output=True, text=True, check=True).stdout.splitlines()
@@ -97,7 +97,7 @@ def compare(generation, selected_table=None):
         mysql_sql = f"SELECT JSON_ARRAY({','.join(left)}) FROM `native_mysql_20261012`.`{table}` ORDER BY `{columns[0][0]}`"
         pg_sql = f'SELECT json_build_array({",".join(right)}) FROM _oo."{ident(physical[0])}" ORDER BY "{ident(mapped[table][columns[0][0]])}"'
         mysql_rows = lines(["docker", "exec", "oo-dl01w1-06-mysql", "mysql",
-                            "--defaults-extra-file=/tmp/native-reader.cnf", "--batch", "--raw", "--skip-column-names", "-e", mysql_sql])
+                            "--defaults-file=/tmp/native-reader.cnf", "--batch", "--raw", "--skip-column-names", "-e", mysql_sql])
         target_rows = lines(["docker", "exec", "oo-dl01w1-06-pg", "sh", "-lc",
                              'psql -U "$POSTGRES_USER" -d mysql_native_20261012 -Atc ' + shlex.quote(pg_sql)])
         count = 0

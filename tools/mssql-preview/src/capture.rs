@@ -81,7 +81,8 @@ fn count_sql(table: &Table) -> Result<ReadSql,Fail> {
 async fn rows(client: &mut SqlClient, sql: ReadSql, params: &[&dyn ToSql], deadline: Instant, secret: &str) -> Result<Vec<Row>,Fail> {
     let left=deadline.checked_duration_since(Instant::now()).filter(|v|!v.is_zero()).ok_or_else(||Fail::new("deadline_exceeded","capture deadline elapsed"))?;
     match timeout(left,async {
-        client.query(sql.0,params).await.map_err(|e|driver_fail(secret,e))?.into_first_result().await.map_err(|e|driver_fail(secret,e))
+        let stream = if params.is_empty() { client.simple_query(sql.0).await } else { client.query(sql.0,params).await };
+        stream.map_err(|e|driver_fail(secret,e))?.into_first_result().await.map_err(|e|driver_fail(secret,e))
     }).await { Ok(r)=>r, Err(_)=>Err(Fail::new("deadline_exceeded","capture deadline elapsed")) }
 }
 fn i64_value(row:&Row, name:&str)->Result<i64,Fail>{

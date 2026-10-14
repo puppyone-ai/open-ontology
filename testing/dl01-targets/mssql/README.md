@@ -9,7 +9,7 @@ This session ran on Apple arm64 (`uname -m` = `arm64`, Docker server `linux/arm6
 An operator runs the fixture on a Linux x86-64 host:
 
 1. `scripts/host-gate.sh` must exit 0. On this Mac it exits 42.
-2. `scripts/run-amd64.sh` creates private password files outside the repo, starts one container named `oo-dl01w1-09-mssql` with memory cap `4g`, and applies the DBA scripts. Setting `ACCEPT_EULA=Y` on that host accepts the SQL Server EULA for Developer edition. Developer edition is for development and test, not production. This session did not accept the EULA.
+2. `scripts/run-amd64.sh` creates private password files outside the repo, starts one container named `oo-dl01w1-09-mssql` with memory cap `4g`, and applies the DBA scripts. Explicitly setting `OO_DL01W1_09_ACCEPT_EULA=Y` after operator authorization permits the runner to set `ACCEPT_EULA=Y`, which accepts the SQL Server EULA for Developer edition. Developer edition is for development and test, not production. This session did not accept the EULA.
 3. The reader scripts then run as `oo_dl01w1_09_reader`. Positive reads must match `expected/oracle.json`. Negative writes must fail. Cancel drops the reader client during `WAITFOR`. The DBA login reads Audit and Extended Events afterward.
 4. `scripts/cleanup-owned.sh` removes only the named container and its volume.
 

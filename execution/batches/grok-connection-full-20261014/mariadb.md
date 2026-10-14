@@ -1,0 +1,9 @@
+用户最新授权恢复Grok CLI，禁止原生子智能体/嵌套agents。应用ponytail full：最小完整修改，复用固定实现/制品，禁止过度工程、连续付费重试。读execution INDEX/GOAL/PRODUCT-LOOPS/CONTROL/TODO、.codex/skills/codex-grok/SKILL.md，按任务读原docs/Spec/Plan。原五版/十源退出不可删。历史作者预览9/10不等于一键完整，本轮从数据库连接信息(type/database/host/port/user/secret_ref)到一条普通命令本地接入，完整真实S0–S10、原docs各源C1–C5可配置周期新增/更新/物理删除收敛与恢复、标准Yaml/Ontology持续维护、同版角色Pack、nativeGateway/publicOOCLI及真实准确多轮Agent对话必须全部证明。少token，长跑直到小闭环完全交付，不能source capture或组件绿即停。
+所有E2E前置由源作者自行准备：自有DB/账号/TLS/测试数据，客户只读metadata/LIMIT5绝不写。秘密仅0700目录/0600文件ref，不打印不入git。保留所有失败/原fixedELF/raw/SHA/DB卷。现host恢复47GiB但Docker查询超时；不要加容器或重复build，运行环境由唯一infra负责人恢复，随后只collect现有具名资源和实际leases/watermarks，不重复已提交DML/CAS/不确定模型create。旧交互Grok未知session不杀/不抢其写域，发现同路径activewriter报告并做安全只读工作；原nativeagents已无活动。
+共享入口tools/source-onboarding/{onboard.py,product_flow.py,register_engine.py,CONTRACT.md,PRODUCT-FLOW.md}负责普通6connection选预置engine，源owner提供真whole recipe，不得入口外人工做完后挂历史完成。shared-entry负责共享接口/runner，其余不写。基础fixed3a8950483；新API d34813ee4 ELF与artifactindex /tmp/oo-pg46-runtime-finish/artifact-index.json，模板 /tmp/oo-star-runtime-finish/runtime.json。新source S5必须真实模型或当前完整request官方合法cache，不能跨源伪cache。GPT6.1low优先，Grok4.7 S5/dialogue fallback已允许URL/key不变实际身份保留。各源最少必要一次调用，故障不循环。共享API当前无writer，需改报root；SQL独占Loader四文件和0023；PG独占GatewayACL代际transition最小修复，静态默认拒保留、精确previouspolicy固定SHA/权限同等，仅代际变化同事务撤旧授新，越权/partial拒无副作用。
+先Linux/MSRV必要测试固定source/ELF，再真实一键whole运行、typedgold零差、actualqueryQIDs/WAL/取消和失败恢复、三报告/HANDOFF/机器receipt/SHA/资源终态。源码固定提交只own paths，git flock /tmp/oo-dl01-wave1-git.lock，foreign staging拒；别改治理或push，root负责update-protocol和净化同步。退场完整回执需声明不足而非假完成。
+
+你的唯一完整源/能力：mariadb
+独占写域：["tools/mariadb-preview"]
+接续实际dirty源码、/tmp/oo-mariadb-connection-whole 和 /Users/redux/.cache/oo-mariadb-connection-whole；先核现有私有receipt/新失败，不重做旧accepted。
+旧prepared schema-only后手写ready marker结果不可信，保留不可作whole证据；新独占PGserver官方apply/nativeinstall/targetinstaller从头走，不复制旧jobs水位ACK。

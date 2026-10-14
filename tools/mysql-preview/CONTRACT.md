@@ -13,9 +13,9 @@ Source sessions are one read-only business connection. The platform does not
 DBA identity on a new synthetic instance.
 
 JSON is stored as PostgreSQL `json` (oid 114) text because `copy-encoder/v1`
-rejects `jsonb`. MySQL `TIME` inside one day is stored as `time` (oid 1083);
-values outside that range are SQL NULL plus a manifest reject when the column
-is nullable. `SET`, spatial, vector, and bit columns are rejected before a
+rejects `jsonb`. MySQL `TIME` is a signed microsecond duration, stored as PostgreSQL
+`interval` (oid 1186), including negative values and values beyond one day.
+Values beyond the MySQL TIME domain are rejected. `SET`, spatial, vector, and bit columns are rejected before a
 target batch. `tinyint(1)` is `int2` unless `boolean_tinyint1` is true.
 
 Column grants for the gateway role are not issued here. After a seal, the
@@ -72,3 +72,23 @@ the run `open`, and exits 9 after writing that outcome. `cancel_before_batch`
 and `fail_before_seal` retire the run. None of those three states is a
 sealed import. The outcome `quality` array lists stored batch digests only
 when `quality_stored` is true. A cancel writes an empty array.
+
+## Fresh connection entry
+
+`native-producer.py` takes source identity from its configured capture input.
+Every new occurrence, including generation 1, executes the actual configured
+MySQL reader and authoritative admission sealer. It does not import a
+`baseline_capture` or `baseline_registry`. A retry of the same immutable
+binding/pin returns its saved native request, preventing a second capture.
+
+`connection-capture.py` is the bounded fresh capture/admission recipe step.
+It consumes the private connection configuration and emits a receipt with
+`full_product_chain_complete: false`; that receipt alone is never a whole
+source acceptance. The shared onboarding runner must also execute actual
+scheduled Loader/CAS cycles, current collection and S0–S10, maintained Pack,
+Gateway/CLI, and current-data dialogue verification before completing.
+
+Fixture SQL clients use an explicit defaults file so a missing unrelated
+server include cannot change or prevent the verified reader configuration.
+Customer connections remain restricted to approved metadata and LIMIT 5
+probes; the fixture full-capture recipe is not a customer authorization.

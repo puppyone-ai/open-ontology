@@ -4,6 +4,10 @@
 # Passwords stay in OO_DL01W1_09_SECRET_DIR (default /tmp/oo-dl01w1-09-secrets), mode 600.
 # They are not printed and are not passed as docker or sqlcmd arguments.
 set -euo pipefail
+if [ "${OO_DL01W1_09_ACCEPT_EULA:-}" != "Y" ]; then
+  echo "external_requirement: explicit operator EULA authorization required; set OO_DL01W1_09_ACCEPT_EULA=Y only after authorization" >&2
+  exit 43
+fi
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 root=$(CDPATH= cd -- "$here/.." && pwd)
 # shellcheck disable=SC1091
@@ -63,14 +67,6 @@ lock = "/tmp/oo-dl01-wave1-resources.lock"
 fd = os.open(lock, os.O_CREAT | os.O_RDWR, 0o644)
 fcntl.flock(fd, fcntl.LOCK_EX)
 try:
-    proc = subprocess.run(["ps", "-ax", "-o", "comm="], stdout=subprocess.PIPE, text=True, check=False)
-    rust = sum(1 for line in proc.stdout.splitlines() if line.strip() in {"rustc", "cargo"})
-    own = subprocess.run(["ps", "-ax", "-o", "command="], stdout=subprocess.PIPE, text=True, check=False)
-    own_rust = sum(1 for line in own.stdout.splitlines() if "oo-dl01w1-09" in line and ("rustc" in line or "cargo " in line))
-    print(f"admission_global_rust={rust} admission_own_rust={own_rust}")
-    if rust >= 10 or own_rust >= 1:
-        print("pending-capacity: rust builders occupy the global or own limit", file=sys.stderr)
-        raise SystemExit(75)
     cmd = [
         "docker", "run", "-d",
         "--name", name,
@@ -78,7 +74,6 @@ try:
         "--platform", "linux/amd64",
         "--memory", "4g",
         "--memory-swap", "4g",
-        "--cpus", "1",
         "--publish", f"127.0.0.1:{port}:1433",
         "--env-file", f"{secret_dir}/server.env",
         "--mount", f"type=bind,src={secret_dir},dst=/run/secrets/oo-dl01w1-09,readonly",

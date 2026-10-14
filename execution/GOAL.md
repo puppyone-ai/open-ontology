@@ -1,5 +1,9 @@
 ## 2026-10-13 当前接续与净化快照
 
+## 2026-10-14 连接信息一键完整链与自备E2E前置
+
+2026-10-14 用户重申本轮须完成十源从连接信息到本地一键、完整S0–S10、同步维护Pack、实际Gateway/CLI及准确对话；九源作者历史预览不等于本入口完成。用户明确所有E2E前置由源作者自行准备，不再索取测试数据/数据库端点。十源各唯一工程师+共享入口工程师长跑，native GPT6.1Sol low，独占源码，固定前置制品复用，必要新S5一次真实调用而非跨源伪cache。SQLServer本机可做官方SQL2022真实仿真E2E须明确架构，原生amd64认证门槛单列不假通过。统一独立审阅仍在十源完整链后；原完整退出、五版次序、正式签收0/10不变。
+
 共享恢复74/79继续；71修ClickHouse真实历史C4消费，Mongo真实Grok新build b_df0eae229850ceb71331c908dc082e86已S0–S8，S9/S10及Pack/Gateway/对话待验。Oracle/Maria原S0–S10及外部Gateway已证，自主对话缺口按172bfd192真实工具约束继续。MySQL/OpenSearch完整作者预览3/10（MySQL、OpenSearch、MariaDB）、正式完整源0/10保持；SQLServer缺原生真实实例。 产品Selfbuild及对话已获准Grok-4.7备用，同URL/key保留真实模型及失败，不复用旧模型缓存；原生开发者策略不变。普通等待1080秒，clock.sleep，通知即收。净化同步仅源码、短状态与本地证据SHA；原始evidence/log/stdout/stderr/exit保持本地，不force-add。172bfd192修复对话真实工具要求及可恢复的明确表名错误，并保留导出NDJSON测试夹具；25项导出测试通过，非十源签收。整版、父项及支持等级未晋级，PRODUCT-LOOPS不变。
 
 ## 2026-10-12 当前调度：共享链路稳定后再放行十源
@@ -172,3 +176,5 @@ Grok额度不足，后续开发切换Codex原生子智能体，统一gpt-6.1-sol
 ### 2026-10-12 人类临时备用模型授权
 
 多个原生工程师实际返回 Selected model is at capacity 后，人类明确回复“暂用 GPT-6 Sol low”。仅停止owner的原完整任务移交原生gpt-6-sol/low备用工程师，源码/固定证据/具名计算与资源保留，先核终态再收结果，不重复writer或新增分母。仍运行的Maria工程师不重复派发。产品Selfbuild/对话仍gpt-6.1-sol/low、URL/key不变；Ponytail最小完整改动与Token20%实测unknown、十源全部原退出及统一闭环审阅条件保持。
+
+2026-10-14 最新人类执行者切换：原生子智能体临时禁用，活动列表实测仅root，恢复GrokCLI十二个完整长跑任务（十源+共享一键入口+唯一infra恢复）。dispatch位于batches/grok-connection-full-20261014/dispatch.json；现有dirty源码/失败/固定制品/DB卷保留，未知交互Grok不kill不计管理并发。磁盘实测47GiB可用但Dockerps超时，infra唯一受控恢复owner；不增加数据库/重复build。原一键完整0/10、历史作者9/10、正式0/10不变，统一十源审阅及原退出保留。
