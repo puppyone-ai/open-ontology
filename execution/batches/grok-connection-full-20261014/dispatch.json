@@ -51,7 +51,7 @@
   {
     "task": "mariadb",
     "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
-    "pid": 98649,
+    "pid": 17188,
     "prompt": "execution/batches/grok-connection-full-20261014/mariadb-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb-fresh-8436f928-e515-40db-a3e3-508fd0ccf82e.log",
     "write_paths": [
@@ -68,14 +68,14 @@
       "crates/oo-gateway/src/query_executor.rs",
       "tools/source-capture-policy/src/model.rs"
     ],
-    "status": "durable_fresh_same_whole_source_actual_gtid483_consumer",
+    "status": "durable_same_Maria_whole_actual_installer_C1_baseline_producer",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 207,
     "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
     "prior_session_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
-    "prior_pid": 42287,
+    "prior_pid": 98649,
     "retirement_rule": "same logical fullsource engineer retained, fresh execution after verified terminal with immutable handoff to avoid old repeated context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-real-gtid483-current-whole-fresh-context.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-actual-C1-baseline-installer-complete-product-resume.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 MariaDB binlog",

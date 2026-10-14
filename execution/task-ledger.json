@@ -9598,5 +9598,68 @@
       }
     ],
     "probe_intake": "execution/reviews/grok-connection-resume-20261014/mongo-actual-epoch-seal-block-intake.json"
+  },
+  "latest_maria_original_CDCfirst_bootstrap_owner": {
+    "at": "2026-10-15T00:53:04.074667+08:00",
+    "note": "2026-10-15 Maria98649已真实terminal：既有C5/snapshot-zero水位对GTIDincremental不可比是正确拒，原0-1-7spool不改/lease不占，作者尚未installer或实际C1producer。原same8436职责17188重续明确先己scope install_document正式0024caller+digest+LinuxactualELF/install正例，再原CDC-first真实初始C1baseline及生产Rustspool元数据测量/当前持续全链；源码full_import_write_batch旧snapshotcodec接口缺由唯一SQL7df适用真实ABIs，不能手置codec/epoch/T或空metadataflush。Root已再读docs04§4要求L0早于任何snapshot块、Loader先消费CDC、墓碑防复活/追平前不可见，没改原Plan或Goal退出。独立C1正确ownedtarget/binding保留C5历史避免强比较，真实新initialsnapshot覆盖oldtxn须如实记录、后续新GTID事务真实应用，不强错误重放oldspool。新精简卡要求仅读current字段/该源原docs章节以避免fresh81%历史压缩，Token20%未测；source全0/10/random4/10、其它计数支持级整版Goal无晋级。",
+    "managed_live": [
+      {
+        "task": "oracle",
+        "pid": 83403,
+        "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
+        "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "mariadb",
+        "pid": 17188,
+        "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
+        "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "clickhouse",
+        "pid": 7630,
+        "session_uuid": "c420eabd-594b-49ee-93d9-82d75fb6f17d",
+        "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "doris",
+        "pid": 7632,
+        "session_uuid": "edc3dd87-daf4-45d4-a062-2b897d7d837b",
+        "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "opensearch",
+        "pid": 5834,
+        "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
+        "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "postgresql",
+        "pid": 2203,
+        "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
+        "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "starrocks",
+        "pid": 2201,
+        "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
+        "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "sqlserver",
+        "pid": 2205,
+        "session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
+        "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+        "tool_handle": null
+      }
+    ],
+    "intake": "execution/reviews/grok-connection-resume-20261014/maria-actual-bootstrap-caller-block-intake.json"
   }
 }
