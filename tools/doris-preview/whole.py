@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """One onboard step for the Doris owned fixture.
 
-Captures with the pinned reader, applies one insert/update/physical-delete
-cycle, and loads only generations the target watermark does not already have.
+Captures with the pinned reader on the configured period. Two later ticks
+each observe one new insert, update, and physical delete. A load past the
+installed binding waits for an official pack of that collection.
 Spawns product_flow.py and dialogue.py when the private product config exists.
 A copied historical receipt is not a result. C1 stays the reader's
 refused_unpublished binlog.
@@ -351,6 +352,9 @@ def load_table(run, phase, tick_path, table, c4=False):
     done = dest / 'catalog.json'
     if done.exists():
         return json.loads(done.read_text())
+    # Append-only mappings: a load past the bound generation cannot be deleted.
+    if not official_current_pack():
+        raise RuntimeError('current_generation_pack_missing')
     dest.mkdir(parents=True, exist_ok=True)
     prior = dest / 'load.json'
     if prior.exists():
@@ -507,9 +511,7 @@ def mutate_present():
     one(mysql("UPDATE uniq_acct SET label='conn_whole' WHERE id=1 AND (label IS NULL OR label<>'conn_whole')"), 'uniq_update')
     if count("SELECT COUNT(*) FROM part_day WHERE day='2026-04-22' AND region='west'") == 0:
         one(mysql("INSERT INTO part_day VALUES ('2026-04-22','west',8.80)"), 'part_insert')
-    if count("SELECT COUNT(*) FROM nz_obs WHERE id=9001") == 0:
-        one(mysql("INSERT INTO nz_obs VALUES (9001,1.00)"), 'nz_insert')
-    # New cycle after the entry is up. Historical rows are not inserted again.
+    # 9001, 9002, and 9003 end absent. Absence is the sealed state, not a new insert.
     if count("SELECT COUNT(*) FROM dup_events WHERE event_id=17 AND kind='maintain'") == 0:
         one(mysql("INSERT INTO dup_events VALUES (17,'maintain',2.20)"), 'maintain_insert')
     if count("SELECT COUNT(*) FROM dup_events WHERE event_id=17 AND kind='maintain'") != 1:
@@ -517,8 +519,6 @@ def mutate_present():
     one(mysql("UPDATE uniq_acct SET label='maintain' WHERE id=2 AND (label IS NULL OR label<>'maintain')"), 'maintain_update')
     if count("SELECT COUNT(*) FROM part_day WHERE day='2026-04-23' AND region='maintain'") == 0:
         one(mysql("INSERT INTO part_day VALUES ('2026-04-23','maintain',6.60)"), 'part_maintain')
-    if count("SELECT COUNT(*) FROM nz_obs WHERE id=9002") == 0:
-        one(mysql("INSERT INTO nz_obs VALUES (9002,1.00)"), 'nz_maintain')
     # A failed seal already applied the maintain rows. This wave is the next real delta.
     if count("SELECT COUNT(*) FROM dup_events WHERE event_id=18 AND kind='cycle5'") == 0:
         one(mysql("INSERT INTO dup_events VALUES (18,'cycle5',3.30)"), 'cycle5_insert')
@@ -527,8 +527,6 @@ def mutate_present():
     one(mysql("UPDATE uniq_acct SET label='cycle5' WHERE id=3 AND (label IS NULL OR label<>'cycle5')"), 'cycle5_update')
     if count("SELECT COUNT(*) FROM part_day WHERE day='2026-04-24' AND region='cycle5'") == 0:
         one(mysql("INSERT INTO part_day VALUES ('2026-04-24','cycle5',7.70)"), 'cycle5_part')
-    if count("SELECT COUNT(*) FROM nz_obs WHERE id=9003") == 0:
-        one(mysql("INSERT INTO nz_obs VALUES (9003,1.00)"), 'cycle5_nz')
 
 
 def mutate_delete():
@@ -685,6 +683,146 @@ def product_chain(run):
             json.loads((dialogue / 'verdict.json').read_text()))
 
 
+def capture_scheduled(cfg, evidence, label):
+    tick_path = evidence / f'{label}.json'
+    if tick_path.exists():
+        return json.loads(tick_path.read_text())
+    evidence.mkdir(mode=0o700, exist_ok=True)
+    command = ['docker', 'run', '--rm', '--network', cfg['network'], '--pull', 'never',
+               '--platform', 'linux/arm64', '--memory', '512m',
+               '-v', f'{cfg["reader"]}:/opt/doris-reader:ro', '-v', f'{evidence}:/evidence',
+               '-v', f'{cfg["password_file"]}:/secrets/reader.password:ro',
+               '--entrypoint', '/opt/doris-reader', RUST,
+               'capture-connection', '/evidence', '/secrets', cfg['host'], str(cfg['port']),
+               cfg['database'], cfg['user'], str(cfg['period_ms']), label,
+               str(cfg['max_rows_per_table'])]
+    proc = subprocess.run(command, capture_output=True, timeout=240)
+    kept(proc, evidence / f'call-{label}')
+    if proc.returncode or not tick_path.exists():
+        raise RuntimeError('period_capture_refused')
+    body = json.loads(tick_path.read_text())
+    if body.get('every_ms') != cfg['period_ms'] or body.get('product_reader_write_attempts') != 0:
+        raise RuntimeError('period_capture_refused')
+    return body
+
+
+def wait_period(cfg, evidence):
+    state = evidence / f'schedule-{cfg["period_ms"]}.json'
+    if not state.exists():
+        raise RuntimeError('period_schedule_missing')
+    previous = int(json.loads(state.read_text())['finished_unix_ms'])
+    delay_ms = previous + int(cfg['period_ms']) - int(time.time() * 1000)
+    if delay_ms > 0:
+        time.sleep(delay_ms / 1000 + 0.05)
+
+
+def cycle1_targets(later_present, label):
+    # Cycle 7 owns 9101 and the uniq label. Reapplying cycle 1 must not undo it.
+    owned = later_present or label == 'cycle7'
+    return {'nz_9101': not owned, 'label_cycle6': not owned}
+
+
+def apply_cycle(index):
+    # New fixture rows only. Historical markers 16/17/18 and regions east/north stay.
+    if index == 1:
+        later = count("SELECT COUNT(*) FROM dup_events WHERE event_id=20 AND kind='cycle7'") != 0
+        label = one(mysql("SELECT label FROM uniq_acct WHERE id=5"), 'uniq5')
+        target = cycle1_targets(later, label)
+        if count("SELECT COUNT(*) FROM dup_events WHERE event_id=19 AND kind='cycle6'") == 0:
+            one(mysql("INSERT INTO dup_events VALUES (19,'cycle6',4.40)"), 'cycle6_insert')
+        if target['nz_9101'] and count("SELECT COUNT(*) FROM nz_obs WHERE id=9101") == 0:
+            one(mysql("INSERT INTO nz_obs VALUES (9101,2.00)"), 'cycle6_nz')
+        if target['label_cycle6']:
+            one(mysql("UPDATE uniq_acct SET label='cycle6' WHERE id=5 AND label<>'cycle6'"), 'cycle6_update')
+        if count("SELECT COUNT(*) FROM nz_obs WHERE id=9001") != 0:
+            one(mysql("DELETE FROM nz_obs WHERE id=9001"), 'cycle6_delete')
+        if count("SELECT COUNT(*) FROM part_day WHERE day='2026-04-25' AND region='cycle6'") == 0:
+            one(mysql("INSERT INTO part_day VALUES ('2026-04-25','cycle6',8.80)"), 'cycle6_part')
+        if count("SELECT COUNT(*) FROM nz_obs WHERE id=9001") != 0:
+            raise RuntimeError('cycle6_nz_remains')
+        return
+    if count("SELECT COUNT(*) FROM dup_events WHERE event_id=20 AND kind='cycle7'") == 0:
+        one(mysql("INSERT INTO dup_events VALUES (20,'cycle7',5.50)"), 'cycle7_insert')
+    one(mysql("UPDATE uniq_acct SET label='cycle7' WHERE id=5 AND label<>'cycle7'"), 'cycle7_update')
+    if count("SELECT COUNT(*) FROM nz_obs WHERE id=9101") != 0:
+        one(mysql("DELETE FROM nz_obs WHERE id=9101"), 'cycle7_delete')
+    if count("SELECT COUNT(*) FROM part_day WHERE day='2026-04-26' AND region='cycle7'") == 0:
+        one(mysql("INSERT INTO part_day VALUES ('2026-04-26','cycle7',9.90)"), 'cycle7_part')
+    if count("SELECT COUNT(*) FROM nz_obs WHERE id=9101") != 0:
+        raise RuntimeError('cycle7_nz_remains')
+
+
+def cycle_changes(before, after):
+    counts = {'insert': 0, 'update': 0, 'delete': 0}
+    left = {item['name']: item['rows'] for item in before['tables']}
+    right = {item['name']: item['rows'] for item in after['tables']}
+    for name in C5_CHANGED:
+        if TABLES[name]['identity'] == 'unique':
+            previous = {_receipt.key_text(name, row): row for row in left[name]}
+            current = {_receipt.key_text(name, row): row for row in right[name]}
+            counts['delete'] += len(previous.keys() - current.keys())
+            counts['insert'] += len(current.keys() - previous.keys())
+            counts['update'] += sum(1 for key in previous.keys() & current.keys() if previous[key] != current[key])
+            continue
+        removed = list(left[name])
+        for row in right[name]:
+            if row in removed:
+                removed.remove(row)
+            else:
+                counts['insert'] += 1
+        counts['delete'] += len(removed)
+    return counts
+
+
+def run_period(run, cfg):
+    evidence = run / 'period-evidence'
+    ticks = [capture_scheduled(cfg, evidence, 'period0')]
+    cycles = []
+    for index, label in ((1, 'period1'), (2, 'period2')):
+        if not (evidence / f'{label}.json').exists():
+            apply_cycle(index)
+            wait_period(cfg, evidence)
+        tick = capture_scheduled(cfg, evidence, label)
+        previous = tick.get('previous_finished_unix_ms')
+        if previous is None:
+            raise RuntimeError('period_gap')
+        gap = int(tick['finished_unix_ms']) - int(previous)
+        if gap < int(cfg['period_ms']):
+            raise RuntimeError('period_gap')
+        change = cycle_changes(ticks[-1], tick)
+        if min(change.values()) < 1:
+            raise RuntimeError('period_cycle')
+        cycles.append({'label': label, 'gap_ms': gap, **change,
+                       'finished_unix_ms': tick['finished_unix_ms']})
+        ticks.append(tick)
+    return {'protocol': 'oo.doris.period/v1', 'period_ms': cfg['period_ms'],
+            'cycles': cycles, 'cycles_verified': True}
+
+
+def live_collection():
+    binding = json.loads((BASE / 'gateway/reviewed/dorispreview/binding.json').read_text())
+    return binding['catalog_version']
+
+
+def archived_pack_catalogs():
+    found = []
+    root = BASE / 'api-run/work/builds'
+    for pack in root.glob('b_*/native-maintenance/*/role-pack.json'):
+        body = json.loads(pack.read_text())
+        manifest = next(item['text'] for item in body['files'] if item['path'] == 'manifest.json')
+        found.append(json.loads(manifest)['catalog_version'])
+    return found
+
+
+def pack_follows(live, archived):
+    return live in archived
+
+
+def official_current_pack():
+    # The serving binding catalog must be a compiler-archived role pack.
+    return pack_follows(live_collection(), set(archived_pack_catalogs()))
+
+
 def execute(config_path, run):
     if SOCK.exists() and not os.environ.get('DOCKER_HOST'):
         os.environ['DOCKER_HOST'] = 'unix://' + str(SOCK)
@@ -731,6 +869,20 @@ def execute(config_path, run):
         finals = import_diverged(run, 'after', mid / 'capture/current.json', after / 'capture/current.json', C5_CHANGED)
         state['phases']['import_after'] = True
         write(journal, state)
+    if 'period' not in state['phases']:
+        proof = run_period(run, cfg)
+        write(run / 'period.json', proof)
+        state['phases']['period'] = True
+        write(journal, state)
+    else:
+        proof = json.loads((run / 'period.json').read_text())
+    if proof.get('cycles_verified') is not True or proof.get('period_ms') != cfg['period_ms']:
+        raise RuntimeError('period_unverified')
+    # A load past the bound generation waits until that generation's pack is serving.
+    if not official_current_pack():
+        proof['load_withheld'] = 'current_generation_pack_missing'
+        write(run / 'period.json', proof)
+        raise RuntimeError('current_generation_pack_missing')
     part = run / 'c4'
     if 'c4' not in state['phases']:
         c4_tick = capture_partition(cfg, part, 'p202604')
@@ -754,7 +906,7 @@ def execute(config_path, run):
     tick = json.loads((after / 'capture/current.json').read_text())
     product, dialogue = product_chain(run)
     stages = {item['stage'] for item in product.get('stages', []) if item.get('status') == 'succeeded'}
-    periodic = state['phases'].get('gold') is True and state['phases'].get('delete') is True
+    periodic = proof.get('cycles_verified') is True and proof.get('period_ms') == cfg['period_ms']
     verified = (periodic and state['phases'].get('recovery') is True
                 and product.get('protocol') == 'oo.source-onboarding.product/v1'
                 and stages >= {f'S{i}' for i in range(11)}
@@ -793,6 +945,21 @@ def demo():
         'protocol', 'source_id', 'logical_schema', 'logical_table', 'partition_id',
         'run_id', 'batch_id', 'payload_digest', 'job_task_id', 'job_generation'}
     assert doc['partition_id'] == 'p202603' and doc['job_generation'] == 1
+    before = {'tables': [
+        {'name': 'dup_events', 'rows': ['1\u001fa\u001f1']},
+        {'name': 'uniq_acct', 'rows': ['5\u001f1\u001fold']},
+        {'name': 'nz_obs', 'rows': ['9001\u001f1']},
+    ]}
+    after = {'tables': [
+        {'name': 'dup_events', 'rows': ['1\u001fa\u001f1', '19\u001fcycle6\u001f4.40']},
+        {'name': 'uniq_acct', 'rows': ['5\u001f1\u001fcycle6']},
+        {'name': 'nz_obs', 'rows': []},
+    ]}
+    assert cycle_changes(before, after) == {'insert': 1, 'update': 1, 'delete': 1}
+    assert pack_follows('aa', {'aa'}) and not pack_follows('aa', {'bb'})
+    assert cycle1_targets(True, 'cycle7') == {'nz_9101': False, 'label_cycle6': False}
+    assert cycle1_targets(False, 'cycle7') == {'nz_9101': False, 'label_cycle6': False}
+    assert cycle1_targets(False, 'native_full') == {'nz_9101': True, 'label_cycle6': True}
 
 
 def main():
