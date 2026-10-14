@@ -29,6 +29,7 @@ fn main() -> ExitCode {
         "c1-dba" => c1_dba(&mut args),
         "c1-prove" => c1_prove(&mut args),
         "c1-expire" => c1_expire(&mut args),
+        "c1-native" => c1_native(&mut args),
         _ => {
             eprintln!("mysql-preview: usage");
             ExitCode::from(2)
@@ -255,6 +256,11 @@ fn c1_dba(args: &mut impl Iterator<Item = String>) -> ExitCode {
 fn c1_prove(args: &mut impl Iterator<Item = String>) -> ExitCode {
     let (Some(config), Some(out)) = pair(args) else { return ExitCode::from(2); };
     block_on(mysql_preview::prove_c1(&config, &out))
+}
+
+fn c1_native(args: &mut impl Iterator<Item = String>) -> ExitCode {
+    let (Some(config), Some(out)) = pair(args) else { return ExitCode::from(2); };
+    block_on(mysql_preview::capture_business(&config, &out))
 }
 
 fn c1_expire(args: &mut impl Iterator<Item = String>) -> ExitCode {

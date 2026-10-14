@@ -3,9 +3,11 @@
 Experimental MySQL 8 batch snapshot into the existing PostgreSQL full-import
 target. `run` is that snapshot and is not CDC. `c1-prove` reads a ROW/GTID
 binlog on an owned MySQL 8 fixture through `mysql_async` and the public
-`cdc-transaction` / `cdc-spool` crates. It does not apply the PostgreSQL
-loader and does not ACK. This is not a verified or certified connector, and
-not MariaDB, RDS, Aurora, or TiDB.
+`cdc-transaction` / `cdc-spool` crates. `c1-native` uses that same reader for
+the five `native_mysql_20261012` tables and the current role's visible
+columns. Neither command applies the PostgreSQL loader or ACKs. The `oo_c1`
+fixture is not the five-table product. This is not a verified or certified
+connector, and not MariaDB, RDS, Aurora, or TiDB.
 
 The tool is a separate workspace. It calls `oo_pipeline::target_installer`,
 `plan_physical_mapping`, `CopyEncoder`, and the `_oo.full_import_*` functions

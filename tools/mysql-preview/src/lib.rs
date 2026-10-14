@@ -28,7 +28,7 @@ use serde_json::json;
 use crate::config::{read_ca, read_secret, Stop};
 
 pub use crate::error::PreviewError;
-pub use c1::{configure_dba, expire_c1, prove_c1};
+pub use c1::{capture_business, configure_dba, expire_c1, prove_c1};
 pub use capture::capture_native;
 pub use customer::run_customer;
 pub use dba::{guard_source, load_logistics};

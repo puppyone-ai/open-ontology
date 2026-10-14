@@ -17,6 +17,7 @@ use sha2::{Digest, Sha256};
 
 pub mod arrow_utf8;
 pub mod bindpack;
+pub mod c1;
 pub mod capture;
 pub mod docseal;
 use source_admission::{

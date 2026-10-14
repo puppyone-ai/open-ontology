@@ -10,11 +10,14 @@ description = "MongoDB 8.0.32 controlled preview. Admitted native read still sto
 [workspace]
 
 [dependencies]
+mongodb = { version = "=3.3.0", default-features = false, features = ["compat-3-0-0", "rustls-tls"] }
+mongodb-internal-macros = "=3.3.0"
 oo-builder = { path = "../../crates/oo-builder" }
 oo-core = { path = "../../crates/oo-core" }
 serde_json = "=1.0.151"
 sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
 source-admission = { path = "../source-admission" }
+tokio = { version = "=1.53.1", features = ["rt", "time", "sync", "net", "macros", "io-util"] }
 
 [patch.crates-io]
 sqlx-core = { path = "../../crates/oo-connectors/vendor/sqlx-core" }
