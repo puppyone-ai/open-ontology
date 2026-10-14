@@ -208,6 +208,48 @@ class SelectionFreeze(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "only facts and evidence"):
             dialogue.verify_named_facts(json.dumps({"evidence": {}, "payload": {}}), {"qty": "1"}, {})
 
+    def test_final_format_hides_gold_and_still_rejects_bad_facts(self):
+        facts = {"qty": "UNIQUE_GOLD_99", "reading_id": "104"}
+        schema = dialogue.named_fact_format(facts)
+        blob = json.dumps(schema)
+        self.assertNotIn("UNIQUE_GOLD_99", blob)
+        self.assertNotIn("104", blob)
+        self.assertNotIn("SELECT", blob)
+        self.assertNotIn("password", blob.lower())
+        self.assertEqual(schema["type"], "json_schema")
+        self.assertTrue(schema["json_schema"]["strict"])
+        inner = schema["json_schema"]["schema"]
+        self.assertEqual(inner["required"], ["facts", "evidence"])
+        self.assertEqual(inner["properties"]["evidence"]["properties"]["qty"]["required"], ["query_id", "column", "row"])
+        self.assertEqual(dialogue.named_fact_format(facts, "json_object"), {"type": "json_object"})
+        prompt = dialogue.question_prompt({"prompt": "how many"}, {"expected_named_facts": facts})
+        self.assertIn("facts keys: qty, reading_id", prompt)
+        self.assertNotIn("UNIQUE_GOLD_99", prompt)
+        self.assertNotIn("SELECT", dialogue.SYSTEM)
+        final = dialogue.completion_body("grok-4.7", [], [], "auto", facts, True)
+        tool_round = dialogue.completion_body("grok-4.7", [], [{"type": "function"}], "auto", facts, False)
+        self.assertNotIn("tools", final)
+        self.assertEqual(final["response_format"]["type"], "json_schema")
+        self.assertNotIn("UNIQUE_GOLD_99", json.dumps(final))
+        self.assertNotIn("response_format", tool_round)
+        self.assertIn("tools", tool_round)
+        body = {"columns": [{"name": "qty"}], "rows": [["1"]]}
+        with self.assertRaisesRegex(ValueError, "only facts and evidence"):
+            dialogue.verify_named_facts(json.dumps({"qty": "1"}), {"qty": "1"}, {"q": body})
+        nested = {"facts": {"reading_id": {"query_id": "q", "column": "reading_id", "zero_based_row": 0}}}
+        with self.assertRaisesRegex(ValueError, "only facts and evidence"):
+            dialogue.verify_named_facts(json.dumps(nested), {"reading_id": "104"}, {"q": body})
+        with self.assertRaisesRegex(ValueError, "differs"):
+            dialogue.verify_named_facts(json.dumps({
+                "facts": {"qty": "0"},
+                "evidence": {"qty": {"query_id": "q", "column": "qty", "row": 0}},
+            }), {"qty": "1"}, {"q": body})
+        with self.assertRaises(KeyError):
+            dialogue.verify_named_facts(json.dumps({
+                "facts": {"qty": "1"},
+                "evidence": {"qty": {"query_id": "missing", "column": "qty", "row": 0}},
+            }), {"qty": "1"}, {"q": body})
+
     def test_coverage_nudge_stops_after_the_tools_exist(self):
         self.assertEqual(dialogue.coverage_nudge(set(), 0, 4), ["describe", "freshness", "knowledge_cat", "query"])
         self.assertEqual(dialogue.coverage_nudge({"query", "freshness", "describe", "knowledge_cat"}, 1, 4), [])

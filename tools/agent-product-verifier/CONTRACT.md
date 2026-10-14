@@ -35,6 +35,10 @@ gold 沿用原结构：`truth_key -> {expected_named_facts: {列名: 文本}}`�
 
 随机或 replay 的 verdict 在原字段外增加 `selection`、`counts_as_random`、`seed`、`semantic_ids`、`gold_sha256`。legacy verdict 不增加这些字段。
 
-工具覆盖仍是 `query`、`freshness`、`describe`、`knowledge_cat`。模型可以自选合法 SQL，验收器不断言 SQL 字符串。若模型在这些工具尚未出现时给出最终答案，编排会要求补齐工具后再收答案；轮数用尽仍按原规则失败。现有循环在一轮里还没有 query 结果时，下一步会强制 `query`。`knowledge_cat` 指向包外路径时，`SCHEMA_INVALID` 交回模型，该次调用不计入覆盖。`knowledge_search` 的 `query` 最短长度为 1。CLI 对空查询返回的 `usage` / `search text is missing` 也交回模型，不计入覆盖，不另开重试。最终答案仍只能是 facts 与 evidence；只有 evidence 和 payload、没有 facts，仍失败。认证失败和其他工具错误仍中止本轮。
+工具覆盖仍是 `query`、`freshness`、`describe`、`knowledge_cat`。模型可以自选合法 SQL，验收器不断言 SQL 字符串。若模型在这些工具尚未出现时给出最终答案，编排会要求补齐工具后再收答案；轮数用尽仍按原规则失败。现有循环在一轮里还没有 query 结果时，下一步会强制 `query`。`knowledge_cat` 指向包外路径时，`SCHEMA_INVALID` 交回模型，该次调用不计入覆盖。`knowledge_search` 的 `query` 最短长度为 1。CLI 对空查询返回的 `usage` / `search text is missing` 也交回模型，不计入覆盖，不另开重试。最终答案仍只能是 facts 与 evidence；只有 evidence 和 payload、没有 facts、顶层多出 qty 或 count、事实与成功查询单元格不一致、或 evidence 的 query_id 不在本轮成功查询里，仍失败。`verify_named_facts` 的这些拒绝不放宽。
+
+系统消息写明最终对象只有 `facts` 和 `evidence`。`facts` 的值是单元格原文，或带 `value` 的对象。`evidence` 的值只有 `query_id`、`column` 和 `row`；`row` 是从 0 开始的整数。不要把 `query_id` 放进 `facts`，也不要使用 `zero_based_row` 这个键。题面只追加该题的 fact 名字，不追加 gold 值、SQL 或口令。
+
+工具轮不带 `response_format`。本轮已经有成功 query，且要求的公共工具都已出现时，下一次请求才是最终格式：不附带 tools。当前 `FINAL_FORMAT` 是 `json_schema`，`strict` true。schema 只列该题 fact 名字和 evidence 的三个字段。一次真实探测打到 `grok-4.7`，代理请求 `e47c3ac5` 返回 HTTP 200，用时 6.501 秒，上游是 `https://cli-chat-proxy.grok.com/v1`。响应体没有留住，因为证据目录被写成了 0600。这不是 4xx，所以当前路径不用 `json_object`。同一函数在 `kind=json_object` 时返回 `{"type":"json_object"}`，与 `tools/pg-builder/src/generate.rs` 的 `chat_request` 相同，留作未支持时的格式。最终请求若返回 4xx，transcript 记下状态码和错误体后失败，不自动改格式再打一次。
 
 其他源只读固定提交后的这三个文件，在私有目录准备自己的题库和 gold。不要为接入本验收器重跑旧模型或 S5。

@@ -9119,5 +9119,12 @@
     "pid": 68593,
     "whole_shared_capability_preserved": true,
     "source_intake": "execution/reviews/grok-connection-resume-20261014/shared980-actual-maintenance-emitter-intake.json"
+  },
+  "latest_star_date_budget_fresh_execution": {
+    "note": "2026-10-14 原Star c4 execution59419实际terminal，74-rust内无cargo/rustc互写；(date,date)未fixed/Linuxbuild结果待收，root查pipeline生成max64而required_operator_count66会全部加载拒，必须caller/defaultbudget联结不可component“+pair成功”。新增query-pg.rs对应默认/测试唯一给Star，pg-builder sealed默认budget由当前f525共享原已持scope同步66不额外date权限泛化。原同一完整Star职责在终态/全部rawcode/resource保留后fresh adb97435 PID70995精简上下文，原长期80%压缩旧sourceevidenceUUID不混/不增加新功能或并发单位。先收实际fixedLinuxELF/date不同值真实CLI/拒边界再原source19normal六字段/S0–S10真实product-3关联/currentmaintenancePack/Repo随机factWAL与全部退出，旧9tests/gold3e99/IUD3394S5不重跑。日期operator1093≠function1086正确绑定非硬码，原sourcefull/正式0/10、random4/10不晋级。",
+    "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
+    "old_terminal_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
+    "pid": 70995,
+    "scope_add": "crates/oo-gateway/src/bin/query-pg.rs exactdefault/test budget"
   }
 }
