@@ -1,14 +1,14 @@
 //! Replica-set change stream capture.
 //!
-//! `clusterTime` is the comparable watermark (`mongo-cluster-time/v1`), with the
-//! replica-set lineage and the election epoch. The resume token is opaque
-//! (`mongo-resume-token/v1`) and is never ordered, compared, or used as a dedup key.
-//! Same-`clusterTime` rows order and dedup by the server `txnOpIndex` carried inside
-//! the token. Grade T is claimed only after an explicit `commitTransaction` event is
-//! applied. A collection stream on this server expands a transaction into document
-//! events and does not emit that commit event. Those events stay buffered until the
-//! next event closes the group, then apply atomically at grade S0. This is not the
-//! standalone C5 diff.
+//! `clusterTime` from the change event is the comparable watermark
+//! (`mongo-cluster-time/v1`), together with the replica-set name and election term
+//! read from `hello`. The resume token is opaque (`mongo-resume-token/v1`): its
+//! original bytes are passed only to `resumeAfter`. They are not ordered, compared,
+//! or used as a dedup key. Same-`clusterTime` rows keep the order the stream
+//! delivered and the spool recorded. Grade T is claimed only after an explicit
+//! `commitTransaction` event. A collection stream expands a transaction into
+//! document events and does not emit that commit. The group applies when the next
+//! event leaves it, or when the stream is idle. That boundary stays S0.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, OpenOptions};
@@ -30,7 +30,6 @@ use tokio::sync::mpsc;
 
 use crate::arrow_utf8::{self, Utf8Cell, Utf8Column};
 use crate::capture::APPROVED_FIELDS;
-use crate::docseal;
 use crate::frozen_columns;
 
 pub const CLUSTER_CODEC: &str = "mongo-cluster-time/v1";
@@ -61,8 +60,6 @@ pub struct Event {
     pub cluster: u64,
     pub lsid: Option<String>,
     pub txn: Option<i64>,
-    /// Server `txnOpIndex` for this `clusterTime`. Not a reader counter.
-    pub op_index: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -115,62 +112,6 @@ pub fn may_pull(unapplied: usize) -> bool {
 /// History-lost resume. Invalid-token 280 is not expiry and must not continue.
 pub fn position_expired(code: i32) -> bool {
     code == 286 || code == 136
-}
-
-/// Cluster time embedded in a resume token. The server uses it for history-lost.
-/// It is not a watermark: callers must not order or dedup events by it.
-pub fn token_cluster(data_hex: &str) -> Result<u64, &'static str> {
-    let bytes = docseal::decode_hex(data_hex).map_err(|_| "token")?;
-    if bytes.len() < 9 || bytes[0] != 0x82 {
-        return Err("token");
-    }
-    let secs = u32::from_be_bytes([bytes[1], bytes[2], bytes[3], bytes[4]]);
-    let inc = u32::from_be_bytes([bytes[5], bytes[6], bytes[7], bytes[8]]);
-    Ok(cluster_decimal(secs, inc))
-}
-
-/// Server operation index at one `clusterTime`. The token bytes stay opaque.
-pub fn op_index(data_hex: &str) -> Result<u32, &'static str> {
-    let bytes = docseal::decode_hex(data_hex).map_err(|_| "token")?;
-    if bytes.len() < 9 || bytes[0] != 0x82 {
-        return Err("token");
-    }
-    let mut at = 9usize;
-    let version = read_ks_int(&bytes, &mut at)?;
-    if version >= 1 {
-        let _token_type = read_ks_int(&bytes, &mut at)?;
-    }
-    let index = read_ks_int(&bytes, &mut at)?;
-    u32::try_from(index).map_err(|_| "token")
-}
-
-/// KeyString V1 integer. Zero is one byte. A positive integer is shifted left by one.
-fn read_ks_int(bytes: &[u8], at: &mut usize) -> Result<i64, &'static str> {
-    const NUMERIC: u8 = 30;
-    const ZERO: u8 = NUMERIC + 11;
-    const POS1: u8 = NUMERIC + 13;
-    const POS8: u8 = NUMERIC + 20;
-    let ctype = *bytes.get(*at).ok_or("token")?;
-    *at += 1;
-    if ctype == ZERO {
-        return Ok(0);
-    }
-    if !(POS1..=POS8).contains(&ctype) {
-        return Err("token");
-    }
-    let width = usize::from(ctype - POS1 + 1);
-    if *at + width > bytes.len() {
-        return Err("token");
-    }
-    let mut encoded = 0u64;
-    for _ in 0..width {
-        encoded = (encoded << 8) | u64::from(bytes[*at]);
-        *at += 1;
-    }
-    if encoded & 1 == 1 {
-        return Err("token");
-    }
-    i64::try_from(encoded >> 1).map_err(|_| "token")
 }
 
 /// Total order inside one lineage and epoch. A different lineage or epoch is not a gap to skip.
@@ -338,6 +279,16 @@ impl Store {
         Ok(())
     }
 
+    /// Apply a buffered transaction group once the stream has no further event.
+    /// This is not a commit event and does not raise the grade to T.
+    pub fn flush_idle(&mut self) -> Result<bool, &'static str> {
+        if self.buf.is_none() {
+            return Ok(false);
+        }
+        self.close_open_group()?;
+        Ok(true)
+    }
+
     fn buffer(&mut self, event: Event) -> Result<(), &'static str> {
         let lsid = event.lsid.clone().ok_or("txn")?;
         let txn = event.txn.ok_or("txn")?;
@@ -355,8 +306,7 @@ impl Store {
     }
 
     fn close_open_group(&mut self) -> Result<(), &'static str> {
-        let mut open = self.buf.take().ok_or("txn_commit")?;
-        order_group(&mut open.events)?;
+        let open = self.buf.take().ok_or("txn_commit")?;
         let mut cluster = 0u64;
         for item in &open.events {
             self.apply_one(item)?;
@@ -372,11 +322,10 @@ impl Store {
     fn commit(&mut self, event: Event) -> Result<(), &'static str> {
         let lsid = event.lsid.clone().ok_or("txn")?;
         let txn = event.txn.ok_or("txn")?;
-        let mut open = self.buf.take().ok_or("txn_commit")?;
+        let open = self.buf.take().ok_or("txn_commit")?;
         if open.lsid != lsid || open.txn != txn {
             return Err("txn_commit");
         }
-        order_group(&mut open.events)?;
         let count = open.events.len();
         for item in &open.events {
             self.apply_one(item)?;
@@ -488,21 +437,18 @@ impl Store {
 }
 
 fn dedup_id(lineage: &str, epoch: i64, event: &Event) -> String {
-    format!("{lineage}:{epoch}:{}:{}", event.cluster, event.op_index)
-}
-
-fn order_group(events: &mut [Event]) -> Result<(), &'static str> {
-    events.sort_by(|left, right| {
-        left.cluster
-            .cmp(&right.cluster)
-            .then(left.op_index.cmp(&right.op_index))
+    let body = json!({
+        "lineage": lineage,
+        "epoch": epoch,
+        "cluster": event.cluster,
+        "op": event.op,
+        "key": event.key,
+        "lsid": event.lsid,
+        "txn": event.txn,
+        "doc": event.doc,
+        "pre": event.pre,
     });
-    if events.windows(2).any(|pair| {
-        pair[0].cluster == pair[1].cluster && pair[0].op_index == pair[1].op_index
-    }) {
-        return Err("op_identity");
-    }
-    Ok(())
+    resume_digest(&serde_json::to_vec(&body).unwrap_or_default())
 }
 
 struct Gate {
@@ -621,18 +567,18 @@ async fn run(path: &str) -> Result<(), String> {
         .ok_or("l0 resume token missing")?;
     let l0_time = *gate.l0_time.lock().map_err(|_| "gate")?.as_ref().ok_or("l0 clusterTime missing")?;
     let l0_cluster = cluster_decimal(l0_time.time, l0_time.increment);
-    let token_at = token_cluster(l0_token.get_str("_data").map_err(|_| "resume token has no _data")?)?;
+    let resume_token = Bson::Document(l0_token.clone()).into_canonical_extjson();
     write_json(
         &config.control.join("l0.json"),
         &json!({
             "resume_codec": RESUME_CODEC,
+            "resume_token": resume_token,
             "resume_token_sha256": token_sha(&l0_token)?,
             "resume_token_compared": false,
             "position_codec": CLUSTER_CODEC,
             "position_lineage": set_name,
             "source_epoch": epoch,
             "l0_cluster": decimal_text(l0_cluster),
-            "token_cluster": decimal_text(token_at),
             "set_name": set_name,
         }),
     )?;
@@ -706,6 +652,9 @@ async fn run(path: &str) -> Result<(), String> {
                 task.abort();
                 let _ = task.await;
             }
+            if store.flush_idle().map_err(|err| err.to_string())? {
+                write_json(&config.control.join("applied.json"), &store.applied_json(&token_sha(&resume)?))?;
+            }
             quiesced = true;
             flag(&config.control, "quiesced")?;
         }
@@ -744,7 +693,7 @@ async fn run(path: &str) -> Result<(), String> {
                     resume = token.to_owned();
                 }
                 if let Some(event) = event_from(&doc)? {
-                    spool(&config.control, &doc, event.op_index)?;
+                    spool(&config.control, &doc)?;
                     if event.op != "ignore" && cmp_cluster(event.cluster, snapshot_cluster).is_gt() {
                         store.observe(event).map_err(|err| err.to_string())?;
                     }
@@ -754,6 +703,9 @@ async fn run(path: &str) -> Result<(), String> {
             }
             Ok(None) => return Err("change stream ended".to_string()),
             Err(_) => {
+                if store.flush_idle().map_err(|err| err.to_string())? {
+                    write_json(&config.control.join("applied.json"), &store.applied_json(&token_sha(&resume)?))?;
+                }
                 if !ready && store.rows.contains_key("c1-race") {
                     ready = true;
                     write_json(
@@ -779,6 +731,7 @@ async fn run(path: &str) -> Result<(), String> {
     if let Some(task) = reader.take() {
         task.abort();
     }
+    store.flush_idle().map_err(|err| err.to_string())?;
     refuse_writes(&gate)?;
     let dba = fs::read_to_string(&config.dba_file).unwrap_or_else(|_| "{}".to_string());
     let dba_json: Value = serde_json::from_str(&dba).unwrap_or(Value::Null);
@@ -837,11 +790,6 @@ fn event_from(doc: &Document) -> Result<Option<Event>, String> {
         Some(Bson::Int32(value)) => Some(i64::from(*value)),
         _ => None,
     };
-    let data = doc
-        .get_document("_id")
-        .and_then(|token| token.get_str("_data"))
-        .map_err(|_| "resume token".to_string())?;
-    let index = op_index(data).map_err(|_| "op identity".to_string())?;
     Ok(Some(Event {
         op: op.to_string(),
         key,
@@ -850,7 +798,6 @@ fn event_from(doc: &Document) -> Result<Option<Event>, String> {
         cluster: cluster_decimal(cluster_ts.time, cluster_ts.increment),
         lsid,
         txn,
-        op_index: index,
     }))
 }
 
@@ -1022,14 +969,13 @@ fn token_sha(token: &Document) -> Result<String, String> {
     Ok(resume_digest(&bytes))
 }
 
-fn spool(control: &Path, doc: &Document, op_index: u32) -> Result<(), String> {
+fn spool(control: &Path, doc: &Document) -> Result<(), String> {
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
         .open(control.join("spool.jsonl"))
         .map_err(|err| err.to_string())?;
     let line = json!({
-        "op_index": op_index,
         "event": canon(doc),
         "resume_sha256": doc.get_document("_id").ok().and_then(|token| token_sha(token).ok())
     });
@@ -1121,9 +1067,7 @@ pub fn snapshot_before(
     events: &[Event],
 ) -> Result<BTreeMap<String, Value>, &'static str> {
     let mut rows = current.clone();
-    let mut ordered = events.to_vec();
-    order_group(&mut ordered)?;
-    for event in ordered.iter().rev() {
+    for event in events.iter().rev() {
         if matches!(event.op.as_str(), "ignore" | "commit" | "abort") {
             continue;
         }
@@ -1166,7 +1110,6 @@ pub fn seal_initial(rows: &BTreeMap<String, Value>) -> Result<arrow_utf8::ArrowF
 
 pub fn seal_delta(events: &[Event], lineage: &str, epoch: i64) -> Result<arrow_utf8::ArrowFile, &'static str> {
     let columns = [
-        Utf8Column { name: "op_identity".to_string(), nullable: false },
         Utf8Column { name: "op".to_string(), nullable: false },
         Utf8Column { name: "_id".to_string(), nullable: false },
         Utf8Column { name: "before".to_string(), nullable: true },
@@ -1178,9 +1121,7 @@ pub fn seal_delta(events: &[Event], lineage: &str, epoch: i64) -> Result<arrow_u
         Utf8Column { name: "epoch".to_string(), nullable: false },
         Utf8Column { name: "txn_group".to_string(), nullable: false },
     ];
-    let mut ordered = events.to_vec();
-    order_group(&mut ordered)?;
-    let body: Vec<Vec<Utf8Cell>> = ordered
+    let body: Vec<Vec<Utf8Cell>> = events
         .iter()
         .filter(|event| !matches!(event.op.as_str(), "ignore" | "commit" | "abort"))
         .map(|event| {
@@ -1192,7 +1133,6 @@ pub fn seal_delta(events: &[Event], lineage: &str, epoch: i64) -> Result<arrow_u
                 _ => String::new(),
             };
             vec![
-                Utf8Cell::Text(format!("{}:{}", event.cluster, event.op_index)),
                 Utf8Cell::Text(event.op.clone()),
                 Utf8Cell::Text(key),
                 image_cell(before.as_ref()),
@@ -1256,7 +1196,7 @@ pub fn catalog_adapter(
         "consistency_grade": grade,
         "grade_t_claimed": grade == "T",
         "txn_grouping": if commit_event_seen { "T" } else { "S0" },
-        "txn_note": "events that share lsid and txnNumber apply together; without commitTransaction the grade stays S0",
+        "txn_note": "S0: events that share lsid and txnNumber apply in delivery order when the stream is idle or the next event leaves the group. Grade T needs an explicit commitTransaction.",
         "customer_writes": false,
         "hidden_fields": ["secretNote"],
         "public_extract": APPROVED_FIELDS,
@@ -1423,7 +1363,6 @@ fn native_request(
         ]
     } else {
         vec![
-            json!({"name": "op_identity", "logical_name": "op_identity", "arrow_type": "utf8", "nullable": false}),
             json!({"name": "op", "logical_name": "op", "arrow_type": "utf8", "nullable": false}),
             json!({"name": "_id", "logical_name": "_id", "arrow_type": "utf8", "nullable": false}),
             json!({"name": "before", "logical_name": "before", "arrow_type": "utf8", "nullable": true, "document": true}),
@@ -1628,14 +1567,14 @@ async fn prepare_run(config_path: &str, spool_path: &str, out_dir: &str) -> Resu
     refuse_writes(&gate)?;
     let mut events = read_spool(Path::new(spool_path))?;
     events.retain(|event| event.op != "ignore" && cmp_cluster(event.cluster, snapshot_cluster).is_gt());
-    dedup_events(&mut events);
-    order_group(&mut events).map_err(|err| err.to_string())?;
+    dedup_events(&mut events, set_name, epoch);
     let initial_rows = snapshot_before(&current, &events).map_err(|err| err.to_string())?;
     let mut store = Store::new();
     store.lineage = set_name.to_string();
     store.epoch = epoch;
     store.load_snapshot(initial_rows.clone(), snapshot_cluster);
     store.replay(&events).map_err(|err| err.to_string())?;
+    store.flush_idle().map_err(|err| err.to_string())?;
     if store.rows != current {
         return Err(format!("source read differs from replayed stream: {} vs {}", store.rows.len(), current.len()));
     }
@@ -1741,9 +1680,9 @@ async fn prepare_run(config_path: &str, spool_path: &str, out_dir: &str) -> Resu
     Ok(())
 }
 
-fn dedup_events(events: &mut Vec<Event>) {
+fn dedup_events(events: &mut Vec<Event>, lineage: &str, epoch: i64) {
     let mut seen = BTreeSet::new();
-    events.retain(|event| seen.insert(format!("{}:{}", event.cluster, event.op_index)));
+    events.retain(|event| seen.insert(dedup_id(lineage, epoch, event)));
 }
 
 fn read_spool(path: &Path) -> Result<Vec<Event>, String> {
@@ -1783,8 +1722,6 @@ fn event_from_extjson(value: &Value) -> Result<Event, String> {
         .pointer("/clusterTime/$timestamp/i")
         .and_then(Value::as_u64)
         .ok_or("clusterTime")?;
-    let data = value.pointer("/_id/_data").and_then(Value::as_str).ok_or("resume token")?;
-    let index = op_index(data).map_err(|_| "op identity".to_string())?;
     let txn = value
         .pointer("/txnNumber/$numberLong")
         .and_then(Value::as_str)
@@ -1798,7 +1735,6 @@ fn event_from_extjson(value: &Value) -> Result<Event, String> {
         cluster: cluster_decimal(u32::try_from(secs).map_err(|_| "clusterTime")?, u32::try_from(inc).map_err(|_| "clusterTime")?),
         lsid: value.pointer("/lsid/id").map(ToString::to_string),
         txn,
-        op_index: index,
     })
 }
 

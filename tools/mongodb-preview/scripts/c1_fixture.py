@@ -277,19 +277,26 @@ const fs = require('fs');
 const crypto = require('crypto');
 const pwd = fs.readFileSync('/private/fixture-admin.password', 'utf8').trim();
 if (!db.getSiblingDB('admin').auth('connection_fixture_admin', pwd)) quit(2);
-const l0 = BigInt(JSON.parse(fs.readFileSync('/private/c1-run/l0.json', 'utf8')).token_cluster);
-const local = db.getSiblingDB('local');
+const token = JSON.parse(fs.readFileSync('/private/c1-run/l0.json', 'utf8')).resume_token;
 const pad = db.getSiblingDB('oo_w141').c1_pad;
 pad.drop();
-function firstCluster() {
-  const ts = local.oplog.rs.find().sort({$natural: 1}).limit(1).toArray()[0].ts;
-  return (BigInt(ts.t) << 32n) | BigInt(ts.i);
+function historyLost() {
+  let cursor;
+  try {
+    cursor = db.getSiblingDB('oo_w141').shipments.watch([], {resumeAfter: token, maxAwaitTimeMS: 400});
+    cursor.tryNext();
+    return false;
+  } catch (err) {
+    return err.code === 286 || err.code === 136;
+  } finally {
+    try { if (cursor) cursor.close(); } catch (ignore) {}
+  }
 }
 const deadline = Date.now() + 400000;
 let n = 0;
-while (firstCluster() <= l0) {
+while (!historyLost()) {
   if (Date.now() > deadline) {
-    print('ROLL_FAIL n=' + n + ' first=' + firstCluster().toString());
+    print('ROLL_FAIL n=' + n);
     pad.drop();
     quit(6);
   }

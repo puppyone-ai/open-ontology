@@ -662,15 +662,20 @@
       "session_uuid": "bc0b2f83-51f5-4697-bffb-09908ff2ce7d",
       "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
       "write_paths": [
-        "testing/dl01-targets/mssql",
         "evidence/bc0b2f83-51f5-4697-bffb-09908ff2ce7d/DL01/mssql",
-        "tools/mssql-preview",
         "evidence/bc0b2f83-51f5-4697-bffb-09908ff2ce7d/DL01/mssql-product",
-        "crates/oo-pipeline/src/native_update.rs",
+        "tools/mssql-preview",
+        "testing/dl01-targets/mssql",
         "crates/oo-pipeline/src/native_binding.rs",
         "crates/oo-pipeline/src/target_installer.rs",
         "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql",
-        "tools/source-admission/src/capture.rs"
+        "tools/source-admission/src/capture.rs",
+        "tools/job-worker/src/native_schedule.rs",
+        "tools/job-worker/NATIVE-SCHEDULE.md",
+        "tools/job-worker/tests/closed_loop.rs",
+        "crates/oo-pipeline/src/native_catalog.rs",
+        "crates/oo-pipeline/migrations/0024_native_gtid_transaction.sql",
+        "tools/cdc-offset-store/migrations/oo_cdc_offset_control_v1.sql"
       ],
       "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-09-mssql-whole-source.md",
       "resource_prefix": "oo-dl01w1-09",
@@ -710,7 +715,15 @@
       "latest_author_delivery_verification": "Git commit exists; author interim raw evidence retained; whole source/product exits pending, no independent approval",
       "status_before_shared_hold": "native_waiting_dependency",
       "shared_reference_only": false,
-      "ownership_extension_20261014": "Latest root-approved sole source-owner necessary shared-code extension; complete product exit unchanged; raw evidence ignored/local."
+      "ownership_extension_20261014": "Latest root-approved sole source-owner necessary shared-code extension; complete product exit unchanged; raw evidence ignored/local.",
+      "current_exclusive_writer_transfer": {
+        "uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
+        "authority": "execution/batches/grok-connection-full-20261014/dispatch.json",
+        "explicit_read_only": [
+          "crates/oo-pipeline/src/native_update.rs"
+        ],
+        "scope": "current SQL unique installer/binding/scheduler plus0024/controloffsetsql; oldsource helper exact updated to avoidcommitting Maria native_update"
+      }
     },
     {
       "task_id": "DL01-W1-10",
@@ -1657,7 +1670,8 @@
         "tools/source-capture-policy/tests/repair.rs",
         "tools/cdc-offset-store/CONTRACT.md",
         "tools/source-capture-policy/CONTRACT.md",
-        "crates/oo-gateway/src/query_executor.rs"
+        "crates/oo-gateway/src/query_executor.rs",
+        "tools/source-capture-policy/src/model.rs"
       ],
       "prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-39-current-complete-product-longrun.md",
       "resource_prefix": "oo-dl01w1-39",

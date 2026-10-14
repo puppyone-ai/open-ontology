@@ -2,8 +2,8 @@
 """Six-field Oracle step. Reuses build b_739 and the spent S5. No DML and no new model create.
 
 The installed engines.json recipe still pins whole_run.py plus stale product_flow and dialogue
-hashes. This file is the replacement step. It pins the current repo product flow and dialogue
-programs so the registry writer can install awaiting_run. It does not register whole.
+hashes. This file is the replacement step. Its dialogue step is the repo verifier at 80aec7764.
+It does not register whole and it does not rewrite the spent S5 receipt.
 """
 import hashlib
 import json
@@ -23,11 +23,14 @@ ROOT = Path(__file__).resolve().parents[2]
 PYTHON = Path("/opt/homebrew/opt/python@3.14/bin/python3.14")
 FLOW = ROOT / "tools/source-onboarding/product_flow.py"
 DIALOGUE = ROOT / "tools/agent-product-verifier/dialogue.py"
-ACCEPTOR_COMMIT = "9485942f83d3ff914830f88560e34b256129fd00"
-ACCEPTOR = Path("/tmp/oo-oracle-connection-whole/maint-c44/dialogue-g7/dialogue-9485942.py")
+VERIFIER_COMMIT = "80aec776414aaed9064daf3600cf3df21fc21eb5"
 PRODUCT_DIR = Path("/tmp/oo-oracle-connection-whole/whole-20261014f/product")
 SEALED = Path("/Users/redux/.cache/oo-oracle-connection-whole/bundle/catalog.json")
 PACK = Path("/Users/redux/.cache/oo-oracle-connection-whole/gateway/packs/oo_r_oracle_orders.json")
+BANK = Path("/tmp/oo-oracle-connection-whole/maint-c44/dialogue-g7/bank.json")
+TRUTH = Path("/tmp/oo-oracle-connection-whole/maint-c44/dialogue-g7/gold.json")
+ROLE_RESPONSE = Path("/tmp/oo-oracle-connection-whole/maint-c44/g7/role-response.json")
+PATHS = Path("/tmp/oo-oracle-connection-whole/maint-c44/dialogue-g7/run-a.json")
 PHYSICAL = "pt_f4daa4bff72834557de4213463fb9d26ad42a188d253e84865ddb84fc0e9"
 TABLE = "q_4f4f30345f464958.q_4f4e424f4152445f4f5244455253"
 BUILD = "b_739b3a14d1167f50b5f48ae22a8317e2"
@@ -36,6 +39,8 @@ SEALED_CATALOG = "67f8d2bf28a8c7126302a1e39e3e868082913422ecc141abc25fb6117777bd
 IDENTITY_HASH = "394dc60f76bc01a3115e6e4e894e86824f4b6c3bd809c2c82a67ea0d9c165c35"
 PACK_FILE = "a25dfbfc6d1ed292bf0f2547af3f7ace929171fbc408e6c4c496d239c237d5c2"
 PACK_DIGEST = "ef174bd20ff756039211d5e0ef999bf8444338dd7f5efa7d87b72d18c643f5a7"
+API_PACK = "9bfd65d2ca3a27fa019882c83253d1dccb6f623a611d179589f73d573ccb9a53"
+RECEIPT_PACK = "731226cc65be31acfd1920548bf94075f90f8574d9d5916c31bba2ba2ac49e45"
 RUN_ID = "18aa01b0-cc91-49b6-91ce-2dfd2122ee0d"
 TEMPLATE = Path("/tmp/oo-oracle-connection-whole/oneclick-config.json")
 
@@ -61,23 +66,73 @@ def six_fields():
     }
 
 
-def current_identity():
-    """S5 evidence catalog stays the build input. The sealed catalog and pack are generation 7."""
-    sealed = sha(SEALED)
-    pack = sha(PACK)
-    if sealed != SEALED_CATALOG or pack != PACK_FILE:
+def pack_identities():
+    """File bytes, semantic digest, HTTP pack id, and the S5 receipt are different identities."""
+    file_sha = sha(PACK)
+    digest = json.loads(PACK.read_text()).get("pack_digest")
+    response = json.loads(ROLE_RESPONSE.read_text())
+    http = response.get("response") if isinstance(response.get("response"), dict) else {}
+    if response.get("status") != 200 or http.get("llm_calls") != 0 or http.get("compiled_pack") != "not_published":
         raise SystemExit("current_identity_drift")
-    body = json.loads(PACK.read_text())
-    if body.get("pack_digest") != PACK_DIGEST:
+    api = http.get("pack_sha256")
+    receipt_pack = json.loads((PRODUCT_DIR / "product-receipt.json").read_text()).get("native_role_pack_sha256")
+    packs = {
+        "role_pack_file_sha256": file_sha,
+        "semantic_pack_digest": digest,
+        "api_pack_sha256": api,
+        "s5_receipt_pack_sha256": receipt_pack,
+    }
+    if packs != {
+        "role_pack_file_sha256": PACK_FILE,
+        "semantic_pack_digest": PACK_DIGEST,
+        "api_pack_sha256": API_PACK,
+        "s5_receipt_pack_sha256": RECEIPT_PACK,
+    } or len(set(packs.values())) != 4:
+        raise SystemExit("current_identity_drift")
+    return packs
+
+
+def current_identity():
+    """S5 evidence catalog stays the build input. The sealed catalog is generation 7."""
+    sealed = sha(SEALED)
+    if sealed != SEALED_CATALOG:
         raise SystemExit("current_identity_drift")
     return {
         "source_id": w.SOURCE, "source_generation": 7, "target_generation": 7,
         "run_id": RUN_ID, "build_id": BUILD, "role": w.ROLE,
         "s5_catalog_sha256": S5_CATALOG, "sealed_catalog_sha256": sealed,
         "identity_hash": IDENTITY_HASH, "schema_digest": "f002b65dac929bfd96866a1936003e92ed366a186e4dc624fb978ef4af2cc425",
-        "role_pack_sha256": pack, "pack_digest": body["pack_digest"],
-        "physical": PHYSICAL, "whole": False,
+        "packs": pack_identities(), "physical": PHYSICAL, "whole": False,
     }
+
+
+def write_dialogue_config(run):
+    """Private config for the repo verifier. Selection pack_sha256 is the role-pack file bytes."""
+    packs = pack_identities()
+    paths = json.loads(PATHS.read_text())
+    gateway = "http://" + (w.GW / "listen.addr").read_text().strip()
+    cfg = {
+        "question_bank": str(BANK),
+        "independent_truth_file": str(TRUTH),
+        "sample_size": 2,
+        "history": [],
+        "model": "gpt-6.1-sol",
+        "model_origin": paths["model_origin"],
+        "model_bearer_file": paths["model_bearer_file"],
+        "gateway": gateway,
+        "transport": paths["transport"],
+        "auth": paths["auth"],
+        "gateway_token_file": paths["gateway_token_file"],
+        "oo_cli": paths["oo_cli"],
+        "independent_gateway_audit_file": paths["independent_gateway_audit_file"],
+        "max_tool_rounds": 16,
+        "identity": {
+            "source_id": w.SOURCE, "source_generation": 7,
+            "pack_sha256": packs["role_pack_file_sha256"], "role": w.ROLE,
+        },
+    }
+    write(Path(run) / "dialogue-config.json", cfg)
+    return cfg
 
 
 def materials(dest):
@@ -91,20 +146,20 @@ def materials(dest):
             "/host": "host", "/port": "port", "/database": "database",
             "/user": "user", "/secret_ref": "secret_ref", "/password_file": "password_file",
         },
-        "acceptor_commit": ACCEPTOR_COMMIT,
+        "verifier_commit": VERIFIER_COMMIT,
         "pins": [
             {"path": str(PYTHON), "sha256": sha(PYTHON)},
             {"path": str(me), "sha256": sha(me)},
             {"path": str(FLOW), "sha256": sha(FLOW)},
             {"path": str(DIALOGUE), "sha256": sha(DIALOGUE)},
-            {"path": str(ACCEPTOR), "sha256": sha(ACCEPTOR)},
         ],
         "steps": [
-            {"name": "identity", "deadline_seconds": 60, "argv": [str(PYTHON), str(me), "identity", "{run}"], "artifacts": [{"path": "current-identity.json"}]},
+            {"name": "identity", "deadline_seconds": 60, "argv": [str(PYTHON), str(me), "identity", "{run}"], "artifacts": [{"path": "current-identity.json"}, {"path": "dialogue-config.json"}]},
             {"name": "product", "deadline_seconds": 180, "argv": [str(PYTHON), str(FLOW), "--config", str(w.PRODUCT), "--out", "{run}/product"], "artifacts": [{"path": "product/product-receipt.json"}]},
             {"name": "recover", "deadline_seconds": 180, "argv": [str(PYTHON), str(me), "recover", "{run}"], "artifacts": [{"path": "recovery.json"}]},
             {"name": "gold", "deadline_seconds": 180, "argv": [str(PYTHON), str(me), "gold", "{run}"], "artifacts": [{"path": "typed-gold.json"}]},
             {"name": "cancel", "deadline_seconds": 90, "argv": [str(PYTHON), str(me), "cancel", "{run}"], "artifacts": [{"path": "cancel.json"}]},
+            {"name": "dialogue", "deadline_seconds": 600, "argv": [str(PYTHON), str(DIALOGUE), "--config", "{run}/dialogue-config.json", "--out", "{run}/dialogue"], "artifacts": [{"path": "dialogue/selection.json"}, {"path": "dialogue/transcript.json"}, {"path": "dialogue/verdict.json"}]},
             {"name": "close", "deadline_seconds": 60, "argv": [str(PYTHON), str(me), "close", "{run}"], "artifacts": [{"path": "whole.json"}]},
         ],
     }
@@ -276,31 +331,44 @@ def cancel(run):
         w.psql("previewdb", f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE query LIKE '%{marker}%' AND pid <> pg_backend_pid();")
 
 
-def dialogue_record():
-    root = Path("/tmp/oo-oracle-connection-whole/maint-c44/dialogue-g7")
-    found = {}
-    for name in ("run-a", "run-b", "run-b-grok"):
-        folder = root / name
-        if not (folder / "selection.json").is_file():
-            continue
-        selection = json.loads((folder / "selection.json").read_text())
-        item = {
-            "generation": selection["identity"]["source_generation"],
-            "semantic_ids": selection["semantic_ids"],
-            "seed": selection["seed"],
-            "counts_as_random": selection["counts_as_random"],
-            "gold_sha256": selection["gold_sha256"],
-        }
-        verdict = folder / "verdict.json"
-        if verdict.is_file():
-            body = json.loads(verdict.read_text())
-            item["outcome"] = body.get("outcome")
-            item["model"] = body.get("model")
-            item["query_ids"] = body.get("query_ids")
-        else:
-            item["outcome"] = "failed"
-        found[name] = item
-    return found
+def dialogue_record(run):
+    """Only this run's repo verifier output counts. A private earlier verdict is not copied."""
+    folder = Path(run) / "dialogue"
+    selection = folder / "selection.json"
+    if not selection.is_file():
+        return {"outcome": "not_run", "program": str(DIALOGUE), "verifier_commit": VERIFIER_COMMIT}
+    body = json.loads(selection.read_text())
+    item = {
+        "outcome": "unfinished",
+        "program": str(DIALOGUE),
+        "verifier_commit": VERIFIER_COMMIT,
+        "generation": body["identity"]["source_generation"],
+        "semantic_ids": body["semantic_ids"],
+        "seed": body["seed"],
+        "counts_as_random": body["counts_as_random"],
+        "pack_sha256": body["identity"]["pack_sha256"],
+    }
+    verdict = folder / "verdict.json"
+    if verdict.is_file():
+        got = json.loads(verdict.read_text())
+        item["outcome"] = got.get("outcome")
+        item["model"] = got.get("model")
+        item["query_ids"] = got.get("query_ids")
+    return item
+
+
+def current_pack_callback():
+    return {
+        "protocol": "oo.oracle.current-pack-callback/v1",
+        "to": "shared registry owner d28ca4bd",
+        "needed": "official derived currentPack association",
+        "packs": pack_identities(),
+        "schema_digest": "f002b65dac929bfd96866a1936003e92ed366a186e4dc624fb978ef4af2cc425",
+        "identity_hash": IDENTITY_HASH,
+        "receipt_rewritten": False,
+        "copied_private_verdict": False,
+        "full_product_chain_complete": False,
+    }
 
 
 def close(run):
@@ -319,7 +387,8 @@ def close(run):
         "gold": "typed-gold.json",
         "recovery": "recovery.json",
         "cancel": "cancel.json",
-        "dialogue": dialogue_record(),
+        "dialogue": dialogue_record(run),
+        "current_pack_callback": current_pack_callback(),
         "customer_writes": 0,
         "c1_logminer": "off",
         "installed_entry": "pin_drift",
@@ -337,11 +406,16 @@ def main():
         print(json.dumps({"wrote": str(run), "whole": False}))
         materials(run)
         return
+    if command == "callback":
+        write(run, current_pack_callback())
+        print(json.dumps({"wrote": str(run), "receipt_rewritten": False}))
+        return
     run.mkdir(mode=0o700, exist_ok=True)
     os.chmod(run, 0o700)
     if command == "identity":
         seed_product(run)
         write(run / "current-identity.json", current_identity())
+        write_dialogue_config(run)
     elif command == "product":
         reuse_product(run)
     elif command == "recover":
