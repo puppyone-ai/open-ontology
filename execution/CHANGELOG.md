@@ -1212,3 +1212,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 5f6c9d64 Star官方ACL fixed d340SHA/installraw exit0及精确current混合3/5/3/3/19收取，metadata从NOLOGIN撤且login权限保留，旧/隐私列拒；Star同c4 99651/57263实际接currentPack/default/random。PG同27ca836/69407消费970已真实sourcefacts版本Builder，API/子程序真实调用identity须核后一次必要corrected S5；原USD失败不改。MySQL同151e3066/13089 f4c五表C1spool虽gold0未apply/ACK，旧C5g10随机1过2shapefail不计主C1随机，待Maria/SQL公共txn。Mongo同617e1923/47151 faf2/e74真实replica-setC1+286失位失败保留；原profiles04明确C1T待验证否则S0/B，不造T/commitEvent、不以snapshotzero/C5冒C1，03自动C1T规则不改；exact显式profile gap交公共solewriters。Doris同aa4370/59097当前两random/IUD作者阶段待rootraw核，默认旧pin和回写label必须本source最小修，不能falsewhole。所有源正式/完整0/10保持，仅Clickexistingg11随机子出口1/10，不新增review/分母。intakeexecution/reviews/grok-connection-resume-20261014/star-g19-metadata-acl-fixed-intake.json。
+
+
+2026-10-14 OpenSearch84533终态a27fe975作者两新随机及真实普通CLI varchar等号通过，根因为runtime旧e253而非operator许可缺，复用existing3a5365921/8d27修复无新白名单；lower/隐藏列拒保留。observer56377dead未重启，原privatePython持续observer退出，生产Rustnative-serve仍缺C5空diff nochange成功tick/lease释放语义，否则每tick强base+1；准确原SQL e888 sole scheduler依赖已broker/card交（live须phase读取）。同66a8281/64262优先自己normalwrapper固定8d、可信Rustc5 nochange producer接口/真自动两IUD/currentPack/gold/default/rand全退出，原g12随机报告待rootrawbinding，不复跑已成功付费问答或S5。原全源完整/正式0/10，Clickexistingg11随机子出口1/10保持、无新分母/独立review。

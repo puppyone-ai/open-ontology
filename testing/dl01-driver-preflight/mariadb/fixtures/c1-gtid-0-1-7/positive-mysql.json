@@ -1,0 +1,12 @@
+{
+  "source_engine": "mysql",
+  "position_codec": "mysql-gtid/v1",
+  "position_lineage": "mysql.aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "applied_pos": "7",
+  "txn_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:7",
+  "source_epoch": 1,
+  "epoch_source": "caller",
+  "observed_in_capture": false,
+  "resume_file": "binlog.000007",
+  "resume_pos": "939"
+}

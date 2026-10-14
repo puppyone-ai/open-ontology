@@ -1,0 +1,7 @@
+{
+  "protocol": "oo.mariadb.c1-gtid-signature-input/v1",
+  "spool_sha256": "e973ba065645c909fe406d0cfd6eb6403dc24b9825751f253952c31973378b29",
+  "ack_allowed": false,
+  "identity_note": "scope digest includes caller epoch; capture did not observe one",
+  "resume_is_not_commit_identity": true
+}

@@ -35,6 +35,6 @@ gold 沿用原结构：`truth_key -> {expected_named_facts: {列名: 文本}}`�
 
 随机或 replay 的 verdict 在原字段外增加 `selection`、`counts_as_random`、`seed`、`semantic_ids`、`gold_sha256`。legacy verdict 不增加这些字段。
 
-工具覆盖仍是 `query`、`freshness`、`describe`、`knowledge_cat`。模型可以自选合法 SQL，验收器不断言 SQL 字符串。若模型在这些工具尚未出现时给出最终答案，编排会要求补齐工具后再收答案；轮数用尽仍按原规则失败。现有循环在一轮里还没有 query 结果时，下一步会强制 `query`。`knowledge_cat` 指向包外路径时，`SCHEMA_INVALID` 交回模型，该次调用不计入覆盖。认证失败和其他工具错误仍中止本轮。
+工具覆盖仍是 `query`、`freshness`、`describe`、`knowledge_cat`。模型可以自选合法 SQL，验收器不断言 SQL 字符串。若模型在这些工具尚未出现时给出最终答案，编排会要求补齐工具后再收答案；轮数用尽仍按原规则失败。现有循环在一轮里还没有 query 结果时，下一步会强制 `query`。`knowledge_cat` 指向包外路径时，`SCHEMA_INVALID` 交回模型，该次调用不计入覆盖。`knowledge_search` 的 `query` 最短长度为 1。CLI 对空查询返回的 `usage` / `search text is missing` 也交回模型，不计入覆盖，不另开重试。最终答案仍只能是 facts 与 evidence；只有 evidence 和 payload、没有 facts，仍失败。认证失败和其他工具错误仍中止本轮。
 
 其他源只读固定提交后的这三个文件，在私有目录准备自己的题库和 gold。不要为接入本验收器重跑旧模型或 S5。

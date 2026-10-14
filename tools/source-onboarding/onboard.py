@@ -175,6 +175,20 @@ def prove_whole(out, recipe, journal):
     require(all(re.fullmatch(r'[a-f0-9]{64}', dialogue.get(k, '')) for k in ('audit_sha256','truth_sha256')), 'dialogue_not_accurate')
     blob = json.dumps(load(rel_ok(out, transcript_rel)))
     require(all(isinstance(q, str) and q in blob for q in dialogue['query_ids']), 'dialogue_not_accurate')
+    # Legacy verified and replay do not count. The manifest is the dialogue step's selection.json.
+    require(dialogue.get('selection') == 'random' and dialogue.get('counts_as_random') is True, 'random_not_current')
+    sel_rel = 'selection.json' if parent == Path('.') else str(parent/'selection.json')
+    direct_step(out, recipe, journal, DIALOGUE, sel_rel)
+    selection = load(rel_ok(out, sel_rel))
+    require(selection.get('mode') == 'random' and selection.get('counts_as_random') is True, 'random_not_current')
+    ids = selection.get('semantic_ids')
+    require(isinstance(ids, list) and len(ids) >= 2 and len(set(ids)) == len(ids) and all(isinstance(x, str) and x for x in ids), 'random_not_current')
+    require(selection.get('seed') == dialogue.get('seed') and ids == dialogue.get('semantic_ids') and selection.get('gold_sha256') == dialogue.get('gold_sha256'), 'random_manifest_drift')
+    identity = selection.get('identity')
+    require(isinstance(identity, dict) and type(identity.get('source_generation')) is int and identity['source_generation'] >= 0, 'role_pack_not_current')
+    pack = identity.get('pack_sha256')
+    require(isinstance(pack, str) and re.fullmatch(r'[a-f0-9]{64}', pack) is not None, 'role_pack_not_current')
+    require(pack == product.get('native_role_pack_sha256') == file_sha(base/'role-pack.json', 'role_pack_not_current'), 'role_pack_not_current')
     return complete
 
 def install_engine(engine, recipe_path, secret_registry, metadata_recipe=None, whole_run=None):

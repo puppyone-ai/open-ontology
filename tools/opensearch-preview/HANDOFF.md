@@ -1,6 +1,6 @@
 # Handoff
 
-Goal sign-off is open. The minimum gate on run `4458418024444808b4bf3731b53b6cb7` stands. The same binding is generation 12, enabled, period 1000 ms, C5 reconcile. Observer pid 56377 steps only when a shadow-copy probe sees a row diff. Quiet ticks have not advanced past 12. The public gateway catalog is generation 12. `oo_r_ledger` has SELECT on the 14 business columns of `pt_673a7926ef6d97ac56fbe19b6fcf10ce4357a5e17f30d95ea28a926d7d20`. This source did not GRANT and did not edit `onboard.py`. Formal sign-off remains 0/10.
+Goal sign-off is open. The minimum gate on run `4458418024444808b4bf3731b53b6cb7` stands. The same binding is generation 12, enabled, period 1000 ms, C5 reconcile. Pid 56377 is not running. The ticks 255 receipt is stale. The private shadow-copy observer is not the product loop and was not restarted. The public gateway catalog is generation 12. `oo_r_ledger` has SELECT on the 14 business columns of `pt_673a7926ef6d97ac56fbe19b6fcf10ce4357a5e17f30d95ea28a926d7d20`. This source did not GRANT and did not edit `onboard.py`. Formal sign-off remains 0/10. Two new random dialogues are verified. Two new automatic I/U/D cycles are not done.
 
 Owner domain remains `tools/opensearch-preview`. Shared onboard, product flow, dialogue, gateway, pipeline, and governance sources were not edited. Customer fixture stayed read-only. No push.
 
@@ -16,9 +16,9 @@ Owner domain remains `tools/opensearch-preview`. Shared onboard, product flow, d
 - `oo-dl01w1-44-native-fresh-pg`, `oo-dl01w1-44-native-fresh-source`, `oo-opensearch-connection-api`, `oo-opensearch-connection-gateway-g5`.
 - Listeners on 127.0.0.1: 18441 identity, 18443 API list, 18462 product API, 19462 gateway.
 - API process `/api serve` is ELF `5bc832f4a1bb9ada23a6f2a2691bf7d784d09977aa770f7a944c3c9d123be88d`, container `cf19ad67f251`. The previous file `025aceded6cc922c0a10cb2e9d535ccc433ad6f082e5c1c3b86f4797cafc50ae` remains on disk.
-- Gateway process image is ELF `e253d0c0ed6283288418cb9a1566ba7b9d1f7e8011c9b0a78a24727fa80cf5dc`.
+- Gateway process image is ELF `8d27abf3564bf3d05790be72632f1026376880e0c148e60455b4b1a2bb2cefb1`, remounted 2026-10-14T12:21:14Z. The previous ELF `e253d0c0ed6283288418cb9a1566ba7b9d1f7e8011c9b0a78a24727fa80cf5dc` remains on disk and is not mounted.
 - Lease: generation 12, binding `79fc4bb0-5676-41d7-8f53-b345cbb94e55`, task `0e919da4-9fce-4e5d-8a96-b58bc3d4ac74`, enabled true, period 1000, load `awaiting_publish`.
-- Observer pid 56377 runs `c5-observe.py --seconds 28800`. Pid 66510 exited earlier on a Docker socket error. The script retries that error. It is not `native-serve`. A quiet source does not enqueue a pin. Receipt snapshot: ticks 255, fires 0.
+- Observer pid 56377 is dead. Pid 66510 exited earlier on a Docker socket error. Neither process was restarted. `c5-observe.py` is not `native-serve`. The ticks 255 / fires 0 file is not a live tick.
 - Other sessions' processes were left alone. PG pid 99653 is not running. The column ACL receipt is the fixed installer result, not a wait on that pid.
 - CA and cookie material stays path-referenced under `~/.cache/oo-dl01w1-71/native-identity-private`. Nothing from those files was printed or committed.
 - Git lock `/tmp/oo-dl01-wave1-git.lock` is the shared flock. Foreign staged paths were not reset.
@@ -50,3 +50,9 @@ The per-table column ACL is installed. The generation-12 maintenance artifact is
 ## Source after current
 
 `/tmp/oo-opensearch-connection-whole/source-after-current-20261014` Arrow `bc7a18d90b521bd71d25ea05e853819e7a74af0e8f071b7c8af2d78ad8d7bed5`, same as generation 6, reader mutations 0. Machine receipt `/tmp/oo-opensearch-connection-whole/WHOLE-RECEIPT.json` records `goal_complete` false.
+
+## Next write, not this tree
+
+Varchar equality on the ordinary CLI is the mounted ELF `8d27abf3…`. Two random runs are verified and disjoint: `doc_for_void_note`/`count_flag_false`, then `doc_for_seq_22`/`count_rows`. Raw dirs `random-run1` and `random-run2`. They do not replace the fixed three-turn dialogue.
+
+`native-serve` still has no unchanged exit. `serve` in `tools/job-worker/src/native_schedule.rs` fires every second, and `apply` requires `source_generation = base + 1`. The pinned producer always emits that generation. Do not start `native-serve` on this binding, and do not treat `c5-observe.py` as the product. The minimal change is an unchanged C5 tick that does not commit a new generation, owned by sole writer `e888a4b4-2ac1-4be1-8bfa-9596398c1d16`. Not Maria `query_executor.rs` and not PG policy. Until that exists, two new automatic I/U/D cycles and a following gold of 0 are open. Formal sign-off stays 0/10.

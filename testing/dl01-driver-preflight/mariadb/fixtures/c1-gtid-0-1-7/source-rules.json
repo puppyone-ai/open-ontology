@@ -1,0 +1,78 @@
+{
+  "columns": [
+    {
+      "column": "logistics.hubs.hub_id",
+      "confidence": "high",
+      "pii": "unknown",
+      "semantic_type": "identifier"
+    },
+    {
+      "column": "logistics.shipments.shipment_id",
+      "confidence": "high",
+      "pii": "unknown",
+      "semantic_type": "identifier"
+    },
+    {
+      "column": "logistics.tracking_events.event_id",
+      "confidence": "high",
+      "pii": "unknown",
+      "semantic_type": "identifier"
+    },
+    {
+      "column": "cust_east.k_note.id",
+      "confidence": "high",
+      "pii": "unknown",
+      "semantic_type": "identifier"
+    },
+    {
+      "column": "cust_west.k_meter.id",
+      "confidence": "high",
+      "pii": "unknown",
+      "semantic_type": "identifier"
+    },
+    {
+      "column": "logistics.shipments.cost_amount",
+      "confidence": "high",
+      "pii": "unknown",
+      "semantic_type": "money",
+      "unit": "unspecified"
+    },
+    {
+      "column": "cust_east.k_note.money",
+      "confidence": "high",
+      "pii": "unknown",
+      "semantic_type": "money",
+      "unit": "unspecified"
+    }
+  ],
+  "relationships": [
+    {
+      "cardinality": "many_to_one",
+      "confidence": "high",
+      "from_column": "logistics.shipments.dest_hub_id",
+      "name": "shipments_dest_fk",
+      "to_column": "logistics.hubs.hub_id"
+    },
+    {
+      "cardinality": "many_to_one",
+      "confidence": "high",
+      "from_column": "logistics.shipments.origin_hub_id",
+      "name": "shipments_origin_fk",
+      "to_column": "logistics.hubs.hub_id"
+    },
+    {
+      "cardinality": "many_to_one",
+      "confidence": "high",
+      "from_column": "logistics.tracking_events.hub_id",
+      "name": "tracking_hub_fk",
+      "to_column": "logistics.hubs.hub_id"
+    },
+    {
+      "cardinality": "many_to_one",
+      "confidence": "high",
+      "from_column": "logistics.tracking_events.shipment_id",
+      "name": "tracking_shipment_fk",
+      "to_column": "logistics.shipments.shipment_id"
+    }
+  ]
+}

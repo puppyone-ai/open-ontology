@@ -2287,6 +2287,7 @@ async fn read_quality_rows(
     }
     project_held(&held, &mut snapshot);
     bind_maria_epoch(&mut snapshot);
+    bind_mysql_gtid_epoch(&mut snapshot);
     Ok(snapshot)
 }
 
@@ -2659,6 +2660,7 @@ fn codec_text(value: &str) -> bool {
             | "batch-cursor-us/v1"
             | "snapshot-zero/v1"
             | "mariadb-gtid/v1"
+            | "mysql-gtid/v1"
     )
 }
 
@@ -2696,9 +2698,32 @@ fn maria_seq(pos: &str) -> bool {
         && pos.parse::<u64>().is_ok()
 }
 
+fn mysql_lineage(lineage: &str) -> bool {
+    let Some(uuid) = lineage.strip_prefix("mysql.") else {
+        return false;
+    };
+    let mut parts = uuid.split('-');
+    for width in [8, 4, 4, 4, 12] {
+        let Some(part) = parts.next() else {
+            return false;
+        };
+        if part.len() != width || !part.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) {
+            return false;
+        }
+    }
+    parts.next().is_none()
+}
+
+fn mysql_gno(pos: &str) -> bool {
+    maria_seq(pos) && pos != "0"
+}
+
 fn watermark_identity(codec: &str, lineage: &str, applied_pos: &str) -> bool {
     if codec == "mariadb-gtid/v1" {
         return maria_lineage(lineage) && maria_seq(applied_pos);
+    }
+    if codec == "mysql-gtid/v1" {
+        return mysql_lineage(lineage) && mysql_gno(applied_pos);
     }
     position_text(applied_pos)
 }
@@ -2710,18 +2735,29 @@ fn receipt_identity(codec: &str, lineage: &str, applied_pos: &str, epoch: i32) -
     if codec == "mariadb-gtid/v1" {
         return maria_lineage(lineage) && maria_seq(applied_pos) && epoch >= 0;
     }
+    if codec == "mysql-gtid/v1" {
+        return mysql_lineage(lineage) && mysql_gno(applied_pos) && epoch >= 0;
+    }
     true
 }
 
 fn bind_maria_epoch(snapshot: &mut QualitySnapshot) {
+    bind_one_gtid_epoch(snapshot, "mariadb-gtid/v1");
+}
+
+fn bind_mysql_gtid_epoch(snapshot: &mut QualitySnapshot) {
+    bind_one_gtid_epoch(snapshot, "mysql-gtid/v1");
+}
+
+fn bind_one_gtid_epoch(snapshot: &mut QualitySnapshot, codec: &str) {
     let mut sources = std::collections::BTreeSet::new();
     for mark in &snapshot.watermarks {
-        if mark.codec == "mariadb-gtid/v1" {
+        if mark.codec == codec {
             sources.insert(mark.source.clone());
         }
     }
     for item in &snapshot.receipts {
-        if item.codec == "mariadb-gtid/v1" {
+        if item.codec == codec {
             sources.insert(item.source.clone());
         }
     }
@@ -2729,7 +2765,7 @@ fn bind_maria_epoch(snapshot: &mut QualitySnapshot) {
         let lineages: Vec<String> = snapshot
             .watermarks
             .iter()
-            .filter(|mark| mark.source == source && mark.codec == "mariadb-gtid/v1")
+            .filter(|mark| mark.source == source && mark.codec == codec)
             .map(|mark| mark.lineage.clone())
             .collect();
         let lineage = if lineages.len() == 1 && lineages.iter().all(|item| item == &lineages[0]) {
@@ -2738,22 +2774,22 @@ fn bind_maria_epoch(snapshot: &mut QualitySnapshot) {
             None
         };
         let Some(lineage) = lineage else {
-            snapshot.watermarks.retain(|mark| mark.source != source || mark.codec != "mariadb-gtid/v1");
-            snapshot.receipts.retain(|item| item.source != source || item.codec != "mariadb-gtid/v1");
+            snapshot.watermarks.retain(|mark| mark.source != source || mark.codec != codec);
+            snapshot.receipts.retain(|item| item.source != source || item.codec != codec);
             continue;
         };
         snapshot.receipts.retain(|item| {
-            item.source != source || item.codec != "mariadb-gtid/v1" || item.lineage == lineage
+            item.source != source || item.codec != codec || item.lineage == lineage
         });
         let epochs: std::collections::BTreeSet<i32> = snapshot
             .receipts
             .iter()
-            .filter(|item| item.source == source && item.codec == "mariadb-gtid/v1")
+            .filter(|item| item.source == source && item.codec == codec)
             .map(|item| item.source_epoch)
             .collect();
         if epochs.len() != 1 {
-            snapshot.watermarks.retain(|mark| mark.source != source || mark.codec != "mariadb-gtid/v1");
-            snapshot.receipts.retain(|item| item.source != source || item.codec != "mariadb-gtid/v1");
+            snapshot.watermarks.retain(|mark| mark.source != source || mark.codec != codec);
+            snapshot.receipts.retain(|item| item.source != source || item.codec != codec);
         }
     }
 }
@@ -2902,6 +2938,7 @@ async fn observe_quality_rows(
     }
     project_held(&held, &mut snapshot);
     bind_maria_epoch(&mut snapshot);
+    bind_mysql_gtid_epoch(&mut snapshot);
     Ok(snapshot)
 }
 
@@ -4099,6 +4136,55 @@ mod tests {
         bare.watermarks.push(maria_mark("d0.s1", "7"));
         super::bind_maria_epoch(&mut bare);
         assert!(bare.watermarks.is_empty());
+    }
+
+    #[test]
+    fn mysql_gtid_watermark_is_one_uuid_and_gno() {
+        let uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+        let lineage = format!("mysql.{uuid}");
+        assert!(super::watermark_identity("mysql-gtid/v1", &lineage, "7"));
+        assert!(!super::watermark_identity("mysql-gtid/v1", &lineage, "0"));
+        assert!(!super::watermark_identity("mysql-gtid/v1", &lineage, "07"));
+        assert!(!super::watermark_identity("mysql-gtid/v1", &format!("mysql.{}", uuid.to_ascii_uppercase()), "7"));
+        assert!(!super::watermark_identity("mysql-gtid/v1", &format!("{lineage},{lineage}"), "9"));
+        assert!(!super::watermark_identity("mysql-gtid/v1", "binlog.000007", "939"));
+        assert!(!super::receipt_identity("mysql-gtid/v1", &lineage, "7", -1));
+        assert!(super::receipt_identity("mysql-gtid/v1", &lineage, "7", 1));
+        let mut mixed = super::QualitySnapshot::blank("read");
+        mixed.watermarks.push(mysql_mark(&lineage, "7"));
+        mixed.receipts.push(mysql_receipt(&lineage, "7", 1));
+        mixed.receipts.push(mysql_receipt(&lineage, "8", 2));
+        super::bind_mysql_gtid_epoch(&mut mixed);
+        assert!(mixed.watermarks.is_empty());
+        assert!(mixed.receipts.is_empty());
+    }
+
+    fn mysql_mark(lineage: &str, pos: &str) -> super::WatermarkObserved {
+        super::WatermarkObserved {
+            source: "shop".into(),
+            consistency: "transactional".into(),
+            cross_table_consistent: true,
+            applied_pos: pos.into(),
+            state: "lagging".into(),
+            codec: "mysql-gtid/v1".into(),
+            lineage: lineage.into(),
+        }
+    }
+
+    fn mysql_receipt(lineage: &str, pos: &str, epoch: i32) -> super::ReceiptObserved {
+        super::ReceiptObserved {
+            source: "shop".into(),
+            schema: "shop".into(),
+            table: "orders".into(),
+            run_generation: 1,
+            applied_pos: pos.into(),
+            codec: "mysql-gtid/v1".into(),
+            lineage: lineage.into(),
+            source_epoch: epoch,
+            cross_table_consistent: true,
+            partial_txn: false,
+            target_commit_at: String::new(),
+        }
     }
     #[test]
     fn quality_mapping_requires_the_vector_source() {

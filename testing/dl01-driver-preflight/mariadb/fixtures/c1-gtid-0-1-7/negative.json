@@ -1,0 +1,210 @@
+[
+  {
+    "name": "maria applied_pos is the raw triple",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mariadb",
+      "position_codec": "mariadb-gtid/v1",
+      "position_lineage": "d0.s1",
+      "applied_pos": "0-1-7",
+      "txn_id": "0-1-7",
+      "source_epoch": 1,
+      "resume_file": "mariadb-bin.000001",
+      "resume_pos": "1369"
+    }
+  },
+  {
+    "name": "maria lineage is the raw triple",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mariadb",
+      "position_codec": "mariadb-gtid/v1",
+      "position_lineage": "0-1-7",
+      "applied_pos": "7",
+      "txn_id": "0-1-7",
+      "source_epoch": 1,
+      "resume_file": "mariadb-bin.000001",
+      "resume_pos": "1369"
+    }
+  },
+  {
+    "name": "maria gtid set",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mariadb",
+      "position_codec": "mariadb-gtid/v1",
+      "position_lineage": "d0.s1",
+      "applied_pos": "7",
+      "txn_id": "0-1-7,0-1-8",
+      "source_epoch": 1,
+      "resume_file": "mariadb-bin.000001",
+      "resume_pos": "1369"
+    }
+  },
+  {
+    "name": "resume file text is the txn id",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mariadb",
+      "position_codec": "mariadb-gtid/v1",
+      "position_lineage": "d0.s1",
+      "applied_pos": "7",
+      "txn_id": "0-1-7",
+      "source_epoch": 1,
+      "resume_file": "0-1-7",
+      "resume_pos": "1369"
+    }
+  },
+  {
+    "name": "capture has no epoch",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mariadb",
+      "position_codec": "mariadb-gtid/v1",
+      "position_lineage": "d0.s1",
+      "applied_pos": "7",
+      "txn_id": "0-1-7",
+      "resume_file": "mariadb-bin.000001",
+      "resume_pos": "1369"
+    }
+  },
+  {
+    "name": "negative epoch",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mariadb",
+      "position_codec": "mariadb-gtid/v1",
+      "position_lineage": "d0.s1",
+      "applied_pos": "7",
+      "txn_id": "0-1-7",
+      "source_epoch": -1,
+      "resume_file": "mariadb-bin.000001",
+      "resume_pos": "1369"
+    }
+  },
+  {
+    "name": "null epoch",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mariadb",
+      "position_codec": "mariadb-gtid/v1",
+      "position_lineage": "d0.s1",
+      "applied_pos": "7",
+      "txn_id": "0-1-7",
+      "source_epoch": null,
+      "resume_file": "mariadb-bin.000001",
+      "resume_pos": "1369"
+    }
+  },
+  {
+    "name": "mysql gtid set is not the max gno",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mysql",
+      "position_codec": "mysql-gtid/v1",
+      "position_lineage": "mysql.aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "applied_pos": "9",
+      "txn_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:1,aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:9",
+      "source_epoch": 1,
+      "resume_file": "binlog.000007",
+      "resume_pos": "939"
+    }
+  },
+  {
+    "name": "uppercase mysql uuid",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mysql",
+      "position_codec": "mysql-gtid/v1",
+      "position_lineage": "mysql.AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+      "applied_pos": "7",
+      "txn_id": "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE:7",
+      "source_epoch": 1,
+      "resume_file": "binlog.000007",
+      "resume_pos": "939"
+    }
+  },
+  {
+    "name": "file pos is not the gtid commit",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mysql",
+      "position_codec": "mysql-binlog-pos/v1",
+      "position_lineage": "binlog.000007",
+      "applied_pos": "939",
+      "txn_id": "binlog.000007:939",
+      "source_epoch": 1,
+      "resume_file": "binlog.000007",
+      "resume_pos": "939"
+    }
+  },
+  {
+    "name": "mysql gno zero",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mysql",
+      "position_codec": "mysql-gtid/v1",
+      "position_lineage": "mysql.aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "applied_pos": "0",
+      "txn_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:0",
+      "source_epoch": 1,
+      "resume_file": "binlog.000007",
+      "resume_pos": "939"
+    }
+  },
+  {
+    "name": "mariadb engine with mysql codec",
+    "error": "gtid_family",
+    "entry": {
+      "source_engine": "mariadb",
+      "position_codec": "mysql-gtid/v1",
+      "position_lineage": "mysql.aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "applied_pos": "7",
+      "txn_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:7",
+      "source_epoch": 1,
+      "resume_file": "binlog.000007",
+      "resume_pos": "939"
+    }
+  },
+  {
+    "name": "mysql engine with mariadb codec",
+    "error": "gtid_family",
+    "entry": {
+      "source_engine": "mysql",
+      "position_codec": "mariadb-gtid/v1",
+      "position_lineage": "d0.s1",
+      "applied_pos": "7",
+      "txn_id": "0-1-7",
+      "source_epoch": 1,
+      "resume_file": "mariadb-bin.000001",
+      "resume_pos": "1369"
+    }
+  },
+  {
+    "name": "resume file without pos",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mariadb",
+      "position_codec": "mariadb-gtid/v1",
+      "position_lineage": "d0.s1",
+      "applied_pos": "7",
+      "txn_id": "0-1-7",
+      "source_epoch": 1,
+      "resume_file": "mariadb-bin.000001"
+    }
+  },
+  {
+    "name": "epoch string is not caller integer",
+    "error": "gtid_identity",
+    "entry": {
+      "source_engine": "mariadb",
+      "position_codec": "mariadb-gtid/v1",
+      "position_lineage": "d0.s1",
+      "applied_pos": "7",
+      "txn_id": "0-1-7",
+      "source_epoch": "1",
+      "resume_file": "mariadb-bin.000001",
+      "resume_pos": "1369"
+    }
+  }
+]

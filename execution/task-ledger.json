@@ -9000,5 +9000,11 @@
       "mysql": 3066,
       "doris": 4370
     }
+  },
+  "latest_os_actual_equality_random_and_nochange": {
+    "note": "2026-10-14 OpenSearch84533终态a27fe975作者两新随机及真实普通CLI varchar等号通过，根因为runtime旧e253而非operator许可缺，复用existing3a5365921/8d27修复无新白名单；lower/隐藏列拒保留。observer56377dead未重启，原privatePython持续observer退出，生产Rustnative-serve仍缺C5空diff nochange成功tick/lease释放语义，否则每tick强base+1；准确原SQL e888 sole scheduler依赖已broker/card交（live须phase读取）。同66a8281/64262优先自己normalwrapper固定8d、可信Rustc5 nochange producer接口/真自动两IUD/currentPack/gold/default/rand全退出，原g12随机报告待rootrawbinding，不复跑已成功付费问答或S5。原全源完整/正式0/10，Clickexistingg11随机子出口1/10保持、无新分母/独立review。",
+    "pid": 8281,
+    "handle": 64262,
+    "author_only": true
   }
 }

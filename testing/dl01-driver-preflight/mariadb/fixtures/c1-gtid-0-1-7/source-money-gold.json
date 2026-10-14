@@ -1,0 +1,32 @@
+{
+  "protocol": "oo.mariadb.fixture-money-gold/v1",
+  "observed": {
+    "currency_columns": 0,
+    "hub_9000000000001": 0,
+    "columns": [
+      {
+        "column": "cust_east.k_note.money",
+        "data_type": "decimal",
+        "numeric_precision": 12,
+        "numeric_scale": 2,
+        "column_comment": ""
+      },
+      {
+        "column": "logistics.shipments.cost_amount",
+        "data_type": "decimal",
+        "numeric_precision": 38,
+        "numeric_scale": 4,
+        "column_comment": ""
+      }
+    ]
+  },
+  "rule": {
+    "semantic_type": "money",
+    "unit": "unspecified",
+    "pii": "unknown"
+  },
+  "identifiers_pii": "unknown",
+  "model_usd_is_source_fact": false,
+  "s5": "not_called",
+  "retained_failure": "b_08cd92 not_object 4417"
+}

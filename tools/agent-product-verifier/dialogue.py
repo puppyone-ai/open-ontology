@@ -4,7 +4,7 @@ import argparse, hashlib, itertools, json, os, pathlib, random, re, secrets, sta
 
 TOOLS = {
     'tables': {}, 'describe': {'table':'string'}, 'knowledge_cat': {'path':'string'},
-    'knowledge_search': {'query':'string'}, 'validate': {'sql':'string'},
+    'knowledge_search': {'query': {'type': 'string', 'minLength': 1}}, 'validate': {'sql':'string'},
     'query': {'sql':'string'}, 'freshness': {},
 }
 
@@ -269,12 +269,35 @@ def freeze_selection(cfg, gold, gold_bytes):
     return manifest, questions
 
 
+def tool_spec(value):
+    return {'type': value} if isinstance(value, str) else dict(value)
+
+
+def tool_description(name):
+    if name == 'knowledge_cat':
+        return 'Read an installed relative Pack file path returned by knowledge_search; never use / or a guessed path'
+    if name == 'describe':
+        return 'Describe an exact schema.table name returned by tables'
+    if name == 'knowledge_search':
+        return 'Search pack files with one non-empty short word from a table or file name. Pass a returned path to knowledge_cat.'
+    return 'Read actual role-bound OO Gateway ' + name
+
+
+def tool_schema():
+    return [{'type': 'function', 'function': {
+        'name': name, 'description': tool_description(name),
+        'parameters': {'type': 'object', 'properties': {key: tool_spec(value) for key, value in args.items()},
+                       'required': list(args), 'additionalProperties': False},
+    }} for name, args in TOOLS.items()]
+
+
 def tool_error_returned(name, body):
     if name in {'validate', 'query'} and body.get('class') == 'gateway' and body.get('code') in {'COLUMN_NOT_ALLOWED', 'STATEMENT_NOT_ALLOWED', 'FUNCTION_NOT_ALLOWED'}:
         return True
     if body.get('class') == 'usage' and (
             (name == 'describe' and body.get('message') == 'table is not public')
-            or (name == 'knowledge_cat' and body.get('message') == 'path is not public')):
+            or (name == 'knowledge_cat' and body.get('message') == 'path is not public')
+            or (name == 'knowledge_search' and body.get('message') == 'search text is missing')):
         return True
     return name == 'knowledge_cat' and body.get('class') == 'gateway' and body.get('code') == 'SCHEMA_INVALID' and body.get('message') == 'knowledge path is not in this pack'
 
@@ -302,8 +325,7 @@ def main():
     bearer=private(cfg['model_bearer_file']); private(cfg['gateway_token_file'])
     common=['--json','--gateway',cfg['gateway'],'--transport',cfg['transport'],'--auth',cfg['auth'],'--token-file',cfg['gateway_token_file']]
     if cfg.get('ca_file'): common += ['--ca-file',cfg['ca_file']]
-    tools=[{'type':'function','function':{'name':name,'description':('Read an installed relative Pack file path returned by knowledge_search; never use / or a guessed path' if name == 'knowledge_cat' else 'Describe an exact schema.table name returned by tables' if name == 'describe' else 'Search pack files with one short word from a table or file name. Pass a returned path to knowledge_cat.' if name == 'knowledge_search' else 'Read actual role-bound OO Gateway '+name),
-       'parameters':{'type':'object','properties':{k:{'type':v} for k,v in args.items()},'required':list(args),'additionalProperties':False}}} for name,args in TOOLS.items()]
+    tools=tool_schema()
     messages=[{'role':'system','content':'Use OO tools autonomously to inspect role knowledge, schema, freshness, validate and query. Preserve exact decimal and original source type/quality warnings. Never infer a value without evidence. Include query_id in factual answers. You cannot use direct DB or source credentials.'}]
     transcript=[]; query_ids=set(); used=set(); answers=[]; turn_history=[]
     if cfg.get('resume_transcript'):
