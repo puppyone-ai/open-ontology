@@ -148,21 +148,69 @@
       "rust_core_required": true
     },
     {
+      "task": "opensearch",
+      "session_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
+      "pid": 15835,
+      "prompt": "execution/batches/grok-connection-full-20261014/opensearch-compact-whole-continue.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/opensearch.log",
+      "write_paths": [
+        "tools/opensearch-preview"
+      ],
+      "status": "same_owner_original_full_rust_route_fixed_consumer_interfaces",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 268,
+      "prior_session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
+      "prior_pid": 49897,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/opensearch-persistent-fixed-exact-g12-rust-loop.md",
+      "max_turns": 1000,
+      "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+      "original_required_capture": "C5 reconcile or C3 with explicit delete reconciliation",
+      "rust_core_required": true
+    },
+    {
+      "task": "postgresql",
+      "session_uuid": "27ca3ccc-e673-4832-8415-0462d4227a64",
+      "pid": 15837,
+      "prompt": "execution/batches/grok-connection-full-20261014/postgresql-complete-project-handoff.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
+      "write_paths": [
+        "tools/postgres-preview",
+        "crates/oo-gateway/src/policy.rs",
+        "crates/oo-gateway/src/bin/install-column-acl.rs",
+        "docs/07-gateway.md"
+      ],
+      "status": "same_owner_original_full_rust_route_fixed_consumer_interfaces",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 285,
+      "prior_session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
+      "prior_delivery": "Macdebug rejection paths only; no actual ACL advance or Linux/full one-command proof",
+      "effort_handoff_previous_pid": 32956,
+      "effort_handoff_was_live": true,
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-persistent-fixed-acl-original-c1-complete.md",
+      "prior_pid": 80014,
+      "max_turns": 1000,
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+      "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+      "original_required_capture": "C1 logical decoding",
+      "rust_core_required": true
+    },
+    {
       "task": "starrocks",
       "session_uuid": "c4eceff6-ba44-4e37-9cd7-d1ca2958cc8a",
-      "pid": 7077,
+      "pid": 20132,
       "prompt": "execution/batches/grok-connection-full-20261014/starrocks-compact-whole-continue.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
       "write_paths": [
         "tools/starrocks-preview"
       ],
-      "status": "same_owner_original_rust_route_47c_automatic_current",
+      "status": "same_owner_authorized_new_fixture_automatic_iud_original_exit",
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 130,
       "prior_session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
-      "prior_pid": 76215,
+      "prior_pid": 7077,
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-rust-47c-auto-current.md",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-authorized-new-auto-iud-exit.md",
       "max_turns": 1000,
       "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
       "original_required_capture": "applicable C4 partition refresh or documented C3/C5",
@@ -171,7 +219,7 @@
     {
       "task": "sqlserver",
       "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
-      "pid": 12034,
+      "pid": 22730,
       "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-complete-fast-handoff.md",
       "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
       "write_paths": [
@@ -183,17 +231,18 @@
         "tools/source-admission/src/capture.rs",
         "tools/job-worker/src/native_schedule.rs",
         "tools/job-worker/NATIVE-SCHEDULE.md",
-        "tools/job-worker/tests/closed_loop.rs"
+        "tools/job-worker/tests/closed_loop.rs",
+        "crates/oo-pipeline/src/native_catalog.rs"
       ],
-      "status": "same_owner_c2_full_route_after_one_common_file_transfer",
+      "status": "same_owner_original_c2_rust_current_delta_catalog_export",
       "executor": "grok-4.7/xhigh",
       "initial_log_bytes": 0,
       "prior_session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
       "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete",
       "effort_handoff_previous_pid": 32957,
       "effort_handoff_was_live": true,
-      "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-persistent-rust-current-after-gtid-transfer.md",
-      "prior_pid": 93898,
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-persistent-rust-actual-delta-export.md",
+      "prior_pid": 12034,
       "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
       "max_turns": 1000,
       "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
@@ -202,6 +251,41 @@
       "read_only_shared_paths": [
         "crates/oo-pipeline/src/native_update.rs"
       ]
+    },
+    {
+      "task": "shared-entry",
+      "session_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
+      "pid": 15833,
+      "prompt": "execution/batches/grok-connection-full-20261014/shared-entry-complete-fast-handoff.md",
+      "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
+      "write_paths": [
+        "tools/source-onboarding",
+        "tools/selfbuild-control-api/src/sealed.rs",
+        "tools/selfbuild-control-api/src/builder_call.rs",
+        "tools/selfbuild-control-api/src/config.rs",
+        "tools/selfbuild-control-api/CONTRACT.md",
+        "tools/selfbuild-control-api/tests/builder_call.rs",
+        "tools/selfbuild-control-api/tests/native_import.rs",
+        "tools/pg-builder/src/sealed.rs",
+        "tools/pg-builder/CONTRACT.md",
+        "tools/pg-builder/tests/contract.rs",
+        "tools/selfbuild-control-api/src/stages.rs",
+        "tools/selfbuild-control-api/src/overlay.rs",
+        "tools/selfbuild-control-api/src/builder_inputs.rs",
+        "tools/selfbuild-control-api/tests/builder_inputs.rs"
+      ],
+      "status": "same_owner_original_full_rust_route_fixed_consumer_interfaces",
+      "executor": "grok-4.7/xhigh",
+      "initial_log_bytes": 120,
+      "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
+      "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive",
+      "prior_pid": 88539,
+      "prior_session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
+      "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+      "next_action": "resume same UUID only when source whole/current catalog/API dependency ready, no empty model loop",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-oracle-schema-identity-fix.md",
+      "max_turns": 1000,
+      "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md"
     }
   ],
   "process_observation": {
@@ -2075,5 +2159,6 @@
   "latest_star_os_pg_current_intake": "Star55e455505固定sourceSHA及真实2turnverified/8591tokens/unsampled全量gold0收取，mixed3/5/13当前保留，无新S5；原C4 not_run/disabled schedule/defaultordinarywhole未退出，sameUUID76215继续。OpenSearch a675880c8两IUD六capture g7..12 readerwrites0/实际supervisor66510 enabled1000ms quiet203 nofire，rawreceiptSHA79c4182b已保留；新g12 versus旧g6Pack/权限导致SCHEMA_INVALID，故source闭环未完成。PG99653已terminal，旧watcher多次历史run/tail0不可作新成功；相同UUID80014 max1000收已编per-tableELF真实混合ACL固定交付并解OS当前精确列权限/原PG本runS5candidatesinvalid后全链。无新独立review、全源/正式0/10不晋级。证据execution/reviews/grok-connection-resume-20261014/{starrocks-dialogue-current-intake,opensearch-current-g12-progress-intake}.json。",
   "latest_human_original_rust_production_route": "最新用户纠正已先重读原DBX capture/profiles03/04、docs17Rust、原Plan SP03/SP04/DBX和原需求审计：MySQL/MariaDB/PG原C1日志，Mongo主replica-set C1changeStream，SQLC1/C2，Oracle batchC3/C5+LogMiner单ADR默认OFF，OLAP C4/C3/C5、OS C5/C3。MySQL native C5代码与此前快照成功只按batch证据保留，不能代C1；不统一降级，data行DML不逐行重建ontology/LLM/人工刷新Pack才恢复query。Rust平台核心/现有上游DebeziumJVM协议复用，Python/shell仅最小fixture测试/胶水，不另扩产品算法。十源原owner卡及机器contract重申原路线，未削目标/分母/退出；三C1源同UUID88533/88535/88537及shared88539实际接续长跑，Oracle93896/SQL93898接入已固定47c currentcatalogAPI，4个既有live正确路线作者卡追加原文约束。完整/正式0/10不晋级。卡execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md，机器production-route-contract.json含6原文SHA。",
   "latest_original_rust_route_linked_continuation": "原文Rust生产路线再接续：Click49895/Doris66796/Star76215实际终态后同UUID609/607/7077 max1000恢复，收到原C4/C3/C5 docs提醒与47c固定API合同。Doris原误载source12/target24/旧bound9保留，禁止OO014元数据删除/重放；Click当前g11/FINAL4row48cells0/对话保留，真正周期与普通default仍原退出；Star原native-serve136/C5每6000ms无差不涨源13实际在跑，quiet重试记录不冒完成。47c4源码+API5bc实际哈希已核，private immutable收据合同交给原source当前安全维护，尚未live full chain，不代C1。证据execution/reviews/grok-connection-resume-20261014/shared-47c-current-maintenance-intake.json。最新用户Rust核心/原逐源方法固定、C5证据不计C1签收，完整/正式0/10与五版退出保持。",
-  "latest_c1_rust_gtid_exclusive_transfer": "用户原生产C1路线实际Rust缺口收取：Maria原fixture R1 DBA已启ROW/FULL/strictGTID/10天retention、0-1-6及最小复制账户拒INSERT1142，旧C5数据不计C1。现mariadb-gtid/v1在native_update/offsetstore/capture-policy未实现，不能字符串绕门/文件位点冒持久GTID。为单writer仅SIGINTSQL93898 CLI并OS exit核实、native_update clean，DB/后台未停；将该一个文件及旧03已退出accepted的offset/gate精确路径移交原Maria2b95896a PID12033完整C1能力，SQL同UUID12034保留其他域继续C2当前catalog delta/runtime，shared88539继续编译器/receipt合法复用。无组件拆派/功能分母增加，Rust语义/lineage/Total与incomparable/去重/事务applied/ACK/恢复原退出保持，完整/正式0/10不晋级。"
+  "latest_c1_rust_gtid_exclusive_transfer": "用户原生产C1路线实际Rust缺口收取：Maria原fixture R1 DBA已启ROW/FULL/strictGTID/10天retention、0-1-6及最小复制账户拒INSERT1142，旧C5数据不计C1。现mariadb-gtid/v1在native_update/offsetstore/capture-policy未实现，不能字符串绕门/文件位点冒持久GTID。为单writer仅SIGINTSQL93898 CLI并OS exit核实、native_update clean，DB/后台未停；将该一个文件及旧03已退出accepted的offset/gate精确路径移交原Maria2b95896a PID12033完整C1能力，SQL同UUID12034保留其他域继续C2当前catalog delta/runtime，shared88539继续编译器/receipt合法复用。无组件拆派/功能分母增加，Rust语义/lineage/Total与incomparable/去重/事务applied/ACK/恢复原退出保持，完整/正式0/10不晋级。",
+  "latest_current_rust_fixed_interfaces_intake": "新增fixed公共Rust依赖：eff6b994b5 per-table Linux1.94 ELF a44d4469+afaa67da5安全保留既有members/撤旧列权限ELF78bfdc62两SHA及绑定source blobs已核，真实3/5/13pubgold一致、OS g12精确14列pubcount5/oldhidden拒/无futuredefaultSELECT可消费。OpenSearch同UUID15835接续currentPack/Gateway/default全源，PG同UUID15837收原S5money_unit事实并继续原C1；shared15833收MySQL10tests合法旧producer复用dirty最小修复与Oracle单catalog schema_digest/identity错误（source5bc装好但admin409，不能重写decision.schemahash成identity）。原Oracle403role边界正确、g3→g5/currenttypedgap保留。Star同UUID20132被明确授权自有fixture必要全新自动IUD，不重复原DML/ACK/noLLM；原g13same-semanticmaintenance200/publishedfalse不代全自动退出。SQL同UUID22730新增唯一native_catalog.rs写域，修实际C2delta2batchrows与6appliedrows的PG-only exportguard，native_update仍Maria只读分界。fixture/batch/原C1路线不混、source/正式0/10不晋级，不独立组件审阅。证据execution/reviews/grok-connection-resume-20261014/postgres-mixed-and-os12-fixed-intake.json。"
 }
