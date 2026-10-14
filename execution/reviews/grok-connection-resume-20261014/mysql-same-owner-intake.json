@@ -1,0 +1,32 @@
+{
+  "observed_at": "2026-10-14T07:11:30.694593+00:00",
+  "scope": "MySQL incomplete author progress and incorrect cross-model availability inference",
+  "raw_files": [
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql-fixed-r2/exit-receipt-20261014-r2.json",
+      "sha256": "f721cf1ae725bdaedc7e06e0a0a54de9a9818f33d63259628dd192963cde06d2"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql-fixed-r2/resource-final-20261014-r2.json",
+      "sha256": "1bee82dd974ac70b7ef04c73b806c6e46f3817dd420ceca5a594569b4a656392"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql-fixed-r2/REPORT.md",
+      "sha256": "c03f24be9362f82fe90f35f77ab1d5cc6d2a421247007064b970f66dd8f64786"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql-fixed-r2/FINDINGS.md",
+      "sha256": "194cd776ac0d70d874fb5382259cd36223113af54d05e89dd51640dd500f8748"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql-fixed-r2/HANDOFF.md",
+      "sha256": "bd966fe2ce416f1fc9cfa4e3ce7eba82d2828f1410abc7e381d7c86536e1252c"
+    }
+  ],
+  "actual_model_configuration_observed": "mysql private runtime projects[0].llm.model_id=gpt-6.1-sol; Star actual runtime grok-4.7",
+  "full_source": false,
+  "same_owner_uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
+  "continued_pid": 72621,
+  "max_turns": 1000,
+  "next": "own official runtime switch to human-authorized Grok4.7 URL/key unchanged, bounded real S5 then all original whole exits; no legacy GPT retry or inferred block; same owner continues"
+}
