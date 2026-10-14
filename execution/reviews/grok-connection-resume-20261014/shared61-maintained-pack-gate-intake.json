@@ -1,0 +1,8 @@
+{
+  "commit": "61d53eebbef41775c47458a9b3365c8359dbd27e",
+  "archive": "/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/oo-root-shared61-fixed-grhmv_sm",
+  "root_test_exit": 0,
+  "root_test_output": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.747s\n\nOK\n",
+  "actual_positive_official_emitter": "pending product_flow actual invocation/maintenance-consumption, purefunction notwhole",
+  "scope": "fixed shared dependency only; source counts unchanged"
+}
