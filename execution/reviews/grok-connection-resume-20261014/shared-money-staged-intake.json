@@ -1,0 +1,57 @@
+{
+  "commit": "20e84f8a76e443c3f65b16ded4c0c8216deb6702",
+  "receipt_sha256": "5abaeaeae0f06194fd558d5874212bc1468198d14b09b49cd7048242db6f3b2f",
+  "private_immutable_copy": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-fixed-20e84f8a7",
+  "verified_hash_count": 8,
+  "hashes": [
+    {
+      "file": "tools/pg-builder/CONTRACT.md",
+      "expected": "dce930a0e155e8e75b5cbba31228c1fd517dbf8774288c00325f5105e12f6031",
+      "actual": "dce930a0e155e8e75b5cbba31228c1fd517dbf8774288c00325f5105e12f6031",
+      "match": true
+    },
+    {
+      "file": "tools/pg-builder/src/sealed.rs",
+      "expected": "ac7db7a38b6cbb1339d005d9f3482976871e1c00861773776d833ff2103d0d7d",
+      "actual": "ac7db7a38b6cbb1339d005d9f3482976871e1c00861773776d833ff2103d0d7d",
+      "match": true
+    },
+    {
+      "file": "tools/selfbuild-control-api/CONTRACT.md",
+      "expected": "fdb9867b539ef1981a575177a660e317b0009b1b9b9eab9e3b23eb5fae4bd84a",
+      "actual": "fdb9867b539ef1981a575177a660e317b0009b1b9b9eab9e3b23eb5fae4bd84a",
+      "match": true
+    },
+    {
+      "file": "tools/selfbuild-control-api/src/builder_call.rs",
+      "expected": "a3534499acabb94923936165dfc97eb1bf48f2cc660b91fc90ccf278f5c9f078",
+      "actual": "a3534499acabb94923936165dfc97eb1bf48f2cc660b91fc90ccf278f5c9f078",
+      "match": true
+    },
+    {
+      "file": "tools/selfbuild-control-api/src/sealed.rs",
+      "expected": "943851af1fc662005aa01ee4e3325d51843ff9fecd9677568a1e8a555a0b93f9",
+      "actual": "943851af1fc662005aa01ee4e3325d51843ff9fecd9677568a1e8a555a0b93f9",
+      "match": true
+    },
+    {
+      "file": "tools/selfbuild-control-api/tests/builder_call.rs",
+      "expected": "471a87004ab9ea5cc02357fb1dda5141760c77bcfaf589af884f4e9a48bd0dc6",
+      "actual": "471a87004ab9ea5cc02357fb1dda5141760c77bcfaf589af884f4e9a48bd0dc6",
+      "match": true
+    },
+    {
+      "file": "/tmp/oo-star-runtime-finish/selfbuild-control-api-8972d9f074c84e88eedd9a43f673f2c6db56b77f93e14c447348ae18e34ce196",
+      "expected": "8972d9f074c84e88eedd9a43f673f2c6db56b77f93e14c447348ae18e34ce196",
+      "actual": "8972d9f074c84e88eedd9a43f673f2c6db56b77f93e14c447348ae18e34ce196",
+      "match": true
+    },
+    {
+      "file": "/tmp/oo-star-runtime-finish/pg-builder-f7c7892aef02e6192f2df404736fb7524f810de163c26a71df3ef87ce29b175a",
+      "expected": "f7c7892aef02e6192f2df404736fb7524f810de163c26a71df3ef87ce29b175a",
+      "actual": "f7c7892aef02e6192f2df404736fb7524f810de163c26a71df3ef87ce29b175a",
+      "match": true
+    }
+  ],
+  "acceptance": "fixed author money projection and Star staged S0-S10/CLI only; dialogue unverified and original cross-source maintenance exits incomplete; formal counts unchanged"
+}

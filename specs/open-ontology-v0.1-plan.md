@@ -2782,3 +2782,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 2026-10-14 原owner长跑续接：Maria原b9f2 S5实际后台先收、Mongo cf3e0eb9b当前CLI/对话真实成功但仍需官方S9/S10/默认持续入口、Doris/PG max-turns200终态不算完成，原各UUID升级1000继续，Doris修actualrecovery127/mount/终态dedupe，PG唯一修Star混合当前3/5/13 table向量并继续本源。OpenSearch a7909d5c492报告默认run44584180/新代6维护/OOS/70cells0差/3turn对话与WAL已具，原owner继续核原持续可配置维护退出，不重做成功；Click默认run c815因其他engine登记引发全registrySHA resume_drift，源owner保留等待，真实case已交唯一shared-entry同时修money-before-validation。所有source测试DML仅ownedfixture，可由测试driver模拟外部变更，普通readonly接入不因测试获得写权；入口/实际worker自动capture/import/维护必须真证，旧receipt+flag不算。原核心原退出/五版/计数不变，无独立组件review。
 
 2026-10-14 Maria同owner真实S5预算阻断：已识别b9f2/grok upstream request499客户端90s取消/无返回body/cache；shared unique d28ca4bd新增stages.rs写域，仅复用现有pg-builder本地generate允许180s路径，保留外部30s上限/取消/单activejob，不因rootclock600s扩大genericbudget。修复前原owner保留pending，修复后核原失败/请求终态/无响应与cache才一次必要授权校正重试，不能将llm_calls0当无upstreamattempt，不盲loop。其他原退出/计数不变。
+
+
+2026-10-14 共享20e84f8a76e443c3f65b16ded4c0c8216deb6702固定收取：6源码Git blob及2Linux ELF SHA共8项匹配，原始报告/receipt不可变副本在私有shared-fixed-20e84f8a7。真实Star retained3394-token S5→S0–S10→currentPack/CLI已证、balance拒；对话未verified，共享其他源后续catalog维护/registry/localbudget仍原owner推进。证据execution/reviews/grok-connection-resume-20261014/shared-money-staged-intake.json；仅阶段性作者证据，不是完整源/独立复审/整版通过，原0/10完整入口及0/10正式签收不变。
