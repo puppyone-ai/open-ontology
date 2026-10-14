@@ -8897,7 +8897,7 @@
   "latest_current_rust_fixed_interfaces_intake": "新增fixed公共Rust依赖：eff6b994b5 per-table Linux1.94 ELF a44d4469+afaa67da5安全保留既有members/撤旧列权限ELF78bfdc62两SHA及绑定source blobs已核，真实3/5/13pubgold一致、OS g12精确14列pubcount5/oldhidden拒/无futuredefaultSELECT可消费。OpenSearch同UUID15835接续currentPack/Gateway/default全源，PG同UUID15837收原S5money_unit事实并继续原C1；shared15833收MySQL10tests合法旧producer复用dirty最小修复与Oracle单catalog schema_digest/identity错误（source5bc装好但admin409，不能重写decision.schemahash成identity）。原Oracle403role边界正确、g3→g5/currenttypedgap保留。Star同UUID20132被明确授权自有fixture必要全新自动IUD，不重复原DML/ACK/noLLM；原g13same-semanticmaintenance200/publishedfalse不代全自动退出。SQL同UUID22730新增唯一native_catalog.rs写域，修实际C2delta2batchrows与6appliedrows的PG-only exportguard，native_update仍Maria只读分界。fixture/batch/原C1路线不混、source/正式0/10不晋级，不独立组件审阅。证据execution/reviews/grok-connection-resume-20261014/postgres-mixed-and-os12-fixed-intake.json。",
   "random_dialogue_acceptance": {
     "card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "status": "three actual source random sub-exits; all original full-source exits pending",
+    "status": "four source random subexits verified; original fullsource exits pending",
     "writer": {
       "task": "clickhouse",
       "uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
@@ -8910,7 +8910,7 @@
         "tools/agent-product-verifier/CONTRACT.md"
       ]
     },
-    "source_passes": 3,
+    "source_passes": 4,
     "source_total": 10,
     "acceptance_count_delta": 0,
     "legacy_dialogue_preserved": true,
@@ -8919,7 +8919,8 @@
     "passed_sources": [
       "clickhouse",
       "opensearch",
-      "doris"
+      "doris",
+      "postgresql"
     ]
   },
   "latest_random_dialogue_requirement": "2026-10-14 用户新增真实随机CLI+Agent测试：每源两次新随机两轮、不同语义问题序列；模型自主任意合法OOCLI，首次调用前冻结seed/选题/source与Pack身份/独立源侧gold，成功QID绑定独立WAL，resume同题/同gold、seed回放不计新随机。旧固定问题和负例证据保留，不代新增出口。唯一共享验收器writer为原ClickHouse26ae6875，同UUID29571/handle75145长跑完成真实本源示范及原全链；十源作者只读固定接口并准备自有私有题库。当前实现及真实随机验收pending，完整/正式0/10不晋级、功能分母不增加、无新独立组件审阅。卡：execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md。",
@@ -9081,5 +9082,6 @@
     "note": "2026-10-14 Maria42287 terminal60a99c24f fixed显式Mongo原S0/B及286historylost围栏，root核两个原Linux日志hash/1.94及2+1过滤结果（重复摘要不重复计数），不产品ELF/liveapply/ACK；原0-1-7 spool无epoch原样，样例1/observedfalse不能注册proof。未知PII钱字段保持hidden/unknown，不fake ownerapproval或modelnone；S5b08 notobject/4417保留。原2b writer/后台tests资源reserved，只剩SQL36251真实0024/controlSQL/nativebinding/实例登记与正式scheduler消费，不同旧组件重复采样。MySQL/Mongo consumer同等待actualfixed接口才恢复，scope全C1/完整formal0/10、random3/10不晋级。intakeexecution/reviews/grok-connection-resume-20261014/maria60-explicit-mongo-fixed-intake.json。",
     "source_commit": "60a99c24f07504662a1cd969090c609b0274f7a3",
     "status": "terminal_reserved_SQL_instance_epoch_install"
-  }
+  },
+  "latest_pg_actual_random_verified": "2026-10-14 PG当前continuousfixture两fresh随机子出口root通过：原source reader同RR只读事务六count与冻结gold逐项吻合，两个不同seed/不重题2turn，four finalfacts(actualCLIcell)/四QID独立admitcomplete WAL已核；latestbound5但实际table4/5vector保留非整体盖5。Role当前oo_r_pg46_continuous_fixture/0fc对应官方同effectiveOOS派生，但原product7557到current0fc的normalwhole真实关联仍shared/source未完，所以只random4/10（PG/Click11/OS12/Doris19），完整/正式0/10不晋级。preparation旧provenance.json notsent只历史不用positiveproof，raw真实模型Grok与grokbuild已transcript verified，无付费复跑。intakeexecution/reviews/grok-connection-resume-20261014/postgresql-two-random-actual-intake.json；源raw私有。"
 }
