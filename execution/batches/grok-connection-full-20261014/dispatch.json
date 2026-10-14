@@ -25,25 +25,25 @@
   {
     "task": "oracle",
     "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
-    "pid": 92264,
+    "pid": 30182,
     "prompt": "execution/batches/grok-connection-full-20261014/oracle.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle.log",
     "write_paths": [
       "tools/oracle-preview"
     ],
-    "status": "same_owner_live_remaining_original_product_exits",
+    "status": "same_owner_live_exact_original_contract_and_default_entry",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 395,
     "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete",
-    "prior_pid": 52662,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/oracle-persistent-current-g7-random-default-whole.md",
+    "prior_pid": 92264,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/oracle-persistent-direct-current-pack-auto-final.md",
     "max_turns": 1000,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "verified batch C3/C5, S1 if same SCN proven",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 10212
+    "tool_handle": 12326
   },
   {
     "task": "mariadb",
@@ -83,24 +83,24 @@
   {
     "task": "mongodb",
     "session_uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc",
-    "pid": 1923,
+    "pid": 32231,
     "prompt": "execution/batches/grok-connection-full-20261014/mongodb.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mongodb.log",
     "write_paths": [
       "tools/mongodb-preview"
     ],
-    "status": "same_owner_live_exact_original_full_source_remaining",
+    "status": "same_owner_live_exact_original_contract_and_default_entry",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 327,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "prior_pid": 88537,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/mongodb-persistent-explicit-C1-profile-full.md",
+    "prior_pid": 1923,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mongodb-persistent-opaque-token-production-fix.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 change stream on replica-set/sharded target",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 47151
+    "tool_handle": 91935
   },
   {
     "task": "clickhouse",
@@ -130,26 +130,26 @@
   {
     "task": "doris",
     "session_uuid": "aa427924-9c4b-4a5e-ae15-9a2aef414d44",
-    "pid": 4370,
+    "pid": 31161,
     "prompt": "execution/batches/grok-connection-full-20261014/doris-compact-whole-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/doris.log",
     "write_paths": [
       "tools/doris-preview",
       "testing/dl01-driver-preflight/doris/reader"
     ],
-    "status": "same_owner_live_exact_original_full_source_remaining",
+    "status": "same_owner_live_exact_original_contract_and_default_entry",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 218,
-    "prior_pid": 31458,
+    "prior_pid": 4370,
     "prior_session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
     "max_turns": 1000,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-current-random-default-final.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-native-current-recipe-registration.md",
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "applicable C4 partition refresh or documented C3/C5",
     "rust_core_required": true,
     "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
-    "tool_handle": 59097
+    "tool_handle": 71455
   },
   {
     "task": "opensearch",
@@ -160,7 +160,7 @@
     "write_paths": [
       "tools/opensearch-preview"
     ],
-    "status": "same_owner_live_actual_C5_nochange_default_remaining",
+    "status": "terminal_reserved_Rust_native_schedule_nochange_dependency",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 268,
     "prior_session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
