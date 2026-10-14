@@ -1839,3 +1839,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 Star39272 terminal88708修合法onboard-owned run-dir/当前代记录，作者9test及实际wholefalse callback保留；b31缺可收养productreceipt/S9S10原response，不以maint200当S0–S10，需官方原成功record恢复或真实缺阶段补，不捏造/重复已成功S5。日期比较缺落policy_catalog COMPARISON_SIGNATURES(date/date)未有，root新增仅该文件唯一给c4 source53251/18779，在本完整源卡最小可信pg_catalog comparator修+Linuxactual两不同日期CLI/拒例，先核operator与function OID别混1093。sourcewrapper新d762待shared50376合法repin，privatebank分区底层事件数≠派生dataset1row粒度真实说明，oldQA top-rowcount缺facts失败保留不改gold刷过。source19/target31/semg13/fullgold与旧两autoIUD不重写/重LLM，完整/正式0/10、random4/10不晋级；no独立componentreview/no客户写。
+
+
+2026-10-14 同Click原owner durable64845接完整current17链+共享终答根因：实际正确query后反复bareqty/count/extraKeys费用高，现验收器fact/evidence及QID源truth严格不弱化。复用已有generate response_format约定，当前代理真实验证strict输出兼容后最小动态factskeys/evidence schema（不gold值/预写SQL），不支持保留actual4xx再清晰system协议/已支持json_object；最多一个小实际兼容probe或当前未成功槽真实验。No虚包装modelraw/从历史auto造evidence/无限retry；源CLI/Pack正常才paid，旧4源random子出口保留，不版本统一重跑；actual支持仍pending。原源完整/正式0/10、不独立componentreview/no新增分母，原call节省80%尚无实测。

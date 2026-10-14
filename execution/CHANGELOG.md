@@ -1251,3 +1251,6 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 
 
 2026-10-14 lifecycle重核：原shared50376/Star53251/PG41304/SQL36251 OS均无且原exec handles missing，shared/Star无完成报告、PG/SQL有部分作者结果但公共源码未fixed，不能全任务完成；实际未发现hostcargo/rustc互写。保留所有dirty文件/容器/原资源，同UUID四owner持久Popen start_new_session/devnullstdin/privateappendlog恢复59418/59419/59420/59421，不新增writer；无exec handle改OS exactUUID+PID事件等待，最新600s。SQL0024未提交但实际已落盘，公共sourceepoch/GCID/controlSQL/nochange和sharedactualmaintenanceEmitter主critical不变，sourcecomplete/formal0/10、random4/10。
+
+
+2026-10-14 同Click原owner durable64845接完整current17链+共享终答根因：实际正确query后反复bareqty/count/extraKeys费用高，现验收器fact/evidence及QID源truth严格不弱化。复用已有generate response_format约定，当前代理真实验证strict输出兼容后最小动态factskeys/evidence schema（不gold值/预写SQL），不支持保留actual4xx再清晰system协议/已支持json_object；最多一个小实际兼容probe或当前未成功槽真实验。No虚包装modelraw/从历史auto造evidence/无限retry；源CLI/Pack正常才paid，旧4源random子出口保留，不版本统一重跑；actual支持仍pending。原源完整/正式0/10、不独立componentreview/no新增分母，原call节省80%尚无实测。
