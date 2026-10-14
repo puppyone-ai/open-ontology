@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    {
+      "source_commit": "eff6b994b5c4722bf22b2a0c77fad057b625fa0d",
+      "source_hashes": {
+        "crates/oo-gateway/src/policy.rs": "a531be1f66fea6ed08c5490f5cf2c291888992ad3e48e38afafcd1163a93136a",
+        "docs/07-gateway.md": "b73f2b500c938c06672993e343ab289f51cda36ed41561a838e2ca485ea77f94",
+        "tools/postgres-preview/connection_cycle.py": "738cb370d6a2bfd3ddcf69f9fdabd2829cf972c8f1c26011bbcd8f3420be906f",
+        "tools/postgres-preview/linux/gateway_cli_adapter.py": "9f2c6a0b4ce6925029dc83a8e3c3bd18553f8ecaa8b7d8750674ff7e313bc1f1",
+        "tools/postgres-preview/whole.py": "b4eb8a2faaa544e3a68a137e8a95793c277617bee275c309b2dc8cc084dd33ea"
+      },
+      "fixed_elf": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-per-table/install-column-acl",
+      "verified_elf_sha256": "a44d44690d548d9d7fef45881ac3ea5fec17e30e15c1b995d1b4ca35eb7b5bbc",
+      "private_receipt": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-per-table/mixed-3513-public-query.json",
+      "receipt_sha256": "e9f4fc1059ce469e3398daf1aa17343dcfec4d86a6cf482fa8bbe279f2c148bb",
+      "scope": "author actual mixed tuple public queries/negative permissions; source whole chain and unified independent review not promoted"
+    },
+    {
+      "source_commit": "afaa67da5ed842884c524a0e7d5e5406ac4ee603",
+      "source_hashes": {
+        "crates/oo-gateway/src/policy.rs": "f03a29b1b802e7ce23427c6373a25c5191794738603ec28397d61955854fe461",
+        "docs/07-gateway.md": "bc1f662f48a80fc247ffdbb7aa285862589c661689487d98ccbb9169ff0ed5a6"
+      },
+      "fixed_elf": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-os-ledger-g12/install-column-acl",
+      "verified_elf_sha256": "78bfdc62bd09328837c694adcf091404b70b0dfd9d4a2928540315f3bf10b60a",
+      "private_receipt": "/Users/redux/.cache/oo-grok-connection-full-20261014/fixed-acl-os-ledger-g12/receipt.json",
+      "receipt_sha256": "78ecad1e615ec59c4cb563892f6a388ec2c341c702981fe162a018f19b0a0b19",
+      "scope": "author actual mixed tuple public queries/negative permissions; source whole chain and unified independent review not promoted"
+    }
+  ],
+  "acceptance": "fixed author gateway ACL dependency available; no complete source/formal/whole version promotion"
+}

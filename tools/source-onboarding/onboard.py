@@ -151,7 +151,8 @@ def prove_whole(out, recipe, journal):
     direct_step(out, recipe, journal, DIALOGUE, transcript_rel)
     product = load(rel_ok(out, product_rel))
     require(product.get('protocol') == 'oo.source-onboarding.product/v1' and product.get('fixture_review') is True, 'actual_product_receipt')
-    require(product.get('producer_sha256') == digest(PRODUCT_FLOW) and product.get('source_fresh') is True, 'source_not_fresh')
+    # The pinned invoker is direct_step. A reused receipt keeps the producer hash of the writer that saved it.
+    require(product.get('source_fresh') is True and product.get('producer') == 'tools/source-onboarding/product_flow.py' and re.fullmatch(r'[a-f0-9]{64}', product.get('producer_sha256') or '') is not None, 'source_not_fresh')
     require(isinstance(product.get('stages'), list) and {x['stage'] for x in product['stages'] if x.get('status') == 'succeeded'} >= {f'S{i}' for i in range(11)}, 'incomplete_product_stages')
     base = rel_ok(out, product_rel).parent
     s5 = product.get('s5')

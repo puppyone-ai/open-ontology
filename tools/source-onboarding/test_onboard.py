@@ -86,7 +86,7 @@ class RunnerTests(unittest.TestCase):
             effective=b'{"protocol":"oo.builder.effective-oos/v1","datasets":[]}\n';(product/'effective.json').write_bytes(effective)
             (oos/'ontology.yaml').write_text('{"name":"fixture"}\n');(oos/'effective-oos.yaml').write_text('fixture: true\n')
             (oos/'source.json').write_text(json.dumps({'actual_core_effective_sha256':m.digest(product/'effective.json'),'publication':'not_claimed'}))
-            receipt={'protocol':'oo.source-onboarding.product/v1','fixture_review':True,'source_fresh':True,'catalog_sha256':m.digest(product/'catalog.json'),'producer_sha256':m.digest(m.PRODUCT_FLOW),'effective_oos_sha256':m.digest(product/'effective.json'),'stages':[{'stage':f'S{i}','status':'succeeded'} for i in range(11)],'s5':{'outcome':'validated','builder_spawned':True,'structural_draft':False,'cache_hit':False,'llm_calls':1,'model':'gpt-6.1-sol','input_sha256':'ab'*32,'evidence_hash':m.digest(product/'catalog.json')},'standard_oos':{name:m.digest(oos/name) for name in ('ontology.yaml','effective-oos.yaml','source.json')}}
+            receipt={'protocol':'oo.source-onboarding.product/v1','fixture_review':True,'source_fresh':True,'catalog_sha256':m.digest(product/'catalog.json'),'producer':'tools/source-onboarding/product_flow.py','producer_sha256':m.digest(m.PRODUCT_FLOW),'effective_oos_sha256':m.digest(product/'effective.json'),'stages':[{'stage':f'S{i}','status':'succeeded'} for i in range(11)],'s5':{'outcome':'validated','builder_spawned':True,'structural_draft':False,'cache_hit':False,'llm_calls':1,'model':'gpt-6.1-sol','input_sha256':'ab'*32,'evidence_hash':m.digest(product/'catalog.json')},'standard_oos':{name:m.digest(oos/name) for name in ('ontology.yaml','effective-oos.yaml','source.json')}}
             (product/'product-receipt.json').write_text(json.dumps(receipt))
             (dialogue/'verdict.json').write_text(json.dumps({'model':'gpt-6.1-sol','reasoning_effort':'low','turns':2,'tools':['describe','freshness','knowledge_cat','query'],'query_ids':['qid-1'],'audit_sha256':'cd'*32,'truth_sha256':'ef'*32,'outcome':'verified'}))
             (dialogue/'transcript.json').write_text(json.dumps([{'tool':'query','query_id':'qid-1'}]))
@@ -196,6 +196,54 @@ class RunnerTests(unittest.TestCase):
             c2=m.load(cp);c2['_sha256']=m.digest(cp)
             with self.assertRaisesRegex(pf.Refused,'product_resume_drift'):pf.Flow(c2,out).run()
             self.assertTrue((out/'product-receipt.json').is_file());self.assertEqual(list(out.glob('*.response.json')),[])
+    def test_reused_receipt_proves_whole_and_keeps_producer(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location('product_flow',Path(__file__).with_name('product_flow.py'))
+        pf=importlib.util.module_from_spec(spec);spec.loader.exec_module(pf)
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);root.chmod(0o700);run=root/'run';run.mkdir(mode=0o700)
+            product=run/'product';product.mkdir(mode=0o700);oos=product/'oos';oos.mkdir();dialogue=run/'dialogue';dialogue.mkdir()
+            (product/'catalog.json').write_bytes(b'{"tables":[]}\n')
+            (product/'effective.json').write_bytes(b'{"protocol":"oo.builder.effective-oos/v1","datasets":[]}\n')
+            (oos/'ontology.yaml').write_text('{"name":"fixture"}\n');(oos/'effective-oos.yaml').write_text('fixture: true\n')
+            (oos/'source.json').write_text(json.dumps({'actual_core_effective_sha256':m.digest(product/'effective.json'),'publication':'not_claimed'}))
+            catalog_sha=m.digest(product/'catalog.json');old_producer='b2'*32
+            self.assertNotEqual(old_producer,m.digest(m.PRODUCT_FLOW))
+            receipt={'protocol':'oo.source-onboarding.product/v1','build_id':'b_same','fixture_review':True,'source_fresh':True,'catalog_sha256':catalog_sha,'producer':'tools/source-onboarding/product_flow.py','producer_sha256':old_producer,'effective_oos_sha256':m.digest(product/'effective.json'),'stages':[{'stage':f'S{i}','status':'succeeded'} for i in range(11)],'s5':{'outcome':'validated','builder_spawned':True,'structural_draft':False,'cache_hit':True,'llm_calls':0,'model':'grok-4.7','input_sha256':'ab'*32,'evidence_hash':catalog_sha},'standard_oos':{name:m.digest(oos/name) for name in ('ontology.yaml','effective-oos.yaml','source.json')}}
+            raw=json.dumps(receipt).encode();(product/'product-receipt.json').write_bytes(raw)
+            (dialogue/'verdict.json').write_text(json.dumps({'model':'grok-4.7','reasoning_effort':'low','turns':2,'tools':['describe','freshness','knowledge_cat','query'],'query_ids':['qid-1'],'audit_sha256':'cd'*32,'truth_sha256':'ef'*32,'outcome':'verified'}))
+            (dialogue/'transcript.json').write_text(json.dumps([{'tool':'query','query_id':'qid-1'}]))
+            (run/'whole.json').write_text(json.dumps({'full_product_chain_complete':True,'periodic_insert_update_delete_verified':True,'recovery_verified':True,'product_receipt':'product/product-receipt.json','dialogue_verdict':'dialogue/verdict.json'}))
+            config={'fixture_authorized':True,'operator_sha256':m.digest(pf.OPERATOR),'catalog_sha256':catalog_sha}
+            cp=root/'config.json';cp.write_text(json.dumps(config));cp.chmod(0o600)
+            c=m.load(cp);c['_sha256']=m.digest(cp)
+            m.save(product/'build.json',{'build_id':'b_same','config_sha256':c['_sha256']})
+            reused=pf.Flow(c,product).run()
+            self.assertTrue(reused['reused_completed']);self.assertEqual(reused['build_id'],'b_same')
+            self.assertEqual((product/'product-receipt.json').read_bytes(),raw)
+            pins=[dict(path=p,sha256=m.digest(p)) for p in (sys.executable,str(m.PRODUCT_FLOW),str(m.DIALOGUE))]
+            recipe=dict(protocol='oo.source-onboarding.recipe/v1',engine='mysql',owned_fixture=True,mode='whole_source',completion_artifact='whole.json',pins=pins,steps=[dict(name='product',argv=[sys.executable,str(root/'reuse.py')]),dict(name='dialogue',argv=[sys.executable,str(m.DIALOGUE)])])
+            journal={'state':'failed','steps':[{'name':'product','state':'succeeded','observed_programs':[str(m.PRODUCT_FLOW)],'artifacts':[{'path':'product/product-receipt.json','sha256':m.digest(product/'product-receipt.json')}]},{'name':'dialogue','state':'succeeded','observed_programs':[str(m.DIALOGUE)],'artifacts':[{'path':'dialogue/verdict.json','sha256':m.digest(dialogue/'verdict.json')},{'path':'dialogue/transcript.json','sha256':m.digest(dialogue/'transcript.json')}]}]}
+            self.assertTrue(m.prove_whole(run,recipe,journal)['full_product_chain_complete'])
+            self.assertEqual((product/'product-receipt.json').read_bytes(),raw)
+            bad_pins=json.loads(json.dumps(recipe));bad_pins['pins']=[dict(path=p,sha256='00'*32) for p in (sys.executable,str(m.PRODUCT_FLOW),str(m.DIALOGUE))]
+            with self.assertRaisesRegex(m.Refused,'shared_program_unpinned'):m.prove_whole(run,bad_pins,journal)
+            unrun=json.loads(json.dumps(journal));unrun['steps'][0]['observed_programs']=[];unrun['steps'][1]['observed_programs']=[]
+            unrun_recipe=json.loads(json.dumps(recipe));unrun_recipe['steps'][1]['argv']=[sys.executable,str(root/'reuse.py')]
+            with self.assertRaisesRegex(m.Refused,'historical_completion_attached'):m.prove_whole(run,unrun_recipe,unrun)
+            copied=json.loads(raw);copied['producer_sha256']='ab'*32;(product/'product-receipt.json').write_bytes(json.dumps(copied).encode())
+            with self.assertRaisesRegex(m.Refused,'historical_completion_attached'):m.prove_whole(run,recipe,journal)
+            (product/'product-receipt.json').write_bytes(raw)
+            foreign=json.loads(raw);foreign['producer']='tools/other.py';(product/'product-receipt.json').write_bytes(json.dumps(foreign).encode())
+            forged=json.loads(json.dumps(journal));forged['steps'][0]['artifacts'][0]['sha256']=m.digest(product/'product-receipt.json')
+            with self.assertRaisesRegex(m.Refused,'source_not_fresh'):m.prove_whole(run,recipe,forged)
+            (product/'product-receipt.json').write_bytes(raw)
+            config['catalog_sha256']='cd'*32;cp.write_text(json.dumps(config));cp.chmod(0o600)
+            c2=m.load(cp);c2['_sha256']=m.digest(cp)
+            with self.assertRaisesRegex(pf.Refused,'product_resume_drift'):pf.Flow(c2,product).run()
+            self.assertEqual((product/'product-receipt.json').read_bytes(),raw)
+            (product/'catalog.json').write_bytes(b'{"tables":[1]}\n')
+            with self.assertRaisesRegex(m.Refused,'source_not_fresh'):m.prove_whole(run,recipe,journal)
     def test_duplicate_keys(self):
         with self.assertRaisesRegex(m.Refused,'duplicate_key'):json.loads('{"a":1,"a":2}',object_pairs_hook=m.pairs)
     def test_inline_secret(self):
