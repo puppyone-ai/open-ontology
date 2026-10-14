@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-15T00:53:04.074667+08:00",
+  "as_of": "2026-10-15T01:18:42.882070+08:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -153,6 +153,18 @@
         "Gateway经OO CLI及声明可用的MCP或其他现有入口供独立Agent直接调用，完成真实多轮对话/查询及独立准确性验证",
         "固定实现/运行制品/原始证据/独立完整复审，缺CDC/模型凭据/人工审批/实例等保持待验，历史受控preview不替代完整签收"
       ]
+    },
+    "random_dialogue_subexits": {
+      "verified": 5,
+      "required": 10,
+      "scope": "test subexits only, source full0/10; PG continuous fixture not approvedfull product",
+      "intakes": {
+        "clickhouse": "clickhouse17-structured-random-actual-intake.json",
+        "opensearch": "opensearch-two-random-actual-intake.json",
+        "doris": "doris-two-random-actual-intake.json",
+        "postgresql": "postgresql-two-random-actual-intake.json",
+        "starrocks": "star-current19-two-random-actual-intake.json"
+      }
     }
   },
   "priority_frontier": {
@@ -2263,59 +2275,38 @@
   },
   "managed_live_processes": [
     {
-      "task": "oracle",
-      "pid": 83403,
-      "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
-      "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
-      "tool_handle": null
-    },
-    {
       "task": "mariadb",
       "pid": 17188,
       "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
-      "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+      "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
       "tool_handle": null
     },
     {
       "task": "clickhouse",
       "pid": 7630,
       "session_uuid": "c420eabd-594b-49ee-93d9-82d75fb6f17d",
-      "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
-      "tool_handle": null
-    },
-    {
-      "task": "doris",
-      "pid": 7632,
-      "session_uuid": "edc3dd87-daf4-45d4-a062-2b897d7d837b",
-      "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+      "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
       "tool_handle": null
     },
     {
       "task": "opensearch",
       "pid": 5834,
       "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
-      "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
-      "tool_handle": null
-    },
-    {
-      "task": "postgresql",
-      "pid": 2203,
-      "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
-      "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
-      "tool_handle": null
-    },
-    {
-      "task": "starrocks",
-      "pid": 2201,
-      "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
-      "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+      "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
       "tool_handle": null
     },
     {
       "task": "sqlserver",
-      "pid": 2205,
-      "session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
-      "confirmed_as_of": "2026-10-15T00:53:04.074667+08:00",
+      "pid": 25811,
+      "session_uuid": "d32a1c31-e9bd-40c1-81ba-68acaca6783b",
+      "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
+      "tool_handle": null
+    },
+    {
+      "task": "shared-entry",
+      "pid": 21962,
+      "session_uuid": "3d13200e-95fc-4cea-b6f9-bf5134799170",
+      "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
       "tool_handle": null
     }
   ],
@@ -2773,5 +2764,107 @@
       }
     ],
     "intake": "execution/reviews/grok-connection-resume-20261014/maria-actual-bootstrap-caller-block-intake.json"
+  },
+  "latest_Star_two_actual_random_and_default_legal_pin": {
+    "at": "2026-10-15T01:02:56.592592+08:00",
+    "note": "2026-10-15 Star2201 terminal8f1d28cfdb固定sourcewrappere96f；Linuxdate344 archive0/e0c2 Gateway实际两日期2/1与hidden/lower拒，actual本次entry-e0c2执行product_flow保留product3/三official200LLM0及Repo2056新agg_revenue_taps/event_note_id24两turn。Root独立读源revenue2.0000/note边加先前pkrows2/score5.50，current19/同Pack5eae的run4与entry两fresh disjoint2turn四QIDadmitcomplete/hash全部过：random子出口5/10（非sourcefull，旧run2不同Pack未用）。normal六字段仍oldpin wrapperb4f拒，proposal58e29/新增actualselection artifact不是sourceformal。Shared原f52589975 terminal后同完整职责compactfresh持久21962接合法原注册repin/currentdefaultactualinvoker/prove_whole整链，其他source rows/原S5失败与成本不改，不跨source写问题池，history候选不足先准确源author准备避免盲paid复用。Sourcefull/正式0/10不晋、Plan/计数/Goal/整版支持级检查未全部exit；随机5仅已有十源测试条件，非增加开发分母/独立review。",
+    "managed_live": [
+      {
+        "task": "oracle",
+        "pid": 83403,
+        "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
+        "confirmed_as_of": "2026-10-15T01:02:56.592592+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "mariadb",
+        "pid": 17188,
+        "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
+        "confirmed_as_of": "2026-10-15T01:02:56.592592+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "clickhouse",
+        "pid": 7630,
+        "session_uuid": "c420eabd-594b-49ee-93d9-82d75fb6f17d",
+        "confirmed_as_of": "2026-10-15T01:02:56.592592+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "doris",
+        "pid": 7632,
+        "session_uuid": "edc3dd87-daf4-45d4-a062-2b897d7d837b",
+        "confirmed_as_of": "2026-10-15T01:02:56.592592+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "opensearch",
+        "pid": 5834,
+        "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
+        "confirmed_as_of": "2026-10-15T01:02:56.592592+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "shared-entry",
+        "pid": 21962,
+        "session_uuid": "3d13200e-95fc-4cea-b6f9-bf5134799170",
+        "confirmed_as_of": "2026-10-15T01:02:56.592592+08:00",
+        "tool_handle": null
+      }
+    ],
+    "random_subexit_verified": 5,
+    "required": 10,
+    "full_source_accepted": 0,
+    "source_intakes": {
+      "clickhouse": "clickhouse17-structured-random-actual-intake.json",
+      "opensearch": "opensearch-two-random-actual-intake.json",
+      "doris": "doris-two-random-actual-intake.json",
+      "postgresql": "postgresql-two-random-actual-intake.json",
+      "starrocks": "star-current19-two-random-actual-intake.json"
+    },
+    "PG_scope": "continuous fixture test only, approved fullrole product pending"
+  },
+  "latest_SQL_and_PG_actual_consumers_handoff": {
+    "at": "2026-10-15T01:18:42.882070+08:00",
+    "note": "2026-10-15 PG2203 terminal收actual同XID878/end0/40715A8已g5 sealed，g6/g7是相同Arrow7dc276被换generation/jobTask，OO010正确拒；subset生产器已经修与重复endLSN拒界而非让oldtxn过。下一真实sourceCommit0/4085240已落盘未消费；C1failedactive_task c304902a/8attempt/0pendingACK/nohigherFullImport不能现officialrelease（scheduler只C2/C4/C5），源writer保留不手UPDATEjobs/slot。SQL2205 terminal作者sourceC2g11维护/pack06db、同S0receiptc9保持/四新QID随机/WAL/goldcancel0/reuseproductreceipt9f1已交，但未root核源QA/未普通六字段default故source正式0，不能directproduct_flow称onboarddefault。原7df context反复80%压缩后same完整SQL+foundation职责compactfreshd32a1c31 PID25811优先真实三C1公共缺口：officialGTIDscope admission（仅其source-admission范围+必要tests）、actualMongoepochseal new0025兼容/installer、C1安全failedfence release与pendingACK/higherApplied守卫；原Maria caller/source capture和PG producer独占原人，新fixedELFs/actualconsumer后继续SQLdefault原全exit，root收精确ABI。其它原sourceQA/modelS5/DML不重做，不review子任务/不新分母；原Plan计数Goal整版/支持级全0和random5不晋级。",
+    "managed_live": [
+      {
+        "task": "mariadb",
+        "pid": 17188,
+        "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
+        "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "clickhouse",
+        "pid": 7630,
+        "session_uuid": "c420eabd-594b-49ee-93d9-82d75fb6f17d",
+        "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "opensearch",
+        "pid": 5834,
+        "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
+        "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "sqlserver",
+        "pid": 25811,
+        "session_uuid": "d32a1c31-e9bd-40c1-81ba-68acaca6783b",
+        "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "shared-entry",
+        "pid": 21962,
+        "session_uuid": "3d13200e-95fc-4cea-b6f9-bf5134799170",
+        "confirmed_as_of": "2026-10-15T01:18:42.882070+08:00",
+        "tool_handle": null
+      }
+    ],
+    "formal_full_source": 0,
+    "random_subexit_verified": 5
   }
 }
