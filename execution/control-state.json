@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-15T00:31:45.983296+08:00",
+  "as_of": "2026-10-15T00:34:46.323424+08:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -2266,49 +2266,70 @@
       "task": "mysql",
       "pid": 98647,
       "session_uuid": "9d6759b1-fd71-4594-bc64-ff9d8296001e",
-      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+      "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
       "tool_handle": null
     },
     {
       "task": "oracle",
       "pid": 83403,
       "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
-      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+      "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
       "tool_handle": null
     },
     {
       "task": "mariadb",
       "pid": 98649,
       "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
-      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+      "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+      "tool_handle": null
+    },
+    {
+      "task": "mongodb",
+      "pid": 10014,
+      "session_uuid": "3005fbfd-413f-49ba-81dc-3649a8304ef1",
+      "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+      "tool_handle": null
+    },
+    {
+      "task": "clickhouse",
+      "pid": 7630,
+      "session_uuid": "c420eabd-594b-49ee-93d9-82d75fb6f17d",
+      "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+      "tool_handle": null
+    },
+    {
+      "task": "doris",
+      "pid": 7632,
+      "session_uuid": "edc3dd87-daf4-45d4-a062-2b897d7d837b",
+      "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
       "tool_handle": null
     },
     {
       "task": "opensearch",
       "pid": 5834,
       "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
-      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+      "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
       "tool_handle": null
     },
     {
       "task": "postgresql",
       "pid": 2203,
       "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
-      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+      "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
       "tool_handle": null
     },
     {
       "task": "starrocks",
       "pid": 2201,
       "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
-      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+      "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
       "tool_handle": null
     },
     {
       "task": "sqlserver",
       "pid": 2205,
       "session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
-      "confirmed_as_of": "2026-10-15T00:31:45.983296+08:00",
+      "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
       "tool_handle": null
     }
   ],
@@ -2489,5 +2510,85 @@
     "full_source_accepted": 0,
     "random_verified": 4,
     "intake": "execution/reviews/grok-connection-resume-20261014/shared-ad79-actual-collection-consumption-intake.json"
+  },
+  "latest_all_ten_unique_source_longruns": {
+    "at": "2026-10-15T00:34:46.323424+08:00",
+    "note": "2026-10-15 共享ad79真实消费/root13tests及GTID483固定基础ready后，Click64845/Doris31161/Mongo32231原OS terminal/full未完，对应同完整工程师compactfresh c420eabd PID7630/edc3dd87 PID7632/3005fbfd PID10014恢复normal默认当前Pack/directFlow/Repo真实随机全链；原所有sourceUUID/原S5/cost/失败/源数据/资源保留，非拆组件/新分母/empty review。Click17和Doris19原两random源facts/QIDWAL可同identity复用，normal本次调用不能复制历史；Mongo主rs0 C1真实弱S0/B按原grade，非强T/standaloneC5。十源各唯一自主owner同时长跑，shared原sole注册terminalready待精确fixedwrapper/recipe合法repin不paididle。原正式/full0/10、random测试4/10，验收/Plan/Goal/PRODUCT_LOOPS/支持级检查原exit未齐均不晋；最新600sec退出工具等待、CPU无固定上限/独占文件/客户0writes/Token20%达标未知。",
+    "managed_live": [
+      {
+        "task": "mysql",
+        "pid": 98647,
+        "session_uuid": "9d6759b1-fd71-4594-bc64-ff9d8296001e",
+        "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "oracle",
+        "pid": 83403,
+        "session_uuid": "5bd27ec3-a8bd-4470-847a-8dce8a629980",
+        "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "mariadb",
+        "pid": 98649,
+        "session_uuid": "8436f928-e515-40db-a3e3-508fd0ccf82e",
+        "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "mongodb",
+        "pid": 10014,
+        "session_uuid": "3005fbfd-413f-49ba-81dc-3649a8304ef1",
+        "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "clickhouse",
+        "pid": 7630,
+        "session_uuid": "c420eabd-594b-49ee-93d9-82d75fb6f17d",
+        "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "doris",
+        "pid": 7632,
+        "session_uuid": "edc3dd87-daf4-45d4-a062-2b897d7d837b",
+        "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "opensearch",
+        "pid": 5834,
+        "session_uuid": "8a3aa30c-e1b1-4445-bf1d-9a6c992c6fed",
+        "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "postgresql",
+        "pid": 2203,
+        "session_uuid": "7510a5c4-87b9-4064-8504-ef80c9797217",
+        "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "starrocks",
+        "pid": 2201,
+        "session_uuid": "adb97435-ea95-4f67-baa6-7d21bbf451ae",
+        "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+        "tool_handle": null
+      },
+      {
+        "task": "sqlserver",
+        "pid": 2205,
+        "session_uuid": "7df88389-f286-4e98-96b8-52dd7028a731",
+        "confirmed_as_of": "2026-10-15T00:34:46.323424+08:00",
+        "tool_handle": null
+      }
+    ],
+    "required_formal_sources": 10,
+    "accepted_full_sources": 0,
+    "random_verified_subexits": 4,
+    "shared_entry": "fixed_ready_reserved_registered_recipe_handoff"
   }
 }
