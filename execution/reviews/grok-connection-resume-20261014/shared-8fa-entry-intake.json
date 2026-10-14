@@ -1,0 +1,22 @@
+{
+  "source_commit": "8fa9968c38a630ba40ae7d92f9bb5f524a3ffaf9",
+  "source_hashes": {
+    "tools/selfbuild-control-api/CONTRACT.md": "762c6d92d379c2caf6f700d50c23beea261be912ed31b9ccc8d077435a1d86ed",
+    "tools/selfbuild-control-api/src/stages.rs": "5627a0e486aed35aa9a536e1a5d6742df7ba57f960a72ca06c3fc592fd36a74f",
+    "tools/source-onboarding/CONTRACT.md": "574689e3cb851bdc112268e1dff534a3c7209abc03ad516cb156f2aaf53d0922",
+    "tools/source-onboarding/PRODUCT-FLOW.md": "892e2d144cd5ef8dde4dc290b6d1f0c8efb04920b9484debf8c31273645ff46f",
+    "tools/source-onboarding/onboard.py": "9616aa117a208d3ed592cee05fb21dc351dca2df7d8e563e42562a8f20f5e769",
+    "tools/source-onboarding/product_flow.py": "22ac3d0a774c2a6c2d7adf8a7d53e363699f25c971a124c4c4db3b13d1df253d",
+    "tools/source-onboarding/test_onboard.py": "51c3081c6d51f88bf8d084a5c7978023e425d9c3104999cbee70f3ab03a5a75b"
+  },
+  "fixed_archive_host_tests": {
+    "command": "python3 -m unittest discover -s tools/source-onboarding -p test_*.py",
+    "ran": 9,
+    "exit": 0,
+    "raw_private": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-8fa-fixed-host-tests.json",
+    "raw_sha256": "42c55f0b3bd5059566ac3f75885d3d1f4cfcf076202dbc72820e31fd2f8f7d60",
+    "archive_missing_dependency_attempt_retained": true
+  },
+  "scope": "source selected identity and same-config completed stage reuse tested; local180 budget source fixed, new Linux API ELF/actual Maria request not yet root verified",
+  "acceptance": "unblocks source same-owner connected development only; no full source or formal promotion"
+}

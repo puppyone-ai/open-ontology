@@ -2,19 +2,19 @@
   {
     "task": "mysql",
     "session_uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
-    "pid": 72621,
+    "pid": 49893,
     "prompt": "execution/batches/grok-connection-full-20261014/mysql-compact-whole-fallback.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql.log",
     "write_paths": [
       "tools/mysql-preview"
     ],
-    "status": "same_owner_reserved_collect_delivery_and_shared_dependency",
+    "status": "same_owner_original_default_entry_and_continuous_exits",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 105,
-    "prior_pid": 54848,
+    "prior_pid": 72621,
     "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/mysql-same-owner-long-run.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mysql-persistent-shared-8fa-exits.md",
     "max_turns": 1000
   },
   {
@@ -74,18 +74,18 @@
   {
     "task": "clickhouse",
     "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
-    "pid": 80121,
+    "pid": 49895,
     "prompt": "execution/batches/grok-connection-full-20261014/clickhouse.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse.log",
     "write_paths": [
       "tools/clickhouse-preview"
     ],
-    "status": "waiting_shared_registry_resume_case_same_owner_reserved",
+    "status": "same_owner_original_default_entry_and_continuous_exits",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 142,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "prior_pid": 83392,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/clickhouse-same-owner-whole-exits.md",
+    "prior_pid": 80121,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/clickhouse-persistent-shared-8fa-exits.md",
     "max_turns": 1000
   },
   {
@@ -110,19 +110,19 @@
   {
     "task": "opensearch",
     "session_uuid": "66a4336c-2ec9-45cf-89be-d9f6d5d5982a",
-    "pid": 6094,
+    "pid": 49897,
     "prompt": "execution/batches/grok-connection-full-20261014/opensearch-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/opensearch.log",
     "write_paths": [
       "tools/opensearch-preview"
     ],
-    "status": "same_owner_reserved_collect_delivery_and_shared_dependency",
+    "status": "same_owner_original_default_entry_and_continuous_exits",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 268,
     "prior_session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
-    "prior_pid": 46692,
+    "prior_pid": 6094,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/opensearch-persistent-original-exits.md",
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/opensearch-persistent-shared-8fa-exits.md",
     "max_turns": 1000
   },
   {
