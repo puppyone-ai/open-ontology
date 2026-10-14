@@ -3015,3 +3015,5 @@ a372 WITHHOLD originalE51 20f065096：实际100k sealedrow可阻55P03，但期�
 2026-10-14 固定共享入口3a8950483：private连接/pinned recipe恢复验证，真实OIDC及S0–S10 API编排，host3tests通过；本组件不计十源一键完成。源各自fresh capture/Loader/API继续，SQL CT codec由唯一SQLowner补native_update/target_installer/0023新迁移，旧迁移hash不变；PG唯一API owner修观测metadata叶子漂移，语义与权限仍严格。所有前置源作者自备，旧TLS失败保留不绕过。当前一键完整0/10、历史作者9/10、正式0/10。
 
 2026-10-14 最新人类执行者切换：原生子智能体临时禁用，活动列表实测仅root，恢复GrokCLI十二个完整长跑任务（十源+共享一键入口+唯一infra恢复）。dispatch位于batches/grok-connection-full-20261014/dispatch.json；现有dirty源码/失败/固定制品/DB卷保留，未知交互Grok不kill不计管理并发。磁盘实测47GiB可用但Dockerps超时，infra唯一受控恢复owner；不增加数据库/重复build。原一键完整0/10、历史作者9/10、正式0/10不变，统一十源审阅及原退出保留。
+
+2026-10-14 Grok首轮收取：infra实测Docker version/ps/exec恢复，磁盘67GiB；官方restart超时→官方force stop/start失败记录保留，OIDC18441/18443未serve，唯一infra原session接续合法identity恢复，不用synthetic或伪凭证。MariaDB fe07688d5两文件source capture/preparation作者交付，不能计完整一键；原session已terminal后恢复可信official全链。固定收取回执execution/reviews/grok-connection-resume-20261014/initial-intake.json。原一键0/10、历史作者9/10、正式0/10不变。Plan当前Gateway文档baseline drift未通过，shared入口host7tests有engine_mismatch1error（activewriter时实测），均未虚报绿。
