@@ -1,0 +1,39 @@
+{
+  "source_commit": "98032e6115c7c7e682c758a1a99b2762b809c9bd",
+  "fixed_archive": "/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/oo-root-shared980-fixed-6ea419si",
+  "root_tests": {
+    "exit": 0,
+    "stderr": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.734s\n\nOK\n"
+  },
+  "actual_maintenance_consumption": {
+    "path": "/tmp/oo-oracle-connection-whole/whole-20261014f/product/maintenance-consumption.json",
+    "sha256": "583485f0c6388ed39ad753d8bbb1e1bf4856b551b587989763ee5c249d239588",
+    "result": {
+      "protocol": "oo.source-onboarding.maintenance-consumption/v1",
+      "product_receipt_sha256": "6fa2ff6f2e8211155f9ef42e8f295a096907395aacdd775fc9a655983e3008e5",
+      "product_producer": "tools/source-onboarding/product_flow.py",
+      "product_producer_sha256": "b20148b6a634819f8503d35dd019d64d19b71e1efdd280dbf846e3e40f93674b",
+      "build_id": "b_739b3a14d1167f50b5f48ae22a8317e2",
+      "s5_role_pack_sha256": "731226cc65be31acfd1920548bf94075f90f8574d9d5916c31bba2ba2ac49e45",
+      "role_pack_file_sha256": "a25dfbfc6d1ed292bf0f2547af3f7ace929171fbc408e6c4c496d239c237d5c2",
+      "pack_digest": "ef174bd20ff756039211d5e0ef999bf8444338dd7f5efa7d87b72d18c643f5a7",
+      "http_pack_sha256": "9bfd65d2ca3a27fa019882c83253d1dccb6f623a611d179589f73d573ccb9a53",
+      "source_id": "oracle_oneclick_orders",
+      "source_generation": 7,
+      "schema_digest": "f002b65dac929bfd96866a1936003e92ed366a186e4dc624fb978ef4af2cc425",
+      "catalog_sha256": "67f8d2bf28a8c7126302a1e39e3e868082913422ecc141abc25fb6117777bd1d",
+      "catalog_version": "394dc60f76bc01a3115e6e4e894e86824f4b6c3bd809c2c82a67ea0d9c165c35",
+      "role": "oo_r_oracle_orders",
+      "policy_version": "oos/v1",
+      "artifact_revision": "cc6fd8645b13cfbe35f1a04e94a744cab8cd0b763cda9bb745ef7ec0117568c8",
+      "maintenance_llm_calls": 0,
+      "publication": "not_published",
+      "role_exit": 0,
+      "maintenance_exit": 0,
+      "role_response_sha256": "f730e03823b2a75c910802873a8727b0284365b196c2935508d37b793ff62d85",
+      "maintenance_response_sha256": "7181d1bf38f58163ae493990bf37f760ba9e76ec33ce8a7732731107b42a005e",
+      "prepared_overlay_sha256": "35718d35f80e2ad39d7c547ee6403100dc81565272bf8aa1f32eadeaa0550104"
+    }
+  },
+  "scope": "actual official samebuild maintainedPack emission stage; default newrun retainedproduct adoption and full source exits notdone"
+}
