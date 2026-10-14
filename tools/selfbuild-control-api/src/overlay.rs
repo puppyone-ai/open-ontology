@@ -990,6 +990,10 @@ pub async fn insert_generated_model(client: &Client, build_id: &str, yaml: &str)
 fn semantic_basis(mut value: Value) -> Value {
     if let Some(object) = value.as_object_mut() {
         for key in ["source_generation", "target_generation", "table_generations", "binding_vector_sha256", "collection_sha256"] { object.remove(key); }
+        if let Some(contract) = object.get_mut("source_contract").and_then(Value::as_object_mut) { contract.remove("applied_end_lsn"); }
+        if let Some(quality) = object.get_mut("quality").and_then(Value::as_object_mut) {
+            quality.remove("rows"); quality.remove("typed_cells");
+        }
     }
     value
 }
@@ -1134,10 +1138,27 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs, r
 
 #[cfg(test)]
 mod source_money_tests {
-    use super::{ensure_source_money, project_native_source_money};
+    use super::{ensure_source_money, project_native_source_money, semantic_basis};
     use crate::oosyaml::generated_from_inputs;
     use serde_json::json;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn source_rebind_observations_advance_without_hiding_semantic_drift() {
+        let original = json!({"source_id":"pg","source_generation":3,"target_generation":6,"capture_method":"C1","consistency_grade":"T","delete_detection":"native","source_contract":{"reader":"reader","write_attempts":0,"cross_table_consistent":true,"applied_end_lsn":"0/40"},"quality":{"tables":4,"columns":38,"rows":100054,"typed_cells":928358,"typed_cell_differences":0}});
+        for generation in [4,5] {
+            let mut next = original.clone(); next["source_generation"] = json!(generation);
+            next["target_generation"] = json!(generation + 3);
+            next["source_contract"]["applied_end_lsn"] = json!(format!("0/{generation}0"));
+            next["quality"]["rows"] = json!(100054 + generation);
+            next["quality"]["typed_cells"] = json!(928358 + generation * 38);
+            assert_eq!(semantic_basis(original.clone()), semantic_basis(next));
+        }
+        for (path,value) in [("/consistency_grade",json!("S1")),("/delete_detection",json!("unknown")),("/capture_method",json!("C5")),("/source_contract/write_attempts",json!(1)),("/source_contract/cross_table_consistent",json!(false)),("/source_contract/reader",json!("other")),("/quality/typed_cell_differences",json!(1)),("/quality/columns",json!(39))] {
+            let mut changed = original.clone(); *changed.pointer_mut(path).unwrap() = value;
+            assert_ne!(semantic_basis(original.clone()), semantic_basis(changed));
+        }
+    }
 
     #[test]
     fn source_rebind_rejects_rewind_identity_and_same_generation_drift() {

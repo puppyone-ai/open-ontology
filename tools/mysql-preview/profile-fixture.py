@@ -21,7 +21,7 @@ def main():
         raise SystemExit('owned synthetic source required')
     def sql(text):
         return subprocess.check_output(['docker','exec',args.container,'mysql',
-            '--defaults-extra-file='+args.client_file,'--default-character-set=utf8mb4',
+            '--defaults-file='+args.client_file,'--default-character-set=utf8mb4',
             '--batch','--raw','--skip-column-names','-e',text],text=True)
     schema = 'native_mysql_20261012'
     tables = []

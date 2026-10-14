@@ -177,7 +177,7 @@ operator-configured sealed bundle; HTTP cannot supply a catalog or directory.
 The existing bundle manifest and source protocol validate the bytes used.
 Only a sealed collection with identical source/dataset identities, schema,
 types, native semantics, rules, visibility and model settings may reuse the
-original reviewed decisions. Generations cannot rewind or change an existing
+original reviewed decisions. Only runtime observations `source_contract.applied_end_lsn`, `quality.rows` and `quality.typed_cells` are excluded from semantic equality; capability, grade, deletion, reader, zero writes, column count and typed differences remain checked. Generations cannot rewind or change an existing
 run's data identity. Structural, semantic, classification or role changes
 require a new genuine Selfbuild. The immutable model output remains unchanged.
 A successful operation appends a zero-model native-maintenance receipt and

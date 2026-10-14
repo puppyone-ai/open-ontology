@@ -1,0 +1,167 @@
+[
+  {
+    "task": "mysql",
+    "session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
+    "pid": 83388,
+    "prompt": "execution/batches/grok-connection-full-20261014/mysql.md",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql.log",
+    "write_paths": [
+      "tools/mysql-preview"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 105
+  },
+  {
+    "task": "oracle",
+    "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
+    "pid": 83389,
+    "prompt": "execution/batches/grok-connection-full-20261014/oracle.md",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle.log",
+    "write_paths": [
+      "tools/oracle-preview"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 395
+  },
+  {
+    "task": "mariadb",
+    "session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
+    "pid": 83390,
+    "prompt": "execution/batches/grok-connection-full-20261014/mariadb.md",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb.log",
+    "write_paths": [
+      "tools/mariadb-preview"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 207
+  },
+  {
+    "task": "mongodb",
+    "session_uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc",
+    "pid": 83391,
+    "prompt": "execution/batches/grok-connection-full-20261014/mongodb.md",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mongodb.log",
+    "write_paths": [
+      "tools/mongodb-preview"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 327
+  },
+  {
+    "task": "clickhouse",
+    "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
+    "pid": 83392,
+    "prompt": "execution/batches/grok-connection-full-20261014/clickhouse.md",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse.log",
+    "write_paths": [
+      "tools/clickhouse-preview"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 142
+  },
+  {
+    "task": "doris",
+    "session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
+    "pid": 83393,
+    "prompt": "execution/batches/grok-connection-full-20261014/doris.md",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/doris.log",
+    "write_paths": [
+      "tools/doris-preview",
+      "testing/dl01-driver-preflight/doris/reader"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 218
+  },
+  {
+    "task": "opensearch",
+    "session_uuid": "fd210257-6b9d-4f12-9b17-800f98043688",
+    "pid": 83394,
+    "prompt": "execution/batches/grok-connection-full-20261014/opensearch.md",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/opensearch.log",
+    "write_paths": [
+      "tools/opensearch-preview"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 268
+  },
+  {
+    "task": "postgresql",
+    "session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
+    "pid": 83395,
+    "prompt": "execution/batches/grok-connection-full-20261014/postgresql.md",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
+    "write_paths": [
+      "tools/postgres-preview",
+      "crates/oo-gateway/src/policy.rs",
+      "crates/oo-gateway/src/bin/install-column-acl.rs",
+      "docs/07-gateway.md"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 285
+  },
+  {
+    "task": "starrocks",
+    "session_uuid": "3480c892-ff35-4180-958d-e6a62fbeee53",
+    "pid": 83396,
+    "prompt": "execution/batches/grok-connection-full-20261014/starrocks.md",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/starrocks.log",
+    "write_paths": [
+      "tools/starrocks-preview"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 130
+  },
+  {
+    "task": "sqlserver",
+    "session_uuid": "594fdbf7-1b24-444c-904b-3f80c9752ad2",
+    "pid": 83397,
+    "prompt": "execution/batches/grok-connection-full-20261014/sqlserver.md",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
+    "write_paths": [
+      "tools/mssql-preview",
+      "testing/dl01-targets/mssql",
+      "crates/oo-pipeline/src/native_update.rs",
+      "crates/oo-pipeline/src/native_binding.rs",
+      "crates/oo-pipeline/src/target_installer.rs",
+      "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 0
+  },
+  {
+    "task": "shared-entry",
+    "session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
+    "pid": 83398,
+    "prompt": "execution/batches/grok-connection-full-20261014/shared-entry.md",
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
+    "write_paths": [
+      "tools/source-onboarding"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 120
+  },
+  {
+    "task": "infra",
+    "session_uuid": "d9d4b015-d0e0-4216-8762-204a9da052e9",
+    "pid": 95068,
+    "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/infra.log",
+    "prompt": "execution/batches/grok-connection-full-20261014/infra.md",
+    "write_paths": [
+      "/Users/redux/.cache/oo-grok-connection-full-20261014/INFRA-STATE.json"
+    ],
+    "status": "pid_live_initial_observation",
+    "executor": "grok-4.7/xhigh",
+    "initial_log_bytes": 13
+  }
+]

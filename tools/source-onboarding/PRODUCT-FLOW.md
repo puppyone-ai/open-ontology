@@ -1,0 +1,30 @@
+# Shared real product flow
+
+`python3 tools/source-onboarding/product_flow.py --config /private/product.json --out /private/new-run/product`
+
+The caller deploys its own actual fixed Selfbuild API project against **this run's** sealed bundle. This helper calls existing `recipes/operator.py` unchanged: actual OIDC identity/current, current CSRF, real role cookies, TLS verification, real HTTP responses. It never uses closed_loop's synthetic identity fixture, hardcoded cards or canned bundle. New source identity requires a real S5; do not copy a provider response/cache or an old build.
+
+Private `product.json` fields:
+
+- `endpoint`, `origin`, `ca`, `identity_origin`, `identity_ca`.
+- `cookies`: paths for `admin`, `reviewer`, `owner`, each real authenticated fixture session.
+- `operator_sha256`: fixed SHA256 of `tools/selfbuild-control-api/recipes/operator.py`.
+- `fixture_authorized: true`: source owner authorized its own fixture review. This is never a business signature.
+- `create`: exactly `allowance_id`, `config_commit`, `llm_secret_ref`, `project_id`, `source_ref`. The helper adds actual `identity_revision` and a new idempotency key.
+- `reviews`: explicit source-owner decisions `{name, binds_fact, decision}`. No model-derived automatic approval.
+- `confirm_columns`: actual authorized schema.table.column names; `role`: installed fixture role.
+- optional `model_deadline_seconds` (default 1800).
+
+Calls: create new build; poll actual S0–S8; authenticate reviewer decisions; authenticate owner classification confirmations; compile and GET actual role Pack; require all eleven stages succeeded; retain actual overlay, Pack and product receipt. It rejects a business signature and requires `control_plane_test`. Raw API failures remain private. Resume uses saved build_id (never issues a second model build), verifies same config and re-polls; prior HTTP attempts remain immutable.
+
+API deployment reuses fixed `selfbuild-control-api`, `install --config` then `serve --config`, with the official `tools/selfbuild-control-api/src/config.rs` schema. Copy a source-owner private configuration into **new** owned runtime; retain real identity origin/CA and fixed binaries. Set a unique initialized Selfbuild control/ledger database, private `work_dir`, `model_cache_dir`, listen endpoint/cert/key, project/source_ref/allowance/config_commit and source.tables matching all fresh catalog tables. `sealed_bundle` points only at current manifest-bound bundle; `source_protocol` preserves original engine/catalog/profile/semantics/capture basis. LLM origin remains approved localhost8317 and private existing bearer, model gpt-6.1-sol or authorized grok-4.7, low effort. Never modify another running source's bundle/project or invent session grants.
+
+Official current API source `20b6a4d11789a561d88fcf7d9c6f2cf970c94b29`; Linux1.94 ELF `654d0740bdf4c6ee58980dc1e54803213f8cdce6f2a58c3e34e16cf06cbfe8b0`; actual host artifact/config paths supplied by Star runtime owner, see `/tmp/oo-star-runtime-finish/FIXED-RECEIPT.json`.
+
+After Pack, use official `pg-builder sealed-review`/`oo-builder role-pack` and `recipes/export_oos.py` on the actual compiled effective OOS. Existing source-owner Loader/CAS/ACK, native collection, ACL, Gateway and typed-oracle scripts supply current data and binding. Actual dialogue uses `tools/agent-product-verifier/dialogue.py --config /private/dialogue.json --out /private/new-run/dialogue`: approved proxy/model, private model bearer and Gateway token, actual OO CLI binary, actual Gateway/transport/auth/CA, independent truth file and questions. Its existing verifier grounds each named fact in successful tool query rows; truth does not enter model prompts. Successful old dialogue may remain immutable evidence only for the same verified semantics/data claim.
+
+The product receipt explicitly retains `gateway_dialogue_complete: false` until those real final recipes have run. S0–S10/Pack alone never completes the whole-source contract. No publication, customer certification or external audit collector is claimed.
+
+Verified artifact path: `/tmp/oo-star-runtime-finish/selfbuild-control-api-v3`; source-owner private template `/tmp/oo-star-runtime-finish/runtime.json`. Existing Star instance `oo-star-runtime-finish-api` shares control container namespace; do not overwrite it. Fresh source deployment uses own bridge network/runtime and host port, retaining TLS. Existing identity transport helper `/Users/redux/.cache/oo-dl01w1-71/native-generic/identity_forward.py` connects the genuine retained OIDC service (no synthetic identity). Mount private runtime rw, fixed cache ro, native identity certs ro, repository ro; official fixed API can use the same immutable ELF. Existing Star template intentionally uses `llm.bearer_file=/no-model-authorized`; replace only with authorized private original model bearer for a new real S5. Clone source-specific control/ledger DB credentials and sourceProtocol/roles to the new namespace, never point writes at Star's live schema.
+
+If create HTTP delivery becomes uncertain before build_id is retained, the helper refuses a second create on resume. Recover the actual build from official list/detail using the retained idempotency request; never pay for a duplicate build to hide the uncertainty.

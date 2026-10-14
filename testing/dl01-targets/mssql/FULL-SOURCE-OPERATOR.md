@@ -155,3 +155,27 @@ No real source/whole-loop execution has occurred on this host.
 CT algorithm follows Microsoft primary documentation:
 [Work with Change Tracking](https://learn.microsoft.com/en-us/sql/relational-databases/track-changes/work-with-change-tracking-sql-server?view=sql-server-ver17)
 and [database recovery identity](https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-database-recovery-status-transact-sql?view=sql-server-ver17).
+
+## 2026-10-14 environment recheck
+
+Only local Docker contexts `default`/`desktop-linux` are configured; host `arm64`,
+Docker daemon `aarch64`. No SQLServer container or configured `OO_MSSQL_CUSTOMER_CONFIG`
+was found in this owner session; named09 retained directories contain source/build
+artifacts, not a live endpoint. No configured SSH host inventory is available.
+This is bounded configuration inspection, not a scan of private keys or all home files.
+Fixed Linux Rust1.94 reader ELF still matches `f33f711c398bbc7d0f62cf4ee2fa4f9640e305dd36ae9541ee391618412396d8`
+from `af171081776253b41e91347dbebcc2142d5446d2`; no unchanged-reader rebuild is required.
+
+To run the fixture on a supplied native host, explicit authorized operator input
+`OO_DL01W1_09_ACCEPT_EULA=Y` is now mandatory. Without it the runner exits43 before
+creating credentials or invoking Docker. This session did not set it or accept EULA.
+The obsolete compiler-count gate and CPU quota were removed under the 2026-10-12
+resource authorization; native architecture, named ownership and 4g memory boundary
+remain. `scripts/check-runner-boundary.py` checks the no-authorization refusal.
+
+Complete execution still requires native amd64 SQL2022 host/endpoint, license/EULA
+permission, trusted TLS CA, private reader/audit connection references, approved
+objects and actual DBA CT/SNAPSHOT setup provenance. Source import/capture,
+S0–S10/maintenance/Pack/Gateway/actual Agent remain **not_run**, not accepted.
+Local raw environment/refusal receipts are `/tmp/oo-sqlserver-whole`; they contain
+no password values. No owned running container was created or retained.
