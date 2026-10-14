@@ -125,6 +125,77 @@ class RunnerTests(unittest.TestCase):
                 pending=m.install_engine('mysql',rp,reg)
                 self.assertFalse(pending['whole']);self.assertTrue(pending['awaiting_run'])
             finally:m.INSTALL_ROOT=old
+    def test_selected_engine_freeze_ignores_unrelated_registry_entries(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);old=m.INSTALL_ROOT;m.INSTALL_ROOT=root/'install';m.INSTALL_ROOT.mkdir(mode=0o700)
+            try:
+                secret=root/'secret';secret.write_text('private');secret.chmod(0o600)
+                other=root/'other';other.write_text('other');other.chmod(0o600)
+                template=self.write(root/'template',dict(host='localhost',port=3306,database='demo',user='reader',password_file=''))
+                script=root/'driver.py';script.write_text("import pathlib,sys\npathlib.Path(sys.argv[1]).write_text('ok')\n")
+                recipe=dict(protocol='oo.source-onboarding.recipe/v1',engine='mysql',owned_fixture=False,mode='metadata_sample',read_only=True,max_rows=5,config_template=template,connection_map={f'/{k}':k for k in ('host','port','database','user','password_file')},pins=[dict(path=sys.executable,sha256=m.digest(sys.executable)),dict(path=str(script),sha256=m.digest(script))],steps=[dict(name='probe',argv=[sys.executable,str(script),'{run}/receipt.json'],artifacts=[dict(path='receipt.json')])])
+                rp=self.write(root/'recipe',recipe);reg=self.write(root/'registry',{'secret://test':str(secret)})
+                same=self.write(root/'registry-same',{'secret://test':str(secret)})
+                engines={'protocol':'oo.source-onboarding.engines/v1','engines':{'mysql':dict(recipe=rp,recipe_sha256=m.digest(rp),secret_registry=reg,whole=False,awaiting_run=True)}}
+                registry=m.INSTALL_ROOT/'engines.json';self.write(registry,engines)
+                ip=self.write(root/'connection.json',dict(type='mysql',database='demo',host='localhost',port=3306,user='reader',secret_ref='secret://test'))
+                self.assertEqual(m.run(ip)['state'],'recipe_completed')
+                pointer=json.loads((root/'connection.json.run.json').read_text());run=Path(pointer['out']);journal_path=run/'journal.json'
+                journal=json.loads(journal_path.read_text());frozen=journal['identity']['engine_registry_sha256'];selected=journal['identity']['selected_engine_sha256']
+                engines['engines']['oracle']=dict(recipe=rp,recipe_sha256=m.digest(rp),secret_registry=reg,whole=False)
+                self.write(registry,engines)
+                self.assertNotEqual(m.digest(registry),frozen)
+                self.assertEqual(m.run(ip,True)['state'],'recipe_completed')
+                kept=json.loads(journal_path.read_text())
+                self.assertEqual(kept['identity']['engine_registry_sha256'],frozen)
+                self.assertEqual(kept['identity']['selected_engine_sha256'],selected)
+                engines['engines']['mysql']['whole']=True;engines['engines']['mysql']['awaiting_run']=False;self.write(registry,engines)
+                self.assertEqual(m.run(ip,True)['state'],'recipe_completed')
+                engines['engines']['mysql']['secret_registry']=same;self.write(registry,engines)
+                with self.assertRaisesRegex(m.Refused,'resume_drift'):m.run(ip,True)
+                engines['engines']['mysql']['secret_registry']=reg;engines['engines']['mysql']['whole']=False;engines['engines']['mysql']['awaiting_run']=True;self.write(registry,engines)
+                legacy=json.loads(journal_path.read_text());legacy['identity'].pop('selected_engine_sha256');journal_path.write_text(json.dumps(legacy))
+                engines['engines']['clickhouse']=dict(recipe=rp,recipe_sha256=m.digest(rp),secret_registry=reg)
+                self.write(registry,engines)
+                self.assertEqual(m.run(ip,True)['state'],'recipe_completed')
+                migrated=json.loads(journal_path.read_text())
+                self.assertNotIn('selected_engine_sha256',migrated['identity'])
+                self.assertEqual(migrated['identity']['engine_registry_sha256'],frozen)
+                moved=self.write(root/'registry-moved',{'secret://test':str(other)})
+                engines['engines']['mysql']['secret_registry']=moved;self.write(registry,engines)
+                with self.assertRaisesRegex(m.Refused,'resume_drift'):m.run(ip,True)
+                engines['engines']['mysql']['secret_registry']=reg;self.write(registry,engines)
+                recipe['max_rows']=4;self.write(root/'recipe',recipe)
+                engines['engines']['mysql']['recipe_sha256']=m.digest(rp);self.write(registry,engines)
+                with self.assertRaisesRegex(m.Refused,'resume_drift'):m.run(ip,True)
+                recipe['max_rows']=5;self.write(root/'recipe',recipe);engines['engines']['mysql']['recipe_sha256']=m.digest(rp);self.write(registry,engines)
+                conn=json.loads((root/'connection.json').read_text());conn['port']=3307;self.write(root/'connection.json',conn)
+                with self.assertRaisesRegex(m.Refused,'resume_drift'):m.run(ip,True)
+            finally:m.INSTALL_ROOT=old
+    def test_completed_product_reuses_same_config(self):
+        import importlib.util
+        sys.path.insert(0,str(Path(__file__).parent))
+        spec=importlib.util.spec_from_file_location('product_flow',Path(__file__).with_name('product_flow.py'))
+        pf=importlib.util.module_from_spec(spec);spec.loader.exec_module(pf)
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);root.chmod(0o700);out=root/'out';out.mkdir(mode=0o700)
+            catalog='ab'*32
+            config={'fixture_authorized':True,'operator_sha256':m.digest(pf.OPERATOR),'catalog_sha256':catalog,'pins':['pin-a']}
+            cp=root/'config.json';cp.write_text(json.dumps(config));cp.chmod(0o600)
+            c=m.load(cp);c['_sha256']=m.digest(cp)
+            flow=pf.Flow(c,out);build='b_same'
+            m.save(out/'build.json',{'build_id':build,'config_sha256':c['_sha256']})
+            m.save(out/'product-receipt.json',{'protocol':'oo.source-onboarding.product/v1','build_id':build,'catalog_sha256':catalog,'fixture_review':True})
+            result=flow.run();self.assertTrue(result['reused_completed']);self.assertEqual(result['build_id'],build)
+            self.assertEqual(list(out.glob('*.response.json')),[])
+            receipt=json.loads((out/'product-receipt.json').read_text());receipt['build_id']='b_other';(out/'product-receipt.json').write_text(json.dumps(receipt))
+            with self.assertRaisesRegex(pf.Refused,'product_resume_drift'):flow.run()
+            self.assertTrue((out/'product-receipt.json').is_file())
+            receipt['build_id']=build;(out/'product-receipt.json').write_text(json.dumps(receipt))
+            config['pins']=['pin-b'];cp.write_text(json.dumps(config));cp.chmod(0o600)
+            c2=m.load(cp);c2['_sha256']=m.digest(cp)
+            with self.assertRaisesRegex(pf.Refused,'product_resume_drift'):pf.Flow(c2,out).run()
+            self.assertTrue((out/'product-receipt.json').is_file());self.assertEqual(list(out.glob('*.response.json')),[])
     def test_duplicate_keys(self):
         with self.assertRaisesRegex(m.Refused,'duplicate_key'):json.loads('{"a":1,"a":2}',object_pairs_hook=m.pairs)
     def test_inline_secret(self):

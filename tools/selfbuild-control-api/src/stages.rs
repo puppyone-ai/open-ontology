@@ -59,7 +59,7 @@ pub fn catalog_stdin(project: &ProjectCfg) -> Vec<u8> {
 }
 
 pub fn builder_config(project: &ProjectCfg, catalog_bin: &str) -> Value {
-    // One local model call may exceed 30s. Three calls still fit the 300s child budget.
+    // One in-flight local generate uses the builder's existing 180s cap. Other origins stay at 30s.
     let tables: Vec<Value> = project
         .source
         .tables
@@ -81,7 +81,7 @@ pub fn builder_config(project: &ProjectCfg, catalog_bin: &str) -> Value {
         },
         "secret": {"bearer_file": project.llm.bearer_file},
         "budget": {
-            "deadline_ms": 90000,
+            "deadline_ms": generate_deadline_ms(&project.llm.origin),
             "max_completion_tokens": 8192,
             "max_in_flight": 1,
             "max_prompt_tokens": 100000,
@@ -104,6 +104,10 @@ pub fn builder_config(project: &ProjectCfg, catalog_bin: &str) -> Value {
     })
 }
 
+fn generate_deadline_ms(origin: &str) -> u64 {
+    if origin == "http://127.0.0.1:8317" { 180_000 } else { 30_000 }
+}
+
 pub fn rules_args(catalog: &str, profile: &str, cards: &str, auto_accept: &str) -> Vec<String> {
     vec![
         "produce".to_owned(),
@@ -116,6 +120,50 @@ pub fn rules_args(catalog: &str, profile: &str, cards: &str, auto_accept: &str) 
         "--auto-accept".to_owned(),
         auto_accept.to_owned(),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::builder_config;
+    use crate::config::{LlmCfg, ProjectCfg, SourceCfg};
+    use serde_json::json;
+
+    fn project(origin: &str) -> ProjectCfg {
+        ProjectCfg {
+            project_id: "p".into(),
+            config_commit: "c".into(),
+            source_ref: "s".into(),
+            allowance_id: "a".into(),
+            llm_secret_ref: "l".into(),
+            source_secret_ref: "s".into(),
+            source: SourceCfg {
+                host: "127.0.0.1".into(),
+                port: 1,
+                database: "d".into(),
+                username: "u".into(),
+                password_file: "pw".into(),
+                ca_file: "ca".into(),
+                tables: vec![("public".into(), "t".into())],
+            },
+            sample_policy: "none".into(),
+            rules_auto_accept: "no".into(),
+            llm: LlmCfg { bearer_file: "b".into(), origin: origin.into(), model_id: "grok-4.7".into() },
+            role_policy_file: "r".into(),
+            hidden_columns: vec![],
+            visible_columns: vec![],
+            sealed_bundle: "bundle".into(),
+            source_protocol: None,
+        }
+    }
+
+    #[test]
+    fn local_generate_budget_is_the_existing_180s_cap() {
+        let local = builder_config(&project("http://127.0.0.1:8317"), "catalog");
+        assert_eq!(local["budget"]["deadline_ms"], json!(180_000));
+        assert_eq!(local["budget"]["max_in_flight"], json!(1));
+        let external = builder_config(&project("https://example.invalid"), "catalog");
+        assert_eq!(external["budget"]["deadline_ms"], json!(30_000));
+    }
 }
 
 pub fn suggestions_args() -> Vec<String> {

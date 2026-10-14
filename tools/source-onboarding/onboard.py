@@ -69,6 +69,23 @@ def lookup(doc, pointer_key):
         require(isinstance(doc,dict) and segment in doc,'config_pointer');doc=doc[segment]
     return doc
 
+def selected_binding(installed, recipe_path, password_file):
+    # whole/awaiting_run are not the functional binding. Upgrade when a journal must freeze those flags.
+    body = {'password_file':str(password_file), 'recipe':str(recipe_path), 'recipe_sha256':digest(recipe_path), 'secret_registry':installed['secret_registry']}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+def resume_identity_ok(journal, identity, config_path, recipe, password_file):
+    stored = journal['identity']
+    for key in ('input_sha256', 'recipe_sha256', 'template_sha256', 'pins'):
+        if stored.get(key) != identity[key]: return False
+    if 'selected_engine_sha256' not in identity:
+        return stored.get('engine_registry_sha256') == identity.get('engine_registry_sha256') and 'selected_engine_sha256' not in stored
+    if stored.get('selected_engine_sha256') == identity['selected_engine_sha256']: return True
+    if 'selected_engine_sha256' in stored: return False
+    pointer_key = next((p for p, field in recipe['connection_map'].items() if field == 'password_file'), None)
+    if pointer_key is None: return False
+    return lookup(load(config_path), pointer_key) == str(password_file)
+
 PRODUCT_FLOW = Path(__file__).resolve().with_name('product_flow.py')
 DIALOGUE = Path(__file__).resolve().parents[1]/'agent-product-verifier'/'dialogue.py'
 S5_MODELS = {'gpt-6.1-sol','grok-4.7','grok-4.7-build'}
@@ -207,6 +224,7 @@ def run(input_path, resume=False):
     require(spec['protocol'] == 'oo.source-onboarding/v1', 'protocol')
     c = spec['connection']
     engine_registry_sha = None
+    installed = None
     if 'recipe' not in spec:
         registry_path = private(INSTALL_ROOT/'engines.json')
         engine_registry = load(registry_path)
@@ -254,6 +272,7 @@ def run(input_path, resume=False):
     out = Path(spec['out']); require(out.is_absolute(), 'output_path')
     template_path = private(recipe['config_template'])
     identity = {'input_sha256':digest(source), 'recipe_sha256':digest(recipe_path), 'template_sha256':digest(template_path), 'engine_registry_sha256':engine_registry_sha, 'pins':pins}
+    if installed is not None: identity['selected_engine_sha256'] = selected_binding(installed, recipe_path, password_file)
     if resume:
         require(out.is_dir() and not out.is_symlink(), 'resume_directory')
     else:
@@ -264,7 +283,7 @@ def run(input_path, resume=False):
         os.chmod(out/'lock', 0o600); fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         journal_path = out/'journal.json'
         if resume:
-            journal = load(journal_path); require(journal['identity'] == identity, 'resume_drift')
+            journal = load(journal_path); require(resume_identity_ok(journal, identity, out/'driver-config.json', recipe, password_file), 'resume_drift')
             require(digest(out/'driver-config.json') == journal['config_sha256'], 'resume_config_drift')
         else:
             template_path = private(recipe['config_template']); config = load(template_path)

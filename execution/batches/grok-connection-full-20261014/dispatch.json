@@ -170,7 +170,7 @@
   {
     "task": "sqlserver",
     "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
-    "pid": 51920,
+    "pid": 42235,
     "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-complete-fast-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
     "write_paths": [
@@ -182,16 +182,17 @@
       "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql",
       "tools/source-admission/src/capture.rs"
     ],
-    "status": "same_owner_reserved_collect_delivery_and_shared_dependency",
+    "status": "same_owner_original_continuous_c2_exits_after_docker",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 0,
     "prior_session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
     "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete",
     "effort_handoff_previous_pid": 32957,
     "effort_handoff_was_live": true,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-xhigh-handoff.md",
-    "prior_pid": 37472,
-    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-persistent-original-after-docker.md",
+    "prior_pid": 51920,
+    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+    "max_turns": 1000
   },
   {
     "task": "shared-entry",
