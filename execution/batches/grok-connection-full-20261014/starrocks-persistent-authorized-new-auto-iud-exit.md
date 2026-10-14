@@ -3,3 +3,4 @@
 终止删测试行后gold全量0、已goodS5/已gooddialogue不盲重调，新数据准确CLI/source差0和一组必要真实verified对话/QIDWAL/cancel证明即可省调用，原C4冻结p202605/6官方ACK可以绑定原证据reuse并且this_round不假标。
 把已installedsixfields recipe当前pin/whole脚本错配问题真实合法修在你ownedrecipe/source协议，不temporaryrestore global/sharedfile、不旧failed21ab或Bootstrapwhole当普通default。合法same-identity已完成stage复用共享proveWhole修复将fixed交，wrongpins/input仍拒，旧raw+journal不修改。你可以为真正sourcecurrentfreeze合法新run/官方register自己的row+lock，生产六字段OOCLI/Control正常完成才登记whole，不能由一段flag/bootstrap结束。
 Linux1.94必要smoke/固定commit/script+runtimeSHA/实际自动触发时点数据gold/现代OOS保持schema正确/publicquery/真实多轮和取消/原失败/resource全链齐，原全部exit才交付。保持原sameowner长跑，不因为在途后台/等待/一点完成就退。formal0/10和发布/业务Signed不claimed、不review组件/改治理/push。
+最新直接用户测试补充：读execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md；各源真实对话需新随机语义题+独立gold冻结+任意实际CLI，两次不同新序列。共享验收器由Click原owner唯一写，其他源只读fixed SHA，准备自己私有题库/config；旧固定对话保留但不能代新增退出。不要为等验收器重复S5/import或伪随机措辞。

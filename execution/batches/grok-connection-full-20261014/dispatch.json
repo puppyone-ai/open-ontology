@@ -18,7 +18,8 @@
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 binlog CDC",
-    "rust_core_required": true
+    "rust_core_required": true,
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
   },
   {
     "task": "oracle",
@@ -39,7 +40,8 @@
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "verified batch C3/C5, S1 if same SCN proven",
-    "rust_core_required": true
+    "rust_core_required": true,
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
   },
   {
     "task": "mariadb",
@@ -71,7 +73,8 @@
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 MariaDB binlog",
     "rust_core_required": true,
-    "shared_c1_codec_boundary": "sole shared GTID acceptance/compare/checkpoint/native_update writer; source MySQL/Mongo/SQL consumers use fixed contract, no shared writes"
+    "shared_c1_codec_boundary": "sole shared GTID acceptance/compare/checkpoint/native_update writer; source MySQL/Mongo/SQL consumers use fixed contract, no shared writes",
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
   },
   {
     "task": "mongodb",
@@ -91,27 +94,33 @@
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 change stream on replica-set/sharded target",
-    "rust_core_required": true
+    "rust_core_required": true,
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
   },
   {
     "task": "clickhouse",
     "session_uuid": "26ae6875-cfaf-457a-b566-ab548bdc6989",
-    "pid": 609,
+    "pid": 29571,
     "prompt": "execution/batches/grok-connection-full-20261014/clickhouse.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/clickhouse.log",
     "write_paths": [
-      "tools/clickhouse-preview"
+      "tools/clickhouse-preview",
+      "tools/agent-product-verifier/dialogue.py",
+      "tools/agent-product-verifier/tests/test_dialogue.py",
+      "tools/agent-product-verifier/CONTRACT.md"
     ],
-    "status": "same_owner_original_rust_olap_current_fixed_contract",
+    "status": "same_owner_live_random_dialogue_and_original_full_source",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 142,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "prior_pid": 49895,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/clickhouse-persistent-rust-47c-current.md",
+    "prior_pid": 609,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/clickhouse-persistent-random-dialogue-whole.md",
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "applicable C4 parts/partition refresh or documented C3/C5",
-    "rust_core_required": true
+    "rust_core_required": true,
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md",
+    "tool_handle": 75145
   },
   {
     "task": "doris",
@@ -133,7 +142,8 @@
     "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-rust-47c-current.md",
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "applicable C4 partition refresh or documented C3/C5",
-    "rust_core_required": true
+    "rust_core_required": true,
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
   },
   {
     "task": "opensearch",
@@ -154,7 +164,8 @@
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C5 reconcile or C3 with explicit delete reconciliation",
-    "rust_core_required": true
+    "rust_core_required": true,
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
   },
   {
     "task": "postgresql",
@@ -181,7 +192,8 @@
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "C1 logical decoding",
-    "rust_core_required": true
+    "rust_core_required": true,
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
   },
   {
     "task": "starrocks",
@@ -202,7 +214,8 @@
     "max_turns": 1000,
     "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
     "original_required_capture": "applicable C4 partition refresh or documented C3/C5",
-    "rust_core_required": true
+    "rust_core_required": true,
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
   },
   {
     "task": "sqlserver",
@@ -238,7 +251,8 @@
     "rust_core_required": true,
     "read_only_shared_paths": [
       "crates/oo-pipeline/src/native_update.rs"
-    ]
+    ],
+    "random_dialogue_required_card": "execution/batches/grok-connection-full-20261014/random-dialogue-acceptance.md"
   },
   {
     "task": "shared-entry",
