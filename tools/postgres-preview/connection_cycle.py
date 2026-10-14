@@ -45,7 +45,7 @@ def occurrence(pin):
  row=query('pg46_finish_target_v2',f"SELECT t.state||'|'||t.id::text FROM jobs.tasks t JOIN jw_native.occurrences o ON o.task_id=t.id WHERE o.binding_id='{B}' AND o.pin={int(pin)}")
  return row.split('|',1) if row else None
 def release_unapplied(s):
- """A failed pin that never executed does not own the generation. The next fire gets a new pin."""
+ """A failed pin that did not apply does not own the generation. The next fire gets a new pin."""
  pin=int(s['pin']);gen=int(s['generation'])
  wm=query('pg46_finish_target_v2',f"SELECT source_generation::text FROM jw_native.watermarks WHERE binding_id='{B}'")
  if wm!=str(gen-1):raise RuntimeError('watermark is not the parent generation')
@@ -54,8 +54,10 @@ def release_unapplied(s):
  state,task=found
  if state=='succeeded':return pin
  if state!='failed':raise RuntimeError('native capture is '+state)
- if query('pg46_finish_target_v2',f"SELECT count(*) FROM jw_native.process_attempts WHERE task_id='{task}'")!='0':raise RuntimeError('failed capture already executed')
- query('pg46_finish_target_v2',"WITH released AS (UPDATE jw_native.source_progress p SET active_task_id=NULL WHERE p.active_task_id='%s'::uuid AND p.source_generation=%d AND EXISTS (SELECT 1 FROM jobs.tasks t WHERE t.id=p.active_task_id AND t.state='failed') AND NOT EXISTS (SELECT 1 FROM jw_native.pending_acks a WHERE a.task_id=p.active_task_id) AND NOT EXISTS (SELECT 1 FROM jw_native.process_attempts x WHERE x.task_id=p.active_task_id) RETURNING 1) SELECT count(*) FROM released"%(task,gen-1))
+ # Only the official worker recovery API may release a failed task's fence.
+ held=query('pg46_finish_target_v2',f"SELECT count(*) FROM jw_native.source_progress WHERE active_task_id='{task}'")
+ pending=query('pg46_finish_target_v2',f"SELECT count(*) FROM jw_native.pending_acks WHERE task_id='{task}'")
+ if held!='0' or pending!='0':raise RuntimeError('failed capture still holds the source fence')
  if query('pg46_finish_target_v2',f"SELECT count(*) FROM jw_native.source_progress WHERE active_task_id='{task}'")!='0':raise RuntimeError('failed capture still holds the source fence')
  nxt=query('pg46_finish_target_v2',f"SELECT COALESCE(max(pin),0) FROM jw_native.occurrences WHERE binding_id='{B}' AND pin>{pin}")
  if nxt=='0':return None
@@ -239,9 +241,7 @@ def recover(cycle_out,out):
    if captured.get('source_generation')==int(gen) and any(e.get('logical_schema')=='customer_east' and e.get('logical_table')=='delivery_notes' for e in captured['entries']):
     active=query('pg46_finish_target_v2',f"SELECT COALESCE(active_task_id::text,'') FROM jw_native.source_progress WHERE source_id='oo_pg46_finish'")
     if active:
-     state=query('pg46_finish_target_v2',f"SELECT state FROM jobs.tasks WHERE id='{active}'")
-     if state!='failed':raise RuntimeError('recovery capture is '+state)
-     query('pg46_finish_target_v2',"WITH released AS (UPDATE jw_native.source_progress SET active_task_id=NULL WHERE active_task_id='%s'::uuid AND source_generation=%d RETURNING 1) SELECT count(*) FROM released"%(active,int(gen)))
+     raise RuntimeError('official worker recovery must release the failed capture fence')
     s={'generation':int(gen),'pin':int(pin),'label':'physical-delete-recovery'}
     result=converge(out,s)
     result.update(recovery_verified=True,restored_note_id=note['note_id'],insert_update_delete_verified=True)

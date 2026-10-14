@@ -548,22 +548,48 @@ def stamp_ontology_version(binding, reviewed):
 
 
 def refresh_gateway(run_dir):
-    pack = json.loads((run_dir / "product/pack.json").read_text())
-    native = pack["native_maintenance"]
-    remote = Path(native["artifact_directory"])
+    # issue-token creates its output with O_EXCL. Keep prior credentials intact
+    # and give each retained normal run its own gateway-mounted token file.
+    token_name = "client-conn-" + Path(run_dir).name + ".token"
+    if not re.fullmatch(r"client-conn-[A-Za-z0-9_-]+\.token", token_name):
+        raise RuntimeError("unsafe run-scoped gateway token name")
+    product_dir = Path(run_dir) / "product"
+    maintenance = json.loads((product_dir / "current-maintenance-response.json").read_text())["response"]["native_maintenance"]
+    role_response = json.loads((product_dir / "current-role-response.json").read_text())["response"]
+    role_pack_path = product_dir / "current-role-pack.json"
+    role_pack = json.loads(role_pack_path.read_text())
+    command = json.loads((product_dir / "current-command.json").read_text())
+    visibility = json.loads((product_dir / "current-visibility.json").read_text())
+    remote = Path(maintenance["artifact_directory"])
+    expected_remote = Path("/owned/work/builds") / REUSED_BUILD.name / "native-maintenance" / ROLE_PACK.parent.name
+    if maintenance.get("build_id") != REUSED_BUILD.name or remote != expected_remote:
+        raise RuntimeError("current maintenance artifact is not the retained StarRocks build")
     artifact = Path("/tmp/oo-star-runtime-finish/work") / remote.relative_to("/owned/work")
-    command = json.loads((artifact / "command.json").read_text())
-    reviewed = json.loads((artifact / "reviewed.json").read_text())
-    effective = json.loads((artifact / "effective.json").read_text())
+    artifact_command = artifact / "command.json"
+    artifact_reviewed = artifact / "reviewed.json"
+    artifact_effective = artifact / "effective.json"
+    artifact_role_pack = artifact / "role-pack.json"
+    artifact_visibility = artifact / "visibility.json"
+    if any(not path.is_file() or path.is_symlink() for path in (artifact_command, artifact_reviewed, artifact_effective, artifact_role_pack, artifact_visibility)):
+        raise RuntimeError("current maintenance artifacts are incomplete")
+    reviewed = json.loads(artifact_reviewed.read_text())
+    role_maintenance = role_response.get("native_maintenance") or {}
+    if role_response.get("role") != "oo_r_w45_native" or role_maintenance.get("artifact_revision") != maintenance.get("artifact_revision") or role_maintenance.get("pack_digest") != role_pack.get("pack_digest") or sha(role_pack_path) != sha(artifact_role_pack) or sha(ROLE_PACK) != sha(artifact_role_pack) or sha(product_dir / "current-command.json") != sha(artifact_command) or sha(product_dir / "current-visibility.json") != sha(artifact_visibility):
+        raise RuntimeError("current role pack, command, or visibility does not match its maintenance artifact")
+    catalog = command.get("catalog") or {}
+    vector = catalog.get("binding_vector") or []
+    if not vector or visibility.get("role") != "oo_r_w45_native" or visibility.get("ontology_version") != command.get("settings", {}).get("ontology_version") or visibility.get("catalog_version") != command.get("settings", {}).get("catalog_version") or catalog.get("collection_sha256") != reviewed.get("provenance", {}).get("collection_sha256"):
+        raise RuntimeError("current command and visibility identity mismatch")
     binding = json.loads((GW_DIR / "reviewed/w45_native/binding.json").read_text())
-    binding.update({"artifact_sha256": hashlib.sha256(json.dumps(command["catalog"], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest(), "catalog_version": effective["catalog_version"], "schema_hash": reviewed["provenance"]["collection_sha256"], "generation": max(item["source_generation"] for item in command["catalog"]["binding_vector"]), "binding_vector": command["catalog"]["binding_vector"]})
-    stamp_ontology_version(binding, reviewed)
+    old_allow = {(item["dataset"], item["column"]): item.get("explicit_allow", False) for item in binding.get("allow", [])}
+    current_allow = {(dataset["dataset"], column) for dataset in visibility.get("datasets", []) for column in dataset.get("columns", [])}
+    binding.update({"artifact_sha256": hashlib.sha256(json.dumps(catalog, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest(), "catalog_version": visibility["catalog_version"], "schema_hash": catalog["collection_sha256"], "generation": max(item["source_generation"] for item in vector), "binding_vector": vector, "allow": [{"dataset": dataset, "column": column, "explicit_allow": old_allow.get((dataset, column), False)} for dataset, column in sorted(current_allow)]})
+    stamp_ontology_version(binding, {"effective_oos": {"ontology_version": visibility["ontology_version"]}})
     folder = GW_DIR / "reviewed/w45_native"
     for name, body in (("binding.json", binding), ("native-input.json", command), ("command.json", reviewed)):
         (folder / name).write_text(json.dumps(body, sort_keys=True, separators=(",", ":")))
-    shutil.copyfile(artifact / "role-pack.json", GW_DIR / "packs/w45_native.json")
+    shutil.copyfile(role_pack_path, GW_DIR / "packs/w45_native.json")
     context = GW_DIR / "public-context"
-    role_pack = json.loads((artifact / "role-pack.json").read_text())
     for item in role_pack["files"]:
         path = context / item["path"]
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -585,8 +611,8 @@ def refresh_gateway(run_dir):
         if (GW_DIR / "listen.addr").exists() and (GW_DIR / "listen.addr").stat().st_size:
             break
         time.sleep(1)
-    token = GW_DIR / "client-conn.token"
-    issued = subprocess.run(["docker", "exec", "-w", "/run-current", GW, "/run-current/issue-token", "issue", "endpoint.json", "admin.pass", "ca.crt", "grant.json", "client-conn.token"], capture_output=True, timeout=60)
+    token = GW_DIR / token_name
+    issued = subprocess.run(["docker", "exec", "-w", "/run-current", GW, "/run-current/issue-token", "issue", "endpoint.json", "admin.pass", "ca.crt", "grant.json", token_name], capture_output=True, timeout=60)
     kept(issued, run_dir / "issue-token")
     if issued.returncode:
         raise RuntimeError("gateway token issue failed")
@@ -606,7 +632,7 @@ def dialogue(run_dir, source_generation):
         "gateway": "http://" + (GW_DIR / "listen.addr").read_text().strip(),
         "transport": "local-development",
         "auth": "external",
-        "gateway_token_file": str(GW_DIR / "client-conn-e0c2.token"),
+        "gateway_token_file": str(GW_DIR / ("client-conn-" + Path(run_dir).name + ".token")),
         "model_origin": "http://127.0.0.1:8317",
         "model": "grok-4.7",
         "model_bearer_file": "/tmp/oo-product-model-20261012/bearer",
@@ -633,7 +659,7 @@ def cancel_query(run_dir):
     out = run_dir / "cancel"
     out.mkdir(mode=0o700, exist_ok=True)
     lock = subprocess.Popen(["docker", "exec", PG, "psql", "-U", "postgres", "-d", "oo_w45_native_live", "-Atc", "BEGIN; LOCK TABLE _oo.\"" + physical + "\" IN ACCESS EXCLUSIVE MODE; SELECT pg_sleep(18); ROLLBACK;"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    common = ["--json", "--auth", "external", "--token-file", str(GW_DIR / "client-conn.token"), "--gateway", "http://" + (GW_DIR / "listen.addr").read_text().strip(), "--transport", "local-development"]
+    common = ["--json", "--auth", "external", "--token-file", str(GW_DIR / ("client-conn-" + Path(run_dir).name + ".token")), "--gateway", "http://" + (GW_DIR / "listen.addr").read_text().strip(), "--transport", "local-development"]
     query = None
     try:
         time.sleep(1)
@@ -667,10 +693,10 @@ def cancel_query(run_dir):
 MANIFEST_NAMES = {"journal.json", "driver-config.json", "lock"}
 STEP_LOG = re.compile(r"^[0-9]+\.(stdout|stderr)$")
 ROLE_PACK = REUSED_BUILD / "native-maintenance/a62b017d99e97c7b29f28f90291148605a79b4b5e49cc7d24dc277704d1e9e22/role-pack.json"
-SECOND_GOLD = BASE / "random-dialogue/run5-source/independent-gold.json"
-SECOND_BANK = BASE / "random-dialogue/run5-source/question-bank.json"
-SECOND_PRIOR = BASE / "random-dialogue/run5-source/prior-manifest.json"
-SECOND_HISTORY = BASE / "random-dialogue/run5-source/history.json"
+SECOND_GOLD = BASE / "random-dialogue/run6-source/independent-gold.json"
+SECOND_BANK = BASE / "random-dialogue/run6-source/question-bank.json"
+SECOND_PRIOR = BASE / "random-dialogue/run6-source/prior-manifest.json"
+SECOND_HISTORY = BASE / "random-dialogue/run6-source/history.json"
 DIALOGUE_PROGRAM = ROOT / "tools/agent-product-verifier/dialogue.py"
 DATE_ELF = "e0c2b73d4ed312ea92dc822436e665961a41d96ccf507a2903d37bcf5ac7c664"
 PRODUCT_RECEIPT = "7e3d3e8ecbb36525dc5000b4839a6a0f442d6768a779d5424eecf98c18016b0d"
@@ -1045,18 +1071,27 @@ def execute(config, out):
         "customer_writes": 0,
     }
     flow_error = None
+    gateway_error = None
     dialogue_error = None
     try:
         product(run_dir, None, sha(catalog))
     except RuntimeError as exc:
         flow_error = str(exc)
-    try:
-        dialogue(run_dir, source_generation)
-    except RuntimeError as exc:
-        dialogue_error = str(exc)
+    if flow_error is None:
+        try:
+            refresh_gateway(run_dir)
+        except RuntimeError as exc:
+            gateway_error = str(exc)
+    if flow_error is None and gateway_error is None:
+        try:
+            dialogue(run_dir, source_generation)
+        except RuntimeError as exc:
+            dialogue_error = str(exc)
     checked = exit_checks(binding, tables, source_generation, target_generation, run_dir)
     if flow_error:
         checked["gaps"].append("product_flow reuse failed: " + flow_error)
+    if gateway_error:
+        checked["gaps"].append("current Gateway refresh failed: " + gateway_error)
     if dialogue_error:
         checked["gaps"].append("dialogue.py failed: " + dialogue_error)
     checked["whole"] = not checked["gaps"]
@@ -1068,9 +1103,12 @@ def execute(config, out):
         "date_comparison": checked["date_comparison"],
         "provenance": "d28 current-pack maintenance provenance stays with root. This entry does not rewrite the product receipt or the shared registry.",
     }
-    not_invoked = ["prove_recovery", "native-fire", "point_api", "refresh_gateway", "new_s5", "sql_guard_whitelist"]
+    not_invoked = ["prove_recovery", "native-fire", "point_api", "new_s5", "sql_guard_whitelist"]
     if flow_error:
+        not_invoked.append("refresh_gateway")
         not_invoked.append("Flow.run")
+    if gateway_error:
+        not_invoked.append("dialogue.py")
     callback["not_invoked"] = not_invoked
     write(run_dir / "entry-callback.json", callback)
     write(BASE / "pg-mixed-vector.json", callback)

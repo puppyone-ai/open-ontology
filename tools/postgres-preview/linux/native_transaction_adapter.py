@@ -33,6 +33,29 @@ def target_watermark():
     return int(generation), int(position)
 
 
+def latest_scope(root):
+    captures = sorted((root / "native-admit").glob("*/*.capture.json"))
+    scopes = {}
+    by_lsn = {}
+    for path in captures:
+        scope = read(path).get("transaction_scope")
+        if scope is None or scope.get("complete") is not True:
+            continue
+        key = (scope["end_lsn"], scope["xid"])
+        if key in scopes and scopes[key] != scope:
+            raise ValueError("conflicting transaction scopes")
+        if scope["end_lsn"] in by_lsn and by_lsn[scope["end_lsn"]] != scope:
+            raise ValueError("conflicting transaction scopes")
+        scopes[key] = scope
+        by_lsn[scope["end_lsn"]] = scope
+    if not scopes:
+        raise ValueError("complete transaction scope required")
+    def position(scope):
+        high, low = scope["end_lsn"].split("/")
+        return (int(high, 16) << 32) | int(low, 16)
+    return max(scopes.values(), key=position)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", required=True, type=Path)
@@ -44,14 +67,21 @@ def main():
         raise ValueError("binding UUID")
     if args.pin != 1 or args.out.exists():
         raise ValueError("first immutable group pin required")
-    scope = None
+    scope = latest_scope(args.root)
+    scoped_tables = scope["tables"]
+    actual_tables = [(item["logical_schema"], item["logical_table"]) for item in scoped_tables]
+    if (not actual_tables or len(actual_tables) != len(set(actual_tables))
+            or not set(actual_tables) <= {
+                ("customer_east", "delivery_notes"), ("public", "hubs"),
+                ("public", "shipments"), ("public", "tracking_events")}):
+        raise ValueError("transaction table set")
     entries = []
-    for table in sorted(("customer_east.delivery_notes", "public.hubs", "public.shipments", "public.tracking_events")):
-        seal_parents = sorted(path for path in (args.root / "sealed-current" / table).glob("[0-9]*") if path.is_dir())
-        if len(seal_parents) != 1:
-            raise ValueError(f"seal cardinality: {table}")
-        generation = int(seal_parents[0].name)
-        seal = seal_parents[0]
+    for scoped in scoped_tables:
+        table = scoped["logical_schema"] + "." + scoped["logical_table"]
+        generation = int(scoped["source_generation"])
+        seal = args.root / "sealed-current" / table / str(generation)
+        if not seal.is_dir():
+            raise ValueError(f"missing admitted seal: {table}/{generation}")
         source = args.root / "native-admit" / table / f"g{generation}"
         captured = read(Path(str(source) + ".capture.json"))
         request = read(Path(str(source) + ".request.json"))
@@ -60,8 +90,6 @@ def main():
         if decision["admitted"] is not True or decision["blocks"] or len(registry["bindings"]) != 1:
             raise ValueError(f"not independently admitted: {table}")
         bound = registry["bindings"][0]
-        if scope is None:
-            scope = captured["transaction_scope"]
         if captured["transaction_scope"] != scope or bound["transaction_scope"] != scope:
             raise ValueError("transaction scope mismatch")
         if captured["cross_table_consistency"] != "T" or request["consistency_grade"] != "T" or request["cross_table_consistent"] is not True:
@@ -91,10 +119,9 @@ def main():
         request["max_arrow_bytes"] = 16 * 1024 * 1024
         request["target"]["ca_file"] = "/work/ca-renewed.pem"
         entries.append(request)
-    if scope is None or scope["complete"] is not True or len(scope["tables"]) != len(entries):
+    if scope["complete"] is not True or len(scope["tables"]) != len(entries):
         raise ValueError("incomplete transaction")
-    actual_tables = [(item["logical_schema"], item["logical_table"]) for item in entries]
-    if actual_tables != [(item["logical_schema"], item["logical_table"]) for item in scope["tables"]]:
+    if [(item["logical_schema"], item["logical_table"]) for item in entries] != actual_tables:
         raise ValueError("transaction table set")
     prior_generation, prior_position = target_watermark()
     group_generation = prior_generation + 1

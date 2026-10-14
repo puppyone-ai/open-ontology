@@ -1,3 +1,11 @@
+## 2026-10-15 当前原生 Luna 完整长跑授权
+
+最新用户“授权gpt6 luna继续，加快进度”覆盖此前原生禁用与 Grok-only 开发；当前开发原生 `gpt-6-luna/low`，十一名唯一负责人（十源含 MySQL、Oracle，加共享默认入口），实际 running 名单、原完整卡、独占范围及现存资源见 [本轮派发](../execution/batches/native-luna-full-source-20261015/dispatch.json)。旧受管理 Grok 已核终态，402及失败证据保留，产品模型/私有URL/key政策保持。平台 Goal 本轮实际核为 active。普通等待 `clock.sleep` 600秒，事件立即收取；CPU/编译固定上限继续解除，禁止重复writer、空转并发和跨域提交。
+
+第一默认入口 Star cd72 实际对话因过期 token 失败，后续74a9因复用产物没有pack.json失败；源修复 b679813/5b91e35 已交给共享唯一registry负责人合法更新后新run，不重复原成功S5。Maria Linux1.94真实C1定向5/5通过；SQL正接准入GTID/0025/worker、Maria唯一installer调用端。Doris c0644/e26f固定当前真实C4/C5方法与已问语义历史；PG cbdb18/c6f7/edc7收紧subset/replay和禁止手围栏更新。均为局部固定变更，整源正式签收仍0/10，不能充当默认一键完整通过。
+
+完整十源原退出、五版顺序、开发/集成/发行/外部门槛分开、源只读与自备内部E2E条件保持；不新增分母或勾选父项。独立审阅仅在原完整十源产品链齐备后集中进行；普通小问题延后。PRODUCT-LOOPS、支持矩阵及前端无需变更：本轮无整版或源支持晋级。台账生成TODO并校验；子智能体Token<=此前1/5仍缺可比实测，未宣称达标。
+
 # Open Ontology 开发任务清单与并行工程表
 
 ## 2026-10-14 真实身份前置恢复核验

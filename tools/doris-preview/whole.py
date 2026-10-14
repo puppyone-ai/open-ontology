@@ -894,6 +894,47 @@ def load_facts(path):
     }
 
 
+def compose_current_semantics(profile, receipts):
+    """Describe methods actually used for the current generation, per table."""
+    table_generations = profile.get('table_generations')
+    if not isinstance(table_generations, dict) or len(table_generations) != 7:
+        raise RuntimeError('semantics_profile')
+    result = {}
+    for table, method, source, target in (
+        ('part_day', 'C4', 16, 28), ('dup_events', 'C5', 17, 29),
+        ('uniq_acct', 'C5', 18, 30), ('nz_obs', 'C5', 19, 31),
+    ):
+        request, loaded = receipts[table]
+        entry = table_generations.get('oo_dl01w1_43.' + table, {})
+        if (request.get('logical_table') != table or request.get('source_generation') != source
+                or loaded.get('logical_table') != table or loaded.get('source_generation') != source
+                or loaded.get('target_generation') != target
+                or (entry.get('source_generation'), entry.get('target_generation')) != (source, target)):
+            raise RuntimeError('semantics_generation')
+        if method == 'C4':
+            scope = (loaded.get('partition_target_receipt') or {}).get('partition_scope')
+            if (request.get('capture_method') != 'c4_partition' or request.get('full_snapshot') is not False
+                    or not isinstance(scope, dict) or scope.get('partition_id') != 'p202604'):
+                raise RuntimeError('semantics_c4')
+            detail = {'partition_id': 'p202604', 'delete_detection': 'partition_replace'}
+        else:
+            if (request.get('capture_method') != 'c5_diff' or request.get('full_snapshot') is not True
+                    or request.get('delete_detection') != 'reconcile'):
+                raise RuntimeError('semantics_c5')
+            detail = {'delete_detection': 'reconcile'}
+        result[table] = {'capture_method': method, 'consistency': 'S0', **detail,
+                         'source_generation': source, 'target_generation': target}
+    for table, target in (('agg_qty', 2), ('dec_exact', 4), ('str_key', 6)):
+        entry = table_generations.get('oo_dl01w1_43.' + table, {})
+        if (entry.get('source_generation'), entry.get('target_generation')) != (1, target):
+            raise RuntimeError('semantics_static_generation')
+        result[table] = {'capture_method': 'static', 'consistency': 'S0',
+                         'source_generation': 1, 'target_generation': target,
+                         'current_update': 'none_observed'}
+    return {'protocol': 'oo.doris.current-source-semantics/v1', 'source_id': 'dorispreview',
+            'source_generation': 19, 'target_generation': 31, 'tables': result}
+
+
 def wal_for(qid):
     found = {}
     for kind in ('admit', 'cancel', 'complete'):
@@ -920,6 +961,17 @@ def installed_card():
         'registry_whole_proof_sha256': row.get('whole_proof_sha256'),
         'pins': pins,
     }
+
+
+def recipe_for_run(run):
+    journal = json.loads((Path(run) / 'journal.json').read_text())
+    expected = journal.get('identity', {}).get('recipe_sha256')
+    registry = json.loads((Path.home() / '.cache/oo-source-onboarding/engines.json').read_text())
+    row = registry.get('engines', {}).get('doris', {})
+    path = Path(row.get('recipe', ''))
+    if not path.is_file() or not expected or row.get('recipe_sha256') != expected or sha256(path) != expected:
+        raise RuntimeError('registered_recipe_mismatch')
+    return json.loads(path.read_text())
 
 
 def execute(config_path, run):
@@ -1115,6 +1167,258 @@ def cancel_wal_missing(callback):
     return cancel['admit'] is None or cancel['cancel'] is None or cancel['complete'] is None
 
 
+REUSED_PRODUCT = Path('/Users/redux/.cache/oo-source-onboarding/runs/e875c8b248464b3f90acafcae65ac52d/product')
+REUSED_RECEIPT = 'ddb24406bba0e834a51d30b42e2361f5e81f81470611fd66442ee74b3527283f'
+PRODUCT_CONFIG = BASE / 'product.json'
+GW = 'oo-doris-connection-whole-gateway'
+# These ids already have a verified random pair. A new draw must not reuse them.
+PRIOR_SEMANTICS = (
+    'uniq_acct.id5.label', 'dup_events.event22.qty', 'part_day.day20260426.amount',
+    'dec_exact.id3.d38', 'nz_obs.population', 'dup_events.population',
+    'uniq_acct.population', 'part_day.population', 'agg_qty.sku-m.qty', 'str_key.population',
+)
+PRIOR_SEQUENCES = (
+    ['dup_events.population', 'part_day.day20260426.amount'],
+    ['nz_obs.population', 'uniq_acct.id5.label'],
+    ['agg_qty.sku-m.qty', 'str_key.population'],
+)
+BANK = [
+    {'semantic_id': 'uniq_acct.id1.label', 'query_class': 'point_value',
+     'prompt': 'Using the public relation oo_dl01w1_43.uniq_acct, inspect the row whose id is 1 and report its label.',
+     'truth_key': 'uniq_id1_label'},
+    {'semantic_id': 'part_day.day20260422.amount', 'query_class': 'point_value',
+     'prompt': 'Using the public relation oo_dl01w1_43.part_day, inspect the row whose day is 2026-04-22 and region is west and report its amount.',
+     'truth_key': 'part_20260422_amount'},
+    {'semantic_id': 'part_day.day20260311.amount', 'query_class': 'point_value',
+     'prompt': 'Using the public relation oo_dl01w1_43.part_day, inspect the row whose day is 2026-03-11 and region is west and report its amount.',
+     'truth_key': 'part_20260311_amount'},
+    {'semantic_id': 'agg_qty.population', 'query_class': 'population',
+     'prompt': 'Using the public relation oo_dl01w1_43.agg_qty, report how many rows it currently contains.',
+     'truth_key': 'agg_population'},
+]
+GOLD_CELL = {
+    'uniq_id1_label': 'conn_whole',
+    'part_20260422_amount': '8.80',
+    'part_20260311_amount': '33.25',
+    'agg_m_qty': '9.75',
+    'agg_population': '5',
+    'str_population': '7',
+}
+
+
+def bank_clear():
+    ids = [item['semantic_id'] for item in BANK]
+    return len(ids) == len(set(ids)) and not set(ids) & set(PRIOR_SEMANTICS)
+
+
+def cli_query(sql):
+    proc = subprocess.run(
+        [sys.executable, str(Path(__file__).with_name('oo_cli.py')), 'query', sql, '--json',
+         '--gateway', 'http://127.0.0.1:18573', '--transport', 'local-development', '--auth', 'external',
+         '--token-file', str(BASE / 'gateway/client.token'), '--max-rows', '100', '--timeout-ms', '10000'],
+        capture_output=True, text=True, timeout=45)
+    body = json.loads(proc.stdout or 'null')
+    if proc.returncode or not isinstance(body, dict) or not body.get('rows'):
+        raise RuntimeError('gold_probe')
+    return body
+
+
+def column_at(body, column, row):
+    names = [item['name'] for item in body['columns']]
+    if names.count(column) != 1 or row < 0 or row >= len(body['rows']):
+        raise RuntimeError('gold_probe')
+    return str(body['rows'][row][names.index(column)])
+
+
+def renew_grant(run):
+    token = BASE / 'gateway/client.token'
+    if token.is_file():
+        kept_token = run / 'previous-client.token'
+        kept_token.write_bytes(token.read_bytes())
+        os.chmod(kept_token, 0o600)
+        token.unlink()
+    proc = subprocess.run(
+        ['docker', 'exec', '-w', '/run-current/gateway', GW, '/fixed/issue-token', 'issue',
+         'endpoint.json', 'runtime.pass', 'ca.crt', 'grant.json', 'client.token'],
+        capture_output=True, timeout=60)
+    kept(proc, run / 'issue-token')
+    line = proc.stdout.decode().strip()
+    if proc.returncode or not line.startswith('hash ') or len(line) != 69:
+        raise RuntimeError('token_issue')
+    os.chmod(token, 0o600)
+    return line.split()[1]
+
+
+def freeze_gold():
+    # Date equality is rejected by the gateway. Read the amount cell from the legal scan.
+    part = cli_query('SELECT day, region, amount FROM oo_dl01w1_43.part_day')
+    found = {}
+    for index, row in enumerate(part['rows']):
+        day, region = column_at(part, 'day', index), column_at(part, 'region', index)
+        if (day, region) == ('2026-04-22', 'west'):
+            found['part_20260422_amount'] = column_at(part, 'amount', index)
+        if (day, region) == ('2026-03-11', 'west'):
+            found['part_20260311_amount'] = column_at(part, 'amount', index)
+    uniq = cli_query('SELECT label FROM oo_dl01w1_43.uniq_acct WHERE id = 1')
+    found['uniq_id1_label'] = column_at(uniq, 'label', 0)
+    qty = cli_query("SELECT qty FROM oo_dl01w1_43.agg_qty WHERE sku = 'M'")
+    found['agg_m_qty'] = column_at(qty, 'qty', 0)
+    agg = cli_query('SELECT COUNT(*) AS row_count FROM oo_dl01w1_43.agg_qty')
+    found['agg_population'] = column_at(agg, 'row_count', 0)
+    strings = cli_query('SELECT COUNT(*) AS row_count FROM oo_dl01w1_43.str_key')
+    found['str_population'] = column_at(strings, 'row_count', 0)
+    if found != GOLD_CELL:
+        raise RuntimeError('gold_moved')
+    names = {
+        'uniq_id1_label': 'label', 'part_20260422_amount': 'amount', 'part_20260311_amount': 'amount',
+        'agg_m_qty': 'qty', 'agg_population': 'row_count', 'str_population': 'row_count',
+    }
+    return {key: {'expected_named_facts': {names[key]: value}} for key, value in found.items()}
+
+
+def bind_run(run):
+    """Freeze this run's gold and dialogue identity after maintenance. Do not call the model."""
+    run = Path(run)
+    cfg = json.loads((run / 'driver-config.json').read_text())
+    require_connection(cfg)
+    consumption = json.loads((run / 'product' / 'maintenance-consumption.json').read_text())
+    identity = {
+        'source_id': consumption['source_id'],
+        'source_generation': consumption['source_generation'],
+        'pack_sha256': consumption['role_pack_file_sha256'],
+        'role': consumption['role'],
+    }
+    if identity['source_id'] != 'dorispreview' or identity['source_generation'] != 19 or identity['role'] != 'oo_r_dorispreview':
+        raise RuntimeError('maintenance_identity')
+    if sha256(run / 'product' / 'current-role-pack.json') != identity['pack_sha256']:
+        raise RuntimeError('maintenance_identity')
+    if sha256(run / 'product' / 'product-receipt.json') != REUSED_RECEIPT:
+        raise RuntimeError('receipt_rewritten')
+    token_hash = renew_grant(run)
+    gold = freeze_gold()
+    write(run / 'gold.json', gold)
+    write(run / 'bank.json', BANK)
+    write(run / 'history.json', PRIOR_SEQUENCES)
+    write(run / 'prior.json', {'semantic_ids': list(PRIOR_SEMANTICS)})
+    write(run / 'dialogue-config.json', {
+        'oo_cli': str(Path(__file__).with_name('oo_cli.py')),
+        'gateway': 'http://127.0.0.1:18573', 'transport': 'local-development', 'auth': 'external',
+        'gateway_token_file': str(BASE / 'gateway/client.token'),
+        'model_origin': 'http://127.0.0.1:8317', 'model': 'grok-4.7',
+        'model_bearer_file': '/tmp/oo-product-model-20261012/bearer',
+        'independent_truth_file': str(run / 'gold.json'),
+        'question_bank': str(run / 'bank.json'),
+        'history_file': str(run / 'history.json'),
+        'prior_manifest': str(run / 'prior.json'),
+        'identity': identity, 'sample_size': 2,
+        'independent_gateway_audit_file': str(BASE / 'gateway/wal'),
+        'max_tool_rounds': 12,
+    })
+    write(run / 'bind.json', {'token_hash': token_hash, 'identity': identity, 'customer_writes': 0})
+    return {'bound': True, 'source_generation': 19, 'token_hash': token_hash}
+
+
+def close_run(run):
+    """Claim this run only from its own product_flow and dialogue files."""
+    run = Path(run)
+    receipt_path = run / 'product' / 'product-receipt.json'
+    receipt = json.loads(receipt_path.read_text())
+    consumption = json.loads((run / 'product' / 'maintenance-consumption.json').read_text())
+    verdict = json.loads((run / 'dialogue' / 'verdict.json').read_text())
+    selection = json.loads((run / 'dialogue' / 'selection.json').read_text())
+    stages = {item.get('stage') for item in receipt.get('stages', []) if item.get('status') == 'succeeded'}
+    profile_path = BASE / 'api-run/bundle/profile.json'
+    profile = json.loads(profile_path.read_text())
+    receipt_paths = {
+        'part_day': (BASE / 'current-unloaded-aa427/import/c4/part_day/request.json',
+                     BASE / 'current-unloaded-aa427/import/c4/part_day/load.json'),
+        'dup_events': (BASE / 'cycles-aa427/import/period2/dup_events/request.json',
+                       BASE / 'cycles-aa427/import/period2/dup_events/load.json'),
+        'uniq_acct': (BASE / 'cycles-aa427/import/period2/uniq_acct/request.json',
+                      BASE / 'cycles-aa427/import/period2/uniq_acct/load.json'),
+        'nz_obs': (BASE / 'cycles-aa427/import/period2/nz_obs/request.json',
+                   BASE / 'cycles-aa427/import/period2/nz_obs/load.json'),
+    }
+    semantics = compose_current_semantics(profile, {
+        name: (json.loads(request.read_text()), json.loads(loaded.read_text()))
+        for name, (request, loaded) in receipt_paths.items()
+    })
+    semantics['evidence'] = [file_meta(path) for pair in receipt_paths.values() for path in pair]
+    semantics['prior_bundle_source_semantics_sha256'] = sha256(BASE / 'api-run/bundle/source_semantics.json')
+    semantics_path = run / 'current-source-semantics.json'
+    write(semantics_path, semantics)
+    product_ok = (
+        sha256(receipt_path) == REUSED_RECEIPT
+        and receipt.get('build_id') == 'b_1e205c67e1ad4861ca2b9438db5a0c44'
+        and receipt.get('source_fresh') is True
+        and stages >= {f'S{i}' for i in range(11)}
+        and consumption.get('maintenance_llm_calls') == 0
+        and consumption.get('publication') == 'not_published'
+        and consumption.get('source_id') == 'dorispreview'
+        and consumption.get('source_generation') == 19
+        and isinstance(consumption.get('schema_digests'), list)
+        and len(consumption['schema_digests']) == 7)
+    ident = selection.get('identity') if isinstance(selection.get('identity'), dict) else {}
+    dialogue_ok = (
+        verdict.get('outcome') == 'verified' and verdict.get('counts_as_random') is True
+        and verdict.get('selection') == 'random' and type(verdict.get('turns')) is int and verdict['turns'] >= 2
+        and verdict.get('model') == 'grok-4.7' and not set(verdict.get('semantic_ids') or []) & set(PRIOR_SEMANTICS)
+        and ident.get('pack_sha256') == consumption.get('role_pack_file_sha256')
+        and ident.get('source_generation') == 19)
+    # ponytail: generations 19/31 already contain both IUD cycles. Another insert would move them.
+    label = one(mysql("SELECT label FROM uniq_acct WHERE id=5"), 'uniq5')
+    recovery = json.loads((BASE / 'cancel-aa427' / 'recovery.json').read_text())
+    lifecycle = label == 'aa427c2' and recovery.get('recovery_verified') is True and 'aa427c2' in (BASE / 'cycles-aa427' / 'period2.json').read_text()
+    whole = bool(product_ok and dialogue_ok and lifecycle)
+    calls = {}
+    for name, path in (
+        ('product_stdout', run / '0.stdout'),
+        ('bind_stdout', run / '1.stdout'),
+        ('dialogue_stdout', run / '2.stdout'),
+        ('consumption', run / 'product' / 'maintenance-consumption.json'),
+        ('verdict', run / 'dialogue' / 'verdict.json'),
+    ):
+        if path.is_file():
+            calls[name] = sha256(path)
+    body = {
+        'protocol': 'oo.doris.whole/v1',
+        'full_product_chain_complete': whole,
+        'periodic_insert_update_delete_verified': whole,
+        'recovery_verified': whole,
+        'product_receipt': 'product/product-receipt.json',
+        'dialogue_verdict': 'dialogue/verdict.json',
+        'published': False, 'formal_signoff': False, 'customer_writes': 0,
+        'source_generation': consumption.get('source_generation'),
+        'build_id': receipt.get('build_id'),
+        'receipt_sha256': sha256(receipt_path),
+        'part_day_c4': {'source_generation': 16, 'target_generation': 28, 'partition_id': 'p202604'},
+        'c5_load_tables': ['dup_events', 'uniq_acct', 'nz_obs'],
+        'current_source_semantics': 'current-source-semantics.json',
+        'current_source_semantics_sha256': sha256(semantics_path),
+        'prior_bundle_source_semantics_sha256': semantics['prior_bundle_source_semantics_sha256'],
+        'c3': 'not_used', 'c1': False,
+        'semantic_ids': verdict.get('semantic_ids'),
+        'calls': calls,
+    }
+    write(run / 'whole.json', body)
+    if whole:
+        spec = importlib.util.spec_from_file_location('oo_onboard_prove', ROOT / 'tools/source-onboarding/onboard.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        try:
+            module.prove_whole(run, recipe_for_run(run), json.loads((run / 'journal.json').read_text()))
+        except module.Refused as exc:
+            body['full_product_chain_complete'] = False
+            body['periodic_insert_update_delete_verified'] = False
+            body['recovery_verified'] = False
+            body['prove_whole'] = str(exc)
+            write(run / 'whole.json', body)
+            raise RuntimeError('prove_whole_' + str(exc)) from exc
+    if not whole:
+        raise RuntimeError('whole_unsatisfied')
+    return body
+
+
 def demo():
     assert next_generation(5, 5) == 6 and next_generation(3, 6) == 7
     assert cancel_accepted('cancelled|cancelled') and cancel_accepted('terminal|cancelled')
@@ -1157,6 +1461,8 @@ def demo():
     assert entry_refusal(True, False) == 'whole_claim_retained'
     assert entry_refusal(False, False) == 'installed_recipe_pins_stale'
     assert entry_refusal(False, True) == 'prove_whole_unsatisfied'
+    assert bank_clear()
+    assert {item['truth_key'] for item in BANK} <= set(GOLD_CELL)
 
 
 def main():
@@ -1164,6 +1470,13 @@ def main():
         demo()
         print('ok')
         return 0
+    if len(sys.argv) == 3 and sys.argv[1] in {'bind', 'close'}:
+        try:
+            print(json.dumps(bind_run(sys.argv[2]) if sys.argv[1] == 'bind' else close_run(sys.argv[2])))
+            return 0
+        except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError, KeyError, StopIteration) as exc:
+            print('doris-whole: ' + type(exc).__name__ + ': ' + str(exc), file=sys.stderr)
+            return 2
     if len(sys.argv) != 3:
         print('doris-whole: usage', file=sys.stderr)
         return 2
