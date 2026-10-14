@@ -372,6 +372,75 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual((product/'product-receipt.json').read_bytes(),raw)
             (product/'catalog.json').write_bytes(b'{"tables":[1]}\n')
             with self.assertRaisesRegex(m.Refused,'source_not_fresh'):m.prove_whole(run,recipe,journal)
+    def retained_product(self, root, source_ref='src_orders'):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location('product_flow',Path(__file__).with_name('product_flow.py'))
+        pf=importlib.util.module_from_spec(spec);spec.loader.exec_module(pf)
+        src=root/'retained'; src.mkdir(mode=0o700); (src/'oos').mkdir(mode=0o700)
+        (src/'catalog.json').write_bytes(b'{"tables":[]}\n')
+        (src/'role-pack.json').write_bytes(b'{"protocol":"oo.builder.role-pack/v1"}\n')
+        (src/'effective.json').write_bytes(b'{"protocol":"oo.builder.effective-oos/v1"}\n')
+        oos={'ontology.yaml':b'name: fixture\n','effective-oos.yaml':b'fixture: true\n','source.json':b'{"publication":"not_claimed"}\n'}
+        for name,data in oos.items(): (src/'oos'/name).write_bytes(data)
+        catalog_sha=m.digest(src/'catalog.json')
+        receipt={'protocol':'oo.source-onboarding.product/v1','build_id':'b_kept','fixture_review':True,'source_fresh':True,'catalog_sha256':catalog_sha,'producer':'tools/source-onboarding/product_flow.py','producer_sha256':'b2'*32,'effective_oos_sha256':m.digest(src/'effective.json'),'native_role_pack_sha256':m.digest(src/'role-pack.json'),'stages':[{'stage':f'S{i}','status':'succeeded'} for i in range(11)],'s5':{'outcome':'validated','builder_spawned':True,'structural_draft':False,'cache_hit':True,'llm_calls':0,'model':'grok-4.7','input_sha256':'ab'*32,'evidence_hash':catalog_sha},'standard_oos':{name:m.digest(src/'oos'/name) for name in oos},'pack':{'build_id':'b_kept','role':'oo_r_reader'}}
+        (src/'product-receipt.json').write_text(json.dumps(receipt)); (src/'maintenance-consumption.json').write_text('{"old":true}\n')
+        for f in src.rglob('*'):
+            if f.is_file(): f.chmod(0o600)
+        config={'fixture_authorized':True,'operator_sha256':m.digest(pf.OPERATOR),'catalog_sha256':catalog_sha,'create':{'source_ref':source_ref}}
+        cp=root/'config.json'; cp.write_text(json.dumps(config)); cp.chmod(0o600)
+        c=m.load(cp); c['_sha256']=m.digest(cp)
+        m.save(src/'build.json',{'build_id':'b_kept','config_sha256':c['_sha256']})
+        return pf, src, c, (src/'product-receipt.json').read_bytes()
+    def test_empty_out_binds_retained_receipt_and_does_not_create(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); root.chmod(0o700)
+            pf, src, c, raw = self.retained_product(root)
+            out=root/'out'; out.mkdir(mode=0o700)
+            with self.assertRaisesRegex(pf.Refused,'maintenance_not_invoked'):
+                pf.Flow(c,out).run(reuse_product=str(src), reuse_receipt=m.digest(src/'product-receipt.json'))
+            self.assertEqual((out/'product-receipt.json').read_bytes(), raw)
+            self.assertEqual((src/'product-receipt.json').read_bytes(), raw)
+            self.assertEqual((out/'role-pack.json').read_bytes(), (src/'role-pack.json').read_bytes())
+            self.assertFalse((out/'create-started.json').exists())
+            self.assertFalse((out/'maintenance-consumption.json').exists())
+            self.assertEqual(list(out.glob('*.response.json')), [])
+            seeded=root/'seeded'; seeded.mkdir(mode=0o700)
+            (seeded/'product-receipt.json').write_bytes(raw); (seeded/'build.json').write_bytes((src/'build.json').read_bytes())
+            with self.assertRaisesRegex(pf.Refused,'maintenance_not_invoked'):
+                pf.Flow(c,seeded).run(reuse_product=str(src), reuse_receipt=m.digest(src/'product-receipt.json'))
+            self.assertEqual((seeded/'product-receipt.json').read_bytes(), raw)
+            self.assertTrue((seeded/'role-pack.json').is_file())
+            self.assertFalse((seeded/'maintenance-consumption.json').exists())
+    def test_reuse_refuses_foreign_identity_before_write(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); root.chmod(0o700)
+            pf, src, c, raw = self.retained_product(root)
+            out=root/'out'; out.mkdir(mode=0o700)
+            with self.assertRaisesRegex(pf.Refused,'product_resume_drift'):
+                pf.Flow(c,out).run(reuse_product=str(src), reuse_receipt='ab'*32)
+            self.assertFalse((out/'product-receipt.json').exists())
+            with self.assertRaisesRegex(pf.Refused,'product_resume_drift'):
+                pf.Flow(c,out).run(reuse_product=str(src))
+            src.chmod(0o755)
+            with self.assertRaisesRegex(pf.Refused,'product_resume_drift'):
+                pf.Flow(c,out).run(reuse_product=str(src), reuse_receipt=m.digest(src/'product-receipt.json'))
+            src.chmod(0o700)
+            self.assertFalse((out/'product-receipt.json').exists())
+            foreign=json.loads((root/'config.json').read_text()); foreign['create']['source_ref']='other_source'
+            (root/'config.json').write_text(json.dumps(foreign)); (root/'config.json').chmod(0o600)
+            c2=m.load(root/'config.json'); c2['_sha256']=m.digest(root/'config.json')
+            with self.assertRaisesRegex(pf.Refused,'product_resume_drift'):
+                pf.Flow(c2,out).run(reuse_product=str(src), reuse_receipt=m.digest(src/'product-receipt.json'))
+            saved=json.loads((src/'build.json').read_text()); saved['build_id']='b_other'; (src/'build.json').write_text(json.dumps(saved)); (src/'build.json').chmod(0o600)
+            with self.assertRaisesRegex(pf.Refused,'product_resume_drift'):
+                pf.Flow(c,out).run(reuse_product=str(src), reuse_receipt=m.digest(src/'product-receipt.json'))
+            m.save(src/'build.json',{'build_id':'b_kept','config_sha256':c['_sha256']})
+            pack=(src/'role-pack.json').read_bytes()+b' '; (src/'role-pack.json').write_bytes(pack); (src/'role-pack.json').chmod(0o600)
+            with self.assertRaisesRegex(pf.Refused,'role_pack_not_current'):
+                pf.Flow(c,out).run(reuse_product=str(src), reuse_receipt=m.digest(src/'product-receipt.json'))
+            self.assertFalse((out/'product-receipt.json').exists())
+            self.assertEqual((src/'product-receipt.json').read_bytes(), raw)
     def test_duplicate_keys(self):
         with self.assertRaisesRegex(m.Refused,'duplicate_key'):json.loads('{"a":1,"a":2}',object_pairs_hook=m.pairs)
     def test_inline_secret(self):

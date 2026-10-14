@@ -952,6 +952,9 @@ impl Live {
             let looked = self.operator_oids(&operator.name, &left, &right).await;
             assert_eq!(looked, (operator.oid, operator.procedure_oid));
             assert_eq!(operator.schema, "pg_catalog");
+            if left == "date" && right == "date" {
+                assert_ne!(operator.oid, operator.procedure_oid);
+            }
             seen.insert((operator.name.clone(), left, right));
         }
         for (left, right) in COMPARISON_SIGNATURES {
@@ -1030,7 +1033,7 @@ impl Live {
     }
 
     async fn type_name_by_oid(&self) -> std::collections::BTreeMap<u32, String> {
-        let type_names: &[&str] = &["bool", "int2", "int4", "int8", "text"];
+        let type_names: &[&str] = &["bool", "date", "int2", "int4", "int8", "numeric", "text"];
         let rows = self
             .admin
             .query(
@@ -1231,7 +1234,8 @@ fn limits(unknown_rows: UnknownRows) -> CatalogLimits {
         max_tables: 4,
         max_columns: 64,
         max_functions: 1,
-        max_operators: 64,
+        max_operators: u32::try_from(COMPARISON_OPERATORS.len() * COMPARISON_SIGNATURES.len())
+            .expect("operator count"),
         large_table_row_threshold: 1_000_000,
         unknown_rows,
     }

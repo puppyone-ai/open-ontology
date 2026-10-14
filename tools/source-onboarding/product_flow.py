@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Shared real fixture S0–S10/Pack caller; identity remains the actual OIDC service."""
 import argparse
+import hashlib
 import json
+import os
 import re
+import stat
 from pathlib import Path
 import ssl
 import subprocess
@@ -10,10 +13,12 @@ import sys
 import time
 import urllib.request
 import uuid
-from onboard import private, load, save, require, digest, Refused, maintenance_consumption, pairs
+from onboard import private, load, save, require, digest, Refused, maintenance_consumption, pairs, S5_MODELS, hex64
 
 ROOT = Path(__file__).resolve().parents[2]
 OPERATOR = ROOT/'tools/selfbuild-control-api/recipes/operator.py'
+# Immutable S5 proof only. Maintenance files are produced by this invocation.
+RETAINED = ('build.json','product-receipt.json','role-pack.json','catalog.json','effective.json','oos/ontology.yaml','oos/effective-oos.yaml','oos/source.json')
 
 class Flow:
     def __init__(self, config, out):
@@ -44,10 +49,16 @@ class Flow:
         require(result.returncode == 0, 'actual_api_refused')
         response=load(rp);require(response['status'] < 400, 'actual_api_refused')
         return response['response']
-    def run(self, prepare_only=False, decisions_path=None):
+    def run(self, prepare_only=False, decisions_path=None, reuse_product=None, reuse_receipt=None):
         c=self.c
         require(c.get('fixture_authorized') is True, 'fixture_authority_required')
         require(digest(OPERATOR) == c['operator_sha256'], 'operator_drift')
+        if reuse_product or reuse_receipt:
+            require(isinstance(reuse_product, str) and reuse_product and hex64(reuse_receipt), 'product_resume_drift')
+            self.bind_retained(reuse_product, reuse_receipt)
+            reused=self.completed()
+            require(reused is not None, 'product_resume_drift')
+            return self.bind_current(reused)
         reused=self.completed()
         if reused is not None: return self.bind_current(reused)
         build_file=self.out/'build.json'
@@ -137,6 +148,47 @@ class Flow:
         receipt=self.out/'product-receipt.json'
         save(receipt,{'protocol':'oo.source-onboarding.product/v1','build_id':build,'stages':list(stages.values()),'pack':pack,'pack_artifact_sha256':digest(self.out/'pack.json'),'effective_oos_sha256':digest(self.out/'effective.json'),'native_role_pack_sha256':digest(self.out/'role-pack.json'),'native_artifact_revision':native['artifact_revision'],'overlay_sha256':digest(self.out/'overlay.json'),'catalog_sha256':c['catalog_sha256'],'source_fresh':True,'s5':s5_proof,'standard_oos':standard,'producer':'tools/source-onboarding/product_flow.py','producer_sha256':digest(Path(__file__).resolve()),'fixture_review':True,'business_owner_signed':False,'published':False,'gateway_dialogue_complete':False})
         return {'build_id':build,'s0_s10':'succeeded','fixture_review':True,'published':False}
+    def bind_retained(self, src, receipt_sha):
+        """Bind one owner-private S5 product into this empty run. Do not create, and do not copy its maintenance call."""
+        src=self.owned(src, stat.S_ISDIR)
+        require(src.resolve()!=self.out.resolve() and not self.out.resolve().is_relative_to(src.resolve()) and not src.resolve().is_relative_to(self.out.resolve()), 'product_resume_drift')
+        receipt_path=self.owned(src/'product-receipt.json', stat.S_ISREG)
+        raw=receipt_path.read_bytes()
+        require(hashlib.sha256(raw).hexdigest()==receipt_sha, 'product_resume_drift')
+        try:
+            receipt=json.loads(raw.decode(), object_pairs_hook=pairs)
+            saved=json.loads(self.owned(src/'build.json', stat.S_ISREG).read_text(), object_pairs_hook=pairs)
+        except (UnicodeError, json.JSONDecodeError):
+            raise Refused('product_resume_drift')
+        require(receipt.get('protocol')=='oo.source-onboarding.product/v1' and receipt.get('producer')=='tools/source-onboarding/product_flow.py' and hex64(receipt.get('producer_sha256')) and receipt.get('source_fresh') is True and receipt.get('fixture_review') is True, 'source_not_fresh')
+        s5=receipt.get('s5')
+        require(isinstance(s5, dict) and s5.get('outcome')=='validated' and s5.get('builder_spawned') is True and s5.get('structural_draft') is False and s5.get('model') in S5_MODELS and hex64(s5.get('input_sha256')), 'not_real_s5')
+        require(isinstance(receipt.get('stages'), list) and {x.get('stage') for x in receipt['stages'] if isinstance(x, dict) and x.get('status')=='succeeded'} >= {f'S{i}' for i in range(11)}, 'not_real_s5')
+        require(saved.get('config_sha256')==self.c['_sha256'] and saved.get('build_id') and saved.get('build_id')==receipt.get('build_id'), 'product_resume_drift')
+        pack_doc=receipt.get('pack')
+        require(isinstance(pack_doc, dict) and pack_doc.get('build_id')==receipt['build_id'], 'product_resume_drift')
+        source_ref=self.c.get('create',{}).get('source_ref') if isinstance(self.c.get('create'), dict) else None
+        require(isinstance(source_ref, str) and source_ref, 'maintenance_source')
+        require(receipt.get('catalog_sha256')==self.c.get('catalog_sha256')==s5.get('evidence_hash') and digest(self.owned(src/'catalog.json', stat.S_ISREG))==receipt['catalog_sha256'], 'product_resume_drift')
+        require(digest(self.owned(src/'role-pack.json', stat.S_ISREG))==receipt.get('native_role_pack_sha256'), 'role_pack_not_current')
+        require(digest(self.owned(src/'effective.json', stat.S_ISREG))==receipt.get('effective_oos_sha256'), 'product_resume_drift')
+        standard=receipt.get('standard_oos')
+        require(isinstance(standard, dict) and set(standard)=={'ontology.yaml','effective-oos.yaml','source.json'}, 'product_resume_drift')
+        self.owned(src/'oos', stat.S_ISDIR)
+        for name, sha in standard.items():
+            require(digest(self.owned(src/'oos'/name, stat.S_ISREG))==sha, 'product_resume_drift')
+        for rel in RETAINED:
+            data=(src/rel).read_bytes(); dest=self.out/rel
+            dest.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            if dest.exists():
+                require(dest.is_file() and not dest.is_symlink() and dest.read_bytes()==data, 'product_resume_drift')
+            else:
+                dest.write_bytes(data)
+            dest.chmod(0o600)
+    def owned(self, path, kind):
+        p=Path(path); st=p.lstat()
+        require(kind(st.st_mode) and not stat.S_ISLNK(st.st_mode) and st.st_uid==os.getuid() and not st.st_mode & 0o077, 'product_resume_drift')
+        return p
     def completed(self):
         receipt_path=self.out/'product-receipt.json'
         if not receipt_path.exists(): return None
@@ -236,10 +288,10 @@ class Flow:
         save(self.out/'maintenance-consumption.json', fresh)
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--config',required=True);parser.add_argument('--out',required=True);parser.add_argument('--prepare-only',action='store_true');parser.add_argument('--decisions');a=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--config',required=True);parser.add_argument('--out',required=True);parser.add_argument('--prepare-only',action='store_true');parser.add_argument('--decisions');parser.add_argument('--reuse-product');parser.add_argument('--reuse-receipt');a=parser.parse_args()
     try:
         p=private(a.config);c=load(p);c['_sha256']=digest(p)
-        print(json.dumps(Flow(c,Path(a.out)).run(a.prepare_only,a.decisions)));return 0
+        print(json.dumps(Flow(c,Path(a.out)).run(a.prepare_only,a.decisions,a.reuse_product,a.reuse_receipt)));return 0
     except (Refused,OSError,KeyError,ValueError,subprocess.TimeoutExpired):
         print('source-onboarding-product: refused; private evidence retained',file=sys.stderr);return 2
 

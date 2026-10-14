@@ -2195,7 +2195,7 @@ mod a327_live {
                 "max_tables": 8,
                 "max_columns": 64,
                 "max_functions": 1,
-                "max_operators": 64,
+                "max_operators": 66,
                 "large_table_row_threshold": 1000000,
                 "unknown_rows": "refuse"
             },

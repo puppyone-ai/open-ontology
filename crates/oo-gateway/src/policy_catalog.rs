@@ -113,6 +113,10 @@ pub const COMPARISON_OPERATORS: &[&str] = &["<", "<=", "<>", "=", ">", ">="];
 /// columns compare with an integer literal through the `numeric`/`numeric`
 /// operator; PostgreSQL casts the literal. A decimal-point literal is still
 /// rejected before this list is consulted.
+///
+/// `date`/`date` is the same-type pair. The loader reads each comparator from
+/// pg_catalog and stores `operator.oid` separately from `pg_proc.oid`. Neither
+/// OID is hardcoded. Timestamp pairs and cross-type date pairs are absent.
 pub const COMPARISON_SIGNATURES: &[(&str, &str)] = &[
     ("bool", "bool"),
     ("int2", "int2"),
@@ -124,6 +128,7 @@ pub const COMPARISON_SIGNATURES: &[(&str, &str)] = &[
     ("int8", "int8"),
     ("numeric", "numeric"),
     ("text", "text"),
+    ("date", "date"),
 ];
 
 /// The only function this loader resolves: `pg_catalog.count(*)`.
@@ -1647,12 +1652,18 @@ mod tests {
         assert!(grantable_base_type("time", -1));
         assert!(!grantable_base_type("time", 0));
         assert!(!grantable_base_type("xml", -1));
-        assert_eq!(required_operator_count(), 60);
+        assert_eq!(required_operator_count(), 66);
     }
 
     #[test]
     fn whitelist_covers_only_the_comparison_subset() {
-        assert_eq!(required_operator_count(), 60);
+        assert_eq!(required_operator_count(), 66);
+        assert!(COMPARISON_SIGNATURES.contains(&("date", "date")));
+        assert!(!COMPARISON_SIGNATURES.iter().any(|(left, right)| {
+            *left == "timestamp"
+                || *right == "timestamp"
+                || (*left == "date") != (*right == "date")
+        }));
         assert!(COMPARISON_OPERATORS.contains(&"="));
         assert!(COMPARISON_OPERATORS.contains(&"<>"));
         assert!(
