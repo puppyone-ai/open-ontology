@@ -1,0 +1,27 @@
+{
+  "observed_at": "2026-10-14T06:28:22.327964+00:00",
+  "event": "latest human fixes Grok model and effort",
+  "model": "grok-4.7",
+  "reasoning_effort": "xhigh",
+  "sessions": [
+    {
+      "task": "postgresql",
+      "session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
+      "pid": 37471,
+      "effort_handoff_previous_pid": 32956,
+      "status": "resumed_xhigh_latest_human",
+      "executor": "grok-4.7/xhigh",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-xhigh-handoff.md"
+    },
+    {
+      "task": "sqlserver",
+      "session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
+      "pid": 37472,
+      "effort_handoff_previous_pid": 32957,
+      "status": "resumed_xhigh_latest_human",
+      "executor": "grok-4.7/xhigh",
+      "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-xhigh-handoff.md"
+    }
+  ],
+  "acceptance_changed": false
+}

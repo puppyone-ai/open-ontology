@@ -8451,8 +8451,8 @@
       {
         "source": "postgresql",
         "model": "grok-4.7",
-        "reasoning": "low",
-        "status": "fresh_compact_postgresql_actual_transition_whole",
+        "reasoning": "xhigh",
+        "status": "resumed_xhigh_latest_human",
         "write_paths": [
           "tools/postgres-preview",
           "/tmp/oo-postgresql-connection-whole",
@@ -8462,7 +8462,7 @@
         "prior_native_agent": "/root/pg_runtime_finish",
         "executor": "grok_cli",
         "session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
-        "pid": 27492
+        "pid": 37471
       },
       {
         "source": "starrocks",
@@ -8483,8 +8483,8 @@
       {
         "source": "sqlserver",
         "model": "grok-4.7",
-        "reasoning": "low",
-        "status": "fresh_compact_sqlserver_whole_closure",
+        "reasoning": "xhigh",
+        "status": "resumed_xhigh_latest_human",
         "write_paths": [
           "tools/mssql-preview",
           "/tmp/oo-sqlserver-connection-whole",
@@ -8495,7 +8495,7 @@
         "prior_native_agent": "/root/sqlserver_whole_closure",
         "executor": "grok_cli",
         "session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
-        "pid": 24020
+        "pid": 37472
       }
     ],
     "shared_entry": {
@@ -8632,7 +8632,7 @@
       {
         "task": "postgresql",
         "session_uuid": "48511f33-e09d-48df-8bcf-057057c74976",
-        "pid": 27492,
+        "pid": 37471,
         "prompt": "execution/batches/grok-connection-full-20261014/postgresql-compact-complete.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/postgresql.log",
         "write_paths": [
@@ -8641,11 +8641,14 @@
           "crates/oo-gateway/src/bin/install-column-acl.rs",
           "docs/07-gateway.md"
         ],
-        "status": "fresh_compact_postgresql_actual_transition_whole",
-        "executor": "grok-4.7/low",
+        "status": "resumed_xhigh_latest_human",
+        "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 285,
         "prior_session_uuid": "8aed5be3-1f65-4028-9415-cddb6da69e2e",
-        "prior_delivery": "Macdebug rejection paths only; no actual ACL advance or Linux/full one-command proof"
+        "prior_delivery": "Macdebug rejection paths only; no actual ACL advance or Linux/full one-command proof",
+        "effort_handoff_previous_pid": 32956,
+        "effort_handoff_was_live": true,
+        "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-xhigh-handoff.md"
       },
       {
         "task": "starrocks",
@@ -8663,7 +8666,7 @@
       {
         "task": "sqlserver",
         "session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
-        "pid": 24020,
+        "pid": 37472,
         "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-compact-complete.md",
         "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
         "write_paths": [
@@ -8675,11 +8678,14 @@
           "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql",
           "tools/source-admission/src/capture.rs"
         ],
-        "status": "fresh_compact_sqlserver_whole_closure",
-        "executor": "grok-4.7/low",
+        "status": "resumed_xhigh_latest_human",
+        "executor": "grok-4.7/xhigh",
         "initial_log_bytes": 0,
         "prior_session_uuid": "594fdbf7-1b24-444c-904b-3f80c9752ad2",
-        "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete"
+        "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete",
+        "effort_handoff_previous_pid": 32957,
+        "effort_handoff_was_live": true,
+        "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-xhigh-handoff.md"
       },
       {
         "task": "shared-entry",
@@ -8734,12 +8740,14 @@
     "identity_health": "root verified TLS/OIDC anonymous401 and fixture admin200, original config binding preserved",
     "identity_intake": "execution/reviews/grok-connection-resume-20261014/identity-restoration-intake.json",
     "token_receipt": "execution/reviews/grok-connection-resume-20261014/ended-session-token-receipt.json",
-    "next_terminal_handoff_policy": "fresh compact context, no full previous transcript; low reasoning on routine execution; do not kill active useful writers or weaken whole acceptance",
+    "next_terminal_handoff_policy": "fresh compact handoff, bounded reads and fixed artifact reuse; every Grok CLI grok-4.7/xhigh per latest human; no native subagents, duplicate writers, weakened whole exits or token savings claims without evidence",
     "sqlserver_partial_intake": "execution/reviews/grok-connection-resume-20261014/sqlserver-code-progress-intake.json",
     "source_admission_owner": {
       "task": "sqlserver",
       "exclusive_path": "tools/source-admission/src/capture.rs",
       "scope": "SQL C2 CT semantics/hash binding only and corresponding tests; no weakening other sources"
-    }
-  }
+    },
+    "latest_effort_handoff": "execution/reviews/grok-connection-resume-20261014/xhigh-handoff-receipt.json"
+  },
+  "latest_grok_effort_instruction": "2026-10-14 最新用户指定全部Grok CLI为grok-4.7/xhigh：PG、SQL前low CLI核实终态后同UUID接续，实际argv已验证；短交接/定点阅读/复用固定制品继续控Token，不降低reasoning。原生子智能体仍禁用，十源完整退出、原Plan/分母和统一审阅门槛不变，签收计数未晋级。"
 }

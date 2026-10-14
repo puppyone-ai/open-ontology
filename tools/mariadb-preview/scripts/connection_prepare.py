@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Provision an isolated MariaDB target using official installers only."""
-import argparse, hashlib, json, os, pathlib, secrets, shutil, subprocess, time
+import argparse, hashlib, json, os, pathlib, secrets, shutil, subprocess, sys, time
 
 def sha(path): return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 def save(path, value):
@@ -48,6 +48,8 @@ def main():
     worker=[docker,'exec',runtime,c['worker']['path'],'--config',str(config)]
     call(worker+['apply'],'official-worker-apply')
     call(worker+['native-install'],'official-native-install')
+    # Worker apply stops at jobs lease operations. The loader locks through jobs.loader_hold.
+    call([sys.executable,str(pathlib.Path(c['repo'])/'crates/oo-jobs/tools/deploy.py'),'--container',pg,'--database','oo_a390_control','--admin','postgres','--loader-role','oo_a390_runtime_login'],'official-jobs-deploy')
     call([docker,'exec',pg,'psql','-U','postgres','-d','oo_a390_control','-v','ON_ERROR_STOP=1','-c','GRANT CREATE ON DATABASE oo_a390_control TO oo_a390_runtime_login'], 'target-owner-bootstrap')
     target={'host':pg,'port':5432,'database':'oo_a390_control','runtime_principal':'oo_a390_runtime_login','password_file':str(private/'runtime-password'),'ssl':'verify-full','ca_file':str(private/'ca.crt'),'owner':c['owner'],'shard':'maria_connection'}
     for binary,command in [(c['classic_bootstrap'],'install-native-update'),(c['loader'],'install-sealed-catalog'),(c['loader'],'install-native-sealed-catalog'),(c['loader'],'install-native-update'),(c['loader'],'install-native-claim-selected')]:
@@ -58,6 +60,7 @@ def main():
             install={'protocol':'oo.pipeline.install-native-update/v1','target':administrator}
         save(root/(command+'.request.json'),install)
         call([docker,'exec','-i',runtime,binary['path'],command],'official-'+command,json.dumps(install).encode())
+    call([docker,'exec',pg,'psql','-U','postgres','-d','oo_a390_control','-v','ON_ERROR_STOP=1','-c','GRANT oo_pipeline_runtime TO oo_a390_runtime_login WITH INHERIT TRUE, SET FALSE'], 'target-pipeline-inherit')
     call([docker,'exec',pg,'psql','-U','postgres','-d','oo_a390_control','-v','ON_ERROR_STOP=1','-c','GRANT USAGE,CREATE ON SCHEMA _oo TO oo_a390_runtime_login; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA _oo TO oo_a390_runtime_login; GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA _oo TO oo_a390_runtime_login'], 'target-loader-acl')
     call([docker,'exec',pg,'psql','-U','postgres','-d','oo_a390_control','-At','-c',"SELECT version,checksum,phase,filename FROM jobs.schema_migrations ORDER BY version; SELECT rolname,rolsuper,rolcreatedb,rolcreaterole,rolbypassrls FROM pg_roles WHERE rolname='oo_a390_runtime_login'; SELECT count(*) FROM jobs.tasks; SELECT count(*) FROM _oo.source_watermark;"], 'independent-installer-readiness')
     save(root/'preparation.json',{'protocol':'oo.mariadb.official-preparation/v1','pg':pg,'runtime':runtime,'network':c['source_network'],'volume':volume,'worker_config':str(config),'target':target,'official_installers':True,'manual_ready_markers':False,'source_rows_copied':0,'complete_chain':False})

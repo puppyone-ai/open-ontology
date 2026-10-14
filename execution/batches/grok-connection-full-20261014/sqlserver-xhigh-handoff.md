@@ -1,0 +1,1 @@
+最新用户明确Grok模型必须4.7 xhigh，接续同一完整源任务。前low CLI已SIGINT且实际terminal，未restore-code/删文件/卷。先收取前轮自己的后台命令/immutablebuild/实际lease水位，只有确认源写者停止后修改，禁止重复DML/已提交CAS/不确定模型create。此前whole-until-exit/compactcomplete中的原全部任务出口和独占scope保持，继续到真正完整一键产品链，不以组件结果退出。rootbf577dfb2已修提交ignored evidence阻断并同步09/46允许路径。少token用短交接/定点阅读/固定制品复用，但reasoning始终xhigh，无native/子agents。

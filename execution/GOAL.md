@@ -184,3 +184,5 @@ Grok额度不足，后续开发切换Codex原生子智能体，统一gpt-6.1-sol
 多个原生工程师实际返回 Selected model is at capacity 后，人类明确回复“暂用 GPT-6 Sol low”。仅停止owner的原完整任务移交原生gpt-6-sol/low备用工程师，源码/固定证据/具名计算与资源保留，先核终态再收结果，不重复writer或新增分母。仍运行的Maria工程师不重复派发。产品Selfbuild/对话仍gpt-6.1-sol/low、URL/key不变；Ponytail最小完整改动与Token20%实测unknown、十源全部原退出及统一闭环审阅条件保持。
 
 2026-10-14 最新人类执行者切换：原生子智能体临时禁用，活动列表实测仅root，恢复GrokCLI十二个完整长跑任务（十源+共享一键入口+唯一infra恢复）。dispatch位于batches/grok-connection-full-20261014/dispatch.json；现有dirty源码/失败/固定制品/DB卷保留，未知交互Grok不kill不计管理并发。磁盘实测47GiB可用但Dockerps超时，infra唯一受控恢复owner；不增加数据库/重复build。原一键完整0/10、历史作者9/10、正式0/10不变，统一十源审阅及原退出保留。
+
+2026-10-14 最新用户指定全部Grok CLI为grok-4.7/xhigh：PG、SQL前low CLI核实终态后同UUID接续，实际argv已验证；短交接/定点阅读/复用固定制品继续控Token，不降低reasoning。原生子智能体仍禁用，十源完整退出、原Plan/分母和统一审阅门槛不变，签收计数未晋级。
