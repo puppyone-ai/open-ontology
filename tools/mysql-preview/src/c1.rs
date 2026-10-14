@@ -1,9 +1,8 @@
 //! Owned MySQL 8 ROW/GTID reader.
 //!
 //! Capture, decode, assembly, resume, and the durable spool use `mysql_async`
-//! plus the public `cdc-transaction` and `cdc-spool` crates. The public loader
-//! `import_native_transaction` does not accept `mysql` / `mysql-binlog-pos/v1`,
-//! so this command does not apply and does not ACK.
+//! plus the public `cdc-transaction` and `cdc-spool` crates. Apply and ACK stay
+//! with the shared transaction entry. This command does not apply and does not ACK.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
@@ -37,6 +36,13 @@ const SOURCE: &str = "mysql_c1";
 const DATABASE: &str = "oo_c1";
 const HDR: &str = "oo_c1.order_hdr";
 const LINE: &str = "oo_c1.order_line";
+const NATIVE_TABLES: [&str; 5] = [
+    "native_mysql_20261012.hubs",
+    "native_mysql_20261012.range_gap",
+    "native_mysql_20261012.shipments",
+    "native_mysql_20261012.tracking_events",
+    "native_mysql_20261012.value_probe",
+];
 const RETENTION: u64 = 604_800;
 const MAX_EVENTS: u64 = 20_000;
 const PROVENANCE: &str = "caller_declared";
@@ -143,7 +149,7 @@ pub async fn prove_c1(config: &Path, out: &Path) -> Result<(), PreviewError> {
     let mut rows = phase.rows.clone();
     rows.extend(resumed.rows.iter().cloned());
     let mut gold = connect_cdc(&cfg).await?;
-    let diff = gold_diff(&mut gold, &rows).await?;
+    let diff = gold_diff(&mut gold, &rows, &cfg).await?;
     drop(gold);
     let mut audit = connect_dba(&cfg).await?;
     let writes = write_attempts(&mut audit).await?;
@@ -254,6 +260,90 @@ pub async fn expire_c1(config: &Path, from: &Path, out: &Path) -> Result<(), Pre
     )
 }
 
+pub async fn capture_business(config: &Path, out: &Path) -> Result<(), PreviewError> {
+    let cfg = load_config(config)?;
+    refuse_customer(&cfg)?;
+    if cfg.full_table_gold || !native_columns_match(&cfg.columns) {
+        return Err(PreviewError::new("config", "tables"));
+    }
+    if cfg.reconcile_every_ms <= cfg.health_every_ms {
+        return Err(PreviewError::new("config", "period"));
+    }
+    fresh_dir(out)?;
+    let config_hash = sha256_hex(&fs::read(config).map_err(|_| PreviewError::new("config", "path"))?);
+    let mut dba = connect_dba(&cfg).await?;
+    ensure_native_select(&mut dba).await?;
+    if scalar(&mut dba, NATIVE_ID_CHECK).await? != "0" {
+        return Err(PreviewError::new("c1", "already_present"));
+    }
+    drop(dba);
+    let stop = Arc::new(AtomicBool::new(false));
+    let stop_reader = Arc::clone(&stop);
+    let cfg_reader = cfg.clone();
+    let out_reader = out.to_path_buf();
+    let reader = tokio::spawn(async move {
+        stream(&cfg_reader, &out_reader, None, Until::CaughtUp, &stop_reader).await
+    });
+    if timeout(Duration::from_secs(30), wait_ready(out)).await.is_err() {
+        stop.store(true, Ordering::Relaxed);
+        return match join(reader).await {
+            Err(err) => Err(err),
+            Ok(_) => Err(PreviewError::new("c1", "ready_timeout")),
+        };
+    }
+    if let Err(err) = native_dml(&cfg).await {
+        stop.store(true, Ordering::Relaxed);
+        let _ = join(reader).await;
+        return Err(err);
+    }
+    stop.store(true, Ordering::Relaxed);
+    let phase = join(reader).await?;
+    if phase.health_ticks < 2 || phase.reconcile_ticks != 1 || phase.table_reads != cfg.tables.len() as u64 || phase.reconcile_diff != 0 {
+        return Err(PreviewError::new("c1", "period"));
+    }
+    check_native(&phase.rows)?;
+    let mut gold = connect_cdc(&cfg).await?;
+    let diff = gold_diff(&mut gold, &phase.rows, &cfg).await?;
+    drop(gold);
+    let mut audit = connect_dba(&cfg).await?;
+    let writes = write_attempts(&mut audit).await?;
+    drop(audit);
+    if diff != 0 || writes != 0 {
+        return Err(PreviewError::new("c1", "gold"));
+    }
+    write_json(
+        &out.join("native.json"),
+        &json!({
+            "protocol": "oo.mysql.c1-native/v1",
+            "complete": false,
+            "formal_signoff": "0/10",
+            "target_applied": false,
+            "ack_allowed": false,
+            "llm_calls": 0,
+            "ontology_version_changed": false,
+            "pack_rebuilt": false,
+            "customer_rds_touched": false,
+            "oo_c1_dml": false,
+            "purge_repeated": false,
+            "historical_rows_in_spool": false,
+            "tables": cfg.tables,
+            "visible_columns": 43,
+            "role": "oo_r_mysql_conn",
+            "config_sha256": config_hash,
+            "position_codec": "mysql-binlog-pos/v1",
+            "health_ticks": phase.health_ticks,
+            "reconcile_ticks": phase.reconcile_ticks,
+            "reconcile_table_reads": phase.table_reads,
+            "source_gold_diff": diff,
+            "cdc_write_attempts": writes,
+            "cross_table_one_commit": true,
+            "new_keys": ["910101", "910111", "910121", "910131", "910141"],
+            "cursor_gtid": phase.cursor_gtid,
+            "loader": loader_gap()
+        }),
+    )
+}
+
 #[derive(Clone)]
 struct C1Config {
     host: String,
@@ -268,6 +358,9 @@ struct C1Config {
     reconcile_every_ms: u64,
     preserve_dir: PathBuf,
     fixture: String,
+    tables: Vec<String>,
+    columns: BTreeMap<String, Vec<String>>,
+    full_table_gold: bool,
 }
 
 #[derive(Clone)]
@@ -312,6 +405,8 @@ struct Live {
     schema_hash: String,
     type_hash: String,
     pk: BTreeMap<String, Vec<usize>>,
+    selected: BTreeSet<String>,
+    visible: BTreeMap<String, Vec<usize>>,
     pending: Option<String>,
     buf: Vec<String>,
     counts: BTreeMap<String, u64>,
@@ -330,9 +425,20 @@ fn load_config(path: &Path) -> Result<C1Config, PreviewError> {
     let tables = map.get("tables").and_then(|item| item.as_array()).ok_or_else(|| PreviewError::new("config", "tables"))?;
     let mut names: Vec<&str> = tables.iter().filter_map(|item| item.as_str()).collect();
     names.sort_unstable();
-    if names != [HDR, LINE] {
+    let columns = parse_columns(map)?;
+    let full_table_gold = if names == [HDR, LINE] {
+        if !columns.is_empty() {
+            return Err(PreviewError::new("config", "columns"));
+        }
+        true
+    } else if names == NATIVE_TABLES {
+        if !native_columns_match(&columns) {
+            return Err(PreviewError::new("config", "columns"));
+        }
+        false
+    } else {
         return Err(PreviewError::new("config", "tables"));
-    }
+    };
     Ok(C1Config {
         host: text_field(map, "host")?,
         port: map.get("port").and_then(|item| item.as_u64()).and_then(|item| u16::try_from(item).ok()).ok_or_else(|| PreviewError::new("config", "port"))?,
@@ -346,6 +452,9 @@ fn load_config(path: &Path) -> Result<C1Config, PreviewError> {
         reconcile_every_ms: map.get("reconcile_every_ms").and_then(|item| item.as_u64()).filter(|item| *item >= 200).ok_or_else(|| PreviewError::new("config", "reconcile_every_ms"))?,
         preserve_dir: path_field(map, "preserve_dir")?,
         fixture: text_field(map, "fixture")?,
+        tables: names.into_iter().map(str::to_string).collect(),
+        columns,
+        full_table_gold,
     })
 }
 
@@ -630,7 +739,8 @@ async fn stream(
             .map_err(|_| PreviewError::new("privilege", "replication"))?,
     )?;
     grants_ok(&grants)?;
-    let (pk, catalog) = load_pk(&mut probe).await?;
+    let (pk, names, catalog) = load_pk(&mut probe, &cfg.tables).await?;
+    let visible = visible_ordinals(cfg, &names)?;
     let (file, _pos, executed) = full_status(&mut probe).await?;
     let span = match resume {
         Some(gtid) => parse_span(&gtid)?,
@@ -642,7 +752,7 @@ async fn stream(
     }
     let lineage = sha256_hex(uuid.as_bytes());
     let type_hash = sha256_hex(catalog.as_bytes());
-    let schema_hash = sha256_hex(format!("{HDR}\n{LINE}").as_bytes());
+    let schema_hash = sha256_hex(cfg.tables.join("\n").as_bytes());
     drop(probe);
     let mut live = Live {
         assembler: Assembler::new(),
@@ -653,6 +763,8 @@ async fn stream(
         schema_hash,
         type_hash,
         pk,
+        selected: cfg.tables.iter().cloned().collect(),
+        visible,
         pending: None,
         buf: Vec::new(),
         counts: BTreeMap::new(),
@@ -662,7 +774,7 @@ async fn stream(
         foreign: false,
         out: out.to_path_buf(),
     };
-    live.bind = bind_line(&lineage, &live.schema_hash, &live.type_hash, &schema_hash_of_config(&lineage));
+    live.bind = bind_line(&lineage, &live.schema_hash, &live.type_hash, &schema_hash_of_config(&lineage), &cfg.tables);
     live.feed(&live.bind.clone())?;
     if !out.join("l0.json").exists() {
         write_json(
@@ -729,8 +841,8 @@ async fn stream(
                     let waited = caught_up.ok_or_else(|| PreviewError::new("c1", "period"))?.elapsed();
                     match until {
                         Until::CaughtUp if health_since >= 2 && waited >= reconcile_every && reconcile_ticks == 0 => {
-                            reconcile_diff = gold_diff(&mut reconcile, &live.rows).await?;
-                            table_reads += 2;
+                            reconcile_diff = gold_diff(&mut reconcile, &live.rows, cfg).await?;
+                            table_reads += cfg.tables.len() as u64;
                             reconcile_ticks += 1;
                             break;
                         }
@@ -757,13 +869,13 @@ fn schema_hash_of_config(lineage: &str) -> String {
     sha256_hex(lineage.as_bytes())
 }
 
-fn bind_line(lineage: &str, schema_hash: &str, type_hash: &str, config_hash: &str) -> String {
+fn bind_line(lineage: &str, schema_hash: &str, type_hash: &str, config_hash: &str, tables: &[String]) -> String {
     json!({
         "kind": "bind",
         "source": SOURCE,
         "lineage": lineage,
         "epoch": 1,
-        "selected_tables": [HDR, LINE],
+        "selected_tables": tables,
         "schema_hash": schema_hash,
         "config_hash": config_hash,
         "type_hash": type_hash,
@@ -863,7 +975,7 @@ impl Live {
 
     fn on_rows(&mut self, rows: &RowsEventData<'_>, tme: &TableMapEvent<'_>) -> Result<bool, PreviewError> {
         let qualified = format!("{}.{}", tme.database_name(), tme.table_name());
-        if qualified != HDR && qualified != LINE {
+        if !self.selected.contains(&qualified) {
             if self.pending.is_some() {
                 self.foreign = true;
             }
@@ -873,6 +985,7 @@ impl Live {
             return Err(PreviewError::new("c1", "rows_outside_txn"));
         };
         let pk = self.pk.get(&qualified).cloned().ok_or_else(|| PreviewError::new("catalog", "primary_key"))?;
+        let ordinals = self.visible.get(&qualified).cloned().ok_or_else(|| PreviewError::new("catalog", "columns"))?;
         let mut hit = false;
         for pair in rows.rows(tme) {
             let (before, after) = pair.map_err(|_| PreviewError::new("protocol", "event"))?;
@@ -882,7 +995,6 @@ impl Live {
                 (Some(before), None) => ("delete", before, true),
                 (None, None) => return Err(PreviewError::new("protocol", "event")),
             };
-            let ordinals: Vec<usize> = (0..image.len()).collect();
             let key_cells = row_cells(&image, &pk)?;
             let payload_cells = row_cells(&image, &ordinals)?;
             if key_cells.iter().chain(payload_cells.iter()).any(json_null) {
@@ -1115,31 +1227,40 @@ fn seal_spool(dir: &Path, lines: &[String]) -> Result<(), PreviewError> {
     Ok(())
 }
 
-async fn load_pk(conn: &mut Conn) -> Result<(BTreeMap<String, Vec<usize>>, String), PreviewError> {
-    let rows: Vec<Row> = conn
-        .query("SELECT TABLE_NAME, ORDINAL_POSITION, COLUMN_KEY FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'oo_c1' AND TABLE_NAME IN ('order_hdr','order_line') ORDER BY TABLE_NAME, ORDINAL_POSITION")
-        .await
-        .map_err(|_| PreviewError::new("catalog", "columns"))?;
+async fn load_pk(conn: &mut Conn, tables: &[String]) -> Result<(BTreeMap<String, Vec<usize>>, BTreeMap<String, Vec<(usize, String)>>, String), PreviewError> {
+    let (schema, names) = one_schema(tables)?;
+    let sql = format!(
+        "SELECT TABLE_NAME, ORDINAL_POSITION, COLUMN_NAME, COLUMN_KEY FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = '{schema}' AND TABLE_NAME IN ({}) ORDER BY TABLE_NAME, ORDINAL_POSITION",
+        names.iter().map(|name| format!("'{name}'")).collect::<Vec<_>>().join(",")
+    );
+    let rows: Vec<Row> = conn.query(sql).await.map_err(|_| PreviewError::new("catalog", "columns"))?;
     let mut pk: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    let mut found: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();
     let mut catalog = String::new();
     for row in rows {
         let table = value_string(&row_value(&row, 0)?)?;
         let ordinal: u64 = value_string(&row_value(&row, 1)?)?.parse().map_err(|_| PreviewError::new("catalog", "columns"))?;
-        let key = value_string(&row_value(&row, 2)?)?;
+        let column = value_string(&row_value(&row, 2)?)?;
+        let key = value_string(&row_value(&row, 3)?)?;
         catalog.push_str(&table);
         catalog.push('\t');
-        catalog.push_str(&ordinal.to_string());
+        catalog.push_str(&column);
         catalog.push('\t');
         catalog.push_str(&key);
         catalog.push('\n');
+        let index = usize::try_from(ordinal - 1).map_err(|_| PreviewError::new("catalog", "columns"))?;
+        let qualified = format!("{schema}.{table}");
+        found.entry(qualified.clone()).or_default().push((index, column));
         if key == "PRI" {
-            pk.entry(format!("oo_c1.{table}")).or_default().push(usize::try_from(ordinal - 1).map_err(|_| PreviewError::new("catalog", "columns"))?);
+            pk.entry(qualified).or_default().push(index);
         }
     }
-    if pk.get(HDR).is_none_or(|cols| cols.is_empty()) || pk.get(LINE).is_none_or(|cols| cols.is_empty()) {
-        return Err(PreviewError::new("catalog", "primary_key"));
+    for table in tables {
+        if pk.get(table).is_none_or(|cols| cols.is_empty()) {
+            return Err(PreviewError::new("catalog", "primary_key"));
+        }
     }
-    Ok((pk, catalog))
+    Ok((pk, found, catalog))
 }
 
 async fn full_status(conn: &mut Conn) -> Result<(String, u64, String), PreviewError> {
@@ -1198,13 +1319,22 @@ fn fold(rows: &[Seen]) -> BTreeMap<(String, String), Vec<String>> {
     out
 }
 
-async fn gold_diff(conn: &mut Conn, rows: &[Seen]) -> Result<u64, PreviewError> {
-    let source = source_rows(conn).await?;
+async fn gold_diff(conn: &mut Conn, rows: &[Seen], cfg: &C1Config) -> Result<u64, PreviewError> {
     let decoded = fold(rows);
+    if cfg.full_table_gold {
+        let source = source_rows(conn).await?;
+        let mut diff = 0u64;
+        let keys: BTreeSet<_> = source.keys().chain(decoded.keys()).cloned().collect();
+        for key in keys {
+            if source.get(&key) != decoded.get(&key) {
+                diff += 1;
+            }
+        }
+        return Ok(diff);
+    }
     let mut diff = 0u64;
-    let keys: BTreeSet<_> = source.keys().chain(decoded.keys()).cloned().collect();
-    for key in keys {
-        if source.get(&key) != decoded.get(&key) {
+    for ((table, key), payload) in &decoded {
+        if native_key(conn, table, key).await?.as_ref() != Some(payload) {
             diff += 1;
         }
     }
@@ -1292,12 +1422,11 @@ fn binlog_name_ok(name: &str) -> bool {
 fn loader_gap() -> Value {
     json!({
         "public_fn": "oo_pipeline::native_update::import_native_transaction",
-        "signature": "pub async fn import_native_transaction() -> Result<(), u8>",
         "protocol": "oo.pipeline.native-transaction/v1",
-        "stdin": true,
-        "mysql_branch": "transaction_plans returns transaction_scope_required unless source_engine is postgres|postgresql and position_codec is pg-commit-lsn/v1",
-        "codec_allowed_only_in_classify": "mysql-binlog-pos/v1",
-        "missing_signature": "pub async fn apply_mysql_binlog_transaction(document: &serde_json::Value) -> Result<serde_json::Value, &'static str>",
+        "old_binary_sha256": "cb483866516dd783a2f75277ea9b0b2bc148418f2d6c5d9e27d305e4a9443e45",
+        "old_binary_fact": "that host binary does not recognize import-native-transaction; the usage exit is the old artifact, not the current source API",
+        "current_gap": "transaction_plans still requires postgres|postgresql and pg-commit-lsn/v1; mysql-binlog-pos/v1 is only allow-listed in classify",
+        "shared_writer": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
         "target_applied": false,
         "ack_allowed": false
     })
@@ -1351,19 +1480,246 @@ fn one_cell(ordinal: u16, value: Option<&BinlogValue<'_>>) -> Result<Value, Prev
             }
         },
         MyValue::Float(_) | MyValue::Double(_) => Err(PreviewError::new("value", "inexact")),
+        MyValue::Time(neg, days, hour, minute, second, micros) => {
+            Ok(json!({"ordinal": ordinal, "type": "text", "value": time_text(neg, days, hour, minute, second, micros)?}))
+        }
         MyValue::Date(year, month, day, hour, minute, second, _) => {
             if year == 0 {
                 return Err(PreviewError::new("value", "zero_date"));
             }
             Ok(json!({"ordinal": ordinal, "type": "text", "value": format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")}))
         }
-        MyValue::Time(_, _, _, _, _, _) => Err(PreviewError::new("value", "time")),
     }
+}
+
+const NATIVE_ID_CHECK: &str = "SELECT CAST((SELECT COUNT(*) FROM native_mysql_20261012.hubs WHERE hub_id=910101)+(SELECT COUNT(*) FROM native_mysql_20261012.shipments WHERE shipment_id=910111)+(SELECT COUNT(*) FROM native_mysql_20261012.tracking_events WHERE event_id=910121)+(SELECT COUNT(*) FROM native_mysql_20261012.value_probe WHERE probe_id=910131)+(SELECT COUNT(*) FROM native_mysql_20261012.range_gap WHERE gap_id=910141) AS CHAR)";
+
+const NATIVE_DML: [&str; 7] = [
+    "START TRANSACTION",
+    "INSERT INTO native_mysql_20261012.hubs (hub_id, hub_code, hub_name, region_code, latitude, longitude, capacity_grams, opened_at, badge, note) VALUES (910101, 'C1-HUB', 'c1 native hub', 'C1', 12.5000, 100.2500, 7, '2026-10-14 08:15:00', 'c1b00001', 'c1-note')",
+    "INSERT INTO native_mysql_20261012.shipments (shipment_id, origin_hub_id, dest_hub_id, status, transport_mode, weight_grams, cost_amount, created_at, promised_at, seal, comment) VALUES (910111, 910101, 910101, 'in_transit', 'road', 42, 3.2500, '2026-10-14 08:16:00', '2026-10-15 09:00:00', 'c1s00001', 'c1-ship')",
+    "INSERT INTO native_mysql_20261012.tracking_events (event_id, shipment_id, hub_id, status, event_at, recorded_weight_grams, payload, comment) VALUES (910121, 910111, 910101, 'in_transit', '2026-10-14 08:17:00', 42, 'c1p00001', 'c1-evt')",
+    "INSERT INTO native_mysql_20261012.value_probe (probe_id, unsigned_grams, exact_amount, payload, badge, day_on, clock_at, note) VALUES (910131, 9, 4.5000, '{\"tag\":\"c1\"}', 'c1v00001', '2026-10-14', '08:18:00', 'c1-probe')",
+    "INSERT INTO native_mysql_20261012.range_gap (gap_id, table_name, column_name, row_key, reason, canonical_text) VALUES (910141, 'hubs', 'note', 910101, 'c1-visible', 'c1-gap')",
+    "COMMIT",
+];
+
+fn ident_ok(name: &str) -> bool {
+    !name.is_empty() && name.len() <= 64 && name.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+}
+
+fn one_schema(tables: &[String]) -> Result<(String, Vec<String>), PreviewError> {
+    let mut schema = None;
+    let mut names = Vec::new();
+    for qualified in tables {
+        let (left, right) = qualified.split_once('.').ok_or_else(|| PreviewError::new("config", "tables"))?;
+        if !ident_ok(left) || !ident_ok(right) {
+            return Err(PreviewError::new("config", "tables"));
+        }
+        if let Some(got) = &schema {
+            if got != left {
+                return Err(PreviewError::new("config", "tables"));
+            }
+        } else {
+            schema = Some(left.to_string());
+        }
+        names.push(right.to_string());
+    }
+    Ok((schema.ok_or_else(|| PreviewError::new("config", "tables"))?, names))
+}
+
+fn parse_columns(map: &serde_json::Map<String, Value>) -> Result<BTreeMap<String, Vec<String>>, PreviewError> {
+    let Some(raw) = map.get("columns") else {
+        return Ok(BTreeMap::new());
+    };
+    let obj = raw.as_object().ok_or_else(|| PreviewError::new("config", "columns"))?;
+    let mut out = BTreeMap::new();
+    for (key, value) in obj {
+        let (schema, table) = key.split_once('.').ok_or_else(|| PreviewError::new("config", "columns"))?;
+        if !ident_ok(schema) || !ident_ok(table) {
+            return Err(PreviewError::new("config", "columns"));
+        }
+        let list = value.as_array().ok_or_else(|| PreviewError::new("config", "columns"))?;
+        let mut names = Vec::new();
+        for item in list {
+            let name = item.as_str().filter(|name| ident_ok(name)).ok_or_else(|| PreviewError::new("config", "columns"))?;
+            names.push(name.to_string());
+        }
+        if names.is_empty() {
+            return Err(PreviewError::new("config", "columns"));
+        }
+        out.insert(key.clone(), names);
+    }
+    Ok(out)
+}
+
+fn native_columns(table: &str) -> Option<&'static [&'static str]> {
+    Some(match table {
+        "native_mysql_20261012.hubs" => &["hub_id", "hub_code", "hub_name", "region_code", "latitude", "longitude", "capacity_grams", "opened_at", "badge", "note"],
+        "native_mysql_20261012.range_gap" => &["gap_id", "table_name", "column_name", "row_key", "reason", "canonical_text"],
+        "native_mysql_20261012.shipments" => &[
+            "shipment_id",
+            "origin_hub_id",
+            "dest_hub_id",
+            "status",
+            "transport_mode",
+            "weight_grams",
+            "cost_amount",
+            "created_at",
+            "promised_at",
+            "seal",
+            "comment",
+        ],
+        "native_mysql_20261012.tracking_events" => &["event_id", "shipment_id", "hub_id", "status", "event_at", "recorded_weight_grams", "payload", "comment"],
+        "native_mysql_20261012.value_probe" => &["probe_id", "unsigned_grams", "exact_amount", "payload", "badge", "day_on", "clock_at", "note"],
+        _ => return None,
+    })
+}
+
+fn native_columns_match(columns: &BTreeMap<String, Vec<String>>) -> bool {
+    columns.len() == NATIVE_TABLES.len()
+        && NATIVE_TABLES.iter().all(|table| {
+            columns.get(*table).is_some_and(|got| native_columns(table).is_some_and(|want| got.iter().map(String::as_str).eq(want.iter().copied())))
+        })
+}
+
+fn visible_ordinals(cfg: &C1Config, names: &BTreeMap<String, Vec<(usize, String)>>) -> Result<BTreeMap<String, Vec<usize>>, PreviewError> {
+    let mut out = BTreeMap::new();
+    for table in &cfg.tables {
+        let have = names.get(table).ok_or_else(|| PreviewError::new("catalog", "columns"))?;
+        let ords = if cfg.columns.is_empty() {
+            have.iter().map(|(ord, _)| *ord).collect::<Vec<_>>()
+        } else {
+            let want = cfg.columns.get(table).ok_or_else(|| PreviewError::new("config", "columns"))?;
+            let mut picked = Vec::new();
+            for name in want {
+                picked.push(have.iter().find(|(_, column)| column == name).map(|(ord, _)| *ord).ok_or_else(|| PreviewError::new("catalog", "columns"))?);
+            }
+            picked.sort_unstable();
+            picked
+        };
+        if ords.is_empty() {
+            return Err(PreviewError::new("catalog", "columns"));
+        }
+        out.insert(table.clone(), ords);
+    }
+    Ok(out)
+}
+
+async fn ensure_native_select(conn: &mut Conn) -> Result<(), PreviewError> {
+    let mut grants = rows_first(
+        &conn.query("SHOW GRANTS FOR 'oo_cdc'@'%'").await.map_err(|_| PreviewError::new("privilege", "replication"))?,
+    )?;
+    if !grants.join("\n").to_ascii_uppercase().contains("NATIVE_MYSQL_20261012") {
+        exec_static(conn, "GRANT SELECT ON native_mysql_20261012.* TO 'oo_cdc'@'%'").await?;
+        grants = rows_first(&conn.query("SHOW GRANTS FOR 'oo_cdc'@'%'").await.map_err(|_| PreviewError::new("privilege", "replication"))?)?;
+    }
+    grants_ok(&grants)?;
+    if !grants.join("\n").to_ascii_uppercase().contains("NATIVE_MYSQL_20261012") {
+        return Err(PreviewError::new("privilege", "replication"));
+    }
+    Ok(())
+}
+
+async fn native_dml(cfg: &C1Config) -> Result<(), PreviewError> {
+    let mut conn = connect_dba(cfg).await?;
+    for sql in NATIVE_DML {
+        exec_static(&mut conn, sql).await?;
+    }
+    Ok(())
+}
+
+fn check_native(rows: &[Seen]) -> Result<(), PreviewError> {
+    let keys = [
+        ("native_mysql_20261012.hubs", "910101"),
+        ("native_mysql_20261012.shipments", "910111"),
+        ("native_mysql_20261012.tracking_events", "910121"),
+        ("native_mysql_20261012.value_probe", "910131"),
+        ("native_mysql_20261012.range_gap", "910141"),
+    ];
+    if rows.len() != keys.len() {
+        return Err(PreviewError::new("c1", "cross_table"));
+    }
+    let first = rows.iter().find(|row| row.key == "910101").ok_or_else(|| PreviewError::new("c1", "cross_table"))?;
+    for (table, key) in keys {
+        let row = rows.iter().find(|row| row.table == table && row.key == key && !row.deleted).ok_or_else(|| PreviewError::new("c1", "cross_table"))?;
+        if row.txn_id != first.txn_id || row.commit_lsn != first.commit_lsn || row.commit_order == 0 {
+            return Err(PreviewError::new("c1", "cross_table"));
+        }
+    }
+    Ok(())
+}
+
+struct NativeRead {
+    sql: &'static str,
+    width: usize,
+    json_at: Option<usize>,
+}
+
+fn native_read(table: &str) -> Result<NativeRead, PreviewError> {
+    Ok(match table {
+        "native_mysql_20261012.hubs" => NativeRead {
+            sql: "SELECT CAST(hub_id AS CHAR), hub_code, hub_name, region_code, CAST(latitude AS CHAR), CAST(longitude AS CHAR), CAST(capacity_grams AS CHAR), DATE_FORMAT(opened_at, '%Y-%m-%dT%H:%i:%sZ'), CONVERT(badge USING utf8mb4), note FROM native_mysql_20261012.hubs WHERE hub_id = ?",
+            width: 10,
+            json_at: None,
+        },
+        "native_mysql_20261012.range_gap" => NativeRead {
+            sql: "SELECT CAST(gap_id AS CHAR), table_name, column_name, CAST(row_key AS CHAR), reason, canonical_text FROM native_mysql_20261012.range_gap WHERE gap_id = ?",
+            width: 6,
+            json_at: None,
+        },
+        "native_mysql_20261012.shipments" => NativeRead {
+            sql: "SELECT CAST(shipment_id AS CHAR), CAST(origin_hub_id AS CHAR), CAST(dest_hub_id AS CHAR), status, transport_mode, CAST(weight_grams AS CHAR), CAST(cost_amount AS CHAR), DATE_FORMAT(created_at, '%Y-%m-%dT%H:%i:%sZ'), DATE_FORMAT(promised_at, '%Y-%m-%dT%H:%i:%sZ'), CONVERT(seal USING utf8mb4), comment FROM native_mysql_20261012.shipments WHERE shipment_id = ?",
+            width: 11,
+            json_at: None,
+        },
+        "native_mysql_20261012.tracking_events" => NativeRead {
+            sql: "SELECT CAST(event_id AS CHAR), CAST(shipment_id AS CHAR), CAST(hub_id AS CHAR), status, DATE_FORMAT(event_at, '%Y-%m-%dT%H:%i:%sZ'), CAST(recorded_weight_grams AS CHAR), CONVERT(payload USING utf8mb4), comment FROM native_mysql_20261012.tracking_events WHERE event_id = ?",
+            width: 8,
+            json_at: None,
+        },
+        "native_mysql_20261012.value_probe" => NativeRead {
+            sql: "SELECT CAST(probe_id AS CHAR), CAST(unsigned_grams AS CHAR), CAST(exact_amount AS CHAR), CAST(payload AS CHAR), CONVERT(badge USING utf8mb4), DATE_FORMAT(day_on, '%Y-%m-%dT00:00:00Z'), TIME_FORMAT(clock_at, '%H:%i:%s'), note FROM native_mysql_20261012.value_probe WHERE probe_id = ?",
+            width: 8,
+            json_at: Some(3),
+        },
+        _ => return Err(PreviewError::new("catalog", "columns")),
+    })
+}
+
+fn compact_json(text: &str) -> Result<String, PreviewError> {
+    let value: Value = serde_json::from_str(text).map_err(|_| PreviewError::new("value", "cell"))?;
+    serde_json::to_string(&value).map_err(|_| PreviewError::new("value", "cell"))
+}
+
+async fn native_key(conn: &mut Conn, table: &str, key: &str) -> Result<Option<Vec<String>>, PreviewError> {
+    let read = native_read(table)?;
+    let id: u64 = key.parse().map_err(|_| PreviewError::new("value", "key"))?;
+    let row: Option<Row> = conn.exec_first(read.sql, (id,)).await.map_err(|_| PreviewError::new("protocol", "query"))?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let mut cells = Vec::new();
+    for index in 0..read.width {
+        let mut text = value_string(&row_value(&row, index)?)?;
+        if read.json_at == Some(index) {
+            text = compact_json(&text)?;
+        }
+        cells.push(text);
+    }
+    Ok(Some(cells))
+}
+
+fn time_text(neg: bool, days: u32, hour: u8, minute: u8, second: u8, micros: u32) -> Result<String, PreviewError> {
+    if neg || days != 0 || micros != 0 {
+        return Err(PreviewError::new("value", "time"));
+    }
+    Ok(format!("{hour:02}:{minute:02}:{second:02}"))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{civil_from_unix, commit_lsn, parse_span};
+    use super::{civil_from_unix, commit_lsn, compact_json, native_columns, parse_span, time_text, NATIVE_TABLES};
 
     #[test]
     fn commit_lsn_uses_the_docs04_split() {
@@ -1384,5 +1740,18 @@ mod tests {
         let span = parse_span("1bc0749a-c3f5-11f1-9a89-6e5583e808c4:1-3").unwrap();
         assert_eq!(span.start, 1);
         assert_eq!(span.end, 3);
+    }
+
+    #[test]
+    fn whole_seconds_are_text_and_json_is_compact() {
+        assert_eq!(time_text(false, 0, 8, 18, 0, 0).unwrap(), "08:18:00");
+        assert!(time_text(true, 0, 1, 0, 0, 0).is_err());
+        assert_eq!(compact_json("{\"tag\": \"c1\"}").unwrap(), "{\"tag\":\"c1\"}");
+    }
+
+    #[test]
+    fn measured_role_columns_cover_the_five_tables() {
+        let count: usize = NATIVE_TABLES.iter().map(|table| native_columns(table).unwrap().len()).sum();
+        assert_eq!(count, 43);
     }
 }

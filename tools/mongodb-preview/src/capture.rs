@@ -396,10 +396,12 @@ fn plan_c1(
     if request.delete_mode != "native" {
         blocks.push(local("DELETE_MODE", "C1 delete mode is native"));
     }
-    if request.consistency != "T" || request.token_order != "Total" {
+    if request.token_order != "Total"
+        || !matches!(request.consistency.as_str(), "T" | "S0" | "B")
+    {
         blocks.push(local(
             "CONSISTENCY_OVERCLAIM",
-            "C1 admission here requires grade T and token order Total",
+            "C1 clusterTime is Total; grade is T only with a commit, otherwise S0 or B",
         ));
     }
     if request.quality.iter().any(|item| item == "DELETES_LAGGED") {
@@ -485,7 +487,7 @@ fn c1_capability(request: &SyncRequest) -> Option<(&'static str, &'static str)> 
             "delete event shape was not observed",
         ));
     }
-    if !request.transaction_metadata {
+    if request.consistency == "T" && !request.transaction_metadata {
         return Some((
             "CDC_TRANSACTION_METADATA_ABSENT",
             "transaction metadata was not observed; grade T is not claimed and C5 is not substituted",

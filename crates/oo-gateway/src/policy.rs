@@ -551,7 +551,9 @@ pub fn compile_column_acl_native_transition(
 
 /// Atomically replace the exact previous grants with the latest generation's grants.
 /// The previous policy bytes must be independently pinned by the operator caller.
-/// Default installers retain their strict full-set replay contract.
+/// Direct metadata `SELECT` and lookup `EXECUTE` already held by the policy login
+/// are detached from the `NOLOGIN` role in the same transaction. Default installers
+/// retain their strict full-set replay contract.
 pub async fn transition_column_acl_native_vector_set(
     client: &mut Client, previous: &[ColumnAclPolicy], current: &[ColumnAclPolicy],
 ) -> Result<SetInstallOutcome, PolicyError> {
@@ -597,6 +599,7 @@ async fn transition_set_in_transaction(
     ensure_schema_usage(tx, &first.role).await?;
     ensure_no_future_select(tx, &first.role).await?;
     revoke_older_same_table_grants(tx, &first.role, before).await?;
+    detach_proven_metadata_grants(tx, &first.role, &first.login).await?;
     let effect = match ensure_exact_grants(tx, &first.role, &new).await {
         Ok(()) => InstallEffect::Replay,
         Err(PolicyError::GrantMismatch) => {
@@ -1484,6 +1487,132 @@ async fn ensure_metadata_hidden(
     }
 }
 
+const METADATA_SELECT_TABLES: &[&str] = &[
+    "apply_receipts",
+    "full_import_quality",
+    "full_import_run",
+    "full_import_table",
+    "physical_mappings",
+    "source_watermark",
+    "table_freshness",
+    "table_quality",
+];
+
+const LOOKUP_IDENTITY_ARGS: &str = "p_source text, p_config_digest text, p_run_generation bigint, p_level text, p_logical_namespace text, p_logical_table text, p_logical_column text";
+
+struct MetadataDetach {
+    tables: Vec<&'static str>,
+    revoke_lookup: bool,
+}
+
+fn plan_metadata_detach(
+    role_tables: &BTreeSet<(String, String, String)>,
+    login_tables: &BTreeSet<(String, String, String)>,
+    role_routines: &BTreeSet<(String, String, String, bool)>,
+    login_routines: &BTreeSet<(String, String, String, bool)>,
+) -> Result<MetadataDetach, PolicyError> {
+    let mut tables = Vec::new();
+    for (schema, name, privilege) in role_tables {
+        let known = schema == "_oo"
+            && privilege == "SELECT"
+            && METADATA_SELECT_TABLES.contains(&name.as_str());
+        if !known || !login_tables.contains(&(schema.clone(), name.clone(), privilege.clone())) {
+            return Err(PolicyError::GrantMismatch);
+        }
+        tables.push(METADATA_SELECT_TABLES.iter().copied().find(|item| *item == name).ok_or(PolicyError::GrantMismatch)?);
+    }
+    tables.sort_unstable();
+    tables.dedup();
+    let mut revoke_lookup = false;
+    for (schema, name, args, grantable) in role_routines {
+        let lookup = schema == "_oo"
+            && name == "lookup_physical_mapping"
+            && args == LOOKUP_IDENTITY_ARGS
+            && !grantable;
+        if !lookup || !login_routines.contains(&(schema.clone(), name.clone(), args.clone(), false)) {
+            return Err(PolicyError::GrantMismatch);
+        }
+        revoke_lookup = true;
+    }
+    Ok(MetadataDetach { tables, revoke_lookup })
+}
+
+async fn direct_table_privileges(
+    tx: &mut Transaction<'_>,
+    role: &str,
+) -> Result<BTreeSet<(String, String, String)>, PolicyError> {
+    let rows = tx
+        .query(
+            "SELECT table_schema::text, table_name::text, privilege_type::text \
+             FROM information_schema.table_privileges WHERE grantee = $1",
+            &[&role],
+        )
+        .await
+        .map_err(db_error)?;
+    let mut held = BTreeSet::new();
+    for row in rows {
+        held.insert((row.get(0), row.get(1), row.get(2)));
+    }
+    Ok(held)
+}
+
+async fn direct_routine_privileges(
+    tx: &mut Transaction<'_>,
+    role: &str,
+) -> Result<BTreeSet<(String, String, String, bool)>, PolicyError> {
+    let rows = tx
+        .query(
+            "SELECT n.nspname::text, p.proname::text, \
+                    pg_catalog.pg_get_function_identity_arguments(p.oid), \
+                    a.is_grantable \
+             FROM pg_catalog.pg_proc AS p \
+             JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace \
+             CROSS JOIN LATERAL pg_catalog.aclexplode(p.proacl) AS a \
+             JOIN pg_catalog.pg_roles AS r ON r.oid = a.grantee \
+             WHERE r.rolname = $1 AND a.privilege_type = 'EXECUTE'",
+            &[&role],
+        )
+        .await
+        .map_err(db_error)?;
+    let mut held = BTreeSet::new();
+    for row in rows {
+        held.insert((row.get(0), row.get(1), row.get(2), row.get(3)));
+    }
+    Ok(held)
+}
+
+async fn detach_proven_metadata_grants(
+    tx: &mut Transaction<'_>,
+    role: &str,
+    login: &str,
+) -> Result<(), PolicyError> {
+    let plan = plan_metadata_detach(
+        &direct_table_privileges(tx, role).await?,
+        &direct_table_privileges(tx, login).await?,
+        &direct_routine_privileges(tx, role).await?,
+        &direct_routine_privileges(tx, login).await?,
+    )?;
+    if plan.tables.is_empty() && !plan.revoke_lookup {
+        return Ok(());
+    }
+    let quoted = quote_ident(role)?;
+    for table in plan.tables {
+        tx.batch_execute(&format!(
+            "REVOKE SELECT ON TABLE \"_oo\".\"{table}\" FROM {quoted}"
+        ))
+        .await
+        .map_err(db_error)?;
+    }
+    if plan.revoke_lookup {
+        tx.batch_execute(&format!(
+            "REVOKE EXECUTE ON FUNCTION \"_oo\".lookup_physical_mapping({LOOKUP_IDENTITY_ARGS}) FROM {quoted}"
+        ))
+        .await
+        .map_err(db_error)?;
+    }
+    Ok(())
+}
+
 async fn ensure_schema_usage(tx: &mut Transaction<'_>, role: &str) -> Result<(), PolicyError> {
     let row = tx
         .query_one(
@@ -1765,5 +1894,57 @@ mod tests {
         assert_eq!(compiled.len(), 2);
         assert!(!compiled.is_empty());
         assert_eq!(compiled.role(), "oo_r_dispatcher");
+    }
+
+    fn table_priv(name: &str) -> (String, String, String) {
+        ("_oo".into(), name.into(), "SELECT".into())
+    }
+
+    fn lookup_routine(grantable: bool) -> (String, String, String, bool) {
+        (
+            "_oo".into(),
+            "lookup_physical_mapping".into(),
+            LOOKUP_IDENTITY_ARGS.into(),
+            grantable,
+        )
+    }
+
+    #[test]
+    fn metadata_detach_is_empty_without_legacy_and_refuses_unproven_grants() {
+        let empty = BTreeSet::new();
+        let routines = BTreeSet::new();
+        let none = plan_metadata_detach(&empty, &empty, &routines, &routines).expect("empty");
+        assert!(none.tables.is_empty());
+        assert!(!none.revoke_lookup);
+
+        let mut role_tables = BTreeSet::new();
+        let mut login_tables = BTreeSet::new();
+        for name in METADATA_SELECT_TABLES {
+            role_tables.insert(table_priv(name));
+            login_tables.insert(table_priv(name));
+        }
+        let mut role_routines = BTreeSet::from([lookup_routine(false)]);
+        let login_routines = role_routines.clone();
+        let full = plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines)
+            .expect("full");
+        assert_eq!(full.tables.as_slice(), METADATA_SELECT_TABLES);
+        assert!(full.revoke_lookup);
+
+        login_tables.remove(&table_priv("physical_mappings"));
+        assert!(plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines).is_err());
+        login_tables.insert(table_priv("physical_mappings"));
+        role_tables.insert(("_oo".into(), "other_table".into(), "SELECT".into()));
+        assert!(plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines).is_err());
+        role_tables.remove(&("_oo".into(), "other_table".into(), "SELECT".into()));
+        role_tables.insert(("_oo".into(), "physical_mappings".into(), "INSERT".into()));
+        assert!(plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines).is_err());
+
+        role_routines.insert(("_oo".into(), "register_physical_mapping".into(), "text".into(), false));
+        let only_tables = BTreeSet::new();
+        assert!(plan_metadata_detach(&only_tables, &only_tables, &role_routines, &login_routines).is_err());
+        let grantable = BTreeSet::from([lookup_routine(true)]);
+        assert!(plan_metadata_detach(&only_tables, &only_tables, &grantable, &login_routines).is_err());
+        let held = BTreeSet::from([lookup_routine(false)]);
+        assert!(plan_metadata_detach(&only_tables, &only_tables, &held, &routines).is_err());
     }
 }

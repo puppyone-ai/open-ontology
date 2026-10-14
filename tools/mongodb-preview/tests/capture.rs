@@ -91,6 +91,20 @@ fn replica_without_transaction_metadata_does_not_downgrade() {
 }
 
 #[test]
+fn replica_without_commit_admits_c1_at_s0() {
+    let mut value = base("C1");
+    value["consistency"] = json!("S0");
+    value["transaction_metadata"] = json!(false);
+    let decision = decide(&value);
+    assert_eq!(decision["outcome"], "c1_admitted");
+    assert_eq!(decision["capture_method"], "C1");
+    assert_eq!(decision["consistency"], "S0");
+    assert_eq!(decision["cdc_claimed"], json!(true));
+    assert_eq!(decision["cdc_read_allowed"], json!(true));
+    assert!(codes(&decision).is_empty());
+}
+
+#[test]
 fn replica_c1_admits_only_after_the_capability_checks() {
     let decision = decide(&base("C1"));
     assert_eq!(decision["outcome"], "c1_admitted");
