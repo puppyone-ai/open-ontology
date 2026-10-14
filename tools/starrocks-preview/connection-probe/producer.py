@@ -45,6 +45,34 @@ def phase(root, name, args):
         raise RuntimeError(name + " refused; retained raw phase")
 
 
+def canonical_rows(fields, rows):
+    return ["\x1f".join(seal.cell(row[field["name"]]) for field in fields) for row in rows]
+
+
+def same_capture(previous, fresh):
+    return sorted(previous) == sorted(fresh)
+
+
+def baseline_rows(owned, binding, table, generation):
+    found = None
+    root = Path(owned) / binding
+    if not root.is_dir():
+        raise RuntimeError("quiet baseline absent")
+    for path in sorted(root.glob("*/capturer.json")):
+        body = json.loads(path.read_text())
+        if body.get("source_generation") != generation:
+            continue
+        matches = [item for item in body.get("tables") or [] if item.get("name") == table]
+        if len(matches) != 1:
+            continue
+        if found is not None:
+            raise RuntimeError("quiet baseline ambiguous")
+        found = matches[0].get("rows")
+    if not isinstance(found, list):
+        raise RuntimeError("quiet baseline absent")
+    return found
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True, type=Path)
@@ -85,6 +113,11 @@ def main():
         reads = root / "reads"
         decoded = root / "decoded"
         marker = root / "capture-started.json"
+        quiet_path = root / "quiet.json"
+        # ponytail: native-serve applies only base+1. An identical read refuses
+        # this pin so the source generation stays. The worker still retries it.
+        if marker.exists() and quiet_path.is_file():
+            raise RuntimeError("quiet_unchanged")
         if marker.exists():
             recovery = root / "source-recovery.json"
             if not recovery.is_file():
@@ -118,6 +151,12 @@ def main():
         else:
             write(schema_path, native_columns)
         document = json.loads((decoded / (args.table + ".json")).read_text())
+        fresh = canonical_rows(document["fields"], document["rows"])
+        if same_capture(baseline_rows(owned, binding, args.table, event["acknowledged_source_generation"]), fresh):
+            if audit.get("write_attempts"):
+                raise RuntimeError("source reader attempted a write")
+            write(quiet_path, {"protocol": "oo.starrocks.quiet-unchanged/v1", "binding": binding, "occurrence_pin": occurrence_pin, "acknowledged_source_generation": event["acknowledged_source_generation"], "table": args.table, "fingerprint": hashlib.sha256("\n".join(sorted(fresh)).encode()).hexdigest()})
+            raise RuntimeError("quiet_unchanged")
         columns = [seal.arrow_column(field) for field in document["fields"]]
         obj = next(o for o in native_catalog["objects"] if o["name"] == args.table)
         # Pinned probe ELF omits logical_dataset_kind; uniq_dim is a native table.
@@ -126,7 +165,7 @@ def main():
         aggregate = model in {"aggregate", "derived_aggregate"}
         quality = "DELETES_UNDETECTED" if aggregate else "DELETES_LAGGED"
         detection = "none" if aggregate else "reconcile"
-        capturer = {"protocol": "oo.starrocks.capture-tick/v1", "source_engine": "starrocks", "source_id": config["source_id"], "source_generation": pin, "label": f"{binding}-{pin}", "database": config["capture"]["source"]["database"], "product_reader_write_attempts": audit["write_attempts"], "source_reader_audit": audit, "snapshot_token": False, "snapshot_token_basis": "finished full reads; no transactional snapshot token", "native_catalog_path": str(reads / "catalog.json"), "native_catalog_sha256": seal.sha256(reads / "catalog.json"), "native_columns": native_columns, "logical_dataset_kind": kind, "tables": [{"name": args.table, "arrow": args.table + ".arrow", "route": "C5", "consistency": "B", "delete_mode": detection, "cursor_safety": "no_cursor", "quality": quality, "key_model": model, "rows": ["\x1f".join(seal.cell(row[f["name"]]) for f in document["fields"]) for row in document["rows"]]}]}
+        capturer = {"protocol": "oo.starrocks.capture-tick/v1", "source_engine": "starrocks", "source_id": config["source_id"], "source_generation": pin, "label": f"{binding}-{pin}", "database": config["capture"]["source"]["database"], "product_reader_write_attempts": audit["write_attempts"], "source_reader_audit": audit, "snapshot_token": False, "snapshot_token_basis": "finished full reads; no transactional snapshot token", "native_catalog_path": str(reads / "catalog.json"), "native_catalog_sha256": seal.sha256(reads / "catalog.json"), "native_columns": native_columns, "logical_dataset_kind": kind, "tables": [{"name": args.table, "arrow": args.table + ".arrow", "route": "C5", "consistency": "B", "delete_mode": detection, "cursor_safety": "no_cursor", "quality": quality, "key_model": model, "rows": fresh}]}
         write(root / "capturer.json", capturer)
         write(root / "schema.json", [{"table": args.table, "columns": columns}])
         write(root / "types.json", [seal.type_row(args.table, c) for c in columns])

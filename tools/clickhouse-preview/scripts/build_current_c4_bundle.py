@@ -9,7 +9,8 @@ import shutil
 ROOT = Path('/Users/redux/puppy-one/open-ontology')
 PROFILE = ROOT / 'evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/raw/run/native-20261013-c4-profile/source-profile.json'
 NAMES = ('reading_id', 'version', 'amount', 'note', 'code', 'code_or_null', 'ts', 'tags', 'labels', 'qty', 'label', 'wide_u64')
-TYPES = ('identifier', 'system', 'quantity', 'free_text', 'code', 'code', 'event_time', 'json', 'json', 'quantity', 'category', 'system')
+# amount is decimal money. The source stores no currency, so the unit is unspecified.
+TYPES = ('identifier', 'system', 'money', 'free_text', 'code', 'code', 'event_time', 'json', 'json', 'quantity', 'category', 'system')
 
 
 def write(path, value):
@@ -51,7 +52,8 @@ def main():
         'columns': [
             {'column': f'oo_dl01w40.readings.{name}', 'semantic_type': semantic,
              'confidence': 'high' if name in {'reading_id', 'version', 'ts', 'qty', 'wide_u64'} else 'low',
-             'pii': 'none' if name in {'reading_id', 'version', 'ts', 'qty', 'wide_u64'} else 'unknown'}
+             'pii': 'none' if semantic == 'money' or name in {'reading_id', 'version', 'ts', 'qty', 'wide_u64'} else 'unknown',
+             **({'unit': 'unspecified'} if semantic == 'money' else {})}
             for name, semantic in zip(NAMES, TYPES)
         ],
         'relationships': [],

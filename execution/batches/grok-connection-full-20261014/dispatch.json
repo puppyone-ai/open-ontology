@@ -2,74 +2,86 @@
   {
     "task": "mysql",
     "session_uuid": "151ef0b8-76ea-4807-85ed-30148a02dbe7",
-    "pid": 49893,
+    "pid": 88533,
     "prompt": "execution/batches/grok-connection-full-20261014/mysql-compact-whole-fallback.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mysql.log",
     "write_paths": [
       "tools/mysql-preview"
     ],
-    "status": "same_owner_reserved_shared_completed_receipt_provenance_gate",
+    "status": "same_owner_original_documented_rust_production_route",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 105,
-    "prior_pid": 72621,
+    "prior_pid": 49893,
     "prior_session_uuid": "495fb1d9-fc22-49a7-909f-b323194044ad",
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/mysql-persistent-shared-8fa-exits.md",
-    "max_turns": 1000
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mysql-persistent-original-rust-c1-binlog.md",
+    "max_turns": 1000,
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+    "original_required_capture": "C1 binlog CDC",
+    "rust_core_required": true
   },
   {
     "task": "oracle",
     "session_uuid": "18ce4925-f24a-42eb-9471-87772c654e29",
-    "pid": 90781,
+    "pid": 93896,
     "prompt": "execution/batches/grok-connection-full-20261014/oracle.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/oracle.log",
     "write_paths": [
       "tools/oracle-preview"
     ],
-    "status": "same_owner_reserved_collect_delivery_and_shared_dependency",
+    "status": "same_owner_original_rust_route_actual_47c_current_maintenance",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 395,
     "prior_delivery": "669c3ccd6 actual g3 C5 delete/typed equality only; full source incomplete",
-    "prior_pid": 62932,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/oracle-same-owner-final-original-exits.md",
+    "prior_pid": 90781,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/oracle-persistent-original-rust-47c-maintenance.md",
     "max_turns": 1000,
-    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
+    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+    "original_required_capture": "verified batch C3/C5, S1 if same SCN proven",
+    "rust_core_required": true
   },
   {
     "task": "mariadb",
     "session_uuid": "2b95896a-0f6d-442c-9f3d-51c074ba0138",
-    "pid": 61786,
+    "pid": 88535,
     "prompt": "execution/batches/grok-connection-full-20261014/mariadb-compact-whole-continue.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mariadb.log",
     "write_paths": [
       "tools/mariadb-preview"
     ],
-    "status": "same_owner_collect_inflight_corrected_s5_no_new_create",
+    "status": "same_owner_original_documented_rust_production_route",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 207,
     "prior_delivery": "fe07688d5 source capture/preparation only; full chain incomplete",
     "prior_session_uuid": "cdc8b5a3-a390-4379-8260-d928aff84ce3",
-    "prior_pid": 54952,
+    "prior_pid": 61786,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-collect-running-s5.md",
-    "max_turns": 1000
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mariadb-persistent-original-rust-c1-binlog.md",
+    "max_turns": 1000,
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+    "original_required_capture": "C1 MariaDB binlog",
+    "rust_core_required": true
   },
   {
     "task": "mongodb",
     "session_uuid": "617ec7c3-fa37-4ac3-8c6c-27fb576416fc",
-    "pid": 99649,
+    "pid": 88537,
     "prompt": "execution/batches/grok-connection-full-20261014/mongodb.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/mongodb.log",
     "write_paths": [
       "tools/mongodb-preview"
     ],
-    "status": "same_owner_reserved_collect_delivery_and_shared_dependency",
+    "status": "same_owner_original_documented_rust_production_route",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 327,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "prior_pid": 12715,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/mongodb-persistent-original-exits.md",
-    "max_turns": 1000
+    "prior_pid": 99649,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/mongodb-persistent-original-rust-change-stream.md",
+    "max_turns": 1000,
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+    "original_required_capture": "C1 change stream on replica-set/sharded target",
+    "rust_core_required": true
   },
   {
     "task": "clickhouse",
@@ -86,7 +98,10 @@
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "prior_pid": 80121,
     "resume_prompt": "execution/batches/grok-connection-full-20261014/clickhouse-persistent-shared-8fa-exits.md",
-    "max_turns": 1000
+    "max_turns": 1000,
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+    "original_required_capture": "applicable C4 parts/partition refresh or documented C3/C5",
+    "rust_core_required": true
   },
   {
     "task": "doris",
@@ -105,7 +120,10 @@
     "prior_session_uuid": "2e257fe2-ef5c-4193-91d6-f1a641107f96",
     "max_turns": 1000,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-owned-default-current.md"
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/doris-persistent-owned-default-current.md",
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+    "original_required_capture": "applicable C4 partition refresh or documented C3/C5",
+    "rust_core_required": true
   },
   {
     "task": "opensearch",
@@ -123,7 +141,10 @@
     "prior_pid": 6094,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "resume_prompt": "execution/batches/grok-connection-full-20261014/opensearch-persistent-shared-8fa-exits.md",
-    "max_turns": 1000
+    "max_turns": 1000,
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+    "original_required_capture": "C5 reconcile or C3 with explicit delete reconciliation",
+    "rust_core_required": true
   },
   {
     "task": "postgresql",
@@ -147,7 +168,10 @@
     "resume_prompt": "execution/batches/grok-connection-full-20261014/postgresql-persistent-exact-mixed-current-s5.md",
     "prior_pid": 99653,
     "max_turns": 1000,
-    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
+    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+    "original_required_capture": "C1 logical decoding",
+    "rust_core_required": true
   },
   {
     "task": "starrocks",
@@ -165,12 +189,15 @@
     "prior_pid": 54954,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "resume_prompt": "execution/batches/grok-connection-full-20261014/starrocks-persistent-original-capture-maintenance.md",
-    "max_turns": 1000
+    "max_turns": 1000,
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+    "original_required_capture": "applicable C4 partition refresh or documented C3/C5",
+    "rust_core_required": true
   },
   {
     "task": "sqlserver",
     "session_uuid": "e888a4b4-2ac1-4be1-8bfa-9596398c1d16",
-    "pid": 58938,
+    "pid": 93898,
     "prompt": "execution/batches/grok-connection-full-20261014/sqlserver-complete-fast-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/sqlserver.log",
     "write_paths": [
@@ -185,22 +212,25 @@
       "tools/job-worker/NATIVE-SCHEDULE.md",
       "tools/job-worker/tests/closed_loop.rs"
     ],
-    "status": "same_owner_original_c2_cancel_and_current_pack_exits",
+    "status": "same_owner_original_rust_route_actual_47c_current_maintenance",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 0,
     "prior_session_uuid": "f2d9bb2c-6b78-401d-82ad-d1374bdf1403",
     "prior_delivery": "7377ab663 CT code/test only; actual product E2E incomplete",
     "effort_handoff_previous_pid": 32957,
     "effort_handoff_was_live": true,
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-persistent-c2-worker-owned.md",
-    "prior_pid": 42235,
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/sqlserver-persistent-original-rust-47c-maintenance.md",
+    "prior_pid": 58938,
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
-    "max_turns": 1000
+    "max_turns": 1000,
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md",
+    "original_required_capture": "documented C1 native CDC or C2 Change Tracking",
+    "rust_core_required": true
   },
   {
     "task": "shared-entry",
     "session_uuid": "d28ca4bd-fd30-4f4e-9672-9492cb9db031",
-    "pid": 54950,
+    "pid": 88539,
     "prompt": "execution/batches/grok-connection-full-20261014/shared-entry-complete-fast-handoff.md",
     "log": "/Users/redux/.cache/oo-grok-connection-full-20261014/shared-entry.log",
     "write_paths": [
@@ -219,17 +249,18 @@
       "tools/selfbuild-control-api/src/builder_inputs.rs",
       "tools/selfbuild-control-api/tests/builder_inputs.rs"
     ],
-    "status": "same_owner_original_product_exits_fixed_dependencies",
+    "status": "same_owner_original_documented_rust_production_route",
     "executor": "grok-4.7/xhigh",
     "initial_log_bytes": 120,
     "prior_delivery": "f58d543b9f real six-field OpenSearch run failed at exited gateway; zero whole accepted",
     "resume_condition": "OpenSearch owner restores TLS/Gateway and legitimate object scope; source whole recipes arrive",
-    "prior_pid": 36457,
+    "prior_pid": 54950,
     "prior_session_uuid": "e0c57490-785f-4692-b768-1eb19dbdfde2",
     "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
     "next_action": "resume same UUID only when source whole/current catalog/API dependency ready, no empty model loop",
-    "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-native-maintenance.md",
-    "max_turns": 1000
+    "resume_prompt": "execution/batches/grok-connection-full-20261014/shared-entry-persistent-rust-production-original.md",
+    "max_turns": 1000,
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md"
   },
   {
     "task": "infra",
@@ -245,6 +276,7 @@
     "initial_log_bytes": 13,
     "prior_delivery": "Docker API recovered; OIDC not serving; scope incomplete",
     "receipt": "execution/reviews/grok-connection-resume-20261014/identity-restoration-intake.json",
-    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context"
+    "retirement_rule": "original full source capability exits only; preserve same session/owner if CLI stops; no short handoff/replacement context",
+    "required_route_card": "execution/batches/grok-connection-full-20261014/production-route-rust-original-docs.md"
   }
 ]

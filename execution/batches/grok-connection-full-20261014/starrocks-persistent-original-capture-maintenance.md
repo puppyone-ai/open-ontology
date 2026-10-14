@@ -3,3 +3,5 @@
 必须启官方实际长期捕获/同步worker（enabled flag+manual fire不能当自主周期），至少两真实I/U/D周期和可配置间隔后还在运行；后台资源具名/输入programSHA/phase/lease收据齐。Newshared54950在非PG目录维护上，按CURRENT-DEPENDENCIES等待固定接口/ELF接续并保持旧pack不冒新代；PG99653实际exact mixed-vector ACL工程，不改共享/PG源码或handGRANT。若你更新源推进新代，保持typedsourcegold/corecurrentcatalog/最新实际vector精准，不能全压gMAX。
 本轮产生源capture进展后继续同原任务等待必要维护接口，收完当前Pack→Gateway/publicCLI完整typeddiff0/真实准确对话/cancel与合法普通六字段defaultentry才whole注册/完成。新shared8fa合法selectedentry恢复已交，source产品复用同时prove_whole producerSHA门存在已记录MySQL案例由shared修；不能temporaryrestore global registry/sharedfiles、删除/改旧receipt/journal或造newnativegen。官方sameidentity复用已成功stage/no S5/confirm重复，真实schema/PII/semantic漂移必须按原门判定。
 真实外部pending有具体机器依赖且原owner保留，不因running安静/一点进展短收口。原完整source/正式0/10不改，不推送/改台账。LinuxRust1.94仅必要检查，固定源码/二进制hash/旧失败/原全部量化raw证据/资源链归REPORT FINDINGS HANDOFF，sourcewhole退出才完成。
+
+LATEST DIRECT HUMAN ROUTE: 下一阶段先读 production-route-rust-original-docs.md 与 production-route-contract.json（本目录）以及其中原docs/Spec/Plan章节。生产核心优先Rust；MySQL/MariaDB/PG必须原C1，MongoDB主路线副本集change stream；C5快照证据不得替代C1签收，数据DML不触发每条ontology重建。

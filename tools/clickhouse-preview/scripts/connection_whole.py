@@ -226,15 +226,18 @@ def lease_report(run_dir):
     if leases:
         raise RuntimeError("open job lease; no new enqueue")
     generations = {item["source_generation"]: item for item in report["partitions"]}
-    started = (run_dir / "cycle-markers" / "insert-105").exists()
-    required = (4, 5) if started else (4, 5, 6)
-    if any(not generations.get(generation, {}).get("acknowledged") for generation in required):
+    if any(not generations.get(generation, {}).get("acknowledged") for generation in (4, 5)):
         raise RuntimeError("committed generations are not acknowledged")
-    if not started:
-        if report["baseline_rows"] != {"101": ("3", "8"), "103": ("1", "0"), "104": ("1", "4")}:
+    water = max((item["source_generation"] for item in report["partitions"] if item["partition_id"] == "202403" and item["acknowledged"]), default=0)
+    base = report["baseline_rows"]
+    if water >= 8:
+        if base.get("101") != ("3", "8") or base.get("103") != ("1", "0") or base.get("104") != ("1", "4") or base.get("105") != ("1", "5") or "106" in base:
             raise RuntimeError("source baseline is not the committed fixture")
-        if max(generations) != 6:
-            raise RuntimeError("target generation is not the committed high water")
+    elif water == 6 and not (run_dir / "cycle-markers" / "insert-105").exists():
+        if base != {"101": ("3", "8"), "103": ("1", "0"), "104": ("1", "4")} or max(generations) != 6:
+            raise RuntimeError("source baseline is not the committed fixture")
+    elif not (run_dir / "cycle-markers" / "insert-105").exists():
+        raise RuntimeError("target generation is not the committed high water")
     return report
 
 
@@ -275,6 +278,48 @@ def load_one(config, run_dir, capture, generation, replay):
             run_dir / "calls" / f"load-g{generation}", timeout=1500)
 
 
+def apply_period(item, markers, raw):
+    change = item["change"]
+    if change == "insert 107":
+        once(markers / "insert-107", raw / "insert-107", DBA, insert_sql(added_row("107", 7, "19")), "oo-ch-default-insert-107")
+    elif change == "physical delete 107":
+        once(markers / "delete-107", raw / "delete-107", DBA,
+             "ALTER TABLE oo_dl01w40.readings DELETE WHERE reading_id=107 SETTINGS mutations_sync=2",
+             "oo-ch-default-delete-107")
+    elif change == "insert 105 and 106":
+        once(markers / "insert-105", raw / "insert-105", DBA, insert_sql(added_row("105", 5, "16")), "oo-ch-default-insert-105")
+        once(markers / "insert-106", raw / "insert-106", DBA, insert_sql(added_row("106", 6, "17")), "oo-ch-default-insert-106")
+    elif change == "physical delete 106":
+        once(markers / "delete-106", raw / "delete-106", DBA,
+             "ALTER TABLE oo_dl01w40.readings DELETE WHERE reading_id=106 SETTINGS mutations_sync=2",
+             "oo-ch-default-delete-106")
+    else:
+        raise RuntimeError("period change is not an authorized fixture statement")
+
+
+def period_plan(advanced, periods):
+    kept = added_row("105", 5, "16")
+    if advanced:
+        added = added_row("107", 7, "19")
+        return [gold() + [kept, added], gold() + [kept]], {
+            "method": "C4", "delete_detection": "partition_replace", "partition_id": "202403",
+            "committed_generations_not_replayed": [4, 5, 7, 8],
+            "periods": [
+                {"every": periods[0], "generation": 9, "change": "insert 107", "keys": ["101", "103", "104", "105", "107"], "expect": {"107": ["1", "7"]}},
+                {"every": periods[1], "generation": 10, "change": "physical delete 107", "keys": ["101", "103", "104", "105"], "expect": {}},
+            ],
+        }
+    added = added_row("106", 6, "17")
+    return [gold() + [kept, added], gold() + [kept]], {
+        "method": "C4", "delete_detection": "partition_replace", "partition_id": "202403",
+        "committed_generations_not_replayed": [4, 5, 6],
+        "periods": [
+            {"every": periods[0], "generation": 7, "change": "insert 105 and 106", "keys": ["101", "103", "104", "105", "106"], "expect": {"105": ["1", "5"], "106": ["1", "6"]}},
+            {"every": periods[1], "generation": 8, "change": "physical delete 106", "keys": ["101", "103", "104", "105"], "expect": {}},
+        ],
+    }
+
+
 def data(config, run_dir):
     if (run_dir / "data-manifest.json").exists():
         return
@@ -284,18 +329,8 @@ def data(config, run_dir):
     before = lease_report(run_dir)
     from c4_capture import observe_period
     periods = configured_periods(document["capture"])
-    first, second = added_row("105", 5, "16"), added_row("106", 6, "17")
-    base = gold()
-    declared = [base + [first, second], base + [first]]
-    plan = {
-        "method": "C4", "delete_detection": "partition_replace", "partition_id": "202403",
-        "consistency_grade": "S0", "cross_table": "B", "source_commit_clock": None,
-        "committed_generations_not_replayed": [4, 5, 6],
-        "periods": [
-            {"every": periods[0], "generation": 7, "change": "insert 105 and 106", "keys": ["101", "103", "104", "105", "106"]},
-            {"every": periods[1], "generation": 8, "change": "physical delete 106", "keys": ["101", "103", "104", "105"]},
-        ],
-    }
+    advanced = before["baseline_rows"].get("105") == ("1", "5") and "106" not in before["baseline_rows"]
+    declared, plan = period_plan(advanced, periods)
     plan_path = run_dir / "period-plan.json"
     if not plan_path.exists():
         write(plan_path, plan)
@@ -321,15 +356,10 @@ def data(config, run_dir):
         capture = run_dir / f"c4-p{index + 1}"
         loaded = (capture / "load-manifest.json").exists()
         if not loaded:
-            if index == 0:
-                once(markers / "insert-105", raw / "insert-105", DBA, insert_sql(first), "oo-ch-default-insert-105")
-                once(markers / "insert-106", raw / "insert-106", DBA, insert_sql(second), "oo-ch-default-insert-106")
-            else:
-                once(markers / "delete-106", raw / "delete-106", DBA,
-                     "ALTER TABLE oo_dl01w40.readings DELETE WHERE reading_id=106 SETTINGS mutations_sync=2",
-                     "oo-ch-default-delete-106")
+            apply_period(item, markers, raw)
             observed = rows()
-            if sorted(observed) != item["keys"] or (index == 0 and (observed["105"] != ("1", "5") or observed["106"] != ("1", "6"))):
+            expect = item.get("expect") or {}
+            if sorted(observed) != item["keys"] or any(observed.get(key) != tuple(pair) for key, pair in expect.items()):
                 raise RuntimeError("source does not match the declared period plan")
         sleep_marker = markers / f"slept-{index}"
         if sleep_marker.exists():
@@ -350,8 +380,9 @@ def data(config, run_dir):
     replay = json.loads((run_dir / "c4-p2" / "replay.json").read_text())
     if type(replay.get("before")) is not int or replay.get("before") != replay.get("after"):
         raise RuntimeError("this-run replay changed the physical count")
-    first_load = json.loads((run_dir / "target-raw" / "load-g8-202403.stdout").read_text())
-    replay_load = json.loads((run_dir / "target-raw" / "replay-g8-202403.stdout").read_text())
+    generation = plan["periods"][1]["generation"]
+    first_load = json.loads((run_dir / "target-raw" / f"load-g{generation}-202403.stdout").read_text())
+    replay_load = json.loads((run_dir / "target-raw" / f"replay-g{generation}-202403.stdout").read_text())
     lease = replay_load["jobs_lease_receipt"]
     if (replay_load.get("row_count") != replay["before"] or replay_load.get("watermark_state") != first_load.get("watermark_state")
             or lease.get("id") != first_load["jobs_lease_receipt"].get("id") or lease.get("inserted") is not False
@@ -384,9 +415,21 @@ def data(config, run_dir):
                      "lease_id": lease["id"], "lease_inserted": lease["inserted"],
                      "source_generation": replay_load["source_generation"]},
     })
+    catalog_capture = run_dir / "c4-p2"
+    scope_ids = json.loads((catalog_capture / "admission-202403" / "sealed" / "registry.json").read_text())["bindings"][0]["partition_scope"]["observed_partition_ids"]
+    if "209912" not in scope_ids:
+        # Gen 10 ACK omitted the retained empty partition, so the vector catalog refuses it.
+        catalog_capture = run_dir / "c4-p3"
+        generation = 11
+        if not (catalog_capture / "source-observation.json").exists():
+            run([sys.executable, str(SCRIPTS / "capture_original_partitions.py"), "--output", str(catalog_capture),
+                 "--connection-config", str(config), "--gold", str(run_dir / "gold.json"),
+                 "--capture-partitions", "202403", "--generation-start", "11"],
+                run_dir / "calls" / "capture-g11", timeout=600)
+        load_one(config, run_dir, catalog_capture, generation, replay=False)
     if not (run_dir / "materialize-manifest.json").exists():
-        run([sys.executable, str(SCRIPTS / "connection_materialize.py"), "--config", str(run_dir / "load-config-g8.json"),
-             "--run", str(run_dir), "--capture", str(run_dir / "c4-p2"), "--gold", str(run_dir / "gold.json")],
+        run([sys.executable, str(SCRIPTS / "connection_materialize.py"), "--config", str(run_dir / f"load-config-g{generation}.json"),
+             "--run", str(run_dir), "--capture", str(catalog_capture), "--gold", str(run_dir / "gold.json")],
             run_dir / "calls" / "materialize", timeout=600)
     manifest = json.loads((run_dir / "materialize-manifest.json").read_text())
     if manifest.get("typed_diff_zero") is not True:
@@ -639,7 +682,7 @@ def install_generation_acl(run_dir, generation):
     psql("REVOKE SELECT ON TABLE _oo.apply_receipts, _oo.full_import_quality, _oo.full_import_run, _oo.full_import_table, "
          "_oo.physical_mappings, _oo.source_watermark, _oo.table_freshness, _oo.table_quality FROM oo_r_reader",
          "oo_ch_connection", run_dir / "calls" / "acl-revoke-table")
-    proc = subprocess.run(["docker", "run", "--rm", "--pull", "never", "--platform", "linux/arm64",
+    proc = subprocess.run(["docker", "run", "-i", "--rm", "--pull", "never", "--platform", "linux/arm64",
                            "--user", f"{os.getuid()}:{os.getgid()}", "--network", "container:" + TARGET,
                            "--mount", f"type=bind,source={ACL_ELF},target=/acl/install-column-acl,readonly",
                            "--mount", f"type=bind,source={TARGET_PRIVATE}/admin.password,target=/secret/admin.password,readonly",
@@ -770,7 +813,7 @@ def gateway(config, run_dir):
         "model_bearer_file": str(BEARER), "independent_truth_file": str(run_dir / "dialogue-truth.json"),
         "independent_gateway_audit_file": str(folder / "wal"), "max_tool_rounds": 12,
         "questions": [
-            {"truth_key": "qty", "prompt": "Use knowledge_search with query readings, knowledge_cat on the returned Pack path, describe oo_dl01w40.readings, and freshness. Then query SELECT qty FROM oo_dl01w40.readings WHERE reading_id = 105."},
+            {"truth_key": "qty", "prompt": "In the first tool response, call all four together: knowledge_search query readings, knowledge_cat path INDEX.md, describe table oo_dl01w40.readings, and freshness. Then query SELECT qty FROM oo_dl01w40.readings WHERE reading_id = 105."},
             {"truth_key": "inserted", "prompt": "Query SELECT reading_id FROM oo_dl01w40.readings WHERE qty = 5. Return the observed reading_id."},
         ],
     })
@@ -847,6 +890,9 @@ def self_check():
     from c4_capture import observe_period
     assert replay_ok(1, 1) and not replay_ok(1, 2)
     periods = configured_periods({"sync": "partition_refresh", "every": "3s", "periods": ["3s", "7s"], "delete_detection": {"mode": "partition_replace"}})
+    fresh = period_plan(True, periods)[1]["periods"]
+    assert [item["every"] for item in fresh] == ["3s", "7s"] and fresh[0]["generation"] == 9 and fresh[1]["change"] == "physical delete 107"
+    assert "105" not in fresh[0]["change"] and "106" not in fresh[0]["change"]
     slept = []
     observe_period(periods[0], slept.append, lambda: 0)
     observe_period(periods[1], slept.append, lambda: 0)

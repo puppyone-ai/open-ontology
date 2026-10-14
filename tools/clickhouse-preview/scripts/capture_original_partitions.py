@@ -82,7 +82,8 @@ def main():
     parts = [json.loads(line) for line in (out / "parts.body").read_text().splitlines()]
     partition_ids = sorted({str(item["partition"]) for item in parts})
     capture_ids = a.capture_partitions or (partition_ids if config else partition_ids + ["209912"])
-    known_ids = set(partition_ids) | set(capture_ids) | set(config.get("known_partition_ids", []) if config else [])
+    # 209912 is the retained empty codec partition already ACKed at generation 3.
+    known_ids = set(partition_ids) | set(capture_ids) | set(config.get("known_partition_ids", []) if config else []) | {"209912"}
     if len(set(capture_ids)) != len(capture_ids) or any(not re.fullmatch(r'[0-9]{6}', item) for item in known_ids):
         raise RuntimeError('partition scope is not the supported YYYYMM codec')
     if config and not a.gold:

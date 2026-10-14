@@ -92,8 +92,8 @@ pub struct ColumnAclPolicy {
     /// 64 lowercase hex digits. Must match `physical_mappings.config_digest`.
     pub config_digest: String,
     /// Mapping `run_generation`. Must equal the maximum stored for this
-    /// source and config digest. A later generation on another digest does
-    /// not raise it.
+    /// source, config digest, and logical table. Another table's later
+    /// generation does not raise it, and neither does another digest.
     pub generation: i64,
     /// Role slug. The database role is `oo_r_` plus this slug.
     pub role: String,
@@ -163,7 +163,7 @@ pub enum PolicyError {
     StaleGeneration {
         /// Generation in the policy.
         policy: i64,
-        /// Maximum `run_generation` stored for the project, if any.
+        /// Maximum `run_generation` stored for this logical table, if any.
         current: Option<i64>,
     },
     /// `session_user` is `oo_target_owner`, or `current_user` differs from it.
@@ -626,7 +626,7 @@ async fn resolve_set(
     let mut resolved = Vec::with_capacity(compiled.policies.len());
     let mut physical_tables = BTreeSet::new();
     for policy in &compiled.policies {
-        let current = current_generation(tx, &policy.project, &policy.config_digest).await?;
+        let current = current_generation(tx, &policy.project, &policy.config_digest, &policy.namespace, &policy.table).await?;
         if require_current && current != Some(policy.generation) {
             return Err(PolicyError::StaleGeneration { policy: policy.generation, current });
         }
@@ -754,7 +754,7 @@ async fn install_in_transaction(
     policy: &CompiledPolicy,
 ) -> Result<InstallOutcome, PolicyError> {
     let grantor = require_grantor(tx).await?;
-    let current = current_generation(tx, &policy.project, &policy.config_digest).await?;
+    let current = current_generation(tx, &policy.project, &policy.config_digest, &policy.namespace, &policy.table).await?;
     if current != Some(policy.generation) {
         return Err(PolicyError::StaleGeneration {
             policy: policy.generation,
@@ -1016,11 +1016,15 @@ async fn current_generation(
     tx: &mut Transaction<'_>,
     project: &str,
     config_digest: &str,
+    namespace: &str,
+    table: &str,
 ) -> Result<Option<i64>, PolicyError> {
     let row = tx
         .query_one(
-            "SELECT max(run_generation) FROM _oo.physical_mappings WHERE source = $1 AND config_digest = $2",
-            &[&project, &config_digest],
+            "SELECT max(run_generation) FROM _oo.physical_mappings \
+             WHERE source = $1 AND config_digest = $2 AND level = 't' \
+               AND logical_namespace = $3 AND logical_table = $4",
+            &[&project, &config_digest, &namespace, &table],
         )
         .await
         .map_err(db_error)?;
@@ -1509,6 +1513,31 @@ mod tests {
             compile_column_acl(&input).unwrap_err(),
             PolicyError::EmptyAllowlist
         );
+    }
+
+    #[test]
+    fn native_vector_advances_one_table_and_keeps_another_current() {
+        let mut kept = policy(None, vec![column("order_id", PiiClass::None)]);
+        kept.table.name = "alpha".to_string();
+        kept.generation = 3;
+        let mut moving = kept.clone();
+        moving.table.name = "beta".to_string();
+        moving.generation = 5;
+        let mut moved = moving.clone();
+        moved.generation = 13;
+        let before = vec![kept.clone(), moving];
+        let after = vec![kept.clone(), moved.clone()];
+        assert!(compile_column_acl_native_vector_set(&after).is_ok());
+        assert!(compile_column_acl_native_transition(&before, &after).is_ok());
+        assert!(compile_column_acl_native_transition(&after, &after).is_err());
+        assert!(compile_column_acl_native_transition(&before, &[kept.clone()]).is_err());
+        let mut extra = kept.clone();
+        extra.table.name = "gamma".to_string();
+        extra.generation = 13;
+        assert!(compile_column_acl_native_transition(&before, &[kept, moved.clone(), extra]).is_err());
+        let mut back = moved.clone();
+        back.generation = 5;
+        assert!(compile_column_acl_native_transition(&[moved], &[back]).is_err());
     }
 
     #[test]

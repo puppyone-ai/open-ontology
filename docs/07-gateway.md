@@ -16,7 +16,7 @@ Gateway 是 Agent 访问数据的**唯一出口**。查询无状态，可多实�
 - **I-GW-4** 每次调用（放行或拒绝）都产生一条审计记录。
 - **I-GW-5** 返回给 Agent 的任何内容都不包含凭证、内部主机名、原始 EXPLAIN、或数据库原始错误中可能泄漏隐藏数据的部分。
 
-操作员维护 native binding 的代次时，`install-column-acl --previous-policy-file <绝对路径> --previous-policy-sha256 <固定 SHA256>` 仅接受 native-vector 前版政策制品：同 endpoint、source、schema、字段类型、分类/PII、role/login，代次单调；同事务精确核验旧授权后撤旧列权限、授当前列权限，未知额外/部分授权或漂移拒绝，完成后可安全 replay。默认安装仍只接受空角色或完全相等的现有授权，不允许 manifest 自行开启迁移。
+操作员维护 native binding 的代次时，`install-column-acl --previous-policy-file <绝对路径> --previous-policy-sha256 <固定 SHA256>` 仅接受 native-vector 前版政策制品：同 endpoint、source、schema、字段类型、分类/PII、role/login，代次单调；同事务精确核验旧授权后撤旧列权限、授当前列权限，未知额外/部分授权或漂移拒绝，完成后可安全 replay。当前代是同一 source、config digest 和逻辑表上的 `max(run_generation)`，不是该 digest 的全局最大值。同一角色可以只推进其中一部分表，其余表留在自己的当前代。未推进、过期代、多表、缺表，以及授权不一致，都在同一事务回滚。默认安装仍只接受空角色或完全相等的现有授权，不允许 manifest 自行开启迁移。
 
 ## 2. 请求处理流水线
 
