@@ -1,0 +1,7 @@
+同18ce4925原完整Oracle/Grok4.7xhigh/max1000/no子派。92264 terminal6692ec22新recipe资料whole_recipe_g7，但步骤不直接repo dialogue、copy948不能过48门，pack文件SHA/语义digest/APIpackid不同种身份应正确取值而非抹平hash。你唯一tools/oracle-preview，shared18370 registry/onboard唯一。
+1. 先读broker.oracle_g7_default_recipe_gap、shared48真实当前random门、80aec（empty search typed usage返回模型，有14unitrootpass）；原maint-c44/dialogue-g7第一/第二失败完整收raw/usage，不因为是否value正确重包装缺facts的model响应。
+2. 修自有recipe/current official_entry caller来真正direct_step调用仓库verifier --config私有currentg7bank --out新privateDir，repo程序pin80aec，currentPack应绑定此run official原build维护生成当前role-pack.json的真实byteSHA；原oldS5 productreceipt不可改pack7...成a25...，共同缺口要明确callback给shared18370的官方derived/currentPack关联，而非复制私有成功verdict。
+3. 正常single build维护保持schema f002、currentg7 identity394dc和20cells0，原原始S5/Receipt/失败immutable，data变更不新semanticLLM/重确认导入。
+4. 真周期不是enabled6000+producer99307alive：next_run_at仍12:03:50到12:52没推进。收实际worker/native-serve事件和joblease，由原Rust scheduler正式接producer周期（no手fire模拟auto）；C5nochange contractSQLe888正在修，一旦未提供只等待fixed不私Python模拟生产、不无差新gen，不因为flag enabled宣自动。已有g6/7IUD原证明不再写旧key2/14，不足真正auto证明使用仅新unique keys正式两period。
+5. 当前正常CLI/sourcegold至少两不同合法过滤/聚合无SCHEMA_INVALID后再两freshrandom 2turn（prior排题），必原facts/QID/独立WAL/取消/恢复/六字段正常注册run真whole全部退出才complete。sourceevidenceROLEfileSHA/semanticpackdigest/HTTPpacksha定义各清楚，隐藏字段/T/LogMineroff不改，客户0写。
+6. 如果仅公共actualSourceReceipt_currentPack/安装recipe或nochange依赖且独立修改/固定tests/资料齐，则同owner保留资源/路径reserved并停止无意义采样，不声明完成。minimalRust+thinwrapper/noframework，不多读旧日志/同模型盲retry；phase看broker。

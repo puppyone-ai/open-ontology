@@ -202,7 +202,7 @@ def insert_sql(row):
     labels = ",".join("'" + item + "'" for item in row["labels"])
     return (
         "INSERT INTO oo_dl01w40.readings (reading_id, version, amount, note, code, code_or_null, ts, tags, labels, qty, label, wide_u64) "
-        f"VALUES ({row['reading_id']}, 1, toDecimal256('{row['amount']}', 10), '{row['note']}', 'beta', NULL, "
+        f"VALUES ({row['reading_id']}, {int(row['version'])}, toDecimal256('{row['amount']}', 10), '{row['note']}', 'beta', NULL, "
         f"toDateTime64('{row['ts']}', 9, 'UTC'), [{tags}], [{labels}], {row['qty']}, '{row['label']}', {row['wide_u64']})"
     )
 
@@ -320,6 +320,154 @@ def period_plan(advanced, periods):
             {"every": periods[1], "generation": 8, "change": "physical delete 106", "keys": ["101", "103", "104", "105"], "expect": {}},
         ],
     }
+
+
+def row_plan(periods):
+    """Same-schema rows after generation 11. New id and labels; old ids stay out."""
+    return [
+        {"every": periods[0], "generation": 12, "change": "insert 201", "version": "1", "qty": "21", "label": "n201"},
+        {"every": periods[1], "generation": 13, "change": "update 201", "version": "2", "qty": "22", "label": "n201b"},
+    ]
+
+
+def row_value(stage):
+    row = added_row("201", int(stage["qty"]), "20")
+    row["version"] = stage["version"]
+    row["note"] = stage["label"]
+    row["label"] = stage["label"]
+    row["labels"] = [stage["label"]]
+    return row
+
+
+def row_periods(config, run_dir):
+    """Two new C4 periods on the existing readings fixture. Does not rewrite the generation-11 receipts."""
+    if not (run_dir / "data-manifest.json").exists():
+        raise RuntimeError("row periods require the committed data manifest")
+    work = run_dir / "row-periods"
+    work.mkdir(mode=0o700, exist_ok=True)
+    receipt_path = work / "receipt.json"
+    if receipt_path.exists() and json.loads(receipt_path.read_text()).get("typed_diff_zero") is True:
+        return
+    for name in (SOURCE, TARGET):
+        ensure(name)
+    protected = {
+        "cycle-receipt.json": sha(run_dir / "cycle-receipt.json"),
+        "gold.json": sha(run_dir / "gold.json"),
+        "data-manifest.json": sha(run_dir / "data-manifest.json"),
+        "random-dialogue/receipt.json": sha(run_dir / "random-dialogue" / "receipt.json"),
+    }
+    document = json.loads(Path(config).read_text())
+    stages = row_plan(configured_periods(document["capture"]))
+    base_gold = json.loads((run_dir / "gold.json").read_text())
+    if {row["reading_id"] for row in base_gold} != {"101", "103", "104", "105"}:
+        raise RuntimeError("committed gold keys changed")
+    current = rows()
+    for key, pair in (("101", ("3", "8")), ("103", ("1", "0")), ("104", ("1", "4")), ("105", ("1", "5"))):
+        if current.get(key) != pair:
+            raise RuntimeError("source baseline is not the committed fixture")
+    if any(key in current for key in ("106", "107", "998")):
+        raise RuntimeError("retired reading is present")
+    if int(psql("SELECT count(*) FROM jobs.leases").strip() or "0"):
+        raise RuntimeError("open job lease; no new enqueue")
+    markers, raw = work / "markers", work / "raw"
+    markers.mkdir(mode=0o700, exist_ok=True)
+    from c4_capture import observe_period
+    done, error = [], None
+    try:
+        for stage in stages:
+            row = row_value(stage)
+            gold_path = work / f"gold-{stage['change'].split()[0]}.json"
+            if not gold_path.exists():
+                write(gold_path, base_gold + [row])
+            once(markers / stage["change"].split()[0], raw / stage["change"].split()[0], DBA,
+                 insert_sql(row), "oo-ch-row-" + stage["change"].replace(" ", "-"))
+            later = stage["change"].startswith("insert") and (markers / "update").exists()
+            if not later and rows().get("201") != (stage["version"], stage["qty"]):
+                raise RuntimeError("source row 201 does not match " + stage["change"])
+            sleep_marker = markers / ("slept-" + stage["change"].split()[0])
+            if sleep_marker.exists():
+                elapsed = float(sleep_marker.read_text())
+            else:
+                elapsed = observe_period(stage["every"], time.sleep, time.monotonic)
+                sleep_marker.write_text(str(elapsed) + "\n")
+                os.chmod(sleep_marker, 0o600)
+            capture = work / ("c4-" + stage["change"].split()[0])
+            if not (capture / "source-observation.json").exists():
+                run([sys.executable, str(SCRIPTS / "capture_original_partitions.py"), "--output", str(capture),
+                     "--connection-config", str(config), "--gold", str(gold_path),
+                     "--capture-partitions", "202403", "--generation-start", str(stage["generation"])],
+                    work / "calls" / ("capture-g" + str(stage["generation"])), timeout=600)
+            for name in ("loader-target.json", "ack-target.json"):
+                target = work / name
+                if not target.exists():
+                    target.write_bytes((run_dir / name).read_bytes())
+                    os.chmod(target, 0o600)
+            load_one(config, work, capture, stage["generation"], replay=stage["change"].startswith("update"))
+            scope = json.loads((capture / "admission-202403" / "sealed" / "registry.json").read_text())["bindings"][0]["partition_scope"]["observed_partition_ids"]
+            if "209912" not in scope:
+                raise RuntimeError("empty partition 209912 left the vector")
+            done.append({"every": stage["every"], "slept_seconds": elapsed, "generation": stage["generation"],
+                         "change": stage["change"], "label": stage["label"], "capture": str(capture)})
+        replay = json.loads((work / "c4-update" / "replay.json").read_text())
+        if replay.get("before") != replay.get("after"):
+            raise RuntimeError("row-period replay changed the physical count")
+        if not (work / "materialize-manifest.json").exists():
+            run([sys.executable, str(SCRIPTS / "connection_materialize.py"),
+                 "--config", str(work / "load-config-g13.json"), "--run", str(work),
+                 "--capture", str(work / "c4-update"), "--gold", str(work / "gold-update.json")],
+                work / "calls" / "materialize", timeout=600)
+        manifest = json.loads((work / "materialize-manifest.json").read_text())
+        if manifest.get("typed_diff_zero") is not True:
+            raise RuntimeError("typed diff is not zero")
+        final = rows()
+        if final.get("201") != ("2", "22") or any(final.get(key) != pair for key, pair in (("101", ("3", "8")), ("103", ("1", "0")), ("104", ("1", "4")), ("105", ("1", "5")))):
+            raise RuntimeError("source final is not the updated fixture")
+        ch(DBA, "SYSTEM FLUSH LOGS", "oo-ch-row-flush", raw / "flush")
+        audit = ch(DBA, "SELECT count() FROM system.query_log WHERE user='oo_dl01w1_40_reader' AND type='QueryFinish' AND query_id LIKE 'oo-ch-row-%' AND (query_kind IN ('Insert','Alter') OR query ILIKE 'insert %' OR query ILIKE 'alter %') FORMAT TSV", "oo-ch-row-reader-audit", raw / "reader-audit")
+        reader_writes = int(audit.stdout.decode().strip() or "0")
+        if reader_writes:
+            raise RuntimeError("reader query log shows a finished write")
+        pending = int(ch(DBA, "SELECT count() FROM system.mutations WHERE database='oo_dl01w40' AND is_done=0 FORMAT TSV", "oo-ch-row-mutations", raw / "mutations").stdout.decode().strip() or "0")
+        if pending:
+            raise RuntimeError("source mutation still pending")
+        parts = partition_state()
+        if not any(item["partition_id"] == "209912" and item["acknowledged"] and item["source_generation"] == 3 for item in parts):
+            raise RuntimeError("empty partition 209912 was not retained")
+        if any(sha(run_dir / name) != digest for name, digest in protected.items()):
+            raise RuntimeError("committed generation-11 receipt changed")
+        listen = (run_dir / "gateway" / "listen.addr").read_text().strip()
+        token = run_dir / "gateway" / "row-client.token"
+        if not token.exists():
+            run(["docker", "exec", "-w", "/run-current/gateway", GATEWAY, "/fixed/issue-token", "issue",
+                 "endpoint.json", "runtime.pass", "ca.crt", "grant.json", token.name], work / "calls" / "issue-token", timeout=60)
+            os.chmod(token, 0o600)
+        common = ["--json", "--gateway", "http://" + listen, "--transport", "local-development", "--auth", "external", "--token-file", str(token)]
+        probed = subprocess.run([str(OO_CLI), "query",
+                                 "SELECT reading_id, version, qty, label FROM oo_dl01w40.readings ORDER BY reading_id",
+                                 "--max-rows", "20", "--timeout-ms", "8000", *common], capture_output=True, timeout=40)
+        kept(probed, work / "calls" / "cli-query")
+        gateway = {"exit": probed.returncode}
+        if probed.returncode == 0:
+            body = json.loads(probed.stdout)
+            gateway.update(query_id=body.get("query_id"), rows=body.get("rows"),
+                           sees_201=any(row[0] == 201 or row[0] == "201" for row in body.get("rows") or []))
+        else:
+            try:
+                gateway["error"] = json.loads(probed.stdout.decode()).get("message")
+            except json.JSONDecodeError:
+                gateway["error"] = "unparsed"
+        write(receipt_path, {
+            "method": "C4", "delete_detection": "partition_replace", "update": "replacing insert; ALTER UPDATE of version is not used",
+            "typed_diff_zero": True, "generation": manifest["generation"], "periods": done,
+            "replay": replay, "final_keys": {key: list(value) for key, value in sorted(final.items())},
+            "reader_query_finish_writes": reader_writes, "pending_mutations": pending,
+            "maintenance_posted": False, "s5_called": False, "gateway": gateway,
+            "protected_sha256": protected, "materialize_manifest": str(work / "materialize-manifest.json"),
+        })
+    except Exception as exc:
+        error = str(exc)
+        write(work / "failure.json", {"error": error, "periods": done})
+        raise
 
 
 def data(config, run_dir):
@@ -657,7 +805,10 @@ def pack_identity(role_pack):
 
 ACL_ELF = Path.home() / ".cache/oo-grok-connection-full-20261014/fixed-acl-50fd9d462/install-column-acl"
 ACL_SHA = "aea3dad54671b9608a2ab1a739a2160681bc9cd8f4eacf08a49ce3c45a79cf05"
+TRANSITION_ELF = Path.home() / ".cache/oo-grok-connection-full-20261014/fixed-acl-star-metadata-detach/install-column-acl"
+TRANSITION_SHA = "d340b3e713148c3b9c45266afc49d8a6e65bd42feb6c78732ccfbfd1026b8d9a"
 DIGEST = "12b7cd95e01c621fc79e00007b95f1ae0acb3cbffe8ae0fab06b2b5d55811e43"
+BUILD_ID = "b_e40e75018cac19da2b3f7b29fcc03cc7"
 
 
 def acl_document(generation):
@@ -1030,6 +1181,492 @@ def cover_current(config, run_dir):
     })
 
 
+def basis(value):
+    value = json.loads(json.dumps(value))
+    for key in ("source_generation", "target_generation", "table_generations", "binding_vector_sha256", "collection_sha256"):
+        value.pop(key, None)
+    contract = value.get("source_contract")
+    if isinstance(contract, dict):
+        contract.pop("applied_end_lsn", None)
+    quality = value.get("quality")
+    if isinstance(quality, dict):
+        quality.pop("rows", None)
+        quality.pop("typed_cells", None)
+    return value
+
+
+def serve_semantics(current, accepted):
+    """Keep this generation's projection fields. Copy the basis keys the API does not strip."""
+    current = json.loads(json.dumps(current))
+    current["continuous_capture"] = json.loads(json.dumps(accepted["continuous_capture"]))
+    current["quality"]["typed_cells_compared_each_side"] = accepted["quality"]["typed_cells_compared_each_side"]
+    current["source_contract"]["source_reader_query_log_proof"] = accepted["source_contract"]["source_reader_query_log_proof"]
+    if basis(current) != basis(accepted):
+        raise RuntimeError("semantic basis still differs from the accepted collection")
+    return current
+
+
+def serve_bundle(run_dir, bundle):
+    accepted = json.loads((run_dir / "bundle" / "source_semantics.json").read_text())
+    s0 = json.loads((run_dir / "work" / "builds" / BUILD_ID / "S0.response.json").read_text())["source_adapt"]["source_semantics"]
+    if basis(accepted) != basis(s0):
+        raise RuntimeError("parent semantic basis is not the accepted S0")
+    dest = bundle.parent / "serve-bundle"
+    dest.mkdir(mode=0o700, exist_ok=True)
+    for child in bundle.iterdir():
+        if child.is_symlink() or not child.is_file():
+            raise RuntimeError("bundle member is not a file")
+        target = dest / child.name
+        if child.name == "source_semantics.json":
+            write(target, serve_semantics(json.loads(child.read_text()), accepted))
+        else:
+            target.write_bytes(child.read_bytes())
+            os.chmod(target, 0o600)
+    manifest = json.loads((dest / "manifest.json").read_text())
+    manifest["files"]["source_semantics.json"] = sha(dest / "source_semantics.json")
+    write(dest / "manifest.json", manifest)
+    build = run_dir / "work" / "builds" / BUILD_ID
+    if sha(dest / "native-model.json") != sha(build / "native-model.json"):
+        raise RuntimeError("native-model is not the curated file")
+    if sha(dest / "rules.json") != json.loads((build / "S2.request.json").read_text())["rules_sha256"]:
+        raise RuntimeError("rules sha is not the S2 request")
+    if sha(dest / "catalog.json") != sha(bundle / "catalog.json"):
+        raise RuntimeError("serve catalog is not the sealed catalog")
+    return dest
+
+
+def granted_generations():
+    text = psql(
+        "SELECT DISTINCT m.run_generation::text FROM information_schema.column_privileges p "
+        "JOIN _oo.physical_mappings m ON m.physical_name=p.table_name AND m.level='t' "
+        "AND m.source='clickhouse_connection_whole' WHERE p.grantee='oo_r_reader'")
+    return sorted({int(line) for line in text.splitlines() if line.strip()})
+
+
+def transition_acl(run_dir, generation, out):
+    """11→current via the per-table transition ELF. No GRANT and no 6-only installer."""
+    if sha(TRANSITION_ELF) != TRANSITION_SHA:
+        raise RuntimeError("transition acl elf pin mismatch")
+    granted = granted_generations()
+    if granted == [generation]:
+        return {"effect": "already", "granted": granted}
+    if len(granted) != 1 or granted[0] >= generation:
+        raise RuntimeError("acl grants are not one previous generation: " + ",".join(map(str, granted)))
+    previous_gen = granted[0]
+    folder = run_dir / "acl"
+    folder.mkdir(mode=0o700, exist_ok=True)
+    previous = folder / f"generation-{previous_gen}.json"
+    document = acl_document(previous_gen)
+    if previous.exists() and json.loads(previous.read_text()) != document:
+        raise RuntimeError("previous policy file does not match generation " + str(previous_gen))
+    if not previous.exists():
+        write(previous, document)
+    proc = subprocess.run(
+        ["docker", "run", "-i", "--rm", "--pull", "never", "--platform", "linux/arm64",
+         "--user", f"{os.getuid()}:{os.getgid()}", "--network", "container:" + TARGET,
+         "--mount", f"type=bind,source={TRANSITION_ELF},target=/acl/install-column-acl,readonly",
+         "--mount", f"type=bind,source={TARGET_PRIVATE}/admin.password,target=/secret/admin.password,readonly",
+         "--mount", f"type=bind,source={TARGET_PRIVATE}/tls/ca.crt,target=/secret/ca.crt,readonly",
+         "--mount", f"type=bind,source={folder},target=/policies,readonly",
+         "--entrypoint", "/acl/install-column-acl", IMAGE,
+         "--previous-policy-file", f"/policies/generation-{previous_gen}.json",
+         "--previous-policy-sha256", sha(previous)],
+        input=json.dumps(acl_document(generation)).encode(), capture_output=True, timeout=60)
+    kept(proc, out / "acl-transition")
+    if proc.returncode:
+        reason = proc.stderr.decode(errors="replace").strip()
+        write(out / "acl-callback.json", {
+            "exit": proc.returncode, "stderr": reason, "elf_sha256": TRANSITION_SHA,
+            "previous_generation": previous_gen, "current_generation": generation,
+            "callback": "pg policy owner: transition_column_acl_native_vector_set refused; source did not GRANT",
+        })
+        raise RuntimeError("acl transition refused: " + reason)
+    body = json.loads(proc.stdout)
+    write(out / "acl-transition.json", body)
+    return body
+
+
+def control_call(out, product_config_doc, name, path, body, revision):
+    target = out / f"{name}.response.json"
+    if target.exists():
+        saved = json.loads(target.read_text())
+        if saved.get("status", 500) >= 400:
+            code = saved.get("response", {}).get("error") or saved.get("status")
+            raise RuntimeError("maintenance api refused " + str(code))
+        return saved["response"]
+    payload = dict(body, identity_revision=revision, idempotency_key=secrets.token_hex(16))
+    body_path = out / f"{name}.body.json"
+    write(body_path, payload)
+    operator = ROOT / "tools/selfbuild-control-api/recipes/operator.py"
+    proc = subprocess.run([sys.executable, str(operator), "--endpoint", product_config_doc["endpoint"], "--origin", product_config_doc["origin"],
+                      "--ca", product_config_doc["ca"], "--cookie-file", product_config_doc["cookies"]["admin"],
+                      "--identity-origin", product_config_doc["identity_origin"], "--identity-ca", product_config_doc["identity_ca"],
+                      "--path", path, "--body-file", str(body_path), "--out", str(target)], capture_output=True, timeout=70)
+    kept(proc, out / name)
+    if not target.exists():
+        raise RuntimeError("maintenance api wrote no " + name)
+    saved = json.loads(target.read_text())
+    if saved.get("status", 500) >= 400:
+        code = saved.get("response", {}).get("error") or saved.get("response", {}).get("detail_code") or saved["status"]
+        raise RuntimeError("maintenance api refused " + str(code))
+    return saved["response"]
+
+
+def install_reviewed(run_dir, artifact):
+    command = json.loads((artifact / "command.json").read_text())
+    reviewed_doc = json.loads((artifact / "reviewed.json").read_text())
+    identity = pack_identity(json.loads((artifact / "role-pack.json").read_text()))
+    vector = command["catalog"]["binding_vector"]
+    table = command["catalog"]["entries"][0]["tables"][0]
+    visible = [column["logical_name"] for column in table["columns"]]
+    if not re.fullmatch(r"pt_[0-9a-f]{60}", vector[0]["stored_physical"]) or set(visible) != set(COLUMNS):
+        raise RuntimeError("gateway binding refused")
+    folder = run_dir / "gateway"
+    reviewed_dir = folder / "reviewed" / "reader"
+    backup = reviewed_dir / "binding-g11.json"
+    if not backup.exists():
+        current = json.loads((reviewed_dir / "binding.json").read_text())
+        if current.get("generation") != 11:
+            raise RuntimeError("refusing to replace a binding that is not generation 11")
+        backup.write_bytes((reviewed_dir / "binding.json").read_bytes())
+        os.chmod(backup, 0o600)
+        # ponytail: pack_dir loads every json; a second file with the same role is pack_duplicate
+        pack_backup = reviewed_dir / "reader-g11.json"
+        pack_backup.write_bytes((folder / "packs" / "reader.json").read_bytes())
+        os.chmod(pack_backup, 0o600)
+    (reviewed_dir / "native-input.json").write_bytes((artifact / "command.json").read_bytes())
+    (reviewed_dir / "command.json").write_bytes((artifact / "reviewed.json").read_bytes())
+    (folder / "packs" / "reader.json").write_bytes((artifact / "role-pack.json").read_bytes())
+    os.chmod(reviewed_dir / "native-input.json", 0o600)
+    os.chmod(reviewed_dir / "command.json", 0o600)
+    os.chmod(folder / "packs" / "reader.json", 0o600)
+    cat = command["catalog"]
+    artifact_sha = hashlib.sha256(json.dumps(cat, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+    binding = {"allow": [{"column": name, "dataset": "oo_dl01w40.readings", "explicit_allow": False} for name in COLUMNS],
+               "artifact_sha256": artifact_sha, "binding_vector": vector, "catalog_version": identity["catalog_version"],
+               "config_digest": vector[0]["config_digest"], "generation": max(item["source_generation"] for item in vector),
+               "knowledge_id": identity["knowledge_id"], "knowledge_version": identity["knowledge_version"], "login": "oo_ch_connection_login",
+               "ontology_version": identity["ontology_version"], "policy_id": identity["policy_id"],
+               "policy_version": identity["policy_version"], "project": identity["project"],
+               "role": identity["role"].removeprefix("oo_r_"), "schema": "oo_dl01w40",
+               "schema_hash": reviewed_doc["provenance"]["collection_sha256"], "source_id": vector[0]["source_id"]}
+    write(reviewed_dir / "binding.json", binding)
+    write(folder / "grant-current.json", {"kind": "client", "project_id": identity["project"], "principal_id": "fixture-owner",
+                                           "role": identity["role"], "policy_version": identity["policy_version"],
+                                           "knowledge_version": identity["knowledge_version"], "audience_url": "https://127.0.0.1:9/",
+                                           "claims": [], "client_ttl_ms": 3600000})
+    return binding
+
+
+def restart_container(name, sink):
+    before = subprocess.run(["docker", "inspect", "-f", "{{.State.StartedAt}}", name], capture_output=True, text=True, timeout=30).stdout.strip()
+    run(["docker", "restart", name], sink, timeout=90)
+    for _ in range(40):
+        proc = subprocess.run(["docker", "inspect", "-f", "{{.State.Status}} {{.State.StartedAt}}", name], capture_output=True, text=True, timeout=30)
+        status, _, started = proc.stdout.strip().partition(" ")
+        if status == "running" and started and started != before:
+            return
+        time.sleep(1)
+    raise RuntimeError(name + " did not restart")
+
+
+def issue_current_token(run_dir, out):
+    token = run_dir / "gateway" / "current-client.token"
+    if token.exists():
+        return token
+    run(["docker", "exec", "-w", "/run-current/gateway", GATEWAY, "/fixed/issue-token", "issue",
+         "endpoint.json", "runtime.pass", "ca.crt", "grant-current.json", "current-client.token"], out / "issue-token", timeout=60)
+    os.chmod(token, 0o600)
+    return token
+
+
+def oo_query(sql, token, sink):
+    listen = (token.parent / "listen.addr").read_text().strip()
+    proc = subprocess.run([str(OO_CLI), "query", sql, "--max-rows", "5", "--timeout-ms", "8000", "--json",
+                           "--gateway", "http://" + listen, "--transport", "local-development", "--auth", "external",
+                           "--token-file", str(token)], capture_output=True, timeout=40)
+    kept(proc, sink)
+    return proc
+
+
+def public_gold(run_dir, out):
+    """Two source-gold checks. No model call."""
+    pairs = (
+        ("positive_rows", "SELECT toString(count()) FROM oo_dl01w40.readings FINAL WHERE qty > 0",
+         "SELECT COUNT(*) FROM oo_dl01w40.readings WHERE qty > 0"),
+        ("sum_qty", "SELECT toString(sum(qty)) FROM oo_dl01w40.readings FINAL",
+         "SELECT SUM(qty) FROM oo_dl01w40.readings"),
+    )
+    token = run_dir / "gateway" / "client.token"
+    results = []
+    for index, (name, source_sql, public_sql) in enumerate(pairs):
+        source = source_scalar(source_sql, "oo-ch-public-gold-" + name, out / "source" / name)
+        proc = oo_query(public_sql, token, out / name)
+        if proc.returncode and index == 0 and token.name == "client.token":
+            try:
+                message = json.loads(proc.stdout.decode()).get("message")
+            except json.JSONDecodeError:
+                message = "unparsed"
+            if message != "policy catalog is not available":
+                token = issue_current_token(run_dir, out)
+                proc = oo_query(public_sql, token, out / (name + "-current"))
+        body = {}
+        try:
+            body = json.loads(proc.stdout.decode() or "{}")
+        except json.JSONDecodeError:
+            body = {}
+        got = None
+        if proc.returncode == 0 and body.get("rows"):
+            got = str(body["rows"][0][0])
+        results.append({"name": name, "source": source, "gateway": got, "exit": proc.returncode,
+                        "query_id": body.get("query_id"), "code": body.get("code"), "message": body.get("message")})
+        if got != source:
+            write(out / "cli-gold.json", {"match": False, "facts": results, "token": token.name})
+            return {"match": False, "facts": results, "token": token.name}
+    write(out / "cli-gold.json", {"match": True, "facts": results, "token": token.name})
+    return {"match": True, "facts": results, "token": token.name}
+
+
+def publish_current(config, run_dir, bundle):
+    """Official source_generation_advanced, role pack, ACL transition, then gateway reload."""
+    import ssl
+    import urllib.error
+    import urllib.request
+    catalog = json.loads((bundle / "catalog.json").read_text())
+    current = progress_row(catalog)
+    generation = int(current["source_generation"])
+    out = run_dir / "maintenance-current" / f"g{generation}"
+    out.mkdir(parents=True, mode=0o700, exist_ok=True)
+    receipt_path = out / "receipt.json"
+    if receipt_path.exists():
+        saved = json.loads(receipt_path.read_text())
+        if saved.get("cli_match") is True:
+            write(run_dir / "maintenance-current" / "latest.json", {"generation": generation, "cli_match": True, "receipt": str(receipt_path)})
+            return saved
+        facts = (saved.get("cli") or {}).get("facts") or []
+        refused = facts and all(item.get("gateway") is None and item.get("code") == "STATEMENT_NOT_ALLOWED" for item in facts)
+        if not refused:
+            raise RuntimeError("kept cli mismatch at generation " + str(generation))
+        cast_note = out / "cli-gold-cast.json"
+        if not cast_note.exists() and (out / "cli-gold.json").exists():
+            cast_note.write_bytes((out / "cli-gold.json").read_bytes())
+            os.chmod(cast_note, 0o600)
+    if sha(MAINT_API) != MAINT_API_SHA:
+        raise RuntimeError("maintenance api elf pin mismatch")
+    command = json.loads((run_dir / "work" / "builds" / BUILD_ID / "native-model-output" / "command.json").read_text())
+    drift = schema_drift(progress_row(command["catalog"]), current)
+    if drift:
+        write(out / "schema-block.json", {"blocked": True, "drift": drift, "llm_calls": 0})
+        raise RuntimeError("schema or semantic identity changed; maintenance refused")
+    live = psql("SELECT run_id||'|'||source_generation::text||'|'||target_generation::text||'|'||input_digest||'|'||physical_name "
+                "FROM _oo.full_import_run r JOIN _oo.physical_mappings m ON m.source=r.source_id AND m.level='t' AND m.run_generation=r.target_generation "
+                "WHERE r.run_id='%s'" % current["run_id"]).strip()
+    expect = "|".join(str(current[key]) for key in ("run_id", "source_generation", "target_generation", "input_digest", "stored_physical"))
+    if live != expect:
+        raise RuntimeError("live import row is not the sealed catalog")
+    mapped = int(psql("SELECT max(run_generation) FROM _oo.physical_mappings WHERE source='clickhouse_connection_whole' AND level='t' AND config_digest='%s'" % DIGEST).strip())
+    if mapped != generation:
+        raise RuntimeError("mapping max is not the sealed generation")
+    watermark = psql("SELECT consistency_grade||'|'||state||'|'||position_codec||'|'||(source_committed_at IS NULL)::text||'|'||cross_table_consistent::text||'|'||source_generation::text FROM _oo.source_watermark WHERE source='clickhouse_connection_whole'").strip()
+    if not watermark.endswith("|" + str(generation)):
+        raise RuntimeError("live watermark does not cover the sealed generation")
+    pending = int(ch(DBA, "SELECT count() FROM system.mutations WHERE database='oo_dl01w40' AND is_done=0 FORMAT TSV", "oo-ch-publish-mutations", out / "mutations").stdout.decode().strip() or "0")
+    if pending:
+        raise RuntimeError("source mutation still pending")
+    serve = serve_bundle(run_dir, bundle)
+    product_config_doc = json.loads((run_dir / "product-config.json").read_text())
+    operator = ROOT / "tools/selfbuild-control-api/recipes/operator.py"
+    if sha(operator) != product_config_doc["operator_sha256"]:
+        raise RuntimeError("operator pin drifted")
+    runtime = json.loads((run_dir / "api-private" / "runtime.json").read_text())
+    runtime["projects"][0]["sealed_bundle"] = "/owned/" + serve.relative_to(run_dir).as_posix()
+    write(run_dir / "api-private" / "runtime.json", runtime)
+    restart_container(API, out / "api-restart")
+    wait_api()
+    context = ssl.create_default_context(cafile=product_config_doc["identity_ca"])
+    try:
+        urllib.request.urlopen(urllib.request.Request(product_config_doc["identity_origin"].rstrip("/") + "/control/v1/identity/current"), context=context, timeout=30)
+        anonymous = 200
+    except urllib.error.HTTPError as error:
+        anonymous = error.code
+    if anonymous != 401:
+        raise RuntimeError("anonymous identity was not refused")
+    cookie = Path(product_config_doc["cookies"]["admin"]).read_text().strip()
+    identity_req = urllib.request.Request(product_config_doc["identity_origin"].rstrip("/") + "/control/v1/identity/current", headers={"Cookie": "__Host-oo-session=" + cookie})
+    with urllib.request.urlopen(identity_req, context=context, timeout=30) as response:
+        identity = json.loads(response.read().decode())
+    if identity.get("install_state") != "initialized" or not any(item.get("project_id") == "clickhouse" and item.get("role") == "admin" for item in identity.get("projects") or []):
+        raise RuntimeError("admin session is not the clickhouse project")
+    revision = int(identity["revision"])
+    catalog_sha = sha(serve / "catalog.json")
+    maintained = control_call(out, product_config_doc, "maintenance", f"/control/v1/builds/{BUILD_ID}/maintenance",
+                              {"catalog_sha256": catalog_sha, "trigger": "source_generation_advanced"}, revision)
+    packed = control_call(out, product_config_doc, "role-pack", f"/control/v1/builds/{BUILD_ID}/role-pack",
+                          {"policy_version": "oos/v1", "role": "oo_r_reader"}, revision)
+    native = (packed.get("native_maintenance") or maintained.get("native_maintenance") or {})
+    if native.get("llm_calls") != 0 or native.get("publication") != "not_published":
+        raise RuntimeError("maintenance was not a zero-model unpublished rebind")
+    acl = transition_acl(run_dir, generation, out)
+    remote = Path(native["artifact_directory"])
+    artifact = Path(product_config_doc["work_dir_host"]) / remote.relative_to("/owned/work")
+    binding = install_reviewed(run_dir, artifact)
+    if binding["generation"] != generation:
+        raise RuntimeError("reviewed binding generation is not the sealed generation")
+    restart_container(GATEWAY, out / "gateway-restart")
+    for _ in range(30):
+        addr = run_dir / "gateway" / "listen.addr"
+        if addr.exists() and addr.stat().st_size:
+            break
+        time.sleep(1)
+    else:
+        raise RuntimeError("gateway did not listen")
+    time.sleep(2)
+    issue_current_token(run_dir, out)
+    gold = public_gold(run_dir, out)
+    write(receipt_path, {
+        "generation": generation, "catalog_sha256": catalog_sha, "serve_bundle": str(serve),
+        "maintenance_llm_calls": native["llm_calls"], "publication": native["publication"],
+        "artifact_directory": str(artifact), "acl": {key: acl.get(key) for key in ("effect", "role", "granted") if key in acl or acl.get(key) is not None},
+        "binding_generation": binding["generation"], "watermark": watermark, "cli_match": gold["match"], "cli": gold,
+        "pack_sha256": sha(run_dir / "gateway" / "packs" / "reader.json"), "llm_calls": 0,
+    })
+    write(run_dir / "maintenance-current" / "latest.json", {"generation": generation, "cli_match": gold["match"], "receipt": str(receipt_path)})
+    if not gold["match"]:
+        raise RuntimeError("public cli does not match source gold")
+    return json.loads(receipt_path.read_text())
+
+
+def bind_current(config, run_dir):
+    continued = run_dir / "row-continue" / "materialize-manifest.json"
+    bundle = run_dir / "row-continue" / "bundle" if continued.exists() else run_dir / "row-periods" / "bundle"
+    if not (bundle / "catalog.json").exists():
+        raise RuntimeError("current sealed catalog is not on disk")
+    publish_current(config, run_dir, bundle)
+
+
+def continue_plan(periods):
+    """Delete 201, then one new id through insert, update, and delete. Old ids stay out."""
+    return [
+        {"every": periods[0], "generation": 14, "change": "delete 201"},
+        {"every": periods[1], "generation": 15, "change": "insert 202", "version": "1", "qty": "31", "label": "n202"},
+        {"every": periods[0], "generation": 16, "change": "update 202", "version": "2", "qty": "32", "label": "n202b"},
+        {"every": periods[1], "generation": 17, "change": "delete 202"},
+    ]
+
+
+def staged_row(stage):
+    row = added_row("202", int(stage["qty"]), "21")
+    row["version"] = stage["version"]
+    row["note"] = stage["label"]
+    row["label"] = stage["label"]
+    row["labels"] = [stage["label"]]
+    return row
+
+
+def row_continue(config, run_dir):
+    """Finish 201's delete and one new IUD. Then the same maintenance path publishes that catalog."""
+    if not (run_dir / "row-periods" / "receipt.json").exists():
+        raise RuntimeError("row continue requires the generation-13 receipt")
+    work = run_dir / "row-continue"
+    work.mkdir(mode=0o700, exist_ok=True)
+    receipt_path = work / "receipt.json"
+    if receipt_path.exists() and json.loads(receipt_path.read_text()).get("cli_match") is True:
+        return
+    protected = {
+        "cycle-receipt.json": sha(run_dir / "cycle-receipt.json"),
+        "gold.json": sha(run_dir / "gold.json"),
+        "data-manifest.json": sha(run_dir / "data-manifest.json"),
+        "random-dialogue/receipt.json": sha(run_dir / "random-dialogue" / "receipt.json"),
+        "row-periods/receipt.json": sha(run_dir / "row-periods" / "receipt.json"),
+        "random-dialogue-row/receipt.json": sha(run_dir / "random-dialogue-row" / "receipt.json"),
+    }
+    document = json.loads(Path(config).read_text())
+    stages = continue_plan(configured_periods(document["capture"]))
+    base = json.loads((run_dir / "gold.json").read_text())
+    markers, raw = work / "markers", work / "raw"
+    markers.mkdir(mode=0o700, exist_ok=True)
+    from c4_capture import observe_period
+    done = []
+    try:
+        if not (work / "materialize-manifest.json").exists():
+            if rows().get("201") != ("2", "22"):
+                raise RuntimeError("source row 201 is not the generation-13 update")
+            for index, stage in enumerate(stages):
+                name = stage["change"].replace(" ", "-")
+                gold_rows = base if stage["change"].startswith("delete") else base + [staged_row(stage)]
+                gold_path = work / f"gold-{name}.json"
+                if not gold_path.exists():
+                    write(gold_path, gold_rows)
+                sql = ("ALTER TABLE oo_dl01w40.readings DELETE WHERE reading_id=%s SETTINGS mutations_sync=2" % stage["change"].split()[-1]
+                       if stage["change"].startswith("delete") else insert_sql(staged_row(stage)))
+                once(markers / name, raw / name, DBA, sql, "oo-ch-cont-" + name)
+                later = any((markers / item["change"].replace(" ", "-")).exists() for item in stages[index + 1:])
+                if not later:
+                    found = rows()
+                    base_ok = all(found.get(key) == pair for key, pair in (("101", ("3", "8")), ("103", ("1", "0")), ("104", ("1", "4")), ("105", ("1", "5"))))
+                    if stage["change"] == "insert 202":
+                        ok = base_ok and found.get("202") == ("1", "31") and "201" not in found
+                    elif stage["change"] == "update 202":
+                        ok = base_ok and found.get("202") == ("2", "32")
+                    else:
+                        ok = base_ok and "201" not in found and "202" not in found
+                    if not ok:
+                        raise RuntimeError("source rows do not match " + stage["change"])
+                sleep_marker = markers / ("slept-" + name)
+                if sleep_marker.exists():
+                    elapsed = float(sleep_marker.read_text())
+                else:
+                    elapsed = observe_period(stage["every"], time.sleep, time.monotonic)
+                    sleep_marker.write_text(str(elapsed) + "\n")
+                    os.chmod(sleep_marker, 0o600)
+                capture = work / ("c4-" + name)
+                if not (capture / "source-observation.json").exists():
+                    run([sys.executable, str(SCRIPTS / "capture_original_partitions.py"), "--output", str(capture),
+                         "--connection-config", str(config), "--gold", str(gold_path),
+                         "--capture-partitions", "202403", "--generation-start", str(stage["generation"])],
+                        work / "calls" / ("capture-g" + str(stage["generation"])), timeout=600)
+                for filename in ("loader-target.json", "ack-target.json"):
+                    target = work / filename
+                    if not target.exists():
+                        target.write_bytes((run_dir / filename).read_bytes())
+                        os.chmod(target, 0o600)
+                load_one(config, work, capture, stage["generation"], replay=stage["change"].startswith("update"))
+                scope = json.loads((capture / "admission-202403" / "sealed" / "registry.json").read_text())["bindings"][0]["partition_scope"]["observed_partition_ids"]
+                if "209912" not in scope:
+                    raise RuntimeError("empty partition 209912 left the vector")
+                done.append({"every": stage["every"], "slept_seconds": elapsed, "generation": stage["generation"], "change": stage["change"], "capture": str(capture)})
+            replay = json.loads((work / "c4-update-202" / "replay.json").read_text())
+            if replay.get("before") != replay.get("after"):
+                raise RuntimeError("continue replay changed the physical count")
+            run([sys.executable, str(SCRIPTS / "connection_materialize.py"),
+                 "--config", str(work / "load-config-g17.json"), "--run", str(work),
+                 "--capture", str(work / "c4-delete-202"), "--gold", str(work / "gold-delete-202.json")],
+                work / "calls" / "materialize", timeout=600)
+        manifest = json.loads((work / "materialize-manifest.json").read_text())
+        if manifest.get("typed_diff_zero") is not True:
+            raise RuntimeError("typed diff is not zero")
+        final = rows()
+        if any(key in final for key in ("201", "202", "106", "107", "998")) or any(final.get(key) != pair for key, pair in (("101", ("3", "8")), ("103", ("1", "0")), ("104", ("1", "4")), ("105", ("1", "5")))):
+            raise RuntimeError("source final is not the continued fixture")
+        ch(DBA, "SYSTEM FLUSH LOGS", "oo-ch-cont-flush", work / "raw" / "flush")
+        audit = ch(DBA, "SELECT count() FROM system.query_log WHERE user='oo_dl01w1_40_reader' AND type='QueryFinish' AND query_id LIKE 'oo-ch-cont-%' AND (query_kind IN ('Insert','Alter') OR query ILIKE 'insert %' OR query ILIKE 'alter %') FORMAT TSV", "oo-ch-cont-reader-audit", work / "raw" / "reader-audit")
+        reader_writes = int(audit.stdout.decode().strip() or "0")
+        if reader_writes:
+            raise RuntimeError("reader query log shows a finished write")
+        if any(sha(run_dir / name) != digest for name, digest in protected.items()):
+            raise RuntimeError("earlier receipt changed")
+        published = publish_current(config, run_dir, work / "bundle")
+        write(receipt_path, {
+            "method": "C4", "delete_detection": "partition_replace", "typed_diff_zero": True,
+            "generation": manifest["generation"], "periods": done, "final_keys": {key: list(value) for key, value in sorted(final.items())},
+            "reader_query_finish_writes": reader_writes, "maintenance_posted": True, "s5_called": False,
+            "cli_match": published.get("cli_match"), "protected_sha256": protected,
+        })
+    except Exception as exc:
+        write(work / "failure.json", {"error": str(exc), "periods": done})
+        raise
+
+
 def self_check():
     from connection_load import replay_ok
     from c4_capture import observe_period
@@ -1043,6 +1680,24 @@ def self_check():
     fresh = period_plan(True, periods)[1]["periods"]
     assert [item["every"] for item in fresh] == ["3s", "7s"] and fresh[0]["generation"] == 9 and fresh[1]["change"] == "physical delete 107"
     assert "105" not in fresh[0]["change"] and "106" not in fresh[0]["change"]
+    fresh_rows = row_plan(periods)
+    assert [item["generation"] for item in fresh_rows] == [12, 13]
+    assert {item["change"].split()[-1] for item in fresh_rows} == {"201"}
+    assert all(item["label"] not in {"p201", "inserted", "kept"} for item in fresh_rows)
+    assert "VALUES (107, 1," in insert_sql(added_row("107", 7, "19"))
+    assert "VALUES (201, 2," in insert_sql(row_value(fresh_rows[1]))
+    continued = continue_plan(periods)
+    assert [item["generation"] for item in continued] == [14, 15, 16, 17]
+    assert [item["change"] for item in continued] == ["delete 201", "insert 202", "update 202", "delete 202"]
+    assert "VALUES (202, 2," in insert_sql(staged_row(continued[2]))
+    aligned = serve_semantics(
+        {"continuous_capture": {"status": "diary"}, "quality": {"typed_cells_compared_each_side": 60, "rows": 5}, "source_contract": {"source_reader_query_log_proof": "new", "applied_end_lsn": 9}, "source_generation": 13},
+        {"continuous_capture": {"method": "C4"}, "quality": {"typed_cells_compared_each_side": 48, "rows": 4}, "source_contract": {"source_reader_query_log_proof": "old"}},
+    )
+    assert aligned["source_generation"] == 13 and aligned["continuous_capture"] == {"method": "C4"}
+    assert basis(aligned) == basis({"continuous_capture": {"method": "C4"}, "quality": {"typed_cells_compared_each_side": 48, "rows": 4}, "source_contract": {"source_reader_query_log_proof": "old"}})
+    if sha(TRANSITION_ELF) != TRANSITION_SHA:
+        raise RuntimeError("transition acl elf pin mismatch")
     slept = []
     observe_period(periods[0], slept.append, lambda: 0)
     observe_period(periods[1], slept.append, lambda: 0)
@@ -1101,33 +1756,59 @@ def source_scalar(sql, query_id, sink):
     return lines[0]
 
 
-def random_dialogue(config, run_dir):
+def random_current(config, run_dir):
+    latest = json.loads((run_dir / "maintenance-current" / "latest.json").read_text())
+    if latest.get("cli_match") is not True:
+        raise RuntimeError("public cli gold is not zero")
+    random_dialogue(config, run_dir, "random-dialogue-final", "current-client.token")
+
+
+def random_dialogue(config, run_dir, folder="random-dialogue", token_name=None):
     """Two new random dialogues on the current fixture. No S5, import, or old DML."""
     for name in (SOURCE, TARGET, GATEWAY):
         if state(name) == "absent":
             raise RuntimeError("named container absent: " + name)
         ensure(name)
-    root = run_dir / "random-dialogue"
+    root = run_dir / folder
     root.mkdir(mode=0o700, exist_ok=True)
     gold_path, bank_path = root / "gold.json", root / "bank.json"
     if not gold_path.exists():
+        row = progress_row(json.loads((run_dir / "bundle" / "catalog.json").read_text()))
+        generation = row["source_generation"]
+        if folder == "random-dialogue-row":
+            manifest = run_dir / "row-periods" / "materialize-manifest.json"
+            if not manifest.exists():
+                raise RuntimeError("current row generation is not loaded")
+            generation = json.loads(manifest.read_text())["generation"]
+        elif folder != "random-dialogue":
+            manifest = run_dir / "row-continue" / "materialize-manifest.json"
+            if not manifest.exists():
+                raise RuntimeError("continued generation is not loaded")
+            generation = json.loads(manifest.read_text())["generation"]
+            latest = json.loads((run_dir / "maintenance-current" / "latest.json").read_text())
+            if latest.get("generation") != generation or latest.get("cli_match") is not True:
+                raise RuntimeError("public cli has not matched this generation")
         gold, bank = {}, []
         for sid, kind, key, column, sql, prompt in RANDOM_BANK:
-            gold[key] = {"expected_named_facts": {column: source_scalar(sql, "oo-ch-random-gold-" + key, root / "source" / key)}}
+            gold[key] = {"expected_named_facts": {column: source_scalar(sql, "oo-ch-random-gold-" + folder + "-" + key, root / "source" / key)}}
             bank.append({"semantic_id": sid, "query_class": kind, "truth_key": key,
                          "prompt": prompt + " Inspect the installed pack, schema, and freshness with the public OO tools, then choose the SQL yourself."})
         write(gold_path, gold)
         write(bank_path, bank)
-        row = progress_row(json.loads((run_dir / "bundle" / "catalog.json").read_text()))
         pack = run_dir / "gateway" / "packs" / "reader.json"
-        write(root / "identity.json", {"source_id": row["source_id"], "source_generation": row["source_generation"],
-                                        "pack_sha256": sha(pack), "role": "oo_r_reader"})
+        write(root / "identity.json", {"source_id": row["source_id"], "source_generation": generation,
+                                        "pack_sha256": sha(pack), "role": "oo_r_reader",
+                                        "pack_file": str(pack)})
     identity = json.loads((root / "identity.json").read_text())
     base = json.loads((run_dir / "dialogue-config.json").read_text())
-    token = run_dir / "gateway" / "random-client.token"
+    if token_name is None:
+        token_name = "random-client.token" if folder == "random-dialogue" else "row-client.token"
+    token = run_dir / "gateway" / token_name
     if not token.exists():
+        if token_name == "current-client.token":
+            raise RuntimeError("current client token was not issued")
         run(["docker", "exec", "-w", "/run-current/gateway", GATEWAY, "/fixed/issue-token", "issue",
-             "endpoint.json", "runtime.pass", "ca.crt", "grant.json", "random-client.token"], root / "calls" / "issue-token", timeout=60)
+             "endpoint.json", "runtime.pass", "ca.crt", "grant.json", token.name], root / "calls" / "issue-token", timeout=60)
         os.chmod(token, 0o600)
     probe = subprocess.run([base["oo_cli"], "tables", "--json", "--gateway", base["gateway"], "--transport", base["transport"],
                             "--auth", base["auth"], "--token-file", str(token)], capture_output=True, timeout=40)
@@ -1216,7 +1897,10 @@ def random_dialogue(config, run_dir):
 
 def main():
     command, config, run_dir = sys.argv[1], sys.argv[2], Path(sys.argv[3])
-    {"data": data, "product-config": product_config, "decisions": decisions, "gateway": gateway, "finish": finish, "cover": cover_current, "random-dialogue": random_dialogue}[command](config, run_dir)
+    if command == "random-next":
+        random_dialogue(config, run_dir, "random-dialogue-row")
+        return
+    {"data": data, "product-config": product_config, "decisions": decisions, "gateway": gateway, "finish": finish, "cover": cover_current, "random-dialogue": random_dialogue, "row-periods": row_periods, "bind-current": bind_current, "row-continue": row_continue, "random-current": random_current}[command](config, run_dir)
 
 
 if __name__ == "__main__":
