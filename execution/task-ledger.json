@@ -8934,5 +8934,11 @@
     "author_commit": "6cbc44efebfa2ba0b062fde392424badd12c776a",
     "status": "terminal_reserved_dependency",
     "author_only": true
+  },
+  "latest_shared_schema_fixed_consumption": {
+    "note": "2026-10-14 shared15833终态后固定53eb5c115入口10tests root完整fixed archives复跑通过（两次缺依赖archive失败保留），fd63ff722单catalog schema/identity修复API c44bc746双副本SHA核验；作者Linux8tests raw尚缺不冒root通过。原Oracle同18ce owner52662/76822接当前g5实际maintenance/Pack/Gatewaygold及原全源/随机出口；共享同d28ca53810/4453收raw并修PG正确源事实进入versioned真实模型请求，原rawUSD/裸array不包装/不伪retained、不盲重试、不改PII未知。scope辅助五synthetic fixtures ratifyexact tests/oracle-g3-g5，其余源/公共writer边界不变。仅可消费固定依赖，实际联结/全部随机/完整源/正式0/10保持，集中独立审阅未触发。证据execution/reviews/grok-connection-resume-20261014/shared53-oracle-schema-fixed-intake.json。",
+    "receipt": "execution/reviews/grok-connection-resume-20261014/shared53-oracle-schema-fixed-intake.json",
+    "oracle_pid": 52662,
+    "shared_pid": 53810
   }
 }

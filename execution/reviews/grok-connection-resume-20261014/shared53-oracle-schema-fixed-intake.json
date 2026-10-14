@@ -1,0 +1,27 @@
+{
+  "commits": {
+    "mysql": "53eb5c115d4380cd291c08c84e797e96fa32d29e",
+    "oracle": "fd63ff722e9ead71e21eb547b23476a9af01a3b2"
+  },
+  "binary_sha_verified": {
+    "arch": "aarch64",
+    "build_id": "6621b74b6720b435f504014e64f75428abe9c052",
+    "bytes": 13164896,
+    "mode": "0755",
+    "path": "/tmp/oo-shared-entry-connection-whole/selfbuild-control-api-c44bc7463d68bb1ddff41e24fa2512fe803496e0d7b8a642e3787a00d5d8b60a",
+    "cache_path": "/Users/redux/.cache/oo-shared-entry-connection-whole/selfbuild-control-api-c44bc7463d68bb1ddff41e24fa2512fe803496e0d7b8a642e3787a00d5d8b60a",
+    "rustc": "1.94.0 (4a4ef493e 2026-03-02)",
+    "sha256": "c44bc7463d68bb1ddff41e24fa2512fe803496e0d7b8a642e3787a00d5d8b60a",
+    "stripped": false,
+    "unlabeled_release_path": "/tmp/oo-money-linux-target/release/selfbuild-control-api"
+  },
+  "mysql_fixed_tests": {
+    "root_rerun_directory": "/private/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/oo-root-shared53-fixed-950mice6",
+    "exit": 0,
+    "stderr": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.622s\n\nOK\n",
+    "initial_failures_preserved": "tests.stderr/tests-full-deps.stderr: incomplete archives; all final dependencies pinned same SHA"
+  },
+  "oracle_linux_eight_tests": "author reported; raw exit not yet received",
+  "actual_oracle_install_and_gold": "pending source owner",
+  "acceptance": "fixed dependency consumption only; no independent review/source promotion"
+}
