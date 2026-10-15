@@ -1852,3 +1852,26 @@ fn quote_physical(name: &str, prefix: &str) -> String {
     );
     format!("\"{name}\"")
 }
+
+#[test]
+fn interval_comparison_requires_the_exact_catalogued_operator() {
+    let mut relations = vec![shipment(10)];
+    relations[0].columns.push(col("duration", "pc_duration", 1186));
+    let mut c = catalog(relations);
+    c.operators.push(ResolvedOperator {oid: 801, procedure_oid: 802, schema: "pg_catalog".into(), name: "<".into(), left_type_oid: 1186, right_type_oid: 1186});
+    for literal in ["INTERVAL '0'", "INTERVAL '0 seconds'", "'00:00:00'::pg_catalog.interval", "INTERVAL '1 day'", "INTERVAL '-27:02:03'", "INTERVAL '12:34:56.123456'"] {
+        let plan = admit(&c, &format!("SELECT COUNT(*) FROM logistics.shipment WHERE duration < {literal}"));
+        assert_eq!(plan.bindings.operators[0].oid, 801);
+        assert_eq!(plan.bindings.operators[0].procedure_oid, 802);
+        assert!(plan.executed_sql.contains("pc_duration"));
+    }
+    for sql in [
+        "SELECT COUNT(*) FROM logistics.shipment WHERE duration < '0'::public.interval",
+        "SELECT COUNT(*) FROM logistics.shipment WHERE duration < '0'::interval[]",
+        "SELECT COUNT(*) FROM logistics.shipment WHERE duration::interval < INTERVAL '0'",
+        "SELECT COUNT(*) FROM logistics.shipment WHERE duration < CAST(lower('0') AS interval)",
+        "SELECT INTERVAL '0'",
+    ] { assert!(guard_select(&c.identity, &c, sql).is_err(), "{sql}"); }
+    c.operators.retain(|op| op.oid != 801);
+    assert!(guard_select(&c.identity, &c, "SELECT COUNT(*) FROM logistics.shipment WHERE duration < INTERVAL '0'").is_err());
+}

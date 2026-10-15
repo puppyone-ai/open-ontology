@@ -129,6 +129,7 @@ pub const COMPARISON_SIGNATURES: &[(&str, &str)] = &[
     ("numeric", "numeric"),
     ("text", "text"),
     ("date", "date"),
+    ("interval", "interval"),
 ];
 
 /// The only function this loader resolves: `pg_catalog.count(*)`.
@@ -1652,13 +1653,14 @@ mod tests {
         assert!(grantable_base_type("time", -1));
         assert!(!grantable_base_type("time", 0));
         assert!(!grantable_base_type("xml", -1));
-        assert_eq!(required_operator_count(), 66);
+        assert_eq!(required_operator_count(), 72);
     }
 
     #[test]
     fn whitelist_covers_only_the_comparison_subset() {
-        assert_eq!(required_operator_count(), 66);
+        assert_eq!(required_operator_count(), 72);
         assert!(COMPARISON_SIGNATURES.contains(&("date", "date")));
+        assert!(COMPARISON_SIGNATURES.contains(&("interval", "interval")));
         assert!(!COMPARISON_SIGNATURES.iter().any(|(left, right)| {
             *left == "timestamp"
                 || *right == "timestamp"

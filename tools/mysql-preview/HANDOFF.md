@@ -1,74 +1,40 @@
-# MySQL reference handoff — external model blocker
+# MySQL dual-version fixture handoff
 
-Status: **incomplete**. Formal source count and other-source release remain
-unchanged. No complete random-dialogue verdict or `whole.json` was manufactured.
+The author delivery is complete; root independently decides acceptance and
+later-source release. Actual MySQL 8.4 and additional required 5.7.44 both
+completed their original product chains. The final current 5.7 six-field run
+`a876396217504f558f8f2f9847f143de` also completed all six steps, current Pack
+random two-by-two QA, strict gold/QID/original WAL verification, official
+same-input reentry and 49 immutable pins. The current default registration is
+5.7-specific, not automatic dual-version routing. Other engine rows are unchanged.
 
-The actual current source is `mysql_67fff4e8ebff9f91bee8c75e`, binding
-`6e824358-6b96-4ddf-9f24-e02b1eaccbc5`, epoch 1, source/target generation 6,
-GTID lineage `1bc0749a-c3f5-11f1-9a89-6e5583e808c4:1-38`.
+The final packet is
+`/tmp/oo-mysql-connection-whole/sol-20261016/fixed-reference-complete-mysql-family-v2.json`.
+It links the original 8.4 and 5.7 histories, current normal run, fixed Rust and
+Python archives, exact ELFs, both new temporal-semantics Packs, original QID
+WAL, full-table oracles, retained failures and actual live resource receipts.
+Neither historical QA nor old failed manifests/tokens/WAL were rewritten.
 
-The evidence root is `/tmp/oo-mysql-connection-whole/sol-20261015`. The fixed
-collection is `fixed-reference-collection-blocked-v2.json`; source archives and
-their hashes are in `source-archives-v1.json`. Private references contain paths,
-not permission to expose their contents.
+Current source cuts are 5.7 generation 4 / GTID 93 and 8.4 generation 7 / GTID
+39, reached through genuine post-QA fixture I/U/D and the formal serve path.
+Both versions then consumed the new fixed API via fresh maintenance,
+publication and read-only standby Gateway readiness without new DML or S5.
+Both visible Packs explain authenticated zero-date-to-NULL conversion and
+signed TIME-to-interval. All ten semantic CLI cases on each version match
+independent source gold; denial, cancellation and rollback remain enforced.
+The new 5.7 random QA actually covers the previously failing zero-date case.
+Its product response model is authorized Grok 4.7; original S5 and historical
+5.7 QA remain genuine Sol. The engineering implementation used native Sol medium.
 
-Verified product evidence remains available:
+Long services use immutable Python `6cc2fe3f4` plus new fixed API/release API/
+coordinator from the exact 6042 base with only commit `911392259`'s two-file
+semantic delta. They remain running with one-second healthy quiet cycles.
+See [OPERATIONS.md](OPERATIONS.md) for callable stable CLI aliases, actual
+one-hour token limits and official renewal, 86400-second service deadlines,
+TLS expiry and safe same-volume target constraints. No boot daemon or bearer
+autorenewal is claimed. The owned 5.7 server uses official amd64 emulation;
+no performance or production/customer-owner certification is claimed.
 
-- Ordinary six-field preparation consumed the real connection and catalog.
-  Initial CDC-first capture crossed L0 32 through concurrent transaction 33;
-  snapshot fill preserved the update and did not resurrect the deletion.
-  Same-task crash/replay, lease guards, five typed imports, CAS-before-ACK and
-  independent all-cell source/target comparison were exercised.
-- Autonomous follow-up captured single-table and different cross-table I/U/D
-  groups, an unselected-table transaction, and quiet periods without fake ACKs.
-  The timed generation-5 cut survived a real worker/Loader kill before ACK and
-  resumed the same sealed task. Generation 6 followed from the single bounded
-  `whole.py serve` entry through typed import, official maintenance and fixture
-  publication, with no repeated paid S5.
-- `ordinary-autonomous-gen6-v1/generation-6` retains the independent oracle,
-  current standard YAML/Ontology, current Pack, release status and real standby
-  barriers. All five tables, 110,019 rows and 43 columns compared without a cell
-  difference. The original validated S5 receipt is preserved unchanged.
-- Current role is `oo_r_mysql_full`; Pack digest is
-  `21ad1f3e096bca915f83e367cb1d763017e03b2882a067f35b82742674c47cac`.
-  Actual same-token CLI readiness, permission refusals, admitted-query cancel,
-  rollback/completion WAL and a subsequent query are retained in
-  `current-caller-gen6-v2`. Current readiness was rechecked successfully in
-  `blocked-handoff-current-preflight-v1` without STALE_DATA.
-
-The remaining original exit is two complete new random semantic Agent
-conversations, independently verified against source gold, with QIDs and full
-WAL, followed by the final ordinary-entry whole proof. Sol returned HTTP 403
-and then HTTP 503 `auth_unavailable`; Grok returned HTTP 408 and repeated socket
-timeouts. All attempts remain intact. One grounded maximum-weight turn is
-verified; it is not a complete conversation.
-
-The last bounded default entry used only the six fields in the private file
-`/Users/redux/.cache/oo-mysql-connection-whole/c1/six-fields-final-v9.json`.
-Its run is
-`/Users/redux/.cache/oo-source-onboarding/runs/69155913138e46499a816e37b69b089e`.
-The journal records actual engine-registry and selected-engine hashes, product
-maintenance/preflight success and the failed Agent step. `normal-six-field-final-v9.exit`
-is 2. No further model calls were started after this bounded attempt failed.
-
-Resume only after the approved provider is usable. Recheck the source GTID,
-current publication/Pack/role and token validity first. Use the original
-selection and the exact verified turn-0 prefix plus hashes referenced by the
-fixed collection; the verifier rechecks facts against actual preceding query
-results and preserves model identities. Use a fresh immutable recipe/run and
-the normal engine registration/default six-field entry, preserving all failed
-directories. Do not overwrite a failed transcript or attach a partial verdict.
-If the token expires, renew it through the normal issuer and collect fresh
-same-token readiness/refusal/cancel receipts before any model call. If source
-identity or data changes, maintain and publish it and regenerate independent
-gold before selecting new questions.
-
-Current Gateway, API, release API and real standby remain running. The build
-container is idle, superseded owned Gateways are stopped, and the attributed
-orphan binlog connection was closed. Shared source/target/identity/token
-services and all data, TLS material, configs and WAL are retained. Resource
-ownership and actual terminal states are in the fixed collection's receipts.
-
-See [FINDINGS.md](FINDINGS.md) for throughput, supported SQL, cancellation and
-production-scope limits. Root independently verifies the original exits and
-decides release; these commits and local milestones do not change Goal state.
+See [REPORT.md](REPORT.md) for chain details. Original failures remain evidence,
+including TLS, decoder, kill/recovery, SQL guard, lifecycle/capacity, provider
+cooldown and the missing Pack mapping. No formal source count changes here.

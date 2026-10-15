@@ -1406,6 +1406,10 @@ fn admit_literal_cast(node: &pb::Node) -> Result<ExprKind, GuardError> {
 }
 
 fn plain_date_type(type_name: &pb::TypeName) -> bool {
+    plain_literal_type(type_name, "date")
+}
+
+fn plain_literal_type(type_name: &pb::TypeName, expected: &str) -> bool {
     if type_name.setof
         || type_name.pct_type
         || !type_name.typmods.is_empty()
@@ -1417,8 +1421,8 @@ fn plain_date_type(type_name: &pb::TypeName) -> bool {
         return false;
     };
     match names.as_slice() {
-        [name] => name == "date",
-        [schema, name] => schema == "pg_catalog" && name == "date",
+        [name] => name == expected,
+        [schema, name] => schema == "pg_catalog" && name == expected,
         _ => false,
     }
 }
@@ -1653,29 +1657,12 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
         let left = expr.lexpr.as_mut().ok_or(GuardError::Unsupported {
             construct: "operator expression",
         })?;
-        let left_kind = admit_expr(left, ctx)?;
+        let (left_type, left_int) = admit_comparison_operand(left, ctx)?;
         let right = expr.rexpr.as_mut().ok_or(GuardError::Unsupported {
             construct: "operator expression",
         })?;
-        let right_kind = admit_expr(right, ctx)?;
-        (
-            infer_type(&left_kind, ctx.catalog).ok_or(GuardError::FunctionNotAllowed)?,
-            infer_type(&right_kind, ctx.catalog).ok_or(GuardError::FunctionNotAllowed)?,
-            matches!(
-                left_kind,
-                ExprKind::Literal {
-                    kind: LiteralKind::Integer,
-                    ..
-                }
-            ),
-            matches!(
-                right_kind,
-                ExprKind::Literal {
-                    kind: LiteralKind::Integer,
-                    ..
-                }
-            ),
-        )
+        let (right_type, right_int) = admit_comparison_operand(right, ctx)?;
+        (left_type, right_type, left_int, right_int)
     };
     let (left_type, right_type, left_int_literal, right_int_literal) = compared;
     let resolved = resolve_comparison(
@@ -1695,6 +1682,20 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
     };
     ctx.operators.push(bound);
     Ok(ExprKind::Operator)
+}
+
+// MySQL TIME is stored as an interval. Admit an explicit builtin interval constant
+// only as a comparator operand; all operators still require the catalogued
+// pg_catalog signature. General casts and projected interval casts stay closed.
+fn admit_comparison_operand(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<(u32, bool), GuardError> {
+    if let Some(pb::node::Node::TypeCast(cast)) = node.node.as_ref()
+        && cast.type_name.as_ref().is_some_and(|name| plain_literal_type(name, "interval"))
+        && cast.arg.as_deref().and_then(const_string).is_some_and(|text| !text.is_empty() && !text.contains('\0'))
+    {
+        return Ok((Type::INTERVAL.oid(), false));
+    }
+    let kind = admit_expr(node, ctx)?;
+    Ok((infer_type(&kind, ctx.catalog).ok_or(GuardError::FunctionNotAllowed)?, matches!(kind, ExprKind::Literal {kind: LiteralKind::Integer, ..})))
 }
 
 fn admit_in(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {

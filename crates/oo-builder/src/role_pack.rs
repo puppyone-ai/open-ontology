@@ -2267,6 +2267,14 @@ fn render_source_semantics(
                 text,
                 &format!("native: {} {}", column.column.as_str(), note.as_str()),
             );
+            let explanation = match note.as_str() {
+                "mysql_zero_date_to_null_authenticated_reject" => Some("MySQL DATE/DATETIME zero components are stored as SQL NULL with an authenticated quality reject; valid dates retain their exact values."),
+                "mysql_signed_time_duration_to_interval" => Some("MySQL TIME is a signed duration, including negative and greater-than-24-hour values, represented as PostgreSQL interval with microsecond precision."),
+                _ => None,
+            };
+            if let Some(explanation) = explanation {
+                line(text, &format!("mapping: {}: {}", column.column.as_str(), explanation));
+            }
         }
     }
     for constraint in &semantics.constraint_trust {
@@ -3169,3 +3177,41 @@ fn split_column(path: &str) -> Option<(&str, &str, &str)> {
     }
 }
 
+
+#[cfg(test)]
+mod mysql_native_note_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn rendered(columns: &[&str]) -> String {
+        let dataset: DatasetFile = serde_json::from_value(json!({
+            "schema_version":"oos/v1","dataset":"db.probe","label":"probe","tier":"raw",
+            "columns":[{"name":"date_value"},{"name":"elapsed"},{"name":"other"}],
+            "source_semantics":{"family":"mysql","product":"mysql","version":"5.7.44-log",
+                "capture":"c1_cdc","source_kind":"database","grade":"T","delete_detection":"native",
+                "columns":[
+                    {"column":"date_value","caveats":["mysql_zero_date_to_null"],"native_note":"mysql_zero_date_to_null_authenticated_reject"},
+                    {"column":"elapsed","native_note":"mysql_signed_time_duration_to_interval"},
+                    {"column":"other","native_note":"existing_unknown_token"}]}
+        })).unwrap();
+        let grant=Grant {rls:false,global_stats:false,proof_ref:None,columns:columns.iter().map(|name|name.to_string()).collect()};
+        let mut text=String::new();render_source_semantics(&mut text,&dataset,&grant).unwrap();text
+    }
+
+    #[test]
+    fn mysql_native_notes_explain_null_conversion_and_signed_duration() {
+        let text=rendered(&["date_value","elapsed","other"]);
+        assert!(text.contains("date_value: MySQL DATE/DATETIME zero components are stored as SQL NULL with an authenticated quality reject"));
+        assert!(text.contains("elapsed: MySQL TIME is a signed duration, including negative and greater-than-24-hour values, represented as PostgreSQL interval with microsecond precision"));
+        assert!(text.contains("native: other existing_unknown_token"));
+        assert!(!text.contains("mapping: other:"));
+    }
+
+    #[test]
+    fn hidden_mysql_mapping_notes_do_not_leak_into_role_pack() {
+        let text=rendered(&["other"]);
+        assert!(!text.contains("date_value"));assert!(!text.contains("elapsed"));
+        assert!(!text.contains("SQL NULL"));assert!(!text.contains("mysql_zero_date"));
+        assert!(text.contains("native: other existing_unknown_token"));
+    }
+}

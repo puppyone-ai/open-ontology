@@ -1,0 +1,88 @@
+{
+  "as_of": "2026-10-15T20:38:45.074428+00:00",
+  "acceptance_level": "root_verified_complete_owned_mysql_family_fixture_reference",
+  "formal_source_count_delta": 0,
+  "production_ready": false,
+  "versions": [
+    "5.7.44-log (official amd64 emulation)",
+    "8.4.10"
+  ],
+  "source_commits": {
+    "temporal_semantics": "9113922595542733fd17dce5dae0d7dbee820b5c",
+    "retained_immutable_python": "6cc2fe3f4",
+    "docs": "0fd956e6c",
+    "composed_base_relation_role_fix": "6042b3f0b"
+  },
+  "author_delivery": {
+    "path": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-final-delivery-v2.json",
+    "sha256": "336326e9b5512dd78164b19fedb9d031ac0ca80f4b4cf92fda5b8448e794ca9e",
+    "bytes": 1352
+  },
+  "family_packet": {
+    "path": "/tmp/oo-mysql-connection-whole/sol-20261016/fixed-reference-complete-mysql-family-v2.json",
+    "sha256": "5ae0c8aade3dcc8125eb041acb643a56ecf66b2db658ebf2587ad9441369d2f7",
+    "bytes": 13840
+  },
+  "root_checks": [
+    {
+      "path": "/tmp/oo-root-mysql-family-v2-hashcheck-20261016.json",
+      "sha256": "756b35b1830b9b1017ed12d21f107029edc95cf04843d35ba23c6697d5197fb4",
+      "bytes": 561
+    },
+    {
+      "path": "/tmp/oo-root-mysql57-current-whole-qa-check-20261016.json",
+      "sha256": "b6da29e2d479adfbd7f1f05b0ab332d629d5eda4affef95a4119f627a2fe22c8",
+      "bytes": 4897
+    },
+    {
+      "path": "/tmp/oo-root-mysql-temporal-all-bank-check-20261016.json",
+      "sha256": "a744c9f33f2093e4ccba2f31853082031bd8e231bc4c661b7f0d8e8fddfaf874",
+      "bytes": 513
+    },
+    {
+      "path": "/tmp/oo-root-mysql-final-live-state-check-20261016.json",
+      "sha256": "e8a6684deafb03c8af82029dc677577d5eba01392dbb5c19543c878c34b6d889",
+      "bytes": 1225
+    },
+    {
+      "path": "/tmp/oo-root-mysql-current-ELF-check-20261016.json",
+      "sha256": "957975ad7f2cdb031fa8dce6e63d99051443db764652daeed629a9d28a3533b4",
+      "bytes": 880
+    }
+  ],
+  "decisive_results": {
+    "normal_mysql57_current_run": "a876396217504f558f8f2f9847f143de",
+    "normal_input_fields": [
+      "type",
+      "host",
+      "port",
+      "database",
+      "user",
+      "secret_ref"
+    ],
+    "six_steps_exit0": true,
+    "current_recipe_pins_verified": 49,
+    "immutable_files_SHA_checked": 4676,
+    "composed_source_delta_verified": "exactly two committed Rust files against fixed6042 archive; no foreign WIP",
+    "current_mysql57_random_dialogues": "two disjoint random 2-turn actual grok-4.7 conversations; all4 source gold/actual CLI cells/original8 admit-complete WAL pass",
+    "historical_mysql84_complete_reference": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+    "current_mysql84_new_pack_regression": "10 source-gold CLI facts and Pack/permissions/cancel verified; historical paid QA retained, no extra current-Pack paid dialogues",
+    "full_typed_oracle": "each source 110019 rows/43 columns all cells0 differences; current g4/93 and g7/39",
+    "real_C1": "CDC-first, configurable autonomous IUD/delete/quiet/crash recovery, CAS-before-ACK; no C5 substitution",
+    "product": "genuine S0-S10 and original distinct S5; official current maintenance standard YAML/Ontology/role Pack, fixture fenced publication, physical RO standby and Gateway",
+    "root_current_live": "two stable CLI current badges93/39 no warnings; actual API/release /proc executable hashes; both long serve PIDs74664/74665; same PG systemid100 connections, standby recovery/read-only/streaming"
+  },
+  "pack_artifact_digests": {
+    "5.7": "5abf8383feabecfedc4fbfcb2e70457d09abaaf5a7b107c682060c207bb74e53",
+    "8.4": "f95afeac878b3019120293a4d6663c38ec925c6e78be17a1c1111b24b2827e7a"
+  },
+  "limits": [
+    "owned test fixtures and identities; no customer/RDS or production certification",
+    "default installed mysql recipe is5.7 fixture-specific, not automatic dual-version deployment",
+    "one-hour tokens currently expire2026-10-15T21:17UTC; explicit official renewal, no bearer auto-renew",
+    "long serve86400seconds ends2026-10-16T20:25UTC; no boot daemon",
+    "formal source acceptance0/10 and editions0 unchanged; review deferred to human-defined unified ten-source Goal milestone"
+  ],
+  "review": "root decisive evidence verification only; no separate component review agent; independent unified review deferred",
+  "resource_handoff": "MySQL engineer confirmed completed; retained immutable services continue. Doris old five WIP hashes rechecked unchanged, old owner completed; only Doris may next resume on gpt-6-luna/max. Other eight held."
+}

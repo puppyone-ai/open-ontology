@@ -48,6 +48,7 @@ class Follow:
         self.out.mkdir(mode=0o700, parents=True, exist_ok=True)
         if self.out.is_symlink() or self.out.stat().st_mode & 0o077:
             raise ValueError('private_output')
+        self.output_key = self.out.name+'-'+hashlib.sha256(str(self.out.resolve()).encode()).hexdigest()[:12]
         self.n = len(list(self.out.glob('*.exit')))
         for binary in [self.op['worker'], self.op['loader'], self.p['api_binary'], self.p['release_binary']]:
             if Path(binary).parent.name != digest(binary):
@@ -96,6 +97,20 @@ print(json.dumps({'stopped_owned_api':hits}))
         native=envelope['native_maintenance'];commit=native['artifact_revision']
         wrapper={'protocol':'oo.release-control.native-reviewed-pack/v1','config_commit':commit,'envelope':envelope,'effective':load(product/'current-effective-oos.json'),'visibility':load(product/'current-visibility.json'),'artifact':load(product/'current-role-pack.json')}
         private=Path(self.p['release_private'])
+        if self.p.get('reuse_published_cut'):
+            original=Path(self.p['reuse_published_cut']['path'])
+            prior=load(original/'release-status.json')
+            c=load(self.p['product_config']);c['endpoint']=self.p['release_origin'];c['origin']=c['endpoint']
+            flow=Flow(c,self.out/'release')
+            active=flow.call('admin','/control/v1/releases/active?project_id='+c['create']['project_id'],name='reuse-active')
+            if prior['config_commit']==commit and active['version']==prior['version'] and active['pack_digest']==native['pack_digest'] and not active['half_published']:
+                status=flow.call('admin','/control/v1/releases/'+prior['operation_id'],name='reuse-publish-status')
+                if status['status']!='succeeded' or status['half_published'] or status['config_commit']!=commit or status['pack_digest']!=native['pack_digest']:
+                    raise RuntimeError('published_release_drift')
+                save(self.out/'release-status.json',status);save(self.out/'active-release.json',active)
+                save(self.out/'publication.json',load(original/'publication.json'))
+                save(self.out/'publication-reuse.json',{'original':str(original),'fresh_active_and_operation_verified':True,'same_artifact_revision':commit})
+                return native
         save(private/'packs'/(commit+'.json'),wrapper)
         save(private/'packs'/(commit+'.gates.json'),{'protocol':'oo.release-control.gate-intake/v1','config_commit':commit,'gates':[],'external':[],'checkpoints':[],'skip':[]})
         tables=[]
@@ -106,7 +121,7 @@ print(json.dumps({'stopped_owned_api':hits}))
         save(self.out/'publication.json',publication)
         runtime=load(self.p['release_runtime'])
         runtime['native_mapping']={'datasets':[{'dataset':v['dataset'],'source':v['source_id'],'config_digest':v['config_digest'],'generation':v['source_generation']} for v in catalog['binding_vector']],'publication':{'protocol':publication['protocol'],'run_id':publication['run_id'],'receipt_sha256':hashlib.sha256(canonical(publication)).hexdigest(),'receipt':publication}}
-        runtime_file=private/('runtime-gen'+str(generation)+'-'+self.out.name+'.json');save(runtime_file,runtime)
+        runtime_file=private/('runtime-gen'+str(generation)+'-'+self.output_key+'.json');save(runtime_file,runtime)
         self.replace_api(self.p['release_container'],self.p['release_binary_container'],'/owned/'+str(runtime_file.relative_to(Path(self.op['host_secret_root']))),'release')
         c=load(self.p['product_config']);c['endpoint']=self.p['release_origin'];c['origin']=c['endpoint']
         flow=Flow(c,self.out/'release')
@@ -116,7 +131,7 @@ print(json.dumps({'stopped_owned_api':hits}))
         deadline=time.monotonic()+90
         while True:
             status=flow.call('admin','/control/v1/releases/'+created['operation_id'],name='publish-status')
-            if status['status'] in ['succeeded','failed']:
+            if status['status'] in ['succeeded','failed','refused','resume_uncertain','canceled']:
                 break
             if time.monotonic()>deadline:
                 raise RuntimeError('publish_deadline')
@@ -156,7 +171,7 @@ print(json.dumps({'stopped_owned_api':hits}))
         mapping=load(self.p['mapping_template']);mapping['policies']=policies
         save(self.out/'mapping-request.json',mapping)
         self.call('mapping-reader',['docker','exec','-i',self.op['container'],self.p['mapping_binary']],canonical(mapping))
-        gateway=Path(self.p['bundle_parent'])/('gateway-gen'+str(generation)+'-'+self.out.name)
+        gateway=Path(self.p['bundle_parent'])/('gateway-gen'+str(generation)+'-'+self.output_key)
         gateway.mkdir(mode=0o700,exist_ok=False);(gateway/'packs').mkdir(mode=0o700);folder=gateway/'reviewed/mysql_full';folder.mkdir(mode=0o700,parents=True)
         env=load(product/'current-role-response.json')['response'];artifact=Path(load(self.p['product_config'])['work_dir_host'])/'builds'/env['build_id']/'native-maintenance'/native['artifact_revision']
         command=load(artifact/'command.json');reviewed=load(artifact/'reviewed.json');first=catalog['binding_vector'][0]
@@ -206,6 +221,48 @@ print(json.dumps({'stopped_owned_api':hits}))
                 raise RuntimeError('gateway_not_ready')
         save(self.out/'gateway-ready.json',{'source_generation':generation,'pack_digest':native['pack_digest'],'role':role,'token_sha256':digest(gateway/'current-client.token'),'gateway_container':container,'private_root':str(gateway),'readonly_replica':True,'ready':True})
 
+    def published_entries(self, exported, request, result):
+        reuse = self.p['reuse_published_cut']
+        original = Path(reuse['path'])
+        if set(reuse['sha256']) != {'native/request.json','native/load.json','native/ack.json','catalog.json','release-status.json','gateway-ready.json','publication.json'}:
+            raise ValueError('published_cut_pins')
+        for name, expected in reuse['sha256'].items():
+            if digest(original/name) != expected:
+                raise ValueError('published_cut_digest')
+        for name in ['request', 'load', 'ack']:
+            if (original/'native'/(name+'.json')).read_bytes() != (exported/(name+'.json')).read_bytes():
+                raise ValueError('published_cut_identity')
+        status, ready = load(original/'release-status.json'), load(original/'gateway-ready.json')
+        if status['status'] != 'succeeded' or not ready['ready'] or not ready['readonly_replica'] or ready['source_generation'] != result['source_generation'] or status['pack_digest'] != ready['pack_digest']:
+            raise ValueError('published_cut_not_ready')
+        catalog = load(original/'catalog.json')
+        if catalog != collection(catalog['entries'], [(s['schema'], s['table']) for s in request['entries']]):
+            raise ValueError('published_catalog')
+        for spec, native, loaded, entry in zip(request['entries'], request['native_requests'], result['entries'], catalog['entries'], strict=True):
+            for key in ['source_id', 'source_generation', 'target_generation', 'run_id', 'config_digest', 'type_digest', 'input_digest']:
+                expected = loaded['run_id'] if key == 'run_id' else result['target_generation'] if key == 'target_generation' else native[key]
+                if entry[key] != expected:
+                    raise ValueError('published_entry_identity')
+            table = entry['tables'][0]
+            relation = table['stored_physical']
+            if not relation.replace('_', '').isalnum() or not loaded['run_id'].replace('-', '').isalnum():
+                raise ValueError('published_identifier')
+            sql = "SELECT json_build_object('run',row_to_json(r),'attrs',(SELECT json_agg(json_build_array(attname,atttypid,atttypmod)) FROM pg_attribute WHERE attrelid='_oo.\""+relation+"\"'::regclass AND attnum>0 AND NOT attisdropped)) FROM _oo.full_import_run r WHERE run_id='"+loaded['run_id']+"'"
+            observed = json.loads(self.call('published-target', ['docker','exec','-u','postgres',native['target']['host'],'psql','-U','oo_admin','-d',native['target']['database'],'-Atc',sql]))
+            run = observed['run']
+            if run['state'] != 'published' or run['retired_at'] is not None or run['owner_token'] != request['binding']:
+                raise ValueError('published_target_state')
+            for key in ['source_id','source_generation','target_generation','config_digest','schema_digest','type_digest','input_digest']:
+                expected = result['target_generation'] if key == 'target_generation' else native[key]
+                if run[key] != expected:
+                    raise ValueError('published_target_identity')
+            attrs = {name: (int(oid), typmod) for name, oid, typmod in observed['attrs']}
+            expected = {col['stored_physical']: (col['oid'], col['typmod']) for col in table['columns']}
+            if {k: v for k, v in attrs.items() if not k.startswith('_oo_')} != expected:
+                raise ValueError('published_target_schema')
+        save(self.out/'published-catalog-reuse.json', {'original':str(original),'pinned_sha256':reuse['sha256'],'target_published_identity_and_types_verified':True})
+        return catalog['entries']
+
     def maintain(self):
         identity = load(Path(self.op['prepared_root'])/'prepared/identity.json')
         source = identity['source_id']
@@ -215,21 +272,24 @@ print(json.dumps({'stopped_owned_api':hits}))
         generation = receipt['source_generation']
         if request['source_id'] != source or result['source_id'] != source or result['source_generation'] != generation:
             raise ValueError('cut_identity')
-        entries = []
-        for n,(spec, native, loaded) in enumerate(zip(request['entries'],request['native_requests'],result['entries'],strict=True)):
-            if native['logical_schema'] != spec['schema'] or native['logical_table'] != spec['table'] or loaded['schema'] != spec['schema'] or loaded['table'] != spec['table']:
-                raise ValueError('table_identity')
-            query = {key:native[key] for key in ['source_id','source_generation','config_digest','schema_digest','type_digest','input_digest','snapshot','target']}
-            query['target']={k:v for k,v in query['target'].items() if k not in ['owner','shard']}
-            query.update(protocol='oo.pipeline.native-sealed-catalog/v1',run_id=loaded['run_id'],owner=identity['binding_id'],target_generation=result['target_generation'])
-            if digest(spec['admission_registry_path']) != spec['admission_registry_sha256']:
-                raise ValueError('registry_digest')
-            raw = self.call('catalog-'+str(n),['docker','exec','-i','-e','OO_NATIVE_ADMISSION_BIN='+self.op['admission'],'-e','OO_NATIVE_BINDING_REGISTRY='+spec['admission_registry_path'],'-e','OO_NATIVE_BINDING_REGISTRY_SHA256='+spec['admission_registry_sha256'],self.op['container'],self.op['loader'],'catalog-import-native'],canonical(query))
-            entry = json.loads(raw)
-            for key in ['source_id','source_generation','target_generation','run_id','config_digest','type_digest','input_digest']:
-                if entry[key] != query[key]:
-                    raise ValueError('export_identity')
-            entries.append(entry)
+        if self.p.get('reuse_published_cut'):
+            entries = self.published_entries(exported, request, result)
+        else:
+            entries = []
+            for n,(spec, native, loaded) in enumerate(zip(request['entries'],request['native_requests'],result['entries'],strict=True)):
+                if native['logical_schema'] != spec['schema'] or native['logical_table'] != spec['table'] or loaded['schema'] != spec['schema'] or loaded['table'] != spec['table']:
+                    raise ValueError('table_identity')
+                query = {key:native[key] for key in ['source_id','source_generation','config_digest','schema_digest','type_digest','input_digest','snapshot','target']}
+                query['target']={k:v for k,v in query['target'].items() if k not in ['owner','shard']}
+                query.update(protocol='oo.pipeline.native-sealed-catalog/v1',run_id=loaded['run_id'],owner=identity['binding_id'],target_generation=result['target_generation'])
+                if digest(spec['admission_registry_path']) != spec['admission_registry_sha256']:
+                    raise ValueError('registry_digest')
+                raw = self.call('catalog-'+str(n),['docker','exec','-i','-e','OO_NATIVE_ADMISSION_BIN='+self.op['admission'],'-e','OO_NATIVE_BINDING_REGISTRY='+spec['admission_registry_path'],'-e','OO_NATIVE_BINDING_REGISTRY_SHA256='+spec['admission_registry_sha256'],self.op['container'],self.op['loader'],'catalog-import-native'],canonical(query))
+                entry = json.loads(raw)
+                for key in ['source_id','source_generation','target_generation','run_id','config_digest','type_digest','input_digest']:
+                    if entry[key] != query[key]:
+                        raise ValueError('export_identity')
+                entries.append(entry)
         catalog = collection(entries,[(s['schema'],s['table']) for s in request['entries']])
         save(self.out/'catalog.json',catalog)
         self.call('oracle',['python3',str(REPO/'tools/mysql-preview/audit-native-target.py'),'--generation',str(generation),'--source-id',source,'--source-container',self.p['source_container'],'--source-client-file',self.p['source_client_file'],'--schema',self.c['database']])
@@ -249,14 +309,21 @@ print(json.dumps({'stopped_owned_api':hits}))
         evidence_root=Path(product_config['work_dir_host'])/'builds'/build/'source-evidence'
         evidence_root.mkdir(mode=0o700,exist_ok=True)
         evidence=evidence_root/evidence_id
-        evidence.mkdir(mode=0o700,exist_ok=False)
+        evidence.mkdir(mode=0o700,exist_ok=True)
+        if evidence.is_symlink() or evidence.stat().st_mode & 0o077:
+            raise ValueError('private_source_evidence')
         for name in ['request','load','ack']:
-            shutil.copy2(exported/(name+'.json'),evidence/(name+'.json'))
+            dest=evidence/(name+'.json')
+            if dest.exists():
+                if dest.is_symlink() or digest(dest)!=digest(exported/(name+'.json')):
+                    raise ValueError('source_evidence_drift')
+            else:
+                shutil.copy2(exported/(name+'.json'),dest)
         semantics['evidence_set_id']=evidence_id
         semantics['c1_evidence']={n:{'path':str(Path('source-evidence')/evidence_id/(n+'.json')),'sha256':digest(evidence/(n+'.json'))} for n in ['request','load','ack']}
         semantics['capture_methods']={v['dataset']:{'logical_table':v['dataset'],'capture_method':'c1_cdc','consistency':'T','delete_detection':'native','source_generation':v['source_generation'],'target_generation':v['target_generation']} for v in catalog['binding_vector']}
         save(self.out/'source-semantics.json',semantics)
-        bundle=Path(self.p['bundle_parent'])/('product-bundle-gen'+str(generation)+'-'+self.out.name)
+        bundle=Path(self.p['bundle_parent'])/('product-bundle-gen'+str(generation)+'-'+self.output_key)
         bundle.mkdir(mode=0o700,exist_ok=False)
         for file in seed.iterdir():
             if file.name not in ['manifest.json','catalog.json','profile.json','source_semantics.json']:
@@ -265,7 +332,7 @@ print(json.dumps({'stopped_owned_api':hits}))
         save(bundle/'manifest.json',{'contract':'oo.selfbuild-control-api/sealed-bundle/v1','files':{f.name:digest(f) for f in sorted(bundle.iterdir())}})
         runtime=load(self.p['api_runtime'])
         runtime['projects'][0]['sealed_bundle']='/owned/'+str(bundle.relative_to(Path(self.op['host_secret_root'])))
-        runtime_file=Path(self.p['bundle_parent'])/('runtime-gen'+str(generation)+'-'+self.out.name+'.json');save(runtime_file,runtime)
+        runtime_file=Path(self.p['bundle_parent'])/('runtime-gen'+str(generation)+'-'+self.output_key+'.json');save(runtime_file,runtime)
         self.replace_api(self.p['api_container'],self.p['api_binary_container'],'/owned/'+str(runtime_file.relative_to(Path(self.op['host_secret_root']))),'selfbuild')
         product_config['sealed_bundle_host']=str(bundle)
         product_out=self.out/'product';product_out.mkdir(mode=0o700)

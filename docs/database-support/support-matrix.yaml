@@ -25,7 +25,7 @@ targets:
   - { id: mysql57-selfmanaged, family: mysql, product: MySQL, versions: ["5.7"], variant: self-managed, wave: 0,
       driver: { path: P1, impl: mysql_async }, grade: { cdc: T, inc: B },
       caps: { cat: designed, logic: designed, qlog: designed, full: designed, inc: designed, cdc: designed, del: designed, snap: designed, rep: designed, bud: designed },
-      status_note: "2026-10-16 用户明确要求；真实5.7 C1完整链验收进行中，不能沿用8.x结论或声明verified" }
+      status_note: "2026-10-16 owned5.7.44全链fixture参考已root核验：C1/S0-S10/维护Pack/发布RO副本/Gateway CLI/随机2x2；amd64仿真实跑，默认recipe限此fixture；caps仍designed，不冒生产verified。固定证据 execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json" }
   - { id: files-and-dumps, family: file, product: "CSV/TSV/Excel/Parquet/JSONL/SQLite/SQL dump", variant: upload, wave: 0,
       driver: { path: in-process-worker }, grade: { full: S0 },
       caps: { full: designed }, status_note: "见 Spec 7.4；独立于数据库准入" }

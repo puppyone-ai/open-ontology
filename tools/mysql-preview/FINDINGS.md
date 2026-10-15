@@ -48,3 +48,26 @@ Shared source freezing includes inherited Doris projection and source-semantics
 code that was present before the MySQL owner's changes. Preserving those actual
 compiled bytes is provenance, not a claim that this task implemented or accepted
 the Doris source.
+
+
+## Required 5.7 fixture and interval follow-up
+
+The owned actual 5.7.44 source completed CDC-first baseline, two autonomous
+I/U/D cuts, unchanged-generation quiet polling, real worker/Loader SIGKILL
+and same-task recovery, all-cell oracle, genuine S5/S0–S10, current
+maintenance/Ontology/Pack, formal standby publication, CLI controls and two
+strict random conversations. Evidence and version-specific limits are in
+[REPORT.md](REPORT.md). Earlier failures and the 8.4 proof remain intact.
+
+The 5.7 GRANT Query_event is a complete row-free transaction without an XID;
+closing it through the existing transaction path avoids an unclosed-transaction
+failure on the following business transaction. Nonempty row buffers still
+refuse this closure. TLS uses one existing backend with actual CA/hostname
+negative tests. Interval literals are comparator operands only; PostgreSQL
+parses their builtin input, and actual comparator/procedure signatures remain
+catalog-verified. This does not introduce arbitrary casts or interval arithmetic.
+
+Observed source failures and missing owned target prerequisites were kept,
+including the initial source audit privilege, decoder retry, stale builder
+contract, target multi-role guard, reader role membership and schema USAGE.
+The default entry never fabricated success from these partial attempts.
