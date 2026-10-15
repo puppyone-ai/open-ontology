@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-15T18:21:32.910859+00:00",
+  "as_of": "2026-10-15T18:23:58.108015+00:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -1115,13 +1115,6 @@
       "scope": "complete5.7C1 chain with retained8.4fixed dependencies"
     },
     {
-      "agent": "/root/mysql57_identity_prerequisite",
-      "model": "gpt-6.1-sol",
-      "reasoning_effort": "medium",
-      "status": "running",
-      "scope": "isolated mysql57 actual install/bootstrap/OIDC prerequisite; control-identity test/own recipe only"
-    },
-    {
       "agent": "/root/oracle_c5_complete_sol",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
@@ -1184,7 +1177,6 @@
   },
   "shared_reference_live_agents": [
     "/root/mysql57_reference_sol",
-    "/root/mysql57_identity_prerequisite",
     "/root/oracle_c5_complete_sol"
   ],
   "source_closure_current": {
@@ -3409,14 +3401,16 @@
     "agent": "/root/mysql57_identity_prerequisite",
     "model": "gpt-6.1-sol",
     "reasoning_effort": "medium",
-    "status": "running",
+    "status": "completed_writer_released_resources_retained",
     "scope": [
       "tools/control-identity/tests/live/main.rs",
       "tools/control-identity/recipes/mysql57-*"
     ],
     "exit": "real isolated mysql57 DB/service normal install/bootstrap/OIDC, actual admin/reviewer/business_owner currentHTTP200, no8.4 mutation",
     "ordinary_wait_seconds": 600,
-    "no_new_source_count": true
+    "no_new_source_count": true,
+    "source_commit": "bf1e21074d055b350b96952bd9b0f263f39c5f32",
+    "root_intake": "execution/reviews/native-luna-full-source-20261015/mysql57-identity-prerequisite-intake.json"
   },
   "current_execution_note": "Fixed complete owned MySQL8.4 reference verified; required5.7 C1 and isolated identity active; narrow OracleC5 complete reference with exclusive publication transfer, other8 held; formal0/10"
 }
