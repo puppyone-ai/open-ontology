@@ -198,25 +198,56 @@ pub fn project_mysql_c1(effective: &mut Value, catalog: &Value, observation: &Va
         || observation["delete_detection"] != "native" || observation["cross_table_consistent"] != true
     { return Err(rejected()); }
     let entries = catalog["entries"].as_array().ok_or_else(rejected)?;
-    let mut expected = std::collections::BTreeSet::new();
+    let mut expected = std::collections::BTreeMap::new();
     for entry in entries {
         if entry["source_id"] != observation["source_id"] || entry["source_generation"] != observation["source_generation"]
             || entry["target_generation"] != observation["target_generation"] { return Err(rejected()); }
         for table in entry["tables"].as_array().ok_or_else(rejected)? {
             let schema = table["logical_schema"].as_str().ok_or_else(rejected)?;
             let name = table["logical_table"].as_str().ok_or_else(rejected)?;
-            if !expected.insert(format!("{schema}.{name}")) { return Err(rejected()); }
+            let columns = table["columns"].as_array().ok_or_else(rejected)?;
+            let rejects = table["rejects"].as_array().ok_or_else(rejected)?;
+            let mut zero_dates = std::collections::BTreeSet::new();
+            for reject in rejects.iter().filter(|row| row["reason"] == "zero_date") {
+                let column = reject["column"].as_str().ok_or_else(rejected)?;
+                let (index, fact) = columns.iter().enumerate().find(|(_, fact)| fact["logical_name"] == column).ok_or_else(rejected)?;
+                if reject["attnum"].as_u64() != Some(index as u64 + 1)
+                    || !matches!((fact["source_type"].as_str(), fact["oid"].as_u64()),
+                        (Some("date32"), Some(1082)) | (Some("timestamp_micros"), Some(1114)))
+                { return Err(rejected()); }
+                zero_dates.insert(column);
+            }
+            let mut notes = Vec::new();
+            for column in columns {
+                let name = column["logical_name"].as_str().ok_or_else(rejected)?;
+                let mut caveats = Vec::new();
+                if let Some(token) = column["caveat"].as_str() {
+                    if !CLOSED_CAVEATS.contains(&token) { return Err(rejected()); }
+                    caveats.push(token);
+                }
+                let note = if zero_dates.contains(name) {
+                    caveats.push("mysql_zero_date_to_null");
+                    Some("mysql_zero_date_to_null_authenticated_reject")
+                } else if column["source_type"] == "duration_micros" {
+                    if column["oid"] != 1186 { return Err(rejected()); }
+                    Some("mysql_signed_time_duration_to_interval")
+                } else { None };
+                if note.is_some() || !caveats.is_empty() {
+                    notes.push(json!({"column":name,"caveats":caveats,"native_note":note}));
+                }
+            }
+            let semantics = json!({"family":"mysql","product":"mysql","version":observation["version"],
+                "capture":"c1_cdc","grade":"T","source_kind":"database","delete_detection":"native","columns":notes});
+            serde_json::from_value::<oo_core::oos::SourceSemantics>(semantics.clone()).map_err(|_| rejected())?;
+            if expected.insert(format!("{schema}.{name}"), semantics).is_some() { return Err(rejected()); }
         }
     }
-    let semantics = json!({"family":"mysql","product":"mysql","version":observation["version"],
-        "capture":"c1_cdc","grade":"T","source_kind":"database","delete_detection":"native"});
-    serde_json::from_value::<oo_core::oos::SourceSemantics>(semantics.clone()).map_err(|_| rejected())?;
     let datasets = effective["datasets"].as_array_mut().ok_or_else(rejected)?;
     if datasets.len() != expected.len() { return Err(rejected()); }
     for dataset in datasets {
         let name = dataset["dataset"].as_str().ok_or_else(rejected)?;
-        if !expected.remove(name) { return Err(rejected()); }
-        dataset["source_semantics"] = semantics.clone();
+        let semantics = expected.remove(name).ok_or_else(rejected)?;
+        dataset["source_semantics"] = semantics;
     }
     Ok(())
 }
@@ -1003,7 +1034,7 @@ mod mysql_tests {
     use super::*;
     #[test]
     fn mysql_c1_projection_requires_exact_source_cut() {
-        let catalog=json!({"protocol":SEALED_IMPORT_COLLECTION_PROTOCOL,"entries":[{"engine":"mysql","source_id":"mysql_owned","source_generation":4,"target_generation":4,"tables":[{"logical_schema":"db","logical_table":"t"}]}]});
+        let catalog=json!({"protocol":SEALED_IMPORT_COLLECTION_PROTOCOL,"entries":[{"engine":"mysql","source_id":"mysql_owned","source_generation":4,"target_generation":4,"tables":[{"logical_schema":"db","logical_table":"t","columns":[],"rejects":[]}]}]});
         let observation=json!({"protocol":"oo.source.mysql.audit/v1","source_id":"mysql_owned","source_generation":4,"target_generation":4,"capture_method":"C1","consistency_grade":"T","delete_detection":"native","cross_table_consistent":true,"version":"8.4.10"});
         let effective=json!({"datasets":[{"dataset":"db.t"}]});
         let mut projected=effective.clone();
@@ -1014,4 +1045,59 @@ mod mysql_tests {
             assert!(project_mysql_c1(&mut effective.clone(),&catalog,&wrong).is_err());
         }
     }
+    fn typed_fixture() -> (Value, Value, Value) {
+        let catalog=json!({"protocol":SEALED_IMPORT_COLLECTION_PROTOCOL,"entries":[{"engine":"mysql","source_id":"mysql_owned","source_generation":4,"target_generation":4,"tables":[{"logical_schema":"db","logical_table":"other_names","columns":[
+            {"logical_name":"d_zero","source_type":"date32","oid":1082,"caveat":null},
+            {"logical_name":"d_valid","source_type":"date32","oid":1082,"caveat":null},
+            {"logical_name":"elapsed","source_type":"duration_micros","oid":1186,"caveat":null}],
+            "rejects":[{"column":"d_zero","attnum":1,"reason":"zero_date"}]}]}]});
+        let observation=json!({"protocol":"oo.source.mysql.audit/v1","source_id":"mysql_owned","source_generation":4,"target_generation":4,"capture_method":"C1","consistency_grade":"T","delete_detection":"native","cross_table_consistent":true,"version":"5.7.44-log"});
+        (json!({"datasets":[{"dataset":"db.other_names"}]}),catalog,observation)
+    }
+
+    #[test]
+    fn mysql_mapping_notes_come_from_sealed_types_and_rejects_not_column_names() {
+        let (mut effective,catalog,observation)=typed_fixture();
+        project_mysql_c1(&mut effective,&catalog,&observation).unwrap();
+        let columns=&effective["datasets"][0]["source_semantics"]["columns"];
+        assert_eq!(columns.as_array().unwrap().len(),2);
+        assert_eq!(columns[0]["column"],"d_zero");
+        assert_eq!(columns[0]["native_note"],"mysql_zero_date_to_null_authenticated_reject");
+        assert_eq!(columns[1]["column"],"elapsed");
+        assert_eq!(columns[1]["native_note"],"mysql_signed_time_duration_to_interval");
+    }
+
+    #[test]
+    fn mysql_datetime_zero_components_use_the_same_authenticated_null_rule() {
+        let (mut effective,mut catalog,observation)=typed_fixture();
+        catalog["entries"][0]["tables"][0]["columns"][0]["source_type"]=json!("timestamp_micros");
+        catalog["entries"][0]["tables"][0]["columns"][0]["oid"]=json!(1114);
+        project_mysql_c1(&mut effective,&catalog,&observation).unwrap();
+        assert_eq!(effective["datasets"][0]["source_semantics"]["columns"][0]["native_note"],"mysql_zero_date_to_null_authenticated_reject");
+    }
+
+    #[test]
+    fn mysql_mapping_notes_reject_inconsistent_sealed_types_or_reject_ordinals() {
+        let (effective,catalog,observation)=typed_fixture();
+        for (path,value) in [("/entries/0/tables/0/rejects/0/attnum",json!(2)),
+            ("/entries/0/tables/0/columns/0/oid",json!(20)),
+            ("/entries/0/tables/0/columns/2/oid",json!(1083)),
+            ("/entries/0/tables/0/columns/1/caveat",json!("mysql_zero_date_to_null"))] {
+            let mut wrong=catalog.clone();*wrong.pointer_mut(path).unwrap()=value;
+            assert!(project_mysql_c1(&mut effective.clone(),&wrong,&observation).is_err(),"{path}");
+        }
+    }
+
+    #[test]
+    fn mysql_plain_nullable_dates_and_caller_notes_do_not_invent_zero_date_mapping() {
+        let (mut effective,mut catalog,mut observation)=typed_fixture();
+        catalog["entries"][0]["tables"][0]["rejects"]=json!([]);
+        observation["native_note"]=json!("mysql_zero_date_to_null_authenticated_reject");
+        observation["quality"]=json!({"zero_date_policy":"caller supplied arbitrary text"});
+        project_mysql_c1(&mut effective,&catalog,&observation).unwrap();
+        let columns=effective["datasets"][0]["source_semantics"]["columns"].as_array().unwrap();
+        assert_eq!(columns.len(),1);
+        assert_eq!(columns[0]["column"],"elapsed");
+    }
+
 }

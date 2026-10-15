@@ -1,0 +1,15 @@
+{
+  "as_of": "2026-10-15T20:39:43.167196+00:00",
+  "agent": "/root/doris_complete_luna_max",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "max",
+  "status": "ready_not_spawned",
+  "contract": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md",
+  "dependency": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
+  "complete_capability": "owned Doris original mixedC4/C5 normal6fields autonomoussync/recovery/S0-S10/currentOntologyPack/fixturepublish/ROstandby/GatewayCLI/random2x2/sourcegoldQIDWAL",
+  "previous_owner_terminal": true,
+  "five_untested_wip_hashes_rechecked": true,
+  "source_release_scope": "Doris only; other8 held; MySQL services immutable",
+  "root_registry_exclusive": true,
+  "formal_source_count_delta": 0
+}

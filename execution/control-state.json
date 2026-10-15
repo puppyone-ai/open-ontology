@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-15T18:56:30.621199+00:00",
+  "as_of": "2026-10-15T20:40:14.415850+00:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -1106,15 +1106,7 @@
     ],
     "current_contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md"
   },
-  "managed_live_native_agents": [
-    {
-      "agent": "/root/mysql57_reference_sol",
-      "model": "gpt-6.1-sol",
-      "reasoning_effort": "medium",
-      "status": "running",
-      "scope": "complete5.7C1 chain with retained8.4fixed dependencies"
-    }
-  ],
+  "managed_live_native_agents": [],
   "execution_policy": {
     "kind": "native",
     "model": "gpt-6.1-sol",
@@ -3129,16 +3121,21 @@
     }
   },
   "mysql_shared_reference": {
-    "as_of": "2026-10-15T18:21:32.910859+00:00",
+    "as_of": "2026-10-15T20:38:45.074428+00:00",
     "reference_source": "mysql",
-    "verified_version": "8.4.10",
-    "status": "root_verified_complete_owned_fixture_reference",
+    "verified_versions": [
+      "5.7.44-log",
+      "8.4.10"
+    ],
+    "status": "root_verified_complete_stable_owned_mysql_family_reference",
     "fixed_artifacts_ready": true,
-    "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
-    "required_57_status": "active_not_complete",
-    "current_owner": "/root/mysql57_reference_sol",
-    "release_other_sources": false,
-    "narrow_next_reference": "none until required5.7 and8.4 both complete stable"
+    "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
+    "required_57_status": "root_verified_complete_owned_fixture",
+    "current_owner": null,
+    "previous_owner": "/root/mysql57_reference_sol",
+    "writer_released": true,
+    "release_other_sources": "Doris only, source-specific controlled reference; not general all-source release",
+    "narrow_next_reference": "Doris complete C4/C5 on gpt-6-luna/max; other8 held"
   },
   "latest_mysql_single_owner_transfer": {
     "as_of": "2026-10-15T16:36:22.551950+08:00",
@@ -3434,5 +3431,18 @@
   "latest_mysql_first_luna_max_policy": "execution/batches/native-luna-full-source-20261015/mysql-first-other-sources-luna-max-policy.json",
   "latest_doris_mysql_first_pause_intake": "execution/reviews/native-luna-full-source-20261015/doris-mysql-first-pause-intake.json",
   "latest_oracle_mysql_first_pause_intake": "execution/reviews/native-luna-full-source-20261015/oracle-mysql-first-pause-intake.json",
-  "latest_mysql_interval_comparison_scope": "execution/batches/native-luna-full-source-20261015/mysql-reference-dispatch.json#latest_interval_scope"
+  "latest_mysql_interval_comparison_scope": "execution/batches/native-luna-full-source-20261015/mysql-reference-dispatch.json#latest_interval_scope",
+  "latest_mysql_type_semantics_scope": {
+    "dispatch": "execution/batches/native-luna-full-source-20261015/mysql-reference-dispatch.json#latest_mysql_type_semantics_scope",
+    "owner": "/root/mysql57_reference_sol",
+    "current_default_whole": true,
+    "source_release_allowed": false,
+    "formal_source_count_delta": 0
+  },
+  "latest_mysql_family_complete_fixture_reference": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
+    "formal_source_count_delta": 0,
+    "root_reference_pass": true
+  },
+  "latest_doris_luna_max_dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json"
 }

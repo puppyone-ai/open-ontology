@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Ordinary onboarding's private MySQL C1 capture stage; native code owns data."""
 import hashlib
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import time
 
 
 def load(path):
@@ -18,6 +20,59 @@ def save(path, value):
         os.chmod(path, 0o600)
         json.dump(value, f, separators=(',', ':'))
         f.write('\n')
+
+
+def poll_native_state(argv, out):
+    # Only the identified PostgreSQL connection-slot exhaustion is retried.
+    for attempt in range(3):
+        result = subprocess.run(argv, capture_output=True, timeout=30)
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        prefix = Path(out)/('state-error-'+str(time.time_ns()))
+        prefix.with_suffix('.stdout').write_bytes(result.stdout)
+        prefix.with_suffix('.stderr').write_bytes(result.stderr)
+        save(prefix.with_suffix('.json'), {'exit': result.returncode, 'attempt': attempt + 1,
+             'argv': argv, 'argv_sha256': hashlib.sha256(json.dumps(argv,separators=(',', ':')).encode()).hexdigest()})
+        if b'sqlstate=53300' not in result.stderr or attempt == 2:
+            raise RuntimeError('native_state_failed')
+        time.sleep(attempt + 1)
+    raise RuntimeError('native_state_failed')
+
+
+@contextmanager
+def running_worker(container, argv, out):
+    out = Path(out)
+    with (out/'worker.stdout').open('wb') as stdout, (out/'worker.stderr').open('wb') as stderr:
+        proc = subprocess.Popen(['docker','exec',container,*argv], stdout=stdout, stderr=stderr)
+    try:
+        yield proc
+    finally:
+        if proc.poll() is None:
+            # A docker-exec client signal alone can leave its container child alive.
+            code = """import json,os,signal,sys
+expected=json.loads(sys.argv[1]);hits=[]
+for name in os.listdir('/proc'):
+ if not name.isdigit():continue
+ try:actual=open('/proc/'+name+'/cmdline','rb').read().rstrip(b'\\0').decode().split('\\0')
+ except OSError:continue
+ if actual==expected:hits.append(int(name))
+assert len(hits)<=1,hits
+for pid in hits:os.kill(pid,int(sys.argv[2]))
+print(json.dumps({'owned_pids':hits,'signal':int(sys.argv[2])}))
+"""
+            for sig in (15, 9):
+                stopped = subprocess.run(['docker','exec',container,'python3','-c',code,json.dumps(argv),str(sig)],capture_output=True,timeout=10)
+                (out/('worker-stop-'+str(sig)+'.stdout')).write_bytes(stopped.stdout)
+                (out/('worker-stop-'+str(sig)+'.stderr')).write_bytes(stopped.stderr)
+                if stopped.returncode:
+                    raise RuntimeError('owned_worker_cleanup_failed')
+                try:
+                    proc.wait(timeout=5)
+                    break
+                except subprocess.TimeoutExpired:
+                    if sig == 9:
+                        raise RuntimeError('owned_worker_cleanup_failed')
+        (out/'worker.exit').write_text(str(proc.wait(timeout=5))+'\n')
 
 
 def run(config, out, phase="capture"):
@@ -43,18 +98,16 @@ def run(config, out, phase="capture"):
         if phase=='follow':
             flow=Follow(c,out);generation,catalog,result=flow.maintain();native=flow.publish(generation,catalog,result);flow.gateway(generation,catalog,native)
         else:
-            import time
             seconds=operator['serve_seconds']
             if not isinstance(seconds,int) or not 1<=seconds<=86400:
                 raise ValueError('serve_seconds')
             identity=load(root/'prepared/identity.json')
             worker=[operator['worker'],'--config',operator['worker_config']]
-            proc=subprocess.Popen(['docker','exec',operator['container'],*worker,'native-serve','--project',identity['project_id'],'--worker','mysql-follow','--seconds',str(seconds)],stdout=(out/'worker.stdout').open('wb'),stderr=(out/'worker.stderr').open('wb'))
+            worker_argv=[*worker,'native-serve','--project',identity['project_id'],'--worker','mysql-follow','--seconds',str(seconds)]
             previous=operator['after_generation'];cuts=[]
-            try:
+            with running_worker(operator['container'],worker_argv,out) as proc:
                 while True:
-                    raw=subprocess.run(['docker','exec',operator['container'],*worker,'native-state','--binding',identity['binding_id']],capture_output=True,check=True)
-                    state=json.loads(raw.stdout)
+                    state=poll_native_state(['docker','exec',operator['container'],*worker,'native-state','--binding',identity['binding_id']],out)
                     current=state.get('source_generation',0)
                     if state.get('applied') and current>previous:
                         flow=Follow(c,out/('generation-'+str(current)))
@@ -64,9 +117,7 @@ def run(config, out, phase="capture"):
                     if proc.poll() is not None:
                         break
                     time.sleep(1)
-            finally:
-                code=proc.wait()
-                (out/'worker.exit').write_text(str(code)+'\n')
+                code=proc.wait(timeout=5)
             if code or not cuts:
                 raise RuntimeError('no_complete_followup')
             save(out/'follow-receipt.json',{'protocol':'oo.mysql.product-follow/v1','source_id':identity['source_id'],'binding':identity['binding_id'],'cuts':cuts,'current_generation':previous,'worker_exit':code,'full_product_chain_complete':False,'agent_dialogue_pending':True})

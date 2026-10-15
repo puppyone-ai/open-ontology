@@ -1,6 +1,6 @@
 {
-  "as_of": "2026-10-15T18:50:39.666373+00:00",
-  "status": "mysql84_verified_mysql57_pending_all_other_sources_paused",
+  "as_of": "2026-10-15T20:40:14.416995+00:00",
+  "status": "mysql57_and84_fixed_reference_verified_doris_only_ready",
   "owner": "root",
   "source_release_allowed": false,
   "source_tasks": [
@@ -16,7 +16,7 @@
     "DL01-W1-46"
   ],
   "reference_only_tasks": [
-    "DL01-W1-06"
+    "DL01-W1-43"
   ],
   "policy": "Finish shared product chain and stabilize pinned contracts before resuming complete per-source workflows. No acceptance from isolated components, historical snapshots, diagnostic Packs or manufactured gates.",
   "criteria": [
@@ -330,27 +330,27 @@
   "current_required_exits": [
     {
       "id": "c1_baseline",
-      "status": "verified_mysql84_owned_fixture_only",
+      "status": "verified_mysql57_and84_owned_fixtures",
       "exit": "actual CDC-first baseline and buffered transaction apply under real job lease, official epoch registration, deletes/recovery/ACK; fixed Linux1.94 artifacts",
-      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json"
     },
     {
       "id": "continuous_ontology_pack",
-      "status": "verified_mysql84_owned_fixture_only",
+      "status": "verified_mysql57_and84_owned_fixtures",
       "exit": "authenticated generation-bound runtime source metadata consumed by valid typed OOS and role Pack across successive generations without S5 mutation",
-      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json"
     },
     {
       "id": "native_publication_gateway",
-      "status": "verified_mysql84_owned_fixture_only",
+      "status": "verified_mysql57_and84_owned_fixtures",
       "exit": "approved native import/current role Pack published via formal fenced coordinator transaction, permissions/CAS/readonly barrier/audit; accurate actual Gateway/CLI and agent after original gate",
-      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json"
     },
     {
       "id": "same_fixed_chain",
-      "status": "verified_mysql84_owned_fixture_only",
+      "status": "verified_mysql57_and84_owned_fixtures",
       "exit": "same fixed shared source/binary/API/migrations on real reference fixture; no component-only release",
-      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json"
     }
   ],
   "latest_component_check": {
@@ -363,16 +363,21 @@
     "acceptance": "component only; not shared release"
   },
   "mysql_shared_reference": {
-    "as_of": "2026-10-15T18:21:32.910859+00:00",
+    "as_of": "2026-10-15T20:38:45.074428+00:00",
     "reference_source": "mysql",
-    "verified_version": "8.4.10",
-    "status": "root_verified_complete_owned_fixture_reference",
+    "verified_versions": [
+      "5.7.44-log",
+      "8.4.10"
+    ],
+    "status": "root_verified_complete_stable_owned_mysql_family_reference",
     "fixed_artifacts_ready": true,
-    "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
-    "required_57_status": "active_not_complete",
-    "current_owner": "/root/mysql57_reference_sol",
-    "release_other_sources": false,
-    "narrow_next_reference": "none until required5.7 and8.4 both complete stable"
+    "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
+    "required_57_status": "root_verified_complete_owned_fixture",
+    "current_owner": null,
+    "previous_owner": "/root/mysql57_reference_sol",
+    "writer_released": true,
+    "release_other_sources": "Doris only, source-specific controlled reference; not general all-source release",
+    "narrow_next_reference": "Doris complete C4/C5 on gpt-6-luna/max; other8 held"
   },
   "latest_mysql_target_stage_primitive": {
     "intake": "execution/reviews/native-luna-full-source-20261015/mysql-target-stage-primitive-intake.json",
@@ -470,5 +475,14 @@
   "latest_complete_reference_shared_scope": "execution/batches/native-luna-full-source-20261015/complete-reference-shared-scope-20261016.json",
   "latest_relation_role_fence_intake": "execution/reviews/native-luna-full-source-20261015/relation-role-fence-fixed-intake.json",
   "latest_mysql_first_luna_max_policy": "execution/batches/native-luna-full-source-20261015/mysql-first-other-sources-luna-max-policy.json",
-  "source_workflows_held": true
+  "source_workflows_held": true,
+  "latest_mysql_family_complete_fixture_reference": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
+    "formal_source_count_delta": 0,
+    "root_reference_pass": true
+  },
+  "source_specific_release": {
+    "doris": "ready gpt-6-luna/max only; fixed mysql dependency, no MySQL mutations"
+  },
+  "latest_doris_luna_max_dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json"
 }

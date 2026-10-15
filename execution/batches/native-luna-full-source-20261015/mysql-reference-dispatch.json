@@ -3,10 +3,10 @@
   "agent": "/root/mysql57_reference_sol",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "medium",
-  "status": "spawned_and_accepted",
+  "status": "completed_root_verified_owned_two_version_reference_writer_released",
   "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-RESUME-57-COMPLETE-20261016.md",
   "complete_capability": "real MySQL original C1 baseline/sync plus S0-S10/current Ontology-Pack/formal publish/Gateway-CLI/autonomous random agent; fixed shared artifacts before other sources reuse",
-  "source_rollout_allowed": false,
+  "source_rollout_allowed": "Doris source-specific only",
   "write_scope": [
     "tools/mysql-preview",
     "crates/oo-pipeline/src/native_update.rs",
@@ -100,5 +100,28 @@
     "reason": "actual frozen randomnegativeTIME comparison rejected; noresampling/goldchange, strictbuiltinintervalcomparisons needed",
     "safety": "pg_catalog typedoperator signatures+comparisonliteral only, no arbitrarycasts/functions/arrays/typmods/foreignschema, nonzero/negative realtests; no general parser/framework",
     "paid_call_gate": "all frozenbank semantics no-model CLI preflight first; preserve20roundfailed transcript, no repeatdeterministicunsupportedSQL model loop"
-  }
+  },
+  "latest_mysql_type_semantics_scope": {
+    "as_of": "2026-10-15T20:04:32.571681+00:00",
+    "owner": "/root/mysql57_reference_sol",
+    "paths": [
+      "tools/pg-builder/src/source_contract.rs",
+      "tools/selfbuild-control-api/src/overlay.rs (only if existing verified projection requires it)",
+      "crates/oo-builder/src/role_pack.rs (two fixed native_note explanations and inline tests only)"
+    ],
+    "reason": "Root actual Gateway Pack verification found nullable MySQL zero-date conversion omitted: value_probe day_on notes empty, source caveats none. Frozen Agent asked invalid zero-date literal and failed strict source-gold/QID checks; failures retained. Fix factual source semantics in normal product pipeline before further same-question model attempts.",
+    "evidence": "Gateway tables/native_mysql57_20261016.value_probe.md SHA256 db9a2fd0adad137559a4c838448a39acf024f6656eaa33bd655e29f9385eeccd; original reader values.rs zero_date nullable policy",
+    "constraints": [
+      "derive only from sealed type/nullable/reject/known validated mapping; no table-name or question-specific rule",
+      "reuse SourceColumnSemantics/native_note; no new framework or arbitrary metadata trust",
+      "retain immutable catalog/capture and all old provider/model failures",
+      "Linux Rust1.94 targeted tests, exact frozen binaries, normal maintenance/publication and current CLI/random source-gold/QID-WAL verification",
+      "no modified question/gold/system prompt, no fake whole, no additional source work"
+    ],
+    "other_sources": "held; future gpt-6-luna/max only after both MySQL versions complete and stable",
+    "formal_source_count_delta": 0,
+    "rendering_scope": "Reuse existing note renderer: explain authenticated MySQL zero-date to NULL and signed microsecond TIME duration/interval. Unknown tokens and role-hidden filtering unchanged; no SQL, gold, generic renderer framework or wire expansion.",
+    "final_random_scope": "New Pack identity: unchanged four-semantic bank, normal random two disjoint pairs covering all four, including previously failed zero-date; all-bank no-model CLI/Pack preflight first. Preserve all old manifests and failures; no extra paid replay required."
+  },
+  "fixed_family_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json"
 }

@@ -1,6 +1,6 @@
 # mysql-preview
 
-Experimental MySQL 8 batch snapshot into the existing PostgreSQL full-import
+Experimental MySQL 5.7/8.x capture into the existing PostgreSQL full-import
 target. `run` is that snapshot and is not CDC. `c1-prove` reads a ROW/GTID
 binlog on an owned MySQL 8 fixture through `mysql_async` and the public
 `cdc-transaction` / `cdc-spool` crates. `c1-native` uses that same reader for
@@ -15,8 +15,13 @@ already implemented for PostgreSQL. It does not rename the PostgreSQL mirror.
 
 Snapshot sessions are one read-only business connection. The snapshot path
 does not `SET` the source and does not trial-write. `c1-dba` may `SET` binlog
-prerequisites only when the config fixture is `owned-mysql-8` and the server
-version is 8.x. Customer RDS 5.7 is not a target of that command.
+prerequisites only for the matching `owned-mysql-8` or `owned-mysql-57`
+fixture and verified server version. Customer RDS 5.7 is not a target of that
+command. MySQL 5.7 uses `SHOW MASTER STATUS` and integer `expire_logs_days`
+converted to seconds; MySQL 8.4 uses `SHOW BINARY LOG STATUS`. The normal
+source account does not change either configuration. TLS uses the existing
+`mysql_async` native TLS backend with CA and hostname verification, including
+the owned 5.7 TLS 1.2 DHE fixture.
 
 JSON is stored as PostgreSQL `json` (oid 114) text because `copy-encoder/v1`
 rejects `jsonb`. MySQL `TIME` is a signed microsecond duration, stored as PostgreSQL
