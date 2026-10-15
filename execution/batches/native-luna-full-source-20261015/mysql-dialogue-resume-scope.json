@@ -22,5 +22,6 @@
     "Goal": "active and same scope",
     "support_matrix": "no promotion",
     "frontend": "not touched"
-  }
+  },
+  "generic_interface_guidance": "Sole owner may add truthful general SYSTEM guidance: the copied query target uses PostgreSQL SQL and qualified relation names come from tables/describe; no question-specific predicate, SQL, gold value or acceptance relaxation."
 }

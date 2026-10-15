@@ -10099,7 +10099,7 @@
     "agent": "/root/mysql_shared_reference_sol",
     "model": "gpt-6.1-sol",
     "reasoning_effort": "medium",
-    "status": "spawned",
+    "status": "completed_incomplete_external_provider_block",
     "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
     "complete_capability": "real MySQL original C1 baseline/sync plus S0-S10/current Ontology-Pack/formal publish/Gateway-CLI/autonomous random agent; fixed shared artifacts before other sources reuse",
     "source_rollout_allowed": false,
@@ -10123,7 +10123,7 @@
     ],
     "root_scope": "coordination ledger and fixed evidence only; no duplicate product writer",
     "first_actual_finding": "real Linux binaries retained; real scheduler/producer invocation failures retained; typed full-import bridge remains refusal stub and is next implementation",
-    "artifact_status": "component fixed-source Linux1.94 tests passed; full shared contract and runtime artifacts not ready",
+    "artifact_status": "fixed partial source set and actual Linux artifacts received; full Agent and default whole exits missing",
     "formal_count_delta": 0,
     "latest_luna_xhigh_transfer": {
       "as_of": "2026-10-15T17:21:59.122581+08:00",
@@ -10238,5 +10238,18 @@
     "owner": "/root/mysql_shared_reference_sol",
     "formal_source_count": 0,
     "source_release_allowed": false
+  },
+  "latest_mysql_fixed_partial_provider_block": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/mysql-fixed-partial-provider-block-intake.json",
+    "owner": "/root/mysql_shared_reference_sol",
+    "observed_agent_status": "completed_incomplete_external_provider_block",
+    "code_commit": "36c100fbf4b720949c5e107faf98475d6731759c",
+    "handoff_commit": "d14d8a28417b3f7a01647ef63b10d515b2da6572",
+    "formal_source_count": 0,
+    "source_release_allowed": false,
+    "pending": [
+      "two complete new random semantic Agent conversations independently verified against source gold and real QID/WAL",
+      "final ordinary whole_source proof after successful conversations"
+    ]
   }
 }
