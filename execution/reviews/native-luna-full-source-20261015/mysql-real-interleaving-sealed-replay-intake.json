@@ -1,0 +1,122 @@
+{
+  "as_of": "2026-10-15T19:58:09.588422+08:00",
+  "owner": "/root/mysql_shared_reference_sol",
+  "level": "real CDC-first interleaving, heartbeat and sealed replay; typed import not complete",
+  "source": "mysql_c1_reference_20261015",
+  "task": "cdf22327-9630-4ec5-b640-2263bd96103f",
+  "stream_gen4": {
+    "path": "/tmp/oo-mysql-connection-whole/sol-20261015/run-cdf22327-9630-4ec5-b640-2263bd96103f-4/worker-stream.ndjson",
+    "bytes": 32514805,
+    "sha256": "c7e93011eca627f2d3bce0732b143dbf9299ef163272ee7b438ea4b41ef1cb2c",
+    "stable_size_mtime_during_hash": true,
+    "first_five_frames": [
+      {
+        "index": 0,
+        "kind": "open",
+        "applied_pos": null,
+        "txn_id": null,
+        "line_sha256": "22e70c0e78a1ab0b6330b8c2b124d0bc33f07e0e9d552b3ebd5b65db5a0d6f34"
+      },
+      {
+        "index": 1,
+        "kind": "stream_started",
+        "applied_pos": null,
+        "txn_id": null,
+        "line_sha256": "91d6cc7f5486e705114757d4990171b9f8916d2ed7d645929289b5e763de6689"
+      },
+      {
+        "index": 2,
+        "kind": "transaction",
+        "applied_pos": 31,
+        "txn_id": "1bc0749a-c3f5-11f1-9a89-6e5583e808c4:31",
+        "line_sha256": "f2d777654a8c8dc8711352cbb059dcadce8aac898d30f0e866427e1c9f8448e8"
+      },
+      {
+        "index": 3,
+        "kind": "snapshot",
+        "applied_pos": null,
+        "txn_id": null,
+        "line_sha256": "681710fc093b3eefc25591bb4043adfb7d490a1c39db11c025683a9c1b2dd937"
+      },
+      {
+        "index": 4,
+        "kind": "transaction",
+        "applied_pos": 32,
+        "txn_id": "1bc0749a-c3f5-11f1-9a89-6e5583e808c4:32",
+        "line_sha256": "e70c12ddfa240586e970393a7d3c2cdeb240441997258bdb342088a11b21b0d4"
+      }
+    ]
+  },
+  "heartbeats": {
+    "a": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/live-heartbeat-gen4-a.json",
+      "sha256": "6cb80c1050bf81bd8286ce999b5d4ea137766d6a2faae68636b8aa1d15c2210e",
+      "receipt": {
+        "l0": "1bc0749a-c3f5-11f1-9a89-6e5583e808c4:1-30",
+        "now": "2026-10-15T11:45:48.186609+00:00",
+        "epoch": 1,
+        "state": "open",
+        "source": "mysql_c1_reference_20261015",
+        "applied": 32,
+        "cdc_rows": 10,
+        "generation": 4,
+        "stage_rows": 7754,
+        "task_state": "running",
+        "lease_until": "2026-10-15T11:46:12.200545+00:00"
+      }
+    },
+    "b": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/live-heartbeat-gen4-b.json",
+      "sha256": "66af2319f2817624c8d5e4e003103fd7cdc5702620017f1780de23182b5612f0",
+      "receipt": {
+        "now": "2026-10-15T11:46:29.747613+00:00",
+        "state": "running",
+        "generation": 4,
+        "lease_until": "2026-10-15T11:46:52.274731+00:00"
+      }
+    }
+  },
+  "root_additional_gen4_target_observation": {
+    "generation": 4,
+    "state": "running",
+    "lease_until": "2026-10-15T11:48:02.323135+00:00",
+    "query_time": "2026-10-15T11:47:35.242600+00:00",
+    "lease_live": true
+  },
+  "root_current_target_observation": {
+    "generation": 6,
+    "source_epoch": 1,
+    "l0_pos": 30,
+    "applied_pos": 32,
+    "l_end": 32,
+    "state": "awaiting_publish",
+    "live_rows": {
+      "hubs": 12002,
+      "range_gap": 5,
+      "shipments": 8002,
+      "tracking_events": 90002,
+      "value_probe": 8
+    },
+    "deleted_tombstones": {
+      "range_gap": 2,
+      "tracking_events": 2
+    },
+    "live_row_total": 110019,
+    "full_import_run_count": 0
+  },
+  "root_target_resource_observation": {
+    "cpu_max": "max 100000",
+    "memory_max_bytes": 17179869184,
+    "memory_events": {
+      "max": 1120,
+      "oom": 3,
+      "oom_kill": 1,
+      "oom_group_kill": 0
+    }
+  },
+  "actual_remaining_failure": "sealed export resumed without new source snapshot; DATE-only/zero-date canonical decode and narrow typed validation successor pending; no typed import/ACK/publication proof",
+  "source_acceptance_delta": 0,
+  "shared_release_allowed": false,
+  "protocol_scope": "same owner still implementing full capability, no complete author/source/parent/edition delivery; counts/Goal/Plan/support unchanged; failures remain immutable",
+  "heartbeat_identity_scope": "receipt b is minimal generation/lease timestamp only; explicit same-task identity is anchored by root direct target jobs.tasks query, not inferred from b alone"
+}
