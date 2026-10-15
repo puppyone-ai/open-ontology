@@ -1,0 +1,69 @@
+{
+  "as_of": "2026-10-15T19:28:35.916882+08:00",
+  "owner": "/root/mysql_shared_reference_sol",
+  "level": "real target installed typed bridge and SQL guard tests, not completed real-source product chain",
+  "supersedes_for_future_installs": "mysql-typed-bridge-preinstall-intake.json v8 retained unchanged;0031 changed BEFORE install and v9 retested",
+  "migration_sha256": "b1644177915ddc6b9e5053221aa381e5a616afeecd467f2a516125490264fcc9",
+  "exact_migration_bytes_in_executed_v9": true,
+  "actual_v9_exit": 0,
+  "actual_installer_exit": 0,
+  "root_target_marker": {
+    "database": "mysql_native_20261012",
+    "version": "native-c1-baseline-typed-bridge/v1",
+    "checksum": "b1644177915ddc6b9e5053221aa381e5a616afeecd467f2a516125490264fcc9",
+    "filename": "0031_native_c1_baseline_typed_bridge.sql",
+    "readonly_query_exit": 0
+  },
+  "installed_bytes_now_immutable": true,
+  "raw": {
+    "0031-rollback-all-v9.sql": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/0031-rollback-all-v9.sql",
+      "sha256": "28d6d0356416b35a95182b5f4ad1aaae1e865df3789cd3b5b4e3fc2d6d6dd16a"
+    },
+    "0031-rollback-all-v9.stdout": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/0031-rollback-all-v9.stdout",
+      "sha256": "a651b81c430dd1b74b1b0d4bb52007aef15fd372ddd952cd6d74260363cc93d0"
+    },
+    "0031-rollback-all-v9.stderr": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/0031-rollback-all-v9.stderr",
+      "sha256": "ffe78e1a412bbf8bebc43803e602f37dec372f00a0cd56764f6ab6ee245f4b54"
+    },
+    "0031-rollback-all-v9.exit": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/0031-rollback-all-v9.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    "install-0031.stdout": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/install-0031.stdout",
+      "sha256": "7165df1c1c622743cfb1c1e14f08347f38fbffd5a23fb5fd7c303589645809ba"
+    },
+    "install-0031.stderr": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/install-0031.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "install-0031.exit": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/install-0031.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    }
+  },
+  "binaries": {
+    "pipeline": {
+      "path": "/tmp/oo-mysql-connection-whole/active-c1-20261015/mysql-release-target/release/oo-pipeline",
+      "sha256": "52a022d8e653f8765caa24b5b17b64c0610eadd057aec346416c3091e887a919"
+    },
+    "worker": {
+      "path": "/tmp/oo-mysql-connection-whole/active-c1-20261015/job-worker-target/debug/job-worker",
+      "sha256": "88b3c7e4c0a4c5f015f29bf38a478eabdbbf70891505d4371f0309ee3051bcdd"
+    }
+  },
+  "extra_v9_assertions": [
+    "pre-CAS ACK raises refusal",
+    "jobs completion CAS succeeds",
+    "post-CAS ACK acknowledges true"
+  ],
+  "new_reference_source": "mysql_c1_reference_20261015",
+  "new_binding_project": "author prepared independent cold-start namespace; exact control registration/run not yet independently verified",
+  "source_acceptance_delta": 0,
+  "shared_release_allowed": false,
+  "remaining": "real L0 concurrent snapshot CDC/typed five tables/ACK/oracle, autonomous IUD quiet recovery, current Selfbuild/Ontology/Pack/formal publication/Gateway/CLI/random Agent",
+  "protocol_scope": "owner still in complete-task development, no author/full source/parent/edition exit; Plan/development/counting/support/PRODUCT-LOOPS/Goal unchanged"
+}

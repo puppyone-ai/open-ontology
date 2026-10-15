@@ -1,3 +1,5 @@
+2026-10-15 MySQL typed桥0031安装前v9真实runtime正拒测试exit0（补CAS前拒ACK/CAS后准ACK），正式Linux installer exit0；root独立核当前源SQL完整字节确在执行脚本、actual ELF52a022/88b3、目标_oo.schema_migrations checksum b1644177…一致。0031已安装，字节冻结不可再改；v1-v8失败/旧回执保留。仅安装/guard证据，真实并发MySQL五表导入与后续完整链未验，0/10及其他源held不变。证据mysql-typed-bridge-installed-intake.json，仍同一Sol medium完整owner。
+
 2026-10-15 MySQL实运行资源校验：root已核oo-mysql-connection-whole实际cpu.max=max100000、memory.max=16GiB、额外swap.max=16GiB（合计32GiB）；Docker VM16CPU/94GiB。原0.5CPU/512MiB限额由owner发现并原地解除CPU/增内存，未中断cargo27683/rustc39330，root实际docker top确认当时live。只证明本容器、不冒其他容器全部解除；未通过源或整版，0/10与held不变。记录见execution/reviews/native-luna-full-source-20261015/mysql-live-build-resource-intake.json。
 
 2026-10-15 MySQL完整参考链已移交唯一`gpt-6.1-sol/medium`负责人`/root/mysql_shared_reference_sol`。原Luna xhigh已完整交接并经实际list_agents确认completed，root核producer/pipeline/worker/manifest四SHA匹配、MySQL构建容器仅sleep后才新派发；未丢WIP/失败、无重复writer。真实五表typed导入仍为拒绝占位，直接推进最小正式桥及原完整C1同步/S0–S10/维护Pack/正式发布/Gateway/随机Agent退出。合同MYSQL-SOL-COMPLETE.md、mysql-sol-handoff.json及mysql-reference-dispatch.json位于execution/batches/native-luna-full-source-20261015。无完整作者交付/整源签收，0/10与其余九源held不变；未增加开发/集成/发行或外部门槛计数，旧构建专属exit receipt缺失明确保留。
