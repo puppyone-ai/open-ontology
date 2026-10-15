@@ -1,0 +1,139 @@
+{
+  "as_of": "2026-10-15T12:54:07.504341+00:00",
+  "owner": "/root/mysql_shared_reference_sol",
+  "level": "actual six-field typed baseline milestone, not complete source delivery",
+  "source_id": "mysql_67fff4e8ebff9f91bee8c75e",
+  "task_id": "d47f2ff5-fdb1-4cbd-831e-ce7e0bca2c94",
+  "source_uuid": "1bc0749a-c3f5-11f1-9a89-6e5583e808c4",
+  "epoch": 1,
+  "generation": 5,
+  "l0": 32,
+  "applied_and_l_end": 33,
+  "root_target_observation": {
+    "time_utc": "2026-10-15T12:51:01.252756Z",
+    "task_state": "succeeded",
+    "baseline_state": "awaiting_publish",
+    "full_import_count": 5
+  },
+  "raw_worker_order": [
+    "loader exit0",
+    "complete_success CAS",
+    "baseline ACK acknowledged"
+  ],
+  "migration": {
+    "path": "crates/oo-pipeline/migrations/0034_native_c1_baseline_key_join.sql",
+    "sha256": "5616c8dee9365290e94873563fe7f2e0baccf9de072605db082f0ccaea07e8f7",
+    "installed_checksum_matches": true,
+    "full_sql_in_executed_rollback_v2": true
+  },
+  "loader": {
+    "path": "/tmp/oo-mysql-connection-whole/sol-20261015/bin/c04b400ef615c8f83ff9b2d79db56c112e10ec6e8881fdedc001a5f1daa7a388/oo-pipeline",
+    "sha256": "c04b400ef615c8f83ff9b2d79db56c112e10ec6e8881fdedc001a5f1daa7a388"
+  },
+  "independent_oracle": {
+    "path": "tools/mysql-preview/audit-native-target.py",
+    "sha256": "2d6b803fd22b77c3ba8ef1fa5cffce2733aa1eb7bba3679cf356e7bcc5f50b6e",
+    "root_inspected": "reads live MySQL separately from mapped typed PG tables; compares all rows/cells with declared decimal/binary/JSON/TIME/zero-date normalization; no stage gold",
+    "result": {
+      "generation": 1,
+      "tables": {
+        "hubs": {
+          "columns": 10,
+          "different_cells": 0,
+          "rows": 12002
+        },
+        "range_gap": {
+          "columns": 6,
+          "different_cells": 0,
+          "rows": 5
+        },
+        "shipments": {
+          "columns": 11,
+          "different_cells": 0,
+          "rows": 8002
+        },
+        "tracking_events": {
+          "columns": 8,
+          "different_cells": 0,
+          "rows": 90002
+        },
+        "value_probe": {
+          "columns": 8,
+          "different_cells": 0,
+          "rows": 8
+        }
+      }
+    },
+    "limit": "current WIP script identity; freeze exact executed identity in final handoff"
+  },
+  "failure_history_retained": [
+    "owned worker crash/same-task sealed resume",
+    "gen2 heartbeat blocked by loader_hold; rollback/noACK",
+    "gen3 immediate guard COPY lease loss; rollback/noACK",
+    "gen4 non-hashable key comparison; cancel/rollback",
+    "first0034 install old private request not_ready"
+  ],
+  "source_commit": "WIP, not frozen",
+  "remaining": [
+    "autonomous configurable generic C1 IUD/quiet/recovery",
+    "S0-S10 current standard YAML/Ontology/maintenance Pack",
+    "official fixture review/publication/permissions/fence/CAS/replica",
+    "same-token Gateway/OOCLI then two NEW random autonomous external Agent conversations/gold/QID/WAL/deny/cancel",
+    "fixed complete source/archive/ELF/config/evidence/resource handoff"
+  ],
+  "formal_source_count": 0,
+  "source_release_allowed": false,
+  "protocol_no_change_reason": "No full source/parent/edition/support exit; Plan/counting/PRODUCT-LOOPS/GOAL/support/frontend unchanged. Independent review deferred to complete-loop policy. Other nine held.",
+  "evidence": [
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/0034-rollback-v2.sql",
+      "sha256": "bf1c3b66d1397e5a84142c7b392991fff58f8455e7f49b5ad9e89be158a5cde0",
+      "bytes": 23135
+    },
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/0034-rollback-v2.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "bytes": 1
+    },
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/install-0034-attempt2.stdout",
+      "sha256": "7165df1c1c622743cfb1c1e14f08347f38fbffd5a23fb5fd7c303589645809ba",
+      "bytes": 2086
+    },
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/install-0034-attempt2.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/entry-independent-oracle-v1.stdout",
+      "sha256": "b93ca5d348fbcd06691e5b578cdeaa84627331a34c8e19b926e1d5eb3b70055d",
+      "bytes": 356
+    },
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/entry-independent-oracle-v1.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/onboarding-c1-complete-v2/command-0013-step.stdout",
+      "sha256": "3aa4cfb9f2b6b492eb698000aeab24a8d6cd0c69fdb2b141c62db18f9f41a2bd",
+      "bytes": 808
+    },
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/onboarding-c1-complete-v2/command-0013-step.exit.json",
+      "sha256": "8105264899a6cef65d89313cb15b88d73fd58d892a3de899d3767c0698a98cf7",
+      "bytes": 11
+    },
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/onboarding-c1-complete-v2/command-0014-state.stdout",
+      "sha256": "9c2e80b30f7dfcb788686eea079554e5c69696d3991e062606afaef6b4700dfb",
+      "bytes": 526
+    },
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/onboarding-c1-complete-v2/command-0014-state.exit.json",
+      "sha256": "8105264899a6cef65d89313cb15b88d73fd58d892a3de899d3767c0698a98cf7",
+      "bytes": 11
+    }
+  ]
+}

@@ -3278,5 +3278,14 @@
     "installed_actual_target_marker_verified": true,
     "source_complete": false,
     "source_acceptance_delta": 0
+  },
+  "latest_mysql_six_field_typed_baseline": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/mysql-six-field-typed-baseline-intake.json",
+    "source": "mysql_67fff4e8ebff9f91bee8c75e",
+    "task": "d47f2ff5-fdb1-4cbd-831e-ce7e0bca2c94",
+    "generation": 5,
+    "owner": "/root/mysql_shared_reference_sol",
+    "formal_source_count": 0,
+    "source_release_allowed": false
   }
 }
