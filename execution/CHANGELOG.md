@@ -1,3 +1,5 @@
+2026-10-15 MySQL typed桥0031安装前v9真实runtime正拒测试exit0（补CAS前拒ACK/CAS后准ACK），正式Linux installer exit0；root独立核当前源SQL完整字节确在执行脚本、actual ELF52a022/88b3、目标_oo.schema_migrations checksum b1644177…一致。0031已安装，字节冻结不可再改；v1-v8失败/旧回执保留。仅安装/guard证据，真实并发MySQL五表导入与后续完整链未验，0/10及其他源held不变。证据mysql-typed-bridge-installed-intake.json，仍同一Sol medium完整owner。
+
 2026-10-15 MySQL实运行资源校验：root已核oo-mysql-connection-whole实际cpu.max=max100000、memory.max=16GiB、额外swap.max=16GiB（合计32GiB）；Docker VM16CPU/94GiB。原0.5CPU/512MiB限额由owner发现并原地解除CPU/增内存，未中断cargo27683/rustc39330，root实际docker top确认当时live。只证明本容器、不冒其他容器全部解除；未通过源或整版，0/10与held不变。记录见execution/reviews/native-luna-full-source-20261015/mysql-live-build-resource-intake.json。
 
 本次派发校验：TODO --check与限定diff --check通过；Spec/Plan self-test均因既有docs/07-gateway.md来源hash/size/line漂移exit1。root核该文档工作区字节等于HEAD，非本次协调变更造成；保留失败、不重写baseline哈希冒充通过。详情同mysql-sol-handoff.json。
