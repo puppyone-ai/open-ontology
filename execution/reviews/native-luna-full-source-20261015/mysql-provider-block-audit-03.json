@@ -1,0 +1,24 @@
+{
+  "as_of": "2026-10-15T16:04:22.979448+00:00",
+  "consecutive_goal_turns": 3,
+  "goal_platform_status": "blocked",
+  "goal_tool_result_verified": true,
+  "same_unresolved_condition": "Approved model providers have not completed required Agent conversations; primary503 auth_unavailable and fallback408/socket timeouts retained. User provider-restoration/alternative-model request remains unanswered.",
+  "current_authoritative_check": {
+    "sole_engineer": "completed with incomplete fixed packet, confirmed live collaboration registry",
+    "last_default_journal": "failed",
+    "primary_original_transcript_has_503_auth_unavailable": true,
+    "fallback_original_stderr_has_timeout": true,
+    "dialogue1_verdict_present": false,
+    "dialogue2_verdict_present": false,
+    "whole_proof_present": false
+  },
+  "previous_turn_classification": "diagnostic evidence: local proxy and configured forwarder TCP reachable; no upstream recovery established, no paid probe",
+  "new_paid_model_calls": 0,
+  "source_release_allowed": false,
+  "formal_source_count": 0,
+  "goal_complete": false,
+  "pending_external_input": "Restore existing product proxy upstream, or supply a usable authorized alternative model name; existing URL/key remain private and unchanged.",
+  "resume": "On direct human resume start a fresh blocked audit. Verify current source/publication/Pack, renew token through normal issuer and collect fresh caller evidence, resume sole complete task using fixed artifacts and immutable default-entry run. Preserve prior failures and exact completed-prefix verification, no repeat valid S5.",
+  "protocol_scope": "Platform status and continuation snapshot only; no Plan exit, parent checkbox, denominator, support matrix, frontend or edition change."
+}
