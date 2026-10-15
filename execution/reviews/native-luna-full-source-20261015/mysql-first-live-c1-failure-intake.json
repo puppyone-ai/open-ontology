@@ -1,0 +1,43 @@
+{
+  "as_of": "2026-10-15T19:35:48.270524+08:00",
+  "owner": "/root/mysql_shared_reference_sol",
+  "kind": "real MySQL initial-run failure observation, not complete source acceptance",
+  "target_readonly_observation": {
+    "run": {
+      "source": "mysql_c1_reference_20261015",
+      "task_id": "cdf22327-9630-4ec5-b640-2263bd96103f",
+      "lease_generation": 1,
+      "source_epoch": 1,
+      "engine": "mysql",
+      "measured_id": "mysql.1bc0749a-c3f5-11f1-9a89-6e5583e808c4",
+      "l0": "1bc0749a-c3f5-11f1-9a89-6e5583e808c4:1-30",
+      "l0_pos": "30",
+      "applied_pos": "30",
+      "state": "open"
+    },
+    "stage_tables": [
+      {
+        "logical_table": "hubs",
+        "deleted": false,
+        "rows": 7744,
+        "min_pos": "0",
+        "max_pos": "0"
+      }
+    ],
+    "full_import_runs": 0
+  },
+  "query_exit": 0,
+  "query_scope": "only target metadata/counts, no customer/source writes or row data",
+  "author_reported_failure": "continuous snapshot rx reset per-loop sleep, heartbeats starved,60s formal lease expired, target refused and retry lost_lease; first watcher timeout made no source DML",
+  "planned_repair": "persistent heartbeat interval; append-only0032 same-task formal claim generation rebind; real snapshot-frame-based owned IUD window; preserve original L0 and all failed raw attempts",
+  "root_not_proven": [
+    "full typed five-table import",
+    "CDC/snapshot concurrent IUD",
+    "new lease/replay success",
+    "source ACK or publication",
+    "full Selfbuild/Pack/Gateway/CLI/Agent chain"
+  ],
+  "source_acceptance_delta": 0,
+  "shared_release_allowed": false,
+  "protocol_check": "owner still developing same whole capability; no author complete delivery or any development/parent/edition acceptance, existing Plan/counting/Goal/support/PRODUCT-LOOPS and current holds remain correct"
+}
