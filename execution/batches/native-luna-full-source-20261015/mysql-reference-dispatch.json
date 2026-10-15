@@ -68,5 +68,17 @@
   "latest_dialogue_resume_scope": "execution/batches/native-luna-full-source-20261015/mysql-dialogue-resume-scope.json",
   "latest_partial_intake": "execution/reviews/native-luna-full-source-20261015/mysql-fixed-partial-provider-block-intake.json",
   "latest_resume57_dispatch": "execution/batches/native-luna-full-source-20261015/mysql-resume57-dispatch.json",
-  "latest_numeric_guard_scope": "execution/batches/native-luna-full-source-20261015/mysql-numeric-guard-scope.json"
+  "latest_numeric_guard_scope": "execution/batches/native-luna-full-source-20261015/mysql-numeric-guard-scope.json",
+  "latest_exclusive_shared_transfer": {
+    "as_of": "2026-10-15T18:39:48.965561+00:00",
+    "sole_owner": "/root/doris_c4_c5_complete_sol",
+    "dispatch": "execution/batches/native-luna-full-source-20261015/doris-c4-c5-complete-dispatch.json",
+    "excluded_from_this_owner": [
+      "tools/release-coordinator/src/native_publication.rs",
+      "tools/release-coordinator/src/target.rs",
+      "crates/oo-pipeline/src/target_installer.rs",
+      "pipeline migration append-only if actually necessary"
+    ],
+    "confirmed_by_current_owner": true
+  }
 }
