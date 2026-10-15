@@ -3320,8 +3320,9 @@
     ]
   },
   "latest_mysql_provider_block_audit": {
-    "receipt": "execution/reviews/native-luna-full-source-20261015/mysql-provider-block-audit-02.json",
-    "consecutive_goal_turns": 2,
+    "receipt": "execution/reviews/native-luna-full-source-20261015/mysql-provider-block-audit-03.json",
+    "consecutive_goal_turns": 3,
+    "goal_platform_status": "blocked",
     "source_release_allowed": false,
     "formal_source_count": 0
   }
