@@ -5698,7 +5698,8 @@
       "write_paths": [
         "tools/oracle-preview",
         "testing/dl01-driver-preflight/oracle/probe",
-        "tools/selfbuild-control-api/src/overlay.rs"
+        "tools/selfbuild-control-api/src/overlay.rs",
+        "tools/release-coordinator/src/cli.rs (native maintain dispatch only)"
       ],
       "prompt": "execution/batches/native-luna-full-source-20261015/ORACLE-COMPLETE-LUNA-MAX-20261016.md",
       "resource_prefix": "oo-dl01w1-10",
@@ -5746,7 +5747,16 @@
       },
       "native_agent": "/root/oracle_complete_luna_max",
       "dispatch": "execution/batches/native-luna-full-source-20261015/oracle-luna-max-dispatch.json",
-      "resource_terminal": "previous owner completed and writer released; retained g10 awaits new current source oracle/Pack/publication; revalidate live runtime before use"
+      "resource_terminal": "previous owner completed and writer released; retained g10 awaits new current source oracle/Pack/publication; revalidate live runtime before use",
+      "latest_scope_amendment": {
+        "as_of": "2026-10-15T23:40:23.094087+00:00",
+        "exclusive_path": "tools/release-coordinator/src/cli.rs",
+        "reason": "keys accepts native maintain protocols but dispatch omits them; precise source confirmed by root",
+        "allowed": "only add existing native activate/recover protocol alternatives to dispatch arms and minimum tests; no keys/security/replica changes",
+        "api_scope": "API directly calls maintain library; do not misattribute generic API producer refusal to CLI dispatch",
+        "fixed_build": "existing fixed release source plus own cli.rs delta only; no Doris publication/target WIP",
+        "acceptance_delta": 0
+      }
     },
     {
       "task_id": "DL01-W1-11",
