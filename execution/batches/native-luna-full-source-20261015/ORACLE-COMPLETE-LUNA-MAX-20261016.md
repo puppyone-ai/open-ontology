@@ -34,3 +34,7 @@ Oracle前任completed并释放writer，commit827c6c7a63；完整交接 tools/ora
 ## 2026-10-16 已有 native maintain CLI 分发的必要窄修
 
 Oracle唯一writer增加 `tools/release-coordinator/src/cli.rs`：keys已接受native activate/recover协议，dispatch遗漏；只为原两arm加既有native protocol同义分支及最小验证，不改keys/安全/replica。固定release源码仅加本文件delta，不采Doris WIP。API直接调library，因此CLI修复不能冒充API producer拒绝的原因，仍要取真实底层错误并完成原全退出。无验收/Plan/计数变化。
+
+## 2026-10-16 G8 同证书重入的必要窄修
+
+Oracle唯一writer增加 `tools/release-coordinator/src/store.rs`，仅在gate_body既有证书replay回包补充与recorded一致的test_admissible（来自持久化disposition）及production_admissible=false，原证书/issuer/source/信任计算及副本屏障不改。root已核实maintain_activate依赖该字段；必须最小replay正负例和真实g11同证书重入。固定构建仅own cli/store delta，不采Doris native_publication/target WIP。无原Plan/正式签收提升。

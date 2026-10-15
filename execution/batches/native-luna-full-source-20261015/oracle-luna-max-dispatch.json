@@ -36,5 +36,13 @@
     "api_scope": "API directly calls maintain library; do not misattribute generic API producer refusal to CLI dispatch",
     "fixed_build": "existing fixed release source plus own cli.rs delta only; no Doris publication/target WIP",
     "acceptance_delta": 0
+  },
+  "latest_oracle_gate_replay_scope_amendment": {
+    "as_of": "2026-10-15T23:51:00.381945+00:00",
+    "exclusive_path": "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)",
+    "reason": "persisted valid G8 certificate replay omits test_admissible; maintain_activate correctly requires it and stops",
+    "allowed": "replay returns test_admissible derived solely from persisted disposition, production_admissible=false as recorded path; exact tests and genuine same-certificate reentry",
+    "unchanged": "issuer,certificate,source,trust computation,replica barrier,original failures,formal0/10",
+    "acceptance_delta": 0
   }
 }

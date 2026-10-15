@@ -506,7 +506,9 @@
       "exclusive_paths": [
         "tools/oracle-preview",
         "testing/dl01-driver-preflight/oracle/probe",
-        "tools/selfbuild-control-api/src/overlay.rs"
+        "tools/selfbuild-control-api/src/overlay.rs",
+        "tools/release-coordinator/src/cli.rs (native maintain dispatch only)",
+        "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)"
       ],
       "formal_source_count_delta": 0
     }
@@ -533,8 +535,8 @@
     ],
     "other7": "held until source-specific fixed dependencies and exclusive files ready",
     "shared_writers": {
-      "Doris": "Doris complete card exact named files and uninstalled0039",
-      "Oracle": "overlay.rs only, other shared files readonly"
+      "Doris": "Doris card exact files; installed0039/0040 immutable; no0041 required for owner config",
+      "Oracle": "overlay.rs; cli.rs native maintain dispatch; store.rs replay admissibility fields only"
     },
     "formal_source_count_delta": 0
   },
@@ -550,7 +552,9 @@
     "exclusive_paths": [
       "tools/oracle-preview",
       "testing/dl01-driver-preflight/oracle/probe",
-      "tools/selfbuild-control-api/src/overlay.rs"
+      "tools/selfbuild-control-api/src/overlay.rs",
+      "tools/release-coordinator/src/cli.rs (native maintain dispatch only)",
+      "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)"
     ],
     "formal_source_count_delta": 0
   }
