@@ -1,3 +1,5 @@
+2026-10-15 MySQL/shared完整任务从已核completed的Luna xhigh移交唯一GPT-6.1 Sol medium；四制品SHA核验不等于功能签收，typed五表导入和后续完整链仍未证。开发/集成/发行/外部门槛及全部分母/分子不变，无新增组件或独立审阅。交接见execution/batches/native-luna-full-source-20261015/mysql-sol-handoff.json。
+
 
 2026-10-15 最新共享收敛顺序：唯一真实参考源MySQL。先以原C1 CDC-first基线/正式租约epoch/自主同步/完整S0–S10/维护Ontology-Pack/正式发布/Gateway与随机Agent跑完原全退出，固定同版源码、迁移与Linux制品，再放行其余九源复用；各源保留原捕获方法和独立验收，不重新设计接口或拿MySQL代通过。精确合同见 execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md。当前shared未放行、完整源0/10；root已核host pipeline编译，C1摘要循环修复host admission2/worker3测试通过，Linux固定副本运行中；真实baseline importer尚缺，不能宣称共享稳定。
 

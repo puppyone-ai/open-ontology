@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-15T18:24:05.621579+08:00",
+  "as_of": "2026-10-15T18:50:46.388216+08:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -14,7 +14,7 @@
   },
   "executor_policy": {
     "new_grok_dispatch": "not dispatched: human latest authorizes native Luna and old managed Grok terminal402",
-    "default": "native gpt-6-luna/low; no nested executors",
+    "default": "native gpt-6.1-sol/medium; no nested executors",
     "authorized_exception": "product GPT6.1 Sol low default; Grok4.7 S5/dialogue fallback allowed, same private URL/key",
     "grok_development_cap": 15,
     "independent_review_exempt_from_dev_cap": true,
@@ -29,8 +29,8 @@
     "wait_tool": "clock.sleep",
     "task_delivery_boundary": "original per-source capture; initial import + autonomous configurable update/delete/recovery; S0-S10 current ontology/approved Pack/live gateway/CLI/two fresh semantic dialogues and independent source truth/WAL; no lowered exits",
     "source_parallel_release": "execution/shared-readiness-gate.json root pass required",
-    "current_dispatch_status": "eleven native complete-capability owners running observed this turn",
-    "new_agent_default": "native gpt-6.1-sol/medium, latest direct human authorization; existing MySQL Luna xhigh continues"
+    "current_dispatch_status": "one complete MySQL/shared owner spawned after previous owner confirmed completed; other source integrations held",
+    "new_agent_default": "native gpt-6.1-sol/medium, latest direct human authorization"
   },
   "platform_goal": {
     "status_last_observed": "active",
@@ -1093,7 +1093,7 @@
     "no_fixed_cpu_or_compile_slots": true
   },
   "shared_native_loader_ownership": {
-    "writer": "DL01-W1-79",
+    "writer": "/root/mysql_shared_reference_sol",
     "from": "DL01-W1-06",
     "reason": "native Loader/pg-builder full product path isolated so sole MySQL engineer can focus real customer and full MySQL loop",
     "former_cli_exit": 0,
@@ -1104,35 +1104,42 @@
       "crates/oo-pipeline",
       "tools/pg-builder",
       "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import"
-    ]
+    ],
+    "current_contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md"
   },
   "managed_live_native_agents": [
     {
-      "as_of": "2026-10-15T17:21:59.122581+08:00",
-      "human_authorization": "luna允许指定为xhigh，请继续工作",
-      "former_owner": "/root/mysql_shared_reference_whole",
-      "former_state": "completed handoff, interrupt_agent confirmed terminal, edits/newrun stopped; preserve all WIP/resources",
-      "current_owner": "/root/mysql_shared_reference_xhigh",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "xhigh",
+      "as_of": "2026-10-15T18:50:46.388216+08:00",
+      "human_model_authorization": "下一次开新子智能体，模型可以升级为gpt 6.1 sol medium",
+      "previous_owner": "/root/mysql_shared_reference_xhigh",
+      "previous_status": "completed final handoff; authoritative list_agents completed, root Docker observation only sleep",
+      "current_owner": "/root/mysql_shared_reference_sol",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
       "status": "spawned",
-      "scope": "same indivisible complete MySQL shared reference; other sources held",
+      "same_indivisible_complete_task": true,
+      "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
+      "complete_prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-SOL-COMPLETE.md",
+      "handoff": "execution/batches/native-luna-full-source-20261015/mysql-sol-handoff.json",
+      "verified_artifact_hashes": 4,
+      "root_reason": "typed bridge still refusal stub; real runtime errors and retained artifacts transferred before next implementation, no duplicate writer",
+      "source_rollout_allowed": false,
       "source_acceptance_delta": 0
     }
   ],
   "execution_policy": {
-    "kind": "grok_cli",
-    "model": "grok-4.7",
-    "reasoning_effort": "xhigh",
+    "kind": "native",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
     "max_reliable_active": 15,
-    "grok_authorized": true,
+    "grok_authorized": false,
     "ordinary_wait_seconds": 600,
     "review_dispatch": "only after first complete Goal loop and all ten-source chains ready, no standalone component reviewers",
     "dialogue_model": "gpt-6.1-sol",
     "dialogue_reasoning_effort": "low",
     "dialogue_proxy_url_and_key": "unchanged active proxy client key reused privately; authenticated exact model completion200",
-    "native_subagents_authorized": false,
-    "owner_lifecycle": "same original owner and session, persistent complete task; no short handoff/new context; collect owned background before same-UUID resume if CLI ends; complete only on all original capability exits; genuine external blockers remain pending without paid empty loops",
+    "native_subagents_authorized": true,
+    "owner_lifecycle": "one complete MySQL/shared owner after verified prior handoff; long run until all original capability exits; no component final handoff; other source integrations held",
     "next_resume_max_turns": 1000
   },
   "native_handoff_receipt": "execution/batches/native-full-source-20261012/grok-terminal-handoff.json",
@@ -1172,7 +1179,9 @@
     "worker_source": "979367e4020d07fd206a00fc1d00dd953a9c8f86",
     "remaining": "genuine current S5/YAML/Pack/publication/Gateway/dialogue"
   },
-  "shared_reference_live_agents": [],
+  "shared_reference_live_agents": [
+    "/root/mysql_shared_reference_sol"
+  ],
   "source_closure_current": {
     "author_full_unpublished_preview": 7,
     "total_sources": 10,
@@ -3131,13 +3140,14 @@
     }
   },
   "mysql_shared_reference": {
-    "as_of": "2026-10-15T16:32:24.043153+08:00",
+    "as_of": "2026-10-15T18:50:46.388216+08:00",
     "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
     "reference_source": "mysql",
     "release_other_sources": false,
     "status": "implement_and_verify_complete_real_reference_before_reuse",
     "fixed_artifacts_ready": false,
-    "human_instruction": "共享接口先在真实MySQL完整验通并固定制品，再让其余源复用"
+    "human_instruction": "共享接口先在真实MySQL完整验通并固定制品，再让其余源复用",
+    "current_owner": "/root/mysql_shared_reference_sol"
   },
   "latest_mysql_single_owner_transfer": {
     "as_of": "2026-10-15T16:36:22.551950+08:00",
@@ -3153,11 +3163,11 @@
     "no_duplicate_writer": true
   },
   "latest_mysql_reference_dispatch": {
-    "as_of": "2026-10-15T16:37:50.366483+08:00",
-    "agent": "/root/mysql_shared_reference_whole",
-    "model": "gpt-6-luna",
-    "reasoning_effort": "low",
-    "status": "running_verified_by_actual_agent_response",
+    "as_of": "2026-10-15T18:50:46.388216+08:00",
+    "agent": "/root/mysql_shared_reference_sol",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "status": "spawned",
     "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
     "complete_capability": "real MySQL original C1 baseline/sync plus S0-S10/current Ontology-Pack/formal publish/Gateway-CLI/autonomous random agent; fixed shared artifacts before other sources reuse",
     "source_rollout_allowed": false,
@@ -3176,12 +3186,33 @@
       "tools/selfbuild-control-api",
       "tools/pg-builder",
       "tools/release-coordinator",
-      "tools/release-control-api"
+      "tools/release-control-api",
+      "crates/oo-pipeline/src/native_c1_baseline.rs"
     ],
     "root_scope": "coordination ledger and fixed evidence only; no duplicate product writer",
-    "first_actual_finding": "confirmed CLI/importer missing, capture_business only fixed-ID delta not five-table snapshot/fill; implementing full original path, not C5 relabel",
+    "first_actual_finding": "real Linux binaries retained; real scheduler/producer invocation failures retained; typed full-import bridge remains refusal stub and is next implementation",
     "artifact_status": "component fixed-source Linux1.94 tests passed; full shared contract and runtime artifacts not ready",
-    "formal_count_delta": 0
+    "formal_count_delta": 0,
+    "latest_luna_xhigh_transfer": {
+      "as_of": "2026-10-15T17:21:59.122581+08:00",
+      "human_authorization": "luna允许指定为xhigh，请继续工作",
+      "former_owner": "/root/mysql_shared_reference_whole",
+      "former_state": "completed handoff, interrupt_agent confirmed terminal, edits/newrun stopped; preserve all WIP/resources",
+      "current_owner": "/root/mysql_shared_reference_xhigh",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "xhigh",
+      "status": "completed_handoff_before_sol_spawn",
+      "scope": "same indivisible complete MySQL shared reference; other sources held",
+      "source_acceptance_delta": 0
+    },
+    "previous_dispatch": {
+      "agent": "/root/mysql_shared_reference_xhigh",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "xhigh",
+      "status": "spawned"
+    },
+    "handoff": "execution/batches/native-luna-full-source-20261015/mysql-sol-handoff.json",
+    "complete_prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-SOL-COMPLETE.md"
   },
   "latest_mysql_target_stage_primitive": {
     "intake": "execution/reviews/native-luna-full-source-20261015/mysql-target-stage-primitive-intake.json",
@@ -3211,5 +3242,23 @@
     "current_agent_policy": "continue existing Luna xhigh complete task; do not interrupt/reduplicate solely for model upgrade",
     "source_rollout_allowed": false,
     "scope": "unchanged complete MySQL reference before other sources reuse"
+  },
+  "latest_mysql_sol_complete_transfer": {
+    "as_of": "2026-10-15T18:50:46.388216+08:00",
+    "human_model_authorization": "下一次开新子智能体，模型可以升级为gpt 6.1 sol medium",
+    "previous_owner": "/root/mysql_shared_reference_xhigh",
+    "previous_status": "completed final handoff; authoritative list_agents completed, root Docker observation only sleep",
+    "current_owner": "/root/mysql_shared_reference_sol",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "status": "spawned",
+    "same_indivisible_complete_task": true,
+    "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
+    "complete_prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-SOL-COMPLETE.md",
+    "handoff": "execution/batches/native-luna-full-source-20261015/mysql-sol-handoff.json",
+    "verified_artifact_hashes": 4,
+    "root_reason": "typed bridge still refusal stub; real runtime errors and retained artifacts transferred before next implementation, no duplicate writer",
+    "source_rollout_allowed": false,
+    "source_acceptance_delta": 0
   }
 }

@@ -1,0 +1,54 @@
+{
+  "as_of": "2026-10-15T18:49:28.950253+08:00",
+  "previous_owner": "/root/mysql_shared_reference_xhigh",
+  "previous_state": "collaboration.list_agents confirmed completed after final handoff; no further edits or commands authorized",
+  "successor_model": "gpt-6.1-sol",
+  "successor_effort": "medium",
+  "scope": "same indivisible full MySQL/shared reference; no other source rollout",
+  "reason": "real Linux binaries retained, live-run errors established; typed bridge remains refusal stub and no typed implementation delivered; transfer before next major implementation, not parallel duplicate",
+  "root_verified_hashes": {
+    "producer": {
+      "path": "/tmp/oo-mysql-connection-whole/active-c1-20261015/mysql-release-target/release/mysql-preview",
+      "sha256": "2cff4ccc9b349bad093c21cf8f281dee432d53c1105858d7c32ddef657a650d3"
+    },
+    "pipeline": {
+      "path": "/tmp/oo-mysql-connection-whole/active-c1-20261015/mysql-release-target/release/oo-pipeline",
+      "sha256": "6749ecace9189bed181e3c751eb767b72c7832524caff5d791a3ad57c6027550"
+    },
+    "worker": {
+      "path": "/tmp/oo-mysql-connection-whole/active-c1-20261015/job-worker-target/debug/job-worker",
+      "sha256": "0e57e8fefd29b5133c68bc9ab95b83a8223cdf97df791d53121a01559b75d3c7"
+    },
+    "future_manifest": {
+      "path": "/Users/redux/.cache/oo-mysql-connection-whole/c1/actual-lease-stage-20261015/manifest-v2.json",
+      "sha256": "740256294185fa8b648b4fbbd10faa2967971e996bafcb8a5f2274a7d786e50c"
+    }
+  },
+  "build_exits": "producer Linux1.94 exit0 author-reported; dedicated raw exit receipt not found at handoff, must obtain actual reproducible compile/test receipt before final acceptance",
+  "source_fixed_commit": null,
+  "retained_source_snapshots": [
+    "/tmp/oo-mysql-connection-whole/active-c1-20261015/pipeline-src",
+    "/tmp/oo-mysql-connection-whole/active-c1-20261015/job-worker-src"
+  ],
+  "root_docker_process_observation": "PID                 COMMAND\n5464                sleep",
+  "author_runtime_report": "no MySQL worker/pipeline/producer active; Oracle producer PID99307 outside scope reported, root not claiming it verified",
+  "binding_id": "c4c6d282-3eaf-4810-91b0-7c0838b338c6",
+  "project_id": "d101fd4a-3a89-41f6-b7fe-94b4001d5512",
+  "old_task": "e1229106-502b-41c5-a56c-702762b7a3ff",
+  "old_task_observation": "author last read queued attempts2/8 generation2, producer exit2 mysql-preview: usage; successor reverify, never mutate old occurrence",
+  "private_config_path": "/Users/redux/.cache/oo-mysql-connection-whole/c1/native-config.json",
+  "installed_immutable_migrations": "0024/0025/0028/0029/0030 per prior actual installs and handoff; verify exact target markers, never edit installed bytes",
+  "synthetic_stage_excluded": true,
+  "source_acceptance_delta": 0,
+  "shared_release_allowed": false,
+  "remaining": "typed five-table C1 initial import, formal source instance/watermark/ACK, autonomous IUD/quiet/recovery, current S0-S10/YAML/Ontology/Pack, formal fixture publication, actual Gateway/CLI/random Agent, frozen complete evidence",
+  "coordination_verification": {
+    "todo_check": "PASS",
+    "scoped_diff_check": "PASS",
+    "spec_self_test": "exit1 pre-existing docs/07-gateway.md hash/size/line drift",
+    "plan_self_test": "exit1 same Spec baseline drift",
+    "gateway_doc_worktree_equals_head": true,
+    "gateway_doc_sha256": "f30ae1ca056106ca64a47da4d87425cc1f225afe12548b987609ba786c8b151a",
+    "policy": "No baseline hashes changed to conceal drift; this transfer does not alter Gateway requirements or claim product acceptance"
+  }
+}
