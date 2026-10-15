@@ -1,3 +1,5 @@
+2026-10-16 Oracle真实g11激活重入确认G8同证书回包缺test_admissible，maintain正确拒绝继续；root核既有recorded/replay源码后授权唯一Oracle Luna max仅store.rs回包补同持久化disposition推导字段与production=false，cli.rs窄域保持。没有改gate信任/原证书/副本屏障，不采Doris WIP；须真实重入及完整后续出口才验。无验收/Plan/整版计数变化，formal0/10。精确增补见Oracle完整卡/dispatch。
+
 2026-10-16 Oracle完整源必要CLI窄域：root核实原keys已接受native maintain activate/recover协议但dispatch遗漏，授权唯一Oracle Luna max仅写release-coordinator/src/cli.rs两分发分支/必要测试，固定构建不采Doris未完native_publication/target。API直接调library，其producer拒绝须继续真实诊断，不能用CLI修复冒签；既有maintain-install已通过、g11官方维护已过，发布/GW/新自动整链/随机对话仍待验。无验收/Plan/计数变化，formal0/10；精确增补见Oracle完整卡。
 
 2026-10-16 MySQL演示令牌更新：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261015T230526Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时、签发UTC见回执 /tmp/oo-root-mysql-auth-20261015T230526Z/receipt.json，无自动续签，原token/QA/pins/Pack/代码不改，无新增签收。

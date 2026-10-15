@@ -142,7 +142,9 @@
       "write_paths": [
         "tools/oracle-preview",
         "testing/dl01-driver-preflight/oracle/probe",
-        "tools/selfbuild-control-api/src/overlay.rs"
+        "tools/selfbuild-control-api/src/overlay.rs",
+        "tools/release-coordinator/src/cli.rs (native maintain dispatch only)",
+        "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)"
       ],
       "mandatory_blocker": null,
       "status": "spawned_and_accepted",
