@@ -44,6 +44,46 @@ class DecisionsTest(unittest.TestCase):
         self.assertEqual(binding["project"], "oracle")
         self.assertEqual(binding["artifact_sha256"], w.sha_bytes(w.canonical(catalog).encode()))
 
+    def test_old_tombstone_is_not_a_cycle(self):
+        evidence = {
+            "cycles": [],
+            "recovery": {"exit": 0, "wandered": False},
+            "schedule": {"enabled": False, "period_ms": 6000},
+            "period_ms": 6000,
+            "gold": {"differences": 0, "key_2_absent": True},
+            "replayed_key_2": False,
+            "watermark_monotonic": False,
+            "maintenance": {"status": 200, "llm_calls": 0, "artifact_directory": "/owned/work/x"},
+            "dialogue_verified": True,
+            "product_receipt": True,
+            "cancelled": "q",
+        }
+        self.assertFalse(w.periods_ok(evidence))
+        self.assertFalse(w.chain_complete(evidence))
+
+    def test_two_cycles_need_official_maintenance(self):
+        evidence = {
+            "cycles": [
+                {"source_generation": 4, "ops": ["insert", "insert"]},
+                {"source_generation": 5, "ops": ["update", "delete"]},
+            ],
+            "recovery": {"exit": 2, "wandered": False},
+            "schedule": {"enabled": True, "period_ms": 6000},
+            "period_ms": 6000,
+            "gold": {"differences": 0, "key_2_absent": True},
+            "replayed_key_2": False,
+            "watermark_monotonic": True,
+            "maintenance": {"status": 409, "llm_calls": None, "artifact_directory": None},
+            "dialogue_verified": True,
+            "product_receipt": True,
+            "cancelled": "q",
+        }
+        self.assertTrue(w.periods_ok(evidence))
+        self.assertTrue(w.recovery_ok(evidence))
+        self.assertFalse(w.chain_complete(evidence))
+        evidence["maintenance"] = {"status": 200, "llm_calls": 0, "artifact_directory": "/owned/work/x"}
+        self.assertTrue(w.chain_complete(evidence))
+
     def test_copy_secret_refuses_empty(self):
         src = Path("/tmp/oo-oracle-copy-secret-empty")
         dest = Path("/tmp/oo-oracle-copy-secret-dest")

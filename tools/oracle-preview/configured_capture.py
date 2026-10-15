@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
 """Approved Oracle objects → dictionary-derived typed Arrow and C5 witness."""
 import argparse
-from decimal import Decimal
 import hashlib
 import json
 from pathlib import Path
 import re
 import subprocess
 import sys
+import shutil
 import connection_capture as connection
 import current_capture
 import c5_capture
 import c5_witness as witness
+import rust_c5_reader
 
 IDENT = connection.IDENT
-ENCODER = '/t/r194/debug/oo-c5-arrow'
-RUST_IMAGE='docker.io/library/rust@sha256:0f24958fa693fe838859faf64a0ec78d382cd543a6b6efd0fa7a3bcb10ea90d5'
-
 def column_spec(col):
     kind=col['data_type']; precision=col['precision']; scale=col['scale']
     result={'name':col['name'],'nullable':col['nullable']=='Y'}
@@ -29,17 +27,6 @@ def column_spec(col):
     elif kind=='RAW': result['type']='binary'
     else: raise ValueError('unsupported exact Oracle type: '+kind)
     return result
-
-def projection(col):
-    name='"'+col['name']+'"';kind=col['data_type']
-    if kind=='NUMBER': expression=f"TO_CHAR({name},'TM9','NLS_NUMERIC_CHARACTERS=''.,''')"
-    elif kind=='DATE': expression=f"CASE WHEN TO_CHAR({name},'BC','NLS_DATE_LANGUAGE=American')='BC' THEN 'unsupported-date-era' ELSE TO_CHAR({name},'YYYY-MM-DD\"T\"HH24:MI:SS') END"
-    elif kind=='RAW': expression=f'RAWTOHEX({name})'
-    elif kind.startswith('TIMESTAMP('):
-        fmt='YYYY-MM-DD\"T\"HH24:MI:SS.FF9'+(' TZH:TZM' if kind.endswith(' WITH TIME ZONE') else '')
-        expression=f"TO_CHAR({name},'{fmt}')"
-    else: expression=f'RAWTOHEX(UTL_RAW.CAST_TO_RAW({name}))'
-    return "'"+col['name']+"' VALUE "+expression
 
 def sql_run(cfg, body, out, name):
     connect,password=connection.prepare(cfg)
@@ -90,41 +77,36 @@ def run(cfg,out,generation=1,previous=None):
         if previous and cols!=json.loads((previous/'run/producer-profile.json').read_text())['columns'][table]: raise ValueError('schema changed; maintained approval required')
         profile['columns'][table]=cols
         profile['declared_primary_keys'][table]=[selection['key']]
-        query="SELECT 'ROW|' || JSON_OBJECT("+','.join(projection(col) for col in cols)+f" NULL ON NULL RETURNING CLOB) FROM {owner}.{table} AS OF SCN {scn} ORDER BY \"{selection['key']}\" FETCH FIRST {cfg['hard_limit']+1} ROWS ONLY;"
-        rows=json_lines(sql_run(cfg,query,out,'pull-'+table),'ROW|')
-        for row in rows:
-            for col in cols:
-                if col['data_type']=='NUMBER' and col['precision'] is not None and row[col['name']] is not None:
-                    row[col['name']]=format(Decimal(row[col['name']]),'f')
-                if col['data_type'] in ('CHAR','VARCHAR2','NCHAR','NVARCHAR2') and row[col['name']] is not None:
-                    row[col['name']]=bytes.fromhex(row[col['name']]).decode('utf-8')
-        if len(rows)>cfg['hard_limit']: raise ValueError('full snapshot exceeds row budget; refuse truncation')
+        parent_arrow = None if previous is None else previous/'run/arrow'/(table.lower()+'-gen-'+str(generation-1)+'.arrow')
+        parent_result = None if previous is None else previous/'run/arrow'/(table.lower()+'-gen-'+str(generation-1)+'.arrow.source-result.json')
+        parent_input_digest = None
+        if previous is not None:
+            parent_request=json.loads((previous.parent/'request.json').read_text())
+            if parent_request.get('source_id')!=selection['source_id'] or parent_request.get('source_generation')!=generation-1:
+                raise ValueError('parent request is not the acknowledged source generation')
+            parent_input_digest=parent_request.get('input_digest')
+            if not isinstance(parent_input_digest,str): raise ValueError('parent request input digest missing')
+        rust_result=rust_c5_reader.capture(
+            cfg, selection, scn, generation-1, parent_arrow, parent_input_digest, encoded, parent_result,
+            out/'rust-c5'/table.lower(), out/'rust-c5'/'ca-ref',
+        )
+        (out/'run/sql'/('rust-c5-'+table+'.sql')).write_text('\n'.join(rust_result['source_sql'])+'\n')
+        decoded=rust_result['decoded']
+        rows=decoded['rows']
+        got_columns=decoded['columns']
+        if len(rows)>cfg['hard_limit'] or len(got_columns)!=len(encoded): raise ValueError('Rust snapshot row/schema budget')
+        for expected,actual in zip(encoded,got_columns):
+            if (expected['name'],expected['type'],expected.get('precision'),expected.get('scale')) != (actual.get('name'),actual.get('type'),actual.get('precision'),actual.get('scale')):
+                raise ValueError('Rust Arrow schema differs from Oracle dictionary')
+        if rust_result['rows']!=len(rows) or rust_result['input_digest']!=hashlib.sha256((out/'rust-c5'/table.lower()/'snapshot.arrow').read_bytes()).hexdigest():
+            raise ValueError('Rust snapshot receipt does not bind rows/typed Arrow')
         cells={str(int(row[selection['key']])):row for row in rows}
         if len(cells)!=len(rows): raise ValueError('duplicate C5 key')
         arrow=out/'run/arrow';arrow.mkdir(parents=True,exist_ok=True)
-        request=arrow/(table+'.json');request.write_text(json.dumps({'columns':encoded,'rows':rows}))
         filename=table.lower()+'-gen-'+str(generation)+'.arrow'
-        command=['docker','run','--rm','--pull','never','--platform','linux/arm64','--label','oo.owner=oracle-connection-whole','--label','oo.kind=proof-runner','--network','none','--memory','256m','--cpus','0.5','--cap-drop','ALL','--security-opt','no-new-privileges','--user','501:20','-v','oo-dl01w1-04-c5-target:/t:ro','-v',str(out)+':'+str(out),'--entrypoint','/bin/sh',RUST_IMAGE,'-c','test "$(sha256sum /t/r194/debug/oo-c5-arrow | cut -d" " -f1)" = '+current_capture.ENCODER_SHA+' && exec '+ENCODER+' encode "$1" "$2"','sh',str(request),str(arrow/filename)]
-        proc=subprocess.run(command,capture_output=True,timeout=60)
-        for suffix,raw in [('stdout',proc.stdout),('stderr',proc.stderr)]: (arrow/(filename+'.'+suffix)).write_bytes(raw)
-        (arrow/(filename+'.exit')).write_text(str(proc.returncode)+'\n')
-        if proc.returncode: raise ValueError('fixed encoder failed')
-        decoded=arrow/(filename+'.decoded.json')
-        decode_command=command.copy()
-        decode_command[-4]=decode_command[-4].replace(' encode ', ' decode ')
-        decode_command[-2:]=[str(arrow/filename),str(decoded)]
-        decoded_proc=subprocess.run(decode_command,capture_output=True,timeout=60)
-        (arrow/(filename+'.decode.stdout')).write_bytes(decoded_proc.stdout)
-        (arrow/(filename+'.decode.stderr')).write_bytes(decoded_proc.stderr)
-        (arrow/(filename+'.decode.exit')).write_text(str(decoded_proc.returncode)+'\n')
-        if decoded_proc.returncode: raise ValueError('native Arrow decode failed')
-        got=json.loads(decoded.read_text())['rows']
-        if len(got)!=len(rows): raise ValueError('native Arrow row count')
-        for expected,actual in zip(rows,got):
-            for col in cols:
-                name=col['name']
-                equal=(Decimal(expected[name])==Decimal(actual[name])) if col['data_type']=='NUMBER' and col['precision'] is not None and expected[name] is not None and actual[name] is not None else expected[name]==actual[name]
-                if not equal: raise ValueError('native Arrow typed cell difference')
+        shutil.copyfile(out/'rust-c5'/table.lower()/'snapshot.arrow',arrow/filename)
+        (arrow/(filename+'.source-result.json')).write_text(json.dumps(rust_result,indent=2)+'\n')
+        (arrow/(filename+'.source-digest.txt')).write_text(rust_result['source_digest']+'\n')
         old=None if previous is None else c5_capture.load_generation(previous/'run/shadow'/table,generation-1)
         result=c5_capture.apply_snapshot(out/'run/shadow'/table,old,generation,'configured-oracle-scn-'+scn,[c['name'] for c in cols],[c['name'] for c in cols],cells,cfg['hard_limit'])
         if not result['committed']: raise ValueError(result['state'])
@@ -134,9 +116,9 @@ def run(cfg,out,generation=1,previous=None):
 
 def seal(cfg, out, generation, owners, specs, scn):
     witness.CAPTURE=out;witness.ARROW_DIR=out/'run/arrow';witness.PROFILE_PATH=out/'run/producer-profile.json';witness.SCHEMA=next(iter(owners));witness.TARGET_ID=cfg['target_id'];witness.SECRET_REF=cfg['secret_ref'];witness.BUDGET_LIMIT=cfg['hard_limit']
-    driver=Path('/tmp/oo-dl01w1-04-native-source-cli/sqlplus').resolve()
-    if hashlib.sha256(driver.read_bytes()).hexdigest()!=current_capture.SQLPLUS_SHA: raise ValueError('SQLPlus driver changed')
-    desc={'kind':'command-line','name':'sqlplus','version':'23.26.3.0.0','digest':current_capture.SQLPLUS_SHA,'bytes':driver.stat().st_size,'path':str(driver),'digest_is_file':True}
+    driver=rust_c5_reader.READER
+    if hashlib.sha256(driver.read_bytes()).hexdigest()!=rust_c5_reader.READER_SHA256: raise ValueError('fixed Rust Oracle reader changed')
+    desc={'kind':'command-line','name':'oracle-driver-probe','version':'oracledb-26.0.0-beta.4','digest':rust_c5_reader.READER_SHA256,'bytes':driver.stat().st_size,'path':str(driver),'digest_is_file':True}
     # Read actual current session/object grants rather than borrowing historical site proof.
     grants=sql_run(cfg,"SELECT 'PRIV|' || privilege FROM session_privs;\nSELECT 'GRANT|' || table_schema || '.' || table_name || '|' || privilege FROM all_tab_privs WHERE grantee=USER;",out,'permissions')
     if not any(line.strip()=='PRIV|CREATE SESSION' for line in grants.splitlines()): raise ValueError('CREATE SESSION not observed')
@@ -150,7 +132,7 @@ def seal(cfg, out, generation, owners, specs, scn):
         built=witness.build_inputs(spec,desc,permissions)
         if built['unsupported']: raise ValueError('unsupported native Arrow schema')
         witness.write_table(out/'witness'/spec['source_id'],built,driver)
-    (out/'capture.json').write_text(json.dumps({'protocol':'oo.oracle.configured-capture/v1','actual_scn':scn,'generation':generation,'source_reader':cfg['user'],'source_dml_ddl':0,'tables':{s['table']:len(c5_capture.load_generation(out/'run/shadow'/s['table'],generation)['cells']) for s in specs},'reader_sql_files_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (out/'run/sql').glob('*.sql')},'orchestration_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'cdc':'off','native_imported':False,'encoder_sha256':current_capture.ENCODER_SHA,'driver_sha256':current_capture.SQLPLUS_SHA},indent=2)+'\n')
+    (out/'capture.json').write_text(json.dumps({'protocol':'oo.oracle.configured-capture/v1','actual_scn':scn,'generation':generation,'source_reader':'oracle-driver-probe','source_reader_sha256':rust_c5_reader.READER_SHA256,'source_dml_ddl':0,'consistency_grade':'S0','cross_table_consistent':False,'capture_method':'c5_diff','snapshot_digests':{s['table']:json.loads((out/'rust-c5'/s['table'].lower()/'result.json').read_text())['source_digest'] for s in specs},'input_digests':{s['table']:json.loads((out/'rust-c5'/s['table'].lower()/'result.json').read_text())['input_digest'] for s in specs},'tables':{s['table']:len(c5_capture.load_generation(out/'run/shadow'/s['table'],generation)['cells']) for s in specs},'reader_sql_files_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (out/'run/sql').glob('*.sql')},'orchestration_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'cdc':'off','native_imported':False,'encoder_sha256':current_capture.ENCODER_SHA,'driver_sha256':rust_c5_reader.READER_SHA256},indent=2)+'\n')
     return out
 
 def seal_existing(cfg, out, generation):

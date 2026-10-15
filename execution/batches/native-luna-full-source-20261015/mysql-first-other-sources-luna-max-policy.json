@@ -1,0 +1,18 @@
+{
+  "as_of": "2026-10-15T18:56:30.621199+00:00",
+  "human_instruction": "一定要确保mysql全部走完再走doris，保证mysql的整条链路稳定产出再谈其他源；开展其他源时gpt6 luna max",
+  "priority": "MySQL8.4 AND5.7 complete stable originalproductchain before any other source work",
+  "mysql_current_owner": "/root/mysql57_reference_sol",
+  "mysql_current_model": "gpt-6.1-sol/medium retained, no interruption/duplicate",
+  "other_source_new_work_allowed": false,
+  "other_source_pause": "Oracle andDoris actual completed incomplete safehandoff, codewriters released; Oracle scheduler=false/active_task=null/no native-serve, privateAPIs stopped, retainedDBstandby; Doris no newsource worker/resources/DML",
+  "other_source_future_model": "gpt-6-luna",
+  "other_source_future_reasoning_effort": "max",
+  "resume_condition": "root verifies actual5.7+8.4 complete normal6fields/C1sync/recovery/S0-S10/maintenancePack/publication/realstandby/GatewayCLI/random2x2Agent/goldQIDWAL/fixedartifacts; then source-specific release with exclusive owners",
+  "ordinary_event_wait_seconds": 600,
+  "goal_platform": "active; user only pauses nonMySQL source work",
+  "formal_source_count_delta": 0,
+  "historical_narrow_reference_releases": "superseded for current scheduling, existing source/code/success/failures retained",
+  "terminal_handles_verified": "collaboration.list_agents: onlyMySQL engineer running; Oracle/Doris/identity completed",
+  "mysql_registry_authorization": "mysqlonly official register_engine fixedrecipe/defaultwhole; otherengineentries preserved, no manualflags"
+}

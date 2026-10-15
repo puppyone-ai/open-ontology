@@ -16,6 +16,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import c5_capture  # noqa: E402
 import c5_live  # noqa: E402
+import configured_native  # noqa: E402
+import configured_worker  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 FLOW = ROOT / "tools/source-onboarding/product_flow.py"
@@ -39,7 +41,14 @@ ISSUE = Path("/tmp/oo-pg46-runtime-finish/continuous/gateway/issue-token")
 CLI_BIN = Path("/tmp/oo-pg46-runtime-finish/continuous/gateway/oo-cli")
 GATEWAY_BIN = Path("/Users/redux/.cache/oo-dl01w1-73/fixed-elf/oo-gateway-8d27abf3564bf3d05790be72632f1026376880e0c148e60455b4b1a2bb2cefb1")
 CA = Path("/Users/redux/.oo-dl01w1-04-p2/pg-tls/ca.crt")
-G3 = Path("/tmp/oo-oracle-connection-whole/continue-g3/cycle-receipt.json")
+PREVIOUS = Path("/tmp/oo-oracle-connection-whole/continue-g3/native-g3")
+BINDING = "e7325034-f8f4-4b72-91bd-4f3f9a48128a"
+SUCCEEDED = "b_739b3a14d1167f50b5f48ae22a8317e2"
+FAILED = ("b_5c120a698b7c9085f3dd724931592885", "b_b7657e3024d1088d6a1b54e6b1fe2904")
+BUILD_FILE = Path("/tmp/oo-oracle-connection-whole/whole-20261014f/product/build.json")
+OPERATOR = ROOT / "tools/selfbuild-control-api/recipes/operator.py"
+PRODUCER_DIR = Path("/tmp/oo-oracle-connection-whole/owned-producer")
+PRODUCER_PORT = 18471
 CONTAINER = "oo-oracle-connection-whole-gateway"
 AUDIENCE = "https://127.0.0.1:18714/"
 MODEL_BEARER = "/tmp/oo-product-model-20261012/bearer"
@@ -285,24 +294,27 @@ def gateway_binding(catalog, reviewed, dataset, columns):
     return binding
 
 
-def bind_gateway(product):
-    folder = artifact_dir(product)
+def bind_gateway(product, folder=None):
+    folder = folder or artifact_dir(product)
     command = json.loads((folder / "command.json").read_text())
-    reviewed = json.loads((product / "reviewed.json").read_text())
-    visibility = json.loads((product / "visibility.json").read_text())
+    reviewed_path = folder / "reviewed.json" if (folder / "reviewed.json").is_file() else product / "reviewed.json"
+    visibility_path = folder / "visibility.json" if (folder / "visibility.json").is_file() else product / "visibility.json"
+    pack_path = folder / "role-pack.json" if (folder / "role-pack.json").is_file() else product / "role-pack.json"
+    reviewed = json.loads(reviewed_path.read_text())
+    visibility = json.loads(visibility_path.read_text())
     catalog = command["catalog"]
     visible = visibility["datasets"][0]
     review = GW / "reviewed" / SLUG
     review.mkdir(mode=0o700, parents=True, exist_ok=True)
     (review / "native-input.json").write_bytes((folder / "command.json").read_bytes())
-    (review / "command.json").write_bytes((product / "reviewed.json").read_bytes())
+    (review / "command.json").write_bytes(reviewed_path.read_bytes())
     dataset = visible["dataset"]
     binding = gateway_binding(catalog, reviewed, dataset, visible["columns"])
     (review / "binding.json").write_text(canonical(binding) + "\n")
     pack_dir = GW / "packs"
     for old in pack_dir.glob("*.json"):
         old.unlink()
-    (pack_dir / f"{ROLE}.json").write_bytes((product / "role-pack.json").read_bytes())
+    (pack_dir / f"{ROLE}.json").write_bytes(pack_path.read_bytes())
     grant = {
         "kind": "client", "project_id": binding["project"], "principal_id": "fixture-admin", "role": ROLE,
         "policy_version": binding["policy_version"], "knowledge_version": binding["knowledge_version"],
@@ -487,10 +499,36 @@ def probe_table():
     return body
 
 
-def capture(cfg, dest, found):
-    dest.mkdir(mode=0o700, exist_ok=True)
-    waited = c5_capture.wait_realtime(c5_capture.resolve_periods(cfg["periods"]))
-    (dest / "waits.json").write_text(json.dumps(waited) + "\n")
+def read_mark():
+    raw = psql("previewdb", f"SELECT result::text FROM jw_native.watermarks WHERE binding_id='{BINDING}'::uuid", tuples=True).strip()
+    return json.loads(raw)
+
+
+def mark_identity(row):
+    return (row.get("source_generation"), row.get("target_generation"), row.get("run_id"))
+
+
+def period_ms(cfg):
+    return sum(cfg["periods"][key] for key in ("detect_period_seconds", "pull_period_seconds", "reconcile_period_seconds")) * 1000
+
+
+def source_keys(password, sql_dir, secrets, name):
+    code, text = c5_live.sqlplus(
+        "OO04_READER", password,
+        "SET PAGESIZE 0 FEEDBACK OFF HEADING OFF\nSELECT 'KEY|' || KEY_ID FROM OO04_FIX.ONBOARD_ORDERS ORDER BY KEY_ID;\nEXIT\n",
+        name, sql_dir, secrets,
+    )
+    if code != 0:
+        raise SystemExit("reader_keys")
+    return c5_live.lines(text, "KEY|")
+
+
+def fixture_dml(password, sql, name, sql_dir, secrets):
+    text = c5_live.dba(password, sql, name, sql_dir, secrets)
+    return c5_live.lines(text, "LEFT|")
+
+
+def typed_gold(cfg, dest, source_dml):
     password = Path(cfg["password_file"]).read_text().strip("\r\n")
     sql_dir = dest / "sql"
     sql_dir.mkdir(mode=0o700, exist_ok=True)
@@ -502,11 +540,7 @@ def capture(cfg, dest, found):
     code, text = c5_live.sqlplus("OO04_READER", password, sql, "current", sql_dir, [password.encode()])
     if code != 0:
         raise SystemExit("current_read")
-    rows = []
-    for line in text.splitlines():
-        line = line.strip()
-        if line.startswith("ROW|"):
-            rows.append(json.loads(line[4:]))
+    rows = [json.loads(line.strip()[4:]) for line in text.splitlines() if line.strip().startswith("ROW|")]
     pg = psql("previewdb", f"""
 SELECT json_agg(json_build_object(
   'key', pc_b064bb8641f87c6e2dcee3112a98ce5e5608c2f9a00717247ddbc7e1cc27::text,
@@ -517,7 +551,8 @@ SELECT json_agg(json_build_object(
 ) ORDER BY pc_b064bb8641f87c6e2dcee3112a98ce5e5608c2f9a00717247ddbc7e1cc27)
 FROM _oo.{PHYSICAL};
 """, tuples=True)
-    stored = json.loads(pg.strip())
+    stored = json.loads(pg.strip() or "null") or []
+
     def norm(row):
         return {
             "key": str(row["key"]),
@@ -526,17 +561,322 @@ FROM _oo.{PHYSICAL};
             "label": row["label"],
             "payload": (row.get("payload") or "").lower(),
         }
+
     left = [norm(row) for row in rows]
     right = [norm(row) for row in stored]
-    diffs = [] if left == right else [{"oracle": left, "postgres": right}]
-    gold = {"protocol": "oo.oracle.typed-source-gold/v1", "rows": len(left), "cells": len(left) * 5, "differences": len(diffs), "diffs": diffs, "key_2_absent": all(row["key"] != "2" for row in left), "reader_exit": code, "source_dml": 0}
+    diffs = [] if left == right else [{"count": [len(left), len(right)]}]
+    gold = {
+        "protocol": "oo.oracle.typed-source-gold/v1", "rows": len(left), "cells": len(left) * 5,
+        "differences": 0 if left == right else len(diffs), "key_2_absent": all(row["key"] != "2" for row in left),
+        "reader_exit": code, "source_dml": source_dml, "keys": [row["key"] for row in left],
+    }
     (dest / "typed-gold.json").write_text(json.dumps(gold) + "\n")
-    schedule = psql("previewdb", f"SELECT json_agg(json_build_object('source_id', source_id, 'method', method, 'cycle', cycle, 'period_ms', period_ms, 'enabled', enabled, 'pin', pin) ORDER BY source_id, cycle) FROM jw_native.bindings WHERE source_id = '{SOURCE}';", tuples=True)
-    (dest / "schedule.json").write_text(schedule)
-    (dest / "rows.json").write_text(json.dumps(left) + "\n")
-    prior = json.loads(G3.read_text())
-    observed = gold["differences"] == 0 and gold["key_2_absent"] and gold["rows"] == 2 and prior.get("tombstones") == ["2:3"] and prior.get("customer_writes") == 0 and prior.get("repeat_load") is False
-    return {"wait": waited, "gold": gold, "schedule_sha256": sha_bytes(schedule.encode()), "prior_cycle_sha256": sha_bytes(G3.read_bytes()), "lifecycle_observed": observed, "gateway_count": found["count_value"]}
+    return gold
+
+
+def schedule_row():
+    raw = psql("previewdb", f"SELECT json_build_object('source_id', source_id, 'method', method, 'cycle', cycle, 'period_ms', period_ms, 'enabled', enabled, 'pin', pin, 'next_run_at', next_run_at) FROM jw_native.bindings WHERE source_id = '{SOURCE}';", tuples=True).strip()
+    return json.loads(raw)
+
+
+def source_watermark():
+    raw = psql("previewdb", "SELECT json_build_object('source', source, 'source_generation', source_generation, 'target_generation', target_generation, 'consistency_grade', consistency_grade, 'state', state, 'consistency', consistency) FROM _oo.source_watermark WHERE source = '" + SOURCE + "';", tuples=True).strip()
+    return json.loads(raw)
+
+
+def periods_ok(evidence):
+    cycles = evidence["cycles"]
+    if len(cycles) < 2:
+        return False
+    ops = {op for cycle in cycles for op in cycle["ops"]}
+    gens = [cycle["source_generation"] for cycle in cycles]
+    schedule = evidence["schedule"]
+    gold = evidence["gold"]
+    return (
+        gens == sorted(set(gens))
+        and {"insert", "update", "delete"} <= ops
+        and not evidence["replayed_key_2"]
+        and gold["differences"] == 0
+        and gold["key_2_absent"]
+        and schedule["enabled"] is True
+        and schedule["period_ms"] == evidence["period_ms"]
+        and evidence["watermark_monotonic"]
+    )
+
+
+def recovery_ok(evidence):
+    recovery = evidence["recovery"]
+    return recovery["exit"] != 0 and recovery["wandered"] is False and periods_ok(evidence)
+
+
+def chain_complete(evidence):
+    native = evidence["maintenance"]
+    return bool(
+        periods_ok(evidence)
+        and recovery_ok(evidence)
+        and native.get("status") == 200
+        and native.get("llm_calls") == 0
+        and native.get("artifact_directory")
+        and evidence["dialogue_verified"]
+        and evidence["product_receipt"]
+        and evidence["cancelled"]
+    )
+
+
+def refuse_admission(dest):
+    dest.mkdir(mode=0o700, exist_ok=True)
+    before = read_mark()
+    missing = dest / "missing-report.json"
+    proc = subprocess.run(
+        configured_native.docker(dest, None, ["/opt/admission", "seal-native", "--report", str(missing), "--config", str(missing), "--out", str(dest / "sealed-refuse")]),
+        capture_output=True, timeout=120,
+    )
+    (dest / "refuse.stdout").write_bytes(proc.stdout)
+    (dest / "refuse.stderr").write_bytes(proc.stderr)
+    (dest / "refuse.exit").write_text(str(proc.returncode) + "\n")
+    after = read_mark()
+    wandered = mark_identity(after) != mark_identity(before)
+    return {"exit": proc.returncode, "wandered": wandered, "before_generation": before.get("source_generation"), "after_generation": after.get("source_generation")}
+
+
+def shadow_events(native, generation, previous):
+    current = json.loads((native / "capture/run/shadow/ONBOARD_ORDERS" / f"gen-{generation}.json").read_text())
+    prior = json.loads((previous / "capture/run/shadow/ONBOARD_ORDERS" / f"gen-{generation - 1}.json").read_text())
+    return c5_capture.diff_hashes(prior["hashes"], current["hashes"]), current
+
+
+def official(cfg, dest, generation, previous, keep):
+    before = read_mark()
+    if (dest / "loader-result.json").is_file():
+        loaded = json.loads((dest / "loader-result.json").read_text())
+        if loaded.get("source_generation") == generation:
+            return loaded
+    try:
+        if dest.exists():
+            configured_native.resume_capture(cfg, dest, generation, previous)
+            if keep and configured_worker.run(dest, "enable", ["native-enable", "--binding", BINDING, "--enabled", "true"]):
+                raise ValueError("enable failed")
+        else:
+            configured_native.run(cfg, dest, generation, previous, keep=keep)
+    except (ValueError, OSError, subprocess.TimeoutExpired) as error:
+        after = read_mark()
+        (dest / "refusal.json").write_text(json.dumps({"error": str(error), "before": mark_identity(before), "after": mark_identity(after)}) + "\n")
+        if mark_identity(after) != mark_identity(before):
+            raise SystemExit("watermark_wandered")
+        if not (dest / "loader-result.json").is_file():
+            configured_native.resume_capture(cfg, dest, generation, previous)
+            if keep and configured_worker.run(dest, "enable", ["native-enable", "--binding", BINDING, "--enabled", "true"]):
+                raise ValueError("enable failed")
+        else:
+            raise
+    after = read_mark()
+    if after.get("source_generation") != generation or after.get("load_state") != "awaiting_publish":
+        raise SystemExit("generation_not_applied")
+    if after.get("target_generation") is not None and before.get("target_generation") is not None and after["target_generation"] < before["target_generation"]:
+        raise SystemExit("watermark_wandered")
+    return after
+
+
+def cycles(cfg, dest):
+    # ponytail: the worker execs the producer inside the pg netns, so each official fire cats the request this entry just sealed. Host recapture stays in configured_native.
+    dest.mkdir(mode=0o700, exist_ok=True)
+    c5_live.require_running(c5_live.ORACLE, c5_live.ORACLE_ID)
+    c5_live.require_running(c5_live.PG, c5_live.PG_ID)
+    identity = json.loads((PREVIOUS / "worker-identity.json").read_text())
+    if identity.get("binding") != BINDING:
+        raise SystemExit("binding")
+    reader = Path(cfg["password_file"]).read_text().strip("\r\n")
+    dba = c5_live.DBA_PASSWORD.read_text().strip("\r\n")
+    secrets = [reader.encode(), dba.encode()]
+    sql_dir = dest / "sql"
+    sql_dir.mkdir(mode=0o700, exist_ok=True)
+    present = set(source_keys(reader, sql_dir, secrets, "keys-before"))
+    if "2" in present:
+        raise SystemExit("fixture_keys")
+    recovery = refuse_admission(dest / "recovery")
+    if recovery["exit"] == 0 or recovery["wandered"]:
+        raise SystemExit("recovery_not_bound")
+    mark = read_mark().get("source_generation")
+    native4 = dest / "native-g4"
+    native5 = dest / "native-g5"
+    issued = 0
+    started = time.monotonic()
+    if mark == 3 and present == {"1", "3"}:
+        fixture_dml(
+            dba,
+            "INSERT INTO OO04_FIX.ONBOARD_ORDERS (KEY_ID, AMOUNT, OCCURRED, LABEL, PAYLOAD) VALUES (11, 11.00, DATE '2026-10-14', 'k11', HEXTORAW('0B'));\n"
+            "INSERT INTO OO04_FIX.ONBOARD_ORDERS (KEY_ID, AMOUNT, OCCURRED, LABEL, PAYLOAD) VALUES (12, 12.00, DATE '2026-10-14', 'k12', HEXTORAW('0C'));\n"
+            "COMMIT;\nSELECT 'USER|' || SYS_CONTEXT('USERENV','SESSION_USER') FROM dual;\n"
+            "SELECT 'LEFT|' || KEY_ID FROM OO04_FIX.ONBOARD_ORDERS ORDER BY KEY_ID;",
+            "insert-11-12", sql_dir, secrets,
+        )
+        issued += 2
+    elif not (mark == 3 and present == {"1", "3", "11", "12"} or mark == 4 and (native4 / "loader-result.json").is_file()):
+        raise SystemExit("fixture_keys")
+    scn, log_mode, supplemental = c5_live.publish_scn(dba, sql_dir, secrets, "scn-g4")
+    Path(cfg["scn_file"]).write_text(scn + "\n")
+    loaded4 = official(cfg, native4, 4, PREVIOUS, False)
+    events4, shadow4 = shadow_events(native4, 4, PREVIOUS)
+    elapsed4 = round(time.monotonic() - started, 3)
+    started = time.monotonic()
+    present = set(source_keys(reader, sql_dir, secrets, "keys-before-g5"))
+    if present == {"1", "3", "11", "12"}:
+        fixture_dml(
+            dba,
+            "UPDATE OO04_FIX.ONBOARD_ORDERS SET AMOUNT = 11.50 WHERE KEY_ID = 11;\n"
+            "DELETE FROM OO04_FIX.ONBOARD_ORDERS WHERE KEY_ID = 12;\n"
+            "COMMIT;\nSELECT 'USER|' || SYS_CONTEXT('USERENV','SESSION_USER') FROM dual;\n"
+            "SELECT 'LEFT|' || KEY_ID FROM OO04_FIX.ONBOARD_ORDERS ORDER BY KEY_ID;",
+            "update-11-delete-12", sql_dir, secrets,
+        )
+        issued += 2
+    elif present != {"1", "3", "11"}:
+        raise SystemExit("fixture_keys")
+    scn5, log_mode5, supplemental5 = c5_live.publish_scn(dba, sql_dir, secrets, "scn-g5")
+    Path(cfg["scn_file"]).write_text(scn5 + "\n")
+    loaded5 = official(cfg, native5, 5, native4, True)
+    events5, shadow5 = shadow_events(native5, 5, native4)
+    elapsed5 = round(time.monotonic() - started, 3)
+    if any(event["op"] == "delete" and event["key"] == "2" for event in events4 + events5):
+        raise SystemExit("replayed_key_2")
+    gold = typed_gold(cfg, dest, issued)
+    schedule = schedule_row()
+    (dest / "schedule.json").write_text(json.dumps(schedule) + "\n")
+    body = {
+        "cycles": [
+            {"source_generation": loaded4.get("source_generation"), "target_generation": loaded4.get("target_generation"), "load_state": loaded4.get("load_state"), "run_id": loaded4.get("run_id"), "ops": [event["op"] for event in events4], "grade": shadow4.get("consistency_grade"), "tombstones": shadow4.get("tombstones"), "seconds": elapsed4, "scn": scn, "log_mode": log_mode, "supplemental_log": supplemental},
+            {"source_generation": loaded5.get("source_generation"), "target_generation": loaded5.get("target_generation"), "load_state": loaded5.get("load_state"), "run_id": loaded5.get("run_id"), "ops": [event["op"] for event in events5], "grade": shadow5.get("consistency_grade"), "tombstones": shadow5.get("tombstones"), "seconds": elapsed5, "scn": scn5, "log_mode": log_mode5, "supplemental_log": supplemental5},
+        ],
+        "recovery": recovery,
+        "schedule": schedule,
+        "period_ms": period_ms(cfg),
+        "gold": gold,
+        "source_watermark": source_watermark(),
+        "replayed_key_2": False,
+        "watermark_monotonic": loaded4.get("source_generation") == 4 and loaded5.get("source_generation") == 5 and (loaded5.get("target_generation") or 0) >= (loaded4.get("target_generation") or 0),
+        "customer_writes": 0,
+    }
+    (dest / "cycles.json").write_text(json.dumps(body) + "\n")
+    return body
+
+
+def seed_build(out):
+    present = {bid: (CACHE / "work/builds" / bid).is_dir() for bid in (*FAILED, SUCCEEDED)}
+    if not all(present.values()):
+        raise SystemExit("build_record_missing")
+    saved = json.loads(BUILD_FILE.read_text())
+    if saved.get("build_id") != SUCCEEDED or saved.get("config_sha256") != sha_bytes(PRODUCT.read_bytes()):
+        raise SystemExit("product_resume_drift")
+    product = out / "product"
+    product.mkdir(mode=0o700, exist_ok=True)
+    os.chmod(product, 0o700)
+    dest = product / "build.json"
+    if not dest.exists():
+        dest.write_text(BUILD_FILE.read_text())
+        dest.chmod(0o600)
+    (out / "builds-checked.json").write_text(json.dumps({"resumed": SUCCEEDED, "left_failed": list(FAILED), "present": present}) + "\n")
+
+
+def host_artifact(remote):
+    product = json.loads(PRODUCT.read_text())
+    host = Path(product["work_dir_host"])
+    container = Path(product["work_dir_container"])
+    path = Path(remote)
+    if path.is_relative_to(container):
+        path = host / path.relative_to(container)
+    if not path.is_dir() or not path.resolve().is_relative_to(host.resolve()):
+        raise SystemExit("artifact_root")
+    return path
+
+
+def maintain(out, catalog):
+    import ssl
+    import urllib.request
+    product = json.loads(PRODUCT.read_text())
+    dest = out / "maintenance"
+    dest.mkdir(mode=0o700, exist_ok=True)
+    os.chmod(dest, 0o700)
+    cookie = Path(product["cookies"]["admin"]).read_text().strip()
+    req = urllib.request.Request(
+        product["identity_origin"].rstrip("/") + "/control/v1/identity/current",
+        headers={"Cookie": "__Host-oo-session=" + cookie},
+    )
+    with urllib.request.urlopen(req, context=ssl.create_default_context(cafile=product["identity_ca"]), timeout=30) as response:
+        revision = json.load(response)["revision"]
+    body = {
+        "trigger": "source_generation_advanced",
+        "catalog_sha256": sha_bytes(catalog.read_bytes()),
+        "identity_revision": revision,
+        "idempotency_key": os.urandom(16).hex(),
+    }
+    body_path = dest / "body.json"
+    body_path.write_text(json.dumps(body) + "\n")
+    body_path.chmod(0o600)
+    out_path = dest / "response.json"
+    proc = subprocess.run([
+        sys.executable, str(OPERATOR), "--endpoint", product["endpoint"], "--origin", product["origin"],
+        "--ca", product["ca"], "--cookie-file", product["cookies"]["admin"],
+        "--identity-origin", product["identity_origin"], "--identity-ca", product["identity_ca"],
+        "--path", "/control/v1/builds/" + SUCCEEDED + "/maintenance", "--body-file", str(body_path), "--out", str(out_path),
+    ], capture_output=True)
+    (dest / "operator.exit").write_text(str(proc.returncode) + "\n")
+    saved = json.loads(out_path.read_text()) if out_path.is_file() else {"status": None, "response": {}}
+    native = (saved.get("response") or {}).get("native_maintenance") or {}
+    record = {
+        "status": saved.get("status"),
+        "llm_calls": native.get("llm_calls"),
+        "artifact_directory": native.get("artifact_directory"),
+        "catalog_sha256": body["catalog_sha256"],
+        "trigger": "source_generation_advanced",
+        "build_id": SUCCEEDED,
+    }
+    (dest / "summary.json").write_text(json.dumps(record) + "\n")
+    return record
+
+
+def ensure_producer():
+    PRODUCER_DIR.mkdir(mode=0o700, exist_ok=True)
+    os.chmod(PRODUCER_DIR, 0o700)
+    token = PRODUCER_DIR / "token"
+    if not token.exists():
+        token.write_text(os.urandom(24).hex() + "\n")
+        token.chmod(0o600)
+    config = {
+        "listen_host": "127.0.0.1", "port": PRODUCER_PORT, "token_file": str(token),
+        "occurrences": str(PRODUCER_DIR / "occurrences"), "scn_file": "/tmp/oo-oracle-connection-whole/scn.txt",
+        "bindings": {BINDING: {
+            "source_id": SOURCE,
+            "baseline": str(PREVIOUS / "capture"),
+            "baseline_request": str(PREVIOUS / "request.json"),
+        }},
+    }
+    path = PRODUCER_DIR / "producer.json"
+    path.write_text(json.dumps(config) + "\n")
+    path.chmod(0o600)
+    pid_path = PRODUCER_DIR / "pid"
+    if pid_path.is_file():
+        pid = int(pid_path.read_text().strip() or "0")
+        if pid and subprocess.run(["kill", "-0", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+            return {"pid": pid, "port": PRODUCER_PORT, "config": str(path), "binding": BINDING, "capture_invoked": False}
+    log = PRODUCER_DIR / "producer.log"
+    proc = subprocess.Popen(
+        [sys.executable, str(ROOT / "tools/oracle-preview/native_producer.py"), "--config", str(path)],
+        stdout=log.open("ab"), stderr=subprocess.STDOUT, start_new_session=True,
+    )
+    pid_path.write_text(str(proc.pid) + "\n")
+    import socket
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            raise SystemExit("producer_exited")
+        try:
+            with socket.create_connection(("127.0.0.1", PRODUCER_PORT), 0.2):
+                break
+        except OSError:
+            time.sleep(0.1)
+    else:
+        raise SystemExit("producer_listen")
+    return {"pid": proc.pid, "port": PRODUCER_PORT, "config": str(path), "binding": BINDING, "capture_invoked": False}
 
 
 def main():
@@ -548,32 +888,45 @@ def main():
         raise SystemExit("fixture")
     if cfg["selections"][0]["source_id"] != SOURCE or cfg["approved_objects"] != ["OO04_FIX.ONBOARD_ORDERS"]:
         raise SystemExit("fixture")
+    producer = ensure_producer()
+    (run / "producer.json").write_text(json.dumps(producer) + "\n")
+    current = cycles(cfg, run / "current")
     ensure_accounts()
+    seed_build(run)
     run_product(run)
-    gateway = bind_gateway(run / "product")
+    native = maintain(run, run / "current/native-g5/catalog.json")
+    folder = host_artifact(native["artifact_directory"]) if native.get("artifact_directory") and native.get("llm_calls") == 0 and native.get("status") == 200 else None
+    gateway = bind_gateway(run / "product", folder)
     found = probe(gateway, run / "probe")
     (GW / "probe-table.txt").write_text(json.dumps(found["table"]) + "\n")
     dialogue(run, gateway, found)
     cancelled = cancel_one(gateway)
-    current = capture(cfg, run / "current", found)
     verdict = json.loads((run / "dialogue/verdict.json").read_text())
     receipt = run / "product/product-receipt.json"
-    complete = verdict.get("outcome") == "verified" and receipt.is_file() and current["lifecycle_observed"] and bool(cancelled)
+    evidence = dict(current, maintenance=native, dialogue_verified=verdict.get("outcome") == "verified", product_receipt=receipt.is_file(), cancelled=bool(cancelled))
+    periodic = periods_ok(evidence)
+    recovered = recovery_ok(evidence)
+    complete = chain_complete(evidence)
     body = {
         "protocol": "oo.oracle.whole-run/v1",
         "full_product_chain_complete": complete,
-        "periodic_insert_update_delete_verified": complete,
-        "recovery_verified": complete,
+        "periodic_insert_update_delete_verified": periodic,
+        "recovery_verified": recovered,
+        "maintenance": native,
         "product_receipt": "product/product-receipt.json",
         "dialogue_verdict": "dialogue/verdict.json",
         "current_capture": "current/typed-gold.json",
+        "cycles": "current/cycles.json",
         "schedule": "current/schedule.json",
-        "waits": current["wait"],
-        "prior_cycle_sha256": current["prior_cycle_sha256"],
+        "period_ms": current["period_ms"],
+        "cycle_seconds": [item["seconds"] for item in current["cycles"]],
+        "grades": [item["grade"] for item in current["cycles"]],
+        "source_watermark": current["source_watermark"],
         "cancel_query_id": cancelled,
         "customer_writes": 0,
         "published": False,
         "c1_logminer": "off",
+        "producer": producer,
     }
     (run / "whole.json").write_text(json.dumps(body, indent=2) + "\n")
     if not complete:
