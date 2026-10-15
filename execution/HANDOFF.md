@@ -1,3 +1,5 @@
+2026-10-16 MySQL持续演示认证：root于22:06UTC经官方issuer签发独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261015T220602Z.token` 实查5.7/8.4新QID与当前位置93/39、无warnings；TTL1小时，约23:06UTC到期，无自动续签。原token/QA/pins不改，回执 /tmp/oo-root-mysql-auth-20261015T220602Z/receipt.json（SHA见CONTROL/JSON）；未改源数据/Pack/代码，无新增签收。
+
 2026-10-16 MySQL演示认证维护：root于21:09:37UTC经现有official issuer为5.7/8.4各签发独立私有token，TTL3600000ms；CLI带 `--token-file /run-current/renewed-client-root-20261015T210936Z.token` 实测新badge/current position93/39正确。原默认token及QA/WAL/pins全部不改；新token需显式CLI参数，约22:09UTC到期，无自动续签。私有原始回执 /tmp/oo-root-mysql-auth-20261015T210936Z/receipt.json（SHA见CONTROL/JSON）；无业务DML/代码/Pack/正式签收变化。
 
 2026-10-16 已真实派发并收到Oracle唯一 /root/oracle_complete_luna_max（gpt-6-luna/max）接卡；与Doris唯一Luna max完整长跑独立并行，精确writer边界按两新卡，MySQL保持不可变固定服务、其他7held。Oracle父项DBX-W09/DL01-W1-10，Doris原Plan核实DBX-W12/DL01-W1-43。无组件审阅、无新验收/整版计数。
