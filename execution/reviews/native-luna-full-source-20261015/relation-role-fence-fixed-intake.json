@@ -1,0 +1,22 @@
+{
+  "as_of": "2026-10-15T18:47:26.879708+00:00",
+  "commit": "6042b3f0b",
+  "scope": "allow independent roles on separate relations; retain rejection for different roles on same relation due sharedRLS policy",
+  "artifact_index": "/tmp/oo-mysql-connection-whole/doris-sol-role-fence-20261016/artifact.json",
+  "root_verification": {
+    "path": "/tmp/oo-root-role-fence-artifact-check-20261016.json",
+    "sha256": "2e58fc9bfb0345e591dc56757e3f6ab2f5d02c52802579741b3f5a2b59ac8d7e",
+    "binary_and_archive_checks": 3,
+    "target_commit_blob_match": true,
+    "actual_live_multi_role_regression_pass": true
+  },
+  "actual_effect": "MySQL5.7 adopted fixedcoordinator14bda/API d495, publication next realrefusal kept; no fullsource claim",
+  "source_provenance": "exact composed frozenmysql57-grant-query-v3 base +6042target delta; archiveSHA37cc2d6ecab121dde83577728ce4835e739e15aaa4267cabac49fcdbf28a79ee",
+  "suite_limit": "24passed1missing-envfailed3ignored retained; not all green",
+  "formal_count_delta": 0,
+  "review": "root decisive artifact check; no independent component review",
+  "protocol_checks": {
+    "Plan_counting_matrix_PRODUCT_LOOPS_GOAL_frontend": "unchanged original exits and formalcounts; sharedfunctionalhandoffonly",
+    "ledgers_CONTROL_JSON_active_CHANGELOG": "updated; TODO regenerated"
+  }
+}

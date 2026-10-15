@@ -246,8 +246,10 @@ print(json.dumps({'stopped_owned_api':hits}))
         product_config=load(self.p['product_config'])
         build=load(Path(self.p['reuse_product'])/'product-receipt.json')['build_id']
         evidence_id=hashlib.sha256(''.join(digest(exported/(n+'.json')) for n in ['request','load','ack']).encode()).hexdigest()
-        evidence=Path(product_config['work_dir_host'])/'builds'/build/'source-evidence'/evidence_id
-        evidence.mkdir(mode=0o700,parents=True,exist_ok=False)
+        evidence_root=Path(product_config['work_dir_host'])/'builds'/build/'source-evidence'
+        evidence_root.mkdir(mode=0o700,exist_ok=True)
+        evidence=evidence_root/evidence_id
+        evidence.mkdir(mode=0o700,exist_ok=False)
         for name in ['request','load','ack']:
             shutil.copy2(exported/(name+'.json'),evidence/(name+'.json'))
         semantics['evidence_set_id']=evidence_id

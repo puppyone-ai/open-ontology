@@ -402,8 +402,9 @@ async fn install_body(tx: &Transaction<'_>, fence: &FenceRef<'_>) -> Result<Rece
     }
     if tx
         .query_opt(
-            "SELECT 1 FROM oo_publish_target.fence WHERE role_name <> $1 LIMIT 1",
-            p!(fence.role_name),
+            // The fixed RLS policy is relation-local; other source relations have independent fences.
+            "SELECT 1 FROM oo_publish_target.fence WHERE role_name <> $1 AND schema_name = $2 AND relation_name = $3 LIMIT 1",
+            p!(fence.role_name, fence.schema_name, fence.relation_name),
         )
         .await
         .map_err(query_error)?
@@ -1434,5 +1435,40 @@ mod replica_tests {
         assert!(replica_barrier(&primary, &primary).await.is_err());
         assert!(replica_barrier(&replica, &primary).await.is_err());
         println!("OWNED_REPLICA_RAW {}", observed);
+    }
+}
+
+#[cfg(test)]
+mod multi_role_tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore = "owned target with two prepared roles and relations required"]
+    async fn owned_distinct_relations_keep_role_fences_and_acl_isolated() {
+        let path = std::env::var("OO_NATIVE_MULTI_ROLE_TEST_CONFIG").expect("private config");
+        let cfg: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        let endpoint = Endpoint { host:cfg["host"].as_str().unwrap().into(), port:5432,
+            database:cfg["database"].as_str().unwrap().into() };
+        let password=std::fs::read_to_string(cfg["password_file"].as_str().unwrap()).unwrap();
+        let ca=std::fs::read(cfg["ca_file"].as_str().unwrap()).unwrap();
+        let conn=TargetConn {endpoint:&endpoint,user:cfg["user"].as_str().unwrap(),password:password.trim(),ca_pem:&ca};
+        let fences:Vec<FenceRef<'_>>=cfg["bindings"].as_array().unwrap().iter().map(|b|FenceRef {
+            schema_name:b["schema"].as_str().unwrap(),relation_name:b["table"].as_str().unwrap(),role_name:b["role"].as_str().unwrap()}).collect();
+        assert_eq!(fences.len(),2);
+        assert_ne!(fences[0].role_name,fences[1].role_name);
+        assert_ne!((fences[0].schema_name,fences[0].relation_name),(fences[1].schema_name,fences[1].relation_name));
+        assert_eq!(install_target(&conn,&fences[0]).await.unwrap().code,0);
+        let session=open(conn.endpoint,conn.user,conn.password,conn.ca_pem).await.unwrap();
+        let query="SELECT jsonb_build_object('fences',(SELECT jsonb_agg(to_jsonb(f) ORDER BY schema_name,relation_name) FROM oo_publish_target.fence f WHERE role_name=$1),'acl',(SELECT relacl::text FROM pg_class WHERE oid=to_regclass(format('%I.%I',$2::text,$3::text))))::text";
+        let first=&fences[0];
+        let before:String=session.client.query_one(query,p!(first.role_name,first.schema_name,first.relation_name)).await.unwrap().get(0);
+        assert_eq!(install_target(&conn,&fences[1]).await.unwrap().code,0);
+        let after:String=session.client.query_one(query,p!(first.role_name,first.schema_name,first.relation_name)).await.unwrap().get(0);
+        assert_eq!(before,after,"unrelated role fence/ACL changed");
+        let conflicting=FenceRef {schema_name:first.schema_name,relation_name:first.relation_name,role_name:fences[1].role_name};
+        assert!(install_target(&conn,&conflicting).await.is_err());
+        let final_state:String=session.client.query_one(query,p!(first.role_name,first.schema_name,first.relation_name)).await.unwrap().get(0);
+        assert_eq!(before,final_state,"rejected role changed relation state");
+        println!("OWNED_MULTI_ROLE_RAW distinct relation installed; original fence/ACL unchanged; same relation foreign role refused unchanged");
     }
 }

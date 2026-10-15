@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-10-15T18:39:48.965561+00:00",
+  "as_of": "2026-10-15T18:47:26.879708+00:00",
   "status": "mysql84_complete_fixed_reference_verified_mysql57_and_oracle_c5_reference_active",
   "owner": "root",
   "source_release_allowed": false,
@@ -468,5 +468,7 @@
     "global_source_release_allowed": false,
     "other_sources_held": 7,
     "purpose": "completeDoris7table mixedC4/C5 fullproduct reference, not publisher component task"
-  }
+  },
+  "latest_complete_reference_shared_scope": "execution/batches/native-luna-full-source-20261015/complete-reference-shared-scope-20261016.json",
+  "latest_relation_role_fence_intake": "execution/reviews/native-luna-full-source-20261015/relation-role-fence-fixed-intake.json"
 }
