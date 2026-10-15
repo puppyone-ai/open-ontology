@@ -1,6 +1,6 @@
 {
-  "as_of": "2026-10-15T18:21:32.910859+00:00",
-  "status": "spawned",
+  "as_of": "2026-10-15T18:50:39.666373+00:00",
+  "status": "completed_incomplete_safe_pause_writer_released",
   "agent": "/root/oracle_c5_complete_sol",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "medium",
@@ -21,5 +21,8 @@
       "pipeline migration append-only if actually necessary"
     ],
     "confirmed_by_current_owner": true
-  }
+  },
+  "latest_human_policy": "execution/batches/native-luna-full-source-20261015/mysql-first-other-sources-luna-max-policy.json",
+  "resume_model": "gpt-6-luna/max only after MySQL bothversionsstable",
+  "pause_intake": "execution/reviews/native-luna-full-source-20261015/oracle-mysql-first-pause-intake.json"
 }

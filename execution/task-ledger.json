@@ -8180,7 +8180,7 @@
       "source_commit": "8a5de6528"
     }
   ],
-  "current_execution_note": "Fixed completeMySQL8.4 fixture reference verified; required5.7 C1/OracleC5/Doris7tableC4-C5 full references active (Solmedium unique owners), other7held; formal0/10",
+  "current_execution_note": "Latest human: onlyMySQL5.7+8.4 full stable first; Oracle/Doris safehandoff paused, allother9held; future other-source engineersgpt6luna/max; formal0/10",
   "active_batch_development": {
     "batch": "dl01-wave1-20261009",
     "frozen_units": 8,
@@ -10089,7 +10089,7 @@
     "required_57_status": "active_not_complete",
     "current_owner": "/root/mysql57_reference_sol",
     "release_other_sources": false,
-    "narrow_next_reference": "OracleC5single andDoris7tableC4/C5 complete references active; other7held"
+    "narrow_next_reference": "none until required5.7 and8.4 both complete stable"
   },
   "latest_mysql_reference_dispatch": {
     "as_of": "2026-10-15T18:50:46.388216+08:00",
@@ -10172,7 +10172,7 @@
     "source_rollout_allowed": false,
     "scope": "unchanged complete MySQL reference before other sources reuse"
   },
-  "as_of": "2026-10-15T18:47:26.879708+00:00",
+  "as_of": "2026-10-15T18:56:30.621199+00:00",
   "latest_mysql_sol_complete_transfer": {
     "as_of": "2026-10-15T18:50:46.388216+08:00",
     "human_model_authorization": "下一次开新子智能体，模型可以升级为gpt 6.1 sol medium",
@@ -10368,5 +10368,9 @@
     "purpose": "completeDoris7table mixedC4/C5 fullproduct reference, not publisher component task"
   },
   "latest_complete_reference_shared_scope": "execution/batches/native-luna-full-source-20261015/complete-reference-shared-scope-20261016.json",
-  "latest_relation_role_fence_intake": "execution/reviews/native-luna-full-source-20261015/relation-role-fence-fixed-intake.json"
+  "latest_relation_role_fence_intake": "execution/reviews/native-luna-full-source-20261015/relation-role-fence-fixed-intake.json",
+  "latest_mysql_first_luna_max_policy": "execution/batches/native-luna-full-source-20261015/mysql-first-other-sources-luna-max-policy.json",
+  "latest_doris_mysql_first_pause_intake": "execution/reviews/native-luna-full-source-20261015/doris-mysql-first-pause-intake.json",
+  "latest_oracle_mysql_first_pause_intake": "execution/reviews/native-luna-full-source-20261015/oracle-mysql-first-pause-intake.json",
+  "latest_mysql_interval_comparison_scope": "execution/batches/native-luna-full-source-20261015/mysql-reference-dispatch.json#latest_interval_scope"
 }

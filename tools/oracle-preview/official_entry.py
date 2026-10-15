@@ -28,6 +28,7 @@ PRODUCT_DIR = Path("/tmp/oo-oracle-connection-whole/whole-20261014f/product")
 SEALED = Path("/Users/redux/.cache/oo-oracle-connection-whole/bundle/catalog.json")
 PACK = Path("/Users/redux/.cache/oo-oracle-connection-whole/gateway/packs/oo_r_oracle_orders.json")
 BANK = Path("/tmp/oo-oracle-connection-whole/maint-c44/dialogue-g7/bank.json")
+PRIOR = Path("/tmp/oo-oracle-connection-whole/maint-c44/dialogue-g7/prior-manifest.json")
 TRUTH = Path("/tmp/oo-oracle-connection-whole/maint-c44/dialogue-g7/gold.json")
 ROLE_RESPONSE = Path("/tmp/oo-oracle-connection-whole/maint-c44/g7/role-response.json")
 PATHS = Path("/tmp/oo-oracle-connection-whole/maint-c44/dialogue-g7/run-a.json")
@@ -116,6 +117,7 @@ def write_dialogue_config(run):
         "independent_truth_file": str(TRUTH),
         "sample_size": 2,
         "history": [],
+        **({"prior_manifest": str(PRIOR)} if PRIOR.is_file() else {}),
         "model": "gpt-6.1-sol",
         "model_origin": paths["model_origin"],
         "model_bearer_file": paths["model_bearer_file"],

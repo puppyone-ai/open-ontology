@@ -1,9 +1,9 @@
 {
-  "as_of": "2026-10-15T18:39:48.965561+00:00",
+  "as_of": "2026-10-15T18:50:39.666373+00:00",
   "agent": "/root/doris_c4_c5_complete_sol",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "medium",
-  "status": "running_accepted",
+  "status": "completed_incomplete_safe_pause_writer_released",
   "contract": "execution/batches/native-luna-full-source-20261015/DORIS-C4-C5-COMPLETE-SOL-20261016.md",
   "fixed_reference_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
   "source_paths": [
@@ -20,5 +20,8 @@
   "formal_count_delta": 0,
   "global_source_release_allowed": false,
   "other_sources_held": 7,
-  "purpose": "completeDoris7table mixedC4/C5 fullproduct reference, not publisher component task"
+  "purpose": "completeDoris7table mixedC4/C5 fullproduct reference, not publisher component task",
+  "latest_human_policy": "execution/batches/native-luna-full-source-20261015/mysql-first-other-sources-luna-max-policy.json",
+  "resume_model": "gpt-6-luna/max only after MySQL bothversionsstable",
+  "pause_intake": "execution/reviews/native-luna-full-source-20261015/doris-mysql-first-pause-intake.json"
 }

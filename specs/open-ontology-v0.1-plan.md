@@ -2943,3 +2943,8 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 ### 2026-10-16 固定8.4完整fixture参考与5.7/C5接续
 
 2026-10-16 MySQL8.4本地完整产品参考已root核验：六字段默认run ed7e08aad07741169b5926a8f6c403fd六步骤exit0/wholetrue，真实C1自主IUD/quiet/崩溃恢复、S0–S10/当前维护Pack、fixture正式发布与真实RO副本、Gateway/CLI两组随机两轮对话；110019行43列逐值源对账0差异，4事实与独立gold/原QID-WAL一致，71项SHA零误、源码archive重生成一致。固定source6a2e99d17/Gateway84f86555c及逐组件ELF见 execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json。这是8.4 fixture参考通过；5.7仍须完整退出，正式0/10/整版0，不晋级生产认证。当前唯一Sol medium MySQL5.7负责人继续，独立正常identity前置负责人只写control-identity fixture/own recipe，Oracle完整C5参考负责人获MySQL明确释放的native_publication.rs/target.rs/target_installer.rs及append-only迁移窄域并行；既有C1 ELF固定不采并发树。其余8源保持held，统一独立审阅按人类原时点，无组件审阅/计数分母新增。 原Plan原退出和所有开发/集成/发行/外部门槛分母分子不变；不勾父项/Phase。
+
+
+### 2026-10-16 先完成MySQL两版本，其他源后续Luna max
+
+2026-10-16 最新直接人类排期覆盖：必须先将MySQL 8.4与5.7整条产品链完整、稳定跑通，再开展Doris及其他源工作。此前Oracle/Doris窄参考放行现撤回；已通知两负责人停止新开发/编译/DML/测试/发布/模型调用，仅安全收取正在执行命令并保留全部代码/失败/资源，待真实终态回执才转移writer。当前MySQL唯一Sol medium长跑继续，已交6042角色窄修固定API/CLI可继续用，不采用其他源未完WIP。后续其他源唯一工程师统一gpt-6-luna/max，在MySQL两版本全部原退出被root核实并固定制品后才派。Goal仍active，非整体暂停；正式0/10、原Plan全部退出/分母/五版次序/安全/审阅政策不变。精确政策 execution/batches/native-luna-full-source-20261015/mysql-first-other-sources-luna-max-policy.json。

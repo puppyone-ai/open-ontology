@@ -1,0 +1,43 @@
+{
+  "as_of": "2026-10-15T18:52:58.902123+00:00",
+  "task": "Doris paused by latest human, not complete",
+  "handoff": {
+    "path": "/tmp/oo-doris-connection-whole/sol-stop-20261016/HANDOFF.json",
+    "sha256": "00b4cc69d76b4115ba6881d4ab558408c706f50e478c867df25a4e2def381b1e"
+  },
+  "root_current_wip_hashes_verified": 5,
+  "writer_released": true,
+  "new_background_writers": 0,
+  "existing_databases_resources": "retained; no new Doris target/workers/DML/import/ACK/model/registry occurred",
+  "only_committed_product": "6042b3f0b fixedMySQLrolefence, preserved actualartifact",
+  "uncommitted_unverified_wip": [
+    {
+      "path": "tools/release-coordinator/src/native_publication.rs",
+      "sha256": "e64281260515a8393a22462b77fce31fa8f446f9ef9bf2601f6657ebf44999c2",
+      "status": "uncommitted untested incomplete WIP after6042b3f0b"
+    },
+    {
+      "path": "tools/release-coordinator/src/target.rs",
+      "sha256": "504c4d70447ceeb56c830a846841a0cb80663b72a6ec12c5af5b6d2437e10f92",
+      "status": "uncommitted untested incomplete WIP after6042b3f0b"
+    },
+    {
+      "path": "crates/oo-pipeline/src/target_installer.rs",
+      "sha256": "bbde1608a5b6490694f1c6c610829f6a36889cb50ec2dbfc39a24769054b6d33",
+      "status": "uncommitted untested incomplete WIP after6042b3f0b"
+    },
+    {
+      "path": "crates/oo-pipeline/migrations/0039_native_per_table_publication.sql",
+      "sha256": "7ff3d099c04df94fa049a759650cfd82f21cf910e5756d16d629303674b963a8",
+      "status": "uncommitted untested incomplete WIP after6042b3f0b"
+    },
+    {
+      "path": "tools/job-worker/src/native_schedule.rs",
+      "sha256": "2d7adcb321b57626dbe6b3175cd6445dd78e38d6cc91a91521bf4aac99df18ec",
+      "status": "uncommitted untested incomplete WIP after6042b3f0b"
+    }
+  ],
+  "resume_condition": "MySQL8.4AND5.7fullstable first; newDorisowner gpt-6-luna/max after explicitrootrelease",
+  "no_adoption": "WIP0039/native_schedule/nativepublication not usable MySQL inputs",
+  "formal_count_delta": 0
+}

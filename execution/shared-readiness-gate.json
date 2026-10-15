@@ -1,6 +1,6 @@
 {
-  "as_of": "2026-10-15T18:47:26.879708+00:00",
-  "status": "mysql84_complete_fixed_reference_verified_mysql57_and_oracle_c5_reference_active",
+  "as_of": "2026-10-15T18:50:39.666373+00:00",
+  "status": "mysql84_verified_mysql57_pending_all_other_sources_paused",
   "owner": "root",
   "source_release_allowed": false,
   "source_tasks": [
@@ -16,9 +16,7 @@
     "DL01-W1-46"
   ],
   "reference_only_tasks": [
-    "DL01-W1-06",
-    "DL01-W1-09",
-    "DL01-W1-43"
+    "DL01-W1-06"
   ],
   "policy": "Finish shared product chain and stabilize pinned contracts before resuming complete per-source workflows. No acceptance from isolated components, historical snapshots, diagnostic Packs or manufactured gates.",
   "criteria": [
@@ -308,7 +306,7 @@
       "status": "OpenSearch real S0-S10 succeeded; others pending"
     }
   ],
-  "source_release_scope": "MySQL8.4 fixed complete fixture reference verified. Required5.7 C1, OracleC5single andDoris7tableC4/C5 complete references active; other7held. Explicitsolewriters, fixedELF reuse; no blanket source/method/production acceptance.",
+  "source_release_scope": "Only completeMySQL5.7+8.4 permitted now; prior Oracle/Doris narrow release superseded by latest human. Other9 stop newwork and safehandoff; laterLuna max afterMySQL stable fixedchain.",
   "historical_gateway_observation": {
     "status": "author_delivered_fixed_partial_gate",
     "owner": "DL01-W1-73",
@@ -374,7 +372,7 @@
     "required_57_status": "active_not_complete",
     "current_owner": "/root/mysql57_reference_sol",
     "release_other_sources": false,
-    "narrow_next_reference": "OracleC5single andDoris7tableC4/C5 complete references active; other7held"
+    "narrow_next_reference": "none until required5.7 and8.4 both complete stable"
   },
   "latest_mysql_target_stage_primitive": {
     "intake": "execution/reviews/native-luna-full-source-20261015/mysql-target-stage-primitive-intake.json",
@@ -470,5 +468,7 @@
     "purpose": "completeDoris7table mixedC4/C5 fullproduct reference, not publisher component task"
   },
   "latest_complete_reference_shared_scope": "execution/batches/native-luna-full-source-20261015/complete-reference-shared-scope-20261016.json",
-  "latest_relation_role_fence_intake": "execution/reviews/native-luna-full-source-20261015/relation-role-fence-fixed-intake.json"
+  "latest_relation_role_fence_intake": "execution/reviews/native-luna-full-source-20261015/relation-role-fence-fixed-intake.json",
+  "latest_mysql_first_luna_max_policy": "execution/batches/native-luna-full-source-20261015/mysql-first-other-sources-luna-max-policy.json",
+  "source_workflows_held": true
 }

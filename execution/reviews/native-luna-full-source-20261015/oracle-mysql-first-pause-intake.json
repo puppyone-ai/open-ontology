@@ -1,0 +1,33 @@
+{
+  "as_of": "2026-10-15T18:55:45.762391+00:00",
+  "source_commit": "827c6c7a63ce3b4199c4381821a971466f277763",
+  "hold_receipt": {
+    "path": "/tmp/oo-oracle-c5-sol-20261016/HOLD-RECEIPT.json",
+    "sha256": "3cb0b54c3cbeb16d4ad9bed168e1e2e7e239a1ee2cd62f948104ac9f0c336738"
+  },
+  "root_hash_checks": {
+    "files": 550,
+    "errors": 0,
+    "full_git_archive_regenerated_match": true
+  },
+  "status": "safe_held_incomplete_writer_released",
+  "whole": false,
+  "source_generation": 10,
+  "scheduler_enabled": false,
+  "active_task_id": null,
+  "native_serve_containers": [],
+  "ownership_released": true,
+  "overlay_changed": false,
+  "no_new_model_calls": true,
+  "remaining": [
+    "generation10 independent gold/catalog/current source evidence",
+    "Oracle current-semantic verification/projection in root-authorized shared API overlay.rs; not implemented",
+    "current official maintenance/Pack and standard OOS semantics",
+    "generic single-run fixture publication and real standby barrier",
+    "current Gateway/CLI preflight/deny/cancel and two random two-turn dialogue gold/QID/WAL",
+    "normal six-field current pins/journal/allsteps/whole proof"
+  ],
+  "resources": "Oracle APIs/release stopped, source/target/standby retained; no MySQL/sharedidentity mutation",
+  "future_owner": "gpt-6-luna/max after MySQL5.7AND8.4complete stable",
+  "formal_count_delta": 0
+}

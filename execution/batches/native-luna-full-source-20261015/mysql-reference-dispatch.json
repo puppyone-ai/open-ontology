@@ -37,7 +37,8 @@
     "tools/agent-product-verifier/tests/test_dialogue.py",
     "crates/oo-gateway/src/sql_guard.rs",
     "crates/oo-gateway/tests/sql_guard.rs",
-    "crates/oo-gateway/tests/a327_numeric.rs"
+    "crates/oo-gateway/tests/a327_numeric.rs",
+    "crates/oo-gateway/src/policy_catalog.rs"
   ],
   "root_scope": "coordination ledger and fixed evidence only; no duplicate product writer",
   "first_actual_finding": "real Linux binaries retained; real scheduler/producer invocation failures retained; typed full-import bridge remains refusal stub and is next implementation",
@@ -80,5 +81,24 @@
       "pipeline migration append-only if actually necessary"
     ],
     "confirmed_by_current_owner": true
+  },
+  "mysql_only_official_registry_delegation": {
+    "engine": "mysql only",
+    "method": "existing officialregister_engine, exactfixedrecipe/normalrun, preserve otherentries/no handwholeflags",
+    "reason": "avoid coordinationblocking finalMySQL normal6fieldproof",
+    "other_source_work": "paused"
+  },
+  "latest_interval_scope": {
+    "as_of": "2026-10-15T18:56:30.621199+00:00",
+    "owner": "/root/mysql57_reference_sol",
+    "paths": [
+      "crates/oo-gateway/src/sql_guard.rs",
+      "crates/oo-gateway/tests/sql_guard.rs",
+      "crates/oo-gateway/src/policy_catalog.rs",
+      "crates/oo-gateway/src/public_surface.rs if actually needed"
+    ],
+    "reason": "actual frozen randomnegativeTIME comparison rejected; noresampling/goldchange, strictbuiltinintervalcomparisons needed",
+    "safety": "pg_catalog typedoperator signatures+comparisonliteral only, no arbitrarycasts/functions/arrays/typmods/foreignschema, nonzero/negative realtests; no general parser/framework",
+    "paid_call_gate": "all frozenbank semantics no-model CLI preflight first; preserve20roundfailed transcript, no repeatdeterministicunsupportedSQL model loop"
   }
 }
