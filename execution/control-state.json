@@ -3527,5 +3527,16 @@
       "tools/selfbuild-control-api/src/overlay.rs"
     ],
     "formal_source_count_delta": 0
+  },
+  "latest_mysql_manual_token_refresh": {
+    "path": "/tmp/oo-root-mysql-auth-20261015T210936Z/receipt.json",
+    "sha256": "d81f9ab3419d620f388ff36e7832e244a595bd602bfaf308f571c46fbcb96624",
+    "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
+    "issued_UTC": "2026-10-15T21:09:37Z",
+    "client_ttl_ms": 3600000,
+    "token_container_path": "/run-current/renewed-client-root-20261015T210936Z.token",
+    "requires_explicit_CLI_flag": true,
+    "automatic_renewal": false,
+    "formal_source_count_delta": 0
   }
 }
