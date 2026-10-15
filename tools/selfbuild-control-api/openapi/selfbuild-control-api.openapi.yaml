@@ -388,6 +388,12 @@ paths:
         - $ref: "#/components/parameters/buildId"
         - $ref: "#/components/parameters/csrf"
         - $ref: "#/components/parameters/origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaintenanceBody"
       responses:
         "200":
           description: Maintenance receipt. llm_calls is 0. Not publication.
@@ -541,6 +547,18 @@ components:
           schema:
             $ref: ../schema/error.schema.json
   schemas:
+    MaintenanceBody:
+      type: object
+      additionalProperties: false
+      required: [identity_revision, idempotency_key, trigger]
+      properties:
+        identity_revision: {type: integer, minimum: 1}
+        idempotency_key: {type: string, pattern: "^[a-f0-9]{32}$"}
+        trigger: {type: string, enum: [source_generation_advanced, schema_changed, source_fact_corrected, feedback, table_ready, scheduled, manual]}
+        catalog_sha256: {type: string, pattern: "^[a-f0-9]{64}$"}
+        source_semantics_sha256: {type: string, pattern: "^[a-f0-9]{64}$", description: "Optional Doris-only SHA-256 of the create-new current-source-semantics.json in the fixed build directory."}
+        fact_edit: {type: object}
+        note: {type: string, maxLength: 200}
     RevisionBody:
       type: object
       additionalProperties: false

@@ -17,11 +17,41 @@ macro_rules! p {
 
 const POLICY: &str = "oo_fence";
 
+#[derive(Clone, Copy)]
 pub struct TargetConn<'a> {
     pub endpoint: &'a Endpoint,
     pub user: &'a str,
     pub password: &'a str,
     pub ca_pem: &'a [u8],
+}
+
+/// Observe the configured physical standby after all fence-closing commits.
+pub async fn replica_barrier(primary: &TargetConn<'_>, replica: &TargetConn<'_>) -> Result<Value, StoreError> {
+    if primary.endpoint == replica.endpoint || primary.endpoint.database != replica.endpoint.database {
+        return Err(StoreError::Input);
+    }
+    let primary_session = open(primary.endpoint, primary.user, primary.password, primary.ca_pem).await?;
+    require_tls(&primary_session.client).await?;
+    let cut = primary_session.client.query_one("SELECT pg_is_in_recovery(), pg_current_wal_flush_lsn()::text", &[]).await.map_err(query_error)?;
+    if cut.get::<_, bool>(0) { return Err(StoreError::Input); }
+    let required: String = cut.get(1);
+    let standby = open(replica.endpoint, replica.user, replica.password, replica.ca_pem).await?;
+    require_tls(&standby.client).await?;
+    standby.client.batch_execute("SET statement_timeout = '5s'").await.map_err(query_error)?;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        let row = standby.client.query_one("SELECT pg_is_in_recovery(), current_setting('transaction_read_only') = 'on', pg_last_wal_replay_lsn()::text, COALESCE(pg_last_wal_replay_lsn() >= $1::text::pg_lsn, false)", p!(&required)).await.map_err(query_error)?;
+        let recovery: bool = row.get(0); let readonly: bool = row.get(1);
+        if !recovery || !readonly { return Err(StoreError::Input); }
+        if row.get::<_, bool>(3) {
+            return Ok(json!({"barrier":"replayed", "primary_flush_lsn":required,
+                "replica_replay_lsn":row.get::<_, Option<String>>(2), "in_recovery":recovery,
+                "transaction_read_only":readonly, "replica_host":replica.endpoint.host,
+                "database":replica.endpoint.database}));
+        }
+        if tokio::time::Instant::now() >= deadline { return Err(StoreError::Input); }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
 }
 
 pub struct FenceRef<'a> {
@@ -109,6 +139,73 @@ pub async fn open_target(
     version: &str,
     candidate_id: &str,
 ) -> Result<Receipt, StoreError> {
+    open_target_inner(
+        conn,
+        fence,
+        columns,
+        pack_digest,
+        version,
+        candidate_id,
+        None,
+    )
+    .await
+}
+
+pub async fn open_native_target(
+    conn: &TargetConn<'_>,
+    fence: &FenceRef<'_>,
+    columns: &[String],
+    pack_digest: &str,
+    version: &str,
+    candidate_id: &str,
+    publication: &crate::native_publication::Publication,
+) -> Result<Receipt, StoreError> {
+    open_target_inner(
+        conn,
+        fence,
+        columns,
+        pack_digest,
+        version,
+        candidate_id,
+        Some(publication),
+    )
+    .await
+}
+
+/// One source cut opens every reviewed table fence in the same target transaction.
+pub async fn open_native_collection(conn:&TargetConn<'_>,bindings:&[(String,String,String,Vec<String>)],
+ pack_digest:&str,version:&str,candidate_id:&str,publication:&crate::native_publication::Publication)->Result<Vec<Receipt>,StoreError> {
+ if bindings.is_empty() || bindings.len()>32 || !crate::seal::hex64(pack_digest)
+  || !crate::seal::token_ok(version) || !crate::seal::token_ok(candidate_id) {return Err(StoreError::Input);}
+ for (schema,table,role,columns) in bindings {
+  checked(&FenceRef {schema_name:schema,relation_name:table,role_name:role})?;clean_columns(columns)?;
+ }
+ let mut session=open(conn.endpoint,conn.user,conn.password,conn.ca_pem).await?;require_tls(&session.client).await?;
+ let tx=begin_for(&mut session,"60s","60s").await?;
+ let text=serde_json::to_string(&publication.receipt).map_err(|_|StoreError::Input)?;
+ let raw:String=tx.query_one("SELECT _oo.publish_native_c1_collection($1::text::uuid,$2,$3::text::jsonb)::text",p!(&publication.run_id,&publication.receipt_sha256,&text)).await.map_err(query_error)?.try_get(0).map_err(|_|StoreError::Input)?;
+ let published:Value=serde_json::from_str(&raw).map_err(|_|StoreError::Input)?;
+ let mut receipts=Vec::with_capacity(bindings.len());
+ for (schema,table,role,columns) in bindings {
+  let fence=FenceRef {schema_name:schema,relation_name:table,role_name:role};
+  let mut receipt=match open_body(&tx,&fence,columns,pack_digest,version,candidate_id).await {
+   Ok(receipt)=>receipt,Err(err)=>return Err(rollback(tx,err).await),
+  };
+  if receipt.code!=0 || receipt.body["fence_state"]!="open" {let _=tx.rollback().await;return Ok(vec![receipt]);}
+  receipt.body["native_publication"]=published.clone();receipts.push(receipt);
+ }
+ tx.commit().await.map_err(query_error)?;Ok(receipts)
+}
+
+async fn open_target_inner(
+    conn: &TargetConn<'_>,
+    fence: &FenceRef<'_>,
+    columns: &[String],
+    pack_digest: &str,
+    version: &str,
+    candidate_id: &str,
+    publication: Option<&crate::native_publication::Publication>,
+) -> Result<Receipt, StoreError> {
     checked(fence)?;
     if !crate::seal::hex64(pack_digest)
         || !crate::seal::token_ok(version)
@@ -120,10 +217,34 @@ pub async fn open_target(
     let mut session = open(conn.endpoint, conn.user, conn.password, conn.ca_pem).await?;
     require_tls(&session.client).await?;
     let tx = begin_for(&mut session, "60s", "60s").await?;
-    let receipt = match open_body(&tx, fence, &columns, pack_digest, version, candidate_id).await {
-        Ok(receipt) => receipt,
-        Err(err) => return Err(rollback(tx, err).await),
+    let published = if let Some(publication) = publication {
+        let receipt = serde_json::to_string(&publication.receipt).map_err(|_| StoreError::Input)?;
+        let row = tx
+            .query_one(
+                if publication.receipt.get("run_ids").is_some() {
+                    "SELECT _oo.publish_native_c1_collection($1::text::uuid, $2, $3::text::jsonb)::text"
+                } else { "SELECT _oo.publish_native_full_import($1::text::uuid, $2, $3::text::jsonb)::text" },
+                p!(&publication.run_id, &publication.receipt_sha256, &receipt),
+            )
+            .await
+            .map_err(query_error)?;
+        let text: String = row.try_get(0).map_err(|_| StoreError::Input)?;
+        Some(serde_json::from_str::<Value>(&text).map_err(|_| StoreError::Input)?)
+    } else {
+        None
     };
+    let mut receipt =
+        match open_body(&tx, fence, &columns, pack_digest, version, candidate_id).await {
+            Ok(receipt) => receipt,
+            Err(err) => return Err(rollback(tx, err).await),
+        };
+    if publication.is_some() && (receipt.code != 0 || receipt.body["fence_state"] != "open") {
+        let _ = tx.rollback().await;
+        return Ok(receipt);
+    }
+    if let Some(published) = published {
+        receipt.body["native_publication"] = published;
+    }
     commit(tx, receipt).await
 }
 
@@ -1152,7 +1273,10 @@ pub fn validate_native_mapping(value: &Value) -> Result<(&str, &str, i64), Store
 
 pub fn validate_native_context(value: &Value) -> Result<(), StoreError> {
     if let Some(entries) = value.get("datasets") {
-        if value.as_object().is_none_or(|o| o.len() != 1) {
+        if value.as_object().is_none_or(|o| {
+            o.keys()
+                .any(|key| !["datasets", "publication"].contains(&key.as_str()))
+        }) {
             return Err(StoreError::Input);
         }
         let entries = entries.as_array().ok_or(StoreError::Input)?;
@@ -1171,6 +1295,7 @@ pub fn validate_native_context(value: &Value) -> Result<(), StoreError> {
             }
             validate_native_mapping(&Value::Object(context))?;
         }
+        crate::native_publication::validate_context(value)?;
         Ok(())
     } else {
         validate_native_mapping(value).map(|_| ())
@@ -1196,9 +1321,30 @@ pub async fn resolve_native_binding(
         mapping.clone()
     };
     let (source, digest, generation) = validate_native_mapping(&context)?;
+    let publication = crate::native_publication::from_context(mapping)?;
     let mut session = open(conn.endpoint, conn.user, conn.password, conn.ca_pem).await?;
     require_tls(&session.client).await?;
     let tx = begin_for(&mut session, "60s", "60s").await?;
+    let pending: Option<(String, i64)> = tx
+        .query_opt(
+            "SELECT run_id::text, target_generation FROM _oo.full_import_run \
+         WHERE source_id = $1 AND source_generation = $2 AND state = 'awaiting_publish' \
+         ORDER BY target_generation DESC LIMIT 1",
+            p!(source, generation),
+        )
+        .await
+        .map_err(query_error)?
+        .map(|row| (row.get(0), row.get(1)));
+    if let Some((run_id, target_generation)) = pending {
+        if publication.as_ref().is_none_or(|receipt| {
+            (if let Some(runs)=receipt.receipt["run_ids"].as_array() {
+                !runs.iter().any(|id| id.as_str()==Some(run_id.as_str()))
+            } else { receipt.run_id != run_id })
+                || receipt.receipt["target_generation"].as_i64() != Some(target_generation)
+        }) {
+            return Err(StoreError::Input);
+        }
+    }
     let empty = "";
     let namespace = tx
         .query_one(
@@ -1258,4 +1404,35 @@ fn native_shadow(name: &str, prefix: &str) -> bool {
                 .bytes()
                 .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
     })
+}
+
+#[cfg(test)]
+mod replica_tests {
+    use super::*;
+    #[tokio::test]
+    #[ignore = "owned physical standby and private credentials required"]
+    async fn owned_replica_replays_and_rejects_primary() {
+        let path = std::env::var("OO_NATIVE_STANDBY_TEST_CONFIG").expect("private config path");
+        let config: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        let endpoints = ["primary", "replica"].map(|name| Endpoint {
+            host: config[name]["host"].as_str().unwrap().to_owned(), port: 5432,
+            database: config["database"].as_str().unwrap().to_owned(),
+        });
+        let password = std::fs::read_to_string(config["password_file"].as_str().unwrap()).unwrap();
+        let cas = ["primary", "replica"].map(|name| std::fs::read(config[name]["ca_file"].as_str().unwrap()).unwrap());
+        let primary = TargetConn {endpoint:&endpoints[0], user:"oo_target_admin", password:password.trim(), ca_pem:&cas[0]};
+        let replica = TargetConn {endpoint:&endpoints[1], user:"oo_target_admin", password:password.trim(), ca_pem:&cas[1]};
+        if std::env::var("OO_EXPECT_REPLICA_BEHIND").as_deref()==Ok("1") {
+            assert!(replica_barrier(&primary,&replica).await.is_err());
+            println!("OWNED_REPLICA_RAW paused behind standby refused after bounded actual replay wait");
+            return;
+        }
+        let observed = replica_barrier(&primary, &replica).await.expect("real standby replay");
+        assert_eq!(observed["barrier"], "replayed");
+        assert_eq!(observed["in_recovery"], true);
+        assert_eq!(observed["transaction_read_only"], true);
+        assert!(replica_barrier(&primary, &primary).await.is_err());
+        assert!(replica_barrier(&replica, &primary).await.is_err());
+        println!("OWNED_REPLICA_RAW {}", observed);
+    }
 }

@@ -98,3 +98,11 @@ Fixture SQL clients use an explicit defaults file so a missing unrelated
 server include cannot change or prevent the verified reader configuration.
 Customer connections remain restricted to approved metadata and LIMIT 5
 probes; the fixture full-capture recipe is not a customer authorization.
+
+`c1-random-gold --config PATH --out DIR` reads four independently answerable
+facts from the owned MySQL 8 source in one read-only consistent snapshot. It
+writes a question bank, independent named-fact gold, and a source/GTID receipt
+with mode 0700/0600. It refuses non-owned/customer configs and does not query
+the Gateway, change source data, or call a model. Bind its gold to the current
+source generation and Pack only after the C1 target is caught up; the receipt's
+before/after GTID observations describe a bracket, not a snapshot watermark.

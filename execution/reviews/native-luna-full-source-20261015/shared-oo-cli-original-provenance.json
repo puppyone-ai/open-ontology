@@ -1,0 +1,71 @@
+{
+  "as_of": "2026-10-15T15:29:54.638415+00:00",
+  "scope": "Existing OOCLI binary provenance only; original raw build evidence inspected, no rebuild or new runtime validation claimed",
+  "source_commit": "91031011238c39e571a28a90831b012f225862d6",
+  "source_archive": {
+    "path": "/Users/redux/.cache/oo-root-shared-reference-20261015/oo-cli-workspace-91031011238c39e571a28a90831b012f225862d6.tar",
+    "sha256": "9df63055fe6b517aefeb4ffcaf7c809a532027c82dc3e781ba8dc35e4a615845"
+  },
+  "archive_paths": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/oo-core",
+    "crates/oo-jobs",
+    "crates/oo-control",
+    "crates/oo-connectors",
+    "crates/oo-pipeline",
+    "crates/oo-builder",
+    "crates/oo-gateway",
+    "crates/oo-sdk",
+    "crates/oo-cli",
+    "crates/oo-mcp",
+    "crates/oo-proxy",
+    "crates/oo-sandbox",
+    "crates/oo-entry",
+    "crates/oo-eval",
+    "crates/oo-analysis",
+    "crates/oo-arch-check",
+    "crates/xtask",
+    "tools/gateway-token-store"
+  ],
+  "binary": {
+    "path": "/Users/redux/.cache/oo-dl01w1-73/fixed-elf/oo-fb8073fd6e01822b6d42ded74ae3673cf202e778b54bdca0ca044c909bb56703",
+    "sha256": "fb8073fd6e01822b6d42ded74ae3673cf202e778b54bdca0ca044c909bb56703"
+  },
+  "original_build_evidence": [
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance/linux/attempts/17-preserved-original-green/build-1/gateway-pin.txt",
+      "sha256": "611baaefc6fdcfdc49d412055aa8aac6d367524cd8a41b24ef78873c22646819"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance/linux/attempts/17-preserved-original-green/build-1/invocation.txt",
+      "sha256": "8eab3c51517d95c1fb26e53f03c2ed02eeb33318317a591c4e988e8074fff6a8"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance/linux/attempts/17-preserved-original-green/elf/gateway-bins.sha256",
+      "sha256": "621259f9666f9243777a4228f241b2d321aedc190e2cca6ff99e594392160075"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance/linux/attempts/17-preserved-original-green/phases/gateway-build.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance/linux/attempts/17-preserved-original-green/phases/rustc.txt",
+      "sha256": "21b25289398a68d7a888e82c7e5d30721b22ca462f206821bf6b1e084ae044ae"
+    }
+  ],
+  "build_recipe": [
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance/linux/harness/oo-w73-build.sh",
+      "sha256": "d21d020affb3b7ca4e8a5d57161ba089ad2994c52a89ab569914dd7e46df9868"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/evidence/2f2a2659-9dfd-4387-9f8e-49b87cca7824/DL01/ontology-publish-maintenance/linux/harness/oo-w73-inside.sh",
+      "sha256": "8739ff8049734927559218e7ec91e0d41afd81ce2fd3f5b3036fca5757ae3bbe"
+    }
+  ],
+  "build_command": "cargo build --locked --offline --manifest-path /gw-src/Cargo.toml -p oo-cli --bin oo -p oo-gateway --bin oo-gateway --bin issue-token",
+  "toolchain": "Rust 1.94.0 aarch64-unknown-linux-gnu",
+  "cargo_target_dir": "/target/gateway",
+  "caveat": "Receipt e891b362 in prior fixed-artifact intake is not used as CLI source provenance; preserved original green invocation identifies the CLI workspace pin. Current mutated Gateway overlays are separate artifacts."
+}

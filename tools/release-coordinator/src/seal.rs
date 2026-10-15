@@ -326,3 +326,11 @@ pub fn hex64(value: &str) -> bool {
             .bytes()
             .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
 }
+
+/// Verify a native maintenance artifact with the same role-pack compiler used by stage.
+pub fn verify_native_artifact(effective: &Value, visibility: &Value, artifact: &Value) -> Result<(), &'static str> {
+    let pack = compile_role_pack(&canonical(effective), &canonical(visibility)).map_err(|_| "compiler")?;
+    let actual: Value = serde_json::from_str(&pack.artifact).map_err(|_| "artifact")?;
+    if &actual != artifact { return Err("recompile_mismatch"); }
+    Ok(())
+}

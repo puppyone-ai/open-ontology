@@ -1826,6 +1826,9 @@ async fn read_freshness_only(
         .relations
         .iter()
         .map(|relation| QualityTable {
+            native_binding: published.native_vector.as_ref().and_then(Value::as_array).and_then(|items| {
+                items.iter().find(|item| item["dataset"] == format!("{}.{}", relation.schema, relation.name))
+            }).cloned(),
             source: published.native_vector.as_ref().and_then(Value::as_array).and_then(|items| {
                 items.iter().find(|item| item["dataset"] == format!("{}.{}", relation.schema, relation.name))
             }).and_then(|item| item["source_id"].as_str()).map(str::to_owned),
@@ -2098,7 +2101,24 @@ fn quality_count_value(item: &QualityCount) -> Value {
     })
 }
 
+// Readiness is proved for every authorized physical mapping, never a global max generation.
+pub(crate) fn ready_quality(s: &QualitySnapshot) -> bool {
+    !s.mappings.is_empty() && s.relations=="read" && s.probes.iter().all(|p|p.state=="read")
+    && s.warnings.is_empty() && !s.capture_method.is_empty() && s.capture_method!="mixed"
+    && !s.delete_detection.is_empty() && s.delete_detection!="mixed"
+    && s.runs.len()>=s.mappings.len() && s.runs.iter().all(|r|r.state=="published" && r.sealed)
+    && s.mappings.iter().all(|m|m.bound
+        && s.freshness.iter().any(|f|f.schema==m.schema && f.table==m.table && f.state=="live" && freshness_row(f).is_some())
+        && s.runs.iter().any(|r|r.source==m.source && r.source_generation==m.run_generation && r.state=="published" && r.sealed)
+        && s.imports.iter().any(|i|i.schema==m.schema && i.table==m.table && i.run_generation==m.run_generation && i.exhausted)
+        && s.watermarks.iter().any(|w|w.source==m.source && w.state=="live" && w.consistency=="transactional" && w.cross_table_consistent
+            && s.receipts.iter().any(|r|r.source==m.source && r.schema==m.schema && r.table==m.table && r.run_generation==m.run_generation
+                && r.codec==w.codec && r.lineage==w.lineage && r.source_epoch==w.source_epoch && r.applied_pos==w.applied_pos
+                && r.cross_table_consistent && !r.partial_txn)))
+}
+
 fn gap_warning(snapshot: &QualitySnapshot) -> Option<Warning> {
+    if ready_quality(snapshot) {return None;}
     let message = gap_message(snapshot);
     if message.is_empty() {
         return None;
@@ -2208,8 +2228,8 @@ fn lag_between(source: &str, applied: &str) -> Option<u64> {
 fn stamp_millis(value: &str) -> Option<u64> {
     let (date, rest) = value.split_once('T')?;
     let rest = rest.strip_suffix('Z')?;
-    let (hms, frac) = rest.split_once('.')?;
-    if frac.len() != 6 || !frac.bytes().all(|byte| byte.is_ascii_digit()) {
+    let (hms, frac) = rest.split_once('.').unwrap_or((rest,""));
+    if frac.len() > 6 || !frac.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
     }
     let mut dates = date.split('-');
@@ -2222,7 +2242,7 @@ fn stamp_millis(value: &str) -> Option<u64> {
     let second: u32 = clock.next()?.parse().ok()?;
     let days = days_from_civil(year, month, day)?;
     let sod = u64::from(hour) * 3600 + u64::from(minute) * 60 + u64::from(second);
-    let micros: u64 = frac.parse().ok()?;
+    let micros: u64 = if frac.is_empty() {0} else {frac.parse::<u64>().ok()?.checked_mul(10u64.pow(6-frac.len() as u32))?};
     days.checked_mul(86_400)?
         .checked_add(sod)?
         .checked_mul(1000)?
@@ -2729,11 +2749,41 @@ mod tests {
     }
 
     #[test]
+    fn current_quality_requires_complete_published_same_epoch_receipts() {
+        use crate::query_executor::*;
+        let mut s=QualitySnapshot::blank("read");
+        s.probes.push(RelationProbe {name:"physical_mappings",state:"read"});
+        s.capture_method="c1_cdc".into();s.delete_detection="native".into();
+        s.mappings.push(MappingObserved {source:"shop".into(),schema:"s".into(),table:"t".into(),run_generation:5,bound:true});
+        s.freshness.push(FreshnessObserved {schema:"s".into(),table:"t".into(),state:"live".into(),source_committed_at:"2026-10-15T14:00:00.000000Z".into(),applied_at:"2026-10-15T14:00:01.000000Z".into()});
+        s.runs.push(ImportRunObserved {source:"shop".into(),source_generation:5,target_generation:5,state:"published".into(),sealed:true});
+        s.imports.push(ImportTableObserved {schema:"s".into(),table:"t".into(),run_generation:5,applied_rows:2,applied_pos:"37".into(),exhausted:true});
+        let lineage="mysql.11111111-2222-4333-8444-555555555555";
+        s.watermarks.push(WatermarkObserved {source:"shop".into(),consistency:"transactional".into(),cross_table_consistent:true,applied_pos:"37".into(),state:"live".into(),codec:"mysql-gtid/v1".into(),lineage:lineage.into(),source_epoch:1});
+        s.receipts.push(ReceiptObserved {source:"shop".into(),schema:"s".into(),table:"t".into(),run_generation:5,applied_pos:"37".into(),codec:"mysql-gtid/v1".into(),lineage:lineage.into(),source_epoch:1,cross_table_consistent:true,partial_txn:false,target_commit_at:"2026-10-15T14:00:01.000000Z".into()});
+        assert!(freshness_row(&s.freshness[0]).is_some(),"freshness row: {:?}",s.freshness[0]);
+        assert!(ready_quality(&s));assert!(gap_warning(&s).is_none());
+        for kind in ["unpublished","epoch","held","missing_run","missing_time","partial","position"] {
+            let mut bad=s.clone();match kind {
+                "unpublished"=>bad.runs[0].state="awaiting_publish".into(),
+                "epoch"=>bad.receipts[0].source_epoch=2,
+                "held"=>bad.mappings[0].bound=false,
+                "missing_run"=>bad.runs.clear(),
+                "missing_time"=>bad.freshness[0].source_committed_at.clear(),
+                "partial"=>bad.receipts[0].partial_txn=true,
+                _=>bad.receipts[0].applied_pos="36".into(),
+            }
+            assert!(!ready_quality(&bad),"{kind}");assert!(gap_warning(&bad).is_some(),"{kind}");
+        }
+    }
+
+    #[test]
     fn freshness_lag_uses_both_stamps() {
         let source = "2000-01-01T00:00:00.000000Z";
         let applied = "2000-01-01T00:00:01.500000Z";
         assert_eq!(lag_between(source, applied), Some(1500));
         assert!(lag_between(applied, source).is_none());
+        assert_eq!(lag_between("2000-01-01T00:00:00Z","2000-01-01T00:00:01.5Z"),Some(1500));
     }
 }
 

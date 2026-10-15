@@ -111,6 +111,9 @@ pub fn load_pack(dir: &Path, config_commit: &str, role: &str) -> Result<Prepared
     let digest = sha256_hex(&bytes);
     let value = parse_document(&bytes).map_err(|_| ApiError::pack("shape"))?;
     let object = value.as_object().ok_or(ApiError::pack("shape"))?;
+    if object.get("protocol").and_then(Value::as_str) == Some("oo.release-control.native-reviewed-pack/v1") {
+        return load_native_pack(object, &digest, config_commit, role);
+    }
     require_keys(object, &["config_commit", "envelope", "protocol", "roles"])?;
     if object.get("protocol").and_then(Value::as_str) != Some(REVIEWED) {
         return Err(ApiError::pack("shape"));
@@ -136,6 +139,31 @@ pub fn load_pack(dir: &Path, config_commit: &str, role: &str) -> Result<Prepared
         return Err(ApiError::pack("shape"));
     }
     Ok(Prepared { bytes_sha256: digest, effective, visibility: visibility.clone(), lineage, columns_text, pack_digest })
+}
+
+fn load_native_pack(object: &Map<String, Value>, digest: &str, config_commit: &str, role: &str) -> Result<Prepared, ApiError> {
+    require_keys(object, &["protocol","config_commit","envelope","effective","visibility","artifact"])?;
+    if object["config_commit"] != config_commit { return Err(ApiError::pack("shape")); }
+    let envelope=&object["envelope"];
+    if envelope["contract"] != "oo.selfbuild-control-api/role-pack/v1" || !matches!(envelope["operation"].as_str(),Some("getRolePack" | "compileRolePack"))
+        || envelope["role"] != role || envelope["compiled_pack"] != "not_published" || envelope["published"] != false
+        || envelope["active"] != false || envelope["data_grants"] != "none" || envelope["business_owner_signed"] != false
+        || envelope["signer_class"] != "control_plane_test" || envelope["llm_calls"] != 0
+    { return Err(ApiError::pack("published")); }
+    let receipt=&envelope["native_maintenance"];
+    let effective=object["effective"].clone();let visibility=object["visibility"].clone();let artifact=&object["artifact"];
+    let effective_bytes=serde_json::to_vec(&effective).map_err(|_|ApiError::pack("shape"))?;
+    if receipt["protocol"] != "oo.selfbuild-control-api/native-maintenance/v1" || receipt["publication"] != "not_published"
+        || receipt["build_id"] != envelope["build_id"] || receipt["effective_sha256"] != sha256_hex(&effective_bytes)
+        || receipt["pack_digest"] != artifact["pack_digest"] || receipt["manifest_sha256"] != artifact["manifest_sha256"]
+        || receipt["llm_calls"] != 0 || visibility["role"] != role
+        || artifact["files"].as_array().is_none_or(|files| files.iter().any(|file| file["text"].as_str().is_none_or(|text| text.starts_with("UNREVIEWED"))))
+    { return Err(ApiError::pack("digest")); }
+    release_coordinator::verify_native_artifact(&effective,&visibility,artifact).map_err(|_|ApiError::pack("digest"))?;
+    let lineage=lineage_of(&visibility)?;
+    let pack_digest=artifact["pack_digest"].as_str().filter(|s|hex64(s)).ok_or(ApiError::pack("digest"))?.to_owned();
+    let columns_text=lineage.columns.iter().cloned().collect::<Vec<_>>().join("\n");
+    Ok(Prepared {bytes_sha256:digest.to_owned(),effective,visibility,lineage,columns_text,pack_digest})
 }
 
 pub fn load_intake(dir: &Path, config_commit: &str) -> Result<Intake, ApiError> {
@@ -460,5 +488,24 @@ mod tests {
             "roles": []
         });
         fs::write(dir.join(format!("{commit}.json")), serde_json::to_vec(&wrapper).expect("wrapper")).expect("write");
+    }
+}
+
+#[cfg(test)]
+mod native_tests {
+    use super::*;
+    #[test]
+    #[ignore = "actual reviewed native maintenance artifact required"]
+    fn owned_native_intake_recompiles_and_refuses_drift() {
+        let path=std::env::var("OO_NATIVE_REVIEWED_PACK_TEST").unwrap();
+        let wrapper:Value=serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        let role=wrapper["visibility"]["role"].as_str().unwrap();
+        let commit=wrapper["config_commit"].as_str().unwrap();
+        load_native_pack(wrapper.as_object().unwrap(),"test",commit,role).expect("actual native pack");
+        for (path,value) in [("/envelope/published",Value::Bool(true)),("/envelope/native_maintenance/pack_digest",Value::String("0".repeat(64))),("/artifact/files/0/text",Value::String("changed".into())),("/effective/ontology/name",Value::String("changed".into()))] {
+            let mut wrong=wrapper.clone();*wrong.pointer_mut(path).expect("known fixture field")=value;
+            assert!(load_native_pack(wrong.as_object().unwrap(),"test",commit,role).is_err());
+        }
+        println!("OWNED_NATIVE_INTAKE recompiled actual role pack and rejected publication/digest/artifact/effective drift");
     }
 }

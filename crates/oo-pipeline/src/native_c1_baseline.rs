@@ -41,10 +41,11 @@ async fn execute(request: &Value) -> Result<Value, &'static str> {
         "ack_seed" => sqlx::query_scalar("SELECT _oo.native_c1_ack_seed($1,$2::uuid,$3,$4,$5::uuid,$6)::text")
             .bind(source).bind(task).bind(generation).bind(epoch).bind(field(request,"previous_task")?)
             .bind(integer(request,"previous_source_generation")?).fetch_one(&mut conn).await.map_err(sql_token)?,
-        "transaction" => sqlx::query_scalar("SELECT _oo.native_c1_baseline_apply_txn($1,$2::uuid,$3,$4,$5::numeric,$6,$7::jsonb,$8)::text")
+        "transaction" => sqlx::query_scalar("SELECT _oo.native_c1_baseline_apply_timed_txn($1,$2::uuid,$3,$4,$5::numeric,$6,$7::jsonb,$8,$9)::text")
             .bind(source).bind(task).bind(generation).bind(epoch)
             .bind(decimal(request,"applied_pos")?).bind(field(request,"txn_id")?)
             .bind(json_text(request,"rows")?).bind(digest(request,"payload_sha256")?)
+            .bind(field(request,"source_commit_timestamp")?)
             .fetch_one(&mut conn).await.map_err(sql_token)?,
         "snapshot_fill" => sqlx::query_scalar("SELECT _oo.native_c1_baseline_fill($1,$2::uuid,$3,$4,$5::jsonb)::text")
             .bind(source).bind(task).bind(generation).bind(epoch).bind(json_text(request,"rows")?)

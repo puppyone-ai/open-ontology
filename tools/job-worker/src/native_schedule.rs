@@ -758,6 +758,21 @@ async fn release_terminal_native(config: &Config, project: &str) -> Result<()> {
         if database != target_database(config, &method)? {
             continue;
         }
+        if method=="C1" && stored.is_none() {
+            // A rejected operator selection can terminate before capture created a request.
+            let prior=control.query_opt("SELECT w.result::text FROM jw_native.source_progress p JOIN jw_native.watermarks w ON w.binding_id=p.binding_id AND w.task_id=p.task_id JOIN jw_native.pending_acks a ON a.task_id=w.task_id JOIN jobs.tasks t ON t.id=w.task_id JOIN jw_native.occurrences o ON o.task_id=p.active_task_id WHERE p.source_id=$1 AND p.target_database=$2 AND p.binding_id=$3::text::uuid AND p.active_task_id=$4::text::uuid AND a.acknowledged_at IS NOT NULL AND t.state='succeeded' AND o.manifest->>'method'='C1' AND o.manifest#>>'{loader,args,0}'='import-native-c1-baseline' AND jsonb_array_length(o.manifest#>'{loader,args}')=1 AND NOT EXISTS(SELECT 1 FROM jw_native.process_attempts x WHERE x.task_id=p.active_task_id AND x.stage='c1_baseline_stream')",&[&source,&database,&binding,&task]).await.map_err(Error::sql)?;
+            if let Some(prior)=prior {
+                let result:Value=serde_json::from_str(&prior.get::<_,String>(0)).map_err(|_|Error::new("ack_receipt"))?;
+                if result["protocol"]!="oo.pipeline.native-c1-baseline-result/v1" || result["source_id"]!=source {continue;}
+                let admin=session::admin_db(config,&database).await?;
+                let exact:bool=admin.query_one("SELECT EXISTS(SELECT 1 FROM _oo.source_watermark w WHERE w.source=$1 AND w.source_generation=$2 AND w.target_generation=$3 AND w.source_epoch=$4 AND w.applied_pos=$5::text::numeric AND w.position_codec='mysql-gtid/v1' AND w.position_lineage=$6) AND NOT EXISTS(SELECT 1 FROM _oo.native_c1_baseline_run WHERE source=$1 AND task_id=$7::text::uuid) AND NOT EXISTS(SELECT 1 FROM _oo.full_import_run WHERE source_id=$1 AND source_generation>$2)",&[&source,&result["source_generation"].as_i64(),&result["target_generation"].as_i64(),&result["source_epoch"].as_i64().map(|n|n as i32),&result["applied_pos"].as_str(),&result["source_instance"]["measured_id"].as_str(),&task]).await.map_err(Error::sql)?.get(0);
+                if exact {
+                    let n=control.execute("UPDATE jw_native.source_progress SET active_task_id=NULL WHERE source_id=$1 AND target_database=$2 AND binding_id=$3::text::uuid AND active_task_id=$4::text::uuid AND EXISTS(SELECT 1 FROM jobs.tasks WHERE id=$4::text::uuid AND state IN ('failed','cancelled')) AND NOT EXISTS(SELECT 1 FROM jw_native.pending_acks WHERE task_id=$4::text::uuid)",&[&source,&database,&binding,&task]).await.map_err(Error::sql)?;
+                    if n==1 {println!("source_active=released_terminal_pre_capture task={task} source={source} acknowledged_predecessor_unchanged=true");}
+                }
+            }
+            continue;
+        }
         let base = match if method == "C1" {
             confirm_terminal_c1_base(
                 config, &control, &source, &database, &binding, &task, &stored,
@@ -1297,7 +1312,7 @@ async fn apply(
                 }
                 let path=selected.producer.args.get(2).ok_or_else(||Error::new("baseline_config"))?;
                 let digest=sha256_hex(&std::fs::read(path).map_err(|_|Error::new("baseline_config"))?);
-                let previous=c.query_opt("SELECT stdout FROM jw_native.process_attempts WHERE task_id=$1::text::uuid AND stage='c1_baseline_stream' ORDER BY generation LIMIT 1",&[&task]).await.map_err(Error::sql)?
+                let previous=c.query_opt("SELECT a.stdout FROM jw_native.process_attempts a JOIN jw_native.occurrences o ON o.task_id=a.task_id WHERE a.stage='c1_baseline_stream' AND o.binding_id=$2::text::uuid AND (a.task_id=$1::text::uuid OR EXISTS(SELECT 1 FROM jw_native.watermarks w JOIN jw_native.pending_acks k ON k.task_id=w.task_id JOIN jobs.tasks t ON t.id=w.task_id WHERE w.binding_id=o.binding_id AND w.task_id=a.task_id AND t.state='succeeded' AND k.acknowledged_at IS NOT NULL)) ORDER BY (a.task_id=$1::text::uuid) DESC,a.generation LIMIT 1",&[&task,&binding]).await.map_err(Error::sql)?
                     .ok_or_else(||Error::new("baseline_original_config"))?;
                 let raw:Vec<u8>=previous.get(0);
                 let open:Value=serde_json::from_slice(raw.split(|b|*b==b'\n').next().ok_or_else(||Error::new("baseline_original_config"))?).map_err(|_|Error::new("baseline_original_config"))?;
@@ -2768,7 +2783,7 @@ async fn run_cdc_baseline_stream(
                 );
                 let request = json!({"protocol":"oo.pipeline.native-c1-baseline-stage/v1","operation":"transaction","source_id":source,
      "lease_id":task,"lease_generation":generation,"source_epoch":epoch.ok_or_else(||Error::new("source_epoch"))?,"applied_pos":pos.to_string(),
-     "txn_id":txn,"rows":rows,"payload_sha256":payload,"target":target_desc});
+     "txn_id":txn,"rows":rows,"payload_sha256":payload,"source_commit_timestamp":frame.get("source_commit_timestamp"),"target":target_desc});
                 let receipt = exec(
                     config,
                     &stage,
@@ -4072,6 +4087,40 @@ pub async fn state(config: &Config, binding: &str) -> Result<()> {
     let row = row.ok_or_else(|| Error::new("binding"))?;
     let text: String = row.get(0);
     println!("{text}");
+    Ok(())
+}
+
+/// Export the exact acknowledged cut for downstream catalog and Pack maintenance.
+pub async fn artifacts(config: &Config, binding: &str, out: &str) -> Result<()> {
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    if !crate::api::is_uuid(binding) { return Err(Error::new("binding")); }
+    let control=session::runtime(config).await?;
+    let row=control.query_opt("SELECT b.source_id,b.method,w.task_id::text,w.source_generation,o.request::text,w.result::text FROM jw_native.bindings b JOIN jw_native.watermarks w ON w.binding_id=b.id JOIN jw_native.occurrences o ON o.task_id=w.task_id JOIN jobs.tasks j ON j.id=w.task_id WHERE b.id=$1::text::uuid AND j.state='succeeded'",&[&binding]).await.map_err(Error::sql)?.ok_or_else(||Error::new("unconfirmed_baseline"))?;
+    let source:String=row.get(0);let method:String=row.get(1);let task:String=row.get(2);let generation:i64=row.get(3);
+    let request:Value=serde_json::from_str(&row.get::<_,String>(4)).map_err(|_|Error::new("request"))?;
+    let load:Value=serde_json::from_str(&row.get::<_,String>(5)).map_err(|_|Error::new("request"))?;
+    if method!="C1" || request["protocol"]!="oo.pipeline.native-c1-baseline/v1"
+        || request["source_id"]!=source || request["source_generation"]!=generation
+        || load["source_id"]!=source || load["source_generation"]!=generation {
+        return Err(Error::new("unconfirmed_baseline"));
+    }
+    let database=target_database(config,&method)?;
+    let target=session::admin_db(config,&database).await?;
+    let ack:Option<String>=target.query_opt("SELECT jsonb_build_object('protocol','oo.mysql.c1-ack-state/v1','acknowledged',true,'task_state',j.state,'request_digest',b.request_digest,'receipt',b.receipt,'source_id',w.source,'source_generation',w.source_generation,'target_generation',w.target_generation,'applied_pos',_oo.native_pos_text(w.applied_pos),'source_epoch',w.source_epoch)::text FROM _oo.native_c1_baseline_typed b JOIN jobs.tasks j ON j.id=b.task_id JOIN _oo.source_watermark w ON w.source=b.source AND w.source_generation=(b.receipt->>'source_generation')::bigint AND w.target_generation=(b.receipt->>'target_generation')::bigint AND w.source_epoch=(b.receipt->>'source_epoch')::integer AND w.applied_pos=(b.receipt->>'applied_pos')::numeric WHERE b.source=$1 AND b.task_id=$2::text::uuid AND b.acknowledged_at IS NOT NULL AND j.state='succeeded'",&[&source,&task]).await.map_err(Error::sql)?.map(|r|r.get(0));
+    let ack:Value=serde_json::from_str(&ack.ok_or_else(||Error::new("unconfirmed_baseline"))?).map_err(|_|Error::new("request"))?;
+    if ack["receipt"]!=load {return Err(Error::new("unconfirmed_baseline"));}
+    let root=Path::new(out);
+    std::fs::create_dir(root).map_err(|_|Error::new("artifact_output"))?;
+    std::fs::set_permissions(root,std::fs::Permissions::from_mode(0o700)).map_err(|_|Error::new("artifact_output"))?;
+    let mut hashes=serde_json::Map::new();
+    for (name,value) in [("request",request),("load",load),("ack",ack)] {
+        let bytes=serde_json::to_vec(&value).map_err(|_|Error::new("request"))?;
+        let mut file=std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(root.join(format!("{name}.json"))).map_err(|_|Error::new("artifact_output"))?;
+        std::io::Write::write_all(&mut file,&bytes).map_err(|_|Error::new("artifact_output"))?;
+        file.sync_all().map_err(|_|Error::new("artifact_output"))?;
+        hashes.insert(name.to_owned(),json!(sha256_hex(&bytes)));
+    }
+    println!("{}",json!({"protocol":"oo.jobs.native-artifacts/v1","binding":binding,"source_id":source,"task_id":task,"source_generation":generation,"sha256":hashes}));
     Ok(())
 }
 

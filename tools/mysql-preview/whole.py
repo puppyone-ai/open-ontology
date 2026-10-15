@@ -35,6 +35,42 @@ def run(config, out, phase="capture"):
     password = Path(c['password_file'])
     if password.stat().st_mode & 0o077 or not password.is_relative_to(private_root):
         raise ValueError('private_secret')
+    if phase in ('follow','serve'):
+        from follow import Follow
+        original=load(root/'driver-config.json')
+        if any(original.get(key)!=c.get(key) for key in ('host','port','database','user','secret_ref')):
+            raise ValueError('connection_drift')
+        if phase=='follow':
+            flow=Follow(c,out);generation,catalog,result=flow.maintain();native=flow.publish(generation,catalog,result);flow.gateway(generation,catalog,native)
+        else:
+            import time
+            seconds=operator['serve_seconds']
+            if not isinstance(seconds,int) or not 1<=seconds<=86400:
+                raise ValueError('serve_seconds')
+            identity=load(root/'prepared/identity.json')
+            worker=[operator['worker'],'--config',operator['worker_config']]
+            proc=subprocess.Popen(['docker','exec',operator['container'],*worker,'native-serve','--project',identity['project_id'],'--worker','mysql-follow','--seconds',str(seconds)],stdout=(out/'worker.stdout').open('wb'),stderr=(out/'worker.stderr').open('wb'))
+            previous=operator['after_generation'];cuts=[]
+            try:
+                while True:
+                    raw=subprocess.run(['docker','exec',operator['container'],*worker,'native-state','--binding',identity['binding_id']],capture_output=True,check=True)
+                    state=json.loads(raw.stdout)
+                    current=state.get('source_generation',0)
+                    if state.get('applied') and current>previous:
+                        flow=Follow(c,out/('generation-'+str(current)))
+                        generation,catalog,result=flow.maintain();native=flow.publish(generation,catalog,result);gateway=flow.gateway(generation,catalog,native)
+                        cuts.append({'source_generation':generation,'gateway_private':str(gateway),'ready_sha256':hashlib.sha256((flow.out/'gateway-ready.json').read_bytes()).hexdigest()})
+                        previous=current
+                    if proc.poll() is not None:
+                        break
+                    time.sleep(1)
+            finally:
+                code=proc.wait()
+                (out/'worker.exit').write_text(str(code)+'\n')
+            if code or not cuts:
+                raise RuntimeError('no_complete_followup')
+            save(out/'follow-receipt.json',{'protocol':'oo.mysql.product-follow/v1','source_id':identity['source_id'],'binding':identity['binding_id'],'cuts':cuts,'current_generation':previous,'worker_exit':code,'full_product_chain_complete':False,'agent_dialogue_pending':True})
+        return
     native = dict(c)
     native['password_file'] = '/secrets/' + str(password.relative_to(private_root))
     prepared = root/'prepared'

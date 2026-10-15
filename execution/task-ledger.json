@@ -10232,5 +10232,11 @@
     "owner": "/root/mysql_shared_reference_sol",
     "formal_source_count": 0,
     "source_release_allowed": false
+  },
+  "latest_mysql_dialogue_resume_scope": {
+    "receipt": "execution/batches/native-luna-full-source-20261015/mysql-dialogue-resume-scope.json",
+    "owner": "/root/mysql_shared_reference_sol",
+    "formal_source_count": 0,
+    "source_release_allowed": false
   }
 }

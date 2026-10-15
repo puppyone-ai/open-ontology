@@ -23,6 +23,7 @@ RETAINED = ('build.json','product-receipt.json','role-pack.json','catalog.json',
 class Flow:
     def __init__(self, config, out):
         self.c=config;self.out=out;out.mkdir(mode=0o700,parents=True,exist_ok=True)
+        self.current_source_semantics_file=None
         require(not out.is_symlink() and not out.stat().st_mode & 0o077, 'output_not_private')
         self.counter=max([int(p.name.split('-')[0]) for p in out.glob('[0-9][0-9][0-9][0-9]-*.response.json')]+[0])
     def current(self, role):
@@ -49,8 +50,9 @@ class Flow:
         require(result.returncode == 0, 'actual_api_refused')
         response=load(rp);require(response['status'] < 400, 'actual_api_refused')
         return response['response']
-    def run(self, prepare_only=False, decisions_path=None, reuse_product=None, reuse_receipt=None):
+    def run(self, prepare_only=False, decisions_path=None, reuse_product=None, reuse_receipt=None, current_source_semantics=None):
         c=self.c
+        self.current_source_semantics_file=Path(current_source_semantics) if current_source_semantics else None
         require(c.get('fixture_authorized') is True, 'fixture_authority_required')
         require(digest(OPERATOR) == c['operator_sha256'], 'operator_drift')
         if reuse_product or reuse_receipt:
@@ -142,6 +144,8 @@ class Flow:
         exported=subprocess.run([sys.executable,str(exporter),'--effective',str(self.out/'effective.json'),'--out',str(self.out/'oos')],capture_output=True,timeout=30)
         require(exported.returncode==0,'oos_export_failed')
         oos_names=('ontology.yaml','effective-oos.yaml','source.json')
+        (self.out/'oos').chmod(0o700)
+        for file in (self.out/'oos').rglob('*'): file.chmod(0o700 if file.is_dir() else 0o600)
         standard={name:digest(self.out/'oos'/name) for name in oos_names}
         require(load(self.out/'oos'/'source.json').get('actual_core_effective_sha256')==digest(self.out/'effective.json'),'oos_source_binding')
         s5_proof={'outcome':s5['outcome'],'builder_spawned':s5['builder_spawned'],'structural_draft':s5['structural_draft'],'cache_hit':s5['cache_hit'],'llm_calls':s5['llm_calls'],'model':identity['model'],'input_sha256':generation['input_sha256'],'evidence_hash':generation['evidence_hash']}
@@ -221,8 +225,10 @@ class Flow:
         private(cookies['admin'])
     def sealed_catalog_sha(self):
         root=Path(self.c['work_dir_host']).parent
-        catalog=root/'bundle'/'catalog.json'
-        manifest_path=root/'bundle'/'manifest.json'
+        bundle=Path(self.c.get('sealed_bundle_host',str(root/'bundle')))
+        require(bundle.is_dir() and not bundle.is_symlink() and bundle.resolve().is_relative_to(root.resolve()), 'maintenance_not_invoked')
+        catalog=bundle/'catalog.json'
+        manifest_path=bundle/'manifest.json'
         require(catalog.is_file() and not catalog.is_symlink() and manifest_path.is_file() and not manifest_path.is_symlink(), 'maintenance_not_invoked')
         require(catalog.resolve().is_relative_to(root.resolve()), 'maintenance_not_invoked')
         sha=digest(catalog)
@@ -242,7 +248,28 @@ class Flow:
         catalog_sha=self.sealed_catalog_sha()
         build=receipt['build_id']
         path='/control/v1/builds/'+build
-        self.call('admin', path+'/maintenance', {'catalog_sha256':catalog_sha,'trigger':'source_generation_advanced'}, 'current-maintenance')
+        body={'catalog_sha256':catalog_sha,'trigger':'source_generation_advanced'}
+        semantics_sha=None
+        if self.current_source_semantics_file is not None:
+            source=self.owned(self.current_source_semantics_file, stat.S_ISREG)
+            semantics_bytes=source.read_bytes(); semantics_sha=hashlib.sha256(semantics_bytes).hexdigest()
+            build_root=Path(self.c['work_dir_host'])/'builds'/build
+            require(build_root.is_dir() and not build_root.is_symlink(), 'maintenance_not_invoked')
+            semantics_dir=build_root/'source-semantics'
+            semantics_dir.mkdir(mode=0o700,exist_ok=True)
+            require(not semantics_dir.is_symlink() and not semantics_dir.stat().st_mode & 0o077, 'maintenance_source_semantics')
+            staged=semantics_dir/(semantics_sha+'.json')
+            try:
+                fd=os.open(staged, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600)
+            except FileExistsError:
+                existing=self.owned(staged, stat.S_ISREG).read_bytes()
+                require(existing==semantics_bytes, 'maintenance_source_semantics')
+            else:
+                with os.fdopen(fd,'wb') as target:
+                    target.write(semantics_bytes);target.flush();os.fsync(target.fileno())
+                staged.chmod(0o600)
+            body['source_semantics_sha256']=semantics_sha
+        self.call('admin', path+'/maintenance', body, 'current-maintenance')
         maint_prefix=self.last_prefix
         role_body=self.call('admin', path+'/role-pack', {'policy_version':'oos/v1','role':role_name}, 'current-role-pack')
         role_prefix=self.last_prefix
@@ -262,6 +289,11 @@ class Flow:
         pack_bytes=regular('role-pack.json', 'role_pack_not_current')
         command_bytes=regular('command.json', 'maintenance_not_invoked')
         visibility_bytes=regular('visibility.json', 'maintenance_not_invoked')
+        source_bytes=regular('source.json', 'maintenance_source_semantics') if native.get('source_semantics_sha256') else None
+        current_effective_bytes=regular('effective.json', 'maintenance_source_semantics') if native.get('source_semantics_sha256') else None
+        if source_bytes is not None:
+            require(hashlib.sha256(source_bytes).hexdigest()==native.get('source_json_sha256'), 'maintenance_source_semantics')
+            require(current_effective_bytes is not None and hashlib.sha256(current_effective_bytes).hexdigest()==native.get('effective_sha256'), 'maintenance_source_semantics')
         try:
             command=json.loads(command_bytes.decode(), object_pairs_hook=pairs)
             visibility=json.loads(visibility_bytes.decode(), object_pairs_hook=pairs)
@@ -274,6 +306,9 @@ class Flow:
         require(isinstance(role_exit, dict) and isinstance(maint_exit, dict), 'maintenance_not_invoked')
         overlay_bytes=(json.dumps(overlay, indent=2)+'\n').encode()
         fresh=maintenance_consumption(receipt, digest(self.out/'product-receipt.json'), receipt['native_role_pack_sha256'], pack_bytes, command, visibility, role_bytes, maint_bytes, role_exit.get('exit'), maint_exit.get('exit'), overlay_bytes)
+        if source_bytes is not None:
+            fresh['source_json_sha256']=hashlib.sha256(source_bytes).hexdigest()
+            fresh['effective_json_sha256']=hashlib.sha256(current_effective_bytes).hexdigest()
         def put(name, data):
             target=self.out/name
             target.write_bytes(data); target.chmod(0o600)
@@ -284,14 +319,29 @@ class Flow:
         put('current-maintenance-response.json', maint_bytes)
         put('current-role-exit.json', role_prefix.with_suffix('.exit.json').read_bytes())
         put('current-maintenance-exit.json', maint_prefix.with_suffix('.exit.json').read_bytes())
+        if source_bytes is not None: put('current-source.json', source_bytes)
+        if current_effective_bytes is not None: put('current-effective-oos.json', current_effective_bytes)
+        if self.current_source_semantics_file is not None:
+            put('current-source-semantics.json', self.current_source_semantics_file.read_bytes())
         put('current-prepared-overlay.json', overlay_bytes)
         save(self.out/'maintenance-consumption.json', fresh)
+        if current_effective_bytes is not None:
+            exporter=ROOT/'tools/selfbuild-control-api/recipes/export_oos.py'
+            require(digest(exporter)==self.c['export_oos_sha256'],'exporter_drift')
+            exported=subprocess.run([sys.executable,str(exporter),'--effective',str(self.out/'current-effective-oos.json'),'--out',str(self.out/'current-oos')],capture_output=True,timeout=30)
+            require(exported.returncode==0,'oos_export_failed')
+            (self.out/'current-oos').chmod(0o700)
+            for file in (self.out/'current-oos').rglob('*'): file.chmod(0o700 if file.is_dir() else 0o600)
+            require(load(self.out/'current-oos/source.json')['actual_core_effective_sha256']==digest(self.out/'current-effective-oos.json'),'oos_source_binding')
+            save(self.out/'current-oos-receipt.json',{'protocol':'oo.source-onboarding.current-standard-oos/v1','source_id':fresh['source_id'],'source_generation':fresh['source_generation'],'current_effective_sha256':digest(self.out/'current-effective-oos.json'),'files':{name:digest(self.out/'current-oos'/name) for name in ('ontology.yaml','effective-oos.yaml','source.json')}})
+
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--config',required=True);parser.add_argument('--out',required=True);parser.add_argument('--prepare-only',action='store_true');parser.add_argument('--decisions');parser.add_argument('--reuse-product');parser.add_argument('--reuse-receipt');a=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--config',required=True);parser.add_argument('--out',required=True);parser.add_argument('--prepare-only',action='store_true');parser.add_argument('--decisions');parser.add_argument('--reuse-product');parser.add_argument('--reuse-receipt');parser.add_argument('--current-source-semantics');parser.add_argument('--current-sealed-bundle');a=parser.parse_args()
     try:
         p=private(a.config);c=load(p);c['_sha256']=digest(p)
-        print(json.dumps(Flow(c,Path(a.out)).run(a.prepare_only,a.decisions,a.reuse_product,a.reuse_receipt)));return 0
+        if a.current_sealed_bundle: c['sealed_bundle_host']=a.current_sealed_bundle
+        print(json.dumps(Flow(c,Path(a.out)).run(a.prepare_only,a.decisions,a.reuse_product,a.reuse_receipt,a.current_source_semantics)));return 0
     except (Refused,OSError,KeyError,ValueError,subprocess.TimeoutExpired):
         print('source-onboarding-product: refused; private evidence retained',file=sys.stderr);return 2
 

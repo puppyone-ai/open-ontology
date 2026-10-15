@@ -1940,6 +1940,87 @@ pub async fn install_native_c1_ack_seed(conn: &mut PgConnection) -> Result<(), I
     tx.commit().await.map_err(database_error)
 }
 
+/// Publish an ACKed multi-run C1 cut through the existing release transaction.
+pub async fn install_native_c1_collection_publication(conn:&mut PgConnection)->Result<(),InstallError> {
+ let principal=read_principal(conn).await?;let preview=read_catalog(conn).await?;
+ if !principal_can_install(&principal,&preview) {return Err(InstallError::NotAdministrator);}
+ let mut tx=conn.begin().await.map_err(database_error)?;
+ if let Err(err)=prepare_locked(&mut tx,&principal).await {let _=tx.rollback().await;return Err(err);}
+ let rows=read_rows(&mut tx).await?;
+ for (version,digest,file) in [(VERSION_NATIVE_PUBLICATION,compiled_native_publication_digest(),FILE_NATIVE_PUBLICATION),
+  (VERSION_NATIVE_C1_ACK_SEED,compiled_native_c1_ack_seed_digest(),FILE_NATIVE_C1_ACK_SEED)] {
+  if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&digest,file)) {
+   let _=tx.rollback().await;return Err(InstallError::Refused {message:"C1 publication requires exact 0027 and 0035".into()});
+  }
+ }
+ let digest=compiled_native_c1_collection_publication_digest();
+ if let Some(row)=find_row(&rows,VERSION_NATIVE_C1_COLLECTION_PUBLICATION) {
+  if !row_exact(row,VERSION_NATIVE_C1_COLLECTION_PUBLICATION,&digest,FILE_NATIVE_C1_COLLECTION_PUBLICATION) {
+   return mismatch(tx,Mismatch {version:VERSION_NATIVE_C1_COLLECTION_PUBLICATION.into(),stored:row.checksum.clone()}).await.map(|_|());
+  }
+  tx.commit().await.map_err(database_error)?;return Ok(());
+ }
+ let result=async {
+  exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+  exec_script(&mut tx,SCRIPT_NATIVE_C1_COLLECTION_PUBLICATION).await?;
+  insert_markers(&mut tx,&[marker(VERSION_NATIVE_C1_COLLECTION_PUBLICATION,&digest,FILE_NATIVE_C1_COLLECTION_PUBLICATION)]).await
+ }.await;
+ if let Err(err)=result {let _=tx.rollback().await;return Err(err);}tx.commit().await.map_err(database_error)
+}
+
+/// Publish an ACKed multi-run C1 cut through the existing release transaction.
+pub async fn install_native_c1_timed_receipt(conn:&mut PgConnection)->Result<(),InstallError> {
+ let principal=read_principal(conn).await?;let preview=read_catalog(conn).await?;
+ if !principal_can_install(&principal,&preview) {return Err(InstallError::NotAdministrator);}
+ let mut tx=conn.begin().await.map_err(database_error)?;
+ if let Err(err)=prepare_locked(&mut tx,&principal).await {let _=tx.rollback().await;return Err(err);}
+ let rows=read_rows(&mut tx).await?;
+ for (version,digest,file) in [(VERSION_NATIVE_C1_COLLECTION_PUBLICATION,compiled_native_c1_collection_publication_digest(),FILE_NATIVE_C1_COLLECTION_PUBLICATION)] {
+  if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&digest,file)) {
+   let _=tx.rollback().await;return Err(InstallError::Refused {message:"C1 timed receipts require exact 0036".into()});
+  }
+ }
+ let digest=compiled_native_c1_timed_receipt_digest();
+ if let Some(row)=find_row(&rows,VERSION_NATIVE_C1_TIMED_RECEIPT) {
+  if !row_exact(row,VERSION_NATIVE_C1_TIMED_RECEIPT,&digest,FILE_NATIVE_C1_TIMED_RECEIPT) {
+   return mismatch(tx,Mismatch {version:VERSION_NATIVE_C1_TIMED_RECEIPT.into(),stored:row.checksum.clone()}).await.map(|_|());
+  }
+  tx.commit().await.map_err(database_error)?;return Ok(());
+ }
+ let result=async {
+  exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+  exec_script(&mut tx,SCRIPT_NATIVE_C1_TIMED_RECEIPT).await?;
+  insert_markers(&mut tx,&[marker(VERSION_NATIVE_C1_TIMED_RECEIPT,&digest,FILE_NATIVE_C1_TIMED_RECEIPT)]).await
+ }.await;
+ if let Err(err)=result {let _=tx.rollback().await;return Err(err);}tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_quiet_baseline_time(conn:&mut PgConnection)->Result<(),InstallError> {
+ let principal=read_principal(conn).await?;let preview=read_catalog(conn).await?;
+ if !principal_can_install(&principal,&preview) {return Err(InstallError::NotAdministrator);}
+ let mut tx=conn.begin().await.map_err(database_error)?;
+ if let Err(err)=prepare_locked(&mut tx,&principal).await {let _=tx.rollback().await;return Err(err);}
+ let rows=read_rows(&mut tx).await?;
+ for (version,digest,file) in [(VERSION_NATIVE_C1_TIMED_RECEIPT,compiled_native_c1_timed_receipt_digest(),FILE_NATIVE_C1_TIMED_RECEIPT)] {
+  if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&digest,file)) {
+   let _=tx.rollback().await;return Err(InstallError::Refused {message:"C1 timed receipts require exact 0037".into()});
+  }
+ }
+ let digest=compiled_native_c1_quiet_baseline_time_digest();
+ if let Some(row)=find_row(&rows,VERSION_NATIVE_C1_QUIET_BASELINE_TIME) {
+  if !row_exact(row,VERSION_NATIVE_C1_QUIET_BASELINE_TIME,&digest,FILE_NATIVE_C1_QUIET_BASELINE_TIME) {
+   return mismatch(tx,Mismatch {version:VERSION_NATIVE_C1_QUIET_BASELINE_TIME.into(),stored:row.checksum.clone()}).await.map(|_|());
+  }
+  tx.commit().await.map_err(database_error)?;return Ok(());
+ }
+ let result=async {
+  exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+  exec_script(&mut tx,SCRIPT_NATIVE_C1_QUIET_BASELINE_TIME).await?;
+  insert_markers(&mut tx,&[marker(VERSION_NATIVE_C1_QUIET_BASELINE_TIME,&digest,FILE_NATIVE_C1_QUIET_BASELINE_TIME)]).await
+ }.await;
+ if let Err(err)=result {let _=tx.rollback().await;return Err(err);}tx.commit().await.map_err(database_error)
+}
+
 /// Apply the jobs-owner mirror recovery successor only on a target with jobs.
 pub async fn install_jobs_mirror_rebind(conn: &mut PgConnection) -> Result<(), InstallError> {
     let principal = read_principal(conn).await?;
@@ -3372,3 +3453,18 @@ const VERSION_NATIVE_C1_ACK_SEED:&str="native-c1-ack-seed/v1";
 const FILE_NATIVE_C1_ACK_SEED:&str="0035_native_c1_ack_seed.sql";
 const SCRIPT_NATIVE_C1_ACK_SEED:&str=include_str!("../migrations/0035_native_c1_ack_seed.sql");
 pub fn compiled_native_c1_ack_seed_digest()->String {sha256_hex(SCRIPT_NATIVE_C1_ACK_SEED.as_bytes())}
+
+const VERSION_NATIVE_C1_COLLECTION_PUBLICATION:&str="native-c1-collection-publication/v1";
+const FILE_NATIVE_C1_COLLECTION_PUBLICATION:&str="0036_native_c1_collection_publication.sql";
+const SCRIPT_NATIVE_C1_COLLECTION_PUBLICATION:&str=include_str!("../migrations/0036_native_c1_collection_publication.sql");
+pub fn compiled_native_c1_collection_publication_digest()->String {sha256_hex(SCRIPT_NATIVE_C1_COLLECTION_PUBLICATION.as_bytes())}
+
+const VERSION_NATIVE_C1_TIMED_RECEIPT:&str="native-c1-timed-receipt/v1";
+const FILE_NATIVE_C1_TIMED_RECEIPT:&str="0037_native_c1_timed_receipt.sql";
+const SCRIPT_NATIVE_C1_TIMED_RECEIPT:&str=include_str!("../migrations/0037_native_c1_timed_receipt.sql");
+pub fn compiled_native_c1_timed_receipt_digest()->String {sha256_hex(SCRIPT_NATIVE_C1_TIMED_RECEIPT.as_bytes())}
+
+const VERSION_NATIVE_C1_QUIET_BASELINE_TIME:&str="native-c1-quiet-baseline-time/v1";
+const FILE_NATIVE_C1_QUIET_BASELINE_TIME:&str="0038_native_c1_quiet_baseline_time.sql";
+const SCRIPT_NATIVE_C1_QUIET_BASELINE_TIME:&str=include_str!("../migrations/0038_native_c1_quiet_baseline_time.sql");
+pub fn compiled_native_c1_quiet_baseline_time_digest()->String {sha256_hex(SCRIPT_NATIVE_C1_QUIET_BASELINE_TIME.as_bytes())}

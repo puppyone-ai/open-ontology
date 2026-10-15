@@ -15,6 +15,7 @@ mod w73;
 mod decide;
 mod error;
 mod maintain;
+mod native_publication;
 mod seal;
 mod sha256;
 mod sql;
@@ -27,7 +28,7 @@ pub use decide::{
     production_admissible, summarize_gates, test_admissible, GateFact, Summary, GATE_IDS, PRODUCTION_EXTERNAL,
 };
 pub use error::StoreError;
-pub use seal::{authority_statement, compile_seal, Seal};
+pub use seal::{authority_statement, compile_seal, verify_native_artifact, Seal};
 pub use sha256::sha256_hex;
 pub use maintain::{maintain_activate, maintain_install, maintain_recover, maintenance_sha256, ControlConn, MaintainRequest};
 pub use store::{
@@ -35,7 +36,7 @@ pub use store::{
     stage, status, CheckpointRequest, Endpoint, GateRequest, InstallRequest, PlanRequest, Receipt, RecoverRequest,
     StageRequest,
 };
-pub use target::{column_types, close_target, grant_target, install_target, observe_target, open_target, revoke_target, status_target, FenceRef, TargetConn};
+pub use target::{column_types, close_target, grant_target, install_target, observe_target, open_native_target, open_target, revoke_target, status_target, FenceRef, TargetConn};
 pub use tls::rustls_connector;
 
 pub const CONTRACT: &str = "oo.release-coordinator/v1";

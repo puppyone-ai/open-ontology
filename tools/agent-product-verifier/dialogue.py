@@ -86,6 +86,7 @@ def verify_named_facts(answer, expected, results):
 FINAL_FORMAT = 'json_schema'
 SYSTEM = (
     'Use OO tools autonomously to inspect role knowledge, schema, freshness, validate and query. '
+    'The query target is PostgreSQL. Use the exact schema-qualified relation names returned by tables and describe. '
     'Preserve exact decimal and original source type/quality warnings. Never infer a value without evidence. '
     'You cannot use direct DB or source credentials. '
     'When a question is finished, return one JSON object and no other text. '
@@ -372,6 +373,43 @@ def coverage_nudge(used, step, limit):
     return []
 
 
+def resume_completed(transcript, questions, gold, limit):
+    """Reapply the online completion rule to the actual chronological prefix."""
+    used, query_ids, answers, history = set(), set(), [], []
+    results = {}
+    for event in transcript:
+        turn = event['turn']
+        if type(turn) is not int or turn != len(answers) or turn >= len(questions):
+            raise ValueError('resume must contain consecutive completed turns')
+        if 'tool' in event and event['exit'] == 0:
+            used.add(event['tool'])
+            if event['tool'] == 'query':
+                query_ids.update(ids(event['response']))
+                results[event['response']['query_id']] = event['response']
+        if 'model' not in event:
+            continue
+        msg = event['model']['choices'][0]['message']
+        if msg.get('tool_calls'):
+            continue
+        step = event['step']
+        if type(step) is not int or not 0 < step < limit:
+            raise ValueError('resume model completion step is invalid')
+        if coverage_nudge(used, step, limit):
+            continue
+        answer = msg.get('content') or ''
+        expected = gold[questions[turn]['truth_key']]
+        if 'expected_named_facts' not in expected:
+            raise ValueError('resume requires query-grounded named facts')
+        verify_named_facts(answer, expected['expected_named_facts'], results)
+        answers.append(answer)
+        history.extend(({'role': 'user', 'content': questions[turn]['prompt']},
+                        {'role': 'assistant', 'content': answer}))
+        results = {}
+    if not answers or transcript[-1]['turn'] >= len(answers):
+        raise ValueError('resume must end in a verified completed turn')
+    return used, query_ids, answers, history
+
+
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--config',required=True); p.add_argument('--out',required=True)
     a=p.parse_args(); cfg=json.loads(pathlib.Path(a.config).read_text()); out=pathlib.Path(a.out)
@@ -396,28 +434,8 @@ def main():
         if hashlib.sha256(data).hexdigest() != cfg['resume_transcript_sha256']:
             raise ValueError('resume transcript digest mismatch')
         transcript=json.loads(data)
-        for event in transcript:
-            if 'tool' in event and event['exit'] == 0:
-                used.add(event['tool'])
-                if event['tool'] == 'query': query_ids.update(ids(event['response']))
-            if 'model' not in event: continue
-            msg=event['model']['choices'][0]['message']
-            if msg.get('tool_calls'): continue
-            turn=event['turn']
-            if turn != len(answers): raise ValueError('resume must contain consecutive completed turns')
-            answer=msg.get('content') or ''
-            expected=gold[questions[turn]['truth_key']]
-            results={e['response']['query_id']:e['response'] for e in transcript
-                     if e.get('turn') == turn and e.get('tool') == 'query' and e['exit'] == 0}
-            if 'expected_named_facts' in expected:
-                verify_named_facts(answer, expected['expected_named_facts'], results)
-            else:
-                raise ValueError('resume requires query-grounded named facts')
-            answers.append(answer)
-            turn_history.extend(({'role':'user','content':questions[turn]['prompt']},
-                                 {'role':'assistant','content':answer}))
-        if not answers or any(e['turn'] >= len(answers) for e in transcript):
-            raise ValueError('resume must end in a verified completed turn')
+        used, query_ids, answers, turn_history = resume_completed(
+            transcript, questions, gold, cfg.get('max_tool_rounds', 20))
         messages=[messages[0], *turn_history]
     for turn, question in enumerate(questions):
         if turn < len(answers): continue

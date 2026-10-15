@@ -499,6 +499,17 @@
             "null"
           ]
         },
+        "source_semantics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceSemantics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Missing on legacy documents. Serialization omits it so those bytes stay stable."
+        },
         "superseded_by": {
           "default": null,
           "maxLength": 192,
@@ -1913,6 +1924,231 @@
         "system"
       ],
       "type": "string"
+    },
+    "SourceColumnSemantics": {
+      "additionalProperties": false,
+      "description": "Column-scoped source caveat. The note is a token, not SQL text.",
+      "properties": {
+        "caveats": {
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "column": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        "native_note": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "column"
+      ],
+      "type": "object"
+    },
+    "SourceConsistencyGrade": {
+      "description": "Source consistency. These four tokens are not an A–F profile quality grade.",
+      "enum": [
+        "T",
+        "S1",
+        "S0",
+        "B"
+      ],
+      "type": "string"
+    },
+    "SourceConstraintDisposition": {
+      "enum": [
+        "enforced",
+        "candidate",
+        "blocked",
+        "recorded",
+        "stripped"
+      ],
+      "type": "string"
+    },
+    "SourceConstraintKind": {
+      "enum": [
+        "primary_key",
+        "unique",
+        "foreign_key"
+      ],
+      "type": "string"
+    },
+    "SourceConstraintTrust": {
+      "additionalProperties": false,
+      "description": "One constraint-trust decision carried on the dataset that owns the columns.",
+      "properties": {
+        "columns": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "disposition": {
+          "$ref": "#/$defs/SourceConstraintDisposition"
+        },
+        "inclusion": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceInclusion"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceConstraintKind"
+        },
+        "name": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "trust": {
+          "$ref": "#/$defs/SourceConstraintTrustLevel"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "columns",
+        "trust",
+        "disposition"
+      ],
+      "type": "object"
+    },
+    "SourceConstraintTrustLevel": {
+      "enum": [
+        "enforced",
+        "declared_only",
+        "absent"
+      ],
+      "type": "string"
+    },
+    "SourceInclusion": {
+      "additionalProperties": false,
+      "properties": {
+        "ratio_thousandths": {
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rows_checked": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rows_checked",
+        "ratio_thousandths"
+      ],
+      "type": "object"
+    },
+    "SourceSemantics": {
+      "additionalProperties": false,
+      "description": "Optional additive `oos/v1` source record. Absence matches a legacy dataset.\n\nFields are identifiers and tokens. There is no endpoint, credential, or SQL text.",
+      "properties": {
+        "capture": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "caveats": {
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/SourceColumnSemantics"
+          },
+          "type": "array"
+        },
+        "constraint_trust": {
+          "items": {
+            "$ref": "#/$defs/SourceConstraintTrust"
+          },
+          "type": "array"
+        },
+        "delete_detection": {
+          "description": "Absent when the source observation did not record delete detection.",
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "family": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "grade": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceConsistencyGrade"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Absent when the source observation did not record a consistency grade."
+        },
+        "product": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "source_kind": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._+-]{1,64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "family",
+        "product",
+        "version",
+        "capture",
+        "source_kind"
+      ],
+      "type": "object"
     },
     "StrongKey": {
       "additionalProperties": false,

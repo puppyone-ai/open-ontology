@@ -18,9 +18,9 @@ use std::process::ExitCode;
 use oo_core::json_scan::parse_json_value;
 use oo_core::limits::DOCUMENT_MAX_BYTES;
 use oo_gateway::mapping_reader_access::{
-    MappingReaderEffect, MappingReaderError, provision_mapping_reader,
+    MappingReaderEffect, MappingReaderError, provision_mapping_reader, provision_mapping_reader_native_vector,
 };
-use oo_gateway::policy::compile_column_acl_set;
+use oo_gateway::policy::{compile_column_acl_set, compile_column_acl_native_vector_set};
 use oo_gateway::{
     ClassStatus, ColumnAclPolicy, ColumnSpec, LogicalTable, PiiClass, PolicyError, RowFilter,
     TlsEndpoint, connect_require_tls,
@@ -30,6 +30,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 const PROTOCOL: &str = "oo.gateway.provision-mapping-reader-cli/v1";
+const NATIVE_PROTOCOL: &str = "oo.gateway.provision-native-vector-mapping-reader-cli/v1";
 const PASSWORD_FILE_BYTES: usize = 1026;
 const PASSWORD_BYTES: usize = 1024;
 const CA_BYTES: usize = 1_048_576;
@@ -97,6 +98,7 @@ fn read_stdin() -> Result<String, Fail> {
 }
 
 struct Prepared {
+    native: bool,
     policies: Vec<ColumnAclPolicy>,
     login: String,
     endpoint: TlsEndpoint,
@@ -108,7 +110,8 @@ fn prepare(text: &str) -> Result<Prepared, Fail> {
     let value = parse_json_value(text, PROTOCOL).map_err(|_| Fail::Scan)?;
     reject_null(&value)?;
     let request: RequestDoc = serde_json::from_value(value).map_err(|_| Fail::Request)?;
-    if request.protocol != PROTOCOL {
+    let native=request.protocol==NATIVE_PROTOCOL;
+    if request.protocol != PROTOCOL && !native {
         return Err(Fail::Request);
     }
     let endpoint = endpoint_from(request.endpoint)?;
@@ -116,7 +119,7 @@ fn prepare(text: &str) -> Result<Prepared, Fail> {
     for policy in &request.policies {
         policies.push(policy.to_acl()?);
     }
-    compile_column_acl_set(&policies).map_err(from_policy)?;
+    (if native {compile_column_acl_native_vector_set(&policies)} else {compile_column_acl_set(&policies)}).map_err(from_policy)?;
     let Some(first) = policies.first() else {
         return Err(Fail::Policy("empty"));
     };
@@ -130,6 +133,7 @@ fn prepare(text: &str) -> Result<Prepared, Fail> {
     }
     let ca = read_ca(Path::new(&request.ca_file))?;
     Ok(Prepared {
+        native,
         policies,
         login,
         endpoint,
@@ -162,7 +166,7 @@ async fn provision(prepared: Prepared) -> Result<String, Fail> {
     let driver = tokio::spawn(async move {
         let _ = connection.await;
     });
-    let result = provision_mapping_reader(&mut client, &prepared.login, &prepared.policies).await;
+    let result = if prepared.native {provision_mapping_reader_native_vector(&mut client,&prepared.login,&prepared.policies).await} else {provision_mapping_reader(&mut client, &prepared.login, &prepared.policies).await};
     drop(client);
     let _ = driver.await;
     let outcome = result.map_err(from_mapping)?;
@@ -171,7 +175,7 @@ async fn provision(prepared: Prepared) -> Result<String, Fail> {
         MappingReaderEffect::Replay => "replay",
     };
     let body = OutcomeDoc {
-        protocol: PROTOCOL,
+        protocol: if prepared.native { NATIVE_PROTOCOL } else { PROTOCOL },
         effect,
         login: &outcome.login,
         role: &outcome.role,

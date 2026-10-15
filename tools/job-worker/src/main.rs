@@ -36,6 +36,7 @@ async fn run() -> Result<()> {
         Some("native-put") => job_worker::native_schedule::put(&config, &required(&flags,"manifest")?).await,
         Some("native-enable") => job_worker::native_schedule::enabled(&config, &required(&flags,"binding")?, required(&flags,"enabled")? == "true").await,
         Some("native-loader-put") => job_worker::native_schedule::loader_put(&config, &required(&flags,"manifest")?).await,
+        Some("native-artifacts") => job_worker::native_schedule::artifacts(&config, &required(&flags,"binding")?, &required(&flags,"out")?).await,
         Some("native-state") => job_worker::native_schedule::state(&config, &required(&flags,"binding")?).await,
         Some("native-fire") => job_worker::native_schedule::fire(&config, &required(&flags,"project")?).await,
         Some("native-step") => job_worker::native_schedule::step(&config, &required(&flags,"project")?, &required(&flags,"worker")?).await,

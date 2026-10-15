@@ -570,6 +570,10 @@ async fn install_document(document: &Value) -> Value {
         Ok(()) => match target_installer::install_native_c1_baseline_date_quality(&mut conn).await {
         Ok(()) => match target_installer::install_native_c1_baseline_key_join(&mut conn).await {
         Ok(()) => match target_installer::install_native_c1_ack_seed(&mut conn).await {
+        Ok(()) => match target_installer::install_native_publication(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_collection_publication(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_timed_receipt(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_quiet_baseline_time(&mut conn).await {
         Ok(()) => json!({
             "protocol": RESULT_PROTOCOL,
             "installed": true,
@@ -596,6 +600,14 @@ async fn install_document(document: &Value) -> Value {
             ,"native_c1_gtid_measured_identity_digest": target_installer::compiled_native_c1_gtid_measured_identity_digest()
             ,"native_c1_baseline_typed_bridge_digest": target_installer::compiled_native_c1_baseline_typed_bridge_digest()
         }),
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0038"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0037"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0036"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0027"}),
+        },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0035"}),
         },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0034"}),

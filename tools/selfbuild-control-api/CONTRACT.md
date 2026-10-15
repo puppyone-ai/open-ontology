@@ -172,12 +172,38 @@ The fixed a370 identity service and its OIDC test IdP, customer IdP confirmation
 
 `POST /control/v1/builds/{build_id}/maintenance` accepts trigger
 `source_generation_advanced` with exactly `identity_revision`, `idempotency_key`,
-`trigger`, and `catalog_sha256`. The SHA pins `catalog.json` in the project's
+`trigger`, and `catalog_sha256`; Doris receipt-bound metadata refresh may also
+include `source_semantics_sha256`. The SHA pins `catalog.json` in the project's
 operator-configured sealed bundle; HTTP cannot supply a catalog or directory.
 The existing bundle manifest and source protocol validate the bytes used.
 A sealed catalog (`oo.pipeline.sealed-import-catalog/v1`) or a sealed collection may reuse the original reviewed decisions when its protocol matches the original command catalog. The existing `compile_sealed_import_catalog` or `compile_sealed_import_collection` checks the bytes. Progress goes through `check_generation_progress` on the real per-table vector: a collection uses that compiler's `binding_vector`, and a single catalog uses each table's source generation, target generation, run id, input digest, and stored physical mapping. The single-catalog vector is not written onto the catalog. The collection draft's high-watermark generation is not the progress record. Source and dataset identities, schema, types, native semantics, rules, visibility, and model settings stay identical. Only runtime observations `source_contract.applied_end_lsn`, `quality.rows` and `quality.typed_cells` are excluded from semantic equality; capability, grade, deletion, reader, zero writes, column count and typed differences remain checked. Generations cannot rewind or change an existing
 run's data identity. Structural, semantic, classification or role changes
 require a new genuine Selfbuild. The immutable model output remains unchanged. On a rebound, a single `oo.pipeline.sealed-import-catalog/v1` keeps each decision `schema_hash` equal to the compiled schema digest and moves `settings.catalog_version` and visibility `catalog_version` to the new identity hash. A collection still requires each decision `schema_hash` to equal the previous identity and rewrites it to the new collection identity. A different schema digest, column, role, or a generation rewind is still refused. A decision whose fact no longer matches stays hidden.
+
+For Doris only, `source_semantics_sha256` pins the immutable
+`builds/{build_id}/source-semantics/{sha256}.json` file. Later maintenance may
+add another SHA-addressed file without replacing prior evidence; replay of an
+existing SHA succeeds only when owner, mode and bytes match exactly. The file must use
+`oo.source.doris.audit/v1`, retain the original source identity and semantic
+basis, and cover exactly the current sealed tables and generation vector. Each
+table's C4/C5 claim must match its request and loader receipt copied under the
+same build's `source-evidence/{evidence_set_id}/` directory. `evidence_set_id`
+is a separate 64-character lowercase hex namespace so evidence paths do not
+depend circularly on the artifact hash. The API checks each relative path,
+file owner, mode `0600`, size and SHA-256, then checks the receipt protocol,
+method, source/target generations, deletion semantics and unpublished load
+state. The authenticated request carries only the artifact SHA; it cannot name
+an arbitrary filesystem path. Only runtime per-table methods, their
+source/target generations, generation labels, evidence hashes and warning map
+may vary from S0; source identity, consistency grade, cross-table consistency
+and reader-write facts remain bound.
+The validated C4/C5 methods are projected into each dataset's effective
+`source_semantics`, current `source.json`, and role Pack. The method projection
+does not change catalog columns, schema/type identity, reviewed decisions or
+role visibility. An unchanged table remains C5 with `current_update` set to
+`none_observed`; `static` is not a capture-method token. The old S5 and S0
+artifacts remain immutable, and the result remains `not_published`.
+
 A successful operation appends a zero-model native-maintenance receipt and
 artifacts bound to the original build/decision digest and current collection,
 bundle file hashes and per-table binding vector. Role Pack compilation uses the

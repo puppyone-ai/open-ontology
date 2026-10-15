@@ -46,7 +46,7 @@ pub use native_catalog::{gate_request, run_import_native_catalog, REQUEST_PROTOC
 pub use sealed::{draft_only, draft_with_source_contract, sealed_build, SealedBuild, SealedTarget, DEPENDENCY_SHA};
 pub use document_profile::{compile_document_profile, DocumentProfileIn, PROTOCOL as DOCUMENT_PROFILE_PROTOCOL};
 pub use source_contract::{
-    bind_source_pack, project_sealed_source_contract, PROTOCOL as BIND_SOURCE_PACK_PROTOCOL,
+    bind_source_pack, project_mysql_c1, project_doris_capture_methods, project_sealed_source_contract, PROTOCOL as BIND_SOURCE_PACK_PROTOCOL,
 };
 pub use profile::{catalog_request, read_comments, read_profile, run_catalog};
 

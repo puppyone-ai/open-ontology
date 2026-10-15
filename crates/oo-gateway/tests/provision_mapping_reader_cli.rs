@@ -1355,3 +1355,46 @@ GRANT USAGE ON SCHEMA shop TO oo_a249_reader;\n\
 GRANT SELECT ON shop.customer, shop.order_doc TO oo_a249_reader;\n\
 GRANT INSERT ON shop.customer, shop.order_doc, shop.write_audit TO oo_a249_writer;\n\
 ";
+
+#[test]
+fn actual_native_vector_mapping_reader() {
+    let Ok(path)=std::env::var("OO_NATIVE_MAPPING_LIVE_CONFIG") else {return;};
+    let request:serde_json::Value=serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    let invoke=|value:&serde_json::Value| {
+        use std::io::Write;
+        let mut child=std::process::Command::new(env!("CARGO_BIN_EXE_provision-mapping-reader"))
+            .stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
+        child.stdin.take().unwrap().write_all(&serde_json::to_vec(value).unwrap()).unwrap();
+        child.wait_with_output().unwrap()
+    };
+    let replay=invoke(&request);assert!(replay.status.success(),"real native replay refused");
+    let output:serde_json::Value=serde_json::from_slice(&replay.stdout).unwrap();assert_eq!(output["effect"],"replay");
+    for kind in ["generation","config","column","metadata"] {
+        let mut wrong=request.clone();
+        match kind {
+            "generation"=>wrong["policies"][0]["generation"]=serde_json::json!(1),
+            "config"=>wrong["policies"][0]["config_digest"]=serde_json::json!("0".repeat(64)),
+            "column"=>{wrong["policies"][0]["table"]["columns"].as_array_mut().unwrap().pop();},
+            _=>wrong["policies"][0]["table"]["columns"][0]["name"]=serde_json::json!("_oo_pos"),
+        }
+        assert!(!invoke(&wrong).status.success(),"native drift accepted: {kind}");
+    }
+    let endpoint=&request["endpoint"];
+    let ca=std::fs::read(request["ca_file"].as_str().unwrap()).unwrap();
+    let password=std::fs::read_to_string(request["password_file"].as_str().unwrap()).unwrap();
+    let db=oo_gateway::TlsEndpoint {host:endpoint["host"].as_str().unwrap().to_owned(),port:endpoint["port"].as_u64().unwrap() as u16,database:endpoint["database"].as_str().unwrap().to_owned(),user:endpoint["user"].as_str().unwrap().to_owned()};
+    let runtime=tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(async {
+        let (client,connection)=oo_gateway::connect_require_tls(&db,password.trim(),&ca).await.unwrap();
+        let driver=tokio::spawn(async move {let _=connection.await;});
+        let login=request["login"].as_str().unwrap();
+        assert!(login.bytes().all(|c|c.is_ascii_lowercase() || c.is_ascii_digit() || c==b'_'));
+        client.batch_execute(&format!("GRANT INSERT ON _oo.physical_mappings TO \"{login}\";")).await.unwrap();
+        let refused=invoke(&request);
+        client.batch_execute(&format!("REVOKE INSERT ON _oo.physical_mappings FROM \"{login}\";")).await.unwrap();
+        assert!(!refused.status.success(),"metadata write privilege accepted");
+        drop(client);driver.await.unwrap();
+    });
+    assert!(invoke(&request).status.success());
+    println!("NATIVE_MAPPING_RAW real replay and generation/config/column/internal-metadata/write-privilege refusals passed");
+}

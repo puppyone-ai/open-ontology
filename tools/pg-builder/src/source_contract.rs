@@ -98,6 +98,129 @@ pub fn project_sealed_source_contract(
     }
 }
 
+/// Project a receipt-bound Doris capture observation onto the existing sealed
+/// datasets. This is runtime quality metadata: it never changes catalog,
+/// column, decision, or role identity.
+pub fn project_doris_capture_methods(
+    effective: &mut Value,
+    catalog: &Value,
+    observation: &Value,
+) -> Result<(), PgBuilderError> {
+    const PROTOCOL: &str = "oo.source.doris.audit/v1";
+    if observation.get("protocol").and_then(Value::as_str) != Some(PROTOCOL)
+        || observation.get("source_id").and_then(Value::as_str) != Some("dorispreview")
+        || sealed_engine(catalog)? != "doris"
+    {
+        return Err(rejected());
+    }
+    let entries = catalog
+        .get("entries")
+        .and_then(Value::as_array)
+        .filter(|items| !items.is_empty())
+        .ok_or_else(rejected)?;
+    let methods = observation
+        .get("capture_methods")
+        .and_then(Value::as_object)
+        .ok_or_else(rejected)?;
+    let generations = observation
+        .get("table_generations")
+        .and_then(Value::as_object)
+        .ok_or_else(rejected)?;
+    let mut by_dataset = std::collections::BTreeMap::new();
+    for entry in entries {
+        let tables = entry.get("tables").and_then(Value::as_array).filter(|rows| !rows.is_empty()).ok_or_else(rejected)?;
+        let source_generation = entry.get("source_generation").and_then(Value::as_i64).ok_or_else(rejected)?;
+        let target_generation = entry.get("target_generation").and_then(Value::as_i64).ok_or_else(rejected)?;
+        for table in tables {
+            let schema = table.get("logical_schema").and_then(Value::as_str).ok_or_else(rejected)?;
+            let table_name = table.get("logical_table").and_then(Value::as_str).ok_or_else(rejected)?;
+            let dataset = format!("{schema}.{table_name}");
+            if by_dataset.insert(dataset, (source_generation, target_generation)).is_some() {
+                return Err(rejected());
+            }
+        }
+    }
+    if methods.len() != by_dataset.len() || generations.len() != by_dataset.len() {
+        return Err(rejected());
+    }
+    let datasets = effective.get_mut("datasets").and_then(Value::as_array_mut).ok_or_else(rejected)?;
+    if datasets.len() != by_dataset.len() {
+        return Err(rejected());
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for dataset in datasets {
+        let name = dataset.get("dataset").and_then(Value::as_str).ok_or_else(rejected)?;
+        let (source_generation, target_generation) = by_dataset.get(name).ok_or_else(rejected)?;
+        if !seen.insert(name.to_owned()) {
+            return Err(rejected());
+        }
+        let method = methods.get(name).and_then(Value::as_object).ok_or_else(rejected)?;
+        let generation = generations.get(name).and_then(Value::as_object).ok_or_else(rejected)?;
+        let capture = method.get("capture_method").and_then(Value::as_str).ok_or_else(rejected)?;
+        if method.get("logical_table").and_then(Value::as_str) != Some(name)
+            || !matches!(capture, "c1_cdc" | "c2_change_feed" | "c3_cursor" | "c4_partition" | "c5_diff")
+            || method.get("consistency").and_then(Value::as_str) != Some("S0")
+            || method.get("source_generation").and_then(Value::as_i64) != Some(*source_generation)
+            || method.get("target_generation").and_then(Value::as_i64) != Some(*target_generation)
+            || generation.get("source_generation").and_then(Value::as_i64) != Some(*source_generation)
+            || generation.get("target_generation").and_then(Value::as_i64) != Some(*target_generation)
+        {
+            return Err(rejected());
+        }
+        let deletion = method.get("delete_detection").and_then(Value::as_str).ok_or_else(rejected)?;
+        if !matches!(deletion, "none" | "reconcile" | "partition_replace")
+            || (capture == "c4_partition" && deletion != "partition_replace")
+            || (capture == "c5_diff" && !matches!(deletion, "reconcile" | "none"))
+            || (!matches!(capture, "c4_partition" | "c5_diff") && deletion != "none")
+        {
+            return Err(rejected());
+        }
+        let current_update = method.get("current_update").and_then(Value::as_str);
+        if current_update.is_some_and(|value| !matches!(value, "observed" | "none_observed"))
+            || (current_update == Some("none_observed") && capture != "c5_diff")
+            || (capture == "c5_diff" && deletion == "none" && current_update != Some("none_observed"))
+        {
+            return Err(rejected());
+        }
+        let semantics = dataset.get_mut("source_semantics").and_then(Value::as_object_mut).ok_or_else(rejected)?;
+        semantics.insert("capture".to_string(), json!(capture));
+        semantics.insert("grade".to_string(), json!("S0"));
+        semantics.insert("delete_detection".to_string(), json!(deletion));
+
+    }
+    Ok(())
+}
+
+/// Project only a validated transactional MySQL cut onto the standard OOS fields.
+pub fn project_mysql_c1(effective: &mut Value, catalog: &Value, observation: &Value) -> Result<(), PgBuilderError> {
+    if sealed_engine(catalog)? != "mysql" || observation["protocol"] != "oo.source.mysql.audit/v1"
+        || observation["capture_method"] != "C1" || observation["consistency_grade"] != "T"
+        || observation["delete_detection"] != "native" || observation["cross_table_consistent"] != true
+    { return Err(rejected()); }
+    let entries = catalog["entries"].as_array().ok_or_else(rejected)?;
+    let mut expected = std::collections::BTreeSet::new();
+    for entry in entries {
+        if entry["source_id"] != observation["source_id"] || entry["source_generation"] != observation["source_generation"]
+            || entry["target_generation"] != observation["target_generation"] { return Err(rejected()); }
+        for table in entry["tables"].as_array().ok_or_else(rejected)? {
+            let schema = table["logical_schema"].as_str().ok_or_else(rejected)?;
+            let name = table["logical_table"].as_str().ok_or_else(rejected)?;
+            if !expected.insert(format!("{schema}.{name}")) { return Err(rejected()); }
+        }
+    }
+    let semantics = json!({"family":"mysql","product":"mysql","version":observation["version"],
+        "capture":"c1_cdc","grade":"T","source_kind":"database","delete_detection":"native"});
+    serde_json::from_value::<oo_core::oos::SourceSemantics>(semantics.clone()).map_err(|_| rejected())?;
+    let datasets = effective["datasets"].as_array_mut().ok_or_else(rejected)?;
+    if datasets.len() != expected.len() { return Err(rejected()); }
+    for dataset in datasets {
+        let name = dataset["dataset"].as_str().ok_or_else(rejected)?;
+        if !expected.remove(name) { return Err(rejected()); }
+        dataset["source_semantics"] = semantics.clone();
+    }
+    Ok(())
+}
+
 fn sealed_engine(catalog: &Value) -> Result<&str, PgBuilderError> {
     if catalog.get("protocol").and_then(Value::as_str) != Some(SEALED_IMPORT_COLLECTION_PROTOCOL) {
         return catalog.get("engine").and_then(Value::as_str)
@@ -388,6 +511,55 @@ mod tests {
     use oo_core::api::payload_sha256;
     use oo_core::sealed_import::{push_schema_column, push_schema_table};
     use serde_json::json;
+
+    #[test]
+    fn projects_only_generation_bound_doris_capture_quality() {
+        let catalog = json!({"protocol":"oo.pipeline.sealed-import-collection/v1","entries":[
+            {"engine":"doris","source_generation":16,"target_generation":28,"tables":[{"logical_schema":"s","logical_table":"part_day"}]},
+            {"engine":"doris","source_generation":1,"target_generation":2,"tables":[{"logical_schema":"s","logical_table":"agg_qty"}]}
+        ]});
+        let observation = json!({"protocol":"oo.source.doris.audit/v1","source_id":"dorispreview","capture_methods":{
+            "s.part_day":{"logical_table":"s.part_day","capture_method":"c4_partition","consistency":"S0","delete_detection":"partition_replace","source_generation":16,"target_generation":28},
+            "s.agg_qty":{"logical_table":"s.agg_qty","capture_method":"c5_diff","consistency":"S0","delete_detection":"none","source_generation":1,"target_generation":2,"current_update":"none_observed"}
+        },"table_generations":{
+            "s.part_day":{"source_generation":16,"target_generation":28},
+            "s.agg_qty":{"source_generation":1,"target_generation":2}
+        }});
+        let mut effective = json!({"datasets":[
+            {"dataset":"s.part_day","source_semantics":{"family":"doris","capture":"sealed_import"}},
+            {"dataset":"s.agg_qty","source_semantics":{"family":"doris","capture":"sealed_import"}}
+        ]});
+        project_doris_capture_methods(&mut effective, &catalog, &observation).unwrap();
+        assert_eq!(effective["datasets"][0]["source_semantics"]["capture"], "c4_partition");
+        assert_eq!(effective["datasets"][1]["source_semantics"]["capture"], "c5_diff");
+        assert_eq!(effective["datasets"][1]["source_semantics"]["delete_detection"], "none");
+        assert_eq!(effective["datasets"][0]["source_semantics"]["family"], "doris");
+        for dataset in effective["datasets"].as_array().unwrap() {
+            let mut semantics = dataset["source_semantics"].clone();
+            semantics["product"] = json!("doris");
+            semantics["version"] = json!("3.1.4");
+            semantics["source_kind"] = json!("database");
+            serde_json::from_value::<oo_core::oos::SourceSemantics>(semantics).unwrap();
+        }
+    }
+
+    #[test]
+    fn rejects_doris_capture_method_identity_and_generation_drift() {
+        let catalog = json!({"protocol":"oo.pipeline.sealed-import-collection/v1","entries":[
+            {"engine":"doris","source_generation":16,"target_generation":28,"tables":[{"logical_schema":"s","logical_table":"part_day"}]}
+        ]});
+        let base = json!({"protocol":"oo.source.doris.audit/v1","source_id":"dorispreview","capture_methods":{
+            "s.part_day":{"logical_table":"s.part_day","capture_method":"c4_partition","consistency":"S0","delete_detection":"partition_replace","source_generation":16,"target_generation":28}
+        },"table_generations":{"s.part_day":{"source_generation":16,"target_generation":28}}});
+        let mut method_drift = base.clone();
+        method_drift["capture_methods"]["s.part_day"]["capture_method"] = json!("static");
+        let mut stale_generation = base.clone();
+        stale_generation["capture_methods"]["s.part_day"]["target_generation"] = json!(27);
+        for invalid in [method_drift, stale_generation] {
+            let mut effective = json!({"datasets":[{"dataset":"s.part_day","source_semantics":{}}]});
+            assert!(project_doris_capture_methods(&mut effective, &catalog, &invalid).is_err());
+        }
+    }
 
     #[test]
     fn collection_contract_requires_each_real_engine_and_exact_caveats() {
@@ -823,5 +995,23 @@ mod tests {
             "limits": {"max_file_bytes": 262144, "max_total_bytes": 1048576, "max_entries": 128}
         })
         .to_string()
+    }
+}
+
+#[cfg(test)]
+mod mysql_tests {
+    use super::*;
+    #[test]
+    fn mysql_c1_projection_requires_exact_source_cut() {
+        let catalog=json!({"protocol":SEALED_IMPORT_COLLECTION_PROTOCOL,"entries":[{"engine":"mysql","source_id":"mysql_owned","source_generation":4,"target_generation":4,"tables":[{"logical_schema":"db","logical_table":"t"}]}]});
+        let observation=json!({"protocol":"oo.source.mysql.audit/v1","source_id":"mysql_owned","source_generation":4,"target_generation":4,"capture_method":"C1","consistency_grade":"T","delete_detection":"native","cross_table_consistent":true,"version":"8.4.10"});
+        let effective=json!({"datasets":[{"dataset":"db.t"}]});
+        let mut projected=effective.clone();
+        project_mysql_c1(&mut projected,&catalog,&observation).unwrap();
+        assert_eq!(projected["datasets"][0]["source_semantics"]["grade"],"T");
+        for (key,value) in [("source_id",json!("another")),("source_generation",json!(3)),("capture_method",json!("C5")),("delete_detection",json!("none")),("cross_table_consistent",json!(false))] {
+            let mut wrong=observation.clone();wrong[key]=value;
+            assert!(project_mysql_c1(&mut effective.clone(),&catalog,&wrong).is_err());
+        }
     }
 }

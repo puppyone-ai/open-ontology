@@ -868,6 +868,7 @@ async fn maintain_cmd(
         database: target.database.clone(),
     };
     let request = MaintainRequest {
+        replica: None,
         native_mapping: map.get("native_mapping"),
         control: control_of(config, &control_endpoint),
         target: TargetConn {

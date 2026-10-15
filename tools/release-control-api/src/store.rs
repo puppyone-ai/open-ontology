@@ -1159,7 +1159,13 @@ impl Runtime {
             port: binding.pg.port,
             database: binding.pg.database.clone(),
         };
+        let replica_endpoint = binding.replica.as_ref().map(|pg| Endpoint {
+            host: pg.host.clone(), port: pg.port, database: pg.database.clone(),
+        });
         let request = MaintainRequest {
+            replica: binding.replica.as_ref().zip(replica_endpoint.as_ref()).map(|(pg, endpoint)| TargetConn {
+                endpoint, user: &pg.user, password: &pg.password, ca_pem: &pg.ca_pem,
+            }),
             native_mapping: binding.native_mapping.as_ref(),
             control: ControlConn {
                 endpoint,

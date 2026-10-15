@@ -210,6 +210,9 @@ def maintenance_consumption(product, receipt_sha, s5_pack_sha, pack_bytes, comma
     rebind = native.get('source_rebind')
     revision = native.get('artifact_revision')
     require(hex64(identity) and isinstance(rebind, dict) and hex64(rebind.get('catalog_sha256')) and hex64(revision), 'maintenance_not_invoked')
+    source_semantics_sha = rebind.get('source_semantics_sha256')
+    if source_semantics_sha is not None:
+        require(hex64(source_semantics_sha) and isinstance(rebind.get('capture_methods'), dict) and rebind['capture_methods'], 'maintenance_source_semantics')
     source, generation, digests = bound_schema(catalog, rebind, identity)
     require(isinstance(maintenance_envelope, dict) and maintenance_envelope.get('status') == 200, 'maintenance_not_invoked')
     maintained = maintenance_envelope.get('response')
@@ -223,10 +226,16 @@ def maintenance_consumption(product, receipt_sha, s5_pack_sha, pack_bytes, comma
     require(isinstance(maintained_rebind, dict) and maintained_rebind.get('catalog_sha256') == rebind.get('catalog_sha256'), 'maintenance_source')
     maintained_request = maintenance_envelope.get('request')
     require(isinstance(maintained_request, dict) and maintained_request.get('trigger') == 'source_generation_advanced' and maintained_request.get('catalog_sha256') == rebind['catalog_sha256'], 'maintenance_not_invoked')
+    if source_semantics_sha is not None:
+        require(maintained_rebind.get('source_semantics_sha256') == source_semantics_sha and maintained_request.get('source_semantics_sha256') == source_semantics_sha and maintained_rebind.get('capture_methods') == rebind.get('capture_methods'), 'maintenance_source_semantics')
     require(isinstance(overlay, dict) and overlay.get('contract') == 'oo.selfbuild-control-api/overlay/v1' and overlay.get('operation') == 'getOverlay' and overlay.get('build_id') == build, 'maintenance_not_invoked')
     require(type(overlay.get('llm_calls')) is int and overlay['llm_calls'] == 0, 'maintenance_not_invoked')
     schema={'schema_digests':digests} if digests is not None else {'schema_digest':catalog['schema_digest']}
-    return {'protocol':CONSUMPTION,'product_receipt_sha256':receipt_sha,'product_producer':product['producer'],'product_producer_sha256':product['producer_sha256'],'build_id':build,'s5_role_pack_sha256':s5_pack_sha,'role_pack_file_sha256':file_sha256,'pack_digest':digest_value,'http_pack_sha256':http_pack,'source_id':source,'source_generation':generation,**schema,'catalog_sha256':rebind['catalog_sha256'],'catalog_version':identity,'role':role_name,'policy_version':'oos/v1','artifact_revision':revision,'maintenance_llm_calls':0,'publication':'not_published','role_exit':0,'maintenance_exit':0,'role_response_sha256':hashlib.sha256(role_response_bytes).hexdigest(),'maintenance_response_sha256':hashlib.sha256(maintenance_response_bytes).hexdigest(),'prepared_overlay_sha256':hashlib.sha256(overlay_bytes).hexdigest()}
+    result={'protocol':CONSUMPTION,'product_receipt_sha256':receipt_sha,'product_producer':product['producer'],'product_producer_sha256':product['producer_sha256'],'build_id':build,'s5_role_pack_sha256':s5_pack_sha,'role_pack_file_sha256':file_sha256,'pack_digest':digest_value,'http_pack_sha256':http_pack,'source_id':source,'source_generation':generation,**schema,'catalog_sha256':rebind['catalog_sha256'],'catalog_version':identity,'role':role_name,'policy_version':'oos/v1','artifact_revision':revision,'maintenance_llm_calls':0,'publication':'not_published','role_exit':0,'maintenance_exit':0,'role_response_sha256':hashlib.sha256(role_response_bytes).hexdigest(),'maintenance_response_sha256':hashlib.sha256(maintenance_response_bytes).hexdigest(),'prepared_overlay_sha256':hashlib.sha256(overlay_bytes).hexdigest()}
+    if source_semantics_sha is not None:
+        result['source_semantics_sha256']=source_semantics_sha
+        result['capture_methods']=rebind['capture_methods']
+    return result
 
 def prove_whole(out, recipe, journal):
     """Whole means this run's pinned product_flow and dialogue outputs, not a boolean."""
