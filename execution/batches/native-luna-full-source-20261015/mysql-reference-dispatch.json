@@ -1,8 +1,8 @@
 {
-  "as_of": "2026-10-15T16:37:50.366483+08:00",
-  "agent": "/root/mysql_shared_reference_xhigh",
-  "model": "gpt-6-luna",
-  "reasoning_effort": "xhigh",
+  "as_of": "2026-10-15T18:50:46.388216+08:00",
+  "agent": "/root/mysql_shared_reference_sol",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
   "status": "spawned",
   "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
   "complete_capability": "real MySQL original C1 baseline/sync plus S0-S10/current Ontology-Pack/formal publish/Gateway-CLI/autonomous random agent; fixed shared artifacts before other sources reuse",
@@ -22,10 +22,11 @@
     "tools/selfbuild-control-api",
     "tools/pg-builder",
     "tools/release-coordinator",
-    "tools/release-control-api"
+    "tools/release-control-api",
+    "crates/oo-pipeline/src/native_c1_baseline.rs"
   ],
   "root_scope": "coordination ledger and fixed evidence only; no duplicate product writer",
-  "first_actual_finding": "confirmed CLI/importer missing, capture_business only fixed-ID delta not five-table snapshot/fill; implementing full original path, not C5 relabel",
+  "first_actual_finding": "real Linux binaries retained; real scheduler/producer invocation failures retained; typed full-import bridge remains refusal stub and is next implementation",
   "artifact_status": "component fixed-source Linux1.94 tests passed; full shared contract and runtime artifacts not ready",
   "formal_count_delta": 0,
   "latest_luna_xhigh_transfer": {
@@ -36,8 +37,16 @@
     "current_owner": "/root/mysql_shared_reference_xhigh",
     "model": "gpt-6-luna",
     "reasoning_effort": "xhigh",
-    "status": "spawned",
+    "status": "completed_handoff_before_sol_spawn",
     "scope": "same indivisible complete MySQL shared reference; other sources held",
     "source_acceptance_delta": 0
-  }
+  },
+  "previous_dispatch": {
+    "agent": "/root/mysql_shared_reference_xhigh",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "xhigh",
+    "status": "spawned"
+  },
+  "handoff": "execution/batches/native-luna-full-source-20261015/mysql-sol-handoff.json",
+  "complete_prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-SOL-COMPLETE.md"
 }

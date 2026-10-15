@@ -16,7 +16,7 @@
 
 ## 当前冻结批次
 
-- [execution/batches/native-luna-full-source-20261015/dispatch.json](batches/native-luna-full-source-20261015/dispatch.json)；实际运行句柄见CONTROL/JSON，批次状态只按退出/证据更新。
+- [execution/batches/native-luna-full-source-20261015/mysql-reference-dispatch.json](batches/native-luna-full-source-20261015/mysql-reference-dispatch.json)；实际运行句柄见CONTROL/JSON，批次状态只按退出/证据更新。
 - DL01-W1-01 / matrix：development；development_child_accepted；Plan DBX-W01；固定依赖 577160c22de6。
 - DL01-W1-02 / admission：development；native_waiting_dependency；Plan DBX-W02；固定依赖 577160c22de6。
 - DL01-W1-03 / capture：development；development_child_accepted；Plan DBX-W03；固定依赖 577160c22de6。
