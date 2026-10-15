@@ -3318,5 +3318,11 @@
       "two complete new random semantic Agent conversations independently verified against source gold and real QID/WAL",
       "final ordinary whole_source proof after successful conversations"
     ]
+  },
+  "latest_mysql_provider_block_audit": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/mysql-provider-block-audit-02.json",
+    "consecutive_goal_turns": 2,
+    "source_release_allowed": false,
+    "formal_source_count": 0
   }
 }
