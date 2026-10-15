@@ -26,7 +26,7 @@
 - DL01-W1-07 / suite：development；author_complete_deferred_connected_review；Plan DBX-W14；固定依赖 577160c22de6。
 - DL01-W1-08 / mariadb：target_preparation；setup_dependency_review_passed；Plan DBX-W06；固定依赖 577160c22de6。
 - DL01-W1-09 / mssql：source_product_development；held_for_shared_stability；Plan DBX-W08；固定依赖 577160c22de6。
-- DL01-W1-10 / oracle：target_preparation；setup_dependency_review_passed；Plan DBX-W09；固定依赖 577160c22de6。
+- DL01-W1-10 / oracle：target_preparation；running_complete_source_reference；Plan DBX-W09；固定依赖 29e3afd88d7c。
 - DL01-W1-11 / clickhouse：target_preparation；author_preparation_runtime_review_pending；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-12 / doris：target_preparation；setup_dependency_review_passed；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-13 / starrocks：target_preparation；setup_dependency_review_passed；Plan DBX-W12；固定依赖 577160c22de6。

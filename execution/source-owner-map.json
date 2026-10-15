@@ -135,19 +135,18 @@
     },
     {
       "source": "oracle",
-      "task": "DL01-W1-04",
+      "task": "DL01-W1-10",
       "uuid": null,
       "handle": null,
       "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
       "write_paths": [
-        "tools/source-driver-worker",
-        "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/driver",
         "tools/oracle-preview",
-        "evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product"
+        "testing/dl01-driver-preflight/oracle/probe",
+        "tools/selfbuild-control-api/src/overlay.rs"
       ],
       "mandatory_blocker": null,
-      "status": "held_no_new_work",
-      "next_action": "held until explicit source-specific release; preserve owned old resources/evidence",
+      "status": "spawned_and_accepted",
+      "next_action": "execution/batches/native-luna-full-source-20261015/ORACLE-COMPLETE-LUNA-MAX-20261016.md",
       "historical_assignment_before_mysql_family_reference": {
         "source": "oracle",
         "task": "DL01-W1-04",
@@ -164,7 +163,11 @@
         "status": "repair_running",
         "next_action": "fresh compact sole engineer complete original source; collect named background before editing"
       },
-      "agent": null
+      "agent": "/root/oracle_complete_luna_max",
+      "historical_task_alias": "DL01-W1-04 (legacy owner-map label)",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "max",
+      "dispatch": "execution/batches/native-luna-full-source-20261015/oracle-luna-max-dispatch.json"
     },
     {
       "source": "clickhouse",
@@ -341,5 +344,5 @@
   "no_duplicate_native_driver_consumer_owners": true,
   "original_exit_unchanged": true,
   "observed_at": "2026-10-15T20:39:43.167196+00:00",
-  "current_authority": "mysql family root intake then sole Doris Luna max; historical assignments archived, not live handle claims"
+  "current_authority": "fixed MySQL family reference passed; independent Doris and Oracle sole Luna max owners with disjoint shared scopes; historical assignment handles are archived"
 }

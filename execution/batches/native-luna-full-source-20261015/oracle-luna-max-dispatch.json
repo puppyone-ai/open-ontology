@@ -1,0 +1,31 @@
+{
+  "as_of": "2026-10-15T20:50:21.022625+00:00",
+  "task_id": "DL01-W1-10",
+  "parent": "DBX-W09",
+  "agent": "/root/oracle_complete_luna_max",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "max",
+  "status": "spawned_and_accepted",
+  "contract": "execution/batches/native-luna-full-source-20261015/ORACLE-COMPLETE-LUNA-MAX-20261016.md",
+  "dependency_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
+  "old_owner_terminal": true,
+  "handoff_receipt_sha256": "3cb0b54c3cbeb16d4ad9bed168e1e2e7e239a1ee2cd62f948104ac9f0c336738",
+  "overlay_clean_and_released": true,
+  "write_paths": [
+    "tools/oracle-preview",
+    "testing/dl01-driver-preflight/oracle/probe",
+    "tools/selfbuild-control-api/src/overlay.rs"
+  ],
+  "no_doris_shared_paths": true,
+  "resource_observation": {
+    "docker_cpus": 16,
+    "docker_memory_GiB": 94.1,
+    "observed_running_containers": 107,
+    "sum_used_container_memory_GiB": 21.32,
+    "sum_CPU_core_equivalent": 1.633
+  },
+  "formal_source_count_delta": 0,
+  "fixed_dispatch_commit": "3244ac3ca591cddb4642a857dcb34ba45a35d1cb",
+  "accepted_at": "2026-10-15T20:52:08.567485+00:00",
+  "accepted_message": "已接卡核对原始退出与控制，只写独占路径并长跑至全出口或真实外部阻断"
+}

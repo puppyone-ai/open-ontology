@@ -14,5 +14,8 @@
   "formal_source_count_delta": 0,
   "accepted_message": "已接卡，读取原docs/skills，按独占边界长跑全部闭环，不组件交接",
   "spawned_after_mysql_root_fixed_commit": "29e3afd88d7c847cffddc9f3e15474255c1bb320",
-  "sanitized_mysql_snapshot": "3dfa3fc3470b8ff83da4fce59f9dffc1d5abdc4c"
+  "sanitized_mysql_snapshot": "3dfa3fc3470b8ff83da4fce59f9dffc1d5abdc4c",
+  "task_id": "DL01-W1-43",
+  "parent": "DBX-W12",
+  "original_parent_verified": "current original docs/Plan verified by engineer; oldcard DBX-W10 reference historical and superseded"
 }
