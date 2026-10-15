@@ -1,3 +1,11 @@
+2026-10-15 用户允许Luna xhigh：MySQL共享参考链现由唯一原生`gpt-6-luna/xhigh`负责人`/root/mysql_shared_reference_xhigh`接续；原low负责人已交接并核terminal，WIP/失败/迁移与具名资源保留，无重复writer。原完整MySQL退出后固定同版制品再放行其余九源，当前仍held，未增加签收。精确记录见mysql-reference-dispatch.json。
+
+2026-10-15 MySQL共享整链唯一长跑owner `/root/mysql_shared_reference_whole` 已实际回应并确认缺失baseline importer/源snapshot-fill，接管必要共享WIP和MySQL独占范围；root不再修改这些产品文件。精确写域/完整退出见mysql-reference-dispatch.json及MYSQL-SHARED-REFERENCE.md。其余源继续held，未固定可复用共享制品，原完整验收0/10。
+
+
+2026-10-15 最新共享收敛顺序：唯一真实参考源MySQL。先以原C1 CDC-first基线/正式租约epoch/自主同步/完整S0–S10/维护Ontology-Pack/正式发布/Gateway与随机Agent跑完原全退出，固定同版源码、迁移与Linux制品，再放行其余九源复用；各源保留原捕获方法和独立验收，不重新设计接口或拿MySQL代通过。精确合同见 execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md。当前shared未放行、完整源0/10；root已核host pipeline编译，C1摘要循环修复host admission2/worker3测试通过，Linux固定副本运行中；真实baseline importer尚缺，不能宣称共享稳定。
+
+2026-10-15 最新用户共享优先：先确保共享底座稳定后再恢复源负责人快速并发。shared-readiness-gate.json 已置 source_release_allowed=false；旧10/12 preview reference放行仅历史，不覆盖当前C1 baseline/注册租约、持续Ontology/Pack维护、native正式发布/Gateway及同固定版本整链缺口。新源集成/付费对话均held，已运行资源和失败保留。执行器实际错误为登录刷新/额度限制，当前仅root确认运行，不把历史owner当live。root接管typed OOS兼容修复，host两项与固定副本Linux Rust1.94两项测试通过，仅组件证据；源码WIP不冒充共享整链完成。
 
 2026-10-15 当前发布硬门槛：root重读Spec第6项/原native导入发布退出，未发布Pack不可开始正式数据问答、awaiting_publish首次不可见。此前只凭准确且披露STALE_DATA允许preview不足以完整原退出；所有新native付费对话先暂停。现有CLI/source typedgold真实成果保留。唯一native-publication负责人获原release tools/native_catalog写域（原writer明确无修改/后台），复用发布coordinator+审核/角色/只读副本barrier，补实际native发布完整能力而非手SQLflip状态；source正式0/10、分母/整版不变。当前11running/OS1已交接待此依赖，非12个全部live。
 2026-10-15 本轮继续：实际原生列表仅root，旧owner已不活动；十一名Luna low唯一负责人已按原卡重新接管保留WIP、固定制品及Docker资源。当前句柄见 native-luna-full-source-20261015/dispatch.json，接续契约RESUME.md。Doris默认入口候选的自主Loader/ACK/维护原缺口不变，原完整签收0/10；不重跑正确S5/模型。

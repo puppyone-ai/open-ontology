@@ -33,8 +33,12 @@ def begin(out,label):
  started=out/'started.json'
  if started.exists():return read(started)
  if query('pg46_finish_target_v2',"SELECT count(*) FROM jobs.tasks WHERE state IN ('queued','running')")!='0':raise RuntimeError('foreign or pending native task')
- p=json.loads(query('pg46_finish_target_v2',f"SELECT row_to_json(s)::text FROM jw_native.watermarks s WHERE binding_id='{B}' AND source_generation=(SELECT max(source_generation) FROM jw_native.watermarks WHERE binding_id='{B}')"))
- s={'generation':p['source_generation']+1,'pin':p['pin']+1,'label':label};save(started,s);return s
+ p=json.loads(query('pg46_finish_target_v2',f"SELECT row_to_json(s)::text FROM jw_native.watermarks s WHERE binding_id='{B}'"))
+ active=query('pg46_finish_target_v2',f"SELECT COALESCE(active_task_id::text,'') FROM jw_native.source_progress WHERE binding_id='{B}'")
+ pending=query('pg46_finish_target_v2',f"SELECT count(*) FROM jw_native.pending_acks WHERE binding_id='{B}' AND acknowledged_at IS NULL")
+ if active or pending!='0':raise RuntimeError('official C1 recovery or ACK is pending')
+ last_pin=int(query('pg46_finish_target_v2',f"SELECT COALESCE(max(pin),0) FROM jw_native.occurrences WHERE binding_id='{B}'"))
+ s={'generation':p['source_generation']+1,'pin':last_pin+1,'label':label};save(started,s);return s
 
 def dml(out,s,sql):
  if (out/'dml-started.json').exists() and not (out/'source-transaction.exit.json').exists():raise RuntimeError('uncertain source transaction; retained')
@@ -58,7 +62,6 @@ def release_unapplied(s):
  held=query('pg46_finish_target_v2',f"SELECT count(*) FROM jw_native.source_progress WHERE active_task_id='{task}'")
  pending=query('pg46_finish_target_v2',f"SELECT count(*) FROM jw_native.pending_acks WHERE task_id='{task}'")
  if held!='0' or pending!='0':raise RuntimeError('failed capture still holds the source fence')
- if query('pg46_finish_target_v2',f"SELECT count(*) FROM jw_native.source_progress WHERE active_task_id='{task}'")!='0':raise RuntimeError('failed capture still holds the source fence')
  nxt=query('pg46_finish_target_v2',f"SELECT COALESCE(max(pin),0) FROM jw_native.occurrences WHERE binding_id='{B}' AND pin>{pin}")
  if nxt=='0':return None
  later=occurrence(int(nxt))
@@ -102,10 +105,13 @@ def converge(out,s):
  assert g==f"{s['generation']}|{pos}"
  assert query('pg46_finish_target_v2',f"SELECT count(*) FROM _oo.table_freshness WHERE source='oo_pg46_finish' AND source_generation={s['generation']} AND last_pos={pos}")==str(len(body['entries']))
  lsn=body['transaction_scope']['end_lsn'];assert body['transaction_scope']['slot']=='pg46_finish_slot'
+ task=occurrence(s['pin'])
+ if not task or task[0]!='succeeded':raise RuntimeError('successful C1 occurrence missing')
+ acknowledged=query('pg46_finish_target_v2',f"SELECT count(*) FROM jw_native.pending_acks WHERE task_id='{task[1]}' AND acknowledged_at IS NOT NULL")
+ source_task=query('pg46_finish_target_v2',f"SELECT count(*) FROM jw_native.source_progress WHERE binding_id='{B}' AND source_generation={int(s['generation'])} AND task_id='{task[1]}' AND active_task_id IS NULL")
+ if acknowledged!='1' or source_task!='1':raise RuntimeError('official C1 ACK receipt missing')
  slot=query('pg46_finish_source',f"SELECT CASE WHEN confirmed_flush_lsn='{lsn}'::pg_lsn THEN 'acked' WHEN confirmed_flush_lsn<'{lsn}'::pg_lsn THEN 'behind' ELSE 'ahead' END FROM pg_replication_slots WHERE slot_name='pg46_finish_slot'",True)
- if slot=='ahead':raise RuntimeError('slot is ahead of this generation')
- if slot=='behind':command(out,'slot-ack',['docker','exec','-i','oo-dl01w1-46-src','psql','-U','postgres','-d','pg46_finish_source','-v','ON_ERROR_STOP=1'],f"SET ROLE oo_dl01w1_46_cdc; SELECT pg_replication_slot_advance('pg46_finish_slot','{lsn}');".encode())
- elif slot!='acked':raise RuntimeError('slot state')
+ if slot!='acked':raise RuntimeError('official C1 worker did not acknowledge the slot')
  entries=[];vector=read(root/'vector.json');applied=json.loads(query('pg46_finish_target_v2',f"SELECT result::text FROM jw_native.watermarks WHERE binding_id='{B}' AND source_generation={int(s['generation'])}"))
  runs={(a['logical_schema'],a['logical_table']):a['run_id'] for a in applied['entries']}
  for e in body['entries']:
