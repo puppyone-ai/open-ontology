@@ -1,26 +1,30 @@
 //! One read-only MySQL business connection. No SET and no DML.
 
+use arrow_ipc::writer::StreamWriter;
 use std::time::{Duration, Instant};
 use std::{fs::File, path::Path};
-use arrow_ipc::writer::StreamWriter;
 
 use mysql_async::prelude::Queryable;
 use mysql_async::{Conn, OptsBuilder, Row, SslOpts, Value};
-use oo_connectors::types::{assemble_batch, RunBinding, TypedBatch};
 use oo_connectors::PG17_RESERVED;
-use oo_pipeline::copy_encoder::{
-    arrow_dimensions, CopyBudgets, CopyColumn, CopyEncoder, CopyPiece, ExactDecimal, MapDecision, UnavailablePolicy,
-};
+use oo_connectors::types::{RunBinding, TypedBatch, assemble_batch};
 use oo_pipeline::catalog_import::{push_schema_column, push_schema_table};
+use oo_pipeline::copy_encoder::{
+    CopyBudgets, CopyColumn, CopyEncoder, CopyPiece, ExactDecimal, MapDecision, UnavailablePolicy,
+    arrow_dimensions,
+};
 use oo_pipeline::copy_sink::hash_batch;
-use oo_pipeline::full_import::{hook_digest, quality_preimage, QualityReject};
+use oo_pipeline::full_import::{QualityReject, hook_digest, quality_preimage};
 use oo_pipeline::target_installer::sha256_hex;
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 use tokio::time::timeout;
 
-use crate::config::{mysql_ident, PreviewConfig, SelectedTable};
-use crate::error::{redact, PreviewError};
-use crate::map::{grant_is_read_only, map_table, mariadb_comment, session_mode_ok, session_utc, MappedColumn, MysqlColumn};
+use crate::config::{PreviewConfig, SelectedTable, mysql_ident};
+use crate::error::{PreviewError, redact};
+use crate::map::{
+    MappedColumn, MysqlColumn, grant_is_read_only, map_table, mariadb_comment, session_mode_ok,
+    session_utc,
+};
 use crate::values::{self, RawCell};
 
 #[derive(Clone, Debug)]
@@ -69,15 +73,27 @@ pub struct SourceRead {
     pub hook_digest: String,
 }
 
-pub(crate) async fn open_mysql(config: &PreviewConfig, password: &str) -> Result<Conn, PreviewError> {
+pub(crate) async fn open_mysql(
+    config: &PreviewConfig,
+    password: &str,
+) -> Result<Conn, PreviewError> {
     connect(config, password).await
 }
 
-pub async fn read_source(config: &PreviewConfig, password: &str, config_bytes: &[u8]) -> Result<SourceRead, PreviewError> {
+pub async fn read_source(
+    config: &PreviewConfig,
+    password: &str,
+    config_bytes: &[u8],
+) -> Result<SourceRead, PreviewError> {
     read_source_export(config, password, config_bytes, None).await
 }
 
-pub async fn read_source_export(config: &PreviewConfig, password: &str, config_bytes: &[u8], export_dir: Option<&Path>) -> Result<SourceRead, PreviewError> {
+pub async fn read_source_export(
+    config: &PreviewConfig,
+    password: &str,
+    config_bytes: &[u8],
+    export_dir: Option<&Path>,
+) -> Result<SourceRead, PreviewError> {
     let started = Instant::now();
     let mut conn = connect(config, password).await?;
     let mut statements = Vec::new();
@@ -108,19 +124,31 @@ pub async fn read_source_export(config: &PreviewConfig, password: &str, config_b
         return Err(PreviewError::new("privilege", "current_user"));
     }
     let grants = show_grants(&mut conn, &mut statements).await?;
-    if grants.is_empty() || grants.iter().any(|line| !grant_is_read_only(line)) || !grants.iter().any(|line| line.to_ascii_uppercase().contains("SELECT"))
+    if grants.is_empty()
+        || grants.iter().any(|line| !grant_is_read_only(line))
+        || !grants
+            .iter()
+            .any(|line| line.to_ascii_uppercase().contains("SELECT"))
     {
         drop(conn);
         return Err(PreviewError::new("privilege", "grants"));
     }
-    let reserved: std::collections::BTreeSet<String> = PG17_RESERVED.iter().map(|word| (*word).to_string()).collect();
+    let reserved: std::collections::BTreeSet<String> = PG17_RESERVED
+        .iter()
+        .map(|word| (*word).to_string())
+        .collect();
     let utc = session_utc(&time_zone);
     let mut tables = Vec::new();
     for (index, selected) in config.tables.iter().enumerate() {
         let columns = catalog_columns(&mut conn, &mut statements, selected).await?;
-        let mapped = keep_requested(map_table(&columns, config.boolean_tinyint1, utc, &reserved)?, &selected.columns)?;
-        let logical_schema = oo_connectors::stable_ident(&selected.schema, &reserved).map_err(|_| PreviewError::new("ident", "ident"))?;
-        let logical_table = oo_connectors::stable_ident(&selected.name, &reserved).map_err(|_| PreviewError::new("ident", "ident"))?;
+        let mapped = keep_requested(
+            map_table(&columns, config.boolean_tinyint1, utc, &reserved)?,
+            &selected.columns,
+        )?;
+        let logical_schema = oo_connectors::stable_ident(&selected.schema, &reserved)
+            .map_err(|_| PreviewError::new("ident", "ident"))?;
+        let logical_table = oo_connectors::stable_ident(&selected.name, &reserved)
+            .map_err(|_| PreviewError::new("ident", "ident"))?;
         tables.push(TableBatch {
             index: u32::try_from(index).map_err(|_| PreviewError::new("config", "tables"))?,
             schema: selected.schema.clone(),
@@ -134,12 +162,25 @@ pub async fn read_source_export(config: &PreviewConfig, password: &str, config_b
     }
     let digests = digests_of(config, config_bytes, &tables);
     if config.stop != crate::config::Stop::Access {
-        query_drop(&mut conn, &mut statements, "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY").await?;
+        query_drop(
+            &mut conn,
+            &mut statements,
+            "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY",
+        )
+        .await?;
         for table in &mut tables {
             if matches!(config.stop, crate::config::Stop::PartialAfterFirst) && table.index > 0 {
                 continue;
             }
-            read_table(config, &mut conn, &mut statements, table, &digests, export_dir).await?;
+            read_table(
+                config,
+                &mut conn,
+                &mut statements,
+                table,
+                &digests,
+                export_dir,
+            )
+            .await?;
         }
         query_drop(&mut conn, &mut statements, "COMMIT").await?;
     }
@@ -179,11 +220,18 @@ fn past_snapshot(config: &PreviewConfig, started: Instant) -> Result<(), Preview
     Ok(())
 }
 
-pub(crate) fn sealed_identity(source: &SourceRead, config: &PreviewConfig) -> Result<(), PreviewError> {
+pub(crate) fn sealed_identity(
+    source: &SourceRead,
+    config: &PreviewConfig,
+) -> Result<(), PreviewError> {
     if !current_user_is(&source.current_user, &config.mysql_user) {
         return Err(PreviewError::new("privilege", "current_user"));
     }
-    let rendered = source.input_bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
+    let rendered = source
+        .input_bytes
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
     if rendered != source.input_digest {
         return Err(PreviewError::new("target", "input_digest"));
     }
@@ -207,7 +255,10 @@ fn digests_of(config: &PreviewConfig, config_bytes: &[u8], tables: &[TableBatch]
     }
     let schema_digest = sha256_hex(schema.as_bytes());
     let type_digest = sha256_hex(b"oo.mysql-preview.types/v1");
-    let input_material = format!("{schema_digest}\n{}\n{}", config.generation, config.source_id);
+    let input_material = format!(
+        "{schema_digest}\n{}\n{}",
+        config.generation, config.source_id
+    );
     let input_digest = sha256_hex(input_material.as_bytes());
     let mut input_bytes = [0u8; 32];
     for (index, byte) in input_digest.as_bytes().chunks(2).enumerate() {
@@ -235,7 +286,11 @@ async fn connect(config: &PreviewConfig, password: &str) -> Result<Conn, Preview
         .db_name(Some(config.mysql_database.clone()))
         .prefer_socket(false)
         .ssl_opts(ssl);
-    let connect = timeout(Duration::from_millis(config.connect_timeout_ms), Conn::new(opts)).await;
+    let connect = timeout(
+        Duration::from_millis(config.connect_timeout_ms),
+        Conn::new(opts),
+    )
+    .await;
     match connect {
         Ok(Ok(conn)) => Ok(conn),
         Ok(Err(err)) => Err(driver_error(&err.to_string(), password, "connect")),
@@ -261,7 +316,11 @@ fn driver_error(text: &str, secret: &str, fact: &'static str) -> PreviewError {
     }
 }
 
-async fn scalar(conn: &mut Conn, notes: &mut Vec<StatementNote>, sql: &str) -> Result<String, PreviewError> {
+async fn scalar(
+    conn: &mut Conn,
+    notes: &mut Vec<StatementNote>,
+    sql: &str,
+) -> Result<String, PreviewError> {
     note(notes, sql);
     let row: Option<Row> = timeout(Duration::from_secs(30), conn.query_first(sql))
         .await
@@ -271,7 +330,11 @@ async fn scalar(conn: &mut Conn, notes: &mut Vec<StatementNote>, sql: &str) -> R
     row_string(&row, 0)
 }
 
-async fn query_drop(conn: &mut Conn, notes: &mut Vec<StatementNote>, sql: &str) -> Result<(), PreviewError> {
+async fn query_drop(
+    conn: &mut Conn,
+    notes: &mut Vec<StatementNote>,
+    sql: &str,
+) -> Result<(), PreviewError> {
     note(notes, sql);
     timeout(Duration::from_secs(30), conn.query_drop(sql))
         .await
@@ -280,7 +343,10 @@ async fn query_drop(conn: &mut Conn, notes: &mut Vec<StatementNote>, sql: &str) 
     Ok(())
 }
 
-async fn show_cipher(conn: &mut Conn, notes: &mut Vec<StatementNote>) -> Result<String, PreviewError> {
+async fn show_cipher(
+    conn: &mut Conn,
+    notes: &mut Vec<StatementNote>,
+) -> Result<String, PreviewError> {
     let sql = "SHOW STATUS LIKE 'Ssl_cipher'";
     note(notes, sql);
     let row: Option<Row> = timeout(Duration::from_secs(30), conn.query_first(sql))
@@ -291,7 +357,10 @@ async fn show_cipher(conn: &mut Conn, notes: &mut Vec<StatementNote>) -> Result<
     row_string(&row, 1)
 }
 
-async fn show_grants(conn: &mut Conn, notes: &mut Vec<StatementNote>) -> Result<Vec<String>, PreviewError> {
+async fn show_grants(
+    conn: &mut Conn,
+    notes: &mut Vec<StatementNote>,
+) -> Result<Vec<String>, PreviewError> {
     let sql = "SHOW GRANTS FOR CURRENT_USER()";
     note(notes, sql);
     let rows: Vec<Row> = timeout(Duration::from_secs(30), conn.query(sql))
@@ -305,7 +374,7 @@ async fn show_grants(conn: &mut Conn, notes: &mut Vec<StatementNote>) -> Result<
     Ok(lines)
 }
 
-async fn catalog_columns(
+pub(crate) async fn catalog_columns(
     conn: &mut Conn,
     notes: &mut Vec<StatementNote>,
     selected: &SelectedTable,
@@ -332,7 +401,8 @@ async fn catalog_columns(
     for row in rows {
         columns.push(MysqlColumn {
             name: row_string(&row, 0)?,
-            ordinal: i32::try_from(row_i64(&row, 1)?).map_err(|_| PreviewError::new("catalog", "ordinal"))?,
+            ordinal: i32::try_from(row_i64(&row, 1)?)
+                .map_err(|_| PreviewError::new("catalog", "ordinal"))?,
             data_type: row_string(&row, 2)?,
             column_type: row_string(&row, 3)?,
             nullable: row_string(&row, 4)? == "YES",
@@ -375,18 +445,51 @@ async fn read_table(
             return Err(PreviewError::new("budget", "max_rows"));
         }
         let limit = config.batch_rows.min(config.max_rows - sent);
-        let (sql, args_note) = page_sql(&table.schema, &table.name, &list, &key_name, last_key.as_deref());
+        let (sql, args_note) = page_sql(
+            &table.schema,
+            &table.name,
+            &list,
+            &key_name,
+            last_key.as_deref(),
+        );
         note(notes, &sql);
-        let rows = fetch_page(conn, &sql, last_key.as_deref(), limit, table.columns.len(), bytes, config.max_bytes).await?;
+        let rows = fetch_page(
+            conn,
+            &sql,
+            last_key.as_deref(),
+            limit,
+            table.columns.len(),
+            bytes,
+            config.max_bytes,
+        )
+        .await?;
         let short = (rows.len() as u64) < limit;
         if rows.is_empty() {
             if table.batches.is_empty() {
-                let encoded = encode_page(config, table, digests, &[], batch_index, &mut bytes, export_path.as_deref(), &mut arrow_writer)?;
+                let encoded = encode_page(
+                    config,
+                    table,
+                    digests,
+                    &[],
+                    batch_index,
+                    &mut bytes,
+                    export_path.as_deref(),
+                    &mut arrow_writer,
+                )?;
                 table.batches.push(encoded);
             }
             break;
         }
-        let encoded = encode_page(config, table, digests, &rows, batch_index, &mut bytes, export_path.as_deref(), &mut arrow_writer)?;
+        let encoded = encode_page(
+            config,
+            table,
+            digests,
+            &rows,
+            batch_index,
+            &mut bytes,
+            export_path.as_deref(),
+            &mut arrow_writer,
+        )?;
         sent += encoded.rows;
         last_key = page_last_key(&rows, table);
         table.batches.push(encoded);
@@ -397,7 +500,9 @@ async fn read_table(
         }
     }
     if let Some(writer) = arrow_writer.as_mut() {
-        writer.finish().map_err(|_| PreviewError::new("batch", "arrow_finish"))?;
+        writer
+            .finish()
+            .map_err(|_| PreviewError::new("batch", "arrow_finish"))?;
     }
     Ok(())
 }
@@ -415,7 +520,13 @@ fn select_list(table: &TableBatch) -> Result<String, PreviewError> {
     Ok(list)
 }
 
-fn page_sql(schema: &str, name: &str, list: &str, key: &str, last: Option<&str>) -> (String, &'static str) {
+fn page_sql(
+    schema: &str,
+    name: &str,
+    list: &str,
+    key: &str,
+    last: Option<&str>,
+) -> (String, &'static str) {
     let predicate = if last.is_some() {
         format!(" WHERE `{key}` > ?")
     } else {
@@ -427,16 +538,25 @@ fn page_sql(schema: &str, name: &str, list: &str, key: &str, last: Option<&str>)
     )
 }
 
-fn keep_requested(mapped: Vec<MappedColumn>, requested: &[String]) -> Result<Vec<MappedColumn>, PreviewError> {
+fn keep_requested(
+    mapped: Vec<MappedColumn>,
+    requested: &[String],
+) -> Result<Vec<MappedColumn>, PreviewError> {
     if requested.is_empty() {
         return Ok(mapped);
     }
     let mut kept = Vec::with_capacity(requested.len());
     for name in requested {
-        let Some(column) = mapped.iter().find(|column| column.plan.name == *name || column.logical_name == *name) else {
+        let Some(column) = mapped
+            .iter()
+            .find(|column| column.plan.name == *name || column.logical_name == *name)
+        else {
             return Err(PreviewError::new("catalog", "missing_column"));
         };
-        if kept.iter().any(|item: &MappedColumn| item.plan.name == column.plan.name) {
+        if kept
+            .iter()
+            .any(|item: &MappedColumn| item.plan.name == column.plan.name)
+        {
             return Err(PreviewError::new("catalog", "missing_column"));
         }
         kept.push(column.clone());
@@ -529,12 +649,21 @@ fn encode_page(
             if *bytes > config.max_bytes {
                 return Err(PreviewError::new("budget", "max_bytes"));
             }
-            let (cell, reject) = values::decode_cell(column.store, &raw, column.plan.mapping.nullable)?;
+            let (cell, reject) =
+                values::decode_cell(column.store, &raw, column.plan.mapping.nullable)?;
             if let Some(note) = reject {
                 let refused = values::reject_for(&note);
-                let value_len = i64::try_from(refused.value_len).map_err(|_| PreviewError::new("value", "value_len"))?;
-                let row_number = i64::try_from(row_index).map_err(|_| PreviewError::new("budget", "max_rows"))?;
-                pending_rejects.push((column.logical_name.clone(), refused.reason, column.plan.attnum, row_number, value_len));
+                let value_len = i64::try_from(refused.value_len)
+                    .map_err(|_| PreviewError::new("value", "value_len"))?;
+                let row_number = i64::try_from(row_index)
+                    .map_err(|_| PreviewError::new("budget", "max_rows"))?;
+                pending_rejects.push((
+                    column.logical_name.clone(),
+                    refused.reason,
+                    column.plan.attnum,
+                    row_number,
+                    value_len,
+                ));
                 quality_rejects.push(QualityReject {
                     reason: refused.reason.to_string(),
                     value_len,
@@ -560,15 +689,29 @@ fn encode_page(
         .find(|column| column.key)
         .map(|column| column.plan.attnum)
         .ok_or_else(|| PreviewError::new("catalog", "primary_key"))?;
-    let plans = table.columns.iter().map(|column| column.plan.clone()).collect();
-    let typed = assemble_batch(&binding, plans, &[key_attnum], decoded).map_err(|_| PreviewError::new("batch", "assemble"))?;
+    let plans = table
+        .columns
+        .iter()
+        .map(|column| column.plan.clone())
+        .collect();
+    let typed = assemble_batch(&binding, plans, &[key_attnum], decoded)
+        .map_err(|_| PreviewError::new("batch", "assemble"))?;
     if let Some(path) = export_path {
-        let batch = typed.record_batch().map_err(|_| PreviewError::new("batch", "arrow"))?;
+        let batch = typed
+            .record_batch()
+            .map_err(|_| PreviewError::new("batch", "arrow"))?;
         if arrow_writer.is_none() {
             let file = File::create(path).map_err(|_| PreviewError::new("batch", "arrow_file"))?;
-            *arrow_writer = Some(StreamWriter::try_new(file, &batch.schema()).map_err(|_| PreviewError::new("batch", "arrow_schema"))?);
+            *arrow_writer = Some(
+                StreamWriter::try_new(file, &batch.schema())
+                    .map_err(|_| PreviewError::new("batch", "arrow_schema"))?,
+            );
         }
-        if let Some(writer) = arrow_writer.as_mut() { writer.write(&batch).map_err(|_| PreviewError::new("batch", "arrow_write"))?; }
+        if let Some(writer) = arrow_writer.as_mut() {
+            writer
+                .write(&batch)
+                .map_err(|_| PreviewError::new("batch", "arrow_write"))?;
+        }
     }
     fill_key_digests(&typed, &mut quality_rejects);
     for (pending, quality) in pending_rejects.iter().zip(quality_rejects.iter()) {
@@ -582,7 +725,8 @@ fn encode_page(
             "value_len": pending.4
         }));
     }
-    let (rows_n, cols_n) = arrow_dimensions(&typed).map_err(|_| PreviewError::new("batch", "arrow"))?;
+    let (rows_n, cols_n) =
+        arrow_dimensions(&typed).map_err(|_| PreviewError::new("batch", "arrow"))?;
     if rows_n != typed.rows.len() || cols_n != table.columns.len() {
         return Err(PreviewError::new("batch", "arrow"));
     }
@@ -601,13 +745,18 @@ fn encode_typed(
     let mut positions = Vec::with_capacity(typed.rows.len());
     for offset in 0..typed.rows.len() {
         let index = start + offset as u64 + 1;
-        positions.push(ExactDecimal::new(false, index.to_string(), 0).map_err(|_| PreviewError::new("batch", "position"))?);
+        positions.push(
+            ExactDecimal::new(false, index.to_string(), 0)
+                .map_err(|_| PreviewError::new("batch", "position"))?,
+        );
     }
     let mut columns = Vec::with_capacity(typed.plans.len() + 1);
     columns.push(CopyColumn::SystemPosition);
     for column in &typed.plans {
         if column.mapping.decision == MapDecision::Lossless {
-            columns.push(CopyColumn::User { attnum: column.attnum });
+            columns.push(CopyColumn::User {
+                attnum: column.attnum,
+            });
         }
     }
     let budgets = copy_budgets(config)?;
@@ -616,7 +765,8 @@ fn encode_typed(
     if first != second {
         return Err(PreviewError::new("batch", "encode"));
     }
-    let hashed = hash_batch(typed, &columns, &positions, budgets).map_err(|_| PreviewError::new("batch", "encode"))?;
+    let hashed = hash_batch(typed, &columns, &positions, budgets)
+        .map_err(|_| PreviewError::new("batch", "encode"))?;
     if hashed.rows != typed.rows.len() as u64 {
         return Err(PreviewError::new("batch", "encode"));
     }
@@ -625,7 +775,8 @@ fn encode_typed(
         .last()
         .map(ExactDecimal::to_plain_string)
         .unwrap_or_else(|| "0".to_string());
-    let rejected = u64::try_from(quality_rejects.len()).map_err(|_| PreviewError::new("budget", "max_rows"))?;
+    let rejected = u64::try_from(quality_rejects.len())
+        .map_err(|_| PreviewError::new("budget", "max_rows"))?;
     let quality = quality_preimage(
         &batch_id,
         typed.rows.len() as u64,
@@ -706,13 +857,24 @@ fn pull_bytes(
     positions: &[ExactDecimal],
     budgets: CopyBudgets,
 ) -> Result<Vec<u8>, PreviewError> {
-    let mut encoder = CopyEncoder::open(batch, columns, positions, budgets, UnavailablePolicy::Refuse)
-        .map_err(|_| PreviewError::new("batch", "encode"))?;
+    let mut encoder = CopyEncoder::open(
+        batch,
+        columns,
+        positions,
+        budgets,
+        UnavailablePolicy::Refuse,
+    )
+    .map_err(|_| PreviewError::new("batch", "encode"))?;
     let mut out = Vec::new();
     loop {
-        match encoder.pull().map_err(|_| PreviewError::new("batch", "encode"))? {
+        match encoder
+            .pull()
+            .map_err(|_| PreviewError::new("batch", "encode"))?
+        {
             CopyPiece::Done => break,
-            CopyPiece::Header { bytes } | CopyPiece::Trailer { bytes } | CopyPiece::Rows { bytes, .. } => {
+            CopyPiece::Header { bytes }
+            | CopyPiece::Trailer { bytes }
+            | CopyPiece::Rows { bytes, .. } => {
                 out.extend_from_slice(&bytes);
             }
         }
@@ -721,10 +883,16 @@ fn pull_bytes(
 }
 
 fn copy_budgets(config: &PreviewConfig) -> Result<CopyBudgets, PreviewError> {
-    let max_value = u32::try_from(config.max_bytes).map_err(|_| PreviewError::new("budget", "max_bytes"))?;
-    let max_row = max_value.checked_mul(2).ok_or_else(|| PreviewError::new("budget", "max_bytes"))?;
-    let max_chunk = max_row.checked_mul(2).ok_or_else(|| PreviewError::new("budget", "max_bytes"))?;
-    let batch_rows = u32::try_from(config.batch_rows).map_err(|_| PreviewError::new("budget", "batch_rows"))?;
+    let max_value =
+        u32::try_from(config.max_bytes).map_err(|_| PreviewError::new("budget", "max_bytes"))?;
+    let max_row = max_value
+        .checked_mul(2)
+        .ok_or_else(|| PreviewError::new("budget", "max_bytes"))?;
+    let max_chunk = max_row
+        .checked_mul(2)
+        .ok_or_else(|| PreviewError::new("budget", "max_bytes"))?;
+    let batch_rows =
+        u32::try_from(config.batch_rows).map_err(|_| PreviewError::new("budget", "batch_rows"))?;
     Ok(CopyBudgets {
         max_value_bytes: max_value,
         max_row_bytes: max_row.max(64),
@@ -740,7 +908,9 @@ fn page_last_key(rows: &[Row], table: &TableBatch) -> Option<String> {
 }
 
 fn raw_cell(row: &Row, index: usize) -> Result<RawCell, PreviewError> {
-    let value: Value = row.get(index).ok_or_else(|| PreviewError::new("protocol", "cell"))?;
+    let value: Value = row
+        .get(index)
+        .ok_or_else(|| PreviewError::new("protocol", "cell"))?;
     Ok(match value {
         Value::NULL => RawCell::Null,
         Value::Int(value) => RawCell::Int(value),
@@ -770,7 +940,9 @@ fn raw_cell(row: &Row, index: usize) -> Result<RawCell, PreviewError> {
 
 fn row_string(row: &Row, index: usize) -> Result<String, PreviewError> {
     match raw_cell(row, index)? {
-        RawCell::Bytes(bytes) => String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell")),
+        RawCell::Bytes(bytes) => {
+            String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))
+        }
         RawCell::Int(value) => Ok(value.to_string()),
         RawCell::Uint(value) => Ok(value.to_string()),
         RawCell::Null => Err(PreviewError::new("protocol", "cell")),
@@ -781,7 +953,9 @@ fn row_string(row: &Row, index: usize) -> Result<String, PreviewError> {
 fn row_opt_string(row: &Row, index: usize) -> Result<Option<String>, PreviewError> {
     match raw_cell(row, index)? {
         RawCell::Null => Ok(None),
-        RawCell::Bytes(bytes) => Ok(Some(String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))?)),
+        RawCell::Bytes(bytes) => Ok(Some(
+            String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))?,
+        )),
         _ => Err(PreviewError::new("protocol", "cell")),
     }
 }
@@ -789,10 +963,14 @@ fn row_opt_string(row: &Row, index: usize) -> Result<Option<String>, PreviewErro
 fn row_i64(row: &Row, index: usize) -> Result<i64, PreviewError> {
     match raw_cell(row, index)? {
         RawCell::Int(value) => Ok(value),
-        RawCell::Uint(value) => i64::try_from(value).map_err(|_| PreviewError::new("protocol", "cell")),
+        RawCell::Uint(value) => {
+            i64::try_from(value).map_err(|_| PreviewError::new("protocol", "cell"))
+        }
         RawCell::Bytes(bytes) => {
-            let text = String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))?;
-            text.parse().map_err(|_| PreviewError::new("protocol", "cell"))
+            let text =
+                String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))?;
+            text.parse()
+                .map_err(|_| PreviewError::new("protocol", "cell"))
         }
         _ => Err(PreviewError::new("protocol", "cell")),
     }
@@ -811,7 +989,11 @@ fn current_user_is(current: &str, user: &str) -> bool {
 }
 
 fn note(notes: &mut Vec<StatementNote>, sql: &str) {
-    let verb = sql.split_whitespace().next().unwrap_or("").to_ascii_uppercase();
+    let verb = sql
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .to_ascii_uppercase();
     notes.push(StatementNote {
         verb,
         sha256: sha256_hex(sql.as_bytes()),
@@ -858,7 +1040,10 @@ mod tests {
         bytes[31] = 0x0f;
         let text = hex32(&bytes);
         assert_eq!(text.len(), 64);
-        assert!(text.chars().all(|char| char.is_ascii_hexdigit() && !char.is_ascii_uppercase()));
+        assert!(
+            text.chars()
+                .all(|char| char.is_ascii_hexdigit() && !char.is_ascii_uppercase())
+        );
         assert!(text.starts_with("ab"));
         assert!(text.ends_with("0f"));
     }

@@ -197,7 +197,8 @@ async fn execute() -> Result<Vec<u8>, Stop> {
             true
         }
     } else { false };
-    let document = match bind_native(&captured, &facts, partition_vector, pg_delta_bound) {
+    let rejects=native_binding::baseline_quality(&captured).map_err(stop_reason)?;
+    let document = match bind_native(&captured, &facts, partition_vector, pg_delta_bound, &rejects) {
         Ok(document) => document,
         Err(err) => {
             let _ = tx.rollback().await;
@@ -285,7 +286,7 @@ fn catalog_delta_engine(engine: &str) -> bool {
     matches!(engine, "postgres" | "postgresql" | "sqlserver")
 }
 
-fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector: Option<Value>, pg_delta_bound: bool) -> Result<Vec<u8>, Stop> {
+fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector: Option<Value>, pg_delta_bound: bool, rejects:&[Value]) -> Result<Vec<u8>, Stop> {
     native_binding::sealed_product(&captured.source_engine).map_err(stop_reason)?;
     if facts.tables.len() != 1 || captured.objects.len() != 1 || captured.fields.is_empty() {
         return Err(Stop::Fixed("schema"));
@@ -346,7 +347,12 @@ fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector
             "typmod": storage.typmod
         }));
     }
-    let quality = one_batch(facts, &table.physical_name, table.applied_rows)?;
+    for reject in rejects {
+        let field=reject["attnum"].as_u64().and_then(|n|usize::try_from(n).ok()).and_then(|n|n.checked_sub(1)).and_then(|n|captured.fields.get(n)).ok_or(Stop::Fixed("quality identity"))?;
+        if captured.source_engine!="mysql" || captured.baseline_scope.is_none() || !field.nullable || field.key
+            || reject["column"]!=field.name || !matches!(field.arrow_type.as_str(),"date32"|"timestamp_micros") {return Err(Stop::Fixed("quality identity"));}
+    }
+    let quality = one_batch(facts, &table.physical_name, table.applied_rows, rejects)?;
     let schema_digest = sha256_hex(preimage.as_bytes());
     let mut body = json!({
         "capture": "sealed_import",
@@ -369,7 +375,7 @@ fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector
             "columns": columns,
             "logical_schema": table.schema_ident,
             "logical_table": table.table_ident,
-            "rejects": [],
+            "rejects": rejects.iter().map(|r|json!({"column":r["column"],"reason":r["reason"],"row_index":r["row"],"attnum":r["attnum"],"value_len":r["value_len"],"key_digest":r["key_digest"]})).collect::<Vec<_>>(),
             "stored_namespace": table.stored_namespace,
             "stored_physical": table.physical_name
         }],
@@ -391,19 +397,19 @@ fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector
     Ok(bytes)
 }
 
-fn one_batch(facts: &NativeFacts, physical: &str, applied_rows: i64) -> Result<Value, Stop> {
+fn one_batch(facts: &NativeFacts, physical: &str, applied_rows: i64, rejects:&[Value]) -> Result<Value, Stop> {
     let batches: Vec<&QualityFact> = facts
         .quality
         .iter()
         .filter(|row| row.kind == "batch" && row.physical_name == physical)
         .collect();
-    if batches.len() != 1 || facts.quality.len() != 1 {
+    if batches.len() != 1 || facts.quality.len() != 1+rejects.len() {
         return Err(Stop::Fixed("quality identity"));
     }
     let row = batches[0];
     if row.batch_id.is_empty()
         || row.accepted_rows != Some(applied_rows)
-        || row.rejected_rows != Some(0)
+        || row.rejected_rows != Some(rejects.len() as i64)
         || row.reason.is_some()
         || row.attnum.is_some()
         || row.value_len.is_some()
@@ -412,24 +418,21 @@ fn one_batch(facts: &NativeFacts, physical: &str, applied_rows: i64) -> Result<V
     {
         return Err(Stop::Fixed("quality identity"));
     }
+    let mut unique=std::collections::BTreeSet::new();
+    for reject in rejects {
+        let attnum=reject["attnum"].as_i64().and_then(|n|i32::try_from(n).ok()).filter(|n|*n>0).ok_or(Stop::Fixed("quality identity"))?;
+        let index=reject["row"].as_i64().filter(|n|*n>=0 && *n<applied_rows).ok_or(Stop::Fixed("quality identity"))?;
+        let key=reject["key_digest"].as_str().filter(|s|closed_digest(s)).ok_or(Stop::Fixed("quality identity"))?;
+        if reject["reason"]!="zero_date" || reject["column"].as_str().is_none_or(str::is_empty)
+            || reject["value_len"].as_i64().is_none_or(|n|n<0) || !unique.insert((attnum,index,key))
+            || !facts.quality.iter().any(|q|q.kind=="reject" && q.physical_name==physical && q.batch_id==row.batch_id
+                && q.reason.as_deref()==Some("zero_date") && q.attnum==Some(attnum) && q.row_index==Some(index)
+                && q.key_digest.as_deref()==Some(key) && q.value_len==reject["value_len"].as_i64()
+                && q.accepted_rows.is_none() && q.rejected_rows.is_none()) {return Err(Stop::Fixed("quality identity"));}
+    }
     Ok(json!({
-        "loss_concealed": false,
-        "manifest_reject_count": 0,
-        "payload_includes_reject_lines": false,
-        "stored_omits_manifest_rejects": false,
-        "stored_rejected_rows": 0,
-        "stored_rows": [{
-            "accepted_rows": applied_rows,
-            "attnum": null,
-            "batch_id": row.batch_id,
-            "key_digest": null,
-            "kind": "batch",
-            "physical_name": physical,
-            "reason": null,
-            "rejected_rows": 0,
-            "row_index": null,
-            "value_len": null
-        }]
+        "loss_concealed": false,"manifest_reject_count":rejects.len(),"payload_includes_reject_lines":!rejects.is_empty(),
+        "stored_omits_manifest_rejects":false,"stored_rejected_rows":rejects.len(),"stored_rows":facts.quality
     }))
 }
 
@@ -1090,7 +1093,7 @@ struct ColumnFact {
     physical_name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 struct QualityFact {
     physical_name: String,
@@ -1193,6 +1196,8 @@ mod tests {
             arrow_schema_sha256: digest,
             partition_scope: None,
             transaction_scope: None,
+            baseline_scope: None,
+            source_instance: None,
             gtid_scope: None,
         }
     }
@@ -1257,6 +1262,22 @@ mod tests {
     }
 
     #[test]
+    fn baseline_quality_requires_exact_stored_rejects() {
+        let mut facts=c2_facts(3,vec![id_column()]);
+        let physical=facts.tables[0].physical_name.clone();
+        let reject=json!({"column":"day","reason":"zero_date","attnum":2,"row":1,"value_len":10,"key_digest":"a".repeat(64)});
+        facts.quality[0].rejected_rows=Some(1);
+        facts.quality.push(QualityFact {physical_name:physical.clone(),batch_id:"batch-1".into(),kind:"reject".into(),reason:Some("zero_date".into()),value_len:Some(10),attnum:Some(2),row_index:Some(1),key_digest:Some("a".repeat(64)),accepted_rows:None,rejected_rows:None});
+        let quality=one_batch(&facts,&physical,3,&[reject.clone()]).ok().expect("exact stored quality");
+        assert_eq!(quality["stored_rejected_rows"],1);
+        assert!(one_batch(&facts,&physical,3,&[]).is_err());
+        for key in ["attnum","row","value_len","key_digest","reason"] {
+            let mut bad=reject.clone();bad[key]=json!("wrong");
+            assert!(one_batch(&facts,&physical,3,&[bad]).is_err(),"{key}");
+        }
+    }
+
+    #[test]
     fn sqlserver_c2_delta_keeps_batch_rows_and_applied_table_rows() {
         assert!(catalog_delta_engine("sqlserver"));
         assert!(catalog_delta_engine("postgres"));
@@ -1264,7 +1285,7 @@ mod tests {
         for engine in ["mysql", "oracle", "mongodb", "mariadb", "clickhouse", "doris"] {
             assert!(!catalog_delta_engine(engine), "{engine}");
         }
-        let bytes = bind_native(&c2_capture(2), &c2_facts(6, vec![id_column()]), None, true)
+        let bytes = bind_native(&c2_capture(2), &c2_facts(6, vec![id_column()]), None, true, &[])
             .unwrap_or_else(|_| panic!("applied delta"));
         let document: Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(document["engine"], "sqlserver");
@@ -1277,7 +1298,7 @@ mod tests {
         assert!(document.get("binding_vector").is_none());
         assert!(!bytes.windows(18).any(|window| window == b"oo.source.pgsql/v1"));
         assert_eq!(
-            fixed_reason(bind_native(&c2_capture(2), &c2_facts(6, vec![id_column()]), None, false)),
+            fixed_reason(bind_native(&c2_capture(2), &c2_facts(6, vec![id_column()]), None, false, &[])),
             "schema"
         );
         let mut drifted = c2_facts(6, vec![id_column()]);
@@ -1288,13 +1309,13 @@ mod tests {
             logical_column: "other".to_string(),
             physical_name: format!("pc_{}", hex("78", 30)),
         });
-        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &drifted, None, true)), "physical mapping is absent");
+        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &drifted, None, true, &[])), "physical mapping is absent");
         let mut renamed = c2_facts(6, vec![id_column()]);
         renamed.tables[0].table_ident = "other_row".to_string();
-        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &renamed, None, true)), "schema");
+        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &renamed, None, true, &[])), "schema");
         let mut unapplied = c2_facts(-1, vec![id_column()]);
         unapplied.quality[0].accepted_rows = Some(-1);
-        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &unapplied, None, true)), "schema");
+        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &unapplied, None, true, &[])), "schema");
     }
 
     #[test]

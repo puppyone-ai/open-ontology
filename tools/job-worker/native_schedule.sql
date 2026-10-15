@@ -34,7 +34,7 @@ GRANT USAGE ON SCHEMA jw_native TO oo_jobs_runtime;
 GRANT SELECT,INSERT,UPDATE ON ALL TABLES IN SCHEMA jw_native TO oo_jobs_runtime;
 CREATE TABLE IF NOT EXISTS jw_native.process_attempts (
  task_id uuid NOT NULL REFERENCES jobs.tasks(id), generation bigint NOT NULL,
- stage text NOT NULL CHECK(stage IN ('producer','loader','ack','registry_vector') OR stage ~ '^loader_(0|[1-9][0-9]?)$'),
+ stage text NOT NULL CHECK(stage IN ('producer','loader','ack','registry_vector','source_registry','loader_cdc_baseline','c1_baseline_stream','loader_c1_stage_open','loader_c1_stage_snapshot','loader_c1_stage_transaction','loader_c1_stage_seal') OR stage ~ '^loader_(0|[1-9][0-9]?)$'),
  executable_sha256 text NOT NULL, exit_code integer NOT NULL,
  stdout bytea NOT NULL, stderr bytea NOT NULL,
  observed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
@@ -44,7 +44,7 @@ GRANT SELECT,INSERT ON jw_native.process_attempts TO oo_jobs_runtime;
 REVOKE UPDATE ON jw_native.process_attempts FROM oo_jobs_runtime;
 GRANT UPDATE(exit_code,stdout,stderr,observed_at) ON jw_native.process_attempts TO oo_jobs_runtime;
 ALTER TABLE jw_native.process_attempts DROP CONSTRAINT IF EXISTS process_attempts_stage_check;
-ALTER TABLE jw_native.process_attempts ADD CONSTRAINT process_attempts_stage_check CHECK(stage IN ('producer','loader','ack','registry_vector') OR stage ~ '^loader_(0|[1-9][0-9]?)$');
+ALTER TABLE jw_native.process_attempts ADD CONSTRAINT process_attempts_stage_check CHECK(stage IN ('producer','loader','ack','registry_vector','source_registry','loader_cdc_baseline','c1_baseline_stream','loader_c1_stage_open','loader_c1_stage_snapshot','loader_c1_stage_transaction','loader_c1_stage_seal') OR stage ~ '^loader_(0|[1-9][0-9]?)$');
 CREATE TABLE IF NOT EXISTS jw_native.pending_acks (
  task_id uuid PRIMARY KEY REFERENCES jobs.tasks(id), binding_id uuid NOT NULL REFERENCES jw_native.bindings(id),
  pin bigint NOT NULL, generation bigint NOT NULL, ack_request jsonb NOT NULL,

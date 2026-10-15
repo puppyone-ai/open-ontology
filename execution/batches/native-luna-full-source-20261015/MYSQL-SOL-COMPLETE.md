@@ -4,7 +4,11 @@ Latest human permits new native gpt-6.1-sol/medium. This is one indivisible comp
 
 Read execution/INDEX.md, GOAL.md, PRODUCT-LOOPS.md, CONTROL.md, UPDATE-PROTOCOL.md and the original relevant Spec/Plan/docs sections before implementation. Use Ponytail full (smallest complete Rust change, reuse existing code, no new generic framework). Do not reread the whole historical conversation or repeatedly re-diagnose already established gaps. Root owns coordination; you own the product paths in mysql-reference-dispatch.json. Do not spawn child agents, nested Codex, or Grok. Root Cargo/lock changes require an exact discussion first. No frontend work.
 
-## Immediate actual gap
+## Current reference progress
+
+The ordinary six-field source mysql_67fff4e8ebff9f91bee8c75e completed real typed five-table import and CAS-before-ACK at task d47f2ff5-fdb1-4cbd-831e-ce7e0bca2c94 generation5, epoch1/L0=32/L_end33. Root verified five full_imports and independent live MySQL/PG oracle110019 rows/43 columns, zero cell differences. See execution/reviews/native-luna-full-source-20261015/mysql-six-field-typed-baseline-intake.json. This is not the complete task: same owner continues autonomous C1, current S0–S10/maintenance Pack, official publication, Gateway and random Agent exits. Do not reimplement the bridge below or restart an old source. Product remains WIP and other nine sources held.
+
+## Original transfer gap (historical)
 
 Worker tools/job-worker/src/native_schedule.rs:1308 runs run_cdc_baseline_stream; line1333 still refuses baseline_typed_import_required. This is honest, incomplete production behavior. The lease-bound JSONB stage in crates/oo-pipeline/src/native_c1_baseline.rs is a tested merge primitive, not typed physical import. Implement the minimum complete bridge to native five-table full_import/admission/catalog/watermark using the existing importer and final sealed stage, preserving initial snapshot rows _oo_pos=0 and actual CDC row positions/tombstones, real source UUID, formal lease/epoch, per-table schemas and registries, L0/L_end barriers and source ACK ordering. The real source stream must begin applying before snapshot reads. Do not replace C1 with C5 or invent a receipt by renaming JSONB stage. A known fixed-ID capture_business delta and old target C5 gen10 are not a full initial baseline.
 

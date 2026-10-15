@@ -73,9 +73,12 @@ pub struct SelectedTable {
 }
 
 pub fn parse_config(text: &str) -> Result<PreviewConfig, PreviewError> {
-    let value: Value = serde_json::from_str(text).map_err(|_| PreviewError::new("config", "json"))?;
+    let value: Value =
+        serde_json::from_str(text).map_err(|_| PreviewError::new("config", "json"))?;
     reject_keys(&value)?;
-    let map = value.as_object().ok_or_else(|| PreviewError::new("config", "json"))?;
+    let map = value
+        .as_object()
+        .ok_or_else(|| PreviewError::new("config", "json"))?;
     exact_keys(
         map,
         &[
@@ -123,7 +126,14 @@ pub fn parse_config(text: &str) -> Result<PreviewConfig, PreviewError> {
     let mysql = object(map, "mysql")?;
     exact_keys(
         mysql,
-        &["host", "port", "database", "user", "password_file", "ca_file"],
+        &[
+            "host",
+            "port",
+            "database",
+            "user",
+            "password_file",
+            "ca_file",
+        ],
     )?;
     let target = object(map, "target")?;
     exact_keys(
@@ -161,7 +171,9 @@ pub fn parse_config(text: &str) -> Result<PreviewConfig, PreviewError> {
     }
     let mut tables = Vec::new();
     for item in tables_value {
-        let table = item.as_object().ok_or_else(|| PreviewError::new("config", "tables"))?;
+        let table = item
+            .as_object()
+            .ok_or_else(|| PreviewError::new("config", "tables"))?;
         let columns = if table.contains_key("columns") {
             exact_keys(table, &["columns", "schema", "table"])?;
             let list = table
@@ -170,7 +182,9 @@ pub fn parse_config(text: &str) -> Result<PreviewConfig, PreviewError> {
                 .ok_or_else(|| PreviewError::new("config", "tables"))?;
             let mut names = Vec::new();
             for column in list {
-                let name = column.as_str().ok_or_else(|| PreviewError::new("config", "tables"))?;
+                let name = column
+                    .as_str()
+                    .ok_or_else(|| PreviewError::new("config", "tables"))?;
                 names.push(ident(name, "tables")?);
             }
             names
@@ -235,7 +249,8 @@ pub fn read_secret(path: &Path) -> Result<Zeroizing<String>, PreviewError> {
     if trimmed.is_empty() || trimmed.len() > 1024 || trimmed.contains(&0) {
         return Err(PreviewError::new("config", "password_file"));
     }
-    let text = String::from_utf8(trimmed.to_vec()).map_err(|_| PreviewError::new("config", "password_file"))?;
+    let text = String::from_utf8(trimmed.to_vec())
+        .map_err(|_| PreviewError::new("config", "password_file"))?;
     Ok(Zeroizing::new(text))
 }
 
@@ -295,7 +310,10 @@ fn exact_keys(map: &Map<String, Value>, allowed: &[&str]) -> Result<(), PreviewE
     Ok(())
 }
 
-fn object<'a>(map: &'a Map<String, Value>, key: &str) -> Result<&'a Map<String, Value>, PreviewError> {
+fn object<'a>(
+    map: &'a Map<String, Value>,
+    key: &str,
+) -> Result<&'a Map<String, Value>, PreviewError> {
     map.get(key)
         .and_then(Value::as_object)
         .ok_or_else(|| PreviewError::new("config", "keys"))

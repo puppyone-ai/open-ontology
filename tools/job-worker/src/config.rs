@@ -10,11 +10,14 @@ pub struct Config {
     pub database: String,
     pub runtime_user: String,
     pub runtime_password: String,
+    pub runtime_password_file: PathBuf,
     pub admin_user: String,
     pub admin_password: String,
     pub ca_pem: Vec<u8>,
+    pub ca_file: Option<PathBuf>,
     pub migrations: PathBuf,
     pub target_database: Option<String>,
+    pub c1_target_database: Option<String>,
     pub target_runtime_user: Option<String>,
     pub target_runtime_password: Option<String>,
     pub pipeline_migrations: Option<PathBuf>,
@@ -45,6 +48,7 @@ impl Config {
         let mut ca_file = None;
         let mut migrations = None;
         let mut target_database = None;
+        let mut c1_target_database = None;
         let mut target_runtime_user = None;
         let mut target_runtime_password_file = None;
         let mut pipeline_migrations = None;
@@ -73,6 +77,7 @@ impl Config {
                 "ca_file" => ca_file = Some(PathBuf::from(value)),
                 "migrations" => migrations = Some(PathBuf::from(value)),
                 "target_database" => target_database = Some(value.to_string()),
+                "c1_target_database" => c1_target_database = Some(value.to_string()),
                 "target_runtime_user" => target_runtime_user = Some(value.to_string()),
                 "target_runtime_password_file" => {
                     target_runtime_password_file = Some(PathBuf::from(value));
@@ -85,9 +90,14 @@ impl Config {
         }
         let runtime_password = read_secret(runtime_password_file.as_deref())?;
         let admin_password = read_secret(admin_password_file.as_deref())?;
-        let ca_pem = match ca_file {
+        let ca_pem = match ca_file.as_deref() {
             Some(path) => fs::read(path).map_err(|_| Error::new("config"))?,
-            None if host.as_deref().is_some_and(|h| h.starts_with('/') && !h.contains("..")) => Vec::new(),
+            None if host
+                .as_deref()
+                .is_some_and(|h| h.starts_with('/') && !h.contains("..")) =>
+            {
+                Vec::new()
+            }
             None => return Err(Error::new("config")),
         };
         Ok(Self {
@@ -96,11 +106,14 @@ impl Config {
             database: database.ok_or_else(|| Error::new("config"))?,
             runtime_user: runtime_user.ok_or_else(|| Error::new("config"))?,
             runtime_password,
+            runtime_password_file: runtime_password_file.ok_or_else(|| Error::new("config"))?,
             admin_user: admin_user.ok_or_else(|| Error::new("config"))?,
             admin_password,
             ca_pem,
+            ca_file,
             migrations: migrations.ok_or_else(|| Error::new("config"))?,
             target_database,
+            c1_target_database,
             target_runtime_user,
             target_runtime_password: match target_runtime_password_file {
                 Some(path) => Some(read_secret(Some(path.as_path()))?),
@@ -134,7 +147,10 @@ impl Config {
                 .capture_root
                 .clone()
                 .ok_or_else(|| Error::new("config"))?,
-            secret_ref: self.secret_ref.clone().ok_or_else(|| Error::new("config"))?,
+            secret_ref: self
+                .secret_ref
+                .clone()
+                .ok_or_else(|| Error::new("config"))?,
         })
     }
 }

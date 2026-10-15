@@ -10,17 +10,17 @@ use std::time::Duration;
 
 use mysql_async::prelude::Queryable;
 use mysql_async::{Conn, OptsBuilder, Row, SslOpts, Value};
-use serde_json::{json, Map, Value as JsonValue};
+use serde_json::{Map, Value as JsonValue, json};
 use tokio::time::timeout;
 
 use crate::config::{mysql_ident, read_ca, read_secret};
-use crate::error::{redact, PreviewError};
+use crate::error::{PreviewError, redact};
 use crate::logistics::{
-    badge, capacity_grams, cost_text, created_at, dest_hub, event_at, event_comment, event_hub, event_shipment,
-    event_status, hub_code, hub_name, hub_note, latitude, longitude, mysql_wall, opened_at, oracle, origin_hub,
-    payload, probe_rows, promised_at, questions_document, range_gaps, recorded_weight, region_code, seal,
-    shipment_comment, shipment_status, transport_mode, weight_grams, ProbeDate, ProbeRow, ProbeTime, HUB_ROWS,
-    SHIPMENT_ROWS, EVENT_ROWS,
+    EVENT_ROWS, HUB_ROWS, ProbeDate, ProbeRow, ProbeTime, SHIPMENT_ROWS, badge, capacity_grams,
+    cost_text, created_at, dest_hub, event_at, event_comment, event_hub, event_shipment,
+    event_status, hub_code, hub_name, hub_note, latitude, longitude, mysql_wall, opened_at, oracle,
+    origin_hub, payload, probe_rows, promised_at, questions_document, range_gaps, recorded_weight,
+    region_code, seal, shipment_comment, shipment_status, transport_mode, weight_grams,
 };
 
 const SCHEMA: &str = "logistics";
@@ -28,17 +28,26 @@ const BUSINESS_USER: &str = "oo_scale";
 
 pub async fn load_logistics(config_path: &Path, out_dir: &Path) -> Result<(), PreviewError> {
     let config_bytes = fs::read(config_path).map_err(|_| PreviewError::new("config", "path"))?;
-    let text = std::str::from_utf8(&config_bytes).map_err(|_| PreviewError::new("config", "json"))?;
+    let text =
+        std::str::from_utf8(&config_bytes).map_err(|_| PreviewError::new("config", "json"))?;
     let config = parse_dba(text)?;
     let password = read_secret(&config.password_file)?;
     let business_password = read_secret(&config.business_password_file)?;
-    if !business_password.bytes().all(|byte| byte.is_ascii_hexdigit()) || business_password.len() < 16 {
+    if !business_password
+        .bytes()
+        .all(|byte| byte.is_ascii_hexdigit())
+        || business_password.len() < 16
+    {
         return Err(PreviewError::new("config", "password_file"));
     }
     fs::create_dir_all(out_dir).map_err(|_| PreviewError::new("config", "out"))?;
     let mut conn = open_dba(&config, password.as_str()).await?;
     let before = prototype_counts(&mut conn).await?;
-    exec(&mut conn, "CREATE DATABASE IF NOT EXISTS logistics CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci").await?;
+    exec(
+        &mut conn,
+        "CREATE DATABASE IF NOT EXISTS logistics CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci",
+    )
+    .await?;
     exec(&mut conn, "USE logistics").await?;
     for statement in DROP_STATEMENTS {
         exec(&mut conn, statement).await?;
@@ -63,7 +72,10 @@ pub async fn load_logistics(config_path: &Path, out_dir: &Path) -> Result<(), Pr
         return Err(PreviewError::new("target", "prototype"));
     }
     let facts = oracle();
-    let logistics_rows = counts.hubs.saturating_add(counts.shipments).saturating_add(counts.events);
+    let logistics_rows = counts
+        .hubs
+        .saturating_add(counts.shipments)
+        .saturating_add(counts.events);
     if counts.hubs != facts.hub_rows
         || counts.shipments != facts.shipment_rows
         || counts.events != facts.event_rows
@@ -88,11 +100,15 @@ pub async fn load_logistics(config_path: &Path, out_dir: &Path) -> Result<(), Pr
         "range_reason": crate::logistics::RANGE_REASON,
         "questions_separated": true
     });
-    fs::write(out_dir.join("load.json"), serde_json::to_vec_pretty(&body).map_err(|_| PreviewError::new("config", "out"))?)
-        .map_err(|_| PreviewError::new("config", "out"))?;
+    fs::write(
+        out_dir.join("load.json"),
+        serde_json::to_vec_pretty(&body).map_err(|_| PreviewError::new("config", "out"))?,
+    )
+    .map_err(|_| PreviewError::new("config", "out"))?;
     fs::write(
         out_dir.join("questions.json"),
-        serde_json::to_vec_pretty(&questions_document()).map_err(|_| PreviewError::new("config", "out"))?,
+        serde_json::to_vec_pretty(&questions_document())
+            .map_err(|_| PreviewError::new("config", "out"))?,
     )
     .map_err(|_| PreviewError::new("config", "out"))?;
     drop(conn);
@@ -103,20 +119,31 @@ pub async fn load_logistics(config_path: &Path, out_dir: &Path) -> Result<(), Pr
 
 pub async fn guard_source(config_path: &Path, out_path: &Path) -> Result<(), PreviewError> {
     let config_bytes = fs::read(config_path).map_err(|_| PreviewError::new("config", "path"))?;
-    let text = std::str::from_utf8(&config_bytes).map_err(|_| PreviewError::new("config", "json"))?;
+    let text =
+        std::str::from_utf8(&config_bytes).map_err(|_| PreviewError::new("config", "json"))?;
     let config = parse_dba(text)?;
     let password = read_secret(&config.password_file)?;
     let mut conn = open_dba(&config, password.as_str()).await?;
     let prototype = prototype_counts(&mut conn).await?;
     let counts = table_counts(&mut conn).await?;
-    let retired = scalar(&mut conn, "SELECT COUNT(*) FROM mysql.user WHERE user IN ('oo_read', 'oo_write')").await?;
+    let retired = scalar(
+        &mut conn,
+        "SELECT COUNT(*) FROM mysql.user WHERE user IN ('oo_read', 'oo_write')",
+    )
+    .await?;
     let grants = strings(&mut conn, "SHOW GRANTS FOR 'oo_scale'@'%'").await?;
     let read_only = !grants.is_empty()
         && grants.iter().all(|line| {
             let upper = line.to_ascii_uppercase();
-            !upper.contains("INSERT") && !upper.contains("UPDATE") && !upper.contains("DELETE") && !upper.contains(" ALL ") && !upper.contains("ERP")
+            !upper.contains("INSERT")
+                && !upper.contains("UPDATE")
+                && !upper.contains("DELETE")
+                && !upper.contains(" ALL ")
+                && !upper.contains("ERP")
         })
-        && grants.iter().any(|line| line.to_ascii_uppercase().contains("SELECT"));
+        && grants
+            .iter()
+            .any(|line| line.to_ascii_uppercase().contains("SELECT"));
     if prototype.parcel != 5 || prototype.empty_box != 0 || retired != "0" || !read_only {
         return Err(PreviewError::new("privilege", "guard"));
     }
@@ -131,8 +158,11 @@ pub async fn guard_source(config_path: &Path, out_path: &Path) -> Result<(), Pre
     if let Some(parent) = out_path.parent() {
         fs::create_dir_all(parent).map_err(|_| PreviewError::new("config", "out"))?;
     }
-    fs::write(out_path, serde_json::to_vec_pretty(&body).map_err(|_| PreviewError::new("config", "out"))?)
-        .map_err(|_| PreviewError::new("config", "out"))?;
+    fs::write(
+        out_path,
+        serde_json::to_vec_pretty(&body).map_err(|_| PreviewError::new("config", "out"))?,
+    )
+    .map_err(|_| PreviewError::new("config", "out"))?;
     Ok(())
 }
 
@@ -181,13 +211,27 @@ struct RawProbe {
     time_range: String,
 }
 
-
-
 fn parse_dba(text: &str) -> Result<DbaConfig, PreviewError> {
-    let value: JsonValue = serde_json::from_str(text).map_err(|_| PreviewError::new("config", "json"))?;
+    let value: JsonValue =
+        serde_json::from_str(text).map_err(|_| PreviewError::new("config", "json"))?;
     reject_secret_keys(&value)?;
-    let map = value.as_object().ok_or_else(|| PreviewError::new("config", "json"))?;
-    exact(map, &["business_password_file", "ca_file", "connect_timeout_ms", "database", "host", "password_file", "port", "user", "version"])?;
+    let map = value
+        .as_object()
+        .ok_or_else(|| PreviewError::new("config", "json"))?;
+    exact(
+        map,
+        &[
+            "business_password_file",
+            "ca_file",
+            "connect_timeout_ms",
+            "database",
+            "host",
+            "password_file",
+            "port",
+            "user",
+            "version",
+        ],
+    )?;
     if map.get("version").and_then(JsonValue::as_str) != Some("oo.mysql-preview.dba-load/v1") {
         return Err(PreviewError::new("config", "version"));
     }
@@ -197,12 +241,29 @@ fn parse_dba(text: &str) -> Result<DbaConfig, PreviewError> {
     if map.get("user").and_then(JsonValue::as_str) != Some("root") {
         return Err(PreviewError::new("config", "user"));
     }
-    let host = map.get("host").and_then(JsonValue::as_str).ok_or_else(|| PreviewError::new("config", "host"))?;
-    if host.is_empty() || host.len() > 253 || !host.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'.' || byte == b'-') {
+    let host = map
+        .get("host")
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| PreviewError::new("config", "host"))?;
+    if host.is_empty()
+        || host.len() > 253
+        || !host
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.' || byte == b'-')
+    {
         return Err(PreviewError::new("config", "host"));
     }
-    let port = map.get("port").and_then(JsonValue::as_u64).and_then(|value| u16::try_from(value).ok()).filter(|port| *port != 0).ok_or_else(|| PreviewError::new("config", "port"))?;
-    let timeout_ms = map.get("connect_timeout_ms").and_then(JsonValue::as_u64).filter(|value| (1..=30_000).contains(value)).ok_or_else(|| PreviewError::new("budget", "range"))?;
+    let port = map
+        .get("port")
+        .and_then(JsonValue::as_u64)
+        .and_then(|value| u16::try_from(value).ok())
+        .filter(|port| *port != 0)
+        .ok_or_else(|| PreviewError::new("config", "port"))?;
+    let timeout_ms = map
+        .get("connect_timeout_ms")
+        .and_then(JsonValue::as_u64)
+        .filter(|value| (1..=30_000).contains(value))
+        .ok_or_else(|| PreviewError::new("budget", "range"))?;
     Ok(DbaConfig {
         host: host.to_string(),
         port,
@@ -214,9 +275,16 @@ fn parse_dba(text: &str) -> Result<DbaConfig, PreviewError> {
 }
 
 fn absolute(map: &Map<String, JsonValue>, key: &str) -> Result<std::path::PathBuf, PreviewError> {
-    let text = map.get(key).and_then(JsonValue::as_str).ok_or_else(|| PreviewError::new("config", "path"))?;
+    let text = map
+        .get(key)
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| PreviewError::new("config", "path"))?;
     let path = std::path::PathBuf::from(text);
-    if path.is_absolute() { Ok(path) } else { Err(PreviewError::new("config", "path")) }
+    if path.is_absolute() {
+        Ok(path)
+    } else {
+        Err(PreviewError::new("config", "path"))
+    }
 }
 
 fn exact(map: &Map<String, JsonValue>, allowed: &[&str]) -> Result<(), PreviewError> {
@@ -231,7 +299,10 @@ fn reject_secret_keys(value: &JsonValue) -> Result<(), PreviewError> {
     match value {
         JsonValue::Object(map) => {
             for (key, child) in map {
-                if matches!(key.as_str(), "password" | "passwd" | "secret" | "token" | "private_key" | "ca_pem") {
+                if matches!(
+                    key.as_str(),
+                    "password" | "passwd" | "secret" | "token" | "private_key" | "ca_pem"
+                ) {
                     return Err(PreviewError::new("config", "secret_key"));
                 }
                 reject_secret_keys(child)?;
@@ -263,7 +334,11 @@ async fn open_dba(config: &DbaConfig, password: &str) -> Result<Conn, PreviewErr
         .pass(Some(password.to_string()))
         .prefer_socket(false)
         .ssl_opts(ssl);
-    let connect = timeout(Duration::from_millis(config.connect_timeout_ms), Conn::new(opts)).await;
+    let connect = timeout(
+        Duration::from_millis(config.connect_timeout_ms),
+        Conn::new(opts),
+    )
+    .await;
     match connect {
         Ok(Ok(conn)) => Ok(conn),
         Ok(Err(err)) => {
@@ -282,9 +357,21 @@ async fn ensure_business_user(conn: &mut Conn, password: &str) -> Result<(), Pre
         return Err(PreviewError::new("ident", "user"));
     }
     let quoted = sql_text(password)?;
-    exec(conn, &format!("CREATE USER IF NOT EXISTS 'oo_scale'@'%' IDENTIFIED BY {quoted}")).await?;
-    exec(conn, &format!("ALTER USER 'oo_scale'@'%' IDENTIFIED BY {quoted}")).await?;
-    exec(conn, "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'oo_scale'@'%'").await?;
+    exec(
+        conn,
+        &format!("CREATE USER IF NOT EXISTS 'oo_scale'@'%' IDENTIFIED BY {quoted}"),
+    )
+    .await?;
+    exec(
+        conn,
+        &format!("ALTER USER 'oo_scale'@'%' IDENTIFIED BY {quoted}"),
+    )
+    .await?;
+    exec(
+        conn,
+        "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'oo_scale'@'%'",
+    )
+    .await?;
     Ok(())
 }
 
@@ -377,8 +464,14 @@ async fn insert_events(conn: &mut Conn) -> Result<(), PreviewError> {
 
 async fn insert_probe(conn: &mut Conn) -> Result<(), PreviewError> {
     let rows = probe_rows();
-    let strict: Vec<&ProbeRow> = rows.iter().filter(|row| row.day_on != ProbeDate::Zero).collect();
-    let zero: Vec<&ProbeRow> = rows.iter().filter(|row| row.day_on == ProbeDate::Zero).collect();
+    let strict: Vec<&ProbeRow> = rows
+        .iter()
+        .filter(|row| row.day_on != ProbeDate::Zero)
+        .collect();
+    let zero: Vec<&ProbeRow> = rows
+        .iter()
+        .filter(|row| row.day_on == ProbeDate::Zero)
+        .collect();
     flush_probe(conn, &strict).await?;
     exec(conn, LOOSE_MODE).await?;
     flush_probe(conn, &zero).await?;
@@ -403,7 +496,13 @@ async fn flush_probe(conn: &mut Conn, rows: &[&ProbeRow]) -> Result<(), PreviewE
             sql_opt(row.note)?,
         ));
     }
-    flush(conn, "value_probe", "(probe_id, unsigned_grams, exact_amount, payload, badge, day_on, clock_at, note)", &values).await
+    flush(
+        conn,
+        "value_probe",
+        "(probe_id, unsigned_grams, exact_amount, payload, badge, day_on, clock_at, note)",
+        &values,
+    )
+    .await
 }
 
 async fn insert_gaps(conn: &mut Conn) -> Result<(), PreviewError> {
@@ -420,10 +519,21 @@ async fn insert_gaps(conn: &mut Conn) -> Result<(), PreviewError> {
             sql_text(&gap.canonical_text)?,
         ));
     }
-    flush(conn, "range_gap", "(gap_id, table_name, column_name, row_key, reason, canonical_text)", &values).await
+    flush(
+        conn,
+        "range_gap",
+        "(gap_id, table_name, column_name, row_key, reason, canonical_text)",
+        &values,
+    )
+    .await
 }
 
-async fn flush(conn: &mut Conn, table: &str, columns: &str, rows: &[String]) -> Result<(), PreviewError> {
+async fn flush(
+    conn: &mut Conn,
+    table: &str,
+    columns: &str,
+    rows: &[String],
+) -> Result<(), PreviewError> {
     if rows.is_empty() {
         return Ok(());
     }
@@ -439,7 +549,13 @@ fn probe_date(value: ProbeDate) -> Result<String, PreviewError> {
         ProbeDate::Null => Ok("NULL".to_string()),
         ProbeDate::Zero => Ok("'0000-00-00'".to_string()),
         ProbeDate::Day(text) => {
-            if text.len() == 10 && text.as_bytes()[4] == b'-' && text.as_bytes()[7] == b'-' && text.bytes().all(|byte| byte.is_ascii_digit() || byte == b'-') {
+            if text.len() == 10
+                && text.as_bytes()[4] == b'-'
+                && text.as_bytes()[7] == b'-'
+                && text
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || byte == b'-')
+            {
                 Ok(format!("'{text}'"))
             } else {
                 Err(PreviewError::new("value", "date"))
@@ -453,7 +569,13 @@ fn probe_time(value: ProbeTime) -> Result<String, PreviewError> {
         ProbeTime::Null => Ok("NULL".to_string()),
         ProbeTime::Clock(text) | ProbeTime::Negative(text) => {
             let body = text.strip_prefix('-').unwrap_or(text);
-            if body.len() == 8 && body.as_bytes()[2] == b':' && body.as_bytes()[5] == b':' && body.bytes().all(|byte| byte.is_ascii_digit() || byte == b':') {
+            if body.len() == 8
+                && body.as_bytes()[2] == b':'
+                && body.as_bytes()[5] == b':'
+                && body
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || byte == b':')
+            {
                 Ok(format!("'{text}'"))
             } else {
                 Err(PreviewError::new("value", "time_range"))
@@ -489,7 +611,12 @@ fn sql_decimal(value: Option<&str>) -> Result<String, PreviewError> {
     let Some(text) = value else {
         return Ok("NULL".to_string());
     };
-    if text.is_empty() || text.len() > 80 || !text.bytes().all(|byte| byte.is_ascii_digit() || byte == b'.' || byte == b'-') {
+    if text.is_empty()
+        || text.len() > 80
+        || !text
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || byte == b'.' || byte == b'-')
+    {
         return Err(PreviewError::new("value", "decimal"));
     }
     Ok(text.to_string())
@@ -528,25 +655,55 @@ async fn prototype_counts(conn: &mut Conn) -> Result<PrototypeCounts, PreviewErr
     let parcel = scalar(conn, "SELECT COUNT(*) FROM erp.parcel").await?;
     let empty_box = scalar(conn, "SELECT COUNT(*) FROM erp.empty_box").await?;
     Ok(PrototypeCounts {
-        parcel: parcel.parse().map_err(|_| PreviewError::new("value", "count"))?,
-        empty_box: empty_box.parse().map_err(|_| PreviewError::new("value", "count"))?,
+        parcel: parcel
+            .parse()
+            .map_err(|_| PreviewError::new("value", "count"))?,
+        empty_box: empty_box
+            .parse()
+            .map_err(|_| PreviewError::new("value", "count"))?,
     })
 }
 
 async fn table_counts(conn: &mut Conn) -> Result<TableCounts, PreviewError> {
     Ok(TableCounts {
-        hubs: scalar(conn, "SELECT COUNT(*) FROM logistics.hubs").await?.parse().map_err(|_| PreviewError::new("value", "count"))?,
-        shipments: scalar(conn, "SELECT COUNT(*) FROM logistics.shipments").await?.parse().map_err(|_| PreviewError::new("value", "count"))?,
-        events: scalar(conn, "SELECT COUNT(*) FROM logistics.tracking_events").await?.parse().map_err(|_| PreviewError::new("value", "count"))?,
-        probe: scalar(conn, "SELECT COUNT(*) FROM logistics.value_probe").await?.parse().map_err(|_| PreviewError::new("value", "count"))?,
-        gaps: scalar(conn, "SELECT COUNT(*) FROM logistics.range_gap").await?.parse().map_err(|_| PreviewError::new("value", "count"))?,
+        hubs: scalar(conn, "SELECT COUNT(*) FROM logistics.hubs")
+            .await?
+            .parse()
+            .map_err(|_| PreviewError::new("value", "count"))?,
+        shipments: scalar(conn, "SELECT COUNT(*) FROM logistics.shipments")
+            .await?
+            .parse()
+            .map_err(|_| PreviewError::new("value", "count"))?,
+        events: scalar(conn, "SELECT COUNT(*) FROM logistics.tracking_events")
+            .await?
+            .parse()
+            .map_err(|_| PreviewError::new("value", "count"))?,
+        probe: scalar(conn, "SELECT COUNT(*) FROM logistics.value_probe")
+            .await?
+            .parse()
+            .map_err(|_| PreviewError::new("value", "count"))?,
+        gaps: scalar(conn, "SELECT COUNT(*) FROM logistics.range_gap")
+            .await?
+            .parse()
+            .map_err(|_| PreviewError::new("value", "count"))?,
     })
 }
 
 async fn raw_probe(conn: &mut Conn) -> Result<RawProbe, PreviewError> {
-    let zero = scalar(conn, "SELECT CAST(day_on AS CHAR) FROM logistics.value_probe WHERE probe_id = 5").await?;
-    let time = scalar(conn, "SELECT CAST(clock_at AS CHAR) FROM logistics.value_probe WHERE probe_id = 6").await?;
-    Ok(RawProbe { zero_date: zero, time_range: time })
+    let zero = scalar(
+        conn,
+        "SELECT CAST(day_on AS CHAR) FROM logistics.value_probe WHERE probe_id = 5",
+    )
+    .await?;
+    let time = scalar(
+        conn,
+        "SELECT CAST(clock_at AS CHAR) FROM logistics.value_probe WHERE probe_id = 6",
+    )
+    .await?;
+    Ok(RawProbe {
+        zero_date: zero,
+        time_range: time,
+    })
 }
 
 async fn exec(conn: &mut Conn, sql: &str) -> Result<(), PreviewError> {
@@ -579,9 +736,13 @@ async fn strings(conn: &mut Conn, sql: &str) -> Result<Vec<String>, PreviewError
 }
 
 fn cell_string(row: &Row, index: usize) -> Result<String, PreviewError> {
-    let value: Value = row.get(index).ok_or_else(|| PreviewError::new("protocol", "cell"))?;
+    let value: Value = row
+        .get(index)
+        .ok_or_else(|| PreviewError::new("protocol", "cell"))?;
     match value {
-        Value::Bytes(bytes) => String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell")),
+        Value::Bytes(bytes) => {
+            String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))
+        }
         Value::Int(value) => Ok(value.to_string()),
         Value::UInt(value) => Ok(value.to_string()),
         _ => Err(PreviewError::new("protocol", "cell")),

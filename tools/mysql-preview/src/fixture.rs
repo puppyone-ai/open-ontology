@@ -7,11 +7,11 @@ use std::time::Duration;
 
 use mysql_async::prelude::Queryable;
 use mysql_async::{Conn, OptsBuilder, SslOpts, Value};
-use serde_json::{json, Map, Value as JsonValue};
+use serde_json::{Map, Value as JsonValue, json};
 use tokio::time::timeout;
 
 use crate::config::{mysql_ident, read_ca, read_secret};
-use crate::error::{redact, PreviewError};
+use crate::error::{PreviewError, redact};
 
 const DENY_DATABASE: &[&str] = &[
     "logistics",
@@ -66,7 +66,14 @@ pub async fn load_fixture(config_path: &Path, out_dir: &Path) -> Result<(), Prev
     }
     fs::create_dir_all(out_dir).map_err(|_| PreviewError::new("config", "out"))?;
     let mut conn = connect(&fixture, password.as_str()).await?;
-    exec(&mut conn, &format!("CREATE DATABASE IF NOT EXISTS `{}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci", fixture.database)).await?;
+    exec(
+        &mut conn,
+        &format!(
+            "CREATE DATABASE IF NOT EXISTS `{}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci",
+            fixture.database
+        ),
+    )
+    .await?;
     exec(&mut conn, &format!("USE `{}`", fixture.database)).await?;
     for table in &fixture.tables {
         exec(&mut conn, &format!("DROP TABLE IF EXISTS `{}`", table.name)).await?;
@@ -74,20 +81,52 @@ pub async fn load_fixture(config_path: &Path, out_dir: &Path) -> Result<(), Prev
         insert_rows(&mut conn, table).await?;
     }
     let quoted = quote_literal(reader_password.as_str())?;
-    exec(&mut conn, &format!("CREATE USER IF NOT EXISTS '{}'@'%' IDENTIFIED BY {quoted}", fixture.reader)).await?;
-    exec(&mut conn, &format!("ALTER USER '{}'@'%' IDENTIFIED BY {quoted}", fixture.reader)).await?;
-    exec(&mut conn, &format!("REVOKE ALL PRIVILEGES, GRANT OPTION FROM '{}'@'%'", fixture.reader)).await?;
+    exec(
+        &mut conn,
+        &format!(
+            "CREATE USER IF NOT EXISTS '{}'@'%' IDENTIFIED BY {quoted}",
+            fixture.reader
+        ),
+    )
+    .await?;
+    exec(
+        &mut conn,
+        &format!("ALTER USER '{}'@'%' IDENTIFIED BY {quoted}", fixture.reader),
+    )
+    .await?;
+    exec(
+        &mut conn,
+        &format!(
+            "REVOKE ALL PRIVILEGES, GRANT OPTION FROM '{}'@'%'",
+            fixture.reader
+        ),
+    )
+    .await?;
     for table in &fixture.tables {
-        exec(&mut conn, &format!("GRANT SELECT ON `{}`.`{}` TO '{}'@'%'", fixture.database, table.name, fixture.reader)).await?;
+        exec(
+            &mut conn,
+            &format!(
+                "GRANT SELECT ON `{}`.`{}` TO '{}'@'%'",
+                fixture.database, table.name, fixture.reader
+            ),
+        )
+        .await?;
     }
     let mut counts = Vec::new();
     for table in &fixture.tables {
         let sql = format!("SELECT CAST(COUNT(*) AS CHAR) FROM `{}`", table.name);
-        let row: Option<mysql_async::Row> = conn.query_first(sql).await.map_err(|_| PreviewError::new("value", "count"))?;
+        let row: Option<mysql_async::Row> = conn
+            .query_first(sql)
+            .await
+            .map_err(|_| PreviewError::new("value", "count"))?;
         let row = row.ok_or_else(|| PreviewError::new("value", "count"))?;
-        let value: Value = row.get(0).ok_or_else(|| PreviewError::new("value", "count"))?;
+        let value: Value = row
+            .get(0)
+            .ok_or_else(|| PreviewError::new("value", "count"))?;
         let count = match value {
-            Value::Bytes(bytes) => String::from_utf8(bytes).map_err(|_| PreviewError::new("value", "count"))?,
+            Value::Bytes(bytes) => {
+                String::from_utf8(bytes).map_err(|_| PreviewError::new("value", "count"))?
+            }
             Value::Int(number) => number.to_string(),
             Value::UInt(number) => number.to_string(),
             _ => return Err(PreviewError::new("value", "count")),
@@ -105,8 +144,11 @@ pub async fn load_fixture(config_path: &Path, out_dir: &Path) -> Result<(), Prev
         "tables": counts,
         "customer_path": false
     });
-    fs::write(out_dir.join("load.json"), serde_json::to_vec_pretty(&body).map_err(|_| PreviewError::new("config", "out"))?)
-        .map_err(|_| PreviewError::new("config", "out"))?;
+    fs::write(
+        out_dir.join("load.json"),
+        serde_json::to_vec_pretty(&body).map_err(|_| PreviewError::new("config", "out"))?,
+    )
+    .map_err(|_| PreviewError::new("config", "out"))?;
     let _ = password;
     let _ = reader_password;
     Ok(())
@@ -132,20 +174,32 @@ fn create_sql(table: &FixtureTable) -> Result<String, PreviewError> {
         }
     }
     let key = key.ok_or_else(|| PreviewError::new("catalog", "primary_key"))?;
-    Ok(format!("CREATE TABLE `{}` ({body}, PRIMARY KEY (`{key}`))", table.name))
+    Ok(format!(
+        "CREATE TABLE `{}` ({body}, PRIMARY KEY (`{key}`))",
+        table.name
+    ))
 }
 
 fn sql_type(column: &FixtureColumn) -> Result<String, PreviewError> {
     match column.type_name.as_str() {
         "int" => Ok("int".to_string()),
         "varchar" => {
-            let length = column.length.filter(|value| (1..=255).contains(value)).ok_or_else(|| PreviewError::new("catalog", "type"))?;
+            let length = column
+                .length
+                .filter(|value| (1..=255).contains(value))
+                .ok_or_else(|| PreviewError::new("catalog", "type"))?;
             Ok(format!("varchar({length})"))
         }
         "text" => Ok("text".to_string()),
         "decimal" => {
-            let precision = column.length.filter(|value| (1..=38).contains(value)).ok_or_else(|| PreviewError::new("catalog", "type"))?;
-            let scale = column.scale.filter(|value| *value <= precision).ok_or_else(|| PreviewError::new("catalog", "type"))?;
+            let precision = column
+                .length
+                .filter(|value| (1..=38).contains(value))
+                .ok_or_else(|| PreviewError::new("catalog", "type"))?;
+            let scale = column
+                .scale
+                .filter(|value| *value <= precision)
+                .ok_or_else(|| PreviewError::new("catalog", "type"))?;
             Ok(format!("decimal({precision},{scale})"))
         }
         "geometry" => Ok("geometry".to_string()),
@@ -179,17 +233,30 @@ async fn insert_rows(conn: &mut Conn, table: &FixtureTable) -> Result<(), Previe
         for (column, cell) in table.columns.iter().zip(row.iter()) {
             params.push(param(column, cell)?);
         }
-        conn.exec_drop(sql.as_str(), params).await.map_err(|_| PreviewError::new("value", "insert"))?;
+        conn.exec_drop(sql.as_str(), params)
+            .await
+            .map_err(|_| PreviewError::new("value", "insert"))?;
     }
     Ok(())
 }
 
 fn param(column: &FixtureColumn, cell: &JsonValue) -> Result<Value, PreviewError> {
     match column.type_name.as_str() {
-        "int" => Ok(Value::Int(cell.as_i64().filter(|value| *value >= 0).ok_or_else(|| PreviewError::new("value", "row"))?)),
-        "varchar" | "text" | "geometry" => Ok(Value::Bytes(cell.as_str().ok_or_else(|| PreviewError::new("value", "row"))?.as_bytes().to_vec())),
+        "int" => Ok(Value::Int(
+            cell.as_i64()
+                .filter(|value| *value >= 0)
+                .ok_or_else(|| PreviewError::new("value", "row"))?,
+        )),
+        "varchar" | "text" | "geometry" => Ok(Value::Bytes(
+            cell.as_str()
+                .ok_or_else(|| PreviewError::new("value", "row"))?
+                .as_bytes()
+                .to_vec(),
+        )),
         "decimal" => {
-            let text = cell.as_str().ok_or_else(|| PreviewError::new("value", "row"))?;
+            let text = cell
+                .as_str()
+                .ok_or_else(|| PreviewError::new("value", "row"))?;
             if !decimal_text(text) {
                 return Err(PreviewError::new("value", "row"));
             }
@@ -225,10 +292,28 @@ fn quote_literal(value: &str) -> Result<String, PreviewError> {
 }
 
 fn parse_fixture(text: &str) -> Result<Fixture, PreviewError> {
-    let value: JsonValue = serde_json::from_str(text).map_err(|_| PreviewError::new("config", "json"))?;
+    let value: JsonValue =
+        serde_json::from_str(text).map_err(|_| PreviewError::new("config", "json"))?;
     reject_secret_keys(&value)?;
-    let map = value.as_object().ok_or_else(|| PreviewError::new("config", "json"))?;
-    exact(map, &["ca_file", "connect_timeout_ms", "database", "host", "password_file", "port", "reader", "reader_password_file", "tables", "user", "version"])?;
+    let map = value
+        .as_object()
+        .ok_or_else(|| PreviewError::new("config", "json"))?;
+    exact(
+        map,
+        &[
+            "ca_file",
+            "connect_timeout_ms",
+            "database",
+            "host",
+            "password_file",
+            "port",
+            "reader",
+            "reader_password_file",
+            "tables",
+            "user",
+            "version",
+        ],
+    )?;
     if text_of(map, "version")? != "oo.mysql-preview.dba-fixture/v1" {
         return Err(PreviewError::new("config", "version"));
     }
@@ -243,7 +328,10 @@ fn parse_fixture(text: &str) -> Result<Fixture, PreviewError> {
     if !mysql_ident(reader) || DENY_USER.contains(&reader) {
         return Err(PreviewError::new("config", "user"));
     }
-    let tables_value = map.get("tables").and_then(JsonValue::as_array).ok_or_else(|| PreviewError::new("config", "tables"))?;
+    let tables_value = map
+        .get("tables")
+        .and_then(JsonValue::as_array)
+        .ok_or_else(|| PreviewError::new("config", "tables"))?;
     if tables_value.is_empty() || tables_value.len() > 4 {
         return Err(PreviewError::new("config", "tables"));
     }
@@ -253,11 +341,20 @@ fn parse_fixture(text: &str) -> Result<Fixture, PreviewError> {
     }
     Ok(Fixture {
         host: host(text_of(map, "host")?)?,
-        port: map.get("port").and_then(JsonValue::as_u64).and_then(|value| u16::try_from(value).ok()).filter(|port| *port != 0).ok_or_else(|| PreviewError::new("config", "port"))?,
+        port: map
+            .get("port")
+            .and_then(JsonValue::as_u64)
+            .and_then(|value| u16::try_from(value).ok())
+            .filter(|port| *port != 0)
+            .ok_or_else(|| PreviewError::new("config", "port"))?,
         user: "root".to_string(),
         password_file: absolute(text_of(map, "password_file")?)?,
         ca_file: absolute(text_of(map, "ca_file")?)?,
-        connect_timeout_ms: map.get("connect_timeout_ms").and_then(JsonValue::as_u64).filter(|value| (1..=30_000).contains(value)).ok_or_else(|| PreviewError::new("budget", "range"))?,
+        connect_timeout_ms: map
+            .get("connect_timeout_ms")
+            .and_then(JsonValue::as_u64)
+            .filter(|value| (1..=30_000).contains(value))
+            .ok_or_else(|| PreviewError::new("budget", "range"))?,
         database: database.to_string(),
         reader: reader.to_string(),
         reader_password_file: absolute(text_of(map, "reader_password_file")?)?,
@@ -266,25 +363,36 @@ fn parse_fixture(text: &str) -> Result<Fixture, PreviewError> {
 }
 
 fn parse_table(value: &JsonValue) -> Result<FixtureTable, PreviewError> {
-    let map = value.as_object().ok_or_else(|| PreviewError::new("config", "tables"))?;
+    let map = value
+        .as_object()
+        .ok_or_else(|| PreviewError::new("config", "tables"))?;
     exact(map, &["columns", "name", "rows"])?;
     let name = text_of(map, "name")?;
     if !mysql_ident(name) {
         return Err(PreviewError::new("ident", "ident"));
     }
-    let column_rows = map.get("columns").and_then(JsonValue::as_array).ok_or_else(|| PreviewError::new("config", "tables"))?;
+    let column_rows = map
+        .get("columns")
+        .and_then(JsonValue::as_array)
+        .ok_or_else(|| PreviewError::new("config", "tables"))?;
     if column_rows.is_empty() || column_rows.len() > 8 {
         return Err(PreviewError::new("config", "tables"));
     }
     let mut columns = Vec::new();
     let mut keys = 0;
     for item in column_rows {
-        let column = item.as_object().ok_or_else(|| PreviewError::new("config", "tables"))?;
+        let column = item
+            .as_object()
+            .ok_or_else(|| PreviewError::new("config", "tables"))?;
         let scale = if column.contains_key("scale") {
             exact(column, &["key", "length", "name", "scale", "type"])?;
             match column.get("scale") {
                 Some(JsonValue::Null) => None,
-                Some(value) => Some(value.as_u64().ok_or_else(|| PreviewError::new("config", "tables"))?),
+                Some(value) => Some(
+                    value
+                        .as_u64()
+                        .ok_or_else(|| PreviewError::new("config", "tables"))?,
+                ),
                 None => None,
             }
         } else {
@@ -295,13 +403,20 @@ fn parse_table(value: &JsonValue) -> Result<FixtureTable, PreviewError> {
         if !mysql_ident(column_name) {
             return Err(PreviewError::new("ident", "ident"));
         }
-        let key = column.get("key").and_then(JsonValue::as_bool).ok_or_else(|| PreviewError::new("config", "tables"))?;
+        let key = column
+            .get("key")
+            .and_then(JsonValue::as_bool)
+            .ok_or_else(|| PreviewError::new("config", "tables"))?;
         if key {
             keys += 1;
         }
         let length = match column.get("length") {
             Some(JsonValue::Null) => None,
-            Some(value) => Some(value.as_u64().ok_or_else(|| PreviewError::new("config", "tables"))?),
+            Some(value) => Some(
+                value
+                    .as_u64()
+                    .ok_or_else(|| PreviewError::new("config", "tables"))?,
+            ),
             None => None,
         };
         columns.push(FixtureColumn {
@@ -315,16 +430,25 @@ fn parse_table(value: &JsonValue) -> Result<FixtureTable, PreviewError> {
     if keys != 1 {
         return Err(PreviewError::new("catalog", "primary_key"));
     }
-    let row_items = map.get("rows").and_then(JsonValue::as_array).ok_or_else(|| PreviewError::new("config", "tables"))?;
+    let row_items = map
+        .get("rows")
+        .and_then(JsonValue::as_array)
+        .ok_or_else(|| PreviewError::new("config", "tables"))?;
     if row_items.is_empty() || row_items.len() > 100 {
         return Err(PreviewError::new("budget", "max_rows"));
     }
     let mut rows = Vec::new();
     for item in row_items {
-        let row = item.as_array().ok_or_else(|| PreviewError::new("value", "row"))?;
+        let row = item
+            .as_array()
+            .ok_or_else(|| PreviewError::new("value", "row"))?;
         rows.push(row.clone());
     }
-    Ok(FixtureTable { name: name.to_string(), columns, rows })
+    Ok(FixtureTable {
+        name: name.to_string(),
+        columns,
+        rows,
+    })
 }
 
 async fn connect(fixture: &Fixture, password: &str) -> Result<Conn, PreviewError> {
@@ -341,7 +465,12 @@ async fn connect(fixture: &Fixture, password: &str) -> Result<Conn, PreviewError
         .pass(Some(password.to_string()))
         .prefer_socket(false)
         .ssl_opts(ssl);
-    match timeout(Duration::from_millis(fixture.connect_timeout_ms), Conn::new(opts)).await {
+    match timeout(
+        Duration::from_millis(fixture.connect_timeout_ms),
+        Conn::new(opts),
+    )
+    .await
+    {
         Ok(Ok(conn)) => Ok(conn),
         Ok(Err(err)) => {
             if redact(&err.to_string(), password) {
@@ -363,7 +492,12 @@ async fn exec(conn: &mut Conn, sql: &str) -> Result<(), PreviewError> {
 }
 
 fn host(value: &str) -> Result<String, PreviewError> {
-    if value.is_empty() || value.len() > 253 || !value.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'.' || byte == b'-') {
+    if value.is_empty()
+        || value.len() > 253
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.' || byte == b'-')
+    {
         Err(PreviewError::new("config", "host"))
     } else {
         Ok(value.to_string())
@@ -372,22 +506,35 @@ fn host(value: &str) -> Result<String, PreviewError> {
 
 fn absolute(value: &str) -> Result<PathBuf, PreviewError> {
     let path = PathBuf::from(value);
-    if path.is_absolute() { Ok(path) } else { Err(PreviewError::new("config", "path")) }
+    if path.is_absolute() {
+        Ok(path)
+    } else {
+        Err(PreviewError::new("config", "path"))
+    }
 }
 
 fn text_of<'a>(map: &'a Map<String, JsonValue>, key: &str) -> Result<&'a str, PreviewError> {
-    map.get(key).and_then(JsonValue::as_str).ok_or_else(|| PreviewError::config_field(key))
+    map.get(key)
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| PreviewError::config_field(key))
 }
 
 fn exact(map: &Map<String, JsonValue>, allowed: &[&str]) -> Result<(), PreviewError> {
-    if map.len() == allowed.len() && allowed.iter().all(|key| map.contains_key(*key)) { Ok(()) } else { Err(PreviewError::new("config", "keys")) }
+    if map.len() == allowed.len() && allowed.iter().all(|key| map.contains_key(*key)) {
+        Ok(())
+    } else {
+        Err(PreviewError::new("config", "keys"))
+    }
 }
 
 fn reject_secret_keys(value: &JsonValue) -> Result<(), PreviewError> {
     match value {
         JsonValue::Object(map) => {
             for (key, child) in map {
-                if matches!(key.as_str(), "password" | "passwd" | "secret" | "token" | "private_key" | "ca_pem") {
+                if matches!(
+                    key.as_str(),
+                    "password" | "passwd" | "secret" | "token" | "private_key" | "ca_pem"
+                ) {
                     return Err(PreviewError::new("config", "secret_key"));
                 }
                 reject_secret_keys(child)?;
@@ -421,8 +568,20 @@ mod tests {
         let table = FixtureTable {
             name: "dock".to_string(),
             columns: vec![
-                FixtureColumn { name: "dock_id".to_string(), type_name: "int".to_string(), length: None, scale: None, key: true },
-                FixtureColumn { name: "label".to_string(), type_name: "varchar".to_string(), length: Some(32), scale: None, key: false },
+                FixtureColumn {
+                    name: "dock_id".to_string(),
+                    type_name: "int".to_string(),
+                    length: None,
+                    scale: None,
+                    key: true,
+                },
+                FixtureColumn {
+                    name: "label".to_string(),
+                    type_name: "varchar".to_string(),
+                    length: Some(32),
+                    scale: None,
+                    key: false,
+                },
             ],
             rows: Vec::new(),
         };
@@ -437,16 +596,35 @@ mod tests {
         let table = FixtureTable {
             name: "berth".to_string(),
             columns: vec![
-                FixtureColumn { name: "berth_id".to_string(), type_name: "int".to_string(), length: None, scale: None, key: true },
-                FixtureColumn { name: "depth".to_string(), type_name: "decimal".to_string(), length: Some(10), scale: Some(2), key: false },
-                FixtureColumn { name: "name".to_string(), type_name: "text".to_string(), length: None, scale: None, key: false },
+                FixtureColumn {
+                    name: "berth_id".to_string(),
+                    type_name: "int".to_string(),
+                    length: None,
+                    scale: None,
+                    key: true,
+                },
+                FixtureColumn {
+                    name: "depth".to_string(),
+                    type_name: "decimal".to_string(),
+                    length: Some(10),
+                    scale: Some(2),
+                    key: false,
+                },
+                FixtureColumn {
+                    name: "name".to_string(),
+                    type_name: "text".to_string(),
+                    length: None,
+                    scale: None,
+                    key: false,
+                },
             ],
             rows: Vec::new(),
         };
         let sql = create_sql(&table).expect("sql");
         assert!(sql.contains("`depth` decimal(10,2) NULL"));
         assert!(sql.contains("`name` text NULL"));
-        let cell = param(&table.columns[1], &JsonValue::String("18.75".to_string())).expect("decimal");
+        let cell =
+            param(&table.columns[1], &JsonValue::String("18.75".to_string())).expect("decimal");
         assert!(matches!(cell, Value::Bytes(bytes) if bytes == b"18.75"));
     }
 }

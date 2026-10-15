@@ -5,22 +5,22 @@
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use mysql_async::prelude::Queryable;
 use mysql_async::{Conn, OptsBuilder, Row, SslOpts, Value};
 use oo_connectors::PG17_RESERVED;
 use oo_pipeline::target_installer::sha256_hex;
-use serde_json::{json, Map, Value as JsonValue};
+use serde_json::{Map, Value as JsonValue, json};
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::{ConnectOptions, Connection, Row as PgRow};
 use tokio::time::timeout;
 
 use crate::config::{mysql_ident, read_ca, read_secret};
-use crate::error::{redact, PreviewError};
-use crate::map::{grant_is_read_only, map_table, mariadb_comment, session_mode_ok, MysqlColumn};
+use crate::error::{PreviewError, redact};
+use crate::map::{MysqlColumn, grant_is_read_only, map_table, mariadb_comment, session_mode_ok};
 
 const SLEEP_SECONDS: u64 = 8;
 
@@ -97,7 +97,9 @@ struct CancelEvent {
 
 impl CancelEvent {
     fn new() -> Self {
-        Self { signaled: AtomicBool::new(false) }
+        Self {
+            signaled: AtomicBool::new(false),
+        }
     }
 
     fn signal(&self) {
@@ -129,7 +131,10 @@ struct ReadCancel {
 
 impl ReadCancel {
     fn bind(connection_id: u64) -> Self {
-        Self { event: CancelEvent::new(), connection_id }
+        Self {
+            event: CancelEvent::new(),
+            connection_id,
+        }
     }
 
     /// User-facing cancel. It only signals this read task.
@@ -152,7 +157,11 @@ pub fn gate(input: &CustomerInput) -> Result<(), PreviewError> {
     if input.role != input.user {
         return Err(PreviewError::new("privilege", "role"));
     }
-    let limit = if input.stop == CustomerStop::Product { 4 } else { 1 };
+    let limit = if input.stop == CustomerStop::Product {
+        4
+    } else {
+        1
+    };
     if input.requested.is_empty() || input.requested.len() > limit {
         return Err(PreviewError::new("config", "objects"));
     }
@@ -181,7 +190,9 @@ fn columns_allowed(approved: &[String], requested: &[String]) -> bool {
     if requested.is_empty() {
         return false;
     }
-    requested.iter().all(|name| approved.iter().any(|item| item == name))
+    requested
+        .iter()
+        .all(|name| approved.iter().any(|item| item == name))
 }
 
 pub async fn run_customer(config_path: &Path, out_dir: &Path) -> Result<(), PreviewError> {
@@ -203,7 +214,11 @@ pub async fn run_customer(config_path: &Path, out_dir: &Path) -> Result<(), Prev
     }
 }
 
-async fn drive(input: &CustomerInput, notes: &mut Vec<Note>, out_dir: &Path) -> Result<JsonValue, PreviewError> {
+async fn drive(
+    input: &CustomerInput,
+    notes: &mut Vec<Note>,
+    out_dir: &Path,
+) -> Result<JsonValue, PreviewError> {
     if input.stop == CustomerStop::Product {
         return crate::product::close_loop(input, out_dir).await;
     }
@@ -212,14 +227,24 @@ async fn drive(input: &CustomerInput, notes: &mut Vec<Note>, out_dir: &Path) -> 
     preflight(input, &mut business, notes).await?;
     let object = &input.requested[0];
     let columns = catalog_columns(&mut business, notes, object).await?;
-    let reserved: BTreeSet<String> = PG17_RESERVED.iter().map(|word| (*word).to_string()).collect();
+    let reserved: BTreeSet<String> = PG17_RESERVED
+        .iter()
+        .map(|word| (*word).to_string())
+        .collect();
     map_table(&columns, input.boolean_tinyint1, false, &reserved)?;
     let selected = selected_names(object, &columns)?;
     if input.stop != CustomerStop::Access {
         let column = selected[0].clone();
         drop(business);
         let proof = cancel_query(input, password.as_str(), notes, object, &column).await?;
-        return Ok(success_body(input, notes, "canceled", 0, false, Some(&proof)));
+        return Ok(success_body(
+            input,
+            notes,
+            "canceled",
+            0,
+            false,
+            Some(&proof),
+        ));
     }
     let count = read_capped(input, &mut business, notes, object, &selected).await?;
     drop(business);
@@ -228,7 +253,11 @@ async fn drive(input: &CustomerInput, notes: &mut Vec<Note>, out_dir: &Path) -> 
     Ok(success_body(input, notes, "read", count, opened, None))
 }
 
-async fn preflight(input: &CustomerInput, conn: &mut Conn, notes: &mut Vec<Note>) -> Result<(), PreviewError> {
+async fn preflight(
+    input: &CustomerInput,
+    conn: &mut Conn,
+    notes: &mut Vec<Note>,
+) -> Result<(), PreviewError> {
     let version = scalar(conn, notes, "SELECT VERSION()").await?;
     let comment = scalar(conn, notes, "SELECT @@version_comment").await?;
     if mariadb_comment(&comment) {
@@ -257,23 +286,32 @@ async fn preflight(input: &CustomerInput, conn: &mut Conn, notes: &mut Vec<Note>
     let grants = show_grants(conn, notes).await?;
     if grants.is_empty()
         || grants.iter().any(|line| !grant_is_read_only(line))
-        || !grants.iter().any(|line| line.to_ascii_uppercase().contains("SELECT"))
+        || !grants
+            .iter()
+            .any(|line| line.to_ascii_uppercase().contains("SELECT"))
     {
         return Err(PreviewError::new("privilege", "grants"));
     }
     Ok(())
 }
 
-async fn catalog_columns(conn: &mut Conn, notes: &mut Vec<Note>, object: &CustomerObject) -> Result<Vec<MysqlColumn>, PreviewError> {
+async fn catalog_columns(
+    conn: &mut Conn,
+    notes: &mut Vec<Note>,
+    object: &CustomerObject,
+) -> Result<Vec<MysqlColumn>, PreviewError> {
     let sql = "SELECT COLUMN_NAME, ORDINAL_POSITION, DATA_TYPE, COLUMN_TYPE, IS_NULLABLE, \
                CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE, CHARACTER_SET_NAME, COLUMN_KEY \
                FROM information_schema.COLUMNS \
                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION";
     note(notes, sql);
-    let rows: Vec<Row> = timeout(Duration::from_secs(30), conn.exec(sql, (object.schema.as_str(), object.table.as_str())))
-        .await
-        .map_err(|_| PreviewError::new("budget", "statement_timeout"))?
-        .map_err(|_| PreviewError::new("catalog", "columns"))?;
+    let rows: Vec<Row> = timeout(
+        Duration::from_secs(30),
+        conn.exec(sql, (object.schema.as_str(), object.table.as_str())),
+    )
+    .await
+    .map_err(|_| PreviewError::new("budget", "statement_timeout"))?
+    .map_err(|_| PreviewError::new("catalog", "columns"))?;
     if rows.is_empty() {
         return Err(PreviewError::new("catalog", "missing_table"));
     }
@@ -285,7 +323,8 @@ async fn catalog_columns(conn: &mut Conn, notes: &mut Vec<Note>, object: &Custom
         }
         columns.push(MysqlColumn {
             name,
-            ordinal: i32::try_from(cell_i64(&row, 1)?).map_err(|_| PreviewError::new("catalog", "ordinal"))?,
+            ordinal: i32::try_from(cell_i64(&row, 1)?)
+                .map_err(|_| PreviewError::new("catalog", "ordinal"))?,
             data_type: cell_text(&row, 2)?,
             column_type: cell_text(&row, 3)?,
             nullable: cell_text(&row, 4)? == "YES",
@@ -299,13 +338,23 @@ async fn catalog_columns(conn: &mut Conn, notes: &mut Vec<Note>, object: &Custom
     Ok(columns)
 }
 
-fn selected_names(object: &CustomerObject, columns: &[MysqlColumn]) -> Result<Vec<String>, PreviewError> {
+fn selected_names(
+    object: &CustomerObject,
+    columns: &[MysqlColumn],
+) -> Result<Vec<String>, PreviewError> {
     let wanted = if object.columns.is_empty() {
-        columns.iter().map(|column| column.name.clone()).collect::<Vec<_>>()
+        columns
+            .iter()
+            .map(|column| column.name.clone())
+            .collect::<Vec<_>>()
     } else {
         object.columns.clone()
     };
-    if wanted.is_empty() || wanted.iter().any(|name| !columns.iter().any(|column| column.name == *name)) {
+    if wanted.is_empty()
+        || wanted
+            .iter()
+            .any(|name| !columns.iter().any(|column| column.name == *name))
+    {
         return Err(PreviewError::new("catalog", "missing_column"));
     }
     Ok(wanted)
@@ -412,7 +461,10 @@ async fn cancel_query(
         watcher.abort();
         return Err(PreviewError::new("cancel", "not_killed"));
     }
-    let limit = input.statement_timeout_ms.saturating_add(if deadline { input.deadline_ms } else { 2_000 });
+    let limit =
+        input
+            .statement_timeout_ms
+            .saturating_add(if deadline { input.deadline_ms } else { 2_000 });
     let killed = matches!(
         timeout(Duration::from_millis(limit), watcher).await,
         Ok(Ok(Ok(())))
@@ -425,7 +477,12 @@ async fn cancel_query(
         retire(&mut control, notes, other_id, other_task).await;
         return Err(PreviewError::new("cancel", "not_killed"));
     }
-    let ended = match timeout(Duration::from_millis(input.statement_timeout_ms), owned_task).await {
+    let ended = match timeout(
+        Duration::from_millis(input.statement_timeout_ms),
+        owned_task,
+    )
+    .await
+    {
         Ok(Ok(result)) => result,
         _ => {
             retire(&mut control, notes, other_id, other_task).await;
@@ -440,7 +497,11 @@ async fn cancel_query(
     let other_alive = info_count(&mut control, notes, other_id, &input.user).await?;
     if owned_gone != 0 || other_alive != 1 {
         retire(&mut control, notes, other_id, other_task).await;
-        let fact = if owned_gone != 0 { "still_running" } else { "other_killed" };
+        let fact = if owned_gone != 0 {
+            "still_running"
+        } else {
+            "other_killed"
+        };
         return Err(PreviewError::new("cancel", fact));
     }
     let proof = StopProof {
@@ -452,7 +513,11 @@ async fn cancel_query(
         partial_retired: true,
     };
     scoped_kill(&mut control, notes, other_id, input.statement_timeout_ms).await?;
-    let _ = timeout(Duration::from_millis(input.statement_timeout_ms), other_task).await;
+    let _ = timeout(
+        Duration::from_millis(input.statement_timeout_ms),
+        other_task,
+    )
+    .await;
     let other_gone = info_count(&mut control, notes, other_id, &input.user).await?;
     drop(control);
     if other_gone != 0 {
@@ -502,19 +567,31 @@ async fn watch_scoped_kill(
     .await?;
     let kill = format!("KILL QUERY {}", job.bound);
     let _ = notes_tx.send(kill.clone());
-    timeout(Duration::from_millis(job.statement_timeout_ms), dedicated.query_drop(kill))
-        .await
-        .map_err(|_| PreviewError::new("budget", "statement_timeout"))?
-        .map_err(|_| PreviewError::new("cancel", "kill"))?;
+    timeout(
+        Duration::from_millis(job.statement_timeout_ms),
+        dedicated.query_drop(kill),
+    )
+    .await
+    .map_err(|_| PreviewError::new("budget", "statement_timeout"))?
+    .map_err(|_| PreviewError::new("cancel", "kill"))?;
     drop(dedicated);
     Ok(())
 }
 
-async fn open_read(input: &CustomerInput, password: &str, notes: &mut Vec<Note>) -> Result<ReadHandle, PreviewError> {
+async fn open_read(
+    input: &CustomerInput,
+    password: &str,
+    notes: &mut Vec<Note>,
+) -> Result<ReadHandle, PreviewError> {
     let mut conn = connect(input, password).await?;
     let id_text = scalar(&mut conn, notes, "SELECT CAST(CONNECTION_ID() AS CHAR)").await?;
-    let connection_id = id_text.parse().map_err(|_| PreviewError::new("protocol", "connection_id"))?;
-    Ok(ReadHandle { conn, connection_id })
+    let connection_id = id_text
+        .parse()
+        .map_err(|_| PreviewError::new("protocol", "connection_id"))?;
+    Ok(ReadHandle {
+        conn,
+        connection_id,
+    })
 }
 
 fn spawn_read(handle: ReadHandle, sql: String) -> (u64, ReadTask) {
@@ -524,7 +601,12 @@ fn spawn_read(handle: ReadHandle, sql: String) -> (u64, ReadTask) {
     (id, task)
 }
 
-async fn scoped_kill(control: &mut Conn, notes: &mut Vec<Note>, id: u64, timeout_ms: u64) -> Result<(), PreviewError> {
+async fn scoped_kill(
+    control: &mut Conn,
+    notes: &mut Vec<Note>,
+    id: u64,
+    timeout_ms: u64,
+) -> Result<(), PreviewError> {
     let kill = format!("KILL QUERY {id}");
     note(notes, &kill);
     timeout(Duration::from_millis(timeout_ms), control.query_drop(kill))
@@ -541,15 +623,28 @@ async fn retire(control: &mut Conn, notes: &mut Vec<Note>, id: u64, task: ReadTa
     let _ = timeout(Duration::from_secs(2), task).await;
 }
 
-async fn info_count(conn: &mut Conn, notes: &mut Vec<Note>, id: u64, user: &str) -> Result<u64, PreviewError> {
+async fn info_count(
+    conn: &mut Conn,
+    notes: &mut Vec<Note>,
+    id: u64,
+    user: &str,
+) -> Result<u64, PreviewError> {
     let sql = format!(
         "SELECT CAST(COUNT(*) AS CHAR) FROM information_schema.processlist WHERE ID = {id} AND USER = '{user}' AND INFO IS NOT NULL"
     );
     let text = scalar(conn, notes, &sql).await?;
-    text.parse().map_err(|_| PreviewError::new("protocol", "query"))
+    text.parse()
+        .map_err(|_| PreviewError::new("protocol", "query"))
 }
 
-async fn wait_running(conn: &mut Conn, notes: &mut Vec<Note>, id: u64, user: &str, sleep_ms: u64, poll: bool) -> Result<bool, PreviewError> {
+async fn wait_running(
+    conn: &mut Conn,
+    notes: &mut Vec<Note>,
+    id: u64,
+    user: &str,
+    sleep_ms: u64,
+    poll: bool,
+) -> Result<bool, PreviewError> {
     if sleep_ms > 0 {
         tokio::time::sleep(Duration::from_millis(sleep_ms)).await;
     }
@@ -571,7 +666,8 @@ async fn wait_running(conn: &mut Conn, notes: &mut Vec<Note>, id: u64, user: &st
 
 fn verbs_ok(notes: &[Note], allow_kill: bool) -> Result<(), PreviewError> {
     for note in notes {
-        let ok = matches!(note.verb.as_str(), "SELECT" | "SHOW") || (allow_kill && note.verb == "KILL");
+        let ok =
+            matches!(note.verb.as_str(), "SELECT" | "SHOW") || (allow_kill && note.verb == "KILL");
         if !ok {
             return Err(PreviewError::new("privilege", "write_verb"));
         }
@@ -591,7 +687,11 @@ async fn probe_target(input: &CustomerInput) -> Result<bool, PreviewError> {
         .ssl_mode(PgSslMode::VerifyFull)
         .ssl_root_cert_from_pem(ca)
         .disable_statement_logging();
-    let connect = timeout(Duration::from_millis(input.connect_timeout_ms), options.connect()).await;
+    let connect = timeout(
+        Duration::from_millis(input.connect_timeout_ms),
+        options.connect(),
+    )
+    .await;
     let mut conn = match connect {
         Ok(Ok(conn)) => conn,
         Ok(Err(_)) => return Err(PreviewError::new("connect", "target")),
@@ -601,7 +701,9 @@ async fn probe_target(input: &CustomerInput) -> Result<bool, PreviewError> {
         .fetch_one(&mut conn)
         .await
         .map_err(|_| PreviewError::new("target", "probe"))?;
-    let current: String = row.try_get(0).map_err(|_| PreviewError::new("target", "probe"))?;
+    let current: String = row
+        .try_get(0)
+        .map_err(|_| PreviewError::new("target", "probe"))?;
     if current != input.target_admin_user {
         return Err(PreviewError::new("target", "admin_user"));
     }
@@ -610,7 +712,16 @@ async fn probe_target(input: &CustomerInput) -> Result<bool, PreviewError> {
 }
 
 async fn connect(input: &CustomerInput, password: &str) -> Result<Conn, PreviewError> {
-    connect_parts(&input.host, input.port, &input.user, password, &input.database, &input.ca_file, input.connect_timeout_ms).await
+    connect_parts(
+        &input.host,
+        input.port,
+        &input.user,
+        password,
+        &input.database,
+        &input.ca_file,
+        input.connect_timeout_ms,
+    )
+    .await
 }
 
 async fn connect_parts(
@@ -684,13 +795,25 @@ async fn show_grants(conn: &mut Conn, notes: &mut Vec<Note>) -> Result<Vec<Strin
 }
 
 fn note(notes: &mut Vec<Note>, sql: &str) {
-    let verb = sql.split_whitespace().next().unwrap_or("").to_ascii_uppercase();
-    notes.push(Note { verb, sha256: sha256_hex(sql.as_bytes()) });
+    let verb = sql
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .to_ascii_uppercase();
+    notes.push(Note {
+        verb,
+        sha256: sha256_hex(sql.as_bytes()),
+    });
 }
 
 fn cell_text(row: &Row, index: usize) -> Result<String, PreviewError> {
-    match row.get(index).ok_or_else(|| PreviewError::new("protocol", "cell"))? {
-        Value::Bytes(bytes) => String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell")),
+    match row
+        .get(index)
+        .ok_or_else(|| PreviewError::new("protocol", "cell"))?
+    {
+        Value::Bytes(bytes) => {
+            String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))
+        }
         Value::Int(value) => Ok(value.to_string()),
         Value::UInt(value) => Ok(value.to_string()),
         _ => Err(PreviewError::new("protocol", "cell")),
@@ -698,33 +821,53 @@ fn cell_text(row: &Row, index: usize) -> Result<String, PreviewError> {
 }
 
 fn cell_opt_text(row: &Row, index: usize) -> Result<Option<String>, PreviewError> {
-    match row.get(index).ok_or_else(|| PreviewError::new("protocol", "cell"))? {
+    match row
+        .get(index)
+        .ok_or_else(|| PreviewError::new("protocol", "cell"))?
+    {
         Value::NULL => Ok(None),
-        Value::Bytes(bytes) => Ok(Some(String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))?)),
+        Value::Bytes(bytes) => Ok(Some(
+            String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))?,
+        )),
         _ => Err(PreviewError::new("protocol", "cell")),
     }
 }
 
 fn cell_i64(row: &Row, index: usize) -> Result<i64, PreviewError> {
-    match row.get(index).ok_or_else(|| PreviewError::new("protocol", "cell"))? {
+    match row
+        .get(index)
+        .ok_or_else(|| PreviewError::new("protocol", "cell"))?
+    {
         Value::Int(value) => Ok(value),
-        Value::UInt(value) => i64::try_from(value).map_err(|_| PreviewError::new("protocol", "cell")),
+        Value::UInt(value) => {
+            i64::try_from(value).map_err(|_| PreviewError::new("protocol", "cell"))
+        }
         Value::Bytes(bytes) => {
-            let text = String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))?;
-            text.parse().map_err(|_| PreviewError::new("protocol", "cell"))
+            let text =
+                String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))?;
+            text.parse()
+                .map_err(|_| PreviewError::new("protocol", "cell"))
         }
         _ => Err(PreviewError::new("protocol", "cell")),
     }
 }
 
 fn cell_opt_i64(row: &Row, index: usize) -> Result<Option<i64>, PreviewError> {
-    match row.get(index).ok_or_else(|| PreviewError::new("protocol", "cell"))? {
+    match row
+        .get(index)
+        .ok_or_else(|| PreviewError::new("protocol", "cell"))?
+    {
         Value::NULL => Ok(None),
         other => {
             let row_value = match other {
                 Value::Int(value) => value,
-                Value::UInt(value) => i64::try_from(value).map_err(|_| PreviewError::new("protocol", "cell"))?,
-                Value::Bytes(bytes) => String::from_utf8(bytes).map_err(|_| PreviewError::new("protocol", "cell"))?.parse().map_err(|_| PreviewError::new("protocol", "cell"))?,
+                Value::UInt(value) => {
+                    i64::try_from(value).map_err(|_| PreviewError::new("protocol", "cell"))?
+                }
+                Value::Bytes(bytes) => String::from_utf8(bytes)
+                    .map_err(|_| PreviewError::new("protocol", "cell"))?
+                    .parse()
+                    .map_err(|_| PreviewError::new("protocol", "cell"))?,
                 _ => return Err(PreviewError::new("protocol", "cell")),
             };
             Ok(Some(row_value))
@@ -733,7 +876,10 @@ fn cell_opt_i64(row: &Row, index: usize) -> Result<Option<i64>, PreviewError> {
 }
 
 fn cell_len(row: &Row, index: usize) -> Result<u64, PreviewError> {
-    match row.get(index).ok_or_else(|| PreviewError::new("protocol", "cell"))? {
+    match row
+        .get(index)
+        .ok_or_else(|| PreviewError::new("protocol", "cell"))?
+    {
         Value::NULL => Ok(0),
         Value::Bytes(bytes) => Ok(bytes.len() as u64),
         _ => Ok(8),
@@ -756,7 +902,14 @@ fn quote_list(names: &[String]) -> Result<String, PreviewError> {
     Ok(list)
 }
 
-fn success_body(input: &CustomerInput, notes: &[Note], state: &str, rows: u64, target_opened: bool, proof: Option<&StopProof>) -> JsonValue {
+fn success_body(
+    input: &CustomerInput,
+    notes: &[Note],
+    state: &str,
+    rows: u64,
+    target_opened: bool,
+    proof: Option<&StopProof>,
+) -> JsonValue {
     json!({
         "protocol": "oo.mysql-customer/v1",
         "state": state,
@@ -805,18 +958,53 @@ fn object_json(object: &CustomerObject) -> JsonValue {
 }
 
 fn write_outcome(out_dir: &Path, body: &JsonValue) -> Result<(), PreviewError> {
-    fs::write(out_dir.join("outcome.json"), serde_json::to_vec_pretty(body).map_err(|_| PreviewError::new("config", "out"))?)
-        .map_err(|_| PreviewError::new("config", "out"))
+    fs::write(
+        out_dir.join("outcome.json"),
+        serde_json::to_vec_pretty(body).map_err(|_| PreviewError::new("config", "out"))?,
+    )
+    .map_err(|_| PreviewError::new("config", "out"))
 }
 
 pub fn parse_customer(text: &str) -> Result<CustomerInput, PreviewError> {
-    let value: JsonValue = serde_json::from_str(text).map_err(|_| PreviewError::new("config", "json"))?;
+    let value: JsonValue =
+        serde_json::from_str(text).map_err(|_| PreviewError::new("config", "json"))?;
     reject_secret_keys(&value)?;
-    let map = value.as_object().ok_or_else(|| PreviewError::new("config", "json"))?;
+    let map = value
+        .as_object()
+        .ok_or_else(|| PreviewError::new("config", "json"))?;
     if map.contains_key("product") {
-        exact(map, &["approved_objects", "boolean_tinyint1", "budgets", "connection", "objects", "product", "protocol", "role", "secret_ref", "stop", "target"])?;
+        exact(
+            map,
+            &[
+                "approved_objects",
+                "boolean_tinyint1",
+                "budgets",
+                "connection",
+                "objects",
+                "product",
+                "protocol",
+                "role",
+                "secret_ref",
+                "stop",
+                "target",
+            ],
+        )?;
     } else {
-        exact(map, &["approved_objects", "boolean_tinyint1", "budgets", "connection", "objects", "protocol", "role", "secret_ref", "stop", "target"])?;
+        exact(
+            map,
+            &[
+                "approved_objects",
+                "boolean_tinyint1",
+                "budgets",
+                "connection",
+                "objects",
+                "protocol",
+                "role",
+                "secret_ref",
+                "stop",
+                "target",
+            ],
+        )?;
     }
     if text_of(map, "protocol")? != "oo.mysql-customer/v1" {
         return Err(PreviewError::new("config", "version"));
@@ -839,11 +1027,37 @@ pub fn parse_customer(text: &str) -> Result<CustomerInput, PreviewError> {
         None
     };
     let connection = object(map, "connection")?;
-    exact(connection, &["ca_file", "database", "host", "port", "secret_file", "user"])?;
+    exact(
+        connection,
+        &["ca_file", "database", "host", "port", "secret_file", "user"],
+    )?;
     let target = object(map, "target")?;
-    exact(target, &["admin_secret_file", "admin_secret_ref", "admin_user", "ca_file", "database", "host", "port", "runtime_secret_ref", "runtime_user"])?;
+    exact(
+        target,
+        &[
+            "admin_secret_file",
+            "admin_secret_ref",
+            "admin_user",
+            "ca_file",
+            "database",
+            "host",
+            "port",
+            "runtime_secret_ref",
+            "runtime_user",
+        ],
+    )?;
     let budgets = object(map, "budgets")?;
-    exact(budgets, &["batch_rows", "connect_timeout_ms", "deadline_ms", "max_bytes", "max_rows", "statement_timeout_ms"])?;
+    exact(
+        budgets,
+        &[
+            "batch_rows",
+            "connect_timeout_ms",
+            "deadline_ms",
+            "max_bytes",
+            "max_rows",
+            "statement_timeout_ms",
+        ],
+    )?;
     let approved = objects(map, "approved_objects")?;
     let requested = objects(map, "objects")?;
     if approved.is_empty() {
@@ -867,7 +1081,10 @@ pub fn parse_customer(text: &str) -> Result<CustomerInput, PreviewError> {
         batch_rows: bounded(budgets, "batch_rows", 1, 1_000)?,
         max_rows: bounded(budgets, "max_rows", 1, 100_000)?,
         max_bytes: bounded(budgets, "max_bytes", 1, 33_554_432)?,
-        boolean_tinyint1: map.get("boolean_tinyint1").and_then(JsonValue::as_bool).ok_or_else(|| PreviewError::new("config", "boolean_tinyint1"))?,
+        boolean_tinyint1: map
+            .get("boolean_tinyint1")
+            .and_then(JsonValue::as_bool)
+            .ok_or_else(|| PreviewError::new("config", "boolean_tinyint1"))?,
         target_host: host(text_of(target, "host")?)?,
         target_port: port(target)?,
         target_database: ident(text_of(target, "database")?)?,
@@ -882,15 +1099,27 @@ pub fn parse_customer(text: &str) -> Result<CustomerInput, PreviewError> {
 }
 
 fn objects(map: &Map<String, JsonValue>, key: &str) -> Result<Vec<CustomerObject>, PreviewError> {
-    let rows = map.get(key).and_then(JsonValue::as_array).ok_or_else(|| PreviewError::config_field(key))?;
+    let rows = map
+        .get(key)
+        .and_then(JsonValue::as_array)
+        .ok_or_else(|| PreviewError::config_field(key))?;
     let mut objects = Vec::new();
     for row in rows {
-        let item = row.as_object().ok_or_else(|| PreviewError::config_field(key))?;
+        let item = row
+            .as_object()
+            .ok_or_else(|| PreviewError::config_field(key))?;
         exact(item, &["columns", "schema", "table"])?;
         let mut columns = Vec::new();
-        let list = item.get("columns").and_then(JsonValue::as_array).ok_or_else(|| PreviewError::config_field(key))?;
+        let list = item
+            .get("columns")
+            .and_then(JsonValue::as_array)
+            .ok_or_else(|| PreviewError::config_field(key))?;
         for column in list {
-            columns.push(ident(column.as_str().ok_or_else(|| PreviewError::config_field(key))?)?);
+            columns.push(ident(
+                column
+                    .as_str()
+                    .ok_or_else(|| PreviewError::config_field(key))?,
+            )?);
         }
         objects.push(CustomerObject {
             schema: ident(text_of(item, "schema")?)?,
@@ -903,21 +1132,35 @@ fn objects(map: &Map<String, JsonValue>, key: &str) -> Result<Vec<CustomerObject
 
 fn secret_ref(value: &str) -> Result<String, PreviewError> {
     let bytes = value.as_bytes();
-    if !(12..=160).contains(&bytes.len()) || !value.starts_with("secret://") || value.contains(char::is_whitespace) {
+    if !(12..=160).contains(&bytes.len())
+        || !value.starts_with("secret://")
+        || value.contains(char::is_whitespace)
+    {
         return Err(PreviewError::new("config", "secret_ref"));
     }
-    if !bytes[9..].iter().all(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'/' | b'_' | b'-' | b'.' | b':')) {
+    if !bytes[9..].iter().all(|byte| {
+        byte.is_ascii_alphanumeric() || matches!(*byte, b'/' | b'_' | b'-' | b'.' | b':')
+    }) {
         return Err(PreviewError::new("config", "secret_ref"));
     }
     Ok(value.to_string())
 }
 
 fn ident(value: &str) -> Result<String, PreviewError> {
-    if mysql_ident(value) { Ok(value.to_string()) } else { Err(PreviewError::new("ident", "ident")) }
+    if mysql_ident(value) {
+        Ok(value.to_string())
+    } else {
+        Err(PreviewError::new("ident", "ident"))
+    }
 }
 
 fn host(value: &str) -> Result<String, PreviewError> {
-    if value.is_empty() || value.len() > 253 || !value.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'.' || byte == b'-') {
+    if value.is_empty()
+        || value.len() > 253
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.' || byte == b'-')
+    {
         Err(PreviewError::new("config", "host"))
     } else {
         Ok(value.to_string())
@@ -925,36 +1168,70 @@ fn host(value: &str) -> Result<String, PreviewError> {
 }
 
 fn port(map: &Map<String, JsonValue>) -> Result<u16, PreviewError> {
-    map.get("port").and_then(JsonValue::as_u64).and_then(|value| u16::try_from(value).ok()).filter(|port| *port != 0).ok_or_else(|| PreviewError::new("config", "port"))
+    map.get("port")
+        .and_then(JsonValue::as_u64)
+        .and_then(|value| u16::try_from(value).ok())
+        .filter(|port| *port != 0)
+        .ok_or_else(|| PreviewError::new("config", "port"))
 }
 
-fn bounded(map: &Map<String, JsonValue>, key: &str, low: u64, high: u64) -> Result<u64, PreviewError> {
-    let value = map.get(key).and_then(JsonValue::as_u64).ok_or_else(|| PreviewError::new("budget", "range"))?;
-    if (low..=high).contains(&value) { Ok(value) } else { Err(PreviewError::new("budget", "range")) }
+fn bounded(
+    map: &Map<String, JsonValue>,
+    key: &str,
+    low: u64,
+    high: u64,
+) -> Result<u64, PreviewError> {
+    let value = map
+        .get(key)
+        .and_then(JsonValue::as_u64)
+        .ok_or_else(|| PreviewError::new("budget", "range"))?;
+    if (low..=high).contains(&value) {
+        Ok(value)
+    } else {
+        Err(PreviewError::new("budget", "range"))
+    }
 }
 
 fn absolute(value: &str) -> Result<PathBuf, PreviewError> {
     let path = PathBuf::from(value);
-    if path.is_absolute() { Ok(path) } else { Err(PreviewError::new("config", "path")) }
+    if path.is_absolute() {
+        Ok(path)
+    } else {
+        Err(PreviewError::new("config", "path"))
+    }
 }
 
-fn object<'a>(map: &'a Map<String, JsonValue>, key: &str) -> Result<&'a Map<String, JsonValue>, PreviewError> {
-    map.get(key).and_then(JsonValue::as_object).ok_or_else(|| PreviewError::config_field(key))
+fn object<'a>(
+    map: &'a Map<String, JsonValue>,
+    key: &str,
+) -> Result<&'a Map<String, JsonValue>, PreviewError> {
+    map.get(key)
+        .and_then(JsonValue::as_object)
+        .ok_or_else(|| PreviewError::config_field(key))
 }
 
 fn text_of<'a>(map: &'a Map<String, JsonValue>, key: &str) -> Result<&'a str, PreviewError> {
-    map.get(key).and_then(JsonValue::as_str).ok_or_else(|| PreviewError::config_field(key))
+    map.get(key)
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| PreviewError::config_field(key))
 }
 
 fn exact(map: &Map<String, JsonValue>, allowed: &[&str]) -> Result<(), PreviewError> {
-    if map.len() == allowed.len() && allowed.iter().all(|key| map.contains_key(*key)) { Ok(()) } else { Err(PreviewError::new("config", "keys")) }
+    if map.len() == allowed.len() && allowed.iter().all(|key| map.contains_key(*key)) {
+        Ok(())
+    } else {
+        Err(PreviewError::new("config", "keys"))
+    }
 }
 
 fn reject_secret_keys(value: &JsonValue) -> Result<(), PreviewError> {
     match value {
         JsonValue::Object(map) => {
             for (key, child) in map {
-                if matches!(key.as_str(), "password" | "passwd" | "secret" | "token" | "private_key" | "ca_pem") {
+                if matches!(
+                    key.as_str(),
+                    "password" | "passwd" | "secret" | "token" | "private_key" | "ca_pem"
+                ) {
                     return Err(PreviewError::new("config", "secret_key"));
                 }
                 reject_secret_keys(child)?;
@@ -1034,11 +1311,20 @@ mod tests {
     #[test]
     fn user_cancel_authorizes_only_its_own_connection() {
         let cancel = ReadCancel::bind(41);
-        assert_eq!(cancel.authorize(41).expect_err("before request").fact, "other_query");
-        assert_eq!(cancel.authorize(99).expect_err("other id").fact, "other_query");
+        assert_eq!(
+            cancel.authorize(41).expect_err("before request").fact,
+            "other_query"
+        );
+        assert_eq!(
+            cancel.authorize(99).expect_err("other id").fact,
+            "other_query"
+        );
         cancel.request();
         assert!(cancel.authorize(41).is_ok());
-        assert_eq!(cancel.authorize(99).expect_err("still other").fact, "other_query");
+        assert_eq!(
+            cancel.authorize(99).expect_err("still other").fact,
+            "other_query"
+        );
     }
 
     #[test]

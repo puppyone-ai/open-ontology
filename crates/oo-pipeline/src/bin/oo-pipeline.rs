@@ -36,6 +36,15 @@ fn main() -> ExitCode {
         Some(command) if command == OsStr::new("import-native-transaction") && args.next().is_none() => {
             import_native_transaction()
         }
+        Some(command) if command == OsStr::new("import-native-c1-baseline") && args.next().is_none() => {
+            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match runtime.block_on(oo_pipeline::native_update::import_native_c1_baseline()) {
+                Ok(()) => ExitCode::SUCCESS, Err(code) => ExitCode::from(code),
+            }
+        }
+        Some(command) if command == OsStr::new("native-c1-baseline-stage") && args.next().is_none() => {
+            native_c1_baseline_stage()
+        }
         Some(command) if command == OsStr::new("ack-native-partition") && args.next().is_none() => {
             ack_native_partition()
         }
@@ -144,6 +153,14 @@ async fn import_native_update() -> ExitCode {
 #[tokio::main(flavor = "current_thread")]
 async fn import_native_transaction() -> ExitCode {
     match oo_pipeline::native_update::import_native_transaction().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(code) => ExitCode::from(code),
+    }
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn native_c1_baseline_stage() -> ExitCode {
+    match oo_pipeline::native_c1_baseline::run().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(code) => ExitCode::from(code),
     }

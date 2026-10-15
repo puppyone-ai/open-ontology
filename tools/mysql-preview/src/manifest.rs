@@ -7,20 +7,25 @@
 use std::fs;
 use std::path::Path;
 
-use oo_pipeline::catalog_import::{push_schema_column, push_schema_table, MANIFEST_PROTOCOL};
+use oo_pipeline::catalog_import::{MANIFEST_PROTOCOL, push_schema_column, push_schema_table};
 use oo_pipeline::target_installer::sha256_hex;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::error::PreviewError;
 
 const PREVIEW_PROTOCOL: &str = "oo.mysql-preview/v1";
 
 /// Read the committed access and seal outcomes and write one manifest.
-pub fn write_manifest(access_path: &Path, seal_path: &Path, out_path: &Path) -> Result<(), PreviewError> {
+pub fn write_manifest(
+    access_path: &Path,
+    seal_path: &Path,
+    out_path: &Path,
+) -> Result<(), PreviewError> {
     let access = read_json(access_path)?;
     let seal = read_json(seal_path)?;
     let manifest = build_manifest(&access, &seal)?;
-    let bytes = serde_json::to_vec_pretty(&manifest).map_err(|_| PreviewError::new("config", "out"))?;
+    let bytes =
+        serde_json::to_vec_pretty(&manifest).map_err(|_| PreviewError::new("config", "out"))?;
     if let Some(parent) = out_path.parent()
         && !parent.as_os_str().is_empty()
     {
@@ -51,7 +56,10 @@ pub fn build_manifest(access: &Value, seal: &Value) -> Result<Value, PreviewErro
     }
     let access_tables = array(access_map, "tables")?;
     let seal_tables = array(seal_map, "tables")?;
-    if access_tables.is_empty() || access_tables.len() != seal_tables.len() || access_tables.len() > 16 {
+    if access_tables.is_empty()
+        || access_tables.len() != seal_tables.len()
+        || access_tables.len() > 16
+    {
         return Err(PreviewError::new("catalog", "coverage"));
     }
     let mut tables = Vec::new();
@@ -63,12 +71,17 @@ pub fn build_manifest(access: &Value, seal: &Value) -> Result<Value, PreviewErro
         let seal_table = object(seal_table)?;
         let logical_schema = text(access_table, "schema")?;
         let logical_table = text(access_table, "table")?;
-        if text(seal_table, "namespace")? != logical_schema || text(seal_table, "table")? != logical_table {
+        if text(seal_table, "namespace")? != logical_schema
+            || text(seal_table, "table")? != logical_table
+        {
             return Err(PreviewError::new("catalog", "coverage"));
         }
         let access_columns = array(access_table, "columns")?;
         let seal_columns = array(seal_table, "columns")?;
-        if access_columns.is_empty() || access_columns.len() != seal_columns.len() || access_columns.len() > 64 {
+        if access_columns.is_empty()
+            || access_columns.len() != seal_columns.len()
+            || access_columns.len() > 64
+        {
             return Err(PreviewError::new("catalog", "coverage"));
         }
         push_schema_table(&mut preimage, &logical_schema, &logical_table);
@@ -82,8 +95,11 @@ pub fn build_manifest(access: &Value, seal: &Value) -> Result<Value, PreviewErro
                 return Err(PreviewError::new("catalog", "coverage"));
             }
             let oid = number_i64(access_column, "oid")?;
-            let typmod = i32::try_from(number_i64(access_column, "typmod")?).map_err(|_| PreviewError::new("catalog", "coverage"))?;
-            if number_i64(seal_column, "oid")? != oid || number_i64(seal_column, "typmod")? != i64::from(typmod) {
+            let typmod = i32::try_from(number_i64(access_column, "typmod")?)
+                .map_err(|_| PreviewError::new("catalog", "coverage"))?;
+            if number_i64(seal_column, "oid")? != oid
+                || number_i64(seal_column, "typmod")? != i64::from(typmod)
+            {
                 return Err(PreviewError::new("catalog", "coverage"));
             }
             let caveat = match access_column.get("caveat") {
@@ -131,7 +147,8 @@ pub fn build_manifest(access: &Value, seal: &Value) -> Result<Value, PreviewErro
             }
             let mut encoded = Map::new();
             if let Some(attnum) = attnum {
-                let attnum = i32::try_from(attnum).map_err(|_| PreviewError::new("value", "quality"))?;
+                let attnum =
+                    i32::try_from(attnum).map_err(|_| PreviewError::new("value", "quality"))?;
                 encoded.insert("attnum".to_string(), json!(attnum));
             }
             encoded.insert("column".to_string(), json!(column));
@@ -177,8 +194,12 @@ pub fn build_manifest(access: &Value, seal: &Value) -> Result<Value, PreviewErro
         "target_generation": target_generation,
         "type_digest": type_digest
     });
-    let encoded = serde_json::to_string(&manifest).map_err(|_| PreviewError::new("config", "out"))?;
-    if encoded.contains("physical") || encoded.contains("\"sql\"") || encoded.contains("oo.source.pgsql/v1") {
+    let encoded =
+        serde_json::to_string(&manifest).map_err(|_| PreviewError::new("config", "out"))?;
+    if encoded.contains("physical")
+        || encoded.contains("\"sql\"")
+        || encoded.contains("oo.source.pgsql/v1")
+    {
         return Err(PreviewError::new("catalog", "manifest"));
     }
     Ok(manifest)
@@ -193,7 +214,9 @@ fn read_json(path: &Path) -> Result<Value, PreviewError> {
 }
 
 fn object(value: &Value) -> Result<&Map<String, Value>, PreviewError> {
-    value.as_object().ok_or_else(|| PreviewError::new("config", "json"))
+    value
+        .as_object()
+        .ok_or_else(|| PreviewError::new("config", "json"))
 }
 
 fn array<'a>(map: &'a Map<String, Value>, key: &str) -> Result<&'a Vec<Value>, PreviewError> {
@@ -220,7 +243,11 @@ fn require_text(map: &Map<String, Value>, key: &str, expected: &str) -> Result<(
 
 fn digest(map: &Map<String, Value>, key: &str) -> Result<String, PreviewError> {
     let value = text(map, key)?;
-    if value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) {
+    if value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    {
         Ok(value)
     } else {
         Err(PreviewError::new("config", "identity"))
@@ -242,7 +269,10 @@ fn number_u64(map: &Map<String, Value>, key: &str) -> Result<u64, PreviewError> 
 fn optional_i64(map: &Map<String, Value>, key: &str) -> Result<Option<i64>, PreviewError> {
     match map.get(key) {
         None | Some(Value::Null) => Ok(None),
-        Some(value) => value.as_i64().map(Some).ok_or_else(|| PreviewError::new("value", "quality")),
+        Some(value) => value
+            .as_i64()
+            .map(Some)
+            .ok_or_else(|| PreviewError::new("value", "quality")),
     }
 }
 
@@ -409,7 +439,10 @@ mod tests {
         });
         assert!(matches!(
             build_manifest(&access, &seal),
-            Err(PreviewError { code: "catalog", fact: "schema_digest" })
+            Err(PreviewError {
+                code: "catalog",
+                fact: "schema_digest"
+            })
         ));
     }
 
