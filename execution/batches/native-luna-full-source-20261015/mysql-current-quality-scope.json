@@ -1,0 +1,26 @@
+{
+  "as_of": "2026-10-15T14:28:21.755171+00:00",
+  "owner": "/root/mysql_shared_reference_sol",
+  "scope": "same complete MySQL/shared task, no component handoff",
+  "exclusive_write_paths": [
+    "crates/oo-gateway/src/query_executor.rs",
+    "crates/oo-gateway/src/public_surface.rs",
+    "crates/oo-gateway/tests/query_executor_pg_live.rs"
+  ],
+  "root_verified_current_failure": {
+    "source": "mysql_67fff4e8ebff9f91bee8c75e",
+    "apply_receipts": 20,
+    "position_codec": "snapshot-zero/v1",
+    "source_epoch": 0,
+    "CLI": "owner retained actual STALE_DATA JSON; no Agent calls"
+  },
+  "requirements": [
+    "project quality only through exact currently authorized physical mapping/run/source/config/generation, reusing existing QualityTable and quality_vector",
+    "retain current unpublished/wrong-epoch/stale identity refusal; do not use global max or suppress warnings",
+    "new0037/newcut binds true binlog commit time, codec, lineage, real epoch in original TX; no old receipt rewrites or local-clock invented source time",
+    "actual normal/current-negative/historical-mixing checks, then JSON-ready CLI before Agent"
+  ],
+  "formal_source_count": 0,
+  "source_release_allowed": false,
+  "protocol_checks": "original complete exits/Plan/denominators/PRODUCT-LOOPS/GOAL/support/frontend unchanged; no new development unit or acceptance"
+}

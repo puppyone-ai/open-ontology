@@ -1,3 +1,5 @@
+2026-10-15 MySQL同一完整任务写域补齐：真实gen4五表已由正式API原子发布，root主/standby直读均live36/5 published/收据同一xid；Gateway新NOINHERIT login仍缺必要metadata reader。仅现有mapping-reader模块/CLI、两测试及两contract转给唯一Sol medium，显式native-vector模式复用既有验证和类型规则，保留旧模式，不重造Gateway或绕发布。精确域见 execution/batches/native-luna-full-source-20261015/mysql-gateway-metadata-scope.json。后续自主维护/再发布、Gateway随机对话及完整固定交付仍待；整源0/10、shared未放行/九源held，原Plan/分母/整版不变。
+
 2026-10-15 MySQL六字段真实C1基线：同source mysql_67fff4e8ebff9f91bee8c75e/task d47f2ff5-fdb1-4cbd-831e-ce7e0bca2c94，gen5/epoch1/L0=32/L_end33；root目标直读5个full_import、task succeeded，原始worker CAS后ACK。独立MySQL→PG五表110019行43列全cell差0，root核oracle真实源读取及类型映射；0034新迁移5616c8de安装匹配，全部失败保留。仅基线里程碑，源码尚未冻结；唯一Sol medium继续自主同步/S0–S10/维护Pack/正式发布/Gateway随机对话。正式0/10、shared未放行、九源held，原Plan/计数/整版/支持等级不变。证据：execution/reviews/native-luna-full-source-20261015/mysql-six-field-typed-baseline-intake.json。
 
 本次派发校验：TODO --check与限定diff --check通过；Spec/Plan self-test均因既有docs/07-gateway.md来源hash/size/line漂移exit1。root核该文档工作区字节等于HEAD，非本次协调变更造成；保留失败、不重写baseline哈希冒充通过。详情同mysql-sol-handoff.json。

@@ -3287,5 +3287,17 @@
     "owner": "/root/mysql_shared_reference_sol",
     "formal_source_count": 0,
     "source_release_allowed": false
+  },
+  "latest_mysql_gateway_metadata_scope": {
+    "receipt": "execution/batches/native-luna-full-source-20261015/mysql-gateway-metadata-scope.json",
+    "owner": "/root/mysql_shared_reference_sol",
+    "formal_source_count": 0,
+    "source_release_allowed": false
+  },
+  "latest_mysql_current_quality_scope": {
+    "receipt": "execution/batches/native-luna-full-source-20261015/mysql-current-quality-scope.json",
+    "owner": "/root/mysql_shared_reference_sol",
+    "formal_source_count": 0,
+    "source_release_allowed": false
   }
 }

@@ -1,0 +1,27 @@
+{
+  "as_of": "2026-10-15T14:08:21.710390+00:00",
+  "owner": "/root/mysql_shared_reference_sol",
+  "complete_capability": "same original six-field MySQL/shared closure; not separate component task",
+  "exclusive_write_paths": [
+    "crates/oo-gateway/src/mapping_reader_access.rs",
+    "crates/oo-gateway/src/bin/provision-mapping-reader.rs",
+    "crates/oo-gateway/tests/provision_mapping_reader_cli.rs",
+    "crates/oo-gateway/tests/mapping_reader_access_pg_live.rs",
+    "contracts/gateway/mapping-reader-access-v1.md",
+    "contracts/gateway/provision-mapping-reader-cli-v1.md"
+  ],
+  "existing_dependency": "public policy_catalog::grantable_base_type and existing native ACL vector validator; no new type table or Gateway rewrite",
+  "required_behavior": "explicit native-vector metadata provision for exact published per-policy source/config/generation; preserve legacy mode, NOINHERIT/SET role, read-only necessary metadata; no business-column/owner/register write grants",
+  "verification": "actual new login before/after metadata access and current Gateway/CLI, wrong vector/stale identities/unsafe role refusals; original full task exits unchanged",
+  "ownership_basis": "only MySQL Sol writer running; old native source owners terminal/held and no relaunch dispatched",
+  "root_verified_publication": {
+    "source": "mysql_67fff4e8ebff9f91bee8c75e",
+    "generation": 4,
+    "applied_pos": 36,
+    "primary_and_standby": "live; 5 full_import published; 5 publication receipts share one xid"
+  },
+  "remaining": "same owner continues post-data-change automatic maintenance/republication, Gateway/CLI/random Agent, final immutable full handoff",
+  "formal_source_count": 0,
+  "source_release_allowed": false,
+  "protocol_no_change_reason": "no original requirement/parent/edition/support change; no denominator or acceptance increment"
+}
