@@ -1,0 +1,31 @@
+{
+  "as_of": "2026-10-15T17:00:06.218888+08:00",
+  "owner": "/root/mysql_shared_reference_whole",
+  "reference_chain": "mysql",
+  "level": "actual owned target primitive; not real MySQL source chain",
+  "receipt_path": "/Users/redux/.cache/oo-mysql-connection-whole/c1/stage-e2e-20261015/receipt.json",
+  "receipt_sha256": "6563b8d0d95b38e3efa3de94f3d6bee06619d12b69b86c9b99891a8a3cd269ac",
+  "linux_binary_sha256": "6ec31b213d240d34f04e9b2a5d3b771cddcfdfea0c92690256ec79b62466ad22",
+  "installed_0028_sha256": "4ff3e07ec7544c04237c5750878392276c6b57f6767b548a0cb580d117f27460",
+  "observed": {
+    "epoch": 1,
+    "fill": {
+      "inserted": 1,
+      "outcome": "filled",
+      "skipped_cdc_or_tombstone": 2
+    },
+    "target_truth": {
+      "write": "cdc-write",
+      "delete": true,
+      "snapshot": "snapshot-only"
+    }
+  },
+  "limitation": "synthetic source/positions and literal L0/Lend; real MySQL stream-before-snapshot, source admission, typed five-table full_import, autonomous sync/maintenance/publication/Gateway/Agent not verified",
+  "root_checks": [
+    "receipt read",
+    "actual ELF SHA matched",
+    "actual installed migration source SHA matched"
+  ],
+  "source_acceptance_delta": 0,
+  "shared_release_allowed": false
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-15T16:04:19.025434+08:00",
+  "as_of": "2026-10-15T16:27:16.423806+08:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -194,7 +194,7 @@
     "dl05_requires_complete_plan": true,
     "no_acceptance_inferred": true
   },
-  "active_batch": "execution/batches/native-luna-full-source-20261015/dispatch.json",
+  "active_batch": "execution/batches/native-luna-full-source-20261015/mysql-reference-dispatch.json",
   "resource_reservations": {
     "rust_development": 8,
     "rust_review_available": 2,
@@ -1107,269 +1107,16 @@
   },
   "managed_live_native_agents": [
     {
-      "task": "mysql",
-      "agent": "/root/luna_mysql_resume",
+      "as_of": "2026-10-15T17:21:59.122581+08:00",
+      "human_authorization": "luna允许指定为xhigh，请继续工作",
+      "former_owner": "/root/mysql_shared_reference_whole",
+      "former_state": "completed handoff, interrupt_agent confirmed terminal, edits/newrun stopped; preserve all WIP/resources",
+      "current_owner": "/root/mysql_shared_reference_xhigh",
       "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "running_verified_collaboration_list",
-      "observed_at": "2026-10-15T15:54:37.452885+08:00",
-      "write_paths": [
-        "tools/mysql-preview"
-      ],
-      "original_complete_task": "execution/batches/grok-connection-full-20261014/mysql-real-gtid483-current-whole-fresh-context.md",
-      "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
-      "source_acceptance": "not_complete",
-      "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
-      "previous_agent": "/root/luna_mysql_whole_c1"
-    },
-    {
-      "task": "oracle",
-      "agent": "/root/luna_oracle_resume",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "running_verified_collaboration_list",
-      "observed_at": "2026-10-15T15:54:37.452885+08:00",
-      "write_paths": [
-        "tools/oracle-preview",
-        "testing/dl01-driver-preflight/oracle/probe"
-      ],
-      "original_complete_task": "execution/batches/grok-connection-full-20261014/oracle-native-normal-reuse-current-full-fresh-context.md",
-      "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
-      "source_acceptance": "not_complete",
-      "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
-      "previous_agent": "/root/luna_oracle_whole"
-    },
-    {
-      "task": "mariadb",
-      "agent": "/root/luna_maria_c1_resume",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "running_verified_collaboration_list",
-      "observed_at": "2026-10-15T15:54:37.452885+08:00",
-      "write_paths": [
-        "tools/mariadb-preview",
-        "crates/oo-pipeline/src/native_update.rs",
-        "tools/cdc-offset-store/src/rules.rs",
-        "tools/cdc-offset-store/tests/contract.rs",
-        "tools/cdc-offset-store/tests/live.rs",
-        "tools/source-capture-policy/src/gate.rs",
-        "tools/source-capture-policy/tests/journey.rs",
-        "tools/source-capture-policy/tests/repair.rs",
-        "tools/cdc-offset-store/CONTRACT.md",
-        "tools/source-capture-policy/CONTRACT.md",
-        "crates/oo-gateway/src/query_executor.rs",
-        "tools/source-capture-policy/src/model.rs"
-      ],
-      "original_complete_task": "execution/batches/grok-connection-full-20261014/mariadb-actual-C1-baseline-installer-complete-product-resume.md",
-      "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
-      "source_acceptance": "not_complete",
-      "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
-      "previous_agent": "/root/luna_mariadb_whole_c1"
-    },
-    {
-      "task": "mongodb",
-      "agent": "/root/luna_mongo_resume",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "running_verified_collaboration_list",
-      "observed_at": "2026-10-15T15:54:37.452885+08:00",
-      "write_paths": [
-        "tools/mongodb-preview"
-      ],
-      "original_complete_task": "execution/batches/grok-connection-full-20261014/mongodb-primary-C1-current-entire-product-fresh-context.md",
-      "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
-      "source_acceptance": "not_complete",
-      "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
-      "previous_agent": "/root/luna_mongodb_whole_c1"
-    },
-    {
-      "task": "clickhouse",
-      "agent": "/root/luna_click_resume",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "running_verified_collaboration_list",
-      "observed_at": "2026-10-15T15:54:37.452885+08:00",
-      "write_paths": [
-        "tools/clickhouse-preview",
-        "tools/agent-product-verifier/dialogue.py",
-        "tools/agent-product-verifier/tests/test_dialogue.py",
-        "tools/agent-product-verifier/CONTRACT.md"
-      ],
-      "original_complete_task": "execution/batches/grok-connection-full-20261014/clickhouse-current-native-default-whole-fresh-context.md",
-      "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
-      "source_acceptance": "not_complete",
-      "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
-      "previous_agent": "/root/luna_clickhouse_whole"
-    },
-    {
-      "task": "doris",
-      "agent": "/root/luna_doris_resume",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "running_verified_collaboration_list",
-      "observed_at": "2026-10-15T15:54:37.452885+08:00",
-      "write_paths": [
-        "tools/doris-preview",
-        "testing/dl01-driver-preflight/doris/reader"
-      ],
-      "original_complete_task": "execution/batches/grok-connection-full-20261014/doris-current-native-default-whole-fresh-context.md",
-      "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
-      "source_acceptance": "not_complete",
-      "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
-      "previous_agent": "/root/luna_doris_whole"
-    },
-    {
-      "task": "opensearch",
-      "agent": "/root/luna_os_resume",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "completed_handoff_waiting_publication",
-      "observed_at": "2026-10-15T15:54:37.452885+08:00",
-      "write_paths": [
-        "tools/opensearch-preview",
-        "testing/dl01-driver-preflight/opensearch/reader",
-        "testing/dl01-driver-preflight/opensearch/scripts/native_c5_product_producer.py",
-        "testing/dl01-driver-preflight/opensearch/scripts/test_c5_nochange.py"
-      ],
-      "original_complete_task": "execution/batches/grok-connection-full-20261014/opensearch-native483-nochange-current-whole-fresh-context.md",
-      "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
-      "source_acceptance": "not_complete",
-      "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
-      "previous_agent": "/root/luna_opensearch_whole",
-      "next_action": "resume same owner after official publication dependency ready; no further model calls before gate"
-    },
-    {
-      "task": "postgresql",
-      "agent": "/root/luna_pg_resume",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "running_verified_collaboration_list",
-      "observed_at": "2026-10-15T15:54:37.452885+08:00",
-      "write_paths": [
-        "tools/postgres-preview",
-        "crates/oo-gateway/src/policy.rs",
-        "crates/oo-gateway/src/bin/install-column-acl.rs",
-        "docs/07-gateway.md"
-      ],
-      "original_complete_task": "execution/batches/grok-connection-full-20261014/postgresql-latest-actual-blocker-whole-resume.md",
-      "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
-      "source_acceptance": "not_complete",
-      "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
-      "previous_agent": "/root/luna_postgresql_whole"
-    },
-    {
-      "task": "starrocks",
-      "agent": "/root/luna_star_resume",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "running_verified_collaboration_list",
-      "observed_at": "2026-10-15T15:54:37.452885+08:00",
-      "write_paths": [
-        "tools/starrocks-preview",
-        "crates/oo-gateway/src/policy_catalog.rs",
-        "crates/oo-gateway/src/bin/query-pg.rs",
-        "crates/oo-gateway/src/sql_guard.rs",
-        "crates/oo-gateway/src/parser_worker.rs",
-        "crates/oo-gateway/tests/parser_worker.rs",
-        "crates/oo-gateway/tests/sql_guard.rs"
-      ],
-      "original_complete_task": "execution/batches/grok-connection-full-20261014/starrocks-latest-actual-blocker-whole-resume.md",
-      "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
-      "source_acceptance": "not_complete",
-      "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
-      "previous_agent": "/root/luna_starrocks_whole"
-    },
-    {
-      "task": "sqlserver",
-      "agent": "/root/luna_shared_runtime_resume",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "running_verified_collaboration_list",
-      "observed_at": "2026-10-15T15:54:37.452885+08:00",
-      "write_paths": [
-        "tools/mssql-preview",
-        "testing/dl01-targets/mssql",
-        "crates/oo-pipeline/src/native_binding.rs",
-        "crates/oo-pipeline/src/target_installer.rs",
-        "crates/oo-pipeline/migrations/0023_native_sqlserver_ct.sql",
-        "tools/source-admission/src/capture.rs",
-        "tools/job-worker/src/native_schedule.rs",
-        "tools/job-worker/NATIVE-SCHEDULE.md",
-        "tools/job-worker/tests/closed_loop.rs",
-        "crates/oo-pipeline/migrations/0024_native_gtid_transaction.sql",
-        "tools/cdc-offset-store/migrations/oo_cdc_offset_control_v1.sql",
-        "crates/oo-pipeline/migrations/0025_native_c1_source_epoch.sql",
-        "tools/source-admission/tests",
-        "tools/job-worker/src/config.rs",
-        "crates/oo-pipeline/migrations/0026_native_c1_runtime_privileges.sql"
-      ],
-      "original_complete_task": "execution/batches/grok-connection-full-20261014/sqlserver-joint-real-C1-admission-epoch-repair-whole-fresh-context.md",
-      "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
-      "source_acceptance": "not_complete",
-      "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
-      "runtime_ownership": "sole shared NativeServe installer for Star exact config/runtime; fixed f1ba PID7762; original old PID136 stopped and rollback retained, other runtime unchanged",
-      "previous_agent": "/root/luna_sql_whole_foundation"
-    },
-    {
-      "task": "shared-entry",
-      "agent": "/root/luna_shared_entry_resume",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "running_verified_collaboration_list",
-      "observed_at": "2026-10-15T15:54:37.452885+08:00",
-      "write_paths": [
-        "tools/source-onboarding",
-        "tools/selfbuild-control-api/src/sealed.rs",
-        "tools/selfbuild-control-api/src/builder_call.rs",
-        "tools/selfbuild-control-api/src/config.rs",
-        "tools/selfbuild-control-api/CONTRACT.md",
-        "tools/selfbuild-control-api/tests/builder_call.rs",
-        "tools/selfbuild-control-api/tests/native_import.rs",
-        "tools/pg-builder/src/sealed.rs",
-        "tools/pg-builder/CONTRACT.md",
-        "tools/pg-builder/tests/contract.rs",
-        "tools/selfbuild-control-api/src/stages.rs",
-        "tools/selfbuild-control-api/src/overlay.rs",
-        "tools/selfbuild-control-api/src/builder_inputs.rs",
-        "tools/selfbuild-control-api/tests/builder_inputs.rs",
-        "tools/selfbuild-control-api/tests/oracle-g3-g5"
-      ],
-      "original_complete_task": "execution/batches/grok-connection-full-20261014/shared-Star-fixed-default-direct-whole-fresh-context.md",
-      "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
-      "source_acceptance": "not_complete",
-      "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
-      "registry_scope": "all ten source-author-ready entries; formal registry/normal-run coordinated after same-identity preflight",
-      "previous_agent": "/root/luna_shared_default_whole"
-    },
-    {
-      "task": "native-publication",
-      "agent": "/root/luna_native_publication_whole",
-      "model": "gpt-6-luna",
-      "reasoning_effort": "low",
-      "observed_status": "running_verified_collaboration_list",
-      "write_paths": [
-        "tools/release-coordinator",
-        "tools/release-control-api",
-        "crates/oo-pipeline/src/native_catalog.rs",
-        "crates/oo-pipeline/src/native_publication.rs",
-        "crates/oo-pipeline/src/bin/native-publication.rs",
-        "crates/oo-pipeline/migrations/0027_native_publication.sql"
-      ],
-      "ownership_transfer": "runtime owner explicitly confirmed native_catalog untouched and no background writer; shared entry confirmed release tools untouched",
-      "original_requirement": "Spec user flow6 line83; native import publication line476; existing Plan native import/review/Pack/Gateway publication requirements; no new numerator",
-      "complete_task": "implement formal native approval/publication via existing coordinator/barrier and actual current OS21 source import/currentPack/role permissions/Gateway/CLI; only then source-owner actual agent dialogue; no SQL flag bypass",
-      "installer_handoff": "target_installer sole shared runtime owner; source/API registry sole shared entry; lib/main smallest wiring requires explicit sole-owner coordination"
+      "reasoning_effort": "xhigh",
+      "status": "spawned",
+      "scope": "same indivisible complete MySQL shared reference; other sources held",
+      "source_acceptance_delta": 0
     }
   ],
   "execution_policy": {
@@ -1401,18 +1148,7 @@
     "actual_product_dialogue_acceptance": false
   },
   "shared_readiness_gate": "execution/shared-readiness-gate.json",
-  "source_workflows_held": [
-    "DL01-W1-04",
-    "DL01-W1-06",
-    "DL01-W1-09",
-    "DL01-W1-39",
-    "DL01-W1-40",
-    "DL01-W1-41",
-    "DL01-W1-43",
-    "DL01-W1-44",
-    "DL01-W1-45",
-    "DL01-W1-46"
-  ],
+  "source_workflows_held": true,
   "product_model_policy": "Human explicitly permits grok-4.7 for Selfbuild S5 and agent dialogue when original GPT is unavailable; unchanged URL/key, actual response model/usage and failures retained; model-specific cache identity; coding engineers remain native Codex.",
   "managed_reference_handoffs": [
     {
@@ -3377,5 +3113,92 @@
     "original_full_source_count": 0,
     "models": "new native paid dialogues held until actual original publication gate; prior preview evidence retained",
     "dispatch": "execution/batches/native-luna-full-source-20261015/dispatch.json"
+  },
+  "latest_shared_first_human_instruction": {
+    "as_of": "2026-10-15T16:27:16.423806+08:00",
+    "source_release_allowed": false,
+    "gate": "execution/shared-readiness-gate.json",
+    "executor_observation": "latest collaboration.list_agents exposes only root running and old Luna handles errored usage limit; recent resume handles unavailable; no live native writers assumed",
+    "component_check": {
+      "source": "tools/pg-builder/src/source_contract.rs",
+      "source_sha256": "240dcdd553d353467f00c75f7e1852a791d751531fb86bf67e991e063c763d32",
+      "change": "reuse existing typed OOS capture/grade/delete_detection rather than unknown fields; current_update retained in authenticated observation/source summary",
+      "host_tests": "2 passed",
+      "linux_rust194_tests": "2 passed, session59875 completed exit0",
+      "fixed_snapshot": "/tmp/oo-root-doris-oos-linux194/src",
+      "acceptance": "component only; not shared release"
+    }
+  },
+  "mysql_shared_reference": {
+    "as_of": "2026-10-15T16:32:24.043153+08:00",
+    "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
+    "reference_source": "mysql",
+    "release_other_sources": false,
+    "status": "implement_and_verify_complete_real_reference_before_reuse",
+    "fixed_artifacts_ready": false,
+    "human_instruction": "共享接口先在真实MySQL完整验通并固定制品，再让其余源复用"
+  },
+  "latest_mysql_single_owner_transfer": {
+    "as_of": "2026-10-15T16:36:22.551950+08:00",
+    "root_uncommitted_changes_transferred": [
+      "tools/source-admission/src/capture.rs",
+      "tools/job-worker/src/native_schedule.rs",
+      "tools/pg-builder/src/source_contract.rs"
+    ],
+    "tested_snapshots": [
+      "/tmp/oo-root-mysql-shared-reference/src",
+      "/tmp/oo-root-doris-oos-linux194/src"
+    ],
+    "no_duplicate_writer": true
+  },
+  "latest_mysql_reference_dispatch": {
+    "as_of": "2026-10-15T16:37:50.366483+08:00",
+    "agent": "/root/mysql_shared_reference_whole",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "low",
+    "status": "running_verified_by_actual_agent_response",
+    "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
+    "complete_capability": "real MySQL original C1 baseline/sync plus S0-S10/current Ontology-Pack/formal publish/Gateway-CLI/autonomous random agent; fixed shared artifacts before other sources reuse",
+    "source_rollout_allowed": false,
+    "write_scope": [
+      "tools/mysql-preview",
+      "crates/oo-pipeline/src/native_update.rs",
+      "crates/oo-pipeline/src/native_binding.rs",
+      "crates/oo-pipeline/src/native_catalog.rs",
+      "crates/oo-pipeline/src/target_installer.rs",
+      "crates/oo-pipeline/src/bin/oo-pipeline.rs",
+      "crates/oo-pipeline/src/lib.rs",
+      "crates/oo-pipeline/migrations (append-only; installed checksums immutable)",
+      "tools/source-admission",
+      "tools/job-worker",
+      "tools/source-onboarding",
+      "tools/selfbuild-control-api",
+      "tools/pg-builder",
+      "tools/release-coordinator",
+      "tools/release-control-api"
+    ],
+    "root_scope": "coordination ledger and fixed evidence only; no duplicate product writer",
+    "first_actual_finding": "confirmed CLI/importer missing, capture_business only fixed-ID delta not five-table snapshot/fill; implementing full original path, not C5 relabel",
+    "artifact_status": "component fixed-source Linux1.94 tests passed; full shared contract and runtime artifacts not ready",
+    "formal_count_delta": 0
+  },
+  "latest_mysql_target_stage_primitive": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/mysql-target-stage-primitive-intake.json",
+    "scope": "actual owned target primitive; not real MySQL source chain",
+    "root_hashes_verified": true,
+    "whole_reference_complete": false,
+    "source_count_delta": 0
+  },
+  "latest_luna_xhigh_transfer": {
+    "as_of": "2026-10-15T17:21:59.122581+08:00",
+    "human_authorization": "luna允许指定为xhigh，请继续工作",
+    "former_owner": "/root/mysql_shared_reference_whole",
+    "former_state": "completed handoff, interrupt_agent confirmed terminal, edits/newrun stopped; preserve all WIP/resources",
+    "current_owner": "/root/mysql_shared_reference_xhigh",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "xhigh",
+    "status": "spawned",
+    "scope": "same indivisible complete MySQL shared reference; other sources held",
+    "source_acceptance_delta": 0
   }
 }

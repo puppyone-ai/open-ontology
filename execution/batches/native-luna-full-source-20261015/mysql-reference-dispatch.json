@@ -1,0 +1,43 @@
+{
+  "as_of": "2026-10-15T16:37:50.366483+08:00",
+  "agent": "/root/mysql_shared_reference_xhigh",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "xhigh",
+  "status": "spawned",
+  "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
+  "complete_capability": "real MySQL original C1 baseline/sync plus S0-S10/current Ontology-Pack/formal publish/Gateway-CLI/autonomous random agent; fixed shared artifacts before other sources reuse",
+  "source_rollout_allowed": false,
+  "write_scope": [
+    "tools/mysql-preview",
+    "crates/oo-pipeline/src/native_update.rs",
+    "crates/oo-pipeline/src/native_binding.rs",
+    "crates/oo-pipeline/src/native_catalog.rs",
+    "crates/oo-pipeline/src/target_installer.rs",
+    "crates/oo-pipeline/src/bin/oo-pipeline.rs",
+    "crates/oo-pipeline/src/lib.rs",
+    "crates/oo-pipeline/migrations (append-only; installed checksums immutable)",
+    "tools/source-admission",
+    "tools/job-worker",
+    "tools/source-onboarding",
+    "tools/selfbuild-control-api",
+    "tools/pg-builder",
+    "tools/release-coordinator",
+    "tools/release-control-api"
+  ],
+  "root_scope": "coordination ledger and fixed evidence only; no duplicate product writer",
+  "first_actual_finding": "confirmed CLI/importer missing, capture_business only fixed-ID delta not five-table snapshot/fill; implementing full original path, not C5 relabel",
+  "artifact_status": "component fixed-source Linux1.94 tests passed; full shared contract and runtime artifacts not ready",
+  "formal_count_delta": 0,
+  "latest_luna_xhigh_transfer": {
+    "as_of": "2026-10-15T17:21:59.122581+08:00",
+    "human_authorization": "luna允许指定为xhigh，请继续工作",
+    "former_owner": "/root/mysql_shared_reference_whole",
+    "former_state": "completed handoff, interrupt_agent confirmed terminal, edits/newrun stopped; preserve all WIP/resources",
+    "current_owner": "/root/mysql_shared_reference_xhigh",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "xhigh",
+    "status": "spawned",
+    "scope": "same indivisible complete MySQL shared reference; other sources held",
+    "source_acceptance_delta": 0
+  }
+}
