@@ -1,0 +1,47 @@
+{
+  "as_of": "2026-10-15T17:50:03.342143+00:00",
+  "human_instruction": "Goal active; accelerate complete E2E, explicitly support MySQL5.7; use gpt-6.1-sol/medium, AnySearch official best practice instead of repeated guessing",
+  "agent": "/root/mysql57_reference_sol",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "status": "spawned_and_accepted",
+  "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-RESUME-57-COMPLETE-20261016.md",
+  "same_complete_task": true,
+  "required_mysql_versions": [
+    "5.7 (owned actual5.7.44 fixture)",
+    "8.4 (retained actual8.4.10 reference)"
+  ],
+  "counting": "MySQL remains one of ten sources; both versions have actual independent proof; no new source/development unit or premature certification",
+  "transfer": {
+    "previous_owner": "/root/mysql_shared_reference_sol",
+    "previous_handle": "not_found confirmed by interrupt_agent; absent live registry",
+    "prior_followup_errors": "stale active-writer error; did not assume live or start duplicate",
+    "actual_build_container": "oo-mysql-connection-whole, docker top only sleep",
+    "relevant_product_paths": "clean, unchanged since fixed packet",
+    "previous_packet": "/tmp/oo-mysql-connection-whole/sol-20261015/blocked-handoff-receipt-v1.json"
+  },
+  "provider_recheck": {
+    "path": "/tmp/oo-provider-recheck-20261015T174130Z.json",
+    "sha256": "b093ffff874dd4fa8acd2cbc84accc6fc42b505b7c7ee4fcba0df2fb2d119946",
+    "model": "gpt-6.1-sol",
+    "actual_tool_call": true,
+    "actual_strict_json_response": true,
+    "elapsed_seconds": 6.67,
+    "scope": "synthetic proxy only; actual product dialogues pending"
+  },
+  "scope": "existing product write scope plus owned5.7 fixture files under tools/mysql-preview; root alone ledgers/Plan/matrix/remote",
+  "original_mysql_exits": "all retained: real C1/default six fields/S0-S10/current maintenance-Pack/fixture publication/real standby/Gateway-CLI/random Agent/independent oracle/QID-WAL/deny-cancel/fixed packet",
+  "other_sources_released": false,
+  "formal_source_count": 0,
+  "goal_platform_status": "active confirmed get_goal after human resume",
+  "blocked_audit_reset": 0,
+  "independent_review": "deferred under latest human complete-loop policy",
+  "protocol_checks": {
+    "Plan": "execution appendix added for explicit5.7 required scope, original exits kept",
+    "counting": "no denominator/numerator delta",
+    "PRODUCT_LOOPS": "no edition exit",
+    "support_matrix": "5.7 self-managed(mysql_async) designed target added; RDS5.7 desired version added at unchanged designed level; no actual support-grade promotion",
+    "frontend": "untouched"
+  },
+  "official_references": "execution/batches/native-luna-full-source-20261015/mysql57-official-reference-notes.md"
+}

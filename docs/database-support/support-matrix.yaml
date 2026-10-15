@@ -8,7 +8,7 @@
 #    feed=change_feed, cdc, del=delete(native|reconcile|none), snap=snapshot_token, rep=replica_read, bud=budget
 #  - grade：T 事务 / S1 同 token 快照 / S0 单表快照 / B 尽力（见 03 §3）
 schema: oo-support-matrix/v1
-captured: 2026-10-09
+captured: 2026-10-16
 levels: [candidate, designed, experimental, verified, certified, excluded]
 note: "initial hand-written draft; no evidence packs exist yet"
 
@@ -22,6 +22,10 @@ targets:
       driver: { path: P1, impl: sqlx }, grade: { cdc: T, inc: B },
       caps: { cat: designed, logic: designed, qlog: designed, full: designed, inc: designed, cdc: designed, del: designed, snap: designed, rep: designed, bud: designed },
       status_note: "SP03-W02 未开始验收" }
+  - { id: mysql57-selfmanaged, family: mysql, product: MySQL, versions: ["5.7"], variant: self-managed, wave: 0,
+      driver: { path: P1, impl: mysql_async }, grade: { cdc: T, inc: B },
+      caps: { cat: designed, logic: designed, qlog: designed, full: designed, inc: designed, cdc: designed, del: designed, snap: designed, rep: designed, bud: designed },
+      status_note: "2026-10-16 用户明确要求；真实5.7 C1完整链验收进行中，不能沿用8.x结论或声明verified" }
   - { id: files-and-dumps, family: file, product: "CSV/TSV/Excel/Parquet/JSONL/SQLite/SQL dump", variant: upload, wave: 0,
       driver: { path: in-process-worker }, grade: { full: S0 },
       caps: { full: designed }, status_note: "见 Spec 7.4；独立于数据库准入" }
@@ -43,7 +47,7 @@ targets:
       driver: { path: P1 }, grade: { cdc: T },
       caps: { cat: designed, full: designed, inc: designed, cdc: designed, del: designed },
       limits: ["只读池建槽限制未核实"] }
-  - { id: mysql-rds, family: mysql, product: "RDS for MySQL", versions: ["8.0", "8.4"], variant: rds, wave: 1,
+  - { id: mysql-rds, family: mysql, product: "RDS for MySQL", versions: ["5.7", "8.0", "8.4"], variant: rds, wave: 1,
       driver: { path: P1 }, grade: { cdc: T },
       caps: { cat: designed, full: designed, inc: designed, cdc: designed, del: designed },
       limits: ["binlog 保留上限 168 小时"] }
