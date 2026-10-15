@@ -1,0 +1,22 @@
+{
+  "as_of": "2026-10-15T19:19:09.862118+08:00",
+  "container": "oo-mysql-connection-whole",
+  "owner": "/root/mysql_shared_reference_sol",
+  "prior_limit": "author observed cpu.max=50000 100000 and memory512MiB; prior observation retained by author",
+  "root_actual_cpu_max": "max 100000",
+  "root_actual_memory_max_bytes": 17179869184,
+  "root_actual_memory_swap_max_bytes": 17179869184,
+  "combined_memory_swap_ceiling_bytes": 34359738368,
+  "docker_vm_cpus": 16,
+  "docker_vm_memory_bytes": 101060706304,
+  "live_observation": {
+    "cargo_pid": 27683,
+    "rustc_pid": 39330,
+    "tool": "docker top -eo pid,comm",
+    "status": "live now; build not restarted"
+  },
+  "cpu_policy": "no CPU quota; no fixed cargo jobs or compiler slots; preserve unique writable targets and source budgets",
+  "acceptance_delta": 0,
+  "shared_release_allowed": false,
+  "protocol_check": "resource realization only, no complete author/source/parent/phase/edition exit; original Plan/counting/development ledger/PRODUCT-LOOPS/Goal scope unchanged; do not assert every other container uncapped"
+}

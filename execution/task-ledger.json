@@ -10175,7 +10175,7 @@
     "source_rollout_allowed": false,
     "scope": "unchanged complete MySQL reference before other sources reuse"
   },
-  "as_of": "2026-10-15T18:50:46.388216+08:00",
+  "as_of": "2026-10-15T19:19:09.862118+08:00",
   "latest_mysql_sol_complete_transfer": {
     "as_of": "2026-10-15T18:50:46.388216+08:00",
     "human_model_authorization": "下一次开新子智能体，模型可以升级为gpt 6.1 sol medium",
@@ -10193,5 +10193,16 @@
     "root_reason": "typed bridge still refusal stub; real runtime errors and retained artifacts transferred before next implementation, no duplicate writer",
     "source_rollout_allowed": false,
     "source_acceptance_delta": 0
+  },
+  "latest_mysql_actual_build_resources": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/mysql-live-build-resource-intake.json",
+    "observed_at": "2026-10-15T19:19:09.862118+08:00",
+    "cpu_max": "max 100000",
+    "memory_max_bytes": 17179869184,
+    "cargo_pid": 27683,
+    "rustc_pid": 39330,
+    "owner": "/root/mysql_shared_reference_sol",
+    "build_restarted": false,
+    "scope": "actual MySQL build container only; snapshot not future live proof"
   }
 }

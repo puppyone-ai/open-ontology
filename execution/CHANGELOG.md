@@ -1,3 +1,5 @@
+2026-10-15 MySQL实运行资源校验：root已核oo-mysql-connection-whole实际cpu.max=max100000、memory.max=16GiB、额外swap.max=16GiB（合计32GiB）；Docker VM16CPU/94GiB。原0.5CPU/512MiB限额由owner发现并原地解除CPU/增内存，未中断cargo27683/rustc39330，root实际docker top确认当时live。只证明本容器、不冒其他容器全部解除；未通过源或整版，0/10与held不变。记录见execution/reviews/native-luna-full-source-20261015/mysql-live-build-resource-intake.json。
+
 本次派发校验：TODO --check与限定diff --check通过；Spec/Plan self-test均因既有docs/07-gateway.md来源hash/size/line漂移exit1。root核该文档工作区字节等于HEAD，非本次协调变更造成；保留失败、不重写baseline哈希冒充通过。详情同mysql-sol-handoff.json。
 
 2026-10-15 MySQL完整参考链已移交唯一`gpt-6.1-sol/medium`负责人`/root/mysql_shared_reference_sol`。原Luna xhigh已完整交接并经实际list_agents确认completed，root核producer/pipeline/worker/manifest四SHA匹配、MySQL构建容器仅sleep后才新派发；未丢WIP/失败、无重复writer。真实五表typed导入仍为拒绝占位，直接推进最小正式桥及原完整C1同步/S0–S10/维护Pack/正式发布/Gateway/随机Agent退出。合同MYSQL-SOL-COMPLETE.md、mysql-sol-handoff.json及mysql-reference-dispatch.json位于execution/batches/native-luna-full-source-20261015。无完整作者交付/整源签收，0/10与其余九源held不变；未增加开发/集成/发行或外部门槛计数，旧构建专属exit receipt缺失明确保留。
