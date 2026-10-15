@@ -7008,7 +7008,8 @@
         "crates/oo-pipeline/src/target_installer.rs",
         "crates/oo-pipeline/src/native_update.rs (installer wiring only)",
         "tools/job-worker/src/native_schedule.rs",
-        "crates/oo-pipeline/migrations/0039_native_per_table_publication.sql (uninstalled successor only)"
+        "crates/oo-pipeline/migrations/0039_native_per_table_publication.sql (installed immutable; no edits)",
+        "crates/oo-pipeline/migrations/0040_native_source_progress_read.sql"
       ],
       "prompt": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md",
       "resource_prefix": "oo-dl01w1-43",
@@ -7184,7 +7185,16 @@
       "resource_policy": "no fixed CPU/jobs/compile slot limits; preserve actual headroom and exclusive ownership",
       "native_agent": "/root/doris_complete_luna_max",
       "dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json",
-      "exclusive_role": "sole Doris complete C4/C5 engineer plus exact shared files listed in current card"
+      "exclusive_role": "sole Doris complete C4/C5 engineer plus exact shared files listed in current card",
+      "latest_scope_amendment": {
+        "as_of": "2026-10-15T21:56:46.398111+00:00",
+        "reason": "actual separated control/target baseline reached confirmed_generation and received42501 before producer; requires least-privilege progress read",
+        "exclusive_new_path": "crates/oo-pipeline/migrations/0040_native_source_progress_read.sql",
+        "allowed": "official installer append-only migration grants oo_pipeline_runtime SELECT(source,source_generation) only; existing target_installer/native_update wiring",
+        "immutable": "installed0000-0039 unchanged;0039 digest438d780176456ec0b8ff85feb20b6f803f42f4ae85562f64755fe83e628566d9",
+        "required_checks": "actual loader two-column read succeeds, other columns and writes still denied; preserve C4 missing-target rejection and C1 routing",
+        "acceptance_delta": 0
+      }
     },
     {
       "task_id": "DL01-W1-44",

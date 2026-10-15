@@ -26,3 +26,7 @@ root 已核 MySQL5.7+8.4完整稳定参考：execution/reviews/native-luna-full-
 6. 默认whole_source全steps0，官方同输入重入/pins实读；精确注册命令交root操作，其他engine rows不变。交固定SHA/源码/ELF/依赖/原始exit/全部失败/SHAs/真实live或安全terminal资源/续签与截止/REPORT/FINDINGS/HANDOFF。未全出wholefalse，不能短交接。root做决定性核验；统一独立审阅仍按十源Goal时点，formal0/10/原Plan计数不自改。
 
 源码提交使用fcntl /tmp/oo-dl01-wave1-git.lock + 私有index/精确owned提交，禁止add-A/reset/stash/push。固定等待600秒（clock.sleep单调用≤60秒分段），退出立即通知；当前唯一Doris完整工程师，无需占15个空转槽。安全终态交完整闭环或不可解外部阻断证据，不把局部成功报完成。
+
+## 2026-10-16 实际水位权限缺口的最小范围增补
+
+Doris 唯一 writer 增加 `crates/oo-pipeline/migrations/0040_native_source_progress_read.sql`：经官方 installer 追加 `oo_pipeline_runtime` 的 `SELECT(source,source_generation)` 列级读取，现有 target_installer/native_update 仅必要安装接线。不得改已安装0000–0039，不得授整表/其他列/写权限；实际 loader 验两列成功、其他列/写拒绝。C5 复用现有 target_database（缺省保留 control），C4 缺省目标仍拒绝，C1路由不变。原42501/42P01失败保留，完整六项退出及模型/计数不变；这是范围补充，尚非产品通过。

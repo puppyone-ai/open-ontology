@@ -1,3 +1,5 @@
+2026-10-16 Doris 实际分离control/target的首轮加载暴露42P01路由及42501水位读取权限缺口，失败保留；唯一Luna max在现有native_schedule窄域复用C5目标配置（C4缺省拒绝/C1不变），增加独占append-only0040经官方installer只授source/source_generation两列读并验证其他列/写拒绝。已安装0039字节固定不改；Oracle overlay.rs独占不变。尚无Doris整链通过，无新增验收/父项/Plan/整版计数、formal0/10。精确增补见DORIS-COMPLETE-LUNA-MAX-20261016.md及doris-luna-max-dispatch.json。
+
 2026-10-16 MySQL演示认证维护：root于21:09:37UTC经现有official issuer为5.7/8.4各签发独立私有token，TTL3600000ms；CLI带 `--token-file /run-current/renewed-client-root-20261015T210936Z.token` 实测新badge/current position93/39正确。原默认token及QA/WAL/pins全部不改；新token需显式CLI参数，约22:09UTC到期，无自动续签。私有原始回执 /tmp/oo-root-mysql-auth-20261015T210936Z/receipt.json（SHA见CONTROL/JSON）；无业务DML/代码/Pack/正式签收变化。
 
 2026-10-16 已真实派发并收到Oracle唯一 /root/oracle_complete_luna_max（gpt-6-luna/max）接卡；与Doris唯一Luna max完整长跑独立并行，精确writer边界按两新卡，MySQL保持不可变固定服务、其他7held。Oracle父项DBX-W09/DL01-W1-10，Doris原Plan核实DBX-W12/DL01-W1-43。无组件审阅、无新验收/整版计数。
