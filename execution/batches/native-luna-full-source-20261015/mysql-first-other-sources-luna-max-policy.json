@@ -17,5 +17,6 @@
   "mysql_registry_authorization": "mysqlonly official register_engine fixedrecipe/defaultwhole; otherengineentries preserved, no manualflags",
   "mysql_status": "root_verified_two_version_complete_stable_fixture_reference",
   "mysql_root_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
-  "resume_condition_status": "met for scoped Doris release, not general source or production acceptance"
+  "resume_condition_status": "met for scoped Doris release, not general source or production acceptance",
+  "actual_next_source_dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json"
 }

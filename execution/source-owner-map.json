@@ -212,7 +212,7 @@
         "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product"
       ],
       "mandatory_blocker": null,
-      "status": "ready_not_spawned",
+      "status": "spawned_and_accepted",
       "next_action": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md",
       "historical_assignment_before_mysql_family_reference": {
         "source": "doris",

@@ -1,6 +1,6 @@
 {
   "as_of": "2026-10-15T20:40:14.416995+00:00",
-  "status": "mysql57_and84_fixed_reference_verified_doris_only_ready",
+  "status": "mysql57_and84_fixed_reference_verified_doris_only_running",
   "owner": "root",
   "source_release_allowed": false,
   "source_tasks": [
@@ -482,7 +482,28 @@
     "root_reference_pass": true
   },
   "source_specific_release": {
-    "doris": "ready gpt-6-luna/max only; fixed mysql dependency, no MySQL mutations"
+    "doris": {
+      "as_of": "2026-10-15T20:42:01.744375+00:00",
+      "agent": "/root/doris_complete_luna_max",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "max",
+      "status": "spawned_and_accepted",
+      "contract": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md",
+      "exclusive_scope": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md#唯一写权与资源",
+      "dependency_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
+      "formal_source_count_delta": 0
+    }
   },
-  "latest_doris_luna_max_dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json"
+  "latest_doris_luna_max_dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json",
+  "doris_current_reference": {
+    "as_of": "2026-10-15T20:42:01.744375+00:00",
+    "agent": "/root/doris_complete_luna_max",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "max",
+    "status": "spawned_and_accepted",
+    "contract": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md",
+    "exclusive_scope": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md#唯一写权与资源",
+    "dependency_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
+    "formal_source_count_delta": 0
+  }
 }
