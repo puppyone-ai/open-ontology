@@ -57,11 +57,12 @@ pub async fn configure_dba(config: &Path, out: &Path) -> Result<(), PreviewError
     let dba_password = read_secret(&cfg.dba_password_file)?;
     let mut conn = connect(&cfg, &cfg.dba_user, dba_password.as_str()).await?;
     let version = scalar(&mut conn, "SELECT @@GLOBAL.version").await?;
-    if !version.starts_with("8.") {
-        return Err(PreviewError::new("version", "mysql_major"));
-    }
-    enable_gtid(&mut conn).await?;
-    exec_static(&mut conn, "SET PERSIST binlog_expire_logs_seconds = 604800").await?;
+    let server = crate::version::ServerVersion::parse(&version)?;
+    enable_gtid(&mut conn, server).await?;
+    exec_static(&mut conn, match server {
+        crate::version::ServerVersion::V57 => "SET GLOBAL expire_logs_days = 7",
+        crate::version::ServerVersion::V8(_) => "SET PERSIST binlog_expire_logs_seconds = 604800",
+    }).await?;
     exec_static(&mut conn, "CREATE DATABASE IF NOT EXISTS oo_c1").await?;
     exec_static(
         &mut conn,
@@ -86,7 +87,7 @@ pub async fn configure_dba(config: &Path, out: &Path) -> Result<(), PreviewError
         &out.join("dba.json"),
         &json!({
             "protocol": "oo.mysql.c1-dba/v1",
-            "fixture": FIXTURE,
+            "fixture": cfg.fixture,
             "version": version,
             "variables": vars,
             "grants": grant_text,
@@ -1199,7 +1200,7 @@ fn replication_grants_ok(grants:&[String])->Result<(),PreviewError> {
 
 fn refuse_customer(cfg: &C1Config) -> Result<(), PreviewError> {
     let host = cfg.host.to_ascii_lowercase();
-    if cfg.fixture != FIXTURE
+    if ![FIXTURE, "owned-mysql-57"].contains(&cfg.fixture.as_str())
         || host.contains("rds")
         || host.contains("amazonaws")
         || cfg.user != "oo_cdc"
@@ -1316,17 +1317,23 @@ fn mysql_err(err: &mysql_async::Error) -> PreviewError {
     }
 }
 
-async fn enable_gtid(conn: &mut Conn) -> Result<(), PreviewError> {
+async fn enable_gtid(conn: &mut Conn, server: crate::version::ServerVersion) -> Result<(), PreviewError> {
     let mode = scalar(conn, "SELECT @@GLOBAL.gtid_mode").await?;
     if mode == "ON" {
         return Ok(());
     }
     if mode == "OFF" {
-        exec_static(conn, "SET PERSIST enforce_gtid_consistency = ON").await?;
+        exec_static(conn, match server {
+            crate::version::ServerVersion::V57 => "SET GLOBAL enforce_gtid_consistency = ON",
+            crate::version::ServerVersion::V8(_) => "SET PERSIST enforce_gtid_consistency = ON",
+        }).await?;
         exec_static(conn, "SET GLOBAL gtid_mode = OFF_PERMISSIVE").await?;
         exec_static(conn, "SET GLOBAL gtid_mode = ON_PERMISSIVE").await?;
     } else if mode == "OFF_PERMISSIVE" {
-        exec_static(conn, "SET PERSIST enforce_gtid_consistency = ON").await?;
+        exec_static(conn, match server {
+            crate::version::ServerVersion::V57 => "SET GLOBAL enforce_gtid_consistency = ON",
+            crate::version::ServerVersion::V8(_) => "SET PERSIST enforce_gtid_consistency = ON",
+        }).await?;
         exec_static(conn, "SET GLOBAL gtid_mode = ON_PERMISSIVE").await?;
     }
     for _ in 0..30 {
@@ -1353,7 +1360,9 @@ async fn enable_gtid(conn: &mut Conn) -> Result<(), PreviewError> {
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
     exec_static(conn, "SET GLOBAL gtid_mode = ON").await?;
-    exec_static(conn, "SET PERSIST gtid_mode = ON").await?;
+    if matches!(server, crate::version::ServerVersion::V8(_)) {
+        exec_static(conn, "SET PERSIST gtid_mode = ON").await?;
+    }
     Ok(())
 }
 
@@ -1409,15 +1418,15 @@ async fn ensure_user(conn: &mut Conn, password: &str) -> Result<(), PreviewError
 
 async fn preflight_values(conn: &mut Conn) -> Result<Value, PreviewError> {
     let version = scalar(conn, "SELECT @@GLOBAL.version").await?;
+    let server = crate::version::ServerVersion::parse(&version)?;
     let gtid = scalar(conn, "SELECT @@GLOBAL.gtid_mode").await?;
     let consistent = scalar(conn, "SELECT @@GLOBAL.enforce_gtid_consistency").await?;
     let format = scalar(conn, "SELECT @@GLOBAL.binlog_format").await?;
     let image = scalar(conn, "SELECT @@GLOBAL.binlog_row_image").await?;
-    let expire = scalar(conn, "SELECT @@GLOBAL.binlog_expire_logs_seconds").await?;
+    let expire = scalar(conn, server.retention_query()).await?;
     let log_bin = scalar(conn, "SELECT @@GLOBAL.log_bin").await?;
     let server_id = scalar(conn, "SELECT @@GLOBAL.server_id").await?;
-    if !version.starts_with("8.")
-        || gtid != "ON"
+    if gtid != "ON"
         || consistent != "ON"
         || format != "ROW"
         || image != "FULL"
@@ -1766,8 +1775,7 @@ impl Live {
                 Ok(false)
             }
             EventData::QueryEvent(query) => {
-                self.on_query(&query.query())?;
-                Ok(false)
+                self.on_query(&query.query(), header_pos, header_ts)
             }
             EventData::RowsEvent(rows) => {
                 if matches!(rows, RowsEventData::PartialUpdateRowsEvent(_)) {
@@ -1803,24 +1811,31 @@ impl Live {
         Ok(())
     }
 
-    fn on_query(&mut self, query: &str) -> Result<(), PreviewError> {
+    fn on_query(&mut self, query: &str, pos: u32, timestamp: u32) -> Result<bool, PreviewError> {
         let verb = query
             .split_whitespace()
             .next()
             .unwrap_or("")
             .to_ascii_uppercase();
         if matches!(verb.as_str(), "BEGIN" | "START" | "COMMIT" | "XA") {
-            return Ok(());
+            return Ok(false);
+        }
+        // Account privilege statements commit as Query_event, without XID.
+        if matches!(verb.as_str(), "GRANT" | "REVOKE") {
+            if !self.buf.is_empty() {
+                return Err(PreviewError::new("c1", "mixed_txn"));
+            }
+            return self.on_xid(pos, timestamp);
         }
         if verb == "ROLLBACK" {
             self.pending = None;
             self.buf.clear();
             self.foreign = false;
             self.rows.retain(|row| row.commit_order != 0);
-            return Ok(());
+            return Ok(false);
         }
         if self.buf.is_empty() {
-            return Ok(());
+            return Ok(false);
         }
         if matches!(
             verb.as_str(),
@@ -1831,7 +1846,7 @@ impl Live {
         if matches!(verb.as_str(), "INSERT" | "UPDATE" | "DELETE") {
             return Err(PreviewError::new("c1", "statement_dml"));
         }
-        Ok(())
+        Ok(false)
     }
 
     fn on_rows(
@@ -2348,8 +2363,10 @@ async fn full_status(conn: &mut Conn) -> Result<(String, u64, String), PreviewEr
 }
 
 async fn binary_status(conn: &mut Conn) -> Result<(String, u64), PreviewError> {
+    let version = scalar(conn, "SELECT @@GLOBAL.version").await?;
+    let server = crate::version::ServerVersion::parse(&version)?;
     let row: Option<Row> = conn
-        .query_first("SHOW BINARY LOG STATUS")
+        .query_first(server.status_query())
         .await
         .map_err(|_| PreviewError::new("protocol", "query"))?;
     let row = row.ok_or_else(|| PreviewError::new("protocol", "query"))?;
@@ -3066,6 +3083,34 @@ mod tests {
         let span = parse_span("1bc0749a-c3f5-11f1-9a89-6e5583e808c4:1-3").unwrap();
         assert_eq!(span.start, 1);
         assert_eq!(span.end, 3);
+    }
+
+    #[test]
+    fn privilege_query_event_closes_only_its_empty_gtid() {
+        let sid = [1u8; 16];
+        let mut live = super::Live {
+            assembler: super::Assembler::new(),
+            span: super::Span { uuid: super::format_uuid(&sid), start: 1, end: 89 },
+            file: "mysql-bin.000004".into(), epoch: 1, bind: String::new(),
+            schema_hash: String::new(), type_hash: String::new(),
+            pk: Default::default(), selected: Default::default(), visible: Default::default(),
+            column_names: Default::default(), column_kinds: Default::default(), selected_columns: Default::default(),
+            allow_nullable: true, pending: None, buf: Vec::new(), counts: Default::default(),
+            globals: 0, rows: Vec::new(), events: 0, foreign: false,
+            source_commit_timestamp: None, out: Default::default(),
+        };
+        live.on_gtid(sid, 90).unwrap();
+        assert!(!live.on_query("GRANT SELECT ON performance_schema.x TO reader", 100, 1_700_000_000).unwrap());
+        assert_eq!(live.span.end, 90);
+        assert!(live.pending.is_none());
+        assert!(live.source_commit_timestamp.is_some());
+        live.on_gtid(sid, 91).unwrap();
+        live.on_query("BEGIN", 101, 1_700_000_001).unwrap();
+        assert_eq!(live.span.end, 90);
+        live.buf.push("selected row".into());
+        assert!(live.on_query("REVOKE SELECT ON db.t FROM reader", 102, 1_700_000_002).is_err());
+        assert_eq!(live.span.end, 90);
+        assert!(live.pending.is_some());
     }
 
     #[test]

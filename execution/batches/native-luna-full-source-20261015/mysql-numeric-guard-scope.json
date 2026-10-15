@@ -1,0 +1,19 @@
+{
+  "as_of": "2026-10-15T17:59:43.264301+00:00",
+  "owner": "/root/mysql57_reference_sol",
+  "scope": "same complete MySQL task; exact deterministic numeric/date catalog ambiguity fix",
+  "exclusive_write_paths": [
+    "crates/oo-gateway/src/sql_guard.rs",
+    "crates/oo-gateway/tests/sql_guard.rs",
+    "crates/oo-gateway/tests/a327_numeric.rs"
+  ],
+  "actual_failure": "8.4 second frozen random conversation negative-freight/delivered-origin-match repeatedly hit FUNCTION_NOT_ALLOWED on numeric integer-literal comparison; full failed run1abf retained. numeric_type_oid guesses the unique remaining same-type OID, broken when catalog also contains date/date.",
+  "minimal_solution": "Use already imported verified PostgreSQL Type::NUMERIC.oid and retain exact resolve_operator catalog/schema/name/type checks; remove guess. No generic type framework.",
+  "required_tests": [
+    "catalog contains both numeric/numeric and date/date; integer literal positive/negative decimal-column comparison works",
+    "missing matching numeric operator still refuses; no new date/int cast or error allowlist",
+    "real same-caller CLI bank query preflight then same frozen random second conversation; no altered gold/selection; immutable new gateway/source/recipe pins"
+  ],
+  "formal_source_count": 0,
+  "shared_release_allowed": false
+}

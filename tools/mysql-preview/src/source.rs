@@ -103,10 +103,7 @@ pub async fn read_source_export(
         drop(conn);
         return Err(PreviewError::new("version", "mariadb"));
     }
-    if !version.starts_with("8.") {
-        drop(conn);
-        return Err(PreviewError::new("version", "mysql_major"));
-    }
+    crate::version::ServerVersion::parse(&version)?;
     let sql_mode = scalar(&mut conn, &mut statements, "SELECT @@session.sql_mode").await?;
     if !session_mode_ok(&sql_mode) {
         drop(conn);

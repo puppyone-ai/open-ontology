@@ -449,8 +449,6 @@ def main():
         limit = cfg.get('max_tool_rounds', 20)
         for step in range(limit):
             choice = 'required' if step == 0 else 'auto'
-            if facts and step > 0 and not turn_results:
-                choice = {'type': 'function', 'function': {'name': 'query'}}
             final = bool(facts) and bool(turn_results) and not coverage_nudge(used, step, limit)
             payload = completion_body(model_name, messages, tools, choice, facts, final)
             req=urllib.request.Request(cfg['model_origin']+'/v1/chat/completions',data=json.dumps(payload).encode(),headers={'Content-Type':'application/json','Authorization':'Bearer '+bearer})

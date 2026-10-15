@@ -1,0 +1,118 @@
+{
+  "protocol": "oo.execution.mysql8-fixture-reference-intake/v1",
+  "as_of": "2026-10-15T18:20:38.139352+00:00",
+  "acceptance_level": "root_verified_complete_owned_8.4_product_reference",
+  "author_packet": {
+    "path": "/tmp/oo-mysql-connection-whole/sol-20261016/fixed-reference-complete-8-v2.json",
+    "sha256": "a33b36626f6ba29f4f9ec5fb2e8b13b7cb4b98e7635d05d57c40c03ecf99efdd"
+  },
+  "root_hashcheck": {
+    "path": "/tmp/oo-root-mysql8-complete-hashcheck-20261016.json",
+    "sha256": "0e44be4ae536ffc7b0c564cd55bdf4f71996ef6faab1f7e708925ea5f09ba3bb",
+    "checks": 71,
+    "errors": 0
+  },
+  "source": {
+    "source_id": "mysql_67fff4e8ebff9f91bee8c75e",
+    "source_generation": 6,
+    "source_epoch": 1,
+    "applied_pos": "38",
+    "pack_digest": "21ad1f3e096bca915f83e367cb1d763017e03b2882a067f35b82742674c47cac"
+  },
+  "normal_entry": {
+    "input": "six fields only: type, host, port, database, user, secret_ref",
+    "run": "/Users/redux/.cache/oo-source-onboarding/runs/ed7e08aad07741169b5926a8f6c403fd",
+    "steps": 6,
+    "journal_state": "recipe_completed",
+    "exit": 0,
+    "whole_product_chain_complete": true
+  },
+  "actual_gateway": {
+    "commit": "84f86555c170f0b5ba692c944911319834c3581c",
+    "archive": "/tmp/oo-mysql-connection-whole/sol-20261016/gateway-numeric-v1/84f86555c170f0b5ba692c944911319834c3581c.tar",
+    "archive_sha256": "3da1b37a691a8fc91dd732193071fe13aeacde7bf467e5083faeb6e22d903fd5",
+    "binary": "/tmp/oo-mysql-connection-whole/sol-20261015/bin/2a24f10c08620991a1e9bc3e1eb2471ef0cf4a8610da25f8f7fc61993bbdc3be/oo-gateway",
+    "binary_sha256": "2a24f10c08620991a1e9bc3e1eb2471ef0cf4a8610da25f8f7fc61993bbdc3be",
+    "snapshot": {
+      "crates/oo-gateway/src/sql_guard.rs": "e5f852ba57af3e7cdbe73c59cefa9e0599e70b8bf97f0b7f237c789f951cf83b",
+      "crates/oo-gateway/tests/sql_guard.rs": "743ebb9aa91f790486735c4d78e627e4ee583d0f6b59324d6eec8f35e87bc8a8"
+    },
+    "toolchain": "1.94.0",
+    "profile": "dev",
+    "build_source": "/tmp/oo-mysql-connection-whole/sol-20261016/gateway-numeric-v1/source"
+  },
+  "current_source_archive": {
+    "commit": "6a2e99d1714c5853ffbe37f0ca48e9a0494f1206",
+    "path": "/tmp/oo-mysql-connection-whole/sol-20261016/6a2e99d1714c5853ffbe37f0ca48e9a0494f1206.tar",
+    "sha256": "5cd7cce641358bbc302235154238bced86dd46e0b4589453a55bb20cbf5e7aeb"
+  },
+  "decisive_root_verification": [
+    "Actual C1 CDC-first baseline L0=32 to33 with concurrent I/U/D; CAS-before-ACK; autonomous changes34/35 plus unselected36",
+    "Killed worker and Loader with changed cut37: watermark stayed36, no typed success receipt; same task lease recovery succeeded without manual epoch/ACK",
+    "Ordinary autonomous serve moved to source6/position38, maintained official same-build Ontology/Pack, authenticated fixture publication and actual readonly standby replay barrier",
+    "Live independent source-target all-cell oracle: five tables110019rows43columns difference0",
+    "Actual S0-S10 build b_6d1eadc01f06944ce0b8739667ca0477, original valid S5 gpt-6.1-sol; current maintenance no repeated S5",
+    "Four random semantic questions across two actual two-turn dialogues; each final fact independently matches source gold, original CLI query result, QID and original admit/completion WAL succeeded rollback=true",
+    "Fresh official renewed caller token: readiness, deny internal/unselected, admitted cancel durable57014 and post-cancel query all actual exit0",
+    "Exact source archives regenerated and match declared hashes; current Gateway ELF verified"
+  ],
+  "random_dialogues": [
+    {
+      "semantic_ids": [
+        "maximum-shipment-weight",
+        "probe-missing-day"
+      ],
+      "query_ids": [
+        "q_5IkUZbNXfRNu946kqC1X5MrS0S",
+        "q_CDMK5q55Va0X7i6Ng9bmLUF7cG"
+      ],
+      "response_models": [
+        "gpt-6.1-sol",
+        "grok-4.7"
+      ],
+      "model": "gpt-6.1-sol",
+      "outcome": "verified",
+      "turns": 2
+    },
+    {
+      "semantic_ids": [
+        "negative-freight",
+        "delivered-origin-match"
+      ],
+      "query_ids": [
+        "q_g2BG5FsaJJ6K6iM38IDvnYBcx5",
+        "q_rk1FhnyJVGv8fulZT00Z0OF85P"
+      ],
+      "response_models": [
+        "gpt-6.1-sol"
+      ],
+      "model": "gpt-6.1-sol",
+      "outcome": "verified",
+      "turns": 2
+    }
+  ],
+  "model_provenance": "First valid dialogue preserves genuine earlier grok-4.7 prefix and gpt-6.1-sol continuation under identical source/Pack/gold; second gpt-6.1-sol. Reused correct model outputs are disclosed, not fresh calls. Original and renewed token/WAL origins retained separately.",
+  "limits": [
+    "MySQL5.7 full chain still required and active; no inference from8.4",
+    "Owned fixture publication only, not production certification/customer UAT",
+    "Formal source acceptance0/10, editions0; independent unified review deferred under human policy",
+    "C4/C5 multirun publication requires separate true low-consistency reference before general source release"
+  ],
+  "all_failures_preserved": true,
+  "formal_source_count_delta": 0,
+  "release_count_delta": 0,
+  "independent_review": "not_run; root evidence verification only",
+  "resource_status": "retained actual databases, standby, APIs and model provenance; no resource cleanup implied",
+  "next": "Finish5.7 C1 and isolated actual identity; scoped Oracle C5 reference can consume frozen8.4 interfaces and own minimal low-consistency publication fix; other source integrations held",
+  "protocol_checks": {
+    "task_ledger": "updated reference state and current owners; no parent accepted",
+    "TODO": "regenerate and check",
+    "Plan": "append fixed reference record with original exits retained",
+    "development_ledger": "record scoped integrated fixture evidence",
+    "counting": "zero numerator and denominator delta, existing formal gates unfulfilled",
+    "CONTROL_JSON_active_work_CHANGELOG": "update scoped pass, live owners and narrow ownership transfer",
+    "PRODUCT_LOOPS_GOAL": "checked; no edition or overall exit, Goal remains active",
+    "support_matrix": "no promotion;5.7 still designed",
+    "frontend": "untouched"
+  }
+}

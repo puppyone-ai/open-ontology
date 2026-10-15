@@ -1,0 +1,14 @@
+{
+  "as_of": "2026-10-15T18:21:32.910859+00:00",
+  "agent": "/root/mysql57_identity_prerequisite",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "status": "running",
+  "scope": [
+    "tools/control-identity/tests/live/main.rs",
+    "tools/control-identity/recipes/mysql57-*"
+  ],
+  "exit": "real isolated mysql57 DB/service normal install/bootstrap/OIDC, actual admin/reviewer/business_owner currentHTTP200, no8.4 mutation",
+  "ordinary_wait_seconds": 600,
+  "no_new_source_count": true
+}

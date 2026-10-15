@@ -232,7 +232,7 @@ print(json.dumps({'stopped_owned_api':hits}))
             entries.append(entry)
         catalog = collection(entries,[(s['schema'],s['table']) for s in request['entries']])
         save(self.out/'catalog.json',catalog)
-        self.call('oracle',['python3',str(REPO/'tools/mysql-preview/audit-native-target.py'),'--generation',str(generation),'--source-id',source])
+        self.call('oracle',['python3',str(REPO/'tools/mysql-preview/audit-native-target.py'),'--generation',str(generation),'--source-id',source,'--source-container',self.p['source_container'],'--source-client-file',self.p['source_client_file'],'--schema',self.c['database']])
         self.call('profile',['python3',str(REPO/'tools/mysql-preview/profile-fixture.py'),'--container',self.p['source_container'],'--client-file',self.p['source_client_file'],'--out',str(self.out/'profile.json'),'--generation',str(generation),'--source-id',source,'--selection-config',str(Path(self.op['prepared_root'])/'prepared/native-config.json')])
         profile=load(self.out/'profile.json')
         if profile['source_gtid'] != result['l_end']:

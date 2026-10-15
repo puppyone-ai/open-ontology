@@ -19,7 +19,7 @@ def main():
     parser.add_argument('--source-id', default='mysql_native')
     parser.add_argument('--selection-config', type=Path)
     args = parser.parse_args()
-    if not args.container.startswith('oo-dl01w1-06-'):
+    if not args.container.startswith('oo-dl01w1-06-') and args.container != 'oo-mysql57-reference-20261016':
         raise SystemExit('owned synthetic source required')
     def sql(text):
         return subprocess.check_output(['docker','exec',args.container,'mysql',

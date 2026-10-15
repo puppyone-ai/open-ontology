@@ -302,6 +302,12 @@ def prove_whole(out, recipe, journal):
     maintenance_exit = load(base/'current-maintenance-exit.json')
     require(isinstance(role_exit, dict) and isinstance(maintenance_exit, dict), 'maintenance_not_invoked')
     fresh = maintenance_consumption(product, digest(base/'product-receipt.json'), product['native_role_pack_sha256'], current_pack.read_bytes(), load(base/'current-command.json'), load(base/'current-visibility.json'), (base/'current-role-response.json').read_bytes(), (base/'current-maintenance-response.json').read_bytes(), role_exit.get('exit'), maintenance_exit.get('exit'), (base/'current-prepared-overlay.json').read_bytes())
+    if fresh.get('source_semantics_sha256') is not None:
+        native = load(base/'current-role-response.json')['response']['native_maintenance']
+        require(file_sha(base/'current-source-semantics.json', 'maintenance_source_semantics') == fresh['source_semantics_sha256'], 'maintenance_source_semantics')
+        fresh['source_json_sha256'] = file_sha(base/'current-source.json', 'maintenance_source_semantics')
+        fresh['effective_json_sha256'] = file_sha(base/'current-effective-oos.json', 'maintenance_source_semantics')
+        require(fresh['source_json_sha256'] == native.get('source_json_sha256') and fresh['effective_json_sha256'] == native.get('effective_sha256'), 'maintenance_source_semantics')
     stored = load(rel_ok(out, cons_rel))
     require(stored.get('schema_digest') == fresh.get('schema_digest') and stored.get('schema_digests') == fresh.get('schema_digests'), 'maintenance_schema')
     require(stored.get('source_id') == fresh['source_id'] and stored.get('source_generation') == fresh['source_generation'], 'maintenance_source')

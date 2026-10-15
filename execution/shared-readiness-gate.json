@@ -1,6 +1,6 @@
 {
-  "as_of": "2026-10-15T16:27:16.423806+08:00",
-  "status": "held_pending_current_shared_complete_chain",
+  "as_of": "2026-10-15T18:21:32.910859+00:00",
+  "status": "mysql84_complete_fixed_reference_verified_mysql57_and_oracle_c5_reference_active",
   "owner": "root",
   "source_release_allowed": false,
   "source_tasks": [
@@ -17,7 +17,7 @@
   ],
   "reference_only_tasks": [
     "DL01-W1-06",
-    "DL01-W1-40"
+    "DL01-W1-09"
   ],
   "policy": "Finish shared product chain and stabilize pinned contracts before resuming complete per-source workflows. No acceptance from isolated components, historical snapshots, diagnostic Packs or manufactured gates.",
   "criteria": [
@@ -27,15 +27,15 @@
         "DL01-W1-02",
         "DL01-W1-79"
       ],
-      "status": "verified_shared_preview_reference",
+      "status": "verified_mysql84_complete_owned_fixture_reference",
       "exit": "Actual producer-bound typed C4 partition scope and BSON tag admission; tampering/missing scope denies without effects; trusted registry consumed by importer.",
       "evidence": [
         "85d805250bd9cd7266afd6ac3c19751645f7631e",
         "62be3cebb1dc3ea9935d50c7f6cdc288da873a95",
         "a641b85a0c065f655696a324866537022572b19d"
       ],
-      "scope": "actual C4 and BSON approved producer inputs sealed and consumed by real targets; not ten-source product signoff",
-      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+      "scope": "See current fixed intake for actual8.4 scope; required5.7 and other source/method proofs remain independent",
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
     },
     {
       "id": "import_jobs",
@@ -43,7 +43,7 @@
         "DL01-W1-79",
         "DL01-W1-74"
       ],
-      "status": "verified_shared_preview_reference",
+      "status": "verified_mysql84_complete_owned_fixture_reference",
       "exit": "Real target full data equality, per-partition copy-forward/replacement/delete and atomic ACK CAS; both receipt readers bounded identically; restart/replay/permissions/budget failures preserve watermark and data.",
       "evidence": [
         "c4e601bae0379bfcc70f85c94e9c43ce4fac56c1",
@@ -52,23 +52,23 @@
         "2ff22a1b99aa091a8a0f7780bd3791067c193419",
         "a641b85a0c065f655696a324866537022572b19d"
       ],
-      "scope": "Verified MySQL current typed data, production worker replay and CAS/ACK reference; no blanket ten-source C4/C1 acceptance.",
+      "scope": "See current fixed intake for actual8.4 scope; required5.7 and other source/method proofs remain independent",
       "limitations": "MySQL TIME fidelity repaired and verified. New source-specific C4/C1/catalog/global-generation dependencies remain pending as listed.",
-      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
     },
     {
       "id": "selfbuild",
       "owners": [
         "DL01-W1-71"
       ],
-      "status": "verified_shared_preview_reference",
+      "status": "verified_mysql84_complete_owned_fixture_reference",
       "exit": "Current real complete reference collection, exact data/type/semantic vectors, genuine S0-S10 standard YAML, real review/curated maintenance and role Pack; actual model identity recorded.",
       "evidence": [
         "9adc937dbc9a3771773f3d1cd76fed4ff31c98f5",
         "94745df46"
       ],
-      "scope": "accurate currentbundle16hashverified/no-modeldraftcompiled; one actual502overload, no newAPIbuild/YAML/Pack/stages. prioroldtypePack historical",
-      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+      "scope": "See current fixed intake for actual8.4 scope; required5.7 and other source/method proofs remain independent",
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
     },
     {
       "id": "publication_gateway",
@@ -76,10 +76,10 @@
         "DL01-W1-73",
         "DL01-W1-71"
       ],
-      "status": "verified_shared_preview_reference",
+      "status": "verified_mysql84_complete_owned_fixture_reference",
       "exit": "For original DL01 authorized preview, actual current reviewed/maintained Pack+copied real target+roles/version vectors+public CLI correctness/audit/deny/cancel; clearly not formally published. Formal activation/maintenance/rollback and G1-G13/customer owner remain separate original SP08/DL02-DL05 requirements and may not be force-passed.",
-      "scope": "e891b362 currentvectorpreview was verifiedforpreviousinput; new interval/currentvalue_probe5 Pack vector needed",
-      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+      "scope": "See current fixed intake for actual8.4 scope; required5.7 and other source/method proofs remain independent",
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
     },
     {
       "id": "dialogue",
@@ -87,18 +87,20 @@
         "DL01-W1-71",
         "DL01-W1-73"
       ],
-      "status": "verified_shared_preview_reference",
+      "status": "verified_mysql84_complete_owned_fixture_reference",
       "exit": "No-model external CLI/auth/data preflight, then genuine autonomous multi-turn dialogue with actual tool calls, query IDs and audits; independent answers accurate, denied fields inaccessible.",
-      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+      "scope": "See current fixed intake for actual8.4 scope; required5.7 and other source/method proofs remain independent"
     },
     {
       "id": "handoff",
       "owners": [
         "root"
       ],
-      "status": "verified_shared_preview_reference",
+      "status": "verified_mysql84_complete_owned_fixture_reference",
       "exit": "Linux/MSRV checks on fixed implementation and binary SHAs, one compatible runtime manifest and complete real positive/negative raw evidence; root releases only once all shared exits pass.",
-      "fixed_intake": "execution/reviews/native-model-switch-20261012/shared-product-chain-final-intake.json"
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+      "scope": "See current fixed intake for actual8.4 scope; required5.7 and other source/method proofs remain independent"
     }
   ],
   "model_catalog_receipt": "execution/reviews/native-model-switch-20261012/shared-gate-model-catalog.json",
@@ -203,10 +205,10 @@
     "C4 prior sidecar could be considered authoritative before jobs success ACK; root requires real post-CAS production caller/retry proof before stable release."
   ],
   "remaining_blockers": [
-    "Ten source full chains individually await original full exits and unified review; shared MySQL preview is not ten-source proof.",
-    "Doris/StarRocks C4 and global source-target generation/fence, ClickHouse new partition catalog and PG multi-table C1 remain pending actual fixed-runtime proof.",
-    "SQL Server actual approved native amd64 instance/EULA/config missing; customer access, formal owner/G/nightly remain separate original gates.",
-    "Compact dialogue harness d39ffcaa4 verified by offline actual transcript replay; actual aggregate child/model token ratio <=20% has not been measured."
+    "RequiredMySQL5.7 actualfullC1 chain not yet complete (genuine no-XID privilege Query_event captured; original failure retained, minimalfix active)",
+    "OracleC5/per-table S0 publication cannot use MySQLC1/T multirun receipt; exclusive complete reference owner must prove actual safe path",
+    "Other8 source full originalchains and unifiedreview not released yet; no implicitpass fromMySQL",
+    "Production/customer/DBX certification and edition exits remain unmet"
   ],
   "worker_production_chain": {
     "source_commit": "979367e4020d07fd206a00fc1d00dd953a9c8f86",
@@ -305,7 +307,7 @@
       "status": "OpenSearch real S0-S10 succeeded; others pending"
     }
   ],
-  "source_release_scope": "Verified MySQL unpublished shared reference only. Each new source must pass its own actual dependencies; Doris/StarRocks C4, ClickHouse catalog, PostgreSQL C1 remain held at affected interfaces.",
+  "source_release_scope": "MySQL8.4 fixed complete owned fixture reference passed root evidence verification. Required5.7 complete chain and one exclusive Oracle C5 low-consistency reference allowed; other8 held. No blanket method/target/production acceptance.",
   "historical_gateway_observation": {
     "status": "author_delivered_fixed_partial_gate",
     "owner": "DL01-W1-73",
@@ -329,23 +331,27 @@
   "current_required_exits": [
     {
       "id": "c1_baseline",
-      "status": "pending",
-      "exit": "actual CDC-first baseline and buffered transaction apply under real job lease, official epoch registration, deletes/recovery/ACK; fixed Linux1.94 artifacts"
+      "status": "verified_mysql84_owned_fixture_only",
+      "exit": "actual CDC-first baseline and buffered transaction apply under real job lease, official epoch registration, deletes/recovery/ACK; fixed Linux1.94 artifacts",
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
     },
     {
       "id": "continuous_ontology_pack",
-      "status": "pending_actual_api",
-      "exit": "authenticated generation-bound runtime source metadata consumed by valid typed OOS and role Pack across successive generations without S5 mutation"
+      "status": "verified_mysql84_owned_fixture_only",
+      "exit": "authenticated generation-bound runtime source metadata consumed by valid typed OOS and role Pack across successive generations without S5 mutation",
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
     },
     {
       "id": "native_publication_gateway",
-      "status": "pending",
-      "exit": "approved native import/current role Pack published via formal fenced coordinator transaction, permissions/CAS/readonly barrier/audit; accurate actual Gateway/CLI and agent after original gate"
+      "status": "verified_mysql84_owned_fixture_only",
+      "exit": "approved native import/current role Pack published via formal fenced coordinator transaction, permissions/CAS/readonly barrier/audit; accurate actual Gateway/CLI and agent after original gate",
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
     },
     {
       "id": "same_fixed_chain",
-      "status": "pending",
-      "exit": "same fixed shared source/binary/API/migrations on real reference fixture; no component-only release"
+      "status": "verified_mysql84_owned_fixture_only",
+      "exit": "same fixed shared source/binary/API/migrations on real reference fixture; no component-only release",
+      "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
     }
   ],
   "latest_component_check": {
@@ -358,36 +364,16 @@
     "acceptance": "component only; not shared release"
   },
   "mysql_shared_reference": {
-    "as_of": "2026-10-15T16:32:24.043153+08:00",
-    "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
+    "as_of": "2026-10-15T18:21:32.910859+00:00",
     "reference_source": "mysql",
+    "verified_version": "8.4.10",
+    "status": "root_verified_complete_owned_fixture_reference",
+    "fixed_artifacts_ready": true,
+    "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+    "required_57_status": "active_not_complete",
+    "current_owner": "/root/mysql57_reference_sol",
     "release_other_sources": false,
-    "status": "implement_and_verify_complete_real_reference_before_reuse",
-    "fixed_artifacts_ready": false,
-    "human_instruction": "共享接口先在真实MySQL完整验通并固定制品，再让其余源复用",
-    "component_evidence": {
-      "linux_toolchain": "Rust1.94.0",
-      "fixed_source": "/tmp/oo-root-mysql-shared-reference/src",
-      "source_manifest_sha256": "a5d38a967e907deeb907c7221a677bd529569c9ef8b73037710b8bcbf71cb7a0",
-      "tests": {
-        "admission": {
-          "passed": 2,
-          "session": 16439,
-          "exit": 0
-        },
-        "worker": {
-          "passed": 3,
-          "session": 52295,
-          "exit": 0
-        }
-      },
-      "capture_digest_vector": "033c12a3f8a18bd6f35598682992b0a53d4a0f193fceb2efa99bde84ee6bcc6c",
-      "validation": "registry references excluded only from recursive capture-content digest; exact envelope/request references and sealed-registry file hashes still independently validated",
-      "scope": "protocol component evidence only; MySQL actual baseline importer and whole chain pending"
-    },
-    "implementation_owner": "/root/mysql_shared_reference_whole",
-    "owner_status": "spawned; lifecycle to be verified by collaboration",
-    "ownership": "single implementation owner for necessary shared pipeline/admission/jobs/onboarding/API/builder/publication plus tools/mysql-preview; other source writers held; root coordination/evidence only"
+    "narrow_next_reference": "oracle_c5_complete_sol; original C5/S0 publish must be real before broad rollout"
   },
   "latest_mysql_target_stage_primitive": {
     "intake": "execution/reviews/native-luna-full-source-20261015/mysql-target-stage-primitive-intake.json",
@@ -437,5 +423,25 @@
       "5.7",
       "8.4"
     ]
-  }
+  },
+  "latest_mysql8_complete_fixture_reference": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+  "latest_oracle_c5_complete_dispatch": {
+    "as_of": "2026-10-15T18:21:32.910859+00:00",
+    "status": "spawned",
+    "agent": "/root/oracle_c5_complete_sol",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "contract": "execution/batches/native-luna-full-source-20261015/ORACLE-C5-COMPLETE-SOL-20261016.md",
+    "reference_dependency": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+    "scope_transfer": "MySQL engineer explicitly confirmed no current/planned writes to native_publication.rs,target.rs,target_installer.rs/append-only migrations;5.7 keeps frozen C1 ELF set",
+    "global_source_release_allowed": false,
+    "formal_source_count": 0,
+    "owner_registry_observed": "root/MySQL5.7/identity prerequisite/Oracle only; historical source engineers not live"
+  },
+  "historical_remaining_blockers": [
+    "Ten source full chains individually await original full exits and unified review; shared MySQL preview is not ten-source proof.",
+    "Doris/StarRocks C4 and global source-target generation/fence, ClickHouse new partition catalog and PG multi-table C1 remain pending actual fixed-runtime proof.",
+    "SQL Server actual approved native amd64 instance/EULA/config missing; customer access, formal owner/G/nightly remain separate original gates.",
+    "Compact dialogue harness d39ffcaa4 verified by offline actual transcript replay; actual aggregate child/model token ratio <=20% has not been measured."
+  ]
 }

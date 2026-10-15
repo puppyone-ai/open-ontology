@@ -34,7 +34,10 @@
     "crates/oo-gateway/src/public_surface.rs",
     "crates/oo-gateway/tests/query_executor_pg_live.rs",
     "tools/agent-product-verifier/dialogue.py",
-    "tools/agent-product-verifier/tests/test_dialogue.py"
+    "tools/agent-product-verifier/tests/test_dialogue.py",
+    "crates/oo-gateway/src/sql_guard.rs",
+    "crates/oo-gateway/tests/sql_guard.rs",
+    "crates/oo-gateway/tests/a327_numeric.rs"
   ],
   "root_scope": "coordination ledger and fixed evidence only; no duplicate product writer",
   "first_actual_finding": "real Linux binaries retained; real scheduler/producer invocation failures retained; typed full-import bridge remains refusal stub and is next implementation",
@@ -64,5 +67,6 @@
   "latest_current_quality_scope": "execution/batches/native-luna-full-source-20261015/mysql-current-quality-scope.json",
   "latest_dialogue_resume_scope": "execution/batches/native-luna-full-source-20261015/mysql-dialogue-resume-scope.json",
   "latest_partial_intake": "execution/reviews/native-luna-full-source-20261015/mysql-fixed-partial-provider-block-intake.json",
-  "latest_resume57_dispatch": "execution/batches/native-luna-full-source-20261015/mysql-resume57-dispatch.json"
+  "latest_resume57_dispatch": "execution/batches/native-luna-full-source-20261015/mysql-resume57-dispatch.json",
+  "latest_numeric_guard_scope": "execution/batches/native-luna-full-source-20261015/mysql-numeric-guard-scope.json"
 }

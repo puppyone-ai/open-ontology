@@ -1,0 +1,13 @@
+{
+  "as_of": "2026-10-15T18:21:32.910859+00:00",
+  "status": "spawned",
+  "agent": "/root/oracle_c5_complete_sol",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "contract": "execution/batches/native-luna-full-source-20261015/ORACLE-C5-COMPLETE-SOL-20261016.md",
+  "reference_dependency": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+  "scope_transfer": "MySQL engineer explicitly confirmed no current/planned writes to native_publication.rs,target.rs,target_installer.rs/append-only migrations;5.7 keeps frozen C1 ELF set",
+  "global_source_release_allowed": false,
+  "formal_source_count": 0,
+  "owner_registry_observed": "root/MySQL5.7/identity prerequisite/Oracle only; historical source engineers not live"
+}

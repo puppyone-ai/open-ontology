@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-15T19:28:35.916882+08:00",
+  "as_of": "2026-10-15T18:21:32.910859+00:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -33,11 +33,9 @@
     "new_agent_default": "native gpt-6.1-sol/medium, latest direct human authorization"
   },
   "platform_goal": {
-    "status_last_observed": "active",
-    "objective_replacement_supported_by_tool": false,
-    "replacement_definition": "execution/GOAL.md",
-    "no_false_completion": true,
-    "objective_matches_latest_user": true
+    "status": "active",
+    "verified_via": "get_goal current turn",
+    "blocked_audit_reset": 0
   },
   "resources": {
     "rust_global": null,
@@ -132,15 +130,16 @@
       ]
     },
     "random_dialogue_subexits": {
-      "verified": 5,
+      "verified": 6,
       "required": 10,
-      "scope": "test subexits only, source full0/10; PG continuous fixture not approvedfull product",
+      "scope": "Actual random test subexits only; MySQL8.4 new verified, required5.7pending and formal0/10",
       "intakes": {
         "clickhouse": "clickhouse17-structured-random-actual-intake.json",
         "opensearch": "opensearch-two-random-actual-intake.json",
         "doris": "doris-two-random-actual-intake.json",
         "postgresql": "postgresql-two-random-actual-intake.json",
-        "starrocks": "star-current19-two-random-actual-intake.json"
+        "starrocks": "star-current19-two-random-actual-intake.json",
+        "mysql": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json"
       }
     }
   },
@@ -1109,22 +1108,26 @@
   },
   "managed_live_native_agents": [
     {
-      "as_of": "2026-10-15T18:50:46.388216+08:00",
-      "human_model_authorization": "下一次开新子智能体，模型可以升级为gpt 6.1 sol medium",
-      "previous_owner": "/root/mysql_shared_reference_xhigh",
-      "previous_status": "completed final handoff; authoritative list_agents completed, root Docker observation only sleep",
-      "current_owner": "/root/mysql_shared_reference_sol",
+      "agent": "/root/mysql57_reference_sol",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "status": "spawned",
-      "same_indivisible_complete_task": true,
-      "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
-      "complete_prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-SOL-COMPLETE.md",
-      "handoff": "execution/batches/native-luna-full-source-20261015/mysql-sol-handoff.json",
-      "verified_artifact_hashes": 4,
-      "root_reason": "typed bridge still refusal stub; real runtime errors and retained artifacts transferred before next implementation, no duplicate writer",
-      "source_rollout_allowed": false,
-      "source_acceptance_delta": 0
+      "status": "running",
+      "scope": "complete5.7C1 chain with retained8.4fixed dependencies"
+    },
+    {
+      "agent": "/root/mysql57_identity_prerequisite",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "status": "running",
+      "scope": "isolated mysql57 actual install/bootstrap/OIDC prerequisite; control-identity test/own recipe only"
+    },
+    {
+      "agent": "/root/oracle_c5_complete_sol",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "status": "running",
+      "contract": "execution/batches/native-luna-full-source-20261015/ORACLE-C5-COMPLETE-SOL-20261016.md",
+      "scope": "completeOracleC5 reference plus explicitly transferred minimal publication paths"
     }
   ],
   "execution_policy": {
@@ -1180,7 +1183,9 @@
     "remaining": "genuine current S5/YAML/Pack/publication/Gateway/dialogue"
   },
   "shared_reference_live_agents": [
-    "/root/mysql_shared_reference_sol"
+    "/root/mysql57_reference_sol",
+    "/root/mysql57_identity_prerequisite",
+    "/root/oracle_c5_complete_sol"
   ],
   "source_closure_current": {
     "author_full_unpublished_preview": 7,
@@ -3140,14 +3145,16 @@
     }
   },
   "mysql_shared_reference": {
-    "as_of": "2026-10-15T18:50:46.388216+08:00",
-    "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
+    "as_of": "2026-10-15T18:21:32.910859+00:00",
     "reference_source": "mysql",
+    "verified_version": "8.4.10",
+    "status": "root_verified_complete_owned_fixture_reference",
+    "fixed_artifacts_ready": true,
+    "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+    "required_57_status": "active_not_complete",
+    "current_owner": "/root/mysql57_reference_sol",
     "release_other_sources": false,
-    "status": "implement_and_verify_complete_real_reference_before_reuse",
-    "fixed_artifacts_ready": false,
-    "human_instruction": "共享接口先在真实MySQL完整验通并固定制品，再让其余源复用",
-    "current_owner": "/root/mysql57_reference_sol"
+    "narrow_next_reference": "oracle_c5_complete_sol; original C5/S0 publish must be real before broad rollout"
   },
   "latest_mysql_single_owner_transfer": {
     "as_of": "2026-10-15T16:36:22.551950+08:00",
@@ -3372,5 +3379,44 @@
       "frontend": "untouched"
     },
     "official_references": "execution/batches/native-luna-full-source-20261015/mysql57-official-reference-notes.md"
-  }
+  },
+  "latest_mysql_numeric_guard_scope": {
+    "receipt": "execution/batches/native-luna-full-source-20261015/mysql-numeric-guard-scope.json",
+    "owner": "/root/mysql57_reference_sol",
+    "source_release_allowed": false,
+    "formal_source_count": 0
+  },
+  "latest_mysql8_complete_fixture_reference": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+    "formal_source_count_delta": 0,
+    "version_reference_pass": true
+  },
+  "latest_oracle_c5_complete_dispatch": {
+    "as_of": "2026-10-15T18:21:32.910859+00:00",
+    "status": "spawned",
+    "agent": "/root/oracle_c5_complete_sol",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "contract": "execution/batches/native-luna-full-source-20261015/ORACLE-C5-COMPLETE-SOL-20261016.md",
+    "reference_dependency": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+    "scope_transfer": "MySQL engineer explicitly confirmed no current/planned writes to native_publication.rs,target.rs,target_installer.rs/append-only migrations;5.7 keeps frozen C1 ELF set",
+    "global_source_release_allowed": false,
+    "formal_source_count": 0,
+    "owner_registry_observed": "root/MySQL5.7/identity prerequisite/Oracle only; historical source engineers not live"
+  },
+  "latest_mysql57_identity_dispatch": {
+    "as_of": "2026-10-15T18:21:32.910859+00:00",
+    "agent": "/root/mysql57_identity_prerequisite",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "status": "running",
+    "scope": [
+      "tools/control-identity/tests/live/main.rs",
+      "tools/control-identity/recipes/mysql57-*"
+    ],
+    "exit": "real isolated mysql57 DB/service normal install/bootstrap/OIDC, actual admin/reviewer/business_owner currentHTTP200, no8.4 mutation",
+    "ordinary_wait_seconds": 600,
+    "no_new_source_count": true
+  },
+  "current_execution_note": "Fixed complete owned MySQL8.4 reference verified; required5.7 C1 and isolated identity active; narrow OracleC5 complete reference with exclusive publication transfer, other8 held; formal0/10"
 }
