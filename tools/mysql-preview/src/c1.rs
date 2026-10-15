@@ -538,6 +538,7 @@ pub async fn baseline_stream(config: &Path, out: &Path) -> Result<(), PreviewErr
         rows: Vec::new(),
         events: 0,
         foreign: false,
+        source_commit_timestamp: None,
         out: out.to_path_buf(),
     };
     live.bind = bind_line(
@@ -764,7 +765,7 @@ fn consume_stream_event(
         json!({"schema":row.table.split_once('.').map(|pair|pair.0).unwrap_or(""),"table":row.table.split_once('.').map(|pair|pair.1).unwrap_or(""),"key":row.key_value,"op":if row.deleted {"delete"} else {"upsert"},"value":if row.deleted {Value::Null} else {payload_object_from_row(row)}})
     }).collect::<Vec<_>>();
     send_frame(
-        &json!({"kind":"transaction","txn_id":txn,"applied_pos":live.span.end,"rows":rows}),
+        &json!({"kind":"transaction","txn_id":txn,"applied_pos":live.span.end,"rows":rows,"source_commit_timestamp":live.source_commit_timestamp}),
     )?;
     read_worker_reply(input, "transaction")?;
     Ok(live.span.end)
@@ -1094,6 +1095,7 @@ struct Live {
     rows: Vec<Seen>,
     events: u64,
     foreign: bool,
+    source_commit_timestamp: Option<String>,
     out: PathBuf,
 }
 
@@ -1593,6 +1595,7 @@ async fn stream(
         rows: Vec::new(),
         events: 0,
         foreign: false,
+        source_commit_timestamp: None,
         out: out.to_path_buf(),
     };
     live.bind = bind_line(
@@ -1951,6 +1954,8 @@ impl Live {
         if self.foreign && !self.buf.is_empty() {
             return Err(PreviewError::new("c1", "mixed_txn"));
         }
+        let stamp = unix_text(timestamp).ok_or_else(|| PreviewError::new("c1", "timestamp"))?;
+        self.source_commit_timestamp = Some(stamp.clone());
         if self.buf.is_empty() {
             self.advance(&txn)?;
             self.pending = None;
@@ -1963,7 +1968,6 @@ impl Live {
             parse_commit_lsn(&lsn.0).map_err(|_| PreviewError::new("c1", "commit_lsn"))?,
         )
         .map_err(|_| PreviewError::new("c1", "commit_lsn"))?;
-        let stamp = unix_text(timestamp).ok_or_else(|| PreviewError::new("c1", "timestamp"))?;
         let begin = json!({"kind": "begin", "txn_id": txn}).to_string();
         let end = json!({
             "kind": "end",

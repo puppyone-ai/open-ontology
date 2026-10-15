@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("dialogue", Path(__file__).parents[1] / "dialogue.py")
 dialogue = importlib.util.module_from_spec(spec)
@@ -10,6 +11,12 @@ spec.loader.exec_module(dialogue)
 
 
 class DialogueEvidence(unittest.TestCase):
+    def test_target_dialect_guidance_contains_no_answer_or_sql(self):
+        self.assertIn('query target is PostgreSQL', dialogue.SYSTEM)
+        self.assertIn('schema-qualified relation names returned by tables and describe', dialogue.SYSTEM)
+        for value in ['SELECT', '0000-00-00', 'IS NULL', 'new_issues', 'missing_days']:
+            self.assertNotIn(value, dialogue.SYSTEM)
+
     def test_denied_query_retains_error(self):
         body = {"class": "gateway", "exit": 2, "code": "FUNCTION_NOT_ALLOWED", "message": "refused", "query_id": "denied"}
         self.assertEqual(dialogue.model_view("query", body), body)
@@ -254,3 +261,66 @@ class SelectionFreeze(unittest.TestCase):
         self.assertEqual(dialogue.coverage_nudge(set(), 0, 4), ["describe", "freshness", "knowledge_cat", "query"])
         self.assertEqual(dialogue.coverage_nudge({"query", "freshness", "describe", "knowledge_cat"}, 1, 4), [])
         self.assertEqual(dialogue.coverage_nudge(set(), 3, 4), [])
+
+
+class ResumeCoverage(unittest.TestCase):
+    def events(self):
+        result = {'query_id': 'real', 'columns': [{'name': 'qty'}], 'rows': [['5']]}
+        answer = json.dumps({'facts': {'qty': '5'}, 'evidence': {'qty': {'query_id': 'real', 'column': 'qty', 'row': 0}}})
+        def final(step, content=answer):
+            return {'turn': 0, 'step': step, 'model': {'choices': [{'message': {'content': content}}]}}
+        return [
+            {'turn': 0, 'tool': 'query', 'exit': 0, 'response': result},
+            final(1, 'premature answer is ignored by the online coverage rule'),
+            *[{'turn': 0, 'tool': tool, 'exit': 0, 'response': {}}
+              for tool in ['describe', 'freshness', 'knowledge_cat']],
+            final(3),
+        ]
+
+    def resume(self, events):
+        return dialogue.resume_completed(events, [{'prompt': 'current qty', 'truth_key': 'qty'}], gold(), 20)
+
+    def test_early_final_then_tools_then_grounded_final(self):
+        used, query_ids, answers, history = self.resume(self.events())
+        self.assertTrue(dialogue.REQUIRED_TOOLS <= used)
+        self.assertEqual(query_ids, {'real'})
+        self.assertEqual(len(answers), 1)
+        self.assertEqual(len(history), 2)
+
+    def test_incomplete_wrong_fact_and_future_evidence_are_refused(self):
+        events = self.events()
+        with self.assertRaisesRegex(ValueError, 'end in a verified'):
+            self.resume(events[:-1])
+        with self.assertRaisesRegex(ValueError, 'end in a verified'):
+            self.resume(events[:2])
+        bad = json.loads(json.dumps(events))
+        body = json.loads(bad[-1]['model']['choices'][0]['message']['content'])
+        body['facts']['qty'] = '0'
+        bad[-1]['model']['choices'][0]['message']['content'] = json.dumps(body)
+        with self.assertRaisesRegex(ValueError, 'differs'):
+            self.resume(bad)
+        earlier = json.loads(json.dumps(events[0]))
+        earlier['response']['query_id'] = 'earlier'
+        future = [earlier] + events[1:] + events[:1]
+        with self.assertRaises(KeyError):
+            self.resume(future)
+        with self.assertRaisesRegex(ValueError, 'consecutive'):
+            self.resume(events + [{'turn': 0, 'tool': 'freshness', 'exit': 0, 'response': {}}])
+
+    def test_wrong_transcript_hash_is_rejected_before_replay(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name, value in [('gold', gold()), ('transcript', self.events())]:
+                (root/name).write_text(json.dumps(value))
+            for name in ['bearer', 'token']:
+                (root/name).write_text('fixture-only')
+                (root/name).chmod(0o600)
+            cfg = {'questions': [{'prompt': 'current qty', 'truth_key': 'qty'}],
+                   'independent_truth_file': str(root/'gold'), 'model_origin': 'http://127.0.0.1:8317',
+                   'model_bearer_file': str(root/'bearer'), 'gateway_token_file': str(root/'token'),
+                   'gateway': 'fixture', 'transport': 'fixture', 'auth': 'fixture',
+                   'resume_transcript': str(root/'transcript'), 'resume_transcript_sha256': '0'*64}
+            (root/'config').write_text(json.dumps(cfg))
+            with patch('sys.argv', ['dialogue.py', '--config', str(root/'config'), '--out', str(root/'out')]):
+                with self.assertRaisesRegex(ValueError, 'transcript digest mismatch'):
+                    dialogue.main()

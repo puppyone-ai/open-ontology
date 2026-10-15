@@ -111,3 +111,20 @@ impl<'i> jsonschema::Keyword<'i> for Utf8MaxBytes {
         }
     }
 }
+
+#[cfg(test)]
+mod native_semantics_tests {
+    use super::*;
+    #[test]
+    #[ignore = "actual current native effective document required"]
+    fn current_native_source_semantics_are_schema_checked() {
+        let bytes=std::fs::read(std::env::var("OO_NATIVE_EFFECTIVE_SCHEMA_TEST").unwrap()).unwrap();
+        let value:Value=serde_json::from_slice(&bytes).unwrap();
+        assert!(apply(&value).is_ok());
+        for (key,invalid) in [("grade",Value::String("A".into())),("endpoint",Value::String("secret://mysql".into()))] {
+            let mut wrong=value.clone();wrong["datasets"][0]["source_semantics"][key]=invalid;
+            assert!(apply(&wrong).is_err());
+        }
+        println!("NATIVE_SCHEMA_RAW actual T/native schema passed; profile grade and endpoint fields refused");
+    }
+}

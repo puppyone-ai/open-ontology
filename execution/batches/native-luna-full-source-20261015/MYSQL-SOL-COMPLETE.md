@@ -40,3 +40,7 @@ execution/batches/native-luna-full-source-20261015/mysql-gateway-metadata-scope.
 ## Current-quality projection scope extension
 
 execution/batches/native-luna-full-source-20261015/mysql-current-quality-scope.json adds only query_executor.rs, public_surface.rs and query_executor_pg_live.rs to the same sole owner. Reuse exact currently authorized physical mappings; retain negative state/epoch guards. Original full exits and other source holds remain unchanged.
+
+## Dialogue resume consistency scope
+
+execution/batches/native-luna-full-source-20261015/mysql-dialogue-resume-scope.json transfers only dialogue.py and its tests to the same sole owner, to align chronological resume with online coverage_nudge. Preserve immutable original transcript/selection and strict grounded facts; finish installed six-field default entry with actual registry identity. This is not source acceptance.

@@ -23,6 +23,7 @@ pub struct ControlConn<'a> {
 pub struct MaintainRequest<'a> {
     pub control: ControlConn<'a>,
     pub target: TargetConn<'a>,
+    pub replica: Option<TargetConn<'a>>,
     pub reader_user: &'a str,
     pub reader_password: &'a str,
     pub project_id: &'a str,
@@ -223,6 +224,15 @@ async fn activate_locked(
     for b in &logical_bindings {
         bindings.push(resolve_binding(request, b).await?);
     }
+    let publication = request
+        .native_mapping
+        .map(crate::native_publication::from_context)
+        .transpose()?;
+    let publication = publication.flatten();
+    if publication.as_ref().is_some_and(|p|p.receipt.get("run_ids").is_none()) && bindings.len() != 1 {
+        return refuse_before_fence(request, "native_publication_requires_atomic_single_fence")
+            .await;
+    }
     let (schema, relation, role, _columns) = match selected_binding(&candidate.visibility, request)
     {
         Ok(binding) => binding,
@@ -231,7 +241,6 @@ async fn activate_locked(
     if schema != request.schema_name
         || relation != request.relation_name
         || role != request.role_name
-        || role != request.reader_user
     {
         return Ok(refused("target_binding", json!({})));
     }
@@ -377,7 +386,14 @@ async fn activate_locked(
         }
     }
     let epoch = format!("e{}", &candidate.source_hash[..16]);
-    for (kind, barrier) in [("fence", "closed"), ("replica", "missing")] {
+    let mut replica_observation = if let Some(replica) = &request.replica {
+        match target::replica_barrier(&request.target, replica).await {
+            Ok(observation) => Some(observation),
+            Err(err) => { revoke_all(request, &bindings).await?; return Err(err); }
+        }
+    } else { None };
+    let replica_state = if replica_observation.is_some() { "replayed" } else { "missing" };
+    for (kind, barrier) in [("fence", "closed"), ("replica", replica_state)] {
         let receipt = record_checkpoint(request, &authority, kind, barrier, &epoch).await?;
         let disposition = receipt
             .body
@@ -388,7 +404,7 @@ async fn activate_locked(
         let accepted = receipt.code == 0
             && (replay
                 || (kind == "fence" && disposition == "fresh")
-                || (kind == "replica" && disposition == "not_fresh"));
+                || (kind == "replica" && disposition == if replica_state == "replayed" { "fresh" } else { "not_fresh" }));
         if !accepted {
             revoke_all(request, &bindings).await?;
             return Ok(receipt);
@@ -410,22 +426,47 @@ async fn activate_locked(
         return Ok(committed);
     }
     let mut opened_rows = Vec::new();
+    if let Some(publication)=publication.as_ref().filter(|p|p.receipt.get("run_ids").is_some()) {
+        match target::open_native_collection(&request.target,&bindings,&candidate.pack_digest,&candidate.version,request.candidate_id,publication).await {
+            Ok(rows) if rows.iter().all(|r|r.code==0)=>opened_rows=rows,
+            result=>{
+                revoke_all(request,&bindings).await?;
+                let (schema,relation,role,_)=&bindings[0];
+                let fence=FenceRef {schema_name:schema,relation_name:relation,role_name:role};
+                let reason=match &result {Ok(_)=>"open_failed",Err(error)=>error.reason()};
+                return close_after_open_failure(request,&fence,&candidate.version,reason).await;
+            }
+        }
+    } else {
     for (schema, relation, role, columns) in &bindings {
         let f = FenceRef {
             schema_name: schema,
             relation_name: relation,
             role_name: role,
         };
-        match target::open_target(
-            &request.target,
-            &f,
-            columns,
-            &candidate.pack_digest,
-            &candidate.version,
-            request.candidate_id,
-        )
-        .await
-        {
+        let opened = if let Some(publication) = publication.as_ref() {
+            target::open_native_target(
+                &request.target,
+                &f,
+                columns,
+                &candidate.pack_digest,
+                &candidate.version,
+                request.candidate_id,
+                publication,
+            )
+            .await
+        } else {
+            target::open_target(
+                &request.target,
+                &f,
+                columns,
+                &candidate.pack_digest,
+                &candidate.version,
+                request.candidate_id,
+            )
+            .await
+        };
+        match opened {
             Ok(receipt) if receipt.code == 0 => opened_rows.push(receipt),
             Ok(receipt) => {
                 revoke_all(request, &bindings).await?;
@@ -454,17 +495,27 @@ async fn activate_locked(
             }
         }
     }
+    }
     let opened = aggregate_opened(opened_rows);
+    if let Some(replica)=&request.replica {
+        let after=match target::replica_barrier(&request.target,replica).await {
+            Ok(observation)=>observation,
+            Err(err)=>{revoke_all(request,&bindings).await?;return Err(err);}
+        };
+        replica_observation=Some(json!({"before_activation":replica_observation,"after_open":after}));
+    }
     if open_matches(&opened) {
         let g7 = Measured {
             gate_id: "G7",
             status: "pass",
             blocking: false,
-            detail: "open_grant_matches_pointer_columns".to_owned(),
+            detail: if let Some(observation)=&replica_observation {
+                format!("open_grant_matches_pointer_columns;replica={}",crate::canon::canonical(observation))
+            } else { "open_grant_matches_pointer_columns".to_owned() },
         };
         let g7_receipt = record_server_gate(
             &gate_request(request, &authority, &g7),
-            "open_grant_matches_pointer_columns",
+            &g7.detail,
         )
         .await?;
         if g7_receipt.code != 0
@@ -473,7 +524,9 @@ async fn activate_locked(
             return Ok(g7_receipt);
         }
     }
-    finish(request, &opened, &preconditions).await
+    let mut finished = finish(request, &opened, &preconditions).await?;
+    if let Some(observation) = replica_observation { finished.body["replica_observation"] = observation; }
+    Ok(finished)
 }
 
 async fn recover_locked(
@@ -1159,6 +1212,7 @@ fn aggregate_opened(rows: Vec<Receipt>) -> Receipt {
 
 fn rebind<'a>(r: &MaintainRequest<'a>, b: &'a apply::VisibilityBinding) -> MaintainRequest<'a> {
     MaintainRequest {
+        replica: r.replica,
         native_mapping: r.native_mapping,
         control: r.control,
         target: TargetConn {
@@ -1226,6 +1280,7 @@ async fn resolve_binding(
 
 fn with_mapping<'a>(r: &MaintainRequest<'a>, mapping: Option<&'a Value>) -> MaintainRequest<'a> {
     MaintainRequest {
+        replica: r.replica,
         native_mapping: mapping,
         control: r.control,
         target: TargetConn {

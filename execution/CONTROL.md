@@ -1,3 +1,5 @@
+2026-10-15 MySQL同一完整任务补齐对话resume窄写域：显式recipe诊断不冒默认入口（registry SHA仍null）；唯一Sol medium可修既有resume误收在线coverage已拒的提前final，复用同冻结身份、金标及真实QID/WAL的完整正确对话，避免重复付费。最终仍须默认安装六字段入口与完整固定制品。范围 execution/batches/native-luna-full-source-20261015/mysql-dialogue-resume-scope.json。真实gen6/GTID38自动维护发布及当前CLI已观测，随机完整出口仍待；shared未放行、正式0/10/其余九源held，原Plan/计数/整版/矩阵/前端不变。
+
 2026-10-15 MySQL当前质量写域补齐：CLI退出0但JSON仍STALE_DATA，Agent未放行；root目标核20个旧apply_receipts确为snapshot-zero/epoch0，不能冒C1就绪。唯一Sol medium获query_executor/public_surface及对应live测试窄写域，当前授权映射精确投影；新0037仅修新cut真实GTID/epoch/提交时刻，旧证据保留。范围见 execution/batches/native-luna-full-source-20261015/mysql-current-quality-scope.json；原完整任务/Plan/计数不变，整源0/10/shared未放行。
 
 2026-10-15 MySQL同一完整任务写域补齐：真实gen4五表已由正式API原子发布，root主/standby直读均live36/5 published/收据同一xid；Gateway新NOINHERIT login仍缺必要metadata reader。仅现有mapping-reader模块/CLI、两测试及两contract转给唯一Sol medium，显式native-vector模式复用既有验证和类型规则，保留旧模式，不重造Gateway或绕发布。精确域见 execution/batches/native-luna-full-source-20261015/mysql-gateway-metadata-scope.json。后续自主维护/再发布、Gateway随机对话及完整固定交付仍待；整源0/10、shared未放行/九源held，原Plan/分母/整版不变。

@@ -1,0 +1,26 @@
+{
+  "as_of": "2026-10-15T15:34:51.065656+00:00",
+  "owner": "/root/mysql_shared_reference_sol",
+  "scope": "same indivisible MySQL shared reference; resume-only consistency fix, no component acceptance",
+  "exclusive_write_paths": [
+    "tools/agent-product-verifier/dialogue.py",
+    "tools/agent-product-verifier/tests/test_dialogue.py"
+  ],
+  "actual_finding": "Explicit-recipe diagnostic journal engine_registry_sha256 is null. Ordinary installed six-field entry remains required. Existing transcript resume mistakes early finals rejected by online coverage nudge for completed turns.",
+  "requirements": [
+    "Reuse online coverage_nudge with chronological successful tool events and original step/limit, without weakening online completion or fact checks.",
+    "Keep original transcript/selection/verdict immutable; completed replay must match frozen identity, selection, gold, actual query IDs and durable WAL.",
+    "Regression for early final then required tools then verified final, plus digest/fact/incomplete-tail refusal.",
+    "Finish installed ordinary six-field path with nonnull engine_registry_sha256 and selected_engine_sha256; valid complete same-identity dialogue may be reused without paid duplication."
+  ],
+  "formal_source_count": 0,
+  "source_release_allowed": false,
+  "protocol_checks": {
+    "Plan": "original complete exits unchanged; no parent exit",
+    "counting": "no new unit or numerator",
+    "PRODUCT-LOOPS": "no full delivery",
+    "Goal": "active and same scope",
+    "support_matrix": "no promotion",
+    "frontend": "not touched"
+  }
+}

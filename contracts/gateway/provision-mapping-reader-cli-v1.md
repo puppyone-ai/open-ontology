@@ -85,3 +85,7 @@ The audit WAL, row-level security, and publication are open. This command does n
 The mapping grant is database-wide metadata exposure, as named above. Business column grants, `PUBLIC`, source grants, and `oo_target_owner` membership stay absent. This command does not add them and does not revoke a privilege it did not grant.
 
 M1-D14F stays open. This contract does not accept a parent plan item and it does not release.
+
+## Native publication vector
+
+The explicit protocol `oo.gateway.provision-native-vector-mapping-reader-cli/v1` accepts the same closed request fields and policy DTOs. It calls `provision_mapping_reader_native_vector`; the response reports this protocol and the actual `installed` or `replay` effect. It validates each policy's source/config/table generation and the existing published import/live watermark/open fence before provisioning the fixed mapping and freshness metadata reads. It does not install business ACLs or turn preview material into publication. See the native entry in `mapping-reader-access-v1.md` for the privilege and exposure boundary. Other protocol strings remain refused.

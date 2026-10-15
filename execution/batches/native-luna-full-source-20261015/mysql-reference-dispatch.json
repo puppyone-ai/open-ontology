@@ -32,7 +32,9 @@
     "contracts/gateway/provision-mapping-reader-cli-v1.md",
     "crates/oo-gateway/src/query_executor.rs",
     "crates/oo-gateway/src/public_surface.rs",
-    "crates/oo-gateway/tests/query_executor_pg_live.rs"
+    "crates/oo-gateway/tests/query_executor_pg_live.rs",
+    "tools/agent-product-verifier/dialogue.py",
+    "tools/agent-product-verifier/tests/test_dialogue.py"
   ],
   "root_scope": "coordination ledger and fixed evidence only; no duplicate product writer",
   "first_actual_finding": "real Linux binaries retained; real scheduler/producer invocation failures retained; typed full-import bridge remains refusal stub and is next implementation",
@@ -59,5 +61,6 @@
   "handoff": "execution/batches/native-luna-full-source-20261015/mysql-sol-handoff.json",
   "complete_prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-SOL-COMPLETE.md",
   "latest_gateway_metadata_scope": "execution/batches/native-luna-full-source-20261015/mysql-gateway-metadata-scope.json",
-  "latest_current_quality_scope": "execution/batches/native-luna-full-source-20261015/mysql-current-quality-scope.json"
+  "latest_current_quality_scope": "execution/batches/native-luna-full-source-20261015/mysql-current-quality-scope.json",
+  "latest_dialogue_resume_scope": "execution/batches/native-luna-full-source-20261015/mysql-dialogue-resume-scope.json"
 }

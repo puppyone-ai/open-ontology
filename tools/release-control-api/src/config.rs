@@ -21,6 +21,7 @@ pub struct PgEndpoint {
 
 pub struct TargetBinding {
     pub pg: PgEndpoint,
+    pub replica: Option<PgEndpoint>,
     pub schema_name: String,
     pub relation_name: String,
     pub role_name: String,
@@ -53,6 +54,10 @@ pub fn load_config(path: &Path) -> Result<Config, Fault> {
     let object = value.as_object().ok_or(Fault::malformed())?;
     let with_target = object.contains_key("target_pg");
     let mut keys = control_keys(with_target);
+    if object.contains_key("replica_pg") {
+        if !with_target { return Err(Fault::malformed()); }
+        keys.push("replica_pg");
+    }
     if object.contains_key("native_mapping") {
         if !with_target {
             return Err(Fault::malformed());
@@ -164,7 +169,7 @@ fn target_binding(directory: &Path, object: &Map<String, Value>) -> Result<Targe
     if !ident_ok(&schema_name)
         || !ident_ok(&relation_name)
         || !role_ok(&role_name)
-        || reader_user != role_name
+        || !ident_ok(&reader_user)
     {
         return Err(Fault::malformed());
     }
@@ -172,8 +177,11 @@ fn target_binding(directory: &Path, object: &Map<String, Value>) -> Result<Targe
         directory,
         &require_str(object, "target_reader_password_file")?,
     ))?;
+    let replica = object.get("replica_pg").map(|v| endpoint(directory, Some(v), "oo_target_admin")).transpose()?;
+    if replica.as_ref().is_some_and(|r| r.database != pg.database) { return Err(Fault::malformed()); }
     Ok(TargetBinding {
         pg,
+        replica,
         schema_name,
         relation_name,
         role_name,

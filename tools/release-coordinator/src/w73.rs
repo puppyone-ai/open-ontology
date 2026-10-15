@@ -153,6 +153,7 @@ fn maintain<'a>(
     expected: Option<&'a str>,
 ) -> MaintainRequest<'a> {
     MaintainRequest {
+        replica: None,
         native_mapping: None,
         control: control(env),
         target: target(env),
@@ -585,6 +586,7 @@ async fn kill_step_driver() {
                 pack: String::new(),
             };
             let request = MaintainRequest {
+                replica: None,
                 native_mapping: None,
                 control: control(&env),
                 target: target(&env),
@@ -1040,6 +1042,7 @@ async fn publish_maintenance_fence() {
     assert_eq!(granted.code, 0, "{:?}", granted.body);
     assert_eq!(granted.body["fence_state"], "granted");
     let cas = maintain_activate(&MaintainRequest {
+        replica: None,
         native_mapping: None,
         control: control(&env),
         target: target(&env),
