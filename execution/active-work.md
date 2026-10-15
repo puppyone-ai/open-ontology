@@ -1,3 +1,5 @@
+2026-10-16 MySQL演示认证维护：root于21:09:37UTC经现有official issuer为5.7/8.4各签发独立私有token，TTL3600000ms；CLI带 `--token-file /run-current/renewed-client-root-20261015T210936Z.token` 实测新badge/current position93/39正确。原默认token及QA/WAL/pins全部不改；新token需显式CLI参数，约22:09UTC到期，无自动续签。私有原始回执 /tmp/oo-root-mysql-auth-20261015T210936Z/receipt.json（SHA见CONTROL/JSON）；无业务DML/代码/Pack/正式签收变化。
+
 2026-10-16 已真实派发并收到Oracle唯一 /root/oracle_complete_luna_max（gpt-6-luna/max）接卡；与Doris唯一Luna max完整长跑独立并行，精确writer边界按两新卡，MySQL保持不可变固定服务、其他7held。Oracle父项DBX-W09/DL01-W1-10，Doris原Plan核实DBX-W12/DL01-W1-43。无组件审阅、无新验收/整版计数。
 
 2026-10-16 MySQL完整固定前置满足后恢复有独立接口/资源的Oracle C5整链，与Doris C4/C5并行；两个完整源均gpt-6-luna/max，Doris精确共享7文件/0039继续独占，Oracle只写本源目录+overlay.rs，使用既有generic单run发布固定ELF，无MySQL服务修改。前Oracle真实completed/550项旧包已核、overlay零改释放；当前ready卡ORACLE-COMPLETE-LUNA-MAX-20261016.md/dispatch oracle-luna-max-dispatch.json。实测Docker16CPU/94.1GiB、107容器用21.32GiB/约1.633核；只准备有用工程师，无空转凑并发。其他7held，正式0/10/整版0/原Plan全部退出及分母不变。
