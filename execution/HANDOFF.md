@@ -1,3 +1,5 @@
+2026-10-16 MySQL演示令牌更新：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261015T230526Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时、签发UTC见回执 /tmp/oo-root-mysql-auth-20261015T230526Z/receipt.json，无自动续签，原token/QA/pins/Pack/代码不改，无新增签收。
+
 2026-10-16 MySQL持续演示认证：root于22:06UTC经官方issuer签发独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261015T220602Z.token` 实查5.7/8.4新QID与当前位置93/39、无warnings；TTL1小时，约23:06UTC到期，无自动续签。原token/QA/pins不改，回执 /tmp/oo-root-mysql-auth-20261015T220602Z/receipt.json（SHA见CONTROL/JSON）；未改源数据/Pack/代码，无新增签收。
 
 2026-10-16 MySQL演示认证维护：root于21:09:37UTC经现有official issuer为5.7/8.4各签发独立私有token，TTL3600000ms；CLI带 `--token-file /run-current/renewed-client-root-20261015T210936Z.token` 实测新badge/current position93/39正确。原默认token及QA/WAL/pins全部不改；新token需显式CLI参数，约22:09UTC到期，无自动续签。私有原始回执 /tmp/oo-root-mysql-auth-20261015T210936Z/receipt.json（SHA见CONTROL/JSON）；无业务DML/代码/Pack/正式签收变化。
