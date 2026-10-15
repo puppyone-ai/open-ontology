@@ -1,0 +1,45 @@
+{
+  "source_commit": "bf1e21074d055b350b96952bd9b0f263f39c5f32",
+  "artifact_index": {
+    "path": "/Users/redux/.cache/oo-mysql57-identity/artifact-index.json",
+    "sha256": "b5aa42120d530c63b47520476e327a471507655ee1ad417e1c45a47214493eac"
+  },
+  "archive_sha_verified": true,
+  "regenerated_scoped_archive_match": true,
+  "runtime_binary_sha_verified": true,
+  "actual_authenticated_roles": [
+    {
+      "subject": "fixture-admin",
+      "role": "admin",
+      "project": "mysql57",
+      "status": 200,
+      "revision": 1
+    },
+    {
+      "subject": "fixture-reviewer",
+      "role": "reviewer",
+      "project": "mysql57",
+      "status": 200,
+      "revision": 1
+    },
+    {
+      "subject": "fixture-owner",
+      "role": "business_owner",
+      "project": "mysql57",
+      "status": 200,
+      "revision": 1
+    }
+  ],
+  "resume_runtime_test": "not_run",
+  "formal_source_count_delta": 0,
+  "scope": "actual isolated identity prerequisite; not source closure or customerowner certification",
+  "as_of": "2026-10-15T18:23:58.108015+00:00",
+  "root_check_sha256": "34fea507ca91cf2d2ef09e0b25bc6f6a2471472366ab43e159e85a932e50f241",
+  "prior_failure_preserved": "owned initial install prerequisite missing; no binding/session row edits",
+  "protocol_checks": {
+    "Plan": "no original exit changed",
+    "counting": "no source/development/integration/release formal count delta",
+    "matrix_frontend_PRODUCT_LOOPS_GOAL": "no applicable gate satisfied; unchanged",
+    "TODO": "regenerated and verified"
+  }
+}

@@ -260,6 +260,16 @@ class SelectionFreeze(unittest.TestCase):
                 "evidence": {"qty": {"query_id": "missing", "column": "qty", "row": 0}},
             }), {"qty": "1"}, {"q": body})
 
+    def test_tables_discovery_keeps_schema_and_query_choices_open(self):
+        tools = dialogue.tool_schema()
+        messages = [{'role': 'tool', 'tool_call_id': 'tables', 'content': '{"tables":["s.t"]}'}]
+        request = dialogue.completion_body('gpt-6.1-sol', messages, tools, 'auto', {'n': '99'}, False)
+        self.assertEqual(request['tool_choice'], 'auto')
+        self.assertTrue({'describe', 'knowledge_search', 'knowledge_cat', 'query'} <= {t['function']['name'] for t in request['tools']})
+        answer = json.dumps({'facts': {'n': '99'}, 'evidence': {'n': {'query_id': 'missing', 'column': 'n', 'row': 0}}})
+        with self.assertRaises(KeyError):
+            dialogue.verify_named_facts(answer, {'n': '99'}, {})
+
     def test_coverage_nudge_stops_after_the_tools_exist(self):
         self.assertEqual(dialogue.coverage_nudge(set(), 0, 4), ["describe", "freshness", "knowledge_cat", "query"])
         self.assertEqual(dialogue.coverage_nudge({"query", "freshness", "describe", "knowledge_cat"}, 1, 4), [])

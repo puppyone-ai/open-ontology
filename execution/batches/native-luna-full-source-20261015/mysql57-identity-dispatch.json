@@ -3,12 +3,14 @@
   "agent": "/root/mysql57_identity_prerequisite",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "medium",
-  "status": "running",
+  "status": "completed_writer_released_resources_retained",
   "scope": [
     "tools/control-identity/tests/live/main.rs",
     "tools/control-identity/recipes/mysql57-*"
   ],
   "exit": "real isolated mysql57 DB/service normal install/bootstrap/OIDC, actual admin/reviewer/business_owner currentHTTP200, no8.4 mutation",
   "ordinary_wait_seconds": 600,
-  "no_new_source_count": true
+  "no_new_source_count": true,
+  "source_commit": "bf1e21074d055b350b96952bd9b0f263f39c5f32",
+  "root_intake": "execution/reviews/native-luna-full-source-20261015/mysql57-identity-prerequisite-intake.json"
 }
