@@ -10142,5 +10142,15 @@
     "status": "spawned",
     "scope": "same indivisible complete MySQL shared reference; other sources held",
     "source_acceptance_delta": 0
+  },
+  "latest_new_agent_model_authorization": {
+    "as_of": "2026-10-15T18:24:05.621579+08:00",
+    "human_instruction": "下一次开新子智能体，模型可以升级为gpt 6.1 sol medium",
+    "new_agent_model": "gpt-6.1-sol",
+    "new_agent_reasoning_effort": "medium",
+    "current_agent": "/root/mysql_shared_reference_xhigh",
+    "current_agent_policy": "continue existing Luna xhigh complete task; do not interrupt/reduplicate solely for model upgrade",
+    "source_rollout_allowed": false,
+    "scope": "unchanged complete MySQL reference before other sources reuse"
   }
 }
