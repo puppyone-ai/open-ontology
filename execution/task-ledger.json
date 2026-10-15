@@ -10042,5 +10042,30 @@
     "whole_exit": "original per-source capture; initial import + autonomous configurable update/delete/recovery; S0-S10 current ontology/approved Pack/live gateway/CLI/two fresh semantic dialogues and independent source truth/WAL; no lowered exits",
     "first_default_attempts": "Star cd72 failed UNAUTHENTICATED; next74a9 failed missing pack.json on retained-product path; fixed b679813/5b91e35; shared legal repin and new run pending; failures retained",
     "source_progress": "Maria Docker Linux1.94 C1 tests5/5; SQL gtidscope targeted test passed and official0025/installer/worker integration pending; PG cbdb18f30/c6f7c51e7/edc7c682a helper fixes; Doris c0644fad1/e26f69174 actual method metadata/random history fixes; no complete author source acceptance"
+  },
+  "latest_doris_default_candidate_original_exit_audit": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/doris-default-candidate-original-exits-intake.json",
+    "accepted": false,
+    "normal_entry_verified": true,
+    "original_auto_maintenance_missing": true,
+    "formal_count_delta": 0
+  },
+  "latest_native_resume": {
+    "as_of": "2026-10-15T15:54:37.452885+08:00",
+    "old_handles": "absent from collaboration.list_agents; not inferred from environment list",
+    "dispatch": "execution/batches/native-luna-full-source-20261015/dispatch.json",
+    "contract": "execution/batches/native-luna-full-source-20261015/RESUME.md",
+    "formal_count_delta": 0
+  },
+  "latest_publication_gap_resolution": {
+    "as_of": "2026-10-15T16:04:19.025434+08:00",
+    "owner": "/root/luna_native_publication_whole",
+    "spec_requirements": [
+      "user flow6: unpublished Pack cannot start data QA",
+      "native import: awaiting_publish initially invisible; atomic grants/RLS/view + readonly-replica barrier"
+    ],
+    "original_full_source_count": 0,
+    "models": "new native paid dialogues held until actual original publication gate; prior preview evidence retained",
+    "dispatch": "execution/batches/native-luna-full-source-20261015/dispatch.json"
   }
 }

@@ -3,7 +3,16 @@
 
 A transaction may name one table. Unmentioned tables keep their mappings.
 """
-import sys, json, pathlib, subprocess, time, shutil, fcntl, os
+import sys, json, pathlib, subprocess, time, shutil, fcntl, os, hashlib
+BASE = pathlib.Path(__file__).resolve().parent
+HELPER_SHA256 = {
+    'prepare.py': '2990a084954e5d653cddca9bb0f7e8208795d644dc2b7a412fbc3142c68e6479',
+    'transaction_group.py': 'e801559534e3ab8e78a61ba7767ab7a7d92bda29aa48852bcd2ccffaa652c6ca',
+}
+for name, expected in HELPER_SHA256.items():
+    if hashlib.sha256((BASE / name).read_bytes()).hexdigest() != expected:
+        raise RuntimeError(f'fixed producer helper hash mismatch: {name}')
+sys.path.insert(0, str(BASE))
 from prepare import prepare, read
 from transaction_group import already_applied, assemble, load_admitted
 R = pathlib.Path('/finish/continuous')

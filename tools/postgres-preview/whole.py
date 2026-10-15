@@ -221,27 +221,42 @@ def restart_api():
         time.sleep(2)
     raise RuntimeError('api list did not return after restart: ' + str(last))
 
-def acl_transition(generation, out):
+def acl_transition(binding, out):
     done = out / 'acl-ok.json'
     if done.exists():
         return json.loads(done.read_text())
     if sha(FIXED_ELF) != FIXED_ELF_SHA:
         raise RuntimeError('fixed acl elf sha mismatch')
-    previous_doc = json.loads(Path('/tmp/oo-pg46-runtime-finish/continuous/install-acl-fixture-role.json').read_text())
-    current_generation = previous_doc['policies'][0]['generation']
-    if current_generation == generation:
+    previous_doc = json.loads(Path('/tmp/oo-pg46-runtime-finish/continuous/install-acl-common-generation.json').read_text())
+    if len(previous_doc.get('policies', [])) != 4 or sum(len(policy.get('table', {}).get('columns', [])) for policy in previous_doc['policies']) != 38 or any(policy.get('role') != 'oo_r_pg46_full' or policy.get('login') != 'oo_pg46_preview_login' for policy in previous_doc['policies']):
+        raise RuntimeError('previous full-role ACL policy identity mismatch')
+    generations = {item['dataset']: item['source_generation'] for item in binding.get('binding_vector', [])}
+    if len(generations) != 4:
+        raise RuntimeError('full-role source binding vector is incomplete')
+    current_by_dataset = {f"{policy['table']['namespace']}.{policy['table']['name']}": policy['generation'] for policy in previous_doc['policies']}
+    if set(current_by_dataset) != set(generations):
+        raise RuntimeError('previous full-role ACL tables do not match the source binding vector')
+    if any(generations[name] <= current_by_dataset[name] for name in generations if generations[name] != current_by_dataset[name]):
+        raise RuntimeError('full-role ACL generation would move backwards')
+    if all(current_by_dataset[name] == generation for name, generation in generations.items()):
         return {'effect': 'already_current'}
     stage = Path('/tmp/oo-pg46-runtime-finish/onboard/acl')
     stage.mkdir(mode=0o700, parents=True, exist_ok=True)
     ca = stage / 'ca.pem'
     ca.write_bytes(Path('/tmp/oo-pg46-tls-durable/ca.pem').read_bytes())
     import connection_cycle
-    def document(gen):
-        policies = [{**policy, 'generation': gen, 'row_filter': None} for policy in previous_doc['policies']]
+    def document(new_generation=False):
+        policies = []
+        for policy in previous_doc['policies']:
+            item = {**policy, 'row_filter': None}
+            dataset = f"{policy['table']['namespace']}.{policy['table']['name']}"
+            if new_generation:
+                item['generation'] = generations[dataset]
+            policies.append(item)
         return {'protocol': 'oo.gateway.install-native-vector-acl-cli/v1', 'policies': policies, 'endpoint': previous_doc['endpoint'], 'password_file': '/tmp/acl-super', 'ca_file': connection_cycle.cpath(ca)}
     previous, current = stage / 'previous.json', stage / 'current.json'
-    previous.write_text(json.dumps(document(current_generation)))
-    current.write_text(json.dumps(document(generation)))
+    previous.write_text(json.dumps(document()))
+    current.write_text(json.dumps(document(True)))
     os.chmod(previous, 0o600)
     os.chmod(current, 0o600)
     subprocess.run(['docker', 'cp', str(FIXED_ELF), 'oo-pg46-runtime-finish:/tmp/install-column-acl'], check=True, timeout=60)
@@ -262,37 +277,64 @@ def acl_transition(generation, out):
 def align_gateway(catalog_path, out):
     import connection_cycle
     cat = json.loads(Path(catalog_path).read_text())
-    reviewed = Path('/tmp/oo-pg46-runtime-finish/continuous/gateway/reviewed/pg46_full')
-    backup = out / 'gateway-before'
+    gateway_root = Path('/tmp/oo-pg46-runtime-finish/continuous/gateway/reviewed')
+    reviewed = gateway_root / 'pg46_full_current'
+    approved = Path('/tmp/oo-pg46-runtime-finish/onboard/full-publication')
+    evidence = json.loads((approved / 'evidence.json').read_text())
+    approved_input = approved / 'native-input.json'
+    if sha(approved_input) != evidence.get('native_input_sha256'):
+        raise RuntimeError('approved full-role native input hash mismatch')
+    if evidence.get('role') != 'oo_r_pg46_full' or evidence.get('binding_role') != 'pg46_full' or evidence.get('login') != 'oo_pg46_preview_login' or len(json.loads(approved_input.read_text()).get('decisions', [])) != 38:
+        raise RuntimeError('approved full-role policy identity or 38-column decision set mismatch')
+    backup = out / 'gateway-full-current-before'
     if not backup.exists():
         shutil.copytree(reviewed, backup)
-    native = json.loads((backup / 'native-input.json').read_text())
+    prior_binding = json.loads((backup / 'binding.json').read_text())
+    if prior_binding.get('role') != 'pg46_full' or prior_binding.get('login') != 'oo_pg46_preview_login':
+        raise RuntimeError('current full-role binding identity mismatch')
+    native = json.loads(approved_input.read_text())
     native['catalog'] = cat
     collection = cat['collection_sha256']
     for decision in native['decisions']:
         decision['schema_hash'] = collection
     native['settings']['catalog_version'] = collection
-    staged, compiled = Path('/tmp/oo-pg46-runtime-finish/onboard/native-input.json'), Path('/tmp/oo-pg46-runtime-finish/onboard/command.json')
+    staged, compiled = approved / 'next-native-input.json', approved / 'next-command.json'
     staged.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    staged.write_text(json.dumps(native))
+    staged.write_text(json.dumps(native, indent=2) + '\n')
+    os.chmod(staged, 0o600)
     proc = subprocess.run(['docker', 'exec', 'oo-pg46-runtime-finish', '/finish/continuous/pg-builder-current', 'sealed-review', '--command', connection_cycle.cpath(staged), '--out', connection_cycle.cpath(compiled)], capture_output=True, timeout=60)
     (out / 'sealed-review.stderr').write_bytes(proc.stderr)
     if proc.returncode:
         raise RuntimeError('reviewed compile failed')
     command = json.loads(compiled.read_text())
-    if command['provenance']['collection_sha256'] != collection:
+    vector = command['provenance']['binding_vector']
+    if command['provenance']['collection_sha256'] != collection or command['provenance']['decisions_sha256'] != canon_sha(native['decisions']) or len(vector) != 4 or {item.get('dataset') for item in vector} != {item.get('dataset') for item in cat['datasets']} or any(item.get('source_id') != 'oo_pg46_finish' for item in vector):
         raise RuntimeError('compiled collection hash drifted')
-    binding = json.loads((backup / 'binding.json').read_text())
+    binding = prior_binding
     binding['binding_vector'] = command['provenance']['binding_vector']
     binding['schema_hash'] = collection
     binding['catalog_version'] = command['effective_oos']['catalog_version']
     binding['generation'] = max(item['source_generation'] for item in binding['binding_vector'])
     binding['artifact_sha256'] = canon_sha(cat)
     binding['config_digest'] = binding['binding_vector'][0]['config_digest']
-    (reviewed / 'native-input.json').write_text(json.dumps(native))
-    (reviewed / 'command.json').write_text(compiled.read_text())
-    (reviewed / 'binding.json').write_text(json.dumps(binding))
-    acl_transition(binding['generation'], out)
+    if binding.get('role') != 'pg46_full' or binding.get('login') != 'oo_pg46_preview_login':
+        raise RuntimeError('compiled binding lost the approved full-role identity')
+    staged_dir = gateway_root / 'pg46_full_current.next'
+    if staged_dir.exists():
+        shutil.rmtree(staged_dir)
+    shutil.copytree(backup, staged_dir)
+    for name, content in [('native-input.json', json.dumps(native, indent=2) + '\n'), ('command.json', compiled.read_text()), ('binding.json', json.dumps(binding, indent=2) + '\n')]:
+        path = staged_dir / name
+        path.write_text(content)
+        os.chmod(path, 0o600)
+    acl_transition(binding, out)
+    retired = gateway_root / f'pg46_full_current.previous-{time.time_ns()}'
+    os.replace(reviewed, retired)
+    try:
+        os.replace(staged_dir, reviewed)
+    except Exception:
+        os.replace(retired, reviewed)
+        raise
     subprocess.run(['docker', 'restart', GW], check=True, timeout=120)
     deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
@@ -304,7 +346,9 @@ def align_gateway(catalog_path, out):
             except RuntimeError:
                 pass
         time.sleep(1)
-    shutil.copytree(backup, reviewed, dirs_exist_ok=True)
+    failed = gateway_root / f'pg46_full_current.failed-{time.time_ns()}'
+    os.replace(reviewed, failed)
+    os.replace(retired, reviewed)
     subprocess.run(['docker', 'restart', GW], check=False, timeout=120)
     raise RuntimeError('gateway did not listen on the new binding')
 

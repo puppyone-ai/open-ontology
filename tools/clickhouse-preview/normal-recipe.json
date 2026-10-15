@@ -1,0 +1,253 @@
+{
+  "protocol": "oo.source-onboarding.recipe/v1",
+  "engine": "clickhouse",
+  "owned_fixture": true,
+  "mode": "whole_source",
+  "completion_artifact": "whole.json",
+  "config_template": "/tmp/oo-clickhouse-connection-whole/whole-template.json",
+  "connection_map": {
+    "/source/host": "host",
+    "/source/port": "port",
+    "/source/database": "database",
+    "/source/user": "user",
+    "/source/password_file": "password_file"
+  },
+  "pins": [
+    {
+      "path": "/opt/homebrew/opt/python@3.14/bin/python3.14",
+      "sha256": "f2bb9677ea7661fcf4703fa704c2049d7b7066dc4a1ffb0cfd1ceceed3b2a79c"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/normal_entry.py",
+      "sha256": "3a00512f0f3c02819d65afb76b3bac3c0d18f5e90cacef574473659dbc049204"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/source-onboarding/product_flow.py",
+      "sha256": "7784238585f46927f245879732f0d3714c7dedc513952a4fcadbac00051b95db"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/agent-product-verifier/dialogue.py",
+      "sha256": "816ffbaefc30bd5e2fd633c44a2dc4c20d21db5cd7eff8ad09eb3ba9810d7afc"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/connection_whole.py",
+      "sha256": "306299aa5a48a594129dba42cd8b97f3e5a2c153839ba56a9db13f7434aa8455"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/capture_original_partitions.py",
+      "sha256": "11b2c1da3105f2ca8acdeea22f9938b9f26edd93e16a12a79efe5e5e683f9036"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/fresh_capture.py",
+      "sha256": "bafcc7ad4c998bf6eb659ed4c7840346cd17c4cbce1fba6a2e64385c7d407a16"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/connection_target.py",
+      "sha256": "35d4a0308695ea6c9994040dd28b265a087ecc02f8f5202bc2dd968db9c850bf"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/connection_load.py",
+      "sha256": "35a6e312a1574e760e17ef0b945408d5970b1d85f6676fd0aaa2e2c128d33269"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/connection_materialize.py",
+      "sha256": "0ed5fe5e6cca1335c83175af900c6053b74bcd0219224b4780a2cf679091606d"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/verify_current_c4_target.py",
+      "sha256": "07929fb1a772f98543b6b12979fe090e119ba9010b3648dd38a467506e57c0b6"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/build_current_c4_bundle.py",
+      "sha256": "8737209fc19aed6262dc0db374ab4944a7923b6dc70f4a69e931c7b8c521b561"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/oo_cli.py",
+      "sha256": "2c8f15f55b4c010d3fdef4b1bdbf696f4d4f8939bec60367dfd3f9ce5a5e5b49"
+    },
+    {
+      "path": "/Users/redux/puppy-one/open-ontology/tools/pg-builder/scripts/export_native_collection.py",
+      "sha256": "2c8ae0a5067e2c45b8b6e84bfcdf7bf13bc5758d5ff0b10887f3bd9bbc94ce83"
+    }
+  ],
+  "steps": [
+    {
+      "name": "cycle",
+      "deadline_seconds": 2400,
+      "argv": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/normal_entry.py",
+        "cycle",
+        "{run}"
+      ],
+      "artifacts": [
+        {
+          "path": "cycle-receipt.json"
+        },
+        {
+          "path": "quiet.json"
+        }
+      ]
+    },
+    {
+      "name": "product",
+      "deadline_seconds": 240,
+      "argv": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/Users/redux/puppy-one/open-ontology/tools/source-onboarding/product_flow.py",
+        "--config",
+        "/Users/redux/.cache/oo-source-onboarding/runs/c2c83cdbf24740a19338c87df7d7957f/product-config.json",
+        "--out",
+        "{run}/product",
+        "--reuse-product",
+        "/Users/redux/.cache/oo-source-onboarding/runs/c2c83cdbf24740a19338c87df7d7957f/product",
+        "--reuse-receipt",
+        "ac064e76c056e48785696f7e29d9ebd46b2bd29da83996ff7d98445e943b90bd"
+      ],
+      "artifacts": [
+        {
+          "path": "product/product-receipt.json"
+        },
+        {
+          "path": "product/maintenance-consumption.json"
+        }
+      ]
+    },
+    {
+      "name": "bind",
+      "deadline_seconds": 300,
+      "argv": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/normal_entry.py",
+        "bind",
+        "{run}"
+      ],
+      "artifacts": [
+        {
+          "path": "bind/issue-token/stdout"
+        },
+        {
+          "path": "bind/issue-token/stderr"
+        },
+        {
+          "path": "bind/issue-token/exit"
+        },
+        {
+          "path": "cancel/receipt.json"
+        },
+        {
+          "path": "dialogue-config.json"
+        },
+        {
+          "path": "dialogue-b-config.json"
+        },
+        {
+          "path": "gold.json"
+        }
+      ]
+    },
+    {
+      "name": "preflight",
+      "deadline_seconds": 240,
+      "argv": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/normal_entry.py",
+        "preflight",
+        "{run}"
+      ],
+      "artifacts": [
+        {
+          "path": "preflight/describe/stdout"
+        },
+        {
+          "path": "preflight/describe/stderr"
+        },
+        {
+          "path": "preflight/describe/exit"
+        },
+        {
+          "path": "preflight/query/stdout"
+        },
+        {
+          "path": "preflight/query/stderr"
+        },
+        {
+          "path": "preflight/query/exit"
+        },
+        {
+          "path": "preflight/freshness/stdout"
+        },
+        {
+          "path": "preflight/freshness/stderr"
+        },
+        {
+          "path": "preflight/freshness/exit"
+        },
+        {
+          "path": "preflight/identity.json"
+        }
+      ]
+    },
+    {
+      "name": "dialogue",
+      "deadline_seconds": 1500,
+      "argv": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/Users/redux/puppy-one/open-ontology/tools/agent-product-verifier/dialogue.py",
+        "--config",
+        "{run}/dialogue-config.json",
+        "--out",
+        "{run}/dialogue"
+      ],
+      "artifacts": [
+        {
+          "path": "dialogue/selection.json"
+        },
+        {
+          "path": "dialogue/transcript.json"
+        },
+        {
+          "path": "dialogue/verdict.json"
+        }
+      ]
+    },
+    {
+      "name": "dialogue-b",
+      "deadline_seconds": 1500,
+      "argv": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/Users/redux/puppy-one/open-ontology/tools/agent-product-verifier/dialogue.py",
+        "--config",
+        "{run}/dialogue-b-config.json",
+        "--out",
+        "{run}/dialogue-b"
+      ],
+      "artifacts": [
+        {
+          "path": "dialogue-b/selection.json"
+        },
+        {
+          "path": "dialogue-b/transcript.json"
+        },
+        {
+          "path": "dialogue-b/verdict.json"
+        }
+      ]
+    },
+    {
+      "name": "close",
+      "deadline_seconds": 60,
+      "argv": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/Users/redux/puppy-one/open-ontology/tools/clickhouse-preview/scripts/normal_entry.py",
+        "close",
+        "{run}"
+      ],
+      "artifacts": [
+        {
+          "path": "whole.json"
+        }
+      ]
+    }
+  ]
+}

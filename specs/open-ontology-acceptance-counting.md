@@ -1,3 +1,9 @@
+
+2026-10-15 当前发布硬门槛：root重读Spec第6项/原native导入发布退出，未发布Pack不可开始正式数据问答、awaiting_publish首次不可见。此前只凭准确且披露STALE_DATA允许preview不足以完整原退出；所有新native付费对话先暂停。现有CLI/source typedgold真实成果保留。唯一native-publication负责人获原release tools/native_catalog写域（原writer明确无修改/后台），复用发布coordinator+审核/角色/只读副本barrier，补实际native发布完整能力而非手SQLflip状态；source正式0/10、分母/整版不变。当前11running/OS1已交接待此依赖，非12个全部live。
+
+### 2026-10-15 Doris 默认入口候选实际验收与原退出差距
+
+Doris固定源码eb7da5241、共享b0841416的普通六字段run2f3537四步exit0，实际S0–S10复用/current19维护LLM0/当前Pack/两随机Grok4.7工具对话。root已核所有journal制品hash、两个named fact与原sourcegold/实际CLI结果、两QID admit+complete WAL；记录见 `execution/reviews/native-luna-full-source-20261015/doris-default-candidate-original-exits-intake.json`。原period0/1/2仅证明定时源读取，未证明自主每tick Loader/ACK/维护，当前C4方法侧录尚未被Ontology/Pack正式消费；故whole.json/registry whole=true不等于原完整源通过，正式0/10及所有原分母不变。Doris唯一工程师继续完整退出，保留现成功与失败，不重跑已正确模型/DML。Star旧8f22 NativeServe已精准停，fixedf1ba pin232实际complete=nochange，无Loader/ACK/水位推进；新fixedserve PID7762具名接续，源作者正式周期验证继续。0025原已安装b4da必须不变；误改嵌入43d9制品已撤用，新增0026和caller2ece660a等待固定build。
 ## 2026-10-15 当前原生 Luna 完整长跑授权
 
 最新用户“授权gpt6 luna继续，加快进度”覆盖此前原生禁用与 Grok-only 开发；当前开发原生 `gpt-6-luna/low`，十一名唯一负责人（十源含 MySQL、Oracle，加共享默认入口），实际 running 名单、原完整卡、独占范围及现存资源见 [本轮派发](../execution/batches/native-luna-full-source-20261015/dispatch.json)。旧受管理 Grok 已核终态，402及失败证据保留，产品模型/私有URL/key政策保持。平台 Goal 本轮实际核为 active。普通等待 `clock.sleep` 600秒，事件立即收取；CPU/编译固定上限继续解除，禁止重复writer、空转并发和跨域提交。

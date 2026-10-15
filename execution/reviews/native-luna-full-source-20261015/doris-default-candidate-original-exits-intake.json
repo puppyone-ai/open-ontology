@@ -1,0 +1,32 @@
+{
+  "as_of": "2026-10-15T02:40:41.862569+08:00",
+  "source": "doris",
+  "run": "/Users/redux/.cache/oo-source-onboarding/runs/2f3537aba8e44bf6bed328bb37a00b25",
+  "author_source_commit": "eb7da5241",
+  "shared_fix_commit": "b0841416747a85abf7c8261436ce3b8c5fb8199f",
+  "verified_level": "normal-entry S0-S10/current maintenance/current Pack/autonomous CLI random two-turn candidate; original whole source not accepted",
+  "root_checks": [
+    "all four journal steps exit0 and every journal artifact exact hash",
+    "fixed Doris wrapper SHA matches git eb7da5241",
+    "two named facts independently rerun validator against frozen source gold and raw query results",
+    "both QIDs have actual admit+complete WAL"
+  ],
+  "hashes": {
+    "journal.json": "50d0f4d025325657f4349699801a3e18b15cd55b1724469777878bd511253bd8",
+    "whole.json": "1fa8c544469ff73f6ba75d4d76b17b04a75af4c6d983e4963fc5f623a1f546cd",
+    "dialogue/selection.json": "819f19d0774c3368490b82dfeeb4e04ff14a9108b50255d822cd61cf6b4abda8",
+    "dialogue/transcript.json": "7b6e6627e15ec7e904c4b2324f46d2a6306061b00356816d658c8a60c9b2df35",
+    "dialogue/verdict.json": "3fdf6c49107f1740013170171f0f0f68b11e88ca94e868e78d98f6bb2e791e57",
+    "product/maintenance-consumption.json": "df4d829757587b3afbcec4d27befb8b8af48499f778f5d4b4761a007b0bca80e",
+    "current-source-semantics.json": "542e95e47a7e07e4ef00ab34e8d0170de9c9dc34708d98edcc16c4d4cea202fa"
+  },
+  "original_exit_gap": [
+    "retained period0/1/2 prove actual scheduled source reads and fixture IUD but no autonomous per-tick Loader/ACK/current ontology-Pack maintenance",
+    "current C4 method declaration exists only in sidecar; immutable S5 source semantics still all-C5 and current Pack has no per-table capture methods"
+  ],
+  "source_owner_next": "continue same complete Doris engineer; reuse fixed generic NativeServe and correct current metadata; preserve candidate/failed runs; no repeat existing successful S5/DML/model",
+  "formal_source_accepted": false,
+  "count_delta": 0,
+  "registry_caveat": "official whole-run registered whole=true proves current program predicates only; predicate not sufficient for original exits",
+  "shared_installer": "original0025 installed digest b4da80 immutable restored; mistakenly modified0025 embedded43d9 withdrawn, additive0026 and newcaller2ece660a nextfixedbuild pending; installer source caller aa296d0b and verified package49a9/ELF5cb retained; actual owned newDB install+replay author outputs available"
+}

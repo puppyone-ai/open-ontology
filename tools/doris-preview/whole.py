@@ -1184,16 +1184,16 @@ PRIOR_SEQUENCES = (
 )
 BANK = [
     {'semantic_id': 'uniq_acct.id1.label', 'query_class': 'point_value',
-     'prompt': 'Using the public relation oo_dl01w1_43.uniq_acct, inspect the row whose id is 1 and report its label.',
+     'prompt': 'Use tables and describe to discover the exact relation oo_dl01w1_43.uniq_acct. First discover and read its current role Pack document using knowledge_search, then knowledge_cat with the exact returned path. Use the exact relation name without adding a schema qualifier. Independently inspect the row whose id is 1 and report its label.',
      'truth_key': 'uniq_id1_label'},
     {'semantic_id': 'part_day.day20260422.amount', 'query_class': 'point_value',
-     'prompt': 'Using the public relation oo_dl01w1_43.part_day, inspect the row whose day is 2026-04-22 and region is west and report its amount.',
+     'prompt': 'Use tables and describe to discover the exact relation oo_dl01w1_43.part_day. First discover and read its current role Pack document using knowledge_search, then knowledge_cat with the exact returned path. Use the exact relation name without adding a schema qualifier. Independently inspect the row whose day is 2026-04-22 and region is west and report its amount.',
      'truth_key': 'part_20260422_amount'},
     {'semantic_id': 'part_day.day20260311.amount', 'query_class': 'point_value',
-     'prompt': 'Using the public relation oo_dl01w1_43.part_day, inspect the row whose day is 2026-03-11 and region is west and report its amount.',
+     'prompt': 'Use tables and describe to discover the exact relation oo_dl01w1_43.part_day. First discover and read its current role Pack document using knowledge_search, then knowledge_cat with the exact returned path. Use the exact relation name without adding a schema qualifier. Independently inspect the row whose day is 2026-03-11 and region is west and report its amount.',
      'truth_key': 'part_20260311_amount'},
     {'semantic_id': 'agg_qty.population', 'query_class': 'population',
-     'prompt': 'Using the public relation oo_dl01w1_43.agg_qty, report how many rows it currently contains.',
+     'prompt': 'Use tables and describe to discover the exact relation oo_dl01w1_43.agg_qty. First discover and read its current role Pack document using knowledge_search, then knowledge_cat with the exact returned path. Use the exact relation name without adding a schema qualifier. Independently determine how many rows it currently contains.',
      'truth_key': 'agg_population'},
 ]
 GOLD_CELL = {
@@ -1295,6 +1295,7 @@ def bind_run(run):
     if sha256(run / 'product' / 'product-receipt.json') != REUSED_RECEIPT:
         raise RuntimeError('receipt_rewritten')
     token_hash = renew_grant(run)
+    role_preflight(run)
     gold = freeze_gold()
     write(run / 'gold.json', gold)
     write(run / 'bank.json', BANK)
@@ -1316,6 +1317,46 @@ def bind_run(run):
     })
     write(run / 'bind.json', {'token_hash': token_hash, 'identity': identity, 'customer_writes': 0})
     return {'bound': True, 'source_generation': 19, 'token_hash': token_hash}
+
+
+def role_preflight(run):
+    """Verify current-role Pack discovery, read, describe and a safe query before model use."""
+    cli = str(Path(__file__).with_name('oo_cli.py'))
+    common = ['--json', '--gateway', 'http://127.0.0.1:18573', '--transport', 'local-development',
+              '--auth', 'external', '--token-file', str(BASE / 'gateway/client.token')]
+    folder = Path(run) / 'preflight'
+    folder.mkdir(parents=True, exist_ok=True)
+
+    def call(name, args):
+        proc = subprocess.run([cli, *args, *common], capture_output=True, timeout=45)
+        (folder / f'{name}.stdout').write_bytes(proc.stdout)
+        (folder / f'{name}.stderr').write_bytes(proc.stderr)
+        (folder / f'{name}.exit').write_text(str(proc.returncode) + '\n')
+        if proc.returncode:
+            raise RuntimeError('preflight_' + name)
+        return json.loads(proc.stdout)
+
+    hits = call('knowledge-search', ['knowledge', 'search', 'agg_qty']).get('hits', [])
+    expected_path = 'tables/oo_dl01w1_43.agg_qty.md'
+    match = next((hit for hit in hits if hit.get('path') == expected_path), None)
+    if not match:
+        raise RuntimeError('preflight_pack_path')
+    doc = call('knowledge-cat', ['knowledge', 'cat', expected_path])
+    if doc.get('path') != expected_path or doc.get('sha256') != match.get('sha256'):
+        raise RuntimeError('preflight_pack_document')
+    described = call('describe', ['describe', 'oo_dl01w1_43.agg_qty'])
+    if described.get('table') != 'oo_dl01w1_43.agg_qty':
+        raise RuntimeError('preflight_describe')
+    query = call('readonly-query', ['query', 'SELECT COUNT(*) FROM oo_dl01w1_43.agg_qty'])
+    if query.get('returned_rows') != 1 or not query.get('query_id'):
+        raise RuntimeError('preflight_query')
+    write(folder / 'receipt.json', {
+        'protocol': 'oo.doris.role-preflight/v1', 'source_id': 'dorispreview',
+        'source_generation': 19, 'pack_sha256': sha256(Path(run) / 'product' / 'current-role-pack.json'),
+        'role': 'oo_r_dorispreview', 'search_path': expected_path,
+        'document_sha256': doc['sha256'], 'describe_table': 'oo_dl01w1_43.agg_qty',
+        'query_id': query['query_id'], 'readonly': True,
+    })
 
 
 def close_run(run):

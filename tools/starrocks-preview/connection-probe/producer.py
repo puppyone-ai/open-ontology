@@ -53,6 +53,49 @@ def same_capture(previous, fresh):
     return sorted(previous) == sorted(fresh)
 
 
+def parent_digest(owned, binding, table, generation):
+    matches = []
+    for path in sorted((Path(owned) / binding).glob("*/request.json")):
+        request = json.loads(path.read_text())
+        if request.get("source_generation") != generation or request.get("logical_table") != table:
+            continue
+        digest = request.get("input_digest") or (request.get("snapshot") or {}).get("value")
+        if isinstance(digest, str) and len(digest) == 64 and all(c in "0123456789abcdef" for c in digest):
+            matches.append(digest)
+    if len(set(matches)) != 1:
+        raise RuntimeError("quiet parent digest absent or ambiguous")
+    return matches[0]
+
+
+def emit_nochange(root, event, config, binding, table, generation, source_digest):
+    parent = parent_digest(config["evidence_root"], binding, table, generation)
+    request = {
+        "protocol": "oo.jobs.native-c5-nochange/v1",
+        "binding": binding,
+        "pin": event["pin"],
+        "source_id": config["source_id"],
+        "method": "C5",
+        "capture_method": "c5_diff",
+        "cycle": event["cycle"],
+        "acknowledged_source_generation": generation,
+        "source_generation": generation,
+        "empty_diff": True,
+        "snapshot": {"kind": "c5_cycle", "value": source_digest},
+        "source_digest": source_digest,
+        "parent_digest": parent,
+        "data_gen": False,
+        "apply": False,
+        "ack": False,
+    }
+    path = root / "nochange.json"
+    if path.exists():
+        if json.loads(path.read_text()) != request:
+            raise RuntimeError("quiet nochange receipt changed")
+    else:
+        write(path, request)
+    sys.stdout.write(path.read_text())
+
+
 def baseline_rows(owned, binding, table, generation):
     found = None
     root = Path(owned) / binding
@@ -117,7 +160,11 @@ def main():
         # ponytail: native-serve applies only base+1. An identical read refuses
         # this pin so the source generation stays. The worker still retries it.
         if marker.exists() and quiet_path.is_file():
-            raise RuntimeError("quiet_unchanged")
+            quiet = json.loads(quiet_path.read_text())
+            if quiet.get("protocol") != "oo.starrocks.quiet-unchanged/v1" or quiet.get("binding") != binding or quiet.get("occurrence_pin") != occurrence_pin or quiet.get("table") != args.table or quiet.get("acknowledged_source_generation") != pin - 1:
+                raise RuntimeError("quiet marker identity mismatch")
+            emit_nochange(root, event, config, binding, args.table, pin - 1, quiet["fingerprint"])
+            return 0
         if marker.exists():
             recovery = root / "source-recovery.json"
             if not recovery.is_file():
@@ -156,7 +203,8 @@ def main():
             if audit.get("write_attempts"):
                 raise RuntimeError("source reader attempted a write")
             write(quiet_path, {"protocol": "oo.starrocks.quiet-unchanged/v1", "binding": binding, "occurrence_pin": occurrence_pin, "acknowledged_source_generation": event["acknowledged_source_generation"], "table": args.table, "fingerprint": hashlib.sha256("\n".join(sorted(fresh)).encode()).hexdigest()})
-            raise RuntimeError("quiet_unchanged")
+            emit_nochange(root, event, config, binding, args.table, pin - 1, hashlib.sha256("\n".join(sorted(fresh)).encode()).hexdigest())
+            return 0
         columns = [seal.arrow_column(field) for field in document["fields"]]
         obj = next(o for o in native_catalog["objects"] if o["name"] == args.table)
         # Pinned probe ELF omits logical_dataset_kind; uniq_dim is a native table.

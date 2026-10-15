@@ -262,7 +262,10 @@ def gold():
     return [updated, kept, inserted]
 
 
-def load_one(config, run_dir, capture, generation, replay):
+def load_one(config, run_dir, capture, generation, replay, partitions=None):
+    partitions = tuple(partitions or ("202403",))
+    if not partitions or len(set(partitions)) != len(partitions) or any(not re.fullmatch(r"[0-9]{6}", item) for item in partitions):
+        raise RuntimeError("C4 partition selection is invalid")
     for name in ("loader-target.json", "ack-target.json"):
         target = run_dir / name
         if not target.exists():
@@ -276,7 +279,7 @@ def load_one(config, run_dir, capture, generation, replay):
     write(path, load_config)
     if not (capture / "load-manifest.json").exists():
         run([sys.executable, str(SCRIPTS / "connection_load.py"), "--config", str(path),
-             "--run", str(run_dir), "--capture", str(capture), "--partitions", "202403"],
+             "--run", str(run_dir), "--capture", str(capture), "--partitions", *partitions],
             run_dir / "calls" / f"load-g{generation}", timeout=1500)
 
 
