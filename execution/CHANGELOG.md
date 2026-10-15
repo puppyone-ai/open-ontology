@@ -1,3 +1,5 @@
+2026-10-16 MySQL持续演示认证：root于22:06UTC经官方issuer签发独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261015T220602Z.token` 实查5.7/8.4新QID与当前位置93/39、无warnings；TTL1小时，约23:06UTC到期，无自动续签。原token/QA/pins不改，回执 /tmp/oo-root-mysql-auth-20261015T220602Z/receipt.json（SHA见CONTROL/JSON）；未改源数据/Pack/代码，无新增签收。
+
 2026-10-16 Doris 实际分离control/target的首轮加载暴露42P01路由及42501水位读取权限缺口，失败保留；唯一Luna max在现有native_schedule窄域复用C5目标配置（C4缺省拒绝/C1不变），增加独占append-only0040经官方installer只授source/source_generation两列读并验证其他列/写拒绝。已安装0039字节固定不改；Oracle overlay.rs独占不变。尚无Doris整链通过，无新增验收/父项/Plan/整版计数、formal0/10。精确增补见DORIS-COMPLETE-LUNA-MAX-20261016.md及doris-luna-max-dispatch.json。
 
 2026-10-16 已实际安全收完其他源终态：Oracle827c6c7a63未完成包550项SHA与完整Git archive重生成全核，schedule=false/active_task=null/native-serve空、当前g10待新gold/语义维护/发布，overlay零修改；Doris6042后五文件WIP SHA核准、未编未跑0039不采用，新源DML/worker/模型均无。collaboration实际仅MySQL完整负责人running，其他source写权释放，DB/standby/失败保留。当前仅MySQL继续TIME interval比较必要最小guard/catalog修复（strict builtin/signature与全bank无模型预检），保留原20round失败不换题/金标。其他源待MySQL5.7+8.4完整稳定后统一Luna max。两份pause-intake见 execution/reviews/native-luna-full-source-20261015/{oracle,doris}-mysql-first-pause-intake.json。
