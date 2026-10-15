@@ -23,7 +23,16 @@
     "tools/pg-builder",
     "tools/release-coordinator",
     "tools/release-control-api",
-    "crates/oo-pipeline/src/native_c1_baseline.rs"
+    "crates/oo-pipeline/src/native_c1_baseline.rs",
+    "crates/oo-gateway/src/mapping_reader_access.rs",
+    "crates/oo-gateway/src/bin/provision-mapping-reader.rs",
+    "crates/oo-gateway/tests/provision_mapping_reader_cli.rs",
+    "crates/oo-gateway/tests/mapping_reader_access_pg_live.rs",
+    "contracts/gateway/mapping-reader-access-v1.md",
+    "contracts/gateway/provision-mapping-reader-cli-v1.md",
+    "crates/oo-gateway/src/query_executor.rs",
+    "crates/oo-gateway/src/public_surface.rs",
+    "crates/oo-gateway/tests/query_executor_pg_live.rs"
   ],
   "root_scope": "coordination ledger and fixed evidence only; no duplicate product writer",
   "first_actual_finding": "real Linux binaries retained; real scheduler/producer invocation failures retained; typed full-import bridge remains refusal stub and is next implementation",
@@ -48,5 +57,7 @@
     "status": "spawned"
   },
   "handoff": "execution/batches/native-luna-full-source-20261015/mysql-sol-handoff.json",
-  "complete_prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-SOL-COMPLETE.md"
+  "complete_prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-SOL-COMPLETE.md",
+  "latest_gateway_metadata_scope": "execution/batches/native-luna-full-source-20261015/mysql-gateway-metadata-scope.json",
+  "latest_current_quality_scope": "execution/batches/native-luna-full-source-20261015/mysql-current-quality-scope.json"
 }

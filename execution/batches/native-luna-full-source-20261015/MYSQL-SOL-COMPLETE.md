@@ -32,3 +32,11 @@ All installed migration checksums are immutable. In particular0024/0025/0028/002
 6. Freeze exact owned source commit + reproducible source archive, all migration checksums, Linux ELF hashes, config/manifests/receipts/evidence hashes, actual exits, retained resource/handle ownership and remaining external gates. This is author full handoff, root verifies original exits and decides shared release; neither you nor a local wrapper may mark formal source/Goal/other sources complete. No separate component reviewer. Keep working until this full capability is implemented and demonstrated; report true external blockage precisely without calling partial success complete.
 
 Commit only exact owned product paths. Global index contains foreign staged reversals/deletions: never git add -A/reset/stash/restore foreign files. Use private index or commit --only with /tmp/oo-dl01-wave1-git.lock fcntl lock. Root updates all ledgers and performs sanitized remote sync; never force-add evidence/log/stdout/stderr/exit/secrets.
+
+## Gateway metadata write-scope extension
+
+execution/batches/native-luna-full-source-20261015/mysql-gateway-metadata-scope.json: same sole owner may extend the existing mapping reader module/CLI, their two tests and two contracts in explicit native-vector mode. Reuse current public grantable_base_type and native ACL validation; preserve legacy mode and all original complete exits. No new Gateway rewrite or other Gateway source write scope.
+
+## Current-quality projection scope extension
+
+execution/batches/native-luna-full-source-20261015/mysql-current-quality-scope.json adds only query_executor.rs, public_surface.rs and query_executor_pg_live.rs to the same sole owner. Reuse exact currently authorized physical mappings; retain negative state/epoch guards. Original full exits and other source holds remain unchanged.
