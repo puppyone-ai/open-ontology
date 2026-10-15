@@ -1,10 +1,10 @@
 {
-  "as_of": "2026-10-15T18:50:46.388216+08:00",
-  "agent": "/root/mysql_shared_reference_sol",
+  "as_of": "2026-10-15T17:50:03.342143+00:00",
+  "agent": "/root/mysql57_reference_sol",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "medium",
-  "status": "completed_incomplete_external_provider_block",
-  "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md",
+  "status": "spawned_and_accepted",
+  "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-RESUME-57-COMPLETE-20261016.md",
   "complete_capability": "real MySQL original C1 baseline/sync plus S0-S10/current Ontology-Pack/formal publish/Gateway-CLI/autonomous random agent; fixed shared artifacts before other sources reuse",
   "source_rollout_allowed": false,
   "write_scope": [
@@ -38,7 +38,7 @@
   ],
   "root_scope": "coordination ledger and fixed evidence only; no duplicate product writer",
   "first_actual_finding": "real Linux binaries retained; real scheduler/producer invocation failures retained; typed full-import bridge remains refusal stub and is next implementation",
-  "artifact_status": "fixed partial packet; actual source/current maintenance/publication/Gateway CLI verified, random Agent/default whole proof incomplete",
+  "artifact_status": "retained fixed8.4 partial artifacts reused; actual model probe passed; full8.4 and new required5.7 chains pending",
   "formal_count_delta": 0,
   "latest_luna_xhigh_transfer": {
     "as_of": "2026-10-15T17:21:59.122581+08:00",
@@ -53,15 +53,16 @@
     "source_acceptance_delta": 0
   },
   "previous_dispatch": {
-    "agent": "/root/mysql_shared_reference_xhigh",
-    "model": "gpt-6-luna",
-    "reasoning_effort": "xhigh",
-    "status": "spawned"
+    "agent": "/root/mysql_shared_reference_sol",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "status": "completed_incomplete_external_provider_block"
   },
   "handoff": "execution/batches/native-luna-full-source-20261015/mysql-sol-handoff.json",
   "complete_prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-SOL-COMPLETE.md",
   "latest_gateway_metadata_scope": "execution/batches/native-luna-full-source-20261015/mysql-gateway-metadata-scope.json",
   "latest_current_quality_scope": "execution/batches/native-luna-full-source-20261015/mysql-current-quality-scope.json",
   "latest_dialogue_resume_scope": "execution/batches/native-luna-full-source-20261015/mysql-dialogue-resume-scope.json",
-  "latest_partial_intake": "execution/reviews/native-luna-full-source-20261015/mysql-fixed-partial-provider-block-intake.json"
+  "latest_partial_intake": "execution/reviews/native-luna-full-source-20261015/mysql-fixed-partial-provider-block-intake.json",
+  "latest_resume57_dispatch": "execution/batches/native-luna-full-source-20261015/mysql-resume57-dispatch.json"
 }

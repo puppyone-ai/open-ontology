@@ -327,6 +327,9 @@ def completion_body(model_name, messages, tools, choice, facts=None, final=False
     body = {'model': model_name, 'reasoning_effort': 'low', 'messages': messages}
     if final:
         body['response_format'] = named_fact_format(facts)
+        # A successful probe query does not mean the requested fact was queried.
+        body['tools'] = tools
+        body['tool_choice'] = 'auto'
     else:
         body['tools'] = tools
         body['tool_choice'] = choice

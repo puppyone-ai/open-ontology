@@ -428,5 +428,14 @@
       "two complete new random semantic Agent conversations independently verified against source gold and real QID/WAL",
       "final ordinary whole_source proof after successful conversations"
     ]
+  },
+  "latest_mysql_resume57": {
+    "dispatch": "execution/batches/native-luna-full-source-20261015/mysql-resume57-dispatch.json",
+    "owner": "/root/mysql57_reference_sol",
+    "source_release_allowed": false,
+    "required_versions": [
+      "5.7",
+      "8.4"
+    ]
   }
 }
