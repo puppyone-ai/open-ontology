@@ -4,7 +4,7 @@
   "priority": "MySQL8.4 AND5.7 complete stable originalproductchain before any other source work",
   "mysql_current_owner": null,
   "mysql_current_model": "gpt-6.1-sol/medium retained, no interruption/duplicate",
-  "other_source_new_work_allowed": "Doris source-specific release only; other8 held",
+  "other_source_new_work_allowed": "Doris and independent Oracle source-specific release, both gpt-6-luna/max; other7 held",
   "other_source_pause": "Oracle andDoris actual completed incomplete safehandoff, codewriters released; Oracle scheduler=false/active_task=null/no native-serve, privateAPIs stopped, retainedDBstandby; Doris no newsource worker/resources/DML",
   "other_source_future_model": "gpt-6-luna",
   "other_source_future_reasoning_effort": "max",
@@ -18,5 +18,6 @@
   "mysql_status": "root_verified_two_version_complete_stable_fixture_reference",
   "mysql_root_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
   "resume_condition_status": "met for scoped Doris release, not general source or production acceptance",
-  "actual_next_source_dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json"
+  "actual_next_source_dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json",
+  "independent_oracle_dispatch": "execution/batches/native-luna-full-source-20261015/oracle-luna-max-dispatch.json"
 }

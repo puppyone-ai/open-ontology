@@ -1,4 +1,4 @@
-2026-10-16 当前接续：MySQL5.7+8.4本地真实整链参考已核验并固定于29e3afd88；仅Doris唯一gpt-6-luna/max负责人长跑完整C4/C5，其他8源held。当前权威为[运行控制](CONTROL.md)、[MySQL签收](reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json)及[Doris完整卡](batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md)。正式源0/10、整版0、原Plan全部退出与分母不变；下文旧排期仅为历史。
+2026-10-16 当前接续：MySQL5.7+8.4本地真实整链参考已核验并固定于29e3afd88；Doris完整C4/C5与独立Oracle完整C5各唯一gpt-6-luna/max负责人，其他7源held。当前权威为[运行控制](CONTROL.md)、[MySQL签收](reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json)及[Doris完整卡](batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md)。正式源0/10、整版0、原Plan全部退出与分母不变；下文旧排期仅为历史。
 
 # 产品交付闭环台账
 

@@ -1,3 +1,7 @@
+2026-10-16 已真实派发并收到Oracle唯一 /root/oracle_complete_luna_max（gpt-6-luna/max）接卡；与Doris唯一Luna max完整长跑独立并行，精确writer边界按两新卡，MySQL保持不可变固定服务、其他7held。Oracle父项DBX-W09/DL01-W1-10，Doris原Plan核实DBX-W12/DL01-W1-43。无组件审阅、无新验收/整版计数。
+
+2026-10-16 MySQL完整固定前置满足后恢复有独立接口/资源的Oracle C5整链，与Doris C4/C5并行；两个完整源均gpt-6-luna/max，Doris精确共享7文件/0039继续独占，Oracle只写本源目录+overlay.rs，使用既有generic单run发布固定ELF，无MySQL服务修改。前Oracle真实completed/550项旧包已核、overlay零改释放；当前ready卡ORACLE-COMPLETE-LUNA-MAX-20261016.md/dispatch oracle-luna-max-dispatch.json。实测Docker16CPU/94.1GiB、107容器用21.32GiB/约1.633核；只准备有用工程师，无空转凑并发。其他7held，正式0/10/整版0/原Plan全部退出及分母不变。
+
 2026-10-16 已将当前task-ledger任务行与生成TODO对齐实际MySQL已签收/Doris唯一Luna max执行；旧预览/失败/owner原行完整归档，不改父项和计数。
 
 2026-10-16 MySQL双版本参考签收29e3afd88已nonforce净化同步3dfa3fc34；随后真实新建 /root/doris_complete_luna_max（gpt-6-luna/max），已明确接卡读取原docs并长跑C4/C5全部产品退出。只有Doris现在获独占source/shared窄域写权；MySQL作者terminal、固定服务保留，其他8held。派发 doris-luna-max-dispatch.json/完整卡DORIS-COMPLETE-LUNA-MAX-20261016.md；formal0/10、无新增计数/父项/整版。
