@@ -1,6 +1,6 @@
 # 完整产品 TODO 与派发入口
 
-更新：2026-10-15。[索引](INDEX.md) / [状态更新协议](UPDATE-PROTOCOL.md)。由 [task-ledger.json](task-ledger.json) 生成；修改台账后运行 `python3 execution/scripts/render_todo.py`，CI/协调核对使用 `--check`。
+更新：2026-10-16。[索引](INDEX.md) / [状态更新协议](UPDATE-PROTOCOL.md)。由 [task-ledger.json](task-ledger.json) 生成；修改台账后运行 `python3 execution/scripts/render_todo.py`，CI/协调核对使用 `--check`。
 
 本清单勾选表示**整个父项正式退出**，不是开发组件是否存在。未勾项可能已交付多个组件；状态“待签收对账”不能解释为尚未开发或开发完成率为零。开发子项与证据见[验收计数](../specs/open-ontology-acceptance-counting.md)，历史交付见[总台账](../specs/open-ontology-development-ledger.md)。87个SP、14个DBX与8个DBP分别统计，不合并分母。
 
@@ -16,13 +16,13 @@
 
 ## 当前冻结批次
 
-- [execution/batches/native-luna-full-source-20261015/mysql-reference-dispatch.json](batches/native-luna-full-source-20261015/mysql-reference-dispatch.json)；实际运行句柄见CONTROL/JSON，批次状态只按退出/证据更新。
+- [execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json](batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json)；实际运行句柄见CONTROL/JSON，批次状态只按退出/证据更新。
 - DL01-W1-01 / matrix：development；development_child_accepted；Plan DBX-W01；固定依赖 577160c22de6。
 - DL01-W1-02 / admission：development；native_waiting_dependency；Plan DBX-W02；固定依赖 577160c22de6。
 - DL01-W1-03 / capture：development；development_child_accepted；Plan DBX-W03；固定依赖 577160c22de6。
 - DL01-W1-04 / driver：source_product_development；author_full_unpublished_preview；Plan DBX-W04；固定依赖 577160c22de6。
 - DL01-W1-05 / semantics：development；historical_terminal_ownership_transferred；Plan DBX-W05；固定依赖 577160c22de6。
-- DL01-W1-06 / mysql：development；author_complete_deferred_connected_review；Plan SP03-W02；固定依赖 577160c22de6。
+- DL01-W1-06 / mysql：development；root_verified_complete_owned_mysql57_mysql84_reference；Plan SP03-W02；固定依赖 577160c22de6。
 - DL01-W1-07 / suite：development；author_complete_deferred_connected_review；Plan DBX-W14；固定依赖 577160c22de6。
 - DL01-W1-08 / mariadb：target_preparation；setup_dependency_review_passed；Plan DBX-W06；固定依赖 577160c22de6。
 - DL01-W1-09 / mssql：source_product_development；held_for_shared_stability；Plan DBX-W08；固定依赖 577160c22de6。
@@ -59,7 +59,7 @@
 - DL01-W1-40 / clickhouse-driver-preflight：source_product_development；author_full_unpublished_preview；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-41 / mongodb-driver-preflight：source_product_development；author_full_unpublished_preview；Plan DBX-W13；固定依赖 577160c22de6。
 - DL01-W1-42 / oracle-driver-review：independent_review；preflight_review_passed；Plan DBX-W09；固定依赖 645d37badf7a。
-- DL01-W1-43 / doris-driver-preflight：source_product_development；author_full_unpublished_preview；Plan DBX-W12；固定依赖 577160c22de6。
+- DL01-W1-43 / doris-driver-preflight：source_product_development；running_complete_source_reference；Plan DBX-W12；固定依赖 29e3afd88d7c。
 - DL01-W1-44 / opensearch-driver-preflight：source_product_development；author_complete_deferred_connected_review；Plan DBX-W13；固定依赖 577160c22de6。
 - DL01-W1-45 / starrocks-driver：source_product_development；completed_author_preview；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-46 / postgres-product：source_product_development；completed_author_preview；Plan SP03-W01；固定依赖 577160c22de6。
