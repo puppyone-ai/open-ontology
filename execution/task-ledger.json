@@ -8180,7 +8180,7 @@
       "source_commit": "8a5de6528"
     }
   ],
-  "current_execution_note": "Fixed complete owned MySQL8.4 reference verified; required5.7 C1 and isolated identity active; narrow OracleC5 complete reference with exclusive publication transfer, other8 held; formal0/10",
+  "current_execution_note": "Fixed completeMySQL8.4 fixture reference verified; required5.7 C1/OracleC5/Doris7tableC4-C5 full references active (Solmedium unique owners), other7held; formal0/10",
   "active_batch_development": {
     "batch": "dl01-wave1-20261009",
     "frozen_units": 8,
@@ -10089,7 +10089,7 @@
     "required_57_status": "active_not_complete",
     "current_owner": "/root/mysql57_reference_sol",
     "release_other_sources": false,
-    "narrow_next_reference": "oracle_c5_complete_sol; original C5/S0 publish must be real before broad rollout"
+    "narrow_next_reference": "OracleC5single andDoris7tableC4/C5 complete references active; other7held"
   },
   "latest_mysql_reference_dispatch": {
     "as_of": "2026-10-15T18:50:46.388216+08:00",
@@ -10172,7 +10172,7 @@
     "source_rollout_allowed": false,
     "scope": "unchanged complete MySQL reference before other sources reuse"
   },
-  "as_of": "2026-10-15T18:23:58.108015+00:00",
+  "as_of": "2026-10-15T18:39:48.965561+00:00",
   "latest_mysql_sol_complete_transfer": {
     "as_of": "2026-10-15T18:50:46.388216+08:00",
     "human_model_authorization": "下一次开新子智能体，模型可以升级为gpt 6.1 sol medium",
@@ -10342,5 +10342,29 @@
     "no_new_source_count": true,
     "source_commit": "bf1e21074d055b350b96952bd9b0f263f39c5f32",
     "root_intake": "execution/reviews/native-luna-full-source-20261015/mysql57-identity-prerequisite-intake.json"
+  },
+  "latest_doris_c4_c5_complete_dispatch": {
+    "as_of": "2026-10-15T18:39:48.965561+00:00",
+    "agent": "/root/doris_c4_c5_complete_sol",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "status": "running_accepted",
+    "contract": "execution/batches/native-luna-full-source-20261015/DORIS-C4-C5-COMPLETE-SOL-20261016.md",
+    "fixed_reference_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+    "source_paths": [
+      "tools/doris-preview",
+      "testing/dl01-driver-preflight/doris/reader"
+    ],
+    "exclusive_shared_paths": [
+      "tools/release-coordinator/src/native_publication.rs",
+      "tools/release-coordinator/src/target.rs",
+      "crates/oo-pipeline/src/target_installer.rs",
+      "pipeline migration append-only if actually necessary"
+    ],
+    "release_authority": "MySQL and Oracle current owners both explicitly confirmed no remaining edits/background writes, keep frozen existingELFs; rootsolecoordination",
+    "formal_count_delta": 0,
+    "global_source_release_allowed": false,
+    "other_sources_held": 7,
+    "purpose": "completeDoris7table mixedC4/C5 fullproduct reference, not publisher component task"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-10-15T18:21:32.910859+00:00",
+  "as_of": "2026-10-15T18:39:48.965561+00:00",
   "status": "mysql84_complete_fixed_reference_verified_mysql57_and_oracle_c5_reference_active",
   "owner": "root",
   "source_release_allowed": false,
@@ -17,7 +17,8 @@
   ],
   "reference_only_tasks": [
     "DL01-W1-06",
-    "DL01-W1-09"
+    "DL01-W1-09",
+    "DL01-W1-43"
   ],
   "policy": "Finish shared product chain and stabilize pinned contracts before resuming complete per-source workflows. No acceptance from isolated components, historical snapshots, diagnostic Packs or manufactured gates.",
   "criteria": [
@@ -307,7 +308,7 @@
       "status": "OpenSearch real S0-S10 succeeded; others pending"
     }
   ],
-  "source_release_scope": "MySQL8.4 fixed complete owned fixture reference passed root evidence verification. Required5.7 complete chain and one exclusive Oracle C5 low-consistency reference allowed; other8 held. No blanket method/target/production acceptance.",
+  "source_release_scope": "MySQL8.4 fixed complete fixture reference verified. Required5.7 C1, OracleC5single andDoris7tableC4/C5 complete references active; other7held. Explicitsolewriters, fixedELF reuse; no blanket source/method/production acceptance.",
   "historical_gateway_observation": {
     "status": "author_delivered_fixed_partial_gate",
     "owner": "DL01-W1-73",
@@ -373,7 +374,7 @@
     "required_57_status": "active_not_complete",
     "current_owner": "/root/mysql57_reference_sol",
     "release_other_sources": false,
-    "narrow_next_reference": "oracle_c5_complete_sol; original C5/S0 publish must be real before broad rollout"
+    "narrow_next_reference": "OracleC5single andDoris7tableC4/C5 complete references active; other7held"
   },
   "latest_mysql_target_stage_primitive": {
     "intake": "execution/reviews/native-luna-full-source-20261015/mysql-target-stage-primitive-intake.json",
@@ -443,5 +444,29 @@
     "Doris/StarRocks C4 and global source-target generation/fence, ClickHouse new partition catalog and PG multi-table C1 remain pending actual fixed-runtime proof.",
     "SQL Server actual approved native amd64 instance/EULA/config missing; customer access, formal owner/G/nightly remain separate original gates.",
     "Compact dialogue harness d39ffcaa4 verified by offline actual transcript replay; actual aggregate child/model token ratio <=20% has not been measured."
-  ]
+  ],
+  "latest_doris_c4_c5_complete_dispatch": {
+    "as_of": "2026-10-15T18:39:48.965561+00:00",
+    "agent": "/root/doris_c4_c5_complete_sol",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "status": "running_accepted",
+    "contract": "execution/batches/native-luna-full-source-20261015/DORIS-C4-C5-COMPLETE-SOL-20261016.md",
+    "fixed_reference_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+    "source_paths": [
+      "tools/doris-preview",
+      "testing/dl01-driver-preflight/doris/reader"
+    ],
+    "exclusive_shared_paths": [
+      "tools/release-coordinator/src/native_publication.rs",
+      "tools/release-coordinator/src/target.rs",
+      "crates/oo-pipeline/src/target_installer.rs",
+      "pipeline migration append-only if actually necessary"
+    ],
+    "release_authority": "MySQL and Oracle current owners both explicitly confirmed no remaining edits/background writes, keep frozen existingELFs; rootsolecoordination",
+    "formal_count_delta": 0,
+    "global_source_release_allowed": false,
+    "other_sources_held": 7,
+    "purpose": "completeDoris7table mixedC4/C5 fullproduct reference, not publisher component task"
+  }
 }

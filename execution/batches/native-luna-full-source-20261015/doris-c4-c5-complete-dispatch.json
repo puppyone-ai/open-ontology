@@ -1,0 +1,24 @@
+{
+  "as_of": "2026-10-15T18:39:48.965561+00:00",
+  "agent": "/root/doris_c4_c5_complete_sol",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "status": "running_accepted",
+  "contract": "execution/batches/native-luna-full-source-20261015/DORIS-C4-C5-COMPLETE-SOL-20261016.md",
+  "fixed_reference_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+  "source_paths": [
+    "tools/doris-preview",
+    "testing/dl01-driver-preflight/doris/reader"
+  ],
+  "exclusive_shared_paths": [
+    "tools/release-coordinator/src/native_publication.rs",
+    "tools/release-coordinator/src/target.rs",
+    "crates/oo-pipeline/src/target_installer.rs",
+    "pipeline migration append-only if actually necessary"
+  ],
+  "release_authority": "MySQL and Oracle current owners both explicitly confirmed no remaining edits/background writes, keep frozen existingELFs; rootsolecoordination",
+  "formal_count_delta": 0,
+  "global_source_release_allowed": false,
+  "other_sources_held": 7,
+  "purpose": "completeDoris7table mixedC4/C5 fullproduct reference, not publisher component task"
+}

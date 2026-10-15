@@ -9,5 +9,17 @@
   "scope_transfer": "MySQL engineer explicitly confirmed no current/planned writes to native_publication.rs,target.rs,target_installer.rs/append-only migrations;5.7 keeps frozen C1 ELF set",
   "global_source_release_allowed": false,
   "formal_source_count": 0,
-  "owner_registry_observed": "root/MySQL5.7/identity prerequisite/Oracle only; historical source engineers not live"
+  "owner_registry_observed": "root/MySQL5.7/identity prerequisite/Oracle only; historical source engineers not live",
+  "latest_exclusive_shared_transfer": {
+    "as_of": "2026-10-15T18:39:48.965561+00:00",
+    "sole_owner": "/root/doris_c4_c5_complete_sol",
+    "dispatch": "execution/batches/native-luna-full-source-20261015/doris-c4-c5-complete-dispatch.json",
+    "excluded_from_this_owner": [
+      "tools/release-coordinator/src/native_publication.rs",
+      "tools/release-coordinator/src/target.rs",
+      "crates/oo-pipeline/src/target_installer.rs",
+      "pipeline migration append-only if actually necessary"
+    ],
+    "confirmed_by_current_owner": true
+  }
 }

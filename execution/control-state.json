@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-10-15T18:23:58.108015+00:00",
+  "as_of": "2026-10-15T18:39:48.965561+00:00",
   "timezone": "Asia/Shanghai",
   "scope": "coordination handoff snapshot; not a live process monitor or product acceptance report",
   "baseline": {
@@ -1121,6 +1121,14 @@
       "status": "running",
       "contract": "execution/batches/native-luna-full-source-20261015/ORACLE-C5-COMPLETE-SOL-20261016.md",
       "scope": "completeOracleC5 reference plus explicitly transferred minimal publication paths"
+    },
+    {
+      "agent": "/root/doris_c4_c5_complete_sol",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "status": "running_accepted",
+      "contract": "execution/batches/native-luna-full-source-20261015/DORIS-C4-C5-COMPLETE-SOL-20261016.md",
+      "scope": "complete7tableDorisC4/C5; exclusive3sharedpublicationfiles/append-onlymigration"
     }
   ],
   "execution_policy": {
@@ -1177,7 +1185,8 @@
   },
   "shared_reference_live_agents": [
     "/root/mysql57_reference_sol",
-    "/root/oracle_c5_complete_sol"
+    "/root/oracle_c5_complete_sol",
+    "/root/doris_c4_c5_complete_sol"
   ],
   "source_closure_current": {
     "author_full_unpublished_preview": 7,
@@ -3146,7 +3155,7 @@
     "required_57_status": "active_not_complete",
     "current_owner": "/root/mysql57_reference_sol",
     "release_other_sources": false,
-    "narrow_next_reference": "oracle_c5_complete_sol; original C5/S0 publish must be real before broad rollout"
+    "narrow_next_reference": "OracleC5single andDoris7tableC4/C5 complete references active; other7held"
   },
   "latest_mysql_single_owner_transfer": {
     "as_of": "2026-10-15T16:36:22.551950+08:00",
@@ -3412,5 +3421,29 @@
     "source_commit": "bf1e21074d055b350b96952bd9b0f263f39c5f32",
     "root_intake": "execution/reviews/native-luna-full-source-20261015/mysql57-identity-prerequisite-intake.json"
   },
-  "current_execution_note": "Fixed complete owned MySQL8.4 reference verified; required5.7 C1 and isolated identity active; narrow OracleC5 complete reference with exclusive publication transfer, other8 held; formal0/10"
+  "current_execution_note": "Fixed complete owned MySQL8.4 reference verified; required5.7 C1 and isolated identity active; narrow OracleC5 complete reference with exclusive publication transfer, other8 held; formal0/10",
+  "latest_doris_c4_c5_complete_dispatch": {
+    "as_of": "2026-10-15T18:39:48.965561+00:00",
+    "agent": "/root/doris_c4_c5_complete_sol",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "status": "running_accepted",
+    "contract": "execution/batches/native-luna-full-source-20261015/DORIS-C4-C5-COMPLETE-SOL-20261016.md",
+    "fixed_reference_intake": "execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json",
+    "source_paths": [
+      "tools/doris-preview",
+      "testing/dl01-driver-preflight/doris/reader"
+    ],
+    "exclusive_shared_paths": [
+      "tools/release-coordinator/src/native_publication.rs",
+      "tools/release-coordinator/src/target.rs",
+      "crates/oo-pipeline/src/target_installer.rs",
+      "pipeline migration append-only if actually necessary"
+    ],
+    "release_authority": "MySQL and Oracle current owners both explicitly confirmed no remaining edits/background writes, keep frozen existingELFs; rootsolecoordination",
+    "formal_count_delta": 0,
+    "global_source_release_allowed": false,
+    "other_sources_held": 7,
+    "purpose": "completeDoris7table mixedC4/C5 fullproduct reference, not publisher component task"
+  }
 }
