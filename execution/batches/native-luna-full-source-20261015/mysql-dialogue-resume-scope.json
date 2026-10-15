@@ -24,5 +24,6 @@
     "frontend": "not touched"
   },
   "generic_interface_guidance": "Sole owner may add truthful general SYSTEM guidance: the copied query target uses PostgreSQL SQL and qualified relation names come from tables/describe; no question-specific predicate, SQL, gold value or acceptance relaxation.",
-  "latest_actual_blocking_fix": "2026-10-16 successor may retain existing tools/tool_choice on strict structured final requests; SELECT1 must not disable further inspection/query. Actual failure retained, official/API preflight and minimal regression required, strict gold/QID/WAL checks unchanged."
+  "latest_actual_blocking_fix": "2026-10-16 successor may retain existing tools/tool_choice on strict structured final requests; SELECT1 must not disable further inspection/query. Actual failure retained, official/API preflight and minimal regression required, strict gold/QID/WAL checks unchanged.",
+  "latest_actual_forced_query_fix": "2026-10-16 successor may remove only the premature step>0 and empty turn_results forced-query branch, allowing tables/describe/knowledge before business query; initial required and final real-query/coverage/gold/QID/WAL remain strict. Preserve failed default runs and freeze new script/pins; minimal regression, no allowed-error expansion."
 }

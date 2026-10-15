@@ -1882,9 +1882,7 @@ fn resolve_comparison<'a>(
     {
         return resolve_operator(catalog, schema, name, text, text);
     }
-    let Some(numeric) = numeric_type_oid(catalog) else {
-        return Err(GuardError::FunctionNotAllowed);
-    };
+    let numeric = Type::NUMERIC.oid();
     let Some(integer) = catalog.literal_types.integer else {
         return Err(GuardError::FunctionNotAllowed);
     };
@@ -1894,42 +1892,6 @@ fn resolve_comparison<'a>(
         return resolve_operator(catalog, schema, name, numeric, numeric);
     }
     Err(GuardError::FunctionNotAllowed)
-}
-
-/// Same-type OID that is not a literal type and not crossed with `int4`.
-///
-/// The loader's `numeric`/`numeric` operators are that OID. `int2` and `int8`
-/// are crossed with the integer literal, so they are not treated as numeric.
-fn numeric_type_oid(catalog: &PolicyCatalog) -> Option<u32> {
-    let integer = catalog.literal_types.integer?;
-    let mut same = BTreeSet::new();
-    let mut crossed = BTreeSet::new();
-    for operator in &catalog.operators {
-        if operator.left_type_oid == operator.right_type_oid {
-            same.insert(operator.left_type_oid);
-        }
-        if operator.left_type_oid == integer && operator.right_type_oid != integer {
-            crossed.insert(operator.right_type_oid);
-        }
-        if operator.right_type_oid == integer && operator.left_type_oid != integer {
-            crossed.insert(operator.left_type_oid);
-        }
-    }
-    let mut found = None;
-    for oid in same {
-        if Some(oid) == catalog.literal_types.integer
-            || Some(oid) == catalog.literal_types.text
-            || Some(oid) == catalog.literal_types.boolean
-            || crossed.contains(&oid)
-        {
-            continue;
-        }
-        if found.is_some() {
-            return None;
-        }
-        found = Some(oid);
-    }
-    found
 }
 
 fn resolve_operator<'a>(

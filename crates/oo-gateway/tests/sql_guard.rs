@@ -194,6 +194,22 @@ fn integer_literal_uses_the_numeric_operator() {
         .push(col("amount", "pc_amount", NUM_OID));
     let mut catalog = catalog(relations);
     catalog.operators.push(ResolvedOperator {
+        oid: 907,
+        procedure_oid: 908,
+        schema: "pg_catalog".to_string(),
+        name: "=".to_string(),
+        left_type_oid: 1082,
+        right_type_oid: 1082,
+    });
+    catalog.operators.push(ResolvedOperator {
+        oid: 905,
+        procedure_oid: 906,
+        schema: "pg_catalog".to_string(),
+        name: "<".to_string(),
+        left_type_oid: NUM_OID,
+        right_type_oid: NUM_OID,
+    });
+    catalog.operators.push(ResolvedOperator {
         oid: NUM_GT,
         procedure_oid: 902,
         schema: "pg_catalog".to_string(),
@@ -210,6 +226,9 @@ fn integer_literal_uses_the_numeric_operator() {
     assert!(plan.bindings.operators.iter().any(|op| op.oid == NUM_GT));
     assert!(plan.executed_sql.contains("pc_amount"));
     assert!(plan.executed_sql.contains('>'));
+    for comparison in ["amount > -10", "amount > 0", "amount < 0", "0 < amount"] {
+        admit(&catalog, &format!("SELECT order_id FROM logistics.shipment WHERE {comparison}"));
+    }
     let floated = guard_select(
         &identity(),
         &catalog,

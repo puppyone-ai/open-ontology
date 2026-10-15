@@ -18,7 +18,7 @@ oo-pipeline = { path = "../../crates/oo-pipeline" }
 cdc-spool = { path = "../cdc-spool" }
 cdc-transaction = { path = "../cdc-transaction" }
 futures-util = { version = "=0.3.34", default-features = false, features = ["alloc", "std"] }
-mysql_async = { version = "=0.36.1", default-features = false, features = ["binlog", "minimal", "rustls-tls", "ring"] }
+mysql_async = { version = "=0.36.1", default-features = false, features = ["binlog", "minimal", "native-tls-tls"] }
 serde_json = "=1.0.151"
 sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }
 sqlx-core = { version = "=0.9.0", default-features = false, features = ["_rt-tokio", "_tls-rustls-ring-no-roots"] }

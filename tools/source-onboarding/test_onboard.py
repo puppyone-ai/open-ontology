@@ -144,6 +144,26 @@ class RunnerTests(unittest.TestCase):
             journal={'state':'recipe_completed','identity':{'recipe_sha256':m.digest(rp)},'steps':[{'name':'product','state':'succeeded','observed_programs':[str(m.OPERATOR)],'artifacts':[{'path':'product/product-receipt.json','sha256':artifacts['product/product-receipt.json']},{'path':'product/maintenance-consumption.json','sha256':artifacts['product/maintenance-consumption.json']}]},{'name':'dialogue','state':'succeeded','artifacts':[{'path':'dialogue/verdict.json','sha256':artifacts['dialogue/verdict.json']},{'path':'dialogue/transcript.json','sha256':artifacts['dialogue/transcript.json']},{'path':'dialogue/selection.json','sha256':artifacts['dialogue/selection.json']}]}]}
             self.write(run/'journal.json',journal)
             self.assertTrue(m.prove_whole(run,recipe,journal)['full_product_chain_complete'])
+            semantic_paths=[product/name for name in ('current-role-response.json','current-maintenance-response.json','maintenance-consumption.json')]
+            semantic_saved=[path.read_bytes() for path in semantic_paths]
+            for name,body in [('current-source.json',{'source':'fixture'}),('current-source-semantics.json',{'capture_method':'c1_cdc'}),('current-effective-oos.json',{'protocol':'oo.builder.effective-oos/v1','datasets':[]})]:
+                (product/name).write_text(json.dumps(body))
+            for path in semantic_paths[:2]:
+                envelope=json.loads(path.read_bytes());native=envelope['response']['native_maintenance']
+                native['source_rebind'].update(source_semantics_sha256=m.digest(product/'current-source-semantics.json'),capture_methods={'fixture.orders':{'capture_method':'c1_cdc'}})
+                native.update(source_json_sha256=m.digest(product/'current-source.json'),effective_sha256=m.digest(product/'current-effective-oos.json'))
+                if path.name=='current-maintenance-response.json':envelope['request']['source_semantics_sha256']=native['source_rebind']['source_semantics_sha256']
+                path.write_text(json.dumps(envelope))
+            consumption=m.maintenance_consumption(receipt,m.digest(product/'product-receipt.json'),receipt['native_role_pack_sha256'],(product/'current-role-pack.json').read_bytes(),json.loads((product/'current-command.json').read_bytes()),json.loads((product/'current-visibility.json').read_bytes()),semantic_paths[0].read_bytes(),semantic_paths[1].read_bytes(),0,0,(product/'current-prepared-overlay.json').read_bytes())
+            consumption.update(source_json_sha256=m.digest(product/'current-source.json'),effective_json_sha256=m.digest(product/'current-effective-oos.json'))
+            semantic_paths[2].write_text(json.dumps(consumption));journal['steps'][0]['artifacts'][1]['sha256']=m.digest(semantic_paths[2])
+            self.assertTrue(m.prove_whole(run,recipe,journal)['full_product_chain_complete'])
+            for name in ('current-source.json','current-effective-oos.json','current-source-semantics.json'):
+                target=product/name;original=target.read_bytes();target.write_text('{}')
+                with self.assertRaisesRegex(m.Refused,'maintenance_source_semantics'):m.prove_whole(run,recipe,journal)
+                target.write_bytes(original)
+            for path,raw in zip(semantic_paths,semantic_saved):path.write_bytes(raw)
+            journal['steps'][0]['artifacts'][1]['sha256']=m.digest(semantic_paths[2])
             # Exercise the whole-proof close with the real collection shape: it has
             # schema_digests, never a collapsed schema_digest.
             paths=[product/name for name in ('current-command.json','current-visibility.json','current-role-response.json','current-maintenance-response.json','maintenance-consumption.json')]

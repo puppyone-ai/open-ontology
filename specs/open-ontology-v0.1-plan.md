@@ -2938,3 +2938,8 @@ Maria39续接原完整五表后续产品链，71真实独立API身份预检就�
 ### 2026-10-16 明确MySQL5.7与真实完整E2E
 
 2026-10-16 用户已恢复Goal active并新增MySQL5.7必需兼容：原URL/key的Sol low工具调用+strict JSON真实探测6.67秒成功，仅代理证据；当前完整对话仍须验。旧Sol负责人原handle实际not_found、构建容器仅sleep/源文件clean后，唯一继任 /root/mysql57_reference_sol（gpt-6.1-sol/medium）已接受同一长跑完整卡。先收完保留8.4真实链，再自备真实5.7做原C1/default六字段/S0–S10/维护Pack/正式fixture发布/副本/Gateway/随机Agent全部出口；MySQL仍计十源之一，不以8.4代5.7。遇卡先AnySearch官方依据、最小Rust完整修改，禁止反复盲试；root并行查5.7文档。派发 execution/batches/native-luna-full-source-20261015/mysql-resume57-dispatch.json；阻断审计已重置，其他九源held/shared未放行/正式0/10/原Plan分母和整版不变。
+
+
+### 2026-10-16 固定8.4完整fixture参考与5.7/C5接续
+
+2026-10-16 MySQL8.4本地完整产品参考已root核验：六字段默认run ed7e08aad07741169b5926a8f6c403fd六步骤exit0/wholetrue，真实C1自主IUD/quiet/崩溃恢复、S0–S10/当前维护Pack、fixture正式发布与真实RO副本、Gateway/CLI两组随机两轮对话；110019行43列逐值源对账0差异，4事实与独立gold/原QID-WAL一致，71项SHA零误、源码archive重生成一致。固定source6a2e99d17/Gateway84f86555c及逐组件ELF见 execution/reviews/native-luna-full-source-20261015/mysql8-complete-fixture-reference-intake.json。这是8.4 fixture参考通过；5.7仍须完整退出，正式0/10/整版0，不晋级生产认证。当前唯一Sol medium MySQL5.7负责人继续，独立正常identity前置负责人只写control-identity fixture/own recipe，Oracle完整C5参考负责人获MySQL明确释放的native_publication.rs/target.rs/target_installer.rs及append-only迁移窄域并行；既有C1 ELF固定不采并发树。其余8源保持held，统一独立审阅按人类原时点，无组件审阅/计数分母新增。 原Plan原退出和所有开发/集成/发行/外部门槛分母分子不变；不勾父项/Phase。

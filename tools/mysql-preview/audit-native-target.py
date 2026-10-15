@@ -50,8 +50,9 @@ def normalize(value, kind):
     return value.lower() if kind == "varbinary" else value
 
 
-def compare(generation, selected_table=None, source_id="mysql_native"):
+def compare(generation, selected_table=None, source_id="mysql_native", source_container="oo-dl01w1-06-mysql", source_client_file="/secrets/sol-dba.cnf", schema="native_mysql_20261012"):
     source_id = ident(source_id)
+    schema = ident(schema)
     catalog = pg("select logical_table,logical_column,physical_name from _oo.physical_mappings "
                  f"where source='{source_id}' and run_generation={generation} and level='c' "
                  "order by logical_table,logical_column")
@@ -61,10 +62,10 @@ def compare(generation, selected_table=None, source_id="mysql_native"):
         if selected_table is not None and table != selected_table:
             continue
         mapped.setdefault(table, {})[column] = physical
-    types = subprocess.run(["docker", "exec", "oo-dl01w1-06-mysql", "mysql",
-                            "--defaults-extra-file=/secrets/sol-dba.cnf", "-NBe",
+    types = subprocess.run(["docker", "exec", source_container, "mysql",
+                            "--defaults-extra-file="+source_client_file, "-NBe",
                             "select table_name,column_name,data_type from information_schema.columns "
-                            "where table_schema='native_mysql_20261012' order by table_name,ordinal_position"],
+                            f"where table_schema='{schema}' order by table_name,ordinal_position"],
                            capture_output=True, text=True, check=True).stdout.splitlines()
     source = {}
     for row in types:
@@ -95,10 +96,10 @@ def compare(generation, selected_table=None, source_id="mysql_native"):
             left.append(expression)
             target = '"' + ident(mapped[table][name]) + '"'
             right.append(f"encode({target},'hex')" if kind == "varbinary" else target + "::text")
-        mysql_sql = f"SELECT JSON_ARRAY({','.join(left)}) FROM `native_mysql_20261012`.`{table}` ORDER BY `{columns[0][0]}`"
+        mysql_sql = f"SELECT JSON_ARRAY({','.join(left)}) FROM `{schema}`.`{table}` ORDER BY `{columns[0][0]}`"
         pg_sql = f'SELECT json_build_array({",".join(right)}) FROM _oo."{ident(physical[0])}" ORDER BY "{ident(mapped[table][columns[0][0]])}"'
-        mysql_rows = lines(["docker", "exec", "oo-dl01w1-06-mysql", "mysql",
-                            "--defaults-extra-file=/secrets/sol-dba.cnf", "--batch", "--raw", "--skip-column-names", "-e", mysql_sql])
+        mysql_rows = lines(["docker", "exec", source_container, "mysql",
+                            "--defaults-extra-file="+source_client_file, "--batch", "--raw", "--skip-column-names", "-e", mysql_sql])
         target_rows = lines(["docker", "exec", "oo-dl01w1-06-pg", "sh", "-lc",
                              'psql -U "$POSTGRES_USER" -d mysql_native_20261012 -Atc ' + shlex.quote(pg_sql)])
         count = 0
@@ -122,6 +123,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--generation", type=int, required=True)
     parser.add_argument("--source-id", default="mysql_native")
+    parser.add_argument("--source-container", default="oo-dl01w1-06-mysql")
+    parser.add_argument("--source-client-file", default="/secrets/sol-dba.cnf")
+    parser.add_argument("--schema", default="native_mysql_20261012")
     parser.add_argument("--table", choices=["hubs", "shipments", "tracking_events", "range_gap", "value_probe"])
     args = parser.parse_args()
-    print(json.dumps({"generation": args.generation, "tables": compare(args.generation, args.table, args.source_id)}, sort_keys=True))
+    print(json.dumps({"generation": args.generation, "tables": compare(args.generation, args.table, args.source_id, args.source_container, args.source_client_file, args.schema)}, sort_keys=True))

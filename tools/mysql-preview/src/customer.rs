@@ -263,9 +263,7 @@ async fn preflight(
     if mariadb_comment(&comment) {
         return Err(PreviewError::new("version", "mariadb"));
     }
-    if !version.starts_with("8.") {
-        return Err(PreviewError::new("version", "mysql_major"));
-    }
+    crate::version::ServerVersion::parse(&version)?;
     let sql_mode = scalar(conn, notes, "SELECT @@session.sql_mode").await?;
     if !session_mode_ok(&sql_mode) {
         return Err(PreviewError::new("session", "sql_mode"));

@@ -832,13 +832,20 @@ async fn native_retained_product_identity() {
     fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
     let material = certs(&dir);
     let secret = openssl_hex(); write_secret(&dir.join("client.secret"), &secret);
-    let origin = "https://127.0.0.1:18441";
-    let issuer = "https://127.0.0.1:18442";
+    let product_port: u16 = std::env::var("OO_NATIVE_IDENTITY_PORT").unwrap_or_else(|_| "18441".into()).parse().expect("identity port");
+    let idp_port: u16 = std::env::var("OO_NATIVE_IDP_PORT").unwrap_or_else(|_| "18442".into()).parse().expect("IdP port");
+    let origin_value = format!("https://127.0.0.1:{product_port}");
+    let issuer_value = format!("https://127.0.0.1:{idp_port}");
+    let origin = origin_value.as_str();
+    let issuer = issuer_value.as_str();
     let callback = format!("{origin}/control/v1/auth/callback");
     let config_path = dir.join("identity.json");
-    write_config(&config_path, &Endpoints { env: &env, dir: &dir, material: &material, origin, issuer, callback: &callback, port: 18441 });
+    write_config(&config_path, &Endpoints { env: &env, dir: &dir, material: &material, origin, issuer, callback: &callback, port: product_port });
     let mut body: Value = serde_json::from_slice(&fs::read(&config_path).unwrap()).unwrap();
-    let projects = ["postgres", "mysql", "oracle", "mariadb", "mongodb", "clickhouse", "doris", "starrocks", "opensearch", "sqlserver"];
+    let projects = match std::env::var("OO_NATIVE_IDENTITY_PROJECT") {
+        Ok(project) => vec![project],
+        Err(_) => ["postgres", "mysql", "oracle", "mariadb", "mongodb", "clickhouse", "doris", "starrocks", "opensearch", "sqlserver"].into_iter().map(str::to_string).collect(),
+    };
     let roles = [("fixture-admin", Role::Admin), ("fixture-reviewer", Role::Reviewer), ("fixture-steward", Role::Steward), ("fixture-auditor", Role::Auditor), ("fixture-owner", Role::BusinessOwner)];
     let mut bindings = Vec::new();
     for (subject, role) in &roles { for project in &projects { bindings.push(Binding { subject: subject.to_string(), project_id: project.to_string(), role: *role }); } }
@@ -851,7 +858,7 @@ async fn native_retained_product_identity() {
     fs::write(&config_path, serde_json::to_vec_pretty(&body).unwrap()).unwrap();
     fs::set_permissions(&config_path, fs::Permissions::from_mode(0o600)).unwrap();
     let config = load_config(&config_path).unwrap();
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:18442").await.unwrap();
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", idp_port)).await.unwrap();
     let der_keys = vec![fs::read(dir.join("k1.der")).unwrap(), fs::read(dir.join("k2.der")).unwrap()];
     let idp = idp::start(listener, IdpParts { cert_pem:&material.cert, key_pem:&material.key, issuer, client_id:&config.client_id, configured_audience:&config.audience, client_secret:&secret, redirect_uri:&config.redirect_uris[0], der_keys:&der_keys }).await;
     let exe = env!("CARGO_BIN_EXE_control-identity");
@@ -869,6 +876,9 @@ async fn native_retained_product_identity() {
         let current = http.call("GET", "/control/v1/identity/current", None, false, None).await;
         assert_eq!(current.status,200); assert_eq!(current.body["install_state"], "initialized");
         assert_eq!(current.body["projects"].as_array().unwrap().len(), projects.len());
+        for project in &projects {
+            assert!(current.body["projects"].as_array().unwrap().iter().any(|p| p["project_id"] == *project && p["role"] == roles.iter().find(|(s, _)| s == subject).unwrap().1.as_str()), "authenticated project role");
+        }
         write_secret(&dir.join(format!("{subject}.cookie")), http.session.as_ref().unwrap());
         write_secret(&dir.join(format!("{subject}.csrf")), current.body["csrf_token"].as_str().unwrap());
     }
@@ -889,7 +899,8 @@ async fn resume_native_product_identity() {
     };
     let secret = read_secret(dir.join("client.secret").to_str().unwrap());
     let der_keys = vec![fs::read(dir.join("k1.der")).unwrap(), fs::read(dir.join("k2.der")).unwrap()];
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:18442").await.unwrap();
+    let idp_port = reqwest::Url::parse(&config.issuer).unwrap().port().expect("configured fixture IdP port");
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", idp_port)).await.unwrap();
     let idp = idp::start(listener, IdpParts {
         cert_pem: &material.cert, key_pem: &material.key,
         issuer: &config.issuer, client_id: &config.client_id,

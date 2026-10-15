@@ -20,6 +20,7 @@ mod role_acl;
 mod source;
 mod target;
 mod values;
+mod version;
 
 use std::fs;
 use std::path::Path;
