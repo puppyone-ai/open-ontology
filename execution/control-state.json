@@ -1106,7 +1106,19 @@
     ],
     "current_contract": "execution/batches/native-luna-full-source-20261015/MYSQL-SHARED-REFERENCE.md"
   },
-  "managed_live_native_agents": [],
+  "managed_live_native_agents": [
+    {
+      "as_of": "2026-10-15T20:42:01.744375+00:00",
+      "agent": "/root/doris_complete_luna_max",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "max",
+      "status": "spawned_and_accepted",
+      "contract": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md",
+      "exclusive_scope": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md#唯一写权与资源",
+      "dependency_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
+      "formal_source_count_delta": 0
+    }
+  ],
   "execution_policy": {
     "kind": "native",
     "model": "gpt-6.1-sol",
@@ -3155,10 +3167,10 @@
     "agent": "/root/mysql57_reference_sol",
     "model": "gpt-6.1-sol",
     "reasoning_effort": "medium",
-    "status": "spawned_and_accepted",
+    "status": "completed_root_verified_writer_released",
     "contract": "execution/batches/native-luna-full-source-20261015/MYSQL-RESUME-57-COMPLETE-20261016.md",
     "complete_capability": "real MySQL original C1 baseline/sync plus S0-S10/current Ontology-Pack/formal publish/Gateway-CLI/autonomous random agent; fixed shared artifacts before other sources reuse",
-    "source_rollout_allowed": false,
+    "source_rollout_allowed": "Doris only",
     "write_scope": [
       "tools/mysql-preview",
       "crates/oo-pipeline/src/native_update.rs",
@@ -3179,7 +3191,7 @@
     ],
     "root_scope": "coordination ledger and fixed evidence only; no duplicate product writer",
     "first_actual_finding": "real Linux binaries retained; real scheduler/producer invocation failures retained; typed full-import bridge remains refusal stub and is next implementation",
-    "artifact_status": "resume8.4 full current chain then required5.7 actual full chain; source release held",
+    "artifact_status": "fixed complete family intake, normal current default and stable services verified",
     "formal_count_delta": 0,
     "latest_luna_xhigh_transfer": {
       "as_of": "2026-10-15T17:21:59.122581+08:00",
@@ -3444,5 +3456,22 @@
     "formal_source_count_delta": 0,
     "root_reference_pass": true
   },
-  "latest_doris_luna_max_dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json"
+  "latest_doris_luna_max_dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json",
+  "doris_current_reference": {
+    "as_of": "2026-10-15T20:42:01.744375+00:00",
+    "agent": "/root/doris_complete_luna_max",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "max",
+    "status": "spawned_and_accepted",
+    "contract": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md",
+    "exclusive_scope": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md#唯一写权与资源",
+    "dependency_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
+    "formal_source_count_delta": 0
+  },
+  "latest_mysql_sanitized_sync": {
+    "snapshot": "3dfa3fc3470b8ff83da4fce59f9dffc1d5abdc4c",
+    "fixed_source": "29e3afd88d7c847cffddc9f3e15474255c1bb320",
+    "push_exit": 0,
+    "nonforce": true
+  }
 }
