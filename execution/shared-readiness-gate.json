@@ -415,5 +415,18 @@
     "source_release_allowed": false,
     "formal_source_count": 0,
     "source_commit": "WIP; sole owner continues original complete exits"
+  },
+  "latest_mysql_fixed_partial_intake": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/mysql-fixed-partial-provider-block-intake.json",
+    "owner": "/root/mysql_shared_reference_sol",
+    "observed_agent_status": "completed_incomplete_external_provider_block",
+    "code_commit": "36c100fbf4b720949c5e107faf98475d6731759c",
+    "handoff_commit": "d14d8a28417b3f7a01647ef63b10d515b2da6572",
+    "formal_source_count": 0,
+    "source_release_allowed": false,
+    "pending": [
+      "two complete new random semantic Agent conversations independently verified against source gold and real QID/WAL",
+      "final ordinary whole_source proof after successful conversations"
+    ]
   }
 }

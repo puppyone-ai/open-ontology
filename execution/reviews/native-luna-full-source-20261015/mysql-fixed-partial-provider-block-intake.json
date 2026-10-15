@@ -1,0 +1,109 @@
+{
+  "as_of": "2026-10-15T15:59:47.904736+00:00",
+  "owner": "root",
+  "source_owner": "/root/mysql_shared_reference_sol",
+  "observed_agent_status": "completed_incomplete_external_provider_block",
+  "source_id": "mysql_67fff4e8ebff9f91bee8c75e",
+  "binding_id": "6e824358-6b96-4ddf-9f24-e02b1eaccbc5",
+  "source_generation": 6,
+  "source_epoch": 1,
+  "applied_pos": "38",
+  "current_pack_digest": "21ad1f3e096bca915f83e367cb1d763017e03b2882a067f35b82742674c47cac",
+  "code_commit": "36c100fbf4b720949c5e107faf98475d6731759c",
+  "handoff_commit": "d14d8a28417b3f7a01647ef63b10d515b2da6572",
+  "author_packet": {
+    "path": "/tmp/oo-mysql-connection-whole/sol-20261015/blocked-handoff-receipt-v1.json",
+    "sha256": "a7a95065c2573ff94a1632bd0cdc2839d4124e8a2417ac33b202079d64c0b6f0"
+  },
+  "fixed_collection": {
+    "path": "/tmp/oo-mysql-connection-whole/sol-20261015/fixed-reference-collection-blocked-v2.json",
+    "sha256": "608fde055cc603e50658afd34722edd8fc3939bf09492ce8f6288e016a1bf632"
+  },
+  "root_verification": {
+    "packet": {
+      "path": "/tmp/oo-root-mysql-blocked-packet-check-20261015.json",
+      "sha256": "82ca2ec13fcba5fccdb9f49edc6bbe3e8935b7b41c0fe1469c88b9749156d6d4"
+    },
+    "unique_file_sha_checks": 1300,
+    "raw_records": 1263,
+    "hash_errors": 0,
+    "source_archives_and_installed_migrations": {
+      "path": "/tmp/oo-root-mysql-fixed-source-archives-20261015.json",
+      "sha256": "67ab84031737d40bbd4ef19b5e6654eee5495c29c9bfbf41773e91d268bcd202"
+    },
+    "regenerated_exact_git_archives": 4,
+    "installed_migrations_matching_fixed_source": 8,
+    "same_task_crash_recovery": {
+      "path": "/tmp/oo-root-mysql-timed-cut-crash-20261015.json",
+      "sha256": "52f355b028b95f1ca45291e61aba1c64e9d36fd0e2744fff2b73cce7a7b7804b"
+    },
+    "fresh_public_cli": {
+      "path": "/tmp/oo-root-mysql-freshness-20261015.json",
+      "sha256": "6a7ac5f505fc16bb9cfa46425cb715bf04597180ae39510d3bbd6eada87fa182"
+    },
+    "fresh_public_cli_exit": 0,
+    "fresh_publication": "live",
+    "freshness_tables": 5,
+    "all_tables_live": true,
+    "stale_warnings": 0
+  },
+  "author_evidence_scope": [
+    "ordinary six-field CDC-first baseline L0=32 through concurrent GTID33; 110019 rows/43 columns zero typed-cell differences",
+    "autonomous real C1 I/U/D groups, unselected transaction, quiet, same-task lease/crash recovery; no fake ACK",
+    "one ordinary serve entry through generation6/GTID38 typed import, independent oracle, native maintenance, fixture publication, readonly physical standby and current Gateway",
+    "real S0-S10, validated fresh Sol S5 one call; current maintenance paid calls zero",
+    "same caller permission refusals, admitted cancellation, durable WAL, rollback and subsequent successful query"
+  ],
+  "ordinary_default_entry": {
+    "run": "/Users/redux/.cache/oo-source-onboarding/runs/69155913138e46499a816e37b69b089e",
+    "input_keys": [
+      "database",
+      "host",
+      "port",
+      "secret_ref",
+      "type",
+      "user"
+    ],
+    "explicit_recipe_or_out": false,
+    "engine_registry_sha256": "8ed673f28b128d31852ba04ad0259e6d1595380b17cc246a66d47c489d6423a7",
+    "selected_engine_sha256": "67cdffb9baf7f726aec1d5dcc4a545429752974e37938aa03723f95311e16d3c",
+    "maintenance_and_preflight": "succeeded",
+    "agent_step": "failed",
+    "whole_proof_present": false,
+    "exit": 2
+  },
+  "missing_original_exits": [
+    "two complete new random semantic Agent conversations independently verified against source gold and real QID/WAL",
+    "final ordinary whole_source proof after successful conversations"
+  ],
+  "actual_provider_failures": {
+    "primary": "HTTP503 auth_unavailable, confirmed in original default-run transcript; earlier403 retained",
+    "fallback": "HTTP408 and repeated180-second socket timeouts, last default-run stderr confirmed",
+    "complete_conversation_verdicts": 0,
+    "partial_verified_turns": "not counted as a full conversation",
+    "new_paid_calls": "stopped; user asked asynchronously for provider restoration or alternative model"
+  },
+  "acceptance": {
+    "author_delivery": "incomplete fixed packet received",
+    "independent_review": "deferred under human full-loop policy; no component review agent",
+    "integration": "not_complete",
+    "release": "not_ready",
+    "formal_source_count": 0,
+    "formal_count_delta": 0,
+    "other_sources_released": false,
+    "goal": "active, not complete; first current-turn external block audit"
+  },
+  "resource_state": "Current Gateway6, selfbuild/release APIs, actual standby and source/target/shared identity retained. Superseded owned GW4/5 stopped, builder idle, attributed source orphan removed; hashes/actual inventory in author packet. Token expires; normal renewal and new preflight required before any resumed paid call.",
+  "resume": "Keep original failures immutable. Once provider usable, same sole engineer resumes with fresh same-identity preflight, new immutable registered recipe/default six-field run, original frozen random selection and reverified completed prefix; no repeat S5 if valid, no fake whole proof.",
+  "protocol_checks": {
+    "task_ledger_and_CONTROL_active_work": "updated; sole engineer terminal with retained resources, no acceptance",
+    "TODO": "regenerated and checked",
+    "main_Plan": "execution note only; original exits and unchecked parents preserved",
+    "development_ledger_and_CHANGELOG": "fixed partial packet and external gap recorded",
+    "acceptance_counting": "no new units or numerical change; no source complete",
+    "PRODUCT_LOOPS": "no complete edition, no change",
+    "support_matrix": "no promotion",
+    "frontend": "not touched",
+    "GOAL_HANDOFF": "resume position updated; overall active"
+  }
+}
