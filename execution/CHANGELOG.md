@@ -1,3 +1,5 @@
+2026-10-15 MySQL六字段真实C1基线：同source mysql_67fff4e8ebff9f91bee8c75e/task d47f2ff5-fdb1-4cbd-831e-ce7e0bca2c94，gen5/epoch1/L0=32/L_end33；root目标直读5个full_import、task succeeded，原始worker CAS后ACK。独立MySQL→PG五表110019行43列全cell差0，root核oracle真实源读取及类型映射；0034新迁移5616c8de安装匹配，全部失败保留。仅基线里程碑，源码尚未冻结；唯一Sol medium继续自主同步/S0–S10/维护Pack/正式发布/Gateway随机对话。正式0/10、shared未放行、九源held，原Plan/计数/整版/支持等级不变。证据：execution/reviews/native-luna-full-source-20261015/mysql-six-field-typed-baseline-intake.json。
+
 2026-10-15 MySQL typed桥0031安装前v9真实runtime正拒测试exit0（补CAS前拒ACK/CAS后准ACK），正式Linux installer exit0；root独立核当前源SQL完整字节确在执行脚本、actual ELF52a022/88b3、目标_oo.schema_migrations checksum b1644177…一致。0031已安装，字节冻结不可再改；v1-v8失败/旧回执保留。仅安装/guard证据，真实并发MySQL五表导入与后续完整链未验，0/10及其他源held不变。证据mysql-typed-bridge-installed-intake.json，仍同一Sol medium完整owner。
 
 2026-10-15 MySQL实运行资源校验：root已核oo-mysql-connection-whole实际cpu.max=max100000、memory.max=16GiB、额外swap.max=16GiB（合计32GiB）；Docker VM16CPU/94GiB。原0.5CPU/512MiB限额由owner发现并原地解除CPU/增内存，未中断cargo27683/rustc39330，root实际docker top确认当时live。只证明本容器、不冒其他容器全部解除；未通过源或整版，0/10与held不变。记录见execution/reviews/native-luna-full-source-20261015/mysql-live-build-resource-intake.json。

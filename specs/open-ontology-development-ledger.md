@@ -1,3 +1,5 @@
+2026-10-15 MySQL六字段真实C1基线：同source mysql_67fff4e8ebff9f91bee8c75e/task d47f2ff5-fdb1-4cbd-831e-ce7e0bca2c94，gen5/epoch1/L0=32/L_end33；root目标直读5个full_import、task succeeded，原始worker CAS后ACK。独立MySQL→PG五表110019行43列全cell差0，root核oracle真实源读取及类型映射；0034新迁移5616c8de安装匹配，全部失败保留。仅基线里程碑，源码尚未冻结；唯一Sol medium继续自主同步/S0–S10/维护Pack/正式发布/Gateway随机对话。正式0/10、shared未放行、九源held，原Plan/计数/整版/支持等级不变。证据：execution/reviews/native-luna-full-source-20261015/mysql-six-field-typed-baseline-intake.json。
+
 本次派发校验：TODO --check与限定diff --check通过；Spec/Plan self-test均因既有docs/07-gateway.md来源hash/size/line漂移exit1。root核该文档工作区字节等于HEAD，非本次协调变更造成；保留失败、不重写baseline哈希冒充通过。详情同mysql-sol-handoff.json。
 
 2026-10-15 MySQL完整参考链已移交唯一`gpt-6.1-sol/medium`负责人`/root/mysql_shared_reference_sol`。原Luna xhigh已完整交接并经实际list_agents确认completed，root核producer/pipeline/worker/manifest四SHA匹配、MySQL构建容器仅sleep后才新派发；未丢WIP/失败、无重复writer。真实五表typed导入仍为拒绝占位，直接推进最小正式桥及原完整C1同步/S0–S10/维护Pack/正式发布/Gateway/随机Agent退出。合同MYSQL-SOL-COMPLETE.md、mysql-sol-handoff.json及mysql-reference-dispatch.json位于execution/batches/native-luna-full-source-20261015。无完整作者交付/整源签收，0/10与其余九源held不变；未增加开发/集成/发行或外部门槛计数，旧构建专属exit receipt缺失明确保留。
