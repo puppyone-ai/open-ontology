@@ -1,15 +1,15 @@
 {
-  "as_of": "2026-10-15T02:21:32.470408+08:00",
+  "as_of": "2026-10-15T16:04:19.025434+08:00",
   "authorization": "latest human: 授权gpt6 luna继续，加快进度",
   "dispatch": "execution/batches/native-luna-full-source-20261015/dispatch.json",
   "native_agents": [
     {
       "task": "mysql",
-      "agent": "/root/luna_mysql_whole_c1",
+      "agent": "/root/luna_mysql_resume",
       "model": "gpt-6-luna",
       "reasoning_effort": "low",
-      "observed_status": "running",
-      "observed_at": "2026-10-15T02:21:32.470408+08:00",
+      "observed_status": "running_verified_collaboration_list",
+      "observed_at": "2026-10-15T15:54:37.452885+08:00",
       "write_paths": [
         "tools/mysql-preview"
       ],
@@ -17,15 +17,16 @@
       "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
       "source_acceptance": "not_complete",
       "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained"
+      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
+      "previous_agent": "/root/luna_mysql_whole_c1"
     },
     {
       "task": "oracle",
-      "agent": "/root/luna_oracle_whole",
+      "agent": "/root/luna_oracle_resume",
       "model": "gpt-6-luna",
       "reasoning_effort": "low",
-      "observed_status": "running",
-      "observed_at": "2026-10-15T02:21:32.470408+08:00",
+      "observed_status": "running_verified_collaboration_list",
+      "observed_at": "2026-10-15T15:54:37.452885+08:00",
       "write_paths": [
         "tools/oracle-preview",
         "testing/dl01-driver-preflight/oracle/probe"
@@ -34,15 +35,16 @@
       "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
       "source_acceptance": "not_complete",
       "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained"
+      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
+      "previous_agent": "/root/luna_oracle_whole"
     },
     {
       "task": "mariadb",
-      "agent": "/root/luna_mariadb_whole_c1",
+      "agent": "/root/luna_maria_c1_resume",
       "model": "gpt-6-luna",
       "reasoning_effort": "low",
-      "observed_status": "running",
-      "observed_at": "2026-10-15T02:21:32.470408+08:00",
+      "observed_status": "running_verified_collaboration_list",
+      "observed_at": "2026-10-15T15:54:37.452885+08:00",
       "write_paths": [
         "tools/mariadb-preview",
         "crates/oo-pipeline/src/native_update.rs",
@@ -61,15 +63,16 @@
       "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
       "source_acceptance": "not_complete",
       "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained"
+      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
+      "previous_agent": "/root/luna_mariadb_whole_c1"
     },
     {
       "task": "mongodb",
-      "agent": "/root/luna_mongodb_whole_c1",
+      "agent": "/root/luna_mongo_resume",
       "model": "gpt-6-luna",
       "reasoning_effort": "low",
-      "observed_status": "running",
-      "observed_at": "2026-10-15T02:21:32.470408+08:00",
+      "observed_status": "running_verified_collaboration_list",
+      "observed_at": "2026-10-15T15:54:37.452885+08:00",
       "write_paths": [
         "tools/mongodb-preview"
       ],
@@ -77,15 +80,16 @@
       "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
       "source_acceptance": "not_complete",
       "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained"
+      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
+      "previous_agent": "/root/luna_mongodb_whole_c1"
     },
     {
       "task": "clickhouse",
-      "agent": "/root/luna_clickhouse_whole",
+      "agent": "/root/luna_click_resume",
       "model": "gpt-6-luna",
       "reasoning_effort": "low",
-      "observed_status": "running",
-      "observed_at": "2026-10-15T02:21:32.470408+08:00",
+      "observed_status": "running_verified_collaboration_list",
+      "observed_at": "2026-10-15T15:54:37.452885+08:00",
       "write_paths": [
         "tools/clickhouse-preview",
         "tools/agent-product-verifier/dialogue.py",
@@ -96,15 +100,16 @@
       "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
       "source_acceptance": "not_complete",
       "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained"
+      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
+      "previous_agent": "/root/luna_clickhouse_whole"
     },
     {
       "task": "doris",
-      "agent": "/root/luna_doris_whole",
+      "agent": "/root/luna_doris_resume",
       "model": "gpt-6-luna",
       "reasoning_effort": "low",
-      "observed_status": "running",
-      "observed_at": "2026-10-15T02:21:32.470408+08:00",
+      "observed_status": "running_verified_collaboration_list",
+      "observed_at": "2026-10-15T15:54:37.452885+08:00",
       "write_paths": [
         "tools/doris-preview",
         "testing/dl01-driver-preflight/doris/reader"
@@ -113,15 +118,16 @@
       "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
       "source_acceptance": "not_complete",
       "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained"
+      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
+      "previous_agent": "/root/luna_doris_whole"
     },
     {
       "task": "opensearch",
-      "agent": "/root/luna_opensearch_whole",
+      "agent": "/root/luna_os_resume",
       "model": "gpt-6-luna",
       "reasoning_effort": "low",
-      "observed_status": "running",
-      "observed_at": "2026-10-15T02:21:32.470408+08:00",
+      "observed_status": "completed_handoff_waiting_publication",
+      "observed_at": "2026-10-15T15:54:37.452885+08:00",
       "write_paths": [
         "tools/opensearch-preview",
         "testing/dl01-driver-preflight/opensearch/reader",
@@ -132,15 +138,17 @@
       "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
       "source_acceptance": "not_complete",
       "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained"
+      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
+      "previous_agent": "/root/luna_opensearch_whole",
+      "next_action": "resume same owner after official publication dependency ready; no further model calls before gate"
     },
     {
       "task": "postgresql",
-      "agent": "/root/luna_postgresql_whole",
+      "agent": "/root/luna_pg_resume",
       "model": "gpt-6-luna",
       "reasoning_effort": "low",
-      "observed_status": "running",
-      "observed_at": "2026-10-15T02:21:32.470408+08:00",
+      "observed_status": "running_verified_collaboration_list",
+      "observed_at": "2026-10-15T15:54:37.452885+08:00",
       "write_paths": [
         "tools/postgres-preview",
         "crates/oo-gateway/src/policy.rs",
@@ -151,15 +159,16 @@
       "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
       "source_acceptance": "not_complete",
       "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained"
+      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
+      "previous_agent": "/root/luna_postgresql_whole"
     },
     {
       "task": "starrocks",
-      "agent": "/root/luna_starrocks_whole",
+      "agent": "/root/luna_star_resume",
       "model": "gpt-6-luna",
       "reasoning_effort": "low",
-      "observed_status": "running",
-      "observed_at": "2026-10-15T02:21:32.470408+08:00",
+      "observed_status": "running_verified_collaboration_list",
+      "observed_at": "2026-10-15T15:54:37.452885+08:00",
       "write_paths": [
         "tools/starrocks-preview",
         "crates/oo-gateway/src/policy_catalog.rs",
@@ -173,15 +182,16 @@
       "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
       "source_acceptance": "not_complete",
       "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained"
+      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
+      "previous_agent": "/root/luna_starrocks_whole"
     },
     {
       "task": "sqlserver",
-      "agent": "/root/luna_sql_whole_foundation",
+      "agent": "/root/luna_shared_runtime_resume",
       "model": "gpt-6-luna",
       "reasoning_effort": "low",
-      "observed_status": "running",
-      "observed_at": "2026-10-15T02:21:32.470408+08:00",
+      "observed_status": "running_verified_collaboration_list",
+      "observed_at": "2026-10-15T15:54:37.452885+08:00",
       "write_paths": [
         "tools/mssql-preview",
         "testing/dl01-targets/mssql",
@@ -192,25 +202,28 @@
         "tools/job-worker/src/native_schedule.rs",
         "tools/job-worker/NATIVE-SCHEDULE.md",
         "tools/job-worker/tests/closed_loop.rs",
-        "crates/oo-pipeline/src/native_catalog.rs",
         "crates/oo-pipeline/migrations/0024_native_gtid_transaction.sql",
         "tools/cdc-offset-store/migrations/oo_cdc_offset_control_v1.sql",
         "crates/oo-pipeline/migrations/0025_native_c1_source_epoch.sql",
-        "tools/source-admission/tests"
+        "tools/source-admission/tests",
+        "tools/job-worker/src/config.rs",
+        "crates/oo-pipeline/migrations/0026_native_c1_runtime_privileges.sql"
       ],
       "original_complete_task": "execution/batches/grok-connection-full-20261014/sqlserver-joint-real-C1-admission-epoch-repair-whole-fresh-context.md",
       "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
       "source_acceptance": "not_complete",
       "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained"
+      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
+      "runtime_ownership": "sole shared NativeServe installer for Star exact config/runtime; fixed f1ba PID7762; original old PID136 stopped and rollback retained, other runtime unchanged",
+      "previous_agent": "/root/luna_sql_whole_foundation"
     },
     {
       "task": "shared-entry",
-      "agent": "/root/luna_shared_default_whole",
+      "agent": "/root/luna_shared_entry_resume",
       "model": "gpt-6-luna",
       "reasoning_effort": "low",
-      "observed_status": "running",
-      "observed_at": "2026-10-15T02:21:32.470408+08:00",
+      "observed_status": "running_verified_collaboration_list",
+      "observed_at": "2026-10-15T15:54:37.452885+08:00",
       "write_paths": [
         "tools/source-onboarding",
         "tools/selfbuild-control-api/src/sealed.rs",
@@ -232,7 +245,28 @@
       "previous_dispatch": "execution/batches/grok-connection-full-20261014/dispatch.json",
       "source_acceptance": "not_complete",
       "independent_review": "deferred_until_ten_complete_chains",
-      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained"
+      "resource_policy": "self-provision owned E2E using retained Docker resources; uncapped build/CPU; original source read budgets and unique writers retained",
+      "registry_scope": "all ten source-author-ready entries; formal registry/normal-run coordinated after same-identity preflight",
+      "previous_agent": "/root/luna_shared_default_whole"
+    },
+    {
+      "task": "native-publication",
+      "agent": "/root/luna_native_publication_whole",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "low",
+      "observed_status": "running_verified_collaboration_list",
+      "write_paths": [
+        "tools/release-coordinator",
+        "tools/release-control-api",
+        "crates/oo-pipeline/src/native_catalog.rs",
+        "crates/oo-pipeline/src/native_publication.rs",
+        "crates/oo-pipeline/src/bin/native-publication.rs",
+        "crates/oo-pipeline/migrations/0027_native_publication.sql"
+      ],
+      "ownership_transfer": "runtime owner explicitly confirmed native_catalog untouched and no background writer; shared entry confirmed release tools untouched",
+      "original_requirement": "Spec user flow6 line83; native import publication line476; existing Plan native import/review/Pack/Gateway publication requirements; no new numerator",
+      "complete_task": "implement formal native approval/publication via existing coordinator/barrier and actual current OS21 source import/currentPack/role permissions/Gateway/CLI; only then source-owner actual agent dialogue; no SQL flag bypass",
+      "installer_handoff": "target_installer sole shared runtime owner; source/API registry sole shared entry; lib/main smallest wiring requires explicit sole-owner coordination"
     }
   ],
   "managed_grok": "all former managed exact handles terminal verified at turn start; preserve failed402 and private resources",
@@ -243,5 +277,9 @@
   "platform_goal": "active observed by get_goal in this turn",
   "whole_exit": "original per-source capture; initial import + autonomous configurable update/delete/recovery; S0-S10 current ontology/approved Pack/live gateway/CLI/two fresh semantic dialogues and independent source truth/WAL; no lowered exits",
   "first_default_attempts": "Star cd72 failed UNAUTHENTICATED; next74a9 failed missing pack.json on retained-product path; fixed b679813/5b91e35; shared legal repin and new run pending; failures retained",
-  "source_progress": "Maria Docker Linux1.94 C1 tests5/5; SQL gtidscope targeted test passed and official0025/installer/worker integration pending; PG cbdb18f30/c6f7c51e7/edc7c682a helper fixes; Doris c0644fad1/e26f69174 actual method metadata/random history fixes; no complete author source acceptance"
+  "source_progress": "Maria Docker Linux1.94 C1 tests5/5; SQL gtidscope targeted test passed and official0025/installer/worker integration pending; PG cbdb18f30/c6f7c51e7/edc7c682a helper fixes; Doris c0644fad1/e26f69174 actual method metadata/random history fixes; no complete author source acceptance",
+  "latest_original_exit_audit": "execution/reviews/native-luna-full-source-20261015/doris-default-candidate-original-exits-intake.json",
+  "resume_contract": "execution/batches/native-luna-full-source-20261015/RESUME.md",
+  "lifecycle": "old native agents absent from authoritative list; eleven replacement unique owners dispatched; existing dirty files and resources retained",
+  "publication_hard_gate": "hold new native source paid dialogue until original approved/published Pack/role/visibility gates; accurate preview CLI gold retained, not formal full closure"
 }

@@ -423,6 +423,9 @@ async fn install_document(document: &Value) -> Value {
         Ok(()) => match target_installer::install_native_pg_group_generation(&mut conn).await {
         Ok(()) => match target_installer::install_native_pg_single_transaction(&mut conn).await {
         Ok(()) => match target_installer::install_native_sqlserver_ct(&mut conn).await {
+        Ok(()) => match target_installer::install_native_gtid_transaction(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_source_epoch(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_source_epoch_runtime(&mut conn).await {
         Ok(()) => json!({
             "protocol": RESULT_PROTOCOL,
             "installed": true,
@@ -441,7 +444,16 @@ async fn install_document(document: &Value) -> Value {
             ,"pg_group_generation_digest": target_installer::compiled_native_pg_group_generation_digest()
             ,"pg_single_transaction_digest": target_installer::compiled_native_pg_single_transaction_digest()
             ,"sqlserver_ct_digest": target_installer::compiled_native_sqlserver_ct_digest()
+            ,"gtid_transaction_digest": target_installer::compiled_native_gtid_transaction_digest()
+            ,"native_c1_source_epoch_digest": target_installer::compiled_native_c1_source_epoch_digest()
+            ,"native_c1_source_epoch_runtime_digest": target_installer::compiled_native_c1_source_epoch_runtime_digest()
         }),
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0026"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0025"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0024"}),
+        },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0023"}),
         },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0022"}),
@@ -5921,6 +5933,14 @@ mod tests {
         assert_eq!(gold["observed"]["currency_columns"], 0);
         assert_eq!(gold["observed"]["hub_9000000000001"], 0);
         assert_eq!(gold["s5"], "not_called");
+    }
+
+    #[test]
+    fn gtid_install_digest_is_the_public_0024_script() {
+        assert_eq!(
+            target_installer::compiled_native_gtid_transaction_digest(),
+            "5122cd1e2117a273ffc37c2117e9bb0c5b382bfa0a1ed1d003f9c7bd68e99ef7"
+        );
     }
 
     #[test]

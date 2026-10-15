@@ -31,7 +31,8 @@ ADMISSION = "/tmp/oo-dl01w1-02-native-admission-0e18dec"
 ADMISSION_SHA = "0e18dec38d41d04b00650c613902e4ff21ffab700795208916679699718ca90f"
 DECODE = ROOT / "evidence/2c023948-0862-4dae-ae8f-6fc30241db62/DL01/starrocks-driver-preflight/build/bin/starrocks-decode"
 DECODE_SHA = "016be98241f4e4214bbf4d9e5826e80edaf881ceab4dcb2d62eb42a64ec50b9f"
-WORKER = "/tmp/oo-star-runtime-finish/job-worker-successor"
+WORKER = "/tmp/oo-star-runtime-finish/job-worker-f1ba4fe91b5da721"
+WORKER_SHA = "f1ba4fe91b5da72115502f1cd16d0ae4d42d9b5be76e9a10eb498baafad61935"
 CONF = "/tmp/oo-star-runtime-finish/worker-c5.conf"
 EVIDENCE = "/tmp/oo-starrocks-connection-whole/captures"
 OPERATOR = "/tmp/oo-w45-native-sync-private/collection-operator-c4-final.json"
@@ -617,6 +618,35 @@ def refresh_gateway(run_dir):
     if issued.returncode:
         raise RuntimeError("gateway token issue failed")
     os.chmod(token, 0o600)
+    owner = subprocess.run(["docker", "exec", GW, "chown", "501:20", "/run-current/" + token_name], capture_output=True, timeout=30)
+    kept(owner, run_dir / "gateway-token-owner")
+    if owner.returncode or token.stat().st_mode & 0o077:
+        raise RuntimeError("gateway run-scoped token ownership or mode is unsafe")
+
+
+def gateway_cli_wrapper(run_dir):
+    """Run the Linux CLI inside the Gateway's network namespace on this host."""
+    wrapper = Path(run_dir) / "gateway-cli.py"
+    body = f'''#!{sys.executable}
+import os, pathlib, subprocess, sys
+gateway_dir = pathlib.Path({str(GW_DIR)!r})
+gateway_name = {GW!r}
+cli_elf = pathlib.Path({str(CLI_ELF)!r})
+args = sys.argv[1:]
+for index, arg in enumerate(args[:-1]):
+    if arg == "--token-file":
+        token = pathlib.Path(args[index + 1])
+        if token.parent != gateway_dir or not token.name.startswith("client-conn-") or not token.name.endswith(".token"):
+            raise SystemExit("refusing token path outside the current StarRocks Gateway mount")
+        args[index + 1] = "/run-current/" + token.name
+cmd = ["docker", "run", "--rm", "--user", "501:20", "--network", "container:" + gateway_name,
+       "-v", str(gateway_dir) + ":/run-current:rw", "-v", str(cli_elf) + ":/oo:ro",
+       "rust:1.94.0", "/oo", *args]
+raise SystemExit(subprocess.run(cmd).returncode)
+'''
+    wrapper.write_text(body)
+    os.chmod(wrapper, 0o700)
+    return wrapper
 
 
 def dialogue(run_dir, source_generation):
@@ -628,7 +658,7 @@ def dialogue(run_dir, source_generation):
         if not path.is_file() or path.is_symlink():
             raise RuntimeError("dialogue input is absent")
     config = {
-        "oo_cli": str(BASE / "oo-cli"),
+        "oo_cli": str(gateway_cli_wrapper(run_dir)),
         "gateway": "http://" + (GW_DIR / "listen.addr").read_text().strip(),
         "transport": "local-development",
         "auth": "external",
@@ -690,13 +720,18 @@ def cancel_query(run_dir):
             query.terminate()
 
 
-MANIFEST_NAMES = {"journal.json", "driver-config.json", "lock"}
+MANIFEST_NAMES = {
+    "journal.json", "driver-config.json", "lock", "prepare.json", "applicability.json",
+    "product", "product-reuse", "dialogue-config.json", "gateway-cli.py", "preflight",
+    "dialogue", "dialogue-call", "entry-callback.json", "whole.json", "cancel",
+    "gateway-grants", "gateway-restart", "issue-token", "gateway-token-owner",
+}
 STEP_LOG = re.compile(r"^[0-9]+\.(stdout|stderr)$")
 ROLE_PACK = REUSED_BUILD / "native-maintenance/a62b017d99e97c7b29f28f90291148605a79b4b5e49cc7d24dc277704d1e9e22/role-pack.json"
-SECOND_GOLD = BASE / "random-dialogue/run6-source/independent-gold.json"
-SECOND_BANK = BASE / "random-dialogue/run6-source/question-bank.json"
-SECOND_PRIOR = BASE / "random-dialogue/run6-source/prior-manifest.json"
-SECOND_HISTORY = BASE / "random-dialogue/run6-source/history.json"
+SECOND_GOLD = BASE / "random-dialogue/run7-source/independent-gold.json"
+SECOND_BANK = BASE / "random-dialogue/run7-source/question-bank.json"
+SECOND_PRIOR = BASE / "random-dialogue/run7-source/prior-manifest.json"
+SECOND_HISTORY = BASE / "random-dialogue/run7-source/history.json"
 DIALOGUE_PROGRAM = ROOT / "tools/agent-product-verifier/dialogue.py"
 DATE_ELF = "e0c2b73d4ed312ea92dc822436e665961a41d96ccf507a2903d37bcf5ac7c664"
 PRODUCT_RECEIPT = "7e3d3e8ecbb36525dc5000b4839a6a0f442d6768a779d5424eecf98c18016b0d"
@@ -866,7 +901,7 @@ def exit_checks(binding, tables, source_generation, target_generation, run_dir=N
         and isinstance(fresh_ids, list) and len(fresh_ids) >= 2 and not used.intersection(fresh_ids)
         and isinstance(fresh_identity, dict) and fresh_identity.get("pack_sha256") == role_sha and fresh_identity.get("source_generation") == source_generation
         and fresh_gold is not None and fresh.get("gold_sha256") == fresh_gold and fresh.get("truth_sha256") == fresh_gold
-        and identities["dialogue_program_sha256"] == "816ffbaefc30bd5e2fd633c44a2dc4c20d21db5cd7eff8ad09eb3ba9810d7afc"
+        and identities["dialogue_program_sha256"] == sha(DIALOGUE_PROGRAM)
     )
     if not fresh_ok:
         gaps.append("root-verified current-pack random run4 is absent")
@@ -893,7 +928,7 @@ def exit_checks(binding, tables, source_generation, target_generation, run_dir=N
         and isinstance(second_identity, dict) and second_identity.get("pack_sha256") == role_sha and second_identity.get("source_generation") == source_generation
         and second_identity.get("source_id") == "sr_w45_native" and second_identity.get("role") == "oo_r_w45_native"
         and second_gold is not None and second.get("gold_sha256") == second_gold and second.get("truth_sha256") == second_gold
-        and identities["dialogue_program_sha256"] == "816ffbaefc30bd5e2fd633c44a2dc4c20d21db5cd7eff8ad09eb3ba9810d7afc"
+        and identities["dialogue_program_sha256"] == sha(DIALOGUE_PROGRAM)
         and fresh_ok
     )
     if second_ok:
@@ -1027,9 +1062,14 @@ def execute(config, out):
     cfg = json.loads(Path(config).read_text())
     require_fixture(cfg)
     run_dir = open_run_dir(out, config)
-    serve = subprocess.run(["docker", "exec", W, "ps", "-p", "136", "-o", "args="], capture_output=True, text=True, timeout=20)
-    if serve.returncode or "native-serve" not in serve.stdout or "star-conn-c5" not in serve.stdout:
-        raise RuntimeError("native-serve 136 is not the current worker")
+    worker_sha_live = worker_sha(WORKER)
+    if worker_sha_live != WORKER_SHA:
+        raise RuntimeError("fixed C5 worker binary changed")
+    serve = subprocess.run(["docker", "exec", W, "ps", "-eo", "pid=,args="], capture_output=True, text=True, timeout=20)
+    serves = [line.strip() for line in serve.stdout.splitlines() if "native-serve" in line and "--worker star-conn-c5" in line and WORKER in line]
+    if serve.returncode or len(serves) != 1:
+        raise RuntimeError("exactly one fixed C5 native-serve must be running")
+    serve_pid = int(serves[0].split(None, 1)[0])
     source_text, target_text = psql("SELECT source_generation::text || ' ' || target_generation::text FROM _oo.source_watermark WHERE source='sr_w45_native'").split()
     source_generation, target_generation = int(source_text), int(target_text)
     if target_generation == source_generation:
@@ -1064,7 +1104,8 @@ def execute(config, out):
         "ontology_version": binding["ontology_version"],
         "published_generation": binding["generation"],
         "build_id": REUSED_BUILD.name,
-        "native_serve_pid": 136,
+        "native_serve_pid": serve_pid,
+        "native_serve_binary_sha256": worker_sha_live,
         "period_ms": period,
         "quiet_lease": lease,
         "c4_this_round": "not_run",

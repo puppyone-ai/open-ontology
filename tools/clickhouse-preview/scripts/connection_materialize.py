@@ -35,6 +35,12 @@ def main():
     t.exec('target-full-typed',['python3',str(verify),'--gold',str(a.gold),'--generation',str(generation),'--connection-config',str(a.config),'--output',str(out/'typed-diff.json')])
     diff=json.loads((out/'typed-diff.json').read_text())
     if not diff['diff_zero']:raise RuntimeError('full target typed mismatch')
+    cycle_path=run/'cycle-receipt.json'
+    cycle=json.loads(cycle_path.read_text())
+    cycle.update(typed_diff_zero=True, typed_diff_sha256=digest(out/'typed-diff.json'),
+        typed_cells_compared=diff['row_count']*len(diff['columns']), target_generation=generation,
+        physical=diff['table'])
+    write(cycle_path,cycle)
     gold=json.loads(a.gold.read_text());columns=[json.loads(x) for x in (capture/'columns.body').read_text().splitlines()]
     profiles=[]
     for col in columns:

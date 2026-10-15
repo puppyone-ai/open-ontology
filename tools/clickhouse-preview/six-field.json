@@ -1,0 +1,11 @@
+{
+  "protocol": "oo.source-onboarding/v1",
+  "connection": {
+    "type": "clickhouse",
+    "host": "oo-clickhouse-connection-whole-source",
+    "port": 8123,
+    "database": "oo_dl01w40",
+    "user": "oo_dl01w1_40_reader",
+    "secret_ref": "secret://source/clickhouse-connection-whole"
+  }
+}
