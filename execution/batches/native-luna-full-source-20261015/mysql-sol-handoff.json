@@ -50,5 +50,13 @@
     "gateway_doc_worktree_equals_head": true,
     "gateway_doc_sha256": "f30ae1ca056106ca64a47da4d87425cc1f225afe12548b987609ba786c8b151a",
     "policy": "No baseline hashes changed to conceal drift; this transfer does not alter Gateway requirements or claim product acceptance"
+  },
+  "latest_mysql_six_field_typed_baseline": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/mysql-six-field-typed-baseline-intake.json",
+    "source": "mysql_67fff4e8ebff9f91bee8c75e",
+    "task": "d47f2ff5-fdb1-4cbd-831e-ce7e0bca2c94",
+    "source_release_allowed": false,
+    "formal_source_count": 0,
+    "source_commit": "WIP; sole owner continues original complete exits"
   }
 }

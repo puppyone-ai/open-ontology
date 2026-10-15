@@ -5,7 +5,7 @@
 //! MySQL `DATETIME` cannot store year 0001. Those cells are SQL NULL plus a
 //! `mysql_datetime_range` ledger row. They are not rewritten as zero dates.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub const HUB_ROWS: i64 = 2_000;
 pub const SHIPMENT_ROWS: i64 = 8_000;
@@ -18,7 +18,16 @@ pub const RANGE_REASON: &str = "mysql_datetime_range";
 
 const REGIONS: [&str; 5] = ["north", "south", "east", "west", "central"];
 const CITIES: [&str; 10] = [
-    "Qingdao", "Rotterdam", "Singapore", "Busan", "Hamburg", "LosAngeles", "Dubai", "Santos", "Durban", "Vancouver",
+    "Qingdao",
+    "Rotterdam",
+    "Singapore",
+    "Busan",
+    "Hamburg",
+    "LosAngeles",
+    "Dubai",
+    "Santos",
+    "Durban",
+    "Vancouver",
 ];
 const STATUSES: [&str; 3] = ["delivered", "in_transit", "delayed"];
 const MODES: [&str; 4] = ["road", "rail", "air", "sea"];
@@ -97,7 +106,11 @@ pub fn hub_code(id: i64) -> String {
 }
 
 pub fn hub_name(id: i64) -> String {
-    format!("{} linehaul {}", hub_code(id), CITIES[usize::try_from(id.rem_euclid(10)).unwrap_or(0)])
+    format!(
+        "{} linehaul {}",
+        hub_code(id),
+        CITIES[usize::try_from(id.rem_euclid(10)).unwrap_or(0)]
+    )
 }
 
 pub fn region_code(id: i64) -> Option<&'static str> {
@@ -164,7 +177,10 @@ pub fn hub_note(id: i64) -> Option<String> {
     if id % 7 == 0 {
         None
     } else {
-        Some(format!("Sort hub {} handles outbound linehaul.", hub_code(id)))
+        Some(format!(
+            "Sort hub {} handles outbound linehaul.",
+            hub_code(id)
+        ))
     }
 }
 
@@ -236,7 +252,11 @@ pub fn created_at(id: i64) -> String {
 }
 
 pub fn promised_at(id: i64) -> Option<&'static str> {
-    if id % 13 == 0 { None } else { Some("2024-06-20T18:00:00Z") }
+    if id % 13 == 0 {
+        None
+    } else {
+        Some("2024-06-20T18:00:00Z")
+    }
 }
 
 pub fn seal(id: i64) -> Option<Vec<u8>> {
@@ -261,7 +281,11 @@ pub fn event_shipment(id: i64) -> i64 {
 }
 
 pub fn event_hub(id: i64) -> Option<i64> {
-    if id % 29 == 0 { None } else { Some((id - 1).rem_euclid(HUB_ROWS) + 1) }
+    if id % 29 == 0 {
+        None
+    } else {
+        Some((id - 1).rem_euclid(HUB_ROWS) + 1)
+    }
 }
 
 pub fn event_status(id: i64) -> &'static str {
@@ -301,7 +325,11 @@ pub fn event_comment(id: i64) -> Option<String> {
     if id % 47 == 0 {
         None
     } else {
-        Some(format!("Scan {} recorded for waybill {}.", event_status(id), event_shipment(id)))
+        Some(format!(
+            "Scan {} recorded for waybill {}.",
+            event_status(id),
+            event_shipment(id)
+        ))
     }
 }
 
@@ -309,7 +337,11 @@ pub fn parse_scale4(text: &str) -> Option<i128> {
     let negative = text.starts_with('-');
     let body = if negative { &text[1..] } else { text };
     let (whole, frac) = body.split_once('.')?;
-    if frac.len() != 4 || whole.is_empty() || !whole.bytes().all(|byte| byte.is_ascii_digit()) || !frac.bytes().all(|byte| byte.is_ascii_digit()) {
+    if frac.len() != 4
+        || whole.is_empty()
+        || !whole.bytes().all(|byte| byte.is_ascii_digit())
+        || !frac.bytes().all(|byte| byte.is_ascii_digit())
+    {
         return None;
     }
     if whole.len() > 34 {
@@ -460,13 +492,19 @@ pub fn probe_rows() -> [ProbeRow; 6] {
 }
 
 pub fn probe_attnum(column: &str) -> Option<i32> {
-    PROBE_COLUMNS.iter().position(|name| *name == column).map(|index| i32::try_from(index + 1).unwrap_or(0))
+    PROBE_COLUMNS
+        .iter()
+        .position(|name| *name == column)
+        .map(|index| i32::try_from(index + 1).unwrap_or(0))
 }
 
 pub fn delivered_origin_cost() -> String {
     let mut sum = 0_i128;
     for id in 1..=SHIPMENT_ROWS {
-        if origin_hub(id) == 42 && shipment_status(id) == "delivered" && let Some(cost) = cost_coeff(id) {
+        if origin_hub(id) == 42
+            && shipment_status(id) == "delivered"
+            && let Some(cost) = cost_coeff(id)
+        {
             sum += cost;
         }
     }
@@ -550,7 +588,12 @@ pub fn questions() -> &'static [ScaleQuestion] {
 
 pub fn question_leaks(text: &str) -> bool {
     let upper = text.to_ascii_uppercase();
-    if upper.contains("SELECT") || upper.contains("INSERT") || upper.contains("UPDATE") || upper.contains("DELETE") || upper.contains("JOIN ") {
+    if upper.contains("SELECT")
+        || upper.contains("INSERT")
+        || upper.contains("UPDATE")
+        || upper.contains("DELETE")
+        || upper.contains("JOIN ")
+    {
         return true;
     }
     let banned = [
@@ -615,8 +658,14 @@ mod tests {
     #[test]
     fn year_0001_is_a_range_gap_and_not_a_zero_date() {
         assert!(mysql_wall("0001-01-01T00:00:00Z").is_none());
-        assert_eq!(mysql_wall("9999-12-31T23:59:59Z").as_deref(), Some("9999-12-31 23:59:59"));
-        assert_eq!(mysql_wall("9999-12-31T23:59:58Z").as_deref(), Some("9999-12-31 23:59:58"));
+        assert_eq!(
+            mysql_wall("9999-12-31T23:59:59Z").as_deref(),
+            Some("9999-12-31 23:59:59")
+        );
+        assert_eq!(
+            mysql_wall("9999-12-31T23:59:58Z").as_deref(),
+            Some("9999-12-31 23:59:58")
+        );
         let gaps = range_gaps();
         assert_eq!(gaps.len(), 3);
         assert_eq!(gaps[0].table_name, "hubs");
@@ -624,8 +673,14 @@ mod tests {
         assert_eq!(gaps[1].table_name, "shipments");
         assert_eq!(gaps[1].column_name, "created_at");
         assert_eq!(gaps[2].table_name, "tracking_events");
-        assert!(gaps.iter().all(|gap| gap.reason == RANGE_REASON && gap.canonical_text.starts_with("0001-")));
-        assert!(gaps.iter().all(|gap| !gap.canonical_text.contains("0000-00-00")));
+        assert!(
+            gaps.iter()
+                .all(|gap| gap.reason == RANGE_REASON && gap.canonical_text.starts_with("0001-"))
+        );
+        assert!(
+            gaps.iter()
+                .all(|gap| !gap.canonical_text.contains("0000-00-00"))
+        );
     }
 
     #[test]

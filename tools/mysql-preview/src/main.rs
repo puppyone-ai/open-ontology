@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use mysql_preview::{
-    capture_native, audit_source, audit_target, guard_source, install_column_acl, load_fixture, load_logistics, run, run_customer, write_manifest,
+    baseline_stream, capture_native, audit_source, audit_target, guard_source, install_column_acl, load_fixture, load_logistics, prepare_random_gold, run, run_customer, write_manifest,
 };
 
 fn main() -> ExitCode {
@@ -30,11 +30,27 @@ fn main() -> ExitCode {
         "c1-prove" => c1_prove(&mut args),
         "c1-expire" => c1_expire(&mut args),
         "c1-native" => c1_native(&mut args),
+        "c1-onboarding-prepare" => c1_onboarding_prepare(&mut args),
+        "c1-baseline-stream" => c1_baseline_stream(&mut args),
+        "c1-random-gold" => c1_random_gold(&mut args),
         _ => {
             eprintln!("mysql-preview: usage");
             ExitCode::from(2)
         }
     }
+}
+
+fn c1_onboarding_prepare(args: &mut impl Iterator<Item=String>)->ExitCode {
+    let (Some(config),Some(out))=pair(args) else {return ExitCode::from(2);};
+    block_on(mysql_preview::prepare_onboarding(&config,&out))
+}
+
+fn c1_baseline_stream(args: &mut impl Iterator<Item = String>) -> ExitCode {
+    let (Some(config), Some(out)) = pair(args) else {
+        eprintln!("mysql-preview: usage");
+        return ExitCode::from(2);
+    };
+    block_on(baseline_stream(&config, &out))
 }
 
 fn run_cmd(args: &mut impl Iterator<Item = String>) -> ExitCode {
@@ -261,6 +277,11 @@ fn c1_prove(args: &mut impl Iterator<Item = String>) -> ExitCode {
 fn c1_native(args: &mut impl Iterator<Item = String>) -> ExitCode {
     let (Some(config), Some(out)) = pair(args) else { return ExitCode::from(2); };
     block_on(mysql_preview::capture_business(&config, &out))
+}
+
+fn c1_random_gold(args: &mut impl Iterator<Item = String>) -> ExitCode {
+    let (Some(config), Some(out)) = pair(args) else { return ExitCode::from(2); };
+    block_on(prepare_random_gold(&config, &out))
 }
 
 fn c1_expire(args: &mut impl Iterator<Item = String>) -> ExitCode {

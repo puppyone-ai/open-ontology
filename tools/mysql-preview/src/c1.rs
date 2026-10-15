@@ -7,25 +7,28 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
 use std::future::poll_fn;
-use std::io::{Cursor, Read};
-use std::os::unix::fs::OpenOptionsExt;
+use std::io::{BufRead, BufReader};
+use std::io::{Cursor, Read, Write};
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use cdc_spool::{recover, Limits, OutcomeKind, Recovery, Spool};
-use cdc_transaction::{encode_position, parse_commit_lsn, Assembler, FaultCode};
+use cdc_spool::{Limits, OutcomeKind, Recovery, Spool, recover};
+use cdc_transaction::{Assembler, FaultCode, encode_position, parse_commit_lsn};
 use futures_util::stream::Stream;
 use mysql_async::binlog::events::{EventData, RowsEventData, TableMapEvent};
 use mysql_async::binlog::row::BinlogRow;
 use mysql_async::binlog::value::BinlogValue;
 use mysql_async::prelude::Queryable;
-use mysql_async::{BinlogStream, BinlogStreamRequest, Conn, OptsBuilder, Row, Sid, SslOpts, Value as MyValue};
+use mysql_async::{
+    BinlogStream, BinlogStreamRequest, Conn, OptsBuilder, Row, Sid, SslOpts, Value as MyValue,
+};
 use oo_pipeline::target_installer::sha256_hex;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::time::timeout;
 
 use crate::config::{read_ca, read_secret};
@@ -101,15 +104,26 @@ pub async fn prove_c1(config: &Path, out: &Path) -> Result<(), PreviewError> {
         return Err(PreviewError::new("config", "period"));
     }
     fresh_dir(out)?;
-    let config_hash = sha256_hex(&fs::read(config).map_err(|_| PreviewError::new("config", "path"))?);
+    let config_hash =
+        sha256_hex(&fs::read(config).map_err(|_| PreviewError::new("config", "path"))?);
     let stop = Arc::new(AtomicBool::new(false));
     let stop_reader = Arc::clone(&stop);
     let cfg_reader = cfg.clone();
     let out_reader = out.to_path_buf();
     let reader = tokio::spawn(async move {
-        stream(&cfg_reader, &out_reader, None, Until::CaughtUp, &stop_reader).await
+        stream(
+            &cfg_reader,
+            &out_reader,
+            None,
+            Until::CaughtUp,
+            &stop_reader,
+        )
+        .await
     });
-    if timeout(Duration::from_secs(30), wait_ready(out)).await.is_err() {
+    if timeout(Duration::from_secs(30), wait_ready(out))
+        .await
+        .is_err()
+    {
         stop.store(true, Ordering::Relaxed);
         return match join(reader).await {
             Err(err) => Err(err),
@@ -135,11 +149,20 @@ pub async fn prove_c1(config: &Path, out: &Path) -> Result<(), PreviewError> {
     }
     check_script(&phase.rows)?;
     let mut dba = connect_dba(&cfg).await?;
-    exec_static(&mut dba, "INSERT INTO oo_c1.order_hdr VALUES (810004,'resume')").await?;
+    exec_static(
+        &mut dba,
+        "INSERT INTO oo_c1.order_hdr VALUES (810004,'resume')",
+    )
+    .await?;
     drop(dba);
-    let cursor = fs::read_to_string(out.join("cursor.json")).map_err(|_| PreviewError::new("c1", "cursor"))?;
-    let cursor: Value = serde_json::from_str(&cursor).map_err(|_| PreviewError::new("c1", "cursor"))?;
-    let gtid = cursor["gtid"].as_str().ok_or_else(|| PreviewError::new("c1", "cursor"))?.to_string();
+    let cursor = fs::read_to_string(out.join("cursor.json"))
+        .map_err(|_| PreviewError::new("c1", "cursor"))?;
+    let cursor: Value =
+        serde_json::from_str(&cursor).map_err(|_| PreviewError::new("c1", "cursor"))?;
+    let gtid = cursor["gtid"]
+        .as_str()
+        .ok_or_else(|| PreviewError::new("c1", "cursor"))?
+        .to_string();
     let stop2 = Arc::new(AtomicBool::new(true));
     let resumed = stream(&cfg, out, Some(gtid), Until::Key(HDR, "810004"), &stop2).await?;
     let prior: BTreeSet<_> = phase.rows.iter().map(|row| row.txn_id.clone()).collect();
@@ -198,11 +221,20 @@ pub async fn expire_c1(config: &Path, from: &Path, out: &Path) -> Result<(), Pre
     refuse_customer(&cfg)?;
     fresh_dir(out)?;
     preserved(&cfg.preserve_dir)?;
-    let cursor_bytes = fs::read(from.join("cursor.json")).map_err(|_| PreviewError::new("c1", "cursor"))?;
-    let cursor: Value = serde_json::from_slice(&cursor_bytes).map_err(|_| PreviewError::new("c1", "cursor"))?;
-    let old_gtid = cursor["gtid"].as_str().ok_or_else(|| PreviewError::new("c1", "cursor"))?.to_string();
+    let cursor_bytes =
+        fs::read(from.join("cursor.json")).map_err(|_| PreviewError::new("c1", "cursor"))?;
+    let cursor: Value =
+        serde_json::from_slice(&cursor_bytes).map_err(|_| PreviewError::new("c1", "cursor"))?;
+    let old_gtid = cursor["gtid"]
+        .as_str()
+        .ok_or_else(|| PreviewError::new("c1", "cursor"))?
+        .to_string();
     let mut dba = connect_dba(&cfg).await?;
-    exec_static(&mut dba, "INSERT INTO oo_c1.order_hdr VALUES (810099,'gap-expired')").await?;
+    exec_static(
+        &mut dba,
+        "INSERT INTO oo_c1.order_hdr VALUES (810099,'gap-expired')",
+    )
+    .await?;
     exec_static(&mut dba, "FLUSH BINARY LOGS").await?;
     let (file, _) = binary_status(&mut dba).await?;
     if !binlog_name_ok(&file) {
@@ -212,7 +244,15 @@ pub async fn expire_c1(config: &Path, from: &Path, out: &Path) -> Result<(), Pre
     let purge = format!("PURGE BINARY LOGS TO '{file}'");
     dba.query_drop(purge).await.map_err(|err| mysql_err(&err))?;
     drop(dba);
-    let expired = match stream(&cfg, out, Some(old_gtid), Until::Key(HDR, "810099"), &Arc::new(AtomicBool::new(true))).await {
+    let expired = match stream(
+        &cfg,
+        out,
+        Some(old_gtid),
+        Until::Key(HDR, "810099"),
+        &Arc::new(AtomicBool::new(true)),
+    )
+    .await
+    {
         Err(err) if err.fact == "position_expired" => true,
         Ok(_) => return Err(PreviewError::new("c1", "expiry_not_observed")),
         Err(err) => return Err(err),
@@ -270,7 +310,8 @@ pub async fn capture_business(config: &Path, out: &Path) -> Result<(), PreviewEr
         return Err(PreviewError::new("config", "period"));
     }
     fresh_dir(out)?;
-    let config_hash = sha256_hex(&fs::read(config).map_err(|_| PreviewError::new("config", "path"))?);
+    let config_hash =
+        sha256_hex(&fs::read(config).map_err(|_| PreviewError::new("config", "path"))?);
     let mut dba = connect_dba(&cfg).await?;
     ensure_native_select(&mut dba).await?;
     if scalar(&mut dba, NATIVE_ID_CHECK).await? != "0" {
@@ -282,9 +323,19 @@ pub async fn capture_business(config: &Path, out: &Path) -> Result<(), PreviewEr
     let cfg_reader = cfg.clone();
     let out_reader = out.to_path_buf();
     let reader = tokio::spawn(async move {
-        stream(&cfg_reader, &out_reader, None, Until::CaughtUp, &stop_reader).await
+        stream(
+            &cfg_reader,
+            &out_reader,
+            None,
+            Until::CaughtUp,
+            &stop_reader,
+        )
+        .await
     });
-    if timeout(Duration::from_secs(30), wait_ready(out)).await.is_err() {
+    if timeout(Duration::from_secs(30), wait_ready(out))
+        .await
+        .is_err()
+    {
         stop.store(true, Ordering::Relaxed);
         return match join(reader).await {
             Err(err) => Err(err),
@@ -298,7 +349,11 @@ pub async fn capture_business(config: &Path, out: &Path) -> Result<(), PreviewEr
     }
     stop.store(true, Ordering::Relaxed);
     let phase = join(reader).await?;
-    if phase.health_ticks < 2 || phase.reconcile_ticks != 1 || phase.table_reads != cfg.tables.len() as u64 || phase.reconcile_diff != 0 {
+    if phase.health_ticks < 2
+        || phase.reconcile_ticks != 1
+        || phase.table_reads != cfg.tables.len() as u64
+        || phase.reconcile_diff != 0
+    {
         return Err(PreviewError::new("c1", "period"));
     }
     check_native(&phase.rows)?;
@@ -344,8 +399,627 @@ pub async fn capture_business(config: &Path, out: &Path) -> Result<(), PreviewEr
     )
 }
 
+/// Prepare the ordinary connection entry using the supplied six fields and
+/// private operator handles. Capturing still requires the formal worker lease.
+pub async fn prepare_onboarding(config:&Path,out:&Path)->Result<(),PreviewError> {
+    if out.exists() {return Err(PreviewError::new("config","out_exists"));}
+    let bytes=fs::read(config).map_err(|_|PreviewError::new("config","path"))?;
+    let mut input:Value=serde_json::from_slice(&bytes).map_err(|_|PreviewError::new("config","json"))?;
+    let cfg=load_config(config)?;configured_selection(&cfg)?;
+    let secret=input["secret_ref"].as_str().filter(|s|s.starts_with("secret://")).ok_or_else(||PreviewError::new("config","secret_ref"))?.to_string();
+    let connection=json!({"type":"mysql","host":cfg.host,"port":cfg.port,"database":cfg.database,"user":cfg.user,"secret_ref":secret});
+    let source=format!("mysql_{}",&sha256_hex(&serde_json::to_vec(&connection).map_err(|_|PreviewError::new("config","json"))?)[..24]);
+    let operator=input.as_object_mut().ok_or_else(||PreviewError::new("config","json"))?.remove("onboarding").ok_or_else(||PreviewError::new("config","onboarding"))?;
+    fresh_dir(out)?;
+    let mut probe=connect_cdc(&cfg).await?;let facts=preflight_values(&mut probe).await?;
+    let uuid=scalar(&mut probe,"SELECT @@GLOBAL.server_uuid").await?;
+    replication_grants_ok(&rows_first(&probe.query::<Row,_>("SHOW GRANTS FOR CURRENT_USER()").await.map_err(|_|PreviewError::new("privilege","replication"))?)?)?;
+    drop(probe);
+    crate::c1_materialize::write(&out.join("native-config.json"),&input)?;
+    fs::set_permissions(out.join("native-config.json"),fs::Permissions::from_mode(0o600)).map_err(|_|PreviewError::new("config","out"))?;
+    let executable=|name:&str,args:Value|->Result<Value,PreviewError> {
+        let path=operator[name].as_str().filter(|s|Path::new(s).is_absolute()).ok_or_else(||PreviewError::new("config","executable"))?;
+        Ok(json!({"path":path,"sha256":sha256_hex(&fs::read(path).map_err(|_|PreviewError::new("config","executable"))?),"args":args}))
+    };
+    let binding=operator["binding"].as_str().ok_or_else(||PreviewError::new("config","binding"))?;
+    let project=operator["project_id"].as_str().ok_or_else(||PreviewError::new("config","project"))?;
+    let manifest=json!({"protocol":"oo.jobs.native-schedule/v1","binding":binding,"project_id":project,"source_id":source,
+        "method":"C1","cycle":"pull","period_ms":operator["period_ms"],
+        "producer":executable("producer",json!(["c1-baseline-stream","--config",out.join("native-config.json"),"--out",out.join("capture-{task}-{generation}")]))?,
+        "loader":executable("loader",json!(["import-native-c1-baseline"]))?,
+        "registration":{"admission_binary":operator["admission"],"admission_sha256":sha256_hex(&fs::read(operator["admission"].as_str().ok_or_else(||PreviewError::new("config","admission"))?).map_err(|_|PreviewError::new("config","admission"))?)}});
+    let context=json!({"source_id":source,"secret_ref":secret});
+    crate::c1_materialize::write(&out.join("source-config.json"),&crate::c1_materialize::admission_config(&context,&cfg.tables))?;
+    crate::c1_materialize::write(&out.join("native-manifest.json"),&manifest)?;
+    crate::c1_materialize::write(&out.join("identity.json"),&json!({"source_id":source,"binding_id":binding,"project_id":project,"database":cfg.database,"measured_id":format!("mysql.{uuid}"),"connection":connection,"source_preflight":facts,"source_config_sha256":sha256_hex(&fs::read(out.join("source-config.json")).map_err(|_|PreviewError::new("config","out"))?)}))?;
+    Ok(())
+}
+
+/// CDC-first producer used by the shared native baseline loader. The worker
+/// opens the lease-bound target stage before invoking this command. This
+/// producer sends a fully assembled transaction over stdout and waits for the
+/// worker's durable target receipt before reading further binlog events. It
+/// never receives target credentials.
+pub async fn baseline_stream(config: &Path, out: &Path) -> Result<(), PreviewError> {
+    let cfg = load_config(config)?;
+    configured_selection(&cfg)?;
+    fresh_dir(out)?;
+    let mut input = BufReader::new(std::io::stdin().lock());
+    let mut line=String::new(); input.read_line(&mut line).map_err(|_|PreviewError::new("worker","bootstrap"))?;
+    let mut context: Value=serde_json::from_str(&line).map_err(|_|PreviewError::new("worker","bootstrap"))?;
+    if context["protocol"]!="oo.jobs.mysql-c1-bootstrap/v1" || context["source_id"].as_str().is_none()
+        || context["source_generation"].as_u64().is_none_or(|n|n==0) {return Err(PreviewError::new("worker","bootstrap"));}
+    let input_config:Value=serde_json::from_slice(&fs::read(config).map_err(|_|PreviewError::new("config","path"))?).map_err(|_|PreviewError::new("config","json"))?;
+    context["secret_ref"]=input_config.get("secret_ref").cloned().unwrap_or(json!("secret://mysql-native"));
+    let admission_config=crate::c1_materialize::admission_config(&context,&cfg.tables);
+    crate::c1_materialize::write(&out.join("admission-config.json"),&admission_config)?;
+    let (mut l0, uuid, pk, names, kinds, typed_tables) = {
+        let mut probe = connect_cdc(&cfg).await?;
+        let vars = preflight_values(&mut probe).await?;
+        context["source_preflight"]=vars.clone();
+        let source_server: u32 = vars["server_id"]
+            .as_str()
+            .and_then(|item| item.parse().ok())
+            .ok_or_else(|| PreviewError::new("c1", "dba_required"))?;
+        if source_server == cfg.server_id {
+            return Err(PreviewError::new("config", "server_id"));
+        }
+        replication_grants_ok(&rows_first(
+            &probe
+                .query::<Row, _>("SHOW GRANTS FOR CURRENT_USER()")
+                .await
+                .map_err(|_| PreviewError::new("privilege", "replication"))?,
+        )?)?;
+        let (pk, names, _) = load_pk(&mut probe, &cfg.tables).await?;
+        let kinds = load_column_kinds(&mut probe, &cfg.tables).await?;
+        let reserved=oo_connectors::PG17_RESERVED.iter().map(|s|(*s).to_string()).collect::<BTreeSet<_>>();
+        let mut typed_tables=Vec::new();
+        let mut notes=Vec::new();
+        for qualified in &cfg.tables {
+            let (schema,table)=qualified.split_once('.').ok_or_else(||PreviewError::new("catalog","tables"))?;
+            let selected=crate::config::SelectedTable {schema:schema.to_owned(),name:table.to_owned(),columns:cfg.columns.get(qualified).cloned().ok_or_else(||PreviewError::new("catalog","columns"))?};
+            let catalog=crate::source::catalog_columns(&mut probe,&mut notes,&selected).await?;
+            let mut mapped=crate::map::map_table(&catalog,false,true,&reserved)?;
+            for (index,column) in mapped.iter_mut().enumerate() {column.plan.attnum=i32::try_from(index+1).map_err(|_|PreviewError::new("catalog","columns"))?;}
+            if mapped.iter().map(|c|c.plan.name.as_str()).collect::<Vec<_>>() != selected.columns.iter().map(String::as_str).collect::<Vec<_>>() {return Err(PreviewError::new("catalog","columns"));}
+            typed_tables.push((schema.to_owned(),table.to_owned(),mapped));
+        }
+        let uuid = scalar(&mut probe, "SELECT @@GLOBAL.server_uuid").await?;
+        let (_, _, executed) = full_status(&mut probe).await?;
+        (executed, uuid, pk, names, kinds, typed_tables)
+    };
+    let observed_gtid=l0.clone();
+    if let Some(previous)=context.pointer("/previous/l_end").and_then(Value::as_str) {
+        let prior=parse_span(previous)?;
+        if prior.uuid!=uuid || !gtid_contains(&l0,&uuid,prior.end) {return Err(PreviewError::new("c1","previous_gtid"));}
+        l0=previous.to_owned();
+    }
+    if let Some(original)=context.pointer("/resume/l0").and_then(Value::as_str) {
+        let prior=parse_span(original)?;
+        if prior.uuid!=uuid || !gtid_contains(&l0,&uuid,prior.end) {return Err(PreviewError::new("c1","resume_l0"));}
+        l0=original.to_owned();
+    }
+    let span = parse_span(&l0)?;
+    if span.uuid != uuid || span.end == 0 {
+        return Err(PreviewError::new("c1", "gtid"));
+    }
+    let visible = visible_ordinals(&cfg, &names)?;
+    let lineage = format!("mysql.{uuid}");
+    let table_schemas = native_table_schemas(&cfg.tables, &names, &pk, &kinds)?;
+    let schema_preimage=Value::Array(typed_tables.iter().map(|(_,table,columns)|Ok(json!({"table":table,"columns":crate::c1_materialize::schema_columns(columns)?}))).collect::<Result<Vec<_>,PreviewError>>()?);
+    let catalog = serde_json::to_vec(&schema_preimage).map_err(|_| PreviewError::new("catalog", "schema"))?;
+    let schema_hash = sha256_hex(&catalog);
+    let config_digest =
+        sha256_hex(&serde_json::to_vec(&admission_config).map_err(|_| PreviewError::new("config", "path"))?);
+    let connection_config_sha256=sha256_hex(&fs::read(config).map_err(|_|PreviewError::new("config","path"))?);
+    let mut live = Live {
+        assembler: Assembler::new(),
+        span: Span {
+            uuid: uuid.clone(),
+            start: span.start,
+            end: span.end,
+        },
+        file: String::new(),
+        epoch: 0,
+        bind: String::new(),
+        schema_hash: schema_hash.clone(),
+        type_hash: schema_hash.clone(),
+        pk,
+        selected: cfg.tables.iter().cloned().collect(),
+        visible,
+        column_names: names.clone(),
+        column_kinds: kinds,
+        selected_columns: cfg.columns.clone(),
+        allow_nullable: true,
+        pending: None,
+        buf: Vec::new(),
+        counts: BTreeMap::new(),
+        globals: 0,
+        rows: Vec::new(),
+        events: 0,
+        foreign: false,
+        out: out.to_path_buf(),
+    };
+    live.bind = bind_line(
+        &sha256_hex(uuid.as_bytes()),
+        &live.schema_hash,
+        &live.type_hash,
+        &config_digest,
+        &cfg.tables,
+    );
+    if !context["previous"].is_null() {
+        let previous=&context["previous"];
+        if previous["config_digest"]!=config_digest || previous["schema_digest"]!=live.schema_hash
+            || previous["measured_id"]!=lineage {return Err(PreviewError::new("c1","previous_identity"));}
+        if observed_gtid==l0 {
+            send_frame(&json!({"kind":"quiet","request":{"protocol":"oo.jobs.mysql-c1-nochange/v1",
+                "source_id":context["source_id"],"source_generation":context["source_generation"].as_u64().ok_or_else(||PreviewError::new("worker","bootstrap"))?.saturating_sub(1),
+                "previous":previous,"observed_gtid":observed_gtid,"connection_config_sha256":connection_config_sha256}}))?;
+            return Ok(());
+        }
+    }
+    let l0_pos = span.end;
+    send_frame(
+        &json!({"kind":"open","l0":l0,"l0_pos":l0_pos,"source_uuid":uuid,
+        "config_digest":config_digest,"connection_config_sha256":connection_config_sha256,"admission_config":admission_config,
+        "schema_digest":live.schema_hash,"schema_preimage":schema_preimage,"tables":cfg.tables,"table_schemas":table_schemas}),
+    )?;
+    let opened = read_worker_reply(&mut input, "stage_open")?;
+    live.epoch = opened
+        .get("source_epoch")
+        .and_then(Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok())
+        .filter(|value| *value > 0)
+        .ok_or_else(|| PreviewError::new("worker", "source_epoch"))?;
+
+    if !opened["sealed"].is_null() {
+        let sealed=&opened["sealed"];
+        if sealed["schema_digest"]!=live.schema_hash || sealed["config_digest"]!=config_digest {return Err(PreviewError::new("c1","resume_schema"));}
+        context["reader_write_attempts"]=json!(reader_write_audit(&cfg,out).await?);
+        let request=crate::c1_materialize::materialize(out,&context,&typed_tables,sealed["rows"].as_array().ok_or_else(||PreviewError::new("worker","stage_export"))?,
+            &l0,sealed["l_end"].as_str().ok_or_else(||PreviewError::new("c1","resume_l_end"))?,&lineage,live.epoch,&schema_preimage,&admission_config)?;
+        send_frame(&json!({"kind":"materialized","request":request}))?;return Ok(());
+    }
+
+    // The assembler must accept the binding before the first real transaction.
+    live.feed(&live.bind.clone())?;
+
+    // Subscribe to the L0 GTID stream before any table snapshot query. The
+    // worker's stream_started receipt is its durable confirmation that the
+    // target consumer is ready for transaction frames.
+    let sid = Sid::from_str(&l0).map_err(|_| PreviewError::new("c1", "gtid"))?;
+    let password = read_secret(&cfg.password_file)?;
+    let conn = connect(&cfg, &cfg.user, password.as_str()).await?;
+    drop(password);
+    let request = BinlogStreamRequest::new(cfg.server_id)
+        .with_gtid()
+        .with_gtid_set([sid]);
+    let stream = conn
+        .get_binlog_stream(request)
+        .await
+        .map_err(|err| mysql_err(&err))?;
+    let mut stream: Pin<Box<BinlogStream>> = Box::pin(stream);
+    send_frame(&json!({"kind":"stream_started","l0":l0,"position_lineage":lineage}))?;
+    read_worker_reply(&mut input, "stream_started")?;
+
+    let mut live = live;
+    let mut input = input;
+    let mut last_pos = l0_pos;
+    if context["previous"].is_null() {
+    // Start a MySQL repeatable-read, read-only snapshot only after the worker
+    // has opened the stage and accepted the live GTID stream.
+    let mut snapshot = connect_cdc(&cfg).await?;
+    exec_static(
+        &mut snapshot,
+        "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ",
+    )
+    .await?;
+    exec_static(
+        &mut snapshot,
+        "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY",
+    )
+    .await?;
+    let read_start = scalar(&mut snapshot, "SELECT @@GLOBAL.gtid_executed").await?;
+    if !gtid_contains(&read_start, &uuid, l0_pos) {
+        let _ = exec_static(&mut snapshot, "ROLLBACK").await;
+        return Err(PreviewError::new("c1", "snapshot_l0"));
+    }
+    {
+        let pk = live.pk.clone();
+        let column_names = live.column_names.clone();
+        let column_kinds = live.column_kinds.clone();
+        let visible = live.visible.clone();
+        let snapshot_read = snapshot_rows(
+            &mut snapshot,
+            &cfg,
+            &pk,
+            &column_names,
+            &column_kinds,
+            &visible,
+        );
+        tokio::pin!(snapshot_read);
+        loop {
+            tokio::select! {
+                rows = &mut snapshot_read => {
+                    let rows=rows?;
+                    if rows.is_empty() {
+                        send_frame(&json!({"kind":"snapshot","rows":[],"_oo_pos":0,"read_started_after_stage_open":true}))?;
+                        read_worker_reply(&mut input, "snapshot_fill")?;
+                    } else {
+                        for chunk in rows.chunks(1024) {
+                            // Keep consuming ready transactions while snapshot fill is backpressured.
+                            loop {
+                                let ready=poll_fn(|cx|std::task::Poll::Ready(match stream.as_mut().poll_next(cx) {
+                                    std::task::Poll::Ready(event)=>Some(event),std::task::Poll::Pending=>None,
+                                })).await;
+                                match ready {
+                                    Some(Some(Ok(event)))=>last_pos=consume_stream_event(event,stream.as_ref().get_ref(),&mut live,&mut input,last_pos)?,
+                                    Some(Some(Err(err)))=>return Err(mysql_err(&err)),
+                                    Some(None)=>return Err(PreviewError::new("c1","stream_end")),
+                                    None=>break,
+                                }
+                            }
+                            send_frame(&json!({"kind":"snapshot","rows":chunk,"_oo_pos":0,"read_started_after_stage_open":true}))?;
+                            read_worker_reply(&mut input, "snapshot_fill")?;
+                        }
+                    }
+                    break;
+                }
+                polled = poll_fn(|cx| stream.as_mut().poll_next(cx)) => {
+                    let Some(event)=polled else {return Err(PreviewError::new("c1","stream_end"));};
+                    let event=event.map_err(|err|mysql_err(&err))?;
+                    last_pos=consume_stream_event(event,stream.as_ref().get_ref(),&mut live,&mut input,last_pos)?;
+                }
+            }
+        }
+    }
+    exec_static(&mut snapshot, "COMMIT").await?;
+    drop(snapshot);
+    }
+
+    let (file, _, _) = {
+        let mut probe = connect_cdc(&cfg).await?;
+        let (file, pos, executed) = full_status(&mut probe).await?;
+        (file, pos, executed)
+    };
+    live.file = file;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(300);
+    let mut next_barrier_check = tokio::time::Instant::now() + Duration::from_millis(250);
+    loop {
+        if tokio::time::Instant::now() >= deadline {
+            return Err(PreviewError::new("budget", "stream_timeout"));
+        }
+        tokio::select! {
+            polled = poll_fn(|cx| stream.as_mut().poll_next(cx)) => {
+                let Some(event) = polled else { return Err(PreviewError::new("c1", "stream_end")); };
+                let event = event.map_err(|err| mysql_err(&err))?;
+                last_pos=consume_stream_event(event,stream.as_ref().get_ref(),&mut live,&mut input,last_pos)?;
+            }
+            _ = tokio::time::sleep_until(next_barrier_check) => {
+                next_barrier_check=tokio::time::Instant::now()+Duration::from_millis(250);
+                let mut probe=connect_cdc(&cfg).await?;
+                let executed=scalar(&mut probe,"SELECT @@GLOBAL.gtid_executed").await?;
+                let end=parse_span(&executed)?; drop(probe);
+                if end.uuid!=uuid {return Err(PreviewError::new("c1","lineage"));}
+                if last_pos>=end.end {
+                    send_frame(&json!({"kind":"end","l_end":executed,"l_end_pos":end.end,"applied_pos":last_pos}))?;
+                    let sealed=read_worker_reply(&mut input,"end")?;
+                    let staged=sealed["rows"].as_array().ok_or_else(||PreviewError::new("worker","stage_export"))?;
+                    context["reader_write_attempts"]=json!(reader_write_audit(&cfg,out).await?);
+                    let request=crate::c1_materialize::materialize(out,&context,&typed_tables,staged,&l0,&executed,&lineage,live.epoch,&schema_preimage,&admission_config)?;
+                    send_frame(&json!({"kind":"materialized","request":request}))?;
+                    return Ok(());
+                }
+            }
+        }
+    }
+}
+
+async fn reader_write_audit(cfg:&C1Config,out:&Path)->Result<u64,PreviewError> {
+    let mut observer=connect_cdc(cfg).await?;
+    let audit:Vec<(String,u64,u64)>=observer.exec("SELECT EVENT_NAME,COUNT_STAR,SUM_ERRORS FROM performance_schema.events_statements_summary_by_user_by_event_name WHERE USER=? AND EVENT_NAME IN ('statement/sql/alter_table','statement/sql/create_table','statement/sql/delete','statement/sql/delete_multi','statement/sql/drop_table','statement/sql/insert','statement/sql/insert_select','statement/sql/replace','statement/sql/replace_select','statement/sql/truncate','statement/sql/update','statement/sql/update_multi')",(&cfg.user,)).await.map_err(|_|PreviewError::new("privilege","write_audit"))?;
+    let attempts=audit.iter().map(|r|r.1).sum::<u64>();
+    write_json(&out.join("reader-write-audit.json"),&json!({"source_user":cfg.user,"server_counters":audit,"write_attempts":attempts}))?;
+    if audit.len()!=12 || attempts!=0 {return Err(PreviewError::new("privilege","write_unobserved"));}
+    Ok(attempts)
+}
+
+fn gtid_contains(set: &str, uuid: &str, pos: u64) -> bool {
+    set.split(',').any(|part| {
+        part.split_once(':').is_some_and(|(id, ranges)| {
+            id == uuid
+                && ranges.split(':').any(|range| {
+                    let mut bounds = range.split('-');
+                    let start = bounds
+                        .next()
+                        .and_then(|v| v.parse::<u64>().ok())
+                        .unwrap_or(0);
+                    let end = bounds
+                        .next()
+                        .and_then(|v| v.parse::<u64>().ok())
+                        .unwrap_or(start);
+                    start <= pos && end >= pos
+                })
+        })
+    })
+}
+
+fn consume_stream_event(
+    event: mysql_async::binlog::events::Event,
+    stream: &BinlogStream,
+    live: &mut Live,
+    input: &mut impl BufRead,
+    last_pos: u64,
+) -> Result<u64, PreviewError> {
+    let before = live.span.end;
+    let _ = live.on_event(event, stream)?;
+    if live.span.end == before {
+        return Ok(last_pos);
+    }
+    if live.span.end <= last_pos || live.events > MAX_EVENTS {
+        return Err(PreviewError::new("c1", "position"));
+    }
+    let txn = format!("{}:{}", live.span.uuid, live.span.end);
+    let rows=live.rows.iter().filter(|row|row.txn_id==txn).map(|row|{
+        json!({"schema":row.table.split_once('.').map(|pair|pair.0).unwrap_or(""),"table":row.table.split_once('.').map(|pair|pair.1).unwrap_or(""),"key":row.key_value,"op":if row.deleted {"delete"} else {"upsert"},"value":if row.deleted {Value::Null} else {payload_object_from_row(row)}})
+    }).collect::<Vec<_>>();
+    send_frame(
+        &json!({"kind":"transaction","txn_id":txn,"applied_pos":live.span.end,"rows":rows}),
+    )?;
+    read_worker_reply(input, "transaction")?;
+    Ok(live.span.end)
+}
+
+async fn snapshot_rows(
+    conn: &mut Conn,
+    cfg: &C1Config,
+    pk: &BTreeMap<String, Vec<usize>>,
+    names: &BTreeMap<String, Vec<(usize, String)>>,
+    kinds: &BTreeMap<String, Vec<(usize, String)>>,
+    visible: &BTreeMap<String, Vec<usize>>,
+) -> Result<Vec<Value>, PreviewError> {
+    let mut out = Vec::new();
+    for table in &cfg.tables {
+        let (schema, name) = table
+            .split_once('.')
+            .ok_or_else(|| PreviewError::new("config", "tables"))?;
+        let cols = cfg
+            .columns
+            .get(table)
+            .ok_or_else(|| PreviewError::new("config", "columns"))?;
+        let sql = format!(
+            "SELECT {} FROM `{schema}`.`{name}`",
+            cols.iter()
+                .map(|c| format!("`{c}`"))
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        let rows: Vec<Row> = conn
+            .query(sql)
+            .await
+            .map_err(|_| PreviewError::new("protocol", "snapshot"))?;
+        let ordinals = visible
+            .get(table)
+            .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
+        let pk_ordinals = pk
+            .get(table)
+            .filter(|v| !v.is_empty())
+            .ok_or_else(|| PreviewError::new("catalog", "primary_key"))?;
+        let table_names = names
+            .get(table)
+            .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
+        let table_kinds = kinds
+            .get(table)
+            .ok_or_else(|| PreviewError::new("catalog", "types"))?;
+        for row in rows {
+            let mut value = serde_json::Map::new();
+            let mut key = serde_json::Map::new();
+            for (index, column) in cols.iter().enumerate() {
+                let ordinal = *ordinals
+                    .get(index)
+                    .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
+                let kind = table_kinds
+                    .iter()
+                    .find(|(actual, _)| *actual == ordinal)
+                    .map(|(_, kind)| kind.as_str())
+                    .ok_or_else(|| PreviewError::new("catalog", "types"))?;
+                let cell = mysql_snapshot_cell(
+                    u16::try_from(ordinal).map_err(|_| PreviewError::new("catalog", "columns"))?,
+                    &row_value(&row, index)?,
+                    kind,
+                )?;
+                if pk_ordinals.contains(&ordinal) {
+                    if json_null(&cell) {
+                        return Err(PreviewError::new("value", "null_key"));
+                    }
+                    let column_name = table_names
+                        .iter()
+                        .find(|(actual, _)| *actual == ordinal)
+                        .map(|(_, name)| name)
+                        .ok_or_else(|| PreviewError::new("catalog", "primary_key"))?;
+                    key.insert(column_name.clone(), cell.clone());
+                }
+                value.insert(column.clone(), cell);
+            }
+            if key.len() != pk_ordinals.len() {
+                return Err(PreviewError::new("catalog", "primary_key"));
+            }
+            out.push(json!({"schema":schema,"table":name,"key":key,"value":value,"_oo_pos":0,"_oo_txn_id":"snapshot"}));
+        }
+    }
+    Ok(out)
+}
+
+fn payload_object_from_row(row: &Seen) -> Value {
+    row.row_value.clone()
+}
+
+fn named_cells(
+    names: &BTreeMap<String, Vec<(usize, String)>>,
+    table: &str,
+    ordinals: &[usize],
+    cells: &[Value],
+) -> Result<Value, PreviewError> {
+    if ordinals.len() != cells.len() {
+        return Err(PreviewError::new("catalog", "primary_key"));
+    }
+    let columns = names
+        .get(table)
+        .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
+    let mut key = serde_json::Map::new();
+    for (ordinal, cell) in ordinals.iter().zip(cells) {
+        if json_null(cell) {
+            return Err(PreviewError::new("value", "null_key"));
+        }
+        let name = columns
+            .iter()
+            .find(|(actual, _)| actual == ordinal)
+            .map(|(_, name)| name.clone())
+            .ok_or_else(|| PreviewError::new("catalog", "primary_key"))?;
+        key.insert(name, cell.clone());
+    }
+    Ok(Value::Object(key))
+}
+
+fn mysql_snapshot_cell(ordinal: u16, value: &MyValue, kind: &str) -> Result<Value, PreviewError> {
+    if matches!(value, MyValue::NULL) {
+        return Ok(json!({"ordinal":ordinal,"type":"null"}));
+    }
+    let tag = match kind {
+        "tinyint" | "smallint" | "mediumint" | "int" | "integer" | "bigint" | "year" => "int",
+        "decimal" | "numeric" => "decimal",
+        "binary" | "varbinary" | "blob" | "tinyblob" | "mediumblob" | "longblob" => "bytes",
+        "float" | "double" | "real" => return Err(PreviewError::new("value", "inexact")),
+        _ => "text",
+    };
+    let text = match value {
+        MyValue::Int(v) => v.to_string(),
+        MyValue::UInt(v) => v.to_string(),
+        MyValue::Bytes(bytes) => {
+            if tag == "bytes" {
+                bytes.iter().map(|b| format!("{b:02x}")).collect()
+            } else {
+                String::from_utf8(bytes.clone()).map_err(|_| PreviewError::new("value", "text"))?
+            }
+        }
+        MyValue::Date(y, m, d, h, mi, s, micros) => {
+            if *y == 0 {
+                return Err(PreviewError::new("value", "zero_date"));
+            }
+            if *micros == 0 { format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}Z") }
+            else { format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}.{micros:06}Z") }
+        }
+        MyValue::Time(n, days, h, mi, s, micros) => time_text(*n, *days, *h, *mi, *s, *micros)?,
+        MyValue::Float(_) | MyValue::Double(_) => {
+            return Err(PreviewError::new("value", "inexact"));
+        }
+        MyValue::NULL => return Ok(json!({"ordinal":ordinal,"type":"null"})),
+    };
+    Ok(json!({"ordinal":ordinal,"type":tag,"value":text}))
+}
+
+fn send_frame(frame: &Value) -> Result<(), PreviewError> {
+    let mut out = std::io::stdout().lock();
+    serde_json::to_writer(&mut out, frame).map_err(|_| PreviewError::new("protocol", "stdout"))?;
+    out.write_all(b"\n")
+        .map_err(|_| PreviewError::new("protocol", "stdout"))?;
+    out.flush()
+        .map_err(|_| PreviewError::new("protocol", "stdout"))
+}
+
+fn read_worker_reply(input: &mut impl BufRead, expected: &str) -> Result<Value, PreviewError> {
+    let mut line = String::new();
+    input
+        .read_line(&mut line)
+        .map_err(|_| PreviewError::new("worker", "reply"))?;
+    let value: Value =
+        serde_json::from_str(&line).map_err(|_| PreviewError::new("worker", "reply"))?;
+    if value.get("protocol").and_then(Value::as_str) != Some("oo.jobs.mysql-c1-baseline-ack/v1")
+        || value.get("stage").and_then(Value::as_str) != Some(expected)
+        || value.get("durable").and_then(Value::as_bool) != Some(true)
+    {
+        return Err(PreviewError::new("worker", "reply"));
+    }
+    Ok(value)
+}
+
+pub async fn prepare_random_gold(config: &Path, out: &Path) -> Result<(), PreviewError> {
+    let cfg = load_config(config)?;
+    refuse_customer(&cfg)?;
+    if cfg.full_table_gold || !native_columns_match(&cfg.columns) {
+        return Err(PreviewError::new("config", "tables"));
+    }
+    if out.exists() {
+        return Err(PreviewError::new("config", "out_exists"));
+    }
+    fs::create_dir_all(out).map_err(|_| PreviewError::new("config", "out"))?;
+    fs::set_permissions(out, fs::Permissions::from_mode(0o700))
+        .map_err(|_| PreviewError::new("config", "out"))?;
+
+    let config_hash =
+        sha256_hex(&fs::read(config).map_err(|_| PreviewError::new("config", "path"))?);
+    let mut conn = connect_cdc(&cfg).await?;
+    let server_uuid = scalar(&mut conn, "SELECT @@GLOBAL.server_uuid").await?;
+    let gtid_before = scalar(&mut conn, "SELECT @@GLOBAL.gtid_executed").await?;
+    exec_static(
+        &mut conn,
+        "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY",
+    )
+    .await?;
+    let road_shipment_weight = scalar(&mut conn, "SELECT CAST(COALESCE(SUM(weight_grams), 0) AS CHAR) FROM native_mysql_20261012.shipments WHERE transport_mode = 'road'").await?;
+    let delivered_origin_hubs = scalar(&mut conn, "SELECT CAST(COUNT(DISTINCT origin_hub_id) AS CHAR) FROM native_mysql_20261012.shipments WHERE status = 'delivered'").await?;
+    let in_transit_event_weight = scalar(&mut conn, "SELECT CAST(COALESCE(SUM(recorded_weight_grams), 0) AS CHAR) FROM native_mysql_20261012.tracking_events WHERE status = 'in_transit'").await?;
+    let populated_hub_badges = scalar(&mut conn, "SELECT CAST(COUNT(*) AS CHAR) FROM native_mysql_20261012.hubs WHERE badge IS NOT NULL AND badge <> ''").await?;
+    exec_static(&mut conn, "COMMIT").await?;
+    let gtid_after = scalar(&mut conn, "SELECT @@GLOBAL.gtid_executed").await?;
+
+    let bank = json!([
+        {"semantic_id":"shipment.road-weight-sum","query_class":"filtered_sum","prompt":"将 transport_mode 为 road 的 shipment 的 weight_grams 相加，结果是多少克？","truth_key":"road_shipment_weight"},
+        {"semantic_id":"shipment.delivered-origin-hub-diversity","query_class":"filtered_distinct_count","prompt":"status 为 delivered 的 shipment 一共来自多少个不同的 origin_hub_id？","truth_key":"delivered_origin_hubs"},
+        {"semantic_id":"tracking-event.in-transit-recorded-weight","query_class":"filtered_sum","prompt":"status 为 in_transit 的 tracking event，其 recorded_weight_grams 合计是多少克？","truth_key":"in_transit_event_weight"},
+        {"semantic_id":"hub.populated-badge-count","query_class":"filtered_count","prompt":"有多少个 hub 的 badge 既不是 NULL 也不是空字符串？","truth_key":"populated_hub_badges"}
+    ]);
+    let gold = json!({
+        "road_shipment_weight":{"expected_named_facts":{"road_shipment_weight":road_shipment_weight}},
+        "delivered_origin_hubs":{"expected_named_facts":{"delivered_origin_hubs":delivered_origin_hubs}},
+        "in_transit_event_weight":{"expected_named_facts":{"in_transit_event_weight":in_transit_event_weight}},
+        "populated_hub_badges":{"expected_named_facts":{"populated_hub_badges":populated_hub_badges}}
+    });
+    write_private_json(&out.join("question-bank.json"), &bank)?;
+    write_private_json(&out.join("independent-truth.json"), &gold)?;
+    let bank_sha256 = sha256_hex(
+        &fs::read(out.join("question-bank.json"))
+            .map_err(|_| PreviewError::new("config", "out"))?,
+    );
+    let gold_sha256 = sha256_hex(
+        &fs::read(out.join("independent-truth.json"))
+            .map_err(|_| PreviewError::new("config", "out"))?,
+    );
+    write_private_json(
+        &out.join("source-snapshot.json"),
+        &json!({
+            "protocol":"oo.mysql.random-source-gold/v1",
+            "source_id":"mysql_native",
+            "source_engine":"mysql",
+            "source_uuid":server_uuid,
+            "fixture":FIXTURE,
+            "source_method":"independent read-only MySQL query; bind to C1 target generation after catch-up",
+            "snapshot":"MySQL consistent read-only transaction",
+            "gtid_executed_before":gtid_before,
+            "gtid_executed_after":gtid_after,
+            "config_sha256":config_hash,
+            "question_bank_sha256":bank_sha256,
+            "independent_truth_sha256":gold_sha256,
+            "customer_rds_touched":false,
+            "source_write_attempts":0
+        }),
+    )?;
+    Ok(())
+}
+
 #[derive(Clone)]
 struct C1Config {
+    database: String,
     host: String,
     port: u16,
     user: String,
@@ -386,7 +1060,9 @@ struct Seen {
     commit_lsn: String,
     table: String,
     key: String,
+    key_value: Value,
     payload: Vec<String>,
+    row_value: Value,
     sequence: u64,
     deleted: bool,
 }
@@ -407,6 +1083,10 @@ struct Live {
     pk: BTreeMap<String, Vec<usize>>,
     selected: BTreeSet<String>,
     visible: BTreeMap<String, Vec<usize>>,
+    column_names: BTreeMap<String, Vec<(usize, String)>>,
+    column_kinds: BTreeMap<String, Vec<(usize, String)>>,
+    selected_columns: BTreeMap<String, Vec<String>>,
+    allow_nullable: bool,
     pending: Option<String>,
     buf: Vec<String>,
     counts: BTreeMap<String, u64>,
@@ -420,9 +1100,15 @@ struct Live {
 fn load_config(path: &Path) -> Result<C1Config, PreviewError> {
     let bytes = fs::read(path).map_err(|_| PreviewError::new("config", "path"))?;
     let text = std::str::from_utf8(&bytes).map_err(|_| PreviewError::new("config", "json"))?;
-    let value: Value = serde_json::from_str(text).map_err(|_| PreviewError::new("config", "json"))?;
-    let map = value.as_object().ok_or_else(|| PreviewError::new("config", "json"))?;
-    let tables = map.get("tables").and_then(|item| item.as_array()).ok_or_else(|| PreviewError::new("config", "tables"))?;
+    let value: Value =
+        serde_json::from_str(text).map_err(|_| PreviewError::new("config", "json"))?;
+    let map = value
+        .as_object()
+        .ok_or_else(|| PreviewError::new("config", "json"))?;
+    let tables = map
+        .get("tables")
+        .and_then(|item| item.as_array())
+        .ok_or_else(|| PreviewError::new("config", "tables"))?;
     let mut names: Vec<&str> = tables.iter().filter_map(|item| item.as_str()).collect();
     names.sort_unstable();
     let columns = parse_columns(map)?;
@@ -431,25 +1117,46 @@ fn load_config(path: &Path) -> Result<C1Config, PreviewError> {
             return Err(PreviewError::new("config", "columns"));
         }
         true
-    } else if names == NATIVE_TABLES {
-        if !native_columns_match(&columns) {
-            return Err(PreviewError::new("config", "columns"));
-        }
-        false
     } else {
-        return Err(PreviewError::new("config", "tables"));
+        if names.is_empty() || names.len()>32 || names.len()!=tables.len() || columns.len()!=names.len()
+            || names.windows(2).any(|p|p[0]==p[1])
+            || names.iter().any(|n|columns.get(*n).is_none_or(Vec::is_empty)) {
+            return Err(PreviewError::new("config","tables"));
+        }
+        one_schema(&names.iter().map(|s|s.to_string()).collect::<Vec<_>>())?;
+        false
     };
+    let database=map.get("database").and_then(Value::as_str).unwrap_or_else(||names[0].split_once('.').map(|p|p.0).unwrap_or("")).to_string();
+    if names.iter().any(|n|n.split_once('.').is_none_or(|p|p.0!=database)) {return Err(PreviewError::new("config","database"));}
     Ok(C1Config {
+        database,
         host: text_field(map, "host")?,
-        port: map.get("port").and_then(|item| item.as_u64()).and_then(|item| u16::try_from(item).ok()).ok_or_else(|| PreviewError::new("config", "port"))?,
+        port: map
+            .get("port")
+            .and_then(|item| item.as_u64())
+            .and_then(|item| u16::try_from(item).ok())
+            .ok_or_else(|| PreviewError::new("config", "port"))?,
         user: text_field(map, "user")?,
         password_file: path_field(map, "password_file")?,
-        dba_user: text_field(map, "dba_user")?,
-        dba_password_file: path_field(map, "dba_password_file")?,
+        dba_user: map.get("dba_user").and_then(Value::as_str).unwrap_or(map.get("user").and_then(Value::as_str).ok_or_else(||PreviewError::new("config","user"))?).to_string(),
+        dba_password_file: PathBuf::from(map.get("dba_password_file").or_else(||map.get("password_file")).and_then(Value::as_str).ok_or_else(||PreviewError::new("config","password_file"))?),
         ca_file: path_field(map, "ca_file")?,
-        server_id: map.get("server_id").and_then(|item| item.as_u64()).and_then(|item| u32::try_from(item).ok()).filter(|item| *item > 1).ok_or_else(|| PreviewError::new("config", "server_id"))?,
-        health_every_ms: map.get("health_every_ms").and_then(|item| item.as_u64()).filter(|item| *item >= 100).ok_or_else(|| PreviewError::new("config", "health_every_ms"))?,
-        reconcile_every_ms: map.get("reconcile_every_ms").and_then(|item| item.as_u64()).filter(|item| *item >= 200).ok_or_else(|| PreviewError::new("config", "reconcile_every_ms"))?,
+        server_id: map
+            .get("server_id")
+            .and_then(|item| item.as_u64())
+            .and_then(|item| u32::try_from(item).ok())
+            .filter(|item| *item > 1)
+            .ok_or_else(|| PreviewError::new("config", "server_id"))?,
+        health_every_ms: map
+            .get("health_every_ms")
+            .and_then(|item| item.as_u64())
+            .filter(|item| *item >= 100)
+            .ok_or_else(|| PreviewError::new("config", "health_every_ms"))?,
+        reconcile_every_ms: map
+            .get("reconcile_every_ms")
+            .and_then(|item| item.as_u64())
+            .filter(|item| *item >= 200)
+            .ok_or_else(|| PreviewError::new("config", "reconcile_every_ms"))?,
         preserve_dir: path_field(map, "preserve_dir")?,
         fixture: text_field(map, "fixture")?,
         tables: names.into_iter().map(str::to_string).collect(),
@@ -459,16 +1166,42 @@ fn load_config(path: &Path) -> Result<C1Config, PreviewError> {
 }
 
 fn text_field(map: &serde_json::Map<String, Value>, key: &str) -> Result<String, PreviewError> {
-    map.get(key).and_then(|item| item.as_str()).filter(|item| !item.is_empty()).map(str::to_string).ok_or_else(|| PreviewError::new("config", "json"))
+    map.get(key)
+        .and_then(|item| item.as_str())
+        .filter(|item| !item.is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| PreviewError::new("config", "json"))
 }
 
 fn path_field(map: &serde_json::Map<String, Value>, key: &str) -> Result<PathBuf, PreviewError> {
     Ok(PathBuf::from(text_field(map, key)?))
 }
 
+fn configured_selection(cfg:&C1Config)->Result<(),PreviewError> {
+    if cfg.full_table_gold || cfg.tables.is_empty() || cfg.columns.len()!=cfg.tables.len()
+        || cfg.tables.iter().any(|t|cfg.columns.get(t).is_none_or(Vec::is_empty)) {
+        return Err(PreviewError::new("config","tables"));
+    }
+    one_schema(&cfg.tables)?;Ok(())
+}
+
+fn replication_grants_ok(grants:&[String])->Result<(),PreviewError> {
+    let text=grants.iter().map(|g|g.to_ascii_uppercase().split(" ON ").next().unwrap_or("").to_string()).collect::<Vec<_>>().join("\n");
+    let writes=text.split_whitespace().any(|word|matches!(word.trim_end_matches(','),"INSERT"|"UPDATE"|"DELETE"|"CREATE"|"DROP"|"ALTER"|"ALL"));
+    if ["REPLICATION SLAVE","REPLICATION CLIENT","SELECT"].iter().any(|p|!text.contains(p))
+        || writes || grants.iter().any(|g|g.to_ascii_uppercase().contains("WITH GRANT OPTION")) {
+        return Err(PreviewError::new("privilege","readonly_replication"));
+    }
+    Ok(())
+}
+
 fn refuse_customer(cfg: &C1Config) -> Result<(), PreviewError> {
     let host = cfg.host.to_ascii_lowercase();
-    if cfg.fixture != FIXTURE || host.contains("rds") || host.contains("amazonaws") || cfg.user != "oo_cdc" {
+    if cfg.fixture != FIXTURE
+        || host.contains("rds")
+        || host.contains("amazonaws")
+        || cfg.user != "oo_cdc"
+    {
         return Err(PreviewError::new("config", "fixture"));
     }
     Ok(())
@@ -479,6 +1212,7 @@ fn fresh_dir(out: &Path) -> Result<(), PreviewError> {
         return Err(PreviewError::new("config", "out_exists"));
     }
     fs::create_dir_all(out).map_err(|_| PreviewError::new("config", "out"))?;
+    fs::set_permissions(out,fs::Permissions::from_mode(0o700)).map_err(|_|PreviewError::new("config","out"))?;
     fs::create_dir(out.join("spool")).map_err(|_| PreviewError::new("config", "out"))?;
     Ok(())
 }
@@ -490,7 +1224,9 @@ fn preserved(dir: &Path) -> Result<(), PreviewError> {
         let entry = entry.map_err(|_| PreviewError::new("c1", "preserve_missing"))?;
         let name = entry.file_name();
         let name = name.to_string_lossy();
-        if name.starts_with("binlog.") && entry.metadata().map(|meta| meta.len() > 0).unwrap_or(false) {
+        if name.starts_with("binlog.")
+            && entry.metadata().map(|meta| meta.len() > 0).unwrap_or(false)
+        {
             found = true;
         }
     }
@@ -513,7 +1249,7 @@ async fn connect(cfg: &C1Config, user: &str, password: &str) -> Result<Conn, Pre
         .tcp_port(cfg.port)
         .user(Some(user.to_string()))
         .pass(Some(password.to_string()))
-        .db_name(Some(DATABASE.to_string()))
+        .db_name(Some(cfg.database.clone()))
         .prefer_socket(false)
         .ssl_opts(ssl);
     let conn = timeout(Duration::from_secs(10), Conn::new(opts))
@@ -534,18 +1270,24 @@ async fn connect_dba(cfg: &C1Config) -> Result<Conn, PreviewError> {
 }
 
 async fn scalar(conn: &mut Conn, sql: &str) -> Result<String, PreviewError> {
-    let row: Option<Row> = conn.query_first(sql).await.map_err(|_| PreviewError::new("protocol", "query"))?;
+    let row: Option<Row> = conn
+        .query_first(sql)
+        .await
+        .map_err(|_| PreviewError::new("protocol", "query"))?;
     let row = row.ok_or_else(|| PreviewError::new("protocol", "query"))?;
     value_string(&row_value(&row, 0)?)
 }
 
 fn row_value(row: &Row, index: usize) -> Result<MyValue, PreviewError> {
-    row.get(index).ok_or_else(|| PreviewError::new("protocol", "cell"))
+    row.get(index)
+        .ok_or_else(|| PreviewError::new("protocol", "cell"))
 }
 
 fn value_string(value: &MyValue) -> Result<String, PreviewError> {
     match value {
-        MyValue::Bytes(bytes) => String::from_utf8(bytes.clone()).map_err(|_| PreviewError::new("value", "text")),
+        MyValue::Bytes(bytes) => {
+            String::from_utf8(bytes.clone()).map_err(|_| PreviewError::new("value", "text"))
+        }
         MyValue::Int(item) => Ok(item.to_string()),
         MyValue::UInt(item) => Ok(item.to_string()),
         MyValue::NULL => Err(PreviewError::new("protocol", "cell")),
@@ -554,7 +1296,9 @@ fn value_string(value: &MyValue) -> Result<String, PreviewError> {
 }
 
 fn rows_first(rows: &[Row]) -> Result<Vec<String>, PreviewError> {
-    rows.iter().map(|row| value_string(&row_value(row, 0)?)).collect()
+    rows.iter()
+        .map(|row| value_string(&row_value(row, 0)?))
+        .collect()
 }
 
 async fn exec_static(conn: &mut Conn, sql: &'static str) -> Result<(), PreviewError> {
@@ -563,7 +1307,9 @@ async fn exec_static(conn: &mut Conn, sql: &'static str) -> Result<(), PreviewEr
 
 fn mysql_err(err: &mysql_async::Error) -> PreviewError {
     match err {
-        mysql_async::Error::Server(server) if server.code == 1236 => PreviewError::new("c1", "position_expired"),
+        mysql_async::Error::Server(server) if server.code == 1236 => {
+            PreviewError::new("c1", "position_expired")
+        }
         _ => PreviewError::new("protocol", "query"),
     }
 }
@@ -582,7 +1328,12 @@ async fn enable_gtid(conn: &mut Conn) -> Result<(), PreviewError> {
         exec_static(conn, "SET GLOBAL gtid_mode = ON_PERMISSIVE").await?;
     }
     for _ in 0..30 {
-        let pending = scalar(conn, "SHOW STATUS LIKE 'Ongoing_anonymous_transaction_count'").await.unwrap_or_else(|_| "0".to_string());
+        let pending = scalar(
+            conn,
+            "SHOW STATUS LIKE 'Ongoing_anonymous_transaction_count'",
+        )
+        .await
+        .unwrap_or_else(|_| "0".to_string());
         if pending == "0" || pending.ends_with('\t') {
             break;
         }
@@ -590,7 +1341,10 @@ async fn enable_gtid(conn: &mut Conn) -> Result<(), PreviewError> {
             .query_first("SHOW STATUS LIKE 'Ongoing_anonymous_transaction_count'")
             .await
             .map_err(|_| PreviewError::new("c1", "gtid_mode"))?;
-        let count = row.as_ref().and_then(|item| value_string(&row_value(item, 1).ok()?).ok()).unwrap_or_else(|| "0".to_string());
+        let count = row
+            .as_ref()
+            .and_then(|item| value_string(&row_value(item, 1).ok()?).ok())
+            .unwrap_or_else(|| "0".to_string());
         if count == "0" {
             break;
         }
@@ -633,9 +1387,20 @@ async fn ensure_user(conn: &mut Conn, password: &str) -> Result<(), PreviewError
         .map_err(|_| PreviewError::new("privilege", "cdc_user"))?;
     if existing.is_none() {
         let sql = format!("CREATE USER 'oo_cdc'@'%' IDENTIFIED BY '{password}'");
-        conn.query_drop(sql).await.map_err(|_| PreviewError::new("privilege", "cdc_user"))?;
+        conn.query_drop(sql)
+            .await
+            .map_err(|_| PreviewError::new("privilege", "cdc_user"))?;
+    } else {
+        let sql = format!("ALTER USER 'oo_cdc'@'%' IDENTIFIED BY '{password}'");
+        conn.query_drop(sql)
+            .await
+            .map_err(|_| PreviewError::new("privilege", "cdc_user"))?;
     }
-    exec_static(conn, "GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'oo_cdc'@'%'").await?;
+    exec_static(
+        conn,
+        "GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'oo_cdc'@'%'",
+    )
+    .await?;
     exec_static(conn, "GRANT SELECT ON oo_c1.* TO 'oo_cdc'@'%'").await?;
     Ok(())
 }
@@ -649,10 +1414,18 @@ async fn preflight_values(conn: &mut Conn) -> Result<Value, PreviewError> {
     let expire = scalar(conn, "SELECT @@GLOBAL.binlog_expire_logs_seconds").await?;
     let log_bin = scalar(conn, "SELECT @@GLOBAL.log_bin").await?;
     let server_id = scalar(conn, "SELECT @@GLOBAL.server_id").await?;
-    if !version.starts_with("8.") || gtid != "ON" || consistent != "ON" || format != "ROW" || image != "FULL" || log_bin != "1" {
+    if !version.starts_with("8.")
+        || gtid != "ON"
+        || consistent != "ON"
+        || format != "ROW"
+        || image != "FULL"
+        || log_bin != "1"
+    {
         return Err(PreviewError::new("c1", "dba_required"));
     }
-    let expire_secs: u64 = expire.parse().map_err(|_| PreviewError::new("c1", "dba_required"))?;
+    let expire_secs: u64 = expire
+        .parse()
+        .map_err(|_| PreviewError::new("c1", "dba_required"))?;
     if expire_secs < RETENTION {
         return Err(PreviewError::new("c1", "dba_required"));
     }
@@ -674,7 +1447,17 @@ fn grants_ok(grants: &[String]) -> Result<(), PreviewError> {
     if needed.iter().any(|item| !text.contains(item)) || !text.contains("OO_C1") {
         return Err(PreviewError::new("privilege", "replication"));
     }
-    for denied in ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "SUPER", "ALL PRIVILEGES", "FILE"] {
+    for denied in [
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "DROP",
+        "ALTER",
+        "CREATE",
+        "SUPER",
+        "ALL PRIVILEGES",
+        "FILE",
+    ] {
         if text.contains(denied) {
             return Err(PreviewError::new("privilege", "write_grant"));
         }
@@ -691,7 +1474,9 @@ async fn wait_ready(out: &Path) -> Result<(), PreviewError> {
     }
 }
 
-async fn join(reader: tokio::task::JoinHandle<Result<Phase, PreviewError>>) -> Result<Phase, PreviewError> {
+async fn join(
+    reader: tokio::task::JoinHandle<Result<Phase, PreviewError>>,
+) -> Result<Phase, PreviewError> {
     match reader.await {
         Ok(result) => result,
         Err(_) => Err(PreviewError::new("c1", "join")),
@@ -702,19 +1487,39 @@ async fn dml_script(cfg: &C1Config, out: &Path) -> Result<(), PreviewError> {
     let mut a = connect_dba(cfg).await?;
     let mut b = connect_dba(cfg).await?;
     exec_static(&mut a, "START TRANSACTION").await?;
-    exec_static(&mut a, "INSERT INTO oo_c1.order_hdr VALUES (810001,'cross')").await?;
-    exec_static(&mut a, "INSERT INTO oo_c1.order_line VALUES (810011,810001,2)").await?;
+    exec_static(
+        &mut a,
+        "INSERT INTO oo_c1.order_hdr VALUES (810001,'cross')",
+    )
+    .await?;
+    exec_static(
+        &mut a,
+        "INSERT INTO oo_c1.order_line VALUES (810011,810001,2)",
+    )
+    .await?;
     exec_static(&mut a, "COMMIT").await?;
     exec_static(&mut a, "START TRANSACTION").await?;
-    exec_static(&mut a, "INSERT INTO oo_c1.order_hdr VALUES (810002,'rolled')").await?;
+    exec_static(
+        &mut a,
+        "INSERT INTO oo_c1.order_hdr VALUES (810002,'rolled')",
+    )
+    .await?;
     exec_static(&mut a, "ROLLBACK").await?;
     exec_static(&mut a, "START TRANSACTION").await?;
     exec_static(&mut a, "INSERT INTO oo_c1.order_hdr VALUES (810003,'late')").await?;
     exec_static(&mut b, "START TRANSACTION").await?;
-    exec_static(&mut b, "INSERT INTO oo_c1.order_line VALUES (810012,810003,1)").await?;
+    exec_static(
+        &mut b,
+        "INSERT INTO oo_c1.order_line VALUES (810012,810003,1)",
+    )
+    .await?;
     exec_static(&mut b, "COMMIT").await?;
     exec_static(&mut a, "COMMIT").await?;
-    exec_static(&mut a, "INSERT INTO oo_c1.order_line VALUES (810013,810001,1),(810014,810001,4)").await?;
+    exec_static(
+        &mut a,
+        "INSERT INTO oo_c1.order_line VALUES (810013,810001,1),(810014,810001,4)",
+    )
+    .await?;
     let _ = out;
     Ok(())
 }
@@ -728,7 +1533,10 @@ async fn stream(
 ) -> Result<Phase, PreviewError> {
     let mut probe = connect_cdc(cfg).await?;
     let vars = preflight_values(&mut probe).await?;
-    let source_server: u32 = vars["server_id"].as_str().and_then(|item| item.parse().ok()).ok_or_else(|| PreviewError::new("c1", "dba_required"))?;
+    let source_server: u32 = vars["server_id"]
+        .as_str()
+        .and_then(|item| item.parse().ok())
+        .ok_or_else(|| PreviewError::new("c1", "dba_required"))?;
     if source_server == cfg.server_id {
         return Err(PreviewError::new("config", "server_id"));
     }
@@ -740,6 +1548,7 @@ async fn stream(
     )?;
     grants_ok(&grants)?;
     let (pk, names, catalog) = load_pk(&mut probe, &cfg.tables).await?;
+    let kinds = load_column_kinds(&mut probe, &cfg.tables).await?;
     let visible = visible_ordinals(cfg, &names)?;
     let (file, _pos, executed) = full_status(&mut probe).await?;
     let span = match resume {
@@ -756,7 +1565,15 @@ async fn stream(
     drop(probe);
     let mut live = Live {
         assembler: Assembler::new(),
-        span: Span { uuid: if span.uuid.is_empty() { uuid.clone() } else { span.uuid.clone() }, start: span.start, end: span.end },
+        span: Span {
+            uuid: if span.uuid.is_empty() {
+                uuid.clone()
+            } else {
+                span.uuid.clone()
+            },
+            start: span.start,
+            end: span.end,
+        },
         file,
         epoch: 1,
         bind: String::new(),
@@ -765,6 +1582,10 @@ async fn stream(
         pk,
         selected: cfg.tables.iter().cloned().collect(),
         visible,
+        column_names: names.clone(),
+        column_kinds: kinds,
+        selected_columns: cfg.columns.clone(),
+        allow_nullable: false,
         pending: None,
         buf: Vec::new(),
         counts: BTreeMap::new(),
@@ -774,7 +1595,13 @@ async fn stream(
         foreign: false,
         out: out.to_path_buf(),
     };
-    live.bind = bind_line(&lineage, &live.schema_hash, &live.type_hash, &schema_hash_of_config(&lineage), &cfg.tables);
+    live.bind = bind_line(
+        &lineage,
+        &live.schema_hash,
+        &live.type_hash,
+        &schema_hash_of_config(&lineage),
+        &cfg.tables,
+    );
     live.feed(&live.bind.clone())?;
     if !out.join("l0.json").exists() {
         write_json(
@@ -793,8 +1620,13 @@ async fn stream(
     let sid = Sid::from_str(&gtid).map_err(|_| PreviewError::new("c1", "gtid"))?;
     let password = read_secret(&cfg.password_file)?;
     let conn = connect(cfg, &cfg.user, password.as_str()).await?;
-    let request = BinlogStreamRequest::new(cfg.server_id).with_gtid().with_gtid_set([sid]);
-    let stream = conn.get_binlog_stream(request).await.map_err(|err| mysql_err(&err))?;
+    let request = BinlogStreamRequest::new(cfg.server_id)
+        .with_gtid()
+        .with_gtid_set([sid]);
+    let stream = conn
+        .get_binlog_stream(request)
+        .await
+        .map_err(|err| mysql_err(&err))?;
     drop(password);
     fs::write(out.join("ready"), b"1").map_err(|_| PreviewError::new("config", "out"))?;
     let mut health = connect_cdc(cfg).await?;
@@ -869,7 +1701,13 @@ fn schema_hash_of_config(lineage: &str) -> String {
     sha256_hex(lineage.as_bytes())
 }
 
-fn bind_line(lineage: &str, schema_hash: &str, type_hash: &str, config_hash: &str, tables: &[String]) -> String {
+fn bind_line(
+    lineage: &str,
+    schema_hash: &str,
+    type_hash: &str,
+    config_hash: &str,
+    tables: &[String],
+) -> String {
     json!({
         "kind": "bind",
         "source": SOURCE,
@@ -887,19 +1725,30 @@ fn bind_line(lineage: &str, schema_hash: &str, type_hash: &str, config_hash: &st
 
 impl Live {
     fn feed(&mut self, line: &str) -> Result<Option<cdc_transaction::CompletedTxn>, PreviewError> {
-        let out = self.assembler.apply_line(line).map_err(|fault| fault_error(fault.code))?;
-        self.assembler.note_newline().map_err(|fault| fault_error(fault.code))?;
+        let out = self
+            .assembler
+            .apply_line(line)
+            .map_err(|fault| fault_error(fault.code))?;
+        self.assembler
+            .note_newline()
+            .map_err(|fault| fault_error(fault.code))?;
         Ok(out.completed)
     }
 
-    fn on_event(&mut self, event: mysql_async::binlog::events::Event, stream: &BinlogStream) -> Result<bool, PreviewError> {
+    fn on_event(
+        &mut self,
+        event: mysql_async::binlog::events::Event,
+        stream: &BinlogStream,
+    ) -> Result<bool, PreviewError> {
         self.events += 1;
         if self.events > MAX_EVENTS {
             return Err(PreviewError::new("budget", "max_rows"));
         }
         let header_pos = event.header().log_pos();
         let header_ts = event.header().timestamp();
-        let data = event.read_data().map_err(|_| PreviewError::new("protocol", "event"))?;
+        let data = event
+            .read_data()
+            .map_err(|_| PreviewError::new("protocol", "event"))?;
         let Some(data) = data else { return Ok(false) };
         match data {
             EventData::RotateEvent(rotate) => {
@@ -921,7 +1770,9 @@ impl Live {
                 if matches!(rows, RowsEventData::PartialUpdateRowsEvent(_)) {
                     return Err(PreviewError::new("c1", "partial_image"));
                 }
-                let tme = stream.get_tme(rows.table_id()).ok_or_else(|| PreviewError::new("c1", "table_map"))?;
+                let tme = stream
+                    .get_tme(rows.table_id())
+                    .ok_or_else(|| PreviewError::new("c1", "table_map"))?;
                 self.on_rows(&rows, tme)
             }
             EventData::XidEvent(_) => self.on_xid(header_pos, header_ts),
@@ -950,7 +1801,11 @@ impl Live {
     }
 
     fn on_query(&mut self, query: &str) -> Result<(), PreviewError> {
-        let verb = query.split_whitespace().next().unwrap_or("").to_ascii_uppercase();
+        let verb = query
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .to_ascii_uppercase();
         if matches!(verb.as_str(), "BEGIN" | "START" | "COMMIT" | "XA") {
             return Ok(());
         }
@@ -964,7 +1819,10 @@ impl Live {
         if self.buf.is_empty() {
             return Ok(());
         }
-        if matches!(verb.as_str(), "ALTER" | "CREATE" | "DROP" | "TRUNCATE" | "RENAME") {
+        if matches!(
+            verb.as_str(),
+            "ALTER" | "CREATE" | "DROP" | "TRUNCATE" | "RENAME"
+        ) {
             return Err(PreviewError::new("c1", "schema_pause"));
         }
         if matches!(verb.as_str(), "INSERT" | "UPDATE" | "DELETE") {
@@ -973,7 +1831,11 @@ impl Live {
         Ok(())
     }
 
-    fn on_rows(&mut self, rows: &RowsEventData<'_>, tme: &TableMapEvent<'_>) -> Result<bool, PreviewError> {
+    fn on_rows(
+        &mut self,
+        rows: &RowsEventData<'_>,
+        tme: &TableMapEvent<'_>,
+    ) -> Result<bool, PreviewError> {
         let qualified = format!("{}.{}", tme.database_name(), tme.table_name());
         if !self.selected.contains(&qualified) {
             if self.pending.is_some() {
@@ -984,8 +1846,16 @@ impl Live {
         let Some(txn) = self.pending.clone() else {
             return Err(PreviewError::new("c1", "rows_outside_txn"));
         };
-        let pk = self.pk.get(&qualified).cloned().ok_or_else(|| PreviewError::new("catalog", "primary_key"))?;
-        let ordinals = self.visible.get(&qualified).cloned().ok_or_else(|| PreviewError::new("catalog", "columns"))?;
+        let pk = self
+            .pk
+            .get(&qualified)
+            .cloned()
+            .ok_or_else(|| PreviewError::new("catalog", "primary_key"))?;
+        let ordinals = self
+            .visible
+            .get(&qualified)
+            .cloned()
+            .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
         let mut hit = false;
         for pair in rows.rows(tme) {
             let (before, after) = pair.map_err(|_| PreviewError::new("protocol", "event"))?;
@@ -996,8 +1866,16 @@ impl Live {
                 (None, None) => return Err(PreviewError::new("protocol", "event")),
             };
             let key_cells = row_cells(&image, &pk)?;
-            let payload_cells = row_cells(&image, &ordinals)?;
-            if key_cells.iter().chain(payload_cells.iter()).any(json_null) {
+            let payload_cells = row_cells_typed(
+                &image,
+                &ordinals,
+                self.column_kinds
+                    .get(&qualified)
+                    .ok_or_else(|| PreviewError::new("catalog", "types"))?,
+            )?;
+            if key_cells.iter().any(json_null)
+                || !self.allow_nullable && payload_cells.iter().any(json_null)
+            {
                 return Err(PreviewError::new("value", "null"));
             }
             self.globals += 1;
@@ -1005,26 +1883,59 @@ impl Live {
             *collection += 1;
             let sequence = self.globals;
             let collection_sequence = *collection;
-            let key = json_cell_text(key_cells.first().ok_or_else(|| PreviewError::new("value", "key"))?)?;
-            let payload = payload_cells.iter().map(json_cell_text).collect::<Result<Vec<_>, _>>()?;
-            self.buf.push(json!({
-                "kind": "data",
-                "txn_id": txn,
-                "global_txn_sequence": sequence,
-                "data_collection_sequence": collection_sequence,
-                "table": qualified,
-                "key": key_cells,
-                "op": op,
-                "payload": payload_cells,
-                "unavailable_ordinals": []
-            }).to_string());
+            let key = json_cell_text(
+                key_cells
+                    .first()
+                    .ok_or_else(|| PreviewError::new("value", "key"))?,
+            )?;
+            let key_value = named_cells(&self.column_names, &qualified, &pk, &key_cells)?;
+            let selected = self
+                .selected_columns
+                .get(&qualified)
+                .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
+            if selected.len() != payload_cells.len() {
+                return Err(PreviewError::new("catalog", "columns"));
+            }
+            let row_value = selected
+                .iter()
+                .cloned()
+                .zip(payload_cells.iter().cloned())
+                .collect::<serde_json::Map<_, _>>();
+            let payload = payload_cells
+                .iter()
+                .map(|cell| {
+                    json_cell_text(cell).or_else(|_| {
+                        if self.allow_nullable && json_null(cell) {
+                            Ok(String::new())
+                        } else {
+                            Err(PreviewError::new("value", "cell"))
+                        }
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            self.buf.push(
+                json!({
+                    "kind": "data",
+                    "txn_id": txn,
+                    "global_txn_sequence": sequence,
+                    "data_collection_sequence": collection_sequence,
+                    "table": qualified,
+                    "key": key_cells,
+                    "op": op,
+                    "payload": payload_cells,
+                    "unavailable_ordinals": []
+                })
+                .to_string(),
+            );
             self.rows.push(Seen {
                 txn_id: txn.clone(),
                 commit_order: 0,
                 commit_lsn: String::new(),
                 table: qualified.clone(),
                 key,
+                key_value,
                 payload,
+                row_value: Value::Object(row_value),
                 sequence,
                 deleted,
             });
@@ -1034,7 +1945,9 @@ impl Live {
     }
 
     fn on_xid(&mut self, pos: u32, timestamp: u32) -> Result<bool, PreviewError> {
-        let Some(txn) = self.pending.clone() else { return Ok(false) };
+        let Some(txn) = self.pending.clone() else {
+            return Ok(false);
+        };
         if self.foreign && !self.buf.is_empty() {
             return Err(PreviewError::new("c1", "mixed_txn"));
         }
@@ -1045,7 +1958,11 @@ impl Live {
             return Ok(false);
         }
         let lsn = commit_lsn(&self.file, pos)?;
-        let position = encode_position(self.epoch, parse_commit_lsn(&lsn.0).map_err(|_| PreviewError::new("c1", "commit_lsn"))?).map_err(|_| PreviewError::new("c1", "commit_lsn"))?;
+        let position = encode_position(
+            self.epoch,
+            parse_commit_lsn(&lsn.0).map_err(|_| PreviewError::new("c1", "commit_lsn"))?,
+        )
+        .map_err(|_| PreviewError::new("c1", "commit_lsn"))?;
         let stamp = unix_text(timestamp).ok_or_else(|| PreviewError::new("c1", "timestamp"))?;
         let begin = json!({"kind": "begin", "txn_id": txn}).to_string();
         let end = json!({
@@ -1066,9 +1983,14 @@ impl Live {
             lines.push(line.clone());
             self.feed(line)?;
         }
-        let completed = self.feed(&end)?.ok_or_else(|| PreviewError::new("c1", "assembler"))?;
+        let completed = self
+            .feed(&end)?
+            .ok_or_else(|| PreviewError::new("c1", "assembler"))?;
         lines.push(end);
-        seal_spool(&self.out.join("spool").join(format!("{:06}", gno_of(&txn)?)), &lines)?;
+        seal_spool(
+            &self.out.join("spool").join(format!("{:06}", gno_of(&txn)?)),
+            &lines,
+        )?;
         for row in &mut self.rows {
             if row.txn_id == txn {
                 row.commit_order = completed.commit_order;
@@ -1105,7 +2027,9 @@ impl Live {
 }
 
 fn gno_of(txn: &str) -> Result<u64, PreviewError> {
-    txn.rsplit_once(':').and_then(|(_, gno)| gno.parse().ok()).ok_or_else(|| PreviewError::new("c1", "gtid"))
+    txn.rsplit_once(':')
+        .and_then(|(_, gno)| gno.parse().ok())
+        .ok_or_else(|| PreviewError::new("c1", "gtid"))
 }
 
 fn format_uuid(sid: &[u8; 16]) -> String {
@@ -1122,7 +2046,10 @@ fn format_uuid(sid: &[u8; 16]) -> String {
 }
 
 fn commit_lsn(file: &str, pos: u32) -> Result<(String, String), PreviewError> {
-    let seq = file.rsplit_once('.').and_then(|(_, rest)| rest.parse::<u64>().ok()).ok_or_else(|| PreviewError::new("c1", "binlog_name"))?;
+    let seq = file
+        .rsplit_once('.')
+        .and_then(|(_, rest)| rest.parse::<u64>().ok())
+        .ok_or_else(|| PreviewError::new("c1", "binlog_name"))?;
     if seq > u64::from(u32::MAX) || pos == 0 {
         return Err(PreviewError::new("c1", "commit_lsn"));
     }
@@ -1140,7 +2067,9 @@ fn unix_text(secs: u32) -> Option<String> {
     if !(1..=9999).contains(&year) {
         return None;
     }
-    Some(format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z"))
+    Some(format!(
+        "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z"
+    ))
 }
 
 fn civil_from_unix(secs: u32) -> (i32, u32, u32, u32, u32, u32) {
@@ -1165,22 +2094,57 @@ fn civil_from_unix(secs: u32) -> (i32, u32, u32, u32, u32, u32) {
 fn parse_span(text: &str) -> Result<Span, PreviewError> {
     let text = text.trim();
     if text.is_empty() {
-        return Ok(Span { uuid: String::new(), start: 0, end: 0 });
+        return Ok(Span {
+            uuid: String::new(),
+            start: 0,
+            end: 0,
+        });
     }
     if text.contains(',') || text.contains('\n') {
         return Err(PreviewError::new("c1", "gtid"));
     }
-    let (uuid, rest) = text.split_once(':').ok_or_else(|| PreviewError::new("c1", "gtid"))?;
+    let (uuid, rest) = text
+        .split_once(':')
+        .ok_or_else(|| PreviewError::new("c1", "gtid"))?;
     let (start, end) = if let Some((left, right)) = rest.split_once('-') {
-        (left.parse::<u64>().map_err(|_| PreviewError::new("c1", "gtid"))?, right.parse::<u64>().map_err(|_| PreviewError::new("c1", "gtid"))?)
+        (
+            left.parse::<u64>()
+                .map_err(|_| PreviewError::new("c1", "gtid"))?,
+            right
+                .parse::<u64>()
+                .map_err(|_| PreviewError::new("c1", "gtid"))?,
+        )
     } else {
-        let one = rest.parse::<u64>().map_err(|_| PreviewError::new("c1", "gtid"))?;
+        let one = rest
+            .parse::<u64>()
+            .map_err(|_| PreviewError::new("c1", "gtid"))?;
         (one, one)
     };
     if start == 0 || end < start {
         return Err(PreviewError::new("c1", "gtid"));
     }
-    Ok(Span { uuid: uuid.to_string(), start, end })
+    Ok(Span {
+        uuid: uuid.to_string(),
+        start,
+        end,
+    })
+}
+
+#[cfg(test)]
+mod baseline_stream_tests {
+    use super::gtid_contains;
+
+    #[test]
+    fn snapshot_fence_requires_the_measured_uuid_and_sequence() {
+        let uuid = "1bc0749a-c3f5-11f1-9a89-6e5583e808c4";
+        assert!(gtid_contains(&format!("{uuid}:1-28"), uuid, 28));
+        assert!(!gtid_contains(&format!("{uuid}:1-27"), uuid, 28));
+        assert!(!gtid_contains(
+            "2bc0749a-c3f5-11f1-9a89-6e5583e808c4:1-28",
+            uuid,
+            28
+        ));
+    }
 }
 
 fn display_span(span: &Span) -> String {
@@ -1199,10 +2163,14 @@ fn fault_error(code: FaultCode) -> PreviewError {
         FaultCode::BindInvalid => "bind_invalid",
         FaultCode::TimestampInvalid => "timestamp",
         FaultCode::CommitLsnInvalid => "commit_lsn",
-        FaultCode::SequenceGap | FaultCode::SequenceOutOfRange | FaultCode::SequenceInvalid => "sequence_gap",
+        FaultCode::SequenceGap | FaultCode::SequenceOutOfRange | FaultCode::SequenceInvalid => {
+            "sequence_gap"
+        }
         FaultCode::CountMismatch | FaultCode::CollectionCountGap => "count_mismatch",
         FaultCode::KeyInvalid => "key",
-        FaultCode::PayloadInvalid | FaultCode::OrdinalMismatch | FaultCode::OrdinalOrder => "payload",
+        FaultCode::PayloadInvalid | FaultCode::OrdinalMismatch | FaultCode::OrdinalOrder => {
+            "payload"
+        }
         FaultCode::TxnInvalid => "gtid",
         FaultCode::Malformed => "malformed",
         _ => "assembler",
@@ -1216,9 +2184,15 @@ fn seal_spool(dir: &Path, lines: &[String]) -> Result<(), PreviewError> {
         body.extend_from_slice(line.as_bytes());
         body.push(b'\n');
     }
-    let mut spool = Spool::create_new(dir, Limits::product()).map_err(|_| PreviewError::new("c1", "spool"))?;
-    let outcome = spool.ingest_reader(Cursor::new(body)).map_err(|_| PreviewError::new("c1", "spool"))?;
-    if !matches!(outcome.kind, OutcomeKind::Sealed(_) | OutcomeKind::RolledBack { .. }) {
+    let mut spool =
+        Spool::create_new(dir, Limits::product()).map_err(|_| PreviewError::new("c1", "spool"))?;
+    let outcome = spool
+        .ingest_reader(Cursor::new(body))
+        .map_err(|_| PreviewError::new("c1", "spool"))?;
+    if !matches!(
+        outcome.kind,
+        OutcomeKind::Sealed(_) | OutcomeKind::RolledBack { .. }
+    ) {
         return Err(PreviewError::new("c1", "spool"));
     }
     if outcome.progress.ack_allowed || outcome.progress.target_applied {
@@ -1227,19 +2201,38 @@ fn seal_spool(dir: &Path, lines: &[String]) -> Result<(), PreviewError> {
     Ok(())
 }
 
-async fn load_pk(conn: &mut Conn, tables: &[String]) -> Result<(BTreeMap<String, Vec<usize>>, BTreeMap<String, Vec<(usize, String)>>, String), PreviewError> {
+async fn load_pk(
+    conn: &mut Conn,
+    tables: &[String],
+) -> Result<
+    (
+        BTreeMap<String, Vec<usize>>,
+        BTreeMap<String, Vec<(usize, String)>>,
+        String,
+    ),
+    PreviewError,
+> {
     let (schema, names) = one_schema(tables)?;
     let sql = format!(
         "SELECT TABLE_NAME, ORDINAL_POSITION, COLUMN_NAME, COLUMN_KEY FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = '{schema}' AND TABLE_NAME IN ({}) ORDER BY TABLE_NAME, ORDINAL_POSITION",
-        names.iter().map(|name| format!("'{name}'")).collect::<Vec<_>>().join(",")
+        names
+            .iter()
+            .map(|name| format!("'{name}'"))
+            .collect::<Vec<_>>()
+            .join(",")
     );
-    let rows: Vec<Row> = conn.query(sql).await.map_err(|_| PreviewError::new("catalog", "columns"))?;
+    let rows: Vec<Row> = conn
+        .query(sql)
+        .await
+        .map_err(|_| PreviewError::new("catalog", "columns"))?;
     let mut pk: BTreeMap<String, Vec<usize>> = BTreeMap::new();
     let mut found: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();
     let mut catalog = String::new();
     for row in rows {
         let table = value_string(&row_value(&row, 0)?)?;
-        let ordinal: u64 = value_string(&row_value(&row, 1)?)?.parse().map_err(|_| PreviewError::new("catalog", "columns"))?;
+        let ordinal: u64 = value_string(&row_value(&row, 1)?)?
+            .parse()
+            .map_err(|_| PreviewError::new("catalog", "columns"))?;
         let column = value_string(&row_value(&row, 2)?)?;
         let key = value_string(&row_value(&row, 3)?)?;
         catalog.push_str(&table);
@@ -1248,9 +2241,13 @@ async fn load_pk(conn: &mut Conn, tables: &[String]) -> Result<(BTreeMap<String,
         catalog.push('\t');
         catalog.push_str(&key);
         catalog.push('\n');
-        let index = usize::try_from(ordinal - 1).map_err(|_| PreviewError::new("catalog", "columns"))?;
+        let index =
+            usize::try_from(ordinal - 1).map_err(|_| PreviewError::new("catalog", "columns"))?;
         let qualified = format!("{schema}.{table}");
-        found.entry(qualified.clone()).or_default().push((index, column));
+        found
+            .entry(qualified.clone())
+            .or_default()
+            .push((index, column));
         if key == "PRI" {
             pk.entry(qualified).or_default().push(index);
         }
@@ -1263,6 +2260,83 @@ async fn load_pk(conn: &mut Conn, tables: &[String]) -> Result<(BTreeMap<String,
     Ok((pk, found, catalog))
 }
 
+fn native_table_schemas(
+    tables: &[String],
+    names: &BTreeMap<String, Vec<(usize, String)>>,
+    primary_keys: &BTreeMap<String, Vec<usize>>,
+    kinds: &BTreeMap<String, Vec<(usize, String)>>,
+) -> Result<Vec<Value>, PreviewError> {
+    let mut result = Vec::with_capacity(tables.len());
+    for qualified in tables {
+        let (schema, table) = qualified
+            .split_once('.')
+            .ok_or_else(|| PreviewError::new("catalog", "tables"))?;
+        let columns = names
+            .get(qualified)
+            .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
+        let types = kinds
+            .get(qualified)
+            .ok_or_else(|| PreviewError::new("catalog", "types"))?;
+        let keys = primary_keys
+            .get(qualified)
+            .ok_or_else(|| PreviewError::new("catalog", "primary_key"))?;
+        let mut columns = columns.iter().map(|(ordinal, name)| {
+            let data_type = types.iter().find(|(actual, _)| actual == ordinal)
+                .map(|(_, value)| value.as_str()).ok_or_else(|| PreviewError::new("catalog", "types"))?;
+            Ok(json!({"ordinal":ordinal + 1,"name":name,"data_type":data_type,"primary_key":keys.contains(ordinal)}))
+        }).collect::<Result<Vec<_>, PreviewError>>()?;
+        columns.sort_by_key(|column| column["ordinal"].as_u64().unwrap_or(0));
+        let preimage =
+            serde_json::to_vec(&columns).map_err(|_| PreviewError::new("catalog", "schema"))?;
+        result.push(json!({"schema":schema,"table":table,"schema_sha256":sha256_hex(&preimage),"columns":columns}));
+    }
+    result.sort_by(|left, right| {
+        (left["schema"].as_str().unwrap_or_default(), left["table"].as_str().unwrap_or_default())
+            .cmp(&(right["schema"].as_str().unwrap_or_default(), right["table"].as_str().unwrap_or_default()))
+    });
+    Ok(result)
+}
+
+async fn load_column_kinds(
+    conn: &mut Conn,
+    tables: &[String],
+) -> Result<BTreeMap<String, Vec<(usize, String)>>, PreviewError> {
+    let (schema, names) = one_schema(tables)?;
+    let sql = format!(
+        "SELECT TABLE_NAME,ORDINAL_POSITION,DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='{schema}' AND TABLE_NAME IN ({}) ORDER BY TABLE_NAME,ORDINAL_POSITION",
+        names
+            .iter()
+            .map(|name| format!("'{name}'"))
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+    let rows: Vec<Row> = conn
+        .query(sql)
+        .await
+        .map_err(|_| PreviewError::new("catalog", "types"))?;
+    let mut result: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();
+    for row in rows {
+        let table = value_string(&row_value(&row, 0)?)?;
+        let ordinal = value_string(&row_value(&row, 1)?)?
+            .parse::<usize>()
+            .map_err(|_| PreviewError::new("catalog", "types"))?
+            .checked_sub(1)
+            .ok_or_else(|| PreviewError::new("catalog", "types"))?;
+        let kind = value_string(&row_value(&row, 2)?)?.to_ascii_lowercase();
+        result
+            .entry(format!("{schema}.{table}"))
+            .or_default()
+            .push((ordinal, kind));
+    }
+    if tables
+        .iter()
+        .any(|table| result.get(table).is_none_or(Vec::is_empty))
+    {
+        return Err(PreviewError::new("catalog", "types"));
+    }
+    Ok(result)
+}
+
 async fn full_status(conn: &mut Conn) -> Result<(String, u64, String), PreviewError> {
     let (file, pos) = binary_status(conn).await?;
     let executed = scalar(conn, "SELECT @@GLOBAL.gtid_executed").await?;
@@ -1270,28 +2344,46 @@ async fn full_status(conn: &mut Conn) -> Result<(String, u64, String), PreviewEr
 }
 
 async fn binary_status(conn: &mut Conn) -> Result<(String, u64), PreviewError> {
-    let row: Option<Row> = conn.query_first("SHOW BINARY LOG STATUS").await.map_err(|_| PreviewError::new("protocol", "query"))?;
+    let row: Option<Row> = conn
+        .query_first("SHOW BINARY LOG STATUS")
+        .await
+        .map_err(|_| PreviewError::new("protocol", "query"))?;
     let row = row.ok_or_else(|| PreviewError::new("protocol", "query"))?;
     let file = value_string(&row_value(&row, 0)?)?;
-    let pos: u64 = value_string(&row_value(&row, 1)?)?.parse().map_err(|_| PreviewError::new("c1", "binlog_name"))?;
+    let pos: u64 = value_string(&row_value(&row, 1)?)?
+        .parse()
+        .map_err(|_| PreviewError::new("c1", "binlog_name"))?;
     Ok((file, pos))
 }
 
 async fn count_tables(conn: &mut Conn) -> Result<(u64, u64), PreviewError> {
     let hdr = scalar(conn, "SELECT COUNT(*) FROM oo_c1.order_hdr").await?;
     let line = scalar(conn, "SELECT COUNT(*) FROM oo_c1.order_line").await?;
-    Ok((hdr.parse().map_err(|_| PreviewError::new("value", "count"))?, line.parse().map_err(|_| PreviewError::new("value", "count"))?))
+    Ok((
+        hdr.parse()
+            .map_err(|_| PreviewError::new("value", "count"))?,
+        line.parse()
+            .map_err(|_| PreviewError::new("value", "count"))?,
+    ))
 }
 
-async fn source_rows(conn: &mut Conn) -> Result<BTreeMap<(String, String), Vec<String>>, PreviewError> {
+async fn source_rows(
+    conn: &mut Conn,
+) -> Result<BTreeMap<(String, String), Vec<String>>, PreviewError> {
     let mut out = BTreeMap::new();
-    let hdr: Vec<Row> = conn.query("SELECT id, note FROM oo_c1.order_hdr ORDER BY id").await.map_err(|_| PreviewError::new("protocol", "query"))?;
+    let hdr: Vec<Row> = conn
+        .query("SELECT id, note FROM oo_c1.order_hdr ORDER BY id")
+        .await
+        .map_err(|_| PreviewError::new("protocol", "query"))?;
     for row in hdr {
         let id = value_string(&row_value(&row, 0)?)?;
         let note = value_string(&row_value(&row, 1)?)?;
         out.insert((HDR.to_string(), id.clone()), vec![id, note]);
     }
-    let line: Vec<Row> = conn.query("SELECT id, hdr_id, qty FROM oo_c1.order_line ORDER BY id").await.map_err(|_| PreviewError::new("protocol", "query"))?;
+    let line: Vec<Row> = conn
+        .query("SELECT id, hdr_id, qty FROM oo_c1.order_line ORDER BY id")
+        .await
+        .map_err(|_| PreviewError::new("protocol", "query"))?;
     for row in line {
         let id = value_string(&row_value(&row, 0)?)?;
         let hdr = value_string(&row_value(&row, 1)?)?;
@@ -1303,7 +2395,11 @@ async fn source_rows(conn: &mut Conn) -> Result<BTreeMap<(String, String), Vec<S
 
 fn fold(rows: &[Seen]) -> BTreeMap<(String, String), Vec<String>> {
     let mut ordered = rows.to_vec();
-    ordered.sort_by(|left, right| left.commit_order.cmp(&right.commit_order).then(left.sequence.cmp(&right.sequence)));
+    ordered.sort_by(|left, right| {
+        left.commit_order
+            .cmp(&right.commit_order)
+            .then(left.sequence.cmp(&right.sequence))
+    });
     let mut out = BTreeMap::new();
     for row in ordered {
         if row.commit_order == 0 {
@@ -1344,26 +2440,48 @@ async fn gold_diff(conn: &mut Conn, rows: &[Seen], cfg: &C1Config) -> Result<u64
 async fn write_attempts(conn: &mut Conn) -> Result<u64, PreviewError> {
     let sql = "SELECT CAST(IFNULL(SUM(COUNT_STAR),0) AS UNSIGNED) FROM performance_schema.events_statements_summary_by_user_by_event_name WHERE USER = 'oo_cdc' AND EVENT_NAME IN ('statement/sql/alter_table','statement/sql/create_table','statement/sql/delete','statement/sql/delete_multi','statement/sql/drop_table','statement/sql/insert','statement/sql/insert_select','statement/sql/replace','statement/sql/replace_select','statement/sql/truncate','statement/sql/update','statement/sql/update_multi')";
     let text = scalar(conn, sql).await?;
-    text.parse().map_err(|_| PreviewError::new("privilege", "write_audit"))
+    text.parse()
+        .map_err(|_| PreviewError::new("privilege", "write_audit"))
 }
 
 fn check_script(rows: &[Seen]) -> Result<(), PreviewError> {
-    let cross_hdr = rows.iter().find(|row| row.table == HDR && row.key == "810001").ok_or_else(|| PreviewError::new("c1", "cross_table"))?;
-    let cross_line = rows.iter().find(|row| row.table == LINE && row.key == "810011").ok_or_else(|| PreviewError::new("c1", "cross_table"))?;
+    let cross_hdr = rows
+        .iter()
+        .find(|row| row.table == HDR && row.key == "810001")
+        .ok_or_else(|| PreviewError::new("c1", "cross_table"))?;
+    let cross_line = rows
+        .iter()
+        .find(|row| row.table == LINE && row.key == "810011")
+        .ok_or_else(|| PreviewError::new("c1", "cross_table"))?;
     if cross_hdr.txn_id != cross_line.txn_id || cross_hdr.commit_lsn != cross_line.commit_lsn {
         return Err(PreviewError::new("c1", "cross_table"));
     }
     if rows.iter().any(|row| row.key == "810002") {
         return Err(PreviewError::new("c1", "rollback"));
     }
-    let late_hdr = rows.iter().find(|row| row.key == "810003").ok_or_else(|| PreviewError::new("c1", "late_commit"))?;
-    let late_line = rows.iter().find(|row| row.key == "810012").ok_or_else(|| PreviewError::new("c1", "late_commit"))?;
+    let late_hdr = rows
+        .iter()
+        .find(|row| row.key == "810003")
+        .ok_or_else(|| PreviewError::new("c1", "late_commit"))?;
+    let late_line = rows
+        .iter()
+        .find(|row| row.key == "810012")
+        .ok_or_else(|| PreviewError::new("c1", "late_commit"))?;
     if late_line.commit_order >= late_hdr.commit_order || late_line.txn_id == late_hdr.txn_id {
         return Err(PreviewError::new("c1", "late_commit"));
     }
-    let left = rows.iter().find(|row| row.key == "810013").ok_or_else(|| PreviewError::new("c1", "same_position"))?;
-    let right = rows.iter().find(|row| row.key == "810014").ok_or_else(|| PreviewError::new("c1", "same_position"))?;
-    if left.commit_lsn != right.commit_lsn || left.sequence == right.sequence || left.txn_id != right.txn_id {
+    let left = rows
+        .iter()
+        .find(|row| row.key == "810013")
+        .ok_or_else(|| PreviewError::new("c1", "same_position"))?;
+    let right = rows
+        .iter()
+        .find(|row| row.key == "810014")
+        .ok_or_else(|| PreviewError::new("c1", "same_position"))?;
+    if left.commit_lsn != right.commit_lsn
+        || left.sequence == right.sequence
+        || left.txn_id != right.txn_id
+    {
         return Err(PreviewError::new("c1", "same_position"));
     }
     Ok(())
@@ -1372,7 +2490,10 @@ fn check_script(rows: &[Seen]) -> Result<(), PreviewError> {
 fn recover_spool(dir: &Path) -> Result<BTreeMap<(String, String), Vec<String>>, PreviewError> {
     let mut rows = Vec::new();
     let mut seen_txn = BTreeSet::new();
-    let mut entries: Vec<_> = fs::read_dir(dir).map_err(|_| PreviewError::new("c1", "spool"))?.collect::<Result<_, _>>().map_err(|_| PreviewError::new("c1", "spool"))?;
+    let mut entries: Vec<_> = fs::read_dir(dir)
+        .map_err(|_| PreviewError::new("c1", "spool"))?
+        .collect::<Result<_, _>>()
+        .map_err(|_| PreviewError::new("c1", "spool"))?;
     entries.sort_by_key(|entry| entry.file_name());
     for entry in entries {
         if !entry.file_type().map(|kind| kind.is_dir()).unwrap_or(false) {
@@ -1383,18 +2504,42 @@ fn recover_spool(dir: &Path) -> Result<BTreeMap<(String, String), Vec<String>>, 
                 if !seen_txn.insert(committed.manifest.txn_id.clone()) {
                     return Err(PreviewError::new("c1", "duplicate"));
                 }
-                let iter = committed.iter().map_err(|_| PreviewError::new("c1", "spool"))?;
+                let iter = committed
+                    .iter()
+                    .map_err(|_| PreviewError::new("c1", "spool"))?;
                 for event in iter {
                     let event = event.map_err(|_| PreviewError::new("c1", "spool"))?;
-                    let key = cell_text(event.key.first().ok_or_else(|| PreviewError::new("c1", "spool"))?)?;
-                    let payload = event.payload.iter().map(cell_text).collect::<Result<Vec<_>, _>>()?;
+                    let key = cell_text(
+                        event
+                            .key
+                            .first()
+                            .ok_or_else(|| PreviewError::new("c1", "spool"))?,
+                    )?;
+                    let payload = event
+                        .payload
+                        .iter()
+                        .map(cell_text)
+                        .collect::<Result<Vec<_>, _>>()?;
                     let txn_id = committed.manifest.txn_id.clone();
                     rows.push(Seen {
                         commit_order: gno_of(&txn_id)?,
                         txn_id,
                         table: event.table,
-                        key,
+                        key: key.clone(),
+                        key_value: json!({"primary_key":key}),
                         payload,
+                        row_value: Value::Object(
+                            event
+                                .payload
+                                .iter()
+                                .enumerate()
+                                .filter_map(|(i, cell)| {
+                                    cell_text(cell)
+                                        .ok()
+                                        .map(|v| (format!("column_{i}"), Value::String(v)))
+                                })
+                                .collect(),
+                        ),
                         commit_lsn: committed.manifest.commit_lsn.clone(),
                         sequence: event.global_txn_sequence,
                         deleted: matches!(event.op, cdc_spool::Op::Delete),
@@ -1409,13 +2554,17 @@ fn recover_spool(dir: &Path) -> Result<BTreeMap<(String, String), Vec<String>>, 
 
 fn cell_text(cell: &cdc_spool::Cell) -> Result<String, PreviewError> {
     match cell {
-        cdc_spool::Cell::Int { value, .. } | cdc_spool::Cell::Text { value, .. } | cdc_spool::Cell::Decimal { value, .. } => Ok(value.clone()),
+        cdc_spool::Cell::Int { value, .. }
+        | cdc_spool::Cell::Text { value, .. }
+        | cdc_spool::Cell::Decimal { value, .. } => Ok(value.clone()),
         _ => Err(PreviewError::new("value", "cell")),
     }
 }
 
 fn binlog_name_ok(name: &str) -> bool {
-    let Some(rest) = name.strip_prefix("binlog.") else { return false };
+    let Some(rest) = name.strip_prefix("binlog.") else {
+        return false;
+    };
     !rest.is_empty() && rest.len() <= 8 && rest.bytes().all(|byte| byte.is_ascii_digit())
 }
 
@@ -1440,12 +2589,53 @@ fn write_json(path: &Path, value: &Value) -> Result<(), PreviewError> {
     Ok(())
 }
 
+fn write_private_json(path: &Path, value: &Value) -> Result<(), PreviewError> {
+    let bytes = serde_json::to_vec(value).map_err(|_| PreviewError::new("config", "out"))?;
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(path)
+        .map_err(|_| PreviewError::new("config", "out"))?;
+    file.write_all(&bytes)
+        .and_then(|()| file.sync_all())
+        .map_err(|_| PreviewError::new("config", "out"))
+}
+
 fn row_cells(row: &BinlogRow, ordinals: &[usize]) -> Result<Vec<Value>, PreviewError> {
     let mut cells = Vec::new();
     for index in ordinals {
-        cells.push(one_cell(u16::try_from(*index).map_err(|_| PreviewError::new("value", "ordinal"))?, row.as_ref(*index))?);
+        cells.push(one_cell(
+            u16::try_from(*index).map_err(|_| PreviewError::new("value", "ordinal"))?,
+            row.as_ref(*index),
+        )?);
     }
     Ok(cells)
+}
+
+fn row_cells_typed(
+    row: &BinlogRow,
+    ordinals: &[usize],
+    kinds: &[(usize, String)],
+) -> Result<Vec<Value>, PreviewError> {
+    ordinals.iter().map(|index|{
+        let ordinal=u16::try_from(*index).map_err(|_|PreviewError::new("value","ordinal"))?;
+        let kind=kinds.iter().find(|(actual,_)|actual==index).map(|(_,kind)|kind.as_str()).ok_or_else(||PreviewError::new("catalog","types"))?;
+        let value=row.as_ref(*index);
+        if matches!(kind,"decimal"|"numeric") {
+            return match value {None=>Ok(json!({"ordinal":ordinal,"type":"null"})),Some(value)=>match MyValue::try_from(value.clone()).map_err(|_|PreviewError::new("value","cell"))? {
+                MyValue::Bytes(bytes)=>Ok(json!({"ordinal":ordinal,"type":"decimal","value":String::from_utf8(bytes).map_err(|_|PreviewError::new("value","decimal"))?})),
+                MyValue::NULL=>Ok(json!({"ordinal":ordinal,"type":"null"})),_=>row_cells(row,&[*index]).map(|mut cells|cells.remove(0))
+            }};
+        }
+        if matches!(kind,"binary"|"varbinary"|"blob"|"tinyblob"|"mediumblob"|"longblob") {
+            return match value {None=>Ok(json!({"ordinal":ordinal,"type":"null"})),Some(value)=>match MyValue::try_from(value.clone()).map_err(|_|PreviewError::new("value","cell"))? {
+                MyValue::Bytes(bytes)=>Ok(json!({"ordinal":ordinal,"type":"bytes","value":bytes.iter().map(|b|format!("{b:02x}")).collect::<String>()})),
+                MyValue::NULL=>Ok(json!({"ordinal":ordinal,"type":"null"})),_=>Err(PreviewError::new("value","binary"))
+            }};
+        }
+        row_cells(row,&[*index]).map(|mut cells|cells.remove(0))
+    }).collect()
 }
 
 fn json_null(cell: &Value) -> bool {
@@ -1467,27 +2657,38 @@ fn one_cell(ordinal: u16, value: Option<&BinlogValue<'_>>) -> Result<Value, Prev
     let Some(value) = value else {
         return Ok(json!({"ordinal": ordinal, "type": "null"}));
     };
-    let converted = MyValue::try_from(value.clone()).map_err(|_| PreviewError::new("c1", "partial_image"))?;
+    let converted =
+        MyValue::try_from(value.clone()).map_err(|_| PreviewError::new("c1", "partial_image"))?;
     match converted {
         MyValue::NULL => Ok(json!({"ordinal": ordinal, "type": "null"})),
-        MyValue::Int(item) => Ok(json!({"ordinal": ordinal, "type": "int", "value": item.to_string()})),
-        MyValue::UInt(item) => Ok(json!({"ordinal": ordinal, "type": "int", "value": item.to_string()})),
+        MyValue::Int(item) => {
+            Ok(json!({"ordinal": ordinal, "type": "int", "value": item.to_string()}))
+        }
+        MyValue::UInt(item) => {
+            Ok(json!({"ordinal": ordinal, "type": "int", "value": item.to_string()}))
+        }
         MyValue::Bytes(bytes) => match String::from_utf8(bytes) {
             Ok(text) => Ok(json!({"ordinal": ordinal, "type": "text", "value": text})),
             Err(err) => {
-                let hex: String = err.into_bytes().iter().map(|byte| format!("{byte:02x}")).collect();
+                let hex: String = err
+                    .into_bytes()
+                    .iter()
+                    .map(|byte| format!("{byte:02x}"))
+                    .collect();
                 Ok(json!({"ordinal": ordinal, "type": "bytes", "value": hex}))
             }
         },
         MyValue::Float(_) | MyValue::Double(_) => Err(PreviewError::new("value", "inexact")),
-        MyValue::Time(neg, days, hour, minute, second, micros) => {
-            Ok(json!({"ordinal": ordinal, "type": "text", "value": time_text(neg, days, hour, minute, second, micros)?}))
-        }
+        MyValue::Time(neg, days, hour, minute, second, micros) => Ok(
+            json!({"ordinal": ordinal, "type": "text", "value": time_text(neg, days, hour, minute, second, micros)?}),
+        ),
         MyValue::Date(year, month, day, hour, minute, second, _) => {
             if year == 0 {
                 return Err(PreviewError::new("value", "zero_date"));
             }
-            Ok(json!({"ordinal": ordinal, "type": "text", "value": format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")}))
+            Ok(
+                json!({"ordinal": ordinal, "type": "text", "value": format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")}),
+            )
         }
     }
 }
@@ -1505,14 +2706,20 @@ const NATIVE_DML: [&str; 7] = [
 ];
 
 fn ident_ok(name: &str) -> bool {
-    !name.is_empty() && name.len() <= 64 && name.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+    !name.is_empty()
+        && name.len() <= 64
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
 }
 
 fn one_schema(tables: &[String]) -> Result<(String, Vec<String>), PreviewError> {
     let mut schema = None;
     let mut names = Vec::new();
     for qualified in tables {
-        let (left, right) = qualified.split_once('.').ok_or_else(|| PreviewError::new("config", "tables"))?;
+        let (left, right) = qualified
+            .split_once('.')
+            .ok_or_else(|| PreviewError::new("config", "tables"))?;
         if !ident_ok(left) || !ident_ok(right) {
             return Err(PreviewError::new("config", "tables"));
         }
@@ -1525,27 +2732,41 @@ fn one_schema(tables: &[String]) -> Result<(String, Vec<String>), PreviewError> 
         }
         names.push(right.to_string());
     }
-    Ok((schema.ok_or_else(|| PreviewError::new("config", "tables"))?, names))
+    Ok((
+        schema.ok_or_else(|| PreviewError::new("config", "tables"))?,
+        names,
+    ))
 }
 
-fn parse_columns(map: &serde_json::Map<String, Value>) -> Result<BTreeMap<String, Vec<String>>, PreviewError> {
+fn parse_columns(
+    map: &serde_json::Map<String, Value>,
+) -> Result<BTreeMap<String, Vec<String>>, PreviewError> {
     let Some(raw) = map.get("columns") else {
         return Ok(BTreeMap::new());
     };
-    let obj = raw.as_object().ok_or_else(|| PreviewError::new("config", "columns"))?;
+    let obj = raw
+        .as_object()
+        .ok_or_else(|| PreviewError::new("config", "columns"))?;
     let mut out = BTreeMap::new();
     for (key, value) in obj {
-        let (schema, table) = key.split_once('.').ok_or_else(|| PreviewError::new("config", "columns"))?;
+        let (schema, table) = key
+            .split_once('.')
+            .ok_or_else(|| PreviewError::new("config", "columns"))?;
         if !ident_ok(schema) || !ident_ok(table) {
             return Err(PreviewError::new("config", "columns"));
         }
-        let list = value.as_array().ok_or_else(|| PreviewError::new("config", "columns"))?;
+        let list = value
+            .as_array()
+            .ok_or_else(|| PreviewError::new("config", "columns"))?;
         let mut names = Vec::new();
         for item in list {
-            let name = item.as_str().filter(|name| ident_ok(name)).ok_or_else(|| PreviewError::new("config", "columns"))?;
+            let name = item
+                .as_str()
+                .filter(|name| ident_ok(name))
+                .ok_or_else(|| PreviewError::new("config", "columns"))?;
             names.push(name.to_string());
         }
-        if names.is_empty() {
+        if names.is_empty() || names.iter().collect::<BTreeSet<_>>().len()!=names.len() {
             return Err(PreviewError::new("config", "columns"));
         }
         out.insert(key.clone(), names);
@@ -1555,8 +2776,26 @@ fn parse_columns(map: &serde_json::Map<String, Value>) -> Result<BTreeMap<String
 
 fn native_columns(table: &str) -> Option<&'static [&'static str]> {
     Some(match table {
-        "native_mysql_20261012.hubs" => &["hub_id", "hub_code", "hub_name", "region_code", "latitude", "longitude", "capacity_grams", "opened_at", "badge", "note"],
-        "native_mysql_20261012.range_gap" => &["gap_id", "table_name", "column_name", "row_key", "reason", "canonical_text"],
+        "native_mysql_20261012.hubs" => &[
+            "hub_id",
+            "hub_code",
+            "hub_name",
+            "region_code",
+            "latitude",
+            "longitude",
+            "capacity_grams",
+            "opened_at",
+            "badge",
+            "note",
+        ],
+        "native_mysql_20261012.range_gap" => &[
+            "gap_id",
+            "table_name",
+            "column_name",
+            "row_key",
+            "reason",
+            "canonical_text",
+        ],
         "native_mysql_20261012.shipments" => &[
             "shipment_id",
             "origin_hub_id",
@@ -1570,8 +2809,26 @@ fn native_columns(table: &str) -> Option<&'static [&'static str]> {
             "seal",
             "comment",
         ],
-        "native_mysql_20261012.tracking_events" => &["event_id", "shipment_id", "hub_id", "status", "event_at", "recorded_weight_grams", "payload", "comment"],
-        "native_mysql_20261012.value_probe" => &["probe_id", "unsigned_grams", "exact_amount", "payload", "badge", "day_on", "clock_at", "note"],
+        "native_mysql_20261012.tracking_events" => &[
+            "event_id",
+            "shipment_id",
+            "hub_id",
+            "status",
+            "event_at",
+            "recorded_weight_grams",
+            "payload",
+            "comment",
+        ],
+        "native_mysql_20261012.value_probe" => &[
+            "probe_id",
+            "unsigned_grams",
+            "exact_amount",
+            "payload",
+            "badge",
+            "day_on",
+            "clock_at",
+            "note",
+        ],
         _ => return None,
     })
 }
@@ -1579,21 +2836,37 @@ fn native_columns(table: &str) -> Option<&'static [&'static str]> {
 fn native_columns_match(columns: &BTreeMap<String, Vec<String>>) -> bool {
     columns.len() == NATIVE_TABLES.len()
         && NATIVE_TABLES.iter().all(|table| {
-            columns.get(*table).is_some_and(|got| native_columns(table).is_some_and(|want| got.iter().map(String::as_str).eq(want.iter().copied())))
+            columns.get(*table).is_some_and(|got| {
+                native_columns(table)
+                    .is_some_and(|want| got.iter().map(String::as_str).eq(want.iter().copied()))
+            })
         })
 }
 
-fn visible_ordinals(cfg: &C1Config, names: &BTreeMap<String, Vec<(usize, String)>>) -> Result<BTreeMap<String, Vec<usize>>, PreviewError> {
+fn visible_ordinals(
+    cfg: &C1Config,
+    names: &BTreeMap<String, Vec<(usize, String)>>,
+) -> Result<BTreeMap<String, Vec<usize>>, PreviewError> {
     let mut out = BTreeMap::new();
     for table in &cfg.tables {
-        let have = names.get(table).ok_or_else(|| PreviewError::new("catalog", "columns"))?;
+        let have = names
+            .get(table)
+            .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
         let ords = if cfg.columns.is_empty() {
             have.iter().map(|(ord, _)| *ord).collect::<Vec<_>>()
         } else {
-            let want = cfg.columns.get(table).ok_or_else(|| PreviewError::new("config", "columns"))?;
+            let want = cfg
+                .columns
+                .get(table)
+                .ok_or_else(|| PreviewError::new("config", "columns"))?;
             let mut picked = Vec::new();
             for name in want {
-                picked.push(have.iter().find(|(_, column)| column == name).map(|(ord, _)| *ord).ok_or_else(|| PreviewError::new("catalog", "columns"))?);
+                picked.push(
+                    have.iter()
+                        .find(|(_, column)| column == name)
+                        .map(|(ord, _)| *ord)
+                        .ok_or_else(|| PreviewError::new("catalog", "columns"))?,
+                );
             }
             picked.sort_unstable();
             picked
@@ -1608,14 +2881,34 @@ fn visible_ordinals(cfg: &C1Config, names: &BTreeMap<String, Vec<(usize, String)
 
 async fn ensure_native_select(conn: &mut Conn) -> Result<(), PreviewError> {
     let mut grants = rows_first(
-        &conn.query("SHOW GRANTS FOR 'oo_cdc'@'%'").await.map_err(|_| PreviewError::new("privilege", "replication"))?,
+        &conn
+            .query("SHOW GRANTS FOR 'oo_cdc'@'%'")
+            .await
+            .map_err(|_| PreviewError::new("privilege", "replication"))?,
     )?;
-    if !grants.join("\n").to_ascii_uppercase().contains("NATIVE_MYSQL_20261012") {
-        exec_static(conn, "GRANT SELECT ON native_mysql_20261012.* TO 'oo_cdc'@'%'").await?;
-        grants = rows_first(&conn.query("SHOW GRANTS FOR 'oo_cdc'@'%'").await.map_err(|_| PreviewError::new("privilege", "replication"))?)?;
+    if !grants
+        .join("\n")
+        .to_ascii_uppercase()
+        .contains("NATIVE_MYSQL_20261012")
+    {
+        exec_static(
+            conn,
+            "GRANT SELECT ON native_mysql_20261012.* TO 'oo_cdc'@'%'",
+        )
+        .await?;
+        grants = rows_first(
+            &conn
+                .query("SHOW GRANTS FOR 'oo_cdc'@'%'")
+                .await
+                .map_err(|_| PreviewError::new("privilege", "replication"))?,
+        )?;
     }
     grants_ok(&grants)?;
-    if !grants.join("\n").to_ascii_uppercase().contains("NATIVE_MYSQL_20261012") {
+    if !grants
+        .join("\n")
+        .to_ascii_uppercase()
+        .contains("NATIVE_MYSQL_20261012")
+    {
         return Err(PreviewError::new("privilege", "replication"));
     }
     Ok(())
@@ -1640,10 +2933,17 @@ fn check_native(rows: &[Seen]) -> Result<(), PreviewError> {
     if rows.len() != keys.len() {
         return Err(PreviewError::new("c1", "cross_table"));
     }
-    let first = rows.iter().find(|row| row.key == "910101").ok_or_else(|| PreviewError::new("c1", "cross_table"))?;
+    let first = rows
+        .iter()
+        .find(|row| row.key == "910101")
+        .ok_or_else(|| PreviewError::new("c1", "cross_table"))?;
     for (table, key) in keys {
-        let row = rows.iter().find(|row| row.table == table && row.key == key && !row.deleted).ok_or_else(|| PreviewError::new("c1", "cross_table"))?;
-        if row.txn_id != first.txn_id || row.commit_lsn != first.commit_lsn || row.commit_order == 0 {
+        let row = rows
+            .iter()
+            .find(|row| row.table == table && row.key == key && !row.deleted)
+            .ok_or_else(|| PreviewError::new("c1", "cross_table"))?;
+        if row.txn_id != first.txn_id || row.commit_lsn != first.commit_lsn || row.commit_order == 0
+        {
             return Err(PreviewError::new("c1", "cross_table"));
         }
     }
@@ -1688,14 +2988,22 @@ fn native_read(table: &str) -> Result<NativeRead, PreviewError> {
 }
 
 fn compact_json(text: &str) -> Result<String, PreviewError> {
-    let value: Value = serde_json::from_str(text).map_err(|_| PreviewError::new("value", "cell"))?;
+    let value: Value =
+        serde_json::from_str(text).map_err(|_| PreviewError::new("value", "cell"))?;
     serde_json::to_string(&value).map_err(|_| PreviewError::new("value", "cell"))
 }
 
-async fn native_key(conn: &mut Conn, table: &str, key: &str) -> Result<Option<Vec<String>>, PreviewError> {
+async fn native_key(
+    conn: &mut Conn,
+    table: &str,
+    key: &str,
+) -> Result<Option<Vec<String>>, PreviewError> {
     let read = native_read(table)?;
     let id: u64 = key.parse().map_err(|_| PreviewError::new("value", "key"))?;
-    let row: Option<Row> = conn.exec_first(read.sql, (id,)).await.map_err(|_| PreviewError::new("protocol", "query"))?;
+    let row: Option<Row> = conn
+        .exec_first(read.sql, (id,))
+        .await
+        .map_err(|_| PreviewError::new("protocol", "query"))?;
     let Some(row) = row else {
         return Ok(None);
     };
@@ -1710,16 +3018,30 @@ async fn native_key(conn: &mut Conn, table: &str, key: &str) -> Result<Option<Ve
     Ok(Some(cells))
 }
 
-fn time_text(neg: bool, days: u32, hour: u8, minute: u8, second: u8, micros: u32) -> Result<String, PreviewError> {
-    if neg || days != 0 || micros != 0 {
+fn time_text(
+    neg: bool,
+    days: u32,
+    hour: u8,
+    minute: u8,
+    second: u8,
+    micros: u32,
+) -> Result<String, PreviewError> {
+    if hour > 23 || minute > 59 || second > 59 || micros > 999_999 {
         return Err(PreviewError::new("value", "time"));
     }
-    Ok(format!("{hour:02}:{minute:02}:{second:02}"))
+    let hours=days.checked_mul(24).and_then(|v|v.checked_add(u32::from(hour))).filter(|v|*v<=838)
+        .ok_or_else(||PreviewError::new("value","time"))?;
+    let sign=if neg {"-"} else {""};
+    Ok(if micros == 0 {format!("{sign}{hours:02}:{minute:02}:{second:02}")}
+        else {format!("{sign}{hours:02}:{minute:02}:{second:02}.{micros:06}")})
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{civil_from_unix, commit_lsn, compact_json, native_columns, parse_span, time_text, NATIVE_TABLES};
+    use super::{
+        NATIVE_TABLES, civil_from_unix, commit_lsn, compact_json, native_columns, parse_span,
+        time_text,
+    };
 
     #[test]
     fn commit_lsn_uses_the_docs04_split() {
@@ -1745,13 +3067,69 @@ mod tests {
     #[test]
     fn whole_seconds_are_text_and_json_is_compact() {
         assert_eq!(time_text(false, 0, 8, 18, 0, 0).unwrap(), "08:18:00");
-        assert!(time_text(true, 0, 1, 0, 0, 0).is_err());
-        assert_eq!(compact_json("{\"tag\": \"c1\"}").unwrap(), "{\"tag\":\"c1\"}");
+        assert_eq!(time_text(true, 1, 1, 0, 0, 1).unwrap(), "-25:00:00.000001");
+        assert_eq!(
+            compact_json("{\"tag\": \"c1\"}").unwrap(),
+            "{\"tag\":\"c1\"}"
+        );
     }
 
     #[test]
     fn measured_role_columns_cover_the_five_tables() {
-        let count: usize = NATIVE_TABLES.iter().map(|table| native_columns(table).unwrap().len()).sum();
+        let count: usize = NATIVE_TABLES
+            .iter()
+            .map(|table| native_columns(table).unwrap().len())
+            .sum();
         assert_eq!(count, 43);
     }
+    #[test]
+    fn baseline_binding_uses_assembler_lineage_digest() {
+        let lineage=super::sha256_hex(b"11111111-2222-4333-8444-555555555555");
+        let line=super::bind_line(&lineage,&"a".repeat(64),&"b".repeat(64),&"c".repeat(64),&NATIVE_TABLES.iter().map(|s|s.to_string()).collect::<Vec<_>>());
+        let mut assembler=super::Assembler::new();
+        assembler.apply_line(&line).expect("baseline bind accepted before first transaction");
+        assembler.note_newline().unwrap();
+        assembler.apply_line(r#"{"kind":"begin","txn_id":"11111111-2222-4333-8444-555555555555:31"}"#).expect("first real transaction can begin");
+    }
+
+    #[test]
+    #[ignore = "explicit owned sealed-stage materialization preflight"]
+    fn owned_sealed_stage_materialization() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let root=std::path::PathBuf::from(std::env::var("OO_MYSQL_STAGE_PREFLIGHT").unwrap());
+            let mut context:serde_json::Value=serde_json::from_slice(&std::fs::read(root.join("context.json")).unwrap()).unwrap();
+            let cfg=super::load_config(std::path::Path::new("/secrets/c1/native-config.json")).unwrap();
+            let rows:Vec<serde_json::Value>=std::fs::read_to_string(root.join("rows.ndjson")).unwrap().lines().map(|l|serde_json::from_str(l).unwrap()).collect();
+            let mut conn=super::connect_cdc(&cfg).await.unwrap();
+            context["source_preflight"]=super::preflight_values(&mut conn).await.unwrap();
+            let reserved=oo_connectors::PG17_RESERVED.iter().map(|s|s.to_string()).collect();
+            let mut tables=Vec::new();let mut notes=Vec::new();
+            for qualified in &cfg.tables {
+                let (schema,table)=qualified.split_once('.').unwrap();
+                let selected=crate::config::SelectedTable {schema:schema.into(),name:table.into(),columns:cfg.columns[qualified].clone()};
+                let catalog=crate::source::catalog_columns(&mut conn,&mut notes,&selected).await.unwrap();
+                tables.push((schema.to_string(),table.to_string(),crate::map::map_table(&catalog,false,true,&reserved).unwrap()));
+            }
+            drop(conn);
+            let schemas=serde_json::Value::Array(tables.iter().map(|(_,table,columns)|serde_json::json!({"table":table,"columns":crate::c1_materialize::schema_columns(columns).unwrap()})).collect());
+            let config=crate::c1_materialize::admission_config(&context,&cfg.tables);
+            let out=root.join("out");super::fresh_dir(&out).unwrap();
+            context["reader_write_attempts"]=serde_json::json!(super::reader_write_audit(&cfg,&out).await.unwrap());
+            crate::c1_materialize::materialize(&out,&context,&tables,&rows,context["l0"].as_str().unwrap(),context["l_end"].as_str().unwrap(),context["lineage"].as_str().unwrap(),1,&schemas,&config).expect("all five sealed real tables materialize and admit");
+        });
+    }
+
+    #[test]
+    fn configured_selection_consumes_database_and_catalog_columns() {
+        let cfg=serde_json::json!({"host":"localhost","port":3306,"user":"reader","password_file":"/private/ref","ca_file":"/private/ca","database":"approved_db","server_id":17,"health_every_ms":100,"reconcile_every_ms":500,"preserve_dir":"/private/archive","fixture":"operator-approved","tables":["approved_db.orders"],"columns":{"approved_db.orders":["order_id","updated_at"]}});
+        let root=std::env::temp_dir().join(format!("mysql-selection-{}.json",std::process::id()));
+        std::fs::write(&root,serde_json::to_vec(&cfg).unwrap()).unwrap();
+        let parsed=super::load_config(&root).unwrap();
+        assert_eq!(parsed.database,"approved_db");assert_eq!(parsed.user,"reader");super::configured_selection(&parsed).unwrap();
+        let mut wrong=cfg;wrong["database"]=serde_json::json!("ignored_db");std::fs::write(&root,serde_json::to_vec(&wrong).unwrap()).unwrap();
+        assert!(super::load_config(&root).is_err());std::fs::remove_file(root).unwrap();
+        assert!(super::replication_grants_ok(&["GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO reader".into(),"GRANT SELECT (`updated_at`) ON approved_db.orders TO reader".into()]).is_ok());
+        assert!(super::replication_grants_ok(&["GRANT SELECT, UPDATE, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO reader".into()]).is_err());
+    }
+
 }

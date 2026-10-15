@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare every synthetic MySQL fixture cell with one native target generation."""
+"""Independently read every source/target fixture cell for a native generation."""
 import argparse
 import json
 import shlex
@@ -46,13 +46,14 @@ def normalize(value, kind):
                   + int((fraction or "").ljust(6, "0")))
         return -micros if sign else micros
     if kind in ("date", "datetime"):
-        return value.replace("T", " ").split(".")[0]
+        return value.replace("T", " ").rstrip("0").rstrip(".") if "." in value else value.replace("T", " ")
     return value.lower() if kind == "varbinary" else value
 
 
-def compare(generation, selected_table=None):
+def compare(generation, selected_table=None, source_id="mysql_native"):
+    source_id = ident(source_id)
     catalog = pg("select logical_table,logical_column,physical_name from _oo.physical_mappings "
-                 f"where source='mysql_native' and run_generation={generation} and level='c' "
+                 f"where source='{source_id}' and run_generation={generation} and level='c' "
                  "order by logical_table,logical_column")
     mapped = {}
     for row in catalog:
@@ -61,7 +62,7 @@ def compare(generation, selected_table=None):
             continue
         mapped.setdefault(table, {})[column] = physical
     types = subprocess.run(["docker", "exec", "oo-dl01w1-06-mysql", "mysql",
-                            "--defaults-file=/tmp/native-reader.cnf", "-NBe",
+                            "--defaults-extra-file=/secrets/sol-dba.cnf", "-NBe",
                             "select table_name,column_name,data_type from information_schema.columns "
                             "where table_schema='native_mysql_20261012' order by table_name,ordinal_position"],
                            capture_output=True, text=True, check=True).stdout.splitlines()
@@ -78,7 +79,7 @@ def compare(generation, selected_table=None):
         table = ident(table)
         if set(mapped[table]) != {name for name, _ in columns}:
             raise RuntimeError("incomplete column mapping: " + table)
-        physical = pg("select physical_name from _oo.physical_mappings where source='mysql_native' "
+        physical = pg(f"select physical_name from _oo.physical_mappings where source='{source_id}' "
                       f"and run_generation={generation} and level='t' and logical_table='{table}'")
         if len(physical) != 1:
             raise RuntimeError("ambiguous physical table: " + table)
@@ -90,14 +91,14 @@ def compare(generation, selected_table=None):
             if kind == "varbinary":
                 expression = f"HEX({sql_name})"
             if kind in ("date", "datetime"):
-                expression = f"CASE WHEN CAST({sql_name} AS CHAR) LIKE '0000-00-00%' THEN NULL ELSE {expression} END"
+                expression = f"CASE WHEN CAST({sql_name} AS CHAR) REGEXP '^(0000-[0-9]{{2}}-[0-9]{{2}}|[0-9]{{4}}-00-[0-9]{{2}}|[0-9]{{4}}-[0-9]{{2}}-00)( |$)' THEN NULL ELSE {expression} END"
             left.append(expression)
             target = '"' + ident(mapped[table][name]) + '"'
             right.append(f"encode({target},'hex')" if kind == "varbinary" else target + "::text")
         mysql_sql = f"SELECT JSON_ARRAY({','.join(left)}) FROM `native_mysql_20261012`.`{table}` ORDER BY `{columns[0][0]}`"
         pg_sql = f'SELECT json_build_array({",".join(right)}) FROM _oo."{ident(physical[0])}" ORDER BY "{ident(mapped[table][columns[0][0]])}"'
         mysql_rows = lines(["docker", "exec", "oo-dl01w1-06-mysql", "mysql",
-                            "--defaults-file=/tmp/native-reader.cnf", "--batch", "--raw", "--skip-column-names", "-e", mysql_sql])
+                            "--defaults-extra-file=/secrets/sol-dba.cnf", "--batch", "--raw", "--skip-column-names", "-e", mysql_sql])
         target_rows = lines(["docker", "exec", "oo-dl01w1-06-pg", "sh", "-lc",
                              'psql -U "$POSTGRES_USER" -d mysql_native_20261012 -Atc ' + shlex.quote(pg_sql)])
         count = 0
@@ -120,6 +121,7 @@ def compare(generation, selected_table=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--generation", type=int, required=True)
+    parser.add_argument("--source-id", default="mysql_native")
     parser.add_argument("--table", choices=["hubs", "shipments", "tracking_events", "range_gap", "value_probe"])
     args = parser.parse_args()
-    print(json.dumps({"generation": args.generation, "tables": compare(args.generation, args.table)}, sort_keys=True))
+    print(json.dumps({"generation": args.generation, "tables": compare(args.generation, args.table, args.source_id)}, sort_keys=True))

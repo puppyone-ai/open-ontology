@@ -16,6 +16,8 @@ def main():
     parser.add_argument('--client-file', required=True)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--generation', type=int, default=1)
+    parser.add_argument('--source-id', default='mysql_native')
+    parser.add_argument('--selection-config', type=Path)
     args = parser.parse_args()
     if not args.container.startswith('oo-dl01w1-06-'):
         raise SystemExit('owned synthetic source required')
@@ -23,13 +25,21 @@ def main():
         return subprocess.check_output(['docker','exec',args.container,'mysql',
             '--defaults-file='+args.client_file,'--default-character-set=utf8mb4',
             '--batch','--raw','--skip-column-names','-e',text],text=True)
-    schema = 'native_mysql_20261012'
+    selection=json.loads(args.selection_config.read_text()) if args.selection_config else None
+    schema=selection['database'] if selection else 'native_mysql_20261012'
+    selected=selection['tables'] if selection else [schema+'.'+t for t in ['hubs','shipments','tracking_events','range_gap','value_probe']]
+    assert re.fullmatch('[a-z][a-z0-9_]{0,62}',args.source_id)
+    assert 1 <= len(selected) <= 32 and len(set(selected))==len(selected)
+    assert all(re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*',t) and t.split('.')[0]==schema for t in selected)
+    before=sql('SELECT @@GLOBAL.gtid_executed').strip()
     tables = []
-    for table in ['hubs','shipments','tracking_events','range_gap','value_probe']:
+    for qualified in selected:
+        table=qualified.split('.')[1]
         columns = sql(f"SELECT COLUMN_NAME,DATA_TYPE,COLUMN_TYPE,IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='{schema}' AND TABLE_NAME='{table}' ORDER BY ORDINAL_POSITION").splitlines()
         fields = []
         for row in columns:
             name,kind,source_type,nullable = row.split('\t')
+            if selection and name not in selection['columns'][qualified]:continue
             if not re.fullmatch('[a-zA-Z_][a-zA-Z0-9_]*', name):
                 raise SystemExit('unexpected synthetic column identifier')
             binary = kind in ('binary','varbinary','blob','tinyblob','mediumblob','longblob')
@@ -42,7 +52,9 @@ def main():
             fields.append(dict(name=name,source_type=source_type,nullable=nullable=='YES',
                                aggregation='full_unsampled',min_max_encoding='hex' if binary else 'source_text',**value))
         tables.append(dict(dataset=f'{schema}.{table}',schema=schema,table=table,rows=fields[0]['rows'],full_scan=True,columns=fields))
-    args.out.write_text(json.dumps(dict(protocol='oo.source.mysql.profile/v1',source_id='mysql_native',
+    after=sql('SELECT @@GLOBAL.gtid_executed').strip()
+    assert before==after,'source changed during aggregate profile'
+    args.out.write_text(json.dumps(dict(protocol='oo.source.mysql.profile/v1',source_id=args.source_id,source_gtid=after,
         source_generation=args.generation,samples='none',sampled=False,tables=tables),indent=2)+'\n')
 
 if __name__ == '__main__':

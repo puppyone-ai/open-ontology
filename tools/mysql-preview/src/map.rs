@@ -4,10 +4,12 @@
 
 use std::collections::BTreeSet;
 
-use oo_connectors::types::{ArrowPhysical, ColumnMapping, ColumnPlan, MapDecision, TYPE_CONVERSION_PROTOCOL};
 use oo_connectors::stable_ident;
-use oo_core::canonical::LogicalType;
+use oo_connectors::types::{
+    ArrowPhysical, ColumnMapping, ColumnPlan, MapDecision, TYPE_CONVERSION_PROTOCOL,
+};
 use oo_core::TYPE_POLICY_V1;
+use oo_core::canonical::LogicalType;
 
 use crate::error::PreviewError;
 
@@ -103,16 +105,23 @@ fn map_column(
     if column.ordinal < 1 {
         return Err(PreviewError::new("catalog", "ordinal"));
     }
-    let logical_name = stable_ident(&column.name, reserved).map_err(|_| PreviewError::new("ident", "ident"))?;
+    let logical_name =
+        stable_ident(&column.name, reserved).map_err(|_| PreviewError::new("ident", "ident"))?;
     let unsigned = column.column_type.to_ascii_lowercase().contains("unsigned");
     let data = column.data_type.to_ascii_lowercase();
-    let tinyint1 = data == "tinyint" && column.column_type.replace(' ', "").starts_with("tinyint(1)");
+    let tinyint1 = data == "tinyint"
+        && column
+            .column_type
+            .replace(' ', "")
+            .starts_with("tinyint(1)");
     if !session_utc && data == "timestamp" {
         return Err(PreviewError::new("catalog", "timezone"));
     }
     let decided = decide(&data, unsigned, tinyint1, boolean_tinyint1, column)?;
     let (oid, typmod, logical, arrow, store, pg_type, caveat, precision, scale) = decided;
-    let arrow_type = arrow.series60().map_err(|_| PreviewError::new("catalog", "arrow"))?;
+    let arrow_type = arrow
+        .series60()
+        .map_err(|_| PreviewError::new("catalog", "arrow"))?;
     let plan = ColumnPlan {
         mapping: ColumnMapping {
             protocol: TYPE_CONVERSION_PROTOCOL,
@@ -188,8 +197,18 @@ fn decide(
 ) -> Result<StorePlan, PreviewError> {
     if matches!(
         data,
-        "set" | "bit" | "vector" | "geometry" | "point" | "linestring" | "polygon"
-            | "multipoint" | "multilinestring" | "multipolygon" | "geomcollection" | "geometrycollection"
+        "set"
+            | "bit"
+            | "vector"
+            | "geometry"
+            | "point"
+            | "linestring"
+            | "polygon"
+            | "multipoint"
+            | "multilinestring"
+            | "multipolygon"
+            | "geomcollection"
+            | "geometrycollection"
     ) {
         return Err(PreviewError::new("catalog", "unsupported_type"));
     }
@@ -227,7 +246,9 @@ fn decide(
         "bigint" if unsigned => numeric_plan(20, 0, Some("bigint_unsigned_numeric")),
         "bigint" => int_plan(OID_INT8, 8, None),
         "decimal" | "numeric" => {
-            let precision = column.precision.ok_or_else(|| PreviewError::new("catalog", "decimal"))?;
+            let precision = column
+                .precision
+                .ok_or_else(|| PreviewError::new("catalog", "decimal"))?;
             let scale = column.scale.unwrap_or(0);
             if !(1..=65).contains(&precision) || !(0..=precision).contains(&scale) {
                 return Err(PreviewError::new("catalog", "decimal"));
@@ -260,7 +281,11 @@ fn decide(
         "varchar" => text_plan(column, OID_VARCHAR, "varchar", false),
         "tinytext" | "text" | "mediumtext" | "longtext" | "enum" => {
             require_utf8(column)?;
-            let caveat = if data == "enum" { Some("enum_as_text") } else { None };
+            let caveat = if data == "enum" {
+                Some("enum_as_text")
+            } else {
+                None
+            };
             Ok((
                 OID_TEXT,
                 -1,
@@ -276,7 +301,11 @@ fn decide(
         "json" => {
             // information_schema leaves CHARACTER_SET_NAME null for JSON.
             // The type is utf8mb4. A reported non-utf8mb4 charset is refused.
-            if column.charset.as_deref().is_some_and(|name| name != "utf8mb4") {
+            if column
+                .charset
+                .as_deref()
+                .is_some_and(|name| name != "utf8mb4")
+            {
                 return Err(PreviewError::new("catalog", "charset"));
             }
             Ok((
@@ -350,11 +379,7 @@ fn decide(
     }
 }
 
-fn int_plan(
-    oid: i64,
-    width: u8,
-    caveat: Option<&'static str>,
-) -> Result<StorePlan, PreviewError> {
+fn int_plan(oid: i64, width: u8, caveat: Option<&'static str>) -> Result<StorePlan, PreviewError> {
     let (arrow, pg) = match width {
         2 => (ArrowPhysical::Int16, "int2"),
         4 => (ArrowPhysical::Int32, "int4"),
@@ -381,7 +406,8 @@ fn numeric_plan(
     let prec = u16::try_from(precision).map_err(|_| PreviewError::new("catalog", "decimal"))?;
     let sc = i16::try_from(scale).map_err(|_| PreviewError::new("catalog", "decimal"))?;
     let arrow_scale = i8::try_from(scale).map_err(|_| PreviewError::new("catalog", "decimal"))?;
-    let arrow_prec = u8::try_from(precision).map_err(|_| PreviewError::new("catalog", "decimal"))?;
+    let arrow_prec =
+        u8::try_from(precision).map_err(|_| PreviewError::new("catalog", "decimal"))?;
     let arrow = if precision <= 38 {
         ArrowPhysical::Decimal128 {
             precision: arrow_prec,
@@ -420,11 +446,14 @@ fn text_plan(
     _unused: bool,
 ) -> Result<StorePlan, PreviewError> {
     require_utf8(column)?;
-    let length = column.char_len.ok_or_else(|| PreviewError::new("catalog", "char_length"))?;
+    let length = column
+        .char_len
+        .ok_or_else(|| PreviewError::new("catalog", "char_length"))?;
     if !(1..=10_485_760).contains(&length) {
         return Err(PreviewError::new("catalog", "char_length"));
     }
-    let typmod = i32::try_from(length + 4).map_err(|_| PreviewError::new("catalog", "char_length"))?;
+    let typmod =
+        i32::try_from(length + 4).map_err(|_| PreviewError::new("catalog", "char_length"))?;
     let limit = usize::try_from(length).ok();
     Ok((
         oid,
@@ -473,8 +502,13 @@ pub fn grant_is_read_only(line: &str) -> bool {
 }
 
 pub fn session_mode_ok(sql_mode: &str) -> bool {
-    let parts: BTreeSet<&str> = sql_mode.split(',').map(str::trim).filter(|part| !part.is_empty()).collect();
-    (parts.contains("STRICT_ALL_TABLES") || parts.contains("STRICT_TRANS_TABLES")) && parts.contains("NO_ZERO_DATE")
+    let parts: BTreeSet<&str> = sql_mode
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .collect();
+    (parts.contains("STRICT_ALL_TABLES") || parts.contains("STRICT_TRANS_TABLES"))
+        && parts.contains("NO_ZERO_DATE")
 }
 
 pub fn session_utc(time_zone: &str) -> bool {
@@ -487,7 +521,10 @@ mod tests {
     use oo_connectors::PG17_RESERVED;
 
     fn reserved() -> BTreeSet<String> {
-        PG17_RESERVED.iter().map(|word| (*word).to_string()).collect()
+        PG17_RESERVED
+            .iter()
+            .map(|word| (*word).to_string())
+            .collect()
     }
 
     fn column(data: &str, column_type: &str, key: &str) -> MysqlColumn {
@@ -528,7 +565,13 @@ mod tests {
         col.ordinal = 2;
         let mapped = map_column(&col, false, true, &reserved()).expect("map");
         assert_eq!(mapped.oid, OID_NUMERIC);
-        assert_eq!(mapped.store, StoreKind::Numeric { precision: 20, scale: 0 });
+        assert_eq!(
+            mapped.store,
+            StoreKind::Numeric {
+                precision: 20,
+                scale: 0
+            }
+        );
         assert_eq!(mapped.caveat, Some("bigint_unsigned_numeric"));
     }
 
@@ -549,21 +592,31 @@ mod tests {
     fn geometry_and_set_are_unsupported() {
         let geo = column("geometry", "geometry", "");
         assert_eq!(
-            map_column(&geo, false, true, &reserved()).expect_err("geo").fact,
+            map_column(&geo, false, true, &reserved())
+                .expect_err("geo")
+                .fact,
             "unsupported_type"
         );
         let set_col = column("set", "set('a','b')", "");
         assert_eq!(
-            map_column(&set_col, false, true, &reserved()).expect_err("set").fact,
+            map_column(&set_col, false, true, &reserved())
+                .expect_err("set")
+                .fact,
             "unsupported_type"
         );
     }
 
     #[test]
     fn write_grant_blocks_and_select_does_not() {
-        assert!(grant_is_read_only("GRANT SELECT ON `erp`.* TO `oo_reader`@`%`"));
+        assert!(grant_is_read_only(
+            "GRANT SELECT ON `erp`.* TO `oo_reader`@`%`"
+        ));
         assert!(grant_is_read_only("GRANT USAGE ON *.* TO `oo_reader`@`%`"));
-        assert!(!grant_is_read_only("GRANT SELECT, INSERT ON `erp`.* TO `oo_reader`@`%`"));
-        assert!(!grant_is_read_only("GRANT ALL PRIVILEGES ON *.* TO `root`@`%` WITH GRANT OPTION"));
+        assert!(!grant_is_read_only(
+            "GRANT SELECT, INSERT ON `erp`.* TO `oo_reader`@`%`"
+        ));
+        assert!(!grant_is_read_only(
+            "GRANT ALL PRIVILEGES ON *.* TO `root`@`%` WITH GRANT OPTION"
+        ));
     }
 }

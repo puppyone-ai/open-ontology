@@ -74,6 +74,12 @@ pub const VERSION_NATIVE_PG_GROUP_PRIOR: &str = "native-pg-group-prior/v1";
 pub const VERSION_NATIVE_PG_GROUP_GENERATION: &str = "native-pg-group-generation/v1";
 pub const VERSION_NATIVE_SQLSERVER_CT: &str = "native-sqlserver-ct/v1";
 pub const VERSION_NATIVE_GTID_TRANSACTION: &str = "native-gtid-transaction/v1";
+pub const VERSION_NATIVE_C1_SOURCE_EPOCH: &str = "native-c1-source-epoch/v1";
+pub const VERSION_NATIVE_C1_SOURCE_EPOCH_RUNTIME: &str = "native-c1-source-epoch-runtime/v1";
+pub const VERSION_NATIVE_PUBLICATION: &str = "native-publication/v1";
+pub const VERSION_NATIVE_C1_BASELINE_STAGE: &str = "native-c1-baseline-stage/v1";
+pub const VERSION_NATIVE_C1_GTID_STAGE_IDENTITY: &str = "native-c1-gtid-stage-identity/v1";
+pub const VERSION_NATIVE_C1_GTID_MEASURED_IDENTITY: &str = "native-c1-gtid-measured-identity/v1";
 pub const VERSION_NATIVE_PG_SINGLE_TRANSACTION: &str = "native-pg-single-transaction/v1";
 
 /// Frozen SHA-256 of `0002_target_segment_null_expand.sql`.
@@ -106,6 +112,12 @@ const FILE_NATIVE_PG_GROUP_PRIOR: &str = "0020_native_pg_group_prior.sql";
 const FILE_NATIVE_PG_GROUP_GENERATION: &str = "0021_native_pg_group_generation.sql";
 const FILE_NATIVE_SQLSERVER_CT: &str = "0023_native_sqlserver_ct.sql";
 const FILE_NATIVE_GTID_TRANSACTION: &str = "0024_native_gtid_transaction.sql";
+const FILE_NATIVE_C1_SOURCE_EPOCH: &str = "0025_native_c1_source_epoch.sql";
+const FILE_NATIVE_C1_SOURCE_EPOCH_RUNTIME: &str = "0026_native_c1_runtime_privileges.sql";
+const FILE_NATIVE_PUBLICATION: &str = "0027_native_publication.sql";
+const FILE_NATIVE_C1_BASELINE_STAGE: &str = "0028_native_c1_baseline_stage.sql";
+const FILE_NATIVE_C1_GTID_STAGE_IDENTITY: &str = "0029_native_c1_gtid_stage_identity.sql";
+const FILE_NATIVE_C1_GTID_MEASURED_IDENTITY: &str = "0030_native_c1_gtid_measured_identity.sql";
 const FILE_NATIVE_PG_SINGLE_TRANSACTION: &str = "0022_native_pg_single_transaction.sql";
 const FILE_JOBS_MIRROR_REBIND: &str = "0005_mirror_rebind_expand.sql";
 const FILE_JOBS_MIRROR_RETRY: &str = "0006_mirror_retry_run_at_expand.sql";
@@ -136,6 +148,12 @@ const SCRIPT_NATIVE_PG_GROUP_PRIOR: &str = include_str!("../migrations/0020_nati
 const SCRIPT_NATIVE_PG_GROUP_GENERATION: &str = include_str!("../migrations/0021_native_pg_group_generation.sql");
 const SCRIPT_NATIVE_SQLSERVER_CT: &str = include_str!("../migrations/0023_native_sqlserver_ct.sql");
 const SCRIPT_NATIVE_GTID_TRANSACTION: &str = include_str!("../migrations/0024_native_gtid_transaction.sql");
+const SCRIPT_NATIVE_C1_SOURCE_EPOCH: &str = include_str!("../migrations/0025_native_c1_source_epoch.sql");
+const SCRIPT_NATIVE_C1_SOURCE_EPOCH_RUNTIME: &str = include_str!("../migrations/0026_native_c1_runtime_privileges.sql");
+const SCRIPT_NATIVE_PUBLICATION: &str = include_str!("../migrations/0027_native_publication.sql");
+const SCRIPT_NATIVE_C1_BASELINE_STAGE: &str = include_str!("../migrations/0028_native_c1_baseline_stage.sql");
+const SCRIPT_NATIVE_C1_GTID_STAGE_IDENTITY: &str = include_str!("../migrations/0029_native_c1_gtid_stage_identity.sql");
+const SCRIPT_NATIVE_C1_GTID_MEASURED_IDENTITY: &str = include_str!("../migrations/0030_native_c1_gtid_measured_identity.sql");
 const SCRIPT_NATIVE_PG_SINGLE_TRANSACTION: &str = include_str!("../migrations/0022_native_pg_single_transaction.sql");
 const SCRIPT_JOBS_MIRROR_REBIND: &str = include_str!("../../oo-jobs/migrations/0005_mirror_rebind_expand.sql");
 const SCRIPT_JOBS_MIRROR_RETRY: &str = include_str!("../../oo-jobs/migrations/0006_mirror_retry_run_at_expand.sql");
@@ -268,6 +286,12 @@ pub fn compiled_native_pg_group_generation_digest() -> String {
 pub fn compiled_native_sqlserver_ct_digest() -> String { sha256_hex(SCRIPT_NATIVE_SQLSERVER_CT.as_bytes()) }
 
 pub fn compiled_native_gtid_transaction_digest() -> String { sha256_hex(SCRIPT_NATIVE_GTID_TRANSACTION.as_bytes()) }
+pub fn compiled_native_c1_source_epoch_digest() -> String { sha256_hex(SCRIPT_NATIVE_C1_SOURCE_EPOCH.as_bytes()) }
+pub fn compiled_native_c1_source_epoch_runtime_digest() -> String { sha256_hex(SCRIPT_NATIVE_C1_SOURCE_EPOCH_RUNTIME.as_bytes()) }
+pub fn compiled_native_publication_digest() -> String { sha256_hex(SCRIPT_NATIVE_PUBLICATION.as_bytes()) }
+pub fn compiled_native_c1_baseline_stage_digest() -> String { sha256_hex(SCRIPT_NATIVE_C1_BASELINE_STAGE.as_bytes()) }
+pub fn compiled_native_c1_gtid_stage_identity_digest() -> String { sha256_hex(SCRIPT_NATIVE_C1_GTID_STAGE_IDENTITY.as_bytes()) }
+pub fn compiled_native_c1_gtid_measured_identity_digest() -> String { sha256_hex(SCRIPT_NATIVE_C1_GTID_MEASURED_IDENTITY.as_bytes()) }
 
 pub fn compiled_native_pg_single_transaction_digest() -> String {
     sha256_hex(SCRIPT_NATIVE_PG_SINGLE_TRANSACTION.as_bytes())
@@ -1539,6 +1563,383 @@ pub async fn install_native_gtid_transaction(conn: &mut PgConnection) -> Result<
     tx.commit().await.map_err(database_error)
 }
 
+/// Add the MongoDB C1 source epoch quality seal while retaining the frozen
+/// 23-argument quality-seal call used by PostgreSQL.
+pub async fn install_native_c1_source_epoch(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_gtid_transaction_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_GTID_TRANSACTION), Some(row)
+        if row_exact(row, VERSION_NATIVE_GTID_TRANSACTION, &prior, FILE_NATIVE_GTID_TRANSACTION)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "source epoch requires exact gtid transaction schema".to_string() });
+    }
+    let digest = compiled_native_c1_source_epoch_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C1_SOURCE_EPOCH) {
+        if !row_exact(row, VERSION_NATIVE_C1_SOURCE_EPOCH, &digest, FILE_NATIVE_C1_SOURCE_EPOCH) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_C1_SOURCE_EPOCH.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_C1_SOURCE_EPOCH).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_C1_SOURCE_EPOCH, &digest, FILE_NATIVE_C1_SOURCE_EPOCH)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Grant the runtime access to the immutable Mongo source-epoch seal overload.
+pub async fn install_native_c1_source_epoch_runtime(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_c1_source_epoch_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_C1_SOURCE_EPOCH), Some(row)
+        if row_exact(row, VERSION_NATIVE_C1_SOURCE_EPOCH, &prior, FILE_NATIVE_C1_SOURCE_EPOCH)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "source epoch runtime grant requires exact installed source epoch migration".to_string() });
+    }
+    let digest = compiled_native_c1_source_epoch_runtime_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C1_SOURCE_EPOCH_RUNTIME) {
+        if !row_exact(row, VERSION_NATIVE_C1_SOURCE_EPOCH_RUNTIME, &digest, FILE_NATIVE_C1_SOURCE_EPOCH_RUNTIME) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_C1_SOURCE_EPOCH_RUNTIME.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_C1_SOURCE_EPOCH_RUNTIME).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_C1_SOURCE_EPOCH_RUNTIME, &digest, FILE_NATIVE_C1_SOURCE_EPOCH_RUNTIME)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Install the fenced native full-import publication successor after source-epoch runtime grants.
+pub async fn install_native_publication(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_c1_source_epoch_runtime_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_C1_SOURCE_EPOCH_RUNTIME), Some(row)
+        if row_exact(row, VERSION_NATIVE_C1_SOURCE_EPOCH_RUNTIME, &prior, FILE_NATIVE_C1_SOURCE_EPOCH_RUNTIME)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "native publication requires exact source-epoch runtime migration".to_string() });
+    }
+    let digest = compiled_native_publication_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_PUBLICATION) {
+        if !row_exact(row, VERSION_NATIVE_PUBLICATION, &digest, FILE_NATIVE_PUBLICATION) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_PUBLICATION.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_PUBLICATION).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_PUBLICATION, &digest, FILE_NATIVE_PUBLICATION)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Install the append-only CDC-first baseline staging contract after the
+/// immutable source-epoch runtime migration. The staging rows stay private.
+pub async fn install_native_c1_baseline_stage(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_c1_source_epoch_runtime_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_C1_SOURCE_EPOCH_RUNTIME), Some(row)
+        if row_exact(row, VERSION_NATIVE_C1_SOURCE_EPOCH_RUNTIME, &prior, FILE_NATIVE_C1_SOURCE_EPOCH_RUNTIME)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "C1 baseline stage requires exact source-epoch runtime schema".to_string() });
+    }
+    let digest = compiled_native_c1_baseline_stage_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C1_BASELINE_STAGE) {
+        if !row_exact(row, VERSION_NATIVE_C1_BASELINE_STAGE, &digest, FILE_NATIVE_C1_BASELINE_STAGE) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_C1_BASELINE_STAGE.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "C1 baseline stage checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_C1_BASELINE_STAGE).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_C1_BASELINE_STAGE, &digest, FILE_NATIVE_C1_BASELINE_STAGE)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Bind C1 bootstrap positions to the measured MySQL UUID and contiguous GTIDs.
+pub async fn install_native_c1_gtid_stage_identity(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await { let _ = tx.rollback().await; return Err(err); }
+    let rows = read_rows(&mut tx).await?;
+    let expected = compiled_native_c1_baseline_stage_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_C1_BASELINE_STAGE), Some(row)
+        if row_exact(row, VERSION_NATIVE_C1_BASELINE_STAGE, &expected, FILE_NATIVE_C1_BASELINE_STAGE)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "C1 GTID stage identity requires exact 0028".to_string() });
+    }
+    let digest = compiled_native_c1_gtid_stage_identity_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C1_GTID_STAGE_IDENTITY) {
+        if !row_exact(row, VERSION_NATIVE_C1_GTID_STAGE_IDENTITY, &digest, FILE_NATIVE_C1_GTID_STAGE_IDENTITY) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_C1_GTID_STAGE_IDENTITY.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "C1 GTID stage identity checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_C1_GTID_STAGE_IDENTITY).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_C1_GTID_STAGE_IDENTITY, &digest, FILE_NATIVE_C1_GTID_STAGE_IDENTITY)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Correct the GTID stage identity format to the registered `mysql.<uuid>` contract.
+pub async fn install_native_c1_gtid_measured_identity(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await { let _ = tx.rollback().await; return Err(err); }
+    let rows = read_rows(&mut tx).await?;
+    for (version, digest, filename) in [
+        (VERSION_NATIVE_C1_BASELINE_STAGE, compiled_native_c1_baseline_stage_digest(), FILE_NATIVE_C1_BASELINE_STAGE),
+        (VERSION_NATIVE_C1_GTID_STAGE_IDENTITY, compiled_native_c1_gtid_stage_identity_digest(), FILE_NATIVE_C1_GTID_STAGE_IDENTITY),
+    ] {
+        if !matches!(find_row(&rows, version), Some(row) if row_exact(row, version, &digest, filename)) {
+            let _ = tx.rollback().await;
+            return Err(InstallError::Refused { message: format!("C1 GTID measured identity requires exact {version}") });
+        }
+    }
+    let digest = compiled_native_c1_gtid_measured_identity_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C1_GTID_MEASURED_IDENTITY) {
+        if !row_exact(row, VERSION_NATIVE_C1_GTID_MEASURED_IDENTITY, &digest, FILE_NATIVE_C1_GTID_MEASURED_IDENTITY) {
+            return match mismatch(tx, Mismatch { version: VERSION_NATIVE_C1_GTID_MEASURED_IDENTITY.to_string(), stored: row.checksum.clone() }).await {
+                Err(err) => Err(err),
+                Ok(_) => Err(InstallError::Refused { message: "C1 GTID measured identity checksum mismatch did not raise OO001".to_string() }),
+            };
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_C1_GTID_MEASURED_IDENTITY).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_C1_GTID_MEASURED_IDENTITY, &digest, FILE_NATIVE_C1_GTID_MEASURED_IDENTITY)]).await?;
+        Ok::<(), InstallError>(())
+    }.await;
+    if let Err(err) = result { let _ = tx.rollback().await; return Err(err); }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Install the typed CDC-first bridge after the immutable measured-UUID stage.
+pub async fn install_native_c1_baseline_typed_bridge(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal=read_principal(conn).await?;
+    let preview=read_catalog(conn).await?;
+    if !principal_can_install(&principal,&preview) {return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    if let Err(err)=prepare_locked(&mut tx,&principal).await {let _=tx.rollback().await;return Err(err);}
+    let rows=read_rows(&mut tx).await?;
+    let prior=compiled_native_c1_gtid_measured_identity_digest();
+    if !matches!(find_row(&rows,VERSION_NATIVE_C1_GTID_MEASURED_IDENTITY),Some(row)
+        if row_exact(row,VERSION_NATIVE_C1_GTID_MEASURED_IDENTITY,&prior,FILE_NATIVE_C1_GTID_MEASURED_IDENTITY)) {
+        let _=tx.rollback().await;
+        return Err(InstallError::Refused {message:"C1 typed bridge requires exact 0030".to_string()});
+    }
+    let digest=compiled_native_c1_baseline_typed_bridge_digest();
+    if let Some(row)=find_row(&rows,VERSION_NATIVE_C1_BASELINE_TYPED_BRIDGE) {
+        if !row_exact(row,VERSION_NATIVE_C1_BASELINE_TYPED_BRIDGE,&digest,FILE_NATIVE_C1_BASELINE_TYPED_BRIDGE) {
+            return mismatch(tx,Mismatch {version:VERSION_NATIVE_C1_BASELINE_TYPED_BRIDGE.to_string(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+        tx.commit().await.map_err(database_error)?;return Ok(());
+    }
+    let result=async {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C1_BASELINE_TYPED_BRIDGE).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C1_BASELINE_TYPED_BRIDGE,&digest,FILE_NATIVE_C1_BASELINE_TYPED_BRIDGE)]).await
+    }.await;
+    if let Err(err)=result {let _=tx.rollback().await;return Err(err);}
+    tx.commit().await.map_err(database_error)
+}
+
+/// Install same-task C1 baseline retry adoption after the immutable typed bridge.
+pub async fn install_native_c1_baseline_lease_rebind(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal=read_principal(conn).await?;
+    let preview=read_catalog(conn).await?;
+    if !principal_can_install(&principal,&preview) {return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    if let Err(err)=prepare_locked(&mut tx,&principal).await {let _=tx.rollback().await;return Err(err);}
+    let rows=read_rows(&mut tx).await?;
+    let prior=compiled_native_c1_baseline_typed_bridge_digest();
+    if !matches!(find_row(&rows,VERSION_NATIVE_C1_BASELINE_TYPED_BRIDGE),Some(row)
+        if row_exact(row,VERSION_NATIVE_C1_BASELINE_TYPED_BRIDGE,&prior,FILE_NATIVE_C1_BASELINE_TYPED_BRIDGE)) {
+        let _=tx.rollback().await;
+        return Err(InstallError::Refused {message:"C1 baseline retry requires exact 0031".to_string()});
+    }
+    let digest=compiled_native_c1_baseline_lease_rebind_digest();
+    if let Some(row)=find_row(&rows,VERSION_NATIVE_C1_BASELINE_LEASE_REBIND) {
+        if !row_exact(row,VERSION_NATIVE_C1_BASELINE_LEASE_REBIND,&digest,FILE_NATIVE_C1_BASELINE_LEASE_REBIND) {
+            return mismatch(tx,Mismatch {version:VERSION_NATIVE_C1_BASELINE_LEASE_REBIND.to_string(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+        tx.commit().await.map_err(database_error)?;return Ok(());
+    }
+    let result=async {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C1_BASELINE_LEASE_REBIND).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C1_BASELINE_LEASE_REBIND,&digest,FILE_NATIVE_C1_BASELINE_LEASE_REBIND)]).await
+    }.await;
+    if let Err(err)=result {let _=tx.rollback().await;return Err(err);}
+    tx.commit().await.map_err(database_error)
+}
+
+/// Preserve the existing MySQL nullable zero-date quality policy in the baseline binder.
+pub async fn install_native_c1_baseline_date_quality(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal=read_principal(conn).await?;
+    let preview=read_catalog(conn).await?;
+    if !principal_can_install(&principal,&preview) {return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    if let Err(err)=prepare_locked(&mut tx,&principal).await {let _=tx.rollback().await;return Err(err);}
+    let rows=read_rows(&mut tx).await?;
+    let prior=compiled_native_c1_baseline_lease_rebind_digest();
+    if !matches!(find_row(&rows,VERSION_NATIVE_C1_BASELINE_LEASE_REBIND),Some(row)
+        if row_exact(row,VERSION_NATIVE_C1_BASELINE_LEASE_REBIND,&prior,FILE_NATIVE_C1_BASELINE_LEASE_REBIND)) {
+        let _=tx.rollback().await;
+        return Err(InstallError::Refused {message:"C1 baseline date quality requires exact 0032".to_string()});
+    }
+    let digest=compiled_native_c1_baseline_date_quality_digest();
+    if let Some(row)=find_row(&rows,VERSION_NATIVE_C1_BASELINE_DATE_QUALITY) {
+        if !row_exact(row,VERSION_NATIVE_C1_BASELINE_DATE_QUALITY,&digest,FILE_NATIVE_C1_BASELINE_DATE_QUALITY) {
+            return mismatch(tx,Mismatch {version:VERSION_NATIVE_C1_BASELINE_DATE_QUALITY.to_string(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+        tx.commit().await.map_err(database_error)?;return Ok(());
+    }
+    let result=async {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C1_BASELINE_DATE_QUALITY).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C1_BASELINE_DATE_QUALITY,&digest,FILE_NATIVE_C1_BASELINE_DATE_QUALITY)]).await
+    }.await;
+    if let Err(err)=result {let _=tx.rollback().await;return Err(err);}
+    tx.commit().await.map_err(database_error)
+}
+
+/// Keep full baseline verification linear in the number of source rows.
+pub async fn install_native_c1_baseline_key_join(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal=read_principal(conn).await?;
+    let preview=read_catalog(conn).await?;
+    if !principal_can_install(&principal,&preview) {return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    if let Err(err)=prepare_locked(&mut tx,&principal).await {let _=tx.rollback().await;return Err(err);}
+    let rows=read_rows(&mut tx).await?;
+    let prior=compiled_native_c1_baseline_date_quality_digest();
+    if !matches!(find_row(&rows,VERSION_NATIVE_C1_BASELINE_DATE_QUALITY),Some(row)
+        if row_exact(row,VERSION_NATIVE_C1_BASELINE_DATE_QUALITY,&prior,FILE_NATIVE_C1_BASELINE_DATE_QUALITY)) {
+        let _=tx.rollback().await;
+        return Err(InstallError::Refused {message:"C1 baseline key join requires exact 0033".to_string()});
+    }
+    let digest=compiled_native_c1_baseline_key_join_digest();
+    if let Some(row)=find_row(&rows,VERSION_NATIVE_C1_BASELINE_KEY_JOIN) {
+        if !row_exact(row,VERSION_NATIVE_C1_BASELINE_KEY_JOIN,&digest,FILE_NATIVE_C1_BASELINE_KEY_JOIN) {
+            return mismatch(tx,Mismatch {version:VERSION_NATIVE_C1_BASELINE_KEY_JOIN.to_string(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+        tx.commit().await.map_err(database_error)?;return Ok(());
+    }
+    let result=async {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C1_BASELINE_KEY_JOIN).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C1_BASELINE_KEY_JOIN,&digest,FILE_NATIVE_C1_BASELINE_KEY_JOIN)]).await
+    }.await;
+    if let Err(err)=result {let _=tx.rollback().await;return Err(err);}
+    tx.commit().await.map_err(database_error)
+}
+
+/// Reuse the exact ACKed source mirror for subsequent binlog cuts.
+pub async fn install_native_c1_ack_seed(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal=read_principal(conn).await?;
+    let preview=read_catalog(conn).await?;
+    if !principal_can_install(&principal,&preview) {return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    if let Err(err)=prepare_locked(&mut tx,&principal).await {let _=tx.rollback().await;return Err(err);}
+    let rows=read_rows(&mut tx).await?;
+    let prior=compiled_native_c1_baseline_key_join_digest();
+    if !matches!(find_row(&rows,VERSION_NATIVE_C1_BASELINE_KEY_JOIN),Some(row)
+        if row_exact(row,VERSION_NATIVE_C1_BASELINE_KEY_JOIN,&prior,FILE_NATIVE_C1_BASELINE_KEY_JOIN)) {
+        let _=tx.rollback().await;
+        return Err(InstallError::Refused {message:"C1 ACK seed requires exact 0034".to_string()});
+    }
+    let digest=compiled_native_c1_ack_seed_digest();
+    if let Some(row)=find_row(&rows,VERSION_NATIVE_C1_ACK_SEED) {
+        if !row_exact(row,VERSION_NATIVE_C1_ACK_SEED,&digest,FILE_NATIVE_C1_ACK_SEED) {
+            return mismatch(tx,Mismatch {version:VERSION_NATIVE_C1_ACK_SEED.to_string(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+        tx.commit().await.map_err(database_error)?;return Ok(());
+    }
+    let result=async {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C1_ACK_SEED).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C1_ACK_SEED,&digest,FILE_NATIVE_C1_ACK_SEED)]).await
+    }.await;
+    if let Err(err)=result {let _=tx.rollback().await;return Err(err);}
+    tx.commit().await.map_err(database_error)
+}
+
 /// Apply the jobs-owner mirror recovery successor only on a target with jobs.
 pub async fn install_jobs_mirror_rebind(conn: &mut PgConnection) -> Result<(), InstallError> {
     let principal = read_principal(conn).await?;
@@ -2749,6 +3150,22 @@ mod tests {
         assert!(SCRIPT_NATIVE_GTID_TRANSACTION.contains("native_source_instance_register"));
         assert!(!SCRIPT_NATIVE_GTID_TRANSACTION.contains("CREATE OR REPLACE FUNCTION _oo.native_transaction_commit"));
         assert!(!SCRIPT_NATIVE_GTID_TRANSACTION.contains("GREATEST"));
+        assert!(SCRIPT_NATIVE_C1_SOURCE_EPOCH.contains("p_source_epoch integer"));
+        assert!(SCRIPT_NATIVE_C1_SOURCE_EPOCH.contains("instance.measured_id = p_position_lineage"));
+        assert!(SCRIPT_NATIVE_C1_SOURCE_EPOCH.contains("SET source_epoch = p_source_epoch"));
+        assert!(!SCRIPT_NATIVE_C1_SOURCE_EPOCH.contains("DROP FUNCTION"));
+        assert!(SCRIPT_NATIVE_C1_SOURCE_EPOCH_RUNTIME.contains("REVOKE ALL ON FUNCTION"));
+        assert!(SCRIPT_NATIVE_C1_SOURCE_EPOCH_RUNTIME.contains("TO oo_pipeline_runtime"));
+        assert!(SCRIPT_NATIVE_PUBLICATION.contains("_oo.publish_native_full_import"));
+        assert!(SCRIPT_NATIVE_PUBLICATION.contains("native_publication_receipt_guard"));
+        let source = include_str!("native_update.rs");
+        let gtids = source.find("install_native_gtid_transaction").unwrap();
+        let epoch = source.find("install_native_c1_source_epoch(&mut conn)").unwrap();
+        let runtime = source.find("install_native_c1_source_epoch_runtime(&mut conn)").unwrap();
+        assert!(gtids < epoch && epoch < runtime);
+        if let Some(publication) = source.find("install_native_publication(&mut conn)") {
+            assert!(runtime < publication);
+        }
     }
 
     fn install_order_calls_catalog_before_empty() -> bool {
@@ -2926,3 +3343,32 @@ mod tests {
         }
     }
 }
+
+/// Immutable typed CDC-first stage bridge version.
+pub const VERSION_NATIVE_C1_BASELINE_TYPED_BRIDGE: &str = "native-c1-baseline-typed-bridge/v1";
+const FILE_NATIVE_C1_BASELINE_TYPED_BRIDGE: &str = "0031_native_c1_baseline_typed_bridge.sql";
+const SCRIPT_NATIVE_C1_BASELINE_TYPED_BRIDGE: &str = include_str!("../migrations/0031_native_c1_baseline_typed_bridge.sql");
+/// Compiled SHA-256 of the append-only typed bootstrap bridge.
+pub fn compiled_native_c1_baseline_typed_bridge_digest() -> String {sha256_hex(SCRIPT_NATIVE_C1_BASELINE_TYPED_BRIDGE.as_bytes())}
+
+/// Immutable same-task C1 retry lease adoption version.
+pub const VERSION_NATIVE_C1_BASELINE_LEASE_REBIND:&str="native-c1-baseline-lease-rebind/v1";
+const FILE_NATIVE_C1_BASELINE_LEASE_REBIND:&str="0032_native_c1_baseline_lease_rebind.sql";
+const SCRIPT_NATIVE_C1_BASELINE_LEASE_REBIND:&str=include_str!("../migrations/0032_native_c1_baseline_lease_rebind.sql");
+/// SHA-256 of the same-task retry adoption migration.
+pub fn compiled_native_c1_baseline_lease_rebind_digest()->String {sha256_hex(SCRIPT_NATIVE_C1_BASELINE_LEASE_REBIND.as_bytes())}
+
+const VERSION_NATIVE_C1_BASELINE_DATE_QUALITY:&str="native-c1-baseline-date-quality/v1";
+const FILE_NATIVE_C1_BASELINE_DATE_QUALITY:&str="0033_native_c1_baseline_date_quality.sql";
+const SCRIPT_NATIVE_C1_BASELINE_DATE_QUALITY:&str=include_str!("../migrations/0033_native_c1_baseline_date_quality.sql");
+pub fn compiled_native_c1_baseline_date_quality_digest()->String {sha256_hex(SCRIPT_NATIVE_C1_BASELINE_DATE_QUALITY.as_bytes())}
+
+const VERSION_NATIVE_C1_BASELINE_KEY_JOIN:&str="native-c1-baseline-key-join/v1";
+const FILE_NATIVE_C1_BASELINE_KEY_JOIN:&str="0034_native_c1_baseline_key_join.sql";
+const SCRIPT_NATIVE_C1_BASELINE_KEY_JOIN:&str=include_str!("../migrations/0034_native_c1_baseline_key_join.sql");
+pub fn compiled_native_c1_baseline_key_join_digest()->String {sha256_hex(SCRIPT_NATIVE_C1_BASELINE_KEY_JOIN.as_bytes())}
+
+const VERSION_NATIVE_C1_ACK_SEED:&str="native-c1-ack-seed/v1";
+const FILE_NATIVE_C1_ACK_SEED:&str="0035_native_c1_ack_seed.sql";
+const SCRIPT_NATIVE_C1_ACK_SEED:&str=include_str!("../migrations/0035_native_c1_ack_seed.sql");
+pub fn compiled_native_c1_ack_seed_digest()->String {sha256_hex(SCRIPT_NATIVE_C1_ACK_SEED.as_bytes())}

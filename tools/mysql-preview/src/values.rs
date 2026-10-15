@@ -1,7 +1,7 @@
 //! Cell values for the existing COPY encoder. Decimal text is never an f64.
 
 use oo_connectors::types::{ArrowScalar, CellPresence, CellReject, DecodedCell};
-use oo_core::canonical::{classify_f64, validate_date, LogicalValue};
+use oo_core::canonical::{LogicalValue, classify_f64, validate_date};
 use oo_core::{ExactDecimal, ExactInt};
 use serde_json::Value as JsonValue;
 
@@ -44,7 +44,11 @@ pub struct RejectNote {
     pub value_len: u64,
 }
 
-pub fn decode_cell(store: StoreKind, raw: &RawCell, nullable: bool) -> Result<(DecodedCell, Option<RejectNote>), PreviewError> {
+pub fn decode_cell(
+    store: StoreKind,
+    raw: &RawCell,
+    nullable: bool,
+) -> Result<(DecodedCell, Option<RejectNote>), PreviewError> {
     if matches!(raw, RawCell::Null) {
         if !nullable {
             return Err(PreviewError::new("value", "null_not_allowed"));
@@ -117,7 +121,10 @@ fn bool_cell(raw: &RawCell) -> Result<DecodedCell, &'static str> {
         1 => true,
         _ => return Err("bool_domain"),
     };
-    Ok(value_cell(LogicalValue::Bool(value), ArrowScalar::Bool(value)))
+    Ok(value_cell(
+        LogicalValue::Bool(value),
+        ArrowScalar::Bool(value),
+    ))
 }
 
 fn numeric_cell(precision: u16, scale: i16, raw: &RawCell) -> Result<DecodedCell, &'static str> {
@@ -172,7 +179,10 @@ fn float_cell(raw: &RawCell, narrow: bool) -> Result<DecodedCell, &'static str> 
             return Err("float_precision");
         }
     }
-    let mut cell = value_cell(LogicalValue::Float(classify_f64(f64::from_bits(bits))), ArrowScalar::Float64(bits));
+    let mut cell = value_cell(
+        LogicalValue::Float(classify_f64(f64::from_bits(bits))),
+        ArrowScalar::Float64(bits),
+    );
     cell.float_bits = Some(bits);
     Ok(cell)
 }
@@ -192,7 +202,10 @@ fn text_cell(raw: &RawCell, limit: Option<usize>, json: bool) -> Result<DecodedC
     if limit.is_some_and(|max| text.chars().count() > max) {
         return Err("char_length");
     }
-    Ok(value_cell(LogicalValue::Text(text.to_string()), ArrowScalar::Utf8(text.to_string())))
+    Ok(value_cell(
+        LogicalValue::Text(text.to_string()),
+        ArrowScalar::Utf8(text.to_string()),
+    ))
 }
 
 fn bytes_cell(raw: &RawCell) -> Result<DecodedCell, &'static str> {
@@ -200,7 +213,10 @@ fn bytes_cell(raw: &RawCell) -> Result<DecodedCell, &'static str> {
         RawCell::Bytes(bytes) => bytes.clone(),
         _ => return Err("value_kind"),
     };
-    Ok(value_cell(LogicalValue::Bytes(bytes.clone()), ArrowScalar::Binary(bytes)))
+    Ok(value_cell(
+        LogicalValue::Bytes(bytes.clone()),
+        ArrowScalar::Binary(bytes),
+    ))
 }
 
 fn date_cell(raw: &RawCell) -> Result<DecodedCell, &'static str> {
@@ -243,7 +259,10 @@ fn time_cell(raw: &RawCell) -> Result<DecodedCell, &'static str> {
     }
     let signed = if *negative { -total } else { total };
     let value = i64::try_from(signed).map_err(|_| "time_range")?;
-    Ok(value_cell(LogicalValue::DurationMicros(value), ArrowScalar::DurationMicros(value)))
+    Ok(value_cell(
+        LogicalValue::DurationMicros(value),
+        ArrowScalar::DurationMicros(value),
+    ))
 }
 
 fn timestamp_cell(raw: &RawCell, utc: bool) -> Result<DecodedCell, &'static str> {
@@ -267,7 +286,8 @@ fn timestamp_cell(raw: &RawCell, utc: bool) -> Result<DecodedCell, &'static str>
     if hour > 23 || minute > 59 || second > 59 || micros > 999_999 {
         return Err("timestamp_range");
     }
-    let unix = naive_unix(year, month, day, hour, minute, second, micros).map_err(|_| "timestamp_range")?;
+    let unix = naive_unix(year, month, day, hour, minute, second, micros)
+        .map_err(|_| "timestamp_range")?;
     if utc {
         Ok(value_cell(
             LogicalValue::TimestampTzMicros(unix),
@@ -291,9 +311,15 @@ fn timestamp_cell(raw: &RawCell, utc: bool) -> Result<DecodedCell, &'static str>
 
 fn date_parts(raw: &RawCell) -> Result<(u16, u8, u8), &'static str> {
     match raw {
-        RawCell::Date { year, month, day, hour, minute, second, micros }
-            if *hour == 0 && *minute == 0 && *second == 0 && *micros == 0 =>
-        {
+        RawCell::Date {
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            micros,
+        } if *hour == 0 && *minute == 0 && *second == 0 && *micros == 0 => {
             Ok((*year, *month, *day))
         }
         RawCell::Bytes(bytes) => {
@@ -351,7 +377,9 @@ pub fn reject_for(note: &RejectNote) -> CellReject {
 fn unscaled_i128(exact: &ExactDecimal) -> Option<i128> {
     let mut value: i128 = 0;
     for byte in exact.coefficient().bytes() {
-        value = value.checked_mul(10)?.checked_add(i128::from(byte - b'0'))?;
+        value = value
+            .checked_mul(10)?
+            .checked_add(i128::from(byte - b'0'))?;
     }
     if exact.is_negative() {
         value = value.checked_neg()?;
@@ -409,7 +437,15 @@ fn unix_days(year: i32, month: u8, day: u8) -> i64 {
     era * 146_097 + i64::try_from(day_of_era).unwrap_or(0) - 719_468
 }
 
-fn naive_unix(year: i32, month: u8, day: u8, hour: u8, minute: u8, second: u8, micros: u32) -> Result<i64, ()> {
+fn naive_unix(
+    year: i32,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+    second: u8,
+    micros: u32,
+) -> Result<i64, ()> {
     let days = i128::from(unix_days(year, month, day));
     let sod = i128::from(hour) * 3_600 + i128::from(minute) * 60 + i128::from(second);
     let unix = days
@@ -429,7 +465,15 @@ mod tests {
     #[test]
     fn decimal_text_is_not_float() {
         let raw = RawCell::Bytes(b"10.50".to_vec());
-        let (cell, note) = decode_cell(StoreKind::Numeric { precision: 12, scale: 2 }, &raw, false).expect("dec");
+        let (cell, note) = decode_cell(
+            StoreKind::Numeric {
+                precision: 12,
+                scale: 2,
+            },
+            &raw,
+            false,
+        )
+        .expect("dec");
         assert!(note.is_none());
         match cell.value {
             Some(LogicalValue::Decimal(value)) => {
@@ -444,7 +488,15 @@ mod tests {
     fn bigint_unsigned_edges() {
         for text in ["0", "9223372036854775808", "18446744073709551615"] {
             let raw = RawCell::Bytes(text.as_bytes().to_vec());
-            let (cell, _) = decode_cell(StoreKind::Numeric { precision: 20, scale: 0 }, &raw, false).expect(text);
+            let (cell, _) = decode_cell(
+                StoreKind::Numeric {
+                    precision: 20,
+                    scale: 0,
+                },
+                &raw,
+                false,
+            )
+            .expect(text);
             match cell.value {
                 Some(LogicalValue::Decimal(value)) => assert_eq!(value.to_plain_string(), text),
                 _ => panic!("numeric"),
@@ -481,15 +533,41 @@ mod tests {
         let (cell, note) = decode_cell(StoreKind::Time, &raw, true).expect("time");
         assert_eq!(cell.presence, CellPresence::Value);
         assert!(note.is_none());
-        assert_eq!(cell.arrow, Some(ArrowScalar::DurationMicros(93_600_000_000)));
-        let negative = RawCell::Time { negative: true, days: 0, hours: 1, minutes: 2, seconds: 3, micros: 456_789 };
+        assert_eq!(
+            cell.arrow,
+            Some(ArrowScalar::DurationMicros(93_600_000_000))
+        );
+        let negative = RawCell::Time {
+            negative: true,
+            days: 0,
+            hours: 1,
+            minutes: 2,
+            seconds: 3,
+            micros: 456_789,
+        };
         let (cell, note) = decode_cell(StoreKind::Time, &negative, true).expect("negative time");
         assert!(note.is_none());
-        assert_eq!(cell.arrow, Some(ArrowScalar::DurationMicros(-3_723_456_789)));
+        assert_eq!(
+            cell.arrow,
+            Some(ArrowScalar::DurationMicros(-3_723_456_789))
+        );
         let null = decode_cell(StoreKind::Time, &RawCell::Null, true).expect("null time");
         assert_eq!(null.0.presence, CellPresence::Null);
-        let outside = RawCell::Time { negative: false, days: 34, hours: 23, minutes: 0, seconds: 0, micros: 0 };
-        assert!(matches!(decode_cell(StoreKind::Time, &outside, true), Err(PreviewError { code: "value", fact: "time_range" })));
+        let outside = RawCell::Time {
+            negative: false,
+            days: 34,
+            hours: 23,
+            minutes: 0,
+            seconds: 0,
+            micros: 0,
+        };
+        assert!(matches!(
+            decode_cell(StoreKind::Time, &outside, true),
+            Err(PreviewError {
+                code: "value",
+                fact: "time_range"
+            })
+        ));
     }
 
     #[test]

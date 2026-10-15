@@ -44,6 +44,7 @@ pub mod import_cli;
 mod native_binding;
 pub mod native_arrow;
 pub mod native_update;
+pub mod native_c1_baseline;
 pub mod physical_mapping;
 pub mod target_installer;
 pub mod target_statistics;

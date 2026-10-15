@@ -5,18 +5,22 @@
 use std::collections::BTreeSet;
 use std::time::Duration;
 
-use oo_connectors::{stable_ident, PG17_RESERVED};
-use oo_pipeline::physical_mapping::{plan_physical_mapping, quote_physical_name, Level, MappingRequest};
+use oo_connectors::{PG17_RESERVED, stable_ident};
 use oo_pipeline::full_import::quality_preimage;
+use oo_pipeline::physical_mapping::{
+    Level, MappingRequest, plan_physical_mapping, quote_physical_name,
+};
 use oo_pipeline::target_installer::{self, sha256_hex};
-use oo_pipeline::target_statistics::{analyze_mapped_shadows, LogicalTableRef, StatisticsRequest, MAX_TABLES};
-use serde_json::{json, Value};
+use oo_pipeline::target_statistics::{
+    LogicalTableRef, MAX_TABLES, StatisticsRequest, analyze_mapped_shadows,
+};
+use serde_json::{Value, json};
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 use sqlx::{ConnectOptions, Connection, Row};
 
 use crate::config::{PreviewConfig, Stop};
 use crate::error::PreviewError;
-use crate::source::{sealed_identity, EncodedBatch, SourceRead};
+use crate::source::{EncodedBatch, SourceRead, sealed_identity};
 
 pub struct LoadOutcome {
     pub run_id: String,
@@ -30,17 +34,50 @@ pub struct LoadOutcome {
     pub quality_stored: bool,
 }
 
-pub async fn load_target(config: &PreviewConfig, admin_password: &str, runtime_password: &str, admin_ca: &[u8], runtime_ca: &[u8], source: &SourceRead) -> Result<LoadOutcome, PreviewError> {
-    let mut admin = dial(config, &config.target_admin_user, admin_password, admin_ca, true).await?;
-    let mut runtime = dial(config, &config.target_runtime_user, runtime_password, runtime_ca, false).await?;
+pub async fn load_target(
+    config: &PreviewConfig,
+    admin_password: &str,
+    runtime_password: &str,
+    admin_ca: &[u8],
+    runtime_ca: &[u8],
+    source: &SourceRead,
+) -> Result<LoadOutcome, PreviewError> {
+    let mut admin = dial(
+        config,
+        &config.target_admin_user,
+        admin_password,
+        admin_ca,
+        true,
+    )
+    .await?;
+    let mut runtime = dial(
+        config,
+        &config.target_runtime_user,
+        runtime_password,
+        runtime_ca,
+        false,
+    )
+    .await?;
     prepare_target(&mut admin, config).await?;
-    let source_generation = i64::try_from(config.generation).map_err(|_| PreviewError::new("budget", "generation"))?;
-    if let Some(reused) = reuse_sealed(&mut admin, &mut runtime, config, source, source_generation).await? {
+    let source_generation =
+        i64::try_from(config.generation).map_err(|_| PreviewError::new("budget", "generation"))?;
+    if let Some(reused) =
+        reuse_sealed(&mut admin, &mut runtime, config, source, source_generation).await?
+    {
         return Ok(reused);
     }
     let target_generation = adopt(&mut runtime, config).await?;
     let shadows = register(&mut runtime, config, source, source_generation).await?;
-    let run_id = match open_run(&mut runtime, config, source, target_generation, source_generation, &shadows).await {
+    let run_id = match open_run(
+        &mut runtime,
+        config,
+        source,
+        target_generation,
+        source_generation,
+        &shadows,
+    )
+    .await
+    {
         Ok(run_id) => run_id,
         Err(err) => return Err(err),
     };
@@ -59,11 +96,30 @@ pub async fn load_target(config: &PreviewConfig, admin_password: &str, runtime_p
             require_open: true,
         });
     }
-    if let Err(err) = prepare_shadows(&mut runtime, config, source, target_generation, source_generation, &run_id, &shadows).await {
+    if let Err(err) = prepare_shadows(
+        &mut runtime,
+        config,
+        source,
+        target_generation,
+        source_generation,
+        &run_id,
+        &shadows,
+    )
+    .await
+    {
         let _ = retire(&mut runtime, config, target_generation, &run_id).await;
         return Err(err);
     }
-    if let Err(err) = apply_batches(&mut runtime, config, source, target_generation, &run_id, &shadows).await {
+    if let Err(err) = apply_batches(
+        &mut runtime,
+        config,
+        source,
+        target_generation,
+        &run_id,
+        &shadows,
+    )
+    .await
+    {
         let _ = retire(&mut runtime, config, target_generation, &run_id).await;
         return Err(err);
     }
@@ -86,7 +142,14 @@ pub async fn load_target(config: &PreviewConfig, admin_password: &str, runtime_p
         let Some(first) = shadows.first() else {
             return Err(PreviewError::new("target", "partial"));
         };
-        note_listed(&mut runtime, config, target_generation, &run_id, std::slice::from_ref(first)).await?;
+        note_listed(
+            &mut runtime,
+            config,
+            target_generation,
+            &run_id,
+            std::slice::from_ref(first),
+        )
+        .await?;
         let fact = read_run_fact(&mut admin, &run_id).await?;
         return finish(FinishedRun {
             run_id,
@@ -108,12 +171,23 @@ pub async fn load_target(config: &PreviewConfig, admin_password: &str, runtime_p
         let _ = retire(&mut runtime, config, target_generation, &run_id).await;
         return Err(err);
     }
-    if let Err(err) = note_and_seal(&mut runtime, config, source, target_generation, source_generation, &run_id, &shadows).await {
+    if let Err(err) = note_and_seal(
+        &mut runtime,
+        config,
+        source,
+        target_generation,
+        source_generation,
+        &run_id,
+        &shadows,
+    )
+    .await
+    {
         let _ = retire(&mut runtime, config, target_generation, &run_id).await;
         return Err(err);
     }
     let fact = read_run_fact(&mut admin, &run_id).await?;
-    let exhausted = i64::try_from(shadows.len()).map_err(|_| PreviewError::new("config", "tables"))?;
+    let exhausted =
+        i64::try_from(shadows.len()).map_err(|_| PreviewError::new("config", "tables"))?;
     finish(FinishedRun {
         run_id,
         target_generation,
@@ -148,7 +222,13 @@ struct Shadow {
     canonical_digest: String,
 }
 
-async fn dial(config: &PreviewConfig, user: &str, password: &str, ca: &[u8], admin: bool) -> Result<PgConnection, PreviewError> {
+async fn dial(
+    config: &PreviewConfig,
+    user: &str,
+    password: &str,
+    ca: &[u8],
+    admin: bool,
+) -> Result<PgConnection, PreviewError> {
     let options = PgConnectOptions::from_explicit()
         .host(&config.target_host)
         .port(config.target_port)
@@ -158,7 +238,11 @@ async fn dial(config: &PreviewConfig, user: &str, password: &str, ca: &[u8], adm
         .ssl_mode(PgSslMode::VerifyFull)
         .ssl_root_cert_from_pem(ca.to_vec())
         .disable_statement_logging();
-    let connect = tokio::time::timeout(Duration::from_millis(config.connect_timeout_ms), options.connect()).await;
+    let connect = tokio::time::timeout(
+        Duration::from_millis(config.connect_timeout_ms),
+        options.connect(),
+    )
+    .await;
     let mut conn = match connect {
         Ok(Ok(conn)) => conn,
         Ok(Err(_)) => return Err(PreviewError::new("connect", "target")),
@@ -188,7 +272,10 @@ async fn dial(config: &PreviewConfig, user: &str, password: &str, ca: &[u8], adm
     Ok(conn)
 }
 
-async fn prepare_target(conn: &mut PgConnection, config: &PreviewConfig) -> Result<(), PreviewError> {
+async fn prepare_target(
+    conn: &mut PgConnection,
+    config: &PreviewConfig,
+) -> Result<(), PreviewError> {
     require_login(conn, &config.target_runtime_user, &config.target_admin_user).await?;
     target_installer::install(&mut *conn)
         .await
@@ -204,20 +291,29 @@ async fn prepare_target(conn: &mut PgConnection, config: &PreviewConfig) -> Resu
     Ok(())
 }
 
-async fn require_login(conn: &mut PgConnection, name: &str, admin: &str) -> Result<(), PreviewError> {
+async fn require_login(
+    conn: &mut PgConnection,
+    name: &str,
+    admin: &str,
+) -> Result<(), PreviewError> {
     if name == admin || matches!(name, "oo_pipeline_runtime" | "oo_target_owner" | "postgres") {
         return Err(PreviewError::new("config", "user"));
     }
-    let row = sqlx::query("SELECT rolsuper, rolcanlogin FROM pg_catalog.pg_roles WHERE rolname = $1")
-        .bind(name)
-        .fetch_optional(&mut *conn)
-        .await
-        .map_err(|_| PreviewError::new("target", "role"))?;
+    let row =
+        sqlx::query("SELECT rolsuper, rolcanlogin FROM pg_catalog.pg_roles WHERE rolname = $1")
+            .bind(name)
+            .fetch_optional(&mut *conn)
+            .await
+            .map_err(|_| PreviewError::new("target", "role"))?;
     let Some(row) = row else {
         return Err(PreviewError::new("target", "role_missing"));
     };
-    let superuser: bool = row.try_get(0).map_err(|_| PreviewError::new("target", "role"))?;
-    let login: bool = row.try_get(1).map_err(|_| PreviewError::new("target", "role"))?;
+    let superuser: bool = row
+        .try_get(0)
+        .map_err(|_| PreviewError::new("target", "role"))?;
+    let login: bool = row
+        .try_get(1)
+        .map_err(|_| PreviewError::new("target", "role"))?;
     if superuser || !login {
         return Err(PreviewError::new("target", "role"));
     }
@@ -237,13 +333,18 @@ async fn grant_member(conn: &mut PgConnection, runtime: &str) -> Result<(), Prev
     Ok(())
 }
 
-async fn grant_connect(conn: &mut PgConnection, database: &str, user: &str) -> Result<(), PreviewError> {
-    let allowed: bool = sqlx::query_scalar("SELECT pg_catalog.has_database_privilege($1, $2, 'CONNECT')")
-        .bind(user)
-        .bind(database)
-        .fetch_one(&mut *conn)
-        .await
-        .map_err(|_| PreviewError::new("target", "grant"))?;
+async fn grant_connect(
+    conn: &mut PgConnection,
+    database: &str,
+    user: &str,
+) -> Result<(), PreviewError> {
+    let allowed: bool =
+        sqlx::query_scalar("SELECT pg_catalog.has_database_privilege($1, $2, 'CONNECT')")
+            .bind(user)
+            .bind(database)
+            .fetch_one(&mut *conn)
+            .await
+            .map_err(|_| PreviewError::new("target", "grant"))?;
     if allowed {
         return Ok(());
     }
@@ -277,9 +378,15 @@ async fn reuse_sealed(
     let Some(found) = found else {
         return Ok(None);
     };
-    let run_id: String = found.try_get(0).map_err(|_| PreviewError::new("target", "state"))?;
-    let target_generation: i64 = found.try_get(1).map_err(|_| PreviewError::new("target", "state"))?;
-    let stored_generation: i64 = found.try_get(2).map_err(|_| PreviewError::new("target", "state"))?;
+    let run_id: String = found
+        .try_get(0)
+        .map_err(|_| PreviewError::new("target", "state"))?;
+    let target_generation: i64 = found
+        .try_get(1)
+        .map_err(|_| PreviewError::new("target", "state"))?;
+    let stored_generation: i64 = found
+        .try_get(2)
+        .map_err(|_| PreviewError::new("target", "state"))?;
     if stored_generation != source_generation {
         return Err(PreviewError::new("target", "state"));
     }
@@ -300,13 +407,26 @@ async fn reuse_sealed(
         return Err(PreviewError::new("target", "state"));
     }
     for (shadow, stored) in shadows.iter().zip(stored_tables.iter()) {
-        let schema: String = stored.try_get(0).map_err(|_| PreviewError::new("target", "state"))?;
-        let table: String = stored.try_get(1).map_err(|_| PreviewError::new("target", "state"))?;
-        let physical: String = stored.try_get(2).map_err(|_| PreviewError::new("target", "state"))?;
-        let applied: i64 = stored.try_get(3).map_err(|_| PreviewError::new("target", "state"))?;
-        let digest: String = stored.try_get(4).map_err(|_| PreviewError::new("target", "state"))?;
-        let exhausted: bool = stored.try_get(5).map_err(|_| PreviewError::new("target", "state"))?;
-        let rows = i64::try_from(shadow.rows).map_err(|_| PreviewError::new("budget", "max_rows"))?;
+        let schema: String = stored
+            .try_get(0)
+            .map_err(|_| PreviewError::new("target", "state"))?;
+        let table: String = stored
+            .try_get(1)
+            .map_err(|_| PreviewError::new("target", "state"))?;
+        let physical: String = stored
+            .try_get(2)
+            .map_err(|_| PreviewError::new("target", "state"))?;
+        let applied: i64 = stored
+            .try_get(3)
+            .map_err(|_| PreviewError::new("target", "state"))?;
+        let digest: String = stored
+            .try_get(4)
+            .map_err(|_| PreviewError::new("target", "state"))?;
+        let exhausted: bool = stored
+            .try_get(5)
+            .map_err(|_| PreviewError::new("target", "state"))?;
+        let rows =
+            i64::try_from(shadow.rows).map_err(|_| PreviewError::new("budget", "max_rows"))?;
         if schema != shadow.logical_schema
             || table != shadow.logical_table
             || physical != shadow.physical
@@ -318,7 +438,8 @@ async fn reuse_sealed(
         }
     }
     let fact = read_run_fact(admin, &run_id).await?;
-    let exhausted = i64::try_from(shadows.len()).map_err(|_| PreviewError::new("config", "tables"))?;
+    let exhausted =
+        i64::try_from(shadows.len()).map_err(|_| PreviewError::new("config", "tables"))?;
     let outcome = finish(FinishedRun {
         run_id,
         target_generation,
@@ -350,12 +471,22 @@ async fn adopt(conn: &mut PgConnection, config: &PreviewConfig) -> Result<i64, P
     Ok(generation)
 }
 
-async fn register(conn: &mut PgConnection, config: &PreviewConfig, source: &SourceRead, source_generation: i64) -> Result<Vec<Shadow>, PreviewError> {
-    let reserved: BTreeSet<String> = PG17_RESERVED.iter().map(|word| (*word).to_string()).collect();
+async fn register(
+    conn: &mut PgConnection,
+    config: &PreviewConfig,
+    source: &SourceRead,
+    source_generation: i64,
+) -> Result<Vec<Shadow>, PreviewError> {
+    let reserved: BTreeSet<String> = PG17_RESERVED
+        .iter()
+        .map(|word| (*word).to_string())
+        .collect();
     let mut shadows = Vec::new();
     for table in &source.tables {
-        let schema_ident = stable_ident(&table.schema, &reserved).map_err(|_| PreviewError::new("ident", "ident"))?;
-        let table_ident = stable_ident(&table.name, &reserved).map_err(|_| PreviewError::new("ident", "ident"))?;
+        let schema_ident = stable_ident(&table.schema, &reserved)
+            .map_err(|_| PreviewError::new("ident", "ident"))?;
+        let table_ident = stable_ident(&table.name, &reserved)
+            .map_err(|_| PreviewError::new("ident", "ident"))?;
         register_one(
             conn,
             config,
@@ -385,7 +516,8 @@ async fn register(conn: &mut PgConnection, config: &PreviewConfig, source: &Sour
         let mut columns = Vec::new();
         let mut key_physical = String::new();
         for column in &table.columns {
-            let ident = stable_ident(&column.plan.name, &reserved).map_err(|_| PreviewError::new("ident", "ident"))?;
+            let ident = stable_ident(&column.plan.name, &reserved)
+                .map_err(|_| PreviewError::new("ident", "ident"))?;
             let column_physical = register_one(
                 conn,
                 config,
@@ -457,7 +589,8 @@ async fn register_one(
         logical_table: place.table.to_string(),
         logical_column: place.column.to_string(),
     };
-    let mapped = plan_physical_mapping(&request).map_err(|_| PreviewError::new("target", "physical_name"))?;
+    let mapped = plan_physical_mapping(&request)
+        .map_err(|_| PreviewError::new("target", "physical_name"))?;
     sqlx::query("SELECT _oo.register_physical_mapping($1, $2, $3, $4, $5, $6, $7, $8)")
         .bind(&config.source_id)
         .bind(&source.config_digest)
@@ -470,17 +603,18 @@ async fn register_one(
         .execute(&mut *conn)
         .await
         .map_err(|_| PreviewError::new("target", "register"))?;
-    let stored: String = sqlx::query_scalar("SELECT _oo.lookup_physical_mapping($1, $2, $3, $4, $5, $6, $7)")
-        .bind(&config.source_id)
-        .bind(&source.config_digest)
-        .bind(place.generation)
-        .bind(place.level.as_str())
-        .bind(place.namespace)
-        .bind(place.table)
-        .bind(place.column)
-        .fetch_one(&mut *conn)
-        .await
-        .map_err(|_| PreviewError::new("target", "lookup"))?;
+    let stored: String =
+        sqlx::query_scalar("SELECT _oo.lookup_physical_mapping($1, $2, $3, $4, $5, $6, $7)")
+            .bind(&config.source_id)
+            .bind(&source.config_digest)
+            .bind(place.generation)
+            .bind(place.level.as_str())
+            .bind(place.namespace)
+            .bind(place.table)
+            .bind(place.column)
+            .fetch_one(&mut *conn)
+            .await
+            .map_err(|_| PreviewError::new("target", "lookup"))?;
     if stored != mapped.physical_name {
         return Err(PreviewError::new("target", "physical_name"));
     }
@@ -495,10 +629,19 @@ async fn open_run(
     source_generation: i64,
     shadows: &[Shadow],
 ) -> Result<String, PreviewError> {
-    let schemas: Vec<String> = shadows.iter().map(|table| table.logical_schema.clone()).collect();
-    let names: Vec<String> = shadows.iter().map(|table| table.logical_table.clone()).collect();
+    let schemas: Vec<String> = shadows
+        .iter()
+        .map(|table| table.logical_schema.clone())
+        .collect();
+    let names: Vec<String> = shadows
+        .iter()
+        .map(|table| table.logical_table.clone())
+        .collect();
     let physical: Vec<String> = shadows.iter().map(|table| table.physical.clone()).collect();
-    let mut tx = conn.begin().await.map_err(|_| PreviewError::new("target", "open"))?;
+    let mut tx = conn
+        .begin()
+        .await
+        .map_err(|_| PreviewError::new("target", "open"))?;
     let run_id: String = sqlx::query_scalar(
         "SELECT _oo.full_import_open_run($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11::text[], $12::text[])::text",
     )
@@ -517,7 +660,9 @@ async fn open_run(
     .fetch_one(&mut *tx)
     .await
     .map_err(|_| PreviewError::new("target", "open"))?;
-    tx.commit().await.map_err(|_| PreviewError::new("target", "open"))?;
+    tx.commit()
+        .await
+        .map_err(|_| PreviewError::new("target", "open"))?;
     Ok(run_id)
 }
 
@@ -530,9 +675,16 @@ async fn prepare_shadows(
     run_id: &str,
     shadows: &[Shadow],
 ) -> Result<(), PreviewError> {
-    let mut tx = conn.begin().await.map_err(|_| PreviewError::new("target", "prepare"))?;
+    let mut tx = conn
+        .begin()
+        .await
+        .map_err(|_| PreviewError::new("target", "prepare"))?;
     for table in shadows {
-        let idents: Vec<String> = table.columns.iter().map(|column| column.logical.clone()).collect();
+        let idents: Vec<String> = table
+            .columns
+            .iter()
+            .map(|column| column.logical.clone())
+            .collect();
         let oids: Vec<i64> = table.columns.iter().map(|column| column.oid).collect();
         let typmods: Vec<i32> = table.columns.iter().map(|column| column.typmod).collect();
         let required: Vec<bool> = table.columns.iter().map(|column| column.not_null).collect();
@@ -560,7 +712,9 @@ async fn prepare_shadows(
             return Err(PreviewError::new("target", "physical_name"));
         }
     }
-    tx.commit().await.map_err(|_| PreviewError::new("target", "prepare"))?;
+    tx.commit()
+        .await
+        .map_err(|_| PreviewError::new("target", "prepare"))?;
     Ok(())
 }
 
@@ -593,7 +747,8 @@ async fn write_one(
     table: &Shadow,
     batch: &EncodedBatch,
 ) -> Result<(), PreviewError> {
-    let rejected = u64::try_from(batch.quality_rejects.len()).map_err(|_| PreviewError::new("budget", "max_rows"))?;
+    let rejected = u64::try_from(batch.quality_rejects.len())
+        .map_err(|_| PreviewError::new("budget", "max_rows"))?;
     let quality = quality_preimage(
         &batch.batch_id,
         batch.rows,
@@ -607,7 +762,10 @@ async fn write_one(
         return Err(PreviewError::new("target", "payload"));
     }
     let statement = copy_statement(table)?;
-    let mut tx = conn.begin().await.map_err(|_| PreviewError::new("target", "copy"))?;
+    let mut tx = conn
+        .begin()
+        .await
+        .map_err(|_| PreviewError::new("target", "copy"))?;
     let decision: String = sqlx::query_scalar(
         "SELECT _oo.full_import_stage_decision($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::numeric)",
     )
@@ -627,10 +785,15 @@ async fn write_one(
     .await
     .map_err(|_| PreviewError::new("target", "stage"))?;
     if decision == "replay" {
-        tx.rollback().await.map_err(|_| PreviewError::new("target", "stage"))?;
+        tx.rollback()
+            .await
+            .map_err(|_| PreviewError::new("target", "stage"))?;
         return Ok(());
     }
-    let mut copy = tx.copy_in_raw(&statement).await.map_err(|_| PreviewError::new("target", "copy"))?;
+    let mut copy = tx
+        .copy_in_raw(&statement)
+        .await
+        .map_err(|_| PreviewError::new("target", "copy"))?;
     if copy.send(batch.copy_bytes.as_slice()).await.is_err() {
         let _ = copy.abort("copy send failed").await;
         return Err(PreviewError::new("target", "copy"));
@@ -639,12 +802,33 @@ async fn write_one(
         return Err(PreviewError::new("target", "copy"));
     }
     let rows = i64::try_from(batch.rows).map_err(|_| PreviewError::new("budget", "max_rows"))?;
-    let rejected_rows = i64::try_from(batch.quality_rejects.len()).map_err(|_| PreviewError::new("budget", "max_rows"))?;
-    let reasons: Vec<String> = batch.quality_rejects.iter().map(|reject| reject.reason.clone()).collect();
-    let value_lens: Vec<i64> = batch.quality_rejects.iter().map(|reject| reject.value_len).collect();
-    let attnums: Vec<i32> = batch.quality_rejects.iter().map(|reject| reject.attnum).collect();
-    let row_indexes: Vec<i64> = batch.quality_rejects.iter().map(|reject| reject.row_index).collect();
-    let key_digests: Vec<String> = batch.quality_rejects.iter().map(|reject| reject.key_digest.clone()).collect();
+    let rejected_rows = i64::try_from(batch.quality_rejects.len())
+        .map_err(|_| PreviewError::new("budget", "max_rows"))?;
+    let reasons: Vec<String> = batch
+        .quality_rejects
+        .iter()
+        .map(|reject| reject.reason.clone())
+        .collect();
+    let value_lens: Vec<i64> = batch
+        .quality_rejects
+        .iter()
+        .map(|reject| reject.value_len)
+        .collect();
+    let attnums: Vec<i32> = batch
+        .quality_rejects
+        .iter()
+        .map(|reject| reject.attnum)
+        .collect();
+    let row_indexes: Vec<i64> = batch
+        .quality_rejects
+        .iter()
+        .map(|reject| reject.row_index)
+        .collect();
+    let key_digests: Vec<String> = batch
+        .quality_rejects
+        .iter()
+        .map(|reject| reject.key_digest.clone())
+        .collect();
     let wrote: String = sqlx::query_scalar(
         "SELECT _oo.full_import_write_batch($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::numeric, $16, $17, $18::text[], $19::bigint[], $20::integer[], $21::bigint[], $22::text[])",
     )
@@ -677,31 +861,50 @@ async fn write_one(
         let _ = tx.rollback().await;
         return Err(PreviewError::new("target", "write"));
     }
-    tx.commit().await.map_err(|_| PreviewError::new("target", "write"))?;
+    tx.commit()
+        .await
+        .map_err(|_| PreviewError::new("target", "write"))?;
     Ok(())
 }
 
 fn copy_statement(table: &Shadow) -> Result<String, PreviewError> {
-    let quoted = quote_physical_name(&table.physical).map_err(|_| PreviewError::new("target", "physical_name"))?;
+    let quoted = quote_physical_name(&table.physical)
+        .map_err(|_| PreviewError::new("target", "physical_name"))?;
     let mut list = String::from("\"_oo_pos\"");
     for column in &table.columns {
         list.push_str(", ");
-        list.push_str(&quote_physical_name(&column.physical).map_err(|_| PreviewError::new("target", "physical_name"))?);
+        list.push_str(
+            &quote_physical_name(&column.physical)
+                .map_err(|_| PreviewError::new("target", "physical_name"))?,
+        );
     }
-    Ok(format!("COPY _oo.{quoted} ({list}) FROM STDIN WITH (FORMAT binary)"))
+    Ok(format!(
+        "COPY _oo.{quoted} ({list}) FROM STDIN WITH (FORMAT binary)"
+    ))
 }
 
-async fn check_and_index(admin: &mut PgConnection, shadows: &[Shadow], source: &SourceRead) -> Result<(), PreviewError> {
+async fn check_and_index(
+    admin: &mut PgConnection,
+    shadows: &[Shadow],
+    source: &SourceRead,
+) -> Result<(), PreviewError> {
     for shadow in shadows {
-        let quoted = quote_physical_name(&shadow.physical).map_err(|_| PreviewError::new("target", "physical_name"))?;
-        let key = quote_physical_name(&shadow.key_physical).map_err(|_| PreviewError::new("target", "physical_name"))?;
-        let sql = format!("SELECT count(*)::int8, count(DISTINCT {key})::int8 FROM \"_oo\".{quoted}");
+        let quoted = quote_physical_name(&shadow.physical)
+            .map_err(|_| PreviewError::new("target", "physical_name"))?;
+        let key = quote_physical_name(&shadow.key_physical)
+            .map_err(|_| PreviewError::new("target", "physical_name"))?;
+        let sql =
+            format!("SELECT count(*)::int8, count(DISTINCT {key})::int8 FROM \"_oo\".{quoted}");
         let row = sqlx::query(sqlx::AssertSqlSafe(sql))
             .fetch_one(&mut *admin)
             .await
             .map_err(|_| PreviewError::new("target", "key_coverage"))?;
-        let count: i64 = row.try_get(0).map_err(|_| PreviewError::new("target", "key_coverage"))?;
-        let distinct: i64 = row.try_get(1).map_err(|_| PreviewError::new("target", "key_coverage"))?;
+        let count: i64 = row
+            .try_get(0)
+            .map_err(|_| PreviewError::new("target", "key_coverage"))?;
+        let distinct: i64 = row
+            .try_get(1)
+            .map_err(|_| PreviewError::new("target", "key_coverage"))?;
         if count != distinct || u64::try_from(count).unwrap_or(u64::MAX) != shadow.rows {
             return Err(PreviewError::new("target", "key_coverage"));
         }
@@ -720,14 +923,22 @@ async fn check_and_index(admin: &mut PgConnection, shadows: &[Shadow], source: &
         if attrs.len() != shadow.columns.len() + 1 {
             return Err(PreviewError::new("target", "type_mismatch"));
         }
-        let position_name: String = attrs[0].try_get(0).map_err(|_| PreviewError::new("target", "type_mismatch"))?;
-        let position_oid: i64 = attrs[0].try_get(1).map_err(|_| PreviewError::new("target", "type_mismatch"))?;
+        let position_name: String = attrs[0]
+            .try_get(0)
+            .map_err(|_| PreviewError::new("target", "type_mismatch"))?;
+        let position_oid: i64 = attrs[0]
+            .try_get(1)
+            .map_err(|_| PreviewError::new("target", "type_mismatch"))?;
         if position_name != "_oo_pos" || position_oid != 1700 {
             return Err(PreviewError::new("target", "type_mismatch"));
         }
         for (attr, column) in attrs.iter().skip(1).zip(shadow.columns.iter()) {
-            let oid: i64 = attr.try_get(1).map_err(|_| PreviewError::new("target", "type_mismatch"))?;
-            let typmod: i32 = attr.try_get(2).map_err(|_| PreviewError::new("target", "type_mismatch"))?;
+            let oid: i64 = attr
+                .try_get(1)
+                .map_err(|_| PreviewError::new("target", "type_mismatch"))?;
+            let typmod: i32 = attr
+                .try_get(2)
+                .map_err(|_| PreviewError::new("target", "type_mismatch"))?;
             if oid != column.oid || typmod != column.typmod {
                 return Err(PreviewError::new("target", "type_mismatch"));
             }
@@ -774,21 +985,30 @@ async fn analyze(
     Ok(())
 }
 
-async fn note_listed(conn: &mut PgConnection, config: &PreviewConfig, generation: i64, run_id: &str, shadows: &[Shadow]) -> Result<(), PreviewError> {
+async fn note_listed(
+    conn: &mut PgConnection,
+    config: &PreviewConfig,
+    generation: i64,
+    run_id: &str,
+    shadows: &[Shadow],
+) -> Result<(), PreviewError> {
     for shadow in shadows {
-        let rows = i64::try_from(shadow.rows).map_err(|_| PreviewError::new("budget", "max_rows"))?;
-        sqlx::query("SELECT _oo.full_import_note_table($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8)")
-            .bind(&config.shard)
-            .bind(&config.owner)
-            .bind(generation)
-            .bind(run_id)
-            .bind(shadow.index)
-            .bind(rows)
-            .bind(&shadow.canonical_digest)
-            .bind(&config.source_id)
-            .execute(&mut *conn)
-            .await
-            .map_err(|_| PreviewError::new("target", "note"))?;
+        let rows =
+            i64::try_from(shadow.rows).map_err(|_| PreviewError::new("budget", "max_rows"))?;
+        sqlx::query(
+            "SELECT _oo.full_import_note_table($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8)",
+        )
+        .bind(&config.shard)
+        .bind(&config.owner)
+        .bind(generation)
+        .bind(run_id)
+        .bind(shadow.index)
+        .bind(rows)
+        .bind(&shadow.canonical_digest)
+        .bind(&config.source_id)
+        .execute(&mut *conn)
+        .await
+        .map_err(|_| PreviewError::new("target", "note"))?;
     }
     Ok(())
 }
@@ -804,8 +1024,14 @@ async fn note_and_seal(
 ) -> Result<(), PreviewError> {
     sealed_identity(source, config)?;
     note_listed(conn, config, generation, run_id, shadows).await?;
-    let schemas: Vec<String> = shadows.iter().map(|table| table.logical_schema.clone()).collect();
-    let names: Vec<String> = shadows.iter().map(|table| table.logical_table.clone()).collect();
+    let schemas: Vec<String> = shadows
+        .iter()
+        .map(|table| table.logical_schema.clone())
+        .collect();
+    let names: Vec<String> = shadows
+        .iter()
+        .map(|table| table.logical_table.clone())
+        .collect();
     let sealed: String = sqlx::query_scalar(
         "SELECT _oo.full_import_seal_run($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11::text[], $12::text[])",
     )
@@ -830,7 +1056,12 @@ async fn note_and_seal(
     Ok(())
 }
 
-async fn retire(conn: &mut PgConnection, config: &PreviewConfig, generation: i64, run_id: &str) -> Result<(), PreviewError> {
+async fn retire(
+    conn: &mut PgConnection,
+    config: &PreviewConfig,
+    generation: i64,
+    run_id: &str,
+) -> Result<(), PreviewError> {
     sqlx::query("SELECT _oo.full_import_retire_run($1, $2::uuid, $3, $4::uuid)")
         .bind(&config.shard)
         .bind(&config.owner)
@@ -849,11 +1080,12 @@ struct RunFact {
 }
 
 async fn read_run_fact(admin: &mut PgConnection, run_id: &str) -> Result<RunFact, PreviewError> {
-    let state: String = sqlx::query_scalar("SELECT state FROM _oo.full_import_run WHERE run_id = $1::uuid")
-        .bind(run_id)
-        .fetch_one(&mut *admin)
-        .await
-        .map_err(|_| PreviewError::new("target", "state"))?;
+    let state: String =
+        sqlx::query_scalar("SELECT state FROM _oo.full_import_run WHERE run_id = $1::uuid")
+            .bind(run_id)
+            .fetch_one(&mut *admin)
+            .await
+            .map_err(|_| PreviewError::new("target", "state"))?;
     let row = sqlx::query(
         "SELECT count(*) FILTER (WHERE exhausted)::int8, count(*) FILTER (WHERE NOT exhausted)::int8 FROM _oo.full_import_table WHERE run_id = $1::uuid",
     )
@@ -863,8 +1095,12 @@ async fn read_run_fact(admin: &mut PgConnection, run_id: &str) -> Result<RunFact
     .map_err(|_| PreviewError::new("target", "state"))?;
     Ok(RunFact {
         state,
-        exhausted: row.try_get(0).map_err(|_| PreviewError::new("target", "state"))?,
-        open_tables: row.try_get(1).map_err(|_| PreviewError::new("target", "state"))?,
+        exhausted: row
+            .try_get(0)
+            .map_err(|_| PreviewError::new("target", "state"))?,
+        open_tables: row
+            .try_get(1)
+            .map_err(|_| PreviewError::new("target", "state"))?,
     })
 }
 
@@ -892,7 +1128,11 @@ fn finish(run: FinishedRun) -> Result<LoadOutcome, PreviewError> {
         exhausted,
         require_open,
     } = run;
-    let open_ok = if require_open { fact.open_tables > 0 } else { fact.open_tables == 0 };
+    let open_ok = if require_open {
+        fact.open_tables > 0
+    } else {
+        fact.open_tables == 0
+    };
     if fact.state != state || fact.exhausted != exhausted || !open_ok {
         return Err(PreviewError::new("target", "state"));
     }

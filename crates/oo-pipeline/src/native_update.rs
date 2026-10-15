@@ -13,6 +13,7 @@
 //! preimage, not the full registry file hash.
 
 use std::fs;
+use std::io::Read as _;
 use std::path::Path;
 use std::time::Duration;
 
@@ -85,6 +86,141 @@ pub async fn import_native_transaction() -> Result<(), u8> {
     bytes.push(b'\n');
     std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
     if matches!(result["load_state"].as_str(), Some("awaiting_publish" | "replay")) { Ok(()) } else { Err(1) }
+}
+
+/// Materialize every admitted table from one sealed CDC-first stage atomically.
+pub async fn import_native_c1_baseline() -> Result<(), u8> {
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut std::io::stdin().take((4 * READ_BUDGET + 1) as u64), &mut bytes).map_err(|_| 2u8)?;
+    if bytes.is_empty() || bytes.len() > 4 * READ_BUDGET { return Err(2); }
+    let document: Value = serde_json::from_slice(&bytes).map_err(|_| 2u8)?;
+    let result = match execute_c1_baseline(&document).await {
+        Ok(value) => value,
+        Err(reason) => json!({"protocol":"oo.pipeline.native-c1-baseline-result/v1","load_state":"not_sealed","reason":reason}),
+    };
+    let mut out = serde_json::to_vec(&result).map_err(|_| 1u8)?; out.push(b'\n');
+    std::io::Write::write_all(&mut std::io::stdout(), &out).map_err(|_| 1u8)?;
+    if result["load_state"] == "awaiting_publish" { Ok(()) } else { Err(1) }
+}
+
+fn baseline_quality(entry:&Value,plan:&UpdatePlan)->Result<Vec<Value>,&'static str> {
+    let registry_bytes=read_capped(Path::new(text_field(entry,"admission_registry_path")?)).map_err(|_|"nonadmitted")?;
+    if hex_bytes(&Sha256::digest(&registry_bytes))!=text_field(entry,"admission_registry_sha256")? {return Err("digest_mismatch");}
+    let registry:Value=serde_json::from_slice(&registry_bytes).map_err(|_|"nonadmitted")?;
+    let binding=registry.pointer("/bindings/0").ok_or("nonadmitted")?;
+    let bytes=read_capped(Path::new(text_field(binding,"capture_receipt_path")?)).map_err(|_|"nonadmitted")?;
+    if hex_bytes(&Sha256::digest(&bytes))!=text_field(binding,"capture_receipt_sha256")? {return Err("digest_mismatch");}
+    let capture:Value=serde_json::from_slice(&bytes).map_err(|_|"nonadmitted")?;
+    let table=capture["tables"].as_array().ok_or("baseline_quality")?.iter().find(|t|t["schema"]==plan.schema && t["name"]==plan.table).ok_or("baseline_quality")?;
+    table["quality_rejects"].as_array().cloned().ok_or("baseline_quality")
+}
+
+struct BaselineCopy {
+    epoch: i32,
+    positions: Vec<String>,
+    quality: Vec<Value>,
+    lease: Value,
+}
+
+async fn baseline_held_heartbeat(tx:&mut sqlx::Transaction<'_,sqlx::Postgres>,lease:&Value)->Result<(),&'static str> {
+    // jobs.loader_hold already locked and authenticated this current claim.
+    // Renew through the normal API on that same connection; an external
+    // heartbeat cannot update the row while the atomic import holds its lock.
+    let status:String=sqlx::query_scalar("SELECT status FROM jobs.heartbeat($1::uuid,$2::uuid,$3,$4)")
+        .bind(text_field(lease,"project_id")?).bind(text_field(lease,"id")?).bind(text_field(lease,"owner")?)
+        .bind(lease["generation"].as_i64().ok_or("lease_required")?)
+        .fetch_one(&mut **tx).await.map_err(sql_token)?;
+    if status!="extended" {return Err("OO010");} Ok(())
+}
+
+async fn execute_c1_baseline(document: &Value) -> Result<Value, &'static str> {
+    if document["protocol"] != "oo.pipeline.native-c1-baseline/v1" { return Err("protocol"); }
+    let source = ident(document, "source_id")?;
+    let job = text_field(document, "lease_id")?;
+    let lease_generation = document["lease_generation"].as_i64().filter(|n| *n > 0).ok_or("lease_required")?;
+    let epoch = document["source_epoch"].as_i64().and_then(|n| i32::try_from(n).ok()).filter(|n| *n > 0).ok_or("source_epoch")?;
+    let scope = document.get("baseline_scope").ok_or("baseline_scope")?;
+    let entries = document["entries"].as_array().filter(|e| !e.is_empty() && e.len() <= 32).ok_or("baseline_entries")?;
+    let bin = std::env::var("OO_NATIVE_ADMISSION_BIN").map_err(|_| "nonadmitted")?;
+    let mut plans = Vec::with_capacity(entries.len());
+    let mut prior = None;
+    let requests = document["native_requests"].as_array().filter(|r| r.len() == entries.len()).ok_or("baseline_entry")?;
+    for (entry, request) in entries.iter().zip(requests) {
+        let mut request = request.clone();
+        request["lease_id"] = json!(job); request["lease_generation"] = json!(lease_generation);
+        let path = text_field(entry, "admission_registry_path")?;
+        let sha = hex_field(entry, "admission_registry_sha256").map_err(|_| "digest_mismatch")?;
+        let registry = fs::read(path).map_err(|_| "nonadmitted")?;
+        if hex_bytes(&Sha256::digest(&registry)) != sha { return Err("digest_mismatch"); }
+        let registry_value: Value = serde_json::from_slice(&registry).map_err(|_| "nonadmitted")?;
+        if registry_value.pointer("/bindings/0/baseline_scope") != Some(scope) { return Err("baseline_scope"); }
+        let plan = native_binding::with_operator_env(native_binding::OperatorEnv::Fixed {
+            bin: Some(bin.clone()), registry: Some(path.to_string()), registry_sha256: Some(sha),
+        }, || classify(&request))?;
+        let key = (plan.schema.clone(), plan.table.clone());
+        if prior.as_ref().is_some_and(|old| old >= &key)
+            || plan.source_engine != "mysql" || plan.source_id != source
+            || plan.source_generation != document["source_generation"].as_i64().ok_or("stale_run")?
+            || plan.schema != entry["schema"] || plan.table != entry["table"]
+            || plan.mode != "full" || !plan.source_bound || !plan.cross_table || plan.consistency_grade != "T"
+            || plan.capture_method != "c1_cdc" || plan.delete_detection != "native"
+            || plan.position_codec != "mysql-gtid/v1" || plan.position_lineage != scope["lineage"]
+            || plan.mirror { return Err("baseline_entry"); }
+        if let Some(first) = plans.first() {
+            let first: &UpdatePlan = first;
+            if plan.target != first.target || plan.owner != first.owner || plan.shard != first.shard
+                || plan.applied_pos_request != first.applied_pos_request || plan.config_digest != first.config_digest { return Err("baseline_entry"); }
+        }
+        prior = Some(key); plans.push(plan);
+    }
+    let first = &plans[0];
+    let mut immutable=document.clone();immutable.as_object_mut().ok_or("baseline_request")?.remove("lease_generation");
+    let request_digest = hex_bytes(&Sha256::digest(serde_json::to_vec(&immutable).map_err(|_| "baseline_request")?));
+    let mut conn = connect_target(&first.target).await?;
+    let mut tx = conn.begin().await.map_err(sql_token)?;
+    let (held_lease,_)=lease_hold(&mut tx, job, Some(lease_generation)).await?;
+    baseline_held_heartbeat(&mut tx,&held_lease).await?;
+    sqlx::query("SELECT _oo.native_c1_baseline_rebind($1,$2::uuid,$3)")
+        .bind(&source).bind(job).bind(lease_generation).execute(&mut *tx).await.map_err(sql_token)?;
+    let saved: Option<String> = sqlx::query_scalar("SELECT _oo.native_c1_baseline_typed_receipt($1,$2::uuid)::text")
+        .bind(&source).bind(job).fetch_one(&mut *tx).await.map_err(sql_token)?;
+    if let Some(saved) = saved {
+        let saved: Value = serde_json::from_str(&saved).map_err(|_| "not_sealed")?;
+        if saved["request_digest"] != request_digest { return Err("OO010"); }
+        tx.commit().await.map_err(sql_token)?;
+        return Ok(saved["receipt"].clone());
+    }
+    // Run shadow row guards inside each bounded COPY, rather than accumulating
+    // all deferred checks until the first table binder.
+    sqlx::query("SET CONSTRAINTS ALL IMMEDIATE").execute(&mut *tx).await.map_err(sql_token)?;
+    let mut receipts = Vec::with_capacity(plans.len());
+    let mut target_generation = None;
+    for (plan,request) in plans.iter().zip(requests) {
+        baseline_held_heartbeat(&mut tx,&held_lease).await?;
+        let started=std::time::Instant::now();
+        let positions=request["row_positions"].as_array().ok_or("baseline_positions")?.iter()
+            .map(|v|v.as_str().map(str::to_owned).ok_or("baseline_positions")).collect::<Result<Vec<_>,_>>()?;
+        let applied = apply_tx_baseline(&mut tx, plan, Some(BaselineCopy {epoch,positions,quality:baseline_quality(&entries[receipts.len()],plan)?,lease:held_lease.clone()})).await?;
+        eprintln!("oo-pipeline: baseline-table table={} rows={} elapsed_ms={}",plan.table,applied.row_count,started.elapsed().as_millis());
+        baseline_held_heartbeat(&mut tx,&held_lease).await?;
+        if target_generation.is_some_and(|n| n != applied.target_generation) { return Err("OO010"); }
+        target_generation = Some(applied.target_generation);
+        sqlx::query("SELECT _oo.native_update_mirror($1,$2,$3)")
+            .bind(&source).bind(&plan.batch_id).bind(&applied.physical_name)
+            .execute(&mut *tx).await.map_err(sql_token)?;
+        let rows = applied.row_count;
+        receipts.push(json!({"schema":plan.schema,"table":plan.table,"physical_id":applied.physical_name,
+            "run_id":applied.run_id,"sha256":plan.payload_digest,"row_count":rows}));
+    }
+    let raw: String = sqlx::query_scalar("SELECT _oo.native_c1_baseline_typed_commit($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb)::text")
+        .bind(&source).bind(job).bind(lease_generation).bind(epoch).bind(target_generation.ok_or("not_sealed")?)
+        .bind(first.source_generation).bind(request_digest).bind(serde_json::to_string(scope).map_err(|_| "baseline_scope")?)
+        .bind(serde_json::to_string(&receipts).map_err(|_| "baseline_entries")?)
+        .fetch_one(&mut *tx).await.map_err(sql_token)?;
+    lease_hold(&mut tx, job, Some(lease_generation)).await?;
+    tx.commit().await.map_err(sql_token)?;
+    let _ = release(&mut conn, &first.shard).await;
+    serde_json::from_str(&raw).map_err(|_| "not_sealed")
 }
 
 /// Complete the target-side C4 ACK after `jobs.complete_success` commits.
@@ -426,6 +562,14 @@ async fn install_document(document: &Value) -> Value {
         Ok(()) => match target_installer::install_native_gtid_transaction(&mut conn).await {
         Ok(()) => match target_installer::install_native_c1_source_epoch(&mut conn).await {
         Ok(()) => match target_installer::install_native_c1_source_epoch_runtime(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_baseline_stage(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_gtid_stage_identity(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_gtid_measured_identity(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_baseline_typed_bridge(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_baseline_lease_rebind(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_baseline_date_quality(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_baseline_key_join(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_ack_seed(&mut conn).await {
         Ok(()) => json!({
             "protocol": RESULT_PROTOCOL,
             "installed": true,
@@ -447,7 +591,27 @@ async fn install_document(document: &Value) -> Value {
             ,"gtid_transaction_digest": target_installer::compiled_native_gtid_transaction_digest()
             ,"native_c1_source_epoch_digest": target_installer::compiled_native_c1_source_epoch_digest()
             ,"native_c1_source_epoch_runtime_digest": target_installer::compiled_native_c1_source_epoch_runtime_digest()
+            ,"native_c1_baseline_stage_digest": target_installer::compiled_native_c1_baseline_stage_digest()
+            ,"native_c1_gtid_stage_identity_digest": target_installer::compiled_native_c1_gtid_stage_identity_digest()
+            ,"native_c1_gtid_measured_identity_digest": target_installer::compiled_native_c1_gtid_measured_identity_digest()
+            ,"native_c1_baseline_typed_bridge_digest": target_installer::compiled_native_c1_baseline_typed_bridge_digest()
         }),
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0035"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0034"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0033"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0032"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0031"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0030"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0029"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0028"}),
+        },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0026"}),
         },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0025"}),
@@ -1105,6 +1269,8 @@ struct UpdatePlan {
     lease_generation: Option<i64>,
     partition_scope: Option<Value>,
     transaction_scope: Option<Value>,
+    gtid_scope: Option<Value>,
+    source_instance: Option<Value>,
     previous_ack_exists: bool,
     previous_signature: Option<String>,
     previous_ack_auto: bool,
@@ -1446,6 +1612,8 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         lease_generation,
         partition_scope,
         transaction_scope: admission.transaction_scope,
+        gtid_scope: admission.gtid_scope,
+        source_instance: admission.source_instance,
         previous_ack_exists,
         previous_signature,
         previous_ack_auto,
@@ -1508,6 +1676,8 @@ fn classify_mirror(document: &Value) -> Result<UpdatePlan, &'static str> {
         lease_generation: None,
         partition_scope: None,
         transaction_scope: None,
+        gtid_scope: None,
+        source_instance: None,
         previous_ack_exists: false,
         previous_signature: None,
         previous_ack_auto: false,
@@ -1520,6 +1690,8 @@ struct Admission {
     trusted_fields: Vec<native_binding::BoundField>,
     partition_scope: Option<Value>,
     transaction_scope: Option<Value>,
+    gtid_scope: Option<Value>,
+    source_instance: Option<Value>,
     consistency: Option<String>,
     cross_table: Option<bool>,
 }
@@ -1531,6 +1703,8 @@ fn unbound_admission() -> Admission {
         trusted_fields: Vec::new(),
         partition_scope: None,
         transaction_scope: None,
+        gtid_scope: None,
+        source_instance: None,
         consistency: None,
         cross_table: None,
     }
@@ -1689,6 +1863,8 @@ fn historical_admission(
             trusted_fields: Vec::new(),
             partition_scope: None,
             transaction_scope: None,
+            gtid_scope: None,
+            source_instance: None,
             producer_trust: json!({
                 "entry": "historical_readonly",
                 "trusted": false,
@@ -2177,6 +2353,8 @@ fn registration_admission(opened: native_binding::ServerRegistration) -> Admissi
         trusted_fields: opened.fields,
         partition_scope: opened.partition_scope,
         transaction_scope: opened.transaction_scope,
+        gtid_scope: opened.gtid_scope,
+        source_instance: opened.source_instance,
         consistency: Some(opened.consistency.clone()),
         cross_table: Some(opened.cross_table),
         producer_trust: json!({
@@ -2583,8 +2761,57 @@ fn gtid_plans_match(plans: &[UpdatePlan], identity: &GtidCommit) -> Result<(), &
         {
             return Err("transaction_scope_required");
         }
+        if !gtid_binding_matches(
+            plan.gtid_scope.as_ref(),
+            plan.source_instance.as_ref(),
+            &plan.source_id,
+            &plan.source_engine,
+            &plan.config_digest,
+            &plan.schema_digest,
+            &plan.shard,
+            &plan.owner,
+            identity,
+        ) {
+            return Err("gtid_identity");
+        }
     }
     Ok(())
+}
+
+fn gtid_binding_matches(
+    scope: Option<&Value>,
+    instance: Option<&Value>,
+    source: &str,
+    engine: &str,
+    config: &str,
+    schema: &str,
+    shard: &str,
+    owner: &str,
+    identity: &GtidCommit,
+) -> bool {
+    let Some(scope) = scope else { return false; };
+    if scope["codec"] != identity.codec
+        || scope["lineage"] != identity.lineage
+        || scope["source_epoch"].as_i64() != Some(i64::from(identity.epoch))
+        || scope["applied_pos"] != identity.applied_pos
+        || scope["txn_id"] != identity.txn_id
+        || scope["measured_id"] != identity.lineage
+        || scope["config_digest"] != config
+        || scope["schema_digest"] != schema
+    {
+        return false;
+    }
+    instance.is_none_or(|instance| {
+        instance["protocol"] == "oo.pipeline.native-source-instance/v1"
+            && instance["source"] == source
+            && instance["engine"] == engine
+            && instance["measured_id"] == identity.lineage
+            && instance["source_epoch"].as_i64() == Some(i64::from(identity.epoch))
+            && instance["config_digest"] == config
+            && instance["schema_digest"] == schema
+            && instance["shard_id"] == shard
+            && instance["owner_token"] == owner
+    })
 }
 
 fn gtid_scope_digest(source: &str, identity: &GtidCommit) -> String {
@@ -2615,7 +2842,7 @@ fn gtid_commit_identity(entry: &Value) -> Result<GtidCommit, &'static str> {
         Some(Value::Number(number)) => number
             .as_i64()
             .and_then(|value| i32::try_from(value).ok())
-            .filter(|value| *value >= 0)
+            .filter(|value| *value >= 1)
             .ok_or("gtid_identity")?,
         _ => return Err("gtid_identity"),
     };
@@ -3271,6 +3498,12 @@ async fn apply_tx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     plan: &UpdatePlan,
 ) -> Result<Applied, &'static str> {
+    apply_tx_baseline(tx,plan,None).await
+}
+
+async fn apply_tx_baseline(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, plan: &UpdatePlan, baseline: Option<BaselineCopy>,
+) -> Result<Applied, &'static str> {
     if plan.columns.iter().any(|column| column.arrow_type == "duration_micros") {
         let stored_digest: Option<String> = sqlx::query_scalar(
             "SELECT checksum FROM _oo.schema_migrations WHERE version = $1"
@@ -3389,6 +3622,7 @@ async fn apply_tx(
         .await
         .map_err(sql_token)?;
     let input_bytes = decode_hex32(&plan.input_digest).map_err(|_| "digest_mismatch")?;
+    let prepare_started=std::time::Instant::now();
     let prepared = if plan.arrow.is_empty() {
         None
     } else {
@@ -3408,6 +3642,7 @@ async fn apply_tx(
             .map_err(arrow_token)?,
         )
     };
+    if baseline.is_some() {eprintln!("oo-pipeline: baseline-phase table={} phase=prepare elapsed_ms={}",plan.table,prepare_started.elapsed().as_millis());}
     let physical = if let Some(prepared) = prepared.as_ref() {
         prepared.physical_name.clone()
     } else {
@@ -3536,8 +3771,9 @@ async fn apply_tx(
     };
     if let Some(prepared) = prepared.as_ref() {
         let mut positions = Vec::with_capacity(upsert_rows);
-        for _ in 0..upsert_rows {
-            let pos = plan.applied_pos_request.clone();
+        if baseline.as_ref().is_some_and(|b|b.positions.len()!=upsert_rows) {return Err("baseline_positions");}
+        for index in 0..upsert_rows {
+            let pos = match baseline.as_ref() { Some(b)=>b.positions[index].clone(),None=>plan.applied_pos_request.clone() };
             positions.push(ExactDecimal::new(false, pos, 0).map_err(|_| "encode")?);
         }
         let quoted = quote_physical_name(&physical).map_err(|_| "physical")?;
@@ -3553,19 +3789,39 @@ async fn apply_tx(
             max_chunk_bytes: 1_048_576,
             max_rows_per_chunk: 1024,
         };
-        let sent = copy_sink::send_batch(
-            tx,
-            &statement,
-            &prepared.batch,
-            &prepared.copy_columns,
-            &positions,
-            budgets,
-        )
-        .await
-        .map_err(sink_token)?;
-        if sent.rows != upsert_rows as u64 {
-            return Err("rows");
-        }
+        let copy_started=std::time::Instant::now();
+        let sent_rows = if let Some(baseline) = baseline.as_ref() {
+            let mut rows = 0_u64;
+            let mut max_chunk_ms = 0_u128;
+            for (index, chunk) in prepared.batch.rows.chunks(512).enumerate() {
+                // COPY consumes typed rows and plans only. Keep this view small;
+                // the authenticated Arrow input and quality stay on the full batch.
+                let batch = oo_connectors::types::TypedBatch {
+                    protocol: prepared.batch.protocol,
+                    type_policy_version: prepared.batch.type_policy_version,
+                    source_id: prepared.batch.source_id.clone(),
+                    schema: prepared.batch.schema.clone(), table: prepared.batch.table.clone(),
+                    run_generation: prepared.batch.run_generation, input_digest: prepared.batch.input_digest,
+                    plans: prepared.batch.plans.clone(), fields: prepared.batch.fields.clone(),
+                    rows: chunk.to_vec(), arrow: Vec::new(), rejects: Vec::new(),
+                };
+                let start = index * 512;
+                let chunk_started = std::time::Instant::now();
+                let sent = copy_sink::send_batch(tx, &statement, &batch, &prepared.copy_columns,
+                    &positions[start..start + chunk.len()], budgets).await.map_err(sink_token)?;
+                if sent.rows != chunk.len() as u64 { return Err("rows"); }
+                rows += sent.rows;
+                max_chunk_ms = max_chunk_ms.max(chunk_started.elapsed().as_millis());
+                baseline_held_heartbeat(tx, &baseline.lease).await?;
+            }
+            eprintln!("oo-pipeline: baseline-copy-chunks table={} rows={} chunk_rows=512 max_chunk_ms={}",plan.table,rows,max_chunk_ms);
+            rows
+        } else {
+            copy_sink::send_batch(tx, &statement, &prepared.batch, &prepared.copy_columns,
+                &positions, budgets).await.map_err(sink_token)?.rows
+        };
+        if baseline.is_some() {eprintln!("oo-pipeline: baseline-phase table={} phase=copy rows={} elapsed_ms={}",plan.table,sent_rows,copy_started.elapsed().as_millis());}
+        if sent_rows != upsert_rows as u64 { return Err("rows"); }
     }
     let expected = copied + i64::try_from(upsert_rows).unwrap_or(i64::MAX);
     let counted: i64 = sqlx::query_scalar("SELECT _oo.native_update_shadow_count($1)")
@@ -3595,6 +3851,12 @@ async fn apply_tx(
     // Row ordinals/counts are not source cursor positions, for any codec.
     let applied_pos = plan.applied_pos_request.clone();
     let hook = hook_digest();
+    let rejects=baseline.as_ref().map(|b|b.quality.as_slice()).unwrap_or(&[]);
+    let reasons=rejects.iter().map(|r|text_field(r,"reason").map(str::to_owned)).collect::<Result<Vec<_>,_>>()?;
+    let value_lens=rejects.iter().map(|r|r["value_len"].as_i64().ok_or("baseline_quality")).collect::<Result<Vec<_>,_>>()?;
+    let attnums=rejects.iter().map(|r|r["attnum"].as_i64().and_then(|n|i32::try_from(n).ok()).filter(|n|*n>0 && (*n as usize)<=plan.columns.len()).ok_or("baseline_quality")).collect::<Result<Vec<_>,_>>()?;
+    let row_indexes=rejects.iter().map(|r|r["row"].as_i64().filter(|n|*n>=0 && *n<counted).ok_or("baseline_quality")).collect::<Result<Vec<_>,_>>()?;
+    let key_digests=rejects.iter().map(|r|hex_field(r,"key_digest")).collect::<Result<Vec<_>,_>>().map_err(|_|"baseline_quality")?;
     let wrote: String = sqlx::query_scalar(
         "SELECT _oo.full_import_write_batch($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::numeric, $16, $17, $18::text[], $19::bigint[], $20::integer[], $21::bigint[], $22::text[])",
     )
@@ -3614,12 +3876,8 @@ async fn apply_tx(
     .bind(&plan.input_digest)
     .bind(&applied_pos)
     .bind(counted)
-    .bind(0_i64)
-    .bind(Vec::<String>::new())
-    .bind(Vec::<i64>::new())
-    .bind(Vec::<i32>::new())
-    .bind(Vec::<i64>::new())
-    .bind(Vec::<String>::new())
+    .bind(rejects.len() as i64)
+    .bind(reasons).bind(value_lens).bind(attnums).bind(row_indexes).bind(key_digests)
     .fetch_one(&mut **tx)
     .await
     .map_err(sql_token)?;
@@ -3639,6 +3897,18 @@ async fn apply_tx(
         .execute(&mut **tx)
         .await
         .map_err(sql_token)?;
+    if let Some(baseline)=baseline {
+        baseline_held_heartbeat(tx,&baseline.lease).await?;
+        let compare_started=std::time::Instant::now();
+        let rows: i64=sqlx::query_scalar("SELECT _oo.native_c1_baseline_bind_table($1,$2::uuid,$3,$4,$5,$6::uuid,$7,$8::uuid,$9,$10,$11::text[],$12::text[])")
+            .bind(&plan.source_id).bind(plan.lease_id.as_deref().ok_or("lease_required")?)
+            .bind(plan.lease_generation.ok_or("lease_required")?).bind(baseline.epoch)
+            .bind(&plan.shard).bind(&plan.owner).bind(target_generation).bind(&run_id)
+            .bind(&plan.schema).bind(&plan.table).bind(&plan.column_idents).bind(&plan.key_idents)
+            .fetch_one(&mut **tx).await.map_err(sql_token)?;
+        eprintln!("oo-pipeline: baseline-phase table={} phase=compare rows={} elapsed_ms={}",plan.table,rows,compare_started.elapsed().as_millis());
+        if rows!=counted {return Err("readback");}
+    }
     let seal = if plan.position_codec == "mssql-ct-version/v1" {
         sqlx::query("SELECT _oo.native_sqlserver_ct_seal_quality($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12::numeric, $13, $14, $15, $16, $17, $18, $19::text[], $20, $21, $22, $23)")
     } else {
@@ -4216,7 +4486,7 @@ fn sink_token(err: SinkError) -> &'static str {
     }
 }
 
-async fn connect_target(target: &Value) -> Result<sqlx::PgConnection, &'static str> {
+pub(crate) async fn connect_target(target: &Value) -> Result<sqlx::PgConnection, &'static str> {
     let host = text_field(target, "host")?;
     let port = target
         .get("port")
@@ -5893,6 +6163,9 @@ mod tests {
         assert_eq!(mysql_id.applied_pos, "7");
         assert!(mysql_id.txn_id.ends_with(":7"));
         assert!(!mysql_id.txn_id.contains("binlog"));
+        let mut unregistered = mysql.clone();
+        unregistered["source_epoch"] = json!(0);
+        assert_eq!(gtid_commit_identity(&unregistered).err(), Some("gtid_identity"));
         assert_ne!(mysql_id.applied_pos, mysql["resume_pos"]);
         let mut other_epoch = mysql.clone();
         other_epoch["source_epoch"] = json!(2);
@@ -6391,6 +6664,42 @@ mod tests {
         if ch.is_dir() {
             assert!(!rows.is_empty());
         }
+    }
+
+    #[test]
+    fn gtid_transaction_is_bound_to_registered_epoch_and_source_context() {
+        let identity = GtidCommit {
+            codec: "mysql-gtid/v1".into(),
+            lineage: "mysql.aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".into(),
+            epoch: 3,
+            applied_pos: "9".into(),
+            txn_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:9".into(),
+        };
+        let scope = json!({
+            "codec":identity.codec,"lineage":identity.lineage,"source_epoch":identity.epoch,
+            "applied_pos":identity.applied_pos,"txn_id":identity.txn_id,"measured_id":identity.lineage,
+            "config_digest":"a".repeat(64),"schema_digest":"b".repeat(64)
+        });
+        let instance = json!({
+            "protocol":"oo.pipeline.native-source-instance/v1","source":"mysql_source",
+            "engine":"mysql","measured_id":identity.lineage,"source_epoch":identity.epoch,
+            "config_digest":"a".repeat(64),"schema_digest":"b".repeat(64),
+            "shard_id":"shard","owner_token":"00000000-0000-4000-8000-000000000001"
+        });
+        let matches = |scope: &Value, instance: &Value| gtid_binding_matches(
+            Some(scope), Some(instance), "mysql_source", "mysql", &"a".repeat(64),
+            &"b".repeat(64), "shard", "00000000-0000-4000-8000-000000000001", &identity,
+        );
+        assert!(matches(&scope, &instance));
+        let mut changed_scope = scope.clone();
+        changed_scope["source_epoch"] = json!(2);
+        assert!(!matches(&changed_scope, &instance));
+        let mut changed_instance = instance.clone();
+        changed_instance["owner_token"] = json!("00000000-0000-4000-8000-000000000002");
+        assert!(!matches(&scope, &changed_instance));
+        assert!(!gtid_binding_matches(None, Some(&instance), "mysql_source", "mysql",
+            &"a".repeat(64), &"b".repeat(64), "shard",
+            "00000000-0000-4000-8000-000000000001", &identity));
     }
 
     fn with_parent(request: &mut Value) {
@@ -7078,6 +7387,59 @@ mod tests {
         out.push('.');
         out.push_str(std::str::from_utf8(&digits[split..]).unwrap_or(""));
         out
+    }
+
+    #[test]
+    #[ignore = "explicit owned baseline registry/Arrow preflight without target writes"]
+    fn owned_baseline_plan_preflight() {
+        let root=std::path::PathBuf::from(std::env::var("OO_MYSQL_STAGE_PREFLIGHT").unwrap());
+        let request:Value=serde_json::from_slice(&std::fs::read(root.join("out/native-request.json")).unwrap()).unwrap();
+        for (entry,document) in request["entries"].as_array().unwrap().iter().zip(request["native_requests"].as_array().unwrap()) {
+            let bin="/tmp/oo-mysql-connection-whole/sol-20261015/admission-target/debug/oo-source-admission";
+            let plan=native_binding::with_operator_env(native_binding::OperatorEnv::Fixed {bin:Some(bin.into()),registry:Some(entry["admission_registry_path"].as_str().unwrap().into()),registry_sha256:Some(entry["admission_registry_sha256"].as_str().unwrap().into())},||classify(document)).expect("real sealed table registry, types and Arrow classify");
+            let quality=baseline_quality(entry,&plan).expect("quality tied to authenticated capture receipt");
+            if entry["table"]=="value_probe" {assert_eq!(quality.len(),1);assert_eq!(quality[0]["reason"],"zero_date");}
+        }
+    }
+
+    #[test]
+    #[ignore = "explicit owned target COPY/join timing; always rolls back"]
+    fn owned_baseline_largest_copy_timing() {
+        tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(async {
+            let path=std::env::var("OO_MYSQL_BASELINE_REQUEST").unwrap();
+            let request:Value=serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+            let (entry,document)=request["entries"].as_array().unwrap().iter().zip(request["native_requests"].as_array().unwrap()).max_by_key(|(_,r)|fs::metadata(r["arrow_path"].as_str().unwrap()).unwrap().len()).unwrap();
+            let plan=native_binding::with_operator_env(native_binding::OperatorEnv::Fixed {bin:Some("/tmp/oo-mysql-connection-whole/sol-20261015/admission-target/debug/oo-source-admission".into()),registry:Some(entry["admission_registry_path"].as_str().unwrap().into()),registry_sha256:Some(entry["admission_registry_sha256"].as_str().unwrap().into())},||classify(document)).unwrap();
+            let started=std::time::Instant::now();
+            let prepared=prepare_table(&plan.arrow,&plan.source_id,&plan.schema,&plan.table,plan.source_generation as u64,&plan.config_digest,decode_hex32(&plan.input_digest).unwrap(),&plan.batch_id,&columns_for_prepare(&plan.columns,&plan.column_sources).unwrap(),Some(&plan.trusted_fields)).unwrap();
+            let prepared_ms=started.elapsed().as_millis();
+            let admin:Value=serde_json::from_slice(&fs::read(std::env::var("OO_MYSQL_BENCH_TARGET").unwrap()).unwrap()).unwrap();
+            let mut conn=connect_target(&admin["target"]).await.unwrap();let mut tx=conn.begin().await.unwrap();
+            let mut types=Vec::new();
+            for col in &prepared.verified_columns {
+                let typ:String=sqlx::query_scalar("SELECT format_type($1::bigint::oid,$2)").bind(col.oid).bind(col.typmod).fetch_one(&mut *tx).await.unwrap();types.push(typ);
+            }
+            let ddl=format!("CREATE TABLE _oo.mysql_copy_timing_bench (_oo_pos numeric(38,0) NOT NULL,{})",types.iter().enumerate().map(|(i,t)|format!("c{i} {t}")).collect::<Vec<_>>().join(","));
+            sqlx::query(sqlx::AssertSqlSafe(ddl)).execute(&mut *tx).await.unwrap();
+            let positions=document["row_positions"].as_array().unwrap().iter().map(|p|ExactDecimal::new(false,p.as_str().unwrap().to_string(),0).unwrap()).collect::<Vec<_>>();
+            let started=std::time::Instant::now();
+            let copied=copy_sink::send_batch(&mut tx,"COPY _oo.mysql_copy_timing_bench FROM STDIN WITH (FORMAT binary)",&prepared.batch,&prepared.copy_columns,&positions,CopyBudgets {max_value_bytes:1048576,max_row_bytes:1048576,max_chunk_bytes:1048576,max_rows_per_chunk:1024}).await.unwrap();
+            let copy_ms=started.elapsed().as_millis();
+            let key=plan.key_indexes[0];let name=&plan.column_sources[key];
+            let mut mismatch=Vec::new();
+            for (i,col) in prepared.verified_columns.iter().enumerate() {
+                let name=&plan.column_sources[i];
+                let value=format!("s.row_value->'{name}'->>'value'");
+                let expected=if col.oid==17 {format!("decode({value},'hex')")} else if matches!(col.oid,114|3802) {format!("({value})::jsonb")} else {format!("({value})::{}",types[i])};
+                let target=if matches!(col.oid,114|3802) {format!("t.c{i}::jsonb")} else {format!("t.c{i}")};
+                mismatch.push(format!("CASE WHEN s.row_value->'{name}'->>'type'='null' THEN t.c{i} IS NOT NULL ELSE {target} IS DISTINCT FROM {expected} END"));
+            }
+            let sql=format!("SELECT count(*) FROM _oo.native_c1_baseline_row s LEFT JOIN _oo.mysql_copy_timing_bench t ON (s.row_key->'{name}'->>'value')::{}=t.c{key} WHERE s.source=$1 AND s.logical_schema=$2 AND s.logical_table=$3 AND NOT s.deleted AND (t._oo_pos IS NULL OR t._oo_pos<>s.applied_pos OR {})",types[key],mismatch.join(" OR "));
+            let started=std::time::Instant::now();
+            let wrong:i64=sqlx::query_scalar(sqlx::AssertSqlSafe(sql)).bind(&plan.source_id).bind(&plan.schema).bind(&plan.table).fetch_one(&mut *tx).await.unwrap();
+            let compare_ms=started.elapsed().as_millis();tx.rollback().await.unwrap();
+            assert_eq!(wrong,0);eprintln!("owned-copy-timing table={} rows={} prepare_ms={} copy_ms={} compare_ms={} rollback=true",plan.table,copied.rows,prepared_ms,copy_ms,compare_ms);
+        });
     }
 
 }

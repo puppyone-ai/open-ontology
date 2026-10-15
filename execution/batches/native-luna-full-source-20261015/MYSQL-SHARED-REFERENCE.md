@@ -18,4 +18,4 @@
 6. 模型前同token/role/currentPack工程师只读预检；真实Agent自主CLI任意合法查询、两个新随机语义/独立源金标/QID与完整WAL、权限拒绝和取消，保留所有失败。工程师预工具答案不进入Agent。
 7. 固定源码commit、迁移checksum、源码archive、LinuxELF、接口/运行配置与证据SHA、真实退出与资源receipt。root逐条核全部原退出后，shared-readiness-gate方可release，再让其余九源按原捕获方法复用同一固定制品。参考MySQL通过不等于其余源自动通过。
 
-当前状态：未放行。已确认pipeline host cargo check通过、OOS字段兼容Linux1.94两测试通过；C1摘要循环修复host admission2/worker3测试通过，固定Linux1.94副本admission2/worker3测试通过。实际`import-native-c1-baseline` importer/CLI尚缺，真实初始导入、注册/同步、当前发布与完整对话均未证，不能将协议测试称共享稳定。
+当前状态：仍未放行。六字段source mysql_67fff4e8ebff9f91bee8c75e已完成真实五表typed导入、CAS后ACK及独立110019行43列全cell差0，固定root回执见 execution/reviews/native-luna-full-source-20261015/mysql-six-field-typed-baseline-intake.json。原baseline importer缺口已实现；唯一Sol medium负责人继续自主C1同步/恢复、完整S0–S10及维护Pack、正式发布/Gateway/随机Agent全退出。源码仍WIP，不将基线里程碑当共享稳定或整源完成。

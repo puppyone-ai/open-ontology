@@ -16,7 +16,10 @@ impl PreviewError {
     /// A missing config field keeps a closed fact. The caller's key is only
     /// a borrowed name, so it is projected onto this static list.
     pub fn config_field(key: &str) -> Self {
-        Self { code: "config", fact: static_field(key) }
+        Self {
+            code: "config",
+            fact: static_field(key),
+        }
     }
 }
 
@@ -61,7 +64,11 @@ fn static_field(key: &str) -> &'static str {
         "version",
         "visibility_file",
     ];
-    FIELDS.iter().copied().find(|item| *item == key).unwrap_or("key")
+    FIELDS
+        .iter()
+        .copied()
+        .find(|item| *item == key)
+        .unwrap_or("key")
 }
 
 impl fmt::Display for PreviewError {

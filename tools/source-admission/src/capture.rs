@@ -203,6 +203,9 @@ struct Material {
     fields: Vec<FieldOut>,
     partition_scope: Option<Value>,
     transaction_scope: Option<Value>,
+    gtid_scope: Option<Value>,
+    source_instance: Option<Value>,
+    baseline_scope: Option<Value>,
 }
 
 struct Prepared {
@@ -489,7 +492,8 @@ fn observe(
         "delete_mode",
         &mut blocks,
     );
-    let observed_cursor = bind_cursor(source, producer, method_token.as_deref(), &mut blocks);
+    let mysql_baseline=witness.source_engine=="mysql" && method_token.as_deref()==Some("C1") && capturer.get("baseline_scope").is_some();
+    let mut observed_cursor = if mysql_baseline {None} else {bind_cursor(source, producer, method_token.as_deref(), &mut blocks)};
     let quality_value = source.get("quality").or_else(|| {
         if std::ptr::eq(source, capturer) {
             None
@@ -579,6 +583,46 @@ fn observe(
         }
         _ => None,
     };
+    let gtid_scope = match (witness.source_engine.as_str(), method_token.as_deref()) {
+        ("mysql" | "mariadb", Some("C1")) if capturer.get("baseline_scope").is_some() => {
+            if capturer.get("gtid_scope").is_some() {
+                blocks.push(block("SOURCE_METADATA_UNBOUND", "gtid_scope"));
+            }
+            None
+        }
+        ("mysql" | "mariadb", Some("C1")) => bind_gtid_scope(capturer, witness, &config_digest,
+            &schema_digest, &mut blocks),
+        _ if capturer.get("gtid_scope").is_some() => {
+            blocks.push(block("SOURCE_METADATA_UNBOUND", "gtid_scope"));
+            None
+        }
+        _ => None,
+    };
+    let source_instance = match (witness.source_engine.as_str(), method_token.as_deref()) {
+        ("mongodb", Some("C1")) if capturer.get("baseline_scope").is_some() => None,
+        ("mongodb", Some("C1")) => bind_mongo_source_instance(capturer, witness, &config_digest,
+            &schema_digest, &mut blocks),
+        _ if capturer.get("source_instance").is_some() => {
+            blocks.push(block("SOURCE_METADATA_UNBOUND", "source_instance"));
+            None
+        }
+        _ => None,
+    };
+    let baseline_scope = match (witness.source_engine.as_str(), method_token.as_deref()) {
+        ("mysql" | "mariadb" | "mongodb", Some("C1")) => bind_c1_baseline_scope(
+            capturer, witness, &config_digest, &schema_digest, parsed.as_ref().map(|arrow| arrow.rows), &input_digest,
+            grade.as_deref(), cross_table.as_deref(), &mut blocks),
+        _ if capturer.get("baseline_scope").is_some() => {
+            blocks.push(block("SOURCE_METADATA_UNBOUND", "baseline_scope")); None
+        }
+        _ => None,
+    };
+    let mysql_retention=if mysql_baseline {
+        match baseline_scope.as_ref().and_then(|scope|mysql_baseline_cursor(capturer,scope)) {
+            Some((cursor,retention))=>{observed_cursor=Some(cursor);Some(retention)},
+            None=>{blocks.push(block("CURSOR_UNOBSERVED","baseline_gtid"));None},
+        }
+    } else {None};
     if let Some(parsed) = parsed.as_ref()
         && schema_digest == parsed.schema_sha256
     {
@@ -605,10 +649,10 @@ fn observe(
                 Some(_) => "Total",
                 None => "None",
             }.to_string(),
-            retention_window: None,
+            retention_window: mysql_retention,
             cursor: if requires_r1 && method == "C2" { Some("Sequence".to_string()) } else { None },
             feed: if requires_r1 && method == "C2" { Some("ChangeTracking".to_string()) } else { None },
-            cdc: if requires_r1 && method == "C1" { Some("LogicalDecoding".to_string()) } else { None },
+            cdc: if mysql_baseline {Some("Binlog".to_string())} else if requires_r1 && method == "C1" { Some("LogicalDecoding".to_string()) } else { None },
             delete_detection: Some(delete),
         }),
         _ => None,
@@ -659,6 +703,9 @@ fn observe(
             fields,
             partition_scope,
             transaction_scope,
+            gtid_scope,
+            source_instance,
+            baseline_scope,
         })
     } else {
         None
@@ -668,6 +715,108 @@ fn observe(
         method,
         material,
     }
+}
+
+// Admission registries contain this digest, so derived registry references cannot hash themselves.
+fn c1_capture_digest(envelope: &mut Value) -> Option<String> {
+    envelope.as_object_mut()?.insert("capture_digest".to_string(), Value::String(BLANK.to_string()));
+    if let Some(entries) = envelope.get_mut("entries") {
+        for entry in entries.as_array_mut()? {
+            let object = entry.as_object_mut()?;
+            object.remove("admission_registry_path");
+            object.remove("admission_registry_sha256");
+        }
+    }
+    Some(sha256_hex(&serde_json::to_vec(envelope).ok()?))
+}
+
+fn bind_c1_baseline_scope(capturer: &Value, witness: &Witness, config_digest: &str,
+    schema_digest: &str, rows: Option<u64>, arrow_sha: &str, grade: Option<&str>,
+    cross_table: Option<&str>, blocks: &mut Vec<Block>) -> Option<Value> {
+    let valid = (|| {
+        let scope = capturer.get("baseline_scope")?;
+        let object = scope.as_object()?;
+        let keys = ["protocol", "engine", "lineage", "l0", "l_end", "complete", "read_fence_digest",
+            "config_digest", "schema_digest", "capture_digest", "consistency_grade", "cross_table_consistent", "source_identity", "tables"];
+        if object.len() != keys.len() || keys.iter().any(|key| !object.contains_key(*key))
+            || scope["protocol"].as_str() != Some("oo.source-admission.c1-baseline-scope/v1")
+            || scope["engine"].as_str() != Some(witness.source_engine.as_str())
+            || scope["complete"].as_bool() != Some(true)
+            || scope["config_digest"].as_str() != Some(config_digest)
+            || !scope["schema_digest"].as_str().is_some_and(hex64)
+            || scope["consistency_grade"].as_str() != grade
+            || scope["cross_table_consistent"].as_bool() != Some(cross_table == Some("T"))
+            || (cross_table == Some("T") && grade != Some("T"))
+            || !scope["read_fence_digest"].as_str().is_some_and(hex64)
+            || !scope["capture_digest"].as_str().is_some_and(hex64) { return None; }
+        let mut envelope = capturer.get("capture_envelope")?.clone();
+        let mut scope_projection=scope.clone();
+        scope_projection.as_object_mut()?.remove("capture_digest");
+        if envelope.get("baseline_scope") != Some(&scope_projection) { return None; }
+        if c1_capture_digest(&mut envelope)? != scope["capture_digest"].as_str()? { return None; }
+        let lineage = scope["lineage"].as_str().filter(|value| !value.is_empty() && value.len() <= 128)?;
+        let l0 = scope["l0"].as_str().filter(|value| !value.is_empty() && value.len() <= 256)?;
+        let l_end = scope["l_end"].as_str().filter(|value| !value.is_empty() && value.len() <= 256)?;
+        if l0.contains(',') || l_end.contains(',') { return None; }
+        let identity = scope["source_identity"].as_object()?;
+        let identity_keys = ["engine", "measured_id", "shard_id", "owner_token"];
+        if identity.len() != identity_keys.len() || identity_keys.iter().any(|key| !identity.contains_key(*key))
+            || identity["engine"].as_str() != Some(witness.source_engine.as_str())
+            || identity["measured_id"].as_str() != Some(lineage)
+            || !identity["shard_id"].as_str().is_some_and(|value| !value.is_empty() && value.len() <= 128)
+            || !identity["owner_token"].as_str().is_some_and(canonical_uuid) { return None; }
+        let tables = scope["tables"].as_array().filter(|items| !items.is_empty() && items.len() <= 64)?;
+        let mut prior: Option<(&str, &str)> = None;
+        let mut current = false;
+        for table in tables {
+            let table_schema = table["schema"].as_str().filter(|value| !value.is_empty())?;
+            let table_name = table["table"].as_str().filter(|value| !value.is_empty())?;
+            let key = (table_schema, table_name);
+            if prior.is_some_and(|old| old >= key) || table["row_count"].as_u64().is_none()
+                || !table["arrow_sha256"].as_str().is_some_and(hex64)
+                || !table["schema_sha256"].as_str().is_some_and(hex64) { return None; }
+            if table_schema == witness.logical_schema && table_name == witness.logical_table {
+                if table["row_count"].as_u64() != rows || table["arrow_sha256"].as_str() != Some(arrow_sha)
+                    || table["schema_sha256"].as_str() != Some(schema_digest) { return None; }
+                current = true;
+            }
+            prior = Some(key);
+        }
+        current.then(|| scope.clone())
+    })();
+    if valid.is_none() { blocks.push(block("SOURCE_METADATA_UNBOUND", "baseline_scope")); }
+    valid
+}
+
+fn bind_mongo_source_instance(capturer: &Value, witness: &Witness, config_digest: &str,
+    schema_digest: &str, blocks: &mut Vec<Block>) -> Option<Value> {
+    let valid = (|| {
+        let receipt = capturer.get("source_instance")?;
+        let object = receipt.as_object()?;
+        let keys = ["protocol", "source", "engine", "measured_id", "source_epoch", "config_digest",
+            "schema_digest", "shard_id", "owner_token", "lease_id", "replay"];
+        if object.len() != keys.len() || keys.iter().any(|key| !object.contains_key(*key))
+            || receipt["protocol"] != "oo.pipeline.native-source-instance/v1"
+            || receipt["source"] != witness.source_id || receipt["engine"] != "mongodb"
+            || receipt["measured_id"].as_str().is_none_or(|value| value.is_empty() || value.len() > 128)
+            || receipt["source_epoch"].as_i64().is_none_or(|epoch| epoch < 1 || epoch > i64::from(i32::MAX))
+            || receipt["config_digest"].as_str() != Some(config_digest)
+            || receipt["schema_digest"].as_str() != Some(schema_digest)
+            || receipt["shard_id"].as_str().is_none_or(|value| value.is_empty() || value.len() > 128)
+            || !receipt["owner_token"].as_str().is_some_and(canonical_uuid)
+            || !receipt["lease_id"].as_str().is_some_and(canonical_uuid)
+            || receipt["replay"].as_bool().is_none() { return None; }
+        Some(receipt.clone())
+    })();
+    if valid.is_none() { blocks.push(block("SOURCE_METADATA_UNBOUND", "source_instance")); }
+    valid
+}
+
+fn canonical_uuid(value: &str) -> bool {
+    value.len() == 36 && value.bytes().enumerate().all(|(index, byte)| {
+        if matches!(index, 8 | 13 | 18 | 23) { byte == b'-' }
+        else { byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase() }
+    })
 }
 
 fn bind_partition_scope(
@@ -801,6 +950,70 @@ fn bind_transaction_scope(
     })().is_some();
     if !valid { blocks.push(block("SOURCE_METADATA_UNBOUND", "transaction_scope")); return None; }
     Some(scope.clone())
+}
+
+fn bind_gtid_scope(
+    capturer: &Value,
+    witness: &Witness,
+    config_digest: &str,
+    schema_digest: &str,
+    blocks: &mut Vec<Block>,
+) -> Option<Value> {
+    let valid = (|| {
+        let scope = capturer.get("gtid_scope")?;
+        let object = scope.as_object()?;
+        let keys = ["codec", "lineage", "source_epoch", "applied_pos", "txn_id",
+            "measured_id", "config_digest", "schema_digest"];
+        if object.len() != keys.len() || keys.iter().any(|key| !object.contains_key(*key))
+            || scope["config_digest"].as_str() != Some(config_digest)
+            || scope["schema_digest"].as_str() != Some(schema_digest)
+            || scope["source_epoch"].as_i64().is_none_or(|epoch| epoch < 1 || epoch > i64::from(i32::MAX))
+        { return None; }
+        let codec = scope["codec"].as_str()?;
+        let lineage = scope["lineage"].as_str()?;
+        let measured_id = scope["measured_id"].as_str()?;
+        let pos = scope["applied_pos"].as_str()?;
+        let txn = scope["txn_id"].as_str()?;
+        if measured_id != lineage || witness.snapshot.kind != "gtid" || witness.snapshot.value != txn
+            || lineage.contains(',') || pos.contains(',') || pos.contains('/')
+            || pos.contains(':') || txn.contains(',') || txn.contains('/') { return None; }
+        match (witness.source_engine.as_str(), codec) {
+            ("mariadb", "mariadb-gtid/v1") => {
+                let rest = lineage.strip_prefix('d')?;
+                let (domain, server) = rest.split_once(".s")?;
+                let domain = canonical_u32(domain)?;
+                let server = canonical_u32(server).filter(|value| *value != 0)?;
+                if !gtid_position(pos, true) || txn != format!("{domain}-{server}-{pos}") { return None; }
+            }
+            ("mysql", "mysql-gtid/v1") => {
+                let uuid = lineage.strip_prefix("mysql.")?;
+                if !mysql_uuid(uuid) || !gtid_position(pos, false) || txn != format!("{uuid}:{pos}") { return None; }
+            }
+            _ => return None,
+        }
+        Some(scope.clone())
+    })();
+    if valid.is_none() { blocks.push(block("SOURCE_METADATA_UNBOUND", "gtid_scope")); }
+    valid
+}
+
+fn canonical_u32(value: &str) -> Option<u32> {
+    if value.is_empty() || value.len() > 10 || !value.bytes().all(|byte| byte.is_ascii_digit())
+        || (value.len() > 1 && value.starts_with('0')) { return None; }
+    value.parse().ok()
+}
+
+fn gtid_position(value: &str, zero_ok: bool) -> bool {
+    !value.is_empty() && value.len() <= 20 && value.bytes().all(|byte| byte.is_ascii_digit())
+        && (value.len() == 1 || !value.starts_with('0')) && value.parse::<u64>().is_ok()
+        && (zero_ok || value != "0")
+}
+
+fn mysql_uuid(value: &str) -> bool {
+    let mut parts = value.split('-');
+    [8, 4, 4, 4, 12].into_iter().all(|width| parts.next().is_some_and(|part|
+        part.len() == width && part.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())))
+        && parts.next().is_none()
 }
 
 fn pg_lsn(value: &str) -> Option<u64> {
@@ -1109,6 +1322,21 @@ fn mssql_cursor(capturer: &Value) -> Option<String> {
             || old.get("keys")? != selected.get("keys")? || old.get("version")?.as_u64()? > version { return None; }
     }
     Some(format!("mssql-ct-version/v1:{guid}:{fork}:{object_id}:{version}"))
+}
+
+// Called only after the baseline scope has bound source UUID, both GTID
+// barriers, config, per-table schemas and Arrow to the actual capture witness.
+fn mysql_baseline_cursor(capturer:&Value,scope:&Value)->Option<(String,String)> {
+    let facts=capturer.get("source_preflight")?;
+    for (key,value) in [("gtid_mode","ON"),("enforce_gtid_consistency","ON"),("binlog_format","ROW"),("binlog_row_image","FULL"),("log_bin","1")] {
+        if facts.get(key)?.as_str()?!=value {return None;}
+    }
+    let retention=facts.get("binlog_expire_logs_seconds")?.as_u64().filter(|n|*n>0)?;
+    let lineage=scope.get("lineage")?.as_str()?;
+    let uuid=lineage.strip_prefix("mysql.").filter(|s|mysql_uuid(s))?;
+    let end=scope.get("l_end")?.as_str()?;
+    if !end.starts_with(&format!("{uuid}:")) {return None;}
+    Some((format!("mysql-gtid/v1:{end}"),format!("{retention}s")))
 }
 
 fn bind_cursor(table: &Value, producer: bool, method: Option<&str>, blocks: &mut Vec<Block>) -> Option<String> {
@@ -1892,6 +2120,9 @@ fn receipt_bytes(
     map.insert("input_digest".to_string(), json_str(&material.input_digest));
     map.insert("catalog_sha256".to_string(), json_str(catalog_sha));
     map.insert("registry_sha256".to_string(), json_str(registry_sha));
+    if let Some(scope) = &material.gtid_scope { map.insert("gtid_scope".to_string(), scope.clone()); }
+    if let Some(instance) = &material.source_instance { map.insert("source_instance".to_string(), instance.clone()); }
+    if let Some(scope) = &material.baseline_scope { map.insert("baseline_scope".to_string(), scope.clone()); }
     map.insert(
         "driver_digest".to_string(),
         json_str(&material.driver_digest),
@@ -1959,6 +2190,9 @@ fn registry_bytes(
     if let Some(scope) = &material.transaction_scope {
         binding["transaction_scope"] = scope.clone();
     }
+    if let Some(scope) = &material.gtid_scope { binding["gtid_scope"] = scope.clone(); }
+    if let Some(instance) = &material.source_instance { binding["source_instance"] = instance.clone(); }
+    if let Some(scope) = &material.baseline_scope { binding["baseline_scope"] = scope.clone(); }
     with_newline(&serde_json::json!({
         "protocol": BINDING_REGISTRY_PROTOCOL,
         "bindings": [binding]
@@ -2042,6 +2276,7 @@ fn producer_protocol(protocol: &str) -> bool {
 
 fn producer_engine(protocol: &str) -> Option<&str> {
     match protocol {
+        "oo.mongodb-preview.c1-baseline-capture/v1" => Some("mongodb"),
         "oo.oracle.c5-producer-catalog/v1" => Some("oracle"),
         "oo.mariadb.c5-capture-catalog/v1" => Some("mariadb"),
         "oo.postgres-preview.capture-check/v1" | "oo.postgres-preview.native-page-capture/v1" => Some("postgresql"),
@@ -2960,6 +3195,88 @@ mod native_type_tests {
         assert!(bind_partition_scope(&capture, &witness, "a", "b", "wrong", Some(2), &mut blocks).is_none());
     }
 
+    #[test]
+    fn gtid_scope_binds_registered_epoch_and_exact_mysql_maria_identity() {
+        let mysql: Witness = serde_json::from_value(serde_json::json!({
+            "protocol":WITNESS_PROTOCOL,"source_engine":"mysql","source_id":"mysql_1",
+            "source_generation":1,"snapshot":{"kind":"gtid","value":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:9"},"run_id":"r",
+            "logical_schema":"s","logical_table":"t","capturer_path":"/c","arrow_path":"/a",
+            "driver_path":"/d","schema_preimage_path":"/s","type_preimage_path":"/t"})).unwrap();
+        let scope = serde_json::json!({"codec":"mysql-gtid/v1","lineage":"mysql.aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "source_epoch":2,"applied_pos":"9","txn_id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:9",
+            "measured_id":"mysql.aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","config_digest":"c",
+            "schema_digest":"s"});
+        let capture = serde_json::json!({"gtid_scope":scope});
+        let mut blocks = Vec::new();
+        assert!(bind_gtid_scope(&capture, &mysql, "c", "s", &mut blocks).is_some());
+        let mut stale = capture.clone();
+        stale["gtid_scope"]["source_epoch"] = serde_json::json!(0);
+        assert!(bind_gtid_scope(&stale, &mysql, "c", "s", &mut blocks).is_none());
+        let mut wrong = capture.clone();
+        wrong["gtid_scope"]["txn_id"] = serde_json::json!("878:9");
+        assert!(bind_gtid_scope(&wrong, &mysql, "c", "s", &mut blocks).is_none());
+
+        let maria: Witness = serde_json::from_value(serde_json::json!({
+            "protocol":WITNESS_PROTOCOL,"source_engine":"mariadb","source_id":"maria_1",
+            "source_generation":1,"snapshot":{"kind":"gtid","value":"7-4-9"},"run_id":"r",
+            "logical_schema":"s","logical_table":"t","capturer_path":"/c","arrow_path":"/a",
+            "driver_path":"/d","schema_preimage_path":"/s","type_preimage_path":"/t"})).unwrap();
+        let maria_scope = serde_json::json!({"codec":"mariadb-gtid/v1","lineage":"d7.s4",
+            "source_epoch":3,"applied_pos":"9","txn_id":"7-4-9","measured_id":"d7.s4",
+            "config_digest":"c","schema_digest":"s"});
+        assert!(bind_gtid_scope(&serde_json::json!({"gtid_scope":maria_scope}), &maria, "c", "s", &mut blocks).is_some());
+    }
+
+    #[test]
+    fn c1_capture_digest_excludes_only_derived_registry_references() {
+        let capture = serde_json::json!({"capture_digest":"0".repeat(64),"entries":[{
+            "snapshot_arrow":{"sha256":"a".repeat(64)},"transactions":[{"txn_id":"g:1"}]}]});
+        let expected = c1_capture_digest(&mut capture.clone()).unwrap();
+        assert_eq!(expected, "033c12a3f8a18bd6f35598682992b0a53d4a0f193fceb2efa99bde84ee6bcc6c");
+        let mut sealed = capture.clone();
+        sealed["entries"][0]["admission_registry_path"] = serde_json::json!("/sealed/registry.json");
+        sealed["entries"][0]["admission_registry_sha256"] = serde_json::json!("b".repeat(64));
+        assert_eq!(c1_capture_digest(&mut sealed.clone()).unwrap(), expected);
+        sealed["entries"][0]["snapshot_arrow"]["sha256"] = serde_json::json!("c".repeat(64));
+        assert_ne!(c1_capture_digest(&mut sealed).unwrap(), expected);
+        let mut changed = capture;
+        changed["entries"][0]["transactions"][0]["txn_id"] = serde_json::json!("g:2");
+        assert_ne!(c1_capture_digest(&mut changed).unwrap(), expected);
+    }
+
+    #[test]
+    fn c1_baseline_binds_epoch_free_snapshot_fence_and_table_set() {
+        let witness: Witness = serde_json::from_value(serde_json::json!({
+            "protocol":WITNESS_PROTOCOL,"source_engine":"mariadb","source_id":"maria_1",
+            "source_generation":1,"snapshot":{"kind":"gtid","value":"7-4-9"},"run_id":"r",
+            "logical_schema":"s","logical_table":"t","capturer_path":"/c","arrow_path":"/a",
+            "driver_path":"/d","schema_preimage_path":"/s","type_preimage_path":"/t"})).unwrap();
+        let mut scope = serde_json::json!({"protocol":"oo.source-admission.c1-baseline-scope/v1","engine":"mariadb",
+            "lineage":"d7.s4","l0":"7-4-8","l_end":"7-4-9","complete":true,
+            "read_fence_digest":"a".repeat(64),"config_digest":"c","schema_digest":"f".repeat(64),
+            "capture_digest":"b".repeat(64),"source_identity":{"engine":"mariadb","measured_id":"d7.s4",
+                "shard_id":"db1","owner_token":"90539529-ccac-4134-b149-ec3d06934bca"},
+            "tables":[{"schema":"s","table":"t","row_count":2,"arrow_sha256":"d".repeat(64),
+                "schema_sha256":"e".repeat(64)}]});
+        let mut blocks=Vec::new();
+        scope["consistency_grade"]=serde_json::json!("T");
+        scope["cross_table_consistent"]=serde_json::json!(true);
+        let mut projection=scope.clone(); projection.as_object_mut().unwrap().remove("capture_digest");
+        let mut envelope=serde_json::json!({"protocol":"oo.source-admission.c1-capture-envelope/v1","baseline_scope":projection,
+            "capture_digest":"0".repeat(64),"event_refs":[]});
+        let digest=sha256_hex(&serde_json::to_vec(&envelope).unwrap());
+        scope["capture_digest"]=serde_json::json!(digest);
+        let capture=serde_json::json!({"baseline_scope":scope,"capture_envelope":envelope});
+        assert!(bind_c1_baseline_scope(&capture,&witness,"c",&"e".repeat(64),Some(2),&"d".repeat(64),Some("T"),Some("T"),&mut blocks).is_some());
+        assert!(bind_c1_baseline_scope(&capture,&witness,"c",&"f".repeat(64),Some(2),&"d".repeat(64),Some("T"),Some("T"),&mut blocks).is_none());
+        let mut forged=scope.clone();
+        forged["source_epoch"]=serde_json::json!(2);
+        assert!(bind_c1_baseline_scope(&serde_json::json!({"baseline_scope":forged,"capture_envelope":envelope}),&witness,"c",&"e".repeat(64),Some(2),&"d".repeat(64),Some("T"),Some("T"),&mut blocks).is_none());
+        let mut mismatch=scope;
+        mismatch["tables"][0]["arrow_sha256"]=serde_json::json!("f".repeat(64));
+        assert!(bind_c1_baseline_scope(&serde_json::json!({"baseline_scope":mismatch,"capture_envelope":envelope}),&witness,"c",&"e".repeat(64),Some(2),&"d".repeat(64),Some("T"),Some("T"),&mut blocks).is_none());
+    }
+
     #[cfg(unix)]
     #[test]
     fn sql_private_reference_requires_regular_0600_file() {
@@ -3011,4 +3328,14 @@ mod native_type_tests {
         assert!(name_arrow_type(&duration, 18, Some(8)).is_err());
         assert!(name_arrow_type(&duration, 18, None).is_err());
     }
+    #[test]
+    fn mysql_baseline_method_needs_actual_gtid_row_full_observations() {
+        let mut capture=serde_json::json!({"source_preflight":{"gtid_mode":"ON","enforce_gtid_consistency":"ON","binlog_format":"ROW","binlog_row_image":"FULL","log_bin":"1","binlog_expire_logs_seconds":604800}});
+        let scope=serde_json::json!({"lineage":"mysql.11111111-2222-4333-8444-555555555555","l_end":"11111111-2222-4333-8444-555555555555:1-32"});
+        assert_eq!(super::mysql_baseline_cursor(&capture,&scope).unwrap().1,"604800s");
+        capture["source_preflight"]["binlog_row_image"]=serde_json::json!("MINIMAL");
+        assert!(super::mysql_baseline_cursor(&capture,&scope).is_none());
+        assert!(super::mysql_baseline_cursor(&serde_json::json!({"cursor_safety":"no_cursor"}),&scope).is_none());
+    }
+
 }

@@ -380,19 +380,19 @@ fn c2_cancel_reuses_c4_fence_and_leaves_c1_c3_alone() {
         .and_then(|(_, rest)| rest.split_once("pub async fn install"))
         .map(|(body, _)| body)
         .expect("cancel");
-    assert!(release.contains("b.method IN ('C2','C4','C5')"));
+    assert!(release.contains("b.method IN ('C1','C2','C4','C5')"));
     assert!(release.contains("t.state IN ('failed','cancelled')"));
     assert!(release.contains("NOT EXISTS(SELECT 1 FROM jw_native.pending_acks a WHERE a.task_id=t.id)"));
     assert!(release.contains("SET active_task_id=NULL"));
     assert!(release.contains("session::admin_db"));
     assert!(release.contains("EXISTS(SELECT 1 FROM _oo.full_import_run WHERE source_id=$1 AND source_generation>$2)"));
-    assert!(!release.contains("'C1'") && !release.contains("'C3'"));
+    assert!(!release.contains("'C3'"));
     assert!(cancel.contains("(b.method IN ('C2','C4') AND t.state IN ('queued','running') OR b.method='C5' AND t.state='queued')"));
     assert!(cancel.contains("t.generation=$3"));
     assert!(cancel.contains("NOT EXISTS(SELECT 1 FROM jw_native.pending_acks a WHERE a.task_id=t.id)"));
     assert!(cancel.contains("session::admin_db"));
     assert!(cancel.contains("EXISTS(SELECT 1 FROM _oo.full_import_run WHERE source_id=$1 AND source_generation>$2)"));
-    assert!(cancel.contains("if applied!=base || sealed {return Err(Error::new(\"cancel_target\"))}"));
+    assert!(cancel.contains("if applied != base || sealed"));
     assert!(cancel.contains("lease::cancel"));
     assert!(!cancel.contains("'C1'") && !cancel.contains("'C3'"));
 }
