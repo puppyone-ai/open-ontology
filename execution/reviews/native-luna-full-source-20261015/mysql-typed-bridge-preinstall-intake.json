@@ -1,0 +1,51 @@
+{
+  "as_of": "2026-10-15T19:13:46.919296+08:00",
+  "owner": "/root/mysql_shared_reference_sol",
+  "level": "actual owned target runtime-role migration positive/refusal test, rolled back; not live MySQL initial import",
+  "migration": {
+    "path": "crates/oo-pipeline/migrations/0031_native_c1_baseline_typed_bridge.sql",
+    "sha256": "1b0621fa77ba5b5033fa77d75662bf10b46956be1a57754e8bb9ecac23fc72e0",
+    "exact_bytes_present_in_executed_script": true,
+    "installed_claim": false
+  },
+  "raw": {
+    "sql": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/0031-rollback-all-v8.sql",
+      "sha256": "15b83ffaf3eaa75dd9addea1ba1d9617a707e0168e35bdb4d0b7e8fd6d365343"
+    },
+    "stdout": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/0031-rollback-all-v8.stdout",
+      "sha256": "f1fa2e27798ccff09418253e6b581f23a23ba2913fb128080eaeb5cc850d88e5"
+    },
+    "stderr": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/0031-rollback-all-v8.stderr",
+      "sha256": "ffe78e1a412bbf8bebc43803e602f37dec372f00a0cd56764f6ab6ee245f4b54"
+    },
+    "exit": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261015/0031-rollback-all-v8.exit",
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    }
+  },
+  "observed_notice": "NOTICE:  bridge positive, typed mismatch, wrong lease, row positions and tombstone tests passed",
+  "admission_elf": {
+    "path": "/tmp/oo-mysql-connection-whole/sol-20261015/admission-target/debug/oo-source-admission",
+    "sha256": "c5c797dbd3348a3896bd78827dd7e770f97eedd58fa219d69a3826326d84d586",
+    "linux_build_exit": "0"
+  },
+  "root_checks": [
+    "actual raw exit0",
+    "exact executed migration bytes match current file",
+    "SQL assertions cover typed/PK/row positions/tombstone/lease and awaiting_publish ACKfalse",
+    "admission actual ELF SHA matches author"
+  ],
+  "not_proven": [
+    "live MySQL CDC-before-snapshot interleaving",
+    "five-table typed full_import/ACK/current source equality",
+    "autonomous IUD/quiet/recovery",
+    "current full Selfbuild/Ontology/Pack/formal publication/Gateway/CLI/random Agent"
+  ],
+  "source_commit": null,
+  "source_acceptance_delta": 0,
+  "shared_release_allowed": false,
+  "update_protocol_scope": "owner still developing indivisible complete task, no author-complete delivery or parent/development acceptance; existing Plan/CONTROL/ledger source0/10 and hold remain correct, no checkbox/count/support/Goal change"
+}
