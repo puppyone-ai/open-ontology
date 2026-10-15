@@ -30,3 +30,7 @@ Oracle前任completed并释放writer，commit827c6c7a63；完整交接 tools/ora
 产品仍原URL/key，Sol low已知429冷却，可直接使用人类授权grok-4.7/low；20:32UTC刚有真实strict facts/evidence+tools业务对话成功，不要反复synthetic验证。canonical工具轮无response_format/人工token cap，final为strict facts/evidence schema并保留tools auto；原schema/coverage/QID校验不改。合法完整前缀仅同source/Pack/gold/原WAL可resume，不反复盲试。
 
 提交仅精确owned路径，fcntl /tmp/oo-dl01-wave1-git.lock+private index/--only，禁止add-A/reset/stash/push或修改他源stage。无固定CPU/jobs/编译槽限制，按真实资源headroom；当前Docker16CPU/94.1GiB、107容器实用21.3GiB/约1.6核，两完整源有独立资源。普通clock.sleep600秒（单调用≤60秒分段）、退出即报；不短交接、只在完整闭环或确实不可解外部阻断交原始证据。独立总复审按人类十源Goal时点，root决定性核验/计数/签收。
+
+## 2026-10-16 已有 native maintain CLI 分发的必要窄修
+
+Oracle唯一writer增加 `tools/release-coordinator/src/cli.rs`：keys已接受native activate/recover协议，dispatch遗漏；只为原两arm加既有native protocol同义分支及最小验证，不改keys/安全/replica。固定release源码仅加本文件delta，不采Doris WIP。API直接调library，因此CLI修复不能冒充API producer拒绝的原因，仍要取真实底层错误并完成原全退出。无验收/Plan/计数变化。

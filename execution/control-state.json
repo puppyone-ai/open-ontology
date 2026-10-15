@@ -3508,7 +3508,7 @@
     "other7": "held until source-specific fixed dependencies and exclusive files ready",
     "shared_writers": {
       "Doris": "Doris card exact files; installed0039 immutable; append-only0040 and existing installer wiring per scope amendment",
-      "Oracle": "overlay.rs only, other shared files readonly"
+      "Oracle": "overlay.rs and cli.rs narrow native protocol dispatch only; Doris shared files readonly"
     },
     "formal_source_count_delta": 0
   },
@@ -3571,5 +3571,14 @@
       "automatic_renewal": false,
       "formal_source_count_delta": 0
     }
-  ]
+  ],
+  "latest_oracle_native_cli_scope_amendment": {
+    "as_of": "2026-10-15T23:40:23.094087+00:00",
+    "exclusive_path": "tools/release-coordinator/src/cli.rs",
+    "reason": "keys accepts native maintain protocols but dispatch omits them; precise source confirmed by root",
+    "allowed": "only add existing native activate/recover protocol alternatives to dispatch arms and minimum tests; no keys/security/replica changes",
+    "api_scope": "API directly calls maintain library; do not misattribute generic API producer refusal to CLI dispatch",
+    "fixed_build": "existing fixed release source plus own cli.rs delta only; no Doris publication/target WIP",
+    "acceptance_delta": 0
+  }
 }

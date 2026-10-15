@@ -27,5 +27,14 @@
   "formal_source_count_delta": 0,
   "fixed_dispatch_commit": "3244ac3ca591cddb4642a857dcb34ba45a35d1cb",
   "accepted_at": "2026-10-15T20:52:08.567485+00:00",
-  "accepted_message": "已接卡核对原始退出与控制，只写独占路径并长跑至全出口或真实外部阻断"
+  "accepted_message": "已接卡核对原始退出与控制，只写独占路径并长跑至全出口或真实外部阻断",
+  "latest_oracle_native_cli_scope_amendment": {
+    "as_of": "2026-10-15T23:40:23.094087+00:00",
+    "exclusive_path": "tools/release-coordinator/src/cli.rs",
+    "reason": "keys accepts native maintain protocols but dispatch omits them; precise source confirmed by root",
+    "allowed": "only add existing native activate/recover protocol alternatives to dispatch arms and minimum tests; no keys/security/replica changes",
+    "api_scope": "API directly calls maintain library; do not misattribute generic API producer refusal to CLI dispatch",
+    "fixed_build": "existing fixed release source plus own cli.rs delta only; no Doris publication/target WIP",
+    "acceptance_delta": 0
+  }
 }
