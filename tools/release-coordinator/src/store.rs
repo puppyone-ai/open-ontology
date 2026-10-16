@@ -780,6 +780,10 @@ pub(crate) fn overlay_one(summary: &mut Summary, disposition: &str) -> bool {
     true
 }
 
+fn gate_admissibility(disposition: &str) -> (bool, bool) {
+    (disposition == "admissible", false)
+}
+
 async fn gate_body(
     tx: &Transaction<'_>,
     request: &GateRequest<'_>,
@@ -882,6 +886,7 @@ async fn gate_body(
         let disposition: String = row
             .try_get(0)
             .map_err(|_| StoreError::Query { sqlstate: None })?;
+        let (test_admissible, production_admissible) = gate_admissibility(&disposition);
         return Ok(stamped(
             "replay",
             None,
@@ -890,6 +895,8 @@ async fn gate_body(
                 "certificate_sha256": certificate,
                 "detail": detail,
                 "pii_database_scan": "not_performed",
+                "test_admissible": test_admissible,
+                "production_admissible": production_admissible,
                 "database_used": true,
             }),
             "not_issued",
@@ -944,6 +951,7 @@ async fn gate_body(
         disposition
     )
     .await?;
+    let (test_admissible, production_admissible) = gate_admissibility(&disposition);
     Ok(stamped(
         "recorded",
         None,
@@ -952,8 +960,8 @@ async fn gate_body(
             "certificate_sha256": certificate,
             "detail": detail,
             "pii_database_scan": "not_performed",
-            "test_admissible": disposition == "admissible",
-            "production_admissible": false,
+            "test_admissible": test_admissible,
+            "production_admissible": production_admissible,
             "database_used": true,
         }),
         "not_issued",
@@ -2483,7 +2491,7 @@ pub(crate) async fn commit(tx: Transaction<'_>, receipt: Receipt) -> Result<Rece
 
 #[cfg(test)]
 mod tests {
-    use super::{blocks_test_scope, overlay_one};
+    use super::{blocks_test_scope, gate_admissibility, overlay_one};
     use crate::decide::Summary;
 
     fn summary(disposition: &str, admissible: bool) -> Summary {
@@ -2539,5 +2547,13 @@ mod tests {
             production_admissible: false,
         };
         assert!(!blocks_test_scope(&g3_unmeasured));
+    }
+
+    #[test]
+    fn replay_admissibility_reflects_the_persisted_disposition() {
+        assert_eq!(gate_admissibility("admissible"), (true, false));
+        for disposition in ["failed", "conflict", "missing", "not_applicable"] {
+            assert_eq!(gate_admissibility(disposition), (false, false));
+        }
     }
 }

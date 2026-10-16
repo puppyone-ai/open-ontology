@@ -277,10 +277,12 @@ pub async fn dispatch(args: &[String], stdin: &[u8]) -> CommandExit {
         ("maintain-install", "oo.release-coordinator/maintain-install/v1") => {
             maintain_install_cmd(&config, map).await
         }
-        ("maintain-activate", "oo.release-coordinator/maintain-activate/v1") => {
+        ("maintain-activate", "oo.release-coordinator/maintain-activate/v1")
+        | ("maintain-activate", "oo.release-coordinator/maintain-native-activate/v1") => {
             maintain_cmd(&config, map, true).await
         }
-        ("maintain-recover", "oo.release-coordinator/maintain-recover/v1") => {
+        ("maintain-recover", "oo.release-coordinator/maintain-recover/v1")
+        | ("maintain-recover", "oo.release-coordinator/maintain-native-recover/v1") => {
             maintain_cmd(&config, map, false).await
         }
         ("target-install", "oo.release-coordinator/target-install/v1") => {
@@ -997,6 +999,7 @@ async fn target_status_cmd(
 #[cfg(test)]
 mod tests {
     use super::{argv_malformed, dispatch};
+    use serde_json::json;
 
     #[test]
     fn argv_requires_one_config_path() {
@@ -1083,5 +1086,41 @@ mod tests {
         let unknown = dispatch(&args, br#"{"protocol":"oo.release-coordinator/plan/v1","project_id":"shop","candidate_id":"cand-a","source_hash":"ab","scope":"test_scope","expected_version":null,"extra":1}"#).await;
         assert_eq!(unknown.code, 1);
         assert!(unknown.stdout.is_empty());
+    }
+
+    #[tokio::test]
+    async fn native_maintenance_protocols_reach_config_validation() {
+        for (command, protocol) in [
+            (
+                "maintain-activate",
+                "oo.release-coordinator/maintain-native-activate/v1",
+            ),
+            (
+                "maintain-recover",
+                "oo.release-coordinator/maintain-native-recover/v1",
+            ),
+        ] {
+            let source_hash = "a".repeat(64);
+            let args = vec![
+                command.to_owned(),
+                "--config".to_owned(),
+                "missing-native-maintain-config.json".to_owned(),
+            ];
+            let request = json!({
+                "protocol": protocol,
+                "project_id": "oracle",
+                "candidate_id": "candidate-1",
+                "source_hash": source_hash,
+                "expected_version": null,
+                "schema_name": "schema_one",
+                "relation_name": "table_one",
+                "role_name": "reader_role",
+                "native_mapping": {},
+            });
+            let result = dispatch(&args, request.to_string().as_bytes()).await;
+            assert_eq!(result.code, 1);
+            assert!(result.stdout.is_empty());
+            assert!(String::from_utf8(result.stderr).unwrap().contains("malformed config"));
+        }
     }
 }

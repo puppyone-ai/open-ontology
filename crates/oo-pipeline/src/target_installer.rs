@@ -72,6 +72,8 @@ pub const VERSION_NATIVE_EMPTY_CATALOG: &str = "native-empty-sealed-catalog/v1";
 pub const VERSION_NATIVE_PG_GROUP_RECEIPT: &str = "native-pg-group-receipt/v1";
 pub const VERSION_NATIVE_PG_GROUP_PRIOR: &str = "native-pg-group-prior/v1";
 pub const VERSION_NATIVE_PG_GROUP_GENERATION: &str = "native-pg-group-generation/v1";
+pub const VERSION_NATIVE_SOURCE_PROGRESS_READ: &str = "native-source-progress-read/v1";
+pub const VERSION_NATIVE_PARTITION_OBSERVATION_READ: &str = "native-partition-observation-read/v1";
 pub const VERSION_NATIVE_SQLSERVER_CT: &str = "native-sqlserver-ct/v1";
 pub const VERSION_NATIVE_GTID_TRANSACTION: &str = "native-gtid-transaction/v1";
 pub const VERSION_NATIVE_C1_SOURCE_EPOCH: &str = "native-c1-source-epoch/v1";
@@ -1968,6 +1970,113 @@ pub async fn install_native_c1_collection_publication(conn:&mut PgConnection)->R
  if let Err(err)=result {let _=tx.rollback().await;return Err(err);}tx.commit().await.map_err(database_error)
 }
 
+/// Publish a complete current per-table C4/C5 collection through the existing release transaction.
+pub async fn install_native_per_table_publication(conn:&mut PgConnection)->Result<(),InstallError> {
+ let principal=read_principal(conn).await?;let preview=read_catalog(conn).await?;
+ if !principal_can_install(&principal,&preview) {return Err(InstallError::NotAdministrator);}
+ let mut tx=conn.begin().await.map_err(database_error)?;
+ if let Err(err)=prepare_locked(&mut tx,&principal).await {let _=tx.rollback().await;return Err(err);}
+ let rows=read_rows(&mut tx).await?;
+ for (version,digest,file) in [(VERSION_NATIVE_C1_COLLECTION_PUBLICATION,compiled_native_c1_collection_publication_digest(),FILE_NATIVE_C1_COLLECTION_PUBLICATION)] {
+  if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&digest,file)) {
+   let _=tx.rollback().await;return Err(InstallError::Refused {message:"Per-table publication requires exact 0036".into()});
+  }
+ }
+ let digest=compiled_native_per_table_publication_digest();
+ if let Some(row)=find_row(&rows,VERSION_NATIVE_PER_TABLE_PUBLICATION) {
+  if !row_exact(row,VERSION_NATIVE_PER_TABLE_PUBLICATION,&digest,FILE_NATIVE_PER_TABLE_PUBLICATION) {
+   return mismatch(tx,Mismatch {version:VERSION_NATIVE_PER_TABLE_PUBLICATION.into(),stored:row.checksum.clone()}).await.map(|_|());
+  }
+  tx.commit().await.map_err(database_error)?;return Ok(());
+ }
+ let result=async {
+  exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+  exec_script(&mut tx,SCRIPT_NATIVE_PER_TABLE_PUBLICATION).await?;
+  insert_markers(&mut tx,&[marker(VERSION_NATIVE_PER_TABLE_PUBLICATION,&digest,FILE_NATIVE_PER_TABLE_PUBLICATION)]).await
+ }.await;
+ if let Err(err)=result {let _=tx.rollback().await;return Err(err);}tx.commit().await.map_err(database_error)
+}
+
+/// Allow the scheduled runtime to confirm only the source identity and global
+/// generation before producing its next capture.
+pub async fn install_native_source_progress_read(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_per_table_publication_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_PER_TABLE_PUBLICATION), Some(row)
+        if row_exact(row, VERSION_NATIVE_PER_TABLE_PUBLICATION, &prior, FILE_NATIVE_PER_TABLE_PUBLICATION)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "source progress read requires exact 0039".into() });
+    }
+    let digest = compiled_native_source_progress_read_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_SOURCE_PROGRESS_READ) {
+        if !row_exact(row, VERSION_NATIVE_SOURCE_PROGRESS_READ, &digest, FILE_NATIVE_SOURCE_PROGRESS_READ) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_SOURCE_PROGRESS_READ.into(), stored: row.checksum.clone() }).await.map(|_|());
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_SOURCE_PROGRESS_READ).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_SOURCE_PROGRESS_READ, &digest, FILE_NATIVE_SOURCE_PROGRESS_READ)]).await
+    }.await;
+    if let Err(err) = result {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Allow the scheduled runtime to verify only the two C4 sidecar columns used
+/// when it accepts a quiet partition cycle.
+pub async fn install_native_partition_observation_read(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_source_progress_read_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_SOURCE_PROGRESS_READ), Some(row)
+        if row_exact(row, VERSION_NATIVE_SOURCE_PROGRESS_READ, &prior, FILE_NATIVE_SOURCE_PROGRESS_READ)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "partition observation read requires exact 0040".into() });
+    }
+    let digest = compiled_native_partition_observation_read_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_PARTITION_OBSERVATION_READ) {
+        if !row_exact(row, VERSION_NATIVE_PARTITION_OBSERVATION_READ, &digest, FILE_NATIVE_PARTITION_OBSERVATION_READ) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_PARTITION_OBSERVATION_READ.into(), stored: row.checksum.clone() }).await.map(|_|());
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_PARTITION_OBSERVATION_READ).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_PARTITION_OBSERVATION_READ, &digest, FILE_NATIVE_PARTITION_OBSERVATION_READ)]).await
+    }.await;
+    if let Err(err) = result {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    tx.commit().await.map_err(database_error)
+}
+
 /// Publish an ACKed multi-run C1 cut through the existing release transaction.
 pub async fn install_native_c1_timed_receipt(conn:&mut PgConnection)->Result<(),InstallError> {
  let principal=read_principal(conn).await?;let preview=read_catalog(conn).await?;
@@ -3468,3 +3577,16 @@ const VERSION_NATIVE_C1_QUIET_BASELINE_TIME:&str="native-c1-quiet-baseline-time/
 const FILE_NATIVE_C1_QUIET_BASELINE_TIME:&str="0038_native_c1_quiet_baseline_time.sql";
 const SCRIPT_NATIVE_C1_QUIET_BASELINE_TIME:&str=include_str!("../migrations/0038_native_c1_quiet_baseline_time.sql");
 pub fn compiled_native_c1_quiet_baseline_time_digest()->String {sha256_hex(SCRIPT_NATIVE_C1_QUIET_BASELINE_TIME.as_bytes())}
+
+const VERSION_NATIVE_PER_TABLE_PUBLICATION:&str="native-per-table-publication/v1";
+const FILE_NATIVE_PER_TABLE_PUBLICATION:&str="0039_native_per_table_publication.sql";
+const SCRIPT_NATIVE_PER_TABLE_PUBLICATION:&str=include_str!("../migrations/0039_native_per_table_publication.sql");
+pub fn compiled_native_per_table_publication_digest()->String {sha256_hex(SCRIPT_NATIVE_PER_TABLE_PUBLICATION.as_bytes())}
+
+const FILE_NATIVE_SOURCE_PROGRESS_READ: &str = "0040_native_source_progress_read.sql";
+const SCRIPT_NATIVE_SOURCE_PROGRESS_READ: &str = include_str!("../migrations/0040_native_source_progress_read.sql");
+pub fn compiled_native_source_progress_read_digest() -> String { sha256_hex(SCRIPT_NATIVE_SOURCE_PROGRESS_READ.as_bytes()) }
+
+const FILE_NATIVE_PARTITION_OBSERVATION_READ: &str = "0041_native_partition_observation_read.sql";
+const SCRIPT_NATIVE_PARTITION_OBSERVATION_READ: &str = include_str!("../migrations/0041_native_partition_observation_read.sql");
+pub fn compiled_native_partition_observation_read_digest() -> String { sha256_hex(SCRIPT_NATIVE_PARTITION_OBSERVATION_READ.as_bytes()) }

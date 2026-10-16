@@ -1,3 +1,5 @@
+2026-10-16 共同per-table固定依赖：MySQL5.7+8.4完整本地参考已核；Doris/Oracle唯一Luna max继续整源。3b4fef066含73e99724重入修复，root核77.7MB完整archive可重生成、7源码/2实际ELF/测试log SHA一致；pipeline lib78pass/4ignored、coordinator27pass/3ignored/1A359filtered，原A359缺环境与native_arrow历史4fail均保留。该制品解决旧0027发布依赖死Loader后端锁的路径，正确走事务内认证receipt；只是固定中间依赖，Oracle还需同archive构建缺少的release API并官方安装/新candidate/ROGateway全验，Doris全链继续。无完整源/Plan/整版签收，开发/集成/发行/外部计数delta均0，formal0/10、其他7held。证据 execution/reviews/native-luna-full-source-20261015/per-table-shared-fixed-dependency-intake.json。
+
 2026-10-15 MySQL完整参考链已移交唯一`gpt-6.1-sol/medium`负责人`/root/mysql_shared_reference_sol`。原Luna xhigh已完整交接并经实际list_agents确认completed，root核producer/pipeline/worker/manifest四SHA匹配、MySQL构建容器仅sleep后才新派发；未丢WIP/失败、无重复writer。真实五表typed导入仍为拒绝占位，直接推进最小正式桥及原完整C1同步/S0–S10/维护Pack/正式发布/Gateway/随机Agent退出。合同MYSQL-SOL-COMPLETE.md、mysql-sol-handoff.json及mysql-reference-dispatch.json位于execution/batches/native-luna-full-source-20261015。无完整作者交付/整源签收，0/10与其余九源held不变；未增加开发/集成/发行或外部门槛计数，旧构建专属exit receipt缺失明确保留。
 
 2026-10-15 最新用户模型授权：下次新建原生子智能体可用`gpt-6.1-sol/medium`；当前`/root/mysql_shared_reference_xhigh`保持原Luna xhigh长跑，不因模型升级中断或重复派发。MySQL完整参考链、共享放行与其余源held条件不变，无签收计数变化。
