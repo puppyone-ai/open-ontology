@@ -1,0 +1,64 @@
+{
+  "as_of": "2026-10-16T13:31:52.500445+00:00",
+  "checks": [
+    {
+      "command": [
+        "python3",
+        "execution/scripts/render_todo.py"
+      ],
+      "exit": 0,
+      "stdout": "Rendered execution/TODO.md\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python3",
+        "execution/scripts/render_todo.py",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "PASS: 87 SP + 14 DBX cards, 16 phases, 8 DBP; five deliveries cover 80 required SP/14 DBX/15 phases; TODO matches ledger\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python3",
+        "specs/scripts/check_spec.py",
+        "--self-test"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "FAIL: Source hash drift: docs/07-gateway.md\nFAIL: Source size/line drift: docs/07-gateway.md\n"
+    },
+    {
+      "command": [
+        "python3",
+        "specs/scripts/check_plan.py",
+        "--self-test"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "FAIL: Spec baseline: Source hash drift: docs/07-gateway.md\nFAIL: Spec baseline: Source size/line drift: docs/07-gateway.md\n"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "known_baseline_failure": "only existing docs/07-gateway.md hash/size/line drift; no source or baseline changed",
+  "intake_evidence_hashes": "all matched",
+  "parent_statuses_and_count_deltas": "all unchanged; formal0/10",
+  "checked_not_changed": [
+    "execution/PRODUCT-LOOPS.md (no edition)",
+    "docs/database-support/support-matrix.yaml (no admission)",
+    "specs/frontend/master-task.md (no frontend)"
+  ],
+  "foreign_cached_raw_no_abbrev_sha256": "cb53ce84e87327bdee00e90a0b910c5aad314c301d966601edba019fbf9d22ad",
+  "scope": "per-source module/optional Cargo feature policy and fixed MySQL owned-fixture mainline intake; independent review deferred, not formal parent acceptance"
+}
