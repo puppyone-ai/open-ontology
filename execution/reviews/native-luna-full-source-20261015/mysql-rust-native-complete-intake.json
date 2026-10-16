@@ -1,0 +1,124 @@
+{
+  "as_of": "2026-10-16T08:58:30.923415+00:00",
+  "acceptance_level": "root_verified_complete_owned_mysql_family_rust_runtime_and_native_default",
+  "versions": [
+    "5.7.44-log official amd64 under emulation",
+    "8.4.10"
+  ],
+  "runtime_source": "e3e83b3995c19305de9bc8530c08b0fcc9722b9e",
+  "native_default_source": "ac6332654d41dd7a2bb45cd69c7f4d4ac0da8339",
+  "reports": [
+    "b91c769366011d81d8447c80d4af292544d0fbb8",
+    "9d20d48becf98d5eb64267c6ab86cd84f1a4619e"
+  ],
+  "fixed_packets": [
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261016/rust-runtime-v1/fixed-reference-rust-runtime-complete-v10b.json",
+      "sha256": "f76e014870bb80a600ff5a4af0bb585f3cda5820b2f69cdb0da2759b561b3754"
+    },
+    {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261016/rust-native-install-v1/fixed-reference-native-install-v1.json",
+      "sha256": "da20ca4583fb426107f8cf679a2c916817240d5bf58f7d9bdcbfb4e15397f4db"
+    }
+  ],
+  "root_checks": [
+    {
+      "path": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016/source-and-binary-check.json",
+      "sha256": "2cbcab9cc366023ecc8b572613ba9984e271387ebeeb3cc02265b4408cbd9afe"
+    },
+    {
+      "path": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016/manifest-and-live-check.json",
+      "sha256": "22f79c6b054cca652c5249c8112fcf76bb2d2674d0311d9d136362ba158185d9"
+    },
+    {
+      "path": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016/replay/independent-final-verification-v10b.json",
+      "sha256": "04ae7d1e1baefa340f803e22c2e0e77d66a04355673a1c965372be930cdd152d"
+    },
+    {
+      "path": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016/replay/original-qa-qid-wal-index-v10b.json",
+      "sha256": "10f42beca05c5c86cdda46e04fc801e4319cce8f04674159f6a7f0711ae95eed"
+    },
+    {
+      "path": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016/replay/gateway-isolation/gateway-secret-isolation-v10b.json",
+      "sha256": "039e763730d31722d43080255af953ced6198f53016ba49bae9d6da0a7926e5d"
+    },
+    {
+      "path": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016/root-current-cli-random-count.json",
+      "sha256": "79f855dca9afbdf3f73b93a069cac7e8474e48309a9e46ce96b6ef9b90b22a8e"
+    },
+    {
+      "path": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016/native-registry-preinstallation.json",
+      "sha256": "73d20dfecaccdf469391f531986b6fc721e3d34b5de459f1c577dd0c90da3e85"
+    },
+    {
+      "path": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016/native-default-actual-installation.json",
+      "sha256": "f9b4920993956b48e0e16401f0e65aa72aa7e7fba778dbe32299cd35cb8dd450"
+    },
+    {
+      "path": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016/native-registry-transition-and-legacy-retirement.json",
+      "sha256": "352add152914ebb849b47d77239515f8c2c9a8e34f89d248f1602c5c9c95b1a9"
+    },
+    {
+      "path": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016/final-post-retirement-live-check.json",
+      "sha256": "08d26e24fb8312c6ddbf21333d30a8985a12633bda3b261e6f91353a2a81e927"
+    }
+  ],
+  "decisive_results": {
+    "fixed_original_manifest_files": 20215,
+    "fixed_original_manifest_bytes": 589336739,
+    "fixed_native_supplement_files": 94,
+    "source_archive_delta": "6451 to6460 exactly9 owned Rust files; native installation supplement only main.rs relative to e3",
+    "real_C1": "new I/U/D each source;5.7 g5/94 and8.4 g8/40; original worker CDC-first/Loader/CAS-before-ACK; stale same-task lease2 nochange recovery and quiet; retained earlier actual crash evidence not relabeled",
+    "full_typed_oracle": "each110019 rows,5tables43columns,zero cell differences; actual10 target table OID/typmod checks",
+    "product": "real originalS0-S10/S5 legally retained, authenticated current maintenance YAML/Ontology/role Pack, official fixture publication, physicalRO standby/replay, Gateway on copied data",
+    "random_agent": "four disjoint random groups x2 turns, eight facts GPT6.1 Sol low; source gold/CLI cells/original successful admit+complete WAL strict replay",
+    "security": "new two-mount data-plane admin/source secret unreadable; control-only admin0600; current same-token deny/cancel/rollback",
+    "native_default": "actual installed Linux source-onboarding only --input SIX_FIELDS --out NEW; both real checks0; unknown/ambiguous2 beforeSecret/output; original explicitoperator compatible",
+    "legacy": "Python mysql record archived and removed, old default actual2/engine_not_installed; other7 engine rows exact;10 exact old MySQL Gateway containers stopped preserving files/volumes; final new installed CLIs query aftercleanup0/current WAL",
+    "actual_services": "same e3 Linux ELF b0808d42... namespace PID50451/50463 in oo-mysql-rust-runtime-linux-v8,1000ms,86400s to2026-10-17T08:38:26UTC,raw exit pending; new ac native ELF8b769357...installed /usr/local/bin/source-onboarding; no false replacement identity"
+  },
+  "pack_digests": {
+    "mysql57": "b60da0b377b99aa6de922bc93a1748ec5c85b0f5df9a1bc5261c00a7381e5c3f",
+    "mysql8": "e339adc94e1526c55bf24ef465b769e5abafbec05ba7dec3c0befded584191cf"
+  },
+  "paid_product_usage": {
+    "requests": 51,
+    "prompt_tokens": 117213,
+    "completion_tokens": 2224,
+    "total_tokens": 119437,
+    "new_S5": 0,
+    "grok": 0,
+    "root_additional_models": 0,
+    "default_installation_additional_models": 0,
+    "engineer_token_one_fifth_ratio": "unmeasured; no claim"
+  },
+  "client_token_expiry_utc": {
+    "mysql57": "2026-10-16T09:34:24.713Z",
+    "mysql8": "2026-10-16T09:34:20.895Z"
+  },
+  "preserved_failures": [
+    "original author/Luna/provider failures unchanged",
+    "v7 schema digest mismatch and v10 OID text fail closed before correct integer comparison",
+    "admin mount inherited defect corrected with separate successful immutable evidence",
+    "source path drift during authorized default followup resolved by original e3/b91 Git bytes; root first failure retained",
+    "legacy refusal public stderr normalized; root overly-specific text assertion failed, actual exit2 and precise internal refusal verified; no product relaxation",
+    "old v8/v9 serves143; stopped sleep-infinity Gateway containers137 where actual"
+  ],
+  "review": "root decisive verification only; independent unified review deferred to user ten-source Goal milestone, no component review agent",
+  "scope_limitations": [
+    "owned synthetic fixture identities, unknown customer connections refuse; not arbitrary customer deployment",
+    "5.7 emulation is actual database functional proof, no native hardware/performance certification",
+    "1h client token explicit renewal, no automatic renewal;24h bounded runtime, no boot daemon",
+    "durable local WAL only; no remote collector/production/customer/nightly/edition signoff"
+  ],
+  "formal_source_count_delta": 0,
+  "formal_sources": "0/10",
+  "development_count_delta": 0,
+  "integration_count_delta": 0,
+  "release_count_delta": 0,
+  "edition_count_delta": 0,
+  "goal_complete": false,
+  "source_writer_released": true,
+  "other_sources": "held until separately frozen Doris-only continuation; no automatic all-source release",
+  "demo": "execution/reviews/native-luna-full-source-20261015/mysql-rust-native-demo.md"
+}
