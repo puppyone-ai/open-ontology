@@ -1,0 +1,28 @@
+{
+  "as_of": "2026-10-16T10:32:47.448538+00:00",
+  "scope": "module/feature implementation policy; not runtime acceptance",
+  "checks": [
+    {
+      "command": [
+        "python3",
+        "specs/scripts/check_spec.py",
+        "--self-test"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "FAIL: Source hash drift: docs/07-gateway.md\nFAIL: Source size/line drift: docs/07-gateway.md\n"
+    },
+    {
+      "command": [
+        "python3",
+        "specs/scripts/check_plan.py",
+        "--self-test"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "FAIL: Spec baseline: Source hash drift: docs/07-gateway.md\nFAIL: Spec baseline: Source size/line drift: docs/07-gateway.md\n"
+    }
+  ],
+  "known_source_baseline_issue": "docs/07-gateway.md existing hash/size/line drift; no baseline or normative source change",
+  "product_loops": "checked; no edition delivery or count change, no checkbox update"
+}

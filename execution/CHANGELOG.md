@@ -1,3 +1,5 @@
+2026-10-16 连接器实现口径已按用户要求固化：每源独立模块，MySQL专有驱动由可选Cargo mysql feature启用、实际主线显式消费，PG默认不引MySQL；源读取与Loader/目标写边界保持，不预造插件框架。权威说明 execution/decisions/source-connector-modules-and-features-20261016.md；主Plan SP03-W02与机器台账原位同步。当前MySQL整链验证继续、其他源/总Goal暂停，无签收/计数增加。
+
 2026-10-16 用户已暂停总Goal，get_goal实回paused；Doris已安全终态/无后台writer、源码WIP与DB/API保留，hold SHA be86aac4…10859。随后用户明确仅授权MySQL批量源读取器进入oo-connectors并主线全链验通，继续同一Sol medium；其他源不恢复。此前e3/ac633固定本地运行链证据有效，但不等于正式oo-connectors多源入口完成；当前该crate数据库驱动确只有PG，MySQL仍在preview工具。新卡 execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md；已冻结待实际接续，未把派发当完成，无计数/父项/整版新增签收，formal0/10。
 
 2026-10-16 Doris唯一原GPT-6 Luna max已实际followup恢复且list_agents确认running，固定卡493ba5b2c、MySQL依赖签收ac22ed665；当前独占仅本源+卡列最小Rust入口，历史更多共享写权不自动继承。其他8源held、MySQL固定服务不动，Doris尚未通过。普通600秒clock分段，完整退出/关键阻断才通知；正式/整版/原分母不变。派发 execution/batches/native-luna-full-source-20261015/doris-rust-complete-resume-dispatch.json。

@@ -707,15 +707,15 @@
         "577160c22de63adb9b38e0147f3bc2da893c4d9d"
       ],
       "plan_source": "specs/open-ontology-v0.1-plan.md",
-      "execution": "沿统一trait实现MySQL8 catalog/charset/grants/ROW/FULL/GTID/log保留/从库检查；验证连接驱动取原值，避免宽松sql_mode暗改脏值。",
-      "deliverables": "MySQL source contract、只读权限探针与DBA清单；与PG共享fixture结构但分别审计，不推导MariaDB兼容。",
-      "exit_conditions": "AT-SRC-01；启动/批量/CDC体检全程零写。账号写能力例外仅已有admin显式计划许可，仍不得实际写源。",
+      "execution": "沿统一trait实现MySQL5.7/8.x catalog/charset/grants/ROW/FULL/GTID/log保留/从库检查；验证连接驱动取原值，避免宽松sql_mode暗改脏值。正式源读取/映射/解码归oo-connectors/src/mysql独立模块，MySQL专有依赖由可选mysql feature启用，消费者显式接线；不把各源堆入单文件或提前造插件框架。",
+      "deliverables": "MySQL source contract、只读权限探针与DBA清单；与PG共享fixture结构但分别审计，不推导MariaDB兼容。交付正式crate入口、实际C1基线/对账及产品消费者接线，PG默认构建不引MySQL驱动；Loader/COPY与目标凭据留管线。",
+      "exit_conditions": "AT-SRC-01；启动/批量/CDC体检全程零写。账号写能力例外仅已有admin显式计划许可，仍不得实际写源。固定Linux1.94默认PG/mysql-enabled/真实消费者及依赖方向验证、5.7.44-log和8.4.10真实整链证据齐备才判本次主线集成通过，不能用模块迁移代替父项完整退出。",
       "source_commit": "ac6332654d41dd7a2bb45cd69c7f4d4ac0da8339",
       "evidence": [
         "execution/reviews/native-luna-full-source-20261015/mysql-rust-native-complete-intake.json"
       ],
       "independent_review": null,
-      "next_action": "Owned MySQL5.7+8.4 complete Rust/runtime/default reference verified; original parent exits/independent unified review and formal gates remain, no parent checkbox.",
+      "next_action": "Finish fixed formal oo-connectors mysql-feature implementation and both real-version complete mainline exits; prior owned-fixture evidence remains scoped, no parent checkbox.",
       "external_gates": [],
       "delivery_loops": [
         "DL01",
@@ -756,7 +756,9 @@
           ],
           "exclusive_role": "sole MySQL core/mainline writer; all other sources paused"
         }
-      ]
+      ],
+      "mainline_delivery_status": "in_progress_not_accepted",
+      "mainline_policy": "execution/decisions/source-connector-modules-and-features-20261016.md"
     },
     {
       "id": "SP03-W03",
@@ -11148,7 +11150,7 @@
     "reasoning_effort": "medium",
     "status": "running_new_user_authorized_mysql_only_mainline_integration",
     "card": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
-    "card_sha256": "2f3fb3367c98a1572662f3bf6f13e6e425bc13f6bc3159b503fbc26e420f7e12",
+    "card_sha256": "7157247ce97cba732c198687891c5c61d0d5a504f2ce74eac3723c799574010a",
     "broad_goal_status": "paused per actual get_goal",
     "other_sources": "paused/held; Doris terminal and no background writer",
     "doris_hold": {
@@ -11159,7 +11161,25 @@
     "formal_source_count_delta": 0,
     "dependency_source_commit": "0b27b409a6eb7accc9b382143b3bdbd197444541",
     "tool_handle": "/root/mysql_rust_runtime_sol_medium",
-    "actual_state": "collaboration.followup_task dispatched; list_agents confirmed running"
+    "actual_state": "collaboration.followup_task dispatched; list_agents confirmed running",
+    "card_revisions": [
+      {
+        "sha256": "2f3fb3367c98a1572662f3bf6f13e6e425bc13f6bc3159b503fbc26e420f7e12",
+        "fixed_at_commit": "0b27b409a",
+        "superseded_by": "user source module/optional mysql feature clarification"
+      }
+    ],
+    "structure_clarification_at": "2026-10-16T10:30:29.166234+00:00",
+    "structure": "per-source module; optional mysql Cargo feature; explicit consumers; PG default unchanged; no future framework"
   },
-  "goal_runtime_status": "paused; scoped new MySQL mainline action separately authorized by user"
+  "goal_runtime_status": "paused; scoped new MySQL mainline action separately authorized by user",
+  "source_connector_implementation_policy": {
+    "authority": "direct user 2026-10-16: 补充到台账、plan等口径文档中",
+    "decision": "execution/decisions/source-connector-modules-and-features-20261016.md",
+    "source_modules": "one directory per source; small lib.rs export",
+    "mysql_feature": "optional source-only deps; explicit consumers; PG default excludes mysql",
+    "active_scope": "MySQL only; other sources and broad Goal paused",
+    "acceptance": "final fixed mainline + both real versions complete exits; no source/parent/count promotion from this policy",
+    "count_delta": 0
+  }
 }

@@ -711,7 +711,7 @@
     "reasoning_effort": "medium",
     "status": "running_new_user_authorized_mysql_only_mainline_integration",
     "card": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
-    "card_sha256": "2f3fb3367c98a1572662f3bf6f13e6e425bc13f6bc3159b503fbc26e420f7e12",
+    "card_sha256": "7157247ce97cba732c198687891c5c61d0d5a504f2ce74eac3723c799574010a",
     "broad_goal_status": "paused per actual get_goal",
     "other_sources": "paused/held; Doris terminal and no background writer",
     "doris_hold": {
@@ -722,7 +722,25 @@
     "formal_source_count_delta": 0,
     "dependency_source_commit": "0b27b409a6eb7accc9b382143b3bdbd197444541",
     "tool_handle": "/root/mysql_rust_runtime_sol_medium",
-    "actual_state": "collaboration.followup_task dispatched; list_agents confirmed running"
+    "actual_state": "collaboration.followup_task dispatched; list_agents confirmed running",
+    "card_revisions": [
+      {
+        "sha256": "2f3fb3367c98a1572662f3bf6f13e6e425bc13f6bc3159b503fbc26e420f7e12",
+        "fixed_at_commit": "0b27b409a",
+        "superseded_by": "user source module/optional mysql feature clarification"
+      }
+    ],
+    "structure_clarification_at": "2026-10-16T10:30:29.166234+00:00",
+    "structure": "per-source module; optional mysql Cargo feature; explicit consumers; PG default unchanged; no future framework"
   },
-  "goal_runtime_status": "paused; scoped new MySQL mainline action separately authorized by user"
+  "goal_runtime_status": "paused; scoped new MySQL mainline action separately authorized by user",
+  "source_connector_implementation_policy": {
+    "authority": "direct user 2026-10-16: 补充到台账、plan等口径文档中",
+    "decision": "execution/decisions/source-connector-modules-and-features-20261016.md",
+    "source_modules": "one directory per source; small lib.rs export",
+    "mysql_feature": "optional source-only deps; explicit consumers; PG default excludes mysql",
+    "active_scope": "MySQL only; other sources and broad Goal paused",
+    "acceptance": "final fixed mainline + both real versions complete exits; no source/parent/count promotion from this policy",
+    "count_delta": 0
+  }
 }
