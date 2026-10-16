@@ -1,0 +1,20 @@
+{
+  "as_of": "2026-10-16T10:07:09.252887+00:00",
+  "agent": "/root/mysql_rust_runtime_sol_medium",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "status": "running_new_user_authorized_mysql_only_mainline_integration",
+  "card": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
+  "card_sha256": "2f3fb3367c98a1572662f3bf6f13e6e425bc13f6bc3159b503fbc26e420f7e12",
+  "broad_goal_status": "paused per actual get_goal",
+  "other_sources": "paused/held; Doris terminal and no background writer",
+  "doris_hold": {
+    "path": "/private/tmp/oo-doris-lunamax-20261016/HOLD-RECEIPT-20261016T095655Z.json",
+    "sha256": "be86aac44423b0bff649ca3f153c365229496f76c04592c0cd7d4a33e5b10859"
+  },
+  "prior_reference_level": "fixed owned-fixture runtime valid; formal oo-connectors mainline MySQL reader missing",
+  "formal_source_count_delta": 0,
+  "dependency_source_commit": "0b27b409a6eb7accc9b382143b3bdbd197444541",
+  "tool_handle": "/root/mysql_rust_runtime_sol_medium",
+  "actual_state": "collaboration.followup_task dispatched; list_agents confirmed running"
+}
