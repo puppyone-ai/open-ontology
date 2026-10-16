@@ -493,6 +493,8 @@ pub struct QualitySnapshot {
     pub imports: Vec<ImportTableObserved>,
     /// Quality totals for visible physical tables only.
     pub quality_counts: Vec<QualityCount>,
+    /// Capture and delete semantics from the current per-table quality rows.
+    pub table_quality: Vec<TableQualityObserved>,
     /// Capture method from a readable quality row, or empty when unread.
     pub capture_method: String,
     /// Delete detection from a readable quality row, or empty when unread.
@@ -533,18 +535,33 @@ pub struct WatermarkObserved {
     pub source: String,
     /// `transactional` or `per_table` text from the row.
     pub consistency: String,
+    /// `T`, `S1`, `S0`, or `B` from the row.
+    pub consistency_grade: String,
     /// Cross-table flag from the row.
     pub cross_table_consistent: bool,
-    /// Exact `applied_pos` text. Not a float.
-    pub applied_pos: String,
+    /// Exact `applied_pos` text, or `None` when the source has no global position.
+    pub applied_pos: Option<String>,
     /// State text from the row.
     pub state: String,
     /// `position_codec` text. MariaDB is admitted only with its lineage.
     pub codec: String,
     /// `position_lineage` text. A MariaDB domain or server outside this value does not pass.
     pub lineage: String,
-    /// Epoch read from the same source watermark snapshot.
-    pub source_epoch: i32,
+    /// Epoch read from the same source watermark snapshot, if present.
+    pub source_epoch: Option<i32>,
+}
+
+/// Capture and delete method for one authorized logical table.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TableQualityObserved {
+    /// Logical schema.
+    pub schema: String,
+    /// Logical table.
+    pub table: String,
+    /// Capture method recorded for this table.
+    pub capture_method: String,
+    /// Delete detection recorded for this table.
+    pub delete_detection: String,
 }
 
 /// One apply receipt matched to a visible logical table.
@@ -660,6 +677,7 @@ impl QualitySnapshot {
             runs: Vec::new(),
             imports: Vec::new(),
             quality_counts: Vec::new(),
+            table_quality: Vec::new(),
             capture_method: String::new(),
             delete_detection: String::new(),
         }
@@ -2317,7 +2335,8 @@ fn probe_sql(name: &str) -> &'static str {
         "source_watermark" => {
             "SELECT source::text, consistency::text, cross_table_consistent, \
              applied_pos::text, COALESCE(state, ''), position_codec::text, \
-             position_lineage::text,COALESCE((to_jsonb(w)->>'source_epoch')::int4,0) FROM _oo.source_watermark w"
+             position_lineage::text,(to_jsonb(w)->>'source_epoch')::int4,consistency_grade::text \
+             FROM _oo.source_watermark w"
         }
         "table_quality" => {
             "SELECT schema_name::text, table_name::text, \
@@ -2433,25 +2452,36 @@ fn absorb_rows(
                     continue;
                 }
                 let applied_pos: Option<String> = row.try_get(3).map_err(decode)?;
-                let Some(applied_pos) = watermark_position(applied_pos) else {
-                    continue;
+                let applied_pos = match applied_pos {
+                    Some(value) => match watermark_position(Some(value)) {
+                        Some(value) => Some(value),
+                        None => continue,
+                    },
+                    None => None,
                 };
                 let cross: bool = row.try_get(2).map_err(decode)?;
                 let state: String = row.try_get(4).map_err(decode)?;
                 let codec: String = row.try_get(5).map_err(decode)?;
                 let lineage: String = row.try_get(6).map_err(decode)?;
-                if !watermark_identity(&codec, &lineage, &applied_pos) {
+                let source_epoch: Option<i32> = row.try_get(7).map_err(decode)?;
+                let consistency_grade: String = row.try_get(8).map_err(decode)?;
+                if !watermark_identity_observed(&codec, &lineage, applied_pos.as_deref(), source_epoch,
+                                                &source, tables) {
+                    continue;
+                }
+                if !matches!(consistency_grade.as_str(), "S0" | "B" | "S1" | "T") {
                     continue;
                 }
                 snapshot.watermarks.push(WatermarkObserved {
                     source,
                     consistency,
+                    consistency_grade,
                     cross_table_consistent: cross,
                     applied_pos,
                     state,
                     codec,
                     lineage,
-                    source_epoch: row.try_get(7).map_err(decode)?,
+                    source_epoch,
                 });
             }
         }
@@ -2484,6 +2514,18 @@ fn absorb_rows(
                 let deletion: String = row.try_get(9).map_err(decode)?;
                 note_method(&mut snapshot.capture_method, &capture, CAPTURE_METHODS);
                 note_method(&mut snapshot.delete_detection, &deletion, DELETE_METHODS);
+                if snapshot.table_quality.len() < 64
+                    && !snapshot.table_quality.iter().any(|item| {
+                        item.schema == logical.schema && item.table == logical.name
+                    })
+                {
+                    snapshot.table_quality.push(TableQualityObserved {
+                        schema: logical.schema.clone(),
+                        table: logical.name.clone(),
+                        capture_method: capture,
+                        delete_detection: deletion,
+                    });
+                }
             }
         }
         "apply_receipts" => {
@@ -2863,6 +2905,30 @@ fn watermark_identity(codec: &str, lineage: &str, applied_pos: &str) -> bool {
     position_text(applied_pos)
 }
 
+fn watermark_identity_observed(
+    codec: &str,
+    lineage: &str,
+    applied_pos: Option<&str>,
+    source_epoch: Option<i32>,
+    source: &str,
+    tables: &[QualityTable],
+) -> bool {
+    if let Some(position) = applied_pos {
+        return watermark_identity(codec, lineage, position);
+    }
+    let authenticated_doris_binding = tables.iter().any(|table| {
+        table.source.as_deref() == Some(source)
+            && table.native_binding.as_ref().is_some_and(|binding| {
+                binding["source_id"].as_str() == Some(source)
+                    && binding["source_engine"].as_str() == Some("doris")
+            })
+    });
+    authenticated_doris_binding
+        && codec == "partition-signature/v1"
+        && lineage == "partition-map"
+        && source_epoch.is_none()
+}
+
 fn receipt_identity(codec: &str, lineage: &str, applied_pos: &str, epoch: i32) -> bool {
     if !position_text(applied_pos) || !codec_text(codec) {
         return false;
@@ -2922,7 +2988,7 @@ fn bind_one_gtid_epoch(snapshot: &mut QualitySnapshot, codec: &str) {
             .filter(|item| item.source == source && item.codec == codec)
             .map(|item| item.source_epoch)
             .collect();
-        let expected_epoch=snapshot.watermarks.iter().find(|m|m.source==source && m.codec==codec).map(|m|m.source_epoch);
+        let expected_epoch=snapshot.watermarks.iter().find(|m|m.source==source && m.codec==codec).and_then(|m|m.source_epoch);
         if epochs.len() != 1 || (codec=="mysql-gtid/v1" && (expected_epoch.is_none_or(|e|e<1) || epochs.iter().next().copied()!=expected_epoch)) {
             snapshot.watermarks.retain(|mark| mark.source != source || mark.codec != codec);
             snapshot.receipts.retain(|item| item.source != source || item.codec != codec);
@@ -4214,12 +4280,13 @@ mod tests {
         super::WatermarkObserved {
             source: "logistics".into(),
             consistency: "transactional".into(),
+            consistency_grade: "T".into(),
             cross_table_consistent: true,
-            applied_pos: pos.into(),
+            applied_pos: Some(pos.into()),
             state: "lagging".into(),
             codec: "mariadb-gtid/v1".into(),
             lineage: lineage.into(),
-            source_epoch: 1,
+            source_epoch: Some(1),
         }
     }
 
@@ -4300,12 +4367,13 @@ mod tests {
         super::WatermarkObserved {
             source: "shop".into(),
             consistency: "transactional".into(),
+            consistency_grade: "T".into(),
             cross_table_consistent: true,
-            applied_pos: pos.into(),
+            applied_pos: Some(pos.into()),
             state: "lagging".into(),
             codec: "mysql-gtid/v1".into(),
             lineage: lineage.into(),
-            source_epoch: 1,
+            source_epoch: Some(1),
         }
     }
 

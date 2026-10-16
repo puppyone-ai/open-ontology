@@ -259,6 +259,136 @@ class NormalWholeTests(unittest.TestCase):
                     wrong_gold, selection_path, dialogue,
                     {"source_id": identity["source_id"]}, identity["pack_sha256"])
 
+    def test_b_frozen_retry_accepts_failed_final_without_successful_query_and_rejects_a_query(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            truth = {f"truth_{i}": {"expected_named_facts": {"value": str(i)}} for i in range(4)}
+            truth_path = root / "gold.json"
+            truth_bytes = (json.dumps(truth, indent=2) + "\n").encode()
+            truth_path.write_bytes(truth_bytes)
+            truth_path.chmod(0o600)
+            bank = [{"semantic_id": f"fact_{i}", "query_class": "rows" if i < 2 else "aggregate",
+                     "prompt": f"Inspect independent fact {i}", "truth_key": f"truth_{i}"}
+                    for i in range(4)]
+            identity = {"source_id": "oracle_fixture", "source_generation": 15,
+                        "pack_sha256": "b" * 64, "role": "reader"}
+            config = {"question_bank": bank, "independent_truth_file": str(truth_path),
+                      "sample_size": 2, "identity": identity}
+            manifest, _ = dialogue.freeze_selection(config, truth, truth_bytes)
+            attempt = root / "dialogue-b-1792127303512105000-7f65f626"
+            attempt.mkdir(mode=0o700)
+            selection_path = attempt / "selection.json"
+            selection_bytes = (json.dumps(manifest, indent=2) + "\n").encode()
+            selection_path.write_bytes(selection_bytes)
+            selection_path.chmod(0o600)
+            transcript = [
+                {"turn": 0, "step": 2, "model": {"choices": [{"message": {"tool_calls": [{"id": "call-query"}]}}]}},
+                {"turn": 0, "tool": "query", "exit": 2, "response": {"code": "FUNCTION_NOT_ALLOWED"}},
+                {"turn": 0, "step": 4, "model": {"choices": [{"message": {"tool_calls": None,
+                                                                                 "content": "unverified final retained"}}]}},
+            ]
+            transcript_path = attempt / "transcript.json"
+            transcript_path.write_text(json.dumps(transcript, indent=2) + "\n")
+            transcript_path.chmod(0o600)
+            failure_path = attempt / "failed-attempt.json"
+            failure_path.write_text(json.dumps({
+                "protocol": "oo.oracle.dialogue-failed-attempt/v1", "failure_kind": "exit_nonzero",
+                "exit_code": 2, "timed_out": False, "source_id": identity["source_id"],
+                "source_generation": identity["source_generation"], "pack_sha256": identity["pack_sha256"],
+                "truth_sha256": hashlib.sha256(truth_bytes).hexdigest(),
+                "selection_sha256": hashlib.sha256(selection_bytes).hexdigest(),
+                "transcript_sha256": hashlib.sha256(transcript_path.read_bytes()).hexdigest(),
+                "verdict_sha256": None}) + "\n")
+            failure_path.chmod(0o600)
+
+            frozen = normal_whole.frozen_dialogue_config(
+                config, selection_path, dialogue, {"source_id": identity["source_id"]}, identity["pack_sha256"], "b")
+            self.assertEqual(frozen["frozen_manifest"], str(selection_path.resolve()))
+            self.assertEqual(selection_path.read_bytes(), selection_bytes)
+            self.assertIn("unverified final retained", transcript_path.read_text())
+
+            transcript.append({"turn": 0, "tool": "query", "exit": 0, "response": {"query_id": "q-success"}})
+            transcript_path.write_text(json.dumps(transcript, indent=2) + "\n")
+            failure = json.loads(failure_path.read_text())
+            failure["transcript_sha256"] = hashlib.sha256(transcript_path.read_bytes()).hexdigest()
+            failure_path.write_text(json.dumps(failure) + "\n")
+            with self.assertRaisesRegex(normal_whole.Refused, "dialogue_frozen_successful_query"):
+                normal_whole.frozen_dialogue_config(
+                    config, selection_path, dialogue, {"source_id": identity["source_id"]},
+                    identity["pack_sha256"], "b")
+
+    def test_fixed_base_import_receives_only_generic_tool_use_guidance(self):
+        plan = normal_whole.load_plan()
+        module = normal_whole.load_fixed_dialogue(
+            plan["runtime"]["dialogue"], plan["runtime"]["dialogue_sha256"], plan)
+        self.assertTrue(module.SYSTEM.startswith(dialogue.SYSTEM))
+        self.assertIn("knowledge_search", module.SYSTEM)
+        self.assertIn("knowledge_cat only with a path returned by that search", module.SYSTEM)
+        self.assertIn("error query_id as non-evidence", module.SYSTEM)
+        self.assertIn("revise the query or search the Pack", module.SYSTEM)
+        self.assertNotIn("SELECT", module.SYSTEM)
+        self.assertNotIn("order_25_amount", module.SYSTEM)
+
+    def test_original_b_selection_is_retryable_only_without_any_successful_query(self):
+        plan = normal_whole.load_plan()
+        failure = next(item for item in plan["dialogue_history"]["prior_failed_attempts"]
+                       if item.get("suffix") == "b")
+        b_attempt = Path(failure["path"]).parent
+        selection_path = b_attempt / "selection.json"
+        transcript_path = b_attempt / "transcript.json"
+        config = normal_whole.read_json(b_attempt.parents[1] / "dialogue-b-config.json")
+        module = normal_whole.load_fixed_dialogue(
+            plan["runtime"]["dialogue"], plan["runtime"]["dialogue_sha256"], plan)
+        before = hashlib.sha256(transcript_path.read_bytes()).hexdigest()
+        retried = normal_whole.frozen_dialogue_config(
+            config, selection_path, module, plan["source"], plan["service"]["role_pack_sha256"], "b")
+        expected_sha = next(item["sha256"] for item in plan["immutable_files"]
+                            if item["name"] == "dialogue_b_failed_selection")
+        self.assertEqual(hashlib.sha256(selection_path.read_bytes()).hexdigest(), expected_sha)
+        self.assertEqual(retried["frozen_manifest"], str(selection_path.resolve()))
+        self.assertEqual(before, hashlib.sha256(transcript_path.read_bytes()).hexdigest())
+
+    def test_historical_a_replay_is_observed_as_a_real_fixed_base_child(self):
+        plan = normal_whole.load_plan()
+        with tempfile.TemporaryDirectory() as d:
+            run = Path(d)
+            run.chmod(0o700)
+            # The original A transcript and gold are kept in the same immutable failed run.
+            a_source = Path(plan["immutable_files"][[x["name"] for x in plan["immutable_files"]].index(
+                "dialogue_a_verified_selection")]["path"]).parents[2]
+            import shutil
+            shutil.copyfile(a_source / "dialogue-a-gold.json", run / "dialogue-a-gold.json")
+            (run / "dialogue-a-gold.json").chmod(0o600)
+            journal = {"steps": [{"name": plan["dialogue_history"]["step_name"],
+                                  "state": "running", "observed_programs": []}]}
+            (run / "journal.json").write_text(json.dumps(journal) + "\n")
+            (run / "journal.json").chmod(0o600)
+            command = [plan["runtime"]["python"], str(Path(normal_whole.__file__).resolve()),
+                       "reuse-dialogue", str(run), "a"]
+            child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                     text=True, start_new_session=True)
+            observed = False
+            deadline = time.monotonic() + 30
+            while child.poll() is None and time.monotonic() < deadline:
+                found = onboard.observe_children(child.pid)
+                if plan["runtime"]["dialogue"] in found:
+                    journal["steps"][0]["observed_programs"] = [plan["runtime"]["dialogue"]]
+                    temp = run / ".journal.tmp"
+                    temp.write_text(json.dumps(journal) + "\n")
+                    temp.chmod(0o600)
+                    os.replace(temp, run / "journal.json")
+                    observed = True
+                time.sleep(0.05)
+            stdout, stderr = child.communicate(timeout=30)
+            self.assertEqual(child.returncode, 0, stderr)
+            self.assertTrue(observed)
+            result = json.loads(stdout)
+            self.assertEqual(result["evidence_mode"], "historical_reuse")
+            self.assertEqual(result["fresh_model_calls"], 0)
+            self.assertEqual(normal_whole.verify_dialogue(
+                run, "a", plan["source"], plan["service"]["role_pack_sha256"])["evidence_mode"],
+                "historical_reuse")
+
     def test_verifier_invocation_is_observed_by_normal_onboarding_before_any_model_call(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

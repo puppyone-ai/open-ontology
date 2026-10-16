@@ -3735,13 +3735,13 @@
     "formal_source_count_delta": 0
   },
   "latest_oracle_default_installation": {
-    "intake": "execution/reviews/native-luna-full-source-20261015/oracle-random-b-failure-intake.json",
-    "source_commit": "790a34014646a35a1ddb29f3c61d3f92cb9db814",
+    "intake": "execution/reviews/native-luna-full-source-20261015/doris-c4-published-parent-scope.json",
+    "source_commit": "5aed279306b888f42c29376428048ccb2cfa23ca",
     "registry_state": "installed; normal run failed",
-    "run_id": "9c1b239c395a4b13899b6d60cbe9856d",
+    "run_id": "e3906c3aa5234e0bae111d6cc16b9dfb",
     "whole": false,
     "owner": "/root/oracle_complete_luna_max",
-    "remaining": "fixed generic tool instructions, frozen B retry, complete official normal whole/resume/final packet",
+    "remaining": "strict completed B turn prefix reuse, original frozen B second question, normal whole/resume/final packet",
     "formal_source_count_delta": 0
   },
   "latest_doris_fixture_publication": {
@@ -3756,6 +3756,18 @@
     "exact_additional_write_paths": [
       "crates/oo-gateway/src/mapping_reader_access.rs",
       "crates/oo-gateway/tests/mapping_reader_access_pg_live.rs"
+    ],
+    "formal_source_count_delta": 0
+  },
+  "latest_doris_published_parent_scope": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/doris-c4-published-parent-scope.json",
+    "owner": "/root/doris_complete_luna_max",
+    "new_write_paths": [
+      "crates/oo-pipeline/migrations/0042_native_olap_published_parent.sql"
+    ],
+    "existing_wiring_only": [
+      "crates/oo-pipeline/src/target_installer.rs",
+      "crates/oo-pipeline/src/native_update.rs"
     ],
     "formal_source_count_delta": 0
   }

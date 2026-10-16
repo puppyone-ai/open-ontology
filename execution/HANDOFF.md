@@ -1,3 +1,5 @@
+2026-10-16 Doris真实发布后C4下一周期OO010已定位：0014 copy-forward仅接受awaiting_publish，合法当前parent已published；root核原函数后仅追加0042同签名替换及installer必要接线，保留sealed/exhausted/nonretired/current mapping/OID/范围/owner全部护栏，旧0000–0041字节不改。须固定Linux制品/官方安装/真实跨分区更新删除及拒例后继续原整源退出。Oracle e390正常run失败保留，B第一轮成功前缀root严格重放已核，第二轮错误QID事实正确拒绝；仅同源沿原选题断点继续、实际模型身份如实记录。两Luna max/其他7held，whole未通过、计数delta0/formal0/10。边界 execution/reviews/native-luna-full-source-20261015/doris-c4-published-parent-scope.json。
+
 2026-10-16 Oracle正常六字段run9c1b真实失败保留：A两随机turn verified，B无成功query/knowledge_cat，错误列/Pack路径后耗尽16轮，wholefalse；原A/B选题、transcript和失败SHA固定。仅原Luna max在owned wrapper补通用Pack-first指引、沿原B selection继续，facts/CLI/WAL与覆盖门槛不减，共享Flow/verifier不改。Doris mapping-reader固定制品70/70及真实安装/live测试仅候选，RO/完整自动链待验；其他7held，无新源/父项/整版签收，计数delta0、formal0/10。证据 execution/reviews/native-luna-full-source-20261015/oracle-random-b-failure-intake.json。
 
 2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T051608Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T051608Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。
