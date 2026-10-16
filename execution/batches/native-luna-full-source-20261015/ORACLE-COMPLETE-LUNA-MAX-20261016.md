@@ -42,3 +42,6 @@ Oracle唯一writer增加 `tools/release-coordinator/src/store.rs`，仅在gate_b
 ## 2026-10-16 overlay 已固定并释放
 
 overlay.rs已提交0722c7b4f，root核clean/SHA50149bf5；Oracle确认无mutator并释放给Doris唯一writer处理其分区验证。Oracle后续仅只读overlay，继续现有固定5826 API与cli/store窄域，若需overlay修改先协调回转，不并写。原全源退出不变。
+
+
+2026-10-16 追加独占共享窄域：`crates/oo-gateway/src/public_surface.rs`仅ready_quality/必要真实freshness投影及对应测试。按 execution/reviews/native-luna-full-source-20261015/oracle-gateway-per-table-scope.json 原因、输入、接口、边界和退出执行；C1不变、snapshot per_table不冒S1、NULL源时间不造值、当前绑定/完整发布receipt仍核。先最小判定方案，再Linux固定测试/制品；Doris复用，原整源出口不变。

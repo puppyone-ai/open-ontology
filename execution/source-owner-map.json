@@ -143,7 +143,8 @@
         "tools/oracle-preview",
         "testing/dl01-driver-preflight/oracle/probe",
         "tools/release-coordinator/src/cli.rs (native maintain dispatch only)",
-        "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)"
+        "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)",
+        "crates/oo-gateway/src/public_surface.rs"
       ],
       "mandatory_blocker": null,
       "status": "spawned_and_accepted",
@@ -358,5 +359,9 @@
     "root_verified": "git blob equals current bytes, clean path, prior writer confirmed no mutator",
     "allowed": "verify_doris_observation authentic request/load/observed partition linkage and minimum tests only; Oracle functions unchanged",
     "formal_delta": 0
+  },
+  "latest_oracle_gateway_per_table_scope": {
+    "owner": "/root/oracle_complete_luna_max",
+    "scope_receipt": "execution/reviews/native-luna-full-source-20261015/oracle-gateway-per-table-scope.json"
   }
 }

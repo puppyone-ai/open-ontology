@@ -1,3 +1,7 @@
+2026-10-16 Oracle真实g11正式发布后Gateway暴露ready_quality只认transactional/true、owned sidecar缺native vector、NULL源时间不投影。唯一Oracle Luna max获public_surface.rs判定/必要freshness投影及测试窄权，C1保持、真实snapshot-zero per_table独立域、源时间unmeasured；不得造时间/同一lineage或删历史。Doris复用，不增组件/源签收。边界 execution/reviews/native-luna-full-source-20261015/oracle-gateway-per-table-scope.json，原Plan及所有计数不变、formal0/10。
+
+2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T014949Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T014949Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。
+
 2026-10-16 per-table共享依赖已固定：root核3b4fef066缺少的release API单次Linux1.94构建ELF 95a39e59、日志与锁文件；Oracle官方installer成功，37条旧迁移字节不变，仅追加0039–0041。原manifest原SHA恢复，工具链补证另存v2。当前仅Doris/Oracle Luna max继续真实发布、RO/Gateway、自动更新与随机CLI/Agent完整链；其他7held，尚无两源完整签收，所有计数delta0、formal0/10。Spec/Plan检查均exit1：既有docs/07-gateway.md基线漂移保留，未改基线。回执 execution/reviews/native-luna-full-source-20261015/per-table-shared-installed-dependency-intake.json。
 
 2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T005548Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T005548Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。

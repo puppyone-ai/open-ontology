@@ -55,5 +55,13 @@
     "root_verified": "git blob equals current bytes, clean path, prior writer confirmed no mutator",
     "allowed": "verify_doris_observation authentic request/load/observed partition linkage and minimum tests only; Oracle functions unchanged",
     "formal_delta": 0
+  },
+  "latest_oracle_gateway_per_table_scope": {
+    "scope_receipt": "execution/reviews/native-luna-full-source-20261015/oracle-gateway-per-table-scope.json",
+    "owner": "/root/oracle_complete_luna_max",
+    "write_paths": [
+      "crates/oo-gateway/src/public_surface.rs"
+    ],
+    "formal_source_count_delta": 0
   }
 }

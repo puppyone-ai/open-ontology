@@ -3529,12 +3529,12 @@
     "formal_source_count_delta": 0
   },
   "latest_mysql_manual_token_refresh": {
-    "path": "/tmp/oo-root-mysql-auth-20261016T005548Z/receipt.json",
-    "sha256": "1b7f54daa2817caed9c749c3cf4922b6041c34de731fe9616835e0c0919b8a4f",
+    "path": "/tmp/oo-root-mysql-auth-20261016T014949Z/receipt.json",
+    "sha256": "aced60a7f3532f8dd3150bc3e58250776303ea5e49618d9fcd0881840de799dc",
     "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
-    "issued_UTC": "2026-10-16T00:55:50.123438+00:00",
+    "issued_UTC": "2026-10-16T01:49:50.999710+00:00",
     "client_ttl_ms": 3600000,
-    "token_container_path": "/run-current/renewed-client-root-20261016T005548Z.token",
+    "token_container_path": "/run-current/renewed-client-root-20261016T014949Z.token",
     "requires_explicit_CLI_flag": true,
     "automatic_renewal": false,
     "formal_source_count_delta": 0
@@ -3592,6 +3592,17 @@
       "requires_explicit_CLI_flag": true,
       "automatic_renewal": false,
       "formal_source_count_delta": 0
+    },
+    {
+      "path": "/tmp/oo-root-mysql-auth-20261016T005548Z/receipt.json",
+      "sha256": "1b7f54daa2817caed9c749c3cf4922b6041c34de731fe9616835e0c0919b8a4f",
+      "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
+      "issued_UTC": "2026-10-16T00:55:50.123438+00:00",
+      "client_ttl_ms": 3600000,
+      "token_container_path": "/run-current/renewed-client-root-20261016T005548Z.token",
+      "requires_explicit_CLI_flag": true,
+      "automatic_renewal": false,
+      "formal_source_count_delta": 0
     }
   ],
   "latest_oracle_native_cli_scope_amendment": {
@@ -3639,6 +3650,14 @@
     "intake": "execution/reviews/native-luna-full-source-20261015/per-table-shared-installed-dependency-intake.json",
     "source_commit": "3b4fef06623f37d6da107e51d28f9ce4d1bc1593",
     "scope": "root_verified_fixed_dependency_build_and_official_target_install_only",
+    "formal_source_count_delta": 0
+  },
+  "latest_oracle_gateway_per_table_scope": {
+    "scope_receipt": "execution/reviews/native-luna-full-source-20261015/oracle-gateway-per-table-scope.json",
+    "owner": "/root/oracle_complete_luna_max",
+    "write_paths": [
+      "crates/oo-gateway/src/public_surface.rs"
+    ],
     "formal_source_count_delta": 0
   }
 }
