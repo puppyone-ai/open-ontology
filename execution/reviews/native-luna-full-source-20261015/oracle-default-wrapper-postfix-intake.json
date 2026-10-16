@@ -1,0 +1,48 @@
+{
+  "as_of": "2026-10-16T04:14:46.758819+00:00",
+  "acceptance_level": "root_verified_oracle_wrapper_postfix_and_default_reinstallation_only",
+  "source_commit": "205ab64cb31a006ad000eaf121db7c145dc9f126",
+  "prior_source_commit": "9ec99c36bee45b0ceacac1b6d9420d779bdeb702",
+  "raw_receipt": {
+    "path": "/tmp/oo-root-oracle-default-install-postfix-205ab64-20261016/receipt.json",
+    "sha256": "b067fed31082aa4fe17a53cf16848b57b7b9674ee2dc4bdd3b9861af2cb1e847"
+  },
+  "prior_failed_default_run": "d7038a4f7a984a21a5992845972a61c6",
+  "prior_failure": "wrapper precreated output leaf; no persisted selection/transcript and no model request; root verified dialogue.py mkdir precedes bearer read and model transport",
+  "prior_failed_attempt": {
+    "attempt": "/Users/redux/.cache/oo-source-onboarding/runs/d7038a4f7a984a21a5992845972a61c6/attempts/dialogue-a-1792123815502402000-a436f872",
+    "failed_attempt_sha256": "66d2e25ed0b863990b96200581436b270344f95dde01560bd7a8801deaa333a7",
+    "model_request_made": false,
+    "observed_failure": "dialogue.py failed while creating an already-existing output leaf; exception precedes any model request",
+    "run": "/Users/redux/.cache/oo-source-onboarding/runs/d7038a4f7a984a21a5992845972a61c6",
+    "runner_stderr_sha256": "c87962985d01f49399f1b2aee9397a9b313c883be891863c3eead359fb05bdac",
+    "selection_sha256": null,
+    "step": "dialogue-a",
+    "transcript_sha256": null,
+    "verdict_sha256": null
+  },
+  "fix_scope": [
+    "tools/oracle-preview/normal_whole.py",
+    "tools/oracle-preview/test_normal_whole.py"
+  ],
+  "new_validation": "same six-field input bytes, new private input path and fixed recipe; original failed run preserved",
+  "current_state": "awaiting_run; same Oracle Luna max executing new normal default whole, no whole result claimed",
+  "independent_review": "Deferred to unified ten-source Goal milestone",
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "release": 0,
+    "external": 0,
+    "formal_source": 0,
+    "edition": 0
+  },
+  "formal_sources": "0/10",
+  "documentation_checks": {
+    "path": "/tmp/oo-root-oracle-default-doc-check-20261016/receipt.json",
+    "sha256": "202ce32f1bb88bce92280fcb490ca0874061a0032125af8775bd21d5276ab663",
+    "spec_exit": 1,
+    "plan_exit": 1,
+    "reason": "existing docs/07-gateway.md baseline hash/size/line drift; baseline not rewritten"
+  },
+  "scope_checks": "Goal/PRODUCT-LOOPS/support matrix/frontend unchanged; no parent or edition exit; original tests and failures preserved."
+}

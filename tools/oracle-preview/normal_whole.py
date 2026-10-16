@@ -7,6 +7,7 @@ two new random, tool-grounded Agent dialogues without writing to Oracle.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -93,6 +94,95 @@ def load_plan():
 def check_sha(path, expected, reason):
     path = Path(path).resolve(strict=True)
     need(path.is_file() and not path.is_symlink() and sha(path) == expected, reason)
+
+
+def oracle_tool_error_returned(base_classifier, name, body):
+    if base_classifier(name, body):
+        return True
+    if name not in {"query", "validate"} or body.get("class") != "gateway":
+        return False
+    code = body.get("code")
+    if code in {"SQL_PARSE_ERROR", "COST_TOO_HIGH"}:
+        return True
+    return ((code == "RELATION_NOT_FOUND" and body.get("message") == "relation is not visible") or
+            (code == "UNQUALIFIED_RELATION" and body.get("message") == "relation must be schema-qualified"))
+
+
+def load_fixed_dialogue(dialogue_path, expected_sha256, plan=None):
+    plan = load_plan() if plan is None else plan
+    dialogue_path = Path(dialogue_path).resolve(strict=True)
+    need(str(dialogue_path) == str(Path(plan["runtime"]["dialogue"]).resolve()), "dialogue_runtime")
+    need(expected_sha256 == plan["runtime"]["dialogue_sha256"], "dialogue_runtime")
+    check_sha(dialogue_path, expected_sha256, "dialogue_runtime")
+    spec = importlib.util.spec_from_file_location("_oo_oracle_dialogue_" + uuid.uuid4().hex, dialogue_path)
+    need(spec is not None and spec.loader is not None, "dialogue_import")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    need(Path(module.__file__).resolve() == dialogue_path, "dialogue_import")
+    base_classifier = module.tool_error_returned
+    module.tool_error_returned = lambda name, body: oracle_tool_error_returned(base_classifier, name, body)
+    return module
+
+
+def frozen_dialogue_config(config, manifest_path, module, source, pack_sha):
+    manifest_path = immutable_regular(manifest_path).resolve(strict=True)
+    manifest = read_json(manifest_path)
+    failure_path = manifest_path.parent / "failed-attempt.json"
+    failure = read_json(immutable_regular(failure_path))
+    transcript_path = manifest_path.parent / "transcript.json"
+    transcript = read_json(immutable_regular(transcript_path))
+    need(failure.get("protocol") == "oo.oracle.dialogue-failed-attempt/v1" and
+         failure.get("selection_sha256") == sha(manifest_path) and
+         failure.get("transcript_sha256") == sha(transcript_path) and
+         failure.get("verdict_sha256") is None and isinstance(transcript, list), "dialogue_frozen_failure")
+    need(failure.get("source_id") == source["source_id"] and failure.get("source_generation") == 15 and
+         failure.get("pack_sha256") == pack_sha and failure.get("truth_sha256") == manifest.get("gold_sha256"),
+         "dialogue_frozen_identity")
+    need(not any("model" in event and not event.get("model", {}).get("choices", [{}])[0].get("message", {}).get("tool_calls")
+                 for event in transcript if isinstance(event, dict)), "dialogue_frozen_completed_turn")
+    config = dict(config)
+    config["frozen_manifest"] = str(manifest_path)
+    config["seed"] = manifest.get("seed")
+    truth_path = private(config["independent_truth_file"])
+    truth_bytes = truth_path.read_bytes()
+    truth = json.loads(truth_bytes)
+    selected, _ = module.freeze_selection(config, truth, truth_bytes)
+    need(selected == manifest and (json.dumps(selected, indent=2) + "\n").encode() == manifest_path.read_bytes(),
+         "dialogue_frozen_selection")
+    need(selected.get("mode") == "random" and selected.get("counts_as_random") is True and
+         selected.get("identity", {}).get("source_id") == source["source_id"] and
+         selected.get("identity", {}).get("source_generation") == 15 and
+         selected.get("identity", {}).get("pack_sha256") == pack_sha and
+         selected.get("gold_sha256") == sha(truth_path), "dialogue_frozen_identity")
+    return config
+
+
+def invoke_verifier(dialogue_path, expected_sha256, config_path, output_path):
+    plan = load_plan()
+    dialogue_path = Path(dialogue_path).resolve(strict=True)
+    config_path = private(config_path).resolve(strict=True)
+    output_path = Path(output_path).resolve()
+    need(not output_path.exists() and not output_path.is_symlink(), "immutable_output_drift")
+    module = load_fixed_dialogue(dialogue_path, expected_sha256, plan)
+    config = read_json(config_path)
+    if config.get("frozen_manifest"):
+        frozen_dialogue_config(config, config["frozen_manifest"], module, plan["source"],
+                               plan["service"]["role_pack_sha256"])
+    marker = {"protocol": "oo.oracle.dialogue-adapter/v1", "event": "main_enter",
+              "dialogue_path": str(dialogue_path), "dialogue_sha256": expected_sha256,
+              "adapter_path": str(Path(__file__).resolve()), "adapter_sha256": sha(__file__),
+              "entrypoint": "dialogue.main"}
+    print("OO_DIALOGUE_ADAPTER " + json.dumps(marker, sort_keys=True), file=sys.stderr, flush=True)
+    original_argv = sys.argv
+    sys.argv = [str(dialogue_path), "--config", str(config_path), "--out", str(output_path)]
+    try:
+        module.main()
+    finally:
+        sys.argv = original_argv
+    return {"dialogue_path": str(dialogue_path), "dialogue_sha256": expected_sha256,
+            "adapter_path": str(Path(__file__).resolve()), "adapter_sha256": sha(__file__),
+            "entrypoint": "dialogue.main"}
 
 
 def verify_recovery(ack, recovery_wait, recovery_kill, restart, expected_process_sha256):
@@ -409,7 +499,9 @@ def verify_dialogue_folder(folder, source, pack_sha, truth_path):
 
 
 def record_dialogue_attempt_failure(attempt, run, suffix, source, pack_sha, *, kind, exit_code,
-                                   timed_out, stdout, stderr, reason=None):
+                                   timed_out, stdout, stderr, adapter_invocation=None,
+                                   frozen_selection=None, reason=None):
+    ensure_attempt_directory(attempt)
     output = {}
     for name, data in (("runner.stdout", stdout), ("runner.stderr", stderr)):
         if isinstance(data, bytes):
@@ -423,38 +515,133 @@ def record_dialogue_attempt_failure(attempt, run, suffix, source, pack_sha, *, k
               "verdict_sha256": "verdict.json"}
     outputs = {key: sha(Path(attempt) / rel) if (Path(attempt) / rel).is_file() else None
                for key, rel in fields.items()}
-    write_json(Path(attempt) / "failed-attempt.json", {
+    failure = {
         "protocol": "oo.oracle.dialogue-failed-attempt/v1", "failure_kind": kind,
         "exit_code": exit_code, "timed_out": timed_out, "reason": reason,
         "source_id": source["source_id"], "source_generation": 15, "pack_sha256": pack_sha,
-        "truth_sha256": sha(truth), **outputs, **output})
+        "truth_sha256": sha(truth), **outputs, **output}
+    if adapter_invocation is not None:
+        failure["adapter_invocation"] = adapter_invocation
+    if frozen_selection is not None:
+        failure["frozen_selection"] = frozen_selection
+    write_json(Path(attempt) / "failed-attempt.json", failure)
 
 
-def run_dialogue(run, suffix):
+def ensure_attempt_directory(path):
+    path = Path(path)
+    if not path.exists():
+        path.mkdir(mode=0o700, parents=False, exist_ok=False)
+    st = path.lstat()
+    need(stat.S_ISDIR(st.st_mode) and not stat.S_ISLNK(st.st_mode) and
+         st.st_uid == os.getuid() and not st.st_mode & 0o077, "attempt_permissions")
+    return path
+
+
+def allocate_dialogue_attempt(run, suffix):
+    run = Path(run)
+    attempts_root = run / "attempts"
+    if not attempts_root.exists():
+        attempts_root.mkdir(mode=0o700, parents=False, exist_ok=False)
+    root_stat = attempts_root.lstat()
+    need(stat.S_ISDIR(root_stat.st_mode) and not stat.S_ISLNK(root_stat.st_mode) and
+         root_stat.st_uid == os.getuid() and not root_stat.st_mode & 0o077, "attempt_permissions")
+    attempt_rel = Path("attempts") / f"dialogue-{suffix}-{time.time_ns()}-{uuid.uuid4().hex[:8]}"
+    attempt = run / attempt_rel
+    need(not attempt.exists() and not attempt.is_symlink(), "immutable_output_drift")
+    return attempt_rel, attempt
+
+
+def write_adapter_invocation(run, attempt_rel, plan, command, config_path, frozen_manifest,
+                             exit_code, timed_out, stdout, stderr):
+    stderr_text = stderr.decode("utf-8", "replace") if isinstance(stderr, bytes) else (stderr or "")
+    marker = False
+    for line in stderr_text.splitlines():
+        if line.startswith("OO_DIALOGUE_ADAPTER "):
+            try:
+                item = json.loads(line[len("OO_DIALOGUE_ADAPTER "):])
+            except json.JSONDecodeError:
+                continue
+            if (item.get("protocol") == "oo.oracle.dialogue-adapter/v1" and
+                    item.get("event") == "main_enter" and
+                    item.get("dialogue_path") == plan["runtime"]["dialogue"] and
+                    item.get("dialogue_sha256") == plan["runtime"]["dialogue_sha256"] and
+                    item.get("adapter_path") == str(Path(__file__).resolve()) and
+                    item.get("adapter_sha256") == sha(__file__) and
+                    item.get("entrypoint") == "dialogue.main"):
+                marker = True
+    invocation_rel = attempt_rel.with_name(attempt_rel.name + ".adapter-invocation.json")
+    invocation_path = Path(run) / invocation_rel
+    frozen = None
+    if frozen_manifest is not None:
+        frozen_path = Path(frozen_manifest).resolve(strict=True)
+        failed_path = frozen_path.parent / "failed-attempt.json"
+        frozen = {"path": str(frozen_path), "sha256": sha(frozen_path),
+                  "failed_attempt_path": str(failed_path), "failed_attempt_sha256": sha(failed_path)}
+    stdout_text = stdout.decode("utf-8", "replace") if isinstance(stdout, bytes) else (stdout or "")
+    document = {"protocol": "oo.oracle.dialogue-adapter-invocation/v1",
+                "base_dialogue": {"path": plan["runtime"]["dialogue"], "sha256": plan["runtime"]["dialogue_sha256"]},
+                "adapter": {"path": str(Path(__file__).resolve()), "sha256": sha(__file__)},
+                "entrypoint": "dialogue.main", "argv": command,
+                "config": {"path": str(Path(config_path).resolve()), "sha256": sha(config_path)},
+                "frozen_selection": frozen,
+                "tool_error_extension": {"name": "tool_error_returned", "tool_names": ["query", "validate"],
+                                         "class": "gateway", "codes": ["RELATION_NOT_FOUND",
+                                                                          "UNQUALIFIED_RELATION",
+                                                                          "SQL_PARSE_ERROR", "COST_TOO_HIGH"]},
+                "result": {"exit_code": exit_code, "timed_out": timed_out,
+                           "stdout_sha256": hashlib.sha256(stdout_text.encode()).hexdigest(),
+                           "stderr_sha256": hashlib.sha256(stderr_text.encode()).hexdigest(),
+                           "main_enter_marker_seen": marker, "main_returned": exit_code == 0 and marker}}
+    write_json(invocation_path, document)
+    return {"path": str(invocation_rel), "sha256": sha(invocation_path), "document": document}
+
+
+def run_dialogue(run, suffix, frozen_manifest=None):
     run = Path(run).resolve()
     plan = load_plan()
     source = plan["source"]
     pack_sha = plan["service"]["role_pack_sha256"]
     assert_fresh_dialogue_slot(run, suffix)
-    attempts_root = run / "attempts"
-    prefix = f"dialogue-{suffix}-"
-    attempt_rel = Path("attempts") / f"dialogue-{suffix}-{time.time_ns()}-{uuid.uuid4().hex[:8]}"
-    attempt = run / attempt_rel
-    attempt.mkdir(mode=0o700, parents=True, exist_ok=False)
-    command = [plan["runtime"]["python"], plan["runtime"]["dialogue"], "--config",
-               str(run / f"dialogue-{suffix}-config.json"), "--out", str(attempt)]
+    config_path = private(run / f"dialogue-{suffix}-config.json")
+    config = read_json(config_path)
+    frozen_info = None
+    if frozen_manifest is not None:
+        need(suffix == "a", "dialogue_frozen_suffix")
+        module = load_fixed_dialogue(plan["runtime"]["dialogue"], plan["runtime"]["dialogue_sha256"], plan)
+        config = frozen_dialogue_config(config, frozen_manifest, module, source, pack_sha)
+    attempt_rel, attempt = allocate_dialogue_attempt(run, suffix)
+    if frozen_manifest is not None:
+        config_path = attempt.parent / f"{attempt.name}.config.json"
+        write_json(config_path, config)
+        frozen_path = Path(frozen_manifest).resolve(strict=True)
+        failed_path = frozen_path.parent / "failed-attempt.json"
+        frozen_info = {"path": str(frozen_path), "sha256": sha(frozen_path),
+                       "failed_attempt_path": str(failed_path), "failed_attempt_sha256": sha(failed_path)}
+    command = [plan["runtime"]["python"], str(Path(__file__).resolve()), "invoke-verifier",
+               plan["runtime"]["dialogue"], plan["runtime"]["dialogue_sha256"],
+               str(config_path), str(attempt)]
     try:
         proc = subprocess.run(command, capture_output=True, text=True, timeout=1800)
     except subprocess.TimeoutExpired as exc:
+        invocation = write_adapter_invocation(run, attempt_rel, plan, command, config_path, frozen_manifest,
+                                              None, True, exc.stdout, exc.stderr)
         record_dialogue_attempt_failure(attempt, run, suffix, source, pack_sha, kind="timeout",
                                         exit_code=None, timed_out=True, stdout=exc.stdout,
-                                        stderr=exc.stderr, reason="dialogue_timeout")
+                                        stderr=exc.stderr,
+                                        adapter_invocation={"path": invocation["path"], "sha256": invocation["sha256"]},
+                                        frozen_selection=frozen_info, reason="dialogue_timeout")
         raise Refused("dialogue_timeout") from exc
-    if proc.returncode != 0:
+    invocation = write_adapter_invocation(run, attempt_rel, plan, command, config_path, frozen_manifest,
+                                          proc.returncode, False, proc.stdout, proc.stderr)
+    if proc.returncode != 0 or not invocation["document"]["result"]["main_enter_marker_seen"]:
         record_dialogue_attempt_failure(attempt, run, suffix, source, pack_sha, kind="exit_nonzero",
                                         exit_code=proc.returncode, timed_out=False,
-                                        stdout=proc.stdout, stderr=proc.stderr)
+                                        stdout=proc.stdout, stderr=proc.stderr,
+                                        adapter_invocation={"path": invocation["path"], "sha256": invocation["sha256"]},
+                                        frozen_selection=frozen_info,
+                                        reason=None if proc.returncode != 0 else "dialogue_adapter_not_observed")
         need(False, "dialogue_exit")
+    ensure_attempt_directory(attempt)
     for name, data in (("runner.stdout", proc.stdout), ("runner.stderr", proc.stderr)):
         path = attempt / name
         path.write_text(data)
@@ -462,7 +649,11 @@ def run_dialogue(run, suffix):
     need(proc.returncode == 0, "dialogue_exit")
     try:
         actual = verify_dialogue_folder(attempt, source, pack_sha, run / f"dialogue-{suffix}-gold.json")
-    except (Refused, KeyError, TypeError, ValueError) as exc:
+        need(invocation["document"]["result"]["main_enter_marker_seen"] and
+             invocation["document"]["result"]["main_returned"], "dialogue_adapter")
+        if frozen_info is not None:
+            need(actual["selection_sha256"] == frozen_info["sha256"], "dialogue_frozen_selection")
+    except (Refused, OSError, KeyError, TypeError, ValueError) as exc:
         write_json(attempt / "invalid-attempt.json", {
             "protocol": "oo.oracle.dialogue-invalid-attempt/v1", "reason": str(exc),
             "error_class": type(exc).__name__, "exit_code": proc.returncode, "timed_out": False,
@@ -472,7 +663,9 @@ def run_dialogue(run, suffix):
             "transcript_sha256": sha(attempt / "transcript.json") if (attempt / "transcript.json").is_file() else None,
             "verdict_sha256": sha(attempt / "verdict.json") if (attempt / "verdict.json").is_file() else None,
             "runner_stdout_sha256": sha(attempt / "runner.stdout"),
-            "runner_stderr_sha256": sha(attempt / "runner.stderr")})
+            "runner_stderr_sha256": sha(attempt / "runner.stderr"),
+            "adapter_invocation": {"path": str(invocation["path"]), "sha256": invocation["sha256"]},
+            "frozen_selection": frozen_info})
         raise
     canonical = run / f"dialogue-{suffix}"
     staging = run / f".{canonical.name}-{uuid.uuid4().hex}.tmp"
@@ -487,7 +680,9 @@ def run_dialogue(run, suffix):
     except BaseException:
         shutil.rmtree(staging, ignore_errors=True)
         raise
-    write_json(run / f"dialogue-{suffix}-attempt.json", {"attempt": str(attempt_rel), "artifacts": actual})
+    write_json(run / f"dialogue-{suffix}-attempt.json", {
+        "attempt": str(attempt_rel), "artifacts": actual,
+        "adapter_invocation": {"path": str(invocation["path"]), "sha256": invocation["sha256"]}})
     return {"dialogue": suffix, "attempt": str(attempt_rel), "query_count": len(actual["query_ids"])}
 
 
@@ -500,18 +695,50 @@ def assert_fresh_dialogue_slot(run, suffix):
 
 
 def verify_dialogue(run, suffix, source, pack_sha):
+    plan = load_plan()
     folder = Path(run) / f"dialogue-{suffix}"
     result = verify_dialogue_folder(folder, source, pack_sha, Path(run) / f"dialogue-{suffix}-gold.json")
     pointer = read_json(Path(run) / f"dialogue-{suffix}-attempt.json")
     attempt = Path(run) / pointer["attempt"]
     need(attempt.is_dir() and not attempt.is_symlink(), "dialogue_attempt")
+    invocation_ref = pointer.get("adapter_invocation")
+    need(isinstance(invocation_ref, dict) and isinstance(invocation_ref.get("path"), str) and
+         isinstance(invocation_ref.get("sha256"), str), "dialogue_adapter")
+    invocation_rel = Path(invocation_ref["path"])
+    need(not invocation_rel.is_absolute() and ".." not in invocation_rel.parts, "dialogue_adapter")
+    invocation_path = Path(run) / invocation_rel
+    need(invocation_path.resolve().is_relative_to(Path(run).resolve()) and
+         sha(invocation_path) == invocation_ref["sha256"], "dialogue_adapter")
+    invocation = read_json(immutable_regular(invocation_path))
+    need(invocation.get("protocol") == "oo.oracle.dialogue-adapter-invocation/v1" and
+         invocation.get("entrypoint") == "dialogue.main" and
+         invocation.get("base_dialogue") == {"path": plan["runtime"]["dialogue"],
+                                               "sha256": plan["runtime"]["dialogue_sha256"]} and
+         invocation.get("adapter") == {"path": str(Path(__file__).resolve()), "sha256": sha(__file__)},
+         "dialogue_adapter")
+    invocation_command = invocation.get("argv")
+    need(isinstance(invocation_command, list) and plan["runtime"]["dialogue"] in invocation_command and
+         invocation.get("result", {}).get("exit_code") == 0 and
+         invocation["result"].get("main_enter_marker_seen") is True and
+         invocation["result"].get("main_returned") is True, "dialogue_adapter")
+    frozen = invocation.get("frozen_selection")
+    if frozen is not None:
+        frozen_path = immutable_regular(frozen["path"])
+        failed_path = immutable_regular(frozen["failed_attempt_path"])
+        need(sha(frozen_path) == frozen.get("sha256") and
+             sha(failed_path) == frozen.get("failed_attempt_sha256") and
+             sha(folder / "selection.json") == frozen.get("sha256"), "dialogue_frozen_selection")
     for name in ("selection.json", "transcript.json", "verdict.json"):
         need(sha(attempt / name) == pointer["artifacts"][name.replace(".json", "_sha256")], "dialogue_attempt")
         need(sha(folder / name) == pointer["artifacts"][name.replace(".json", "_sha256")], "dialogue_copy")
     need(result["query_ids"], "dialogue_qids")
     result.update(actual_output_path=str(pointer["attempt"]),
                   actual_output_artifact_sha256s=pointer["artifacts"],
-                  actual_output_sha256=pointer["artifacts"]["transcript_sha256"])
+                  actual_output_sha256=pointer["artifacts"]["transcript_sha256"],
+                  adapter_invocation={"path": str(invocation_rel), "sha256": invocation_ref["sha256"],
+                                      "base_dialogue_sha256": invocation["base_dialogue"]["sha256"],
+                                      "adapter_sha256": invocation["adapter"]["sha256"]},
+                  frozen_selection=frozen)
     return result
 
 
@@ -559,6 +786,7 @@ def close(run):
            "task_id": identity["ack"]["task"], "lease_generation": identity["ack"]["lease_generation"],
            "recovery_outcome": identity["ack"]["task_state"],
            "previous_failed_recovery_attempt": plan["recovery_history"],
+           "previous_dialogue_failure": a.get("frozen_selection"),
            "model": "grok-4.7", "reasoning_effort": "low", "agent_turns": a["turns"] + b["turns"],
            "query_ids": sorted(set(a["query_ids"] + b["query_ids"])),
            "gateway_container_id": plan["service"]["gateway_container_id"],
@@ -578,7 +806,7 @@ def close(run):
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("prepare", "prepare-dialogues", "run-dialogue", "close"))
+    parser.add_argument("command", choices=("prepare", "prepare-dialogues", "run-dialogue", "invoke-verifier", "close"))
     parser.add_argument("paths", nargs="+")
     args = parser.parse_args(argv)
     try:
@@ -586,8 +814,10 @@ def main(argv=None):
             result = prepare(args.paths[0], args.paths[1])
         elif args.command == "prepare-dialogues" and len(args.paths) == 1:
             result = prepare_dialogues(args.paths[0])
-        elif args.command == "run-dialogue" and len(args.paths) == 2 and args.paths[1] in {"a", "b"}:
-            result = run_dialogue(args.paths[0], args.paths[1])
+        elif args.command == "run-dialogue" and len(args.paths) in {2, 3} and args.paths[1] in {"a", "b"}:
+            result = run_dialogue(args.paths[0], args.paths[1], args.paths[2] if len(args.paths) == 3 else None)
+        elif args.command == "invoke-verifier" and len(args.paths) == 4:
+            result = invoke_verifier(args.paths[0], args.paths[1], args.paths[2], args.paths[3])
         elif args.command == "close" and len(args.paths) == 1:
             result = close(args.paths[0])
         else:
