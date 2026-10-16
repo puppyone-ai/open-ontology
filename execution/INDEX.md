@@ -1,3 +1,5 @@
+2026-10-16 Oracle C5继MySQL5.7+8.4完整ownedfixture参考已root核验并官方登记whole，当前仅Doris同一Luna max继续/其他7held；完整证据 execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json。无正式源/整版新增签收；当前CONTROL优先于下文历史。
+
 2026-10-16 当前接续：MySQL5.7+8.4本地真实整链参考已核验并固定于29e3afd88；Doris完整C4/C5与独立Oracle完整C5各唯一gpt-6-luna/max负责人，其他7源held。当前权威为[运行控制](CONTROL.md)、[MySQL签收](reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json)及[Doris完整卡](batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md)。正式源0/10、整版0、原Plan全部退出与分母不变；下文旧排期仅为历史。
 
 2026-10-16 最新直接人类排期覆盖：必须先将MySQL 8.4与5.7整条产品链完整、稳定跑通，再开展Doris及其他源工作。此前Oracle/Doris窄参考放行现撤回；已通知两负责人停止新开发/编译/DML/测试/发布/模型调用，仅安全收取正在执行命令并保留全部代码/失败/资源，待真实终态回执才转移writer。当前MySQL唯一Sol medium长跑继续，已交6042角色窄修固定API/CLI可继续用，不采用其他源未完WIP。后续其他源唯一工程师统一gpt-6-luna/max，在MySQL两版本全部原退出被root核实并固定制品后才派。Goal仍active，非整体暂停；正式0/10、原Plan全部退出/分母/五版次序/安全/审阅政策不变。精确政策 execution/batches/native-luna-full-source-20261015/mysql-first-other-sources-luna-max-policy.json。

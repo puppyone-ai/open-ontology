@@ -1,0 +1,69 @@
+{
+  "as_of": "2026-10-16T06:46:48.460729+00:00",
+  "acceptance_level": "root_verified_complete_owned_oracle_C5_fixture_reference",
+  "source_commit": "cc448e4608c6374e6bb650ce7aff41d9c480ae79",
+  "normal_run": "21558c4f6a814b069ef6ee0fdbb008ec",
+  "manifest": {
+    "path": "/private/tmp/oo-oracle-c5-luna-max-20261016/normal-whole-g15/final-author-delivery-history-b-gpt-tail-20261016T0603Z-attempt-02/MANIFEST.json",
+    "sha256": "ccd3aa605dbae0c3f2b072924ae94ad1dea140822a7a85fa77adef526930f87b"
+  },
+  "root_whole_check": {
+    "path": "/tmp/oo-root-oracle-complete-whole-check-20261016.json",
+    "sha256": "140e6b287e4341984cf167e79a283f81fbd76dc083be19a091eb208a199f98fd"
+  },
+  "official_registry_promotion": {
+    "path": "/tmp/oo-root-oracle-whole-registry-promotion-20261016/receipt.json",
+    "sha256": "802b750da00a5e88b6ebe63d2a527c17fbb0d64c61b02f3c3d99e9d538cfec6f"
+  },
+  "current_manual_client_auth": {
+    "path": "/tmp/oo-root-oracle-auth-20261016T064550Z/receipt.json",
+    "sha256": "51c5b4064f000191748502b630bf799ec1880ea6c0f4a139f7d1ff7d7ea29b31"
+  },
+  "decisive_results": {
+    "normal_steps": 6,
+    "normal_and_official_same_input_resume_exit": 0,
+    "registry_whole": true,
+    "source_generation": 15,
+    "source_binding": "e7325034-f8f4-4b72-91bd-4f3f9a48128a",
+    "typed_cells": 20,
+    "typed_differences": 0,
+    "immutable_source_refs": 92,
+    "unique_hashes_verified": 133,
+    "C5": "configurable6s actual owned fixture IUD/quiet; same task natural lease4 recovery then CAS/ACK; no LogMiner claim",
+    "product": "genuine retained S0-S10/S5 plus actual current maintenance standard YAML/Ontology/role Pack, test-scoped official active release, physical RO Gateway, public CLI and deny/admitted cancel/rollback proofs",
+    "random_dialogues": "two disjoint originally random2-turn groups;4 facts strictly replayed against actual CLI cells and4 original successful admit/complete WAL pairs; no redraw",
+    "model_provenance": "3 prior verified Grok4.7 turns reused;1 fresh GPT-6.1-Sol low turn/7 actual model requests; whole declares mixed actual response_models",
+    "source_time": "unmeasured",
+    "replica_lag": "unmeasured",
+    "customer_source_writes": 0
+  },
+  "resources": {
+    "author": "completed; code writer released",
+    "retained": "owned Oracle/target/physical standby/API/release/Gateway/readonly native worker continue",
+    "worker_configured_seconds": 86400,
+    "worker_deadline_utc": "2026-10-17T03:40:25.110649+00:00",
+    "manual_client_token": "new independent root token; original pinned token/recipe/proof unmodified; TTL1h and explicit CLI flag required; no auto renewal"
+  },
+  "limitations": [
+    "owned Oracle fixture reference only, not customer scm5 or production certification",
+    "default installed recipe matches this fixture; arbitrary customer six-field connection is not full deployment acceptance",
+    "all original failures kept; normal CLI summary published=false retained separately from actual active-release published=true",
+    "formal source acceptance0/10; editions0; nightly/customer/release gates remain independent"
+  ],
+  "Doris_current": "only same Luna/max source owner continues;0042 officially added to own target, original40 migration rows/function owner/ACL independently verified unchanged; fixed-source/ELF and true post-publication C4 update still pending complete intake",
+  "independent_review": "deferred to human-defined unified ten-source Goal milestone; no component reviewer",
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "release": 0,
+    "external": 0,
+    "formal_source": 0,
+    "edition": 0
+  },
+  "current_complete_owned_fixture_references": [
+    "mysql5.7+8.4",
+    "oracleC5"
+  ],
+  "original_exits_checked": "Plan/Goal/PRODUCT-LOOPS/support/frontend original exits unchanged; no parent/Phase/edition checkbox because this is local fixture reference not formal source signoff",
+  "checks": "TODO generated/checked, exact owned diff check; prior docs07 Spec/Plan baseline drift retained, no baseline reset"
+}

@@ -5705,14 +5705,14 @@
       "resource_prefix": "oo-dl01w1-10",
       "rust_slots": null,
       "database_memory_gib": 6,
-      "status": "running_complete_source_reference",
+      "status": "root_verified_complete_owned_fixture_reference",
       "tool_handle": null,
       "log": null,
       "process_identity": [],
       "cli_exit": 0,
-      "author_commit": "d92fb9ac5efa8296696f8f8dfbcba1bfff89e5f1",
+      "author_commit": "cc448e4608c6374e6bb650ce7aff41d9c480ae79",
       "independent_review": "execution/reviews/dl01-oracle-fixed/REVIEW.md",
-      "next_action": "complete original Oracle C5 full chain; preserve old IUD/fault evidence, then new automatic current product cycle, normal default/gold-QID-WAL",
+      "next_action": "retain fixed services; independent ten-source milestone review and original external gates pending",
       "historical_before_oracle_luna_max_release": {
         "task_id": "DL01-W1-10",
         "name": "oracle",
@@ -5747,7 +5747,7 @@
       },
       "native_agent": "/root/oracle_complete_luna_max",
       "dispatch": "execution/batches/native-luna-full-source-20261015/oracle-luna-max-dispatch.json",
-      "resource_terminal": "previous owner completed and writer released; retained g10 awaits new current source oracle/Pack/publication; revalidate live runtime before use",
+      "resource_terminal": "native source author completed and code writer released; readonly worker and named fixture services retained",
       "latest_scope_amendment": {
         "as_of": "2026-10-15T23:51:00.381945+00:00",
         "exclusive_path": "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)",
@@ -5766,7 +5766,12 @@
         "root_verified": "git blob equals current bytes, clean path, prior writer confirmed no mutator",
         "allowed": "verify_doris_observation authentic request/load/observed partition linkage and minimum tests only; Oracle functions unchanged",
         "formal_delta": 0
-      }
+      },
+      "previous_author_commit_before_complete_reference": "d92fb9ac5efa8296696f8f8dfbcba1bfff89e5f1",
+      "source_commit": "cc448e4608c6374e6bb650ce7aff41d9c480ae79",
+      "evidence": "execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json",
+      "review_status": "deferred_to_unified_ten_source_milestone",
+      "formal_signoff": false
     },
     {
       "task_id": "DL01-W1-11",
@@ -10768,28 +10773,30 @@
     "formal_source_count_delta": 0
   },
   "oracle_current_reference": {
-    "as_of": "2026-10-15T20:52:08.567485+00:00",
+    "as_of": "2026-10-16T06:46:48.460729+00:00",
     "task_id": "DL01-W1-10",
     "parent": "DBX-W09",
     "agent": "/root/oracle_complete_luna_max",
     "model": "gpt-6-luna",
     "reasoning_effort": "max",
-    "status": "spawned_and_accepted",
+    "status": "root_verified_complete_owned_fixture_reference",
     "contract": "execution/batches/native-luna-full-source-20261015/ORACLE-COMPLETE-LUNA-MAX-20261016.md",
     "exclusive_paths": [
       "tools/oracle-preview",
       "testing/dl01-driver-preflight/oracle/probe",
       "tools/selfbuild-control-api/src/overlay.rs"
     ],
-    "formal_source_count_delta": 0
+    "formal_source_count_delta": 0,
+    "intake": "execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json",
+    "writer_released": true
   },
   "latest_mysql_manual_token_refresh": {
-    "path": "/tmp/oo-root-mysql-auth-20261016T051608Z/receipt.json",
-    "sha256": "cbb8d4d16350fc68554733f0750c8e6aaa1af595414ea516920338ca64070ee8",
+    "path": "/tmp/oo-root-mysql-auth-20261016T064441Z/receipt.json",
+    "sha256": "484fb90ea8e152b2f715878d495ac79e957f4865ef4fa1216a99f4d9cb74290f",
     "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
-    "issued_UTC": "2026-10-16T05:16:09.959640+00:00",
+    "issued_UTC": "2026-10-16T06:44:42.614457+00:00",
     "client_ttl_ms": 3600000,
-    "token_container_path": "/run-current/renewed-client-root-20261016T051608Z.token",
+    "token_container_path": "/run-current/renewed-client-root-20261016T064441Z.token",
     "requires_explicit_CLI_flag": true,
     "automatic_renewal": false,
     "formal_source_count_delta": 0
@@ -10893,6 +10900,17 @@
       "requires_explicit_CLI_flag": true,
       "automatic_renewal": false,
       "formal_source_count_delta": 0
+    },
+    {
+      "path": "/tmp/oo-root-mysql-auth-20261016T051608Z/receipt.json",
+      "sha256": "cbb8d4d16350fc68554733f0750c8e6aaa1af595414ea516920338ca64070ee8",
+      "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
+      "issued_UTC": "2026-10-16T05:16:09.959640+00:00",
+      "client_ttl_ms": 3600000,
+      "token_container_path": "/run-current/renewed-client-root-20261016T051608Z.token",
+      "requires_explicit_CLI_flag": true,
+      "automatic_renewal": false,
+      "formal_source_count_delta": 0
     }
   ],
   "latest_per_table_shared_fixed_dependency": {
@@ -10946,13 +10964,13 @@
     "formal_source_count_delta": 0
   },
   "latest_oracle_default_installation": {
-    "intake": "execution/reviews/native-luna-full-source-20261015/doris-c4-published-parent-scope.json",
-    "source_commit": "5aed279306b888f42c29376428048ccb2cfa23ca",
-    "registry_state": "installed; normal run failed",
-    "run_id": "e3906c3aa5234e0bae111d6cc16b9dfb",
-    "whole": false,
+    "intake": "execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json",
+    "source_commit": "cc448e4608c6374e6bb650ce7aff41d9c480ae79",
+    "registry_state": "whole_registered",
+    "run_id": "21558c4f6a814b069ef6ee0fdbb008ec",
+    "whole": true,
     "owner": "/root/oracle_complete_luna_max",
-    "remaining": "strict completed B turn prefix reuse, original frozen B second question, normal whole/resume/final packet",
+    "author_state": "completed_writer_released",
     "formal_source_count_delta": 0
   },
   "latest_doris_fixture_publication": {
@@ -10981,5 +10999,19 @@
       "crates/oo-pipeline/src/native_update.rs"
     ],
     "formal_source_count_delta": 0
+  },
+  "latest_oracle_complete_fixture_reference": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json",
+    "formal_source_count_delta": 0,
+    "root_reference_pass": true,
+    "run_id": "21558c4f6a814b069ef6ee0fdbb008ec",
+    "registry_whole": true
+  },
+  "latest_oracle_manual_token_refresh": {
+    "path": "/tmp/oo-root-oracle-auth-20261016T064550Z/receipt.json",
+    "sha256": "51c5b4064f000191748502b630bf799ec1880ea6c0f4a139f7d1ff7d7ea29b31",
+    "issued_utc": "2026-10-16T06:45:54.262379+00:00",
+    "token_container_path": "/gw/root-client-20261016T064550Z.token",
+    "automatic_renewal": false
   }
 }

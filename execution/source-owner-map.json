@@ -139,15 +139,10 @@
       "uuid": null,
       "handle": null,
       "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
-      "write_paths": [
-        "tools/oracle-preview",
-        "testing/dl01-driver-preflight/oracle/probe",
-        "tools/release-coordinator/src/cli.rs (native maintain dispatch only)",
-        "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)"
-      ],
+      "write_paths": [],
       "mandatory_blocker": null,
-      "status": "spawned_and_accepted",
-      "next_action": "execution/batches/native-luna-full-source-20261015/ORACLE-COMPLETE-LUNA-MAX-20261016.md",
+      "status": "completed_root_verified_owned_fixture_reference",
+      "next_action": "retained immutable services; formal milestones pending",
       "historical_assignment_before_mysql_family_reference": {
         "source": "oracle",
         "task": "DL01-W1-04",
@@ -168,7 +163,15 @@
       "historical_task_alias": "DL01-W1-04 (legacy owner-map label)",
       "model": "gpt-6-luna",
       "reasoning_effort": "max",
-      "dispatch": "execution/batches/native-luna-full-source-20261015/oracle-luna-max-dispatch.json"
+      "dispatch": "execution/batches/native-luna-full-source-20261015/oracle-luna-max-dispatch.json",
+      "released_write_paths": [
+        "tools/oracle-preview",
+        "testing/dl01-driver-preflight/oracle/probe",
+        "tools/release-coordinator/src/cli.rs (native maintain dispatch only)",
+        "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)"
+      ],
+      "final_intake": "execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json",
+      "writer_released": true
     },
     {
       "source": "clickhouse",
@@ -396,5 +399,12 @@
     "new_write_paths": [
       "crates/oo-pipeline/migrations/0042_native_olap_published_parent.sql"
     ]
+  },
+  "latest_oracle_complete_fixture_reference": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json",
+    "formal_source_count_delta": 0,
+    "root_reference_pass": true,
+    "run_id": "21558c4f6a814b069ef6ee0fdbb008ec",
+    "registry_whole": true
   }
 }

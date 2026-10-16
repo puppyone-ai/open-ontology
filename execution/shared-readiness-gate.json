@@ -1,6 +1,6 @@
 {
-  "as_of": "2026-10-15T20:40:14.416995+00:00",
-  "status": "mysql57_and84_fixed_reference_verified_doris_oracle_running",
+  "as_of": "2026-10-16T06:46:48.460729+00:00",
+  "status": "mysql57_and84_and_oracle_complete_owned_fixture_references_doris_C4_pending",
   "owner": "root",
   "source_release_allowed": false,
   "source_tasks": [
@@ -502,7 +502,7 @@
       "agent": "/root/oracle_complete_luna_max",
       "model": "gpt-6-luna",
       "reasoning_effort": "max",
-      "status": "spawned_and_accepted",
+      "status": "root_verified_complete_owned_fixture_reference",
       "contract": "execution/batches/native-luna-full-source-20261015/ORACLE-COMPLETE-LUNA-MAX-20261016.md",
       "exclusive_paths": [
         "tools/oracle-preview",
@@ -510,7 +510,9 @@
         "tools/release-coordinator/src/cli.rs (native maintain dispatch only)",
         "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)"
       ],
-      "formal_source_count_delta": 0
+      "formal_source_count_delta": 0,
+      "intake": "execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json",
+      "writer_released": true
     }
   },
   "latest_doris_luna_max_dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json",
@@ -541,13 +543,13 @@
     "formal_source_count_delta": 0
   },
   "oracle_current_reference": {
-    "as_of": "2026-10-15T20:52:08.567485+00:00",
+    "as_of": "2026-10-16T06:46:48.460729+00:00",
     "task_id": "DL01-W1-10",
     "parent": "DBX-W09",
     "agent": "/root/oracle_complete_luna_max",
     "model": "gpt-6-luna",
     "reasoning_effort": "max",
-    "status": "spawned_and_accepted",
+    "status": "root_verified_complete_owned_fixture_reference",
     "contract": "execution/batches/native-luna-full-source-20261015/ORACLE-COMPLETE-LUNA-MAX-20261016.md",
     "exclusive_paths": [
       "tools/oracle-preview",
@@ -555,7 +557,9 @@
       "tools/release-coordinator/src/cli.rs (native maintain dispatch only)",
       "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)"
     ],
-    "formal_source_count_delta": 0
+    "formal_source_count_delta": 0,
+    "intake": "execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json",
+    "writer_released": true
   },
   "latest_overlay_ownership_transfer": {
     "as_of": "2026-10-15T23:52:47.690200+00:00",
@@ -624,5 +628,12 @@
       "tools/source-onboarding/test_onboard.py"
     ],
     "formal_source_count_delta": 0
+  },
+  "latest_oracle_complete_fixture_reference": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json",
+    "formal_source_count_delta": 0,
+    "root_reference_pass": true,
+    "run_id": "21558c4f6a814b069ef6ee0fdbb008ec",
+    "registry_whole": true
   }
 }
