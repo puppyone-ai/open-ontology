@@ -1,3 +1,9 @@
+2026-10-16 Oracle随机对话真实暴露RELATION_NOT_FOUND→UNQUALIFIED_RELATION工具反馈缺口，原选题/模型/CLI失败均保留；按实际Guard枚举一次补齐四类可纠正SQL错误反馈，固定139b1de4仅本源wrapper/test，最终facts/成功QID/WAL门槛不减。root实装23pins/28refs，原MySQL49pins/其他engine不变，a沿原随机manifest、b首次random，默认whole仍待验。Doris真实正式API测试发布已succeeded/activated，GW及自动完整后续待验。仅两Luna max继续，其他7held；无源/父项/整版签收，计数delta0、formal0/10。证据 execution/reviews/native-luna-full-source-20261015/oracle-sqlguard-feedback-intake.json。
+
+2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T042810Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T042810Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。
+
+2026-10-16 Oracle默认入口首次真实运行在dialogue-a前因输出leaf重复创建退出2，尚未调用模型；prepare/真实维护成功，原run d7038a4f保留。唯一根因修复固定205ab64cb，仅owned wrapper及回归；root重核12pins/28refs/MySQL49pins/其他engine rows，已登记新recipe awaiting_run，同一Luna max继续唯一正常随机whole。无源/父项/Plan/整版签收，计数delta0、formal0/10；Spec/Plan既有docs07基线漂移exit1保留。证据 execution/reviews/native-luna-full-source-20261015/oracle-default-wrapper-postfix-intake.json。
+
 2026-10-16 Oracle默认入口已实际安装待跑：固定9ec99c36b的10owned文件、12pins、28源证据root核实，原MySQL49pins和其他engine rows不变；g15真实自动维护/fixture发布/RO Gateway20cells0及当前CLI取消原WAL已核。故障为同task实际lease4恢复，保留前失败，不称lease2。registry awaiting_run/wholefalse，同一Oracle Luna max继续正常六字段whole/唯一两组随机对话/重入/最终包；Doris同一整源继续，其他7held。无新增源/父项/Plan/整版签收，所有计数delta0、formal0/10。证据 execution/reviews/native-luna-full-source-20261015/oracle-default-installation-intake.json。
 
 2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T034055Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T034055Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。

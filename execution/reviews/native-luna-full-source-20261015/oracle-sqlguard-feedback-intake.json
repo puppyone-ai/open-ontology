@@ -1,0 +1,33 @@
+{
+  "as_of": "2026-10-16T04:32:18.155706+00:00",
+  "acceptance_level": "fixed_owned_verifier_feedback_adapter_and_default_installation_only",
+  "source_commit": "139b1de4aa0e0eeb38e8c95bc6388b139dea1bb5",
+  "raw_receipt": {
+    "path": "/tmp/oo-root-oracle-default-install-sqlguard-139b1de4-20261016/receipt.json",
+    "sha256": "01c0a2c49bdb3ac3f03f7ff703beeb6cdf70b30f87a719ca2b7d6a72256f61b0"
+  },
+  "payload": {
+    "path": "/private/tmp/oo-oracle-c5-luna-max-20261016/normal-whole-g15/install-payload-sqlguard-errors-139b1de4.json",
+    "sha256": "df554af88019f9ac13171035c19d6803ac23f892ec00e617e41fd73020a61142"
+  },
+  "scope": "Bounded owned SQL guard feedback overlay on unchanged shared verifier; original a random manifest and all prior failures pinned; facts/query/audit checks unchanged.",
+  "guard_contract": "crates/oo-gateway/src/sql_guard.rs GuardError::code; only four missing query/validate gateway SQL refusal categories added to original classifier. Auth/integrity/transport/unknown failures not accepted. Nonzero errors never count as successful queries.",
+  "original_random_selection": "same original a manifest/seed/questions/source/gen15/Pack/gold reused after explicit root-cause fixes; b remains first random draw. Prior failures retained and pinned. Final facts,successful CLI cells,query WAL and coverage checks unchanged.",
+  "current_state": "Normal six-field whole in progress; no verified dialogue or whole result claimed.",
+  "doris_actual_publication": {
+    "path": "/private/tmp/oo-doris-lunamax-20261016/product-e2e/evidence/native-release/0014-create-release-rerun/operation-state.json",
+    "sha256": "4088ec307b7db6712cb7c28498c79b4182e3047f6ac024243c115ea1799157ca",
+    "root_readback": "HTTP202 then succeeded/activated, production_ready=false; full source Gateway/update/CLI/dialogue still pending"
+  },
+  "independent_review": "deferred to unified ten-source milestone",
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "release": 0,
+    "external": 0,
+    "formal_source": 0,
+    "edition": 0
+  },
+  "formal_sources": "0/10",
+  "checks": "TODO generated/checked; prior docs07 baseline drift retained; Goal/PRODUCT-LOOPS/support/frontend not changed because no parent or edition exit."
+}

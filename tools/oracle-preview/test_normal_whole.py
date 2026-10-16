@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 import json
 import hashlib
+import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools/agent-product-verifier"))
 import dialogue
 
+sys.path.insert(0, str(ROOT / "tools/source-onboarding"))
+import onboard
 import normal_whole
 
 
@@ -55,7 +60,8 @@ class NormalWholeTests(unittest.TestCase):
             (run / "dialogue-a-gold.json").write_text("{}\n")
             normal_whole.assert_fresh_dialogue_slot(run, "a")
             attempt = run / "attempts" / "dialogue-a-1234-deadbeef"
-            attempt.mkdir(parents=True)
+            attempt.parent.mkdir(mode=0o700)
+            attempt.mkdir(mode=0o700)
             (attempt / "selection.json").write_text(json.dumps({"seed": 10}))
             normal_whole.record_dialogue_attempt_failure(
                 attempt, run, "a", {"source_id": "oracle_fixture"}, "b" * 64,
@@ -69,6 +75,140 @@ class NormalWholeTests(unittest.TestCase):
             self.assertEqual(failure["selection_sha256"], normal_whole.sha(attempt / "selection.json"))
             self.assertEqual((attempt / "runner.stderr").read_text(), "partial stderr")
             normal_whole.assert_fresh_dialogue_slot(run, "b")
+
+    def test_dialogue_attempt_allocates_parent_but_leaves_output_for_child(self):
+        with tempfile.TemporaryDirectory() as d:
+            run = Path(d)
+            relative, output = normal_whole.allocate_dialogue_attempt(run, "a")
+            self.assertEqual(relative.parent, Path("attempts"))
+            self.assertTrue(output.parent.is_dir())
+            self.assertFalse(output.exists())
+            output.mkdir(mode=0o700)
+            self.assertEqual(normal_whole.ensure_attempt_directory(output), output)
+
+    def test_sql_guard_correction_errors_are_returned_without_weakening_other_errors(self):
+        errors = [
+            {"class": "gateway", "code": "RELATION_NOT_FOUND", "message": "relation is not visible", "exit": 2},
+            {"class": "gateway", "code": "UNQUALIFIED_RELATION", "message": "relation must be schema-qualified", "exit": 2},
+            {"class": "gateway", "code": "SQL_PARSE_ERROR", "message": "parse failed", "exit": 2},
+            {"class": "gateway", "code": "COST_TOO_HIGH", "message": "query cost exceeded", "exit": 2},
+        ]
+        for body in errors:
+            with self.subTest(code=body["code"]):
+                self.assertTrue(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, "query", body))
+                self.assertTrue(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, "validate", body))
+        self.assertFalse(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, "describe", errors[0]))
+        self.assertFalse(normal_whole.oracle_tool_error_returned(
+            dialogue.tool_error_returned, "query", {**errors[0], "message": "relation exists but is hidden"}))
+        self.assertFalse(normal_whole.oracle_tool_error_returned(
+            dialogue.tool_error_returned, "query", {**errors[1], "message": "relation is not visible"}))
+        for denied in (
+            {**errors[0], "class": "usage"},
+            {"class": "gateway", "code": "SCHEMA_INVALID", "message": "catalog identity invalid", "exit": 2},
+            {"class": "gateway", "code": "AUTH_DENIED", "message": "permission denied", "exit": 2},
+            {"class": "gateway", "code": "INTERNAL_ERROR", "message": "internal failure", "exit": 2},
+            {"class": "gateway", "code": "UNRECOGNIZED_CODE", "message": "unknown", "exit": 2},
+        ):
+            with self.subTest(denied=denied["code"]):
+                self.assertFalse(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, "query", denied))
+        allowed = {"class": "gateway", "code": "COLUMN_NOT_ALLOWED", "message": "column denied", "exit": 2}
+        self.assertTrue(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, "query", allowed))
+
+    def test_frozen_random_selection_reuses_exact_current_identity_and_rejects_drift(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            truth = {f"truth_{i}": {"expected_named_facts": {"value": str(i)}} for i in range(4)}
+            truth_path = root / "gold.json"
+            truth_bytes = (json.dumps(truth, indent=2) + "\n").encode()
+            truth_path.write_bytes(truth_bytes)
+            truth_path.chmod(0o600)
+            bank = [{"semantic_id": f"fact_{i}", "query_class": "rows" if i < 2 else "aggregate",
+                     "prompt": f"Find independently grounded fact {i}", "truth_key": f"truth_{i}"}
+                    for i in range(4)]
+            identity = {"source_id": "oracle_fixture", "source_generation": 15,
+                        "pack_sha256": "b" * 64, "role": "reader"}
+            config = {"question_bank": bank, "independent_truth_file": str(truth_path),
+                      "sample_size": 2, "identity": identity}
+            manifest, _ = dialogue.freeze_selection(config, truth, truth_bytes)
+            attempt = root / "attempt"
+            attempt.mkdir(mode=0o700)
+            selection_path = attempt / "selection.json"
+            selection_bytes = (json.dumps(manifest, indent=2) + "\n").encode()
+            selection_path.write_bytes(selection_bytes)
+            transcript = [{"turn": 0, "step": 0, "model": {"choices": [{"message": {"tool_calls": [{"id": "call-1"}]}}]},
+                           "tool": "query", "exit": 2}]
+            transcript_path = attempt / "transcript.json"
+            transcript_path.write_text(json.dumps(transcript) + "\n")
+            failure_path = attempt / "failed-attempt.json"
+            failure_path.write_text(json.dumps({
+                "protocol": "oo.oracle.dialogue-failed-attempt/v1", "source_id": identity["source_id"],
+                "source_generation": identity["source_generation"], "pack_sha256": identity["pack_sha256"],
+                "truth_sha256": hashlib.sha256(truth_bytes).hexdigest(),
+                "selection_sha256": hashlib.sha256(selection_bytes).hexdigest(),
+                "transcript_sha256": hashlib.sha256(transcript_path.read_bytes()).hexdigest(),
+                "verdict_sha256": None}) + "\n")
+            frozen = normal_whole.frozen_dialogue_config(
+                config, selection_path, dialogue, {"source_id": identity["source_id"]}, identity["pack_sha256"])
+            self.assertEqual(frozen["seed"], manifest["seed"])
+            self.assertEqual(frozen["frozen_manifest"], str(selection_path.resolve()))
+            self.assertEqual(hashlib.sha256(selection_bytes).hexdigest(), hashlib.sha256(selection_path.read_bytes()).hexdigest())
+            wrong_identity = json.loads(json.dumps(config))
+            wrong_identity["identity"]["pack_sha256"] = "c" * 64
+            with self.assertRaisesRegex(ValueError, "resume identity mismatch"):
+                normal_whole.frozen_dialogue_config(
+                    wrong_identity, selection_path, dialogue,
+                    {"source_id": identity["source_id"]}, identity["pack_sha256"])
+            changed_truth = dict(truth)
+            changed_truth["truth_0"] = {"expected_named_facts": {"value": "changed"}}
+            changed_path = root / "changed-gold.json"
+            changed_path.write_text(json.dumps(changed_truth) + "\n")
+            changed_path.chmod(0o600)
+            wrong_gold = {**config, "independent_truth_file": str(changed_path)}
+            with self.assertRaisesRegex(ValueError, "resume truth digest mismatch"):
+                normal_whole.frozen_dialogue_config(
+                    wrong_gold, selection_path, dialogue,
+                    {"source_id": identity["source_id"]}, identity["pack_sha256"])
+
+    def test_verifier_invocation_is_observed_by_normal_onboarding_before_any_model_call(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            truth_fifo = root / "truth.fifo"
+            os.mkfifo(truth_fifo)
+            config_path = root / "dialogue-config.json"
+            config_path.write_text(json.dumps({
+                "questions": [{"prompt": "offline adapter probe", "truth_key": "fixture"}],
+                "independent_truth_file": str(truth_fifo),
+                "model_origin": "http://not-approved",
+            }) + "\n")
+            config_path.chmod(0o600)
+            output_path = root / "dialogue-output"
+            plan = normal_whole.load_plan()
+            dialogue_path = plan["runtime"]["dialogue"]
+            command = [plan["runtime"]["python"], str(Path(normal_whole.__file__).resolve()),
+                       "invoke-verifier", dialogue_path, plan["runtime"]["dialogue_sha256"],
+                       str(config_path), str(output_path)]
+            proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    text=True, start_new_session=True)
+            try:
+                observed = []
+                deadline = time.monotonic() + 5
+                while time.monotonic() < deadline and proc.poll() is None:
+                    observed = onboard.observe_children(proc.pid)
+                    if dialogue_path in observed:
+                        break
+                    time.sleep(0.05)
+                self.assertIn(dialogue_path, observed)
+                with truth_fifo.open("wb") as writer:
+                    writer.write(b'{"fixture":{}}\n')
+                stdout, stderr = proc.communicate(timeout=10)
+                self.assertEqual(proc.returncode, 2)
+                self.assertIn('"event": "main_enter"', stderr)
+                self.assertIn(dialogue_path, stderr)
+                self.assertFalse(output_path.exists())
+            finally:
+                if proc.poll() is None:
+                    proc.kill()
+                    proc.communicate(timeout=5)
 
     def test_active_release_requires_same_immutable_candidate_and_test_scope(self):
         release = {"contract": "oo.release-control-api/v1", "operation": "getActiveRelease",
