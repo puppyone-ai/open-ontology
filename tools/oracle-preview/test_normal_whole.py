@@ -326,8 +326,64 @@ class NormalWholeTests(unittest.TestCase):
         self.assertIn("knowledge_cat only with a path returned by that search", module.SYSTEM)
         self.assertIn("error query_id as non-evidence", module.SYSTEM)
         self.assertIn("revise the query or search the Pack", module.SYSTEM)
+        self.assertIn("Before each query, call describe on the actual table", module.SYSTEM)
+        self.assertIn("returned column identifiers", module.SYSTEM)
         self.assertNotIn("SELECT", module.SYSTEM)
         self.assertNotIn("order_25_amount", module.SYSTEM)
+
+    def test_named_facts_require_a_tool_call_until_successful_probe_exists(self):
+        plan = normal_whole.load_plan()
+        module = normal_whole.load_fixed_dialogue(
+            plan["runtime"]["dialogue"], plan["runtime"]["dialogue_sha256"], plan)
+        messages = [{"role": "user", "content": "return a fact"}]
+        tools = [{"type": "function", "function": {"name": "query"}}]
+        facts = {"amount": "1.00"}
+        empty_turn = module.completion_body("gpt-6.1-sol", messages, tools, "auto", facts, final=False)
+        self.assertEqual(empty_turn["tool_choice"], "required")
+        self.assertEqual(empty_turn["model"], "gpt-6.1-sol")
+        self.assertEqual(empty_turn["reasoning_effort"], "low")
+        self.assertEqual(empty_turn, dialogue.completion_body(
+            "gpt-6.1-sol", messages, tools, "required", facts, final=False))
+        self.assertEqual(module.completion_body("gpt-6.1-sol", messages, tools, "auto", {}, final=False),
+                         dialogue.completion_body("gpt-6.1-sol", messages, tools, "required", {}, final=False))
+        final_turn = module.completion_body("gpt-6.1-sol", messages, tools, "auto", facts, final=True)
+        self.assertEqual(final_turn["tool_choice"], "auto")
+        self.assertEqual(final_turn, dialogue.completion_body(
+            "gpt-6.1-sol", messages, tools, "auto", facts, final=True))
+        non_fact_turn = module.completion_body("gpt-6.1-sol", messages, tools, "auto", None, final=False)
+        self.assertEqual(non_fact_turn["tool_choice"], "auto")
+        self.assertEqual(non_fact_turn, dialogue.completion_body(
+            "gpt-6.1-sol", messages, tools, "auto", None, final=False))
+
+    def test_b_gpt_tail_binds_root_verified_prefix_selection_and_wal(self):
+        plan = normal_whole.load_plan()
+        resume = plan["dialogue_resume"]["b"]
+        manifest = normal_whole.immutable_ref(plan, resume["frozen_selection_ref"])
+        prefix_path = normal_whole.immutable_ref(plan, resume["prefix_ref"])
+        transcript_path = normal_whole.immutable_ref(plan, resume["original_transcript_ref"])
+        attempt = transcript_path.parent
+        config = normal_whole.read_json(attempt.parent.parent / "dialogue-b-config.json")
+        module = normal_whole.load_fixed_dialogue(
+            plan["runtime"]["dialogue"], plan["runtime"]["dialogue_sha256"], plan)
+        config = normal_whole.frozen_dialogue_config(
+            config, manifest, module, plan["source"], plan["service"]["role_pack_sha256"], "b")
+        config["frozen_dialogue_suffix"] = "b"
+        config.update(model=normal_whole.RESUME_MODEL, resume_transcript=str(prefix_path),
+                      resume_transcript_sha256=normal_whole.sha(prefix_path))
+        evidence = normal_whole.validate_resumed_dialogue_config(config, manifest, module, plan)
+        self.assertEqual(evidence["completed_turns"], 1)
+        self.assertEqual(evidence["prefix_events"], 22)
+        self.assertEqual(evidence["query_ids"], ["q_HbvmTNIsCfpoZgZZbmx3ioQS7Z"])
+        self.assertEqual(evidence["successful_tools"],
+                         ["describe", "freshness", "knowledge_cat", "knowledge_search", "query", "tables"])
+        self.assertEqual(set(resume["wal"]), set(normal_whole.read_json(
+            normal_whole.immutable_ref(plan, resume["receipt_ref"])).get("original_wal", {})))
+        bad_config = dict(config, resume_transcript_sha256="0" * 64)
+        with self.assertRaisesRegex(normal_whole.Refused, "dialogue_resume_transcript"):
+            normal_whole.validate_resumed_dialogue_config(bad_config, manifest, module, plan)
+        wrong_model = dict(config, model="grok-4.7")
+        with self.assertRaisesRegex(normal_whole.Refused, "dialogue_resume_model"):
+            normal_whole.validate_resumed_dialogue_config(wrong_model, manifest, module, plan)
 
     def test_original_b_selection_is_retryable_only_without_any_successful_query(self):
         plan = normal_whole.load_plan()
@@ -461,13 +517,15 @@ class NormalWholeTests(unittest.TestCase):
                 "identity": {"source_id": "oracle_fixture", "source_generation": 15,
                              "pack_sha256": "b" * 64, "role": "oo_r_oracle_orders"}}))
             (folder / "verdict.json").write_text(json.dumps({
-                "outcome": "verified", "model": "grok-4.7", "reasoning_effort": "low",
+                "outcome": "verified", "model": "gpt-6.1-sol", "reasoning_effort": "low",
+                "response_models": ["gpt-6.1-sol", "grok-4.7"],
                 "turns": 2, "selection": "random", "counts_as_random": True,
                 "seed": 42, "semantic_ids": ids, "gold_sha256": truth_sha,
                 "truth_sha256": truth_sha, "tools": ["query", "freshness", "describe", "knowledge_cat"],
                 "query_ids": qids, "audit_sha256": "c" * 64}))
             (folder / "transcript.json").write_text(json.dumps([
-                {"turn": 1, "query_id": qids[0]}, {"turn": 2, "query_id": qids[1]}]))
+                {"turn": 0, "step": 0, "model": {"model": "grok-4.7"}, "query_id": qids[0]},
+                {"turn": 1, "step": 0, "model": {"model": "gpt-6.1-sol"}, "query_id": qids[1]}]))
             self.assertEqual(normal_whole.verify_dialogue_folder(
                 folder, {"source_id": "oracle_fixture"}, "b" * 64, gold)["query_ids"], qids)
             selection = json.loads((folder / "selection.json").read_text())

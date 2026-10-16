@@ -5,7 +5,7 @@
   "agent": "/root/oracle_complete_luna_max",
   "model": "gpt-6-luna",
   "reasoning_effort": "max",
-  "status": "spawned_and_accepted",
+  "status": "completed_root_verified_owned_fixture_reference",
   "contract": "execution/batches/native-luna-full-source-20261015/ORACLE-COMPLETE-LUNA-MAX-20261016.md",
   "dependency_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
   "old_owner_terminal": true,
@@ -69,5 +69,14 @@
     "receipt": "execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json",
     "owner": "/root/doris_complete_luna_max",
     "this_owner_has_write_authority": false
-  }
+  },
+  "latest_oracle_complete_fixture_reference": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json",
+    "formal_source_count_delta": 0,
+    "root_reference_pass": true,
+    "run_id": "21558c4f6a814b069ef6ee0fdbb008ec",
+    "registry_whole": true
+  },
+  "writer_released": true,
+  "final_intake": "execution/reviews/native-luna-full-source-20261015/oracle-complete-fixture-reference-intake.json"
 }
