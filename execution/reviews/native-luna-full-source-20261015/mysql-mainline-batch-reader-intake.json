@@ -1,0 +1,212 @@
+{
+  "as_of": "2026-10-16T13:30:56.996184+00:00",
+  "task": "DL01-W1-06",
+  "parent": "SP03-W02",
+  "level": "root_verified_owned_fixture_mainline_integration; not parent/formal/production acceptance",
+  "status": "completed_scoped_delivery_writer_released",
+  "source_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
+  "report_commit": "9770f4a1ff2ccd6ed3b6b1fd258249fce1316512",
+  "frozen_base": "0b27b409a6eb7accc9b382143b3bdbd197444541",
+  "policy": "execution/decisions/source-connector-modules-and-features-20261016.md",
+  "implementation": "oo-connectors/src/mysql source-only modules; optional mysql feature; explicit real C1 baseline/reconcile/native consumers; Loader/COPY and target credentials outside connector; PG default no MySQL driver",
+  "evidence": {
+    "live_verifier": {
+      "path": "/tmp/oo-root-mysql-mainline-intake-20261016/verdict.json",
+      "sha256": "f179b1410297d1ca0bb3e38f56d92c6b3007b49c9f38edc4cf2ed91ea2d92ddb"
+    },
+    "package_verifier": {
+      "path": "/tmp/oo-root-mysql-mainline-package-verification-20261016.json",
+      "sha256": "7bde18e39ed4157464ff6f83ada551448fd6d0750bcaee8b5bec9087e5a70fad"
+    },
+    "source_git_verifier": {
+      "path": "/tmp/oo-root-mysql-mainline-source-git-intake-v2-20261016.json",
+      "sha256": "c269a576ea31f03c95b2b95c437b8a238d947e9fc1cd2ee30e8a158031453e69"
+    },
+    "default_install": {
+      "path": "/tmp/oo-root-mysql-mainline-default-install-20261016/receipt.json",
+      "sha256": "a20f7bb70ca5c4b9044bf40c1dec84108ae36516e639884b9c385984ab03c507"
+    },
+    "retirement_and_post_queries": {
+      "path": "/tmp/oo-root-mysql-mainline-default-install-20261016/retirement-and-post-probes.json",
+      "sha256": "d7775be01e4de2558716086762a33a12cbec713fa5f8f0860e6e7329965b1acc"
+    },
+    "delivery": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/DELIVERY.json",
+      "sha256": "a516600bf97e988e5580ce02319bd452c4a558effc7faf612ee2a2ef9d9ffcfb"
+    },
+    "generated_cursor_provenance": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/generated-cursor-provenance-v1.json",
+      "sha256": "93994d945b4f37a35af1ad5dddaa0177f8216a48c64768a402df6c5714a3da1a"
+    }
+  },
+  "source_archive": {
+    "sha256": "26359b01b6bfd6db4e11bf57d1d607e8fb1e853868337c7fcb986f978ca50376",
+    "source_files_match_fixed_git": true,
+    "owned_delta_files": 23,
+    "generated_exception": "tools/mysql-preview/cursor.json, 219 bytes; fixed test reproduced identical bytes in empty cwd; declared non-source input, original archive unchanged"
+  },
+  "delivery_archive": {
+    "path": "/tmp/oo-mysql-mainline-complete-delivery-v2-20261016.tar",
+    "sha256": "5694c0f76824c790f5b30e58e5085262a514343ba545f10b178d482f63643eef",
+    "outer_members_verified": 13,
+    "payload_members_verified": 70619
+  },
+  "runtime_sha256": "00f198ff2d1adf287aff7103ab93b1b760969d2f340fc8ead0c6eeb0ac0831f0",
+  "tests": {
+    "linux": "Rust 1.94.0 locked/offline",
+    "default_pg_passed": 73,
+    "mysql_feature_passed": 87,
+    "preview_passed": 40,
+    "preview_ignored": 1,
+    "runtime_passed": 9,
+    "architecture_passed": 44,
+    "architecture_positive_negative_restored": "exit0; original baseline exit1 preserved",
+    "clippy": "Linux final native-runtime-current-gateway-clippy-v2 actual exit0; v1 missing-component exit1 retained"
+  },
+  "product_verification": {
+    "versions": [
+      "5.7.44-log",
+      "8.4.10"
+    ],
+    "tables_each": 5,
+    "columns_each": 43,
+    "final_rows_each": 110019,
+    "typed_cell_differences": 0,
+    "actual_new_core_cold_c1_baseline_rows_each": 110024,
+    "cold_baseline_batches_each": 115,
+    "max_batch_rows": 1000,
+    "capture_method": "C1 binlog CDC; actual double UPDATE, delete, CAS then ACK; quiet apply=false/ack=false; no C5 substitution",
+    "chain": "real source -> Arrow -> Loader -> S0-S10 -> maintained YAML/Ontology/Pack -> publish -> physical read-only Agent DB -> Gateway -> CLI -> random model dialogue",
+    "live_scopes": [
+      {
+        "scope": "mysql57",
+        "generation": 4,
+        "typed0": true,
+        "actual_process": true,
+        "cli_current": true,
+        "secret_isolation": true,
+        "quiet": true
+      },
+      {
+        "scope": "mysql8",
+        "generation": 4,
+        "typed0": true,
+        "actual_process": true,
+        "cli_current": true,
+        "secret_isolation": true,
+        "quiet": true
+      },
+      {
+        "scope": "original-mysql57",
+        "generation": 9,
+        "typed0": true,
+        "actual_process": true,
+        "cli_current": true,
+        "secret_isolation": true,
+        "quiet": true
+      },
+      {
+        "scope": "original-mysql8",
+        "generation": 13,
+        "typed0": true,
+        "actual_process": true,
+        "cli_current": true,
+        "secret_isolation": true,
+        "quiet": true
+      }
+    ],
+    "random_turns": 8,
+    "random_scope": "two new isolated scopes only; original two independently checked typed/current CLI/quiet",
+    "original_success_query_ids": [
+      "q_5etd2NX6ZgQLqGG8HXwjLThBvK",
+      "q_A927y5p5MQBluo59glC1ZquYZi",
+      "q_BaehNi2hoIcQAqTJ7QFj1i0IV7",
+      "q_F0fTLbnll0lULTbxj2tmkm4Q8R",
+      "q_H7EHcUEhPm1l0q3x318UEOD6l2",
+      "q_bfIsge0yBnzrkoua0uqk970Zqg",
+      "q_ct7qCOK241VnZ38RhqbbctDSYy",
+      "q_vAh407YOVPGK9AWhms0miI97Hf"
+    ],
+    "gold_and_wal": "source GTID stable before/after; independent typed facts/CLI cells and original complete WAL checked; no gold supplied to model"
+  },
+  "installation": {
+    "runtime_sha256": "00f198ff2d1adf287aff7103ab93b1b760969d2f340fc8ead0c6eeb0ac0831f0",
+    "registry": "/etc/open-ontology/native/mysql-operators.json",
+    "installed_operators": [
+      "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/original-mysql57-operator-final-long-v1.json",
+      "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/original-mysql8-operator-final-long-v1.json"
+    ],
+    "default_checks": 2,
+    "actual_cli_checks": 2,
+    "new_models": 0,
+    "new_dml": 0,
+    "active_four_serve_restarted": false,
+    "scope": "original two sources only; isolated verification operators stay explicit",
+    "initial_failure": "docker cp retained host uid501; private_file correctly refused; corrected installed registry to runtime uid0; original failed exit/stderr retained"
+  },
+  "resource_receipt": {
+    "control_container": "oo-mysql-rust-runtime-linux-v8",
+    "active_serve_pids": [
+      92800,
+      92812,
+      92824,
+      92836
+    ],
+    "period_ms": 1000,
+    "serve_deadline_utc": "2026-10-17T12:59:46Z (per-scope fractions in author OPERATIONS)",
+    "serve_exit": "pending at intake; no boot daemon",
+    "client_token_ttl_ms": 3600000,
+    "automatic_token_renewal": false,
+    "retired_gateways": 14,
+    "retired_container_exit": 137,
+    "native_process_exit_not_inferred": true,
+    "current_gateways": [
+      "oo-mysql57-live6-g9-rust-6e46f0cf",
+      "oo-mysql57-mainline-iso-g4-rust-20aff26b",
+      "oo-mysql8-live6-g13-rust-86a33946",
+      "oo-mysql8-mainline-iso-g4-rust-7c660dcb"
+    ],
+    "volumes_and_evidence_preserved": true,
+    "source_writer": "completed/released; no new engineer dispatched"
+  },
+  "paid_usage": {
+    "product_requests": 55,
+    "product_tokens": 137055,
+    "engineer_tokens": "unavailable",
+    "one_fifth_target": "not demonstrated; do not claim achieved",
+    "root_new_model_calls": 0,
+    "root_dml": 0
+  },
+  "known_limits": [
+    "Initial C1 baseline source_committed_at NULL is rejected by freshness until real source updates provide commit times; static arbitrary six-field customer whole is not accepted. No synthetic heartbeat or bypass.",
+    "Reader currently single integer PK keyset; limits 10000 rows/query, 1000000 rows/table, 32MiB raw/table, 16MiB/batch and 300s/30s budgets; not all versions or MariaDB.",
+    "Formal shared trait/admission, customer deployment/security, unified independent review, nightly/release/original parent exits remain unaccepted."
+  ],
+  "retained_failures": [
+    "baseline architecture missing exact Gateway->Builder edge",
+    "private evidence directory first-maintenance failure",
+    "published-cut missing optional Gateway pin and previous-ready mapping failure",
+    "isolated jobs/target cross-database and global freshness scope failures before official isolated setup",
+    "original native-loader override still old ELF before official native-loader-put",
+    "initial default registry UID501 rejected, then installed UID0 mode0600 checks pass",
+    "root archive prefix comparison failure corrected without artifact rewrite; generated cursor separately declared"
+  ],
+  "review": "root evidence intake only; independent review deferred to user-specified unified complete-chain milestone; no review agent spawned",
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "parent": 0,
+    "phase": 0,
+    "edition": 0,
+    "formal_sources": 0
+  },
+  "formal_source_count": "0/10",
+  "broad_goal": "paused; actual get_goal verified this turn",
+  "other_sources": "held; no automatic Doris/source release",
+  "checked_not_changed": {
+    "PRODUCT-LOOPS": "no edition meets full exits; no checkbox or DL switch",
+    "support_matrix": "no formal admission promotion",
+    "frontend": "no frontend work",
+    "normative_docs_and_baseline": "unchanged; existing docs/07-gateway.md drift remains"
+  }
+}

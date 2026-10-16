@@ -1,3 +1,5 @@
+2026-10-16 MySQL主线专项已完成限定接收：正式oo-connectors按源目录+可选mysql feature，PG默认不引MySQL；C1真实基线/对账与Rust产品消费者已接线。固定源码b60bd6fb5、报告9770f4a1f，Linux1.94回归/Clippy/架构正反例通过。5.7.44-log/8.4.10更新后完整owned-fixture链，各5表43列110019行typed0、新隔离scope共8随机对话原QID/WAL经root核验；原两源默认已安装，四当前CLI实查通过、14旧Gateway停用保留卷。源writer已释放，四有界serve至2026-10-17T12:59:46Z、客户端TTL1小时需显式续签。初始静态baseline提交时间NULL仍受freshness拒绝，不宣称任意客户六字段即全链；产品55请求137055 tokens，1/5成本目标未证明。独立统一复审/原父项与正式门槛保留，所有计数delta0、formal0/10；总Goal和其他源暂停。权威回执 execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json。以下旧“running/仅PG”记录为历史，不覆盖本次状态。
+
 2026-10-16 MySQL主线验证发现既有架构声明漏项：Gateway已用Builder纯校验但REQUIRED_EDGES未登记；root核实际调用/依赖后仅授权精确边声明与最小回归，全部源驱动/凭据/管线/runtime禁止规则不变。原基线exit1保留，须独立窄修提交和Linux正/负/恢复通过；原完整卡继续，尚未签收，计数delta0。
 
 2026-10-16 用户已暂停总Goal，get_goal实回paused；Doris已安全终态/无后台writer、源码WIP与DB/API保留，hold SHA be86aac4…10859。随后用户明确仅授权MySQL批量源读取器进入oo-connectors并主线全链验通，继续同一Sol medium；其他源不恢复。此前e3/ac633固定本地运行链证据有效，但不等于正式oo-connectors多源入口完成；当前该crate数据库驱动确只有PG，MySQL仍在preview工具。新卡 execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md；已冻结待实际接续，未把派发当完成，无计数/父项/整版新增签收，formal0/10。

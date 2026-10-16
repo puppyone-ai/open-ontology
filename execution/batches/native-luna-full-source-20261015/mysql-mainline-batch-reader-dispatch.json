@@ -1,9 +1,9 @@
 {
-  "as_of": "2026-10-16T10:07:09.252887+00:00",
+  "as_of": "2026-10-16T13:30:56.996184+00:00",
   "agent": "/root/mysql_rust_runtime_sol_medium",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "medium",
-  "status": "running_new_user_authorized_mysql_only_mainline_integration",
+  "status": "completed_root_verified_owned_fixture_mainline_integration",
   "card": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
   "card_sha256": "d287468c2e687f029f93451080a496cc1bf852dc978103fa5c8fddc20b0e8158",
   "broad_goal_status": "paused per actual get_goal",
@@ -16,7 +16,7 @@
   "formal_source_count_delta": 0,
   "dependency_source_commit": "0b27b409a6eb7accc9b382143b3bdbd197444541",
   "tool_handle": "/root/mysql_rust_runtime_sol_medium",
-  "actual_state": "collaboration.followup_task dispatched; list_agents confirmed running",
+  "actual_state": "author completed; writer released; root readonly verifier/default install/post-retirement queries exit0",
   "card_revisions": [
     {
       "sha256": "2f3fb3367c98a1572662f3bf6f13e6e425bc13f6bc3159b503fbc26e420f7e12",
@@ -40,6 +40,14 @@
     ],
     "scope": "declare only existing exact edge; all source/control/pipeline/runtime prohibitions retained",
     "required": "preserve original failure; fixed separate commit; Linux positive/negative/restored pass",
-    "count_delta": 0
-  }
+    "count_delta": 0,
+    "source_commit": "ad28d31439589ee1f44317b0a8fe0cce4798f728",
+    "actual_test_path": "crates/oo-arch-check/src/check.rs",
+    "verification": "Linux positive/forbidden negative/restored and 44 tests passed; baseline failure retained"
+  },
+  "source_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
+  "evidence_commit": "9770f4a1ff2ccd6ed3b6b1fd258249fce1316512",
+  "intake": "execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json",
+  "resource_terminal": "source writer released; four bounded Rust serve + four current Gateways retained; 14 obsolete Gateways stopped",
+  "next_action": "No automatic continuation: broad Goal/other sources paused; retain static-baseline limitation and original formal exits"
 }

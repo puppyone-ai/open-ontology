@@ -16,13 +16,13 @@
 
 ## 当前冻结批次
 
-- [execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json](batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json)；实际运行句柄见CONTROL/JSON，批次状态只按退出/证据更新。
+- [execution/batches/native-luna-full-source-20261015/mysql-mainline-batch-reader-dispatch.json](batches/native-luna-full-source-20261015/mysql-mainline-batch-reader-dispatch.json)；实际运行句柄见CONTROL/JSON，批次状态只按退出/证据更新。
 - DL01-W1-01 / matrix：development；development_child_accepted；Plan DBX-W01；固定依赖 577160c22de6。
 - DL01-W1-02 / admission：development；native_waiting_dependency；Plan DBX-W02；固定依赖 577160c22de6。
 - DL01-W1-03 / capture：development；development_child_accepted；Plan DBX-W03；固定依赖 577160c22de6。
 - DL01-W1-04 / driver：source_product_development；author_full_unpublished_preview；Plan DBX-W04；固定依赖 577160c22de6。
 - DL01-W1-05 / semantics：development；historical_terminal_ownership_transferred；Plan DBX-W05；固定依赖 577160c22de6。
-- DL01-W1-06 / mysql：development；running_new_user_authorized_mysql_only_mainline_integration；Plan SP03-W02；固定依赖 0b27b409a6eb。
+- DL01-W1-06 / mysql：development；completed_root_verified_owned_fixture_mainline_integration；Plan SP03-W02；固定依赖 0b27b409a6eb。
 - DL01-W1-07 / suite：development；author_complete_deferred_connected_review；Plan DBX-W14；固定依赖 577160c22de6。
 - DL01-W1-08 / mariadb：target_preparation；setup_dependency_review_passed；Plan DBX-W06；固定依赖 577160c22de6。
 - DL01-W1-09 / mssql：source_product_development；held_for_shared_stability；Plan DBX-W08；固定依赖 577160c22de6。
@@ -287,4 +287,4 @@ DBX状态仅表示计划/正式签收；支持矩阵按目标×版本×变体×�
 
 任务台账是当前派发/父项签收结构化入口；开发历史仍以原总台账、冻结计数及固定报告为准。转态填写真实owner/session/handle、资源和路径；作者交付、独立review、集成、发行分别记录，父项全部退出后才能status=accepted并勾选。本生成器拒绝无固定源码/证据/独立复审的accepted项，但不能替代人工审阅全部退出条件。
 
-Latest human: onlyMySQL5.7+8.4 full stable first; Oracle/Doris safehandoff paused, allother9held; future other-source engineersgpt6luna/max; formal0/10
+MySQL mainline module/feature and 5.7+8.4 updated fixture chains root verified; writer released. Static baseline freshness remains limited. Other sources and broad Goal paused; formal0/10.

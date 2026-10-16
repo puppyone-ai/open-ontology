@@ -1,3 +1,5 @@
+2026-10-16 MySQL主线专项已完成限定接收：正式oo-connectors按源目录+可选mysql feature，PG默认不引MySQL；C1真实基线/对账与Rust产品消费者已接线。固定源码b60bd6fb5、报告9770f4a1f，Linux1.94回归/Clippy/架构正反例通过。5.7.44-log/8.4.10更新后完整owned-fixture链，各5表43列110019行typed0、新隔离scope共8随机对话原QID/WAL经root核验；原两源默认已安装，四当前CLI实查通过、14旧Gateway停用保留卷。源writer已释放，四有界serve至2026-10-17T12:59:46Z、客户端TTL1小时需显式续签。初始静态baseline提交时间NULL仍受freshness拒绝，不宣称任意客户六字段即全链；产品55请求137055 tokens，1/5成本目标未证明。独立统一复审/原父项与正式门槛保留，所有计数delta0、formal0/10；总Goal和其他源暂停。权威回执 execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json。以下旧“running/仅PG”记录为历史，不覆盖本次状态。
+
 2026-10-16 MySQL主线验证发现既有架构声明漏项：Gateway已用Builder纯校验但REQUIRED_EDGES未登记；root核实际调用/依赖后仅授权精确边声明与最小回归，全部源驱动/凭据/管线/runtime禁止规则不变。原基线exit1保留，须独立窄修提交和Linux正/负/恢复通过；原完整卡继续，尚未签收，计数delta0。
 
 2026-10-16 连接器实现口径已按用户要求固化：每源独立模块，MySQL专有驱动由可选Cargo mysql feature启用、实际主线显式消费，PG默认不引MySQL；源读取与Loader/目标写边界保持，不预造插件框架。权威说明 execution/decisions/source-connector-modules-and-features-20261016.md；主Plan SP03-W02与机器台账原位同步。当前MySQL整链验证继续、其他源/总Goal暂停，无签收/计数增加。

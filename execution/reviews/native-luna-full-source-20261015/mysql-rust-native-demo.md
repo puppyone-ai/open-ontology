@@ -1,17 +1,19 @@
 # MySQL 已验本地 Rust 演示入口
 
-固定核验：[签收回执](mysql-rust-native-complete-intake.json)。源码 e3e83b399（常驻运行链）+ac6332654（六字段默认安装），非生产认证。两版当前各110019行、5表43列typed0，四组八轮真实GPT问答已按source gold/CLI cells/原QID WAL验证。
+当前固定核验：[主线接收回执](mysql-mainline-batch-reader-intake.json)。源码 b60bd6fb5；正式 oo-connectors::mysql、可选 feature 和真实 C1 消费已经接线。MySQL 5.7.44-log/8.4.10 各110019行、5表43列 typed0；新隔离scope共8轮随机对话已核源gold/CLI cells/原QID WAL。原两条默认链是g9/g13，分别经typed/当前CLI/quiet验证；不套用新scope问答身份。
 
-在本机执行，命令进入现有受信 operator 容器；数据查询仍通过真实只读 Gateway。
+在本机执行，进入现有受信operator容器；查询通过真实只读Gateway，支持任意合法SQL，不限示例。
 
 ```sh
 docker exec oo-mysql-rust-runtime-linux-v8 oo-mysql57 tables --json
-docker exec oo-mysql-rust-runtime-linux-v8 oo-mysql57 query "SELECT COUNT(*) AS row_count FROM native_mysql57_20261016.value_probe" --json
-docker exec oo-mysql-rust-runtime-linux-v8 oo-mysql8 query "SELECT COUNT(*) AS row_count FROM native_mysql_20261012.range_gap" --json
+docker exec oo-mysql-rust-runtime-linux-v8 oo-mysql57 query "SELECT COUNT(*) AS row_count FROM native_mysql57_20261016.hubs" --json
+docker exec oo-mysql-rust-runtime-linux-v8 oo-mysql8 query "SELECT COUNT(*) AS row_count FROM native_mysql_20261012.hubs" --json
 ```
 
-上述两条查询已在旧Gateway停用后实跑，预期计数分别为 8, 5。任意合法查询由原Rust OO CLI/SQL Guard处理，不限制为这些示例。
+停用14个旧Gateway后，两条COUNT已真实执行并核完整QID WAL，预期均12002。四条当前Gateway和原卷/证据保留。
 
-六字段接入入口已安装为 `source-onboarding`，配置由operator私有注册，用户不传recipe/receipt/--operator。`check --input SIX_FIELDS --out NEW_PRIVATE_DIR` 两版已实际验证；当前每个binding已有唯一Rust serve，不重复启动。长期重入/正常停启遵循 [操作说明](../../../tools/mysql-preview/RUST-RUNTIME-OPERATIONS.md) 与 [默认安装说明](../../../tools/mysql-preview/RUST-RUNTIME-NATIVE-INSTALL.md)。
+默认 `source-onboarding` 已指向最终Rust ELF，私有registry仅登记原两source的新operator；两版不传 `--operator` 的 `check --input SIX_FIELDS --out NEW_PRIVATE_DIR` 均实际通过。隔离scope保持显式operator，不替换原身份。已有每binding唯一serve，不重复启动。输入/官方重入与边界见[操作说明](../../../tools/mysql-preview/MAINLINE-OPERATIONS.md)。
 
-客户端令牌今日17:34左右（中国时间）到期，需按操作说明显式续签至新文件；无自动续签。现有有界服务至次日16:38左右（中国时间），无boot daemon。客户/生产/正式源与整版门槛不由本fixture代签。
+四条serve周期1000ms，有界运行至2026-10-17 20:59:46（中国时间），exit仍pending，无boot daemon。客户端令牌TTL仅1小时，必要时按操作说明官方显式续签到独立0600文件，无自动续签；服务期限不等于令牌期限。
+
+限制：初始C1静态baseline提交时间NULL时freshness会拒绝，尚不能承诺任意客户六字段即完整通过。仅当前单整数主键有界读取与两实测版本；非生产认证，原父项/十源/整版/统一复审未签收。总Goal与其他源暂停。

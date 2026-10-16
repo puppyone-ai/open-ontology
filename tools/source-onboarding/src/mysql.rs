@@ -237,6 +237,43 @@ fn container_owned(path: &Path, c: &Value) -> Result<String> {
     ))
 }
 
+fn published_cut_files(pins: &Value) -> Result<Vec<&'static str>> {
+    let mut files = vec![
+        "native/request.json",
+        "native/load.json",
+        "native/ack.json",
+        "catalog.json",
+        "release-status.json",
+        "publication.json",
+    ];
+    let object = pins.as_object().ok_or("published_cut_pins")?;
+    require(
+        files.iter().all(|name| object.contains_key(*name))
+            && object
+                .keys()
+                .all(|name| files.contains(&name.as_str()) || name == "gateway-ready.json"),
+        "published_cut_pins",
+    )?;
+    if object.contains_key("gateway-ready.json") {
+        files.push("gateway-ready.json");
+    }
+    Ok(files)
+}
+
+fn published_cut_ready(status: &Value, ready: Option<&Value>, generation: &Value) -> Result<()> {
+    require(
+        status["status"] == "succeeded"
+            && status["half_published"] == false
+            && ready.is_none_or(|ready| {
+                ready["ready"] == true
+                    && ready["readonly_replica"] == true
+                    && ready["source_generation"] == *generation
+                    && ready["pack_digest"] == status["pack_digest"]
+            }),
+        "published_cut_not_ready",
+    )
+}
+
 pub fn follow(c: &Value, out: &Path) -> Result<Value> {
     let mut calls = Calls::new(out)?;
     let o = &c["onboarding"];
@@ -277,22 +314,8 @@ pub fn follow(c: &Value, out: &Path) -> Result<Value> {
     if !p["reuse_published_cut"].is_null() {
         let reuse = &p["reuse_published_cut"];
         let prior = Path::new(text(reuse, "path")?);
-        let expected = [
-            "native/request.json",
-            "native/load.json",
-            "native/ack.json",
-            "catalog.json",
-            "release-status.json",
-            "gateway-ready.json",
-            "publication.json",
-        ];
-        require(
-            reuse["sha256"]
-                .as_object()
-                .is_some_and(|m| m.len() == expected.len()),
-            "published_cut_pins",
-        )?;
-        for name in expected {
+        let expected = published_cut_files(&reuse["sha256"])?;
+        for name in &expected {
             require(
                 digest(prior.join(name))? == text(&reuse["sha256"], name)?,
                 "published_cut_digest",
@@ -307,16 +330,11 @@ pub fn follow(c: &Value, out: &Path) -> Result<Value> {
         }
         let prior_catalog = load(prior.join("catalog.json"))?;
         let status = load(prior.join("release-status.json"))?;
-        let ready = load(prior.join("gateway-ready.json"))?;
-        require(
-            status["status"] == "succeeded"
-                && status["half_published"] == false
-                && ready["ready"] == true
-                && ready["readonly_replica"] == true
-                && ready["source_generation"] == generation
-                && ready["pack_digest"] == status["pack_digest"],
-            "published_cut_not_ready",
-        )?;
+        let ready = expected
+            .contains(&"gateway-ready.json")
+            .then(|| load(prior.join("gateway-ready.json")))
+            .transpose()?;
+        published_cut_ready(&status, ready.as_ref(), &generation)?;
         entries = array(&prior_catalog, "entries")?.clone();
         require(
             collection(&entries, specs)? == prior_catalog && entries.len() == native.len(),
@@ -387,7 +405,7 @@ pub fn follow(c: &Value, out: &Path) -> Result<Value> {
         }
         save(
             out.join("published-catalog-reuse.json"),
-            &json!({"original":prior,"pinned_sha256":reuse["sha256"],"target_published_identity_and_types_verified":true}),
+            &json!({"original":prior,"pinned_sha256":reuse["sha256"],"prior_gateway_pinned":ready.is_some(),"target_published_identity_and_types_verified":true}),
         )?;
     } else {
         for (index, ((spec, n), l)) in specs.iter().zip(native).zip(loaded).enumerate() {
@@ -516,6 +534,7 @@ pub fn follow(c: &Value, out: &Path) -> Result<Value> {
     let build_root = Path::new(text(&product_config, "work_dir_host")?)
         .join("builds")
         .join(build);
+    dir(build_root.join("source-evidence"))?;
     let evidence = build_root.join("source-evidence").join(&evidence_id);
     dir(&evidence)?;
     let mut c1 = json!({});
@@ -756,6 +775,46 @@ fn publish(
     save(calls.out.join("active-release.json"), &active)
 }
 
+fn current_gateway_ready(ready: &Value, role: &str, generation: &Value) -> Result<()> {
+    require(
+        ready["ready"] == true
+            && ready["readonly_replica"] == true
+            && ready["role"] == role
+            && ready["source_generation"].as_u64().is_some_and(|previous| {
+                previous > 0
+                    && generation
+                        .as_u64()
+                        .is_some_and(|current| previous <= current)
+            }),
+        "previous_gateway_identity",
+    )
+}
+
+fn previous_gateway_source(before: &Value, catalog: &Value) -> Result<()> {
+    require(
+        array(before, "binding_vector")?
+            .iter()
+            .map(|v| v["source_id"].to_string())
+            .collect::<BTreeSet<_>>()
+            == array(catalog, "binding_vector")?
+                .iter()
+                .map(|v| v["source_id"].to_string())
+                .collect::<BTreeSet<_>>(),
+        "previous_gateway_source",
+    )
+}
+
+fn current_gateway_catalog(ready: &Value, catalog: &Value, pack: &Value) -> Result<()> {
+    require(
+        array(catalog, "binding_vector")?
+            .iter()
+            .all(|item| item["source_generation"] == ready["source_generation"])
+            && pack["pack_digest"].as_str().is_some()
+            && pack["pack_digest"] == ready["pack_digest"],
+        "previous_gateway_generation_or_pack",
+    )
+}
+
 fn gateway(
     c: &Value,
     catalog: &Value,
@@ -770,20 +829,39 @@ fn gateway(
     let effective = load(product.join("current-effective-oos.json"))?;
     let role = text(&visibility, "role")?;
     let login = text(p, "gateway_login")?;
-    let previous = Path::new(text(p, "previous_gateway")?);
+    let pointer = Path::new(text(o, "prepared_root")?).join("rust-current-gateway.json");
+    let current = if pointer.exists() {
+        let ready = load(crate::io::private(&pointer)?)?;
+        current_gateway_ready(
+            &ready,
+            role,
+            &catalog["binding_vector"][0]["source_generation"],
+        )?;
+        let root = PathBuf::from(text(&ready, "private_root")?);
+        dir(&root)?;
+        require(
+            root.canonicalize()?
+                .starts_with(Path::new(text(o, "host_secret_root")?).canonicalize()?),
+            "previous_gateway_root",
+        )?;
+        Some((root, ready))
+    } else {
+        None
+    };
+    let previous = current
+        .as_ref()
+        .map(|(root, _)| root.as_path())
+        .unwrap_or(Path::new(text(p, "previous_gateway")?));
     let before = load(previous.join("reviewed/mysql_full/native-input.json"))?;
+    if let Some((_, ready)) = &current {
+        current_gateway_catalog(
+            ready,
+            &before["catalog"],
+            &load(previous.join("packs/mysql_full.json"))?,
+        )?;
+    }
     let vector = array(catalog, "binding_vector")?;
-    require(
-        array(&before["catalog"], "binding_vector")?
-            .iter()
-            .map(|v| v["source_id"].to_string())
-            .collect::<BTreeSet<_>>()
-            == vector
-                .iter()
-                .map(|v| v["source_id"].to_string())
-                .collect::<BTreeSet<_>>(),
-        "previous_gateway_source",
-    )?;
+    previous_gateway_source(&before["catalog"], catalog)?;
     for old in array(&before["catalog"], "binding_vector")? {
         if vector
             .iter()
@@ -1058,6 +1136,73 @@ fn gateway(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn previous_gateway_requires_ready_current_role_and_nonfuture_generation() {
+        let ready = json!({"ready":true,"readonly_replica":true,"role":"oo_r_fixture","source_generation":2});
+        assert!(current_gateway_ready(&ready, "oo_r_fixture", &json!(3)).is_ok());
+        assert!(current_gateway_ready(&ready, "oo_r_fixture", &json!(2)).is_ok());
+        for (key, value) in [
+            ("ready", json!(false)),
+            ("readonly_replica", json!(false)),
+            ("role", json!("oo_r_other")),
+            ("source_generation", json!(4)),
+            ("source_generation", json!(0)),
+        ] {
+            let mut wrong = ready.clone();
+            wrong[key] = value;
+            assert!(current_gateway_ready(&wrong, "oo_r_fixture", &json!(3)).is_err());
+        }
+        let source = json!({"binding_vector":[{"source_id":"same"}]});
+        assert!(previous_gateway_source(&source, &source).is_ok());
+        assert!(
+            previous_gateway_source(&source, &json!({"binding_vector":[{"source_id":"other"}]}))
+                .is_err()
+        );
+        let ready = json!({"source_generation":2,"pack_digest":"pack2"});
+        let catalog = json!({"binding_vector":[{"source_generation":2}]});
+        assert!(current_gateway_catalog(&ready, &catalog, &json!({"pack_digest":"pack2"})).is_ok());
+        assert!(
+            current_gateway_catalog(&ready, &catalog, &json!({"pack_digest":"pack1"})).is_err()
+        );
+        assert!(
+            current_gateway_catalog(
+                &ready,
+                &json!({"binding_vector":[{"source_generation":1}]}),
+                &json!({"pack_digest":"pack2"})
+            )
+            .is_err()
+        );
+    }
+    #[test]
+    fn published_cut_requires_all_release_pins_and_checks_optional_gateway() {
+        let mut pins = json!({
+            "native/request.json":"sha", "native/load.json":"sha", "native/ack.json":"sha",
+            "catalog.json":"sha", "release-status.json":"sha", "publication.json":"sha"
+        });
+        assert_eq!(published_cut_files(&pins).unwrap().len(), 6);
+        pins["gateway-ready.json"] = json!("sha");
+        assert_eq!(published_cut_files(&pins).unwrap().len(), 7);
+        pins["unknown.json"] = json!("sha");
+        assert!(published_cut_files(&pins).is_err());
+        pins.as_object_mut().unwrap().remove("unknown.json");
+        pins.as_object_mut().unwrap().remove("native/ack.json");
+        assert!(published_cut_files(&pins).is_err());
+        let status = json!({"status":"succeeded","half_published":false,"pack_digest":"pack"});
+        let ready = json!({"ready":true,"readonly_replica":true,"source_generation":1,"pack_digest":"pack"});
+        assert!(published_cut_ready(&status, None, &json!(1)).is_ok());
+        assert!(published_cut_ready(&status, Some(&ready), &json!(1)).is_ok());
+        for (key, value) in [
+            ("ready", json!(false)),
+            ("readonly_replica", json!(false)),
+            ("source_generation", json!(2)),
+            ("pack_digest", json!("other")),
+        ] {
+            let mut invalid = ready.clone();
+            invalid[key] = value;
+            assert!(published_cut_ready(&status, Some(&invalid), &json!(1)).is_err());
+        }
+        assert!(published_cut_ready(&json!({"status":"refused"}), None, &json!(1)).is_err());
+    }
     #[test]
     fn published_types_refuse_oid_or_decimal_scale_drift() {
         let table = json!({"columns":[{"stored_physical":"pc_price","oid":1700,"typmod":786438}]});

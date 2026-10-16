@@ -692,30 +692,39 @@
       "phase": "SP03",
       "priority": "parallel_by_dependency",
       "status": "dispatched",
-      "development_status": "repair_running",
-      "integration_status": "not_reconciled",
+      "development_status": "author_complete_root_verified_scoped_mainline_fixture",
+      "integration_status": "owned_fixture_mainline_verified_original_parent_exits_pending",
       "release_status": "not_reconciled",
       "owner": "Codex / DL01-W1-06",
-      "executor": "grok-4.7/xhigh",
-      "session_uuid": "b5ac4bc8-1872-4fe4-a56a-04a70f7103a2",
-      "tool_handle": 88907,
+      "executor": "native gpt-6.1-sol/medium",
+      "session_uuid": null,
+      "tool_handle": "/root/mysql_rust_runtime_sol_medium",
       "write_paths": [
-        "tools/mysql-preview",
-        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql"
+        "crates/oo-connectors",
+        "Cargo.lock",
+        "Cargo.toml (necessary wiring only)",
+        "tools/mysql-preview/src",
+        "tools/mysql-preview/tests",
+        "tools/mysql-preview/Cargo.toml",
+        "tools/mysql-preview/Cargo.lock",
+        "tools/mysql-preview/MAINLINE-*",
+        "tools/source-onboarding/src (necessary wiring only)",
+        "crates/oo-arch-check/src/policy.rs",
+        "crates/oo-arch-check/src/check.rs (minimal existing regressions only)"
       ],
       "depends_on_fixed_sha": [
-        "577160c22de63adb9b38e0147f3bc2da893c4d9d"
+        "0b27b409a6eb7accc9b382143b3bdbd197444541"
       ],
       "plan_source": "specs/open-ontology-v0.1-plan.md",
       "execution": "沿统一trait实现MySQL5.7/8.x catalog/charset/grants/ROW/FULL/GTID/log保留/从库检查；验证连接驱动取原值，避免宽松sql_mode暗改脏值。正式源读取/映射/解码归oo-connectors/src/mysql独立模块，MySQL专有依赖由可选mysql feature启用，消费者显式接线；不把各源堆入单文件或提前造插件框架。",
       "deliverables": "MySQL source contract、只读权限探针与DBA清单；与PG共享fixture结构但分别审计，不推导MariaDB兼容。交付正式crate入口、实际C1基线/对账及产品消费者接线，PG默认构建不引MySQL驱动；Loader/COPY与目标凭据留管线。",
       "exit_conditions": "AT-SRC-01；启动/批量/CDC体检全程零写。账号写能力例外仅已有admin显式计划许可，仍不得实际写源。固定Linux1.94默认PG/mysql-enabled/真实消费者及依赖方向验证、5.7.44-log和8.4.10真实整链证据齐备才判本次主线集成通过，不能用模块迁移代替父项完整退出。",
-      "source_commit": "ac6332654d41dd7a2bb45cd69c7f4d4ac0da8339",
+      "source_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
       "evidence": [
-        "execution/reviews/native-luna-full-source-20261015/mysql-rust-native-complete-intake.json"
+        "execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json"
       ],
       "independent_review": null,
-      "next_action": "Finish fixed formal oo-connectors mysql-feature implementation and both real-version complete mainline exits; prior owned-fixture evidence remains scoped, no parent checkbox.",
+      "next_action": "No automatic continuation: broad Goal/other sources paused; retain static-baseline limitation and original formal exits",
       "external_gates": [],
       "delivery_loops": [
         "DL01",
@@ -727,11 +736,11 @@
       "current_batch_frontier": [
         {
           "task_id": "DL01-W1-06",
-          "status": "root_verified_complete_owned_mysql_family_rust_runtime_native_default",
-          "session_uuid": "b5ac4bc8-1872-4fe4-a56a-04a70f7103a2",
+          "status": "completed_root_verified_owned_fixture_mainline_integration",
+          "session_uuid": null,
           "tool_handle": "/root/mysql_rust_runtime_sol_medium",
-          "author_commit": "7e4e42f14438f6d1bdeb84ffd936ed5b7192fd7f",
-          "evidence_commit": "131279c54572f612d10945ccb5a17a3a9c638f9e",
+          "author_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
+          "evidence_commit": "9770f4a1ff2ccd6ed3b6b1fd258249fce1316512",
           "review_commit": null,
           "write_paths": [
             "crates/oo-connectors",
@@ -744,22 +753,22 @@
             "tools/mysql-preview/MAINLINE-*",
             "tools/source-onboarding/src (necessary wiring only)",
             "crates/oo-arch-check/src/policy.rs",
-            "crates/oo-arch-check/tests (minimal existing regressions only)"
+            "crates/oo-arch-check/src/check.rs (minimal existing regressions only)"
           ],
-          "next_action": "Owned MySQL5.7+8.4 complete Rust/runtime/default reference verified; original parent exits/independent unified review and formal gates remain, no parent checkbox.",
+          "next_action": "No automatic continuation: broad Goal/other sources paused; retain static-baseline limitation and original formal exits",
           "base_commit": "0b27b409a6eb7accc9b382143b3bdbd197444541",
-          "resource_terminal": "source writer active; prior fixed live services retained",
+          "resource_terminal": "source writer released; four bounded Rust serve + four current Gateways retained; 14 obsolete Gateways stopped",
           "prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
           "review_timing": "critical milestone/connected product consolidated review; routine complete author delivery can proceed first",
           "kind": "development",
-          "source_commit": "ac6332654d41dd7a2bb45cd69c7f4d4ac0da8339",
+          "source_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
           "evidence": [
-            "execution/reviews/native-luna-full-source-20261015/mysql-rust-native-complete-intake.json"
+            "execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json"
           ],
           "exclusive_role": "sole MySQL core/mainline writer; all other sources paused"
         }
       ],
-      "mainline_delivery_status": "in_progress_not_accepted",
+      "mainline_delivery_status": "root_verified_updated_owned_fixture_two_versions",
       "mainline_policy": "execution/decisions/source-connector-modules-and-features-20261016.md"
     },
     {
@@ -4840,7 +4849,7 @@
   "required_sp_parent_count": 80,
   "deferred_sp_parent_count": 7,
   "required_dbx_parent_count": 14,
-  "active_batch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json",
+  "active_batch": "execution/batches/native-luna-full-source-20261015/mysql-mainline-batch-reader-dispatch.json",
   "dispatch_tasks": [
     {
       "task_id": "DL01-W1-01",
@@ -5247,19 +5256,19 @@
         "tools/mysql-preview/MAINLINE-*",
         "tools/source-onboarding/src (necessary wiring only)",
         "crates/oo-arch-check/src/policy.rs",
-        "crates/oo-arch-check/tests (minimal existing regressions only)"
+        "crates/oo-arch-check/src/check.rs (minimal existing regressions only)"
       ],
       "prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
       "resource_prefix": "oo-dl01w1-06",
       "rust_slots": null,
       "database_memory_gib": 6,
-      "status": "running_new_user_authorized_mysql_only_mainline_integration",
+      "status": "completed_root_verified_owned_fixture_mainline_integration",
       "tool_handle": "/root/mysql_rust_runtime_sol_medium",
       "log": null,
       "process_identity": [],
-      "author_commit": "9113922595542733fd17dce5dae0d7dbee820b5c",
-      "evidence_commit": "29e3afd88d7c847cffddc9f3e15474255c1bb320",
-      "resource_terminal": "source writer active; prior fixed live services retained",
+      "author_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
+      "evidence_commit": "9770f4a1ff2ccd6ed3b6b1fd258249fce1316512",
+      "resource_terminal": "source writer released; four bounded Rust serve + four current Gateways retained; 14 obsolete Gateways stopped",
       "exclusive_role": "sole MySQL core/mainline writer; all other sources paused",
       "scale_exit": {
         "required_logistics_rows": 100000,
@@ -5270,14 +5279,9 @@
         "input_oracle": "independent real source full typed comparison; no gold sent to model",
         "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json"
       },
-      "next_action": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
+      "next_action": "No automatic continuation: broad Goal/other sources paused; retain static-baseline limitation and original formal exits",
       "resume_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-06-builder-consumer.md",
-      "background_terminal": {
-        "prove194": 0,
-        "rebuild194": 0,
-        "loadpg": "running; author proof collection pending"
-      },
-      "dependency_source_commit": "b1ffb079d7beec4297dbd3deec97219584c6775d",
+      "dependency_source_commit": "0b27b409a6eb7accc9b382143b3bdbd197444541",
       "consumer_accepted_source": "f2357a026033fbac5beb20b4bf8555d808881fe7",
       "previous_quota_status": "executor_quota_exhausted",
       "review_timing": "independent review only after first full Goal loop and all ten complete source chains; author self-validation required",
@@ -5585,11 +5589,16 @@
       },
       "resource_policy": "no fixed CPU/jobs/compile slot limits; preserve actual headroom and exclusive ownership",
       "native_agent": "/root/mysql_rust_runtime_sol_medium",
-      "current_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
-      "source_commit": "ac6332654d41dd7a2bb45cd69c7f4d4ac0da8339",
+      "current_intake": "execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json",
+      "source_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
       "evidence": [
-        "execution/reviews/native-luna-full-source-20261015/mysql-rust-native-complete-intake.json"
-      ]
+        "execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json"
+      ],
+      "previous_background_terminal": {
+        "prove194": 0,
+        "rebuild194": 0,
+        "loadpg": "running; author proof collection pending"
+      }
     },
     {
       "task_id": "DL01-W1-07",
@@ -8577,7 +8586,7 @@
       "source_commit": "8a5de6528"
     }
   ],
-  "current_execution_note": "Latest human: onlyMySQL5.7+8.4 full stable first; Oracle/Doris safehandoff paused, allother9held; future other-source engineersgpt6luna/max; formal0/10",
+  "current_execution_note": "MySQL mainline module/feature and 5.7+8.4 updated fixture chains root verified; writer released. Static baseline freshness remains limited. Other sources and broad Goal paused; formal0/10.",
   "active_batch_development": {
     "batch": "dl01-wave1-20261009",
     "frozen_units": 8,
@@ -10574,7 +10583,7 @@
     "source_rollout_allowed": false,
     "scope": "unchanged complete MySQL reference before other sources reuse"
   },
-  "as_of": "2026-10-15T20:40:14.412366+00:00",
+  "as_of": "2026-10-16T13:30:56.996184+00:00",
   "latest_mysql_sol_complete_transfer": {
     "as_of": "2026-10-15T18:50:46.388216+08:00",
     "human_model_authorization": "下一次开新子智能体，模型可以升级为gpt 6.1 sol medium",
@@ -11150,11 +11159,11 @@
     }
   },
   "latest_mysql_mainline_batch_reader": {
-    "as_of": "2026-10-16T10:07:09.252887+00:00",
+    "as_of": "2026-10-16T13:30:56.996184+00:00",
     "agent": "/root/mysql_rust_runtime_sol_medium",
     "model": "gpt-6.1-sol",
     "reasoning_effort": "medium",
-    "status": "running_new_user_authorized_mysql_only_mainline_integration",
+    "status": "completed_root_verified_owned_fixture_mainline_integration",
     "card": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
     "card_sha256": "d287468c2e687f029f93451080a496cc1bf852dc978103fa5c8fddc20b0e8158",
     "broad_goal_status": "paused per actual get_goal",
@@ -11167,7 +11176,7 @@
     "formal_source_count_delta": 0,
     "dependency_source_commit": "0b27b409a6eb7accc9b382143b3bdbd197444541",
     "tool_handle": "/root/mysql_rust_runtime_sol_medium",
-    "actual_state": "collaboration.followup_task dispatched; list_agents confirmed running",
+    "actual_state": "author completed; writer released; root readonly verifier/default install/post-retirement queries exit0",
     "card_revisions": [
       {
         "sha256": "2f3fb3367c98a1572662f3bf6f13e6e425bc13f6bc3159b503fbc26e420f7e12",
@@ -11191,16 +11200,24 @@
       ],
       "scope": "declare only existing exact edge; all source/control/pipeline/runtime prohibitions retained",
       "required": "preserve original failure; fixed separate commit; Linux positive/negative/restored pass",
-      "count_delta": 0
-    }
+      "count_delta": 0,
+      "source_commit": "ad28d31439589ee1f44317b0a8fe0cce4798f728",
+      "actual_test_path": "crates/oo-arch-check/src/check.rs",
+      "verification": "Linux positive/forbidden negative/restored and 44 tests passed; baseline failure retained"
+    },
+    "source_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
+    "evidence_commit": "9770f4a1ff2ccd6ed3b6b1fd258249fce1316512",
+    "intake": "execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json",
+    "resource_terminal": "source writer released; four bounded Rust serve + four current Gateways retained; 14 obsolete Gateways stopped",
+    "next_action": "No automatic continuation: broad Goal/other sources paused; retain static-baseline limitation and original formal exits"
   },
-  "goal_runtime_status": "paused; scoped new MySQL mainline action separately authorized by user",
+  "goal_runtime_status": "paused; scoped MySQL mainline delivery completed, no automatic other-source release",
   "source_connector_implementation_policy": {
     "authority": "direct user 2026-10-16: 补充到台账、plan等口径文档中",
     "decision": "execution/decisions/source-connector-modules-and-features-20261016.md",
     "source_modules": "one directory per source; small lib.rs export",
     "mysql_feature": "optional source-only deps; explicit consumers; PG default excludes mysql",
-    "active_scope": "MySQL only; other sources and broad Goal paused",
+    "active_scope": "MySQL scoped fixture integration completed; broad Goal and other sources paused",
     "acceptance": "final fixed mainline + both real versions complete exits; no source/parent/count promotion from this policy",
     "count_delta": 0,
     "architecture_baseline_correction": {
@@ -11212,7 +11229,11 @@
       ],
       "scope": "declare only existing exact edge; all source/control/pipeline/runtime prohibitions retained",
       "required": "preserve original failure; fixed separate commit; Linux positive/negative/restored pass",
-      "count_delta": 0
-    }
+      "count_delta": 0,
+      "source_commit": "ad28d31439589ee1f44317b0a8fe0cce4798f728",
+      "actual_test_path": "crates/oo-arch-check/src/check.rs",
+      "verification": "Linux positive/forbidden negative/restored and 44 tests passed; baseline failure retained"
+    },
+    "evidence": "execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json"
   }
 }
