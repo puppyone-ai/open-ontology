@@ -1,0 +1,25 @@
+{
+  "as_of": "2026-10-16T07:21:04.943436+00:00",
+  "human_instruction": "again finish MySQL before all other sources; follow original Plan; do not rewrite permitted Python solely for language",
+  "original_plan_evidence": {
+    "path": "specs/open-ontology-v0.1-plan.md",
+    "rule": "first-party product and engineering runners use Rust; no product acceptance from Python whole/follow runtime"
+  },
+  "original_spec_evidence": {
+    "path": "specs/open-ontology-v0.1-spec.md",
+    "rule": "Python stdlib document checker explicitly not product/test runner; first-party product/future xtask Rust"
+  },
+  "scope": "minimum missing Rust onboarding/continuous maintenance/publication runtime for MySQL5.7+8.4; preserve Rust cores/real fixture references and permitted auxiliaries; no broad rewrite",
+  "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-LUNA-MAX-20261016.md",
+  "card_sha256": "8692dbb93e7d45dd9afa7b868e2f219b4104cdef4c41894805ee398cc94b15dd",
+  "status": "spawned_and_accepted_readonly_preflight",
+  "other_sources": "Doris hold_requested_safe_collection_only; Oracle author completed; other7held; no new source work",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "max",
+  "source_reference": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
+  "formal_source_count_delta": 0,
+  "goal_status": "active, not overall pause",
+  "original_plan_exits_unchanged": true,
+  "agent": "/root/mysql_rust_runtime_luna_max",
+  "old_live_service_observation": "author current ps: old host74664/74665 absent, connection-whole container onlysleep; APIs/forwards/Gateways retained; native bind/task current state and lifecycle under check, no new writer yet"
+}

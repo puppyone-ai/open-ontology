@@ -5217,7 +5217,7 @@
       "name": "mysql",
       "parent": "SP03-W02",
       "kind": "development",
-      "executor": "completed native gpt-6.1-sol/medium",
+      "executor": "native gpt-6-luna/max",
       "session_uuid": null,
       "base_commit": "577160c22de63adb9b38e0147f3bc2da893c4d9d",
       "write_paths": [
@@ -5228,7 +5228,7 @@
       "resource_prefix": "oo-dl01w1-06",
       "rust_slots": null,
       "database_memory_gib": 6,
-      "status": "root_verified_complete_owned_mysql57_mysql84_reference",
+      "status": "running_original_mysql_rust_runtime_closure",
       "tool_handle": null,
       "log": null,
       "process_identity": [],
@@ -5245,7 +5245,7 @@
         "input_oracle": "independent real source full typed comparison; no gold sent to model",
         "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json"
       },
-      "next_action": "retain fixed MySQL reference; normal official token renewal; independent full-source review deferred to ten-source Goal milestone",
+      "next_action": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-LUNA-MAX-20261016.md",
       "resume_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-06-builder-consumer.md",
       "background_terminal": {
         "prove194": 0,
@@ -5550,7 +5550,7 @@
         "latest_observed_at": "2026-10-12T23:45:29.047591+00:00"
       },
       "resource_policy": "no fixed CPU/jobs/compile slot limits; preserve actual headroom and exclusive ownership",
-      "native_agent": "/root/mysql57_reference_sol",
+      "native_agent": "/root/mysql_rust_runtime_luna_max",
       "current_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json"
     },
     {
@@ -7042,7 +7042,7 @@
       "resource_prefix": "oo-dl01w1-43",
       "rust_slots": null,
       "database_memory_gib": 4,
-      "status": "running_complete_source_reference",
+      "status": "hold_requested_safe_collection_only",
       "tool_handle": null,
       "log": null,
       "resource_terminal": "current engineer running; inherited source/target resources and five untested WIP per fixed handoff, actual new resources not yet delivered",
@@ -7052,7 +7052,7 @@
       "merged_consumer_task": "DL01-W1-49",
       "collection_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-43-current-complete-product-longrun.md",
       "author_commit": "3e3b081c7d342a88b71d7d322331a3eea94f9c18",
-      "next_action": "long-run complete original DBX-W12 product chain, fixed source/tests/evidence; no component-level completion or prior whole reuse",
+      "next_action": "collect current command and preserved0042/runtime receipt; no new source work",
       "evidence_commit": "523d24f567f581287242e3edd7cf7bf07a2d3ffa",
       "native_fixed_review": "6279ab8ab0a368f73f05e6c3f1235d737e304857",
       "prior_dispatch_failure": "root card Python syntax error; missing prompt CLI1, no worker started; corrected",
@@ -11013,5 +11013,22 @@
     "issued_utc": "2026-10-16T06:45:54.262379+00:00",
     "token_container_path": "/gw/root-client-20261016T064550Z.token",
     "automatic_renewal": false
+  },
+  "latest_mysql_rust_runtime_priority": {
+    "receipt": "execution/batches/native-luna-full-source-20261015/mysql-rust-runtime-priority.json",
+    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-LUNA-MAX-20261016.md",
+    "status": "ready_for_single_mysql_native_luna_max_owner",
+    "other_sources_held": true,
+    "formal_source_count_delta": 0
+  },
+  "latest_mysql_rust_runtime_dispatch": {
+    "agent": "/root/mysql_rust_runtime_luna_max",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "max",
+    "status": "spawned_and_accepted_readonly_preflight",
+    "as_of": "2026-10-16T07:21:04.943436+00:00",
+    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-LUNA-MAX-20261016.md",
+    "formal_source_count_delta": 0,
+    "old_live_service_observation": "author current ps: old host74664/74665 absent, connection-whole container onlysleep; APIs/forwards/Gateways retained; native bind/task current state and lifecycle under check, no new writer yet"
   }
 }

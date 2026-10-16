@@ -22,7 +22,7 @@
 - DL01-W1-03 / capture：development；development_child_accepted；Plan DBX-W03；固定依赖 577160c22de6。
 - DL01-W1-04 / driver：source_product_development；author_full_unpublished_preview；Plan DBX-W04；固定依赖 577160c22de6。
 - DL01-W1-05 / semantics：development；historical_terminal_ownership_transferred；Plan DBX-W05；固定依赖 577160c22de6。
-- DL01-W1-06 / mysql：development；root_verified_complete_owned_mysql57_mysql84_reference；Plan SP03-W02；固定依赖 577160c22de6。
+- DL01-W1-06 / mysql：development；running_original_mysql_rust_runtime_closure；Plan SP03-W02；固定依赖 577160c22de6。
 - DL01-W1-07 / suite：development；author_complete_deferred_connected_review；Plan DBX-W14；固定依赖 577160c22de6。
 - DL01-W1-08 / mariadb：target_preparation；setup_dependency_review_passed；Plan DBX-W06；固定依赖 577160c22de6。
 - DL01-W1-09 / mssql：source_product_development；held_for_shared_stability；Plan DBX-W08；固定依赖 577160c22de6。
@@ -59,7 +59,7 @@
 - DL01-W1-40 / clickhouse-driver-preflight：source_product_development；author_full_unpublished_preview；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-41 / mongodb-driver-preflight：source_product_development；author_full_unpublished_preview；Plan DBX-W13；固定依赖 577160c22de6。
 - DL01-W1-42 / oracle-driver-review：independent_review；preflight_review_passed；Plan DBX-W09；固定依赖 645d37badf7a。
-- DL01-W1-43 / doris-driver-preflight：source_product_development；running_complete_source_reference；Plan DBX-W12；固定依赖 29e3afd88d7c。
+- DL01-W1-43 / doris-driver-preflight：source_product_development；hold_requested_safe_collection_only；Plan DBX-W12；固定依赖 29e3afd88d7c。
 - DL01-W1-44 / opensearch-driver-preflight：source_product_development；author_complete_deferred_connected_review；Plan DBX-W13；固定依赖 577160c22de6。
 - DL01-W1-45 / starrocks-driver：source_product_development；completed_author_preview；Plan DBX-W12；固定依赖 577160c22de6。
 - DL01-W1-46 / postgres-product：source_product_development；completed_author_preview；Plan SP03-W01；固定依赖 577160c22de6。
