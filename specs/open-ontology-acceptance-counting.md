@@ -1,3 +1,5 @@
+2026-10-16 MySQL共享参考回归已修复：4b80 Doris改共享Flow造成原默认入口真实exit2；3423ed5b8恢复原字节后，root重算原recipe49/49pins并官方六字段resume exit0/6steps/wholetrue。旧recipe/pins/QA/Pack不改，0新模型/DML/发布。Doris专用适配迁owned目录，共享两脚本写权撤回；原Rust/API固定证据有效，当前仅同一Doris/Oracle整源负责人继续，其他7held。无源/Plan/整版新增签收、计数delta0、formal0/10；失败与修复回执 execution/reviews/native-luna-full-source-20261015/mysql-shared-flow-restoration-intake.json。
+
 2026-10-16 per-table共享依赖已固定：root核3b4fef066缺少的release API单次Linux1.94构建ELF 95a39e59、日志与锁文件；Oracle官方installer成功，37条旧迁移字节不变，仅追加0039–0041。原manifest原SHA恢复，工具链补证另存v2。当前仅Doris/Oracle Luna max继续真实发布、RO/Gateway、自动更新与随机CLI/Agent完整链；其他7held，尚无两源完整签收，所有计数delta0、formal0/10。Spec/Plan检查均exit1：既有docs/07-gateway.md基线漂移保留，未改基线。回执 execution/reviews/native-luna-full-source-20261015/per-table-shared-installed-dependency-intake.json。
 
 2026-10-15 MySQL/shared完整任务从已核completed的Luna xhigh移交唯一GPT-6.1 Sol medium；四制品SHA核验不等于功能签收，typed五表导入和后续完整链仍未证。开发/集成/发行/外部门槛及全部分母/分子不变，无新增组件或独立审阅。交接见execution/batches/native-luna-full-source-20261015/mysql-sol-handoff.json。

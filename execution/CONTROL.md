@@ -1,3 +1,5 @@
+2026-10-16 MySQL共享参考回归已修复：4b80 Doris改共享Flow造成原默认入口真实exit2；3423ed5b8恢复原字节后，root重算原recipe49/49pins并官方六字段resume exit0/6steps/wholetrue。旧recipe/pins/QA/Pack不改，0新模型/DML/发布。Doris专用适配迁owned目录，共享两脚本写权撤回；原Rust/API固定证据有效，当前仅同一Doris/Oracle整源负责人继续，其他7held。无源/Plan/整版新增签收、计数delta0、formal0/10；失败与修复回执 execution/reviews/native-luna-full-source-20261015/mysql-shared-flow-restoration-intake.json。
+
 2026-10-16 Gateway独占写权从Oracle原子移交Doris：a94两文件root核clean/固定SHA，无后台writer。Oracle继续b8bf固定ELF及g12已发布→GW当前gold零差异的本源后续；Doris继续同一完整源，处理原docs合法C4/C5混合、partition-map NULL全局位点，严守S0/receipt/当前绑定，不改C1/Oracle原分支。4b80 Doris维护API固定哈希/原MySQL及Oracle逻辑字节不变已核，真实维护待验。边界 execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json；其他7held、计数/Plan不变、formal0/10。
 
 2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T024351Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T024351Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。

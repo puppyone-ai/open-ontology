@@ -216,8 +216,6 @@
         "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product",
         "tools/selfbuild-control-api/src/overlay.rs (Doris partition verification only)",
         "crates/oo-pipeline/migrations/0041_native_partition_observation_read.sql",
-        "tools/source-onboarding/product_flow.py",
-        "tools/source-onboarding/test_onboard.py",
         "tools/pg-builder/src/source_contract.rs",
         "crates/oo-gateway/src/public_surface.rs",
         "crates/oo-gateway/src/query_executor.rs"
@@ -375,5 +373,12 @@
   "latest_gateway_ownership_transfer": {
     "receipt": "execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json",
     "owner": "/root/doris_complete_luna_max"
+  },
+  "latest_mysql_shared_flow_restoration": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/mysql-shared-flow-restoration-intake.json",
+    "revoked_doris_write_paths": [
+      "tools/source-onboarding/product_flow.py",
+      "tools/source-onboarding/test_onboard.py"
+    ]
   }
 }
