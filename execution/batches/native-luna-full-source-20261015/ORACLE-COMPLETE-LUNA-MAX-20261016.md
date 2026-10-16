@@ -38,3 +38,7 @@ Oracle唯一writer增加 `tools/release-coordinator/src/cli.rs`：keys已接受n
 ## 2026-10-16 G8 同证书重入的必要窄修
 
 Oracle唯一writer增加 `tools/release-coordinator/src/store.rs`，仅在gate_body既有证书replay回包补充与recorded一致的test_admissible（来自持久化disposition）及production_admissible=false，原证书/issuer/source/信任计算及副本屏障不改。root已核实maintain_activate依赖该字段；必须最小replay正负例和真实g11同证书重入。固定构建仅own cli/store delta，不采Doris native_publication/target WIP。无原Plan/正式签收提升。
+
+## 2026-10-16 overlay 已固定并释放
+
+overlay.rs已提交0722c7b4f，root核clean/SHA50149bf5；Oracle确认无mutator并释放给Doris唯一writer处理其分区验证。Oracle后续仅只读overlay，继续现有固定5826 API与cli/store窄域，若需overlay修改先协调回转，不并写。原全源退出不变。

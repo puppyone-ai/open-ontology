@@ -44,5 +44,16 @@
     "allowed": "replay returns test_admissible derived solely from persisted disposition, production_admissible=false as recorded path; exact tests and genuine same-certificate reentry",
     "unchanged": "issuer,certificate,source,trust computation,replica barrier,original failures,formal0/10",
     "acceptance_delta": 0
+  },
+  "latest_overlay_ownership_transfer": {
+    "as_of": "2026-10-15T23:52:47.690200+00:00",
+    "path": "tools/selfbuild-control-api/src/overlay.rs",
+    "from": "/root/oracle_complete_luna_max",
+    "to": "/root/doris_complete_luna_max",
+    "fixed_source": "0722c7b4f305e50a73bcca5c3ee240fe46015f0a",
+    "sha256": "50149bf5354986407b3074e05e9d0cf63e33bfde99745e865984b7d3a2e5644b",
+    "root_verified": "git blob equals current bytes, clean path, prior writer confirmed no mutator",
+    "allowed": "verify_doris_observation authentic request/load/observed partition linkage and minimum tests only; Oracle functions unchanged",
+    "formal_delta": 0
   }
 }
