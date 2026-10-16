@@ -1,0 +1,26 @@
+{
+  "as_of": "2026-10-16T07:29:38.002700+00:00",
+  "level": "safe hold receipt only, not source delivery",
+  "author_receipt": {
+    "path": "/private/tmp/oo-doris-lunamax-20261016/hold/HOLD-RECEIPT.json",
+    "sha256": "e7948ff1cd0cdcc0cf41349047968bbd42ade6016448681ceae1c96e6e21013e"
+  },
+  "root_confirmed_original_pid2331_absent": true,
+  "actual_stop_probe_exit": 0,
+  "author_terminal": true,
+  "writer_released": true,
+  "bindings_disabled": 10,
+  "worker_serve_original_exit": "not captured, retained honestly; signal command0 and process absent",
+  "pending_occurrence": "ffe68a40-b879-4da5-a528-9d4e3731d1c4; cancel target_database refused exit1, no mutation; remains queued under disabled bindings",
+  "preserved_source": "c6d7fc0e3d7e62cde537ae5878a973962d720d91 immutable source/ELF/installed0042 retained; not integrated into MySQL or cherry-picked into currentHEAD",
+  "root_fixed_source_check": {
+    "path": "/tmp/oo-root-doris-0042-fixed-source-elf-check-20261016.json",
+    "sha256": "acf5e443c0296429a31b581c6b6920fb79579b50347d5b90ecfc7362dc7bdefb"
+  },
+  "whole": false,
+  "source_product_state": "source/target13 awaiting publication, prior published9; current update/Pack/RO/CLI/random Agent/default whole incomplete",
+  "runtime_limit": "hold receipt flags older/newer Gateway runtime identity distinction; revalidate exact /proc ELF on future resume; no full current Gateway assertion from manifest alone",
+  "active_work": "only /root/mysql_rust_runtime_sol_medium develops original MySQL complete Rust runtime; all other sources held",
+  "formal_source_count_delta": 0,
+  "original_plan_exits_unchanged": true
+}

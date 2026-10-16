@@ -3,7 +3,7 @@
   "agent": "/root/doris_complete_luna_max",
   "model": "gpt-6-luna",
   "reasoning_effort": "max",
-  "status": "spawned_and_accepted",
+  "status": "paused_for_mysql_priority_writer_released",
   "contract": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md",
   "dependency": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json",
   "complete_capability": "owned Doris original mixedC4/C5 normal6fields autonomoussync/recovery/S0-S10/currentOntologyPack/fixturepublish/ROstandby/GatewayCLI/random2x2/sourcegoldQIDWAL",
@@ -90,5 +90,16 @@
       "crates/oo-pipeline/src/native_update.rs"
     ],
     "formal_source_count_delta": 0
-  }
+  },
+  "latest_doris_final_hold": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/doris-mysql-priority-final-hold-intake.json",
+    "status": "paused_for_mysql_priority_writer_released",
+    "whole": false,
+    "bindings_enabled": 0,
+    "worker_pid2331_absent": true,
+    "pending_task_retained": true,
+    "formal_source_count_delta": 0
+  },
+  "writer_released": true,
+  "hold_intake": "execution/reviews/native-luna-full-source-20261015/doris-mysql-priority-final-hold-intake.json"
 }

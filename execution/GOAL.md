@@ -1,3 +1,5 @@
+2026-10-16 最新人类指定MySQL用GPT-6.1 Sol medium。前Luna已实际terminal/无Rust源码WIP、无后端build/test/DML/model或session并释放writer，私有handoff原失败保留（未跑源测试/缺raw exit不称通过）；root核两目录clean后已实际派发唯一 /root/mysql_rust_runtime_sol_medium 接同一原完整任务。只补原Plan必要Rust产品运行/编排，不泛化重写允许的Python；MySQL完全固定验收前其他源不恢复，Doris仅安全收取。源/Plan/整版计数不变，formal0/10。派发 execution/batches/native-luna-full-source-20261015/mysql-rust-runtime-sol-medium-dispatch.json。
+
 2026-10-16 最新人类再次MySQL优先：所有其他源停止新增开发/测试/模型，Doris仅安全收取当前命令/保留0042现场后交hold回执，未确认terminal前不释放其writer。原MySQL两版Rust核心与真实fixture证据保留，但原Plan要求第一方产品/工程运行器Rust，当前whole.py/follow.py常驻维护/发布编排出口仍待补；不能把有效测试等同Rust产品运行全部交付。不泛化重写允许的Python，只派唯一MySQL Luna max完成最小Rust运行闭环；其他源待root核MySQL完整固定制品后恢复。无新增分母/勾选/正式源，formal0/10。边界 execution/batches/native-luna-full-source-20261015/mysql-rust-runtime-priority.json。
 
 2026-10-16 当前接续：MySQL5.7+8.4本地真实整链参考已核验并固定于29e3afd88；Doris完整C4/C5与独立Oracle完整C5各唯一gpt-6-luna/max负责人，其他7源held。当前权威为[运行控制](CONTROL.md)、[MySQL签收](reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json)及[Doris完整卡](batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md)。正式源0/10、整版0、原Plan全部退出与分母不变；下文旧排期仅为历史。

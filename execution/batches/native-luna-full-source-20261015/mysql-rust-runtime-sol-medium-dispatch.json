@@ -1,0 +1,21 @@
+{
+  "as_of": "2026-10-16T07:27:32.281813+00:00",
+  "agent": "/root/mysql_rust_runtime_sol_medium",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "status": "actually_spawned_exclusive_mysql_owner",
+  "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-SOL-MEDIUM-20261016.md",
+  "card_sha256": "90a09124fb458bd4b3014540dd75b210348ad502012c2edf7d10d41b5084ce4c",
+  "handoff": {
+    "path": "/tmp/oo-mysql-rust-runtime-luna-max-20261016/HANDOFF.json",
+    "sha256": "a6c156a74d5b5af6b75cf24ef5e630b91736d554902faca2d75a3ef6c472e990",
+    "previous_agent": "/root/mysql_rust_runtime_luna_max",
+    "previous_terminal_and_writer_released": true,
+    "rust_worktree_clean": true,
+    "source_tests_passed": 0
+  },
+  "previous_failures": "four pre-test smoke attempts, original raw exits missing; retained honestly, no success inherited",
+  "scope": "same original MySQL5.7+8.4 complete Rust product runtime closure, minimum necessary code; no blanket Python rewrite",
+  "other_sources": "held; Doris safety collection only pending final receipt; no other source development/tests/models",
+  "formal_source_count_delta": 0
+}
