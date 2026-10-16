@@ -16,3 +16,7 @@
 已有证据仅可按固定源码、源身份、数据/语义版本及 Pack 的实际适用边界复用；新 binding/generation 不能套用旧问答。运行的中间制品与最终固定 ELF 分开记录。当前仍在开发/整链验证，未新增父项、正式源或整版签收，计数增量 0；总 Goal 和其他源仍暂停。
 
 当前任务：[完整能力卡](../batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md)；唯一工程师 `/root/mysql_rust_runtime_sol_medium`，GPT-6.1 Sol medium。[状态更新协议](../UPDATE-PROTOCOL.md) 继续适用。
+
+## 既有依赖声明对账
+
+本轮实际检查另发现既有 `oo-gateway → oo-builder` 精确声明遗漏（`bd283b67c` 已有依赖及纯编译校验调用）。仅同步 `REQUIRED_EDGES` 与必要回归；不改变所有源驱动/源凭据/管线写入/runtime 禁止规则。保留原固定基线失败，单独窄修提交并验证 Linux 正例、禁止边负例和恢复。该对账未完成前不能称架构门禁通过。

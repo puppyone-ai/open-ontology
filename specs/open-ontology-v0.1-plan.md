@@ -1,3 +1,5 @@
+2026-10-16 MySQL主线验证发现既有架构声明漏项：Gateway已用Builder纯校验但REQUIRED_EDGES未登记；root核实际调用/依赖后仅授权精确边声明与最小回归，全部源驱动/凭据/管线/runtime禁止规则不变。原基线exit1保留，须独立窄修提交和Linux正/负/恢复通过；原完整卡继续，尚未签收，计数delta0。
+
 2026-10-16 用户已暂停总Goal，get_goal实回paused；Doris已安全终态/无后台writer、源码WIP与DB/API保留，hold SHA be86aac4…10859。随后用户明确仅授权MySQL批量源读取器进入oo-connectors并主线全链验通，继续同一Sol medium；其他源不恢复。此前e3/ac633固定本地运行链证据有效，但不等于正式oo-connectors多源入口完成；当前该crate数据库驱动确只有PG，MySQL仍在preview工具。新卡 execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md；已冻结待实际接续，未把派发当完成，无计数/父项/整版新增签收，formal0/10。
 
 2026-10-16 MySQL Sol medium完整本地Rust闭环已root核验：e3e83b399运行链/ac6332654六字段默认入口、两版各110019行5表43列typed0、四组8轮真实GPT事实/原QID WAL、实际类型/隔离/当前拒绝取消均通过；新native已安装，旧Python mysql注册归档移除（其他7行不变），10旧Gateway停后两版当前CLI复核通过。20215原文件+94补充固定SHA核验；唯一Linux PID50451/50463保留，作者writer释放。原S5合法复用/无新S5，默认集成及root核验0模型；令牌09:34UTC到期须显式续签，服务次日08:38UTC有界，无自动续签/boot。仅ownedfixture，不代客户/生产/14天nightly/统一review/父项/整版签收，所有验收计数delta0、formal0/10。后续Doris须单独固定卡，其他源held。证据 execution/reviews/native-luna-full-source-20261015/mysql-rust-native-complete-intake.json；演示 execution/reviews/native-luna-full-source-20261015/mysql-rust-native-demo.md。

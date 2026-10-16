@@ -64,13 +64,7 @@ pub enum Stop {
     PartialAfterFirst,
 }
 
-#[derive(Clone, Debug)]
-pub struct SelectedTable {
-    pub schema: String,
-    pub name: String,
-    /// Empty keeps every mapped column. A non-empty list is the requested subset, in that order.
-    pub columns: Vec<String>,
-}
+pub use oo_connectors::mysql::SelectedTable;
 
 pub fn parse_config(text: &str) -> Result<PreviewConfig, PreviewError> {
     let value: Value =
@@ -441,6 +435,19 @@ fn secret_path(value: &str) -> Result<PathBuf, PreviewError> {
     }
     Ok(path)
 }
+
+impl PreviewConfig {
+    pub(crate) fn mysql_source(&self) -> Result<oo_connectors::mysql::MysqlConfig, PreviewError> {
+        Ok(oo_connectors::mysql::MysqlConfig {
+            mysql_host:self.mysql_host.clone(),mysql_port:self.mysql_port,
+            mysql_database:self.mysql_database.clone(),mysql_user:self.mysql_user.clone(),
+            mysql_ca_file:self.mysql_ca_file.clone(),connect_timeout_ms:self.connect_timeout_ms,
+            secret_ref:oo_connectors::SecretRef::new(format!("secret://mysql-preview/{}",self.source_id))
+                .map_err(|_|PreviewError::new("config","source_id"))?,
+        })
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

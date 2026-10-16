@@ -1,6 +1,6 @@
 # oo-connectors
 
-Read-only PostgreSQL source inspection and catalog. Protocol `oo.source.pgsql/v1`.
+Read-only PostgreSQL source inspection and catalog (`oo.source.pgsql/v1`), with an optional MySQL C1 batch reader.
 
 The frozen method and field contract is [contracts/source/pgsql/README.md](../../contracts/source/pgsql/README.md). The empty catalog fixture is [contracts/source/pgsql/empty-catalog.json](../../contracts/source/pgsql/empty-catalog.json).
 
@@ -35,3 +35,13 @@ cargo clippy -p oo-connectors --all-targets --locked --offline -- -D warnings
 ```
 
 Workspace `rust-toolchain.toml` may name a newer compiler. The acceptance run sets `RUSTUP_TOOLCHAIN=1.94.0`.
+
+## MySQL (optional)
+
+Enable `features = ["mysql"]` to expose `oo_connectors::mysql`. The default PostgreSQL build does not enable `mysql_async`. Source connection, version checks, catalog mapping and value decoding live in `src/mysql/`; this module has no pipeline or target credentials.
+
+The caller resolves `MysqlConfig.secret_ref`, connects with the caller CA and hostname verification, then calls `inspect` (SELECT-only access) or `inspect_replication` (the C1 SELECT/replication account). `ReadConnection` adopts that checked connection and the caller-owned read-only snapshot. `TableReader` binds one selected table to `RunBinding` and pulls integer-primary-key keyset pages. Each `read_chunk` returns a `TypedBatch`, source rows for the C1 frame adapter, rejects and a statement note. The C1 consumer opens its durable target stage before starting the source snapshot; the connector does not create that stage or commit target data.
+
+Limits are at most 10,000 rows per query, 1,000,000 rows per table, 32 MiB per-table raw-byte budget and 16 MiB per batch (including Arrow allocation), a 300 s table deadline and 30 s statement timeout; consumers may choose smaller bounds. Oversized cells and exceeded budgets fail closed. `Cancel` and failed pulls consume the owned connection and kill its source backend through a separate connection using the same source account. Successful callers recover the connection to commit or roll back their snapshot. Dropping a future is not a cleanup receipt.
+
+MySQL 5.7 and 8.x status syntax and the existing exact decimal, unsigned integer, binary, JSON, NULL, zero-date and signed TIME conversions are shared with the actual C1 baseline and reconcile consumers. This is a batch API, not a new CDC protocol or a whole-source admission token. The ignored `mysql_live` test takes private `OO_MYSQL_MAINLINE_FIXTURES` and a new `OO_MYSQL_MAINLINE_OUT` directory; it checks both real versions against immutable full Arrow references and checks TLS, cancellation and budget cleanup.

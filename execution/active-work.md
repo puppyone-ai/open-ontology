@@ -1,3 +1,5 @@
+2026-10-16 MySQL主线验证发现既有架构声明漏项：Gateway已用Builder纯校验但REQUIRED_EDGES未登记；root核实际调用/依赖后仅授权精确边声明与最小回归，全部源驱动/凭据/管线/runtime禁止规则不变。原基线exit1保留，须独立窄修提交和Linux正/负/恢复通过；原完整卡继续，尚未签收，计数delta0。
+
 2026-10-16 连接器实现口径已按用户要求固化：每源独立模块，MySQL专有驱动由可选Cargo mysql feature启用、实际主线显式消费，PG默认不引MySQL；源读取与Loader/目标写边界保持，不预造插件框架。权威说明 execution/decisions/source-connector-modules-and-features-20261016.md；主Plan SP03-W02与机器台账原位同步。当前MySQL整链验证继续、其他源/总Goal暂停，无签收/计数增加。
 
 2026-10-16T10:07:09.252887+00:00 MySQL专项已实际followup唯一 /root/mysql_rust_runtime_sol_medium，list_agents确认running，固定依赖0b27b409a；正式oo-connectors批量读取及C1/主线真实消费，两版完整出口仍待交付。总Goal与其他源保持暂停；无验收计数变化。

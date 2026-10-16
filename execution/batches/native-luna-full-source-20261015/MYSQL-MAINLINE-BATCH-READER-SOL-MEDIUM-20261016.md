@@ -25,3 +25,7 @@
 ## 2026-10-16 用户结构确认
 
 按源模块组织，不把后续二十余源堆入一个文件。当前仅实现 mysql 模块；MySQL 专有依赖经 Cargo `mysql` feature 可选启用、lib.rs 条件导出、实际消费者显式启用，PG 默认路径不拉 MySQL 驱动。最终固定归档须验证默认/启用 MySQL 两种构建与真实消费；不造其他源空模块、通用工厂或动态插件框架。
+
+## 2026-10-16 既有精确依赖声明漏项窄修
+
+原0b27固定基线的架构检查存在既有 oo-gateway→oo-builder 未声明边；Gateway 已调用纯 compile_reviewed_sealed_import 校验，builder/jobs 无源/控制驱动或模型runtime。root 核实际调用与 manifests 后，仅扩写 crates/oo-arch-check/src/policy.rs 的 REQUIRED_EDGES 精确声明该既有边，及必要最小现有测试；全部源驱动/凭据/管线/runtime 禁止规则保持，不抽搬编译器、不忽略失败。保留未改基线 exit1，独立窄修提交，Linux 正例/注入禁止边负例/恢复基线均须通过。此为同步已有实际依赖，不授权新增 Gateway 源访问。

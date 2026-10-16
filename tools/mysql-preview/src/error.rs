@@ -82,3 +82,7 @@ impl std::error::Error for PreviewError {}
 pub fn redact(text: &str, secret: &str) -> bool {
     !secret.is_empty() && text.contains(secret)
 }
+
+impl From<oo_connectors::mysql::MysqlError> for PreviewError {
+    fn from(error: oo_connectors::mysql::MysqlError) -> Self { Self::new(error.code, error.fact) }
+}

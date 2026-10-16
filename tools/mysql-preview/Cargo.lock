@@ -1497,6 +1497,7 @@ dependencies = [
  "arrow-buffer",
  "arrow-ipc",
  "arrow-schema",
+ "mysql_async",
  "oo-core",
  "serde",
  "serde_json",

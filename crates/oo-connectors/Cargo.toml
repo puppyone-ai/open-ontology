@@ -1,6 +1,6 @@
 [package]
 name = "oo-connectors"
-description = "Read-only PostgreSQL source inspection and catalog."
+description = "Read-only PostgreSQL and MySQL source inspection and bounded Arrow reads."
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
@@ -9,6 +9,10 @@ version.workspace = true
 
 [lints]
 workspace = true
+
+[features]
+default = []
+mysql = ["dep:mysql_async", "tokio/sync", "tokio/macros"]
 
 [dependencies]
 oo-core = { path = "../oo-core" }
@@ -40,6 +44,7 @@ serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
 tokio = { version = "=1.53.1", default-features = false, features = ["time"] }
+mysql_async = { version = "=0.36.1", optional = true, default-features = false, features = ["minimal", "native-tls-tls"] }
 unicode-normalization = "=0.1.25"
 zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
 
