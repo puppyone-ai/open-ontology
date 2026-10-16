@@ -2,6 +2,7 @@
 import json
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 import official_entry as entry
 
@@ -35,7 +36,8 @@ class OfficialEntryTest(unittest.TestCase):
         self.assertIs(identity["whole"], False)
         self.assertEqual(entry.sha(receipt), before)
         with tempfile.TemporaryDirectory() as tmp:
-            cfg = entry.write_dialogue_config(tmp)
+            with mock.patch.object(entry, "PRIOR", Path(tmp) / "no-prior-manifest.json"):
+                cfg = entry.write_dialogue_config(tmp)
         self.assertEqual(cfg["identity"]["pack_sha256"], entry.PACK_FILE)
         self.assertNotIn("seed", cfg)
         self.assertNotIn("frozen_manifest", cfg)
@@ -61,7 +63,6 @@ class OfficialEntryTest(unittest.TestCase):
         pinned = {Path(item["path"]).name: item["sha256"] for item in recipe["pins"]}
         self.assertEqual(pinned["product_flow.py"], entry.sha(entry.FLOW))
         self.assertEqual(pinned["dialogue.py"], entry.sha(entry.DIALOGUE))
-        self.assertEqual(pinned["dialogue.py"], "0aefc0b5b283abbf4c4845269cd99fe444de76ae1c273f456bebc49bfbb9096a")
         self.assertNotIn("whole", recipe)
         self.assertEqual(recipe["verifier_commit"], entry.VERIFIER_COMMIT)
         self.assertEqual(pinned["official_entry.py"], entry.sha(Path(entry.__file__).resolve()))

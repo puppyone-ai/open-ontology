@@ -15,6 +15,7 @@ import subprocess
 import sys
 import stat
 import time
+import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
 ORACLE = Path(__file__).resolve().parent
@@ -66,6 +67,219 @@ def load(path):
     return json.loads(Path(path).read_bytes())
 
 
+def release_candidate_version(generation, run_id, mapping_sha256, request_nonce):
+    if (not isinstance(generation, int) or generation < 1
+            or not re.fullmatch(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", run_id)
+            or not re.fullmatch(r"[0-9a-f]{64}", mapping_sha256)
+            or not re.fullmatch(r"[0-9a-f]{12}", request_nonce)):
+        raise ValueError("release_candidate_identity")
+    return ("oracle-c5-g" + str(generation) + "-" + run_id.replace("-", "")[:8]
+            + "-" + mapping_sha256[:12] + "-" + request_nonce)
+
+
+def release_runtime_base(release):
+    private_root = Path(release["private_root"]).resolve(strict=True)
+    runtime_path = Path(release["runtime_base"])
+    if (not runtime_path.is_absolute() or runtime_path.is_symlink() or not runtime_path.is_file()
+            or runtime_path.resolve(strict=True).parent != private_root):
+        raise ValueError("release_runtime_base_path")
+    runtime = load(runtime_path)
+    replica = runtime.get("replica_pg")
+    if not isinstance(replica, dict) or not isinstance(replica.get("host"), str) or not replica["host"].strip():
+        raise ValueError("release_runtime_base_replica_host")
+    return runtime_path, runtime
+
+
+def release_runtime_container(release):
+    runtime_path, _ = release_runtime_base(release)
+    prefix = PurePosixPath(release["runtime_container_prefix"])
+    if not prefix.is_absolute():
+        raise ValueError("release_runtime_container_prefix")
+    return str(prefix / runtime_path.name)
+
+
+def gateway_replica_host(gateway, replica_host):
+    host = gateway.get("standby_host")
+    if not isinstance(host, str) or not host.strip() or host != replica_host:
+        raise ValueError("gateway_replica_host_mismatch")
+    return host
+
+
+def verified_release_checkpoint(current, project_id, status, intent, receipt, active, pack, mapping):
+    generation, run_id = current["generation"], current["result"]["run_id"]
+    version = intent.get("version")
+    operation_id = receipt.get("operation_id")
+    mapping_sha256 = hashlib.sha256(canonical(mapping)).hexdigest()
+    pack_digest = current["native"].get("pack_digest")
+    if (intent.get("generation") != generation or intent.get("run_id") != run_id
+            or intent.get("candidate_id") != version or not isinstance(version, str)
+            or intent.get("native_mapping_sha256") != mapping_sha256
+            or receipt.get("candidate_id") != version or receipt.get("version") != version
+            or receipt.get("native_mapping_sha256") != mapping_sha256
+            or not isinstance(operation_id, str) or not operation_id.startswith("op_")
+            or status.get("operation_id") != operation_id or status.get("candidate_id") != version
+            or status.get("version") != version or status.get("status") != "succeeded"
+            or status.get("half_published") is not False or status.get("pack_digest") != pack_digest
+            or not isinstance(status.get("source_hash"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", status["source_hash"])
+            or active.get("project_id") != project_id or active.get("candidate_id") != version
+            or active.get("version") != version or active.get("pack_digest") != pack_digest
+            or active.get("source_hash") != status["source_hash"]
+            or active.get("half_published") is not False
+            or pack.get("project_id") != project_id or pack.get("candidate_id") != version
+            or pack.get("version") != version or pack.get("pack_digest") != pack_digest
+            or pack.get("manifest_sha256") != active.get("manifest_sha256")
+            or pack.get("half_published") is not False):
+        raise ValueError("saved_release_checkpoint_mismatch")
+    if (not re.fullmatch(r"[0-9a-f]{32}", str(receipt.get("idempotency_key", "")))
+            or not re.fullmatch(r"[0-9a-f]{64}", str(receipt.get("request_body_sha256", "")))):
+        raise ValueError("saved_release_request_receipt")
+    return {"candidate_id": version, "version": version, "operation_id": operation_id,
+            "pack_digest": pack_digest, "source_hash": status["source_hash"],
+            "mapping_sha256": mapping_sha256}
+
+
+def verified_cut_checkpoint(root, generation, source_id, binding):
+    root = Path(root)
+    gold, product = root / "gold", root / "product"
+    completed = load(root / "cut-complete.json")
+    cut = load(gold / "acknowledged-cut.json")
+    result = cut.get("load", {})
+    typed = load(gold / "typed-gold.json")
+    iud = load(gold / "fixture-iud-diff.json")
+    ready = load(root / "gateway-ready.json")
+    freshness = load(root / "gateway-freshness.json")
+    status = load(root / "release-status.json")
+    active = load(root / "active-release.json")
+    pack = load(root / "active-pack.json")
+    publication = load(root / "publication.json")
+    publication_tables = publication.get("tables")
+
+    checksums = {
+        "maintenance_sha256": product / "maintenance-consumption.json",
+        "release_status_sha256": root / "release-status.json",
+        "publication_sha256": root / "publication.json",
+        "gateway_ready_sha256": root / "gateway-ready.json",
+        "typed_gold_sha256": gold / "typed-gold.json",
+    }
+    if (completed.get("protocol") != "oo.oracle.product-follow-cut/v1"
+            or completed.get("source_id") != source_id or completed.get("binding") != binding
+            or completed.get("source_generation") != generation
+            or completed.get("target_generation") != generation
+            or completed.get("run_id") != result.get("run_id")
+            or completed.get("pin") != cut.get("pin")
+            or completed.get("ready") is not True
+            or cut.get("binding") != binding or result.get("source_id") != source_id
+            or result.get("source_generation") != generation or result.get("target_generation") != generation
+            or typed.get("source_id") != source_id or typed.get("source_generation") != generation
+            or typed.get("differences") != 0 or typed.get("source_gold_sha256") != typed.get("target_gold_sha256")
+            or completed.get("zero_difference_cells") != typed.get("cells")
+            or iud.get("from_generation") != generation - 1 or iud.get("to_generation") != generation
+            or completed.get("iud") != iud
+            or ready.get("protocol") != "oo.oracle.automatic-product-follow-gateway/v1"
+            or ready.get("source_id") != source_id or ready.get("source_generation") != generation
+            or ready.get("target_generation") != generation or ready.get("run_id") != result.get("run_id")
+            or ready.get("typed_gold_sha256") != sha(gold / "typed-gold.json")
+            or ready.get("freshness_sha256") != sha(root / "gateway-freshness.json")
+            or ready.get("ready") is not True
+            or status.get("status") != "succeeded" or status.get("half_published") is not False
+            or status.get("candidate_id") != active.get("candidate_id")
+            or status.get("version") != active.get("version")
+            or status.get("pack_digest") != active.get("pack_digest")
+            or status.get("pack_digest") != pack.get("pack_digest")
+            or not isinstance(publication_tables, list) or len(publication_tables) != 1
+            or publication.get("source_id") != source_id
+            or publication.get("source_generation") != generation
+            or publication.get("target_generation") != generation
+            or publication.get("run_id") != result.get("run_id")
+            or publication.get("consistency_grade") != "S0"
+            or publication.get("position_codec") != "snapshot-zero/v1"):
+        raise ValueError("follow_cut_checkpoint_identity")
+    for field, path in checksums.items():
+        if not path.is_file() or completed.get(field) != sha(path):
+            raise ValueError("follow_cut_checkpoint_digest:" + field)
+    publication_table = publication_tables[0]
+    verify_oracle_gateway_freshness(
+        freshness, source_id, publication_table.get("schema"), publication_table.get("table"),
+        generation, typed.get("rows"))
+    checkpoint_path = root / "release-active-checkpoint.json"
+    expected_checkpoint_sha = completed.get("release_active_checkpoint_sha256")
+    if expected_checkpoint_sha is not None and (not checkpoint_path.is_file() or sha(checkpoint_path) != expected_checkpoint_sha):
+        raise ValueError("follow_cut_checkpoint_digest:release_active_checkpoint_sha256")
+    return completed
+
+
+def verify_resumed_cut_watermark(state, watermark, completed, generation):
+    state_generation = state.get("source_generation")
+    if (state.get("source_id") != completed.get("source_id")
+            or state.get("binding") != completed.get("binding")
+            or not isinstance(state_generation, int) or state_generation < generation):
+        raise ValueError("follow_cut_checkpoint_current_state_mismatch")
+    if (state_generation == generation
+            and (watermark.get("source_id") != completed.get("source_id")
+                 or watermark.get("binding") != completed.get("binding")
+                 or watermark.get("source_generation") != generation
+                 or watermark.get("target_generation") != generation
+                 or watermark.get("run_id") != completed.get("run_id"))):
+        raise ValueError("follow_cut_checkpoint_current_state_mismatch")
+
+
+def verify_oracle_gateway_freshness(snapshot, source_id, schema, table, generation, rows):
+    def reject():
+        raise ValueError("gateway_freshness_not_current")
+
+    sources = snapshot.get("sources")
+    mappings = snapshot.get("mappings")
+    runs = snapshot.get("runs")
+    imports = snapshot.get("imports")
+    receipts = snapshot.get("receipts")
+    quality = snapshot.get("quality_counts")
+    gaps = snapshot.get("gap")
+    relation_names = [item.get("relation") for item in gaps if isinstance(item, dict)] if isinstance(gaps, list) else []
+    if (snapshot.get("publication") != "live" or snapshot.get("source_time") != "unmeasured"
+            or snapshot.get("replica_lag") != "unmeasured" or snapshot.get("freshness") != []
+            or snapshot.get("capture_method") != "c5_diff"
+            or snapshot.get("deletion_guarantee") != "reconcile"
+            or snapshot.get("warnings") != [] or not isinstance(gaps, list) or not gaps
+            or any(not isinstance(item, dict) or item.get("state") != "read" for item in gaps)
+            or any(not isinstance(name, str) or not name for name in relation_names)
+            or len(set(relation_names)) != len(gaps)
+            or not all(isinstance(items, list) and len(items) == 1
+                       for items in (sources, mappings, runs, imports, receipts))):
+        reject()
+    source, mapping, run, imported, receipt = sources[0], mappings[0], runs[0], imports[0], receipts[0]
+    identity = (source_id, schema, table, generation)
+    if (source.get("source") != source_id or source.get("consistency") != "per_table"
+            or source.get("cross_table_consistent") is not False or source.get("applied_pos") != "0"
+            or mapping.get("source") != source_id or mapping.get("schema") != schema
+            or mapping.get("table") != table or mapping.get("run_generation") != generation
+            or mapping.get("bound") is not True
+            or run.get("source") != source_id or run.get("source_generation") != generation
+            or run.get("target_generation") != generation or run.get("state") != "published"
+            or run.get("sealed") is not True
+            or (imported.get("source", source_id), imported.get("schema"), imported.get("table"),
+                imported.get("run_generation")) != identity
+            or imported.get("applied_pos") != "0" or imported.get("exhausted") is not True
+            or imported.get("applied_rows") != rows
+            or receipt.get("source") != source_id or receipt.get("schema") != schema
+            or receipt.get("table") != table or receipt.get("run_generation") != generation
+            or receipt.get("codec") != "snapshot-zero/v1" or receipt.get("applied_pos") != "0"
+            or receipt.get("cross_table_consistent") is not False or receipt.get("partial_txn") is not False):
+        reject()
+    try:
+        committed = datetime.fromisoformat(receipt["target_commit_at"].replace("Z", "+00:00"))
+    except (KeyError, TypeError, ValueError):
+        reject()
+    if committed.tzinfo is None or committed.utcoffset() != timezone.utc.utcoffset(committed):
+        reject()
+    if (not isinstance(quality, list) or not quality
+            or any(not isinstance(item.get("accepted_rows"), int)
+                   or not isinstance(item.get("rejected_rows"), int)
+                   or item["rejected_rows"] != 0 for item in quality)
+            or sum(item["accepted_rows"] for item in quality) != rows):
+        reject()
+
+
 def private_dir(path):
     path = Path(path)
     if path.exists():
@@ -80,7 +294,30 @@ def private_dir(path):
     return path
 
 
+def unique_attempt_dir(output_root, label):
+    if not re.fullmatch(r"[a-z0-9-]{1,40}", label):
+        raise ValueError("attempt_label")
+    parent = private_dir(Path(output_root) / "attempts")
+    for _ in range(10):
+        attempt = parent / (label + "-" + str(time.time_ns()))
+        try:
+            attempt.mkdir(mode=0o700)
+        except FileExistsError:
+            continue
+        if attempt.is_symlink() or attempt.stat().st_uid != os.getuid() or attempt.stat().st_mode & 0o077:
+            raise ValueError("attempt_directory_identity")
+        return attempt
+    raise RuntimeError("attempt_directory_collision")
+
+
 def command(out, label, argv, data=None, timeout=180):
+    result = command_result(out, label, argv, data=data, timeout=timeout)
+    if result.returncode:
+        raise RuntimeError(label + "_exit_" + str(result.returncode))
+    return result.stdout
+
+
+def command_result(out, label, argv, data=None, timeout=180):
     out = Path(out)
     out.mkdir(mode=0o700, parents=True, exist_ok=True)
     prefix = out / label
@@ -88,9 +325,7 @@ def command(out, label, argv, data=None, timeout=180):
     save_bytes(prefix.with_suffix(".stdout"), result.stdout)
     save_bytes(prefix.with_suffix(".stderr"), result.stderr)
     save_bytes(prefix.with_suffix(".exit"), (str(result.returncode) + "\n").encode())
-    if result.returncode:
-        raise RuntimeError(label + "_exit_" + str(result.returncode))
-    return result.stdout
+    return result
 
 
 class Follow:
@@ -99,6 +334,28 @@ class Follow:
         self.out = private_dir(out)
         self.log = self.out / "progress.jsonl"
         self.last_api_proc = None
+        self.attempt_root = None
+
+    def completed_cut(self, generation):
+        generation_root = "generation-" + str(generation)
+        roots = [self.out / generation_root]
+        attempts = self.out / "attempts"
+        if attempts.is_dir():
+            roots.extend(path / generation_root for path in sorted(attempts.iterdir()) if path.is_dir())
+        if generation == int(self.c["initial_after_generation"]):
+            source_gold = Path(self.c["initial_previous_gold"]).resolve(strict=True)
+            roots.append(source_gold.parent.parent)
+        verified = []
+        for root in dict.fromkeys(path.resolve(strict=False) for path in roots):
+            if (root / "cut-complete.json").is_file():
+                completed = verified_cut_checkpoint(
+                    root, generation, self.c["source_id"], self.c["binding"])
+                verified.append((root, completed, sha(root / "cut-complete.json")))
+        if not verified:
+            return None
+        if len({item[2] for item in verified}) != 1:
+            raise ValueError("conflicting_follow_cut_checkpoints")
+        return verified[0][0], verified[0][1]
 
     def verify_fixed_inputs(self):
         pins = [
@@ -117,7 +374,17 @@ class Follow:
             checked.append({"path": path, "sha256": actual})
         if Path(pins[0][0]).parent.name != pins[0][1] or Path(pins[1][0]).parent.name != pins[1][1]:
             raise ValueError("content_addressed_executable_path")
-        write_json(self.out / "fixed-executables.json", {"binaries": checked})
+        identity_root = self.attempt_root or self.out
+        write_json(identity_root / "fixed-executables.json", {"binaries": checked})
+        runtime_path, runtime = release_runtime_base(self.c["release"])
+        replica = runtime["replica_pg"]
+        gateway_host = gateway_replica_host(self.c["gateway"], replica["host"])
+        write_json(identity_root / "release-runtime-base-identity.json", {
+            "path": str(runtime_path), "file_sha256": sha(runtime_path),
+            "canonical_sha256": hashlib.sha256(canonical(runtime)).hexdigest(),
+            "replica_endpoint": {key: replica[key] for key in ("host", "port", "database", "user", "ca_file")},
+            "gateway_endpoint_host": gateway_host,
+        })
         return checked
 
     def verify_native_service(self, out):
@@ -745,7 +1012,9 @@ print(json.dumps(found,sort_keys=True))"""
         if generation == int(self.c["initial_after_generation"]) + 1:
             previous_gold = Path(self.c["initial_previous_gold"])
         else:
-            previous_gold = self.out / ("generation-" + str(generation - 1)) / "gold" / "source-gold.json"
+            previous = self.completed_cut(generation - 1)
+            previous_gold = (previous[0] / "gold" / "source-gold.json" if previous else
+                             self.out / ("generation-" + str(generation - 1)) / "gold" / "source-gold.json")
         if not previous_gold.is_file():
             raise ValueError("previous_generation_gold_missing")
         iud = self.fixture_diff(generation, gold, previous_gold)
@@ -796,7 +1065,23 @@ print(json.dumps(found,sort_keys=True))"""
                 "pack_doc": pack_state["pack_doc"], "visibility": pack_state["visibility"], "iud": iud}
 
     def resume_after_maintenance(self, generation):
+        self.attempt_root = unique_attempt_dir(self.out, "official-reentry")
         self.verify_fixed_inputs()
+        found = self.completed_cut(generation)
+        if found:
+            completed_root, completed = found
+            state = self.native_state(self.attempt_root / "resume-native-state")
+            watermark = self.verify_native_state_identity(state)
+            if state.get("source_generation") != generation:
+                raise ValueError("resume_completed_cut_is_not_current_generation")
+            verify_resumed_cut_watermark(state, watermark, completed, generation)
+            write_json(self.attempt_root / "resumed-cut-reference.json", {
+                "path": str(completed_root / "cut-complete.json"),
+                "sha256": sha(completed_root / "cut-complete.json"),
+                "source_id": self.c["source_id"], "binding": self.c["binding"],
+                "source_generation": generation, "run_id": completed["run_id"],
+                "current_watermark": watermark, "read_only": True})
+            return completed
         generation_root = private_dir(self.out / ("generation-" + str(generation)))
         product = generation_root / "product"
         if not (product / "product-receipt.json").is_file() or not (product / "maintenance-consumption.json").is_file():
@@ -824,19 +1109,145 @@ print(json.dumps(found,sort_keys=True))"""
             "role_response": pack_state["role_response"], "native": pack_state["native"],
             "artifact": pack_state["artifact"], "reviewed": pack_state["reviewed"],
             "pack_doc": pack_state["pack_doc"], "visibility": pack_state["visibility"], "iud": iud}
-        self.publish(current)
+        checkpoint = self.verify_existing_publication(current)
+        if checkpoint is None:
+            self.publish(current)
+        else:
+            write_json(generation_root / "release-active-checkpoint.json", checkpoint)
         ready = self.gateway(current)
-        completed = {"source_generation": generation, "target_generation": generation,
+        completed = {"protocol": "oo.oracle.product-follow-cut/v1", "source_id": self.c["source_id"],
+            "binding": self.c["binding"], "source_generation": generation, "target_generation": generation,
             "run_id": result["run_id"], "pin": cut["pin"],
             "maintenance_sha256": sha(product / "maintenance-consumption.json"),
             "release_status_sha256": sha(generation_root / "release-status.json"),
             "publication_sha256": sha(generation_root / "publication.json"),
+            "release_active_checkpoint_sha256": sha(generation_root / "release-active-checkpoint.json") if checkpoint else None,
             "gateway_ready_sha256": sha(generation_root / "gateway-ready.json"),
             "typed_gold_sha256": sha(gold / "typed-gold.json"),
             "zero_difference_cells": typed["cells"], "iud": iud, "ready": ready["ready"]}
         write_json(generation_root / "cut-complete.json", completed)
         self.event("product-generation-complete", **completed)
         return completed
+
+    def verify_existing_publication(self, current):
+        root = current["root"]
+        generation = current["generation"]
+        release = self.c["release"]
+        paths = {
+            "status": root / "release-status.json",
+            "intent": root / "candidate-request-intent.json",
+            "receipt": root / "candidate-request-receipt.json",
+            "active": root / "active-release.json",
+            "pack": root / "active-pack.json",
+            "publication": root / "publication.json",
+            "mapping": root / "native-mapping.json",
+            "process": root / "release" / ("generation-" + str(generation) + "-release-process-identity.json"),
+        }
+        present = [path.is_file() for path in paths.values()]
+        if not any(present):
+            return None
+        if not all(present):
+            raise ValueError("saved_release_checkpoint_incomplete")
+
+        mapping = self.publication_context(current)
+        status, intent, receipt, active, pack = (load(paths[name]) for name in ("status", "intent", "receipt", "active", "pack"))
+        identity = verified_release_checkpoint(current, release["project_id"], status, intent, receipt,
+                                               active, pack, mapping)
+        if load(paths["mapping"]) != mapping or load(paths["publication"]) != mapping["publication"]["receipt"]:
+            raise ValueError("saved_release_mapping_drift")
+
+        release_dir = root / "release"
+        api_evidence = {"operation": None, "active": None, "pack": None}
+        for evidence_path in sorted(release_dir.glob("*.response.json")):
+            envelope = load(evidence_path)
+            response = envelope.get("response", {})
+            if envelope.get("status") != 200:
+                continue
+            if (response.get("operation_id") == identity["operation_id"]
+                    and response.get("status") == "succeeded"
+                    and response.get("candidate_id") == identity["candidate_id"]):
+                api_evidence["operation"] = evidence_path
+            elif (response.get("operation") == "getActiveRelease"
+                    and response.get("candidate_id") == identity["candidate_id"]
+                    and response.get("version") == identity["version"]
+                    and response.get("pack_digest") == identity["pack_digest"]):
+                api_evidence["active"] = evidence_path
+            elif (response.get("operation") == "getActiveRolePack"
+                    and response.get("candidate_id") == identity["candidate_id"]
+                    and response.get("version") == identity["version"]
+                    and response.get("pack_digest") == identity["pack_digest"]):
+                api_evidence["pack"] = evidence_path
+        if any(path is None for path in api_evidence.values()):
+            raise ValueError("saved_release_api_evidence_missing")
+
+        process_identity = load(paths["process"])
+        runtime_container = process_identity.get("runtime_container")
+        prefix = release["runtime_container_prefix"]
+        private_root = Path(release["private_root"]).resolve(strict=True)
+        if (process_identity.get("container") != release["container"]
+                or process_identity.get("binary_sha256") != release["binary_sha256"]
+                or not isinstance(runtime_container, str) or not runtime_container.startswith(prefix)):
+            raise ValueError("saved_release_process_identity")
+        runtime_host = private_root / Path(runtime_container).name
+        if (runtime_host.is_symlink() or not runtime_host.is_file()
+                or runtime_host.resolve(strict=True).parent != private_root):
+            raise ValueError("saved_release_runtime_path")
+        runtime = load(runtime_host)
+        runtime_mapping_sha256 = hashlib.sha256(canonical(runtime.get("native_mapping"))).hexdigest()
+        runtime_hash = hashlib.sha256(canonical(runtime)).hexdigest()
+        replica_host = gateway_replica_host(self.c["gateway"], runtime.get("replica_pg", {}).get("host"))
+        if (runtime.get("native_mapping") != mapping or runtime_mapping_sha256 != identity["mapping_sha256"]
+                or not runtime_host.stem.endswith(runtime_hash[:16])):
+            raise ValueError("saved_release_runtime_mapping")
+
+        check_root = private_dir(root / "release-checkpoint")
+        processes = self.release_processes(check_root)
+        if not processes:
+            self.start_release_api(check_root, runtime_container, "resume-release")
+            processes = self.release_processes(check_root)
+        if (len(processes) != 1 or processes[0]["sha256"] != release["binary_sha256"]
+                or runtime_container not in processes[0]["argv"]
+                or processes[0]["exe"] != process_identity.get("exe")):
+            raise ValueError("live_release_process_identity")
+
+        readback_code = "import hashlib,json,sys\np=sys.argv[1];b=open(p,'rb').read();x=json.loads(b)\nprint(json.dumps({'sha256':hashlib.sha256(b).hexdigest(),'mapping_sha256':hashlib.sha256(json.dumps(x['native_mapping'],sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest(),'replica_host':x['replica_pg']['host']},sort_keys=True))"
+        readback = json.loads(command(check_root, "runtime-config-readback", ["docker", "exec", release["container"],
+            "python3", "-c", readback_code, runtime_container]))
+        if (readback.get("sha256") != sha(runtime_host)
+                or readback.get("mapping_sha256") != identity["mapping_sha256"]
+                or readback.get("replica_host") != replica_host):
+            raise ValueError("live_release_runtime_config_mismatch")
+
+        flow = self.release_flow(check_root / "api-readback")
+        live_active = flow.call("admin", "/control/v1/releases/active?project_id=" + release["project_id"], name="active-release")
+        active_response = flow.last_prefix.with_suffix(".response.json")
+        live_pack = flow.call("admin", "/control/v1/releases/active/pack?project_id=" + release["project_id"]
+                              + "&role=" + self.c["role"], name="active-pack")
+        pack_response = flow.last_prefix.with_suffix(".response.json")
+        if any(live_active.get(key) != active.get(key) for key in
+               ("project_id", "candidate_id", "version", "pack_digest", "source_hash", "manifest_sha256", "half_published")):
+            raise ValueError("live_active_release_checkpoint_mismatch")
+        if any(live_pack.get(key) != pack.get(key) for key in
+               ("project_id", "candidate_id", "version", "pack_digest", "manifest_sha256", "half_published")):
+            raise ValueError("live_active_pack_checkpoint_mismatch")
+
+        return {
+            "verified": True, **identity,
+            "operation_reply": {"path": str(api_evidence["operation"]), "sha256": sha(api_evidence["operation"])},
+            "saved_active_pointer": {"path": str(paths["active"]), "sha256": sha(paths["active"])},
+            "saved_active_pack": {"path": str(paths["pack"]), "sha256": sha(paths["pack"])},
+            "publication_receipt": {"path": str(paths["publication"]), "sha256": sha(paths["publication"])},
+            "native_mapping": {"path": str(paths["mapping"]), "sha256": sha(paths["mapping"])},
+            "prior_api_active_reply": {"path": str(api_evidence["active"]), "sha256": sha(api_evidence["active"])},
+            "prior_api_pack_reply": {"path": str(api_evidence["pack"]), "sha256": sha(api_evidence["pack"])},
+            "live_process": {"container": release["container"], "pid": processes[0]["pid"],
+                "exe_sha256": processes[0]["sha256"], "runtime_container": runtime_container,
+                "runtime_host": str(runtime_host), "runtime_sha256": sha(runtime_host),
+                "runtime_mapping_sha256": identity["mapping_sha256"]},
+            "live_active_reply": {"path": str(active_response), "sha256": sha(active_response)},
+            "live_pack_reply": {"path": str(pack_response), "sha256": sha(pack_response)},
+            "live_runtime_readback": readback,
+        }
 
     def publication_context(self, current):
         request, result, table = current["request"], current["result"], current["table"]
@@ -970,7 +1381,7 @@ print(json.dumps({'stopped_release_api_pids':hits}))"""
             "protocol": "oo.release-control.gate-intake/v1", "config_commit": artifact_revision,
             "gates": [], "external": [], "checkpoints": [], "skip": []})
 
-        runtime = load(release["runtime_base"])
+        _, runtime = release_runtime_base(release)
         runtime["native_mapping"] = mapping
         mapping_sha256 = hashlib.sha256(canonical(mapping)).hexdigest()
         runtime_sha256 = hashlib.sha256(canonical(runtime)).hexdigest()
@@ -985,9 +1396,13 @@ print(json.dumps({'stopped_release_api_pids':hits}))"""
         active = flow.call("admin", "/control/v1/releases/active?project_id=" + project, name="active-before")
         if active.get("half_published") is not False:
             raise ValueError("prior_release_half_published")
-        version = ("oracle-c5-g" + str(generation) + "-"
-                   + current["result"]["run_id"].replace("-", "")[:8]
-                   + "-" + mapping_sha256[:12])
+        request_nonce = uuid.uuid4().hex[:12]
+        version = release_candidate_version(generation, current["result"]["run_id"],
+                                            mapping_sha256, request_nonce)
+        write_json(root / "candidate-request-intent.json", {
+            "candidate_id": version, "version": version,
+            "generation": generation, "run_id": current["result"]["run_id"],
+            "native_mapping_sha256": mapping_sha256, "fresh_request_nonce": request_nonce})
         created = flow.call("admin", "/control/v1/releases", {
             "project_id": project, "config_commit": artifact_revision, "candidate_id": version,
             "version": version, "base_version": active.get("version"), "role": current["visibility"]["role"],
@@ -995,6 +1410,16 @@ print(json.dumps({'stopped_release_api_pids':hits}))"""
         operation = created.get("operation_id")
         if not isinstance(operation, str) or not operation.startswith("op_"):
             raise ValueError("release_operation_id")
+        request_body = load(flow.last_prefix.with_suffix(".body.json"))
+        if (request_body.get("candidate_id") != version or request_body.get("version") != version
+                or not isinstance(request_body.get("idempotency_key"), str)
+                or not re.fullmatch(r"[0-9a-f]{32}", request_body["idempotency_key"])):
+            raise ValueError("release_request_identity")
+        write_json(root / "candidate-request-receipt.json", {
+            "candidate_id": version, "version": version, "operation_id": operation,
+            "fresh_request_nonce": request_nonce, "idempotency_key": request_body["idempotency_key"],
+            "request_body_sha256": sha(flow.last_prefix.with_suffix(".body.json")),
+            "native_mapping_sha256": mapping_sha256})
         deadline = time.monotonic() + int(release.get("publish_timeout_seconds", 120))
         while True:
             status = flow.call("admin", "/control/v1/releases/" + operation, name="publish-status")
@@ -1054,24 +1479,93 @@ print(json.dumps({'stopped_release_api_pids':hits}))"""
         write_json(Path(out) / "standby-last-state.json", latest or {})
         raise TimeoutError("standby_replay_barrier")
 
-    def cli(self, gateway_root, container, name, args, endpoint):
+    def cli(self, gateway_root, container, name, args, endpoint, evidence_root=None):
         p = Path(gateway_root)
         cli = self.c["gateway"]["cli_binary"]
         argv = ["docker", "run", "--rm", "--platform", "linux/arm64", "--network", "container:" + container,
                 "-v", cli + ":/oo-cli:ro", "-v", str(p) + ":/gw:ro", "rust:1.94.0", "/oo-cli", *args,
                 "--json", "--gateway", endpoint, "--transport", "local-development", "--auth", "external",
                 "--token-file", "/gw/current-client.token"]
-        raw = command(p / "preflight", name, argv, timeout=45)
+        raw = command(Path(evidence_root) / "preflight" if evidence_root else p / "preflight", name, argv, timeout=45)
         return json.loads(raw)
 
-    def gateway(self, current):
+    def verify_existing_gateway(self, handle, current, dataset, binding, role_pack, attempt):
+        g = self.c["gateway"]
+        generation, run_id = current["generation"], current["result"]["run_id"]
+        container = g["container_prefix"] + str(generation)
+        if (handle.get("container") != container or handle.get("source_generation") != generation
+                or handle.get("run_id") != run_id or handle.get("gateway_binary") != g["gateway_binary"]
+                or handle.get("gateway_binary_sha256") != g["gateway_binary_sha256"]
+                or handle.get("read_only_standby") != g["standby_container"]):
+            raise ValueError("gateway_existing_handle_identity")
+        gateway_root = Path(handle["private_root"])
+        expected_parent = Path(g["root_parent"]).resolve(strict=True)
+        if (gateway_root.is_symlink() or not gateway_root.is_dir()
+                or gateway_root.resolve(strict=True).parent != expected_parent
+                or gateway_root.stat().st_mode & 0o077):
+            raise ValueError("gateway_existing_root_identity")
+        inspected = subprocess.run(["docker", "inspect", container], capture_output=True, text=True)
+        if inspected.returncode:
+            raise ValueError("gateway_existing_container_missing")
+        values = json.loads(inspected.stdout)
+        if len(values) != 1:
+            raise ValueError("gateway_existing_container_cardinality")
+        info = values[0]
+        if info.get("Id") != handle.get("container_id") or info.get("State", {}).get("Running") is not True:
+            raise ValueError("gateway_existing_container_state")
+        mounts = info.get("Mounts", [])
+        binary_mount = [m for m in mounts if m.get("Destination") == "/oo-gateway"]
+        config_mount = [m for m in mounts if m.get("Destination") == "/gw"]
+        if (len(binary_mount) != 1 or binary_mount[0].get("Source") != g["gateway_binary"]
+                or binary_mount[0].get("RW") is not False or len(config_mount) != 1
+                or config_mount[0].get("Source") != str(gateway_root.resolve(strict=True))):
+            raise ValueError("gateway_existing_mount_identity")
+        process_sha = command(attempt, "gateway-existing-process-sha", ["docker", "exec", container,
+            "/bin/sh", "-c", "sha256sum /proc/1/exe"]).decode().split()[0]
+        if process_sha != g["gateway_binary_sha256"]:
+            raise ValueError("gateway_existing_process_identity")
+
+        for name in ("ca.crt", "runtime.pass", "token-admin.pass", "endpoint.json", "data.pass",
+                     "config.json", "data-ca.crt", "data-endpoint.json", "current-client.token", "grant.json"):
+            path = gateway_root / name
+            if path.is_symlink() or not path.is_file() or stat.S_IMODE(path.stat().st_mode) != 0o600:
+                raise ValueError("gateway_existing_private_material")
+        config = load(gateway_root / "config.json")
+        data_endpoint = load(gateway_root / "data-endpoint.json")
+        if config.get("data_endpoint_file") != "data-endpoint.json":
+            raise ValueError("gateway_existing_data_config")
+        _, runtime = release_runtime_base(self.c["release"])
+        expected_endpoint = {"host": gateway_replica_host(g, runtime["replica_pg"]["host"]),
+                            "port": 5432, "database": "previewdb"}
+        if data_endpoint != expected_endpoint:
+            raise ValueError("gateway_existing_data_endpoint")
+
+        native_dir = gateway_root / "reviewed" / w.SLUG
+        if (load(native_dir / "native-input.json") != load(current["artifact"] / "command.json")
+                or load(native_dir / "command.json") != load(current["artifact"] / "reviewed.json")
+                or load(native_dir / "binding.json") != binding
+                or sha(gateway_root / "packs" / (self.c["role"] + ".json")) != sha(role_pack)):
+            raise ValueError("gateway_existing_pack_binding")
+        listen = gateway_root / "listen.addr"
+        if listen.is_symlink() or not listen.is_file() or not listen.read_text().strip():
+            raise ValueError("gateway_existing_listener")
+        report = {"container": container, "container_id": info["Id"], "gateway_binary_sha256": process_sha,
+            "private_root": str(gateway_root), "gateway_root_mode": stat.S_IMODE(gateway_root.stat().st_mode),
+            "data_endpoint": data_endpoint, "listen_addr": listen.read_text().strip(),
+            "current_client_token_sha256": sha(gateway_root / "current-client.token"),
+            "mounts": [{"destination": m.get("Destination"), "source": m.get("Source"),
+                        "read_only": not m.get("RW", False)} for m in (binary_mount[0], config_mount[0])]}
+        write_json(Path(attempt) / "gateway-existing-handle.json", report)
+        return gateway_root, container, "http://" + listen.read_text().strip(), report
+
+    def create_gateway(self, current, dataset, binding, role_pack, attempt):
         generation, root = current["generation"], current["root"]
         g = self.c["gateway"]
-        standby_barrier = self.standby_barrier(generation, root)
-        old = Path(g["template_root"])
-        gateway_root = private_dir(Path(g["root_parent"]) / ("gateway-generation-" + str(generation) + "-" + current["result"]["run_id"]))
+        root_parent = private_dir(Path(g["root_parent"]))
+        gateway_root = private_dir(root_parent / ("gateway-generation-" + str(generation) + "-" + current["result"]["run_id"]))
         for directory in ("packs", "reviewed", "wal"):
             (gateway_root / directory).mkdir(mode=0o700)
+        old = Path(g["template_root"])
         for name in ("ca.crt", "runtime.pass", "token-admin.pass", "endpoint.json", "data.pass", "config.json"):
             src = old / name
             st = src.lstat()
@@ -1081,23 +1575,18 @@ print(json.dumps({'stopped_release_api_pids':hits}))"""
             (gateway_root / name).chmod(0o600)
         shutil.copy2(g["data_ca"], gateway_root / "data-ca.crt")
         (gateway_root / "data-ca.crt").chmod(0o600)
-        endpoint = {"host": g["standby_container"], "port": 5432, "database": "previewdb"}
+        _, release_runtime = release_runtime_base(self.c["release"])
+        endpoint = {"host": gateway_replica_host(g, release_runtime["replica_pg"]["host"]),
+                    "port": 5432, "database": "previewdb"}
         write_json(gateway_root / "data-endpoint.json", endpoint)
         config = load(gateway_root / "config.json")
         config["data_endpoint_file"] = "data-endpoint.json"
         write_json(gateway_root / "config.json", config, immutable=False)
-
-        command_doc = load(current["artifact"] / "command.json")
-        reviewed = load(current["artifact"] / "reviewed.json")
-        dataset = current["visibility"]["datasets"][0]["dataset"]
-        binding = w.gateway_binding(command_doc["catalog"], reviewed, dataset,
-                                    current["visibility"]["datasets"][0]["columns"])
         review_dir = gateway_root / "reviewed" / w.SLUG
         review_dir.mkdir(mode=0o700)
         shutil.copy2(current["artifact"] / "command.json", review_dir / "native-input.json")
         shutil.copy2(current["artifact"] / "reviewed.json", review_dir / "command.json")
         write_json(review_dir / "binding.json", binding)
-        role_pack = current["artifact"] / "role-pack.json"
         shutil.copy2(role_pack, gateway_root / "packs" / (self.c["role"] + ".json"))
         (gateway_root / "packs" / (self.c["role"] + ".json")).chmod(0o600)
         grant = {"kind": "client", "project_id": binding["project"], "principal_id": "fixture-admin",
@@ -1108,25 +1597,25 @@ print(json.dumps({'stopped_release_api_pids':hits}))"""
         for item in gateway_root.rglob("*"):
             item.chmod(0o700 if item.is_dir() else 0o600)
         issue = g["token_binary"]
-        command(root / "gateway-issue", "issue-token", ["docker", "run", "--rm", "--platform", "linux/arm64",
+        command(attempt, "issue-token", ["docker", "run", "--rm", "--platform", "linux/arm64",
             "--network", g["target_network"], "-v", str(gateway_root) + ":/gw", "-v", issue + ":/issue-token:ro",
             "rust:1.94.0", "/issue-token", "issue", "/gw/endpoint.json", "/gw/token-admin.pass", "/gw/ca.crt",
             "/gw/grant.json", "/gw/current-client.token"], timeout=90)
         (gateway_root / "current-client.token").chmod(0o600)
-
         container = g["container_prefix"] + str(generation)
         inspect = subprocess.run(["docker", "inspect", container], capture_output=True)
         if inspect.returncode == 0:
             raise ValueError("gateway_generation_container_exists")
-        start = command(root, "gateway-create", ["docker", "run", "-d", "--pull=never", "--name", container,
+        start = command(attempt, "gateway-create", ["docker", "run", "-d", "--pull=never", "--name", container,
             "--label", "oo.owner=oracle-connection-whole", "--network", g["target_network"],
             "--mount", "type=bind,source=" + g["gateway_binary"] + ",target=/oo-gateway,readonly",
             "--mount", "type=bind,source=" + str(gateway_root) + ",target=/gw",
             "rust:1.94.0", "/oo-gateway", "/gw"], timeout=60).decode().strip()
-        write_json(root / "gateway-handle.json", {"container": container, "container_id": start,
+        handle = {"container": container, "container_id": start,
             "gateway_binary": g["gateway_binary"], "gateway_binary_sha256": sha(g["gateway_binary"]),
             "source_generation": generation, "run_id": current["result"]["run_id"],
-            "private_root": str(gateway_root), "read_only_standby": g["standby_container"]})
+            "private_root": str(gateway_root), "read_only_standby": g["standby_container"]}
+        write_json(root / "gateway-handle.json", handle)
         deadline = time.monotonic() + 30
         listen = gateway_root / "listen.addr"
         while time.monotonic() < deadline:
@@ -1134,26 +1623,54 @@ print(json.dumps({'stopped_release_api_pids':hits}))"""
                 break
             alive = subprocess.run(["docker", "inspect", "-f", "{{.State.Running}}", container], capture_output=True, text=True)
             if alive.returncode or alive.stdout.strip() != "true":
-                command(root, "gateway-log", ["docker", "logs", container], timeout=30)
+                command(attempt, "gateway-log", ["docker", "logs", container], timeout=30)
                 raise RuntimeError("gateway_process_exited")
             time.sleep(.2)
         if not listen.is_file():
             raise TimeoutError("gateway_listen")
-        host = "http://" + listen.read_text().strip()
-        table = dataset
-        names = self.cli(gateway_root, container, "tables", ["tables"], host)
+        report = {"container": container, "container_id": start, "gateway_binary_sha256": handle["gateway_binary_sha256"],
+            "private_root": str(gateway_root), "gateway_root_mode": stat.S_IMODE(gateway_root.stat().st_mode),
+            "listen_addr": listen.read_text().strip(), "current_client_token_sha256": sha(gateway_root / "current-client.token")}
+        write_json(Path(attempt) / "gateway-created-handle.json", report)
+        return gateway_root, container, "http://" + listen.read_text().strip(), report
+
+    def gateway(self, current):
+        generation, root = current["generation"], current["root"]
+        g = self.c["gateway"]
+        attempt = private_dir(root / ("gateway-attempt-" + str(time.time_ns())))
+        standby_barrier = self.standby_barrier(generation, attempt)
+        private_dir(Path(g["root_parent"]))
+        command_doc = load(current["artifact"] / "command.json")
+        reviewed = load(current["artifact"] / "reviewed.json")
+        dataset = current["visibility"]["datasets"][0]["dataset"]
+        binding = w.gateway_binding(command_doc["catalog"], reviewed, dataset,
+                                    current["visibility"]["datasets"][0]["columns"])
+        role_pack = current["artifact"] / "role-pack.json"
+        handle_path = root / "gateway-handle.json"
+        if handle_path.is_file():
+            gateway_root, container, host, _ = self.verify_existing_gateway(
+                load(handle_path), current, dataset, binding, role_pack, attempt)
+        else:
+            self.create_gateway(current, dataset, binding, role_pack, attempt)
+            gateway_root, container, host, _ = self.verify_existing_gateway(
+                load(handle_path), current, dataset, binding, role_pack, attempt)
+        return self.run_gateway_checks(current, gateway_root, container, host, attempt, standby_barrier)
+
+    def run_gateway_checks(self, current, gateway_root, container, host, attempt, standby_barrier):
+        generation, root = current["generation"], current["root"]
+        dataset = current["visibility"]["datasets"][0]["dataset"]
+        names = self.cli(gateway_root, container, "tables", ["tables"], host, attempt)
         write_json(root / "gateway-tables.json", names)
         tables = names.get("tables", [])
-        if not any(item.get("name") == table for item in tables if isinstance(item, dict)):
+        if not any(item.get("name") == dataset for item in tables if isinstance(item, dict)):
             raise ValueError("gateway_table_not_current")
-        freshness = self.cli(gateway_root, container, "freshness", ["freshness"], host)
+        freshness = self.cli(gateway_root, container, "freshness", ["freshness"], host, attempt)
         write_json(root / "gateway-freshness.json", freshness)
-        if (freshness.get("publication") != "live" or not freshness.get("sources")
-                or any(item.get("state") != "live" for item in freshness.get("sources", []))
-                or any(item.get("source_generation") != generation for item in freshness.get("sources", []) if "source_generation" in item)
-                or any(warning.get("code") == "STALE_DATA" for warning in freshness.get("warnings", []))):
-            raise ValueError("gateway_freshness_not_current")
-        described = self.cli(gateway_root, container, "describe", ["describe", table], host)
+        source_table = current["table"]
+        verify_oracle_gateway_freshness(
+            freshness, self.c["source_id"], source_table["logical_schema"],
+            source_table["logical_table"], generation, current["typed"]["rows"])
+        described = self.cli(gateway_root, container, "describe", ["describe", dataset], host, attempt)
         write_json(root / "gateway-describe.json", described)
         described_columns = described.get("columns", [])
         if set(described_columns) != set(self.c["visible_columns"]):
@@ -1162,38 +1679,47 @@ print(json.dumps({'stopped_release_api_pids':hits}))"""
             return next(value for value in described_columns
                         if bytes.fromhex(value.removeprefix("q_")).decode("ascii") == name)
         key, amount = col("KEY_ID"), col("AMOUNT")
-        count = self.cli(gateway_root, container, "count", ["query", "SELECT COUNT(*) AS n FROM " + table, "--max-rows", "100", "--timeout-ms", "10000"], host)
+        count = self.cli(gateway_root, container, "count", ["query", "SELECT COUNT(*) AS n FROM " + dataset,
+            "--max-rows", "100", "--timeout-ms", "10000"], host, attempt)
         write_json(root / "gateway-count.json", count)
         if count.get("returned_rows") != 1 or len(count.get("rows", [])) != 1 or int(count["rows"][0][0]) != current["typed"]["rows"]:
             raise ValueError("gateway_count_vs_oracle_gold")
-        amount_sql = "SELECT " + amount + " AS amount FROM " + table + " WHERE " + key + " = 1"
-        amount_result = self.cli(gateway_root, container, "amount", ["query", amount_sql, "--max-rows", "100", "--timeout-ms", "10000"], host)
+        amount_sql = "SELECT " + amount + " AS amount FROM " + dataset + " WHERE " + key + " = 1"
+        amount_result = self.cli(gateway_root, container, "amount", ["query", amount_sql,
+            "--max-rows", "100", "--timeout-ms", "10000"], host, attempt)
         write_json(root / "gateway-amount.json", amount_result)
         expected_amount = next(row["amount"] for row in current["source"] if row["key"] == "1")
         from decimal import Decimal
         if (amount_result.get("returned_rows") != 1 or len(amount_result.get("rows", [])) != 1
                 or Decimal(str(amount_result["rows"][0][0])) != Decimal(expected_amount)):
             raise ValueError("gateway_amount_vs_oracle_gold")
-        search = self.cli(gateway_root, container, "knowledge-search", ["knowledge", "search", "orders"], host)
+        search = self.cli(gateway_root, container, "knowledge-search", ["knowledge", "search", "orders"], host, attempt)
         write_json(root / "gateway-knowledge-search.json", search)
         ready = {"protocol": "oo.oracle.automatic-product-follow-gateway/v1", "source_id": self.c["source_id"],
                  "source_generation": generation, "target_generation": generation, "run_id": current["result"]["run_id"],
-                 "pack_digest": current["native"]["pack_digest"], "role_pack_sha256": sha(role_pack),
+                 "pack_digest": current["native"]["pack_digest"], "role_pack_sha256": sha(current["artifact"] / "role-pack.json"),
                  "release_version": load(root / "active-release.json")["version"], "gateway_container": container,
                  "gateway_private_root": str(gateway_root), "gateway_token_sha256": sha(gateway_root / "current-client.token"),
-                 "readonly_replica": g["standby_container"], "standby_barrier_sha256": sha(root / "standby-barrier.json"),
-                 "source_gold_sha256": sha(current["gold"] / "source-gold.json"), "typed_gold_sha256": sha(current["gold"] / "typed-gold.json"),
+                 "gateway_attempt_root": str(attempt), "gateway_process_sha256": self.c["gateway"]["gateway_binary_sha256"],
+                 "readonly_replica": self.c["gateway"]["standby_container"],
+                 "standby_barrier_sha256": sha(Path(attempt) / "standby-barrier.json"),
+                 "source_gold_sha256": sha(current["gold"] / "source-gold.json"),
+                 "typed_gold_sha256": sha(current["gold"] / "typed-gold.json"),
+                 "freshness_sha256": sha(root / "gateway-freshness.json"),
                  "count": int(count["rows"][0][0]), "key_1_amount": str(amount_result["rows"][0][0]),
                  "ready": True}
         write_json(root / "gateway-ready.json", ready)
         return ready
 
     def follow_generation(self, generation):
-        root = private_dir(self.out / ("generation-" + str(generation)))
+        if self.attempt_root is None:
+            self.attempt_root = unique_attempt_dir(self.out, "automatic-follow")
+        root = private_dir(self.attempt_root / ("generation-" + str(generation)))
         current = self.prepare_generation(generation, root)
         self.publish(current)
         ready = self.gateway(current)
-        result = {"source_generation": generation, "target_generation": generation,
+        result = {"protocol": "oo.oracle.product-follow-cut/v1", "source_id": self.c["source_id"],
+                  "binding": self.c["binding"], "source_generation": generation, "target_generation": generation,
                   "run_id": current["result"]["run_id"], "pin": current["cut"]["pin"],
                   "maintenance_sha256": sha(root / "product" / "maintenance-consumption.json"),
                   "release_status_sha256": sha(root / "release-status.json"),
@@ -1217,66 +1743,99 @@ print(json.dumps({'stopped_release_api_pids':hits}))"""
         source_generation = mark.get("source_generation")
         if source_generation != schedule.get("last_source_generation", source_generation):
             raise ValueError("quiet_source_generation_mismatch")
-        raw = command(out, "native-service-log-pin-" + str(schedule.get("pin")), ["docker", "logs", "--since", "20s", self.c["native"]["container"]]).decode(errors="replace")
-        lines = [line for line in raw.splitlines() if "complete=nochange" in line and "source_generation=" + str(source_generation) in line]
-        if not lines:
-            raise ValueError("quiet_native_task_not_observed")
+        pin = schedule.get("pin")
+        if not isinstance(pin, int) or pin < 0:
+            raise ValueError("quiet_schedule_pin")
+        deadline = time.monotonic() + max(30, int(schedule["period_ms"]) // 1000 * 3)
+        while True:
+            label = "native-service-log-pin-" + str(pin) + "-" + str(time.time_ns())
+            raw = command(out, label, ["docker", "logs", "--since", "2m", self.c["native"]["container"]]).decode(errors="replace")
+            matched = []
+            for line in raw.splitlines():
+                fields = dict(token.split("=", 1) for token in line.split() if "=" in token)
+                if fields.get("binding") == self.c["binding"] and fields.get("pin") == str(pin):
+                    matched.append((fields, line))
+            quiet = [line for fields, line in matched
+                     if fields.get("complete") == "nochange"
+                     and fields.get("source_generation") == str(source_generation)]
+            if quiet:
+                break
+            if matched and any(fields.get("complete") for fields, _ in matched):
+                return None
+            if time.monotonic() >= deadline:
+                raise ValueError("quiet_native_task_not_observed_for_pin")
+            time.sleep(.5)
         row = {"source_generation": source_generation, "target_generation": mark.get("target_generation"),
-               "run_id": mark.get("run_id"), "schedule_pin": schedule.get("pin"),
+               "run_id": mark.get("run_id"), "schedule_pin": pin,
                "period_ms": schedule.get("period_ms"), "enabled": schedule.get("enabled"),
-               "nochange_line": lines[-1]}
-        path = Path(out) / ("quiet-pin-" + str(schedule.get("pin")) + ".json")
+               "nochange_line": quiet[-1]}
+        path = Path(out) / ("quiet-pin-" + str(pin) + ".json")
         write_json(path, row)
         return row
 
     def run(self):
+        self.attempt_root = unique_attempt_dir(self.out, "automatic-follow")
         self.verify_fixed_inputs()
         native = self.c["native"]
-        inspect = json.loads(command(self.out, "native-service-inspect", ["docker", "inspect", native["container"]]))[0]
+        attempt = self.attempt_root
+        inspect = json.loads(command(attempt, "native-service-inspect", ["docker", "inspect", native["container"]]))[0]
         if inspect.get("State", {}).get("Running") is not True:
             raise ValueError("native_service_not_running")
-        native_identity = self.verify_native_service(self.out)
+        native_identity = self.verify_native_service(attempt / "native-service")
         started = datetime.fromisoformat(inspect["State"]["StartedAt"].replace("Z", "+00:00"))
         deadline = started + timedelta(seconds=int(native["serve_seconds"]))
         deadline_utc = deadline.astimezone(timezone.utc).isoformat()
-        write_json(self.out / "service-deadline.json", {"native_container": native["container"],
+        write_json(attempt / "service-deadline.json", {"native_container": native["container"],
             "started_at": inspect["State"]["StartedAt"], "configured_seconds": native["serve_seconds"],
             "deadline_utc": deadline_utc, "service_sha256": self.c["native"]["worker_sha256"],
-            "worker_identity_sha256": sha(self.out / "native-service-process-identity.json"),
+            "worker_identity_sha256": sha(attempt / "native-service" / "native-service-process-identity.json"),
             "follow_service": "tools/oracle-preview/product_follow.py"})
-        initial_state = self.native_state(self.out / "initial-state")
+        initial_state = self.native_state(attempt / "initial-state")
         initial_watermark = self.verify_native_state_identity(initial_state)
-        write_json(self.out / "initial-native-cut.json", {
+        write_json(attempt / "initial-native-cut.json", {
             "native_state": initial_state, "control_watermark": initial_watermark,
             "service_project_id": self.c["native"]["project_id"],
             "service_worker_sha256": native_identity["worker_sha256"],
             "service_deadline_utc": deadline_utc})
         api = self.c["api"]
-        self.api_identity("selfbuild-api", api["container"], api["binary_host"], api["binary_container"], api["runtime_container"], self.out)
+        self.api_identity("selfbuild-api", api["container"], api["binary_host"], api["binary_container"], api["runtime_container"], attempt / "selfbuild-api")
         release = self.c["release"]
-        if subprocess.run(["docker", "inspect", release["container"]], capture_output=True).returncode:
+        release_inspect = command_result(attempt, "release-container-inspect",
+                                         ["docker", "inspect", release["container"]])
+        if release_inspect.returncode:
             raise ValueError("release_service_container_missing")
-        self.start_release_api(self.out, release["runtime_container_prefix"] + "release-runtime-base.json", "release-base")
-        release_flow = self.release_flow(self.out / "release-bootstrap")
+        self.start_release_api(attempt / "release-api", release_runtime_container(release), "release-base")
+        release_flow = self.release_flow(attempt / "release-bootstrap")
         active = release_flow.call("admin", "/control/v1/releases/active?project_id=" + release["project_id"], name="active-before-follow")
-        write_json(self.out / "release-active-before-follow.json", active)
+        write_json(attempt / "release-active-before-follow.json", active)
 
         last_generation = int(self.c["initial_after_generation"])
         cuts = []
-        if (self.out / "follow-receipt.json").is_file():
-            prior = load(self.out / "follow-receipt.json")
-            cuts = prior.get("cuts", [])
-            if cuts:
-                last_generation = max(item["source_generation"] for item in cuts)
+        current_generation = initial_state.get("source_generation")
+        if not isinstance(current_generation, int) or current_generation < last_generation:
+            raise ValueError("follow_native_state_behind_configured_cut")
+        for generation in range(last_generation, current_generation + 1):
+            found = self.completed_cut(generation)
+            if found is None:
+                if generation == last_generation:
+                    raise ValueError("follow_initial_cut_checkpoint_missing")
+                break
+            _, completed = found
+            cuts.append(completed)
+            last_generation = generation
+        if cuts:
+            verify_resumed_cut_watermark(initial_state, initial_watermark, cuts[-1], last_generation)
         last_pin = -1
         quiet_rows = []
         current_state = None
         while datetime.now(timezone.utc) < deadline:
-            live = subprocess.run(["docker", "inspect", "-f", "{{.State.Running}}", native["container"]], capture_output=True, text=True)
-            if live.returncode or live.stdout.strip() != "true":
+            live = command_result(attempt / "native-service-live",
+                                  "inspect-" + str(time.time_ns()),
+                                  ["docker", "inspect", "-f", "{{.State.Running}}", native["container"]])
+            if live.returncode or live.stdout.decode(errors="replace").strip() != "true":
                 self.event("native-service-stopped", cuts=len(cuts), last_generation=last_generation)
                 break
-            poll_out = self.out / "poll"
+            poll_out = attempt / "poll"
             current_state = self.native_state(poll_out)
             self.verify_native_state_identity(current_state)
             generation = current_state.get("source_generation")
@@ -1291,12 +1850,13 @@ print(json.dumps({'stopped_release_api_pids':hits}))"""
             elif generation == last_generation:
                 schedule, mark = self.schedule_and_mark()
                 if schedule.get("pin") != last_pin and schedule.get("pin") is not None:
-                    qroot = self.out / "quiet"
+                    qroot = attempt / "quiet"
                     qroot.mkdir(mode=0o700, exist_ok=True)
                     quiet = self.record_quiet(schedule, mark, qroot)
-                    quiet_rows.append(quiet)
                     last_pin = schedule["pin"]
-                    self.event("quiet-nochange", **quiet)
+                    if quiet is not None:
+                        quiet_rows.append(quiet)
+                        self.event("quiet-nochange", **quiet)
             time.sleep(float(self.c.get("poll_seconds", 2)))
         schedule, mark = self.schedule_and_mark()
         final = {"protocol": "oo.oracle.automatic-product-follow/v1", "source_id": self.c["source_id"],
@@ -1305,7 +1865,7 @@ print(json.dumps({'stopped_release_api_pids':hits}))"""
                  "last_target_generation": mark.get("target_generation"), "scheduler": schedule,
                  "quiet_nochange_samples": len(quiet_rows), "quiet_last": quiet_rows[-1] if quiet_rows else None,
                  "native_state": current_state, "full_product_follow_verified": bool(cuts) and all(c["ready"] for c in cuts)}
-        write_json(self.out / "follow-receipt.json", final)
+        write_json(attempt / "follow-receipt.json", final)
         return final
 
 

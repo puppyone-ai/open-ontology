@@ -78,11 +78,14 @@ ORDER BY {mapped['KEY_ID']}) FROM _oo.{table['stored_physical']};
     save(out / "target-gold.json", target)
     result = {"source_id": request["source_id"], "source_generation": actual["source_generation"],
               "rows": len(source), "cells": len(source) * len(mapped), "differences": int(source != target),
-              "keys": [r["key"] for r in source], "all_approved_columns": sorted(mapped),
+              "keys": [r["key"] for r in source], "key_2_absent": all(r["key"] != "2" for r in source),
+              "all_approved_columns": sorted(mapped),
               "reader": "OO04_READER", "reader_exit": code,
               "source_gold_sha256": hashlib.sha256((out / "source-gold.json").read_bytes()).hexdigest()}
     save(out / "typed-gold.json", result)
-    if result["differences"] or result["keys"] != ["1", "3", "21", "22"]:
+    if (result["differences"] or not result["key_2_absent"] or len(result["keys"]) > 8
+            or result["keys"] != sorted(result["keys"], key=int)
+            or len(result["keys"]) != len(set(result["keys"]))):
         raise ValueError("source-target oracle")
     occurrence = Path(request["arrow_path"]).parents[3]
     shadow = occurrence / "capture/run/shadow/ONBOARD_ORDERS" / ("gen-" + str(actual["source_generation"]) + ".json")

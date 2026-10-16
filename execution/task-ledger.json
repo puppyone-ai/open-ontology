@@ -10784,12 +10784,12 @@
     "formal_source_count_delta": 0
   },
   "latest_mysql_manual_token_refresh": {
-    "path": "/tmp/oo-root-mysql-auth-20261016T024351Z/receipt.json",
-    "sha256": "fa3feababe438a35e41a860d3080920d48e8465edd03d3f6e62f259e964b55bb",
+    "path": "/tmp/oo-root-mysql-auth-20261016T034055Z/receipt.json",
+    "sha256": "139bb1e4c48aa4bf086a91e0cc9504635315d7e04619c2efc35ad4f17682cb75",
     "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
-    "issued_UTC": "2026-10-16T02:43:52.956729+00:00",
+    "issued_UTC": "2026-10-16T03:40:56.850033+00:00",
     "client_ttl_ms": 3600000,
-    "token_container_path": "/run-current/renewed-client-root-20261016T024351Z.token",
+    "token_container_path": "/run-current/renewed-client-root-20261016T034055Z.token",
     "requires_explicit_CLI_flag": true,
     "automatic_renewal": false,
     "formal_source_count_delta": 0
@@ -10860,6 +10860,17 @@
       "requires_explicit_CLI_flag": true,
       "automatic_renewal": false,
       "formal_source_count_delta": 0
+    },
+    {
+      "path": "/tmp/oo-root-mysql-auth-20261016T024351Z/receipt.json",
+      "sha256": "fa3feababe438a35e41a860d3080920d48e8465edd03d3f6e62f259e964b55bb",
+      "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
+      "issued_UTC": "2026-10-16T02:43:52.956729+00:00",
+      "client_ttl_ms": 3600000,
+      "token_container_path": "/run-current/renewed-client-root-20261016T024351Z.token",
+      "requires_explicit_CLI_flag": true,
+      "automatic_renewal": false,
+      "formal_source_count_delta": 0
     }
   ],
   "latest_per_table_shared_fixed_dependency": {
@@ -10910,6 +10921,15 @@
       "tools/source-onboarding/product_flow.py",
       "tools/source-onboarding/test_onboard.py"
     ],
+    "formal_source_count_delta": 0
+  },
+  "latest_oracle_default_installation": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/oracle-default-installation-intake.json",
+    "source_commit": "9ec99c36bee45b0ceacac1b6d9420d779bdeb702",
+    "registry_state": "awaiting_run",
+    "whole": false,
+    "owner": "/root/oracle_complete_luna_max",
+    "remaining": "actual default random whole, official resume, final fixed delivery",
     "formal_source_count_delta": 0
   }
 }
