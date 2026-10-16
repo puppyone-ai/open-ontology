@@ -1,0 +1,111 @@
+{
+  "as_of": "2026-10-16T13:39:37.008498+00:00",
+  "status": "degraded_not_guaranteed_full_chain_continuously_available",
+  "prior_fixed_integration_evidence": "remains historical valid, not a guarantee of current liveness",
+  "default_cli_queries": [
+    {
+      "alias": "oo-mysql57",
+      "exit": 0,
+      "rows": [
+        [
+          "12002"
+        ]
+      ],
+      "query_id": "q_T8gC782StWX6OHaRIvpJl5d7ZW",
+      "warnings": [],
+      "sources": [
+        {
+          "applied_pos": "100",
+          "consistency": "transactional",
+          "cross_table_consistent": true,
+          "source": "mysql_911437f094f3278dab47b513"
+        }
+      ]
+    },
+    {
+      "alias": "oo-mysql8",
+      "exit": 0,
+      "rows": [
+        [
+          "12002"
+        ]
+      ],
+      "query_id": "q_2tVVX7AI3Ls19CBuO0W6bfeS55",
+      "warnings": [],
+      "sources": [
+        {
+          "applied_pos": "46",
+          "consistency": "transactional",
+          "cross_table_consistent": true,
+          "source": "mysql_67fff4e8ebff9f91bee8c75e"
+        }
+      ]
+    }
+  ],
+  "serve_processes": [
+    {
+      "scope": "mysql57",
+      "pid": 92800,
+      "process_present": true,
+      "actual_exe_sha256": "00f198ff2d1adf287aff7103ab93b1b760969d2f340fc8ead0c6eeb0ac0831f0",
+      "exit": null,
+      "stderr": "",
+      "latest_cycle": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/mysql57-final-serve-v1/2743-native-step.stdout",
+      "latest_cycle_summary": "claim=claimed task=9d57d4a7-8df9-4279-91c8-5c4829de4726 generation=1 worker=mysql-rust-follow\nprocess_stage=c1_baseline_stream task=9d57d4a7-8df9-4279-91c8-5c4829de4726 generation=1 exit_code=0 frames=1 stdout_sha256=4151a39062c4276b83303ef2a8e2e0c88b8dcbe9d28e2cdfa32abd67f39b326d raw_receipt=jw_native.process_attempts\ncomplete=nochange method=C1 binding=ac32fda3-d275-4b58-a318-bc42e089fe2d pin=967 task=9d57d4a7-8df9-4279-91c8-5c4829de4726 generation=1 source_generation=4 apply=false ack=false\n"
+    },
+    {
+      "scope": "mysql8",
+      "pid": 92824,
+      "process_present": false,
+      "actual_exe_sha256": null,
+      "exit": 2,
+      "stderr": "source-onboarding: command_failed:native-fire; private evidence retained\n",
+      "latest_cycle": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/mysql8-final-serve-v1/1690-native-step.stdout",
+      "latest_cycle_summary": "claim=claimed task=59202edb-b022-47c1-8879-c92349c2594b generation=1 worker=mysql-rust-follow\nprocess_stage=c1_baseline_stream task=59202edb-b022-47c1-8879-c92349c2594b generation=1 exit_code=0 frames=1 stdout_sha256=22329381465e8f2acdb8810a3935e8eb1e5a740a32f11ef1fe62401dae2e2d7e raw_receipt=jw_native.process_attempts\ncomplete=nochange method=C1 binding=7eb8b32b-feae-4885-aa40-4667357db005 pin=618 task=59202edb-b022-47c1-8879-c92349c2594b generation=1 source_generation=4 apply=false ack=false\n"
+    },
+    {
+      "scope": "original-mysql57",
+      "pid": 92812,
+      "process_present": true,
+      "actual_exe_sha256": "00f198ff2d1adf287aff7103ab93b1b760969d2f340fc8ead0c6eeb0ac0831f0",
+      "exit": null,
+      "stderr": "",
+      "latest_cycle": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/original-mysql57-final-serve-v1/2692-native-step.stdout",
+      "latest_cycle_summary": "claim=claimed task=9c074f08-3ec5-4bb5-90a4-5773ae1c09e9 generation=1 worker=mysql-rust-follow\nloader_operator_override=bc16dce19ddfb84af696281638da4c72d9e0811434d74447b373365340fb6281 original_occurrence_manifest=bc16dce19ddfb84af696281638da4c72d9e0811434d74447b373365340fb6281 source_request_rewritten=false\nprocess_stage=c1_baseline_stream task=9c074f08-3ec5-4bb5-90a4-5773ae1c09e9 generation=1 exit_code=0 frames=1 stdout_sha256=55ffcc4b1296fbeb09d8c870bfda5c2abd02907c962d205385c4c336ca6cfb0e raw_receipt=jw_native.process_attempts\ncomplete=nochange method=C1 binding=150a87a1-24d7-406c-bbd1-fc598759995e pin=7845 task=9c074f08-3ec5-4bb5-90a4-5773ae1c09e9 generation=1 source_generation=9 apply=false ack=false\n"
+    },
+    {
+      "scope": "original-mysql8",
+      "pid": 92836,
+      "process_present": true,
+      "actual_exe_sha256": "00f198ff2d1adf287aff7103ab93b1b760969d2f340fc8ead0c6eeb0ac0831f0",
+      "exit": null,
+      "stderr": "",
+      "latest_cycle": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/original-mysql8-final-serve-v1/2698-native-step.stdout",
+      "latest_cycle_summary": "claim=claimed task=2c845234-bfb1-4059-a887-2323c814bafb generation=1 worker=mysql-rust-follow\nloader_operator_override=4c33dfba73a77c6787f3a6365aff7e5596ece6996b4095fe97e959296db069f8 original_occurrence_manifest=896afb614a811819ae28365bb774cea40f974cc51a5fbb8ff5486d1cf6791492 source_request_rewritten=false\n"
+    }
+  ],
+  "failed_scope": "mysql8 isolated g4 only; original default mysql8 g13 still running",
+  "failure": {
+    "native_serve_exit": 2,
+    "failed_command": "native-fire",
+    "stderr": "unexpected EOF",
+    "raw_stderr": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/mysql8-final-serve-v1/1692-native-fire.stderr",
+    "sha256": "7374d4a67e4b07b3b2c38c3f5e2d7541a771658a812104718dc1613bda461f32",
+    "root_cause": "not yet determined; no restart or retry used to conceal failure"
+  },
+  "read_only_verifier": {
+    "out": "/tmp/oo-root-mysql-live-recheck-20261016T1340Z",
+    "exit": 1,
+    "reason": "/proc/92824/exe missing"
+  },
+  "new_model_calls": 0,
+  "dml": 0,
+  "original_random_dialogues": "8 historically verified; no fresh model dialogue replay this turn",
+  "remaining_limits": [
+    "static baseline source_committed_at NULL freshness rejection",
+    "client TTL1h explicit renewal; bounded serve/no daemon",
+    "original full formal gates and production acceptance not completed"
+  ],
+  "broad_goal": "paused; no source work dispatched or service restart",
+  "counts_delta": 0
+}

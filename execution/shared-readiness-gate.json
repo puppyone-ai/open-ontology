@@ -755,7 +755,18 @@
     "evidence_commit": "9770f4a1ff2ccd6ed3b6b1fd258249fce1316512",
     "intake": "execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json",
     "resource_terminal": "source writer released; four bounded Rust serve + four current Gateways retained; 14 obsolete Gateways stopped",
-    "next_action": "No automatic continuation: broad Goal/other sources paused; retain static-baseline limitation and original formal exits"
+    "next_action": "No automatic continuation: broad Goal/other sources paused; retain static-baseline limitation and original formal exits",
+    "current_health": {
+      "as_of": "2026-10-16T13:39:37.008498+00:00",
+      "status": "degraded_not_guaranteed_full_chain_continuously_available",
+      "receipt": "execution/reviews/native-luna-full-source-20261015/mysql-mainline-current-health-20261016.json",
+      "serve_processes_running": 3,
+      "serve_processes_expected": 4,
+      "default_cli_versions_currently_queryable": 2,
+      "failed_scope": "isolated mysql8 g4 / PID92824 / native-fire unexpected EOF / exit2",
+      "needs_work": "diagnose/recover and verify sustained synchronization; no full-current-availability claim",
+      "other_source_release": false
+    }
   },
   "goal_runtime_status": "paused; scoped MySQL mainline delivery completed, no automatic other-source release",
   "source_connector_implementation_policy": {

@@ -1,3 +1,5 @@
+2026-10-16 当前健康复查更正：两版默认真实Gateway/CLI查询均成功且hubs计数12002，但四条serve中隔离MySQL8 g4的PID92824已退出2，native-fire原始错误unexpected EOF；其余三PID仍存在、默认MySQL8 g13未受此退出影响。不能保证当前完整链路持续稳定可用。此前固定整链/8随机问答证据保留为历史结果；本次未重跑模型、未重启掩盖失败、无DML，根因/恢复待处理。总Goal/其他源暂停及计数不变。回执 execution/reviews/native-luna-full-source-20261015/mysql-mainline-current-health-20261016.json。
+
 # MySQL 已验本地 Rust 演示入口
 
 当前固定核验：[主线接收回执](mysql-mainline-batch-reader-intake.json)。源码 b60bd6fb5；正式 oo-connectors::mysql、可选 feature 和真实 C1 消费已经接线。MySQL 5.7.44-log/8.4.10 各110019行、5表43列 typed0；新隔离scope共8轮随机对话已核源gold/CLI cells/原QID WAL。原两条默认链是g9/g13，分别经typed/当前CLI/quiet验证；不套用新scope问答身份。

@@ -22,3 +22,5 @@
 本轮实际检查另发现既有 `oo-gateway → oo-builder` 精确声明遗漏（`bd283b67c` 已有依赖及纯编译校验调用）。仅同步 `REQUIRED_EDGES` 与必要回归；不改变所有源驱动/源凭据/管线写入/runtime 禁止规则。保留原固定基线失败，单独窄修提交并验证 Linux 正例、禁止边负例和恢复。该对账已固定 ad28d31439589ee1f44317b0a8fe0cce4798f728，Linux正例/禁止边负例/恢复与44测试通过，原失败保留。
 
 本次实现/接收：固定源码 `b60bd6fb52c7b021c655bd91ee003d88c84ac204`，报告 `9770f4a1ff2ccd6ed3b6b1fd258249fce1316512`；[root限定接收与未满足条件](../reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json)。工程师完成并释放writer；其他源/总Goal保持暂停。
+
+当前持续运行状态须看[健康复查](../reviews/native-luna-full-source-20261015/mysql-mainline-current-health-20261016.json)：隔离MySQL8同步进程已退出，历史固定通过不等于当前全链可用。
