@@ -1,3 +1,11 @@
+2026-10-16 Gateway独占写权从Oracle原子移交Doris：a94两文件root核clean/固定SHA，无后台writer。Oracle继续b8bf固定ELF及g12已发布→GW当前gold零差异的本源后续；Doris继续同一完整源，处理原docs合法C4/C5混合、partition-map NULL全局位点，严守S0/receipt/当前绑定，不改C1/Oracle原分支。4b80 Doris维护API固定哈希/原MySQL及Oracle逻辑字节不变已核，真实维护待验。边界 execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json；其他7held、计数/Plan不变、formal0/10。
+
+2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T024351Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T024351Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。
+
+2026-10-16 Doris真实S5已一次Grok4.7成功，维护409保留并定位无caveat时缺source_semantics。唯一Doris Luna max获source_contract.rs中project_doris_capture_methods与测试窄权；同时登记既有product_flow.py/test_onboard.py仅Doris规范化/14+2证据staging。MySQL/其他函数不改、既有S5复用、Linux固定测试/ELF后正常维护；Oracle独占两Gateway文件，其他7held。边界 execution/reviews/native-luna-full-source-20261015/doris-maintenance-shared-scope.json；无完整源/Plan/整版签收，计数不变。
+
+2026-10-16 Oracle Gateway同一窄修补精确内部engine投影：唯一Oracle负责人获query_executor.rs的MappingObserved/source_engine、project_held与对应构造/tests；原SQL/ACL/过滤/事务不动。由已认证native catalog派生quality vector，严核configured.{engine}源域与full-import.snapshot导入域，不猜source_id、不硬编码fixture。卡与scope回执同步，无源/Plan/整版签收。
+
 2026-10-16 Oracle真实g11正式发布后Gateway暴露ready_quality只认transactional/true、owned sidecar缺native vector、NULL源时间不投影。唯一Oracle Luna max获public_surface.rs判定/必要freshness投影及测试窄权，C1保持、真实snapshot-zero per_table独立域、源时间unmeasured；不得造时间/同一lineage或删历史。Doris复用，不增组件/源签收。边界 execution/reviews/native-luna-full-source-20261015/oracle-gateway-per-table-scope.json，原Plan及所有计数不变、formal0/10。
 
 2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T014949Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T014949Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。

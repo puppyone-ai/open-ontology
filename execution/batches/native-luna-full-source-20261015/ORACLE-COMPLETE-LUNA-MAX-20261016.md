@@ -45,3 +45,8 @@ overlay.rs已提交0722c7b4f，root核clean/SHA50149bf5；Oracle确认无mutator
 
 
 2026-10-16 追加独占共享窄域：`crates/oo-gateway/src/public_surface.rs`仅ready_quality/必要真实freshness投影及对应测试。按 execution/reviews/native-luna-full-source-20261015/oracle-gateway-per-table-scope.json 原因、输入、接口、边界和退出执行；C1不变、snapshot per_table不冒S1、NULL源时间不造值、当前绑定/完整发布receipt仍核。先最小判定方案，再Linux固定测试/制品；Doris复用，原整源出口不变。
+
+追加同一窄修必要内部投影：`query_executor.rs`仅MappingObserved增加可选source_engine及project_held从已认证native binding投影、必要构造/tests；SQL/权限/过滤/事务不动。source_engine来自已校验catalog封闭准入，不用source_id猜，不硬编码Oracle；内存quality vector不冒充S5 collection。边界见同scope回执，其他7held、计数不变。
+
+
+2026-10-16 Gateway两文件已固定a94且root实际核clean，写权释放给Doris；Oracle保留b8bf固定ELF继续本源owned完整流程，不能再写这两共享文件。 原子移交证据/边界：execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json。

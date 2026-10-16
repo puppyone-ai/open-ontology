@@ -143,8 +143,7 @@
         "tools/oracle-preview",
         "testing/dl01-driver-preflight/oracle/probe",
         "tools/release-coordinator/src/cli.rs (native maintain dispatch only)",
-        "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)",
-        "crates/oo-gateway/src/public_surface.rs"
+        "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)"
       ],
       "mandatory_blocker": null,
       "status": "spawned_and_accepted",
@@ -216,7 +215,12 @@
         "tools/doris-preview",
         "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product",
         "tools/selfbuild-control-api/src/overlay.rs (Doris partition verification only)",
-        "crates/oo-pipeline/migrations/0041_native_partition_observation_read.sql"
+        "crates/oo-pipeline/migrations/0041_native_partition_observation_read.sql",
+        "tools/source-onboarding/product_flow.py",
+        "tools/source-onboarding/test_onboard.py",
+        "tools/pg-builder/src/source_contract.rs",
+        "crates/oo-gateway/src/public_surface.rs",
+        "crates/oo-gateway/src/query_executor.rs"
       ],
       "mandatory_blocker": null,
       "status": "spawned_and_accepted",
@@ -363,5 +367,13 @@
   "latest_oracle_gateway_per_table_scope": {
     "owner": "/root/oracle_complete_luna_max",
     "scope_receipt": "execution/reviews/native-luna-full-source-20261015/oracle-gateway-per-table-scope.json"
+  },
+  "latest_doris_maintenance_shared_scope": {
+    "scope_receipt": "execution/reviews/native-luna-full-source-20261015/doris-maintenance-shared-scope.json",
+    "owner": "/root/doris_complete_luna_max"
+  },
+  "latest_gateway_ownership_transfer": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json",
+    "owner": "/root/doris_complete_luna_max"
   }
 }

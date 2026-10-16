@@ -5,7 +5,8 @@
   "model": "gpt-6-luna/max",
   "source_base": "3b4fef06623f37d6da107e51d28f9ce4d1bc1593",
   "shared_write_paths": [
-    "crates/oo-gateway/src/public_surface.rs"
+    "crates/oo-gateway/src/public_surface.rs",
+    "crates/oo-gateway/src/query_executor.rs"
   ],
   "scope": "ready_quality and necessary truthful freshness projection plus focused tests only; owner proposes minimal predicate before coding",
   "evidence": {
@@ -19,11 +20,13 @@
     "only a closed legitimate per_table snapshot receipt domain; never arbitrary lineage acceptance",
     "NULL source time remains unmeasured, never replaced with now or target applied_at",
     "owned normal entry may derive genuine vector from current immutable single-run catalog; do not mutate S5 artifacts or forge collection hash",
-    "no shared query_executor edit without exact later scope",
     "fixed Linux1.94 tests/ELF/source before live installation; Doris reuses same fixed dependency",
-    "preserve all original failure evidence and SQL migrations; no DB history deletion"
+    "preserve all original failure evidence and SQL migrations; no DB history deletion",
+    "MappingObserved internal source_engine Option<String>, project_held authenticated native binding projection, required constructors/tests only; no SQL/filter/ACL/transaction changes. Closed admitted engine identity, never source_id guessing.",
+    "Prefer derived in-memory quality vector from already-validated native-input catalog; no unauthenticated sidecar or new public config switch. Original native binding/S5 compilation identities unchanged."
   ],
   "review": "ordinary full-source engineering; unified independent review deferred per human milestone",
   "plan_counts": "scope amendment only; no original Plan/parent/phase/edition exit met, all count deltas0/formal0of10; main Plan/development/counting checked unchanged scope, no redundant edits",
-  "not_applicable": "GOAL/PRODUCT-LOOPS/support-matrix/frontend: unchanged original scope and exits"
+  "not_applicable": "GOAL/PRODUCT-LOOPS/support-matrix/frontend: unchanged original scope and exits",
+  "additional_query_executor_scope": "MappingObserved internal source_engine Option<String>, project_held authenticated native binding projection, required constructors/tests only; no SQL/filter/ACL/transaction changes. Closed admitted engine identity, never source_id guessing."
 }

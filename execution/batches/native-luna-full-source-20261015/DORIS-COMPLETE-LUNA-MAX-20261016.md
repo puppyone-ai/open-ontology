@@ -38,3 +38,9 @@ Oracle已固定0722c7b4f并明确释放overlay.rs，root核clean与SHA50149bf5�
 ## 2026-10-16 C4 quiet 两列最小只读权限
 
 root逐列实查：0008原十列SELECT已生效，quiet新用current_signature/partition_scope缺权限，非prior多行。Doris唯一writer新增 `crates/oo-pipeline/migrations/0041_native_partition_observation_read.sql`，只GRANT这两列SELECT给oo_jobs_runtime，经既有installer追加安装，0008/0039/0040不改。key_texts等其他列/写仍拒绝；以实际loader和quiet原SQL测成功，保留全部失败，同pending合法恢复。native_schedule未变无需重编worker。本确定因果覆盖此前暂无0041判断，不扩表写/owner。
+
+
+2026-10-16 追加Doris唯一共享窄域：product_flow.py/test_onboard.py仅Doris source semantics规范化/14+2证据staging及测试；pg-builder/source_contract.rs仅project_doris_capture_methods在真实S5无source_semantics时从已认证来源生成最小对象+测试，MySQL/其他函数不动。边界、失败、输入/接口/测试/固定制品/完整退出见 execution/reviews/native-luna-full-source-20261015/doris-maintenance-shared-scope.json。成功S5 b_bb4093b86850c9a35fbce465001b2f6d复用，零额外模型；原整源门槛不减。
+
+
+2026-10-16 独占接收public_surface.rs/query_executor.rs，仅真实Doris C4/C5 per-table质量、新鲜度必要窄适配/tests，C1/Oracle原分支保持。先最小方案，固定Linux测试/commit/ELF后真验；NULL全局位点不得捏成0，未知时间不造值。原整源退出不减。 原子移交证据/边界：execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json。

@@ -3529,12 +3529,12 @@
     "formal_source_count_delta": 0
   },
   "latest_mysql_manual_token_refresh": {
-    "path": "/tmp/oo-root-mysql-auth-20261016T014949Z/receipt.json",
-    "sha256": "aced60a7f3532f8dd3150bc3e58250776303ea5e49618d9fcd0881840de799dc",
+    "path": "/tmp/oo-root-mysql-auth-20261016T024351Z/receipt.json",
+    "sha256": "fa3feababe438a35e41a860d3080920d48e8465edd03d3f6e62f259e964b55bb",
     "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
-    "issued_UTC": "2026-10-16T01:49:50.999710+00:00",
+    "issued_UTC": "2026-10-16T02:43:52.956729+00:00",
     "client_ttl_ms": 3600000,
-    "token_container_path": "/run-current/renewed-client-root-20261016T014949Z.token",
+    "token_container_path": "/run-current/renewed-client-root-20261016T024351Z.token",
     "requires_explicit_CLI_flag": true,
     "automatic_renewal": false,
     "formal_source_count_delta": 0
@@ -3603,6 +3603,17 @@
       "requires_explicit_CLI_flag": true,
       "automatic_renewal": false,
       "formal_source_count_delta": 0
+    },
+    {
+      "path": "/tmp/oo-root-mysql-auth-20261016T014949Z/receipt.json",
+      "sha256": "aced60a7f3532f8dd3150bc3e58250776303ea5e49618d9fcd0881840de799dc",
+      "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
+      "issued_UTC": "2026-10-16T01:49:50.999710+00:00",
+      "client_ttl_ms": 3600000,
+      "token_container_path": "/run-current/renewed-client-root-20261016T014949Z.token",
+      "requires_explicit_CLI_flag": true,
+      "automatic_renewal": false,
+      "formal_source_count_delta": 0
     }
   ],
   "latest_oracle_native_cli_scope_amendment": {
@@ -3656,7 +3667,27 @@
     "scope_receipt": "execution/reviews/native-luna-full-source-20261015/oracle-gateway-per-table-scope.json",
     "owner": "/root/oracle_complete_luna_max",
     "write_paths": [
-      "crates/oo-gateway/src/public_surface.rs"
+      "crates/oo-gateway/src/public_surface.rs",
+      "crates/oo-gateway/src/query_executor.rs"
+    ],
+    "formal_source_count_delta": 0
+  },
+  "latest_doris_maintenance_shared_scope": {
+    "scope_receipt": "execution/reviews/native-luna-full-source-20261015/doris-maintenance-shared-scope.json",
+    "owner": "/root/doris_complete_luna_max",
+    "write_paths": [
+      "tools/source-onboarding/product_flow.py",
+      "tools/source-onboarding/test_onboard.py",
+      "tools/pg-builder/src/source_contract.rs"
+    ],
+    "formal_source_count_delta": 0
+  },
+  "latest_gateway_ownership_transfer": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json",
+    "owner": "/root/doris_complete_luna_max",
+    "write_paths": [
+      "crates/oo-gateway/src/public_surface.rs",
+      "crates/oo-gateway/src/query_executor.rs"
     ],
     "formal_source_count_delta": 0
   }

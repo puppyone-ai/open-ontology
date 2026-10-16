@@ -1,5 +1,7 @@
 import importlib.util
+import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -514,5 +516,109 @@ class RunnerTests(unittest.TestCase):
         with self.assertRaisesRegex(m.Refused,'duplicate_key'):json.loads('{"a":1,"a":2}',object_pairs_hook=m.pairs)
     def test_inline_secret(self):
         with self.assertRaisesRegex(m.Refused,'inline_secret'):m.reject_secrets({'connection':{'password':'bad'}})
+
+class DorisSourceNormalizationTests(unittest.TestCase):
+    TABLES=('agg_qty','dec_exact','dup_events','nz_obs','part_day','str_key','uniq_acct')
+    def write_bytes(self,path,data):
+        path.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
+        path.write_bytes(data);path.chmod(0o600)
+    def write_json(self,path,value):
+        data=(json.dumps(value,indent=2)+'\n').encode();self.write_bytes(path,data);return data
+    def fixture(self,root):
+        import importlib.util
+        sys.path.insert(0,str(Path(__file__).parent))
+        spec=importlib.util.spec_from_file_location('product_flow',Path(__file__).with_name('product_flow.py'))
+        pf=importlib.util.module_from_spec(spec);spec.loader.exec_module(pf)
+        root.mkdir(mode=0o700,parents=True,exist_ok=True);root.chmod(0o700)
+        bundle=root/'bundle';bundle.mkdir(mode=0o700)
+        build=root/'builds'/'b_fixture';build.mkdir(mode=0o700,parents=True)
+        out=root/'out';out.mkdir(mode=0o700)
+        evidence_id='a'*64;source_root=bundle/'source-evidence';source_root.mkdir(mode=0o700)
+        evidence_root=source_root/evidence_id;evidence_root.mkdir(mode=0o700)
+        entries=[];generations={};methods={};evidence={};warnings={}
+        for index,table in enumerate(self.TABLES,1):
+            dataset='oo_dl01w1_43.'+table;run_id='run-'+table
+            capture='c4_partition' if table=='part_day' else 'c5_diff'
+            deletion='partition_replace' if capture=='c4_partition' else 'reconcile'
+            source_generation=8+index;target_generation=10+index
+            entries.append({'engine':'doris','source_id':'dorispreview','run_id':run_id,'source_generation':source_generation,'target_generation':target_generation,'tables':[{'logical_schema':'oo_dl01w1_43','logical_table':table,'accepted_rows':1}]})
+            generations[dataset]={'run_id':run_id,'source_generation':source_generation,'target_generation':target_generation}
+            methods[table]={'capture_method':'C4' if capture=='c4_partition' else 'C5','consistency':'S0','delete_detection':deletion,'quality':'DELETES_LAGGED'}
+            warnings[table]='DELETES_LAGGED'
+            evidence[dataset]={}
+            for kind in ('request','load'):
+                if kind=='request':
+                    receipt={'protocol':'oo.pipeline.native-partition/v1' if capture=='c4_partition' else 'oo.pipeline.native-update/v1','source_id':'dorispreview','source_engine':'doris','logical_schema':'oo_dl01w1_43','logical_table':table,'source_generation':source_generation,'capture_method':capture,'delete_detection':deletion,'consistency_grade':'S0','full_snapshot':capture=='c5_diff'}
+                else:
+                    receipt={'protocol':'oo.pipeline.native-update-result/v1','source_id':'dorispreview','source_engine':'doris','logical_schema':'oo_dl01w1_43','logical_table':table,'source_generation':source_generation,'target_generation':target_generation,'load_state':'awaiting_publish','run_id':run_id}
+                name=f'{dataset}.{kind}.json';raw_receipt=self.write_json(evidence_root/name,receipt)
+                evidence[dataset][kind]={'path':f'source-evidence/{evidence_id}/{name}','sha256':hashlib.sha256(raw_receipt).hexdigest(),'size':len(raw_receipt),'uid':os.getuid(),'mode':0o600}
+        preimage_evidence={};preimages={}
+        for kind,filename in (('schema','source-schema-preimage.json'),('type','source-type-preimage.json')):
+            data=self.write_json(evidence_root/filename,{'protocol':'fixture.preimage/v1','kind':kind})
+            sha=hashlib.sha256(data).hexdigest()
+            preimage_evidence[kind]={'path':f'source-evidence/{evidence_id}/{filename}','sha256':sha,'size':len(data),'uid':os.getuid(),'mode':0o600}
+            preimages[kind+'_sha256']=sha
+        catalog={'protocol':'oo.pipeline.sealed-import-collection/v1','entries':entries}
+        catalog_bytes=self.write_json(bundle/'catalog.json',catalog);catalog_sha=hashlib.sha256(catalog_bytes).hexdigest()
+        self.write_json(bundle/'manifest.json',{'contract':'fixture','files':{'catalog.json':catalog_sha}})
+        raw={'protocol':'oo.source.doris.audit/v1','source_id':'dorispreview','source_generation':19,'target_generation':31,'collection_sha256':catalog_sha,'binding_vector_sha256':'b'*64,'consistency_grade':'per_table','cross_table_consistent':False,'reader_write_attempts':0,'generation_semantics':'high_watermark','capture_methods':methods,'table_generations':generations,'evidence_set_id':evidence_id,'evidence':evidence,'source_preimages':preimages,'source_preimage_evidence':preimage_evidence,'quality':{'warnings':warnings}}
+        raw_path=root/'current-source-semantics.json';raw_bytes=self.write_json(raw_path,raw)
+        return pf,root,bundle,build,out,catalog_sha,raw_path,raw_bytes,raw,evidence
+    def normalize(self,fixture):
+        pf,root,bundle,build,out,catalog_sha,raw_path,raw_bytes,*_=fixture
+        return pf._doris_source_semantics(raw_bytes,bundle,build,catalog_sha,raw_path,out/'archive',out/'receipts')
+    def test_normalizes_all_tables_and_stages_the_immutable_fourteen_plus_two_receipts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture=self.fixture(Path(directory));pf,root,bundle,build,out,catalog_sha,raw_path,raw_bytes,raw,evidence=fixture
+            normalized,receipt_bytes,receipt_sha=self.normalize(fixture)
+            value=json.loads(normalized);receipt=json.loads(receipt_bytes)
+            datasets={f'oo_dl01w1_43.{table}' for table in self.TABLES}
+            self.assertEqual(set(value['capture_methods']),datasets)
+            self.assertEqual(set(value['table_generations']),datasets)
+            self.assertEqual(set(value['evidence']),datasets)
+            self.assertEqual(value['capture_methods']['oo_dl01w1_43.part_day']['capture_method'],'c4_partition')
+            self.assertEqual(value['capture_methods']['oo_dl01w1_43.part_day']['source_generation'],13)
+            self.assertEqual(value['capture_methods']['oo_dl01w1_43.agg_qty']['capture_method'],'c5_diff')
+            self.assertEqual(value['capture_methods']['oo_dl01w1_43.agg_qty']['target_generation'],11)
+            self.assertEqual(set(value['quality']['warnings']),datasets)
+            self.assertEqual(raw_path.read_bytes(),raw_bytes)
+            staged=list((build/'source-evidence'/('a'*64)).glob('*.json'))
+            self.assertEqual(len(staged),16)
+            for dataset,pair in evidence.items():
+                for descriptor in pair.values():
+                    source=bundle/descriptor['path'];target=build/descriptor['path']
+                    self.assertEqual(target.read_bytes(),source.read_bytes())
+                    self.assertEqual(target.stat().st_mode&0o777,0o600)
+                    self.assertEqual(hashlib.sha256(target.read_bytes()).hexdigest(),descriptor['sha256'])
+            self.assertEqual(receipt['catalog_sha256'],catalog_sha)
+            self.assertEqual(len(receipt['tables']),7)
+            self.assertEqual(receipt['preimage_sha256'],raw['source_preimages'])
+            self.assertEqual(receipt_sha,hashlib.sha256(receipt_bytes).hexdigest())
+            self.assertEqual((out/'archive'/(hashlib.sha256(raw_bytes).hexdigest()+'.json')).read_bytes(),raw_bytes)
+    def test_rejects_unknown_or_conflicting_mapping_before_staging(self):
+        for mutation in ('unknown_method','generation_drift','missing_evidence'):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                fixture=self.fixture(Path(directory));pf,root,bundle,build,out,catalog_sha,raw_path,raw_bytes,raw,evidence=fixture
+                if mutation=='unknown_method':
+                    raw['capture_methods']['unknown']=raw['capture_methods'].pop('str_key')
+                elif mutation=='generation_drift':
+                    raw['table_generations']['oo_dl01w1_43.part_day']['source_generation']+=1
+                else:
+                    raw['evidence'].pop('oo_dl01w1_43.part_day')
+                changed=(json.dumps(raw,indent=2)+'\n').encode()
+                with self.assertRaisesRegex(pf.Refused,'maintenance_source_semantics'):
+                    pf._doris_source_semantics(changed,bundle,build,catalog_sha,raw_path,out/'archive',out/'receipts')
+                self.assertFalse((build/'source-evidence').exists())
+    def test_rejects_receipt_sha_drift_without_mutating_the_source_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture=self.fixture(Path(directory));pf,root,bundle,build,out,catalog_sha,raw_path,raw_bytes,raw,evidence=fixture
+            descriptor=evidence['oo_dl01w1_43.part_day']['request'];source=bundle/descriptor['path']
+            source.write_bytes(source.read_bytes()+b' ')
+            source.chmod(0o600)
+            with self.assertRaisesRegex(pf.Refused,'maintenance_source_semantics'):
+                self.normalize(fixture)
+            self.assertEqual(raw_path.read_bytes(),raw_bytes)
+            self.assertFalse((build/'source-evidence').exists())
 
 if __name__=='__main__':unittest.main()

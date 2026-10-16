@@ -1,0 +1,21 @@
+{
+  "as_of": "2026-10-16T02:24:43.600698+00:00",
+  "task": "DL01-W1-43",
+  "owner": "/root/doris_complete_luna_max",
+  "model": "gpt-6-luna/max",
+  "shared_write_paths": [
+    "tools/source-onboarding/product_flow.py",
+    "tools/source-onboarding/test_onboard.py",
+    "tools/pg-builder/src/source_contract.rs"
+  ],
+  "scope": {
+    "tools/source-onboarding/product_flow.py": "Only Doris semantics normalization and exact pinned14request/load+2preimage evidence staging, existing maintenance dispatch. No other-source behavior or new generic plugin/options.",
+    "tools/source-onboarding/test_onboard.py": "Focused normalization/staging tests, current16pass does not establish live maintenance.",
+    "tools/pg-builder/src/source_contract.rs": "Only project_doris_capture_methods and corresponding tests: actual S5 effective datasets lack source_semantics when no caveats. Seed minimal canonical semantics from already-authenticated observation/engine before per-table capture projection; missing/drifting version/source/method/generation reject. Existing contradictory metadata not silently overwritten. project_mysql_c1 and other contract functions unchanged."
+  },
+  "cause": "Original0036/0037 maintenance409 preserved. First shape/evidence path mismatch fixed in owned source flow; exact next API log compile_native_maintenance caveat.rejected now traced to mandatory missing dataset source_semantics object. No model calls for retries.",
+  "test_exit": "Actual no-source_semantics S5 shape positive and missing/version/engine/method/generation negative; Linux1.94 focused tests plus existing MySQL regression, fixed source commit and pg-builder ELF before official maintenance; entire source original whole exits remain.",
+  "reuse": "Successful Grok4.7 S5 build b_bb4093b86850c9a35fbce465001b2f6d retained immutable, no additional S5 call. 20 schema-only columns,18visible/2hidden conservative sensitive pending human, unit unspecified.",
+  "boundary": "MySQL owner completed/released source_contract; only Doris writes above3, only Oracle writes Gateway public_surface/query_executor. No duplicate writer or new component task. Other7held.",
+  "updates": "scope only; check main Plan/dev/counting: no original exit or numerator change. GOAL/PRODUCT-LOOPS/support-matrix/frontend unchanged. All count deltas0/formal0of10."
+}

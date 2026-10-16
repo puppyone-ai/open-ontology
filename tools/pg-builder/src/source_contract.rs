@@ -98,21 +98,24 @@ pub fn project_sealed_source_contract(
     }
 }
 
-/// Project a receipt-bound Doris capture observation onto the existing sealed
-/// datasets. This is runtime quality metadata: it never changes catalog,
-/// column, decision, or role identity.
+/// Project receipt-bound Doris methods into OOS, initializing missing source
+/// identity from the authenticated observation and sealed engine. Conflicts fail closed.
 pub fn project_doris_capture_methods(
     effective: &mut Value,
     catalog: &Value,
     observation: &Value,
 ) -> Result<(), PgBuilderError> {
     const PROTOCOL: &str = "oo.source.doris.audit/v1";
+    let engine = sealed_engine(catalog)?;
     if observation.get("protocol").and_then(Value::as_str) != Some(PROTOCOL)
         || observation.get("source_id").and_then(Value::as_str) != Some("dorispreview")
-        || sealed_engine(catalog)? != "doris"
+        || observation.get("product").and_then(Value::as_str) != Some("Apache Doris")
+        || engine != "doris"
     {
         return Err(rejected());
     }
+    let version = observation.get("version").and_then(Value::as_str)
+        .filter(|value| version_token(value)).ok_or_else(rejected)?;
     let entries = catalog
         .get("entries")
         .and_then(Value::as_array)
@@ -131,6 +134,9 @@ pub fn project_doris_capture_methods(
         let tables = entry.get("tables").and_then(Value::as_array).filter(|rows| !rows.is_empty()).ok_or_else(rejected)?;
         let source_generation = entry.get("source_generation").and_then(Value::as_i64).ok_or_else(rejected)?;
         let target_generation = entry.get("target_generation").and_then(Value::as_i64).ok_or_else(rejected)?;
+        if entry.get("source_id").and_then(Value::as_str) != observation.get("source_id").and_then(Value::as_str) {
+            return Err(rejected());
+        }
         for table in tables {
             let schema = table.get("logical_schema").and_then(Value::as_str).ok_or_else(rejected)?;
             let table_name = table.get("logical_table").and_then(Value::as_str).ok_or_else(rejected)?;
@@ -182,10 +188,30 @@ pub fn project_doris_capture_methods(
         {
             return Err(rejected());
         }
-        let semantics = dataset.get_mut("source_semantics").and_then(Value::as_object_mut).ok_or_else(rejected)?;
-        semantics.insert("capture".to_string(), json!(capture));
-        semantics.insert("grade".to_string(), json!("S0"));
-        semantics.insert("delete_detection".to_string(), json!(deletion));
+        let object = dataset.as_object_mut().ok_or_else(rejected)?;
+        let semantics = object.entry("source_semantics").or_insert_with(|| json!({}))
+            .as_object_mut().ok_or_else(rejected)?;
+        for (key, expected) in [
+            ("family", json!(engine)),
+            ("product", json!(engine)),
+            ("version", json!(version)),
+            ("source_kind", json!("database")),
+            ("capture", json!(capture)),
+            ("grade", json!("S0")),
+            ("delete_detection", json!(deletion)),
+        ] {
+            match semantics.get(key) {
+                Some(actual) if actual == &expected => {}
+                // Sealed import is a compiler marker, not an observed source method.
+                Some(Value::String(value)) if key == "capture" && value == "sealed_import" => {
+                    semantics.insert(key.to_owned(), expected);
+                }
+                Some(Value::Null) | None => { semantics.insert(key.to_owned(), expected); }
+                Some(_) => return Err(rejected()),
+            }
+        }
+        serde_json::from_value::<oo_core::oos::SourceSemantics>(Value::Object(semantics.clone()))
+            .map_err(|_| rejected())?;
 
     }
     Ok(())
@@ -546,10 +572,10 @@ mod tests {
     #[test]
     fn projects_only_generation_bound_doris_capture_quality() {
         let catalog = json!({"protocol":"oo.pipeline.sealed-import-collection/v1","entries":[
-            {"engine":"doris","source_generation":16,"target_generation":28,"tables":[{"logical_schema":"s","logical_table":"part_day"}]},
-            {"engine":"doris","source_generation":1,"target_generation":2,"tables":[{"logical_schema":"s","logical_table":"agg_qty"}]}
+            {"engine":"doris","source_id":"dorispreview","source_generation":16,"target_generation":28,"tables":[{"logical_schema":"s","logical_table":"part_day"}]},
+            {"engine":"doris","source_id":"dorispreview","source_generation":1,"target_generation":2,"tables":[{"logical_schema":"s","logical_table":"agg_qty"}]}
         ]});
-        let observation = json!({"protocol":"oo.source.doris.audit/v1","source_id":"dorispreview","capture_methods":{
+        let observation = json!({"protocol":"oo.source.doris.audit/v1","source_id":"dorispreview","product":"Apache Doris","version":"doris-3.1.4-rc02-7f5ba43de6c","capture_methods":{
             "s.part_day":{"logical_table":"s.part_day","capture_method":"c4_partition","consistency":"S0","delete_detection":"partition_replace","source_generation":16,"target_generation":28},
             "s.agg_qty":{"logical_table":"s.agg_qty","capture_method":"c5_diff","consistency":"S0","delete_detection":"none","source_generation":1,"target_generation":2,"current_update":"none_observed"}
         },"table_generations":{
@@ -557,29 +583,29 @@ mod tests {
             "s.agg_qty":{"source_generation":1,"target_generation":2}
         }});
         let mut effective = json!({"datasets":[
-            {"dataset":"s.part_day","source_semantics":{"family":"doris","capture":"sealed_import"}},
-            {"dataset":"s.agg_qty","source_semantics":{"family":"doris","capture":"sealed_import"}}
+            {"dataset":"s.part_day"},
+            {"dataset":"s.agg_qty","source_semantics":{"family":"doris","product":"doris","version":"doris-3.1.4-rc02-7f5ba43de6c","source_kind":"database","capture":"sealed_import","grade":"S0","delete_detection":"none"}}
         ]});
         project_doris_capture_methods(&mut effective, &catalog, &observation).unwrap();
         assert_eq!(effective["datasets"][0]["source_semantics"]["capture"], "c4_partition");
         assert_eq!(effective["datasets"][1]["source_semantics"]["capture"], "c5_diff");
         assert_eq!(effective["datasets"][1]["source_semantics"]["delete_detection"], "none");
         assert_eq!(effective["datasets"][0]["source_semantics"]["family"], "doris");
+        assert_eq!(effective["datasets"][0]["source_semantics"]["product"], "doris");
+        assert_eq!(effective["datasets"][0]["source_semantics"]["version"], "doris-3.1.4-rc02-7f5ba43de6c");
+        assert_eq!(effective["datasets"][0]["source_semantics"]["source_kind"], "database");
+        assert_eq!(effective["datasets"][0]["source_semantics"]["grade"], "S0");
         for dataset in effective["datasets"].as_array().unwrap() {
-            let mut semantics = dataset["source_semantics"].clone();
-            semantics["product"] = json!("doris");
-            semantics["version"] = json!("3.1.4");
-            semantics["source_kind"] = json!("database");
-            serde_json::from_value::<oo_core::oos::SourceSemantics>(semantics).unwrap();
+            serde_json::from_value::<oo_core::oos::SourceSemantics>(dataset["source_semantics"].clone()).unwrap();
         }
     }
 
     #[test]
     fn rejects_doris_capture_method_identity_and_generation_drift() {
         let catalog = json!({"protocol":"oo.pipeline.sealed-import-collection/v1","entries":[
-            {"engine":"doris","source_generation":16,"target_generation":28,"tables":[{"logical_schema":"s","logical_table":"part_day"}]}
+            {"engine":"doris","source_id":"dorispreview","source_generation":16,"target_generation":28,"tables":[{"logical_schema":"s","logical_table":"part_day"}]}
         ]});
-        let base = json!({"protocol":"oo.source.doris.audit/v1","source_id":"dorispreview","capture_methods":{
+        let base = json!({"protocol":"oo.source.doris.audit/v1","source_id":"dorispreview","product":"Apache Doris","version":"doris-3.1.4-rc02-7f5ba43de6c","capture_methods":{
             "s.part_day":{"logical_table":"s.part_day","capture_method":"c4_partition","consistency":"S0","delete_detection":"partition_replace","source_generation":16,"target_generation":28}
         },"table_generations":{"s.part_day":{"source_generation":16,"target_generation":28}}});
         let mut method_drift = base.clone();
@@ -589,6 +615,53 @@ mod tests {
         for invalid in [method_drift, stale_generation] {
             let mut effective = json!({"datasets":[{"dataset":"s.part_day","source_semantics":{}}]});
             assert!(project_doris_capture_methods(&mut effective, &catalog, &invalid).is_err());
+        }
+        let mut missing_version = base.clone();
+        missing_version.as_object_mut().unwrap().remove("version");
+        let mut missing_product = base.clone();
+        missing_product.as_object_mut().unwrap().remove("product");
+        let mut missing_source = base.clone();
+        missing_source.as_object_mut().unwrap().remove("source_id");
+        let mut wrong_product = base.clone();
+        wrong_product["product"] = json!("Doris");
+        let mut wrong_engine = catalog.clone();
+        wrong_engine["entries"][0]["engine"] = json!("mysql");
+        let mut wrong_source = catalog.clone();
+        wrong_source["entries"][0]["source_id"] = json!("another-source");
+        for (catalog, observation) in [
+            (catalog.clone(), missing_version),
+            (catalog.clone(), missing_product),
+            (catalog.clone(), missing_source),
+            (catalog.clone(), wrong_product),
+            (wrong_engine, base.clone()),
+            (wrong_source, base.clone()),
+        ] {
+            let mut effective = json!({"datasets":[{"dataset":"s.part_day"}]});
+            assert!(project_doris_capture_methods(&mut effective, &catalog, &observation).is_err());
+        }
+    }
+
+    #[test]
+    fn rejects_doris_identity_or_runtime_metadata_conflicts() {
+        let catalog = json!({"protocol":"oo.pipeline.sealed-import-collection/v1","entries":[
+            {"engine":"doris","source_id":"dorispreview","source_generation":16,"target_generation":28,"tables":[{"logical_schema":"s","logical_table":"part_day"}]}
+        ]});
+        let observation = json!({"protocol":"oo.source.doris.audit/v1","source_id":"dorispreview","product":"Apache Doris","version":"doris-3.1.4-rc02-7f5ba43de6c","capture_methods":{
+            "s.part_day":{"logical_table":"s.part_day","capture_method":"c4_partition","consistency":"S0","delete_detection":"partition_replace","source_generation":16,"target_generation":28}
+        },"table_generations":{"s.part_day":{"source_generation":16,"target_generation":28}}});
+        for (key, value) in [
+            ("family", json!("mysql")),
+            ("product", json!("mysql")),
+            ("version", json!("8.4.10")),
+            ("source_kind", json!("mysql_table")),
+            ("capture", json!("c5_diff")),
+            ("grade", json!("B")),
+            ("delete_detection", json!("reconcile")),
+        ] {
+            let mut source_semantics = json!({});
+            source_semantics[key] = value;
+            let mut effective = json!({"datasets":[{"dataset":"s.part_day","source_semantics":source_semantics}]});
+            assert!(project_doris_capture_methods(&mut effective, &catalog, &observation).is_err(), "{key}");
         }
     }
 
