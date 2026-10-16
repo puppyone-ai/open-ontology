@@ -3628,5 +3628,11 @@
     "reason": "root live per-column proof: existing10 columns granted; quiet requires2 missing metadata columns",
     "allowed": "SELECT(current_signature,partition_scope) to oo_jobs_runtime via official append-only installer; other columns/writes denied",
     "acceptance_delta": 0
+  },
+  "latest_per_table_shared_fixed_dependency": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/per-table-shared-fixed-dependency-intake.json",
+    "source_commit": "3b4fef06623f37d6da107e51d28f9ce4d1bc1593",
+    "scope": "root_verified_fixed_dependency_source_ELF_and_declared_tests_only",
+    "formal_source_count_delta": 0
   }
 }

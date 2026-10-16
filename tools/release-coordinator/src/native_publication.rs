@@ -84,7 +84,7 @@ pub fn validate_context(value: &Value) -> Result<(), StoreError> {
                         .as_str()
                         .ok_or(StoreError::Input)?
                 || generation
-                    != publication.receipt["source_generation"]
+                    != (if per_table_collection(&publication.receipt) { &table["source_generation"] } else { &publication.receipt["source_generation"] })
                         .as_i64()
                         .ok_or(StoreError::Input)?
                 || schema != table["schema"].as_str().ok_or(StoreError::Input)?
@@ -119,6 +119,9 @@ fn validate_receipt(receipt: &Value, run_id: &str) -> Result<(), StoreError> {
     {
         return Err(StoreError::Input);
     }
+    if receipt.get("collection_mode").is_some() && (!per_table_collection(receipt) || receipt.get("run_ids").is_none()) {
+        return Err(StoreError::Input);
+    }
     let codec = receipt["position_codec"].as_str().unwrap();
     let position = integer_text(&receipt["applied_pos"]).ok_or(StoreError::Input)?;
     if position.starts_with('-') || (codec == "snapshot-zero/v1" && position != "0") {
@@ -131,7 +134,15 @@ fn validate_receipt(receipt: &Value, run_id: &str) -> Result<(), StoreError> {
     if let Some(runs)=receipt.get("run_ids") {
         let runs=runs.as_array().filter(|r|r.len()==tables.len() && r.len()<=32).ok_or(StoreError::Input)?;
         let ids=runs.iter().map(|v|v.as_str().filter(|s|uuid_ok(s)).ok_or(StoreError::Input)).collect::<Result<BTreeSet<_>,_>>()?;
-        if ids.len()!=runs.len() || !ids.contains(run_id) || codec!="mysql-gtid/v1"
+        if per_table_collection(receipt) {
+            if ids.len()!=runs.len() || !ids.contains(run_id)
+                || !["snapshot-zero/v1", "partition-signature/v1"].contains(&codec) || position!="0"
+                || receipt["consistency"]!="per_table" || receipt["cross_table_consistent"]!=false
+                || !["S0", "B"].contains(&receipt["consistency_grade"].as_str().unwrap_or(""))
+                || tables.iter().map(|t|t["run_id"].as_str().filter(|id|ids.contains(id)).ok_or(StoreError::Input)).collect::<Result<BTreeSet<_>,_>>()?.len()!=ids.len()
+                || !tables.iter().any(|t| t["run_id"]==run_id && t["source_generation"]==receipt["source_generation"] && t["target_generation"]==receipt["target_generation"])
+            {return Err(StoreError::Input);}
+        } else if ids.len()!=runs.len() || !ids.contains(run_id) || codec!="mysql-gtid/v1"
             || receipt["consistency"]!="transactional" || receipt["consistency_grade"]!="T"
             || receipt["cross_table_consistent"]!=true || receipt["source_epoch"].as_i64().is_none_or(|n|n<1)
             || receipt["position_lineage"].as_str().is_none_or(|s|s.strip_prefix("mysql.").is_none_or(|id|!uuid_ok(id)))
@@ -152,14 +163,34 @@ fn validate_receipt(receipt: &Value, run_id: &str) -> Result<(), StoreError> {
             || table["canonical_digest"]
                 .as_str()
                 .is_none_or(|value| !hex64(value))
-            || table["source_generation"].as_i64() != receipt["source_generation"].as_i64()
-            || table["target_generation"].as_i64() != receipt["target_generation"].as_i64()
+            || (if per_table_collection(receipt) {
+                table["source_generation"].as_i64().is_none_or(|n|n<1 || n>receipt["source_generation"].as_i64().unwrap())
+                || table["target_generation"].as_i64().is_none_or(|n|n<1 || n>receipt["target_generation"].as_i64().unwrap())
+                || !matches!((table["capture_method"].as_str(),table["delete_detection"].as_str()),(Some("c4_partition"),Some("partition_replace")) | (Some("c5_diff"),Some("reconcile")))
+                || !["S0","B"].contains(&table["consistency_grade"].as_str().unwrap_or(""))
+                || (receipt["consistency_grade"]=="S0" && table["consistency_grade"]!="S0")
+            } else {table["source_generation"].as_i64() != receipt["source_generation"].as_i64()
+                || table["target_generation"].as_i64() != receipt["target_generation"].as_i64()})
             || integer_text(&table["applied_pos"]).is_none()
         {
             return Err(StoreError::Input);
         }
     }
     Ok(())
+}
+
+pub fn per_table_collection(receipt: &Value) -> bool {
+    receipt["collection_mode"].as_str()==Some("per_table")
+}
+
+pub fn publication_sql(receipt: &Value) -> &'static str {
+    if per_table_collection(receipt) {
+        "SELECT _oo.publish_native_per_table_collection($1::text::uuid, $2, $3::text::jsonb)::text"
+    } else if receipt.get("run_ids").is_some() {
+        "SELECT _oo.publish_native_c1_collection($1::text::uuid, $2, $3::text::jsonb)::text"
+    } else {
+        "SELECT _oo.publish_native_full_import($1::text::uuid, $2, $3::text::jsonb)::text"
+    }
 }
 
 fn integer_text(value: &Value) -> Option<String> {
@@ -191,7 +222,7 @@ fn hex64(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{from_context, validate_context};
+    use super::{from_context, publication_sql, validate_context};
     use serde_json::json;
 
     #[test]
@@ -250,5 +281,73 @@ mod tests {
         let mut wrong = context("0");
         wrong["datasets"][0]["generation"] = json!(20);
         assert!(validate_context(&wrong).is_err());
+    }
+
+    #[test]
+    fn doris_per_table_vector_keeps_real_s0_generations_and_dispatches_separately() {
+        let value = per_table_context();
+        let publication = from_context(&value).unwrap().unwrap();
+        assert!(validate_context(&value).is_ok());
+        assert_eq!(publication_sql(&publication.receipt),
+            "SELECT _oo.publish_native_per_table_collection($1::text::uuid, $2, $3::text::jsonb)::text");
+
+        for (path, bad) in [
+            ("/publication/receipt/consistency_grade", json!("T")),
+            ("/publication/receipt/cross_table_consistent", json!(true)),
+            ("/publication/receipt/position_codec", json!("mysql-gtid/v1")),
+            ("/publication/receipt/tables/1/delete_detection", json!("reconcile")),
+            ("/publication/receipt/tables/0/source_generation", json!(12)),
+        ] {
+            let mut wrong = value.clone();
+            *wrong.pointer_mut(path).unwrap() = bad;
+            wrong["publication"]["receipt_sha256"] = json!(
+                crate::canon::canonical_sha(&wrong["publication"]["receipt"]));
+            assert!(from_context(&wrong).is_err(), "{path}");
+        }
+        let mut incomplete = value;
+        incomplete["publication"]["receipt"]["run_ids"] = json!(["11111111-2222-4333-8444-555555555555"]);
+        incomplete["publication"]["receipt_sha256"] = json!(
+            crate::canon::canonical_sha(&incomplete["publication"]["receipt"]));
+        assert!(from_context(&incomplete).is_err(), "run_ids must cover every table");
+    }
+
+    fn per_table_context() -> serde_json::Value {
+        let baseline = "11111111-2222-4333-8444-555555555555";
+        let anchor = "66666666-7777-4888-8999-aaaaaaaaaaaa";
+        let physical = format!("pt_{}", "a".repeat(60));
+        let receipt = json!({
+            "protocol":"oo.pipeline.native-publication-receipt/v1",
+            "collection_mode":"per_table",
+            "run_id":anchor,
+            "run_ids":[baseline,anchor],
+            "source_id":"dorispreview",
+            "source_generation":11,
+            "target_generation":19,
+            "position_codec":"partition-signature/v1",
+            "position_lineage":"doris.partition.part_day",
+            "applied_pos":"0",
+            "consistency":"per_table",
+            "consistency_grade":"S0",
+            "cross_table_consistent":false,
+            "tables":[
+                {"schema":"oo_dl01w1_43","table":"dup_events","run_id":baseline,
+                 "physical_name":physical,"accepted_rows":2,"canonical_digest":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                 "source_generation":2,"target_generation":4,"applied_pos":"0",
+                 "capture_method":"c5_diff","delete_detection":"reconcile","consistency_grade":"S0"},
+                {"schema":"oo_dl01w1_43","table":"part_day","run_id":anchor,
+                 "physical_name":physical,"accepted_rows":3,"canonical_digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                 "source_generation":11,"target_generation":19,"applied_pos":"0",
+                 "capture_method":"c4_partition","delete_detection":"partition_replace","consistency_grade":"S0"}
+            ]
+        });
+        let digest = crate::canon::canonical_sha(&receipt);
+        json!({
+            "datasets":[
+                {"dataset":"oo_dl01w1_43.dup_events","source":"dorispreview","generation":2},
+                {"dataset":"oo_dl01w1_43.part_day","source":"dorispreview","generation":11}
+            ],
+            "publication":{"protocol":"oo.pipeline.native-publication-receipt/v1","run_id":anchor,
+                "receipt_sha256":digest,"receipt":receipt}
+        })
     }
 }

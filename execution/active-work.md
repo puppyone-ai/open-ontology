@@ -1,3 +1,5 @@
+2026-10-16 共同per-table固定依赖：MySQL5.7+8.4完整本地参考已核；Doris/Oracle唯一Luna max继续整源。3b4fef066含73e99724重入修复，root核77.7MB完整archive可重生成、7源码/2实际ELF/测试log SHA一致；pipeline lib78pass/4ignored、coordinator27pass/3ignored/1A359filtered，原A359缺环境与native_arrow历史4fail均保留。该制品解决旧0027发布依赖死Loader后端锁的路径，正确走事务内认证receipt；只是固定中间依赖，Oracle还需同archive构建缺少的release API并官方安装/新candidate/ROGateway全验，Doris全链继续。无完整源/Plan/整版签收，开发/集成/发行/外部计数delta均0，formal0/10、其他7held。证据 execution/reviews/native-luna-full-source-20261015/per-table-shared-fixed-dependency-intake.json。
+
 2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T005548Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T005548Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。
 
 2026-10-16 Doris quiet真实42501窄修：root逐列实核原0008十列已读，缺current_signature/partition_scope两列；授权唯一Doris追加0041仅两列SELECT给oo_jobs_runtime，经官方installer安装，其他列/写继续拒绝。不是prior多行，不加LIMIT掩盖、不改旧迁移/worker。精确增补见Doris完整卡；尚无源/Plan/整版签收、formal0/10。

@@ -183,7 +183,7 @@ pub async fn open_native_collection(conn:&TargetConn<'_>,bindings:&[(String,Stri
  let mut session=open(conn.endpoint,conn.user,conn.password,conn.ca_pem).await?;require_tls(&session.client).await?;
  let tx=begin_for(&mut session,"60s","60s").await?;
  let text=serde_json::to_string(&publication.receipt).map_err(|_|StoreError::Input)?;
- let raw:String=tx.query_one("SELECT _oo.publish_native_c1_collection($1::text::uuid,$2,$3::text::jsonb)::text",p!(&publication.run_id,&publication.receipt_sha256,&text)).await.map_err(query_error)?.try_get(0).map_err(|_|StoreError::Input)?;
+ let raw:String=tx.query_one(crate::native_publication::publication_sql(&publication.receipt),p!(&publication.run_id,&publication.receipt_sha256,&text)).await.map_err(query_error)?.try_get(0).map_err(|_|StoreError::Input)?;
  let published:Value=serde_json::from_str(&raw).map_err(|_|StoreError::Input)?;
  let mut receipts=Vec::with_capacity(bindings.len());
  for (schema,table,role,columns) in bindings {
@@ -221,9 +221,7 @@ async fn open_target_inner(
         let receipt = serde_json::to_string(&publication.receipt).map_err(|_| StoreError::Input)?;
         let row = tx
             .query_one(
-                if publication.receipt.get("run_ids").is_some() {
-                    "SELECT _oo.publish_native_c1_collection($1::text::uuid, $2, $3::text::jsonb)::text"
-                } else { "SELECT _oo.publish_native_full_import($1::text::uuid, $2, $3::text::jsonb)::text" },
+                crate::native_publication::publication_sql(&publication.receipt),
                 p!(&publication.run_id, &publication.receipt_sha256, &receipt),
             )
             .await
@@ -1341,7 +1339,10 @@ pub async fn resolve_native_binding(
             (if let Some(runs)=receipt.receipt["run_ids"].as_array() {
                 !runs.iter().any(|id| id.as_str()==Some(run_id.as_str()))
             } else { receipt.run_id != run_id })
-                || receipt.receipt["target_generation"].as_i64() != Some(target_generation)
+                || (if crate::native_publication::per_table_collection(&receipt.receipt) {
+                    !receipt.receipt["tables"].as_array().is_some_and(|tables| tables.iter().any(|t|
+                        t["run_id"].as_str()==Some(run_id.as_str()) && t["target_generation"].as_i64()==Some(target_generation)))
+                } else {receipt.receipt["target_generation"].as_i64() != Some(target_generation)})
         }) {
             return Err(StoreError::Input);
         }

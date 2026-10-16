@@ -1,0 +1,61 @@
+{
+  "as_of": "2026-10-16T01:23:31.708815+00:00",
+  "acceptance_level": "root_verified_fixed_dependency_source_ELF_and_declared_tests_only",
+  "source_commit": "3b4fef06623f37d6da107e51d28f9ce4d1bc1593",
+  "included_oracle_fixes": "73e99724cd08feee7ce78c6b6cbc68d36a08cd73",
+  "author_manifest": {
+    "path": "/private/tmp/oo-doris-lunamax-20261016/evidence/native-per-table-shared-fixed-manifest.json",
+    "sha256": "93aae1502921e75e718fb2098a69c5b61b05e9dba9105a5f28f8e98721f598d4"
+  },
+  "root_check": {
+    "path": "/tmp/oo-root-per-table-shared-fixed-check-20261016.json",
+    "sha256": "cc0d24411a7a5f14af9fa19e61b31791a0f9548c6931aa9360164cbe2ac2489b"
+  },
+  "archive": {
+    "archive_path": "/private/tmp/oo-doris-lunamax-20261016/native-shared-fixed.tar",
+    "archive_sha256": "fa4efe32b809c23fae2851b378a10a6186e7920cefa99e05295a4aa4c80443ff",
+    "archive_bytes": 77690880
+  },
+  "elfs": [
+    {
+      "name": "oo-pipeline",
+      "path": "/private/tmp/oo-doris-lunamax-20261016/native-shared-target-oracle-cache/release/oo-pipeline",
+      "sha256": "ef7abc88a774772531380c93daf6074b9810993d428142d67cf51734a544400d",
+      "bytes": 13882352,
+      "build_id_sha1": "0af7853c8c270622626029d33b8990a57544147e",
+      "file_identity": "/private/tmp/oo-doris-lunamax-20261016/native-shared-target-oracle-cache/release/oo-pipeline: ELF 64-bit LSB pie executable, ARM aarch64, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, BuildID[sha1]=0af7853c8c270622626029d33b8990a57544147e, for GNU/Linux 3.7.0, not stripped"
+    },
+    {
+      "name": "release-coordinator",
+      "path": "/private/tmp/oo-doris-lunamax-20261016/native-shared-target-oracle-cache/release/release-coordinator",
+      "sha256": "882bfa3e851996a30a2ec60744456be9482568805b1310e5aa988e3ed55055a9",
+      "bytes": 15427128,
+      "build_id_sha1": "8cde98523d8e999997c61d12f6630b28441dc4d6",
+      "file_identity": "/private/tmp/oo-doris-lunamax-20261016/native-shared-target-oracle-cache/release/release-coordinator: ELF 64-bit LSB pie executable, ARM aarch64, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, BuildID[sha1]=8cde98523d8e999997c61d12f6630b28441dc4d6, for GNU/Linux 3.7.0, not stripped"
+    }
+  ],
+  "tests": "Rust1.94 pipeline library78pass/4ignored; coordinator27pass/3ignored/1A359filtered; focused per-table1pass; raw passing logs SHA checked",
+  "preserved_failures": [
+    "A359 PG environment absent, originalexit101",
+    "historical native_arrow fixtures4fail after20pass, originalexit101, not changed or represented as current all-suite pass"
+  ],
+  "capability": "authenticated per-table C4/C5 publication writes current-transaction receipt identity; fixed-source installer0039/0040/0041; no Loader-backend-lock workaround",
+  "scope": "MySQL immutable C1 two-version reference remains verified; only Oracle/Doris may integrate this dependency; other7held",
+  "next_action": "Oracle reuses pipeline/coordinator and builds only missing release-control-api from exact archive/own1.94 locked cache; actual official target install/newcandidate publication/ROGateway still required. Doris continues full source.",
+  "not_completed": [
+    "Oracle or Doris full source chain",
+    "fixed dependency actual publication integration",
+    "independent unified review",
+    "formal source/edition or original Plan exits"
+  ],
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "release": 0,
+    "external": 0,
+    "formal_source": 0,
+    "edition": 0
+  },
+  "formal_sources": "0/10",
+  "review": "root hashes/decisive evidence only; unified independent review at human ten-source Goal milestone"
+}
