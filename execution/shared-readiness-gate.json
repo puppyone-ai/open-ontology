@@ -1,6 +1,6 @@
 {
-  "as_of": "2026-10-16T06:46:48.460729+00:00",
-  "status": "mysql57_and84_and_oracle_complete_owned_fixture_references_doris_C4_pending",
+  "as_of": "2026-10-16T07:18:39.072170+00:00",
+  "status": "mysql_rust_product_runtime_gap_priority_all_other_sources_held",
   "owner": "root",
   "source_release_allowed": false,
   "source_tasks": [
@@ -635,5 +635,12 @@
     "root_reference_pass": true,
     "run_id": "21558c4f6a814b069ef6ee0fdbb008ec",
     "registry_whole": true
+  },
+  "latest_mysql_rust_runtime_priority": {
+    "receipt": "execution/batches/native-luna-full-source-20261015/mysql-rust-runtime-priority.json",
+    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-LUNA-MAX-20261016.md",
+    "status": "ready_for_single_mysql_native_luna_max_owner",
+    "other_sources_held": true,
+    "formal_source_count_delta": 0
   }
 }

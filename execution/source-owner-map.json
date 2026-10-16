@@ -39,15 +39,19 @@
       "handle": null,
       "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
       "write_paths": [
-        "tools/mysql-preview",
-        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql",
-        "crates/oo-pipeline",
-        "tools/pg-builder",
-        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import"
+        "tools/source-onboarding/Cargo.toml",
+        "tools/source-onboarding/Cargo.lock",
+        "tools/source-onboarding/src",
+        "tools/source-onboarding/tests",
+        "tools/mysql-preview/src",
+        "tools/mysql-preview/tests",
+        "tools/mysql-preview/Cargo.toml",
+        "tools/mysql-preview/Cargo.lock",
+        "tools/mysql-preview/RUST-RUNTIME-*.md"
       ],
       "mandatory_blocker": null,
-      "status": "root_verified_two_version_owned_reference_writer_released",
-      "next_action": "retain immutable live services; official token renewal per OPERATIONS",
+      "status": "running_original_mysql_rust_runtime_closure",
+      "next_action": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-LUNA-MAX-20261016.md",
       "historical_assignment_before_mysql_family_reference": {
         "source": "mysql",
         "task": "DL01-W1-06",
@@ -65,7 +69,16 @@
         "status": "repair_running",
         "next_action": "customer currently count only; complete actualArrow/sealed/Builder/consume same chosencustomer input"
       },
-      "agent": "/root/mysql57_reference_sol"
+      "agent": "/root/mysql_rust_runtime_luna_max",
+      "historical_write_paths_before_rust_runtime": [
+        "tools/mysql-preview",
+        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql",
+        "crates/oo-pipeline",
+        "tools/pg-builder",
+        "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import"
+      ],
+      "model": "gpt-6-luna",
+      "reasoning_effort": "max"
     },
     {
       "source": "mariadb",
@@ -406,5 +419,15 @@
     "root_reference_pass": true,
     "run_id": "21558c4f6a814b069ef6ee0fdbb008ec",
     "registry_whole": true
+  },
+  "latest_mysql_rust_runtime_dispatch": {
+    "agent": "/root/mysql_rust_runtime_luna_max",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "max",
+    "status": "spawned_and_accepted_readonly_preflight",
+    "as_of": "2026-10-16T07:21:04.943436+00:00",
+    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-LUNA-MAX-20261016.md",
+    "formal_source_count_delta": 0,
+    "old_live_service_observation": "author current ps: old host74664/74665 absent, connection-whole container onlysleep; APIs/forwards/Gateways retained; native bind/task current state and lifecycle under check, no new writer yet"
   }
 }
