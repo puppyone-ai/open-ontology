@@ -26,5 +26,16 @@
     "immutable": "installed0000-0039 unchanged;0039 digest438d780176456ec0b8ff85feb20b6f803f42f4ae85562f64755fe83e628566d9",
     "required_checks": "actual loader two-column read succeeds, other columns and writes still denied; preserve C4 missing-target rejection and C1 routing",
     "acceptance_delta": 0
+  },
+  "latest_overlay_ownership_transfer": {
+    "as_of": "2026-10-15T23:52:47.690200+00:00",
+    "path": "tools/selfbuild-control-api/src/overlay.rs",
+    "from": "/root/oracle_complete_luna_max",
+    "to": "/root/doris_complete_luna_max",
+    "fixed_source": "0722c7b4f305e50a73bcca5c3ee240fe46015f0a",
+    "sha256": "50149bf5354986407b3074e05e9d0cf63e33bfde99745e865984b7d3a2e5644b",
+    "root_verified": "git blob equals current bytes, clean path, prior writer confirmed no mutator",
+    "allowed": "verify_doris_observation authentic request/load/observed partition linkage and minimum tests only; Oracle functions unchanged",
+    "formal_delta": 0
   }
 }

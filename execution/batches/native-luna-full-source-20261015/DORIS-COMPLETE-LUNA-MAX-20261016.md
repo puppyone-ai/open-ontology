@@ -30,3 +30,7 @@ root 已核 MySQL5.7+8.4完整稳定参考：execution/reviews/native-luna-full-
 ## 2026-10-16 实际水位权限缺口的最小范围增补
 
 Doris 唯一 writer 增加 `crates/oo-pipeline/migrations/0040_native_source_progress_read.sql`：经官方 installer 追加 `oo_pipeline_runtime` 的 `SELECT(source,source_generation)` 列级读取，现有 target_installer/native_update 仅必要安装接线。不得改已安装0000–0039，不得授整表/其他列/写权限；实际 loader 验两列成功、其他列/写拒绝。C5 复用现有 target_database（缺省保留 control），C4 缺省目标仍拒绝，C1路由不变。原42501/42P01失败保留，完整六项退出及模型/计数不变；这是范围补充，尚非产品通过。
+
+## 2026-10-16 overlay 分区验证写权交接
+
+Oracle已固定0722c7b4f并明确释放overlay.rs，root核clean与SHA50149bf5一致。Doris新增唯一writer `tools/selfbuild-control-api/src/overlay.rs`，仅verify_doris_observation及必要tests：将fixture字面量p202604改为认证封存request/scope、load及observed分区向量的真实关联，不删除分区/ACK/身份校验，不改Oracle函数。固定0722源码+必要own delta，不采Oracle cli/store WIP；原全部出口保持。

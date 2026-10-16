@@ -5698,7 +5698,6 @@
       "write_paths": [
         "tools/oracle-preview",
         "testing/dl01-driver-preflight/oracle/probe",
-        "tools/selfbuild-control-api/src/overlay.rs",
         "tools/release-coordinator/src/cli.rs (native maintain dispatch only)",
         "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)"
       ],
@@ -5756,6 +5755,17 @@
         "allowed": "replay returns test_admissible derived solely from persisted disposition, production_admissible=false as recorded path; exact tests and genuine same-certificate reentry",
         "unchanged": "issuer,certificate,source,trust computation,replica barrier,original failures,formal0/10",
         "acceptance_delta": 0
+      },
+      "overlay_transfer": {
+        "as_of": "2026-10-15T23:52:47.690200+00:00",
+        "path": "tools/selfbuild-control-api/src/overlay.rs",
+        "from": "/root/oracle_complete_luna_max",
+        "to": "/root/doris_complete_luna_max",
+        "fixed_source": "0722c7b4f305e50a73bcca5c3ee240fe46015f0a",
+        "sha256": "50149bf5354986407b3074e05e9d0cf63e33bfde99745e865984b7d3a2e5644b",
+        "root_verified": "git blob equals current bytes, clean path, prior writer confirmed no mutator",
+        "allowed": "verify_doris_observation authentic request/load/observed partition linkage and minimum tests only; Oracle functions unchanged",
+        "formal_delta": 0
       }
     },
     {
@@ -7019,7 +7029,8 @@
         "crates/oo-pipeline/src/native_update.rs (installer wiring only)",
         "tools/job-worker/src/native_schedule.rs",
         "crates/oo-pipeline/migrations/0039_native_per_table_publication.sql (installed immutable; no edits)",
-        "crates/oo-pipeline/migrations/0040_native_source_progress_read.sql"
+        "crates/oo-pipeline/migrations/0040_native_source_progress_read.sql",
+        "tools/selfbuild-control-api/src/overlay.rs (Doris partition verification only)"
       ],
       "prompt": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md",
       "resource_prefix": "oo-dl01w1-43",
@@ -7204,6 +7215,17 @@
         "immutable": "installed0000-0039 unchanged;0039 digest438d780176456ec0b8ff85feb20b6f803f42f4ae85562f64755fe83e628566d9",
         "required_checks": "actual loader two-column read succeeds, other columns and writes still denied; preserve C4 missing-target rejection and C1 routing",
         "acceptance_delta": 0
+      },
+      "overlay_transfer": {
+        "as_of": "2026-10-15T23:52:47.690200+00:00",
+        "path": "tools/selfbuild-control-api/src/overlay.rs",
+        "from": "/root/oracle_complete_luna_max",
+        "to": "/root/doris_complete_luna_max",
+        "fixed_source": "0722c7b4f305e50a73bcca5c3ee240fe46015f0a",
+        "sha256": "50149bf5354986407b3074e05e9d0cf63e33bfde99745e865984b7d3a2e5644b",
+        "root_verified": "git blob equals current bytes, clean path, prior writer confirmed no mutator",
+        "allowed": "verify_doris_observation authentic request/load/observed partition linkage and minimum tests only; Oracle functions unchanged",
+        "formal_delta": 0
       }
     },
     {
@@ -10754,12 +10776,12 @@
     "formal_source_count_delta": 0
   },
   "latest_mysql_manual_token_refresh": {
-    "path": "/tmp/oo-root-mysql-auth-20261015T230526Z/receipt.json",
-    "sha256": "77d36b0f1a8c46d334dd8f2af54d49a29ebd12d62e7b49c51f5414aae2bee99e",
+    "path": "/tmp/oo-root-mysql-auth-20261016T000220Z/receipt.json",
+    "sha256": "43cb2888a81a61c5fa24b79cdef04c56e689ca1b84b73a3c9f6ca0e8cb20351b",
     "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
-    "issued_UTC": "2026-10-15T23:05:27.118029+00:00",
+    "issued_UTC": "2026-10-16T00:02:21.794239+00:00",
     "client_ttl_ms": 3600000,
-    "token_container_path": "/run-current/renewed-client-root-20261015T230526Z.token",
+    "token_container_path": "/run-current/renewed-client-root-20261016T000220Z.token",
     "requires_explicit_CLI_flag": true,
     "automatic_renewal": false,
     "formal_source_count_delta": 0
@@ -10783,6 +10805,17 @@
       "issued_UTC": "2026-10-15T22:06:03Z",
       "client_ttl_ms": 3600000,
       "token_container_path": "/run-current/renewed-client-root-20261015T220602Z.token",
+      "requires_explicit_CLI_flag": true,
+      "automatic_renewal": false,
+      "formal_source_count_delta": 0
+    },
+    {
+      "path": "/tmp/oo-root-mysql-auth-20261015T230526Z/receipt.json",
+      "sha256": "77d36b0f1a8c46d334dd8f2af54d49a29ebd12d62e7b49c51f5414aae2bee99e",
+      "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
+      "issued_UTC": "2026-10-15T23:05:27.118029+00:00",
+      "client_ttl_ms": 3600000,
+      "token_container_path": "/run-current/renewed-client-root-20261015T230526Z.token",
       "requires_explicit_CLI_flag": true,
       "automatic_renewal": false,
       "formal_source_count_delta": 0

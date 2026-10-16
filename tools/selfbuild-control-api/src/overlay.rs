@@ -1004,12 +1004,30 @@ fn semantic_basis(mut value: Value) -> Value {
             if let Some(capture) = object.get_mut("continuous_capture").and_then(Value::as_object_mut) { capture.remove("tested_gtid_transactions"); }
             if let Some(quality) = object.get_mut("quality").and_then(Value::as_object_mut) { quality.remove("zero_date_rejects"); }
         }
+        if object.get("protocol").and_then(Value::as_str) == Some("oo.oracle.native-c5-source-semantics/v1") {
+            for key in ["executed", "evidence", "evidence_set_id", "consistency_scope"] { object.remove(key); }
+            if let Some(contract) = object.get_mut("source_contract").and_then(Value::as_object_mut) { contract.remove("position"); }
+            if let Some(quality) = object.get_mut("quality").and_then(Value::as_object_mut) {
+                for key in ["rows", "typed_cells", "typed_cell_differences", "delete_quality", "key_2_absent"] { quality.remove(key); }
+            }
+        }
         if let Some(contract) = object.get_mut("source_contract").and_then(Value::as_object_mut) { contract.remove("applied_end_lsn"); }
         if let Some(quality) = object.get_mut("quality").and_then(Value::as_object_mut) {
             quality.remove("rows"); quality.remove("typed_cells");
         }
     }
     value
+}
+
+fn decode_oracle_name(value: &Value) -> Result<String, ApiError> {
+    let text = value.as_str().and_then(|text| text.strip_prefix("q_")).ok_or_else(ApiError::pack_refused)?;
+    if text.is_empty() || text.len() % 2 != 0 { return Err(ApiError::pack_refused()); }
+    let mut bytes = Vec::with_capacity(text.len() / 2);
+    for pair in text.as_bytes().chunks_exact(2) {
+        let pair = std::str::from_utf8(pair).map_err(|_| ApiError::pack_refused())?;
+        bytes.push(u8::from_str_radix(pair, 16).map_err(|_| ApiError::pack_refused())?);
+    }
+    String::from_utf8(bytes).map_err(|_| ApiError::pack_refused())
 }
 
 fn recorded_progress(receipt: &Value) -> &Value {
@@ -1104,6 +1122,45 @@ fn check_generation_progress(previous: &Value, current: &Value) -> Result<(), Ap
     Ok(())
 }
 
+fn oracle_c5_capture_methods(catalog: &Value, semantics: &Value, observation: &Value) -> Result<Value, ApiError> {
+    if semantics.get("protocol").and_then(Value::as_str) != Some("oo.oracle.native-c5-source-semantics/v1")
+        || semantics.get("capture_method").and_then(Value::as_str) != Some("C5")
+        || semantics.get("consistency_grade").and_then(Value::as_str) != Some("S0")
+        || semantics.get("delete_detection").and_then(Value::as_str) != Some("reconcile")
+        || observation.get("source_bound").and_then(|bound| bound.get("source_id")) != semantics.get("source_id")
+        || observation.get("source_bound").and_then(|bound| bound.get("source_generation")) != semantics.get("source_generation")
+        || observation.get("source_bound").and_then(|bound| bound.get("target_generation")) != semantics.get("target_generation")
+        || catalog.get("source_id") != semantics.get("source_id")
+        || catalog.get("source_generation") != semantics.get("source_generation")
+        || catalog.get("target_generation") != semantics.get("target_generation")
+    {
+        return Err(ApiError::pack_refused());
+    }
+    let provenance = observation.get("provenance").ok_or_else(ApiError::pack_refused)?;
+    let capture_method = provenance.get("capture_method").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+    let consistency = provenance.get("consistency_grade").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+    let delete_detection = provenance.get("delete_detection").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+    if capture_method != "c5_diff"
+        || consistency != semantics["consistency_grade"].as_str().unwrap_or("")
+        || delete_detection != semantics["delete_detection"].as_str().unwrap_or("")
+    {
+        return Err(ApiError::pack_refused());
+    }
+    let tables = catalog.get("tables").and_then(Value::as_array).filter(|rows| rows.len() == 1).ok_or_else(ApiError::pack_refused)?;
+    let table = &tables[0];
+    let schema = table.get("logical_schema").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+    let name = table.get("logical_table").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+    let dataset = format!("{schema}.{name}");
+    Ok(json!({(dataset.clone()): {
+        "logical_table":dataset,
+        "capture_method":capture_method,
+        "consistency":consistency,
+        "delete_detection":delete_detection,
+        "source_generation":semantics["source_generation"],
+        "target_generation":semantics["target_generation"]
+    }}))
+}
+
 fn native_source_rebind(config: &AppConfig, row: &BuildRow, expected_sha: &str, source_semantics_sha256: Option<&str>) -> Result<Value, ApiError> {
     let project = config.projects.iter().find(|p| p.project_id == row.project_id).ok_or_else(ApiError::forbidden)?;
     let (raw, hashes) = sealed::native_maintenance_inputs(&project.sealed_bundle, project.source_protocol.as_ref())?;
@@ -1123,6 +1180,7 @@ fn native_source_rebind(config: &AppConfig, row: &BuildRow, expected_sha: &str, 
     let mut declared: Vec<String> = read("roles.json")?["roles"][role].as_array().ok_or_else(ApiError::pack_refused)?.iter().map(|v| v.as_str().map(str::to_owned).ok_or_else(ApiError::pack_refused)).collect::<Result<_,_>>()?;
     allowed.sort(); declared.sort(); if allowed != declared { return Err(ApiError::pack_refused()); }
     let progress = rebind_sealed_catalogs(&command["catalog"], &catalog)?;
+    let mut oracle_projection = None;
     let current_semantics = if let Some(expected) = source_semantics_sha256 {
         if !hex64(expected) { return Err(ApiError::malformed()); }
         let path = root.join("source-semantics").join(format!("{expected}.json"));
@@ -1135,14 +1193,744 @@ fn native_source_rebind(config: &AppConfig, row: &BuildRow, expected_sha: &str, 
         let bytes = std::fs::read(&path).map_err(|_| ApiError::not_ready())?;
         if sha256_hex(&bytes) != expected { return Err(ApiError::pack_refused()); }
         let semantics: Value = serde_json::from_slice(&bytes).map_err(|_| ApiError::pack_refused())?;
-        if !matches!(semantics.get("protocol").and_then(Value::as_str), Some("oo.source.doris.audit/v1" | "oo.source.mysql.audit/v1"))
+        if !matches!(semantics.get("protocol").and_then(Value::as_str), Some("oo.source.doris.audit/v1" | "oo.source.mysql.audit/v1" | "oo.oracle.native-c5-source-semantics/v1"))
             || semantic_basis(semantics.clone()) != semantic_basis(read("source_semantics.json")?)
         { return Err(ApiError::pack_refused()); }
         if semantics["protocol"] == "oo.source.mysql.audit/v1" { verify_mysql_c1_observation(&root, &catalog, &semantics)?; }
-        else { verify_doris_observation(&root, &catalog, &semantics)?; }
+        else if semantics["protocol"] == "oo.source.doris.audit/v1" { verify_doris_observation(&root, &catalog, &semantics)?; }
+        else { oracle_projection = Some(verify_oracle_c5_observation(&root, &catalog, &semantics)?); }
         Some(semantics)
     } else { None };
-    Ok(json!({"catalog":catalog,"catalog_sha256":expected_sha,"bundle_files":hashes,"progress_vector":progress,"source_semantics_sha256":source_semantics_sha256,"current_source_semantics":current_semantics}))
+    let capture_methods = if let (Some(observation), Some(semantics)) = (oracle_projection.as_ref(), current_semantics.as_ref()) {
+        Some(oracle_c5_capture_methods(&catalog, semantics, observation)?)
+    } else {
+        current_semantics.as_ref().and_then(|semantics| semantics.get("capture_methods")).cloned()
+    };
+    Ok(json!({"catalog":catalog,"catalog_sha256":expected_sha,"bundle_files":hashes,"progress_vector":progress,"source_semantics_sha256":source_semantics_sha256,"current_source_semantics":current_semantics,"oracle_source_semantics":oracle_projection,"capture_methods":capture_methods}))
+}
+
+fn verify_oracle_c5_provenance(
+    provenance: &Value,
+    request: &Value,
+    bound: &Value,
+    reader: &Value,
+    load: &Value,
+    catalog: &Value,
+    catalog_table: &Value,
+) -> Result<Value, ApiError> {
+    let raw = |key: &str| -> Result<&str, ApiError> {
+        provenance.get(key).and_then(Value::as_str).ok_or_else(ApiError::pack_refused)
+    };
+    let registry_raw = raw("source_registry_raw_json")?;
+    let admission_raw = raw("source_admission_raw_json")?;
+    let source_catalog_raw = raw("source_catalog_raw_json")?;
+    let source_request_raw = raw("source_request_raw_json")?;
+    let capture_raw = raw("capture_receipt_raw_json")?;
+    for (field, bytes_key) in [
+        ("source_registry_sha256", registry_raw),
+        ("source_admission_sha256", admission_raw),
+        ("source_catalog_sha256", source_catalog_raw),
+        ("source_request_sha256", source_request_raw),
+        ("capture_receipt_sha256", capture_raw),
+    ] {
+        if provenance.get(field).and_then(Value::as_str) != Some(sha256_hex(bytes_key.as_bytes()).as_str()) {
+            return Err(ApiError::pack_refused());
+        }
+    }
+    let registry: Value = serde_json::from_str(registry_raw).map_err(|_| ApiError::pack_refused())?;
+    let admission: Value = serde_json::from_str(admission_raw).map_err(|_| ApiError::pack_refused())?;
+    let source_catalog: Value = serde_json::from_str(source_catalog_raw).map_err(|_| ApiError::pack_refused())?;
+    let source_request: Value = serde_json::from_str(source_request_raw).map_err(|_| ApiError::pack_refused())?;
+    let capture: Value = serde_json::from_str(capture_raw).map_err(|_| ApiError::pack_refused())?;
+    let manifest = provenance.get("scheduler_manifest").ok_or_else(ApiError::pack_refused)?;
+    if provenance.get("protocol").and_then(Value::as_str) != Some("oo.oracle.native-c5-provenance/v1")
+        || registry.get("protocol").and_then(Value::as_str) != Some("oo.source-admission.binding-registry/v1")
+        || admission.get("schema").and_then(Value::as_str) != Some("oo.source-admission.capture-receipt/v1")
+        || source_catalog.get("protocol").and_then(Value::as_str) != Some(oo_core::sealed_import::SEALED_IMPORT_CATALOG_PROTOCOL)
+        || capture.get("protocol").and_then(Value::as_str) != Some("oo.oracle.capture-tick/v1")
+        || source_request.get("protocol").and_then(Value::as_str) != Some("oo.pipeline.native-update/v1")
+        || manifest.get("protocol").and_then(Value::as_str) != Some("oo.jobs.native-schedule/v1")
+        || provenance.get("task_state").and_then(Value::as_str) != Some("succeeded")
+    {
+        return Err(ApiError::pack_refused());
+    }
+    let bindings = registry.get("bindings").and_then(Value::as_array).filter(|rows| rows.len() == 1).ok_or_else(ApiError::pack_refused)?;
+    let entry = &bindings[0];
+    let source_fields = entry.get("fields").and_then(Value::as_array).filter(|rows| !rows.is_empty()).ok_or_else(ApiError::pack_refused)?;
+    let registry_stamp = entry.get("admission_receipt_sha256").and_then(Value::as_str).filter(|value| hex64(value)).ok_or_else(ApiError::pack_refused)?;
+    let blank = "0".repeat(64);
+    if registry_raw.matches(registry_stamp).count() != 1 {
+        return Err(ApiError::pack_refused());
+    }
+    let registry_preimage = registry_raw.replacen(registry_stamp, &blank, 1);
+    let preimage_sha = sha256_hex(registry_preimage.as_bytes());
+    let admission_sha = sha256_hex(admission_raw.as_bytes());
+    let source_catalog_sha = sha256_hex(source_catalog_raw.as_bytes());
+    let source_request_sha = sha256_hex(source_request_raw.as_bytes());
+    let capture_sha = sha256_hex(capture_raw.as_bytes());
+    let source_schema = entry.get("schema_digest").and_then(Value::as_str).filter(|value| hex64(value)).ok_or_else(ApiError::pack_refused)?;
+    let source_id = catalog.get("source_id").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+    let source_generation = catalog.get("source_generation").and_then(Value::as_i64).ok_or_else(ApiError::pack_refused)?;
+    let source_position = request.pointer("/snapshot/value").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+    let ack_request = provenance.get("acknowledged_request").ok_or_else(ApiError::pack_refused)?;
+    let source_registry_path = raw("source_registry_path")?;
+    let source_admission_path = raw("source_admission_path")?;
+    let source_request_path = raw("source_request_path")?;
+    let source_catalog_path = raw("source_catalog_path")?;
+    let capture_receipt_path = raw("capture_receipt_path")?;
+    let source_run_root = source_registry_path.strip_suffix("/sealed/registry.json").ok_or_else(ApiError::pack_refused)?;
+    if preimage_sha != admission.get("registry_sha256").and_then(Value::as_str).unwrap_or("")
+        || admission.get("registry_sha256").and_then(Value::as_str) != Some(preimage_sha.as_str())
+        || registry_stamp != admission_sha
+        || source_catalog_sha != entry.get("catalog_sha256").and_then(Value::as_str).unwrap_or("")
+        || source_catalog.get("source_id").and_then(Value::as_str) != Some(source_id)
+        || source_catalog.get("engine").and_then(Value::as_str) != Some("oracle")
+        || source_catalog.get("source_generation").and_then(Value::as_i64) != Some(source_generation)
+        || entry.get("source_engine").and_then(Value::as_str) != Some("oracle")
+        || entry.get("source_id").and_then(Value::as_str) != Some(source_id)
+        || entry.get("source_generation").and_then(Value::as_i64) != Some(source_generation)
+        || entry.get("type_digest") != catalog.get("type_digest")
+        || entry.get("config_digest") != catalog.get("config_digest")
+        || entry.get("input_digest") != catalog.get("input_digest")
+        || entry.get("type_digest") != admission.get("type_digest")
+        || entry.get("config_digest") != admission.get("config_digest")
+        || entry.get("input_digest") != admission.get("input_digest")
+        || entry.get("schema_digest") != admission.get("schema_digest")
+        || entry.get("schema_digest") != source_catalog.get("schema_digest")
+        || source_catalog.get("type_digest") != entry.get("type_digest")
+        || source_catalog.get("config_digest") != entry.get("config_digest")
+        || source_catalog.get("input_digest") != entry.get("input_digest")
+        || entry.get("admission_receipt_path").and_then(Value::as_str) != Some(source_admission_path)
+        || entry.get("capture_receipt_path").and_then(Value::as_str) != Some(capture_receipt_path)
+        || entry.get("catalog_path").and_then(Value::as_str) != Some(source_catalog_path)
+        || source_request_path != format!("{source_run_root}/request.json")
+        || source_catalog_path != format!("{source_run_root}/sealed/catalog.json")
+        || request.get("schema_digest").and_then(Value::as_str) != Some(source_schema)
+        || source_request.get("schema_digest").and_then(Value::as_str) != Some(source_schema)
+        || provenance.get("source_schema_digest").and_then(Value::as_str) != Some(source_schema)
+        || provenance.get("target_schema_digest") != catalog.get("schema_digest")
+        || bound.get("schema_digest") != catalog.get("schema_digest")
+        || provenance.get("source_request_sha256").and_then(Value::as_str) != Some(source_request_sha.as_str())
+        || provenance.get("source_admission_sha256").and_then(Value::as_str) != Some(admission_sha.as_str())
+        || provenance.get("source_catalog_sha256").and_then(Value::as_str) != Some(source_catalog_sha.as_str())
+        || provenance.get("capture_receipt_sha256").and_then(Value::as_str) != Some(capture_sha.as_str())
+        || ack_request != &source_request
+    {
+        return Err(ApiError::pack_refused());
+    }
+    if canonical_sha256(ack_request) != provenance.get("acknowledged_request_sha256").and_then(Value::as_str).unwrap_or("")
+        || entry.get("snapshot") != request.get("snapshot")
+        || source_request.get("snapshot") != request.get("snapshot")
+        || admission.get("snapshot") != request.get("snapshot")
+        || capture.get("snapshot") != request.get("snapshot")
+        || entry.get("capture_receipt_sha256").and_then(Value::as_str) != Some(capture_sha.as_str())
+        || source_request.get("audit_digest").and_then(Value::as_str) != Some(capture_sha.as_str())
+        || source_request.get("admission_path") != Some(&json!(provenance.get("source_admission_path").and_then(Value::as_str).unwrap_or("")))
+        || source_request.get("registry_path") != Some(&json!(provenance.get("source_registry_path").and_then(Value::as_str).unwrap_or("")))
+        || admission.get("source_id").and_then(Value::as_str) != Some(source_id)
+        || admission.get("source_generation").and_then(Value::as_i64) != Some(source_generation)
+        || admission.get("run_id") != entry.get("run_id")
+        || admission.get("capture_method").and_then(Value::as_str) != Some("C5")
+        || admission.get("delete_detection").and_then(Value::as_str) != Some("reconcile")
+        || admission.get("consistency").and_then(Value::as_str) != Some("S0")
+        || admission.get("write_attempts").and_then(Value::as_u64) != Some(0)
+        || capture.get("source_id").and_then(Value::as_str) != Some(source_id)
+        || capture.get("source_generation").and_then(Value::as_i64) != Some(source_generation)
+        || capture.get("label").and_then(Value::as_str) != Some(source_position)
+        || capture.get("database").and_then(Value::as_str) != request.get("logical_schema").and_then(Value::as_str)
+        || capture.get("product_reader_write_attempts").and_then(Value::as_u64) != Some(0)
+        || provenance.get("source_generation").and_then(Value::as_i64) != Some(source_generation)
+        || load.get("source_generation").and_then(Value::as_i64) != Some(source_generation)
+    {
+        return Err(ApiError::pack_refused());
+    }
+    let source_catalog_table = entry.get("objects").and_then(Value::as_array).filter(|rows| rows.len() == 1).and_then(|rows| rows.first()).ok_or_else(ApiError::pack_refused)?;
+    if source_catalog_table.get("logical_schema") != Some(&json!(request["logical_schema"]))
+        || source_catalog_table.get("logical_table") != Some(&json!(request["logical_table"]))
+        || source_catalog_table.get("arrow_sha256") != request.get("input_digest")
+        || source_catalog_table.get("row_count").and_then(Value::as_u64) != load.get("row_count").and_then(Value::as_u64)
+        || source_request.get("source_id") != Some(&json!(source_id))
+        || source_request.get("source_generation") != Some(&json!(source_generation))
+    {
+        return Err(ApiError::pack_refused());
+    }
+    let capture_tables = capture.get("tables").and_then(Value::as_array).filter(|rows| rows.len() == 1).and_then(|rows| rows.first()).ok_or_else(ApiError::pack_refused)?;
+    let source_request_columns = source_request.get("columns").and_then(Value::as_array).ok_or_else(ApiError::pack_refused)?;
+    for key in ["protocol", "source_engine", "source_id", "source_generation", "parent_source_generation", "full_snapshot", "snapshot", "capture_method", "delete_detection", "consistency_grade", "cross_table_consistent", "position_codec", "position_lineage", "applied_pos", "logical_schema", "logical_table", "columns", "tombstones", "config_digest", "schema_digest", "type_digest", "input_digest"] {
+        if source_request.get(key) != request.get(key) { return Err(ApiError::pack_refused()); }
+    }
+    if capture_tables.get("name").and_then(Value::as_str) != request.get("logical_table").and_then(Value::as_str)
+        || capture_tables.get("route").and_then(Value::as_str) != Some("C5")
+        || capture_tables.get("consistency").and_then(Value::as_str) != Some("S0")
+        || capture_tables.get("delete_mode").and_then(Value::as_str) != Some("reconcile")
+        || capture_tables.get("quality").and_then(Value::as_str) != Some("DELETES_LAGGED")
+        || capture_tables.get("rows").and_then(Value::as_array).map_or(true, |rows| rows.len() as u64 != load.get("row_count").and_then(Value::as_u64).unwrap_or(u64::MAX))
+        || capture_tables.get("tombstones").and_then(Value::as_array).is_none_or(|rows| !rows.iter().any(|item| item.as_str().is_some_and(|value| value.starts_with("2:"))))
+        || source_request.get("admission_expect").and_then(|value| value.get("declared_receipt_sha256")).and_then(Value::as_str) != Some(registry_stamp)
+    {
+        return Err(ApiError::pack_refused());
+    }
+    let source_request_columns = source_request_columns.len();
+    if source_request_columns != source_fields.len() { return Err(ApiError::pack_refused()); }
+    let request_fields = request.get("columns").and_then(Value::as_array).filter(|rows| rows.len() == source_fields.len()).ok_or_else(ApiError::pack_refused)?;
+    let oracle_fields = reader.get("oracle_columns").and_then(Value::as_array).filter(|rows| rows.len() == source_fields.len()).ok_or_else(ApiError::pack_refused)?;
+    let target_columns = provenance.get("target_columns").and_then(Value::as_array).filter(|rows| rows.len() == source_fields.len() + 1).ok_or_else(ApiError::pack_refused)?;
+    let internal = &target_columns[0];
+    if internal.get("name").and_then(Value::as_str) != Some("_oo_pos")
+        || internal.get("oid").and_then(Value::as_u64) != Some(1700)
+        || internal.get("typmod").and_then(Value::as_i64) != Some(2_490_372)
+        || internal.get("nullable").and_then(Value::as_bool) != Some(false)
+        || internal.get("type").and_then(Value::as_str) != Some("numeric(38,0)")
+        || internal.get("ordinal").and_then(Value::as_u64) != Some(1)
+    {
+        return Err(ApiError::pack_refused());
+    }
+    let target_catalog_columns = catalog_table.get("columns").and_then(Value::as_array).filter(|rows| rows.len() == source_fields.len()).ok_or_else(ApiError::pack_refused)?;
+    let mut column_mapping = Vec::with_capacity(source_fields.len());
+    for index in 0..source_fields.len() {
+        let field = &source_fields[index];
+        let request_field = &request_fields[index];
+        let oracle_field = &oracle_fields[index];
+        let target_catalog_field = &target_catalog_columns[index];
+        let target_field = &target_columns[index + 1];
+        let name = field.get("name").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+        let arrow_type = field.get("arrow_type").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+        let nullable = field.get("nullable").and_then(Value::as_bool).ok_or_else(ApiError::pack_refused)?;
+        let mut request_field_without_logical = request_field.clone();
+        request_field_without_logical.as_object_mut().ok_or_else(ApiError::pack_refused)?.remove("logical_name");
+        if &request_field_without_logical != field
+            || request_field.get("logical_name").and_then(Value::as_str) != Some(name)
+            || decode_oracle_name(&target_catalog_field["logical_name"])? != name
+            || target_field.get("name").and_then(Value::as_str) != target_catalog_field.get("stored_physical").and_then(Value::as_str)
+            || target_field.get("ordinal").and_then(Value::as_u64) != Some(index as u64 + 2)
+        {
+            return Err(ApiError::pack_refused());
+        }
+        let source_native = oracle_field.get("data_type").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+        if oracle_field.get("name").and_then(Value::as_str) != Some(name)
+            || oracle_field.get("nullable").and_then(Value::as_bool) != Some(nullable)
+        {
+            return Err(ApiError::pack_refused());
+        }
+        let (expected_source_type, expected_oid, expected_typmod, expected_pg_type) = match arrow_type {
+            "decimal128" => {
+                if source_native != "NUMBER" || oracle_field.get("precision") != field.get("precision") || oracle_field.get("scale") != field.get("scale") {
+                    return Err(ApiError::pack_refused());
+                }
+                let precision = field.get("precision").and_then(Value::as_u64).filter(|value| *value > 0 && *value <= 38).ok_or_else(ApiError::pack_refused)?;
+                let scale = field.get("scale").and_then(Value::as_i64).filter(|value| *value >= 0 && *value <= 38).ok_or_else(ApiError::pack_refused)?;
+                (format!("decimal128_{precision}_{scale}"), 1700_u64, (((precision << 16) | scale as u64) + 4) as i64, format!("numeric({precision},{scale})"))
+            }
+            "timestamp_micros" => {
+                if source_native != "DATE" || oracle_field.get("precision").is_some_and(|value| !value.is_null()) || oracle_field.get("scale").is_some_and(|value| !value.is_null()) {
+                    return Err(ApiError::pack_refused());
+                }
+                ("timestamp_micros".to_owned(), 1114_u64, -1_i64, "timestamp without time zone".to_owned())
+            }
+            "utf8" => {
+                if !matches!(source_native, "VARCHAR2" | "CHAR") || oracle_field.get("char_length").and_then(Value::as_u64).is_none_or(|value| value == 0) {
+                    return Err(ApiError::pack_refused());
+                }
+                ("utf8".to_owned(), 1043_u64, -1_i64, "character varying".to_owned())
+            }
+            "binary" => {
+                if source_native != "RAW" { return Err(ApiError::pack_refused()); }
+                ("binary".to_owned(), 17_u64, -1_i64, "bytea".to_owned())
+            }
+            _ => return Err(ApiError::pack_refused()),
+        };
+        if target_catalog_field.get("source_type").and_then(Value::as_str) != Some(expected_source_type.as_str())
+            || target_catalog_field.get("oid").and_then(Value::as_u64) != Some(expected_oid)
+            || target_catalog_field.get("typmod").and_then(Value::as_i64) != Some(expected_typmod)
+            || target_field.get("oid").and_then(Value::as_u64) != Some(expected_oid)
+            || target_field.get("typmod").and_then(Value::as_i64) != Some(expected_typmod)
+            || target_field.get("nullable").and_then(Value::as_bool) != Some(nullable)
+            || target_field.get("type").and_then(Value::as_str) != Some(expected_pg_type.as_str())
+        {
+            return Err(ApiError::pack_refused());
+        }
+        column_mapping.push(json!({"source_name":name,"source_arrow_type":arrow_type,"source_nullable":nullable,
+            "oracle_type":source_native,"target_logical_name":target_catalog_field["logical_name"],
+            "target_physical_name":target_catalog_field["stored_physical"],"target_type":expected_pg_type,"target_nullable":target_field["nullable"]}));
+    }
+    let manifest_registration = manifest.get("registration").ok_or_else(ApiError::pack_refused)?;
+    let manifest_path = manifest_registration.get("registry_path").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+    let binding = provenance.get("binding").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+    let pin = provenance.get("pin").and_then(Value::as_u64).ok_or_else(ApiError::pack_refused)?;
+    let task = provenance.get("task").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+    let lease_generation = provenance.get("lease_generation").and_then(Value::as_u64).ok_or_else(ApiError::pack_refused)?;
+    let uuid_shape = |value: &str| {
+        value.len() == 36
+            && value.bytes().enumerate().all(|(index, byte)| {
+                if [8, 13, 18, 23].contains(&index) { byte == b'-' } else { byte.is_ascii_hexdigit() }
+            })
+    };
+    let expected_registry_path = manifest_path.replace("{binding}", binding).replace("{pin}", &pin.to_string());
+    let producer = manifest.get("producer").ok_or_else(ApiError::pack_refused)?;
+    let loader = manifest.get("loader").ok_or_else(ApiError::pack_refused)?;
+    if provenance.get("source_schema_digest").and_then(Value::as_str) != Some(source_schema)
+        || provenance.get("source_registry_preimage_sha256").and_then(Value::as_str) != Some(preimage_sha.as_str())
+        || provenance.get("source_admission_path").and_then(Value::as_str) != source_request.get("admission_path").and_then(Value::as_str)
+        || provenance.get("source_registry_path").and_then(Value::as_str) != source_request.get("registry_path").and_then(Value::as_str)
+        || expected_registry_path != source_request.get("registry_path").and_then(Value::as_str).unwrap_or("")
+        || provenance.get("binding") != manifest.get("binding")
+        || manifest.get("source_id").and_then(Value::as_str) != Some(source_id)
+        || manifest.get("method").and_then(Value::as_str) != Some("C5")
+        || manifest.get("cycle").and_then(Value::as_str) != Some("pull")
+        || producer.get("path").and_then(Value::as_str) != Some("/opt/oracle-driver-probe")
+        || producer.get("sha256") != entry.get("driver_digest")
+        || producer.get("sha256") != entry.get("driver_sha256")
+        || loader.get("path").and_then(Value::as_str) != Some("/opt/loader")
+        || !loader.get("sha256").and_then(Value::as_str).is_some_and(hex64)
+        || manifest_registration.get("admission_binary").and_then(Value::as_str) != Some("/opt/admission")
+        || !manifest_registration.get("admission_sha256").and_then(Value::as_str).is_some_and(hex64)
+        || provenance.get("task_state").and_then(Value::as_str) != Some("succeeded")
+        || pin == 0 || lease_generation == 0 || !uuid_shape(binding) || !uuid_shape(task)
+        || provenance.get("source_generation").and_then(Value::as_i64) != Some(source_generation)
+        || provenance.get("acknowledged_request_sha256").and_then(Value::as_str) != Some(canonical_sha256(ack_request).as_str())
+        || provenance.get("scheduler_manifest_sha256").and_then(Value::as_str) != Some(canonical_sha256(manifest).as_str())
+    {
+        return Err(ApiError::pack_refused());
+    }
+    Ok(json!({
+        "source_schema_digest":source_schema,
+        "target_schema_digest":catalog["schema_digest"],
+        "source_registry_sha256":provenance["source_registry_sha256"],
+        "source_registry_preimage_sha256":preimage_sha,
+        "source_admission_sha256":admission_sha,
+        "source_catalog_sha256":source_catalog_sha,
+        "source_request_sha256":source_request_sha,
+        "acknowledged_request_sha256":provenance["acknowledged_request_sha256"],
+        "scheduler_manifest_sha256":provenance["scheduler_manifest_sha256"],
+        "capture_receipt_sha256":capture_sha,
+        "source_run_id":entry["run_id"],
+        "target_run_id":load["run_id"],
+        "target_schema_compiler":"oo-builder/sealed-import-catalog",
+        "capture_method":source_request["capture_method"],
+        "consistency_grade":source_request["consistency_grade"],
+        "delete_detection":source_request["delete_detection"],
+        "column_mapping":column_mapping
+    }))
+}
+
+fn verify_oracle_c5_observation(
+    root: &Path,
+    catalog: &Value,
+    semantics: &Value,
+) -> Result<Value, ApiError> {
+    let id = semantics
+        .get("evidence_set_id")
+        .and_then(Value::as_str)
+        .filter(|id| hex64(id))
+        .ok_or_else(ApiError::pack_refused)?;
+    if catalog.get("protocol").and_then(Value::as_str)
+        != Some(oo_core::sealed_import::SEALED_IMPORT_CATALOG_PROTOCOL)
+        || catalog.get("engine").and_then(Value::as_str) != Some("oracle")
+        || semantics.get("source_id") != catalog.get("source_id")
+        || semantics.get("source_generation") != catalog.get("source_generation")
+        || semantics.get("target_generation") != catalog.get("target_generation")
+        || semantics.get("executed").and_then(Value::as_bool) != Some(true)
+        || semantics.get("product").and_then(Value::as_str) != Some("Oracle")
+        || semantics.get("capture_method").and_then(Value::as_str) != Some("C5")
+        || semantics.get("c1").and_then(Value::as_str) != Some("off")
+        || semantics.get("consistency_grade").and_then(Value::as_str) != Some("S0")
+        || semantics.get("delete_detection").and_then(Value::as_str) != Some("reconcile")
+    {
+        return Err(ApiError::pack_refused());
+    }
+
+    let source_contract = semantics
+        .get("source_contract")
+        .and_then(Value::as_object)
+        .ok_or_else(ApiError::pack_refused)?;
+    if source_contract.get("reader").and_then(Value::as_str) != Some("OO04_READER")
+        || source_contract
+            .get("write_attempts")
+            .and_then(Value::as_u64)
+            != Some(0)
+        || source_contract.get("empty_string").and_then(Value::as_str) != Some("null")
+        || !matches!(
+            source_contract.get("log_mode").and_then(Value::as_str),
+            Some("ARCHIVELOG" | "NOARCHIVELOG")
+        )
+        || !matches!(
+            source_contract
+                .get("supplemental_log")
+                .and_then(Value::as_str),
+            Some("YES" | "NO")
+        )
+    {
+        return Err(ApiError::pack_refused());
+    }
+
+    let evidence = semantics
+        .get("evidence")
+        .and_then(Value::as_object)
+        .ok_or_else(ApiError::pack_refused)?;
+    let expected_names = [
+        "capture-request",
+        "db-contract",
+        "load-result",
+        "reader-observation",
+        "source-provenance",
+        "shadow",
+        "source-bound",
+        "source-gold",
+        "target-gold",
+        "typed-gold",
+    ];
+    if evidence.len() != expected_names.len()
+        || expected_names
+            .iter()
+            .any(|name| !evidence.contains_key(*name))
+    {
+        return Err(ApiError::pack_refused());
+    }
+    let uid = std::fs::metadata(root)
+        .map_err(|_| ApiError::not_ready())?
+        .uid();
+    let evidence_root = root.join("source-evidence");
+    let evidence_dir = evidence_root.join(id);
+    for dir in [&evidence_root, &evidence_dir] {
+        let metadata = std::fs::symlink_metadata(dir).map_err(|_| ApiError::not_ready())?;
+        if !metadata.file_type().is_dir()
+            || metadata.uid() != uid
+            || metadata.mode() & 0o777 != 0o700
+        {
+            return Err(ApiError::pack_refused());
+        }
+    }
+    let mut hashes = BTreeMap::new();
+    let mut records = BTreeMap::new();
+    for name in expected_names {
+        let item = evidence
+            .get(name)
+            .and_then(Value::as_object)
+            .ok_or_else(ApiError::pack_refused)?;
+        let expected_path = format!("source-evidence/{id}/{name}.json");
+        if item.get("path").and_then(Value::as_str) != Some(expected_path.as_str()) {
+            return Err(ApiError::pack_refused());
+        }
+        let path = evidence_dir.join(format!("{name}.json"));
+        let metadata = std::fs::symlink_metadata(&path).map_err(|_| ApiError::not_ready())?;
+        let expected_sha = item
+            .get("sha256")
+            .and_then(Value::as_str)
+            .filter(|sha| hex64(sha))
+            .ok_or_else(ApiError::pack_refused)?;
+        if !metadata.file_type().is_file()
+            || metadata.uid() != uid
+            || metadata.mode() & 0o777 != 0o600
+            || metadata.len() > 16 * 1024 * 1024
+            || item.get("uid").and_then(Value::as_u64) != Some(uid as u64)
+            || item.get("mode").and_then(Value::as_u64) != Some(0o600)
+            || item.get("size").and_then(Value::as_u64) != Some(metadata.len())
+        {
+            return Err(ApiError::pack_refused());
+        }
+        let bytes = std::fs::read(&path).map_err(|_| ApiError::not_ready())?;
+        if sha256_hex(&bytes) != expected_sha {
+            return Err(ApiError::pack_refused());
+        }
+        let value: Value = serde_json::from_slice(&bytes).map_err(|_| ApiError::pack_refused())?;
+        hashes.insert(name.to_owned(), expected_sha.to_owned());
+        records.insert(name.to_owned(), value);
+    }
+    if canonical_sha256(&json!(hashes)) != id {
+        return Err(ApiError::pack_refused());
+    }
+
+    let request = &records["capture-request"];
+    let db_contract = &records["db-contract"];
+    let load = &records["load-result"];
+    let reader = &records["reader-observation"];
+    let shadow = &records["shadow"];
+    let source_gold = records["source-gold"]
+        .as_array()
+        .ok_or_else(ApiError::pack_refused)?;
+    let target_gold = records["target-gold"]
+        .as_array()
+        .ok_or_else(ApiError::pack_refused)?;
+    let typed = &records["typed-gold"];
+    let catalog_table = catalog
+        .get("tables")
+        .and_then(Value::as_array)
+        .filter(|tables| tables.len() == 1)
+        .and_then(|tables| tables.first())
+        .ok_or_else(ApiError::pack_refused)?;
+    let rows = catalog_table
+        .get("accepted_rows")
+        .and_then(Value::as_u64)
+        .ok_or_else(ApiError::pack_refused)?;
+    let columns = catalog_table
+        .get("columns")
+        .and_then(Value::as_array)
+        .filter(|columns| !columns.is_empty())
+        .ok_or_else(ApiError::pack_refused)?;
+    let position = request
+        .pointer("/snapshot/value")
+        .and_then(Value::as_str)
+        .ok_or_else(ApiError::pack_refused)?;
+    if request.get("protocol").and_then(Value::as_str) != Some("oo.pipeline.native-update/v1")
+        || request.get("source_engine").and_then(Value::as_str) != Some("oracle")
+        || request.get("source_id") != catalog.get("source_id")
+        || request.get("source_generation") != catalog.get("source_generation")
+        || request.get("target_generation") != catalog.get("target_generation")
+        || request.get("run_id") != catalog.get("run_id")
+        || request.get("config_digest") != catalog.get("config_digest")
+        || request.get("type_digest") != catalog.get("type_digest")
+        || request.get("input_digest") != catalog.get("input_digest")
+        || request.get("capture_method").and_then(Value::as_str) != Some("c5_diff")
+        || request.get("delete_detection").and_then(Value::as_str) != Some("reconcile")
+        || request.get("consistency_grade").and_then(Value::as_str) != Some("S0")
+        || request
+            .get("cross_table_consistent")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || request.get("full_snapshot").and_then(Value::as_bool) != Some(true)
+        || request.pointer("/snapshot/kind").and_then(Value::as_str) != Some("scn")
+        || source_contract.get("position").and_then(Value::as_str) != Some(position)
+        || request.get("logical_schema").and_then(Value::as_str) != Some(decode_oracle_name(&catalog_table["logical_schema"])?.as_str())
+        || request.get("logical_table").and_then(Value::as_str) != Some(decode_oracle_name(&catalog_table["logical_table"])?.as_str())
+        || request
+            .get("tombstones")
+            .and_then(Value::as_array)
+            .is_none()
+        || request
+            .get("columns")
+            .and_then(Value::as_array)
+            .map_or(true, |items| items.len() != columns.len())
+    {
+        return Err(ApiError::pack_refused());
+    }
+    if load.get("protocol").and_then(Value::as_str) != Some("oo.pipeline.native-update-result/v1")
+        || load.get("source_id") != catalog.get("source_id")
+        || load.get("source_generation") != catalog.get("source_generation")
+        || load.get("target_generation") != catalog.get("target_generation")
+        || load.get("run_id") != catalog.get("run_id")
+        || load.get("logical_schema") != catalog_table.get("logical_schema")
+        || load.get("logical_table") != catalog_table.get("logical_table")
+        || load.get("physical_name") != catalog_table.get("stored_physical")
+        || load.get("row_count").and_then(Value::as_u64) != Some(rows)
+        || load.get("loader_invoked").and_then(Value::as_bool) != Some(true)
+        || load.get("source_bound").and_then(Value::as_bool) != Some(true)
+        || load.get("mirror_committed").and_then(Value::as_bool) != Some(true)
+        || load.get("load_state").and_then(Value::as_str) != Some("awaiting_publish")
+    {
+        return Err(ApiError::pack_refused());
+    }
+    if shadow.get("generation") != catalog.get("source_generation")
+        || shadow.get("position").and_then(Value::as_str) != Some(position)
+        || shadow.get("method").and_then(Value::as_str) != Some("C5")
+        || shadow.get("consistency_grade").and_then(Value::as_str) != Some("S0")
+        || shadow.get("delete_detection").and_then(Value::as_str) != Some("reconcile")
+        || shadow
+            .get("cells")
+            .and_then(Value::as_object)
+            .is_none_or(|cells| cells.len() as u64 != rows)
+        || source_gold != target_gold
+        || source_gold.len() as u64 != rows
+        || typed.get("source_generation") != catalog.get("source_generation")
+        || typed.get("source_id") != catalog.get("source_id")
+        || typed.get("rows").and_then(Value::as_u64) != Some(rows)
+        || typed.get("cells").and_then(Value::as_u64) != Some(rows * columns.len() as u64)
+        || typed.get("differences").and_then(Value::as_u64) != Some(0)
+        || semantics.pointer("/quality/tables").and_then(Value::as_u64) != Some(1)
+        || semantics.pointer("/quality/rows").and_then(Value::as_u64) != Some(rows)
+        || semantics
+            .pointer("/quality/columns")
+            .and_then(Value::as_u64)
+            != Some(columns.len() as u64)
+        || semantics
+            .pointer("/quality/typed_cells")
+            .and_then(Value::as_u64)
+            != Some(rows * columns.len() as u64)
+        || semantics
+            .pointer("/quality/typed_cell_differences")
+            .and_then(Value::as_u64)
+            != Some(0)
+        || semantics
+            .pointer("/quality/delete_quality")
+            .and_then(Value::as_str)
+            != Some("DELETES_LAGGED")
+    {
+        return Err(ApiError::pack_refused());
+    }
+    let source_hash = sha256_hex(
+        &std::fs::read(evidence_dir.join("source-gold.json")).map_err(|_| ApiError::not_ready())?,
+    );
+    let target_hash = sha256_hex(
+        &std::fs::read(evidence_dir.join("target-gold.json")).map_err(|_| ApiError::not_ready())?,
+    );
+    if typed.get("source_gold_sha256").and_then(Value::as_str) != Some(source_hash.as_str())
+        || typed.get("target_gold_sha256").and_then(Value::as_str) != Some(target_hash.as_str())
+    {
+        return Err(ApiError::pack_refused());
+    }
+
+    let bound = &records["source-bound"];
+    let provenance_projection = verify_oracle_c5_provenance(
+        &records["source-provenance"],
+        request,
+        bound,
+        reader,
+        load,
+        catalog,
+        catalog_table,
+    )?;
+    let dictionary_columns = bound.pointer("/dictionary/columns").and_then(Value::as_array).ok_or_else(ApiError::pack_refused)?;
+    let mut reader_dictionary = reader.get("dictionary_columns").and_then(Value::as_array).cloned().ok_or_else(ApiError::pack_refused)?;
+    let mut bound_dictionary = dictionary_columns.clone();
+    reader_dictionary.sort_by_key(|item| item.as_str().unwrap_or("").to_owned());
+    bound_dictionary.sort_by_key(|item| item.as_str().unwrap_or("").to_owned());
+    let session_privileges = reader.get("session_privileges").and_then(Value::as_array).ok_or_else(ApiError::pack_refused)?;
+    let object_privileges = reader.get("object_privileges").and_then(Value::as_array).ok_or_else(ApiError::pack_refused)?;
+    let source_privileges: Vec<&str> = object_privileges.iter().filter(|item| item.get("object").and_then(Value::as_str) == Some("OO04_FIX.ONBOARD_ORDERS")).filter_map(|item| item.get("privilege").and_then(Value::as_str)).collect();
+    if db_contract.get("protocol").and_then(Value::as_str) != Some("oo.oracle.database-contract-observation/v1")
+        || db_contract.get("user").and_then(Value::as_str) != Some("SYSTEM")
+        || db_contract.get("log_mode") != source_contract.get("log_mode")
+        || db_contract.get("supplemental_log") != source_contract.get("supplemental_log")
+        || reader.get("protocol").and_then(Value::as_str) != Some("oo.oracle.reader-observation/v1")
+        || reader.get("user").and_then(Value::as_str) != Some("OO04_READER")
+        || reader.get("container").and_then(Value::as_str) != Some("FREEPDB1")
+        || reader.get("banner") != bound.get("banner")
+        || reader_dictionary != bound_dictionary
+        || !session_privileges.iter().any(|item| item.as_str() == Some("CREATE SESSION"))
+        || source_privileges.contains(&"INSERT") || source_privileges.contains(&"UPDATE") || source_privileges.contains(&"DELETE")
+        || !source_privileges.contains(&"SELECT") || !source_privileges.contains(&"FLASHBACK")
+    { return Err(ApiError::pack_refused()); }
+    let shadow_cells = shadow
+        .get("cells")
+        .and_then(Value::as_object)
+        .ok_or_else(ApiError::pack_refused)?;
+    let mut expected_keys: Vec<String> = shadow_cells.keys().cloned().collect();
+    expected_keys.sort_by_key(|key| key.parse::<u64>().unwrap_or(u64::MAX));
+    let mut gold_keys: Vec<String> = source_gold
+        .iter()
+        .map(|row| {
+            row.get("key")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .ok_or_else(ApiError::pack_refused)
+        })
+        .collect::<Result<_, _>>()?;
+    gold_keys.sort_by_key(|key| key.parse::<u64>().unwrap_or(u64::MAX));
+    let bindings = bound
+        .get("bindings")
+        .and_then(Value::as_array)
+        .ok_or_else(ApiError::pack_refused)?;
+    let mut expected_columns: Vec<String> = bindings
+        .iter()
+        .map(|binding| {
+            binding
+                .get("dictionary_column")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .ok_or_else(ApiError::pack_refused)
+        })
+        .collect::<Result<_, _>>()?;
+    expected_columns.sort();
+    let mut request_columns: Vec<String> = request
+        .get("columns")
+        .and_then(Value::as_array)
+        .ok_or_else(ApiError::pack_refused)?
+        .iter()
+        .map(|item| {
+            item.get("name")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .ok_or_else(ApiError::pack_refused)
+        })
+        .collect::<Result<_, _>>()?;
+    request_columns.sort();
+    let mut gold_columns: Vec<String> = typed
+        .get("all_approved_columns")
+        .and_then(Value::as_array)
+        .ok_or_else(ApiError::pack_refused)?
+        .iter()
+        .map(|item| {
+            item.as_str()
+                .map(str::to_owned)
+                .ok_or_else(ApiError::pack_refused)
+        })
+        .collect::<Result<_, _>>()?;
+    gold_columns.sort();
+    let catalog_text = crate::canonical::canonical_json(catalog);
+    let bound_text = crate::canonical::canonical_json(bound);
+    let derived = oo_core::source_bound::derive_source_bound(&catalog_text, &bound_text)
+        .map_err(|_| ApiError::pack_refused())?;
+    if derived.scn != position.rsplit('-').next().unwrap_or("")
+        || derived.registry_snapshot != position
+        || derived.consistency_grade.as_deref() != Some("S0")
+        || derived.delete_detection.as_deref() != Some("reconcile")
+        || derived.columns.len() != columns.len()
+        || request_columns != expected_columns
+        || gold_columns != expected_columns
+        || gold_keys != expected_keys
+        || typed.get("reader").and_then(Value::as_str) != Some("OO04_READER")
+        || typed.get("reader_exit").and_then(Value::as_u64) != Some(0)
+        || semantics
+            .pointer("/quality/key_2_absent")
+            .and_then(Value::as_bool)
+            != Some(true)
+        || shadow
+            .get("quality")
+            .and_then(Value::as_array)
+            .is_none_or(|quality| {
+                !quality
+                    .iter()
+                    .any(|item| item.as_str() == Some("DELETES_LAGGED"))
+            })
+        || shadow
+            .get("tombstones")
+            .and_then(Value::as_array)
+            .is_none_or(|tombstones| {
+                !tombstones
+                    .iter()
+                    .any(|item| item.as_str().is_some_and(|value| value.starts_with("2:")))
+            })
+    {
+        return Err(ApiError::pack_refused());
+    }
+    Ok(json!({
+        "source_bound":bound,
+        "derived_identity_sha256":derived.identity_hash,
+        "source_gold_sha256":source_hash,
+        "target_gold_sha256":target_hash,
+        "typed_gold":typed,
+        "provenance":provenance_projection
+    }))
+}
+
+fn project_oracle_c5_semantics(effective: &mut Value, catalog: &Value, bound: &Value) -> Result<(), ApiError> {
+    pg_builder::project_sealed_source_contract(effective, catalog, Some(bound))
+        .map_err(|error| { eprintln!("native-maintenance Oracle source-bound refused: {}", error.code); ApiError::pack_refused() })?;
+    let tables = catalog.get("tables").and_then(Value::as_array).filter(|tables| tables.len() == 1).ok_or_else(ApiError::pack_refused)?;
+    let dataset = format!("{}.{}", tables[0].get("logical_schema").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?, tables[0].get("logical_table").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?);
+    let bindings = bound.get("bindings").and_then(Value::as_array).ok_or_else(ApiError::pack_refused)?;
+    let dictionary = bound.pointer("/dictionary/columns").and_then(Value::as_array).ok_or_else(ApiError::pack_refused)?;
+    let date_columns: BTreeSet<String> = bindings.iter().filter_map(|binding| {
+        let dictionary_name = binding.get("dictionary_column")?.as_str()?;
+        let sealed_name = binding.get("sealed_column")?.as_str()?;
+        let is_date = dictionary.iter().filter_map(Value::as_str).any(|line| {
+            let mut parts = line.split('|');
+            parts.next() == Some(dictionary_name) && parts.next() == Some("DATE")
+        });
+        is_date.then(|| sealed_name.to_owned())
+    }).collect();
+    let datasets = effective.get_mut("datasets").and_then(Value::as_array_mut).ok_or_else(ApiError::pack_refused)?;
+    let current = datasets.iter_mut().find(|row| row.get("dataset").and_then(Value::as_str) == Some(dataset.as_str())).ok_or_else(ApiError::pack_refused)?;
+    let source = current.get_mut("source_semantics").and_then(Value::as_object_mut).ok_or_else(ApiError::pack_refused)?;
+    source.insert("capture".to_owned(), json!("c5_diff"));
+    let source_columns = source.get_mut("columns").and_then(Value::as_array_mut).ok_or_else(ApiError::pack_refused)?;
+    for name in date_columns {
+        if let Some(column) = source_columns.iter_mut().find(|column| column.get("column").and_then(Value::as_str) == Some(name.as_str())) {
+            column.as_object_mut().ok_or_else(ApiError::pack_refused)?.insert("native_note".to_owned(), json!("oracle_date_includes_time"));
+        } else {
+            source_columns.push(json!({"column":name,"native_note":"oracle_date_includes_time"}));
+        }
+    }
+    Ok(())
 }
 
 fn verify_mysql_c1_observation(root: &Path, catalog: &Value, semantics: &Value) -> Result<(), ApiError> {
@@ -1356,10 +2144,16 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs, r
     let mut effective = reviewed.get("effective_oos").cloned().ok_or_else(ApiError::pack_refused)?;
     let native_input = read(&root.join("native-model.json"))?;
     pg_builder::project_sealed_source_contract(&mut effective, &command["catalog"], native_input.get("source_contract")).map_err(|error| { eprintln!("native-maintenance source refused: {}", error.code); ApiError::pack_refused() })?;
-    if let Some(observation) = rebound.and_then(|value| value.get("current_source_semantics")) {
-        (if observation["protocol"] == "oo.source.mysql.audit/v1" {
-            pg_builder::project_mysql_c1(&mut effective, &command["catalog"], observation)
-        } else { pg_builder::project_doris_capture_methods(&mut effective, &command["catalog"], observation) }).map_err(|error| { eprintln!("native-maintenance capture method refused: {}", error.code); ApiError::pack_refused() })?;
+    if let Some(observation) = rebound.and_then(|value| value.get("current_source_semantics")).filter(|value| value.get("protocol").and_then(Value::as_str).is_some()) {
+        match observation.get("protocol").and_then(Value::as_str) {
+            Some("oo.source.mysql.audit/v1") => pg_builder::project_mysql_c1(&mut effective, &command["catalog"], observation).map_err(|error| { eprintln!("native-maintenance capture method refused: {}", error.code); ApiError::pack_refused() })?,
+            Some("oo.source.doris.audit/v1") => pg_builder::project_doris_capture_methods(&mut effective, &command["catalog"], observation).map_err(|error| { eprintln!("native-maintenance capture method refused: {}", error.code); ApiError::pack_refused() })?,
+            Some("oo.oracle.native-c5-source-semantics/v1") => {
+                let bound = rebound.and_then(|value| value.get("oracle_source_semantics")).and_then(|value| value.get("source_bound")).ok_or_else(ApiError::pack_refused)?;
+                project_oracle_c5_semantics(&mut effective, &command["catalog"], bound)?;
+            }
+            _ => return Err(ApiError::pack_refused()),
+        }
     }
     let source_fact_corrections = project_native_source_money(&mut effective, &docs.effective, &units)?;
     let source_unit_corrections: Vec<Value> = source_fact_corrections.iter().filter_map(|item| {
@@ -1370,10 +2164,10 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs, r
     let mut visibility = read(&original.join("visibility.json"))?;
     if rebound.is_some() { visibility["catalog_version"] = json!(compiled.identity_hash); }
     let pack = oo_builder::compile_role_pack(&crate::canonical::canonical_json(&effective), &crate::canonical::canonical_json(&visibility)).map_err(|error| { eprintln!("native-maintenance role refused: {}", error.code); ApiError::pack_refused() })?;
-    let source_summary = rebound.and_then(|v| v.get("current_source_semantics")).map(|semantics| json!({"actual_core_effective_sha256":canonical_sha256(&effective),"capture_methods":semantics["capture_methods"],"applied_pos":semantics["applied_pos"],"source_epoch":semantics["source_epoch"],"position_lineage":semantics["position_lineage"],"quality":semantics["quality"],"datasets":effective["datasets"].as_array().map(|rows| rows.iter().map(|row| json!({"dataset":row["dataset"],"source_semantics":row["source_semantics"]})).collect::<Vec<_>>()),"source_id":semantics["source_id"],"source_semantics_sha256":rebound.unwrap()["source_semantics_sha256"],"table_generations":semantics["table_generations"],"publication":"not_claimed","role_approval":"not_claimed"}));
+    let source_summary = rebound.and_then(|v| v.get("current_source_semantics")).map(|semantics| json!({"actual_core_effective_sha256":canonical_sha256(&effective),"capture_methods":rebound.and_then(|value| value.get("capture_methods")).cloned().unwrap_or_else(|| semantics.get("capture_method").cloned().unwrap_or(semantics["capture_methods"].clone())),"applied_pos":semantics.pointer("/source_contract/position").cloned().unwrap_or(semantics["applied_pos"].clone()),"source_epoch":semantics["source_epoch"],"position_lineage":semantics.pointer("/source_contract/position").cloned().unwrap_or(semantics["position_lineage"].clone()),"quality":semantics["quality"],"datasets":effective["datasets"].as_array().map(|rows| rows.iter().map(|row| json!({"dataset":row["dataset"],"source_semantics":row["source_semantics"]})).collect::<Vec<_>>()),"source_id":semantics["source_id"],"source_semantics_sha256":rebound.unwrap()["source_semantics_sha256"],"source_bound_identity_sha256":rebound.unwrap().pointer("/oracle_source_semantics/derived_identity_sha256"),"source_gold_sha256":rebound.unwrap().pointer("/oracle_source_semantics/source_gold_sha256"),"target_gold_sha256":rebound.unwrap().pointer("/oracle_source_semantics/target_gold_sha256"),"table_generations":semantics.get("source_generation").cloned().unwrap_or(semantics["table_generations"].clone()),"publication":"not_claimed","role_approval":"not_claimed"}));
     let source_text = source_summary.as_ref().map(crate::canonical::canonical_json);
     let source_json_sha256 = source_text.as_ref().map(|text| sha256_hex(text.as_bytes()));
-    let receipt = json!({"source_semantics_sha256":rebound.map(|v| &v["source_semantics_sha256"]),"protocol":"oo.selfbuild-control-api/native-maintenance/v1","build_id":row.build_id,"overlay_effective_sha256":docs.effective_sha,"curated_sha256":docs.curated_sha,"generated_sha256":docs.generated_sha,"reviewed_sha256":sha256_hex(reviewed_text.as_bytes()),"source_unit_corrections":source_unit_corrections,"source_fact_corrections":source_fact_corrections,"effective_sha256":canonical_sha256(&effective),"source_json_sha256":source_json_sha256,"pack_digest":pack.pack_digest,"manifest_sha256":pack.manifest_sha256,"publication":"not_published","llm_calls":0,"source_rebind":rebound.map(|v| json!({"catalog_sha256":v["catalog_sha256"],"bundle_files":v["bundle_files"],"binding_vector":if v["catalog"]["protocol"]==oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL { v["catalog"]["binding_vector"].clone() } else { Value::Null },"progress_vector":v["progress_vector"],"source_semantics_sha256":v["source_semantics_sha256"],"capture_methods":v["current_source_semantics"]["capture_methods"],"original_command_sha256":original_command_sha,"original_decisions_sha256":original_decisions_sha,"rebound_decisions_sha256":canonical_sha256(&command["decisions"])}))});
+    let receipt = json!({"source_semantics_sha256":rebound.map(|v| &v["source_semantics_sha256"]),"protocol":"oo.selfbuild-control-api/native-maintenance/v1","build_id":row.build_id,"overlay_effective_sha256":docs.effective_sha,"curated_sha256":docs.curated_sha,"generated_sha256":docs.generated_sha,"reviewed_sha256":sha256_hex(reviewed_text.as_bytes()),"source_unit_corrections":source_unit_corrections,"source_fact_corrections":source_fact_corrections,"effective_sha256":canonical_sha256(&effective),"source_json_sha256":source_json_sha256,"pack_digest":pack.pack_digest,"manifest_sha256":pack.manifest_sha256,"publication":"not_published","llm_calls":0,"source_rebind":rebound.map(|v| json!({"catalog_sha256":v["catalog_sha256"],"bundle_files":v["bundle_files"],"binding_vector":if v["catalog"]["protocol"]==oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL { v["catalog"]["binding_vector"].clone() } else { Value::Null },"progress_vector":v["progress_vector"],"source_semantics_sha256":v["source_semantics_sha256"],"capture_methods":v["capture_methods"],"original_command_sha256":original_command_sha,"original_decisions_sha256":original_decisions_sha,"rebound_decisions_sha256":canonical_sha256(&command["decisions"])}))});
     let digest = canonical_sha256(&receipt);
     let dest = root.join("native-maintenance").join(&digest);
     let mut files = BTreeMap::new();
@@ -1681,7 +2475,7 @@ mod source_money_tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    fn write_oracle_bundle(dir: &std::path::Path, catalog: &Value, roles: &[&str]) {
+    pub(super) fn write_oracle_bundle(dir: &std::path::Path, catalog: &Value, roles: &[&str]) {
         std::fs::create_dir_all(dir).unwrap();
         std::fs::write(dir.join("catalog.json"), serde_json::to_vec(catalog).unwrap()).unwrap();
         std::fs::write(dir.join("profile.json"), br#"{"protocol":"oo.source.oracle.profile/v1"}"#).unwrap();
@@ -1695,7 +2489,7 @@ mod source_money_tests {
         crate::sealed::write_manifest(dir).unwrap();
     }
 
-    fn write_oracle_build(work: &std::path::Path, catalog: &Value, rules_sha: &str, semantics: &[u8], model: &[u8]) {
+    pub(super) fn write_oracle_build(work: &std::path::Path, catalog: &Value, rules_sha: &str, semantics: &[u8], model: &[u8]) {
         let root = work.join("builds").join("b_739b3a14d1167f50b5f48ae22a8317e2");
         std::fs::create_dir_all(root.join("native-model-output")).unwrap();
         std::fs::write(root.join("native-model-output").join("command.json"), serde_json::to_vec(&json!({"catalog": catalog, "decisions": [], "settings": {"catalog_version": "pending"}})).unwrap()).unwrap();
@@ -1705,7 +2499,7 @@ mod source_money_tests {
         std::fs::write(root.join("S0.response.json"), serde_json::to_vec(&json!({"source_adapt": {"source_semantics": semantics}})).unwrap()).unwrap();
     }
 
-    fn oracle_row() -> crate::store::BuildRow {
+    pub(super) fn oracle_row() -> crate::store::BuildRow {
         crate::store::BuildRow {
             build_id: "b_739b3a14d1167f50b5f48ae22a8317e2".into(), project_id: "oracle".into(), status: "open".into(), stage: "S10".into(),
             identity_revision: 1, input_sha256: "a".repeat(64), failure_code: None, body_sha256: "b".repeat(64), config_commit: "c".into(),
@@ -1713,7 +2507,7 @@ mod source_money_tests {
         }
     }
 
-    fn oracle_config(work: &std::path::Path, bundle: &std::path::Path) -> crate::config::AppConfig {
+    pub(super) fn oracle_config(work: &std::path::Path, bundle: &std::path::Path) -> crate::config::AppConfig {
         let endpoint = crate::config::Endpoint { host: "127.0.0.1".into(), port: 1, database: "d".into(), user: "u".into(), password_file: "pw".into(), ca_file: "ca".into(), server_name: "db".into() };
         crate::config::AppConfig {
             deployment_origins: vec![],
@@ -1733,7 +2527,7 @@ mod source_money_tests {
         }
     }
 
-    fn oracle_bytes(name: &str) -> &'static [u8] {
+    pub(super) fn oracle_bytes(name: &str) -> &'static [u8] {
         match name {
             "g3" => include_bytes!("../tests/oracle-g3-g5/catalog-g3.json"),
             "g5" => include_bytes!("../tests/oracle-g3-g5/catalog-g5.json"),
@@ -1744,7 +2538,7 @@ mod source_money_tests {
         }
     }
 
-    fn oracle_value(name: &str) -> Value {
+    pub(super) fn oracle_value(name: &str) -> Value {
         serde_json::from_slice(oracle_bytes(name)).unwrap()
     }
 
@@ -1901,5 +2695,444 @@ mod mysql_c1_observation_tests {
         let mut wrong=observation.clone();wrong["c1_evidence"]["ack"]["sha256"]=json!("0".repeat(64));
         assert!(verify_mysql_c1_observation(root,&catalog,&wrong).is_err());
         println!("OWNED_MYSQL_C1_OBSERVATION positive and source/position/epoch/generation/delete/run/ACK-hash refusal passed");
+    }
+}
+
+#[cfg(test)]
+mod oracle_c5_observation_tests {
+    use super::{compile_native_maintenance, decode_oracle_name, empty_model, native_source_rebind, oracle_c5_capture_methods, project_oracle_c5_semantics, semantic_basis, verify_oracle_c5_observation, verify_oracle_c5_provenance, Docs};
+    use super::source_money_tests::{oracle_bytes, oracle_config, oracle_row, oracle_value, write_oracle_build, write_oracle_bundle};
+    use serde_json::{json, Value};
+    use std::collections::BTreeMap;
+    use std::os::unix::fs::MetadataExt;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn pretty(value: &Value) -> Vec<u8> {
+        let mut bytes = serde_json::to_vec_pretty(value).unwrap();
+        bytes.push(b'\n');
+        bytes
+    }
+
+    fn source_provenance_fixture(request: &mut Value, catalog: &Value, load: &Value) -> Value {
+        let source_schema = "a".repeat(64);
+        let binding = "e7325034-f8f4-4b72-91bd-4f3f9a48128a";
+        let task = "cb491c0f-5290-4fbf-bde7-e685ac8997db";
+        let pin = 24_u64;
+        let source_generation = catalog["source_generation"].as_i64().unwrap();
+        let source_run_id = "oracle-source-run-10";
+        let source_root = format!("/private/tmp/oo-test/{binding}/{pin}");
+        let registry_path = format!("{source_root}/sealed/registry.json");
+        let admission_path = format!("{source_root}/sealed/admission-receipt.json");
+        let source_catalog_path = format!("{source_root}/sealed/catalog.json");
+        let source_request_path = format!("{source_root}/request.json");
+        let capture_path = format!("{source_root}/capture/witness/oracle_oneclick_orders/tick.json");
+        request["schema_digest"] = json!(source_schema);
+        request["registry_path"] = json!(registry_path);
+        request["admission_path"] = json!(admission_path);
+
+        let capture = json!({
+            "protocol":"oo.oracle.capture-tick/v1", "source_id":catalog["source_id"],
+            "source_generation":source_generation, "snapshot":request["snapshot"],
+            "label":request.pointer("/snapshot/value").unwrap(), "database":request["logical_schema"],
+            "product_reader_write_attempts":0, "cross_table_consistency":"B", "snapshot_token":false, "tables":[{
+                "name":request["logical_table"], "arrow":"onboard_orders-gen-10.arrow", "route":"C5",
+                "consistency":"S0", "cursor_safety":"no_cursor", "delete_mode":"reconcile",
+                "quality":"DELETES_LAGGED", "rows":[
+                    "KEY_ID=1\u{001f}AMOUNT=1.00\u{001f}OCCURRED=2026-10-14T08:00:00\u{001f}LABEL=a\u{001f}PAYLOAD=00FF",
+                    "KEY_ID=3\u{001f}AMOUNT=3.00\u{001f}OCCURRED=2026-10-14T10:00:00\u{001f}LABEL=c\u{001f}PAYLOAD=AABB",
+                    "KEY_ID=4\u{001f}AMOUNT=4.00\u{001f}OCCURRED=2026-10-16T04:05:06\u{001f}LABEL=d\u{001f}PAYLOAD=ABCD"
+                ], "tombstones":["2:3"]
+            }]
+        });
+        let capture_raw = pretty(&capture);
+        let capture_sha = crate::canonical::sha256_hex(&capture_raw);
+        request["audit_digest"] = json!(capture_sha);
+
+        let source_fields: Vec<Value> = request["columns"].as_array().unwrap().iter().map(|column| {
+            let mut field = column.clone();
+            field.as_object_mut().unwrap().remove("logical_name");
+            field
+        }).collect();
+        let source_catalog = json!({
+            "protocol":"oo.pipeline.sealed-import-catalog/v1", "engine":"oracle",
+            "source_id":catalog["source_id"], "source_generation":source_generation,
+            "schema_digest":source_schema, "type_digest":catalog["type_digest"],
+            "config_digest":catalog["config_digest"], "input_digest":catalog["input_digest"]
+        });
+        let source_catalog_raw = pretty(&source_catalog);
+        let source_catalog_sha = crate::canonical::sha256_hex(&source_catalog_raw);
+        let config_path = format!("{source_root}/capture/witness/oracle_oneclick_orders/config.json");
+        let report_path = format!("{source_root}/capture/witness/oracle_oneclick_orders/report.json");
+        let driver_path = "/opt/oracle-driver-probe";
+        let driver_sha = "b".repeat(64);
+        let mut registry = json!({
+            "protocol":"oo.source-admission.binding-registry/v1",
+            "bindings":[{
+                "protocol":"oo.source-admission.capture-binding/v1",
+                "source_engine":"oracle", "source_id":catalog["source_id"], "source_generation":source_generation,
+                "schema_digest":source_schema, "type_digest":catalog["type_digest"],
+                "config_digest":catalog["config_digest"], "input_digest":catalog["input_digest"],
+                "snapshot":request["snapshot"], "run_id":source_run_id,
+                "admission_receipt_sha256":"0".repeat(64), "admission_receipt_path":admission_path,
+                "capture_receipt_sha256":capture_sha, "capture_receipt_path":capture_path,
+                "catalog_sha256":source_catalog_sha, "catalog_path":source_catalog_path,
+                "arrow_schema_sha256":"e".repeat(64), "config_path":config_path,
+                "config_sha256":catalog["config_digest"], "decision_sha256":"c".repeat(64),
+                "driver_digest":driver_sha, "driver_kind":"command-line", "driver_name":"oracle-driver-probe",
+                "driver_path":driver_path, "driver_sha256":driver_sha, "driver_version":"oracledb-26.0.0-beta.4",
+                "report_path":report_path, "report_sha256":"d".repeat(64),
+                "fields":source_fields, "objects":[{
+                    "logical_schema":request["logical_schema"], "logical_table":request["logical_table"],
+                    "arrow_sha256":request["input_digest"], "row_count":load["row_count"]
+                }]
+            }]
+        });
+        let registry_preimage = pretty(&registry);
+        let registry_preimage_sha = crate::canonical::sha256_hex(&registry_preimage);
+        let admission = json!({
+            "schema":"oo.source-admission.capture-receipt/v1", "registry_sha256":registry_preimage_sha,
+            "source_engine":"oracle",
+            "source_id":catalog["source_id"], "source_generation":source_generation, "run_id":source_run_id,
+            "schema_digest":source_schema, "type_digest":catalog["type_digest"],
+            "config_digest":catalog["config_digest"], "input_digest":catalog["input_digest"],
+            "catalog_sha256":source_catalog_sha, "arrow_schema_sha256":"e".repeat(64),
+            "arrow_sha256":[catalog["input_digest"]], "logical_schema":request["logical_schema"],
+            "logical_table":request["logical_table"], "row_count":load["row_count"],
+            "snapshot":request["snapshot"], "snapshot_token":false, "source_bound":true,
+            "capture_method":"C5", "delete_detection":"reconcile", "delete_observation":"observed",
+            "consistency":"S0", "cross_table_consistency":"B", "quality":"DELETES_LAGGED",
+            "driver_digest":driver_sha, "write_class":"R0", "write_attempts":0
+        });
+        let admission_raw = pretty(&admission);
+        let admission_sha = crate::canonical::sha256_hex(&admission_raw);
+        registry["bindings"][0]["admission_receipt_sha256"] = json!(admission_sha);
+        let registry_raw = pretty(&registry);
+        request["admission_expect"] = json!({
+            "declared_receipt_sha256":admission_sha, "source_engine":"oracle",
+            "source_generation":source_generation, "source_id":catalog["source_id"]
+        });
+        let mut acknowledged_request = request.clone();
+        acknowledged_request.as_object_mut().unwrap().remove("run_id");
+        acknowledged_request.as_object_mut().unwrap().remove("target_generation");
+        acknowledged_request["source_engine"] = json!("oracle");
+        acknowledged_request["mirror"] = json!(false);
+        acknowledged_request["row_identity"] = json!("none");
+        acknowledged_request["batch_id"] = json!("oracle_oneclick_orders-g10");
+        acknowledged_request["arrow_path"] = json!(format!("{source_root}/capture/run/arrow/onboard_orders-gen-10.arrow"));
+        acknowledged_request["target"] = json!({
+            "host":"oracle-target", "port":5432, "owner":"00000000-0000-4000-8000-000000000001",
+            "shard":"oracle_oneclick_orders", "ca_file":"/run/secrets/ca.crt", "database":"previewdb",
+            "password_file":"/run/secrets/runtime-password", "runtime_principal":"oracle_runtime"
+        });
+        acknowledged_request["admission_expect"] = json!({
+            "declared_receipt_sha256":admission_sha, "source_engine":"oracle",
+            "source_generation":source_generation, "source_id":catalog["source_id"]
+        });
+        let request_raw = pretty(&acknowledged_request);
+
+        let manifest = json!({
+            "protocol":"oo.jobs.native-schedule/v1", "binding":binding,
+            "source_id":catalog["source_id"], "method":"C5", "cycle":"pull",
+            "registration":{
+                "registry_path":registry_path,
+                "admission_binary":"/opt/admission", "admission_sha256":"c".repeat(64)
+            },
+            "producer":{"path":driver_path, "sha256":driver_sha},
+            "loader":{"path":"/opt/loader", "sha256":"d".repeat(64)}
+        });
+        let table = &catalog["tables"][0];
+        let types = ["numeric(4,0)", "numeric(12,2)", "timestamp without time zone", "character varying", "bytea"];
+        let nullables = [false, true, true, true, true];
+        let mut target_columns = vec![json!({
+            "name":"_oo_pos", "oid":1700, "typmod":2490372, "nullable":false,
+            "type":"numeric(38,0)", "ordinal":1
+        })];
+        for (index, column) in table["columns"].as_array().unwrap().iter().enumerate() {
+            target_columns.push(json!({
+                "name":column["stored_physical"], "oid":column["oid"], "typmod":column["typmod"],
+                "nullable":nullables[index], "type":types[index], "ordinal":index + 2
+            }));
+        }
+        let mut oracle_columns = Vec::new();
+        for (name, data_type, precision, scale, char_length, nullable) in [
+            ("KEY_ID", "NUMBER", Some(4), Some(0), None, false),
+            ("AMOUNT", "NUMBER", Some(12), Some(2), None, true),
+            ("OCCURRED", "DATE", None, None, None, true),
+            ("LABEL", "VARCHAR2", None, None, Some(40), true),
+            ("PAYLOAD", "RAW", None, None, None, true),
+        ] {
+            oracle_columns.push(json!({"name":name,"data_type":data_type,"precision":precision,"scale":scale,"char_length":char_length,"nullable":nullable}));
+        }
+        json!({
+            "protocol":"oo.oracle.native-c5-provenance/v1",
+            "source_registry_raw_json":String::from_utf8(registry_raw.clone()).unwrap(),
+            "source_registry_sha256":crate::canonical::sha256_hex(&registry_raw),
+            "source_registry_preimage_sha256":registry_preimage_sha,
+            "source_registry_path":registry_path, "source_request_path":source_request_path,
+            "source_admission_raw_json":String::from_utf8(admission_raw.clone()).unwrap(),
+            "source_admission_sha256":admission_sha, "source_admission_path":admission_path,
+            "source_catalog_raw_json":String::from_utf8(source_catalog_raw.clone()).unwrap(),
+            "source_catalog_sha256":source_catalog_sha, "source_catalog_path":source_catalog_path,
+            "source_request_raw_json":String::from_utf8(request_raw.clone()).unwrap(),
+            "source_request_sha256":crate::canonical::sha256_hex(&request_raw),
+            "capture_receipt_raw_json":String::from_utf8(capture_raw.clone()).unwrap(),
+            "capture_receipt_sha256":capture_sha, "capture_receipt_path":capture_path,
+            "source_schema_digest":source_schema, "target_schema_digest":catalog["schema_digest"],
+            "acknowledged_request":acknowledged_request,
+            "acknowledged_request_sha256":crate::canonical::canonical_sha256(&acknowledged_request),
+            "scheduler_manifest":manifest,
+            "scheduler_manifest_sha256":crate::canonical::canonical_sha256(&manifest),
+            "binding":binding, "pin":pin, "task":task, "task_state":"succeeded", "lease_generation":1,
+            "source_generation":source_generation, "target_columns":target_columns,
+            "oracle_columns":oracle_columns
+        })
+    }
+
+    fn fixture(root: &std::path::Path) -> (Value, Value, Value) {
+        let catalog: Value = serde_json::from_slice(include_bytes!("../tests/oracle-g3-g5/catalog-g5.json")).unwrap();
+        let table = &catalog["tables"][0];
+        let schema = decode_oracle_name(&table["logical_schema"]).unwrap();
+        let name = decode_oracle_name(&table["logical_table"]).unwrap();
+        let dictionary = vec![
+            "KEY_ID|NUMBER|4|0|0", "AMOUNT|NUMBER|12|2|0", "OCCURRED|DATE|-|-|0",
+            "LABEL|VARCHAR2|-|-|40", "PAYLOAD|RAW|-|-|0",
+        ];
+        let bound = json!({
+            "protocol":"oo.source-semantics.source-bound/v1", "engine":"oracle", "source_id":catalog["source_id"],
+            "source_generation":catalog["source_generation"], "target_generation":catalog["target_generation"], "run_id":catalog["run_id"],
+            "schema_digest":catalog["schema_digest"], "type_digest":catalog["type_digest"], "config_digest":catalog["config_digest"],
+            "input_digest":catalog["input_digest"], "banner":"Oracle AI Database 26ai Free Release 23.26.3.0.0",
+            "scn":"8992557", "registry_snapshot":"configured-oracle-scn-8992557", "published_scn":"8992557",
+            "consistency_grade":"S0", "delete_detection":"reconcile",
+            "dictionary":{"protocol":"oo.source-semantics.type-dictionary/v1","columns":dictionary},
+            "bindings":[
+                {"sealed_column":table["columns"][0]["logical_name"],"dictionary_column":"KEY_ID"},
+                {"sealed_column":table["columns"][1]["logical_name"],"dictionary_column":"AMOUNT"},
+                {"sealed_column":table["columns"][2]["logical_name"],"dictionary_column":"OCCURRED"},
+                {"sealed_column":table["columns"][3]["logical_name"],"dictionary_column":"LABEL"},
+                {"sealed_column":table["columns"][4]["logical_name"],"dictionary_column":"PAYLOAD"}
+            ]
+        });
+        let source_gold = json!([
+            {"key":"1","amount":"1.00","occurred":"2026-10-14T08:00:00","label":"a","payload":"00ff"},
+            {"key":"3","amount":"3.00","occurred":"2026-10-14T10:00:00","label":"c","payload":"aabb"},
+            {"key":"4","amount":"4.00","occurred":"2026-10-16T04:05:06","label":"d","payload":"abcd"}
+        ]);
+        let target_gold = source_gold.clone();
+        let source_bytes = pretty(&source_gold);
+        let target_bytes = pretty(&target_gold);
+        let source_sha = crate::canonical::sha256_hex(&source_bytes);
+        let target_sha = crate::canonical::sha256_hex(&target_bytes);
+        let mut request = json!({
+            "protocol":"oo.pipeline.native-update/v1","source_engine":"oracle","source_id":catalog["source_id"],
+            "source_generation":catalog["source_generation"],"target_generation":catalog["target_generation"],"run_id":catalog["run_id"],
+            "config_digest":catalog["config_digest"],"schema_digest":catalog["schema_digest"],"type_digest":catalog["type_digest"],"input_digest":catalog["input_digest"],
+            "capture_method":"c5_diff","delete_detection":"reconcile","consistency_grade":"S0","cross_table_consistent":false,"full_snapshot":true,
+            "parent_source_generation":catalog["source_generation"].as_i64().unwrap()-1,
+            "position_codec":"snapshot-zero/v1","position_lineage":"configured.oracle","applied_pos":"0",
+            "snapshot":{"kind":"scn","value":"configured-oracle-scn-8992557"},"logical_schema":schema,"logical_table":name,
+            "tombstones":[],"columns":[
+                {"name":"KEY_ID","logical_name":"KEY_ID","arrow_type":"decimal128","nullable":false,"precision":4,"scale":0},
+                {"name":"AMOUNT","logical_name":"AMOUNT","arrow_type":"decimal128","nullable":true,"precision":12,"scale":2},
+                {"name":"OCCURRED","logical_name":"OCCURRED","arrow_type":"timestamp_micros","nullable":true},
+                {"name":"LABEL","logical_name":"LABEL","arrow_type":"utf8","nullable":true},
+                {"name":"PAYLOAD","logical_name":"PAYLOAD","arrow_type":"binary","nullable":true}
+            ]
+        });
+        let load = json!({
+            "protocol":"oo.pipeline.native-update-result/v1","source_id":catalog["source_id"],"source_generation":catalog["source_generation"],
+            "target_generation":catalog["target_generation"],"run_id":catalog["run_id"],"logical_schema":table["logical_schema"],"logical_table":table["logical_table"],
+            "physical_name":table["stored_physical"],"row_count":3,"loader_invoked":true,"source_bound":true,"mirror_committed":true,"load_state":"awaiting_publish"
+        });
+        let shadow = json!({
+            "generation":catalog["source_generation"],"position":"configured-oracle-scn-8992557","method":"C5","consistency_grade":"S0","delete_detection":"reconcile",
+            "cells":{"1":{},"3":{},"4":{}},"quality":["DELETES_LAGGED"],"tombstones":["2:5"]
+        });
+        let db_contract = json!({"protocol":"oo.oracle.database-contract-observation/v1","user":"SYSTEM","log_mode":"NOARCHIVELOG","supplemental_log":"NO"});
+        let mut reader = json!({"protocol":"oo.oracle.reader-observation/v1","user":"OO04_READER","container":"FREEPDB1","banner":bound["banner"],
+            "dictionary_columns":dictionary,"session_privileges":["CREATE SESSION"],"object_privileges":[
+                {"object":"OO04_FIX.ONBOARD_ORDERS","privilege":"SELECT"},{"object":"OO04_FIX.ONBOARD_ORDERS","privilege":"FLASHBACK"}
+            ]
+        });
+        let provenance = source_provenance_fixture(&mut request, &catalog, &load);
+        reader["oracle_columns"] = provenance["oracle_columns"].clone();
+        let mut typed = json!({"source_id":catalog["source_id"],"source_generation":catalog["source_generation"],"rows":3,"cells":15,"differences":0,
+            "keys":["1","3","4"],"all_approved_columns":["AMOUNT","KEY_ID","LABEL","OCCURRED","PAYLOAD"],"reader":"OO04_READER","reader_exit":0,
+            "source_gold_sha256":source_sha,"target_gold_sha256":target_sha});
+        let records = BTreeMap::from([
+            ("capture-request", request), ("db-contract", db_contract), ("load-result", load), ("reader-observation", reader),
+            ("source-provenance", provenance), ("shadow", shadow), ("source-bound", bound.clone()),
+            ("source-gold", source_gold), ("target-gold", target_gold), ("typed-gold", typed.clone()),
+        ]);
+        let mut hashes = BTreeMap::new();
+        for (name, value) in &records { hashes.insert((*name).to_owned(), crate::canonical::sha256_hex(&pretty(value))); }
+        let id = crate::canonical::canonical_sha256(&json!(hashes));
+        let evidence_dir = root.join("source-evidence").join(&id);
+        std::fs::create_dir_all(&evidence_dir).unwrap();
+        std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::set_permissions(root.join("source-evidence"), std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::set_permissions(&evidence_dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let uid = std::fs::metadata(root).unwrap().uid();
+        let mut evidence = serde_json::Map::new();
+        for (name, value) in &records {
+            let bytes = pretty(value);
+            std::fs::write(evidence_dir.join(format!("{name}.json")), &bytes).unwrap();
+            std::fs::set_permissions(evidence_dir.join(format!("{name}.json")), std::fs::Permissions::from_mode(0o600)).unwrap();
+            let metadata = std::fs::metadata(evidence_dir.join(format!("{name}.json"))).unwrap();
+            evidence.insert((*name).to_owned(), json!({"path":format!("source-evidence/{id}/{name}.json"),"sha256":hashes[*name],"size":metadata.len(),"uid":uid,"mode":0o600}));
+        }
+        let semantics = json!({
+            "protocol":"oo.oracle.native-c5-source-semantics/v1","source_id":catalog["source_id"],"executed":true,
+            "source_generation":catalog["source_generation"],"target_generation":catalog["target_generation"],"product":"Oracle","capture_method":"C5","c1":"off",
+            "consistency_grade":"S0","delete_detection":"reconcile","source_contract":{"reader":"OO04_READER","write_attempts":0,"log_mode":"NOARCHIVELOG","supplemental_log":"NO","empty_string":"null","position":"configured-oracle-scn-8992557"},
+            "quality":{"tables":1,"rows":3,"columns":5,"typed_cells":15,"typed_cell_differences":0,"delete_quality":"DELETES_LAGGED","key_2_absent":true},
+            "evidence_set_id":id,"evidence":Value::Object(evidence)
+        });
+        let _ = &mut typed;
+        (catalog, bound, semantics)
+    }
+
+    #[test]
+    fn oracle_current_c5_observation_is_verified_and_semantics_project_to_pack() {
+        let base = std::env::temp_dir().join(format!("oo-oracle-c5-observation-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let work = base.join("work");
+        let row = oracle_row();
+        let root = work.join("builds").join(&row.build_id);
+        std::fs::create_dir_all(&root).unwrap();
+        let (catalog, bound, semantics) = fixture(&root);
+        let verified = verify_oracle_c5_observation(&root, &catalog, &semantics).expect("verified C5 evidence");
+        assert_eq!(verified["source_bound"], bound);
+        let evidence_dir = root.join("source-evidence").join(semantics["evidence_set_id"].as_str().unwrap());
+        let read = |name: &str| -> Value { serde_json::from_slice(&std::fs::read(evidence_dir.join(format!("{name}.json"))).unwrap()).unwrap() };
+        let provenance = read("source-provenance");
+        let request = read("capture-request");
+        let reader = read("reader-observation");
+        let load = read("load-result");
+        let projection = verify_oracle_c5_provenance(&provenance, &request, &bound, &reader, &load, &catalog, &catalog["tables"][0]).unwrap();
+        let admission: Value = serde_json::from_str(provenance["source_admission_raw_json"].as_str().unwrap()).unwrap();
+        assert!(admission.get("audit_digest").is_none(), "g10 admission receipt binds registry preimage, not capture audit digest");
+        assert_ne!(projection["source_schema_digest"], projection["target_schema_digest"]);
+        assert_eq!(projection["capture_method"], "c5_diff");
+        assert_eq!(projection["consistency_grade"], "S0");
+        assert_eq!(projection["delete_detection"], "reconcile");
+        assert_eq!(projection["column_mapping"].as_array().unwrap().len(), 5);
+        let capture_methods = oracle_c5_capture_methods(&catalog, &semantics, &verified).expect("verified capture projection");
+        let dataset = format!("{}.{}", catalog["tables"][0]["logical_schema"].as_str().unwrap(), catalog["tables"][0]["logical_table"].as_str().unwrap());
+        assert_eq!(capture_methods[&dataset]["logical_table"], dataset);
+        assert_eq!(capture_methods[&dataset]["capture_method"], "c5_diff");
+        assert_eq!(capture_methods[&dataset]["consistency"], "S0");
+        assert_eq!(capture_methods[&dataset]["delete_detection"], "reconcile");
+        assert!(!capture_methods[&dataset]["capture_method"].is_null());
+        assert!(!capture_methods[&dataset]["consistency"].is_null());
+        assert!(!capture_methods[&dataset]["delete_detection"].is_null());
+        for (field, wrong) in [("capture_method", "c1_cdc"), ("consistency_grade", "B"), ("delete_detection", "none")] {
+            let mut bad_observation = verified.clone();
+            bad_observation["provenance"][field] = json!(wrong);
+            assert!(oracle_c5_capture_methods(&catalog, &semantics, &bad_observation).is_err());
+        }
+
+        let bundle = base.join("bundle");
+        let columns = catalog["tables"][0]["columns"].as_array().unwrap();
+        let column_names: Vec<String> = columns.iter().map(|column| column["logical_name"].as_str().unwrap().to_owned()).collect();
+        let role_columns: Vec<String> = column_names.iter().map(|column| format!("{dataset}.{column}")).collect();
+        let role_column_refs: Vec<&str> = role_columns.iter().map(String::as_str).collect();
+        write_oracle_bundle(&bundle, &catalog, &role_column_refs);
+        std::fs::write(bundle.join("source_semantics.json"), serde_json::to_vec(&semantics).unwrap()).unwrap();
+        std::fs::write(bundle.join("roles.json"), oracle_bytes("roles")).unwrap();
+        let mut model: Value = serde_json::from_slice(&std::fs::read(bundle.join("native-model.json")).unwrap()).unwrap();
+        model["visibility"]["role"] = json!("oo_r_oracle_orders");
+        model["visibility"]["datasets"] = json!([{"columns":column_names,"dataset":dataset}]);
+        let model_bytes = serde_json::to_vec(&model).unwrap();
+        std::fs::write(bundle.join("native-model.json"), &model_bytes).unwrap();
+        crate::sealed::write_manifest(&bundle).unwrap();
+        let rules = std::fs::read(bundle.join("rules.json")).unwrap();
+        let semantics_bytes = serde_json::to_vec(&semantics).unwrap();
+        write_oracle_build(&work, &oracle_value("g3"), &crate::canonical::sha256_hex(&rules), &semantics_bytes, &model_bytes);
+        std::fs::write(root.join("native-model-output/command.json"), oracle_bytes("command")).unwrap();
+        std::fs::write(root.join("native-model-output/visibility.json"), oracle_bytes("visibility")).unwrap();
+        let semantics_dir = root.join("source-semantics");
+        std::fs::create_dir_all(&semantics_dir).unwrap();
+        std::fs::set_permissions(&semantics_dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let semantics_sha = crate::canonical::sha256_hex(&semantics_bytes);
+        let semantics_path = semantics_dir.join(format!("{semantics_sha}.json"));
+        std::fs::write(&semantics_path, &semantics_bytes).unwrap();
+        std::fs::set_permissions(&semantics_path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let mut config = oracle_config(&work, &bundle);
+        config.projects[0].source_protocol.as_mut().unwrap().semantics = "oo.oracle.native-c5-source-semantics/v1".to_owned();
+        let catalog_sha = crate::canonical::sha256_hex(&std::fs::read(bundle.join("catalog.json")).unwrap());
+        let rebound = native_source_rebind(&config, &row, &catalog_sha, Some(&semantics_sha)).expect("current C5 source rebind");
+        assert_eq!(rebound["capture_methods"], capture_methods);
+        let docs = Docs {
+            generated_sha: "11".repeat(32), generated: empty_model(), curated_sha: String::new(), reviews: Vec::new(),
+            effective: empty_model(), effective_yaml: String::new(), effective_sha: "22".repeat(32), feedback: Vec::new(),
+            curated_revisions: 0, generated_revisions: 0,
+        };
+        let maintained = compile_native_maintenance(&config, &row, &docs, Some(&rebound)).expect("compiled current Oracle Pack");
+        assert_eq!(maintained["llm_calls"], 0);
+        assert_eq!(maintained["source_rebind"]["capture_methods"], capture_methods);
+        let artifact = std::path::PathBuf::from(maintained["artifact_directory"].as_str().unwrap());
+        let receipt: Value = serde_json::from_slice(&std::fs::read(artifact.join("receipt.json")).unwrap()).unwrap();
+        assert_eq!(receipt["source_rebind"]["capture_methods"], capture_methods);
+        let effective: Value = serde_json::from_slice(&std::fs::read(artifact.join("effective.json")).unwrap()).unwrap();
+        let oos_source = effective["datasets"].as_array().unwrap().iter().find(|item| item["dataset"] == dataset).unwrap().get("source_semantics").unwrap();
+        assert_eq!(oos_source["capture"], "c5_diff");
+        assert_eq!(oos_source["grade"], "S0");
+        assert_eq!(oos_source["delete_detection"], "reconcile");
+        let explanation: Value = serde_json::from_slice(&std::fs::read(artifact.join("source.json")).unwrap()).unwrap();
+        assert_eq!(explanation["capture_methods"], capture_methods);
+        let explained_dataset = explanation["datasets"].as_array().unwrap().iter().find(|item| item["dataset"] == dataset).unwrap();
+        assert_eq!(explained_dataset["source_semantics"]["capture"], "c5_diff");
+        assert_eq!(explained_dataset["source_semantics"]["grade"], "S0");
+        assert_eq!(explained_dataset["source_semantics"]["delete_detection"], "reconcile");
+        assert_eq!(explanation["actual_core_effective_sha256"], crate::canonical::canonical_sha256(&effective));
+        assert_eq!(maintained["source_json_sha256"], crate::canonical::sha256_hex(&std::fs::read(artifact.join("source.json")).unwrap()));
+        let pack: Value = serde_json::from_slice(&std::fs::read(artifact.join("role-pack.json")).unwrap()).unwrap();
+        assert_eq!(pack["pack_digest"], maintained["pack_digest"]);
+        assert_eq!(receipt["pack_digest"], pack["pack_digest"]);
+
+        let mut wrong_source_audit = provenance.clone();
+        let mut source_request: Value = serde_json::from_str(wrong_source_audit["source_request_raw_json"].as_str().unwrap()).unwrap();
+        source_request["audit_digest"] = json!("f".repeat(64));
+        let source_request_raw = pretty(&source_request);
+        wrong_source_audit["source_request_sha256"] = json!(crate::canonical::sha256_hex(&source_request_raw));
+        wrong_source_audit["source_request_raw_json"] = json!(String::from_utf8(source_request_raw).unwrap());
+        wrong_source_audit["acknowledged_request"] = source_request.clone();
+        wrong_source_audit["acknowledged_request_sha256"] = json!(crate::canonical::canonical_sha256(&source_request));
+        assert!(verify_oracle_c5_provenance(&wrong_source_audit, &request, &bound, &reader, &load, &catalog, &catalog["tables"][0]).is_err());
+        let mut wrong = provenance.clone();
+        wrong["source_schema_digest"] = catalog["schema_digest"].clone();
+        assert!(verify_oracle_c5_provenance(&wrong, &request, &bound, &reader, &load, &catalog, &catalog["tables"][0]).is_err());
+        let mut wrong_reader = reader.clone();
+        wrong_reader["oracle_columns"][0]["nullable"] = json!(true);
+        assert!(verify_oracle_c5_provenance(&provenance, &request, &bound, &wrong_reader, &load, &catalog, &catalog["tables"][0]).is_err());
+        let mut wrong_target = provenance.clone();
+        wrong_target["target_columns"][1]["nullable"] = json!(true);
+        assert!(verify_oracle_c5_provenance(&wrong_target, &request, &bound, &reader, &load, &catalog, &catalog["tables"][0]).is_err());
+        let mut wrong_preimage = provenance.clone();
+        wrong_preimage["source_registry_preimage_sha256"] = json!("f".repeat(64));
+        assert!(verify_oracle_c5_provenance(&wrong_preimage, &request, &bound, &reader, &load, &catalog, &catalog["tables"][0]).is_err());
+        let mut effective = json!({"datasets":[{"dataset":"q_4f4f30345f464958.q_4f4e424f4152445f4f5244455253"}]});
+        project_oracle_c5_semantics(&mut effective, &catalog, &bound).expect("derived Oracle pack semantics");
+        let source = &effective["datasets"][0]["source_semantics"];
+        assert_eq!(source["capture"], "c5_diff");
+        assert_eq!(source["grade"], "S0");
+        assert_eq!(source["delete_detection"], "reconcile");
+        assert_eq!(source["columns"].as_array().unwrap().iter().find(|item| item["column"] == "q_4f43435552524544").unwrap()["native_note"], "oracle_date_includes_time");
+        assert_eq!(decode_oracle_name(&catalog["tables"][0]["logical_schema"]).unwrap(), "OO04_FIX");
+        let mut wrong = semantics.clone();
+        wrong["consistency_grade"] = json!("B");
+        assert_ne!(semantic_basis(semantics.clone()), semantic_basis(wrong.clone()));
+        assert!(verify_oracle_c5_observation(&root, &catalog, &wrong).is_err());
+        let mut runtime = semantics.clone();
+        runtime["source_generation"] = json!(6);
+        runtime["target_generation"] = json!(6);
+        runtime["source_contract"]["position"] = json!("configured-oracle-scn-8992558");
+        runtime["quality"]["rows"] = json!(4);
+        runtime["quality"]["typed_cells"] = json!(20);
+        runtime["quality"]["typed_cell_differences"] = json!(0);
+        runtime["evidence_set_id"] = json!("f".repeat(64));
+        assert_eq!(semantic_basis(semantics), semantic_basis(runtime));
+        let _ = std::fs::remove_dir_all(base);
     }
 }

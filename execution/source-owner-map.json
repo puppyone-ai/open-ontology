@@ -142,7 +142,6 @@
       "write_paths": [
         "tools/oracle-preview",
         "testing/dl01-driver-preflight/oracle/probe",
-        "tools/selfbuild-control-api/src/overlay.rs",
         "tools/release-coordinator/src/cli.rs (native maintain dispatch only)",
         "tools/release-coordinator/src/store.rs (gate replay admissibility fields only)"
       ],
@@ -214,7 +213,8 @@
         "testing/dl01-driver-preflight/doris",
         "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-driver-preflight",
         "tools/doris-preview",
-        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product"
+        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product",
+        "tools/selfbuild-control-api/src/overlay.rs (Doris partition verification only)"
       ],
       "mandatory_blocker": null,
       "status": "spawned_and_accepted",
@@ -346,5 +346,16 @@
   "no_duplicate_native_driver_consumer_owners": true,
   "original_exit_unchanged": true,
   "observed_at": "2026-10-15T20:39:43.167196+00:00",
-  "current_authority": "fixed MySQL family reference passed; independent Doris and Oracle sole Luna max owners with disjoint shared scopes; historical assignment handles are archived"
+  "current_authority": "fixed MySQL family reference passed; independent Doris and Oracle sole Luna max owners with disjoint shared scopes; historical assignment handles are archived",
+  "latest_overlay_transfer": {
+    "as_of": "2026-10-15T23:52:47.690200+00:00",
+    "path": "tools/selfbuild-control-api/src/overlay.rs",
+    "from": "/root/oracle_complete_luna_max",
+    "to": "/root/doris_complete_luna_max",
+    "fixed_source": "0722c7b4f305e50a73bcca5c3ee240fe46015f0a",
+    "sha256": "50149bf5354986407b3074e05e9d0cf63e33bfde99745e865984b7d3a2e5644b",
+    "root_verified": "git blob equals current bytes, clean path, prior writer confirmed no mutator",
+    "allowed": "verify_doris_observation authentic request/load/observed partition linkage and minimum tests only; Oracle functions unchanged",
+    "formal_delta": 0
+  }
 }

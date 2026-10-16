@@ -3507,8 +3507,8 @@
     ],
     "other7": "held until source-specific fixed dependencies and exclusive files ready",
     "shared_writers": {
-      "Doris": "Doris card exact files; installed0039 immutable; append-only0040 and existing installer wiring per scope amendment",
-      "Oracle": "overlay.rs; cli.rs native maintain dispatch; store.rs replay admissibility fields only"
+      "Doris": "Doris card exact files, installed0039/0040 immutable; overlay.rs verify_doris_observation and tests only",
+      "Oracle": "cli.rs native maintain dispatch; store.rs replay admissibility fields; overlay readonly fixed0722"
     },
     "formal_source_count_delta": 0
   },
@@ -3529,12 +3529,12 @@
     "formal_source_count_delta": 0
   },
   "latest_mysql_manual_token_refresh": {
-    "path": "/tmp/oo-root-mysql-auth-20261015T230526Z/receipt.json",
-    "sha256": "77d36b0f1a8c46d334dd8f2af54d49a29ebd12d62e7b49c51f5414aae2bee99e",
+    "path": "/tmp/oo-root-mysql-auth-20261016T000220Z/receipt.json",
+    "sha256": "43cb2888a81a61c5fa24b79cdef04c56e689ca1b84b73a3c9f6ca0e8cb20351b",
     "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
-    "issued_UTC": "2026-10-15T23:05:27.118029+00:00",
+    "issued_UTC": "2026-10-16T00:02:21.794239+00:00",
     "client_ttl_ms": 3600000,
-    "token_container_path": "/run-current/renewed-client-root-20261015T230526Z.token",
+    "token_container_path": "/run-current/renewed-client-root-20261016T000220Z.token",
     "requires_explicit_CLI_flag": true,
     "automatic_renewal": false,
     "formal_source_count_delta": 0
@@ -3570,6 +3570,17 @@
       "requires_explicit_CLI_flag": true,
       "automatic_renewal": false,
       "formal_source_count_delta": 0
+    },
+    {
+      "path": "/tmp/oo-root-mysql-auth-20261015T230526Z/receipt.json",
+      "sha256": "77d36b0f1a8c46d334dd8f2af54d49a29ebd12d62e7b49c51f5414aae2bee99e",
+      "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
+      "issued_UTC": "2026-10-15T23:05:27.118029+00:00",
+      "client_ttl_ms": 3600000,
+      "token_container_path": "/run-current/renewed-client-root-20261015T230526Z.token",
+      "requires_explicit_CLI_flag": true,
+      "automatic_renewal": false,
+      "formal_source_count_delta": 0
     }
   ],
   "latest_oracle_native_cli_scope_amendment": {
@@ -3588,5 +3599,16 @@
     "allowed": "replay returns test_admissible derived solely from persisted disposition, production_admissible=false as recorded path; exact tests and genuine same-certificate reentry",
     "unchanged": "issuer,certificate,source,trust computation,replica barrier,original failures,formal0/10",
     "acceptance_delta": 0
+  },
+  "latest_overlay_ownership_transfer": {
+    "as_of": "2026-10-15T23:52:47.690200+00:00",
+    "path": "tools/selfbuild-control-api/src/overlay.rs",
+    "from": "/root/oracle_complete_luna_max",
+    "to": "/root/doris_complete_luna_max",
+    "fixed_source": "0722c7b4f305e50a73bcca5c3ee240fe46015f0a",
+    "sha256": "50149bf5354986407b3074e05e9d0cf63e33bfde99745e865984b7d3a2e5644b",
+    "root_verified": "git blob equals current bytes, clean path, prior writer confirmed no mutator",
+    "allowed": "verify_doris_observation authentic request/load/observed partition linkage and minimum tests only; Oracle functions unchanged",
+    "formal_delta": 0
   }
 }
