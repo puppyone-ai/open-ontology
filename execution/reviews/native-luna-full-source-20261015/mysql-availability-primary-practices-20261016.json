@@ -1,0 +1,30 @@
+{
+  "as_of": "2026-10-16T14:02:35.444789+00:00",
+  "trigger": "human: unresolved/repeated failures use Anysearch rather than blind trial/error",
+  "provider": "Anysearch configured Python runtime; code subdomains discovered, batch queries and primary extractions actual exit0",
+  "privacy": "only generic public technical queries; no credentials/private hosts or source data submitted",
+  "sources": [
+    {
+      "url": "https://docs.docker.com/reference/cli/docker/container/exec/",
+      "applied": "Verify worker PID independently of container Up; exec command is not automatically restarted on container restart."
+    },
+    {
+      "url": "https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/",
+      "applied": "Timeout does not prove no side effects; only idempotent retry, single layer, bounded attempts and backoff. Native-fire existing transaction/active-task gate must be checked; no generic apply/ACK retry."
+    },
+    {
+      "url": "https://debezium.io/documentation/reference/stable/connectors/mysql.html",
+      "applied": "Consistent initial snapshot establishes baseline and capture continues at its binlog position; distinguish event processing time from source time. Do not synthesize source commit timestamps."
+    }
+  ],
+  "not_evidence_of_local_root_cause": [
+    {
+      "url": "https://github.com/moby/moby/issues/46775",
+      "reason": "Original issue closed after antivirus killed processes; not the observed local EOF diagnosis. No proven matching 300-second local cause found."
+    }
+  ],
+  "primary_cache": "/tmp/oo-mysql-availability-primary-sources-20261016",
+  "local_diagnosis_status": "EOF observed at docker exec transport; exact lower-level cause unproven; bounded recovery and real fault/replay safety still require product tests",
+  "policy_scope": "same sole MySQL engineer, smallest Rust change, original security/receipt gates and honest unknown source time retained; no unrelated sources resumed",
+  "count_delta": 0
+}

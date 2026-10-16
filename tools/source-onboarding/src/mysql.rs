@@ -775,6 +775,50 @@ fn publish(
     save(calls.out.join("active-release.json"), &active)
 }
 
+fn current_freshness(response: &Value, vector: &[Value]) -> Result<()> {
+    let measured = array(response, "freshness")?;
+    let observed = response["target_observations"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    require(
+        response["publication"] == "live"
+            && !array(response, "sources")?.is_empty()
+            && measured.len() + observed.len() == vector.len()
+            && (observed.is_empty() || response["source_time"] == "unmeasured"),
+        "gateway_not_ready",
+    )?;
+    for binding in vector {
+        let rows = measured
+            .iter()
+            .filter(|row| {
+                row["table"] == binding["dataset"]
+                    && row["state"] == "live"
+                    && row["lag_ms"].as_u64().is_some()
+                    && row["as_of"]
+                        .as_str()
+                        .is_some_and(|time| oo_core::rfc3339::Rfc3339Timestamp::new(time).is_ok())
+            })
+            .count();
+        let observations = observed
+            .iter()
+            .filter(|row| {
+                row["table"] == binding["dataset"]
+                    && row["source"] == binding["source_id"]
+                    && row["source_generation"] == binding["source_generation"]
+                    && row["state"] == "live"
+                    && row["source_time"] == "unmeasured"
+                    && row.get("source_committed_at").is_some_and(Value::is_null)
+                    && row["target_applied_at"]
+                        .as_str()
+                        .is_some_and(|time| oo_core::rfc3339::Rfc3339Timestamp::new(time).is_ok())
+            })
+            .count();
+        require(rows + observations == 1, "gateway_freshness_coverage")?;
+    }
+    Ok(())
+}
+
 fn current_gateway_ready(ready: &Value, role: &str, generation: &Value) -> Result<()> {
     require(
         ready["ready"] == true
@@ -1115,15 +1159,7 @@ fn gateway(
             "gateway_not_current",
         )?;
         if name == "freshness" {
-            require(
-                response["publication"] == "live"
-                    && array(&response, "freshness")?.len() == vector.len()
-                    && !array(&response, "sources")?.is_empty()
-                    && array(&response, "freshness")?
-                        .iter()
-                        .all(|r| r["state"] == "live"),
-                "gateway_not_ready",
-            )?;
+            current_freshness(&response, vector)?;
         }
     }
     save(
@@ -1136,6 +1172,35 @@ fn gateway(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn unknown_source_time_requires_exact_valid_target_observation_coverage() {
+        let vector = vec![json!({"dataset":"s.t","source_id":"mysql_s","source_generation":1})];
+        let response = json!({"publication":"live","sources":[{"source":"mysql_s"}],"freshness":[],"source_time":"unmeasured",
+            "target_observations":[{"table":"s.t","source":"mysql_s","source_generation":1,"state":"live","source_time":"unmeasured","source_committed_at":null,"target_applied_at":"2026-10-16T13:00:00Z"}]});
+        assert!(current_freshness(&response, &vector).is_ok());
+        for key in [
+            "table",
+            "source",
+            "source_generation",
+            "state",
+            "source_time",
+            "target_applied_at",
+            "source_committed_at",
+        ] {
+            let mut wrong = response.clone();
+            wrong["target_observations"][0][key] = json!("wrong");
+            assert!(current_freshness(&wrong, &vector).is_err(), "{key}");
+        }
+        let mut duplicate = response.clone();
+        duplicate["target_observations"]
+            .as_array_mut()
+            .unwrap()
+            .push(response["target_observations"][0].clone());
+        assert!(current_freshness(&duplicate, &vector).is_err());
+        let mut missing = response;
+        missing["target_observations"] = json!([]);
+        assert!(current_freshness(&missing, &vector).is_err());
+    }
     #[test]
     fn previous_gateway_requires_ready_current_role_and_nonfuture_generation() {
         let ready = json!({"ready":true,"readonly_replica":true,"role":"oo_r_fixture","source_generation":2});

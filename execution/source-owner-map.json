@@ -35,9 +35,9 @@
     {
       "source": "mysql",
       "task": "DL01-W1-06",
-      "uuid": null,
-      "handle": "/root/mysql_rust_runtime_sol_medium",
-      "scope": "formal oo-connectors MySQL 5.7/8.4 bounded batch reader and actual C1/product integration",
+      "uuid": "38769677-e316-4539-92cf-01fc5c423dd0",
+      "handle": 12091,
+      "scope": "MySQL current complete availability only; other nine/broad Goal paused",
       "write_paths": [
         "crates/oo-connectors",
         "Cargo.lock",
@@ -51,8 +51,8 @@
         "crates/oo-arch-check/tests (minimal existing regressions only)"
       ],
       "mandatory_blocker": null,
-      "status": "completed_root_verified_owned_fixture_mainline_integration",
-      "next_action": "No automatic continuation: broad Goal/other sources paused; retain static-baseline limitation and original formal exits",
+      "status": "running_grok47_current_availability",
+      "next_action": "execution/batches/native-luna-full-source-20261015/MYSQL-CURRENT-AVAILABILITY-GROK47-XHIGH-20261016.md",
       "historical_assignment_before_mysql_family_reference": {
         "source": "mysql",
         "task": "DL01-W1-06",
@@ -70,7 +70,7 @@
         "status": "repair_running",
         "next_action": "customer currently count only; complete actualArrow/sealed/Builder/consume same chosencustomer input"
       },
-      "agent": "/root/mysql_rust_runtime_sol_medium",
+      "agent": "grok-4.7/xhigh CLI",
       "historical_write_paths_before_rust_runtime": [
         "tools/mysql-preview",
         "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql",
@@ -593,5 +593,66 @@
     },
     "evidence": "execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json"
   },
-  "as_of": "2026-10-16T13:30:56.996184+00:00"
+  "as_of": "2026-10-16T14:38:13.806418+00:00",
+  "latest_mysql_current_availability_repair": {
+    "as_of": "2026-10-16T13:44:11.882002+00:00",
+    "agent": "/root/mysql_rust_runtime_sol_medium",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "status": "transferred_after_native_terminal_to_grok47_xhigh",
+    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-CURRENT-AVAILABILITY-SOL-MEDIUM-20261016.md",
+    "card_sha256": "03a3a27f3059d0da2cde68b8f5474d98877716bffed9cc13b1a7e0db336691df",
+    "scope": "MySQL current complete availability only; other nine/broad Goal paused",
+    "prior_source_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
+    "current_health": "execution/reviews/native-luna-full-source-20261015/mysql-mainline-current-health-20261016.json",
+    "formal_count_delta": 0,
+    "actual_dispatch": "collaboration.followup_task accepted; sole original engineer resumed",
+    "scope_amendment": "root approved exact MySQL unmeasured source time/actual target observation and bounded native-fire transport EOF retry; existing security/receipt guards retained",
+    "known_gateway_lint_baseline": "strict exit101: 11 original warnings reproduced on fixed520 baseline, no new lint; runtime Clippy0, Gateway71 tests/release0. Deferred nonfatal style only; formal gates not accepted.",
+    "successor_dispatch": "execution/batches/native-luna-full-source-20261015/mysql-current-availability-grok47-dispatch.json"
+  },
+  "latest_mysql_grok47_availability_dispatch": {
+    "as_of": "2026-10-16T14:38:13.806418+00:00",
+    "task_id": "DL01-W1-06",
+    "parent": "SP03-W02",
+    "status": "running_actual_grok47_cli",
+    "model": "grok-4.7",
+    "reasoning_effort": "xhigh",
+    "session_uuid": "38769677-e316-4539-92cf-01fc5c423dd0",
+    "prompt": "/Users/redux/puppy-one/open-ontology/execution/batches/native-luna-full-source-20261015/MYSQL-CURRENT-AVAILABILITY-GROK47-XHIGH-20261016.md",
+    "prompt_sha256": "33d3c86aac456880476b28ba61fd598d8de244166bc52e1fcb43ebabfb44cef7",
+    "cwd": "/Users/redux/puppy-one/open-ontology",
+    "run_root": "/tmp/oo-mysql-current-availability-grok47-20261016/38769677-e316-4539-92cf-01fc5c423dd0",
+    "handoff": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/HANDOFF.json",
+    "handoff_sha256": "6a1b16da4092fedce2092fc24f29b714dcc761003c2992f0251675f2ab2aaaab",
+    "prior_native_agent": "/root/mysql_rust_runtime_sol_medium",
+    "prior_native_status": "terminal and writer released; owned source/ELFs/current original2 processes root verified",
+    "source_commit": "9b9ecb5c82c50f946393007982725dd4481fa888",
+    "actual_retained_live_serves": 2,
+    "new_static_ready_scopes": 2,
+    "remaining": "new IUD/delete/quiet, final4serve >=10min, current random8 QA/actual QID WAL, final product verification; no partial completion",
+    "current_scope": "MySQL only; other nine/broad Goal paused",
+    "formal_count_delta": 0,
+    "ordinary_wait_seconds": 600,
+    "product_models": "Grok4.7 S5 and dialogue, original private URL/key; no repeated GPT429 requests",
+    "foreign_raw_no_abbrev_excluding_owned5_sha256": "cb53ce84e87327bdee00e90a0b910c5aad314c301d966601edba019fbf9d22ad",
+    "no_native_subagents": true,
+    "no_cli_subagents": true,
+    "tool_handle": 12091,
+    "grok_pid": 74652,
+    "wrapper_pid": 74650,
+    "started_utc": "2026-10-16T14:38:30.177139+00:00",
+    "started_receipt": "/tmp/oo-mysql-current-availability-grok47-20261016/38769677-e316-4539-92cf-01fc5c423dd0/grok.started.json",
+    "stdout": "/tmp/oo-mysql-current-availability-grok47-20261016/38769677-e316-4539-92cf-01fc5c423dd0/grok.stdout",
+    "stderr": "/tmp/oo-mysql-current-availability-grok47-20261016/38769677-e316-4539-92cf-01fc5c423dd0/grok.stderr",
+    "exit_receipt": "/tmp/oo-mysql-current-availability-grok47-20261016/38769677-e316-4539-92cf-01fc5c423dd0/grok.exit.json"
+  },
+  "latest_human_executor_policy": {
+    "as_of": "2026-10-16T14:38:13.806418+00:00",
+    "development": "grok-4.7/xhigh CLI; no new native Codex subagents",
+    "product_s5_and_dialogue": "grok-4.7 allowed/preferred with unchanged private URL/key",
+    "scope": "same sole complete MySQL longrun; others held",
+    "handoff": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/HANDOFF.json",
+    "handoff_sha256": "6a1b16da4092fedce2092fc24f29b714dcc761003c2992f0251675f2ab2aaaab"
+  }
 }

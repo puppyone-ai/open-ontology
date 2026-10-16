@@ -10,6 +10,7 @@ default-run = "source-onboarding"
 resolver = "3"
 
 [dependencies]
+oo-core = { path = "../../crates/oo-core" }
 serde_json = "=1.0.151"
 sha2 = "=0.10.9"
 

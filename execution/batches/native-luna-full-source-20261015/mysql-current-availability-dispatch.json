@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-10-16T13:44:11.882002+00:00",
+  "agent": "/root/mysql_rust_runtime_sol_medium",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "status": "running_actual_followup_same_engineer",
+  "card": "execution/batches/native-luna-full-source-20261015/MYSQL-CURRENT-AVAILABILITY-SOL-MEDIUM-20261016.md",
+  "card_sha256": "03a3a27f3059d0da2cde68b8f5474d98877716bffed9cc13b1a7e0db336691df",
+  "scope": "MySQL current complete availability only; other nine/broad Goal paused",
+  "prior_source_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
+  "current_health": "execution/reviews/native-luna-full-source-20261015/mysql-mainline-current-health-20261016.json",
+  "formal_count_delta": 0,
+  "actual_dispatch": "collaboration.followup_task accepted; sole original engineer resumed",
+  "scope_amendment": "root approved exact MySQL unmeasured source time/actual target observation and bounded native-fire transport EOF retry; existing security/receipt guards retained",
+  "known_gateway_lint_baseline": "strict exit101: 11 original warnings reproduced on fixed520 baseline, no new lint; runtime Clippy0, Gateway71 tests/release0. Deferred nonfatal style only; formal gates not accepted."
+}

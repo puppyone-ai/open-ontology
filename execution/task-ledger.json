@@ -692,13 +692,13 @@
       "phase": "SP03",
       "priority": "parallel_by_dependency",
       "status": "dispatched",
-      "development_status": "author_complete_root_verified_scoped_mainline_fixture",
+      "development_status": "current_availability_repair_in_progress",
       "integration_status": "owned_fixture_mainline_verified_original_parent_exits_pending",
       "release_status": "not_reconciled",
       "owner": "Codex / DL01-W1-06",
-      "executor": "native gpt-6.1-sol/medium",
-      "session_uuid": null,
-      "tool_handle": "/root/mysql_rust_runtime_sol_medium",
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "38769677-e316-4539-92cf-01fc5c423dd0",
+      "tool_handle": 12091,
       "write_paths": [
         "crates/oo-connectors",
         "Cargo.lock",
@@ -724,7 +724,7 @@
         "execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json"
       ],
       "independent_review": null,
-      "next_action": "No automatic continuation: broad Goal/other sources paused; retain static-baseline limitation and original formal exits",
+      "next_action": "new IUD/delete/quiet, final4serve >=10min, current random8 QA/actual QID WAL, final product verification; no partial completion",
       "external_gates": [],
       "delivery_loops": [
         "DL01",
@@ -4849,7 +4849,7 @@
   "required_sp_parent_count": 80,
   "deferred_sp_parent_count": 7,
   "required_dbx_parent_count": 14,
-  "active_batch": "execution/batches/native-luna-full-source-20261015/mysql-mainline-batch-reader-dispatch.json",
+  "active_batch": "execution/batches/native-luna-full-source-20261015/mysql-current-availability-grok47-dispatch.json",
   "dispatch_tasks": [
     {
       "task_id": "DL01-W1-01",
@@ -5242,8 +5242,8 @@
       "name": "mysql",
       "parent": "SP03-W02",
       "kind": "development",
-      "executor": "native gpt-6.1-sol/medium",
-      "session_uuid": null,
+      "executor": "grok-4.7/xhigh",
+      "session_uuid": "38769677-e316-4539-92cf-01fc5c423dd0",
       "base_commit": "0b27b409a6eb7accc9b382143b3bdbd197444541",
       "write_paths": [
         "crates/oo-connectors",
@@ -5258,17 +5258,23 @@
         "crates/oo-arch-check/src/policy.rs",
         "crates/oo-arch-check/src/check.rs (minimal existing regressions only)"
       ],
-      "prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
+      "prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-CURRENT-AVAILABILITY-GROK47-XHIGH-20261016.md",
       "resource_prefix": "oo-dl01w1-06",
       "rust_slots": null,
       "database_memory_gib": 6,
-      "status": "completed_root_verified_owned_fixture_mainline_integration",
-      "tool_handle": "/root/mysql_rust_runtime_sol_medium",
+      "status": "running_grok47_current_availability",
+      "tool_handle": 12091,
       "log": null,
-      "process_identity": [],
+      "process_identity": [
+        {
+          "pid": 74652,
+          "started_utc": "2026-10-16T14:38:30.177139+00:00",
+          "session_uuid": "38769677-e316-4539-92cf-01fc5c423dd0"
+        }
+      ],
       "author_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
       "evidence_commit": "9770f4a1ff2ccd6ed3b6b1fd258249fce1316512",
-      "resource_terminal": "source writer released; four bounded Rust serve + four current Gateways retained; 14 obsolete Gateways stopped",
+      "resource_terminal": "native writer released, no in-flight build/test/model; 2 retained live services,2 new static ready",
       "exclusive_role": "sole MySQL core/mainline writer; all other sources paused",
       "scale_exit": {
         "required_logistics_rows": 100000,
@@ -5279,7 +5285,7 @@
         "input_oracle": "independent real source full typed comparison; no gold sent to model",
         "fixed_intake": "execution/reviews/native-luna-full-source-20261015/mysql-family-complete-fixture-reference-intake.json"
       },
-      "next_action": "No automatic continuation: broad Goal/other sources paused; retain static-baseline limitation and original formal exits",
+      "next_action": "new IUD/delete/quiet, final4serve >=10min, current random8 QA/actual QID WAL, final product verification; no partial completion",
       "resume_prompt": "execution/batches/dl01-wave1-20261009/DL01-W1-06-builder-consumer.md",
       "dependency_source_commit": "0b27b409a6eb7accc9b382143b3bdbd197444541",
       "consumer_accepted_source": "f2357a026033fbac5beb20b4bf8555d808881fe7",
@@ -8586,7 +8592,7 @@
       "source_commit": "8a5de6528"
     }
   ],
-  "current_execution_note": "MySQL mainline module/feature and 5.7+8.4 updated fixture chains root verified; writer released. Static baseline freshness remains limited. Other sources and broad Goal paused; formal0/10.",
+  "current_execution_note": "MySQL sole engineer transferred only after native terminal/no background; Grok4.7 xhigh frozen for complete current availability. S5 and dialogue Grok4.7. 2 original serves live +2 new static g1 ready, still missing IUD/QA/final4 stability; no acceptance.",
   "active_batch_development": {
     "batch": "dl01-wave1-20261009",
     "frozen_units": 8,
@@ -10583,7 +10589,7 @@
     "source_rollout_allowed": false,
     "scope": "unchanged complete MySQL reference before other sources reuse"
   },
-  "as_of": "2026-10-16T13:30:56.996184+00:00",
+  "as_of": "2026-10-16T14:38:13.806418+00:00",
   "latest_mysql_sol_complete_transfer": {
     "as_of": "2026-10-15T18:50:46.388216+08:00",
     "human_model_authorization": "下一次开新子智能体，模型可以升级为gpt 6.1 sol medium",
@@ -11246,5 +11252,66 @@
       "verification": "Linux positive/forbidden negative/restored and 44 tests passed; baseline failure retained"
     },
     "evidence": "execution/reviews/native-luna-full-source-20261015/mysql-mainline-batch-reader-intake.json"
+  },
+  "latest_mysql_current_availability_repair": {
+    "as_of": "2026-10-16T13:44:11.882002+00:00",
+    "agent": "/root/mysql_rust_runtime_sol_medium",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "status": "transferred_after_native_terminal_to_grok47_xhigh",
+    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-CURRENT-AVAILABILITY-SOL-MEDIUM-20261016.md",
+    "card_sha256": "03a3a27f3059d0da2cde68b8f5474d98877716bffed9cc13b1a7e0db336691df",
+    "scope": "MySQL current complete availability only; other nine/broad Goal paused",
+    "prior_source_commit": "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
+    "current_health": "execution/reviews/native-luna-full-source-20261015/mysql-mainline-current-health-20261016.json",
+    "formal_count_delta": 0,
+    "actual_dispatch": "collaboration.followup_task accepted; sole original engineer resumed",
+    "scope_amendment": "root approved exact MySQL unmeasured source time/actual target observation and bounded native-fire transport EOF retry; existing security/receipt guards retained",
+    "known_gateway_lint_baseline": "strict exit101: 11 original warnings reproduced on fixed520 baseline, no new lint; runtime Clippy0, Gateway71 tests/release0. Deferred nonfatal style only; formal gates not accepted.",
+    "successor_dispatch": "execution/batches/native-luna-full-source-20261015/mysql-current-availability-grok47-dispatch.json"
+  },
+  "latest_mysql_grok47_availability_dispatch": {
+    "as_of": "2026-10-16T14:38:13.806418+00:00",
+    "task_id": "DL01-W1-06",
+    "parent": "SP03-W02",
+    "status": "running_actual_grok47_cli",
+    "model": "grok-4.7",
+    "reasoning_effort": "xhigh",
+    "session_uuid": "38769677-e316-4539-92cf-01fc5c423dd0",
+    "prompt": "/Users/redux/puppy-one/open-ontology/execution/batches/native-luna-full-source-20261015/MYSQL-CURRENT-AVAILABILITY-GROK47-XHIGH-20261016.md",
+    "prompt_sha256": "33d3c86aac456880476b28ba61fd598d8de244166bc52e1fcb43ebabfb44cef7",
+    "cwd": "/Users/redux/puppy-one/open-ontology",
+    "run_root": "/tmp/oo-mysql-current-availability-grok47-20261016/38769677-e316-4539-92cf-01fc5c423dd0",
+    "handoff": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/HANDOFF.json",
+    "handoff_sha256": "6a1b16da4092fedce2092fc24f29b714dcc761003c2992f0251675f2ab2aaaab",
+    "prior_native_agent": "/root/mysql_rust_runtime_sol_medium",
+    "prior_native_status": "terminal and writer released; owned source/ELFs/current original2 processes root verified",
+    "source_commit": "9b9ecb5c82c50f946393007982725dd4481fa888",
+    "actual_retained_live_serves": 2,
+    "new_static_ready_scopes": 2,
+    "remaining": "new IUD/delete/quiet, final4serve >=10min, current random8 QA/actual QID WAL, final product verification; no partial completion",
+    "current_scope": "MySQL only; other nine/broad Goal paused",
+    "formal_count_delta": 0,
+    "ordinary_wait_seconds": 600,
+    "product_models": "Grok4.7 S5 and dialogue, original private URL/key; no repeated GPT429 requests",
+    "foreign_raw_no_abbrev_excluding_owned5_sha256": "cb53ce84e87327bdee00e90a0b910c5aad314c301d966601edba019fbf9d22ad",
+    "no_native_subagents": true,
+    "no_cli_subagents": true,
+    "tool_handle": 12091,
+    "grok_pid": 74652,
+    "wrapper_pid": 74650,
+    "started_utc": "2026-10-16T14:38:30.177139+00:00",
+    "started_receipt": "/tmp/oo-mysql-current-availability-grok47-20261016/38769677-e316-4539-92cf-01fc5c423dd0/grok.started.json",
+    "stdout": "/tmp/oo-mysql-current-availability-grok47-20261016/38769677-e316-4539-92cf-01fc5c423dd0/grok.stdout",
+    "stderr": "/tmp/oo-mysql-current-availability-grok47-20261016/38769677-e316-4539-92cf-01fc5c423dd0/grok.stderr",
+    "exit_receipt": "/tmp/oo-mysql-current-availability-grok47-20261016/38769677-e316-4539-92cf-01fc5c423dd0/grok.exit.json"
+  },
+  "latest_human_executor_policy": {
+    "as_of": "2026-10-16T14:38:13.806418+00:00",
+    "development": "grok-4.7/xhigh CLI; no new native Codex subagents",
+    "product_s5_and_dialogue": "grok-4.7 allowed/preferred with unchanged private URL/key",
+    "scope": "same sole complete MySQL longrun; others held",
+    "handoff": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/HANDOFF.json",
+    "handoff_sha256": "6a1b16da4092fedce2092fc24f29b714dcc761003c2992f0251675f2ab2aaaab"
   }
 }

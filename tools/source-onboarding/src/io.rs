@@ -121,6 +121,30 @@ impl Calls {
         Ok(Self { out: out.into(), n })
     }
     pub fn run(&mut self, label: &str, args: &[String], input: Option<&[u8]>) -> Result<Vec<u8>> {
+        for attempt in 0..3 {
+            let (status, stdout, stderr) = self.attempt(label, args, input)?;
+            if status.success() {
+                return Ok(stdout);
+            }
+            if attempt == 2 || !retry_native_fire(label, args, status.code(), &stderr) {
+                return Err(format!("command_failed:{label}").into());
+            }
+            save(
+                self.out.join(format!("{:04}-transport-retry.json", self.n)),
+                &json!({"command":label,"attempt":attempt+1,"maximum_attempts":3,
+                    "stderr_sha256":sha(&stderr),"reason":"docker_transport_disconnected",
+                    "scheduler_transaction_reentered":true}),
+            )?;
+            std::thread::sleep(Duration::from_secs(1 << attempt));
+        }
+        unreachable!()
+    }
+    fn attempt(
+        &mut self,
+        label: &str,
+        args: &[String],
+        input: Option<&[u8]>,
+    ) -> Result<(std::process::ExitStatus, Vec<u8>, Vec<u8>)> {
         self.n += 1;
         let prefix = self.out.join(format!("{:04}-{label}", self.n));
         save(
@@ -164,8 +188,11 @@ impl Calls {
             prefix.with_extension("exit.json"),
             &json!({"exit":status.code(),"success":status.success(),"elapsed_ms":start.elapsed().as_millis()}),
         )?;
-        require(status.success(), &format!("command_failed:{label}"))?;
-        Ok(fs::read(prefix.with_extension("stdout"))?)
+        Ok((
+            status,
+            fs::read(prefix.with_extension("stdout"))?,
+            fs::read(prefix.with_extension("stderr"))?,
+        ))
     }
     pub fn docker(
         &mut self,
@@ -181,5 +208,81 @@ impl Calls {
         argv.push(container.into());
         argv.extend_from_slice(args);
         self.run(label, &argv, input)
+    }
+}
+
+// Only scheduling is safely replayable after an unobserved Docker exec result.
+fn retry_native_fire(label: &str, args: &[String], exit: Option<i32>, stderr: &[u8]) -> bool {
+    let error = String::from_utf8_lossy(stderr);
+    let error = error.trim();
+    label == "native-fire"
+        && exit == Some(1)
+        && args.first().is_some_and(|arg| {
+            Path::new(arg)
+                .file_name()
+                .is_some_and(|name| name == "docker")
+        })
+        && args.get(1).is_some_and(|arg| arg == "exec")
+        && args.iter().any(|arg| arg == "native-fire")
+        && (error == "unexpected EOF"
+            || error.starts_with("Cannot connect to the Docker daemon at unix://")
+                && error.ends_with("Is the docker daemon running?")
+            || error.starts_with("failed to connect to the docker API at unix://")
+                && error.ends_with(": connect: no such file or directory"))
+}
+
+#[cfg(test)]
+mod transport_tests {
+    use super::*;
+    #[test]
+    fn native_fire_reconnects_once_but_permanent_failure_is_not_replayed() {
+        let root =
+            std::env::temp_dir().join(format!("oo-native-fire-retry-{}", std::process::id()));
+        fs::create_dir(&root).unwrap();
+        fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
+        let docker = root.join("docker");
+        fs::write(&docker,format!("#!/bin/sh\nif [ ! -e '{}' ]; then touch '{}'; echo 'unexpected EOF' >&2; exit 1; fi\necho recovered\n",root.join("once").display(),root.join("once").display())).unwrap();
+        fs::set_permissions(&docker, fs::Permissions::from_mode(0o700)).unwrap();
+        let args = strings(&[
+            docker.to_str().unwrap(),
+            "exec",
+            "fixture",
+            "worker",
+            "native-fire",
+        ]);
+        let mut calls = Calls::new(&root.join("transient")).unwrap();
+        assert_eq!(
+            calls.run("native-fire", &args, None).unwrap(),
+            b"recovered\n"
+        );
+        assert_eq!(calls.n, 2);
+        assert!(root.join("transient/0001-transport-retry.json").exists());
+        assert!(retry_native_fire("native-fire",&args,Some(1),b"Cannot connect to the Docker daemon at unix:///private.sock. Is the docker daemon running?"));
+        assert!(retry_native_fire("native-fire", &args, Some(1), b"failed to connect to the docker API at unix:///private.sock; check if the path is correct and if the daemon is running: dial unix /private.sock: connect: no such file or directory"));
+        assert!(!retry_native_fire(
+            "native-step",
+            &args,
+            Some(1),
+            b"unexpected EOF"
+        ));
+        assert!(!retry_native_fire(
+            "native-fire",
+            &args,
+            Some(1),
+            b"error=sql unexpected EOF"
+        ));
+        fs::write(
+            &docker,
+            "#!/bin/sh\necho 'Error response from daemon: unauthorized' >&2\nexit 1\n",
+        )
+        .unwrap();
+        let mut calls = Calls::new(&root.join("permanent")).unwrap();
+        assert!(calls.run("native-fire", &args, None).is_err());
+        assert_eq!(calls.n, 1);
+        fs::write(&docker, "#!/bin/sh\necho 'unexpected EOF' >&2\nexit 1\n").unwrap();
+        let mut calls = Calls::new(&root.join("exhausted")).unwrap();
+        assert!(calls.run("native-fire", &args, None).is_err());
+        assert_eq!(calls.n, 3);
+        fs::remove_dir_all(root).unwrap();
     }
 }
