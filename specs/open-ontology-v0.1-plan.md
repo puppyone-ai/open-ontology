@@ -396,6 +396,8 @@ P项关联Spec原型表的相关AT，不新造另一组验收。每份结论含�
 
 ### SP03 — 只读连接器与类型
 
+实现组织补充（2026-10-16）：[每源模块与按需 Cargo feature](../execution/decisions/source-connector-modules-and-features-20261016.md)。本条明确正式入口与依赖边界，不改变原捕获、安全和完整签收要求；当前仅 MySQL 专项获准继续。
+
 **输入/前置：** SP00/SP02，P2/P14/DEC-17。**负责人/审阅：** Data owner；DBA、数据与安全reviewer。**顺序：** W01/W02 → W04/W03 → W05；共同trait先冻结。
 
 #### SP03-W01 — PostgreSQL接入
@@ -406,9 +408,9 @@ P项关联Spec原型表的相关AT，不新造另一组验收。每份结论含�
 
 #### SP03-W02 — MySQL接入
 
-- 执行：沿统一trait实现MySQL8 catalog/charset/grants/ROW/FULL/GTID/log保留/从库检查；验证连接驱动取原值，避免宽松sql_mode暗改脏值。
-- 交付/PR：MySQL source contract、只读权限探针与DBA清单；与PG共享fixture结构但分别审计，不推导MariaDB兼容。
-- 验收/停止：AT-SRC-01；启动/批量/CDC体检全程零写。账号写能力例外仅已有admin显式计划许可，仍不得实际写源。
+- 执行：沿统一trait实现MySQL5.7/8.x catalog/charset/grants/ROW/FULL/GTID/log保留/从库检查；验证连接驱动取原值，避免宽松sql_mode暗改脏值。正式源读取/映射/解码归oo-connectors/src/mysql独立模块，MySQL专有依赖由可选mysql feature启用，消费者显式接线；不把各源堆入单文件或提前造插件框架。
+- 交付/PR：MySQL source contract、只读权限探针与DBA清单；与PG共享fixture结构但分别审计，不推导MariaDB兼容。交付正式crate入口、实际C1基线/对账及产品消费者接线，PG默认构建不引MySQL驱动；Loader/COPY与目标凭据留管线。
+- 验收/停止：AT-SRC-01；启动/批量/CDC体检全程零写。账号写能力例外仅已有admin显式计划许可，仍不得实际写源。固定Linux1.94默认PG/mysql-enabled/真实消费者及依赖方向验证、5.7.44-log和8.4.10真实整链证据齐备才判本次主线集成通过，不能用模块迁移代替父项完整退出。
 
 #### SP03-W03 — 块规划与有界读取
 
