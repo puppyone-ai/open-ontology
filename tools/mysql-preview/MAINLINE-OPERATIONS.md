@@ -1,3 +1,19 @@
+# MySQL CURRENT MAINLINE OPERATIONS
+
+当前权威接收：`execution/reviews/native-luna-full-source-20261015/mysql-current-availability-final-intake-20261017.json`；可执行演示：`execution/reviews/native-luna-full-source-20261015/mysql-rust-native-demo.md`。下方旧报告保留历史，不作当前运行状态。
+
+当前 C7 runtime SHA `c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0`，固定源码 `9b9ecb5c82c50f946393007982725dd4481fa888`；对话通用能力指导 `b5a638ceffc55a6c6235d4cd58ba54d1d0c9fbfa`。正式 MySQL 读取器模块/feature 继承固定 `b60bd6fb5`，未改为 Python 产品链。
+
+四条 canonical 私有 operator、输入、binding、Pack、worker config 和真实启动回执位于 `/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/root-canonical-recovery-20261017`。原两默认 g11/g15，新两 scope g3/g3；唯一进程 PID 25907/25913/25914/25925。5000ms 周期，最长 86400s，UTC2026-10-17T16:22:32 附近到期，具体毫秒见 started.json；无 boot daemon。
+
+重入先核唯一 owner/正式 native-state/当前 ready。只有当前 source_id 和正式 applied generation 与 ready 严格相等时，才将私有 operator 的 `after_generation` 对准这个已发布代数，使用新 `--out` 正常 `serve`；不重复 catalog-import 已发布 cut，不改任务 SQL 水位/epoch/ACK，不把 `reuse_published_cut` 固定在长期 serve。`prepared_root` 和当前 ready 指针保持原 scope，成功发布后才原子替换。
+
+当前 worker 密码文件指向已有持久 `/secrets/loader.hex`（host 私有 cache 对应文件），保持原凭据字节，不再依赖已丢失的临时 `/tmp/.../loader.hex`。不要删除共享 cache、DB/物理只读副本、当前 Gateway 或其数据卷。临时文件丢失的原因未证，旧失败保留。
+
+客户端 TTL=3600000ms，需要官方 token issuer 在受信控制端显式续签到独立0600文件，再更新 mutable current-client.token；不得将 admin/source 密钥挂给 Gateway、放宽授权或改原 ready/问答制品。4个当前 token 的官方 ledger deadline/剩余见 intake 与作者 OPERATIONS。静态 baseline 已真实 S0–S10/Gateway/CLI 通过，未知 source commit time 用 unmeasured 和真实 target observations 表达，不写假时间、不造 heartbeat。仅当前实测版本和 fixture 范围。
+
+## 历史主线运行记录（下表 PID、代数、期限和静态限制已被当前记录替代）
+
 # MySQL MAINLINE OPERATIONS
 
 固定证据根：`/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1`。本报告记录作者验证，不替代 root 独立接收、正式 signoff、生产验收或全 Goal 退出；其他源保持暂停，正式源计数不晋级。

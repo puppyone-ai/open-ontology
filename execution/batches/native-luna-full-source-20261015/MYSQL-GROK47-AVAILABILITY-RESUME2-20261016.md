@@ -1,0 +1,11 @@
+继续同一个完整MySQL任务，不是新任务，不再从头审计/重读全部旧日志。必须读 execution/batches/native-luna-full-source-20261015/MYSQL-GROK47-AVAILABILITY-UNBLOCK-20261016.md 及你的工作目录 /tmp/oo-mysql-avail-grok47-continue 下 ROOT-*.json：root已给出两个实际解阻，前轮由root SIGINT130仅为注入这些新事实/必要scope，不是完成，原source服务全部保留；没有在途QA/model/build子进程，源码WIP仅9b已提交反向index显示MM，不得回退。
+
+立刻做最小通用指导修正，然后才再调用付费模型：明确授权 tools/agent-product-verifier/dialogue.py 现有SYSTEM/已有错误提示，说明OO守卫只接受受支持投影，不对COUNT/聚合/表达式强转text，CLI已无损返回精确整数字符串；时长比较显式INTERVAL常量；最终facts只能来自本turn真实成功query，query_id逐字用工具返回，不能复用先前turn ID或自造ID。禁止变更verify_named_facts/随机选题/coverage/条件或提供gold值/固定问题SQL。root已实证：COUNT(*)::text+INTERVAL被拒、裸COUNT(*)+同INTERVAL成功；不是缺interval功能，无需改Gateway/操作符。保留所有之前失败/模型请求/用量，不能再盲跑20轮相同失败。指导只是实际产品能力说明，不给测试答案。简单指导文字变更不用造镜像测试，必要既有回归即可，固定精确commit。
+
+可合法复用的6turn已root只读核到verified：availability-v1/dialogue-grok-v1/mysql57/group1-resume、mysql57/group2-resume、mysql8/group2，各2turn。身份/Pack/gold未变就不要重新S5/QA/数据导入！缺的只有mysql8/group1两turn，沿原group1/selection.json和实际有效prefix用现有resume在新不可变out接续；不得改问题、换semantic_id或把group2当group1通过。保留已有实际成功prefix和原QID WAL，仅对缺turn补真实Grok4.7->OO CLI->Gateway->grounded final。question bank/gold不传给模型，facts实际成功query才能签；必要错误先查真实模型tool反馈和Anysearch，禁止无依据重复。
+
+原mysql8 management_session401已root官方OIDC resume续签，admin/reviewer/owner均200，未bootstrap/改角色/配置/源数据。root已按相同C7 ELF/原operator/新out启动原mysql8 serve：/tmp/oo-root-original-mysql8-serve-recovery-20261016/serve.started.json；raw新out availability-v1/root-original-mysql8-recovered-serve-v2，exec23045，当前实际owner/cut须你核，不能再起同binding第二个serve。ROOT-ORIGINAL-MYSQL8-SERVE-RECOVERY-20261016.json已在你的工作目录。默认入口全局registry也已root装C7，别重复安装；原3+恢复原8应最终4条，真实PID/ELF/官方state/fulltyped/当前Pack/RO/CLI/Secret隔离均核清。根服务若失败读raw并合法恢复，不手改状态水位。
+
+完成余下2turn后，最终4条连续至少10分钟实际cycle/quiet及相应恢复、当前4客户端认证/真实查询有效。保持源DML已经收敛的最终值，不再为新cut重复制造DML/模型；已有IUD/delete/故障证据按适用ELF/身份复用。若client临期，官方显式续签独立0600并更新mutable current文件、记原/新SHA/expiry，不能改旧ready/pins。最终检查剩余有效期能支持演示，不仅看进程。
+
+交 AVAILABILITY-GROK-{REPORT,FINDINGS,HANDOFF,OPERATIONS}.md、单入口DELIVERY/manifest/不可变新增增量包（旧包/ELF按SHA引用），以及0model/0DML可执行root只读verifier（必须运行实际当前4进程/全量typed/CLI/8turn事实原QID WAL/quiet等）。usage计所有失败/重试，不称目标20%达标，除非实际可核。Gateway旧11lint仍baseline101不冒0；正式父项/源/发行计数不改；其他源暂停。完成完整可用性才停，不短报局部完成，不派任何subagent、不push/改全局账务。仍Grok4.7 xhigh CLI唯一源码writer；最小代码改动，源Rust、fixture/agent Python按原许可。最后root验收不通过沿本任务继续。

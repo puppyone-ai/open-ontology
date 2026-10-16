@@ -84,11 +84,21 @@ def verify_named_facts(answer, expected, results):
 
 # Proxy probe e47c3ac5 returned HTTP 200 for this strict shape, not a 4xx. The body was not retained.
 FINAL_FORMAT = 'json_schema'
+PROJECTION_GUIDANCE = (
+    'The OO guard accepts only supported projections. '
+    'Do not cast COUNT, another aggregate, or an expression to text. '
+    'CLI integer and numeric cells are already lossless exact digit strings; copy that cell text. '
+    'Compare a duration with an explicit INTERVAL constant. '
+    'Do not send the same refused statement again. '
+    'A final fact may come only from a successful query in the current turn. '
+    'Copy query_id verbatim from that tool result. Do not reuse a query_id from an earlier turn and do not invent one. '
+)
 SYSTEM = (
     'Use OO tools autonomously to inspect role knowledge, schema, freshness, validate and query. '
     'The query target is PostgreSQL. Use the exact schema-qualified relation names returned by tables and describe. '
     'Preserve exact decimal and original source type/quality warnings. Never infer a value without evidence. '
     'You cannot use direct DB or source credentials. '
+    + PROJECTION_GUIDANCE +
     'When a question is finished, return one JSON object and no other text. '
     'The only keys are facts and evidence. '
     'facts maps each requested fact name to the exact cell text, or to an object whose value field is that text. '
@@ -358,6 +368,13 @@ def tool_schema():
     }} for name, args in TOOLS.items()]
 
 
+def guard_note(name, body):
+    """Product capability beside an existing refusal. The denied body itself stays unchanged."""
+    if name in {'validate', 'query'} and body.get('code') in {'STATEMENT_NOT_ALLOWED', 'FUNCTION_NOT_ALLOWED'}:
+        return PROJECTION_GUIDANCE
+    return None
+
+
 def tool_error_returned(name, body):
     if name in {'validate', 'query'} and body.get('class') == 'gateway' and body.get('code') in {'COLUMN_NOT_ALLOWED', 'STATEMENT_NOT_ALLOWED', 'FUNCTION_NOT_ALLOWED'}:
         return True
@@ -492,11 +509,16 @@ def main():
                     used.add(name)
                     if name == 'query': turn_results[body['query_id']] = body
                 view=model_view(name,body)
-                transcript.append({'turn':turn,'tool':name,'arguments':args,'exit':proc.returncode,'response':body,'model_view':view})
+                note=guard_note(name, body) if proc.returncode else None
+                event={'turn':turn,'tool':name,'arguments':args,'exit':proc.returncode,'response':body,'model_view':view}
+                if note: event['guard_note']=note
+                transcript.append(event)
                 (out/'transcript.json').write_text(json.dumps(transcript,indent=2)+'\n')
                 if proc.returncode and not tool_error_returned(name, body):
                     raise ValueError('OO CLI tool failed: '+name)
-                messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps({'exit':proc.returncode,'response':view})})
+                payload={'exit':proc.returncode,'response':view}
+                if note: payload['guard_note']=note
+                messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(payload)})
         else: raise ValueError('model exhausted tool rounds')
     (out/'transcript.json').write_text(json.dumps(transcript,indent=2)+'\n')
     if not REQUIRED_TOOLS <= used or not query_ids: raise ValueError('missing autonomous public tool coverage')

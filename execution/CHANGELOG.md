@@ -1,3 +1,13 @@
+2026-10-17 当前MySQL专项闭环已真实接收：5.7.44-log/8.4.10，主线Rust C1，四当前scope各5表43列110019行typed0；新静态g1从S0–S10/真实Grok S5起步，更新删除后维护Ontology/Pack及只读Gateway，冻结随机题共8轮Grok实答已逐事实核源gold/本轮CLI cells/原完整QID WAL。C7四唯一serve现g11/g15/g3/g3，5000ms周期连续quiet超10分钟、默认CLI实际12002/12002，原静态NULL时间拒绝已修复为明确unmeasured而非伪造时间。源码9b9ecb5c+b5a638ce，Grok4.7 xhigh同UUID完整交付终态，root0新模型/0DML；本轮9旧Gateway已停、数据卷/失败保留。运行有界至2026-10-18 00:22:32中国时间，token仅1小时且需官方显式续签，无boot/自动续签。仅当前owned-fixture可用；严格Clippy原11lint延后、成本1/5未证明、统一review/父项/发行/客户门槛保留。其他九源/总Goal暂停，全部计数delta0、formal0/10。权威 execution/reviews/native-luna-full-source-20261015/mysql-current-availability-final-intake-20261017.json；以下旧运行/失败状态是历史，不覆盖本条。
+
+2026-10-17 同一Grok4.7 xhigh已实际resume3（PID41531/exec23938，原resume2退出0但交付包未齐，不能作完成）。root当前四条C7及官方state/ready/Pack一致、typed0/默认CLI/8轮随机事实原QID WAL/连续quiet超10min均实际通过，停9旧GW后当前4复查通过；canonical5000ms、UTC16:22:32起24h、tokenTTL1h，无自动续签/boot。原loader临时引用丢失与已发布catalog重入失败均保留，私有operator用持久/secrets/loader.hex及官方已应用代数恢复；源码/安全门禁未放松。当前只待作者完整REPORT/DELIVERY/manifest/增量包与终态收取；其他源/广义Goal暂停、计数0增量。最新dispatch为当前入口，以下旧PID/运行数是历史。
+
+2026-10-17 四条source runtime在共同临时loader.hex丢失后均以error=config失败；root查实持久副本原值可恢复，官方native-state实际0、无密码/角色变更。删除原因未证，不归咎EOF或证书。已授权唯一Grok把私有worker配置指向现有/secrets/loader.hex（保留旧配置和来源），官方恢复精确四链并重新观察>=10分钟；当前未放行，旧8问或Gateway可读不能替代同步活性。回执 execution/reviews/native-luna-full-source-20261015/mysql-shared-runtime-secret-recovery-20261017.json。
+
+2026-10-16T15:44Z 同一Grok4.7 xhigh session已实际resume接续（PID12961/exec69536），未新建工程师/任务。前轮因同题反复无效cast/编造事实QID被严格验证器拒绝，root保留130中断与所有失败后补通用指导窄授权；不改gold/随机选题/验收逻辑。已核6turn verified可同身份复用，补余mysql8 group1两turn；原8管理会话已官方续签，root相同C7/原operator新out已实启源serve（exec23045，当前状态待核），最终4链10分钟/typed0/CLI/全部8turn仍未放行。其他源暂停、计数0增量。
+
+2026-10-16 MySQL8原共享管理会话401已由root按既有OO_NATIVE_IDENTITY_RESUME=1官方OIDC配方续签，3角色current实查200、原身份/产品配置SHA不变；无install/bootstrap/角色重置/源DML/model。root未重启源runtime；原8恢复及四链完整验收仍由唯一Grok任务完成，当前不放行。证据 execution/reviews/native-luna-full-source-20261015/mysql8-management-session-renewal-20261016.json。
+
 2026-10-16T14:38:30Z 已实际启动唯一Grok4.7 xhigh CLI：session38769677-e316-4539-92cf-01fc5c423dd0、PID74652、exec12091；前原生writer已terminal且无在途计算后才启动。沿原完整MySQL卡补新两链IUD/delete/随机对话/最终4链稳定性，未交付/未计签收；当前2原默认常驻+2新静态g1 ready。S5/对话用Grok4.7，其余九源/广义Goal仍暂停。dispatch execution/batches/native-luna-full-source-20261015/mysql-current-availability-grok47-dispatch.json。
 
 2026-10-16 最新人类指定开发改Grok4.7 xHigh CLI，S5/对话可用Grok4.7、原URL/key不变。原生MySQL作者已terminal释放writer、无在途build/test/model；root核固定9b9源码/ELF和原2修复serve，才冻结同一完整任务交接，无双writer。两新静态g1已S0–S10/新Grok S5/发布/物理RO/GW/CLI通过，尚缺新IUD/delete/随机8问及最终4常驻10分钟；当前仅2常驻，不冒称4。其他源/广义Goal暂停、计数不变。任务 execution/batches/native-luna-full-source-20261015/MYSQL-CURRENT-AVAILABILITY-GROK47-XHIGH-20261016.md，当前frozen待CLI实启。
