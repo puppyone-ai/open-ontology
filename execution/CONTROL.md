@@ -1,3 +1,7 @@
+2026-10-16T10:07:09.252887+00:00 MySQL专项已实际followup唯一 /root/mysql_rust_runtime_sol_medium，list_agents确认running，固定依赖0b27b409a；正式oo-connectors批量读取及C1/主线真实消费，两版完整出口仍待交付。总Goal与其他源保持暂停；无验收计数变化。
+
+2026-10-16 用户已暂停总Goal，get_goal实回paused；Doris已安全终态/无后台writer、源码WIP与DB/API保留，hold SHA be86aac4…10859。随后用户明确仅授权MySQL批量源读取器进入oo-connectors并主线全链验通，继续同一Sol medium；其他源不恢复。此前e3/ac633固定本地运行链证据有效，但不等于正式oo-connectors多源入口完成；当前该crate数据库驱动确只有PG，MySQL仍在preview工具。新卡 execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md；已冻结待实际接续，未把派发当完成，无计数/父项/整版新增签收，formal0/10。
+
 2026-10-16 Doris唯一原GPT-6 Luna max已实际followup恢复且list_agents确认running，固定卡493ba5b2c、MySQL依赖签收ac22ed665；当前独占仅本源+卡列最小Rust入口，历史更多共享写权不自动继承。其他8源held、MySQL固定服务不动，Doris尚未通过。普通600秒clock分段，完整退出/关键阻断才通知；正式/整版/原分母不变。派发 execution/batches/native-luna-full-source-20261015/doris-rust-complete-resume-dispatch.json。
 
 2026-10-16 MySQL完整Rust运行链及六字段native默认已真实root验收并固定ac22ed665；按人类顺序，仅Doris GPT-6 Luna max同一完整源卡冻结ready，尚未把派发当实际running或源通过。其余8源held；已安装0000–0042不改，旧queued取消拒绝/源13待pub/实际GW身份必须现核。最小Rust连续编排复用MySQL固定制品、保留C4/C5逐表向量/原全部出口，不额外组件审阅。卡 execution/batches/native-luna-full-source-20261015/DORIS-RUST-COMPLETE-RESUME-20261016.md。Spec/Plan检查仍仅原docs07基线漂移exit1（回执 execution/reviews/native-luna-full-source-20261015/mysql-rust-native-document-check.json），不调基线假过；全局原签收/计数不变。
