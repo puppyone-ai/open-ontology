@@ -1,0 +1,26 @@
+{
+  "as_of": "2026-10-16T02:58:10.493014+00:00",
+  "acceptance_level": "root_verified_existing_mysql_reference_restored_after_shared_flow_regression",
+  "source_regression": "4b80f3e0dad629c3450fdfa4670adc3af5e5a421",
+  "restoration_commit": "3423ed5b8bd00cba0af5e97885b7a78bad2112f5",
+  "raw_receipt": {
+    "path": "/tmp/oo-root-mysql-shared-flow-regression-20261016/receipt.json",
+    "sha256": "c3e3721b335b16f15730ff7e5c43daf0abc6cd7876cda1ca7c6e6f9a65b2c36b"
+  },
+  "decisive_result": "actual MySQL default official reentry exit2 before restoration; after exact original script bytes restored original49pins all match, same default six-field official resume exit0,6steps,wholetrue. No recipe/pin/old QA/Pack changes, no new model/DML/publication.",
+  "doris_repair_state": "Doris S5 and realS0-S10/maintenance successful; unchanged4b80 Rust overlays/API ELF f612 remain valid. Dedicated Python adapter migration belongs tools/doris-preview; both shared source-onboarding scripts reverted and write grant revoked. Actual Doris publish still not accepted.",
+  "oracle_state": "Existing fixed b8bf Gateway and real g12 automated capture/maintenance/publication/Gateway gold20cells0 difference author evidence retained; dynamic diagnostics reentry now8test positive/negative, real next IUD/Agent/default whole still pending. Gateway files exclusivelyDoris.",
+  "stable_reference_rule": "Before any shared script change, check installed reference recipe pins. Source-specific adapters stay source-owned; changing existing proof hashes or recipe pins is not a repair. Atomic newly-validated snapshot migration required for a deliberate shared dependency update.",
+  "runtime_hold": "Temporary new-source DML/publication/model hold lifted after actual restored reference check; same two complete source owners continue; other7held.",
+  "update_protocol": "task-ledger/CONTROL+JSON/active/HANDOFF/source-map/dispatch/card/TODO updated. MainPlan/development/counting current note updated, no parent or original exit changes. GOAL/PRODUCT-LOOPS/support-matrix/frontend not applicable: no scope/edition acceptance.",
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "release": 0,
+    "external": 0,
+    "formal_source": 0,
+    "edition": 0
+  },
+  "formal_sources": "0/10",
+  "independent_review": "deferred to unified human ten-source milestone; this is root decisive verification only"
+}

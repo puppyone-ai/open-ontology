@@ -20,188 +20,6 @@ OPERATOR = ROOT/'tools/selfbuild-control-api/recipes/operator.py'
 # Immutable S5 proof only. Maintenance files are produced by this invocation.
 RETAINED = ('build.json','product-receipt.json','role-pack.json','catalog.json','effective.json','oos/ontology.yaml','oos/effective-oos.yaml','oos/source.json')
 
-def _write_once(path, data, uid, token):
-    """Create one private artifact without replacing evidence from an earlier attempt."""
-    path=Path(path)
-    parent=path.parent
-    parent.mkdir(mode=0o700,parents=True,exist_ok=True)
-    mode=parent.lstat()
-    require(stat.S_ISDIR(mode.st_mode) and not stat.S_ISLNK(mode.st_mode) and mode.st_uid==uid and mode.st_mode & 0o777==0o700, token)
-    try:
-        fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|getattr(os,'O_NOFOLLOW',0),0o600)
-    except FileExistsError:
-        existing=path.lstat()
-        require(stat.S_ISREG(existing.st_mode) and not stat.S_ISLNK(existing.st_mode) and existing.st_uid==uid and existing.st_mode & 0o777==0o600 and path.read_bytes()==data, token)
-        return
-    with os.fdopen(fd,'wb') as target:
-        target.write(data);target.flush();os.fsync(target.fileno())
-    parent_fd=os.open(parent,os.O_RDONLY|getattr(os,'O_DIRECTORY',0))
-    try: os.fsync(parent_fd)
-    finally: os.close(parent_fd)
-
-def _private_json_receipt(path, descriptor, bundle_root, evidence_id, uid):
-    require(isinstance(descriptor,dict) and set(descriptor)=={'path','sha256','size','uid','mode'},'maintenance_source_semantics')
-    relative=descriptor.get('path')
-    require(isinstance(relative,str),'maintenance_source_semantics')
-    rel=Path(relative)
-    parts=rel.parts
-    require(not rel.is_absolute() and len(parts)==3 and parts[0]=='source-evidence' and parts[1]==evidence_id and all(part not in {'','.','..'} for part in parts),'maintenance_source_semantics')
-    require(parts[2]==path,'maintenance_source_semantics')
-    require(isinstance(descriptor.get('sha256'),str) and re.fullmatch(r'[a-f0-9]{64}',descriptor['sha256']) is not None,'maintenance_source_semantics')
-    require(type(descriptor.get('size')) is int and 0 < descriptor['size'] <= 1_048_576 and descriptor.get('uid')==uid and descriptor.get('mode')==0o600,'maintenance_source_semantics')
-    for directory in (Path(bundle_root)/'source-evidence',Path(bundle_root)/'source-evidence'/evidence_id):
-        directory_stat=directory.lstat()
-        require(stat.S_ISDIR(directory_stat.st_mode) and not stat.S_ISLNK(directory_stat.st_mode) and directory_stat.st_uid==uid and directory_stat.st_mode & 0o777==0o700,'maintenance_source_semantics')
-    source=Path(bundle_root)/rel
-    source_stat=source.lstat()
-    require(stat.S_ISREG(source_stat.st_mode) and not stat.S_ISLNK(source_stat.st_mode) and source_stat.st_uid==uid and source_stat.st_mode & 0o777==0o600 and source_stat.st_size==descriptor['size'],'maintenance_source_semantics')
-    raw=source.read_bytes()
-    require(hashlib.sha256(raw).hexdigest()==descriptor['sha256'],'maintenance_source_semantics')
-    try: parsed=json.loads(raw.decode(),object_pairs_hook=pairs)
-    except (UnicodeError,json.JSONDecodeError): raise Refused('maintenance_source_semantics')
-    return raw,parsed
-
-def _doris_source_semantics(raw_bytes, bundle_root, build_root, catalog_sha, source_path, archive_root, receipt_root):
-    """Normalize only the legacy Doris sidecar; preserve and bind every source byte."""
-    try: raw=json.loads(raw_bytes.decode(),object_pairs_hook=pairs)
-    except (UnicodeError,json.JSONDecodeError): raise Refused('maintenance_source_semantics')
-    require(isinstance(raw,dict) and raw.get('protocol')=='oo.source.doris.audit/v1','maintenance_source_semantics')
-    uid=os.getuid()
-    for directory,private_mode in ((bundle_root,True),(build_root,False)):
-        st=Path(directory).lstat()
-        mode_ok=st.st_mode & 0o777==0o700 if private_mode else st.st_mode & 0o022==0
-        require(stat.S_ISDIR(st.st_mode) and not stat.S_ISLNK(st.st_mode) and st.st_uid==uid and mode_ok,'maintenance_source_semantics')
-    manifest_path=Path(bundle_root)/'manifest.json'
-    catalog_path=Path(bundle_root)/'catalog.json'
-    for file in (manifest_path,catalog_path):
-        st=file.lstat()
-        require(stat.S_ISREG(st.st_mode) and not stat.S_ISLNK(st.st_mode) and st.st_uid==uid and st.st_mode & 0o777==0o600,'maintenance_source_semantics')
-    try:
-        manifest=json.loads(manifest_path.read_text(),object_pairs_hook=pairs)
-        catalog=json.loads(catalog_path.read_text(),object_pairs_hook=pairs)
-    except (UnicodeError,json.JSONDecodeError): raise Refused('maintenance_source_semantics')
-    require(manifest.get('files',{}).get('catalog.json')==catalog_sha==hashlib.sha256(catalog_path.read_bytes()).hexdigest(),'maintenance_source_semantics')
-    require(catalog.get('protocol')=='oo.pipeline.sealed-import-collection/v1' and isinstance(catalog.get('entries'),list) and catalog['entries'],'maintenance_source_semantics')
-    source_id=raw.get('source_id')
-    require(isinstance(source_id,str) and source_id and source_id=='dorispreview','maintenance_source_semantics')
-    require(raw.get('collection_sha256')==catalog_sha and type(raw.get('source_generation')) is int and raw['source_generation']>0 and type(raw.get('target_generation')) is int and raw['target_generation']>0,'maintenance_source_semantics')
-    require(raw.get('consistency_grade')=='per_table' and raw.get('cross_table_consistent') is False and raw.get('reader_write_attempts')==0 and raw.get('generation_semantics')=='high_watermark','maintenance_source_semantics')
-    entries={}
-    alias_to_dataset={}
-    for entry in catalog['entries']:
-        require(isinstance(entry,dict) and entry.get('engine')=='doris' and entry.get('source_id')==source_id,'maintenance_source_semantics')
-        tables=entry.get('tables')
-        require(isinstance(tables,list) and len(tables)==1,'maintenance_source_semantics')
-        table=tables[0]
-        schema=table.get('logical_schema');name=table.get('logical_table')
-        require(isinstance(schema,str) and schema and '.' not in schema and '/' not in schema and isinstance(name,str) and name and '.' not in name and '/' not in name,'maintenance_source_semantics')
-        dataset=f'{schema}.{name}'
-        source_generation=entry.get('source_generation');target_generation=entry.get('target_generation');run_id=entry.get('run_id')
-        require(type(source_generation) is int and source_generation>0 and type(target_generation) is int and target_generation>0 and isinstance(run_id,str) and run_id,'maintenance_source_semantics')
-        require(dataset not in entries and name not in alias_to_dataset,'maintenance_source_semantics')
-        entries[dataset]={'schema':schema,'table':name,'source_generation':source_generation,'target_generation':target_generation,'run_id':run_id,'catalog_entry':entry}
-        alias_to_dataset[name]=dataset
-    expected_datasets=set(entries)
-    require(len(entries)==7,'maintenance_source_semantics')
-    generations=raw.get('table_generations')
-    methods=raw.get('capture_methods')
-    evidence=raw.get('evidence')
-    evidence_id=raw.get('evidence_set_id')
-    require(isinstance(evidence_id,str) and re.fullmatch(r'[a-f0-9]{64}',evidence_id) is not None,'maintenance_source_semantics')
-    require(isinstance(generations,dict) and set(generations)==expected_datasets,'maintenance_source_semantics')
-    require(isinstance(methods,dict) and set(methods)==set(alias_to_dataset),'maintenance_source_semantics')
-    require(isinstance(evidence,dict) and set(evidence)==expected_datasets,'maintenance_source_semantics')
-    quality=raw.get('quality')
-    require(isinstance(quality,dict) and isinstance(quality.get('warnings'),dict),'maintenance_source_semantics')
-    warning_aliases=quality['warnings']
-    warnings={}
-    for key,value in warning_aliases.items():
-        dataset=key if key in expected_datasets else alias_to_dataset.get(key)
-        require(dataset is not None and isinstance(value,str) and value in {'DELETES_LAGGED','DELETES_UNDETECTED','POSITION_EXPIRED','STALE_RISK','PRECISION_LOSS','SOURCE_BUDGET_EXHAUSTED'} and dataset not in warnings,'maintenance_source_semantics')
-        warnings[dataset]=value
-    require(set(warnings)==expected_datasets,'maintenance_source_semantics')
-    normalized_methods={}
-    source_receipts={}
-    staged_receipts=[]
-    for dataset in sorted(expected_datasets):
-        catalog_row=entries[dataset]
-        generation=generations.get(dataset)
-        require(isinstance(generation,dict) and set(generation)=={'run_id','source_generation','target_generation'},'maintenance_source_semantics')
-        require(generation.get('run_id')==catalog_row['run_id'] and type(generation.get('source_generation')) is int and generation['source_generation']==catalog_row['source_generation'] and type(generation.get('target_generation')) is int and generation['target_generation']==catalog_row['target_generation'],'maintenance_source_semantics')
-        alias=catalog_row['table']
-        method=methods.get(alias)
-        require(isinstance(method,dict) and {'capture_method','consistency','delete_detection'} <= set(method),'maintenance_source_semantics')
-        allowed_method_fields={'capture_method','consistency','delete_detection','quality','current_update','logical_table','source_generation','target_generation'}
-        require(set(method) <= allowed_method_fields,'maintenance_source_semantics')
-        raw_capture=method.get('capture_method')
-        require(raw_capture in {'C4','C5'},'maintenance_source_semantics')
-        capture={'C4':'c4_partition','C5':'c5_diff'}[raw_capture]
-        deletion=method.get('delete_detection')
-        expected_deletion='partition_replace' if capture=='c4_partition' else 'reconcile'
-        require(method.get('consistency')=='S0' and deletion==expected_deletion,'maintenance_source_semantics')
-        if 'logical_table' in method: require(method['logical_table']==dataset,'maintenance_source_semantics')
-        if 'source_generation' in method: require(type(method['source_generation']) is int and method['source_generation']==catalog_row['source_generation'],'maintenance_source_semantics')
-        if 'target_generation' in method: require(type(method['target_generation']) is int and method['target_generation']==catalog_row['target_generation'],'maintenance_source_semantics')
-        if 'quality' in method: require(method['quality']==warnings[dataset],'maintenance_source_semantics')
-        if 'current_update' in method: require(capture=='c5_diff' and method['current_update'] in {'observed','none_observed'},'maintenance_source_semantics')
-        pair=evidence.get(dataset)
-        require(isinstance(pair,dict) and set(pair)=={'request','load'},'maintenance_source_semantics')
-        normalized_methods[dataset]={key:value for key,value in method.items() if key in {'quality','current_update'}}
-        normalized_methods[dataset].update({'logical_table':dataset,'capture_method':capture,'consistency':'S0','delete_detection':expected_deletion,'source_generation':catalog_row['source_generation'],'target_generation':catalog_row['target_generation']})
-        source_receipts[dataset]={}
-        for kind in ('request','load'):
-            descriptor=pair[kind]
-            expected_name=f'{dataset}.{kind}.json'
-            raw_receipt,parsed=_private_json_receipt(expected_name,descriptor,bundle_root,evidence_id,uid)
-            require(Path(descriptor['path']).name==expected_name,'maintenance_source_semantics')
-            common={'source_id':source_id,'source_engine':'doris','logical_schema':catalog_row['schema'],'logical_table':catalog_row['table'],'source_generation':catalog_row['source_generation']}
-            require(all(parsed.get(key)==value for key,value in common.items()) and type(parsed.get('source_generation')) is int,'maintenance_source_semantics')
-            if kind=='request':
-                protocol='oo.pipeline.native-partition/v1' if capture=='c4_partition' else 'oo.pipeline.native-update/v1'
-                require(parsed.get('protocol')==protocol and parsed.get('capture_method')==capture and parsed.get('delete_detection')==expected_deletion and parsed.get('consistency_grade')=='S0' and type(parsed.get('full_snapshot')) is bool and parsed.get('full_snapshot')==(capture=='c5_diff'),'maintenance_source_semantics')
-            else:
-                require(parsed.get('protocol')=='oo.pipeline.native-update-result/v1' and type(parsed.get('target_generation')) is int and parsed.get('target_generation')==catalog_row['target_generation'] and parsed.get('load_state')=='awaiting_publish' and parsed.get('run_id')==catalog_row['run_id'],'maintenance_source_semantics')
-            source_receipts[dataset][kind]=descriptor['sha256']
-            staged_receipts.append((Path(descriptor['path']),raw_receipt,descriptor))
-    preimage_evidence=raw.get('source_preimage_evidence')
-    preimages=raw.get('source_preimages')
-    require(isinstance(preimage_evidence,dict) and set(preimage_evidence)=={'schema','type'} and isinstance(preimages,dict) and set(preimages)=={'schema_sha256','type_sha256'},'maintenance_source_semantics')
-    preimage_files={'schema':'source-schema-preimage.json','type':'source-type-preimage.json'}
-    for kind,filename in preimage_files.items():
-        descriptor=preimage_evidence[kind]
-        raw_receipt,parsed=_private_json_receipt(filename,descriptor,bundle_root,evidence_id,uid)
-        require(Path(descriptor['path']).name==filename and preimages.get(kind+'_sha256')==descriptor['sha256'],'maintenance_source_semantics')
-        require(isinstance(parsed,(dict,list)),'maintenance_source_semantics')
-        staged_receipts.append((Path(descriptor['path']),raw_receipt,descriptor))
-    normalized=dict(raw)
-    normalized['capture_methods']=normalized_methods
-    quality_copy=dict(quality);quality_copy['warnings']=dict(sorted(warnings.items()));normalized['quality']=quality_copy
-    normalized_bytes=(json.dumps(normalized,indent=2,ensure_ascii=False)+'\n').encode()
-    normalized_sha=hashlib.sha256(normalized_bytes).hexdigest()
-    raw_sha=hashlib.sha256(raw_bytes).hexdigest()
-    evidence_root=Path(build_root)/'source-evidence'
-    evidence_dir=evidence_root/evidence_id
-    for directory in (evidence_root,evidence_dir):
-        directory.mkdir(mode=0o700,exist_ok=True)
-        st=directory.lstat()
-        require(stat.S_ISDIR(st.st_mode) and not stat.S_ISLNK(st.st_mode) and st.st_uid==uid and st.st_mode & 0o777==0o700,'maintenance_source_semantics')
-    for rel,raw_receipt,descriptor in staged_receipts:
-        target=Path(build_root)/rel
-        _write_once(target,raw_receipt,uid,'maintenance_source_semantics')
-        staged_stat=target.lstat()
-        require(staged_stat.st_size==descriptor['size'] and staged_stat.st_uid==descriptor['uid'] and staged_stat.st_mode & 0o777==descriptor['mode'] and hashlib.sha256(target.read_bytes()).hexdigest()==descriptor['sha256'],'maintenance_source_semantics')
-    semantics_dir=Path(build_root)/'source-semantics'
-    semantics_dir.mkdir(mode=0o700,exist_ok=True)
-    semantics_stat=semantics_dir.lstat()
-    require(stat.S_ISDIR(semantics_stat.st_mode) and not stat.S_ISLNK(semantics_stat.st_mode) and semantics_stat.st_uid==uid and semantics_stat.st_mode & 0o777==0o700,'maintenance_source_semantics')
-    _write_once(semantics_dir/(normalized_sha+'.json'),normalized_bytes,uid,'maintenance_source_semantics')
-    _write_once(Path(archive_root)/(raw_sha+'.json'),raw_bytes,uid,'maintenance_source_semantics')
-    receipt={'protocol':'oo.source-onboarding.doris-semantics-normalization/v1','source_file':Path(source_path).name,'raw_source_semantics_sha256':raw_sha,'normalized_source_semantics_sha256':normalized_sha,'catalog_sha256':catalog_sha,'evidence_set_id':evidence_id,'tables':{dataset:{'run_id':entries[dataset]['run_id'],'source_generation':entries[dataset]['source_generation'],'target_generation':entries[dataset]['target_generation'],'capture_method':normalized_methods[dataset]['capture_method'],'consistency':normalized_methods[dataset]['consistency'],'delete_detection':normalized_methods[dataset]['delete_detection'],'request_sha256':source_receipts[dataset]['request'],'load_sha256':source_receipts[dataset]['load']} for dataset in sorted(expected_datasets)},'preimage_sha256':{kind+'_sha256':preimage_evidence[kind]['sha256'] for kind in sorted(preimage_evidence)}}
-    receipt_bytes=(json.dumps(receipt,indent=2,ensure_ascii=False)+'\n').encode()
-    receipt_sha=hashlib.sha256(receipt_bytes).hexdigest()
-    _write_once(Path(receipt_root)/(raw_sha+'-'+normalized_sha+'.json'),receipt_bytes,uid,'maintenance_source_semantics')
-    return normalized_bytes,receipt_bytes,receipt_sha
-
 class Flow:
     def __init__(self, config, out):
         self.c=config;self.out=out;out.mkdir(mode=0o700,parents=True,exist_ok=True)
@@ -432,25 +250,11 @@ class Flow:
         path='/control/v1/builds/'+build
         body={'catalog_sha256':catalog_sha,'trigger':'source_generation_advanced'}
         semantics_sha=None
-        semantics_original_bytes=None
-        semantics_normalized_bytes=None
-        semantics_normalization_receipt=None
         if self.current_source_semantics_file is not None:
             source=self.owned(self.current_source_semantics_file, stat.S_ISREG)
-            semantics_original_bytes=source.read_bytes()
+            semantics_bytes=source.read_bytes(); semantics_sha=hashlib.sha256(semantics_bytes).hexdigest()
             build_root=Path(self.c['work_dir_host'])/'builds'/build
             require(build_root.is_dir() and not build_root.is_symlink(), 'maintenance_not_invoked')
-            try: raw_document=json.loads(semantics_original_bytes.decode(),object_pairs_hook=pairs)
-            except (UnicodeError,json.JSONDecodeError): raise Refused('maintenance_source_semantics')
-            if isinstance(raw_document,dict) and raw_document.get('protocol')=='oo.source.doris.audit/v1':
-                bundle_root=Path(self.c.get('sealed_bundle_host',str(Path(self.c['work_dir_host']).parent/'bundle')))
-                archive_root=self.out/'source-semantics-archive'
-                receipt_root=self.out/'source-semantics-normalization'
-                semantics_normalized_bytes,semantics_normalization_receipt,_=_doris_source_semantics(
-                    semantics_original_bytes,bundle_root,build_root,catalog_sha,source,archive_root,receipt_root)
-            else:
-                semantics_normalized_bytes=semantics_original_bytes
-            semantics_sha=hashlib.sha256(semantics_normalized_bytes).hexdigest()
             semantics_dir=build_root/'source-semantics'
             semantics_dir.mkdir(mode=0o700,exist_ok=True)
             require(not semantics_dir.is_symlink() and not semantics_dir.stat().st_mode & 0o077, 'maintenance_source_semantics')
@@ -459,10 +263,10 @@ class Flow:
                 fd=os.open(staged, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600)
             except FileExistsError:
                 existing=self.owned(staged, stat.S_ISREG).read_bytes()
-                require(existing==semantics_normalized_bytes, 'maintenance_source_semantics')
+                require(existing==semantics_bytes, 'maintenance_source_semantics')
             else:
                 with os.fdopen(fd,'wb') as target:
-                    target.write(semantics_normalized_bytes);target.flush();os.fsync(target.fileno())
+                    target.write(semantics_bytes);target.flush();os.fsync(target.fileno())
                 staged.chmod(0o600)
             body['source_semantics_sha256']=semantics_sha
         self.call('admin', path+'/maintenance', body, 'current-maintenance')
@@ -518,11 +322,7 @@ class Flow:
         if source_bytes is not None: put('current-source.json', source_bytes)
         if current_effective_bytes is not None: put('current-effective-oos.json', current_effective_bytes)
         if self.current_source_semantics_file is not None:
-            require(semantics_original_bytes is not None and semantics_normalized_bytes is not None,'maintenance_source_semantics')
-            put('current-source-semantics.json', semantics_normalized_bytes)
-            if semantics_normalization_receipt is not None:
-                put('current-source-semantics-original.json',semantics_original_bytes)
-                put('current-source-semantics-normalization.json',semantics_normalization_receipt)
+            put('current-source-semantics.json', self.current_source_semantics_file.read_bytes())
         put('current-prepared-overlay.json', overlay_bytes)
         save(self.out/'maintenance-consumption.json', fresh)
         if current_effective_bytes is not None:

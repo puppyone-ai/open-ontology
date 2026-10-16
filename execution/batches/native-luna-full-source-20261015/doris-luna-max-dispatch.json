@@ -59,5 +59,15 @@
     "receipt": "execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json",
     "owner": "/root/doris_complete_luna_max",
     "this_owner_has_write_authority": true
+  },
+  "latest_mysql_shared_flow_restoration": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/mysql-shared-flow-restoration-intake.json",
+    "restore_commit": "3423ed5b8bd00cba0af5e97885b7a78bad2112f5",
+    "mysql_default_reference": "restored49pins_officialresume_exit0_wholetrue",
+    "revoked_doris_write_paths": [
+      "tools/source-onboarding/product_flow.py",
+      "tools/source-onboarding/test_onboard.py"
+    ],
+    "formal_source_count_delta": 0
   }
 }

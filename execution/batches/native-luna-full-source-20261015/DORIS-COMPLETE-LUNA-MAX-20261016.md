@@ -44,3 +44,6 @@ root逐列实查：0008原十列SELECT已生效，quiet新用current_signature/p
 
 
 2026-10-16 独占接收public_surface.rs/query_executor.rs，仅真实Doris C4/C5 per-table质量、新鲜度必要窄适配/tests，C1/Oracle原分支保持。先最小方案，固定Linux测试/commit/ELF后真验；NULL全局位点不得捏成0，未知时间不造值。原整源退出不减。 原子移交证据/边界：execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json。
+
+
+2026-10-16 共享稳定回归修复：3423ed5b8已恢复product_flow.py/test_onboard.py原字节，root实核原MySQL49pins与官方六字段重入0/6steps/wholetrue；撤回Doris对此两共享脚本写权，专用规范化/staging和对应测试迁至tools/doris-preview。4b80原代码/失败及未变Rust/API制品保留，新pub/DML临时hold已解除，Gateway原窄写权继续。证据 execution/reviews/native-luna-full-source-20261015/mysql-shared-flow-restoration-intake.json；不改原recipe/pins/旧QA，不增验收。
