@@ -218,7 +218,9 @@
         "crates/oo-pipeline/migrations/0041_native_partition_observation_read.sql",
         "tools/pg-builder/src/source_contract.rs",
         "crates/oo-gateway/src/public_surface.rs",
-        "crates/oo-gateway/src/query_executor.rs"
+        "crates/oo-gateway/src/query_executor.rs",
+        "crates/oo-gateway/src/mapping_reader_access.rs",
+        "crates/oo-gateway/tests/mapping_reader_access_pg_live.rs"
       ],
       "mandatory_blocker": null,
       "status": "spawned_and_accepted",
@@ -379,6 +381,13 @@
     "revoked_doris_write_paths": [
       "tools/source-onboarding/product_flow.py",
       "tools/source-onboarding/test_onboard.py"
+    ]
+  },
+  "latest_doris_mapping_reader_scope": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/doris-mapping-reader-per-table-scope.json",
+    "exact_additional_write_paths": [
+      "crates/oo-gateway/src/mapping_reader_access.rs",
+      "crates/oo-gateway/tests/mapping_reader_access_pg_live.rs"
     ]
   }
 }

@@ -22,10 +22,49 @@ import uuid
 from decimal import Decimal
 
 
-PLAN = Path("/private/tmp/oo-oracle-c5-luna-max-20261016/normal-whole-g15/plan-final.json")
+PLAN = Path("/private/tmp/oo-oracle-c5-luna-max-20261016/normal-whole-g15/plan-token-renewed-20261016T0450Z.json")
 PROTOCOL = "oo.oracle.normal-whole/v1"
 SOURCE_PROTOCOL = "oo.oracle.normal-whole-source-proof/v1"
 REQUIRED_TOOLS = {"query", "freshness", "describe", "knowledge_cat"}
+ORACLE_TOOL_ERROR_POLICY = {
+    "nonzero_exit_required": True,
+    "retryable_must_be_false": True,
+    "base_classifier_preserved": True,
+    "usage": {
+        "tables": [],
+        "describe": ["table is missing", "table is not public"],
+        "knowledge_cat": ["path is missing", "path is not public"],
+        "knowledge_search": ["search text is missing", "search text is not public"],
+        "validate": ["sql is missing"],
+        "query": ["sql is missing"],
+        "freshness": [],
+    },
+    "gateway": {
+        "tables": {},
+        "describe": {"RELATION_NOT_FOUND": "table is not in this pack"},
+        "knowledge_cat": {"SCHEMA_INVALID": "knowledge path is not in this pack"},
+        "knowledge_search": {},
+        "validate": {
+            "SQL_PARSE_ERROR": None,
+            "STATEMENT_NOT_ALLOWED": None,
+            "FUNCTION_NOT_ALLOWED": None,
+            "RELATION_NOT_FOUND": "relation is not visible",
+            "COLUMN_NOT_ALLOWED": None,
+            "UNQUALIFIED_RELATION": "relation must be schema-qualified",
+            "COST_TOO_HIGH": None,
+        },
+        "query": {
+            "SQL_PARSE_ERROR": None,
+            "STATEMENT_NOT_ALLOWED": None,
+            "FUNCTION_NOT_ALLOWED": None,
+            "RELATION_NOT_FOUND": "relation is not visible",
+            "COLUMN_NOT_ALLOWED": None,
+            "UNQUALIFIED_RELATION": "relation must be schema-qualified",
+            "COST_TOO_HIGH": None,
+        },
+        "freshness": {},
+    },
+}
 
 
 class Refused(ValueError):
@@ -97,15 +136,20 @@ def check_sha(path, expected, reason):
 
 
 def oracle_tool_error_returned(base_classifier, name, body):
+    if type(body.get("exit")) is not int or body["exit"] == 0 or body.get("retryable") is not False:
+        return False
     if base_classifier(name, body):
         return True
-    if name not in {"query", "validate"} or body.get("class") != "gateway":
+    if body.get("class") == "usage":
+        return body.get("message") in ORACLE_TOOL_ERROR_POLICY["usage"].get(name, [])
+    if body.get("class") != "gateway":
         return False
+    gateway_rules = ORACLE_TOOL_ERROR_POLICY["gateway"].get(name, {})
     code = body.get("code")
-    if code in {"SQL_PARSE_ERROR", "COST_TOO_HIGH"}:
-        return True
-    return ((code == "RELATION_NOT_FOUND" and body.get("message") == "relation is not visible") or
-            (code == "UNQUALIFIED_RELATION" and body.get("message") == "relation must be schema-qualified"))
+    if code not in gateway_rules:
+        return False
+    expected_message = gateway_rules[code]
+    return expected_message is None or body.get("message") == expected_message
 
 
 def load_fixed_dialogue(dialogue_path, expected_sha256, plan=None):
@@ -584,10 +628,8 @@ def write_adapter_invocation(run, attempt_rel, plan, command, config_path, froze
                 "entrypoint": "dialogue.main", "argv": command,
                 "config": {"path": str(Path(config_path).resolve()), "sha256": sha(config_path)},
                 "frozen_selection": frozen,
-                "tool_error_extension": {"name": "tool_error_returned", "tool_names": ["query", "validate"],
-                                         "class": "gateway", "codes": ["RELATION_NOT_FOUND",
-                                                                          "UNQUALIFIED_RELATION",
-                                                                          "SQL_PARSE_ERROR", "COST_TOO_HIGH"]},
+                "tool_error_policy": {"name": "tool_error_returned",
+                                      "oracle_policy": ORACLE_TOOL_ERROR_POLICY},
                 "result": {"exit_code": exit_code, "timed_out": timed_out,
                            "stdout_sha256": hashlib.sha256(stdout_text.encode()).hexdigest(),
                            "stderr_sha256": hashlib.sha256(stderr_text.encode()).hexdigest(),
@@ -714,7 +756,9 @@ def verify_dialogue(run, suffix, source, pack_sha):
          invocation.get("entrypoint") == "dialogue.main" and
          invocation.get("base_dialogue") == {"path": plan["runtime"]["dialogue"],
                                                "sha256": plan["runtime"]["dialogue_sha256"]} and
-         invocation.get("adapter") == {"path": str(Path(__file__).resolve()), "sha256": sha(__file__)},
+         invocation.get("adapter") == {"path": str(Path(__file__).resolve()), "sha256": sha(__file__)} and
+         invocation.get("tool_error_policy") == {"name": "tool_error_returned",
+                                                  "oracle_policy": ORACLE_TOOL_ERROR_POLICY},
          "dialogue_adapter")
     invocation_command = invocation.get("argv")
     need(isinstance(invocation_command, list) and plan["runtime"]["dialogue"] in invocation_command and

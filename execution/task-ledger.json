@@ -10784,12 +10784,12 @@
     "formal_source_count_delta": 0
   },
   "latest_mysql_manual_token_refresh": {
-    "path": "/tmp/oo-root-mysql-auth-20261016T042810Z/receipt.json",
-    "sha256": "ca95752323f987037a11bc3d408547165d05a3bd9e995d0d155749986cdecf4f",
+    "path": "/tmp/oo-root-mysql-auth-20261016T051608Z/receipt.json",
+    "sha256": "cbb8d4d16350fc68554733f0750c8e6aaa1af595414ea516920338ca64070ee8",
     "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
-    "issued_UTC": "2026-10-16T04:28:11.579546+00:00",
+    "issued_UTC": "2026-10-16T05:16:09.959640+00:00",
     "client_ttl_ms": 3600000,
-    "token_container_path": "/run-current/renewed-client-root-20261016T042810Z.token",
+    "token_container_path": "/run-current/renewed-client-root-20261016T051608Z.token",
     "requires_explicit_CLI_flag": true,
     "automatic_renewal": false,
     "formal_source_count_delta": 0
@@ -10882,6 +10882,17 @@
       "requires_explicit_CLI_flag": true,
       "automatic_renewal": false,
       "formal_source_count_delta": 0
+    },
+    {
+      "path": "/tmp/oo-root-mysql-auth-20261016T042810Z/receipt.json",
+      "sha256": "ca95752323f987037a11bc3d408547165d05a3bd9e995d0d155749986cdecf4f",
+      "scope": "official distinct token issuance plus actual same-cut CLI; no source/Pack/pin/code changes; original QA/current token unchanged",
+      "issued_UTC": "2026-10-16T04:28:11.579546+00:00",
+      "client_ttl_ms": 3600000,
+      "token_container_path": "/run-current/renewed-client-root-20261016T042810Z.token",
+      "requires_explicit_CLI_flag": true,
+      "automatic_renewal": false,
+      "formal_source_count_delta": 0
     }
   ],
   "latest_per_table_shared_fixed_dependency": {
@@ -10935,12 +10946,13 @@
     "formal_source_count_delta": 0
   },
   "latest_oracle_default_installation": {
-    "intake": "execution/reviews/native-luna-full-source-20261015/oracle-sqlguard-feedback-intake.json",
-    "source_commit": "139b1de4aa0e0eeb38e8c95bc6388b139dea1bb5",
-    "registry_state": "awaiting_run",
+    "intake": "execution/reviews/native-luna-full-source-20261015/oracle-random-b-failure-intake.json",
+    "source_commit": "790a34014646a35a1ddb29f3c61d3f92cb9db814",
+    "registry_state": "installed; normal run failed",
+    "run_id": "9c1b239c395a4b13899b6d60cbe9856d",
     "whole": false,
     "owner": "/root/oracle_complete_luna_max",
-    "remaining": "normal same-selection random dialogue whole, official resume, final fixed packet",
+    "remaining": "fixed generic tool instructions, frozen B retry, complete official normal whole/resume/final packet",
     "formal_source_count_delta": 0
   },
   "latest_doris_fixture_publication": {
@@ -10948,5 +10960,14 @@
     "operation_id": "op_92ca95899a2901042752cc921a80a06c",
     "state": "succeeded_activated_test_scope",
     "whole": false
+  },
+  "latest_doris_mapping_reader_scope": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/doris-mapping-reader-per-table-scope.json",
+    "owner": "/root/doris_complete_luna_max",
+    "exact_additional_write_paths": [
+      "crates/oo-gateway/src/mapping_reader_access.rs",
+      "crates/oo-gateway/tests/mapping_reader_access_pg_live.rs"
+    ],
+    "formal_source_count_delta": 0
   }
 }

@@ -232,8 +232,10 @@ async fn provision_native_in_transaction(tx:&Transaction<'_>,login:&str,prepared
         }
         resolved.extend(resolve_tables(tx,context).await?);
     }
-    for table in &resolved {
-        let row=tx.query_opt("SELECT f.opened_columns FROM oo_publish_target.fence f WHERE f.role_name=$1 AND f.schema_name='_oo' AND f.relation_name=$2 AND f.state='open' AND EXISTS(SELECT 1 FROM _oo.full_import_run r JOIN _oo.full_import_table t ON t.run_id=r.run_id JOIN _oo.source_watermark w ON w.source=r.source_id AND w.source_generation=r.source_generation AND w.target_generation=r.target_generation WHERE t.physical_name=f.relation_name AND r.state='published' AND w.state='live')",&[role,&table.physical_table]).await.map_err(db_error)?.ok_or(MappingReaderError::GrantMismatch)?;
+    if prepared.len()!=resolved.len() {return Err(MappingReaderError::GrantMismatch);}
+    for (context,table) in prepared.iter().zip(&resolved) {
+        let logical=context.tables.first().ok_or(MappingReaderError::GrantMismatch)?;
+        let row=native_publish_fence(tx,role,context,logical,table).await?.ok_or(MappingReaderError::GrantMismatch)?;
         let opened:BTreeSet<String>=row.get::<_,Vec<String>>(0).into_iter().collect();
         if opened!=table.physical_columns.iter().cloned().collect() {return Err(MappingReaderError::GrantMismatch);}
         ensure_metadata_hidden(tx,role,&table.physical_table).await?;
@@ -271,6 +273,119 @@ async fn provision_native_in_transaction(tx:&Transaction<'_>,login:&str,prepared
     }
     Ok(MappingReaderOutcome {effect:if installed {MappingReaderEffect::Installed} else {MappingReaderEffect::Replay},login:login.to_owned(),role:role.clone()})
 }
+
+async fn native_publish_fence(tx:&Transaction<'_>,role:&str,context:&Prepared,logical:&PreparedTable,table:&ResolvedTable)->Result<Option<tokio_postgres::Row>,MappingReaderError> {
+    let consistency:Option<String>=tx.query_opt(
+        "SELECT consistency FROM _oo.source_watermark WHERE source=$1 AND state='live'",
+        &[&context.project],
+    ).await.map_err(db_error)?.map(|row|row.get(0));
+
+    match consistency.as_deref() {
+        // Keep the original same-generation gate for global watermarks.
+        Some("transactional")=>tx.query_opt(
+            "SELECT f.opened_columns FROM oo_publish_target.fence f \
+             WHERE f.role_name=$1 AND f.schema_name='_oo' AND f.relation_name=$2 AND f.state='open' \
+             AND EXISTS(SELECT 1 FROM _oo.full_import_run r \
+               JOIN _oo.full_import_table t ON t.run_id=r.run_id \
+               JOIN _oo.source_watermark w ON w.source=r.source_id \
+                 AND w.source_generation=r.source_generation AND w.target_generation=r.target_generation \
+               WHERE t.physical_name=f.relation_name AND r.state='published' \
+                 AND w.state='live' AND w.consistency='transactional')",
+            &[&role,&table.physical_table],
+        ).await.map_err(db_error),
+        // In per-table mode the source watermark is the current collection cut;
+        // the immutable 0039 receipt binds that cut to each table's sealed run.
+        Some("per_table")=>tx.query_opt(
+            PER_TABLE_PUBLISHED_FENCE_SQL,
+            &[&role,&table.physical_table,&context.project,&context.config_digest,&logical.namespace,&logical.name],
+        ).await.map_err(db_error),
+        _=>Ok(None),
+    }
+}
+
+const PER_TABLE_PUBLISHED_FENCE_SQL:&str=r#"
+SELECT f.opened_columns
+FROM oo_publish_target.fence f
+WHERE f.role_name=$1 AND f.schema_name='_oo'
+  AND f.relation_name=$2 AND f.state='open'
+  AND EXISTS (
+    SELECT 1
+    FROM _oo.source_watermark w
+    JOIN _oo.native_per_table_publication c
+      ON c.source_id=w.source
+     AND c.source_generation=w.source_generation
+     AND c.target_generation=w.target_generation
+    CROSS JOIN LATERAL jsonb_array_elements(
+      CASE WHEN jsonb_typeof(c.receipt->'tables')='array'
+        THEN c.receipt->'tables' ELSE '[]'::jsonb END
+    ) AS e(value)
+    JOIN _oo.full_import_run r ON r.run_id::text=e.value->>'run_id'
+    JOIN _oo.full_import_table t
+      ON t.run_id=r.run_id
+     AND t.schema_ident=e.value->>'schema'
+     AND t.table_ident=e.value->>'table'
+    JOIN _oo.table_freshness fresh
+      ON fresh.source=r.source_id
+     AND fresh.schema_name=t.schema_ident
+     AND fresh.table_name=t.table_ident
+    JOIN _oo.native_publication_receipt published
+      ON published.run_id=r.run_id
+     AND published.source_id=r.source_id
+     AND published.source_generation=r.source_generation
+     AND published.target_generation=r.target_generation
+     AND published.consistency='per_table'
+     AND published.cross_table_consistent=false
+     AND published.applied_pos=0
+     AND published.position_codec IN ('snapshot-zero/v1','partition-signature/v1')
+     AND published.consistency_grade IN ('S0','B')
+     AND published.table_vector @> jsonb_build_array(e.value)
+    WHERE w.source=$3 AND w.state='live'
+      AND w.consistency='per_table' AND w.cross_table_consistent=false
+      AND w.consistency_grade IN ('S0','B')
+      AND (w.applied_pos IS NULL OR w.applied_pos=0)
+      AND c.receipt_sha256 ~ '^[0-9a-f]{64}$'
+      AND c.receipt->>'protocol'='oo.pipeline.native-publication-receipt/v1'
+      AND c.receipt->>'collection_mode'='per_table'
+      AND c.receipt->>'consistency'='per_table'
+      AND c.receipt->>'run_id'=c.anchor_run::text
+      AND c.receipt->>'source_id'=c.source_id
+      AND c.receipt->>'source_generation'=c.source_generation::text
+      AND c.receipt->>'target_generation'=c.target_generation::text
+      AND c.receipt->>'consistency_grade'=w.consistency_grade
+      AND c.receipt->>'cross_table_consistent'='false'
+      AND c.receipt->>'position_codec'=w.position_codec
+      AND c.receipt->>'position_lineage'=w.position_lineage
+      AND (c.receipt->>'applied_pos')::numeric=0
+      AND c.receipt->'run_ids' @> jsonb_build_array(r.run_id::text)
+      AND r.source_id=w.source AND r.config_digest=$4
+      AND r.state='published' AND r.sealed_at IS NOT NULL AND r.retired_at IS NULL
+      AND r.source_generation=(e.value->>'source_generation')::bigint
+      AND r.target_generation=(e.value->>'target_generation')::bigint
+      AND e.value->>'schema'=$5 AND e.value->>'table'=$6
+      AND e.value->>'physical_name'=f.relation_name
+      AND e.value->>'run_id'=r.run_id::text
+      AND e.value->>'consistency_grade' IN ('S0','B')
+      AND (w.consistency_grade<>'S0' OR e.value->>'consistency_grade'='S0')
+      AND t.physical_name=f.relation_name AND t.exhausted
+      AND t.canonical_digest=e.value->>'canonical_digest'
+      AND t.applied_rows=(e.value->>'accepted_rows')::bigint
+      AND t.applied_pos=(e.value->>'applied_pos')::numeric
+      AND (SELECT count(*) FROM _oo.full_import_table same_run
+           WHERE same_run.run_id=r.run_id)=1
+      AND fresh.source_generation=r.source_generation
+      AND fresh.target_generation=r.target_generation
+      AND fresh.physical_name=t.physical_name AND fresh.state='live'
+      AND (
+        (e.value->>'capture_method'='c5_diff'
+          AND e.value->>'delete_detection'='reconcile'
+          AND fresh.mode='full' AND fresh.last_pos IS NOT DISTINCT FROM t.applied_pos)
+        OR
+        (e.value->>'capture_method'='c4_partition'
+          AND e.value->>'delete_detection'='partition_replace'
+          AND fresh.mode='incremental' AND fresh.last_pos IS NULL)
+      )
+  )
+"#;
 
 fn prepare(login: &str, policies: &[ColumnAclPolicy]) -> Result<Prepared, MappingReaderError> {
     prepare_inner(login,policies,false)
