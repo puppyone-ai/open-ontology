@@ -1,0 +1,12 @@
+{
+  "spec_exit": 1,
+  "plan_exit": 1,
+  "spec_stderr": "FAIL: Source hash drift: docs/07-gateway.md\nFAIL: Source size/line drift: docs/07-gateway.md\n",
+  "plan_stderr": "FAIL: Spec baseline: Source hash drift: docs/07-gateway.md\nFAIL: Spec baseline: Source size/line drift: docs/07-gateway.md\n",
+  "known_original_baseline_drift": "docs/07-gateway.md hash/size/line; baseline not reset",
+  "TODO": "rendered; --check exit0",
+  "parent_statuses_and_delivery_loop_baseline": "all101 unchanged",
+  "PRODUCT-LOOPS": "checked no edition full exits, unchanged",
+  "support_matrix": "no formal promotion, unchanged",
+  "frontend": "N/A"
+}

@@ -1,0 +1,50 @@
+{
+  "as_of": "2026-10-16T15:17:41.884912+00:00",
+  "scope": "original mysql8 current-availability operational unblock only",
+  "level": "official management-session renewal; product full-availability not yet accepted",
+  "identity_origin": "https://127.0.0.1:18441",
+  "container": "oo-dl01w1-71-native-identity",
+  "before_admin_status": 401,
+  "after_role_http200": [
+    {
+      "role_reference": "admin",
+      "subject": "fixture-admin",
+      "status": 200,
+      "session": {
+        "absolute_expires_at": "2026-10-17T15:17:41.124712Z",
+        "idle_expires_at": "2026-10-17T15:17:41.124712Z",
+        "revoked": false
+      }
+    },
+    {
+      "role_reference": "reviewer",
+      "subject": "fixture-reviewer",
+      "status": 200,
+      "session": {
+        "absolute_expires_at": "2026-10-17T15:17:41.140882Z",
+        "idle_expires_at": "2026-10-17T15:17:41.140882Z",
+        "revoked": false
+      }
+    },
+    {
+      "role_reference": "owner",
+      "subject": "fixture-owner",
+      "status": 200,
+      "session": {
+        "absolute_expires_at": "2026-10-17T15:17:41.183279Z",
+        "idle_expires_at": "2026-10-17T15:17:41.183279Z",
+        "revoked": false
+      }
+    }
+  ],
+  "method": "existing official OO_NATIVE_IDENTITY_RESUME=1 OIDC/PKCE login; no install/bootstrap/binding/role reseed",
+  "config_sha256_unchanged": "e119079d422a9c20553c27c588a5c4ef60fe7442a4358dc73d23e8c99b6753ad",
+  "product_config_sha256_unchanged": "84338383f2eb00f8327a45c878678fa94fe163361f03ca8b27aafa81e5ea2d85",
+  "private_raw_receipt": "/tmp/oo-root-mysql8-management-renewal-20261016/receipt.json",
+  "private_raw_receipt_sha256": "782b574306f7e19db0b7bacbbfc874a3137c27f4ab161fe576311662be1036c2",
+  "source_runtime_not_restarted_by_root": true,
+  "source_dml": 0,
+  "models": 0,
+  "next": "sole Grok owner resumes original8 official current cut, verifies four retained chains and remaining complete task exits",
+  "counts_delta": 0
+}

@@ -1,0 +1,368 @@
+{
+  "as_of": "2026-10-16T16:55:15.183675+00:00",
+  "task": "DL01-W1-06",
+  "parent": "SP03-W02",
+  "status": "completed_root_verified_current_owned_fixture_availability",
+  "level": "current owned-fixture integration; not formal source/parent/release acceptance",
+  "report_commit": "07ae97c8fcdb5d81652afa309e2eb667ec16faa3",
+  "paid_usage": {
+    "ok": true,
+    "delta_members_hashed": 57,
+    "manifest_and_tar_sha_verified": true,
+    "report_git_bytes_verified": 5,
+    "unchanged_parent_and_handoff_verified": true,
+    "current_token_and_loader_secret_values_absent": true,
+    "unique_dialogue_responses": 93,
+    "dialogue_tokens": 330624,
+    "s5_tokens": 12536,
+    "total_product_tokens": 343160,
+    "one_fifth_target_achieved": false,
+    "legacy_large_base_packages": "previously verified, unchanged referenced artifacts; not rehashed/repacked this run"
+  },
+  "source_commits": [
+    "b60bd6fb52c7b021c655bd91ee003d88c84ac204",
+    "9b9ecb5c82c50f946393007982725dd4481fa888",
+    "b5a638ceffc55a6c6235d4cd58ba54d1d0c9fbfa"
+  ],
+  "evidence": {
+    "author_delivery": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/DELIVERY.json",
+      "sha256": "62df42526fc3439259909e70c6c61f2c72feb6e1c5125d7477ac0e088c63ad39"
+    },
+    "root_delta_verification": {
+      "path": "/tmp/oo-root-mysql-final-intake-20261017/package-verdict.json",
+      "sha256": "ca525c72e684a458a6385999645515656c8f5c00ede05876d754c14da5c54089"
+    },
+    "root_readonly_verification": {
+      "path": "/tmp/oo-root-mysql-final-intake-20261017/verdict.json",
+      "sha256": "132afe8ed23df2b18c461f0d6afa14ddcb2b54f2b332aa36154b959aa7ff80e0"
+    },
+    "root_live_verifier": {
+      "path": "/tmp/oo-root-mysql-final-intake-20261017/live-verifier.json",
+      "sha256": "b0706b89eeccb171d2d1e885fa9928e80874e95b9f688b8224f6b664b155e989"
+    },
+    "root_fixed_source_verification": {
+      "path": "/tmp/oo-root-mysql-final-intake-20261017/source-fixed.json",
+      "sha256": "63ad441b11b3c710f055ec21d26a812681570d59c6047f4900681af9c4f82f4a"
+    },
+    "official_native_state": {
+      "path": "/tmp/oo-root-mysql-final-intake-20261017/official-state-verdict.json",
+      "sha256": "6ca552028bc392601c61671d51486d0abc36378cc38c9dcf3b71993a10d3d3b4"
+    },
+    "root_verifier_script": {
+      "path": "/tmp/oo-root-mysql-final-intake-20261017/verify.py",
+      "sha256": "cedf916dcd1ecab4638e429a1a125d52119ed7721b62256beb251e70b7bdfada"
+    },
+    "root_verifier_correction": "exact operator JSON binding lookup; only root verifier adaptation, no product Guard change",
+    "obsolete_gateway_retirement": {
+      "path": "/tmp/oo-root-mysql-final-intake-20261017/retirement.json",
+      "sha256": "a6ebcd204ea47edda755b5f907979d8f160b92326c5473c58392fc38ccbecfbc"
+    },
+    "canonical_services": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/root-canonical-recovery-20261017/plans.json",
+      "sha256": "c26d53d4690ff227ba165029bc674d6291e7463b00e6cc85a6587d6c0bb7c073"
+    },
+    "default_registry_install": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/root-canonical-recovery-20261017/default-install-receipt.json",
+      "sha256": "acad91de7012e785073091d9338979e27b5c0f95f25da367ccc518ec71301a37"
+    },
+    "grok_exit": {
+      "path": "/tmp/oo-mysql-current-availability-grok47-20261016/38769677-e316-4539-92cf-01fc5c423dd0/grok.resume3.exit.json",
+      "sha256": "e4a18450989a99eac80c178d4a8bb499c64c9ae78eb54c9faea4758dba15e42b"
+    },
+    "actual_running_gateway_identities": {
+      "path": "/tmp/oo-root-mysql-final-intake-20261017/actual-gateway-identities.json",
+      "sha256": "7fc45cc25cafbf9a6c69c5797d54ca273f83c68180bec79ff16c934a8745be68"
+    }
+  },
+  "product": {
+    "versions": [
+      "5.7.44-log",
+      "8.4.10"
+    ],
+    "method": "C1 binlog CDC",
+    "chain": "DB connection -> Rust source reader -> Arrow/Loader -> real S0-S10 -> YAML/Ontology/Pack -> publication -> physical read-only Agent DB -> Gateway -> OO CLI -> actual Grok random dialogue",
+    "current_generations": [
+      11,
+      15,
+      3,
+      3
+    ],
+    "each_scope_tables": 5,
+    "each_scope_columns": 43,
+    "each_scope_rows": 110019,
+    "typed_cell_differences": 0,
+    "static_initial_baseline": "actual new scopes g1 passed with source_time unmeasured and target observations; no fake timestamp or heartbeat; original static refusal resolved",
+    "maintenance": "real insert/update/delete, subsequent publication and Pack maintained; quiet apply=false/ack=false; original failure evidence retained",
+    "random_turns": 8,
+    "random_scope": "two new source scopes only; original two checked separately; actual Grok4.7 variants",
+    "current_four": [
+      {
+        "name": "new-mysql57",
+        "pid": 25914,
+        "elf": "c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0",
+        "typed_rows": 110019,
+        "typed_gtid": "204e44b1-c8c1-11f1-a2e5-8e06ffec2a06:1-102",
+        "different_cells": 0,
+        "quiet": {
+          "steps": 294,
+          "first_pin": 630,
+          "last_pin": 923,
+          "start_unix": 1792167756.0679948,
+          "last_unix": 1792169675.7964153,
+          "span_s": 1919.728,
+          "age_s": 1.856
+        },
+        "token_remain_s": 2006.2,
+        "cli_query_id": "q_qKkc1XgwJvjMPyIASbE0SWplse",
+        "pack": "4a69f8ddc5776dfad134cec694c5eb3225dfcea8114061ef6e55d12a76737611"
+      },
+      {
+        "name": "new-mysql8",
+        "pid": 25925,
+        "elf": "c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0",
+        "typed_rows": 110019,
+        "typed_gtid": "1bc0749a-c3f5-11f1-9a89-6e5583e808c4:1-48",
+        "different_cells": 0,
+        "quiet": {
+          "steps": 294,
+          "first_pin": 633,
+          "last_pin": 926,
+          "start_unix": 1792167756.0633895,
+          "last_unix": 1792169672.3587573,
+          "span_s": 1916.295,
+          "age_s": 5.687
+        },
+        "token_remain_s": 2006.4,
+        "cli_query_id": "q_8nQ3bCrXFoIClorF4ot1rM2vvQ",
+        "pack": "c488b2ddcbafa2befde082bcb732750076d89c56bac9c2709b84ec179018b8ca"
+      },
+      {
+        "name": "original-mysql57",
+        "pid": 25907,
+        "elf": "c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0",
+        "typed_rows": 110019,
+        "typed_gtid": "204e44b1-c8c1-11f1-a2e5-8e06ffec2a06:1-102",
+        "different_cells": 0,
+        "quiet": {
+          "steps": 291,
+          "first_pin": 9594,
+          "last_pin": 9884,
+          "start_unix": 1792167756.2230394,
+          "last_unix": 1792169673.503619,
+          "span_s": 1917.281,
+          "age_s": 4.937
+        },
+        "token_remain_s": 2004.2,
+        "cli_query_id": "q_2JxJpxSAsuvYqjFthWZ45Txc63",
+        "pack": "82c91935fa53a1d3d4402d14d91e93263dcc934b2ad11bcf22f9b36565bcc3c8"
+      },
+      {
+        "name": "original-mysql8",
+        "pid": 25913,
+        "elf": "c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0",
+        "typed_rows": 110019,
+        "typed_gtid": "1bc0749a-c3f5-11f1-9a89-6e5583e808c4:1-48",
+        "different_cells": 0,
+        "quiet": {
+          "steps": 291,
+          "first_pin": 12305,
+          "last_pin": 12595,
+          "start_unix": 1792167756.2165675,
+          "last_unix": 1792169673.3302147,
+          "span_s": 1917.114,
+          "age_s": 5.513
+        },
+        "token_remain_s": 2004.4,
+        "cli_query_id": "q_mdkjbNKAazymHYI3LndkLEddN5",
+        "pack": "209ecc4c5e21107543c45cbc5ea5d696a829f1707ddf7215f32899b32006798d"
+      }
+    ],
+    "root_new_model_calls": 0,
+    "root_source_dml": 0
+  },
+  "resources": {
+    "control_container": "oo-mysql-rust-runtime-linux-v8",
+    "services": [
+      {
+        "scope": "original-mysql57",
+        "input": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/original-mysql57-input-v1.json",
+        "operator": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/root-canonical-recovery-20261017/original-mysql57-operator.json",
+        "operator_sha256": "86df32fc05750201e15e3db2cc56d4105c0ee8732b91e6a65ded33c274b92031",
+        "worker_config": "/secrets/availability/root-canonical-20261017/original-mysql57.conf",
+        "worker_config_host": "/Users/redux/.cache/oo-mysql-connection-whole/availability/root-canonical-20261017/original-mysql57.conf",
+        "worker_config_sha256": "dff4b80b4b74f2fed7f326d36b7450612e82b930e77de9d0de26a7e78d40b1c9",
+        "prior_worker_config_sha256": "3fae748f64b327524f5dba2d715734c585fae6ef93ddceb517893e5ddc750d26",
+        "binding": "150a87a1-24d7-406c-bbd1-fc598759995e",
+        "source_id": "mysql_911437f094f3278dab47b513",
+        "published_generation": 11,
+        "pack": "82c91935fa53a1d3d4402d14d91e93263dcc934b2ad11bcf22f9b36565bcc3c8",
+        "ready_pointer": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql57/onboarding-native-tls-v2/rust-current-gateway.json",
+        "prepared_root": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql57/onboarding-native-tls-v2",
+        "out": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/root-canonical-recovery-20261017/original-mysql57-serve",
+        "runtime": {
+          "path": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/bin/c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0/source-onboarding-linux",
+          "sha256": "c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0"
+        },
+        "period_ms": 5000,
+        "serve_seconds": 86400,
+        "started_utc": "2026-10-16T16:22:32.273719+00:00",
+        "bounded_deadline_utc": "2026-10-17T16:22:32.273719+00:00",
+        "process_exit": "pending; not a boot service",
+        "live_pid": 25907
+      },
+      {
+        "scope": "original-mysql8",
+        "input": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/original-mysql8-input-v1.json",
+        "operator": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/root-canonical-recovery-20261017/original-mysql8-operator.json",
+        "operator_sha256": "b0f69d3c2768a2712faebbed474cabc206475e85c0390ef6930f2be7079fdb7b",
+        "worker_config": "/secrets/availability/root-canonical-20261017/original-mysql8.conf",
+        "worker_config_host": "/Users/redux/.cache/oo-mysql-connection-whole/availability/root-canonical-20261017/original-mysql8.conf",
+        "worker_config_sha256": "dff4b80b4b74f2fed7f326d36b7450612e82b930e77de9d0de26a7e78d40b1c9",
+        "prior_worker_config_sha256": "3fae748f64b327524f5dba2d715734c585fae6ef93ddceb517893e5ddc750d26",
+        "binding": "6e824358-6b96-4ddf-9f24-e02b1eaccbc5",
+        "source_id": "mysql_67fff4e8ebff9f91bee8c75e",
+        "published_generation": 15,
+        "pack": "209ecc4c5e21107543c45cbc5ea5d696a829f1707ddf7215f32899b32006798d",
+        "ready_pointer": "/tmp/oo-mysql-connection-whole/sol-20261015/onboarding-c1-complete-v2/rust-current-gateway.json",
+        "prepared_root": "/tmp/oo-mysql-connection-whole/sol-20261015/onboarding-c1-complete-v2",
+        "out": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/root-canonical-recovery-20261017/original-mysql8-serve",
+        "runtime": {
+          "path": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/bin/c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0/source-onboarding-linux",
+          "sha256": "c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0"
+        },
+        "period_ms": 5000,
+        "serve_seconds": 86400,
+        "started_utc": "2026-10-16T16:22:32.276611+00:00",
+        "bounded_deadline_utc": "2026-10-17T16:22:32.276611+00:00",
+        "process_exit": "pending; not a boot service",
+        "live_pid": 25913
+      },
+      {
+        "scope": "new-static-mysql57",
+        "input": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/mysql57-input-v1.json",
+        "operator": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/root-canonical-recovery-20261017/new-static-mysql57-operator.json",
+        "operator_sha256": "8538780e9273cf64a662a907baefc2598c6cc19f828f570a6a17c0a766bc8ed9",
+        "worker_config": "/secrets/availability/root-canonical-20261017/new-static-mysql57.conf",
+        "worker_config_host": "/Users/redux/.cache/oo-mysql-connection-whole/availability/root-canonical-20261017/new-static-mysql57.conf",
+        "worker_config_sha256": "07f20961170eee985247a0c69ae99c398bd8c892f0ad7f5810a804a36620e88e",
+        "prior_worker_config_sha256": "3d5f33f5e2c03c71283f2208762227b6f5f597cfa375704b70911713f26aa063",
+        "binding": "b6f6fe57-8c94-4654-bcf8-a2d626414e56",
+        "source_id": "mysql_67a12c47d5d81951deb15a1b",
+        "published_generation": 3,
+        "pack": "4a69f8ddc5776dfad134cec694c5eb3225dfcea8114061ef6e55d12a76737611",
+        "ready_pointer": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/mysql57-native-v1/rust-current-gateway.json",
+        "prepared_root": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/mysql57-native-v1",
+        "out": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/root-canonical-recovery-20261017/new-static-mysql57-serve",
+        "runtime": {
+          "path": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/bin/c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0/source-onboarding-linux",
+          "sha256": "c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0"
+        },
+        "period_ms": 5000,
+        "serve_seconds": 86400,
+        "started_utc": "2026-10-16T16:22:32.279424+00:00",
+        "bounded_deadline_utc": "2026-10-17T16:22:32.279424+00:00",
+        "process_exit": "pending; not a boot service",
+        "live_pid": 25914
+      },
+      {
+        "scope": "new-static-mysql8",
+        "input": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/mysql8-input-v1.json",
+        "operator": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/root-canonical-recovery-20261017/new-static-mysql8-operator.json",
+        "operator_sha256": "afb8897b34be15406917b7ad0c3f4744dd6caadab93ab661aa5ef664edef6589",
+        "worker_config": "/secrets/availability/root-canonical-20261017/new-static-mysql8.conf",
+        "worker_config_host": "/Users/redux/.cache/oo-mysql-connection-whole/availability/root-canonical-20261017/new-static-mysql8.conf",
+        "worker_config_sha256": "a34088586d3db562a6c9244f995112d168b7a0c12448a6526ca5c1e36554a8b6",
+        "prior_worker_config_sha256": "602eec365f5bd2a0bcdd04280fef92c583a947f096b26dfaaad2e6cdb821a33f",
+        "binding": "e81b0c0e-02c7-464c-9b0f-2ea86f606907",
+        "source_id": "mysql_4295e1915aeac2f9cbb8bf62",
+        "published_generation": 3,
+        "pack": "c488b2ddcbafa2befde082bcb732750076d89c56bac9c2709b84ec179018b8ca",
+        "ready_pointer": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/mysql8-native-v1/rust-current-gateway.json",
+        "prepared_root": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/mysql8-native-v1",
+        "out": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/root-canonical-recovery-20261017/new-static-mysql8-serve",
+        "runtime": {
+          "path": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-mainline-v1/availability-v1/bin/c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0/source-onboarding-linux",
+          "sha256": "c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0"
+        },
+        "period_ms": 5000,
+        "serve_seconds": 86400,
+        "started_utc": "2026-10-16T16:22:32.289128+00:00",
+        "bounded_deadline_utc": "2026-10-17T16:22:32.289128+00:00",
+        "process_exit": "pending; not a boot service",
+        "live_pid": 25925
+      }
+    ],
+    "runtime_sha256": "c7a216a654c650a496b43d20fc34cfccd1a8e9e8cce863d53ddea142434221a0",
+    "canonical_wrapper_exec": 69383,
+    "serve_period_ms": 5000,
+    "client_token_ttl_ms": 3600000,
+    "token_renewal": "explicit official issuer only; current ledger remaining in root_live_verifier",
+    "automatic_boot_or_token_renewal": false,
+    "writer": "Grok terminal; no native or nested subagents; root retains four deployed serves",
+    "obsolete_current_round_gateways_stopped": 9,
+    "data_volumes_evidence_preserved": true,
+    "client_absolute_deadlines": [
+      {
+        "scope": "original-mysql57",
+        "role": "oo_r_mysql57_full",
+        "absolute_deadline_ms": 1792171682693,
+        "utc": "2026-10-16T17:28:02.693Z"
+      },
+      {
+        "scope": "original-mysql8",
+        "role": "oo_r_mysql_full",
+        "absolute_deadline_ms": 1792171683319,
+        "utc": "2026-10-16T17:28:03.319Z"
+      },
+      {
+        "scope": "new-static-mysql57",
+        "role": "oo_r_mysql57_avail_full",
+        "absolute_deadline_ms": 1792171683929,
+        "utc": "2026-10-16T17:28:03.929Z"
+      },
+      {
+        "scope": "new-static-mysql8",
+        "role": "oo_r_mysql8_avail_full",
+        "absolute_deadline_ms": 1792171684513,
+        "utc": "2026-10-16T17:28:04.513Z"
+      }
+    ]
+  },
+  "retained_failures": [
+    "bounded transport EOF recovery raw retries",
+    "two GPT S5 HTTP429 before authorized Grok fallback",
+    "model unsupported aggregate casts and fabricated facts/QID rejected; frozen selections reused without weakening verification",
+    "original8 expired management login renewed through official OIDC",
+    "shared temporary loader.hex missing: root restored identical durable bytes; cause unknown; canonical configs now /secrets/loader.hex",
+    "already-published catalog reimports refused; resume cursor derived from exact official applied state; no task/epoch/watermark edits",
+    "author verifier binding-in-command assumption and root zero-based turn/response-field assumptions corrected; raw failed attempts preserved"
+  ],
+  "quality_limits": {
+    "strict_gateway_clippy": "11 pre-existing lints, original fixed baseline also exit101; deferred, not marked passing",
+    "tokens": "one-fifth target not demonstrated; all attempts retained; author usage accounting required",
+    "reader": "single integer PK bounded keyset; measured versions only; no MariaDB/customer certification",
+    "independent_review": "deferred per latest user milestone; root evidence intake is not independent approval"
+  },
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "parent": 0,
+    "phase": 0,
+    "edition": 0,
+    "formal_sources": 0
+  },
+  "formal_sources": "0/10",
+  "broad_goal": "actual get_goal paused; other nine held; no automatic Doris release",
+  "checked_not_changed": {
+    "PRODUCT-LOOPS": "no edition original exits met",
+    "database_support_matrix": "no formal admission promotion",
+    "frontend": "no frontend change",
+    "normative_docs": "original docs/07-gateway.md baseline drift retained"
+  },
+  "document_checks": {
+    "path": "execution/reviews/native-luna-full-source-20261015/mysql-current-availability-document-check-20261017.json",
+    "sha256": "43483d5f2e165e52154cea21407521133e53a98ee343534acad3612369846509"
+  },
+  "writer_terminal_verified": "Grok resume3 exit0; PID41531 absent at root intake"
+}
