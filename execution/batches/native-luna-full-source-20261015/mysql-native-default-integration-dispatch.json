@@ -1,0 +1,18 @@
+{
+  "as_of": "2026-10-16T08:50:14.366112+00:00",
+  "agent": "/root/mysql_rust_runtime_sol_medium",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "status": "same_original_complete_task_default_installation_integration",
+  "card": "execution/batches/native-luna-full-source-20261015/MYSQL-NATIVE-DEFAULT-INTEGRATION-20261016.md",
+  "card_sha256": "1030eb340d1e7c48702796afc6c7c221891f35b8651a7b9810fb4663b723f1e7",
+  "fixed_runtime_source": "e3e83b3995c19305de9bc8530c08b0fcc9722b9e",
+  "fixed_author_packet": {
+    "path": "/tmp/oo-mysql-connection-whole/sol-20261016/rust-runtime-v1/fixed-reference-rust-runtime-complete-v10b.json",
+    "sha256": "f76e014870bb80a600ff5a4af0bb585f3cda5820b2f69cdb0da2759b561b3754"
+  },
+  "root_checks": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016",
+  "other_sources_held": true,
+  "default_installation_complete": false,
+  "formal_source_count_delta": 0
+}

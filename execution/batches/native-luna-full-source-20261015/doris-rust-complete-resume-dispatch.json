@@ -1,0 +1,15 @@
+{
+  "as_of": "2026-10-16T09:05:12.437712+00:00",
+  "agent": "/root/doris_complete_luna_max",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "max",
+  "status": "actually_resumed_running_confirmed_by_list_agents",
+  "card": "execution/batches/native-luna-full-source-20261015/DORIS-RUST-COMPLETE-RESUME-20261016.md",
+  "card_sha256": "447454be29bf3a39e6ee1cf96286d80e4366db3d677855acd176adacfe3c25d7",
+  "fixed_mysql_dependency": "ac22ed665",
+  "intake": "execution/reviews/native-luna-full-source-20261015/mysql-rust-native-complete-intake.json",
+  "original_doris_hold_intake": "execution/reviews/native-luna-full-source-20261015/doris-mysql-priority-final-hold-intake.json",
+  "other_sources_held": true,
+  "formal_source_count_delta": 0,
+  "fixed_card_commit": "493ba5b2c"
+}

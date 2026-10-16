@@ -1,0 +1,10 @@
+{
+  "scope": "existing document baseline gate, not MySQL E2E failure",
+  "raw": "/tmp/oo-root-mysql-rust-v10b-acceptance-20261016/document-checks.json",
+  "sha256": "1e356dfae835bf785d6e75f1d9e4183f91f8c6b309b921b6601646c1cb5f73f5",
+  "check_spec_exit": 1,
+  "check_plan_exit": 1,
+  "failure": "existing docs/07-gateway.md source hash/size/line drift; no baseline reset",
+  "product_intake": "execution/reviews/native-luna-full-source-20261015/mysql-rust-native-complete-intake.json",
+  "parent_phase_edition_signed_off": false
+}
