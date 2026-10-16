@@ -1,0 +1,26 @@
+{
+  "as_of": "2026-10-16T05:40:07.258666+00:00",
+  "level": "fixed source-owned adapter installed; normal run started; not whole delivery",
+  "source_commit": "5aed279306b888f42c29376428048ccb2cfa23ca",
+  "install_receipt": {
+    "path": "/tmp/oo-root-oracle-default-history-b-token2-install-20261016/receipt.json",
+    "sha256": "8491f0339960bc338599d857c13ec22167473589a7638473c0e72df4db474649"
+  },
+  "run_start": {
+    "path": "/tmp/oo-root-oracle-normal-history-b-token2-run-20261016/started.json",
+    "sha256": "39eee505a385fb151aac1d235265547b74d51e9342ec1c48cbdd7f57e273a27b",
+    "pid": 70330,
+    "run_id": "e3906c3aa5234e0bae111d6cc16b9dfb"
+  },
+  "root_tests": "13 source-owned unittest tests passed",
+  "last_observed_steps": "prepare/product/prepare-dialogues/dialogue-a-history succeeded; dialogue-b running",
+  "evidence_modes": [
+    "verified historical A strict replay, zero new model/query",
+    "original frozen B random selection retried through actual base verifier and CLI"
+  ],
+  "prior_failure_intake": "execution/reviews/native-luna-full-source-20261015/oracle-random-b-failure-intake.json",
+  "registry_scope": "33 recipe pins/83 immutable refs matched, MySQL original49 pins and all other engine rows unchanged; awaiting_run only",
+  "formal_count_delta": 0,
+  "whole": false,
+  "independent_review": "deferred to unified ten-source milestone"
+}

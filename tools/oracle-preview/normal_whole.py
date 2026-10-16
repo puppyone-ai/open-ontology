@@ -22,10 +22,17 @@ import uuid
 from decimal import Decimal
 
 
-PLAN = Path("/private/tmp/oo-oracle-c5-luna-max-20261016/normal-whole-g15/plan-token-renewed-20261016T0450Z.json")
+PLAN = Path("/private/tmp/oo-oracle-c5-luna-max-20261016/normal-whole-g15/plan-default-history-b-retry-20261016T0525Z.json")
 PROTOCOL = "oo.oracle.normal-whole/v1"
 SOURCE_PROTOCOL = "oo.oracle.normal-whole-source-proof/v1"
 REQUIRED_TOOLS = {"query", "freshness", "describe", "knowledge_cat"}
+DIALOGUE_SYSTEM_GUIDANCE = (
+    "Inspect Pack knowledge by calling knowledge_search with a short term from a returned table or file name, "
+    "then call knowledge_cat only with a path returned by that search. Use Pack descriptions to interpret column "
+    "meanings; similar names do not prove equivalent meanings. Treat an error query_id as non-evidence: cite only "
+    "query_ids from successful query calls. When a tool reports an error, revise the query or search the Pack "
+    "instead of repeating the same request. Return facts only when each is supported by a successful query result."
+)
 ORACLE_TOOL_ERROR_POLICY = {
     "nonzero_exit_required": True,
     "retryable_must_be_false": True,
@@ -130,6 +137,14 @@ def load_plan():
     return plan
 
 
+def immutable_ref(plan, name):
+    refs = [item for item in plan.get("immutable_files", []) if item.get("name") == name]
+    need(len(refs) == 1, "source_proof_ref")
+    path = immutable_regular(refs[0]["path"]).resolve(strict=True)
+    need(sha(path) == refs[0]["sha256"], "source_proof_drift")
+    return path
+
+
 def check_sha(path, expected, reason):
     path = Path(path).resolve(strict=True)
     need(path.is_file() and not path.is_symlink() and sha(path) == expected, reason)
@@ -164,12 +179,15 @@ def load_fixed_dialogue(dialogue_path, expected_sha256, plan=None):
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     need(Path(module.__file__).resolve() == dialogue_path, "dialogue_import")
+    need(isinstance(module.SYSTEM, str), "dialogue_system")
+    module.SYSTEM = module.SYSTEM + "\n\n" + DIALOGUE_SYSTEM_GUIDANCE
     base_classifier = module.tool_error_returned
     module.tool_error_returned = lambda name, body: oracle_tool_error_returned(base_classifier, name, body)
     return module
 
 
-def frozen_dialogue_config(config, manifest_path, module, source, pack_sha):
+def frozen_dialogue_config(config, manifest_path, module, source, pack_sha, suffix="a"):
+    need(suffix in {"a", "b"}, "dialogue_frozen_suffix")
     manifest_path = immutable_regular(manifest_path).resolve(strict=True)
     manifest = read_json(manifest_path)
     failure_path = manifest_path.parent / "failed-attempt.json"
@@ -180,11 +198,18 @@ def frozen_dialogue_config(config, manifest_path, module, source, pack_sha):
          failure.get("selection_sha256") == sha(manifest_path) and
          failure.get("transcript_sha256") == sha(transcript_path) and
          failure.get("verdict_sha256") is None and isinstance(transcript, list), "dialogue_frozen_failure")
+    need(not (failure_path.parent / "verdict.json").exists(), "dialogue_frozen_completed_turn")
     need(failure.get("source_id") == source["source_id"] and failure.get("source_generation") == 15 and
          failure.get("pack_sha256") == pack_sha and failure.get("truth_sha256") == manifest.get("gold_sha256"),
          "dialogue_frozen_identity")
-    need(not any("model" in event and not event.get("model", {}).get("choices", [{}])[0].get("message", {}).get("tool_calls")
-                 for event in transcript if isinstance(event, dict)), "dialogue_frozen_completed_turn")
+    if suffix == "b":
+        need(failure.get("failure_kind") == "exit_nonzero" and failure.get("exit_code") == 2 and
+             failure.get("timed_out") is False, "dialogue_frozen_failure")
+        need(not any(event.get("tool") == "query" and event.get("exit") == 0
+                     for event in transcript if isinstance(event, dict)), "dialogue_frozen_successful_query")
+    else:
+        need(not any("model" in event and not event.get("model", {}).get("choices", [{}])[0].get("message", {}).get("tool_calls")
+                     for event in transcript if isinstance(event, dict)), "dialogue_frozen_completed_turn")
     config = dict(config)
     config["frozen_manifest"] = str(manifest_path)
     config["seed"] = manifest.get("seed")
@@ -211,8 +236,11 @@ def invoke_verifier(dialogue_path, expected_sha256, config_path, output_path):
     module = load_fixed_dialogue(dialogue_path, expected_sha256, plan)
     config = read_json(config_path)
     if config.get("frozen_manifest"):
+        suffix = config.get("frozen_dialogue_suffix")
+        need(suffix in {"a", "b"} and config_path.name.startswith(f"dialogue-{suffix}-"),
+             "dialogue_frozen_suffix")
         frozen_dialogue_config(config, config["frozen_manifest"], module, plan["source"],
-                               plan["service"]["role_pack_sha256"])
+                               plan["service"]["role_pack_sha256"], suffix)
     marker = {"protocol": "oo.oracle.dialogue-adapter/v1", "event": "main_enter",
               "dialogue_path": str(dialogue_path), "dialogue_sha256": expected_sha256,
               "adapter_path": str(Path(__file__).resolve()), "adapter_sha256": sha(__file__),
@@ -648,9 +676,10 @@ def run_dialogue(run, suffix, frozen_manifest=None):
     config = read_json(config_path)
     frozen_info = None
     if frozen_manifest is not None:
-        need(suffix == "a", "dialogue_frozen_suffix")
+        need(suffix in {"a", "b"}, "dialogue_frozen_suffix")
         module = load_fixed_dialogue(plan["runtime"]["dialogue"], plan["runtime"]["dialogue_sha256"], plan)
-        config = frozen_dialogue_config(config, frozen_manifest, module, source, pack_sha)
+        config = frozen_dialogue_config(config, frozen_manifest, module, source, pack_sha, suffix)
+        config["frozen_dialogue_suffix"] = suffix
     attempt_rel, attempt = allocate_dialogue_attempt(run, suffix)
     if frozen_manifest is not None:
         config_path = attempt.parent / f"{attempt.name}.config.json"
@@ -728,6 +757,202 @@ def run_dialogue(run, suffix, frozen_manifest=None):
     return {"dialogue": suffix, "attempt": str(attempt_rel), "query_count": len(actual["query_ids"])}
 
 
+def replay_historical_dialogue(dialogue_path, expected_sha256, selection_path, transcript_path,
+                               truth_path, root_receipt_path, output_path, observer_ack_path=None):
+    """Reapply the pinned base verifier's completed-turn rule to immutable prior evidence."""
+    plan = load_plan()
+    dialogue_path = Path(dialogue_path).resolve(strict=True)
+    need(str(dialogue_path) == str(Path(plan["runtime"]["dialogue"]).resolve()) and
+         expected_sha256 == plan["runtime"]["dialogue_sha256"], "dialogue_runtime")
+    check_sha(dialogue_path, expected_sha256, "dialogue_runtime")
+    for path in (selection_path, transcript_path, truth_path, root_receipt_path):
+        immutable_regular(path)
+    selection = read_json(selection_path)
+    transcript = read_json(transcript_path)
+    truth_bytes = Path(truth_path).read_bytes()
+    truth = json.loads(truth_bytes)
+    receipt = read_json(root_receipt_path)
+    spec = importlib.util.spec_from_file_location("_oo_oracle_history_" + uuid.uuid4().hex, dialogue_path)
+    need(spec is not None and spec.loader is not None, "dialogue_import")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    need(Path(module.__file__).resolve() == dialogue_path and callable(module.resume_completed), "dialogue_import")
+    observer_ack_sha = None
+    if observer_ack_path is not None:
+        ack_deadline = time.monotonic() + 30
+        while not Path(observer_ack_path).exists() and time.monotonic() < ack_deadline:
+            time.sleep(0.05)
+        need(Path(observer_ack_path).is_file(), "dialogue_observer_timeout")
+        observer_ack = read_json(immutable_regular(observer_ack_path))
+        need(observer_ack.get("protocol") == "oo.oracle.dialogue-observer-ack/v1" and
+             observer_ack.get("observed_program") == str(dialogue_path) and
+             observer_ack.get("step_name") == plan.get("dialogue_history", {}).get("step_name"),
+             "dialogue_observer_ack")
+        observer_ack_sha = sha(observer_ack_path)
+    used, query_ids, answers, _ = module.resume_completed(
+        transcript, selection["questions"], truth, 16)
+    required = {"query", "freshness", "describe", "knowledge_cat"}
+    need(len(answers) == 2 and required <= used and len(query_ids) >= 2, "dialogue_history_replay")
+    need(receipt.get("outcome") == "strict completed-turn replay passed" and
+         receipt.get("no_new_model_or_query") is True and receipt.get("turns") == len(answers) and
+         receipt.get("source_selection_sha256") == sha(selection_path) and
+         receipt.get("transcript_sha256") == sha(transcript_path) and
+         receipt.get("gold_sha256") == hashlib.sha256(truth_bytes).hexdigest() and
+         sorted(receipt.get("query_ids", [])) == sorted(query_ids) and
+         set(receipt.get("successful_tools", [])) >= used and
+         receipt.get("fixed_base_verifier_sha256") == expected_sha256, "dialogue_history_receipt")
+    write_json(output_path, {
+        "protocol": "oo.oracle.dialogue-history-replay/v1",
+        "base_dialogue": {"path": str(dialogue_path), "sha256": expected_sha256},
+        "imported_module": str(Path(module.__file__).resolve()),
+        "function": "resume_completed",
+        "selection_sha256": sha(selection_path), "transcript_sha256": sha(transcript_path),
+        "gold_sha256": hashlib.sha256(truth_bytes).hexdigest(),
+        "root_replay_receipt_sha256": sha(root_receipt_path), "turns": len(answers),
+        "successful_tools": sorted(used), "query_ids": sorted(query_ids),
+        "answer_sha256": [hashlib.sha256(answer.encode()).hexdigest() for answer in answers],
+        "observer_ack_sha256": observer_ack_sha, "no_new_model_or_query": True})
+    return {"turns": len(answers), "query_ids": sorted(query_ids), "successful_tools": sorted(used)}
+
+
+def reuse_dialogue(run, suffix):
+    """Attach same-source, same-Pack historical A evidence after a fresh strict replay."""
+    need(suffix == "a", "dialogue_history_suffix")
+    run = Path(run).resolve()
+    plan = load_plan()
+    source, pack_sha = plan["source"], plan["service"]["role_pack_sha256"]
+    assert_fresh_dialogue_slot(run, suffix)
+    history = plan.get("dialogue_history", {}).get("a")
+    need(isinstance(history, dict), "dialogue_history_plan")
+    refs = history.get("refs", {})
+    required_refs = {"selection", "transcript", "verdict", "attempt_pointer", "adapter_invocation",
+                     "root_receipt", "wal"}
+    need(required_refs <= refs.keys(), "dialogue_history_plan")
+    paths = {name: immutable_ref(plan, ref_name) for name, ref_name in refs.items()
+             if name != "wal" and isinstance(ref_name, str)}
+    receipt = read_json(paths["root_receipt"])
+    selection = read_json(paths["selection"])
+    verdict = read_json(paths["verdict"])
+    original_pointer = read_json(paths["attempt_pointer"])
+    original_invocation = read_json(paths["adapter_invocation"])
+    truth_path = private(run / "dialogue-a-gold.json")
+    need(selection.get("identity", {}).get("source_id") == source["source_id"] and
+         selection.get("identity", {}).get("source_generation") == 15 and
+         selection.get("identity", {}).get("pack_sha256") == pack_sha and
+         selection.get("gold_sha256") == sha(truth_path) == receipt.get("gold_sha256") and
+         verdict.get("outcome") == "verified" and verdict.get("gold_sha256") == sha(truth_path) and
+         receipt.get("source_selection_sha256") == sha(paths["selection"]) and
+         receipt.get("transcript_sha256") == sha(paths["transcript"]) and
+         original_pointer.get("artifacts", {}).get("selection_sha256") == sha(paths["selection"]) and
+         original_pointer.get("artifacts", {}).get("transcript_sha256") == sha(paths["transcript"]) and
+         original_pointer.get("artifacts", {}).get("verdict_sha256") == sha(paths["verdict"]) and
+         original_pointer.get("adapter_invocation", {}).get("sha256") == sha(paths["adapter_invocation"]) and
+         original_invocation.get("result", {}).get("main_returned") is True, "dialogue_history_identity")
+    need(verdict.get("query_ids") == receipt.get("query_ids") and
+         verdict.get("tools") and set(receipt.get("successful_tools", [])) >= set(verdict["tools"]),
+         "dialogue_history_receipt")
+    wal = {}
+    for qid, kinds in receipt.get("original_wal", {}).items():
+        need(set(kinds) == {"admit", "complete"}, "dialogue_history_wal")
+        wal[qid] = {}
+        for kind, evidence in kinds.items():
+            item = next((x for x in refs["wal"] if x.get("query_id") == qid and x.get("kind") == kind), None)
+            need(isinstance(item, dict), "dialogue_history_wal")
+            wal_path = immutable_ref(plan, item["ref"])
+            need(str(wal_path) == evidence.get("path") and sha(wal_path) == evidence.get("sha256"),
+                 "dialogue_history_wal")
+            wal[qid][kind] = {"path": str(wal_path), "sha256": sha(wal_path)}
+    need(set(wal) == set(receipt.get("query_ids", [])), "dialogue_history_wal")
+
+    attempt_rel, attempt = allocate_dialogue_attempt(run, suffix)
+    ensure_attempt_directory(attempt)
+    replay_path = attempt / "replay-proof.json"
+    observer_ack_path = attempt / "observer-ack.json"
+    command = [plan["runtime"]["python"], str(Path(__file__).resolve()), "replay-historical-dialogue",
+               plan["runtime"]["dialogue"], plan["runtime"]["dialogue_sha256"], str(paths["selection"]),
+               str(paths["transcript"]), str(truth_path), str(paths["root_receipt"]), str(replay_path),
+               str(observer_ack_path)]
+    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    deadline = time.monotonic() + 30
+    step_name = plan.get("dialogue_history", {}).get("step_name")
+    observed = False
+    while proc.poll() is None and time.monotonic() < deadline:
+        try:
+            journal = read_json(run / "journal.json")
+        except (OSError, json.JSONDecodeError):
+            journal = {}
+        for record in journal.get("steps", []):
+            if (record.get("name") == step_name and record.get("state") == "running" and
+                    plan["runtime"]["dialogue"] in record.get("observed_programs", [])):
+                write_json(observer_ack_path, {"protocol": "oo.oracle.dialogue-observer-ack/v1",
+                                               "step_name": step_name,
+                                               "observed_program": plan["runtime"]["dialogue"]})
+                observed = True
+                break
+        if observed:
+            break
+        time.sleep(0.1)
+    if not observed:
+        if proc.poll() is None:
+            proc.kill()
+        stdout, stderr = proc.communicate()
+        for name, data in (("runner.stdout", stdout), ("runner.stderr", stderr)):
+            path = attempt / name
+            path.write_text(data or "")
+            path.chmod(0o600)
+        need(False, "dialogue_child_not_observed" if proc.returncode == 0 else "dialogue_history_child")
+    try:
+        stdout, stderr = proc.communicate(timeout=180)
+    except subprocess.TimeoutExpired as exc:
+        proc.kill()
+        proc.communicate()
+        raise Refused("dialogue_history_child_timeout") from exc
+    need(proc.returncode == 0 and replay_path.is_file(), "dialogue_history_child")
+    for name, data in (("runner.stdout", stdout), ("runner.stderr", stderr)):
+        path = attempt / name
+        path.write_text(data)
+        path.chmod(0o600)
+    replay = read_json(replay_path)
+    need(replay.get("function") == "resume_completed" and
+         replay.get("base_dialogue") == {"path": plan["runtime"]["dialogue"],
+                                         "sha256": plan["runtime"]["dialogue_sha256"]} and
+         replay.get("selection_sha256") == sha(paths["selection"]) and
+         replay.get("transcript_sha256") == sha(paths["transcript"]) and
+         replay.get("root_replay_receipt_sha256") == sha(paths["root_receipt"]) and
+         replay.get("observer_ack_sha256") == sha(observer_ack_path), "dialogue_history_child")
+    for name in ("selection.json", "transcript.json", "verdict.json"):
+        shutil.copyfile(paths[name.removesuffix(".json")], attempt / name)
+        (attempt / name).chmod(0o600)
+    staging = run / f".dialogue-a-{uuid.uuid4().hex}.tmp"
+    staging.mkdir(mode=0o700)
+    try:
+        for name in ("selection.json", "transcript.json", "verdict.json"):
+            shutil.copyfile(attempt / name, staging / name)
+            (staging / name).chmod(0o600)
+        os.rename(staging, run / "dialogue-a")
+    except BaseException:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+    history_receipt = {
+        "protocol": "oo.oracle.dialogue-history-reuse/v1", "evidence_mode": "historical_reuse",
+        "fresh_model_calls": 0, "source_generation": 15, "pack_sha256": pack_sha,
+        "selection_sha256": sha(paths["selection"]), "transcript_sha256": sha(paths["transcript"]),
+        "verdict_sha256": sha(paths["verdict"]), "root_receipt_sha256": sha(paths["root_receipt"]),
+        "replay_proof_sha256": sha(replay_path), "wal": wal,
+        "source_refs": {name: {"path": str(path), "sha256": sha(path)} for name, path in paths.items()}}
+    write_json(attempt / "history-reuse.json", history_receipt)
+    write_json(run / "dialogue-a-attempt.json", {
+        "attempt": str(attempt_rel), "artifacts": verify_dialogue_folder(
+            attempt, source, pack_sha, truth_path),
+        "evidence_mode": "historical_reuse",
+        "history_reuse": {"path": str(attempt_rel / "history-reuse.json"),
+                          "sha256": sha(attempt / "history-reuse.json")},
+        "replay_proof": {"path": str(attempt_rel / "replay-proof.json"), "sha256": sha(replay_path)}})
+    return {"dialogue": suffix, "attempt": str(attempt_rel), "query_count": len(receipt["query_ids"]),
+            "evidence_mode": "historical_reuse", "fresh_model_calls": 0}
+
+
 def assert_fresh_dialogue_slot(run, suffix):
     need(suffix in {"a", "b"}, "dialogue_suffix")
     run = Path(run)
@@ -743,46 +968,102 @@ def verify_dialogue(run, suffix, source, pack_sha):
     pointer = read_json(Path(run) / f"dialogue-{suffix}-attempt.json")
     attempt = Path(run) / pointer["attempt"]
     need(attempt.is_dir() and not attempt.is_symlink(), "dialogue_attempt")
-    invocation_ref = pointer.get("adapter_invocation")
-    need(isinstance(invocation_ref, dict) and isinstance(invocation_ref.get("path"), str) and
-         isinstance(invocation_ref.get("sha256"), str), "dialogue_adapter")
-    invocation_rel = Path(invocation_ref["path"])
-    need(not invocation_rel.is_absolute() and ".." not in invocation_rel.parts, "dialogue_adapter")
-    invocation_path = Path(run) / invocation_rel
-    need(invocation_path.resolve().is_relative_to(Path(run).resolve()) and
-         sha(invocation_path) == invocation_ref["sha256"], "dialogue_adapter")
-    invocation = read_json(immutable_regular(invocation_path))
-    need(invocation.get("protocol") == "oo.oracle.dialogue-adapter-invocation/v1" and
-         invocation.get("entrypoint") == "dialogue.main" and
-         invocation.get("base_dialogue") == {"path": plan["runtime"]["dialogue"],
-                                               "sha256": plan["runtime"]["dialogue_sha256"]} and
-         invocation.get("adapter") == {"path": str(Path(__file__).resolve()), "sha256": sha(__file__)} and
-         invocation.get("tool_error_policy") == {"name": "tool_error_returned",
-                                                  "oracle_policy": ORACLE_TOOL_ERROR_POLICY},
-         "dialogue_adapter")
-    invocation_command = invocation.get("argv")
-    need(isinstance(invocation_command, list) and plan["runtime"]["dialogue"] in invocation_command and
-         invocation.get("result", {}).get("exit_code") == 0 and
-         invocation["result"].get("main_enter_marker_seen") is True and
-         invocation["result"].get("main_returned") is True, "dialogue_adapter")
-    frozen = invocation.get("frozen_selection")
-    if frozen is not None:
-        frozen_path = immutable_regular(frozen["path"])
-        failed_path = immutable_regular(frozen["failed_attempt_path"])
-        need(sha(frozen_path) == frozen.get("sha256") and
-             sha(failed_path) == frozen.get("failed_attempt_sha256") and
-             sha(folder / "selection.json") == frozen.get("sha256"), "dialogue_frozen_selection")
     for name in ("selection.json", "transcript.json", "verdict.json"):
         need(sha(attempt / name) == pointer["artifacts"][name.replace(".json", "_sha256")], "dialogue_attempt")
         need(sha(folder / name) == pointer["artifacts"][name.replace(".json", "_sha256")], "dialogue_copy")
     need(result["query_ids"], "dialogue_qids")
+    if pointer.get("evidence_mode") == "historical_reuse":
+        reuse_ref = pointer.get("history_reuse")
+        proof_ref = pointer.get("replay_proof")
+        need(isinstance(reuse_ref, dict) and isinstance(proof_ref, dict), "dialogue_history_reuse")
+        reuse_rel, proof_rel = Path(reuse_ref.get("path", "")), Path(proof_ref.get("path", ""))
+        need(not reuse_rel.is_absolute() and ".." not in reuse_rel.parts and
+             not proof_rel.is_absolute() and ".." not in proof_rel.parts, "dialogue_history_reuse")
+        reuse_path, proof_path = Path(run) / reuse_rel, Path(run) / proof_rel
+        need(reuse_path.resolve().is_relative_to(Path(run).resolve()) and
+             proof_path.resolve().is_relative_to(Path(run).resolve()) and
+             sha(reuse_path) == reuse_ref.get("sha256") and sha(proof_path) == proof_ref.get("sha256"),
+             "dialogue_history_reuse")
+        reuse = read_json(immutable_regular(reuse_path))
+        proof = read_json(immutable_regular(proof_path))
+        history = plan.get("dialogue_history", {}).get("a", {})
+        refs = history.get("refs", {})
+        need(suffix == "a" and reuse.get("protocol") == "oo.oracle.dialogue-history-reuse/v1" and
+             reuse.get("evidence_mode") == "historical_reuse" and reuse.get("fresh_model_calls") == 0 and
+             reuse.get("source_generation") == 15 and reuse.get("pack_sha256") == pack_sha and
+             proof.get("protocol") == "oo.oracle.dialogue-history-replay/v1" and
+             proof.get("function") == "resume_completed" and
+             proof.get("base_dialogue") == {"path": plan["runtime"]["dialogue"],
+                                            "sha256": plan["runtime"]["dialogue_sha256"]} and
+             proof.get("selection_sha256") == reuse.get("selection_sha256") == sha(folder / "selection.json") and
+             proof.get("transcript_sha256") == reuse.get("transcript_sha256") == sha(folder / "transcript.json") and
+             proof.get("root_replay_receipt_sha256") == reuse.get("root_receipt_sha256"),
+             "dialogue_history_replay")
+        source_refs = reuse.get("source_refs", {})
+        need(set(source_refs) == {key for key in refs if key != "wal"}, "dialogue_history_refs")
+        for key, ref_name in refs.items():
+            if key == "wal":
+                continue
+            path = immutable_ref(plan, ref_name)
+            item = source_refs[key]
+            need(item.get("path") == str(path) and item.get("sha256") == sha(path), "dialogue_history_refs")
+        receipt = read_json(immutable_ref(plan, refs["root_receipt"]))
+        need(receipt.get("outcome") == "strict completed-turn replay passed" and
+             receipt.get("no_new_model_or_query") is True and
+             receipt.get("source_selection_sha256") == proof.get("selection_sha256") and
+             receipt.get("transcript_sha256") == proof.get("transcript_sha256") and
+             sorted(receipt.get("query_ids", [])) == proof.get("query_ids"), "dialogue_history_receipt")
+        for qid, kinds in receipt.get("original_wal", {}).items():
+            for kind, evidence in kinds.items():
+                item = next((x for x in refs["wal"] if x.get("query_id") == qid and x.get("kind") == kind), None)
+                need(isinstance(item, dict), "dialogue_history_wal")
+                wal_path = immutable_ref(plan, item["ref"])
+                need(str(wal_path) == evidence.get("path") and sha(wal_path) == evidence.get("sha256"),
+                     "dialogue_history_wal")
+        result.update(evidence_mode="historical_reuse", fresh_model_calls=0,
+                      history_reuse={"path": str(reuse_rel), "sha256": reuse_ref["sha256"],
+                                     "root_receipt_sha256": reuse["root_receipt_sha256"],
+                                     "replay_proof_sha256": sha(proof_path)})
+        invocation_summary = None
+        frozen = None
+    else:
+        invocation_ref = pointer.get("adapter_invocation")
+        need(isinstance(invocation_ref, dict) and isinstance(invocation_ref.get("path"), str) and
+             isinstance(invocation_ref.get("sha256"), str), "dialogue_adapter")
+        invocation_rel = Path(invocation_ref["path"])
+        need(not invocation_rel.is_absolute() and ".." not in invocation_rel.parts, "dialogue_adapter")
+        invocation_path = Path(run) / invocation_rel
+        need(invocation_path.resolve().is_relative_to(Path(run).resolve()) and
+             sha(invocation_path) == invocation_ref["sha256"], "dialogue_adapter")
+        invocation = read_json(immutable_regular(invocation_path))
+        need(invocation.get("protocol") == "oo.oracle.dialogue-adapter-invocation/v1" and
+             invocation.get("entrypoint") == "dialogue.main" and
+             invocation.get("base_dialogue") == {"path": plan["runtime"]["dialogue"],
+                                                   "sha256": plan["runtime"]["dialogue_sha256"]} and
+             invocation.get("adapter") == {"path": str(Path(__file__).resolve()), "sha256": sha(__file__)} and
+             invocation.get("tool_error_policy") == {"name": "tool_error_returned",
+                                                      "oracle_policy": ORACLE_TOOL_ERROR_POLICY},
+             "dialogue_adapter")
+        invocation_command = invocation.get("argv")
+        need(isinstance(invocation_command, list) and plan["runtime"]["dialogue"] in invocation_command and
+             invocation.get("result", {}).get("exit_code") == 0 and
+             invocation["result"].get("main_enter_marker_seen") is True and
+             invocation["result"].get("main_returned") is True, "dialogue_adapter")
+        frozen = invocation.get("frozen_selection")
+        if frozen is not None:
+            frozen_path = immutable_regular(frozen["path"])
+            failed_path = immutable_regular(frozen["failed_attempt_path"])
+            need(sha(frozen_path) == frozen.get("sha256") and
+                 sha(failed_path) == frozen.get("failed_attempt_sha256") and
+                 sha(folder / "selection.json") == frozen.get("sha256"), "dialogue_frozen_selection")
+        result.update(evidence_mode="fresh_agent", fresh_model_calls=True)
+        invocation_summary = {"path": str(invocation_rel), "sha256": invocation_ref["sha256"],
+                              "base_dialogue_sha256": invocation["base_dialogue"]["sha256"],
+                              "adapter_sha256": invocation["adapter"]["sha256"]}
     result.update(actual_output_path=str(pointer["attempt"]),
                   actual_output_artifact_sha256s=pointer["artifacts"],
                   actual_output_sha256=pointer["artifacts"]["transcript_sha256"],
-                  adapter_invocation={"path": str(invocation_rel), "sha256": invocation_ref["sha256"],
-                                      "base_dialogue_sha256": invocation["base_dialogue"]["sha256"],
-                                      "adapter_sha256": invocation["adapter"]["sha256"]},
-                  frozen_selection=frozen)
+                  adapter_invocation=invocation_summary, frozen_selection=frozen)
     return result
 
 
@@ -830,7 +1111,9 @@ def close(run):
            "task_id": identity["ack"]["task"], "lease_generation": identity["ack"]["lease_generation"],
            "recovery_outcome": identity["ack"]["task_state"],
            "previous_failed_recovery_attempt": plan["recovery_history"],
-           "previous_dialogue_failure": a.get("frozen_selection"),
+           "previous_dialogue_failure": plan.get("dialogue_history", {}).get("prior_failed_attempts", []),
+           "dialogue_evidence_modes": [a["evidence_mode"], b["evidence_mode"]],
+           "fresh_agent_turns": b["turns"],
            "model": "grok-4.7", "reasoning_effort": "low", "agent_turns": a["turns"] + b["turns"],
            "query_ids": sorted(set(a["query_ids"] + b["query_ids"])),
            "gateway_container_id": plan["service"]["gateway_container_id"],
@@ -850,7 +1133,8 @@ def close(run):
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("prepare", "prepare-dialogues", "run-dialogue", "invoke-verifier", "close"))
+    parser.add_argument("command", choices=("prepare", "prepare-dialogues", "run-dialogue", "invoke-verifier",
+                                             "reuse-dialogue", "replay-historical-dialogue", "close"))
     parser.add_argument("paths", nargs="+")
     args = parser.parse_args(argv)
     try:
@@ -862,6 +1146,10 @@ def main(argv=None):
             result = run_dialogue(args.paths[0], args.paths[1], args.paths[2] if len(args.paths) == 3 else None)
         elif args.command == "invoke-verifier" and len(args.paths) == 4:
             result = invoke_verifier(args.paths[0], args.paths[1], args.paths[2], args.paths[3])
+        elif args.command == "reuse-dialogue" and len(args.paths) == 2 and args.paths[1] == "a":
+            result = reuse_dialogue(args.paths[0], args.paths[1])
+        elif args.command == "replay-historical-dialogue" and len(args.paths) == 8:
+            result = replay_historical_dialogue(*args.paths)
         elif args.command == "close" and len(args.paths) == 1:
             result = close(args.paths[0])
         else:

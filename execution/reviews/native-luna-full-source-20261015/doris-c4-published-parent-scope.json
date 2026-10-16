@@ -1,0 +1,52 @@
+{
+  "as_of": "2026-10-16T05:50:01.238877+00:00",
+  "authority": "root exact scope after actual C4 failure and original function readback",
+  "owner": "/root/doris_complete_luna_max",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "max",
+  "task": "DL01-W1-43",
+  "parent": "DBX-W12",
+  "new_write_paths": [
+    "crates/oo-pipeline/migrations/0042_native_olap_published_parent.sql"
+  ],
+  "existing_wiring_only": [
+    "crates/oo-pipeline/src/target_installer.rs",
+    "crates/oo-pipeline/src/native_update.rs"
+  ],
+  "cause": "Actual C4 next-period task source13/parent12 has correct ACK and scope metadata; current part_day table freshness points to generation9 published parent. Immutable0014 native_olap_copy_forward filters parent run state to awaiting_publish, causing OO010 before copy/ACK.",
+  "original_function_file": {
+    "path": "crates/oo-pipeline/migrations/0014_native_olap_partition.sql",
+    "sha256": "df6e89570bba77c549c7259d5d72049df166f52b906f29737d40ef5abb3ba281"
+  },
+  "raw_evidence_directories": [
+    "/private/tmp/oo-doris-lunamax-20261016/product-e2e/evidence/native-state/0037-target-state-readonly",
+    "/private/tmp/oo-doris-lunamax-20261016/product-e2e/evidence/native-state/0041-c4-scope-via-registry",
+    "/private/tmp/oo-doris-lunamax-20261016/product-e2e/evidence/native-state/0042-c4-other-partition-state"
+  ],
+  "minimum_fix": "Append0042 CREATE OR REPLACE same function/signature. Parent may be awaiting_publish or published only if sealed/exhausted/nonretired and still the exact current table freshness/mapping source/config/table/generation. Preserve owner binding/fence/column OID+typmod/route/range/copy budget and all other original checks. No dynamic metadata rewriting, unqualified old-parent selection/LIMIT, manual ACK/grant, or edits0000-0041.",
+  "validation": "Linux1.94 minimal tests/fixed source+installer ELF; official installer adds only0042 on owned Doris target;41 old migration checksums and function owner/ACL unchanged. Real post-publication C4 next cycle replaces/deletes intended partition while retaining other partition with all cells0. Invalid source/config/OID/unsealed/retired parent refuses without ACK/watermark side effects. Continue original two automatic IUD cycles/recovery/maintenance/RO/CLI/dialogue/default whole.",
+  "oracle_failure_and_continuation": {
+    "failed_run": "e3906c3aa5234e0bae111d6cc16b9dfb",
+    "whole": false,
+    "normal_exit": 2,
+    "first_B_turn": "negative count2 from successful query, strict verified prefix",
+    "second_B_turn": "wrong column names and failed query_id as evidence, correctly rejected",
+    "strict_prefix_receipt": {
+      "path": "/tmp/oo-root-oracle-b-completed-prefix-20261016/receipt.json",
+      "sha256": "912c28677f7843bd7d3844bbec7194c320405379ce323e2944c777c5d3e79db4"
+    },
+    "scope": "same source owner, use existing base resume_transcript for exact verified first-turn prefix and frozen original B selection; new model tail uses already-authorized GPT-6.1 Sol low, same URL/key; actual mixed historical/new model identities declared; no new history framework or changed shared verifier"
+  },
+  "source_sequence": "MySQL5.7+8.4 immutable complete owned fixture reference preserved; only same Doris/Oracle whole owners; other7held",
+  "independent_review": "deferred to unified ten-source milestone",
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "release": 0,
+    "external": 0,
+    "formal_source": 0,
+    "edition": 0
+  },
+  "formal_sources": "0/10",
+  "original_exits": "Goal/PRODUCT-LOOPS/Plan/support/frontend acceptance unchanged; no completed parent/edition"
+}

@@ -78,5 +78,17 @@
       "crates/oo-gateway/tests/mapping_reader_access_pg_live.rs"
     ],
     "formal_source_count_delta": 0
+  },
+  "latest_doris_published_parent_scope": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/doris-c4-published-parent-scope.json",
+    "owner": "/root/doris_complete_luna_max",
+    "new_write_paths": [
+      "crates/oo-pipeline/migrations/0042_native_olap_published_parent.sql"
+    ],
+    "existing_wiring_only": [
+      "crates/oo-pipeline/src/target_installer.rs",
+      "crates/oo-pipeline/src/native_update.rs"
+    ],
+    "formal_source_count_delta": 0
   }
 }

@@ -2016,6 +2016,23 @@ fn freshness_document(snapshot: &QualitySnapshot, knowledge: &str, policy: &str)
         "freshness": projected.freshness,
         "source_time": source_time_status(snapshot),
         "sources": projected.sources,
+        "source_watermarks": snapshot.watermarks.iter().map(|mark| serde_json::json!({
+            "source": mark.source,
+            "consistency": mark.consistency,
+            "consistency_grade": mark.consistency_grade,
+            "cross_table_consistent": mark.cross_table_consistent,
+            "applied_pos": mark.applied_pos,
+            "state": mark.state,
+            "position_codec": mark.codec,
+            "position_lineage": mark.lineage,
+            "source_epoch": mark.source_epoch,
+        })).collect::<Vec<_>>(),
+        "global_position": global_position_status(snapshot),
+        "table_quality": snapshot.table_quality.iter().map(|item| serde_json::json!({
+            "dataset": format!("{}.{}", item.schema, item.table),
+            "capture_method": measured(&item.capture_method),
+            "delete_detection": measured(&item.delete_detection),
+        })).collect::<Vec<_>>(),
         "warnings": projected.warnings,
         "mappings": snapshot.mappings.iter().map(mapping_value).collect::<Vec<_>>(),
         "gap": snapshot.probes.iter().map(|probe| serde_json::json!({
@@ -2036,6 +2053,9 @@ fn freshness_document(snapshot: &QualitySnapshot, knowledge: &str, policy: &str)
 }
 
 fn source_time_status(snapshot: &QualitySnapshot) -> &'static str {
+    if snapshot.mappings.iter().any(|mapping| mapping.source_engine.as_deref() == Some("doris")) {
+        return "unmeasured";
+    }
     let live: Vec<_> = snapshot
         .freshness
         .iter()
@@ -2053,6 +2073,14 @@ fn source_time_status(snapshot: &QualitySnapshot) -> &'static str {
         "unmeasured"
     } else {
         "unknown"
+    }
+}
+
+fn global_position_status(snapshot: &QualitySnapshot) -> &'static str {
+    if snapshot.watermarks.is_empty() || snapshot.watermarks.iter().any(|mark| mark.applied_pos.is_none()) {
+        "unmeasured"
+    } else {
+        "measured"
     }
 }
 
@@ -2128,9 +2156,12 @@ fn quality_count_value(item: &QualityCount) -> Value {
 
 // Readiness is proved for every authorized physical mapping, never a global max generation.
 pub(crate) fn ready_quality(s: &QualitySnapshot) -> bool {
+    let doris_only = !s.mappings.is_empty()
+        && s.mappings.iter().all(|m| m.source_engine.as_deref() == Some("doris"));
     !s.mappings.is_empty() && s.relations=="read" && s.probes.iter().all(|p|p.state=="read")
-    && s.warnings.is_empty() && !s.capture_method.is_empty() && s.capture_method!="mixed"
-    && !s.delete_detection.is_empty() && s.delete_detection!="mixed"
+    && s.warnings.is_empty() && !s.capture_method.is_empty()
+    && !s.delete_detection.is_empty()
+    && (doris_only || (s.capture_method!="mixed" && s.delete_detection!="mixed"))
     && s.runs.len()>=s.mappings.len() && s.runs.iter().all(|r|r.state=="published" && r.sealed)
     && s.mappings.iter().all(|m|m.bound
         && s.runs.iter().any(|r|r.source==m.source && r.source_generation==m.run_generation && r.state=="published" && r.sealed)
@@ -2141,10 +2172,10 @@ pub(crate) fn ready_quality(s: &QualitySnapshot) -> bool {
             }
             match w.consistency.as_str() {
                 "transactional" => {
-                    w.cross_table_consistent
+                    w.cross_table_consistent && s.capture_method!="mixed" && s.delete_detection!="mixed"
                         && s.freshness.iter().any(|f| f.schema==m.schema && f.table==m.table && f.state=="live" && freshness_row(f).is_some())
                         && s.receipts.iter().any(|r|r.source==m.source && r.schema==m.schema && r.table==m.table && r.run_generation==m.run_generation
-                            && r.codec==w.codec && r.lineage==w.lineage && r.source_epoch==w.source_epoch && r.applied_pos==w.applied_pos
+                            && r.codec==w.codec && r.lineage==w.lineage && Some(r.source_epoch)==w.source_epoch && Some(r.applied_pos.as_str())==w.applied_pos.as_deref()
                             && r.cross_table_consistent && !r.partial_txn)
                 }
                 "per_table" => {
@@ -2152,25 +2183,52 @@ pub(crate) fn ready_quality(s: &QualitySnapshot) -> bool {
                     if !crate::query_executor::supported_source_engine(engine) {
                         return false;
                     }
-                    let expected_lineage = format!("configured.{engine}");
-                    w.codec == "snapshot-zero/v1"
-                        && w.applied_pos == "0"
-                        && w.source_epoch == 0
-                        && !w.cross_table_consistent
-                        && w.lineage == expected_lineage
-                        && s.freshness.iter().any(|f| {
-                            f.schema == m.schema && f.table == m.table && f.state == "live"
-                                && Rfc3339Timestamp::new(&f.applied_at).is_ok()
-                        })
-                        && s.receipts.iter().any(|r| {
-                            r.source == m.source && r.schema == m.schema && r.table == m.table
-                                && r.run_generation == m.run_generation
-                                && r.codec == "snapshot-zero/v1"
-                                && r.lineage == "full-import.snapshot"
-                                && r.source_epoch == 0 && r.applied_pos == "0"
-                                && !r.cross_table_consistent && !r.partial_txn
-                                && Rfc3339Timestamp::new(&r.target_commit_at).is_ok()
-                        })
+                    if engine == "doris" {
+                        let matching_quality: Vec<_> = s.table_quality.iter().filter(|q| {
+                            q.schema == m.schema && q.table == m.table
+                        }).collect();
+                        let Some(quality) = matching_quality.first() else { return false; };
+                        if matching_quality.len() != 1 {
+                            return false;
+                        }
+                        let expected_delete = match quality.capture_method.as_str() {
+                            "c4_partition" => "partition_replace",
+                            "c5_diff" => "reconcile",
+                            _ => return false,
+                        };
+                        w.codec == "partition-signature/v1"
+                            && w.applied_pos.is_none()
+                            && w.source_epoch.is_none()
+                            && w.consistency_grade == "S0"
+                            && w.lineage == "partition-map"
+                            && !w.cross_table_consistent
+                            && quality.delete_detection == expected_delete
+                            && s.freshness.iter().any(|f| {
+                                f.schema == m.schema && f.table == m.table && f.state == "live"
+                                    && Rfc3339Timestamp::new(&f.applied_at).is_ok()
+                            })
+                    } else {
+                        let expected_lineage = format!("configured.{engine}");
+                        w.codec == "snapshot-zero/v1"
+                            && w.applied_pos.as_deref() == Some("0")
+                            && w.source_epoch == Some(0)
+                            && !w.cross_table_consistent
+                            && w.lineage == expected_lineage
+                            && s.capture_method != "mixed" && s.delete_detection != "mixed"
+                            && s.freshness.iter().any(|f| {
+                                f.schema == m.schema && f.table == m.table && f.state == "live"
+                                    && Rfc3339Timestamp::new(&f.applied_at).is_ok()
+                            })
+                            && s.receipts.iter().any(|r| {
+                                r.source == m.source && r.schema == m.schema && r.table == m.table
+                                    && r.run_generation == m.run_generation
+                                    && r.codec == "snapshot-zero/v1"
+                                    && r.lineage == "full-import.snapshot"
+                                    && r.source_epoch == 0 && r.applied_pos == "0"
+                                    && !r.cross_table_consistent && !r.partial_txn
+                                    && Rfc3339Timestamp::new(&r.target_commit_at).is_ok()
+                            })
+                    }
                 }
                 _ => false,
             }
@@ -2251,7 +2309,7 @@ fn source_row(mark: &WatermarkObserved) -> Option<oo_core::api::SourceWatermark>
         "per_table" => ConsistencyMode::PerTable,
         _ => return None,
     };
-    let applied_pos = Position::new(ExactDecimal::parse_sql(&mark.applied_pos).ok()?).ok()?;
+    let applied_pos = Position::new(ExactDecimal::parse_sql(mark.applied_pos.as_deref()?).ok()?).ok()?;
     Some(oo_core::api::SourceWatermark {
         source,
         consistency,
@@ -2761,6 +2819,56 @@ mod tests {
     use super::*;
 
     #[test]
+    fn native_quality_vector_projects_engine_from_sealed_collection_entry() {
+        let vector = serde_json::json!([{
+            "dataset": "sales.orders",
+            "source_id": "dorispreview",
+            "run_id": "run-1",
+            "source_generation": 7,
+            "target_generation": 9
+        }]);
+        let input = serde_json::json!({
+            "catalog": {
+                "protocol": "oo.pipeline.sealed-import-collection/v1",
+                "binding_vector": vector,
+                "entries": [{
+                    "source_id": "dorispreview",
+                    "engine": "doris",
+                    "run_id": "run-1",
+                    "source_generation": 7,
+                    "target_generation": 9,
+                    "tables": [{"logical_schema": "sales", "logical_table": "orders"}]
+                }]
+            }
+        });
+        let output = serde_json::json!({"provenance": {
+            "source_engine": "doris",
+            "binding_vector": vector
+        }});
+
+        let projected = authenticated_native_quality_vector(&input, &output, &vector).unwrap();
+        assert_eq!(projected[0]["source_engine"], "doris");
+
+        for (field, value) in [
+            ("engine", serde_json::json!("oracle")),
+            ("engine", serde_json::Value::Null),
+            ("run_id", serde_json::json!("other-run")),
+        ] {
+            let mut bad = input.clone();
+            if value.is_null() {
+                bad["catalog"]["entries"][0].as_object_mut().unwrap().remove(field);
+            } else {
+                bad["catalog"]["entries"][0][field] = value;
+            }
+            assert!(authenticated_native_quality_vector(&bad, &output, &vector).is_none());
+        }
+
+        let mut bad_table = input.clone();
+        bad_table["catalog"]["entries"][0]["tables"][0]["logical_table"] = "customers".into();
+        assert!(authenticated_native_quality_vector(&bad_table, &output, &vector).is_none());
+    }
+
+    #[test]
     fn data_keys_are_optional_and_named() {
         assert!(data_config_key("wal_dir"));
         assert!(data_config_key("audit_collector_dir"));
@@ -2819,7 +2927,7 @@ mod tests {
         s.runs.push(ImportRunObserved {source:"shop".into(),source_generation:5,target_generation:5,state:"published".into(),sealed:true});
         s.imports.push(ImportTableObserved {schema:"s".into(),table:"t".into(),run_generation:5,applied_rows:2,applied_pos:"37".into(),exhausted:true});
         let lineage="mysql.11111111-2222-4333-8444-555555555555";
-        s.watermarks.push(WatermarkObserved {source:"shop".into(),consistency:"transactional".into(),cross_table_consistent:true,applied_pos:"37".into(),state:"live".into(),codec:"mysql-gtid/v1".into(),lineage:lineage.into(),source_epoch:1});
+        s.watermarks.push(WatermarkObserved {source:"shop".into(),consistency:"transactional".into(),consistency_grade:"T".into(),cross_table_consistent:true,applied_pos:Some("37".into()),state:"live".into(),codec:"mysql-gtid/v1".into(),lineage:lineage.into(),source_epoch:Some(1)});
         s.receipts.push(ReceiptObserved {source:"shop".into(),schema:"s".into(),table:"t".into(),run_generation:5,applied_pos:"37".into(),codec:"mysql-gtid/v1".into(),lineage:lineage.into(),source_epoch:1,cross_table_consistent:true,partial_txn:false,target_commit_at:"2026-10-15T14:00:01.000000Z".into()});
         assert!(freshness_row(&s.freshness[0]).is_some(),"freshness row: {:?}",s.freshness[0]);
         assert!(ready_quality(&s));assert!(gap_warning(&s).is_none());
@@ -2881,12 +2989,13 @@ mod tests {
             s.watermarks.push(WatermarkObserved {
                 source: "oracle_oneclick_orders".into(),
                 consistency: "per_table".into(),
+                consistency_grade: "S0".into(),
                 cross_table_consistent: false,
-                applied_pos: "0".into(),
+                applied_pos: Some("0".into()),
                 state: "live".into(),
                 codec: "snapshot-zero/v1".into(),
                 lineage: "configured.oracle".into(),
-                source_epoch: 0,
+                source_epoch: Some(0),
             });
             s.receipts.push(ReceiptObserved {
                 source: "oracle_oneclick_orders".into(),
@@ -2939,7 +3048,7 @@ mod tests {
                 "watermark_lineage" => bad.watermarks[0].lineage = "configured.mysql".into(),
                 "receipt_lineage" => bad.receipts[0].lineage = "configured.oracle".into(),
                 "codec" => bad.receipts[0].codec = "pg-commit-lsn/v1".into(),
-                "position" => bad.watermarks[0].applied_pos = "1".into(),
+                "position" => bad.watermarks[0].applied_pos = Some("1".into()),
                 "epoch" => bad.receipts[0].source_epoch = 1,
                 "watermark_cross_table" => bad.watermarks[0].cross_table_consistent = true,
                 "receipt_cross_table" => bad.receipts[0].cross_table_consistent = true,
@@ -2954,6 +3063,113 @@ mod tests {
             }
             assert!(!ready_quality(&bad), "{kind}");
             assert!(gap_warning(&bad).is_some(), "{kind}");
+        }
+    }
+
+    #[test]
+    fn doris_per_table_quality_keeps_mixed_c4_c5_and_null_global_position() {
+        use crate::query_executor::*;
+        let tables = [
+            ("agg_qty", 2, "c5_diff", "reconcile"),
+            ("dec_exact", 3, "c5_diff", "reconcile"),
+            ("dup_events", 4, "c5_diff", "reconcile"),
+            ("nz_obs", 5, "c5_diff", "reconcile"),
+            ("part_day", 9, "c4_partition", "partition_replace"),
+            ("str_key", 6, "c5_diff", "reconcile"),
+            ("uniq_acct", 7, "c5_diff", "reconcile"),
+        ];
+        let snapshot = || {
+            let mut s = QualitySnapshot::blank("read");
+            s.probes.extend([
+                RelationProbe { name: "physical_mappings", state: "read" },
+                RelationProbe { name: "table_freshness", state: "read" },
+                RelationProbe { name: "source_watermark", state: "read" },
+                RelationProbe { name: "table_quality", state: "read" },
+                RelationProbe { name: "apply_receipts", state: "read" },
+                RelationProbe { name: "full_import_run", state: "read" },
+                RelationProbe { name: "full_import_table", state: "read" },
+                RelationProbe { name: "full_import_quality", state: "read" },
+            ]);
+            s.capture_method = "mixed".into();
+            s.delete_detection = "mixed".into();
+            s.watermarks.push(WatermarkObserved {
+                source: "dorispreview".into(),
+                consistency: "per_table".into(),
+                consistency_grade: "S0".into(),
+                cross_table_consistent: false,
+                applied_pos: None,
+                state: "live".into(),
+                codec: "partition-signature/v1".into(),
+                lineage: "partition-map".into(),
+                source_epoch: None,
+            });
+            for (table, generation, capture, deletion) in tables {
+                s.mappings.push(MappingObserved {
+                    source: "dorispreview".into(),
+                    source_engine: Some("doris".into()),
+                    schema: "oo_dl01w1_43".into(),
+                    table: table.into(),
+                    run_generation: generation,
+                    bound: true,
+                });
+                s.freshness.push(FreshnessObserved {
+                    schema: "oo_dl01w1_43".into(),
+                    table: table.into(),
+                    state: "live".into(),
+                    source_committed_at: String::new(),
+                    applied_at: "2026-10-16T02:00:00.000000Z".into(),
+                });
+                s.runs.push(ImportRunObserved {
+                    source: "dorispreview".into(),
+                    source_generation: generation,
+                    target_generation: generation,
+                    state: "published".into(),
+                    sealed: true,
+                });
+                s.imports.push(ImportTableObserved {
+                    schema: "oo_dl01w1_43".into(),
+                    table: table.into(),
+                    run_generation: generation,
+                    applied_rows: 1,
+                    applied_pos: String::new(),
+                    exhausted: true,
+                });
+                s.table_quality.push(TableQualityObserved {
+                    schema: "oo_dl01w1_43".into(),
+                    table: table.into(),
+                    capture_method: capture.into(),
+                    delete_detection: deletion.into(),
+                });
+            }
+            s
+        };
+        let good = snapshot();
+        assert!(ready_quality(&good));
+        assert_eq!(source_time_status(&good), "unmeasured");
+        assert_eq!(global_position_status(&good), "unmeasured");
+        let document = freshness_document(&good, "knowledge-v", "policy-v");
+        assert!(document["sources"].as_array().unwrap().is_empty());
+        assert_eq!(document["source_watermarks"][0]["applied_pos"], serde_json::Value::Null);
+        assert_eq!(document["source_watermarks"][0]["source_epoch"], serde_json::Value::Null);
+        assert_eq!(document["source_watermarks"][0]["consistency_grade"], "S0");
+        assert_eq!(document["table_quality"].as_array().unwrap().len(), 7);
+        assert_eq!(document["table_quality"][4]["capture_method"], "c4_partition");
+
+        for mutate in [
+            "missing_engine", "invented_position", "invented_epoch", "wrong_lineage",
+            "missing_quality", "wrong_delete", "unpublished",
+        ] {
+            let mut bad = snapshot();
+            match mutate {
+                "missing_engine" => bad.mappings[0].source_engine = None,
+                "invented_position" => bad.watermarks[0].applied_pos = Some("0".into()),
+                "invented_epoch" => bad.watermarks[0].source_epoch = Some(0),
+                "wrong_lineage" => bad.watermarks[0].lineage = "partition-map-copy".into(),
+                "missing_quality" => bad.table_quality.retain(|q| q.table != "part_day"),
+                "wrong_delete" => bad.table_quality[4].delete_detection = "reconcile".into(),
+                _ => bad.runs[4].state = "awaiting_publish".into(),
+            }
+            assert!(!ready_quality(&bad), "accepted {mutate}");
         }
     }
 
@@ -2987,7 +3203,8 @@ fn load_native_reviewed_role(dir: &Path) -> Result<Published, &'static str> {
         Some(input_value["catalog"].clone())
     } else { None };
     let quality_vector = if let Some(vector) = &binding.binding_vector {
-        Some(vector.clone())
+        Some(authenticated_native_quality_vector(&input_value, &output_value, vector)
+            .ok_or("reviewed_native_quality_vector")?)
     } else {
         single_import_quality_vector(&input_value, &output_value, &binding, &reviewed.policies)
     };
@@ -3005,6 +3222,68 @@ fn load_native_reviewed_role(dir: &Path) -> Result<Published, &'static str> {
         } else { binding.config_digest },
         policies: reviewed.policies,
     })
+}
+
+// The sealed collection binding vector carries run and table identity, while the
+// closed catalog entries carry the engine. Join them only after reviewed-policy
+// compilation has authenticated the collection and its generated command.
+fn authenticated_native_quality_vector(input: &Value, output: &Value, vector: &Value) -> Option<Value> {
+    let catalog = &input["catalog"];
+    let provenance = &output["provenance"];
+    let items = vector.as_array()?;
+    let entries = catalog["entries"].as_array()?;
+    let engine = provenance["source_engine"].as_str()?;
+    if items.is_empty()
+        || entries.len() != items.len()
+        || catalog["protocol"] != "oo.pipeline.sealed-import-collection/v1"
+        || catalog["binding_vector"] != *vector
+        || provenance["binding_vector"] != *vector
+        || !crate::query_executor::supported_source_engine(engine)
+    {
+        return None;
+    }
+
+    let mut datasets = std::collections::HashSet::new();
+    let mut authenticated = Vec::with_capacity(items.len());
+    for item in items {
+        let dataset = item["dataset"].as_str()?;
+        if !datasets.insert(dataset) {
+            return None;
+        }
+        let (schema, table) = dataset.split_once('.')?;
+        if schema.is_empty() || table.is_empty() || table.contains('.') {
+            return None;
+        }
+        let source = item["source_id"].as_str()?;
+        let run_id = item["run_id"].as_str()?;
+        let source_generation = item["source_generation"].as_i64()?;
+        let target_generation = item["target_generation"].as_i64()?;
+        let matching: Vec<_> = entries
+            .iter()
+            .filter(|entry| {
+                entry["source_id"] == source
+                    && entry["run_id"] == run_id
+                    && entry["source_generation"].as_i64() == Some(source_generation)
+                    && entry["target_generation"].as_i64() == Some(target_generation)
+                    && entry["tables"].as_array().is_some_and(|tables| {
+                        tables.iter().any(|candidate| {
+                            candidate["logical_schema"] == schema
+                                && candidate["logical_table"] == table
+                        })
+                    })
+            })
+            .collect();
+        if matching.len() != 1 || matching[0]["engine"].as_str() != Some(engine) {
+            return None;
+        }
+        if item.get("source_engine").is_some_and(|bound| bound.as_str() != Some(engine)) {
+            return None;
+        }
+        let mut binding = item.clone();
+        binding["source_engine"] = Value::String(engine.to_owned());
+        authenticated.push(binding);
+    }
+    Some(Value::Array(authenticated))
 }
 
 fn single_import_quality_vector(

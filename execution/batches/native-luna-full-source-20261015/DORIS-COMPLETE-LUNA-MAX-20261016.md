@@ -50,3 +50,6 @@ root逐列实查：0008原十列SELECT已生效，quiet新用current_signature/p
 
 
 2026-10-16 追加mapping-reader必要窄域：仅 crates/oo-gateway/src/mapping_reader_access.rs, crates/oo-gateway/tests/mapping_reader_access_pg_live.rs 的native-vector表级发布证明/必要测试；真实global-vs-per-table代次拒绝、精确范围与验证退出见 execution/reviews/native-luna-full-source-20261015/doris-mapping-reader-per-table-scope.json。原ACL/角色/TLS/C1/Oracle/rollback及完整整源退出不变，不手工授权、不加迁移。
+
+
+2026-10-16 追加0042必要窄域：仅 crates/oo-pipeline/migrations/0042_native_olap_published_parent.sql 及既有target_installer/native_update安装接线/tests，修正真实已发布C4 parent不能copy-forward；精确输入/护栏/真实验证退出见 execution/reviews/native-luna-full-source-20261015/doris-c4-published-parent-scope.json。旧0000–0041不改、不手工grant/ACK/伪source代，原完整六项退出保持。
