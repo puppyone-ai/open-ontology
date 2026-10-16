@@ -1,4 +1,4 @@
-2026-10-16 共同per-table固定依赖：MySQL5.7+8.4完整本地参考已核；Doris/Oracle唯一Luna max继续整源。3b4fef066含73e99724重入修复，root核77.7MB完整archive可重生成、7源码/2实际ELF/测试log SHA一致；pipeline lib78pass/4ignored、coordinator27pass/3ignored/1A359filtered，原A359缺环境与native_arrow历史4fail均保留。该制品解决旧0027发布依赖死Loader后端锁的路径，正确走事务内认证receipt；只是固定中间依赖，Oracle还需同archive构建缺少的release API并官方安装/新candidate/ROGateway全验，Doris全链继续。无完整源/Plan/整版签收，开发/集成/发行/外部计数delta均0，formal0/10、其他7held。证据 execution/reviews/native-luna-full-source-20261015/per-table-shared-fixed-dependency-intake.json。
+2026-10-16 per-table共享依赖已固定：root核3b4fef066缺少的release API单次Linux1.94构建ELF 95a39e59、日志与锁文件；Oracle官方installer成功，37条旧迁移字节不变，仅追加0039–0041。原manifest原SHA恢复，工具链补证另存v2。当前仅Doris/Oracle Luna max继续真实发布、RO/Gateway、自动更新与随机CLI/Agent完整链；其他7held，尚无两源完整签收，所有计数delta0、formal0/10。Spec/Plan检查均exit1：既有docs/07-gateway.md基线漂移保留，未改基线。回执 execution/reviews/native-luna-full-source-20261015/per-table-shared-installed-dependency-intake.json。
 
 2026-10-15 MySQL/shared完整任务从已核completed的Luna xhigh移交唯一GPT-6.1 Sol medium；四制品SHA核验不等于功能签收，typed五表导入和后续完整链仍未证。开发/集成/发行/外部门槛及全部分母/分子不变，无新增组件或独立审阅。交接见execution/batches/native-luna-full-source-20261015/mysql-sol-handoff.json。
 

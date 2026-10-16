@@ -3634,5 +3634,11 @@
     "source_commit": "3b4fef06623f37d6da107e51d28f9ce4d1bc1593",
     "scope": "root_verified_fixed_dependency_source_ELF_and_declared_tests_only",
     "formal_source_count_delta": 0
+  },
+  "latest_per_table_shared_installed_dependency": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/per-table-shared-installed-dependency-intake.json",
+    "source_commit": "3b4fef06623f37d6da107e51d28f9ce4d1bc1593",
+    "scope": "root_verified_fixed_dependency_build_and_official_target_install_only",
+    "formal_source_count_delta": 0
   }
 }

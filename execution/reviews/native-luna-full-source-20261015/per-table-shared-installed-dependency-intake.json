@@ -1,0 +1,89 @@
+{
+  "as_of": "2026-10-16T01:30:07.870114+00:00",
+  "acceptance_level": "root_verified_fixed_dependency_build_and_official_target_install_only",
+  "source_commit": "3b4fef06623f37d6da107e51d28f9ce4d1bc1593",
+  "previous_source_build_intake": "/Users/redux/puppy-one/open-ontology/execution/reviews/native-luna-full-source-20261015/per-table-shared-fixed-dependency-intake.json",
+  "original_manifest_restored": {
+    "path": "/private/tmp/oo-doris-lunamax-20261016/evidence/native-per-table-shared-fixed-manifest.json",
+    "sha256": "93aae1502921e75e718fb2098a69c5b61b05e9dba9105a5f28f8e98721f598d4"
+  },
+  "versioned_toolchain_manifest": {
+    "path": "/private/tmp/oo-doris-lunamax-20261016/evidence/native-per-table-shared-fixed-manifest-v2.json",
+    "sha256": "07d8d8c51b7fb0ec20e982b788a857a95cf6ed94b92d7ffd430093d12984df1f"
+  },
+  "release_api_build_manifest": {
+    "path": "/private/tmp/oo-oracle-c5-luna-max-20261016/release-api-build-3b4fef-20261016T012400Z/fixed-build-manifest.json",
+    "sha256": "dcb239ae156a4ace5b570315347e1dd54911d0a9d6f7ea8972ef5a5e61fa06c5"
+  },
+  "release_api": {
+    "build_id_sha1": "b1537b641c1af849ba26a720ff3da47e1514f438",
+    "bytes": 21505240,
+    "file_identity": "/private/tmp/oo-doris-lunamax-20261016/native-shared-target-oracle-cache/release/release-control-api: ELF 64-bit LSB pie executable, ARM aarch64, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, BuildID[sha1]=b1537b641c1af849ba26a720ff3da47e1514f438, for GNU/Linux 3.7.0, not stripped",
+    "path": "/private/tmp/oo-doris-lunamax-20261016/native-shared-target-oracle-cache/release/release-control-api",
+    "sha256": "95a39e59a36e2111ccd6d76684988f2d9d9826c06aa7f76a578036b009d45ce4",
+    "shasum": "95a39e59a36e2111ccd6d76684988f2d9d9826c06aa7f76a578036b009d45ce4  /private/tmp/oo-doris-lunamax-20261016/native-shared-target-oracle-cache/release/release-control-api"
+  },
+  "official_install": {
+    "baseline": {
+      "path": "/private/tmp/oo-oracle-c5-luna-max-20261016/target-migration-baseline-before-0039-20261016/schema-migrations.json",
+      "sha256": "ed65d904eeb262a6a9cc60ae4c8b040da3f6764ce2d311db36b62ec67edba0bd"
+    },
+    "post_migrations": {
+      "path": "/private/tmp/oo-oracle-c5-luna-max-20261016/official-install-0039-20261016T012356Z/attempt-02-attached-stdin/post-migrations.stdout",
+      "sha256": "fc610621870b6ef60fb4210dcd71a00d7c1e3bebba6f91cb1971aa61cdc61da3"
+    },
+    "reply": {
+      "path": "/private/tmp/oo-oracle-c5-luna-max-20261016/official-install-0039-20261016T012356Z/attempt-02-attached-stdin/installer.stdout",
+      "sha256": "a22866d1bf28237e58d83cff31130552da1373cc3f59cf5da1b07fbe5b8281f5"
+    },
+    "postcheck": {
+      "path": "/private/tmp/oo-oracle-c5-luna-max-20261016/official-install-0039-20261016T012356Z/attempt-02-attached-stdin/postcheck.json",
+      "sha256": "91e0a2cbb4f8863f06b82c903d612499d3475e6809777e93c7c019b138bb95da"
+    },
+    "before_rows": 37,
+    "after_rows": 40,
+    "preexisting_rows_changed": 0,
+    "added_migrations": {
+      "native-partition-observation-read/v1": {
+        "version": "native-partition-observation-read/v1",
+        "filename": "0041_native_partition_observation_read.sql",
+        "checksum": "b5146cab1523765c109a4d548ae21fc7c84e5b15fc46fc3a41a5f68606d041c7",
+        "phase": "expand"
+      },
+      "native-per-table-publication/v1": {
+        "version": "native-per-table-publication/v1",
+        "filename": "0039_native_per_table_publication.sql",
+        "checksum": "438d780176456ec0b8ff85feb20b6f803f42f4ae85562f64755fe83e628566d9",
+        "phase": "expand"
+      },
+      "native-source-progress-read/v1": {
+        "version": "native-source-progress-read/v1",
+        "filename": "0040_native_source_progress_read.sql",
+        "checksum": "e5eae5061085c5a74a57d6d63a2d62ef46e63f02dce42352da5629b64c0b4ffc",
+        "phase": "expand"
+      }
+    }
+  },
+  "document_checks": {
+    "path": "/tmp/oo-root-shared-doc-check-20261016T0129Z/receipt.json",
+    "sha256": "1da2d97ca6b46032d0b1983e389d7dc7e6f7634c27da2d38ff4ce4d7ea303b07"
+  },
+  "known_limits": [
+    "Spec/Plan self-tests exit1: existing docs/07-gateway.md source-baseline hash/size/line drift; baseline untouched",
+    "New API live process identity and actual publication/Gateway still source-owner work",
+    "No full Oracle/Doris chain or formal Plan/edition acceptance"
+  ],
+  "next_action": "Only existing Oracle/Doris Luna max owners reuse fixed API and finish real publication, replica/Gateway, automatic IUD maintenance, CLI/source gold, random 2x2 Agent, normal six-field whole and reentry. Other7held.",
+  "review": "root decisive hash/evidence verification; unified independent review deferred to human ten-source milestone",
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "release": 0,
+    "external": 0,
+    "formal_source": 0,
+    "edition": 0
+  },
+  "unchanged_scope": [
+    "support-matrix/frontend/GOAL/PRODUCT-LOOPS: no original exit or edition change; no update"
+  ]
+}
