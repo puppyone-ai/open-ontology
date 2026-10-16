@@ -51,7 +51,7 @@
       ],
       "mandatory_blocker": null,
       "status": "running_original_mysql_rust_runtime_closure",
-      "next_action": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-LUNA-MAX-20261016.md",
+      "next_action": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-SOL-MEDIUM-20261016.md",
       "historical_assignment_before_mysql_family_reference": {
         "source": "mysql",
         "task": "DL01-W1-06",
@@ -69,7 +69,7 @@
         "status": "repair_running",
         "next_action": "customer currently count only; complete actualArrow/sealed/Builder/consume same chosencustomer input"
       },
-      "agent": "/root/mysql_rust_runtime_luna_max",
+      "agent": "/root/mysql_rust_runtime_sol_medium",
       "historical_write_paths_before_rust_runtime": [
         "tools/mysql-preview",
         "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/mysql",
@@ -77,8 +77,8 @@
         "tools/pg-builder",
         "evidence/b5ac4bc8-1872-4fe4-a56a-04a70f7103a2/DL01/native-physical-import"
       ],
-      "model": "gpt-6-luna",
-      "reasoning_effort": "max"
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium"
     },
     {
       "source": "mariadb",
@@ -225,23 +225,10 @@
       "uuid": null,
       "handle": null,
       "scope": "native admission/catalog/Arrow/sealed independent PG/real Builder/Pack/trusted consume/cancel/audit/source detach/reopen/cleanup",
-      "write_paths": [
-        "testing/dl01-driver-preflight/doris",
-        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-driver-preflight",
-        "tools/doris-preview",
-        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product",
-        "tools/selfbuild-control-api/src/overlay.rs (Doris partition verification only)",
-        "crates/oo-pipeline/migrations/0041_native_partition_observation_read.sql",
-        "tools/pg-builder/src/source_contract.rs",
-        "crates/oo-gateway/src/public_surface.rs",
-        "crates/oo-gateway/src/query_executor.rs",
-        "crates/oo-gateway/src/mapping_reader_access.rs",
-        "crates/oo-gateway/tests/mapping_reader_access_pg_live.rs",
-        "crates/oo-pipeline/migrations/0042_native_olap_published_parent.sql"
-      ],
+      "write_paths": [],
       "mandatory_blocker": null,
-      "status": "spawned_and_accepted",
-      "next_action": "execution/batches/native-luna-full-source-20261015/DORIS-COMPLETE-LUNA-MAX-20261016.md",
+      "status": "paused_for_mysql_priority_writer_released",
+      "next_action": "explicit root resume after MySQL full Rust runtime fixed verification",
       "historical_assignment_before_mysql_family_reference": {
         "source": "doris",
         "task": "DL01-W1-43",
@@ -261,7 +248,23 @@
       "agent": "/root/doris_complete_luna_max",
       "model": "gpt-6-luna",
       "reasoning_effort": "max",
-      "dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json"
+      "dispatch": "execution/batches/native-luna-full-source-20261015/doris-luna-max-dispatch.json",
+      "released_write_paths_for_mysql_priority": [
+        "testing/dl01-driver-preflight/doris",
+        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-driver-preflight",
+        "tools/doris-preview",
+        "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product",
+        "tools/selfbuild-control-api/src/overlay.rs (Doris partition verification only)",
+        "crates/oo-pipeline/migrations/0041_native_partition_observation_read.sql",
+        "tools/pg-builder/src/source_contract.rs",
+        "crates/oo-gateway/src/public_surface.rs",
+        "crates/oo-gateway/src/query_executor.rs",
+        "crates/oo-gateway/src/mapping_reader_access.rs",
+        "crates/oo-gateway/tests/mapping_reader_access_pg_live.rs",
+        "crates/oo-pipeline/migrations/0042_native_olap_published_parent.sql"
+      ],
+      "hold_intake": "execution/reviews/native-luna-full-source-20261015/doris-mysql-priority-final-hold-intake.json",
+      "writer_released": true
     },
     {
       "source": "starrocks",
@@ -421,13 +424,35 @@
     "registry_whole": true
   },
   "latest_mysql_rust_runtime_dispatch": {
-    "agent": "/root/mysql_rust_runtime_luna_max",
-    "model": "gpt-6-luna",
-    "reasoning_effort": "max",
-    "status": "spawned_and_accepted_readonly_preflight",
-    "as_of": "2026-10-16T07:21:04.943436+00:00",
-    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-LUNA-MAX-20261016.md",
-    "formal_source_count_delta": 0,
-    "old_live_service_observation": "author current ps: old host74664/74665 absent, connection-whole container onlysleep; APIs/forwards/Gateways retained; native bind/task current state and lifecycle under check, no new writer yet"
+    "as_of": "2026-10-16T07:27:32.281813+00:00",
+    "agent": "/root/mysql_rust_runtime_sol_medium",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "status": "actually_spawned_exclusive_mysql_owner",
+    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-SOL-MEDIUM-20261016.md",
+    "card_sha256": "90a09124fb458bd4b3014540dd75b210348ad502012c2edf7d10d41b5084ce4c",
+    "handoff": {
+      "path": "/tmp/oo-mysql-rust-runtime-luna-max-20261016/HANDOFF.json",
+      "sha256": "a6c156a74d5b5af6b75cf24ef5e630b91736d554902faca2d75a3ef6c472e990",
+      "previous_agent": "/root/mysql_rust_runtime_luna_max",
+      "previous_terminal_and_writer_released": true,
+      "rust_worktree_clean": true,
+      "source_tests_passed": 0
+    },
+    "previous_failures": "four pre-test smoke attempts, original raw exits missing; retained honestly, no success inherited",
+    "scope": "same original MySQL5.7+8.4 complete Rust product runtime closure, minimum necessary code; no blanket Python rewrite",
+    "other_sources": "held; Doris safety collection only pending final receipt; no other source development/tests/models",
+    "formal_source_count_delta": 0
+  },
+  "latest_mysql_rust_runtime_priority": {
+    "receipt": "execution/batches/native-luna-full-source-20261015/mysql-rust-runtime-sol-medium-dispatch.json",
+    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-SOL-MEDIUM-20261016.md",
+    "status": "actually_spawned_exclusive_mysql_owner",
+    "other_sources_held": true,
+    "formal_source_count_delta": 0
+  },
+  "latest_doris_final_hold": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/doris-mysql-priority-final-hold-intake.json",
+    "writer_released": true
   }
 }

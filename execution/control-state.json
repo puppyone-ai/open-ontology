@@ -3799,20 +3799,40 @@
     "automatic_renewal": false
   },
   "latest_mysql_rust_runtime_priority": {
-    "receipt": "execution/batches/native-luna-full-source-20261015/mysql-rust-runtime-priority.json",
-    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-LUNA-MAX-20261016.md",
-    "status": "ready_for_single_mysql_native_luna_max_owner",
+    "receipt": "execution/batches/native-luna-full-source-20261015/mysql-rust-runtime-sol-medium-dispatch.json",
+    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-SOL-MEDIUM-20261016.md",
+    "status": "actually_spawned_exclusive_mysql_owner",
     "other_sources_held": true,
     "formal_source_count_delta": 0
   },
   "latest_mysql_rust_runtime_dispatch": {
-    "agent": "/root/mysql_rust_runtime_luna_max",
-    "model": "gpt-6-luna",
-    "reasoning_effort": "max",
-    "status": "spawned_and_accepted_readonly_preflight",
-    "as_of": "2026-10-16T07:21:04.943436+00:00",
-    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-LUNA-MAX-20261016.md",
-    "formal_source_count_delta": 0,
-    "old_live_service_observation": "author current ps: old host74664/74665 absent, connection-whole container onlysleep; APIs/forwards/Gateways retained; native bind/task current state and lifecycle under check, no new writer yet"
+    "as_of": "2026-10-16T07:27:32.281813+00:00",
+    "agent": "/root/mysql_rust_runtime_sol_medium",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "status": "actually_spawned_exclusive_mysql_owner",
+    "card": "execution/batches/native-luna-full-source-20261015/MYSQL-RUST-RUNTIME-COMPLETE-SOL-MEDIUM-20261016.md",
+    "card_sha256": "90a09124fb458bd4b3014540dd75b210348ad502012c2edf7d10d41b5084ce4c",
+    "handoff": {
+      "path": "/tmp/oo-mysql-rust-runtime-luna-max-20261016/HANDOFF.json",
+      "sha256": "a6c156a74d5b5af6b75cf24ef5e630b91736d554902faca2d75a3ef6c472e990",
+      "previous_agent": "/root/mysql_rust_runtime_luna_max",
+      "previous_terminal_and_writer_released": true,
+      "rust_worktree_clean": true,
+      "source_tests_passed": 0
+    },
+    "previous_failures": "four pre-test smoke attempts, original raw exits missing; retained honestly, no success inherited",
+    "scope": "same original MySQL5.7+8.4 complete Rust product runtime closure, minimum necessary code; no blanket Python rewrite",
+    "other_sources": "held; Doris safety collection only pending final receipt; no other source development/tests/models",
+    "formal_source_count_delta": 0
+  },
+  "latest_doris_final_hold": {
+    "intake": "execution/reviews/native-luna-full-source-20261015/doris-mysql-priority-final-hold-intake.json",
+    "status": "paused_for_mysql_priority_writer_released",
+    "whole": false,
+    "bindings_enabled": 0,
+    "worker_pid2331_absent": true,
+    "pending_task_retained": true,
+    "formal_source_count_delta": 0
   }
 }
