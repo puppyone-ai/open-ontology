@@ -5,14 +5,14 @@ edition = "2024"
 rust-version = "1.94.0"
 publish = false
 license = "MIT OR Apache-2.0"
-description = "Experimental MySQL 8 snapshot preview and owned-fixture binlog reader. Not verified or certified."
+description = "MySQL 5.7/8.x owned-fixture C1 adapter using oo-connectors. Not a customer certification."
 
 [workspace]
 resolver = "3"
 
 [dependencies]
 arrow-ipc = { version = "=60.0.0", default-features = false }
-oo-connectors = { path = "../../crates/oo-connectors" }
+oo-connectors = { path = "../../crates/oo-connectors", features = ["mysql"] }
 oo-core = { path = "../../crates/oo-core" }
 oo-pipeline = { path = "../../crates/oo-pipeline" }
 cdc-spool = { path = "../cdc-spool" }

@@ -1271,6 +1271,22 @@ mod tests {
     }
 
     #[test]
+    fn gateway_reviewed_builder_edge_preserves_source_and_pipeline_boundaries() {
+        assert_normal_unconditional_resolve(metadata(), "oo-gateway", "oo-builder");
+        assert!(check(metadata()).is_pass());
+        for (target, rule) in [
+            ("oo-connectors", R_GATEWAY_CONNECTOR),
+            ("oo-pipeline", R_GATEWAY_PIPELINE),
+        ] {
+            let mutated = inject_workspace_edge(metadata(), "oo-builder", target);
+            let report = check(&mutated);
+            assert!(rules(&report).contains(rule), "{report}");
+            assert!(rules(&report).contains(R_GATEWAY_SOURCE_CREDENTIAL), "{report}");
+        }
+        assert!(check(metadata()).is_pass());
+    }
+
+    #[test]
     fn gateway_control_edge_reports_admin_ddl() {
         let mutated = inject_workspace_edge(metadata(), "oo-gateway", "oo-control");
         let report = check(&mutated);

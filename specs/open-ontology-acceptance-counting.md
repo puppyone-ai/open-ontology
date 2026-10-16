@@ -1,3 +1,5 @@
+2026-10-16 MySQL主线验证发现既有架构声明漏项：Gateway已用Builder纯校验但REQUIRED_EDGES未登记；root核实际调用/依赖后仅授权精确边声明与最小回归，全部源驱动/凭据/管线/runtime禁止规则不变。原基线exit1保留，须独立窄修提交和Linux正/负/恢复通过；原完整卡继续，尚未签收，计数delta0。
+
 2026-10-16 连接器实现口径已按用户要求固化：每源独立模块，MySQL专有驱动由可选Cargo mysql feature启用、实际主线显式消费，PG默认不引MySQL；源读取与Loader/目标写边界保持，不预造插件框架。权威说明 execution/decisions/source-connector-modules-and-features-20261016.md；主Plan SP03-W02与机器台账原位同步。当前MySQL整链验证继续、其他源/总Goal暂停，无签收/计数增加。
 
 2026-10-16 用户已暂停总Goal，get_goal实回paused；Doris已安全终态/无后台writer、源码WIP与DB/API保留，hold SHA be86aac4…10859。随后用户明确仅授权MySQL批量源读取器进入oo-connectors并主线全链验通，继续同一Sol medium；其他源不恢复。此前e3/ac633固定本地运行链证据有效，但不等于正式oo-connectors多源入口完成；当前该crate数据库驱动确只有PG，MySQL仍在preview工具。新卡 execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md；已冻结待实际接续，未把派发当完成，无计数/父项/整版新增签收，formal0/10。

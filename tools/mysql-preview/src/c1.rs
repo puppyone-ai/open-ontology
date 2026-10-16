@@ -15,7 +15,7 @@ use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::time::{Duration,Instant};
 
 use cdc_spool::{Limits, OutcomeKind, Recovery, Spool, recover};
 use cdc_transaction::{Assembler, FaultCode, encode_position, parse_commit_lsn};
@@ -172,8 +172,8 @@ pub async fn prove_c1(config: &Path, out: &Path) -> Result<(), PreviewError> {
     }
     let mut rows = phase.rows.clone();
     rows.extend(resumed.rows.iter().cloned());
-    let mut gold = connect_cdc(&cfg).await?;
-    let diff = gold_diff(&mut gold, &rows, &cfg).await?;
+    let gold = connect_cdc(&cfg).await?;
+    let (gold,diff) = gold_diff(gold, &rows, &cfg).await?;
     drop(gold);
     let mut audit = connect_dba(&cfg).await?;
     let writes = write_attempts(&mut audit).await?;
@@ -259,8 +259,8 @@ pub async fn expire_c1(config: &Path, from: &Path, out: &Path) -> Result<(), Pre
         Err(err) => return Err(err),
     };
     let recovered = recover_spool(&from.join("spool"))?;
-    let mut cdc = connect_cdc(&cfg).await?;
-    let source = source_rows(&mut cdc).await?;
+    let cdc = connect_cdc(&cfg).await?;
+    let (cdc,source) = source_rows(cdc,&cfg).await?;
     drop(cdc);
     let gap_on_source = source.contains_key(&(HDR.to_string(), "810099".to_string()));
     let gap_in_spool = recovered.contains_key(&(HDR.to_string(), "810099".to_string()));
@@ -270,7 +270,7 @@ pub async fn expire_c1(config: &Path, from: &Path, out: &Path) -> Result<(), Pre
             spool_diff += 1;
         }
     }
-    for (key, _) in &source {
+    for key in source.keys() {
         if key.1 == "810099" {
             continue;
         }
@@ -358,8 +358,8 @@ pub async fn capture_business(config: &Path, out: &Path) -> Result<(), PreviewEr
         return Err(PreviewError::new("c1", "period"));
     }
     check_native(&phase.rows)?;
-    let mut gold = connect_cdc(&cfg).await?;
-    let diff = gold_diff(&mut gold, &phase.rows, &cfg).await?;
+    let gold = connect_cdc(&cfg).await?;
+    let (gold,diff) = gold_diff(gold, &phase.rows, &cfg).await?;
     drop(gold);
     let mut audit = connect_dba(&cfg).await?;
     let writes = write_attempts(&mut audit).await?;
@@ -604,7 +604,6 @@ pub async fn baseline_stream(config: &Path, out: &Path) -> Result<(), PreviewErr
     send_frame(&json!({"kind":"stream_started","l0":l0,"position_lineage":lineage}))?;
     read_worker_reply(&mut input, "stream_started")?;
 
-    let mut live = live;
     let mut input = input;
     let mut last_pos = l0_pos;
     if context["previous"].is_null() {
@@ -626,55 +625,41 @@ pub async fn baseline_stream(config: &Path, out: &Path) -> Result<(), PreviewErr
         let _ = exec_static(&mut snapshot, "ROLLBACK").await;
         return Err(PreviewError::new("c1", "snapshot_l0"));
     }
+    let source_config=oo_connectors::mysql::MysqlConfig {mysql_host:cfg.host.clone(),mysql_port:cfg.port,mysql_database:cfg.database.clone(),mysql_user:cfg.user.clone(),mysql_ca_file:cfg.ca_file.clone(),secret_ref:oo_connectors::SecretRef::new(context["secret_ref"].as_str().ok_or_else(||PreviewError::new("config","secret_ref"))?).map_err(|_|PreviewError::new("config","secret_ref"))?,connect_timeout_ms:30000};
+    let mut snapshot=oo_connectors::mysql::ReadConnection::new(snapshot,source_config,read_secret(&cfg.password_file)?);
     {
         let pk = live.pk.clone();
         let column_names = live.column_names.clone();
         let column_kinds = live.column_kinds.clone();
         let visible = live.visible.clone();
-        let snapshot_read = snapshot_rows(
-            &mut snapshot,
-            &cfg,
-            &pk,
-            &column_names,
-            &column_kinds,
-            &visible,
-        );
-        tokio::pin!(snapshot_read);
+        let digest_bytes=schema_hash.as_bytes().chunks_exact(2).map(|hex| std::str::from_utf8(hex).ok().and_then(|s|u8::from_str_radix(s,16).ok()).ok_or_else(||PreviewError::new("catalog","schema"))).collect::<Result<Vec<_>,_>>()?;
+        let mut progress=SnapshotProgress {table:0,reader:None,batches:0,rows:0,peak_rows:0,started:Instant::now(),binding:oo_connectors::types::RunBinding {
+            source_id:context["source_id"].as_str().ok_or_else(||PreviewError::new("worker","bootstrap"))?.to_owned(),
+            schema:String::new(),table:String::new(),run_generation:context["source_generation"].as_u64().ok_or_else(||PreviewError::new("worker","bootstrap"))?,
+            input_digest:digest_bytes.try_into().map_err(|_|PreviewError::new("catalog","schema"))?,
+        }};
         loop {
-            tokio::select! {
-                rows = &mut snapshot_read => {
-                    let rows=rows?;
-                    if rows.is_empty() {
-                        send_frame(&json!({"kind":"snapshot","rows":[],"_oo_pos":0,"read_started_after_stage_open":true}))?;
-                        read_worker_reply(&mut input, "snapshot_fill")?;
-                    } else {
-                        for chunk in rows.chunks(1024) {
-                            // Keep consuming ready transactions while snapshot fill is backpressured.
-                            loop {
-                                let ready=poll_fn(|cx|std::task::Poll::Ready(match stream.as_mut().poll_next(cx) {
-                                    std::task::Poll::Ready(event)=>Some(event),std::task::Poll::Pending=>None,
-                                })).await;
-                                match ready {
-                                    Some(Some(Ok(event)))=>last_pos=consume_stream_event(event,stream.as_ref().get_ref(),&mut live,&mut input,last_pos)?,
-                                    Some(Some(Err(err)))=>return Err(mysql_err(&err)),
-                                    Some(None)=>return Err(PreviewError::new("c1","stream_end")),
-                                    None=>break,
-                                }
-                            }
-                            send_frame(&json!({"kind":"snapshot","rows":chunk,"_oo_pos":0,"read_started_after_stage_open":true}))?;
-                            read_worker_reply(&mut input, "snapshot_fill")?;
+            let rows={
+                let snapshot_read=snapshot_rows(&mut snapshot,&cfg,&pk,&column_names,&column_kinds,&visible,&typed_tables,&mut progress);
+                tokio::pin!(snapshot_read);
+                loop {
+                    tokio::select! {
+                        rows=&mut snapshot_read=>break rows?,
+                        polled=poll_fn(|cx|stream.as_mut().poll_next(cx))=>{
+                            let Some(event)=polled else{return Err(PreviewError::new("c1","stream_end"));};
+                            let event=event.map_err(|err|mysql_err(&err))?;
+                            last_pos=consume_stream_event(event,stream.as_ref().get_ref(),&mut live,&mut input,last_pos)?;
                         }
                     }
-                    break;
                 }
-                polled = poll_fn(|cx| stream.as_mut().poll_next(cx)) => {
-                    let Some(event)=polled else {return Err(PreviewError::new("c1","stream_end"));};
-                    let event=event.map_err(|err|mysql_err(&err))?;
-                    last_pos=consume_stream_event(event,stream.as_ref().get_ref(),&mut live,&mut input,last_pos)?;
-                }
-            }
+            };
+            let Some(rows)=rows else{break;};
+            send_frame(&json!({"kind":"snapshot","rows":rows,"_oo_pos":0,"read_started_after_stage_open":true}))?;
+            read_worker_reply(&mut input,"snapshot_fill")?;
         }
+        write_json(&out.join("mainline-batch-reader.json"),&json!({"protocol":"oo.mysql.mainline-reader-execution/v1","source_id":progress.binding.source_id,"source_generation":progress.binding.run_generation,"reader":"oo-connectors::mysql::ReadConnection","capture_method":"C1","stage_open_before_snapshot":true,"batches":progress.batches,"rows":progress.rows,"largest_batch_rows":progress.peak_rows}))?;
     }
+    let mut snapshot=snapshot.into_connection()?;
     exec_static(&mut snapshot, "COMMIT").await?;
     drop(snapshot);
     }
@@ -762,9 +747,7 @@ fn consume_stream_event(
         return Err(PreviewError::new("c1", "position"));
     }
     let txn = format!("{}:{}", live.span.uuid, live.span.end);
-    let rows=live.rows.iter().filter(|row|row.txn_id==txn).map(|row|{
-        json!({"schema":row.table.split_once('.').map(|pair|pair.0).unwrap_or(""),"table":row.table.split_once('.').map(|pair|pair.1).unwrap_or(""),"key":row.key_value,"op":if row.deleted {"delete"} else {"upsert"},"value":if row.deleted {Value::Null} else {payload_object_from_row(row)}})
-    }).collect::<Vec<_>>();
+    let rows=transaction_rows(&live.rows,&txn);
     send_frame(
         &json!({"kind":"transaction","txn_id":txn,"applied_pos":live.span.end,"rows":rows,"source_commit_timestamp":live.source_commit_timestamp}),
     )?;
@@ -772,48 +755,45 @@ fn consume_stream_event(
     Ok(live.span.end)
 }
 
+// FULL row images let one atomic transaction retain only the last operation
+// for each table/key. The target fences by GTID, so duplicate positions must
+// not make the first row image win over a later update or delete.
+fn transaction_rows(rows:&[Seen],txn:&str)->Vec<Value> {
+    let mut final_rows=BTreeMap::new();
+    for row in rows.iter().filter(|row|row.txn_id==txn) {
+        final_rows.insert((row.table.clone(),row.key.clone()),row);
+    }
+    final_rows.into_values().map(|row|json!({"schema":row.table.split_once('.').map(|pair|pair.0).unwrap_or(""),"table":row.table.split_once('.').map(|pair|pair.1).unwrap_or(""),"key":row.key_value,"op":if row.deleted {"delete"} else {"upsert"},"value":if row.deleted {Value::Null} else {payload_object_from_row(row)}})).collect()
+}
+
+struct SnapshotProgress {table:usize,reader:Option<oo_connectors::mysql::TableReader>,batches:u64,rows:u64,peak_rows:usize,started:Instant,binding:oo_connectors::types::RunBinding}
+#[allow(clippy::too_many_arguments)]
 async fn snapshot_rows(
-    conn: &mut Conn,
-    cfg: &C1Config,
-    pk: &BTreeMap<String, Vec<usize>>,
-    names: &BTreeMap<String, Vec<(usize, String)>>,
-    kinds: &BTreeMap<String, Vec<(usize, String)>>,
-    visible: &BTreeMap<String, Vec<usize>>,
-) -> Result<Vec<Value>, PreviewError> {
-    let mut out = Vec::new();
-    for table in &cfg.tables {
-        let (schema, name) = table
-            .split_once('.')
-            .ok_or_else(|| PreviewError::new("config", "tables"))?;
-        let cols = cfg
-            .columns
-            .get(table)
-            .ok_or_else(|| PreviewError::new("config", "columns"))?;
-        let sql = format!(
-            "SELECT {} FROM `{schema}`.`{name}`",
-            cols.iter()
-                .map(|c| format!("`{c}`"))
-                .collect::<Vec<_>>()
-                .join(",")
-        );
-        let rows: Vec<Row> = conn
-            .query(sql)
-            .await
-            .map_err(|_| PreviewError::new("protocol", "snapshot"))?;
-        let ordinals = visible
-            .get(table)
-            .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
-        let pk_ordinals = pk
-            .get(table)
-            .filter(|v| !v.is_empty())
-            .ok_or_else(|| PreviewError::new("catalog", "primary_key"))?;
-        let table_names = names
-            .get(table)
-            .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
-        let table_kinds = kinds
-            .get(table)
-            .ok_or_else(|| PreviewError::new("catalog", "types"))?;
-        for row in rows {
+    conn: &mut oo_connectors::mysql::ReadConnection, cfg: &C1Config, pk: &BTreeMap<String,Vec<usize>>,
+    names: &BTreeMap<String,Vec<(usize,String)>>, kinds: &BTreeMap<String,Vec<(usize,String)>>,
+    visible: &BTreeMap<String,Vec<usize>>, typed_tables:&[(String,String,Vec<crate::map::MappedColumn>)],
+    progress:&mut SnapshotProgress,
+) -> Result<Option<Vec<Value>>,PreviewError> {
+    loop {
+        let Some(table)=cfg.tables.get(progress.table) else{return Ok(None);};
+        let (schema,name)=table.split_once('.').ok_or_else(||PreviewError::new("config","tables"))?;
+        let cols=cfg.columns.get(table).ok_or_else(||PreviewError::new("config","columns"))?;
+        if progress.reader.is_none(){
+            let (_,_,columns)=typed_tables.get(progress.table).ok_or_else(||PreviewError::new("catalog","columns"))?;
+            let mut binding=progress.binding.clone();binding.schema=schema.to_owned();binding.table=name.to_owned();
+            let remaining=300000u64.saturating_sub(progress.started.elapsed().as_millis().try_into().unwrap_or(u64::MAX));
+            if remaining==0{return Err(PreviewError::new("budget","snapshot_deadline"));}
+            progress.reader=Some(oo_connectors::mysql::TableReader::new(schema,name,columns.clone(),binding,1000,1000000,33554432,remaining,30000)?);
+        }
+        let batch=conn.read_chunk(progress.reader.as_mut().ok_or_else(||PreviewError::new("protocol","reader"))?,&oo_connectors::mysql::Cancel::default()).await?;
+        let Some(batch)=batch else{progress.table+=1;progress.reader=None;continue;};
+        progress.batches+=1;progress.rows+=batch.typed.rows.len() as u64;progress.peak_rows=progress.peak_rows.max(batch.typed.rows.len());
+        let ordinals=visible.get(table).ok_or_else(||PreviewError::new("catalog","columns"))?;
+        let pk_ordinals=pk.get(table).filter(|v|!v.is_empty()).ok_or_else(||PreviewError::new("catalog","primary_key"))?;
+        let table_names=names.get(table).ok_or_else(||PreviewError::new("catalog","columns"))?;
+        let table_kinds=kinds.get(table).ok_or_else(||PreviewError::new("catalog","types"))?;
+        let mut out=Vec::with_capacity(batch.rows.len());
+        for row in batch.rows {
             let mut value = serde_json::Map::new();
             let mut key = serde_json::Map::new();
             for (index, column) in cols.iter().enumerate() {
@@ -848,8 +828,8 @@ async fn snapshot_rows(
             }
             out.push(json!({"schema":schema,"table":name,"key":key,"value":value,"_oo_pos":0,"_oo_txn_id":"snapshot"}));
         }
+        return Ok(Some(out));
     }
-    Ok(out)
 }
 
 fn payload_object_from_row(row: &Seen) -> Value {
@@ -883,41 +863,8 @@ fn named_cells(
     Ok(Value::Object(key))
 }
 
-fn mysql_snapshot_cell(ordinal: u16, value: &MyValue, kind: &str) -> Result<Value, PreviewError> {
-    if matches!(value, MyValue::NULL) {
-        return Ok(json!({"ordinal":ordinal,"type":"null"}));
-    }
-    let tag = match kind {
-        "tinyint" | "smallint" | "mediumint" | "int" | "integer" | "bigint" | "year" => "int",
-        "decimal" | "numeric" => "decimal",
-        "binary" | "varbinary" | "blob" | "tinyblob" | "mediumblob" | "longblob" => "bytes",
-        "float" | "double" | "real" => return Err(PreviewError::new("value", "inexact")),
-        _ => "text",
-    };
-    let text = match value {
-        MyValue::Int(v) => v.to_string(),
-        MyValue::UInt(v) => v.to_string(),
-        MyValue::Bytes(bytes) => {
-            if tag == "bytes" {
-                bytes.iter().map(|b| format!("{b:02x}")).collect()
-            } else {
-                String::from_utf8(bytes.clone()).map_err(|_| PreviewError::new("value", "text"))?
-            }
-        }
-        MyValue::Date(y, m, d, h, mi, s, micros) => {
-            if *y == 0 {
-                return Err(PreviewError::new("value", "zero_date"));
-            }
-            if *micros == 0 { format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}Z") }
-            else { format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}.{micros:06}Z") }
-        }
-        MyValue::Time(n, days, h, mi, s, micros) => time_text(*n, *days, *h, *mi, *s, *micros)?,
-        MyValue::Float(_) | MyValue::Double(_) => {
-            return Err(PreviewError::new("value", "inexact"));
-        }
-        MyValue::NULL => return Ok(json!({"ordinal":ordinal,"type":"null"})),
-    };
-    Ok(json!({"ordinal":ordinal,"type":tag,"value":text}))
+fn mysql_snapshot_cell(ordinal:u16,value:&MyValue,kind:&str)->Result<Value,PreviewError>{
+    oo_connectors::mysql::values::snapshot_cell(ordinal,value,kind).map_err(Into::into)
 }
 
 fn send_frame(frame: &Value) -> Result<(), PreviewError> {
@@ -1022,6 +969,7 @@ pub async fn prepare_random_gold(config: &Path, out: &Path) -> Result<(), Previe
 #[derive(Clone)]
 struct C1Config {
     database: String,
+    secret_ref: String,
     host: String,
     port: u16,
     user: String,
@@ -1132,6 +1080,7 @@ fn load_config(path: &Path) -> Result<C1Config, PreviewError> {
     let database=map.get("database").and_then(Value::as_str).unwrap_or_else(||names[0].split_once('.').map(|p|p.0).unwrap_or("")).to_string();
     if names.iter().any(|n|n.split_once('.').is_none_or(|p|p.0!=database)) {return Err(PreviewError::new("config","database"));}
     Ok(C1Config {
+        secret_ref:map.get("secret_ref").and_then(Value::as_str).unwrap_or("secret://mysql-owned-fixture").to_owned(),
         database,
         host: text_field(map, "host")?,
         port: map
@@ -1189,13 +1138,7 @@ fn configured_selection(cfg:&C1Config)->Result<(),PreviewError> {
 }
 
 fn replication_grants_ok(grants:&[String])->Result<(),PreviewError> {
-    let text=grants.iter().map(|g|g.to_ascii_uppercase().split(" ON ").next().unwrap_or("").to_string()).collect::<Vec<_>>().join("\n");
-    let writes=text.split_whitespace().any(|word|matches!(word.trim_end_matches(','),"INSERT"|"UPDATE"|"DELETE"|"CREATE"|"DROP"|"ALTER"|"ALL"));
-    if ["REPLICATION SLAVE","REPLICATION CLIENT","SELECT"].iter().any(|p|!text.contains(p))
-        || writes || grants.iter().any(|g|g.to_ascii_uppercase().contains("WITH GRANT OPTION")) {
-        return Err(PreviewError::new("privilege","readonly_replication"));
-    }
-    Ok(())
+    oo_connectors::mysql::replication_grants_ok(grants).map_err(Into::into)
 }
 
 fn refuse_customer(cfg: &C1Config) -> Result<(), PreviewError> {
@@ -1262,9 +1205,13 @@ async fn connect(cfg: &C1Config, user: &str, password: &str) -> Result<Conn, Pre
     Ok(conn)
 }
 
+fn batch_source_config(cfg:&C1Config)->Result<oo_connectors::mysql::MysqlConfig,PreviewError>{
+    Ok(oo_connectors::mysql::MysqlConfig{mysql_host:cfg.host.clone(),mysql_port:cfg.port,mysql_database:cfg.database.clone(),mysql_user:cfg.user.clone(),mysql_ca_file:cfg.ca_file.clone(),secret_ref:oo_connectors::SecretRef::new(&cfg.secret_ref).map_err(|_|PreviewError::new("config","secret_ref"))?,connect_timeout_ms:30000})
+}
+
 async fn connect_cdc(cfg: &C1Config) -> Result<Conn, PreviewError> {
     let password = read_secret(&cfg.password_file)?;
-    connect(cfg, &cfg.user, password.as_str()).await
+    oo_connectors::mysql::connect(&batch_source_config(cfg)?,password.as_str()).await.map_err(Into::into)
 }
 
 async fn connect_dba(cfg: &C1Config) -> Result<Conn, PreviewError> {
@@ -1642,7 +1589,7 @@ async fn stream(
     drop(password);
     fs::write(out.join("ready"), b"1").map_err(|_| PreviewError::new("config", "out"))?;
     let mut health = connect_cdc(cfg).await?;
-    let mut reconcile = connect_cdc(cfg).await?;
+    let reconcile = connect_cdc(cfg).await?;
     let mut stream: Pin<Box<BinlogStream>> = Box::pin(stream);
     let health_every = Duration::from_millis(cfg.health_every_ms);
     let reconcile_every = Duration::from_millis(cfg.reconcile_every_ms);
@@ -1685,7 +1632,7 @@ async fn stream(
                     let waited = caught_up.ok_or_else(|| PreviewError::new("c1", "period"))?.elapsed();
                     match until {
                         Until::CaughtUp if health_since >= 2 && waited >= reconcile_every && reconcile_ticks == 0 => {
-                            reconcile_diff = gold_diff(&mut reconcile, &live.rows, cfg).await?;
+                            let (_,different)=gold_diff(reconcile,&live.rows,cfg).await?;reconcile_diff=different;
                             table_reads += cfg.tables.len() as u64;
                             reconcile_ticks += 1;
                             break;
@@ -2154,6 +2101,25 @@ mod baseline_stream_tests {
     use super::gtid_contains;
 
     #[test]
+    fn transaction_keeps_last_full_image_per_table_key() {
+        use super::{Seen,transaction_rows};
+        use serde_json::json;
+        let row=|table:&str,key:&str,value:&str,deleted:bool|Seen{txn_id:"uuid:9".into(),commit_order:1,commit_lsn:"9".into(),table:table.into(),key:key.into(),key_value:json!({"id":key}),payload:vec![],row_value:json!({"value":value}),sequence:1,deleted};
+        for events in [
+            vec![row("s.t","1","insert",false),row("s.t","1","update",false)],
+            vec![row("s.t","1","update1",false),row("s.t","1","update2",false)],
+            vec![row("s.t","1","",true),row("s.t","1","reinsert",false)],
+        ] {
+            let actual=transaction_rows(&events,"uuid:9");
+            assert_eq!(actual.len(),1);assert_eq!(actual[0]["op"],"upsert");assert_eq!(actual[0]["value"],events.last().unwrap().row_value);
+        }
+        let events=vec![row("s.t","1","insert",false),row("s.t","1","",true),row("s.other","1","other",false),row("s.t","2","second",false)];
+        let actual=transaction_rows(&events,"uuid:9");assert_eq!(actual.len(),3);
+        let deleted=actual.iter().find(|v|v["table"]=="t" && v["key"]["id"]=="1").unwrap();assert_eq!(deleted["op"],"delete");assert!(deleted["value"].is_null());
+        assert!(transaction_rows(&events,"uuid:10").is_empty());
+    }
+
+    #[test]
     fn snapshot_fence_requires_the_measured_uuid_and_sequence() {
         let uuid = "1bc0749a-c3f5-11f1-9a89-6e5583e808c4";
         assert!(gtid_contains(&format!("{uuid}:1-28"), uuid, 28));
@@ -2388,30 +2354,48 @@ async fn count_tables(conn: &mut Conn) -> Result<(u64, u64), PreviewError> {
     ))
 }
 
-async fn source_rows(
-    conn: &mut Conn,
-) -> Result<BTreeMap<(String, String), Vec<String>>, PreviewError> {
-    let mut out = BTreeMap::new();
-    let hdr: Vec<Row> = conn
-        .query("SELECT id, note FROM oo_c1.order_hdr ORDER BY id")
-        .await
-        .map_err(|_| PreviewError::new("protocol", "query"))?;
-    for row in hdr {
-        let id = value_string(&row_value(&row, 0)?)?;
-        let note = value_string(&row_value(&row, 1)?)?;
-        out.insert((HDR.to_string(), id.clone()), vec![id, note]);
+// Reconcile is a consumer of the same bounded source reader as C1 baseline.
+// The fixture oracle retains its comparison map, outside the connector.
+async fn reconcile_table(mut conn:Conn,cfg:&C1Config,qualified:&str,key:Option<u64>)->Result<(Conn,Vec<Vec<String>>),PreviewError>{
+    let (schema,table)=qualified.split_once('.').ok_or_else(||PreviewError::new("catalog","tables"))?;
+    let selected=crate::config::SelectedTable{schema:schema.to_owned(),name:table.to_owned(),columns:cfg.columns.get(qualified).cloned().unwrap_or_default()};
+    let mut notes=Vec::new();let reserved=oo_connectors::PG17_RESERVED.iter().map(|s|s.to_string()).collect();
+    let catalog=oo_connectors::mysql::catalog_columns(&mut conn,&mut notes,&selected).await?;
+    let columns=oo_connectors::mysql::keep_requested(crate::map::map_table(&catalog,false,true,&reserved)?,&selected.columns)?;
+    let key_index=columns.iter().position(|c|c.key).ok_or_else(||PreviewError::new("catalog","primary_key"))?;
+    let connection=json!({"type":"mysql","host":cfg.host,"port":cfg.port,"database":cfg.database,"user":cfg.user,"secret_ref":cfg.secret_ref});
+    let digest=sha256_hex(&serde_json::to_vec(&connection).map_err(|_|PreviewError::new("config","json"))?);
+    let binding=oo_connectors::types::RunBinding{source_id:format!("mysql_{}",&digest[..24]),schema:schema.to_owned(),table:table.to_owned(),run_generation:1,input_digest:[0;32]};
+    let mut reader=oo_connectors::mysql::TableReader::new(schema,table,columns.clone(),binding,if key.is_some(){1}else{1000},1000000,33554432,300000,30000)?;
+    if let Some(key)=key.and_then(|k|k.checked_sub(1)){reader.after_integer_key(key)?;}
+    let mut owned=oo_connectors::mysql::ReadConnection::new(conn,batch_source_config(cfg)?,read_secret(&cfg.password_file)?);
+    let mut out=Vec::new();
+    while let Some(batch)=owned.read_chunk(&mut reader,&oo_connectors::mysql::Cancel::default()).await? {
+        for row in batch.rows {
+            if let Some(key)=key && value_string(&row_value(&row,key_index)?)?!=key.to_string(){continue;}
+            let mut cells=Vec::new();
+            for (index,column) in columns.iter().enumerate(){
+                let value=row_value(&row,index)?;
+                let text=match value {
+                    MyValue::Date(y,m,d,h,mi,se,micros)=>if micros==0{format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{se:02}Z")}else{format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{se:02}.{micros:06}Z")},
+                    MyValue::Time(n,d,h,m,se,us)=>time_text(n,d,h,m,se,us)?,
+                    _=>value_string(&value)?,
+                };
+                cells.push(if column.store==crate::map::StoreKind::Json{compact_json(&text)?}else{text});
+            }
+            out.push(cells);
+        }
+        if key.is_some(){break;}
     }
-    let line: Vec<Row> = conn
-        .query("SELECT id, hdr_id, qty FROM oo_c1.order_line ORDER BY id")
-        .await
-        .map_err(|_| PreviewError::new("protocol", "query"))?;
-    for row in line {
-        let id = value_string(&row_value(&row, 0)?)?;
-        let hdr = value_string(&row_value(&row, 1)?)?;
-        let qty = value_string(&row_value(&row, 2)?)?;
-        out.insert((LINE.to_string(), id.clone()), vec![id, hdr, qty]);
+    Ok((owned.into_connection()?,out))
+}
+async fn source_rows(mut conn:Conn,cfg:&C1Config)->Result<(Conn,BTreeMap<(String,String),Vec<String>>),PreviewError>{
+    let mut out=BTreeMap::new();
+    for table in [HDR,LINE]{
+        let (next,rows)=reconcile_table(conn,cfg,table,None).await?;conn=next;
+        for row in rows {out.insert((table.to_owned(),row[0].clone()),row);}
     }
-    Ok(out)
+    Ok((conn,out))
 }
 
 fn fold(rows: &[Seen]) -> BTreeMap<(String, String), Vec<String>> {
@@ -2436,10 +2420,10 @@ fn fold(rows: &[Seen]) -> BTreeMap<(String, String), Vec<String>> {
     out
 }
 
-async fn gold_diff(conn: &mut Conn, rows: &[Seen], cfg: &C1Config) -> Result<u64, PreviewError> {
+async fn gold_diff(mut conn: Conn, rows: &[Seen], cfg: &C1Config) -> Result<(Conn,u64), PreviewError> {
     let decoded = fold(rows);
     if cfg.full_table_gold {
-        let source = source_rows(conn).await?;
+        let (next,source) = source_rows(conn,cfg).await?;conn=next;
         let mut diff = 0u64;
         let keys: BTreeSet<_> = source.keys().chain(decoded.keys()).cloned().collect();
         for key in keys {
@@ -2447,15 +2431,16 @@ async fn gold_diff(conn: &mut Conn, rows: &[Seen], cfg: &C1Config) -> Result<u64
                 diff += 1;
             }
         }
-        return Ok(diff);
+        return Ok((conn,diff));
     }
     let mut diff = 0u64;
     for ((table, key), payload) in &decoded {
-        if native_key(conn, table, key).await?.as_ref() != Some(payload) {
+        let (next,actual)=native_key(conn,cfg,table,key).await?;conn=next;
+        if actual.as_ref() != Some(payload) {
             diff += 1;
         }
     }
-    Ok(diff)
+    Ok((conn,diff))
 }
 
 async fn write_attempts(conn: &mut Conn) -> Result<u64, PreviewError> {
@@ -2971,90 +2956,20 @@ fn check_native(rows: &[Seen]) -> Result<(), PreviewError> {
     Ok(())
 }
 
-struct NativeRead {
-    sql: &'static str,
-    width: usize,
-    json_at: Option<usize>,
-}
-
-fn native_read(table: &str) -> Result<NativeRead, PreviewError> {
-    Ok(match table {
-        "native_mysql_20261012.hubs" => NativeRead {
-            sql: "SELECT CAST(hub_id AS CHAR), hub_code, hub_name, region_code, CAST(latitude AS CHAR), CAST(longitude AS CHAR), CAST(capacity_grams AS CHAR), DATE_FORMAT(opened_at, '%Y-%m-%dT%H:%i:%sZ'), CONVERT(badge USING utf8mb4), note FROM native_mysql_20261012.hubs WHERE hub_id = ?",
-            width: 10,
-            json_at: None,
-        },
-        "native_mysql_20261012.range_gap" => NativeRead {
-            sql: "SELECT CAST(gap_id AS CHAR), table_name, column_name, CAST(row_key AS CHAR), reason, canonical_text FROM native_mysql_20261012.range_gap WHERE gap_id = ?",
-            width: 6,
-            json_at: None,
-        },
-        "native_mysql_20261012.shipments" => NativeRead {
-            sql: "SELECT CAST(shipment_id AS CHAR), CAST(origin_hub_id AS CHAR), CAST(dest_hub_id AS CHAR), status, transport_mode, CAST(weight_grams AS CHAR), CAST(cost_amount AS CHAR), DATE_FORMAT(created_at, '%Y-%m-%dT%H:%i:%sZ'), DATE_FORMAT(promised_at, '%Y-%m-%dT%H:%i:%sZ'), CONVERT(seal USING utf8mb4), comment FROM native_mysql_20261012.shipments WHERE shipment_id = ?",
-            width: 11,
-            json_at: None,
-        },
-        "native_mysql_20261012.tracking_events" => NativeRead {
-            sql: "SELECT CAST(event_id AS CHAR), CAST(shipment_id AS CHAR), CAST(hub_id AS CHAR), status, DATE_FORMAT(event_at, '%Y-%m-%dT%H:%i:%sZ'), CAST(recorded_weight_grams AS CHAR), CONVERT(payload USING utf8mb4), comment FROM native_mysql_20261012.tracking_events WHERE event_id = ?",
-            width: 8,
-            json_at: None,
-        },
-        "native_mysql_20261012.value_probe" => NativeRead {
-            sql: "SELECT CAST(probe_id AS CHAR), CAST(unsigned_grams AS CHAR), CAST(exact_amount AS CHAR), CAST(payload AS CHAR), CONVERT(badge USING utf8mb4), DATE_FORMAT(day_on, '%Y-%m-%dT00:00:00Z'), TIME_FORMAT(clock_at, '%H:%i:%s'), note FROM native_mysql_20261012.value_probe WHERE probe_id = ?",
-            width: 8,
-            json_at: Some(3),
-        },
-        _ => return Err(PreviewError::new("catalog", "columns")),
-    })
-}
-
 fn compact_json(text: &str) -> Result<String, PreviewError> {
     let value: Value =
         serde_json::from_str(text).map_err(|_| PreviewError::new("value", "cell"))?;
     serde_json::to_string(&value).map_err(|_| PreviewError::new("value", "cell"))
 }
 
-async fn native_key(
-    conn: &mut Conn,
-    table: &str,
-    key: &str,
-) -> Result<Option<Vec<String>>, PreviewError> {
-    let read = native_read(table)?;
-    let id: u64 = key.parse().map_err(|_| PreviewError::new("value", "key"))?;
-    let row: Option<Row> = conn
-        .exec_first(read.sql, (id,))
-        .await
-        .map_err(|_| PreviewError::new("protocol", "query"))?;
-    let Some(row) = row else {
-        return Ok(None);
-    };
-    let mut cells = Vec::new();
-    for index in 0..read.width {
-        let mut text = value_string(&row_value(&row, index)?)?;
-        if read.json_at == Some(index) {
-            text = compact_json(&text)?;
-        }
-        cells.push(text);
-    }
-    Ok(Some(cells))
+async fn native_key(conn:Conn,cfg:&C1Config,table:&str,key:&str)->Result<(Conn,Option<Vec<String>>),PreviewError>{
+    let key=key.parse::<u64>().map_err(|_|PreviewError::new("value","key"))?;
+    let (conn,mut rows)=reconcile_table(conn,cfg,table,Some(key)).await?;
+    Ok((conn,rows.pop()))
 }
 
-fn time_text(
-    neg: bool,
-    days: u32,
-    hour: u8,
-    minute: u8,
-    second: u8,
-    micros: u32,
-) -> Result<String, PreviewError> {
-    if hour > 23 || minute > 59 || second > 59 || micros > 999_999 {
-        return Err(PreviewError::new("value", "time"));
-    }
-    let hours=days.checked_mul(24).and_then(|v|v.checked_add(u32::from(hour))).filter(|v|*v<=838)
-        .ok_or_else(||PreviewError::new("value","time"))?;
-    let sign=if neg {"-"} else {""};
-    Ok(if micros == 0 {format!("{sign}{hours:02}:{minute:02}:{second:02}")}
-        else {format!("{sign}{hours:02}:{minute:02}:{second:02}.{micros:06}")})
+fn time_text(neg:bool,days:u32,hour:u8,minute:u8,second:u8,micros:u32)->Result<String,PreviewError>{
+    oo_connectors::mysql::values::time_text(neg,days,hour,minute,second,micros).map_err(Into::into)
 }
 
 #[cfg(test)]

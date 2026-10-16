@@ -69,6 +69,7 @@ pub const REQUIRED_EDGES: &[(&str, &str)] = &[
     ("oo-control", "oo-jobs"),
     ("oo-entry", "oo-core"),
     ("oo-eval", "oo-core"),
+    ("oo-gateway", "oo-builder"),
     ("oo-gateway", "oo-core"),
     ("oo-jobs", "oo-core"),
     ("oo-mcp", "oo-core"),

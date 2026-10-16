@@ -742,7 +742,9 @@
             "tools/mysql-preview/Cargo.toml",
             "tools/mysql-preview/Cargo.lock",
             "tools/mysql-preview/MAINLINE-*",
-            "tools/source-onboarding/src (necessary wiring only)"
+            "tools/source-onboarding/src (necessary wiring only)",
+            "crates/oo-arch-check/src/policy.rs",
+            "crates/oo-arch-check/tests (minimal existing regressions only)"
           ],
           "next_action": "Owned MySQL5.7+8.4 complete Rust/runtime/default reference verified; original parent exits/independent unified review and formal gates remain, no parent checkbox.",
           "base_commit": "0b27b409a6eb7accc9b382143b3bdbd197444541",
@@ -5243,7 +5245,9 @@
         "tools/mysql-preview/Cargo.toml",
         "tools/mysql-preview/Cargo.lock",
         "tools/mysql-preview/MAINLINE-*",
-        "tools/source-onboarding/src (necessary wiring only)"
+        "tools/source-onboarding/src (necessary wiring only)",
+        "crates/oo-arch-check/src/policy.rs",
+        "crates/oo-arch-check/tests (minimal existing regressions only)"
       ],
       "prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
       "resource_prefix": "oo-dl01w1-06",
@@ -5416,7 +5420,9 @@
           "tools/mysql-preview/Cargo.toml",
           "tools/mysql-preview/Cargo.lock",
           "tools/mysql-preview/MAINLINE-*",
-          "tools/source-onboarding/src (necessary wiring only)"
+          "tools/source-onboarding/src (necessary wiring only)",
+          "crates/oo-arch-check/src/policy.rs",
+          "crates/oo-arch-check/tests (minimal existing regressions only)"
         ],
         "prompt": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
         "resource_prefix": "oo-dl01w1-06",
@@ -11150,7 +11156,7 @@
     "reasoning_effort": "medium",
     "status": "running_new_user_authorized_mysql_only_mainline_integration",
     "card": "execution/batches/native-luna-full-source-20261015/MYSQL-MAINLINE-BATCH-READER-SOL-MEDIUM-20261016.md",
-    "card_sha256": "7157247ce97cba732c198687891c5c61d0d5a504f2ce74eac3723c799574010a",
+    "card_sha256": "d287468c2e687f029f93451080a496cc1bf852dc978103fa5c8fddc20b0e8158",
     "broad_goal_status": "paused per actual get_goal",
     "other_sources": "paused/held; Doris terminal and no background writer",
     "doris_hold": {
@@ -11167,10 +11173,26 @@
         "sha256": "2f3fb3367c98a1572662f3bf6f13e6e425bc13f6bc3159b503fbc26e420f7e12",
         "fixed_at_commit": "0b27b409a",
         "superseded_by": "user source module/optional mysql feature clarification"
+      },
+      {
+        "sha256": "7157247ce97cba732c198687891c5c61d0d5a504f2ce74eac3723c799574010a",
+        "fixed_at_commit": "2a12fd2f8",
+        "superseded_by": "root verified baseline exact edge declaration correction"
       }
     ],
     "structure_clarification_at": "2026-10-16T10:30:29.166234+00:00",
-    "structure": "per-source module; optional mysql Cargo feature; explicit consumers; PG default unchanged; no future framework"
+    "structure": "per-source module; optional mysql Cargo feature; explicit consumers; PG default unchanged; no future framework",
+    "architecture_baseline_correction": {
+      "observed_baseline": "0b27b409a; R-EDGE-UNDECLARED oo-gateway -> oo-builder",
+      "cause": "existing reviewed_policy pure compiler validation call and manifest edge; missing exact declaration",
+      "write_paths": [
+        "crates/oo-arch-check/src/policy.rs",
+        "crates/oo-arch-check/tests (minimal existing regressions only)"
+      ],
+      "scope": "declare only existing exact edge; all source/control/pipeline/runtime prohibitions retained",
+      "required": "preserve original failure; fixed separate commit; Linux positive/negative/restored pass",
+      "count_delta": 0
+    }
   },
   "goal_runtime_status": "paused; scoped new MySQL mainline action separately authorized by user",
   "source_connector_implementation_policy": {
@@ -11180,6 +11202,17 @@
     "mysql_feature": "optional source-only deps; explicit consumers; PG default excludes mysql",
     "active_scope": "MySQL only; other sources and broad Goal paused",
     "acceptance": "final fixed mainline + both real versions complete exits; no source/parent/count promotion from this policy",
-    "count_delta": 0
+    "count_delta": 0,
+    "architecture_baseline_correction": {
+      "observed_baseline": "0b27b409a; R-EDGE-UNDECLARED oo-gateway -> oo-builder",
+      "cause": "existing reviewed_policy pure compiler validation call and manifest edge; missing exact declaration",
+      "write_paths": [
+        "crates/oo-arch-check/src/policy.rs",
+        "crates/oo-arch-check/tests (minimal existing regressions only)"
+      ],
+      "scope": "declare only existing exact edge; all source/control/pipeline/runtime prohibitions retained",
+      "required": "preserve original failure; fixed separate commit; Linux positive/negative/restored pass",
+      "count_delta": 0
+    }
   }
 }
