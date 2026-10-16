@@ -47,3 +47,6 @@ root逐列实查：0008原十列SELECT已生效，quiet新用current_signature/p
 
 
 2026-10-16 共享稳定回归修复：3423ed5b8已恢复product_flow.py/test_onboard.py原字节，root实核原MySQL49pins与官方六字段重入0/6steps/wholetrue；撤回Doris对此两共享脚本写权，专用规范化/staging和对应测试迁至tools/doris-preview。4b80原代码/失败及未变Rust/API制品保留，新pub/DML临时hold已解除，Gateway原窄写权继续。证据 execution/reviews/native-luna-full-source-20261015/mysql-shared-flow-restoration-intake.json；不改原recipe/pins/旧QA，不增验收。
+
+
+2026-10-16 追加mapping-reader必要窄域：仅 crates/oo-gateway/src/mapping_reader_access.rs, crates/oo-gateway/tests/mapping_reader_access_pg_live.rs 的native-vector表级发布证明/必要测试；真实global-vs-per-table代次拒绝、精确范围与验证退出见 execution/reviews/native-luna-full-source-20261015/doris-mapping-reader-per-table-scope.json。原ACL/角色/TLS/C1/Oracle/rollback及完整整源退出不变，不手工授权、不加迁移。

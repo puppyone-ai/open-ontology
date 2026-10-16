@@ -1,3 +1,9 @@
+2026-10-16 Oracle正常六字段run9c1b真实失败保留：A两随机turn verified，B无成功query/knowledge_cat，错误列/Pack路径后耗尽16轮，wholefalse；原A/B选题、transcript和失败SHA固定。仅原Luna max在owned wrapper补通用Pack-first指引、沿原B selection继续，facts/CLI/WAL与覆盖门槛不减，共享Flow/verifier不改。Doris mapping-reader固定制品70/70及真实安装/live测试仅候选，RO/完整自动链待验；其他7held，无新源/父项/整版签收，计数delta0、formal0/10。证据 execution/reviews/native-luna-full-source-20261015/oracle-random-b-failure-intake.json。
+
+2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T051608Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T051608Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。
+
+2026-10-16 Doris正式mapping-reader安装真实exit7：18列映射/ACL精确、7表fence已开，原SQL把各表2..9代绑定源全局最新代而拒绝；root核代码/原诊断后仅增mapping_reader_access.rs native-vector发布证明及既有PG-live测试窄域，须用0039受保护发布向量和当前表级sealed/published/exhausted证据，旧C1/Oracle/权限/回滚不动，无手工grant/新迁移。Oracle9ae完整七工具反馈已固定，续签后新不可变plan继续原选题whole；MySQL官方重入6steps/wholetrue实核。仅两Luna max，其他7held，无源/父项/Plan/整版签收，计数delta0、formal0/10。边界 execution/reviews/native-luna-full-source-20261015/doris-mapping-reader-per-table-scope.json。
+
 2026-10-16 Oracle随机对话真实暴露RELATION_NOT_FOUND→UNQUALIFIED_RELATION工具反馈缺口，原选题/模型/CLI失败均保留；按实际Guard枚举一次补齐四类可纠正SQL错误反馈，固定139b1de4仅本源wrapper/test，最终facts/成功QID/WAL门槛不减。root实装23pins/28refs，原MySQL49pins/其他engine不变，a沿原随机manifest、b首次random，默认whole仍待验。Doris真实正式API测试发布已succeeded/activated，GW及自动完整后续待验。仅两Luna max继续，其他7held；无源/父项/整版签收，计数delta0、formal0/10。证据 execution/reviews/native-luna-full-source-20261015/oracle-sqlguard-feedback-intake.json。
 
 2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T042810Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T042810Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。

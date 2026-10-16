@@ -1,0 +1,82 @@
+{
+  "as_of": "2026-10-16T05:17:01.851634+00:00",
+  "acceptance_level": "failed_normal_whole_preserved; no source acceptance",
+  "source_commit": "790a34014646a35a1ddb29f3c61d3f92cb9db814",
+  "run_id": "9c1b239c395a4b13899b6d60cbe9856d",
+  "state": "failed",
+  "whole": false,
+  "evidence": [
+    {
+      "path": "/Users/redux/.cache/oo-source-onboarding/runs/9c1b239c395a4b13899b6d60cbe9856d/journal.json",
+      "sha256": "d722dd59b9fd66e4a04c6e136cdc9ceda0a2a102d0a5fa6a327f295a37863dc1"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-source-onboarding/runs/9c1b239c395a4b13899b6d60cbe9856d/dialogue-a/transcript.json",
+      "sha256": "6ce1cdcfdeeb2af073eddaaf4dd9b39abc9401616d036d82a9f1cf0b6fbfda33"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-source-onboarding/runs/9c1b239c395a4b13899b6d60cbe9856d/dialogue-a/verdict.json",
+      "sha256": "04dc0f1ea761f13228aa9606d08c5322cce7a5364a2d138be011173c75170684"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-source-onboarding/runs/9c1b239c395a4b13899b6d60cbe9856d/attempts/dialogue-b-1792127303512105000-7f65f626/selection.json",
+      "sha256": "bd161c351aebf25a5cc34c42e02ae3bcd2c07bf3ffc63a93068d4742284c02e8"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-source-onboarding/runs/9c1b239c395a4b13899b6d60cbe9856d/attempts/dialogue-b-1792127303512105000-7f65f626/transcript.json",
+      "sha256": "9fc16b361f86e9a917020b6b25fd93540261c44b9418b2def15343cc12f93e62"
+    },
+    {
+      "path": "/Users/redux/.cache/oo-source-onboarding/runs/9c1b239c395a4b13899b6d60cbe9856d/attempts/dialogue-b-1792127303512105000-7f65f626/failed-attempt.json",
+      "sha256": "b3d12ace8f48d6da01429930989d9ca519cbb8c45443eb58f5e2d4b274094cd4"
+    }
+  ],
+  "dialogue_a": {
+    "outcome": "verified",
+    "turns": 2,
+    "query_ids": [
+      "q_G06vN0M9DjFEOvX1ty36SCLJKE",
+      "q_ICEne3NMvS4StOUvi5q67wqLMW"
+    ],
+    "original_frozen_selection_preserved": true
+  },
+  "dialogue_b": {
+    "outcome": "failed",
+    "selection_sha256": "bd161c351aebf25a5cc34c42e02ae3bcd2c07bf3ffc63a93068d4742284c02e8",
+    "successful_queries": 0,
+    "successful_knowledge_cat": false,
+    "reason": "model repeatedly used the wrong column and guessed Pack path; no successful query evidence; repeated no-tool answers exhausted 16 rounds",
+    "model_tokens_reported": 40410
+  },
+  "continuation": {
+    "owner": "/root/oracle_complete_luna_max",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "max",
+    "scope": "owned normal_whole.py/test only; append generic Pack-first tool instructions; freeze original B selection; strict facts/CLI/WAL/coverage unchanged",
+    "paid_retry": "only after no-model tests, fixed source and new immutable recipe installed by root; do not redraw questions or add rounds",
+    "shared_files": "product_flow and dialogue verifier frozen; MySQL reference preserved"
+  },
+  "doris_mapping_reader_candidate": {
+    "root_archive_check": {
+      "path": "/tmp/oo-root-doris-native-reader-build-v3-check-20261016.json",
+      "sha256": "2bd4f39a055f85c14eaedcabb3a02bfb0bea267b9c90653c7b23998c1ce8a8dc"
+    },
+    "build_manifest": {
+      "path": "/private/tmp/oo-doris-lunamax-20261016/gateway-native-reader-build-v3/fixed-build-manifest.json",
+      "sha256": "924836984e70ae260a4bc485e5db1888cb8d6ff25535f576eab61c52acc999b1"
+    },
+    "whole": false,
+    "remaining": "RO Gateway, automatic full chain, source-owned adapter, normal whole and final packet"
+  },
+  "independent_review": "deferred to unified ten-source milestone",
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "release": 0,
+    "external": 0,
+    "formal_source": 0,
+    "edition": 0
+  },
+  "formal_sources": "0/10",
+  "checks": "TODO generation/check and diff check; original Spec/Plan docs07 baseline drift remains; Goal/PRODUCT-LOOPS/support/frontend unchanged because no original parent or edition exit"
+}

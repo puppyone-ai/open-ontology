@@ -1,0 +1,43 @@
+{
+  "as_of": "2026-10-16T05:00:03.242163+00:00",
+  "authority": "root scoped necessary integration repair after real official installer refusal",
+  "owner": "/root/doris_complete_luna_max",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "max",
+  "task": "DL01-W1-43",
+  "parent": "DBX-W12",
+  "exact_additional_write_paths": [
+    "crates/oo-gateway/src/mapping_reader_access.rs",
+    "crates/oo-gateway/tests/mapping_reader_access_pg_live.rs"
+  ],
+  "code_scope": "Only native-vector provisioning publication-proof predicate and focused tests. Preserve old same-global-generation branch/C1/Oracle, TLS/grantor/role/login/member/ACL/current mapping/fence/metadata-hidden/rollback/replay checks.",
+  "cause": "Official mapping reader installer exit7/policy mismatch. Current mappings and ACL18/18, all7 fences open. Existing mapping_reader_access.rs:236 incorrectly requires each published table run generation to equal source-global latest, rejecting legal mixed2..9 per-table source.",
+  "diagnosis": {
+    "path": "/private/tmp/oo-doris-lunamax-20261016/product-e2e/evidence/gateway/0008-map-reader-diagnosis/stdout",
+    "sha256": "5ab6b19e1cf6f878721f421f1aa6db1d78d5e0a8124ae8184cdec031582904a5",
+    "root_readback": "18|18|18|18|18|0|0|7|7|t; diagnostic exit0"
+  },
+  "required_new_branch": "Existing0039 protected native_per_table_publication receipt/vector and current table_freshness plus exact published/sealed/exhausted full import run/table evidence. Source watermark still live. Source/config/per-table generations/physical/fence columns remain bound. No merely removed generation join, unqualified>=, guessed engine, fixture literal, manual grant, raw metadata mutation, new migration, or added ordinary-login privilege.",
+  "validation_exit": "Minimal proposed SQL, focused positive/negative original regression; Linux fixed source/cache build; actual official7-table install and replay plus invalid/unpublished/stale-state refusal with rollback; then original whole-source remaining exits.",
+  "oracle_current": "9ae owned complete7tool error feedback adapter installed31pins with28 source refs; original random a questions preserved. Latest normal attempt stopped before model on token expiry. Source owner authorized official fixture renewal/new immutable plan and minimal one-line PLAN update; no original proof/pin rewrite or relaxed auth checks.",
+  "official_tool_error_sources": [
+    "https://modelcontextprotocol.io/specification/2026-07-28/server/tools",
+    "https://modelcontextprotocol.io/seps/1303-input-validation-errors-as-tool-execution-errors"
+  ],
+  "mysql_current_reentry": {
+    "path": "/tmp/oo-root-mysql-after-oracle-registry-20261016/receipt.json",
+    "sha256": "0b53550d587bb3c32dd27df867c69e19725f8ce92103b8836b8ca465d6f3f644",
+    "result": "actual official resume0/6steps/wholetrue, no new model/DML"
+  },
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "release": 0,
+    "external": 0,
+    "formal_source": 0,
+    "edition": 0
+  },
+  "formal_sources": "0/10",
+  "review": "unified ten-source milestone, no separate component reviewer",
+  "unchanged": "Original Plan/Goal/PRODUCT-LOOPS exits and support/frontend levels; two same full-source owners, other7held; all installed migrations immutable."
+}

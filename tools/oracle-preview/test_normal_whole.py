@@ -86,33 +86,123 @@ class NormalWholeTests(unittest.TestCase):
             output.mkdir(mode=0o700)
             self.assertEqual(normal_whole.ensure_attempt_directory(output), output)
 
-    def test_sql_guard_correction_errors_are_returned_without_weakening_other_errors(self):
-        errors = [
-            {"class": "gateway", "code": "RELATION_NOT_FOUND", "message": "relation is not visible", "exit": 2},
-            {"class": "gateway", "code": "UNQUALIFIED_RELATION", "message": "relation must be schema-qualified", "exit": 2},
-            {"class": "gateway", "code": "SQL_PARSE_ERROR", "message": "parse failed", "exit": 2},
-            {"class": "gateway", "code": "COST_TOO_HIGH", "message": "query cost exceeded", "exit": 2},
+    def test_all_seven_tool_error_contracts_are_narrow_and_nonzero_only(self):
+        names = ["tables", "describe", "knowledge_cat", "knowledge_search", "validate", "query", "freshness"]
+        self.assertEqual(set(dialogue.TOOLS), set(names))
+        expected_usage = {
+            "tables": [],
+            "describe": ["table is missing", "table is not public"],
+            "knowledge_cat": ["path is missing", "path is not public"],
+            "knowledge_search": ["search text is missing", "search text is not public"],
+            "validate": ["sql is missing"],
+            "query": ["sql is missing"],
+            "freshness": [],
+        }
+        sql_codes = ["SQL_PARSE_ERROR", "STATEMENT_NOT_ALLOWED", "FUNCTION_NOT_ALLOWED",
+                     "RELATION_NOT_FOUND", "COLUMN_NOT_ALLOWED", "UNQUALIFIED_RELATION", "COST_TOO_HIGH"]
+        expected_gateway = {
+            "tables": {},
+            "describe": {"RELATION_NOT_FOUND": "table is not in this pack"},
+            "knowledge_cat": {"SCHEMA_INVALID": "knowledge path is not in this pack"},
+            "knowledge_search": {},
+            "validate": {code: ("relation is not visible" if code == "RELATION_NOT_FOUND" else
+                                "relation must be schema-qualified" if code == "UNQUALIFIED_RELATION" else None)
+                         for code in sql_codes},
+            "query": {code: ("relation is not visible" if code == "RELATION_NOT_FOUND" else
+                             "relation must be schema-qualified" if code == "UNQUALIFIED_RELATION" else None)
+                      for code in sql_codes},
+            "freshness": {},
+        }
+        self.assertEqual(normal_whole.ORACLE_TOOL_ERROR_POLICY["usage"], expected_usage)
+        self.assertEqual(normal_whole.ORACLE_TOOL_ERROR_POLICY["gateway"], expected_gateway)
+
+        def usage(message):
+            return {"class": "usage", "exit": 2, "message": message,
+                    "retry": {"attempt_count": "unknown", "max_extra_attempts": 3, "max_wait_ms": 2000,
+                              "nested_cli_retries": 0, "outcome": "not_applicable"},
+                    "retryable": False}
+
+        def gateway(code, message):
+            return {"class": "gateway", "code": code, "exit": 2, "message": message,
+                    "retry": {"attempt_count": "unknown", "max_extra_attempts": 3, "max_wait_ms": 2000,
+                              "nested_cli_retries": 0, "outcome": "not_replayed"},
+                    "retryable": False}
+
+        # These four response bodies are copied from retained failed-run transcripts.
+        captured = [
+            ("query", {"class": "gateway", "code": "RELATION_NOT_FOUND", "exit": 2,
+                       "message": "relation is not visible", "query_id": "q_pvw4yU1njd95YYbwHAdtYmwz1s",
+                       "retry": {"attempt_count": "unknown", "max_extra_attempts": 3, "max_wait_ms": 2000,
+                                 "nested_cli_retries": 0, "outcome": "not_replayed"}, "retryable": False},
+             {"query", "validate"}),
+            ("query", {"class": "gateway", "code": "UNQUALIFIED_RELATION", "exit": 2,
+                       "message": "relation must be schema-qualified", "query_id": "q_T4XEZRGTLDz72nSMgBEmHJC5L1",
+                       "retry": {"attempt_count": "unknown", "max_extra_attempts": 3, "max_wait_ms": 2000,
+                                 "nested_cli_retries": 0, "outcome": "not_replayed"}, "retryable": False},
+             {"query", "validate"}),
+            ("knowledge_cat", {"class": "gateway", "code": "SCHEMA_INVALID", "exit": 2,
+                                "message": "knowledge path is not in this pack",
+                                "retry": {"attempt_count": "unknown", "max_extra_attempts": 3, "max_wait_ms": 2000,
+                                          "nested_cli_retries": 0, "outcome": "not_replayed"},
+                                "retryable": False}, {"knowledge_cat"}),
+            ("describe", {"class": "gateway", "code": "RELATION_NOT_FOUND", "exit": 2,
+                           "message": "table is not in this pack",
+                           "retry": {"attempt_count": "unknown", "max_extra_attempts": 3, "max_wait_ms": 2000,
+                                     "nested_cli_retries": 0, "outcome": "not_replayed"},
+                           "retryable": False}, {"describe"}),
         ]
-        for body in errors:
-            with self.subTest(code=body["code"]):
-                self.assertTrue(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, "query", body))
-                self.assertTrue(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, "validate", body))
-        self.assertFalse(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, "describe", errors[0]))
-        self.assertFalse(normal_whole.oracle_tool_error_returned(
-            dialogue.tool_error_returned, "query", {**errors[0], "message": "relation exists but is hidden"}))
-        self.assertFalse(normal_whole.oracle_tool_error_returned(
-            dialogue.tool_error_returned, "query", {**errors[1], "message": "relation is not visible"}))
-        for denied in (
-            {**errors[0], "class": "usage"},
-            {"class": "gateway", "code": "SCHEMA_INVALID", "message": "catalog identity invalid", "exit": 2},
-            {"class": "gateway", "code": "AUTH_DENIED", "message": "permission denied", "exit": 2},
-            {"class": "gateway", "code": "INTERNAL_ERROR", "message": "internal failure", "exit": 2},
-            {"class": "gateway", "code": "UNRECOGNIZED_CODE", "message": "unknown", "exit": 2},
+        cases = list(captured)
+        usage_tools = {}
+        for name, messages in expected_usage.items():
+            for message in messages:
+                usage_tools.setdefault(message, set()).add(name)
+        cases.extend(("usage", usage(message), tools) for message, tools in usage_tools.items())
+        for name in ("query", "validate"):
+            for code in sql_codes:
+                if code not in {"RELATION_NOT_FOUND", "UNQUALIFIED_RELATION"}:
+                    cases.append((name, gateway(code, "SQL guard refusal"), {"query", "validate"}))
+
+        for origin, body, allowed_tools in cases:
+            with self.subTest(origin=origin, code=body.get("code"), message=body["message"]):
+                for name in names:
+                    self.assertEqual(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, name, body),
+                                     name in allowed_tools, name)
+                self.assertFalse(normal_whole.oracle_tool_error_returned(
+                    dialogue.tool_error_returned, origin,
+                    {**body, "exit": 0}))
+                self.assertFalse(normal_whole.oracle_tool_error_returned(
+                    dialogue.tool_error_returned, origin,
+                    {**body, "retryable": True}))
+
+        fatal = [
+            {"class": "gateway", "code": "SCHEMA_INVALID", "exit": 2,
+             "message": "catalog identity invalid", "retryable": False},
+            {"class": "gateway", "code": "SCHEMA_INVALID", "exit": 2,
+             "message": "knowledge pack is not loaded", "retryable": False},
+            {"class": "gateway", "code": "AUTH_DENIED", "exit": 2, "message": "permission denied", "retryable": False},
+            {"class": "gateway", "code": "INTERNAL_ERROR", "exit": 2, "message": "internal failure", "retryable": False},
+            {"class": "gateway", "code": "AUDIT_UNAVAILABLE", "exit": 2, "message": "audit unavailable", "retryable": False},
+            {"class": "gateway", "code": "UNRECOGNIZED_CODE", "exit": 2, "message": "unknown", "retryable": False},
+            {"class": "auth", "exit": 4, "message": "unauthenticated", "retryable": False},
+            {"class": "transport", "exit": 3, "message": "connection failed", "retryable": False},
+            {"class": "protocol", "exit": 3, "message": "malformed response", "retryable": False},
+            {"class": "local", "exit": 1, "message": "invalid local configuration", "retryable": False},
+            {"class": "sandbox", "exit": 1, "message": "unsupported execution", "retryable": False},
+            {"class": "unsupported", "exit": 2, "message": "not implemented", "retryable": False},
+        ]
+        for body in fatal:
+            with self.subTest(fatal=body.get("code", body["class"])):
+                for name in names:
+                    self.assertFalse(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, name, body))
+
+        # Only the two reviewed RELATION_NOT_FOUND/UNQUALIFIED messages are actionable.
+        for name, body in (
+            ("query", gateway("RELATION_NOT_FOUND", "relation exists but is hidden")),
+            ("validate", gateway("UNQUALIFIED_RELATION", "relation is not visible")),
+            ("describe", gateway("RELATION_NOT_FOUND", "relation is not visible")),
+            ("knowledge_cat", gateway("SCHEMA_INVALID", "catalog identity invalid")),
         ):
-            with self.subTest(denied=denied["code"]):
-                self.assertFalse(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, "query", denied))
-        allowed = {"class": "gateway", "code": "COLUMN_NOT_ALLOWED", "message": "column denied", "exit": 2}
-        self.assertTrue(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, "query", allowed))
+            self.assertFalse(normal_whole.oracle_tool_error_returned(dialogue.tool_error_returned, name, body))
 
     def test_frozen_random_selection_reuses_exact_current_identity_and_rejects_drift(self):
         with tempfile.TemporaryDirectory() as d:
