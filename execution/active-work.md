@@ -1,3 +1,7 @@
+2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T005548Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T005548Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。
+
+2026-10-16 Doris quiet真实42501窄修：root逐列实核原0008十列已读，缺current_signature/partition_scope两列；授权唯一Doris追加0041仅两列SELECT给oo_jobs_runtime，经官方installer安装，其他列/写继续拒绝。不是prior多行，不加LIMIT掩盖、不改旧迁移/worker。精确增补见Doris完整卡；尚无源/Plan/整版签收、formal0/10。
+
 2026-10-16 MySQL演示认证维护：官方issuer生成独立token，CLI显式 `--token-file /run-current/renewed-client-root-20261016T000220Z.token` 两版实查同gold/位置93/39、无warnings；TTL1小时，签发UTC见回执 /tmp/oo-root-mysql-auth-20261016T000220Z/receipt.json。原token/QA/pins/Pack/代码不改，无自动续签及新增验收。
 
 2026-10-16 overlay精确写权交接：Oracle已提交0722c7b4f、无mutator，root核clean/SHA50149bf5后仅Doris接verify_doris_observation真实分区关联/tests；Oracle保留固定5826 API、cli/store窄域，不能并写。Doris当前真实C4须全observed分区加载/CAS后ACK，禁止手工seed或绕fixture硬编码伪gen。两源原全退出/其他7held/计数与Plan不变，formal0/10。精确卡/dispatch/control已同步。

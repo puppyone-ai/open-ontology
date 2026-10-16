@@ -34,3 +34,7 @@ Doris 唯一 writer 增加 `crates/oo-pipeline/migrations/0040_native_source_pro
 ## 2026-10-16 overlay 分区验证写权交接
 
 Oracle已固定0722c7b4f并明确释放overlay.rs，root核clean与SHA50149bf5一致。Doris新增唯一writer `tools/selfbuild-control-api/src/overlay.rs`，仅verify_doris_observation及必要tests：将fixture字面量p202604改为认证封存request/scope、load及observed分区向量的真实关联，不删除分区/ACK/身份校验，不改Oracle函数。固定0722源码+必要own delta，不采Oracle cli/store WIP；原全部出口保持。
+
+## 2026-10-16 C4 quiet 两列最小只读权限
+
+root逐列实查：0008原十列SELECT已生效，quiet新用current_signature/partition_scope缺权限，非prior多行。Doris唯一writer新增 `crates/oo-pipeline/migrations/0041_native_partition_observation_read.sql`，只GRANT这两列SELECT给oo_jobs_runtime，经既有installer追加安装，0008/0039/0040不改。key_texts等其他列/写仍拒绝；以实际loader和quiet原SQL测成功，保留全部失败，同pending合法恢复。native_schedule未变无需重编worker。本确定因果覆盖此前暂无0041判断，不扩表写/owner。

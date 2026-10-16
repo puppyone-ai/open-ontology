@@ -535,7 +535,7 @@
     ],
     "other7": "held until source-specific fixed dependencies and exclusive files ready",
     "shared_writers": {
-      "Doris": "Doris card exact files, installed0039/0040 immutable; overlay.rs verify_doris_observation and tests only",
+      "Doris": "Doris card exact files incl append-only0041 metadata2column read; installed0039/0040 immutable; overlay Doris partition verification only",
       "Oracle": "cli.rs native maintain dispatch; store.rs replay admissibility fields; overlay readonly fixed0722"
     },
     "formal_source_count_delta": 0
@@ -567,5 +567,12 @@
     "root_verified": "git blob equals current bytes, clean path, prior writer confirmed no mutator",
     "allowed": "verify_doris_observation authentic request/load/observed partition linkage and minimum tests only; Oracle functions unchanged",
     "formal_delta": 0
+  },
+  "latest_doris_quiet_read_scope_amendment": {
+    "as_of": "2026-10-16T00:24:11.232924+00:00",
+    "path": "crates/oo-pipeline/migrations/0041_native_partition_observation_read.sql",
+    "reason": "root live per-column proof: existing10 columns granted; quiet requires2 missing metadata columns",
+    "allowed": "SELECT(current_signature,partition_scope) to oo_jobs_runtime via official append-only installer; other columns/writes denied",
+    "acceptance_delta": 0
   }
 }

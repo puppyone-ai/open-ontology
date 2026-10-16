@@ -214,7 +214,8 @@
         "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-driver-preflight",
         "tools/doris-preview",
         "evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product",
-        "tools/selfbuild-control-api/src/overlay.rs (Doris partition verification only)"
+        "tools/selfbuild-control-api/src/overlay.rs (Doris partition verification only)",
+        "crates/oo-pipeline/migrations/0041_native_partition_observation_read.sql"
       ],
       "mandatory_blocker": null,
       "status": "spawned_and_accepted",
