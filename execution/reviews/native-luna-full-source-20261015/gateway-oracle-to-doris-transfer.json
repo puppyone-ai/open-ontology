@@ -1,0 +1,40 @@
+{
+  "as_of": "2026-10-16T02:45:48.211212+00:00",
+  "from_owner": "/root/oracle_complete_luna_max",
+  "to_owner": "/root/doris_complete_luna_max",
+  "task": "DL01-W1-43",
+  "released_source_commit": "a94fca2ed49a50c7cdd1eb2407d4024fe936414d",
+  "root_verified_clean_files_sha256": {
+    "crates/oo-gateway/src/public_surface.rs": "ae03489e2ed122cefcf4afefa9819fb0ab5949bdfe642ddf7dd3fababc8dbe0f",
+    "crates/oo-gateway/src/query_executor.rs": "4d718e2b2265d5207764b28a63bf9dffd87b6b62d32f676dfaaa018f964c3823"
+  },
+  "release_receipt": "Oracle confirmed no uncommitted/staged differences or background writer; root actual status empty, HEAD/current bytes match a94 SHA. Oracle keeps immutable b8bf Gateway and no longer writes these files.",
+  "scope": "Doris necessary C4/C5 per-table freshness/quality readiness in these two Gateway files and focused tests only. Derive engine from authenticated collection, retain original per-table semantics, NULL global position/time stays unmeasured. Reuse already-read table_quality and protected published/sealed/current mapping/full import receipts where sufficient. No new SQL probes/DB grants/installer/core API schema changes without exact later scope.",
+  "constraints": [
+    "C1 transactional branch and Oracle snapshot-zero branch retained with original regressions",
+    "do not convert partition-signature/partition-map NULL global position into zero/transaction position",
+    "Doris mixed C4/C5 metadata must be truthful per table; unknown/missing/conflicting table identity or method cannot be excused as mixed",
+    "current run published/sealed/exhausted, bound mappings and complete nonpartial per-table receipt still required",
+    "fixed Linux1.94 tests/source commit/ELF before actual Gateway verification; no rebuild of unrelated API/worker",
+    "continue complete source maintenance/publication/autonomous IUD/gold/real CLI and random Agent/normal whole exits; this is no new component task"
+  ],
+  "doris_actual_proof": {
+    "path": "/private/tmp/oo-doris-lunamax-20261016/evidence/native-source-proof-v23/typed-source-proof.json",
+    "sha256": "0ad42c6945dda6647a47c4de967366d4ecbfb7fdc12f9f8357eec199878cfb09",
+    "scope": "7 tables; C4 part_day,6 C5; source watermark partition-signature/v1 partition-map posNULL/epochNULL, per_table S0 false, state lagging before actual publication; no full source acceptance"
+  },
+  "fixed_oracle_dependency": {
+    "manifest": "/private/tmp/oo-oracle-c5-luna-max-20261016/gateway-snapshot-zero-20261016/build-evidence/gateway-final-source-elf-manifest.json",
+    "sha256": "1e477ea8f641b4df257045eb9441d0e1f54365ce77f22bfc1e05c554c5a10351",
+    "elf_sha256": "b8bf7c9df6792754b2061d5343d0a46bbc519238824529694bd57dc6e20224ce",
+    "root_check": "two source blobs/current bytes and actual ELF/test/build logs SHA checked;69/69 actual library tests; Oracle retains fixed artifact"
+  },
+  "fixed_doris_maintenance_dependency": {
+    "manifest": "/private/tmp/oo-doris-lunamax-20261016/doris-source-semantics-fixed-4b80f3e0-v2/fixed-build-manifest-v2.json",
+    "sha256": "e590763ed2784f8fd084d312ed3dc25668e61ff6de0f4d5e08b9429fb212b26e",
+    "source_commit": "4b80f3e0dad629c3450fdfa4670adc3af5e5a421",
+    "root_check": "/tmp/oo-root-doris-maintenance-fixed-check-20261016.json",
+    "scope": "4files/ELF/all API logs SHA actual exit0; MySQL C1 function and entire Oracle verifier block unchanged. Live maintenance still owner exit."
+  },
+  "counts": "all count deltas0; formal0/10/edition0; other7held, no original Plan/Goal/PRODUCT-LOOPS/support-matrix/frontend exit or policy change. Main Plan/dev/counting checked unchanged original scope; independent review deferred to ten-source milestone."
+}

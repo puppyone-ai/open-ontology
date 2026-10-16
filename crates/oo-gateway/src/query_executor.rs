@@ -505,6 +505,8 @@ pub struct QualitySnapshot {
 pub struct MappingObserved {
     /// Source identity from `_oo.physical_mappings`.
     pub source: String,
+    /// Engine from the authenticated sealed-import catalog, when available.
+    pub source_engine: Option<String>,
     /// Logical schema.
     pub schema: String,
     /// Logical table.
@@ -2662,13 +2664,100 @@ fn project_held(held: &[HeldMap], tables: &[QualityTable], snapshot: &mut Qualit
         }
     }
     for item in held {
+        let source_engine = tables
+            .iter()
+            .find(|table| {
+                table.schema == item.schema
+                    && table.name == item.table
+                    && table.source.as_deref().is_none_or(|source| source == item.source)
+            })
+            .and_then(|table| table.native_binding.as_ref())
+            .filter(|binding| binding["source_id"].as_str() == Some(item.source.as_str()))
+            .and_then(|binding| binding.get("source_engine"))
+            .and_then(serde_json::Value::as_str)
+            .filter(|engine| supported_source_engine(engine))
+            .map(str::to_owned);
         snapshot.mappings.push(MappingObserved {
             source: item.source.clone(),
+            source_engine,
             schema: item.schema.clone(),
             table: item.table.clone(),
             run_generation: item.run_generation,
             bound: item.bound,
         });
+    }
+}
+
+pub(crate) fn supported_source_engine(engine: &str) -> bool {
+    matches!(
+        engine,
+        "oracle"
+            | "clickhouse"
+            | "opensearch"
+            | "doris"
+            | "mongodb"
+            | "starrocks"
+            | "mariadb"
+            | "mysql"
+            | "postgresql"
+            | "sqlserver"
+    )
+}
+
+#[cfg(test)]
+mod source_engine_projection_tests {
+    use super::*;
+
+    #[test]
+    fn source_engine_comes_from_the_matching_closed_native_binding() {
+        let held = vec![HeldMap {
+            source: "oracle_oneclick_orders".into(),
+            schema: "s".into(),
+            table: "t".into(),
+            run_generation: 11,
+            physical: format!("pt_{}", "a".repeat(60)),
+            bound: true,
+        }];
+        let quality_table = |binding| QualityTable {
+            source: Some("oracle_oneclick_orders".into()),
+            native_binding: binding,
+            schema: "s".into(),
+            name: "t".into(),
+            physical_schema: "_oo".into(),
+            physical_name: format!("pt_{}", "a".repeat(60)),
+        };
+        let mut snapshot = QualitySnapshot::blank("read");
+        project_held(
+            &held,
+            &[quality_table(Some(serde_json::json!({
+                "source_id": "oracle_oneclick_orders",
+                "source_engine": "oracle"
+            })))],
+            &mut snapshot,
+        );
+        assert_eq!(snapshot.mappings[0].source_engine.as_deref(), Some("oracle"));
+
+        let mut snapshot = QualitySnapshot::blank("read");
+        project_held(
+            &held,
+            &[quality_table(Some(serde_json::json!({
+                "source_id": "different_source",
+                "source_engine": "oracle"
+            })))],
+            &mut snapshot,
+        );
+        assert_eq!(snapshot.mappings[0].source_engine, None);
+
+        let mut snapshot = QualitySnapshot::blank("read");
+        project_held(
+            &held,
+            &[quality_table(Some(serde_json::json!({
+                "source_id": "oracle_oneclick_orders",
+                "source_engine": "unknown"
+            })))],
+            &mut snapshot,
+        );
+        assert_eq!(snapshot.mappings[0].source_engine, None);
     }
 }
 

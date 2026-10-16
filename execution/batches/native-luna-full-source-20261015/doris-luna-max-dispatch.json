@@ -44,5 +44,20 @@
     "reason": "root live per-column proof: existing10 columns granted; quiet requires2 missing metadata columns",
     "allowed": "SELECT(current_signature,partition_scope) to oo_jobs_runtime via official append-only installer; other columns/writes denied",
     "acceptance_delta": 0
+  },
+  "latest_doris_maintenance_shared_scope": {
+    "scope_receipt": "execution/reviews/native-luna-full-source-20261015/doris-maintenance-shared-scope.json",
+    "owner": "/root/doris_complete_luna_max",
+    "write_paths": [
+      "tools/source-onboarding/product_flow.py",
+      "tools/source-onboarding/test_onboard.py",
+      "tools/pg-builder/src/source_contract.rs"
+    ],
+    "formal_source_count_delta": 0
+  },
+  "latest_gateway_ownership_transfer": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json",
+    "owner": "/root/doris_complete_luna_max",
+    "this_owner_has_write_authority": true
   }
 }

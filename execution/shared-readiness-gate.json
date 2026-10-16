@@ -591,7 +591,27 @@
     "scope_receipt": "execution/reviews/native-luna-full-source-20261015/oracle-gateway-per-table-scope.json",
     "owner": "/root/oracle_complete_luna_max",
     "write_paths": [
-      "crates/oo-gateway/src/public_surface.rs"
+      "crates/oo-gateway/src/public_surface.rs",
+      "crates/oo-gateway/src/query_executor.rs"
+    ],
+    "formal_source_count_delta": 0
+  },
+  "latest_doris_maintenance_shared_scope": {
+    "scope_receipt": "execution/reviews/native-luna-full-source-20261015/doris-maintenance-shared-scope.json",
+    "owner": "/root/doris_complete_luna_max",
+    "write_paths": [
+      "tools/source-onboarding/product_flow.py",
+      "tools/source-onboarding/test_onboard.py",
+      "tools/pg-builder/src/source_contract.rs"
+    ],
+    "formal_source_count_delta": 0
+  },
+  "latest_gateway_ownership_transfer": {
+    "receipt": "execution/reviews/native-luna-full-source-20261015/gateway-oracle-to-doris-transfer.json",
+    "owner": "/root/doris_complete_luna_max",
+    "write_paths": [
+      "crates/oo-gateway/src/public_surface.rs",
+      "crates/oo-gateway/src/query_executor.rs"
     ],
     "formal_source_count_delta": 0
   }

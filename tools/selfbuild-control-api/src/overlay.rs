@@ -2023,13 +2023,16 @@ fn verify_doris_observation(root: &Path, catalog: &Value, semantics: &Value) -> 
         let method_name = method.get("capture_method").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
         let deletion = method.get("delete_detection").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
         let expected_deletion = if method_name == "c4_partition" { "partition_replace" } else { "reconcile" };
-        if method.get("logical_table").and_then(Value::as_str) != Some(&dataset)
+        if entry.get("source_id").and_then(Value::as_str) != semantics.get("source_id").and_then(Value::as_str)
+            || method.get("logical_table").and_then(Value::as_str) != Some(&dataset)
             || !matches!(method_name, "c4_partition" | "c5_diff") || method.get("source_generation").and_then(Value::as_i64) != Some(source_generation)
             || method.get("target_generation").and_then(Value::as_i64) != Some(target_generation)
             || deletion != expected_deletion
             || method.get("consistency").and_then(Value::as_str) != Some("S0")
         { return Err(ApiError::pack_refused()); }
         let pair = evidence.get(&dataset).and_then(Value::as_object).ok_or_else(ApiError::pack_refused)?;
+        let mut request_receipt = None;
+        let mut load_receipt = None;
         for kind in ["request", "load"] {
             let item = pair.get(kind).and_then(Value::as_object).ok_or_else(ApiError::pack_refused)?;
             let relative = item.get("path").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
@@ -2057,6 +2060,8 @@ fn verify_doris_observation(root: &Path, catalog: &Value, semantics: &Value) -> 
             if sha256_hex(&bytes) != sha { return Err(ApiError::pack_refused()); }
             let receipt: Value = serde_json::from_slice(&bytes).map_err(|_| ApiError::pack_refused())?;
             if receipt.get("logical_table").and_then(Value::as_str) != Some(table)
+                || receipt.get("logical_schema").and_then(Value::as_str) != Some(schema)
+                || receipt.get("source_id").and_then(Value::as_str) != Some(semantics["source_id"].as_str().ok_or_else(ApiError::pack_refused)?)
                 || receipt.get("source_generation").and_then(Value::as_i64) != Some(source_generation)
             { return Err(ApiError::pack_refused()); }
             if kind == "request" {
@@ -2066,13 +2071,93 @@ fn verify_doris_observation(root: &Path, catalog: &Value, semantics: &Value) -> 
                     || receipt.get("delete_detection").and_then(Value::as_str) != Some(deletion)
                     || receipt.get("full_snapshot").and_then(Value::as_bool) != Some(full_snapshot)
                 { return Err(ApiError::pack_refused()); }
+                request_receipt = Some(receipt.clone());
             } else if receipt.get("protocol").and_then(Value::as_str) != Some("oo.pipeline.native-update-result/v1")
                 || receipt.get("target_generation").and_then(Value::as_i64) != Some(target_generation)
                 || receipt.get("load_state").and_then(Value::as_str) != Some("awaiting_publish")
             { return Err(ApiError::pack_refused()); }
-            if kind == "load" && method_name == "c4_partition"
-                && receipt["partition_target_receipt"]["partition_scope"]["partition_id"].as_str() != Some("p202604")
+            if kind == "load" { load_receipt = Some(receipt); }
+        }
+        if method_name == "c4_partition" {
+            // A C4 load describes one changed partition, while the catalog seals
+            // the complete, ACKed source partition vector. Bind those two views
+            // through the producer's admitted digests and the current target
+            // sidecar; a fixture partition name is not an identity check.
+            let request = request_receipt.as_ref().ok_or_else(ApiError::pack_refused)?;
+            let loaded = load_receipt.as_ref().ok_or_else(ApiError::pack_refused)?;
+            let scope = loaded.get("partition_target_receipt")
+                .and_then(|receipt| receipt.get("partition_scope"))
+                .filter(|scope| scope.is_object()).ok_or_else(ApiError::pack_refused)?;
+            let valid_partition_id = |id: &str| !id.is_empty() && id.len() <= 128
+                && id.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_');
+            let partition = scope.get("partition_id").and_then(Value::as_str).filter(|id| valid_partition_id(id)).ok_or_else(ApiError::pack_refused)?;
+            let observed = scope.get("observed_partition_ids").and_then(Value::as_array).filter(|ids| !ids.is_empty() && ids.len() <= 1024).ok_or_else(ApiError::pack_refused)?;
+            let observed_ids = observed.iter().map(|id| id.as_str().filter(|id| valid_partition_id(id)).map(str::to_owned).ok_or_else(ApiError::pack_refused)).collect::<Result<Vec<_>, _>>()?;
+            let mut sorted_ids = observed_ids.clone();
+            sorted_ids.sort();
+            sorted_ids.dedup();
+            let schema_digest = scope.get("schema_digest").and_then(Value::as_str).filter(|value| hex64(value)).ok_or_else(ApiError::pack_refused)?;
+            let type_digest = scope.get("type_digest").and_then(Value::as_str).filter(|value| hex64(value)).ok_or_else(ApiError::pack_refused)?;
+            let table_epoch = scope.get("table_epoch").and_then(Value::as_str).filter(|value| hex64(value)).ok_or_else(ApiError::pack_refused)?;
+            let schema_fingerprint = scope.get("schema_fingerprint").and_then(Value::as_str).filter(|value| hex64(value)).ok_or_else(ApiError::pack_refused)?;
+            let arrow_digest = scope.get("arrow_sha256").and_then(Value::as_str).filter(|value| hex64(value)).ok_or_else(ApiError::pack_refused)?;
+            let current_rows = scope.get("row_count").and_then(Value::as_u64).ok_or_else(ApiError::pack_refused)?;
+            let vector = entry.get("partition_vector").and_then(Value::as_array).filter(|rows| rows.len() == observed_ids.len()).ok_or_else(ApiError::pack_refused)?;
+            if sorted_ids != observed_ids || !observed_ids.iter().any(|id| id == partition)
+                || scope.get("source_id").and_then(Value::as_str) != Some(semantics["source_id"].as_str().ok_or_else(ApiError::pack_refused)?)
+                || scope.get("source_engine").and_then(Value::as_str) != Some("doris")
+                || scope.get("logical_schema").and_then(Value::as_str) != Some(schema)
+                || scope.get("logical_table").and_then(Value::as_str) != Some(table)
+                || scope.get("source_generation").and_then(Value::as_i64) != Some(source_generation)
+                || scope.get("complete").and_then(Value::as_bool) != Some(true)
+                || scope.get("mutations_pending").and_then(Value::as_bool) != Some(false)
+                || request.get("source_engine").and_then(Value::as_str) != Some("doris")
+                || request.get("schema_digest").and_then(Value::as_str) != Some(schema_digest)
+                || request.get("type_digest").and_then(Value::as_str) != Some(type_digest)
+                || request.get("input_digest").and_then(Value::as_str) != Some(arrow_digest)
+                || loaded.get("run_id") != entry.get("run_id")
+                || loaded.get("source_engine").and_then(Value::as_str) != Some("doris")
+                || loaded.get("target_generation").and_then(Value::as_i64) != Some(target_generation)
+                || loaded.get("row_count").and_then(Value::as_u64) != table_object.get("accepted_rows").and_then(Value::as_u64)
+                || table_object.get("accepted_rows").and_then(Value::as_u64).is_none()
             { return Err(ApiError::pack_refused()); }
+            let mut vector_rows = 0_u64;
+            let mut current_matches = 0;
+            for (id, row) in observed_ids.iter().zip(vector) {
+                let row_id = row.get("partition_id").and_then(Value::as_str).ok_or_else(ApiError::pack_refused)?;
+                let count = row.get("row_count").and_then(Value::as_u64).ok_or_else(ApiError::pack_refused)?;
+                let row_scope = row.get("partition_scope").filter(|value| value.is_object()).ok_or_else(ApiError::pack_refused)?;
+                let row_source_generation = row.get("source_generation").and_then(Value::as_i64).filter(|value| *value > 0 && *value <= source_generation).ok_or_else(ApiError::pack_refused)?;
+                let row_target_generation = row.get("target_generation").and_then(Value::as_i64).filter(|value| *value > 0 && *value <= target_generation).ok_or_else(ApiError::pack_refused)?;
+                if row_id != id
+                    || row_scope.get("partition_id").and_then(Value::as_str) != Some(id)
+                    || row_scope.get("observed_partition_ids") != scope.get("observed_partition_ids")
+                    || row_scope.get("source_id").and_then(Value::as_str) != Some(semantics["source_id"].as_str().ok_or_else(ApiError::pack_refused)?)
+                    || row_scope.get("source_engine").and_then(Value::as_str) != Some("doris")
+                    || row_scope.get("logical_schema").and_then(Value::as_str) != Some(schema)
+                    || row_scope.get("logical_table").and_then(Value::as_str) != Some(table)
+                    || row_scope.get("table_epoch").and_then(Value::as_str) != Some(table_epoch)
+                    || row_scope.get("schema_fingerprint").and_then(Value::as_str) != Some(schema_fingerprint)
+                    || row_scope.get("schema_digest").and_then(Value::as_str) != Some(schema_digest)
+                    || row_scope.get("type_digest").and_then(Value::as_str) != Some(type_digest)
+                    || row_scope.get("source_generation").and_then(Value::as_i64) != Some(row_source_generation)
+                    || row_scope.get("arrow_sha256").and_then(Value::as_str).is_none_or(|value| !hex64(value))
+                    || row_scope.get("complete").and_then(Value::as_bool) != Some(true)
+                    || row_scope.get("mutations_pending").and_then(Value::as_bool) != Some(false)
+                    || row_scope.get("row_count").and_then(Value::as_u64) != Some(count)
+                    || row_scope.get("current_signature").and_then(Value::as_str).is_none_or(str::is_empty)
+                { return Err(ApiError::pack_refused()); }
+                if id == partition {
+                    if row_scope != scope || count != current_rows || row_source_generation != source_generation
+                        || row_target_generation != target_generation || row.get("run_id") != entry.get("run_id")
+                    { return Err(ApiError::pack_refused()); }
+                    current_matches += 1;
+                }
+                vector_rows = vector_rows.checked_add(count).ok_or_else(ApiError::pack_refused)?;
+            }
+            if current_matches != 1 || vector_rows != table_object["accepted_rows"].as_u64().ok_or_else(ApiError::pack_refused)? {
+                return Err(ApiError::pack_refused());
+            }
         }
         }
     }
@@ -2247,10 +2332,10 @@ mod source_money_tests {
         std::fs::set_permissions(root.join("source-evidence"), std::fs::Permissions::from_mode(0o700)).unwrap();
         std::fs::set_permissions(root.join("source-evidence").join("c".repeat(64)), std::fs::Permissions::from_mode(0o700)).unwrap();
         let catalog = json!({"protocol":"oo.pipeline.sealed-import-collection/v1","entries":[
-            {"engine":"doris","source_generation":1,"target_generation":2,"tables":[{"logical_schema":"s","logical_table":"t"}]}
+            {"engine":"doris","source_id":"dorispreview","source_generation":1,"target_generation":2,"tables":[{"logical_schema":"s","logical_table":"t"}]}
         ]});
-        let request = json!({"protocol":"oo.pipeline.native-update/v1","logical_table":"t","source_generation":1,"capture_method":"c5_diff","delete_detection":"reconcile","full_snapshot":true});
-        let load = json!({"protocol":"oo.pipeline.native-update-result/v1","logical_table":"t","source_generation":1,"target_generation":2,"load_state":"awaiting_publish"});
+        let request = json!({"protocol":"oo.pipeline.native-update/v1","source_id":"dorispreview","logical_schema":"s","logical_table":"t","source_generation":1,"capture_method":"c5_diff","delete_detection":"reconcile","full_snapshot":true});
+        let load = json!({"protocol":"oo.pipeline.native-update-result/v1","source_id":"dorispreview","logical_schema":"s","logical_table":"t","source_generation":1,"target_generation":2,"load_state":"awaiting_publish"});
         let mut evidence = serde_json::Map::new();
         for (kind, body) in [("request", request), ("load", load)] {
             let path = root.join("source-evidence").join("c".repeat(64)).join(format!("s.t.{kind}.json"));
@@ -2275,6 +2360,88 @@ mod source_money_tests {
         verify_doris_observation(&root, &catalog, &semantics).unwrap();
         semantics["evidence"]["s.t"]["request"]["sha256"] = json!("0".repeat(64));
         assert!(verify_doris_observation(&root, &catalog, &semantics).is_err());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn doris_c4_binds_sealed_scope_to_the_complete_acknowledged_partition_vector() {
+        use std::os::unix::fs::PermissionsExt;
+        let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("oo-doris-c4-vector-{}-{nonce}", std::process::id()));
+        let evidence_id = "c".repeat(64);
+        let evidence_dir = root.join("source-evidence").join(&evidence_id);
+        std::fs::create_dir_all(&evidence_dir).unwrap();
+        std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::set_permissions(root.join("source-evidence"), std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::set_permissions(&evidence_dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+
+        let source = "dorispreview";
+        let source_generation = 9;
+        let target_generation = 9;
+        let run_id = "fdb0cb0a-370c-4056-a185-8adb777ceabe";
+        let schema_digest = "a".repeat(64);
+        let type_digest = "b".repeat(64);
+        let table_epoch = "d".repeat(64);
+        let schema_fingerprint = "e".repeat(64);
+        let input_digest = "f".repeat(64);
+        let observed_ids = json!(["p202603", "p202604"]);
+        let current_scope = json!({
+            "source_id":source,"source_engine":"doris","logical_schema":"s","logical_table":"part_day",
+            "source_generation":source_generation,"partition_id":"p202603","observed_partition_ids":observed_ids,
+            "complete":true,"mutations_pending":false,"schema_digest":schema_digest,"type_digest":type_digest,
+            "arrow_sha256":input_digest,"table_epoch":table_epoch,"schema_fingerprint":schema_fingerprint,
+            "row_count":1,"current_signature":"sig-p202603"
+        });
+        let prior_scope = json!({
+            "source_id":source,"source_engine":"doris","logical_schema":"s","logical_table":"part_day",
+            "source_generation":8,"partition_id":"p202604","observed_partition_ids":observed_ids,
+            "complete":true,"mutations_pending":false,"schema_digest":schema_digest,"type_digest":type_digest,
+            "arrow_sha256":"9".repeat(64),"table_epoch":table_epoch,"schema_fingerprint":schema_fingerprint,
+            "row_count":7,"current_signature":"sig-p202604"
+        });
+        let catalog = json!({"protocol":"oo.pipeline.sealed-import-collection/v1","entries":[{
+            "engine":"doris","source_id":source,"run_id":run_id,
+            "source_generation":source_generation,"target_generation":target_generation,
+            "tables":[{"logical_schema":"s","logical_table":"part_day","accepted_rows":8}],
+            "partition_vector":[
+                {"partition_id":"p202603","row_count":1,"source_generation":source_generation,
+                 "target_generation":target_generation,"run_id":run_id,"partition_scope":current_scope},
+                {"partition_id":"p202604","row_count":7,"source_generation":8,"target_generation":8,
+                 "run_id":"prior-run","partition_scope":prior_scope}
+            ]
+        }]});
+        let request = json!({"protocol":"oo.pipeline.native-partition/v1","source_engine":"doris",
+            "source_id":source,"logical_schema":"s","logical_table":"part_day","source_generation":source_generation,
+            "capture_method":"c4_partition","delete_detection":"partition_replace","full_snapshot":false,
+            "schema_digest":schema_digest,"type_digest":type_digest,"input_digest":input_digest});
+        let load = json!({"protocol":"oo.pipeline.native-update-result/v1","source_id":source,
+            "source_engine":"doris","logical_schema":"s","logical_table":"part_day","run_id":run_id,
+            "source_generation":source_generation,"target_generation":target_generation,
+            "load_state":"awaiting_publish","row_count":8,
+            "partition_target_receipt":{"acknowledged":false,"partition_scope":current_scope}});
+        let mut evidence = serde_json::Map::new();
+        for (kind, body) in [("request", request), ("load", load)] {
+            let path = evidence_dir.join(format!("s.part_day.{kind}.json"));
+            let bytes = crate::canonical::canonical_json(&body).into_bytes();
+            std::fs::write(&path, &bytes).unwrap();
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+            let metadata = std::fs::metadata(&path).unwrap();
+            evidence.insert(kind.to_owned(), json!({"path":format!("source-evidence/{evidence_id}/s.part_day.{kind}.json"),
+                "sha256":crate::canonical::sha256_hex(&bytes),"mode":0o600,"size":metadata.len(),"uid":metadata.uid()}));
+        }
+        let semantics = json!({"protocol":"oo.source.doris.audit/v1","source_id":source,
+            "evidence_set_id":evidence_id,"capture_methods":{"s.part_day":{
+                "logical_table":"s.part_day","capture_method":"c4_partition","consistency":"S0",
+                "delete_detection":"partition_replace","source_generation":source_generation,"target_generation":target_generation}},
+            "evidence":{"s.part_day":{"request":evidence["request"].clone(),"load":evidence["load"].clone()}}});
+        verify_doris_observation(&root, &catalog, &semantics).unwrap();
+
+        let mut missing_partition = catalog.clone();
+        missing_partition["entries"][0]["partition_vector"].as_array_mut().unwrap().pop();
+        assert!(verify_doris_observation(&root, &missing_partition, &semantics).is_err());
+        let mut wrong_scope = catalog.clone();
+        wrong_scope["entries"][0]["partition_vector"][0]["partition_scope"]["arrow_sha256"] = json!("0".repeat(64));
+        assert!(verify_doris_observation(&root, &wrong_scope, &semantics).is_err());
         let _ = std::fs::remove_dir_all(root);
     }
 
