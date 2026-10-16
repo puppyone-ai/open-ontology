@@ -1934,7 +1934,9 @@ fn build_response(parts: Built<'_>) -> Result<Response, Box<Response>> {
         star_expanded: None,
         knowledge_version,
         policy_version,
-        hints: Vec::new(),
+        hints: if !mysql_target_observations(quality).is_empty() {
+            vec![error_text("source_time=unmeasured; source commit time and lag are unavailable; target_applied_at is a target observation, not source freshness.").expect("static hint")]
+        } else { Vec::new() },
         estimated_total_rows: None,
     };
     let mut value = serde_json::to_value(&response).map_err(|_| {
@@ -2015,6 +2017,7 @@ fn freshness_document(snapshot: &QualitySnapshot, knowledge: &str, policy: &str)
     serde_json::json!({
         "freshness": projected.freshness,
         "source_time": source_time_status(snapshot),
+        "target_observations": mysql_target_observations(snapshot),
         "sources": projected.sources,
         "source_watermarks": snapshot.watermarks.iter().map(|mark| serde_json::json!({
             "source": mark.source,
@@ -2154,6 +2157,27 @@ fn quality_count_value(item: &QualityCount) -> Value {
     })
 }
 
+fn mysql_unknown_source_time(m: &MappingObserved, w: &WatermarkObserved,
+    f: &crate::query_executor::FreshnessObserved) -> bool {
+    m.source_engine.as_deref() == Some("mysql") && w.codec == "mysql-gtid/v1"
+        && w.consistency_grade == "T" && w.source_epoch.is_some_and(|epoch| epoch > 0)
+        && w.lineage.starts_with("mysql.") && f.source_committed_at.is_empty()
+        && Rfc3339Timestamp::new(&f.applied_at).is_ok()
+}
+
+fn mysql_target_observations(snapshot: &QualitySnapshot) -> Vec<Value> {
+    if snapshot.capture_method != "c1_cdc" || snapshot.delete_detection != "native" { return Vec::new(); }
+    snapshot.mappings.iter().filter_map(|mapping| {
+        let mark = snapshot.watermarks.iter().find(|w| w.source == mapping.source)?;
+        let row = snapshot.freshness.iter().find(|f| f.schema == mapping.schema
+            && f.table == mapping.table && mysql_unknown_source_time(mapping,mark,f))?;
+        Some(serde_json::json!({"table":format!("{}.{}",row.schema,row.table),
+            "source":mapping.source,"source_generation":mapping.run_generation,
+            "state":row.state,"source_time":"unmeasured","source_committed_at":Value::Null,
+            "target_applied_at":row.applied_at}))
+    }).collect()
+}
+
 // Readiness is proved for every authorized physical mapping, never a global max generation.
 pub(crate) fn ready_quality(s: &QualitySnapshot) -> bool {
     let doris_only = !s.mappings.is_empty()
@@ -2173,7 +2197,7 @@ pub(crate) fn ready_quality(s: &QualitySnapshot) -> bool {
             match w.consistency.as_str() {
                 "transactional" => {
                     w.cross_table_consistent && s.capture_method!="mixed" && s.delete_detection!="mixed"
-                        && s.freshness.iter().any(|f| f.schema==m.schema && f.table==m.table && f.state=="live" && freshness_row(f).is_some())
+                        && s.freshness.iter().any(|f| f.schema==m.schema && f.table==m.table && f.state=="live" && (freshness_row(f).is_some() || s.capture_method=="c1_cdc" && s.delete_detection=="native" && mysql_unknown_source_time(m,w,f)))
                         && s.receipts.iter().any(|r|r.source==m.source && r.schema==m.schema && r.table==m.table && r.run_generation==m.run_generation
                             && r.codec==w.codec && r.lineage==w.lineage && Some(r.source_epoch)==w.source_epoch && Some(r.applied_pos.as_str())==w.applied_pos.as_deref()
                             && r.cross_table_consistent && !r.partial_txn)
@@ -2931,6 +2955,29 @@ mod tests {
         s.receipts.push(ReceiptObserved {source:"shop".into(),schema:"s".into(),table:"t".into(),run_generation:5,applied_pos:"37".into(),codec:"mysql-gtid/v1".into(),lineage:lineage.into(),source_epoch:1,cross_table_consistent:true,partial_txn:false,target_commit_at:"2026-10-15T14:00:01.000000Z".into()});
         assert!(freshness_row(&s.freshness[0]).is_some(),"freshness row: {:?}",s.freshness[0]);
         assert!(ready_quality(&s));assert!(gap_warning(&s).is_none());
+        let mut baseline=s.clone();
+        baseline.mappings[0].source_engine=Some("mysql".into());
+        baseline.freshness[0].source_committed_at.clear();
+        assert!(ready_quality(&baseline));assert!(gap_warning(&baseline).is_none());
+        let document=freshness_document(&baseline,"knowledge","policy");
+        assert_eq!(document["source_time"],"unmeasured");
+        assert_eq!(document["freshness"],serde_json::json!([]));
+        assert_eq!(document["target_observations"][0]["target_applied_at"],s.freshness[0].applied_at);
+        assert!(document["target_observations"][0]["source_committed_at"].is_null());
+        for kind in ["apply_time","bad_source_time","negative_lag","other_engine","other_codec","epoch","unpublished","partial","position"] {
+            let mut bad=baseline.clone();match kind {
+                "apply_time"=>bad.freshness[0].applied_at.clear(),
+                "bad_source_time"=>bad.freshness[0].source_committed_at="not-a-time".into(),
+                "negative_lag"=>bad.freshness[0].source_committed_at="2026-10-15T14:00:02Z".into(),
+                "other_engine"=>bad.mappings[0].source_engine=Some("mariadb".into()),
+                "other_codec"=>bad.watermarks[0].codec="mariadb-gtid/v1".into(),
+                "epoch"=>bad.receipts[0].source_epoch=2,
+                "unpublished"=>bad.runs[0].state="awaiting_publish".into(),
+                "partial"=>bad.receipts[0].partial_txn=true,
+                _=>bad.receipts[0].applied_pos="36".into(),
+            }
+            assert!(!ready_quality(&bad),"unknown-time accepted {kind}");
+        }
         for kind in ["unpublished","epoch","held","missing_run","missing_time","partial","position"] {
             let mut bad=s.clone();match kind {
                 "unpublished"=>bad.runs[0].state="awaiting_publish".into(),
