@@ -1,0 +1,33 @@
+{
+  "as_of": "2026-10-16T04:10:38.522028+00:00",
+  "acceptance_level": "root_verified_owned_oracle_default_installation_only",
+  "source_commit": "9ec99c36bee45b0ceacac1b6d9420d779bdeb702",
+  "raw_receipt": {
+    "path": "/tmp/oo-root-oracle-default-install-20261016/receipt.json",
+    "sha256": "a4d6837e48ff5d058fdcc4bb88c805ab8782e97fde39f95426415ff6abe8a0f0"
+  },
+  "automatic_generation_check": {
+    "path": "/tmp/oo-root-oracle-g15-auto-chain-check-20261016.json",
+    "sha256": "fc1e47b8f14b421aa1b274658ad05756f0672a84995bea5a732e8764ab74c64d"
+  },
+  "source_scope": "10 Oracle-owned files only; actual commit bytes,12 recipe pins,28 immutable source refs verified; original MySQL49pins and all other engine registry rows unchanged.",
+  "decisive_result": "Oracle g15 IUD/recovery automatic maintain/test-scope publication/physical RO Gateway20cells0; current CLI denial and admitted cancel raw WAL independently checked. Same task succeeded on actual lease4 after lock timeout and fixed-service kill/restart; not claimed as lease2.",
+  "normal_entry": "Actual official registry install exit0, awaiting_run=true, whole=false. Same complete Oracle Luna max owner resumed to execute normal six-field whole with direct shared product_flow and two fresh random2-turn Agent conversations. No paid dialogue or full default result claimed yet.",
+  "limits": [
+    "Owned test fixture only; no customer writes or production acceptance",
+    "Default whole/dialogue/reentry/final author packet still pending",
+    "Doris Gateway C4/C5 mixed-source adaptation remains in its exclusive scope",
+    "Other7sources held; no source/parent/edition acceptance"
+  ],
+  "independent_review": "Deferred to human unified ten-source Goal milestone; root decisive evidence check only",
+  "count_deltas": {
+    "development": 0,
+    "integration": 0,
+    "release": 0,
+    "external": 0,
+    "formal_source": 0,
+    "edition": 0
+  },
+  "formal_sources": "0/10",
+  "update_protocol": "task-ledger/TODO/control/active/HANDOFF/CHANGELOG/main Plan/development/counting updated; Goal/PRODUCT-LOOPS/support-matrix/frontend unchanged because no objective/edition/support-level acceptance."
+}
