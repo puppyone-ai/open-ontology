@@ -54,14 +54,27 @@ fn sql_budget_is_utf8_bytes_not_scalars() {
 }
 
 #[test]
-fn query_cell_budget_is_500_scalars() {
-    let ok = "测".repeat(500);
-    let over = "测".repeat(501);
+fn query_cell_preserves_long_text_within_the_document_budget() {
+    let ok = "测".repeat(774);
+    let over = "x".repeat(oo_core::limits::QUERY_CELL_MAX_CHARS + 1);
     assert!(matches!(
         serde_json::from_str::<QueryCell>(&serde_json::to_string(&ok).unwrap()).unwrap(),
         QueryCell::Text(_)
     ));
     assert!(serde_json::from_str::<QueryCell>(&serde_json::to_string(&over).unwrap()).is_err());
+    assert!(serde_json::from_str::<QueryCell>(r#""bad\u0000cell""#).is_err());
+
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../contracts/fixtures/api/query-response.json");
+    let mut response: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    response["rows"][0][0] = serde_json::json!(ok);
+    let encoded = response.to_string();
+    let parsed = oo_core::api::parse_api_json::<oo_core::api::QueryResponse>(&encoded, |_| Vec::new())
+        .expect("long text passes the same schema door as the Gateway and SDK");
+    assert_eq!(parsed.rows[0][0], QueryCell::Text(ok));
+    response["rows"][0][0] = serde_json::json!(over);
+    assert!(oo_core::api::parse_api_json::<oo_core::api::QueryResponse>(
+        &response.to_string(), |_| Vec::new()).is_err());
 }
 
 #[test]

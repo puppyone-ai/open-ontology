@@ -73,7 +73,7 @@ fn retained(c: &Value, config: &Value, out: &Path) -> Result<Value> {
         r["s5"]["outcome"] == "validated"
             && r["s5"]["builder_spawned"] == true
             && r["s5"]["structural_draft"] == false
-            && ["gpt-6.1-sol", "grok-4.7", "grok-4.7-build"].contains(&text(&r["s5"], "model")?),
+            && ["gpt-6.1-sol", "grok-4.7", "grok-4.7-build", "devin/claude-opus-5-5"].contains(&text(&r["s5"], "model")?),
         "not_real_s5",
     )?;
     for stage in 0..=10 {

@@ -71,12 +71,14 @@ impl Failure {
         retryable: bool,
         retry_outcome: Outcome,
     ) -> Self {
+        let message = message.into();
+        let hint = local_guidance(class, &message).map(str::to_owned);
         Self {
             exit,
             class,
             code: None,
-            message: message.into(),
-            hint: None,
+            message,
+            hint,
             query_id: None,
             retryable,
             retry_outcome,
@@ -112,7 +114,7 @@ impl Failure {
         Self::plain(
             2,
             Class::Unsupported,
-            "command is not implemented in this slice",
+            "command is not implemented; run oo --help for available commands",
             false,
             Outcome::NotApplicable,
         )
@@ -271,7 +273,8 @@ fn from_gateway(error: &GatewayError, token: &str, sql: &str, gateway: &str) -> 
     let message = public_text(error.message(), token, sql, gateway);
     let hint = error
         .hint()
-        .map(|hint| public_text(hint, token, sql, gateway));
+        .map(|hint| public_text(hint, token, sql, gateway))
+        .or_else(|| gateway_guidance(error.code()).map(str::to_owned));
     let query_id = error.query_id().map(|id| id.as_str().to_owned());
     let query_id = query_id.filter(|id| !contains_secret(id, token, sql, gateway));
     Failure::gateway(
@@ -283,6 +286,85 @@ fn from_gateway(error: &GatewayError, token: &str, sql: &str, gateway: &str) -> 
         error.retryable(),
         outcome,
     )
+}
+
+fn local_guidance(class: Class, message: &str) -> Option<&'static str> {
+    match class {
+        Class::Usage if message == "sql is missing" =>
+            Some("Supply one quoted SQL argument; oo query also accepts -f <file.sql>. See oo help <command>."),
+        Class::Usage if message.contains("gateway") =>
+            Some("Supply --gateway with the Gateway origin. For a saved npm profile, run oo configure --help."),
+        Class::Usage =>
+            Some("Run oo help <command> for accepted options, required arguments and examples. Quote SQL as one argument; use -- before positional text beginning with '-'."),
+        Class::Unsupported =>
+            Some("Run oo --help for implemented commands; an unsupported command did not execute a query."),
+        Class::Auth =>
+            Some("Use a valid Gateway token, not a model API key. Supply --auth external and --token-file (an owner-only regular file) or --token-stdin; see oo configure --help for npm profiles."),
+        Class::Transport if message.contains("TLS") =>
+            Some("Check the Gateway hostname, trusted CA and certificate validity. Use only operator-provided --ca-file/--client-pem; do not disable TLS verification."),
+        Class::Transport if message.contains("timed out") || message.contains("complete response") =>
+            Some("No complete result was received; this is not zero rows. Check Gateway reachability and oo operations/oo status before retrying; the CLI did not replay this request."),
+        Class::Transport =>
+            Some("Check the Gateway origin, DNS/VPN and service reachability. No complete result was received; do not interpret this failure as no data."),
+        Class::Protocol =>
+            Some("The Gateway response did not match the client protocol. Check oo --version and the Gateway/proxy deployment; report the error instead of treating it as an empty result."),
+        Class::Local if message.contains("trust") || message.contains("client pem") =>
+            Some("Check that the operating system CA store is installed, or supply an operator-approved --ca-file. Verify any --client-pem; TLS verification remains required."),
+        Class::Local =>
+            Some("Check local file access and configuration, then run oo help <command>. No successful query result is implied."),
+        _ => None,
+    }
+}
+
+fn gateway_guidance(code: ErrorCode) -> Option<&'static str> {
+    match code {
+        ErrorCode::Unauthenticated =>
+            Some("Refresh the Gateway credential through your operator; a model API key cannot authenticate this CLI."),
+        ErrorCode::SqlParseError =>
+            Some("Use PostgreSQL SELECT syntax and quote the SQL as one argument. Run oo validate \"<sql>\" before query."),
+        ErrorCode::FunctionNotAllowed | ErrorCode::StatementNotAllowed =>
+            Some("Run oo describe --json <schema.table> and oo validate \"<sql>\" for current SQL capabilities. A rejected query is not evidence of empty data or denied field access."),
+        ErrorCode::RelationNotFound | ErrorCode::ColumnNotAllowed | ErrorCode::UnqualifiedRelation =>
+            Some("Use oo tables and oo describe <schema.table> to check exact visible names. Request a scope change from your operator if needed; client flags cannot grant access."),
+        ErrorCode::Timeout =>
+            Some("No complete result is available. Inspect oo status <query_id>; use indexed predicates or server-side aggregation without changing the business meaning. TIMEOUT is not automatically replayed."),
+        ErrorCode::CostTooHigh =>
+            Some("Use indexed predicates and server-side aggregation, or ask the operator to review the plan. Do not drop business conditions merely to pass admission."),
+        ErrorCode::Internal | ErrorCode::SchemaInvalid | ErrorCode::VersionUnsupported =>
+            Some("Keep the query_id and report the failure to the operator. Check matching CLI/Gateway versions; do not repeatedly retry the same query or interpret it as zero rows."),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod guidance_tests {
+    use super::*;
+
+    #[test]
+    fn local_failures_have_actionable_consistent_hints_without_input_echo() {
+        for failure in [
+            Failure::usage("sql is missing"),
+            Failure::auth("token source is missing"),
+            from_query_error(&QueryError::Local(LocalError::Trust), "secret-value", "", ""),
+            from_query_error(&QueryError::Protocol(ProtocolError::Rejected), "secret-value", "", ""),
+            from_query_error(&QueryError::Transport(TransportError::Timeout), "secret-value", "", ""),
+        ] {
+            let value: serde_json::Value = serde_json::from_slice(&failure.json_bytes()).unwrap();
+            let hint = value["hint"].as_str().expect("actionable hint");
+            assert!(!hint.is_empty());
+            assert!(!hint.contains("secret-value"));
+            assert!(String::from_utf8(failure.text()).unwrap().contains(hint));
+            assert_eq!(value["retry"]["nested_cli_retries"], 0);
+        }
+    }
+
+    #[test]
+    fn gateway_refusals_distinguish_input_scope_and_runtime_failures() {
+        assert!(gateway_guidance(ErrorCode::SqlParseError).unwrap().contains("oo validate"));
+        assert!(gateway_guidance(ErrorCode::ColumnNotAllowed).unwrap().contains("cannot grant"));
+        assert!(gateway_guidance(ErrorCode::Internal).unwrap().contains("operator"));
+        assert!(gateway_guidance(ErrorCode::Timeout).unwrap().contains("not automatically replayed"));
+    }
 }
 
 fn public_text(value: &str, token: &str, sql: &str, gateway: &str) -> String {
@@ -342,6 +424,8 @@ pub fn code_name(code: ErrorCode) -> &'static str {
 fn transport_message(kind: TransportError) -> &'static str {
     match kind {
         TransportError::Connect => "transport connect failed",
+        TransportError::ConnectionReset => "transport connection reset by peer",
+        TransportError::Tls => "transport TLS handshake or certificate verification failed",
         TransportError::Timeout => "transport timed out before a complete response",
         TransportError::Dns => "transport name resolution failed",
         TransportError::Incomplete => "transport ended before a complete response",
@@ -428,7 +512,8 @@ fn escape_log(text: &str) -> String {
 }
 
 pub fn tightened_timeouts(timeout_ms: u32) -> oo_sdk::Timeouts {
-    let bound = Duration::from_millis(u64::from(timeout_ms));
+    let bound = Duration::from_millis(u64::from(timeout_ms))
+        .saturating_add(Duration::from_millis(1_500));
     let production = oo_sdk::Timeouts::production();
     oo_sdk::Timeouts {
         connect: production.connect.min(bound),

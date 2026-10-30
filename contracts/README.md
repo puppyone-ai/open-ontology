@@ -36,7 +36,7 @@ Secret values are `secret://` references. `tls: disable` is rejected and is not 
 
 Bigint, numeric, position, and export sizes are decimal strings. Query cells are null, bool, or string. A JSON number in those positions fails.
 
-`QUERY_SQL_MAX_BYTES` is 65536 UTF-8 bytes. The instructions bound is 16384 UTF-8 bytes. A query cell is 500 Unicode scalars. `maxLength` on those byte-bounded strings is only a scalar ceiling of the same number. `VerifiedExample.sql` stays a 16000-scalar bound.
+`QUERY_SQL_MAX_BYTES` is 65536 UTF-8 bytes. The instructions bound is 16384 UTF-8 bytes. A query cell uses the document budget (1048576 Unicode scalars as a structural ceiling); the complete response must still fit the 1 MiB byte budget. There is no separate 500-character display cap. `maxLength` on byte-bounded strings is only a scalar ceiling of the same number. `VerifiedExample.sql` stays a 16000-scalar bound.
 
 ## Batch and source cells
 

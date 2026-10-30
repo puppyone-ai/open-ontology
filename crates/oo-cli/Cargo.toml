@@ -1,6 +1,6 @@
 [package]
 name = "oo-cli"
-description = "Data CLI for one Gateway JSON query. Other commands are not implemented."
+description = "Read-only Gateway data CLI with embedded business-agent guidance."
 edition.workspace = true
 license.workspace = true
 publish.workspace = true

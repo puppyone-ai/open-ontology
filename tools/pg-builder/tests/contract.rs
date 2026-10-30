@@ -816,3 +816,32 @@ fn loopback_timeout_redirect_and_chunked_body() {
     assert_eq!(chunked.body, b"hello");
     chunk_handle.join().expect("chunk server");
 }
+
+#[test]
+fn configured_namespaced_model_is_preserved_in_config_and_seal() {
+    let model = "devin/claude-opus-5-5";
+    assert!(pg_builder::model_id_ok(model));
+    let dir = temp_dir();
+    let config = write_config(&dir, "generate", 8317, r#"{"status":"unknown"}"#, "bearer").replace("grok-4.7", model);
+    assert_eq!(load_config(&config).unwrap().model_id, model);
+    fs::remove_dir_all(dir).unwrap();
+    for bad in ["", "model\nheader", "model?x=1", "model name"] {
+        assert!(!pg_builder::model_id_ok(bad));
+    }
+    let sealed = pg_builder::seal_request_for_model(&catalog_json(), model).unwrap();
+    assert!(serde_json::to_string(&sealed).unwrap().contains(model));
+}
+
+#[test]
+fn project_inventory_budget_is_independent_of_s5_batch_size() {
+    let dir = temp_dir();
+    let text = write_config(&dir, "generate", 8317, r#"{"status":"unknown"}"#, "library-bearer");
+    let mut value: Value = serde_json::from_str(&text).unwrap();
+    value["project_max_tables"] = json!(128);
+    value["postgres"] = json!({"host":"127.0.0.1","port":5432,"database":"fixture","username":"reader","password_file":"/tmp/pw","ca_file":"/tmp/ca","catalog_bin":"/tmp/catalog","tables":(0..65).map(|i|json!({"schema":"app","table":format!("item_{i}")})).collect::<Vec<_>>()});
+    let config = load_config(&value.to_string()).expect("library inventory");
+    assert_eq!(config.max_tables, 16);
+    assert_eq!(config.postgres.unwrap().tables.len(), 65);
+    value["project_max_tables"] = json!(64);
+    assert!(load_config(&value.to_string()).is_err());
+}

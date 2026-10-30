@@ -1473,20 +1473,24 @@ pub async fn install_native_pg_single_transaction(conn: &mut PgConnection) -> Re
 /// A legacy target missing base markers must not downgrade the already installed successor.
 pub async fn install_catalog_before_empty(conn: &mut PgConnection) -> Result<(), InstallError> {
     // Keep the predecessor/successor decision stable across the installers' transactions.
-    sqlx::query("SELECT pg_catalog.pg_advisory_lock(6404202605)").execute(&mut *conn).await.map_err(database_error)?;
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    let principal=read_principal(&mut tx).await?;
+    prepare_locked(&mut tx,&principal).await?;
     let result = async {
-        let rows = read_rows(conn).await?;
+        let rows = read_rows(&mut tx).await?;
         if find_row(&rows, VERSION_NATIVE_EMPTY_CATALOG).is_some()
             && !matches!(find_row(&rows, VERSION_NATIVE_CATALOG), Some(row)
                 if row_exact(row, VERSION_NATIVE_CATALOG, &compiled_native_catalog_digest(), FILE_NATIVE_CATALOG)) {
             return Err(InstallError::Refused { message: "empty catalog successor lacks exact base catalog; refusing downgrade".to_string() });
         }
-        install_sealed_catalog(conn).await?;
-        install_native_sealed_catalog(conn).await?;
+        install_sealed_catalog(&mut tx).await?;
+        install_native_sealed_catalog(&mut tx).await?;
         Ok(())
     }.await;
-    sqlx::query("SELECT pg_catalog.pg_advisory_unlock(6404202605)").execute(&mut *conn).await.map_err(database_error)?;
-    result
+    match result {
+        Ok(())=>tx.commit().await.map_err(database_error),
+        Err(error)=>{let _=tx.rollback().await;Err(error)}
+    }
 }
 
 /// Install SQLServer-only CT anchor paths; prior migrations stay immutable.
@@ -2070,6 +2074,1157 @@ pub async fn install_native_partition_observation_read(conn: &mut PgConnection) 
         exec_script(&mut tx, SCRIPT_NATIVE_PARTITION_OBSERVATION_READ).await?;
         insert_markers(&mut tx, &[marker(VERSION_NATIVE_PARTITION_OBSERVATION_READ, &digest, FILE_NATIVE_PARTITION_OBSERVATION_READ)]).await
     }.await;
+    if let Err(err) = result {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Install the chunked-typed/v2 C1 baseline objects after the exact 0041 install.
+pub async fn install_native_c1_chunked_baseline(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_partition_observation_read_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_PARTITION_OBSERVATION_READ), Some(row)
+        if row_exact(row, VERSION_NATIVE_PARTITION_OBSERVATION_READ, &prior, FILE_NATIVE_PARTITION_OBSERVATION_READ)) {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused { message: "C1 chunked baseline requires exact 0041".into() });
+    }
+    let digest = compiled_native_c1_chunked_baseline_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C1_CHUNKED_BASELINE) {
+        if !row_exact(row, VERSION_NATIVE_C1_CHUNKED_BASELINE, &digest, FILE_NATIVE_C1_CHUNKED_BASELINE) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C1_CHUNKED_BASELINE.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_C1_CHUNKED_BASELINE).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_C1_CHUNKED_BASELINE, &digest, FILE_NATIVE_C1_CHUNKED_BASELINE)]).await
+    }.await;
+    if let Err(err) = result {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Additive typed-key staging; deliberately not enabled by legacy installers.
+pub async fn install_native_c1_typed_keys(conn: &mut PgConnection) -> Result<(), InstallError> {
+    const VERSION: &str = "native-c1-typed-keys/v3";
+    const FILE: &str = "0076_native_c1_typed_keys.sql";
+    const SCRIPT: &str = include_str!("../migrations/0076_native_c1_typed_keys.sql");
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows, VERSION_NATIVE_C1_CHUNKED_BASELINE), Some(row)
+        if row_exact(row, VERSION_NATIVE_C1_CHUNKED_BASELINE,
+            &compiled_native_c1_chunked_baseline_digest(), FILE_NATIVE_C1_CHUNKED_BASELINE)) {
+        return Err(InstallError::Refused { message: "typed C1 requires exact 0042".into() });
+    }
+    let digest = sha256_hex(SCRIPT.as_bytes());
+    if let Some(row) = find_row(&rows, VERSION) {
+        if !row_exact(row, VERSION, &digest, FILE) {
+            return mismatch(tx, Mismatch { version: VERSION.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT).await?;
+        insert_markers(&mut tx, &[marker(VERSION, &digest, FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_typed_bridge(conn: &mut PgConnection) -> Result<(), InstallError> {
+    const VERSION: &str = "native-c1-typed-bridge/v3";
+    const FILE: &str = "0077_native_c1_typed_bridge.sql";
+    const SCRIPT: &str = include_str!("../migrations/0077_native_c1_typed_bridge.sql");
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) { return Err(InstallError::NotAdministrator); }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-typed-keys/v3"),Some(row) if row_exact(row,
+        "native-c1-typed-keys/v3",&sha256_hex(include_str!("../migrations/0076_native_c1_typed_keys.sql").as_bytes()),
+        "0076_native_c1_typed_keys.sql")) {
+        return Err(InstallError::Refused { message: "typed bridge requires exact 0076".into() });
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION) {
+        if !row_exact(row,VERSION,&digest,FILE) {
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_typed_commit_time(conn: &mut PgConnection) -> Result<(), InstallError> {
+    const VERSION: &str = "native-c1-typed-commit-time/v3";
+    const FILE: &str = "0078_native_c1_typed_commit_time.sql";
+    const SCRIPT: &str = include_str!("../migrations/0078_native_c1_typed_commit_time.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?) {return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-typed-bridge/v3"),Some(row) if row_exact(row,
+        "native-c1-typed-bridge/v3",&sha256_hex(include_str!("../migrations/0077_native_c1_typed_bridge.sql").as_bytes()),
+        "0077_native_c1_typed_bridge.sql")) {
+        return Err(InstallError::Refused{message:"typed commit time requires exact 0077".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION) {
+        if !row_exact(row,VERSION,&digest,FILE) {return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());}
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_source_identity(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-source-identity/v1";
+    const FILE:&str="0079_native_c1_source_identity.sql";
+    const SCRIPT:&str=include_str!("../migrations/0079_native_c1_source_identity.sql");
+    let principal=read_principal(conn).await?;if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;prepare_locked(&mut tx,&principal).await?;let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-typed-commit-time/v3"),Some(row) if row_exact(row,
+        "native-c1-typed-commit-time/v3",&sha256_hex(include_str!("../migrations/0078_native_c1_typed_commit_time.sql").as_bytes()),
+        "0078_native_c1_typed_commit_time.sql")) {
+        return Err(InstallError::Refused{message:"source identity adapter requires exact 0078".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){if !row_exact(row,VERSION,&digest,FILE){return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());}}
+    else{exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;exec_script(&mut tx,SCRIPT).await?;insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;}
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_buffer_checkpoint(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-buffer-checkpoint/v1";
+    const FILE:&str="0080_native_c1_buffer_checkpoint.sql";
+    const SCRIPT:&str=include_str!("../migrations/0080_native_c1_buffer_checkpoint.sql");
+    let principal=read_principal(conn).await?;if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;prepare_locked(&mut tx,&principal).await?;let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-source-identity/v1"),Some(row) if row_exact(row,
+        "native-c1-source-identity/v1",&sha256_hex(include_str!("../migrations/0079_native_c1_source_identity.sql").as_bytes()),
+        "0079_native_c1_source_identity.sql")) {
+        return Err(InstallError::Refused{message:"buffer checkpoint requires exact 0079".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){if !row_exact(row,VERSION,&digest,FILE){return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());}}
+    else{exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;exec_script(&mut tx,SCRIPT).await?;insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;}
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_buffer_context(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-buffer-context/v1";
+    const FILE:&str="0081_native_c1_buffer_context.sql";
+    const SCRIPT:&str=include_str!("../migrations/0081_native_c1_buffer_context.sql");
+    let principal=read_principal(conn).await?;if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;prepare_locked(&mut tx,&principal).await?;let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-buffer-checkpoint/v1"),Some(row) if row_exact(row,
+        "native-c1-buffer-checkpoint/v1",&sha256_hex(include_str!("../migrations/0080_native_c1_buffer_checkpoint.sql").as_bytes()),
+        "0080_native_c1_buffer_checkpoint.sql")) {
+        return Err(InstallError::Refused{message:"buffer context requires exact 0080".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){if !row_exact(row,VERSION,&digest,FILE){return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());}}
+    else{exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;exec_script(&mut tx,SCRIPT).await?;insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;}
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_oracle_tail(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-oracle-tail/v1";
+    const FILE:&str="0082_native_c1_oracle_tail.sql";
+    const SCRIPT:&str=include_str!("../migrations/0082_native_c1_oracle_tail.sql");
+    let principal=read_principal(conn).await?;if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;prepare_locked(&mut tx,&principal).await?;let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-buffer-context/v1"),Some(row) if row_exact(row,
+        "native-c1-buffer-context/v1",&sha256_hex(include_str!("../migrations/0081_native_c1_buffer_context.sql").as_bytes()),
+        "0081_native_c1_buffer_context.sql")) {
+        return Err(InstallError::Refused{message:"Oracle tail requires exact 0081".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){if !row_exact(row,VERSION,&digest,FILE){return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());}}
+    else{exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;exec_script(&mut tx,SCRIPT).await?;insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;}
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_export_binding(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-export-binding/v1";
+    const FILE:&str="0083_native_c1_export_binding.sql";
+    const SCRIPT:&str=include_str!("../migrations/0083_native_c1_export_binding.sql");
+    let principal=read_principal(conn).await?;if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;prepare_locked(&mut tx,&principal).await?;let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-oracle-tail/v1"),Some(row) if row_exact(row,
+        "native-c1-oracle-tail/v1",&sha256_hex(include_str!("../migrations/0082_native_c1_oracle_tail.sql").as_bytes()),
+        "0082_native_c1_oracle_tail.sql")) {
+        return Err(InstallError::Refused{message:"export binding requires exact 0082".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){if !row_exact(row,VERSION,&digest,FILE){return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());}}
+    else{exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;exec_script(&mut tx,SCRIPT).await?;insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;}
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_typed_export(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-typed-export/v1";
+    const FILE:&str="0095_native_c1_typed_export.sql";
+    const SCRIPT:&str=include_str!("../migrations/0095_native_c1_typed_export.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    for (version,file,script) in [
+        ("native-c1-export-binding/v1","0083_native_c1_export_binding.sql",include_str!("../migrations/0083_native_c1_export_binding.sql")),
+        ("native-c1-mysql-delta/v1","0088_native_c1_mysql_delta.sql",include_str!("../migrations/0088_native_c1_mysql_delta.sql")),
+    ] {
+        if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&sha256_hex(script.as_bytes()),file)) {
+            return Err(InstallError::Refused{message:format!("Typed parts export requires exact {file}")});
+        }
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){
+        if !row_exact(row,VERSION,&digest,FILE){
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    }else{
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_oracle_fill_resume(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-oracle-fill-resume/v1";
+    const FILE:&str="0097_native_c1_oracle_fill_resume.sql";
+    const SCRIPT:&str=include_str!("../migrations/0097_native_c1_oracle_fill_resume.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-oracle-continuous/v1"),Some(row) if row_exact(row,
+        "native-c1-oracle-continuous/v1",&sha256_hex(include_str!("../migrations/0087_native_c1_oracle_continuous.sql").as_bytes()),
+        "0087_native_c1_oracle_continuous.sql")) {
+        return Err(InstallError::Refused{message:"Oracle fill resume requires exact 0087".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){
+        if !row_exact(row,VERSION,&digest,FILE){
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    }else{
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_oracle_mixed_resume(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-oracle-mixed-resume/v1";
+    const FILE:&str="0099_native_c1_oracle_mixed_resume.sql";
+    const SCRIPT:&str=include_str!("../migrations/0099_native_c1_oracle_mixed_resume.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-oracle-fill-resume/v1"),Some(row) if row_exact(row,
+        "native-c1-oracle-fill-resume/v1",&sha256_hex(include_str!("../migrations/0097_native_c1_oracle_fill_resume.sql").as_bytes()),
+        "0097_native_c1_oracle_fill_resume.sql")) {
+        return Err(InstallError::Refused{message:"Oracle mixed resume requires exact 0097".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){
+        if !row_exact(row,VERSION,&digest,FILE){
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    }else{
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_mysql_initial_resume(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-mysql-initial-resume/v1";
+    const FILE:&str="0098_native_c1_mysql_initial_resume.sql";
+    const SCRIPT:&str=include_str!("../migrations/0098_native_c1_mysql_initial_resume.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    for (version,file,script) in [
+        ("native-c1-typed-export/v1","0095_native_c1_typed_export.sql",include_str!("../migrations/0095_native_c1_typed_export.sql")),
+        ("native-c1-oracle-fill-resume/v1","0097_native_c1_oracle_fill_resume.sql",include_str!("../migrations/0097_native_c1_oracle_fill_resume.sql")),
+    ] {
+        if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&sha256_hex(script.as_bytes()),file)) {
+            return Err(InstallError::Refused{message:format!("MySQL initial resume requires exact {file}")});
+        }
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){
+        if !row_exact(row,VERSION,&digest,FILE){
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    }else{
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_mysql_connection_revision(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-mysql-connection-revision/v1";
+    const FILE:&str="0100_native_mysql_connection_revision.sql";
+    const SCRIPT:&str=include_str!("../migrations/0100_native_mysql_connection_revision.sql");
+    const FIX_VERSION:&str="native-mysql-connection-expression/v1";
+    const FIX_FILE:&str="0101_native_mysql_connection_expression.sql";
+    const FIX_SCRIPT:&str=include_str!("../migrations/0101_native_mysql_connection_expression.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    for (version,file,script) in [
+        ("native-c1-mysql-delta/v1","0088_native_c1_mysql_delta.sql",include_str!("../migrations/0088_native_c1_mysql_delta.sql")),
+        ("native-c1-oracle-mixed-resume/v1","0099_native_c1_oracle_mixed_resume.sql",include_str!("../migrations/0099_native_c1_oracle_mixed_resume.sql")),
+    ] {
+        if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&sha256_hex(script.as_bytes()),file)) {
+            return Err(InstallError::Refused{message:format!("Connection revision requires exact {file}")});
+        }
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){
+        if !row_exact(row,VERSION,&digest,FILE){
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    }else{
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    let fix_digest=sha256_hex(FIX_SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,FIX_VERSION){
+        if !row_exact(row,FIX_VERSION,&fix_digest,FIX_FILE){
+            return mismatch(tx,Mismatch{version:FIX_VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    }else{
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,FIX_SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(FIX_VERSION,&fix_digest,FIX_FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_oracle_initial_rebind(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-oracle-initial-rebind/v1";
+    const FILE:&str="0102_native_oracle_initial_rebind.sql";
+    const SCRIPT:&str=include_str!("../migrations/0102_native_oracle_initial_rebind.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    for (version,file,script) in [
+        ("native-c1-source-identity/v1","0079_native_c1_source_identity.sql",include_str!("../migrations/0079_native_c1_source_identity.sql")),
+        ("native-mysql-connection-expression/v1","0101_native_mysql_connection_expression.sql",include_str!("../migrations/0101_native_mysql_connection_expression.sql")),
+    ] {
+        if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&sha256_hex(script.as_bytes()),file)){
+            return Err(InstallError::Refused{message:format!("Oracle initial rebind requires exact {file}")});
+        }
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){
+        if !row_exact(row,VERSION,&digest,FILE){
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    }else{
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C1_COMPLETE_SCOPE: &str = "native-c1-complete-scope/v1";
+const FILE_NATIVE_C1_COMPLETE_SCOPE: &str = "0109_native_c1_complete_scope.sql";
+const SCRIPT_NATIVE_C1_COMPLETE_SCOPE: &str = include_str!("../migrations/0109_native_c1_complete_scope.sql");
+
+pub fn compiled_native_c1_complete_scope_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C1_COMPLETE_SCOPE.as_bytes())
+}
+
+pub async fn install_native_c1_complete_scope(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    for (version, file, script) in [
+        ("native-c1-oracle-continuous/v1", "0087_native_c1_oracle_continuous.sql",
+            include_str!("../migrations/0087_native_c1_oracle_continuous.sql")),
+        ("native-c1-source-names/v1", "0084_native_c1_source_names.sql",
+            include_str!("../migrations/0084_native_c1_source_names.sql")),
+        ("native-library-mysql-receipt/v1", "0092_native_library_mysql_receipt.sql",
+            include_str!("../migrations/0092_native_library_mysql_receipt.sql")),
+        ("native-c1-oracle-fill-resume/v1", "0097_native_c1_oracle_fill_resume.sql",
+            include_str!("../migrations/0097_native_c1_oracle_fill_resume.sql")),
+        ("native-c1-oracle-mixed-resume/v1", "0099_native_c1_oracle_mixed_resume.sql",
+            include_str!("../migrations/0099_native_c1_oracle_mixed_resume.sql")),
+    ] {
+        if !matches!(find_row(&rows, version), Some(row) if row_exact(row, version, &sha256_hex(script.as_bytes()), file)) {
+            return Err(InstallError::Refused { message: format!("Complete C1 scope requires exact {file}") });
+        }
+    }
+    let digest = compiled_native_c1_complete_scope_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C1_COMPLETE_SCOPE) {
+        if !row_exact(row, VERSION_NATIVE_C1_COMPLETE_SCOPE, &digest, FILE_NATIVE_C1_COMPLETE_SCOPE) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C1_COMPLETE_SCOPE.into(),
+                stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_C1_COMPLETE_SCOPE).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_C1_COMPLETE_SCOPE, &digest,
+            FILE_NATIVE_C1_COMPLETE_SCOPE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_MYSQL_UNAPPLIED_ABANDON: &str = "native-mysql-unapplied-abandon/v1";
+const FILE_NATIVE_MYSQL_UNAPPLIED_ABANDON: &str = "0110_native_mysql_unapplied_delta_abandon.sql";
+const SCRIPT_NATIVE_MYSQL_UNAPPLIED_ABANDON: &str =
+    include_str!("../migrations/0110_native_mysql_unapplied_delta_abandon.sql");
+
+pub async fn install_native_mysql_unapplied_abandon(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    for (version,file,script) in [
+        ("native-c1-mysql-delta/v1","0088_native_c1_mysql_delta.sql",
+            include_str!("../migrations/0088_native_c1_mysql_delta.sql")),
+        ("native-mysql-connection-expression/v1","0101_native_mysql_connection_expression.sql",
+            include_str!("../migrations/0101_native_mysql_connection_expression.sql")),
+    ] {
+        if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&sha256_hex(script.as_bytes()),file)) {
+            return Err(InstallError::Refused {message:format!("Unapplied C1 abandon requires exact {file}")});
+        }
+    }
+    let digest = sha256_hex(SCRIPT_NATIVE_MYSQL_UNAPPLIED_ABANDON.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION_NATIVE_MYSQL_UNAPPLIED_ABANDON) {
+        if !row_exact(row,VERSION_NATIVE_MYSQL_UNAPPLIED_ABANDON,&digest,FILE_NATIVE_MYSQL_UNAPPLIED_ABANDON) {
+            return mismatch(tx,Mismatch {version:VERSION_NATIVE_MYSQL_UNAPPLIED_ABANDON.into(),
+                stored:row.checksum.clone()}).await.map(|_|());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_MYSQL_UNAPPLIED_ABANDON).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_MYSQL_UNAPPLIED_ABANDON,&digest,
+            FILE_NATIVE_MYSQL_UNAPPLIED_ABANDON)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_ORACLE_POSITION_CAPACITY: &str = "native-oracle-position-capacity/v1";
+const FILE_NATIVE_ORACLE_POSITION_CAPACITY: &str = "0111_native_oracle_position_capacity.sql";
+const SCRIPT_NATIVE_ORACLE_POSITION_CAPACITY: &str =
+    include_str!("../migrations/0111_native_oracle_position_capacity.sql");
+
+pub async fn install_native_mysql_c5_handoff(conn:&mut PgConnection)->Result<(),InstallError> {
+    const VERSION:&str="native-mysql-c5-handoff/v1";
+    const FILE:&str="0112_native_mysql_c5_handoff.sql";
+    const SCRIPT:&str=include_str!("../migrations/0112_native_mysql_c5_handoff.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    for (version,file,script) in [
+        ("native-mysql-connection-revision/v1","0100_native_mysql_connection_revision.sql",
+            include_str!("../migrations/0100_native_mysql_connection_revision.sql")),
+        ("native-oracle-initial-rebind/v1","0102_native_oracle_initial_rebind.sql",
+            include_str!("../migrations/0102_native_oracle_initial_rebind.sql")),
+    ] {
+        if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&sha256_hex(script.as_bytes()),file)) {
+            return Err(InstallError::Refused{message:format!("MySQL handoff requires exact {file}")});
+        }
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION) {
+        if !row_exact(row,VERSION,&digest,FILE) {
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_mysql_handoff_scope(conn:&mut PgConnection)->Result<(),InstallError> {
+    const VERSION:&str="native-mysql-handoff-scope/v1";
+    const FILE:&str="0113_native_mysql_handoff_scope.sql";
+    const SCRIPT:&str=include_str!("../migrations/0113_native_mysql_handoff_scope.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    let previous="native-mysql-c5-handoff/v1";
+    if !matches!(find_row(&rows,previous),Some(row) if row_exact(row,previous,
+        &sha256_hex(include_bytes!("../migrations/0112_native_mysql_c5_handoff.sql")),
+        "0112_native_mysql_c5_handoff.sql")) {
+        return Err(InstallError::Refused{message:"MySQL handoff scope requires exact 0112".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION) {
+        if !row_exact(row,VERSION,&digest,FILE) {
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_mysql_handoff_initial_resume(conn:&mut PgConnection)->Result<(),InstallError> {
+    const VERSION:&str="native-mysql-handoff-initial-resume/v1";
+    const FILE:&str="0114_native_mysql_handoff_initial_resume.sql";
+    const SCRIPT:&str=include_str!("../migrations/0114_native_mysql_handoff_initial_resume.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    for (version,file,script) in [
+        ("native-c1-mysql-initial-resume/v1","0098_native_c1_mysql_initial_resume.sql",
+            include_str!("../migrations/0098_native_c1_mysql_initial_resume.sql")),
+        ("native-mysql-handoff-scope/v1","0113_native_mysql_handoff_scope.sql",
+            include_str!("../migrations/0113_native_mysql_handoff_scope.sql")),
+    ] {
+        if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&sha256_hex(script.as_bytes()),file)) {
+            return Err(InstallError::Refused{message:format!("MySQL handoff recovery requires exact {file}")});
+        }
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION) {
+        if !row_exact(row,VERSION,&digest,FILE) {
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+#[cfg(test)]
+mod mysql_handoff_resume_tests {
+    #[test]
+    fn additive_recovery_keeps_every_initial_open_guard_except_authorized_generation() {
+        let original=include_str!("../migrations/0098_native_c1_mysql_initial_resume.sql");
+        let open=original.split_once("CREATE FUNCTION _oo.c1_mysql_initial_open(").unwrap().1
+            .split_once("CREATE FUNCTION _oo.c1_mysql_initial_reserve(").unwrap().0;
+        let expected=format!("CREATE OR REPLACE FUNCTION _oo.c1_mysql_initial_open({open}")
+            .replace("OR p->>'source_generation' IS DISTINCT FROM '1'",
+                "OR NOT _oo.mysql_initial_generation_allowed(s,t,g,e,p)");
+        let script=include_str!("../migrations/0114_native_mysql_handoff_initial_resume.sql");
+        assert!(script.ends_with(&expected));
+        for guard in ["h.task IS DISTINCT FROM t","h.source_epoch IS DISTINCT FROM e",
+            "p->>'l0' IS DISTINCT FROM h.l0","p->>'connection_config_sha256' IS DISTINCT FROM h.config_sha256",
+            "p->'handoff' IS DISTINCT FROM expected","_oo.mysql_handoff_single_scope(s,h.binding,t)"] {
+            assert!(script.contains(guard),"{guard}");
+        }
+        assert!(!script.contains("UPDATE _oo.") && !script.contains("DELETE FROM"));
+    }
+}
+
+pub async fn install_native_mysql_complete_handoff(conn:&mut PgConnection)->Result<(),InstallError> {
+    const VERSION:&str="native-mysql-complete-handoff/v1";
+    const FILE:&str="0115_native_mysql_complete_handoff.sql";
+    const SCRIPT:&str=include_str!("../migrations/0115_native_mysql_complete_handoff.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    let previous="native-mysql-handoff-initial-resume/v1";
+    if !matches!(find_row(&rows,previous),Some(row) if row_exact(row,previous,
+        &sha256_hex(include_bytes!("../migrations/0114_native_mysql_handoff_initial_resume.sql")),
+        "0114_native_mysql_handoff_initial_resume.sql")) {
+        return Err(InstallError::Refused{message:"Complete MySQL handoff requires exact 0114".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION) {
+        if !row_exact(row,VERSION,&digest,FILE) {
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_oracle_position_capacity(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    for (version, file, script) in [
+        ("native-c1-source-identity/v1", "0079_native_c1_source_identity.sql",
+            include_str!("../migrations/0079_native_c1_source_identity.sql")),
+        ("native-c1-oracle-tail/v1", "0082_native_c1_oracle_tail.sql",
+            include_str!("../migrations/0082_native_c1_oracle_tail.sql")),
+        (VERSION_NATIVE_C1_COMPLETE_SCOPE, FILE_NATIVE_C1_COMPLETE_SCOPE, SCRIPT_NATIVE_C1_COMPLETE_SCOPE),
+    ] {
+        if !matches!(find_row(&rows, version), Some(row) if row_exact(row, version, &sha256_hex(script.as_bytes()), file)) {
+            return Err(InstallError::Refused { message: format!("Oracle position capacity requires exact {file}") });
+        }
+    }
+    let digest = sha256_hex(SCRIPT_NATIVE_ORACLE_POSITION_CAPACITY.as_bytes());
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_ORACLE_POSITION_CAPACITY) {
+        if !row_exact(row, VERSION_NATIVE_ORACLE_POSITION_CAPACITY, &digest, FILE_NATIVE_ORACLE_POSITION_CAPACITY) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_ORACLE_POSITION_CAPACITY.into(),
+                stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_ORACLE_POSITION_CAPACITY).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_ORACLE_POSITION_CAPACITY, &digest,
+            FILE_NATIVE_ORACLE_POSITION_CAPACITY)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+#[cfg(test)]
+mod oracle_position_capacity_tests {
+    use super::*;
+
+    #[test]
+    fn capacity_migration_preserves_all_non_capacity_guards_and_permissions() {
+        let original = include_str!("../migrations/0082_native_c1_oracle_tail.sql");
+        let position = original.split_once("CREATE OR REPLACE FUNCTION _oo.native_position_closed(")
+            .unwrap().1.split_once("$$;").unwrap().0;
+        let position = format!("CREATE OR REPLACE FUNCTION _oo.native_position_closed({position}$$;")
+            .replacen("p_lineage ~ '^oracle", "p_lineage IS NOT NULL AND p_lineage ~ '^oracle", 1)
+            .replace("AND p_pos IS NOT NULL AND p_pos >= 0 AND p_pos = trunc(p_pos) AND p_pos <= 1000000",
+                "AND p_pos IS NOT NULL AND p_pos >= 0 AND p_pos = trunc(p_pos)\n      AND _oo.native_pos_text(p_pos) ~ '^(0|[1-9][0-9]{0,37})$'");
+        let record = include_str!("../migrations/0079_native_c1_source_identity.sql")
+            .split_once("CREATE FUNCTION _oo.c1_typed_record_oracle_position(").unwrap().1
+            .split_once("END $fn$;").unwrap().0;
+        let record = format!("CREATE OR REPLACE FUNCTION _oo.c1_typed_record_oracle_position({record}END $fn$;")
+            .replace("n NOT BETWEEN 1 AND 100000", "n<1");
+        let body = SCRIPT_NATIVE_ORACLE_POSITION_CAPACITY.split_once("CREATE OR REPLACE FUNCTION").unwrap().1;
+        assert_eq!(format!("CREATE OR REPLACE FUNCTION{body}"), format!("{position}\n\n{record}\n"));
+    }
+}
+
+#[cfg(test)]
+mod complete_scope_tests {
+    use super::*;
+
+    #[test]
+    fn migration_changes_only_total_cardinality_guards() {
+        let publication = include_str!("../migrations/0084_native_c1_source_names.sql")
+            .split_once("CREATE OR REPLACE FUNCTION _oo.publish_native_c1_collection").unwrap().1;
+        let publication = format!("CREATE OR REPLACE FUNCTION _oo.publish_native_c1_collection{publication}")
+            .replace("n<1 OR n>32 OR", "n<1 OR");
+        let library = include_str!("../migrations/0092_native_library_mysql_receipt.sql")
+            .split_once("CREATE OR REPLACE FUNCTION").unwrap().1;
+        let library = format!("CREATE OR REPLACE FUNCTION{library}")
+            .replace("n IS NULL OR n<1 OR n>32", "n IS NULL OR n<1");
+        fn first(text: &str) -> String {
+            let function = text.split_once("CREATE FUNCTION").unwrap().1
+                .split_once("END $fn$;").unwrap().0;
+            format!("CREATE FUNCTION{function}END $fn$;\n")
+        }
+        let fill = first(include_str!("../migrations/0097_native_c1_oracle_fill_resume.sql"))
+            .replace("CREATE FUNCTION _oo.c1_oracle_fill_check(",
+                "CREATE OR REPLACE FUNCTION _oo.c1_oracle_fill_check_0099_base(")
+            .replace("total NOT BETWEEN 1 AND 4096", "total<1");
+        let mixed = first(include_str!("../migrations/0099_native_c1_oracle_mixed_resume.sql"))
+            .replacen("CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", 1)
+            .replace("total NOT BETWEEN 2 AND 4096", "total<2");
+        let buffer = include_str!("../migrations/0087_native_c1_oracle_continuous.sql")
+            .split_once("CREATE OR REPLACE FUNCTION _oo.c1_typed_record_buffer_0080").unwrap().1
+            .split_once("END $fn$;").unwrap().0;
+        let buffer = format!("CREATE OR REPLACE FUNCTION _oo.c1_typed_record_buffer_0080{buffer}END $fn$;\n")
+            .replace("(checkpoint->>'event_count')::bigint NOT BETWEEN 1 AND 100000",
+                "(checkpoint->>'event_count')::bigint<1");
+        let body = SCRIPT_NATIVE_C1_COMPLETE_SCOPE
+            .split_once("CREATE OR REPLACE FUNCTION").unwrap().1;
+        assert_eq!(format!("CREATE OR REPLACE FUNCTION{body}"),
+                   format!("{publication}\n{library}\n{fill}\n{mixed}\n{buffer}"));
+    }
+}
+
+pub async fn install_native_c5_range_parts_stage(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c5-range-parts-stage/v1";
+    const FILE:&str="0103_native_c5_range_parts_stage.sql";
+    const SCRIPT:&str=include_str!("../migrations/0103_native_c5_range_parts_stage.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    let prerequisite=sha256_hex(include_str!("../migrations/0075_native_c5_indexed_exclusion.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-indexed-exclusion/v1"),Some(row)
+        if row_exact(row,"native-c5-indexed-exclusion/v1",&prerequisite,"0075_native_c5_indexed_exclusion.sql")){
+        return Err(InstallError::Refused{message:"C5 parts stage requires exact indexed C5 overlay".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){
+        if !row_exact(row,VERSION,&digest,FILE){
+            return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    }else{
+        // Read-only control authority; the stage API never edits jobs or ACKs.
+        exec_static(&mut tx,"GRANT USAGE ON SCHEMA jw_native TO oo_target_owner").await?;
+        exec_static(&mut tx,"GRANT SELECT ON jw_native.bindings,jw_native.occurrences,jw_native.source_progress TO oo_target_owner").await?;
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_RANGE_PARTS_APPLY: &str = "native-c5-range-parts-apply/v1";
+pub fn compiled_native_c5_range_parts_apply_digest() -> String {
+    sha256_hex(include_str!("../migrations/0104_native_c5_range_parts_apply.sql").as_bytes())
+}
+
+pub async fn install_native_c5_range_parts(conn:&mut PgConnection)->Result<(),InstallError>{
+    install_native_c5_range_parts_stage(conn).await?;
+    const FILE:&str="0104_native_c5_range_parts_apply.sql";
+    const SCRIPT:&str=include_str!("../migrations/0104_native_c5_range_parts_apply.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    let version=VERSION_NATIVE_C5_RANGE_PARTS_APPLY;
+    let digest=compiled_native_c5_range_parts_apply_digest();
+    if let Some(row)=find_row(&rows,version){
+        if !row_exact(row,version,&digest,FILE){
+            return mismatch(tx,Mismatch{version:version.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    }else{
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(version,&digest,FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_WIDENING_REBASE: &str = "native-c5-widening-rebase/v1";
+pub fn compiled_native_c5_widening_rebase_digest() -> String {
+    sha256_hex(include_str!("../migrations/0105_native_c5_widening_rebase.sql").as_bytes())
+}
+pub const VERSION_NATIVE_C5_WIDENING_TYPE_RECEIPT: &str = "native-c5-widening-type-receipt/v1";
+pub fn compiled_native_c5_widening_type_receipt_digest() -> String {
+    sha256_hex(include_str!("../migrations/0106_native_c5_widening_type_receipt.sql").as_bytes())
+}
+pub const VERSION_NATIVE_C5_WIDENING_SOURCE_TYPES: &str = "native-c5-widening-source-types/v1";
+pub fn compiled_native_c5_widening_source_types_digest() -> String {
+    sha256_hex(include_str!("../migrations/0107_native_c5_widening_source_types.sql").as_bytes())
+}
+
+pub const VERSION_NATIVE_C5_PRIVILEGED_OBSERVER: &str = "native-c5-privileged-observer/v1";
+pub fn compiled_native_c5_privileged_observer_digest() -> String {
+    sha256_hex(include_str!("../migrations/0108_native_c5_privileged_observer.sql").as_bytes())
+}
+
+pub async fn install_native_c5_privileged_observer(conn: &mut PgConnection) -> Result<(), InstallError> {
+    const FILE: &str = "0108_native_c5_privileged_observer.sql";
+    const SCRIPT: &str = include_str!("../migrations/0108_native_c5_privileged_observer.sql");
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prerequisite = sha256_hex(include_str!("../migrations/0068_native_c5_overlay_visibility.sql").as_bytes());
+    if !matches!(find_row(&rows, "native-c5-overlay-visibility/v1"), Some(row)
+        if row_exact(row, "native-c5-overlay-visibility/v1", &prerequisite, "0068_native_c5_overlay_visibility.sql")) {
+        return Err(InstallError::Refused { message: "privileged observer requires exact C5 visibility".into() });
+    }
+    let version = VERSION_NATIVE_C5_PRIVILEGED_OBSERVER;
+    let digest = compiled_native_c5_privileged_observer_digest();
+    if let Some(row) = find_row(&rows, version) {
+        if !row_exact(row, version, &digest, FILE) {
+            return mismatch(tx, Mismatch { version: version.into(), stored: row.checksum.clone() })
+                .await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT).await?;
+        insert_markers(&mut tx, &[marker(version, &digest, FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c5_widening_rebase(conn:&mut PgConnection)->Result<(),InstallError>{
+    install_native_c5_range_parts(conn).await?;
+    const FILE:&str="0105_native_c5_widening_rebase.sql";
+    const SCRIPT:&str=include_str!("../migrations/0105_native_c5_widening_rebase.sql");
+    let principal=read_principal(conn).await?;
+    if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx,&principal).await?;
+    let rows=read_rows(&mut tx).await?;
+    let version=VERSION_NATIVE_C5_WIDENING_REBASE;
+    let digest=compiled_native_c5_widening_rebase_digest();
+    if let Some(row)=find_row(&rows,version){
+        if !row_exact(row,version,&digest,FILE){
+            return mismatch(tx,Mismatch{version:version.into(),stored:row.checksum.clone()}).await.map(|_|());
+        }
+    }else{
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT).await?;
+        insert_markers(&mut tx,&[marker(version,&digest,FILE)]).await?;
+    }
+    const TYPE_FILE: &str = "0106_native_c5_widening_type_receipt.sql";
+    let type_version = VERSION_NATIVE_C5_WIDENING_TYPE_RECEIPT;
+    let type_digest = compiled_native_c5_widening_type_receipt_digest();
+    if let Some(row) = find_row(&rows, type_version) {
+        if !row_exact(row, type_version, &type_digest, TYPE_FILE) {
+            return mismatch(tx, Mismatch { version: type_version.into(), stored: row.checksum.clone() })
+                .await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, include_str!("../migrations/0106_native_c5_widening_type_receipt.sql")).await?;
+        insert_markers(&mut tx, &[marker(type_version, &type_digest, TYPE_FILE)]).await?;
+    }
+    const SOURCE_FILE: &str = "0107_native_c5_widening_source_types.sql";
+    let source_version = VERSION_NATIVE_C5_WIDENING_SOURCE_TYPES;
+    let source_digest = compiled_native_c5_widening_source_types_digest();
+    if let Some(row) = find_row(&rows, source_version) {
+        if !row_exact(row, source_version, &source_digest, SOURCE_FILE) {
+            return mismatch(tx, Mismatch { version: source_version.into(), stored: row.checksum.clone() })
+                .await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, include_str!("../migrations/0107_native_c5_widening_source_types.sql")).await?;
+        insert_markers(&mut tx, &[marker(source_version, &source_digest, SOURCE_FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_mysql_delta(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-mysql-delta/v1";
+    const FILE:&str="0088_native_c1_mysql_delta.sql";
+    const SCRIPT:&str=include_str!("../migrations/0088_native_c1_mysql_delta.sql");
+    let principal=read_principal(conn).await?;if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;prepare_locked(&mut tx,&principal).await?;let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-oracle-continuous/v1"),Some(row) if row_exact(row,
+        "native-c1-oracle-continuous/v1",&sha256_hex(include_str!("../migrations/0087_native_c1_oracle_continuous.sql").as_bytes()),
+        "0087_native_c1_oracle_continuous.sql")) {
+        return Err(InstallError::Refused{message:"MySQL delta requires exact 0087".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){if !row_exact(row,VERSION,&digest,FILE){return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());}}
+    else{exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;exec_script(&mut tx,SCRIPT).await?;insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;}
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_oracle_continuous(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-oracle-continuous/v1";
+    const FILE:&str="0087_native_c1_oracle_continuous.sql";
+    const SCRIPT:&str=include_str!("../migrations/0087_native_c1_oracle_continuous.sql");
+    let principal=read_principal(conn).await?;if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;prepare_locked(&mut tx,&principal).await?;let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-oracle-delta-verify/v1"),Some(row) if row_exact(row,
+        "native-c1-oracle-delta-verify/v1",&sha256_hex(include_str!("../migrations/0086_native_c1_oracle_delta_verify.sql").as_bytes()),
+        "0086_native_c1_oracle_delta_verify.sql")) {
+        return Err(InstallError::Refused{message:"Oracle continuous delta requires exact 0086".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){if !row_exact(row,VERSION,&digest,FILE){return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());}}
+    else{exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;exec_script(&mut tx,SCRIPT).await?;insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;}
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_oracle_delta_verify(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-oracle-delta-verify/v1";
+    const FILE:&str="0086_native_c1_oracle_delta_verify.sql";
+    const SCRIPT:&str=include_str!("../migrations/0086_native_c1_oracle_delta_verify.sql");
+    let principal=read_principal(conn).await?;if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;prepare_locked(&mut tx,&principal).await?;let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-oracle-delta/v1"),Some(row) if row_exact(row,
+        "native-c1-oracle-delta/v1",&sha256_hex(include_str!("../migrations/0085_native_c1_oracle_delta.sql").as_bytes()),
+        "0085_native_c1_oracle_delta.sql")) {
+        return Err(InstallError::Refused{message:"Oracle delta final verification requires exact 0085".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){if !row_exact(row,VERSION,&digest,FILE){return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());}}
+    else{exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;exec_script(&mut tx,SCRIPT).await?;insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;}
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_oracle_delta(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-oracle-delta/v1";
+    const FILE:&str="0085_native_c1_oracle_delta.sql";
+    const SCRIPT:&str=include_str!("../migrations/0085_native_c1_oracle_delta.sql");
+    let principal=read_principal(conn).await?;if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;prepare_locked(&mut tx,&principal).await?;let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-source-names/v1"),Some(row) if row_exact(row,
+        "native-c1-source-names/v1",&sha256_hex(include_str!("../migrations/0084_native_c1_source_names.sql").as_bytes()),
+        "0084_native_c1_source_names.sql")) {
+        return Err(InstallError::Refused{message:"Oracle delta requires exact 0084".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){if !row_exact(row,VERSION,&digest,FILE){return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());}}
+    else{exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;exec_script(&mut tx,SCRIPT).await?;insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;}
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_c1_source_names(conn:&mut PgConnection)->Result<(),InstallError>{
+    const VERSION:&str="native-c1-source-names/v1";
+    const FILE:&str="0084_native_c1_source_names.sql";
+    const SCRIPT:&str=include_str!("../migrations/0084_native_c1_source_names.sql");
+    let principal=read_principal(conn).await?;if !principal_can_install(&principal,&read_catalog(conn).await?){return Err(InstallError::NotAdministrator);}
+    let mut tx=conn.begin().await.map_err(database_error)?;prepare_locked(&mut tx,&principal).await?;let rows=read_rows(&mut tx).await?;
+    if !matches!(find_row(&rows,"native-c1-export-binding/v1"),Some(row) if row_exact(row,
+        "native-c1-export-binding/v1",&sha256_hex(include_str!("../migrations/0083_native_c1_export_binding.sql").as_bytes()),
+        "0083_native_c1_export_binding.sql")) {
+        return Err(InstallError::Refused{message:"source name bridge requires exact 0083".into()});
+    }
+    let digest=sha256_hex(SCRIPT.as_bytes());
+    if let Some(row)=find_row(&rows,VERSION){if !row_exact(row,VERSION,&digest,FILE){return mismatch(tx,Mismatch{version:VERSION.into(),stored:row.checksum.clone()}).await.map(|_|());}}
+    else{exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;exec_script(&mut tx,SCRIPT).await?;insert_markers(&mut tx,&[marker(VERSION,&digest,FILE)]).await?;}
+    tx.commit().await.map_err(database_error)
+}
+
+/// Immutable 0044 version: the integer advisory-lock grant used by source-instance registration.
+pub const VERSION_NATIVE_SOURCE_INSTANCE_GRANT: &str = "native-source-instance-advisory-grant/v1";
+const FILE_NATIVE_SOURCE_INSTANCE_GRANT: &str = "0044_native_source_instance_advisory_grant.sql";
+const SCRIPT_NATIVE_SOURCE_INSTANCE_GRANT: &str =
+    include_str!("../migrations/0044_native_source_instance_advisory_grant.sql");
+
+pub fn compiled_native_source_instance_grant_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_SOURCE_INSTANCE_GRANT.as_bytes())
+}
+
+/// Grant `oo_target_owner` the `pg_advisory_xact_lock(integer, integer)` overload (F2).
+/// Runs after the exact 0043 install. It runs as the installing principal, because only
+/// a superuser or the function owner may grant on `pg_catalog`.
+pub async fn install_native_source_instance_grant(
+    conn: &mut PgConnection,
+) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_c1_chunked_baseline_final_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_C1_CHUNKED_BASELINE_FINAL), Some(row)
+        if row_exact(row, VERSION_NATIVE_C1_CHUNKED_BASELINE_FINAL, &prior, FILE_NATIVE_C1_CHUNKED_BASELINE_FINAL))
+    {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused {
+            message: "source instance grant requires exact 0043".into(),
+        });
+    }
+    let digest = compiled_native_source_instance_grant_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_SOURCE_INSTANCE_GRANT) {
+        if !row_exact(row, VERSION_NATIVE_SOURCE_INSTANCE_GRANT, &digest, FILE_NATIVE_SOURCE_INSTANCE_GRANT) {
+            return mismatch(
+                tx,
+                Mismatch {
+                    version: VERSION_NATIVE_SOURCE_INSTANCE_GRANT.into(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await
+            .map(|_| ());
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_script(&mut tx, SCRIPT_NATIVE_SOURCE_INSTANCE_GRANT).await?;
+        insert_markers(
+            &mut tx,
+            &[marker(
+                VERSION_NATIVE_SOURCE_INSTANCE_GRANT,
+                &digest,
+                FILE_NATIVE_SOURCE_INSTANCE_GRANT,
+            )],
+        )
+        .await
+    }
+    .await;
+    if let Err(err) = result {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Install v2 successor format handoff and task-scoped seal batch identities.
+pub async fn install_native_c1_ack_seed_format(conn: &mut PgConnection) -> Result<(), InstallError> {
+    const VERSION: &str = "native-c1-ack-seed-format/v1";
+    const FILE: &str = "0045_native_c1_ack_seed_format.sql";
+    const SCRIPT: &str = include_str!("../migrations/0045_native_c1_ack_seed_format.sql");
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_source_instance_grant_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_SOURCE_INSTANCE_GRANT), Some(row)
+        if row_exact(row, VERSION_NATIVE_SOURCE_INSTANCE_GRANT, &prior, FILE_NATIVE_SOURCE_INSTANCE_GRANT))
+    {
+        return Err(InstallError::Refused { message: "C1 seed format requires exact 0044".into() });
+    }
+    if find_row(&rows, "native-c1-v2-seal-batch-identity/v1").is_some()
+        && find_row(&rows, VERSION).is_none()
+    {
+        return Err(InstallError::Refused { message: "C1 seal batch requires its seed format predecessor".into() });
+    }
+    for (version, file, script) in [
+        (VERSION, FILE, SCRIPT),
+        ("native-c1-v2-seal-batch-identity/v1", "0046_native_c1_v2_seal_batch_identity.sql",
+         include_str!("../migrations/0046_native_c1_v2_seal_batch_identity.sql")),
+    ] {
+        let digest = sha256_hex(script.as_bytes());
+        if let Some(row) = find_row(&rows, version) {
+            if !row_exact(row, version, &digest, file) {
+                return mismatch(tx, Mismatch { version: version.into(), stored: row.checksum.clone() })
+                    .await.map(|_| ());
+            }
+            continue;
+        }
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, script).await?;
+        insert_markers(&mut tx, &[marker(version, &digest, file)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+/// Install the chunked-typed/v2 final-load helpers and guards after the exact 0042 install.
+pub async fn install_native_c1_chunked_baseline_final(
+    conn: &mut PgConnection,
+) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    if let Err(err) = prepare_locked(&mut tx, &principal).await {
+        let _ = tx.rollback().await;
+        return Err(err);
+    }
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_c1_chunked_baseline_digest();
+    if !matches!(find_row(&rows, VERSION_NATIVE_C1_CHUNKED_BASELINE), Some(row)
+        if row_exact(row, VERSION_NATIVE_C1_CHUNKED_BASELINE, &prior, FILE_NATIVE_C1_CHUNKED_BASELINE))
+    {
+        let _ = tx.rollback().await;
+        return Err(InstallError::Refused {
+            message: "C1 chunked baseline final requires exact 0042".into(),
+        });
+    }
+    let digest = compiled_native_c1_chunked_baseline_final_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C1_CHUNKED_BASELINE_FINAL) {
+        if !row_exact(
+            row,
+            VERSION_NATIVE_C1_CHUNKED_BASELINE_FINAL,
+            &digest,
+            FILE_NATIVE_C1_CHUNKED_BASELINE_FINAL,
+        ) {
+            return mismatch(
+                tx,
+                Mismatch {
+                    version: VERSION_NATIVE_C1_CHUNKED_BASELINE_FINAL.into(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await
+            .map(|_| ());
+        }
+        tx.commit().await.map_err(database_error)?;
+        return Ok(());
+    }
+    let result = async {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_C1_CHUNKED_BASELINE_FINAL).await?;
+        insert_markers(
+            &mut tx,
+            &[marker(
+                VERSION_NATIVE_C1_CHUNKED_BASELINE_FINAL,
+                &digest,
+                FILE_NATIVE_C1_CHUNKED_BASELINE_FINAL,
+            )],
+        )
+        .await
+    }
+    .await;
     if let Err(err) = result {
         let _ = tx.rollback().await;
         return Err(err);
@@ -3590,3 +4745,1078 @@ pub fn compiled_native_source_progress_read_digest() -> String { sha256_hex(SCRI
 const FILE_NATIVE_PARTITION_OBSERVATION_READ: &str = "0041_native_partition_observation_read.sql";
 const SCRIPT_NATIVE_PARTITION_OBSERVATION_READ: &str = include_str!("../migrations/0041_native_partition_observation_read.sql");
 pub fn compiled_native_partition_observation_read_digest() -> String { sha256_hex(SCRIPT_NATIVE_PARTITION_OBSERVATION_READ.as_bytes()) }
+
+/// Immutable chunked-typed/v2 C1 baseline migration version (0042).
+pub const VERSION_NATIVE_C1_CHUNKED_BASELINE: &str = "native-c1-chunked-baseline/v1";
+const FILE_NATIVE_C1_CHUNKED_BASELINE: &str = "0042_native_c1_chunked_baseline.sql";
+const SCRIPT_NATIVE_C1_CHUNKED_BASELINE: &str = include_str!("../migrations/0042_native_c1_chunked_baseline.sql");
+/// SHA-256 of the chunked C1 baseline migration bytes.
+pub fn compiled_native_c1_chunked_baseline_digest() -> String { sha256_hex(SCRIPT_NATIVE_C1_CHUNKED_BASELINE.as_bytes()) }
+
+/// Immutable chunked-typed/v2 final-load migration version (0043).
+pub const VERSION_NATIVE_C1_CHUNKED_BASELINE_FINAL: &str = "native-c1-chunked-baseline-final/v1";
+const FILE_NATIVE_C1_CHUNKED_BASELINE_FINAL: &str = "0043_native_c1_chunked_baseline_final.sql";
+const SCRIPT_NATIVE_C1_CHUNKED_BASELINE_FINAL: &str =
+    include_str!("../migrations/0043_native_c1_chunked_baseline_final.sql");
+/// SHA-256 of the chunked C1 final-load migration bytes.
+pub fn compiled_native_c1_chunked_baseline_final_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C1_CHUNKED_BASELINE_FINAL.as_bytes())
+}
+
+pub const VERSION_NATIVE_C5_RANGE: &str = "native-c5-range/v1";
+const FILE_NATIVE_C5_RANGE: &str = "0047_native_c5_range.sql";
+const SCRIPT_NATIVE_C5_RANGE: &str = include_str!("../migrations/0047_native_c5_range.sql");
+
+pub fn compiled_native_c5_range_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_RANGE.as_bytes())
+}
+
+pub async fn install_native_c5_range(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0046_native_c1_v2_seal_batch_identity.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c1-v2-seal-batch-identity/v1"),Some(row)
+        if row_exact(row,"native-c1-v2-seal-batch-identity/v1",&prior,"0046_native_c1_v2_seal_batch_identity.sql")) {
+        return Err(InstallError::Refused { message: "C5 range requires exact 0046".into() });
+    }
+    let digest = compiled_native_c5_range_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_RANGE) {
+        if !row_exact(row, VERSION_NATIVE_C5_RANGE, &digest, FILE_NATIVE_C5_RANGE) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_RANGE.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_RANGE).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_RANGE,&digest,FILE_NATIVE_C5_RANGE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_RANGE_APPLY: &str = "native-c5-range-apply/v1";
+const FILE_NATIVE_C5_RANGE_APPLY: &str = "0048_native_c5_range_apply.sql";
+const SCRIPT_NATIVE_C5_RANGE_APPLY: &str = include_str!("../migrations/0048_native_c5_range_apply.sql");
+
+pub fn compiled_native_c5_range_apply_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_RANGE_APPLY.as_bytes())
+}
+
+pub async fn install_native_c5_range_apply(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0047_native_c5_range.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-range/v1"),Some(row)
+        if row_exact(row,"native-c5-range/v1",&prior,"0047_native_c5_range.sql")) {
+        return Err(InstallError::Refused { message: "C5 range requires exact 0047".into() });
+    }
+    let digest = compiled_native_c5_range_apply_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_RANGE_APPLY) {
+        if !row_exact(row, VERSION_NATIVE_C5_RANGE_APPLY, &digest, FILE_NATIVE_C5_RANGE_APPLY) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_RANGE_APPLY.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_RANGE_APPLY).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_RANGE_APPLY,&digest,FILE_NATIVE_C5_RANGE_APPLY)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_SCAN: &str = "native-c5-scan/v1";
+const FILE_NATIVE_C5_SCAN: &str = "0049_native_c5_scan.sql";
+const SCRIPT_NATIVE_C5_SCAN: &str = include_str!("../migrations/0049_native_c5_scan.sql");
+
+pub fn compiled_native_c5_scan_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_SCAN.as_bytes())
+}
+
+pub async fn install_native_c5_scan(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0048_native_c5_range_apply.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-range-apply/v1"),Some(row)
+        if row_exact(row,"native-c5-range-apply/v1",&prior,"0048_native_c5_range_apply.sql")) {
+        return Err(InstallError::Refused { message: "C5 range requires exact 0048".into() });
+    }
+    let digest = compiled_native_c5_scan_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_SCAN) {
+        if !row_exact(row, VERSION_NATIVE_C5_SCAN, &digest, FILE_NATIVE_C5_SCAN) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_SCAN.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_SCAN).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_SCAN,&digest,FILE_NATIVE_C5_SCAN)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_REPLAY_GUARD: &str = "native-c5-replay-guard/v1";
+const FILE_NATIVE_C5_REPLAY_GUARD: &str = "0050_native_c5_replay_guard.sql";
+const SCRIPT_NATIVE_C5_REPLAY_GUARD: &str = include_str!("../migrations/0050_native_c5_replay_guard.sql");
+
+pub fn compiled_native_c5_replay_guard_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_REPLAY_GUARD.as_bytes())
+}
+
+pub async fn install_native_c5_replay_guard(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0049_native_c5_scan.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-scan/v1"),Some(row)
+        if row_exact(row,"native-c5-scan/v1",&prior,"0049_native_c5_scan.sql")) {
+        return Err(InstallError::Refused { message: "C5 range requires exact 0049".into() });
+    }
+    let digest = compiled_native_c5_replay_guard_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_REPLAY_GUARD) {
+        if !row_exact(row, VERSION_NATIVE_C5_REPLAY_GUARD, &digest, FILE_NATIVE_C5_REPLAY_GUARD) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_REPLAY_GUARD.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_REPLAY_GUARD).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_REPLAY_GUARD,&digest,FILE_NATIVE_C5_REPLAY_GUARD)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_FULL_INITIALIZE: &str = "native-c5-full-initialize/v1";
+const FILE_NATIVE_C5_FULL_INITIALIZE: &str = "0051_native_c5_full_initialize.sql";
+const SCRIPT_NATIVE_C5_FULL_INITIALIZE: &str = include_str!("../migrations/0051_native_c5_full_initialize.sql");
+
+pub fn compiled_native_c5_full_initialize_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_FULL_INITIALIZE.as_bytes())
+}
+
+pub async fn install_native_c5_full_initialize(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0050_native_c5_replay_guard.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-replay-guard/v1"),Some(row)
+        if row_exact(row,"native-c5-replay-guard/v1",&prior,"0050_native_c5_replay_guard.sql")) {
+        return Err(InstallError::Refused { message: "C5 range requires exact 0050".into() });
+    }
+    let digest = compiled_native_c5_full_initialize_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_FULL_INITIALIZE) {
+        if !row_exact(row, VERSION_NATIVE_C5_FULL_INITIALIZE, &digest, FILE_NATIVE_C5_FULL_INITIALIZE) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_FULL_INITIALIZE.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_FULL_INITIALIZE).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_FULL_INITIALIZE,&digest,FILE_NATIVE_C5_FULL_INITIALIZE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_CLOSED_OBSERVATION: &str = "native-c5-closed-observation/v1";
+const FILE_NATIVE_C5_CLOSED_OBSERVATION: &str = "0052_native_c5_closed_observation.sql";
+const SCRIPT_NATIVE_C5_CLOSED_OBSERVATION: &str = include_str!("../migrations/0052_native_c5_closed_observation.sql");
+
+pub fn compiled_native_c5_closed_observation_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_CLOSED_OBSERVATION.as_bytes())
+}
+
+pub async fn install_native_c5_closed_observation(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0051_native_c5_full_initialize.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-full-initialize/v1"),Some(row)
+        if row_exact(row,"native-c5-full-initialize/v1",&prior,"0051_native_c5_full_initialize.sql")) {
+        return Err(InstallError::Refused { message: "C5 range requires exact 0051".into() });
+    }
+    let digest = compiled_native_c5_closed_observation_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_CLOSED_OBSERVATION) {
+        if !row_exact(row, VERSION_NATIVE_C5_CLOSED_OBSERVATION, &digest, FILE_NATIVE_C5_CLOSED_OBSERVATION) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_CLOSED_OBSERVATION.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_CLOSED_OBSERVATION).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_CLOSED_OBSERVATION,&digest,FILE_NATIVE_C5_CLOSED_OBSERVATION)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+
+pub const VERSION_NATIVE_C5_MULTIPART: &str = "native-c5-multipart/v1";
+const FILE_NATIVE_C5_MULTIPART: &str = "0053_native_c5_multipart.sql";
+const SCRIPT_NATIVE_C5_MULTIPART: &str = include_str!("../migrations/0053_native_c5_multipart.sql");
+pub fn compiled_native_c5_multipart_digest() -> String {sha256_hex(SCRIPT_NATIVE_C5_MULTIPART.as_bytes())}
+
+pub async fn install_native_c5_multipart(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0052_native_c5_closed_observation.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-closed-observation/v1"),Some(row)
+        if row_exact(row,"native-c5-closed-observation/v1",&prior,"0052_native_c5_closed_observation.sql")) {
+        return Err(InstallError::Refused { message: "C5 range requires exact 0052".into() });
+    }
+    let digest = compiled_native_c5_multipart_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_MULTIPART) {
+        if !row_exact(row, VERSION_NATIVE_C5_MULTIPART, &digest, FILE_NATIVE_C5_MULTIPART) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_MULTIPART.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_MULTIPART).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_MULTIPART,&digest,FILE_NATIVE_C5_MULTIPART)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_MASKED_REJECTS: &str = "masked-rejects/v1";
+const FILE_MASKED_REJECTS: &str = "0054_masked_rejects.sql";
+const SCRIPT_MASKED_REJECTS: &str = include_str!("../migrations/0054_masked_rejects.sql");
+pub fn compiled_masked_rejects_digest() -> String {sha256_hex(SCRIPT_MASKED_REJECTS.as_bytes())}
+pub async fn install_masked_rejects(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0053_native_c5_multipart.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-multipart/v1"),Some(row)
+        if row_exact(row,"native-c5-multipart/v1",&prior,"0053_native_c5_multipart.sql")) {
+        return Err(InstallError::Refused { message: "masked rejects require exact 0053".into() });
+    }
+    let digest = compiled_masked_rejects_digest();
+    if let Some(row) = find_row(&rows, VERSION_MASKED_REJECTS) {
+        if !row_exact(row, VERSION_MASKED_REJECTS, &digest, FILE_MASKED_REJECTS) {
+            return mismatch(tx, Mismatch { version: VERSION_MASKED_REJECTS.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_MASKED_REJECTS).await?;
+        insert_markers(&mut tx,&[marker(VERSION_MASKED_REJECTS,&digest,FILE_MASKED_REJECTS)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_MULTIPART_CELLS: &str = "multipart-cells/v1";
+const FILE_MULTIPART_CELLS: &str = "0055_multipart_cells.sql";
+const SCRIPT_MULTIPART_CELLS: &str = include_str!("../migrations/0055_multipart_cells.sql");
+pub fn compiled_multipart_cells_digest() -> String {sha256_hex(SCRIPT_MULTIPART_CELLS.as_bytes())}
+pub async fn install_multipart_cells(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0054_masked_rejects.sql").as_bytes());
+    if !matches!(find_row(&rows,"masked-rejects/v1"),Some(row)
+        if row_exact(row,"masked-rejects/v1",&prior,"0054_masked_rejects.sql")) {
+        return Err(InstallError::Refused { message: "multipart cells require exact 0054".into() });
+    }
+    let digest = compiled_multipart_cells_digest();
+    if let Some(row) = find_row(&rows, VERSION_MULTIPART_CELLS) {
+        if !row_exact(row, VERSION_MULTIPART_CELLS, &digest, FILE_MULTIPART_CELLS) {
+            return mismatch(tx, Mismatch { version: VERSION_MULTIPART_CELLS.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_MULTIPART_CELLS).await?;
+        insert_markers(&mut tx,&[marker(VERSION_MULTIPART_CELLS,&digest,FILE_MULTIPART_CELLS)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_PUBLICATION: &str = "native-c5-publication/v1";
+const FILE_NATIVE_C5_PUBLICATION: &str = "0056_native_c5_publication.sql";
+const SCRIPT_NATIVE_C5_PUBLICATION: &str = include_str!("../migrations/0056_native_c5_publication.sql");
+
+pub fn compiled_native_c5_publication_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_PUBLICATION.as_bytes())
+}
+
+pub async fn install_native_c5_publication(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0055_multipart_cells.sql").as_bytes());
+    if !matches!(find_row(&rows,"multipart-cells/v1"),Some(row)
+        if row_exact(row,"multipart-cells/v1",&prior,"0055_multipart_cells.sql")) {
+        return Err(InstallError::Refused { message: "C5 range requires exact 0055".into() });
+    }
+    let digest = compiled_native_c5_publication_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_PUBLICATION) {
+        if !row_exact(row, VERSION_NATIVE_C5_PUBLICATION, &digest, FILE_NATIVE_C5_PUBLICATION) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_PUBLICATION.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_PUBLICATION).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_PUBLICATION,&digest,FILE_NATIVE_C5_PUBLICATION)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_SINGLE_BASELINE: &str = "native-c5-single-baseline/v1";
+const FILE_NATIVE_C5_SINGLE_BASELINE: &str = "0057_native_c5_single_baseline.sql";
+const SCRIPT_NATIVE_C5_SINGLE_BASELINE: &str = include_str!("../migrations/0057_native_c5_single_baseline.sql");
+
+pub fn compiled_native_c5_single_baseline_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_SINGLE_BASELINE.as_bytes())
+}
+
+pub async fn install_native_c5_single_baseline(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0056_native_c5_publication.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-publication/v1"),Some(row)
+        if row_exact(row,"native-c5-publication/v1",&prior,"0056_native_c5_publication.sql")) {
+        return Err(InstallError::Refused { message: "C5 range requires exact 0056".into() });
+    }
+    let digest = compiled_native_c5_single_baseline_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_SINGLE_BASELINE) {
+        if !row_exact(row, VERSION_NATIVE_C5_SINGLE_BASELINE, &digest, FILE_NATIVE_C5_SINGLE_BASELINE) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_SINGLE_BASELINE.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_SINGLE_BASELINE).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_SINGLE_BASELINE,&digest,FILE_NATIVE_C5_SINGLE_BASELINE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_MULTIPART_BASELINE_GUARD: &str = "native-c5-multipart-baseline-guard/v1";
+const FILE_NATIVE_C5_MULTIPART_BASELINE_GUARD: &str = "0058_native_c5_multipart_baseline_guard.sql";
+const SCRIPT_NATIVE_C5_MULTIPART_BASELINE_GUARD: &str = include_str!("../migrations/0058_native_c5_multipart_baseline_guard.sql");
+
+pub fn compiled_native_c5_multipart_baseline_guard_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_MULTIPART_BASELINE_GUARD.as_bytes())
+}
+
+pub async fn install_native_c5_multipart_baseline_guard(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0057_native_c5_single_baseline.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-single-baseline/v1"),Some(row)
+        if row_exact(row,"native-c5-single-baseline/v1",&prior,"0057_native_c5_single_baseline.sql")) {
+        return Err(InstallError::Refused { message: "C5 range requires exact 0057".into() });
+    }
+    let digest = compiled_native_c5_multipart_baseline_guard_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_MULTIPART_BASELINE_GUARD) {
+        if !row_exact(row, VERSION_NATIVE_C5_MULTIPART_BASELINE_GUARD, &digest, FILE_NATIVE_C5_MULTIPART_BASELINE_GUARD) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_MULTIPART_BASELINE_GUARD.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_MULTIPART_BASELINE_GUARD).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_MULTIPART_BASELINE_GUARD,&digest,FILE_NATIVE_C5_MULTIPART_BASELINE_GUARD)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_WIDE_COLUMNS: &str = "native-c5-wide-columns/v1";
+const FILE_NATIVE_C5_WIDE_COLUMNS: &str = "0059_native_c5_wide_columns.sql";
+const SCRIPT_NATIVE_C5_WIDE_COLUMNS: &str = include_str!("../migrations/0059_native_c5_wide_columns.sql");
+
+pub fn compiled_native_c5_wide_columns_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_WIDE_COLUMNS.as_bytes())
+}
+
+pub async fn install_native_c5_wide_columns(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0058_native_c5_multipart_baseline_guard.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-multipart-baseline-guard/v1"),Some(row)
+        if row_exact(row,"native-c5-multipart-baseline-guard/v1",&prior,"0058_native_c5_multipart_baseline_guard.sql")) {
+        return Err(InstallError::Refused { message: "wide columns require exact 0058".into() });
+    }
+    let digest = compiled_native_c5_wide_columns_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_WIDE_COLUMNS) {
+        if !row_exact(row, VERSION_NATIVE_C5_WIDE_COLUMNS, &digest, FILE_NATIVE_C5_WIDE_COLUMNS) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_WIDE_COLUMNS.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_WIDE_COLUMNS).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_WIDE_COLUMNS,&digest,FILE_NATIVE_C5_WIDE_COLUMNS)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_CELLS_ARRAY: &str = "native-c5-cells-array/v1";
+const FILE_NATIVE_C5_CELLS_ARRAY: &str = "0060_native_c5_cells_array.sql";
+const SCRIPT_NATIVE_C5_CELLS_ARRAY: &str = include_str!("../migrations/0060_native_c5_cells_array.sql");
+
+pub fn compiled_native_c5_cells_array_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_CELLS_ARRAY.as_bytes())
+}
+
+pub async fn install_native_c5_cells_array(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0059_native_c5_wide_columns.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-wide-columns/v1"),Some(row)
+        if row_exact(row,"native-c5-wide-columns/v1",&prior,"0059_native_c5_wide_columns.sql")) {
+        return Err(InstallError::Refused { message: "cells array requires exact 0059".into() });
+    }
+    let digest = compiled_native_c5_cells_array_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_CELLS_ARRAY) {
+        if !row_exact(row, VERSION_NATIVE_C5_CELLS_ARRAY, &digest, FILE_NATIVE_C5_CELLS_ARRAY) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_CELLS_ARRAY.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_C5_CELLS_ARRAY).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_C5_CELLS_ARRAY,&digest,FILE_NATIVE_C5_CELLS_ARRAY)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_LIBRARY_C1: &str = "native-library-c1/v1";
+const FILE_NATIVE_LIBRARY_C1: &str = "0089_native_library_c1.sql";
+const SCRIPT_NATIVE_LIBRARY_C1: &str = include_str!("../migrations/0089_native_library_c1.sql");
+
+pub fn compiled_native_library_c1_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_LIBRARY_C1.as_bytes())
+}
+
+pub async fn install_native_library_c1_target(target: &serde_json::Value) -> Result<(), &'static str> {
+    let mut connection = crate::native_update::connect_target(target).await?;
+    install_native_library_c1(&mut connection).await.map_err(|_| "install_refused")?;
+    install_native_library_mysql_receipt(&mut connection).await.map_err(|_| "install_refused")
+}
+
+pub async fn install_native_library_mysql_receipt(conn: &mut PgConnection) -> Result<(), InstallError> {
+    const VERSION: &str = "native-library-mysql-receipt/v1";
+    const FILE: &str = "0092_native_library_mysql_receipt.sql";
+    const SCRIPT: &str = include_str!("../migrations/0092_native_library_mysql_receipt.sql");
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_library_c1_digest();
+    if !matches!(find_row(&rows,VERSION_NATIVE_LIBRARY_C1),Some(row)
+        if row_exact(row,VERSION_NATIVE_LIBRARY_C1,&prior,FILE_NATIVE_LIBRARY_C1)) {
+        return Err(InstallError::Refused { message: "MySQL receipt compatibility requires exact 0089".into() });
+    }
+    let digest = sha256_hex(SCRIPT.as_bytes());
+    if let Some(row) = find_row(&rows, VERSION) {
+        if !row_exact(row, VERSION, &digest, FILE) {
+            return mismatch(tx, Mismatch { version: VERSION.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT).await?;
+        insert_markers(&mut tx, &[marker(VERSION, &digest, FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_library_c1(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    for (version, file, script) in [
+        ("native-library-existing-receipt-fields/v1", "0064_native_library_existing_receipt_fields.sql",
+         include_str!("../migrations/0064_native_library_existing_receipt_fields.sql")),
+        ("native-c1-source-names/v1", "0084_native_c1_source_names.sql",
+         include_str!("../migrations/0084_native_c1_source_names.sql")),
+    ] {
+        if !matches!(find_row(&rows,version),Some(row) if row_exact(row,version,&sha256_hex(script.as_bytes()),file)) {
+            return Err(InstallError::Refused { message: format!("C1 library requires exact {file}") });
+        }
+    }
+    let digest = compiled_native_library_c1_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_LIBRARY_C1) {
+        if !row_exact(row, VERSION_NATIVE_LIBRARY_C1, &digest, FILE_NATIVE_LIBRARY_C1) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_LIBRARY_C1.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_LIBRARY_C1).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_LIBRARY_C1, &digest, FILE_NATIVE_LIBRARY_C1)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_ORACLE_RANGE: &str = "native-c5-oracle-range/v1";
+const FILE_NATIVE_C5_ORACLE_RANGE: &str = "0090_native_c5_oracle_range.sql";
+const SCRIPT_NATIVE_C5_ORACLE_RANGE: &str = include_str!("../migrations/0090_native_c5_oracle_range.sql");
+
+pub fn compiled_native_c5_oracle_range_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_ORACLE_RANGE.as_bytes())
+}
+
+pub async fn install_native_c5_oracle_range_target(target: &serde_json::Value) -> Result<(), &'static str> {
+    let mut connection = crate::native_update::connect_target(target).await?;
+    install_native_c5_oracle_range(&mut connection).await.map_err(|_| "install_refused")
+}
+
+pub async fn install_native_c5_oracle_range(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0075_native_c5_indexed_exclusion.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-indexed-exclusion/v1"),Some(row)
+        if row_exact(row,"native-c5-indexed-exclusion/v1",&prior,"0075_native_c5_indexed_exclusion.sql")) {
+        return Err(InstallError::Refused { message: "Oracle C5 ranges require exact 0075".into() });
+    }
+    let digest = compiled_native_c5_oracle_range_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_ORACLE_RANGE) {
+        if !row_exact(row, VERSION_NATIVE_C5_ORACLE_RANGE, &digest, FILE_NATIVE_C5_ORACLE_RANGE) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_ORACLE_RANGE.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_C5_ORACLE_RANGE).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_C5_ORACLE_RANGE, &digest, FILE_NATIVE_C5_ORACLE_RANGE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_C5_ORACLE_PUBLICATION: &str = "native-c5-oracle-publication/v1";
+const FILE_NATIVE_C5_ORACLE_PUBLICATION: &str = "0093_native_c5_oracle_publication.sql";
+const SCRIPT_NATIVE_C5_ORACLE_PUBLICATION: &str = include_str!("../migrations/0093_native_c5_oracle_publication.sql");
+
+pub fn compiled_native_c5_oracle_publication_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_C5_ORACLE_PUBLICATION.as_bytes())
+}
+
+pub async fn install_native_c5_oracle_publication_target(target: &serde_json::Value) -> Result<(), &'static str> {
+    let mut conn = crate::native_update::connect_target(target).await?;
+    install_native_c5_oracle_publication(&mut conn).await.map_err(|_| "install_refused")
+}
+
+pub async fn install_native_c5_oracle_publication(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_c5_oracle_range_digest();
+    if !matches!(find_row(&rows,VERSION_NATIVE_C5_ORACLE_RANGE),Some(row)
+        if row_exact(row,VERSION_NATIVE_C5_ORACLE_RANGE,&prior,FILE_NATIVE_C5_ORACLE_RANGE)) {
+        return Err(InstallError::Refused { message: "Oracle C5 publication requires exact 0090".into() });
+    }
+    let digest = compiled_native_c5_oracle_publication_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_C5_ORACLE_PUBLICATION) {
+        if !row_exact(row, VERSION_NATIVE_C5_ORACLE_PUBLICATION, &digest, FILE_NATIVE_C5_ORACLE_PUBLICATION) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_C5_ORACLE_PUBLICATION.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_C5_ORACLE_PUBLICATION).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_C5_ORACLE_PUBLICATION, &digest, FILE_NATIVE_C5_ORACLE_PUBLICATION)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_ORACLE_C5_CATALOG: &str = "native-oracle-c5-catalog/v1";
+const FILE_NATIVE_ORACLE_C5_CATALOG: &str = "0094_native_oracle_c5_catalog.sql";
+const SCRIPT_NATIVE_ORACLE_C5_CATALOG: &str = include_str!("../migrations/0094_native_oracle_c5_catalog.sql");
+
+pub fn compiled_native_oracle_c5_catalog_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_ORACLE_C5_CATALOG.as_bytes())
+}
+
+pub async fn install_native_oracle_c5_catalog_target(target: &serde_json::Value) -> Result<(), &'static str> {
+    let mut conn = crate::native_update::connect_target(target).await?;
+    install_native_oracle_c5_catalog(&mut conn).await.map_err(|_| "install_refused")
+}
+
+pub async fn install_native_oracle_c5_catalog(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_c5_oracle_publication_digest();
+    if !matches!(find_row(&rows,VERSION_NATIVE_C5_ORACLE_PUBLICATION),Some(row)
+        if row_exact(row,VERSION_NATIVE_C5_ORACLE_PUBLICATION,&prior,FILE_NATIVE_C5_ORACLE_PUBLICATION)) {
+        return Err(InstallError::Refused { message: "Oracle C5 catalog requires exact 0093".into() });
+    }
+    let digest = compiled_native_oracle_c5_catalog_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_ORACLE_C5_CATALOG) {
+        if !row_exact(row, VERSION_NATIVE_ORACLE_C5_CATALOG, &digest, FILE_NATIVE_ORACLE_C5_CATALOG) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_ORACLE_C5_CATALOG.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_ORACLE_C5_CATALOG).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_ORACLE_C5_CATALOG, &digest, FILE_NATIVE_ORACLE_C5_CATALOG)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_ORACLE_OBSERVATION: &str = "native-oracle-observation/v1";
+const FILE_NATIVE_ORACLE_OBSERVATION: &str = "0096_native_oracle_observation.sql";
+const SCRIPT_NATIVE_ORACLE_OBSERVATION: &str = include_str!("../migrations/0096_native_oracle_observation.sql");
+
+pub fn compiled_native_oracle_observation_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_ORACLE_OBSERVATION.as_bytes())
+}
+
+pub async fn install_native_oracle_observation(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_oracle_c5_catalog_digest();
+    if !matches!(find_row(&rows,VERSION_NATIVE_ORACLE_C5_CATALOG),Some(row)
+        if row_exact(row,VERSION_NATIVE_ORACLE_C5_CATALOG,&prior,FILE_NATIVE_ORACLE_C5_CATALOG)) {
+        return Err(InstallError::Refused { message: "Oracle observation requires exact 0094".into() });
+    }
+    let digest = compiled_native_oracle_observation_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_ORACLE_OBSERVATION) {
+        if !row_exact(row, VERSION_NATIVE_ORACLE_OBSERVATION, &digest, FILE_NATIVE_ORACLE_OBSERVATION) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_ORACLE_OBSERVATION.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT_NATIVE_ORACLE_OBSERVATION).await?;
+        insert_markers(&mut tx, &[marker(VERSION_NATIVE_ORACLE_OBSERVATION, &digest, FILE_NATIVE_ORACLE_OBSERVATION)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_LIBRARY_PUBLICATION: &str = "native-library-publication/v1";
+const FILE_NATIVE_LIBRARY_PUBLICATION: &str = "0061_native_library_publication.sql";
+const SCRIPT_NATIVE_LIBRARY_PUBLICATION: &str = include_str!("../migrations/0061_native_library_publication.sql");
+
+pub fn compiled_native_library_publication_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_LIBRARY_PUBLICATION.as_bytes())
+}
+
+pub async fn install_native_library_publication(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0060_native_c5_cells_array.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-c5-cells-array/v1"),Some(row)
+        if row_exact(row,"native-c5-cells-array/v1",&prior,"0060_native_c5_cells_array.sql")) {
+        return Err(InstallError::Refused { message: "library publication requires exact 0060".into() });
+    }
+    let digest = compiled_native_library_publication_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_LIBRARY_PUBLICATION) {
+        if !row_exact(row, VERSION_NATIVE_LIBRARY_PUBLICATION, &digest, FILE_NATIVE_LIBRARY_PUBLICATION) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_LIBRARY_PUBLICATION.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_LIBRARY_PUBLICATION).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_LIBRARY_PUBLICATION,&digest,FILE_NATIVE_LIBRARY_PUBLICATION)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_LIBRARY_CLOSED_POINTER: &str = "native-library-closed-pointer/v1";
+const FILE_NATIVE_LIBRARY_CLOSED_POINTER: &str = "0062_native_library_closed_pointer.sql";
+const SCRIPT_NATIVE_LIBRARY_CLOSED_POINTER: &str = include_str!("../migrations/0062_native_library_closed_pointer.sql");
+
+pub fn compiled_native_library_closed_pointer_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_LIBRARY_CLOSED_POINTER.as_bytes())
+}
+
+pub async fn install_native_library_closed_pointer(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0061_native_library_publication.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-library-publication/v1"),Some(row)
+        if row_exact(row,"native-library-publication/v1",&prior,"0061_native_library_publication.sql")) {
+        return Err(InstallError::Refused { message: "library closed pointer requires exact 0061".into() });
+    }
+    let digest = compiled_native_library_closed_pointer_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_LIBRARY_CLOSED_POINTER) {
+        if !row_exact(row, VERSION_NATIVE_LIBRARY_CLOSED_POINTER, &digest, FILE_NATIVE_LIBRARY_CLOSED_POINTER) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_LIBRARY_CLOSED_POINTER.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_LIBRARY_CLOSED_POINTER).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_LIBRARY_CLOSED_POINTER,&digest,FILE_NATIVE_LIBRARY_CLOSED_POINTER)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_LIBRARY_CLOSED_RECEIPT: &str = "native-library-closed-receipt/v1";
+const FILE_NATIVE_LIBRARY_CLOSED_RECEIPT: &str = "0063_native_library_closed_receipt.sql";
+const SCRIPT_NATIVE_LIBRARY_CLOSED_RECEIPT: &str = include_str!("../migrations/0063_native_library_closed_receipt.sql");
+
+pub fn compiled_native_library_closed_receipt_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_LIBRARY_CLOSED_RECEIPT.as_bytes())
+}
+
+pub async fn install_native_library_closed_receipt(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0062_native_library_closed_pointer.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-library-closed-pointer/v1"),Some(row)
+        if row_exact(row,"native-library-closed-pointer/v1",&prior,"0062_native_library_closed_pointer.sql")) {
+        return Err(InstallError::Refused { message: "library closed receipt requires exact 0062".into() });
+    }
+    let digest = compiled_native_library_closed_receipt_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_LIBRARY_CLOSED_RECEIPT) {
+        if !row_exact(row, VERSION_NATIVE_LIBRARY_CLOSED_RECEIPT, &digest, FILE_NATIVE_LIBRARY_CLOSED_RECEIPT) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_LIBRARY_CLOSED_RECEIPT.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_LIBRARY_CLOSED_RECEIPT).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_LIBRARY_CLOSED_RECEIPT,&digest,FILE_NATIVE_LIBRARY_CLOSED_RECEIPT)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub const VERSION_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS: &str = "native-library-existing-receipt-fields/v1";
+const FILE_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS: &str = "0064_native_library_existing_receipt_fields.sql";
+const SCRIPT_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS: &str = include_str!("../migrations/0064_native_library_existing_receipt_fields.sql");
+
+pub fn compiled_native_library_existing_receipt_fields_digest() -> String {
+    sha256_hex(SCRIPT_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS.as_bytes())
+}
+
+pub async fn install_native_library_existing_receipt_fields(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = sha256_hex(include_str!("../migrations/0063_native_library_closed_receipt.sql").as_bytes());
+    if !matches!(find_row(&rows,"native-library-closed-receipt/v1"),Some(row)
+        if row_exact(row,"native-library-closed-receipt/v1",&prior,"0063_native_library_closed_receipt.sql")) {
+        return Err(InstallError::Refused { message: "library existing receipt fields require exact 0063".into() });
+    }
+    let digest = compiled_native_library_existing_receipt_fields_digest();
+    if let Some(row) = find_row(&rows, VERSION_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS) {
+        if !row_exact(row, VERSION_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS, &digest, FILE_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS) {
+            return mismatch(tx, Mismatch { version: VERSION_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx,"SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx,SCRIPT_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS).await?;
+        insert_markers(&mut tx,&[marker(VERSION_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS,&digest,FILE_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+const C5_INCREMENTAL_MIGRATIONS: [(&str, &str, &str); 11] = [
+    (
+        "native-c5-multipart-initialize/v1",
+        "0065_native_c5_multipart_initialize.sql",
+        include_str!("../migrations/0065_native_c5_multipart_initialize.sql"),
+    ),
+    (
+        "native-c5-overlay/v1",
+        "0066_native_c5_overlay.sql",
+        include_str!("../migrations/0066_native_c5_overlay.sql"),
+    ),
+    (
+        "native-c5-bounded-publication/v1",
+        "0067_native_c5_bounded_publication.sql",
+        include_str!("../migrations/0067_native_c5_bounded_publication.sql"),
+    ),
+    (
+        "native-c5-overlay-visibility/v1",
+        "0068_native_c5_overlay_visibility.sql",
+        include_str!("../migrations/0068_native_c5_overlay_visibility.sql"),
+    ),
+    (
+        "native-c5-published-baseline/v1",
+        "0069_native_c5_published_baseline.sql",
+        include_str!("../migrations/0069_native_c5_published_baseline.sql"),
+    ),
+    (
+        "native-c5-delta-reconcile/v1",
+        "0070_native_c5_delta_reconcile.sql",
+        include_str!("../migrations/0070_native_c5_delta_reconcile.sql"),
+    ),
+    (
+        "native-c5-empty-baseline/v1",
+        "0071_native_c5_empty_baseline.sql",
+        include_str!("../migrations/0071_native_c5_empty_baseline.sql"),
+    ),
+    (
+        "native-c5-float-archive/v1",
+        "0072_native_c5_float_archive.sql",
+        include_str!("../migrations/0072_native_c5_float_archive.sql"),
+    ),
+    (
+        "native-c5-digest-policy/v1",
+        "0073_native_c5_digest_policy.sql",
+        include_str!("../migrations/0073_native_c5_digest_policy.sql"),
+    ),
+    (
+        "native-c5-resumed-baseline/v1",
+        "0074_native_c5_resumed_baseline.sql",
+        include_str!("../migrations/0074_native_c5_resumed_baseline.sql"),
+    ),
+    (
+        "native-c5-indexed-exclusion/v1",
+        "0075_native_c5_indexed_exclusion.sql",
+        include_str!("../migrations/0075_native_c5_indexed_exclusion.sql"),
+    ),
+];
+
+pub fn compiled_native_c5_incremental_digest() -> String {
+    let mut hash = Sha256::new();
+    for (version, filename, script) in C5_INCREMENTAL_MIGRATIONS {
+        hash.update(version.as_bytes());
+        hash.update([0]);
+        hash.update(filename.as_bytes());
+        hash.update([0]);
+        hash.update(script.as_bytes());
+        hash.update([0]);
+    }
+    format!("{:x}", hash.finalize())
+}
+
+/// Install the complete bounded path atomically; an initializer alone is not publishable.
+pub async fn install_native_c5_incremental(conn: &mut PgConnection) -> Result<(), InstallError> {
+    let principal = read_principal(conn).await?;
+    let preview = read_catalog(conn).await?;
+    if !principal_can_install(&principal, &preview) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let prior = compiled_native_library_existing_receipt_fields_digest();
+    if !matches!(
+        find_row(&rows, VERSION_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS),
+        Some(row) if row_exact(row, VERSION_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS,
+            &prior, FILE_NATIVE_LIBRARY_EXISTING_RECEIPT_FIELDS)
+    ) {
+        return Err(InstallError::Refused {
+            message: "bounded C5 requires exact 0064".into(),
+        });
+    }
+    let mut missing = false;
+    for (version, filename, script) in C5_INCREMENTAL_MIGRATIONS {
+        let digest = sha256_hex(script.as_bytes());
+        if let Some(row) = find_row(&rows, version) {
+            if missing {
+                return Err(InstallError::Refused {
+                    message: "bounded C5 migration chain has a gap".into(),
+                });
+            }
+            if !row_exact(row, version, &digest, filename) {
+                return mismatch(tx, Mismatch {
+                    version: version.into(), stored: row.checksum.clone(),
+                }).await.map(|_| ());
+            }
+        } else {
+            missing = true;
+        }
+    }
+    exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+    for (version, filename, script) in C5_INCREMENTAL_MIGRATIONS {
+        if find_row(&rows, version).is_none() {
+            exec_script(&mut tx, script).await?;
+            insert_markers(&mut tx, &[marker(version, &sha256_hex(script.as_bytes()), filename)])
+                .await?;
+        }
+    }
+    tx.commit().await.map_err(database_error)
+}
+pub async fn install_native_pg_current(conn: &mut PgConnection) -> Result<(), InstallError> {
+    const VERSION: &str = "native-pg-current/v1";
+    const FILE: &str = "0116_native_pg_current.sql";
+    const SCRIPT: &str = include_str!("../migrations/0116_native_pg_current.sql");
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let previous = "native-mysql-complete-handoff/v1";
+    if !matches!(find_row(&rows, previous), Some(row) if row_exact(row, previous,
+        &sha256_hex(include_bytes!("../migrations/0115_native_mysql_complete_handoff.sql")),
+        "0115_native_mysql_complete_handoff.sql")) {
+        return Err(InstallError::Refused { message: "PG current requires exact 0115".into() });
+    }
+    let digest = sha256_hex(SCRIPT.as_bytes());
+    if let Some(row) = find_row(&rows, VERSION) {
+        if !row_exact(row, VERSION, &digest, FILE) {
+            return mismatch(tx, Mismatch { version: VERSION.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT).await?;
+        insert_markers(&mut tx, &[marker(VERSION, &digest, FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+pub async fn install_native_pg_seal_order(conn: &mut PgConnection) -> Result<(), InstallError> {
+    const VERSION: &str = "native-pg-seal-order/v1";
+    const FILE: &str = "0117_native_pg_seal_order.sql";
+    const SCRIPT: &str = include_str!("../migrations/0117_native_pg_seal_order.sql");
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    let previous = "native-pg-current/v1";
+    if !matches!(find_row(&rows, previous), Some(row) if row_exact(row, previous,
+        &sha256_hex(include_bytes!("../migrations/0116_native_pg_current.sql")),
+        "0116_native_pg_current.sql")) {
+        return Err(InstallError::Refused { message: "PG seal order requires exact 0116".into() });
+    }
+    let digest = sha256_hex(SCRIPT.as_bytes());
+    if let Some(row) = find_row(&rows, VERSION) {
+        if !row_exact(row, VERSION, &digest, FILE) {
+            return mismatch(tx, Mismatch { version: VERSION.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT).await?;
+        insert_markers(&mut tx, &[marker(VERSION, &digest, FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}
+
+/// PG-only publication bridge. Never rewrites the installed capture/ACK lane.
+pub async fn install_native_pg_publication(conn: &mut PgConnection) -> Result<(), InstallError> {
+    const VERSION: &str = "native-pg-current-publication/v1";
+    const FILE: &str = "0118_native_pg_current_publication.sql";
+    const SCRIPT: &str = include_str!("../migrations/0118_native_pg_current_publication.sql");
+    let principal = read_principal(conn).await?;
+    if !principal_can_install(&principal, &read_catalog(conn).await?) {
+        return Err(InstallError::NotAdministrator);
+    }
+    let mut tx = conn.begin().await.map_err(database_error)?;
+    prepare_locked(&mut tx, &principal).await?;
+    let rows = read_rows(&mut tx).await?;
+    for (version, filename, script) in [
+        ("native-pg-current/v1", "0116_native_pg_current.sql", include_str!("../migrations/0116_native_pg_current.sql")),
+        ("native-pg-seal-order/v1", "0117_native_pg_seal_order.sql", include_str!("../migrations/0117_native_pg_seal_order.sql")),
+    ] {
+        if !matches!(find_row(&rows, version), Some(row)
+            if row_exact(row, version, &sha256_hex(script.as_bytes()), filename)) {
+            return Err(InstallError::Refused { message: "PG publication requires exact 0116/0117".into() });
+        }
+    }
+    let digest = sha256_hex(SCRIPT.as_bytes());
+    if let Some(row) = find_row(&rows, VERSION) {
+        if !row_exact(row, VERSION, &digest, FILE) {
+            return mismatch(tx, Mismatch { version: VERSION.into(), stored: row.checksum.clone() }).await.map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, SCRIPT).await?;
+        insert_markers(&mut tx, &[marker(VERSION, &digest, FILE)]).await?;
+    }
+    tx.commit().await.map_err(database_error)
+}

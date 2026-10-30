@@ -17,7 +17,7 @@ pub fn from_context(value: &Value) -> Result<Option<Publication>, StoreError> {
         return Ok(None);
     };
     let object = context.as_object().ok_or(StoreError::Input)?;
-    if object.len() != 4 || object.get("protocol").and_then(Value::as_str) != Some(PROTOCOL) {
+    if object.len() != 4 || object.get("protocol").and_then(Value::as_str) != Some(PROTOCOL) && object.get("protocol").and_then(Value::as_str) != Some(crate::native_library::PROTOCOL) {
         return Err(StoreError::Input);
     }
     let run_id = object
@@ -31,7 +31,20 @@ pub fn from_context(value: &Value) -> Result<Option<Publication>, StoreError> {
         .filter(|sha| hex64(sha))
         .ok_or(StoreError::Input)?;
     let receipt = object.get("receipt").cloned().ok_or(StoreError::Input)?;
-    validate_receipt(&receipt, run_id)?;
+    if crate::native_library::is_library(&receipt) {
+        crate::native_library::validate(&receipt, run_id)?;
+        if object.get("protocol").and_then(Value::as_str) != Some(crate::native_library::PROTOCOL) { return Err(StoreError::Input); }
+    } else {
+        if object.get("protocol").and_then(Value::as_str) != Some(PROTOCOL) { return Err(StoreError::Input); }
+        // Only the library envelope proves the complete multi-table membership.
+        // Preserve the legacy single-collection boundary at its entry point.
+        if receipt["tables"].as_array().is_some_and(|tables| tables.len() > 256)
+            || receipt.get("run_ids").and_then(Value::as_array).is_some_and(|runs| runs.len() > 32)
+        {
+            return Err(StoreError::Input);
+        }
+        validate_receipt(&receipt, run_id)?;
+    }
     if crate::canon::canonical_sha(&receipt) != receipt_sha256 {
         return Err(StoreError::Input);
     }
@@ -57,14 +70,28 @@ pub fn validate_context(value: &Value) -> Result<(), StoreError> {
             .get("datasets")
             .and_then(Value::as_array)
             .ok_or(StoreError::Input)?;
-        let receipt_tables = publication.receipt["tables"]
-            .as_array()
-            .ok_or(StoreError::Input)?;
+        let receipt_tables = crate::native_library::tables(&publication.receipt)?;
         if entries.len() != receipt_tables.len() {
             return Err(StoreError::Input);
         }
+        let library_tables = if crate::native_library::is_library(&publication.receipt) {
+            let mut indexed = std::collections::BTreeMap::new();
+            for table in &receipt_tables {
+                let (schema, name) = storage_names(table)?;
+                if indexed.insert(format!("{schema}.{name}"), table).is_some() {
+                    return Err(StoreError::Input);
+                }
+            }
+            Some(indexed)
+        } else {
+            None
+        };
         let mut datasets = BTreeSet::new();
-        for (entry, table) in entries.iter().zip(receipt_tables) {
+        for (entry, ordered_table) in entries.iter().zip(&receipt_tables) {
+            let table = if let Some(indexed) = &library_tables {
+                *indexed.get(entry["dataset"].as_str().ok_or(StoreError::Input)?)
+                    .ok_or(StoreError::Input)?
+            } else { ordered_table };
             let dataset = entry
                 .get("dataset")
                 .and_then(Value::as_str)
@@ -80,15 +107,14 @@ pub fn validate_context(value: &Value) -> Result<(), StoreError> {
                 .ok_or(StoreError::Input)?;
             if !datasets.insert(dataset.to_owned())
                 || source
-                    != publication.receipt["source_id"]
+                    != (if crate::native_library::is_library(&publication.receipt) { &table["source_id"] } else { &publication.receipt["source_id"] })
                         .as_str()
                         .ok_or(StoreError::Input)?
                 || generation
-                    != (if per_table_collection(&publication.receipt) { &table["source_generation"] } else { &publication.receipt["source_generation"] })
+                    != (if per_table_collection(&publication.receipt) || crate::native_library::is_library(&publication.receipt) { &table["source_generation"] } else { &publication.receipt["source_generation"] })
                         .as_i64()
                         .ok_or(StoreError::Input)?
-                || schema != table["schema"].as_str().ok_or(StoreError::Input)?
-                || name != table["table"].as_str().ok_or(StoreError::Input)?
+                || (schema, name) != storage_names(table)?
             {
                 return Err(StoreError::Input);
             }
@@ -97,7 +123,9 @@ pub fn validate_context(value: &Value) -> Result<(), StoreError> {
     Ok(())
 }
 
-fn validate_receipt(receipt: &Value, run_id: &str) -> Result<(), StoreError> {
+/// Validate every member; library callers additionally bind full membership and
+/// explicit publication capacity. Non-library limits belong to `from_context`.
+pub(crate) fn validate_receipt(receipt: &Value, run_id: &str) -> Result<(), StoreError> {
     if receipt.as_object().is_none()
         || receipt["protocol"].as_str() != Some(PROTOCOL)
         || receipt["run_id"].as_str() != Some(run_id)
@@ -129,10 +157,10 @@ fn validate_receipt(receipt: &Value, run_id: &str) -> Result<(), StoreError> {
     }
     let tables = receipt["tables"]
         .as_array()
-        .filter(|items| !items.is_empty() && items.len() <= 256)
+        .filter(|items| !items.is_empty())
         .ok_or(StoreError::Input)?;
     if let Some(runs)=receipt.get("run_ids") {
-        let runs=runs.as_array().filter(|r|r.len()==tables.len() && r.len()<=32).ok_or(StoreError::Input)?;
+        let runs=runs.as_array().filter(|r|r.len()==tables.len()).ok_or(StoreError::Input)?;
         let ids=runs.iter().map(|v|v.as_str().filter(|s|uuid_ok(s)).ok_or(StoreError::Input)).collect::<Result<BTreeSet<_>,_>>()?;
         if per_table_collection(receipt) {
             if ids.len()!=runs.len() || !ids.contains(run_id)
@@ -142,12 +170,17 @@ fn validate_receipt(receipt: &Value, run_id: &str) -> Result<(), StoreError> {
                 || tables.iter().map(|t|t["run_id"].as_str().filter(|id|ids.contains(id)).ok_or(StoreError::Input)).collect::<Result<BTreeSet<_>,_>>()?.len()!=ids.len()
                 || !tables.iter().any(|t| t["run_id"]==run_id && t["source_generation"]==receipt["source_generation"] && t["target_generation"]==receipt["target_generation"])
             {return Err(StoreError::Input);}
-        } else if ids.len()!=runs.len() || !ids.contains(run_id) || codec!="mysql-gtid/v1"
+        } else if ids.len()!=runs.len() || !ids.contains(run_id)
+            || !matches!(codec, "mysql-gtid/v1" | "oracle-capture-sequence/v1")
             || receipt["consistency"]!="transactional" || receipt["consistency_grade"]!="T"
             || receipt["cross_table_consistent"]!=true || receipt["source_epoch"].as_i64().is_none_or(|n|n<1)
-            || receipt["position_lineage"].as_str().is_none_or(|s|s.strip_prefix("mysql.").is_none_or(|id|!uuid_ok(id)))
+            || (codec=="mysql-gtid/v1" && (receipt.get("oracle_buffer").is_some()
+                || receipt["position_lineage"].as_str().is_none_or(|s|s.strip_prefix("mysql.").is_none_or(|id|!uuid_ok(id)))))
             || tables.iter().map(|t|t["run_id"].as_str().filter(|id|ids.contains(id)).ok_or(StoreError::Input)).collect::<Result<BTreeSet<_>,_>>()?.len()!=ids.len()
         {return Err(StoreError::Input);}
+    }
+    if codec == "oracle-capture-sequence/v1" {
+        validate_oracle_c1(receipt)?;
     }
     let mut names = BTreeSet::new();
     for table in tables {
@@ -179,12 +212,97 @@ fn validate_receipt(receipt: &Value, run_id: &str) -> Result<(), StoreError> {
     Ok(())
 }
 
+/// Lookup names are separate from the original hash-bound source identity.
+pub(crate) fn storage_names(table: &Value) -> Result<(&str, &str), StoreError> {
+    let nonempty = |v: &Value| v.as_str().is_some_and(|s| !s.is_empty());
+    if !nonempty(&table["schema"]) || !nonempty(&table["table"]) {
+        return Err(StoreError::Input);
+    }
+    match (table.get("storage_schema"), table.get("storage_table")) {
+        (None, None) => Ok((table["schema"].as_str().unwrap(), table["table"].as_str().unwrap())),
+        (Some(s), Some(t)) if nonempty(s) && nonempty(t)
+            && storage_alias(table["schema"].as_str().unwrap(), s.as_str().unwrap())
+            && storage_alias(table["table"].as_str().unwrap(), t.as_str().unwrap())
+            => Ok((s.as_str().unwrap(), t.as_str().unwrap())),
+        _ => Err(StoreError::Input),
+    }
+}
+
+fn storage_alias(original: &str, stored: &str) -> bool {
+    let normalized = oo_builder::nfc(original);
+    let encoded = format!("q_{}", normalized.bytes().map(|b| format!("{b:02x}")).collect::<String>());
+    !original.chars().any(char::is_control) && (stored == normalized || stored == encoded)
+}
+
+fn exact_keys(value: &Value, keys: &[&str]) -> bool {
+    value.as_object().is_some_and(|v| v.len() == keys.len() && keys.iter().all(|k| v.contains_key(*k)))
+}
+
+fn oracle_token(value: &Value) -> bool {
+    value.as_str().is_some_and(|s| !s.is_empty() && s.len() <= 128
+        && s.bytes().all(|b| b.is_ascii_alphanumeric() || b"_-$#".contains(&b)))
+}
+
+fn decimal(value: &Value, nonzero: bool) -> bool {
+    value.as_str().is_some_and(|s| !s.is_empty() && s.len() <= 38
+        && s.bytes().all(|b| b.is_ascii_digit()) && (s.len() == 1 || !s.starts_with('0'))
+        && (!nonzero || s != "0"))
+}
+
+fn validate_oracle_c1(receipt: &Value) -> Result<(), StoreError> {
+    let buffer = &receipt["oracle_buffer"];
+    let identity = &buffer["source_identity"];
+    let cursor = &buffer["final_cursor"];
+    let ordinal = cursor["transaction_ordinal"].as_str().and_then(|s|
+        s.parse::<u64>().ok().filter(|n| n.to_string() == s));
+    if !exact_keys(receipt, &["protocol","run_id","run_ids","source_id","source_generation",
+        "target_generation","source_epoch","position_codec","position_lineage","applied_pos",
+        "consistency","consistency_grade","cross_table_consistent","tables","oracle_buffer"])
+        || receipt["consistency"] != "transactional" || receipt["consistency_grade"] != "T"
+        || receipt["cross_table_consistent"] != true
+        || !exact_keys(buffer, &["checkpoint_kind","source_offset_write","source_identity",
+            "final_cursor","commit_scn","context_sha256","bundle_sha256","spool_sha256",
+            "typed_schema_sha256","connector_offsets_sha256","connector_history_sha256"])
+        || buffer["checkpoint_kind"] != "buffer_consumption" || buffer["source_offset_write"] != false
+        || !exact_keys(identity, &["engine","dbid","resetlogs_change","pdb_guid","pdb_name","db_unique_name"])
+        || identity["engine"] != "oracle" || !decimal(&identity["dbid"], true)
+        || !decimal(&identity["resetlogs_change"], false)
+        || !oracle_token(&identity["pdb_name"]) || !oracle_token(&identity["db_unique_name"])
+        || identity["pdb_guid"].as_str().is_none_or(|s| s.len()!=32
+            || !s.bytes().all(|b| b.is_ascii_digit() || (b'A'..=b'F').contains(&b)))
+        || ["context_sha256","bundle_sha256","spool_sha256","typed_schema_sha256",
+            "connector_offsets_sha256","connector_history_sha256"].iter()
+            .any(|k| buffer[*k].as_str().is_none_or(|s| !hex64(s)))
+        || !exact_keys(cursor, &["transaction_ordinal","transaction_id"])
+        || ordinal.is_none()
+    { return Err(StoreError::Input); }
+    let ordinal = ordinal.unwrap();
+    let lineage = format!("oracle.{}.{}.{}", identity["dbid"].as_str().unwrap(),
+        identity["resetlogs_change"].as_str().unwrap(), identity["pdb_guid"].as_str().unwrap().to_lowercase());
+    if receipt["position_lineage"] != lineage || receipt["applied_pos"] != ordinal.to_string()
+        || (ordinal == 0 && (!cursor["transaction_id"].is_null() || !buffer["commit_scn"].is_null()))
+        || (ordinal > 0 && (!oracle_token(&cursor["transaction_id"]) || !decimal(&buffer["commit_scn"], true)))
+    { return Err(StoreError::Input); }
+    let mut identities = BTreeSet::new();
+    for table in receipt["tables"].as_array().ok_or(StoreError::Input)? {
+        if !exact_keys(table, &["schema","table","run_id","physical_name","accepted_rows",
+            "canonical_digest","source_generation","target_generation","applied_pos","rejects",
+            "storage_schema","storage_table"])
+            || table["applied_pos"] != receipt["applied_pos"] || !table["rejects"].is_array()
+            || !identities.insert(storage_names(table)?)
+        { return Err(StoreError::Input); }
+    }
+    Ok(())
+}
+
 pub fn per_table_collection(receipt: &Value) -> bool {
     receipt["collection_mode"].as_str()==Some("per_table")
 }
 
 pub fn publication_sql(receipt: &Value) -> &'static str {
-    if per_table_collection(receipt) {
+    if crate::native_library::is_library(receipt) {
+        "SELECT _oo.publish_native_library(($3::text::jsonb)->'library', $2, ($3::text::jsonb)->'shards')::text WHERE $1::text IS NOT NULL"
+    } else if per_table_collection(receipt) {
         "SELECT _oo.publish_native_per_table_collection($1::text::uuid, $2, $3::text::jsonb)::text"
     } else if receipt.get("run_ids").is_some() {
         "SELECT _oo.publish_native_c1_collection($1::text::uuid, $2, $3::text::jsonb)::text"
@@ -224,6 +342,100 @@ fn hex64(value: &str) -> bool {
 mod tests {
     use super::{from_context, publication_sql, validate_context};
     use serde_json::json;
+
+    #[test]
+    fn oracle_cursor_has_no_million_cycle_ceiling_but_stays_canonical_and_bound() {
+        let original: serde_json::Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/oracle_c1_library.json")).unwrap();
+        let mut receipt = original["shards"][0]["receipt"].clone();
+        for ordinal in ["1000001", "18446744073709551615"] {
+            receipt["oracle_buffer"]["final_cursor"]["transaction_ordinal"] = json!(ordinal);
+            receipt["oracle_buffer"]["final_cursor"]["transaction_id"] = json!("TX1");
+            receipt["oracle_buffer"]["commit_scn"] = json!("42");
+            receipt["applied_pos"] = json!(ordinal);
+            for table in receipt["tables"].as_array_mut().unwrap() {
+                table["applied_pos"] = json!(ordinal);
+            }
+            assert!(super::validate_oracle_c1(&receipt).is_ok());
+        }
+        for wrong in ["01000001", "-1", "1.5", "18446744073709551616"] {
+            let mut bad = receipt.clone();
+            bad["oracle_buffer"]["final_cursor"]["transaction_ordinal"] = json!(wrong);
+            assert!(super::validate_oracle_c1(&bad).is_err());
+        }
+        receipt["tables"][0]["applied_pos"] = json!("1000000");
+        assert!(super::validate_oracle_c1(&receipt).is_err());
+    }
+
+    fn wide_library_context(count: usize) -> serde_json::Value {
+        let mut receipt: serde_json::Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/oracle_c1_library.json")).unwrap();
+        let template = receipt["shards"][0]["receipt"]["tables"][0].clone();
+        let tables: Vec<_> = (1..=count).map(|index| {
+            let mut table = template.clone();
+            let name = format!("T{index:04}");
+            table["table"] = json!(name);
+            table["storage_table"] = json!(format!("q_{}",
+                name.bytes().map(|b| format!("{b:02x}")).collect::<String>()));
+            table["run_id"] = json!(format!("00000000-0000-4000-8000-{index:012x}"));
+            table["physical_name"] = json!(format!("pt_{index:060x}"));
+            table
+        }).collect();
+        receipt["library"]["manifest"]["sources"][0]["tables"] =
+            json!(tables.iter().map(|t| t["storage_table"].clone()).collect::<Vec<_>>());
+        receipt["library"]["expected_tables"] = json!(count);
+        receipt["library"]["manifest_sha256"] =
+            json!(crate::canon::canonical_sha(&receipt["library"]["manifest"]));
+        receipt["shards"][0]["receipt"]["run_ids"] =
+            json!(tables.iter().map(|t| t["run_id"].clone()).collect::<Vec<_>>());
+        receipt["shards"][0]["receipt"]["tables"] = json!(tables);
+        let entries: Vec<_> = tables.iter().map(|t| json!({
+            "dataset":format!("{}.{}", t["storage_schema"].as_str().unwrap(),
+                t["storage_table"].as_str().unwrap()),
+            "source":"oracle_fixture", "config_digest":"a".repeat(64), "generation":1
+        })).collect();
+        let mut context = json!({"datasets":entries,"publication":{
+            "protocol":crate::native_library::PROTOCOL,
+            "run_id":receipt["shards"][0]["anchor_run"], "receipt":receipt}});
+        rehash_library(&mut context);
+        context
+    }
+
+    fn rehash_library(context: &mut serde_json::Value) {
+        let receipt = &mut context["publication"]["receipt"];
+        receipt["shards"][0]["receipt_sha256"] =
+            json!(crate::canon::canonical_sha(&receipt["shards"][0]["receipt"]));
+        context["publication"]["receipt_sha256"] =
+            json!(crate::canon::canonical_sha(&context["publication"]["receipt"]));
+    }
+
+    #[test]
+    fn complete_library_shard_has_no_legacy_total_table_ceiling() {
+        for count in [33, 257] {
+            let context = wide_library_context(count);
+            assert!(crate::target::validate_native_context(&context).is_ok(), "{count}");
+            let mut legacy = context.clone();
+            legacy["publication"]["protocol"] = json!(super::PROTOCOL);
+            legacy["publication"]["receipt"] = context["publication"]["receipt"]["shards"][0]["receipt"].clone();
+            legacy["publication"]["receipt_sha256"] =
+                json!(crate::canon::canonical_sha(&legacy["publication"]["receipt"]));
+            assert!(from_context(&legacy).is_err(), "legacy contract remains bounded");
+        }
+        let original = wide_library_context(33);
+        for fault in 0..5 {
+            let mut bad = original.clone();
+            let receipt = &mut bad["publication"]["receipt"]["shards"][0]["receipt"];
+            match fault {
+                0 => { receipt["run_ids"].as_array_mut().unwrap().pop(); },
+                1 => receipt["tables"][32] = receipt["tables"][0].clone(),
+                2 => receipt["tables"][32]["target_generation"] = json!(2),
+                3 => receipt["tables"][32]["canonical_digest"] = json!("not_a_digest"),
+                _ => { bad["datasets"].as_array_mut().unwrap().pop(); },
+            }
+            rehash_library(&mut bad);
+            assert!(crate::target::validate_native_context(&bad).is_err(), "{fault}");
+        }
+    }
 
     #[test]
     fn c1_collection_requires_closed_complete_run_vector() {

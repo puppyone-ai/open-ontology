@@ -30,7 +30,10 @@ pub fn preconditions(effective: &Value) -> Result<Vec<Precondition>, &'static st
     if !document_shape(object) {
         return Err("effective");
     }
-    let metrics = nonempty(object, "metrics");
+    // Explicitly uncertified candidates may be published as such; they do not assert a control total.
+    // Missing or malformed certification still takes the stricter path.
+    let metrics = object.get("metrics").and_then(Value::as_array)
+        .is_some_and(|items| items.iter().any(|metric| metric.get("certified") != Some(&Value::Bool(false))));
     let examples = nonempty(object, "examples");
     let evals = object
         .get("ontology")
@@ -79,6 +82,37 @@ pub fn preconditions(effective: &Value) -> Result<Vec<Precondition>, &'static st
     ])
 }
 
+pub(crate) fn blocked_precondition(
+    effective: &Value,
+    gate: &str,
+) -> Result<Option<Precondition>, &'static str> {
+    Ok(preconditions(effective)?
+        .into_iter()
+        .find(|row| row.gate_id == gate && row.disposition == "blocked"))
+}
+
+pub(crate) fn enforce_preconditions(
+    effective: &Value,
+    gates: &mut [crate::decide::Summary],
+) -> Result<(), &'static str> {
+    // A generic test_issuer claim or a stale maintenance overlay is not business
+    // execution/review evidence. Apply the same guard at every plan/CAS recheck.
+    for row in preconditions(effective)? {
+        if row.disposition == "blocked" {
+            let gate = gates
+                .iter_mut()
+                .find(|gate| gate.gate_id == row.gate_id)
+                .ok_or("gate_coverage")?;
+            if !matches!(gate.disposition.as_str(), "failed" | "conflict") {
+                gate.disposition = "blocked".into();
+            }
+            gate.test_admissible = false;
+            gate.production_admissible = false;
+        }
+    }
+    Ok(())
+}
+
 pub fn measure_g1(effective: &Value) -> Measured {
     let shape = effective.as_object().is_some_and(document_shape)
         && unique_names(effective)
@@ -125,11 +159,21 @@ pub fn measure_g2(effective: &Value, visibility: &Value, types: &[(String, Strin
                     && name == column)
         });
         match (data_type, found) {
-            (Some(expected), Some((_, typname))) => expected == typname,
+            (Some(expected), Some((_, typname))) => pg_type_identity(expected) == pg_type_identity(typname),
             _ => false,
         }
     });
     measured("G2", ok, "fail")
+}
+
+pub(crate) fn pg_type_identity(value: &str) -> &str {
+    match value {
+        "bigint" | "int8" => "int8", "integer" | "int4" => "int4", "smallint" | "int2" => "int2",
+        "boolean" | "bool" => "bool", "double precision" | "float8" => "float8", "real" | "float4" => "float4",
+        "character varying" | "varchar" => "varchar", "character" | "bpchar" => "bpchar",
+        "timestamp without time zone" | "timestamp" => "timestamp", "timestamp with time zone" | "timestamptz" => "timestamptz",
+        _ => value,
+    }
 }
 
 pub fn measure_g3(effective: &Value) -> Measured {
@@ -221,22 +265,32 @@ pub fn measure_g13(effective: &Value, visibility: &Value) -> Measured {
         return measured("G13", false, "fail");
     }
     let role = visibility.get("role").and_then(Value::as_str);
+    let reviewed_visibility = effective["protocol"] == "oo.builder.effective-oos/v1"
+        && visibility["protocol"] == "oo.builder.role-visibility/v1";
     let ok = columns.iter().all(|(dataset, column)| {
         matches!(
             classification_state(effective, dataset, column),
             Some("confirmed" | "auto_accepted")
-        ) && sensitive_role_allowed(effective, dataset, column, role)
+        ) && sensitive_role_allowed(effective, dataset, column, role, reviewed_visibility)
     });
     measured("G13", ok, "fail")
 }
 
 pub type VisibilityBinding = (String, String, String, Vec<String>);
 pub fn visibility_bindings(visibility: &Value) -> Result<Vec<VisibilityBinding>, &'static str> {
+    visibility_bindings_with_ceiling(visibility, 256)
+}
+
+pub fn visibility_bindings_with_ceiling(visibility: &Value, installed_ceiling: usize) -> Result<Vec<VisibilityBinding>, &'static str> {
     let datasets = visibility
         .get("datasets")
         .and_then(Value::as_array)
         .ok_or("visibility")?;
-    if datasets.is_empty() || datasets.len() > 256 {
+    if installed_ceiling == 0 || installed_ceiling > 1_048_576 {
+        return Err("visibility");
+    }
+    let ceiling=visibility.pointer("/limits/max_datasets").map(|n|n.as_u64().filter(|n|*n>0 && *n<=1_048_576).ok_or("visibility")).transpose()?.unwrap_or(installed_ceiling as u64);
+    if datasets.is_empty() || datasets.len() as u64 > ceiling {
         return Err("visibility");
     }
     let role = visibility
@@ -275,6 +329,28 @@ pub fn visibility_bindings(visibility: &Value) -> Result<Vec<VisibilityBinding>,
         ));
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod installed_visibility_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn whole_library_uses_installation_capacity_without_mutating_the_pack() {
+        let visibility = json!({
+            "role": "oo_r_reader",
+            "datasets": (0..658).map(|i| json!({
+                "dataset": format!("sample.t{i}"),
+                "row_security": "none",
+                "columns": ["id"]
+            })).collect::<Vec<_>>()
+        });
+        assert!(visibility_bindings(&visibility).is_err());
+        assert_eq!(visibility_bindings_with_ceiling(&visibility, 1024).unwrap().len(), 658);
+        assert!(visibility_bindings_with_ceiling(&visibility, 657).is_err());
+        assert!(visibility.get("limits").is_none());
+    }
 }
 
 fn measured(gate_id: &'static str, ok: bool, bad: &'static str) -> Measured {
@@ -340,7 +416,9 @@ fn token_budgets(effective: &Value) -> Option<(u64, u64)> {
 }
 
 fn file_token_budget(path: &str, readme: u64, table: u64) -> u64 {
-    if path == "README.md" {
+    // The root manifest indexes the entire library, like the README. It is
+    // still bounded, but must not inherit one table's document budget.
+    if path == "README.md" || path == "manifest.json" {
         readme
     } else if path.starts_with("tables/") && path.ends_with(".md") {
         table
@@ -350,24 +428,7 @@ fn file_token_budget(path: &str, readme: u64, table: u64) -> u64 {
 }
 
 fn unicode_word_tokens(text: &str) -> u64 {
-    let mut count = 0_u64;
-    let mut in_word = false;
-    for ch in text.chars() {
-        if ch.is_whitespace() {
-            in_word = false;
-            continue;
-        }
-        if ch.is_alphanumeric() {
-            if !in_word {
-                count = count.saturating_add(1);
-                in_word = true;
-            }
-        } else {
-            count = count.saturating_add(1);
-            in_word = false;
-        }
-    }
-    count
+    oo_builder::unicode_word_tokens(text)
 }
 
 fn flag(
@@ -557,21 +618,40 @@ fn sensitive_role_allowed(
     dataset: &str,
     column: &str,
     role: Option<&str>,
+    reviewed_visibility: bool,
 ) -> bool {
     let Some(object) = column_object(effective, dataset, column) else {
         return false;
     };
-    let pii = object.get("pii").and_then(Value::as_str).unwrap_or("none");
-    if !matches!(pii, "personal" | "sensitive") {
-        return true;
-    }
     let Some(role) = role else {
         return false;
     };
-    object
-        .get("allowed_roles")
-        .and_then(Value::as_array)
-        .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(role)))
+    if !role.strip_prefix("oo_r_").is_some_and(|slug| {
+        !slug.is_empty()
+            && slug.len() <= 58
+            && slug.as_bytes()[0].is_ascii_lowercase()
+            && slug
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+    }) {
+        return false;
+    }
+    let Some(pii @ ("none" | "personal" | "sensitive" | "restricted")) =
+        object.get("pii").and_then(Value::as_str)
+    else {
+        return false;
+    };
+    if let Some(roles) = object.get("allowed_roles") {
+        return roles
+            .as_array()
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(role)));
+    }
+    // The caller visits only columns in the candidate's sealed role visibility.
+    pii == "none"
+        || (reviewed_visibility
+            && object["classification"]["by"]
+                .as_str()
+                .is_some_and(|reviewer| !reviewer.trim().is_empty()))
 }
 
 #[cfg(test)]
@@ -735,6 +815,21 @@ mod tests {
     }
 
     #[test]
+    fn root_manifest_uses_the_explicit_library_budget() {
+        let effective = json!({
+            "ontology": {"compile": {"budgets": {"readme_tokens": 10, "table_file_tokens": 2}}}
+        });
+        let visibility = json!({"limits": {"max_file_bytes": 1000, "max_total_bytes": 5000}});
+        let manifest = [("manifest.json", "one two three")];
+        assert_eq!(super::measure_g9(&effective, &visibility, &[13], Some(&manifest)).status, "pass");
+        let table = [("tables/sample.md", "one two three")];
+        assert_eq!(super::measure_g9(&effective, &visibility, &[13], Some(&table)).status, "fail");
+        let too_large = [("manifest.json", "one two three four five six seven eight nine ten eleven")];
+        assert_eq!(super::measure_g9(&effective, &visibility, &[60], Some(&too_large)).status, "fail");
+        assert_eq!(super::measure_g9(&effective, &visibility, &[1001], Some(&manifest)).status, "fail");
+    }
+
+    #[test]
     fn g2_does_not_pass_when_the_catalog_column_has_no_data_type() {
         let document = json!({
             "protocol": "oo.builder.effective-oos/v1",
@@ -793,4 +888,177 @@ mod tests {
                 .any(|row| row.gate_id == "G10" && row.disposition == "blocked")
         );
     }
+
+    #[test]
+    fn candidate_metrics_do_not_claim_certification_or_block_catalog_read_access() {
+        let mut document = shop_like();
+        document["metrics"] = json!([{"metric":"reference", "certified":false, "status":"draft"}]);
+        let gates = preconditions(&document).unwrap();
+        for id in ["G5a", "G5b", "G11"] {
+            assert_eq!(gates.iter().find(|g| g.gate_id == id).unwrap().disposition, "not_applicable");
+        }
+        for value in [serde_json::Value::Null, json!(true), json!("false")] {
+            document["metrics"][0]["certified"] = value;
+            let gates = preconditions(&document).unwrap();
+            assert!(gates.iter().filter(|g| ["G5a", "G5b", "G11"].contains(&g.gate_id))
+                .all(|g| g.disposition == "blocked"));
+        }
+    }
+}
+
+#[cfg(test)]
+mod pii_read_grant_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn documents(pii: Value) -> (Value, Value) {
+        (
+            json!({
+                "protocol":"oo.builder.effective-oos/v1",
+                "datasets":[{"dataset":"app.items","columns":[
+                    {"name":"id","pii":"none","classification":{"state":"confirmed"}},
+                    {"name":"contact","pii":pii,"classification":{
+                        "state":"confirmed","by":"operator_full_read_scope"}}
+                ]}]
+            }),
+            json!({
+                "protocol":"oo.builder.role-visibility/v1","role":"oo_r_reader",
+                "datasets":[{"dataset":"app.items","row_security":"none","columns":["id","contact"]}]
+            }),
+        )
+    }
+
+    #[test]
+    fn g13_uses_reviewed_role_visibility_for_every_declared_pii_level() {
+        for pii in ["none", "personal", "sensitive", "restricted"] {
+            let (mut effective, mut visibility) = documents(json!(pii));
+            assert_eq!(measure_g13(&effective, &visibility).status, "pass", "{pii}");
+            effective["datasets"][0]["columns"][1]["classification"]["state"] = json!("pending");
+            assert_eq!(measure_g13(&effective, &visibility).status, "fail");
+            visibility["datasets"][0]["columns"] = json!(["id"]);
+            assert_eq!(measure_g13(&effective, &visibility).status, "pass");
+            visibility["datasets"][0]["columns"] = json!([]);
+            assert_eq!(measure_g13(&effective, &visibility).status, "fail");
+        }
+    }
+
+    #[test]
+    fn g13_does_not_bypass_role_restrictions_even_for_non_pii() {
+        for pii in ["none", "personal", "sensitive", "restricted"] {
+            let (effective, visibility) = documents(json!(pii));
+            for role in [
+                Value::Null,
+                json!(""),
+                json!("oo_r_"),
+                json!("reader"),
+                json!("oo_r_bad-role"),
+            ] {
+                let mut wrong = visibility.clone();
+                wrong["role"] = role;
+                assert_eq!(measure_g13(&effective, &wrong).status, "fail", "{pii}");
+            }
+            for roles in [
+                Value::Null,
+                json!([]),
+                json!(["oo_r_other"]),
+                json!("oo_r_reader"),
+            ] {
+                let mut wrong = effective.clone();
+                wrong["datasets"][0]["columns"][1]["allowed_roles"] = roles;
+                assert_eq!(measure_g13(&wrong, &visibility).status, "fail", "{pii}");
+            }
+            let mut legacy = effective;
+            legacy["datasets"][0]["columns"][1]["allowed_roles"] = json!(["oo_r_reader"]);
+            assert_eq!(measure_g13(&legacy, &visibility).status, "pass");
+        }
+    }
+
+    #[test]
+    fn g13_unknown_missing_class_or_missing_pii_review_stays_closed() {
+        for pii in [Value::Null, json!("unknown"), json!("invalid")] {
+            let (mut effective, visibility) = documents(pii);
+            assert_eq!(measure_g13(&effective, &visibility).status, "fail");
+            effective["datasets"][0]["columns"][1]["allowed_roles"] = json!(["oo_r_reader"]);
+            assert_eq!(measure_g13(&effective, &visibility).status, "fail");
+        }
+        for pii in ["personal", "sensitive", "restricted"] {
+            for reviewer in [Value::Null, json!(""), json!("  ")] {
+                let (mut effective, visibility) = documents(json!(pii));
+                effective["datasets"][0]["columns"][1]["classification"]["by"] = reviewer;
+                assert_eq!(measure_g13(&effective, &visibility).status, "fail");
+            }
+            let (effective, mut visibility) = documents(json!(pii));
+            visibility.as_object_mut().unwrap().remove("protocol");
+            assert_eq!(measure_g13(&effective, &visibility).status, "fail");
+        }
+        let (mut effective, visibility) = documents(json!("none"));
+        effective["datasets"][0]["columns"][1]
+            .as_object_mut()
+            .unwrap()
+            .remove("pii");
+        assert_eq!(measure_g13(&effective, &visibility).status, "fail");
+    }
+}
+
+#[cfg(test)]
+mod library_type_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn target_type_aliases_are_equivalent_but_precision_and_wrong_types_are_not() {
+        let mut effective=json!({"datasets":[{"dataset":"app.items","columns":[{"name":"id","data_type":"bigint"}]}]});
+        let visibility=json!({"role":"oo_r_reader","datasets":[{"dataset":"app.items","columns":["id"],"row_security":"none"}]});
+        assert_eq!(measure_g2(&effective,&visibility,&[("app.items.id".into(),"int8".into())]).status,"pass");
+        assert_eq!(measure_g2(&effective,&visibility,&[("app.items.id".into(),"text".into())]).status,"fail");
+        effective["datasets"][0]["columns"][0]["data_type"]=json!("numeric(18,2)");
+        assert_eq!(measure_g2(&effective,&visibility,&[("app.items.id".into(),"numeric(18,3)".into())]).status,"fail");
+    }
+}
+
+#[cfg(test)]
+mod library_budget_tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn wide_pack_keeps_g9_enforced_under_an_explicit_larger_budget() {
+        let body="field | quantity | bigint | reviewed description\n".repeat(600);
+        let mut effective=json!({"ontology":{"compile":{"budgets":{"readme_tokens":2000,"table_file_tokens":3000}}}});
+        let visibility=json!({"limits":{"max_file_bytes":4194304,"max_total_bytes":67108864}});
+        let lengths=[body.len() as i32];let files=[("tables/app.wide.md",body.as_str())];
+        let small=measure_g9(&effective,&visibility,&lengths,Some(&files));assert_eq!(small.status,"fail");assert!(small.blocking);
+        effective["ontology"]["compile"]["budgets"]["table_file_tokens"]=json!(20000);
+        let measured=measure_g9(&effective,&visibility,&lengths,Some(&files));assert_eq!(measured.status,"pass");assert!(measured.detail.contains("estimator=unicode_word"));
+    }
+}
+
+pub(crate) fn library_relationship_observation(rows:i64,matched:i64,unique:bool)->Measured {
+    let (status,blocking)=if !unique || matched<0 || rows<matched {("fail",true)} else if rows==0 {("warn",false)} else if i128::from(matched)*100 >= i128::from(rows)*98 {("pass",false)} else {("fail",true)};
+    Measured {gate_id:"G3",status,blocking,detail:format!("independent_target_containment;non_null={rows};matched={matched};parent_unique={unique};empty_is_unmeasured={}",rows==0)}
+}
+
+#[cfg(test)]
+mod library_observation_tests {
+    #[test]
+    fn independent_relation_measurements_do_not_count_empty_or_nonunique_as_pass() {
+        assert_eq!(super::library_relationship_observation(100,100,true).status,"pass");
+        assert_eq!(super::library_relationship_observation(100,97,true).status,"fail");
+        assert_eq!(super::library_relationship_observation(0,0,true).status,"warn");
+        assert_eq!(super::library_relationship_observation(100,100,false).status,"fail");
+    }
+}
+
+#[cfg(test)]
+mod observer_visibility_tests {
+    #[test]
+    fn rls_filtered_observation_is_blocking_and_not_an_empty_table_warning() {
+        let (g3,g4)=super::unavailable_library_observer();
+        assert!(g3.blocking && g4.blocking);
+        assert_eq!(g3.status,"not_run");assert_eq!(g4.status,"not_run");
+    }
+}
+
+pub(crate) fn unavailable_library_observer()->(Measured,Measured) {
+    (Measured {gate_id:"G3",status:"not_run",blocking:true,detail:"target_observer_rls_filtered;empty_table_not_proven".into()},
+     Measured {gate_id:"G4",status:"not_run",blocking:true,detail:"target_observer_rls_filtered;enum_coverage_not_proven".into()})
 }

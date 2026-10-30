@@ -1308,7 +1308,7 @@ fn valid_model_id(value: &str) -> bool {
     (1..=128).contains(&bytes.len())
         && bytes
             .iter()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'+' | b'-'))
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'+' | b'-' | b'/'))
 }
 
 fn bind_selection(

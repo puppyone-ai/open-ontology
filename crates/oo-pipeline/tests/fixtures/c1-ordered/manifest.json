@@ -1,0 +1,130 @@
+{
+  "scope": "synthetic offline Arrow decoder fixtures, not source acceptance",
+  "encoder_sha256": "10a313024dcf2b2e463ae37d0c86df4ad941d64c831d530198e228a5959cb222",
+  "fixtures": {
+    "ordered": {
+      "sha256": "4dcdc87f75d630cdb648a80b28dd3936a9b1be9ad4925e4d932813bc5c26626a",
+      "bytes": 1672,
+      "rows": 6,
+      "spec": {
+        "columns": [
+          {
+            "name": "CODE",
+            "nullable": false,
+            "oid": 25,
+            "typmod": -1
+          },
+          {
+            "name": "ID",
+            "nullable": false,
+            "oid": 20,
+            "typmod": -1
+          },
+          {
+            "name": "VALUE",
+            "nullable": true,
+            "oid": 25,
+            "typmod": -1
+          }
+        ],
+        "keys": [
+          0,
+          1
+        ]
+      }
+    },
+    "wrong-position": {
+      "sha256": "3ce14189234ad0dc3ec9b21445607aad0d9eb70f14cfd949fab3e1b4732f08c4",
+      "bytes": 1672,
+      "rows": 6,
+      "spec": {
+        "columns": [
+          {
+            "name": "CODE",
+            "nullable": false,
+            "oid": 25,
+            "typmod": -1
+          },
+          {
+            "name": "ID",
+            "nullable": false,
+            "oid": 20,
+            "typmod": -1
+          },
+          {
+            "name": "VALUE",
+            "nullable": true,
+            "oid": 25,
+            "typmod": -1
+          }
+        ],
+        "keys": [
+          0,
+          1
+        ]
+      }
+    },
+    "duplicate-fill": {
+      "sha256": "2ceac1555f3047d3e471fd18620a3fc4f84e38f4c6ee792d827fec99c0d33f29",
+      "bytes": 1096,
+      "rows": 2,
+      "spec": {
+        "columns": [
+          {
+            "name": "CODE",
+            "nullable": false,
+            "oid": 25,
+            "typmod": -1
+          },
+          {
+            "name": "ID",
+            "nullable": false,
+            "oid": 20,
+            "typmod": -1
+          },
+          {
+            "name": "VALUE",
+            "nullable": true,
+            "oid": 25,
+            "typmod": -1
+          }
+        ],
+        "keys": [
+          0,
+          1
+        ]
+      }
+    },
+    "invalid-operation": {
+      "sha256": "6805902b818bbbe77e7799a5d05d8110ff4dd41791419fb5d3ee7e179956bc0a",
+      "bytes": 1672,
+      "rows": 6,
+      "spec": {
+        "columns": [
+          {
+            "name": "CODE",
+            "nullable": false,
+            "oid": 25,
+            "typmod": -1
+          },
+          {
+            "name": "ID",
+            "nullable": false,
+            "oid": 20,
+            "typmod": -1
+          },
+          {
+            "name": "VALUE",
+            "nullable": true,
+            "oid": 25,
+            "typmod": -1
+          }
+        ],
+        "keys": [
+          0,
+          1
+        ]
+      }
+    }
+  }
+}

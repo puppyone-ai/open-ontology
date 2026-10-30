@@ -59,6 +59,7 @@ fn load_pg() -> Pg {
     let password_file = env_var("OO_A359_PASSWORD_FILE");
     let ca_file = env_var("OO_A359_CA_FILE");
     let endpoint = Endpoint {
+        pack_ceilings: None,
         host: env_var("OO_A359_PG_HOST"),
         port,
         database: env_var("OO_A359_PG_DATABASE"),

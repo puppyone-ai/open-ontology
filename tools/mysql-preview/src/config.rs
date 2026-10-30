@@ -441,7 +441,7 @@ impl PreviewConfig {
         Ok(oo_connectors::mysql::MysqlConfig {
             mysql_host:self.mysql_host.clone(),mysql_port:self.mysql_port,
             mysql_database:self.mysql_database.clone(),mysql_user:self.mysql_user.clone(),
-            mysql_ca_file:self.mysql_ca_file.clone(),connect_timeout_ms:self.connect_timeout_ms,
+            mysql_ca_file:self.mysql_ca_file.clone(),mysql_tls_server_name:None,connect_timeout_ms:self.connect_timeout_ms,
             secret_ref:oo_connectors::SecretRef::new(format!("secret://mysql-preview/{}",self.source_id))
                 .map_err(|_|PreviewError::new("config","source_id"))?,
         })

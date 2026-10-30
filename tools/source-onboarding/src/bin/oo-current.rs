@@ -9,6 +9,11 @@ use std::{
     process::{Command, ExitCode},
 };
 
+fn check_ready(ready: &serde_json::Value, installed: &serde_json::Value) -> Result<()> {
+    let mode = oo_core::config::DeploymentMode::from_installed(installed)?;
+    require(mode.matches_ready(ready), "gateway_not_ready")
+}
+
 fn run() -> Result<i32> {
     let exe = env::current_exe()?;
     let config = env::var_os("OO_CURRENT_CONFIG")
@@ -16,11 +21,9 @@ fn run() -> Result<i32> {
         .unwrap_or_else(|| exe.with_extension("json"));
     let config = load(private(config)?)?;
     let ready = load(private(text(&config, "ready_record")?)?)?;
-    require(
-        ready["ready"] == true && ready["readonly_replica"] == true,
-        "gateway_not_ready",
-    )?;
     let root = PathBuf::from(text(&ready, "private_root")?);
+    let installed = load(root.join("config.json"))?;
+    check_ready(&ready, &installed)?;
     let binary_path = text(&config, "cli_binary")?;
     binary(binary_path)?;
     let file = std::path::Path::new(binary_path);
@@ -72,5 +75,21 @@ fn main() -> ExitCode {
             eprintln!("oo-current: {e}");
             ExitCode::from(2)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+    #[test]
+    fn readiness_uses_installed_mode_not_the_record_claim() {
+        let single = json!({"ready":true,"deployment_mode":"all_in_one","readonly_replica":false});
+        let replica =
+            json!({"ready":true,"deployment_mode":"primary_replica","readonly_replica":true});
+        assert!(super::check_ready(&single, &json!({"deployment_mode":"all_in_one"})).is_ok());
+        assert!(super::check_ready(&single, &json!({})).is_err());
+        assert!(super::check_ready(&replica, &json!({})).is_ok());
+        assert!(super::check_ready(&replica, &json!({"deployment_mode":"all_in_one"})).is_err());
+        assert!(super::check_ready(&single, &json!({"deployment_mode":"unknown"})).is_err());
     }
 }

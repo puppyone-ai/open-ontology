@@ -61,7 +61,7 @@ fn operator(oid: u32, name: &str, left: u32, right: u32) -> ResolvedOperator {
         schema: "pg_catalog".to_string(),
         name: name.to_string(),
         left_type_oid: left,
-        right_type_oid: right,
+        right_type_oid: right, result_type_oid: BOOL_OID,
     }
 }
 
@@ -361,7 +361,7 @@ fn unsupported_in_shapes_fail_closed() {
             "IN predicate",
         ),
         (
-            "SELECT label FROM shop.entry WHERE label LIKE 'a'",
+            "SELECT label FROM shop.entry WHERE label LIKE label",
             "LIKE predicate",
         ),
         (
@@ -739,7 +739,7 @@ fn limits() -> CatalogLimits {
         max_tables: 4,
         max_columns: 64,
         max_functions: 1,
-        max_operators: 64,
+        max_operators: 128,
         large_table_row_threshold: 1_000_000,
         unknown_rows: UnknownRows::Refuse,
     }
@@ -840,7 +840,7 @@ fn run_query(
             "max_tables": 4,
             "max_columns": 64,
             "max_functions": 1,
-            "max_operators": 64,
+            "max_operators": 128,
             "large_table_row_threshold": 1_000_000,
             "unknown_rows": "refuse"
         },

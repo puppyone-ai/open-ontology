@@ -16,6 +16,23 @@ async fn main() {
 }
 
 async fn run() -> Result<()> {
+    let help_args:Vec<_>=std::env::args().skip(1).collect();
+    if help_args.len()==2 && help_args[1]=="--help"
+        && ["native-mysql-handoff-plan","native-mysql-handoff-confirm"].contains(&help_args[0].as_str()) {
+        print!("{}",job_worker::native_schedule::native_mysql_handoff::HELP);
+        return Ok(());
+    }
+    if help_args==["native-cycle-policy","--help"] {
+        print!("{}",job_worker::native_schedule::native_cycle::HELP);
+        return Ok(());
+    }
+    if help_args==["native-cancel","--help"] {
+        println!("job-worker --config PATH native-cancel --project UUID --task UUID --worker NAME --generation N\n\
+Cancel an exact queued C5 task, supported C2/C4 task, or disabled managed MySQL typed-C1 delta.\n\
+C1 cancellation requires zero private CDC receipts, no pending ACK/final import, and the exact acknowledged parent.\n\
+It preserves all stages/history and source positions. Committed C1 work must resume instead of being cancelled.");
+        return Ok(());
+    }
     let mut args = std::env::args().skip(1);
     let mut config_path = None;
     let mut command = None;
@@ -33,8 +50,15 @@ async fn run() -> Result<()> {
     let flags = flags(&rest)?;
     match command.as_deref() {
         Some("native-install") => job_worker::native_schedule::install(&config).await,
+        Some("native-mysql-handoff-plan") => job_worker::native_schedule::native_mysql_handoff::plan(
+            &config,&required(&flags,"manifest")?,&required(&flags,"out")?).await,
+        Some("native-mysql-handoff-confirm") => job_worker::native_schedule::native_mysql_handoff::confirm(
+            &config,&required(&flags,"plan")?,&required(&flags,"confirm-sha256")?).await,
         Some("native-put") => job_worker::native_schedule::put(&config, &required(&flags,"manifest")?).await,
         Some("native-enable") => job_worker::native_schedule::enabled(&config, &required(&flags,"binding")?, required(&flags,"enabled")? == "true").await,
+        Some("native-cycle-policy") => job_worker::native_schedule::native_cycle::set_policy(
+            &config,&required(&flags,"binding")?,&required(&flags,"expected-manifest-sha256")?,
+            required(&flags,"timeout-ms")?.parse().map_err(|_|Error::new("usage"))?).await,
         Some("native-loader-put") => job_worker::native_schedule::loader_put(&config, &required(&flags,"manifest")?).await,
         Some("native-artifacts") => job_worker::native_schedule::artifacts(&config, &required(&flags,"binding")?, &required(&flags,"out")?).await,
         Some("native-state") => job_worker::native_schedule::state(&config, &required(&flags,"binding")?).await,

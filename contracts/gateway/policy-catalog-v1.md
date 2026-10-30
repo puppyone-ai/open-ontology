@@ -28,9 +28,21 @@ The transaction is committed, not dropped. After commit, `ensure_committed` requ
 
 The loader does not `SELECT` a mapped table, sample its rows, or write. One call is one role and one project.
 
+For library bindings, each mapped table must also have an open role publication
+fence matching the supplied Pack digest. A missing, closed, or mismatched fence
+returns `PublicationBindingUnavailable`. The public surface keeps
+`SCHEMA_INVALID` and emits the fixed hint
+`phase=runtime_catalog; reason=publication_binding_unavailable`, with coordinated
+deployment guidance. It never echoes the physical object, digest or database
+error. Describe, freshness, validate and query preserve this diagnostic; callers
+must not repair it by rewriting SQL or widening permissions.
+
 ## Operator and function subset
 
-This slice resolves 54 builtin comparison operators and one aggregate. The full R4 list in `docs/07-gateway.md` stays open.
+This slice resolves 84 builtin comparison signatures and 36 binary arithmetic
+signatures (120 operators total). `required_operator_count()` is the minimum
+`max_operators`; the absolute cap remains 128. The full R4 list in
+`docs/07-gateway.md` stays open.
 
 Operators are `<`, `<=`, `<>`, `=`, `>`, `>=` for these signatures:
 
@@ -44,13 +56,61 @@ Operators are `<`, `<=`, `<>`, `=`, `>`, `>=` for these signatures:
 | int4 | int8 |
 | int8 | int4 |
 | int8 | int8 |
+| numeric | numeric |
 | text | text |
+| date | date |
+| timestamp | timestamp |
+| timestamptz | timestamptz |
+| interval | interval |
 
 An integer literal uses the `int4` OID. The `int2`/`int4` and `int8`/`int4` pairs are what let that literal sit on either side of an `int2` or `int8` column. Text literals use `text`. Boolean literals use `bool`. `null_test_allowed` is true for this subset.
 
-Each operator must be a binary `pg_catalog` operator whose result is `bool`, implemented by an immutable, non-set-returning, two-argument internal function with the same argument and result types. The operator and the function must not be extension members (`pg_depend.deptype = 'e'`).
+The arithmetic tokens `+`, `-`, `*`, `/` have exactly these signatures:
 
-`count(*)` is the only function. Its `argument_type_oids` are empty and `aggregate_star` is true. The loader does not accept a function or operator name from the caller. `pg_sleep`, a user function, `count(column)`, and operators outside the table above are not entered into the catalog.
+| Left | Right | Result |
+| --- | --- | --- |
+| int2 | int2 | int2 |
+| int2 | int4 | int4 |
+| int4 | int2 | int4 |
+| int4 | int4 | int4 |
+| int4 | int8 | int8 |
+| int8 | int4 | int8 |
+| int8 | int8 | int8 |
+| numeric | numeric | numeric |
+| float8 | float8 | float8 |
+
+Each operator must be a binary `pg_catalog` operator with the exact input and
+result base types. Comparison results must be `bool`; arithmetic results must
+match the table. The loader reads `pg_operator.oid`, `oprcode`, and `oprresult`
+from the same read-only snapshot, never derives these OIDs from a token, and
+stores `oprresult` as `ResolvedOperator.result_type_oid`. The implementation
+must be a `pg_catalog`, immutable, non-set-returning, non-security-definer,
+non-variadic, two-argument internal function without `proconfig`, with identical
+input types and `prorettype = oprresult`. Neither object may be an extension
+member (`pg_depend.deptype = 'e'`). Missing or ambiguous signatures fail the
+whole load; count and detail queries share the same safety predicates.
+
+The guard propagates each result OID through nested arithmetic into aggregate
+arguments and comparisons. Thus `SUM(a-b-c)` binds the numeric aggregate for
+numeric columns, while `WHERE a-b`, boolean arithmetic and string arithmetic
+are refused. Integer literals beside a numeric expression may use the
+verified numeric/numeric signature; this is not arbitrary implicit-cast
+support. Unsupported mixed columns, `float4`, unary column operators and
+decimal-point literals remain refused. PostgreSQL, not the guard, evaluates
+NULL, overflow and division by zero; admission is not an execution guarantee.
+
+The loader always loads `count(*)`. With sufficient function capacity it also
+loads `count(any)`, `sum(numeric)`, `sum(int8)`, `min(int8)` and `max(int8)`, in
+that order. Arithmetic does not broaden that aggregate set. It does not load
+arithmetic implementation functions as directly callable functions.
+The loader never accepts a function or operator name from the caller.
+`pg_sleep`, user functions and operators outside these tables stay absent.
+
+Deploy the Gateway and parser worker from the same build (worker wire v2).
+External catalog producers, including metric-reconcile JSON, must supply
+`result_type_oid`; no missing-field bool default is allowed. Runtime capability
+export includes `result_type_oid` and `result_type`. Older catalog limits below
+120 must be raised to 120..128. No data migration or source-DB access is needed.
 
 ## What stays open
 
@@ -58,6 +118,8 @@ Authentication of the administrator and of the login is open. This loader trusts
 
 The audit WAL, row-level security, the public worker, and the connection pool are open. `SP06-W01` and `SP06-W02` in the plan stay open. This contract does not close them.
 
-The rest of the R4 whitelist is open. Arithmetic, pattern operators, `lower`, `upper`, `coalesce`, hashes, `date_trunc`, `isfinite`, `length`, `round`, `trunc`, and `count` of a value are not resolved here.
+The rest of the R4 whitelist is open. Other arithmetic signatures, pattern
+operators, `lower`, `upper`, `coalesce`, hashes, `date_trunc`, `isfinite`,
+`length`, `round`, and `trunc` are not resolved here.
 
 A non-superuser grantor is not proven here. The live fixture uses `oo_fixture_admin` and applies frozen `0000`, `0001`, `0003`, `0004`, and `0005` itself. `0002` is not applied.

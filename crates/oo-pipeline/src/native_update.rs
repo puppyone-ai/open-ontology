@@ -22,6 +22,10 @@ use sha2::{Digest, Sha256};
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::{ConnectOptions, Connection};
 
+use crate::c1_parts::{
+    StateDigest, bucket_key, canonical_row, composed_digest, logical_type_from_name, pg_text_cell,
+};
+pub use crate::c1_parts::C1_BUCKET_BITS;
 use crate::copy_encoder::{CopyBudgets, ExactDecimal};
 use crate::copy_sink::{self, SinkError};
 use crate::full_import::hook_digest;
@@ -30,6 +34,7 @@ use crate::native_arrow::{
     mapping_ident, prepare_table, register_mapping,
 };
 use crate::native_binding::{self, CaptureReceipt};
+use crate::native_c1_baseline;
 use crate::physical_mapping::quote_physical_name;
 use crate::target_installer::{self, InstallError};
 
@@ -67,7 +72,7 @@ pub async fn import_native_update() -> Result<(), u8> {
     bytes.push(b'\n');
     std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
     match result.get("load_state").and_then(|value| value.as_str()) {
-        Some("awaiting_publish" | "replay") => Ok(()),
+        Some("awaiting_publish" | "replay" | "part_acknowledged") => Ok(()),
         _ => Err(1),
     }
 }
@@ -78,23 +83,42 @@ pub async fn import_native_transaction() -> Result<(), u8> {
     std::io::Read::read_to_end(&mut std::io::stdin(), &mut stdin).map_err(|_| 2u8)?;
     if stdin.is_empty() || stdin.len() > 4 * READ_BUDGET { return Err(2); }
     let document: Value = serde_json::from_slice(&stdin).map_err(|_| 2u8)?;
-    let result = match execute_transaction(&document).await {
+    let outcome = if document["protocol"] == "oo.pipeline.pg-current/v1" {
+        crate::pg_current::execute(&document).await
+    } else {
+        execute_transaction(&document).await
+    };
+    let result = match outcome {
         Ok(value) => value,
         Err(reason) => json!({"protocol":TRANSACTION_RESULT_PROTOCOL,"load_state":"not_sealed","reason":reason}),
     };
     let mut bytes = serde_json::to_vec(&result).map_err(|_| 1u8)?;
     bytes.push(b'\n');
     std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
-    if matches!(result["load_state"].as_str(), Some("awaiting_publish" | "replay")) { Ok(()) } else { Err(1) }
+    if matches!(result["load_state"].as_str(), Some("awaiting_publish" | "replay")) || document["protocol"] == "oo.pipeline.pg-current/v1" && result["load_state"] == "staged" { Ok(()) } else { Err(1) }
 }
 
 /// Materialize every admitted table from one sealed CDC-first stage atomically.
 pub async fn import_native_c1_baseline() -> Result<(), u8> {
+    import_c1_baseline(false).await
+}
+
+pub async fn import_native_c1_baseline_v3() -> Result<(), u8> {
+    import_c1_baseline(true).await
+}
+
+async fn import_c1_baseline(typed:bool) -> Result<(),u8> {
     let mut bytes = Vec::new();
     std::io::Read::read_to_end(&mut std::io::stdin().take((4 * READ_BUDGET + 1) as u64), &mut bytes).map_err(|_| 2u8)?;
     if bytes.is_empty() || bytes.len() > 4 * READ_BUDGET { return Err(2); }
     let document: Value = serde_json::from_slice(&bytes).map_err(|_| 2u8)?;
-    let result = match execute_c1_baseline(&document).await {
+    if typed && document["c1_baseline_format"]!="typed-keys/v3" {return Err(2);}
+    let outcome = if typed && document.get("typed_export").is_some() {
+        crate::c1_typed_export::finalize(&document).await
+    } else {
+        execute_c1_baseline(&document).await
+    };
+    let result = match outcome {
         Ok(value) => value,
         Err(reason) => json!({"protocol":"oo.pipeline.native-c1-baseline-result/v1","load_state":"not_sealed","reason":reason}),
     };
@@ -111,12 +135,20 @@ fn baseline_quality(entry:&Value,plan:&UpdatePlan)->Result<Vec<Value>,&'static s
     let bytes=read_capped(Path::new(text_field(binding,"capture_receipt_path")?)).map_err(|_|"nonadmitted")?;
     if hex_bytes(&Sha256::digest(&bytes))!=text_field(binding,"capture_receipt_sha256")? {return Err("digest_mismatch");}
     let capture:Value=serde_json::from_slice(&bytes).map_err(|_|"nonadmitted")?;
-    let table=capture["tables"].as_array().ok_or("baseline_quality")?.iter().find(|t|t["schema"]==plan.schema && t["name"]==plan.table).ok_or("baseline_quality")?;
+    if mapped_name(text_field(entry,"schema")?)?!=plan.schema || mapped_name(text_field(entry,"table")?)?!=plan.table {
+        return Err("baseline_quality");
+    }
+    let table=capture["tables"].as_array().ok_or("baseline_quality")?.iter().find(|t|t["schema"]==entry["schema"] && t["name"]==entry["table"]).ok_or("baseline_quality")?;
     table["quality_rejects"].as_array().cloned().ok_or("baseline_quality")
 }
 
+#[path = "c1_mysql_handoff.rs"]
+pub(crate) mod mysql_handoff;
+
 struct BaselineCopy {
     epoch: i32,
+    source_schema: String,
+    source_table: String,
     positions: Vec<String>,
     quality: Vec<Value>,
     lease: Value,
@@ -133,6 +165,49 @@ async fn baseline_held_heartbeat(tx:&mut sqlx::Transaction<'_,sqlx::Postgres>,le
     if status!="extended" {return Err("OO010");} Ok(())
 }
 
+/// Lease time-to-live of a claim (worker `api.rs`: 30 s). A loader transaction must renew it before
+/// it expires, through the transaction itself (`baseline_held_heartbeat`).
+pub(crate) const BASELINE_LEASE_TTL: Duration = Duration::from_secs(30);
+
+/// Time-based lease renewal for one loader transaction. The loop that owns the transaction asks
+/// `is_due` between pages, tables and phases and renews when it is due. Renewing a third of the
+/// lease early keeps the claim alive through slow phases that have no per-row hook.
+#[derive(Debug)]
+pub(crate) struct LeaseKeeper {
+    every_ms: u128,
+    last_ms: u128,
+}
+
+impl LeaseKeeper {
+    pub(crate) fn for_lease(lease: Duration) -> Self {
+        Self { every_ms: lease.as_millis() / 3, last_ms: 0 }
+    }
+
+    /// `now_ms` is milliseconds since the transaction started.
+    pub(crate) fn is_due(&self, now_ms: u128) -> bool {
+        now_ms.saturating_sub(self.last_ms) >= self.every_ms
+    }
+
+    pub(crate) fn renewed(&mut self, now_ms: u128) {
+        self.last_ms = now_ms;
+    }
+}
+
+/// Renew the lease if the keeper says it is due. Called between pages, tables and phases.
+pub(crate) async fn renew_if_due(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    lease: &Value,
+    keeper: &mut LeaseKeeper,
+    started: std::time::Instant,
+) -> Result<(), &'static str> {
+    let now = started.elapsed().as_millis();
+    if keeper.is_due(now) {
+        baseline_held_heartbeat(tx, lease).await?;
+        keeper.renewed(now);
+    }
+    Ok(())
+}
+
 async fn execute_c1_baseline(document: &Value) -> Result<Value, &'static str> {
     if document["protocol"] != "oo.pipeline.native-c1-baseline/v1" { return Err("protocol"); }
     let source = ident(document, "source_id")?;
@@ -140,7 +215,9 @@ async fn execute_c1_baseline(document: &Value) -> Result<Value, &'static str> {
     let lease_generation = document["lease_generation"].as_i64().filter(|n| *n > 0).ok_or("lease_required")?;
     let epoch = document["source_epoch"].as_i64().and_then(|n| i32::try_from(n).ok()).filter(|n| *n > 0).ok_or("source_epoch")?;
     let scope = document.get("baseline_scope").ok_or("baseline_scope")?;
-    let entries = document["entries"].as_array().filter(|e| !e.is_empty() && e.len() <= 32).ok_or("baseline_entries")?;
+    let oracle=scope["engine"]=="oracle";
+    if oracle {crate::c1_buffer_position::validate_scope(scope)?;}
+    let entries = document["entries"].as_array().filter(|e| !e.is_empty()).ok_or("baseline_entries")?;
     let bin = std::env::var("OO_NATIVE_ADMISSION_BIN").map_err(|_| "nonadmitted")?;
     let mut plans = Vec::with_capacity(entries.len());
     let mut prior = None;
@@ -156,15 +233,16 @@ async fn execute_c1_baseline(document: &Value) -> Result<Value, &'static str> {
         if registry_value.pointer("/bindings/0/baseline_scope") != Some(scope) { return Err("baseline_scope"); }
         let plan = native_binding::with_operator_env(native_binding::OperatorEnv::Fixed {
             bin: Some(bin.clone()), registry: Some(path.to_string()), registry_sha256: Some(sha),
-        }, || classify(&request))?;
-        let key = (plan.schema.clone(), plan.table.clone());
+        }, || classify_inner(&request,false,false,oracle))?;
+        let key = (text_field(entry,"schema")?.to_string(),text_field(entry,"table")?.to_string());
         if prior.as_ref().is_some_and(|old| old >= &key)
-            || plan.source_engine != "mysql" || plan.source_id != source
+            || plan.source_engine != if oracle {"oracle"}else{"mysql"} || plan.source_id != source
             || plan.source_generation != document["source_generation"].as_i64().ok_or("stale_run")?
-            || plan.schema != entry["schema"] || plan.table != entry["table"]
+            || plan.schema != mapped_name(text_field(entry,"schema")?)?
+            || plan.table != mapped_name(text_field(entry,"table")?)?
             || plan.mode != "full" || !plan.source_bound || !plan.cross_table || plan.consistency_grade != "T"
             || plan.capture_method != "c1_cdc" || plan.delete_detection != "native"
-            || plan.position_codec != "mysql-gtid/v1" || plan.position_lineage != scope["lineage"]
+            || plan.position_codec != if oracle {crate::c1_buffer_position::CODEC}else{"mysql-gtid/v1"} || plan.position_lineage != scope["lineage"]
             || plan.mirror { return Err("baseline_entry"); }
         if let Some(first) = plans.first() {
             let first: &UpdatePlan = first;
@@ -190,6 +268,14 @@ async fn execute_c1_baseline(document: &Value) -> Result<Value, &'static str> {
         tx.commit().await.map_err(sql_token)?;
         return Ok(saved["receipt"].clone());
     }
+    if oracle && first.source_generation>1 {
+        sqlx::query("SELECT _oo.c1_oracle_delta_final_assert($1,$2::uuid,$3,$4)")
+            .bind(&source).bind(job).bind(lease_generation).bind(epoch)
+            .execute(&mut *tx).await.map_err(sql_token)?;
+    }
+    if !oracle {
+        mysql_handoff::final_assert(&mut tx,&source,job,lease_generation,first.source_generation).await?;
+    }
     // Run shadow row guards inside each bounded COPY, rather than accumulating
     // all deferred checks until the first table binder.
     sqlx::query("SET CONSTRAINTS ALL IMMEDIATE").execute(&mut *tx).await.map_err(sql_token)?;
@@ -200,7 +286,11 @@ async fn execute_c1_baseline(document: &Value) -> Result<Value, &'static str> {
         let started=std::time::Instant::now();
         let positions=request["row_positions"].as_array().ok_or("baseline_positions")?.iter()
             .map(|v|v.as_str().map(str::to_owned).ok_or("baseline_positions")).collect::<Result<Vec<_>,_>>()?;
-        let applied = apply_tx_baseline(&mut tx, plan, Some(BaselineCopy {epoch,positions,quality:baseline_quality(&entries[receipts.len()],plan)?,lease:held_lease.clone()})).await?;
+        let entry=&entries[receipts.len()];
+        let source_schema=text_field(entry,"schema")?.to_string();
+        let source_table=text_field(entry,"table")?.to_string();
+        let applied = apply_tx_baseline(&mut tx, plan, Some(BaselineCopy {epoch,source_schema:source_schema.clone(),
+            source_table:source_table.clone(),positions,quality:baseline_quality(entry,plan)?,lease:held_lease.clone()})).await?;
         eprintln!("oo-pipeline: baseline-table table={} rows={} elapsed_ms={}",plan.table,applied.row_count,started.elapsed().as_millis());
         baseline_held_heartbeat(&mut tx,&held_lease).await?;
         if target_generation.is_some_and(|n| n != applied.target_generation) { return Err("OO010"); }
@@ -209,8 +299,12 @@ async fn execute_c1_baseline(document: &Value) -> Result<Value, &'static str> {
             .bind(&source).bind(&plan.batch_id).bind(&applied.physical_name)
             .execute(&mut *tx).await.map_err(sql_token)?;
         let rows = applied.row_count;
-        receipts.push(json!({"schema":plan.schema,"table":plan.table,"physical_id":applied.physical_name,
-            "run_id":applied.run_id,"sha256":plan.payload_digest,"row_count":rows}));
+        let mut receipt=json!({"schema":source_schema,"table":source_table,"physical_id":applied.physical_name,
+            "run_id":applied.run_id,"sha256":plan.payload_digest,"row_count":rows});
+        if plan.schema!=source_schema || plan.table!=source_table {
+            receipt["storage_schema"]=json!(plan.schema);receipt["storage_table"]=json!(plan.table);
+        }
+        receipts.push(receipt);
     }
     let raw: String = sqlx::query_scalar("SELECT _oo.native_c1_baseline_typed_commit($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb)::text")
         .bind(&source).bind(job).bind(lease_generation).bind(epoch).bind(target_generation.ok_or("not_sealed")?)
@@ -221,6 +315,720 @@ async fn execute_c1_baseline(document: &Value) -> Result<Value, &'static str> {
     tx.commit().await.map_err(sql_token)?;
     let _ = release(&mut conn, &first.shard).await;
     serde_json::from_str(&raw).map_err(|_| "not_sealed")
+}
+
+// ---------------------------------------------------------------- chunked-typed/v2 final load (T8)
+//
+// One transaction, in this order: lease hold, task lock (R2), fence adoption, a
+// rebind that must show applied = L_end, the composed digest of every shadow
+// read from the shadow in this transaction (D4), the composed check against the
+// request, ANALYZE, the seal, the quality and full-import seal of each table, and
+// the typed commit. A refusal before the seal rolls the whole transaction back, so
+// nothing is written. Design: DESIGN s3.1, s3.8, s4.1; decisions D2 and D4.
+
+/// Request protocol of the chunked-typed/v2 final load.
+pub const C1_BASELINE_V2_PROTOCOL: &str = "oo.pipeline.native-c1-baseline/v2";
+/// Default rows between two lease heartbeats while a shadow is digested (DESIGN s3.9 `seal_window_keys`).
+pub const C1_SEAL_WINDOW_ROWS: u64 = 500_000;
+/// Rows per keyset page read from a shadow. This bounds the loader's memory.
+const C1_DIGEST_PAGE_ROWS: i32 = 10_000;
+/// Tables of one final load. The v1 collection bound (migration 0036) and the stage bound.
+const C1_V2_MAX_TABLES: usize = 32;
+/// Columns of one table in a final load. The producer's column cap (`MAX_COLUMNS`) is 1024.
+const C1_V2_MAX_COLUMNS: usize = 1024;
+/// Batch name of the final load's apply receipts. Migration 0042 writes receipts under it.
+/// Result protocol. The typed-commit receipt keeps the v1 shape, so the worker reads it unchanged.
+const C1_V2_RESULT_PROTOCOL: &str = "oo.pipeline.native-c1-baseline-result/v1";
+/// Verification object added to the result. It is not stored in the typed receipt.
+const C1_V2_VERIFICATION_PROTOCOL: &str = "oo.pipeline.c1-composed/v2";
+
+/// Read one chunked-typed/v2 final-load document and write one result document.
+pub async fn import_native_c1_baseline_v2() -> Result<(), u8> {
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(
+        &mut std::io::stdin().take((4 * READ_BUDGET + 1) as u64),
+        &mut bytes,
+    )
+    .map_err(|_| 2u8)?;
+    if bytes.is_empty() || bytes.len() > 4 * READ_BUDGET {
+        return Err(2);
+    }
+    let document: Value = serde_json::from_slice(&bytes).map_err(|_| 2u8)?;
+    let result = match execute_c1_baseline_v2(&document).await {
+        Ok(value) => value,
+        Err(reason) => {
+            json!({"protocol": C1_V2_RESULT_PROTOCOL, "load_state": "not_sealed", "reason": reason})
+        }
+    };
+    let mut out = serde_json::to_vec(&result).map_err(|_| 1u8)?;
+    out.push(b'\n');
+    std::io::Write::write_all(&mut std::io::stdout(), &out).map_err(|_| 1u8)?;
+    if result["load_state"] == "awaiting_publish" {
+        Ok(())
+    } else {
+        Err(1)
+    }
+}
+
+/// One table of a final load. `expected` is the producer's composed state of the table.
+struct C1V2Table {
+    schema: String,
+    table: String,
+    rows: u64,
+    table_digest: String,
+    schema_digest: String,
+    /// Canonical logical type of each column, in catalog order (DESIGN D7). The producer
+    /// sends these from its source mapping. The loader does not derive them from oids.
+    canonical: Vec<oo_core::canonical::LogicalType>,
+}
+
+/// A validated final-load request. Every field is checked before a connection opens.
+struct C1V2Request {
+    source: String,
+    job: String,
+    lease_generation: i64,
+    epoch: i32,
+    source_generation: i64,
+    lineage: String,
+    l0: String,
+    l_end: String,
+    l_end_pos: String,
+    config_digest: String,
+    type_digest: String,
+    input_digest: String,
+    scope: Value,
+    rows: u64,
+    composed_digest: String,
+    tables: Vec<C1V2Table>,
+    shard: String,
+    owner: String,
+    target: Value,
+    window_rows: u64,
+}
+
+fn hex_of(value: &Value, name: &str) -> Result<String, &'static str> {
+    value
+        .get(name)
+        .and_then(Value::as_str)
+        .filter(|text| hex64(text))
+        .map(str::to_owned)
+        .ok_or("digest_mismatch")
+}
+
+fn c1_v2_request(document: &Value) -> Result<C1V2Request, &'static str> {
+    if document["protocol"] != C1_BASELINE_V2_PROTOCOL {
+        return Err("protocol");
+    }
+    let source = ident(document, "source_id")?;
+    let job = text_field(document, "lease_id")?;
+    if !is_uuid(job) {
+        return Err("lease_required");
+    }
+    let lease_generation = document["lease_generation"]
+        .as_i64()
+        .filter(|n| *n > 0)
+        .ok_or("lease_required")?;
+    let epoch = document["source_epoch"]
+        .as_i64()
+        .and_then(|n| i32::try_from(n).ok())
+        .filter(|n| *n > 0)
+        .ok_or("source_epoch")?;
+    let source_generation = document["source_generation"]
+        .as_i64()
+        .filter(|n| *n > 0)
+        .ok_or("stale_run")?;
+    let measured = text_field(document, "measured_id")?;
+    let measured_uuid = measured
+        .strip_prefix("mysql.")
+        .filter(|uuid| is_uuid(uuid))
+        .ok_or("closed")?;
+    let l0 = text_field(document, "l0")?;
+    let l0_pos = digits(document, "l0_pos")?;
+    let l_end = text_field(document, "l_end")?;
+    let l_end_pos = digits(document, "l_end_pos")?;
+    if l0 != format!("{measured_uuid}:1-{l0_pos}")
+        || l_end != format!("{measured_uuid}:1-{l_end_pos}")
+    {
+        return Err("closed");
+    }
+    let l0_n: u128 = l0_pos.parse().map_err(|_| "closed")?;
+    let l_end_n: u128 = l_end_pos.parse().map_err(|_| "closed")?;
+    if l_end_n < l0_n {
+        return Err("closed");
+    }
+
+    let scope = document
+        .get("baseline_scope")
+        .filter(|value| value.is_object())
+        .ok_or("baseline_scope")?
+        .clone();
+    if scope["lineage"] != measured || scope["l0"] != l0 || scope["l_end"] != l_end {
+        return Err("baseline_scope");
+    }
+    let config_digest = hex_of(&scope, "config_digest").map_err(|_| "baseline_scope")?;
+    let type_digest = hex_field(document, "type_digest").map_err(|_| "digest_mismatch")?;
+    let input_digest = hex_field(document, "input_digest").map_err(|_| "digest_mismatch")?;
+
+    let expected = document
+        .get("expected")
+        .filter(|value| value.is_object())
+        .ok_or("expected_required")?;
+    if expected["bucket_bits"].as_u64() != Some(u64::from(C1_BUCKET_BITS)) {
+        return Err("bucket_bits");
+    }
+    let rows = expected["rows"].as_u64().ok_or("closed")?;
+    let composed_digest = hex_of(expected, "composed_digest")?;
+    let items = expected["tables"]
+        .as_array()
+        .filter(|items| (1..=C1_V2_MAX_TABLES).contains(&items.len()))
+        .ok_or("baseline_entries")?;
+    let scope_tables = scope["tables"].as_array().ok_or("baseline_scope")?;
+    if scope_tables.len() != items.len() {
+        return Err("baseline_scope");
+    }
+    let mut tables = Vec::with_capacity(items.len());
+    for item in items {
+        let schema = text_field(item, "schema")?.to_owned();
+        let table = text_field(item, "table")?.to_owned();
+        if tables
+            .iter()
+            .any(|old: &C1V2Table| old.schema == schema && old.table == table)
+        {
+            return Err("closed");
+        }
+        let scope_item = scope_tables
+            .iter()
+            .find(|candidate| {
+                candidate["schema"] == schema.as_str() && candidate["table"] == table.as_str()
+            })
+            .ok_or("baseline_scope")?;
+        let canonical = item["canonical_types"]
+            .as_array()
+            .filter(|names| !names.is_empty() && names.len() <= C1_V2_MAX_COLUMNS)
+            .ok_or("digest_type")?
+            .iter()
+            .map(|name| {
+                name.as_str()
+                    .ok_or("digest_type")
+                    .and_then(|name| logical_type_from_name(name).map_err(|_| "digest_type"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        tables.push(C1V2Table {
+            schema,
+            table,
+            rows: item["row_count"].as_u64().ok_or("closed")?,
+            table_digest: hex_of(item, "table_digest")?,
+            schema_digest: hex_of(scope_item, "schema_sha256").map_err(|_| "baseline_scope")?,
+            canonical,
+        });
+    }
+    let total = tables
+        .iter()
+        .try_fold(0u64, |acc, table| acc.checked_add(table.rows))
+        .ok_or("closed")?;
+    if total != rows {
+        return Err("closed");
+    }
+
+    let fence = document
+        .get("fence")
+        .filter(|value| value.is_object())
+        .ok_or("fence")?;
+    let shard = text_field(fence, "shard")?.to_owned();
+    if !ident_text(&shard) {
+        return Err("closed");
+    }
+    let owner = text_field(fence, "owner")?.to_owned();
+    if !is_uuid(&owner) {
+        return Err("closed");
+    }
+    let target = document
+        .get("target")
+        .filter(|value| value.is_object())
+        .cloned()
+        .ok_or("target")?;
+    let window_rows = match document.get("seal_window_rows") {
+        None | Some(Value::Null) => C1_SEAL_WINDOW_ROWS,
+        Some(value) => value
+            .as_u64()
+            .filter(|n| (1_000..=5_000_000).contains(n))
+            .ok_or("closed")?,
+    };
+    // The witness the admission report binds. If the scope names a composed digest, it must be this one.
+    if scope
+        .get("expected_composed_digest")
+        .is_some_and(|value| value != &json!(composed_digest))
+    {
+        return Err("composed_mismatch");
+    }
+    Ok(C1V2Request {
+        source,
+        job: job.to_owned(),
+        lease_generation,
+        epoch,
+        source_generation,
+        lineage: measured.to_owned(),
+        l0: l0.to_owned(),
+        l_end: l_end.to_owned(),
+        l_end_pos,
+        config_digest,
+        type_digest,
+        input_digest,
+        scope,
+        rows,
+        composed_digest,
+        tables,
+        shard,
+        owner,
+        target,
+        window_rows,
+    })
+}
+
+/// The admission report must bind this exact scope, and the report's digest must match.
+fn admit_c1_v2_registry(document: &Value, request: &C1V2Request) -> Result<(), &'static str> {
+    // Every table has its own admission registry (`tables[].admission`). All of them bind the
+    // same baseline scope. A one-table request also names its registry at the top level.
+    let mut registries: Vec<(String, String)> = Vec::new();
+    match document.get("tables").and_then(Value::as_array) {
+        Some(items) if items.len() > 1 => {
+            for item in items {
+                let admission = &item["admission"];
+                let path = text_field(admission, "registry_path")?;
+                let sha = hex_field(admission, "registry_sha256").map_err(|_| "digest_mismatch")?;
+                registries.push((path.to_string(), sha));
+            }
+        }
+        _ => {
+            let path = text_field(document, "admission_registry_path")?;
+            let sha = hex_field(document, "admission_registry_sha256").map_err(|_| "digest_mismatch")?;
+            registries.push((path.to_string(), sha));
+        }
+    }
+    let single = registries.len() == 1;
+    for (path, sha) in &registries {
+        let bytes = fs::read(path).map_err(|_| "nonadmitted")?;
+        if hex_bytes(&Sha256::digest(&bytes)) != *sha {
+            return Err("digest_mismatch");
+        }
+        let registry: Value = serde_json::from_slice(&bytes).map_err(|_| "nonadmitted")?;
+        if registry.pointer("/bindings/0/baseline_scope") != Some(&request.scope) {
+            return Err("baseline_scope");
+        }
+        // The per-table composed digest is checked against the rows by the final load itself
+        // (`composed_mismatch` over the parts of every table). It equals the overall digest only
+        // for one table.
+        if single
+            && registry
+                .pointer("/bindings/0/expected_composed_digest")
+                .is_some_and(|value| value != &json!(request.composed_digest))
+        {
+            return Err("composed_mismatch");
+        }
+    }
+    Ok(())
+}
+
+/// Shadow read parameters shared by every page of one final load.
+struct ShadowRead<'a> {
+    source: &'a str,
+    job: &'a str,
+    generation: i64,
+    epoch: i32,
+    lease: &'a Value,
+    window_rows: u64,
+}
+
+/// Stream one shadow through keyset pages and digest it. Returns the row count and the digest.
+/// Memory is one page. A lease heartbeat is sent after every window of rows.
+async fn digest_shadow(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    read: &ShadowRead<'_>,
+    schema: &str,
+    table: &str,
+    key_index: usize,
+    catalog: &[(i64, i32)],
+    types: &[oo_core::canonical::LogicalType],
+) -> Result<(u64, StateDigest), &'static str> {
+    let mut digest = StateDigest::new(C1_BUCKET_BITS).map_err(|_| "digest_bucket")?;
+    let mut after: Option<String> = None;
+    let mut rows: u64 = 0;
+    let mut since_beat: u64 = 0;
+    let started = std::time::Instant::now();
+    let mut keeper = LeaseKeeper::for_lease(BASELINE_LEASE_TTL);
+    loop {
+        let page: Vec<Vec<Option<String>>> = sqlx::query_scalar(
+            "SELECT _oo.native_c1_baseline_v2_digest_page($1,$2::uuid,$3,$4,$5,$6,$7,$8)",
+        )
+        .bind(read.source)
+        .bind(read.job)
+        .bind(read.generation)
+        .bind(read.epoch)
+        .bind(schema)
+        .bind(table)
+        .bind(after.as_deref())
+        .bind(C1_DIGEST_PAGE_ROWS)
+        .fetch_all(&mut **tx)
+        .await
+        .map_err(sql_token)?;
+        let fetched = page.len();
+        if fetched == 0 {
+            break;
+        }
+        for cells in &page {
+            if cells.len() != types.len() {
+                return Err("digest_shape");
+            }
+            let mut values = Vec::with_capacity(types.len());
+            for (cell, (oid, _)) in cells.iter().zip(catalog) {
+                values.push(pg_text_cell(*oid, cell.as_deref()).map_err(|_| "digest_cell")?);
+            }
+            let key = bucket_key(&values[key_index]).map_err(|_| "digest_key")?;
+            let row = canonical_row(types, &values).map_err(|_| "digest_cell")?;
+            digest.add_row(key, &row).map_err(|_| "digest_bucket")?;
+        }
+        rows += fetched as u64;
+        after = page.last().and_then(|cells| cells[key_index].clone());
+        if after.is_none() {
+            return Err("digest_key");
+        }
+        since_beat += fetched as u64;
+        let last_page = fetched < C1_DIGEST_PAGE_ROWS as usize;
+        if since_beat >= read.window_rows || last_page {
+            baseline_held_heartbeat(tx, read.lease).await?;
+            since_beat = 0;
+        }
+        renew_if_due(tx, read.lease, &mut keeper, started).await?;
+        if last_page {
+            break;
+        }
+    }
+    Ok((rows, digest))
+}
+
+/// Verified chunked-typed/v2 final load. Returns the typed-commit receipt with a verification object.
+pub async fn execute_c1_baseline_v2(document: &Value) -> Result<Value, &'static str> {
+    let request = c1_v2_request(document)?;
+    admit_c1_v2_registry(document, &request)?;
+    let request_digest = {
+        let mut immutable = document.clone();
+        immutable
+            .as_object_mut()
+            .ok_or("baseline_request")?
+            .remove("lease_generation");
+        hex_bytes(&Sha256::digest(
+            serde_json::to_vec(&immutable).map_err(|_| "baseline_request")?,
+        ))
+    };
+    let mut conn = connect_target(&request.target).await?;
+    let mut tx = conn.begin().await.map_err(sql_token)?;
+    sqlx::raw_sql(sqlx::AssertSqlSafe(
+        "SET LOCAL TimeZone = 'UTC'; SET LOCAL DateStyle = 'ISO, YMD'; SET LOCAL IntervalStyle = 'postgres'; SET LOCAL bytea_output = 'hex'",
+    ))
+    .execute(&mut *tx)
+    .await
+    .map_err(sql_token)?;
+    let (held, _) = lease_hold(&mut tx, &request.job, Some(request.lease_generation)).await?;
+    baseline_held_heartbeat(&mut tx, &held).await?;
+    let started = std::time::Instant::now();
+    let mut keeper = LeaseKeeper::for_lease(BASELINE_LEASE_TTL);
+    sqlx::query("SELECT _oo.native_c1_baseline_lock($1, $2::uuid)")
+        .bind(&request.source)
+        .bind(&request.job)
+        .execute(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+    let saved: Option<String> =
+        sqlx::query_scalar("SELECT _oo.native_c1_baseline_typed_receipt($1,$2::uuid)::text")
+            .bind(&request.source)
+            .bind(&request.job)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(sql_token)?;
+    if let Some(saved) = saved {
+        let saved: Value = serde_json::from_str(&saved).map_err(|_| "not_sealed")?;
+        if saved["request_digest"] != request_digest {
+            return Err("OO010");
+        }
+        tx.commit().await.map_err(sql_token)?;
+        let _ = release(&mut conn, &request.shard).await;
+        let mut receipt = saved["receipt"].clone();
+        receipt["verification"] =
+            json!({"protocol": C1_V2_VERIFICATION_PROTOCOL, "replayed": true});
+        return Ok(receipt);
+    }
+
+    let fence = native_c1_baseline::Fence {
+        shard: request.shard.clone(),
+        owner: request.owner.clone(),
+    };
+    let envelope = native_c1_baseline::Envelope {
+        source: request.source.clone(),
+        task: request.job.clone(),
+        generation: request.lease_generation,
+        epoch: request.epoch,
+        target: request.target.clone(),
+    };
+    let target_generation = native_c1_baseline::adopt_and_bind(&mut tx, &fence).await?;
+    let rebind: String = sqlx::query_scalar(
+        "SELECT _oo.native_c1_baseline_v2_rebind($1,$2::uuid,$3,$4,$5::uuid,$6)::text",
+    )
+    .bind(&request.source)
+    .bind(&request.job)
+    .bind(request.lease_generation)
+    .bind(&request.shard)
+    .bind(&request.owner)
+    .bind(target_generation)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(sql_token)?;
+    let state: Value = serde_json::from_str(&rebind).map_err(|_| "not_sealed")?;
+    if state["state"] != "open" || state["l0"] != request.l0.as_str() {
+        return Err("not_open");
+    }
+    let applied: u128 = state["applied_pos"]
+        .as_str()
+        .and_then(|text| text.parse().ok())
+        .ok_or("not_sealed")?;
+    let l_end: u128 = request.l_end_pos.parse().map_err(|_| "closed")?;
+    match applied.cmp(&l_end) {
+        std::cmp::Ordering::Less => return Err("not_caught_up"),
+        std::cmp::Ordering::Greater => return Err("past_l_end"),
+        std::cmp::Ordering::Equal => {}
+    }
+
+    let plan_text: String =
+        sqlx::query_scalar("SELECT _oo.native_c1_baseline_v2_plan($1,$2::uuid,$3,$4)::text")
+            .bind(&request.source)
+            .bind(&request.job)
+            .bind(request.lease_generation)
+            .bind(request.epoch)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(sql_token)?;
+    let plan: Vec<Value> = serde_json::from_str::<Value>(&plan_text)
+        .map_err(|_| "not_sealed")?
+        .as_array()
+        .cloned()
+        .ok_or("not_sealed")?;
+    if plan.len() != request.tables.len() {
+        return Err("table_set");
+    }
+
+    let read = ShadowRead {
+        source: &request.source,
+        job: &request.job,
+        generation: request.lease_generation,
+        epoch: request.epoch,
+        lease: &held,
+        window_rows: request.window_rows,
+    };
+    let mut verified: Vec<(u64, StateDigest)> = Vec::with_capacity(plan.len());
+    let mut ordered: Vec<&C1V2Table> = Vec::with_capacity(plan.len());
+    // Receipts follow the request's table order, which the worker checks against its
+    // `entries`. The plan supplies only the physical names, and it is matched by name.
+    for wanted in &request.tables {
+        let schema = wanted.schema.as_str();
+        let table = wanted.table.as_str();
+        let entry = plan
+            .iter()
+            .find(|item| item["schema"].as_str() == Some(schema) && item["table"].as_str() == Some(table))
+            .ok_or("table_set")?;
+        let physical = entry["physical"].as_str().ok_or("table_set")?;
+        let key_column = entry["key_column"].as_str().ok_or("table_set")?;
+        let columns: Vec<String> = entry["columns"]
+            .as_array()
+            .ok_or("table_set")?
+            .iter()
+            .map(|item| item.as_str().map(str::to_owned).ok_or("table_set"))
+            .collect::<Result<_, _>>()?;
+        let catalog: Vec<(String, i64, i32)> = sqlx::query_as(
+            "SELECT a.attname::text, a.atttypid::int8, a.atttypmod::int4 \
+             FROM pg_attribute a \
+             WHERE a.attrelid = to_regclass($1) AND a.attnum > 0 AND NOT a.attisdropped AND a.attname <> '_oo_pos' \
+             ORDER BY a.attnum",
+        )
+        .bind(format!("_oo.{physical}"))
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+        let names: Vec<&str> = catalog.iter().map(|(name, _, _)| name.as_str()).collect();
+        if names != columns.iter().map(String::as_str).collect::<Vec<_>>() {
+            return Err("digest_shape");
+        }
+        let key_index = columns
+            .iter()
+            .position(|name| name == key_column)
+            .ok_or("digest_shape")?;
+        let oids: Vec<(i64, i32)> = catalog
+            .iter()
+            .map(|(_, oid, typmod)| (*oid, *typmod))
+            .collect();
+        // D7: the canonical types are the producer's source mapping, from the request.
+        if wanted.canonical.len() != oids.len() {
+            return Err("digest_shape");
+        }
+        let types = wanted.canonical.clone();
+        let started = std::time::Instant::now();
+        let (rows, digest) =
+            digest_shadow(&mut tx, &read, schema, table, key_index, &oids, &types).await?;
+        eprintln!(
+            "oo-pipeline: c1-v2-digest table={table} rows={rows} elapsed_ms={}",
+            started.elapsed().as_millis()
+        );
+        if rows != wanted.rows || hex_bytes(&digest.table_digest()) != wanted.table_digest {
+            return Err("composed_mismatch");
+        }
+        verified.push((rows, digest));
+        ordered.push(wanted);
+    }
+    let names: Vec<String> = ordered
+        .iter()
+        .map(|t| format!("{}.{}", t.schema, t.table))
+        .collect();
+    let parts: Vec<(&str, &StateDigest)> = names
+        .iter()
+        .map(String::as_str)
+        .zip(verified.iter().map(|(_, d)| d))
+        .collect();
+    if composed_digest(&parts).map_err(|_| "digest_bucket")? != request.composed_digest {
+        return Err("composed_mismatch");
+    }
+    sqlx::query("SELECT _oo.native_c1_baseline_v2_analyze($1,$2::uuid,$3,$4)")
+        .bind(&request.source)
+        .bind(&request.job)
+        .bind(request.lease_generation)
+        .bind(request.epoch)
+        .execute(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+    baseline_held_heartbeat(&mut tx, &held).await?;
+
+    let body = native_c1_baseline::SealBody {
+        l_end: request.l_end.clone(),
+        l_end_pos: request.l_end_pos.clone(),
+        hook_digest: hook_digest(),
+        tables: ordered
+            .iter()
+            .map(|table| native_c1_baseline::SealTable {
+                schema: table.schema.clone(),
+                table: table.table.clone(),
+                row_count: table.rows,
+                payload_digest: table.table_digest.clone(),
+            })
+            .collect(),
+    };
+    let sealed =
+        native_c1_baseline::seal_in_tx(&mut tx, &envelope, &fence, target_generation, &body)
+            .await?;
+    let sealed_tables = sealed["tables"].as_array().ok_or("not_sealed")?;
+    let mut entries = Vec::with_capacity(ordered.len());
+    for table in &ordered {
+        renew_if_due(&mut tx, &held, &mut keeper, started).await?;
+        let item = sealed_tables
+            .iter()
+            .find(|item| {
+                item["schema"] == table.schema.as_str() && item["table"] == table.table.as_str()
+            })
+            .ok_or("not_sealed")?;
+        let run_id = item["run_id"].as_str().ok_or("not_sealed")?;
+        let physical = item["physical"].as_str().ok_or("not_sealed")?;
+        let receipt_batch = item["receipt_batch_id"].as_str().ok_or("not_sealed")?;
+        sqlx::query("SELECT _oo.native_update_seal_quality($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12::numeric, $13, $14, $15, $16, $17, $18, $19::text[], $20, $21, $22, $23)")
+            .bind(&request.shard)
+            .bind(&request.owner)
+            .bind(target_generation)
+            .bind(run_id)
+            .bind(&request.source)
+            .bind(request.source_generation)
+            .bind(&table.schema)
+            .bind(&table.table)
+            .bind(physical)
+            .bind(receipt_batch)
+            .bind(&table.table_digest)
+            .bind(&request.l_end_pos)
+            .bind("mysql-gtid/v1")
+            .bind(&request.lineage)
+            .bind("c1_cdc")
+            .bind("native")
+            .bind("T")
+            .bind(true)
+            .bind(Vec::<String>::new())
+            .bind(i64::try_from(table.rows).map_err(|_| "closed")?)
+            .bind("never")
+            .bind(0_i64)
+            .bind("full")
+            .execute(&mut *tx)
+            .await
+            .map_err(sql_token)?;
+        sqlx::query("SELECT _oo.native_update_mirror($1,$2,$3)")
+            .bind(&request.source)
+            .bind(receipt_batch)
+            .bind(physical)
+            .execute(&mut *tx)
+            .await
+            .map_err(sql_token)?;
+        let status: String = sqlx::query_scalar(
+            "SELECT _oo.full_import_seal_run($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11::text[], $12::text[])",
+        )
+        .bind(&request.shard)
+        .bind(&request.owner)
+        .bind(target_generation)
+        .bind(run_id)
+        .bind(&request.source)
+        .bind(request.source_generation)
+        .bind(&request.config_digest)
+        .bind(&request.type_digest)
+        .bind(&request.input_digest)
+        .bind(&table.schema_digest)
+        .bind(vec![table.schema.as_str()])
+        .bind(vec![table.table.as_str()])
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+        if status != "awaiting_publish" {
+            return Err("seal");
+        }
+        entries.push(json!({
+            "schema": table.schema,
+            "table": table.table,
+            "physical_id": physical,
+            "run_id": run_id,
+            "sha256": table.table_digest,
+            "row_count": table.rows
+        }));
+    }
+    let raw: String = sqlx::query_scalar("SELECT _oo.native_c1_baseline_typed_commit($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb)::text")
+        .bind(&request.source)
+        .bind(&request.job)
+        .bind(request.lease_generation)
+        .bind(request.epoch)
+        .bind(target_generation)
+        .bind(request.source_generation)
+        .bind(&request_digest)
+        .bind(serde_json::to_string(&request.scope).map_err(|_| "baseline_scope")?)
+        .bind(serde_json::to_string(&entries).map_err(|_| "baseline_entries")?)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+    lease_hold(&mut tx, &request.job, Some(request.lease_generation)).await?;
+    tx.commit().await.map_err(sql_token)?;
+    let _ = release(&mut conn, &request.shard).await;
+    let mut receipt: Value = serde_json::from_str(&raw).map_err(|_| "not_sealed")?;
+    receipt["verification"] = json!({
+        "protocol": C1_V2_VERIFICATION_PROTOCOL,
+        "bucket_bits": C1_BUCKET_BITS,
+        "composed_digest": request.composed_digest,
+        "rows": request.rows,
+        "replayed": false,
+        "tables": ordered.iter().zip(&verified).map(|(table, (rows, digest))| json!({
+            "schema": table.schema,
+            "table": table.table,
+            "row_count": rows,
+            "table_digest": hex_bytes(&digest.table_digest())
+        })).collect::<Vec<Value>>()
+    });
+    Ok(receipt)
 }
 
 /// Complete the target-side C4 ACK after `jobs.complete_success` commits.
@@ -496,7 +1304,67 @@ pub async fn install_native_claim_selected_cli() -> Result<(), u8> {
     if result["installed"] == true { Ok(()) } else { Err(1) }
 }
 
+mod multipart;
+mod range_parts;
+
+pub async fn c5_part_stage_stdio(install: bool) -> Result<(), u8> {
+    c5_parts_stdio(if install { "parts" } else { "stage" }).await
+}
+
+pub async fn c5_widening_install_stdio() -> Result<(), u8> {
+    c5_parts_stdio("widening").await
+}
+
+pub async fn c5_observer_install_stdio() -> Result<(), u8> {
+    c5_parts_stdio("observer").await
+}
+
+async fn c5_parts_stdio(mode: &str) -> Result<(), u8> {
+    let mut bytes=Vec::new();
+    std::io::stdin().take(1_048_577).read_to_end(&mut bytes).map_err(|_|2u8)?;
+    if bytes.len()>1_048_576 { return Err(2); }
+    let input:Value=serde_json::from_slice(&bytes).map_err(|_|2u8)?;
+    let outcome=if mode != "stage" {
+        match connect_target(&input["target"]).await {
+            Ok(mut conn) if mode=="observer"=>target_installer::install_native_c5_privileged_observer(&mut conn).await
+                .map(|_|json!({"protocol":"oo.pipeline.c5-observer-install/v1","installed":true,
+                    "digest":target_installer::compiled_native_c5_privileged_observer_digest()}))
+                .map_err(|_|"c5_observer_install"),
+            Ok(mut conn) if mode=="widening"=>target_installer::install_native_c5_widening_rebase(&mut conn).await
+                .map(|_|json!({"protocol":"oo.pipeline.c5-widening-install/v1","installed":true,
+                    "digest":target_installer::compiled_native_c5_widening_rebase_digest(),
+                    "type_receipt_digest":target_installer::compiled_native_c5_widening_type_receipt_digest(),
+                    "source_types_digest":target_installer::compiled_native_c5_widening_source_types_digest()}))
+                .map_err(|_|"c5_widening_install"),
+            Ok(mut conn)=>target_installer::install_native_c5_range_parts(&mut conn).await
+                .map(|_|json!({"protocol":"oo.pipeline.c5-parts-install/v1","installed":true,
+                    "apply_digest":target_installer::compiled_native_c5_range_parts_apply_digest()}))
+                .map_err(|_|"c5_parts_install"),
+            Err(reason)=>Err(reason),
+        }
+    }else{range_parts::stage(&input).await};
+    let (value,ok)=match outcome {
+        Ok(value)=>(value,true),
+        Err(reason)=>(json!({"protocol":"oo.pipeline.c5-private-part-stage/v1",
+            "outcome":"refused","reason":reason,"published":false,"acknowledged":false}),false),
+    };
+    use std::io::Write;
+    writeln!(std::io::stdout(),"{value}").map_err(|_|1u8)?;
+    if ok {Ok(())} else {Err(1)}
+}
+
 async fn dispatch(document: &Value) -> Value {
+    if document["protocol"] == crate::native_c5_parts::RANGE_PROTOCOL {
+        return match range_parts::execute(document).await {
+            Ok(value) => value, Err(reason) => refused(document, reason),
+        };
+    }
+    if document["protocol"]==REQUEST_PROTOCOL && document.get("multipart_scope").is_some() {
+        return match multipart::execute_all(document).await {Ok(value)=>value,Err(reason)=>refused(document,reason)};
+    }
+    if document["protocol"] == "oo.pipeline.native-c5-multipart/v1" {
+        return match multipart::execute(document).await {Ok(value)=>value,Err(reason)=>refused(document,reason)};
+    }
     if document.get("protocol").and_then(|value| value.as_str()) == Some(INSTALL_PROTOCOL) {
         return install_document(document).await;
     }
@@ -577,6 +1445,33 @@ async fn install_document(document: &Value) -> Value {
         Ok(()) => match target_installer::install_native_per_table_publication(&mut conn).await {
         Ok(()) => match target_installer::install_native_source_progress_read(&mut conn).await {
         Ok(()) => match target_installer::install_native_partition_observation_read(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_chunked_baseline(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_chunked_baseline_final(&mut conn).await {
+        Ok(()) => match target_installer::install_native_source_instance_grant(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_ack_seed_format(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_range(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_range_apply(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_scan(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_replay_guard(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_full_initialize(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_closed_observation(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_multipart(&mut conn).await {
+        Ok(()) => match target_installer::install_masked_rejects(&mut conn).await {
+        Ok(()) => match target_installer::install_multipart_cells(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_publication(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_single_baseline(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_multipart_baseline_guard(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_wide_columns(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_cells_array(&mut conn).await {
+        Ok(()) => match target_installer::install_native_library_publication(&mut conn).await {
+        Ok(()) => match target_installer::install_native_library_closed_pointer(&mut conn).await {
+        Ok(()) => match target_installer::install_native_library_closed_receipt(&mut conn).await {
+        Ok(()) => match target_installer::install_native_library_existing_receipt_fields(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_incremental(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_oracle_range(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_oracle_publication(&mut conn).await {
+        Ok(()) => match target_installer::install_native_oracle_c5_catalog(&mut conn).await {
+        Ok(()) => match target_installer::install_native_oracle_observation(&mut conn).await {
         Ok(()) => json!({
             "protocol": RESULT_PROTOCOL,
             "installed": true,
@@ -605,7 +1500,72 @@ async fn install_document(document: &Value) -> Value {
             ,"native_per_table_publication_digest": target_installer::compiled_native_per_table_publication_digest()
             ,"native_source_progress_read_digest": target_installer::compiled_native_source_progress_read_digest()
             ,"native_partition_observation_read_digest": target_installer::compiled_native_partition_observation_read_digest()
+            ,"native_c1_chunked_baseline_digest": target_installer::compiled_native_c1_chunked_baseline_digest()
+            ,"native_c1_chunked_baseline_final_digest": target_installer::compiled_native_c1_chunked_baseline_final_digest()
+            ,"native_source_instance_grant_digest": target_installer::compiled_native_source_instance_grant_digest()
+            ,"native_c5_publication_digest": target_installer::compiled_native_c5_publication_digest()
+            ,"native_c5_single_baseline_digest": target_installer::compiled_native_c5_single_baseline_digest()
+            ,"native_library_publication_digest": target_installer::compiled_native_library_publication_digest()
+            ,"native_c5_incremental_digest": target_installer::compiled_native_c5_incremental_digest()
+            ,"oracle_c5_range_digest": target_installer::compiled_native_c5_oracle_range_digest()
+            ,"oracle_c5_publication_digest": target_installer::compiled_native_c5_oracle_publication_digest()
+            ,"oracle_c5_catalog_digest": target_installer::compiled_native_oracle_c5_catalog_digest()
+            ,"oracle_observation_digest": target_installer::compiled_native_oracle_observation_digest()
         }),
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0096"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0094"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0093"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0090"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0065-0068"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0064"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0063"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0062"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0061"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0060"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0059"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0058"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0057"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0056"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0055"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0054"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0053"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0052"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"step":"0051"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"step":"0050"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"step":"0049"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"step":"0048"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"step":"0047"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0045"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0044"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0043"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0042"}),
+        },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0041"}),
         },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0040"}),
@@ -685,6 +1645,10 @@ fn install_token(err: &InstallError) -> &'static str {
 
 async fn execute(document: &Value) -> Result<Value, &'static str> {
     let plan = classify(document)?;
+    execute_plan(document, plan).await
+}
+
+async fn execute_plan(document: &Value, plan: UpdatePlan) -> Result<Value, &'static str> {
     if plan.transaction_scope.is_some() {
         return Ok(refused(document, "transaction_group_required"));
     }
@@ -722,6 +1686,11 @@ async fn execute(document: &Value) -> Result<Value, &'static str> {
             let _ = tx.rollback().await;
             return Ok(refused(document, "OO010"));
         }
+        let parts_deleted: Option<i64> = if plan.parts_index.is_some() {
+            Some(sqlx::query_scalar("SELECT _oo.c5_parts_rebind($1,$2::uuid,$3)")
+                .bind(&plan.source_id).bind(lease_id).bind(plan.lease_generation.ok_or("lease_required")?)
+                .fetch_one(&mut *tx).await.map_err(sql_token)?)
+        } else { None };
         if let Some(scope) = plan.partition_scope.as_ref() {
             let stored_digest: Option<String> = sqlx::query_scalar(
                 "SELECT checksum FROM _oo.schema_migrations WHERE version = $1"
@@ -762,16 +1731,18 @@ async fn execute(document: &Value) -> Result<Value, &'static str> {
             None
         };
         let jobs = jobs_regclass(&mut conn).await;
-        return Ok(replay_result(
+        let mut replay = replay_result(
             &plan,
             &existing,
             mirror,
             jobs,
             lease_receipt,
             lease_call,
-        ));
+        );
+        if let Some(deleted)=parts_deleted { replay["tombstone_count"]=json!(deleted); }
+        return Ok(replay);
     }
-    if plan.partition_scope.is_none() && let Err(token) = position_ahead(&mut tx, &plan).await {
+    if plan.partition_scope.is_none() && plan.range_scope.is_none() && let Err(token) = position_ahead(&mut tx, &plan).await {
         let _ = tx.rollback().await;
         return Ok(refused(document, token));
     }
@@ -1291,6 +2262,8 @@ struct UpdatePlan {
     derived_semantics: Option<Value>,
     lease_id: Option<String>,
     lease_generation: Option<i64>,
+    range_scope: Option<Value>,
+    parts_index: Option<crate::native_c5_parts::FileRef>,
     partition_scope: Option<Value>,
     transaction_scope: Option<Value>,
     gtid_scope: Option<Value>,
@@ -1301,6 +2274,16 @@ struct UpdatePlan {
 }
 
 fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
+    classify_inner(document,false,false,false)
+}
+
+fn classify_inner(document: &Value, allow_c5_binding:bool, allow_multipart:bool, allow_oracle_delta:bool) -> Result<UpdatePlan, &'static str> {
+    if document["protocol"] == crate::native_c5_range::REQUEST_PROTOCOL {
+        return classify_c5_range(document);
+    }
+    if document.get("range_scope").is_some() {
+        return Err("c5_range_loader_required");
+    }
     let protocol = document.get("protocol").and_then(|value| value.as_str());
     let partition_mode = protocol == Some(PARTITION_PROTOCOL);
     if protocol != Some(REQUEST_PROTOCOL) && !partition_mode {
@@ -1393,6 +2376,7 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
             "mssql-ct-version/v1",
             "mysql-binlog-pos/v1",
             "mysql-gtid/v1",
+            "oracle-capture-sequence/v1",
             "mariadb-gtid/v1",
             "mongo-cluster-time/v1",
             "mongo-resume-token/v1",
@@ -1406,6 +2390,14 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         return Err("partition_scope_required");
     }
     let applied_pos_request = if partition_mode { "0".to_string() } else { digits(document, "applied_pos")? };
+    if position_codec==crate::c1_buffer_position::CODEC {
+        if source_engine!="oracle" || capture_method!="c1_cdc" || consistency_grade!="T"
+            || !cross_table || full_snapshot!=Some(true) || lease_id.is_none() || lease_generation.is_none()
+            || (parent.is_some() && !(allow_oracle_delta && parent==source_generation.checked_sub(1)))
+            || !position_lineage.starts_with("oracle.") {
+            return Err("oracle_buffer_scope");
+        }
+    }
     if position_codec == "mariadb-gtid/v1" {
         if source_engine != "mariadb" {
             return Err("gtid_family");
@@ -1468,6 +2460,11 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         refuse_bare_document_double(&arrow, &columns)?;
     }
     let admission = bind_admission(document, &arrow)?;
+    if !allow_multipart && admission.source_bound {
+        let registry:Value=serde_json::from_slice(&read_registry(document)?).map_err(|_|"nonadmitted")?;
+        if registry.pointer("/bindings/0/multipart_scope").is_some() {return Err("multipart_loader_required");}
+    }
+    if admission.range_scope.is_some() && !allow_c5_binding { return Err("c5_range_loader_required"); }
     if source_engine == "sqlserver" || position_codec == "mssql-ct-version/v1" {
         if !admission.source_bound { return Err("nonadmitted"); }
         let registry: Value = serde_json::from_slice(&read_registry(document)?).map_err(|_| "nonadmitted")?;
@@ -1506,7 +2503,7 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         return Err("bad_type");
     }
     refuse_upsert_conflict(&arrow, &tombstones, &key_indexes, shape)?;
-    if !partition_mode && parent.is_some() && shape != "snapshot" && decimal_is_zero(&applied_pos_request) {
+    if zero_position_is_expired(parent.is_some(), shape, partition_mode, allow_c5_binding && admission.range_scope.is_some()) && decimal_is_zero(&applied_pos_request) {
         return Err("expired");
     }
     let (consistency_grade, cross_table) =
@@ -1634,6 +2631,8 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         derived_semantics,
         lease_id,
         lease_generation,
+        range_scope: None,
+        parts_index: None,
         partition_scope,
         transaction_scope: admission.transaction_scope,
         gtid_scope: admission.gtid_scope,
@@ -1698,6 +2697,8 @@ fn classify_mirror(document: &Value) -> Result<UpdatePlan, &'static str> {
         derived_semantics: None,
         lease_id: None,
         lease_generation: None,
+        range_scope: None,
+        parts_index: None,
         partition_scope: None,
         transaction_scope: None,
         gtid_scope: None,
@@ -1712,6 +2713,7 @@ struct Admission {
     source_bound: bool,
     producer_trust: Value,
     trusted_fields: Vec<native_binding::BoundField>,
+    range_scope: Option<Value>,
     partition_scope: Option<Value>,
     transaction_scope: Option<Value>,
     gtid_scope: Option<Value>,
@@ -1725,6 +2727,7 @@ fn unbound_admission() -> Admission {
         source_bound: false,
         producer_trust: producer_trust_absent(),
         trusted_fields: Vec::new(),
+        range_scope: None,
         partition_scope: None,
         transaction_scope: None,
         gtid_scope: None,
@@ -1823,10 +2826,14 @@ fn bind_admission(document: &Value, arrow: &[u8]) -> Result<Admission, &'static 
         }
         return Err("nonadmitted");
     }
-    bind_document_to_producer(document, &parsed)?;
+    bind_document_to_producer(document, &parsed).map_err(|reason| {
+        eprintln!("oo-pipeline: native_admission stage=document_binding reason={reason}");
+        reason
+    })?;
     let arrows = string_list(&parsed, "arrow_sha256")?;
     let file_hash = native_arrow::arrow_sha256(arrow);
     if !arrow.is_empty() && !arrows.iter().any(|item| item == &file_hash) {
+        eprintln!("oo-pipeline: native_admission stage=arrow_bytes reason=digest_mismatch");
         return Err("digest_mismatch");
     }
     if arrow.is_empty() {
@@ -1835,6 +2842,7 @@ fn bind_admission(document: &Value, arrow: &[u8]) -> Result<Admission, &'static 
         let schema_hash =
             native_arrow::arrow_schema_sha256(arrow).map_err(|_| "digest_mismatch")?;
         if hex_ref(&parsed, "arrow_schema_sha256")? != schema_hash {
+            eprintln!("oo-pipeline: native_admission stage=arrow_schema reason=digest_mismatch");
             return Err("digest_mismatch");
         }
     }
@@ -1848,7 +2856,10 @@ fn bind_admission(document: &Value, arrow: &[u8]) -> Result<Admission, &'static 
     if declared.is_some_and(|value| value != receipt_sha256) {
         return Err("digest_mismatch");
     }
-    require_server_registration(document, arrow, &bytes)
+    require_server_registration(document, arrow, &bytes).map_err(|reason| {
+        eprintln!("oo-pipeline: native_admission stage=server_registration reason={reason}");
+        reason
+    })
 }
 
 fn historical_admission(
@@ -1885,7 +2896,8 @@ fn historical_admission(
         native_binding::AdmissionReceiptKind::HistoricalReadonly => Ok(Admission {
             source_bound: false,
             trusted_fields: Vec::new(),
-            partition_scope: None,
+            range_scope: None,
+        partition_scope: None,
             transaction_scope: None,
             gtid_scope: None,
             source_instance: None,
@@ -1968,6 +2980,7 @@ fn bind_document_to_producer(document: &Value, receipt: &Value) -> Result<(), &'
             .and_then(|value| value.as_str())
             .ok_or("digest_mismatch")?;
         if !hex64(want) || got != want {
+            eprintln!("oo-pipeline: native_admission field={name} reason=digest_mismatch");
             return Err("digest_mismatch");
         }
     }
@@ -2067,7 +3080,7 @@ fn column_storage(column: &CopyColumnDecl) -> Result<(i64, i32), &'static str> {
             Ok((114, -1))
         }
         "utf8" => match column.char_length {
-            Some(len) if (1..=63).contains(&len) && plain => Ok((1042, len + 4)),
+            Some(len) if (1..=255).contains(&len) && plain => Ok((1042, len + 4)),
             None if plain => Ok((1043, -1)),
             _ => Err("bad_type"),
         },
@@ -2288,7 +3301,16 @@ fn open_registration(
     {
         return Err("nonadmitted");
     }
+    if document["position_codec"]==crate::c1_buffer_position::CODEC {
+        let scope=authorized.baseline_scope.as_ref().ok_or("oracle_buffer_scope")?;
+        crate::c1_buffer_position::validate_scope(scope)?;
+        if document["source_engine"]!="oracle"||document["position_lineage"]!=scope["lineage"]
+            || document["applied_pos"]!=scope["buffer"]["final_cursor"]["transaction_ordinal"] {
+            return Err("oracle_buffer_scope");
+        }
+    }
     opened.fields = authorized.fields;
+    opened.range_scope = authorized.range_scope;
     opened.partition_scope = authorized.partition_scope;
     opened.transaction_scope = authorized.transaction_scope;
     Ok(opened)
@@ -2375,6 +3397,7 @@ fn registration_admission(opened: native_binding::ServerRegistration) -> Admissi
     Admission {
         source_bound: true,
         trusted_fields: opened.fields,
+        range_scope: opened.range_scope,
         partition_scope: opened.partition_scope,
         transaction_scope: opened.transaction_scope,
         gtid_scope: opened.gtid_scope,
@@ -3174,6 +4197,8 @@ fn key_type_ok(column: &CopyColumnDecl) -> bool {
         "int64" => column.scale.is_none() && width_ok(column, 64),
         "uint8" => column.scale.is_none() && width_ok(column, 8),
         "uint64" => column.precision == Some(64) && column.scale.is_none(),
+        "decimal128" => column.scale == Some(0)
+            && column.precision.is_some_and(|precision| (1..=38).contains(&precision)),
         "utf8" => column.precision.is_none() && column.scale.is_none(),
         "date32" => column.precision.is_none() && column.scale.is_none(),
         "binary" | "fixedsizebinary(12)" | "fixedsizebinary(16)" => column.precision.is_none() && column.scale.is_none(),
@@ -3229,6 +4254,8 @@ fn canonical_key_text(column: &CopyColumnDecl, text: &str) -> bool {
         "int64" => canonical_i64(text),
         "uint8" => canonical_unsigned(text, u128::from(u8::MAX)),
         "uint64" => canonical_u64(text),
+        "decimal128" => column.scale == Some(0)
+            && column.precision.is_some_and(|precision| canonical_decimal_key(text, precision)),
         "utf8" => !text.is_empty(),
         "date32" => canonical_date(text),
         "binary" | "fixedsizebinary(12)" | "fixedsizebinary(16)" => {
@@ -3238,6 +4265,16 @@ fn canonical_key_text(column: &CopyColumnDecl, text: &str) -> bool {
         }
         _ => false,
     }
+}
+
+fn canonical_decimal_key(text: &str, precision: i32) -> bool {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    (1..=38).contains(&precision)
+        && !digits.is_empty()
+        && digits.len() <= precision as usize
+        && digits.bytes().all(|byte| byte.is_ascii_digit())
+        && (digits == "0" || !digits.starts_with('0'))
+        && text != "-0"
 }
 
 fn canonical_signed(text: &str, width: u32) -> bool {
@@ -3469,6 +4506,14 @@ fn cell_key_text(cell: &NativeCell) -> Result<String, &'static str> {
                 Err("bad_type")
             }
         }
+        NativeCell::Decimal { precision, scale: 0, coefficient } => {
+            let text = coefficient.to_string();
+            if canonical_decimal_key(&text, i32::from(*precision)) {
+                Ok(text)
+            } else {
+                Err("bad_type")
+            }
+        }
         NativeCell::UInt64(value) => Ok(value.to_string()),
         NativeCell::UInt8(value) => Ok(value.to_string()),
         NativeCell::Utf8(text) if !text.is_empty() => Ok(text.clone()),
@@ -3528,6 +4573,14 @@ async fn apply_tx(
 async fn apply_tx_baseline(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, plan: &UpdatePlan, baseline: Option<BaselineCopy>,
 ) -> Result<Applied, &'static str> {
+    let parts_scope = plan.range_scope.as_ref()
+        .filter(|scope| scope["protocol"] == crate::native_c5_parts::RANGE_PROTOCOL);
+    let c5_lease = if plan.range_scope.is_some() {
+        Some(lease_hold(tx, plan.lease_id.as_deref().ok_or("lease_required")?,
+            plan.lease_generation).await?.0)
+    } else { None };
+    let copy_lease = baseline.as_ref().map(|b| b.lease.clone()).or_else(|| c5_lease.clone());
+    if let Some(lease) = &c5_lease { baseline_held_heartbeat(tx, lease).await?; }
     if plan.columns.iter().any(|column| column.arrow_type == "duration_micros") {
         let stored_digest: Option<String> = sqlx::query_scalar(
             "SELECT checksum FROM _oo.schema_migrations WHERE version = $1"
@@ -3559,10 +4612,24 @@ async fn apply_tx_baseline(
             }
         }
     }
+    if plan.range_scope.is_some() {
+        let stored:Option<String>=sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version=$1")
+            .bind(target_installer::VERSION_NATIVE_C5_CLOSED_OBSERVATION).fetch_optional(&mut **tx).await.map_err(sql_token)?;
+        if stored.as_deref()!=Some(target_installer::compiled_native_c5_closed_observation_digest().as_str()) { return Err("c5_schema_not_ready"); }
+    }
+    if parts_scope.is_some() {
+        let stored:Option<String>=sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version=$1")
+            .bind(target_installer::VERSION_NATIVE_C5_RANGE_PARTS_APPLY).fetch_optional(&mut **tx).await.map_err(sql_token)?;
+        if stored.as_deref()!=Some(target_installer::compiled_native_c5_range_parts_apply_digest().as_str()) {
+            return Err("c5_parts_schema_not_ready");
+        }
+    }
     if plan.audit_digest.len() != 64 {
         return Err("no_audit");
     }
-    let (upsert_keys, upsert_rows) = if plan.shape == "snapshot" {
+    let (upsert_keys, upsert_rows) = if let Some(scope) = parts_scope {
+        (Vec::new(),usize::try_from(scope["row_count"].as_u64().ok_or("rows")?).map_err(|_|"rows")?)
+    } else if plan.shape == "snapshot" {
         refuse_upsert_conflict(&plan.arrow, &plan.tombstones, &plan.key_indexes, plan.shape)?;
         if plan.arrow.is_empty() {
             (Vec::new(), 0usize)
@@ -3624,6 +4691,7 @@ async fn apply_tx_baseline(
         .await
         .map_err(|_| "physical")?;
     }
+    if let Some(lease) = &c5_lease { baseline_held_heartbeat(tx, lease).await?; }
     let target_generation: i64 =
         sqlx::query_scalar("SELECT _oo.adopt_target_generation($1, $2::uuid)")
             .bind(&plan.shard)
@@ -3645,6 +4713,20 @@ async fn apply_tx_baseline(
         .execute(&mut **tx)
         .await
         .map_err(sql_token)?;
+    let parts_deleted: Option<i64> = if let Some(scope) = parts_scope {
+        Some(sqlx::query_scalar("SELECT _oo.c5_parts_guard($1,$2::uuid,$3,$4::jsonb)")
+            .bind(&plan.shard).bind(&plan.owner).bind(target_generation).bind(scope.to_string())
+            .fetch_one(&mut **tx).await.map_err(sql_token)?)
+    } else { None };
+    let range_replaced=if let Some(scope)=plan.range_scope.as_ref().filter(|_| parts_scope.is_none()) {
+        Some({
+        let text = serde_json::to_string(scope).map_err(|_| "c5_range_scope")?;
+        sqlx::query_scalar("SELECT _oo.c5_range_guard($1,$2::uuid,$3,$4::jsonb,$5::text[])")
+            .bind(&plan.shard).bind(&plan.owner).bind(target_generation).bind(text).bind(&upsert_keys)
+            .fetch_one(&mut **tx).await.map_err(sql_token)?
+        })
+    }else{None};
+    if let Some(lease) = &c5_lease { baseline_held_heartbeat(tx, lease).await?; }
     let input_bytes = decode_hex32(&plan.input_digest).map_err(|_| "digest_mismatch")?;
     let prepare_started=std::time::Instant::now();
     let prepared = if plan.arrow.is_empty() {
@@ -3747,7 +4829,8 @@ async fn apply_tx_baseline(
         let signature = prior["signature"].as_str().map(str::to_owned);
         (exists, signature)
     } else { (plan.previous_ack_exists, plan.previous_signature.clone()) };
-    let replaced_keys: Vec<String> = if let Some(scope) = plan.partition_scope.as_ref() {
+    let replaced_keys: Vec<String> = if let Some(keys)=range_replaced {keys
+    } else if let Some(scope) = plan.partition_scope.as_ref() {
         let scope_text = serde_json::to_string(scope).map_err(|_| "partition_scope_required")?;
         sqlx::query_scalar("SELECT _oo.native_partition_guard($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12::text[])")
             .bind(&plan.shard).bind(&plan.owner).bind(target_generation)
@@ -3759,7 +4842,28 @@ async fn apply_tx_baseline(
     } else {
         plan.tombstones.clone()
     };
-    let copied: i64 = if let Some(parent) = plan
+    let copied: i64 = if let Some(scope) = parts_scope {
+        sqlx::query_scalar("SELECT _oo.c5_parts_overlay_prepare($1,$2::uuid,$3,$4::uuid,$5::jsonb,$6::text[],$7::text[])")
+            .bind(&plan.shard).bind(&plan.owner).bind(target_generation).bind(&run_id)
+            .bind(scope.to_string()).bind(&plan.column_idents).bind(&plan.key_idents)
+            .fetch_one(&mut **tx).await.map_err(sql_token)?
+    } else if let Some(scope) = &plan.range_scope {
+        // Reuse immutable parent storage; C5 must not copy unchanged rows into every generation.
+        sqlx::query_scalar(
+            "SELECT _oo.c5_overlay_prepare($1,$2::uuid,$3,$4::uuid,$5::jsonb,$6::text[],$7::text[],$8::text[])",
+        )
+        .bind(&plan.shard)
+        .bind(&plan.owner)
+        .bind(target_generation)
+        .bind(&run_id)
+        .bind(serde_json::to_string(scope).map_err(|_| "c5_range_scope")?)
+        .bind(&upsert_keys)
+        .bind(&plan.column_idents)
+        .bind(&plan.key_idents)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(sql_token)?
+    } else if let Some(parent) = plan
         .parent_source_generation
         .filter(|_| plan.shape != "snapshot")
     {
@@ -3793,7 +4897,33 @@ async fn apply_tx_baseline(
     } else {
         0
     };
-    if let Some(prepared) = prepared.as_ref() {
+    if let Some(lease) = &c5_lease {
+        baseline_held_heartbeat(tx, lease).await?;
+        // Charge row guards to each bounded COPY, not one unrenewable deferred tail.
+        sqlx::raw_sql(sqlx::AssertSqlSafe("SET CONSTRAINTS ALL IMMEDIATE"))
+            .execute(&mut **tx).await.map_err(sql_token)?;
+    }
+    if let Some(scope) = parts_scope {
+        let lease = c5_lease.as_ref().ok_or("lease_required")?;
+        let mut last_key: Option<String> = None;
+        let mut copied = 0i64;
+        loop {
+            let raw: String = sqlx::query_scalar("SELECT _oo.c5_parts_copy_page($1,$2::uuid,$3,$4::uuid,$5::jsonb,$6,$7)::text")
+                .bind(&plan.shard).bind(&plan.owner).bind(target_generation).bind(&run_id)
+                .bind(scope.to_string()).bind(&last_key).bind(512_i32)
+                .fetch_one(&mut **tx).await.map_err(sql_token)?;
+            let page: Value = serde_json::from_str(&raw).map_err(|_|"c5_parts_copy")?;
+            let n = page["copied_rows"].as_i64().filter(|n| *n>=0 && *n<=512).ok_or("c5_parts_copy")?;
+            if n==0 { break; }
+            let key = page["last_key"].as_str().filter(|k| !k.is_empty()).ok_or("c5_parts_copy")?;
+            if last_key.as_deref().is_some_and(|old| old>=key) { return Err("c5_parts_copy"); }
+            last_key = Some(key.into());
+            copied = copied.checked_add(n).ok_or("rows")?;
+            baseline_held_heartbeat(tx,lease).await?;
+        }
+        if u64::try_from(copied).ok() != Some(upsert_rows as u64) { return Err("rows"); }
+        range_parts::record_quality(tx,plan,target_generation,lease).await?;
+    } else if let Some(prepared) = prepared.as_ref() {
         let mut positions = Vec::with_capacity(upsert_rows);
         if baseline.as_ref().is_some_and(|b|b.positions.len()!=upsert_rows) {return Err("baseline_positions");}
         for index in 0..upsert_rows {
@@ -3814,7 +4944,7 @@ async fn apply_tx_baseline(
             max_rows_per_chunk: 1024,
         };
         let copy_started=std::time::Instant::now();
-        let sent_rows = if let Some(baseline) = baseline.as_ref() {
+        let sent_rows = if let Some(lease) = copy_lease.as_ref() {
             let mut rows = 0_u64;
             let mut max_chunk_ms = 0_u128;
             for (index, chunk) in prepared.batch.rows.chunks(512).enumerate() {
@@ -3836,9 +4966,10 @@ async fn apply_tx_baseline(
                 if sent.rows != chunk.len() as u64 { return Err("rows"); }
                 rows += sent.rows;
                 max_chunk_ms = max_chunk_ms.max(chunk_started.elapsed().as_millis());
-                baseline_held_heartbeat(tx, &baseline.lease).await?;
+                baseline_held_heartbeat(tx, lease).await?;
             }
-            eprintln!("oo-pipeline: baseline-copy-chunks table={} rows={} chunk_rows=512 max_chunk_ms={}",plan.table,rows,max_chunk_ms);
+            let phase = if c5_lease.is_some() { "c5-copy-chunks" } else { "baseline-copy-chunks" };
+            eprintln!("oo-pipeline: {phase} table={} rows={} chunk_rows=512 max_chunk_ms={}",plan.table,rows,max_chunk_ms);
             rows
         } else {
             copy_sink::send_batch(tx, &statement, &prepared.batch, &prepared.copy_columns,
@@ -3847,7 +4978,40 @@ async fn apply_tx_baseline(
         if baseline.is_some() {eprintln!("oo-pipeline: baseline-phase table={} phase=copy rows={} elapsed_ms={}",plan.table,sent_rows,copy_started.elapsed().as_millis());}
         if sent_rows != upsert_rows as u64 { return Err("rows"); }
     }
-    let expected = copied + i64::try_from(upsert_rows).unwrap_or(i64::MAX);
+    let expected = copied.checked_add(i64::try_from(upsert_rows).map_err(|_| "rows")?)
+        .ok_or("rows")?;
+    if plan.range_scope.is_some() {
+        if let Some(lease) = &c5_lease { baseline_held_heartbeat(tx, lease).await?; }
+        sqlx::raw_sql(sqlx::AssertSqlSafe("SET CONSTRAINTS ALL IMMEDIATE"))
+            .execute(&mut **tx)
+            .await
+            .map_err(|_| "seal")?;
+        if let Some(scope) = parts_scope {
+            let checked:i64 = sqlx::query_scalar("SELECT _oo.c5_parts_reconcile($1,$2::uuid,$3,$4::uuid,$5::jsonb)")
+                .bind(&plan.shard).bind(&plan.owner).bind(target_generation).bind(&run_id).bind(scope.to_string())
+                .fetch_one(&mut **tx).await.map_err(sql_token)?;
+            if checked != upsert_rows as i64 { return Err("readback"); }
+        } else {
+            reconcile_c5_delta(tx, &run_id, plan, prepared.as_ref(), c5_lease.as_ref()).await?;
+        }
+        if let Some(lease) = &c5_lease { baseline_held_heartbeat(tx, lease).await?; }
+        let finish = if parts_scope.is_some() {
+            "SELECT _oo.c5_parts_overlay_finish($1,$2::uuid,$3,$4::uuid,$5::jsonb)"
+        } else { "SELECT _oo.c5_overlay_finish($1,$2::uuid,$3,$4::uuid)" };
+        let finish = sqlx::query_scalar(finish)
+        .bind(&plan.shard)
+        .bind(&plan.owner)
+        .bind(target_generation)
+        .bind(&run_id);
+        let finish = if let Some(scope)=parts_scope {finish.bind(scope.to_string())} else {finish};
+        let composed:i64 = finish.fetch_one(&mut **tx)
+        .await
+        .map_err(sql_token)?;
+        if composed != expected {
+            return Err("readback");
+        }
+        if let Some(lease) = &c5_lease { baseline_held_heartbeat(tx, lease).await?; }
+    }
     let counted: i64 = sqlx::query_scalar("SELECT _oo.native_update_shadow_count($1)")
         .bind(&physical)
         .fetch_one(&mut **tx)
@@ -3928,7 +5092,8 @@ async fn apply_tx_baseline(
             .bind(&plan.source_id).bind(plan.lease_id.as_deref().ok_or("lease_required")?)
             .bind(plan.lease_generation.ok_or("lease_required")?).bind(baseline.epoch)
             .bind(&plan.shard).bind(&plan.owner).bind(target_generation).bind(&run_id)
-            .bind(&plan.schema).bind(&plan.table).bind(&plan.column_idents).bind(&plan.key_idents)
+            .bind(&baseline.source_schema).bind(&baseline.source_table).bind(&plan.column_sources)
+            .bind(plan.key_indexes.iter().map(|i|plan.column_sources[*i].clone()).collect::<Vec<_>>())
             .fetch_one(&mut **tx).await.map_err(sql_token)?;
         eprintln!("oo-pipeline: baseline-phase table={} phase=compare rows={} elapsed_ms={}",plan.table,rows,compare_started.elapsed().as_millis());
         if rows!=counted {return Err("readback");}
@@ -4003,17 +5168,91 @@ async fn apply_tx_baseline(
     if sealed != "awaiting_publish" {
         return Err("seal");
     }
+    if let Some(scope) = parts_scope {
+        if let Some(lease) = &c5_lease { baseline_held_heartbeat(tx,lease).await?; }
+        sqlx::query("SELECT _oo.c5_parts_commit($1,$2::uuid,$3,$4::jsonb,$5::uuid,$6,$7)")
+            .bind(&plan.shard).bind(&plan.owner).bind(target_generation).bind(scope.to_string())
+            .bind(&run_id).bind(&plan.batch_id).bind(&plan.payload_digest)
+            .execute(&mut **tx).await.map_err(sql_token)?;
+    } else if let Some(scope) = &plan.range_scope {
+        if let Some(lease) = &c5_lease { baseline_held_heartbeat(tx, lease).await?; }
+        sqlx::query("SELECT _oo.c5_range_commit($1,$2::uuid,$3,$4::jsonb,$5::text[],$6::uuid,$7,$8)")
+            .bind(&plan.shard).bind(&plan.owner).bind(target_generation)
+            .bind(serde_json::to_string(scope).map_err(|_| "c5_range_scope")?).bind(&upsert_keys)
+            .bind(&run_id).bind(&plan.batch_id).bind(&plan.payload_digest)
+            .execute(&mut **tx).await.map_err(sql_token)?;
+    }
     let stage = stage_probe(tx, &physical).await?;
     Ok(Applied {
         run_id,
         target_generation,
         physical_name: physical,
         row_count: counted,
-        tombstone_count: replaced_keys.len(),
+        tombstone_count: match parts_deleted {
+            Some(count) => usize::try_from(count).map_err(|_|"rows")?,
+            None => replaced_keys.len(),
+        },
         receipt: wrote,
         stage_select_granted: stage.as_ref().map(|flags| flags.table_select),
         stage_freshness_select: stage.as_ref().map(|flags| flags.freshness_select),
     })
+}
+
+async fn reconcile_c5_delta(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    run_id: &str,
+    plan: &UpdatePlan,
+    prepared: Option<&native_arrow::PreparedTable>,
+    lease: Option<&Value>,
+) -> Result<(), &'static str> {
+    use crate::c1_parts::{logical_type_of_pg, source_cell};
+    let columns = column_physical_names(plan, prepared)?;
+    let rows: Vec<String> = sqlx::query_scalar(
+        "SELECT cells::text FROM _oo.c5_delta_read_cells($1::uuid,$2::text[]) AS r(cells)",
+    )
+    .bind(run_id)
+    .bind(columns)
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(sql_token)?;
+    if let Some(lease) = lease { baseline_held_heartbeat(tx, lease).await?; }
+    let Some(prepared) = prepared else {
+        return if rows.is_empty() { Ok(()) } else { Err("cell_mismatch") };
+    };
+    let types = prepared.verified_columns.iter()
+        .map(|column| logical_type_of_pg(column.oid, column.typmod))
+        .collect::<Result<Vec<_>, _>>().map_err(|_| "c5_delta_cell_type")?;
+    let mut expected = std::collections::BTreeMap::<Vec<u8>, u64>::new();
+    let started = std::time::Instant::now();
+    let mut keeper = LeaseKeeper::for_lease(BASELINE_LEASE_TTL);
+    for (index, row) in prepared.batch.rows.iter().enumerate() {
+        let cells = row.cells.iter().map(source_cell)
+            .collect::<Result<Vec<_>, _>>().map_err(|_| "c5_delta_cell_type")?;
+        let bytes = canonical_row(&types, &cells).map_err(|_| "c5_delta_cell_type")?;
+        *expected.entry(bytes).or_default() += 1;
+        if index % 512 == 0 && let Some(lease) = lease {
+            renew_if_due(tx, lease, &mut keeper, started).await?;
+        }
+    }
+    let mut actual = std::collections::BTreeMap::<Vec<u8>, u64>::new();
+    for (index, row) in rows.into_iter().enumerate() {
+        let values: Vec<Option<String>> =
+            serde_json::from_str(&row).map_err(|_| "c5_delta_cell_type")?;
+        if values.len() != prepared.verified_columns.len() {
+            return Err("cell_mismatch");
+        }
+        let cells = values.iter().zip(&prepared.verified_columns)
+            .map(|(text, column)| pg_text_cell(column.oid, text.as_deref()))
+            .collect::<Result<Vec<_>, _>>().map_err(|_| "c5_delta_cell_type")?;
+        let bytes = canonical_row(&types, &cells).map_err(|_| "c5_delta_cell_type")?;
+        *actual.entry(bytes).or_default() += 1;
+        if index % 512 == 0 && let Some(lease) = lease {
+            renew_if_due(tx, lease, &mut keeper, started).await?;
+        }
+    }
+    // This proves changed cells only; it must not advance full-table L4 freshness.
+    if actual != expected { return Err("cell_mismatch"); }
+    Ok(())
 }
 
 fn column_physical_names(
@@ -4238,7 +5477,7 @@ pub fn jobs_lease_interface() -> Value {
     value
 }
 
-async fn lease_hold(
+pub(crate) async fn lease_hold(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     lease_id: &str,
     lease_generation: Option<i64>,
@@ -4930,6 +6169,17 @@ pub fn encode_fixture_arrow(
     Ok(wrap_file(&schema, &batch, &body))
 }
 
+pub fn encode_empty_fixture_arrow(columns: &[FixtureColumn]) -> Result<Vec<u8>, &'static str> {
+    if columns.is_empty() {
+        return Err("bad_type");
+    }
+    let body = encode_body(columns, &[])?;
+    let schema = schema_meta(columns)?;
+    let batch = batch_meta(columns, &[], body.len())?;
+    Ok(wrap_file(&schema, &batch, &body))
+}
+
+
 struct Buf {
     data: Vec<u8>,
 }
@@ -5404,6 +6654,74 @@ mod tests {
         assert_eq!(validate_mssql_capture(&request,&changed,&one),Err("ct_scope"));
         changed=capture.clone();changed["upserts"]=json!(1);
         assert_eq!(validate_mssql_capture(&request,&changed,&one),Err("expired"));
+    }
+
+    #[test]
+    fn c5_range_scope_cannot_fall_back_to_whole_table_snapshot() {
+        let mut request = base_request();
+        request["range_scope"] = json!({});
+        request["full_snapshot"] = json!(true);
+        assert!(matches!(classify(&request), Err("c5_range_loader_required")));
+        request["protocol"] = json!(PARTITION_PROTOCOL);
+        assert!(matches!(classify(&request), Err("c5_range_loader_required")));
+    }
+
+    #[test]
+    fn admitted_ranges_advance_generations_not_snapshot_zero_positions() {
+        assert!(!zero_position_is_expired(true, "unique", false, true));
+        assert!(zero_position_is_expired(true, "unique", false, false));
+        assert!(!zero_position_is_expired(true, "snapshot", false, false));
+        assert!(!zero_position_is_expired(false, "unique", false, false));
+    }
+
+    #[test]
+    fn c5_range_dispatch_requires_sealed_binding_and_closed_envelope() {
+        let mut native=base_request();
+        native["source_engine"]=json!("mysql");
+        native["source_id"]=json!("fixture");
+        native["full_snapshot"]=json!(false);
+        native["snapshot"]=json!({"kind":"c5_cycle","value":"fixture"});
+        native["consistency_grade"]=json!("B");
+        let arrow=encode_fixture_arrow(&[
+            FixtureColumn{name:"reading_id".into(),nullable:false,kind:FixtureKind::Int64},
+            FixtureColumn{name:"amount".into(),nullable:false,kind:FixtureKind::Int64},
+            FixtureColumn{name:"note".into(),nullable:false,kind:FixtureKind::Utf8}],
+            &[vec![FixtureCell::Int(1),FixtureCell::Int(2),FixtureCell::Text("value".into())]]).unwrap();
+        let path=std::env::temp_dir().join(format!("oo-wf-c5load-dispatch-{}.arrow",std::process::id()));
+        fs::write(&path,&arrow).unwrap();
+        native["arrow_path"]=json!(path);
+        native["input_digest"]=json!(native_arrow::arrow_sha256(&arrow));
+
+        let mut request=json!({"protocol":crate::native_c5_range::REQUEST_PROTOCOL,"source_engine":"mysql","capture_method":"c5_diff","source_id":"fixture","schema":"meter","table":"readings","schema_fingerprint":"a".repeat(64),"chunk_topology_revision":1,"chunk_id":"0","lo":null,"hi":null,"prior_membership_revision":0,"parent_generation":0,"source_generation":1,"arrow_sha256":native["input_digest"],"row_count":0,"delete_detection":"reconcile","position_codec":"snapshot-zero/v1","applied_pos":"0","members":[[{"kind":"int","value":1}]],"native_request":native});
+        request["row_count"]=json!(1);
+        match classify(&request) { Err("nonadmitted")=>{},Err(reason)=>panic!("{reason}"),Ok(_)=>panic!("unbound range accepted") }
+        request["where"]=json!("true");
+        assert!(classify(&request).is_err());
+        request.as_object_mut().unwrap().remove("where");
+        request["native_request"]["where"]=json!("true");
+        assert!(matches!(classify(&request),Err("c5_range_request")));
+        request["native_request"].as_object_mut().unwrap().remove("where");
+        for field in ["source_id","logical_schema","logical_table","input_digest","consistency_grade"] {
+            let mut changed=request.clone();changed["native_request"][field]=json!("other");
+            assert!(matches!(classify(&changed),Err("c5_range_scope_mismatch")),"{field}");
+        }
+        request["native_request"]["key_columns"] = json!(["reading_id"]);
+        request["native_request"].as_object_mut().unwrap().remove("key_column");
+        request["key_columns"] = json!(["reading_id"]);
+        request["type_policy"] = json!({"zero_date_to_null":true,"strip_text_nul":true});
+        request["normalization_rejects"] = json!({"path":"/owned/masked-notes.json","sha256":"b".repeat(64)});
+        assert!(matches!(classify(&request), Err("nonadmitted")));
+        for (field, value) in [
+            ("key_columns", json!(["unbound_key"])),
+            ("type_policy", json!({"arbitrary_conversion":true})),
+            ("type_policy", json!({"strip_text_nul":"true"})),
+            ("normalization_rejects", json!({"path":"relative","sha256":"b".repeat(64)})),
+        ] {
+            let mut changed = request.clone();
+            changed[field] = value;
+            assert!(matches!(classify(&changed), Err("c5_range_scope_mismatch")), "{field}");
+        }
+        fs::remove_file(path).unwrap();
     }
 
     fn digests() -> Value {
@@ -6733,6 +8051,32 @@ mod tests {
     }
 
     #[test]
+    fn decimal_integer_primary_key_classifies_and_keeps_exact_identity() {
+        let mut request = base_request();
+        with_parent(&mut request);
+        request["columns"][0]["arrow_type"] = json!("decimal128");
+        request["columns"][0]["precision"] = json!(20);
+        request["columns"][0]["scale"] = json!(0);
+        request["tombstones"] = json!(["18446744073709551615"]);
+        let plan = classify(&request).expect("unsigned bigint mapped to decimal key");
+        assert_eq!(plan.key_indexes, vec![0]);
+        assert_eq!(cell_key_text(&NativeCell::Decimal {
+            precision: 20, scale: 0, coefficient: 18446744073709551615,
+        }).unwrap(), "18446744073709551615");
+        for text in ["01", "-0", "1.0", "100000000000000000000", "1e2"] {
+            request["tombstones"] = json!([text]);
+            assert_eq!(classify(&request).err(), Some("bad_type"), "{text}");
+        }
+        request["tombstones"] = json!(["-99999999999999999999"]);
+        assert!(classify(&request).is_ok());
+        request["columns"][0]["scale"] = json!(1);
+        assert_eq!(classify(&request).err(), Some("bad_type"));
+        assert!(cell_key_text(&NativeCell::Decimal {
+            precision: 2, scale: 0, coefficient: 100,
+        }).is_err());
+    }
+
+    #[test]
     fn date32_epoch_and_uint64_date_utf8_keys_classify() {
         assert_eq!(date32_iso(0).as_deref(), Some("1970-01-01"));
         assert_eq!(date32_iso(1).as_deref(), Some("1970-01-02"));
@@ -7466,4 +8810,335 @@ mod tests {
         });
     }
 
+}
+
+#[cfg(test)]
+mod c1_v2_admission_tests {
+    use super::*;
+
+    fn request(scope: Value) -> C1V2Request {
+        C1V2Request {
+            source: "mysql_x".into(),
+            job: "11111111-2222-3333-4444-555555555555".into(),
+            lease_generation: 1,
+            epoch: 1,
+            source_generation: 1,
+            lineage: "mysql.x".into(),
+            l0: "x:1-1".into(),
+            l_end: "x:1-1".into(),
+            l_end_pos: "1".into(),
+            config_digest: "a".repeat(64),
+            type_digest: "b".repeat(64),
+            input_digest: "c".repeat(64),
+            scope,
+            rows: 2,
+            composed_digest: "d".repeat(64),
+            tables: Vec::new(),
+            shard: "shard_x".into(),
+            owner: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".into(),
+            target: json!({}),
+            window_rows: 1_000,
+        }
+    }
+
+    fn write_registry(dir: &Path, name: &str, scope: &Value) -> (String, String) {
+        let path = dir.join(name);
+        let bytes = serde_json::to_vec(&json!({"bindings": [{"baseline_scope": scope}]})).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        (path.to_string_lossy().into_owned(), hex_bytes(&Sha256::digest(&bytes)))
+    }
+
+    fn document(entries: &[(String, String)]) -> Value {
+        let tables: Vec<Value> = entries
+            .iter()
+            .map(|(path, sha)| json!({"admission": {"registry_path": path, "registry_sha256": sha}}))
+            .collect();
+        json!({"tables": tables})
+    }
+
+    #[test]
+    fn every_table_registry_is_checked_and_all_bind_the_same_scope() {
+        let dir = std::env::temp_dir().join(format!("oo-c1-v2-admission-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let scope = json!({"protocol": "oo.source-admission.c1-baseline-scope/v2", "l_end": "x:1-1"});
+        let other = json!({"protocol": "oo.source-admission.c1-baseline-scope/v2", "l_end": "x:1-2"});
+        let first = write_registry(&dir, "a.json", &scope);
+        let second = write_registry(&dir, "b.json", &scope);
+        let req = request(scope.clone());
+        assert!(admit_c1_v2_registry(&document(&[first.clone(), second.clone()]), &req).is_ok());
+
+        let mismatched = write_registry(&dir, "c.json", &other);
+        assert_eq!(
+            admit_c1_v2_registry(&document(&[first.clone(), mismatched]), &req),
+            Err("baseline_scope")
+        );
+
+        let mut stale = second.clone();
+        stale.1 = "0".repeat(64);
+        assert_eq!(
+            admit_c1_v2_registry(&document(&[first, stale]), &req),
+            Err("digest_mismatch")
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod lease_keeper_tests {
+    use super::*;
+
+    #[test]
+    fn renewal_is_due_a_third_of_the_lease_after_the_last_renewal() {
+        let keeper = LeaseKeeper::for_lease(BASELINE_LEASE_TTL);
+        assert!(!keeper.is_due(9_999));
+        assert!(keeper.is_due(10_000));
+    }
+
+    #[test]
+    fn a_slow_phase_longer_than_the_lease_keeps_the_claim_alive() {
+        // Three phases of 45 s each: 135 s in total, longer than the 30 s lease. The loader checks
+        // the keeper at every one-second page, as digest_shadow does, and renews when it is due.
+        let ttl_ms = BASELINE_LEASE_TTL.as_millis();
+        let mut keeper = LeaseKeeper::for_lease(BASELINE_LEASE_TTL);
+        keeper.renewed(0);
+        let mut last_renewal = 0u128;
+        let mut renewals = 0u32;
+        let mut now = 0u128;
+        for _phase in 0..3 {
+            for _page in 0..45 {
+                now += 1_000;
+                if keeper.is_due(now) {
+                    keeper.renewed(now);
+                    last_renewal = now;
+                    renewals += 1;
+                }
+                assert!(now - last_renewal < ttl_ms, "lease would expire at {now} ms");
+            }
+        }
+        assert!(u128::from(renewals) >= 135_000 / (ttl_ms / 3) - 1, "renewals={renewals}");
+        // Without renewal the same schedule would have passed the lease: the test is not vacuous.
+        assert!(now > ttl_ms);
+    }
+}
+
+fn zero_position_is_expired(has_parent: bool, shape: &str, partition: bool, admitted_range: bool) -> bool {
+    has_parent && shape != "snapshot" && !partition && !admitted_range
+}
+
+fn classify_c5_range(document: &Value) -> Result<UpdatePlan, &'static str> {
+    let mut scope_value = document.clone();
+    scope_value
+        .as_object_mut()
+        .ok_or("c5_range_scope")?
+        .remove("native_request");
+    for key in [
+        "input_digest",
+        "arrow_path",
+        "consistency_grade",
+        "cross_table_consistent",
+        "target",
+        "c5_completed_layers",
+        "c5_observation",
+        "binding",
+        "pin",
+        "key_columns",
+        "type_policy",
+        "normalization_rejects",
+    ] {
+        scope_value
+            .as_object_mut()
+            .ok_or("c5_range_scope")?
+            .remove(key);
+    }
+
+    let scope = crate::native_c5_range::RangeScope::parse(&scope_value)?;
+    let mut request = document
+        .get("native_request")
+        .filter(|v| v.is_object())
+        .cloned()
+        .ok_or("c5_range_request")?;
+    if document.get("key_columns").is_some_and(|keys| {
+        keys.as_array().is_none_or(Vec::is_empty) || keys != &request["key_columns"]
+    })
+        || document.get("type_policy").is_some_and(|policy| {
+            policy.as_object().is_none_or(|fields| fields.iter().any(|(key, value)| {
+                !["zero_date_to_null", "strip_text_nul"].contains(&key.as_str())
+                    || !value.is_boolean()
+            }))
+        })
+        || document.get("normalization_rejects").is_some_and(|reference| {
+            reference.as_object().is_none_or(|fields| {
+                fields.len() != 2
+                    || reference["sha256"].as_str().is_none_or(|sha| !hex64(sha))
+                    || reference["path"].as_str().is_none_or(|path| {
+                        !Path::new(path).is_absolute() || path.contains("..") || path.contains('\0')
+                    })
+            })
+        })
+    {
+        return Err("c5_range_scope_mismatch");
+    }
+    if document["protocol"] != crate::native_c5_range::REQUEST_PROTOCOL
+        || request["protocol"] != REQUEST_PROTOCOL
+        || request.get("range_scope").is_some()
+        || request["full_snapshot"] != false
+        || request["tombstones"] != json!([])
+        || request["source_engine"] != scope.source_engine
+        || request["source_id"] != scope.source_id
+        || request["source_generation"] != scope.source_generation
+        || request["logical_schema"] != scope.schema
+        || request["logical_table"] != scope.table
+        || request["input_digest"] != scope.arrow_sha256
+        || request["capture_method"] != "c5_diff"
+        || request["delete_detection"] != "reconcile"
+        || request["position_codec"] != "snapshot-zero/v1"
+        || request["applied_pos"] != "0"
+        || request["consistency_grade"] != if scope.source_engine == "oracle" { "S0" } else { "B" }
+        || request["cross_table_consistent"] != false
+    {
+        return Err("c5_range_scope_mismatch");
+    }
+    for key in [
+        "input_digest",
+        "arrow_path",
+        "consistency_grade",
+        "cross_table_consistent",
+        "target",
+    ] {
+        if document
+            .get(key)
+            .is_some_and(|value| Some(value) != request.get(key))
+        {
+            return Err("c5_range_scope_mismatch");
+        }
+    }
+    let allowed = [
+        "protocol",
+        "source_engine",
+        "source_id",
+        "source_generation",
+        "parent_source_generation",
+        "logical_schema",
+        "logical_table",
+        "key_column",
+        "key_columns",
+        "row_identity",
+        "batch_id",
+        "capture_method",
+        "delete_detection",
+        "consistency_grade",
+        "cross_table_consistent",
+        "position_codec",
+        "position_lineage",
+        "applied_pos",
+        "columns",
+        "tombstones",
+        "target",
+        "full_snapshot",
+        "snapshot",
+        "config_digest",
+        "schema_digest",
+        "type_digest",
+        "input_digest",
+        "audit_digest",
+        "lease_id",
+        "lease_generation",
+        "admission_path",
+        "admission_expect",
+        "registry_path",
+        "arrow_path",
+        "max_arrow_bytes",
+        "mirror",
+        "arrow_schema_sha256",
+        "run_id",
+        "driver_digest",
+    ];
+    if request
+        .as_object()
+        .ok_or("c5_range_request")?
+        .keys()
+        .any(|key| !allowed.contains(&key.as_str()))
+    {
+        return Err("c5_range_request");
+    }
+    for (object, allowed) in [
+        (
+            &request["target"],
+            &[
+                "host",
+                "port",
+                "database",
+                "runtime_principal",
+                "password_file",
+                "ssl",
+                "ca_file",
+                "shard",
+                "owner",
+            ][..],
+        ),
+        (&request["snapshot"], &["kind", "value"][..]),
+    ] {
+        if object
+            .as_object()
+            .is_none_or(|fields| fields.keys().any(|key| !allowed.contains(&key.as_str())))
+        {
+            return Err("c5_range_request");
+        }
+    }
+    if request["columns"].as_array().is_none_or(|columns| {
+        columns.iter().any(|column| {
+            column.as_object().is_none_or(|fields| {
+                fields.keys().any(|key| {
+                    ![
+                        "name",
+                        "logical_name",
+                        "arrow_type",
+                        "nullable",
+                        "precision",
+                        "scale",
+                        "char_length",
+                        "document",
+                    ]
+                    .contains(&key.as_str())
+                })
+            })
+        })
+    }) {
+        return Err("c5_range_request");
+    }
+    let parent = request["parent_source_generation"].as_i64().unwrap_or(0);
+    if parent != scope.parent_generation {
+        return Err("c5_range_scope_mismatch");
+    }
+    if let Some(oracle) = &scope.oracle_snapshot {
+        if request["snapshot"] != json!({"kind":"oracle_scn","value":oracle.scn})
+            || request["position_lineage"] != "oracle.snapshot" {
+            return Err("c5_oracle_snapshot");
+        }
+    }
+    request["full_snapshot"] = json!(false);
+    let mut plan = classify_inner(&request, true, false, false)?;
+    if !plan.source_bound || plan.shape != "unique" {
+        return Err("nonadmitted");
+    }
+    if plan.schema != mapped_name(&scope.schema)? || plan.table != mapped_name(&scope.table)?
+        || scope.source_engine == "mysql" && (plan.schema != scope.schema || plan.table != scope.table) {
+        return Err("c5_mapped_names_unsupported");
+    }
+    let admission = bind_admission(&request, &plan.arrow)?;
+    scope.require_bound(admission.range_scope.as_ref().ok_or("nonadmitted")?)?;
+    scope.validate_arrow_digest(&plan.arrow)?;
+    scope.validate_decoded_keys(
+        &decode_arrow_stream(&plan.arrow).map_err(arrow_token)?,
+        &plan.key_indexes,
+    )?;
+    let mut digest = Sha256::new();
+    digest.update(plan.payload_digest.as_bytes());
+    digest.update(serde_json::to_vec(&scope).map_err(|_| "c5_range_scope")?);
+    plan.payload_digest = hex_bytes(&digest.finalize());
+    let mut storage_scope = serde_json::to_value(scope).map_err(|_| "c5_range_scope")?;
+    storage_scope["schema"] = json!(plan.schema);
+    storage_scope["table"] = json!(plan.table);
+    plan.range_scope = Some(storage_scope);
+    Ok(plan)
 }

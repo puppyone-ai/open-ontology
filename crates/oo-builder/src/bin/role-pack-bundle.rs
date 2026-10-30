@@ -278,7 +278,10 @@ fn check_statuses(manifest: &Value) -> Result<(), Fail> {
     require_status(manifest, "mount", "not_performed")?;
     require_status(manifest, "samples", "omitted")?;
     require_status(manifest, "domains", "unsupported")?;
-    require_status(manifest, "file_splitting", "unsupported")?;
+    if !matches!(text_field(manifest, "file_splitting")?,
+        "unsupported" | "relationship_pages" | "metric_pages" | "relationship_and_metric_pages") {
+        return Err(status());
+    }
     require_status(manifest, "search", "unsupported")?;
     if manifest.get("row_security_reproven") != Some(&Value::Bool(false)) {
         return Err(status());
@@ -331,7 +334,7 @@ fn statuses_object(manifest: &Value) -> Result<String, Fail> {
     push_str(&mut out, &mut first, "authentication", "not_claimed");
     push_str(&mut out, &mut first, "authorization", "not_claimed");
     push_str(&mut out, &mut first, "domains", "unsupported");
-    push_str(&mut out, &mut first, "file_splitting", "unsupported");
+    push_str(&mut out, &mut first, "file_splitting", text_field(manifest, "file_splitting")?);
     push_str(&mut out, &mut first, "mount", "not_performed");
     push_str(&mut out, &mut first, "publication", "not_claimed");
     push_bool(&mut out, &mut first, "row_security_reproven", false);
@@ -840,6 +843,25 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn metric_pages_do_not_change_compiler_authority_or_gate_status() {
+        let mut manifest = serde_json::json!({
+            "authentication":"not_claimed", "authorization":"not_claimed",
+            "publication":"not_claimed", "mount":"not_performed", "samples":"omitted",
+            "domains":"unsupported", "search":"unsupported", "row_security_reproven":false,
+            "tokens":{"status":"unsupported", "estimator":"none"},
+        });
+        for format in ["unsupported", "relationship_pages", "metric_pages", "relationship_and_metric_pages"] {
+            manifest["file_splitting"] = Value::String(format.to_owned());
+            assert!(check_statuses(&manifest).is_ok());
+        }
+        manifest["publication"] = Value::String("published".to_owned());
+        assert!(check_statuses(&manifest).is_err());
+        manifest["publication"] = Value::String("not_claimed".to_owned());
+        manifest["file_splitting"] = Value::String("unknown".to_owned());
+        assert!(check_statuses(&manifest).is_err());
+    }
+
     fn temp_dir(label: &str) -> PathBuf {
         static NEXT: AtomicU64 = AtomicU64::new(1);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
@@ -990,7 +1012,6 @@ mod tests {
         const LINUX_EACCES: i32 = 13;
         const LINUX_EEXIST: i32 = 17;
         const LINUX_EXDEV: i32 = 18;
-        const LINUX_EOPNOTSUPP: i32 = 95;
 
         let unsupported = link_failure(std::io::Error::from_raw_os_error(LINUX_LINK_EPERM));
         assert!(unsupported.code.ends_with("/io.link"), "{}", unsupported.code);
@@ -998,7 +1019,7 @@ mod tests {
             unsupported.message,
             "the filesystem does not support a hard link"
         );
-        let opnotsupp = link_failure(std::io::Error::from_raw_os_error(LINUX_EOPNOTSUPP));
+        let opnotsupp = link_failure(std::io::Error::from(ErrorKind::Unsupported));
         assert_eq!(
             opnotsupp.message,
             "the filesystem does not support a hard link"

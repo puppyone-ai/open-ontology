@@ -379,7 +379,36 @@ pub async fn connect_require_tls(
     config.connect(tls).await.map_err(db_error)
 }
 
-/// Maximum tables in one [`install_column_acl_set`] call.
+pub async fn connect_readonly_require_tls(
+    endpoint: &TlsEndpoint,
+    password: &str,
+    ca_pem: &[u8],
+) -> Result<(Client, TlsConnection), PolicyError> {
+    if endpoint.host.is_empty() || endpoint.database.is_empty() || endpoint.user.is_empty() {
+        return Err(PolicyError::InvalidIdentifier { field: "endpoint" });
+    }
+    let tls = rustls_connector(ca_pem)?;
+    let mut config = tokio_postgres::Config::new();
+    config.user(&endpoint.user);
+    config.password(password);
+    config.host(&endpoint.host);
+    config.port(endpoint.port);
+    config.dbname(&endpoint.database);
+    config.ssl_mode(tokio_postgres::config::SslMode::Require);
+    config.application_name("oo-gateway-all-in-one");
+    config.options("-c default_transaction_read_only=on");
+    let (client, mut connection) = config.connect(tls).await.map_err(db_error)?;
+    let check = client.query_one("SELECT rolcanlogin AND NOT (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls), current_setting('default_transaction_read_only') = 'on' FROM pg_catalog.pg_roles WHERE rolname = session_user", &[]);
+    let row = tokio::select! {
+        row = check => row.map_err(db_error)?,
+        _ = &mut connection => return Err(PolicyError::LoginAbsent),
+    };
+    if !row.get::<_, bool>(0) || !row.get::<_, bool>(1) {
+        return Err(PolicyError::LoginAbsent);
+    }
+    Ok((client, connection))
+}
+/// Maximum tables in one legacy [`install_column_acl_set`] call.
 pub const COLUMN_ACL_SET_MAX_TABLES: usize = 32;
 
 /// Maximum columns on one table in that call. Matches the catalog column bound.
@@ -441,6 +470,8 @@ pub fn compile_column_acl_set(
 
 /// Compile one native source whose sealed collection binds each table independently.
 /// The shared project, role and login remain identical; each table retains its own mapping seal.
+/// This complete vector is validated member by member, not truncated to a legacy
+/// call's table budget. The native provisioner still checks the entire grant set.
 pub fn compile_column_acl_native_vector_set(
     policies: &[ColumnAclPolicy],
 ) -> Result<CompiledPolicySet, PolicyError> {
@@ -451,7 +482,7 @@ fn compile_set(policies: &[ColumnAclPolicy], native_vector: bool) -> Result<Comp
     if policies.is_empty() {
         return Err(PolicyError::EmptyPolicySet);
     }
-    if policies.len() > COLUMN_ACL_SET_MAX_TABLES {
+    if !native_vector && policies.len() > COLUMN_ACL_SET_MAX_TABLES {
         return Err(PolicyError::LimitExceeded);
     }
     let mut compiled = Vec::with_capacity(policies.len());
@@ -1831,6 +1862,36 @@ mod tests {
         let mut back = moved.clone();
         back.generation = 5;
         assert!(compile_column_acl_native_transition(&[moved], &[back]).is_err());
+    }
+
+    #[test]
+    fn complete_native_vector_checks_every_member_beyond_legacy_call_budget() {
+        let policies: Vec<_> = (0..257).map(|index| {
+            let mut item = policy(None, vec![column("id", PiiClass::None)]);
+            item.table.name = format!("t{index}");
+            item
+        }).collect();
+        for size in [33, 257] {
+            assert_eq!(compile_column_acl_native_vector_set(&policies[..size]).unwrap().len(), size);
+            assert_eq!(compile_column_acl_set(&policies[..size]), Err(PolicyError::LimitExceeded));
+        }
+        for fault in 0..6 {
+            let mut bad = policies.clone();
+            match fault {
+                0 => bad[256].table.name = bad[0].table.name.clone(),
+                1 => bad[256].login = "oo_foreign".into(),
+                2 => bad[256].role = "foreign".into(),
+                3 => bad[256].project = "foreign".into(),
+                4 => bad[256].table.columns[0].pii = PiiClass::Declared { explicit_allow: false },
+                _ => bad[256].table.columns = (0..513)
+                    .map(|index| column(&format!("c{index}"), PiiClass::None)).collect(),
+            }
+            assert!(compile_column_acl_native_vector_set(&bad).is_err(), "{fault}");
+        }
+        let mut next = policies.clone();
+        next[256].generation += 1;
+        assert!(compile_column_acl_native_transition(&policies, &next).is_ok());
+        assert!(compile_column_acl_native_transition(&policies, &next[..256]).is_err());
     }
 
     #[test]

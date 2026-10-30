@@ -31,7 +31,7 @@ pub use description_pack::apply_description_pack_combined;
 pub use cache::{cache_path, read_validated, store_validated};
 pub use canonical::{canonical_json, canonical_sha256, sha256_hex};
 pub use cards::{assemble_cards, approval_matches};
-pub use config::{load_config, read_bearer, Config, Postgres};
+pub use config::{model_id_ok, load_config, read_bearer, Config, Postgres};
 pub use error::{PgBuilderError, PROTOCOL};
 pub use generate::{
     cache_hit_same, column_batch_ranges, generate, ChatTransport, GenerateIn, LoopbackTransport,
@@ -46,7 +46,7 @@ pub use native_catalog::{gate_request, run_import_native_catalog, REQUEST_PROTOC
 pub use sealed::{draft_only, draft_with_source_contract, sealed_build, SealedBuild, SealedTarget, DEPENDENCY_SHA};
 pub use document_profile::{compile_document_profile, DocumentProfileIn, PROTOCOL as DOCUMENT_PROFILE_PROTOCOL};
 pub use source_contract::{
-    bind_source_pack, project_mysql_c1, project_doris_capture_methods, project_sealed_source_contract, PROTOCOL as BIND_SOURCE_PACK_PROTOCOL,
+    bind_source_pack, project_mysql_c1, project_mysql_c5, project_doris_capture_methods, project_sealed_source_contract, PROTOCOL as BIND_SOURCE_PACK_PROTOCOL,
 };
 pub use profile::{catalog_request, read_comments, read_profile, run_catalog};
 

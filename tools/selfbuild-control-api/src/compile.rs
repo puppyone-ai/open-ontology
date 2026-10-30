@@ -27,8 +27,15 @@ pub async fn load_stored(config: &AppConfig, build_id: &str) -> Result<Value, Ap
     if sha256_hex(&bytes) != head.output_sha256 {
         return Err(ApiError::not_ready());
     }
-    let producer = serde_json::from_slice(&bytes).map_err(|_| ApiError::not_ready())?;
-    accept_producer(&producer)?;
+    let producer: Value = serde_json::from_slice(&bytes).map_err(|_| ApiError::not_ready())?;
+    let build = store::load_build_any(&config.postgres, build_id).await?.ok_or_else(ApiError::not_found)?;
+    let is_library = config.projects.iter().any(|p| p.project_id == build.project_id && p.library.is_some());
+    if is_library {
+        if producer["protocol"] != "oo.selfbuild.library-pack/v1" || producer["published"] != false { return Err(ApiError::pack_refused()); }
+        let project = config.projects.iter().find(|p| p.project_id == build.project_id)
+            .ok_or_else(ApiError::forbidden)?;
+        crate::library::validate_stored(config, project, &build, &producer).await?;
+    } else { accept_producer(&producer)?; }
     Ok(envelope("getBuildPack", build_id, &producer))
 }
 
@@ -58,6 +65,9 @@ pub async fn compile(config: &AppConfig, build: &BuildRow, subject: &str, body_s
         .iter()
         .find(|item| item.project_id == build.project_id)
         .ok_or_else(ApiError::forbidden)?;
+    if project.library.is_some() {
+        return crate::library::compile(config, project, build, subject, body_sha256).await;
+    }
     if !regular_file(&config.binaries.pg_builder) {
         return Err(ApiError::not_ready());
     }

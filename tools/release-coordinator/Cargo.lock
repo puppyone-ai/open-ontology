@@ -1175,6 +1175,7 @@ version = "0.1.0"
 dependencies = [
  "jsonschema",
  "oo-builder",
+ "oo-core",
  "postgres-protocol",
  "postgres-types",
  "rustls",

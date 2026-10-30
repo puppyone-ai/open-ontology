@@ -860,7 +860,7 @@ fn target_type(kind: TargetKind) -> Result<TargetType, ArrowFault> {
         TargetKind::Json => (114, -1, -1, "json_send", "json"),
         TargetKind::Jsonb => (3802, -1, -1, "jsonb_send", "jsonb"),
         TargetKind::Text { char_length: Some(len) } => {
-            if !(1..=63).contains(&len) {
+            if !(1..=255).contains(&len) {
                 return Err(ArrowFault::Shape);
             }
             (1042, len + 4, -1, "bpcharsend", "bpchar")
@@ -1290,7 +1290,7 @@ pub(crate) fn numeric_typmod(precision: i32, scale: i32) -> i32 {
     ((precision << 16) | (scale & 0x7FF)) + 4
 }
 
-fn i256_digits(le: &[u8; 32]) -> (bool, String) {
+pub(crate) fn i256_digits(le: &[u8; 32]) -> (bool, String) {
     let negative = le[31] & 0x80 != 0;
     let mut bytes = *le;
     if negative {
@@ -1321,7 +1321,7 @@ fn i256_digits(le: &[u8; 32]) -> (bool, String) {
     (negative, String::from_utf8(digits).unwrap_or_else(|_| "0".to_string()))
 }
 
-fn civil_timestamp(micros: i64) -> Option<(i32, u8, u8, u8, u8, u8, u32)> {
+pub(crate) fn civil_timestamp(micros: i64) -> Option<(i32, u8, u8, u8, u8, u8, u32)> {
     let day_us = 86_400_000_000i64;
     let days = micros.div_euclid(day_us);
     let sod = micros.rem_euclid(day_us) as u64;
@@ -1337,7 +1337,7 @@ fn civil_timestamp(micros: i64) -> Option<(i32, u8, u8, u8, u8, u8, u32)> {
     Some((year, month, day, hour, minute, second, sub))
 }
 
-fn civil_from_unix_days(days: i64) -> Option<(i32, u8, u8)> {
+pub(crate) fn civil_from_unix_days(days: i64) -> Option<(i32, u8, u8)> {
     let z = days.checked_add(719_468)?;
     let era = if z >= 0 { z } else { z.checked_sub(146_096)? } / 146_097;
     let doe = u64::try_from(z.checked_sub(era.checked_mul(146_097)?)?).ok()?;

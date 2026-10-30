@@ -81,11 +81,13 @@ fn load_env() -> Env {
     let ca_file = env::var("OO_W73_CA_FILE").expect("OO_W73_CA_FILE");
     Env {
         control: Endpoint {
+            pack_ceilings: None,
             host: host.clone(),
             port,
             database: env::var("OO_W73_CONTROL_DATABASE").expect("control database"),
         },
         target: Endpoint {
+            pack_ceilings: None,
             host,
             port,
             database: env::var("OO_W73_TARGET_DATABASE").expect("target database"),
@@ -153,6 +155,8 @@ fn maintain<'a>(
     expected: Option<&'a str>,
 ) -> MaintainRequest<'a> {
     MaintainRequest {
+        quality_observer: None,
+        deployment_mode: crate::DeploymentMode::PrimaryReplica,
         replica: None,
         native_mapping: None,
         control: control(env),
@@ -586,6 +590,8 @@ async fn kill_step_driver() {
                 pack: String::new(),
             };
             let request = MaintainRequest {
+                quality_observer: None,
+                deployment_mode: crate::DeploymentMode::PrimaryReplica,
                 replica: None,
                 native_mapping: None,
                 control: control(&env),
@@ -994,6 +1000,7 @@ async fn publish_maintenance_fence() {
 
     let eye = connect(
         &Endpoint {
+            pack_ceilings: None,
             host: env.control.host.clone(),
             port: env.control.port,
             database: "postgres".to_owned(),
@@ -1042,6 +1049,8 @@ async fn publish_maintenance_fence() {
     assert_eq!(granted.code, 0, "{:?}", granted.body);
     assert_eq!(granted.body["fence_state"], "granted");
     let cas = maintain_activate(&MaintainRequest {
+        quality_observer: None,
+        deployment_mode: crate::DeploymentMode::PrimaryReplica,
         replica: None,
         native_mapping: None,
         control: control(&env),
@@ -2422,5 +2431,339 @@ async fn native_mapped_fixture(
     );
     println!(
         "W73_RAW native-mapping-fixture typed_row=[2,grace] wrong_generation_refused=true shrink_denied=true rollback_revocation_preserved=true native_source_accepted=false"
+    );
+}
+
+#[tokio::test]
+async fn gate_conflict_keeps_existing_reader_and_fence_open() {
+    if env::var("OO_GATE_PREFLIGHT_LIVE").as_deref() != Ok("1") {
+        eprintln!("OO_GATE_PREFLIGHT_LIVE unset; real PostgreSQL proof not run");
+        return;
+    }
+    let env = load_env();
+    let covers = GATE_IDS.iter().map(|gate| (*gate).to_owned()).collect::<Vec<_>>();
+    let installed = install(&InstallRequest {
+        endpoint: &env.control, user: "oo_release_admin", password: &env.admin_password,
+        ca_pem: &env.ca, project_id: PROJECT, authority_id: "gate-preflight-proof", covers: &covers,
+    }).await.unwrap();
+    assert_eq!(installed.code, 0);
+    assert_eq!(maintain_install(&control(&env), PROJECT).await.unwrap().code, 0);
+    let (effective, visibility) = crate::live::shop(&["contact", "id"]);
+    let first = stage_one(&env, "preflight-old", "preflight-old", None, &effective, &visibility).await;
+    let mut initial = maintain(&env, &first, None);
+    initial.deployment_mode = crate::DeploymentMode::AllInOne;
+    initial.reader_user = "oo_gateway_reader";
+    initial.reader_password = &env.clerk_password;
+    let opened = maintain_activate(&initial).await.unwrap();
+    assert_eq!(opened.code, 0, "{}", opened.body);
+    assert_eq!(fence_state(&env).await, "open");
+    let reader = connect(&env.target, "oo_gateway_reader", &env.clerk_password, &env.ca, "preflight-existing-reader").await;
+    let before_pid: i32 = reader.query_one("SELECT pg_backend_pid()", &[]).await.unwrap().get(0);
+    assert_eq!(reader.query_one("SELECT count(*) FROM public.customer", &[]).await.unwrap().get::<_,i64>(0), 1);
+
+    let next = stage_one(&env, "preflight-conflict", "preflight-conflict", Some(&first.version), &effective, &visibility).await;
+    let injected = gate_record(&GateRequest {
+        endpoint: &env.control, user: "oo_release_admin", password: &env.admin_password,
+        ca_pem: &env.ca, project_id: PROJECT, candidate_id: &next.id, source_hash: &next.source,
+        gate_id: "G4", issuer_class: "test_issuer", status: "pass", blocking: false,
+        report_type: "test_issuer", authority_statement_sha256: None,
+    }).await.unwrap();
+    assert_eq!(injected.code, 0);
+    let mut request = maintain(&env, &next, Some(&first.version));
+    request.deployment_mode = crate::DeploymentMode::AllInOne;
+    request.reader_user = "oo_gateway_reader";
+    request.reader_password = &env.clerk_password;
+    let rejected = maintain_activate(&request).await.unwrap();
+    assert_eq!(rejected.code, 2);
+    assert_eq!(rejected.body["reason"], "gate_preflight_not_ready");
+    assert_eq!(rejected.body["reasons"], json!(["G4_conflict"]));
+    assert_eq!(rejected.body["fence_touched"], false);
+    assert_eq!(fence_state(&env).await, "open");
+    assert_eq!(pointer_version(&env).await.as_deref(), Some(first.version.as_str()));
+    assert_eq!(reader.query_one("SELECT pg_backend_pid()", &[]).await.unwrap().get::<_,i32>(0), before_pid);
+    assert_eq!(reader.query_one("SELECT count(*) FROM public.customer", &[]).await.unwrap().get::<_,i64>(0), 1);
+    println!("GATE_PREFLIGHT_PROOF old_reader_pid={before_pid} old_rows=1 fence=open pointer=preflight-old conflicting_candidate_refused_before_target_mutation=true");
+}
+
+#[tokio::test]
+async fn all_in_one_publish_visibility_and_fail_closed() {
+    if env::var("OO_ALL_IN_ONE_LIVE").as_deref() != Ok("1") {
+        eprintln!("OO_ALL_IN_ONE_LIVE unset; owned PostgreSQL proof not run");
+        return;
+    }
+    let env = load_env();
+    let covers = GATE_IDS
+        .iter()
+        .map(|gate| (*gate).to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        install(&InstallRequest {
+            endpoint: &env.control,
+            user: "oo_release_admin",
+            password: &env.admin_password,
+            ca_pem: &env.ca,
+            project_id: PROJECT,
+            authority_id: "all-in-one-proof",
+            covers: &covers
+        })
+        .await
+        .unwrap()
+        .code,
+        0
+    );
+    assert_eq!(
+        maintain_install(&control(&env), PROJECT)
+            .await
+            .unwrap()
+            .code,
+        0
+    );
+    let (effective, visibility) = crate::live::shop(&["contact", "id"]);
+    let first = stage_one(&env, "cand-aio", "ver-aio", None, &effective, &visibility).await;
+    let mut request = maintain(&env, &first, None);
+    request.deployment_mode = crate::DeploymentMode::AllInOne;
+    request.reader_user = "oo_gateway_reader";
+    request.reader_password = &env.clerk_password;
+    request.replica = Some(target(&env));
+    assert!(maintain_activate(&request).await.is_err());
+    request.replica = None;
+    let opened = maintain_activate(&request).await.unwrap();
+    println!("ALL_IN_ONE_PUBLISH {}", opened.body);
+    let installed_path=std::env::temp_dir().join("installed-coordinator.json");
+    let installed=json!({"deployment_mode":"all_in_one","host":env.control.host,"port":env.control.port,"database":env.control.database,"user":"oo_release_admin","password_file":std::env::var("OO_W73_ADMIN_PASSWORD_FILE").unwrap(),"ca_file":std::env::var("OO_W73_CA_FILE").unwrap(),"target_host":env.target.host,"target_port":env.target.port,"target_database":env.target.database,"target_user":"oo_target_admin","target_password_file":std::env::var("OO_W73_TARGET_PASSWORD_FILE").unwrap(),"target_ca_file":std::env::var("OO_W73_CA_FILE").unwrap(),"target_reader_user":"oo_gateway_reader","target_reader_password_file":std::env::var("OO_W73_ROLE_PASSWORD_FILE").unwrap()});
+    write_mode(&installed_path,&serde_json::to_vec(&installed).unwrap());
+    let replay=dispatch(&["maintain-activate".to_owned(),"--config".to_owned(),installed_path.to_str().unwrap().to_owned()],&serde_json::to_vec(&json!({"protocol":"oo.release-coordinator/maintain-activate/v1","project_id":PROJECT,"candidate_id":first.id,"source_hash":first.source,"expected_version":null,"schema_name":SCHEMA,"relation_name":RELATION,"role_name":ROLE})).unwrap()).await;
+    assert_eq!(replay.code,0,"{}",String::from_utf8_lossy(&replay.stderr));
+    let replay:Value=serde_json::from_slice(&replay.stdout).unwrap();
+    assert_eq!(replay["deployment_mode"],"all_in_one");
+    assert_eq!(replay["visibility_observation"]["barrier"],"visible");
+
+    assert_eq!(opened.code, 0, "{}", opened.body);
+    assert_eq!(opened.body["visibility_observation"]["barrier"], "visible");
+    assert_eq!(opened.body["readonly_replica"], false);
+    assert!(opened.body.get("replica_observation").is_none());
+    let bindings = vec![(
+        SCHEMA.to_owned(),
+        RELATION.to_owned(),
+        ROLE.to_owned(),
+        vec!["contact".to_owned(), "id".to_owned()],
+    )];
+    assert!(
+        target::primary_visibility_barrier(
+            &target(&env),
+            "oo_gateway_reader",
+            &env.clerk_password,
+            target::VisibilityRef {
+                bindings: &bindings,
+                version: "wrong-version",
+                pack: &first.pack,
+                candidate: &first.id,
+                mapping: None
+            }
+        )
+        .await
+        .is_err()
+    );
+    let reader = connect(
+        &env.target,
+        "oo_gateway_reader",
+        &env.clerk_password,
+        &env.ca,
+        "all-in-one-reader",
+    )
+    .await;
+    assert_eq!(
+        reader
+            .query_one("SHOW default_transaction_read_only", &[])
+            .await
+            .unwrap()
+            .get::<_, String>(0),
+        "on"
+    );
+    assert_eq!(
+        reader
+            .query_one("SELECT id FROM public.customer", &[])
+            .await
+            .unwrap()
+            .get::<_, i32>(0),
+        1
+    );
+    for sql in [
+        "INSERT INTO public.customer(id,contact) VALUES(2,'denied')",
+        "UPDATE public.customer SET contact='denied'",
+        "CREATE TABLE public.denied(id int)",
+    ] {
+        assert_eq!(
+            reader
+                .batch_execute(sql)
+                .await
+                .unwrap_err()
+                .code()
+                .unwrap()
+                .code(),
+            "25006"
+        );
+    }
+    drop(reader);
+    let admin = connect(
+        &env.target,
+        "oo_target_admin",
+        &env.target_password,
+        &env.ca,
+        "all-in-one-admin",
+    )
+    .await;
+    install_physical_adapter(&env, &["contact", "id"]).await;
+    let eye = connect(
+        &env.target,
+        "oo_fixture_admin",
+        &env.super_password,
+        &env.ca,
+        "all-in-one-eye",
+    )
+    .await;
+    eye.batch_execute(&format!(
+        "INSERT INTO _oo.\"{}\" SELECT id,contact FROM public.customer",
+        physical_ident("pt_", "w73-table")
+    ))
+    .await
+    .unwrap();
+    admin.batch_execute("GRANT USAGE ON SCHEMA _oo TO oo_gateway_reader; GRANT SELECT ON _oo.physical_mappings TO oo_gateway_reader; GRANT EXECUTE ON FUNCTION _oo.lookup_physical_mapping(text,text,bigint,text,text,text,text) TO oo_gateway_reader").await.unwrap();
+    let mut tools = GatewayTools::load();
+    let bits = tools.prepare(env.ca.clone(), &env.clerk_password, &env.target);
+    let pack = crate::seal::compiled_pack(&effective, &visibility).unwrap();
+    write_gateway_dir(&bits, &visibility, &["contact", "id"], &pack.artifact);
+    let path = bits.root.join("config.json");
+    let mut config: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    config["deployment_mode"] = json!("all_in_one");
+    config["data_user"] = json!("oo_gateway_reader");
+    config["data_query_concurrency"] = json!(2);
+    config["data_query_timeout_ms"] = json!(3000);
+    fs::write(&path, serde_json::to_vec(&config).unwrap()).unwrap();
+    let policy_path = bits.root.join("reviewed/clerk/policy.json");
+    let mut policy: Value = serde_json::from_slice(&fs::read(&policy_path).unwrap()).unwrap();
+    policy["login"] = json!("oo_gateway_reader");
+    fs::write(&policy_path, serde_json::to_vec(&policy).unwrap()).unwrap();
+    issue_client_token(&bits);
+    let stderr_path = bits.root.join("gateway.stderr");
+    let mut stop = GatewayStop {
+        child: Some(
+            Command::new(&bits.gateway)
+                .arg(&bits.root)
+                .stdout(Stdio::null())
+                .stderr(fs::File::create(&stderr_path).unwrap())
+                .spawn()
+                .unwrap(),
+        ),
+    };
+    let bound = wait_listen(
+        &bits.root.join("listen.addr"),
+        stop.child.as_mut().unwrap(),
+        &stderr_path,
+        &[],
+    )
+    .await;
+    let result = run_query(
+        &bits.oo,
+        &bits.token,
+        &format!("http://{bound}"),
+        "SELECT id, contact FROM public.customer",
+    );
+    assert!(
+        result.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let query: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(query["returned_rows"], 1);
+    println!("ALL_IN_ONE_CLI {}", String::from_utf8_lossy(&result.stdout));
+    let ready = crate::DeploymentMode::AllInOne.readiness_record(
+        ROLE,
+        1,
+        &first.pack,
+        "oo-wf-allinone-proof-pg",
+        bits.root.to_str().unwrap(),
+    );
+    assert!(crate::DeploymentMode::AllInOne.matches_ready(&ready));
+    assert!(!crate::DeploymentMode::PrimaryReplica.matches_ready(&ready));
+    println!("ALL_IN_ONE_READY {ready}");
+    drop(stop);
+    let namespace = physical_ident("pn_", "all-in-one-namespace");
+    let physical = physical_ident("pt_", "w73-table");
+    let digest = crate::sha256_hex(b"shop\npublic.customer\ncontact\nid");
+    admin.batch_execute(&format!("CREATE SCHEMA \"{namespace}\"; ALTER TABLE _oo.\"{physical}\" SET SCHEMA \"{namespace}\"; GRANT USAGE ON SCHEMA \"{namespace}\" TO oo_r_clerk; CREATE TABLE _oo.full_import_run(run_id uuid,source_id text,source_generation bigint,target_generation bigint,state text)")).await.unwrap();
+    admin
+        .execute(
+            "INSERT INTO _oo.physical_mappings VALUES('shop',$1,1,'n','public','','',$2)",
+            &[&digest, &namespace],
+        )
+        .await
+        .unwrap();
+    let context = json!({"source":"shop","config_digest":digest,"generation":1});
+    let native = stage_one(
+        &env,
+        "cand-aio-native",
+        "ver-aio-native",
+        Some("ver-aio"),
+        &effective,
+        &visibility,
+    )
+    .await;
+    let mut native_request = maintain(&env, &native, Some("ver-aio"));
+    native_request.deployment_mode = crate::DeploymentMode::AllInOne;
+    native_request.reader_user = "oo_gateway_reader";
+    native_request.reader_password = &env.clerk_password;
+    native_request.native_mapping = Some(&context);
+    let native_result = maintain_activate(&native_request).await.unwrap();
+    println!("ALL_IN_ONE_MAPPING {}", native_result.body);
+    assert_eq!(native_result.code, 0, "{}", native_result.body);
+    assert!(
+        native_result.body["visibility_observation"]["vector"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row["generation"] == 1
+                && row["mappings"].as_array().is_some_and(|m| !m.is_empty()))
+    );
+    admin.batch_execute("CREATE FUNCTION public.deny_new_visibility() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.opened_version='ver-aio-fail' THEN REVOKE EXECUTE ON FUNCTION oo_publish_target.visible_vector() FROM oo_gateway_reader; END IF; RETURN NEW; END $$; CREATE TRIGGER deny_new_visibility AFTER UPDATE ON oo_publish_target.fence FOR EACH ROW EXECUTE FUNCTION public.deny_new_visibility()").await.unwrap();
+    let failed = stage_one(
+        &env,
+        "cand-aio-fail",
+        "ver-aio-fail",
+        Some("ver-aio-native"),
+        &effective,
+        &visibility,
+    )
+    .await;
+    let mut request = maintain(&env, &failed, Some("ver-aio-native"));
+    request.deployment_mode = crate::DeploymentMode::AllInOne;
+    request.reader_user = "oo_gateway_reader";
+    request.reader_password = &env.clerk_password;
+    request.native_mapping = Some(&context);
+    let result = maintain_activate(&request).await.unwrap();
+    println!("ALL_IN_ONE_FAILURE {}", result.body);
+    assert_eq!(result.code, 2);
+    assert_eq!(result.body["reason"], "post_commit_visibility_failed");
+    assert_eq!(result.body["half_published"], true);
+    assert_eq!(result.body["fail_closed"], true);
+    assert_eq!(maintain_activate(&request).await.unwrap().code, 2);
+    assert_eq!(admin.query_one("SELECT count(*) FROM oo_publish_target.fence WHERE state <> 'closed' AND schema_name=$1 AND relation_name=$2",&[&namespace,&physical]).await.unwrap().get::<_,i64>(0),0);
+    let reader = connect(
+        &env.target,
+        "oo_gateway_reader",
+        &env.clerk_password,
+        &env.ca,
+        "all-in-one-denied",
+    )
+    .await;
+    assert!(
+        reader
+            .query(
+                &format!("SELECT * FROM \"{namespace}\".\"{physical}\""),
+                &[]
+            )
+            .await
+            .is_err()
     );
 }

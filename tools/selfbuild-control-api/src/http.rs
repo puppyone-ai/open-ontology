@@ -416,9 +416,10 @@ async fn decide_review(State(state): State<Arc<AppState>>, headers: HeaderMap, P
     if kind != "label_description" || !matches!(choice, "approve" | "reject" | "defer") || !hex64(candidate) {
         return json_err(true, &ApiError::malformed());
     }
-    let members = store::list_members(&state.config.postgres, &row.build_id).await.unwrap_or_default();
-    let Some(member) = members.into_iter().find(|item| item.object_id == item_id) else {
-        return json_err(true, &ApiError::forbidden());
+    let member=match store::find_member(&state.config.postgres,&row.build_id,&item_id).await {
+        Ok(Some(member))=>member,
+        Ok(None)=>return json_err(true,&ApiError::forbidden()),
+        Err(error)=>return json_err(true,&error),
     };
     if !member_matches(&member, &row.project_id, &member.source_sha256, candidate) {
         return json_err(true, &ApiError::membership());
@@ -546,7 +547,10 @@ async fn class_body(state: &AppState, headers: &HeaderMap, body: &[u8], confirm:
             items.push((object_id.to_owned(), pii.to_owned()));
         }
     }
-    let preview = match preview_classification(&project.visible_columns, &project.hidden_columns, &items, accept_all) {
+    let preview_result = if project.library.is_some() {
+        crate::stages::preview_library_classification(&project.visible_columns, &project.hidden_columns, &items, accept_all)
+    } else { preview_classification(&project.visible_columns, &project.hidden_columns, &items, accept_all) };
+    let preview = match preview_result {
         Ok(preview) => preview,
         Err(error) => return json_err(true, &error),
     };
@@ -658,7 +662,14 @@ async fn confirm_stored(state: &AppState, identity: &VerifiedIdentity, project_i
             return json_err(true, &error);
         }
     }
-    if let Err(error) = store::mark_stage(&state.config.postgres, &row, "S10").await {
+    let project = state.config.projects.iter().find(|p| p.project_id == row.project_id);
+    let complete = if let Some(project) = project.filter(|p| p.library.is_some()) {
+        match store::our_decisions(&state.config.postgres, &row.build_id).await {
+            Ok(decisions) => project.visible_columns.iter().all(|id| decisions.iter().any(|d| &d.object_id == id && d.decision_kind == "classification" && d.choice == "confirm")),
+            Err(error) => return json_err(true, &error),
+        }
+    } else { true };
+    if complete && let Err(error) = store::mark_stage(&state.config.postgres, &row, "S10").await {
         return json_err(true, &error);
     }
     if let Err(error) = store::insert_confirm_audit(
@@ -1047,12 +1058,12 @@ async fn overlay_post(
     let Some(row) = load_scoped(state, &identity, build_id, scope_name).await else {
         return json_err(true, &ApiError::forbidden());
     };
-    let body_sha = canonical_sha256(&value);
+    let body_sha = if matches!(&op, OverlayOp::Review | OverlayOp::Confirm) { canonical_sha256(&json!({"body":value,"subject":identity.subject,"issuer":identity.issuer})) } else { canonical_sha256(&value) };
     let result = match op {
         OverlayOp::Maintenance => crate::overlay::maintenance(&state.config, &row, &value, &body_sha).await,
         OverlayOp::Curated => crate::overlay::curated(&state.config, &row, &value, &body_sha).await,
-        OverlayOp::Review => crate::overlay::review(&state.config, &row, &value, &body_sha).await,
-        OverlayOp::Confirm => crate::overlay::confirm(&state.config, &row, &value, &body_sha).await,
+        OverlayOp::Review => crate::overlay::review_as(&state.config, &row, &value, &body_sha, Some(&identity)).await,
+        OverlayOp::Confirm => crate::overlay::confirm_as(&state.config, &row, &value, &body_sha, Some(&identity)).await,
         OverlayOp::RolePack => crate::overlay::compile_role_pack(&state.config, &row, &value, &body_sha).await,
         OverlayOp::Gates => crate::overlay::gates(&state.config, &row, &value, &body_sha).await,
     };

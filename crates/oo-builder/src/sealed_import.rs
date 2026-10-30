@@ -131,7 +131,11 @@ impl SealedImportDraft {
 pub fn compile_sealed_import_catalog(
     catalog_json: &str,
 ) -> Result<SealedImportDraft, SealedImportError> {
-    let catalog = sealed_import::parse_sealed_import_catalog(catalog_json).map_err(lift_core)?;
+    compile_sealed_import_catalog_with_limits(catalog_json, &Default::default())
+}
+
+pub fn compile_sealed_import_catalog_with_limits(catalog_json: &str, limits: &oo_core::sealed_import::SealedImportLimits) -> Result<SealedImportDraft, SealedImportError> {
+    let catalog = sealed_import::parse_sealed_import_catalog_with_limits(catalog_json, limits).map_err(lift_core)?;
     let mut columns = Vec::new();
     for table in &catalog.tables {
         let dataset = format!("{}.{}", table.logical_schema, table.logical_table);
@@ -185,8 +189,12 @@ pub fn compile_sealed_import_catalog(
 /// catalog identity. The collection identity is bound to the exact vector;
 /// it is never presented as a single schema or source-run digest.
 pub fn compile_sealed_import_collection(input: &str) -> Result<SealedImportDraft, SealedImportError> {
+    compile_sealed_import_collection_with_limits(input, &Default::default())
+}
+
+pub fn compile_sealed_import_collection_with_limits(input: &str, limits: &oo_core::sealed_import::SealedImportLimits) -> Result<SealedImportDraft, SealedImportError> {
     use std::collections::BTreeSet;
-    let value = oo_core::json_scan::parse_json_value(input, SEALED_IMPORT_COLLECTION_PROTOCOL)
+    let value = oo_core::json_scan::parse_json_value_with_limits(input, SEALED_IMPORT_COLLECTION_PROTOCOL, &limits.json_scan)
         .map_err(|_| SealedImportError::draft("json.syntax", "/", "collection JSON is invalid or exceeds limits"))?;
     let object = value.as_object().ok_or_else(|| SealedImportError::draft("schema.invalid", "/", "collection is not an object"))?;
     if object.len() != 4 || value.get("protocol").and_then(Value::as_str) != Some(SEALED_IMPORT_COLLECTION_PROTOCOL) {
@@ -194,7 +202,7 @@ pub fn compile_sealed_import_collection(input: &str) -> Result<SealedImportDraft
     }
     let entries = value.get("entries").and_then(Value::as_array).ok_or_else(|| SealedImportError::draft("schema.invalid", "/entries", "collection entries are missing"))?;
     let vector = value.get("binding_vector").and_then(Value::as_array).ok_or_else(|| SealedImportError::draft("schema.invalid", "/binding_vector", "collection binding vector is missing"))?;
-    if entries.is_empty() || entries.len() > 32 || entries.len() != vector.len() {
+    if entries.is_empty() || entries.len() > limits.max_collection_entries || entries.len() != vector.len() {
         return Err(SealedImportError::draft("schema.invalid", "/entries", "collection entry count is invalid"));
     }
     let mut preimage = value.clone();
@@ -206,7 +214,7 @@ pub fn compile_sealed_import_collection(input: &str) -> Result<SealedImportDraft
     let mut seen = BTreeSet::new();
     let mut drafts = Vec::with_capacity(entries.len());
     for (index, (entry, binding)) in entries.iter().zip(vector).enumerate() {
-        let draft = compile_sealed_import_catalog(&canonical_json(entry))?;
+        let draft = compile_sealed_import_catalog_with_limits(&canonical_json(entry), limits)?;
         if draft.tables.len() != 1 || !seen.insert(draft.tables[0].dataset.clone()) {
             return Err(SealedImportError::draft("binding.dataset", format!("/entries/{index}"), "collection entry must contain one unique dataset"));
         }

@@ -114,4 +114,4 @@ Gateway message and hint text that still contains the token, the SQL, the gatewa
 
 ## Not in this slice
 
-Conversation, export, Arrow, discovery, describe, config validate, SQL validate, management calls, a sandbox proxy, a real Gateway, and PostgreSQL permission checks are not implemented. Full arm64 and amd64 matrix coverage is not this contract.
+Conversation, export, Arrow, discovery/resolve/search-values, config validate, a sandbox proxy, and full PostgreSQL permission acceptance are not implemented in this contract. `describe`, SQL `validate`, and the public metadata commands are implemented in the current CLI; this fixture contract does not certify a live Gateway. Full arm64 and amd64 matrix coverage is not this contract.

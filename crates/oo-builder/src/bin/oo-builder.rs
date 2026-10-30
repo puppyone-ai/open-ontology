@@ -72,6 +72,38 @@ fn main() -> ExitCode {
                 }
             }
         }
+        Some("library-role-pack") => {
+            let Some(path) = args.next() else {
+                return ExitCode::from(2);
+            };
+            if args.next().is_some() {
+                return ExitCode::from(2);
+            }
+            let result = (|| -> Result<String, &'static str> {
+                let config =
+                    std::fs::read_to_string(path).map_err(|_| "installation config unreadable")?;
+                let ceilings: oo_builder::RolePackCeilings =
+                    serde_json::from_str(&config).map_err(|_| "installation config invalid")?;
+                let mut text = String::new();
+                std::io::stdin()
+                    .take(ceilings.json_scan.max_bytes as u64 + 1)
+                    .read_to_string(&mut text)
+                    .map_err(|_| "stdin unreadable")?;
+                oo_builder::compile_role_pack_command_with_ceilings(&text, &ceilings).map_err(
+                    |error| {
+                        eprintln!("oo-builder: {} {}", error.code, error.message);
+                        "library pack refused"
+                    },
+                )
+            })();
+            match result {
+                Ok(bytes) => write_command("library-role-pack", &bytes),
+                Err(message) => {
+                    eprintln!("oo-builder: {message}");
+                    ExitCode::from(1)
+                }
+            }
+        }
         Some("role-pack") => {
             if args.next().is_some() {
                 eprintln!(

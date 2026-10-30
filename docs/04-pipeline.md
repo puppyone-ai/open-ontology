@@ -21,6 +21,8 @@
 
 ## 2. 结构
 
+> 实现映射：下图是目标设计。当前已验收的 MySQL 日志 CDC 路径是 Rust native 实现（不经 Debezium Server/Valkey），验收范围以 `specs/chunked-baseline/K-RESULTS.md` 为准；不得把该部分验收扩大为本图全部组件已通过。
+
 ```text
             可 CDC 的源库                      不可 CDC 的源库              文件
                  │                                  │                        │
@@ -132,7 +134,7 @@
 4. 同一个 PG 事务内更新 `_oo.source_watermark`（§5.7）与涉及表的 `_oo.table_freshness`。
 5. **超大事务**（事件数 > `max_txn_events`，默认 20 万，常见于月结、批量导入）：事件先溢出到本地磁盘缓冲，然后按主键分段写入；首段提交时一并设置 `_oo.source_watermark.state = 'applying_large_txn'`、`cross_table_consistent = false`，水位保留最后完整事务的位置，涉及的表在 `_oo.table_quality` 中标记 `partial_txn_in_progress`。分段期间不应用后续源事务，Gateway 对触及这些表的查询附加质量警告（[07 §5.4](07-gateway.md)）；全部分段成功后在最后一段的事务里推进水位、清除标记，无暂停表等其他降级时才恢复一致性标记。中途失败则从该源事务开头重放（幂等），完成前不能提前清除标记。
 
-**批量路径的一致性：** 设置为 `transactional` 的批量源，每次增量在源库从库上用一个一致性快照事务（MySQL `START TRANSACTION WITH CONSISTENT SNAPSHOT` / PG `REPEATABLE READ`）读取本轮全部表的增量，并在 Agent DB 的一个事务里应用，得到跨表一致的切面；快照事务时长受 `max_snapshot_txn_seconds`（默认 300 秒）约束，超出时本轮降级为逐表读取，并在质量标记中说明。
+**批量路径的一致性：** `transactional` 只对 T 级源有效（见上文），批量源不使用该配置名；需要跨表一致切面的批量源配置 S1 快照模式：每次增量在源库从库上用一个一致性快照事务（MySQL `START TRANSACTION WITH CONSISTENT SNAPSHOT` / PG `REPEATABLE READ`）读取本轮全部表的增量，并在 Agent DB 的一个事务里应用，得到跨表一致的切面；快照事务时长受 `max_snapshot_txn_seconds`（默认 300 秒）约束，超出时本轮降级为逐表读取，并在质量标记中说明。
 
 ### 5.3 Loader 的一个批次
 
@@ -237,7 +239,8 @@ COMMIT;
 - **首次全量：** 与 §4 的分块读取相同，但没有 CDC 流，所以直接 COPY 进影子表，完成后换表。
 - **增量：** 每表在控制库记水位 `W`（上次成功同步到的 `updated_at`）。读取 `updated_at > W - overlap` 的行（默认重叠 5 分钟，兜住晚提交的长事务），以 upsert 写入；**全部写入成功后才推进水位**，与任务完成标记在同一个控制库事务中。
 - **前提：** 源表要有“每次修改都会更新”的 `updated_at` 列（画像可以检验：抽样对比）。没有的表只能 `full`，或请客户加列。
-- **删除：** 批量路径看不到删除，依赖每日对账（§8）删除源库已不存在的行；源表用软删除时不需要。
+- **删除：** 批量路径看不到删除，依赖每日对账（§8）删除源库已不存在的行。软删除列只是业务语义，不替代物理删除检测；不做对账的表必须标 `DELETES_UNDETECTED`（[database-support/03 §5](database-support/03-change-capture-and-consistency.md)）。
+- **无可信更新列的大表：** 使用 C5+ 分层差分（[ADR-019](02-technology-stack.md)），不把应用维护的时间列当作可信水位。
 - **限速：** 每个源库的并发连接数与每秒行数上限（令牌桶），优先读从库；执行窗口可配置（例如只在 20:00–08:00 做全量）。
 
 ## 8. 对账
@@ -335,3 +338,39 @@ registered → snapshotting → catching_up → awaiting_publish → live ⇄ pa
 | CDC 应用吞吐（单分片；`transactional` 模式下即单个源库） | ≥ 5,000 事件/秒 |
 | CDC 端到端延迟 p95 | ≤ 60 秒 |
 | 每日对账对源库的额外读取 | ≤ 源表体积的 5%（默认抽样配置） |
+
+## 13. 整库运行布局与启动/恢复
+
+导入前先规划 library 的传输来源。原独立来源发布仍要求当前全部表且 ≤32；库级路径跨来源原子发布、一个角色/Pack，见 ADR-029。Builder 的批次与 Pack 预算独立校验，不把传输分片当成多个 Agent 入口；同一逻辑表仍仅一个当前来源。见 [现场手册 A–D/M](database-support/06-real-source-field-notes.md)。
+
+先安装 target/jobs，再错峰 provisioning 并等待 ready，再 native-fire 入队、native-step 认领执行、native-state 查状态/水位；claim=none 不是完成。安装 DDL 必须先拿共同咨询锁，不能靠 IF NOT EXISTS 推断并发安全。失败保留 immutable occurrence/artifact pins；换摘要不能覆盖旧排队行。遇 stale_queued_task，停该调度、审计具体 task/dedupe/fence/ack，通过现有取消/恢复接口处理，禁止批量删队列。调度器只重试失败/未完成表，不自动发布。
+
+生产 recipe **pin release 二进制及 SHA-256**；debug 巨大文件每阶段摘要校验可使单表固定开销达分钟级。保留核验，记录阶段与轮询耗时，设置总 deadline。网络 RTT 主导时分块目标约 3 秒且有行数下限，但字节/语句预算始终优先。
+
+## Library 初次导入与整库原子发布
+
+library.py 的 plan/import 共用 source_layout/source_scheduler；重试绑定同一 manifest
+摘要，累计成功结果，只选择失败或未完成表。import complete 不自动等于发布。
+后续 publish/adopt 都调用 pipeline native-library-prepare：读取目标库当前分片
+向量，在最终回滚的事务里调用真实库级发布作预检，再把结果交给现有 coordinator。
+
+0061–0064 追加 `_oo.publish_native_library`；默认 64 分片/4096 总表，管理员可配置。
+每分片仍遵守既有 ≤32 表限制。按来源固定顺序锁所有成员水位/新鲜度，逐个调用
+原 per-source 发布函数；缺成员、缺当前表、旧 generation、质量不符、未知字段均
+拒绝；任一来源失败整笔回滚。库 receipt append-only、当前向量重放幂等、旧代拒绝。
+已独立发布来源通过 superseded_by_library 状态归属于库级指针，不重导、不改旧证据。
+
+所有目标 fence 与库发布在同事务打开；之后才做新会话/主从可见性验证。提交后
+校验失败关闭整个库及全部 fence，不删除已提交 receipt。`--recover` 恢复同一 active
+candidate，不恢复旧代。安装链、新装/0052 升级、匿名 36 表三来源测试见
+[验证记录](database-support/library-lib-verification.md) 和
+[ADR-029](adr/ADR-029-library-layout-publication-and-adoption.md)。
+
+
+## 库级控制面整合（INT）
+
+库级项目、全局 facts/分批 S5、逐对象审核、一个角色 Pack、库级原子发布和单 Gateway
+接入见 [ADR-030](adr/ADR-030-library-control-worker-and-gateway.md)。库级安装预算不授予
+数据权限；Gateway 保留只读登录、当前导入向量/库 head/fence 校验和原 SQL 子集。
+健康库每表给出 target_observations，但源时间/共同源位点未测量仍为 unmeasured，
+不把 all-in-one 主库称为只读副本。真实库覆盖及评测以独立执行证据为准。

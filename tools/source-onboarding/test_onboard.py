@@ -336,6 +336,25 @@ class RunnerTests(unittest.TestCase):
                 conn=json.loads((root/'connection.json').read_text());conn['port']=3307;self.write(root/'connection.json',conn)
                 with self.assertRaisesRegex(m.Refused,'resume_drift'):m.run(ip,True)
             finally:m.INSTALL_ROOT=old
+    def test_management_reviews_require_server_bound_identity_not_fixture_signatures(self):
+        sys.path.insert(0,str(Path(__file__).parent))
+        spec=importlib.util.spec_from_file_location('product_flow',Path(__file__).with_name('product_flow.py'))
+        pf=importlib.util.module_from_spec(spec);spec.loader.exec_module(pf)
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);root.chmod(0o700)
+            config={'create':{'project_id':'project'},'review_subjects':{'reviewer':'real-reviewer','owner':'real-owner'}}
+            flow=pf.Flow(config,root/'out')
+            proof={'authority':'management_session','build_id':'b_one','project_id':'project','subject':'real-owner','issuer':'https://identity.example','identity_revision':4,'business_owner_signed':False,'owner_certification':'not_issued'}
+            flow.require_management_action({'management_action':proof},'b_one','owner')
+            for key,value in [('subject','fixture-owner'),('build_id','b_other'),('project_id','other'),('identity_revision',0),('issuer','http://identity.example')]:
+                wrong=dict(proof,**{key:value})
+                with self.assertRaisesRegex(pf.Refused,'management_review_binding'):
+                    flow.require_management_action({'management_action':wrong},'b_one','owner')
+            with self.assertRaisesRegex(pf.Refused,'management_review_binding'):
+                flow.require_management_action({'signer_class':'control_plane_test','business_owner_signed':False},'b_one','owner')
+            with self.assertRaisesRegex(pf.Refused,'management_not_customer_signature'):
+                flow.require_management_action({'management_action':dict(proof,business_owner_signed=True)},'b_one','owner')
+
     def test_completed_product_reuses_same_config(self):
         import importlib.util
         sys.path.insert(0,str(Path(__file__).parent))

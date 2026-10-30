@@ -16,7 +16,7 @@ use selfbuild_control_api::{router, MIGRATION_SQL};
 use serde_json::json;
 use tower::ServiceExt;
 
-fn sample_config() -> selfbuild_control_api::AppConfig {
+fn sample_config_text() -> String {
     let commit = "a".repeat(64);
     let text = format!(
         r#"{{
@@ -61,7 +61,30 @@ fn sample_config() -> selfbuild_control_api::AppConfig {
             "principals": []
         }}"#
     );
-    load_config_bytes(text.as_bytes()).expect("config")
+    text
+}
+
+fn sample_config() -> selfbuild_control_api::AppConfig {
+    load_config_bytes(sample_config_text().as_bytes()).expect("config")
+}
+
+#[test]
+fn installed_model_allowlist_defaults_and_override() {
+    let mut value: serde_json::Value = serde_json::from_str(&sample_config_text()).unwrap();
+    for model in ["grok-4.7", "gpt-6.1-sol"] {
+        value["projects"][0]["llm"]["model_id"] = json!(model);
+        assert!(load_config_bytes(&serde_json::to_vec(&value).unwrap()).is_ok());
+    }
+    value["projects"][0]["llm"]["model_id"] = json!("devin/claude-opus-5-5");
+    assert!(load_config_bytes(&serde_json::to_vec(&value).unwrap()).is_err());
+    value["llm_allowed_models"] = json!(["devin/claude-opus-5-5"]);
+    let config = load_config_bytes(&serde_json::to_vec(&value).unwrap()).unwrap();
+    assert_eq!(stages::builder_config(&config.projects[0], "catalog")["endpoint"]["model_id"], json!("devin/claude-opus-5-5"));
+    value["projects"][0]["llm"]["model_id"] = json!("grok-4.7");
+    assert!(load_config_bytes(&serde_json::to_vec(&value).unwrap()).is_err());
+    value["projects"][0]["llm"]["model_id"] = json!("devin/claude-opus-5-5");
+    value["projects"][0]["llm"]["origin"] = json!("http://localhost:8317");
+    assert!(load_config_bytes(&serde_json::to_vec(&value).unwrap()).is_err());
 }
 
 #[test]
@@ -239,6 +262,22 @@ fn classification_preview_hides_unknown_and_refuses_accept_all() {
     assert_eq!(err.code, "membership.refused");
 }
 
+#[test]
+fn restricted_classification_uses_core_enum_without_bypassing_membership() {
+    let column = "app.customer.identifier".to_owned();
+    let visible = vec![column.clone()];
+    let items = vec![(column.clone(), "restricted".to_owned())];
+    assert_eq!(stages::preview_classification(&visible, &[], &items, false).unwrap().ready, visible);
+    assert!(stages::preview_library_classification(&visible, &[], &items, false).is_ok());
+    assert!(stages::preview_library_classification(&visible, &visible, &items, false).is_err());
+    assert!(stages::preview_library_classification(&visible, &[], &items, true).is_err());
+    for pii in ["Restricted", "secret", "unknown", ""] {
+        assert!(stages::preview_classification(
+            &visible, &[], &[(column.clone(), pii.to_owned())], false
+        ).is_err());
+    }
+}
+
 #[tokio::test]
 async fn missing_cookie_is_401_and_closed_identity_is_503() {
     let app = router(sample_config());
@@ -339,4 +378,103 @@ fn current_envelope() -> serde_json::Value {
         "gateway_token": "not_issued",
         "customer_integration": "not_claimed"
     })
+}
+
+#[test]
+fn library_installation_budgets_accept_inventory_not_s5_sized_projects() {
+    let mut value: serde_json::Value = serde_json::from_str(&sample_config_text()).unwrap();
+    value["budgets"] = json!({"max_tables":128,"max_document_bytes":8388608,"max_json_nodes":400000});
+    value["projects"][0]["source"]["tables"] = json!((0..65).map(|i| json!({"schema":"app","table":format!("item_{i}")})).collect::<Vec<_>>());
+    let config = load_config_bytes(&serde_json::to_vec(&value).unwrap()).expect("library project");
+    assert_eq!(config.budgets.max_tables, 128);
+    value["budgets"]["max_tables"] = json!(64);
+    assert!(load_config_bytes(&serde_json::to_vec(&value).unwrap()).is_err());
+    value["budgets"]["max_tables"] = json!(0);
+    assert!(load_config_bytes(&serde_json::to_vec(&value).unwrap()).is_err());
+}
+
+#[test]
+fn installed_library_defaults_and_native_prepare_share_the_table_budget() {
+    let config = sample_config();
+    assert_eq!(config.budgets.role_pack.max_datasets, 4096);
+    assert_eq!(
+        config.budgets.role_pack.json_scan.max_bytes,
+        config.budgets.max_document_bytes
+    );
+    let catalog = include_bytes!(
+        "../../../crates/oo-builder/tests/fixtures/oo06-pg-sealed-import-catalog.json"
+    );
+    let mut budgets = config.budgets;
+    budgets.max_tables = 2;
+    let refused = selfbuild_control_api::builder_inputs::prepare_observed_with_budgets(
+        catalog,
+        b"{}",
+        None,
+        &[],
+        &[],
+        &budgets,
+    );
+    let refused: serde_json::Value = serde_json::from_slice(&refused.document).unwrap();
+    assert_eq!(refused["outcome"], "compiler_refused");
+    budgets.max_tables = 128;
+    let accepted = selfbuild_control_api::builder_inputs::prepare_observed_with_budgets(
+        catalog,
+        b"{}",
+        None,
+        &[],
+        &[],
+        &budgets,
+    );
+    let accepted: serde_json::Value = serde_json::from_slice(&accepted.document).unwrap();
+    assert_eq!(accepted["outcome"], "draft_compiled");
+}
+
+#[test]
+fn trusted_installation_config_does_not_use_the_public_request_byte_cap() {
+    let text = format!("{}{}", " ".repeat(70000), sample_config_text());
+    assert!(load_config_bytes(text.as_bytes()).is_ok());
+}
+
+#[test]
+fn library_project_is_trusted_pinned_and_part_of_build_identity() {
+    let mut value: serde_json::Value = serde_json::from_str(&sample_config_text()).unwrap();
+    value["projects"][0]["library"] = json!({
+        "python": "/usr/bin/python3", "script": "/opt/oo/library_control.py",
+        "script_sha256": "1".repeat(64), "config": "/private/library.json",
+        "config_sha256": "2".repeat(64), "manifest": "/private/manifest.json",
+        "manifest_sha256": "3".repeat(64)
+    });
+    let accepted = load_config_bytes(&serde_json::to_vec(&value).unwrap()).expect("trusted library config");
+    let before = selfbuild_control_api::config::project_input_hash(&accepted.projects[0]);
+    value["projects"][0]["library"]["manifest_sha256"] = json!("4".repeat(64));
+    let changed = load_config_bytes(&serde_json::to_vec(&value).unwrap()).unwrap();
+    assert_ne!(before, selfbuild_control_api::config::project_input_hash(&changed.projects[0]));
+    value["projects"][0]["sealed_bundle"] = json!("/private/bundle");
+    assert!(load_config_bytes(&serde_json::to_vec(&value).unwrap()).is_err());
+    value["projects"][0]["sealed_bundle"] = json!("");
+    value["projects"][0]["library"]["script"] = json!("/opt/../untrusted.py");
+    assert!(load_config_bytes(&serde_json::to_vec(&value).unwrap()).is_err());
+}
+
+#[test]
+fn review_scope_uses_explicit_installation_budget_without_wildcards() {
+    let mut value: serde_json::Value = serde_json::from_str(&sample_config_text()).unwrap();
+    value["principals"] = json!([{"subject":"fixture-reviewer","ledger_role":"reviewer","principal_id":"fixture-reviewer","reviewer_label":"fixture/test","credential_file":"/private/reviewer","object_scope":(0..65).map(|i|format!("app.items.c_{i}")).collect::<Vec<_>>()}]);
+    assert!(load_config_bytes(&serde_json::to_vec(&value).unwrap()).is_err());
+    value["budgets"] = json!({"max_review_objects": 1024});
+    assert!(load_config_bytes(&serde_json::to_vec(&value).unwrap()).is_ok());
+    value["principals"][0]["object_scope"][0] = json!("app.*");
+    assert!(load_config_bytes(&serde_json::to_vec(&value).unwrap()).is_err());
+}
+
+#[test]
+fn library_classification_batches_keep_exact_membership_and_hidden_denial() {
+    let visible=vec!["app.items.id".to_string(),"app.items.quantity".to_string()];
+    let hidden=vec!["app.items.phone".to_string()];
+    let batch=vec![("app.items.id".to_string(),"none".to_string())];
+    assert!(stages::preview_classification(&visible,&hidden,&batch,false).is_err());
+    assert!(stages::preview_library_classification(&visible,&hidden,&batch,false).is_ok());
+    assert!(stages::preview_library_classification(&visible,&hidden,&[("app.other.id".to_string(),"none".to_string())],false).is_err());
+    assert!(stages::preview_library_classification(&visible,&hidden,&[("app.items.phone".to_string(),"none".to_string())],false).is_err());
+    assert!(stages::preview_library_classification(&visible,&hidden,&batch,true).is_err());
 }

@@ -5,6 +5,29 @@ fn main() -> ExitCode {
     let mut args = std::env::args_os();
     let _argv0 = args.next();
     match args.next() {
+        Some(command) if command == OsStr::new("install-native-c5-privileged-observer") && args.next().is_none() => {
+            let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match rt.block_on(oo_pipeline::native_update::c5_observer_install_stdio()) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(code) => ExitCode::from(code),
+            }
+        }
+        Some(command) if command == OsStr::new("install-native-c5-widening-rebase") && args.next().is_none() => {
+            let rt=tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match rt.block_on(oo_pipeline::native_update::c5_widening_install_stdio()) {
+                Ok(())=>ExitCode::SUCCESS,Err(code)=>ExitCode::from(code),
+            }
+        }
+        Some(command) if command == OsStr::new("native-oracle-c1-materialize") && args.next().is_none() => {
+            let rt=tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match rt.block_on(oo_pipeline::c1_oracle_materialize::stdio()) {Ok(())=>ExitCode::SUCCESS,Err(code)=>ExitCode::from(code)}
+        }
+        Some(command) if command == OsStr::new("check-native-runtime") && args.next().is_none() => {
+            match oo_pipeline::native_runtime::stdio() {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(code) => ExitCode::from(code),
+            }
+        }
         Some(command) if command == OsStr::new("import-pg") && args.next().is_none() => import_pg(),
         Some(command) if command == OsStr::new("catalog-pg") && args.next().is_none() => {
             catalog_pg()
@@ -42,8 +65,49 @@ fn main() -> ExitCode {
                 Ok(()) => ExitCode::SUCCESS, Err(code) => ExitCode::from(code),
             }
         }
+        Some(command) if command == OsStr::new("import-native-c1-baseline-v2") && args.next().is_none() => {
+            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match runtime.block_on(oo_pipeline::native_update::import_native_c1_baseline_v2()) {
+                Ok(()) => ExitCode::SUCCESS, Err(code) => ExitCode::from(code),
+            }
+        }
+        Some(command) if command == OsStr::new("import-native-c1-baseline-v3") && args.next().is_none() => {
+            let rt=tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match rt.block_on(oo_pipeline::native_update::import_native_c1_baseline_v3()) {
+                Ok(())=>ExitCode::SUCCESS,Err(code)=>ExitCode::from(code),
+            }
+        }
+        Some(command) if (command == OsStr::new("native-c5-part-stage")
+            || command == OsStr::new("install-native-c5-range-parts")) && args.next().is_none() => {
+            let install=command == OsStr::new("install-native-c5-range-parts");
+            let rt=tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match rt.block_on(oo_pipeline::native_update::c5_part_stage_stdio(install)) {
+                Ok(())=>ExitCode::SUCCESS,Err(code)=>ExitCode::from(code),
+            }
+        }
+        Some(command) if command == OsStr::new("native-c1-typed-stage") && args.next().is_none() => {
+            let rt=tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match rt.block_on(oo_pipeline::c1_typed_cli::stdio(false)) {
+                Ok(())=>ExitCode::SUCCESS,Err(code)=>ExitCode::from(code),
+            }
+        }
+        Some(command) if command == OsStr::new("install-native-c1-typed") && args.next().is_none() => {
+            let rt=tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match rt.block_on(oo_pipeline::c1_typed_cli::stdio(true)) {
+                Ok(())=>ExitCode::SUCCESS,Err(code)=>ExitCode::from(code),
+            }
+        }
+        Some(command) if command == OsStr::new("native-c1-publication") && args.next().is_none() => {
+            let rt=tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match rt.block_on(oo_pipeline::c1_publication_cli::stdio()) {
+                Ok(())=>ExitCode::SUCCESS,Err(code)=>ExitCode::from(code),
+            }
+        }
         Some(command) if command == OsStr::new("native-c1-baseline-stage") && args.next().is_none() => {
             native_c1_baseline_stage()
+        }
+        Some(command) if command == OsStr::new("native-c1-baseline-stage-v2") && args.next().is_none() => {
+            native_c1_baseline_stage_v2()
         }
         Some(command) if command == OsStr::new("ack-native-partition") && args.next().is_none() => {
             ack_native_partition()
@@ -63,10 +127,74 @@ fn main() -> ExitCode {
         Some(command) if command == OsStr::new("install-native-update") && args.next().is_none() => {
             install_native_update()
         }
+        Some(command) if command == OsStr::new("native-c5-state") && args.next().is_none() => {
+            let runtime=tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match runtime.block_on(oo_pipeline::native_c5_state::stdio()) {
+                Ok(())=>ExitCode::SUCCESS,Err(code)=>ExitCode::from(code),
+            }
+        }
+        Some(command) if command == OsStr::new("native-library-prepare") && args.next().is_none() => {
+            let runtime=tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+            match runtime.block_on(oo_pipeline::native_library::stdio()) {Ok(())=>ExitCode::SUCCESS,Err(code)=>ExitCode::from(code)}
+        }
+        Some(command) if command == OsStr::new("install-native-library-c1") && args.next().is_none() => {
+            install_native_extra(ExtraInstall::C1Library)
+        }
+        Some(command) if command == OsStr::new("install-native-c5-oracle-range") && args.next().is_none() => {
+            install_native_extra(ExtraInstall::OracleRange)
+        }
+        Some(command) if command == OsStr::new("install-native-c5-oracle-publication") && args.next().is_none() => {
+            install_native_extra(ExtraInstall::OraclePublication)
+        }
+        Some(command) if command == OsStr::new("install-native-oracle-c5-catalog") && args.next().is_none() => {
+            install_native_extra(ExtraInstall::OracleCatalog)
+        }
         Some(_) | None => {
             eprintln!("oo-pipeline: usage");
             ExitCode::from(2)
         }
+    }
+}
+
+enum ExtraInstall { C1Library, OracleRange, OraclePublication, OracleCatalog }
+
+#[tokio::main(flavor = "current_thread")]
+async fn install_native_extra(kind: ExtraInstall) -> ExitCode {
+    use std::io::{Read, Write};
+    let mut bytes = Vec::new();
+    if std::io::stdin().take(1_048_577).read_to_end(&mut bytes).is_err() || bytes.len() > 1_048_576 {
+        return ExitCode::from(2);
+    }
+    let request: serde_json::Value = match serde_json::from_slice(&bytes) {
+        Ok(value) => value,
+        Err(_) => return ExitCode::from(2),
+    };
+    if request["protocol"] != "oo.pipeline.install-native-update/v1"
+        || request.as_object().is_none_or(|o| o.len() != 2)
+        || !request["target"].is_object()
+    {
+        return ExitCode::from(2);
+    }
+    use oo_pipeline::target_installer as installer;
+    let (result, version, digest) = match kind {
+        ExtraInstall::OracleRange => (installer::install_native_c5_oracle_range_target(&request["target"]).await,
+            installer::VERSION_NATIVE_C5_ORACLE_RANGE, installer::compiled_native_c5_oracle_range_digest()),
+        ExtraInstall::OraclePublication => (installer::install_native_c5_oracle_publication_target(&request["target"]).await,
+            installer::VERSION_NATIVE_C5_ORACLE_PUBLICATION, installer::compiled_native_c5_oracle_publication_digest()),
+        ExtraInstall::OracleCatalog => (installer::install_native_oracle_c5_catalog_target(&request["target"]).await,
+            installer::VERSION_NATIVE_ORACLE_C5_CATALOG, installer::compiled_native_oracle_c5_catalog_digest()),
+        ExtraInstall::C1Library => (installer::install_native_library_c1_target(&request["target"]).await,
+            installer::VERSION_NATIVE_LIBRARY_C1, installer::compiled_native_library_c1_digest()),
+    };
+    let output = match result {
+        Ok(()) => serde_json::json!({"installed":true,
+            "version":version,"digest":digest}),
+        Err(reason) => serde_json::json!({"installed":false,"reason":reason}),
+    };
+    if writeln!(std::io::stdout(), "{output}").is_err() || output["installed"] != true {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
     }
 }
 
@@ -161,6 +289,14 @@ async fn import_native_transaction() -> ExitCode {
 #[tokio::main(flavor = "current_thread")]
 async fn native_c1_baseline_stage() -> ExitCode {
     match oo_pipeline::native_c1_baseline::run().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(code) => ExitCode::from(code),
+    }
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn native_c1_baseline_stage_v2() -> ExitCode {
+    match oo_pipeline::native_c1_baseline::run_v2().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(code) => ExitCode::from(code),
     }

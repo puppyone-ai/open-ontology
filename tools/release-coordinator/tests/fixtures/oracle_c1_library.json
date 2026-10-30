@@ -1,0 +1,87 @@
+{
+  "library": {
+    "protocol": "oo.pipeline.native-library-publication/v1",
+    "library_id": "oracle_fixture_library",
+    "manifest": {
+      "protocol": "oo.library.membership/v1",
+      "library_id": "oracle_fixture_library",
+      "sources": [
+        {
+          "source_id": "oracle_fixture",
+          "schema": "q_415050",
+          "tables": [
+            "q_4954454d53"
+          ]
+        }
+      ]
+    },
+    "manifest_sha256": "1d8f9328a6d68a3791f8ccb1ac264368c5214f7ce0c04de4f78271ed5f9d7f91",
+    "expected_tables": 1,
+    "shards": [
+      "oracle_fixture"
+    ]
+  },
+  "shards": [
+    {
+      "source_id": "oracle_fixture",
+      "anchor_run": "00000000-0000-4000-8000-000000000001",
+      "receipt_sha256": "a8a71f9d4b4a7660415a0982a75d79374b232a1969de623882ab9d5dbfead695",
+      "receipt": {
+        "protocol": "oo.pipeline.native-publication-receipt/v1",
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "run_ids": [
+          "00000000-0000-4000-8000-000000000001"
+        ],
+        "source_id": "oracle_fixture",
+        "source_generation": 1,
+        "target_generation": 1,
+        "source_epoch": 1,
+        "position_codec": "oracle-capture-sequence/v1",
+        "position_lineage": "oracle.1.2.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "applied_pos": "1",
+        "consistency": "transactional",
+        "consistency_grade": "T",
+        "cross_table_consistent": true,
+        "tables": [
+          {
+            "schema": "APP",
+            "table": "ITEMS",
+            "storage_schema": "q_415050",
+            "storage_table": "q_4954454d53",
+            "run_id": "00000000-0000-4000-8000-000000000001",
+            "physical_name": "pt_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "accepted_rows": 23,
+            "canonical_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "source_generation": 1,
+            "target_generation": 1,
+            "applied_pos": "1",
+            "rejects": []
+          }
+        ],
+        "oracle_buffer": {
+          "checkpoint_kind": "buffer_consumption",
+          "source_offset_write": false,
+          "source_identity": {
+            "engine": "oracle",
+            "dbid": "1",
+            "resetlogs_change": "2",
+            "pdb_guid": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "pdb_name": "PDB",
+            "db_unique_name": "DB"
+          },
+          "final_cursor": {
+            "transaction_ordinal": "1",
+            "transaction_id": "transaction_1"
+          },
+          "commit_scn": "777",
+          "context_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "bundle_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "spool_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "typed_schema_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "connector_offsets_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "connector_history_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    }
+  ]
+}

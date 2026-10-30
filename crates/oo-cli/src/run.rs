@@ -3,8 +3,9 @@
 use oo_core::api::{QueryFormat, QueryRequest};
 use oo_core::text::QuerySql;
 use oo_sdk::{BearerToken, Client, ClientConfig, RootTrust};
+use std::io::IsTerminal;
 
-use crate::args::{Auth, ConnArgs, Invocation, QueryArgs, Transport, parse, unsupported_failure};
+use crate::args::{Auth, ConnArgs, Invocation, QueryArgs, SearchArgs, Transport, parse, unsupported_failure};
 use crate::load::{
     read_ca_file, read_client_pem, read_sql_file, read_token_file, read_token_stdin,
 };
@@ -18,12 +19,23 @@ pub fn run() -> u8 {
     match parse() {
         Err(failure) => emit(&failure, json),
         Ok(Invocation::Help(text)) => write_text(&text),
-        Ok(Invocation::Unsupported) => emit(&unsupported_failure(), false),
+        Ok(Invocation::AgentSkill(json)) => {
+            let text = include_str!("../../../tools/agent-contract/business-answer-policy.md");
+            if json {
+                write_text(&serde_json::json!({
+                    "protocol": "oo.agent-skill/v1", "name": "business-analysis",
+                    "text": text, "offline": true, "grants_access": false,
+                }).to_string())
+            } else {
+                write_text(text)
+            }
+        }
+        Ok(Invocation::Unsupported) => emit(&unsupported_failure(), json),
         Ok(Invocation::Query(query)) => execute(query),
         Ok(Invocation::Tables(conn)) => execute_public(conn, PublicCall::Tables),
-        Ok(Invocation::Describe(conn, table)) => execute_public(conn, PublicCall::Describe(table)),
+        Ok(Invocation::Describe(conn, table, human)) => execute_public(conn, PublicCall::Describe(table, human)),
         Ok(Invocation::Validate(conn, sql)) => execute_public(conn, PublicCall::Validate(sql)),
-        Ok(Invocation::Freshness(conn)) => execute_public(conn, PublicCall::Freshness),
+        Ok(Invocation::Freshness(conn, summary)) => execute_public(conn, PublicCall::Freshness(summary)),
         Ok(Invocation::KnowledgeCat(conn, path)) => {
             execute_public(conn, PublicCall::KnowledgeCat(path))
         }
@@ -42,11 +54,11 @@ pub fn run() -> u8 {
 
 enum PublicCall {
     Tables,
-    Describe(String),
+    Describe(String, bool),
     Validate(String),
-    Freshness,
+    Freshness(bool),
     KnowledgeCat(String),
-    KnowledgeSearch(String),
+    KnowledgeSearch(SearchArgs),
     Cancel(String),
     Status(String),
     Operations,
@@ -171,10 +183,14 @@ fn execute(query: QueryArgs) -> u8 {
             );
         }
     };
-    let result = runtime.block_on(client.query(request));
+    let client = match query.publication_binding {
+        Some(binding) => client.with_publication_binding(binding),
+        None => client,
+    };
+    let result = runtime.block_on(client.query_with_receipt(request));
     note_auth_cache(&client);
     match result {
-        Ok(response) => deliver(json, &response),
+        Ok(result) => deliver(json, &result.response, result.publication_binding.as_ref()),
         Err(error) => outcome::emit_guarded(
             &from_query_error(&error, &token, &sql, gateway),
             json,
@@ -221,6 +237,7 @@ fn build_config(
             .with_timeouts(tightened_timeouts(timeout_ms))
             .map_err(|error| from_query_error(&error, "", "", ""))?;
     }
+    config = apply_route(config, query.connect_ip, query.interface.as_deref())?;
     apply_material(config, ca, identity)
 }
 
@@ -251,11 +268,12 @@ fn execute_public(conn: ConnArgs, call: PublicCall) -> u8 {
     let result = runtime.block_on(async {
         match &call {
             PublicCall::Tables => ready.client.tables().await,
-            PublicCall::Describe(table) => ready.client.describe(table).await,
+            PublicCall::Describe(table, _) => ready.client.describe(table).await,
             PublicCall::Validate(sql) => ready.client.sql_validate(sql).await,
-            PublicCall::Freshness => ready.client.freshness().await,
+            PublicCall::Freshness(_) => ready.client.freshness().await,
             PublicCall::KnowledgeCat(path) => ready.client.knowledge(path).await,
-            PublicCall::KnowledgeSearch(needle) => ready.client.knowledge_search(needle).await,
+            PublicCall::KnowledgeSearch(query) => ready.client.knowledge_search_page(
+                &query.needle, query.path_prefix.as_deref(), query.offset, query.limit).await,
             PublicCall::Cancel(query_id) => ready.client.cancel(query_id).await,
             PublicCall::Status(query_id) => ready.client.query_status(query_id).await,
             PublicCall::Operations => ready.client.operations().await,
@@ -346,7 +364,10 @@ fn connect(conn: &ConnArgs) -> Result<Ready, u8> {
     };
     match Client::new(&gateway, bearer, config) {
         Ok(client) => Ok(Ready {
-            client,
+            client: match conn.publication_binding.clone() {
+                Some(binding) => client.with_publication_binding(binding),
+                None => client,
+            },
             token,
             gateway,
         }),
@@ -370,7 +391,24 @@ fn build_public_config(
         Some(Transport::LocalDevelopment) => ClientConfig::local_development(),
         None => return Err(Failure::usage("transport is required")),
     };
+    let config = apply_route(config, conn.connect_ip, conn.interface.as_deref())?;
     apply_material(config, ca, identity)
+}
+
+fn apply_route(
+    mut config: ClientConfig,
+    connect_ip: Option<std::net::IpAddr>,
+    interface: Option<&str>,
+) -> Result<ClientConfig, Failure> {
+    if let Some(ip) = connect_ip {
+        config = config.with_connect_ip(ip);
+    }
+    if let Some(interface) = interface {
+        config = config
+            .with_interface(interface.to_owned())
+            .map_err(|error| from_query_error(&error, "", "", ""))?;
+    }
+    Ok(config)
 }
 
 fn apply_material(
@@ -400,6 +438,13 @@ fn note_auth_cache(client: &Client) {
 }
 
 fn deliver_public(json: bool, call: &PublicCall, value: &serde_json::Value) -> u8 {
+    let summary;
+    let value = if matches!(call, PublicCall::Freshness(true)) {
+        summary = render::freshness_summary(value);
+        &summary
+    } else {
+        value
+    };
     let bytes = if json {
         match serde_json::to_vec(value) {
             Ok(mut bytes) => {
@@ -407,6 +452,13 @@ fn deliver_public(json: bool, call: &PublicCall, value: &serde_json::Value) -> u
                 bytes
             }
             Err(_) => return emit(&Failure::local("output exceeds the render budget"), json),
+        }
+    } else if matches!(call, PublicCall::Describe(_, true))
+        || matches!(call, PublicCall::Describe(_, false)) && std::io::stdout().is_terminal()
+    {
+        match render::describe_markdown(value) {
+            Ok(bytes) => bytes,
+            Err(_) => return emit(&Failure::local("table description could not be rendered; use --json for the full response"), false),
         }
     } else if let PublicCall::KnowledgeCat(_) = call {
         match value.get("text").and_then(serde_json::Value::as_str) {
@@ -430,12 +482,13 @@ fn deliver_public(json: bool, call: &PublicCall, value: &serde_json::Value) -> u
     }
 }
 
-fn deliver(json: bool, response: &oo_core::api::QueryResponse) -> u8 {
+fn deliver(json: bool, response: &oo_core::api::QueryResponse, binding: Option<&oo_sdk::PublicationReceipt>) -> u8 {
     let rendered = if json {
         render::response_json(response)
     } else {
         render::response_markdown(response)
     };
+    let rendered = rendered.and_then(|bytes| render::with_publication(bytes, json, binding));
     match rendered {
         Ok(bytes) => {
             if write_stdout(&bytes).is_err() {

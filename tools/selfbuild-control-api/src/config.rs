@@ -5,13 +5,32 @@ use serde_json::Value;
 
 use crate::error::ApiError;
 use crate::ids::{hex64, ident_ok, secret_ref_ok};
-use crate::jsonutil::parse_exact;
 
 pub const CONFIG_CONTRACT: &str = "oo.selfbuild-control-api.config/v1";
 pub const INSTALL_USER: &str = "oo_selfbuild_api_admin";
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct BuildBudgets {
+    pub max_review_objects: usize,
+    pub max_tables: usize,
+    pub max_document_bytes: usize,
+    pub max_json_nodes: usize,
+    pub role_pack: oo_builder::RolePackCeilings,
+}
+
+impl Default for BuildBudgets {
+    fn default() -> Self {
+        Self { max_review_objects: 64, max_tables: 4096, max_document_bytes: 67_108_864, max_json_nodes: 4_000_000, role_pack: oo_builder::RolePackCeilings {
+            max_datasets: 4096, max_total_bytes: 67_108_864, max_entries: 16384, max_relationships: 32768, max_enums: 32768, max_entities: 4096,
+            json_scan: oo_core::json_scan::JsonScanLimits { max_bytes: 67_108_864, max_nodes: 4_000_000, max_depth: 32 }, ..Default::default()
+        } }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct AppConfig {
+    pub budgets: BuildBudgets,
     pub deployment_origins: Vec<String>,
     pub listen: Listen,
     pub identity: IdentityCfg,
@@ -57,8 +76,22 @@ pub struct Binaries {
     pub review_ledger: String,
 }
 
+#[derive(Clone, Debug, Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct LibraryCfg {
+    pub python: String,
+    pub script: String,
+    pub script_sha256: String,
+    pub config: String,
+    pub config_sha256: String,
+    pub manifest: String,
+    pub manifest_sha256: String,
+}
+
 #[derive(Clone, Debug)]
 pub struct ProjectCfg {
+    pub library: Option<LibraryCfg>,
+    pub budgets: BuildBudgets,
     pub project_id: String,
     pub config_commit: String,
     pub source_ref: String,
@@ -132,7 +165,11 @@ pub struct PrincipalCfg {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct FileConfig {
+    #[serde(default)]
+    budgets: BuildBudgets,
     contract: String,
+    #[serde(default = "default_allowed_models")]
+    llm_allowed_models: Vec<String>,
     deployment_origins: Vec<String>,
     listen: FileListen,
     identity: FileIdentity,
@@ -186,6 +223,8 @@ struct FileBinaries {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct FileProject {
+    #[serde(default)]
+    library: Option<LibraryCfg>,
     project_id: String,
     config_commit: String,
     source_ref: String,
@@ -273,17 +312,24 @@ struct FilePrincipal {
 }
 
 pub fn load_config_bytes(bytes: &[u8]) -> Result<AppConfig, ApiError> {
-    let value = parse_exact(bytes)?;
+    let text = std::str::from_utf8(bytes).map_err(|_| ApiError::malformed())?;
+    let defaults = BuildBudgets::default();
+    let value = oo_core::json_scan::parse_json_value_with_limits(text, CONFIG_CONTRACT, &oo_core::json_scan::JsonScanLimits { max_bytes: defaults.max_document_bytes, max_nodes: defaults.max_json_nodes, max_depth: 32 }).map_err(|_| ApiError::malformed())?;
     let file: FileConfig = serde_json::from_value(value).map_err(|_| ApiError::malformed())?;
+    if bytes.len() > file.budgets.max_document_bytes { return Err(ApiError::malformed()); }
     validate(file)
 }
 
 pub fn load_config_file(path: &str) -> Result<AppConfig, ApiError> {
-    let bytes = std::fs::read(path).map_err(|_| ApiError::malformed())?;
-    if bytes.len() > 65_536 {
+    if std::fs::metadata(path).map_err(|_| ApiError::malformed())?.len() > BuildBudgets::default().max_document_bytes as u64 {
         return Err(ApiError::malformed());
     }
+    let bytes = std::fs::read(path).map_err(|_| ApiError::malformed())?;
     load_config_bytes(&bytes)
+}
+
+fn default_allowed_models() -> Vec<String> {
+    vec!["grok-4.7".into(), "gpt-6.1-sol".into()]
 }
 
 fn validate(file: FileConfig) -> Result<AppConfig, ApiError> {
@@ -307,6 +353,9 @@ fn validate(file: FileConfig) -> Result<AppConfig, ApiError> {
     {
         return Err(ApiError::malformed());
     }
+    if !(1..=65_536).contains(&file.budgets.max_review_objects) || file.budgets.max_tables == 0 || file.budgets.max_document_bytes == 0 || file.budgets.max_json_nodes == 0 {
+        return Err(ApiError::malformed());
+    }
     let postgres = endpoint(file.postgres, true)?;
     let ledger = endpoint(file.ledger, false)?;
     let binaries = Binaries {
@@ -323,13 +372,14 @@ fn validate(file: FileConfig) -> Result<AppConfig, ApiError> {
             return Err(ApiError::malformed());
         }
         seen.push(project.project_id.clone());
-        projects.push(project_cfg(project)?);
+        projects.push(project_cfg(project, &file.llm_allowed_models, &file.budgets)?);
     }
     let mut principals = Vec::new();
     for principal in file.principals {
-        principals.push(principal_cfg(principal)?);
+        principals.push(principal_cfg(principal, file.budgets.max_review_objects)?);
     }
     Ok(AppConfig {
+        budgets: file.budgets,
         deployment_origins: file.deployment_origins,
         listen: Listen {
             bind: file.listen.bind,
@@ -350,7 +400,14 @@ fn validate(file: FileConfig) -> Result<AppConfig, ApiError> {
     })
 }
 
-fn project_cfg(project: FileProject) -> Result<ProjectCfg, ApiError> {
+fn project_cfg(project: FileProject, allowed_models: &[String], budgets: &BuildBudgets) -> Result<ProjectCfg, ApiError> {
+    if let Some(library) = &project.library {
+        if !project.sealed_bundle.is_empty() || project.source_protocol.is_some()
+            || [&library.python, &library.script, &library.config, &library.manifest].iter().any(|path| !absolute_path(path))
+            || [&library.script_sha256, &library.config_sha256, &library.manifest_sha256].iter().any(|sha| !hex64(sha)) {
+            return Err(ApiError::malformed());
+        }
+    }
     if !ident_ok(&project.project_id)
         || !ident_ok(&project.source_ref)
         || !ident_ok(&project.allowance_id)
@@ -360,13 +417,14 @@ fn project_cfg(project: FileProject) -> Result<ProjectCfg, ApiError> {
         || project.sample_policy != "none"
         || !matches!(project.rules_auto_accept.as_str(), "none" | "rule_high_confidence")
         || project.llm.origin != "http://127.0.0.1:8317"
-        || !matches!(project.llm.model_id.as_str(), "grok-4.7" | "gpt-6.1-sol")
+        || !allowed_models.contains(&project.llm.model_id)
+        || !pg_builder::model_id_ok(&project.llm.model_id)
         || !absolute_path(&project.llm.bearer_file)
         || !absolute_path(&project.role_policy_file)
     {
         return Err(ApiError::malformed());
     }
-    if project.source.tables.is_empty() || project.source.tables.len() > 16 || project.source.port == 0 {
+    if project.source.tables.is_empty() || project.source.tables.len() > budgets.max_tables || project.source.port == 0 {
         return Err(ApiError::malformed());
     }
     if !host_ok(&project.source.host)
@@ -400,6 +458,8 @@ fn project_cfg(project: FileProject) -> Result<ProjectCfg, ApiError> {
         return Err(ApiError::malformed());
     }
     Ok(ProjectCfg {
+        library: project.library,
+        budgets: budgets.clone(),
         project_id: project.project_id,
         config_commit: project.config_commit,
         source_ref: project.source_ref,
@@ -495,7 +555,7 @@ fn source_protocol_cfg(file: FileSourceProtocol) -> Result<SourceProtocol, ApiEr
     })
 }
 
-fn principal_cfg(principal: FilePrincipal) -> Result<PrincipalCfg, ApiError> {
+fn principal_cfg(principal: FilePrincipal, max_scope: usize) -> Result<PrincipalCfg, ApiError> {
     if principal.subject.is_empty()
         || principal.subject.len() > 256
         || !matches!(principal.ledger_role.as_str(), "reviewer" | "owner" | "auditor")
@@ -503,7 +563,7 @@ fn principal_cfg(principal: FilePrincipal) -> Result<PrincipalCfg, ApiError> {
         || principal.reviewer_label.is_empty()
         || !absolute_path(&principal.credential_file)
         || principal.object_scope.is_empty()
-        || principal.object_scope.len() > 64
+        || principal.object_scope.len() > max_scope
         || principal.object_scope.iter().any(|item| !crate::ids::object_id_ok(item))
     {
         return Err(ApiError::malformed());
@@ -611,6 +671,17 @@ pub fn project_input_hash(project: &ProjectCfg) -> String {
         "source_ref": project.source_ref,
         "tables": tables
     });
+    if let Some(library) = &project.library {
+        body["library"] = serde_json::to_value(library).unwrap_or(Value::Null);
+        body["library_projection"] = serde_json::json!({
+            "role_policy_sha256": if regular_file(&project.role_policy_file) {
+                std::fs::read(&project.role_policy_file).ok().map(|b| crate::canonical::sha256_hex(&b))
+            } else { None },
+            "visible_columns": project.visible_columns,
+            "hidden_columns": project.hidden_columns,
+            "rules_auto_accept": project.rules_auto_accept,
+        });
+    }
     if !project.sealed_bundle.is_empty() {
         body["sealed_bundle"] = serde_json::json!(project.sealed_bundle);
     }

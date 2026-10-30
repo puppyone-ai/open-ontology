@@ -1,3 +1,5 @@
+WARNING: Incomplete result (truncated). Do not treat these rows as a complete list or compute a global ranking from this subset.
+
 | amount |
 | --- |
 | 12.50 |

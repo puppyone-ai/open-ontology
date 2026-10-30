@@ -2,13 +2,13 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-10-21
 > 依赖：[05 Agent DB](05-agent-db.md)、[06 Ontology](06-ontology-layer.md)
 > 被依赖：[08 Agent 接口](08-agent-interface.md)、[09 沙盒](09-sandbox-and-agent-runtime.md)、[10 安全](10-security.md)
 
 ## 1. 职责与不变量
 
-Gateway 是 Agent 访问数据的**唯一出口**。查询无状态，可多实例；每实例持久保留未确认的审计 WAL。数据连接只连 Agent DB 只读从库；单机 PoC 读主库的降级见 [11](11-deployment-and-operations.md)。
+Gateway 是 Agent 访问数据的**唯一出口**。查询无状态，可多实例；每实例持久保留未确认的审计 WAL。数据连接只连 Agent DB 只读从库；单机 PoC 读主库的降级见 [11](11-deployment-and-operations.md)，其发布与就绪语义见 [ADR-021](02-technology-stack.md)：只读登录角色、`default_transaction_read_only=on`、更严的并发与超时，就绪记录不得把主库称为副本。
 
 - **I-GW-1** 没有写接口；没有到管线、源库、控制库写权限的网络路径。
 - **I-GW-2** 每个数据请求都绑定一个**最终用户主体**（principal），并以该主体的 `oo_r_<role>` 与 claims 执行。
@@ -94,20 +94,26 @@ bindings:
 
 ### 4.2 规则
 
+PostgreSQL 是解析方言，不是完整能力承诺。下表区分安全不变量与当前子集；未来扩展必须先有类型绑定、权限、正反例和成本验收，不能仅因 PG 支持而放行。
+
 | # | 规则 | 说明 |
 |---|---|---|
-| R1 | 只允许**一条**顶层 `SelectStmt` | `WITH ... SELECT` 在 AST 中也是 `SelectStmt`；拒绝 `EXPLAIN`、`SHOW`、`SET`、`COPY`、`DO`、`CALL`、`PREPARE`、`LISTEN` 等一切其他语句 |
-| R2 | 递归检查所有 CTE 与子查询，任何位置出现 `InsertStmt`/`UpdateStmt`/`DeleteStmt`/`MergeStmt` 即拒绝 | 防可写 CTE：`WITH x AS (DELETE ... RETURNING *) SELECT ...` |
+| R1 | 只允许**一条**受支持形状的顶层 `SelectStmt` | 顶层 SELECT 是必要而非充分条件；当前不支持 CTE/子查询；拒绝 EXPLAIN、SHOW、SET、COPY、DO、CALL、PREPARE、LISTEN 等其他语句 |
+| R2 | 写操作在任何位置都拒绝 | 当前直接拒绝 CTE/子查询；将来支持只读嵌套时须递归禁止 Insert/Update/Delete/Merge，不能用顶层 SELECT 绕过 |
 | R3 | 拒绝 `FOR UPDATE/SHARE/NO KEY UPDATE/KEY SHARE`、`SELECT INTO` | 锁与建表 |
-| R4 | **函数白名单**（而不是黑名单） | 白名单由 `pg_proc` 生成：常用聚合、数学、字符串、日期时间、JSON、窗口函数、`pg_trgm` 相似度函数；显式排除所有 `VOLATILE` 函数（`random()` 等少数除外）、`pg_*` 管理函数、`set_config`、`current_setting`（由 `_oo` 函数间接使用）、`pg_sleep*`、`pg_advisory_*`、`dblink*`、`lo_*`、`pg_read_*`、`pg_ls_*`、`txid_*`/`pg_current_xact_id` 等 |
-| R5 | 禁止访问 `pg_catalog`、`information_schema`、`_oo`、`*__stage` | Agent 通过 `list_tables`/`describe_table` 获取元数据；`oo_dict`、`oo_entity` 按普通对象授权，可以访问 |
+| R4 | **按签名/OID 允许函数与运算符** | 从受信目录加载显式允许项，并核对参数类型；不能按名字放行全部重载。当前仅有限聚合/比较等，非通用数学、时间、JSON、窗口或扩展函数支持；危险函数保持拒绝 |
+| R5 | 禁止访问 `pg_catalog`、`information_schema`、`_oo`、`*__stage` | Agent 通过元数据接口获取类型；oo_dict/oo_entity 只有实际安装、发布且当前角色获权后可访问，不默认存在 |
 | R6 | 所有关系必须是 schema 限定名 | 连接的 `search_path = ''`；未限定时返回提示“请使用 `logistics.customer`”，并在唯一匹配时给出建议名 |
 | R7 | 引用的关系 ⊆ 角色可见集合；显式列 ⊆ 可见列 | 不可见的表返回与“不存在”相同的错误，避免存在性泄露；不可见的列返回 `COLUMN_NOT_ALLOWED` 并列出可用列（尚未完成分类的新列注明“待分类，暂不可用”） |
-| R7a | `*` 与 `t.*` 展开为该角色的可见列 | 由于授权一律是列级的（[05 I-DB-5](05-agent-db.md)），PG 对 `SELECT *` 要求全部列都有权限，任何一张表只要有不可见列就会报错。Gateway 在 AST 上把星号展开为可见列（按表定义的列顺序）后再 deparse 执行，这是唯一的一处 SQL 改写，语义与“只能看到这些列”一致；响应中注明“`*` 已展开为 N 列” |
-| R8 | 语句长度 ≤ 64 KB；AST 节点数 ≤ 上限；递归 CTE 允许但受超时约束 | 防解析层 DoS |
+| R7a | `*` 与 `t.*` 展开为该角色的可见列 | 列级授权下按定义顺序展开，不能泄露隐藏列。另允许经过验证的逻辑到物理绑定及已支持的别名/排序表达式重写；不是只有星号改写。所有重写保持授权与业务语义并重新校验 |
+| R8 | 语句长度、AST 节点和深度均有上限 | 以当前配置/能力契约为准；当前递归 CTE 同其他 CTE 一样拒绝，不以超时替代语法准入 |
 | R9 | 拒绝对大表（行数估计 > 阈值）的无过滤 `SELECT *` | 返回提示：加时间条件，或改用 `export` |
 
-星号展开只处理 SELECT 投影，不改写 `count(*)`。必须按作用域解析表别名、CTE、子查询和 JOIN（含 USING 的合并列），保持输出列顺序；无法安全展开或没有可见列时拒绝执行。展开后的 AST 重新执行门禁，R9 根据原始投影判定，不能因展开而绕过大表限制。
+> **实现现状（2026-10-21，本仓库代码与排查基线）：** 支持 JOIN/LEFT JOIN、WHERE、按列 GROUP BY、COUNT(*)/COUNT(col)、单可见列 COUNT(DISTINCT col)、受支持聚合及相应聚合/别名排序、LIMIT。目录加载代码包含 sum(numeric)、sum(int8)、min(int8)、max(int8)，受实际配置/类型限制，不代表全部重载。显式 DATE/TIMESTAMP 范围已验证可用。CTE、子查询、HAVING、窗口、SELECT DISTINCT、CASE、任意表达式分组仍不作为可用能力。语法/重载扩展须补正反例；不再沿用“所有聚合排序都拒绝”的旧说明。
+
+星号展开只处理 SELECT 投影，不改写 `count(*)`，在当前支持的作用域/JOIN 形状内保持顺序；不支持的 USING/嵌套形状不能借展开获得放行。无法安全展开或没有可见列时拒绝。重写后的 AST 重新执行门禁，R9 根据原始投影判定，不能因展开而绕过大表限制。
+
+目标能力发现应从同一运行目录/规则生成：函数签名、运算符、AST 形状、字面量、预算、Gateway/能力版本，并与 Pack/策略绑定。当前已通过现有 `describe` 元数据响应提供函数、运算符和字面量签名；AST 形状与预算仍须通过 `validate` 核验，不新增独立服务。
 
 ### 4.3 数据库层同步加固（`oo apply` 执行）
 
@@ -139,8 +145,8 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 ### 5.2 执行与截断
 
 - `SET LOCAL statement_timeout` 按请求类型：`query` 默认 30s，`export` 默认 120s，`search_values` 3s。
-- 用服务端游标取 `max_rows + 1` 行，以判断是否截断，**除 R7a 的星号展开外不改写 Agent 的 SQL**（不外包 `LIMIT`，避免改变语义，例如 `ORDER BY ... LIMIT` 已有时）。
-- 截断维度：行数（默认 200，按角色可配到 2,000）、总字节（默认 256 KB）、单元格（文本 > 500 字符截断并标注）。
+- 目标取行契约是读取 `max_rows + 1` 行判断截断；不通过外包 LIMIT 或删除条件改变业务语义。允许的绑定/展开/排序重写见 R7a，不能将其推广成任意“自动修 SQL”。
+- 截断维度：行数（默认 200，按角色可配到 2,000）、总字节（默认 256 KB）。单元格在总响应预算内完整保留，不再以 500 字符显示阈值截断或拒绝；协议整份响应仍受 1 MiB 字节预算约束。截断结果必须保留 `truncated` 与原因，不能据此宣称完整明细或全量排名。
 - 响应中包含：`truncated`、`returned_rows`、`limit`；`estimated_total_rows` 默认为 null，不向有 RLS 的角色披露计划行数；只有无行级过滤且明确获准查看统计的角色可获得标为估计值的数值。
 
 ### 5.3 导出模式
@@ -176,6 +182,7 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 | `STALE_DATA` | 新鲜度超过该表配置的期望值 | “erp_mysql.ysk 数据截至 3 小时前” |
 
 - 警告是结构化的（`code`、涉及的表/列、数量、说明文本），同时写入审计；
+- 必要码义、付款归属、渠道或对账缺失时，业务层必须撤销受影响完整指标的就绪声明，不能仅加 warning 后仍称“全部实收”。Gateway 可继续执行授权原始查询；业务不就绪不是权限拒绝。`source_time: unmeasured` 本身不等于禁止查询，亦不能据 live 宣称最新；
 - 质量状态在本次查询的数据库快照中读取，不以跨查询缓存代替，避免缓存遗漏刚提交的分段事务或转换拒绝；
 - `AGENTS.md` 要求 Agent 在回答中说明所有警告（[09 §7](09-sandbox-and-agent-runtime.md)），评测中未说明计为失败（[13 §6.4](13-evaluation-and-benchmarks.md)）。
 
@@ -212,8 +219,9 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 |---|---|---|---|
 | `UNAUTHENTICATED` | 401 | 否 | token 无效/过期/已吊销 |
 | `SQL_PARSE_ERROR` | 400 | 否 | 语法错误（附方言提示） |
-| `STATEMENT_NOT_ALLOWED` | 400 | 否 | 非单条 SELECT、可写 CTE、锁子句等 |
-| `FUNCTION_NOT_ALLOWED` | 400 | 否 | 函数不在白名单 |
+| `STATEMENT_NOT_ALLOWED` | 400 | 否 | 非单条 SELECT 或当前不支持的 AST 形状、可写 CTE、锁子句等；不能直接解释为聚合普遍禁用 |
+| `FUNCTION_NOT_ALLOWED` | 400 | 否 | 当前实现可涉及函数/运算符绑定或参数类型；须隔离失败表达式，不能只凭错误码认定 SUM 不支持 |
+| `SCHEMA_INVALID` | 400 | 否 | 当前发布/目录不可用；新版对 Pack 发布绑定不可用附 `phase=runtime_catalog; reason=publication_binding_unavailable`，应核对联合发布，不改 SQL 或权限 |
 | `RELATION_NOT_FOUND` | 400 | 否 | 表不存在**或**无权访问（刻意不区分） |
 | `COLUMN_NOT_ALLOWED` | 400 | 否 | 列不存在或无权访问，附可用列 |
 | `UNQUALIFIED_RELATION` | 400 | 否 | 缺 schema 前缀，附建议名 |
@@ -227,6 +235,10 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 | `INTERNAL` | 500 | 是 | 内部错误（详情只进审计与日志） |
 
 数据库原始错误只进审计与日志；返回给 Agent 的消息经过模板化（例如类型不匹配、除零错误保留可操作的部分，去掉值内容）。
+
+已实现的兼容扩展：`describe` 响应提供版本化的 `query_capabilities`，其函数、运算符和字面量类型来自当前角色实际加载的运行 catalog；没有 data plane 时明确返回 `status: unavailable`，不以静态白名单冒充能力。`FUNCTION_NOT_ALLOWED` 的签名绑定拒绝同时返回稳定的 `phase=signature_binding` hint、表达式类别、公开参数类型及安全 byte offset；不返回 SQL、函数调用名、表名、列名、值或物理标识。尚未实现字段不能出现在当前接口承诺中，类型诊断不得披露隐藏对象/行值，表不存在与无权仍不可区分。
+
+`retryable=false` 禁止原样自动重试，不禁止有证据的等价改写。复验 SUM 与日期时须分别移除日期、验证比较、再组合；不得保留同一个错误 WHERE 后声称“SUM 单独也失败”。CLI 应同时核退出码和 JSON error；业务定义缺失、源覆盖未知和真实门禁拒绝分开归因。详细允许/拒绝测试见[整改 A07–A10、A19](../../docs/semantic-query-chain-remediation-plan.md)。
 
 ## 8. 审计
 
@@ -258,13 +270,15 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 
 ## 9. 其他 API
 
+本节是目标接口目录；当前 CLI/公开路由支持范围见 [08 §2](08-agent-interface.md)。resolve、search-values、export 等未实现能力不得被 Pack 或 Agent 指令当作现有修复手段。
+
 | 端点 | 作用 | 门禁 |
 |---|---|---|
 | `GET /v1/tables` | 列出可见表（来自权限快照 + Knowledge 摘要） | 认证 |
 | `GET /v1/tables/{schema.table}` | 结构 + Knowledge 中的说明（按角色编译版本） | 认证 + 可见性 |
 | `POST /v1/entities/{entity}/resolve` | 把用户说的名称解析为 `entity_key`（分层规则见 §9.1） | 全套门禁；在用户角色 + RLS 下执行；独立限频 |
 | `POST /v1/values/search` | 在非实体的 `searchable` 列（线路编码、仓库名等）上做模糊检索（`pg_trgm`），在用户角色 + RLS 下执行 `SELECT DISTINCT col ... ORDER BY similarity LIMIT 10` | 全套门禁（SQL 由 Gateway 生成）；同 §9.1 的最短长度与防枚举规则 |
-| `GET /v1/freshness` | 各可见表的 `_oo.table_freshness`、所属源的 `_oo.source_watermark`、`_oo.table_quality` 摘要（含 `consistency_grade`、`capture_method`、`delete_detection`）与从库回放延迟 | 认证 |
+| `GET /v1/freshness` | 各可见表的 `_oo.table_freshness`、所属源的 `_oo.source_watermark`、`_oo.table_quality` 摘要（含 `consistency_grade`、`capture_method`、`delete_detection`）与从库回放延迟。无源提交时间的方法（C5/C5+）返回 `source_time=unmeasured`、`global_position=unmeasured`（逐表 `snapshot-zero/v1` 不构成共同位点）、逐表 `target_observations`（目标应用时间，属目标观察而非源新鲜度）与 `CROSS_TABLE_SKEW`；C5+ 另返回最近一次完整摘要扫描完成时间 | 认证 |
 | `GET /v1/knowledge/{path}` / `POST /v1/knowledge/search` | 读取/检索按角色编译的 Knowledge Pack | 认证 |
 | `POST /v1/sql/validate` | 只做 ③–⑥，不执行；返回是否可执行与提示 | 同 query（计入限流） |
 | `POST /v1/feedback/gap` | Agent 报告知识缺口，进入 Ontology 审核队列 | 认证；限频；内容作为不可信文本存储 |
@@ -294,3 +308,33 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 - **权限快照：** `oo apply` 后由 Control API 生成“角色 → 可见关系/列 → 行级过滤”的只读快照（JSON，带版本），Gateway 启动与收到变更通知时加载；与数据库中的实际 GRANT 定期比对，不一致告警（防手工改库）。
 - **性能目标：** 检查 ③–⑤ p99 < 10ms；Gateway 自身开销（不含 SQL 执行）p99 < 30ms。
 - **可观测：** OpenTelemetry trace（`session_id`、`query_id` 作为属性）、Prometheus 指标（按 code 的拒绝率、队列深度、熔断状态、从库延迟）。
+
+## 单库整库发布的运行边界
+
+All-in-one 单库沿用 ADR-021：复制完成不等于发布/ready。来源全部当前表覆盖、审核、Pack 预算、visible_vector v2 显式 SET 权限、角色只读可见性均须独立验证。effective 数据列 1024 不扩大每角色可见列 256 的预算；网关保持只读，不在查询路径补做导入或修改源库。参见 [现场手册 K](database-support/06-real-source-field-notes.md)。
+
+## Library 的 readiness / freshness
+
+Library 保持一个 Gateway、一个角色、一个 Pack。Gateway 在执行 native 查询前
+同快照检查成员库的权威 head 与所有成员当前 generation；pending/closed 或任何
+成员陈旧均拒绝，包括查询另一个仍 current 的成员。安装 mapping-reader 权限时
+也要求库 ready，新增元数据权限仅给 login，不给数据角色或 PUBLIC。
+
+Coordinator all-in-one 提交后以新只读会话验证全部可见表/映射/generation 和 SELECT，
+ready 记录 deployment_mode=all_in_one、readonly_replica=false。主从还要求真实物理
+replay，在从库新会话验证，随后等 ready replay。提交后可见性失败原子关闭全部
+库 fence 和 head；旧 per-source receipt 不能绕过库状态。
+
+freshness 保持逐表 target_observations，新增去重 source_ids 和 library_publications；
+source_time=unmeasured、CROSS_TABLE_SKEW 保留。目标一次事务不升级源端跨表一致性。
+40 表/20 来源的投影测试、真实目标库 closed/陈旧成员查询门禁测试见
+[验证记录](database-support/library-lib-verification.md)。
+
+
+## 库级控制面整合（INT）
+
+库级项目、全局 facts/分批 S5、逐对象审核、一个角色 Pack、库级原子发布和单 Gateway
+接入见 [ADR-030](adr/ADR-030-library-control-worker-and-gateway.md)。库级安装预算不授予
+数据权限；Gateway 保留只读登录、当前导入向量/库 head/fence 校验和原 SQL 子集。
+健康库每表给出 target_observations，但源时间/共同源位点未测量仍为 unmeasured，
+不把 all-in-one 主库称为只读副本。真实库覆盖及评测以独立执行证据为准。

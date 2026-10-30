@@ -18,6 +18,7 @@ pub mod identity;
 pub mod ids;
 pub mod jsonutil;
 pub mod ledger;
+pub mod library;
 pub mod membership;
 pub mod oosyaml;
 pub mod overlay;

@@ -90,8 +90,8 @@ PRODUCT_FLOW = Path(__file__).resolve().with_name('product_flow.py')
 DIALOGUE = Path(__file__).resolve().parents[1]/'agent-product-verifier'/'dialogue.py'
 OPERATOR = Path(__file__).resolve().parents[1]/'selfbuild-control-api'/'recipes'/'operator.py'
 CONSUMPTION = 'oo.source-onboarding.maintenance-consumption/v1'
-S5_MODELS = {'gpt-6.1-sol','grok-4.7','grok-4.7-build'}
-DIALOGUE_MODELS = {'gpt-6.1-sol','grok-4.7'}
+S5_MODELS = {'gpt-6.1-sol','grok-4.7','grok-4.7-build','devin/claude-opus-5-5'}
+DIALOGUE_MODELS = {'gpt-6.1-sol','grok-4.7','devin/claude-opus-5-5'}
 
 def rel_ok(out, rel):
     p = Path(rel)

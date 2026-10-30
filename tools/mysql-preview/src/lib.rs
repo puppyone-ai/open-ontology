@@ -3,10 +3,17 @@
 
 #![forbid(unsafe_code)]
 
+pub mod c5plus;
+pub mod c5_layered;
+pub mod c5_inspect;
 mod c1;
+mod c1_chunked;
 mod c1_materialize;
+mod c1_replica;
+pub mod c1_model;
 mod config;
 mod capture;
+mod full;
 mod customer;
 mod dba;
 mod error;
@@ -18,6 +25,7 @@ mod product;
 mod oracle;
 mod role_acl;
 mod source;
+pub mod source_sql;
 mod target;
 mod values;
 mod version;
@@ -31,7 +39,11 @@ use crate::config::{read_ca, read_secret, Stop};
 
 pub use crate::error::PreviewError;
 pub use c1::{prepare_onboarding, baseline_stream, capture_business, configure_dba, expire_c1, prepare_random_gold, prove_c1};
+pub use c1_chunked::{baseline_stream_v2, materialize_v2 as c1_materialize_v2};
+pub use c1::typed as c1_typed_source;
+pub use c1::handoff as c1_handoff;
 pub use capture::capture_native;
+pub use full::capture_full;
 pub use customer::run_customer;
 pub use dba::{guard_source, load_logistics};
 pub use fixture::load_fixture;

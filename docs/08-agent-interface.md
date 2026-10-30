@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-09
+> Last reviewed: 2026-10-21
 > 依赖：[07 Gateway](07-gateway.md)、[06 Ontology](06-ontology-layer.md)
 > 被依赖：[09 沙盒与运行时](09-sandbox-and-agent-runtime.md)
 
@@ -21,13 +21,25 @@ CLI适用于能执行命令的调用方，HTTP/SDK适用于能发请求或使用
 
 面向 Agent 的接口设计原则：
 
-1. **工具少而正交：** 数据面只有 10 个操作（§2），没有功能重叠。更多的“能力”通过 Knowledge 文件表达，而不是更多工具。
-2. **输出为模型设计：** 默认 Markdown 表格；截断、代价、新鲜度、查询编号以固定格式写在输出末尾；错误总是附“怎么改”。
+1. **工具少而正交：** §2 列出目标操作，实际命令以当前版本为准；Knowledge 不能承诺执行面尚不存在的能力。优先补现有元数据、校验与审核链路，不为每个业务问题增加工具。
+2. **输出为模型设计：** 截断、时效、查询编号和错误原因可机器读取；错误有安全下一步。无权限不提供绕过方式，语义缺失不伪装成 Gateway 拒绝。
 3. **节省 token：** 默认行数上限小（200）；长文本单元格截断；`describe` 默认返回精简版，`--full` 才返回全部列。
 4. **可追溯：** 每个数据结果都带 `query_id`，Agent 在回答中引用。
 5. **幂等只读：** 所有操作都是读取（`report_gap` 除外，它写入的是审核队列而非数据）。
 
 ## 2. 操作一览
+
+### 2.1 当前实现与能力发现
+
+2026-10-21 本仓库 `crates/oo-cli/src/args.rs` 已注册的命令家族为 query、tables、describe、validate/sql validate、freshness、knowledge、cancel、status、operations；具体参数取当前二进制 `--help`。`status` 等不能按管理端目标示例推断参数含义。resolve、search-values、export、gap 不在这一当前 Agent CLI 清单中。
+
+`describe.column_details` 已补充当前角色的运行类型/type_oid，保留原 `columns` 名称数组，返回范围为 Pack 与角色 catalog 的交集。应使用它确定 DATE/TIMESTAMP 字面量，而不是从源 MySQL datetime 猜执行类型。
+
+`describe.query_capabilities` 已提供版本化的运行时 SQL 函数、运算符和字面量签名；仍需用帮助和 `validate` 核验 AST 形状与预算，不能编造 `oo capabilities` 命令。`status: unavailable` 不等于支持。当前 Knowledge 搜索是有限字面片段命中，不是实体解析，未命中或命中上限不代表无相关数据。
+
+### 2.2 目标操作
+
+以下表格及 §3–§7 中的输出/SDK/MCP 示例是目标契约，非当前命令与字段清单。只有已实现且在目标角色验证的部分才能进入当前 Pack 的使用指引。
 
 | 操作 | HTTP | CLI | MCP 工具 | 说明 |
 |---|---|---|---|---|
@@ -62,7 +74,7 @@ $ oo query "SELECT c.display_name, sum(r.amount) AS receipts FROM logistics.rece
 -- warning UNEXPLAINED_CODES: logistics.receipt.status 有 37 行为码 X（含义未确认），按类别筛选时未计入
 ```
 
-有警告时，`AGENTS.md` 要求 Agent 在回答中说明（[07 §5.4](07-gateway.md)）。
+此例只展示“已解释 confirmed 类别的小计”，不是完整回款排名。未知状态可能改变总额及第一名时，不得把该结果作为“全部客户实收”。有警告须说明；影响完整性时还要撤销相应认证，不能靠附注保留完整结论。
 
 ### 3.1a 实体解析
 
@@ -83,7 +95,7 @@ ambiguous（4 个候选，请向用户确认，不要自行选择）:
 ```text
 …（200 行）
 -- query_id: q_01JB3K9ZC1 | rows: 200 (已截断，上限 200) | 1.2 s
--- hint: 结果过大。请聚合后再查，或用 `oo export "<同一 SQL>" -o /workspace/results/<名称>.parquet` 导出后用 DuckDB CLI / Rust 分析工具 分析。
+-- hint: 结果过大。请在保持业务口径的前提下聚合；仅当当前部署已验证 export 能力时才提示导出，不用截断分组计算全局排名。
 ```
 
 ### 3.3 被拒绝
@@ -95,7 +107,7 @@ hint: 加上时间范围条件，例如 WHERE fhrq >= date '2026-09-01'；该表
 -- query_id: q_01JB3KB2XE
 ```
 
-退出码：`0` 成功；`2` 被 Gateway 拒绝（不可重试）；`3` 可重试错误且自动重试已用尽；`4` 认证/网络问题；`1` 其他。
+目标退出码：`0` 成功；`2` 被 Gateway 拒绝（不可原样自动重试）；`3` 可重试错误且自动重试已用尽；`4` 认证/网络问题；`1` 其他。当前版本以实际契约测试为准；必须同时检查结构化 error。允许最多两次有证据的语义等价修复作为目标 Agent 预算，不能换身份/直连库绕过拒绝。
 
 ### 3.4 其他约定
 
@@ -197,8 +209,9 @@ TS SDK 提供同样的方法（`export` 在浏览器环境不可用）。SDK 不
 ```yaml
 - name: query
   description: >
-    在企业数据的只读副本上执行一条 PostgreSQL SELECT（或 WITH）语句。
-    先用 describe_table 或 read_knowledge 确认表和口径。表名必须带 schema（如 logistics.customer）。
+    在企业数据的只读副本上执行当前 Gateway 能力版本允许的一条 SELECT。
+    不承诺 WITH、窗口或全部 PostgreSQL 函数。先用元数据与 Knowledge 确认类型、表和口径，接口以实际部署为准。
+    表名必须带 schema（如 logistics.customer）。
     结果最多返回 200 行；需要更多数据时先聚合。返回中的 query_id 需要在回答里引用。
     被拒绝时，按返回的 hint 修改 SQL，不要尝试绕过。
   inputSchema: { type: object, required: [sql], properties: { sql: { type: string }, max_rows: { type: integer, maximum: 2000 } } }
@@ -222,12 +235,45 @@ TS SDK 提供同样的方法（`export` 在浏览器环境不可用）。SDK 不
 Agent 在最终回答中按以下格式引用数据来源（写在 `AGENTS.md` 与 MCP prompt 中）：
 
 ```markdown
-9 月华东区回款最多的客户是浣熊市警察局，共 128.45 万元 [q_01JB3K7Q4M]。
+已解释 confirmed 类别内，9 月华东区该客户的收款小计为 128.45 万元 [q_01JB3K7Q4M]。
+由于仍有未确认状态，不能据此确认全部实收总额或回款第一名。
 
 数据来源：logistics.receipt、oo_entity.customer；口径：月收款额（按收款日期，已确认，不含退款）；
 时间范围：上个月（锚点 prev_month_start = 2026-09-01 至 month_start = 2026-10-01）；
 数据截至 2026-10-01 09:12（北京时间）。
-数据说明：有 37 行收款状态码含义未确认，未计入。
+数据说明：有 37 行收款状态码含义未确认，未计入；这可能影响总额与客户排名。
 ```
 
 Agent 入口在展示时把 `[q_…]` 渲染成可点击的“查看 SQL”链接（需要用户对该会话有访问权），并在会话记录里校验：回答中出现的每个 `query_id` 都存在于该会话的 Gateway 审计中，否则标记为“引用无效”（评测中计为可追溯性失败，见 [13](13-evaluation-and-benchmarks.md)）。
+
+## 8. 单库 Agent 最小阅读与评测路径（开发适配器）
+
+一个逻辑数据库只配置一个 Gateway、一个角色与一个覆盖全库的 Pack；导入分片不是 Agent 的数据源选择入口。最简路径是 **`oo knowledge` → `oo tables` → `oo describe` → `oo query`**：
+
+1. `oo knowledge cat README.md` 读取领域地图与版本；用 `oo knowledge search "业务术语"` 定位 `INDEX.md`、`domains/`、表说明、已批准 `glossary.md`，需要时展开实体、关系、码表、指标与示例。沿用 [06 §7](06-ontology-layer.md#7-编译knowledge-pack) 的渐进披露，不新增术语机制。
+2. `oo tables` 核对当前角色可见候选表；不要把猜中的 SQL 表名当作成功检索，也不要认为可见表的全部原始字段都已授权。
+3. `oo describe schema.table` 核对粒度、实际类型、列与 JOIN 两端，先看已批准口径和码义。没有指标定义时可明确统计授权原始表的行数/去重数，但不能默认为有效客户或成功实收；付款客户、发货客户和部门主体不可互换。
+4. `oo validate "SELECT ..."`、`oo query "SELECT ..."` 实际执行；最终引用本轮 query_id，检查截断及 warning。`oo freshness` 的目标应用时间不是源提交时间，未测量源时间和逐表快照不等于共同源位点。
+
+以上示例省略连接参数。现有技能与认证配置见 [`tools/eval-harness/agent-resources/SKILL.md`](../tools/eval-harness/agent-resources/SKILL.md) 和 [评测台使用说明](../tools/eval-harness/README.md)；其内容需随当前能力验收，不因文件存在即证明所有指引有效。domain/search/full 等目标参数不可凭文档拼接。当前已修复部分聚合/别名排序，不再一概按拒绝处理；必要时只有取得**未截断的完整分组结果**才能本地排序，否则不能声称全局排名。
+
+目标 `.agent`/`AGENTS.md` 同步契约：先读能力/版本与逐指标就绪，按业务时区解析半开期间，优先使用已审核 recipe；validate/query 后区分 error、空集、NULL、截断和 warnings。对不支持 SQL 只做有界等价修复；对业务缺口列出缺少的定义/证据和责任对象，而非声称源库无数据。脚本成功、合法 query_id、source_time 未测量均不证明业务完整。验收见[整改 A19–A22](../../docs/semantic-query-chain-remediation-plan.md)。
+
+### 8.1 600+ 表的最小改进建议（待 CLI/BLD 评审）
+
+- 全量 `tables` 即使提高表命中率，也可能把几百个无关表送进上下文；同时报告检索噪声和主动无关 describe 数，不能单看命中率。建议最小新增有上限、稳定排序的表名/领域过滤与分页摘要，保留总数、截断标记、Pack digest 和下一页入口；不能用静默截断伪装完整列表。
+- Knowledge 搜索应返回命中文件路径、短摘要及关联的 schema.table，而非要求 Agent 下载全 Pack；README 保持领域入口，INDEX 保持一行一表。是否缺乏这些能力应由实际 CLI/Pack 轨迹确认，不预设整库已经失败。
+- 表描述应链接相邻实体、跨域关系文件及两端键、基数与适用限制；跨域关系必须来自全库 S0–S4 的确定性候选并经过审核，而不是只靠提示让模型猜 JOIN。
+- 现有 approved glossary 若为空，追溯 S5 候选 → S9 审核 → 编译裁剪，不另建词汇系统。码表缺少已确认绑定时明确未知，不把相似表名当成映射证据。
+- CLI 的拒绝响应也应完整传递真实 query_id；成功统计和拒绝凭据要分开。Demo 若只接受成功查询编号，其 grounding 拦截应独立记为回答失败，不得把 Gateway 正确拒绝记成模型已完成回答。
+
+本次没有修改 CLI 实现或 Pack 编译预算；建议须经产品及 BLD 评审后独立实现和回归。
+
+
+## 库级控制面整合（INT）
+
+库级项目、全局 facts/分批 S5、逐对象审核、一个角色 Pack、库级原子发布和单 Gateway
+接入见 [ADR-030](adr/ADR-030-library-control-worker-and-gateway.md)。库级安装预算不授予
+数据权限；Gateway 保留只读登录、当前导入向量/库 head/fence 校验和原 SQL 子集。
+健康库每表给出 target_observations，但源时间/共同源位点未测量仍为 unmeasured，
+不把 all-in-one 主库称为只读副本。真实库覆盖及评测以独立执行证据为准。

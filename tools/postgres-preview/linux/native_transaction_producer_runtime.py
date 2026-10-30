@@ -1,37 +1,42 @@
-#!/usr/bin/python3
-"""Emit the already sealed PostgreSQL transaction only for its reserved job pin."""
+#!/usr/bin/env python3
+"""Emit a pinned producer for its normal worker; admission stays with the loader."""
+import argparse
 import hashlib
 import json
 from pathlib import Path
 import sys
 
 
-INPUT = Path("/work-out/native-full-20261013-t-v2/transaction-803-producer.json")
-INPUT_SHA = "0a0cc0d3042014debd074f364cf8df8e698c1121032819e68938264b4d3946c7"
-BINDING = "3dd3e1e9-4085-4b00-bc44-aed278a3cf1f"
+def emit(context, path, expected):
+    data = path.read_bytes()
+    if hashlib.sha256(data).hexdigest() != expected:
+        raise ValueError("pinned producer changed")
+    output = json.loads(data)
+    if (context.get("protocol") != "oo.jobs.native-producer/v1"
+            or context.get("method") != "C1" or context.get("cycle") != "pull"
+            or output.get("protocol") != "oo.jobs.native-transaction-producer/v1"
+            or output.get("capture_method") != "c1_cdc"
+            or any(output.get(key) != context.get(key) for key in ("binding", "pin", "source_id"))
+            or type(context.get("pin")) is not int or context["pin"] < 1
+            or type(context.get("acknowledged_source_generation")) is not int
+            or output.get("source_generation") != context["acknowledged_source_generation"] + 1
+            or output.get("transaction_scope", {}).get("complete") is not True
+            or not output.get("entries")):
+        raise ValueError("worker context / admitted producer mismatch")
+    return data
 
 
 def main():
-    context = json.load(sys.stdin)
-    if (context.get("protocol") != "oo.jobs.native-producer/v1"
-            or context.get("binding") != BINDING
-            or context.get("pin") != 1
-            or context.get("method") != "C1"
-            or context.get("cycle") != "pull"
-            or context.get("source_id") != "oo_dl01w1_46"):
-        raise ValueError("worker binding/pin context")
-    data = INPUT.read_bytes()
-    if hashlib.sha256(data).hexdigest() != INPUT_SHA:
-        raise ValueError("frozen source producer changed")
-    output = json.loads(data)
-    if output["binding"] != BINDING or output["pin"] != 1:
-        raise ValueError("frozen producer identity")
-    sys.stdout.buffer.write(data)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--producer", required=True, type=Path)
+    parser.add_argument("--producer-sha256", required=True)
+    args = parser.parse_args()
+    sys.stdout.buffer.write(emit(json.load(sys.stdin), args.producer, args.producer_sha256))
 
 
 if __name__ == "__main__":
     try:
         main()
     except (OSError, ValueError, KeyError, TypeError) as error:
-        print(f"pg46 transaction producer: {error}", file=sys.stderr)
+        print(f"PostgreSQL producer refused: {error}", file=sys.stderr)
         raise SystemExit(2)

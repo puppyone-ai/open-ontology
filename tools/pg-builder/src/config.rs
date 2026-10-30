@@ -26,6 +26,7 @@ pub struct Config {
     pub max_completion_tokens: u64,
     pub max_total_tokens: u64,
     pub max_tables: usize,
+    pub project_max_tables: usize,
     pub price: Price,
     pub postgres: Option<Postgres>,
 }
@@ -76,7 +77,7 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
             "temperature",
         ],
     )?;
-    if map.keys().any(|key| !matches!(key.as_str(), "adapter" | "budget" | "declared_price" | "endpoint" | "namespace" | "protocol" | "purpose" | "sample_policy" | "secret" | "temperature" | "postgres" | "reasoning_effort")) {
+    if map.keys().any(|key| !matches!(key.as_str(), "adapter" | "budget" | "declared_price" | "endpoint" | "namespace" | "protocol" | "purpose" | "sample_policy" | "secret" | "temperature" | "postgres" | "reasoning_effort" | "project_max_tables")) {
         return Err(PgBuilderError::new("config.schema", "the config has an unknown key"));
     }
     eq(map, "protocol", "oo.pg-builder.config/v1")?;
@@ -96,7 +97,7 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
     let origin = string(endpoint, "origin")?.to_owned();
     let path = string(endpoint, "path")?.to_owned();
     let model_id = string(endpoint, "model_id")?.to_owned();
-    if path != "/v1/chat/completions" || !matches!(model_id.as_str(), "grok-4.7" | "gpt-6.1-sol") {
+    if path != "/v1/chat/completions" || !model_id_ok(&model_id) {
         return Err(PgBuilderError::new("config.endpoint", "the endpoint path or model is not the builder endpoint"));
     }
     let addr = parse_origin(&origin, purpose)?;
@@ -127,9 +128,13 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
             "a deadline above 30000 is only allowed for the local private builder model",
         ));
     }
+    let project_max_tables = match map.get("project_max_tables") {
+        None => 4096,
+        Some(value) => value.as_u64().and_then(|v| usize::try_from(v).ok()).filter(|v| *v > 0).ok_or_else(|| PgBuilderError::new("config.budget", "project table budget must be positive"))?,
+    };
     let postgres = match map.get("postgres") {
         None => None,
-        Some(value) => Some(parse_postgres(value)?),
+        Some(value) => Some(parse_postgres(value, project_max_tables)?),
     };
     let reasoning_effort = match map.get("reasoning_effort") {
         None => None,
@@ -137,6 +142,7 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
         _ => return Err(PgBuilderError::new("config.reasoning", "reasoning_effort must be low")),
     };
     Ok(Config {
+        project_max_tables,
         purpose,
         origin,
         path,
@@ -265,7 +271,7 @@ fn format_units(product: u128, scale: u32, _lexeme: &str) -> String {
     format!("{whole}.{frac_text}")
 }
 
-fn parse_postgres(value: &Value) -> Result<Postgres, PgBuilderError> {
+fn parse_postgres(value: &Value, max_tables: usize) -> Result<Postgres, PgBuilderError> {
     let map = object(value, "config.postgres")?;
     require_exact(
         map,
@@ -286,7 +292,7 @@ fn parse_postgres(value: &Value) -> Result<Postgres, PgBuilderError> {
         .get("tables")
         .and_then(Value::as_array)
         .ok_or_else(|| PgBuilderError::new("config.postgres", "the table list is empty"))?;
-    if tables_value.is_empty() || tables_value.len() > 16 {
+    if tables_value.is_empty() || tables_value.len() > max_tables {
         return Err(PgBuilderError::new("config.postgres", "the table list is empty"));
     }
     let mut tables = Vec::new();
@@ -371,4 +377,8 @@ fn bounded(map: &Map<String, Value>, key: &str, low: u64, high: u64) -> Result<u
     } else {
         Err(PgBuilderError::new("config.budget", "a budget field is outside its range"))
     }
+}
+
+pub fn model_id_ok(model: &str) -> bool {
+    !model.is_empty() && model.len() <= 128 && model.bytes().all(|b| b.is_ascii_alphanumeric() || b"/._+-".contains(&b))
 }

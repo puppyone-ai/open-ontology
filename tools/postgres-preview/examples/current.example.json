@@ -1,0 +1,27 @@
+{
+  "protocol": "oo.postgres-preview.capture-config/v1",
+  "source_id": "owned_pg_source",
+  "source": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "owned_source",
+    "username": "owned_replication_reader",
+    "password_file": "/absolute/private/reader.pw",
+    "ca_file": "/absolute/private/ca.pem"
+  },
+  "approved_objects": [{"schema": "owned", "table": "items"}],
+  "approved_fields": [
+    {"schema": "owned", "table": "items", "column": "id"},
+    {"schema": "owned", "table": "items", "column": "value"}
+  ],
+  "capture": {
+    "system_identifier": "1",
+    "database_oid": 1,
+    "slot": "owned_slot",
+    "publication": "owned_pub"
+  },
+  "chunk_rows": 1024,
+  "chunk_bytes": 1048576,
+  "statement_ms": 120000,
+  "out_dir": "/absolute/runs/new-capture"
+}

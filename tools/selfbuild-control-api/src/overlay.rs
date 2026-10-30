@@ -136,7 +136,15 @@ pub async fn curated(config: &AppConfig, row: &BuildRow, value: &Value, body_sha
     Ok(response)
 }
 
+fn management_action(identity: &crate::identity::VerifiedIdentity, row: &BuildRow) -> Value {
+    json!({"authority":"management_session","subject":identity.subject,"issuer":identity.issuer,"identity_revision":identity.revision,"project_id":row.project_id,"build_id":row.build_id,"business_owner_signed":false,"owner_certification":"not_issued"})
+}
+
 pub async fn review(config: &AppConfig, row: &BuildRow, value: &Value, body_sha: &str) -> Result<Value, ApiError> {
+    review_as(config, row, value, body_sha, None).await
+}
+
+pub async fn review_as(config: &AppConfig, row: &BuildRow, value: &Value, body_sha: &str, identity: Option<&crate::identity::VerifiedIdentity>) -> Result<Value, ApiError> {
     refuse_closed(row)?;
     let object = exact(value, &["binds_fact", "decision", "identity_revision", "idempotency_key", "name"])?;
     let name = text(object, "name")?;
@@ -168,14 +176,19 @@ pub async fn review(config: &AppConfig, row: &BuildRow, value: &Value, body_sha:
     }
     let mut response = view_value(row, &docs);
     response["operation"] = json!("postReview");
+    if let Some(identity) = identity { response["management_action"] = management_action(identity, row); }
     response["s9"] = json!(if decision == "confirmed" && docs.effective.stale.is_empty() { "succeeded" } else { "awaiting" });
     response["business_owner_signed"] = json!(false);
-    let cache_key = canonical_sha256(&json!({"build": row.build_id, "compiler": COMPILER, "decision": decision, "fact": binds, "kind": "review", "name": name}));
+    let cache_key = canonical_sha256(&json!({"build": row.build_id, "compiler": COMPILER, "decision": decision, "fact": binds, "kind": "review", "name": name, "management_action":response.get("management_action")}));
     remember(&client, Remember { cache_key: &cache_key, build_id: &row.build_id, kind: "review", route: "review", idem, body_sha }, &response).await?;
     Ok(response)
 }
 
 pub async fn confirm(config: &AppConfig, row: &BuildRow, value: &Value, body_sha: &str) -> Result<Value, ApiError> {
+    confirm_as(config, row, value, body_sha, None).await
+}
+
+pub async fn confirm_as(config: &AppConfig, row: &BuildRow, value: &Value, body_sha: &str, identity: Option<&crate::identity::VerifiedIdentity>) -> Result<Value, ApiError> {
     refuse_closed(row)?;
     let object = exact(value, &["columns", "identity_revision", "idempotency_key"])?;
     let requested = string_list(object.get("columns").ok_or_else(ApiError::malformed)?)?;
@@ -218,11 +231,12 @@ pub async fn confirm(config: &AppConfig, row: &BuildRow, value: &Value, body_sha
     write_cards(&config.work_dir, &row.build_id, true)?;
     let mut response = view_value(row, &docs);
     response["operation"] = json!("postConfirm");
+    if let Some(identity) = identity { response["management_action"] = management_action(identity, row); }
     response["ready"] = json!(true);
     response["s10"] = json!("succeeded");
     response["business_owner_signed"] = json!(false);
     response["signer_class"] = json!("control_plane_test");
-    let cache_key = canonical_sha256(&json!({"build": row.build_id, "columns": requested, "compiler": COMPILER, "effective": docs.effective_sha, "kind": "confirm"}));
+    let cache_key = canonical_sha256(&json!({"build": row.build_id, "columns": requested, "compiler": COMPILER, "effective": docs.effective_sha, "kind": "confirm", "management_action":response.get("management_action")}));
     remember(&client, Remember { cache_key: &cache_key, build_id: &row.build_id, kind: "confirm", route: "confirm", idem, body_sha }, &response).await?;
     Ok(response)
 }
@@ -355,10 +369,12 @@ struct Docs {
 
 async fn load_docs(client: &Client, build_id: &str) -> Result<Docs, ApiError> {
     let generated = latest_doc(client, build_id, "generated").await?.ok_or_else(ApiError::not_ready)?;
-    let generated_model = parse_model(&generated.1, "generated")?;
+    let exists:bool=client.query_one("SELECT to_regclass('oo_selfbuild_api.library_overlay_limits') IS NOT NULL",&[]).await.map_err(|_|ApiError::not_ready())?.get(0);
+    let limit=if exists {client.query_one("SELECT oo_selfbuild_api.overlay_storage_ceiling($1)",&[&build_id]).await.map_err(|_|ApiError::not_ready())?.get::<_,i32>(0)as usize}else{1_000_000};
+    let generated_model = oosyaml::parse_model_with_limit(&generated.1,"generated",limit)?;
     let curated = latest_doc(client, build_id, "curated").await?;
     let curated_model = match &curated {
-        Some((_, yaml)) => parse_model(yaml, "curated")?,
+        Some((_, yaml)) => oosyaml::parse_model_with_limit(yaml,"curated",limit)?,
         None => empty_model(),
     };
     let reviews = load_reviews(client, build_id).await?;
@@ -1000,7 +1016,7 @@ fn semantic_basis(mut value: Value) -> Value {
             if let Some(quality) = object.get_mut("quality").and_then(Value::as_object_mut) { quality.remove("warnings"); }
         }
         if object.get("protocol").and_then(Value::as_str) == Some("oo.source.mysql.audit/v1") {
-            for key in ["applied_pos", "evidence", "evidence_set_id", "c1_evidence", "capture_methods"] { object.remove(key); }
+            for key in ["applied_pos", "evidence", "evidence_set_id", "c1_evidence", "c5_evidence", "capture_methods"] { object.remove(key); }
             if let Some(capture) = object.get_mut("continuous_capture").and_then(Value::as_object_mut) { capture.remove("tested_gtid_transactions"); }
             if let Some(quality) = object.get_mut("quality").and_then(Value::as_object_mut) { quality.remove("zero_date_rejects"); }
         }
@@ -1196,7 +1212,7 @@ fn native_source_rebind(config: &AppConfig, row: &BuildRow, expected_sha: &str, 
         if !matches!(semantics.get("protocol").and_then(Value::as_str), Some("oo.source.doris.audit/v1" | "oo.source.mysql.audit/v1" | "oo.oracle.native-c5-source-semantics/v1"))
             || semantic_basis(semantics.clone()) != semantic_basis(read("source_semantics.json")?)
         { return Err(ApiError::pack_refused()); }
-        if semantics["protocol"] == "oo.source.mysql.audit/v1" { verify_mysql_c1_observation(&root, &catalog, &semantics)?; }
+        if semantics["protocol"] == "oo.source.mysql.audit/v1" { match semantics["capture_method"].as_str() { Some("C1") => verify_mysql_c1_observation(&root, &catalog, &semantics)?, Some("C5") => verify_mysql_c5_observation(&root, &catalog, &semantics)?, _ => return Err(ApiError::pack_refused()) }; }
         else if semantics["protocol"] == "oo.source.doris.audit/v1" { verify_doris_observation(&root, &catalog, &semantics)?; }
         else { oracle_projection = Some(verify_oracle_c5_observation(&root, &catalog, &semantics)?); }
         Some(semantics)
@@ -1933,6 +1949,77 @@ fn project_oracle_c5_semantics(effective: &mut Value, catalog: &Value, bound: &V
     Ok(())
 }
 
+fn verify_mysql_c5_observation(root: &Path, catalog: &Value, semantics: &Value) -> Result<(), ApiError> {
+    let mut effective = json!({"datasets": catalog["entries"].as_array().ok_or_else(ApiError::pack_refused)?.iter().flat_map(|e| e["tables"].as_array().into_iter().flatten()).map(|t| json!({"dataset":format!("{}.{}",t["logical_schema"].as_str().unwrap_or(""),t["logical_table"].as_str().unwrap_or(""))})).collect::<Vec<_>>()});
+    pg_builder::project_mysql_c5(&mut effective, catalog, semantics).map_err(|_| ApiError::pack_refused())?;
+    let id = semantics["evidence_set_id"].as_str().filter(|id| hex64(id)).ok_or_else(ApiError::pack_refused)?;
+    let uid = std::fs::metadata(root).map_err(|_| ApiError::not_ready())?.uid();
+    let base = root.join("source-evidence").join(id);
+    for dir in [root.join("source-evidence"), base.clone()] {
+        let m = std::fs::symlink_metadata(dir).map_err(|_| ApiError::not_ready())?;
+        if !m.is_dir() || m.file_type().is_symlink() || m.uid()!=uid || m.mode()&0o777!=0o700 { return Err(ApiError::pack_refused()); }
+    }
+    let read = |reference: &Value, name: &str| -> Result<(Value, String), ApiError> {
+        if reference["path"] != format!("source-evidence/{id}/{name}.json") { return Err(ApiError::pack_refused()); }
+        let path = base.join(format!("{name}.json"));
+        let m = std::fs::symlink_metadata(&path).map_err(|_| ApiError::not_ready())?;
+        if !m.is_file() || m.file_type().is_symlink() || m.uid()!=uid || m.mode()&0o777!=0o600 || m.len()>16*1024*1024 { return Err(ApiError::pack_refused()); }
+        let raw = std::fs::read(path).map_err(|_| ApiError::not_ready())?;
+        let sha = sha256_hex(&raw);
+        if reference["sha256"] != sha { return Err(ApiError::pack_refused()); }
+        Ok((serde_json::from_slice(&raw).map_err(|_| ApiError::pack_refused())?, sha))
+    };
+    let evidence = semantics["c5_evidence"].as_array().ok_or_else(ApiError::pack_refused)?;
+    let entries = catalog["entries"].as_array().ok_or_else(ApiError::pack_refused)?;
+    if entries.is_empty() || entries.len() != evidence.len() { return Err(ApiError::pack_refused()); }
+    if semantics["capture_methods"].as_object().is_none_or(|m| m.len()!=entries.len()) { return Err(ApiError::pack_refused()); }
+    for (index, (entry, item)) in entries.iter().zip(evidence).enumerate() {
+        let (request, _) = read(&item["request"], &format!("{index}-request"))?;
+        let (load, _) = read(&item["load"], &format!("{index}-load"))?;
+        let (admission, admission_sha) = read(&item["admission"], &format!("{index}-admission"))?;
+        verify_mysql_c5_table(entry, semantics, &request, &load, &admission, &admission_sha)?;
+        let dataset=format!("{}.{}",request["logical_schema"].as_str().ok_or_else(ApiError::pack_refused)?,request["logical_table"].as_str().ok_or_else(ApiError::pack_refused)?);
+        let method=&semantics["capture_methods"][&dataset];
+        if method["logical_table"]!=dataset || method["capture_method"]!="c5_diff" || method["consistency"]!="S0" || method["delete_detection"]!="reconcile" || method["source_generation"]!=entry["source_generation"] || method["target_generation"]!=entry["target_generation"] { return Err(ApiError::pack_refused()); }
+    }
+    Ok(())
+}
+
+fn verify_mysql_c5_table(entry: &Value, semantics: &Value, request: &Value, load: &Value, admission: &Value, admission_sha: &str) -> Result<(), ApiError> {
+    let tables = entry["tables"].as_array().filter(|t| t.len()==1).ok_or_else(ApiError::pack_refused)?;
+    let table = &tables[0];
+    let dataset=format!("{}.{}",table["logical_schema"].as_str().ok_or_else(ApiError::pack_refused)?,table["logical_table"].as_str().ok_or_else(ApiError::pack_refused)?);
+    let generation=semantics["table_generations"].get(&dataset).unwrap_or(semantics);
+    if entry["engine"]!="mysql" || request["protocol"]!="oo.pipeline.native-update/v1"
+        || request["source_engine"]!="mysql" || request["capture_method"]!="c5_diff" || request["full_snapshot"]!=true
+        || request["consistency_grade"]!="S0" || request["cross_table_consistent"]!=false
+        || request["position_codec"]!="snapshot-zero/v1" || request["applied_pos"]!="0" || request["delete_detection"]!="reconcile"
+        || load["protocol"]!="oo.pipeline.native-update-result/v1" || load["source_engine"]!="mysql" || load["load_state"]!="awaiting_publish"
+        || load["source_bound"]!=true || load["producer_trust"]["trusted"]!=true || load["producer_trust"]["document_bound"]!=true
+        || load["producer_trust"]["receipt_sha256"]!=admission_sha
+        || request["admission_expect"].get("declared_receipt_sha256").is_some_and(|sha| sha!=admission_sha)
+        || request["admission_path"].as_str().is_none_or(|path| !path.starts_with('/'))
+        || admission["schema"]!="oo.source-admission.capture-receipt/v1" || admission["source_bound"]!=true || admission["source_engine"]!="mysql" || admission["capture_method"]!="C5"
+        || admission["consistency"]!="S0" || admission["delete_detection"]!="reconcile" || admission["write_class"]!="R0"
+        || admission["write_attempts"]!=0 || admission["snapshot_token"]!=false
+        || admission["snapshot"]!=request["snapshot"] || request["snapshot"]["value"].as_str().is_none_or(str::is_empty)
+        || load["physical_name"]!=table["stored_physical"] || load["row_count"]!=table["accepted_rows"]
+        || admission["row_count"]!=table["accepted_rows"] || load["run_id"]!=entry["run_id"] || admission["run_id"]!=request["run_id"] || request["run_id"].as_str().is_none_or(str::is_empty)
+        || load["target_generation"]!=entry["target_generation"] || entry["target_generation"]!=generation["target_generation"]
+    { return Err(ApiError::pack_refused()); }
+    for key in ["source_id", "source_generation"] {
+        if request[key]!=entry[key] || load[key]!=entry[key] || admission[key]!=entry[key] || entry[key] != (if key=="source_generation" { &generation[key] } else { &semantics[key] }).clone() || entry[key].is_null() { return Err(ApiError::pack_refused()); }
+    }
+    for key in ["config_digest", "type_digest", "input_digest"] {
+        if request[key]!=entry[key] || admission[key]!=entry[key] || !entry[key].as_str().is_some_and(hex64) { return Err(ApiError::pack_refused()); }
+    }
+    if request["schema_digest"]!=admission["schema_digest"] || !request["schema_digest"].as_str().is_some_and(hex64) || !entry["schema_digest"].as_str().is_some_and(hex64) { return Err(ApiError::pack_refused()); }
+    for key in ["logical_schema", "logical_table"] {
+        if request[key]!=table[key] || load[key]!=table[key] || admission[key]!=table[key] || table[key].as_str().is_none_or(str::is_empty) { return Err(ApiError::pack_refused()); }
+    }
+    Ok(())
+}
+
 fn verify_mysql_c1_observation(root: &Path, catalog: &Value, semantics: &Value) -> Result<(), ApiError> {
     let id = semantics["evidence_set_id"].as_str().filter(|id| hex64(id)).ok_or_else(ApiError::pack_refused)?;
     let uid = std::fs::metadata(root).map_err(|_| ApiError::not_ready())?.uid();
@@ -1954,10 +2041,12 @@ fn verify_mysql_c1_observation(root: &Path, catalog: &Value, semantics: &Value) 
         serde_json::from_slice(&bytes).map_err(|_| ApiError::pack_refused())
     };
     let request=read("request")?; let load=read("load")?; let ack=read("ack")?;
+    let v2 = request["protocol"]=="oo.pipeline.native-c1-baseline/v2";
     if semantics["capture_method"]!="C1" || semantics["consistency_grade"]!="T" || semantics["delete_detection"]!="native"
         || semantics["cross_table_consistent"]!=true || semantics["position_codec"]!="mysql-gtid/v1"
         || semantics["source_epoch"].as_i64().is_none_or(|n|n<1)
-        || request["protocol"]!="oo.pipeline.native-c1-baseline/v1" || request["capture_method"]!="c1_cdc"
+        || !(if v2 { request["consistency_grade"]=="T" && request["cross_table_consistent"]==true && request["baseline_scope"]["protocol"]=="oo.source-admission.c1-baseline-scope/v2" }
+            else { request["protocol"]=="oo.pipeline.native-c1-baseline/v1" && request["capture_method"]=="c1_cdc" })
         || request["baseline_scope"]["complete"]!=true || request["baseline_scope"]["consistency_grade"]!="T"
         || request["baseline_scope"]["cross_table_consistent"]!=true
         || request["baseline_scope"]["lineage"]!=semantics["position_lineage"]
@@ -1973,7 +2062,7 @@ fn verify_mysql_c1_observation(root: &Path, catalog: &Value, semantics: &Value) 
     for key in ["target_generation","applied_pos"] {
         if load[key]!=semantics[key] || ack[key]!=semantics[key] { return Err(ApiError::pack_refused()); }
     }
-    let native = request["native_requests"].as_array().ok_or_else(ApiError::pack_refused)?;
+    let native = (if v2 { &request["tables"] } else { &request["native_requests"] }).as_array().ok_or_else(ApiError::pack_refused)?;
     let loaded = load["entries"].as_array().ok_or_else(ApiError::pack_refused)?;
     let entries = catalog["entries"].as_array().ok_or_else(ApiError::pack_refused)?;
     if entries.is_empty() || entries.len()!=native.len() || entries.len()!=loaded.len() { return Err(ApiError::pack_refused()); }
@@ -1984,16 +2073,22 @@ fn verify_mysql_c1_observation(root: &Path, catalog: &Value, semantics: &Value) 
         let tables=entry["tables"].as_array().filter(|t|t.len()==1).ok_or_else(ApiError::pack_refused)?;
         let t=&tables[0]; let schema=&t["logical_schema"]; let table=&t["logical_table"];
         if !seen.insert(format!("{}.{}",schema.as_str().ok_or_else(ApiError::pack_refused)?,table.as_str().ok_or_else(ApiError::pack_refused)?)) {return Err(ApiError::pack_refused());}
-        let req=native.iter().find(|r|&r["logical_schema"]==schema && &r["logical_table"]==table).ok_or_else(ApiError::pack_refused)?;
+        let req=native.iter().find(|r| if v2 { &r["schema"]==schema && &r["table"]==table } else { &r["logical_schema"]==schema && &r["logical_table"]==table }).ok_or_else(ApiError::pack_refused)?;
         let result=loaded.iter().find(|r|&r["schema"]==schema && &r["table"]==table).ok_or_else(ApiError::pack_refused)?;
+        if v2 {
+            // The v2 request carries identity, generation and position once, at request level.
+            if request["source_id"]!=semantics["source_id"] || request["source_generation"]!=semantics["source_generation"]
+                || request["l_end_pos"]!=semantics["applied_pos"] {return Err(ApiError::pack_refused());}
+        } else {
         for key in ["source_id","source_generation","applied_pos","position_codec","position_lineage","consistency_grade","cross_table_consistent"] {
             if req[key]!=semantics[key] {return Err(ApiError::pack_refused());}
+        }
         }
         let dataset=format!("{}.{}",schema.as_str().unwrap(),table.as_str().unwrap());
         let method=&semantics["capture_methods"][&dataset];
         if method["logical_table"]!=dataset || method["capture_method"]!="c1_cdc" || method["consistency"]!="T" || method["delete_detection"]!="native"
-            || method["source_generation"]!=req["source_generation"] || method["target_generation"]!=semantics["target_generation"] {return Err(ApiError::pack_refused());}
-        if req["capture_method"]!="c1_cdc" || req["delete_detection"]!="native" || result["run_id"]!=entry["run_id"]
+            || method["source_generation"]!=*(if v2 { &request["source_generation"] } else { &req["source_generation"] }) || method["target_generation"]!=semantics["target_generation"] {return Err(ApiError::pack_refused());}
+        if (!v2 && (req["capture_method"]!="c1_cdc" || req["delete_detection"]!="native")) || result["run_id"]!=entry["run_id"]
             || result["physical_id"]!=t["stored_physical"] || result["row_count"]!=t["accepted_rows"] {return Err(ApiError::pack_refused());}
         rejects+=t["rejects"].as_array().ok_or_else(ApiError::pack_refused)?.len() as u64;
     }
@@ -2229,9 +2324,18 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs, r
     let mut effective = reviewed.get("effective_oos").cloned().ok_or_else(ApiError::pack_refused)?;
     let native_input = read(&root.join("native-model.json"))?;
     pg_builder::project_sealed_source_contract(&mut effective, &command["catalog"], native_input.get("source_contract")).map_err(|error| { eprintln!("native-maintenance source refused: {}", error.code); ApiError::pack_refused() })?;
+    let initial_semantics = if rebound.is_none() && root.join("source_semantics.json").is_file() { Some(read(&root.join("source_semantics.json"))?) } else { None };
+    if let Some(observation) = initial_semantics.as_ref().filter(|value| value["protocol"]=="oo.source.mysql.audit/v1" && value["capture_method"]=="C5") {
+        verify_mysql_c5_observation(&root, &command["catalog"], observation)?;
+        pg_builder::project_mysql_c5(&mut effective, &command["catalog"], observation).map_err(|_| ApiError::pack_refused())?;
+    }
     if let Some(observation) = rebound.and_then(|value| value.get("current_source_semantics")).filter(|value| value.get("protocol").and_then(Value::as_str).is_some()) {
         match observation.get("protocol").and_then(Value::as_str) {
-            Some("oo.source.mysql.audit/v1") => pg_builder::project_mysql_c1(&mut effective, &command["catalog"], observation).map_err(|error| { eprintln!("native-maintenance capture method refused: {}", error.code); ApiError::pack_refused() })?,
+            Some("oo.source.mysql.audit/v1") => match observation["capture_method"].as_str() {
+                Some("C1") => pg_builder::project_mysql_c1(&mut effective, &command["catalog"], observation),
+                Some("C5") => pg_builder::project_mysql_c5(&mut effective, &command["catalog"], observation),
+                _ => return Err(ApiError::pack_refused()),
+            }.map_err(|_| ApiError::pack_refused())?,
             Some("oo.source.doris.audit/v1") => pg_builder::project_doris_capture_methods(&mut effective, &command["catalog"], observation).map_err(|error| { eprintln!("native-maintenance capture method refused: {}", error.code); ApiError::pack_refused() })?,
             Some("oo.oracle.native-c5-source-semantics/v1") => {
                 let bound = rebound.and_then(|value| value.get("oracle_source_semantics")).and_then(|value| value.get("source_bound")).ok_or_else(ApiError::pack_refused)?;
@@ -2248,7 +2352,7 @@ fn compile_native_maintenance(config: &AppConfig, row: &BuildRow, docs: &Docs, r
     }).collect();
     let mut visibility = read(&original.join("visibility.json"))?;
     if rebound.is_some() { visibility["catalog_version"] = json!(compiled.identity_hash); }
-    let pack = oo_builder::compile_role_pack(&crate::canonical::canonical_json(&effective), &crate::canonical::canonical_json(&visibility)).map_err(|error| { eprintln!("native-maintenance role refused: {}", error.code); ApiError::pack_refused() })?;
+    let pack = oo_builder::compile_role_pack_with_ceilings(&crate::canonical::canonical_json(&effective), &crate::canonical::canonical_json(&visibility), &config.budgets.role_pack).map_err(|error| { eprintln!("native-maintenance role refused: {}", error.code); ApiError::pack_refused() })?;
     let source_summary = rebound.and_then(|v| v.get("current_source_semantics")).map(|semantics| json!({"actual_core_effective_sha256":canonical_sha256(&effective),"capture_methods":rebound.and_then(|value| value.get("capture_methods")).cloned().unwrap_or_else(|| semantics.get("capture_method").cloned().unwrap_or(semantics["capture_methods"].clone())),"applied_pos":semantics.pointer("/source_contract/position").cloned().unwrap_or(semantics["applied_pos"].clone()),"source_epoch":semantics["source_epoch"],"position_lineage":semantics.pointer("/source_contract/position").cloned().unwrap_or(semantics["position_lineage"].clone()),"quality":semantics["quality"],"datasets":effective["datasets"].as_array().map(|rows| rows.iter().map(|row| json!({"dataset":row["dataset"],"source_semantics":row["source_semantics"]})).collect::<Vec<_>>()),"source_id":semantics["source_id"],"source_semantics_sha256":rebound.unwrap()["source_semantics_sha256"],"source_bound_identity_sha256":rebound.unwrap().pointer("/oracle_source_semantics/derived_identity_sha256"),"source_gold_sha256":rebound.unwrap().pointer("/oracle_source_semantics/source_gold_sha256"),"target_gold_sha256":rebound.unwrap().pointer("/oracle_source_semantics/target_gold_sha256"),"table_generations":semantics.get("source_generation").cloned().unwrap_or(semantics["table_generations"].clone()),"publication":"not_claimed","role_approval":"not_claimed"}));
     let source_text = source_summary.as_ref().map(crate::canonical::canonical_json);
     let source_json_sha256 = source_text.as_ref().map(|text| sha256_hex(text.as_bytes()));
@@ -2677,12 +2781,15 @@ mod source_money_tests {
     pub(super) fn oracle_config(work: &std::path::Path, bundle: &std::path::Path) -> crate::config::AppConfig {
         let endpoint = crate::config::Endpoint { host: "127.0.0.1".into(), port: 1, database: "d".into(), user: "u".into(), password_file: "pw".into(), ca_file: "ca".into(), server_name: "db".into() };
         crate::config::AppConfig {
+            budgets: Default::default(),
             deployment_origins: vec![],
             listen: crate::config::Listen { bind: "127.0.0.1:1".into(), cert_file: "c".into(), key_file: "k".into() },
             identity: crate::config::IdentityCfg { origin: "https://127.0.0.1".into(), ca_file: "ca".into() },
             postgres: endpoint.clone(), work_dir: work.display().to_string(), model_cache_dir: "cache".into(),
             binaries: crate::config::Binaries { catalog: "c".into(), pg_builder: "p".into(), rules: "r".into(), suggestions: "s".into(), review_ledger: "l".into() },
             projects: vec![crate::config::ProjectCfg {
+                library: None,
+                budgets: Default::default(),
                 project_id: "oracle".into(), config_commit: "c".into(), source_ref: "s".into(), allowance_id: "a".into(), llm_secret_ref: "secret://llm".into(), source_secret_ref: "secret://source".into(),
                 source: crate::config::SourceCfg { host: "127.0.0.1".into(), port: 1, database: "d".into(), username: "u".into(), password_file: "pw".into(), ca_file: "ca".into(), tables: vec![("shop".into(), "orders".into())] },
                 sample_policy: "none".into(), rules_auto_accept: "none".into(),
@@ -2845,6 +2952,185 @@ mod source_money_tests {
 #[cfg(test)]
 mod mysql_c1_observation_tests {
     use super::*;
+    #[test]
+    fn management_review_proof_is_identity_bound_but_not_customer_certification() {
+        let row=super::source_money_tests::oracle_row();
+        let identity=crate::identity::VerifiedIdentity { subject:"actual-subject".into(),issuer:"https://identity.example".into(),config_commit:"a".repeat(64),revision:7,csrf_token:"unused".into(),projects:vec![] };
+        let proof=management_action(&identity,&row);
+        assert_eq!(proof["subject"],"actual-subject");assert_eq!(proof["identity_revision"],7);
+        assert_eq!(proof["build_id"],row.build_id);assert_eq!(proof["project_id"],row.project_id);
+        assert_eq!(proof["business_owner_signed"],false);assert_eq!(proof["owner_certification"],"not_issued");
+        assert!(proof.get("signer_class").is_none());
+    }
+
+    fn c5_fixture() -> (Value, Value, Value, Value, Value) {
+        let digest = "a".repeat(64);
+        let entry = json!({"engine":"mysql","source_id":"generic","source_generation":1,"target_generation":2,"run_id":"run","config_digest":digest,"schema_digest":digest,"type_digest":digest,"input_digest":digest,"tables":[{"logical_schema":"s","logical_table":"t","stored_physical":"pt_target","accepted_rows":2,"columns":[],"rejects":[]}]});
+        let semantics = json!({"protocol":"oo.source.mysql.audit/v1","capture_method":"C5","consistency_grade":"S0","delete_detection":"reconcile","cross_table_consistent":false,"position_codec":"snapshot-zero/v1","applied_pos":"0","source_id":"generic","source_generation":1,"target_generation":2,"version":"5.7.44"});
+        let mut request = json!({"protocol":"oo.pipeline.native-update/v1","run_id":"capture-run","admission_path":"/private/admission.json","source_engine":"mysql","capture_method":"c5_diff","full_snapshot":true,"consistency_grade":"S0","delete_detection":"reconcile","cross_table_consistent":false,"position_codec":"snapshot-zero/v1","applied_pos":"0","snapshot":{"kind":"capture-tick","value":"actual-window"},"logical_schema":"s","logical_table":"t","admission_expect":{"declared_receipt_sha256":digest}});
+        let mut load = json!({"protocol":"oo.pipeline.native-update-result/v1","source_engine":"mysql","load_state":"awaiting_publish","source_bound":true,"producer_trust":{"trusted":true,"document_bound":true,"receipt_sha256":digest},"physical_name":"pt_target","row_count":2,"run_id":"run","target_generation":2,"logical_schema":"s","logical_table":"t"});
+        let mut admission = json!({"schema":"oo.source-admission.capture-receipt/v1","source_bound":true,"source_engine":"mysql","capture_method":"C5","consistency":"S0","delete_detection":"reconcile","write_class":"R0","write_attempts":0,"snapshot_token":false,"snapshot":request["snapshot"],"row_count":2,"run_id":"capture-run","logical_schema":"s","logical_table":"t"});
+        for key in ["source_id","source_generation"] { for object in [&mut request,&mut load,&mut admission] { object[key]=entry[key].clone(); } }
+        for key in ["config_digest","schema_digest","type_digest","input_digest"] { request[key]=entry[key].clone(); admission[key]=entry[key].clone(); }
+        (entry,semantics,request,load,admission)
+    }
+
+    #[test]
+    fn mysql_c5_requires_admitted_full_snapshot_and_exact_loader_binding() {
+        let (entry,semantics,request,load,admission)=c5_fixture();
+        let sha="a".repeat(64);
+        verify_mysql_c5_table(&entry,&semantics,&request,&load,&admission,&sha).unwrap();
+        let mut exported=entry.clone();exported["schema_digest"]=json!("c".repeat(64));
+        let mut without_echo=request.clone();without_echo.as_object_mut().unwrap().remove("admission_expect");
+        verify_mysql_c5_table(&exported,&semantics,&without_echo,&load,&admission,&sha).unwrap();
+        let mut high=semantics.clone();high["target_generation"]=json!(5);high["table_generations"]=json!({"s.t":{"source_generation":1,"target_generation":2,"run_id":"run"}});
+        verify_mysql_c5_table(&entry,&high,&request,&load,&admission,&sha).unwrap();
+        high["table_generations"]["s.t"]["target_generation"]=json!(4);
+        assert!(verify_mysql_c5_table(&entry,&high,&request,&load,&admission,&sha).is_err());
+        for (key,value) in [("source_bound",json!(false)),("load_state",json!("not_sealed")),("run_id",json!("other")),("row_count",json!(1)),("target_generation",json!(3)),("physical_name",json!("other"))] {
+            let mut wrong=load.clone();wrong[key]=value;
+            assert!(verify_mysql_c5_table(&entry,&semantics,&request,&wrong,&admission,&sha).is_err(),"{key}");
+        }
+        for (key,value) in [("capture_method",json!("c1_cdc")),("full_snapshot",json!(false)),("position_codec",json!("mysql-gtid/v1")),("consistency_grade",json!("T")),("source_generation",json!(2))] {
+            let mut wrong=request.clone();wrong[key]=value;
+            assert!(verify_mysql_c5_table(&entry,&semantics,&wrong,&load,&admission,&sha).is_err(),"{key}");
+        }
+        for (key,value) in [("write_attempts",json!(1)),("write_class",json!("unknown")),("snapshot_token",json!(true)),("schema_digest",json!("b".repeat(64)))] {
+            let mut wrong=admission.clone();wrong[key]=value;
+            assert!(verify_mysql_c5_table(&entry,&semantics,&request,&load,&wrong,&sha).is_err(),"{key}");
+        }
+        assert!(verify_mysql_c5_table(&entry,&semantics,&request,&load,&admission,&"b".repeat(64)).is_err());
+    }
+
+    #[test]
+    fn mysql_c5_generic_loader_keeps_capture_and_target_ids_independent() {
+        let (mut entry, semantics, mut request, mut load, mut admission) = c5_fixture();
+        let capture_id = "b8b9dc3a-3930-4354-bbae-cae68451abb5";
+        let target_id = "0dbbdd85-a83a-4427-b8e8-03db70ba9676";
+        request["run_id"] = json!(capture_id);
+        admission["run_id"] = json!(capture_id);
+        entry["run_id"] = json!(target_id);
+        load["run_id"] = json!(target_id);
+        load["source_engine"] = json!("mysql");
+        request.as_object_mut().unwrap().remove("admission_expect");
+        request["admission_path"] = json!("/private/sealed/admission-receipt.json");
+        let admission_sha = sha256_hex(&serde_json::to_vec(&admission).unwrap());
+        let raw_capture_sha = sha256_hex(br#"{"schema":"raw-capturer-receipt"}"#);
+        assert_ne!(raw_capture_sha, admission_sha);
+        load["producer_trust"]["receipt_sha256"] = json!(admission_sha);
+        for key in [
+            "config_digest",
+            "schema_digest",
+            "type_digest",
+            "input_digest",
+        ] {
+            assert!(load.get(key).is_none());
+        }
+        verify_mysql_c5_table(
+            &entry,
+            &semantics,
+            &request,
+            &load,
+            &admission,
+            &admission_sha,
+        )
+        .unwrap();
+        let mut crossed = load.clone();
+        crossed["run_id"] = json!(capture_id);
+        assert!(
+            verify_mysql_c5_table(
+                &entry,
+                &semantics,
+                &request,
+                &crossed,
+                &admission,
+                &admission_sha
+            )
+            .is_err()
+        );
+        let mut crossed = request.clone();
+        crossed["run_id"] = json!(target_id);
+        assert!(
+            verify_mysql_c5_table(
+                &entry,
+                &semantics,
+                &crossed,
+                &load,
+                &admission,
+                &admission_sha
+            )
+            .is_err()
+        );
+        assert!(
+            verify_mysql_c5_table(
+                &entry,
+                &semantics,
+                &request,
+                &load,
+                &admission,
+                &raw_capture_sha
+            )
+            .is_err()
+        );
+        let mut wrong = load.clone();
+        wrong["source_engine"] = json!("mariadb");
+        assert!(
+            verify_mysql_c5_table(
+                &entry,
+                &semantics,
+                &request,
+                &wrong,
+                &admission,
+                &admission_sha
+            )
+            .is_err()
+        );
+        for key in ["trusted", "document_bound", "receipt_sha256"] {
+            let mut wrong = load.clone();
+            wrong["producer_trust"].as_object_mut().unwrap().remove(key);
+            assert!(
+                verify_mysql_c5_table(
+                    &entry,
+                    &semantics,
+                    &request,
+                    &wrong,
+                    &admission,
+                    &admission_sha
+                )
+                .is_err(),
+                "{key}"
+            );
+        }
+    }
+
+    #[test]
+    fn mysql_c5_evidence_files_are_private_hashed_and_not_redirectable() {
+        let (entry,mut semantics,request,mut load,admission)=c5_fixture();
+        let root=std::env::temp_dir().join(format!("oo-c5-evidence-{}",std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let id="b".repeat(64);
+        let base=root.join("source-evidence").join(&id);
+        std::fs::create_dir_all(&base).unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        for path in [root.join("source-evidence"),base.clone()] { std::fs::set_permissions(path,std::fs::Permissions::from_mode(0o700)).unwrap(); }
+        let admission_raw=serde_json::to_vec(&admission).unwrap();
+        let sha=sha256_hex(&admission_raw);
+        let mut request=request;request["admission_expect"]["declared_receipt_sha256"]=json!(sha);
+        load["producer_trust"]["receipt_sha256"]=json!(sha);
+        let mut refs=json!({});
+        for (kind,value) in [("request",request),("load",load),("admission",admission)] {
+            let raw=serde_json::to_vec(&value).unwrap();let name=format!("0-{kind}.json");let path=base.join(&name);
+            std::fs::write(&path,&raw).unwrap();std::fs::set_permissions(path,std::fs::Permissions::from_mode(0o600)).unwrap();
+            refs[kind]=json!({"path":format!("source-evidence/{id}/{name}"),"sha256":sha256_hex(&raw)});
+        }
+        semantics["evidence_set_id"]=json!(id);semantics["c5_evidence"]=json!([refs]);semantics["capture_methods"]=json!({"s.t":{"logical_table":"s.t","capture_method":"c5_diff","consistency":"S0","delete_detection":"reconcile","source_generation":1,"target_generation":2}});
+        let catalog=json!({"protocol":oo_builder::SEALED_IMPORT_COLLECTION_PROTOCOL,"entries":[entry]});
+        verify_mysql_c5_observation(&root,&catalog,&semantics).unwrap();
+        let mut wrong=semantics.clone();wrong["c5_evidence"][0]["load"]["path"]=json!("../load.json");assert!(verify_mysql_c5_observation(&root,&catalog,&wrong).is_err());
+        std::fs::write(base.join("0-load.json"),b"{}").unwrap();assert!(verify_mysql_c5_observation(&root,&catalog,&semantics).is_err());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     #[ignore = "owned MySQL import evidence required"]
     fn owned_mysql_c1_observation_refuses_drift() {
@@ -3302,4 +3588,9 @@ mod oracle_c5_observation_tests {
         assert_eq!(semantic_basis(semantics), semantic_basis(runtime));
         let _ = std::fs::remove_dir_all(base);
     }
+}
+
+pub async fn effective_model(config: &AppConfig, row: &BuildRow) -> Result<oosyaml::Model, ApiError> {
+    let client = store::connect(&config.postgres).await?;
+    Ok(load_docs(&client, &row.build_id).await?.effective)
 }

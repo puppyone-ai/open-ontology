@@ -47,6 +47,9 @@ pub fn project_sealed_source_contract(
     catalog: &Value,
     contract: Option<&Value>,
 ) -> Result<(), PgBuilderError> {
+    if let Some(observation) = contract.filter(|value| value["protocol"] == "oo.source.mysql.audit/v1" && value["capture_method"] == "C5") {
+        return project_mysql_c5(effective, catalog, observation);
+    }
     if let Some(bound) = contract.filter(|value| {
         value.get("protocol").and_then(Value::as_str) == Some(source_bound::SOURCE_BOUND_PROTOCOL)
     }) {
@@ -223,14 +226,40 @@ pub fn project_mysql_c1(effective: &mut Value, catalog: &Value, observation: &Va
         || observation["capture_method"] != "C1" || observation["consistency_grade"] != "T"
         || observation["delete_detection"] != "native" || observation["cross_table_consistent"] != true
     { return Err(rejected()); }
+    project_mysql_columns(effective, catalog, observation, "c1_cdc", "T", "native")
+}
+
+pub fn project_mysql_c5(effective: &mut Value, catalog: &Value, observation: &Value) -> Result<(), PgBuilderError> {
+    if sealed_engine(catalog)? != "mysql" || observation["protocol"] != "oo.source.mysql.audit/v1"
+        || observation["capture_method"] != "C5" || !matches!(observation["consistency_grade"].as_str(), Some("S0" | "B"))
+        || observation["delete_detection"] != "reconcile" || observation["cross_table_consistent"] != false
+        || observation["position_codec"] != "snapshot-zero/v1" || observation["applied_pos"] != "0"
+    { return Err(rejected()); }
+    let tables = catalog["entries"].as_array().ok_or_else(rejected)?.iter().map(|entry| entry["tables"].as_array().map(Vec::len).ok_or_else(rejected)).collect::<Result<Vec<_>, _>>()?.iter().sum::<usize>();
+    if tables==0 || observation["consistency_grade"] != (if tables==1 { "S0" } else { "B" }) { return Err(rejected()); }
+    let entries = catalog["entries"].as_array().ok_or_else(rejected)?;
+    for key in ["source_generation", "target_generation"] {
+        if entries.iter().filter_map(|e|e[key].as_i64()).max()!=observation[key].as_i64() { return Err(rejected()); }
+    }
+    project_mysql_columns(effective, catalog, observation, "c5_diff", "S0", "reconcile")
+}
+
+fn project_mysql_columns(effective: &mut Value, catalog: &Value, observation: &Value, capture: &str, grade: &str, deletion: &str) -> Result<(), PgBuilderError> {
     let entries = catalog["entries"].as_array().ok_or_else(rejected)?;
     let mut expected = std::collections::BTreeMap::new();
     for entry in entries {
-        if entry["source_id"] != observation["source_id"] || entry["source_generation"] != observation["source_generation"]
-            || entry["target_generation"] != observation["target_generation"] { return Err(rejected()); }
+        if entry["source_id"] != observation["source_id"] { return Err(rejected()); }
+        if capture != "c5_diff" && (entry["source_generation"] != observation["source_generation"] || entry["target_generation"] != observation["target_generation"]) { return Err(rejected()); }
         for table in entry["tables"].as_array().ok_or_else(rejected)? {
             let schema = table["logical_schema"].as_str().ok_or_else(rejected)?;
             let name = table["logical_table"].as_str().ok_or_else(rejected)?;
+            if capture == "c5_diff" {
+                let dataset = format!("{schema}.{name}");
+                let bound = observation["table_generations"].get(&dataset).unwrap_or(observation);
+                if entry["source_generation"]!=bound["source_generation"] || entry["target_generation"]!=bound["target_generation"]
+                    || bound.get("run_id").is_some_and(|run| run.as_str().is_none_or(str::is_empty) || run != &entry["run_id"])
+                { return Err(rejected()); }
+            }
             let columns = table["columns"].as_array().ok_or_else(rejected)?;
             let rejects = table["rejects"].as_array().ok_or_else(rejected)?;
             let mut zero_dates = std::collections::BTreeSet::new();
@@ -263,7 +292,7 @@ pub fn project_mysql_c1(effective: &mut Value, catalog: &Value, observation: &Va
                 }
             }
             let semantics = json!({"family":"mysql","product":"mysql","version":observation["version"],
-                "capture":"c1_cdc","grade":"T","source_kind":"database","delete_detection":"native","columns":notes});
+                "capture":capture,"grade":grade,"source_kind":"database","delete_detection":deletion,"columns":notes});
             serde_json::from_value::<oo_core::oos::SourceSemantics>(semantics.clone()).map_err(|_| rejected())?;
             if expected.insert(format!("{schema}.{name}"), semantics).is_some() { return Err(rejected()); }
         }
@@ -1118,6 +1147,54 @@ mod mysql_tests {
             assert!(project_mysql_c1(&mut effective.clone(),&catalog,&wrong).is_err());
         }
     }
+    #[test]
+    fn mysql_c5_projection_is_snapshot_not_cdc() {
+        let (mut effective, catalog, mut observation) = typed_fixture();
+        observation["capture_method"] = json!("C5");
+        observation["consistency_grade"] = json!("S0");
+        observation["delete_detection"] = json!("reconcile");
+        observation["cross_table_consistent"] = json!(false);
+        observation["position_codec"] = json!("snapshot-zero/v1");
+        observation["applied_pos"] = json!("0");
+        project_sealed_source_contract(&mut effective, &catalog, Some(&observation)).unwrap();
+        assert_eq!(effective["datasets"][0]["source_semantics"]["capture"], "c5_diff");
+        assert_eq!(effective["datasets"][0]["source_semantics"]["grade"], "S0");
+        let mut multiple=catalog.clone();let mut second=multiple["entries"][0].clone();second["tables"][0]["logical_table"]=json!("second");multiple["entries"].as_array_mut().unwrap().push(second);
+        let mut effective_multiple=json!({"datasets":[{"dataset":"db.other_names"},{"dataset":"db.second"}]});
+        assert!(project_mysql_c5(&mut effective_multiple,&multiple,&observation).is_err());
+        let mut batch=observation.clone();batch["consistency_grade"]=json!("B");
+        project_mysql_c5(&mut effective_multiple,&multiple,&batch).unwrap();
+        assert_eq!(effective_multiple["datasets"][1]["source_semantics"]["grade"],"S0");
+        multiple["entries"][1]["target_generation"]=json!(5);batch["target_generation"]=json!(5);
+        batch["table_generations"]=json!({"db.other_names":{"source_generation":4,"target_generation":4},"db.second":{"source_generation":4,"target_generation":5}});
+        project_mysql_c5(&mut effective_multiple,&multiple,&batch).unwrap();
+        batch["table_generations"]["db.second"]["target_generation"]=json!(4);
+        assert!(project_mysql_c5(&mut effective_multiple,&multiple,&batch).is_err());
+        for (key, value) in [("consistency_grade",json!("T")),("cross_table_consistent",json!(true)),("position_codec",json!("mysql-gtid/v1")),("applied_pos",json!("1")),("source_generation",json!(99))] {
+            let mut wrong = observation.clone(); wrong[key] = value;
+            assert!(project_mysql_c5(&mut effective.clone(), &catalog, &wrong).is_err(), "{key}");
+        }
+    }
+    #[test]
+    fn mysql_c5_table_generation_uses_target_run_not_capture_run() {
+        let (mut effective, mut catalog, mut observation) = typed_fixture();
+        let target_id = "0dbbdd85-a83a-4427-b8e8-03db70ba9676";
+        catalog["entries"][0]["run_id"] = json!(target_id);
+        observation["capture_method"] = json!("C5");
+        observation["consistency_grade"] = json!("S0");
+        observation["delete_detection"] = json!("reconcile");
+        observation["cross_table_consistent"] = json!(false);
+        observation["position_codec"] = json!("snapshot-zero/v1");
+        observation["applied_pos"] = json!("0");
+        observation["table_generations"] = json!({"db.other_names": {
+            "source_generation":4, "target_generation":4, "run_id":target_id
+        }});
+        project_mysql_c5(&mut effective, &catalog, &observation).unwrap();
+        observation["table_generations"]["db.other_names"]["run_id"] =
+            json!("b8b9dc3a-3930-4354-bbae-cae68451abb5");
+        assert!(project_mysql_c5(&mut effective, &catalog, &observation).is_err());
+    }
+
     fn typed_fixture() -> (Value, Value, Value) {
         let catalog=json!({"protocol":SEALED_IMPORT_COLLECTION_PROTOCOL,"entries":[{"engine":"mysql","source_id":"mysql_owned","source_generation":4,"target_generation":4,"tables":[{"logical_schema":"db","logical_table":"other_names","columns":[
             {"logical_name":"d_zero","source_type":"date32","oid":1082,"caveat":null},

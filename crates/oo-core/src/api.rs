@@ -578,6 +578,8 @@ pub struct SourceWatermark {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub enum WarningCode {
+    #[serde(rename = "DELETES_LAGGED")]
+    DeletesLagged,
     #[serde(rename = "RECONCILE_MISMATCH")]
     ReconcileMismatch,
     #[serde(rename = "RECONCILE_STALE")]
@@ -610,6 +612,12 @@ pub struct Warning {
     /// Row count from the CLI example. It is not an amount.
     #[serde(default)]
     pub rows: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub c5_mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_full_digest_scan_completed_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recent_window_watermark: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]

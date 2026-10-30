@@ -2,7 +2,7 @@
 
 > Status: Proposed（原型跑通后逐条改为 Accepted）
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-10-21（业务查询链路修订；其他技术基线未重新认证）
 > 依赖：[01 架构](01-architecture.md)。事实与出处见 [16 参考资料](16-references.md)。
 
 ## 1. 选型原则
@@ -78,10 +78,12 @@
 
 ### ADR-005 Agent 以“文件 + 少量工具”读语义，以自由只读 SQL 取数
 
+> 部分取代（2026-10-21）：自由 SQL 效用推论和“等到 M3 再解决高价值口径”的策略由 [ADR-031](adr/ADR-031-business-answerability-and-executable-pack.md) 修订；文件语义与少量工具原则保留。以下背景/原决定用于追溯，不是当前能力清单。
+
 - **背景：** 两种主流形态：语义层编译 SQL（Cube、Cortex Analyst、Metric View）与 LLM 直接写 SQL（Genie、Vercel d0）。Vercel 的公开实验表明，把语义层写成文件、让 Agent 用 bash 浏览，比二十多个专用工具更快、更省 token、成功率更高。
-- **决定：** 沙盒内 Knowledge 为文件；数据访问工具只有 `query`、`export`、`resolve`、`search-values`、`describe`、`freshness` 等少数几个；Agent 写自由 SQL，由 Gateway 门禁 + 数据库权限兜底。
-- **后果：** 长尾问题可答；风险转移到门禁与评测上。
-- **切换条件：** 若评测显示特定高价值指标的口径错误率居高不下，为这些指标提供 `compile_metric` 工具（M3）。
+- **原决定：** 沙盒内 Knowledge 为文件；设计少量数据工具，由 Agent 写 SQL、Gateway 门禁与数据库权限兜底。
+- **修订后果：** 长尾可回答性必须实测，不能由“能写 SQL”推导；当前是受控子集，关键指标须先提供审核后的执行资产，不等待通用编译器。
+- **后续选择：** 通用 compile_metric 仍作为可选扩展；当前命令及角色执行闭包遵循 [08](08-agent-interface.md) 和 ADR-031。
 
 ### ADR-006 权限以 PG 角色 + RLS 为权威执行点
 
@@ -123,13 +125,13 @@
 
 - **背景：** PG 的表级 `SELECT` 授权自动覆盖之后新增的列；源库新加一列敏感字段，就会未经分类地对 Agent 可见。
 - **决定：** 对 `oo_r_*` 一律逐列授权；只授权已完成分类（`pii`、`semantic_type`）并已发布的列；Gateway 展开 `SELECT *` 为可见列。详见 [05 I-DB-5](05-agent-db.md)、[06 §4.10](06-ontology-layer.md)。
-- **后果：** 首次接入需要完成列分类（规则高置信的非个人信息列可自动接受，其余批量确认）；`SELECT *` 成为 Gateway 唯一的 SQL 改写。
+- **后果（2026-10-21 修订）：** 列分类与角色授权分离，名称/数值类型不等于非敏感；除星号展开外还存在受验证的逻辑物理绑定及别名/排序重写。“唯一改写”旧说明由 [ADR-031](adr/ADR-031-business-answerability-and-executable-pack.md) 部分替代，列级授权原则不变。
 - **切换条件：** 无。
 
 ### ADR-013 平台维护的、Agent 可读的 `oo_dict` 与 `oo_entity`
 
 - **背景：** 码值含义、时间锚点、实体合并如果只存在于 Markdown 中，Agent 只能把它们抄进 SQL：抄错、抄漏、新码被算进口径、“上季度”被算错、同一客户被当成三个。
-- **决定：** 把已发布的码表（带类别、状态与有效期）、业务日历锚点、实体解析结果物化进 Agent DB 的 `oo_dict` 与 `oo_entity`，由平台维护、可重建；认证指标与 Agent 的 SQL 直接 JOIN 它们。详见 [05 §6.3–6.4](05-agent-db.md)、[06 §3.6、§3.9、§3.10](06-ontology-layer.md)。
+- **决定（目标）：** 把已审核码表、日历、实体结果作为受控派生资产物化。根据 [ADR-031](adr/ADR-031-business-answerability-and-executable-pack.md)，只有安装、当前角色授权、范围/有效期和 Gateway 验证全部成立，才生成 JOIN 指引；部分替代“有 YAML 即可直接 JOIN”的假设。详见 [05 §6.3–6.4](05-agent-db.md)、[06](06-ontology-layer.md)。
 - **后果：** 放宽了“平台不在 Agent DB 建 Agent 可见对象”的原则；实体键登记与管家决定成为需要备份的运营状态（控制库）。
 - **切换条件：** 无。
 
@@ -158,6 +160,104 @@
 - **决定：** 准入单位是目标（家族、产品、版本、变体、驱动），逐能力分级（candidate → designed → experimental → verified → certified），矩阵为唯一真相源；源端写入按 R0–R3 分类，R2/R3 不准入，R1w 默认禁用。详见 [database-support](database-support/README.md) 与 Spec 第 7A 章。
 - **后果：** 新增数据库的工作量集中在连接器与证据；ADR-002 中的 Debezium 仅用于已验证的日志 CDC 且禁用写入型选项。
 - **切换条件：** 无。
+
+> 注：本节存在两条编号为 ADR-014 的历史条目（“第一方实现改为 Rust”与“数据库支持以支持矩阵为准”），引用时以标题区分；新条目从 ADR-017 起编号，不重排旧编号。
+
+### ADR-017 无源端审计渠道时，以库强制的只读授权作为零写证据（显式例外）
+
+- **状态：** 已决定（2026-10-19）；实现已合入集成分支，待夹具实跑。
+- **背景：** 零写原本要求源端自己的语句审计（[database-support/05 §2](database-support/05-conformance-and-evidence.md)）。部分 MySQL 实例关闭了 `general_log` 与 `performance_schema`，也没有审计插件；数据所有者信任平台、不愿为此改动源库。
+- **决定：** 默认行为不变。只有已安装的来源配置显式设置 `source_audit_policy: grant_enforced`，且采集配置显式声明 `audit: {mode: grant_enforced}` 时，准入才接受替代证据：每次运行实时读取 `SHOW GRANTS FOR CURRENT_USER()`，权限必须全部落在只读白名单（`SELECT`、`USAGE`、`PROCESS`、`LOCK TABLES`、`SHOW VIEW`、`REPLICATION SLAVE`、`REPLICATION CLIENT`）且包含 `SELECT`；读取在 `READ ONLY` 一致性快照事务中执行。任一写、DDL、`GRANT OPTION`、`SUPER`、`FILE` 或未知权限即拒绝。只有采集端声明而无安装策略时，准入拒绝。
+- **后果：** 证据记为 `grant_enforced`，等级低于源端审计，不得表述为“已审计零写”；交付说明与证据包须写明。`LOCK TABLES` 等权限仅被容忍，平台不使用。
+- **切换条件：** 源端出现可用审计渠道后改回审计证据；发现任何写入证据立即撤销该例外。
+
+### ADR-018 源端不支持 TLS 时的显式明文传输
+
+- **状态：** 已决定（2026-10-19）；实现已合入集成分支。
+- **背景：** [10 §8](10-security.md) 规定“源库连接按源库支持启用 TLS”。部分 MySQL 实例 `have_ssl=DISABLED`，无法提供 CA。
+- **决定：** 日志 CDC（C1）与默认路径仍要求校验 TLS。全量/C5 路径只在三项同时满足时允许明文：已安装 operator 显式声明 `source_transport: {tls: disabled, plaintext_authorized: true}`；连接参数中 CA 与 TLS 名显式为空；运行时实测源端 `have_ssl=DISABLED` 且会话无加密套件。不提供浏览器或请求方可切换的开关。
+- **后果：** 证据记录“明文、已显式授权、不宣称链路尾段加密”。跳板 SSH 只证明其覆盖的那一段加密，不能据此宣称到源库的全路径加密。交付前须由数据所有者书面接受，或改用加密通道。
+- **切换条件：** 首选源端启用 TLS；其次是数据库同内网的跳板机 SSH 隧道、专线/VPN 等加密通道。具备后移除明文授权。
+
+### ADR-019 C5+：无日志源的分层差分同步
+
+- **状态：** 提议；需夹具原型与源负载实测后进入 experimental。
+- **背景：** 无 binlog/WAL 的源只能用 C3/C4/C5。C5 原定位于小表（[database-support/03 §2](database-support/03-change-capture-and-consistency.md)），对 GB 级大表逐周期整表读取代价过高；C3 依赖的更新时间列多为应用维护，不可信。
+- **决定：** C5 增加分层子模式，仍为 R0、S0/B、`reconcile` 删除检测，复用现有 Batch、Loader receipt、墓碑、`_oo.table_quality` 与 C5 调度：
+  1. 表级提示：引擎提供的表修改时间（如 InnoDB `UPDATE_TIME`）只作“有变化”的正向提示，NULL 为未知，不据此跳过。
+  2. 近窗口：对有业务时间索引的表读取 `[now − 窗口 − 重叠, now]`，只作加速，不作可信游标。
+  3. 分块摘要扫描：按固定分块边界在源端计算 `COUNT(*)` 与 128 位摘要，与**上一轮同一块的源端摘要**比较；不同的块整块重读，按 Arrow 类型化值逐行比对后产生插入/更新/删除。源对源比较避免跨引擎文本表示差异，沿用 [04 §8.1](04-pipeline.md) 的理由；摘要只用于跳过未变化块，不作为一致性证明。
+  4. 定期全读：低频整表重读兜底。
+  源端负载受单连接、块目标耗时、占空比、负载暂停（如 `Threads_running`）与执行窗口约束。
+- **后果：** 插入/更新的可见延迟取决于近窗口周期，删除与窗口外更新取决于摘要扫描周期；不得宣称达到日志 CDC 的延迟或事务一致性。`_oo` 新增分块清单与摘要状态（追加式迁移）。
+- **切换条件：** 源端具备日志 CDC 条件后切到 C1（见 [database-support/03 §7](database-support/03-change-capture-and-consistency.md)）。
+
+### ADR-020 字符串键按源排序规则分块，目标侧按分块标识归属
+
+- **状态：** 提议；需 CC-04 夹具证据（大小写、尾空格、重音、中文、多种排序规则）后方可启用。
+- **背景：** [database-support/05 §3](database-support/05-conformance-and-evidence.md) 要求字符串键按二进制排序分块。对非二进制排序规则的主键，`ORDER BY BINARY col` 无法使用主键索引，会对大表全量排序。已知开源实现的漏读/重读问题来自客户端字符串比较与源排序规则不一致。
+- **决定：** 作为 §3 中“哈希分块/`read_keys`”之外的第三种做法：分块边界的全部比较在源库内、以列自身排序规则完成，客户端不做字符串大小比较；主键在其排序规则下唯一，相邻块 `(lo, hi]` 不重不漏。Agent DB 侧不按字符串大小判断归属，而是持久化“分块标识 → 源键集合”，对账、删除与摘要比较按分块标识进行。
+- **后果：** 需要额外的分块清单存储；分块拆分后首轮须全读该块。在 AccessReport 中标明 `chunk_key_order: source_collation`。
+- **切换条件：** 若证据显示某排序规则下存在相等但不同字节的键可以共存，或边界查询无法走索引，该表回到二进制排序、哈希分块或 `read_keys`。
+
+### ADR-021 All-in-one 单库形态的发布与就绪语义
+
+- **状态：** 已决定（2026-10-19）；已实现。
+- **背景：** [01 §5.2](01-architecture.md) 与 [05 §2](05-agent-db.md) 允许 PoC/中小库只有主库，Gateway 读主库；现有发布与就绪检查只实现了主从形态。
+- **决定：** 部署模式 `deployment_mode: all_in_one` 只能来自已安装的部署配置。该模式下发布不要求备库回放，改为：发布事务提交后，用 Gateway 的只读登录在新会话中读到新表向量；Gateway 数据连接使用只读登录角色、`default_transaction_read_only=on`，并发与超时比主从模式更严。就绪记录写 `readonly_replica=false`、`deployment_mode=all_in_one`，不得把主库称为副本。主从模式的现有检查不变。
+- **后果：** 失去“物理只读副本”这一层隔离，装载与 Agent 查询共用主库资源；只建议用于测试与 PoC。P2 验收口径修正：发布后的新会话可见性检查失败时 fail closed，与主从模式后置 barrier 失败语义一致；返回失败、`half_published=true`、`knowledge_published=false`，关闭新代表的 fence 并撤权，不声称发布成功，也不保证旧代仍可读。恢复旧代由现有回滚机制或新的发布操作完成，不在本任务范围。
+- **配置与验证：** 默认 `primary_replica`；未知模式及 `all_in_one` 搭配备库配置拒绝启动。只读登录的新会话比较已提交 fence 的版本、Pack 摘要、列集、各表真实代与映射，并验证列授权与 RLS。单库查询默认并发 4、超时 5000ms（主从数据面默认 256、30000ms），可用安装配置 `data_query_concurrency` / `data_query_timeout_ms` 收紧，单库配置必须严格小于主从默认上界。完整运行方法见 `testing/all-in-one/run.sh` 与发布协调器 `OPERATOR.md`。
+- **切换条件：** 进入客户生产交付时回到 1 主 + ≥1 从。
+
+### ADR-022 MySQL 只读观察类附加权限的兼容
+
+- **状态：** 已决定；已实现。
+- **背景：** [03 §5.1](03-sources-and-ingestion.md) 原以“是否有写权限”为体检核心，但实际账号常带 `PROCESS`、`LOCK TABLES`、`SHOW VIEW` 等不写数据的权限。
+- **决定：** 这些权限按白名单识别并写入接入证据，不要求客户回收，平台也不使用 `LOCK TABLES`/`FLUSH`。写、DDL、触发器、事件、例程管理、`FILE`、`SUPER`、`RELOAD`、`SHUTDOWN`、`CREATE USER`、`GRANT OPTION`、`ALL` 及未知权限仍 block（`allow_write_capable_credential` 例外契约不变）。全量读取要求 `SELECT`；C1 另要求 `REPLICATION SLAVE`/`REPLICATION CLIENT`。
+- **后果：** 不因“权限给多了”阻止接入；证据中可见每一项被容忍的权限。
+- **切换条件：** 出现新的权限名时默认按未知处理，评审后再加入白名单。
+
+### ADR-023 来源布局先于整库复制
+
+- **状态**：Accepted（规划工具已实现；域语义由操作者审核）。
+- **决策**：建模域 ≤16 表，每域一个 source_id/shard；原生发布覆盖该来源全部当前表且 ≤32，一个 project 同一来源，同一逻辑表只允许一个当前来源。非发布组可放宽至 32，后续建模须重新规划。
+- **代价**：来源数量增加；布局变化涉及旧归属退休与重导，不能靠传输分片自动推断业务域。
+- **验证证据**：`tools/source-onboarding/test_source_layout.py` 的 35 表拆分、唯一归属、确定性输出与精确计数/排除测试；`0039_native_per_table_publication.sql` 为发布契约。匿名测试不是实际整库发布证明。
+
+### ADR-024 显式 type_policy 与脱敏 normalization rejects
+
+- **状态**：Accepted（已有采集/worker 策略链；本轮补运行文档）。
+- **决策**：零日期转 NULL、文本 NUL 剥离必须显式选择 `zero_date_to_null` / `strip_text_nul`，并绑定脱敏 normalization rejects，不能静默转换或输出原值。
+- **代价**：有损规范化需审批和额外证据存储；离线 metadata 预检不能证明值域安全。
+- **验证证据**：`tools/mysql-preview/src/full.rs` 的策略测试、`tools/job-worker/src/native_schedule.rs` 的 normalization_policy 校验；现场手册 F。真实源零日期/NUL 的复测不在本轮授权范围。
+
+### ADR-025 活源对账容忍保持显式与未决
+
+- **状态**：Accepted（已有策略，本轮补口径）。
+- **决策**：默认严格；只允许显式 `allow_post_snapshot_rows`、`allow_unresolved_chunk_fraction`，报告后快照行与 unresolved chunks；不把容忍写成零差异，不提升分块 B 等级。
+- **代价**：活表可能仍拒绝，需要冻结窗口或缩短采集到独立对账间隔；多读一次有流量成本。
+- **验证证据**：`tools/source-onboarding/src/audit.rs` 的独立 oracle 策略与报告测试、现场手册 G；metadata 预检不代替运行对账证据。
+
+### ADR-026 宽表：1024 数据列、ARRAY 与角色预算分离
+
+- **状态**：Accepted（基线已实现，本轮补文档）。
+- **决策**：admission/catalog/effective dataset 上限 1024；PG 函数批量参数使用 ARRAY 避免 100 参数上限；角色 Pack 可见列仍限 256。标识符和单值/批次字节限制独立。
+- **代价**：宽表增加 S5 token、索引和 Pack 审核成本；不承诺每角色能看到全部数据列。
+- **验证证据**：当前 migration 追加链（保留历史 checksum）、multipart/宽表回归与现场手册 F/K；本轮没有客户宽表端到端复跑。
+
+### ADR-027 模型网关按能力适配参数与响应
+
+- **状态**：Accepted（基线兼容行为，本轮固化运行约束）。
+- **决策**：对不接受 temperature 的模型省略参数；凭据冷却 ≥60 秒退避；JSON 围栏只在完整封装时剥离且仍校验 schema。S5 输出 token 随列数扩大，内外 deadline 覆盖 3–5 分钟请求。
+- **代价**：模型特定能力表需维护，40k completion 不是通用模型上限；长 deadline 增加资源占用。
+- **验证证据**：当前 selfbuild 模型兼容/JSON 回归、HEAD 的 S5 completion 预算变更与现场手册 J。本轮不调用模型网关，不声明线上冷却验证。
+
+### ADR-028 数值型主键的有限支持
+
+- **状态**：Accepted（decimal128、scale=0；端到端导入尚待独立夹具验证）。
+- **决策**：Loader 接受非空 decimal128 整数键，precision 1..38，覆盖 MySQL bigint unsigned→decimal(20,0)。键与 tombstone 使用精确规范整数文本，不经过浮点；复合键继续使用长度前缀编码。拒绝非零 scale、超精度、前导零、负零和指数形式。不扩展 decimal256/浮点键。
+- **代价**：有小数的 decimal 键仍不支持；键类型兼容不等于所有 C1 typed-key 路径已支持。
+- **验证证据**：`native_update::tests::decimal_integer_primary_key_classifies_and_keeps_exact_identity` 先复现 bad_type 后通过；oo-pipeline lib 从 153/2/4 到 154/2/4，既有两失败不变。MySQL 映射基线回归保留，不声称本轮完成真实源导入。
 
 ## 4. 缓冲层切换到 Kafka 的条件（沿用参考草案）
 

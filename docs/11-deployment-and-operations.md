@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-10-21（业务查询链路修订；其他技术基线未重新认证）
 > 依赖：[01 架构](01-architecture.md)、[02 技术栈](02-technology-stack.md)
 
 ## 1. 一键启动
@@ -109,6 +109,8 @@ services:
 
 ### 3.3 `oo` 管理命令（与 Agent 用的 `oo` 同一个 CLI，不同子命令组）
 
+以下是管理面目标命令，不是当前 Agent CLI 可直接执行的菜单；当前 `validate`/`status` 等命令的参数含义以二进制帮助为准，不能从此示例推断。不得把尚未实现的 build/publish/rollback 命令写入 Agent 使用说明。
+
 ```text
 oo validate                 # 校验配置仓库（schema、引用、权限、hook SQL）
 oo plan                     # 期望状态 vs 实际状态的差异
@@ -132,6 +134,28 @@ oo emergency-stop
 - Agent DB 的 PG 小版本：先从库后主库；大版本：新建实例 + 管线重建或 `pg_upgrade`，按变更窗口进行。
 - 任何影响 Agent 行为的升级（harness、模型、沙盒镜像、Knowledge 编译器）必须先通过评测回归门禁（[13 §8](13-evaluation-and-benchmarks.md)）。
 
+### 4.1 新观测、新 Pack 与兼容回滚
+
+当前旧 facts 不满足新的完整观测门禁，重新编译旧 YAML 只能用于离线回归，不能宣称完成新构建。新采集须登记扫描/超时/并发/模型预算，写新目录保留旧失败；缓存绑定 facts/规则/模型版本，受影响审批重新审核，fixture/test 不继承为业务签署。
+
+发布候选先验证类型、角色引用闭包、实际 SQL 能力、依赖资产、源覆盖/时效及业务题，形成逐指标就绪清单。`live` 仍是技术状态，不能提升为业务认证。完整执行顺序见[整改方案 §11](../../docs/semantic-query-chain-remediation-plan.md)。
+
+灰度切换应绑定 Pack、字典/场景资产、策略和库 head/fence/代际；任一失败不得半发布。回滚仅在旧版本与当前 schema/权限/数据代际兼容时切换；不得恢复已撤销权限。不兼容则关闭受影响指标或进行获批迁移，不只回退 tag。预览等用户文件与 OOS 构建输入应按明确清单分离，不以删除用户文件或放宽源树解析换取成功。
+
+2026-10-21 的隔离候选验证实际触发了两层保护：新编译器加载旧 reviewed artifact
+因重编译摘要不一致返回 `library_pack`；在仓外重编译后，数据库 fence 仍绑定旧摘要，
+读取被拒绝。新版公开 hint 将后者标为 `publication_binding_unavailable`，不披露物理对象或摘要。
+这不是重新授权的理由，也不能通过修改 fence 记录来伪造验收。
+编译器、Gateway、Pack/reviewed artifact 与正式发布记录必须协调切换；只换文件不算发布。
+
+启动验证必须等待本次进程的实际监听就绪信号，不能依赖固定 sleep、容器
+Running 或上次遗留的 `listen.addr`。启动有独立有界等待窗口；监听就绪后再运行
+freshness、describe、validate/query，并核对实际 Pack digest 和发布绑定。
+不得为解决启动竞争而放宽业务查询 deadline。切换失败保留原始失败回执，
+经正式 pointer rollback/maintain-recover 恢复数据库绑定后恢复旧制品，
+再验证旧版本可读；“文件已拷回”不等于回滚完成。
+现有客户环境尚未完成该切换，详见[本轮验证记录](../../docs/semantic-query-chain-p1c-progress.md)。
+
 ## 5. 备份与恢复
 
 | 对象 | 方式 | RPO / RTO（初始目标） |
@@ -151,6 +175,7 @@ oo emergency-stop
 
 - **Trace：** 一次提问的完整链路：入口 → harness 轮次 → 每次 `oo` 调用 → 代理 → Gateway → SQL 执行；`session_id`、`turn_id`、`query_id` 作为属性。OpenTelemetry GenAI 语义约定中的模型调用属性（模型名、token 用量）在代理处记录；该约定中的 Agent/工具部分仍处于开发状态，字段名以锁定版本为准。
 - **Metrics：** 见各层文档（管线 [04 §11](04-pipeline.md)、Gateway [07 §10](07-gateway.md)）。
+- **业务链路目标信号：** 按能力版本区分过度拒绝、真正越权、类型/版本漂移和语义缺口；按指标报告已就绪范围、未知状态/未匹配影响、对账状态和未测源时刻。HTTP 成功率不等于业务回答率，扫描预算耗尽不伪装成零数据。
 - **Logs：** 结构化 JSON；凭证模式脱敏；不记录查询结果与模型正文。
 
 ### 6.2 SLO（初始）

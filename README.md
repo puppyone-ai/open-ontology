@@ -387,6 +387,30 @@ open-ontology/
 
 Generated evidence, run logs, and build artifacts remain outside the published source tree. Private runtime files, credentials, and customer samples must stay private.
 
+### Product Code Boundary
+
+This repository contains the reusable Open Ontology product: Rust crates,
+source adapters, CDC and reconciliation machinery, Self-build and Pack
+builders, Gateway/CLI/SDK contracts, tests, deployment recipes, and neutral
+synthetic fixtures.
+
+Customer-specific deliveries stay elsewhere. Do not copy customer schemas,
+business Skills, Gateway tokens, source connection files, EIP/SSH material,
+raw database exports, model traces, or acceptance evidence into this
+repository. Product code receives those values through private operator
+configuration or neutral test fixtures.
+
+The supported product path is:
+
+```text
+source adapter
+  -> bounded capture / CDC / reconciliation
+  -> Agent PostgreSQL target and durable publication
+  -> S0-S10 Self-build and reviewed role Pack
+  -> authenticated Gateway
+  -> oo CLI / SDK / MCP / agent harness
+```
+
 ## Documentation
 
 | Start here | Then explore |

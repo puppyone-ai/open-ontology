@@ -13,7 +13,6 @@ use serde_json::Value;
 
 use crate::api::payload_sha256;
 use crate::diagnostic::DiagnosticList;
-use crate::json_scan::parse_json_value;
 
 /// Producer stdout protocol. This is not `oo.source.pgsql/v1`.
 pub const SEALED_IMPORT_CATALOG_PROTOCOL: &str = "oo.pipeline.sealed-import-catalog/v1";
@@ -193,11 +192,33 @@ pub fn push_schema_column(
 }
 
 /// Parse one sealed-import catalog. `engine` is recorded for every closed token.
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct SealedImportLimits {
+    pub json_scan: crate::json_scan::JsonScanLimits,
+    pub max_tables: usize,
+    pub max_columns: usize,
+    pub max_collection_entries: usize,
+}
+
+impl Default for SealedImportLimits {
+    fn default() -> Self {
+        Self { json_scan: Default::default(), max_tables: 16, max_columns: 1024, max_collection_entries: 32 }
+    }
+}
+
 pub fn parse_sealed_import_catalog(input: &str) -> Result<SealedImportCatalog, SealedImportError> {
-    let value = parse_json_value(input, SEALED_IMPORT_DRAFT_PROTOCOL).map_err(map_scan)?;
+    parse_sealed_import_catalog_with_limits(input, &SealedImportLimits::default())
+}
+
+pub fn parse_sealed_import_catalog_with_limits(input: &str, limits: &SealedImportLimits) -> Result<SealedImportCatalog, SealedImportError> {
+    if limits.max_tables == 0 || limits.max_columns == 0 || limits.max_collection_entries == 0 {
+        return Err(SealedImportError::new("limit.invalid", "/limits", "sealed limits must be positive"));
+    }
+    let value = crate::json_scan::parse_json_value_with_limits(input, SEALED_IMPORT_DRAFT_PROTOCOL, &limits.json_scan).map_err(map_scan)?;
     refuse_secrets(&value)?;
     let document: Document = serde_json::from_value(value).map_err(map_shape)?;
-    validate(document)
+    validate(document, limits)
 }
 
 fn map_scan(err: DiagnosticList) -> SealedImportError {
@@ -298,7 +319,7 @@ fn secret_key(key: &str) -> bool {
     )
 }
 
-fn validate(document: Document) -> Result<SealedImportCatalog, SealedImportError> {
+fn validate(document: Document, limits: &SealedImportLimits) -> Result<SealedImportCatalog, SealedImportError> {
     if document.protocol != SEALED_IMPORT_CATALOG_PROTOCOL {
         return Err(SealedImportError::new(
             "protocol.mismatch",
@@ -349,14 +370,14 @@ fn validate(document: Document) -> Result<SealedImportCatalog, SealedImportError
     require_digest(&document.schema_digest, "/schema_digest")?;
     require_digest(&document.tool_hook_digest, "/tool_hook_digest")?;
     require_run_id(&document.run_id)?;
-    if document.tables.is_empty() || document.tables.len() > 16 {
+    if document.tables.is_empty() || document.tables.len() > limits.max_tables {
         return Err(SealedImportError::new(
             "schema.invalid",
             "/tables",
             "sealed import table count is outside 1..=16",
         ));
     }
-    let tables = validate_tables(&document.tables)?;
+    let tables = validate_tables(&document.tables, limits)?;
     let preimage = schema_preimage(&tables);
     if payload_sha256(preimage.as_bytes()) != document.schema_digest {
         return Err(SealedImportError::new(
@@ -534,7 +555,7 @@ fn schema_preimage(tables: &[SealedImportTable]) -> String {
     out
 }
 
-fn validate_tables(tables: &[TableIn]) -> Result<Vec<SealedImportTable>, SealedImportError> {
+fn validate_tables(tables: &[TableIn], limits: &SealedImportLimits) -> Result<Vec<SealedImportTable>, SealedImportError> {
     let mut seen_tables = BTreeSet::new();
     let mut seen_physical = BTreeSet::new();
     let mut seen_columns = BTreeSet::new();
@@ -545,7 +566,7 @@ fn validate_tables(tables: &[TableIn]) -> Result<Vec<SealedImportTable>, SealedI
         require_digest(&table.canonical_digest, "/tables/canonical_digest")?;
         require_shadow(&table.stored_namespace, "pn_", "/tables/stored_namespace")?;
         require_shadow(&table.stored_physical, "pt_", "/tables/stored_physical")?;
-        if table.columns.is_empty() || table.columns.len() > 64 {
+        if table.columns.is_empty() || table.columns.len() > limits.max_columns {
             return Err(SealedImportError::new(
                 "schema.invalid",
                 "/tables/columns",
@@ -703,6 +724,8 @@ fn validate_quality(quality: &QualityIn, tables: &[TableIn]) -> Result<(), Seale
     let mut reject_rows = Vec::new();
     let mut stored_rejected = 0_i64;
     let mut seen_batch = BTreeSet::new();
+    let mut seen_batch_id = BTreeSet::new();
+    let mut batch_sum: std::collections::BTreeMap<String, i64> = std::collections::BTreeMap::new();
     for row in &quality.stored_rows {
         require_shadow(&row.physical_name, "pt_", "/quality/stored_rows/physical_name")?;
         if !closed_batch(&row.batch_id) {
@@ -714,13 +737,14 @@ fn validate_quality(quality: &QualityIn, tables: &[TableIn]) -> Result<(), Seale
         }
         if row.kind == "batch" {
             batch_rows += 1;
-            if !seen_batch.insert(row.physical_name.clone()) {
+            if !seen_batch_id.insert((row.physical_name.clone(), row.batch_id.clone())) {
                 return Err(SealedImportError::new(
                     "duplicate",
                     "/quality/stored_rows",
                     "a target shadow batch is repeated",
                 ));
             }
+            seen_batch.insert(row.physical_name.clone());
             let table = tables
                 .iter()
                 .find(|table| table.stored_physical == row.physical_name)
@@ -738,7 +762,12 @@ fn validate_quality(quality: &QualityIn, tables: &[TableIn]) -> Result<(), Seale
                     "accepted row count is outside the sealed range",
                 )
             })?;
-            if row.accepted_rows != Some(accepted)
+            let part = row.accepted_rows.filter(|n| (0..=accepted).contains(n));
+            if let Some(n) = part {
+                let sum = batch_sum.entry(row.physical_name.clone()).or_insert(0);
+                *sum = sum.saturating_add(n);
+            }
+            if part.is_none()
                 || row.reason.is_some()
                 || row.attnum.is_some()
                 || row.value_len.is_some()
@@ -762,7 +791,10 @@ fn validate_quality(quality: &QualityIn, tables: &[TableIn]) -> Result<(), Seale
             ));
         }
     }
-    if batch_rows != tables.len() || seen_batch.len() != tables.len() {
+    let covered = tables.iter().all(|table| {
+        i64::try_from(table.accepted_rows).ok() == batch_sum.get(&table.stored_physical).copied()
+    });
+    if batch_rows < tables.len() || seen_batch.len() != tables.len() || !covered {
         return Err(SealedImportError::new(
             "quality.rejected",
             "/quality/stored_rows",

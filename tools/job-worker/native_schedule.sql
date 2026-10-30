@@ -34,7 +34,7 @@ GRANT USAGE ON SCHEMA jw_native TO oo_jobs_runtime;
 GRANT SELECT,INSERT,UPDATE ON ALL TABLES IN SCHEMA jw_native TO oo_jobs_runtime;
 CREATE TABLE IF NOT EXISTS jw_native.process_attempts (
  task_id uuid NOT NULL REFERENCES jobs.tasks(id), generation bigint NOT NULL,
- stage text NOT NULL CHECK(stage IN ('producer','loader','ack','registry_vector','source_registry','loader_cdc_baseline','c1_baseline_stream','loader_c1_stage_open','loader_c1_stage_snapshot','loader_c1_stage_transaction','loader_c1_stage_seal') OR stage ~ '^loader_(0|[1-9][0-9]?)$'),
+ stage text NOT NULL CHECK(stage IN ('producer','loader','ack','rejects','c5_initialize_full_if_absent','c5_initialize_multipart_if_absent','c5_initialize_published_if_absent','c5_initialize_empty_if_absent','c5_begin_scan','c5_observe_partial','c5_export','c5_export_before','c5_export_after','c5_export_hydrated','c5_observe','registry_vector','source_registry','loader_cdc_baseline','c1_baseline_stream','loader_c1_stage_open','loader_c1_stage_snapshot','loader_c1_stage_transaction','loader_c1_stage_seal') OR stage ~ '^loader_(0|[1-9][0-9]?)$' OR stage ~ '^c5_hydrate_multipart_(0|[1-9][0-9]{0,3})$'),
  executable_sha256 text NOT NULL, exit_code integer NOT NULL,
  stdout bytea NOT NULL, stderr bytea NOT NULL,
  observed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
@@ -44,7 +44,7 @@ GRANT SELECT,INSERT ON jw_native.process_attempts TO oo_jobs_runtime;
 REVOKE UPDATE ON jw_native.process_attempts FROM oo_jobs_runtime;
 GRANT UPDATE(exit_code,stdout,stderr,observed_at) ON jw_native.process_attempts TO oo_jobs_runtime;
 ALTER TABLE jw_native.process_attempts DROP CONSTRAINT IF EXISTS process_attempts_stage_check;
-ALTER TABLE jw_native.process_attempts ADD CONSTRAINT process_attempts_stage_check CHECK(stage IN ('producer','loader','ack','registry_vector','source_registry','loader_cdc_baseline','c1_baseline_stream','loader_c1_stage_open','loader_c1_stage_snapshot','loader_c1_stage_transaction','loader_c1_stage_seal') OR stage ~ '^loader_(0|[1-9][0-9]?)$');
+ALTER TABLE jw_native.process_attempts ADD CONSTRAINT process_attempts_stage_check CHECK(stage IN ('producer','loader','ack','rejects','c5_initialize_full_if_absent','c5_initialize_multipart_if_absent','c5_initialize_published_if_absent','c5_initialize_empty_if_absent','c5_begin_scan','c5_observe_partial','c5_export','c5_export_before','c5_export_after','c5_export_hydrated','c5_observe','registry_vector','source_registry','loader_cdc_baseline','c1_baseline_stream','loader_c1_stage_open','loader_c1_stage_snapshot','loader_c1_stage_transaction','loader_c1_stage_seal') OR stage ~ '^loader_(0|[1-9][0-9]?)$' OR stage ~ '^normalization_rejects_(0|[1-9][0-9]{0,2})$' OR stage ~ '^c5_hydrate_multipart_(0|[1-9][0-9]{0,3})$');
 CREATE TABLE IF NOT EXISTS jw_native.pending_acks (
  task_id uuid PRIMARY KEY REFERENCES jobs.tasks(id), binding_id uuid NOT NULL REFERENCES jw_native.bindings(id),
  pin bigint NOT NULL, generation bigint NOT NULL, ack_request jsonb NOT NULL,
@@ -58,3 +58,10 @@ CREATE TABLE IF NOT EXISTS jw_native.loader_overrides (
  approved_at timestamptz NOT NULL DEFAULT clock_timestamp());
 REVOKE ALL ON jw_native.loader_overrides FROM PUBLIC;
 GRANT SELECT,INSERT,UPDATE ON jw_native.loader_overrides TO oo_jobs_runtime;
+CREATE TABLE IF NOT EXISTS jw_native.c5_schedule (
+ binding_id uuid PRIMARY KEY REFERENCES jw_native.bindings(id),
+ progress jsonb NOT NULL DEFAULT '{"completed_at_ms":[null,null,null,null]}'::jsonb,
+ due jsonb NOT NULL DEFAULT '[false,false,false,false]'::jsonb,
+ observed_at_ms bigint NOT NULL DEFAULT 0 CHECK(observed_at_ms >= 0));
+REVOKE ALL ON jw_native.c5_schedule FROM PUBLIC;
+GRANT SELECT,INSERT,UPDATE ON jw_native.c5_schedule TO oo_jobs_runtime;

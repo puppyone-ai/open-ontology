@@ -68,6 +68,7 @@ pub fn builder_config(project: &ProjectCfg, catalog_bin: &str) -> Value {
         .collect();
     json!({
         "protocol": "oo.pg-builder.config/v1",
+        "project_max_tables": project.budgets.max_tables,
         "adapter": "loopback_http_local_dev",
         "namespace": "pg-builder",
         "purpose": "generate",
@@ -82,13 +83,13 @@ pub fn builder_config(project: &ProjectCfg, catalog_bin: &str) -> Value {
         "secret": {"bearer_file": project.llm.bearer_file},
         "budget": {
             "deadline_ms": generate_deadline_ms(&project.llm.origin),
-            "max_completion_tokens": 8192,
+            "max_completion_tokens": 40000,
             "max_in_flight": 1,
             "max_prompt_tokens": 100000,
             "max_request_bytes": 262144,
             "max_response_bytes": 262144,
             "max_tables": 16,
-            "max_total_tokens": 108192
+            "max_total_tokens": 140000
         },
         "declared_price": {"status": "unknown"},
         "postgres": {
@@ -130,6 +131,8 @@ mod tests {
 
     fn project(origin: &str) -> ProjectCfg {
         ProjectCfg {
+            library: None,
+            budgets: Default::default(),
             project_id: "p".into(),
             config_commit: "c".into(),
             source_ref: "s".into(),
@@ -213,7 +216,7 @@ pub fn preview_classification(
         if pii == "unknown" {
             return Err(ApiError::pii_unknown());
         }
-        if !matches!(pii.as_str(), "none" | "personal" | "sensitive") {
+        if !crate::corebind::core_pii_level(pii) {
             return Err(ApiError::malformed());
         }
         if !visible.iter().any(|item| item == object_id) {
@@ -229,4 +232,16 @@ pub fn preview_classification(
         ready,
         hidden: hidden_out,
     })
+}
+
+pub fn preview_library_classification(
+    visible: &[String], hidden: &[String], items: &[(String, String)], accept_all: bool,
+) -> Result<ClassPreview, ApiError> {
+    if items.is_empty() { return Err(ApiError::classification_incomplete()); }
+    let mut selected = Vec::new();
+    for (id, _) in items {
+        if !visible.contains(id) || selected.contains(id) { return Err(ApiError::membership()); }
+        selected.push(id.clone());
+    }
+    preview_classification(&selected, hidden, items, accept_all)
 }

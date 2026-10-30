@@ -1,0 +1,42 @@
+{
+ "protocol": "oo.pipeline.c1-parts/v2",
+ "parts": [
+  {
+   "part_no": 1,
+   "kind": "fill",
+   "key_lo": "1",
+   "key_hi": "3",
+   "rows": 3,
+   "bytes": 928,
+   "sha256": "d6a2f5671490b7e52a22f08cd46bf7e406c7e914e8f89848af9eaa577c39cbc2"
+  },
+  {
+   "part_no": 2,
+   "kind": "fill",
+   "key_lo": "10",
+   "key_hi": "11",
+   "rows": 2,
+   "bytes": 880,
+   "sha256": "0cbaeac968babe61155dbfda49a55613717d8967d9ed1f8300d671f0bce1f100"
+  },
+  {
+   "part_no": 3,
+   "kind": "fill",
+   "key_lo": null,
+   "key_hi": null,
+   "rows": 0,
+   "bytes": 736,
+   "sha256": "3ffc5ba0f97269feaf6321869118836a622ad8c8f8086005728ce67b16725a93"
+  },
+  {
+   "part_no": 1,
+   "kind": "cdc",
+   "key_lo": "1",
+   "key_hi": "3",
+   "rows": 3,
+   "bytes": 1232,
+   "sha256": "71ae8ffea1fb7bfb2ef7df906f9c228b554add1a5ac1168f9b86aaa75ac459a7"
+  }
+ ],
+ "parts_digest": "a585f74b2bb254465defb6e4d4f58e1ca8793a4a678b8d7a349cd4aa6dd07127"
+}

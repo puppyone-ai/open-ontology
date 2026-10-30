@@ -12,8 +12,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use oo_gateway::policy::catalog::{
-    AGGREGATE_STAR_NAME, COMPARISON_OPERATORS, COMPARISON_SIGNATURES, CatalogError, CatalogLimits,
-    UnknownRows, load_policy_catalog,
+    AGGREGATE_STAR_NAME, ARITHMETIC_OPERATORS, ARITHMETIC_SIGNATURES, COMPARISON_OPERATORS,
+    COMPARISON_SIGNATURES, CatalogError, CatalogLimits, UnknownRows, load_policy_catalog,
+    required_operator_count,
 };
 use oo_gateway::query_executor::{
     Admission, AuditAdmission, Cell, CompletionRecord, CompletionStatus, DedicatedSession,
@@ -383,7 +384,7 @@ impl Live {
         assert!(clerk.functions[0].aggregate_star);
         assert_eq!(
             clerk.operators.len(),
-            COMPARISON_OPERATORS.len() * COMPARISON_SIGNATURES.len()
+            required_operator_count()
         );
         self.assert_type_oids(&clerk).await;
         self.assert_operator_oids(&clerk).await;
@@ -571,7 +572,8 @@ impl Live {
                 .await;
             match kind {
                 "function" => assert!(
-                    matches!(err, ExecError::Guard(inner) if matches!(inner.as_ref(), GuardError::FunctionNotAllowed)),
+                    matches!(err, ExecError::Guard(inner) if matches!(inner.as_ref(),
+                        GuardError::FunctionNotAllowed | GuardError::SignatureNotAllowed { .. })),
                     "{sql}"
                 ),
                 "write" => assert!(
@@ -779,7 +781,8 @@ impl Live {
             )
             .await;
         assert!(
-            matches!(err, ExecError::Guard(inner) if matches!(inner.as_ref(), GuardError::FunctionNotAllowed))
+            matches!(err, ExecError::Guard(inner) if matches!(inner.as_ref(),
+                GuardError::FunctionNotAllowed | GuardError::SignatureNotAllowed { .. }))
         );
         session.close();
         self.oracle.fact("touch_admitted", "no");
@@ -950,12 +953,22 @@ impl Live {
                 .expect("right type")
                 .clone();
             let looked = self.operator_oids(&operator.name, &left, &right).await;
-            assert_eq!(looked, (operator.oid, operator.procedure_oid));
+            assert_eq!(looked, (operator.oid, operator.procedure_oid, operator.result_type_oid));
             assert_eq!(operator.schema, "pg_catalog");
             if left == "date" && right == "date" {
                 assert_ne!(operator.oid, operator.procedure_oid);
             }
             seen.insert((operator.name.clone(), left, right));
+        }
+        for (left, right, result) in ARITHMETIC_SIGNATURES {
+            for name in ARITHMETIC_OPERATORS {
+                let operator = catalog.operators.iter().find(|operator| {
+                    operator.name == *name
+                        && names[&operator.left_type_oid] == *left
+                        && names[&operator.right_type_oid] == *right
+                }).expect("arithmetic signature");
+                assert_eq!(names[&operator.result_type_oid], *result);
+            }
         }
         for (left, right) in COMPARISON_SIGNATURES {
             for name in COMPARISON_OPERATORS {
@@ -993,11 +1006,11 @@ impl Live {
             catalog
                 .operators
                 .iter()
-                .all(|operator| operator.oid != plus)
+                .any(|operator| operator.oid == plus && operator.result_type_oid == int4)
         );
         self.oracle.fact("pg_sleep_admitted", "no");
         self.oracle.fact("count_arg_admitted", "no");
-        self.oracle.fact("plus_admitted", "no");
+        self.oracle.fact("plus_admitted", "yes");
     }
 
     async fn attribute_type(&self, physical: &str) -> u32 {
@@ -1051,11 +1064,11 @@ impl Live {
             .collect()
     }
 
-    async fn operator_oids(&self, name: &str, left: &str, right: &str) -> (u32, u32) {
+    async fn operator_oids(&self, name: &str, left: &str, right: &str) -> (u32, u32, u32) {
         let rows = self
             .admin
             .query(
-                "SELECT operator.oid::int4, operator.oprcode::oid::int4 \
+                "SELECT operator.oid::int4, operator.oprcode::oid::int4, operator.oprresult::int4 \
                  FROM pg_catalog.pg_operator AS operator \
                  JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = operator.oprnamespace \
                  JOIN pg_catalog.pg_type AS left_type ON left_type.oid = operator.oprleft \
@@ -1067,7 +1080,7 @@ impl Live {
             .await
             .expect("operator oid");
         assert_eq!(rows.len(), 1, "operator {name} {left} {right}");
-        (oid_u32(rows[0].get(0)), oid_u32(rows[0].get(1)))
+        (oid_u32(rows[0].get(0)), oid_u32(rows[0].get(1)), oid_u32(rows[0].get(2)))
     }
 
     async fn count_star_oid(&self) -> u32 {
@@ -1234,7 +1247,7 @@ fn limits(unknown_rows: UnknownRows) -> CatalogLimits {
         max_tables: 4,
         max_columns: 64,
         max_functions: 1,
-        max_operators: u32::try_from(COMPARISON_OPERATORS.len() * COMPARISON_SIGNATURES.len())
+        max_operators: u32::try_from(required_operator_count())
             .expect("operator count"),
         large_table_row_threshold: 1_000_000,
         unknown_rows,

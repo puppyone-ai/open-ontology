@@ -778,6 +778,12 @@ pub async fn list_members(endpoint: &Endpoint, build_id: &str) -> Result<Vec<cra
         .collect())
 }
 
+pub async fn find_member(endpoint:&Endpoint,build_id:&str,object_id:&str)->Result<Option<crate::membership::Member>,ApiError> {
+    let client=connect(endpoint).await?;
+    let row=client.query_opt("SELECT project_id,object_id,object_kind,schema_name,table_name,column_name,candidate_sha256,source_sha256,schema_sha256,evidence_sha256,generation_sha256 FROM oo_selfbuild_api.member WHERE build_id=$1 AND object_id=$2",&[&build_id,&object_id]).await.map_err(|_|ApiError::not_ready())?;
+    Ok(row.map(|r|crate::membership::Member {project_id:r.get(0),object_id:r.get(1),object_kind:r.get(2),schema_name:r.get(3),table_name:r.get(4),column_name:r.get(5),candidate_sha256:r.get(6),source_sha256:r.get(7),schema_sha256:r.get(8),evidence_sha256:r.get(9),generation_sha256:r.get(10)}))
+}
+
 #[derive(Clone, Debug)]
 pub struct StoredDecision {
     pub body_sha256: String,
@@ -1149,4 +1155,20 @@ pub async fn new_build_id() -> Result<String, ApiError> {
         out.push(char::from(b"0123456789abcdef"[(byte & 0x0f) as usize]));
     }
     Ok(out)
+}
+
+pub async fn install_library_overlay_capacity(config:&crate::config::AppConfig)->Result<(),ApiError>{
+    let projects=config.projects.iter().filter(|p|p.library.is_some()).collect::<Vec<_>>();
+    if projects.is_empty(){return Ok(());}
+    let max=i32::try_from(config.budgets.max_document_bytes).map_err(|_|ApiError::malformed())?;
+    if !(1_000_000..=67_108_864).contains(&max){return Err(ApiError::malformed());}
+    let mut client=connect(&config.postgres).await?;
+    let tx=client.transaction().await.map_err(|_|ApiError::not_ready())?;
+    tx.query_one("SELECT pg_advisory_xact_lock(6404202699)",&[]).await.map_err(|_|ApiError::not_ready())?;
+    let sql=include_str!("../migrations/oo_library_overlay_v2.sql");let sha=sha256_hex(sql.as_bytes());
+    let exists:bool=tx.query_one("SELECT to_regclass('oo_selfbuild_api.library_overlay_manifest') IS NOT NULL",&[]).await.map_err(|_|ApiError::not_ready())?.get(0);
+    if !exists {tx.batch_execute(sql).await.map_err(|_|ApiError::not_ready())?;tx.execute("INSERT INTO oo_selfbuild_api.library_overlay_manifest VALUES(true,$1)",&[&sha]).await.map_err(|_|ApiError::not_ready())?;}
+    else {let stored:String=tx.query_one("SELECT sql_sha256 FROM oo_selfbuild_api.library_overlay_manifest WHERE singleton",&[]).await.map_err(|_|ApiError::not_ready())?.get(0);if stored!=sha{return Err(ApiError::membership());}}
+    for project in projects {tx.execute("INSERT INTO oo_selfbuild_api.library_overlay_limits(project_id,max_bytes)VALUES($1,$2) ON CONFLICT(project_id)DO UPDATE SET max_bytes=GREATEST(library_overlay_limits.max_bytes,EXCLUDED.max_bytes)",&[&project.project_id,&max]).await.map_err(|_|ApiError::not_ready())?;}
+    tx.commit().await.map_err(|_|ApiError::not_ready())
 }

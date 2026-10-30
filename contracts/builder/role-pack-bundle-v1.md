@@ -73,7 +73,7 @@ The output is one canonical JSON object, sorted keys, no trailing newline. `pack
 | `mount` | `not_performed` |
 | `samples` | `omitted` |
 | `domains` | `unsupported` |
-| `file_splitting` | `unsupported` |
+| `file_splitting` | compiler value: `unsupported`, `relationship_pages`, `metric_pages`, or `relationship_and_metric_pages` |
 | `search` | `unsupported` |
 | `row_security_reproven` | false |
 | `tokens_status` | `tokens.status`, which must be `unsupported` |

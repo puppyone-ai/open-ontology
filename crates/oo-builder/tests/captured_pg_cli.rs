@@ -20,9 +20,8 @@ fn bin() -> Command {
 }
 
 fn fixture_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
-        "../../evidence/eef831aa-dba4-4af2-a78b-541bc9e0a157/SP07/captured-pg-draft-review/probe/out/catalog-before.json",
-    )
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/captured-pg-review/catalog-before.json")
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {

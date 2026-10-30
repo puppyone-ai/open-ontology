@@ -1,0 +1,115 @@
+// Writes the C1 chunked-baseline part fixtures for the T7 loader tests as Arrow IPC
+// streams (metadata V5, 8-byte alignment), the same options as oo-connectors
+// bounded_read.rs. oo-pipeline has no Arrow dependency and Cargo.lock must not
+// change, so this file is built as an example of a scratch copy of oo-connectors,
+// which already depends on arrow-ipc 60. Run it once; the outputs are committed:
+//   cp gen_apply_ipc.rs.txt <scratch>/crates/oo-connectors/examples/gen_c1_apply.rs
+//   cargo run --locked --offline -p oo-connectors --example gen_c1_apply -- fixtures <dir>
+//   cargo run --locked --offline -p oo-connectors --example gen_c1_apply -- bulk <dir> <rows> <value_bytes> <rows_per_part>
+use std::fs::{self, File};
+use std::path::Path;
+use std::sync::Arc;
+
+use arrow_array::{ArrayRef, Decimal128Array, Int64Array, RecordBatch, StringArray};
+use arrow_ipc::MetadataVersion;
+use arrow_ipc::writer::{IpcWriteOptions, StreamWriter};
+use arrow_schema::{DataType, Field, Schema};
+
+fn write(path: &Path, fields: Vec<Field>, columns: Vec<ArrayRef>) {
+    let schema = Arc::new(Schema::new(fields));
+    let batch = RecordBatch::try_new(schema.clone(), columns).expect("batch");
+    let options = IpcWriteOptions::try_new(8, false, MetadataVersion::V5).expect("options");
+    let file = File::create(path).expect("create");
+    let mut writer = StreamWriter::try_new_with_options(file, schema.as_ref(), options).expect("writer");
+    writer.write(&batch).expect("write");
+    writer.finish().expect("finish");
+}
+
+fn snapshot(path: &Path, ids: Vec<i64>, vals: Vec<Option<String>>) {
+    write(
+        path,
+        vec![Field::new("id", DataType::Int64, false), Field::new("val", DataType::Utf8, true)],
+        vec![
+            Arc::new(Int64Array::from(ids)) as ArrayRef,
+            Arc::new(StringArray::from(vals)) as ArrayRef,
+        ],
+    );
+}
+
+fn cdc(path: &Path, ids: Vec<i64>, vals: Vec<Option<String>>, pos: Vec<i128>, ops: Vec<&str>) {
+    write(
+        path,
+        vec![
+            Field::new("id", DataType::Int64, false),
+            Field::new("val", DataType::Utf8, true),
+            Field::new("_oo_pos", DataType::Decimal128(38, 0), false),
+            Field::new("_oo_op", DataType::Utf8, false),
+        ],
+        vec![
+            Arc::new(Int64Array::from(ids)) as ArrayRef,
+            Arc::new(StringArray::from(vals)) as ArrayRef,
+            Arc::new(Decimal128Array::from(pos).with_precision_and_scale(38, 0).expect("scale")) as ArrayRef,
+            Arc::new(StringArray::from(ops)) as ArrayRef,
+        ],
+    );
+}
+
+fn s(text: &str) -> Option<String> {
+    Some(text.to_string())
+}
+
+fn fixtures(dir: &Path) {
+    fs::create_dir_all(dir).expect("dir");
+    // Chunk 1: keys (-inf, 3]. Key 3 has a NULL value.
+    snapshot(&dir.join("fill-00000001.arrow"), vec![1, 2, 3], vec![s("one"), s("two"), None]);
+    // Chunk 2: keys (3, 7].
+    snapshot(&dir.join("fill-00000002.arrow"), vec![5, 7], vec![s("five"), s("seven")]);
+    // Batch 1: positions 101..103 (L0 = 100). Txn 101 updates 2 and deletes 3.
+    // Txn 102 deletes 5 and inserts 9. Txn 103 is a primary-key change: 1 -> 11.
+    cdc(
+        &dir.join("cdc-00000001.arrow"),
+        vec![2, 3, 5, 9, 1, 11],
+        vec![s("TWO"), None, None, s("nine"), None, s("eleven")],
+        vec![101, 101, 102, 102, 103, 103],
+        vec!["upsert", "delete", "delete", "upsert", "delete", "upsert"],
+    );
+}
+
+fn bulk(dir: &Path, rows: i64, value_bytes: usize, rows_per_part: i64) {
+    fs::create_dir_all(dir).expect("dir");
+    let mut part = 1i64;
+    let mut key = 1i64;
+    while key <= rows {
+        let last = (key + rows_per_part - 1).min(rows);
+        let ids: Vec<i64> = (key..=last).collect();
+        let vals: Vec<Option<String>> = ids
+            .iter()
+            .map(|id| {
+                let stamp = format!("{id:020}|");
+                let mut text = String::with_capacity(value_bytes);
+                while text.len() < value_bytes {
+                    text.push_str(&stamp);
+                }
+                text.truncate(value_bytes);
+                Some(text)
+            })
+            .collect();
+        snapshot(&dir.join(format!("fill-{part:08}.arrow")), ids, vals);
+        part += 1;
+        key = last + 1;
+    }
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    match args.get(1).map(String::as_str) {
+        Some("fixtures") => fixtures(Path::new(&args[2])),
+        Some("bulk") => bulk(
+            Path::new(&args[2]),
+            args[3].parse().expect("rows"),
+            args[4].parse().expect("value_bytes"),
+            args[5].parse().expect("rows_per_part"),
+        ),
+        _ => panic!("usage: gen_c1_apply fixtures <dir> | bulk <dir> <rows> <value_bytes> <rows_per_part>"),
+    }
+}

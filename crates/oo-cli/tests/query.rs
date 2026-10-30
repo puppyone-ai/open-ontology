@@ -105,13 +105,16 @@ fn assert_query(hit: &common::Hit, sql: &str, max_rows: Option<u32>, timeout_ms:
     assert_eq!(hit.one("accept"), Some("application/json"));
     assert_eq!(hit.one("user-agent"), Some("oo-sdk/0.1"));
     assert!(hit.one("proxy-authorization").is_none());
-    let expected = canonical_request(sql, max_rows, timeout_ms);
-    assert_eq!(hit.body, expected);
     let text = std::str::from_utf8(&hit.body).expect("utf8");
     let parsed = parse_api_json::<QueryRequest>(text, quiet).expect("request door");
+    let effective = parsed.timeout_ms.expect("SDK sends a bounded server budget");
+    let ceiling = timeout_ms.unwrap_or(28_500).min(28_500);
+    assert!(effective > 0 && effective <= ceiling);
+    assert!(ceiling.saturating_sub(effective) <= 100, "unexpected first-attempt budget loss");
+    let expected = canonical_request(sql, max_rows, Some(effective));
+    assert_eq!(hit.body, expected);
     assert_eq!(parsed.sql.as_str(), sql);
     assert_eq!(parsed.max_rows, max_rows);
-    assert_eq!(parsed.timeout_ms, timeout_ms);
     assert!(parsed.client_context.is_none());
     assert!(
         !hit.body
@@ -150,7 +153,16 @@ async fn help_and_usage_open_no_socket() {
     assert!(text.contains("--auth external"));
     assert!(text.contains("oo tables"));
     assert!(text.contains("oo knowledge cat"));
-    assert!(text.contains("export, config, and mcp are not implemented"));
+    assert!(text.contains("oo help [command [subcommand]]"));
+    for flag in ["--gateway", "--transport", "--auth", "--token-file", "--token-stdin",
+                 "--ca-file", "--client-pem", "--max-rows", "--timeout-ms", "--path-prefix",
+                 "--offset", "--limit", "--summary", "--json"] {
+        assert!(text.contains(flag), "missing help for {flag}");
+    }
+    assert!(text.contains("Numeric and bigint query cells are exact JSON strings"));
+    assert!(text.contains("TIMESTAMP '2026-01-01 00:00:00'"));
+    assert!(text.contains("TIMESTAMPTZ '2026-01-01 00:00:00+00:00'"));
+    assert!(text.contains("not implicit casts"));
 
     let query_help = finish(
         &scratch,
@@ -214,9 +226,9 @@ async fn help_and_usage_open_no_socket() {
             "duplicate flag",
         ),
         (
-            vec!["query", "--token-file=SECRETVALUEA095", "select 1"],
+            vec!["query", "--json=SECRETVALUEA095", "select 1"],
             2,
-            "flags do not take equals values",
+            "this flag does not accept an equals value",
         ),
         (
             vec!["query", "--SECRETVALUEA095", "select 1"],
@@ -275,7 +287,7 @@ async fn help_and_usage_open_no_socket() {
     assert!(text_missing.stdout.is_empty());
     assert_eq!(
         String::from_utf8(text_missing.stderr).unwrap(),
-        "error: usage sql is missing\nretryable: false\nretry_outcome: not_applicable\nretry_policy: max_extra_attempts=3 max_wait_ms=2000 nested_cli_retries=0 attempt_count=unknown\n"
+        "error: usage sql is missing\nhint: Supply one quoted SQL argument; oo query also accepts -f <file.sql>. See oo help <command>.\nretryable: false\nretry_outcome: not_applicable\nretry_policy: max_extra_attempts=3 max_wait_ms=2000 nested_cli_retries=0 attempt_count=unknown\n"
     );
 
     let bare = finish(&scratch, Spec::new(&scratch, Vec::new()), Some(&door)).await;
@@ -288,8 +300,138 @@ async fn help_and_usage_open_no_socket() {
         Some(&door),
     )
     .await;
-    assert_eq!(export_help.code, 0);
-    assert!(String::from_utf8_lossy(&export_help.stdout).contains("not implemented"));
+    assert_eq!(export_help.code, 2);
+    assert!(export_help.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&export_help.stderr).contains("oo --help"));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn describe_forwards_runtime_query_capabilities_without_rewriting_them() {
+    let scratch = Scratch::new();
+    let body = r#"{"table":"sales.payments","columns":["amount"],"column_details":[{"name":"amount","type":"numeric","type_oid":1700}],"query_capabilities":{"version":"gateway.query-capabilities.v1","status":"available","source":"runtime_policy_catalog","functions":[{"name":"sum","argument_types":["numeric"],"aggregate_star":false}],"operators":[{"name":">=","left_type":"timestamp","right_type":"timestamp"}]}}"#;
+    let oracle = Oracle::spawn({
+        let payload = json_response(200, "OK", body, &[]);
+        move |_, _| Action::Raw(payload.clone())
+    })
+    .await;
+    let outcome = finish(
+        &scratch,
+        Spec::new(
+            &scratch,
+            vec![
+                "describe".into(), "--json".into(), "sales.payments".into(),
+                "--auth".into(), "external".into(),
+                format!("--token-file={}", scratch.token_path.display()),
+                format!("--gateway={}", oracle.origin()),
+                "--transport".into(), "local-development".into(),
+            ],
+        ),
+        None,
+    )
+    .await;
+    assert_eq!(outcome.code, 0, "{}", String::from_utf8_lossy(&outcome.stderr));
+    let output: serde_json::Value = serde_json::from_slice(&outcome.stdout).unwrap();
+    assert_eq!(output, serde_json::from_str::<serde_json::Value>(body).unwrap());
+    let hits = oracle.hits();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].method, "GET");
+    assert_eq!(hits[0].path, "/v1/tables/sales.payments");
+    assert!(outcome.stderr.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn describe_human_is_readable_without_losing_columns_or_warnings() {
+    let scratch = Scratch::new();
+    let body = r#"{"table":"sales.payments","columns":["id","amount"],"column_details":[{"name":"id","type":"int8","type_oid":20},{"name":"amount","type":"numeric","type_oid":1700}],"warnings":[{"code":"CROSS_TABLE_SKEW"}],"query_capabilities":{"status":"unavailable","reason":"catalog_unavailable"}}"#;
+    let oracle = Oracle::spawn({
+        let payload = json_response(200, "OK", body, &[]);
+        move |_, _| Action::Raw(payload.clone())
+    }).await;
+    let outcome = finish(&scratch, Spec::new(&scratch, vec![
+        "describe".into(), "--human".into(), "sales.payments".into(), "--auth".into(), "external".into(),
+        "--token-file".into(), scratch.token_path.display().to_string(),
+        "--gateway".into(), oracle.origin(), "--transport".into(), "local-development".into(),
+    ]), None).await;
+    assert_eq!(outcome.code, 0);
+    let text = String::from_utf8(outcome.stdout).unwrap();
+    assert!(text.starts_with("# sales.payments\n"));
+    for expected in ["2 visible columns", "| id | int8 |", "| amount | numeric |",
+                     "CROSS_TABLE_SKEW", "catalog_unavailable", "oo describe --json"] {
+        assert!(text.contains(expected), "{text}");
+    }
+    assert_eq!(oracle.hits().len(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn describe_pipe_without_json_preserves_existing_agent_scripts() {
+    let scratch = Scratch::new();
+    let body = r#"{"table":"sales.payments","columns":["id"],"column_details":[{"name":"id","type":"int8","type_oid":20}],"query_capabilities":{"status":"unavailable","reason":"catalog_unavailable"}}"#;
+    let oracle = Oracle::spawn({
+        let payload = json_response(200, "OK", body, &[]);
+        move |_, _| Action::Raw(payload.clone())
+    }).await;
+    let outcome = finish(&scratch, Spec::new(&scratch, vec![
+        "describe".into(), "sales.payments".into(), "--auth".into(), "external".into(),
+        "--token-file".into(), scratch.token_path.display().to_string(),
+        "--gateway".into(), oracle.origin(), "--transport".into(), "local-development".into(),
+    ]), None).await;
+    assert_eq!(outcome.code, 0);
+    assert_eq!(serde_json::from_slice::<serde_json::Value>(&outcome.stdout).unwrap(),
+        serde_json::from_str::<serde_json::Value>(body).unwrap());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn search_options_reach_gateway_and_old_first_pages_cannot_fake_pagination() {
+    let scratch = Scratch::new();
+    for (body, succeeds) in [
+        (r#"{"hits":[],"total":20,"offset":20,"limit":5,"has_more":false,"next_offset":null}"#, true),
+        (r#"{"hits":[],"knowledge_version":"old"}"#, false),
+    ] {
+        let oracle = Oracle::spawn({
+            let payload = json_response(200, "OK", body, &[]);
+            move |_, _| Action::Raw(payload.clone())
+        }).await;
+        let outcome = finish(&scratch, Spec::new(&scratch, vec![
+            "knowledge".into(), "search".into(), "orders".into(), "--json".into(),
+            "--path-prefix".into(), "tables/".into(), "--offset".into(), "20".into(),
+            "--limit".into(), "5".into(), "--auth".into(), "external".into(),
+            "--token-file".into(), scratch.token_path.display().to_string(),
+            "--gateway".into(), oracle.origin(), "--transport".into(), "local-development".into(),
+        ]), None).await;
+        assert_eq!(outcome.code == 0, succeeds);
+        let hits = oracle.hits();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "/v1/knowledge/search");
+        assert_eq!(serde_json::from_slice::<serde_json::Value>(&hits[0].body).unwrap(),
+            serde_json::json!({"q":"orders", "path_prefix":"tables/", "offset":20, "limit":5}));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn validate_and_query_keep_signature_diagnostics_and_do_not_retry() {
+    let scratch = Scratch::new();
+    let hint = "phase=signature_binding; expression=operator; byte_offset=62; argument_types=[timestamp,text]";
+    let body = serde_json::json!({"error": {
+        "code": "FUNCTION_NOT_ALLOWED", "message": "operator signature is not allowed",
+        "hint": hint, "retryable": false
+    }}).to_string();
+    for command in ["validate", "query"] {
+        let oracle = Oracle::spawn({
+            let payload = json_response(400, "Bad Request", &body, &[]);
+            move |_, _| Action::Raw(payload.clone())
+        }).await;
+        let mut argv = args(&scratch, &oracle.origin(), "local-development",
+            &["--json", "SELECT 1"]);
+        argv[0] = command.into();
+        let outcome = finish(&scratch, Spec::new(&scratch, argv), None).await;
+        assert_eq!(outcome.code, 2);
+        let output: serde_json::Value = serde_json::from_slice(&outcome.stdout).unwrap();
+        assert_eq!(output["code"], "FUNCTION_NOT_ALLOWED");
+        assert_eq!(output["hint"], hint);
+        assert_eq!(output["retryable"], false);
+        assert!(output.get("query_id").is_none());
+        assert_eq!(oracle.hits().len(), 1);
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -677,6 +819,7 @@ async fn renders_sdk_fixtures_and_independent_bytes() {
         include_bytes!("../../../contracts/cli/query/fixtures/response-extrema.md")
     );
     let markdown = String::from_utf8(outcome.stdout).unwrap();
+    assert!(markdown.starts_with("WARNING: Incomplete result (truncated)."));
     assert!(!markdown.contains("424242"));
     assert!(!markdown.contains("estimated_total_rows"));
     assert!(markdown.contains("-- truncated: true"));
@@ -778,10 +921,10 @@ async fn limits_file_stdin_and_dash_sql_match_the_wire() {
     let hits = oracle.hits();
     assert_eq!(hits.len(), 1);
     assert_query(&hits[0], "select 1", Some(10), Some(1000));
-    assert_eq!(
-        hits[0].body,
-        include_bytes!("../../../contracts/cli/query/fixtures/request-limits.wire.json")
-    );
+    let mut actual: serde_json::Value = serde_json::from_slice(&hits[0].body).unwrap();
+    actual["timeout_ms"] = 1000.into();
+    assert_eq!(serde_json::to_vec(&actual).unwrap(),
+        include_bytes!("../../../contracts/cli/query/fixtures/request-limits.wire.json"));
 
     let sql_path = scratch.dir.join("query.sql");
     std::fs::write(&sql_path, "select 1").unwrap();
@@ -1597,6 +1740,66 @@ async fn tls_cases(scratch: &Scratch) {
     assert!(oracle.hits().is_empty());
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn explicit_route_reaches_every_cli_call_and_keeps_tls_checks() {
+    let scratch = Scratch::new();
+    let cert = include_str!("../../../contracts/sdk/json-query/fixtures/tls/localhost.pem");
+    let key = include_str!("../../../contracts/sdk/json-query/fixtures/tls/localhost.key");
+    let interface = if cfg!(target_os = "macos") { "lo0" } else { "lo" };
+    let ca = sdk_tls("ca.pem");
+    for (command, input, path) in [
+        (vec!["query"], Some("select 1"), "/v1/query"),
+        (vec!["tables"], None, "/v1/tables"),
+        (vec!["describe"], Some("app.items"), "/v1/tables/app.items"),
+        (vec!["validate"], Some("select 1"), "/v1/sql/validate"),
+        (vec!["sql", "validate"], Some("select 1"), "/v1/sql/validate"),
+        (vec!["freshness"], None, "/v1/freshness"),
+        (vec!["knowledge", "cat"], Some("README.md"), "/v1/knowledge/README.md"),
+        (vec!["knowledge", "search"], Some("orders"), "/v1/knowledge/search"),
+        (vec!["status"], Some("q_abc123"), "/v1/queries/q_abc123"),
+        (vec!["cancel"], Some("q_abc123"), "/v1/queries/q_abc123/cancel"),
+        (vec!["operations"], None, "/v1/operations"),
+    ] {
+        let oracle = tls_oracle(cert, key, json_response(200, "OK", EMPTY, &[])).await;
+        let url = format!("https://localhost:{}/", oracle.port);
+        let flags = args(&scratch, &url, "production", &[
+            "--json", "--ca-file", ca.to_str().unwrap(),
+            "--connect-ip", "127.0.0.1", "--interface", interface,
+        ]);
+        let mut argv: Vec<String> = command.iter().map(|part| (*part).to_owned()).collect();
+        argv.extend_from_slice(&flags[1..]);
+        if let Some(input) = input {
+            argv.push(input.to_owned());
+        }
+        let outcome = finish(&scratch, Spec::new(&scratch, argv), None).await;
+        assert_eq!(outcome.code, 0, "{command:?}: {}", String::from_utf8_lossy(&outcome.stdout));
+        let hits = oracle.hits();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, path);
+        assert_eq!(hits[0].one("host"), Some(format!("localhost:{}", oracle.port).as_str()));
+        assert_eq!(hits[0].one("authorization"), Some(format!("Bearer {TOKEN}").as_str()));
+    }
+
+    for command in ["query", "tables"] {
+        for (host, interface) in [("wrong-name.invalid", interface), ("localhost", "oo-missing0")] {
+            let oracle = tls_oracle(cert, key, json_response(200, "OK", EMPTY, &[])).await;
+            let mut argv = args(
+                &scratch, &format!("https://{host}:{}/", oracle.port), "production",
+                &["--json", "--ca-file", ca.to_str().unwrap(),
+                  "--connect-ip", "127.0.0.1", "--interface", interface],
+            );
+            argv[0] = command.to_owned();
+            if command == "query" {
+                argv.push("select 1".to_owned());
+            }
+            let outcome = finish(&scratch, Spec::new(&scratch, argv), None).await;
+            assert_eq!(outcome.code, 4, "{command}: {}", String::from_utf8_lossy(&outcome.stdout));
+            assert!(oracle.hits().is_empty());
+        }
+    }
+}
+
 struct TlsOracle {
     port: u16,
     hits: Arc<std::sync::Mutex<Vec<common::Hit>>>,
@@ -1984,5 +2187,5 @@ async fn file_bounds_and_links_stay() {
     assert!(outcome.signal.is_none());
     assert_eq!(oracle.hits().len(), 1);
     let text = std::str::from_utf8(&sql).unwrap();
-    assert_eq!(oracle.hits()[0].body, canonical_request(text, None, None));
+    assert_query(&oracle.hits()[0], text, None, None);
 }

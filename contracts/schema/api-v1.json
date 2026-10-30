@@ -373,7 +373,7 @@
                   "type": "boolean"
                 },
                 {
-                  "maxLength": 500,
+                  "maxLength": 1048576,
                   "type": "string"
                 }
               ]
@@ -476,6 +476,12 @@
     "Warning": {
       "additionalProperties": false,
       "properties": {
+        "c5_mode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "code": {
           "$ref": "#/$defs/WarningCode"
         },
@@ -499,10 +505,22 @@
             "null"
           ]
         },
+        "last_full_digest_scan_completed_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "message": {
           "maxLength": 2000,
           "pattern": "^[^\\u{0}]*$",
           "type": "string"
+        },
+        "recent_window_watermark": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "rows": {
           "default": null,
@@ -533,6 +551,7 @@
     },
     "WarningCode": {
       "enum": [
+        "DELETES_LAGGED",
         "RECONCILE_MISMATCH",
         "RECONCILE_STALE",
         "VALUES_REJECTED",

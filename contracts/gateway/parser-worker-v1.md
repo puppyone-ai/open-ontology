@@ -1,6 +1,10 @@
 # Parser worker
 
-Contract `oo.gateway.parser-worker/v1`. Library `oo_gateway::parser_worker`. Binary `oo-sql-parser-worker`.
+Contract `oo.gateway.parser-worker/v2` (document path retained). Library `oo_gateway::parser_worker`. Binary `oo-sql-parser-worker`.
+
+Wire v2 adds the required operator result OID. Deploy parent and worker
+together. V1 frames are rejected before body decoding; missing result types
+are never inferred as bool. Plans and refusal payloads retain their layouts.
 
 The parent sends one request frame. A fresh child calls `guard_select` and writes one plan frame or one refusal frame. The parent does not parse SQL and does not return the original text as a plan. The wire format is this document. It does not use serde or bincode.
 
@@ -53,12 +57,12 @@ Little-endian. No padding. Lengths are byte lengths.
 | Offset | Field |
 |---|---|
 | 0 | 4 bytes ASCII `OOSW` |
-| 4 | `u16` version, must be 1 |
+| 4 | `u16` version, must be 2 |
 | 6 | `u16` kind |
 | 8 | `u32` body length |
 | 12 | body |
 
-The buffer length must equal 12 plus the body length. A longer buffer is trailing and is rejected. Version other than 1 is rejected before the body is decoded. A body length above 8 MiB (`MAX_FRAME_BODY`) is rejected before the body is allocated.
+The buffer length must equal 12 plus the body length. A longer buffer is trailing and is rejected. Version other than 2 is rejected before the body is decoded. A body length above 8 MiB (`MAX_FRAME_BODY`) is rejected before the body is allocated.
 
 | Kind | Value | Direction |
 |---|---|---|
@@ -108,7 +112,7 @@ Catalog:
 
 `ResolvedFunction`: `oid` `u32`, schema, name (ident), argument type OIDs (100 `u32`s), `aggregate_star` flag.
 
-`ResolvedOperator`: `oid` `u32`, `procedure_oid` `u32`, schema, name (ident), `left_type_oid` `u32`, `right_type_oid` `u32`.
+`ResolvedOperator`: `oid` `u32`, `procedure_oid` `u32`, schema, name (ident), `left_type_oid` `u32`, `right_type_oid` `u32`, `result_type_oid` `u32`.
 
 ## Plan body
 
@@ -166,10 +170,16 @@ One `u8` tag, then the payload. The original SQL is not a field.
 | 14 | ColumnNotAllowed | string list (512 labels, 256 bytes each), `pending` `u32`, `ambiguous` flag |
 | 15 | Unqualified | optional suggestion, 256 bytes |
 | 16 | CostTooHigh | relation string, 256 bytes |
+| 17 | SignatureNotAllowed | `operator` flag, argument type OID list (8 `u32`s), byte position `i32` |
+
+Tag 17 preserves the public `FUNCTION_NOT_ALLOWED` code. Its payload identifies
+the binding phase and argument types, never SQL text, names or literal values.
+Older workers/parents do not understand this tag: deploy the parent and worker
+from the same build. Unknown tags remain rejected, not downgraded to a plan.
 
 A static label is a string of at most 64 bytes that is exactly one entry in the list for that variant. The decoder returns the `'static` string from that list.
 
-Catalog reasons: `duplicate column`, `duplicate function`, `duplicate operator`, `duplicate relation`, `empty column list`, `function oid`, `function schema`, `identifier`, `identity`, `operator name`, `operator oid`, `physical schema`, `relation schema`, `type oid`.
+Catalog reasons: `duplicate column`, `duplicate function`, `duplicate operator`, `duplicate relation`, `empty column list`, `function oid`, `function schema`, `identifier`, `identity`, `operator name`, `operator oid`, `operator signature`, `physical schema`, `relation schema`, `type oid`.
 
 Serialize reasons: `deparse`, `fingerprint`, `idempotent`, `reparse`, `recheck`, `second deparse`, `version`.
 

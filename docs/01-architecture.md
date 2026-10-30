@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-09
+> Last reviewed: 2026-10-21
 > 依赖：[00 愿景与范围](00-vision-and-scope.md)
 
 ## 1. 分层总览
@@ -115,15 +115,21 @@ OO由一个控制面和七个数据/访问层组成。控制面负责配置、�
 
 ```text
 table_ready / schema_changed / 定时 / 手动
-   ──▶ Builder：catalog 内省 → 数据画像（在 Agent DB 主库上限速执行）
-            → 关系推断 → 语义类型 → LLM 起草（描述/术语/候选指标/示例问题）
-            → 执行验证示例 SQL → 生成 Ontology Spec 草稿（带置信度与证据）
+   ──▶ Builder：catalog/DDL 与实际执行类型 → 完整观测门禁（Agent DB 上受预算约束）
+             → 范围化关系/字典证据 → 有界语义候选（保留 grain 和来源，模型不审批）
+             → 生成 Ontology Spec 草稿与冲突/覆盖账本
    ──▶ Git：以分支/PR 形式提交草稿（ontology/draft-<ts>）
-   ──▶ 控制台审核页：领域专家逐项确认/修改；未确认的低置信条目不进入发布版本
-   ──▶ 发布门禁：spec lint · 与 catalog 一致性检查 · 列分类/权限引用检查 · 指标控制总数/语义差异 · 名称生命周期 · 公开/客户评测回归
-   ──▶ 发布：打 tag ontology/vN → 编译 Knowledge Pack（Markdown + JSON）→ 存入对象存储
-   ──▶ 新会话使用 vN；进行中的会话继续使用会话开始时的版本
+   ──▶ 审核：语义决定、敏感性分类、角色授权分开；决定绑定证据版本
+   ──▶ effective OOS：逐类投影已批准内容；待审/拒绝有去向，不静默丢弃
+   ──▶ 候选角色 Pack：类型保真 · 引用闭包 · 当前 Gateway 能力校验/执行
+   ──▶ 业务门禁：独立对账 · 无表名提示的 CLI/模型题 · 逐指标就绪与缺口
+   ──▶ 技术发布：兼容的依赖资产/策略/库 head 与 Pack 原子绑定；保存不可变产物
+   ──▶ 新会话使用 vN；旧会话仅在版本仍兼容且授权仍有效时继续
 ```
+
+这是修订后的目标流，不是当前 Library 入口全部完成的声明。当前描述起草、观测 P0、角色编译与原子发布已有各自实现，但 enum/metric/example 审核闭环及业务门禁仍须逐项完成。状态向量、实施模块与验收见[整改方案](../../docs/semantic-query-chain-remediation-plan.md)。
+
+控制面承担跨表观测、证据审核和场景资产准备；Gateway 只做受权执行与准确诊断；Agent 消费已经发布的语义资产并澄清剩余歧义。一次问题不应重新全库扫描或重新发明财务口径。技术 `live` 不提升源时效/覆盖级别，也不自动批准业务指标。
 
 ### 4.3 问答流（一次用户提问）
 
@@ -162,7 +168,7 @@ table_ready / schema_changed / 定时 / 手动
 
 | 形态 | 适用 | 说明 |
 |---|---|---|
-| **All-in-one（Compose）** | PoC、中小库、单机 | 一台 8C/32G 以上的主机；Agent DB 可以单实例（从库可选，关闭时 Gateway 读主库并加严限流） |
+| **All-in-one（Compose）** | PoC、中小库、单机 | 一台 8C/32G 以上的主机；Agent DB 可以单实例（从库可选，关闭时 Gateway 读主库并加严限流；发布与就绪语义见 [ADR-021](02-technology-stack.md)） |
 | **Standard（Compose 多机 / K8s）** | 首个客户生产 | Agent DB 主从分机；沙盒独立节点池（gVisor）；Gateway ×2 以上 |
 | **Scaled（K8s + Helm）** | 大量源库/并发 | 缓冲切换为 Kafka/Redpanda；Agent DB 多从库；沙盒用 agent-sandbox / E2B 自托管 |
 
@@ -175,7 +181,7 @@ table_ready / schema_changed / 定时 / 手动
 | Agent 数据落在哪里 | 独立 PostgreSQL 副本，而不是直连源库或虚拟化查询 | 保护源库、统一方言、成熟的权限/超时/RLS |
 | 语义层真相源 | Git 中的结构化 Ontology Spec（YAML），Markdown 为编译产物 | 可 diff/review/回滚；可机检；可同时服务文件型 Agent 和 API 型 Agent |
 | Agent 如何读语义 | 文件系统（沙盒内）+ `read_knowledge`/`describe_table` API（沙盒外），渐进披露 | 文件+bash 是当前 harness 最擅长的交互方式；API 保证沙盒外可用 |
-| Agent 如何取数 | 自由只读 SQL（经 Gateway），而非预定义查询模板 | 长尾问题无法穷举；以门禁 + 数据库权限兜底 |
+| Agent 如何取数 | 当前能力子集内的只读 SQL；关键指标优先已审核 recipe/场景资产 | 长尾探索与稳定业务口径并存，不能仅靠安全门禁证明数值语义；见 ADR-031 |
 | 权限执行 | PG 角色 + RLS 为权威；应用层检查用于提前拒绝和可解释错误 | 应用层 SQL 分析不可能完备 |
 | 凭证 | 沙盒内零凭证；出口代理按沙盒身份注入 | 提示注入下也拿不到可复用凭证 |
 | 同步 | CDC 默认按源事务应用（降级带质量警告），批量兜底，每日对账 | 覆盖删除、低延迟，且可证明一致 |

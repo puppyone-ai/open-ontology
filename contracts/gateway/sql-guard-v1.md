@@ -22,6 +22,16 @@ A usable relation has a closed schema and name, at least one visible column, clo
 
 Function entries match on schema, name, argument type OIDs, and the aggregate-star flag. Operator entries match on schema, name, and both operand type OIDs. OIDs must be non-zero. `aggregate_star` requires an empty argument list. `pg_catalog` is allowed for functions and operators. `information_schema`, `_oo`, and names ending in `__stage` are not. A unique name without a matching type signature is not a match. The guard does not invent an OID.
 
+Operators also require a nonzero `result_type_oid`, verified by the catalog
+loader against both `pg_operator.oprresult` and `pg_proc.prorettype`. Binary
+`+`, `-`, `*`, `/` are restricted to the exact `pg_catalog` numeric signatures
+in `policy-catalog-v1.md`, even in caller-supplied catalogs. Comparisons require
+the catalog's bool result. Operator results retain their type when nested in
+arithmetic, comparison, or aggregate arguments; they do not default to bool.
+`WHERE`, `JOIN ON`, `AND`, `OR`, and `NOT` still require boolean expressions.
+This admits numeric `SUM(a-b-c)` without admitting `WHERE a-b`, string arithmetic,
+unresolved operators, unsafe functions, or general casts.
+
 `LiteralTypes` supplies integer, text, and boolean OIDs for literals. `None` leaves that literal unresolved. No PostgreSQL type OID is hard-coded in the guard. `null_test_allowed` gates `IS NULL` and `IS NOT NULL`. `large_table_row_threshold` is the R9 cutoff. `estimated_rows` and `pending_unclassified` are adapter fields. The guard does not read `pg_class`.
 
 ## Plan

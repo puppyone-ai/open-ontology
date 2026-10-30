@@ -38,6 +38,8 @@ mod key_plan;
 mod model;
 #[cfg(feature = "mysql")]
 pub mod mysql;
+#[cfg(feature = "oracle")]
+pub mod oracle;
 mod session;
 mod snapshot;
 mod sql;

@@ -1647,7 +1647,7 @@ fn catalog(
             schema: "pg_catalog".to_string(),
             name: "=".to_string(),
             left_type_oid: env.oids.int4,
-            right_type_oid: env.oids.int4,
+            right_type_oid: env.oids.int4, result_type_oid: env.oids.bool,
         });
     }
     PolicyCatalog {

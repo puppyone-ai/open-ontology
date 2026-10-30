@@ -22,7 +22,15 @@ pub async fn connect(config: &MysqlConfig, password: &str) -> Result<Conn, Mysql
     if !ca.is_file() || ca.len() == 0 || ca.len() > 1048576 {
         return Err(MysqlError::new("tls", "ca_file"));
     }
-    let ssl = tls_opts(&config.mysql_ca_file)?;
+    if let Some(name) = &config.mysql_tls_server_name
+        && !super::tls_server_name_ok(name)
+    {
+        return Err(MysqlError::new("config", "tls_server_name"));
+    }
+    let ssl = tls_opts(
+        &config.mysql_ca_file,
+        config.mysql_tls_server_name.as_deref(),
+    )?;
     // mysql_async 0.36 OptsBuilder has no TCP connect timeout. Conn::new is bounded below.
     let opts = OptsBuilder::default()
         .ip_or_hostname(config.mysql_host.clone())
@@ -44,12 +52,16 @@ pub async fn connect(config: &MysqlConfig, password: &str) -> Result<Conn, Mysql
     }
 }
 
-fn tls_opts(ca: &std::path::Path) -> Result<SslOpts, MysqlError> {
+/// Certificate chain is always verified against `ca`. `server_name` only changes
+/// the name the chain is checked for (mysql_async uses it as the TLS domain).
+/// `None` keeps the connect host.
+fn tls_opts(ca: &std::path::Path, server_name: Option<&str>) -> Result<SslOpts, MysqlError> {
     let path = ca.to_path_buf();
     Ok(SslOpts::default()
         .with_root_certs(vec![path.into()])
         .with_danger_accept_invalid_certs(false)
         .with_danger_skip_domain_validation(false)
+        .with_danger_tls_hostname_override(server_name.map(str::to_owned))
         .with_disable_built_in_roots(true))
 }
 
@@ -264,6 +276,25 @@ pub fn keep_requested(
     if requested.is_empty() {
         return Ok(mapped);
     }
+    let kept = keep_requested_keyed(mapped, requested)?;
+    if kept.iter().filter(|column| column.key).count() != 1 {
+        return Err(MysqlError::new("catalog", "primary_key"));
+    }
+    Ok(kept)
+}
+
+/// Composite-key opt-in. Projection must retain every key component.
+pub fn keep_requested_keyed(
+    mapped: Vec<MappedColumn>,
+    requested: &[String],
+) -> Result<Vec<MappedColumn>, MysqlError> {
+    let key_count = mapped.iter().filter(|column| column.key).count();
+    if key_count == 0 {
+        return Err(MysqlError::new("catalog", "primary_key"));
+    }
+    if requested.is_empty() {
+        return Ok(mapped);
+    }
     let mut kept = Vec::with_capacity(requested.len());
     for name in requested {
         let Some(column) = mapped
@@ -280,7 +311,7 @@ pub fn keep_requested(
         }
         kept.push(column.clone());
     }
-    if kept.iter().filter(|column| column.key).count() != 1 {
+    if kept.iter().filter(|column| column.key).count() != key_count {
         return Err(MysqlError::new("catalog", "primary_key"));
     }
     Ok(kept)
@@ -301,22 +332,33 @@ pub async fn inspect(
     user: &str,
     notes: &mut Vec<StatementNote>,
 ) -> Result<Access, MysqlError> {
-    inspect_mode(conn, user, notes, false).await
+    inspect_mode(conn, user, notes, false).await.map(|v| v.0)
 }
 pub async fn inspect_replication(
     conn: &mut Conn,
     user: &str,
     notes: &mut Vec<StatementNote>,
 ) -> Result<Access, MysqlError> {
-    inspect_mode(conn, user, notes, true).await
+    inspect_mode(conn, user, notes, true).await.map(|v| v.0)
+}
+pub async fn inspect_full(
+    conn: &mut Conn,
+    user: &str,
+    notes: &mut Vec<StatementNote>,
+) -> Result<(Access, FullReadGrants), MysqlError> {
+    let (access, grants) = inspect_mode(conn, user, notes, false).await?;
+    Ok((
+        access,
+        grants.ok_or_else(|| MysqlError::new("privilege", "full_read_grants"))?,
+    ))
 }
 async fn inspect_mode(
     conn: &mut Conn,
     user: &str,
     notes: &mut Vec<StatementNote>,
     replication: bool,
-) -> Result<Access, MysqlError> {
-    use super::map::{grant_is_read_only, mariadb_comment, session_mode_ok};
+) -> Result<(Access, Option<FullReadGrants>), MysqlError> {
+    use super::map::{mariadb_comment, session_mode_ok};
     let version = scalar(conn, notes, "SELECT VERSION()").await?;
     let version_comment = scalar(conn, notes, "SELECT @@version_comment").await?;
     if mariadb_comment(&version_comment) {
@@ -337,29 +379,46 @@ async fn inspect_mode(
         return Err(MysqlError::new("privilege", "current_user"));
     }
     let grants = show_grants(conn, notes).await?;
-    if replication {
+    let full_read_grants = if replication {
         replication_grants_ok(&grants)?;
-    } else if grants.is_empty()
-        || grants.iter().any(|s| !grant_is_read_only(s))
-        || !grants
-            .iter()
-            .any(|s| s.to_ascii_uppercase().contains("SELECT"))
-    {
-        return Err(MysqlError::new("privilege", "grants"));
-    }
-    Ok(Access {
-        version,
-        version_comment,
-        sql_mode,
-        time_zone,
-        ssl_cipher,
-        current_user,
-    })
+        None
+    } else {
+        Some(full_read_grants(&grants)?)
+    };
+    Ok((
+        Access {
+            version,
+            version_comment,
+            sql_mode,
+            time_zone,
+            ssl_cipher,
+            current_user,
+        },
+        full_read_grants,
+    ))
 }
 
-/// C1 permits its already required read-only replication privileges, never an
-/// arbitrary write-capable credential or unknown privilege.
+/// C1 shares the full-read privilege classification and additionally requires
+/// both replication grants. Observed lock privileges never authorize lock SQL.
 pub fn replication_grants_ok(grants: &[String]) -> Result<(), MysqlError> {
+    let invalid = || MysqlError::new("privilege", "readonly_replication");
+    let observed = full_read_grants(grants).map_err(|_| invalid())?;
+    if ["REPLICATION SLAVE", "REPLICATION CLIENT"]
+        .iter()
+        .any(|p| !observed.privileges.contains(*p))
+    {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FullReadGrants {
+    pub privileges: std::collections::BTreeSet<String>,
+}
+
+pub fn full_read_grants(grants: &[String]) -> Result<FullReadGrants, MysqlError> {
+    let invalid = || MysqlError::new("privilege", "full_read_grants");
     let mut observed = std::collections::BTreeSet::new();
     for grant in grants {
         let upper = grant.to_ascii_uppercase();
@@ -367,57 +426,109 @@ pub fn replication_grants_ok(grants: &[String]) -> Result<(), MysqlError> {
             .strip_prefix("GRANT ")
             .and_then(|s| s.split_once(" ON "))
             .map(|v| v.0)
-            .ok_or_else(|| MysqlError::new("privilege", "readonly_replication"))?;
+            .ok_or_else(invalid)?;
         if upper.contains("GRANT OPTION") {
-            return Err(MysqlError::new("privilege", "readonly_replication"));
+            return Err(invalid());
         }
-        // SHOW GRANTS may scope SELECT to a comma-separated column list.
-        // Remove only that validated identifier list before parsing privileges.
-        let mut outside = String::new();
-        let mut inside = false;
-        let mut count = 0usize;
-        for ch in privileges.chars() {
-            match ch {
-                '(' if !inside => {
-                    inside = true;
-                    count = 0;
-                }
-                ')' if inside && count > 0 => inside = false,
-                c if inside
-                    && (c.is_ascii_alphanumeric() || matches!(c, '_' | '`' | ',' | ' ')) =>
-                {
-                    count += usize::from(c.is_ascii_alphanumeric() || c == '_');
-                }
-                '(' | ')' => return Err(MysqlError::new("privilege", "readonly_replication")),
-                c if inside => {
-                    let _ = c;
-                    return Err(MysqlError::new("privilege", "readonly_replication"));
-                }
-                c => outside.push(c),
-            }
-        }
-        if inside {
-            return Err(MysqlError::new("privilege", "readonly_replication"));
-        }
-        for name in outside.split(',').map(str::trim) {
-            if !["SELECT", "USAGE", "REPLICATION SLAVE", "REPLICATION CLIENT"].contains(&name) {
-                return Err(MysqlError::new("privilege", "readonly_replication"));
+        let mut rest = privileges;
+        loop {
+            rest = rest.trim_start();
+            let end = rest.find([',', '(']).unwrap_or(rest.len());
+            let name = rest[..end].trim();
+            if ![
+                "SELECT",
+                "USAGE",
+                "PROCESS",
+                "LOCK TABLES",
+                "SHOW VIEW",
+                "REPLICATION SLAVE",
+                "REPLICATION CLIENT",
+            ]
+            .contains(&name)
+            {
+                return Err(invalid());
             }
             observed.insert(name.to_owned());
+            rest = &rest[end..];
+            if rest.starts_with('(') {
+                if name != "SELECT" {
+                    return Err(invalid());
+                }
+                let close = rest.find(')').ok_or_else(invalid)?;
+                let columns = &rest[1..close];
+                for column in columns.split(',') {
+                    let column = column.trim();
+                    let column = column
+                        .strip_prefix('`')
+                        .and_then(|s| s.strip_suffix('`'))
+                        .unwrap_or(column);
+                    if !mysql_ident(column) {
+                        return Err(invalid());
+                    }
+                }
+                rest = rest[close + 1..].trim_start();
+            }
+            if rest.is_empty() {
+                break;
+            }
+            rest = rest.strip_prefix(',').ok_or_else(invalid)?;
         }
     }
-    if ["SELECT", "REPLICATION SLAVE", "REPLICATION CLIENT"]
-        .iter()
-        .any(|p| !observed.contains(*p))
-    {
-        return Err(MysqlError::new("privilege", "readonly_replication"));
+    if !observed.contains("SELECT") {
+        return Err(invalid());
     }
-    Ok(())
+    Ok(FullReadGrants {
+        privileges: observed,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn full_read_classifies_observation_privileges_and_refuses_other_authority() {
+        let grants = vec![
+            "GRANT USAGE ON *.* TO reader".to_owned(),
+            "GRANT PROCESS, LOCK TABLES, SHOW VIEW, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO reader".to_owned(),
+            "GRANT SELECT (`id`, `label`) ON public.items TO reader".to_owned(),
+        ];
+        let facts = full_read_grants(&grants).unwrap();
+        assert_eq!(facts.privileges.len(), 7);
+        assert!(facts.privileges.contains("LOCK TABLES"));
+        for privilege in [
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "CREATE",
+            "DROP",
+            "FILE",
+            "EXECUTE",
+            "SUPER",
+            "BACKUP_ADMIN",
+            "ALL PRIVILEGES",
+        ] {
+            let mut invalid = grants.clone();
+            invalid.push(format!("GRANT {privilege} ON *.* TO reader"));
+            assert!(full_read_grants(&invalid).is_err(), "{privilege}");
+        }
+        for invalid in [
+            "GRANT SELECT ON *.* TO reader WITH GRANT OPTION",
+            "GRANT reader_role TO reader",
+            "GRANT SELECT (`id`, INSERT) ON *.* TO reader WITH GRANT OPTION",
+            "GRANT PROCESS (`id`) ON *.* TO reader",
+            "GRANT SELECT () ON *.* TO reader",
+            "GRANT SELECT (`id`) garbage ON *.* TO reader",
+        ] {
+            assert!(
+                full_read_grants(&[invalid.to_owned()]).is_err(),
+                "{invalid}"
+            );
+        }
+        assert!(full_read_grants(&[]).is_err());
+        assert!(full_read_grants(&["GRANT PROCESS ON *.* TO reader".to_owned()]).is_err());
+        assert!(replication_grants_ok(&grants).is_ok());
+    }
+
     #[test]
     fn c1_read_grants_preserve_column_scope_and_refuse_unknown_authority() {
         let read = vec![
@@ -427,16 +538,31 @@ mod tests {
         assert!(replication_grants_ok(&read).is_ok());
         for privilege in [
             "INSERT",
+            "UPDATE",
+            "DELETE",
             "TRUNCATE",
             "FILE",
             "EXECUTE",
             "SUPER",
             "CREATE USER",
+            "ALL PRIVILEGES",
+            "UNKNOWN_PRIVILEGE",
+            "PROCESS (`id`)",
+            "REPLICATION SLAVE (`id`)",
+            "SELECT ()",
+            "SELECT (`id`) garbage",
             "SELECT (`id`) WITH GRANT OPTION",
         ] {
             let mut grants = read.clone();
             grants.push(format!("GRANT {privilege} ON *.* TO reader"));
             assert!(replication_grants_ok(&grants).is_err(), "{privilege}");
+        }
+        for missing in ["SELECT", "REPLICATION SLAVE", "REPLICATION CLIENT"] {
+            let kept = ["SELECT", "REPLICATION SLAVE", "REPLICATION CLIENT"]
+                .into_iter().filter(|p| *p != missing).collect::<Vec<_>>().join(", ");
+            let error = replication_grants_ok(&[format!("GRANT {kept} ON *.* TO reader")])
+                .unwrap_err();
+            assert_eq!(error, MysqlError::new("privilege", "readonly_replication"));
         }
     }
 }

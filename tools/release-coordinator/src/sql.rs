@@ -52,6 +52,11 @@ pub const UPDATE_POINTER: &str = "\
 UPDATE oo_release_control.active_pointer \
 SET version = $1, candidate_id = $2, source_hash = $3, pack_digest = $4, manifest_sha256 = $5 \
 WHERE singleton AND project_id = $6 AND version IS NOT DISTINCT FROM $7";
+pub const UPDATE_POINTER_WITH_BUSINESS_DEADLINE: &str = "\
+UPDATE oo_release_control.active_pointer \
+SET version = $1, candidate_id = $2, source_hash = $3, pack_digest = $4, manifest_sha256 = $5 \
+WHERE singleton AND project_id = $6 AND version IS NOT DISTINCT FROM $7 \
+AND ($8::bigint IS NULL OR clock_timestamp() < to_timestamp($8::double precision))";
 
 pub const READ_CANDIDATE_LOCK: &str = "\
 SELECT candidate_id, project_id, version, base_version, state, source_hash, effective_oos, visibility_json, \

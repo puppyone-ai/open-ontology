@@ -55,19 +55,19 @@ fn main() {
         }
         "echo" => echo(),
         "trailer" => {
-            write_header(1, 3, 1);
+            write_header(2, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1, 0xff]).unwrap();
             out.flush().unwrap();
         }
         "delayed" => {
             thread::sleep(Duration::from_millis(250));
-            write_header(1, 3, 1);
+            write_header(2, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
         }
-        "kind" => write_header(1, 99, 0),
+        "kind" => write_header(2, 99, 0),
         "partial" => {
             let mut out = std::io::stdout().lock();
             out.write_all(b"OOSW").unwrap();
@@ -75,7 +75,7 @@ fn main() {
             thread::sleep(Duration::from_secs(30));
         }
         "hold-stdout" => {
-            write_header(1, 3, 1);
+            write_header(2, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
@@ -83,7 +83,7 @@ fn main() {
         }
         "late" => {
             thread::sleep(Duration::from_millis(700));
-            write_header(1, 3, 1);
+            write_header(2, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
@@ -134,7 +134,7 @@ fn setsid_stdout() {
 }
 
 fn oversize() {
-    write_header(1, 2, u32::MAX);
+    write_header(2, 2, u32::MAX);
     thread::sleep(Duration::from_secs(30));
 }
 
@@ -297,7 +297,7 @@ fn catalog(relations: Vec<VisibleRelation>, threshold: u64) -> PolicyCatalog {
                 schema: "pg_catalog".to_string(),
                 name: "=".to_string(),
                 left_type_oid: INT_OID,
-                right_type_oid: INT_OID,
+                right_type_oid: INT_OID, result_type_oid: BOOL_OID,
             },
             ResolvedOperator {
                 oid: 303,
@@ -305,7 +305,7 @@ fn catalog(relations: Vec<VisibleRelation>, threshold: u64) -> PolicyCatalog {
                 schema: "pg_catalog".to_string(),
                 name: "=".to_string(),
                 left_type_oid: TEXT_OID,
-                right_type_oid: TEXT_OID,
+                right_type_oid: TEXT_OID, result_type_oid: BOOL_OID,
             },
         ],
         literal_types: LiteralTypes {
@@ -373,13 +373,22 @@ fn live_child(pid: u32, worker: &TrustedWorker) -> u64 {
         u64::from(pid),
         "worker did not get its own process group"
     );
+    // procfs can briefly expose an empty cmdline while exec installs the new mm.
+    // Still require the exact argv and all isolation assertions within the deadline.
+    let observed = Instant::now();
+    let cmd = loop {
+        let cmd = fs::read(format!("/proc/{pid}/cmdline")).unwrap();
+        if !cmd.is_empty() || observed.elapsed() >= Duration::from_millis(100) {
+            break cmd;
+        }
+        thread::sleep(Duration::from_millis(1));
+    };
     let env = fs::read(format!("/proc/{pid}/environ")).unwrap();
     assert!(
         env.is_empty(),
         "child inherited environment bytes {}",
         env.len()
     );
-    let cmd = fs::read(format!("/proc/{pid}/cmdline")).unwrap();
     let parts: Vec<_> = cmd
         .split(|byte| *byte == 0)
         .filter(|part| !part.is_empty())
@@ -556,6 +565,11 @@ fn refusal_matrix() -> Vec<GuardError> {
         GuardError::Locking,
         GuardError::SystemSchema,
         GuardError::FunctionNotAllowed,
+        GuardError::SignatureNotAllowed {
+            operator: true,
+            argument_type_oids: vec![1114, 25],
+            position: 42,
+        },
         GuardError::RelationNotFound,
         GuardError::ColumnNotAllowed {
             available: vec!["s.order_id".to_string(), "s.region".to_string()],
@@ -661,7 +675,7 @@ fn admission_stays_blocked_and_the_sandbox_is_unsupported() {
     let deadline = PARSE_DEADLINE;
     assert_eq!(restriction, RestrictionCapability::Unsupported);
     assert_eq!(admission, UntrustedAdmission::Blocked);
-    assert_eq!(version, 1);
+    assert_eq!(version, 2);
     assert_eq!(request_kind, 1);
     assert_eq!(plan_kind, 2);
     assert_eq!(refusal_kind, 3);
@@ -705,13 +719,13 @@ fn worker_path_is_a_separate_approval() {
 }
 
 #[test]
-fn frame_v1_rejects_a_bad_header_before_a_large_body() {
+fn frame_v2_rejects_a_bad_header_before_a_large_body() {
     let body = encode_request(&request(&small(), "SELECT 1")).unwrap();
     let frame = encode_frame(KIND_REQUEST, &body).unwrap();
     assert_eq!(&frame[..4], b"OOSW");
     assert_eq!(u16::from_le_bytes([frame[4], frame[5]]), PROTOCOL_VERSION);
     let decoded = decode_frame(&frame).unwrap();
-    assert_eq!(decoded.version, 1);
+    assert_eq!(decoded.version, PROTOCOL_VERSION);
     assert_eq!(decoded.kind, KIND_REQUEST);
     assert_eq!(decoded.body, body);
     assert_eq!(decode_frame(b"OOS"), Err(CodecError::Truncated));
@@ -752,8 +766,10 @@ fn catalog_oids_and_options_roundtrip() {
     assert!(back.catalog.functions[0].aggregate_star);
     assert_eq!(back.catalog.operators[0].oid, 301);
     assert_eq!(back.catalog.operators[0].procedure_oid, 302);
+    assert_eq!(back.catalog.operators[0].result_type_oid, BOOL_OID);
     assert_eq!(back.catalog.operators[1].oid, 303);
     assert_eq!(back.catalog.operators[1].procedure_oid, 304);
+    assert_eq!(back.catalog.operators[1].result_type_oid, BOOL_OID);
     assert_eq!(back.catalog.literal_types.integer, Some(INT_OID));
     assert_eq!(back.catalog.literal_types.text, Some(TEXT_OID));
     assert_eq!(back.catalog.literal_types.boolean, Some(BOOL_OID));
@@ -1062,7 +1078,7 @@ fn direct_binary_matches_the_guard_and_rejects_a_non_request() {
     });
     assert_eq!(code, 0, "stderr {}", String::from_utf8_lossy(&err));
     let frame = decode_frame(&out).unwrap();
-    assert_eq!(frame.version, 1);
+    assert_eq!(frame.version, PROTOCOL_VERSION);
     assert_eq!(frame.kind, KIND_PLAN);
     let plan = decode_plan(&frame.body).unwrap();
     let expected = guard_select(&req.identity, &req.catalog, sql).unwrap();

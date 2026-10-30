@@ -25,6 +25,9 @@
 //! `native_update` applies one source generation of upserts and tombstones
 //! onto a new unpublished shadow. It is not a second full snapshot and it
 //! does not publish.
+//! `c1_parts` holds the shared C1 chunked-baseline part files, part manifests,
+//! canonical cells and rows, and the composed state digest. The producer, loader,
+//! admission and the oracle all use it. It does not open a connection or publish.
 //! `jsonb_document` imports one sealed BSON document as jsonb oid 3802.
 //! The column type comes from `_oo.full_import_type_sql` in `0009`.
 //! Binary COPY writes `jsonb_send`. This path does not `ALTER TYPE`, does not
@@ -42,9 +45,39 @@ pub mod full_import;
 pub use full_import::{approved_column_typmod, approved_columns, ApprovedColumn};
 pub mod import_cli;
 mod native_binding;
+pub mod native_runtime;
 pub mod native_arrow;
 pub mod native_update;
+pub mod native_c5_float;
+pub mod native_c5_parts;
+pub mod native_c5_parts_stage;
+pub mod native_c5_range;
+pub mod native_c5_state;
+mod native_c5_range_arrow;
+pub mod native_c1_apply;
 pub mod native_c1_baseline;
+pub mod c1_parts;
+pub mod c1_key;
+pub mod c1_typed;
+pub mod c1_typed_cli;
+pub mod c1_publication_cli;
+pub mod c1_source_position;
+pub mod c1_buffer_position;
+pub mod c1_oracle_materialize;
+pub mod c1_mysql_delta;
+pub mod c1_mysql_initial;
+pub mod c1_typed_export;
 pub mod physical_mapping;
 pub mod target_installer;
 pub mod target_statistics;
+
+pub mod native_c5_multipart;
+
+pub mod masked_rejects;
+
+pub mod multipart_cells;
+
+pub mod native_library;
+pub mod pg_current_capture;
+pub mod pg_current;
+pub mod pg_current_publication;

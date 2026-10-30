@@ -40,6 +40,37 @@ fn unsupported_capabilities_are_explicit() {
 }
 
 #[tokio::test]
+async fn metadata_refuses_success_status_with_an_error_body() {
+    let oracle =
+        Oracle::spawn(|_, _| Action::Raw(json_response(200, "OK", ERROR_SQL, &[]))).await;
+    let error = open(&oracle.origin(), TOKEN, local_config())
+        .sql_validate("SELECT 1").await.expect_err("error is not success");
+    assert!(matches!(error, QueryError::Protocol(ProtocolError::Rejected)));
+    assert_eq!(oracle.hits().len(), 1);
+}
+
+#[tokio::test]
+async fn validation_errors_scrub_submitted_sql_but_keep_safe_diagnostics() {
+    const SQL: &str = "SELECT 'private_validation_literal'";
+    let oracle = Oracle::spawn(|_, _| {
+        let body = serde_json::json!({"error": {
+            "code": "FUNCTION_NOT_ALLOWED", "retryable": false,
+            "message": SQL,
+            "hint": "phase=signature_binding; expression=operator; argument_types=[timestamp,text]"
+        }});
+        Action::Raw(json_response(400, "Bad Request", &body.to_string(), &[]))
+    }).await;
+    let error = open(&oracle.origin(), TOKEN, local_config())
+        .sql_validate(SQL).await.expect_err("refused");
+    let gateway = error.gateway().unwrap();
+    assert_eq!(gateway.code(), ErrorCode::FunctionNotAllowed);
+    assert!(!gateway.message().contains(SQL));
+    assert!(gateway.hint().unwrap().contains("expression=operator"));
+    assert!(!gateway.retryable());
+    assert_eq!(oracle.hits().len(), 1);
+}
+
+#[tokio::test]
 async fn post_uses_the_mount_path_and_exact_request_bytes() {
     let oracle =
         Oracle::spawn(|_, _| Action::Raw(json_response(200, "OK", QUERY_RESPONSE_EMPTY, &[])))
@@ -56,6 +87,22 @@ async fn post_uses_the_mount_path_and_exact_request_bytes() {
     let shown = format!("{client:?}");
     assert!(!shown.contains(TOKEN), "client debug leaked");
     assert!(shown.contains("[redacted]"));
+}
+
+#[tokio::test]
+async fn query_budget_reserves_receipt_time_and_does_not_replay_timeout() {
+    let oracle = Oracle::spawn(|_, hit| {
+        let value: serde_json::Value = serde_json::from_slice(&hit.body).unwrap();
+        let budget = value["timeout_ms"].as_u64().unwrap();
+        assert!((27_000..=28_500).contains(&budget), "{budget}");
+        Action::Raw(json_response(408, "Request Timeout", ERROR_TIMEOUT, &[]))
+    }).await;
+    let mut request = sample_request();
+    request.timeout_ms = Some(120_000);
+    let error = open(&oracle.origin(), TOKEN, local_config()).query(request).await.unwrap_err();
+    assert_eq!(error.gateway().unwrap().code(), ErrorCode::Timeout);
+    assert!(error.gateway().unwrap().query_id().is_some());
+    assert_eq!(oracle.hits().len(), 1);
 }
 
 #[tokio::test]
@@ -522,6 +569,7 @@ async fn incomplete_and_reset_connections_are_not_replayed() {
         error,
         QueryError::Transport(
             TransportError::Incomplete | TransportError::Other | TransportError::Timeout
+                | TransportError::ConnectionReset
         )
     ));
     assert_eq!(oracle.hits().len(), 1);

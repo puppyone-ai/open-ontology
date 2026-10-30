@@ -84,6 +84,49 @@ pub fn prepare(catalog_bytes: &[u8], profile_bytes: &[u8], comments_bytes: Optio
     )
 }
 
+pub fn prepare_observed_with_budgets(
+    catalog_bytes: &[u8],
+    profile_bytes: &[u8],
+    comments_bytes: Option<&[u8]>,
+    bases: &[&[u8]],
+    audits: &[&[u8]],
+    budgets: &crate::config::BuildBudgets,
+) -> Prepared {
+    let protocol = protocol_of(catalog_bytes);
+    if protocol == NATIVE_CATALOG || protocol == NATIVE_COLLECTION {
+        let Ok(text) = std::str::from_utf8(catalog_bytes) else {
+            return finish(
+                "",
+                "input.schema",
+                "catalog is not UTF-8",
+                "native",
+                None,
+                None,
+                None,
+            );
+        };
+        let limits = oo_core::sealed_import::SealedImportLimits {
+            max_tables: budgets.max_tables,
+            max_collection_entries: budgets.max_tables,
+            json_scan: oo_core::json_scan::JsonScanLimits {
+                max_bytes: budgets.max_document_bytes,
+                max_nodes: budgets.max_json_nodes,
+                max_depth: 32,
+            },
+            ..Default::default()
+        };
+        return prepare_native_import_with_limits(&protocol, text, &limits);
+    }
+    prepare_observed(
+        catalog_bytes,
+        profile_bytes,
+        comments_bytes,
+        bases,
+        audits,
+        budgets.max_tables,
+    )
+}
+
 pub fn prepare_observed(
     catalog_bytes: &[u8],
     profile_bytes: &[u8],
@@ -107,7 +150,7 @@ pub fn prepare_observed(
         }
         return prepare(catalog_bytes, profile_bytes, comments_bytes, max_tables);
     }
-    match crate::project_catalog::project(catalog_bytes, profile_bytes, bases, audits) {
+    match crate::project_catalog::project_with_limit(catalog_bytes, profile_bytes, bases, audits, max_tables) {
         Ok(projected) => {
             let mut prepared = prepare(&projected.catalog, &projected.profile, comments_bytes, max_tables);
             annotate(&mut prepared, projected.note);
@@ -136,11 +179,15 @@ fn protocol_of(catalog_bytes: &[u8]) -> String {
 }
 
 fn prepare_native_import(protocol: &str, catalog_text: &str) -> Prepared {
+    prepare_native_import_with_limits(protocol, catalog_text, &Default::default())
+}
+
+fn prepare_native_import_with_limits(protocol: &str, catalog_text: &str, limits: &oo_core::sealed_import::SealedImportLimits) -> Prepared {
     let producer = if protocol == NATIVE_COLLECTION { "oo_builder::compile_sealed_import_collection" } else { "oo_builder::compile_sealed_import_catalog" };
     let compiled = if protocol == NATIVE_COLLECTION {
-        oo_builder::compile_sealed_import_collection(catalog_text)
+        oo_builder::compile_sealed_import_collection_with_limits(catalog_text, limits)
     } else {
-        oo_builder::compile_sealed_import_catalog(catalog_text)
+        oo_builder::compile_sealed_import_catalog_with_limits(catalog_text, limits)
     };
     match compiled {
         Ok(_) => stamp_native(&finish(protocol, "compiled", "the existing sealed-import compiler accepted the catalog", producer, None, None, None), "draft_compiled"),

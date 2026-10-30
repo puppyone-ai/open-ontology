@@ -1,0 +1,107 @@
+{
+  "binaries": {
+    "catalog": "/owned/bin/oo-pipeline",
+    "pg_builder": "{PG_BUILDER}",
+    "review_ledger": "/cache/bin/review_ledger",
+    "rules": "/cache/bin/rules",
+    "suggestions": "/cache/bin/suggestions"
+  },
+  "contract": "oo.selfbuild-control-api.config/v1",
+  "deployment_origins": [
+    "{IDENTITY_ORIGIN}"
+  ],
+  "identity": {
+    "ca_file": "/identity-mainline/ca.pem",
+    "origin": "{IDENTITY_ORIGIN}"
+  },
+  "ledger": {
+    "ca_file": "/owned/pg-ca.crt",
+    "database": "{LEDGER_DB}",
+    "host": "oo-dl01w1-06-pg",
+    "password_file": "/owned/api.password",
+    "port": 5432,
+    "server_name": "oo-dl01w1-06-pg",
+    "user": "oo_selfbuild_api_admin"
+  },
+  "listen": {
+    "bind": "{API_BIND}",
+    "cert_file": "/cache/tls/api/server.crt",
+    "key_file": "/cache/tls/api/server.key"
+  },
+  "model_cache_dir": "{MODEL_CACHE_DIR}",
+  "postgres": {
+    "ca_file": "/owned/pg-ca.crt",
+    "database": "{CONTROL_DB}",
+    "host": "oo-dl01w1-06-pg",
+    "password_file": "/owned/api.password",
+    "port": 5432,
+    "server_name": "oo-dl01w1-06-pg",
+    "user": "oo_selfbuild_api_admin"
+  },
+  "principals": [
+    {
+      "credential_file": "/cache/native-ledger-reviewer.credential",
+      "ledger_role": "reviewer",
+      "object_scope": "{OBJECT_SCOPE}",
+      "principal_id": "native-reviewer",
+      "reviewer_label": "control_plane_test",
+      "subject": "fixture-reviewer"
+    },
+    {
+      "credential_file": "/cache/native-ledger-owner.credential",
+      "ledger_role": "owner",
+      "object_scope": "{OBJECT_SCOPE}",
+      "principal_id": "native-owner",
+      "reviewer_label": "fixture-owner",
+      "subject": "fixture-owner"
+    },
+    {
+      "credential_file": "/cache/native-ledger-auditor.credential",
+      "ledger_role": "auditor",
+      "object_scope": "{OBJECT_SCOPE}",
+      "principal_id": "native-auditor",
+      "reviewer_label": "fixture-auditor",
+      "subject": "fixture-auditor"
+    }
+  ],
+  "projects": [
+    {
+      "allowance_id": "{ALLOWANCE_ID}",
+      "config_commit": "{CONFIG_COMMIT}",
+      "hidden_columns": [],
+      "llm": {
+        "bearer_file": "/model/bearer",
+        "model_id": "grok-4.7",
+        "origin": "http://127.0.0.1:8317"
+      },
+      "llm_secret_ref": "{LLM_SECRET_REF}",
+      "project_id": "{PROJECT_ID}",
+      "role_policy_file": "{ROLE_POLICY_FILE}",
+      "rules_auto_accept": "rule_high_confidence",
+      "sample_policy": "none",
+      "sealed_bundle": "{BUNDLE}",
+      "source": {
+        "ca_file": "/cache/tls/pg/ca.crt",
+        "database": "unused",
+        "host": "unused.invalid",
+        "password_file": "/cache/secrets/pg.password",
+        "port": 5432,
+        "tables": "{TABLES}",
+        "username": "unused"
+      },
+      "source_protocol": {
+        "catalog": "oo.pipeline.sealed-import-collection/v1",
+        "profile": "oo.source.mysql.profile/v1",
+        "schema_audit": [],
+        "semantics": "oo.source.mysql.audit/v1",
+        "semantics_commit": "{PIN_COMMIT}",
+        "source_commit": "{PIN_COMMIT}",
+        "type_basis": []
+      },
+      "source_ref": "{SOURCE_REF}",
+      "source_secret_ref": "{SOURCE_SECRET_REF}",
+      "visible_columns": []
+    }
+  ],
+  "work_dir": "{WORK_DIR}"
+}

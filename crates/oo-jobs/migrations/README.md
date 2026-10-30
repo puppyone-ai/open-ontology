@@ -12,6 +12,7 @@ The normative column set is REQ-CTL-04. `jobs.tasks` has `id`, `project_id`, `ki
 | `jobs-control/1` | expand | `0001_jobs_control_expand.sql` | Creates `jobs` and its tables, views, and grants. |
 | `jobs-event-project/1` | expand | `0002_event_project_binding_expand.sql` | Binds `task_events.project_id` to the task. Published separately. |
 | `jobs-lease-operations/1` | expand | `0003_job_lease_operations_expand.sql` | Adds the lease functions and revokes direct task and event writes. |
+| `jobs-heartbeat-after-lock/1` | expand | `0011_heartbeat_after_lock_expand.sql` | Locks the task before checking expiry and computing its 30-second renewal. |
 
 Checksums are SHA-256 of those file bytes. `0000` and `0001` are recorded in `contracts/jobs/control-schema/jobs-control-v1.json`. `0002` is recorded in `contracts/jobs/event-project-binding/jobs-event-project-v1.json`. `0003` is recorded in `contracts/jobs/lease-operations/jobs-lease-operations-v1.json`. The checksum is not inside the SQL file. A later edit of a published file is a new version, not a silent rewrite. `0000`, `0001`, and `0002` are unchanged by `0003`.
 
@@ -58,6 +59,8 @@ On an empty database the control-schema applicator runs `0000` and `0001` in one
 
 The lease is `clock_timestamp()` plus 30 seconds. Heartbeat extends that same fixed interval and does not accept a caller TTL. An expired lease is not revived. Claim uses `FOR UPDATE SKIP LOCKED` ordered by `run_at`, `id`. Expired running work is requeued under the lock and then claimed as a new attempt and generation, including when the worker id string is unchanged. At the attempt cap the expired row fails with `lease_expired_attempt_cap`. One call finalizes at most 8 such rows. Retry delay is server-side, base 1 second, cap 60 seconds, without jitter. The functions do not `COMMIT` and do not `NOTIFY`.
 
+`0011` fixes a contended heartbeat: the original function computed its deadline before waiting for a Loader's task-row lock. After a long wait it could overwrite the Loader's newer renewal with an expired deadline. The expansion locks first, checks the current owner, generation and expiry, then reads the clock. It leaves the published `0003` checksum, signature, TTL and privileges unchanged. `tools/deploy.py` installs this expansion on fresh databases and upgrades; checksum-checked replay remains a no-op.
+
 Direct runtime `INSERT`, `UPDATE`, and `DELETE` on `jobs.tasks` and `jobs.task_events` are revoked, along with the event id sequence. `SELECT` remains. Column grants on `jobs.schedules`, `jobs.schedule_occurrences`, and `jobs.leases` from `0001` remain. `target_fence_certified` stays constrained false, and the runtime has no update privilege on that column. `jobs.service_readiness` still reports only `jobs-control/1`. `jobs.lease_operations_readiness` reports this version. Ready for a dependent process is that view plus an external compare of the stored checksum to the file bytes. The SQL stores the checksum the applicator supplies.
 
 `project_id` filters rows. It does not authenticate a project. The runtime remains a trusted all-project control role.
@@ -84,3 +87,10 @@ Backup consumers need the seven durable tables listed in the control-schema cont
 ## Tests
 
 `tests/control_schema_contract.rs` and `tests/event_project_binding_contract.rs` check the published files. `tests/lease_operations_contract.rs` checks `0003` and its contract. `tests/pg_fixture.sh` applies `0000` and `0001`. `tests/lease_operations_live.rs` is ignored unless a caller asks for it, and it applies the lease functions on an owned PostgreSQL 17 fixture. None of these is the full AT-CTL-01 100-worker acceptance test. The live file's 100 sessions are the claim primitive only.
+
+`tests/heartbeat_lock_live.rs` exercises the expansion with a Loader-like transaction holding the row for 32 seconds and renewing internally, a claim expiring while waiting, and wrong-owner/generation refusals. Use an isolated container whose name starts with `oo-cb-K-heartbeat-`, admin `oo_cb_k_admin`, database `oo_cb_k_heartbeat`, and install it with `tools/deploy.py`. Run:
+
+```sh
+OO_JOBS_HEARTBEAT_CONTAINER=oo-cb-K-heartbeat-20261018 \
+  cargo test --locked --offline -p oo-jobs --test heartbeat_lock_live -- --ignored --test-threads=1
+```

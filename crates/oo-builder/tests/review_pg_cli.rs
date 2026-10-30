@@ -34,9 +34,8 @@ fn bin() -> Command {
 }
 
 fn catalog_path(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!(
-        "../../evidence/eef831aa-dba4-4af2-a78b-541bc9e0a157/SP07/captured-pg-draft-review/probe/out/{name}"
-    ))
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/captured-pg-review").join(name)
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {

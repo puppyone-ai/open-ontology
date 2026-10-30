@@ -23,6 +23,13 @@ source account does not change either configuration. TLS uses the existing
 `mysql_async` native TLS backend with CA and hostname verification, including
 the owned 5.7 TLS 1.2 DHE fixture.
 
+C1 source admission requires SELECT, REPLICATION SLAVE and REPLICATION CLIENT.
+It shares the full-read grant classifier, accepting already-present PROCESS,
+LOCK TABLES and SHOW VIEW without using those capabilities. Write, administrative,
+unknown and delegation privileges remain refused. Column-level SELECT is parsed
+structurally; malformed column grants on other privileges are refused. Admission
+alone does not prove log retention, a snapshot/log boundary or successful capture.
+
 JSON is stored as PostgreSQL `json` (oid 114) text because `copy-encoder/v1`
 rejects `jsonb`. MySQL `TIME` is a signed microsecond duration, stored as PostgreSQL
 `interval` (oid 1186), including negative values and values beyond one day.

@@ -107,6 +107,19 @@ pub async fn dispatch(args: &[String], stdin: &[u8]) -> CommandExit {
             "issuer_class",
             "authority_statement_sha256",
         ],
+        ("business-install", "oo.release-coordinator/business-install/v1") => &["protocol"],
+        ("business-execute", "oo.release-coordinator/business-execute/v1") => {
+            &["protocol", "policy_sha256", "run_id"]
+        }
+        ("business-review", "oo.release-coordinator/business-review/v1") => &[
+            "protocol",
+            "policy_sha256",
+            "run_id",
+            "execution_bundle_sha256",
+        ],
+        ("business-revoke", "oo.release-coordinator/business-revoke/v1") => {
+            &["protocol", "policy_sha256"]
+        }
         ("plan", "oo.release-coordinator/plan/v1")
         | ("activate", "oo.release-coordinator/activate/v1") => &[
             "protocol",
@@ -149,6 +162,11 @@ pub async fn dispatch(args: &[String], stdin: &[u8]) -> CommandExit {
             "role_name",
             "native_mapping",
         ],
+        ("maintain-data-only", "oo.release-coordinator/maintain-data-only/v1") => &[
+            "protocol", "project_id", "candidate_id", "source_hash", "expected_version",
+            "schema_name", "relation_name", "role_name", "native_mapping",
+            "parent_candidate_id", "parent_source_hash", "parent_mapping_sha256",
+        ],
         ("target-install", "oo.release-coordinator/target-install/v1")
         | ("target-close", "oo.release-coordinator/target-close/v1")
         | ("target-revoke", "oo.release-coordinator/target-revoke/v1") => {
@@ -189,11 +207,15 @@ pub async fn dispatch(args: &[String], stdin: &[u8]) -> CommandExit {
         Err(reason) => return malformed(reason),
     };
     let endpoint = Endpoint {
+        pack_ceilings: config.pack_ceilings.clone(),
         host: config.host.clone(),
         port: config.port,
         database: config.database.clone(),
     };
     let result = match (args[0].as_str(), protocol) {
+        (command, _) if command.starts_with("business-") => {
+            Box::pin(business_command(command, &endpoint, &config, map)).await
+        }
         ("install", "oo.release-coordinator/install/v1") => {
             install(
                 &endpoint,
@@ -278,7 +300,8 @@ pub async fn dispatch(args: &[String], stdin: &[u8]) -> CommandExit {
             maintain_install_cmd(&config, map).await
         }
         ("maintain-activate", "oo.release-coordinator/maintain-activate/v1")
-        | ("maintain-activate", "oo.release-coordinator/maintain-native-activate/v1") => {
+        | ("maintain-activate", "oo.release-coordinator/maintain-native-activate/v1")
+        | ("maintain-data-only", "oo.release-coordinator/maintain-data-only/v1") => {
             maintain_cmd(&config, map, true).await
         }
         ("maintain-recover", "oo.release-coordinator/maintain-recover/v1")
@@ -342,6 +365,10 @@ fn known_command(command: &str) -> bool {
     matches!(
         command,
         "install"
+            | "business-install"
+            | "business-execute"
+            | "business-review"
+            | "business-revoke"
             | "stage"
             | "status"
             | "gate-record"
@@ -350,6 +377,7 @@ fn known_command(command: &str) -> bool {
             | "recover"
             | "maintain-install"
             | "maintain-activate"
+            | "maintain-data-only"
             | "maintain-recover"
             | "target-install"
             | "target-close"
@@ -373,6 +401,10 @@ struct LoadedTarget {
 }
 
 struct Config {
+    business_policy: Option<(String, String)>,
+    business_actors: std::collections::BTreeMap<String, Login>,
+    pack_ceilings: Option<oo_builder::RolePackCeilings>,
+    deployment_mode: crate::DeploymentMode,
     host: String,
     port: u16,
     database: String,
@@ -382,6 +414,8 @@ struct Config {
     reader_user: Option<String>,
     reader_password: Option<String>,
     target: Option<LoadedTarget>,
+    replica: Option<Login>,
+    quality: Option<Login>,
 }
 
 fn config_path(args: &[String]) -> &str {
@@ -392,10 +426,25 @@ fn config_path(args: &[String]) -> &str {
     }
 }
 
+/// The transport envelope follows the trusted installation's document capacity.
+/// Legacy commands retain their original 8 MiB bound.
+pub fn stdin_limit(args: &[String]) -> Result<usize, &'static str> {
+    if let Some(reason) = argv_malformed(args) {
+        return Err(reason);
+    }
+    let config = read_config(Path::new(config_path(args)), &args[0])?;
+    let configured = config.pack_ceilings.as_ref().map_or(0, |c| c.json_scan.max_bytes);
+    if configured > 268_435_456 {
+        return Err("config");
+    }
+    Ok(configured.max(8_388_608))
+}
+
 fn read_config(path: &Path, command: &str) -> Result<Config, &'static str> {
-    let bytes = read_limited(path, 65_536, "config")?;
+    let bytes = read_limited(path, 8_388_608, "config")?;
     let document: Value = serde_json::from_slice(&bytes).map_err(|_| "config")?;
     let map = object(&document).ok_or("config")?;
+    let deployment_mode = crate::DeploymentMode::from_installed(&document)?;
     let kind = config_kind(command);
     let allowed: &[&str] = match kind {
         "maintain" => &[
@@ -433,7 +482,16 @@ fn read_config(path: &Path, command: &str) -> Result<Config, &'static str> {
             "ca_file",
         ],
     };
-    if map.len() != allowed.len() || allowed.iter().any(|key| !map.contains_key(*key)) {
+    if map.keys().any(|key| {
+        !allowed.contains(&key.as_str())
+            && key != "deployment_mode"
+            && key != "replica_pg"
+            && key != "role_pack_ceilings"
+            && key != "quality_pg"
+            && !(key == "business_policy" && command == "business-install")
+            && !(key == "business_actors" && command == "business-execute")
+    }) || allowed.iter().any(|key| !map.contains_key(*key))
+    {
         return Err("config");
     }
     let Login {
@@ -456,7 +514,7 @@ fn read_config(path: &Path, command: &str) -> Result<Config, &'static str> {
         if user != TARGET_ROLE {
             return Err("login_role");
         }
-    } else if user != ADMIN_ROLE {
+    } else if user != ADMIN_ROLE && command != "business-review" {
         return Err("login_role");
     }
     let mut reader_user = None;
@@ -493,7 +551,126 @@ fn read_config(path: &Path, command: &str) -> Result<Config, &'static str> {
             reader_password: read_secret(Path::new(&owned(map, "target_reader_password_file")?))?,
         });
     }
+    let replica = map
+        .get("replica_pg")
+        .map(|value| {
+            if kind != "maintain" {
+                return Err("config");
+            }
+            let replica = value.as_object().ok_or("config")?;
+            if replica.len() != 6 {
+                return Err("config");
+            }
+            let loaded = load_login(
+                replica,
+                "host",
+                "port",
+                "database",
+                "user",
+                "password_file",
+                "ca_file",
+            )?;
+            if loaded.user != TARGET_ROLE
+                || target
+                    .as_ref()
+                    .is_none_or(|t| t.database != loaded.database)
+            {
+                return Err("config");
+            }
+            Ok(loaded)
+        })
+        .transpose()?;
+    let quality = if let Some(value) = map.get("quality_pg") {
+        if kind != "maintain" {
+            return Err("config");
+        }
+        let q = value.as_object().ok_or("config")?;
+        if q.len() != 6
+            || q.keys().any(|key| {
+                ![
+                    "host",
+                    "port",
+                    "database",
+                    "user",
+                    "password_file",
+                    "ca_file",
+                ]
+                .contains(&key.as_str())
+            })
+        {
+            return Err("config");
+        }
+        let observed = load_login(
+            q,
+            "host",
+            "port",
+            "database",
+            "user",
+            "password_file",
+            "ca_file",
+        )?;
+        let expected = target.as_ref().ok_or("config")?;
+        if observed.host != expected.host
+            || observed.port != expected.port
+            || observed.database != expected.database
+        {
+            return Err("config");
+        }
+        Some(observed)
+    } else {
+        None
+    };
+    let business_policy = if command == "business-install" {
+        let p = map
+            .get("business_policy")
+            .and_then(Value::as_object)
+            .ok_or("config")?;
+        if p.len() != 2 {
+            return Err("config");
+        }
+        Some((owned(p, "path")?, owned(p, "sha256")?))
+    } else {
+        None
+    };
+    let mut business_actors = std::collections::BTreeMap::new();
+    if command == "business-execute" {
+        let actors = map
+            .get("business_actors")
+            .and_then(Value::as_object)
+            .ok_or("config")?;
+        if actors.len() != 3 {
+            return Err("config");
+        }
+        for kind in ["executor", "oracle", "evaluator"] {
+            let a = actors
+                .get(kind)
+                .and_then(Value::as_object)
+                .ok_or("config")?;
+            if a.len() != 6 {
+                return Err("config");
+            }
+            let login = load_login(
+                a,
+                "host",
+                "port",
+                "database",
+                "user",
+                "password_file",
+                "ca_file",
+            )?;
+            if login.host != host || login.port != port || login.database != database {
+                return Err("config");
+            }
+            business_actors.insert(kind.into(), login);
+        }
+    }
     Ok(Config {
+        business_policy,
+        business_actors,
+        quality,
+        pack_ceilings: map.get("role_pack_ceilings").map(|v| serde_json::from_value(v.clone()).map_err(|_| "config")).transpose()?,
+        replica,
+        deployment_mode,
         host,
         port,
         database,
@@ -506,9 +683,61 @@ fn read_config(path: &Path, command: &str) -> Result<Config, &'static str> {
     })
 }
 
+async fn business_command(
+    command: &str,
+    endpoint: &Endpoint,
+    config: &Config,
+    map: &Map<String, Value>,
+) -> Result<store::Receipt, StoreError> {
+    let control = ControlConn {
+        endpoint,
+        user: &config.user,
+        password: &config.password,
+        ca_pem: &config.ca_pem,
+    };
+    let field = |key| text(map, key).map_err(|_| StoreError::Input);
+    match command {
+        "business-install" => {
+            let (path, pin) = config.business_policy.as_ref().ok_or(StoreError::Input)?;
+            crate::install_business_policy(&control, Path::new(path), pin).await
+        }
+        "business-review" => {
+            crate::review_business_checks(
+                &control,
+                field("policy_sha256")?,
+                field("run_id")?,
+                field("execution_bundle_sha256")?,
+            )
+            .await
+        }
+        "business-revoke" => crate::revoke_business_policy(&control, field("policy_sha256")?).await,
+        "business-execute" => {
+            let actor = |kind: &str| -> Result<ControlConn<'_>, StoreError> {
+                let a = config.business_actors.get(kind).ok_or(StoreError::Input)?;
+                Ok(ControlConn {
+                    endpoint,
+                    user: &a.user,
+                    password: &a.password,
+                    ca_pem: &a.ca_pem,
+                })
+            };
+            crate::execute_business_checks(
+                &control,
+                &actor("executor")?,
+                &actor("oracle")?,
+                &actor("evaluator")?,
+                field("policy_sha256")?,
+                field("run_id")?,
+            )
+            .await
+        }
+        _ => Err(StoreError::Input),
+    }
+}
+
 fn config_kind(command: &str) -> &'static str {
     match command {
-        "maintain-activate" | "maintain-recover" => "maintain",
+        "maintain-activate" | "maintain-recover" | "maintain-data-only" => "maintain",
         "target-install" | "target-close" | "target-grant" | "target-observe" | "target-open"
         | "target-revoke" | "target-status" => "target",
         _ => "control",
@@ -837,6 +1066,7 @@ fn control_of<'a>(config: &'a Config, endpoint: &'a Endpoint) -> ControlConn<'a>
 
 fn endpoint_of(config: &Config) -> Endpoint {
     Endpoint {
+        pack_ceilings: config.pack_ceilings.clone(),
         host: config.host.clone(),
         port: config.port,
         database: config.database.clone(),
@@ -865,12 +1095,43 @@ async fn maintain_cmd(
     };
     let control_endpoint = endpoint_of(config);
     let target_endpoint = Endpoint {
+        pack_ceilings: None,
         host: target.host.clone(),
         port: target.port,
         database: target.database.clone(),
     };
+    let replica_endpoint = config.replica.as_ref().map(|r| Endpoint {
+        pack_ceilings: None,
+        host: r.host.clone(),
+        port: r.port,
+        database: r.database.clone(),
+    });
+    let quality_endpoint = config.quality.as_ref().map(|q| Endpoint {
+        pack_ceilings: None,
+        host: q.host.clone(),
+        port: q.port,
+        database: q.database.clone(),
+    });
     let request = MaintainRequest {
-        replica: None,
+        quality_observer: config.quality.as_ref().zip(quality_endpoint.as_ref()).map(
+            |(q, endpoint)| TargetConn {
+                endpoint,
+                user: &q.user,
+                password: &q.password,
+                ca_pem: &q.ca_pem,
+            },
+        ),
+        deployment_mode: config.deployment_mode,
+        replica: config
+            .replica
+            .as_ref()
+            .zip(replica_endpoint.as_ref())
+            .map(|(r, endpoint)| TargetConn {
+                endpoint,
+                user: &r.user,
+                password: &r.password,
+                ca_pem: &r.ca_pem,
+            }),
         native_mapping: map.get("native_mapping"),
         control: control_of(config, &control_endpoint),
         target: TargetConn {
@@ -889,7 +1150,13 @@ async fn maintain_cmd(
         relation_name: text(map, "relation_name").map_err(|_| StoreError::Input)?,
         role_name: text(map, "role_name").map_err(|_| StoreError::Input)?,
     };
-    if activate {
+    if map.get("protocol").and_then(Value::as_str) == Some("oo.release-coordinator/maintain-data-only/v1") {
+        maintain::maintain_data_only(&request, &maintain::DataOnlyParent {
+            candidate_id: text(map, "parent_candidate_id").map_err(|_| StoreError::Input)?,
+            source_hash: text(map, "parent_source_hash").map_err(|_| StoreError::Input)?,
+            mapping_sha256: text(map, "parent_mapping_sha256").map_err(|_| StoreError::Input)?,
+        }).await
+    } else if activate {
         maintain::maintain_activate(&request).await
     } else {
         maintain::maintain_recover(&request).await
@@ -1000,6 +1267,45 @@ async fn target_status_cmd(
 mod tests {
     use super::{argv_malformed, dispatch};
     use serde_json::json;
+
+    #[test]
+    fn installed_unknown_mode_and_replica_conflict_are_explicit() {
+        let path =
+            std::env::temp_dir().join(format!("oo-wf-allinone-config-{}.json", std::process::id()));
+        for (document, expected) in [
+            (r#"{"deployment_mode":"unknown"}"#, "deployment_mode"),
+            (
+                r#"{"deployment_mode":"all_in_one","replica_pg":{}}"#,
+                "all_in_one_replica_conflict",
+            ),
+        ] {
+            std::fs::write(&path, document).unwrap();
+            assert_eq!(
+                super::read_config(&path, "maintain-activate").err(),
+                Some(expected)
+            );
+        }
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn caller_cannot_select_deployment_mode() {
+        let request = json!({"protocol":"oo.release-coordinator/status/v1","project_id":"shop","candidate_id":"candidate","source_hash":"aa".repeat(32),"deployment_mode":"all_in_one"});
+        let result = dispatch(
+            &[
+                "status".to_owned(),
+                "--config".to_owned(),
+                "not-read.json".to_owned(),
+            ],
+            &serde_json::to_vec(&request).unwrap(),
+        )
+        .await;
+        assert_eq!(result.code, 1);
+        assert_eq!(
+            String::from_utf8(result.stderr).unwrap(),
+            "release-coordinator: malformed field\n"
+        );
+    }
 
     #[test]
     fn argv_requires_one_config_path() {

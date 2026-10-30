@@ -1,12 +1,16 @@
 //! Caller bounds. Caps can be lower than the public query contract and cannot
 //! be higher. There is no result cache and no environment proxy.
 
+use std::net::IpAddr;
 use std::time::Duration;
 
 use crate::QUERY_HTTP_MAX_BYTES;
 use crate::error::{LocalError, QueryError};
 
 const MAX_TIMEOUT: Duration = Duration::from_secs(180);
+
+/// Leave time for a complete Gateway timeout receipt, not a transport race.
+pub const QUERY_RESPONSE_RESERVE: Duration = Duration::from_millis(1_500);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TransportMode {
@@ -110,6 +114,8 @@ pub struct ClientConfig {
     bytes: ByteCaps,
     retry: RetryPolicy,
     trust: RootTrust,
+    connect_ip: Option<IpAddr>,
+    interface: Option<String>,
     /// PEM holding the client certificate and its private key. `Debug` says
     /// only whether it is present.
     identity: Option<Vec<u8>>,
@@ -123,6 +129,8 @@ impl ClientConfig {
             bytes: ByteCaps::contract(),
             retry: RetryPolicy::admission_default(),
             trust: RootTrust::Platform,
+            connect_ip: None,
+            interface: None,
             identity: None,
         }
     }
@@ -148,6 +156,36 @@ impl ClientConfig {
 
     pub fn retry_policy(&self) -> RetryPolicy {
         self.retry
+    }
+
+    /// Operator-only DNS override. Keeps the URL host, SNI and TLS verification.
+    /// The endpoint must have a DNS hostname; its port is not overridden.
+    pub fn with_connect_ip(mut self, ip: IpAddr) -> Self {
+        self.connect_ip = Some(ip);
+        self
+    }
+
+    /// Operator-only socket binding. Unsupported platforms fail at client creation;
+    /// a missing interface fails at connection time, without an unbound fallback.
+    pub fn with_interface(mut self, interface: String) -> Result<Self, QueryError> {
+        if interface.is_empty()
+            || interface.len() > 255
+            || !interface.bytes().all(|byte| (0x21..=0x7e).contains(&byte))
+        {
+            return Err(QueryError::Local(LocalError::Config(
+                "interface must be 1..=255 printable ASCII bytes without whitespace",
+            )));
+        }
+        self.interface = Some(interface);
+        Ok(self)
+    }
+
+    pub(crate) fn connect_ip(&self) -> Option<IpAddr> {
+        self.connect_ip
+    }
+
+    pub(crate) fn interface(&self) -> Option<&str> {
+        self.interface.as_deref()
     }
 
     pub fn with_timeouts(mut self, timeouts: Timeouts) -> Result<Self, QueryError> {
@@ -224,6 +262,8 @@ impl std::fmt::Debug for ClientConfig {
             .field("bytes", &self.bytes)
             .field("retry", &self.retry)
             .field("trust", &self.trust)
+            .field("connect_ip", &self.connect_ip)
+            .field("interface", &self.interface)
             .field("identity", &self.identity.as_ref().map(|_| "present"))
             .finish()
     }
@@ -232,6 +272,20 @@ impl std::fmt::Debug for ClientConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn routing_is_opt_in_and_interface_cannot_panic_the_connector() {
+        let config = ClientConfig::production();
+        assert_eq!(config.connect_ip(), None);
+        assert_eq!(config.interface(), None);
+        for interface in ["", "en0\0", "en 0", "\nen0", &"a".repeat(256)] {
+            assert!(config.clone().with_interface(interface.to_owned()).is_err());
+        }
+        assert_eq!(
+            config.with_connect_ip("::1".parse().unwrap()).connect_ip(),
+            Some("::1".parse().unwrap())
+        );
+    }
 
     #[test]
     fn identity_is_redacted_and_rejected_when_empty_or_nul() {

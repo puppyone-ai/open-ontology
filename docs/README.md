@@ -1,5 +1,20 @@
 # Open Ontology 设计文档
 
+## 当前产品结构
+
+| 层 | 主要目录 | 职责 |
+|---|---|---|
+| Core/API | `crates/oo-core`, `contracts/` | 类型、错误、限制和稳定接口 |
+| Source/CDC | `crates/oo-connectors`, `tools/*-preview`, `tools/source-admission` | 数据源准入、导入、C1/C5 捕获与对账 |
+| Target/Control | `crates/oo-jobs`, `crates/oo-pipeline`, `tools/release-coordinator` | Agent DB、位点、租约、发布和恢复 |
+| Self-build/Pack | `crates/oo-builder`, `tools/pg-builder`, `tools/selfbuild-control-api` | S0-S10、审核、Ontology 和角色 Pack |
+| Gateway/Clients | `crates/oo-gateway`, `crates/oo-cli`, `crates/oo-sdk`, `packages/cli` | 鉴权、只读查询、CLI、SDK |
+| Agent integration | `tools/agent-contract`, `tools/eval-harness`, `crates/oo-mcp` | Skill 绑定、工具调用和评测 |
+| Operations | `deploy/`, `docs/11-deployment-and-operations.md` | 部署、备份、恢复和健康检查 |
+
+客户 schema、Skill、凭证、Gateway 配置、原始数据、运行日志和验收证据
+不属于产品源代码边界，应保留在独立交付仓库或受保护的 evidence 目录。
+
 > Status: Proposed（设计文档；实际实现与验收范围见Spec、Plan和固定证据）
 > Owner: Open Ontology Engineering
 > Last reviewed: 2026-10-09

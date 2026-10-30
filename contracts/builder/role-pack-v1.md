@@ -4,7 +4,35 @@ Contract `oo.builder.role-pack/v1`. Compiler id `oo-builder/role-pack/v1`.
 
 `compile_role_pack` reads two JSON documents and returns one in-memory pack. The visibility document is a snapshot a future policy adapter would supply. This compiler does not authenticate the caller, does not grant, does not read a database, and does not treat `review.state: approved` or `classification.auto_accept` as permission to see a column.
 
-This slice does not finish SP07-W06. Authentication, the policy adapter, filesystem mount, the read API, search, real RLS proof, token budgets, file splitting, domain files, and publication gates G1–G13 stay open.
+This slice does not finish SP07-W06. Authentication, the policy adapter, filesystem mount, real RLS proof, domain files, and publication authority remain separate. The pagination extension below uses the release gate's deterministic token estimate; it does not claim model-token measurement or a passing publication gate.
+
+## Paged metric assets and manifest indexes
+
+Small metric files and inline manifests retain their original bytes. Larger metric
+collections use linked index pages and complete `metrics/<name>.md` definitions.
+All candidate definitions retain their UNREVIEWED / NOT CERTIFIED status. Every page
+uses the same `unicode_word_tokens` estimator as G9; byte limits are checked separately.
+Neither the renderer nor the caller raises budgets or drops later definitions.
+
+A single oversized definition is encoded as hash-bound
+`oo.knowledge.metric-fragment/v1` JSON pages. In sequence order, concatenating the
+`fragment` strings reproduces the entire definition and its `definition_sha256`.
+`next=null` marks the end; each fragment has `complete_query=false` and preserves
+review status. A fragment is not independently executable SQL.
+
+When the full file list exceeds one manifest page, `manifest.json` has `files=[]`
+and an additional `file_index` object with protocol `oo.knowledge.file-index/v1`,
+`entry_count`, and `first` (a path/bytes/sha256 reference). The referenced
+`oo.knowledge.file-index-page/v1` pages contain `files` records and a hash-bound
+`next` reference or null. `entry_count` counts data files, not index pages.
+Expanding the chain plus its page references must exactly match all artifact files
+except `manifest.json`. Coordinator and Gateway reject missing members, duplicates,
+cycles, wrong hashes, and orphan pages even if the outer artifact is rehashed.
+Old readers must reject an unsupported paged manifest, never treat it as an empty Pack.
+
+The artifact's complete file vector, digest, role filtering and visibility checks
+remain unchanged. `oo knowledge search` searches the full file set and
+`oo knowledge cat <path>` reads the linked files; no Skill change is required.
 
 ## Inputs
 
@@ -161,4 +189,4 @@ No new crate dependency is required. Hashing goes through the existing canonical
 
 ## Outside this slice
 
-The OOS model has no sample payload, no `most_common_vals`, no RLS flag, no domain object, no unverified-example type, and no tokenizer. This compiler refuses or omits those gaps. It does not claim a publish gate, a token count, a split file, a domain chapter, a search result, a mount, an authentication, or a proof that row security holds. A later mount or read API can use the same artifact bytes. This crate does not perform that mount.
+The OOS model has no sample payload, no `most_common_vals`, no RLS flag, no domain object, no unverified-example type, and no model tokenizer. This compiler refuses or omits those gaps. Pagination does not claim a publish gate, a model token count, a domain chapter, a search result, a mount, authentication, or proof that row security holds. A later mount or read API can use the same artifact bytes. This crate does not perform that mount.

@@ -78,6 +78,11 @@ impl PackCatalog {
     }
 
     pub fn load_dir(dir: &Path) -> Result<Self, PackError> {
+        Self::load_dir_with_ceilings(dir, &oo_builder::RolePackCeilings::default())
+    }
+
+    pub fn load_dir_with_ceilings(dir: &Path, ceilings: &oo_builder::RolePackCeilings) -> Result<Self, PackError> {
+        if ceilings.max_entries==0 || ceilings.max_entries>65_536 || ceilings.max_total_bytes==0 || ceilings.max_total_bytes>67_108_864 || ceilings.max_file_bytes==0 || ceilings.max_file_bytes>ceilings.max_total_bytes { return Err(PackError {reason:"budget"}); }
         let entries = fs::read_dir(dir).map_err(|_| PackError { reason: "pack_dir" })?;
         let mut names = Vec::new();
         for entry in entries {
@@ -112,7 +117,7 @@ impl PackCatalog {
             let text = fs::read_to_string(dir.join(&name)).map_err(|_| PackError {
                 reason: "pack_read",
             })?;
-            packs.push(parse_artifact(&text)?);
+            packs.push(parse_artifact_with_ceilings(&text, ceilings)?);
         }
         let mut seen = Vec::new();
         for pack in &packs {
@@ -183,7 +188,7 @@ impl PackCatalog {
         })
     }
 
-    /// Bounded literal search over one identity. The needle is not a path.
+    /// Compatibility entry; new clients should use the completeness-aware page.
     pub fn search_text(
         &self,
         project: &str,
@@ -192,8 +197,20 @@ impl PackCatalog {
         knowledge_version: &str,
         needle: &str,
     ) -> Vec<PackHit> {
-        if needle.is_empty() || needle.len() > 200 || needle.contains('\0') {
-            return Vec::new();
+        self.search_page(project, role, policy_version, knowledge_version,
+            &PackSearch { q: needle.into(), path_prefix: None, offset: 0, limit: 20 })
+            .map(|page| page.hits).unwrap_or_default()
+    }
+
+    pub fn search_page(
+        &self, project: &str, role: &str, policy_version: &str, knowledge_version: &str,
+        query: &PackSearch,
+    ) -> Result<PackSearchPage, PackError> {
+        let needle = query.q.as_str();
+        if needle.is_empty() || needle.len() > 200 || needle.contains('\0')
+            || query.limit == 0 || query.limit > 100 || query.offset > 1_048_576
+            || query.path_prefix.as_ref().is_some_and(|p| !safe_pack_path(p.strip_suffix('/').unwrap_or(p))) {
+            return Err(PackError { reason: "search_request_invalid" });
         }
         let Some(pack) = self.packs.iter().find(|pack| {
             pack.project == project
@@ -201,28 +218,39 @@ impl PackCatalog {
                 && pack.policy_version == policy_version
                 && pack.knowledge_version == knowledge_version
         }) else {
-            return Vec::new();
+            return Ok(PackSearchPage { hits: Vec::new(), total: 0, next_offset: None });
         };
         let mut hits = Vec::new();
         for (path, text) in &pack.texts {
-            let Some(index) = text.find(needle) else {
-                continue;
-            };
+            if query.path_prefix.as_ref().is_some_and(|p| !path.starts_with(p)) { continue; }
+            let content_match = text.find(needle);
+            let path_match = path.contains(needle);
+            if content_match.is_none() && !path_match { continue; }
+            let heading = text.lines().next().unwrap_or("");
+            let score = if path == needle { 0 }
+                else if path.rsplit('/').next().is_some_and(|name| name.trim_end_matches(".md") == needle) { 1 }
+                else if heading.contains(needle) { 2 }
+                else if path_match { 3 } else { 4 };
+            let index = content_match.unwrap_or(0);
             let start = index.saturating_sub(40);
             let end = (index + needle.len() + 40).min(text.len());
             let start = floor_char(text, start);
             let end = floor_char(text, end);
             let file = pack.files.iter().find(|file| file.path == *path);
-            hits.push(PackHit {
+            hits.push((score, PackHit {
                 path: path.clone(),
                 sha256: file.map(|file| file.sha256.clone()).unwrap_or_default(),
                 excerpt: text[start..end].to_owned(),
-            });
-            if hits.len() == 20 {
-                break;
-            }
+            }));
         }
-        hits
+        hits.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.path.cmp(&b.1.path)));
+        let total = hits.len();
+        let end = query.offset.saturating_add(query.limit).min(total);
+        Ok(PackSearchPage {
+            hits: hits.into_iter().skip(query.offset).take(query.limit).map(|(_, hit)| hit).collect(),
+            total,
+            next_offset: (end < total).then_some(end),
+        })
     }
 }
 
@@ -241,6 +269,62 @@ pub struct PackHit {
     pub path: String,
     pub sha256: String,
     pub excerpt: String,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackSearch {
+    pub q: String,
+    #[serde(default)]
+    pub path_prefix: Option<String>,
+    #[serde(default)]
+    pub offset: usize,
+    #[serde(default = "search_limit")]
+    pub limit: usize,
+}
+
+fn search_limit() -> usize { 20 }
+
+pub struct PackSearchPage {
+    pub hits: Vec<PackHit>,
+    pub total: usize,
+    pub next_offset: Option<usize>,
+}
+
+#[cfg(test)]
+mod search_tests {
+    use super::*;
+    #[test]
+    fn complete_ranked_pages_keep_role_version_and_path_boundaries() {
+        let mut texts = (0..31).map(|i|
+            (format!("tables/t{i:02}.md"), "# Table\nshipment".to_owned())).collect::<Vec<_>>();
+        texts.push(("tables/shipment.md".into(), "# shipment\nprimary definition".into()));
+        let files = texts.iter().map(|(path, text)| PackFile {
+            path: path.clone(), bytes: text.len() as u64, sha256: sha256_hex(text.as_bytes()),
+        }).collect();
+        let catalog = PackCatalog { packs: vec![LoadedPack {
+            project: "p".into(), role: "r".into(), policy_version: "1".into(),
+            knowledge_version: "2".into(), pack_digest: "digest".into(), files, columns: vec![], texts,
+        }] };
+        let mut query = PackSearch { q: "shipment".into(), path_prefix: Some("tables/".into()), offset: 0, limit: 20 };
+        let first = catalog.search_page("p", "r", "1", "2", &query).unwrap();
+        assert_eq!(first.total, 32);
+        assert_eq!(first.hits[0].path, "tables/shipment.md");
+        assert_eq!(first.next_offset, Some(20));
+        query.offset = first.next_offset.unwrap();
+        let next = catalog.search_page("p", "r", "1", "2", &query).unwrap();
+        assert_eq!(next.hits.len(), 12);
+        assert!(next.next_offset.is_none());
+        assert!(next.hits.iter().all(|hit| !first.hits.iter().any(|a| a.path == hit.path)));
+        assert_eq!(catalog.search_page("p", "other", "1", "2", &query).unwrap().total, 0);
+        assert_eq!(catalog.search_page("p", "r", "1", "old", &query).unwrap().total, 0);
+        query.path_prefix = Some("../".into());
+        assert!(catalog.search_page("p", "r", "1", "2", &query).is_err());
+        query.path_prefix = None;
+        query.offset = 0;
+        query.q = "tables/shipment.md".into();
+        assert_eq!(catalog.search_page("p", "r", "1", "2", &query).unwrap().total, 1);
+    }
 }
 
 fn floor_char(text: &str, index: usize) -> usize {
@@ -278,6 +362,10 @@ pub fn fixture_artifact(
 }
 
 fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
+    parse_artifact_with_ceilings(text, &oo_builder::RolePackCeilings::default())
+}
+
+fn parse_artifact_with_ceilings(text: &str, ceilings: &oo_builder::RolePackCeilings) -> Result<LoadedPack, PackError> {
     let root: Value = serde_json::from_str(text).map_err(|_| PackError {
         reason: "pack_json",
     })?;
@@ -318,7 +406,7 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
         .ok_or(PackError {
             reason: "pack_files",
         })?;
-    if files_value.len() as u64 > MAX_ENTRIES {
+    if files_value.len() as u64 > ceilings.max_entries {
         return Err(PackError { reason: "budget" });
     }
     let mut stored = Vec::new();
@@ -353,7 +441,7 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
                 reason: "pack_bytes",
             });
         }
-        if bytes > MAX_FILE_BYTES {
+        if bytes > ceilings.max_file_bytes {
             return Err(PackError { reason: "budget" });
         }
         total = total
@@ -389,7 +477,7 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
             text: body.to_owned(),
         });
     }
-    if declared_entries != stored.len() as u64 || declared_total != total || total > MAX_TOTAL_BYTES
+    if declared_entries != stored.len() as u64 || declared_total != total || total > ceilings.max_total_bytes
     {
         return Err(PackError { reason: "budget" });
     }
@@ -449,12 +537,9 @@ fn parse_artifact(text: &str) -> Result<LoadedPack, PackError> {
     let _ = (policy_id, knowledge_id);
     let ontology_version = version_token(manifest, "ontology_version")?;
     let _catalog_version = version_token(manifest, "catalog_version")?;
-    let listed = manifest
-        .get("files")
-        .and_then(Value::as_array)
-        .ok_or(PackError {
-            reason: "source_digest",
-        })?;
+    let listed = oo_builder::manifest_file_records(&Value::Object(manifest.clone()), |path| {
+        stored.iter().find(|file| file.path == path).map(|file| file.text.as_str())
+    }).map_err(|_| PackError { reason: "source_digest" })?;
     let mut expected: Vec<&StoredFile> = stored
         .iter()
         .filter(|file| file.path != "manifest.json")
@@ -892,11 +977,13 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn scratch() -> std::path::PathBuf {
+        static NEXT:std::sync::atomic::AtomicU64=std::sync::atomic::AtomicU64::new(0);
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        let path = std::env::temp_dir().join(format!("oo-pack-{nanos}"));
+        let sequence=NEXT.fetch_add(1,std::sync::atomic::Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("oo-pack-{}-{nanos}-{sequence}",std::process::id()));
         fs::create_dir(&path).expect("scratch");
         path
     }
@@ -1104,6 +1191,31 @@ mod tests {
     }
 
     #[test]
+    fn reload_pins_old_request_and_rejects_corrupt_or_deleted_replacement() {
+        use crate::pack_reload::ReloadingPacks;
+        let dir=scratch();
+        write_pack(&dir,"picker.json",&seal("depot","oo_r_picker","pv1","kv1","picker_note","none"));
+        let packs=ReloadingPacks::load(dir.clone(),Default::default()).unwrap();
+        let old=packs.snapshot().unwrap();
+        let again=packs.snapshot().unwrap();
+        assert!(std::sync::Arc::ptr_eq(&old,&again));
+        let replacement=dir.with_extension("new-pack");
+        fs::write(&replacement,seal("depot","oo_r_picker","pv2","kv2","picker_note","none")).unwrap();
+        fs::rename(&replacement,dir.join("picker.json")).unwrap();
+        let new=packs.snapshot().unwrap();
+        assert!(new.find("depot","oo_r_picker","pv2","kv2").is_some());
+        assert!(new.find("depot","oo_r_picker","pv1","kv1").is_none());
+        assert!(old.find("depot","oo_r_picker","pv1","kv1").is_some());
+        fs::write(&replacement,b"corrupt").unwrap();
+        fs::rename(&replacement,dir.join("picker.json")).unwrap();
+        assert!(packs.snapshot().is_err());
+        assert!(new.find("depot","oo_r_picker","pv2","kv2").is_some());
+        fs::remove_file(dir.join("picker.json")).unwrap();
+        assert!(packs.snapshot().unwrap().find("depot","oo_r_picker","pv2","kv2").is_none());
+        let _=fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn declared_digest_tamper_is_refused() {
         let dir = scratch();
         let mut parsed: Value = serde_json::from_str(&seal(
@@ -1253,6 +1365,57 @@ mod tests {
             PackCatalog::load_dir(&dir).expect_err("list").reason,
             "source_digest"
         );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn paged_manifest_requires_every_member_and_digest_even_when_outer_pack_is_resigned() {
+        let dir = scratch();
+        let original: Value = serde_json::from_str(
+            &seal("depot", "oo_r_picker", "pv1", "kv1", "picker_note", "none")).unwrap();
+        let base: Vec<(String, String)> = original["files"].as_array().unwrap().iter()
+            .map(|file| (file["path"].as_str().unwrap().to_owned(),
+                         file["text"].as_str().unwrap().to_owned())).collect();
+        let manifest_index = base.iter().position(|file| file.0 == "manifest.json").unwrap();
+        let original_manifest: Value = serde_json::from_str(&base[manifest_index].1).unwrap();
+        for mutation in ["valid", "missing_member", "duplicate_member", "wrong_member_hash",
+                         "wrong_page_hash", "missing_page", "cycle", "orphan"] {
+            let mut files = base.clone();
+            let mut entries = original_manifest["files"].as_array().unwrap().clone();
+            match mutation {
+                "missing_member" => { entries.pop(); }
+                "duplicate_member" => { entries[1] = entries[0].clone(); }
+                "wrong_member_hash" => { entries[0]["sha256"] = Value::String("0".repeat(64)); }
+                _ => {}
+            }
+            let path = "manifest/files-00000001.json";
+            let mut page = serde_json::json!({
+                "protocol": "oo.knowledge.file-index-page/v1", "files": entries, "next": null,
+            });
+            if mutation == "cycle" {
+                page["next"] = serde_json::json!({"path":path, "bytes":1, "sha256":"0".repeat(64)});
+            }
+            let body = canonical_json(&page);
+            let mut manifest = original_manifest.clone();
+            manifest["files"] = serde_json::json!([]);
+            manifest["file_index"] = serde_json::json!({
+                "protocol":"oo.knowledge.file-index/v1", "entry_count":entries.len(),
+                "first":{"path":path, "bytes":body.len(), "sha256":sha256_hex(body.as_bytes())},
+            });
+            if mutation == "wrong_page_hash" {
+                manifest["file_index"]["first"]["sha256"] = Value::String("0".repeat(64));
+            }
+            files[manifest_index].1 = canonical_json(&manifest);
+            if mutation != "missing_page" { files.push((path.to_owned(), body)); }
+            if mutation == "orphan" { files.push(("manifest/orphan.json".to_owned(), "{}".to_owned())); }
+            write_pack(&dir, "picker.json", &resign(&files, ROLE_PACK_COMPILER));
+            let result = PackCatalog::load_dir(&dir);
+            if mutation == "valid" {
+                assert!(result.is_ok(), "{mutation}: {result:?}");
+            } else {
+                assert_eq!(result.expect_err(mutation).reason, "source_digest", "{mutation}");
+            }
+        }
         let _ = fs::remove_dir_all(&dir);
     }
 }

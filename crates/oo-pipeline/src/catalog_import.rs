@@ -328,7 +328,7 @@ fn validate_closed(request: &Request) -> Result<(), Stop> {
         if table.logical_schema.is_empty()
             || table.logical_table.is_empty()
             || table.columns.is_empty()
-            || table.columns.len() > 64
+            || table.columns.len() > 1024
             || !closed_digest(&table.canonical_digest)
         {
             return Err(Stop::Fixed("invalid input"));

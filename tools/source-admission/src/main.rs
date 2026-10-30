@@ -4,14 +4,24 @@
 
 use std::env;
 use std::fs;
+use std::io::Read;
+use std::path::Path;
 use std::process::ExitCode;
 
 use source_admission::{
-    AUDIT_PROTOCOL, CapturedInput, OBSERVE_PROTOCOL, ObserveConfig, OutputPaths, SourceConfig,
-    TargetReport, adapt, admit, admit_pg_budget, classify_csv, decide_captured, decision_json,
-    observe, recipe_json, registration_recipe, seal_captured, witness_paths,
+    AUDIT_PROTOCOL, CapturedInput, CapturedInputV2, InputFault, OBSERVE_PROTOCOL, ObserveConfig,
+    OutputPaths, PartSource, SourceConfig, TargetReport, adapt, admit, admit_pg_budget,
+    classify_csv, decide_captured, decide_captured_v2, decision_json, observe, recipe_json,
+    registration_recipe, seal_captured, seal_captured_v2, witness_is_v2, witness_paths,
+    witness_paths_v2,
 };
 use zeroize::Zeroizing;
+
+#[path = "../../../crates/oo-pipeline/src/pg_current_capture.rs"]
+mod pg_current_capture;
+
+/// Largest part file admission reads. This is `native_arrow::MAX_ARROW`.
+const PART_READ_LIMIT: u64 = 32 * 1024 * 1024;
 
 fn main() -> ExitCode {
     let mut args = env::args().skip(1);
@@ -22,6 +32,20 @@ fn main() -> ExitCode {
         return ExitCode::from(1);
     };
     match cmd.as_str() {
+        "validate-pg-current" if args.next().is_none() => {
+            let result = (|| {
+                let pin: pg_current_capture::Artifact =
+                    serde_json::from_reader(std::io::stdin()).map_err(|_| "pg_request")?;
+                pg_current_capture::decision(&pin)
+            })();
+            match result {
+                Ok(value) => { println!("{value}"); ExitCode::SUCCESS }
+                Err(reason) => {
+                    println!("{}", serde_json::json!({"protocol":"oo.source-admission.pg-current/v1","admitted":false,"reason":reason}));
+                    ExitCode::from(1)
+                }
+            }
+        }
         "validate" => validate(&collect(args)),
         "seal-native" => seal_native(&collect(args)),
         "adapt-pg" => adapt_pg(&collect(args)),
@@ -99,6 +123,9 @@ fn validate_captured(
     let Some(witness_path) = report.capture_witness.as_deref() else {
         return ExitCode::from(1);
     };
+    if witness_file_is_v2(witness_path) {
+        return validate_captured_v2(report, config, report_bytes, config_bytes, witness_path);
+    }
     let loaded = match load_captured(witness_path) {
         Ok(loaded) => loaded,
         Err(fact) => {
@@ -128,6 +155,96 @@ fn validate_captured(
     }
 }
 
+fn witness_file_is_v2(witness_path: &str) -> bool {
+    fs::read(witness_path).is_ok_and(|bytes| witness_is_v2(&bytes))
+}
+
+/// Reads the parts of a v2 admission from disk. Each read is bounded, so a part
+/// over 32 MiB is refused and never held in memory.
+struct FsParts;
+
+impl PartSource for FsParts {
+    fn read(&mut self, dir: &Path, name: &str) -> Result<Vec<u8>, InputFault> {
+        let file = fs::File::open(dir.join(name)).map_err(|_| InputFault {
+            fact: "part unreadable".to_string(),
+        })?;
+        let mut bytes = Vec::new();
+        file.take(PART_READ_LIMIT + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|_| InputFault {
+                fact: "part unreadable".to_string(),
+            })?;
+        if bytes.len() as u64 > PART_READ_LIMIT {
+            return Err(InputFault {
+                fact: "part too large".to_string(),
+            });
+        }
+        Ok(bytes)
+    }
+}
+
+struct LoadedV2 {
+    witness: Vec<u8>,
+    capturer: Vec<u8>,
+    table_manifest: Vec<u8>,
+    cdc_batches: Vec<u8>,
+    driver: Vec<u8>,
+    schema_preimage: Vec<u8>,
+    type_preimage: Vec<u8>,
+}
+
+fn load_captured_v2(witness_path: &str) -> Result<LoadedV2, String> {
+    if !absolute_cli(witness_path) {
+        return Err("path".to_string());
+    }
+    let witness = fs::read(witness_path).map_err(|_| "witness unreadable".to_string())?;
+    let files = witness_paths_v2(&witness).map_err(|err| err.fact)?;
+    let read = |path: &str, fact: &str| fs::read(path).map_err(|_| fact.to_string());
+    Ok(LoadedV2 {
+        capturer: read(&files.capturer_path, "capturer unreadable")?,
+        table_manifest: read(&files.table_manifest_path, "manifest unreadable")?,
+        cdc_batches: read(&files.cdc_batches_path, "cdc batches unreadable")?,
+        driver: read(&files.driver_path, "driver unreadable")?,
+        schema_preimage: read(&files.schema_preimage_path, "schema preimage unreadable")?,
+        type_preimage: read(&files.type_preimage_path, "type preimage unreadable")?,
+        witness,
+    })
+}
+
+fn validate_captured_v2(
+    report: &TargetReport,
+    config: &SourceConfig,
+    report_bytes: &[u8],
+    config_bytes: &[u8],
+    witness_path: &str,
+) -> ExitCode {
+    let loaded = match load_captured_v2(witness_path) {
+        Ok(loaded) => loaded,
+        Err(fact) => {
+            eprintln!("witness invalid: {fact}");
+            return ExitCode::from(1);
+        }
+    };
+    let input = CapturedInputV2 {
+        witness: &loaded.witness,
+        capturer: &loaded.capturer,
+        table_manifest: &loaded.table_manifest,
+        cdc_batches: &loaded.cdc_batches,
+        driver: &loaded.driver,
+        schema_preimage: &loaded.schema_preimage,
+        type_preimage: &loaded.type_preimage,
+        report: report_bytes,
+        config: config_bytes,
+    };
+    match decide_captured_v2(report, config, &input, &mut FsParts) {
+        Ok(decision) => finish_decision(&decision),
+        Err(err) => {
+            eprintln!("witness invalid: {}", err.fact);
+            ExitCode::from(1)
+        }
+    }
+}
+
 struct Loaded {
     witness: Vec<u8>,
     capturer: Vec<u8>,
@@ -143,8 +260,17 @@ fn load_captured(witness_path: &str) -> Result<Loaded, String> {
     }
     let witness = fs::read(witness_path).map_err(|_| "witness unreadable".to_string())?;
     let files = witness_paths(&witness).map_err(|err| err.fact)?;
+    let capturer = fs::read(&files.capturer_path).map_err(|_| "capturer unreadable".to_string())?;
+    let document: serde_json::Value = serde_json::from_slice(&capturer).map_err(|_| "capturer invalid".to_string())?;
+    if let Some(scope) = document.get("multipart_scope") {
+        source_admission::native_c5_multipart::Manifest::parse(scope).and_then(|manifest|
+            manifest.verify_files(Path::new(&files.capturer_path).parent().ok_or("multipart_path")?))
+            .map_err(str::to_string)?;
+    }
+    let witness_json:serde_json::Value=serde_json::from_slice(&witness).map_err(|_|"witness invalid".to_string())?;
+    if witness_json["multipart_anchor"]==true && fs::metadata(&files.arrow_path).map_err(|_|"arrow unreadable".to_string())?.len()>32*1024*1024 {return Err("multipart anchor size".to_string());}
     Ok(Loaded {
-        capturer: fs::read(&files.capturer_path).map_err(|_| "capturer unreadable".to_string())?,
+        capturer,
         arrow: fs::read(&files.arrow_path).map_err(|_| "arrow unreadable".to_string())?,
         driver: fs::read(&files.driver_path).map_err(|_| "driver unreadable".to_string())?,
         schema_preimage: fs::read(&files.schema_preimage_path)
@@ -266,6 +392,18 @@ fn seal_native(args: &[String]) -> ExitCode {
         eprintln!("witness missing");
         return ExitCode::from(1);
     };
+    if witness_file_is_v2(witness_path) {
+        return seal_native_v2(
+            &final_dir,
+            &report_path,
+            &config_path,
+            &report,
+            &config,
+            &report_bytes,
+            &config_bytes,
+            witness_path,
+        );
+    }
     let loaded = match load_captured(witness_path) {
         Ok(loaded) => loaded,
         Err(fact) => {
@@ -319,6 +457,76 @@ fn seal_native(args: &[String]) -> ExitCode {
         return ExitCode::from(1);
     };
     if !publish(&final_dir, &bundle) {
+        eprintln!("output");
+        return ExitCode::from(1);
+    }
+    let _ = std::io::Write::write_all(&mut std::io::stdout(), &bundle.decision);
+    ExitCode::from(0)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn seal_native_v2(
+    final_dir: &Path,
+    report_path: &str,
+    config_path: &str,
+    report: &TargetReport,
+    config: &SourceConfig,
+    report_bytes: &[u8],
+    config_bytes: &[u8],
+    witness_path: &str,
+) -> ExitCode {
+    let (Some(catalog_path), Some(receipt_path)) = (
+        path_string(&final_dir.join("catalog.json")),
+        path_string(&final_dir.join("admission-receipt.json")),
+    ) else {
+        eprintln!("path");
+        return ExitCode::from(1);
+    };
+    let loaded = match load_captured_v2(witness_path) {
+        Ok(loaded) => loaded,
+        Err(fact) => {
+            eprintln!("witness invalid: {fact}");
+            return ExitCode::from(1);
+        }
+    };
+    let input = CapturedInputV2 {
+        witness: &loaded.witness,
+        capturer: &loaded.capturer,
+        table_manifest: &loaded.table_manifest,
+        cdc_batches: &loaded.cdc_batches,
+        driver: &loaded.driver,
+        schema_preimage: &loaded.schema_preimage,
+        type_preimage: &loaded.type_preimage,
+        report: report_bytes,
+        config: config_bytes,
+    };
+    let paths = OutputPaths {
+        report_path,
+        config_path,
+        catalog_path: &catalog_path,
+        receipt_path: &receipt_path,
+    };
+    let sealed = match seal_captured_v2(report, config, &input, &mut FsParts, &paths) {
+        Ok(sealed) => sealed,
+        Err(err) => {
+            eprintln!("witness invalid: {}", err.fact);
+            return ExitCode::from(1);
+        }
+    };
+    if !sealed.decision.admitted {
+        let _ = std::io::Write::write_all(&mut std::io::stdout(), &sealed.decision_bytes);
+        return ExitCode::from(2);
+    }
+    if let Some(refusal) = sealed.refusal {
+        let _ = std::io::Write::write_all(&mut std::io::stdout(), &sealed.decision_bytes);
+        eprintln!("{refusal}");
+        return ExitCode::from(2);
+    }
+    let Some(bundle) = sealed.bundle else {
+        eprintln!("seal");
+        return ExitCode::from(1);
+    };
+    if !publish(final_dir, &bundle) {
         eprintln!("output");
         return ExitCode::from(1);
     }

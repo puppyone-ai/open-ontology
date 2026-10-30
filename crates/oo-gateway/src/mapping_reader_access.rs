@@ -206,6 +206,12 @@ pub async fn provision_mapping_reader(
 
 const NATIVE_METADATA: &[&str] = &["physical_mappings","table_freshness","source_watermark","table_quality","apply_receipts","full_import_run","full_import_table","full_import_quality"];
 
+fn native_read_metadata(schema: &str, table: &str) -> bool {
+    schema == "_oo" && (NATIVE_METADATA.contains(&table)
+        || matches!(table, "native_library_source_status" | "native_library_head" | "native_library_publication"))
+        || schema == "oo_publish_target" && table == "fence"
+}
+
 /// Provision only metadata read after the entire native vector was formally published.
 pub async fn provision_mapping_reader_native_vector(client:&mut Client,login:&str,policies:&[ColumnAclPolicy])->Result<MappingReaderOutcome,MappingReaderError> {
     compile_column_acl_native_vector_set(policies).map_err(MappingReaderError::Policy)?;
@@ -245,15 +251,15 @@ async fn provision_native_in_transaction(tx:&Transaction<'_>,login:&str,prepared
     let mut actual=BTreeSet::new();
     for row in tx.query("SELECT table_schema,table_name,column_name,privilege_type FROM information_schema.column_privileges WHERE grantee=$1",&[role]).await.map_err(db_error)? {
         let schema:String=row.get(0);let table:String=row.get(1);let column:String=row.get(2);let privilege:String=row.get(3);
-        if schema=="_oo" && NATIVE_METADATA.contains(&table.as_str()) && privilege=="SELECT" {continue;}
+        if native_read_metadata(&schema,&table) && privilege=="SELECT" {continue;}
         actual.insert((schema,table,column,privilege));
     }
     if actual!=expected {return Err(MappingReaderError::GrantMismatch);}
     for row in tx.query("SELECT table_schema,table_name,privilege_type FROM information_schema.table_privileges WHERE grantee=$1",&[role]).await.map_err(db_error)? {
-        if row.get::<_,String>(0)!="_oo" || !NATIVE_METADATA.contains(&row.get::<_,String>(1).as_str()) || row.get::<_,String>(2)!="SELECT" {return Err(MappingReaderError::GrantMismatch);}
+        if !native_read_metadata(&row.get::<_,String>(0),&row.get::<_,String>(1)) || row.get::<_,String>(2)!="SELECT" {return Err(MappingReaderError::GrantMismatch);}
     }
     for row in tx.query("SELECT table_schema,table_name,privilege_type FROM information_schema.column_privileges WHERE grantee=$1",&[&login]).await.map_err(db_error)? {
-        if row.get::<_,String>(0)!="_oo" || !NATIVE_METADATA.contains(&row.get::<_,String>(1).as_str()) || row.get::<_,String>(2)!="SELECT" {return Err(MappingReaderError::UnexpectedPrivilege);}
+        if !native_read_metadata(&row.get::<_,String>(0),&row.get::<_,String>(1)) || row.get::<_,String>(2)!="SELECT" {return Err(MappingReaderError::UnexpectedPrivilege);}
     }
     let mut installed=false;
     match classify(&mapping_priv(tx,login).await?) {
@@ -271,10 +277,31 @@ async fn provision_native_in_transaction(tx:&Transaction<'_>,login:&str,prepared
             }
         }
     }
+    // F22 observes the actual library head and fence, never a caller-supplied
+    // "ready" flag. These fixed metadata reads add no business-column grants.
+    for (schema,table) in [("_oo","native_library_source_status"),("_oo","native_library_head"),("_oo","native_library_publication"),("oo_publish_target","fence")] {
+        let qualified=format!("{schema}.{table}");
+        if !tx.query_one("SELECT to_regclass($1::text) IS NOT NULL",&[&qualified]).await.map_err(db_error)?.get::<_,bool>(0) {continue;}
+        for who in [login,role.as_str()] {
+            let row=tx.query_one("SELECT has_table_privilege($1::name,$2,'SELECT'),has_table_privilege($1::name,$2,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'),has_table_privilege('public'::name,$2,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')",&[&who,&qualified]).await.map_err(db_error)?;
+            if row.get::<_,bool>(1) || row.get::<_,bool>(2) {return Err(MappingReaderError::UnexpectedPrivilege);}
+            if !row.get::<_,bool>(0) {
+                tx.batch_execute(&format!("GRANT USAGE ON SCHEMA {} TO {}; GRANT SELECT ON {}.{} TO {}",
+                    quote_ident(schema)?,quote_ident(who)?,quote_ident(schema)?,quote_ident(table)?,quote_ident(who)?)).await.map_err(db_error)?;
+                installed=true;
+            }
+            if table=="native_library_source_status" {
+                tx.batch_execute(&format!("GRANT EXECUTE ON FUNCTION _oo.native_library_source_ready(text,text) TO {}",quote_ident(who)?)).await.map_err(db_error)?;
+            }
+        }
+    }
     Ok(MappingReaderOutcome {effect:if installed {MappingReaderEffect::Installed} else {MappingReaderEffect::Replay},login:login.to_owned(),role:role.clone()})
 }
 
 async fn native_publish_fence(tx:&Transaction<'_>,role:&str,context:&Prepared,logical:&PreparedTable,table:&ResolvedTable)->Result<Option<tokio_postgres::Row>,MappingReaderError> {
+    if tx.query_one("SELECT to_regclass('_oo.native_library_source_status') IS NOT NULL",&[]).await.map_err(db_error)?.get::<_,bool>(0) {
+        if tx.query_opt("SELECT 1 FROM _oo.native_library_source_status WHERE source_id=$1 AND NOT _oo.native_library_source_ready(source_id,receipt_sha256)",&[&context.project]).await.map_err(db_error)?.is_some() {return Ok(None);}
+    }
     let consistency:Option<String>=tx.query_opt(
         "SELECT consistency FROM _oo.source_watermark WHERE source=$1 AND state='live'",
         &[&context.project],
@@ -295,10 +322,37 @@ async fn native_publish_fence(tx:&Transaction<'_>,role:&str,context:&Prepared,lo
         ).await.map_err(db_error),
         // In per-table mode the source watermark is the current collection cut;
         // the immutable 0039 receipt binds that cut to each table's sealed run.
-        Some("per_table")=>tx.query_opt(
-            PER_TABLE_PUBLISHED_FENCE_SQL,
-            &[&role,&table.physical_table,&context.project,&context.config_digest,&logical.namespace,&logical.name],
-        ).await.map_err(db_error),
+        Some("per_table")=>{
+            let kind:Option<String>=tx.query_opt(
+                "SELECT c.relkind::text FROM pg_catalog.pg_class c \
+                 JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace \
+                 WHERE n.nspname='_oo' AND c.relname=$1",
+                &[&table.physical_table],
+            ).await.map_err(db_error)?.map(|row|row.get(0));
+            let overlay=match kind.as_deref() {
+                Some("r")=>false,
+                Some("v")=>{
+                    // Old targets keep their heap path without requiring the overlay API.
+                    let installed:bool=tx.query_one(
+                        "SELECT to_regprocedure('_oo.c5_overlay_is_valid(text)') IS NOT NULL \
+                         AND to_regprocedure('_oo.c5_overlay_visible(text,name)') IS NOT NULL",
+                        &[],
+                    ).await.map_err(db_error)?.get(0);
+                    if !installed {return Ok(None);}
+                    let proven:bool=tx.query_one(
+                        "SELECT _oo.c5_overlay_is_valid($1) AND _oo.c5_overlay_visible($1,$2::text::name)",
+                        &[&table.physical_table,&role],
+                    ).await.map_err(db_error)?.get(0);
+                    if !proven {return Ok(None);}
+                    true
+                }
+                _=>return Ok(None),
+            };
+            tx.query_opt(
+                PER_TABLE_PUBLISHED_FENCE_SQL,
+                &[&role,&table.physical_table,&context.project,&context.config_digest,&logical.namespace,&logical.name,&overlay],
+            ).await.map_err(db_error)
+        }
         _=>Ok(None),
     }
 }
@@ -378,7 +432,8 @@ WHERE f.role_name=$1 AND f.schema_name='_oo'
       AND (
         (e.value->>'capture_method'='c5_diff'
           AND e.value->>'delete_detection'='reconcile'
-          AND fresh.mode='full' AND fresh.last_pos IS NOT DISTINCT FROM t.applied_pos)
+          AND (fresh.mode='full' OR (fresh.mode='incremental' AND $7::boolean))
+          AND fresh.last_pos IS NOT DISTINCT FROM t.applied_pos)
         OR
         (e.value->>'capture_method'='c4_partition'
           AND e.value->>'delete_detection'='partition_replace'
@@ -953,6 +1008,19 @@ fn quote_ident(value: &str) -> Result<String, MappingReaderError> {
 mod tests {
     use super::*;
     use crate::policy::{ClassStatus, ColumnSpec, LogicalTable, PiiClass, RowFilter};
+
+    #[test]
+    fn native_publication_reads_do_not_allow_business_or_control_relations() {
+        assert!(native_read_metadata("_oo","native_library_head"));
+        assert!(native_read_metadata("_oo","native_library_source_status"));
+        assert!(native_read_metadata("_oo","native_library_publication"));
+        assert!(native_read_metadata("oo_publish_target","fence"));
+        for (schema,table) in [("_oo","pt_business"),("jobs","tasks"),
+            ("_oo","native_c1_baseline_typed"),("public","native_library_head"),
+            ("oo_publish_target","revoked_column")] {
+            assert!(!native_read_metadata(schema,table));
+        }
+    }
 
     fn digest() -> String {
         "ab".repeat(32)

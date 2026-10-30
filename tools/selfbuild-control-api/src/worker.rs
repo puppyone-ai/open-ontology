@@ -86,7 +86,9 @@ async fn drive(
     if job.status == "cancel_requested" {
         return settle_cancel(client, &job).await;
     }
-    if project.sealed_bundle.is_empty() {
+    if project.library.is_some() {
+        if !crate::library::ready(project) { return Err(()); }
+    } else if project.sealed_bundle.is_empty() {
         if !binaries_ready(&config.binaries) {
             let _ = store::set_job(client, &job.build_id, "failed", &job.stage, Some("dependency.not_ready"), &job.input_sha256).await;
             return Err(());
@@ -194,6 +196,9 @@ async fn run_stage(
     cancel: &Arc<AtomicBool>,
 ) -> bool {
     let _ = store::set_stage(client, &job.build_id, stage, "running", &job.input_sha256, None, None).await;
+    if project.library.is_some() {
+        return crate::library::run(client, project, job, stage, dir, cancel).await;
+    }
     if !project.sealed_bundle.is_empty() {
         let reviewer = config
             .principals

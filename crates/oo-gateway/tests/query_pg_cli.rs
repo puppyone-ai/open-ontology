@@ -1175,7 +1175,7 @@ fn base_value(
             "max_tables": 4,
             "max_columns": 64,
             "max_functions": 1,
-            "max_operators": 64,
+            "max_operators": 128,
             "large_table_row_threshold": 1_000_000,
             "unknown_rows": "refuse"
         },
@@ -1310,7 +1310,7 @@ fn limits() -> CatalogLimits {
         max_tables: 4,
         max_columns: 64,
         max_functions: 1,
-        max_operators: 64,
+        max_operators: 128,
         large_table_row_threshold: 1_000_000,
         unknown_rows: UnknownRows::Refuse,
     }

@@ -958,3 +958,26 @@ fn competing_processes_one_publishes_and_the_other_refuses() {
     assert_eq!(fs::read(&neighbor).expect("neighbor"), b"KEEP-NEIGHBOR");
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn relationship_pages_survive_bundle_with_truthful_status() {
+    let (mut effective, mut visibility, audit) = wharf();
+    visibility["datasets"].as_array_mut().unwrap().extend(audit["datasets"].as_array().unwrap().clone());
+    let edge = effective["relationships"][0].clone();
+    effective["relationships"] = json!((0..80).map(|i| {
+        let mut item = edge.clone();
+        item["name"] = json!(format!("edge_{i:04}"));
+        item
+    }).collect::<Vec<_>>());
+    let expected = library_pack(&effective, &visibility);
+    let dir = scratch("relationship-pages");
+    let request = dir.join("request.json");
+    let output = dir.join("bundle.json");
+    fs::write(&request, command_bytes(&effective, &visibility)).unwrap();
+    let result = run_bundle(&request, &output);
+    assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+    let bundle: Value = serde_json::from_slice(&fs::read(output).unwrap()).unwrap();
+    assert_eq!(bundle["statuses"]["file_splitting"], "relationship_pages");
+    assert_eq!(bundle["pack_digest"], expected.pack_digest);
+    assert_eq!(bundle["pack"], serde_json::from_str::<Value>(&expected.artifact).unwrap());
+}

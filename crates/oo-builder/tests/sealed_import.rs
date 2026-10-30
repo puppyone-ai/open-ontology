@@ -682,6 +682,34 @@ fn captured_oracle_bpchar_catalog_compiles_through_draft_oos_and_role_pack() {
     for engine in ["mysql", "clickhouse", "mongodb", "postgresql"] {
         let mut copy = serde_json::from_str::<Value>(oracle_fixture()).unwrap();
         copy["engine"] = json!(engine);
+        if engine == "clickhouse" {
+            let missing = oo_builder::compile_sealed_import_catalog(&copy.to_string())
+                .expect_err("ClickHouse requires a complete partition vector");
+            assert!(missing.code.ends_with("/partition.missing"));
+            // Synthetic single-partition evidence for this cross-engine type test.
+            // This does not turn the original Oracle capture into a ClickHouse capture.
+            let digest = "a".repeat(64);
+            let scope = json!({
+                "source_id": copy["source_id"], "source_generation": copy["source_generation"],
+                "logical_schema": "batch", "logical_table": "t_batch",
+                "partition_id": "202401", "observed_partition_ids": ["202401"],
+                "complete": true, "mutations_pending": false,
+                "table_epoch": copy["run_id"], "schema_fingerprint": "c6\tFixedString(6)",
+                "schema_digest": digest, "type_digest": copy["type_digest"],
+                "arrow_sha256": digest, "row_count": 5,
+                "current_signature": "202401|5|1|sealed"
+            });
+            copy["partition_vector"] = json!([{
+                "partition_id": "202401", "table_epoch": scope["table_epoch"],
+                "schema_fingerprint": scope["schema_fingerprint"],
+                "current_signature": scope["current_signature"],
+                "previous_ack_exists": false, "previous_signature": null,
+                "partition_scope": scope, "audit_digest": digest,
+                "consistency_grade": "S1", "source_generation": copy["source_generation"],
+                "target_generation": copy["target_generation"], "run_id": copy["run_id"],
+                "batch_id": "t0.b0", "payload_digest": digest, "row_count": 5
+            }]);
+        }
         let compiled = oo_builder::compile_sealed_import_catalog(&copy.to_string()).expect(engine);
         assert_eq!(compiled.source_engine, engine);
         assert_eq!(compiled.schema_digest, draft.schema_digest);

@@ -124,17 +124,44 @@ pub fn replace(
     std::thread::sleep(Duration::from_secs(1));
     require(child.try_wait()?.is_none(), "api_start")
 }
-pub fn source_sql(c: &Value, calls: &mut Calls, sql: &str) -> Result<String> {
-    let p = &c["onboarding"]["product"];
+/// Budgets for one network statement. The statement budget stays under the 600 s
+/// child deadline in `io.rs`. The row and byte caps cover one 4096-row oracle page.
+const SOURCE_SQL_STATEMENT_MS: u64 = 540_000;
+const SOURCE_SQL_MAX_ROWS: u64 = 100_000;
+const SOURCE_SQL_MAX_BYTES: u64 = 67_108_864;
+
+/// How one source statement runs. The legacy path execs the mysql client into an
+/// owned fixture container. The network path execs the pinned producer into the
+/// trusted runtime container, which connects to the admitted source. Neither
+/// path puts the password in argv.
+#[derive(Debug, PartialEq)]
+struct SourceCall {
+    label: &'static str,
+    container: String,
+    args: Vec<String>,
+    input: Option<Vec<u8>>,
+}
+
+fn source_call(c: &Value, sql: &str) -> Result<SourceCall> {
+    let o = &c["onboarding"];
+    let p = &o["product"];
+    if p["source_access"] == "network" {
+        return Ok(SourceCall {
+            label: "source-sql-network",
+            container: text(o, "container")?.into(),
+            args: strings(&[text(o, "producer")?, "source-sql"]),
+            input: Some(bytes(&source_request(c, sql)?)?),
+        });
+    }
     let container = text(p, "source_container")?;
     require(
-        container.starts_with("oo-dl01w1-06-") || container == "oo-mysql57-reference-20261016",
+        container.starts_with("oo-dl01w1-06-") || container == "oo-mysql57-reference-20261016" || (o["full"].is_object() && (container.starts_with("oo-yjcap-full-") || container.starts_with("oo-wf-batch-") || container.starts_with("oo-wf-mpart-"))),
         "owned_fixture_only",
     )?;
-    Ok(String::from_utf8(calls.docker(
-        "profile-sql",
-        container,
-        &strings(&[
+    Ok(SourceCall {
+        label: "profile-sql",
+        container: container.into(),
+        args: strings(&[
             "mysql",
             &format!("--defaults-file={}", text(p, "source_client_file")?),
             "--default-character-set=utf8mb4",
@@ -144,8 +171,160 @@ pub fn source_sql(c: &Value, calls: &mut Calls, sql: &str) -> Result<String> {
             "-e",
             sql,
         ]),
-        None,
-    )?)?)
+        input: None,
+    })
+}
+
+/// The optional profiling account (`onboarding.product.profile_access`). Only the
+/// account and its password file differ from the admitted binding. The endpoint,
+/// CA and TLS name always come from the binding. It is used only by network-mode
+/// source SQL, and the drift check never reads it.
+#[derive(Debug, PartialEq)]
+pub struct ProfileAccess {
+    pub user: String,
+    pub password_file: PathBuf,
+}
+
+/// Accepts exactly `{user, secret_ref}`. `secret_ref` resolves through the
+/// operator's secret registry to a private file under `host_secret_root`. Naming
+/// the CDC account is allowed. The producer's own inspect() still requires a
+/// read-only account.
+pub fn profile_access(c: &Value) -> Result<Option<ProfileAccess>> {
+    let o = &c["onboarding"];
+    let Some(access) = o["product"].get("profile_access") else {
+        return Ok(None);
+    };
+    let keys = access
+        .as_object()
+        .ok_or("profile_access")?
+        .keys()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    require(
+        keys == BTreeSet::from(["secret_ref", "user"]),
+        "profile_access_keys",
+    )?;
+    let user = text(access, "user")?;
+    require(!user.is_empty(), "profile_access_user")?;
+    let registry = load(private(text(o, "secret_registry")?)?)?;
+    let password = registry[text(access, "secret_ref")?]
+        .as_str()
+        .ok_or("profile_secret_ref")?;
+    let password_file = private(password)?;
+    require(
+        password_file.starts_with(text(o, "host_secret_root")?),
+        "secret_root",
+    )?;
+    Ok(Some(ProfileAccess {
+        user: user.into(),
+        password_file,
+    }))
+}
+
+/// The `oo.mysql.source-sql/v1` request for the admitted source. `c` is the
+/// operator after `connection()` has matched the six fields exactly. The
+/// password is referenced by its container path under `/secrets`, the same
+/// mapping `capture()` uses. Its contents are never read here. Without
+/// `profile_access` the admitted CDC account and password are used.
+fn source_request(c: &Value, sql: &str) -> Result<Value> {
+    let o = &c["onboarding"];
+    let (user, password) = match profile_access(c)? {
+        Some(access) => (access.user, access.password_file),
+        None => (
+            text(c, "user")?.into(),
+            PathBuf::from(text(c, "password_file")?),
+        ),
+    };
+    private(&password)?;
+    let port = c["port"]
+        .as_u64()
+        .filter(|port| (1..=65_535).contains(port))
+        .ok_or("port")?;
+    let relative = password.strip_prefix(text(o, "host_secret_root")?)?;
+    let mut connection = json!({
+        "host": text(c, "host")?,
+        "port": port,
+        "database": text(c, "database")?,
+        "user": user,
+        "password_file": if o["full"]["pipeline"]["runtime_transport"] == "host" {
+            password.to_string_lossy().into_owned()
+        } else {
+            format!("/secrets/{}", relative.display())
+        },
+    });
+    if let Some(policy) = o["full"].get("source_transport") {
+        require(
+            o["full"].is_object()
+                && policy == &json!({"tls":"disabled","plaintext_authorized":true})
+                && c.get("ca_file") == Some(&Value::Null)
+                && c.get("tls_server_name") == Some(&Value::Null),
+            "source_transport",
+        )?;
+        connection["tls"] = json!("disabled");
+        connection["plaintext_authorized"] = json!(true);
+        connection["ca_file"] = Value::Null;
+        connection["tls_server_name"] = Value::Null;
+    } else {
+        connection["ca_file"] = json!(text(c, "ca_file")?);
+    }
+    if !c["tls_server_name"].is_null() {
+        connection["tls_server_name"] = json!(text(c, "tls_server_name")?);
+    }
+    Ok(json!({
+        "protocol": "oo.mysql.source-sql/v1",
+        "connection": connection,
+        "statement_ms": SOURCE_SQL_STATEMENT_MS,
+        "max_rows": SOURCE_SQL_MAX_ROWS,
+        "max_bytes": SOURCE_SQL_MAX_BYTES,
+        "sql": sql,
+    }))
+}
+
+/// A chunked-typed/v2 final-load request carries `tables[]` (admission, digests) instead of the v1
+/// `entries[]` + `native_requests[]`. Shape it like v1 so the catalog and publication steps stay shared.
+/// A v1 request is returned unchanged.
+pub fn normalize_c1_request(request: Value) -> Result<Value> {
+    if request.get("native_requests").is_some() || request.get("tables").is_none() {
+        return Ok(request);
+    }
+    let tables = array(&request, "tables")?;
+    let scope_tables = array(&request["baseline_scope"], "tables")?;
+    let mut entries = Vec::new();
+    let mut natives = Vec::new();
+    for item in array(&request, "entries")? {
+        let (schema, table) = (text(item, "schema")?, text(item, "table")?);
+        let find = |list: &Vec<Value>| -> Result<Value> {
+            list.iter()
+                .find(|t| t["schema"] == schema && t["table"] == table)
+                .cloned()
+                .ok_or_else(|| "table_vector".into())
+        };
+        let t = find(tables)?;
+        let scope = find(scope_tables)?;
+        entries.push(json!({"schema": schema, "table": table,
+            "admission_registry_path": t["admission"]["registry_path"],
+            "admission_registry_sha256": t["admission"]["registry_sha256"]}));
+        natives.push(json!({"logical_schema": schema, "logical_table": table,
+            "source_id": request["source_id"], "source_generation": request["source_generation"],
+            "config_digest": request["baseline_scope"]["config_digest"],
+            "schema_digest": scope["schema_sha256"], "type_digest": t["type_digest"],
+            "input_digest": t["input_digest"],
+            "snapshot": {"kind": "mysql_cdc_first", "value": request["baseline_scope"]["l_end"]},
+            "target": request["target"]}));
+    }
+    let mut shaped = request;
+    shaped["entries"] = Value::Array(entries);
+    shaped["native_requests"] = Value::Array(natives);
+    Ok(shaped)
+}
+pub fn source_sql(c: &Value, calls: &mut Calls, sql: &str) -> Result<String> {
+    let call = source_call(c, sql)?;
+    let output = if c["onboarding"]["product"]["source_access"] == "network" {
+        crate::full_pipeline::runtime(c, calls, call.label, &call.args, call.input.as_deref())?
+    } else {
+        calls.docker(call.label, &call.container, &call.args, call.input.as_deref())?
+    };
+    Ok(String::from_utf8(output)?)
 }
 fn profile(c: &Value, calls: &mut Calls, generation: &Value, source: &Value) -> Result<Value> {
     let selection = load(
@@ -260,13 +439,17 @@ fn published_cut_files(pins: &Value) -> Result<Vec<&'static str>> {
     Ok(files)
 }
 
+#[cfg(test)]
 fn published_cut_ready(status: &Value, ready: Option<&Value>, generation: &Value) -> Result<()> {
+    published_cut_ready_in_mode(status, ready, generation, oo_core::config::DeploymentMode::PrimaryReplica)
+}
+
+fn published_cut_ready_in_mode(status: &Value, ready: Option<&Value>, generation: &Value, mode: oo_core::config::DeploymentMode) -> Result<()> {
     require(
         status["status"] == "succeeded"
             && status["half_published"] == false
             && ready.is_none_or(|ready| {
-                ready["ready"] == true
-                    && ready["readonly_replica"] == true
+                mode.matches_ready(ready)
                     && ready["source_generation"] == *generation
                     && ready["pack_digest"] == status["pack_digest"]
             }),
@@ -274,8 +457,377 @@ fn published_cut_ready(status: &Value, ready: Option<&Value>, generation: &Value
     )
 }
 
+pub fn full_batch(c: &Value, out: &Path) -> Result<Value> {
+    let full = &c["onboarding"]["full"];
+    let manifest = load(private(text(full, "batch_manifest")?)?)?;
+    require(
+        manifest["config_sha256"] == sha(&bytes(c)?),
+        "batch_config_binding",
+    )?;
+    if full["pipeline"].is_object() {
+        crate::full_pipeline::provision(c, out)?;
+    }
+    let catalog = if full["pipeline"].is_object() {
+        Value::Null
+    } else {
+        load(private(text(full, "catalog")?)?)?
+    };
+    let ledger = crate::batch::run(&manifest, out, &|table, attempt| {
+        if full["pipeline"].is_object() {
+            return crate::full_pipeline::run_table(c, &manifest, table, attempt);
+        }
+        let item = array(full, "tables")?
+            .iter()
+            .filter(|item| item["schema"] == table["schema"] && item["table"] == table["table"])
+            .collect::<Vec<_>>();
+        require(item.len() == 1, "batch_table_binding")?;
+        let item = item[0];
+        let entries = array(&catalog, "entries")?
+            .iter()
+            .filter(|entry| {
+                entry["tables"].as_array().is_some_and(|tables| {
+                    tables.len() == 1
+                        && tables[0]["logical_schema"] == table["schema"]
+                        && tables[0]["logical_table"] == table["table"]
+                })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        require(
+            entries.len() == 1 && entries[0]["source_generation"] == manifest["generation"],
+            "batch_generation_binding",
+        )?;
+        let request = load(private(text(item, "request")?)?)?;
+        let columns = array(&request, "columns")?
+            .iter()
+            .map(|column| column["logical_name"].clone())
+            .collect::<Vec<_>>();
+        require(json!(columns) == table["columns"], "batch_column_binding")?;
+        let single = collection(&entries, std::slice::from_ref(item))?;
+        let path = attempt.join("single-catalog.json");
+        save(&path, &single)?;
+        let mut config = c.clone();
+        config["onboarding"]["full"]["catalog"] = json!(path);
+        config["onboarding"]["full"]["tables"] = json!([item]);
+        config["onboarding"]["full"]
+            .as_object_mut()
+            .ok_or("full")?
+            .remove("batch_manifest");
+        self::full(&config, attempt)?;
+        let loaded = load(private(text(item, "load")?)?)?;
+        Ok(
+            json!({"rows":loaded["row_count"],"chunks":1,"bytes":fs::metadata(text(&request,"arrow_path")?)?.len(),"comparison":"equal"}),
+        )
+    })?;
+    require(
+        crate::batch::completeness(&manifest, &ledger)?.is_empty(),
+        "batch_incomplete",
+    )?;
+    require(
+        !crate::batch::has_failures(&manifest, &ledger)?,
+        "batch_table_failed",
+    )?;
+    Ok(ledger)
+}
+
+pub fn full(c: &Value, out: &Path) -> Result<Value> {
+    let full = &c["onboarding"]["full"];
+    let mut calls = Calls::with_operator(out, &c["onboarding"])?;
+    let catalog = load(private(text(full, "catalog")?)?)?;
+    let selected = array(full, "tables")?;
+    let entries = array(&catalog, "entries")?;
+    require(
+        !entries.is_empty() && entries.len() == selected.len(),
+        "full_selection",
+    )?;
+    require(
+        collection(entries, selected)? == catalog,
+        "full_catalog_binding",
+    )?;
+    let mut targets = json!({});
+    let mut evidence = Vec::new();
+    let mut captures = Vec::new();
+    let evidence_id = sha(&bytes(&catalog)?);
+    let evidence_root = out.join("source-evidence").join(&evidence_id);
+    dir(out.join("source-evidence"))?;
+    dir(&evidence_root)?;
+    for (index, entry) in entries.iter().enumerate() {
+        let table = &array(entry, "tables")?[0];
+        let item = selected
+            .iter()
+            .find(|item| {
+                item["schema"] == table["logical_schema"] && item["table"] == table["logical_table"]
+            })
+            .ok_or("full_selection")?;
+        let dataset = format!(
+            "{}.{}",
+            text(table, "logical_schema")?,
+            text(table, "logical_table")?
+        );
+        targets[&dataset] = item["target"].clone();
+        let mut refs = json!({});
+        for kind in ["request", "load", "admission"] {
+            let source = private(text(item, kind)?)?;
+            let name = format!("{index}-{kind}.json");
+            copy(&source, evidence_root.join(&name))?;
+            refs[kind] = json!({"path":format!("source-evidence/{evidence_id}/{name}"),"sha256":digest(&source)?});
+        }
+        let request = load(private(text(item, "request")?)?)?;
+        let loaded = load(private(text(item, "load")?)?)?;
+        let admission = load(private(text(item, "admission")?)?)?;
+        full_admission_hash(&request, &loaded, text(&refs["admission"], "sha256")?)?;
+        captures.push((request, loaded, admission));
+        evidence.push(refs);
+    }
+    let generation = json!(entries.iter().filter_map(|e|e["source_generation"].as_i64()).max().ok_or("full_generation")?);
+    let target_generation = json!(entries.iter().filter_map(|e|e["target_generation"].as_i64()).max().ok_or("full_generation")?);
+    let source = entries[0]["source_id"].clone();
+    require(full["source_id"] == source, "full_source_binding")?;
+    require(
+        entries.iter().all(|e| full_table_binding(e, &c["database"])),
+        "full_table_binding",
+    )?;
+    require(
+        entries.iter().all(|entry| {
+            entry["source_id"] == source
+                && entry["source_generation"].as_i64().is_some_and(|n|n>0)
+                && entry["target_generation"].as_i64().is_some_and(|n|n>0)
+        }),
+        "full_generation",
+    )?;
+    let publication = full_publication(&catalog, &captures)?;
+    let oracle = if captures.iter().any(|(request,_,_)|request.get("multipart_scope").is_some()) {
+        let mut tables=Vec::new();
+        for (entry,(request,_,_)) in entries.iter().zip(&captures) {
+            let single=json!({"entries":[entry]});
+            let report=if request.get("multipart_scope").is_some() {crate::audit::compare_chunks(c,&single,&targets,&mut calls,request)?}else{crate::audit::compare_full(c,&single,&targets,&mut calls)?};
+            tables.extend(array(&report,"tables")?.iter().cloned());
+        }
+        json!({"protocol":"oo.mysql.full-typed-oracle/v1","method":"bounded-chunk-cells/v1","tables":tables,"different_cells":0,"unresolved_chunks":0,"common_source_position":null})
+    } else {crate::audit::compare_full(c, &catalog, &targets, &mut calls)?};
+    save(out.join("typed-oracle.json"), &oracle)?;
+    let mut profile = sealed_profile(&catalog, &targets, &mut calls)?;
+    save(out.join("catalog.json"), &catalog)?;
+    let mut table_generations = json!({});
+    let mut methods = json!({});
+    for entry in entries {
+        for table in array(entry, "tables")? {
+            let dataset = format!(
+                "{}.{}",
+                text(table, "logical_schema")?,
+                text(table, "logical_table")?
+            );
+            methods[&dataset] = json!({"logical_table":dataset,"capture_method":"c5_diff","consistency":captures.iter().find(|(r,_,_)|r["logical_schema"]==table["logical_schema"] && r["logical_table"]==table["logical_table"]).map(|(r,_,_)|r["consistency_grade"].clone()).unwrap_or(json!("B")),"delete_detection":"reconcile","source_generation":entry["source_generation"],"target_generation":entry["target_generation"]});
+            table_generations[&dataset]=json!({"source_generation":entry["source_generation"],"target_generation":entry["target_generation"],"run_id":entry["run_id"]});
+        }
+    }
+    let mut semantics = json!({"protocol":"oo.source.mysql.audit/v1","source_id":source,"source_generation":generation,"target_generation":target_generation,"version":text(full,"version")?,"capture_method":"C5","consistency_grade":if entries.len()==1 && captures[0].0["consistency_grade"]=="S0" { "S0" } else { "B" },"delete_detection":"reconcile","cross_table_consistent":false,"position_codec":"snapshot-zero/v1","applied_pos":"0","collection_sha256":digest(out.join("catalog.json"))?,"binding_vector_sha256":sha(&bytes(&catalog["binding_vector"])?),"evidence_set_id":evidence_id,"c5_evidence":evidence,"capture_methods":methods,"quality":{"full_typed_cell_differences":0},"common_source_position":null});
+    for document in [&mut profile, &mut semantics] {
+        document["source_generation"] = generation.clone();
+        document["target_generation"] = target_generation.clone();
+        document["generation_semantics"] = json!("high_watermark");
+        document["table_generations"] = table_generations.clone();
+        document["collection_sha256"] = json!(digest(out.join("catalog.json"))?);
+        document["binding_vector_sha256"] = json!(sha(&bytes(&catalog["binding_vector"])?));
+    }
+    save(out.join("profile.json"), &profile)?;
+    save(out.join("source-semantics.json"), &semantics)?;
+    save(out.join("publication.json"), &publication)?;
+    save(
+        out.join("full-receipt.json"),
+        &json!({"protocol":"oo.source-onboarding.mysql-full/v1","catalog_sha256":digest(out.join("catalog.json"))?,"profile_sha256":digest(out.join("profile.json"))?,"semantics_sha256":digest(out.join("source-semantics.json"))?,"independent_audit":oracle,"publication":"not_published","review":"not_claimed"}),
+    )?;
+    Ok(semantics)
+}
+
+fn full_table_binding(entry: &Value, database: &Value) -> bool {
+    entry["engine"] == "mysql"
+        && entry["tables"].as_array().is_some_and(|tables| {
+            tables.len() == 1
+                && tables[0]["logical_schema"] == *database
+                && tables[0]["stored_namespace"].as_str().is_some_and(|namespace| {
+                    namespace.strip_prefix("pn_").is_some_and(|suffix| {
+                        suffix.len() == 60 && suffix.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+                    })
+                })
+        })
+}
+
+fn full_admission_hash(request: &Value, loaded: &Value, admission_sha: &str) -> Result<()> {
+    require(
+        request["admission_expect"]
+            .get("declared_receipt_sha256")
+            .is_none_or(|sha| sha == admission_sha)
+            && loaded["producer_trust"]["receipt_sha256"] == admission_sha
+            && loaded["producer_trust"]["document_bound"] == true,
+        "full_admission_hash",
+    )
+}
+
+fn full_publication(
+    catalog: &Value,
+    captures: &[(Value, Value, Value)],
+) -> Result<Value> {
+    let entries = array(catalog, "entries")?;
+    require(
+        !entries.is_empty() && entries.len() == captures.len(),
+        "full_publication_binding",
+    )?;
+    let (anchor_index, anchor) = entries.iter().enumerate().max_by_key(|(_, e)| e["target_generation"].as_i64()).ok_or("full_generation")?;
+    require(entries.iter().all(|e|e["source_generation"].as_i64()<=anchor["source_generation"].as_i64()), "full_publication_generation")?;
+    let mut tables = Vec::new();
+    for (entry, (request, load, admission)) in entries.iter().zip(captures) {
+        let table = &array(entry, "tables")?[0];
+        require(
+            request["capture_method"] == "c5_diff"
+                && request["full_snapshot"] == true
+                && (request["consistency_grade"] == "S0" || (request["consistency_grade"]=="B" && request["multipart_scope"]["protocol"]=="oo.mysql.c5-multipart/v1" && request["multipart_scope"]==admission["multipart_scope"]))
+                && request["cross_table_consistent"] == false
+                && request["position_codec"] == "snapshot-zero/v1"
+                && request["applied_pos"] == "0"
+                && request["position_lineage"].as_str().is_some_and(|lineage| !lineage.is_empty())
+                && request["delete_detection"] == "reconcile"
+                && request["protocol"] == "oo.pipeline.native-update/v1"
+                && request["source_engine"] == "mysql"
+                && load["protocol"] == "oo.pipeline.native-update-result/v1"
+                && load["source_engine"] == "mysql"
+                && admission["schema"] == "oo.source-admission.capture-receipt/v1"
+                && admission["source_engine"] == "mysql"
+                && admission["write_class"] == "R0"
+                && admission["write_attempts"] == 0
+                && admission["snapshot_token"] == false
+                && admission["snapshot"] == request["snapshot"]
+                && request["snapshot"]["value"].as_str().is_some_and(|s| !s.is_empty())
+                && admission["capture_method"] == "C5"
+                && admission["consistency"] == request["consistency_grade"]
+                && admission["source_bound"] == true
+                && load["source_bound"] == true
+                && load["producer_trust"]["trusted"] == true
+                && load["producer_trust"]["document_bound"] == true
+                && matches!(load["load_state"].as_str(),Some("awaiting_publish"|"replay"))
+                && load["target_generation"] == entry["target_generation"]
+                && load["run_id"] == entry["run_id"]
+                && admission["run_id"] == request["run_id"] && request["run_id"].as_str().is_some_and(|id| !id.is_empty())
+                && load["physical_name"] == table["stored_physical"]
+                && load["row_count"] == table["accepted_rows"],
+            "full_publication_evidence",
+        )?;
+        for key in ["source_id", "source_generation"] {
+            require(
+                request[key] == entry[key]
+                    && load[key] == entry[key]
+                    && admission[key] == entry[key]
+                    && !entry[key].is_null(),
+                "full_publication_binding",
+            )?;
+        }
+        for key in ["config_digest", "type_digest", "input_digest"] {
+            require(
+                request[key] == entry[key]
+                    && admission[key] == entry[key]
+                    && entry[key].as_str().is_some_and(|s| s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit())),
+                "full_publication_digest",
+            )?;
+        }
+        require(
+            request["schema_digest"] == admission["schema_digest"]
+                && [request, entry].iter().all(|v| v["schema_digest"].as_str().is_some_and(|s| s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit()))),
+            "full_publication_schema",
+        )?;
+        for key in ["logical_schema", "logical_table"] {
+            require(
+                request[key] == table[key]
+                    && load[key] == table[key]
+                    && admission[key] == table[key]
+                    && !table[key].is_null(),
+                "full_publication_binding",
+            )?;
+        }
+        tables.push(json!({"schema":table["logical_schema"],"table":table["logical_table"],"physical_name":table["stored_physical"],"accepted_rows":table["accepted_rows"],"canonical_digest":table["canonical_digest"],"rejects":table["rejects"],"run_id":entry["run_id"],"source_generation":entry["source_generation"],"target_generation":entry["target_generation"],"applied_pos":"0","position_lineage":request["position_lineage"],"capture_method":"c5_diff","delete_detection":"reconcile","consistency_grade":request["consistency_grade"]}));
+    }
+    Ok(
+        json!({"protocol":"oo.pipeline.native-publication-receipt/v1","collection_mode":"per_table","source_id":anchor["source_id"],"source_generation":anchor["source_generation"],"target_generation":anchor["target_generation"],"position_codec":"snapshot-zero/v1","position_lineage":captures[anchor_index].0["position_lineage"],"applied_pos":"0","consistency":"per_table","consistency_grade":if entries.len()==1 && captures[0].0["consistency_grade"]=="S0" { "S0" } else { "B" },"cross_table_consistent":false,"run_id":anchor["run_id"],"run_ids":entries.iter().map(|e|e["run_id"].clone()).collect::<Vec<_>>(),"tables":tables}),
+    )
+}
+
+fn sealed_profile_sql(table: &Value, column: &Value) -> Result<String> {
+    let physical = ident(text(table, "stored_physical")?)?;
+    let name = ident(text(column, "stored_physical")?)?;
+    Ok(format!(
+        "SELECT json_build_object('rows',COUNT(*),'nulls',COUNT(*)-COUNT(\"{name}\"),'distinct',COUNT(DISTINCT \"{name}\"::text COLLATE \"C\"),'min',MIN(\"{name}\"::text COLLATE \"C\"),'max',MAX(\"{name}\"::text COLLATE \"C\")) FROM _oo.\"{physical}\""
+    ))
+}
+
+fn sealed_profile(catalog: &Value, targets: &Value, calls: &mut Calls) -> Result<Value> {
+    let entries = array(catalog, "entries")?;
+    let mut tables = Vec::new();
+    for entry in entries {
+        require(entry["state"] == "awaiting_publish", "sealed_profile_state")?;
+        for table in array(entry, "tables")? {
+            let dataset = format!(
+                "{}.{}",
+                text(table, "logical_schema")?,
+                text(table, "logical_table")?
+            );
+            let target = &targets[&dataset];
+            let mut columns = Vec::new();
+            for column in array(table, "columns")? {
+                let raw = calls.docker(
+                    "sealed-profile",
+                    text(target, "host")?,
+                    &strings(&[
+                        "psql",
+                        "-X",
+                        "-v",
+                        "ON_ERROR_STOP=1",
+                        "-U",
+                        ident(target["user"].as_str().unwrap_or("oo_admin"))?,
+                        "-d",
+                        text(target, "database")?,
+                        "-Atc",
+                        &format!(
+                            "BEGIN READ ONLY; SET LOCAL statement_timeout='30s'; {}; COMMIT;",
+                            sealed_profile_sql(table, column)?
+                        ),
+                    ]),
+                    None,
+                )?;
+                let line = std::str::from_utf8(&raw)?
+                    .lines()
+                    .find(|line| line.starts_with('{'))
+                    .ok_or("profile_counts")?;
+                let mut stats: Value = serde_json::from_str(line)?;
+                require(
+                    stats["rows"] == table["accepted_rows"]
+                        && stats["nulls"]
+                            .as_u64()
+                            .zip(stats["rows"].as_u64())
+                            .is_some_and(|(n, r)| n <= r)
+                        && stats["distinct"]
+                            .as_u64()
+                            .zip(stats["rows"].as_u64())
+                            .is_some_and(|(n, r)| n <= r),
+                    "profile_counts",
+                )?;
+                stats["name"] = column["logical_name"].clone();
+                stats["source_type"] = column["source_type"].clone();
+                stats["nullable"] = column["nullable"].clone();
+                stats["null_count"] = stats["nulls"].clone();
+                stats["distinct_count"] = stats["distinct"].clone();
+                stats["aggregation"] = json!("sealed_target_full_unsampled");
+                stats["min_max_encoding"] = json!("target_text_binary_lexical");
+                columns.push(stats);
+            }
+            tables.push(json!({"dataset":dataset,"schema":table["logical_schema"],"table":table["logical_table"],"rows":table["accepted_rows"],"full_scan":true,"columns":columns,"source_generation":entry["source_generation"],"target_generation":entry["target_generation"],"run_id":entry["run_id"]}));
+        }
+    }
+    Ok(
+        json!({"protocol":"oo.source.mysql.profile/v1","source_id":entries[0]["source_id"],"source_generation":entries[0]["source_generation"],"sampled":false,"samples":"none","profile_origin":"sealed_target","tables":tables}),
+    )
+}
+
 pub fn follow(c: &Value, out: &Path) -> Result<Value> {
-    let mut calls = Calls::new(out)?;
+    let mut calls = Calls::with_operator(out, &c["onboarding"])?;
     let o = &c["onboarding"];
     let p = &o["product"];
     let identity = load(Path::new(text(o, "prepared_root")?).join("prepared/identity.json"))?;
@@ -291,7 +843,7 @@ pub fn follow(c: &Value, out: &Path) -> Result<Value> {
             exported.to_str().ok_or("path")?,
         ]),
     )?;
-    let request = load(exported.join("request.json"))?;
+    let request = normalize_c1_request(load(exported.join("request.json"))?)?;
     let result = load(exported.join("load.json"))?;
     let ack = load(exported.join("ack.json"))?;
     let generation = result["source_generation"].clone();
@@ -334,7 +886,11 @@ pub fn follow(c: &Value, out: &Path) -> Result<Value> {
             .contains(&"gateway-ready.json")
             .then(|| load(prior.join("gateway-ready.json")))
             .transpose()?;
-        published_cut_ready(&status, ready.as_ref(), &generation)?;
+        let mode = if let Some(ready) = &ready {
+            let installed = load(Path::new(text(ready,"private_root")?).join("config.json"))?;
+            oo_core::config::DeploymentMode::from_installed(&installed)?
+        } else { oo_core::config::DeploymentMode::PrimaryReplica };
+        published_cut_ready_in_mode(&status, ready.as_ref(), &generation, mode)?;
         entries = array(&prior_catalog, "entries")?.clone();
         require(
             collection(&entries, specs)? == prior_catalog && entries.len() == native.len(),
@@ -819,10 +1375,14 @@ fn current_freshness(response: &Value, vector: &[Value]) -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 fn current_gateway_ready(ready: &Value, role: &str, generation: &Value) -> Result<()> {
+    current_gateway_ready_in_mode(ready, role, generation, oo_core::config::DeploymentMode::PrimaryReplica)
+}
+
+fn current_gateway_ready_in_mode(ready: &Value, role: &str, generation: &Value, mode: oo_core::config::DeploymentMode) -> Result<()> {
     require(
-        ready["ready"] == true
-            && ready["readonly_replica"] == true
+        mode.matches_ready(ready)
             && ready["role"] == role
             && ready["source_generation"].as_u64().is_some_and(|previous| {
                 previous > 0
@@ -876,11 +1436,6 @@ fn gateway(
     let pointer = Path::new(text(o, "prepared_root")?).join("rust-current-gateway.json");
     let current = if pointer.exists() {
         let ready = load(crate::io::private(&pointer)?)?;
-        current_gateway_ready(
-            &ready,
-            role,
-            &catalog["binding_vector"][0]["source_generation"],
-        )?;
         let root = PathBuf::from(text(&ready, "private_root")?);
         dir(&root)?;
         require(
@@ -888,6 +1443,9 @@ fn gateway(
                 .starts_with(Path::new(text(o, "host_secret_root")?).canonicalize()?),
             "previous_gateway_root",
         )?;
+        let installed = load(root.join("config.json"))?;
+        let mode = oo_core::config::DeploymentMode::from_installed(&installed)?;
+        current_gateway_ready_in_mode(&ready, role, &catalog["binding_vector"][0]["source_generation"], mode)?;
         Some((root, ready))
     } else {
         None
@@ -1006,6 +1564,7 @@ fn gateway(
     )?;
     dir(gateway.join("wal"))?;
     let cfg = load(gateway.join("config.json"))?;
+    let deployment_mode = oo_core::config::DeploymentMode::from_installed(&cfg)?;
     save(
         gateway.join("grant.json"),
         &json!({"kind":"client","project_id":visibility["project"],"principal_id":"fixture-admin","role":role,"policy_version":visibility["policy"]["version"],"knowledge_version":visibility["knowledge"]["version"],"audience_url":cfg["audience"],"claims":[],"client_ttl_ms":3600000}),
@@ -1162,15 +1721,162 @@ fn gateway(
             current_freshness(&response, vector)?;
         }
     }
-    save(
-        calls.out.join("gateway-ready.json"),
-        &json!({"source_generation":generation,"pack_digest":native["pack_digest"],"role":role,"token_sha256":digest(gateway.join("current-client.token"))?,"gateway_container":container,"private_root":gateway,"readonly_replica":true,"ready":true}),
-    )?;
+    let mut ready = deployment_mode.readiness_record(role, generation.as_u64().ok_or("source_generation")?, text(native,"pack_digest")?, &container, gateway.to_str().ok_or("private_root")?);
+    ready["token_sha256"] = json!(digest(gateway.join("current-client.token"))?);
+    save(calls.out.join("gateway-ready.json"), &ready)?;
     Ok(gateway)
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn sealed_profile_reads_only_the_generation_and_marks_lexical_bounds() {
+        let sql = sealed_profile_sql(
+            &json!({"stored_physical":"pt_sealed"}),
+            &json!({"stored_physical":"col_key"}),
+        )
+        .unwrap();
+        assert!(sql.contains("FROM _oo.\"pt_sealed\""));
+        assert!(sql.contains("COUNT(DISTINCT"));
+        assert!(sql.contains("COLLATE \"C\""));
+        assert!(!sql.contains("information_schema"));
+        assert!(
+            sealed_profile_sql(
+                &json!({"stored_physical":"bad; DROP"}),
+                &json!({"stored_physical":"id"})
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn full_table_binding_accepts_catalog_shadow_namespace_not_storage_schema() {
+        let mut entry = json!({"engine":"mysql","tables":[{
+            "logical_schema":"yjdv_fixture",
+            "stored_namespace":"pn_30c175e52142c1c46a6bc4ceea2b9188807dc3089c78ac21f18a63669077"
+        }]});
+        let database = json!("yjdv_fixture");
+        assert!(full_table_binding(&entry, &database));
+        assert!(!full_table_binding(&entry, &json!("other_database")));
+        for namespace in ["_oo", "public", "pn_short", "pn_../escape"] {
+            entry["tables"][0]["stored_namespace"] = json!(namespace);
+            assert!(!full_table_binding(&entry, &database), "{namespace}");
+        }
+    }
+
+    #[test]
+    fn full_admission_hash_links_sealed_receipt_not_raw_capture() {
+        let sealed_sha = sha(br#"{"schema":"oo.source-admission.capture-receipt/v1"}"#);
+        let raw_sha = sha(br#"{"capture_method":"C5"}"#);
+        let request = json!({"admission_path":"/private/sealed/admission-receipt.json"});
+        let loaded = json!({"producer_trust":{"receipt_sha256":sealed_sha,"document_bound":true}});
+        full_admission_hash(&request, &loaded, &sealed_sha).unwrap();
+        assert!(full_admission_hash(&request, &loaded, &raw_sha).is_err());
+        let mut wrong = loaded.clone();
+        wrong["producer_trust"]["receipt_sha256"] = json!(raw_sha);
+        assert!(full_admission_hash(&request, &wrong, &sealed_sha).is_err());
+        let mut echoed = request.clone();
+        echoed["admission_expect"] = json!({"declared_receipt_sha256":sealed_sha});
+        full_admission_hash(&echoed, &loaded, &sealed_sha).unwrap();
+        echoed["admission_expect"]["declared_receipt_sha256"] = json!(raw_sha);
+        assert!(full_admission_hash(&echoed, &loaded, &sealed_sha).is_err());
+    }
+
+    #[test]
+    fn full_publication_requires_snapshot_zero_evidence_not_c1() {
+        let entry = json!({"source_id":"generic","source_generation":1,"target_generation":1,"run_id":"run","tables":[{"logical_schema":"s","logical_table":"t","stored_physical":"pt_sealed","accepted_rows":2,"canonical_digest":"a".repeat(64),"rejects":[]}]});
+        let catalog = json!({"entries":[entry]});
+        let request = json!({"protocol":"oo.pipeline.native-update/v1","source_engine":"mysql","snapshot":{"kind":"mysql_consistent_snapshot","value":"capture-run"},"source_id":"generic","source_generation":1,"run_id":"capture-run","logical_schema":"s","logical_table":"t","capture_method":"c5_diff","full_snapshot":true,"consistency_grade":"S0","cross_table_consistent":false,"position_codec":"snapshot-zero/v1","applied_pos":"0","position_lineage":"mysql.snapshot","delete_detection":"reconcile"});
+        let load = json!({"protocol":"oo.pipeline.native-update-result/v1","source_id":"generic","source_generation":1,"logical_schema":"s","logical_table":"t","target_generation":1,"run_id":"run","source_engine":"mysql","source_bound":true,"producer_trust":{"trusted":true,"document_bound":true},"load_state":"awaiting_publish","physical_name":"pt_sealed","row_count":2});
+        let admission = json!({"schema":"oo.source-admission.capture-receipt/v1","source_engine":"mysql","write_class":"R0","write_attempts":0,"snapshot_token":false,"snapshot":request["snapshot"],"source_id":"generic","source_generation":1,"logical_schema":"s","logical_table":"t","run_id":"capture-run","capture_method":"C5","consistency":"S0","source_bound":true});
+        let mut catalog = catalog;
+        let mut request = request;
+        let mut admission = admission;
+        for key in ["config_digest", "type_digest", "input_digest"] {
+            catalog["entries"][0][key] = json!("a".repeat(64));
+            request[key] = catalog["entries"][0][key].clone();
+            admission[key] = request[key].clone();
+        }
+        catalog["entries"][0]["schema_digest"] = json!("b".repeat(64));
+        request["schema_digest"] = json!("c".repeat(64));
+        admission["schema_digest"] = request["schema_digest"].clone();
+        for key in ["config_digest", "schema_digest", "type_digest", "input_digest"] {
+            assert!(load.get(key).is_none());
+            let mut wrong = admission.clone();
+            wrong[key] = json!("d".repeat(64));
+            assert!(full_publication(&catalog, &[(request.clone(), load.clone(), wrong)]).is_err(), "{key}");
+        }
+        for key in ["source_bound", "document_bound"] {
+            let mut wrong = load.clone();
+            if key == "source_bound" { wrong[key] = json!(false); }
+            else { wrong["producer_trust"][key] = json!(false); }
+            assert!(full_publication(&catalog, &[(request.clone(), wrong, admission.clone())]).is_err(), "{key}");
+        }
+        let mut crossed = load.clone();
+        crossed["run_id"] = request["run_id"].clone();
+        assert!(full_publication(&catalog, &[(request.clone(), crossed, admission.clone())]).is_err());
+        let mut crossed = request.clone();
+        crossed["run_id"] = load["run_id"].clone();
+        assert!(full_publication(&catalog, &[(crossed, load.clone(), admission.clone())]).is_err());
+        let receipt = full_publication(
+            &catalog,
+            &[(request.clone(), load.clone(), admission.clone())],
+        )
+        .unwrap();
+        let mut replay=load.clone();replay["load_state"]=json!("replay");
+        assert!(full_publication(&catalog,&[(request.clone(),replay,admission.clone())]).is_ok());
+        assert_eq!(receipt["consistency"], "per_table");
+        assert_eq!(receipt["collection_mode"], "per_table");
+        assert_eq!(receipt["applied_pos"], "0");
+        assert!(receipt.get("source_epoch").is_none());
+        let mut second_entry=catalog["entries"][0].clone();second_entry["target_generation"]=json!(2);second_entry["source_generation"]=json!(2);second_entry["run_id"]=json!("second-run");second_entry["tables"][0]["logical_table"]=json!("other");
+        let mut second_request=request.clone();second_request["source_generation"]=json!(2);second_request["logical_table"]=json!("other");second_request["position_lineage"]=json!("mysql.other");
+        let mut second_load=load.clone();second_load["source_generation"]=json!(2);second_load["logical_table"]=json!("other");second_load["target_generation"]=json!(2);second_load["run_id"]=json!("second-run");
+        let mut second_admission=admission.clone();second_admission["source_generation"]=json!(2);second_admission["logical_table"]=json!("other");
+        let multiple=json!({"entries":[catalog["entries"][0],second_entry]});
+        let receipt=full_publication(&multiple,&[(request.clone(),load.clone(),admission.clone()),(second_request,second_load,second_admission)]).unwrap();
+        assert_eq!(receipt["consistency_grade"],"B");assert_eq!(receipt["target_generation"],2);assert_eq!(receipt["run_id"],"second-run");assert_eq!(receipt["position_lineage"],"mysql.other");assert_eq!(receipt["source_generation"],2);assert_eq!(receipt["tables"][0]["target_generation"],1);
+
+        for (key, value) in [
+            ("position_codec", json!("mysql-gtid/v1")),
+            ("consistency_grade", json!("T")),
+            ("cross_table_consistent", json!(true)),
+            ("applied_pos", json!("1")),
+        ] {
+            let mut wrong = request.clone();
+            wrong[key] = value;
+            assert!(
+                full_publication(
+                    &catalog,
+                    &[(wrong, load.clone(), admission.clone())]
+                )
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn a_v2_request_is_shaped_like_v1_and_a_v1_request_is_left_alone() {
+        let v2 = json!({"source_id":"s","source_generation":1,"target":{"database":"d"},
+            "entries":[{"schema":"a","table":"t"}],
+            "tables":[{"schema":"a","table":"t","type_digest":"ty","input_digest":"in",
+                "admission":{"registry_path":"/r","registry_sha256":"rs"}}],
+            "baseline_scope":{"config_digest":"cd","l_end":"u:1-9",
+                "tables":[{"schema":"a","table":"t","schema_sha256":"table-schema"}]}});
+        let shaped = normalize_c1_request(v2).unwrap();
+        assert_eq!(shaped["entries"][0]["admission_registry_path"], "/r");
+        assert_eq!(shaped["native_requests"][0]["schema_digest"], "table-schema");
+        assert_eq!(shaped["native_requests"][0]["config_digest"], "cd");
+        assert_eq!(shaped["native_requests"][0]["logical_table"], "t");
+        assert_eq!(shaped["native_requests"][0]["logical_schema"], "a");
+        assert_eq!(shaped["native_requests"][0]["snapshot"]["value"], "u:1-9");
+        assert_eq!(shaped["native_requests"][0]["target"]["database"], "d");
+        let v1 = json!({"entries":[{"x":1}],"native_requests":[{"y":2}]});
+        assert_eq!(normalize_c1_request(v1.clone()).unwrap(), v1);
+        let missing = json!({"entries":[{"schema":"a","table":"t"}],"tables":[],"baseline_scope":{"tables":[]}});
+        assert!(normalize_c1_request(missing).is_err());
+    }
+
     use super::*;
     #[test]
     fn unknown_source_time_requires_exact_valid_target_observation_coverage() {
@@ -1293,5 +1999,515 @@ mod tests {
             .is_err()
         );
         assert!(collection(&[e], &[json!({"schema":"s","table":"other"})]).is_err());
+    }
+}
+
+#[cfg(test)]
+mod source_sql_tests {
+    use super::*;
+    use std::env;
+    use std::os::unix::fs::{PermissionsExt, symlink};
+
+    /// A private scratch root with `secrets/reader.pw` (0600). Callers remove it.
+    fn scratch(name: &str) -> PathBuf {
+        let root = env::temp_dir().join(format!("oo-p11-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("secrets")).unwrap();
+        fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
+        fs::set_permissions(root.join("secrets"), fs::Permissions::from_mode(0o700)).unwrap();
+        let password = root.join("secrets/reader.pw");
+        fs::write(&password, "p11-sentinel-password\n").unwrap();
+        fs::set_permissions(&password, fs::Permissions::from_mode(0o600)).unwrap();
+        root
+    }
+
+    fn operator(root: &Path) -> Value {
+        let secrets = root.join("secrets");
+        json!({
+            "host": "oo-cb-p11-mysql57",
+            "port": 3306,
+            "database": "oo_cb_p11",
+            "user": "oo_reader",
+            "secret_ref": "secret://p11-reader",
+            "password_file": secrets.join("reader.pw"),
+            "ca_file": "/tls/ca.pem",
+            "tls_server_name": "mysql57.p11.owned.example",
+            "onboarding": {
+                "container": "oo-cb-p11-runtime",
+                "producer": "/opt/oo/mysql-preview",
+                "host_secret_root": secrets,
+                "product": {
+                    "source_container": "oo-dl01w1-06-mysql",
+                    "source_client_file": "/secrets/sol-dba.cnf"
+                }
+            }
+        })
+    }
+
+    fn network(mut c: Value) -> Value {
+        c["onboarding"]["product"]["source_access"] = json!("network");
+        c
+    }
+
+    fn request_of(call: &SourceCall) -> Value {
+        serde_json::from_slice(call.input.as_deref().expect("network request")).unwrap()
+    }
+
+    #[test]
+    fn batch_fixture_source_sql_is_full_only() {
+        let mut c = json!({"onboarding":{"full":{},"product":{"source_container":"oo-wf-batch-anonymous","source_client_file":"/private/reader.cnf"}}});
+        assert_eq!(
+            source_call(&c, "SELECT 1").unwrap().container,
+            "oo-wf-batch-anonymous"
+        );
+        c["onboarding"].as_object_mut().unwrap().remove("full");
+        assert!(source_call(&c, "SELECT 1").is_err());
+    }
+
+    #[test]
+    fn full_audit_accepts_only_the_isolated_full_fixture_prefix() {
+        let c=json!({"onboarding":{"full":{},"product":{"source_container":"oo-yjcap-full-random","source_client_file":"/private/reader.cnf"}}});
+        assert!(source_call(&c,"SELECT 1").is_ok());
+        let mut legacy=c.clone();legacy["onboarding"].as_object_mut().unwrap().remove("full");
+        assert!(source_call(&legacy,"SELECT 1").is_err());
+        let mut other=c;other["onboarding"]["product"]["source_container"]=json!("customer-db");
+        assert!(source_call(&other,"SELECT 1").is_err());
+    }
+
+    #[test]
+    fn multipart_audit_fixture_requires_explicit_full_mode() {
+        let mut c=json!({"onboarding":{"full":{},"product":{"source_container":"oo-wf-mpart-m1-mysql","source_client_file":"/private/reader.cnf"}}});
+        assert!(source_call(&c,"SELECT 1").is_ok());
+        c["onboarding"].as_object_mut().unwrap().remove("full");
+        assert!(source_call(&c,"SELECT 1").is_err());
+    }
+
+    #[test]
+    fn default_mode_is_the_legacy_mysql_client_in_the_owned_container() {
+        let root = scratch("default-mode");
+        let call = source_call(&operator(&root), "SELECT 1").unwrap();
+        assert_eq!(call.label, "profile-sql");
+        assert_eq!(call.container, "oo-dl01w1-06-mysql");
+        assert_eq!(
+            call.args,
+            strings(&[
+                "mysql",
+                "--defaults-file=/secrets/sol-dba.cnf",
+                "--default-character-set=utf8mb4",
+                "--batch",
+                "--raw",
+                "--skip-column-names",
+                "-e",
+                "SELECT 1",
+            ])
+        );
+        assert!(call.input.is_none());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn legacy_mode_still_refuses_containers_outside_the_fixture_allowlist() {
+        let root = scratch("legacy-refuse");
+        let mut c = operator(&root);
+        c["onboarding"]["product"]["source_container"] = json!("customer-rds-proxy");
+        let error = source_call(&c, "SELECT 1").unwrap_err().to_string();
+        assert!(error.contains("owned_fixture_only"), "{error}");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn only_the_exact_network_value_switches_the_mode() {
+        let root = scratch("mode-value");
+        for value in [json!("docker"), json!("Network"), json!(""), Value::Null] {
+            let mut c = operator(&root);
+            c["onboarding"]["product"]["source_access"] = value.clone();
+            let call = source_call(&c, "SELECT 1").unwrap();
+            assert_eq!(call.label, "profile-sql", "{value}");
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn network_mode_execs_the_pinned_producer_in_the_runtime_container() {
+        let root = scratch("network-mode");
+        let call = source_call(&network(operator(&root)), "SELECT 1").unwrap();
+        assert_eq!(call.label, "source-sql-network");
+        assert_eq!(call.container, "oo-cb-p11-runtime");
+        assert_eq!(call.args, strings(&["/opt/oo/mysql-preview", "source-sql"]));
+        assert!(!call.args.iter().any(|arg| arg == "mysql"));
+        let request = request_of(&call);
+        assert_eq!(request["protocol"], "oo.mysql.source-sql/v1");
+        assert_eq!(request["connection"]["host"], "oo-cb-p11-mysql57");
+        assert_eq!(request["connection"]["port"], 3306);
+        assert_eq!(request["connection"]["database"], "oo_cb_p11");
+        assert_eq!(request["connection"]["user"], "oo_reader");
+        assert_eq!(request["connection"]["password_file"], "/secrets/reader.pw");
+        assert_eq!(request["connection"]["ca_file"], "/tls/ca.pem");
+        assert_eq!(
+            request["connection"]["tls_server_name"],
+            "mysql57.p11.owned.example"
+        );
+        assert!(request["connection"].get("password").is_none());
+        assert_eq!(request["statement_ms"], SOURCE_SQL_STATEMENT_MS);
+        assert_eq!(request["max_rows"], SOURCE_SQL_MAX_ROWS);
+        assert_eq!(request["max_bytes"], SOURCE_SQL_MAX_BYTES);
+        assert_eq!(request["sql"], "SELECT 1");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn host_network_audit_uses_the_same_private_host_secret_as_capture() {
+        let root = scratch("host-network");
+        let mut config = network(operator(&root));
+        config["onboarding"]["full"] = json!({"pipeline":{"runtime_transport":"host"}});
+        let request = source_request(&config, "SELECT 1").unwrap();
+        assert_eq!(request["connection"]["password_file"], config["password_file"]);
+        config["onboarding"]["full"]["pipeline"]["runtime_transport"] = json!("container");
+        let request = source_request(&config, "SELECT 1").unwrap();
+        assert_eq!(request["connection"]["password_file"], "/secrets/reader.pw");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn network_request_without_a_tls_name_does_not_send_one() {
+        let root = scratch("no-tls-name");
+        let mut c = network(operator(&root));
+        c["tls_server_name"] = Value::Null;
+        let request = request_of(&source_call(&c, "SELECT 1").unwrap());
+        assert!(request["connection"].get("tls_server_name").is_none());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn network_request_never_carries_the_password_value() {
+        let root = scratch("request-secret");
+        let c = network(operator(&root));
+        let body = String::from_utf8(source_call(&c, "SELECT 1").unwrap().input.unwrap()).unwrap();
+        assert!(!body.contains("p11-sentinel-password"));
+        assert!(body.contains("/secrets/reader.pw"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn network_request_refuses_a_password_outside_the_secret_root() {
+        let root = scratch("outside-root");
+        let outside = root.join("reader.pw");
+        fs::write(&outside, "p11-sentinel-password").unwrap();
+        fs::set_permissions(&outside, fs::Permissions::from_mode(0o600)).unwrap();
+        let mut c = network(operator(&root));
+        c["password_file"] = json!(outside);
+        assert!(source_call(&c, "SELECT 1").is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn network_request_refuses_a_symlinked_or_group_readable_password() {
+        let root = scratch("private-password");
+        let secrets = root.join("secrets");
+        let mut c = network(operator(&root));
+        let password = secrets.join("reader.pw");
+        fs::set_permissions(&password, fs::Permissions::from_mode(0o640)).unwrap();
+        assert!(source_call(&c, "SELECT 1").is_err());
+        fs::set_permissions(&password, fs::Permissions::from_mode(0o600)).unwrap();
+        let real = root.join("real.pw");
+        fs::rename(&password, &real).unwrap();
+        symlink(&real, &password).unwrap();
+        c["password_file"] = json!(password);
+        assert!(source_call(&c, "SELECT 1").is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn network_legacy_transport_requires_installed_full_policy() {
+        let root = scratch("full-transport");
+        let mut c = network(operator(&root));
+        c["onboarding"]["full"] =
+            json!({"source_transport":{"tls":"disabled","plaintext_authorized":true}});
+        c["ca_file"] = Value::Null;
+        c["tls_server_name"] = Value::Null;
+        let request = request_of(&source_call(&c, "SELECT 1").unwrap());
+        assert_eq!(request["connection"]["tls"], "disabled");
+        assert_eq!(request["connection"]["plaintext_authorized"], true);
+        assert!(request["connection"]["ca_file"].is_null());
+        assert!(request["connection"]["tls_server_name"].is_null());
+        assert_eq!(request["connection"]["password_file"], "/secrets/reader.pw");
+        for policy in [
+            Value::Null,
+            json!({}),
+            json!({"tls":"disabled"}),
+            json!({"plaintext_authorized":true}),
+            json!({"tls":"required","plaintext_authorized":true}),
+            json!({"tls":"disabled","plaintext_authorized":false}),
+            json!({"tls":"disabled","plaintext_authorized":true,"extra":1}),
+        ] {
+            let mut bad = c.clone();
+            bad["onboarding"]["full"]["source_transport"] = policy;
+            assert!(source_call(&bad, "SELECT 1").is_err());
+        }
+        for (key, value) in [
+            ("ca_file", json!("/tls/ca.pem")),
+            ("tls_server_name", json!("mysql.example")),
+        ] {
+            let mut bad = c.clone();
+            bad[key] = value;
+            assert!(source_call(&bad, "SELECT 1").is_err());
+        }
+        for key in ["ca_file", "tls_server_name"] {
+            let mut bad = c.clone();
+            bad.as_object_mut().unwrap().remove(key);
+            assert!(source_call(&bad, "SELECT 1").is_err());
+        }
+        let mut c1 = c.clone();
+        c1["onboarding"].as_object_mut().unwrap().remove("full");
+        c1["source_transport"] = json!({"tls":"disabled","plaintext_authorized":true});
+        assert!(source_call(&c1, "SELECT 1").is_err());
+        c1["ca_file"] = json!("/tls/ca.pem");
+        let request = request_of(&source_call(&c1, "SELECT 1").unwrap());
+        assert!(request["connection"].get("tls").is_none());
+        assert!(request["connection"].get("plaintext_authorized").is_none());
+        let mut profiled = with_profile(&root, c.clone());
+        let request = request_of(&source_call(&profiled, "SELECT 1").unwrap());
+        assert_eq!(request["connection"]["user"], "oo_profile");
+        assert_eq!(
+            request["connection"]["password_file"],
+            "/secrets/profile.pw"
+        );
+        assert_eq!(request["connection"]["tls"], "disabled");
+        profiled["onboarding"]["product"]["profile_access"]["secret_ref"] =
+            json!("secret://unknown");
+        assert!(source_call(&profiled, "SELECT 1").is_err());
+        let mut default_full = c;
+        default_full["onboarding"]["full"] = json!({});
+        assert!(source_call(&default_full, "SELECT 1").is_err());
+        default_full["ca_file"] = json!("/tls/ca.pem");
+        let request = request_of(&source_call(&default_full, "SELECT 1").unwrap());
+        assert!(request["connection"].get("tls").is_none());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn network_request_requires_the_ca_file() {
+        let root = scratch("ca-required");
+        let mut c = network(operator(&root));
+        c.as_object_mut().unwrap().remove("ca_file");
+        assert!(source_call(&c, "SELECT 1").is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// Adds `onboarding.product.profile_access` for `secret://p12-profile`, which the
+    /// operator's secret registry maps to a 0600 `profile.pw`. Its contents are never read.
+    fn with_profile(root: &Path, mut c: Value) -> Value {
+        let secrets = root.join("secrets");
+        let password = secrets.join("profile.pw");
+        fs::write(&password, "p12-profile-sentinel\n").unwrap();
+        fs::set_permissions(&password, fs::Permissions::from_mode(0o600)).unwrap();
+        let registry = root.join("registry.json");
+        fs::write(
+            &registry,
+            json!({"secret://p11-reader": secrets.join("reader.pw"), "secret://p12-profile": password})
+                .to_string(),
+        )
+        .unwrap();
+        fs::set_permissions(&registry, fs::Permissions::from_mode(0o600)).unwrap();
+        c["onboarding"]["secret_registry"] = json!(registry);
+        c["onboarding"]["product"]["profile_access"] =
+            json!({"user": "oo_profile", "secret_ref": "secret://p12-profile"});
+        c
+    }
+
+    #[test]
+    fn profile_access_sends_the_profile_account_on_the_admitted_endpoint() {
+        let root = scratch("profile-request");
+        let call = source_call(&with_profile(&root, network(operator(&root))), "SELECT 1").unwrap();
+        assert_eq!(call.args, strings(&["/opt/oo/mysql-preview", "source-sql"]));
+        let request = request_of(&call);
+        assert_eq!(request["connection"]["user"], "oo_profile");
+        assert_eq!(
+            request["connection"]["password_file"],
+            "/secrets/profile.pw"
+        );
+        assert_eq!(request["connection"]["host"], "oo-cb-p11-mysql57");
+        assert_eq!(request["connection"]["port"], 3306);
+        assert_eq!(request["connection"]["database"], "oo_cb_p11");
+        assert_eq!(request["connection"]["ca_file"], "/tls/ca.pem");
+        assert_eq!(
+            request["connection"]["tls_server_name"],
+            "mysql57.p11.owned.example"
+        );
+        let body = String::from_utf8(call.input.unwrap()).unwrap();
+        assert!(!body.contains("p12-profile-sentinel"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn without_profile_access_network_requests_keep_the_cdc_identity() {
+        let root = scratch("no-profile");
+        let request = request_of(&source_call(&network(operator(&root)), "SELECT 1").unwrap());
+        assert_eq!(request["connection"]["user"], "oo_reader");
+        assert_eq!(request["connection"]["password_file"], "/secrets/reader.pw");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn profile_access_does_not_change_the_legacy_mysql_client_call() {
+        let root = scratch("profile-legacy");
+        let plain = source_call(&operator(&root), "SELECT 1").unwrap();
+        let profiled = source_call(&with_profile(&root, operator(&root)), "SELECT 1").unwrap();
+        assert_eq!(plain, profiled);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn profile_access_may_name_the_cdc_account() {
+        let root = scratch("profile-same-user");
+        let mut c = with_profile(&root, network(operator(&root)));
+        c["onboarding"]["product"]["profile_access"]["user"] = json!("oo_reader");
+        let request = request_of(&source_call(&c, "SELECT 1").unwrap());
+        assert_eq!(request["connection"]["user"], "oo_reader");
+        assert_eq!(
+            request["connection"]["password_file"],
+            "/secrets/profile.pw"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn profile_access_refuses_unknown_or_missing_keys() {
+        let root = scratch("profile-keys");
+        for (key, value) in [
+            ("password", json!("inline")),
+            ("password_file", json!("/secrets/profile.pw")),
+            ("host", json!("elsewhere")),
+        ] {
+            let mut c = with_profile(&root, network(operator(&root)));
+            c["onboarding"]["product"]["profile_access"][key] = value;
+            let error = source_call(&c, "SELECT 1").unwrap_err().to_string();
+            assert!(error.contains("profile_access_keys"), "{key}: {error}");
+        }
+        let mut c = with_profile(&root, network(operator(&root)));
+        c["onboarding"]["product"]["profile_access"]
+            .as_object_mut()
+            .unwrap()
+            .remove("secret_ref");
+        let error = source_call(&c, "SELECT 1").unwrap_err().to_string();
+        assert!(error.contains("profile_access_keys"), "{error}");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn profile_access_refuses_an_empty_user_and_an_unregistered_secret() {
+        let root = scratch("profile-fields");
+        let mut c = with_profile(&root, network(operator(&root)));
+        c["onboarding"]["product"]["profile_access"]["user"] = json!("");
+        let error = source_call(&c, "SELECT 1").unwrap_err().to_string();
+        assert!(error.contains("profile_access_user"), "{error}");
+        let mut c = with_profile(&root, network(operator(&root)));
+        c["onboarding"]["product"]["profile_access"]["secret_ref"] = json!("secret://missing");
+        let error = source_call(&c, "SELECT 1").unwrap_err().to_string();
+        assert!(error.contains("profile_secret_ref"), "{error}");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn profile_access_password_must_be_private_and_inside_the_secret_root() {
+        let root = scratch("profile-private");
+        let secrets = root.join("secrets");
+        let profile = secrets.join("profile.pw");
+        let c = with_profile(&root, network(operator(&root)));
+        fs::set_permissions(&profile, fs::Permissions::from_mode(0o640)).unwrap();
+        let error = source_call(&c, "SELECT 1").unwrap_err().to_string();
+        assert!(error.contains("private_file"), "{error}");
+        fs::set_permissions(&profile, fs::Permissions::from_mode(0o600)).unwrap();
+        let real = root.join("real.pw");
+        fs::rename(&profile, &real).unwrap();
+        symlink(&real, &profile).unwrap();
+        let error = source_call(&c, "SELECT 1").unwrap_err().to_string();
+        assert!(error.contains("private_file"), "{error}");
+        fs::remove_file(&profile).unwrap();
+        fs::rename(&real, &profile).unwrap();
+        let outside = root.join("outside.pw");
+        fs::write(&outside, "p12-profile-sentinel").unwrap();
+        fs::set_permissions(&outside, fs::Permissions::from_mode(0o600)).unwrap();
+        fs::write(
+            root.join("registry.json"),
+            json!({"secret://p12-profile": outside}).to_string(),
+        )
+        .unwrap();
+        let error = source_call(&c, "SELECT 1").unwrap_err().to_string();
+        assert!(error.contains("secret_root"), "{error}");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// Live: `profile()` in network mode against the owned MySQL 5.7 fixture,
+    /// through the trusted runtime container. Needs the OO_CB_P11_* environment.
+    /// Run with `--ignored` on a host with the Docker CLI.
+    #[test]
+    #[ignore = "live: owned MySQL 5.7 fixture and runtime container (OO_CB_P11_*)"]
+    fn live_profile_runs_through_the_network_mode() {
+        let get = |key: &str| env::var(key).unwrap_or_else(|_| panic!("set {key}"));
+        let secrets = PathBuf::from(get("OO_CB_P11_SECRETS"));
+        let database = get("OO_CB_P11_DB");
+        let table = get("OO_CB_P11_TABLE");
+        let root = scratch("live-profile");
+        let prepared = root.join("prepared");
+        fs::create_dir_all(&prepared).unwrap();
+        save(
+            prepared.join("native-config.json"),
+            &json!({
+                "database": database,
+                "tables": [format!("{database}.{table}")],
+                "columns": {format!("{database}.{table}"): ["id", "note", "bin_col", "amount"]}
+            }),
+        )
+        .unwrap();
+        let c = network(json!({
+            "host": get("OO_CB_P11_HOST"),
+            "port": get("OO_CB_P11_PORT").parse::<u64>().unwrap(),
+            "database": database,
+            "user": get("OO_CB_P11_USER"),
+            "secret_ref": "secret://p11-reader",
+            "password_file": secrets.join(get("OO_CB_P11_PW_NAME")),
+            "ca_file": get("OO_CB_P11_CA"),
+            "tls_server_name": get("OO_CB_P11_TLS_NAME"),
+            "onboarding": {
+                "container": get("OO_CB_P11_RUNTIME"),
+                "producer": get("OO_CB_P11_PRODUCER"),
+                "host_secret_root": secrets,
+                "prepared_root": root,
+                "product": {"source_container": "unused-in-network-mode"}
+            }
+        }));
+        let mut calls = Calls::new(&root.join("calls")).unwrap();
+        let profile = profile(&c, &mut calls, &json!(1), &json!("p11")).unwrap();
+        let t = &profile["tables"][0];
+        assert_eq!(t["rows"], 8, "{profile}");
+        let column = |name: &str| {
+            t["columns"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["name"] == name)
+                .unwrap_or_else(|| panic!("column {name}"))
+                .clone()
+        };
+        let id = column("id");
+        assert_eq!(
+            (id["nulls"].as_u64(), id["distinct"].as_u64()),
+            (Some(0), Some(8))
+        );
+        assert_eq!(
+            (id["min"].as_str(), id["max"].as_str()),
+            (Some("1"), Some("8"))
+        );
+        let amount = column("amount");
+        assert_eq!(amount["nulls"], 1);
+        assert_eq!(amount["distinct"], 5);
+        assert_eq!(amount["min"], "-2.25");
+        assert_eq!(amount["max"], "99999999.99");
+        let bin = column("bin_col");
+        assert_eq!(bin["nulls"], 2);
+        assert_eq!(bin["distinct"], 5);
+        assert_eq!(bin["max"], "80");
+        fs::remove_dir_all(root).unwrap();
     }
 }
