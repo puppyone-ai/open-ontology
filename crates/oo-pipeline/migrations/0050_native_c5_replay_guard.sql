@@ -81,4 +81,3 @@ BEGIN
   END IF;
   UPDATE _oo.table_quality SET c5_mode='layered' WHERE schema_name=ns AND table_name=t;
 END $$;
-

@@ -147,4 +147,3 @@ Replacing Pack files is not publication. The normal release coordinator must
 activate matching policies, column grants and native publication fences. F22
 continues to reject mismatched Pack/role/data cuts. Installing a new Pack does
 not renew credentials or approve its candidate business semantics.
-

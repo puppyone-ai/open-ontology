@@ -36,4 +36,3 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION _oo.c5_seed_multipart_digest(text,uuid,bigint,text,text,text,text,bigint,text,text,jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION _oo.c5_seed_multipart_digest(text,uuid,bigint,text,text,text,text,bigint,text,text,jsonb) TO oo_pipeline_runtime;
-

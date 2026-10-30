@@ -21,4 +21,3 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION _oo.c5_overlay_visible(text,name) FROM PUBLIC,oo_pipeline_runtime;
 GRANT EXECUTE ON FUNCTION _oo.c5_overlay_visible(text,name) TO PUBLIC;
-
