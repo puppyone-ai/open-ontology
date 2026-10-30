@@ -102,7 +102,8 @@ fn catalog(relations: Vec<VisibleRelation>) -> PolicyCatalog {
                 schema: "pg_catalog".to_string(),
                 name: "=".to_string(),
                 left_type_oid: INT_OID,
-                right_type_oid: INT_OID, result_type_oid: BOOL_OID,
+                right_type_oid: INT_OID,
+                result_type_oid: BOOL_OID,
             },
             ResolvedOperator {
                 oid: 303,
@@ -110,7 +111,8 @@ fn catalog(relations: Vec<VisibleRelation>) -> PolicyCatalog {
                 schema: "pg_catalog".to_string(),
                 name: "=".to_string(),
                 left_type_oid: TEXT_OID,
-                right_type_oid: TEXT_OID, result_type_oid: BOOL_OID,
+                right_type_oid: TEXT_OID,
+                result_type_oid: BOOL_OID,
             },
         ],
         literal_types: LiteralTypes {
@@ -187,18 +189,32 @@ fn assert_physical(plan: &GuardedPlan, sql: &str) {
 #[test]
 fn signature_diagnostics_isolate_sum_from_time_comparison_without_echoing_sql() {
     let mut catalog = catalog(vec![relation(
-        "sales", "payments", "private_payments",
-        vec![col("amount", "private_amount", 1700), col("paid_at", "private_time", 1114)],
-        1, 10,
+        "sales",
+        "payments",
+        "private_payments",
+        vec![
+            col("amount", "private_amount", 1700),
+            col("paid_at", "private_time", 1114),
+        ],
+        1,
+        10,
     )]);
     catalog.literal_types.text = Some(25);
     catalog.functions.push(ResolvedFunction {
-        oid: 2108, schema: "pg_catalog".into(), name: "sum".into(),
-        argument_type_oids: vec![1700], aggregate_star: false,
+        oid: 2108,
+        schema: "pg_catalog".into(),
+        name: "sum".into(),
+        argument_type_oids: vec![1700],
+        aggregate_star: false,
     });
     catalog.operators.push(ResolvedOperator {
-        oid: 2065, procedure_oid: 2060, schema: "pg_catalog".into(), name: ">=".into(),
-        left_type_oid: 1114, right_type_oid: 1114, result_type_oid: BOOL_OID,
+        oid: 2065,
+        procedure_oid: 2060,
+        schema: "pg_catalog".into(),
+        name: ">=".into(),
+        left_type_oid: 1114,
+        right_type_oid: 1114,
+        result_type_oid: BOOL_OID,
     });
     admit(&catalog, "SELECT SUM(amount) FROM sales.payments");
     let sql = "SELECT /* marker */ SUM(amount) FROM sales.payments WHERE paid_at >= '2026-09-01'";
@@ -207,19 +223,36 @@ fn signature_diagnostics_isolate_sum_from_time_comparison_without_echoing_sql() 
     let hint = error.hint().unwrap();
     assert!(hint.contains("phase=signature_binding"), "{hint}");
     assert!(hint.contains("expression=operator"), "{hint}");
-    assert!(hint.contains(&format!("byte_offset={}", sql.find(">=").unwrap())), "{hint}");
+    assert!(
+        hint.contains(&format!("byte_offset={}", sql.find(">=").unwrap())),
+        "{hint}"
+    );
     assert!(hint.contains("timestamp,text"), "{hint}");
-    for secret in ["private_", "sales.payments", "paid_at", "2026-09-01", "SUM", "marker"] {
+    for secret in [
+        "private_",
+        "sales.payments",
+        "paid_at",
+        "2026-09-01",
+        "SUM",
+        "marker",
+    ] {
         assert!(!hint.contains(secret), "{hint}");
     }
-    admit(&catalog, "SELECT SUM(amount) FROM sales.payments WHERE paid_at >= TIMESTAMP '2026-09-01 00:00:00'");
-    let hint = refuse(&catalog, "SELECT SUM(paid_at) FROM sales.payments").hint().unwrap();
+    admit(
+        &catalog,
+        "SELECT SUM(amount) FROM sales.payments WHERE paid_at >= TIMESTAMP '2026-09-01 00:00:00'",
+    );
+    let hint = refuse(&catalog, "SELECT SUM(paid_at) FROM sales.payments")
+        .hint()
+        .unwrap();
     assert!(hint.contains("expression=function"), "{hint}");
     assert!(hint.contains("timestamp"), "{hint}");
     let hidden = refuse(&catalog, "SELECT SUM(secret) FROM sales.payments");
     assert!(matches!(hidden, GuardError::ColumnNotAllowed { .. }));
     // No function or schema name supplied by the caller is repeated.
-    let hint = refuse(&catalog, "SELECT secret_fn(amount) FROM sales.payments").hint().unwrap();
+    let hint = refuse(&catalog, "SELECT secret_fn(amount) FROM sales.payments")
+        .hint()
+        .unwrap();
     assert!(!hint.contains("secret_fn"), "{hint}");
 }
 
@@ -238,7 +271,8 @@ fn integer_literal_uses_the_numeric_operator() {
         schema: "pg_catalog".to_string(),
         name: "=".to_string(),
         left_type_oid: 1082,
-        right_type_oid: 1082, result_type_oid: BOOL_OID,
+        right_type_oid: 1082,
+        result_type_oid: BOOL_OID,
     });
     catalog.operators.push(ResolvedOperator {
         oid: 905,
@@ -246,7 +280,8 @@ fn integer_literal_uses_the_numeric_operator() {
         schema: "pg_catalog".to_string(),
         name: "<".to_string(),
         left_type_oid: NUM_OID,
-        right_type_oid: NUM_OID, result_type_oid: BOOL_OID,
+        right_type_oid: NUM_OID,
+        result_type_oid: BOOL_OID,
     });
     catalog.operators.push(ResolvedOperator {
         oid: NUM_GT,
@@ -254,7 +289,8 @@ fn integer_literal_uses_the_numeric_operator() {
         schema: "pg_catalog".to_string(),
         name: ">".to_string(),
         left_type_oid: NUM_OID,
-        right_type_oid: NUM_OID, result_type_oid: BOOL_OID,
+        right_type_oid: NUM_OID,
+        result_type_oid: BOOL_OID,
     });
     let plan = guard_select(
         &identity(),
@@ -266,7 +302,10 @@ fn integer_literal_uses_the_numeric_operator() {
     assert!(plan.executed_sql.contains("pc_amount"));
     assert!(plan.executed_sql.contains('>'));
     for comparison in ["amount > -10", "amount > 0", "amount < 0", "0 < amount"] {
-        admit(&catalog, &format!("SELECT order_id FROM logistics.shipment WHERE {comparison}"));
+        admit(
+            &catalog,
+            &format!("SELECT order_id FROM logistics.shipment WHERE {comparison}"),
+        );
     }
     let floated = guard_select(
         &identity(),
@@ -376,7 +415,10 @@ fn varchar_equality_uses_only_the_catalogued_text_operator() {
     catalog.literal_types.text = Some(25);
     catalog.operators[1].left_type_oid = 25;
     catalog.operators[1].right_type_oid = 25;
-    let plan = admit(&catalog, "SELECT COUNT(*) FROM oo_w141.shipments WHERE code = 'S41-001-U'");
+    let plan = admit(
+        &catalog,
+        "SELECT COUNT(*) FROM oo_w141.shipments WHERE code = 'S41-001-U'",
+    );
     assert_eq!(plan.bindings.operators.len(), 1);
     assert_eq!(plan.bindings.operators[0].name, "=");
     assert!(matches!(
@@ -384,37 +426,74 @@ fn varchar_equality_uses_only_the_catalogued_text_operator() {
         error if error.code() == ErrorCode::FunctionNotAllowed
     ));
     assert!(matches!(
-        refuse(&catalog, "SELECT COUNT(*) FROM oo_w141.shipments WHERE code::text = 'S41-001-U'"),
+        refuse(
+            &catalog,
+            "SELECT COUNT(*) FROM oo_w141.shipments WHERE code::text = 'S41-001-U'"
+        ),
         GuardError::Unsupported { construct: "cast" }
     ));
-    let function = refuse(&catalog, "SELECT COUNT(*) FROM oo_w141.shipments WHERE lower(code) = 's41-001-u'");
-    assert!(matches!(function, GuardError::Unsupported { .. } | GuardError::FunctionNotAllowed | GuardError::SignatureNotAllowed { .. }), "{function:?}");
+    let function = refuse(
+        &catalog,
+        "SELECT COUNT(*) FROM oo_w141.shipments WHERE lower(code) = 's41-001-u'",
+    );
+    assert!(
+        matches!(
+            function,
+            GuardError::Unsupported { .. }
+                | GuardError::FunctionNotAllowed
+                | GuardError::SignatureNotAllowed { .. }
+        ),
+        "{function:?}"
+    );
 }
 
 #[test]
 fn varchar_comparisons_preserve_exact_operator_allowlist() {
     let mut cat = catalog(vec![relation(
-        "logistics", "shipment", "pt_ship",
-        vec![col("code", "pc_code", 1043), col("text_code", "pc_text", 25),
-            col("fixed_code", "pc_fixed", 1042)], 1, 14,
+        "logistics",
+        "shipment",
+        "pt_ship",
+        vec![
+            col("code", "pc_code", 1043),
+            col("text_code", "pc_text", 25),
+            col("fixed_code", "pc_fixed", 1042),
+        ],
+        1,
+        14,
     )]);
     cat.literal_types.text = Some(25);
     cat.operators.clear();
     for (index, name) in ["=", "<>", "<", "<=", ">", ">="].into_iter().enumerate() {
         cat.operators.push(ResolvedOperator {
-            oid: 300 + index as u32, procedure_oid: 400 + index as u32,
-            schema: "pg_catalog".into(), name: name.into(),
-            left_type_oid: 25, right_type_oid: 25, result_type_oid: BOOL_OID,
+            oid: 300 + index as u32,
+            procedure_oid: 400 + index as u32,
+            schema: "pg_catalog".into(),
+            name: name.into(),
+            left_type_oid: 25,
+            right_type_oid: 25,
+            result_type_oid: BOOL_OID,
         });
     }
     for operator in &cat.operators {
-        for (left, right) in [("code", "'x'"), ("'x'", "code"), ("code", "text_code"),
-            ("text_code", "code"), ("code", "code")] {
-            for token in [operator.name.clone(), format!("OPERATOR(pg_catalog.{})", operator.name)] {
-                let sql = format!("SELECT code FROM logistics.shipment WHERE {left} {token} {right}");
+        for (left, right) in [
+            ("code", "'x'"),
+            ("'x'", "code"),
+            ("code", "text_code"),
+            ("text_code", "code"),
+            ("code", "code"),
+        ] {
+            for token in [
+                operator.name.clone(),
+                format!("OPERATOR(pg_catalog.{})", operator.name),
+            ] {
+                let sql =
+                    format!("SELECT code FROM logistics.shipment WHERE {left} {token} {right}");
                 let plan = admit(&cat, &sql);
                 assert_eq!(plan.bindings.operators[0].oid, operator.oid);
-                assert_eq!(plan.bindings.operators[0].procedure_oid, operator.procedure_oid);
+                assert_eq!(
+                    plan.bindings.operators[0].procedure_oid,
+                    operator.procedure_oid
+                );
                 let mut missing = cat.clone();
                 missing.operators.retain(|op| op.oid != operator.oid);
                 assert_eq!(refuse(&missing, &sql).code(), ErrorCode::FunctionNotAllowed);
@@ -438,8 +517,10 @@ fn varchar_comparisons_preserve_exact_operator_allowlist() {
     for operator in &mut cat.operators {
         operator.schema = "public".into();
     }
-    assert_eq!(refuse(&cat, "SELECT code FROM logistics.shipment WHERE code <> ''").code(),
-        ErrorCode::FunctionNotAllowed);
+    assert_eq!(
+        refuse(&cat, "SELECT code FROM logistics.shipment WHERE code <> ''").code(),
+        ErrorCode::FunctionNotAllowed
+    );
 }
 
 #[test]
@@ -449,45 +530,91 @@ fn minmax_require_the_exact_catalogued_signature_and_visible_column() {
 
     let mut cat = catalog(vec![shipment(14)]);
     for (index, (name, kind, _)) in UNARY_AGGREGATE_SIGNATURES.iter().enumerate() {
-        if !matches!(*name, "min" | "max") { continue; }
+        if !matches!(*name, "min" | "max") {
+            continue;
+        }
         let oid = match *kind {
-            "int2" => Type::INT2, "int4" => Type::INT4, "int8" => Type::INT8,
-            "numeric" => Type::NUMERIC, "float8" => Type::FLOAT8, "text" => Type::TEXT,
-            "bpchar" => Type::BPCHAR, "date" => Type::DATE, "time" => Type::TIME,
-            "timestamp" => Type::TIMESTAMP, "timestamptz" => Type::TIMESTAMPTZ,
-            "interval" => Type::INTERVAL, _ => panic!("unexpected aggregate type"),
-        }.oid();
+            "int2" => Type::INT2,
+            "int4" => Type::INT4,
+            "int8" => Type::INT8,
+            "numeric" => Type::NUMERIC,
+            "float8" => Type::FLOAT8,
+            "text" => Type::TEXT,
+            "bpchar" => Type::BPCHAR,
+            "date" => Type::DATE,
+            "time" => Type::TIME,
+            "timestamp" => Type::TIMESTAMP,
+            "timestamptz" => Type::TIMESTAMPTZ,
+            "interval" => Type::INTERVAL,
+            _ => panic!("unexpected aggregate type"),
+        }
+        .oid();
         let column = format!("value_{kind}");
-        if !cat.relations[0].columns.iter().any(|col| col.name == column) {
-            cat.relations[0].columns.push(col(&column, &format!("pc_{column}"), oid));
+        if !cat.relations[0]
+            .columns
+            .iter()
+            .any(|col| col.name == column)
+        {
+            cat.relations[0]
+                .columns
+                .push(col(&column, &format!("pc_{column}"), oid));
         }
         cat.functions.push(ResolvedFunction {
-            oid: 500 + index as u32, schema: "pg_catalog".into(), name: name.to_string(),
-            argument_type_oids: vec![oid], aggregate_star: false,
+            oid: 500 + index as u32,
+            schema: "pg_catalog".into(),
+            name: name.to_string(),
+            argument_type_oids: vec![oid],
+            aggregate_star: false,
         });
         let sql = format!("SELECT {name}({column}) FROM logistics.shipment");
-        assert_eq!(admit(&cat, &sql).bindings.functions[0].oid, 500 + index as u32);
+        assert_eq!(
+            admit(&cat, &sql).bindings.functions[0].oid,
+            500 + index as u32
+        );
         let mut missing = cat.clone();
         missing.functions.pop();
         assert_eq!(refuse(&missing, &sql).code(), ErrorCode::FunctionNotAllowed);
     }
-    cat.relations[0].columns.push(col("code", "pc_code", Type::VARCHAR.oid()));
+    cat.relations[0]
+        .columns
+        .push(col("code", "pc_code", Type::VARCHAR.oid()));
     for name in ["min", "max"] {
         let sql = format!("SELECT {name}(code) FROM logistics.shipment");
         let plan = admit(&cat, &sql);
-        let text = cat.functions.iter().find(|function|
-            function.name == name && function.argument_type_oids == [Type::TEXT.oid()]).unwrap();
+        let text = cat
+            .functions
+            .iter()
+            .find(|function| {
+                function.name == name && function.argument_type_oids == [Type::TEXT.oid()]
+            })
+            .unwrap();
         assert_eq!(plan.bindings.functions[0].oid, text.oid);
         let mut missing = cat.clone();
-        missing.functions.retain(|function| function.oid != text.oid);
+        missing
+            .functions
+            .retain(|function| function.oid != text.oid);
         assert_eq!(refuse(&missing, &sql).code(), ErrorCode::FunctionNotAllowed);
     }
-    for (name, oid) in [("bool_value", 16), ("json_value", 114), ("jsonb_value", 3802),
-        ("uuid_value", 2950), ("bytea_value", 17), ("float4_value", 700)] {
-        cat.relations[0].columns.push(col(name, &format!("pc_{name}"), oid));
+    for (name, oid) in [
+        ("bool_value", 16),
+        ("json_value", 114),
+        ("jsonb_value", 3802),
+        ("uuid_value", 2950),
+        ("bytea_value", 17),
+        ("float4_value", 700),
+    ] {
+        cat.relations[0]
+            .columns
+            .push(col(name, &format!("pc_{name}"), oid));
         for function in ["min", "max"] {
-            assert_eq!(refuse(&cat, &format!("SELECT {function}({name}) FROM logistics.shipment")).code(),
-                ErrorCode::FunctionNotAllowed);
+            assert_eq!(
+                refuse(
+                    &cat,
+                    &format!("SELECT {function}({name}) FROM logistics.shipment")
+                )
+                .code(),
+                ErrorCode::FunctionNotAllowed
+            );
         }
     }
     for sql in [
@@ -508,21 +635,33 @@ fn minmax_require_the_exact_catalogued_signature_and_visible_column() {
 #[test]
 fn timestamp_comparisons_require_valid_literals_and_catalogued_same_type_operators() {
     let mut relations = vec![shipment(10)];
-    relations[0].columns.push(col("created", "pc_created", 1114));
-    relations[0].columns.push(col("occurred", "pc_occurred", 1184));
-    relations[0].columns.push(col("paid_amount", "pc_amount", 1700));
+    relations[0]
+        .columns
+        .push(col("created", "pc_created", 1114));
+    relations[0]
+        .columns
+        .push(col("occurred", "pc_occurred", 1184));
+    relations[0]
+        .columns
+        .push(col("paid_amount", "pc_amount", 1700));
     let mut catalog = catalog(relations);
     catalog.functions.push(ResolvedFunction {
-        oid: 2108, schema: "pg_catalog".into(), name: "sum".into(),
-        argument_type_oids: vec![1700], aggregate_star: false,
+        oid: 2108,
+        schema: "pg_catalog".into(),
+        name: "sum".into(),
+        argument_type_oids: vec![1700],
+        aggregate_star: false,
     });
     for (i, oid) in [1114, 1184].into_iter().enumerate() {
         for (j, name) in [">=", "<"].into_iter().enumerate() {
             catalog.operators.push(ResolvedOperator {
                 oid: 900 + (i * 2 + j) as u32,
                 procedure_oid: 1900 + (i * 2 + j) as u32,
-                schema: "pg_catalog".into(), name: name.into(),
-                left_type_oid: oid, right_type_oid: oid, result_type_oid: BOOL_OID,
+                schema: "pg_catalog".into(),
+                name: name.into(),
+                left_type_oid: oid,
+                right_type_oid: oid,
+                result_type_oid: BOOL_OID,
             });
         }
     }
@@ -534,12 +673,23 @@ fn timestamp_comparisons_require_valid_literals_and_catalogued_same_type_operato
     ] {
         let plan = admit(&catalog, sql);
         assert!(!plan.bindings.operators.is_empty());
-        assert!(plan.bindings.operators.iter().all(|op| op.schema == "pg_catalog"));
+        assert!(
+            plan.bindings
+                .operators
+                .iter()
+                .all(|op| op.schema == "pg_catalog")
+        );
     }
     // A failed WHERE comparison must not be diagnosed as missing SUM support.
     admit(&catalog, "SELECT SUM(paid_amount) FROM logistics.shipment");
-    admit(&catalog, "SELECT SUM(paid_amount) FROM logistics.shipment WHERE created >= TIMESTAMP '2026-09-01 00:00:00' AND created < TIMESTAMP '2026-10-01 00:00:00'");
-    let mismatch = refuse(&catalog, "SELECT SUM(paid_amount) FROM logistics.shipment WHERE created >= '2026-09-01'");
+    admit(
+        &catalog,
+        "SELECT SUM(paid_amount) FROM logistics.shipment WHERE created >= TIMESTAMP '2026-09-01 00:00:00' AND created < TIMESTAMP '2026-10-01 00:00:00'",
+    );
+    let mismatch = refuse(
+        &catalog,
+        "SELECT SUM(paid_amount) FROM logistics.shipment WHERE created >= '2026-09-01'",
+    );
     assert_eq!(mismatch.code(), ErrorCode::FunctionNotAllowed);
     assert!(mismatch.hint().unwrap().contains("TIMESTAMP"));
     for sql in [
@@ -587,7 +737,8 @@ fn date_literal_binds_only_the_catalogued_date_comparison() {
         schema: "pg_catalog".to_string(),
         name: "=".to_string(),
         left_type_oid: DATE_OID,
-        right_type_oid: DATE_OID, result_type_oid: BOOL_OID,
+        right_type_oid: DATE_OID,
+        result_type_oid: BOOL_OID,
     });
     catalog.operators.push(ResolvedOperator {
         oid: DATE_LT,
@@ -595,7 +746,8 @@ fn date_literal_binds_only_the_catalogued_date_comparison() {
         schema: "pg_catalog".to_string(),
         name: "<".to_string(),
         left_type_oid: DATE_OID,
-        right_type_oid: DATE_OID, result_type_oid: BOOL_OID,
+        right_type_oid: DATE_OID,
+        result_type_oid: BOOL_OID,
     });
     catalog.operators.push(ResolvedOperator {
         oid: 1701,
@@ -603,7 +755,8 @@ fn date_literal_binds_only_the_catalogued_date_comparison() {
         schema: "pg_catalog".to_string(),
         name: "=".to_string(),
         left_type_oid: 1700,
-        right_type_oid: 1700, result_type_oid: BOOL_OID,
+        right_type_oid: 1700,
+        result_type_oid: BOOL_OID,
     });
     let plan = admit(
         &catalog,
@@ -613,8 +766,16 @@ fn date_literal_binds_only_the_catalogued_date_comparison() {
     assert_eq!(plan.bindings.operators[0].oid, DATE_EQ);
     assert_eq!(plan.bindings.operators[0].procedure_oid, DATE_EQ_PROC);
     assert_ne!(DATE_EQ, DATE_EQ_PROC);
-    assert!(plan.executed_sql.contains("pc_bucket"), "{}", plan.executed_sql);
-    assert!(plan.executed_sql.contains("2026-05-06"), "{}", plan.executed_sql);
+    assert!(
+        plan.executed_sql.contains("pc_bucket"),
+        "{}",
+        plan.executed_sql
+    );
+    assert!(
+        plan.executed_sql.contains("2026-05-06"),
+        "{}",
+        plan.executed_sql
+    );
     assert!(!plan.executed_sql.contains('$'), "{}", plan.executed_sql);
     let earlier = admit(
         &catalog,
@@ -646,9 +807,14 @@ fn date_literal_binds_only_the_catalogued_date_comparison() {
             "{sql}"
         );
     }
-    assert_eq!(refuse(&catalog,
-        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = '2026-05-06'::timestamp").code(),
-        ErrorCode::FunctionNotAllowed);
+    assert_eq!(
+        refuse(
+            &catalog,
+            "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = '2026-05-06'::timestamp"
+        )
+        .code(),
+        ErrorCode::FunctionNotAllowed
+    );
     assert!(matches!(
         refuse(
             &catalog,
@@ -903,7 +1069,8 @@ fn functions_and_operators_need_one_oid_signature() {
         refuse(
             &cat,
             "SELECT order_id FROM logistics.shipment WHERE order_id = 'west'"
-        ).code(),
+        )
+        .code(),
         ErrorCode::FunctionNotAllowed
     );
     let text = admit(
@@ -956,7 +1123,10 @@ fn count_column_needs_the_catalogued_count_any_aggregate() {
         assert!(!plan.bindings.functions[0].aggregate_star);
     }
     assert_eq!(
-        admit(&cat, "SELECT count(*) FROM logistics.shipment").bindings.functions[0].oid,
+        admit(&cat, "SELECT count(*) FROM logistics.shipment")
+            .bindings
+            .functions[0]
+            .oid,
         201
     );
     for sql in [
@@ -1005,7 +1175,10 @@ fn business_aggregates_and_order_aliases_preserve_column_acl() {
             assert!(plan.executed_sql.contains("pc_order"));
         }
     }
-    let shadow = admit(&cat, "SELECT region AS order_id FROM logistics.shipment ORDER BY order_id");
+    let shadow = admit(
+        &cat,
+        "SELECT region AS order_id FROM logistics.shipment ORDER BY order_id",
+    );
     assert!(shadow.executed_sql.contains("ORDER BY pt_ship.pc_region"));
     for sql in [
         "SELECT COUNT(DISTINCT hidden_col) FROM logistics.shipment",
@@ -1025,7 +1198,11 @@ fn business_aggregates_and_order_aliases_preserve_column_acl() {
     }
     cat.functions.retain(|f| f.aggregate_star);
     assert_eq!(
-        refuse(&cat, "SELECT COUNT(DISTINCT order_id) FROM logistics.shipment").code(),
+        refuse(
+            &cat,
+            "SELECT COUNT(DISTINCT order_id) FROM logistics.shipment"
+        )
+        .code(),
         ErrorCode::FunctionNotAllowed
     );
 }
@@ -1329,7 +1506,9 @@ fn order_null_and_shape_limits() {
             &cat,
             "SELECT region FROM logistics.shipment WHERE region LIKE 'w%'"
         ),
-        GuardError::Unsupported { construct: "LIKE predicate" }
+        GuardError::Unsupported {
+            construct: "LIKE predicate"
+        }
     );
     let constant = admit(&cat, "SELECT 1");
     assert!(constant.bindings.relations.is_empty());
@@ -1609,7 +1788,8 @@ async fn live_catalog(client: &Client, shadow: &Shadow) -> PolicyCatalog {
                 schema: "pg_catalog".to_string(),
                 name: "=".to_string(),
                 left_type_oid: int_oid,
-                right_type_oid: int_oid, result_type_oid: bool_oid,
+                right_type_oid: int_oid,
+                result_type_oid: bool_oid,
             },
             ResolvedOperator {
                 oid: eq_text,
@@ -1617,7 +1797,8 @@ async fn live_catalog(client: &Client, shadow: &Shadow) -> PolicyCatalog {
                 schema: "pg_catalog".to_string(),
                 name: "=".to_string(),
                 left_type_oid: text_oid,
-                right_type_oid: text_oid, result_type_oid: bool_oid,
+                right_type_oid: text_oid,
+                result_type_oid: bool_oid,
             },
         ],
         literal_types: LiteralTypes {
@@ -2164,11 +2345,31 @@ fn quote_physical(name: &str, prefix: &str) -> String {
 #[test]
 fn interval_comparison_requires_the_exact_catalogued_operator() {
     let mut relations = vec![shipment(10)];
-    relations[0].columns.push(col("duration", "pc_duration", 1186));
+    relations[0]
+        .columns
+        .push(col("duration", "pc_duration", 1186));
     let mut c = catalog(relations);
-    c.operators.push(ResolvedOperator {oid: 801, procedure_oid: 802, schema: "pg_catalog".into(), name: "<".into(), left_type_oid: 1186, right_type_oid: 1186, result_type_oid: BOOL_OID});
-    for literal in ["INTERVAL '0'", "INTERVAL '0 seconds'", "'00:00:00'::pg_catalog.interval", "INTERVAL '1 day'", "INTERVAL '-27:02:03'", "INTERVAL '12:34:56.123456'"] {
-        let plan = admit(&c, &format!("SELECT COUNT(*) FROM logistics.shipment WHERE duration < {literal}"));
+    c.operators.push(ResolvedOperator {
+        oid: 801,
+        procedure_oid: 802,
+        schema: "pg_catalog".into(),
+        name: "<".into(),
+        left_type_oid: 1186,
+        right_type_oid: 1186,
+        result_type_oid: BOOL_OID,
+    });
+    for literal in [
+        "INTERVAL '0'",
+        "INTERVAL '0 seconds'",
+        "'00:00:00'::pg_catalog.interval",
+        "INTERVAL '1 day'",
+        "INTERVAL '-27:02:03'",
+        "INTERVAL '12:34:56.123456'",
+    ] {
+        let plan = admit(
+            &c,
+            &format!("SELECT COUNT(*) FROM logistics.shipment WHERE duration < {literal}"),
+        );
         assert_eq!(plan.bindings.operators[0].oid, 801);
         assert_eq!(plan.bindings.operators[0].procedure_oid, 802);
         assert!(plan.executed_sql.contains("pc_duration"));
@@ -2179,7 +2380,16 @@ fn interval_comparison_requires_the_exact_catalogued_operator() {
         "SELECT COUNT(*) FROM logistics.shipment WHERE duration::interval < INTERVAL '0'",
         "SELECT COUNT(*) FROM logistics.shipment WHERE duration < CAST(lower('0') AS interval)",
         "SELECT INTERVAL '0'",
-    ] { assert!(guard_select(&c.identity, &c, sql).is_err(), "{sql}"); }
+    ] {
+        assert!(guard_select(&c.identity, &c, sql).is_err(), "{sql}");
+    }
     c.operators.retain(|op| op.oid != 801);
-    assert!(guard_select(&c.identity, &c, "SELECT COUNT(*) FROM logistics.shipment WHERE duration < INTERVAL '0'").is_err());
+    assert!(
+        guard_select(
+            &c.identity,
+            &c,
+            "SELECT COUNT(*) FROM logistics.shipment WHERE duration < INTERVAL '0'"
+        )
+        .is_err()
+    );
 }

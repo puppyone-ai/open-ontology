@@ -667,17 +667,29 @@ mod tests {
 
     #[test]
     fn composite_mapping_is_explicit_and_projection_cannot_drop_a_key() {
-        let mut a=column("bigint","bigint","PRI");a.name="a".into();a.nullable=false;
-        let mut b=a.clone();b.name="b".into();b.ordinal=2;
-        let cols=[a.clone(),b];
-        assert!(map_table(&cols,false,true,&reserved()).is_err());
-        let mapped=map_keyed_table(&cols,false,true,&reserved()).unwrap();
-        assert!(super::super::keep_requested_keyed(mapped.clone(),&["a".into()]).is_err());
-        let selected=super::super::keep_requested_keyed(mapped,&["b".into(),"a".into()]).unwrap();
-        assert_eq!(selected.iter().map(|c|c.plan.name.as_str()).collect::<Vec<_>>(),["b","a"]);
-        assert!(map_table(&[a],false,true,&reserved()).is_ok());
-        let mut no_key=cols[0].clone();no_key.column_key.clear();
-        assert!(map_keyed_table(&[no_key],false,true,&reserved()).is_err());
+        let mut a = column("bigint", "bigint", "PRI");
+        a.name = "a".into();
+        a.nullable = false;
+        let mut b = a.clone();
+        b.name = "b".into();
+        b.ordinal = 2;
+        let cols = [a.clone(), b];
+        assert!(map_table(&cols, false, true, &reserved()).is_err());
+        let mapped = map_keyed_table(&cols, false, true, &reserved()).unwrap();
+        assert!(super::super::keep_requested_keyed(mapped.clone(), &["a".into()]).is_err());
+        let selected =
+            super::super::keep_requested_keyed(mapped, &["b".into(), "a".into()]).unwrap();
+        assert_eq!(
+            selected
+                .iter()
+                .map(|c| c.plan.name.as_str())
+                .collect::<Vec<_>>(),
+            ["b", "a"]
+        );
+        assert!(map_table(&[a], false, true, &reserved()).is_ok());
+        let mut no_key = cols[0].clone();
+        no_key.column_key.clear();
+        assert!(map_keyed_table(&[no_key], false, true, &reserved()).is_err());
     }
 
     #[test]

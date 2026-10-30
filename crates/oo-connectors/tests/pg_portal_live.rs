@@ -32,10 +32,28 @@ const FORBIDDEN: &[&str] = &[
 async fn live_named_portal_repeatable_read() {
     let pointer = env::var("OO_A127_FIXTURE").expect("OO_A127_FIXTURE");
     let cfg = load_pointer(&pointer);
-    let mut reader = connect(&cfg, "reader_user", "reader_password_file", "oo-a127-reader").await;
-    let mut writer = connect(&cfg, "writer_user", "writer_password_file", "oo-a127-writer").await;
+    let mut reader = connect(
+        &cfg,
+        "reader_user",
+        "reader_password_file",
+        "oo-a127-reader",
+    )
+    .await;
+    let mut writer = connect(
+        &cfg,
+        "writer_user",
+        "writer_password_file",
+        "oo-a127-writer",
+    )
+    .await;
     let mut admin = connect(&cfg, "admin_user", "admin_password_file", "oo-a127-admin").await;
-    let mut oracle = connect(&cfg, "reader_user", "reader_password_file", "oo-a127-oracle").await;
+    let mut oracle = connect(
+        &cfg,
+        "reader_user",
+        "reader_password_file",
+        "oo-a127-oracle",
+    )
+    .await;
     sqlx::query("DELETE FROM oo_a127.cut WHERE id >= 4")
         .execute(&mut admin)
         .await
@@ -71,13 +89,21 @@ async fn live_named_portal_repeatable_read() {
 
     let mut args = PgArguments::default();
     args.add(1i32).expect("arg");
-    let mut one = tx.open_named_portal(ONE, args).await.expect("one-row portal");
+    let mut one = tx
+        .open_named_portal(ONE, args)
+        .await
+        .expect("one-row portal");
     let step = one.pull(grant).await.expect("one-row pull");
     let PgPortalOutcome::Suspended(row) = step.outcome else {
         panic!("one-row execute limit suspends until a later pull");
     };
     assert_eq!(row.try_get::<i32, _>(0).expect("id"), 1);
-    assert_eq!(row.try_get::<Option<String>, _>(1).expect("note").as_deref(), Some("one"));
+    assert_eq!(
+        row.try_get::<Option<String>, _>(1)
+            .expect("note")
+            .as_deref(),
+        Some("one")
+    );
     assert_eq!(step.accounting.consumed_rows, 1);
     let step = one.pull(grant).await.expect("one-row finish");
     let PgPortalOutcome::Complete { row: None, .. } = step.outcome else {
@@ -159,10 +185,7 @@ async fn server_error(reader: &mut PgConnection) {
     let mut args = PgArguments::default();
     args.add(0i32).expect("zero");
     // PostgreSQL 17 plans this custom statement at Bind and raises 22012 there.
-    match tx
-        .open_named_portal("SELECT (1 / $1)::int4", args)
-        .await
-    {
+    match tx.open_named_portal("SELECT (1 / $1)::int4", args).await {
         Ok(mut portal) => {
             let err = must_err(
                 portal
@@ -230,7 +253,9 @@ async fn cancel_sleep(reader: &mut PgConnection, admin: &mut PgConnection) {
     };
     assert!(sent_cancel, "cancel was not sent");
     assert_eq!(
-        err.as_database_error().and_then(|db| db.code().map(|code| code.into_owned())).as_deref(),
+        err.as_database_error()
+            .and_then(|db| db.code().map(|code| code.into_owned()))
+            .as_deref(),
         Some("57014")
     );
     assert_eq!(portal.last_pull().expect("reserved").consumed_rows, 0);
@@ -260,10 +285,7 @@ async fn oracle_sees_cut(oracle: &mut PgConnection, snapshot: &str) {
 }
 
 fn note_of(row: &sqlx::postgres::PgRow) -> (i32, Option<String>) {
-    (
-        row.try_get(0).expect("id"),
-        row.try_get(1).expect("note"),
-    )
+    (row.try_get(0).expect("id"), row.try_get(1).expect("note"))
 }
 
 async fn show(conn: &mut PgConnection, sql: &'static str) -> String {
@@ -329,7 +351,9 @@ fn classify(path: &str) -> String {
         let Some(verb) = sql.split_whitespace().next() else {
             continue;
         };
-        let verb = verb.trim_matches(|ch: char| ch == '(' || ch == ';').to_ascii_uppercase();
+        let verb = verb
+            .trim_matches(|ch: char| ch == '(' || ch == ';')
+            .to_ascii_uppercase();
         if verb.is_empty() {
             continue;
         }
@@ -346,9 +370,22 @@ fn classify(path: &str) -> String {
     let admin = verbs.get("oo-a127-admin").map(join).unwrap_or_default();
     let oracle = verbs.get("oo-a127-oracle").map(join).unwrap_or_default();
     assert!(reader_statements > 0, "reader SQL log was empty");
-    assert!(forbidden_reader.is_empty(), "reader forbidden verbs {forbidden_reader:?}");
-    assert!(verbs.get("oo-a127-writer").is_some_and(|set| set.contains("UPDATE") && set.contains("INSERT") && set.contains("COMMIT")));
-    assert!(verbs.get("oo-a127-oracle").is_some_and(|set| set.contains("SET")));
+    assert!(
+        forbidden_reader.is_empty(),
+        "reader forbidden verbs {forbidden_reader:?}"
+    );
+    assert!(
+        verbs
+            .get("oo-a127-writer")
+            .is_some_and(|set| set.contains("UPDATE")
+                && set.contains("INSERT")
+                && set.contains("COMMIT"))
+    );
+    assert!(
+        verbs
+            .get("oo-a127-oracle")
+            .is_some_and(|set| set.contains("SET"))
+    );
     format!(
         "reader_statements={reader_statements}\nreader_verbs={reader}\nwriter_verbs={writer}\nadmin_verbs={admin}\noracle_verbs={oracle}\nreader_forbidden=0\n"
     )
@@ -416,7 +453,9 @@ async fn connect(
 }
 
 fn field<'a>(cfg: &'a BTreeMap<String, String>, key: &str) -> &'a str {
-    cfg.get(key).unwrap_or_else(|| panic!("missing {key}")).as_str()
+    cfg.get(key)
+        .unwrap_or_else(|| panic!("missing {key}"))
+        .as_str()
 }
 
 trait CommitUpdate {

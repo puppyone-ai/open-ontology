@@ -6,10 +6,10 @@ use std::fs;
 use std::time::{Duration, Instant};
 
 use oo_connectors::{
-    config_identity, type_policy_identity, AdmittedCatalog, AdmittedColumn, AdmittedTable,
-    PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
+    AdmittedCatalog, AdmittedColumn, AdmittedTable, CLEANUP_OBSERVATION_BOUND_MS, PgBudget,
+    PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
     SnapshotOwner, SnapshotRequest, SourceError, SourceErrorKind, SourceId, StreamBudget,
-    StreamItem, TableSelection, CLEANUP_OBSERVATION_BOUND_MS,
+    StreamItem, TableSelection, config_identity, type_policy_identity,
 };
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
@@ -118,7 +118,10 @@ impl World {
 
     async fn refuse_value(&mut self) {
         let err = self
-            .refuse("bounds_wide", StreamBudget::try_new(1, 1_048_576, 4, 1024).expect("budget"))
+            .refuse(
+                "bounds_wide",
+                StreamBudget::try_new(1, 1_048_576, 4, 1024).expect("budget"),
+            )
             .await;
         assert_eq!(err.kind(), SourceErrorKind::Budget);
         assert_eq!(err.fact(), Some("max_value"));
@@ -130,7 +133,10 @@ impl World {
 
     async fn refuse_row(&mut self) {
         let err = self
-            .refuse("bounds_row", StreamBudget::try_new(1, 1_048_576, 8, 9).expect("budget"))
+            .refuse(
+                "bounds_row",
+                StreamBudget::try_new(1, 1_048_576, 8, 9).expect("budget"),
+            )
             .await;
         assert_eq!(err.kind(), SourceErrorKind::Budget);
         assert_eq!(err.fact(), Some("max_row"));
@@ -208,7 +214,10 @@ impl World {
             None => panic!("backend left while the consumer was idle"),
         }
         let during = oo_statements(&fs::read_to_string(&self.pointer.log_file).expect("log"));
-        assert_eq!(during, before, "an Execute was logged while the consumer was idle");
+        assert_eq!(
+            during, before,
+            "an Execute was logged while the consumer was idle"
+        );
         let second = owner.next_batch().await.expect("second demand");
         let after_executes = match &second {
             StreamItem::Batch(batch) => batch.accounting.executes,
@@ -276,7 +285,9 @@ impl World {
         let began = Instant::now();
         loop {
             match activity(&mut self.admin, pid, start).await {
-                Some(row) if row.in_xact && row.app == "oo-pg-source" && waiting_on_client(&row) => {
+                Some(row)
+                    if row.in_xact && row.app == "oo-pg-source" && waiting_on_client(&row) =>
+                {
                     return;
                 }
                 Some(row) if began.elapsed() > Duration::from_secs(2) => {
@@ -412,13 +423,7 @@ async fn load_admitted(admin: &mut PgConnection, name: &str) -> AdmittedCatalog 
     }
 }
 
-async fn dial(
-    pointer: &Pointer,
-    user: &str,
-    password: &str,
-    ca: &[u8],
-    app: &str,
-) -> PgConnection {
+async fn dial(pointer: &Pointer, user: &str, password: &str, ca: &[u8], app: &str) -> PgConnection {
     let options = PgConnectOptions::from_explicit()
         .host(&pointer.host)
         .port(pointer.port)
@@ -501,10 +506,32 @@ fn strip_sql_literals(sql: &str) -> String {
 
 fn write_word(sql: &str) -> Option<&'static str> {
     const WORDS: &[&str] = &[
-        "INSERT", "UPDATE", "DELETE", "TRUNCATE", "MERGE", "COPY", "CREATE", "ALTER", "DROP",
-        "GRANT", "REVOKE", "COMMENT", "VACUUM", "CLUSTER", "REINDEX", "CALL", "DO", "COMMIT",
-        "NEXTVAL", "LO_IMPORT", "LO_EXPORT", "LO_CREATE", "DBLINK", "PG_WRITE_FILE",
-        "PG_READ_FILE", "PG_READ_BINARY_FILE",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "TRUNCATE",
+        "MERGE",
+        "COPY",
+        "CREATE",
+        "ALTER",
+        "DROP",
+        "GRANT",
+        "REVOKE",
+        "COMMENT",
+        "VACUUM",
+        "CLUSTER",
+        "REINDEX",
+        "CALL",
+        "DO",
+        "COMMIT",
+        "NEXTVAL",
+        "LO_IMPORT",
+        "LO_EXPORT",
+        "LO_CREATE",
+        "DBLINK",
+        "PG_WRITE_FILE",
+        "PG_READ_FILE",
+        "PG_READ_BINARY_FILE",
     ];
     for token in sql.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_') {
         let upper = token.to_ascii_uppercase();

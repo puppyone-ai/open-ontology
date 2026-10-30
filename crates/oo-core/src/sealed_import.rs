@@ -203,7 +203,12 @@ pub struct SealedImportLimits {
 
 impl Default for SealedImportLimits {
     fn default() -> Self {
-        Self { json_scan: Default::default(), max_tables: 16, max_columns: 1024, max_collection_entries: 32 }
+        Self {
+            json_scan: Default::default(),
+            max_tables: 16,
+            max_columns: 1024,
+            max_collection_entries: 32,
+        }
     }
 }
 
@@ -211,11 +216,23 @@ pub fn parse_sealed_import_catalog(input: &str) -> Result<SealedImportCatalog, S
     parse_sealed_import_catalog_with_limits(input, &SealedImportLimits::default())
 }
 
-pub fn parse_sealed_import_catalog_with_limits(input: &str, limits: &SealedImportLimits) -> Result<SealedImportCatalog, SealedImportError> {
+pub fn parse_sealed_import_catalog_with_limits(
+    input: &str,
+    limits: &SealedImportLimits,
+) -> Result<SealedImportCatalog, SealedImportError> {
     if limits.max_tables == 0 || limits.max_columns == 0 || limits.max_collection_entries == 0 {
-        return Err(SealedImportError::new("limit.invalid", "/limits", "sealed limits must be positive"));
+        return Err(SealedImportError::new(
+            "limit.invalid",
+            "/limits",
+            "sealed limits must be positive",
+        ));
     }
-    let value = crate::json_scan::parse_json_value_with_limits(input, SEALED_IMPORT_DRAFT_PROTOCOL, &limits.json_scan).map_err(map_scan)?;
+    let value = crate::json_scan::parse_json_value_with_limits(
+        input,
+        SEALED_IMPORT_DRAFT_PROTOCOL,
+        &limits.json_scan,
+    )
+    .map_err(map_scan)?;
     refuse_secrets(&value)?;
     let document: Document = serde_json::from_value(value).map_err(map_shape)?;
     validate(document, limits)
@@ -319,7 +336,10 @@ fn secret_key(key: &str) -> bool {
     )
 }
 
-fn validate(document: Document, limits: &SealedImportLimits) -> Result<SealedImportCatalog, SealedImportError> {
+fn validate(
+    document: Document,
+    limits: &SealedImportLimits,
+) -> Result<SealedImportCatalog, SealedImportError> {
     if document.protocol != SEALED_IMPORT_CATALOG_PROTOCOL {
         return Err(SealedImportError::new(
             "protocol.mismatch",
@@ -411,13 +431,25 @@ fn validate_partition_vector(
 ) -> Result<Option<Vec<SealedImportPartition>>, SealedImportError> {
     let Some(vector) = &document.partition_vector else {
         if document.engine == "clickhouse" {
-            return Err(SealedImportError::new("partition.missing", "/partition_vector", "ClickHouse catalog lacks a full target partition vector"));
+            return Err(SealedImportError::new(
+                "partition.missing",
+                "/partition_vector",
+                "ClickHouse catalog lacks a full target partition vector",
+            ));
         }
         return Ok(None);
     };
     let olap = matches!(document.engine.as_str(), "doris" | "starrocks");
-    if !(document.engine == "clickhouse" || olap) || tables.len() != 1 || vector.is_empty() || vector.len() > 4096 {
-        return Err(SealedImportError::new("partition.invalid", "/partition_vector", "partition vector is outside the closed C4 single-table contract"));
+    if !(document.engine == "clickhouse" || olap)
+        || tables.len() != 1
+        || vector.is_empty()
+        || vector.len() > 4096
+    {
+        return Err(SealedImportError::new(
+            "partition.invalid",
+            "/partition_vector",
+            "partition vector is outside the closed C4 single-table contract",
+        ));
     }
     let table = &tables[0];
     let mut ids = BTreeSet::new();
@@ -428,106 +460,220 @@ fn validate_partition_vector(
     let first = &vector[0];
     for (index, entry) in vector.iter().enumerate() {
         let path = format!("/partition_vector/{index}");
-        if !closed_partition_id(&entry.partition_id) || !ids.insert(entry.partition_id.clone())
-            || (index > 0 && vector[index - 1].partition_id >= entry.partition_id) {
-            return Err(SealedImportError::new("partition.order", path, "partition IDs are not closed, sorted, and unique"));
+        if !closed_partition_id(&entry.partition_id)
+            || !ids.insert(entry.partition_id.clone())
+            || (index > 0 && vector[index - 1].partition_id >= entry.partition_id)
+        {
+            return Err(SealedImportError::new(
+                "partition.order",
+                path,
+                "partition IDs are not closed, sorted, and unique",
+            ));
         }
-        if olap { require_digest(&entry.table_epoch, "/partition_vector/table_epoch")?; }
-        else { require_run_id(&entry.table_epoch)?; }
+        if olap {
+            require_digest(&entry.table_epoch, "/partition_vector/table_epoch")?;
+        } else {
+            require_run_id(&entry.table_epoch)?;
+        }
         require_run_id(&entry.run_id)?;
-        if !closed_batch(&entry.batch_id) || entry.source_generation < 1 || entry.target_generation < 1
-            || entry.source_generation > document.source_generation || entry.target_generation > document.target_generation
-            || !matches!(entry.consistency_grade.as_str(), "T" | "S1" | "S0" | "B") {
-            return Err(SealedImportError::new("partition.invalid", path, "partition generation, batch, or grade is invalid"));
+        if !closed_batch(&entry.batch_id)
+            || entry.source_generation < 1
+            || entry.target_generation < 1
+            || entry.source_generation > document.source_generation
+            || entry.target_generation > document.target_generation
+            || !matches!(entry.consistency_grade.as_str(), "T" | "S1" | "S0" | "B")
+        {
+            return Err(SealedImportError::new(
+                "partition.invalid",
+                path,
+                "partition generation, batch, or grade is invalid",
+            ));
         }
         require_digest(&entry.audit_digest, "/partition_vector/audit_digest")?;
         require_digest(&entry.payload_digest, "/partition_vector/payload_digest")?;
-        require_digest(&entry.partition_scope.arrow_sha256, "/partition_vector/partition_scope/arrow_sha256")?;
-        require_digest(&entry.partition_scope.schema_digest, "/partition_vector/partition_scope/schema_digest")?;
-        require_digest(&entry.partition_scope.type_digest, "/partition_vector/partition_scope/type_digest")?;
+        require_digest(
+            &entry.partition_scope.arrow_sha256,
+            "/partition_vector/partition_scope/arrow_sha256",
+        )?;
+        require_digest(
+            &entry.partition_scope.schema_digest,
+            "/partition_vector/partition_scope/schema_digest",
+        )?;
+        require_digest(
+            &entry.partition_scope.type_digest,
+            "/partition_vector/partition_scope/type_digest",
+        )?;
         let scope = &entry.partition_scope;
         if olap {
             let Some(native_id) = scope.native_partition_id.as_deref() else {
-                return Err(SealedImportError::new("partition.binding", path, "native partition ID is absent"));
+                return Err(SealedImportError::new(
+                    "partition.binding",
+                    path,
+                    "native partition ID is absent",
+                ));
             };
             let Some(range) = scope.partition_range.as_ref() else {
-                return Err(SealedImportError::new("partition.binding", path, "native partition range is absent"));
+                return Err(SealedImportError::new(
+                    "partition.binding",
+                    path,
+                    "native partition range is absent",
+                ));
             };
             if scope.source_engine.as_deref() != Some(document.engine.as_str())
-                || !matches!(scope.key_model.as_deref(), Some("duplicate" | "unique" | "primary"))
+                || !matches!(
+                    scope.key_model.as_deref(),
+                    Some("duplicate" | "unique" | "primary")
+                )
                 || scope.key_model != first.partition_scope.key_model
                 || scope.routing_column != first.partition_scope.routing_column
-                || scope.routing_column.as_deref().is_none_or(|name| name.is_empty() || !table.columns.iter().any(|column| column.logical_name == name && column.oid == 1082 && column.typmod == -1))
-                || !closed_decimal(native_id) || !native_ids.insert(native_id.to_owned())
-                || !scope.native_partition_version.as_deref().is_some_and(closed_decimal)
-                || !closed_date(&range.lower) || !closed_date(&range.upper) || range.lower >= range.upper
+                || scope.routing_column.as_deref().is_none_or(|name| {
+                    name.is_empty()
+                        || !table.columns.iter().any(|column| {
+                            column.logical_name == name && column.oid == 1082 && column.typmod == -1
+                        })
+                })
+                || !closed_decimal(native_id)
+                || !native_ids.insert(native_id.to_owned())
+                || !scope
+                    .native_partition_version
+                    .as_deref()
+                    .is_some_and(closed_decimal)
+                || !closed_date(&range.lower)
+                || !closed_date(&range.upper)
+                || range.lower >= range.upper
                 || !closed_digest(&entry.schema_fingerprint)
-                || !entry.current_signature.as_deref().is_some_and(|signature| closed_native_signature(signature, native_id))
-                || !entry.previous_signature.as_deref().is_none_or(|signature| closed_native_signature(signature, native_id)) {
-                return Err(SealedImportError::new("partition.binding", path, "source partition identity or route is invalid"));
+                || !entry
+                    .current_signature
+                    .as_deref()
+                    .is_some_and(|signature| closed_native_signature(signature, native_id))
+                || !entry
+                    .previous_signature
+                    .as_deref()
+                    .is_none_or(|signature| closed_native_signature(signature, native_id))
+            {
+                return Err(SealedImportError::new(
+                    "partition.binding",
+                    path,
+                    "source partition identity or route is invalid",
+                ));
             }
             ranges.push((range.lower.as_str(), range.upper.as_str()));
-        } else if scope.source_engine.is_some() || scope.key_model.is_some() || scope.routing_column.is_some()
-            || scope.partition_range.is_some() || scope.native_partition_id.is_some()
-            || scope.native_partition_version.is_some() {
-            return Err(SealedImportError::new("partition.binding", path, "ClickHouse scope includes an OLAP extension"));
+        } else if scope.source_engine.is_some()
+            || scope.key_model.is_some()
+            || scope.routing_column.is_some()
+            || scope.partition_range.is_some()
+            || scope.native_partition_id.is_some()
+            || scope.native_partition_version.is_some()
+        {
+            return Err(SealedImportError::new(
+                "partition.binding",
+                path,
+                "ClickHouse scope includes an OLAP extension",
+            ));
         }
-        if scope.source_id != document.source_id || scope.source_generation != entry.source_generation
-            || scope.logical_schema != table.logical_schema || scope.logical_table != table.logical_table
-            || scope.partition_id != entry.partition_id || !scope.complete || scope.mutations_pending
-            || scope.table_epoch != entry.table_epoch || scope.schema_fingerprint != entry.schema_fingerprint
-            || scope.schema_digest != first.partition_scope.schema_digest || scope.type_digest != document.type_digest
-            || scope.current_signature != entry.current_signature || scope.row_count != entry.row_count
-            || entry.table_epoch != first.table_epoch || entry.schema_fingerprint != first.schema_fingerprint
-            || !closed_fingerprint(&entry.schema_fingerprint) || !closed_signature(entry.current_signature.as_deref())
+        if scope.source_id != document.source_id
+            || scope.source_generation != entry.source_generation
+            || scope.logical_schema != table.logical_schema
+            || scope.logical_table != table.logical_table
+            || scope.partition_id != entry.partition_id
+            || !scope.complete
+            || scope.mutations_pending
+            || scope.table_epoch != entry.table_epoch
+            || scope.schema_fingerprint != entry.schema_fingerprint
+            || scope.schema_digest != first.partition_scope.schema_digest
+            || scope.type_digest != document.type_digest
+            || scope.current_signature != entry.current_signature
+            || scope.row_count != entry.row_count
+            || entry.table_epoch != first.table_epoch
+            || entry.schema_fingerprint != first.schema_fingerprint
+            || !closed_fingerprint(&entry.schema_fingerprint)
+            || !closed_signature(entry.current_signature.as_deref())
             || !closed_signature(entry.previous_signature.as_deref())
-            || (!entry.previous_ack_exists && entry.previous_signature.is_some()) {
-            return Err(SealedImportError::new("partition.binding", path, "partition scope or target sidecar differs from the catalog"));
+            || (!entry.previous_ack_exists && entry.previous_signature.is_some())
+        {
+            return Err(SealedImportError::new(
+                "partition.binding",
+                path,
+                "partition scope or target sidecar differs from the catalog",
+            ));
         }
-        if entry.source_generation == document.source_generation && entry.target_generation == document.target_generation && entry.run_id == document.run_id {
+        if entry.source_generation == document.source_generation
+            && entry.target_generation == document.target_generation
+            && entry.run_id == document.run_id
+        {
             current = true;
         }
-        rows = rows.checked_add(entry.row_count).ok_or_else(|| SealedImportError::new("partition.rows", "/partition_vector", "partition row sum overflows"))?;
+        rows = rows.checked_add(entry.row_count).ok_or_else(|| {
+            SealedImportError::new(
+                "partition.rows",
+                "/partition_vector",
+                "partition row sum overflows",
+            )
+        })?;
     }
     let observed: Vec<String> = ids.iter().cloned().collect();
     if olap {
         ranges.sort_unstable();
         if ranges.windows(2).any(|pair| pair[0].1 > pair[1].0) {
-            return Err(SealedImportError::new("partition.binding", "/partition_vector", "source partition ranges overlap"));
+            return Err(SealedImportError::new(
+                "partition.binding",
+                "/partition_vector",
+                "source partition ranges overlap",
+            ));
         }
     }
-    if !current || rows != table.accepted_rows || vector.iter().any(|entry| {
-        let scoped = &entry.partition_scope.observed_partition_ids;
-        scoped.is_empty()
-            || scoped.binary_search(&entry.partition_id).is_err()
-            || scoped.windows(2).any(|pair| pair[0] >= pair[1])
-            || scoped.iter().any(|id| !ids.contains(id))
-            || (entry.source_generation == document.source_generation
-                && entry.target_generation == document.target_generation
-                && entry.run_id == document.run_id
-                && scoped != &observed)
-    }) {
-        return Err(SealedImportError::new("partition.coverage", "/partition_vector", "partition coverage or full materialized row count is incomplete"));
+    if !current
+        || rows != table.accepted_rows
+        || vector.iter().any(|entry| {
+            let scoped = &entry.partition_scope.observed_partition_ids;
+            scoped.is_empty()
+                || scoped.binary_search(&entry.partition_id).is_err()
+                || scoped.windows(2).any(|pair| pair[0] >= pair[1])
+                || scoped.iter().any(|id| !ids.contains(id))
+                || (entry.source_generation == document.source_generation
+                    && entry.target_generation == document.target_generation
+                    && entry.run_id == document.run_id
+                    && scoped != &observed)
+        })
+    {
+        return Err(SealedImportError::new(
+            "partition.coverage",
+            "/partition_vector",
+            "partition coverage or full materialized row count is incomplete",
+        ));
     }
     Ok(Some(vector.clone()))
 }
 
 fn closed_decimal(value: &str) -> bool {
-    !value.is_empty() && value.len() <= 20 && value.bytes().all(|byte| byte.is_ascii_digit())
+    !value.is_empty()
+        && value.len() <= 20
+        && value.bytes().all(|byte| byte.is_ascii_digit())
         && value.parse::<u64>().is_ok_and(|number| number > 0)
 }
 
 fn closed_date(value: &str) -> bool {
-    value.len() == 10 && value.bytes().enumerate().all(|(index, byte)|
-        if matches!(index, 4 | 7) { byte == b'-' } else { byte.is_ascii_digit() })
+    value.len() == 10
+        && value.bytes().enumerate().all(|(index, byte)| {
+            if matches!(index, 4 | 7) {
+                byte == b'-'
+            } else {
+                byte.is_ascii_digit()
+            }
+        })
 }
 
 fn closed_native_signature(value: &str, native_id: &str) -> bool {
-    value.strip_prefix(&format!("{native_id}|")).is_some_and(closed_digest)
+    value
+        .strip_prefix(&format!("{native_id}|"))
+        .is_some_and(closed_digest)
 }
 
 fn closed_partition_id(value: &str) -> bool {
-    (1..=128).contains(&value.len()) && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
+    (1..=128).contains(&value.len())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
 }
 
 fn closed_fingerprint(value: &str) -> bool {
@@ -555,7 +701,10 @@ fn schema_preimage(tables: &[SealedImportTable]) -> String {
     out
 }
 
-fn validate_tables(tables: &[TableIn], limits: &SealedImportLimits) -> Result<Vec<SealedImportTable>, SealedImportError> {
+fn validate_tables(
+    tables: &[TableIn],
+    limits: &SealedImportLimits,
+) -> Result<Vec<SealedImportTable>, SealedImportError> {
     let mut seen_tables = BTreeSet::new();
     let mut seen_physical = BTreeSet::new();
     let mut seen_columns = BTreeSet::new();
@@ -594,7 +743,10 @@ fn validate_tables(tables: &[TableIn], limits: &SealedImportLimits) -> Result<Ve
         }
         let mut rejects = Vec::with_capacity(table.rejects.len());
         for reject in &table.rejects {
-            if !closed_reason(&reject.reason) || !columns.iter().any(|item| item.logical_name == reject.column)
+            if !closed_reason(&reject.reason)
+                || !columns
+                    .iter()
+                    .any(|item| item.logical_name == reject.column)
             {
                 return Err(SealedImportError::new(
                     "schema.invalid",
@@ -727,7 +879,11 @@ fn validate_quality(quality: &QualityIn, tables: &[TableIn]) -> Result<(), Seale
     let mut seen_batch_id = BTreeSet::new();
     let mut batch_sum: std::collections::BTreeMap<String, i64> = std::collections::BTreeMap::new();
     for row in &quality.stored_rows {
-        require_shadow(&row.physical_name, "pt_", "/quality/stored_rows/physical_name")?;
+        require_shadow(
+            &row.physical_name,
+            "pt_",
+            "/quality/stored_rows/physical_name",
+        )?;
         if !closed_batch(&row.batch_id) {
             return Err(SealedImportError::new(
                 "schema.invalid",
@@ -934,9 +1090,7 @@ pub(crate) fn numeric_parts(typmod: i32) -> Option<(i32, i32)> {
 fn caveat_agrees(caveat: &str, oid: i64, typmod: i32) -> bool {
     match caveat {
         "tinyint1_as_int2" => oid == 21 && typmod < 0,
-        "bigint_unsigned_numeric" => {
-            oid == 1700 && numeric_parts(typmod) == Some((20, 0))
-        }
+        "bigint_unsigned_numeric" => oid == 1700 && numeric_parts(typmod) == Some((20, 0)),
         "mysql_time_not_interval" => oid == 1083 && typmod < 0,
         "json_not_jsonb" => oid == 114 && typmod < 0,
         "enum_as_text" => oid == 25 && typmod < 0,
@@ -1030,7 +1184,8 @@ fn require_run_id(value: &str) -> Result<(), SealedImportError> {
         && bytes[18] == b'-'
         && bytes[23] == b'-'
         && bytes.iter().enumerate().all(|(index, byte)| {
-            matches!(index, 8 | 13 | 18 | 23) || byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()
+            matches!(index, 8 | 13 | 18 | 23)
+                || byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()
         });
     if ok {
         Ok(())
@@ -1080,7 +1235,9 @@ fn closed_reason(value: &str) -> bool {
 fn closed_batch(value: &str) -> bool {
     (1..=128).contains(&value.len())
         && !value.contains("..")
-        && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b':' | b'-'))
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b':' | b'-'))
 }
 
 fn plugin_token(value: &str) -> bool {
@@ -1088,9 +1245,9 @@ fn plugin_token(value: &str) -> bool {
     !bytes.is_empty()
         && bytes.len() <= 64
         && bytes[0].is_ascii_lowercase()
-        && bytes[1..]
-            .iter()
-            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_' || *byte == b'-')
+        && bytes[1..].iter().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_' || *byte == b'-'
+        })
 }
 
 fn sql_authority(value: &str) -> bool {
@@ -1127,8 +1284,12 @@ struct Document {
     partition_vector: Option<Vec<SealedImportPartition>>,
 }
 
-fn non_null_partition_vector<'de, D>(deserializer: D) -> Result<Option<Vec<SealedImportPartition>>, D::Error>
-where D: Deserializer<'de> {
+fn non_null_partition_vector<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<SealedImportPartition>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
     Vec::deserialize(deserializer).map(Some)
 }
 
@@ -1213,7 +1374,14 @@ mod tests {
         assert!(closed_batch("acd47cd5-daf0-4f0c-8da1-3b475a159778_4"));
         assert!(closed_batch("t0.b0"));
         assert!(closed_batch("oo-dl01w1-40-native-20261013-g5-part"));
-        for refused in ["", "../part", "part..tail", "part/path", "part\\path", "part\nnext"] {
+        for refused in [
+            "",
+            "../part",
+            "part..tail",
+            "part/path",
+            "part\\path",
+            "part\nnext",
+        ] {
             assert!(!closed_batch(refused));
         }
         assert!(!closed_batch(&"x".repeat(129)));
@@ -1224,7 +1392,13 @@ mod tests {
         let mut out = String::new();
         push_schema_table(&mut out, "erp", "parcel");
         push_schema_column(&mut out, "day_on", 1082, -1, None);
-        push_schema_column(&mut out, "clock_at", 1083, -1, Some("mysql_time_not_interval"));
+        push_schema_column(
+            &mut out,
+            "clock_at",
+            1083,
+            -1,
+            Some("mysql_time_not_interval"),
+        );
         assert_eq!(
             out,
             "erp.parcel\nday_on\t1082\t-1\t\nclock_at\t1083\t-1\tmysql_time_not_interval\n"
@@ -1239,11 +1413,17 @@ mod tests {
         assert_eq!(oracle.engine, "oracle");
         assert_eq!(mysql.schema_digest, oracle.schema_digest);
         assert_eq!(mysql.tables[0].columns[0].target_type, "int4");
-        let clickhouse = parse_sealed_import_catalog(&minimal("clickhouse")).expect_err("C4 vector required");
+        let clickhouse =
+            parse_sealed_import_catalog(&minimal("clickhouse")).expect_err("C4 vector required");
         assert!(clickhouse.code.ends_with("/partition.missing"));
         let mut null_vector: Value = serde_json::from_str(&minimal("mysql")).expect("fixture");
         null_vector["partition_vector"] = Value::Null;
-        assert!(parse_sealed_import_catalog(&null_vector.to_string()).expect_err("null vector").code.ends_with("/schema.invalid"));
+        assert!(
+            parse_sealed_import_catalog(&null_vector.to_string())
+                .expect_err("null vector")
+                .code
+                .ends_with("/schema.invalid")
+        );
     }
 
     #[test]
@@ -1266,7 +1446,12 @@ mod tests {
         }]);
         let parsed = parse_sealed_import_catalog(&catalog.to_string()).expect("complete vector");
         assert_eq!(parsed.partition_vector.as_ref().expect("vector").len(), 1);
-        assert_ne!(parsed.partition_vector.as_ref().expect("vector")[0].partition_scope.schema_digest, parsed.schema_digest);
+        assert_ne!(
+            parsed.partition_vector.as_ref().expect("vector")[0]
+                .partition_scope
+                .schema_digest,
+            parsed.schema_digest
+        );
         let mut history = catalog.clone();
         history["source_generation"] = serde_json::json!(2);
         history["target_generation"] = serde_json::json!(2);
@@ -1274,69 +1459,112 @@ mod tests {
         current["partition_id"] = serde_json::json!("202403");
         current["partition_scope"]["partition_id"] = serde_json::json!("202403");
         current["partition_scope"]["source_generation"] = serde_json::json!(2);
-        current["partition_scope"]["observed_partition_ids"] = serde_json::json!(["202401", "202403"]);
+        current["partition_scope"]["observed_partition_ids"] =
+            serde_json::json!(["202401", "202403"]);
         current["current_signature"] = serde_json::json!("202403|1|1|sealed");
         current["partition_scope"]["current_signature"] = current["current_signature"].clone();
         current["source_generation"] = serde_json::json!(2);
         current["target_generation"] = serde_json::json!(2);
         current["row_count"] = serde_json::json!(0);
         current["partition_scope"]["row_count"] = serde_json::json!(0);
-        history["partition_vector"].as_array_mut().unwrap().push(current);
+        history["partition_vector"]
+            .as_array_mut()
+            .unwrap()
+            .push(current);
         assert!(parse_sealed_import_catalog(&history.to_string()).is_ok());
-        history["partition_vector"][1]["partition_scope"]["observed_partition_ids"] = serde_json::json!(["202403"]);
-        assert!(parse_sealed_import_catalog(&history.to_string()).unwrap_err().code.ends_with("/partition.coverage"));
-        history["partition_vector"][1]["partition_scope"]["observed_partition_ids"] = serde_json::json!(["202401", "202403"]);
-        history["partition_vector"][0]["partition_scope"]["observed_partition_ids"] = serde_json::json!(["202401", "202405"]);
-        assert!(parse_sealed_import_catalog(&history.to_string()).unwrap_err().code.ends_with("/partition.coverage"));
+        history["partition_vector"][1]["partition_scope"]["observed_partition_ids"] =
+            serde_json::json!(["202403"]);
+        assert!(
+            parse_sealed_import_catalog(&history.to_string())
+                .unwrap_err()
+                .code
+                .ends_with("/partition.coverage")
+        );
+        history["partition_vector"][1]["partition_scope"]["observed_partition_ids"] =
+            serde_json::json!(["202401", "202403"]);
+        history["partition_vector"][0]["partition_scope"]["observed_partition_ids"] =
+            serde_json::json!(["202401", "202405"]);
+        assert!(
+            parse_sealed_import_catalog(&history.to_string())
+                .unwrap_err()
+                .code
+                .ends_with("/partition.coverage")
+        );
         catalog["partition_vector"][0]["row_count"] = serde_json::json!(0);
-        let wrong = parse_sealed_import_catalog(&catalog.to_string()).expect_err("partial row count");
+        let wrong =
+            parse_sealed_import_catalog(&catalog.to_string()).expect_err("partial row count");
         assert!(wrong.code.ends_with("/partition.binding"));
         catalog["partition_vector"][0]["row_count"] = serde_json::json!(1);
         catalog["partition_vector"][0]["partition_scope"]["invented"] = serde_json::json!(true);
-        let unknown = parse_sealed_import_catalog(&catalog.to_string()).expect_err("unknown scope field");
+        let unknown =
+            parse_sealed_import_catalog(&catalog.to_string()).expect_err("unknown scope field");
         assert!(unknown.code.ends_with("/field.unknown"));
     }
 
     #[test]
     fn uuid_oid_2950_is_a_normalized_target_for_every_engine() {
         for engine in ["mysql", "mongodb", "oracle", "postgresql"] {
-            let parsed = parse_sealed_import_catalog(&one_column(engine, 2950, -1, None)).expect(engine);
+            let parsed =
+                parse_sealed_import_catalog(&one_column(engine, 2950, -1, None)).expect(engine);
             assert_eq!(parsed.engine, engine);
             assert_eq!(parsed.tables[0].columns[0].target_type, "uuid");
             assert_eq!(parsed.tables[0].columns[0].oid, 2950);
             assert!(parsed.tables[0].columns[0].source_type.is_none());
-            let named = parse_sealed_import_catalog(&one_column(engine, 2950, -1, Some("uuid"))).expect(engine);
-            assert_eq!(named.tables[0].columns[0].source_type.as_deref(), Some("uuid"));
+            let named = parse_sealed_import_catalog(&one_column(engine, 2950, -1, Some("uuid")))
+                .expect(engine);
+            assert_eq!(
+                named.tables[0].columns[0].source_type.as_deref(),
+                Some("uuid")
+            );
             assert_eq!(named.tables[0].columns[0].target_type, "uuid");
         }
         let mysql = parse_sealed_import_catalog(&one_column("mysql", 2950, -1, None)).unwrap();
         let oracle = parse_sealed_import_catalog(&one_column("oracle", 2950, -1, None)).unwrap();
         assert_eq!(mysql.schema_digest, oracle.schema_digest);
-        let text = parse_sealed_import_catalog(&one_column("postgresql", 2950, -1, Some("text"))).expect_err("text");
+        let text = parse_sealed_import_catalog(&one_column("postgresql", 2950, -1, Some("text")))
+            .expect_err("text");
         assert!(text.code.ends_with("/type.ambiguous"));
-        assert_eq!(text.message, "source type token names a different normalized type");
-        let unknown = parse_sealed_import_catalog(&one_column("postgresql", 2951, -1, None)).expect_err("oid");
+        assert_eq!(
+            text.message,
+            "source type token names a different normalized type"
+        );
+        let unknown = parse_sealed_import_catalog(&one_column("postgresql", 2951, -1, None))
+            .expect_err("oid");
         assert!(unknown.code.ends_with("/type.ambiguous"));
-        assert_eq!(unknown.message, "native type has no normalized target representation");
-        let typmod = parse_sealed_import_catalog(&one_column("postgresql", 2950, 0, None)).expect_err("typmod");
+        assert_eq!(
+            unknown.message,
+            "native type has no normalized target representation"
+        );
+        let typmod = parse_sealed_import_catalog(&one_column("postgresql", 2950, 0, None))
+            .expect_err("typmod");
         assert!(typmod.code.ends_with("/type.ambiguous"));
-        assert_eq!(typmod.message, "native type has no normalized target representation");
+        assert_eq!(
+            typmod.message,
+            "native type has no normalized target representation"
+        );
     }
 
     #[test]
     fn mysql_duration_stays_interval_in_sealed_catalog() {
-        let parsed = parse_sealed_import_catalog(&one_column("mysql", 1186, -1, Some("duration_micros"))).unwrap();
+        let parsed =
+            parse_sealed_import_catalog(&one_column("mysql", 1186, -1, Some("duration_micros")))
+                .unwrap();
         assert_eq!(parsed.tables[0].columns[0].target_type, "interval");
-        let err = parse_sealed_import_catalog(&one_column("mysql", 1083, -1, Some("duration_micros"))).unwrap_err();
+        let err =
+            parse_sealed_import_catalog(&one_column("mysql", 1083, -1, Some("duration_micros")))
+                .unwrap_err();
         assert!(err.code.ends_with("/type.ambiguous"));
-        let err = parse_sealed_import_catalog(&one_column("mysql", 1186, 0, Some("duration_micros"))).unwrap_err();
+        let err =
+            parse_sealed_import_catalog(&one_column("mysql", 1186, 0, Some("duration_micros")))
+                .unwrap_err();
         assert!(err.code.ends_with("/type.ambiguous"));
     }
 
     #[test]
     fn bpchar_oid_1042_keeps_a_declared_width_for_every_engine() {
         for engine in ["mysql", "mongodb", "oracle", "postgresql"] {
-            let parsed = parse_sealed_import_catalog(&one_column(engine, 1042, 10, None)).expect(engine);
+            let parsed =
+                parse_sealed_import_catalog(&one_column(engine, 1042, 10, None)).expect(engine);
             assert_eq!(parsed.engine, engine);
             let column = &parsed.tables[0].columns[0];
             assert_eq!(column.target_type, "bpchar");
@@ -1344,73 +1572,115 @@ mod tests {
             assert_eq!(column.typmod, 10);
             assert_eq!(column.typmod - 4, 6);
             assert!(column.source_type.is_none());
-            let named = parse_sealed_import_catalog(&one_column(engine, 1042, 10, Some("bpchar"))).expect(engine);
-            assert_eq!(named.tables[0].columns[0].source_type.as_deref(), Some("bpchar"));
+            let named = parse_sealed_import_catalog(&one_column(engine, 1042, 10, Some("bpchar")))
+                .expect(engine);
+            assert_eq!(
+                named.tables[0].columns[0].source_type.as_deref(),
+                Some("bpchar")
+            );
             assert_eq!(named.tables[0].columns[0].target_type, "bpchar");
             assert_eq!(named.tables[0].columns[0].typmod, 10);
         }
         let mysql = parse_sealed_import_catalog(&one_column("mysql", 1042, 10, None)).unwrap();
         let oracle = parse_sealed_import_catalog(&one_column("oracle", 1042, 10, None)).unwrap();
         assert_eq!(mysql.schema_digest, oracle.schema_digest);
-        let one = parse_sealed_import_catalog(&one_column("postgresql", 1042, 5, None)).expect("char1");
+        let one =
+            parse_sealed_import_catalog(&one_column("postgresql", 1042, 5, None)).expect("char1");
         assert_eq!(one.tables[0].columns[0].target_type, "bpchar");
         assert_eq!(one.tables[0].columns[0].typmod, 5);
-        let wide = parse_sealed_import_catalog(&one_column("postgresql", 1042, 104, None)).expect("char100");
+        let wide = parse_sealed_import_catalog(&one_column("postgresql", 1042, 104, None))
+            .expect("char100");
         assert_eq!(wide.tables[0].columns[0].target_type, "bpchar");
         assert_eq!(wide.tables[0].columns[0].typmod, 104);
-        let token = parse_sealed_import_catalog(&one_column("oracle", 1042, 10, Some("char"))).expect("char");
-        assert_eq!(token.tables[0].columns[0].source_type.as_deref(), Some("char"));
+        let token = parse_sealed_import_catalog(&one_column("oracle", 1042, 10, Some("char")))
+            .expect("char");
+        assert_eq!(
+            token.tables[0].columns[0].source_type.as_deref(),
+            Some("char")
+        );
         assert_eq!(token.tables[0].columns[0].target_type, "bpchar");
         assert_eq!(token.tables[0].columns[0].oid, 1042);
-        let varchar = parse_sealed_import_catalog(&one_column("oracle", 1043, -1, None)).expect("varchar");
+        let varchar =
+            parse_sealed_import_catalog(&one_column("oracle", 1043, -1, None)).expect("varchar");
         assert_eq!(varchar.tables[0].columns[0].target_type, "varchar");
         for (label, source) in [("text", Some("text")), ("varchar", Some("varchar"))] {
-            let err = parse_sealed_import_catalog(&one_column("postgresql", 1042, 10, source)).expect_err(label);
+            let err = parse_sealed_import_catalog(&one_column("postgresql", 1042, 10, source))
+                .expect_err(label);
             assert!(err.code.ends_with("/type.ambiguous"));
-            assert_eq!(err.message, "source type token names a different normalized type");
+            assert_eq!(
+                err.message,
+                "source type token names a different normalized type"
+            );
         }
         for typmod in [-1, 0, 4] {
-            let err = parse_sealed_import_catalog(&one_column("postgresql", 1042, typmod, None)).expect_err("typmod");
+            let err = parse_sealed_import_catalog(&one_column("postgresql", 1042, typmod, None))
+                .expect_err("typmod");
             assert!(err.code.ends_with("/type.ambiguous"));
-            assert_eq!(err.message, "native type has no normalized target representation");
+            assert_eq!(
+                err.message,
+                "native type has no normalized target representation"
+            );
         }
-        let unknown = parse_sealed_import_catalog(&one_column("postgresql", 1041, 10, None)).expect_err("oid");
+        let unknown = parse_sealed_import_catalog(&one_column("postgresql", 1041, 10, None))
+            .expect_err("oid");
         assert!(unknown.code.ends_with("/type.ambiguous"));
-        assert_eq!(unknown.message, "native type has no normalized target representation");
+        assert_eq!(
+            unknown.message,
+            "native type has no normalized target representation"
+        );
     }
 
     #[test]
     fn jsonb_oid_3802_is_jsonb_and_json_114_stays_json() {
         let mut digests = Vec::new();
         for engine in ["mysql", "mongodb", "oracle", "postgresql"] {
-            let parsed = parse_sealed_import_catalog(&one_column(engine, 3802, -1, None)).expect(engine);
+            let parsed =
+                parse_sealed_import_catalog(&one_column(engine, 3802, -1, None)).expect(engine);
             assert_eq!(parsed.engine, engine);
             let column = &parsed.tables[0].columns[0];
             assert_eq!(column.target_type, "jsonb");
             assert_eq!(column.oid, 3802);
             assert_eq!(column.typmod, -1);
             assert!(column.source_type.is_none());
-            let named = parse_sealed_import_catalog(&one_column(engine, 3802, -1, Some("jsonb"))).expect(engine);
-            assert_eq!(named.tables[0].columns[0].source_type.as_deref(), Some("jsonb"));
+            let named = parse_sealed_import_catalog(&one_column(engine, 3802, -1, Some("jsonb")))
+                .expect(engine);
+            assert_eq!(
+                named.tables[0].columns[0].source_type.as_deref(),
+                Some("jsonb")
+            );
             assert_eq!(named.tables[0].columns[0].target_type, "jsonb");
             digests.push(parsed.schema_digest.clone());
         }
         assert!(digests.windows(2).all(|pair| pair[0] == pair[1]));
-        let json = parse_sealed_import_catalog(&one_column("postgresql", 114, -1, None)).expect("json");
+        let json =
+            parse_sealed_import_catalog(&one_column("postgresql", 114, -1, None)).expect("json");
         assert_eq!(json.tables[0].columns[0].target_type, "json");
         assert_eq!(json.tables[0].columns[0].oid, 114);
         for source in ["json", "text"] {
-            let err = parse_sealed_import_catalog(&one_column("mongodb", 3802, -1, Some(source))).expect_err(source);
+            let err = parse_sealed_import_catalog(&one_column("mongodb", 3802, -1, Some(source)))
+                .expect_err(source);
             assert!(err.code.ends_with("/type.ambiguous"));
-            assert_eq!(err.message, "source type token names a different normalized type");
+            assert_eq!(
+                err.message,
+                "source type token names a different normalized type"
+            );
         }
-        let typmod = parse_sealed_import_catalog(&one_column("mongodb", 3802, 0, None)).expect_err("typmod");
+        let typmod =
+            parse_sealed_import_catalog(&one_column("mongodb", 3802, 0, None)).expect_err("typmod");
         assert!(typmod.code.ends_with("/type.ambiguous"));
-        assert_eq!(typmod.message, "native type has no normalized target representation");
-        let unknown = parse_sealed_import_catalog(&one_column("mongodb", 3803, -1, None)).expect_err("oid");
+        assert_eq!(
+            typmod.message,
+            "native type has no normalized target representation"
+        );
+        let unknown =
+            parse_sealed_import_catalog(&one_column("mongodb", 3803, -1, None)).expect_err("oid");
         assert!(unknown.code.ends_with("/type.ambiguous"));
-        assert_eq!(unknown.message, "native type has no normalized target representation");
-        let mut bad = serde_json::from_str::<Value>(&one_column("postgresql", 3802, -1, None)).unwrap();
+        assert_eq!(
+            unknown.message,
+            "native type has no normalized target representation"
+        );
+        let mut bad =
+            serde_json::from_str::<Value>(&one_column("postgresql", 3802, -1, None)).unwrap();
         bad["tables"][0]["columns"][0]["caveat"] = Value::String("json_not_jsonb".to_string());
         let mut preimage = String::new();
         push_schema_table(&mut preimage, "public", "hubs");
@@ -1418,8 +1688,12 @@ mod tests {
         bad["schema_digest"] = Value::String(payload_sha256(preimage.as_bytes()));
         let err = parse_sealed_import_catalog(&bad.to_string()).expect_err("caveat");
         assert!(err.code.ends_with("/type.ambiguous"));
-        assert_eq!(err.message, "caveat does not agree with the normalized target type");
-        let mut kept = serde_json::from_str::<Value>(&one_column("postgresql", 114, -1, None)).unwrap();
+        assert_eq!(
+            err.message,
+            "caveat does not agree with the normalized target type"
+        );
+        let mut kept =
+            serde_json::from_str::<Value>(&one_column("postgresql", 114, -1, None)).unwrap();
         kept["tables"][0]["columns"][0]["caveat"] = Value::String("json_not_jsonb".to_string());
         preimage.clear();
         push_schema_table(&mut preimage, "public", "hubs");
@@ -1427,7 +1701,10 @@ mod tests {
         kept["schema_digest"] = Value::String(payload_sha256(preimage.as_bytes()));
         let parsed = parse_sealed_import_catalog(&kept.to_string()).expect("json caveat");
         assert_eq!(parsed.tables[0].columns[0].target_type, "json");
-        assert_eq!(parsed.tables[0].columns[0].caveat.as_deref(), Some("json_not_jsonb"));
+        assert_eq!(
+            parsed.tables[0].columns[0].caveat.as_deref(),
+            Some("json_not_jsonb")
+        );
     }
 
     #[test]

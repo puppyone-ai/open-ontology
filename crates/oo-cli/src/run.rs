@@ -5,7 +5,9 @@ use oo_core::text::QuerySql;
 use oo_sdk::{BearerToken, Client, ClientConfig, RootTrust};
 use std::io::IsTerminal;
 
-use crate::args::{Auth, ConnArgs, Invocation, QueryArgs, SearchArgs, Transport, parse, unsupported_failure};
+use crate::args::{
+    Auth, ConnArgs, Invocation, QueryArgs, SearchArgs, Transport, parse, unsupported_failure,
+};
 use crate::load::{
     read_ca_file, read_client_pem, read_sql_file, read_token_file, read_token_stdin,
 };
@@ -22,10 +24,13 @@ pub fn run() -> u8 {
         Ok(Invocation::AgentSkill(json)) => {
             let text = include_str!("../../../tools/agent-contract/business-answer-policy.md");
             if json {
-                write_text(&serde_json::json!({
-                    "protocol": "oo.agent-skill/v1", "name": "business-analysis",
-                    "text": text, "offline": true, "grants_access": false,
-                }).to_string())
+                write_text(
+                    &serde_json::json!({
+                        "protocol": "oo.agent-skill/v1", "name": "business-analysis",
+                        "text": text, "offline": true, "grants_access": false,
+                    })
+                    .to_string(),
+                )
             } else {
                 write_text(text)
             }
@@ -33,9 +38,13 @@ pub fn run() -> u8 {
         Ok(Invocation::Unsupported) => emit(&unsupported_failure(), json),
         Ok(Invocation::Query(query)) => execute(query),
         Ok(Invocation::Tables(conn)) => execute_public(conn, PublicCall::Tables),
-        Ok(Invocation::Describe(conn, table, human)) => execute_public(conn, PublicCall::Describe(table, human)),
+        Ok(Invocation::Describe(conn, table, human)) => {
+            execute_public(conn, PublicCall::Describe(table, human))
+        }
         Ok(Invocation::Validate(conn, sql)) => execute_public(conn, PublicCall::Validate(sql)),
-        Ok(Invocation::Freshness(conn, summary)) => execute_public(conn, PublicCall::Freshness(summary)),
+        Ok(Invocation::Freshness(conn, summary)) => {
+            execute_public(conn, PublicCall::Freshness(summary))
+        }
         Ok(Invocation::KnowledgeCat(conn, path)) => {
             execute_public(conn, PublicCall::KnowledgeCat(path))
         }
@@ -272,8 +281,17 @@ fn execute_public(conn: ConnArgs, call: PublicCall) -> u8 {
             PublicCall::Validate(sql) => ready.client.sql_validate(sql).await,
             PublicCall::Freshness(_) => ready.client.freshness().await,
             PublicCall::KnowledgeCat(path) => ready.client.knowledge(path).await,
-            PublicCall::KnowledgeSearch(query) => ready.client.knowledge_search_page(
-                &query.needle, query.path_prefix.as_deref(), query.offset, query.limit).await,
+            PublicCall::KnowledgeSearch(query) => {
+                ready
+                    .client
+                    .knowledge_search_page(
+                        &query.needle,
+                        query.path_prefix.as_deref(),
+                        query.offset,
+                        query.limit,
+                    )
+                    .await
+            }
             PublicCall::Cancel(query_id) => ready.client.cancel(query_id).await,
             PublicCall::Status(query_id) => ready.client.query_status(query_id).await,
             PublicCall::Operations => ready.client.operations().await,
@@ -458,7 +476,14 @@ fn deliver_public(json: bool, call: &PublicCall, value: &serde_json::Value) -> u
     {
         match render::describe_markdown(value) {
             Ok(bytes) => bytes,
-            Err(_) => return emit(&Failure::local("table description could not be rendered; use --json for the full response"), false),
+            Err(_) => {
+                return emit(
+                    &Failure::local(
+                        "table description could not be rendered; use --json for the full response",
+                    ),
+                    false,
+                );
+            }
         }
     } else if let PublicCall::KnowledgeCat(_) = call {
         match value.get("text").and_then(serde_json::Value::as_str) {
@@ -482,7 +507,11 @@ fn deliver_public(json: bool, call: &PublicCall, value: &serde_json::Value) -> u
     }
 }
 
-fn deliver(json: bool, response: &oo_core::api::QueryResponse, binding: Option<&oo_sdk::PublicationReceipt>) -> u8 {
+fn deliver(
+    json: bool,
+    response: &oo_core::api::QueryResponse,
+    binding: Option<&oo_sdk::PublicationReceipt>,
+) -> u8 {
     let rendered = if json {
         render::response_json(response)
     } else {

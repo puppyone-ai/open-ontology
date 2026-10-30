@@ -127,12 +127,22 @@ fn password_and_ca_files_fail_without_echoing_secrets() {
     let mut document = body();
     document["target"]["password_file"] = json!(missing.display().to_string());
     document["target"]["ca_file"] = json!(missing.display().to_string());
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     let folder = dir.join(format!("not-a-file-{SECRET}"));
     fs::create_dir_all(&folder).unwrap();
     document["target"]["password_file"] = json!(folder.display().to_string());
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     let password = dir.join("password");
     write_file(&password, format!("{SECRET}\n").as_bytes());
@@ -140,19 +150,39 @@ fn password_and_ca_files_fail_without_echoing_secrets() {
     let _ = fs::remove_file(&link);
     std::os::unix::fs::symlink(&password, &link).unwrap();
     document["target"]["password_file"] = json!(link.display().to_string());
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     write_file(&password, b"\r\n");
     document["target"]["password_file"] = json!(password.display().to_string());
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     let mut nul = SECRET.as_bytes().to_vec();
     nul.push(0);
     write_file(&password, &nul);
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     write_file(&password, &vec![b'a'; 1025]);
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     write_file(&password, format!("{SECRET}\r\n").as_bytes());
     let ca = dir.join("ca.crt");
@@ -213,14 +243,20 @@ impl Harness {
         assert!(!host.contains(':') && !host.contains('/') && !host.contains('@'));
         let admin_user = env::var("OO_ANALYZE_PG_ADMIN_USER").expect("OO_ANALYZE_PG_ADMIN_USER");
         let admin_file = PathBuf::from(
-            env::var("OO_ANALYZE_PG_ADMIN_PASSWORD_FILE").expect("OO_ANALYZE_PG_ADMIN_PASSWORD_FILE"),
+            env::var("OO_ANALYZE_PG_ADMIN_PASSWORD_FILE")
+                .expect("OO_ANALYZE_PG_ADMIN_PASSWORD_FILE"),
         );
         let admin_password = read_secret(&admin_file);
-        let ca_file = PathBuf::from(env::var("OO_ANALYZE_PG_CA_FILE").expect("OO_ANALYZE_PG_CA_FILE"));
+        let ca_file =
+            PathBuf::from(env::var("OO_ANALYZE_PG_CA_FILE").expect("OO_ANALYZE_PG_CA_FILE"));
         let ca = fs::read(&ca_file).expect("ca");
-        let wrong_ca = PathBuf::from(env::var("OO_ANALYZE_PG_WRONG_CA_FILE").expect("OO_ANALYZE_PG_WRONG_CA_FILE"));
-        let secrets = PathBuf::from(env::var("OO_ANALYZE_PG_SECRET_DIR").expect("OO_ANALYZE_PG_SECRET_DIR"));
-        let evidence = PathBuf::from(env::var("OO_ANALYZE_PG_EVIDENCE").expect("OO_ANALYZE_PG_EVIDENCE"));
+        let wrong_ca = PathBuf::from(
+            env::var("OO_ANALYZE_PG_WRONG_CA_FILE").expect("OO_ANALYZE_PG_WRONG_CA_FILE"),
+        );
+        let secrets =
+            PathBuf::from(env::var("OO_ANALYZE_PG_SECRET_DIR").expect("OO_ANALYZE_PG_SECRET_DIR"));
+        let evidence =
+            PathBuf::from(env::var("OO_ANALYZE_PG_EVIDENCE").expect("OO_ANALYZE_PG_EVIDENCE"));
         fs::create_dir_all(&secrets).expect("secret dir");
         fs::create_dir_all(&evidence).expect("evidence dir");
         let mut postgres = dial(&host, port, &admin_user, &admin_password, "postgres", &ca).await;
@@ -268,8 +304,24 @@ impl Harness {
         raw(&mut self.postgres, "CREATE DATABASE oo_a236_src TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER builtin BUILTIN_LOCALE 'C.UTF-8'").await;
         raw(&mut self.postgres, "CREATE DATABASE oo_a236_dst TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER builtin BUILTIN_LOCALE 'C.UTF-8'").await;
         let ca = fs::read(&self.ca_file).expect("ca");
-        self.source = dial(&self.host, self.port, &self.admin_user, &self.admin_password, "oo_a236_src", &ca).await;
-        self.target = dial(&self.host, self.port, &self.admin_user, &self.admin_password, "oo_a236_dst", &ca).await;
+        self.source = dial(
+            &self.host,
+            self.port,
+            &self.admin_user,
+            &self.admin_password,
+            "oo_a236_src",
+            &ca,
+        )
+        .await;
+        self.target = dial(
+            &self.host,
+            self.port,
+            &self.admin_user,
+            &self.admin_password,
+            "oo_a236_dst",
+            &ca,
+        )
+        .await;
         assert_eq!(ssl_on(&mut self.source).await, "true");
         assert_eq!(ssl_on(&mut self.target).await, "true");
         raw(&mut self.source, SOURCE_SQL).await;
@@ -279,10 +331,15 @@ impl Harness {
             "GRANT CONNECT ON DATABASE oo_a236_src TO oo_a236_reader; GRANT USAGE ON SCHEMA app TO oo_a236_reader; GRANT SELECT ON app.party TO oo_a236_reader",
         )
         .await;
-        self.audit_before = scalar_i64(&mut self.source, "SELECT count(*)::int8 FROM app.write_audit").await;
+        self.audit_before = scalar_i64(
+            &mut self.source,
+            "SELECT count(*)::int8 FROM app.write_audit",
+        )
+        .await;
         assert!(self.audit_before >= 2);
         let audit_before = self.audit_before;
-        self.facts.push_str(&format!("audit_before={audit_before}\n"));
+        self.facts
+            .push_str(&format!("audit_before={audit_before}\n"));
     }
 
     async fn install_and_import(&mut self) {
@@ -296,11 +353,28 @@ impl Harness {
         assert_eq!(init_value["install"], json!("bootstrapped"));
         assert_eq!(init_value["full_import"], json!("installed"));
         assert_eq!(init.2, "");
-        exec_role(&mut self.postgres, "oo_a236_runtime", &self.runtime_password).await;
+        exec_role(
+            &mut self.postgres,
+            "oo_a236_runtime",
+            &self.runtime_password,
+        )
+        .await;
         exec_role(&mut self.postgres, "oo_a236_plain", &self.plain_password).await;
-        raw(&mut self.postgres, "GRANT oo_pipeline_runtime TO oo_a236_runtime").await;
-        raw(&mut self.postgres, "GRANT CONNECT ON DATABASE oo_a236_dst TO oo_a236_runtime, oo_a236_plain").await;
-        raw(&mut self.target, "GRANT USAGE ON SCHEMA _oo TO oo_a236_plain").await;
+        raw(
+            &mut self.postgres,
+            "GRANT oo_pipeline_runtime TO oo_a236_runtime",
+        )
+        .await;
+        raw(
+            &mut self.postgres,
+            "GRANT CONNECT ON DATABASE oo_a236_dst TO oo_a236_runtime, oo_a236_plain",
+        )
+        .await;
+        raw(
+            &mut self.target,
+            "GRANT USAGE ON SCHEMA _oo TO oo_a236_plain",
+        )
+        .await;
         raw(&mut self.target, "CREATE TABLE public.sentinel (id int4)").await;
         let imported = spawn(
             env!("CARGO_BIN_EXE_oo-pipeline"),
@@ -333,27 +407,87 @@ impl Harness {
         assert_eq!(self.digest.len(), 64);
         let stored: String = row_physical(&mut self.target).await;
         assert_eq!(stored, self.physical);
-        self.facts.push_str("import_state=awaiting_publish\nimport_rows=2\n");
+        self.facts
+            .push_str("import_state=awaiting_publish\nimport_rows=2\n");
     }
 
     async fn unknown_and_refusals(&mut self) {
         let unknown = (-1.0f32).to_bits();
-        assert_eq!(reltuples_bits(&mut self.target, "_oo", &self.physical).await, unknown);
-        assert_eq!(reltuples_bits(&mut self.target, "public", "sentinel").await, unknown);
-        self.facts.push_str("reltuples_before=-1\nsentinel_before=-1\n");
-        self.expect_analyze(&self.admin_user, &self.admin_file, &self.wrong_ca, GENERATION, "party", 4, "target connect");
-        self.expect_analyze("oo_a236_runtime", &self.runtime_file, &self.ca_file, GENERATION, "party", 5, "runtime caller");
-        self.expect_analyze("oo_a236_plain", &self.plain_file, &self.ca_file, GENERATION, "party", 5, "target role");
-        self.expect_analyze(&self.admin_user, &self.admin_file, &self.ca_file, GENERATION + 1, "party", 6, "stale generation");
-        self.expect_analyze(&self.admin_user, &self.admin_file, &self.ca_file, GENERATION, "absent", 6, "mapping absent");
-        assert_eq!(reltuples_bits(&mut self.target, "_oo", &self.physical).await, unknown);
-        assert_eq!(reltuples_bits(&mut self.target, "public", "sentinel").await, unknown);
+        assert_eq!(
+            reltuples_bits(&mut self.target, "_oo", &self.physical).await,
+            unknown
+        );
+        assert_eq!(
+            reltuples_bits(&mut self.target, "public", "sentinel").await,
+            unknown
+        );
+        self.facts
+            .push_str("reltuples_before=-1\nsentinel_before=-1\n");
+        self.expect_analyze(
+            &self.admin_user,
+            &self.admin_file,
+            &self.wrong_ca,
+            GENERATION,
+            "party",
+            4,
+            "target connect",
+        );
+        self.expect_analyze(
+            "oo_a236_runtime",
+            &self.runtime_file,
+            &self.ca_file,
+            GENERATION,
+            "party",
+            5,
+            "runtime caller",
+        );
+        self.expect_analyze(
+            "oo_a236_plain",
+            &self.plain_file,
+            &self.ca_file,
+            GENERATION,
+            "party",
+            5,
+            "target role",
+        );
+        self.expect_analyze(
+            &self.admin_user,
+            &self.admin_file,
+            &self.ca_file,
+            GENERATION + 1,
+            "party",
+            6,
+            "stale generation",
+        );
+        self.expect_analyze(
+            &self.admin_user,
+            &self.admin_file,
+            &self.ca_file,
+            GENERATION,
+            "absent",
+            6,
+            "mapping absent",
+        );
+        assert_eq!(
+            reltuples_bits(&mut self.target, "_oo", &self.physical).await,
+            unknown
+        );
+        assert_eq!(
+            reltuples_bits(&mut self.target, "public", "sentinel").await,
+            unknown
+        );
         self.facts
             .push_str("refused=wrong_ca,runtime,role,stale_generation,mapping_absent\nreltuples_after_refusal=-1\n");
     }
 
     async fn analyze(&mut self) {
-        let (code, out, err) = self.run_analyze(&self.admin_user, &self.admin_file, &self.ca_file, GENERATION, "party");
+        let (code, out, err) = self.run_analyze(
+            &self.admin_user,
+            &self.admin_file,
+            &self.ca_file,
+            GENERATION,
+            "party",
+        );
         assert_eq!(code, 0, "{err}");
         assert_eq!(err, "");
         assert!(out.ends_with('\n'));
@@ -377,12 +511,22 @@ impl Harness {
         assert!(measured.is_finite() && measured >= 0.0);
         assert_ne!(bits, (-1.0f32).to_bits());
         assert_eq!(estimated, f64::from(measured).round() as u64);
-        assert_eq!(reltuples_bits(&mut self.target, "_oo", &self.physical).await, bits);
-        assert_eq!(reltuples_bits(&mut self.target, "public", "sentinel").await, (-1.0f32).to_bits());
+        assert_eq!(
+            reltuples_bits(&mut self.target, "_oo", &self.physical).await,
+            bits
+        );
+        assert_eq!(
+            reltuples_bits(&mut self.target, "public", "sentinel").await,
+            (-1.0f32).to_bits()
+        );
         assert!(
             self.physical.len() == 63
                 && self.physical.starts_with("pt_")
-                && self.physical.bytes().skip(3).all(|byte| byte.is_ascii_hexdigit())
+                && self
+                    .physical
+                    .bytes()
+                    .skip(3)
+                    .all(|byte| byte.is_ascii_hexdigit())
         );
         let count = scalar_i64(
             &mut self.target,
@@ -390,7 +534,13 @@ impl Harness {
         )
         .await;
         assert_eq!(count, 2);
-        let again = self.run_analyze(&self.admin_user, &self.admin_file, &self.ca_file, GENERATION, "party");
+        let again = self.run_analyze(
+            &self.admin_user,
+            &self.admin_file,
+            &self.ca_file,
+            GENERATION,
+            "party",
+        );
         assert_eq!(again.0, 0, "{}", again.2);
         let second: Value = serde_json::from_str(again.1.trim_end()).expect("second receipt");
         assert_eq!(second["published"], json!(false));
@@ -402,7 +552,11 @@ impl Harness {
     }
 
     async fn source_audit(&mut self) {
-        let audit = scalar_i64(&mut self.source, "SELECT count(*)::int8 FROM app.write_audit").await;
+        let audit = scalar_i64(
+            &mut self.source,
+            "SELECT count(*)::int8 FROM app.write_audit",
+        )
+        .await;
         let reader = scalar_i64(
             &mut self.source,
             "SELECT count(*)::int8 FROM app.write_audit WHERE who = 'oo_a236_reader'",
@@ -467,7 +621,11 @@ impl Harness {
                 "ca_file": ca.display().to_string(),
             }
         });
-        spawn(env!("CARGO_BIN_EXE_analyze-pg"), &[], document.to_string().as_bytes())
+        spawn(
+            env!("CARGO_BIN_EXE_analyze-pg"),
+            &[],
+            document.to_string().as_bytes(),
+        )
     }
 
     fn init_document(&self) -> String {
@@ -577,7 +735,10 @@ fn spawn(bin: &str, args: &[&str], stdin: &[u8]) -> (i32, String, String) {
         .env("HOME", "/tmp")
         .env("PGPASSWORD", DECOY)
         .env("PGSSLROOTCERT", "/tmp/not-a-ca")
-        .env("DATABASE_URL", format!("postgres://user:{DECOY}@db.example/app"))
+        .env(
+            "DATABASE_URL",
+            format!("postgres://user:{DECOY}@db.example/app"),
+        )
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -631,7 +792,8 @@ fn read_secret(path: &Path) -> String {
 }
 
 async fn hex_secret(conn: &mut sqlx::postgres::PgConnection, label: &str) -> String {
-    let sql = format!("SELECT encode(sha256(('{label}-' || clock_timestamp()::text)::bytea), 'hex')");
+    let sql =
+        format!("SELECT encode(sha256(('{label}-' || clock_timestamp()::text)::bytea), 'hex')");
     let value = text(conn, &sql).await;
     assert!(value.chars().all(|ch| ch.is_ascii_hexdigit()) && value.len() == 64);
     value
@@ -680,10 +842,18 @@ async fn scalar_i64(conn: &mut sqlx::postgres::PgConnection, sql: &str) -> i64 {
 }
 
 async fn ssl_on(conn: &mut sqlx::postgres::PgConnection) -> String {
-    text(conn, "SELECT ssl::text FROM pg_stat_ssl WHERE pid = pg_backend_pid()").await
+    text(
+        conn,
+        "SELECT ssl::text FROM pg_stat_ssl WHERE pid = pg_backend_pid()",
+    )
+    .await
 }
 
-async fn reltuples_bits(conn: &mut sqlx::postgres::PgConnection, namespace: &str, name: &str) -> u32 {
+async fn reltuples_bits(
+    conn: &mut sqlx::postgres::PgConnection,
+    namespace: &str,
+    name: &str,
+) -> u32 {
     let value: f32 = sqlx::query_scalar(
         "SELECT class.reltuples \
          FROM pg_catalog.pg_class AS class \
@@ -712,9 +882,18 @@ async fn row_physical(conn: &mut sqlx::postgres::PgConnection) -> String {
 
 async fn reset_cluster(admin: &mut sqlx::postgres::PgConnection) {
     for name in ["oo_a236_src", "oo_a236_dst"] {
-        raw(admin, &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await;
+        raw(
+            admin,
+            &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"),
+        )
+        .await;
     }
-    for role in ["oo_a236_reader", "oo_a236_runtime", "oo_a236_plain", "oo_a236_login"] {
+    for role in [
+        "oo_a236_reader",
+        "oo_a236_runtime",
+        "oo_a236_plain",
+        "oo_a236_login",
+    ] {
         raw(admin, &format!("DROP ROLE IF EXISTS {role}")).await;
     }
     raw(admin, "DROP ROLE IF EXISTS oo_pipeline_runtime").await;
@@ -723,7 +902,10 @@ async fn reset_cluster(admin: &mut sqlx::postgres::PgConnection) {
 
 async fn exec_role(conn: &mut sqlx::postgres::PgConnection, name: &str, secret: &str) {
     assert!(secret.chars().all(|ch| ch.is_ascii_hexdigit()));
-    assert!(name.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_'));
+    assert!(
+        name.chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+    );
     raw(
         conn,
         &format!(

@@ -16,8 +16,8 @@ pub use reader::{
 use sha2::{Digest, Sha256};
 pub use source::{
     Access, FullReadGrants, catalog_columns, connect, current_user_is, full_read_grants, inspect,
-    inspect_full, inspect_replication, keep_requested, keep_requested_keyed, query_drop, raw_cell, replication_grants_ok,
-    scalar,
+    inspect_full, inspect_replication, keep_requested, keep_requested_keyed, query_drop, raw_cell,
+    replication_grants_ok, scalar,
 };
 use std::{fmt, path::PathBuf};
 

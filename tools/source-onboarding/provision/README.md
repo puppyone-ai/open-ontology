@@ -30,7 +30,7 @@ and pins the binaries of `provision/site-v2.json`. It also sets `onboarding.chil
 (6 h), because a 5 GB chunked capture runs 30–60 min; the default per-command deadline stays 600000 ms. An unknown format is `format_invalid`; a format without a profile is
 `format_unavailable`.
 
-`--egress eip`: the egress phase opens `ssh -L 127.0.0.1:<auto>:<six host>:<six port> oo@192.0.2.10`. The producer
+`--egress eip`: the egress phase opens `ssh -L 127.0.0.1:<auto>:<six host>:<six port> oo@114.55.226.49`. The producer
 (in the trusted container) dials `host.docker.internal:<auto>` and verifies TLS against the six-field host, which goes into
 the operator as `tls_server_name` (`site-v1.json` `egress.producer_tls_server_name: true`). Host-side discovery and the
 artifacts profile read use `127.0.0.1:<auto>`. The forward's local port is kept in `private/eip-local-port.json`. After a

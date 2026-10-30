@@ -7,8 +7,8 @@
 //! functions are not used.
 
 mod arrow_batch;
-mod binary;
 mod batch;
+mod binary;
 mod facts;
 mod mapping;
 mod read;
@@ -18,13 +18,13 @@ mod typmod;
 mod tests;
 
 pub use batch::{
-    assemble_batch, arrow_buffer_preimage, ArrowColumn, ArrowScalar, CellPresence, CellReject,
-    DecodedCell, MaskedReject, TypedBatch, TypedRow,
+    ArrowColumn, ArrowScalar, CellPresence, CellReject, DecodedCell, MaskedReject, TypedBatch,
+    TypedRow, arrow_buffer_preimage, assemble_batch,
 };
 pub use facts::{TypeFacts, TypeGraph};
-pub use mapping::{map_column, ArrowPhysical, ColumnMapping, ColumnPlan, MapDecision};
+pub use mapping::{ArrowPhysical, ColumnMapping, ColumnPlan, MapDecision, map_column};
 pub use read::{compose_select, valid_quoted_ident};
-pub use typmod::{numeric_typmod_v1, NumericTypmodV1};
+pub use typmod::{NumericTypmodV1, numeric_typmod_v1};
 
 // Crate-visible bridge so the snapshot owner can call the approved decoder
 // and plan guard. Mapping and decode semantics stay the ones in `binary` and
@@ -93,12 +93,32 @@ impl Default for PgTypePolicy {
 /// Capabilities of this conversion protocol. The frozen catalog list is unchanged.
 pub fn type_capabilities() -> Vec<CapabilityStatus> {
     [
-        ("pg_builtin_lossless", true, "binary wire values for the enterprise builtins"),
+        (
+            "pg_builtin_lossless",
+            true,
+            "binary wire values for the enterprise builtins",
+        ),
         ("pg_signed_numeric_typmod", true, NUMERIC_TYPMOD_VERSION),
-        ("pg_domain_base", true, "domain values decode as the base builtin"),
-        ("pg_enum_label", true, "enum binary label, checked against catalog labels"),
-        ("pg_array_lower_bound", true, "lower bounds are part of the canonical struct"),
-        ("pg_arrow_series60", true, "workspace ArrowTypeName spellings"),
+        (
+            "pg_domain_base",
+            true,
+            "domain values decode as the base builtin",
+        ),
+        (
+            "pg_enum_label",
+            true,
+            "enum binary label, checked against catalog labels",
+        ),
+        (
+            "pg_array_lower_bound",
+            true,
+            "lower bounds are part of the canonical struct",
+        ),
+        (
+            "pg_arrow_series60",
+            true,
+            "workspace ArrowTypeName spellings",
+        ),
         (
             "pg_arrow_crate",
             true,
@@ -112,8 +132,16 @@ pub fn type_capabilities() -> Vec<CapabilityStatus> {
             true,
             "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission",
         ),
-        ("loader_reject_persistence", false, "reject records are returned, not stored"),
-        ("user_defined_output", false, "custom send functions are not selected"),
+        (
+            "loader_reject_persistence",
+            false,
+            "reject records are returned, not stored",
+        ),
+        (
+            "user_defined_output",
+            false,
+            "custom send functions are not selected",
+        ),
     ]
     .into_iter()
     .map(|(name, supported, reason)| CapabilityStatus {

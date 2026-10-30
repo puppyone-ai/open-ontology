@@ -1,19 +1,23 @@
 //! Fixed, bounded server metadata only; never an inventory or business-data read.
-use super::chunk::{db_error, Result};
+use super::chunk::{Result, db_error};
 use oracledb::Connection;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const IDENTITY: &str = "SELECT SYS_CONTEXT('USERENV','SESSION_USER'),SYS_CONTEXT('USERENV','SERVICE_NAME'),SYS_CONTEXT('USERENV','DB_NAME') FROM dual WHERE ROWNUM <= 8";
 const CONTAINER: &str = "SELECT SYS_CONTEXT('USERENV','CON_NAME'),SYS_CONTEXT('USERENV','CON_ID') FROM dual WHERE ROWNUM <= 8";
-const FULL: &str = "SELECT product,version,version_full,status FROM product_component_version WHERE ROWNUM <= 8";
-const LEGACY: &str = "SELECT product,version,status FROM product_component_version WHERE ROWNUM <= 8";
+const FULL: &str =
+    "SELECT product,version,version_full,status FROM product_component_version WHERE ROWNUM <= 8";
+const LEGACY: &str =
+    "SELECT product,version,status FROM product_component_version WHERE ROWNUM <= 8";
 const BANNER: &str = "SELECT banner FROM v$version WHERE ROWNUM <= 8";
 type Rows = Vec<Vec<Option<String>>>;
 
 fn version(value: &str) -> bool {
     let parts: Vec<_> = value.split('.').collect();
     (2..=5).contains(&parts.len())
-        && parts.iter().all(|p| !p.is_empty() && p.len() <= 5 && p.bytes().all(|b| b.is_ascii_digit()))
+        && parts
+            .iter()
+            .all(|p| !p.is_empty() && p.len() <= 5 && p.bytes().all(|b| b.is_ascii_digit()))
 }
 
 fn inspect_with(mut query: impl FnMut(&str, usize) -> Result<Rows>) -> Result<Value> {
@@ -36,10 +40,14 @@ fn inspect_with(mut query: impl FnMut(&str, usize) -> Result<Rows>) -> Result<Va
                     if row.len() != if has_full { 4 } else { 3 } {
                         return Err("metadata_column_count".into());
                     }
-                    if row[0].as_deref().is_some_and(|v|
-                        v.starts_with("Oracle Database") || v.starts_with("Oracle AI Database")) {
-                        let chosen = if has_full { row[2].as_ref().or(row[1].as_ref()) }
-                                     else { row[1].as_ref() };
+                    if row[0].as_deref().is_some_and(|v| {
+                        v.starts_with("Oracle Database") || v.starts_with("Oracle AI Database")
+                    }) {
+                        let chosen = if has_full {
+                            row[2].as_ref().or(row[1].as_ref())
+                        } else {
+                            row[1].as_ref()
+                        };
                         if let Some(value) = chosen.filter(|value| version(value)) {
                             if reported.as_ref().is_some_and(|old| old != value) {
                                 return Err("metadata_version_conflict".into());
@@ -54,13 +62,20 @@ fn inspect_with(mut query: impl FnMut(&str, usize) -> Result<Rows>) -> Result<Va
         }
     }
     match query(BANNER, 1) {
-        Ok(rows) => probes.push(json!({"name":"database_banner","sql":BANNER,"rows":rows,"error":null})),
-        Err(error) => probes.push(json!({"name":"database_banner","sql":BANNER,"rows":[],"error":error})),
+        Ok(rows) => {
+            probes.push(json!({"name":"database_banner","sql":BANNER,"rows":rows,"error":null}))
+        }
+        Err(error) => {
+            probes.push(json!({"name":"database_banner","sql":BANNER,"rows":[],"error":error}))
+        }
     }
     // Container attributes must not prevent version discovery on older servers.
     match query(CONTAINER, 2) {
-        Ok(rows) => probes.push(json!({"name":"container_context","sql":CONTAINER,"rows":rows,"error":null})),
-        Err(error) => probes.push(json!({"name":"container_context","sql":CONTAINER,"rows":[],"error":error})),
+        Ok(rows) => probes
+            .push(json!({"name":"container_context","sql":CONTAINER,"rows":rows,"error":null})),
+        Err(error) => {
+            probes.push(json!({"name":"container_context","sql":CONTAINER,"rows":[],"error":error}))
+        }
     }
     Ok(json!({
         "protocol":"oo.oracle.server-metadata/v1",
@@ -120,10 +135,15 @@ mod tests {
                 CONTAINER => row(&["pdb", "3"]),
                 _ => panic!("unexpected SQL"),
             })
-        }).unwrap();
+        })
+        .unwrap();
         assert_eq!(result["server_reported_version"], "19.25.0.0.0");
         assert_eq!(calls.len(), 4);
-        assert!(calls.iter().all(|s| s.starts_with("SELECT ") && s.contains("ROWNUM <= 8")));
+        assert!(
+            calls
+                .iter()
+                .all(|s| s.starts_with("SELECT ") && s.contains("ROWNUM <= 8"))
+        );
         assert_eq!(result["source_dml_ddl"], 0);
         assert_eq!(result["customer_acceptance"], false);
     }
@@ -137,7 +157,8 @@ mod tests {
             BANNER => Err("ORA-00942".into()),
             CONTAINER => Err("ORA-02003".into()),
             _ => panic!("unexpected SQL"),
-        }).unwrap();
+        })
+        .unwrap();
         assert_eq!(result["server_reported_version"], "11.2.0.4.0");
         assert_eq!(result["probes"][0]["error"], "ORA-00904");
         assert_eq!(result["probes"][2]["error"], "ORA-00942");
@@ -146,17 +167,25 @@ mod tests {
 
     #[test]
     fn ai_database_label_is_supported_without_treating_other_components_as_the_server() {
-        let result = inspect_with(|sql, _| Ok(match sql {
-            IDENTITY => row(&["reader", "svc", "db"]),
-            FULL => {
-                let mut rows = row(&["NLSRTL", "26.0", "26.0", "VALID"]);
-                rows.extend(row(&["Oracle AI Database 26ai Free", "23.26.0.0.0", "23.26.3.0.0", "VALID"]));
-                rows
-            }
-            BANNER => row(&["Oracle AI Database 26ai Free"]),
-            CONTAINER => row(&["pdb", "3"]),
-            _ => panic!("unexpected SQL"),
-        })).unwrap();
+        let result = inspect_with(|sql, _| {
+            Ok(match sql {
+                IDENTITY => row(&["reader", "svc", "db"]),
+                FULL => {
+                    let mut rows = row(&["NLSRTL", "26.0", "26.0", "VALID"]);
+                    rows.extend(row(&[
+                        "Oracle AI Database 26ai Free",
+                        "23.26.0.0.0",
+                        "23.26.3.0.0",
+                        "VALID",
+                    ]));
+                    rows
+                }
+                BANNER => row(&["Oracle AI Database 26ai Free"]),
+                CONTAINER => row(&["pdb", "3"]),
+                _ => panic!("unexpected SQL"),
+            })
+        })
+        .unwrap();
         assert_eq!(result["server_reported_version"], "23.26.3.0.0");
     }
 
@@ -166,11 +195,17 @@ mod tests {
             let result = inspect_with(|sql, _| match sql {
                 IDENTITY => Ok(row(&["reader", "svc", "db"])),
                 FULL if unavailable => Err("ORA-01031".into()),
-                FULL => Ok(row(&["Oracle Database", "SQL*Plus 26", "not-a-version", "VALID"])),
+                FULL => Ok(row(&[
+                    "Oracle Database",
+                    "SQL*Plus 26",
+                    "not-a-version",
+                    "VALID",
+                ])),
                 BANNER => Ok(row(&["Oracle Database server banner only"])),
                 CONTAINER => Ok(row(&["pdb", "3"])),
                 _ => panic!("no permission-driven fallback or arbitrary query"),
-            }).unwrap();
+            })
+            .unwrap();
             assert_eq!(result["server_version_identified"], false);
             assert!(result["server_reported_version"].is_null());
         }

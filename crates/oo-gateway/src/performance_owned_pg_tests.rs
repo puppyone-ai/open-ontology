@@ -170,7 +170,12 @@ impl Fixture {
         } else {
             None
         };
-        let roles = ReviewedRoles::fixed(ROLES.iter().map(|role| published(role, table_count)).collect());
+        let roles = ReviewedRoles::fixed(
+            ROLES
+                .iter()
+                .map(|role| published(role, table_count))
+                .collect(),
+        );
         fs::create_dir(root.join("wal")).unwrap();
         let plane = Arc::new(Plane {
             deployment_mode: oo_core::config::DeploymentMode::AllInOne,
@@ -437,11 +442,15 @@ async fn planning_catalog_is_not_authorization() {
             for (p, role) in publications.iter_mut().zip(ROLES) {
                 sql += &format!("GRANT SELECT ({encoded}) ON _oo.{physical} TO {role};");
                 p.policies[i].table.columns.push(ColumnSpec {
-                    name: name.clone(), status: ClassStatus::Confirmed,
-                    semantic_type: "amount".into(), pii: PiiClass::None,
+                    name: name.clone(),
+                    status: ClassStatus::Confirmed,
+                    semantic_type: "amount".into(),
+                    pii: PiiClass::None,
                 });
                 p.native_vector.as_mut().unwrap()[i]["expected_columns"]
-                    .as_array_mut().unwrap().push(json!({"name":name,"data_type":"bigint"}));
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"name":name,"data_type":"bigint"}));
             }
         }
     }
@@ -474,38 +483,79 @@ async fn planning_catalog_is_not_authorization() {
     let shards = json!([{"source_id":"perf","receipt_sha256":digest(),
         "receipt":{"consistency":"per_table","tables":tables}}]);
     use sha2::{Digest, Sha256};
-    let cut_sha = format!("{:x}", Sha256::digest(
-        serde_json::to_vec(&json!({"library":library,"shards":shards})).unwrap()));
+    let cut_sha = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(&json!({"library":library,"shards":shards})).unwrap())
+    );
     f.admin.execute("INSERT INTO _oo.native_library_publication VALUES($1,'perf',$2::text::jsonb,$3::text::jsonb)",
         &[&cut_sha,&library.to_string(),&shards.to_string()]).await.unwrap();
-    f.admin.execute("UPDATE _oo.native_library_head SET receipt_sha256=$1", &[&cut_sha]).await.unwrap();
+    f.admin
+        .execute(
+            "UPDATE _oo.native_library_head SET receipt_sha256=$1",
+            &[&cut_sha],
+        )
+        .await
+        .unwrap();
     for p in &mut publications {
         p.native_catalog.as_mut().unwrap()["entries"] = p.native_vector.clone().unwrap();
         p.native_catalog.as_mut().unwrap()["receipt_sha256"] = json!(cut_sha);
     }
     f.plane.roles.current.lock().unwrap().roles = Arc::new(publications.clone());
     let p = &publications[0];
-    assert_eq!(p.policies.iter().map(|p| p.table.columns.len()).sum::<usize>(), 15799);
+    assert_eq!(
+        p.policies
+            .iter()
+            .map(|p| p.table.columns.len())
+            .sum::<usize>(),
+        15799
+    );
     let start = Instant::now();
     f.plane.warm_planning_catalogs().await;
     let warmup_ms = start.elapsed().as_millis();
     let mark = f.log_mark();
     let start = Instant::now();
-    let catalog = f.plane.planning_catalog_for(p).await.unwrap_or_else(|_| panic!("planning"));
+    let catalog = f
+        .plane
+        .planning_catalog_for(p)
+        .await
+        .unwrap_or_else(|_| panic!("planning"));
     let planning_ms = start.elapsed().as_millis();
-    assert_eq!(f.profile(mark)["statements"], 0, "warm planning must not reopen PG");
+    assert_eq!(
+        f.profile(mark)["statements"],
+        0,
+        "warm planning must not reopen PG"
+    );
     assert_eq!(catalog.relations.len(), 658);
 
-    async fn verify(f: &Fixture, p: &Published, catalog: &crate::sql_guard::PolicyCatalog)
-        -> Result<BindingReceipt, ExecError>
-    {
-        let binding = f.plane.binding_check(p, &caller(&p.role), &"e".repeat(64),
-            Some(catalog), Expected { publication_id: "current".into(), data_vector_sha256: None })
+    async fn verify(
+        f: &Fixture,
+        p: &Published,
+        catalog: &crate::sql_guard::PolicyCatalog,
+    ) -> Result<BindingReceipt, ExecError> {
+        let binding = f
+            .plane
+            .binding_check(
+                p,
+                &caller(&p.role),
+                &"e".repeat(64),
+                Some(catalog),
+                Expected {
+                    publication_id: "current".into(),
+                    data_vector_sha256: None,
+                },
+            )
             .unwrap_or_else(|_| panic!("binding"));
         let (mut client, connection) = f.plane.connect().await.unwrap();
-        let _driver = BindingDriver(tokio::spawn(async move { let _ = connection.await; }));
-        let tx = client.build_transaction().isolation_level(tokio_postgres::IsolationLevel::RepeatableRead)
-            .read_only(true).start().await.unwrap();
+        let _driver = BindingDriver(tokio::spawn(async move {
+            let _ = connection.await;
+        }));
+        let tx = client
+            .build_transaction()
+            .isolation_level(tokio_postgres::IsolationLevel::RepeatableRead)
+            .read_only(true)
+            .start()
+            .await
+            .unwrap();
         let result = match binding.lock_relations(&tx).await {
             Ok(()) => binding.verify(&tx).await,
             Err(error) => Err(error),
@@ -538,23 +588,54 @@ async fn planning_catalog_is_not_authorization() {
         .await.unwrap().get(0);
     f.admin.batch_execute("CREATE OR REPLACE FUNCTION _oo.lookup_physical_mapping(text,text,int8,text,text,text,text)
         RETURNS text LANGUAGE sql STABLE AS $$ SELECT 'wrong'::text $$").await.unwrap();
-    assert!(verify(&f, p, &catalog).await.is_err(), "same-signature helper mutation must refuse");
+    assert!(
+        verify(&f, p, &catalog).await.is_err(),
+        "same-signature helper mutation must refuse"
+    );
     f.admin.batch_execute(&helper).await.unwrap();
     refusals.push("helper_body_mutation");
     let after = verify(&f, p, &catalog).await.unwrap();
-    let fresh = f.plane.catalog_for(p).await.unwrap_or_else(|_| panic!("fresh"));
+    let fresh = f
+        .plane
+        .catalog_for(p)
+        .await
+        .unwrap_or_else(|_| panic!("fresh"));
     assert_eq!(catalog, fresh);
     assert_eq!(after, verify(&f, p, &fresh).await.unwrap());
     assert_eq!(after.data_vector_sha256, first.data_vector_sha256);
     let mut changed = p.clone();
     changed.native_vector.as_mut().unwrap()[0]["target_generation"] = json!(2);
-    assert!(f.plane.planning_catalog_for(&changed).await.is_err(),
-        "a different reviewed data generation cannot hit the cache");
-    let other = f.plane.planning_catalog_for(&publications[1]).await.unwrap_or_else(|_| panic!("other role"));
+    assert!(
+        f.plane.planning_catalog_for(&changed).await.is_err(),
+        "a different reviewed data generation cannot hit the cache"
+    );
+    let other = f
+        .plane
+        .planning_catalog_for(&publications[1])
+        .await
+        .unwrap_or_else(|_| panic!("other role"));
     assert_ne!(other.identity.role, catalog.identity.role);
     f.plane.forget_planning_catalog(p).await;
-    assert!(f.plane.role_slot(&p.role).await.unwrap().planning.lock().await.is_none());
-    assert!(f.plane.role_slot(&publications[1].role).await.unwrap().planning.lock().await.is_some());
+    assert!(
+        f.plane
+            .role_slot(&p.role)
+            .await
+            .unwrap()
+            .planning
+            .lock()
+            .await
+            .is_none()
+    );
+    assert!(
+        f.plane
+            .role_slot(&publications[1].role)
+            .await
+            .unwrap()
+            .planning
+            .lock()
+            .await
+            .is_some()
+    );
     fs::write(f.root.join("planning-receipt.json"), serde_json::to_vec_pretty(&json!({
         "tables":658,"columns":15799,"warmup_ms":warmup_ms,"planning_ms":planning_ms,
         "warm_planning_database_statements":0,"cached_catalog_is_not_authorization":true,
@@ -570,11 +651,16 @@ async fn metadata_margin_owned_regressions() {
     let f = Fixture::new().await;
     let checks = negative_checks(&f).await;
     let mut invalid = published(ROLES[0], 16);
-    let canonical = invalid.native_vector.as_ref().unwrap()[0]["run_id"].as_str().unwrap().to_owned();
+    let canonical = invalid.native_vector.as_ref().unwrap()[0]["run_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     for alias in [canonical.replace('-', ""), format!("{{{canonical}}}")] {
         invalid.native_vector.as_mut().unwrap()[0]["run_id"] = json!(alias);
-        assert!(f.plane.catalog_for(&invalid).await.is_err(),
-            "UUID coercion must not accept a noncanonical run binding");
+        assert!(
+            f.plane.catalog_for(&invalid).await.is_err(),
+            "UUID coercion must not accept a noncanonical run binding"
+        );
     }
     invalid.native_vector.as_mut().unwrap()[0]["run_id"] = json!(canonical);
     assert!(f.plane.catalog_for(&invalid).await.is_ok());
@@ -688,7 +774,7 @@ async fn negative_checks(f: &Fixture) -> Value {
     let physical = physical(0);
     let column = column();
     for (name,change,restore) in [
-        ("generation",format!("UPDATE _oo.physical_mappings SET run_generation=2 WHERE logical_table='t0'"),
+        ("generation","UPDATE _oo.physical_mappings SET run_generation=2 WHERE logical_table='t0'".to_string(),
             "UPDATE _oo.physical_mappings SET run_generation=1 WHERE logical_table='t0'".into()),
         ("duplicate_mapping","INSERT INTO _oo.physical_mappings SELECT * FROM _oo.physical_mappings WHERE level='t' AND logical_table='t0'".into(),
             "DELETE FROM _oo.physical_mappings WHERE ctid IN (SELECT max(ctid) FROM _oo.physical_mappings WHERE level='t' AND logical_table='t0')".into()),

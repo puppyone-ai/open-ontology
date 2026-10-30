@@ -1,28 +1,24 @@
 //! Decoder vectors. Live PostgreSQL is not required.
 
-use arrow_array::cast::AsArray;
 use arrow_array::Array;
+use arrow_array::cast::AsArray;
 use arrow_array::types::{Decimal128Type, Decimal256Type, Float64Type};
 use arrow_schema::{DataType, TimeUnit};
-use oo_core::canonical::{
-    hash_bytes, FloatClass, LogicalValue, Presence, ARBITRARY_DECIMAL_SCALE,
-};
+use oo_core::canonical::{ARBITRARY_DECIMAL_SCALE, FloatClass, LogicalValue, Presence, hash_bytes};
 use sqlx::postgres::PgValueFormat;
 
-use super::batch::{
-    arrow_buffer_preimage, assemble_batch, ArrowScalar, CellPresence, DecodedCell,
-};
+use super::batch::{ArrowScalar, CellPresence, DecodedCell, arrow_buffer_preimage, assemble_batch};
 use super::binary::{civil_from_unix_days, decode_payload};
-use super::facts::{builtin, TypeGraph, OID_BOOL, OID_INT4, OID_INT8, OID_NUMERIC};
-use super::mapping::{map_column, ArrowPhysical, MapDecision};
-use super::read::{compose_presence, compose_select, guard_plans, require_binary, valid_quoted_ident};
+use super::facts::{OID_BOOL, OID_INT4, OID_INT8, OID_NUMERIC, TypeGraph, builtin};
+use super::mapping::{ArrowPhysical, MapDecision, map_column};
+use super::read::{
+    compose_presence, compose_select, guard_plans, require_binary, valid_quoted_ident,
+};
 use super::{
-    digest_hex, type_capabilities, PgTypePolicy, RunBinding, UnsupportedColumnPolicy,
-    TYPE_CONVERSION_PROTOCOL,
+    PgTypePolicy, RunBinding, TYPE_CONVERSION_PROTOCOL, UnsupportedColumnPolicy, digest_hex,
+    type_capabilities,
 };
-use crate::model::{
-    ColumnPrivileges, SourceColumn, TypeSupport, TypeUnsupportedReason,
-};
+use crate::model::{ColumnPrivileges, SourceColumn, TypeSupport, TypeUnsupportedReason};
 use crate::sql::TYPE_FACTS;
 use crate::{connector_capabilities, numeric_parts};
 
@@ -146,12 +142,16 @@ fn converted_flag_does_not_authorize_or_block_a_builtin() {
             && item.reason
                 == "PostgreSQL full-mode snapshot plus bounded pull and RunComplete admission"
     }));
-    assert!(type_capabilities()
-        .iter()
-        .any(|item| item.name == "pg_builtin_lossless" && item.supported));
-    assert!(type_capabilities()
-        .iter()
-        .any(|item| item.name == "pg_arrow_crate" && item.supported));
+    assert!(
+        type_capabilities()
+            .iter()
+            .any(|item| item.name == "pg_builtin_lossless" && item.supported)
+    );
+    assert!(
+        type_capabilities()
+            .iter()
+            .any(|item| item.name == "pg_arrow_crate" && item.supported)
+    );
 }
 
 #[test]
@@ -209,8 +209,14 @@ fn float_specials_keep_arrow_bits_and_collapse_canonical_zero() {
     let pos_cell = decode_payload(&plan, &pos);
     assert_eq!(neg_cell.float_bits, Some((-0.0f64).to_bits()));
     assert_ne!(neg_cell.float_bits, pos_cell.float_bits);
-    assert!(matches!(neg_cell.value, Some(LogicalValue::Float(FloatClass::Zero))));
-    assert!(matches!(pos_cell.value, Some(LogicalValue::Float(FloatClass::Zero))));
+    assert!(matches!(
+        neg_cell.value,
+        Some(LogicalValue::Float(FloatClass::Zero))
+    ));
+    assert!(matches!(
+        pos_cell.value,
+        Some(LogicalValue::Float(FloatClass::Zero))
+    ));
     let mut named = plan.clone();
     named.name = "f".to_string();
     let neg_batch = batch_one(named.clone(), neg_cell);
@@ -224,9 +230,15 @@ fn float_specials_keep_arrow_bits_and_collapse_canonical_zero() {
         arrow_buffer_preimage(&pos_batch.arrow)
     );
     let nan = decode_payload(&plan, &f64::NAN.to_bits().to_be_bytes());
-    assert!(matches!(nan.value, Some(LogicalValue::Float(FloatClass::Nan))));
+    assert!(matches!(
+        nan.value,
+        Some(LogicalValue::Float(FloatClass::Nan))
+    ));
     let inf = decode_payload(&plan, &f64::INFINITY.to_bits().to_be_bytes());
-    assert!(matches!(inf.value, Some(LogicalValue::Float(FloatClass::PosInf))));
+    assert!(matches!(
+        inf.value,
+        Some(LogicalValue::Float(FloatClass::PosInf))
+    ));
     let narrow = plan_builtin(700, "float4", "float4send", 4, -1);
     let bits = (-0.0f32).to_bits().to_be_bytes();
     let cell = decode_payload(&narrow, &bits);
@@ -253,7 +265,10 @@ fn numeric_negative_scale_rescales_without_touching_catalog_v1() {
     assert_eq!(cell.actual_precision, Some(2));
     let rejected = decode_payload(&plan, &numeric_wire(&[1234], 0, false, 0));
     assert_eq!(rejected.presence, CellPresence::Unavailable);
-    assert_eq!(rejected.reject.map(|item| item.reason), Some("numeric_scale"));
+    assert_eq!(
+        rejected.reject.map(|item| item.reason),
+        Some("numeric_scale")
+    );
     let batch = batch_one(plan, rejected);
     assert_eq!(batch.rows.len(), 1);
     assert_eq!(batch.rejects[0].reason, "numeric_scale");
@@ -263,8 +278,17 @@ fn numeric_negative_scale_rescales_without_touching_catalog_v1() {
 
 #[test]
 fn numeric_scale_above_precision_uses_exact_text() {
-    let plan = plan_builtin(OID_NUMERIC, "numeric", "numeric_send", -1, numeric_typmod(4, 6));
-    assert!(matches!(plan.arrow, Some(ArrowPhysical::DecimalUtf8 { .. })));
+    let plan = plan_builtin(
+        OID_NUMERIC,
+        "numeric",
+        "numeric_send",
+        -1,
+        numeric_typmod(4, 6),
+    );
+    assert!(matches!(
+        plan.arrow,
+        Some(ArrowPhysical::DecimalUtf8 { .. })
+    ));
     assert_eq!(plan.mapping.arrow_type, "utf8");
     let cell = decode_payload(&plan, &numeric_wire(&[12], -1, false, 4));
     match &cell.arrow {
@@ -275,23 +299,51 @@ fn numeric_scale_above_precision_uses_exact_text() {
 
 #[test]
 fn wide_numeric_chooses_decimal256_then_text() {
-    let wide = plan_builtin(OID_NUMERIC, "numeric", "numeric_send", -1, numeric_typmod(40, 0));
+    let wide = plan_builtin(
+        OID_NUMERIC,
+        "numeric",
+        "numeric_send",
+        -1,
+        numeric_typmod(40, 0),
+    );
     assert!(matches!(
         wide.arrow,
-        Some(ArrowPhysical::Decimal256 { precision: 40, scale: 0 })
+        Some(ArrowPhysical::Decimal256 {
+            precision: 40,
+            scale: 0
+        })
     ));
     let digits = [9999i16; 10];
     let cell = decode_payload(&wide, &numeric_wire(&digits, 9, true, 0));
     assert!(matches!(cell.arrow, Some(ArrowScalar::Decimal256(_))));
-    let text = plan_builtin(OID_NUMERIC, "numeric", "numeric_send", -1, numeric_typmod(80, 0));
-    assert!(matches!(text.arrow, Some(ArrowPhysical::DecimalUtf8 { .. })));
-    assert!(text
-        .mapping
-        .metadata
-        .iter()
-        .any(|(key, value)| key == "oo.pg.precision" && value == "80"));
-    let huge_scale = plan_builtin(OID_NUMERIC, "numeric", "numeric_send", -1, numeric_typmod(10, 200));
-    assert!(matches!(huge_scale.arrow, Some(ArrowPhysical::DecimalUtf8 { .. })));
+    let text = plan_builtin(
+        OID_NUMERIC,
+        "numeric",
+        "numeric_send",
+        -1,
+        numeric_typmod(80, 0),
+    );
+    assert!(matches!(
+        text.arrow,
+        Some(ArrowPhysical::DecimalUtf8 { .. })
+    ));
+    assert!(
+        text.mapping
+            .metadata
+            .iter()
+            .any(|(key, value)| key == "oo.pg.precision" && value == "80")
+    );
+    let huge_scale = plan_builtin(
+        OID_NUMERIC,
+        "numeric",
+        "numeric_send",
+        -1,
+        numeric_typmod(10, 200),
+    );
+    assert!(matches!(
+        huge_scale.arrow,
+        Some(ArrowPhysical::DecimalUtf8 { .. })
+    ));
     let open = plan_builtin(OID_NUMERIC, "numeric", "numeric_send", -1, -1);
     assert!(matches!(
         open.logical,
@@ -336,7 +388,9 @@ fn text_bytea_and_char_keep_bytes() {
     assert!(matches!(&empty.value, Some(LogicalValue::Bytes(value)) if value.is_empty()));
     let uuid = plan_builtin(2950, "uuid", "uuid_send", 16, -1);
     assert_eq!(
-        decode_payload(&uuid, &[1, 2]).reject.map(|item| item.reason),
+        decode_payload(&uuid, &[1, 2])
+            .reject
+            .map(|item| item.reason),
         Some("uuid_payload")
     );
 }
@@ -347,17 +401,29 @@ fn dates_use_fixed_pg_epochs_and_reject_infinity() {
     let y2k = decode_payload(&plan, &0i32.to_be_bytes());
     assert!(matches!(
         y2k.value,
-        Some(LogicalValue::Date { year: 2000, month: 1, day: 1 })
+        Some(LogicalValue::Date {
+            year: 2000,
+            month: 1,
+            day: 1
+        })
     ));
     let epoch = decode_payload(&plan, &(-10957i32).to_be_bytes());
     assert!(matches!(
         epoch.value,
-        Some(LogicalValue::Date { year: 1970, month: 1, day: 1 })
+        Some(LogicalValue::Date {
+            year: 1970,
+            month: 1,
+            day: 1
+        })
     ));
     let y2020 = decode_payload(&plan, &7305i32.to_be_bytes());
     assert!(matches!(
         y2020.value,
-        Some(LogicalValue::Date { year: 2020, month: 1, day: 1 })
+        Some(LogicalValue::Date {
+            year: 2020,
+            month: 1,
+            day: 1
+        })
     ));
     assert_eq!(civil_from_unix_days(0), (1970, 1, 1));
     let year_zero = decode_payload(&plan, &(-730485i32).to_be_bytes());
@@ -416,7 +482,10 @@ fn timestamps_keep_civil_time_and_distinct_instants() {
     let with_micros = decode_payload(&naive, &(pg + 123_456).to_be_bytes());
     assert!(matches!(
         with_micros.value,
-        Some(LogicalValue::TimestampNaive { micros: 123_456, .. })
+        Some(LogicalValue::TimestampNaive {
+            micros: 123_456,
+            ..
+        })
     ));
     assert_eq!(
         decode_payload(&naive, &i64::MAX.to_be_bytes())
@@ -437,9 +506,15 @@ fn interval_orders_months_days_then_microseconds() {
     let cell = decode_payload(&plan, &bytes);
     match cell.value {
         Some(LogicalValue::Struct(fields)) => {
-            assert!(matches!(&fields[0].value, Some(LogicalValue::Int(value)) if value.coefficient() == "3"));
-            assert!(matches!(&fields[1].value, Some(LogicalValue::Int(value)) if value.coefficient() == "4"));
-            assert!(matches!(&fields[2].value, Some(LogicalValue::Int(value)) if value.coefficient() == "5"));
+            assert!(
+                matches!(&fields[0].value, Some(LogicalValue::Int(value)) if value.coefficient() == "3")
+            );
+            assert!(
+                matches!(&fields[1].value, Some(LogicalValue::Int(value)) if value.coefficient() == "4")
+            );
+            assert!(
+                matches!(&fields[2].value, Some(LogicalValue::Int(value)) if value.coefficient() == "5")
+            );
         }
         other => panic!("{other:?}"),
     }
@@ -468,7 +543,9 @@ fn arrays_keep_lower_bounds_and_null_elements() {
     let cell = decode_payload(&plan, &bytes);
     match cell.value {
         Some(LogicalValue::Struct(fields)) => {
-            assert!(matches!(&fields[0].value, Some(LogicalValue::Array(items)) if items.len() == 1));
+            assert!(
+                matches!(&fields[0].value, Some(LogicalValue::Array(items)) if items.len() == 1)
+            );
             match &fields[0].value {
                 Some(LogicalValue::Array(items)) => match &items[0].value {
                     Some(LogicalValue::Int(value)) => assert_eq!(value.coefficient(), "2"),
@@ -572,7 +649,9 @@ fn enum_labels_are_an_allow_list() {
         Some(LogicalValue::Text(_))
     ));
     assert_eq!(
-        decode_payload(&plan, b"nope").reject.map(|item| item.reason),
+        decode_payload(&plan, b"nope")
+            .reject
+            .map(|item| item.reason),
         Some("invalid_enum")
     );
 }
@@ -600,7 +679,12 @@ fn json_text_and_jsonb_do_not_share_a_hash() {
     let left = batch_one(json_plan, json_cell);
     let right = batch_one(jsonb_plan, jsonb_cell);
     assert_ne!(left.rows[0].canonical_hash, right.rows[0].canonical_hash);
-    let dup_jsonb = decode_payload(&jsonb, &[1, b'{', b'"', b'a', b'"', b':', b'1', b',', b'"', b'a', b'"', b':', b'2', b'}']);
+    let dup_jsonb = decode_payload(
+        &jsonb,
+        &[
+            1, b'{', b'"', b'a', b'"', b':', b'1', b',', b'"', b'a', b'"', b':', b'2', b'}',
+        ],
+    );
     assert_eq!(dup_jsonb.presence, CellPresence::Unavailable);
     let sql_null = br#"null"#;
     let mut payload = vec![1u8];
@@ -616,7 +700,10 @@ fn money_and_foreign_send_are_unsupported() {
     money.name = "money".to_string();
     let paid = column("paid", 790, "money", -1, false);
     let plan = map_column(&paid, &TypeGraph::new([money]), false);
-    assert_eq!(plan.mapping.decision, MapDecision::Unsupported("money_locale"));
+    assert_eq!(
+        plan.mapping.decision,
+        MapDecision::Unsupported("money_locale")
+    );
     let mut custom = builtin(9100, "evil", "boolsend", 1);
     custom.name = "pg_read_file".to_string();
     custom.schema = "app".to_string();
@@ -624,7 +711,10 @@ fn money_and_foreign_send_are_unsupported() {
     let mut evil = column("evil", 9100, "pg_read_file", -1, false);
     evil.type_schema = "app".to_string();
     let plan = map_column(&evil, &TypeGraph::new([custom]), false);
-    assert_eq!(plan.mapping.decision, MapDecision::Unsupported("user_defined_send"));
+    assert_eq!(
+        plan.mapping.decision,
+        MapDecision::Unsupported("user_defined_send")
+    );
     let sql = compose_select(r#""public""#, r#""sample""#, &[r#""id""#.to_string()]).unwrap();
     assert!(!sql.contains("pg_read_file"));
     assert!(!TYPE_FACTS.contains("pg_read_file"));
@@ -763,7 +853,9 @@ fn scalar_json(value: &ArrowScalar) -> serde_json::Value {
         ArrowScalar::Int16(item) => serde_json::json!({"t": "i16", "v": item}),
         ArrowScalar::Int32(item) => serde_json::json!({"t": "i32", "v": item}),
         ArrowScalar::Int64(item) => serde_json::json!({"t": "i64", "v": item}),
-        ArrowScalar::Float64(bits) => serde_json::json!({"t": "f64", "bits": format!("{bits:016x}")}),
+        ArrowScalar::Float64(bits) => {
+            serde_json::json!({"t": "f64", "bits": format!("{bits:016x}")})
+        }
         ArrowScalar::Utf8(item) => serde_json::json!({"t": "utf8", "v": item}),
         ArrowScalar::Binary(item) => {
             serde_json::json!({"t": "bin", "hex": item.iter().map(|byte| format!("{byte:02x}")).collect::<String>()})
@@ -804,9 +896,27 @@ fn export_arrow_fixture() {
     let flag = plan_builtin(OID_BOOL, "bool", "boolsend", 1, -1);
     let big = plan_builtin(OID_INT8, "int8", "int8send", 8, -1);
     let ratio = plan_builtin(701, "float8", "float8send", 8, -1);
-    let units = plan_builtin(OID_NUMERIC, "numeric", "numeric_send", -1, numeric_typmod(10, -2));
-    let fine = plan_builtin(OID_NUMERIC, "numeric", "numeric_send", -1, numeric_typmod(4, 6));
-    let wide = plan_builtin(OID_NUMERIC, "numeric", "numeric_send", -1, numeric_typmod(40, 0));
+    let units = plan_builtin(
+        OID_NUMERIC,
+        "numeric",
+        "numeric_send",
+        -1,
+        numeric_typmod(10, -2),
+    );
+    let fine = plan_builtin(
+        OID_NUMERIC,
+        "numeric",
+        "numeric_send",
+        -1,
+        numeric_typmod(4, 6),
+    );
+    let wide = plan_builtin(
+        OID_NUMERIC,
+        "numeric",
+        "numeric_send",
+        -1,
+        numeric_typmod(40, 0),
+    );
     let instant = plan_builtin(1184, "timestamptz", "timestamptz_send", 8, -1);
     let span = plan_builtin(1186, "interval", "interval_send", 16, -1);
     let mut element = builtin(OID_INT4, "int4", "int4send", 4);
@@ -819,7 +929,9 @@ fn export_arrow_fixture() {
         false,
     );
     let mut plans = vec![flag, big, ratio, units, fine, wide, instant, span, nums];
-    let names = ["flag", "big", "ratio", "units", "fine", "wide", "instant", "span", "nums"];
+    let names = [
+        "flag", "big", "ratio", "units", "fine", "wide", "instant", "span", "nums",
+    ];
     for (index, plan) in plans.iter_mut().enumerate() {
         plan.name = names[index].to_string();
         plan.attnum = i32::try_from(index + 1).unwrap();
@@ -869,9 +981,16 @@ fn export_arrow_fixture() {
     let batch = assemble_batch(&binding(), plans, &[], vec![row0, row1]).unwrap();
     assert!(matches!(batch.arrow[0].values[0], ArrowScalar::Bool(true)));
     assert!(matches!(batch.arrow[0].values[1], ArrowScalar::Null));
-    assert!(matches!(batch.arrow[2].values[0], ArrowScalar::Float64(bits) if bits == (-0.0f64).to_bits()));
-    assert!(matches!(batch.arrow[2].values[1], ArrowScalar::Float64(bits) if bits == 0f64.to_bits()));
-    assert!(matches!(batch.arrow[3].values[0], ArrowScalar::Decimal128(12)));
+    assert!(
+        matches!(batch.arrow[2].values[0], ArrowScalar::Float64(bits) if bits == (-0.0f64).to_bits())
+    );
+    assert!(
+        matches!(batch.arrow[2].values[1], ArrowScalar::Float64(bits) if bits == 0f64.to_bits())
+    );
+    assert!(matches!(
+        batch.arrow[3].values[0],
+        ArrowScalar::Decimal128(12)
+    ));
     // (-int('9'*40)).to_bytes(32, 'little', signed=True)
     let mut wide_le = [0u8; 32];
     for (index, byte) in "01000000009f0a4654405ba33c0ed69ce2ffffffffffffffffffffffffffffff"
@@ -885,7 +1004,10 @@ fn export_arrow_fixture() {
         ArrowScalar::Decimal256(bytes) => assert_eq!(*bytes, wide_le),
         other => panic!("{other:?}"),
     }
-    assert_eq!(batch.arrow[4].values[0], ArrowScalar::Utf8("0.001200".to_string()));
+    assert_eq!(
+        batch.arrow[4].values[0],
+        ArrowScalar::Utf8("0.001200".to_string())
+    );
     match &batch.arrow[7].values[0] {
         ArrowScalar::List(items) => {
             assert!(matches!(items[0], ArrowScalar::Int64(3)));
@@ -942,7 +1064,10 @@ fn export_arrow_fixture() {
     assert_eq!(flag.data_type(), &DataType::Boolean);
     assert_eq!(flag.null_count(), 1);
     assert!(flag.as_boolean().value(0));
-    let ratio = frame.column_by_name("ratio").expect("ratio").as_primitive::<Float64Type>();
+    let ratio = frame
+        .column_by_name("ratio")
+        .expect("ratio")
+        .as_primitive::<Float64Type>();
     assert_eq!(ratio.value(0).to_bits(), (-0.0f64).to_bits());
     assert_eq!(ratio.value(1).to_bits(), 0f64.to_bits());
     let units = frame

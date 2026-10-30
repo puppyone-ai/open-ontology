@@ -559,9 +559,12 @@ mod tests {
         }
         for missing in ["SELECT", "REPLICATION SLAVE", "REPLICATION CLIENT"] {
             let kept = ["SELECT", "REPLICATION SLAVE", "REPLICATION CLIENT"]
-                .into_iter().filter(|p| *p != missing).collect::<Vec<_>>().join(", ");
-            let error = replication_grants_ok(&[format!("GRANT {kept} ON *.* TO reader")])
-                .unwrap_err();
+                .into_iter()
+                .filter(|p| *p != missing)
+                .collect::<Vec<_>>()
+                .join(", ");
+            let error =
+                replication_grants_ok(&[format!("GRANT {kept} ON *.* TO reader")]).unwrap_err();
             assert_eq!(error, MysqlError::new("privilege", "readonly_replication"));
         }
     }

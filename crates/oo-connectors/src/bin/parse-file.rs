@@ -16,11 +16,11 @@ use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use oo_connectors::{
-    BomPolicy, ChildRequest, DelimitedColumn, DelimitedDialect, DelimitedError, DelimitedProfile,
-    DelimitedType, Failure, FailureKind, GroupSignal, HeaderPolicy, JsonlColumn, JsonlError,
-    JsonlProfile, JsonlType, KernelRestriction, NullPolicy, ParentConfig, ParentError,
-    ParentParseComplete, PullBudget, SourceProfile, VerifiedBatch, FILE_WORKER_PARENT_PROTOCOL,
-    JSONL_PROTOCOL, KERNEL_RESTRICTION, DELIMITED_PROTOCOL,
+    BomPolicy, ChildRequest, DELIMITED_PROTOCOL, DelimitedColumn, DelimitedDialect, DelimitedError,
+    DelimitedProfile, DelimitedType, FILE_WORKER_PARENT_PROTOCOL, Failure, FailureKind,
+    GroupSignal, HeaderPolicy, JSONL_PROTOCOL, JsonlColumn, JsonlError, JsonlProfile, JsonlType,
+    KERNEL_RESTRICTION, KernelRestriction, NullPolicy, ParentConfig, ParentError,
+    ParentParseComplete, PullBudget, SourceProfile, VerifiedBatch,
 };
 use oo_core::parse_json_value;
 use serde_json::{Map, Value};
@@ -236,7 +236,8 @@ Failures write one {ERROR_PROTOCOL} object to stderr and write no result to stdo
 
 fn execute() -> Result<String, Fail> {
     let text = read_stdin()?;
-    let value = parse_json_value(&text, REQUEST_PROTOCOL).map_err(|_| Fail::config("request_json"))?;
+    let value =
+        parse_json_value(&text, REQUEST_PROTOCOL).map_err(|_| Fail::config("request_json"))?;
     reject_credentials(&value)?;
     let request = parse_request(&value)?;
     let worker = Path::new(&request.executable);
@@ -501,7 +502,8 @@ struct ProfileView {
 fn profile_view(profile: &SourceProfile, object_sha256: [u8; 32]) -> Result<ProfileView, Fail> {
     match profile {
         SourceProfile::Jsonl(profile) => {
-            let columns = u32::try_from(profile.columns().len()).map_err(|_| Fail::config("column_count"))?;
+            let columns =
+                u32::try_from(profile.columns().len()).map_err(|_| Fail::config("column_count"))?;
             Ok(ProfileView {
                 id: profile.id().to_owned(),
                 digest: profile.profile_digest(),
@@ -513,7 +515,8 @@ fn profile_view(profile: &SourceProfile, object_sha256: [u8; 32]) -> Result<Prof
             })
         }
         SourceProfile::Delimited(profile) => {
-            let columns = u32::try_from(profile.columns().len()).map_err(|_| Fail::config("column_count"))?;
+            let columns =
+                u32::try_from(profile.columns().len()).map_err(|_| Fail::config("column_count"))?;
             Ok(ProfileView {
                 id: profile.id().to_owned(),
                 digest: profile.profile_digest(),
@@ -644,13 +647,23 @@ fn delimited_body(
     let header = header_policy(require_str(map, "header")?)?;
     let nulls = null_policy(require(map, "null")?)?;
     let columns = delimited_columns(require(map, "columns")?)?;
-    let profile = DelimitedProfile::try_new(require_str(map, "id")?, dialect, bom, header, nulls, columns)
-        .map_err(from_delimited)?;
+    let profile = DelimitedProfile::try_new(
+        require_str(map, "id")?,
+        dialect,
+        bom,
+        header,
+        nulls,
+        columns,
+    )
+    .map_err(from_delimited)?;
     let (budget, max_rows) = delimited_budget(budget_value)?;
     Ok((SourceProfile::Delimited(profile), budget, max_rows))
 }
 
-fn jsonl_body(profile_value: &Value, budget_value: &Value) -> Result<(SourceProfile, PullBudget, u64), Fail> {
+fn jsonl_body(
+    profile_value: &Value,
+    budget_value: &Value,
+) -> Result<(SourceProfile, PullBudget, u64), Fail> {
     let map = object(profile_value)?;
     exact_keys(map, &["columns", "id"])?;
     let columns = jsonl_columns(require(map, "columns")?)?;
@@ -688,7 +701,10 @@ fn delimited_columns(value: &Value) -> Result<Vec<DelimitedColumn>, Fail> {
             }
             _ => return Err(Fail::config("type")),
         };
-        columns.push(DelimitedColumn::try_new(require_str(map, "name")?, ty, nullable).map_err(from_delimited)?);
+        columns.push(
+            DelimitedColumn::try_new(require_str(map, "name")?, ty, nullable)
+                .map_err(from_delimited)?,
+        );
     }
     Ok(columns)
 }
@@ -707,8 +723,12 @@ fn jsonl_columns(value: &Value) -> Result<Vec<JsonlColumn>, Fail> {
             _ => return Err(Fail::config("type")),
         };
         columns.push(
-            JsonlColumn::try_new(require_str(map, "name")?, ty, require_bool(map, "nullable")?)
-                .map_err(from_jsonl)?,
+            JsonlColumn::try_new(
+                require_str(map, "name")?,
+                ty,
+                require_bool(map, "nullable")?,
+            )
+            .map_err(from_jsonl)?,
         );
     }
     Ok(columns)
@@ -925,14 +945,22 @@ fn require<'a>(map: &'a Map<String, Value>, key: &'static str) -> Result<&'a Val
 }
 
 fn require_str<'a>(map: &'a Map<String, Value>, key: &'static str) -> Result<&'a str, Fail> {
-    require(map, key)?.as_str().ok_or(Fail::config("request_field"))
+    require(map, key)?
+        .as_str()
+        .ok_or(Fail::config("request_field"))
 }
 
 fn require_bool(map: &Map<String, Value>, key: &'static str) -> Result<bool, Fail> {
-    require(map, key)?.as_bool().ok_or(Fail::config("request_field"))
+    require(map, key)?
+        .as_bool()
+        .ok_or(Fail::config("request_field"))
 }
 
-fn require_u64(map: &Map<String, Value>, key: &'static str, fact: &'static str) -> Result<u64, Fail> {
+fn require_u64(
+    map: &Map<String, Value>,
+    key: &'static str,
+    fact: &'static str,
+) -> Result<u64, Fail> {
     let value = require(map, key)?;
     if !integer_number(value) {
         return Err(Fail::config(fact));
@@ -940,7 +968,11 @@ fn require_u64(map: &Map<String, Value>, key: &'static str, fact: &'static str) 
     value.as_u64().ok_or(Fail::config(fact))
 }
 
-fn require_u32(map: &Map<String, Value>, key: &'static str, fact: &'static str) -> Result<u32, Fail> {
+fn require_u32(
+    map: &Map<String, Value>,
+    key: &'static str,
+    fact: &'static str,
+) -> Result<u32, Fail> {
     u32::try_from(require_u64(map, key, fact)?).map_err(|_| Fail::config(fact))
 }
 
@@ -965,11 +997,17 @@ fn integer_number(value: &Value) -> bool {
     let digits = bytes.strip_prefix(b"-").unwrap_or(bytes);
     !digits.is_empty()
         && digits.iter().all(|byte| byte.is_ascii_digit())
-        && !bytes.iter().any(|byte| matches!(byte, b'.' | b'e' | b'E' | b'+'))
+        && !bytes
+            .iter()
+            .any(|byte| matches!(byte, b'.' | b'e' | b'E' | b'+'))
 }
 
 fn decode_sha256(text: &str, fact: &'static str) -> Result<[u8; 32], Fail> {
-    if text.len() != 64 || !text.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f')) {
+    if text.len() != 64
+        || !text
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
         return Err(Fail::config(fact));
     }
     let mut out = [0_u8; 32];

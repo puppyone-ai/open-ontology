@@ -165,12 +165,16 @@ pub(crate) struct PendingConnection {
 
 impl PendingConnection {
     pub(crate) fn new(
-        client: &Client, connection: TlsConnection,
+        client: &Client,
+        connection: TlsConnection,
         tls: tokio_postgres_rustls::MakeRustlsConnect,
     ) -> Self {
         Self {
-            driver: Some(tokio::spawn(async move { let _ = connection.await; })),
-            token: client.cancel_token(), tls,
+            driver: Some(tokio::spawn(async move {
+                let _ = connection.await;
+            })),
+            token: client.cancel_token(),
+            tls,
         }
     }
 
@@ -831,7 +835,9 @@ impl ExecError {
     /// Existing API code. Cancel has no separate code, so it uses timeout.
     pub fn code(&self) -> ErrorCode {
         match self {
-            Self::Protocol { step: "publication_drift" } => ErrorCode::Conflict,
+            Self::Protocol {
+                step: "publication_drift",
+            } => ErrorCode::Conflict,
             Self::Guard(err) => err.code(),
             Self::AuditUnavailable => ErrorCode::AuditUnavailable,
             Self::Timeout { .. } | Self::Canceled { .. } => ErrorCode::Timeout,
@@ -1073,9 +1079,11 @@ impl DedicatedSession {
             backend_pid: pid,
             backend_start: &backend_start,
         };
-        let admission_budget = remaining(started, wall).ok_or(ExecError::Timeout { sqlstate: None })?;
+        let admission_budget =
+            remaining(started, wall).ok_or(ExecError::Timeout { sqlstate: None })?;
         tokio::time::timeout(admission_budget, audit.admit(&admission))
-            .await.map_err(|_| ExecError::Timeout { sqlstate: None })??;
+            .await
+            .map_err(|_| ExecError::Timeout { sqlstate: None })??;
         let executed_sql = plan.executed_sql.clone();
         let audit_ids = AuditIds::from_plan(&plan, &request);
         let generation = begin_generation(&self.shared);
@@ -1195,7 +1203,10 @@ impl DedicatedSession {
         // Publication can terminate an idle backend without a query updating Shared.
         lock(&self.shared).open
             && !self.driver.is_finished()
-            && self.client.as_ref().is_none_or(|client| !client.is_closed())
+            && self
+                .client
+                .as_ref()
+                .is_none_or(|client| !client.is_closed())
             && (self.client.is_some() || self.task.is_some())
     }
 
@@ -1561,8 +1572,14 @@ async fn drive(
         let Some(ms) = timeout_parameter_ms(started, limits.wall) else {
             return cleanup(tx, rows, deadline_stop(0, 0, false), &mut hot).await;
         };
-        if let Err(kind) = platform_batch(&tx, &format!("SET LOCAL statement_timeout = {ms}"),
-                                         "binding_timeout", &mut hot).await {
+        if let Err(kind) = platform_batch(
+            &tx,
+            &format!("SET LOCAL statement_timeout = {ms}"),
+            "binding_timeout",
+            &mut hot,
+        )
+        .await
+        {
             return cleanup(tx, rows, kind, &mut hot).await;
         }
         let checked = async {
@@ -1582,16 +1599,46 @@ async fn drive(
             Err(kind) => return cleanup(tx, rows, kind, &mut hot).await,
         }
     }
-    let sources:Vec<String>=limits.tables.iter().filter_map(|t|t.native_binding.as_ref().and_then(|b|b["source_id"].as_str()).map(str::to_owned)).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+    let sources: Vec<String> = limits
+        .tables
+        .iter()
+        .filter_map(|t| {
+            t.native_binding
+                .as_ref()
+                .and_then(|b| b["source_id"].as_str())
+                .map(str::to_owned)
+        })
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
     // A bound library was verified against its immutable ready cut above.
     // The legacy source API instead asks whether ingestion is still current.
-    let library_bound = limits.publication.as_ref().is_some_and(|b| b.native_catalog.as_ref()
-        .is_some_and(|c| c["protocol"] == "oo.gateway.library-binding/v1"));
+    let library_bound = limits.publication.as_ref().is_some_and(|b| {
+        b.native_catalog
+            .as_ref()
+            .is_some_and(|c| c["protocol"] == "oo.gateway.library-binding/v1")
+    });
     if !sources.is_empty() && !library_bound {
-        match hot_result(verify_library_sources(&tx,&sources),&mut hot,"library_readiness").await {
-            Ok(true)=>{},
-            Ok(false)=>return cleanup(tx,rows,StopKind::synced(ExecError::Protocol{step:"library_not_ready"}),&mut hot).await,
-            Err(kind)=>return cleanup(tx,rows,kind,&mut hot).await,
+        match hot_result(
+            verify_library_sources(&tx, &sources),
+            &mut hot,
+            "library_readiness",
+        )
+        .await
+        {
+            Ok(true) => {}
+            Ok(false) => {
+                return cleanup(
+                    tx,
+                    rows,
+                    StopKind::synced(ExecError::Protocol {
+                        step: "library_not_ready",
+                    }),
+                    &mut hot,
+                )
+                .await;
+            }
+            Err(kind) => return cleanup(tx, rows, kind, &mut hot).await,
         }
     }
     if let Err(kind) = apply_session(&tx, role, &mut hot).await {
@@ -2437,14 +2484,20 @@ async fn read_quality_rows(
         Hot::Abandoned => return Err(abandoned_stop(0, 0)),
     };
     for name in PROBE_NAMES {
-        if cut.is_some() && *name == "native_library_readiness" { continue; }
+        if cut.is_some() && *name == "native_library_readiness" {
+            continue;
+        }
         let scoped = quality_probe_tables(name, tables, cut.as_ref())?;
-        if scoped.is_empty() { continue; }
+        if scoped.is_empty() {
+            continue;
+        }
         let sql = probe_sql(name);
         let rows = match probe_hot(tx, hot, sql).await {
             Ok(rows) => rows,
             Err(ProbeEnd::State(state)) => {
-                if *name=="native_library_readiness" && state=="absent" {continue;}
+                if *name == "native_library_readiness" && state == "absent" {
+                    continue;
+                }
                 snapshot.probes.push(RelationProbe { name, state });
                 continue;
             }
@@ -2529,7 +2582,9 @@ fn probe_sql(name: &str) -> &'static str {
              COALESCE(rejected_rows, 0)::int8, COALESCE(accepted_rows, 0)::int8 \
              FROM _oo.full_import_quality"
         }
-        "native_library_readiness" => "SELECT source_id,library_id,library_receipt_sha256,_oo.native_library_source_ready(source_id,receipt_sha256) FROM _oo.native_library_source_status",
+        "native_library_readiness" => {
+            "SELECT source_id,library_id,library_receipt_sha256,_oo.native_library_source_ready(source_id,receipt_sha256) FROM _oo.native_library_source_status"
+        }
         _ => "SELECT 1 WHERE false",
     }
 }
@@ -2548,9 +2603,14 @@ fn absorb_rows(
     match name {
         "native_library_readiness" => {
             for row in rows {
-                let source:String=row.try_get(0).map_err(decode)?;
-                if held.iter().any(|m|m.source==source) {
-                    snapshot.libraries.push(LibraryObserved {source,library_id:row.try_get(1).map_err(decode)?,receipt_sha256:row.try_get(2).map_err(decode)?,ready:row.try_get(3).map_err(decode)?});
+                let source: String = row.try_get(0).map_err(decode)?;
+                if held.iter().any(|m| m.source == source) {
+                    snapshot.libraries.push(LibraryObserved {
+                        source,
+                        library_id: row.try_get(1).map_err(decode)?,
+                        receipt_sha256: row.try_get(2).map_err(decode)?,
+                        ready: row.try_get(3).map_err(decode)?,
+                    });
                 }
             }
         }
@@ -2565,9 +2625,17 @@ fn absorb_rows(
                 let generation: i64 = row.try_get(3).map_err(decode)?;
                 let physical: String = row.try_get(4).map_err(decode)?;
                 let config: String = row.try_get(5).map_err(decode)?;
-                if let Some(item) = hold_mapping(tables, source, schema, table, generation, physical) {
-                    let logical=tables.iter().find(|t|t.schema==item.schema && t.name==item.table).unwrap();
-                    if logical.native_binding.as_ref().is_none_or(|b| b["config_digest"].as_str()==Some(config.as_str()) && b["source_generation"].as_i64()==Some(generation)) {
+                if let Some(item) =
+                    hold_mapping(tables, source, schema, table, generation, physical)
+                {
+                    let logical = tables
+                        .iter()
+                        .find(|t| t.schema == item.schema && t.name == item.table)
+                        .unwrap();
+                    if logical.native_binding.as_ref().is_none_or(|b| {
+                        b["config_digest"].as_str() == Some(config.as_str())
+                            && b["source_generation"].as_i64() == Some(generation)
+                    }) {
                         held.push(item);
                     }
                 }
@@ -2580,13 +2648,18 @@ fn absorb_rows(
                 let Some(logical) = match_quality_table(tables, &schema, &table) else {
                     continue;
                 };
-                if let Some(b)=&logical.native_binding {
-                    let source:String=row.try_get(5).map_err(decode)?;
-                    let source_gen:i64=row.try_get(6).map_err(decode)?;
-                    let target_gen:i64=row.try_get(7).map_err(decode)?;
-                    let physical:String=row.try_get(8).map_err(decode)?;
-                    if b["source_id"].as_str()!=Some(source.as_str()) || b["source_generation"].as_i64()!=Some(source_gen)
-                     || b["target_generation"].as_i64()!=Some(target_gen) || physical!=logical.physical_name {continue;}
+                if let Some(b) = &logical.native_binding {
+                    let source: String = row.try_get(5).map_err(decode)?;
+                    let source_gen: i64 = row.try_get(6).map_err(decode)?;
+                    let target_gen: i64 = row.try_get(7).map_err(decode)?;
+                    let physical: String = row.try_get(8).map_err(decode)?;
+                    if b["source_id"].as_str() != Some(source.as_str())
+                        || b["source_generation"].as_i64() != Some(source_gen)
+                        || b["target_generation"].as_i64() != Some(target_gen)
+                        || physical != logical.physical_name
+                    {
+                        continue;
+                    }
                 }
                 snapshot.freshness.push(FreshnessObserved {
                     schema: logical.schema.clone(),
@@ -2607,7 +2680,10 @@ fn absorb_rows(
                     continue;
                 }
                 if tables.iter().all(|t| t.source.is_some())
-                    && !tables.iter().any(|t| t.source.as_deref() == Some(source.as_str())) {
+                    && !tables
+                        .iter()
+                        .any(|t| t.source.as_deref() == Some(source.as_str()))
+                {
                     continue;
                 }
                 let consistency: String = row.try_get(1).map_err(decode)?;
@@ -2628,13 +2704,25 @@ fn absorb_rows(
                 let lineage: String = row.try_get(6).map_err(decode)?;
                 let source_epoch: Option<i32> = row.try_get(7).map_err(decode)?;
                 let consistency_grade: String = row.try_get(8).map_err(decode)?;
-                if !watermark_identity_observed(&codec, &lineage, applied_pos.as_deref(), source_epoch,
-                                                &source, tables) {
+                if !watermark_identity_observed(
+                    &codec,
+                    &lineage,
+                    applied_pos.as_deref(),
+                    source_epoch,
+                    &source,
+                    tables,
+                ) {
                     continue;
                 }
-                if codec == "snapshot-zero/v1" && source_epoch.is_none()
-                    && !native_mysql_snapshot_anchor(tables, &source, &lineage,
-                        row.try_get(9).map_err(decode)?, row.try_get(10).map_err(decode)?)
+                if codec == "snapshot-zero/v1"
+                    && source_epoch.is_none()
+                    && !native_mysql_snapshot_anchor(
+                        tables,
+                        &source,
+                        &lineage,
+                        row.try_get(9).map_err(decode)?,
+                        row.try_get(10).map_err(decode)?,
+                    )
                 {
                     continue;
                 }
@@ -2684,9 +2772,10 @@ fn absorb_rows(
                 note_method(&mut snapshot.capture_method, &capture, CAPTURE_METHODS);
                 note_method(&mut snapshot.delete_detection, &deletion, DELETE_METHODS);
                 if snapshot.table_quality.len() < tables.len().max(64)
-                    && !snapshot.table_quality.iter().any(|item| {
-                        item.schema == logical.schema && item.table == logical.name
-                    })
+                    && !snapshot
+                        .table_quality
+                        .iter()
+                        .any(|item| item.schema == logical.schema && item.table == logical.name)
                 {
                     snapshot.table_quality.push(TableQualityObserved {
                         schema: logical.schema.clone(),
@@ -2710,10 +2799,23 @@ fn absorb_rows(
                 else {
                     continue;
                 };
-                let logical=tables.iter().find(|t|t.schema==item.schema && t.name==item.table).unwrap();
-                if let Some(b)=&logical.native_binding {
-                    let actual=[row.try_get::<_,String>(9).map_err(decode)?,row.try_get(10).map_err(decode)?];
-                    if !row.try_get::<_,bool>(11).map_err(decode)? || ["config_digest","type_digest"].iter().zip(actual.iter()).any(|(key,value)|b[*key].as_str()!=Some(value.as_str())) {continue;}
+                let logical = tables
+                    .iter()
+                    .find(|t| t.schema == item.schema && t.name == item.table)
+                    .unwrap();
+                if let Some(b) = &logical.native_binding {
+                    let actual = [
+                        row.try_get::<_, String>(9).map_err(decode)?,
+                        row.try_get(10).map_err(decode)?,
+                    ];
+                    if !row.try_get::<_, bool>(11).map_err(decode)?
+                        || ["config_digest", "type_digest"]
+                            .iter()
+                            .zip(actual.iter())
+                            .any(|(key, value)| b[*key].as_str() != Some(value.as_str()))
+                    {
+                        continue;
+                    }
                 }
                 let applied_pos: String = row.try_get(2).map_err(decode)?;
                 let codec: String = row.try_get(3).map_err(decode)?;
@@ -2731,19 +2833,24 @@ fn absorb_rows(
                 {
                     continue;
                 }
-                record_receipt(&mut snapshot.receipts, ReceiptObserved {
-                    source,
-                    schema: item.schema.clone(),
-                    table: item.table.clone(),
-                    run_generation: item.run_generation,
-                    applied_pos,
-                    codec,
-                    lineage,
-                    source_epoch,
-                    cross_table_consistent: row.try_get(4).map_err(decode)?,
-                    partial_txn: row.try_get(5).map_err(decode)?,
-                    target_commit_at: row.try_get(6).map_err(decode)?,
-                }, tables.len().max(32), logical.native_binding.is_some());
+                record_receipt(
+                    &mut snapshot.receipts,
+                    ReceiptObserved {
+                        source,
+                        schema: item.schema.clone(),
+                        table: item.table.clone(),
+                        run_generation: item.run_generation,
+                        applied_pos,
+                        codec,
+                        lineage,
+                        source_epoch,
+                        cross_table_consistent: row.try_get(4).map_err(decode)?,
+                        partial_txn: row.try_get(5).map_err(decode)?,
+                        target_commit_at: row.try_get(6).map_err(decode)?,
+                    },
+                    tables.len().max(32),
+                    logical.native_binding.is_some(),
+                );
             }
         }
         "full_import_run" => {
@@ -2755,19 +2862,42 @@ fn absorb_rows(
                 if !held.iter().any(|item| item.source == source) {
                     continue;
                 }
-                let physical:String=row.try_get(5).map_err(decode)?;
-                let Some(item)=held.iter().find(|item|item.source==source && item.physical==physical) else {continue;};
-                let logical=tables.iter().find(|t|t.schema==item.schema && t.name==item.table).unwrap();
-                if let Some(b)=&logical.native_binding {
-                    let source_gen:i64=row.try_get(1).map_err(decode)?;
-                    let target_gen:i64=row.try_get(2).map_err(decode)?;
+                let physical: String = row.try_get(5).map_err(decode)?;
+                let Some(item) = held
+                    .iter()
+                    .find(|item| item.source == source && item.physical == physical)
+                else {
+                    continue;
+                };
+                let logical = tables
+                    .iter()
+                    .find(|t| t.schema == item.schema && t.name == item.table)
+                    .unwrap();
+                if let Some(b) = &logical.native_binding {
+                    let source_gen: i64 = row.try_get(1).map_err(decode)?;
+                    let target_gen: i64 = row.try_get(2).map_err(decode)?;
                     // Catalog schema_digest is the normalized typed schema; the run stores the admission schema digest.
-                    let actual=[row.try_get::<_,String>(6).map_err(decode)?,row.try_get(7).map_err(decode)?,row.try_get(9).map_err(decode)?,row.try_get(10).map_err(decode)?];
-                    if b["source_generation"].as_i64()!=Some(source_gen) || b["target_generation"].as_i64()!=Some(target_gen)
-                     || ["run_id","config_digest","type_digest","input_digest"].iter().zip(actual.iter()).any(|(key,value)|b[*key].as_str()!=Some(value.as_str())) {continue;}
+                    let actual = [
+                        row.try_get::<_, String>(6).map_err(decode)?,
+                        row.try_get(7).map_err(decode)?,
+                        row.try_get(9).map_err(decode)?,
+                        row.try_get(10).map_err(decode)?,
+                    ];
+                    if b["source_generation"].as_i64() != Some(source_gen)
+                        || b["target_generation"].as_i64() != Some(target_gen)
+                        || ["run_id", "config_digest", "type_digest", "input_digest"]
+                            .iter()
+                            .zip(actual.iter())
+                            .any(|(key, value)| b[*key].as_str() != Some(value.as_str()))
+                    {
+                        continue;
+                    }
                 }
                 let state: String = row.try_get(3).map_err(decode)?;
-                if !matches!(state.as_str(), "open" | "awaiting_publish" | "published" | "retired") {
+                if !matches!(
+                    state.as_str(),
+                    "open" | "awaiting_publish" | "published" | "retired"
+                ) {
                     continue;
                 }
                 snapshot.runs.push(ImportRunObserved {
@@ -2853,11 +2983,17 @@ fn hold_mapping(
     let logical = tables
         .iter()
         .find(|item| item.schema == schema && item.name == table)?;
-    if logical.source.as_deref().is_some_and(|expected| expected != source) {
+    if logical
+        .source
+        .as_deref()
+        .is_some_and(|expected| expected != source)
+    {
         return None;
     }
     let bound = physical == logical.physical_name;
-    if logical.native_binding.is_some() && !bound {return None;}
+    if logical.native_binding.is_some() && !bound {
+        return None;
+    }
     Some(HeldMap {
         source,
         schema,
@@ -2876,18 +3012,22 @@ fn record_receipt(
 ) {
     // Multipart snapshots produce several receipts per table. They must not
     // consume the bounded table budget before later tables are observed.
-    if native && receipt.codec == "snapshot-zero/v1"
+    if native
+        && receipt.codec == "snapshot-zero/v1"
         && let Some(current) = receipts.iter_mut().find(|r| {
-            r.source == receipt.source && r.schema == receipt.schema
-                && r.table == receipt.table && r.run_generation == receipt.run_generation
+            r.source == receipt.source
+                && r.schema == receipt.schema
+                && r.table == receipt.table
+                && r.run_generation == receipt.run_generation
                 && r.codec == receipt.codec
         })
     {
         let old = oo_core::rfc3339::Rfc3339Timestamp::new(&current.target_commit_at);
         let new = oo_core::rfc3339::Rfc3339Timestamp::new(&receipt.target_commit_at);
         let replace = match (old, new) {
-            (Ok(old), Ok(new)) => new.as_ref() > old.as_ref()
-                || (new.as_ref() == old.as_ref() && receipt.partial_txn),
+            (Ok(old), Ok(new)) => {
+                new.as_ref() > old.as_ref() || (new.as_ref() == old.as_ref() && receipt.partial_txn)
+            }
             (Ok(_), Err(_)) => true,
             (Err(_), _) => false,
         };
@@ -2902,9 +3042,18 @@ fn record_receipt(
 }
 
 fn project_held(held: &[HeldMap], tables: &[QualityTable], snapshot: &mut QualitySnapshot) {
-    for table in tables.iter().filter(|t|t.native_binding.is_some()) {
-        if !held.iter().any(|h|h.schema==table.schema && h.table==table.name && h.bound) {
-            snapshot.warnings.push(QualityWarning {code:"STALE_DATA",schema:table.schema.clone(),table:table.name.clone(),message:"current native mapping is absent or differs from the published binding".into()});
+    for table in tables.iter().filter(|t| t.native_binding.is_some()) {
+        if !held
+            .iter()
+            .any(|h| h.schema == table.schema && h.table == table.name && h.bound)
+        {
+            snapshot.warnings.push(QualityWarning {
+                code: "STALE_DATA",
+                schema: table.schema.clone(),
+                table: table.name.clone(),
+                message: "current native mapping is absent or differs from the published binding"
+                    .into(),
+            });
         }
     }
     for item in held {
@@ -2913,7 +3062,10 @@ fn project_held(held: &[HeldMap], tables: &[QualityTable], snapshot: &mut Qualit
             .find(|table| {
                 table.schema == item.schema
                     && table.name == item.table
-                    && table.source.as_deref().is_none_or(|source| source == item.source)
+                    && table
+                        .source
+                        .as_deref()
+                        .is_none_or(|source| source == item.source)
             })
             .and_then(|table| table.native_binding.as_ref())
             .filter(|binding| binding["source_id"].as_str() == Some(item.source.as_str()))
@@ -3160,7 +3312,10 @@ mod source_engine_projection_tests {
             })))],
             &mut snapshot,
         );
-        assert_eq!(snapshot.mappings[0].source_engine.as_deref(), Some("oracle"));
+        assert_eq!(
+            snapshot.mappings[0].source_engine.as_deref(),
+            Some("oracle")
+        );
 
         let mut snapshot = QualitySnapshot::blank("read");
         project_held(
@@ -3268,7 +3423,11 @@ fn mysql_lineage(lineage: &str) -> bool {
         let Some(part) = parts.next() else {
             return false;
         };
-        if part.len() != width || !part.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) {
+        if part.len() != width
+            || !part
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        {
             return false;
         }
     }
@@ -3281,12 +3440,24 @@ fn mysql_gno(pos: &str) -> bool {
 
 pub(crate) fn oracle_capture_identity(lineage: &str, position: &str) -> bool {
     let parts: Vec<_> = lineage.split('.').collect();
-    let decimal = |s: &str| !s.is_empty() && s.len() <= 38
-        && s.bytes().all(|b| b.is_ascii_digit()) && (s.len() == 1 || !s.starts_with('0'));
-    parts.len() == 4 && parts[0] == "oracle" && decimal(parts[1]) && parts[1] != "0"
-        && decimal(parts[2]) && parts[3].len() == 32
-        && parts[3].bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-        && position.parse::<u64>().is_ok_and(|n| n <= 1_000_000 && n.to_string() == position)
+    let decimal = |s: &str| {
+        !s.is_empty()
+            && s.len() <= 38
+            && s.bytes().all(|b| b.is_ascii_digit())
+            && (s.len() == 1 || !s.starts_with('0'))
+    };
+    parts.len() == 4
+        && parts[0] == "oracle"
+        && decimal(parts[1])
+        && parts[1] != "0"
+        && decimal(parts[2])
+        && parts[3].len() == 32
+        && parts[3]
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        && position
+            .parse::<u64>()
+            .is_ok_and(|n| n <= 1_000_000 && n.to_string() == position)
 }
 
 pub(crate) fn watermark_identity(codec: &str, lineage: &str, applied_pos: &str) -> bool {
@@ -3418,23 +3589,39 @@ fn bind_one_gtid_epoch(snapshot: &mut QualitySnapshot, codec: &str) {
             None
         };
         let Some(lineage) = lineage else {
-            snapshot.watermarks.retain(|mark| mark.source != source || mark.codec != codec);
-            snapshot.receipts.retain(|item| item.source != source || item.codec != codec);
+            snapshot
+                .watermarks
+                .retain(|mark| mark.source != source || mark.codec != codec);
+            snapshot
+                .receipts
+                .retain(|item| item.source != source || item.codec != codec);
             continue;
         };
-        snapshot.receipts.retain(|item| {
-            item.source != source || item.codec != codec || item.lineage == lineage
-        });
+        snapshot
+            .receipts
+            .retain(|item| item.source != source || item.codec != codec || item.lineage == lineage);
         let epochs: std::collections::BTreeSet<i32> = snapshot
             .receipts
             .iter()
             .filter(|item| item.source == source && item.codec == codec)
             .map(|item| item.source_epoch)
             .collect();
-        let expected_epoch=snapshot.watermarks.iter().find(|m|m.source==source && m.codec==codec).and_then(|m|m.source_epoch);
-        if epochs.len() != 1 || (matches!(codec,"mysql-gtid/v1" | "oracle-capture-sequence/v1") && (expected_epoch.is_none_or(|e|e<1) || epochs.iter().next().copied()!=expected_epoch)) {
-            snapshot.watermarks.retain(|mark| mark.source != source || mark.codec != codec);
-            snapshot.receipts.retain(|item| item.source != source || item.codec != codec);
+        let expected_epoch = snapshot
+            .watermarks
+            .iter()
+            .find(|m| m.source == source && m.codec == codec)
+            .and_then(|m| m.source_epoch);
+        if epochs.len() != 1
+            || (matches!(codec, "mysql-gtid/v1" | "oracle-capture-sequence/v1")
+                && (expected_epoch.is_none_or(|e| e < 1)
+                    || epochs.iter().next().copied() != expected_epoch))
+        {
+            snapshot
+                .watermarks
+                .retain(|mark| mark.source != source || mark.codec != codec);
+            snapshot
+                .receipts
+                .retain(|item| item.source != source || item.codec != codec);
         }
     }
 }
@@ -3567,14 +3754,20 @@ pub(crate) async fn observe_quality_rows(
     let mut held: Vec<HeldMap> = Vec::new();
     let cut = quality_library_cut(tx, tables).await.map_err(|_| ())?;
     for name in PROBE_NAMES {
-        if cut.is_some() && *name == "native_library_readiness" { continue; }
+        if cut.is_some() && *name == "native_library_readiness" {
+            continue;
+        }
         let scoped = quality_probe_tables(name, tables, cut.as_ref()).map_err(|_| ())?;
-        if scoped.is_empty() { continue; }
+        if scoped.is_empty() {
+            continue;
+        }
         let sql = probe_sql(name);
         let rows = match probe_plain(tx, sql).await {
             Ok(rows) => rows,
             Err(Some(state)) => {
-                if *name=="native_library_readiness" && state=="absent" {continue;}
+                if *name == "native_library_readiness" && state == "absent" {
+                    continue;
+                }
                 snapshot.probes.push(RelationProbe { name, state });
                 continue;
             }
@@ -3597,85 +3790,146 @@ pub(crate) async fn observe_quality_rows(
 }
 
 async fn quality_library_cut(
-    tx: &Transaction<'_>, tables: &[QualityTable],
+    tx: &Transaction<'_>,
+    tables: &[QualityTable],
 ) -> Result<Option<serde_json::Value>, ExecError> {
-    let catalog = tables.iter().find_map(|t| t.native_binding.as_ref()?.get("_published_library"));
-    let Some(catalog) = catalog else { return Ok(None); };
-    if tables.iter().any(|t| t.native_binding.as_ref()
-        .and_then(|b| b.get("_published_library")) != Some(catalog)) {
+    let catalog = tables
+        .iter()
+        .find_map(|t| t.native_binding.as_ref()?.get("_published_library"));
+    let Some(catalog) = catalog else {
+        return Ok(None);
+    };
+    if tables.iter().any(|t| {
+        t.native_binding
+            .as_ref()
+            .and_then(|b| b.get("_published_library"))
+            != Some(catalog)
+    }) {
         return Err(crate::publication_binding::drift());
     }
-    crate::publication_binding::library_cut(tx, catalog).await.map(Some)
+    crate::publication_binding::library_cut(tx, catalog)
+        .await
+        .map(Some)
 }
 
 fn quality_probe_tables<'a>(
-    name: &str, tables: &'a [QualityTable], cut: Option<&serde_json::Value>,
+    name: &str,
+    tables: &'a [QualityTable],
+    cut: Option<&serde_json::Value>,
 ) -> Result<std::borrow::Cow<'a, [QualityTable]>, StopKind> {
-    let Some(cut) = cut.filter(|_| matches!(name, "table_freshness" | "source_watermark" | "table_quality"))
-        else { return Ok(std::borrow::Cow::Borrowed(tables)); };
+    let Some(cut) = cut.filter(|_| {
+        matches!(
+            name,
+            "table_freshness" | "source_watermark" | "table_quality"
+        )
+    }) else {
+        return Ok(std::borrow::Cow::Borrowed(tables));
+    };
     let mut scoped = Vec::new();
     for table in tables {
         let (receipt, _) = crate::publication_binding::library_table(
-            cut, table.source.as_deref().unwrap_or(""), &table.schema, &table.name,
-        ).map_err(StopKind::synced)?;
-        if receipt["consistency"] == "per_table" { continue; }
+            cut,
+            table.source.as_deref().unwrap_or(""),
+            &table.schema,
+            &table.name,
+        )
+        .map_err(StopKind::synced)?;
+        if receipt["consistency"] == "per_table" {
+            continue;
+        }
         scoped.push(table.clone());
     }
     Ok(std::borrow::Cow::Owned(scoped))
 }
 
 fn project_library_cut(
-    cut: &serde_json::Value, tables: &[QualityTable], snapshot: &mut QualitySnapshot,
+    cut: &serde_json::Value,
+    tables: &[QualityTable],
+    snapshot: &mut QualitySnapshot,
 ) -> Result<(), ExecError> {
     use crate::publication_binding::{drift, library_table};
-    let text = |v: &serde_json::Value, key: &str| v[key].as_str().map(str::to_owned).ok_or_else(drift);
+    let text =
+        |v: &serde_json::Value, key: &str| v[key].as_str().map(str::to_owned).ok_or_else(drift);
     for table in tables {
         let source = table.source.as_deref().ok_or_else(drift)?;
         let binding = table.native_binding.as_ref().ok_or_else(drift)?;
         let (receipt, entry) = library_table(cut, source, &table.schema, &table.name)?;
-        if ["run_id", "source_generation", "target_generation"].iter().any(|k| entry[*k] != binding[*k])
-            || entry["physical_name"] != table.physical_name {
+        if ["run_id", "source_generation", "target_generation"]
+            .iter()
+            .any(|k| entry[*k] != binding[*k])
+            || entry["physical_name"] != table.physical_name
+        {
             return Err(drift());
         }
         if !snapshot.libraries.iter().any(|l| l.source == source) {
             snapshot.libraries.push(LibraryObserved {
-                source: source.into(), library_id: text(&cut["library"], "library_id")?,
-                receipt_sha256: text(&binding["_published_library"], "receipt_sha256")?, ready: true,
+                source: source.into(),
+                library_id: text(&cut["library"], "library_id")?,
+                receipt_sha256: text(&binding["_published_library"], "receipt_sha256")?,
+                ready: true,
             });
         }
-        if receipt["consistency"] != "per_table" { continue; }
+        if receipt["consistency"] != "per_table" {
+            continue;
+        }
         // This is an immutable target apply time. Never manufacture source time
         // or copy the pending generation's freshness/quality/watermark.
-        let applied_at = snapshot.receipts.iter().filter(|r| r.source == source
-            && r.schema == table.schema && r.table == table.name
-            && Some(r.run_generation) == entry["source_generation"].as_i64() && !r.partial_txn)
-            .map(|r| &r.target_commit_at).max().cloned().ok_or_else(drift)?;
+        let applied_at = snapshot
+            .receipts
+            .iter()
+            .filter(|r| {
+                r.source == source
+                    && r.schema == table.schema
+                    && r.table == table.name
+                    && Some(r.run_generation) == entry["source_generation"].as_i64()
+                    && !r.partial_txn
+            })
+            .map(|r| &r.target_commit_at)
+            .max()
+            .cloned()
+            .ok_or_else(drift)?;
         snapshot.freshness.push(FreshnessObserved {
-            schema: table.schema.clone(), table: table.name.clone(), state: "live".into(),
-            source_committed_at: String::new(), applied_at,
+            schema: table.schema.clone(),
+            table: table.name.clone(),
+            state: "live".into(),
+            source_committed_at: String::new(),
+            applied_at,
         });
         let capture = text(entry, "capture_method")?;
         let deletion = text(entry, "delete_detection")?;
         note_method(&mut snapshot.capture_method, &capture, CAPTURE_METHODS);
         note_method(&mut snapshot.delete_detection, &deletion, DELETE_METHODS);
         snapshot.table_quality.push(TableQualityObserved {
-            schema: table.schema.clone(), table: table.name.clone(),
-            capture_method: capture, delete_detection: deletion,
-            c5_mode: None, last_full_digest_scan_completed_at: None, recent_window_watermark: None,
+            schema: table.schema.clone(),
+            table: table.name.clone(),
+            capture_method: capture,
+            delete_detection: deletion,
+            c5_mode: None,
+            last_full_digest_scan_completed_at: None,
+            recent_window_watermark: None,
         });
         if !snapshot.watermarks.iter().any(|w| w.source == source) {
             snapshot.watermarks.push(WatermarkObserved {
-                source: source.into(), consistency: text(receipt, "consistency")?,
+                source: source.into(),
+                consistency: text(receipt, "consistency")?,
                 consistency_grade: text(receipt, "consistency_grade")?,
-                cross_table_consistent: receipt["cross_table_consistent"].as_bool().ok_or_else(drift)?,
+                cross_table_consistent: receipt["cross_table_consistent"]
+                    .as_bool()
+                    .ok_or_else(drift)?,
                 applied_pos: receipt["applied_pos"].as_str().map(str::to_owned),
-                state: "live".into(), codec: text(receipt, "position_codec")?,
+                state: "live".into(),
+                codec: text(receipt, "position_codec")?,
                 lineage: text(receipt, "position_lineage")?,
-                source_epoch: receipt["source_epoch"].as_i64().and_then(|n| i32::try_from(n).ok()),
+                source_epoch: receipt["source_epoch"]
+                    .as_i64()
+                    .and_then(|n| i32::try_from(n).ok()),
             });
         }
     }
-    snapshot.probes.push(RelationProbe { name: "native_library_publication", state: "read" });
+    snapshot.probes.push(RelationProbe {
+        name: "native_library_publication",
+        state: "read",
+    });
     Ok(())
 }
 
@@ -4433,16 +4687,28 @@ fn time_text(raw: &[u8]) -> Result<String, ExecError> {
 /// Native MySQL TIME is sealed as a signed microsecond duration. Other
 /// PostgreSQL interval shapes have no MySQL TIME equivalent and stay refused.
 fn interval_text(raw: &[u8]) -> Result<String, ExecError> {
-    let bytes: [u8; 16] = raw.try_into().map_err(|_| ExecError::Protocol { step: "interval" })?;
+    let bytes: [u8; 16] = raw
+        .try_into()
+        .map_err(|_| ExecError::Protocol { step: "interval" })?;
     if bytes[8..].iter().any(|byte| *byte != 0) {
         return Err(ExecError::Protocol { step: "interval" });
     }
-    let micros = i64::from_be_bytes(bytes[..8].try_into().map_err(|_| ExecError::Protocol { step: "interval" })?);
+    let micros = i64::from_be_bytes(
+        bytes[..8]
+            .try_into()
+            .map_err(|_| ExecError::Protocol { step: "interval" })?,
+    );
     let negative = micros < 0;
     let magnitude = micros.unsigned_abs();
     let seconds = magnitude / 1_000_000;
-    Ok(format!("{}{:02}:{:02}:{:02}.{:06}", if negative { "-" } else { "" },
-        seconds / 3600, (seconds % 3600) / 60, seconds % 60, magnitude % 1_000_000))
+    Ok(format!(
+        "{}{:02}:{:02}:{:02}.{:06}",
+        if negative { "-" } else { "" },
+        seconds / 3600,
+        (seconds % 3600) / 60,
+        seconds % 60,
+        magnitude % 1_000_000
+    ))
 }
 
 fn timestamp_text(raw: &[u8], zone: bool) -> Result<String, ExecError> {
@@ -4816,13 +5082,20 @@ mod tests {
     fn multipart_receipts_do_not_exhaust_the_table_budget() {
         let mut receipts = Vec::new();
         for _ in 0..700 {
-            super::record_receipt(&mut receipts,
-                snapshot_receipt("first", "2026-10-20T00:00:00Z"), 658, true);
+            super::record_receipt(
+                &mut receipts,
+                snapshot_receipt("first", "2026-10-20T00:00:00Z"),
+                658,
+                true,
+            );
         }
         for index in 1..658 {
-            super::record_receipt(&mut receipts,
+            super::record_receipt(
+                &mut receipts,
                 snapshot_receipt(&format!("table_{index}"), "2026-10-20T00:00:00Z"),
-                658, true);
+                658,
+                true,
+            );
         }
         assert_eq!(receipts.len(), 658);
         assert_eq!(receipts.last().unwrap().table, "table_657");
@@ -4838,12 +5111,20 @@ mod tests {
         let mut partial = receipts[0].clone();
         partial.partial_txn = true;
         super::record_receipt(&mut receipts, partial, 1, true);
-        super::record_receipt(&mut receipts,
-            snapshot_receipt("first", "2026-10-20T02:00:00Z"), 1, true);
+        super::record_receipt(
+            &mut receipts,
+            snapshot_receipt("first", "2026-10-20T02:00:00Z"),
+            1,
+            true,
+        );
         assert!(receipts[0].partial_txn);
         super::record_receipt(&mut receipts, snapshot_receipt("first", ""), 1, true);
-        super::record_receipt(&mut receipts,
-            snapshot_receipt("first", "2026-10-20T03:00:00Z"), 1, true);
+        super::record_receipt(
+            &mut receipts,
+            snapshot_receipt("first", "2026-10-20T03:00:00Z"),
+            1,
+            true,
+        );
         assert!(receipts[0].target_commit_at.is_empty());
     }
 
@@ -4872,7 +5153,10 @@ mod tests {
     #[test]
     fn nullable_source_watermark_does_not_invent_a_position() {
         assert_eq!(super::watermark_position(None), None);
-        assert_eq!(super::watermark_position(Some("+12345678901234567890".into())), Some("+12345678901234567890".into()));
+        assert_eq!(
+            super::watermark_position(Some("+12345678901234567890".into())),
+            Some("+12345678901234567890".into())
+        );
         assert_eq!(super::watermark_position(Some("-1".into())), None);
         assert_eq!(super::watermark_position(Some(String::new())), None);
     }
@@ -4910,12 +5194,20 @@ mod tests {
     #[test]
     fn mariadb_watermark_requires_lineage_and_one_epoch() {
         assert!(!super::watermark_identity("mariadb-gtid/v1", "0-1-7", "7"));
-        assert!(!super::watermark_identity("mariadb-gtid/v1", "d0.s1", "0-1-7"));
+        assert!(!super::watermark_identity(
+            "mariadb-gtid/v1",
+            "d0.s1",
+            "0-1-7"
+        ));
         assert!(super::watermark_identity("mariadb-gtid/v1", "d1.s1", "7"));
         assert!(!super::watermark_identity("mariadb-gtid/v1", "d0.s0", "7"));
         assert!(!super::watermark_identity("mariadb-gtid/v1", "d0.s2", "07"));
         assert!(super::watermark_identity("mariadb-gtid/v1", "d0.s1", "7"));
-        assert!(super::watermark_identity("pg-commit-lsn/v1", "src_main", "10"));
+        assert!(super::watermark_identity(
+            "pg-commit-lsn/v1",
+            "src_main",
+            "10"
+        ));
         let mut same = super::QualitySnapshot::blank("read");
         same.watermarks.push(maria_mark("d0.s1", "7"));
         same.receipts.push(maria_receipt("d0.s1", "7", 1));
@@ -4950,9 +5242,21 @@ mod tests {
         assert!(super::watermark_identity("mysql-gtid/v1", &lineage, "7"));
         assert!(!super::watermark_identity("mysql-gtid/v1", &lineage, "0"));
         assert!(!super::watermark_identity("mysql-gtid/v1", &lineage, "07"));
-        assert!(!super::watermark_identity("mysql-gtid/v1", &format!("mysql.{}", uuid.to_ascii_uppercase()), "7"));
-        assert!(!super::watermark_identity("mysql-gtid/v1", &format!("{lineage},{lineage}"), "9"));
-        assert!(!super::watermark_identity("mysql-gtid/v1", "binlog.000007", "939"));
+        assert!(!super::watermark_identity(
+            "mysql-gtid/v1",
+            &format!("mysql.{}", uuid.to_ascii_uppercase()),
+            "7"
+        ));
+        assert!(!super::watermark_identity(
+            "mysql-gtid/v1",
+            &format!("{lineage},{lineage}"),
+            "9"
+        ));
+        assert!(!super::watermark_identity(
+            "mysql-gtid/v1",
+            "binlog.000007",
+            "939"
+        ));
         assert!(!super::receipt_identity("mysql-gtid/v1", &lineage, "7", -1));
         assert!(super::receipt_identity("mysql-gtid/v1", &lineage, "7", 1));
         let mut mixed = super::QualitySnapshot::blank("read");
@@ -4966,23 +5270,30 @@ mod tests {
 
     #[test]
     fn oracle_capture_ordinal_is_not_an_scn_and_binds_epoch() {
-        let codec="oracle-capture-sequence/v1";
-        let lineage=format!("oracle.1.2.{}", "a".repeat(32));
-        assert!(super::watermark_identity(codec,&lineage,"0"));
-        assert!(super::receipt_identity(codec,&lineage,"4",1));
-        assert!(!super::receipt_identity(codec,&lineage,"4",0));
-        for pos in ["04","+4","1000001","18446744073709551616"] {
-            assert!(!super::watermark_identity(codec,&lineage,pos));
+        let codec = "oracle-capture-sequence/v1";
+        let lineage = format!("oracle.1.2.{}", "a".repeat(32));
+        assert!(super::watermark_identity(codec, &lineage, "0"));
+        assert!(super::receipt_identity(codec, &lineage, "4", 1));
+        assert!(!super::receipt_identity(codec, &lineage, "4", 0));
+        for pos in ["04", "+4", "1000001", "18446744073709551616"] {
+            assert!(!super::watermark_identity(codec, &lineage, pos));
         }
-        assert!(!super::watermark_identity(codec,"oracle.1.2.not-a-pdb-guid","4"));
-        let mut s=super::QualitySnapshot::blank("read");
-        let mut mark=mysql_mark(&lineage,"4");mark.codec=codec.into();
-        let mut receipt=mysql_receipt(&lineage,"4",1);receipt.codec=codec.into();
-        s.watermarks.push(mark);s.receipts.push(receipt);
-        super::bind_one_gtid_epoch(&mut s,codec);
-        assert_eq!(s.receipts.len(),1);
-        s.receipts[0].source_epoch=2;
-        super::bind_one_gtid_epoch(&mut s,codec);
+        assert!(!super::watermark_identity(
+            codec,
+            "oracle.1.2.not-a-pdb-guid",
+            "4"
+        ));
+        let mut s = super::QualitySnapshot::blank("read");
+        let mut mark = mysql_mark(&lineage, "4");
+        mark.codec = codec.into();
+        let mut receipt = mysql_receipt(&lineage, "4", 1);
+        receipt.codec = codec.into();
+        s.watermarks.push(mark);
+        s.receipts.push(receipt);
+        super::bind_one_gtid_epoch(&mut s, codec);
+        assert_eq!(s.receipts.len(), 1);
+        s.receipts[0].source_epoch = 2;
+        super::bind_one_gtid_epoch(&mut s, codec);
         assert!(s.receipts.is_empty() && s.watermarks.is_empty());
     }
 
@@ -5020,59 +5331,189 @@ mod tests {
         let physical = format!("pt_{}", "a".repeat(60));
         let tables = vec![super::QualityTable {
             native_binding: None,
-            source: Some("source_east".into()), schema: "sales".into(), name: "orders".into(),
-            physical_schema: "pn_test".into(), physical_name: physical.clone(),
+            source: Some("source_east".into()),
+            schema: "sales".into(),
+            name: "orders".into(),
+            physical_schema: "pn_test".into(),
+            physical_name: physical.clone(),
         }];
-        assert!(super::hold_mapping(&tables, "source_west".into(), "sales".into(), "orders".into(), 1, physical.clone()).is_none());
-        assert!(super::hold_mapping(&tables, "source_east".into(), "sales".into(), "orders".into(), 1, physical).is_some());
+        assert!(
+            super::hold_mapping(
+                &tables,
+                "source_west".into(),
+                "sales".into(),
+                "orders".into(),
+                1,
+                physical.clone()
+            )
+            .is_none()
+        );
+        assert!(
+            super::hold_mapping(
+                &tables,
+                "source_east".into(),
+                "sales".into(),
+                "orders".into(),
+                1,
+                physical
+            )
+            .is_some()
+        );
     }
     #[test]
     fn native_quality_excludes_held_history_and_refuses_wrong_current_epoch() {
-        let physical=format!("pt_{}","a".repeat(60));
-        let table=super::QualityTable {source:Some("shop".into()),native_binding:Some(serde_json::json!({"source_generation":4})),schema:"shop".into(),name:"orders".into(),physical_schema:"_oo".into(),physical_name:physical.clone()};
-        assert!(super::hold_mapping(std::slice::from_ref(&table),"shop".into(),"shop".into(),"orders".into(),3,format!("pt_{}","b".repeat(60))).is_none());
-        assert!(super::hold_mapping(&[table],"shop".into(),"shop".into(),"orders".into(),4,physical).unwrap().bound);
-        let lineage="mysql.11111111-2222-4333-8444-555555555555";
-        let mut s=super::QualitySnapshot::blank("read");s.watermarks.push(mysql_mark(lineage,"37"));s.receipts.push(mysql_receipt(lineage,"37",2));
-        super::bind_mysql_gtid_epoch(&mut s);assert!(s.watermarks.is_empty());assert!(s.receipts.is_empty());
+        let physical = format!("pt_{}", "a".repeat(60));
+        let table = super::QualityTable {
+            source: Some("shop".into()),
+            native_binding: Some(serde_json::json!({"source_generation":4})),
+            schema: "shop".into(),
+            name: "orders".into(),
+            physical_schema: "_oo".into(),
+            physical_name: physical.clone(),
+        };
+        assert!(
+            super::hold_mapping(
+                std::slice::from_ref(&table),
+                "shop".into(),
+                "shop".into(),
+                "orders".into(),
+                3,
+                format!("pt_{}", "b".repeat(60))
+            )
+            .is_none()
+        );
+        assert!(
+            super::hold_mapping(
+                &[table],
+                "shop".into(),
+                "shop".into(),
+                "orders".into(),
+                4,
+                physical
+            )
+            .unwrap()
+            .bound
+        );
+        let lineage = "mysql.11111111-2222-4333-8444-555555555555";
+        let mut s = super::QualitySnapshot::blank("read");
+        s.watermarks.push(mysql_mark(lineage, "37"));
+        s.receipts.push(mysql_receipt(lineage, "37", 2));
+        super::bind_mysql_gtid_epoch(&mut s);
+        assert!(s.watermarks.is_empty());
+        assert!(s.receipts.is_empty());
     }
     #[tokio::test]
     async fn actual_current_native_quality_with_retained_history() {
-        let Ok(path)=std::env::var("OO_MYSQL_CURRENT_QUALITY_CONFIG") else {return;};
-        let c:serde_json::Value=serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-        let endpoint=&c["endpoint"];
-        let db=crate::TlsEndpoint {host:endpoint["host"].as_str().unwrap().into(),port:endpoint["port"].as_u64().unwrap() as u16,database:endpoint["database"].as_str().unwrap().into(),user:endpoint["user"].as_str().unwrap().into()};
-        let password=std::fs::read_to_string(c["password_file"].as_str().unwrap()).unwrap();
-        let ca=std::fs::read(c["ca_file"].as_str().unwrap()).unwrap();
-        let (mut client,connection)=crate::connect_require_tls(&db,password.trim(),&ca).await.unwrap();
-        let driver=tokio::spawn(async move {let _=connection.await;});
-        client.batch_execute("SET ROLE oo_target_owner").await.unwrap();
-        let input:serde_json::Value=serde_json::from_slice(&std::fs::read(c["native_input"].as_str().unwrap()).unwrap()).unwrap();
-        let tables:Vec<super::QualityTable>=input["catalog"]["binding_vector"].as_array().unwrap().iter().map(|b| {
-            let (schema,name)=b["dataset"].as_str().unwrap().split_once('.').unwrap();
-            super::QualityTable {source:Some(b["source_id"].as_str().unwrap().into()),native_binding:Some(b.clone()),schema:schema.into(),name:name.into(),physical_schema:"_oo".into(),physical_name:b["stored_physical"].as_str().unwrap().into()}
-        }).collect();
-        let source=tables[0].source.as_ref().unwrap();
-        let history:i64=client.query_one("SELECT count(*) FROM _oo.physical_mappings WHERE source=$1 AND level='t'",&[source]).await.unwrap().get(0);
-        assert!(history>tables.len() as i64,"retained real historical mappings required");
-        let current=super::observe_quality(&mut client,&tables).await;
-        assert_eq!(current.mappings.len(),tables.len());assert!(crate::public_surface::ready_quality(&current),"current quality: {current:?}");
-        for kind in ["config","generation","run","source"] {
-            let mut wrong=tables.clone();let b=wrong[0].native_binding.as_mut().unwrap();
-            match kind {"config"=>b["config_digest"]=serde_json::json!("0".repeat(64)),"generation"=>b["source_generation"]=serde_json::json!(1),"run"=>b["run_id"]=serde_json::json!("00000000-0000-0000-0000-000000000000"),_=>{wrong[0].source=Some("wrong_source".into());}}
-            let observed=super::observe_quality(&mut client,&wrong).await;
-            assert!(!crate::public_surface::ready_quality(&observed),"accepted wrong binding {kind}");
+        let Ok(path) = std::env::var("OO_MYSQL_CURRENT_QUALITY_CONFIG") else {
+            return;
+        };
+        let c: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        let endpoint = &c["endpoint"];
+        let db = crate::TlsEndpoint {
+            host: endpoint["host"].as_str().unwrap().into(),
+            port: endpoint["port"].as_u64().unwrap() as u16,
+            database: endpoint["database"].as_str().unwrap().into(),
+            user: endpoint["user"].as_str().unwrap().into(),
+        };
+        let password = std::fs::read_to_string(c["password_file"].as_str().unwrap()).unwrap();
+        let ca = std::fs::read(c["ca_file"].as_str().unwrap()).unwrap();
+        let (mut client, connection) = crate::connect_require_tls(&db, password.trim(), &ca)
+            .await
+            .unwrap();
+        let driver = tokio::spawn(async move {
+            let _ = connection.await;
+        });
+        client
+            .batch_execute("SET ROLE oo_target_owner")
+            .await
+            .unwrap();
+        let input: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(c["native_input"].as_str().unwrap()).unwrap())
+                .unwrap();
+        let tables: Vec<super::QualityTable> = input["catalog"]["binding_vector"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| {
+                let (schema, name) = b["dataset"].as_str().unwrap().split_once('.').unwrap();
+                super::QualityTable {
+                    source: Some(b["source_id"].as_str().unwrap().into()),
+                    native_binding: Some(b.clone()),
+                    schema: schema.into(),
+                    name: name.into(),
+                    physical_schema: "_oo".into(),
+                    physical_name: b["stored_physical"].as_str().unwrap().into(),
+                }
+            })
+            .collect();
+        let source = tables[0].source.as_ref().unwrap();
+        let history: i64 = client
+            .query_one(
+                "SELECT count(*) FROM _oo.physical_mappings WHERE source=$1 AND level='t'",
+                &[source],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        assert!(
+            history > tables.len() as i64,
+            "retained real historical mappings required"
+        );
+        let current = super::observe_quality(&mut client, &tables).await;
+        assert_eq!(current.mappings.len(), tables.len());
+        assert!(
+            crate::public_surface::ready_quality(&current),
+            "current quality: {current:?}"
+        );
+        for kind in ["config", "generation", "run", "source"] {
+            let mut wrong = tables.clone();
+            let b = wrong[0].native_binding.as_mut().unwrap();
+            match kind {
+                "config" => b["config_digest"] = serde_json::json!("0".repeat(64)),
+                "generation" => b["source_generation"] = serde_json::json!(1),
+                "run" => b["run_id"] = serde_json::json!("00000000-0000-0000-0000-000000000000"),
+                _ => {
+                    wrong[0].source = Some("wrong_source".into());
+                }
+            }
+            let observed = super::observe_quality(&mut client, &wrong).await;
+            assert!(
+                !crate::public_surface::ready_quality(&observed),
+                "accepted wrong binding {kind}"
+            );
         }
-        for kind in ["epoch","unpublished"] {
-            let tx=client.transaction().await.unwrap();
-            if kind=="epoch" {tx.execute("UPDATE _oo.source_watermark SET source_epoch=source_epoch+1 WHERE source=$1",&[source]).await.unwrap();}
-            else {tx.execute("UPDATE _oo.table_freshness SET state='awaiting_publish' WHERE source=$1",&[source]).await.unwrap();}
-            let observed=super::observe_quality_rows(&tx,&tables).await.unwrap();
-            assert!(!crate::public_surface::ready_quality(&observed),"accepted current {kind}");tx.rollback().await.unwrap();
+        for kind in ["epoch", "unpublished"] {
+            let tx = client.transaction().await.unwrap();
+            if kind == "epoch" {
+                tx.execute(
+                    "UPDATE _oo.source_watermark SET source_epoch=source_epoch+1 WHERE source=$1",
+                    &[source],
+                )
+                .await
+                .unwrap();
+            } else {
+                tx.execute(
+                    "UPDATE _oo.table_freshness SET state='awaiting_publish' WHERE source=$1",
+                    &[source],
+                )
+                .await
+                .unwrap();
+            }
+            let observed = super::observe_quality_rows(&tx, &tables).await.unwrap();
+            assert!(
+                !crate::public_surface::ready_quality(&observed),
+                "accepted current {kind}"
+            );
+            tx.rollback().await.unwrap();
         }
-        assert!(crate::public_surface::ready_quality(&super::observe_quality(&mut client,&tables).await));
-        drop(client);driver.await.unwrap();
-        println!("CURRENT_NATIVE_QUALITY_RAW current published/GTID/epoch mapping ready with retained history; wrong source/config/gen/run/epoch and unpublished freshness refused; mutations rolled back");
+        assert!(crate::public_surface::ready_quality(
+            &super::observe_quality(&mut client, &tables).await
+        ));
+        drop(client);
+        driver.await.unwrap();
+        println!(
+            "CURRENT_NATIVE_QUALITY_RAW current published/GTID/epoch mapping ready with retained history; wrong source/config/gen/run/epoch and unpublished freshness refused; mutations rolled back"
+        );
     }
     use postgres_types::FromSql;
     use tokio_postgres::types::Type;
@@ -5237,7 +5678,10 @@ mod tests {
         assert!(oid_allowed(Type::INTERVAL.oid()));
         let mut negative_interval = [0u8; 16];
         negative_interval[..8].copy_from_slice(&(-3_600_000_000_i64).to_be_bytes());
-        assert_eq!(format_payload(OID_INTERVAL, &negative_interval).unwrap(), Cell::Text("-01:00:00.000000".into()));
+        assert_eq!(
+            format_payload(OID_INTERVAL, &negative_interval).unwrap(),
+            Cell::Text("-01:00:00.000000".into())
+        );
         negative_interval[15] = 1;
         assert!(format_payload(OID_INTERVAL, &negative_interval).is_err());
         assert_eq!(
@@ -5595,8 +6039,20 @@ mod tests {
     }
 }
 
-pub async fn verify_library_sources(tx:&Transaction<'_>,sources:&[String])->Result<bool,tokio_postgres::Error> {
-    if tx.query_one("SELECT to_regclass('_oo.native_library_source_status') IS NULL",&[]).await?.get::<_,bool>(0) {return Ok(true);}
+pub async fn verify_library_sources(
+    tx: &Transaction<'_>,
+    sources: &[String],
+) -> Result<bool, tokio_postgres::Error> {
+    if tx
+        .query_one(
+            "SELECT to_regclass('_oo.native_library_source_status') IS NULL",
+            &[],
+        )
+        .await?
+        .get::<_, bool>(0)
+    {
+        return Ok(true);
+    }
     let row=tx.query_one("SELECT NOT EXISTS(SELECT 1 FROM _oo.native_library_source_status WHERE source_id=ANY($1::text[]) AND NOT _oo.native_library_source_ready(source_id,receipt_sha256))",&[&sources]).await?;
     Ok(row.get(0))
 }

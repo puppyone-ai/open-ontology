@@ -681,7 +681,11 @@ fn execute_local_shim_is_required_satisfied_and_replay_is_not() {
         );
         assert!(text.contains("\"spawned\": true"), "{text}");
         assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
-        assert_eq!(text.matches("\"containment\": \"verified\"").count(), 9, "{text}");
+        assert_eq!(
+            text.matches("\"containment\": \"verified\"").count(),
+            9,
+            "{text}"
+        );
         assert_eq!(text.matches("\"timed_out\": false").count(), 9, "{text}");
         assert_eq!(
             text.matches("\"cleanup_incomplete\": false").count(),
@@ -718,10 +722,7 @@ fn execute_local_shim_is_required_satisfied_and_replay_is_not() {
         assert!(text.contains("\"code\": \"gate.containment\""), "{text}");
         assert!(text.contains("\"spawned\": false"), "{text}");
         assert!(!text.contains("\"spawned\": true"), "{text}");
-        assert!(
-            text.contains("\"runner_authority\": \"absent\""),
-            "{text}"
-        );
+        assert!(text.contains("\"runner_authority\": \"absent\""), "{text}");
         assert_eq!(invoked.matches("INVOKED").count(), 0, "{invoked}");
     }
     let root = std::path::PathBuf::from(json_string(&text, "integrity_root"));
@@ -749,7 +750,9 @@ fn execute_local_shim_is_required_satisfied_and_replay_is_not() {
             .expect("capture exit_code")
             .trim();
         assert!(
-            exit_code.bytes().all(|byte| byte.is_ascii_digit() || byte == b'-'),
+            exit_code
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || byte == b'-'),
             "{exit_code}"
         );
         jobs.push_str(&format!(
@@ -840,7 +843,11 @@ fn execute_local_failed_child_cannot_seal_a_pass() {
         assert!(text.contains("\"code\": \"gate.job_failed\""), "{text}");
         assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
         assert!(text.contains("\"spawned\": true"), "{text}");
-        assert_eq!(text.matches("\"containment\": \"verified\"").count(), 9, "{text}");
+        assert_eq!(
+            text.matches("\"containment\": \"verified\"").count(),
+            9,
+            "{text}"
+        );
         assert_eq!(text.matches("\"exit_code\": 7").count(), 9, "{text}");
         assert_eq!(invoked.matches("INVOKED").count(), 9, "{invoked}");
     } else {
@@ -880,10 +887,7 @@ fn execute_local_source_drift_keeps_results_and_fails_the_seal() {
         assert!(text.contains("\"code\": \"gate.containment\""), "{text}");
         assert!(text.contains("\"spawned\": false"), "{text}");
         assert!(!text.contains("\"spawned\": true"), "{text}");
-        assert!(
-            !marker.exists(),
-            "refused command wrote the drift marker"
-        );
+        assert!(!marker.exists(), "refused command wrote the drift marker");
     }
     let _ = std::fs::remove_dir_all(&repo);
     let _ = std::fs::remove_dir_all(&shim.dir);
@@ -1084,7 +1088,11 @@ wait\n",
         assert!(!recorded.contains("NO_SETSID"), "{recorded}");
         assert!(text.contains("\"code\": \"gate.deadline\""), "{text}");
         assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
-        assert_eq!(text.matches("\"containment\": \"verified\"").count(), 9, "{text}");
+        assert_eq!(
+            text.matches("\"containment\": \"verified\"").count(),
+            9,
+            "{text}"
+        );
         assert_eq!(descendant_pids.len(), 9, "{recorded}\n{text}");
         assert!(
             descendants_gone.iter().all(|(_, gone)| *gone),

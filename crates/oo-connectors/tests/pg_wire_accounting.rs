@@ -18,11 +18,11 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use sqlx::postgres::{
-    IncomingWireError, PgBackendFrame, PgConnectOptions, PgConnection, PgIncomingAllocation,
-    PgIncomingAllocEvent, PgIncomingBounds, PgIncomingLimit, PgSslMode,
-};
 use sqlx::Connection;
+use sqlx::postgres::{
+    IncomingWireError, PgBackendFrame, PgConnectOptions, PgConnection, PgIncomingAllocEvent,
+    PgIncomingAllocation, PgIncomingBounds, PgIncomingLimit, PgSslMode,
+};
 
 const HANG: Duration = Duration::from_secs(10);
 const PARK: Duration = Duration::from_millis(750);
@@ -86,7 +86,10 @@ async fn reserve_argument_is_distinct_from_growth() {
         grown.view_capacity_before,
         grown.view_capacity_after
     );
-    assert!(spare > 0, "header-first growth had no spare to distinguish, {grown:?}");
+    assert!(
+        spare > 0,
+        "header-first growth had no spare to distinguish, {grown:?}"
+    );
     assert_eq!(grown.reserve_argument, deficit, "{grown:?}");
     assert!(grown.reserve_argument > spare, "{grown:?}");
     assert_ne!(
@@ -114,7 +117,11 @@ async fn parked_read_drop_keeps_growth_and_reconciles() {
     assert!(parked.is_err(), "recv completed before the body existed");
     let mid = conn.incoming_allocation();
     trace("parked-drop", &mid);
-    assert_eq!(mid.bytes_read - base.bytes_read, 5, "header was not absorbed");
+    assert_eq!(
+        mid.bytes_read - base.bytes_read,
+        5,
+        "header was not absorbed"
+    );
     assert!(mid.reserved_additional > base.reserved_additional);
     let fresh = &mid.events[base.events.len()..];
     let hung = fresh
@@ -164,7 +171,10 @@ async fn header_first_12000_trace() {
     assert_eq!(wire.len(), 12_000);
     peer.write(wire[..5].to_vec());
     let parked = tokio::time::timeout(PARK, conn.recv_backend()).await;
-    assert!(parked.is_err(), "12000 header was not held for a second read");
+    assert!(
+        parked.is_err(),
+        "12000 header was not held for a second read"
+    );
     let mid = conn.incoming_allocation();
     assert_eq!(mid.bytes_read - base.bytes_read, 5);
     peer.write(wire[5..].to_vec());
@@ -182,7 +192,9 @@ async fn header_first_12000_trace() {
     );
     let fresh = &meter.events[base.events.len()..];
     assert!(
-        fresh.iter().any(|event| event.logical_need == 5 && event.bytes_returned == 5),
+        fresh
+            .iter()
+            .any(|event| event.logical_need == 5 && event.bytes_returned == 5),
         "header read missing: {fresh:?}"
     );
     assert!(
@@ -282,10 +294,18 @@ async fn unsplit_copy_does_not_duplicate_the_body() {
     // is the bytes already in `read`. In-place growth copies none of them.
     // A copied body would add `bytes_returned` on top of that prefix.
     assert!(grown.assembly_bytes <= grown.read_len_before, "{grown:?}");
-    assert!(meter.assembly_bytes < wire.len() as u64, "{}", meter.assembly_bytes);
+    assert!(
+        meter.assembly_bytes < wire.len() as u64,
+        "{}",
+        meter.assembly_bytes
+    );
     assert_eq!(
         meter.assembly_bytes,
-        meter.events.iter().map(|event| event.assembly_bytes).sum::<u64>()
+        meter
+            .events
+            .iter()
+            .map(|event| event.assembly_bytes)
+            .sum::<u64>()
     );
     let copied_prefix = grown.assembly_bytes == grown.read_len_before;
     let copied_nothing = grown.assembly_bytes == 0;
@@ -403,9 +423,12 @@ async fn huge_prefix_reject_does_not_reserve_body() {
     assert_eq!(meter.last_logical_need, 5);
     assert!(meter.logical_requested_peak < 2_000_000_000);
     assert!(meter.view_capacity_peak < 2_000_000_000);
-    assert!(meter.events.iter().all(|event| {
-        event.reserve_argument < 1_000_000 && event.logical_need < 1_000_000
-    }));
+    assert!(
+        meter
+            .events
+            .iter()
+            .all(|event| { event.reserve_argument < 1_000_000 && event.logical_need < 1_000_000 })
+    );
     let again = recv_err(&mut conn).await;
     assert_wire(&again, IncomingWireError::Limit(PgIncomingLimit::Message));
     let poisoned = conn.incoming_allocation();
@@ -521,7 +544,11 @@ fn reconcile(meter: &PgIncomingAllocation) {
     assert_eq!(meter.events_dropped, 0, "dropped diagnostic rows");
     let growth: u64 = meter.events.iter().map(|event| event.reserved_growth).sum();
     let assembly: u64 = meter.events.iter().map(|event| event.assembly_bytes).sum();
-    let arguments: u64 = meter.events.iter().map(|event| event.reserve_argument).sum();
+    let arguments: u64 = meter
+        .events
+        .iter()
+        .map(|event| event.reserve_argument)
+        .sum();
     let noop_arguments: u64 = meter
         .events
         .iter()
@@ -542,7 +569,10 @@ fn reconcile(meter: &PgIncomingAllocation) {
     assert_eq!(meter.reserved_additional, growth, "growth counter");
     assert_eq!(meter.assembly_bytes, assembly, "assembly counter");
     assert_eq!(meter.reserve_argument_bytes, arguments, "argument counter");
-    assert_eq!(meter.noop_reserve_arguments, noop_arguments, "noop arguments");
+    assert_eq!(
+        meter.noop_reserve_arguments, noop_arguments,
+        "noop arguments"
+    );
     assert_eq!(meter.reserve_calls, calls, "reserve calls");
     assert_eq!(meter.noop_reserve_calls, noops, "noop calls");
     assert_eq!(meter.bytes_read, returned, "bytes read");
@@ -558,7 +588,10 @@ fn reconcile(meter: &PgIncomingAllocation) {
             event.view_capacity_after - event.view_capacity_before,
             "{event:?}"
         );
-        assert!(event.read_completed == 0 || event.read_completed == 1, "{event:?}");
+        assert!(
+            event.read_completed == 0 || event.read_completed == 1,
+            "{event:?}"
+        );
         if event.assembly_bytes > 0 {
             assert!(
                 event.assembly_bytes <= event.read_len_before + event.bytes_returned,

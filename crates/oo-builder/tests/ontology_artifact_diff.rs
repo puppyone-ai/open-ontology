@@ -145,7 +145,10 @@ fn unchanged_catalogs_emit_a_deterministic_sealed_diff() {
     assert_eq!(doc["before"]["source_id"], "shop_src");
     assert_eq!(doc["before"]["database"], "shop");
     let parsed: Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(digest(&parsed["draft"]), doc["before"]["draft_hash"].as_str().unwrap());
+    assert_eq!(
+        digest(&parsed["draft"]),
+        doc["before"]["draft_hash"].as_str().unwrap()
+    );
 }
 
 #[test]
@@ -248,11 +251,24 @@ fn column_rename_adds_and_removes_column_identities() {
         "foreign_key/public.purchase/purchase_customer_fk",
         "physical",
     );
-    let source = fact(&doc, "changed", "source", "source/shop_src/shop", "physical");
-    assert_ne!(source["before"]["schema_hash"], source["after"]["schema_hash"]);
-    assert!(doc["facts"].as_array().unwrap().iter().all(|item| {
-        item["kind"] != "classification" && item["layer"] != "curated"
-    }));
+    let source = fact(
+        &doc,
+        "changed",
+        "source",
+        "source/shop_src/shop",
+        "physical",
+    );
+    assert_ne!(
+        source["before"]["schema_hash"],
+        source["after"]["schema_hash"]
+    );
+    assert!(
+        doc["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| { item["kind"] != "classification" && item["layer"] != "curated" })
+    );
 }
 
 #[test]
@@ -271,8 +287,14 @@ fn type_change_changes_the_physical_and_generated_column() {
     assert_eq!(physical["after"]["type_oid"].as_i64(), Some(1043));
     assert_eq!(physical["before"]["type_name"], "text");
     assert_eq!(physical["after"]["type_name"], "varchar");
-    assert_eq!(physical["before"]["type_reason"], "known_builtin_not_converted");
-    assert_eq!(physical["after"]["type_reason"], "known_builtin_not_converted");
+    assert_eq!(
+        physical["before"]["type_reason"],
+        "known_builtin_not_converted"
+    );
+    assert_eq!(
+        physical["after"]["type_reason"],
+        "known_builtin_not_converted"
+    );
     assert_eq!(physical["before"]["not_null"].as_bool(), Some(false));
     let generated = fact(
         &doc,
@@ -315,10 +337,25 @@ fn foreign_key_change_keeps_the_constraint_identity() {
         "foreign_key/public.purchase/purchase_customer_fk",
         "generated",
     );
-    assert_eq!(generated["before"]["from_columns"].as_array().unwrap().len(), 2);
-    assert_eq!(generated["after"]["from_columns"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        generated["before"]["from_columns"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(
+        generated["after"]["from_columns"].as_array().unwrap().len(),
+        1
+    );
     assert_eq!(generated["after"]["from_columns"][0], "customer_id");
-    fact(&doc, "changed", "source", "source/shop_src/shop", "physical");
+    fact(
+        &doc,
+        "changed",
+        "source",
+        "source/shop_src/shop",
+        "physical",
+    );
     fact(
         &doc,
         "stale",
@@ -422,9 +459,13 @@ fn stale_review_and_curated_classification_stay_unaccepted() {
     assert_eq!(queued["after"]["kind"], "stale_decision");
     assert_eq!(queued["after"]["detail"], "stale_schema_hash");
     assert_eq!(queued["after"]["publishable"].as_bool(), Some(false));
-    assert!(doc["facts"].as_array().unwrap().iter().all(|item| {
-        !(item["kind"] == "classification" && item["layer"] == "generated")
-    }));
+    assert!(
+        doc["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| { !(item["kind"] == "classification" && item["layer"] == "generated") })
+    );
     assert_quiet(&stdout, "");
 }
 
@@ -443,9 +484,19 @@ fn resealed_duplicate_column_is_duplicate_fact() {
     let sealed = reseal(root);
     let sealed_path = write_text(&dir, "sealed.json", &canonical_json(&sealed));
     let mismatch = run_paths(&unsealed, &good);
-    assert_refuse(&mismatch, "before", "hash.mismatch", "artifact hash does not match the canonical bytes");
+    assert_refuse(
+        &mismatch,
+        "before",
+        "hash.mismatch",
+        "artifact hash does not match the canonical bytes",
+    );
     let duplicate = run_paths(&sealed_path, &good);
-    assert_refuse(&duplicate, "before", "duplicate.fact", "artifact repeats a structural identity");
+    assert_refuse(
+        &duplicate,
+        "before",
+        "duplicate.fact",
+        "artifact repeats a structural identity",
+    );
 }
 
 #[test]
@@ -570,7 +621,9 @@ fn corrupt_version_and_shape_inputs_refuse() {
     assert!(!stderr_text(&hash_out).contains(ZERO_HASH));
 
     root["wrapper"]["draft_hash"] = json!(text_hash(&text, "draft_hash"));
-    root.as_object_mut().unwrap().insert(SECRET_FIELD.to_string(), json!(1));
+    root.as_object_mut()
+        .unwrap()
+        .insert(SECRET_FIELD.to_string(), json!(1));
     let unknown = write_text(&dir, "unknown.json", &canonical_json(&root));
     let unknown_out = run_paths(&unknown, &good);
     assert_refuse(
@@ -640,7 +693,14 @@ fn catalog_json(shop: &Shop) -> String {
         json!([
             column_json(1, "tenant_id", 23, "int4", true, Value::Null),
             column_json(2, "id", 23, "int4", true, Value::Null),
-            column_json(3, shop.email_name, shop.email_oid, shop.email_type, shop.email_not_null, comment),
+            column_json(
+                3,
+                shop.email_name,
+                shop.email_oid,
+                shop.email_type,
+                shop.email_not_null,
+                comment
+            ),
         ]),
         json!([]),
     );
@@ -769,12 +829,7 @@ fn schema_preimage(shop: &Shop) -> String {
     out
 }
 
-fn write_table(
-    out: &mut String,
-    name: &str,
-    columns: &[(i32, &str, i64, bool)],
-    fk: &[FkPair],
-) {
+fn write_table(out: &mut String, name: &str, columns: &[(i32, &str, i64, bool)], fk: &[FkPair]) {
     out.push('{');
     write_str(out, "schema", "public");
     out.push(',');
@@ -922,9 +977,8 @@ fn assert_usage(args: &[&str]) {
 fn assert_refuse(output: &Output, side: &str, code: &str, message: &str) {
     assert_eq!(output.status.code(), Some(1), "{}", stderr_text(output));
     assert!(output.stdout.is_empty());
-    let expected = format!(
-        "ontology-artifact-diff: {side}: oo.builder.artifact-diff/v1/{code} {message}\n"
-    );
+    let expected =
+        format!("ontology-artifact-diff: {side}: oo.builder.artifact-diff/v1/{code} {message}\n");
     assert_eq!(stderr_text(output), expected);
 }
 

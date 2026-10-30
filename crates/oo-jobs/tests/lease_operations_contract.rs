@@ -74,9 +74,7 @@ fn lease_operations_files_match_the_published_contract() {
         assert_eq!(sha256(&path), digest);
         assert!(contract.contains(digest));
     }
-    assert!(contract.contains(
-        "d352c86dbf2836360e541a3511af23674ce9692e687a6ac7041d99118dc8c2ca"
-    ));
+    assert!(contract.contains("d352c86dbf2836360e541a3511af23674ce9692e687a6ac7041d99118dc8c2ca"));
 
     for name in [
         "jobs.enqueue",

@@ -16,11 +16,11 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use oo_pipeline::c1_parts::PART_MAX_BYTES;
-use oo_pipeline::native_c1_baseline::{execute_v2, parse_request, Request, PROTOCOL_V2};
+use oo_pipeline::native_c1_baseline::{PROTOCOL_V2, Request, execute_v2, parse_request};
 use oo_pipeline::target_installer::{self as ti, sha256_hex};
-use serde_json::{json, Value};
-use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
+use serde_json::{Value, json};
 use sqlx::Connection;
+use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 
 const MIGRATION: &str = include_str!("../migrations/0042_native_c1_chunked_baseline.sql");
 const STAGE_SRC: &str = include_str!("../src/native_c1_baseline.rs");
@@ -42,7 +42,9 @@ const DB: &str = "oo_cb_t7_apply";
 #[test]
 fn v2_stage_protocol_is_the_documented_one_and_v1_is_untouched() {
     assert_eq!(PROTOCOL_V2, "oo.pipeline.native-c1-baseline-stage/v2");
-    assert!(STAGE_SRC.contains("const PROTOCOL: &str = \"oo.pipeline.native-c1-baseline-stage/v1\";"));
+    assert!(
+        STAGE_SRC.contains("const PROTOCOL: &str = \"oo.pipeline.native-c1-baseline-stage/v1\";")
+    );
     assert!(STAGE_SRC.contains("const MAX_REQUEST: usize = 32 * 1024 * 1024;"));
     assert!(STAGE_SRC.contains("pub const MAX_REQUEST_V2: usize = 1024 * 1024;"));
 }
@@ -51,8 +53,15 @@ fn v2_stage_protocol_is_the_documented_one_and_v1_is_untouched() {
 fn v2_loader_builds_no_sql_from_row_values_and_grants_only_the_stage_insert() {
     // Dynamic SQL is limited to the COPY statement, which names only the stage and
     // the catalog columns. Values travel as bind parameters.
-    let apply_dynamic: Vec<&str> = APPLY_SRC.lines().filter(|line| line.contains("format!(\"COPY")).collect();
-    assert_eq!(apply_dynamic.len(), 1, "one dynamic COPY statement: {apply_dynamic:?}");
+    let apply_dynamic: Vec<&str> = APPLY_SRC
+        .lines()
+        .filter(|line| line.contains("format!(\"COPY"))
+        .collect();
+    assert_eq!(
+        apply_dynamic.len(),
+        1,
+        "one dynamic COPY statement: {apply_dynamic:?}"
+    );
     assert!(!STAGE_SRC.contains("format!(\"SELECT"));
     assert!(!APPLY_SRC.contains("format!(\"SELECT"));
     assert!(!STAGE_SRC.contains("AssertSqlSafe"));
@@ -63,7 +72,7 @@ fn v2_loader_builds_no_sql_from_row_values_and_grants_only_the_stage_insert() {
 #[test]
 fn v2_request_cap_is_one_mib_and_part_bound_is_32_mib() {
     assert!(STAGE_SRC.contains("MAX_REQUEST_V2"));
-    assert!(PART_MAX_BYTES == 32 * 1024 * 1024);
+    const { assert!(PART_MAX_BYTES == 32 * 1024 * 1024) };
 }
 
 // ---------------------------------------------------------------- live fixture
@@ -128,46 +137,114 @@ async fn install_everything(admin: &mut PgConnection) {
     run(&mut db, "CREATE SCHEMA jobs").await;
     run(&mut db, "CREATE TABLE jobs.tasks (id uuid PRIMARY KEY, state text NOT NULL, generation bigint NOT NULL, \
         lease_until timestamptz NOT NULL, project_id uuid NOT NULL)").await;
-    run(&mut db, "CREATE ROLE oo_jobs_owner NOLOGIN NOSUPERUSER NOINHERIT").await;
-    run(&mut db, "CREATE ROLE oo_jobs_runtime NOLOGIN NOSUPERUSER NOINHERIT").await;
-    run(&mut db, "GRANT USAGE ON SCHEMA jobs TO oo_target_owner, oo_pipeline_runtime").await;
+    run(
+        &mut db,
+        "CREATE ROLE oo_jobs_owner NOLOGIN NOSUPERUSER NOINHERIT",
+    )
+    .await;
+    run(
+        &mut db,
+        "CREATE ROLE oo_jobs_runtime NOLOGIN NOSUPERUSER NOINHERIT",
+    )
+    .await;
+    run(
+        &mut db,
+        "GRANT USAGE ON SCHEMA jobs TO oo_target_owner, oo_pipeline_runtime",
+    )
+    .await;
     run(&mut db, "GRANT SELECT ON jobs.tasks TO oo_target_owner").await;
     ti::install_full_import(&mut db).await.expect("0005");
-    ti::install_catalog_before_empty(&mut db).await.expect("0006-0008");
+    ti::install_catalog_before_empty(&mut db)
+        .await
+        .expect("0006-0008");
     ti::install_jsonb_document(&mut db).await.expect("0009");
     ti::install_native_update(&mut db).await.expect("0010");
     ti::install_native_partition(&mut db).await.expect("0011");
-    ti::install_native_partition_rebind(&mut db).await.expect("0012");
+    ti::install_native_partition_rebind(&mut db)
+        .await
+        .expect("0012");
     ti::install_native_interval(&mut db).await.expect("0013");
-    ti::install_native_olap_partition(&mut db).await.expect("0014-0016");
-    ti::install_native_pg_transaction_group(&mut db).await.expect("0017");
-    ti::install_native_empty_catalog(&mut db).await.expect("0018");
-    ti::install_native_pg_group_receipt(&mut db).await.expect("0019");
-    ti::install_native_pg_group_prior(&mut db).await.expect("0020");
-    ti::install_native_pg_group_generation(&mut db).await.expect("0021");
-    ti::install_native_pg_single_transaction(&mut db).await.expect("0022");
-    ti::install_native_sqlserver_ct(&mut db).await.expect("0023");
-    ti::install_native_gtid_transaction(&mut db).await.expect("0024");
-    ti::install_native_c1_source_epoch(&mut db).await.expect("0025");
-    ti::install_native_c1_source_epoch_runtime(&mut db).await.expect("0026");
-    ti::install_native_c1_baseline_stage(&mut db).await.expect("0028");
-    ti::install_native_c1_gtid_stage_identity(&mut db).await.expect("0029");
-    ti::install_native_c1_gtid_measured_identity(&mut db).await.expect("0030");
-    ti::install_native_c1_baseline_typed_bridge(&mut db).await.expect("0031");
-    ti::install_native_c1_baseline_lease_rebind(&mut db).await.expect("0032");
-    ti::install_native_c1_baseline_date_quality(&mut db).await.expect("0033");
-    ti::install_native_c1_baseline_key_join(&mut db).await.expect("0034");
+    ti::install_native_olap_partition(&mut db)
+        .await
+        .expect("0014-0016");
+    ti::install_native_pg_transaction_group(&mut db)
+        .await
+        .expect("0017");
+    ti::install_native_empty_catalog(&mut db)
+        .await
+        .expect("0018");
+    ti::install_native_pg_group_receipt(&mut db)
+        .await
+        .expect("0019");
+    ti::install_native_pg_group_prior(&mut db)
+        .await
+        .expect("0020");
+    ti::install_native_pg_group_generation(&mut db)
+        .await
+        .expect("0021");
+    ti::install_native_pg_single_transaction(&mut db)
+        .await
+        .expect("0022");
+    ti::install_native_sqlserver_ct(&mut db)
+        .await
+        .expect("0023");
+    ti::install_native_gtid_transaction(&mut db)
+        .await
+        .expect("0024");
+    ti::install_native_c1_source_epoch(&mut db)
+        .await
+        .expect("0025");
+    ti::install_native_c1_source_epoch_runtime(&mut db)
+        .await
+        .expect("0026");
+    ti::install_native_c1_baseline_stage(&mut db)
+        .await
+        .expect("0028");
+    ti::install_native_c1_gtid_stage_identity(&mut db)
+        .await
+        .expect("0029");
+    ti::install_native_c1_gtid_measured_identity(&mut db)
+        .await
+        .expect("0030");
+    ti::install_native_c1_baseline_typed_bridge(&mut db)
+        .await
+        .expect("0031");
+    ti::install_native_c1_baseline_lease_rebind(&mut db)
+        .await
+        .expect("0032");
+    ti::install_native_c1_baseline_date_quality(&mut db)
+        .await
+        .expect("0033");
+    ti::install_native_c1_baseline_key_join(&mut db)
+        .await
+        .expect("0034");
     ti::install_native_c1_ack_seed(&mut db).await.expect("0035");
     ti::install_native_publication(&mut db).await.expect("0027");
-    ti::install_native_c1_collection_publication(&mut db).await.expect("0036");
-    ti::install_native_c1_timed_receipt(&mut db).await.expect("0037");
-    ti::install_native_c1_quiet_baseline_time(&mut db).await.expect("0038");
-    ti::install_native_per_table_publication(&mut db).await.expect("0039");
-    ti::install_native_source_progress_read(&mut db).await.expect("0040");
-    ti::install_native_partition_observation_read(&mut db).await.expect("0041");
-    ti::install_native_c1_chunked_baseline(&mut db).await.expect("0042");
+    ti::install_native_c1_collection_publication(&mut db)
+        .await
+        .expect("0036");
+    ti::install_native_c1_timed_receipt(&mut db)
+        .await
+        .expect("0037");
+    ti::install_native_c1_quiet_baseline_time(&mut db)
+        .await
+        .expect("0038");
+    ti::install_native_per_table_publication(&mut db)
+        .await
+        .expect("0039");
+    ti::install_native_source_progress_read(&mut db)
+        .await
+        .expect("0040");
+    ti::install_native_partition_observation_read(&mut db)
+        .await
+        .expect("0041");
+    ti::install_native_c1_chunked_baseline(&mut db)
+        .await
+        .expect("0042");
     // 0043 holds the exact tombstone count that the batch guard calls (T8).
-    ti::install_native_c1_chunked_baseline_final(&mut db).await.expect("0043");
+    ti::install_native_c1_chunked_baseline_final(&mut db)
+        .await
+        .expect("0043");
 }
 
 /// One source identity: a live jobs lease and a registered source epoch.
@@ -185,7 +262,10 @@ struct Scenario {
     val_pc: String,
 }
 
-async fn source_identity(admin: &mut PgConnection, n: usize) -> (String, String, String, String, String) {
+async fn source_identity(
+    admin: &mut PgConnection,
+    n: usize,
+) -> (String, String, String, String, String) {
     let src = format!("t7s{n}");
     let shard = format!("t7_shard_{n}");
     let owner = text(admin, "SELECT gen_random_uuid()::text").await;
@@ -234,7 +314,9 @@ fn merge(mut base: Value, extra: Value) -> Value {
 }
 
 fn fixture(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/c1_apply").join(name)
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/c1_apply")
+        .join(name)
 }
 
 fn file_entry(path: &Path) -> (u64, String) {
@@ -297,7 +379,14 @@ fn chunk_request(
     value
 }
 
-fn batch_request(sc: &Scenario, no: i64, first: i64, parts: Vec<Value>, rows: u64, txns: &[(i64, u64)]) -> Value {
+fn batch_request(
+    sc: &Scenario,
+    no: i64,
+    first: i64,
+    parts: Vec<Value>,
+    rows: u64,
+    txns: &[(i64, u64)],
+) -> Value {
     let records: Vec<Value> = txns
         .iter()
         .map(|(pos, count)| {
@@ -324,7 +413,8 @@ fn items_batch_part(path: &Path, rows: u64, lo: &str, hi: &str) -> Value {
 }
 
 fn parse(request: &Value) -> Request {
-    parse_request(request).unwrap_or_else(|token| panic!("test request is invalid: {token}: {request}"))
+    parse_request(request)
+        .unwrap_or_else(|token| panic!("test request is invalid: {token}: {request}"))
 }
 
 /// Run one operation. `Ok` is the JSON result, `Err` the closed refusal token.
@@ -342,9 +432,17 @@ fn outcome(value: &Result<Value, &'static str>) -> String {
 async fn open_scenario(admin: &mut PgConnection, conn: &mut PgConnection, n: usize) -> Scenario {
     let (src, shard, owner, task, measured) = source_identity(admin, n).await;
     let mut sc = Scenario {
-        src, shard, owner, task, measured,
-        phys: String::new(), stage: String::new(), tomb: String::new(), run_id: String::new(),
-        key_pc: String::new(), val_pc: String::new(),
+        src,
+        shard,
+        owner,
+        task,
+        measured,
+        phys: String::new(),
+        stage: String::new(),
+        tomb: String::new(),
+        run_id: String::new(),
+        key_pc: String::new(),
+        val_pc: String::new(),
     };
     let opened = op(conn, open_request(&sc)).await.expect("open");
     assert_eq!(opened["outcome"], "opened", "{opened}");
@@ -373,16 +471,30 @@ async fn open_scenario(admin: &mut PgConnection, conn: &mut PgConnection, n: usi
     sc
 }
 
-fn fill1() -> PathBuf { fixture("fill-00000001.arrow") }
-fn fill2() -> PathBuf { fixture("fill-00000002.arrow") }
-fn cdc1() -> PathBuf { fixture("cdc-00000001.arrow") }
+fn fill1() -> PathBuf {
+    fixture("fill-00000001.arrow")
+}
+fn fill2() -> PathBuf {
+    fixture("fill-00000002.arrow")
+}
+fn cdc1() -> PathBuf {
+    fixture("cdc-00000001.arrow")
+}
 
 async fn load_fill1(conn: &mut PgConnection, sc: &Scenario) -> Result<Value, &'static str> {
-    op(conn, chunk_request(sc, 1, None, Some("3"), Some((fill1(), 3, "1", "3")))).await
+    op(
+        conn,
+        chunk_request(sc, 1, None, Some("3"), Some((fill1(), 3, "1", "3"))),
+    )
+    .await
 }
 
 async fn load_fill2(conn: &mut PgConnection, sc: &Scenario) -> Result<Value, &'static str> {
-    op(conn, chunk_request(sc, 2, Some("3"), Some("7"), Some((fill2(), 2, "5", "7")))).await
+    op(
+        conn,
+        chunk_request(sc, 2, Some("3"), Some("7"), Some((fill2(), 2, "5", "7"))),
+    )
+    .await
 }
 
 async fn load_terminal(conn: &mut PgConnection, sc: &Scenario) -> Result<Value, &'static str> {
@@ -390,7 +502,11 @@ async fn load_terminal(conn: &mut PgConnection, sc: &Scenario) -> Result<Value, 
 }
 
 /// The CDC batch of the fixture: txns 101, 102 and 103, six rows, one PK change.
-async fn batch_fixture(conn: &mut PgConnection, sc: &Scenario, max: Option<u64>) -> Result<Value, &'static str> {
+async fn batch_fixture(
+    conn: &mut PgConnection,
+    sc: &Scenario,
+    max: Option<u64>,
+) -> Result<Value, &'static str> {
     let part = items_batch_part(&cdc1(), 6, "1", "11");
     let mut request = batch_request(sc, 1, 101, vec![part], 6, &[(101, 2), (102, 2), (103, 2)]);
     if let Some(bound) = max {
@@ -400,30 +516,50 @@ async fn batch_fixture(conn: &mut PgConnection, sc: &Scenario, max: Option<u64>)
 }
 
 async fn target_rows(admin: &mut PgConnection, sc: &Scenario) -> Vec<(i64, Option<String>)> {
-    let sql = format!("SELECT \"{}\"::text, \"{}\" FROM _oo.{} ORDER BY 1", sc.key_pc, sc.val_pc, sc.phys);
-    let rows: Vec<(String, Option<String>)> = sqlx::query_as(sqlx::AssertSqlSafe(sql)).fetch_all(&mut *admin).await.expect("rows");
-    let mut out: Vec<(i64, Option<String>)> = rows.into_iter().map(|(k, v)| (k.parse().expect("key"), v)).collect();
+    let sql = format!(
+        "SELECT \"{}\"::text, \"{}\" FROM _oo.{} ORDER BY 1",
+        sc.key_pc, sc.val_pc, sc.phys
+    );
+    let rows: Vec<(String, Option<String>)> = sqlx::query_as(sqlx::AssertSqlSafe(sql))
+        .fetch_all(&mut *admin)
+        .await
+        .expect("rows");
+    let mut out: Vec<(i64, Option<String>)> = rows
+        .into_iter()
+        .map(|(k, v)| (k.parse().expect("key"), v))
+        .collect();
     out.sort_by_key(|row| row.0);
     out
 }
 
 async fn stage_count(admin: &mut PgConnection, sc: &Scenario) -> i64 {
-    sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT count(*) FROM _oo.{}", sc.stage)))
-        .fetch_one(&mut *admin)
-        .await
-        .expect("stage")
+    sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT count(*) FROM _oo.{}",
+        sc.stage
+    )))
+    .fetch_one(&mut *admin)
+    .await
+    .expect("stage")
 }
 
 async fn tombstones(admin: &mut PgConnection, sc: &Scenario) -> Vec<(i64, i64)> {
-    let rows: Vec<(String, String)> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT k::text, pos::text FROM _oo.{} ORDER BY k", sc.tomb)))
-        .fetch_all(&mut *admin)
-        .await
-        .expect("tombs");
-    rows.into_iter().map(|(k, p)| (k.parse().expect("key"), p.parse().expect("pos"))).collect()
+    let rows: Vec<(String, String)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT k::text, pos::text FROM _oo.{} ORDER BY k",
+        sc.tomb
+    )))
+    .fetch_all(&mut *admin)
+    .await
+    .expect("tombs");
+    rows.into_iter()
+        .map(|(k, p)| (k.parse().expect("key"), p.parse().expect("pos")))
+        .collect()
 }
 
 fn expect_rows(rows: &[(i64, Option<String>)], want: &[(i64, Option<&str>)]) {
-    let want: Vec<(i64, Option<String>)> = want.iter().map(|(k, v)| (*k, v.map(str::to_owned))).collect();
+    let want: Vec<(i64, Option<String>)> = want
+        .iter()
+        .map(|(k, v)| (*k, v.map(str::to_owned)))
+        .collect();
     assert_eq!(rows, want.as_slice());
 }
 
@@ -433,29 +569,66 @@ fn expect_rows(rows: &[(i64, Option<String>)], want: &[(i64, Option<&str>)]) {
 async fn scenario_truth(admin: &mut PgConnection, conn: &mut PgConnection, n: usize) {
     let sc = open_scenario(admin, conn, n).await;
     let c1 = load_fill1(conn, &sc).await.expect("chunk 1");
-    assert_eq!((c1["outcome"].as_str(), c1["inserted"].as_i64(), c1["skipped_tomb"].as_i64()), (Some("loaded"), Some(3), Some(0)));
+    assert_eq!(
+        (
+            c1["outcome"].as_str(),
+            c1["inserted"].as_i64(),
+            c1["skipped_tomb"].as_i64()
+        ),
+        (Some("loaded"), Some(3), Some(0))
+    );
     let c2 = load_fill2(conn, &sc).await.expect("chunk 2");
     assert_eq!(c2["inserted"], 2, "{c2}");
     let c3 = load_terminal(conn, &sc).await.expect("terminal");
     assert_eq!(c3["outcome"], "loaded", "{c3}");
     eprintln!("T7-EXAMPLE chunk1={c1} terminal={c3}");
-    assert_eq!(stage_count(admin, &sc).await, 0, "stages are empty after each commit");
+    assert_eq!(
+        stage_count(admin, &sc).await,
+        0,
+        "stages are empty after each commit"
+    );
 
     let b1 = batch_fixture(conn, &sc, None).await.expect("batch 1");
-    assert_eq!((b1["outcome"].as_str(), b1["upserted"].as_i64(), b1["deleted"].as_i64()), (Some("applied"), Some(3), Some(3)), "{b1}");
+    assert_eq!(
+        (
+            b1["outcome"].as_str(),
+            b1["upserted"].as_i64(),
+            b1["deleted"].as_i64()
+        ),
+        (Some("applied"), Some(3), Some(3)),
+        "{b1}"
+    );
     eprintln!("T7-EXAMPLE batch1={b1}");
     assert_eq!(b1["applied_pos"], "103");
     expect_rows(
         &target_rows(admin, &sc).await,
-        &[(2, Some("TWO")), (7, Some("seven")), (9, Some("nine")), (11, Some("eleven"))],
+        &[
+            (2, Some("TWO")),
+            (7, Some("seven")),
+            (9, Some("nine")),
+            (11, Some("eleven")),
+        ],
     );
-    assert_eq!(tombstones(admin, &sc).await, vec![(1, 103), (3, 101), (5, 102)]);
+    assert_eq!(
+        tombstones(admin, &sc).await,
+        vec![(1, 103), (3, 101), (5, 102)]
+    );
     assert_eq!(stage_count(admin, &sc).await, 0);
 
-    let rebound = execute_v2(conn, &parse(&with_fence(&sc, envelope(&sc, "rebind")))).await.expect("rebind");
+    let rebound = execute_v2(conn, &parse(&with_fence(&sc, envelope(&sc, "rebind"))))
+        .await
+        .expect("rebind");
     eprintln!("T7-EXAMPLE rebind={rebound}");
     let table = &rebound["tables"][0];
-    assert_eq!((table["last_chunk_no"].as_i64(), table["terminal"].as_bool(), table["rows"].as_i64()), (Some(3), Some(true), Some(5)), "{rebound}");
+    assert_eq!(
+        (
+            table["last_chunk_no"].as_i64(),
+            table["terminal"].as_bool(),
+            table["rows"].as_i64()
+        ),
+        (Some(3), Some(true), Some(5)),
+        "{rebound}"
+    );
     assert_eq!(rebound["batches"]["last_batch_no"], 1);
     assert_eq!(rebound["batches"]["last_pos"], "103");
 }
@@ -465,29 +638,59 @@ async fn scenario_replay(admin: &mut PgConnection, conn: &mut PgConnection, n: u
     let sc = open_scenario(admin, conn, n).await;
     assert_eq!(outcome(&load_fill1(conn, &sc).await), "loaded");
     let again = load_fill1(conn, &sc).await.expect("replay");
-    assert_eq!((again["outcome"].as_str(), again["inserted"].as_i64()), (Some("replay"), Some(3)), "{again}");
+    assert_eq!(
+        (again["outcome"].as_str(), again["inserted"].as_i64()),
+        (Some("replay"), Some(3)),
+        "{again}"
+    );
     // Same chunk number, same digest, different key range: a conflicting replay.
-    let conflict = op(conn, chunk_request(&sc, 1, None, Some("4"), Some((fill1(), 3, "1", "3")))).await;
+    let conflict = op(
+        conn,
+        chunk_request(&sc, 1, None, Some("4"), Some((fill1(), 3, "1", "3"))),
+    )
+    .await;
     assert_eq!(outcome(&conflict), "refused:chunk_conflict");
     // Chunk 3 before chunk 2 is a sequence fault.
     let gap = load_terminal(conn, &sc).await;
     assert_eq!(outcome(&gap), "refused:chunk_sequence");
-    assert_eq!(target_rows(admin, &sc).await.len(), 3, "the refusals wrote nothing");
+    assert_eq!(
+        target_rows(admin, &sc).await.len(),
+        3,
+        "the refusals wrote nothing"
+    );
     assert_eq!(stage_count(admin, &sc).await, 0);
 
     assert_eq!(outcome(&load_fill2(conn, &sc).await), "loaded");
     assert_eq!(outcome(&load_terminal(conn, &sc).await), "loaded");
     assert_eq!(outcome(&batch_fixture(conn, &sc, None).await), "applied");
     let replay = batch_fixture(conn, &sc, None).await.expect("batch replay");
-    assert_eq!((replay["outcome"].as_str(), replay["applied_pos"].as_str()), (Some("replay"), Some("103")), "{replay}");
+    assert_eq!(
+        (replay["outcome"].as_str(), replay["applied_pos"].as_str()),
+        (Some("replay"), Some("103")),
+        "{replay}"
+    );
     // Same batch number with another digest is a conflict.
-    let mut other = batch_request(&sc, 1, 101, vec![items_batch_part(&cdc1(), 6, "1", "11")], 6, &[(101, 2), (102, 2), (103, 2)]);
+    let mut other = batch_request(
+        &sc,
+        1,
+        101,
+        vec![items_batch_part(&cdc1(), 6, "1", "11")],
+        6,
+        &[(101, 2), (102, 2), (103, 2)],
+    );
     other["batch_sha256"] = json!(sha256_hex(b"another batch"));
     assert_eq!(outcome(&op(conn, other).await), "refused:batch_conflict");
     // A batch past the applied position is a sequence fault.
     // The part is batch 2's file (the canonical name), with batch 1's rows.
     let second = temp_part("cdc-00000002.arrow", &fs::read(cdc1()).expect("fixture"));
-    let skipped = batch_request(&sc, 2, 105, vec![items_batch_part(&second, 6, "1", "11")], 6, &[(105, 2), (106, 2), (107, 2)]);
+    let skipped = batch_request(
+        &sc,
+        2,
+        105,
+        vec![items_batch_part(&second, 6, "1", "11")],
+        6,
+        &[(105, 2), (106, 2), (107, 2)],
+    );
     assert_eq!(outcome(&op(conn, skipped).await), "refused:batch_sequence");
     assert_eq!(stage_count(admin, &sc).await, 0);
 }
@@ -502,14 +705,23 @@ async fn scenario_part_refusals(admin: &mut PgConnection, conn: &mut PgConnectio
     bytes[last] ^= 0x5a;
     let tampered = temp_part("fill-00000001.arrow", &bytes);
     let declared = file_entry(&fill1());
-    let mut request = chunk_request(&sc, 1, None, Some("3"), Some((tampered.clone(), 3, "1", "3")));
+    let mut request = chunk_request(
+        &sc,
+        1,
+        None,
+        Some("3"),
+        Some((tampered.clone(), 3, "1", "3")),
+    );
     request["part"]["sha256"] = json!(declared.1.clone());
     request["part_sha256"] = json!(declared.1);
     request["part"]["bytes"] = json!(bytes.len());
     assert_eq!(outcome(&op(conn, request).await), "refused:part_sha256");
 
     // A file over the part bound is refused by size before it is decoded.
-    let huge = temp_part("fill-00000001.arrow", &vec![0u8; PART_MAX_BYTES as usize + 1]);
+    let huge = temp_part(
+        "fill-00000001.arrow",
+        &vec![0u8; PART_MAX_BYTES as usize + 1],
+    );
     let mut request = chunk_request(&sc, 1, None, Some("3"), Some((fill1(), 3, "1", "3")));
     request["part"]["path"] = json!(huge.to_string_lossy());
     request["part"]["bytes"] = json!(1000);
@@ -527,10 +739,20 @@ async fn scenario_part_refusals(admin: &mut PgConnection, conn: &mut PgConnectio
 
     // A file under another name is refused: the name must be the canonical one.
     let renamed = temp_part("fill-00000009.arrow", &fs::read(fill1()).expect("fixture"));
-    let wrong_name = chunk_request(&sc, 1, None, Some("3"), Some((renamed.clone(), 3, "1", "3")));
+    let wrong_name = chunk_request(
+        &sc,
+        1,
+        None,
+        Some("3"),
+        Some((renamed.clone(), 3, "1", "3")),
+    );
     assert_eq!(outcome(&op(conn, wrong_name).await), "refused:part_path");
 
-    assert_eq!(target_rows(admin, &sc).await.len(), 0, "no refusal wrote a row");
+    assert_eq!(
+        target_rows(admin, &sc).await.len(),
+        0,
+        "no refusal wrote a row"
+    );
     assert_eq!(stage_count(admin, &sc).await, 0);
     assert_eq!(text(admin, &format!("SELECT count(*)::text FROM _oo.native_c1_baseline_chunk WHERE task_id = '{}'::uuid", sc.task)).await, "0");
 }
@@ -544,7 +766,11 @@ async fn scenario_tombstone_bound(admin: &mut PgConnection, conn: &mut PgConnect
     // The batch deletes three keys. A bound of two refuses it.
     let refused = batch_fixture(conn, &sc, Some(2)).await;
     assert_eq!(outcome(&refused), "refused:tombstone_overflow");
-    assert_eq!(tombstones(admin, &sc).await.len(), 0, "the refusal wrote no tombstone");
+    assert_eq!(
+        tombstones(admin, &sc).await.len(),
+        0,
+        "the refusal wrote no tombstone"
+    );
     // A bound of three is exactly enough, and the default bound also applies it.
     let applied = batch_fixture(conn, &sc, Some(3)).await;
     assert_eq!(outcome(&applied), "applied", "{applied:?}");
@@ -567,11 +793,21 @@ async fn scenario_seal_and_retire(admin: &mut PgConnection, conn: &mut PgConnect
         )
     };
     // The expected count is wrong: the SQL refuses it and writes nothing.
-    assert_eq!(outcome(&op(conn, seal(5)).await), "refused:composed_row_count");
+    assert_eq!(
+        outcome(&op(conn, seal(5)).await),
+        "refused:composed_row_count"
+    );
     let sealed = op(conn, seal(4)).await.expect("seal");
     assert_eq!(sealed["outcome"], "sealed", "{sealed}");
     eprintln!("T7-EXAMPLE seal={sealed}");
-    let state = text(admin, &format!("SELECT state FROM _oo.native_c1_baseline_run WHERE task_id = '{}'::uuid", sc.task)).await;
+    let state = text(
+        admin,
+        &format!(
+            "SELECT state FROM _oo.native_c1_baseline_run WHERE task_id = '{}'::uuid",
+            sc.task
+        ),
+    )
+    .await;
     assert_eq!(state, "awaiting_publish");
     let again = op(conn, seal(4)).await.expect("seal replay");
     assert_eq!(again["outcome"], "replay", "{again}");
@@ -581,14 +817,29 @@ async fn scenario_seal_and_retire(admin: &mut PgConnection, conn: &mut PgConnect
     assert_eq!(m, "retired");
 }
 
-async fn scenario_retire_run(admin: &mut PgConnection, conn: &mut PgConnection, n: usize) -> String {
+async fn scenario_retire_run(
+    admin: &mut PgConnection,
+    conn: &mut PgConnection,
+    n: usize,
+) -> String {
     let sc = open_scenario(admin, conn, n).await;
     assert_eq!(outcome(&load_fill1(conn, &sc).await), "loaded");
-    let retired = execute_v2(conn, &parse(&with_fence(&sc, envelope(&sc, "retire")))).await.expect("retire");
+    let retired = execute_v2(conn, &parse(&with_fence(&sc, envelope(&sc, "retire"))))
+        .await
+        .expect("retire");
     assert_eq!(retired["outcome"], "retired", "{retired}");
     assert_eq!(retired["runs"][0], sc.run_id.as_str());
-    let state = text(admin, &format!("SELECT state FROM _oo.full_import_run WHERE run_id = '{}'::uuid", sc.run_id)).await;
-    let again = execute_v2(conn, &parse(&with_fence(&sc, envelope(&sc, "retire")))).await.expect("retire again");
+    let state = text(
+        admin,
+        &format!(
+            "SELECT state FROM _oo.full_import_run WHERE run_id = '{}'::uuid",
+            sc.run_id
+        ),
+    )
+    .await;
+    let again = execute_v2(conn, &parse(&with_fence(&sc, envelope(&sc, "retire"))))
+        .await
+        .expect("retire again");
     assert_eq!(again["outcome"], "retired", "retire is idempotent");
     state
 }
@@ -620,7 +871,9 @@ fn vm_hwm_kib() -> u64 {
 /// Load every part of a bulk directory as consecutive chunks, timing each one.
 async fn bulk_load(label: &str) {
     let dir = PathBuf::from(env_var("OO_C1V2_BULK_DIR"));
-    let per_part: i64 = env_var("OO_C1V2_BULK_ROWS_PER_PART").parse().expect("rows per part");
+    let per_part: i64 = env_var("OO_C1V2_BULK_ROWS_PER_PART")
+        .parse()
+        .expect("rows per part");
     let total: i64 = env_var("OO_C1V2_BULK_ROWS").parse().expect("rows");
     let mut root = connect("postgres").await;
     install_everything(&mut root).await;
@@ -634,10 +887,20 @@ async fn bulk_load(label: &str) {
     while key < total {
         let last = (key + per_part).min(total);
         let path = dir.join(format!("fill-{no:08}.arrow"));
-        let lo = if key == 0 { None } else { Some(key.to_string()) };
+        let lo = if key == 0 {
+            None
+        } else {
+            Some(key.to_string())
+        };
         let hi = last.to_string();
         let first = (key + 1).to_string();
-        let request = chunk_request(&sc, no, lo.as_deref(), Some(hi.as_str()), Some((path, (last - key) as u64, first.as_str(), hi.as_str())));
+        let request = chunk_request(
+            &sc,
+            no,
+            lo.as_deref(),
+            Some(hi.as_str()),
+            Some((path, (last - key) as u64, first.as_str(), hi.as_str())),
+        );
         let step = Instant::now();
         let result = op(&mut conn, request).await;
         chunk_times.push(step.elapsed().as_secs_f64());
@@ -646,10 +909,13 @@ async fn bulk_load(label: &str) {
         no += 1;
     }
     let elapsed = started.elapsed().as_secs_f64();
-    let count: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT count(*) FROM _oo.{}", sc.phys)))
-        .fetch_one(&mut admin)
-        .await
-        .expect("count");
+    let count: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT count(*) FROM _oo.{}",
+        sc.phys
+    )))
+    .fetch_one(&mut admin)
+    .await
+    .expect("count");
     assert_eq!(count, total, "every key landed once");
     let mut sorted = chunk_times.clone();
     sorted.sort_by(|a, b| a.partial_cmp(b).expect("finite"));

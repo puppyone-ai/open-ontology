@@ -122,7 +122,7 @@ BEGIN
   IF (SELECT count(*) FROM jsonb_object_keys(p_scope))<>20
     OR (SELECT bool_or(jsonb_typeof(p_scope->k) IS DISTINCT FROM 'string' OR p_scope->>k='') FROM unnest(ARRAY['protocol','source_engine','capture_method','source_id','schema','table','schema_fingerprint','chunk_id','arrow_sha256','delete_detection','position_codec','applied_pos']) k)
     OR (SELECT bool_or(jsonb_typeof(p_scope->k) IS DISTINCT FROM 'number') FROM unnest(ARRAY['chunk_topology_revision','prior_membership_revision','parent_generation','source_generation','row_count']) k)
-    OR jsonb_typeof(p_scope->'members') IS DISTINCT FROM 'array'
+    OR jsonb_typeof(p_scope->'members') IS DISTINCT FROM 'array' 
     OR NOT p_scope ?& ARRAY['protocol','source_engine','capture_method','source_id','schema','table','schema_fingerprint','chunk_topology_revision','chunk_id','lo','hi','prior_membership_revision','parent_generation','source_generation','arrow_sha256','row_count','delete_detection','position_codec','applied_pos','members']
     OR p_scope->>'protocol'<>'oo.pipeline.native-c5-range/v1' OR p_scope->>'source_engine'<>'mysql'
     OR p_scope->>'capture_method'<>'c5_diff' OR p_scope->>'delete_detection'<>'reconcile'
@@ -161,3 +161,4 @@ BEGIN
     AND NOT EXISTS(SELECT FROM jsonb_array_elements(p_scope->'members') k WHERE _oo.c5_key_identity(k.value)=m.key_identity);
   RETURN missing;
 END $$;
+

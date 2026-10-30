@@ -48,7 +48,7 @@ pub fn hex(bytes: &[u8]) -> String {
 }
 
 pub fn unhex(text: &str) -> Result<Vec<u8>, &'static str> {
-    if text.len() % 2 != 0 || text.len() > MAX_KEY_BYTES * 2 {
+    if !text.len().is_multiple_of(2) || text.len() > MAX_KEY_BYTES * 2 {
         return Err("key_hex");
     }
     fn digit(b: u8) -> Result<u8, &'static str> {
@@ -59,7 +59,9 @@ pub fn unhex(text: &str) -> Result<Vec<u8>, &'static str> {
         }
     }
     text.as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|b| Ok(digit(b[0])? * 16 + digit(b[1])?))
         .collect()
 }

@@ -8,7 +8,12 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, PgConnection};
-use std::{collections::{BTreeMap, BTreeSet}, fs::File, io::Read, path::PathBuf};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs::File,
+    io::Read,
+    path::PathBuf,
+};
 
 pub const PROTOCOL: &str = "oo.c1.typed-batch/v3";
 pub const ORDERED_PROTOCOL: &str = "oo.c1.typed-ordered-batch/v1";
@@ -354,61 +359,115 @@ fn copy_part(part: &Part, kind: &str, pos: &str, ordered: bool) -> Result<(Vec<u
         }
         out.truncate(written);
         count
-    } else { decoded.rows };
+    } else {
+        decoded.rows
+    };
     Ok((out, copied_rows))
 }
 
 /// All tables, tombstones and the transaction receipt commit atomically.
 /// This returns a TARGET receipt, never an ACK.
 pub async fn apply(conn: &mut PgConnection, lease: &Lease, batch: &Batch) -> Result<Receipt> {
-    apply_inner(conn,lease,batch,false,None,None,false).await
+    apply_inner(conn, lease, batch, false, None, None, false).await
 }
 
 /// Formal driver: hold the existing real jobs claim for the entire target TX.
-pub async fn apply_claimed(conn: &mut PgConnection, lease: &Lease, batch: &Batch, stamp:Option<&str>) -> Result<Receipt> {
-    if batch.kind=="cdc" && stamp.is_none() {return Err("typed_commit_time");}
-    apply_inner(conn,lease,batch,true,stamp,None,false).await
+pub async fn apply_claimed(
+    conn: &mut PgConnection,
+    lease: &Lease,
+    batch: &Batch,
+    stamp: Option<&str>,
+) -> Result<Receipt> {
+    if batch.kind == "cdc" && stamp.is_none() {
+        return Err("typed_commit_time");
+    }
+    apply_inner(conn, lease, batch, true, stamp, None, false).await
 }
 
 /// Oracle uses the same typed COPY/tombstone transaction, but checkpoint
 /// evidence is opaque and never inferred from the target apply ordinal.
-pub async fn apply_oracle_claimed(conn:&mut PgConnection,lease:&Lease,batch:&Batch,position:Option<&crate::c1_source_position::OraclePosition>)->Result<Receipt> {
-    let bound=position.map(|p|p.bound()).transpose()?;
-    if batch.kind=="cdc" && bound.is_none() {return Err("oracle_checkpoint_required");}
-    if batch.kind=="fill" && bound.is_some() {return Err("oracle_snapshot_not_cdc");}
-    apply_inner(conn,lease,batch,true,None,bound.as_ref(),true).await
+pub async fn apply_oracle_claimed(
+    conn: &mut PgConnection,
+    lease: &Lease,
+    batch: &Batch,
+    position: Option<&crate::c1_source_position::OraclePosition>,
+) -> Result<Receipt> {
+    let bound = position.map(|p| p.bound()).transpose()?;
+    if batch.kind == "cdc" && bound.is_none() {
+        return Err("oracle_checkpoint_required");
+    }
+    if batch.kind == "fill" && bound.is_some() {
+        return Err("oracle_snapshot_not_cdc");
+    }
+    apply_inner(conn, lease, batch, true, None, bound.as_ref(), true).await
 }
 
-pub async fn apply_oracle_buffer_claimed(conn:&mut PgConnection,lease:&Lease,batch:&Batch,position:&crate::c1_source_position::CapturePosition)->Result<Receipt>{
-    let bound=position.bound(&lease.source,batch)?;
-    apply_inner(conn,lease,batch,true,None,Some(&bound),true).await
+pub async fn apply_oracle_buffer_claimed(
+    conn: &mut PgConnection,
+    lease: &Lease,
+    batch: &Batch,
+    position: &crate::c1_source_position::CapturePosition,
+) -> Result<Receipt> {
+    let bound = position.bound(&lease.source, batch)?;
+    apply_inner(conn, lease, batch, true, None, Some(&bound), true).await
 }
 
 pub async fn apply_oracle_buffer_context_claimed(
-    conn:&mut PgConnection,lease:&Lease,batch:&Batch,
-    context:&crate::c1_buffer_position::ArtifactRef,position:Option<&crate::c1_buffer_position::Position>,
-)->Result<Receipt>{
-    let bound=crate::c1_buffer_position::bound(context,&lease.source,batch,position)?;
-    apply_inner(conn,lease,batch,true,None,Some(&bound),true).await
+    conn: &mut PgConnection,
+    lease: &Lease,
+    batch: &Batch,
+    context: &crate::c1_buffer_position::ArtifactRef,
+    position: Option<&crate::c1_buffer_position::Position>,
+) -> Result<Receipt> {
+    let bound = crate::c1_buffer_position::bound(context, &lease.source, batch, position)?;
+    apply_inner(conn, lease, batch, true, None, Some(&bound), true).await
 }
 
-async fn apply_inner(conn: &mut PgConnection, lease: &Lease, batch: &Batch, claimed:bool,stamp:Option<&str>,oracle:Option<&serde_json::Value>,oracle_engine:bool) -> Result<Receipt> {
+async fn apply_inner(
+    conn: &mut PgConnection,
+    lease: &Lease,
+    batch: &Batch,
+    claimed: bool,
+    stamp: Option<&str>,
+    oracle: Option<&serde_json::Value>,
+    oracle_engine: bool,
+) -> Result<Receipt> {
     let digest = batch.digest()?;
     let mut tx = conn.begin().await.map_err(db)?;
-    let held=if claimed {Some(crate::native_update::lease_hold(&mut tx,&lease.task,Some(lease.generation)).await?.0)}else{None};
+    let held = if claimed {
+        Some(
+            crate::native_update::lease_hold(&mut tx, &lease.task, Some(lease.generation))
+                .await?
+                .0,
+        )
+    } else {
+        None
+    };
     if claimed {
         sqlx::query("SELECT _oo.c1_typed_assert_engine($1,$2::uuid,$3,$4,$5)")
-            .bind(&lease.source).bind(&lease.task).bind(lease.generation).bind(lease.epoch)
-            .bind(if oracle_engine {"oracle"}else{"mysql"}).execute(&mut *tx).await.map_err(db)?;
+            .bind(&lease.source)
+            .bind(&lease.task)
+            .bind(lease.generation)
+            .bind(lease.epoch)
+            .bind(if oracle_engine { "oracle" } else { "mysql" })
+            .execute(&mut *tx)
+            .await
+            .map_err(db)?;
         if oracle_engine {
             sqlx::query("SELECT _oo.c1_typed_assert_buffer_context($1,$2::uuid,$3,$4,$5::jsonb)")
-                .bind(&lease.source).bind(&lease.task).bind(lease.generation).bind(lease.epoch)
-                .bind(serde_json::to_string(&oracle).map_err(|_|"oracle_position")?)
-                .execute(&mut *tx).await.map_err(db)?;
+                .bind(&lease.source)
+                .bind(&lease.task)
+                .bind(lease.generation)
+                .bind(lease.epoch)
+                .bind(serde_json::to_string(&oracle).map_err(|_| "oracle_position")?)
+                .execute(&mut *tx)
+                .await
+                .map_err(db)?;
         }
     }
-    let started=std::time::Instant::now();
-    let mut keeper=crate::native_update::LeaseKeeper::for_lease(crate::native_update::BASELINE_LEASE_TTL);
+    let started = std::time::Instant::now();
+    let mut keeper =
+        crate::native_update::LeaseKeeper::for_lease(crate::native_update::BASELINE_LEASE_TTL);
     let fresh: bool = sqlx::query_scalar(
         "SELECT _oo.c1_typed_begin($1,$2::uuid,$3,$4,$5,$6,$7::numeric,$8::numeric,$9)",
     )
@@ -425,11 +484,17 @@ async fn apply_inner(conn: &mut PgConnection, lease: &Lease, batch: &Batch, clai
     .await
     .map_err(db)?;
     for part in &batch.parts {
-        if let Some(held)=&held {crate::native_update::renew_if_due(&mut tx,held,&mut keeper,started).await?;}
+        if let Some(held) = &held {
+            crate::native_update::renew_if_due(&mut tx, held, &mut keeper, started).await?;
+        }
         // Keep only this part's COPY payload alive. A bad later part rolls back
         // earlier COPY/apply work; even receipt replays validate every input.
-        let (bytes, copied_rows) =
-            copy_part(part, &batch.kind, &batch.position, batch.protocol == ORDERED_PROTOCOL)?;
+        let (bytes, copied_rows) = copy_part(
+            part,
+            &batch.kind,
+            &batch.position,
+            batch.protocol == ORDERED_PROTOCOL,
+        )?;
         if fresh {
             // open() is idempotent but refuses a schema drift, including key order.
             let stage: String =
@@ -491,21 +556,39 @@ async fn apply_inner(conn: &mut PgConnection, lease: &Lease, batch: &Batch, clai
         .await
         .map_err(db)?;
     }
-    if let Some(position)=oracle.filter(|_|batch.kind=="cdc") {
-        let sql=if position["protocol"]=="oo.c1.oracle-buffer-cursor/v1" {
+    if let Some(position) = oracle.filter(|_| batch.kind == "cdc") {
+        let sql = if position["protocol"] == "oo.c1.oracle-buffer-cursor/v1" {
             "SELECT _oo.c1_typed_record_buffer($1,$2::uuid,$3,$4,$5,$6,$7::jsonb)"
-        }else{"SELECT _oo.c1_typed_record_oracle_position($1,$2::uuid,$3,$4,$5,$6,$7::jsonb)"};
+        } else {
+            "SELECT _oo.c1_typed_record_oracle_position($1,$2::uuid,$3,$4,$5,$6,$7::jsonb)"
+        };
         sqlx::query(sql)
-            .bind(&lease.source).bind(&lease.task).bind(lease.generation).bind(lease.epoch)
-            .bind(batch.sequence).bind(&digest).bind(serde_json::to_string(position).map_err(|_|"oracle_position")?)
-            .execute(&mut *tx).await.map_err(db)?;
-    } else if claimed && !oracle_engine && batch.kind=="cdc" {
+            .bind(&lease.source)
+            .bind(&lease.task)
+            .bind(lease.generation)
+            .bind(lease.epoch)
+            .bind(batch.sequence)
+            .bind(&digest)
+            .bind(serde_json::to_string(position).map_err(|_| "oracle_position")?)
+            .execute(&mut *tx)
+            .await
+            .map_err(db)?;
+    } else if claimed && !oracle_engine && batch.kind == "cdc" {
         sqlx::query("SELECT _oo.c1_typed_commit_time($1,$2::uuid,$3,$4,$5,$6,$7)")
-            .bind(&lease.source).bind(&lease.task).bind(lease.generation).bind(lease.epoch)
-            .bind(batch.sequence).bind(&digest).bind(stamp.ok_or("typed_commit_time")?)
-            .execute(&mut *tx).await.map_err(db)?;
+            .bind(&lease.source)
+            .bind(&lease.task)
+            .bind(lease.generation)
+            .bind(lease.epoch)
+            .bind(batch.sequence)
+            .bind(&digest)
+            .bind(stamp.ok_or("typed_commit_time")?)
+            .execute(&mut *tx)
+            .await
+            .map_err(db)?;
     }
-    if let Some(held)=&held {crate::native_update::renew_if_due(&mut tx,held,&mut keeper,started).await?;}
+    if let Some(held) = &held {
+        crate::native_update::renew_if_due(&mut tx, held, &mut keeper, started).await?;
+    }
     tx.commit().await.map_err(db)?;
     Ok(Receipt {
         protocol: RECEIPT_PROTOCOL.into(),
@@ -525,8 +608,9 @@ mod tests {
     use super::*;
 
     fn ordered_fixture(name: &str) -> Part {
-        let manifest: serde_json::Value = serde_json::from_str(include_str!(
-            "../tests/fixtures/c1-ordered/manifest.json")).unwrap();
+        let manifest: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/c1-ordered/manifest.json"))
+                .unwrap();
         let entry = &manifest["fixtures"][name];
         Part {
             table: "UNIT.ORDERED".into(),
@@ -542,27 +626,42 @@ mod tests {
     #[test]
     fn ordered_cdc_validates_raw_events_and_copies_only_last_operation_per_typed_key() {
         let part = ordered_fixture("ordered");
-        assert_eq!(copy_bytes(&part, "cdc", "1").unwrap_err(), "typed_duplicate_key");
+        assert_eq!(
+            copy_bytes(&part, "cdc", "1").unwrap_err(),
+            "typed_duplicate_key"
+        );
         let (bytes, copied) = copy_part(&part, "cdc", "1", true).unwrap();
         let text = String::from_utf8(bytes).unwrap();
         assert_eq!((part.rows, copied, text.lines().count()), (6, 2, 2));
         assert!(text.contains("\tupsert\tk\t1\tnew"));
         assert!(text.contains("\tdelete\tz\t2\t\\N\n"));
         assert!(!text.contains("old") && !text.contains("temporary") && !text.contains("changed"));
-        assert_eq!(copy_part(&ordered_fixture("invalid-operation"), "cdc", "1", true).unwrap_err(),
-            "typed_operation");
-        assert_eq!(copy_part(&ordered_fixture("wrong-position"), "cdc", "1", true).unwrap_err(),
-            "typed_transaction_position");
+        assert_eq!(
+            copy_part(&ordered_fixture("invalid-operation"), "cdc", "1", true).unwrap_err(),
+            "typed_operation"
+        );
+        assert_eq!(
+            copy_part(&ordered_fixture("wrong-position"), "cdc", "1", true).unwrap_err(),
+            "typed_transaction_position"
+        );
         let mut false_count = part;
         false_count.rows = 2;
-        assert_eq!(copy_part(&false_count, "cdc", "1", true).unwrap_err(), "typed_arrow_schema");
+        assert_eq!(
+            copy_part(&false_count, "cdc", "1", true).unwrap_err(),
+            "typed_arrow_schema"
+        );
     }
 
     #[test]
     fn ordered_protocol_is_explicit_cdc_only_and_keeps_raw_row_limits() {
-        let mut batch = Batch { protocol: PROTOCOL.into(), sequence: 1,
-            previous_position: "0".into(), position: "1".into(), kind: "cdc".into(),
-            parts: vec![ordered_fixture("ordered")] };
+        let mut batch = Batch {
+            protocol: PROTOCOL.into(),
+            sequence: 1,
+            previous_position: "0".into(),
+            position: "1".into(),
+            kind: "cdc".into(),
+            parts: vec![ordered_fixture("ordered")],
+        };
         let legacy_digest = batch.digest().unwrap();
         batch.protocol = ORDERED_PROTOCOL.into();
         batch.validate().unwrap();
@@ -575,19 +674,29 @@ mod tests {
         assert!(batch.validate().is_err());
         batch.protocol = PROTOCOL.into();
         batch.validate().unwrap();
-        assert_eq!(copy_bytes(&batch.parts[0], "fill", "0").unwrap_err(), "typed_duplicate_key");
+        assert_eq!(
+            copy_bytes(&batch.parts[0], "fill", "0").unwrap_err(),
+            "typed_duplicate_key"
+        );
     }
 
     #[test]
     fn transaction_cardinality_is_not_a_part_resource_budget() {
-        let mut batch = Batch { protocol: PROTOCOL.into(), sequence: 1,
-            previous_position: "0".into(), position: "1".into(), kind: "cdc".into(),
-            parts: (0..33).map(|i| {
-                let mut part = ordered_fixture("ordered");
-                part.table = format!("UNIT.T{i}");
-                part.rows = MAX_ROWS;
-                part
-            }).collect() };
+        let mut batch = Batch {
+            protocol: PROTOCOL.into(),
+            sequence: 1,
+            previous_position: "0".into(),
+            position: "1".into(),
+            kind: "cdc".into(),
+            parts: (0..33)
+                .map(|i| {
+                    let mut part = ordered_fixture("ordered");
+                    part.table = format!("UNIT.T{i}");
+                    part.rows = MAX_ROWS;
+                    part
+                })
+                .collect(),
+        };
         batch.validate().unwrap();
         let digest = batch.digest().unwrap();
         batch.protocol = ORDERED_PROTOCOL.into();

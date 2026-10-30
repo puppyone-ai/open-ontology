@@ -19,7 +19,7 @@ I-SRC-1 要求平台对源库只读。现实中，每种捕获方式在源端都
 
 要点：
 
-1. **R1 与 R1w 的区分由源审计证明**：`experimental` 起，套件对平台身份开启语句级审计（见 [05 §2](05-conformance-and-evidence.md)），非 R0 的语句出现即失败。源端无任何审计渠道时，MySQL 可由已安装来源配置显式启用 `grant_enforced`，以库强制的只读授权替代（[ADR-017](../02-technology-stack.md)）；该证据等级更低，仅适用于 R0，不用于证明 R1/R1w。
+1. **R1 与 R1w 的区分由源审计证明**：`experimental` 起，套件对平台身份开启语句级审计（见 [05 §2](05-conformance-and-evidence.md)），非 R0 的语句出现即失败。
 2. 云引擎中的“对象”也要分：Snowflake **Stream 是 schema 对象（R2）**，而 `CHANGES` 子句 + DBA 已启用的 `CHANGE_TRACKING`（R1）不需要平台创建对象，因此采用后者。BigQuery 的 `CHANGES`/`APPENDS` 需要表的 `enable_change_history`（R1）；Delta 需要表属性 `delta.enableChangeDataFeed`（R1）。
 3. 读取副本时必须验证“副本是否会因平台读取而延迟/冲突”，并在 DBA 清单里提示 `max_standby_streaming_delay` 之类的参数（沿用 DEC-09）。
 4. 账号被检出写能力 → 沿用 `allow_write_capable_credential` 的显式审计例外，但**例外不改变零写要求**。
@@ -33,7 +33,6 @@ I-SRC-1 要求平台对源库只读。现实中，每种捕获方式在源端都
 | **C3 游标增量** | `updated_at`、SQL Server `rowversion`、序列、自增 ID | 所有支持 SQL 的库 | **无** | 无 | Opaque/游标 | R0 | **B** |
 | **C4 分区刷新** | 重读变化的分区并原子替换（BigQuery 分区修改时间、ClickHouse `system.parts`、Doris/StarRocks 分区、Hive/Delta/Iceberg 分区） | OLAP、仓库、湖表 | **分区内自动收敛** | 取决于分区元数据可靠度 | 分区时间/版本 | R0 | S0/B |
 | **C5 全量差分** | 周期性整表读取，在 Agent DB 的 shadow 里与现状比较（键 + 行哈希） | 小表、无其他手段的源（如 ES） | 收敛（每周期） | 无 | 无 | R0 | S0/B |
-| C5+（C5 子模式，提议） | 表级提示 + 近窗口 + 分块摘要扫描（源对源）+ 定期全读（[ADR-019](../02-technology-stack.md)） | 无日志 CDC 条件的大表 | 收敛（每个摘要周期） | 无 | 无 | R0 | S0/B |
 
 选择规则（`sync: auto` 仅在**已 verified** 的方法中选择，顺序如下）：
 
@@ -42,7 +41,6 @@ C1(满足 T，且写入分类 ≤ R1) ▶ C2(token 可用) ▶ C4(分区元数�
 ```
 
 - 显式配置的方法条件不足 → 报错，不降级（沿用 REQ-SRC-03）。
-- C5+ 进入 verified 前只能显式配置，`sync: auto` 不选择它；大表不满足 C5 体量阈值时，未配置 C5+ 即拒绝同步该表并说明。
 - 无稳定键、无声明唯一键的表只能 C5（或 C4 全分区重放）；体量超限则拒绝同步该表并说明。
 - 同一源内可以按表选择不同方法，但**一致性等级以最弱者**对外呈现（见 §3）。
 
@@ -122,8 +120,6 @@ C1(满足 T，且写入分类 ≤ R1) ▶ C2(token 可用) ▶ C4(分区元数�
 
 固定规则：游标值相等多次变更使用 `(run_generation, cursor, pk)` 检查点与确定性更新（DEC-08）；时间戳精度损失（微秒以下）**不得**用于游标或主键，否则 block。
 
-`app_maintained` 与 `statement_time` 列（含业务时间列，如扫描时间、入库时间）可以作为 C5+ 的“近窗口”加速提示（[ADR-019](../02-technology-stack.md)）：只决定先读哪些行，不推进可信水位，不替代分块摘要扫描与删除对账。
-
 ## 7. 各类捕获的“初始加载配方”
 
 沿用现有“CDC 优先、快照补空”的正确性论证，扩展到其他类别：
@@ -135,8 +131,6 @@ C1(满足 T，且写入分类 ≤ R1) ▶ C2(token 可用) ▶ C4(分区元数�
 | **C3 游标** | 全量（B）→ 之后按 `(run_generation, cursor, pk)` 增量；旧约束全部保留（SP04-W06） |
 | **C4 分区刷新** | 列出分区及其修改标识；每个变化分区在 shadow 中读入并以**单个 Agent DB 事务**替换该分区；分区元数据不可信时退回 C5 |
 | **C5 全量差分** | 每周期读取到 shadow；比较键与行哈希，生成插入/更新/删除；超出阈值或读取中源在变化（无快照 token）则标记 B 并披露 |
-| **C5+** | 首次全量按分块读取（每块一个只读快照，整表为 B）；随即做一轮分块摘要扫描作为基线并修复读取期间的变化；之后按近窗口与摘要周期运行；摘要不同的块整块重读并以 Arrow 类型化值逐行比对 |
-| **C5/C5+ → C1** | 源端具备日志 CDC 条件后，不必重新全量：记录起点 L0 并开始读日志 → 对全部表做一轮以 L0 为界的修复扫描 → 回放 L0 之后的变更（已被 CDC 写过的行不被扫描覆盖，墓碑防复活，沿用 DEC-06/07）→ L_end 屏障后发布并升为 T。C5 数据没有源位点，修复扫描不可省略 |
 
 ## 8. 与现有 Loader 契约的对接
 
@@ -144,9 +138,3 @@ C1(满足 T，且写入分类 ≤ R1) ▶ C2(token 可用) ▶ C4(分区元数�
 - 新增的质量状态值：`POSITION_EXPIRED`、`STALE_RISK`、`DELETES_LAGGED`、`DELETES_UNDETECTED`、`PRECISION_LOSS`（列级）、`SOURCE_BUDGET_EXHAUSTED`；这些是 `_oo.table_quality` 的新增枚举值，属于追加式迁移，不改变既有列语义。
 - `consistency: transactional` 只对 `grade: T` 的源有效；对其他源，`oo validate` 拒绝该配置（而不是静默当作 `per_table`），避免用户误以为获得事务一致性。
 - `PositionCodec` 对 `TokenOrder != Total` 的位点不提供“比较/去重”接口，只提供“续读序列化”。
-
-## 9. 整库首次采集前的布局与预检
-
-先按业务域规划 ≤16 表的建模来源；原生发布要求覆盖该来源全部当前表且 ≤32 表，一个 project 只能使用同一来源，同一逻辑表不能有两个当前来源。吞吐分片不能替代来源布局。使用 [离线规划/预检](../../tools/source-onboarding/SOURCE-LAYOUT.md) 输出 sources.json、per-source manifest 与空且无键排除清单；先精确计数，TABLE_ROWS 仅为估算。
-
-检查 session sql_mode/UTC、SSL、log_bin 与只读 grants；只改采集会话，不改源端全局配置。明文及 grant_enforced 必须安装侧显式授权。`type_policy.zero_date_to_null` / `strip_text_nul` 是有损策略，默认不隐式启用，必须持久化脱敏 normalization rejects。活源的 `allow_post_snapshot_rows` / `allow_unresolved_chunk_fraction` 也必须显式审计，报告保留未决与后快照行，不能提升一致性等级。详见 [现场手册 E–G](06-real-source-field-notes.md)。

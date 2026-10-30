@@ -6,29 +6,55 @@ fn digest(value: &Value) -> String {
     crate::target_installer::sha256_hex(serde_json::to_vec(value).expect("JSON value").as_slice())
 }
 
-fn dataset_binding(dataset:String,source:&str,generation:&Value,identity:&Value)->Result<Value,String> {
-    for key in ["config_digest","type_digest","input_digest"] {
-        if identity[key].as_str().is_none_or(|value|value.len()!=64
-            || !value.bytes().all(|b|b.is_ascii_digit()||(b'a'..=b'f').contains(&b))) {
+fn dataset_binding(
+    dataset: String,
+    source: &str,
+    generation: &Value,
+    identity: &Value,
+) -> Result<Value, String> {
+    for key in ["config_digest", "type_digest", "input_digest"] {
+        if identity[key].as_str().is_none_or(|value| {
+            value.len() != 64
+                || !value
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        }) {
             return Err(format!("published dataset {key} absent or invalid"));
         }
     }
-    Ok(json!({"dataset":dataset,"source":source,"generation":generation,
+    Ok(
+        json!({"dataset":dataset,"source":source,"generation":generation,
         "config_digest":identity["config_digest"],"type_digest":identity["type_digest"],
-        "input_digest":identity["input_digest"]}))
+        "input_digest":identity["input_digest"]}),
+    )
 }
 
-fn table_grade(run: &Value, table: &Value, watermark: &Value, published: Option<&Value>) -> Result<Value, String> {
-    if run["state"] != "published" { return Ok(watermark["consistency_grade"].clone()); }
+fn table_grade(
+    run: &Value,
+    table: &Value,
+    watermark: &Value,
+    published: Option<&Value>,
+) -> Result<Value, String> {
+    if run["state"] != "published" {
+        return Ok(watermark["consistency_grade"].clone());
+    }
     let receipt = published.ok_or("published table receipt absent")?;
     if receipt["source_id"] != run["source_id"]
         || receipt["source_generation"] != run["source_generation"]
-        || receipt["target_generation"] != run["target_generation"] {
+        || receipt["target_generation"] != run["target_generation"]
+    {
         return Err("published table receipt identity differs".into());
     }
-    let matches = receipt["table_vector"].as_array().ok_or("published table vector")?
-        .iter().filter(|e| e["run_id"] == run["run_id"] && e["schema"] == table["schema_ident"]
-            && e["table"] == table["table_ident"] && e["physical_name"] == table["physical_name"])
+    let matches = receipt["table_vector"]
+        .as_array()
+        .ok_or("published table vector")?
+        .iter()
+        .filter(|e| {
+            e["run_id"] == run["run_id"]
+                && e["schema"] == table["schema_ident"]
+                && e["table"] == table["table_ident"]
+                && e["physical_name"] == table["physical_name"]
+        })
         .collect::<Vec<_>>();
     if matches.len() != 1 || !matches!(matches[0]["consistency_grade"].as_str(), Some("S0" | "B")) {
         return Err("published table grade proof differs".into());
@@ -80,13 +106,11 @@ pub async fn prepare(document: &Value) -> Result<Value, String> {
         if watermark["consistency"] == "transactional" {
             // The database validates the original C1 receipt against its durable
             // target ACK, control task and complete current storage vector.
-            let raw: String = sqlx::query_scalar(
-                "SELECT _oo.native_library_c1_shard($1)::text",
-            )
-            .bind(name)
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(|e| format!("C1 library proof: {e}"))?;
+            let raw: String = sqlx::query_scalar("SELECT _oo.native_library_c1_shard($1)::text")
+                .bind(name)
+                .fetch_one(&mut *tx)
+                .await
+                .map_err(|e| format!("C1 library proof: {e}"))?;
             let shard: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
             let stored = c1_storage_tables(&shard, schema, names)?;
             for (table, run) in stored {
@@ -101,8 +125,12 @@ pub async fn prepare(document: &Value) -> Result<Value, String> {
                 .await
                 .map_err(|e| e.to_string())?;
                 let binding: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
-                datasets.push(dataset_binding(format!("{schema}.{table}"),name,
-                    &watermark["source_generation"],&binding)?);
+                datasets.push(dataset_binding(
+                    format!("{schema}.{table}"),
+                    name,
+                    &watermark["source_generation"],
+                    &binding,
+                )?);
             }
             shards.push(shard);
             let mut names = names.clone();
@@ -124,8 +152,11 @@ pub async fn prepare(document: &Value) -> Result<Value, String> {
                 serde_json::from_str(row.get::<&str, _>(1)).map_err(|e| e.to_string())?;
             let quality: Value =
                 serde_json::from_str(row.get::<&str, _>(2)).map_err(|e| e.to_string())?;
-            let published: Option<Value> = row.get::<Option<&str>, _>(3)
-                .map(serde_json::from_str).transpose().map_err(|e| e.to_string())?;
+            let published: Option<Value> = row
+                .get::<Option<&str>, _>(3)
+                .map(serde_json::from_str)
+                .transpose()
+                .map_err(|e| e.to_string())?;
             let grade = table_grade(&run, &table, &watermark, published.as_ref())?;
             if table["schema_ident"] != schema
                 || names.iter().filter(|n| **n == table["table_ident"]).count() != 1
@@ -137,8 +168,16 @@ pub async fn prepare(document: &Value) -> Result<Value, String> {
             {
                 anchor = Some(run["run_id"].clone());
             }
-            datasets.push(dataset_binding(format!("{}.{}",schema,table["table_ident"].as_str().ok_or("table")?),
-                name,&run["source_generation"],&run)?);
+            datasets.push(dataset_binding(
+                format!(
+                    "{}.{}",
+                    schema,
+                    table["table_ident"].as_str().ok_or("table")?
+                ),
+                name,
+                &run["source_generation"],
+                &run,
+            )?);
             tables.push(json!({"schema":schema,"table":table["table_ident"],"run_id":run["run_id"],"physical_name":table["physical_name"],"accepted_rows":table["applied_rows"],"canonical_digest":table["canonical_digest"],"source_generation":run["source_generation"],"target_generation":run["target_generation"],"applied_pos":table["applied_pos"].as_str().map(str::to_owned).unwrap_or_else(||table["applied_pos"].to_string()),"capture_method":quality["capture_method"],"delete_detection":quality["delete_detection"],"consistency_grade":grade}));
         }
         let anchor = anchor.ok_or("current source anchor absent")?;
@@ -203,75 +242,31 @@ fn c1_storage_tables<'a>(
     schema: &str,
     names: &[Value],
 ) -> Result<Vec<(&'a str, &'a str)>, String> {
-    let tables = shard["receipt"]["tables"].as_array().ok_or("C1 table vector")?;
+    let tables = shard["receipt"]["tables"]
+        .as_array()
+        .ok_or("C1 table vector")?;
     if tables.len() != names.len() || tables.is_empty() {
         return Err("C1 manifest table coverage differs".into());
     }
     let mut seen = std::collections::BTreeSet::new();
-    tables.iter().map(|table| {
-        // Storage identities are for lookup only. Never rewrite source names
-        // inside the original, hash-bound transactional receipt.
-        let namespace = table.get("storage_schema").unwrap_or(&table["schema"]);
-        let name = table.get("storage_table").unwrap_or(&table["table"]);
-        let name = name.as_str().ok_or("C1 storage table")?;
-        let run = table["run_id"].as_str().ok_or("C1 run")?;
-        if namespace != schema || names.iter().filter(|n| **n == name).count() != 1
-            || !seen.insert(name) {
-            return Err("C1 manifest table coverage differs".into());
-        }
-        Ok((name, run))
-    }).collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn c5_and_c1_bind_the_actual_schema_and_input_digests() {
-        let run=json!({"config_digest":"a".repeat(64),"type_digest":"b".repeat(64),
-            "input_digest":"c".repeat(64),"source_generation":7});
-        let binding=dataset_binding("app.items".into(),"s",&json!(7),&run).unwrap();
-        for key in ["config_digest","type_digest","input_digest"] {
-            assert_eq!(binding[key],run[key]);
-            for bad in [Value::Null,json!(""),json!("G".repeat(64))] {
-                let mut mutated=run.clone();mutated[key]=bad;
-                assert!(dataset_binding("app.items".into(),"s",&json!(7),&mutated).is_err());
+    tables
+        .iter()
+        .map(|table| {
+            // Storage identities are for lookup only. Never rewrite source names
+            // inside the original, hash-bound transactional receipt.
+            let namespace = table.get("storage_schema").unwrap_or(&table["schema"]);
+            let name = table.get("storage_table").unwrap_or(&table["table"]);
+            let name = name.as_str().ok_or("C1 storage table")?;
+            let run = table["run_id"].as_str().ok_or("C1 run")?;
+            if namespace != schema
+                || names.iter().filter(|n| **n == name).count() != 1
+                || !seen.insert(name)
+            {
+                return Err("C1 manifest table coverage differs".into());
             }
-        }
-        assert_eq!(binding["generation"],7);
-        assert_eq!(binding["dataset"],"app.items");
-    }
-
-    #[test]
-    fn unchanged_published_table_keeps_its_grade_when_source_cut_changes() {
-        let mut run=json!({"state":"published","run_id":"r","source_id":"s","source_generation":1,"target_generation":2});
-        let table=json!({"schema_ident":"app","table_ident":"t","physical_name":"pt"});
-        let watermark=json!({"consistency_grade":"B"});
-        let mut receipt=json!({"source_id":"s","source_generation":1,"target_generation":2,
-            "table_vector":[{"run_id":"r","schema":"app","table":"t","physical_name":"pt","consistency_grade":"S0"}]});
-        assert_eq!(table_grade(&run,&table,&watermark,Some(&receipt)).unwrap(),"S0");
-        receipt["table_vector"][0]["physical_name"]=json!("different");
-        assert!(table_grade(&run,&table,&watermark,Some(&receipt)).is_err());
-        assert!(table_grade(&run,&table,&watermark,None).is_err());
-        run["state"]=json!("awaiting_publish");
-        assert_eq!(table_grade(&run,&table,&watermark,None).unwrap(),"B");
-    }
-
-    #[test]
-    fn c1_manifest_uses_storage_identity_without_rewriting_receipt() {
-        let shard = json!({"receipt":{"consistency_grade":"T","tables":[{
-            "schema":"SOURCE_OWNER","table":"ORDERS","storage_schema":"q_owner",
-            "storage_table":"q_orders","run_id":"run"}]}});
-        let original = shard.clone();
-        assert_eq!(c1_storage_tables(&shard, "q_owner", &[json!("q_orders")]).unwrap(),
-                   vec![("q_orders", "run")]);
-        assert_eq!(shard, original);
-        assert!(c1_storage_tables(&shard, "SOURCE_OWNER", &[json!("ORDERS")]).is_err());
-        assert!(c1_storage_tables(&shard, "q_owner", &[json!("q_orders"), json!("q_orders")]).is_err());
-        assert!(c1_storage_tables(&shard, "q_owner", &[json!("foreign")]).is_err());
-        let mysql = json!({"receipt":{"tables":[{"schema":"app","table":"items","run_id":"r"}]}});
-        assert_eq!(c1_storage_tables(&mysql, "app", &[json!("items")]).unwrap(), vec![("items","r")]);
-    }
+            Ok((name, run))
+        })
+        .collect()
 }
 
 pub async fn stdio() -> Result<(), u8> {
@@ -295,4 +290,66 @@ pub async fn stdio() -> Result<(), u8> {
         .write_all(format!("{}\n", result).as_bytes())
         .map_err(|_| 1u8)?;
     if code == 0 { Ok(()) } else { Err(code) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn c5_and_c1_bind_the_actual_schema_and_input_digests() {
+        let run = json!({"config_digest":"a".repeat(64),"type_digest":"b".repeat(64),
+            "input_digest":"c".repeat(64),"source_generation":7});
+        let binding = dataset_binding("app.items".into(), "s", &json!(7), &run).unwrap();
+        for key in ["config_digest", "type_digest", "input_digest"] {
+            assert_eq!(binding[key], run[key]);
+            for bad in [Value::Null, json!(""), json!("G".repeat(64))] {
+                let mut mutated = run.clone();
+                mutated[key] = bad;
+                assert!(dataset_binding("app.items".into(), "s", &json!(7), &mutated).is_err());
+            }
+        }
+        assert_eq!(binding["generation"], 7);
+        assert_eq!(binding["dataset"], "app.items");
+    }
+
+    #[test]
+    fn unchanged_published_table_keeps_its_grade_when_source_cut_changes() {
+        let mut run = json!({"state":"published","run_id":"r","source_id":"s","source_generation":1,"target_generation":2});
+        let table = json!({"schema_ident":"app","table_ident":"t","physical_name":"pt"});
+        let watermark = json!({"consistency_grade":"B"});
+        let mut receipt = json!({"source_id":"s","source_generation":1,"target_generation":2,
+            "table_vector":[{"run_id":"r","schema":"app","table":"t","physical_name":"pt","consistency_grade":"S0"}]});
+        assert_eq!(
+            table_grade(&run, &table, &watermark, Some(&receipt)).unwrap(),
+            "S0"
+        );
+        receipt["table_vector"][0]["physical_name"] = json!("different");
+        assert!(table_grade(&run, &table, &watermark, Some(&receipt)).is_err());
+        assert!(table_grade(&run, &table, &watermark, None).is_err());
+        run["state"] = json!("awaiting_publish");
+        assert_eq!(table_grade(&run, &table, &watermark, None).unwrap(), "B");
+    }
+
+    #[test]
+    fn c1_manifest_uses_storage_identity_without_rewriting_receipt() {
+        let shard = json!({"receipt":{"consistency_grade":"T","tables":[{
+            "schema":"SOURCE_OWNER","table":"ORDERS","storage_schema":"q_owner",
+            "storage_table":"q_orders","run_id":"run"}]}});
+        let original = shard.clone();
+        assert_eq!(
+            c1_storage_tables(&shard, "q_owner", &[json!("q_orders")]).unwrap(),
+            vec![("q_orders", "run")]
+        );
+        assert_eq!(shard, original);
+        assert!(c1_storage_tables(&shard, "SOURCE_OWNER", &[json!("ORDERS")]).is_err());
+        assert!(
+            c1_storage_tables(&shard, "q_owner", &[json!("q_orders"), json!("q_orders")]).is_err()
+        );
+        assert!(c1_storage_tables(&shard, "q_owner", &[json!("foreign")]).is_err());
+        let mysql = json!({"receipt":{"tables":[{"schema":"app","table":"items","run_id":"r"}]}});
+        assert_eq!(
+            c1_storage_tables(&mysql, "app", &[json!("items")]).unwrap(),
+            vec![("items", "r")]
+        );
+    }
 }

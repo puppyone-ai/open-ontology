@@ -133,12 +133,13 @@ fn usage_unknown_and_extra_arguments_exit_2() {
     let unknown = bin().arg("publish").output().unwrap();
     assert_eq!(unknown.status.code(), Some(2));
     assert!(unknown.stdout.is_empty());
-    assert!(String::from_utf8(unknown.stderr).unwrap().contains("unknown command"));
+    assert!(
+        String::from_utf8(unknown.stderr)
+            .unwrap()
+            .contains("unknown command")
+    );
 
-    let extra = bin()
-        .args(["captured-pg-draft", "--out"])
-        .output()
-        .unwrap();
+    let extra = bin().args(["captured-pg-draft", "--out"]).output().unwrap();
     assert_eq!(extra.status.code(), Some(2));
     assert!(extra.stdout.is_empty());
     let extra_err = String::from_utf8(extra.stderr).unwrap();
@@ -213,12 +214,18 @@ fn captured_catalog_command_matches_the_public_api() {
         ]
     );
     assert_eq!(doc["protocol"], COMMAND_PROTOCOL);
-    assert_eq!(doc["wrapper"], serde_json::from_str::<Value>(&api.wrapper).unwrap());
+    assert_eq!(
+        doc["wrapper"],
+        serde_json::from_str::<Value>(&api.wrapper).unwrap()
+    );
     assert_eq!(
         doc["evidence_envelope"],
         serde_json::from_str::<Value>(&api.evidence_envelope).unwrap()
     );
-    assert_eq!(doc["draft"], serde_json::from_str::<Value>(&api.draft).unwrap());
+    assert_eq!(
+        doc["draft"],
+        serde_json::from_str::<Value>(&api.draft).unwrap()
+    );
     assert_eq!(
         compile_structure_draft(&api.evidence_envelope).unwrap(),
         api.draft

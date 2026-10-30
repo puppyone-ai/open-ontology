@@ -10,42 +10,79 @@ const PUBLISHED_INITIALIZE_VERSION: &str = "native-c5-published-baseline/v1";
 const PUBLISHED_INITIALIZE_SQL: &str =
     include_str!("../migrations/0069_native_c5_published_baseline.sql");
 const EMPTY_INITIALIZE_VERSION: &str = "native-c5-empty-baseline/v1";
-const EMPTY_INITIALIZE_SQL: &str =
-    include_str!("../migrations/0071_native_c5_empty_baseline.sql");
+const EMPTY_INITIALIZE_SQL: &str = include_str!("../migrations/0071_native_c5_empty_baseline.sql");
 const ORACLE_RANGE_SQL: &str = include_str!("../migrations/0090_native_c5_oracle_range.sql");
 
-fn validate_oracle_state(document: &Value) -> Result<crate::native_c5_range::OracleSnapshot, &'static str> {
+fn validate_oracle_state(
+    document: &Value,
+) -> Result<crate::native_c5_range::OracleSnapshot, &'static str> {
     let initialize = document["operation"] == "initialize_oracle_ranges";
     if document["operation"] != "observe_oracle_unchanged" && !initialize {
         return Err("c5_oracle_operation");
     }
     let allowed = if initialize {
-        &["protocol","operation","source_id","schema","table","target","expected_source_generation",
-          "oracle_snapshot","run_id","schema_fingerprint","key_column","chunks"][..]
+        &[
+            "protocol",
+            "operation",
+            "source_id",
+            "schema",
+            "table",
+            "target",
+            "expected_source_generation",
+            "oracle_snapshot",
+            "run_id",
+            "schema_fingerprint",
+            "key_column",
+            "chunks",
+        ][..]
     } else {
-        &["protocol","operation","source_id","schema","table","target","expected_source_generation",
-          "oracle_snapshot","chunk_id","rows"][..]
+        &[
+            "protocol",
+            "operation",
+            "source_id",
+            "schema",
+            "table",
+            "target",
+            "expected_source_generation",
+            "oracle_snapshot",
+            "chunk_id",
+            "rows",
+        ][..]
     };
-    if document.as_object().is_none_or(|o| o.keys().any(|k| !allowed.contains(&k.as_str())))
-        || document["expected_source_generation"].as_i64().is_none_or(|n| n < 1) {
+    if document
+        .as_object()
+        .is_none_or(|o| o.keys().any(|k| !allowed.contains(&k.as_str())))
+        || document["expected_source_generation"]
+            .as_i64()
+            .is_none_or(|n| n < 1)
+    {
         return Err("c5_oracle_scope");
     }
     let oracle: crate::native_c5_range::OracleSnapshot =
-        serde_json::from_value(document["oracle_snapshot"].clone()).map_err(|_| "c5_oracle_snapshot")?;
-    if !oracle.valid() || oracle.source_schema != text(document,"schema")?
-        || oracle.source_table != text(document,"table")? {
+        serde_json::from_value(document["oracle_snapshot"].clone())
+            .map_err(|_| "c5_oracle_snapshot")?;
+    if !oracle.valid()
+        || oracle.source_schema != text(document, "schema")?
+        || oracle.source_table != text(document, "table")?
+    {
         return Err("c5_oracle_snapshot");
     }
     if initialize {
-        text(document,"run_id")?;
-        text(document,"schema_fingerprint")?;
-        text(document,"key_column")?;
-        if document["chunks"].as_array().is_none_or(|v| v.is_empty() || v.len()>4096) {
+        text(document, "run_id")?;
+        text(document, "schema_fingerprint")?;
+        text(document, "key_column")?;
+        if document["chunks"]
+            .as_array()
+            .is_none_or(|v| v.is_empty() || v.len() > 4096)
+        {
             return Err("c5_oracle_topology");
         }
     } else {
-        text(document,"chunk_id")?;
-        if document["rows"].as_array().is_none_or(|v| v.len()>100_000) {
+        text(document, "chunk_id")?;
+        if document["rows"]
+            .as_array()
+            .is_none_or(|v| v.len() > 100_000)
+        {
             return Err("c5_oracle_rows");
         }
     }
@@ -56,35 +93,67 @@ async fn execute_oracle_state(document: &Value) -> Result<Value, &'static str> {
     validate_oracle_state(document)?;
     let mut conn = crate::native_update::connect_target(&document["target"]).await?;
     let installed: Option<String> = sqlx::query_scalar(
-        "SELECT checksum FROM _oo.schema_migrations WHERE version='native-c5-oracle-range/v1'")
-        .fetch_optional(&mut conn).await.map_err(|_| "c5_oracle_schema")?;
-    if installed.as_deref() != Some(crate::native_c5_multipart::digest(ORACLE_RANGE_SQL.as_bytes()).as_str()) {
+        "SELECT checksum FROM _oo.schema_migrations WHERE version='native-c5-oracle-range/v1'",
+    )
+    .fetch_optional(&mut conn)
+    .await
+    .map_err(|_| "c5_oracle_schema")?;
+    if installed.as_deref()
+        != Some(crate::native_c5_multipart::digest(ORACLE_RANGE_SQL.as_bytes()).as_str())
+    {
         return Err("c5_oracle_schema");
     }
     let mut tx = conn.begin().await.map_err(|_| "c5_oracle_state")?;
-    let source = text(document,"source_id")?;
-    let expected = document["expected_source_generation"].as_i64().ok_or("c5_oracle_scope")?;
+    let source = text(document, "source_id")?;
+    let expected = document["expected_source_generation"]
+        .as_i64()
+        .ok_or("c5_oracle_scope")?;
     let context = document["oracle_snapshot"].to_string();
     let raw: String = if document["operation"] == "initialize_oracle_ranges" {
-        sqlx::query_scalar("SELECT _oo.c5_oracle_initialize($1,$2::uuid,$3::jsonb,$4,$5,$6::jsonb)::text")
-            .bind(source).bind(text(document,"run_id")?).bind(&context)
-            .bind(text(document,"schema_fingerprint")?).bind(text(document,"key_column")?)
-            .bind(document["chunks"].to_string())
-            .fetch_one(&mut *tx).await.map_err(|_| "c5_oracle_initialize")?
+        sqlx::query_scalar(
+            "SELECT _oo.c5_oracle_initialize($1,$2::uuid,$3::jsonb,$4,$5,$6::jsonb)::text",
+        )
+        .bind(source)
+        .bind(text(document, "run_id")?)
+        .bind(&context)
+        .bind(text(document, "schema_fingerprint")?)
+        .bind(text(document, "key_column")?)
+        .bind(document["chunks"].to_string())
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|_| "c5_oracle_initialize")?
     } else {
-        sqlx::query("SELECT source_generation FROM _oo.source_watermark WHERE source=$1 FOR UPDATE")
-            .bind(source).fetch_one(&mut *tx).await.map_err(|_| "c5_oracle_scope")?;
+        sqlx::query(
+            "SELECT source_generation FROM _oo.source_watermark WHERE source=$1 FOR UPDATE",
+        )
+        .bind(source)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|_| "c5_oracle_scope")?;
         sqlx::query_scalar("SELECT _oo.c5_oracle_check_unchanged($1,$2::jsonb,$3,$4::jsonb)::text")
-            .bind(source).bind(&context).bind(text(document,"chunk_id")?).bind(document["rows"].to_string())
-            .fetch_one(&mut *tx).await.map_err(|_| "c5_oracle_observation")?
+            .bind(source)
+            .bind(&context)
+            .bind(text(document, "chunk_id")?)
+            .bind(document["rows"].to_string())
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|_| "c5_oracle_observation")?
     };
-    let actual: i64 = sqlx::query_scalar("SELECT source_generation FROM _oo.source_watermark WHERE source=$1")
-        .bind(source).fetch_one(&mut *tx).await.map_err(|_| "c5_oracle_scope")?;
-    if actual != expected { return Err("c5_oracle_stale_generation"); }
+    let actual: i64 =
+        sqlx::query_scalar("SELECT source_generation FROM _oo.source_watermark WHERE source=$1")
+            .bind(source)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|_| "c5_oracle_scope")?;
+    if actual != expected {
+        return Err("c5_oracle_stale_generation");
+    }
     let result: Value = serde_json::from_str(&raw).map_err(|_| "c5_oracle_state")?;
     tx.commit().await.map_err(|_| "c5_oracle_state")?;
-    Ok(json!({"protocol":"oo.pipeline.native-c5-oracle-state/v1","source_id":source,
-        "source_generation":actual,"data_gen":false,"result":result}))
+    Ok(
+        json!({"protocol":"oo.pipeline.native-c5-oracle-state/v1","source_id":source,
+        "source_generation":actual,"data_gen":false,"result":result}),
+    )
 }
 
 pub async fn execute(document: &Value) -> Result<Value, &'static str> {
@@ -92,7 +161,10 @@ pub async fn execute(document: &Value) -> Result<Value, &'static str> {
         return Err("invalid_version");
     }
     let operation = text(document, "operation")?;
-    if matches!(operation, "initialize_oracle_ranges" | "observe_oracle_unchanged") {
+    if matches!(
+        operation,
+        "initialize_oracle_ranges" | "observe_oracle_unchanged"
+    ) {
         return execute_oracle_state(document).await;
     }
     let source = text(document, "source_id")?;
@@ -221,27 +293,38 @@ pub async fn execute(document: &Value) -> Result<Value, &'static str> {
         "initialize_multipart_if_absent" | "initialize_published_if_absent" => {
             let type_preimages = widening_type_preimages(document)?;
             let adaptation = if operation == "initialize_published_if_absent" {
-                let installed:Option<String>=sqlx::query_scalar(
-                    "SELECT checksum FROM _oo.schema_migrations WHERE version=$1")
-                    .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_REBASE)
-                    .fetch_optional(&mut *tx).await.map_err(|_|"c5_widening_schema")?;
-                if let Some(installed)=installed {
-                    if installed!=crate::target_installer::compiled_native_c5_widening_rebase_digest() {
+                let installed: Option<String> = sqlx::query_scalar(
+                    "SELECT checksum FROM _oo.schema_migrations WHERE version=$1",
+                )
+                .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_REBASE)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|_| "c5_widening_schema")?;
+                if let Some(installed) = installed {
+                    if installed
+                        != crate::target_installer::compiled_native_c5_widening_rebase_digest()
+                    {
                         return Err("c5_widening_schema");
                     }
                     let type_receipt: Option<String> = sqlx::query_scalar(
-                        "SELECT checksum FROM _oo.schema_migrations WHERE version=$1")
-                        .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_TYPE_RECEIPT)
-                        .fetch_optional(&mut *tx).await.map_err(|_| "c5_widening_schema")?;
+                        "SELECT checksum FROM _oo.schema_migrations WHERE version=$1",
+                    )
+                    .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_TYPE_RECEIPT)
+                    .fetch_optional(&mut *tx)
+                    .await
+                    .map_err(|_| "c5_widening_schema")?;
                     if type_receipt.as_deref() != Some(
                         crate::target_installer::compiled_native_c5_widening_type_receipt_digest().as_str()) {
                         return Err("c5_widening_schema");
                     }
                     let statement = if type_preimages.is_some() {
                         let installed: Option<String> = sqlx::query_scalar(
-                            "SELECT checksum FROM _oo.schema_migrations WHERE version=$1")
-                            .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_SOURCE_TYPES)
-                            .fetch_optional(&mut *tx).await.map_err(|_| "c5_widening_schema")?;
+                            "SELECT checksum FROM _oo.schema_migrations WHERE version=$1",
+                        )
+                        .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_SOURCE_TYPES)
+                        .fetch_optional(&mut *tx)
+                        .await
+                        .map_err(|_| "c5_widening_schema")?;
                         if installed.as_deref() != Some(
                             crate::target_installer::compiled_native_c5_widening_source_types_digest().as_str()) {
                             return Err("c5_widening_schema");
@@ -251,28 +334,57 @@ pub async fn execute(document: &Value) -> Result<Value, &'static str> {
                         "SELECT _oo.c5_rebase_widening_if_needed($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::text[],$10::uuid,$11)::text"
                     };
                     let mut query = sqlx::query_scalar::<_, String>(statement)
-                        .bind(shard).bind(owner).bind(fence).bind(source).bind(schema).bind(table)
-                        .bind(text(document,"schema_fingerprint")?)
-                        .bind(document["expected_source_generation"].as_i64().ok_or("c5_state_scope")?)
-                        .bind(document["key_columns"].as_array().ok_or("c5_keys")?.iter()
-                            .map(|key|key.as_str().ok_or("c5_keys")).collect::<Result<Vec<_>,_>>()?)
-                        .bind(text(document,"lease_id")?)
-                        .bind(document["lease_generation"].as_i64().ok_or("lease_required")?);
+                        .bind(shard)
+                        .bind(owner)
+                        .bind(fence)
+                        .bind(source)
+                        .bind(schema)
+                        .bind(table)
+                        .bind(text(document, "schema_fingerprint")?)
+                        .bind(
+                            document["expected_source_generation"]
+                                .as_i64()
+                                .ok_or("c5_state_scope")?,
+                        )
+                        .bind(
+                            document["key_columns"]
+                                .as_array()
+                                .ok_or("c5_keys")?
+                                .iter()
+                                .map(|key| key.as_str().ok_or("c5_keys"))
+                                .collect::<Result<Vec<_>, _>>()?,
+                        )
+                        .bind(text(document, "lease_id")?)
+                        .bind(
+                            document["lease_generation"]
+                                .as_i64()
+                                .ok_or("lease_required")?,
+                        );
                     if let Some((old, new)) = &type_preimages {
                         query = query.bind(old).bind(new);
                     }
-                    let value = query.fetch_one(&mut *tx).await.map_err(|_|"c5_widening_rebase")?;
-                    let value:Value=serde_json::from_str(&value).map_err(|_|"c5_widening_rebase")?;
+                    let value = query
+                        .fetch_one(&mut *tx)
+                        .await
+                        .map_err(|_| "c5_widening_rebase")?;
+                    let value: Value =
+                        serde_json::from_str(&value).map_err(|_| "c5_widening_rebase")?;
                     if !value["rebased"].is_boolean()
-                        || (value["rebased"]==true && (value["published"]!=false || value["acknowledged"]!=false)) {
+                        || (value["rebased"] == true
+                            && (value["published"] != false || value["acknowledged"] != false))
+                    {
                         return Err("c5_widening_rebase");
                     }
                     Some(value)
-                }else{
-                    if type_preimages.is_some() { return Err("c5_widening_schema"); }
+                } else {
+                    if type_preimages.is_some() {
+                        return Err("c5_widening_schema");
+                    }
                     None
                 }
-            }else{None};
+            } else {
+                None
+            };
             let statement = if operation == "initialize_published_if_absent" {
                 require_published_schema(&mut tx).await?;
                 "SELECT _oo.c5_initialize_published_if_absent($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::text[],$10)::text"
@@ -320,9 +432,9 @@ pub async fn execute(document: &Value) -> Result<Value, &'static str> {
                         "c5_multipart_initialize"
                     }
                 })?;
-            let mut result:Value=serde_json::from_str(&result).map_err(|_| "c5_state")?;
-            if let Some(adaptation)=adaptation.filter(|value|value["rebased"]==true) {
-                result["schema_adaptation"]=adaptation;
+            let mut result: Value = serde_json::from_str(&result).map_err(|_| "c5_state")?;
+            if let Some(adaptation) = adaptation.filter(|value| value["rebased"] == true) {
+                result["schema_adaptation"] = adaptation;
             }
             result
         }
@@ -387,16 +499,18 @@ pub async fn execute(document: &Value) -> Result<Value, &'static str> {
                 let scope = partial_range_scope(&document["range_scope"])?;
                 let guard = if scope["protocol"] == crate::native_c5_parts::RANGE_PROTOCOL {
                     "SELECT _oo.c5_parts_observation_receipt_guard($1,$2::uuid,$3,$4::jsonb,$5::jsonb)"
-                } else { "SELECT _oo.c5_observation_receipt_guard($1,$2::uuid,$3,$4::jsonb,$5::jsonb)" };
+                } else {
+                    "SELECT _oo.c5_observation_receipt_guard($1,$2::uuid,$3,$4::jsonb,$5::jsonb)"
+                };
                 sqlx::query(guard)
-                .bind(shard)
-                .bind(owner)
-                .bind(fence)
-                .bind(scope.to_string())
-                .bind(document["loader_receipt"].to_string())
-                .execute(&mut *tx)
-                .await
-                .map_err(|_| "c5_observation_receipt")?;
+                    .bind(shard)
+                    .bind(owner)
+                    .bind(fence)
+                    .bind(scope.to_string())
+                    .bind(document["loader_receipt"].to_string())
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(|_| "c5_observation_receipt")?;
             }
             let observation = &document["observation"];
             let chunks = observation["chunks"]
@@ -604,17 +718,22 @@ pub async fn execute(document: &Value) -> Result<Value, &'static str> {
                 return Ok(result);
             }
             if nochange["c5_observation"]["work"]["payload_mode"] == "metadata_only" {
-                let raw: String = sqlx::query_scalar(
-                    "SELECT _oo.c5_authority_export($1,$2,$3)::text",
-                )
-                .bind(source).bind(schema).bind(table)
-                .fetch_one(&mut *tx).await.map_err(|_| "c5_state")?;
+                let raw: String =
+                    sqlx::query_scalar("SELECT _oo.c5_authority_export($1,$2,$3)::text")
+                        .bind(source)
+                        .bind(schema)
+                        .bind(table)
+                        .fetch_one(&mut *tx)
+                        .await
+                        .map_err(|_| "c5_state")?;
                 let authority: Value = serde_json::from_str(&raw).map_err(|_| "c5_state")?;
                 validate_metadata_observation(document, &authority)?;
                 // A hints-only poll must not rewrite chunk scan times or complete L3/L4.
                 tx.commit().await.map_err(|_| "c5_state")?;
-                return Ok(json!({"metadata_only":true,"full_digest_scan_completed":false,
-                    "data_gen":false,"apply":false,"ack":false,"receipt":null}));
+                return Ok(
+                    json!({"metadata_only":true,"full_digest_scan_completed":false,
+                    "data_gen":false,"apply":false,"ack":false,"receipt":null}),
+                );
             }
             sqlx::query("SELECT _oo.c5_observe($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb)")
                 .bind(shard)
@@ -654,24 +773,42 @@ mod widening_migration_tests {
             .replacen("IF p_reader IN ('oo_target_owner','oo_target_admin') THEN RETURN true; END IF;",
                 "IF p_reader IN ('oo_target_owner','oo_target_admin')\n    OR EXISTS(SELECT FROM pg_catalog.pg_roles WHERE rolname=p_reader AND rolsuper)\n  THEN RETURN true; END IF;", 1);
         let new = include_str!("../migrations/0108_native_c5_privileged_observer.sql");
-        assert_eq!(&new[new.find("CREATE OR REPLACE FUNCTION").unwrap()..], expected);
+        assert_eq!(
+            &new[new.find("CREATE OR REPLACE FUNCTION").unwrap()..],
+            expected
+        );
     }
 
     #[test]
     fn widening_preimages_bind_exact_bytes_and_reject_drift_or_other_operations() {
-        let path = std::env::temp_dir().join(format!("oo-widening-{}-{}.json", std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let path = std::env::temp_dir().join(format!(
+            "oo-widening-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         let bytes = b"[]\n";
         std::fs::write(&path, bytes).unwrap();
         let pin = json!({"path":path,"sha256":crate::target_installer::sha256_hex(bytes)});
         let mut request = json!({"operation":"initialize_published_if_absent",
             "widening_type_preimages":{"old":pin,"new":pin}});
-        assert_eq!(widening_type_preimages(&request).unwrap(), Some(("[]\n".into(), "[]\n".into())));
+        assert_eq!(
+            widening_type_preimages(&request).unwrap(),
+            Some(("[]\n".into(), "[]\n".into()))
+        );
         request["operation"] = json!("initialize_multipart_if_absent");
-        assert_eq!(widening_type_preimages(&request).unwrap_err(), "c5_widening_scope");
+        assert_eq!(
+            widening_type_preimages(&request).unwrap_err(),
+            "c5_widening_scope"
+        );
         request["operation"] = json!("initialize_published_if_absent");
         std::fs::write(&path, b"[]").unwrap();
-        assert_eq!(widening_type_preimages(&request).unwrap_err(), "c5_widening_preimage_digest");
+        assert_eq!(
+            widening_type_preimages(&request).unwrap_err(),
+            "c5_widening_preimage_digest"
+        );
         std::fs::remove_file(path).unwrap();
         assert!(widening_type_preimages(&json!({})).unwrap().is_none());
     }
@@ -698,11 +835,19 @@ mod widening_migration_tests {
     fn widening_accepts_a_new_sealed_type_digest_without_weakening_other_guards() {
         let original = include_str!("../migrations/0105_native_c5_widening_rebase.sql");
         let revised = include_str!("../migrations/0106_native_c5_widening_type_receipt.sql");
-        let old = &original[original.find("CREATE FUNCTION _oo.c5_rebase_widening_if_needed(").unwrap()..];
-        let new = &revised[revised.find("CREATE OR REPLACE FUNCTION _oo.c5_rebase_widening_if_needed(").unwrap()..];
+        let old = &original[original
+            .find("CREATE FUNCTION _oo.c5_rebase_widening_if_needed(")
+            .unwrap()..];
+        let new = &revised[revised
+            .find("CREATE OR REPLACE FUNCTION _oo.c5_rebase_widening_if_needed(")
+            .unwrap()..];
         let equality = "  OR new_run.type_digest IS DISTINCT FROM old_run.type_digest\n";
         assert_eq!(old.matches(equality).count(), 1);
-        assert_eq!(new, old.replace(equality, "").replacen("CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", 1));
+        assert_eq!(
+            new,
+            old.replace(equality, "")
+                .replacen("CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", 1)
+        );
         assert!(new.contains("new_col.atttypmod<=old_col.atttypmod"));
         assert!(new.contains("old_col.logical_column=ANY(p_keys)"));
         assert!(new.contains("c5_overlay_is_valid"));
@@ -714,7 +859,8 @@ fn validate_metadata_observation(document: &Value, authority: &Value) -> Result<
     let observation = &nochange["c5_observation"];
     let layers: [bool; 4] = serde_json::from_value(nochange["c5_completed_layers"].clone())
         .map_err(|_| "c5_metadata_observation")?;
-    if layers[2] || layers[3]
+    if layers[2]
+        || layers[3]
         || observation["full_digest_scan_completed"] != false
         || observation["chunks"] != json!([])
         || observation["scan_id"] != Value::Null
@@ -727,7 +873,8 @@ fn validate_metadata_observation(document: &Value, authority: &Value) -> Result<
         || nochange["parent_digest"] != authority["input_digest"]
         || !authority["scan_id"].is_null()
         || authority["empty_only"] == true
-        || ["source_id", "schema", "table", "schema_fingerprint"].iter()
+        || ["source_id", "schema", "table", "schema_fingerprint"]
+            .iter()
             .any(|key| observation[*key] != authority[*key] || observation[*key] != document[*key])
         || observation["chunk_topology_revision"] != authority["chunk_topology_revision"]
     {
@@ -791,23 +938,51 @@ fn validate_empty_observation(document: &Value) -> Result<(), &'static str> {
     let nochange = &document["nochange"];
     let obs = &nochange["c5_observation"];
     let fields = [
-        "protocol", "source_id", "schema", "table", "source_generation",
-        "table_source_generation", "schema_fingerprint", "baseline_receipt",
-        "observation_id", "lease_id", "lease_generation", "started_at_ms",
-        "checked_at_ms", "source_query", "rows_returned", "row_limit",
-        "snapshot_complete", "read_only", "schema_checked_before", "schema_checked_after",
+        "protocol",
+        "source_id",
+        "schema",
+        "table",
+        "source_generation",
+        "table_source_generation",
+        "schema_fingerprint",
+        "baseline_receipt",
+        "observation_id",
+        "lease_id",
+        "lease_generation",
+        "started_at_ms",
+        "checked_at_ms",
+        "source_query",
+        "rows_returned",
+        "row_limit",
+        "snapshot_complete",
+        "read_only",
+        "schema_checked_before",
+        "schema_checked_after",
     ];
     if obs.as_object().is_none_or(|object| {
         object.len() != fields.len() || fields.iter().any(|key| !object.contains_key(*key))
-    }) || ["source_id", "schema", "table", "lease_id", "lease_generation"]
-        .iter().any(|key| obs[*key] != document[*key])
+    }) || [
+        "source_id",
+        "schema",
+        "table",
+        "lease_id",
+        "lease_generation",
+    ]
+    .iter()
+    .any(|key| obs[*key] != document[*key])
         || nochange["source_generation"] != document["expected_source_generation"]
         || obs["source_generation"] != nochange["source_generation"]
         || nochange["acknowledged_source_generation"] != nochange["source_generation"]
         || obs["rows_returned"].as_u64() != Some(0)
         || obs["row_limit"].as_u64() != Some(1)
-        || ["snapshot_complete", "read_only", "schema_checked_before", "schema_checked_after"]
-            .iter().any(|key| obs[*key] != true)
+        || [
+            "snapshot_complete",
+            "read_only",
+            "schema_checked_before",
+            "schema_checked_after",
+        ]
+        .iter()
+        .any(|key| obs[*key] != true)
         || !matches!((obs["started_at_ms"].as_i64(), obs["checked_at_ms"].as_i64()),
             (Some(started), Some(checked)) if started >= 0 && checked >= started)
         || !matches!((obs["table_source_generation"].as_i64(), obs["source_generation"].as_i64()),
@@ -962,11 +1137,12 @@ fn hydration_members(
         .ok_or("c5_hydration_schema")?;
     if decoded.rows as u64 != row_count
         || decoded.fields.len() != selected.len()
-        || decoded
-            .fields
-            .iter()
-            .zip(selected)
-            .any(|(field, name)| name.as_str() != crate::native_arrow::mapping_ident(&field.name).ok().as_deref())
+        || decoded.fields.iter().zip(selected).any(|(field, name)| {
+            name.as_str()
+                != crate::native_arrow::mapping_ident(&field.name)
+                    .ok()
+                    .as_deref()
+        })
     {
         return Err("c5_hydration_schema");
     }
@@ -985,7 +1161,13 @@ fn hydration_members(
             decoded
                 .fields
                 .iter()
-                .position(|field| key.as_str() == crate::native_arrow::mapping_ident(&field.name).ok().as_deref() && !field.nullable)
+                .position(|field| {
+                    key.as_str()
+                        == crate::native_arrow::mapping_ident(&field.name)
+                            .ok()
+                            .as_deref()
+                        && !field.nullable
+                })
                 .ok_or("c5_hydration_keys")
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -1034,8 +1216,12 @@ fn archive_digest(authority: &Value, bytes: &[u8]) -> Result<Option<Value>, &'st
         return Err("c5_hydration_schema");
     }
     for (column, field) in columns.iter().zip(&decoded.fields) {
-        if column["name"].as_str() != crate::native_arrow::mapping_ident(&field.name).ok().as_deref()
-            || column["nullable"] != field.nullable {
+        if column["name"].as_str()
+            != crate::native_arrow::mapping_ident(&field.name)
+                .ok()
+                .as_deref()
+            || column["nullable"] != field.nullable
+        {
             return Err("c5_hydration_schema");
         }
         if !matches!(
@@ -1204,14 +1390,14 @@ fn validate_partial_observation(document: &Value) -> Result<(), &'static str> {
                     || chunks
                         .iter()
                         .enumerate()
-                        .any(|(i, chunk)| chunk["chunk_id"] != i.to_string())))
+                        .any(|(i, chunk)| chunk["chunk_id"] != i.to_string().as_str())))
         {
             return Err("c5_partial_observation");
         }
     }
     if document.get("loader_receipt").is_some() || document.get("range_scope").is_some() {
-        let scope = partial_range_scope(&document["range_scope"])
-            .map_err(|_| "c5_observation_receipt")?;
+        let scope =
+            partial_range_scope(&document["range_scope"]).map_err(|_| "c5_observation_receipt")?;
         let receipt = &document["loader_receipt"];
         if receipt["protocol"] != "oo.pipeline.native-update-result/v1"
             || receipt["source_id"] != document["source_id"]
@@ -1235,7 +1421,9 @@ fn validate_partial_observation(document: &Value) -> Result<(), &'static str> {
             || scope["row_count"] != chunk["row_count"]
             || (scope["protocol"] == crate::native_c5_parts::RANGE_PROTOCOL
                 && scope["parts_task"] != document["lease_id"])
-            || scope["prior_membership_revision"].as_i64().and_then(|v|v.checked_add(1))
+            || scope["prior_membership_revision"]
+                .as_i64()
+                .and_then(|v| v.checked_add(1))
                 != chunk["membership_revision"].as_i64()
         {
             return Err("c5_observation_receipt");
@@ -1245,25 +1433,43 @@ fn validate_partial_observation(document: &Value) -> Result<(), &'static str> {
 }
 
 fn widening_type_preimages(document: &Value) -> Result<Option<(String, String)>, &'static str> {
-    let Some(proof) = document.get("widening_type_preimages") else { return Ok(None) };
+    let Some(proof) = document.get("widening_type_preimages") else {
+        return Ok(None);
+    };
     if document["operation"] != "initialize_published_if_absent"
-        || proof.as_object().is_none_or(|p| p.len() != 2 || !p.contains_key("old") || !p.contains_key("new")) {
+        || proof
+            .as_object()
+            .is_none_or(|p| p.len() != 2 || !p.contains_key("old") || !p.contains_key("new"))
+    {
         return Err("c5_widening_scope");
     }
     let read = |pin: &Value| -> Result<String, &'static str> {
-        if pin.as_object().is_none_or(|p| p.len() != 2 || !p.contains_key("path") || !p.contains_key("sha256")) {
+        if pin
+            .as_object()
+            .is_none_or(|p| p.len() != 2 || !p.contains_key("path") || !p.contains_key("sha256"))
+        {
             return Err("c5_widening_preimage");
         }
         let path = std::path::Path::new(text(pin, "path")?);
-        if !path.is_absolute() || path.components().any(|part| part == std::path::Component::ParentDir)
-            || !std::fs::symlink_metadata(path).map_err(|_| "c5_widening_preimage")?.is_file() {
+        if !path.is_absolute()
+            || path
+                .components()
+                .any(|part| part == std::path::Component::ParentDir)
+            || !std::fs::symlink_metadata(path)
+                .map_err(|_| "c5_widening_preimage")?
+                .is_file()
+        {
             return Err("c5_widening_preimage");
         }
         let mut bytes = Vec::new();
-        std::fs::File::open(path).map_err(|_| "c5_widening_preimage")?
-            .take(1_048_577).read_to_end(&mut bytes).map_err(|_| "c5_widening_preimage")?;
+        std::fs::File::open(path)
+            .map_err(|_| "c5_widening_preimage")?
+            .take(1_048_577)
+            .read_to_end(&mut bytes)
+            .map_err(|_| "c5_widening_preimage")?;
         if bytes.len() > 1_048_576
-            || crate::target_installer::sha256_hex(&bytes) != text(pin, "sha256")? {
+            || crate::target_installer::sha256_hex(&bytes) != text(pin, "sha256")?
+        {
             return Err("c5_widening_preimage_digest");
         }
         // SQL checks these exact bytes against the sealed old/new run digests.
@@ -1295,7 +1501,8 @@ fn validate_multipart_initialize(document: &Value) -> Result<(), &'static str> {
         return Err("c5_multipart_initialize_request");
     }
     if document.get("widening_type_preimages").is_some()
-        && document["operation"] != "initialize_published_if_absent" {
+        && document["operation"] != "initialize_published_if_absent"
+    {
         return Err("c5_widening_scope");
     }
     for field in ["source_id", "schema", "table", "lease_id"] {
@@ -1325,8 +1532,11 @@ fn validate_multipart_initialize(document: &Value) -> Result<(), &'static str> {
     }
     let keys = document["key_columns"].as_array().ok_or("c5_keys")?;
     let empty_only = document["operation"] == "initialize_empty_if_absent";
-    if (if empty_only { !keys.is_empty() } else { keys.is_empty() })
-        || keys.len() > 64
+    if (if empty_only {
+        !keys.is_empty()
+    } else {
+        keys.is_empty()
+    }) || keys.len() > 64
         || keys.iter().enumerate().any(|(i, key)| {
             key.as_str()
                 .is_none_or(|s| s.is_empty() || s.contains('\0'))
@@ -1379,19 +1589,25 @@ mod initialization_limits {
             "oracle_snapshot":{"identity":"owned","scn":"2255350","manifest_sha256":"b".repeat(64),
                 "source_schema":"OWNER","source_table":"ORDERS"}});
         assert!(validate_oracle_state(&value).is_ok());
-        for (key, v) in [("schema",json!("owner")),("expected_source_generation",json!(0)),
-                         ("chunks",json!([])),("fake_lease",json!(true))] {
-            let mut bad=value.clone();bad[key]=v;
-            assert!(validate_oracle_state(&bad).is_err(),"{key}");
+        for (key, v) in [
+            ("schema", json!("owner")),
+            ("expected_source_generation", json!(0)),
+            ("chunks", json!([])),
+            ("fake_lease", json!(true)),
+        ] {
+            let mut bad = value.clone();
+            bad[key] = v;
+            assert!(validate_oracle_state(&bad).is_err(), "{key}");
         }
-        let mut observation=value.clone();
-        for key in ["run_id","schema_fingerprint","key_column","chunks"] {
+        let mut observation = value.clone();
+        for key in ["run_id", "schema_fingerprint", "key_column", "chunks"] {
             observation.as_object_mut().unwrap().remove(key);
         }
-        observation["operation"]=json!("observe_oracle_unchanged");
-        observation["chunk_id"]=json!("0");observation["rows"]=json!([]);
+        observation["operation"] = json!("observe_oracle_unchanged");
+        observation["chunk_id"] = json!("0");
+        observation["rows"] = json!([]);
         assert!(validate_oracle_state(&observation).is_ok());
-        observation["oracle_snapshot"]["scn"]=json!("0");
+        observation["oracle_snapshot"]["scn"] = json!("0");
         assert!(validate_oracle_state(&observation).is_err());
     }
 
@@ -1412,13 +1628,19 @@ mod initialization_limits {
         for (pointer, value) in [
             ("/nochange/c5_completed_layers/2", json!(true)),
             ("/nochange/c5_completed_layers/3", json!(true)),
-            ("/nochange/c5_observation/full_digest_scan_completed", json!(true)),
+            (
+                "/nochange/c5_observation/full_digest_scan_completed",
+                json!(true),
+            ),
             ("/nochange/c5_observation/work/digest_rows", json!(1)),
             ("/nochange/parent_digest", json!("c".repeat(64))),
         ] {
             let mut bad = document.clone();
             *bad.pointer_mut(pointer).unwrap() = value;
-            assert!(validate_metadata_observation(&bad, &authority).is_err(), "{pointer}");
+            assert!(
+                validate_metadata_observation(&bad, &authority).is_err(),
+                "{pointer}"
+            );
         }
         let mut active = authority.clone();
         active["scan_id"] = json!("running");
@@ -1594,7 +1816,10 @@ mod initialization_limits {
             assert_eq!(hydration_members(&authority, &bytes).unwrap().len(), 2);
             assert!(archive_digest(&authority, &bytes).unwrap().is_some());
             authority["baseline"]["selected_columns"][1] = json!(name);
-            assert_eq!(hydration_members(&authority, &bytes), Err("c5_hydration_schema"));
+            assert_eq!(
+                hydration_members(&authority, &bytes),
+                Err("c5_hydration_schema")
+            );
         }
     }
 
@@ -1666,8 +1891,8 @@ mod initialization_limits {
             at + u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize
         }
         fn slot(bytes: &[u8], table: usize, index: usize) -> usize {
-            let vtable = table
-                - i32::from_le_bytes(bytes[table..table + 4].try_into().unwrap()) as usize;
+            let vtable =
+                table - i32::from_le_bytes(bytes[table..table + 4].try_into().unwrap()) as usize;
             let at = vtable + 4 + 2 * index;
             table + u16::from_le_bytes(bytes[at..at + 2].try_into().unwrap()) as usize
         }
@@ -1698,7 +1923,10 @@ mod initialization_limits {
             (0.1, "1e-1"),
             (f64::from(0.1_f32), "10000000149011612e-17"),
             (f64::from_bits(1), "5e-324"),
-            (f64::from_bits(1.0_f64.to_bits() + 1), "10000000000000002e-16"),
+            (
+                f64::from_bits(1.0_f64.to_bits() + 1),
+                "10000000000000002e-16",
+            ),
         ] {
             let (authority, bytes) = retained_float(Some(value));
             let frame = canonical
@@ -1709,9 +1937,14 @@ mod initialization_limits {
             let hash = Sha256::digest(frame.as_bytes());
             assert_eq!(
                 archive_digest(&authority, &bytes).unwrap(),
-                Some(json!([1,
+                Some(json!([
+                    1,
                     format!("{:016x}", u64::from_be_bytes(hash[..8].try_into().unwrap())),
-                    format!("{:016x}", u64::from_be_bytes(hash[8..16].try_into().unwrap()))])),
+                    format!(
+                        "{:016x}",
+                        u64::from_be_bytes(hash[8..16].try_into().unwrap())
+                    )
+                ])),
                 "{value:?}"
             );
         }
@@ -1725,7 +1958,10 @@ mod initialization_limits {
     fn archive_float_digest_refuses_nonfinite_and_corrupted_arrow() {
         for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
             let (authority, bytes) = retained_float(Some(value));
-            assert_eq!(archive_digest(&authority, &bytes), Err("c5_float_nonfinite"));
+            assert_eq!(
+                archive_digest(&authority, &bytes),
+                Err("c5_float_nonfinite")
+            );
         }
         let (authority, mut bytes) = retained_float(Some(0.1));
         bytes[0] ^= 1;
@@ -1819,7 +2055,10 @@ mod initialization_limits {
         for field in ["row_count", "baseline_receipt", "multipart_scope", "chunks"] {
             let mut bad = request.clone();
             bad[field] = Value::Null;
-            assert_eq!(validate_multipart_initialize(&bad), Err("c5_multipart_initialize_request"));
+            assert_eq!(
+                validate_multipart_initialize(&bad),
+                Err("c5_multipart_initialize_request")
+            );
         }
         request["operation"] = json!("initialize_published_if_absent");
         assert_eq!(validate_multipart_initialize(&request), Err("c5_keys"));

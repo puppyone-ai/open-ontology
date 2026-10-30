@@ -11,19 +11,19 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use oo_connectors::{
-    config_identity, type_policy_identity, AdmittedCatalog, AdmittedColumn, AdmittedTable,
-    PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, PgTypePolicy, SecretRef,
-    SelectedTable, SnapshotOwner, SnapshotRequest, SourceId, StreamBudget, StreamItem,
-    TableSelection,
+    AdmittedCatalog, AdmittedColumn, AdmittedTable, PgBudget, PgCredentials, PgEndpoint,
+    PgSourceConfig, PgTlsConfig, PgTypePolicy, SecretRef, SelectedTable, SnapshotOwner,
+    SnapshotRequest, SourceId, StreamBudget, StreamItem, TableSelection, config_identity,
+    type_policy_identity,
 };
 use oo_pipeline::copy_encoder::CopyBudgets;
 use oo_pipeline::full_import::{
-    abort_conflicting, adopt_generation, import_unpublished, recover, replay_batch, ApplyStep,
-    ImportError, ImportRequest, ImportSession, Recovery, RunState,
+    ApplyStep, ImportError, ImportRequest, ImportSession, Recovery, RunState, abort_conflicting,
+    adopt_generation, import_unpublished, recover, replay_batch,
 };
 use oo_pipeline::target_installer::{
-    install, install_full_import, verify_full_import_readiness, FullImportInstallOutcome,
-    InstallOutcome,
+    FullImportInstallOutcome, InstallOutcome, install, install_full_import,
+    verify_full_import_readiness,
 };
 use sha2::{Digest, Sha256};
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
@@ -85,10 +85,21 @@ impl Harness {
         let admin_password = password("OO_FULL_IMPORT_ADMIN_PASSWORD_FILE");
         let reader_password = password("OO_FULL_IMPORT_READER_PASSWORD_FILE");
         let runtime_password = password("OO_FULL_IMPORT_RUNTIME_PASSWORD_FILE");
-        let ca = fs::read(env::var("OO_FULL_IMPORT_CA_FILE").expect("OO_FULL_IMPORT_CA_FILE")).expect("ca");
-        let evidence = PathBuf::from(env::var("OO_FULL_IMPORT_EVIDENCE").expect("OO_FULL_IMPORT_EVIDENCE"));
+        let ca = fs::read(env::var("OO_FULL_IMPORT_CA_FILE").expect("OO_FULL_IMPORT_CA_FILE"))
+            .expect("ca");
+        let evidence =
+            PathBuf::from(env::var("OO_FULL_IMPORT_EVIDENCE").expect("OO_FULL_IMPORT_EVIDENCE"));
         fs::create_dir_all(&evidence).expect("evidence dir");
-        let mut postgres = dial(&host, port, &admin_user, &admin_password, "postgres", false, &ca).await;
+        let mut postgres = dial(
+            &host,
+            port,
+            &admin_user,
+            &admin_password,
+            "postgres",
+            false,
+            &ca,
+        )
+        .await;
         let version = text(&mut postgres, "SELECT version()").await;
         assert!(version.contains("17.10"), "{version}");
         let writer_password = text(
@@ -101,8 +112,26 @@ impl Harness {
             "SELECT encode(sha256((clock_timestamp()::text || 'agent')::bytea), 'hex')",
         )
         .await;
-        let source = dial(&host, port, &admin_user, &admin_password, "postgres", false, &ca).await;
-        let target = dial(&host, port, &admin_user, &admin_password, "postgres", false, &ca).await;
+        let source = dial(
+            &host,
+            port,
+            &admin_user,
+            &admin_password,
+            "postgres",
+            false,
+            &ca,
+        )
+        .await;
+        let target = dial(
+            &host,
+            port,
+            &admin_user,
+            &admin_password,
+            "postgres",
+            false,
+            &ca,
+        )
+        .await;
         Self {
             host,
             port,
@@ -126,10 +155,34 @@ impl Harness {
 
     async fn setup(&mut self) {
         reset_cluster(&mut self.postgres).await;
-        exec_role(&mut self.postgres, "oo_a154_reader", &self.reader_password, false).await;
-        exec_role(&mut self.postgres, "oo_a154_writer", &self.writer_password, false).await;
-        exec_role(&mut self.postgres, "oo_a154_runtime", &self.runtime_password, false).await;
-        exec_role(&mut self.postgres, "oo_a154_agent", &self.agent_password, false).await;
+        exec_role(
+            &mut self.postgres,
+            "oo_a154_reader",
+            &self.reader_password,
+            false,
+        )
+        .await;
+        exec_role(
+            &mut self.postgres,
+            "oo_a154_writer",
+            &self.writer_password,
+            false,
+        )
+        .await;
+        exec_role(
+            &mut self.postgres,
+            "oo_a154_runtime",
+            &self.runtime_password,
+            false,
+        )
+        .await;
+        exec_role(
+            &mut self.postgres,
+            "oo_a154_agent",
+            &self.agent_password,
+            false,
+        )
+        .await;
         raw(&mut self.postgres, "CREATE DATABASE oo_a154_src TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER builtin BUILTIN_LOCALE 'C.UTF-8'").await;
         raw(&mut self.postgres, "CREATE DATABASE oo_a154_dst TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER builtin BUILTIN_LOCALE 'C.UTF-8'").await;
         self.source = dial(
@@ -154,20 +207,41 @@ impl Harness {
         .await;
         raw(&mut self.source, SOURCE_SQL).await;
         exec_role_grant(&mut self.source).await;
-        assert_eq!(install(&mut self.target).await.expect("install"), InstallOutcome::Bootstrapped);
-        assert!(verify_full_import_readiness(&mut self.target).await.is_err());
+        assert_eq!(
+            install(&mut self.target).await.expect("install"),
+            InstallOutcome::Bootstrapped
+        );
+        assert!(
+            verify_full_import_readiness(&mut self.target)
+                .await
+                .is_err()
+        );
         assert_eq!(
             install_full_import(&mut self.target).await.expect("0005"),
             FullImportInstallOutcome::Installed
         );
-        raw(&mut self.target, "GRANT oo_pipeline_runtime TO oo_a154_runtime").await;
-        raw(&mut self.target, "GRANT CONNECT ON DATABASE oo_a154_dst TO oo_a154_agent").await;
-        let runs = text(&mut self.target, "SELECT count(*)::text FROM _oo.full_import_run").await;
+        raw(
+            &mut self.target,
+            "GRANT oo_pipeline_runtime TO oo_a154_runtime",
+        )
+        .await;
+        raw(
+            &mut self.target,
+            "GRANT CONNECT ON DATABASE oo_a154_dst TO oo_a154_agent",
+        )
+        .await;
+        let runs = text(
+            &mut self.target,
+            "SELECT count(*)::text FROM _oo.full_import_run",
+        )
+        .await;
         assert_eq!(runs, "0");
-        let row = sqlx::query("SELECT pg_catalog.pg_postmaster_start_time()::text, pg_catalog.pg_is_in_recovery()")
-            .fetch_one(&mut self.source)
-            .await
-            .expect("node");
+        let row = sqlx::query(
+            "SELECT pg_catalog.pg_postmaster_start_time()::text, pg_catalog.pg_is_in_recovery()",
+        )
+        .fetch_one(&mut self.source)
+        .await
+        .expect("node");
         self.postmaster = row.try_get(0).expect("postmaster");
         self.in_recovery = row.try_get(1).expect("recovery");
         self.report.push_str("schema_setup_runs=0\n");
@@ -178,7 +252,13 @@ impl Harness {
         let mut runtime = self.runtime().await;
         let summary = import_unpublished(
             &mut runtime,
-            self.request(&admitted, &[("app", "orders"), ("app", "lines")], 90, wide_copy(), stream_default()),
+            self.request(
+                &admitted,
+                &[("app", "orders"), ("app", "lines")],
+                90,
+                wide_copy(),
+                stream_default(),
+            ),
         )
         .await
         .expect("import");
@@ -202,7 +282,11 @@ impl Harness {
         .await;
         assert_eq!(pid, bound);
         self.compare_tables(&summary.tables).await;
-        self.main_names = summary.tables.iter().map(|table| table.physical_name.clone()).collect();
+        self.main_names = summary
+            .tables
+            .iter()
+            .map(|table| table.physical_name.clone())
+            .collect();
         let second = self.canonical_from_reader(&admitted).await;
         for table in &summary.tables {
             let got = second
@@ -212,7 +296,14 @@ impl Harness {
             assert_eq!(got.1, table.canonical_digest, "{}", table.name);
             assert_eq!(table.rows, 2, "{}", table.name);
         }
-        assert_eq!(text(&mut self.target, "SELECT count(*)::text FROM pg_catalog.pg_publication").await, "0");
+        assert_eq!(
+            text(
+                &mut self.target,
+                "SELECT count(*)::text FROM pg_catalog.pg_publication"
+            )
+            .await,
+            "0"
+        );
         self.report.push_str(&format!(
             "main_state=awaiting_publish\nmain_rows={}\nmain_generation={}\n",
             summary.tables.iter().map(|table| table.rows).sum::<u64>(),
@@ -264,7 +355,9 @@ impl Harness {
             assert_eq!(source_rows, target_rows, "{}", table.name);
             let positions = text(
                 &mut self.target,
-                &format!("SELECT string_agg(_oo_pos::text, ',' ORDER BY _oo_pos) FROM _oo.{shadow}"),
+                &format!(
+                    "SELECT string_agg(_oo_pos::text, ',' ORDER BY _oo_pos) FROM _oo.{shadow}"
+                ),
             )
             .await;
             assert_eq!(positions, "0,1");
@@ -280,7 +373,10 @@ impl Harness {
         column(&mut self.source, sql).await
     }
 
-    async fn projection_target(&mut self, table: &oo_pipeline::full_import::TableSummary) -> Vec<String> {
+    async fn projection_target(
+        &mut self,
+        table: &oo_pipeline::full_import::TableSummary,
+    ) -> Vec<String> {
         let shadow = quote_physical(&table.physical_name);
         let col = |name: &str| quote_physical(&find_column(table, name));
         let sql = if table.name == "orders" {
@@ -323,7 +419,9 @@ impl Harness {
         loop {
             match owner.next_batch().await.expect("pull") {
                 StreamItem::Batch(batch) => {
-                    let entry = if let Some(found) = out.iter_mut().find(|(name, _)| name == &batch.typed.table) {
+                    let entry = if let Some(found) =
+                        out.iter_mut().find(|(name, _)| name == &batch.typed.table)
+                    {
                         found
                     } else {
                         out.push((batch.typed.table.clone(), Sha256::new()));
@@ -366,8 +464,8 @@ impl Harness {
         let insert_shadow = sqlx::query(sqlx::AssertSqlSafe(format!(
             "INSERT INTO _oo.{shadow} (_oo_pos) VALUES (1)"
         )))
-            .execute(&mut agent)
-            .await;
+        .execute(&mut agent)
+        .await;
         assert_denied(insert_shadow.err());
         self.report.push_str("agent_denied=1\n");
     }
@@ -394,12 +492,23 @@ impl Harness {
         .expect("backpressure");
         assert_eq!(summary.state, RunState::AwaitingPublish);
         assert_eq!(summary.tables[0].rows, 2);
-        assert!(summary.tables[0].row_chunks >= 2, "{}", summary.tables[0].row_chunks);
-        self.report.push_str(&format!("backpressure_chunks={}\n", summary.tables[0].row_chunks));
+        assert!(
+            summary.tables[0].row_chunks >= 2,
+            "{}",
+            summary.tables[0].row_chunks
+        );
+        self.report.push_str(&format!(
+            "backpressure_chunks={}\n",
+            summary.tables[0].row_chunks
+        ));
     }
 
     async fn oversized(&mut self) {
-        let before = text(&mut self.target, "SELECT count(*)::text FROM _oo.full_import_run WHERE state = 'awaiting_publish'").await;
+        let before = text(
+            &mut self.target,
+            "SELECT count(*)::text FROM _oo.full_import_run WHERE state = 'awaiting_publish'",
+        )
+        .await;
         let admitted = load_admitted(&mut self.source, &[("wide", true)]).await;
         let mut runtime = self.runtime().await;
         let mut session = ImportSession::open(
@@ -414,11 +523,17 @@ impl Harness {
         )
         .await
         .expect("wide open");
-        let err = pull_all(&mut session, &mut runtime).await.expect_err("oversized");
+        let err = pull_all(&mut session, &mut runtime)
+            .await
+            .expect_err("oversized");
         assert!(err.to_string().contains("source error"), "{err}");
         let state = run_state(&mut self.target, session.run_id()).await;
         assert_eq!(state, "retired");
-        let after = text(&mut self.target, "SELECT count(*)::text FROM _oo.full_import_run WHERE state = 'awaiting_publish'").await;
+        let after = text(
+            &mut self.target,
+            "SELECT count(*)::text FROM _oo.full_import_run WHERE state = 'awaiting_publish'",
+        )
+        .await;
         assert_eq!(before, after);
         self.report.push_str("oversized=retired\n");
     }
@@ -433,7 +548,13 @@ impl Harness {
         let mut runtime = self.runtime().await;
         let opened = ImportSession::open(
             &mut runtime,
-            self.request(&admitted, &[("app", "docs")], 90, wide_copy(), stream_default()),
+            self.request(
+                &admitted,
+                &[("app", "docs")],
+                90,
+                wide_copy(),
+                stream_default(),
+            ),
         )
         .await;
         let err = match opened {
@@ -458,7 +579,13 @@ impl Harness {
         let mut runtime = self.runtime().await;
         let mut session = ImportSession::open(
             &mut runtime,
-            self.request(&admitted, &[("app", "orders")], 90, wide_copy(), stream_default()),
+            self.request(
+                &admitted,
+                &[("app", "orders")],
+                90,
+                wide_copy(),
+                stream_default(),
+            ),
         )
         .await
         .expect("cut open");
@@ -477,7 +604,9 @@ impl Harness {
             "INSERT INTO app.orders (id, active, amount, note, placed, payload) VALUES (3, true, 1.00, 'late', timestamptz '2024-06-01 00:00:00+00', '\\x03')",
         )
         .await;
-        pull_all(&mut session, &mut runtime).await.expect("cut pull");
+        pull_all(&mut session, &mut runtime)
+            .await
+            .expect("cut pull");
         let finished = session.finish(&mut runtime).await.expect("cut finish");
         assert_eq!(finished.tables[0].rows, 2);
         drop(runtime);
@@ -485,12 +614,21 @@ impl Harness {
         let mut runtime = self.runtime().await;
         let fresh = import_unpublished(
             &mut runtime,
-            self.request(&admitted_fresh, &[("app", "orders")], 90, wide_copy(), stream_default()),
+            self.request(
+                &admitted_fresh,
+                &[("app", "orders")],
+                90,
+                wide_copy(),
+                stream_default(),
+            ),
         )
         .await
         .expect("fresh cut");
         assert_eq!(fresh.tables[0].rows, 3);
-        assert_ne!(fresh.tables[0].physical_name, finished.tables[0].physical_name);
+        assert_ne!(
+            fresh.tables[0].physical_name,
+            finished.tables[0].physical_name
+        );
         self.report.push_str("coherent_cut=2_then_3\n");
     }
 
@@ -499,7 +637,13 @@ impl Harness {
         let mut runtime = self.runtime().await;
         let mut session = ImportSession::open(
             &mut runtime,
-            self.request(&admitted, &[("app", "lines")], 90, wide_copy(), stream_default()),
+            self.request(
+                &admitted,
+                &[("app", "lines")],
+                90,
+                wide_copy(),
+                stream_default(),
+            ),
         )
         .await
         .expect("cancel open");
@@ -511,13 +655,21 @@ impl Harness {
         let mut runtime = self.runtime().await;
         let mut session = ImportSession::open(
             &mut runtime,
-            self.request(&admitted, &[("app", "lines")], 30, wide_copy(), stream_default()),
+            self.request(
+                &admitted,
+                &[("app", "lines")],
+                30,
+                wide_copy(),
+                stream_default(),
+            ),
         )
         .await
         .expect("deadline open");
         let run = session.run_id().to_string();
         tokio::time::sleep(Duration::from_secs(31)).await;
-        let err = pull_all(&mut session, &mut runtime).await.expect_err("deadline");
+        let err = pull_all(&mut session, &mut runtime)
+            .await
+            .expect_err("deadline");
         assert!(err.to_string().contains("deadline"), "{err}");
         assert_eq!(run_state(&mut self.target, &run).await, "retired");
         drop(runtime);
@@ -525,7 +677,13 @@ impl Harness {
         let mut runtime = self.runtime().await;
         let mut session = ImportSession::open(
             &mut runtime,
-            self.request(&admitted, &[("app", "lines")], 90, wide_copy(), stream_default()),
+            self.request(
+                &admitted,
+                &[("app", "lines")],
+                90,
+                wide_copy(),
+                stream_default(),
+            ),
         )
         .await
         .expect("loss open");
@@ -537,10 +695,13 @@ impl Harness {
             .await
             .expect("terminate reader");
         assert!(killed);
-        let err = pull_all(&mut session, &mut runtime).await.expect_err("lost snapshot");
+        let err = pull_all(&mut session, &mut runtime)
+            .await
+            .expect_err("lost snapshot");
         assert!(err.to_string().contains("source error"), "{err}");
         assert_eq!(run_state(&mut self.target, &run).await, "retired");
-        self.report.push_str("cancel=retired\ndeadline=retired\nsnapshot_lost=retired\n");
+        self.report
+            .push_str("cancel=retired\ndeadline=retired\nsnapshot_lost=retired\n");
     }
 
     async fn fence_cases(&mut self) {
@@ -589,13 +750,22 @@ impl Harness {
         session.fail_fence(&mut old).await.expect("fail fence");
         let mut newer = self.runtime().await;
         let owner_new = uuid(&mut self.target).await;
-        let new_generation = adopt_generation(&mut newer, "a154take", &owner_new).await.expect("takeover");
-        assert!(new_generation > old_generation, "{new_generation} vs {old_generation}");
-        let err = session.pull_and_apply(&mut old).await.expect_err("stale owner");
+        let new_generation = adopt_generation(&mut newer, "a154take", &owner_new)
+            .await
+            .expect("takeover");
+        assert!(
+            new_generation > old_generation,
+            "{new_generation} vs {old_generation}"
+        );
+        let err = session
+            .pull_and_apply(&mut old)
+            .await
+            .expect_err("stale owner");
         let state = err.sqlstate().unwrap_or("");
         assert!(state == "OO011" || state == "OO018", "{err}");
         let _ = owner_old;
-        self.report.push_str("same_shard=blocked\nother_shard=imported\ntakeover=incremented\n");
+        self.report
+            .push_str("same_shard=blocked\nother_shard=imported\ntakeover=incremented\n");
     }
 
     async fn durability(&mut self) {
@@ -607,7 +777,10 @@ impl Harness {
         )
         .await
         .expect("rollback open");
-        let pending = session.stage_next_uncommitted(&mut runtime).await.expect("stage");
+        let pending = session
+            .stage_next_uncommitted(&mut runtime)
+            .await
+            .expect("stage");
         let identity = pending.identity().clone();
         let visible: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
             "SELECT count(*)::int8 FROM _oo.{}",
@@ -619,9 +792,15 @@ impl Harness {
         assert_eq!(visible, 0);
         pending.rollback().await.expect("rollback");
         assert_eq!(
-            recover(&mut runtime, &identity.source_id, &identity.physical_name, &identity.batch_id, &identity.payload_digest)
-                .await
-                .expect("recover rollback"),
+            recover(
+                &mut runtime,
+                &identity.source_id,
+                &identity.physical_name,
+                &identity.batch_id,
+                &identity.payload_digest
+            )
+            .await
+            .expect("recover rollback"),
             Recovery::Absent
         );
         session.retire(&mut runtime).await.expect("retire rollback");
@@ -634,7 +813,10 @@ impl Harness {
         )
         .await
         .expect("crash before open");
-        let pending = session.stage_next_uncommitted(&mut runtime).await.expect("stage before");
+        let pending = session
+            .stage_next_uncommitted(&mut runtime)
+            .await
+            .expect("stage before");
         let identity = pending.identity().clone();
         let pid = i32::try_from(pending.backend_pid()).expect("backend");
         let killed: bool = sqlx::query_scalar("SELECT pg_catalog.pg_terminate_backend($1)")
@@ -666,7 +848,10 @@ impl Harness {
         )
         .await
         .expect("crash after open");
-        let pending = session.stage_next_uncommitted(&mut runtime).await.expect("stage after");
+        let pending = session
+            .stage_next_uncommitted(&mut runtime)
+            .await
+            .expect("stage after");
         let identity = pending.commit_ambiguous().await.expect("ambiguous");
         let count_sql = format!(
             "SELECT count(*)::text FROM _oo.{}",
@@ -679,9 +864,15 @@ impl Harness {
             .expect("conflict");
         assert_eq!(text(&mut self.target, &count_sql).await, committed);
         assert_eq!(
-            recover(&mut self.target, &identity.source_id, &identity.physical_name, &identity.batch_id, &identity.payload_digest)
-                .await
-                .expect("recover after"),
+            recover(
+                &mut self.target,
+                &identity.source_id,
+                &identity.physical_name,
+                &identity.batch_id,
+                &identity.payload_digest
+            )
+            .await
+            .expect("recover after"),
             Recovery::Replay
         );
         session.retire(&mut runtime).await.expect("retire after");
@@ -690,7 +881,9 @@ impl Harness {
         let generation = adopt_generation(&mut runtime, "a154after", &identity.owner)
             .await
             .expect("replay adopt");
-        let step = replay_batch(&mut runtime, generation, &identity).await.expect("replay");
+        let step = replay_batch(&mut runtime, generation, &identity)
+            .await
+            .expect("replay");
         assert_eq!(
             step,
             ApplyStep::Replay {
@@ -698,7 +891,9 @@ impl Harness {
             }
         );
         assert_eq!(text(&mut self.target, &count_sql).await, committed);
-        self.report.push_str("rollback=absent\ncrash_before=absent\ncrash_after=replay\nconflict=aborted\n");
+        self.report.push_str(
+            "rollback=absent\ncrash_before=absent\ncrash_after=replay\nconflict=aborted\n",
+        );
     }
 
     async fn reader_wrote_nothing(&mut self) {
@@ -752,7 +947,14 @@ impl Harness {
         shard: &str,
         deadline_secs: u64,
     ) -> ImportRequest {
-        self.request_shard(admitted, tables, shard, deadline_secs, wide_copy(), stream_default())
+        self.request_shard(
+            admitted,
+            tables,
+            shard,
+            deadline_secs,
+            wide_copy(),
+            stream_default(),
+        )
     }
 
     fn request_shard(
@@ -878,9 +1080,18 @@ async fn exec_role_grant(conn: &mut PgConnection) {
 
 async fn reset_cluster(admin: &mut PgConnection) {
     for name in ["oo_a154_src", "oo_a154_dst", "oo_a154_bad", "oo_a154_ok"] {
-        raw(admin, &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await;
+        raw(
+            admin,
+            &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"),
+        )
+        .await;
     }
-    for role in ["oo_a154_reader", "oo_a154_writer", "oo_a154_runtime", "oo_a154_agent"] {
+    for role in [
+        "oo_a154_reader",
+        "oo_a154_writer",
+        "oo_a154_runtime",
+        "oo_a154_agent",
+    ] {
         raw(admin, &format!("DROP ROLE IF EXISTS {role}")).await;
     }
     raw(admin, "DROP ROLE IF EXISTS oo_pipeline_runtime").await;
@@ -889,7 +1100,10 @@ async fn reset_cluster(admin: &mut PgConnection) {
 
 async fn exec_role(conn: &mut PgConnection, name: &str, secret: &str, _login_marker: bool) {
     assert!(secret.chars().all(|ch| ch.is_ascii_hexdigit()));
-    assert!(name.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_'));
+    assert!(
+        name.chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+    );
     raw(
         conn,
         &format!(
@@ -923,7 +1137,9 @@ async fn dial(
         .password(pass)
         .database(database);
     options = if verify {
-        options.ssl_mode(PgSslMode::VerifyFull).ssl_root_cert_from_pem(ca.to_vec())
+        options
+            .ssl_mode(PgSslMode::VerifyFull)
+            .ssl_root_cert_from_pem(ca.to_vec())
     } else {
         options.ssl_mode(PgSslMode::Disable)
     };
@@ -949,7 +1165,9 @@ async fn column(conn: &mut PgConnection, sql: &str) -> Vec<String> {
         .fetch_all(&mut *conn)
         .await
         .unwrap_or_else(|err| panic!("rows failed: {err}"));
-    rows.iter().map(|row| row.try_get(0).expect("col")).collect()
+    rows.iter()
+        .map(|row| row.try_get(0).expect("col"))
+        .collect()
 }
 
 async fn uuid(conn: &mut PgConnection) -> String {
@@ -1005,7 +1223,9 @@ async fn load_admitted(admin: &mut PgConnection, tables: &[(&str, bool)]) -> Adm
             .fetch_all(&mut *admin)
             .await
             .expect("keys");
-            keys.iter().map(|row| row.try_get::<String, _>(0).unwrap()).collect()
+            keys.iter()
+                .map(|row| row.try_get::<String, _>(0).unwrap())
+                .collect()
         } else {
             Vec::new()
         };

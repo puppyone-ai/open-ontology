@@ -10,7 +10,7 @@ use std::io::{self, Write};
 use std::time::Duration;
 
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::{ConnectOptions, Connection, Row};
 
@@ -22,8 +22,8 @@ use crate::native_arrow::{
 };
 use crate::native_binding::{self, BoundField, ResolvedCapture};
 use crate::target_installer::{
-    self, install_native_sealed_catalog, sha256_hex, verify_native_catalog_readiness, InstallError,
-    ReadinessError,
+    self, InstallError, ReadinessError, install_native_sealed_catalog, sha256_hex,
+    verify_native_catalog_readiness,
 };
 
 /// Request protocol. There is no engine field.
@@ -121,25 +121,41 @@ async fn execute() -> Result<Vec<u8>, Stop> {
     .await?;
     expect_principal(&mut conn, &request.target.runtime_principal).await?;
     set_timeout(&mut conn).await?;
-    verify_native_catalog_readiness(&mut conn).await.map_err(ready_stop)?;
-    let mut tx = conn.begin().await.map_err(|_| Stop::Fixed("target database"))?;
+    verify_native_catalog_readiness(&mut conn)
+        .await
+        .map_err(ready_stop)?;
+    let mut tx = conn
+        .begin()
+        .await
+        .map_err(|_| Stop::Fixed("target database"))?;
     let oracle_range = captured.source_engine == "oracle" && captured.range_scope.is_some();
     if sqlx::raw_sql(if oracle_range {
         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-    } else { "SET TRANSACTION READ ONLY" })
-        .execute(&mut *tx)
-        .await
-        .is_err()
+    } else {
+        "SET TRANSACTION READ ONLY"
+    })
+    .execute(&mut *tx)
+    .await
+    .is_err()
     {
         let _ = tx.rollback().await;
         return Err(Stop::Fixed("target database"));
     }
     if oracle_range {
-        let (facts, binding) = read_oracle_c5_facts(&mut tx, &request,
-            captured.range_scope.as_ref().ok_or(Stop::Fixed("oracle range proof"))?).await?;
+        let (facts, binding) = read_oracle_c5_facts(
+            &mut tx,
+            &request,
+            captured
+                .range_scope
+                .as_ref()
+                .ok_or(Stop::Fixed("oracle range proof"))?,
+        )
+        .await?;
         let rejects = native_binding::baseline_quality(&captured).map_err(stop_reason)?;
         let document = bind_oracle_c5(&captured, &facts, &binding, &rejects)?;
-        tx.commit().await.map_err(|_| Stop::Fixed("target database"))?;
+        tx.commit()
+            .await
+            .map_err(|_| Stop::Fixed("target database"))?;
         return Ok(document);
     }
     let facts = match read_facts(&mut tx, &request).await {
@@ -150,17 +166,24 @@ async fn execute() -> Result<Vec<u8>, Stop> {
         }
     };
     let partition_vector = if let Some(scope) = captured.partition_scope.as_ref() {
-        let stored_digest: Option<String> = sqlx::query_scalar(
-            "SELECT checksum FROM _oo.schema_migrations WHERE version = $1"
-        ).bind(target_installer::VERSION_NATIVE_PARTITION)
-         .fetch_optional(&mut *tx).await.map_err(map_db)?;
-        if stored_digest.as_deref() != Some(target_installer::compiled_native_partition_digest().as_str()) {
+        let stored_digest: Option<String> =
+            sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version = $1")
+                .bind(target_installer::VERSION_NATIVE_PARTITION)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(map_db)?;
+        if stored_digest.as_deref()
+            != Some(target_installer::compiled_native_partition_digest().as_str())
+        {
             return Err(Stop::Fixed("partition vector"));
         }
-        let observed = scope["observed_partition_ids"].as_array()
+        let observed = scope["observed_partition_ids"]
+            .as_array()
             .ok_or(Stop::Fixed("partition vector"))?
-            .iter().map(|id| id.as_str().map(str::to_string))
-            .collect::<Option<Vec<_>>>().ok_or(Stop::Fixed("partition vector"))?;
+            .iter()
+            .map(|id| id.as_str().map(str::to_string))
+            .collect::<Option<Vec<_>>>()
+            .ok_or(Stop::Fixed("partition vector"))?;
         let text: String = sqlx::query_scalar(
             "SELECT _oo.native_partition_vector($1::uuid, $2, $3, $4, $5::text[], $6, $7, $8, $9)::text"
         )
@@ -172,51 +195,81 @@ async fn execute() -> Result<Vec<u8>, Stop> {
         .bind(scope["current_signature"].as_str())
         .bind(request.source_generation).bind(request.target_generation)
         .fetch_one(&mut *tx).await.map_err(map_db)?;
-        let vector = serde_json::from_str::<Value>(&text).map_err(|_| Stop::Fixed("partition vector"))?;
+        let vector =
+            serde_json::from_str::<Value>(&text).map_err(|_| Stop::Fixed("partition vector"))?;
         let entries = vector.as_array().ok_or(Stop::Fixed("partition vector"))?;
         if entries.len() != observed.len()
-            || entries.iter().filter(|entry| entry["partition_id"] == scope["partition_id"]
-                && entry["partition_scope"] == *scope
-                && entry["row_count"] == scope["row_count"]).count() != 1
+            || entries
+                .iter()
+                .filter(|entry| {
+                    entry["partition_id"] == scope["partition_id"]
+                        && entry["partition_scope"] == *scope
+                        && entry["row_count"] == scope["row_count"]
+                })
+                .count()
+                != 1
         {
             return Err(Stop::Fixed("partition vector"));
         }
         Some(vector)
-    } else { None };
+    } else {
+        None
+    };
     let pg_delta_bound = if catalog_delta_engine(captured.source_engine.as_str())
-        && captured.objects.len() == 1 && facts.tables.len() == 1
+        && captured.objects.len() == 1
+        && facts.tables.len() == 1
     {
         let object = &captured.objects[0];
         let table = &facts.tables[0];
         if u64::try_from(table.applied_rows).ok() == Some(object.row_count) {
             false
         } else {
-            let installed: Option<String> = sqlx::query_scalar(
-                "SELECT checksum FROM _oo.schema_migrations WHERE version = $1"
-            ).bind(target_installer::VERSION_NATIVE_PARTITION)
-             .fetch_optional(&mut *tx).await.map_err(map_db)?;
-            if installed.as_deref() != Some(target_installer::compiled_native_partition_digest().as_str()) {
+            let installed: Option<String> =
+                sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version = $1")
+                    .bind(target_installer::VERSION_NATIVE_PARTITION)
+                    .fetch_optional(&mut *tx)
+                    .await
+                    .map_err(map_db)?;
+            if installed.as_deref()
+                != Some(target_installer::compiled_native_partition_digest().as_str())
+            {
                 return Err(Stop::Fixed("schema"));
             }
-            let bound: Option<bool> = sqlx::query_scalar(
-                "SELECT _oo.native_pg_catalog_delta($1::uuid, $2, $3, $4, $5)"
-            ).bind(&request.run_id).bind(&request.source_id)
-             .bind(&table.schema_ident).bind(&table.table_ident)
-             .bind(i64::try_from(object.row_count).map_err(|_| Stop::Fixed("schema"))?)
-             .fetch_one(&mut *tx).await.map_err(map_db)?;
-            if bound != Some(true) { return Err(Stop::Fixed("schema")); }
+            let bound: Option<bool> =
+                sqlx::query_scalar("SELECT _oo.native_pg_catalog_delta($1::uuid, $2, $3, $4, $5)")
+                    .bind(&request.run_id)
+                    .bind(&request.source_id)
+                    .bind(&table.schema_ident)
+                    .bind(&table.table_ident)
+                    .bind(i64::try_from(object.row_count).map_err(|_| Stop::Fixed("schema"))?)
+                    .fetch_one(&mut *tx)
+                    .await
+                    .map_err(map_db)?;
+            if bound != Some(true) {
+                return Err(Stop::Fixed("schema"));
+            }
             true
         }
-    } else { false };
-    let rejects=native_binding::baseline_quality(&captured).map_err(stop_reason)?;
-    let document = match bind_native(&captured, &facts, partition_vector, pg_delta_bound, &rejects) {
+    } else {
+        false
+    };
+    let rejects = native_binding::baseline_quality(&captured).map_err(stop_reason)?;
+    let document = match bind_native(
+        &captured,
+        &facts,
+        partition_vector,
+        pg_delta_bound,
+        &rejects,
+    ) {
         Ok(document) => document,
         Err(err) => {
             let _ = tx.rollback().await;
             return Err(err);
         }
     };
-    tx.commit().await.map_err(|_| Stop::Fixed("target database"))?;
+    tx.commit()
+        .await
+        .map_err(|_| Stop::Fixed("target database"))?;
     Ok(document)
 }
 
@@ -226,7 +279,8 @@ async fn install_execute() -> Result<String, Stop> {
     if value.get("engine").is_some() || value.get("source_engine").is_some() {
         return Err(Stop::Fixed("source engine"));
     }
-    let request: InstallRequest = serde_json::from_value(value).map_err(|_| Stop::Fixed("invalid input"))?;
+    let request: InstallRequest =
+        serde_json::from_value(value).map_err(|_| Stop::Fixed("invalid input"))?;
     if request.protocol != INSTALL_PROTOCOL {
         return Err(Stop::Fixed("invalid version"));
     }
@@ -245,7 +299,9 @@ async fn install_execute() -> Result<String, Stop> {
     if !administrator(&mut conn).await? {
         return Err(Stop::Fixed("target administrator"));
     }
-    let outcome = install_native_sealed_catalog(&mut conn).await.map_err(install_stop)?;
+    let outcome = install_native_sealed_catalog(&mut conn)
+        .await
+        .map_err(install_stop)?;
     let digest = target_installer::compiled_native_catalog_digest();
     Ok(format!(
         "{}\n",
@@ -258,7 +314,10 @@ async fn install_execute() -> Result<String, Stop> {
     ))
 }
 
-async fn read_facts(conn: &mut sqlx::PgConnection, request: &NativeRequest) -> Result<NativeFacts, Stop> {
+async fn read_facts(
+    conn: &mut sqlx::PgConnection,
+    request: &NativeRequest,
+) -> Result<NativeFacts, Stop> {
     let text: String = sqlx::query_scalar(
         "SELECT _oo.full_import_native_catalog($1::uuid, $2, $3::uuid, $4, $5, $6, $7, $8, $9)::text",
     )
@@ -274,13 +333,15 @@ async fn read_facts(conn: &mut sqlx::PgConnection, request: &NativeRequest) -> R
     .fetch_one(&mut *conn)
     .await
     .map_err(map_db)?;
-    let facts: NativeFacts = serde_json::from_str(&text).map_err(|_| Stop::Fixed("catalog output"))?;
+    let facts: NativeFacts =
+        serde_json::from_str(&text).map_err(|_| Stop::Fixed("catalog output"))?;
     check_facts(&facts, request, "awaiting_publish")?;
     Ok(facts)
 }
 
 fn check_facts(facts: &NativeFacts, request: &NativeRequest, state: &str) -> Result<(), Stop> {
-    if facts.state != state || facts.run_id != request.run_id
+    if facts.state != state
+        || facts.run_id != request.run_id
         || facts.source_id != request.source_id
         || facts.config_digest != request.config_digest
         || facts.schema_digest != request.schema_digest
@@ -296,13 +357,19 @@ fn check_facts(facts: &NativeFacts, request: &NativeRequest, state: &str) -> Res
 }
 
 async fn read_oracle_c5_facts(
-    conn: &mut sqlx::PgConnection, request: &NativeRequest, scope: &Value,
+    conn: &mut sqlx::PgConnection,
+    request: &NativeRequest,
+    scope: &Value,
 ) -> Result<(NativeFacts, Value), Stop> {
-    let checksum: Option<String> = sqlx::query_scalar(
-        "SELECT checksum FROM _oo.schema_migrations WHERE version=$1"
-    ).bind(target_installer::VERSION_NATIVE_ORACLE_C5_CATALOG)
-        .fetch_optional(&mut *conn).await.map_err(map_db)?;
-    if checksum.as_deref() != Some(target_installer::compiled_native_oracle_c5_catalog_digest().as_str()) {
+    let checksum: Option<String> =
+        sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version=$1")
+            .bind(target_installer::VERSION_NATIVE_ORACLE_C5_CATALOG)
+            .fetch_optional(&mut *conn)
+            .await
+            .map_err(map_db)?;
+    if checksum.as_deref()
+        != Some(target_installer::compiled_native_oracle_c5_catalog_digest().as_str())
+    {
         return Err(Stop::Fixed("oracle range proof"));
     }
     let raw: String = sqlx::query_scalar(
@@ -312,7 +379,10 @@ async fn read_oracle_c5_facts(
         .bind(&request.schema_digest).bind(&request.type_digest).bind(&request.input_digest)
         .bind(scope.to_string()).fetch_one(&mut *conn).await.map_err(map_db)?;
     let envelope: Value = serde_json::from_str(&raw).map_err(|_| Stop::Fixed("catalog output"))?;
-    if envelope.as_object().is_none_or(|o| o.len()!=2 || !o.contains_key("catalog") || !o.contains_key("binding")) {
+    if envelope
+        .as_object()
+        .is_none_or(|o| o.len() != 2 || !o.contains_key("catalog") || !o.contains_key("binding"))
+    {
         return Err(Stop::Fixed("oracle range proof"));
     }
     let facts: NativeFacts = serde_json::from_value(envelope["catalog"].clone())
@@ -321,26 +391,48 @@ async fn read_oracle_c5_facts(
     Ok((facts, envelope["binding"].clone()))
 }
 
-fn bind_oracle_c5(captured: &ResolvedCapture, facts: &NativeFacts, proof: &Value, rejects: &[Value]) -> Result<Vec<u8>, Stop> {
-    let scope = captured.range_scope.as_ref().ok_or(Stop::Fixed("oracle range proof"))?;
-    if captured.source_engine!="oracle" || captured.source_id!=facts.source_id || facts.state!="published"
-        || facts.tables.len()!=1 || captured.objects.len()!=1
-        || proof.as_object().is_none_or(|o|o.len()!=9)
-        || proof["protocol"]!="oo.pipeline.oracle-c5-catalog-binding/v1"
-        || proof["source_id"]!=facts.source_id || proof["run_id"]!=facts.run_id
-        || proof["source_generation"]!=facts.source_generation || proof["target_generation"]!=facts.target_generation
-        || proof["scope"]!=*scope || scope["source_engine"]!="oracle"
-        || proof["captured_rows"]!=captured.objects[0].row_count || proof["captured_rows"]!=scope["row_count"]
-        || proof["effective_rows"]!=facts.tables[0].applied_rows
-        || proof["publication_receipt_sha256"].as_str().is_none_or(|s|!closed_digest(s))
-    { return Err(Stop::Fixed("oracle range proof")); }
+fn bind_oracle_c5(
+    captured: &ResolvedCapture,
+    facts: &NativeFacts,
+    proof: &Value,
+    rejects: &[Value],
+) -> Result<Vec<u8>, Stop> {
+    let scope = captured
+        .range_scope
+        .as_ref()
+        .ok_or(Stop::Fixed("oracle range proof"))?;
+    if captured.source_engine != "oracle"
+        || captured.source_id != facts.source_id
+        || facts.state != "published"
+        || facts.tables.len() != 1
+        || captured.objects.len() != 1
+        || proof.as_object().is_none_or(|o| o.len() != 9)
+        || proof["protocol"] != "oo.pipeline.oracle-c5-catalog-binding/v1"
+        || proof["source_id"] != facts.source_id
+        || proof["run_id"] != facts.run_id
+        || proof["source_generation"] != facts.source_generation
+        || proof["target_generation"] != facts.target_generation
+        || proof["scope"] != *scope
+        || scope["source_engine"] != "oracle"
+        || proof["captured_rows"] != captured.objects[0].row_count
+        || proof["captured_rows"] != scope["row_count"]
+        || proof["effective_rows"] != facts.tables[0].applied_rows
+        || proof["publication_receipt_sha256"]
+            .as_str()
+            .is_none_or(|s| !closed_digest(s))
+    {
+        return Err(Stop::Fixed("oracle range proof"));
+    }
     // The exact SQL scope/overlay/publication proof replaces only the full-capture row equality.
-    let bytes=bind_native(captured,facts,None,true,rejects)?;
-    let mut result: Value=serde_json::from_slice(&bytes).map_err(|_|Stop::Fixed("catalog output"))?;
-    result["state"]=json!(facts.state);
-    result["oracle_c5_binding"]=proof.clone();
-    let bytes=serde_json::to_vec(&result).map_err(|_|Stop::Fixed("catalog output"))?;
-    if bytes.len()>oo_core::limits::DOCUMENT_MAX_BYTES {return Err(Stop::Fixed("catalog output"));}
+    let bytes = bind_native(captured, facts, None, true, rejects)?;
+    let mut result: Value =
+        serde_json::from_slice(&bytes).map_err(|_| Stop::Fixed("catalog output"))?;
+    result["state"] = json!(facts.state);
+    result["oracle_c5_binding"] = proof.clone();
+    let bytes = serde_json::to_vec(&result).map_err(|_| Stop::Fixed("catalog output"))?;
+    if bytes.len() > oo_core::limits::DOCUMENT_MAX_BYTES {
+        return Err(Stop::Fixed("catalog output"));
+    }
     Ok(bytes)
 }
 
@@ -350,7 +442,13 @@ fn catalog_delta_engine(engine: &str) -> bool {
     matches!(engine, "postgres" | "postgresql" | "sqlserver")
 }
 
-fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector: Option<Value>, pg_delta_bound: bool, rejects:&[Value]) -> Result<Vec<u8>, Stop> {
+fn bind_native(
+    captured: &ResolvedCapture,
+    facts: &NativeFacts,
+    partition_vector: Option<Value>,
+    pg_delta_bound: bool,
+    rejects: &[Value],
+) -> Result<Vec<u8>, Stop> {
     native_binding::sealed_product(&captured.source_engine).map_err(stop_reason)?;
     if facts.tables.len() != 1 || captured.objects.len() != 1 || captured.fields.is_empty() {
         return Err(Stop::Fixed("schema"));
@@ -364,7 +462,9 @@ fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector
     if table.table_index < 0
         || !name_agrees(&object.logical_schema, &table.schema_ident)
         || !name_agrees(&object.logical_table, &table.table_ident)
-        || (partition_vector.is_none() && !pg_delta_bound && u64::try_from(table.applied_rows).ok() != Some(object.row_count))
+        || (partition_vector.is_none()
+            && !pg_delta_bound
+            && u64::try_from(table.applied_rows).ok() != Some(object.row_count))
         || table.applied_rows < 0
     {
         return Err(Stop::Fixed("schema"));
@@ -375,7 +475,10 @@ fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector
     {
         return Err(Stop::Fixed("schema"));
     }
-    if table.columns.len() != captured.fields.len() || table.columns.is_empty() || table.columns.len() > 1024 {
+    if table.columns.len() != captured.fields.len()
+        || table.columns.is_empty()
+        || table.columns.len() > 1024
+    {
         return Err(Stop::Fixed("physical mapping is absent"));
     }
     let mut columns = Vec::with_capacity(table.columns.len());
@@ -387,10 +490,13 @@ fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector
             return Err(Stop::Fixed("physical mapping is absent"));
         }
         previous_attnum = column.attnum;
-        if !shadow_name(&column.physical_name, "pc_") || !name_agrees(&field.name, &column.logical_column) {
+        if !shadow_name(&column.physical_name, "pc_")
+            || !name_agrees(&field.name, &column.logical_column)
+        {
             return Err(Stop::Fixed("schema"));
         }
-        let storage = column_storage(field, column.atttypid, column.atttypmod).map_err(Stop::Fixed)?;
+        let storage =
+            column_storage(field, column.atttypid, column.atttypmod).map_err(Stop::Fixed)?;
         if field.key && precision_loss(storage.oid, storage.typmod) {
             return Err(Stop::Fixed("precision"));
         }
@@ -412,12 +518,30 @@ fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector
         }));
     }
     for reject in rejects {
-        let field=reject["attnum"].as_u64().and_then(|n|usize::try_from(n).ok()).and_then(|n|n.checked_sub(1)).and_then(|n|captured.fields.get(n)).ok_or(Stop::Fixed("quality identity"))?;
-        if captured.source_engine!="mysql" || captured.baseline_scope.is_none() || !field.nullable || field.key
-            || reject["column"]!=field.name || !matches!(field.arrow_type.as_str(),"date32"|"timestamp_micros") {return Err(Stop::Fixed("quality identity"));}
+        let field = reject["attnum"]
+            .as_u64()
+            .and_then(|n| usize::try_from(n).ok())
+            .and_then(|n| n.checked_sub(1))
+            .and_then(|n| captured.fields.get(n))
+            .ok_or(Stop::Fixed("quality identity"))?;
+        if captured.source_engine != "mysql"
+            || captured.baseline_scope.is_none()
+            || !field.nullable
+            || field.key
+            || reject["column"] != field.name
+            || !matches!(field.arrow_type.as_str(), "date32" | "timestamp_micros")
+        {
+            return Err(Stop::Fixed("quality identity"));
+        }
     }
-    let quality = if let Some(scope)=captured.multipart_scope.as_ref() {
-        multipart_quality(facts,&table.physical_name,table.applied_rows,scope,rejects)?
+    let quality = if let Some(scope) = captured.multipart_scope.as_ref() {
+        multipart_quality(
+            facts,
+            &table.physical_name,
+            table.applied_rows,
+            scope,
+            rejects,
+        )?
     } else if sealed_without_batch(captured.baseline_scope.is_some(), &facts.quality, rejects) {
         json!({"loss_concealed": false, "manifest_reject_count": 0, "payload_includes_reject_lines": false,
             "stored_omits_manifest_rejects": false, "stored_rejected_rows": 0, "stored_rows": []})
@@ -462,7 +586,10 @@ fn bind_native(captured: &ResolvedCapture, facts: &NativeFacts, partition_vector
         return Err(Stop::Fixed("catalog output"));
     }
     let text = std::str::from_utf8(&bytes).map_err(|_| Stop::Fixed("catalog output"))?;
-    if !text.contains(RESULT_PROTOCOL) || text.contains("oo.source.pgsql/v1") || text.contains("secret://") {
+    if !text.contains(RESULT_PROTOCOL)
+        || text.contains("oo.source.pgsql/v1")
+        || text.contains("secret://")
+    {
         return Err(Stop::Fixed("catalog output"));
     }
     Ok(bytes)
@@ -474,24 +601,63 @@ fn sealed_without_batch(baseline: bool, quality: &[QualityFact], rejects: &[Valu
     baseline && quality.is_empty() && rejects.is_empty()
 }
 
-fn multipart_quality(facts:&NativeFacts,physical:&str,rows:i64,value:&Value,rejects:&[Value])->Result<Value,Stop> {
-    let scope=crate::native_c5_multipart::Manifest::parse(value).map_err(Stop::Fixed)?;
-    if !rejects.is_empty() || rows<0 || rows as u64!=scope.parts.iter().map(|p|p.rows).sum::<u64>() || facts.quality.len()!=scope.part_count+1 {return Err(Stop::Fixed("quality identity"));}
-    for part in &scope.parts {
-        let id=format!("{}.part.{}",scope.occurrence,part.index);
-        if !facts.quality.iter().any(|q|q.physical_name==physical && q.kind=="batch" && q.batch_id==id && q.accepted_rows==Some(part.rows as i64) && q.rejected_rows==Some(0)) {return Err(Stop::Fixed("quality identity"));}
+fn multipart_quality(
+    facts: &NativeFacts,
+    physical: &str,
+    rows: i64,
+    value: &Value,
+    rejects: &[Value],
+) -> Result<Value, Stop> {
+    let scope = crate::native_c5_multipart::Manifest::parse(value).map_err(Stop::Fixed)?;
+    if !rejects.is_empty()
+        || rows < 0
+        || rows as u64 != scope.parts.iter().map(|p| p.rows).sum::<u64>()
+        || facts.quality.len() != scope.part_count + 1
+    {
+        return Err(Stop::Fixed("quality identity"));
     }
-    if facts.quality.iter().any(|q|q.kind!="batch" || q.physical_name!=physical || q.rejected_rows!=Some(0)) || facts.quality.iter().filter(|q|q.accepted_rows==Some(0)).count()!=1 {return Err(Stop::Fixed("quality identity"));}
-    Ok(json!({"loss_concealed":false,"manifest_reject_count":0,"payload_includes_reject_lines":false,"stored_omits_manifest_rejects":false,"stored_rejected_rows":0,"stored_rows":facts.quality}))
+    for part in &scope.parts {
+        let id = format!("{}.part.{}", scope.occurrence, part.index);
+        if !facts.quality.iter().any(|q| {
+            q.physical_name == physical
+                && q.kind == "batch"
+                && q.batch_id == id
+                && q.accepted_rows == Some(part.rows as i64)
+                && q.rejected_rows == Some(0)
+        }) {
+            return Err(Stop::Fixed("quality identity"));
+        }
+    }
+    if facts
+        .quality
+        .iter()
+        .any(|q| q.kind != "batch" || q.physical_name != physical || q.rejected_rows != Some(0))
+        || facts
+            .quality
+            .iter()
+            .filter(|q| q.accepted_rows == Some(0))
+            .count()
+            != 1
+    {
+        return Err(Stop::Fixed("quality identity"));
+    }
+    Ok(
+        json!({"loss_concealed":false,"manifest_reject_count":0,"payload_includes_reject_lines":false,"stored_omits_manifest_rejects":false,"stored_rejected_rows":0,"stored_rows":facts.quality}),
+    )
 }
 
-fn one_batch(facts: &NativeFacts, physical: &str, applied_rows: i64, rejects:&[Value]) -> Result<Value, Stop> {
+fn one_batch(
+    facts: &NativeFacts,
+    physical: &str,
+    applied_rows: i64,
+    rejects: &[Value],
+) -> Result<Value, Stop> {
     let batches: Vec<&QualityFact> = facts
         .quality
         .iter()
         .filter(|row| row.kind == "batch" && row.physical_name == physical)
         .collect();
-    if batches.len() != 1 || facts.quality.len() != 1+rejects.len() {
+    if batches.len() != 1 || facts.quality.len() != 1 + rejects.len() {
         return Err(Stop::Fixed("quality identity"));
     }
     let row = batches[0];
@@ -506,17 +672,40 @@ fn one_batch(facts: &NativeFacts, physical: &str, applied_rows: i64, rejects:&[V
     {
         return Err(Stop::Fixed("quality identity"));
     }
-    let mut unique=std::collections::BTreeSet::new();
+    let mut unique = std::collections::BTreeSet::new();
     for reject in rejects {
-        let attnum=reject["attnum"].as_i64().and_then(|n|i32::try_from(n).ok()).filter(|n|*n>0).ok_or(Stop::Fixed("quality identity"))?;
-        let index=reject["row"].as_i64().filter(|n|*n>=0 && *n<applied_rows).ok_or(Stop::Fixed("quality identity"))?;
-        let key=reject["key_digest"].as_str().filter(|s|closed_digest(s)).ok_or(Stop::Fixed("quality identity"))?;
-        if reject["reason"]!="zero_date" || reject["column"].as_str().is_none_or(str::is_empty)
-            || reject["value_len"].as_i64().is_none_or(|n|n<0) || !unique.insert((attnum,index,key))
-            || !facts.quality.iter().any(|q|q.kind=="reject" && q.physical_name==physical && q.batch_id==row.batch_id
-                && q.reason.as_deref()==Some("zero_date") && q.attnum==Some(attnum) && q.row_index==Some(index)
-                && q.key_digest.as_deref()==Some(key) && q.value_len==reject["value_len"].as_i64()
-                && q.accepted_rows.is_none() && q.rejected_rows.is_none()) {return Err(Stop::Fixed("quality identity"));}
+        let attnum = reject["attnum"]
+            .as_i64()
+            .and_then(|n| i32::try_from(n).ok())
+            .filter(|n| *n > 0)
+            .ok_or(Stop::Fixed("quality identity"))?;
+        let index = reject["row"]
+            .as_i64()
+            .filter(|n| *n >= 0 && *n < applied_rows)
+            .ok_or(Stop::Fixed("quality identity"))?;
+        let key = reject["key_digest"]
+            .as_str()
+            .filter(|s| closed_digest(s))
+            .ok_or(Stop::Fixed("quality identity"))?;
+        if reject["reason"] != "zero_date"
+            || reject["column"].as_str().is_none_or(str::is_empty)
+            || reject["value_len"].as_i64().is_none_or(|n| n < 0)
+            || !unique.insert((attnum, index, key))
+            || !facts.quality.iter().any(|q| {
+                q.kind == "reject"
+                    && q.physical_name == physical
+                    && q.batch_id == row.batch_id
+                    && q.reason.as_deref() == Some("zero_date")
+                    && q.attnum == Some(attnum)
+                    && q.row_index == Some(index)
+                    && q.key_digest.as_deref() == Some(key)
+                    && q.value_len == reject["value_len"].as_i64()
+                    && q.accepted_rows.is_none()
+                    && q.rejected_rows.is_none()
+            })
+        {
+            return Err(Stop::Fixed("quality identity"));
+        }
     }
     Ok(json!({
         "loss_concealed": false,"manifest_reject_count":rejects.len(),"payload_includes_reject_lines":!rejects.is_empty(),
@@ -525,8 +714,15 @@ fn one_batch(facts: &NativeFacts, physical: &str, applied_rows: i64, rejects:&[V
 }
 
 /// Plugin token for one binding field, plus the storage the sealed attribute must have.
-pub(crate) fn column_storage(field: &BoundField, oid: i64, typmod: i32) -> Result<ColumnStorage, &'static str> {
-    if field.char_length.is_some_and(|width| !(1..=63).contains(&width)) {
+pub(crate) fn column_storage(
+    field: &BoundField,
+    oid: i64,
+    typmod: i32,
+) -> Result<ColumnStorage, &'static str> {
+    if field
+        .char_length
+        .is_some_and(|width| !(1..=63).contains(&width))
+    {
         return Err("schema");
     }
     if column_provenance(&field.arrow_type) == "closed" {
@@ -562,12 +758,16 @@ pub(crate) fn column_storage(field: &BoundField, oid: i64, typmod: i32) -> Resul
 /// A document field is `jsonb`, never `utf8` and never json oid 114.
 pub(crate) fn source_type_token(field: &BoundField) -> Result<String, &'static str> {
     if let Some(bson) = field.bson_type.as_ref() {
-        match (bson.variant.as_str(), bson.subtype.as_deref(), field.arrow_type.as_str()) {
+        match (
+            bson.variant.as_str(),
+            bson.subtype.as_deref(),
+            field.arrow_type.as_str(),
+        ) {
             ("07", None, "fixedsizebinary(12)") => return Ok("objectid".to_string()),
             ("05", Some("04"), "fixedsizebinary(16)") => return Ok("uuid".to_string()),
-            ("05", Some("00"), "binary" | "fixedsizebinary(12)" | "fixedsizebinary(16)") => {},
+            ("05", Some("00"), "binary" | "fixedsizebinary(12)" | "fixedsizebinary(16)") => {}
             ("07" | "05", _, _) => return Err("schema"),
-            _ => {},
+            _ => {}
         }
     }
     if let Some(oid) = original_pg_storage(field)? {
@@ -593,7 +793,11 @@ pub(crate) fn source_type_token(field: &BoundField) -> Result<String, &'static s
     if let Some(width) = fixed_binary_width(&field.arrow_type) {
         return Ok(format!("fixedsizebinary_{width}"));
     }
-    if field.arrow_type.chars().any(|ch| matches!(ch, '(' | ')' | ',' | ':' | ' ')) {
+    if field
+        .arrow_type
+        .chars()
+        .any(|ch| matches!(ch, '(' | ')' | ',' | ':' | ' '))
+    {
         let mut out = String::new();
         for ch in field.arrow_type.chars() {
             match ch {
@@ -612,8 +816,26 @@ pub(crate) fn source_type_token(field: &BoundField) -> Result<String, &'static s
 
 fn original_pg_storage(field: &BoundField) -> Result<Option<i64>, &'static str> {
     match field.source_oid {
-        Some(2950) if fixed_binary_width(&field.arrow_type) == Some(16) && field.source_typmod == Some(-1) && field.source_format.as_ref().is_some_and(|value| !value.is_empty()) => Ok(Some(2950)),
-        Some(25) if field.arrow_type == "utf8" && field.source_typmod == Some(-1) && field.source_format.as_ref().is_some_and(|value| !value.is_empty()) => Ok(Some(25)),
+        Some(2950)
+            if fixed_binary_width(&field.arrow_type) == Some(16)
+                && field.source_typmod == Some(-1)
+                && field
+                    .source_format
+                    .as_ref()
+                    .is_some_and(|value| !value.is_empty()) =>
+        {
+            Ok(Some(2950))
+        }
+        Some(25)
+            if field.arrow_type == "utf8"
+                && field.source_typmod == Some(-1)
+                && field
+                    .source_format
+                    .as_ref()
+                    .is_some_and(|value| !value.is_empty()) =>
+        {
+            Ok(Some(25))
+        }
         Some(2950 | 25) => Err("schema"),
         _ => Ok(None),
     }
@@ -628,15 +850,21 @@ struct ExpectedStorage {
 
 fn expected_storage(field: &BoundField) -> Result<ExpectedStorage, &'static str> {
     if let Some(bson) = field.bson_type.as_ref() {
-        match (bson.variant.as_str(), bson.subtype.as_deref(), field.arrow_type.as_str()) {
+        match (
+            bson.variant.as_str(),
+            bson.subtype.as_deref(),
+            field.arrow_type.as_str(),
+        ) {
             ("07", None, "fixedsizebinary(12)") => return Ok(exact(25, -1, None)),
             ("05", Some("04"), "fixedsizebinary(16)") => return Ok(exact(2950, -1, None)),
-            ("05", Some("00"), "binary" | "fixedsizebinary(12)" | "fixedsizebinary(16)") => {},
+            ("05", Some("00"), "binary" | "fixedsizebinary(12)" | "fixedsizebinary(16)") => {}
             ("07" | "05", _, _) => return Err("schema"),
-            _ => {},
+            _ => {}
         }
     }
-    if let Some(oid) = original_pg_storage(field)? { return Ok(exact(oid, -1, None)); }
+    if let Some(oid) = original_pg_storage(field)? {
+        return Ok(exact(oid, -1, None));
+    }
     if field.document {
         document_token(field)?;
         return Ok(exact(3802, -1, None));
@@ -661,7 +889,11 @@ fn expected_storage(field: &BoundField) -> Result<ExpectedStorage, &'static str>
     match field.arrow_type.as_str() {
         "uint64" => {
             require_width(field, 64, false)?;
-            Ok(exact(1700, numeric_typmod(20, 0), Some("bigint_unsigned_numeric")))
+            Ok(exact(
+                1700,
+                numeric_typmod(20, 0),
+                Some("bigint_unsigned_numeric"),
+            ))
         }
         "uint8" => {
             require_width(field, 8, true)?;
@@ -712,9 +944,18 @@ fn expected_storage(field: &BoundField) -> Result<ExpectedStorage, &'static str>
                 })
             }
         }
-        "time64_micros" => { require_no_numeric(field)?; Ok(exact(1083, -1, None)) }
-        "duration_micros" => { require_no_numeric(field)?; Ok(exact(1186, -1, None)) }
-        "time64_nanos" => { require_no_numeric(field)?; Ok(exact(20, -1, None)) }
+        "time64_micros" => {
+            require_no_numeric(field)?;
+            Ok(exact(1083, -1, None))
+        }
+        "duration_micros" => {
+            require_no_numeric(field)?;
+            Ok(exact(1186, -1, None))
+        }
+        "time64_nanos" => {
+            require_no_numeric(field)?;
+            Ok(exact(20, -1, None))
+        }
         "binary" | "dictionary_binary" | "dictionary_int32_binary" => {
             require_no_numeric(field)?;
             Ok(exact(17, -1, None))
@@ -739,7 +980,10 @@ fn expected_storage(field: &BoundField) -> Result<ExpectedStorage, &'static str>
             require_no_numeric(field)?;
             Ok(exact(17, -1, None))
         }
-        other if (other.starts_with("struct(") || other.starts_with("union(dense,")) && other.ends_with(')') => {
+        other
+            if (other.starts_with("struct(") || other.starts_with("union(dense,"))
+                && other.ends_with(')') =>
+        {
             require_no_numeric(field)?;
             Ok(exact(114, -1, None))
         }
@@ -891,7 +1135,10 @@ fn shadow_name(value: &str, prefix: &str) -> bool {
     let Some(rest) = value.strip_prefix(prefix) else {
         return false;
     };
-    rest.len() == 60 && rest.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    rest.len() == 60
+        && rest
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
 /// Column storage recorded on the catalog. `caveat` is a closed compiler token.
@@ -946,11 +1193,16 @@ fn closed_source(value: &str) -> bool {
     !bytes.is_empty()
         && bytes.len() <= 63
         && bytes[0].is_ascii_lowercase()
-        && bytes[1..].iter().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_')
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_')
 }
 
 fn closed_digest(value: &str) -> bool {
-    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
 fn closed_uuid(value: &str) -> bool {
@@ -958,7 +1210,8 @@ fn closed_uuid(value: &str) -> bool {
     bytes.len() == 36
         && bytes.iter().enumerate().all(|(index, byte)| {
             let hyphen = matches!(index, 8 | 13 | 18 | 23);
-            (hyphen && *byte == b'-') || (!hyphen && byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+            (hyphen && *byte == b'-')
+                || (!hyphen && byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
         })
 }
 
@@ -988,13 +1241,20 @@ async fn connect(
     }
 }
 
-async fn expect_principal(conn: &mut sqlx::postgres::PgConnection, principal: &str) -> Result<(), Stop> {
+async fn expect_principal(
+    conn: &mut sqlx::postgres::PgConnection,
+    principal: &str,
+) -> Result<(), Stop> {
     let row = sqlx::query("SELECT CURRENT_USER::text, SESSION_USER::text")
         .fetch_one(&mut *conn)
         .await
         .map_err(|_| Stop::Fixed("target principal"))?;
-    let current: String = row.try_get(0).map_err(|_| Stop::Fixed("target principal"))?;
-    let session: String = row.try_get(1).map_err(|_| Stop::Fixed("target principal"))?;
+    let current: String = row
+        .try_get(0)
+        .map_err(|_| Stop::Fixed("target principal"))?;
+    let session: String = row
+        .try_get(1)
+        .map_err(|_| Stop::Fixed("target principal"))?;
     if current == principal && session == principal {
         Ok(())
     } else {
@@ -1036,7 +1296,9 @@ fn map_db(err: sqlx::Error) -> Stop {
         Stop::Fixed("sealed import owner")
     } else if text.contains("sealed import source") {
         Stop::Fixed("sealed import source")
-    } else if text.contains("sealed import digest") || text.contains("sealed import identity is closed") {
+    } else if text.contains("sealed import digest")
+        || text.contains("sealed import identity is closed")
+    {
         Stop::Fixed("sealed import digest")
     } else if text.contains("sealed import is partial") {
         Stop::Fixed("sealed import is partial")
@@ -1066,7 +1328,9 @@ fn install_stop(err: InstallError) -> Stop {
         InstallError::MissingRelation { .. } | InstallError::Refused { .. } => {
             Stop::Fixed("target catalog refused")
         }
-        InstallError::Database { sqlstate, .. } if sqlstate == "OO001" => Stop::Fixed("migration checksum"),
+        InstallError::Database { sqlstate, .. } if sqlstate == "OO001" => {
+            Stop::Fixed("migration checksum")
+        }
         InstallError::Database { .. } => Stop::Fixed("target database"),
     }
 }
@@ -1259,15 +1523,33 @@ mod tests {
     fn admitted_bson_source_types_match_stored_oids() {
         use crate::native_binding::BsonType;
         let mut field = field("fixedsizebinary(12)", None, None);
-        field.bson_type = Some(BsonType { variant: "07".to_string(), subtype: None });
-        assert_eq!(column_storage(&field, 25, -1).unwrap().source_type, "objectid");
+        field.bson_type = Some(BsonType {
+            variant: "07".to_string(),
+            subtype: None,
+        });
+        assert_eq!(
+            column_storage(&field, 25, -1).unwrap().source_type,
+            "objectid"
+        );
         assert!(column_storage(&field, 17, -1).is_err());
         field.arrow_type = "fixedsizebinary(16)".to_string();
-        field.bson_type = Some(BsonType { variant: "05".to_string(), subtype: Some("04".to_string()) });
-        assert_eq!(column_storage(&field, 2950, -1).unwrap().source_type, "uuid");
+        field.bson_type = Some(BsonType {
+            variant: "05".to_string(),
+            subtype: Some("04".to_string()),
+        });
+        assert_eq!(
+            column_storage(&field, 2950, -1).unwrap().source_type,
+            "uuid"
+        );
         assert!(column_storage(&field, 17, -1).is_err());
-        field.bson_type = Some(BsonType { variant: "05".to_string(), subtype: Some("00".to_string()) });
-        assert_eq!(column_storage(&field, 17, -1).unwrap().source_type, "fixedsizebinary_16");
+        field.bson_type = Some(BsonType {
+            variant: "05".to_string(),
+            subtype: Some("00".to_string()),
+        });
+        assert_eq!(
+            column_storage(&field, 17, -1).unwrap().source_type,
+            "fixedsizebinary_16"
+        );
     }
 
     fn hex(byte: &str, n: usize) -> String {
@@ -1365,50 +1647,78 @@ mod tests {
 
     #[test]
     fn baseline_quality_requires_exact_stored_rejects() {
-        let mut facts=c2_facts(3,vec![id_column()]);
-        let physical=facts.tables[0].physical_name.clone();
-        let reject=json!({"column":"day","reason":"zero_date","attnum":2,"row":1,"value_len":10,"key_digest":"a".repeat(64)});
-        facts.quality[0].rejected_rows=Some(1);
-        facts.quality.push(QualityFact {physical_name:physical.clone(),batch_id:"batch-1".into(),kind:"reject".into(),reason:Some("zero_date".into()),value_len:Some(10),attnum:Some(2),row_index:Some(1),key_digest:Some("a".repeat(64)),accepted_rows:None,rejected_rows:None});
-        let quality=one_batch(&facts,&physical,3,&[reject.clone()]).ok().expect("exact stored quality");
-        assert_eq!(quality["stored_rejected_rows"],1);
-        assert!(one_batch(&facts,&physical,3,&[]).is_err());
-        for key in ["attnum","row","value_len","key_digest","reason"] {
-            let mut bad=reject.clone();bad[key]=json!("wrong");
-            assert!(one_batch(&facts,&physical,3,&[bad]).is_err(),"{key}");
+        let mut facts = c2_facts(3, vec![id_column()]);
+        let physical = facts.tables[0].physical_name.clone();
+        let reject = json!({"column":"day","reason":"zero_date","attnum":2,"row":1,"value_len":10,"key_digest":"a".repeat(64)});
+        facts.quality[0].rejected_rows = Some(1);
+        facts.quality.push(QualityFact {
+            physical_name: physical.clone(),
+            batch_id: "batch-1".into(),
+            kind: "reject".into(),
+            reason: Some("zero_date".into()),
+            value_len: Some(10),
+            attnum: Some(2),
+            row_index: Some(1),
+            key_digest: Some("a".repeat(64)),
+            accepted_rows: None,
+            rejected_rows: None,
+        });
+        let quality = one_batch(&facts, &physical, 3, std::slice::from_ref(&reject))
+            .ok()
+            .expect("exact stored quality");
+        assert_eq!(quality["stored_rejected_rows"], 1);
+        assert!(one_batch(&facts, &physical, 3, &[]).is_err());
+        for key in ["attnum", "row", "value_len", "key_digest", "reason"] {
+            let mut bad = reject.clone();
+            bad[key] = json!("wrong");
+            assert!(one_batch(&facts, &physical, 3, &[bad]).is_err(), "{key}");
         }
     }
 
     #[test]
     fn oracle_published_range_keeps_capture_rows_distinct_from_effective_rows() {
-        let mut captured=c2_capture(2);
-        captured.source_engine="oracle".into();
-        captured.source_id="oracle_catalog_unit".into();
-        let scope=json!({"source_engine":"oracle","source_id":captured.source_id,"row_count":2});
-        captured.range_scope=Some(scope.clone());
-        let mut facts=c2_facts(6,vec![id_column()]);
-        facts.source_id=captured.source_id.clone();
-        facts.state="published".into();
-        let proof=json!({"protocol":"oo.pipeline.oracle-c5-catalog-binding/v1",
+        let mut captured = c2_capture(2);
+        captured.source_engine = "oracle".into();
+        captured.source_id = "oracle_catalog_unit".into();
+        let scope = json!({"source_engine":"oracle","source_id":captured.source_id,"row_count":2});
+        captured.range_scope = Some(scope.clone());
+        let mut facts = c2_facts(6, vec![id_column()]);
+        facts.source_id = captured.source_id.clone();
+        facts.state = "published".into();
+        let proof = json!({"protocol":"oo.pipeline.oracle-c5-catalog-binding/v1",
             "source_id":facts.source_id,"run_id":facts.run_id,
             "source_generation":7,"target_generation":7,"captured_rows":2,"effective_rows":6,
             "scope":scope,"publication_receipt_sha256":"a".repeat(64)});
-        assert!(bind_native(&captured,&facts,None,false,&[]).is_err());
-        let bytes=bind_oracle_c5(&captured,&facts,&proof,&[]).unwrap_or_else(|_|panic!("bound Oracle range"));
-        let document:Value=serde_json::from_slice(&bytes).unwrap();
-        assert_eq!(document["state"],"published");
-        assert_eq!(document["tables"][0]["accepted_rows"],6);
-        assert_eq!(document["oracle_c5_binding"]["captured_rows"],2);
-        for key in ["protocol","source_id","run_id","source_generation","target_generation",
-                    "captured_rows","effective_rows","scope","publication_receipt_sha256"] {
-            let mut bad=proof.clone();bad[key]=json!("wrong");
-            assert!(bind_oracle_c5(&captured,&facts,&bad,&[]).is_err(),"{key}");
+        assert!(bind_native(&captured, &facts, None, false, &[]).is_err());
+        let bytes = bind_oracle_c5(&captured, &facts, &proof, &[])
+            .unwrap_or_else(|_| panic!("bound Oracle range"));
+        let document: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(document["state"], "published");
+        assert_eq!(document["tables"][0]["accepted_rows"], 6);
+        assert_eq!(document["oracle_c5_binding"]["captured_rows"], 2);
+        for key in [
+            "protocol",
+            "source_id",
+            "run_id",
+            "source_generation",
+            "target_generation",
+            "captured_rows",
+            "effective_rows",
+            "scope",
+            "publication_receipt_sha256",
+        ] {
+            let mut bad = proof.clone();
+            bad[key] = json!("wrong");
+            assert!(
+                bind_oracle_c5(&captured, &facts, &bad, &[]).is_err(),
+                "{key}"
+            );
         }
-        facts.state="awaiting_publish".into();
-        assert!(bind_oracle_c5(&captured,&facts,&proof,&[]).is_err());
-        facts.state="published".into();
-        captured.source_engine="mysql".into();
-        assert!(bind_oracle_c5(&captured,&facts,&proof,&[]).is_err());
+        facts.state = "awaiting_publish".into();
+        assert!(bind_oracle_c5(&captured, &facts, &proof, &[]).is_err());
+        facts.state = "published".into();
+        captured.source_engine = "mysql".into();
+        assert!(bind_oracle_c5(&captured, &facts, &proof, &[]).is_err());
     }
 
     #[test]
@@ -1416,11 +1726,24 @@ mod tests {
         assert!(catalog_delta_engine("sqlserver"));
         assert!(catalog_delta_engine("postgres"));
         assert!(catalog_delta_engine("postgresql"));
-        for engine in ["mysql", "oracle", "mongodb", "mariadb", "clickhouse", "doris"] {
+        for engine in [
+            "mysql",
+            "oracle",
+            "mongodb",
+            "mariadb",
+            "clickhouse",
+            "doris",
+        ] {
             assert!(!catalog_delta_engine(engine), "{engine}");
         }
-        let bytes = bind_native(&c2_capture(2), &c2_facts(6, vec![id_column()]), None, true, &[])
-            .unwrap_or_else(|_| panic!("applied delta"));
+        let bytes = bind_native(
+            &c2_capture(2),
+            &c2_facts(6, vec![id_column()]),
+            None,
+            true,
+            &[],
+        )
+        .unwrap_or_else(|_| panic!("applied delta"));
         let document: Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(document["engine"], "sqlserver");
         assert_eq!(document["protocol"], RESULT_PROTOCOL);
@@ -1428,11 +1751,26 @@ mod tests {
         assert_eq!(document["target_generation"], 7);
         assert_eq!(document["tables"][0]["accepted_rows"], 6);
         assert_eq!(document["tables"][0]["logical_table"], "oracle_row");
-        assert!(document["tables"][0]["stored_physical"].as_str().unwrap().starts_with("pt_"));
+        assert!(
+            document["tables"][0]["stored_physical"]
+                .as_str()
+                .unwrap()
+                .starts_with("pt_")
+        );
         assert!(document.get("binding_vector").is_none());
-        assert!(!bytes.windows(18).any(|window| window == b"oo.source.pgsql/v1"));
+        assert!(
+            !bytes
+                .windows(18)
+                .any(|window| window == b"oo.source.pgsql/v1")
+        );
         assert_eq!(
-            fixed_reason(bind_native(&c2_capture(2), &c2_facts(6, vec![id_column()]), None, false, &[])),
+            fixed_reason(bind_native(
+                &c2_capture(2),
+                &c2_facts(6, vec![id_column()]),
+                None,
+                false,
+                &[]
+            )),
             "schema"
         );
         let mut drifted = c2_facts(6, vec![id_column()]);
@@ -1443,13 +1781,22 @@ mod tests {
             logical_column: "other".to_string(),
             physical_name: format!("pc_{}", hex("78", 30)),
         });
-        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &drifted, None, true, &[])), "physical mapping is absent");
+        assert_eq!(
+            fixed_reason(bind_native(&c2_capture(2), &drifted, None, true, &[])),
+            "physical mapping is absent"
+        );
         let mut renamed = c2_facts(6, vec![id_column()]);
         renamed.tables[0].table_ident = "other_row".to_string();
-        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &renamed, None, true, &[])), "schema");
+        assert_eq!(
+            fixed_reason(bind_native(&c2_capture(2), &renamed, None, true, &[])),
+            "schema"
+        );
         let mut unapplied = c2_facts(-1, vec![id_column()]);
         unapplied.quality[0].accepted_rows = Some(-1);
-        assert_eq!(fixed_reason(bind_native(&c2_capture(2), &unapplied, None, true, &[])), "schema");
+        assert_eq!(
+            fixed_reason(bind_native(&c2_capture(2), &unapplied, None, true, &[])),
+            "schema"
+        );
     }
 
     #[test]
@@ -1468,7 +1815,10 @@ mod tests {
         assert_eq!(native_binding::sealed_product("postgresql"), Ok(()));
         assert_eq!(native_binding::sealed_product("postgres"), Ok(()));
         assert_eq!(native_binding::sealed_product("sqlserver"), Ok(()));
-        assert_eq!(native_binding::sealed_product("snowflake"), Err("source_engine_unknown"));
+        assert_eq!(
+            native_binding::sealed_product("snowflake"),
+            Err("source_engine_unknown")
+        );
         assert_eq!(native_binding::sealed_product("starrocks"), Ok(()));
         assert_eq!(native_binding::sealed_product("doris"), Ok(()));
         assert_eq!(native_binding::sealed_product("clickhouse"), Ok(()));
@@ -1488,9 +1838,15 @@ mod tests {
         let millis = field("timestamp(ms,utc)", None, None);
         assert_eq!(source_type_token(&millis).unwrap(), "timestamp_ms_utc");
         let unioned = field("union(dense,0:utf8,1:int64)", None, None);
-        assert_eq!(source_type_token(&unioned).unwrap(), "union_dense_0_utf8_1_int64");
+        assert_eq!(
+            source_type_token(&unioned).unwrap(),
+            "union_dense_0_utf8_1_int64"
+        );
         let structured = field("struct(kind:utf8,n:int32)", None, None);
-        assert_eq!(source_type_token(&structured).unwrap(), "struct_kind_utf8_n_int32");
+        assert_eq!(
+            source_type_token(&structured).unwrap(),
+            "struct_kind_utf8_n_int32"
+        );
         let list = field("list(utf8)", None, None);
         assert_eq!(source_type_token(&list).unwrap(), "list_utf8");
         let narrow = field("int8", None, None);
@@ -1510,7 +1866,10 @@ mod tests {
         let stored = column_storage(&seconds, 1114, -1).unwrap();
         assert_eq!(stored.oid, 1114);
         assert_eq!(stored.typmod, -1);
-        assert_eq!(column_provenance("timestamp_second_naive"), "timestamp seconds since unix epoch stored as timestamp; microseconds are seconds * 1000000");
+        assert_eq!(
+            column_provenance("timestamp_second_naive"),
+            "timestamp seconds since unix epoch stored as timestamp; microseconds are seconds * 1000000"
+        );
         let day = field("date32", None, None);
         assert_eq!(column_storage(&day, 1082, -1).unwrap().oid, 1082);
         assert_ne!(column_provenance("date32"), "closed");
@@ -1541,7 +1900,10 @@ mod tests {
         let stored = column_storage(&unsigned, 1700, numeric_typmod(20, 0)).unwrap();
         assert_eq!(stored.caveat, Some("bigint_unsigned_numeric"));
         let bytes = field("binary", None, None);
-        assert_eq!(column_storage(&bytes, 17, -1).unwrap().source_type, "binary");
+        assert_eq!(
+            column_storage(&bytes, 17, -1).unwrap().source_type,
+            "binary"
+        );
         assert_ne!(column_provenance("binary"), "closed");
         assert_eq!(numeric_typmod(38, 9), 2_490_381);
         let mut document = field("utf8", None, None);
@@ -1564,7 +1926,10 @@ mod tests {
         assert_eq!(column_storage(&plain, 114, -1).unwrap_err(), "schema");
         let listed = field("list(utf8)", None, None);
         assert_eq!(column_storage(&listed, 114, -1).unwrap().oid, 114);
-        assert_ne!(column_storage(&listed, 114, -1).unwrap().source_type, "jsonb");
+        assert_ne!(
+            column_storage(&listed, 114, -1).unwrap().source_type,
+            "jsonb"
+        );
     }
 
     #[test]

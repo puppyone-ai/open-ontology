@@ -237,9 +237,15 @@ async fn owned_sql_capabilities() {
             .unwrap();
         assert_eq!(row.get::<_, String>(0), "pg_catalog");
         assert_eq!(row.get::<_, String>(1), function.name);
-        let scalar = matches!(function.name.as_str(), "date" | "date_trunc" | "abs" | "to_char");
+        let scalar = matches!(
+            function.name.as_str(),
+            "date" | "date_trunc" | "abs" | "to_char"
+        );
         assert_eq!(row.get::<_, String>(2), if scalar { "f" } else { "a" });
-        assert_eq!(row.get::<_, String>(3), if function.name == "to_char" { "s" } else { "i" });
+        assert_eq!(
+            row.get::<_, String>(3),
+            if function.name == "to_char" { "s" } else { "i" }
+        );
         assert_eq!(
             row.get::<_, i16>(4) as usize,
             function.argument_type_oids.len()
@@ -503,7 +509,10 @@ async fn owned_sql_capabilities() {
         "SELECT public.to_char(stamp,'YYYY-MM-DD') FROM logistics.shipment",
         "SELECT to_char(secret,'YYYY-MM-DD') FROM logistics.shipment",
     ] {
-        assert!(guard_select(&catalog.identity, &catalog, sql).is_err(), "{sql}");
+        assert!(
+            guard_select(&catalog.identity, &catalog, sql).is_err(),
+            "{sql}"
+        );
     }
     let day_counts = oracle(
         &client,
@@ -539,8 +548,13 @@ async fn owned_sql_capabilities() {
         queries.push(proof);
         let mut midnight = oracle(&client, &catalog,
             "SELECT id FROM logistics.shipment WHERE stamp>=TIMESTAMP '2026-10-28' AND stamp<TIMESTAMP '2026-10-29' ORDER BY 1").await;
-        assert_eq!(midnight["rows"], json!([["1"],["2"]]));
-        assert!(midnight["executed_sql"].as_str().unwrap().contains("2026-10-28 00:00:00"));
+        assert_eq!(midnight["rows"], json!([["1"], ["2"]]));
+        assert!(
+            midnight["executed_sql"]
+                .as_str()
+                .unwrap()
+                .contains("2026-10-28 00:00:00")
+        );
         midnight["session_timezone"] = json!(timezone);
         queries.push(midnight);
     }
@@ -548,17 +562,35 @@ async fn owned_sql_capabilities() {
     let mut refusals = Vec::new();
     let mut daily_catalog = catalog.clone();
     daily_catalog.relations = vec![VisibleRelation {
-        schema: "logistics".into(), name: "daily_orders".into(),
-        physical_schema: "capability_fixture".into(), physical_name: "shipments".into(),
+        schema: "logistics".into(),
+        name: "daily_orders".into(),
+        physical_schema: "capability_fixture".into(),
+        physical_name: "shipments".into(),
         columns: vec![
-            VisibleColumn { name: "order_status".into(), physical_name: "flag".into(), type_oid: types["bool"] },
-            VisibleColumn { name: "upd_time".into(), physical_name: "stamp".into(), type_oid: types["timestamp"] },
-        ], pending_unclassified: 1, estimated_rows: 4,
+            VisibleColumn {
+                name: "order_status".into(),
+                physical_name: "flag".into(),
+                type_oid: types["bool"],
+            },
+            VisibleColumn {
+                name: "upd_time".into(),
+                physical_name: "stamp".into(),
+                type_oid: types["timestamp"],
+            },
+        ],
+        pending_unclassified: 1,
+        estimated_rows: 4,
     }];
     let q5 = "SELECT order_status,count(*) AS n,sum(CASE WHEN upd_time >= TIMESTAMP '2026-10-29 00:00:00' THEN 1 ELSE 0 END) AS upd_today FROM logistics.daily_orders GROUP BY order_status ORDER BY order_status";
     let proof = oracle(&client, &daily_catalog, q5).await;
-    assert_eq!(proof["result_type_oids"], json!([types["bool"],types["int8"],types["int8"]]));
-    assert_eq!(proof["rows"], json!([["f","1","0"],["t","2","1"],[null,"1","0"]]));
+    assert_eq!(
+        proof["result_type_oids"],
+        json!([types["bool"], types["int8"], types["int8"]])
+    );
+    assert_eq!(
+        proof["rows"],
+        json!([["f", "1", "0"], ["t", "2", "1"], [null, "1", "0"]])
+    );
     queries.push(proof);
     let balance_columns = client.prepare("SELECT balance_time,total_amount,paid_amount,today_remain_amount FROM logistics.balances")
         .await.unwrap().columns().iter().map(|column| VisibleColumn {
@@ -566,23 +598,62 @@ async fn owned_sql_capabilities() {
         }).collect();
     let mut balance_catalog = catalog.clone();
     balance_catalog.relations = vec![VisibleRelation {
-        schema: "logistics".into(), name: "balances".into(),
-        physical_schema: "capability_fixture".into(), physical_name: "balances".into(),
-        columns: balance_columns, pending_unclassified: 0, estimated_rows: 4,
+        schema: "logistics".into(),
+        name: "balances".into(),
+        physical_schema: "capability_fixture".into(),
+        physical_name: "balances".into(),
+        columns: balance_columns,
+        pending_unclassified: 0,
+        estimated_rows: 4,
     }];
     let q3 = "SELECT balance_time,count(*) AS n,sum(total_amount) AS due,sum(paid_amount) AS paid FROM logistics.balances GROUP BY balance_time HAVING sum(abs(total_amount))+sum(abs(paid_amount))+sum(abs(today_remain_amount)) > 0 ORDER BY balance_time";
     let proof = oracle(&client, &balance_catalog, q3).await;
-    assert_eq!(proof["rows"], json!([["2026-10-29 00:00:00","2","6.000000","-2.000000"]]));
+    assert_eq!(
+        proof["rows"],
+        json!([["2026-10-29 00:00:00", "2", "6.000000", "-2.000000"]])
+    );
     queries.push(proof);
     for (sql, expected, expected_oid) in [
-        ("SELECT SUM(CASE WHEN stamp>=TIMESTAMP '2026-10-29' THEN 1 ELSE 0 END) FROM logistics.shipment", json!([["1"]]), types["int8"]),
-        ("SELECT SUM(CASE WHEN flag THEN 1 END) FROM logistics.shipment", json!([["2"]]), types["int8"]),
-        ("SELECT SUM(CASE WHEN flag THEN NULL ELSE 1 END) FROM logistics.shipment", json!([["2"]]), types["int8"]),
-        ("SELECT SUM(CASE WHEN flag THEN 1 END) FROM logistics.shipment WHERE id=0", json!([[null]]), types["int8"]),
-        ("SELECT SUM(CASE WHEN flag THEN amount ELSE amount END) FROM logistics.shipment", json!([["6.500003"]]), types["numeric"]),
-        ("SELECT SUM(abs(amount)) FROM logistics.shipment", json!([["11.500005"]]), types["numeric"]),
-        ("SELECT SUM(abs(amount)) FROM logistics.shipment WHERE id=4", json!([[null]]), types["numeric"]),
-        ("SELECT SUM(abs(amount)) FROM logistics.shipment WHERE id=0", json!([[null]]), types["numeric"]),
+        (
+            "SELECT SUM(CASE WHEN stamp>=TIMESTAMP '2026-10-29' THEN 1 ELSE 0 END) FROM logistics.shipment",
+            json!([["1"]]),
+            types["int8"],
+        ),
+        (
+            "SELECT SUM(CASE WHEN flag THEN 1 END) FROM logistics.shipment",
+            json!([["2"]]),
+            types["int8"],
+        ),
+        (
+            "SELECT SUM(CASE WHEN flag THEN NULL ELSE 1 END) FROM logistics.shipment",
+            json!([["2"]]),
+            types["int8"],
+        ),
+        (
+            "SELECT SUM(CASE WHEN flag THEN 1 END) FROM logistics.shipment WHERE id=0",
+            json!([[null]]),
+            types["int8"],
+        ),
+        (
+            "SELECT SUM(CASE WHEN flag THEN amount ELSE amount END) FROM logistics.shipment",
+            json!([["6.500003"]]),
+            types["numeric"],
+        ),
+        (
+            "SELECT SUM(abs(amount)) FROM logistics.shipment",
+            json!([["11.500005"]]),
+            types["numeric"],
+        ),
+        (
+            "SELECT SUM(abs(amount)) FROM logistics.shipment WHERE id=4",
+            json!([[null]]),
+            types["numeric"],
+        ),
+        (
+            "SELECT SUM(abs(amount)) FROM logistics.shipment WHERE id=0",
+            json!([[null]]),
+            types["numeric"],
+        ),
     ] {
         let proof = oracle(&client, &catalog, sql).await;
         assert_eq!(proof["rows"], expected, "{sql}");
@@ -617,35 +688,82 @@ async fn owned_sql_capabilities() {
         "SELECT abs(amount) FILTER (WHERE true) FROM logistics.shipment",
     ] {
         assert!(guard_select(&identity, &catalog, sql).is_err(), "{sql}");
-        refusals.push(json!({"sql":sql,"guard":"searched numeric CASE / ABS boundary","executed":false}));
+        refusals.push(
+            json!({"sql":sql,"guard":"searched numeric CASE / ABS boundary","executed":false}),
+        );
     }
     for (name, argument, sql) in [
-        ("sum", types["int4"], "SELECT SUM(CASE WHEN flag THEN 1 ELSE 0 END) FROM logistics.shipment"),
-        ("abs", types["numeric"], "SELECT SUM(abs(amount)) FROM logistics.shipment"),
+        (
+            "sum",
+            types["int4"],
+            "SELECT SUM(CASE WHEN flag THEN 1 ELSE 0 END) FROM logistics.shipment",
+        ),
+        (
+            "abs",
+            types["numeric"],
+            "SELECT SUM(abs(amount)) FROM logistics.shipment",
+        ),
     ] {
         let mut missing = catalog.clone();
-        missing.functions.retain(|f| !(f.name == name && f.argument_type_oids == [argument]));
+        missing
+            .functions
+            .retain(|f| !(f.name == name && f.argument_type_oids == [argument]));
         assert!(guard_select(&identity, &missing, sql).is_err());
-        refusals.push(json!({"sql":sql,"guard":"required sum(int4) / abs(numeric) removed","executed":false}));
+        refusals.push(
+            json!({"sql":sql,"guard":"required sum(int4) / abs(numeric) removed","executed":false}),
+        );
     }
-    let pattern_columns = client.prepare("SELECT id,label,code FROM logistics.pattern_lookup")
-        .await.unwrap().columns().iter().map(|column| VisibleColumn {
-            name: column.name().into(), physical_name: column.name().into(), type_oid: column.type_().oid(),
-        }).collect();
+    let pattern_columns = client
+        .prepare("SELECT id,label,code FROM logistics.pattern_lookup")
+        .await
+        .unwrap()
+        .columns()
+        .iter()
+        .map(|column| VisibleColumn {
+            name: column.name().into(),
+            physical_name: column.name().into(),
+            type_oid: column.type_().oid(),
+        })
+        .collect();
     let mut pattern_catalog = catalog.clone();
     pattern_catalog.relations = vec![VisibleRelation {
-        schema: "logistics".into(), name: "pattern_lookup".into(),
-        physical_schema: "capability_fixture".into(), physical_name: "patterns".into(),
-        columns: pattern_columns, pending_unclassified: 1, estimated_rows: 8,
+        schema: "logistics".into(),
+        name: "pattern_lookup".into(),
+        physical_schema: "capability_fixture".into(),
+        physical_name: "patterns".into(),
+        columns: pattern_columns,
+        pending_unclassified: 1,
+        estimated_rows: 8,
     }];
-    for (keyword, token) in [("LIKE","~~"),("NOT LIKE","!~~"),("ILIKE","~~*"),("NOT ILIKE","!~~*")] {
-        let operator = pattern_catalog.operators.iter().find(|op| op.name == token).unwrap();
+    for (keyword, token) in [
+        ("LIKE", "~~"),
+        ("NOT LIKE", "!~~"),
+        ("ILIKE", "~~*"),
+        ("NOT ILIKE", "!~~*"),
+    ] {
+        let operator = pattern_catalog
+            .operators
+            .iter()
+            .find(|op| op.name == token)
+            .unwrap();
         assert!(pattern_signature_allowed(operator));
         for column in ["label", "code"] {
             for syntax in [keyword.to_string(), format!("OPERATOR(pg_catalog.{token})")] {
-                for pattern in ["A%", "%a%", "A_B", r"A\_B", r"A\%B", "", "%",
-                    "\u{4e2d}\u{6587}%", r"back\\slash", "_"] {
-                    let sql = format!("SELECT id FROM logistics.pattern_lookup WHERE {column} {syntax} '{pattern}' ORDER BY 1");
+                for pattern in [
+                    "A%",
+                    "%a%",
+                    "A_B",
+                    r"A\_B",
+                    r"A\%B",
+                    "",
+                    "%",
+                    "\u{4e2d}\u{6587}%",
+                    r"back\\slash",
+                    "_",
+                ] {
+                    let sql = format!(
+                        "SELECT id FROM logistics.pattern_lookup WHERE {column} {syntax} '{pattern}' ORDER BY 1"
+                    );
                     let proof = oracle(&client, &pattern_catalog, &sql).await;
                     assert_eq!(proof["operator_oids"], json!([operator.oid]));
                     queries.push(proof);
@@ -656,11 +774,12 @@ async fn owned_sql_capabilities() {
         let mut missing = pattern_catalog.clone();
         missing.operators.retain(|op| op.name != token);
         assert!(guard_select(&identity, &missing, &sql).is_err());
-        refusals.push(json!({"sql":sql,"guard":"required pattern operator removed","executed":false}));
+        refusals
+            .push(json!({"sql":sql,"guard":"required pattern operator removed","executed":false}));
     }
     for (predicate, expected) in [
-        ("code LIKE 'A%'", json!([["1"],["3"],["4"]])),
-        ("code ILIKE 'a%'", json!([["1"],["2"],["3"],["4"]])),
+        ("code LIKE 'A%'", json!([["1"], ["3"], ["4"]])),
+        ("code ILIKE 'a%'", json!([["1"], ["2"], ["3"], ["4"]])),
         (r"code LIKE 'A\_B'", json!([["3"]])),
         (r"code LIKE 'A\%B'", json!([["4"]])),
         ("code LIKE ''", json!([["7"]])),
@@ -684,14 +803,25 @@ async fn owned_sql_capabilities() {
         "SELECT id FROM logistics.pattern_lookup WHERE code LIKE ANY (ARRAY['a'])",
         r"SELECT id FROM logistics.pattern_lookup WHERE code LIKE 'a\'",
     ] {
-        assert!(guard_select(&identity, &pattern_catalog, sql).is_err(), "{sql}");
+        assert!(
+            guard_select(&identity, &pattern_catalog, sql).is_err(),
+            "{sql}"
+        );
         refusals.push(json!({"sql":sql,"guard":"unsupported pattern shape","executed":false}));
     }
-    for pattern in ["a".repeat(crate::sql_guard::LIKE_PATTERN_BYTE_LIMIT + 1),
-        "_".repeat(crate::sql_guard::LIKE_WILDCARD_LIMIT + 1)] {
-        let sql = format!("SELECT id FROM logistics.pattern_lookup WHERE code OPERATOR(pg_catalog.~~) '{pattern}'");
-        assert_eq!(guard_select(&identity, &pattern_catalog, &sql), Err(crate::sql_guard::GuardError::Budget));
-        refusals.push(json!({"pattern_bytes":pattern.len(),"guard":"pattern budget","executed":false}));
+    for pattern in [
+        "a".repeat(crate::sql_guard::LIKE_PATTERN_BYTE_LIMIT + 1),
+        "_".repeat(crate::sql_guard::LIKE_WILDCARD_LIMIT + 1),
+    ] {
+        let sql = format!(
+            "SELECT id FROM logistics.pattern_lookup WHERE code OPERATOR(pg_catalog.~~) '{pattern}'"
+        );
+        assert_eq!(
+            guard_select(&identity, &pattern_catalog, &sql),
+            Err(crate::sql_guard::GuardError::Budget)
+        );
+        refusals
+            .push(json!({"pattern_bytes":pattern.len(),"guard":"pattern budget","executed":false}));
     }
     for sql in [
         "SELECT MIN(secret) FROM logistics.shipment",
@@ -818,15 +948,28 @@ async fn owned_sql_capabilities() {
     }
     for (sql, code) in [
         ("SELECT id FROM logistics.shipment ORDER BY 0", "42P10"),
-        ("SELECT flag,COUNT(*) FROM logistics.shipment GROUP BY 2", "42803"),
-        ("SELECT COUNT(*) FROM logistics.shipment HAVING id>0", "42803"),
-        ("SELECT COUNT(*) FROM logistics.shipment HAVING SUM(COUNT(*))>0", "42803"),
-        ("SELECT COUNT(*) FROM logistics.shipment WHERE COUNT(*)>0", "42803"),
+        (
+            "SELECT flag,COUNT(*) FROM logistics.shipment GROUP BY 2",
+            "42803",
+        ),
+        (
+            "SELECT COUNT(*) FROM logistics.shipment HAVING id>0",
+            "42803",
+        ),
+        (
+            "SELECT COUNT(*) FROM logistics.shipment HAVING SUM(COUNT(*))>0",
+            "42803",
+        ),
+        (
+            "SELECT COUNT(*) FROM logistics.shipment WHERE COUNT(*)>0",
+            "42803",
+        ),
     ] {
         assert!(guard_select(&identity, &catalog, sql).is_err(), "{sql}");
         let error = client.prepare(sql).await.expect_err(sql);
         assert_eq!(error.code().unwrap().code(), code, "{sql}");
-        refusals.push(json!({"sql":sql,"postgres_sqlstate":code,"guard":"refused; PostgreSQL agrees"}));
+        refusals
+            .push(json!({"sql":sql,"postgres_sqlstate":code,"guard":"refused; PostgreSQL agrees"}));
     }
     let report = json!({
         "actualDB": {"host":"127.0.0.1","port":fixture.port,"database":fixture.database,
@@ -857,12 +1000,16 @@ async fn owned_day_catalog_refuses_modified_builtin() {
     assert_eq!(fixture.user, "oo_sql_capabilities_reader");
     assert!(fixture.port > 1024 && fixture.port != 5432);
     let endpoint = TlsEndpoint {
-        host: "127.0.0.1".into(), port: fixture.port,
-        database: fixture.database.clone(), user: fixture.user.clone(),
+        host: "127.0.0.1".into(),
+        port: fixture.port,
+        database: fixture.database.clone(),
+        user: fixture.user.clone(),
     };
     let password = fs::read_to_string(&fixture.password_file).unwrap();
     let ca = fs::read(&fixture.ca_file).unwrap();
-    let (mut client, connection) = connect_require_tls(&endpoint, password.trim(), &ca).await.unwrap();
+    let (mut client, connection) = connect_require_tls(&endpoint, password.trim(), &ca)
+        .await
+        .unwrap();
     let driver = tokio::spawn(connection);
     require_tls(&client).await.unwrap();
     let actual = client.query_one(
@@ -875,14 +1022,26 @@ async fn owned_day_catalog_refuses_modified_builtin() {
     assert_eq!(actual.get::<_, i32>(2), i32::from(fixture.port));
     assert_eq!(actual.get::<_, String>(3), fixture.nonce);
     assert_eq!(actual.get::<_, String>(4), "on");
-    let tx = client.build_transaction().read_only(true)
-        .isolation_level(IsolationLevel::RepeatableRead).start().await.unwrap();
+    let tx = client
+        .build_transaction()
+        .read_only(true)
+        .isolation_level(IsolationLevel::RepeatableRead)
+        .start()
+        .await
+        .unwrap();
     let types = load_types(&tx).await.unwrap();
     let limits = CatalogLimits {
-        max_tables: 1, max_columns: 32, max_functions: FUNCTION_CATALOG_LIMIT,
-        max_operators: 128, large_table_row_threshold: 100, unknown_rows: UnknownRows::Refuse,
+        max_tables: 1,
+        max_columns: 32,
+        max_functions: FUNCTION_CATALOG_LIMIT,
+        max_operators: 128,
+        large_table_row_threshold: 100,
+        unknown_rows: UnknownRows::Refuse,
     };
-    assert_eq!(load_functions(&tx, &types, &limits).await, Err(CatalogError::MissingObject));
+    assert_eq!(
+        load_functions(&tx, &types, &limits).await,
+        Err(CatalogError::MissingObject)
+    );
     tx.rollback().await.unwrap();
     drop(client);
     driver.await.unwrap().unwrap();

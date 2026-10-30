@@ -8,10 +8,10 @@ use std::time::{Duration, Instant};
 
 use arrow_array::{Array, BooleanArray, Int32Array, RecordBatch, StringArray};
 use oo_connectors::{
-    config_identity, type_policy_identity, AdmittedCatalog, AdmittedColumn, AdmittedTable,
-    PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
-    SnapshotOwner, SnapshotRequest, SourceId, StreamBudget,
-    StreamItem, TableSelection, CLEANUP_OBSERVATION_BOUND_MS, STREAM_PROTOCOL,
+    AdmittedCatalog, AdmittedColumn, AdmittedTable, CLEANUP_OBSERVATION_BOUND_MS, PgBudget,
+    PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, STREAM_PROTOCOL, SecretRef,
+    SelectedTable, SnapshotOwner, SnapshotRequest, SourceId, StreamBudget, StreamItem,
+    TableSelection, config_identity, type_policy_identity,
 };
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
@@ -250,7 +250,10 @@ impl World {
             match owner.next_batch().await.expect("next batch") {
                 StreamItem::Batch(batch) => {
                     assert!(!batch.resumable);
-                    assert_eq!(batch.typed.protocol, oo_connectors::TYPE_CONVERSION_PROTOCOL);
+                    assert_eq!(
+                        batch.typed.protocol,
+                        oo_connectors::TYPE_CONVERSION_PROTOCOL
+                    );
                     assert_eq!(batch.typed.run_generation, binding.generation);
                     assert_eq!(batch.typed.input_digest, binding.input_digest);
                     assert_eq!(batch.typed.schema, SCHEMA);
@@ -368,7 +371,10 @@ impl World {
             .expect("admin sees writer")
             .try_get(0)
             .expect("count");
-        assert_eq!(visible, 1, "the writer commit is visible outside the snapshot");
+        assert_eq!(
+            visible, 1,
+            "the writer commit is visible outside the snapshot"
+        );
         self.note(format!("admin_sees_late_parent={visible}"));
 
         let pid = binding.backend.pid;
@@ -507,12 +513,7 @@ impl World {
         .await
         .expect("oo backends");
         rows.iter()
-            .map(|row| {
-                (
-                    row.try_get(0).expect("pid"),
-                    row.try_get(1).expect("start"),
-                )
-            })
+            .map(|row| (row.try_get(0).expect("pid"), row.try_get(1).expect("start")))
             .collect()
     }
 
@@ -646,7 +647,8 @@ fn oracle_payload(oracle: &Oracle) -> u64 {
         .child
         .iter()
         .map(|(id, note)| {
-            id.map(|_| 4_u64).unwrap_or(0) + note.as_ref().map(|text| text.len() as u64).unwrap_or(0)
+            id.map(|_| 4_u64).unwrap_or(0)
+                + note.as_ref().map(|text| text.len() as u64).unwrap_or(0)
         })
         .sum();
     let zero = u64::try_from(oracle.zero).expect("zero") * 4;
@@ -674,7 +676,10 @@ async fn read_oracle(conn: &mut PgConnection) -> Oracle {
     .expect("oracle child");
     let mut child = Vec::new();
     for row in &child_rows {
-        child.push((row.try_get(0).expect("parent_id"), row.try_get(1).expect("note")));
+        child.push((
+            row.try_get(0).expect("parent_id"),
+            row.try_get(1).expect("note"),
+        ));
     }
     let empty: i64 = sqlx::query("SELECT count(*)::int8 FROM stream.empty")
         .fetch_one(&mut *conn)
@@ -749,13 +754,7 @@ async fn load_admitted(admin: &mut PgConnection, names: &[&str]) -> AdmittedCata
     AdmittedCatalog { tables }
 }
 
-async fn dial(
-    pointer: &Pointer,
-    user: &str,
-    password: &str,
-    ca: &[u8],
-    app: &str,
-) -> PgConnection {
+async fn dial(pointer: &Pointer, user: &str, password: &str, ca: &[u8], app: &str) -> PgConnection {
     let options = PgConnectOptions::from_explicit()
         .host(&pointer.host)
         .port(pointer.port)
@@ -809,8 +808,7 @@ async fn activity(admin: &mut PgConnection, pid: i32, start: &str) -> Option<Act
 /// A suspended portal has no `Sync`, so PostgreSQL can keep `state=active`
 /// while the backend is blocked in `ClientRead`. That is not another `Execute`.
 fn waiting_on_client(row: &Activity) -> bool {
-    row.wait_event == "ClientRead"
-        || row.state == "idle in transaction"
+    row.wait_event == "ClientRead" || row.state == "idle in transaction"
 }
 
 fn read_pass(dir: &str, name: &str) -> Zeroizing<String> {
@@ -842,10 +840,32 @@ fn strip_sql_literals(sql: &str) -> String {
 
 fn write_word(sql: &str) -> Option<&'static str> {
     const WORDS: &[&str] = &[
-        "INSERT", "UPDATE", "DELETE", "TRUNCATE", "MERGE", "COPY", "CREATE", "ALTER", "DROP",
-        "GRANT", "REVOKE", "COMMENT", "VACUUM", "CLUSTER", "REINDEX", "CALL", "DO", "COMMIT",
-        "NEXTVAL", "LO_IMPORT", "LO_EXPORT", "LO_CREATE", "DBLINK", "PG_WRITE_FILE",
-        "PG_READ_FILE", "PG_READ_BINARY_FILE",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "TRUNCATE",
+        "MERGE",
+        "COPY",
+        "CREATE",
+        "ALTER",
+        "DROP",
+        "GRANT",
+        "REVOKE",
+        "COMMENT",
+        "VACUUM",
+        "CLUSTER",
+        "REINDEX",
+        "CALL",
+        "DO",
+        "COMMIT",
+        "NEXTVAL",
+        "LO_IMPORT",
+        "LO_EXPORT",
+        "LO_CREATE",
+        "DBLINK",
+        "PG_WRITE_FILE",
+        "PG_READ_FILE",
+        "PG_READ_BINARY_FILE",
     ];
     for token in sql.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_') {
         let upper = token.to_ascii_uppercase();

@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering（安全负责人需在 M0 指定）
-> Last reviewed: 2026-10-21
+> Last reviewed: 2026-10-01
 > 依赖：[01](01-architecture.md)、[05](05-agent-db.md)、[07](07-gateway.md)、[09](09-sandbox-and-agent-runtime.md)
 
 ## 1. 安全目标
@@ -110,15 +110,7 @@ OO 的 Agent 天然具备（a）和（b）——业务数据里的备注、上�
 
 ## 8. 数据保护
 
-语义、敏感性、授权与技术发布必须分别判定：
-
-- “业务含义未知”不是默认拒绝所有原始统计；“类型是 numeric”也不是 pii:none 或可求和的证明。
-- account_no、bank_account 等标识符不能由旧 quantity 分类或 fixture/test 审批自动进入生产授权；规则变更触发对象级差异复审。
-- 为解释状态读取字典，需有权负责人批准相关元数据列或提供受控导出；不能为了回答问题开放整表、换高权限 token 或绕过 Gateway。
-- Pack 的公共标准类型保真与隐藏对象保密须同时测试；不得为了修 time 裸词误伤关闭整个文本/引用安全检查。私有自定义类型仍需裁剪。
-- 业务“未就绪”可以只阻断受影响指标，但安全、只读、审计门禁永远不能按业务压力降级。完整回款未认证不是扩大授权的理由。
-
-- **传输加密：** 所有服务间通信 TLS；Gateway 内部接口与代理→Gateway 为 mTLS。源库连接按源库支持启用 TLS；源端不支持 TLS 时，仅全量/C5 路径可在已安装 operator 显式授权、并实测源端无 TLS 能力后使用明文，C1 与默认路径不变（[ADR-018](02-technology-stack.md)）。证据须逐段记录实际链路：跳板 SSH 只证明它覆盖的那一段加密，不能据此宣称到源库全路径加密。
+- **传输加密：** 所有服务间通信 TLS；Gateway 内部接口与代理→Gateway 为 mTLS。源库连接按源库支持启用 TLS。
 - **静态加密：** Agent DB 与控制库依赖磁盘/卷加密（LUKS、云盘加密）；对象存储启用服务端加密；`/workspace` 快照额外应用层加密。
 - **个人信息：**
   - 连接器登记时可排除列；`on_batch` hook 可在入库前掩码/哈希；
@@ -187,7 +179,3 @@ OO 的 Agent 天然具备（a）和（b）——业务数据里的备注、上�
 - **一键止血：** 控制台“紧急停止”：吊销全部会话与外部 token、停止接受新会话、Gateway 进入只读元数据模式；管线可单独暂停。
 - **取证：** Gateway 审计、代理元数据日志、会话记录按 `session_id` 关联；审计哈希链用于证明未被篡改。
 - **漏洞披露：** 仓库提供 `SECURITY.md` 与私密报告渠道；修复后发布安全公告。
-
-## 14. 整库采集的显式例外与脱敏证据
-
-不因有 SSH 就宣称源库到中转段已加密；SSL disabled 必须独立授权明文策略。只设置 session UTC/sql_mode，不改源端全局配置。零日期/NUL 的有损 type_policy 与活源对账容忍需要安装/操作者显式选择；normalization rejects 只留原因、位置和绑定，不带原值。离线 inventory、调度日志、成本指标与 receipts 保存在私有运行目录，不提交客户表列名、连接地址或账号。参见 [现场手册](database-support/06-real-source-field-notes.md)。

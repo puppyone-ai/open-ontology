@@ -253,7 +253,6 @@ impl Fixture {
         self.http("POST", "/v1/query", Some(SQL), Some(id), None, &self.token)
             .await
     }
-
 }
 
 fn tuple(principal: &str) -> CurrentTuple {
@@ -347,15 +346,23 @@ impl Fixture {
     }
 
     async fn stage(&self, generation: i64) -> Published {
-        let physical = if generation == 1 { self.physical.clone() } else { format!("pt_{:060x}", generation) };
+        let physical = if generation == 1 {
+            self.physical.clone()
+        } else {
+            format!("pt_{:060x}", generation)
+        };
         let column = &self.column;
         let run = format!("00000000-0000-4000-8000-{generation:012}");
         let d = "c".repeat(64);
         if generation > 1 {
-            self.admin.batch_execute(&format!(
-                "CREATE TABLE _oo.{physical}({column} int8,secret text);
-                 INSERT INTO _oo.{physical} VALUES({},'hidden');", generation * 10
-            )).await.unwrap();
+            self.admin
+                .batch_execute(&format!(
+                    "CREATE TABLE _oo.{physical}({column} int8,secret text);
+                 INSERT INTO _oo.{physical} VALUES({},'hidden');",
+                    generation * 10
+                ))
+                .await
+                .unwrap();
         }
         self.admin.batch_execute(&format!(
             "INSERT INTO _oo.physical_mappings VALUES
@@ -376,11 +383,14 @@ impl Fixture {
             ns="a".repeat(60)
         )).await.unwrap();
         if generation > 1 {
-            self.admin.batch_execute(&format!(
-                "INSERT INTO _oo.physical_mappings VALUES
+            self.admin
+                .batch_execute(&format!(
+                    "INSERT INTO _oo.physical_mappings VALUES
                 ('f22','{d}',{generation},'t','app','items','','{physical}'),
                 ('f22','{d}',{generation},'c','app','items','amount','{column}');"
-            )).await.unwrap();
+                ))
+                .await
+                .unwrap();
         }
         let table = json!({"schema":"app","table":"items","run_id":run,"physical_name":physical,
             "source_generation":generation,"target_generation":generation,"accepted_rows":1,
@@ -399,8 +409,11 @@ impl Fixture {
         let shards = json!([{"source_id":"f22","anchor_run":run,"receipt_sha256":hash(&receipt),"receipt":receipt}]);
         let sha = hash(&json!({"library":library,"shards":shards}));
         // Prepared evidence stays on disk until activate(), never in the active head.
-        fs::write(self.root.join(format!("staged-{generation}.json")),
-            json!({"library":library,"shards":shards,"sha":sha}).to_string()).unwrap();
+        fs::write(
+            self.root.join(format!("staged-{generation}.json")),
+            json!({"library":library,"shards":shards,"sha":sha}).to_string(),
+        )
+        .unwrap();
         let vector = json!([{"dataset":"app.items","source_id":"f22","config_digest":d,
             "source_generation":generation,"target_generation":generation,"stored_namespace":"_oo",
             "stored_physical":physical,"run_id":run,"type_digest":d,"input_digest":d,
@@ -410,15 +423,20 @@ impl Fixture {
         published.policies[0].generation = generation;
         published.native_vector = Some(vector.clone());
         published.quality_vector = Some(vector.clone());
-        published.native_catalog = Some(json!({"protocol":"oo.gateway.library-binding/v1","entries":vector,
+        published.native_catalog = Some(
+            json!({"protocol":"oo.gateway.library-binding/v1","entries":vector,
             "library_id":"fixture","receipt_sha256":sha,"pack_digest":self.pack_digest,
-            "limits":{"max_tables":64,"max_columns":512}}));
+            "limits":{"max_tables":64,"max_columns":512}}),
+        );
         published
     }
 
     async fn activate(&self, published: Published) {
         let generation = published.policies[0].generation;
-        let staged: Value = serde_json::from_slice(&fs::read(self.root.join(format!("staged-{generation}.json"))).unwrap()).unwrap();
+        let staged: Value = serde_json::from_slice(
+            &fs::read(self.root.join(format!("staged-{generation}.json"))).unwrap(),
+        )
+        .unwrap();
         let vector = &published.native_vector.as_ref().unwrap()[0];
         self.admin.batch_execute(&format!(
             "BEGIN;
@@ -447,7 +465,10 @@ impl Fixture {
 async fn published_cut_survives_pending_generation() {
     let f = Fixture::new().await;
     f.install_native_fixture().await;
-    f.admin.batch_execute("DELETE FROM oo_publish_target.fence").await.unwrap();
+    f.admin
+        .batch_execute("DELETE FROM oo_publish_target.fence")
+        .await
+        .unwrap();
     let one = f.stage(1).await;
     f.activate(one.clone()).await;
     let (status, headers, first) = f.query("current").await;
@@ -456,102 +477,237 @@ async fn published_cut_survives_pending_generation() {
     let id = headers[ACTUAL].to_str().unwrap().to_owned();
     let vector = headers[ACTUAL_VECTOR].to_str().unwrap().to_owned();
     let session = f.plane.session_for(ROLE).await.unwrap();
-    let before_freshness = f.http("GET","/v1/freshness",None,Some(&id),Some(&vector),&f.token).await;
+    let before_freshness = f
+        .http(
+            "GET",
+            "/v1/freshness",
+            None,
+            Some(&id),
+            Some(&vector),
+            &f.token,
+        )
+        .await;
     assert_eq!(before_freshness.0, 200, "{}", before_freshness.2);
     assert_eq!(before_freshness.2["source_time"], "unmeasured");
     assert_eq!(before_freshness.2["publication"], "live");
     let two = f.stage(2).await;
-    assert!(!f.admin.query_one("SELECT _oo.native_library_source_ready('f22','unused')",&[]).await.unwrap().get::<_,bool>(0));
+    assert!(
+        !f.admin
+            .query_one(
+                "SELECT _oo.native_library_source_ready('f22','unused')",
+                &[]
+            )
+            .await
+            .unwrap()
+            .get::<_, bool>(0)
+    );
     let (status, after_headers, retained) = f.query(&id).await;
     assert_eq!(status, 200, "{retained}");
     assert_eq!(retained["rows"], first["rows"]);
-    for key in ["sources","warnings","freshness","knowledge_version","policy_version","hints"] {
-        assert_eq!(retained[key], first[key], "changed old-cut provenance: {key}");
+    for key in [
+        "sources",
+        "warnings",
+        "freshness",
+        "knowledge_version",
+        "policy_version",
+        "hints",
+    ] {
+        assert_eq!(
+            retained[key], first[key],
+            "changed old-cut provenance: {key}"
+        );
     }
     assert_eq!(after_headers[ACTUAL], id);
     assert_eq!(after_headers[ACTUAL_VECTOR], vector);
-    assert!(Arc::ptr_eq(&session,&f.plane.session_for(ROLE).await.unwrap()));
+    assert!(Arc::ptr_eq(
+        &session,
+        &f.plane.session_for(ROLE).await.unwrap()
+    ));
     let mut evidence = json!({"scope":"owned target-fixture; real PostgreSQL/TLS/Gateway/session; not source C5 or customer acceptance",
         "first":first,"retained":retained,"old_publication_id":id,"old_vector":vector});
-    for (method,path,sql) in [
-        ("GET","/v1/tables",None),("GET","/v1/tables/app.items",None),
-        ("POST","/v1/sql/validate",Some(SQL)),("POST","/v1/knowledge/search",Some("items")),
-        ("GET","/v1/freshness",None),
+    for (method, path, sql) in [
+        ("GET", "/v1/tables", None),
+        ("GET", "/v1/tables/app.items", None),
+        ("POST", "/v1/sql/validate", Some(SQL)),
+        ("POST", "/v1/knowledge/search", Some("items")),
+        ("GET", "/v1/freshness", None),
     ] {
-        let result = f.http(method,path,sql,Some(&id),Some(&vector),&f.token).await;
-        assert_eq!(result.0,200,"{path}: {}",result.2);
-        assert_eq!(result.1[ACTUAL],id);
-        if path=="/v1/freshness" {
-            assert_eq!(result.2,before_freshness.2);
-            evidence["retained_freshness"]=result.2;
+        let result = f
+            .http(method, path, sql, Some(&id), Some(&vector), &f.token)
+            .await;
+        assert_eq!(result.0, 200, "{path}: {}", result.2);
+        assert_eq!(result.1[ACTUAL], id);
+        if path == "/v1/freshness" {
+            assert_eq!(result.2, before_freshness.2);
+            evidence["retained_freshness"] = result.2;
         }
     }
-    let plain = f.http("POST","/v1/query",Some(SQL),None,None,&f.token).await;
-    assert_eq!(plain.0,200,"{}",plain.2);
-    assert_eq!(plain.2["rows"],json!([["10"]]));
-    let plain_freshness=f.http("GET","/v1/freshness",None,None,None,&f.token).await;
-    assert_eq!(plain_freshness.0,200,"{}",plain_freshness.2);
-    assert_eq!(plain_freshness.2,before_freshness.2);
-    f.admin.batch_execute("UPDATE oo_publish_target.fence SET state='closed'").await.unwrap();
-    let revoked_old=f.query("current").await;
-    assert_ne!(revoked_old.0,200,"revoked active gen1 fence admitted");
-    evidence["revoked_old_fence"]=json!({"status":revoked_old.0,"body":revoked_old.2});
-    f.admin.batch_execute("UPDATE oo_publish_target.fence SET state='open'").await.unwrap();
-    assert_eq!(f.query(&id).await.0,200);
+    let plain = f
+        .http("POST", "/v1/query", Some(SQL), None, None, &f.token)
+        .await;
+    assert_eq!(plain.0, 200, "{}", plain.2);
+    assert_eq!(plain.2["rows"], json!([["10"]]));
+    let plain_freshness = f
+        .http("GET", "/v1/freshness", None, None, None, &f.token)
+        .await;
+    assert_eq!(plain_freshness.0, 200, "{}", plain_freshness.2);
+    assert_eq!(plain_freshness.2, before_freshness.2);
+    f.admin
+        .batch_execute("UPDATE oo_publish_target.fence SET state='closed'")
+        .await
+        .unwrap();
+    let revoked_old = f.query("current").await;
+    assert_ne!(revoked_old.0, 200, "revoked active gen1 fence admitted");
+    evidence["revoked_old_fence"] = json!({"status":revoked_old.0,"body":revoked_old.2});
+    f.admin
+        .batch_execute("UPDATE oo_publish_target.fence SET state='open'")
+        .await
+        .unwrap();
+    assert_eq!(f.query(&id).await.0, 200);
     // A cached plan is refused inside the transaction and may close that
     // session. Data-only publication must retain the recovered healthy one.
     let session = f.plane.session_for(ROLE).await.unwrap();
     f.activate(two.clone()).await;
     let second = f.query("current").await;
-    assert_eq!(second.0,200,"{}",second.2);
-    assert_eq!(second.2["rows"],json!([["20"]]));
-    assert_ne!(second.1[ACTUAL],id);
-    assert_ne!(second.1[ACTUAL_VECTOR],vector);
-    assert!(Arc::ptr_eq(&session,&f.plane.session_for(ROLE).await.unwrap()));
-    assert_eq!(f.query(&id).await.0,409);
-    let active_physical=two.native_vector.as_ref().unwrap()[0]["stored_physical"].as_str().unwrap().to_owned();
+    assert_eq!(second.0, 200, "{}", second.2);
+    assert_eq!(second.2["rows"], json!([["20"]]));
+    assert_ne!(second.1[ACTUAL], id);
+    assert_ne!(second.1[ACTUAL_VECTOR], vector);
+    assert!(Arc::ptr_eq(
+        &session,
+        &f.plane.session_for(ROLE).await.unwrap()
+    ));
+    assert_eq!(f.query(&id).await.0, 409);
+    let active_physical = two.native_vector.as_ref().unwrap()[0]["stored_physical"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let mut refusals = Vec::new();
-    for (name,sql,undo) in [
-        ("closed_fence","UPDATE oo_publish_target.fence SET state='closed'".into(),"UPDATE oo_publish_target.fence SET state='open'".into()),
-        ("wrong_fence_digest","UPDATE oo_publish_target.fence SET opened_pack_digest=repeat('0',64)".into(),format!("UPDATE oo_publish_target.fence SET opened_pack_digest='{}'",f.pack_digest)),
-        ("foreign_fence_role","UPDATE oo_publish_target.fence SET role_name='oo_r_foreign'".into(),format!("UPDATE oo_publish_target.fence SET role_name='{ROLE}'")),
-        ("revoked_acl",format!("REVOKE SELECT ({}) ON _oo.{} FROM {ROLE}",f.column,active_physical),format!("GRANT SELECT ({}) ON _oo.{} TO {ROLE}",f.column,active_physical)),
-        ("retired_run","UPDATE _oo.full_import_run SET state='retired' WHERE source_generation=2".into(),"UPDATE _oo.full_import_run SET state='published' WHERE source_generation=2".into()),
-        ("wrong_input","UPDATE _oo.full_import_run SET input_digest=repeat('0',64) WHERE source_generation=2".into(),"UPDATE _oo.full_import_run SET input_digest=repeat('c',64) WHERE source_generation=2".into()),
-        ("wrong_type","UPDATE _oo.full_import_run SET type_digest=repeat('0',64) WHERE source_generation=2".into(),"UPDATE _oo.full_import_run SET type_digest=repeat('c',64) WHERE source_generation=2".into()),
-        ("wrong_schema","UPDATE _oo.full_import_run SET schema_digest=repeat('0',64) WHERE source_generation=2".into(),"UPDATE _oo.full_import_run SET schema_digest=repeat('c',64) WHERE source_generation=2".into()),
-        ("wrong_generation","UPDATE _oo.full_import_run SET target_generation=99 WHERE source_generation=2".into(),"UPDATE _oo.full_import_run SET target_generation=2 WHERE source_generation=2".into()),
-        ("wrong_table_digest","UPDATE _oo.full_import_table SET canonical_digest=repeat('0',64)".into(),"UPDATE _oo.full_import_table SET canonical_digest=repeat('c',64)".into()),
-        ("closed_head","UPDATE _oo.native_library_head SET state='closed'".into(),"UPDATE _oo.native_library_head SET state='ready'".into()),
-        ("pending_head","UPDATE _oo.native_library_head SET state='pending'".into(),"UPDATE _oo.native_library_head SET state='ready'".into()),
-        ("ddl_type",format!("ALTER TABLE _oo.{} ALTER COLUMN {} TYPE text",active_physical,f.column),format!("ALTER TABLE _oo.{} ALTER COLUMN {} TYPE bigint USING {}::bigint",active_physical,f.column,f.column)),
+    for (name, sql, undo) in [
+        (
+            "closed_fence",
+            "UPDATE oo_publish_target.fence SET state='closed'".into(),
+            "UPDATE oo_publish_target.fence SET state='open'".into(),
+        ),
+        (
+            "wrong_fence_digest",
+            "UPDATE oo_publish_target.fence SET opened_pack_digest=repeat('0',64)".into(),
+            format!(
+                "UPDATE oo_publish_target.fence SET opened_pack_digest='{}'",
+                f.pack_digest
+            ),
+        ),
+        (
+            "foreign_fence_role",
+            "UPDATE oo_publish_target.fence SET role_name='oo_r_foreign'".into(),
+            format!("UPDATE oo_publish_target.fence SET role_name='{ROLE}'"),
+        ),
+        (
+            "revoked_acl",
+            format!(
+                "REVOKE SELECT ({}) ON _oo.{} FROM {ROLE}",
+                f.column, active_physical
+            ),
+            format!(
+                "GRANT SELECT ({}) ON _oo.{} TO {ROLE}",
+                f.column, active_physical
+            ),
+        ),
+        (
+            "retired_run",
+            "UPDATE _oo.full_import_run SET state='retired' WHERE source_generation=2".into(),
+            "UPDATE _oo.full_import_run SET state='published' WHERE source_generation=2".into(),
+        ),
+        (
+            "wrong_input",
+            "UPDATE _oo.full_import_run SET input_digest=repeat('0',64) WHERE source_generation=2"
+                .into(),
+            "UPDATE _oo.full_import_run SET input_digest=repeat('c',64) WHERE source_generation=2"
+                .into(),
+        ),
+        (
+            "wrong_type",
+            "UPDATE _oo.full_import_run SET type_digest=repeat('0',64) WHERE source_generation=2"
+                .into(),
+            "UPDATE _oo.full_import_run SET type_digest=repeat('c',64) WHERE source_generation=2"
+                .into(),
+        ),
+        (
+            "wrong_schema",
+            "UPDATE _oo.full_import_run SET schema_digest=repeat('0',64) WHERE source_generation=2"
+                .into(),
+            "UPDATE _oo.full_import_run SET schema_digest=repeat('c',64) WHERE source_generation=2"
+                .into(),
+        ),
+        (
+            "wrong_generation",
+            "UPDATE _oo.full_import_run SET target_generation=99 WHERE source_generation=2".into(),
+            "UPDATE _oo.full_import_run SET target_generation=2 WHERE source_generation=2".into(),
+        ),
+        (
+            "wrong_table_digest",
+            "UPDATE _oo.full_import_table SET canonical_digest=repeat('0',64)".into(),
+            "UPDATE _oo.full_import_table SET canonical_digest=repeat('c',64)".into(),
+        ),
+        (
+            "closed_head",
+            "UPDATE _oo.native_library_head SET state='closed'".into(),
+            "UPDATE _oo.native_library_head SET state='ready'".into(),
+        ),
+        (
+            "pending_head",
+            "UPDATE _oo.native_library_head SET state='pending'".into(),
+            "UPDATE _oo.native_library_head SET state='ready'".into(),
+        ),
+        (
+            "ddl_type",
+            format!(
+                "ALTER TABLE _oo.{} ALTER COLUMN {} TYPE text",
+                active_physical, f.column
+            ),
+            format!(
+                "ALTER TABLE _oo.{} ALTER COLUMN {} TYPE bigint USING {}::bigint",
+                active_physical, f.column, f.column
+            ),
+        ),
     ] {
         f.admin.batch_execute(&sql).await.unwrap();
         let denied = f.query("current").await;
-        assert_ne!(denied.0,200,"accepted {name}: {}",denied.2);
+        assert_ne!(denied.0, 200, "accepted {name}: {}", denied.2);
         refusals.push(json!({"name":name,"status":denied.0,"body":denied.2}));
         f.admin.batch_execute(&undo).await.unwrap();
     }
     // A retained gen1 vector cannot impersonate the now-active gen2 receipt.
-    let mut forged=one.clone();
-    forged.native_catalog.as_mut().unwrap()["receipt_sha256"]=two.native_catalog.as_ref().unwrap()["receipt_sha256"].clone();
-    f.plane.roles.current.lock().unwrap().roles=Arc::new(vec![forged]);
-    assert_ne!(f.query("current").await.0,200);
-    let mut wrong_pack=two.clone();
-    wrong_pack.native_catalog.as_mut().unwrap()["pack_digest"]=json!("0".repeat(64));
-    f.plane.roles.current.lock().unwrap().roles=Arc::new(vec![wrong_pack]);
-    assert_ne!(f.query("current").await.0,200);
-    f.plane.roles.current.lock().unwrap().roles=Arc::new(vec![two]);
+    let mut forged = one.clone();
+    forged.native_catalog.as_mut().unwrap()["receipt_sha256"] =
+        two.native_catalog.as_ref().unwrap()["receipt_sha256"].clone();
+    f.plane.roles.current.lock().unwrap().roles = Arc::new(vec![forged]);
+    assert_ne!(f.query("current").await.0, 200);
+    let mut wrong_pack = two.clone();
+    wrong_pack.native_catalog.as_mut().unwrap()["pack_digest"] = json!("0".repeat(64));
+    f.plane.roles.current.lock().unwrap().roles = Arc::new(vec![wrong_pack]);
+    assert_ne!(f.query("current").await.0, 200);
+    f.plane.roles.current.lock().unwrap().roles = Arc::new(vec![two]);
     // An unregistered replacement view must not be admitted as a sealed table.
     f.admin.batch_execute(&format!(
         "ALTER TABLE _oo.{} RENAME TO held_heap; CREATE VIEW _oo.{} AS SELECT * FROM _oo.held_heap;
          GRANT SELECT ({}) ON _oo.{} TO {ROLE};", active_physical,active_physical,f.column,active_physical
     )).await.unwrap();
-    assert_ne!(f.query("current").await.0,200);
-    f.admin.batch_execute(&format!("DROP VIEW _oo.{}; ALTER TABLE _oo.held_heap RENAME TO {}",active_physical,active_physical)).await.unwrap();
-    evidence["second"]=second.2;
-    evidence["new_publication_id"]=json!(second.1[ACTUAL].to_str().unwrap());
-    evidence["refusals"]=json!(refusals);
-    evidence["same_gateway_and_session"]=json!(true);
-    fs::write(f.root.join("acceptance.json"),serde_json::to_vec_pretty(&evidence).unwrap()).unwrap();
+    assert_ne!(f.query("current").await.0, 200);
+    f.admin
+        .batch_execute(&format!(
+            "DROP VIEW _oo.{}; ALTER TABLE _oo.held_heap RENAME TO {}",
+            active_physical, active_physical
+        ))
+        .await
+        .unwrap();
+    evidence["second"] = second.2;
+    evidence["new_publication_id"] = json!(second.1[ACTUAL].to_str().unwrap());
+    evidence["refusals"] = json!(refusals);
+    evidence["same_gateway_and_session"] = json!(true);
+    fs::write(
+        f.root.join("acceptance.json"),
+        serde_json::to_vec_pretty(&evidence).unwrap(),
+    )
+    .unwrap();
 }

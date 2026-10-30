@@ -262,10 +262,18 @@ pub fn compile_role_pack_with_ceilings(
     ceilings: &RolePackCeilings,
 ) -> Result<RolePack, RolePackError> {
     check_ceilings(ceilings)?;
-    let effective_value = oo_core::json_scan::parse_json_value_with_limits(effective_json, EFFECTIVE_PROTOCOL, &ceilings.json_scan)
-        .map_err(|list| reject_json(&list))?;
-    let visibility_value = oo_core::json_scan::parse_json_value_with_limits(visibility_json, VISIBILITY_PROTOCOL, &ceilings.json_scan)
-        .map_err(|list| reject_json(&list))?;
+    let effective_value = oo_core::json_scan::parse_json_value_with_limits(
+        effective_json,
+        EFFECTIVE_PROTOCOL,
+        &ceilings.json_scan,
+    )
+    .map_err(|list| reject_json(&list))?;
+    let visibility_value = oo_core::json_scan::parse_json_value_with_limits(
+        visibility_json,
+        VISIBILITY_PROTOCOL,
+        &ceilings.json_scan,
+    )
+    .map_err(|list| reject_json(&list))?;
     refuse_unsupported(&effective_value, true)?;
     refuse_unsupported(&visibility_value, false)?;
     let effective: EffectiveDoc = serde_json::from_value(effective_value).map_err(|_| {
@@ -321,7 +329,14 @@ fn refuse_unsupported(value: &Value, effective: bool) -> Result<(), RolePackErro
         ]
         .as_slice()
     } else {
-        ["samples", "most_common_vals", "credentials", "privileges", "grants"].as_slice()
+        [
+            "samples",
+            "most_common_vals",
+            "credentials",
+            "privileges",
+            "grants",
+        ]
+        .as_slice()
     };
     for name in names {
         if object.contains_key(*name) {
@@ -588,7 +603,13 @@ fn bind(
         }
     }
     let mut unreviewed = BTreeSet::new();
-    for (index, token) in effective.ontology.publish.include_unreviewed.iter().enumerate() {
+    for (index, token) in effective
+        .ontology
+        .publish
+        .include_unreviewed
+        .iter()
+        .enumerate()
+    {
         let name = token.as_str();
         if !UNREVIEWED_TOKENS.contains(&name) {
             return Err(RolePackError::new(
@@ -645,9 +666,21 @@ fn bind(
                     "a column name is repeated",
                 ));
             }
-            reject_secret(column.description.as_ref().map(BoundedText::<4000>::as_str).unwrap_or(""))?;
+            reject_secret(
+                column
+                    .description
+                    .as_ref()
+                    .map(BoundedText::<4000>::as_str)
+                    .unwrap_or(""),
+            )?;
         }
-        reject_secret(dataset.description.as_ref().map(BoundedText::<4000>::as_str).unwrap_or(""))?;
+        reject_secret(
+            dataset
+                .description
+                .as_ref()
+                .map(BoundedText::<4000>::as_str)
+                .unwrap_or(""),
+        )?;
         if let Some(source) = &dataset.source_name {
             reject_secret(source.as_str())?;
         }
@@ -1107,8 +1140,7 @@ fn select(model: &Model) -> Result<Selected, RolePackError> {
             .is_some_and(|review| review.state == ReviewState::Approved);
         let declared = relationship.provenance == RelationProvenance::DeclaredFk;
         let unreviewed = model.unreviewed.contains("relationships");
-        if (approved || declared || unreviewed)
-            && visible_prose(model, relationship.name.as_str())
+        if (approved || declared || unreviewed) && visible_prose(model, relationship.name.as_str())
         {
             relationships.push(relationship.clone());
         }
@@ -1166,9 +1198,12 @@ fn select(model: &Model) -> Result<Selected, RolePackError> {
 
     let mut examples = Vec::new();
     for example in &model.examples {
-        if example.last_checked.as_ref().is_none_or(|check|
-            check.status == oo_core::oos::CheckStatus::Ok)
-            && example_kept(model, example, &metric_names, &relationship_names) {
+        if example
+            .last_checked
+            .as_ref()
+            .is_none_or(|check| check.status == oo_core::oos::CheckStatus::Ok)
+            && example_kept(model, example, &metric_names, &relationship_names)
+        {
             examples.push(example.clone());
         }
     }
@@ -1196,7 +1231,11 @@ fn metric_kept(model: &Model, metric: &Metric, enums: &BTreeSet<&str>) -> bool {
     if !verified_sql(metric.sql.as_str()) {
         return false;
     }
-    let mut texts = vec![metric.metric.as_str(), metric.label.as_str(), metric.sql.as_str()];
+    let mut texts = vec![
+        metric.metric.as_str(),
+        metric.label.as_str(),
+        metric.sql.as_str(),
+    ];
     if let Some(description) = &metric.description {
         texts.push(description.as_str());
     }
@@ -1234,7 +1273,8 @@ fn metric_kept(model: &Model, metric: &Metric, enums: &BTreeSet<&str>) -> bool {
         }
     }
     for filter in &metric.enum_filters {
-        if !path_visible(model, filter.column.as_str()) || !path_visible(model, filter.enum_name.as_str())
+        if !path_visible(model, filter.column.as_str())
+            || !path_visible(model, filter.enum_name.as_str())
         {
             return false;
         }
@@ -1248,10 +1288,7 @@ fn metric_kept(model: &Model, metric: &Metric, enums: &BTreeSet<&str>) -> bool {
             forced.insert(dataset);
         }
     }
-    matches!(
-        scan_texts(model, &texts, &forced, true),
-        Scan::Ok { .. }
-    )
+    matches!(scan_texts(model, &texts, &forced, true), Scan::Ok { .. })
 }
 
 fn term_kept(model: &Model, term: &Term, metrics: &BTreeSet<&str>) -> bool {
@@ -1419,15 +1456,16 @@ fn scan_texts(
         match scan_one(model, &text) {
             Scan::Affected => return Scan::Affected,
             Scan::Unbound => return Scan::Unbound,
-            Scan::Ok {
-                datasets: found,
-            } => {
+            Scan::Ok { datasets: found } => {
                 datasets.extend(found);
                 bare.extend(idents);
             }
         }
     }
-    if bare.iter().any(|ident| model.hidden_names.contains(&ident.to_ascii_lowercase())) {
+    if bare
+        .iter()
+        .any(|ident| model.hidden_names.contains(&ident.to_ascii_lowercase()))
+    {
         return Scan::Affected;
     }
     if require_dataset && datasets.is_empty() {
@@ -1450,7 +1488,13 @@ mod hidden_name_index_tests {
     #[test]
     fn index_preserves_identifier_case_and_non_identifier_rules() {
         let mut names = BTreeSet::new();
-        for candidate in ["Private_ID", "private_id", "private label", "姓名", "e\u{301}"] {
+        for candidate in [
+            "Private_ID",
+            "private_id",
+            "private label",
+            "姓名",
+            "e\u{301}",
+        ] {
             index_hidden_name(&mut names, candidate);
         }
         assert_eq!(names, BTreeSet::from(["private_id".to_owned()]));
@@ -1461,7 +1505,7 @@ mod hidden_name_index_tests {
 
 fn copies_hidden_label(model: &Model, decoded: &str, idents: &BTreeSet<String>) -> bool {
     model.hidden_labels.iter().any(|label| {
-        label_in_text(decoded, &label) || idents.iter().any(|ident| label_eq(ident, &label))
+        label_in_text(decoded, label) || idents.iter().any(|ident| label_eq(ident, label))
     })
 }
 
@@ -1642,7 +1686,11 @@ struct Walk<'a> {
 
 impl<'a> Walk<'a> {
     fn new(text: &'a str) -> Self {
-        Self { text, index: 0, depth: 0 }
+        Self {
+            text,
+            index: 0,
+            depth: 0,
+        }
     }
 
     fn peek(&self) -> Option<char> {
@@ -1760,10 +1808,45 @@ fn is_ident_cont(ch: char) -> bool {
 }
 
 const SQL_KEYWORDS: &[&str] = &[
-    "select", "distinct", "from", "where", "union", "all", "as", "and", "or", "is", "not", "null",
-    "group", "by", "order", "asc", "desc", "nulls", "first", "last", "limit", "offset",
-    "join", "inner", "left", "right", "full", "outer", "on", "in", "date", "timestamp",
-    "having", "into", "for", "with", "returning", "true", "false",
+    "select",
+    "distinct",
+    "from",
+    "where",
+    "union",
+    "all",
+    "as",
+    "and",
+    "or",
+    "is",
+    "not",
+    "null",
+    "group",
+    "by",
+    "order",
+    "asc",
+    "desc",
+    "nulls",
+    "first",
+    "last",
+    "limit",
+    "offset",
+    "join",
+    "inner",
+    "left",
+    "right",
+    "full",
+    "outer",
+    "on",
+    "in",
+    "date",
+    "timestamp",
+    "having",
+    "into",
+    "for",
+    "with",
+    "returning",
+    "true",
+    "false",
 ];
 
 fn keyword_matches(walk: &Walk<'_>, keyword: &str) -> bool {
@@ -1778,7 +1861,9 @@ fn keyword_matches(walk: &Walk<'_>, keyword: &str) -> bool {
 }
 
 fn keyword_here(walk: &Walk<'_>) -> bool {
-    SQL_KEYWORDS.iter().any(|keyword| keyword_matches(walk, keyword))
+    SQL_KEYWORDS
+        .iter()
+        .any(|keyword| keyword_matches(walk, keyword))
 }
 
 fn eat_keyword(walk: &mut Walk<'_>, keyword: &str) -> bool {
@@ -1850,43 +1935,62 @@ fn parse_select(walk: &mut Walk<'_>) -> Result<(), ()> {
     parse_relation(walk)?;
     loop {
         let mark = walk.index;
-        let join_kind = ["inner", "left", "right", "full"].iter()
+        let join_kind = ["inner", "left", "right", "full"]
+            .iter()
             .any(|word| eat_keyword(walk, word));
         if join_kind {
             eat_keyword(walk, "outer");
         }
         if !eat_keyword(walk, "join") {
-            if join_kind { return Err(()); }
+            if join_kind {
+                return Err(());
+            }
             walk.index = mark;
             break;
         }
         parse_relation(walk)?;
-        if !eat_keyword(walk, "on") { return Err(()); }
+        if !eat_keyword(walk, "on") {
+            return Err(());
+        }
         parse_predicate(walk)?;
     }
     if eat_keyword(walk, "where") {
         parse_predicate(walk)?;
     }
     if eat_keyword(walk, "group") {
-        if !eat_keyword(walk, "by") { return Err(()); }
+        if !eat_keyword(walk, "by") {
+            return Err(());
+        }
         parse_expr_list(walk)?;
     }
     if eat_keyword(walk, "order") {
-        if !eat_keyword(walk, "by") { return Err(()); }
+        if !eat_keyword(walk, "by") {
+            return Err(());
+        }
         loop {
             parse_expr(walk)?;
-            if !eat_keyword(walk, "asc") { eat_keyword(walk, "desc"); }
+            if !eat_keyword(walk, "asc") {
+                eat_keyword(walk, "desc");
+            }
             if eat_keyword(walk, "nulls")
-                && !eat_keyword(walk, "first") && !eat_keyword(walk, "last") {
+                && !eat_keyword(walk, "first")
+                && !eat_keyword(walk, "last")
+            {
                 return Err(());
             }
             walk.skip_ws();
-            if walk.peek() != Some(',') { break; }
+            if walk.peek() != Some(',') {
+                break;
+            }
             walk.bump();
         }
     }
-    if eat_keyword(walk, "limit") { parse_number(walk)?; }
-    if eat_keyword(walk, "offset") { parse_number(walk)?; }
+    if eat_keyword(walk, "limit") {
+        parse_number(walk)?;
+    }
+    if eat_keyword(walk, "offset") {
+        parse_number(walk)?;
+    }
     Ok(())
 }
 
@@ -1894,7 +1998,9 @@ fn parse_expr_list(walk: &mut Walk<'_>) -> Result<(), ()> {
     parse_expr(walk)?;
     loop {
         walk.skip_ws();
-        if walk.peek() != Some(',') { return Ok(()); }
+        if walk.peek() != Some(',') {
+            return Ok(());
+        }
         walk.bump();
         parse_expr(walk)?;
     }
@@ -1919,7 +2025,9 @@ fn parse_relation(walk: &mut Walk<'_>) -> Result<(), ()> {
         parse_name(walk)?;
     } else {
         walk.skip_ws();
-        if !keyword_here(walk) && (walk.peek() == Some('"') || walk.peek().is_some_and(is_ident_start)) {
+        if !keyword_here(walk)
+            && (walk.peek() == Some('"') || walk.peek().is_some_and(is_ident_start))
+        {
             parse_name(walk)?;
         }
     }
@@ -1937,12 +2045,16 @@ fn parse_predicate(walk: &mut Walk<'_>) -> Result<(), ()> {
 fn parse_comparison(walk: &mut Walk<'_>) -> Result<(), ()> {
     walk.skip_ws();
     if walk.peek() == Some('(') {
-        if walk.depth >= 64 { return Err(()); }
+        if walk.depth >= 64 {
+            return Err(());
+        }
         walk.depth += 1;
         walk.bump();
         parse_predicate(walk)?;
         walk.skip_ws();
-        if walk.bump() != Some(')') { return Err(()); }
+        if walk.bump() != Some(')') {
+            return Err(());
+        }
         walk.depth -= 1;
         return Ok(());
     }
@@ -1962,12 +2074,20 @@ fn parse_comparison(walk: &mut Walk<'_>) -> Result<(), ()> {
     let negated = eat_keyword(walk, "not");
     if eat_keyword(walk, "in") {
         walk.skip_ws();
-        if walk.bump() != Some('(') { return Err(()); }
+        if walk.bump() != Some('(') {
+            return Err(());
+        }
         parse_expr_list(walk)?;
         walk.skip_ws();
-        return if walk.bump() == Some(')') { Ok(()) } else { Err(()) };
+        return if walk.bump() == Some(')') {
+            Ok(())
+        } else {
+            Err(())
+        };
     }
-    if negated { return Err(()); }
+    if negated {
+        return Err(());
+    }
     if !eat_op(walk) {
         return Err(());
     }
@@ -1975,12 +2095,16 @@ fn parse_comparison(walk: &mut Walk<'_>) -> Result<(), ()> {
 }
 
 fn parse_expr(walk: &mut Walk<'_>) -> Result<(), ()> {
-    if walk.depth >= 64 { return Err(()); }
+    if walk.depth >= 64 {
+        return Err(());
+    }
     walk.depth += 1;
     parse_atom(walk)?;
     loop {
         walk.skip_ws();
-        if !matches!(walk.peek(), Some('+') | Some('-') | Some('*') | Some('/')) { break; }
+        if !matches!(walk.peek(), Some('+') | Some('-') | Some('*') | Some('/')) {
+            break;
+        }
         walk.bump();
         parse_atom(walk)?;
     }
@@ -2001,7 +2125,11 @@ fn parse_atom(walk: &mut Walk<'_>) -> Result<(), ()> {
         walk.bump();
         parse_expr(walk)?;
         walk.skip_ws();
-        return if walk.bump() == Some(')') { Ok(()) } else { Err(()) };
+        return if walk.bump() == Some(')') {
+            Ok(())
+        } else {
+            Err(())
+        };
     }
     if walk.peek() == Some('-') || walk.peek() == Some('+') {
         walk.bump();
@@ -2058,8 +2186,12 @@ fn parse_atom(walk: &mut Walk<'_>) -> Result<(), ()> {
 fn parse_name(walk: &mut Walk<'_>) -> Result<(), ()> {
     walk.skip_ws();
     // Preserve legacy catalog identifiers; clause boundaries use the fuller list.
-    if ["select", "distinct", "from", "where", "union", "all", "as", "and", "is", "not", "null"]
-        .iter().any(|word| keyword_matches(walk, word)) {
+    if [
+        "select", "distinct", "from", "where", "union", "all", "as", "and", "is", "not", "null",
+    ]
+    .iter()
+    .any(|word| keyword_matches(walk, word))
+    {
         return Err(());
     }
     match take_ident(walk)? {
@@ -2180,7 +2312,11 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
             continue;
         };
         let path = normalize_pack_path(&format!("tables/{name}.md"))?;
-        add_file(&mut files, &path, render_table(model, selected, dataset, grant)?)?;
+        add_file(
+            &mut files,
+            &path,
+            render_table(model, selected, dataset, grant)?,
+        )?;
     }
     for (path, text) in &files {
         check_file_budget(path, text, &model.limits)?;
@@ -2234,17 +2370,27 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
     add_file(&mut files, "calendar.md", render_calendar(model)?)?;
     add_file(&mut files, "glossary.md", render_glossary(model, selected)?)?;
     let relationships = render_relationships(model, selected)?;
-    let page_bytes = model.ontology.compile.budgets.readme_tokens
+    let page_bytes = model
+        .ontology
+        .compile
+        .budgets
+        .readme_tokens
         .min(model.ontology.compile.budgets.table_file_tokens) as usize;
     // UTF-8 bytes conservatively bound the release gate's unicode-word tokens.
     if relationships.len() <= page_bytes {
         add_file(&mut files, "relationships.md", relationships)?;
     } else {
-        let mut navigation = String::from("# relationships\n\nRelationship pages; table pages also list incident JOIN keys.\n\n");
+        let mut navigation = String::from(
+            "# relationships\n\nRelationship pages; table pages also list incident JOIN keys.\n\n",
+        );
         let mut number = 1;
         let mut content = String::new();
         for section in relationships.split("\n## ") {
-            let block = if content.is_empty() && number == 1 { section.to_owned() } else { format!("\n## {section}") };
+            let block = if content.is_empty() && number == 1 {
+                section.to_owned()
+            } else {
+                format!("\n## {section}")
+            };
             if !content.is_empty() && content.len() + block.len() > page_bytes {
                 let path = format!("relationships/page-{number:04}.md");
                 navigation.push_str(&format!("- [{path}]({path})\n"));
@@ -2260,7 +2406,11 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
         }
         add_file(&mut files, "relationships.md", navigation)?;
     }
-    add_file(&mut files, "examples/verified.sql", render_examples(model, selected)?)?;
+    add_file(
+        &mut files,
+        "examples/verified.sql",
+        render_examples(model, selected)?,
+    )?;
     for enum_file in &selected.enums {
         let path = normalize_pack_path(&format!("enums/{}.md", enum_file.enum_name.as_str()))?;
         add_file(&mut files, &path, render_enum(model, enum_file)?)?;
@@ -2305,7 +2455,10 @@ fn render_readme(model: &Model) -> Result<String, RolePackError> {
         &format!("ontology_version: `{}`", model.ontology_version.as_str()),
     );
     line(&mut text, &format!("compiler: `{ROLE_PACK_COMPILER}`"));
-    line(&mut text, &format!("locale: `{}`", model.ontology.locale.as_str()));
+    line(
+        &mut text,
+        &format!("locale: `{}`", model.ontology.locale.as_str()),
+    );
     line(&mut text, &format!("project: `{}`", model.project.as_str()));
     line(&mut text, &format!("role: `{}`", model.role.as_str()));
     text.push('\n');
@@ -2329,13 +2482,24 @@ fn render_readme(model: &Model) -> Result<String, RolePackError> {
         text.push_str(&format!("- `{domain}`: {} visible tables grouped by schema/table prefix; start at `{}`. See INDEX.md for the full group.", names.len(), names[0]));
         if let Some(relation) = model.relationships.iter().find(|relation| {
             names.contains(&relation.from.dataset.as_str())
-                && end_visible(model, relation.from.dataset.as_str(), &relation.from.columns)
+                && end_visible(
+                    model,
+                    relation.from.dataset.as_str(),
+                    &relation.from.columns,
+                )
                 && end_visible(model, relation.to.dataset.as_str(), &relation.to.columns)
                 && relation.status != Some(ItemStatus::Rejected)
                 && (relation.provenance == RelationProvenance::DeclaredFk
-                    || relation.review.as_ref().is_some_and(|r| r.state == ReviewState::Approved))
+                    || relation
+                        .review
+                        .as_ref()
+                        .is_some_and(|r| r.state == ReviewState::Approved))
         }) {
-            text.push_str(&format!(" Key relationship: `{}` → `{}`.", relation.from.dataset.as_str(), relation.to.dataset.as_str()));
+            text.push_str(&format!(
+                " Key relationship: `{}` → `{}`.",
+                relation.from.dataset.as_str(),
+                relation.to.dataset.as_str()
+            ));
         }
         text.push('\n');
     }
@@ -2359,10 +2523,7 @@ fn render_index(model: &Model) -> Result<String, RolePackError> {
         let Some((schema, _)) = name.split_once('.') else {
             continue;
         };
-        schemas
-            .entry(schema.to_owned())
-            .or_default()
-            .push(dataset);
+        schemas.entry(schema.to_owned()).or_default().push(dataset);
     }
     if schemas.is_empty() {
         text.push_str("No dataset is visible.\n");
@@ -2374,11 +2535,20 @@ fn render_index(model: &Model) -> Result<String, RolePackError> {
         text.push_str("\n\n");
         for dataset in datasets {
             text.push_str("- [");
-            text.push_str(dataset.dataset.as_str().split_once('.').expect("bound dataset").1);
+            text.push_str(
+                dataset
+                    .dataset
+                    .as_str()
+                    .split_once('.')
+                    .expect("bound dataset")
+                    .1,
+            );
             text.push_str("](tables/");
             text.push_str(dataset.dataset.as_str());
             text.push_str(".md)");
-            if dataset.label.as_str() != dataset.dataset.as_str() && visible_prose(model, dataset.label.as_str()) {
+            if dataset.label.as_str() != dataset.dataset.as_str()
+                && visible_prose(model, dataset.label.as_str())
+            {
                 text.push_str(" — ");
                 text.push_str(dataset.label.as_str());
             }
@@ -2410,7 +2580,10 @@ fn render_table(
         text.push_str(dataset.label.as_str());
     }
     text.push_str("\n\n");
-    line(&mut text, &format!("tier: `{}`", enum_token(&dataset.tier)?));
+    line(
+        &mut text,
+        &format!("tier: `{}`", enum_token(&dataset.tier)?),
+    );
     if let Some(grain) = &dataset.grain
         && visible_prose(model, grain.as_str())
     {
@@ -2440,7 +2613,9 @@ fn render_table(
             text.push_str(proof);
             text.push_str("). This compiler did not re-prove that claim.\n");
         } else {
-            text.push_str("Global statistics are omitted. This compiler did not re-prove row security.\n");
+            text.push_str(
+                "Global statistics are omitted. This compiler did not re-prove row security.\n",
+            );
         }
     } else {
         text.push_str("Row security: none. This compiler did not query the database.\n");
@@ -2510,7 +2685,10 @@ fn render_table(
     text.push('\n');
     if dataset.columns.iter().any(|column| {
         grant.columns.contains(column.name.as_str())
-            && !column.data_type.as_ref().is_some_and(|kind| public_execution_type(kind.as_str()))
+            && !column
+                .data_type
+                .as_ref()
+                .is_some_and(|kind| public_execution_type(kind.as_str()))
     }) {
         text.push_str("Unavailable execution types are missing or outside the public type vocabulary. Use the current role's describe metadata; do not infer a type from a column name or source type.\n\n");
     }
@@ -2522,9 +2700,15 @@ fn render_table(
             text.push_str("- `");
             text.push_str(relationship.name.as_str());
             text.push_str("` ");
-            text.push_str(&end_text(relationship.from.dataset.as_str(), &relationship.from.columns));
+            text.push_str(&end_text(
+                relationship.from.dataset.as_str(),
+                &relationship.from.columns,
+            ));
             text.push_str(" -> ");
-            text.push_str(&end_text(relationship.to.dataset.as_str(), &relationship.to.columns));
+            text.push_str(&end_text(
+                relationship.to.dataset.as_str(),
+                &relationship.to.columns,
+            ));
             text.push('\n');
         }
     }
@@ -2552,14 +2736,17 @@ fn public_execution_type(text: &str) -> bool {
         let Some((args, tail)) = rest.split_once(')') else {
             return false;
         };
-        let params: Option<Vec<i32>> = args.split(',').map(|arg| {
-            let arg = arg.trim();
-            let digits = arg.strip_prefix('-').unwrap_or(arg);
-            if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
-                return None;
-            }
-            arg.parse().ok()
-        }).collect();
+        let params: Option<Vec<i32>> = args
+            .split(',')
+            .map(|arg| {
+                let arg = arg.trim();
+                let digits = arg.strip_prefix('-').unwrap_or(arg);
+                if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+                    return None;
+                }
+                arg.parse().ok()
+            })
+            .collect();
         let Some(params) = params else { return false };
         (format!("{}{}", head.trim_end(), tail), params)
     } else {
@@ -2572,23 +2759,29 @@ fn public_execution_type(text: &str) -> bool {
             [precision, scale] => (1..=1000).contains(precision) && (-1000..=1000).contains(scale),
             _ => false,
         },
-        "character" | "character varying" | "char" | "varchar" | "bpchar"
-        | "bit" | "bit varying" | "varbit" => match params.as_slice() {
+        "character" | "character varying" | "char" | "varchar" | "bpchar" | "bit"
+        | "bit varying" | "varbit" => match params.as_slice() {
             [] => true,
             [length] => *length > 0,
             _ => false,
         },
-        "timestamp" | "timestamp without time zone" | "timestamp with time zone"
-        | "timestamptz" | "time" | "time without time zone" | "time with time zone"
-        | "timetz" | "interval" => match params.as_slice() {
+        "timestamp"
+        | "timestamp without time zone"
+        | "timestamp with time zone"
+        | "timestamptz"
+        | "time"
+        | "time without time zone"
+        | "time with time zone"
+        | "timetz"
+        | "interval" => match params.as_slice() {
             [] => true,
             [precision] => (0..=6).contains(precision),
             _ => false,
         },
-        "smallint" | "integer" | "bigint" | "int2" | "int4" | "int8"
-        | "real" | "double precision" | "float4" | "float8" | "boolean" | "bool"
-        | "text" | "bytea" | "date" | "uuid" | "json" | "jsonb" | "xml"
-        | "inet" | "cidr" | "macaddr" | "macaddr8" | "money" | "oid" => params.is_empty(),
+        "smallint" | "integer" | "bigint" | "int2" | "int4" | "int8" | "real"
+        | "double precision" | "float4" | "float8" | "boolean" | "bool" | "text" | "bytea"
+        | "date" | "uuid" | "json" | "jsonb" | "xml" | "inet" | "cidr" | "macaddr" | "macaddr8"
+        | "money" | "oid" => params.is_empty(),
         _ => false,
     }
 }
@@ -2613,10 +2806,7 @@ fn render_source_semantics(
         &format!("source_kind: {}", semantics.source_kind.as_str()),
     );
     if let Some(grade) = semantics.grade {
-        line(
-            text,
-            &format!("consistency_grade: {}", enum_token(&grade)?),
-        );
+        line(text, &format!("consistency_grade: {}", enum_token(&grade)?));
     }
     if let Some(delete_detection) = &semantics.delete_detection {
         line(
@@ -2661,12 +2851,19 @@ fn render_source_semantics(
                 &format!("native: {} {}", column.column.as_str(), note.as_str()),
             );
             let explanation = match note.as_str() {
-                "mysql_zero_date_to_null_authenticated_reject" => Some("MySQL DATE/DATETIME zero components are stored as SQL NULL with an authenticated quality reject; valid dates retain their exact values."),
-                "mysql_signed_time_duration_to_interval" => Some("MySQL TIME is a signed duration, including negative and greater-than-24-hour values, represented as PostgreSQL interval with microsecond precision."),
+                "mysql_zero_date_to_null_authenticated_reject" => Some(
+                    "MySQL DATE/DATETIME zero components are stored as SQL NULL with an authenticated quality reject; valid dates retain their exact values.",
+                ),
+                "mysql_signed_time_duration_to_interval" => Some(
+                    "MySQL TIME is a signed duration, including negative and greater-than-24-hour values, represented as PostgreSQL interval with microsecond precision.",
+                ),
                 _ => None,
             };
             if let Some(explanation) = explanation {
-                line(text, &format!("mapping: {}: {}", column.column.as_str(), explanation));
+                line(
+                    text,
+                    &format!("mapping: {}: {}", column.column.as_str(), explanation),
+                );
             }
         }
     }
@@ -2706,7 +2903,8 @@ fn visible_source_columns<'a>(
         .columns
         .iter()
         .filter(|column| {
-            !hidden.contains(column.column.as_str()) && grant.columns.contains(column.column.as_str())
+            !hidden.contains(column.column.as_str())
+                && grant.columns.contains(column.column.as_str())
         })
         .collect()
 }
@@ -2783,15 +2981,22 @@ fn render_metrics(model: &Model, selected: &Selected) -> Result<String, RolePack
     render_metrics_filtered(model, selected, None)
 }
 
-fn render_metrics_filtered(model: &Model, selected: &Selected, only: Option<&str>) -> Result<String, RolePackError> {
+fn render_metrics_filtered(
+    model: &Model,
+    selected: &Selected,
+    only: Option<&str>,
+) -> Result<String, RolePackError> {
     let mut text = String::from("# metrics\n\n");
     text.push_str("These definitions carry certification in the input and have a visible dependency set. Input certification is not a business-readiness decision. Runtime execution, completeness and reconciliation are not verified by this compiler.\n\n");
     if selected.metrics.is_empty() {
         text.push_str("No certified metrics are available in this role Pack. This is a semantic readiness gap, not evidence of missing rows or a zero business total. Check metrics/availability.json and the operator's metric projection audit; do not invent a certified definition.\n\n");
     }
-    for (metric, candidate) in selected.metrics.iter().map(|metric| (metric, false))
-        .chain(selected.metric_candidates.iter().map(|metric| (metric, true)))
-    {
+    for (metric, candidate) in selected.metrics.iter().map(|metric| (metric, false)).chain(
+        selected
+            .metric_candidates
+            .iter()
+            .map(|metric| (metric, true)),
+    ) {
         if only.is_some_and(|name| metric.metric.as_str() != name) {
             continue;
         }
@@ -2805,7 +3010,10 @@ fn render_metrics_filtered(model: &Model, selected: &Selected, only: Option<&str
         if candidate {
             text.push_str("> UNREVIEWED / NOT CERTIFIED. This is a proposed definition, not an approved business metric or verified SQL. Do not use it as the complete business answer. Resolve the stated gaps, validate with the current Gateway, and obtain explicit review and independent reconciliation.\n\n");
         }
-        line(&mut text, &format!("status: `{}`", enum_token(&metric.status)?));
+        line(
+            &mut text,
+            &format!("status: `{}`", enum_token(&metric.status)?),
+        );
         for synonym in &metric.synonyms {
             line(&mut text, &format!("synonym: {}", cell(synonym.as_str())));
         }
@@ -2834,12 +3042,20 @@ fn render_metrics_filtered(model: &Model, selected: &Selected, only: Option<&str
         }
         let mut warned = BTreeSet::new();
         for filter in &metric.enum_filters {
-            line(&mut text, &format!(
-                "enum filter: `{}` via `{}`; classes: {}",
-                filter.column.as_str(), filter.enum_name.as_str(),
-                filter.classes.iter().map(|class| format!("`{}`", class.as_str()))
-                    .collect::<Vec<_>>().join(", ")
-            ));
+            line(
+                &mut text,
+                &format!(
+                    "enum filter: `{}` via `{}`; classes: {}",
+                    filter.column.as_str(),
+                    filter.enum_name.as_str(),
+                    filter
+                        .classes
+                        .iter()
+                        .map(|class| format!("`{}`", class.as_str()))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            );
             if enum_has_unconfirmed(selected, filter.enum_name.as_str()) {
                 warned.insert(filter.enum_name.as_str().to_owned());
             }
@@ -2892,10 +3108,16 @@ fn render_calendar(model: &Model) -> Result<String, RolePackError> {
         text.push_str("The effective document has no calendar. This compiler does not substitute a civil month.\n");
         return finish(text);
     };
-    line(&mut text, &format!("business time zone: `{}`", calendar.business_tz.as_str()));
+    line(
+        &mut text,
+        &format!("business time zone: `{}`", calendar.business_tz.as_str()),
+    );
     let month = calendar.fiscal_year_start_month;
     line(&mut text, &format!("fiscal year start month: {month}"));
-    line(&mut text, &format!("week start: `{}`", enum_token(&calendar.week_start)?));
+    line(
+        &mut text,
+        &format!("week start: `{}`", enum_token(&calendar.week_start)?),
+    );
     text.push_str("\nAnchors:\n\n");
     let mut any_anchor = false;
     for anchor in &calendar.anchors {
@@ -2982,7 +3204,10 @@ fn render_glossary(model: &Model, selected: &Selected) -> Result<String, RolePac
         }
         if let Some(mapping) = &term.maps_to {
             if let Some(dataset) = &mapping.dataset {
-                line(&mut text, &format!("maps to dataset `{}`", dataset.as_str()));
+                line(
+                    &mut text,
+                    &format!("maps to dataset `{}`", dataset.as_str()),
+                );
             }
             if let Some(metric) = &mapping.metric {
                 line(&mut text, &format!("maps to metric `{}`", metric.as_str()));
@@ -3013,12 +3238,21 @@ fn render_relationships(model: &Model, selected: &Selected) -> Result<String, Ro
             &mut text,
             &format!(
                 "`{}` -> `{}`",
-                end_text(relationship.from.dataset.as_str(), &relationship.from.columns),
+                end_text(
+                    relationship.from.dataset.as_str(),
+                    &relationship.from.columns
+                ),
                 end_text(relationship.to.dataset.as_str(), &relationship.to.columns)
             ),
         );
-        line(&mut text, &format!("cardinality: `{}`", enum_token(&relationship.cardinality)?));
-        line(&mut text, &format!("join: `{}`", enum_token(&relationship.join_hint)?));
+        line(
+            &mut text,
+            &format!("cardinality: `{}`", enum_token(&relationship.cardinality)?),
+        );
+        line(
+            &mut text,
+            &format!("join: `{}`", enum_token(&relationship.join_hint)?),
+        );
         let approved = relationship
             .review
             .as_ref()
@@ -3038,7 +3272,10 @@ fn render_relationships(model: &Model, selected: &Selected) -> Result<String, Ro
             && let Some(evidence) = &relationship.evidence
         {
             if let Some(name_match) = evidence.name_match {
-                line(&mut text, &format!("name match: `{}`", enum_token(&name_match)?));
+                line(
+                    &mut text,
+                    &format!("name match: `{}`", enum_token(&name_match)?),
+                );
             }
             if let Some(compatible) = evidence.type_compatible {
                 line(&mut text, &format!("type compatible: {compatible}"));
@@ -3050,9 +3287,10 @@ fn render_relationships(model: &Model, selected: &Selected) -> Result<String, Ro
 }
 
 fn stats_allowed(model: &Model, dataset: &str) -> bool {
-    model.grants.get(dataset).is_some_and(|grant| {
-        grant.global_stats && (!grant.rls || grant.proof_ref.is_some())
-    })
+    model
+        .grants
+        .get(dataset)
+        .is_some_and(|grant| grant.global_stats && (!grant.rls || grant.proof_ref.is_some()))
 }
 
 fn render_examples(model: &Model, selected: &Selected) -> Result<String, RolePackError> {
@@ -3163,9 +3401,15 @@ fn render_entity(model: &Model, entity: &EntityFile) -> Result<String, RolePackE
         text.push_str(entity.label.as_str());
     }
     text.push_str("\n\n");
-    line(&mut text, &format!("primary dataset: `{}`", entity.primary_dataset.as_str()));
+    line(
+        &mut text,
+        &format!("primary dataset: `{}`", entity.primary_dataset.as_str()),
+    );
     line(&mut text, &format!("key: `{}`", entity.key.as_str()));
-    line(&mut text, &format!("display: `{}`", entity.display.as_str()));
+    line(
+        &mut text,
+        &format!("display: `{}`", entity.display.as_str()),
+    );
     text.push_str("\nThe member list is every member in the effective document. This compiler does not emit an entity when any member is hidden.\n\n");
     if entity.members.is_empty() {
         text.push_str("Members: none.\n");
@@ -3607,23 +3851,21 @@ fn require_known_column(
 }
 
 fn schema_of(dataset: &str) -> Result<&str, RolePackError> {
-    dataset.split_once('.').map(|(schema, _)| schema).ok_or_else(|| {
-        RolePackError::new(
-            "oos.invalid",
-            dataset,
-            "a dataset name is not schema.table",
-        )
-    })
+    dataset
+        .split_once('.')
+        .map(|(schema, _)| schema)
+        .ok_or_else(|| {
+            RolePackError::new("oos.invalid", dataset, "a dataset name is not schema.table")
+        })
 }
 
 fn table_of(dataset: &str) -> Result<&str, RolePackError> {
-    dataset.split_once('.').map(|(_, table)| table).ok_or_else(|| {
-        RolePackError::new(
-            "oos.invalid",
-            dataset,
-            "a dataset name is not schema.table",
-        )
-    })
+    dataset
+        .split_once('.')
+        .map(|(_, table)| table)
+        .ok_or_else(|| {
+            RolePackError::new("oos.invalid", dataset, "a dataset name is not schema.table")
+        })
 }
 
 fn split_column(path: &str) -> Option<(&str, &str, &str)> {
@@ -3635,7 +3877,6 @@ fn split_column(path: &str) -> Option<(&str, &str, &str)> {
         Some((schema, table, column))
     }
 }
-
 
 #[cfg(test)]
 mod mysql_native_note_tests {
@@ -3653,13 +3894,20 @@ mod mysql_native_note_tests {
                     {"column":"elapsed","native_note":"mysql_signed_time_duration_to_interval"},
                     {"column":"other","native_note":"existing_unknown_token"}]}
         })).unwrap();
-        let grant=Grant {rls:false,global_stats:false,proof_ref:None,columns:columns.iter().map(|name|name.to_string()).collect()};
-        let mut text=String::new();render_source_semantics(&mut text,&dataset,&grant).unwrap();text
+        let grant = Grant {
+            rls: false,
+            global_stats: false,
+            proof_ref: None,
+            columns: columns.iter().map(|name| name.to_string()).collect(),
+        };
+        let mut text = String::new();
+        render_source_semantics(&mut text, &dataset, &grant).unwrap();
+        text
     }
 
     #[test]
     fn mysql_native_notes_explain_null_conversion_and_signed_duration() {
-        let text=rendered(&["date_value","elapsed","other"]);
+        let text = rendered(&["date_value", "elapsed", "other"]);
         assert!(text.contains("date_value: MySQL DATE/DATETIME zero components are stored as SQL NULL with an authenticated quality reject"));
         assert!(text.contains("elapsed: MySQL TIME is a signed duration, including negative and greater-than-24-hour values, represented as PostgreSQL interval with microsecond precision"));
         assert!(text.contains("native: other existing_unknown_token"));
@@ -3668,9 +3916,11 @@ mod mysql_native_note_tests {
 
     #[test]
     fn hidden_mysql_mapping_notes_do_not_leak_into_role_pack() {
-        let text=rendered(&["other"]);
-        assert!(!text.contains("date_value"));assert!(!text.contains("elapsed"));
-        assert!(!text.contains("SQL NULL"));assert!(!text.contains("mysql_zero_date"));
+        let text = rendered(&["other"]);
+        assert!(!text.contains("date_value"));
+        assert!(!text.contains("elapsed"));
+        assert!(!text.contains("SQL NULL"));
+        assert!(!text.contains("mysql_zero_date"));
         assert!(text.contains("native: other existing_unknown_token"));
     }
 }

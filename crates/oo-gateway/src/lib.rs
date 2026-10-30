@@ -17,10 +17,10 @@ include!(concat!(env!("OUT_DIR"), "/accepted_glue.rs"));
 
 pub mod http_error;
 pub mod http_gateway;
-pub mod mapping_reader_access;
 pub mod library_policy;
-mod pack_reload;
+pub mod mapping_reader_access;
 pub mod pack_catalog;
+mod pack_reload;
 pub mod parser_worker;
 pub mod policy;
 pub mod public_surface;

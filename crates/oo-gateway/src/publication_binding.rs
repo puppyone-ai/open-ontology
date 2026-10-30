@@ -26,11 +26,12 @@ pub(crate) const ACTUAL_VECTOR: &str = "x-oo-data-vector-sha256";
 pub(crate) const DRIFT_HINT: &str = "reason=PUBLICATION_DRIFT; action=RECOMPUTE_WHOLE_QUESTION; discard all intermediate results; do not combine releases or retry only this SQL";
 
 /// The installed immutable receipt, not the mutable ingestion high watermark.
-pub(crate) async fn library_cut(
-    tx: &Transaction<'_>, catalog: &Value,
-) -> Result<Value, ExecError> {
+pub(crate) async fn library_cut(tx: &Transaction<'_>, catalog: &Value) -> Result<Value, ExecError> {
     let library = catalog["library_id"].as_str().ok_or_else(drift)?;
-    let sha = catalog["receipt_sha256"].as_str().filter(|s| hex64(s)).ok_or_else(drift)?;
+    let sha = catalog["receipt_sha256"]
+        .as_str()
+        .filter(|s| hex64(s))
+        .ok_or_else(drift)?;
     let row = tx.query_opt(
         "SELECT p.library::text,p.shards::text FROM _oo.native_library_publication p \
          JOIN _oo.native_library_head h ON h.library_id=p.library_id AND h.receipt_sha256=p.receipt_sha256 \
@@ -38,8 +39,8 @@ pub(crate) async fn library_cut(
          AND h.manifest_sha256=p.library->>'manifest_sha256'",
         &[&library,&sha],
     ).await.map_err(database)?.ok_or_else(drift)?;
-    let library: Value = serde_json::from_str(&row.get::<_,String>(0)).map_err(|_| drift())?;
-    let shards: Value = serde_json::from_str(&row.get::<_,String>(1)).map_err(|_| drift())?;
+    let library: Value = serde_json::from_str(&row.get::<_, String>(0)).map_err(|_| drift())?;
+    let shards: Value = serde_json::from_str(&row.get::<_, String>(1)).map_err(|_| drift())?;
     let cut = json!({"library":library,"shards":shards});
     if digest(&cut) != sha || cut["library"]["library_id"] != catalog["library_id"] {
         return Err(drift());
@@ -50,8 +51,15 @@ pub(crate) async fn library_cut(
         if shard["receipt"]["consistency"] != "per_table" {
             let source = shard["source_id"].as_str().ok_or_else(drift)?;
             let receipt = shard["receipt_sha256"].as_str().ok_or_else(drift)?;
-            if !tx.query_one("SELECT _oo.native_library_source_ready($1,$2)", &[&source,&receipt])
-                .await.map_err(database)?.get::<_,bool>(0) {
+            if !tx
+                .query_one(
+                    "SELECT _oo.native_library_source_ready($1,$2)",
+                    &[&source, &receipt],
+                )
+                .await
+                .map_err(database)?
+                .get::<_, bool>(0)
+            {
                 return Err(drift());
             }
         }
@@ -60,15 +68,23 @@ pub(crate) async fn library_cut(
 }
 
 pub(crate) fn library_table<'a>(
-    cut: &'a Value, source: &str, schema: &str, table: &str,
+    cut: &'a Value,
+    source: &str,
+    schema: &str,
+    table: &str,
 ) -> Result<(&'a Value, &'a Value), ExecError> {
     let mut found = None;
     for shard in cut["shards"].as_array().ok_or_else(drift)? {
-        if shard["source_id"] != source { continue; }
+        if shard["source_id"] != source {
+            continue;
+        }
         for entry in shard["receipt"]["tables"].as_array().ok_or_else(drift)? {
             if entry.get("storage_schema").unwrap_or(&entry["schema"]) == schema
-                && entry.get("storage_table").unwrap_or(&entry["table"]) == table {
-                if found.is_some() { return Err(drift()); }
+                && entry.get("storage_table").unwrap_or(&entry["table"]) == table
+            {
+                if found.is_some() {
+                    return Err(drift());
+                }
                 found = Some((&shard["receipt"], entry));
             }
         }
@@ -164,10 +180,15 @@ impl BindingCheck {
     /// Never broaden their grants just to pin. The probe is fixed platform SQL,
     /// not the user statement; verify runs before any user prepare/execute.
     pub(crate) async fn lock_relations(&self, tx: &Transaction<'_>) -> Result<(), ExecError> {
-        self.lock_catalog(tx, self.admitted_catalog.as_ref().ok_or_else(drift)?).await
+        self.lock_catalog(tx, self.admitted_catalog.as_ref().ok_or_else(drift)?)
+            .await
     }
 
-    async fn lock_catalog(&self, tx: &Transaction<'_>, catalog: &PolicyCatalog) -> Result<(), ExecError> {
+    async fn lock_catalog(
+        &self,
+        tx: &Transaction<'_>,
+        catalog: &PolicyCatalog,
+    ) -> Result<(), ExecError> {
         let role = ident(&self.identity.role);
         tx.batch_execute(&format!("SET LOCAL ROLE {role}"))
             .await
@@ -229,13 +250,17 @@ impl BindingCheck {
     /// Metadata has no user SQL planning catalog to revalidate. Load and pin
     /// its complete authorized catalog once, inside the response's snapshot.
     pub(crate) async fn metadata_scope(
-        &self, tx: &Transaction<'_>,
+        &self,
+        tx: &Transaction<'_>,
     ) -> Result<(BindingReceipt, PolicyCatalog), ExecError> {
-        if self.admitted_catalog.is_some() { return Err(drift()); }
+        if self.admitted_catalog.is_some() {
+            return Err(drift());
+        }
         let settings = tx.query_one(
             "SELECT current_setting('transaction_isolation'),current_setting('transaction_read_only')", &[],
         ).await.map_err(database)?;
-        if settings.get::<_, String>(0) != "repeatable read" || settings.get::<_, String>(1) != "on" {
+        if settings.get::<_, String>(0) != "repeatable read" || settings.get::<_, String>(1) != "on"
+        {
             return Err(drift());
         }
         let current = self.load_catalog(tx).await?;
@@ -253,7 +278,9 @@ impl BindingCheck {
     }
 
     async fn receipt_in_snapshot(
-        &self, tx: &Transaction<'_>, current: &PolicyCatalog,
+        &self,
+        tx: &Transaction<'_>,
+        current: &PolicyCatalog,
     ) -> Result<BindingReceipt, ExecError> {
         let mut data = Vec::new();
         let mut permissions = Vec::new();
@@ -263,16 +290,29 @@ impl BindingCheck {
         let mut names = Vec::new();
         let mut physical_schemas = Vec::new();
         let mut physical_names = Vec::new();
-        let cut = if let Some(catalog) = self.native_catalog.as_ref()
-            .filter(|c| c["protocol"] == "oo.gateway.library-binding/v1") {
-            if catalog["pack_digest"] != self.pack_digest { return Err(drift()); }
+        let cut = if let Some(catalog) = self
+            .native_catalog
+            .as_ref()
+            .filter(|c| c["protocol"] == "oo.gateway.library-binding/v1")
+        {
+            if catalog["pack_digest"] != self.pack_digest {
+                return Err(drift());
+            }
             Some(library_cut(tx, catalog).await?)
-        } else { None };
-        let vector = self.vector.as_ref()
-            .map(crate::policy::catalog::index_vector).transpose().map_err(|_| drift())?;
+        } else {
+            None
+        };
+        let vector = self
+            .vector
+            .as_ref()
+            .map(crate::policy::catalog::index_vector)
+            .transpose()
+            .map_err(|_| drift())?;
         for relation in &current.relations {
             let dataset = format!("{}.{}", relation.schema, relation.name);
-            let source = vector.as_ref().and_then(|v| v.get(dataset.as_str()))
+            let source = vector
+                .as_ref()
+                .and_then(|v| v.get(dataset.as_str()))
                 .and_then(|v| v["source_id"].as_str())
                 .or(self.source.as_deref())
                 .unwrap_or(&self.identity.project);

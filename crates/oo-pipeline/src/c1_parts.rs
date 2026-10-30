@@ -392,10 +392,10 @@ impl PartManifest {
             }
             *next += 1;
             if part.kind == PartKind::Fill && part.rows > 0 {
-                if let (Some(high), Some(low)) = (fill_high, part.key_lo) {
-                    if low <= high {
-                        return fail("chunk_order");
-                    }
+                if let (Some(high), Some(low)) = (fill_high, part.key_lo)
+                    && low <= high
+                {
+                    return fail("chunk_order");
                 }
                 fill_high = part.key_hi;
             }
@@ -622,13 +622,19 @@ pub fn logical_type_from_name(name: &str) -> C1PartsResult<LogicalType> {
             let inner = other
                 .strip_prefix("decimal(")
                 .and_then(|rest| rest.strip_suffix(')'))
-                .ok_or(C1PartsError { reason: "type_name" })?;
-            let (precision, scale) = inner
-                .split_once(',')
-                .ok_or(C1PartsError { reason: "type_name" })?;
+                .ok_or(C1PartsError {
+                    reason: "type_name",
+                })?;
+            let (precision, scale) = inner.split_once(',').ok_or(C1PartsError {
+                reason: "type_name",
+            })?;
             LogicalType::Decimal {
-                precision: precision.parse().map_err(|_| C1PartsError { reason: "type_name" })?,
-                scale: scale.parse().map_err(|_| C1PartsError { reason: "type_name" })?,
+                precision: precision.parse().map_err(|_| C1PartsError {
+                    reason: "type_name",
+                })?,
+                scale: scale.parse().map_err(|_| C1PartsError {
+                    reason: "type_name",
+                })?,
             }
         }
     })
@@ -2365,8 +2371,14 @@ mod tests {
         for ty in [
             LogicalType::Bool,
             LogicalType::Int,
-            LogicalType::Decimal { precision: 20, scale: 0 },
-            LogicalType::Decimal { precision: 10, scale: 2 },
+            LogicalType::Decimal {
+                precision: 20,
+                scale: 0,
+            },
+            LogicalType::Decimal {
+                precision: 10,
+                scale: 2,
+            },
             LogicalType::Float64,
             LogicalType::Text,
             LogicalType::Bytes,
@@ -2383,7 +2395,12 @@ mod tests {
         assert_eq!(err_of(logical_type_from_name("varchar")), "type_name");
         assert_eq!(err_of(logical_type_from_name("decimal(10)")), "type_name");
         assert_eq!(err_of(logical_type_from_name("decimal(x,2)")), "type_name");
-        assert_eq!(err_of(logical_type_name(&LogicalType::Array(Box::new(LogicalType::Int)))), "type_name");
+        assert_eq!(
+            err_of(logical_type_name(&LogicalType::Array(Box::new(
+                LogicalType::Int
+            )))),
+            "type_name"
+        );
     }
 
     /// D7. A MySQL JSON column is canonical `Text`, not `Json`. The producer's
@@ -2401,12 +2418,18 @@ mod tests {
         let types = [LogicalType::Int, LogicalType::Text];
         let mut source_digest = StateDigest::new(C1_BUCKET_BITS).expect("bits");
         let mut target_digest = StateDigest::new(C1_BUCKET_BITS).expect("bits");
-        source_digest.add_row(1, &canonical_row(&types, &source).expect("source row")).expect("add");
-        target_digest.add_row(1, &canonical_row(&types, &target).expect("target row")).expect("add");
+        source_digest
+            .add_row(1, &canonical_row(&types, &source).expect("source row"))
+            .expect("add");
+        target_digest
+            .add_row(1, &canonical_row(&types, &target).expect("target row"))
+            .expect("add");
         assert_eq!(source_digest.table_digest(), target_digest.table_digest());
         // The same text as `Json` is re-rendered, so it is a different encoding.
-        let as_json = canonical_cell(&LogicalType::Json, &Cell::Text(text.to_owned())).expect("json");
-        let as_text = canonical_cell(&LogicalType::Text, &Cell::Text(text.to_owned())).expect("text");
+        let as_json =
+            canonical_cell(&LogicalType::Json, &Cell::Text(text.to_owned())).expect("json");
+        let as_text =
+            canonical_cell(&LogicalType::Text, &Cell::Text(text.to_owned())).expect("text");
         assert_ne!(as_json, as_text);
     }
 }

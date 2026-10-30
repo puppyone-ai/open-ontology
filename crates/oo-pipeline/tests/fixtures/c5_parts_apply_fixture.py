@@ -17,8 +17,8 @@ import time
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--evidence", type=Path, default=Path(
-        "/Users/redux/puppy-one/yujia-delivery/evidence/mac-8h-sync-20261028/c5-growing-range-sql"))
+    parser.add_argument("--evidence", type=Path,
+                        default=Path(tempfile.gettempdir()) / "oo-c5-parts-apply-evidence")
     parser.add_argument("--minimal-prerequisites", action="store_true",
                         help="Install through 0075 plus 0103/0104; no identity, Oracle or later C1 chain")
     args = parser.parse_args()

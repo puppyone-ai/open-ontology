@@ -14,8 +14,8 @@ async fn install(db: &mut PgConnection) {
 }
 
 async fn install_until(db: &mut PgConnection, latest: bool) {
-    static INSTALL:tokio::sync::Mutex<()>=tokio::sync::Mutex::const_new(());
-    let _guard=INSTALL.lock().await;
+    static INSTALL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    let _guard = INSTALL.lock().await;
     ti::install(db).await.unwrap();
     db.execute("CREATE SCHEMA jobs; CREATE TABLE jobs.tasks(id uuid PRIMARY KEY,state text,generation bigint,lease_until timestamptz,project_id uuid); DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='oo_jobs_owner') THEN CREATE ROLE oo_jobs_owner NOLOGIN; END IF; IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='oo_jobs_runtime') THEN CREATE ROLE oo_jobs_runtime NOLOGIN; END IF; END $$; GRANT USAGE ON SCHEMA jobs TO oo_target_owner,oo_pipeline_runtime; GRANT SELECT ON jobs.tasks TO oo_target_owner").await.unwrap();
     ti::install_full_import(db).await.expect("0005");
@@ -174,8 +174,7 @@ async fn load_builder_table(
     db: &mut PgConnection,
     source: &str,
     table: &str,
-    generation: i64,
-    revision: i64,
+    (generation, revision): (i64, i64),
     rows: &[(&str, &str)],
     columns: &[oo_pipeline::native_update::FixtureColumn],
     values: &[Vec<oo_pipeline::native_update::FixtureCell>],
@@ -187,9 +186,9 @@ async fn load_builder_table(
     let is_range = false;
     let fail = false;
     let bytes = if values.is_empty() {
-        encode_empty_fixture_arrow(&columns)
+        encode_empty_fixture_arrow(columns)
     } else {
-        encode_fixture_arrow(&columns, &values)
+        encode_fixture_arrow(columns, values)
     }
     .unwrap();
     let arrow_digest = oo_pipeline::native_arrow::arrow_sha256(&bytes);
@@ -420,8 +419,7 @@ async fn builder_library_import_fixture() {
             &mut db,
             source,
             name,
-            *generation,
-            0,
+            (*generation, 0),
             &rows,
             &columns,
             &values,
@@ -452,16 +450,35 @@ async fn builder_library_import_fixture() {
 
 #[tokio::test]
 async fn catalog_replay_works_with_transaction_lock_but_no_session_lock_permission() {
-    let mut admin=connect("postgres").await;
-    let database=format!("oo_yjlib_lock_{}",std::process::id());
-    admin.execute(sqlx::AssertSqlSafe(format!("CREATE DATABASE {database}"))).await.unwrap();
-    let mut db=connect(&database).await;
+    let mut admin = connect("postgres").await;
+    let database = format!("oo_yjlib_lock_{}", std::process::id());
+    admin
+        .execute(sqlx::AssertSqlSafe(format!("CREATE DATABASE {database}")))
+        .await
+        .unwrap();
+    let mut db = connect(&database).await;
     install(&mut db).await;
     db.execute("REVOKE EXECUTE ON FUNCTION pg_catalog.pg_advisory_lock(bigint),pg_catalog.pg_advisory_unlock(bigint) FROM PUBLIC,oo_target_admin,oo_target_owner; GRANT EXECUTE ON FUNCTION pg_catalog.pg_advisory_xact_lock(bigint) TO oo_target_admin,oo_target_owner;").await.unwrap();
-    let before:String=sqlx::query_scalar("SELECT jsonb_agg(to_jsonb(m) ORDER BY version,phase)::text FROM _oo.schema_migrations m").fetch_one(&mut db).await.unwrap();
-    let port=std::env::var("OO_LIBRARY_PG_PORT").unwrap();
-    let mut restricted=PgConnection::connect(&format!("postgres://oo_target_admin@127.0.0.1:{port}/{database}")).await.unwrap();
-    ti::install_catalog_before_empty(&mut restricted).await.expect("existing transaction-lock permission must suffice; do not grant a session lock");
-    let after:String=sqlx::query_scalar("SELECT jsonb_agg(to_jsonb(m) ORDER BY version,phase)::text FROM _oo.schema_migrations m").fetch_one(&mut db).await.unwrap();
-    assert_eq!(before,after);
+    let before: String = sqlx::query_scalar(
+        "SELECT jsonb_agg(to_jsonb(m) ORDER BY version,phase)::text FROM _oo.schema_migrations m",
+    )
+    .fetch_one(&mut db)
+    .await
+    .unwrap();
+    let port = std::env::var("OO_LIBRARY_PG_PORT").unwrap();
+    let mut restricted = PgConnection::connect(&format!(
+        "postgres://oo_target_admin@127.0.0.1:{port}/{database}"
+    ))
+    .await
+    .unwrap();
+    ti::install_catalog_before_empty(&mut restricted)
+        .await
+        .expect("existing transaction-lock permission must suffice; do not grant a session lock");
+    let after: String = sqlx::query_scalar(
+        "SELECT jsonb_agg(to_jsonb(m) ORDER BY version,phase)::text FROM _oo.schema_migrations m",
+    )
+    .fetch_one(&mut db)
+    .await
+    .unwrap();
+    assert_eq!(before, after);
 }

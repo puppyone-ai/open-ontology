@@ -7,11 +7,10 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use oo_builder::{
-    DESCRIPTION_CANDIDATE_COMPILER, DESCRIPTION_CANDIDATE_PROTOCOL,
-    DESCRIPTION_PROMPT_VERSION, DESCRIPTION_REQUEST_COMMAND_PROTOCOL,
-    DESCRIPTION_REQUEST_PROTOCOL, DESCRIPTION_RESPONSE_PROTOCOL, DRAFT_PROTOCOL,
-    DescriptionCandidateError, CapturedPgDraft, compile_captured_pg_catalog,
-    complete_description_candidates, prepare_description_request,
+    CapturedPgDraft, DESCRIPTION_CANDIDATE_COMPILER, DESCRIPTION_CANDIDATE_PROTOCOL,
+    DESCRIPTION_PROMPT_VERSION, DESCRIPTION_REQUEST_COMMAND_PROTOCOL, DESCRIPTION_REQUEST_PROTOCOL,
+    DESCRIPTION_RESPONSE_PROTOCOL, DRAFT_PROTOCOL, DescriptionCandidateError,
+    compile_captured_pg_catalog, complete_description_candidates, prepare_description_request,
 };
 
 const SHOP_SCHEMA: &str = "bcb019d92270bf12092a3f47697b25719cc087a1ac4b7c56a10cf6dd00294c4c";
@@ -235,12 +234,7 @@ fn visible(name: &str, evidence: &str, schema_hash: &str) -> Value {
     })
 }
 
-fn command(
-    compiled: &CapturedPgDraft,
-    tables: Vec<Value>,
-    budget: Value,
-    model: &str,
-) -> Value {
+fn command(compiled: &CapturedPgDraft, tables: Vec<Value>, budget: Value, model: &str) -> Value {
     json!({
         "admitted": true,
         "artifact": artifact_of(compiled),
@@ -365,7 +359,10 @@ fn assert_statements(value: &Value) {
 
 fn assert_code(err: &DescriptionCandidateError, suffix: &str) {
     let code = &err.code;
-    assert!(code.ends_with(suffix), "code {code} does not end with {suffix}");
+    assert!(
+        code.ends_with(suffix),
+        "code {code} does not end with {suffix}"
+    );
 }
 
 fn assert_closed(err: &DescriptionCandidateError) {
@@ -399,10 +396,12 @@ fn shop_request_keeps_the_comment_hash_inside_the_data_boundary() {
     assert_eq!(request["evidence_hash"], compiled.evidence_hash);
     assert_eq!(request["prompt_sha256"], sha256_hex(PROMPT.as_bytes()));
     assert_eq!(request["boundary"]["instructions"], PROMPT);
-    assert!(!request["boundary"]["instructions"]
-        .as_str()
-        .unwrap()
-        .contains("customer"));
+    assert!(
+        !request["boundary"]["instructions"]
+            .as_str()
+            .unwrap()
+            .contains("customer")
+    );
     assert_eq!(request["boundary"]["data"]["role"], "data");
     assert_statements(&request);
     let tables = request["boundary"]["data"]["tables"].as_array().unwrap();
@@ -410,7 +409,10 @@ fn shop_request_keeps_the_comment_hash_inside_the_data_boundary() {
     assert_eq!(tables[0]["dataset"], "public.customer");
     assert_eq!(tables[1]["dataset"], "public.purchase");
     assert_eq!(tables[0]["neighbors"], json!([]));
-    assert_eq!(tables[1]["neighbors"][0]["constraint"], "purchase_customer_fk");
+    assert_eq!(
+        tables[1]["neighbors"][0]["constraint"],
+        "purchase_customer_fk"
+    );
     assert_eq!(tables[1]["neighbors"][0]["from_dataset"], "public.purchase");
     assert_eq!(tables[1]["neighbors"][0]["to_dataset"], "public.customer");
     assert_eq!(tables[1]["neighbors"][0]["local"][1]["name"], "customer_id");
@@ -428,7 +430,10 @@ fn shop_request_keeps_the_comment_hash_inside_the_data_boundary() {
     other["binding"]["model_id"] = json!("captured-s5-b");
     let changed = parse(&prepare(&other).unwrap());
     assert_ne!(changed["request_sha256"], request["request_sha256"]);
-    assert_eq!(changed["boundary"]["data"]["tables"][0]["card_sha256"], tables[0]["card_sha256"]);
+    assert_eq!(
+        changed["boundary"]["data"]["tables"][0]["card_sha256"],
+        tables[0]["card_sha256"]
+    );
     assert_eq!(changed["model_id"], "captured-s5-b");
 }
 
@@ -461,14 +466,20 @@ fn complete_response_binds_review_only_candidates() {
     let body = response_body(
         &request,
         vec![
-            candidate("public.purchase", &card_sha(&request, "public.purchase"), "Purchase"),
-            candidate("public.customer", &card_sha(&request, "public.customer"), "Buyer"),
+            candidate(
+                "public.purchase",
+                &card_sha(&request, "public.purchase"),
+                "Purchase",
+            ),
+            candidate(
+                "public.customer",
+                &card_sha(&request, "public.customer"),
+                "Buyer",
+            ),
         ],
         true,
     );
-    let outcome = parse(
-        &complete(&command, captured("complete", Some(&body))).unwrap(),
-    );
+    let outcome = parse(&complete(&command, captured("complete", Some(&body))).unwrap());
     assert_eq!(outcome["protocol"], DESCRIPTION_CANDIDATE_PROTOCOL);
     assert_eq!(outcome["outcome"], "candidates");
     assert!(outcome["refusal"].is_null());
@@ -490,7 +501,10 @@ fn complete_response_binds_review_only_candidates() {
     assert_eq!(candidates[0]["description"], "A review-only description.");
     assert_eq!(candidates[0]["grain"], "one row");
     assert_eq!(candidates[0]["caveats"], json!(["hash only"]));
-    assert_eq!(candidates[0]["open_questions"], json!(["who maintains this"]));
+    assert_eq!(
+        candidates[0]["open_questions"],
+        json!(["who maintains this"])
+    );
     for candidate in candidates {
         assert!(candidate.get("pii").is_none());
         assert!(candidate.get("semantic_type").is_none());
@@ -631,7 +645,8 @@ fn selection_seal_and_admission_refusals_stay_closed() {
     assert_code(&err, "/field.unknown");
     assert_closed(&err);
 
-    let err = complete_description_candidates(&serde_json::to_string(&command).unwrap()).unwrap_err();
+    let err =
+        complete_description_candidates(&serde_json::to_string(&command).unwrap()).unwrap_err();
     assert_code(&err, "/field.missing");
     assert_closed(&err);
 
@@ -650,7 +665,12 @@ fn structural_hidden_table_is_not_a_generated_dataset() {
     let compiled = compile(&hidden_catalog());
     assert_eq!(compiled.schema_hash, HIDDEN_SCHEMA);
     let draft = parse(&compiled.draft);
-    assert!(draft["generated"]["datasets"].as_array().unwrap().is_empty());
+    assert!(
+        draft["generated"]["datasets"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(draft["physical"]["tables"][0]["schema_ident"], schema_ident);
     let command = json!({
         "admitted": true,
@@ -689,8 +709,16 @@ fn format_rejects_duplicate_unknown_and_mismatched_evidence() {
     let good = response_body(
         &request,
         vec![
-            candidate("public.customer", &card_sha(&request, "public.customer"), "Buyer"),
-            candidate("public.purchase", &card_sha(&request, "public.purchase"), "Purchase"),
+            candidate(
+                "public.customer",
+                &card_sha(&request, "public.customer"),
+                "Buyer",
+            ),
+            candidate(
+                "public.purchase",
+                &card_sha(&request, "public.purchase"),
+                "Purchase",
+            ),
         ],
         true,
     );
@@ -738,7 +766,10 @@ fn format_rejects_duplicate_unknown_and_mismatched_evidence() {
     assert_eq!(outcome["candidates"], json!([]));
 
     let mut wrong_request = parse(&good);
-    let mut digest = wrong_request["request_sha256"].as_str().unwrap().to_string();
+    let mut digest = wrong_request["request_sha256"]
+        .as_str()
+        .unwrap()
+        .to_string();
     let bytes = flip_last_hex(digest.as_bytes());
     digest = bytes;
     wrong_request["request_sha256"] = json!(digest);
@@ -762,7 +793,13 @@ fn format_rejects_duplicate_unknown_and_mismatched_evidence() {
     assert_eq!(outcome["candidates"], json!([]));
     assert_structural(&outcome, &compiled);
 
-    let outcome = parse(&complete(&command, json!({"body": "{}", "byte_len": 1, "status": "complete"})).unwrap());
+    let outcome = parse(
+        &complete(
+            &command,
+            json!({"body": "{}", "byte_len": 1, "status": "complete"}),
+        )
+        .unwrap(),
+    );
     assert_eq!(outcome["refusal"], "captured_response");
     assert_eq!(outcome["candidates"], json!([]));
 }
@@ -781,8 +818,16 @@ fn explicit_statuses_drop_the_body_and_keep_the_draft() {
     let body = response_body(
         &request,
         vec![
-            candidate("public.customer", &card_sha(&request, "public.customer"), "Customer"),
-            candidate("public.purchase", &card_sha(&request, "public.purchase"), "Customer"),
+            candidate(
+                "public.customer",
+                &card_sha(&request, "public.customer"),
+                "Customer",
+            ),
+            candidate(
+                "public.purchase",
+                &card_sha(&request, "public.purchase"),
+                "Customer",
+            ),
         ],
         true,
     );
@@ -833,8 +878,16 @@ fn dataset_mismatch_returns_incomplete_with_no_candidates() {
     let mut extra = parse(&response_body(
         &request,
         vec![
-            candidate("public.customer", &card_sha(&request, "public.customer"), "Buyer"),
-            candidate("public.purchase", &card_sha(&request, "public.purchase"), "Purchase"),
+            candidate(
+                "public.customer",
+                &card_sha(&request, "public.customer"),
+                "Buyer",
+            ),
+            candidate(
+                "public.purchase",
+                &card_sha(&request, "public.purchase"),
+                "Purchase",
+            ),
         ],
         true,
     ));
@@ -889,7 +942,11 @@ fn budget_failures_preserve_the_structural_draft_and_emit_nothing() {
             "schema_hash": compiled.schema_hash,
             "source_id": "shop_src"
         }),
-        vec![candidate("public.customer", &"ab".repeat(32), "BudgetLabel")],
+        vec![candidate(
+            "public.customer",
+            &"ab".repeat(32),
+            "BudgetLabel",
+        )],
         true,
     );
     let outcome = parse(&complete(&command, captured("complete", Some(&marker))).unwrap());

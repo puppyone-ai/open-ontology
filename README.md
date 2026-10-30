@@ -411,6 +411,8 @@ source adapter
   -> oo CLI / SDK / MCP / agent harness
 ```
 
+Product layout and synchronization boundaries: [product source guide](docs/product/source-sync.md).
+
 ## Documentation
 
 | Start here | Then explore |

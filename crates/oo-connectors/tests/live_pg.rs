@@ -672,9 +672,10 @@ async fn live_source_catalog() {
         guc_report.block_reasons
     );
     assert!(
-        guc_report.block_reasons.iter().any(|item| {
-            item.code == "startup_option" && item.fact == "startup_options"
-        }),
+        guc_report
+            .block_reasons
+            .iter()
+            .any(|item| { item.code == "startup_option" && item.fact == "startup_options" }),
         "{:?}",
         guc_report.block_reasons
     );

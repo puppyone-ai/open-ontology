@@ -1,5 +1,5 @@
 use oracledb::{Connection, OracleNumber, OracleTimestamp};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::time::{Duration, Instant};
 
@@ -70,12 +70,17 @@ pub fn scn(conn: &Connection) -> Result<u64> {
 /// Catalog coverage is an admission check, not proof that LogMiner read a file.
 pub fn log_catalog(conn: &Connection) -> Result<Value> {
     let mut ranges = Vec::new();
-    for raw in strings(conn, "SELECT JSON_OBJECT('kind' VALUE 'archived','thread' VALUE thread#,'sequence' VALUE sequence#,'first_scn' VALUE TO_CHAR(first_change#),'next_scn' VALUE TO_CHAR(next_change#) RETURNING VARCHAR2(4000)) FROM v$archived_log WHERE deleted='NO' AND status='A' AND name IS NOT NULL AND standby_dest='NO' UNION ALL SELECT JSON_OBJECT('kind' VALUE 'online','thread' VALUE thread#,'sequence' VALUE sequence#,'first_scn' VALUE TO_CHAR(first_change#),'next_scn' VALUE TO_CHAR(next_change#) RETURNING VARCHAR2(4000)) FROM v$log WHERE status IN ('CURRENT','ACTIVE','INACTIVE')")? {
+    for raw in strings(
+        conn,
+        "SELECT JSON_OBJECT('kind' VALUE 'archived','thread' VALUE thread#,'sequence' VALUE sequence#,'first_scn' VALUE TO_CHAR(first_change#),'next_scn' VALUE TO_CHAR(next_change#) RETURNING VARCHAR2(4000)) FROM v$archived_log WHERE deleted='NO' AND status='A' AND name IS NOT NULL AND standby_dest='NO' UNION ALL SELECT JSON_OBJECT('kind' VALUE 'online','thread' VALUE thread#,'sequence' VALUE sequence#,'first_scn' VALUE TO_CHAR(first_change#),'next_scn' VALUE TO_CHAR(next_change#) RETURNING VARCHAR2(4000)) FROM v$log WHERE status IN ('CURRENT','ACTIVE','INACTIVE')",
+    )? {
         ranges.push(serde_json::from_str::<Value>(&raw).map_err(|_| "log_catalog_json")?);
     }
-    Ok(json!({"protocol":"oo.oracle.log-catalog/v1","current_scn":scn(conn)?.to_string(),
+    Ok(
+        json!({"protocol":"oo.oracle.log-catalog/v1","current_scn":scn(conn)?.to_string(),
               "ranges":ranges,"catalog_only":true,"reader_mutations":0,
-              "handoff_requires":"actual restored vendor checkpoint and complete LogMiner END"}))
+              "handoff_requires":"actual restored vendor checkpoint and complete LogMiner END"}),
+    )
 }
 
 pub fn inventory(conn: &Connection, owner: &str) -> Result<Vec<Value>> {
@@ -90,8 +95,18 @@ pub fn inventory(conn: &Connection, owner: &str) -> Result<Vec<Value>> {
         let table_lit = literal(&table);
         let columns = strings(conn, &format!("SELECT JSON_OBJECT('name' VALUE column_name,'type' VALUE data_type,'precision' VALUE data_precision,'scale' VALUE data_scale,'bytes' VALUE data_length,'nullable' VALUE nullable,'collation' VALUE collation,'position' VALUE internal_column_id,'hidden' VALUE hidden_column,'virtual' VALUE virtual_column,'user_generated' VALUE user_generated NULL ON NULL RETURNING VARCHAR2(4000)) FROM all_tab_cols WHERE owner={owner_lit} AND table_name={table_lit} ORDER BY internal_column_id"))?
             .into_iter().map(|s| serde_json::from_str(&s).map_err(|_| "catalog_json".into())).collect::<Result<Vec<Value>>>()?;
-        let keys = strings(conn, &format!("SELECT cc.column_name FROM all_constraints c JOIN all_cons_columns cc ON c.owner=cc.owner AND c.constraint_name=cc.constraint_name AND c.table_name=cc.table_name WHERE c.owner={owner_lit} AND c.table_name={table_lit} AND c.constraint_type='P' AND c.status='ENABLED' AND c.validated='VALIDATED' ORDER BY cc.position"))?;
-        let object = strings(conn, &format!("SELECT TO_CHAR(object_id)||'|'||TO_CHAR(last_ddl_time,'YYYY-MM-DD HH24:MI:SS') FROM all_objects WHERE owner={owner_lit} AND object_name={table_lit} AND object_type='TABLE'"))?;
+        let keys = strings(
+            conn,
+            &format!(
+                "SELECT cc.column_name FROM all_constraints c JOIN all_cons_columns cc ON c.owner=cc.owner AND c.constraint_name=cc.constraint_name AND c.table_name=cc.table_name WHERE c.owner={owner_lit} AND c.table_name={table_lit} AND c.constraint_type='P' AND c.status='ENABLED' AND c.validated='VALIDATED' ORDER BY cc.position"
+            ),
+        )?;
+        let object = strings(
+            conn,
+            &format!(
+                "SELECT TO_CHAR(object_id)||'|'||TO_CHAR(last_ddl_time,'YYYY-MM-DD HH24:MI:SS') FROM all_objects WHERE owner={owner_lit} AND object_name={table_lit} AND object_type='TABLE'"
+            ),
+        )?;
         let mut issues = Vec::new();
         if columns.is_empty() || columns.len() > 256 {
             issues.push("column_budget".to_string());
@@ -103,7 +118,9 @@ pub fn inventory(conn: &Connection, owner: &str) -> Result<Vec<Value>> {
             let name = text(column, "name")?;
             let kind = text(column, "type")?;
             if column["user_generated"] == "NO" || column["virtual"] == "YES" {
-                issues.push(format!("derived_or_system_column:{name}: explicit policy required; never silently omit"));
+                issues.push(format!(
+                    "derived_or_system_column:{name}: explicit policy required; never silently omit"
+                ));
             }
             if !supported(&kind) {
                 issues.push(format!("unsupported_type:{name}:{kind}: no truncation; LOB/LONG require a separate streaming contract"));

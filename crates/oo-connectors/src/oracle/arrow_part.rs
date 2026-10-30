@@ -1,12 +1,12 @@
 //! Bounded, native-typed Arrow handoff. Unsupported target mappings fail closed.
-use super::chunk::{decimal, digest, text, Result};
+use super::chunk::{Result, decimal, digest, text};
 use arrow_array::{
     ArrayRef, BinaryArray, Decimal128Array, Int64Array, RecordBatch, StringArray,
     TimestampMicrosecondArray,
 };
 use arrow_ipc::{reader::StreamReader, writer::StreamWriter};
 use arrow_schema::{DataType, Field, Schema, TimeUnit};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::{
     fs::{self, OpenOptions},
     path::Path,
@@ -451,20 +451,24 @@ pub fn inspect(path: &Path, expected: &str, max_rows: usize) -> Result<Value> {
                     Value::Null
                 } else {
                     match column.data_type() {
-                        DataType::Int64 => json!(column
-                            .as_any()
-                            .downcast_ref::<Int64Array>()
-                            .ok_or("inspect_type")?
-                            .value(i)
-                            .to_string()),
+                        DataType::Int64 => json!(
+                            column
+                                .as_any()
+                                .downcast_ref::<Int64Array>()
+                                .ok_or("inspect_type")?
+                                .value(i)
+                                .to_string()
+                        ),
                         DataType::Decimal128(_, scale) => {
                             json!({"coefficient":column.as_any().downcast_ref::<Decimal128Array>().ok_or("inspect_type")?.value(i).to_string(),"scale":scale})
                         }
-                        DataType::Utf8 => json!(column
-                            .as_any()
-                            .downcast_ref::<StringArray>()
-                            .ok_or("inspect_type")?
-                            .value(i)),
+                        DataType::Utf8 => json!(
+                            column
+                                .as_any()
+                                .downcast_ref::<StringArray>()
+                                .ok_or("inspect_type")?
+                                .value(i)
+                        ),
                         DataType::Binary => json!(super::chunk::hex(
                             column
                                 .as_any()

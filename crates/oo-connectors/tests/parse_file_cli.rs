@@ -16,9 +16,9 @@ use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use oo_connectors::{
-    BomPolicy, DelimitedColumn, DelimitedDialect, DelimitedProfile, DelimitedType, HeaderPolicy,
-    JsonlColumn, JsonlProfile, JsonlType, NullPolicy, DELIMITED_PROTOCOL, FILE_WORKER_PARENT_PROTOCOL,
-    JSONL_PROTOCOL,
+    BomPolicy, DELIMITED_PROTOCOL, DelimitedColumn, DelimitedDialect, DelimitedProfile,
+    DelimitedType, FILE_WORKER_PARENT_PROTOCOL, HeaderPolicy, JSONL_PROTOCOL, JsonlColumn,
+    JsonlProfile, JsonlType, NullPolicy,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -122,7 +122,10 @@ fn cargo_bin(underscore: &str, hyphen: &str) -> String {
 }
 
 fn parse_bin() -> PathBuf {
-    PathBuf::from(cargo_bin("CARGO_BIN_EXE_parse_file", "CARGO_BIN_EXE_parse-file"))
+    PathBuf::from(cargo_bin(
+        "CARGO_BIN_EXE_parse_file",
+        "CARGO_BIN_EXE_parse-file",
+    ))
 }
 
 fn worker() -> (PathBuf, String) {
@@ -204,7 +207,12 @@ fn flip_sha(hex_text: &str) -> String {
 }
 
 fn keys(value: &Value) -> Vec<&str> {
-    value.as_object().expect("object").keys().map(String::as_str).collect()
+    value
+        .as_object()
+        .expect("object")
+        .keys()
+        .map(String::as_str)
+        .collect()
 }
 
 fn one_json(text: &str) -> Value {
@@ -311,7 +319,11 @@ fn document(
     executable_sha: &str,
 ) -> Vec<u8> {
     let (exe, real_sha) = worker();
-    let sha = if executable_sha.is_empty() { real_sha } else { executable_sha.to_owned() };
+    let sha = if executable_sha.is_empty() {
+        real_sha
+    } else {
+        executable_sha.to_owned()
+    };
     serde_json::to_vec(&json!({
         "budget": budget,
         "executable": {"path": exe, "sha256": sha},
@@ -327,15 +339,34 @@ fn document(
 fn assert_silent(run: &Run, extra: &[&str]) {
     let (exe, _) = worker();
     let exe_text = exe.to_str().expect("utf8 exe");
-    for needle in [PATH_TOKEN, exe_text].into_iter().chain(extra.iter().copied()) {
-        assert!(!run.stdout.contains(needle), "stdout leaked a forbidden span");
-        assert!(!run.stderr.contains(needle), "stderr leaked a forbidden span");
+    for needle in [PATH_TOKEN, exe_text]
+        .into_iter()
+        .chain(extra.iter().copied())
+    {
+        assert!(
+            !run.stdout.contains(needle),
+            "stdout leaked a forbidden span"
+        );
+        assert!(
+            !run.stderr.contains(needle),
+            "stderr leaked a forbidden span"
+        );
     }
 }
 
 fn assert_error(run: &Run, code: i32, outcome: &str, fact: &str) -> Value {
-    assert_eq!(run.code, code, "stdout={stdout} stderr={stderr}", stdout = run.stdout, stderr = run.stderr);
-    assert!(run.stdout.is_empty(), "error stdout {stdout}", stdout = run.stdout);
+    assert_eq!(
+        run.code,
+        code,
+        "stdout={stdout} stderr={stderr}",
+        stdout = run.stdout,
+        stderr = run.stderr
+    );
+    assert!(
+        run.stdout.is_empty(),
+        "error stdout {stdout}",
+        stdout = run.stdout
+    );
     let doc = one_json(&run.stderr);
     assert_eq!(keys(&doc), ERROR_KEYS);
     assert_eq!(doc["protocol"], ERROR_PROTOCOL);
@@ -345,8 +376,18 @@ fn assert_error(run: &Run, code: i32, outcome: &str, fact: &str) -> Value {
 }
 
 fn assert_summary(run: &Run, rows: u64, batches: u64, columns: u64) -> Value {
-    assert_eq!(run.code, 0, "stdout={stdout} stderr={stderr}", stdout = run.stdout, stderr = run.stderr);
-    assert!(run.stderr.is_empty(), "success stderr {stderr}", stderr = run.stderr);
+    assert_eq!(
+        run.code,
+        0,
+        "stdout={stdout} stderr={stderr}",
+        stdout = run.stdout,
+        stderr = run.stderr
+    );
+    assert!(
+        run.stderr.is_empty(),
+        "success stderr {stderr}",
+        stderr = run.stderr
+    );
     let doc = one_json(&run.stdout);
     assert_eq!(keys(&doc), RESULT_KEYS);
     assert_eq!(keys(&doc["lineage"]), LINEAGE_KEYS);
@@ -377,7 +418,11 @@ fn assert_summary(run: &Run, rows: u64, batches: u64, columns: u64) -> Value {
     assert_eq!(doc["lineage_sha256"], hex(&sha256(preimage.as_bytes())));
     let schema = doc["schema_identity"].as_str().expect("schema");
     assert_eq!(schema.len(), 64);
-    assert!(schema.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f')));
+    assert!(
+        schema
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    );
     doc
 }
 
@@ -471,7 +516,12 @@ fn request_shape_stops_before_a_child() {
         budget(false, 1, 1000),
         &"A".repeat(64),
     );
-    assert_error(&run_parse(&[], Some(&upper)), 3, "config", "executable_sha256");
+    assert_error(
+        &run_parse(&[], Some(&upper)),
+        3,
+        "config",
+        "executable_sha256",
+    );
 
     let mut relative = document(
         &input,
@@ -499,7 +549,12 @@ fn request_shape_stops_before_a_child() {
         budget(false, 1, 0),
         "",
     );
-    assert_error(&run_parse(&[], Some(&zero_worker)), 3, "config", "worker_deadline");
+    assert_error(
+        &run_parse(&[], Some(&zero_worker)),
+        3,
+        "config",
+        "worker_deadline",
+    );
 
     let crossed = document(
         &input,
@@ -510,7 +565,12 @@ fn request_shape_stops_before_a_child() {
         budget(true, 1, 1000),
         "",
     );
-    assert_error(&run_parse(&[], Some(&crossed)), 3, "config", "unknown_field");
+    assert_error(
+        &run_parse(&[], Some(&crossed)),
+        3,
+        "config",
+        "unknown_field",
+    );
 
     let dialect = document(
         &input,
@@ -569,7 +629,10 @@ fn csv_profile() -> DelimitedProfile {
             DelimitedColumn::try_new("n", DelimitedType::Int64, false).expect("n"),
             DelimitedColumn::try_new(
                 "price",
-                DelimitedType::Decimal { precision: 10, scale: 2 },
+                DelimitedType::Decimal {
+                    precision: 10,
+                    scale: 2,
+                },
                 true,
             )
             .expect("price"),
@@ -624,7 +687,15 @@ fn csv_summary_matches_the_profile_and_hides_cells() {
     let bytes = csv_bytes();
     let input = scratch.write("lot.csv", &bytes);
     let sha = file_sha(&input);
-    let request = document(&input, &sha, 20_000, "csv", csv_profile_json(), budget(true, 2, 60_000), "");
+    let request = document(
+        &input,
+        &sha,
+        20_000,
+        "csv",
+        csv_profile_json(),
+        budget(true, 2, 60_000),
+        "",
+    );
     let first = run_parse(&[], Some(&request));
     let doc = assert_summary(&first, 3, 2, 4);
     assert_delimited_identity(&doc, &csv_profile(), &sha);
@@ -637,7 +708,15 @@ fn csv_summary_matches_the_profile_and_hides_cells() {
     assert_eq!(doc["types"][3]["type"], "decimal");
     assert_eq!(doc["types"][3]["precision"], 10);
     assert_eq!(doc["types"][3]["scale"], 2);
-    assert_silent(&first, &["熊猫", "1.20", "9223372036854775807", "-9223372036854775808"]);
+    assert_silent(
+        &first,
+        &[
+            "熊猫",
+            "1.20",
+            "9223372036854775807",
+            "-9223372036854775808",
+        ],
+    );
     let second = run_parse(&[], Some(&request));
     let again = assert_summary(&second, 3, 2, 4);
     assert_eq!(again["schema_identity"], doc["schema_identity"]);
@@ -675,7 +754,15 @@ fn tsv_summary_counts_two_batches() {
         ],
     )
     .expect("tsv profile");
-    let request = document(&input, &sha, 20_000, "tsv", profile_json, budget(true, 1, 60_000), "");
+    let request = document(
+        &input,
+        &sha,
+        20_000,
+        "tsv",
+        profile_json,
+        budget(true, 1, 60_000),
+        "",
+    );
     let run = run_parse(&[], Some(&request));
     let doc = assert_summary(&run, 2, 2, 2);
     assert_delimited_identity(&doc, &profile, &sha);
@@ -715,7 +802,15 @@ fn jsonl_summary_counts_null_and_missing() {
         ],
     )
     .expect("jsonl profile");
-    let request = document(&input, &sha, 20_000, "jsonl", profile_json, budget(false, 1, 60_000), "");
+    let request = document(
+        &input,
+        &sha,
+        20_000,
+        "jsonl",
+        profile_json,
+        budget(false, 1, 60_000),
+        "",
+    );
     let run = run_parse(&[], Some(&request));
     let doc = assert_summary(&run, 3, 3, 3);
     assert_jsonl_identity(&doc, &profile, &sha);
@@ -750,7 +845,15 @@ fn empty_jsonl_completes_without_rows() {
         ],
     )
     .expect("empty profile");
-    let request = document(&input, &sha, 20_000, "jsonl", profile_json, budget(false, 8, 60_000), "");
+    let request = document(
+        &input,
+        &sha,
+        20_000,
+        "jsonl",
+        profile_json,
+        budget(false, 8, 60_000),
+        "",
+    );
     let run = run_parse(&[], Some(&request));
     let doc = assert_summary(&run, 0, 0, 3);
     assert_jsonl_identity(&doc, &profile, &sha);
@@ -772,7 +875,15 @@ fn malformed_quote_has_no_completion() {
         "id": "a245bad",
         "null": {"policy": "empty"}
     });
-    let request = document(&input, &sha, 20_000, "csv", profile, budget(true, 4, 60_000), "");
+    let request = document(
+        &input,
+        &sha,
+        20_000,
+        "csv",
+        profile,
+        budget(true, 4, 60_000),
+        "",
+    );
     let run = run_parse(&[], Some(&request));
     let doc = assert_error(&run, 5, "parent", "ended");
     assert_eq!(doc["worker_token"], "protocol");
@@ -795,7 +906,15 @@ fn hash_mismatch_is_the_parent_receipt_refusal() {
         ],
         "id": "a245hash"
     });
-    let request = document(&input, &sha, 20_000, "jsonl", profile, budget(false, 4, 60_000), "");
+    let request = document(
+        &input,
+        &sha,
+        20_000,
+        "jsonl",
+        profile,
+        budget(false, 4, 60_000),
+        "",
+    );
     let run = run_parse(&[], Some(&request));
     let doc = assert_error(&run, 6, "hash", "hash_mismatch");
     assert_eq!(doc["worker_token"], "hash_mismatch");
@@ -817,7 +936,15 @@ fn exact_header_on_an_empty_file_has_no_completion() {
         "id": "a245header",
         "null": {"policy": "empty"}
     });
-    let request = document(&input, &sha, 20_000, "csv", profile, budget(true, 4, 60_000), "");
+    let request = document(
+        &input,
+        &sha,
+        20_000,
+        "csv",
+        profile,
+        budget(true, 4, 60_000),
+        "",
+    );
     let run = run_parse(&[], Some(&request));
     let doc = assert_error(&run, 5, "parent", "ended");
     assert_eq!(doc["worker_token"], "header_required");
@@ -925,7 +1052,15 @@ fn parent_deadline_kills_the_worker_and_the_next_call_completes() {
     )
     .expect("deadline profile");
     let wide = busy_budget(BATCH_ROWS, ROWS, u64::try_from(bytes.len()).expect("len"));
-    let full = document(&input, &sha, 120_000, "jsonl", profile.clone(), wide.clone(), "");
+    let full = document(
+        &input,
+        &sha,
+        120_000,
+        "jsonl",
+        profile.clone(),
+        wide.clone(),
+        "",
+    );
     let (busy_elapsed, parsed) = timed_parse(&full);
     let batches = ROWS.div_ceil(BATCH_ROWS);
     let summary = assert_summary(&parsed, ROWS, batches, 1);

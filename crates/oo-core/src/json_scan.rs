@@ -403,8 +403,14 @@ fn has_leading_zero(text: &str) -> bool {
 }
 
 fn utf8_char(bytes: &[u8]) -> Option<char> {
-    let width=match *bytes.first()? {0..=0x7f=>1,0xc2..=0xdf=>2,0xe0..=0xef=>3,0xf0..=0xf4=>4,_=>return None};
-    let text=std::str::from_utf8(bytes.get(..width)?).ok()?;
+    let width = match *bytes.first()? {
+        0..=0x7f => 1,
+        0xc2..=0xdf => 2,
+        0xe0..=0xef => 3,
+        0xf0..=0xf4 => 4,
+        _ => return None,
+    };
+    let text = std::str::from_utf8(bytes.get(..width)?).ok()?;
     text.chars().next()
 }
 
@@ -453,10 +459,15 @@ mod configurable_budget_tests {
 mod utf8_prefix_tests {
     #[test]
     fn scalar_decoding_checks_only_the_current_scalar_not_the_document_tail() {
-        assert_eq!(super::utf8_char(&[b'a',0xff]),Some('a'));
-        assert_eq!(super::utf8_char(&[0xe4,0xb8,0xad,0xff]),Some('中'));
-        for bytes in [&[0xc0,0x80][..],&[0xed,0xa0,0x80],&[0xf4,0x90,0x80,0x80],&[0xe4,0xb8]] {
-            assert_eq!(super::utf8_char(bytes),None);
+        assert_eq!(super::utf8_char(&[b'a', 0xff]), Some('a'));
+        assert_eq!(super::utf8_char(&[0xe4, 0xb8, 0xad, 0xff]), Some('中'));
+        for bytes in [
+            &[0xc0, 0x80][..],
+            &[0xed, 0xa0, 0x80],
+            &[0xf4, 0x90, 0x80, 0x80],
+            &[0xe4, 0xb8],
+        ] {
+            assert_eq!(super::utf8_char(bytes), None);
         }
     }
 }

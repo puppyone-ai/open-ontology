@@ -8,14 +8,14 @@ use std::net::TcpStream;
 use std::time::Duration;
 
 use oo_pipeline::copy_encoder::{
-    accept_jsonb_document, arrow_dimensions, assemble_batch, map_column, numeric_parts, parse_json,
     ArrowScalar, CellPresence, CellReject, ColumnPrivileges, CopyBudgets, CopyColumn, CopyEncoder,
-    CopyError, CopyPiece, DecodedCell, ExactDecimal, ExactInt, FloatClass, LogicalValue,
-    RunBinding, SourceColumn, TypeFacts, TypeGraph, TypeSupport, TypeUnsupportedReason, TypedBatch,
-    UnavailablePolicy, HEADER_LEN,
+    CopyError, CopyPiece, DecodedCell, ExactDecimal, ExactInt, FloatClass, HEADER_LEN,
+    LogicalValue, RunBinding, SourceColumn, TypeFacts, TypeGraph, TypeSupport,
+    TypeUnsupportedReason, TypedBatch, UnavailablePolicy, accept_jsonb_document, arrow_dimensions,
+    assemble_batch, map_column, numeric_parts, parse_json,
 };
 use oo_pipeline::copy_sink::send_batch;
-use oo_pipeline::target_installer::{install_jsonb_document, JsonbDocumentInstallOutcome};
+use oo_pipeline::target_installer::{JsonbDocumentInstallOutcome, install_jsonb_document};
 use serde_json::json;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::{ConnectOptions, Row};
@@ -325,7 +325,10 @@ fn refusals_are_typed() {
             "jsonb_send",
             -1,
             -1,
-            cell(LogicalValue::Json(node), ArrowScalar::Utf8(text.to_string())),
+            cell(
+                LogicalValue::Json(node),
+                ArrowScalar::Utf8(text.to_string()),
+            ),
         ),
         3802,
     )
@@ -352,7 +355,10 @@ fn refusals_are_typed() {
         budgets(1_048_576, 1_048_576, 1_048_576, 4),
     );
     assert_eq!((refused.code, refused.detail), ("value_mismatch", "jsonb"));
-    assert_eq!(accept_jsonb_document(EMPTY_BSON_ENVELOPE).as_deref(), Ok("{}"));
+    assert_eq!(
+        accept_jsonb_document(EMPTY_BSON_ENVELOPE).as_deref(),
+        Ok("{}")
+    );
     let json114 = EMPTY_BSON_ENVELOPE.replace("\"oid\":3802", "\"oid\":114");
     assert_eq!(
         accept_jsonb_document(&json114).unwrap_err().code,
@@ -372,7 +378,10 @@ async fn jsonb_document_copies_into_oid_3802() {
             "jsonb_send",
             -1,
             -1,
-            cell(LogicalValue::Json(node), ArrowScalar::Utf8(text.to_string())),
+            cell(
+                LogicalValue::Json(node),
+                ArrowScalar::Utf8(text.to_string()),
+            ),
         ),
         3802,
     )
@@ -398,14 +407,25 @@ async fn jsonb_document_copies_into_oid_3802() {
         budgets(1_048_576, 1_048_576, 1_048_576, 4),
     );
     assert_eq!((refused.code, refused.detail), ("value_mismatch", "jsonb"));
-    assert_eq!(accept_jsonb_document(EMPTY_BSON_ENVELOPE).as_deref(), Ok("{}"));
+    assert_eq!(
+        accept_jsonb_document(EMPTY_BSON_ENVELOPE).as_deref(),
+        Ok("{}")
+    );
 
     let host = env::var("OO_JSONB_PROBE_HOST").expect("OO_JSONB_PROBE_HOST");
-    let port = env::var("OO_JSONB_PROBE_PORT").expect("OO_JSONB_PROBE_PORT").parse::<u16>().expect("port");
+    let port = env::var("OO_JSONB_PROBE_PORT")
+        .expect("OO_JSONB_PROBE_PORT")
+        .parse::<u16>()
+        .expect("port");
     let database = env::var("OO_JSONB_PROBE_DB").expect("OO_JSONB_PROBE_DB");
     let user = env::var("OO_JSONB_PROBE_USER").expect("OO_JSONB_PROBE_USER");
-    let password = fs::read_to_string(env::var("OO_JSONB_PROBE_PASSWORD_FILE").expect("password file")).expect("password file");
-    let password = password.trim_end_matches('\n').trim_end_matches('\r').to_string();
+    let password =
+        fs::read_to_string(env::var("OO_JSONB_PROBE_PASSWORD_FILE").expect("password file"))
+            .expect("password file");
+    let password = password
+        .trim_end_matches('\n')
+        .trim_end_matches('\r')
+        .to_string();
     let ca = fs::read(env::var("OO_JSONB_PROBE_CA").expect("ca")).expect("ca");
     let options = PgConnectOptions::from_explicit()
         .host(&host)
@@ -416,8 +436,15 @@ async fn jsonb_document_copies_into_oid_3802() {
         .ssl_mode(PgSslMode::VerifyFull)
         .ssl_root_cert_from_pem(ca)
         .disable_statement_logging();
-    let mut conn = options.connect().await.map_err(|_| "connect").expect("connect");
-    sqlx::query("DROP SCHEMA IF EXISTS oo_jsonb_w106 CASCADE").execute(&mut conn).await.expect("drop");
+    let mut conn = options
+        .connect()
+        .await
+        .map_err(|_| "connect")
+        .expect("connect");
+    sqlx::query("DROP SCHEMA IF EXISTS oo_jsonb_w106 CASCADE")
+        .execute(&mut conn)
+        .await
+        .expect("drop");
     let install = install_jsonb_document(&mut conn).await.expect("install");
     let install_name = match install {
         JsonbDocumentInstallOutcome::Installed => "installed",
@@ -427,19 +454,35 @@ async fn jsonb_document_copies_into_oid_3802() {
     let json_type = sql_text(&mut conn, "SELECT _oo.full_import_type_sql(114, -1)").await;
     assert_eq!(doc_type, "jsonb");
     assert_eq!(json_type, "json");
-    let typmod = sqlx::query("SELECT _oo.full_import_type_sql(3802, 0)").fetch_one(&mut conn).await.expect_err("typmod");
-    let state = typmod.as_database_error().and_then(|db| db.code().map(|code| code.to_string())).unwrap_or_default();
+    let typmod = sqlx::query("SELECT _oo.full_import_type_sql(3802, 0)")
+        .fetch_one(&mut conn)
+        .await
+        .expect_err("typmod");
+    let state = typmod
+        .as_database_error()
+        .and_then(|db| db.code().map(|code| code.to_string()))
+        .unwrap_or_default();
     assert_eq!(state, "22023");
-    sqlx::query("CREATE SCHEMA oo_jsonb_w106").execute(&mut conn).await.expect("schema");
-    let table = format!("CREATE TABLE oo_jsonb_w106.doc (pos numeric(38,0) NOT NULL, doc {doc_type})");
-    sqlx::query(sqlx::AssertSqlSafe(table)).execute(&mut conn).await.expect("table");
+    sqlx::query("CREATE SCHEMA oo_jsonb_w106")
+        .execute(&mut conn)
+        .await
+        .expect("schema");
+    let table =
+        format!("CREATE TABLE oo_jsonb_w106.doc (pos numeric(38,0) NOT NULL, doc {doc_type})");
+    sqlx::query(sqlx::AssertSqlSafe(table))
+        .execute(&mut conn)
+        .await
+        .expect("table");
     let (batch, columns, positions) = single(
         3802,
         "jsonb",
         "jsonb_send",
         -1,
         -1,
-        cell(LogicalValue::Json(parse_json(text).expect("text")), ArrowScalar::Utf8(text.to_string())),
+        cell(
+            LogicalValue::Json(parse_json(text).expect("text")),
+            ArrowScalar::Utf8(text.to_string()),
+        ),
     );
     send_batch(
         &mut conn,
@@ -463,7 +506,10 @@ async fn jsonb_document_copies_into_oid_3802() {
         "SELECT atttypmod::text FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'oo_jsonb_w106' AND c.relname = 'doc' AND a.attname = 'doc'",
     )
     .await;
-    sqlx::query("DROP SCHEMA IF EXISTS oo_jsonb_w106 CASCADE").execute(&mut conn).await.expect("drop");
+    sqlx::query("DROP SCHEMA IF EXISTS oo_jsonb_w106 CASCADE")
+        .execute(&mut conn)
+        .await
+        .expect("drop");
     assert_eq!(stored, text);
     assert_eq!(rows, "1");
     assert_eq!(atttypid, "3802");

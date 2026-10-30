@@ -586,51 +586,119 @@ mod typed_key_order_tests {
 
     #[test]
     fn textual_boundary_is_ordered_by_source_column_not_binary_identity() {
-        let keys=vec![KeyColumn{name:"k".into(),kind:KeyType::Text,
-            collation:Some("utf8mb4_unicode_ci".into())}];
-        let lo=vec![KeyValue::Text(b"a".to_vec())];
-        let (sql,params)=next_boundary_sql("owned","items",&keys,Some(lo.clone()),100).unwrap();
-        assert_eq!(sql,"SELECT MAX(`k`) FROM (SELECT `k` FROM `owned`.`items` WHERE ((`k` > ?)) ORDER BY `k` LIMIT 100) x");
-        assert_eq!(params,lo);
+        let keys = vec![KeyColumn {
+            name: "k".into(),
+            kind: KeyType::Text,
+            collation: Some("utf8mb4_unicode_ci".into()),
+        }];
+        let lo = vec![KeyValue::Text(b"a".to_vec())];
+        let (sql, params) =
+            next_boundary_sql("owned", "items", &keys, Some(lo.clone()), 100).unwrap();
+        assert_eq!(
+            sql,
+            "SELECT MAX(`k`) FROM (SELECT `k` FROM `owned`.`items` WHERE ((`k` > ?)) ORDER BY `k` LIMIT 100) x"
+        );
+        assert_eq!(params, lo);
         assert!(!sql.contains("BINARY") && !sql.contains("HEX") && !sql.contains("COLLATE"));
     }
 
     #[test]
     fn composite_bounds_keep_bytes_uint64_and_repeated_lexicographic_parameters() {
-        let keys=vec![
-            KeyColumn{name:"tenant".into(),kind:KeyType::Text,collation:Some("utf8mb4_unicode_ci".into())},
-            KeyColumn{name:"part".into(),kind:KeyType::Bytes,collation:None},
-            KeyColumn{name:"seq".into(),kind:KeyType::Int,collation:None},
+        let keys = vec![
+            KeyColumn {
+                name: "tenant".into(),
+                kind: KeyType::Text,
+                collation: Some("utf8mb4_unicode_ci".into()),
+            },
+            KeyColumn {
+                name: "part".into(),
+                kind: KeyType::Bytes,
+                collation: None,
+            },
+            KeyColumn {
+                name: "seq".into(),
+                kind: KeyType::Int,
+                collation: None,
+            },
         ];
-        let lo=vec![KeyValue::Text("\u{4e2d}".as_bytes().to_vec()),
-            KeyValue::Bytes(vec![0,255,128]),KeyValue::Int(i128::from(u64::MAX))];
-        let (sql,params)=next_boundary_sql("owned","mixed",&keys,Some(lo.clone()),17).unwrap();
+        let lo = vec![
+            KeyValue::Text("\u{4e2d}".as_bytes().to_vec()),
+            KeyValue::Bytes(vec![0, 255, 128]),
+            KeyValue::Int(i128::from(u64::MAX)),
+        ];
+        let (sql, params) =
+            next_boundary_sql("owned", "mixed", &keys, Some(lo.clone()), 17).unwrap();
         assert!(sql.contains("ORDER BY `tenant`,`part`,`seq` LIMIT 17"));
         assert!(sql.ends_with("ORDER BY `tenant` DESC,`part` DESC,`seq` DESC LIMIT 1"));
-        assert_eq!(params,vec![lo[0].clone(),lo[0].clone(),lo[1].clone(),
-            lo[0].clone(),lo[1].clone(),lo[2].clone()]);
+        assert_eq!(
+            params,
+            vec![
+                lo[0].clone(),
+                lo[0].clone(),
+                lo[1].clone(),
+                lo[0].clone(),
+                lo[1].clone(),
+                lo[2].clone()
+            ]
+        );
         match driver_params(lo).unwrap() {
-            Params::Positional(p)=>assert_eq!(p,vec![Value::Bytes("\u{4e2d}".as_bytes().to_vec()),
-                Value::Bytes(vec![0,255,128]),Value::UInt(u64::MAX)]),
-            other=>panic!("unexpected parameters: {other:?}"),
+            Params::Positional(p) => assert_eq!(
+                p,
+                vec![
+                    Value::Bytes("\u{4e2d}".as_bytes().to_vec()),
+                    Value::Bytes(vec![0, 255, 128]),
+                    Value::UInt(u64::MAX)
+                ]
+            ),
+            other => panic!("unexpected parameters: {other:?}"),
         }
     }
 
     #[test]
     fn collation_inverted_bounds_are_not_compared_in_rust() {
-        let keys=vec![KeyColumn{name:"k".into(),kind:KeyType::Text,
-            collation:Some("utf8mb4_unicode_ci".into())}];
-        let lo=KeyValue::Text(b"a".to_vec());let hi=KeyValue::Text(b"B".to_vec());
-        let (sql,params)=range_where(&keys,&ChunkBound{lo:Some(vec![lo.clone()]),hi:Some(vec![hi.clone()])}).unwrap();
-        assert_eq!(sql," WHERE ((`k` > ?)) AND ((`k` <= ?))");
-        assert_eq!(params,vec![lo,hi]);
+        let keys = vec![KeyColumn {
+            name: "k".into(),
+            kind: KeyType::Text,
+            collation: Some("utf8mb4_unicode_ci".into()),
+        }];
+        let lo = KeyValue::Text(b"a".to_vec());
+        let hi = KeyValue::Text(b"B".to_vec());
+        let (sql, params) = range_where(
+            &keys,
+            &ChunkBound {
+                lo: Some(vec![lo.clone()]),
+                hi: Some(vec![hi.clone()]),
+            },
+        )
+        .unwrap();
+        assert_eq!(sql, " WHERE ((`k` > ?)) AND ((`k` <= ?))");
+        assert_eq!(params, vec![lo, hi]);
     }
 
     #[test]
     fn missing_or_mistyped_keys_cannot_become_an_unbounded_scan() {
-        assert_eq!(next_boundary_sql("owned","no_key",&[],None,100).unwrap_err().fact,"chunk_key");
-        let keys=vec![KeyColumn{name:"k".into(),kind:KeyType::Bytes,collation:None}];
-        assert_eq!(next_boundary_sql("owned","items",&keys,
-            Some(vec![KeyValue::Text(vec![0,255])]),100).unwrap_err().fact,"chunk_bound");
+        assert_eq!(
+            next_boundary_sql("owned", "no_key", &[], None, 100)
+                .unwrap_err()
+                .fact,
+            "chunk_key"
+        );
+        let keys = vec![KeyColumn {
+            name: "k".into(),
+            kind: KeyType::Bytes,
+            collation: None,
+        }];
+        assert_eq!(
+            next_boundary_sql(
+                "owned",
+                "items",
+                &keys,
+                Some(vec![KeyValue::Text(vec![0, 255])]),
+                100
+            )
+            .unwrap_err()
+            .fact,
+            "chunk_bound"
+        );
     }
 }

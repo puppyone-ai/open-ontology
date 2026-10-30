@@ -88,9 +88,10 @@ async fn empty_only_keeps_baseline_and_requires_current_source_proof() {
         GRANT CONNECT ON DATABASE c5_empty_owned TO fixture71_runtime;
         INSERT INTO jobs.tasks VALUES('33333333-3333-4333-8333-333333333333','running',1,clock_timestamp()+interval '1 hour',
             '44444444-4444-4444-8444-444444444444','fixture');").await;
-    for (version, file) in [
-        ("native-c5-empty-baseline/v1", "0071_native_c5_empty_baseline.sql"),
-    ] {
+    for (version, file) in [(
+        "native-c5-empty-baseline/v1",
+        "0071_native_c5_empty_baseline.sql",
+    )] {
         let bytes = std::fs::read(root.join("migrations").join(file)).unwrap();
         sqlx::query("INSERT INTO _oo.schema_migrations(version,checksum,phase,filename) VALUES($1,$2,'expand',$3)")
             .bind(version).bind(target_installer::sha256_hex(&bytes)).bind(file).execute(&mut db).await.unwrap();
@@ -105,7 +106,9 @@ async fn empty_only_keeps_baseline_and_requires_current_source_proof() {
         "password_file":password,"ssl":"disable","shard":"shared_published","owner":"11111111-1111-4111-8111-111111111111"});
     let base = json!({"protocol":"oo.pipeline.native-c5-state/v1","source_id":"shared_published","schema":"app",
         "target":target,"lease_id":"33333333-3333-4333-8333-333333333333","lease_generation":1,"expected_source_generation":7});
-    sql(&mut db, "BEGIN; SET LOCAL session_replication_role=replica;
+    sql(
+        &mut db,
+        "BEGIN; SET LOCAL session_replication_role=replica;
         SELECT fixture69.seed('empty_date',2,false,true);
         SELECT fixture69.seed('empty_numeric',4,false,true); COMMIT;
         DO $$ DECLARE t text; physical text; col text; BEGIN
@@ -119,12 +122,17 @@ async fn empty_only_keeps_baseline_and_requires_current_source_proof() {
             EXECUTE format('ALTER TABLE _oo.%I ALTER COLUMN %I TYPE %s USING NULL',
               physical,col,CASE WHEN t='empty_date' THEN 'date' ELSE 'numeric(20,0)' END);
           END IF;
-        END LOOP; END $$;").await;
+        END LOOP; END $$;",
+    )
+    .await;
     let before: String = sqlx::query_scalar(
         "SELECT jsonb_build_object('receipts',(SELECT count(*) FROM _oo.apply_receipts),
          'freshness',(SELECT jsonb_agg(to_jsonb(f) ORDER BY table_name) FROM _oo.table_freshness f),
          'watermark',(SELECT to_jsonb(w) FROM _oo.source_watermark w))::text",
-    ).fetch_one(&mut db).await.unwrap();
+    )
+    .fetch_one(&mut db)
+    .await
+    .unwrap();
     let mut nonempty = base.clone();
     nonempty["operation"] = json!("initialize_empty_if_absent");
     nonempty["table"] = json!("single_old");
@@ -159,25 +167,38 @@ async fn empty_only_keeps_baseline_and_requires_current_source_proof() {
         for (field, value) in [
             ("rows_returned", json!(1)),
             ("row_limit", json!(2)),
-            ("source_query", json!("SELECT 1 FROM `app`.`single_empty` WHERE 1=0 LIMIT 1")),
+            (
+                "source_query",
+                json!("SELECT 1 FROM `app`.`single_empty` WHERE 1=0 LIMIT 1"),
+            ),
             ("schema_checked_after", json!(false)),
             ("snapshot_complete", json!(false)),
             ("read_only", json!(false)),
-            ("observation_id", json!("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")),
+            (
+                "observation_id",
+                json!("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+            ),
             ("started_at_ms", json!(0)),
             ("schema_fingerprint", json!("b".repeat(64))),
             ("table_source_generation", json!(7)),
         ] {
             let mut bad = request.clone();
             bad["nochange"]["c5_observation"][field] = value;
-            assert!(native_c5_state::execute(&bad).await.is_err(), "{table} {field}");
+            assert!(
+                native_c5_state::execute(&bad).await.is_err(),
+                "{table} {field}"
+            );
         }
         let mut bad = request.clone();
-        bad["nochange"]["c5_observation"]["baseline_receipt"]["config_digest"] = json!("f".repeat(64));
+        bad["nochange"]["c5_observation"]["baseline_receipt"]["config_digest"] =
+            json!("f".repeat(64));
         assert!(native_c5_state::execute(&bad).await.is_err());
         let mut export = init.clone();
         export["operation"] = json!("export");
-        assert!(native_c5_state::execute(&export).await.unwrap()["last_empty_confirmed_at_ms"].is_null());
+        assert!(
+            native_c5_state::execute(&export).await.unwrap()["last_empty_confirmed_at_ms"]
+                .is_null()
+        );
         let result = native_c5_state::execute(&request).await.unwrap();
         assert_eq!(result["empty_baseline_confirmed"], true);
         assert_eq!(result["replay"], false);
@@ -186,21 +207,40 @@ async fn empty_only_keeps_baseline_and_requires_current_source_proof() {
         }
         let replay = native_c5_state::execute(&request).await.unwrap();
         assert_eq!(replay["replay"], true);
-        assert_eq!(result["last_empty_confirmed_at_ms"], replay["last_empty_confirmed_at_ms"]);
+        assert_eq!(
+            result["last_empty_confirmed_at_ms"],
+            replay["last_empty_confirmed_at_ms"]
+        );
         let mut bad = request.clone();
-        bad["nochange"]["c5_observation"]["checked_at_ms"] =
-            json!(request["nochange"]["c5_observation"]["checked_at_ms"].as_i64().unwrap() + 1);
+        bad["nochange"]["c5_observation"]["checked_at_ms"] = json!(
+            request["nochange"]["c5_observation"]["checked_at_ms"]
+                .as_i64()
+                .unwrap()
+                + 1
+        );
         assert!(native_c5_state::execute(&bad).await.is_err());
         let exported = native_c5_state::execute(&export).await.unwrap();
-        assert_eq!(exported["last_empty_confirmed_at_ms"], result["last_empty_confirmed_at_ms"]);
+        assert_eq!(
+            exported["last_empty_confirmed_at_ms"],
+            result["last_empty_confirmed_at_ms"]
+        );
     }
     let after: String = sqlx::query_scalar(
         "SELECT jsonb_build_object('receipts',(SELECT count(*) FROM _oo.apply_receipts),
          'freshness',(SELECT jsonb_agg(to_jsonb(f) ORDER BY table_name) FROM _oo.table_freshness f),
          'watermark',(SELECT to_jsonb(w) FROM _oo.source_watermark w))::text",
-    ).fetch_one(&mut db).await.unwrap();
-    assert_eq!(before, after, "confirmation must not mutate data freshness or generations");
-    let range_states: i64 = sqlx::query_scalar("SELECT count(*) FROM _oo.c5_table").fetch_one(&mut db).await.unwrap();
+    )
+    .fetch_one(&mut db)
+    .await
+    .unwrap();
+    assert_eq!(
+        before, after,
+        "confirmation must not mutate data freshness or generations"
+    );
+    let range_states: i64 = sqlx::query_scalar("SELECT count(*) FROM _oo.c5_table")
+        .fetch_one(&mut db)
+        .await
+        .unwrap();
     assert_eq!(range_states, 0);
     assert!(sqlx::query("INSERT INTO _oo.c5_table(source,schema_name,table_name,schema_fingerprint,topology_revision,source_generation)
         VALUES('shared_published','app','single_empty',repeat('a',64),1,1)")
@@ -213,32 +253,67 @@ async fn empty_only_keeps_baseline_and_requires_current_source_proof() {
     init["chunk_topology_revision"] = json!(1);
     init["key_columns"] = json!([]);
     let old = native_c5_state::execute(&init).await.unwrap();
-    sql(&mut db, "INSERT INTO jobs.tasks VALUES('55555555-5555-4555-8555-555555555555','running',1,
+    sql(
+        &mut db,
+        "INSERT INTO jobs.tasks VALUES('55555555-5555-4555-8555-555555555555','running',1,
         clock_timestamp()+interval '1 hour','44444444-4444-4444-8444-444444444444','fixture');
-        UPDATE _oo.source_watermark SET source_generation=8 WHERE source='shared_published';").await;
+        UPDATE _oo.source_watermark SET source_generation=8 WHERE source='shared_published';",
+    )
+    .await;
     init["expected_source_generation"] = json!(8);
     init["lease_id"] = json!("55555555-5555-4555-8555-555555555555");
-    assert!(native_c5_state::execute(&init).await.is_err(), "cannot replace another live lease's context");
-    sql(&mut db, "UPDATE jobs.tasks SET state='succeeded' WHERE id='33333333-3333-4333-8333-333333333333';").await;
+    assert!(
+        native_c5_state::execute(&init).await.is_err(),
+        "cannot replace another live lease's context"
+    );
+    sql(
+        &mut db,
+        "UPDATE jobs.tasks SET state='succeeded' WHERE id='33333333-3333-4333-8333-333333333333';",
+    )
+    .await;
     let new = native_c5_state::execute(&init).await.unwrap();
-    assert_ne!(new["empty_observation"]["id"], old["empty_observation"]["id"]);
+    assert_ne!(
+        new["empty_observation"]["id"],
+        old["empty_observation"]["id"]
+    );
     assert_eq!(new["source_generation"], 8);
     assert_eq!(new["table_source_generation"], 1);
-    assert_eq!(new["last_empty_confirmed_at_ms"], old["last_empty_confirmed_at_ms"]);
+    assert_eq!(
+        new["last_empty_confirmed_at_ms"],
+        old["last_empty_confirmed_at_ms"]
+    );
     let mut stale = confirmation(&init, &new);
     stale["nochange"]["c5_observation"]["observation_id"] = old["empty_observation"]["id"].clone();
     assert!(native_c5_state::execute(&stale).await.is_err());
-    assert_eq!(native_c5_state::execute(&confirmation(&init, &new)).await.unwrap()["empty_baseline_confirmed"], true);
-    sql(&mut db, "UPDATE jobs.tasks SET lease_until=clock_timestamp()-interval '1 second'
-        WHERE id='55555555-5555-4555-8555-555555555555';").await;
-    assert!(native_c5_state::execute(&confirmation(&init, &new)).await.is_err());
+    assert_eq!(
+        native_c5_state::execute(&confirmation(&init, &new))
+            .await
+            .unwrap()["empty_baseline_confirmed"],
+        true
+    );
+    sql(
+        &mut db,
+        "UPDATE jobs.tasks SET lease_until=clock_timestamp()-interval '1 second'
+        WHERE id='55555555-5555-4555-8555-555555555555';",
+    )
+    .await;
+    assert!(
+        native_c5_state::execute(&confirmation(&init, &new))
+            .await
+            .is_err()
+    );
     std::fs::remove_file(password).unwrap();
     std::fs::remove_dir(dir).unwrap();
-    println!("PASS: keyed-unsupported/keyless empty proof, B<H, context/replay/lease guards, no range or data mutation.");
+    println!(
+        "PASS: keyed-unsupported/keyless empty proof, B<H, context/replay/lease guards, no range or data mutation."
+    );
 }
 
 fn confirmation(init: &Value, authority: &Value) -> Value {
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
     let mut request = init.clone();
     request["operation"] = json!("observe");
     request["nochange"] = json!({

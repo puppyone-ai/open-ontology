@@ -11,8 +11,8 @@ use serde_json::Value;
 
 use oo_core::api::payload_sha256;
 use oo_core::sealed_import::{
-    self, SealedImportCatalog, SealedImportColumn, SEALED_IMPORT_CATALOG_PROTOCOL,
-    SEALED_IMPORT_DRAFT_PROTOCOL,
+    self, SEALED_IMPORT_CATALOG_PROTOCOL, SEALED_IMPORT_DRAFT_PROTOCOL, SealedImportCatalog,
+    SealedImportColumn,
 };
 
 use crate::canonical::canonical_json;
@@ -134,8 +134,12 @@ pub fn compile_sealed_import_catalog(
     compile_sealed_import_catalog_with_limits(catalog_json, &Default::default())
 }
 
-pub fn compile_sealed_import_catalog_with_limits(catalog_json: &str, limits: &oo_core::sealed_import::SealedImportLimits) -> Result<SealedImportDraft, SealedImportError> {
-    let catalog = sealed_import::parse_sealed_import_catalog_with_limits(catalog_json, limits).map_err(lift_core)?;
+pub fn compile_sealed_import_catalog_with_limits(
+    catalog_json: &str,
+    limits: &oo_core::sealed_import::SealedImportLimits,
+) -> Result<SealedImportDraft, SealedImportError> {
+    let catalog = sealed_import::parse_sealed_import_catalog_with_limits(catalog_json, limits)
+        .map_err(lift_core)?;
     let mut columns = Vec::new();
     for table in &catalog.tables {
         let dataset = format!("{}.{}", table.logical_schema, table.logical_table);
@@ -152,7 +156,9 @@ pub fn compile_sealed_import_catalog_with_limits(catalog_json: &str, limits: &oo
         }
     }
     let identity_hash = payload_sha256(identity_preimage(&catalog).as_bytes());
-    let partition_vector = catalog.partition_vector.as_ref().map(|vector| serde_json::to_value(vector).expect("validated partition vector is serializable"));
+    let partition_vector = catalog.partition_vector.as_ref().map(|vector| {
+        serde_json::to_value(vector).expect("validated partition vector is serializable")
+    });
     let tables = catalog
         .tables
         .iter()
@@ -188,35 +194,94 @@ pub fn compile_sealed_import_catalog_with_limits(catalog_json: &str, limits: &oo
 /// Compile a producer collection while retaining each independently sealed
 /// catalog identity. The collection identity is bound to the exact vector;
 /// it is never presented as a single schema or source-run digest.
-pub fn compile_sealed_import_collection(input: &str) -> Result<SealedImportDraft, SealedImportError> {
+pub fn compile_sealed_import_collection(
+    input: &str,
+) -> Result<SealedImportDraft, SealedImportError> {
     compile_sealed_import_collection_with_limits(input, &Default::default())
 }
 
-pub fn compile_sealed_import_collection_with_limits(input: &str, limits: &oo_core::sealed_import::SealedImportLimits) -> Result<SealedImportDraft, SealedImportError> {
+pub fn compile_sealed_import_collection_with_limits(
+    input: &str,
+    limits: &oo_core::sealed_import::SealedImportLimits,
+) -> Result<SealedImportDraft, SealedImportError> {
     use std::collections::BTreeSet;
-    let value = oo_core::json_scan::parse_json_value_with_limits(input, SEALED_IMPORT_COLLECTION_PROTOCOL, &limits.json_scan)
-        .map_err(|_| SealedImportError::draft("json.syntax", "/", "collection JSON is invalid or exceeds limits"))?;
-    let object = value.as_object().ok_or_else(|| SealedImportError::draft("schema.invalid", "/", "collection is not an object"))?;
-    if object.len() != 4 || value.get("protocol").and_then(Value::as_str) != Some(SEALED_IMPORT_COLLECTION_PROTOCOL) {
-        return Err(SealedImportError::draft("schema.invalid", "/protocol", "collection protocol or fields are invalid"));
+    let value = oo_core::json_scan::parse_json_value_with_limits(
+        input,
+        SEALED_IMPORT_COLLECTION_PROTOCOL,
+        &limits.json_scan,
+    )
+    .map_err(|_| {
+        SealedImportError::draft(
+            "json.syntax",
+            "/",
+            "collection JSON is invalid or exceeds limits",
+        )
+    })?;
+    let object = value.as_object().ok_or_else(|| {
+        SealedImportError::draft("schema.invalid", "/", "collection is not an object")
+    })?;
+    if object.len() != 4
+        || value.get("protocol").and_then(Value::as_str) != Some(SEALED_IMPORT_COLLECTION_PROTOCOL)
+    {
+        return Err(SealedImportError::draft(
+            "schema.invalid",
+            "/protocol",
+            "collection protocol or fields are invalid",
+        ));
     }
-    let entries = value.get("entries").and_then(Value::as_array).ok_or_else(|| SealedImportError::draft("schema.invalid", "/entries", "collection entries are missing"))?;
-    let vector = value.get("binding_vector").and_then(Value::as_array).ok_or_else(|| SealedImportError::draft("schema.invalid", "/binding_vector", "collection binding vector is missing"))?;
-    if entries.is_empty() || entries.len() > limits.max_collection_entries || entries.len() != vector.len() {
-        return Err(SealedImportError::draft("schema.invalid", "/entries", "collection entry count is invalid"));
+    let entries = value
+        .get("entries")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            SealedImportError::draft(
+                "schema.invalid",
+                "/entries",
+                "collection entries are missing",
+            )
+        })?;
+    let vector = value
+        .get("binding_vector")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            SealedImportError::draft(
+                "schema.invalid",
+                "/binding_vector",
+                "collection binding vector is missing",
+            )
+        })?;
+    if entries.is_empty()
+        || entries.len() > limits.max_collection_entries
+        || entries.len() != vector.len()
+    {
+        return Err(SealedImportError::draft(
+            "schema.invalid",
+            "/entries",
+            "collection entry count is invalid",
+        ));
     }
     let mut preimage = value.clone();
-    preimage.as_object_mut().expect("object checked").remove("collection_sha256");
+    preimage
+        .as_object_mut()
+        .expect("object checked")
+        .remove("collection_sha256");
     let actual = payload_sha256(canonical_json(&preimage).as_bytes());
     if value.get("collection_sha256").and_then(Value::as_str) != Some(actual.as_str()) {
-        return Err(SealedImportError::draft("binding.collection_sha256", "/collection_sha256", "collection digest does not match its entries"));
+        return Err(SealedImportError::draft(
+            "binding.collection_sha256",
+            "/collection_sha256",
+            "collection digest does not match its entries",
+        ));
     }
     let mut seen = BTreeSet::new();
     let mut drafts = Vec::with_capacity(entries.len());
     for (index, (entry, binding)) in entries.iter().zip(vector).enumerate() {
         let draft = compile_sealed_import_catalog_with_limits(&canonical_json(entry), limits)?;
         if draft.tables.len() != 1 || !seen.insert(draft.tables[0].dataset.clone()) {
-            return Err(SealedImportError::draft("binding.dataset", format!("/entries/{index}"), "collection entry must contain one unique dataset"));
+            return Err(SealedImportError::draft(
+                "binding.dataset",
+                format!("/entries/{index}"),
+                "collection entry must contain one unique dataset",
+            ));
         }
         let table = &entry["tables"][0];
         let expected = serde_json::json!({
@@ -233,15 +298,29 @@ pub fn compile_sealed_import_collection_with_limits(input: &str, limits: &oo_cor
             "stored_physical": table["stored_physical"]
         });
         if *binding != expected {
-            return Err(SealedImportError::draft("binding.vector", format!("/binding_vector/{index}"), "collection binding differs from the sealed entry"));
+            return Err(SealedImportError::draft(
+                "binding.vector",
+                format!("/binding_vector/{index}"),
+                "collection binding differs from the sealed entry",
+            ));
         }
-        if drafts.first().is_some_and(|first: &SealedImportDraft| first.source_engine != draft.source_engine) {
-            return Err(SealedImportError::draft("binding.source", format!("/entries/{index}"), "collection source engine differs"));
+        if drafts
+            .first()
+            .is_some_and(|first: &SealedImportDraft| first.source_engine != draft.source_engine)
+        {
+            return Err(SealedImportError::draft(
+                "binding.source",
+                format!("/entries/{index}"),
+                "collection source engine differs",
+            ));
         }
         drafts.push(draft);
     }
     let partition_vectors = drafts.iter().filter_map(|draft| draft.partition_vector.as_ref().map(|vector| serde_json::json!({"dataset": draft.tables[0].dataset, "partition_vector": vector}))).collect::<Vec<_>>();
-    let source_ids = drafts.iter().map(|draft| draft.source_id.clone()).collect::<BTreeSet<_>>();
+    let source_ids = drafts
+        .iter()
+        .map(|draft| draft.source_id.clone())
+        .collect::<BTreeSet<_>>();
     let multiple_sources = source_ids.len() > 1;
     let mut combined = drafts.remove(0);
     if multiple_sources {
@@ -259,8 +338,14 @@ pub fn compile_sealed_import_collection_with_limits(input: &str, limits: &oo_cor
     combined.type_digest = String::new();
     combined.input_digest = String::new();
     combined.binding_vector = Some(Value::Array(vector.clone()));
-    combined.partition_vector = if partition_vectors.is_empty() { None } else { Some(Value::Array(partition_vectors)) };
-    combined.document = canonical_json(&serde_json::json!({"protocol": SEALED_IMPORT_COLLECTION_PROTOCOL, "collection_sha256": actual, "binding_vector": vector, "tables": combined.tables.iter().map(|table| &table.dataset).collect::<Vec<_>>() }));
+    combined.partition_vector = if partition_vectors.is_empty() {
+        None
+    } else {
+        Some(Value::Array(partition_vectors))
+    };
+    combined.document = canonical_json(
+        &serde_json::json!({"protocol": SEALED_IMPORT_COLLECTION_PROTOCOL, "collection_sha256": actual, "binding_vector": vector, "tables": combined.tables.iter().map(|table| &table.dataset).collect::<Vec<_>>() }),
+    );
     Ok(combined)
 }
 
@@ -279,7 +364,8 @@ pub fn identity_preimage(catalog: &SealedImportCatalog) -> String {
         catalog.run_id
     );
     if let Some(vector) = &catalog.partition_vector {
-        let value = serde_json::to_value(vector).expect("validated partition vector is serializable");
+        let value =
+            serde_json::to_value(vector).expect("validated partition vector is serializable");
         text.push_str("partition-vector/v1\n");
         text.push_str(&payload_sha256(canonical_json(&value).as_bytes()));
         text.push('\n');
@@ -375,7 +461,8 @@ fn draft_body(
         "type_digest": catalog.type_digest,
     });
     if let Some(vector) = &catalog.partition_vector {
-        body["partition_vector"] = serde_json::to_value(vector).expect("validated partition vector is serializable");
+        body["partition_vector"] =
+            serde_json::to_value(vector).expect("validated partition vector is serializable");
     }
     body
 }

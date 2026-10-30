@@ -1,9 +1,9 @@
 //! Pure guard coverage; live pg_catalog and PostgreSQL results have an owned oracle.
 
 use oo_gateway::policy::catalog::{
-    ARITHMETIC_OPERATORS, ARITHMETIC_SIGNATURES, COMPARISON_OPERATORS, COMPARISON_SIGNATURES,
-    DAY_FUNCTION_SIGNATURES, FUNCTION_CATALOG_LIMIT, UNARY_AGGREGATE_SIGNATURES,
-    ADDITIONAL_AGGREGATE_SIGNATURES, ADDITIONAL_SCALAR_SIGNATURES,
+    ADDITIONAL_AGGREGATE_SIGNATURES, ADDITIONAL_SCALAR_SIGNATURES, ARITHMETIC_OPERATORS,
+    ARITHMETIC_SIGNATURES, COMPARISON_OPERATORS, COMPARISON_SIGNATURES, DAY_FUNCTION_SIGNATURES,
+    FUNCTION_CATALOG_LIMIT, UNARY_AGGREGATE_SIGNATURES,
 };
 use oo_gateway::{
     LiteralTypes, PolicyCatalog, PolicyIdentity, ResolvedFunction, ResolvedOperator, VisibleColumn,
@@ -71,14 +71,20 @@ fn catalog() -> PolicyCatalog {
     }
     for (name, argument, _) in ADDITIONAL_AGGREGATE_SIGNATURES {
         functions.push(ResolvedFunction {
-            oid: 200 + functions.len() as u32, schema: "pg_catalog".into(), name: name.to_string(),
-            argument_type_oids: vec![oid(argument)], aggregate_star: false,
+            oid: 200 + functions.len() as u32,
+            schema: "pg_catalog".into(),
+            name: name.to_string(),
+            argument_type_oids: vec![oid(argument)],
+            aggregate_star: false,
         });
     }
     for (name, arguments, _) in ADDITIONAL_SCALAR_SIGNATURES {
         functions.push(ResolvedFunction {
-            oid: 200 + functions.len() as u32, schema: "pg_catalog".into(), name: name.to_string(),
-            argument_type_oids: arguments.iter().map(|name| oid(name)).collect(), aggregate_star: false,
+            oid: 200 + functions.len() as u32,
+            schema: "pg_catalog".into(),
+            name: name.to_string(),
+            argument_type_oids: arguments.iter().map(|name| oid(name)).collect(),
+            aggregate_star: false,
         });
     }
     assert_eq!(functions.len(), FUNCTION_CATALOG_LIMIT as usize);
@@ -378,7 +384,11 @@ fn date_only_timestamp_constants_normalize_to_midnight_without_widening_casts() 
             let sql = format!("SELECT id FROM logistics.orders WHERE {left}>={right}");
             let plan = guard_select(&cat.identity, &cat, &sql).unwrap();
             assert_eq!(plan.original_sql, sql);
-            assert!(plan.executed_sql.contains(&format!("{date} 00:00:00")), "{}", plan.executed_sql);
+            assert!(
+                plan.executed_sql.contains(&format!("{date} 00:00:00")),
+                "{}",
+                plan.executed_sql
+            );
             assert_eq!(plan.bindings.operators.len(), 1);
         }
     }
@@ -396,9 +406,17 @@ fn date_only_timestamp_constants_normalize_to_midnight_without_widening_casts() 
         assert!(guard_select(&cat.identity, &cat, sql).is_err(), "{sql}");
     }
     let mut missing = cat;
-    missing.operators.retain(|op| op.left_type_oid != Type::TIMESTAMP.oid());
-    assert!(guard_select(&missing.identity, &missing,
-        "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP '2026-10-28'").is_err());
+    missing
+        .operators
+        .retain(|op| op.left_type_oid != Type::TIMESTAMP.oid());
+    assert!(
+        guard_select(
+            &missing.identity,
+            &missing,
+            "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP '2026-10-28'"
+        )
+        .is_err()
+    );
 }
 
 #[test]
@@ -441,7 +459,9 @@ fn searched_numeric_case_and_abs_use_exact_function_results() {
     }
     for signature in [("sum", oid("int4")), ("abs", oid("numeric"))] {
         let mut missing = cat.clone();
-        missing.functions.retain(|f| !(f.name == signature.0 && f.argument_type_oids == [signature.1]));
+        missing
+            .functions
+            .retain(|f| !(f.name == signature.0 && f.argument_type_oids == [signature.1]));
         let sql = if signature.0 == "sum" {
             "SELECT SUM(CASE WHEN flag THEN 1 ELSE 0 END) FROM logistics.orders"
         } else {
@@ -450,8 +470,14 @@ fn searched_numeric_case_and_abs_use_exact_function_results() {
         assert!(guard_select(&missing.identity, &missing, sql).is_err());
     }
     let arms = " WHEN flag THEN 1".repeat(oo_gateway::sql_guard::CASE_ARM_LIMIT + 1);
-    assert_eq!(guard_select(&cat.identity, &cat, &format!("SELECT CASE{arms} ELSE 0 END FROM logistics.orders")),
-        Err(oo_gateway::GuardError::Budget));
+    assert_eq!(
+        guard_select(
+            &cat.identity,
+            &cat,
+            &format!("SELECT CASE{arms} ELSE 0 END FROM logistics.orders")
+        ),
+        Err(oo_gateway::GuardError::Budget)
+    );
 }
 
 #[test]
@@ -473,6 +499,12 @@ fn timestamp_to_char_requires_exact_builtin_and_literal_format() {
     }
     let mut missing = cat;
     missing.functions.retain(|f| f.name != "to_char");
-    assert!(guard_select(&missing.identity, &missing,
-        "SELECT to_char(stamp,'YYYY-MM-DD') FROM logistics.orders").is_err());
+    assert!(
+        guard_select(
+            &missing.identity,
+            &missing,
+            "SELECT to_char(stamp,'YYYY-MM-DD') FROM logistics.orders"
+        )
+        .is_err()
+    );
 }

@@ -11,7 +11,7 @@ use reqwest::{Certificate, Method, StatusCode};
 
 use oo_core::api::{ErrorCode, QueryRequest, QueryResponse};
 
-use crate::config::{ClientConfig, RetryPolicy, RootTrust, QUERY_RESPONSE_RESERVE};
+use crate::config::{ClientConfig, QUERY_RESPONSE_RESERVE, RetryPolicy, RootTrust};
 use crate::endpoint::Endpoint;
 use crate::error::{
     AdmissionWait, GatewayError, LocalError, ProtocolError, QueryError, TransportError,
@@ -21,7 +21,7 @@ use crate::token::BearerToken;
 use crate::wire::{decode_error, decode_response, encode_request, scrub_text};
 
 const BACKOFF_BASE: Duration = Duration::from_millis(200);
-use crate::publication::{PublicationBinding, QueryReceipt, EXPECTED, EXPECTED_VECTOR};
+use crate::publication::{EXPECTED, EXPECTED_VECTOR, PublicationBinding, QueryReceipt};
 
 pub struct Client {
     http: reqwest::Client,
@@ -97,10 +97,15 @@ impl Client {
     }
 
     pub async fn query(&self, request: QueryRequest) -> Result<QueryResponse, QueryError> {
-        self.query_with_receipt(request).await.map(|result| result.response)
+        self.query_with_receipt(request)
+            .await
+            .map(|result| result.response)
     }
 
-    pub async fn query_with_receipt(&self, mut request: QueryRequest) -> Result<QueryReceipt, QueryError> {
+    pub async fn query_with_receipt(
+        &self,
+        mut request: QueryRequest,
+    ) -> Result<QueryReceipt, QueryError> {
         let sql = request.sql.as_str().to_owned();
         // Validate before attempting a socket, then recompute the shared remaining
         // budget after each admission-only retry. Never replay a timed-out query.
@@ -118,9 +123,16 @@ impl Client {
                 return Err(QueryError::Transport(TransportError::Timeout));
             }
             let per_attempt = remaining.min(self.config.timeouts().request);
-            let server_ms = per_attempt.saturating_sub(QUERY_RESPONSE_RESERVE).as_millis().max(1);
-            request.timeout_ms = Some(requested_budget.unwrap_or(30_000)
-                .min(30_000).min(server_ms.min(u128::from(u32::MAX)) as u32));
+            let server_ms = per_attempt
+                .saturating_sub(QUERY_RESPONSE_RESERVE)
+                .as_millis()
+                .max(1);
+            request.timeout_ms = Some(
+                requested_budget
+                    .unwrap_or(30_000)
+                    .min(30_000)
+                    .min(server_ms.min(u128::from(u32::MAX)) as u32),
+            );
             let body = encode_request(&request, self.config.byte_caps().request)?;
             match self.once(&body, &sql, per_attempt).await {
                 Ok(response) => return Ok(response),
@@ -165,7 +177,8 @@ impl Client {
             .header(ACCEPT, "application/json")
             .header(AUTHORIZATION, self.token.authorization())
             .body(body.to_vec());
-        let response = self.binding_headers(request)
+        let response = self
+            .binding_headers(request)
             .send()
             .await
             .map_err(|error| {
@@ -192,9 +205,15 @@ impl Client {
             sql,
             self.endpoint.as_str(),
         )?;
-        let publication_binding = self.publication_binding.as_ref()
-            .map(|binding| binding.receipt(&headers)).transpose()?;
-        Ok(QueryReceipt { response, publication_binding })
+        let publication_binding = self
+            .publication_binding
+            .as_ref()
+            .map(|binding| binding.receipt(&headers))
+            .transpose()?;
+        Ok(QueryReceipt {
+            response,
+            publication_binding,
+        })
     }
 
     pub async fn tables(&self) -> Result<serde_json::Value, QueryError> {
@@ -223,15 +242,22 @@ impl Client {
         self.knowledge_search_page(needle, None, 0, 20).await
     }
 
-    pub async fn knowledge_search_page(&self, needle: &str, path_prefix: Option<&str>,
-                                      offset: u32, limit: u32) -> Result<serde_json::Value, QueryError> {
+    pub async fn knowledge_search_page(
+        &self,
+        needle: &str,
+        path_prefix: Option<&str>,
+        offset: u32,
+        limit: u32,
+    ) -> Result<serde_json::Value, QueryError> {
         let body = serde_json::json!({"q": needle, "path_prefix": path_prefix, "offset": offset, "limit": limit});
         let response = self.post_object("/v1/knowledge/search", &body).await?;
         // An old Gateway may ignore unknown options; never pass its first page off as a later page.
         if (path_prefix.is_some() || offset != 0 || limit != 20)
             && (response["offset"].as_u64() != Some(u64::from(offset))
                 || response["limit"].as_u64() != Some(u64::from(limit))
-                || !response["has_more"].is_boolean() || !response["total"].is_u64()) {
+                || !response["has_more"].is_boolean()
+                || !response["total"].is_u64())
+        {
             return Err(QueryError::Protocol(ProtocolError::Rejected));
         }
         Ok(response)
@@ -266,9 +292,14 @@ impl Client {
         let bytes =
             serde_json::to_vec(body).map_err(|_| QueryError::Local(LocalError::RequestRejected))?;
         self.exchange(
-            Method::POST, path, Some(bytes),
-            body.get("sql").and_then(serde_json::Value::as_str).unwrap_or(""),
-        ).await
+            Method::POST,
+            path,
+            Some(bytes),
+            body.get("sql")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or(""),
+        )
+        .await
     }
 
     async fn exchange(
@@ -292,13 +323,17 @@ impl Client {
         if let Some(bytes) = body {
             request = request.header(CONTENT_TYPE, "application/json").body(bytes);
         }
-        let response = self.binding_headers(request).send().await.map_err(|error| {
-            if error.is_redirect() {
-                QueryError::Protocol(ProtocolError::Redirect)
-            } else {
-                QueryError::Transport(classify_transport(&error))
-            }
-        })?;
+        let response = self
+            .binding_headers(request)
+            .send()
+            .await
+            .map_err(|error| {
+                if error.is_redirect() {
+                    QueryError::Protocol(ProtocolError::Redirect)
+                } else {
+                    QueryError::Transport(classify_transport(&error))
+                }
+            })?;
         if response.url().as_str() != url.as_str() {
             return Err(QueryError::Protocol(ProtocolError::Redirect));
         }
@@ -351,9 +386,12 @@ fn build_http(config: &ClientConfig, endpoint: &Endpoint) -> Result<reqwest::Cli
         .pool_idle_timeout(Duration::from_secs(15));
     if let Some(ip) = config.connect_ip() {
         // Numeric URL hosts bypass DNS resolution, so never silently ignore an override.
-        let host = endpoint.url().domain().ok_or(QueryError::Local(LocalError::Config(
-            "connect-ip requires a gateway DNS hostname, not an IP literal",
-        )))?;
+        let host = endpoint
+            .url()
+            .domain()
+            .ok_or(QueryError::Local(LocalError::Config(
+                "connect-ip requires a gateway DNS hostname, not an IP literal",
+            )))?;
         if endpoint.url().scheme() == "http" && !ip.is_loopback() {
             return Err(QueryError::Local(LocalError::Config(
                 "plaintext connect-ip must be loopback",
@@ -363,18 +401,30 @@ fn build_http(config: &ClientConfig, endpoint: &Endpoint) -> Result<reqwest::Cli
     }
     if let Some(interface) = config.interface() {
         #[cfg(any(
-            target_os = "android", target_os = "fuchsia", target_os = "illumos",
-            target_os = "ios", target_os = "linux", target_os = "macos",
-            target_os = "solaris", target_os = "tvos", target_os = "visionos",
+            target_os = "android",
+            target_os = "fuchsia",
+            target_os = "illumos",
+            target_os = "ios",
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "solaris",
+            target_os = "tvos",
+            target_os = "visionos",
             target_os = "watchos",
         ))]
         {
             builder = builder.interface(interface);
         }
         #[cfg(not(any(
-            target_os = "android", target_os = "fuchsia", target_os = "illumos",
-            target_os = "ios", target_os = "linux", target_os = "macos",
-            target_os = "solaris", target_os = "tvos", target_os = "visionos",
+            target_os = "android",
+            target_os = "fuchsia",
+            target_os = "illumos",
+            target_os = "ios",
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "solaris",
+            target_os = "tvos",
+            target_os = "visionos",
             target_os = "watchos",
         )))]
         {
@@ -397,7 +447,7 @@ fn build_http(config: &ClientConfig, endpoint: &Endpoint) -> Result<reqwest::Cli
             reqwest::Identity::from_pem(pem).map_err(|_| QueryError::Local(LocalError::Trust))?;
         builder = builder.identity(identity);
     }
-    // gateway.example resets a ClientHello whose first share is the short
+    // An observed server resets a ClientHello whose first share is the short
     // X25519 key. The hybrid share is already preferred for --connect-ip and
     // --interface; use it for every connection so a normal profile connects too.
     // routed_tls clones the provider and does not change the process default.
@@ -408,9 +458,9 @@ fn build_http(config: &ClientConfig, endpoint: &Endpoint) -> Result<reqwest::Cli
 }
 
 fn routed_tls(config: &ClientConfig) -> Result<tokio_rustls::rustls::ClientConfig, QueryError> {
+    use rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject};
     use rustls_platform_verifier::BuilderVerifierExt;
     use tokio_rustls::rustls::{self, crypto::CryptoProvider};
-    use rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject};
 
     let trust_error = || QueryError::Local(LocalError::Trust);
     let mut provider = CryptoProvider::get_default()
@@ -418,7 +468,9 @@ fn routed_tls(config: &ClientConfig) -> Result<tokio_rustls::rustls::ClientConfi
         .unwrap_or_else(rustls::crypto::aws_lc_rs::default_provider);
     // The public gateway resets a short X25519-first ClientHello. Prefer the
     // existing hybrid share, without removing groups or changing process defaults.
-    provider.kx_groups.sort_by_key(|group| group.name() != rustls::NamedGroup::X25519MLKEM768);
+    provider
+        .kx_groups
+        .sort_by_key(|group| group.name() != rustls::NamedGroup::X25519MLKEM768);
     let tls = rustls::ClientConfig::builder_with_provider(std::sync::Arc::new(provider))
         .with_safe_default_protocol_versions()
         .map_err(|_| trust_error())?;
@@ -427,7 +479,9 @@ fn routed_tls(config: &ClientConfig) -> Result<tokio_rustls::rustls::ClientConfi
         RootTrust::OnlyPem(pem) => {
             let mut roots = rustls::RootCertStore::empty();
             for cert in CertificateDer::pem_slice_iter(pem) {
-                roots.add(cert.map_err(|_| trust_error())?).map_err(|_| trust_error())?;
+                roots
+                    .add(cert.map_err(|_| trust_error())?)
+                    .map_err(|_| trust_error())?;
             }
             if roots.is_empty() {
                 return Err(trust_error());
@@ -439,37 +493,20 @@ fn routed_tls(config: &ClientConfig) -> Result<tokio_rustls::rustls::ClientConfi
         Some(pem) => {
             // Match reqwest's last-key selection; its parser has already validated the PEM.
             let certs = CertificateDer::pem_slice_iter(pem)
-                .collect::<Result<Vec<_>, _>>().map_err(|_| trust_error())?;
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| trust_error())?;
             let key = PrivateKeyDer::pem_slice_iter(pem)
-                .collect::<Result<Vec<_>, _>>().map_err(|_| trust_error())?
-                .pop().ok_or_else(trust_error)?;
-            tls.with_client_auth_cert(certs, key).map_err(|_| trust_error())?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| trust_error())?
+                .pop()
+                .ok_or_else(trust_error)?;
+            tls.with_client_auth_cert(certs, key)
+                .map_err(|_| trust_error())?
         }
         None => tls.with_no_client_auth(),
     };
     tls.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
     Ok(tls)
-}
-
-#[cfg(test)]
-mod route_tls_tests {
-    use super::*;
-    use tokio_rustls::rustls::{self, crypto::CryptoProvider};
-
-    #[test]
-    fn routed_hello_prefers_existing_hybrid_without_changing_global_provider() {
-        let before = CryptoProvider::get_default().map(std::sync::Arc::as_ptr);
-        let tls = routed_tls(&ClientConfig::production()).unwrap();
-        assert_eq!(tls.crypto_provider().kx_groups[0].name(), rustls::NamedGroup::X25519MLKEM768);
-        assert!(tls.enable_sni);
-        let mut connection = rustls::ClientConnection::new(
-            std::sync::Arc::new(tls), "localhost".try_into().unwrap(),
-        ).unwrap();
-        let mut hello = Vec::new();
-        connection.write_tls(&mut hello).unwrap();
-        assert!(hello.len() > 1200, "hybrid ClientHello must include its full key share");
-        assert_eq!(before, CryptoProvider::get_default().map(std::sync::Arc::as_ptr));
-    }
 }
 
 fn admission_retry(error: &QueryError) -> bool {
@@ -722,4 +759,36 @@ fn json_content_type(headers: &HeaderMap) -> bool {
         }
     }
     true
+}
+
+#[cfg(test)]
+mod route_tls_tests {
+    use super::*;
+    use tokio_rustls::rustls::{self, crypto::CryptoProvider};
+
+    #[test]
+    fn routed_hello_prefers_existing_hybrid_without_changing_global_provider() {
+        let before = CryptoProvider::get_default().map(std::sync::Arc::as_ptr);
+        let tls = routed_tls(&ClientConfig::production()).unwrap();
+        assert_eq!(
+            tls.crypto_provider().kx_groups[0].name(),
+            rustls::NamedGroup::X25519MLKEM768
+        );
+        assert!(tls.enable_sni);
+        let mut connection = rustls::ClientConnection::new(
+            std::sync::Arc::new(tls),
+            "localhost".try_into().unwrap(),
+        )
+        .unwrap();
+        let mut hello = Vec::new();
+        connection.write_tls(&mut hello).unwrap();
+        assert!(
+            hello.len() > 1200,
+            "hybrid ClientHello must include its full key share"
+        );
+        assert_eq!(
+            before,
+            CryptoProvider::get_default().map(std::sync::Arc::as_ptr)
+        );
+    }
 }

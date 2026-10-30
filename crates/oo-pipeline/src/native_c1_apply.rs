@@ -43,11 +43,25 @@ pub(crate) struct StageTarget {
 /// token in its message. Unknown messages do not leak.
 pub(crate) fn sql_error(err: sqlx::Error) -> &'static str {
     const TOKENS: &[&str] = &[
-        "chunk_conflict", "chunk_sequence", "chunk_part_rows", "chunk_keys", "invalid_chunk",
-        "batch_conflict", "batch_sequence", "batch_rows", "invalid_batch", "invalid_batch_events",
-        "table_identity_conflict", "closed_baseline_table", "closed_baseline_key",
-        "format_mismatch", "seal_conflict", "seal_tables", "composed_row_count",
-        "snapshot_incomplete", "table_unregistered",
+        "chunk_conflict",
+        "chunk_sequence",
+        "chunk_part_rows",
+        "chunk_keys",
+        "invalid_chunk",
+        "batch_conflict",
+        "batch_sequence",
+        "batch_rows",
+        "invalid_batch",
+        "invalid_batch_events",
+        "table_identity_conflict",
+        "closed_baseline_table",
+        "closed_baseline_key",
+        "format_mismatch",
+        "seal_conflict",
+        "seal_tables",
+        "composed_row_count",
+        "snapshot_incomplete",
+        "table_unregistered",
     ];
     let Some(db) = err.as_database_error() else {
         eprintln!("oo-pipeline: c1 v2 driver error {err}");
@@ -65,7 +79,11 @@ pub(crate) fn sql_error(err: sqlx::Error) -> &'static str {
         "OO010" => "lease_or_barrier",
         "OO024" => "physical_mapping_absent",
         "OO031" => "run_not_open",
-        "OO030" => TOKENS.iter().copied().find(|token| *token == message).unwrap_or("closed"),
+        "OO030" => TOKENS
+            .iter()
+            .copied()
+            .find(|token| *token == message)
+            .unwrap_or("closed"),
         "42501" => "permission",
         "42P01" => "not_ready",
         "55P03" => "fence_held",
@@ -153,10 +171,20 @@ impl<'a> CopyRows<'a> {
         if expected.len() != target.len() || decoded.fields.len() != expected.len() + extra {
             return Err("part_schema");
         }
-        if decoded.fields.iter().zip(expected).any(|(field, name)| &field.name != name) {
+        if decoded
+            .fields
+            .iter()
+            .zip(expected)
+            .any(|(field, name)| &field.name != name)
+        {
             return Err("part_schema");
         }
-        Ok(Self { decoded, tags, columns: target, next: 0 })
+        Ok(Self {
+            decoded,
+            tags,
+            columns: target,
+            next: 0,
+        })
     }
 
     /// Next piece of COPY text, at least one row. `None` once every row is written.
@@ -181,15 +209,19 @@ impl<'a> CopyRows<'a> {
             }
             Tags::Cdc { part_no } => {
                 let op = match &self.decoded.columns[user + 1][row] {
-                    NativeCell::Utf8(text) if text == c1_parts::OP_UPSERT || text == c1_parts::OP_DELETE => {
+                    NativeCell::Utf8(text)
+                        if text == c1_parts::OP_UPSERT || text == c1_parts::OP_DELETE =>
+                    {
                         text.as_str()
                     }
                     _ => return Err("cdc_op"),
                 };
                 let pos = match &self.decoded.columns[user][row] {
-                    NativeCell::Decimal { coefficient, scale: 0, .. } if *coefficient >= 0 => {
-                        coefficient.to_string()
-                    }
+                    NativeCell::Decimal {
+                        coefficient,
+                        scale: 0,
+                        ..
+                    } if *coefficient >= 0 => coefficient.to_string(),
                     _ => return Err("cdc_pos"),
                 };
                 let _ = write!(OutWriter(out), "cdc\t{part_no}\t{op}\t{pos}");
@@ -197,7 +229,12 @@ impl<'a> CopyRows<'a> {
         }
         for (index, column) in self.columns.iter().enumerate() {
             out.push(b'\t');
-            cell_text(out, column.oid, column.typmod, &self.decoded.columns[index][row])?;
+            cell_text(
+                out,
+                column.oid,
+                column.typmod,
+                &self.decoded.columns[index][row],
+            )?;
         }
         out.push(b'\n');
         Ok(())
@@ -216,7 +253,12 @@ impl std::fmt::Write for OutWriter<'_> {
 
 /// Render one cell as COPY text for a column of type `oid`. The cell variant must
 /// match the target type. A mismatch is refused, never converted.
-pub(crate) fn cell_text(out: &mut Vec<u8>, oid: i64, typmod: i32, cell: &NativeCell) -> Result<(), &'static str> {
+pub(crate) fn cell_text(
+    out: &mut Vec<u8>,
+    oid: i64,
+    typmod: i32,
+    cell: &NativeCell,
+) -> Result<(), &'static str> {
     match (oid, cell) {
         (_, NativeCell::Null) => out.extend_from_slice(b"\\N"),
         (16, NativeCell::Bool(value)) => out.push(if *value { b't' } else { b'f' }),
@@ -224,9 +266,18 @@ pub(crate) fn cell_text(out: &mut Vec<u8>, oid: i64, typmod: i32, cell: &NativeC
         (20 | 21 | 23, NativeCell::UInt8(value)) => int_text(out, oid, i128::from(*value))?,
         (20 | 21 | 23, NativeCell::UInt64(value)) => int_text(out, oid, i128::from(*value))?,
         (700 | 701, NativeCell::Float64(bits)) => float_text(out, f64::from_bits(*bits)),
-        (1700, NativeCell::Decimal { scale, coefficient, .. }) => numeric_text(out, typmod, *scale, *coefficient)?,
-        (25 | 1042 | 1043 | 1083 | 1186 | 2950, NativeCell::Utf8(text)) => escape(out, text.as_bytes()),
-        (114 | 3802, NativeCell::Json(text) | NativeCell::Utf8(text)) => escape(out, text.as_bytes()),
+        (
+            1700,
+            NativeCell::Decimal {
+                scale, coefficient, ..
+            },
+        ) => numeric_text(out, typmod, *scale, *coefficient)?,
+        (25 | 1042 | 1043 | 1083 | 1186 | 2950, NativeCell::Utf8(text)) => {
+            escape(out, text.as_bytes())
+        }
+        (114 | 3802, NativeCell::Json(text) | NativeCell::Utf8(text)) => {
+            escape(out, text.as_bytes())
+        }
         (17, NativeCell::Binary(bytes)) => {
             // COPY text unescapes one backslash, so the bytea input receives `\x...`.
             out.extend_from_slice(b"\\\\x");
@@ -239,7 +290,13 @@ pub(crate) fn cell_text(out: &mut Vec<u8>, oid: i64, typmod: i32, cell: &NativeC
         (1184, NativeCell::TimestampMicrosUtc { value, timezone }) if timezone == "UTC" => {
             timestamp_text(out, *value, true)?;
         }
-        (1186, NativeCell::Int { bit_width: 64, value }) => {
+        (
+            1186,
+            NativeCell::Int {
+                bit_width: 64,
+                value,
+            },
+        ) => {
             let _ = write!(OutWriter(out), "{value} microseconds");
         }
         _ => return Err("cell_type"),
@@ -273,7 +330,12 @@ fn float_text(out: &mut Vec<u8>, value: f64) {
     out.extend_from_slice(text.as_bytes());
 }
 
-fn numeric_text(out: &mut Vec<u8>, typmod: i32, scale: i8, coefficient: i128) -> Result<(), &'static str> {
+fn numeric_text(
+    out: &mut Vec<u8>,
+    typmod: i32,
+    scale: i8,
+    coefficient: i128,
+) -> Result<(), &'static str> {
     let scale = usize::try_from(scale).map_err(|_| "precision")?;
     if typmod >= 4 && usize::try_from((typmod - 4) & 0xffff).ok() != Some(scale) {
         return Err("precision");
@@ -288,9 +350,9 @@ fn numeric_text(out: &mut Vec<u8>, typmod: i32, scale: i8, coefficient: i128) ->
     }
     let padded = format!("{digits:0>width$}", width = scale + 1);
     let split = padded.len() - scale;
-    out.extend_from_slice(padded[..split].as_bytes());
+    out.extend_from_slice(&padded.as_bytes()[..split]);
     out.push(b'.');
-    out.extend_from_slice(padded[split..].as_bytes());
+    out.extend_from_slice(&padded.as_bytes()[split..]);
     Ok(())
 }
 
@@ -360,7 +422,11 @@ pub(crate) fn key_value(cell: &NativeCell) -> Result<i128, &'static str> {
         NativeCell::Int { value, .. } => Ok(i128::from(*value)),
         NativeCell::UInt8(value) => Ok(i128::from(*value)),
         NativeCell::UInt64(value) => Ok(i128::from(*value)),
-        NativeCell::Decimal { coefficient, scale: 0, .. } => {
+        NativeCell::Decimal {
+            coefficient,
+            scale: 0,
+            ..
+        } => {
             if (i128::from(i64::MIN)..=i128::from(u64::MAX)).contains(coefficient) {
                 Ok(*coefficient)
             } else {
@@ -372,9 +438,17 @@ pub(crate) fn key_value(cell: &NativeCell) -> Result<i128, &'static str> {
 }
 
 /// Min and max key of a decoded part must equal the entry's bounds. An empty part has none.
-pub(crate) fn check_keys(decoded: &DecodedStream, key_index: usize, entry: &PartEntry) -> Result<(), &'static str> {
+pub(crate) fn check_keys(
+    decoded: &DecodedStream,
+    key_index: usize,
+    entry: &PartEntry,
+) -> Result<(), &'static str> {
     if decoded.rows == 0 {
-        return if entry.key_lo.is_none() && entry.key_hi.is_none() { Ok(()) } else { Err("part_keys") };
+        return if entry.key_lo.is_none() && entry.key_hi.is_none() {
+            Ok(())
+        } else {
+            Err("part_keys")
+        };
     }
     let mut low = i128::MAX;
     let mut high = i128::MIN;
@@ -391,7 +465,11 @@ pub(crate) fn check_keys(decoded: &DecodedStream, key_index: usize, entry: &Part
 
 /// Read and verify one part file. Size, SHA-256, rows and schema are checked by
 /// `c1_parts::read_part`. The file name must be the canonical name for `kind` and `part_no`.
-pub(crate) fn read_verified(path: &std::path::Path, kind: PartKind, entry: &PartEntry) -> Result<DecodedStream, &'static str> {
+pub(crate) fn read_verified(
+    path: &std::path::Path,
+    kind: PartKind,
+    entry: &PartEntry,
+) -> Result<DecodedStream, &'static str> {
     let name = c1_parts::part_file_name(kind, entry.part_no).map_err(|fault| fault.reason)?;
     if path.file_name().and_then(|file| file.to_str()) != Some(name.as_str()) {
         return Err("part_path");
@@ -409,7 +487,11 @@ pub(crate) async fn copy_into_stage(
 ) -> Result<u64, &'static str> {
     let mut list: Vec<String> = TAG_COLUMNS.iter().map(|tag| (*tag).to_owned()).collect();
     list.extend(columns.iter().map(|column| quote_ident(&column.name)));
-    let statement = format!("COPY _oo.{} ({}) FROM STDIN", quote_ident(stage), list.join(", "));
+    let statement = format!(
+        "COPY _oo.{} ({}) FROM STDIN",
+        quote_ident(stage),
+        list.join(", ")
+    );
     let conn: &mut PgConnection = tx;
     let mut copy = conn.copy_in_raw(&statement).await.map_err(sql_error)?;
     loop {
@@ -500,11 +582,46 @@ mod tests {
     fn decimal_keys_of_unsigned_bigint_round_trip_up_to_u64_max() {
         // F3: `BIGINT UNSIGNED` keys are scale-0 decimals. The maximum must survive.
         let max = i128::from(u64::MAX);
-        assert_eq!(key_value(&NativeCell::Decimal { precision: 20, scale: 0, coefficient: max }), Ok(max));
-        assert_eq!(key_value(&NativeCell::Decimal { precision: 20, scale: 0, coefficient: 0 }), Ok(0));
-        assert_eq!(key_value(&NativeCell::Decimal { precision: 20, scale: 0, coefficient: i128::from(i64::MIN) }), Ok(i128::from(i64::MIN)));
-        assert_eq!(key_value(&NativeCell::Decimal { precision: 20, scale: 0, coefficient: max + 1 }), Err("key_range"));
-        assert_eq!(key_value(&NativeCell::Decimal { precision: 20, scale: 2, coefficient: 5 }), Err("key_type"));
+        assert_eq!(
+            key_value(&NativeCell::Decimal {
+                precision: 20,
+                scale: 0,
+                coefficient: max
+            }),
+            Ok(max)
+        );
+        assert_eq!(
+            key_value(&NativeCell::Decimal {
+                precision: 20,
+                scale: 0,
+                coefficient: 0
+            }),
+            Ok(0)
+        );
+        assert_eq!(
+            key_value(&NativeCell::Decimal {
+                precision: 20,
+                scale: 0,
+                coefficient: i128::from(i64::MIN)
+            }),
+            Ok(i128::from(i64::MIN))
+        );
+        assert_eq!(
+            key_value(&NativeCell::Decimal {
+                precision: 20,
+                scale: 0,
+                coefficient: max + 1
+            }),
+            Err("key_range")
+        );
+        assert_eq!(
+            key_value(&NativeCell::Decimal {
+                precision: 20,
+                scale: 2,
+                coefficient: 5
+            }),
+            Err("key_type")
+        );
         assert_eq!(key_value(&NativeCell::Utf8("1".into())), Err("key_type"));
         // The decimal key text round-trips through the chunk frame and the key bounds.
         assert_eq!(max.to_string(), "18446744073709551615");
@@ -513,19 +630,61 @@ mod tests {
 
     #[test]
     fn integers_are_range_checked_per_target_type() {
-        assert_eq!(render(20, -1, NativeCell::Int { bit_width: 64, value: i64::MIN }), "-9223372036854775808");
-        assert_eq!(render(21, -1, NativeCell::Int { bit_width: 16, value: -32768 }), "-32768");
-        assert_eq!(render(20, -1, NativeCell::UInt64(i64::MAX as u64)), "9223372036854775807");
-        assert_eq!(refused(21, -1, NativeCell::Int { bit_width: 32, value: 32768 }), "int_range");
-        assert_eq!(refused(23, -1, NativeCell::UInt64(u64::from(u32::MAX) + 1)), "int_range");
+        assert_eq!(
+            render(
+                20,
+                -1,
+                NativeCell::Int {
+                    bit_width: 64,
+                    value: i64::MIN
+                }
+            ),
+            "-9223372036854775808"
+        );
+        assert_eq!(
+            render(
+                21,
+                -1,
+                NativeCell::Int {
+                    bit_width: 16,
+                    value: -32768
+                }
+            ),
+            "-32768"
+        );
+        assert_eq!(
+            render(20, -1, NativeCell::UInt64(i64::MAX as u64)),
+            "9223372036854775807"
+        );
+        assert_eq!(
+            refused(
+                21,
+                -1,
+                NativeCell::Int {
+                    bit_width: 32,
+                    value: 32768
+                }
+            ),
+            "int_range"
+        );
+        assert_eq!(
+            refused(23, -1, NativeCell::UInt64(u64::from(u32::MAX) + 1)),
+            "int_range"
+        );
         assert_eq!(refused(20, -1, NativeCell::UInt64(u64::MAX)), "int_range");
     }
 
     #[test]
     fn text_is_escaped_so_copy_keeps_it_one_field() {
-        assert_eq!(render(25, -1, NativeCell::Utf8("a\tb\nc\\d\re".into())), "a\\tb\\nc\\\\d\\re");
+        assert_eq!(
+            render(25, -1, NativeCell::Utf8("a\tb\nc\\d\re".into())),
+            "a\\tb\\nc\\\\d\\re"
+        );
         assert_eq!(render(25, -1, NativeCell::Utf8("\\N".into())), "\\\\N");
-        assert_eq!(render(25, -1, NativeCell::Utf8("héllo 世界".into())), "héllo 世界");
+        assert_eq!(
+            render(25, -1, NativeCell::Utf8("héllo 世界".into())),
+            "héllo 世界"
+        );
     }
 
     #[test]
@@ -539,54 +698,190 @@ mod tests {
     fn decimals_keep_the_column_scale() {
         // numeric(10,2): typmod = ((10 << 16) | 2) + 4
         let typmod = ((10 << 16) | 2) + 4;
-        assert_eq!(render(1700, typmod, NativeCell::Decimal { precision: 10, scale: 2, coefficient: 150 }), "1.50");
-        assert_eq!(render(1700, typmod, NativeCell::Decimal { precision: 10, scale: 2, coefficient: -5 }), "-0.05");
-        assert_eq!(render(1700, typmod, NativeCell::Decimal { precision: 10, scale: 2, coefficient: 0 }), "0.00");
-        assert_eq!(refused(1700, typmod, NativeCell::Decimal { precision: 10, scale: 3, coefficient: 1 }), "precision");
-        assert_eq!(render(1700, -1, NativeCell::Decimal { precision: 38, scale: 0, coefficient: 7 }), "7");
+        assert_eq!(
+            render(
+                1700,
+                typmod,
+                NativeCell::Decimal {
+                    precision: 10,
+                    scale: 2,
+                    coefficient: 150
+                }
+            ),
+            "1.50"
+        );
+        assert_eq!(
+            render(
+                1700,
+                typmod,
+                NativeCell::Decimal {
+                    precision: 10,
+                    scale: 2,
+                    coefficient: -5
+                }
+            ),
+            "-0.05"
+        );
+        assert_eq!(
+            render(
+                1700,
+                typmod,
+                NativeCell::Decimal {
+                    precision: 10,
+                    scale: 2,
+                    coefficient: 0
+                }
+            ),
+            "0.00"
+        );
+        assert_eq!(
+            refused(
+                1700,
+                typmod,
+                NativeCell::Decimal {
+                    precision: 10,
+                    scale: 3,
+                    coefficient: 1
+                }
+            ),
+            "precision"
+        );
+        assert_eq!(
+            render(
+                1700,
+                -1,
+                NativeCell::Decimal {
+                    precision: 38,
+                    scale: 0,
+                    coefficient: 7
+                }
+            ),
+            "7"
+        );
     }
 
     #[test]
     fn floats_round_trip_and_special_values_are_spelled_for_postgres() {
-        assert_eq!(render(701, -1, NativeCell::Float64(1.5f64.to_bits())), "1.5");
-        assert_eq!(render(701, -1, NativeCell::Float64((-0.0f64).to_bits())), "-0.0");
-        assert_eq!(render(701, -1, NativeCell::Float64(f64::NAN.to_bits())), "NaN");
-        assert_eq!(render(701, -1, NativeCell::Float64(f64::INFINITY.to_bits())), "Infinity");
-        assert_eq!(render(701, -1, NativeCell::Float64(f64::NEG_INFINITY.to_bits())), "-Infinity");
+        assert_eq!(
+            render(701, -1, NativeCell::Float64(1.5f64.to_bits())),
+            "1.5"
+        );
+        assert_eq!(
+            render(701, -1, NativeCell::Float64((-0.0f64).to_bits())),
+            "-0.0"
+        );
+        assert_eq!(
+            render(701, -1, NativeCell::Float64(f64::NAN.to_bits())),
+            "NaN"
+        );
+        assert_eq!(
+            render(701, -1, NativeCell::Float64(f64::INFINITY.to_bits())),
+            "Infinity"
+        );
+        assert_eq!(
+            render(701, -1, NativeCell::Float64(f64::NEG_INFINITY.to_bits())),
+            "-Infinity"
+        );
     }
 
     #[test]
     fn bytea_is_hex_behind_an_escaped_backslash() {
-        assert_eq!(render(17, -1, NativeCell::Binary(vec![0, 255, 16])), "\\\\x00ff10");
+        assert_eq!(
+            render(17, -1, NativeCell::Binary(vec![0, 255, 16])),
+            "\\\\x00ff10"
+        );
         assert_eq!(render(17, -1, NativeCell::Binary(Vec::new())), "\\\\x");
     }
 
     #[test]
     fn dates_and_timestamps_are_iso_with_micros() {
         assert_eq!(render(1082, -1, NativeCell::Date32(11_016)), "2000-02-29");
-        assert_eq!(render(1114, -1, NativeCell::TimestampMicros(0)), "1970-01-01 00:00:00.000000");
-        assert_eq!(render(1114, -1, NativeCell::TimestampMicros(-1)), "1969-12-31 23:59:59.999999");
         assert_eq!(
-            render(1184, -1, NativeCell::TimestampMicrosUtc { value: 946_684_800_123_456, timezone: "UTC".into() }),
+            render(1114, -1, NativeCell::TimestampMicros(0)),
+            "1970-01-01 00:00:00.000000"
+        );
+        assert_eq!(
+            render(1114, -1, NativeCell::TimestampMicros(-1)),
+            "1969-12-31 23:59:59.999999"
+        );
+        assert_eq!(
+            render(
+                1184,
+                -1,
+                NativeCell::TimestampMicrosUtc {
+                    value: 946_684_800_123_456,
+                    timezone: "UTC".into()
+                }
+            ),
             "2000-01-01 00:00:00.123456+00"
         );
-        assert_eq!(refused(1184, -1, NativeCell::TimestampMicrosUtc { value: 0, timezone: "Asia/Tokyo".into() }), "cell_type");
+        assert_eq!(
+            refused(
+                1184,
+                -1,
+                NativeCell::TimestampMicrosUtc {
+                    value: 0,
+                    timezone: "Asia/Tokyo".into()
+                }
+            ),
+            "cell_type"
+        );
     }
 
     #[test]
     fn duration_micros_uses_exact_signed_interval_text() {
-        for value in [0, 1, -1, 90_000_000_001, -90_000_000_001, i64::MIN, i64::MAX] {
-            assert_eq!(render(1186, -1, NativeCell::Int { bit_width: 64, value }),
-                format!("{value} microseconds"));
+        for value in [
+            0,
+            1,
+            -1,
+            90_000_000_001,
+            -90_000_000_001,
+            i64::MIN,
+            i64::MAX,
+        ] {
+            assert_eq!(
+                render(
+                    1186,
+                    -1,
+                    NativeCell::Int {
+                        bit_width: 64,
+                        value
+                    }
+                ),
+                format!("{value} microseconds")
+            );
         }
-        assert_eq!(refused(1186, -1, NativeCell::Int { bit_width: 32, value: 1 }), "cell_type");
+        assert_eq!(
+            refused(
+                1186,
+                -1,
+                NativeCell::Int {
+                    bit_width: 32,
+                    value: 1
+                }
+            ),
+            "cell_type"
+        );
     }
 
     #[test]
     fn a_cell_of_the_wrong_kind_is_refused_not_converted() {
         assert_eq!(refused(20, -1, NativeCell::Utf8("12".into())), "cell_type");
-        assert_eq!(refused(25, -1, NativeCell::Int { bit_width: 64, value: 12 }), "cell_type");
+        assert_eq!(
+            refused(
+                25,
+                -1,
+                NativeCell::Int {
+                    bit_width: 64,
+                    value: 12
+                }
+            ),
+            "cell_type"
+        );
         assert_eq!(refused(17, -1, NativeCell::Utf8("abc".into())), "cell_type");
-        assert_eq!(refused(1082, -1, NativeCell::Date32(3_000_000)), "date_range");
+        assert_eq!(
+            refused(1082, -1, NativeCell::Date32(3_000_000)),
+            "date_range"
+        );
     }
 }

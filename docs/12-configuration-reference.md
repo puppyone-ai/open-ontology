@@ -40,9 +40,8 @@ object_store:
 buffer:
   backend: valkey-streams       # valkey-streams | kafka
 agentdb:
-  deployment_mode: primary_replica   # primary_replica | all_in_one（仅测试/PoC，见 ADR-021；待实现）
   primary: { host: agentdb-primary, port: 5432 }
-  replicas: [{ host: agentdb-replica, port: 5432 }]   # all_in_one 时为空
+  replicas: [{ host: agentdb-replica, port: 5432 }]
 quality:
   reconcile_max_age: 3d          # 超过则 RECONCILE_STALE
   rejects_alert: { per_table_daily: 1000, ratio: 0.001 }
@@ -55,7 +54,6 @@ llm_for_builder:                # Ontology Builder 使用的模型（与 Agent �
   provider: openai-compatible
   base_url: https://llm.internal/v1
   model: <model-id>
-  allowed_models: [<model-id>]  # 已安装的模型白名单；项目配置的模型不在其中即拒绝（待实现：当前 selfbuild-control-api 仍写死白名单）
   credential: secret://builder_llm
 ```
 
@@ -86,10 +84,6 @@ llm_for_builder:                # Ontology Builder 使用的模型（与 Agent �
 | `sample_values` | `none`\|`masked`\|`raw` | `masked` | 发给 Builder 模型的样本值策略 |
 | `hooks` | 列表 | `[]` | `on_batch` hook 名 |
 | `allow_write_capable_credential` | bool | `false` | 危险：显式允许有写权限的账号（记录审计） |
-| `source_audit_policy` | `source_audit`\|`grant_enforced` | `source_audit` | 零写证据来源；`grant_enforced` 只能由已安装配置设置，需采集配置同时声明；当前实现位于已安装的来源/准入配置，见 [ADR-017](02-technology-stack.md) |
-| `source_transport` | `{tls, plaintext_authorized}` | `{tls: required}` | `tls: disabled` 仅全量/C5 路径、源端实测无 TLS 时可用，见 [ADR-018](02-technology-stack.md) |
-| `c5_mode` | `full`\|`layered` | `full` | `layered` 即 C5+（表级提示、近窗口、分块摘要、定期全读），提议中，待实现，仅显式配置，见 [ADR-019](02-technology-stack.md) |
-| `chunk_key_order` | `binary`\|`hash`\|`read_keys`\|`source_collation` | `binary` | `source_collation` 提议中，待实现，见 [ADR-020](02-technology-stack.md) 与 [database-support/05 §3](database-support/05-conformance-and-evidence.md) |
 
 ## 4. `files/*.yaml`
 
@@ -224,53 +218,3 @@ items_file: eval/suites/customer-core.items.jsonl
 ```
 
 题目格式见 [13 §4](13-evaluation-and-benchmarks.md)。
-
-## 9. 整库运行与成本守卫
-
-使用 [source-onboarding 来源工具](../tools/source-onboarding/SOURCE-LAYOUT.md)：离线 preflight/plan 后审阅布局，再将私有连接与 release pins 绑定到已有 recipe。scheduler 接受 concurrency（默认 2）、stagger_seconds（默认 10）、provision_timeout、table_timeout；等待 provision 命令 ready 才采集。不是新的 Loader/发布系统。
-
-可选 cost_guard 配置 metrics_file、max_egress_bytes、min_balance、max_age_seconds（默认 60）。部署方原子更新 observed_at（Unix 秒）、egress_bytes（本轮累计计费出口）、balance（同一货币余额）。缺失/陈旧/非法指标或达到阈值暂停并停止自有进程组，退出 75，summary.json 列出未完成；补预算后 --retry-failed 指向旧 summary，并使用新输出目录。守卫不自动充值；未配置不声称受保护。
-
-可选 tunnel 为前台 argv、probe、max_attempts、backoff_seconds、ready_timeout；仅探测成功才启动新工作，断线有界重连。生产 SSH 保持 host-key 验证与 keepalive；已有远端进程取消仍由其所属协议负责。路径源库→云中转→本机的云出口往往计费，采集+独立对账至少两读；优先同地域部署。费率/免费额度不是产品常量，详见 [现场手册 H/L](database-support/06-real-source-field-notes.md)。
-
-## 10. Library 配置、发布与 adopt
-
-入口 `python3 tools/source-onboarding/library.py plan|import|status|publish|adopt`；
-不是新增 oo.yaml 安装字段。完整示例见
-[来源工具](../tools/source-onboarding/SOURCE-LAYOUT.md)。
-
-| 配置 | 默认 | 范围 / 含义 |
-|---|---|---|
-| library_id | 必填 | 非空库身份，纳入确定性 source UUID |
-| split | prefix | prefix / domain / explicit / size（精确行数平衡） |
-| table_cap | 16 | 1–4096；仅规划，不解除单来源发布 cap 32 |
-| concurrency | 2 | 1–32 |
-| stagger_seconds | 10 | 有限非负秒 |
-| exclude_reason | 无 | 显式排除原因；不算 imported |
-| upgrade_condition | inventory review | 解除排除条件 |
-| library SQL max_shards / max_tables | 64 / 4096 | 安装侧 `_oo.configure_native_library_limits(integer,integer)`；正整数 |
-| coordinator visibility limits.max_datasets | 256 | 显式正整数，可到 1048576；Builder/Pack 独立预算仍须通过 |
-| operator config / coordinator stdin | 8 MiB | 有界载入库向量；Control API operator JSON 最多 524288 nodes；普通 API 请求预算不变 |
-| publish/adopt --prepare-only | false | 目标事务预检后回滚，不发布 |
-| publish/adopt --recover | false | 仅同一 active candidate/相同库绑定全库恢复 |
-
-import 私有 binding 沿用 §9 调度器。publish/adopt 私有 binding 包含 pipeline/coordinator
-二进制绝对路径和 SHA-256、target（密码/CA 文件引用）、release_config、activation
-（已 staged candidate/source_hash、expected_version、逻辑 anchor、role）。无裸密码；
-不会自动审核或绕过 Pack gate。单来源旧协议保持不变。
-
-主从 coordinator CLI 安装配置可带 replica_pg（host/port/database/user/password_file/
-ca_file），user 必须 oo_target_admin，database 必须同目标；all_in_one 带 replica
-拒绝。API 也使用 replica_pg。ready/freshness 字段见 [07](07-gateway.md)。
-
-status --result 汇总 runner；status --binding 验证数据库当前向量和库 head，不能同时
-使用。完整 planning manifest 才能计入未发布的排除项；membership 统计仅覆盖成员。
-
-
-## 库级控制面整合（INT）
-
-库级项目、全局 facts/分批 S5、逐对象审核、一个角色 Pack、库级原子发布和单 Gateway
-接入见 [ADR-030](adr/ADR-030-library-control-worker-and-gateway.md)。库级安装预算不授予
-数据权限；Gateway 保留只读登录、当前导入向量/库 head/fence 校验和原 SQL 子集。
-健康库每表给出 target_observations，但源时间/共同源位点未测量仍为 unmeasured，
-不把 all-in-one 主库称为只读副本。真实库覆盖及评测以独立执行证据为准。

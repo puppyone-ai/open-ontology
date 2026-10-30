@@ -7,11 +7,10 @@ use std::time::{Duration, Instant};
 
 use arrow_array::{Array, Int32Array, RecordBatch, StringArray};
 use oo_connectors::{
-    config_identity, type_policy_identity, AdmittedCatalog, AdmittedColumn, AdmittedTable,
-    DeclaredKeyKind, KeyRange, PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig,
+    AdmittedCatalog, AdmittedColumn, AdmittedTable, CLEANUP_OBSERVATION_BOUND_MS, DeclaredKeyKind,
+    KEY_PLAN_PROTOCOL, KeyRange, PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig,
     PlannedChunk, ProbeValue, SecretRef, SelectedTable, SnapshotOwner, SnapshotRequest, SourceId,
-    StreamBudget, StreamItem, TableKeyPlan, TableSelection, CLEANUP_OBSERVATION_BOUND_MS,
-    KEY_PLAN_PROTOCOL,
+    StreamBudget, StreamItem, TableKeyPlan, TableSelection, config_identity, type_policy_identity,
 };
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
@@ -80,16 +79,18 @@ async fn typed_key_plan_live() {
     assert_eq!(sparse.row_count, Some(6));
     assert_eq!(sparse.stride, Some(2));
     assert_primary(sparse, &["id"]);
-    assert_eq!(
-        sparse.chunks[0].lower,
-        Some(vec![ProbeValue::Int8(-40)])
-    );
+    assert_eq!(sparse.chunks[0].lower, Some(vec![ProbeValue::Int8(-40)]));
     assert_eq!(sparse.chunks[0].upper, Some(vec![ProbeValue::Int8(0)]));
     assert_eq!(sparse.chunks[1].lower, Some(vec![ProbeValue::Int8(0)]));
     assert_eq!(sparse.chunks[1].upper, Some(vec![ProbeValue::Int8(10)]));
     assert_eq!(sparse.chunks[2].lower, Some(vec![ProbeValue::Int8(10)]));
     assert_eq!(sparse.chunks[2].upper, None);
-    assert!(sparse.chunks.iter().all(|chunk| chunk.keyed && !chunk.resumable));
+    assert!(
+        sparse
+            .chunks
+            .iter()
+            .all(|chunk| chunk.keyed && !chunk.resumable)
+    );
     let sparse_rows = world.drain_chunks(&mut owner, &sparse.chunks[..1]).await;
     assert_eq!(sparse_rows.ids, vec![-40, -1]);
     world.note("sparse_chunk0_matches_cut".to_string());
@@ -97,7 +98,13 @@ async fn typed_key_plan_live() {
     world.write_late().await;
     let rest = world.drain_chunks(&mut owner, &sparse.chunks[1..]).await;
     assert_eq!(rest.ids, vec![0, 3, 10, 100]);
-    assert!(sparse_rows.ids.iter().chain(rest.ids.iter()).eq(before.iter()));
+    assert!(
+        sparse_rows
+            .ids
+            .iter()
+            .chain(rest.ids.iter())
+            .eq(before.iter())
+    );
     assert!(!sparse_rows.batch_resumable && !sparse_rows.resumable_key);
     assert!(!rest.batch_resumable && !rest.resumable_key);
 
@@ -112,7 +119,10 @@ async fn typed_key_plan_live() {
         .iter()
         .find(|column| column.name == "word")
         .expect("word column");
-    assert_eq!(word_plan.collation_name.as_deref(), Some(world.collation.as_str()));
+    assert_eq!(
+        word_plan.collation_name.as_deref(),
+        Some(world.collation.as_str())
+    );
     let got_words = world.drain_chunks(&mut owner, &words.chunks).await;
     assert_eq!(got_words.text, words_pg);
 
@@ -126,11 +136,18 @@ async fn typed_key_plan_live() {
     let declared = uniq.declared.as_ref().expect("unique key");
     assert_eq!(declared.kind, DeclaredKeyKind::Unique);
     assert_eq!(
-        declared.columns.iter().map(|column| column.name.as_str()).collect::<Vec<_>>(),
+        declared
+            .columns
+            .iter()
+            .map(|column| column.name.as_str())
+            .collect::<Vec<_>>(),
         vec!["code"]
     );
     let got_codes = world.drain_chunks(&mut owner, &uniq.chunks).await;
-    assert_eq!(got_codes.text, world.ordered_text("uniq", "code", None).await);
+    assert_eq!(
+        got_codes.text,
+        world.ordered_text("uniq", "code", None).await
+    );
 
     let nokey = &plan.tables[4];
     assert!(nokey.declared.is_none());
@@ -185,7 +202,10 @@ async fn typed_key_plan_live() {
     world.wait_clear().await;
 
     let mut plain = world.open(&["nokey"]).await;
-    plain.open_stream(world.budget()).await.expect("nokey stream");
+    plain
+        .open_stream(world.budget())
+        .await
+        .expect("nokey stream");
     let nokey_rows = world.drain(&mut plain).await;
     let mut payloads = nokey_rows.ids;
     payloads.sort();
@@ -218,7 +238,14 @@ impl World {
         let writer_pass = read_pass(&pointer.password_dir, "writer.pass");
         let super_pass = read_pass(&pointer.password_dir, "super.pass");
         let ca = fs::read(&pointer.ca_file).expect("ca");
-        let mut admin = dial(&pointer, &pointer.super_user, &super_pass, &ca, "oo-fixture-admin").await;
+        let mut admin = dial(
+            &pointer,
+            &pointer.super_user,
+            &super_pass,
+            &ca,
+            "oo-fixture-admin",
+        )
+        .await;
         let (postmaster, in_recovery) = node_of(&mut admin).await;
         let outcome_path = std::env::var("OO_PG_KEYS_OUTCOME").ok();
         Self {
@@ -319,7 +346,12 @@ impl World {
         rows.iter().map(|row| row.try_get(0).expect("id")).collect()
     }
 
-    async fn ordered_text(&mut self, table: &str, column: &str, collate: Option<&str>) -> Vec<String> {
+    async fn ordered_text(
+        &mut self,
+        table: &str,
+        column: &str,
+        collate: Option<&str>,
+    ) -> Vec<String> {
         let sql = match collate {
             Some(name) => format!(
                 "SELECT {column} FROM r3k.{table} ORDER BY {column} COLLATE {collate}",
@@ -337,7 +369,9 @@ impl World {
             .fetch_all(&mut self.admin)
             .await
             .expect("text oracle");
-        rows.iter().map(|row| row.try_get(0).expect("text")).collect()
+        rows.iter()
+            .map(|row| row.try_get(0).expect("text"))
+            .collect()
     }
 
     async fn combo_pairs(&mut self) -> Vec<(String, i32)> {
@@ -391,8 +425,14 @@ impl World {
     fn config(&self, names: &[&str]) -> PgSourceConfig {
         PgSourceConfig::try_new(
             SourceId::new(SOURCE).expect("source"),
-            PgEndpoint::new(&self.pointer.host, self.pointer.port, &self.pointer.database).expect("endpoint"),
-            PgCredentials::new(&self.pointer.reader_user, self.reader_pass.as_str()).expect("credentials"),
+            PgEndpoint::new(
+                &self.pointer.host,
+                self.pointer.port,
+                &self.pointer.database,
+            )
+            .expect("endpoint"),
+            PgCredentials::new(&self.pointer.reader_user, self.reader_pass.as_str())
+                .expect("credentials"),
             SecretRef::new("secret://pg/keys/reader").expect("secret"),
             PgTlsConfig::from_ca_pem(&self.ca).expect("tls"),
             PgBudget::new(
@@ -414,10 +454,17 @@ impl World {
         .expect("config")
     }
 
-    async fn drain_chunks(&mut self, owner: &mut SnapshotOwner, chunks: &[PlannedChunk]) -> Drained {
+    async fn drain_chunks(
+        &mut self,
+        owner: &mut SnapshotOwner,
+        chunks: &[PlannedChunk],
+    ) -> Drained {
         let mut out = Drained::default();
         for chunk in chunks {
-            owner.open_chunk(chunk, self.budget()).await.expect("open chunk");
+            owner
+                .open_chunk(chunk, self.budget())
+                .await
+                .expect("open chunk");
             let drained = self.drain(owner).await;
             out.ids.extend(drained.ids);
             out.text.extend(drained.text);
@@ -456,7 +503,10 @@ impl World {
                 return;
             }
             if began.elapsed() > bound {
-                panic!("reader backends still present after {}ms: {left:?}", bound.as_millis());
+                panic!(
+                    "reader backends still present after {}ms: {left:?}",
+                    bound.as_millis()
+                );
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
@@ -464,7 +514,11 @@ impl World {
 
     fn audit(&mut self) {
         let raw = fs::read_to_string(&self.pointer.log_file).expect("postgres log");
-        for secret in [self.reader_pass.as_str(), self.writer_pass.as_str(), self.super_pass.as_str()] {
+        for secret in [
+            self.reader_pass.as_str(),
+            self.writer_pass.as_str(),
+            self.super_pass.as_str(),
+        ] {
             if !secret.is_empty() && raw.contains(secret) {
                 panic!("postgres log contains a closed string");
             }
@@ -480,14 +534,20 @@ impl World {
             {
                 writer_writes += 1;
             }
-            if !line.contains("app=oo-pg-source") || !line.contains(&format!("user={}", self.pointer.reader_user)) {
+            if !line.contains("app=oo-pg-source")
+                || !line.contains(&format!("user={}", self.pointer.reader_user))
+            {
                 continue;
             }
             let Some(sql) = statement_sql(line) else {
                 continue;
             };
             oo_statements += 1;
-            let verb = sql.split_whitespace().next().unwrap_or("").to_ascii_uppercase();
+            let verb = sql
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .to_ascii_uppercase();
             if matches!(verb.as_str(), "START" | "BEGIN") {
                 saw_start = true;
             }
@@ -523,7 +583,11 @@ fn assert_primary(plan: &TableKeyPlan, names: &[&str]) {
     let declared = plan.declared.as_ref().expect("declared key");
     assert_eq!(declared.kind, DeclaredKeyKind::Primary);
     assert_eq!(
-        declared.columns.iter().map(|column| column.name.as_str()).collect::<Vec<_>>(),
+        declared
+            .columns
+            .iter()
+            .map(|column| column.name.as_str())
+            .collect::<Vec<_>>(),
         names
     );
 }
@@ -611,13 +675,17 @@ async fn sample_order(admin: &mut PgConnection, collation: &str) -> Vec<String> 
         .fetch_all(&mut *admin)
         .await
         .expect("sample order");
-    rows.iter().map(|row| row.try_get(0).expect("word")).collect()
+    rows.iter()
+        .map(|row| row.try_get(0).expect("word"))
+        .collect()
 }
 
 fn safe_collation(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 64
-        && name.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' || ch == '.')
+        && name
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' || ch == '.')
 }
 
 fn quote_ident(name: &str) -> String {
@@ -680,7 +748,10 @@ async fn node_of(admin: &mut PgConnection) -> (String, bool) {
     .fetch_one(&mut *admin)
     .await
     .expect("node");
-    (row.try_get(0).expect("postmaster"), row.try_get(1).expect("recovery"))
+    (
+        row.try_get(0).expect("postmaster"),
+        row.try_get(1).expect("recovery"),
+    )
 }
 
 async fn oo_backends(admin: &mut PgConnection, user: &str) -> Vec<(i64, String)> {
@@ -707,7 +778,11 @@ async fn dial(pointer: &Pointer, user: &str, password: &str, ca: &[u8], app: &st
         .application_name(app)
         .ssl_mode(PgSslMode::VerifyFull)
         .ssl_root_cert_from_pem(ca.to_vec());
-    options.disable_statement_logging().connect().await.expect("dial")
+    options
+        .disable_statement_logging()
+        .connect()
+        .await
+        .expect("dial")
 }
 
 fn read_pass(dir: &str, name: &str) -> Zeroizing<String> {

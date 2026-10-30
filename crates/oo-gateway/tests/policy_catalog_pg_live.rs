@@ -382,10 +382,7 @@ impl Live {
         assert_eq!(clerk.functions[0].name, AGGREGATE_STAR_NAME);
         assert!(clerk.functions[0].argument_type_oids.is_empty());
         assert!(clerk.functions[0].aggregate_star);
-        assert_eq!(
-            clerk.operators.len(),
-            required_operator_count()
-        );
+        assert_eq!(clerk.operators.len(), required_operator_count());
         self.assert_type_oids(&clerk).await;
         self.assert_operator_oids(&clerk).await;
         self.assert_count_oid(&clerk).await;
@@ -953,7 +950,14 @@ impl Live {
                 .expect("right type")
                 .clone();
             let looked = self.operator_oids(&operator.name, &left, &right).await;
-            assert_eq!(looked, (operator.oid, operator.procedure_oid, operator.result_type_oid));
+            assert_eq!(
+                looked,
+                (
+                    operator.oid,
+                    operator.procedure_oid,
+                    operator.result_type_oid
+                )
+            );
             assert_eq!(operator.schema, "pg_catalog");
             if left == "date" && right == "date" {
                 assert_ne!(operator.oid, operator.procedure_oid);
@@ -962,11 +966,15 @@ impl Live {
         }
         for (left, right, result) in ARITHMETIC_SIGNATURES {
             for name in ARITHMETIC_OPERATORS {
-                let operator = catalog.operators.iter().find(|operator| {
-                    operator.name == *name
-                        && names[&operator.left_type_oid] == *left
-                        && names[&operator.right_type_oid] == *right
-                }).expect("arithmetic signature");
+                let operator = catalog
+                    .operators
+                    .iter()
+                    .find(|operator| {
+                        operator.name == *name
+                            && names[&operator.left_type_oid] == *left
+                            && names[&operator.right_type_oid] == *right
+                    })
+                    .expect("arithmetic signature");
                 assert_eq!(names[&operator.result_type_oid], *result);
             }
         }
@@ -1080,7 +1088,11 @@ impl Live {
             .await
             .expect("operator oid");
         assert_eq!(rows.len(), 1, "operator {name} {left} {right}");
-        (oid_u32(rows[0].get(0)), oid_u32(rows[0].get(1)), oid_u32(rows[0].get(2)))
+        (
+            oid_u32(rows[0].get(0)),
+            oid_u32(rows[0].get(1)),
+            oid_u32(rows[0].get(2)),
+        )
     }
 
     async fn count_star_oid(&self) -> u32 {
@@ -1247,8 +1259,7 @@ fn limits(unknown_rows: UnknownRows) -> CatalogLimits {
         max_tables: 4,
         max_columns: 64,
         max_functions: 1,
-        max_operators: u32::try_from(required_operator_count())
-            .expect("operator count"),
+        max_operators: u32::try_from(required_operator_count()).expect("operator count"),
         large_table_row_threshold: 1_000_000,
         unknown_rows,
     }

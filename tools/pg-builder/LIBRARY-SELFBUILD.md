@@ -62,9 +62,8 @@ review evidence. No meaning is certified from overlap alone.
 ## Declared dictionary adapter
 
 An optional `declared_enum_adapter` object supplies `controls`, `headers` and
-`dictionary` datasets and column-role maps; see the project example
-`../../../config/declared-enum-adapter.json`. These names are configuration,
-not a hardcoded YuJia schema in the product. The selected inventory must include
+`dictionary` datasets and column-role maps supplied through project configuration.
+The adapter resolves configured names for each source schema. The selected inventory must include
 the three metadata datasets and intended target datasets. Column roles resolve
 through `source_name`, including connector-encoded names such as `refEnum`.
 

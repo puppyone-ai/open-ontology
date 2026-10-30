@@ -1306,9 +1306,9 @@ fn check_binding(binding: &BindingIn, sealed: &Sealed) -> Result<(), Description
 fn valid_model_id(value: &str) -> bool {
     let bytes = value.as_bytes();
     (1..=128).contains(&bytes.len())
-        && bytes
-            .iter()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'+' | b'-' | b'/'))
+        && bytes.iter().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'+' | b'-' | b'/')
+        })
 }
 
 fn bind_selection(

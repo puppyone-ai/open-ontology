@@ -64,17 +64,25 @@ fn query_cell_preserves_long_text_within_the_document_budget() {
     assert!(serde_json::from_str::<QueryCell>(&serde_json::to_string(&over).unwrap()).is_err());
     assert!(serde_json::from_str::<QueryCell>(r#""bad\u0000cell""#).is_err());
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../contracts/fixtures/api/query-response.json");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../contracts/fixtures/api/query-response.json"
+    );
     let mut response: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
     response["rows"][0][0] = serde_json::json!(ok);
     let encoded = response.to_string();
-    let parsed = oo_core::api::parse_api_json::<oo_core::api::QueryResponse>(&encoded, |_| Vec::new())
-        .expect("long text passes the same schema door as the Gateway and SDK");
+    let parsed =
+        oo_core::api::parse_api_json::<oo_core::api::QueryResponse>(&encoded, |_| Vec::new())
+            .expect("long text passes the same schema door as the Gateway and SDK");
     assert_eq!(parsed.rows[0][0], QueryCell::Text(ok));
     response["rows"][0][0] = serde_json::json!(over);
-    assert!(oo_core::api::parse_api_json::<oo_core::api::QueryResponse>(
-        &response.to_string(), |_| Vec::new()).is_err());
+    assert!(
+        oo_core::api::parse_api_json::<oo_core::api::QueryResponse>(&response.to_string(), |_| {
+            Vec::new()
+        })
+        .is_err()
+    );
 }
 
 #[test]

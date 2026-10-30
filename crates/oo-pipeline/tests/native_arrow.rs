@@ -5,11 +5,10 @@
 use std::path::{Path, PathBuf};
 
 use oo_pipeline::native_arrow::{
-    arrow_sha256, copy_digest, decode_arrow_stream, plan_with_operator, ArrowFault, CopyColumnDecl,
-    NativeCell, OperatorEnv, ADMISSION_BIN_SHA256, ADMISSION_BIN_SHA256_3C55,
-    ADMISSION_BIN_SHA256_E465, IMPORT_PROTOCOL,
-    MYSQL_MANIFEST_PROTOCOL, approved_admission_bin,
-    ORACLE_P2_BATCH_SHA256, RESULT_PROTOCOL, SEMANTIC_CATALOG_PROTOCOL,
+    ADMISSION_BIN_SHA256, ADMISSION_BIN_SHA256_3C55, ADMISSION_BIN_SHA256_E465, ArrowFault,
+    CopyColumnDecl, IMPORT_PROTOCOL, MYSQL_MANIFEST_PROTOCOL, NativeCell, ORACLE_P2_BATCH_SHA256,
+    OperatorEnv, RESULT_PROTOCOL, SEMANTIC_CATALOG_PROTOCOL, approved_admission_bin, arrow_sha256,
+    copy_digest, decode_arrow_stream, plan_with_operator,
 };
 
 fn plan_closed(document: &Value) -> oo_pipeline::native_arrow::Plan {
@@ -31,10 +30,11 @@ fn plan_fixed(
         },
     )
 }
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 fn fixture() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/native/oracle-p2-scn2175138.arrow")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/native/oracle-p2-scn2175138.arrow")
 }
 
 fn receipt_path() -> PathBuf {
@@ -161,12 +161,19 @@ fn oracle_stream_decodes_five_rows() {
     assert_eq!(stream.fields[5].arrow_type, "utf8");
     assert_eq!(stream.fields[6].arrow_type, "binary");
 
-    let ids: Vec<i64> = stream.columns[0].iter().map(|cell| int_cell(cell).1).collect();
+    let ids: Vec<i64> = stream.columns[0]
+        .iter()
+        .map(|cell| int_cell(cell).1)
+        .collect();
     assert_eq!(ids, vec![41, 42, 43, 44, 45]);
     assert!(stream.columns[0].iter().all(|cell| int_cell(cell).0 == 16));
 
     match &stream.columns[1][0] {
-        NativeCell::Decimal { precision, scale, coefficient } => {
+        NativeCell::Decimal {
+            precision,
+            scale,
+            coefficient,
+        } => {
             assert_eq!(*precision, 16);
             assert_eq!(*scale, 6);
             assert_eq!(*coefficient, 3_141_592_653_589_793);
@@ -174,7 +181,9 @@ fn oracle_stream_decodes_five_rows() {
         other => panic!("{other:?}"),
     }
     match &stream.columns[1][1] {
-        NativeCell::Decimal { scale, coefficient, .. } => {
+        NativeCell::Decimal {
+            scale, coefficient, ..
+        } => {
             assert_eq!(*scale, 6);
             assert_eq!(*coefficient, -1);
         }
@@ -186,7 +195,9 @@ fn oracle_stream_decodes_five_rows() {
         other => panic!("{other:?}"),
     }
     match &stream.columns[1][4] {
-        NativeCell::Decimal { coefficient, scale, .. } => {
+        NativeCell::Decimal {
+            coefficient, scale, ..
+        } => {
             assert_eq!(*coefficient, 0);
             assert_eq!(*scale, 6);
         }
@@ -221,25 +232,54 @@ fn oracle_stream_decodes_five_rows() {
     assert_eq!(stream.columns[5][2], NativeCell::Null);
     assert_eq!(utf8(&stream.columns[5][3]), " ");
     assert_eq!(utf8(&stream.columns[5][4]), "x");
-    assert_eq!(stream.columns[6][0], NativeCell::Binary(vec![0x00, 0x01, 0xff, 0x00]));
+    assert_eq!(
+        stream.columns[6][0],
+        NativeCell::Binary(vec![0x00, 0x01, 0xff, 0x00])
+    );
     assert_eq!(stream.columns[6][1], NativeCell::Null);
     assert_eq!(stream.columns[6][2], NativeCell::Binary(vec![0x00]));
-    assert_eq!(stream.columns[6][3], NativeCell::Binary(vec![0xde, 0xad, 0x00, 0xbe]));
-    assert_eq!(stream.columns[6][4], NativeCell::Binary(vec![0x00, 0x00, 0x00, 0x00]));
+    assert_eq!(
+        stream.columns[6][3],
+        NativeCell::Binary(vec![0xde, 0xad, 0x00, 0xbe])
+    );
+    assert_eq!(
+        stream.columns[6][4],
+        NativeCell::Binary(vec![0x00, 0x00, 0x00, 0x00])
+    );
 }
 
 #[test]
 fn copy_digest_is_deterministic() {
     let bytes = std::fs::read(fixture()).expect("arrow");
-    let first = copy_digest(&bytes, "oracle_p2", "oo04_fix", "t_batch", 1, &oracle_columns()).expect("copy");
-    let second = copy_digest(&bytes, "oracle_p2", "oo04_fix", "t_batch", 1, &oracle_columns()).expect("copy");
+    let first = copy_digest(
+        &bytes,
+        "oracle_p2",
+        "oo04_fix",
+        "t_batch",
+        1,
+        &oracle_columns(),
+    )
+    .expect("copy");
+    let second = copy_digest(
+        &bytes,
+        "oracle_p2",
+        "oo04_fix",
+        "t_batch",
+        1,
+        &oracle_columns(),
+    )
+    .expect("copy");
     assert_eq!(first, second);
     assert_eq!(
         first,
         "ab6e9bbec7a41944e96295d2027eff885d816e7131b11af170328a46de432124"
     );
     assert_eq!(first.len(), 64);
-    assert!(first.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()));
+    assert!(
+        first
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    );
 }
 
 #[test]
@@ -247,13 +287,17 @@ fn wrong_scale_is_precision() {
     let bytes = std::fs::read(fixture()).expect("arrow");
     let mut columns = oracle_columns();
     columns[1].scale = Some(5);
-    let err = copy_digest(&bytes, "oracle_p2", "oo04_fix", "t_batch", 1, &columns).expect_err("scale");
+    let err =
+        copy_digest(&bytes, "oracle_p2", "oo04_fix", "t_batch", 1, &columns).expect_err("scale");
     assert_eq!(err, ArrowFault::Precision);
 }
 
 #[test]
 fn truncated_and_empty_streams_fail_closed() {
-    assert_eq!(decode_arrow_stream(&[]).expect_err("empty"), ArrowFault::Empty);
+    assert_eq!(
+        decode_arrow_stream(&[]).expect_err("empty"),
+        ArrowFault::Empty
+    );
     let bytes = std::fs::read(fixture()).expect("arrow");
     assert_eq!(
         decode_arrow_stream(&bytes[..bytes.len() - 1]).expect_err("cut"),
@@ -261,7 +305,10 @@ fn truncated_and_empty_streams_fail_closed() {
     );
     let mut extra = bytes.clone();
     extra.push(0);
-    assert_eq!(decode_arrow_stream(&extra).expect_err("tail"), ArrowFault::Truncated);
+    assert_eq!(
+        decode_arrow_stream(&extra).expect_err("tail"),
+        ArrowFault::Truncated
+    );
 }
 
 #[test]
@@ -285,7 +332,12 @@ fn mysql_manifest_stays_on_its_entrypoint() {
     let plan = plan_closed(&document);
     assert!(!plan.loader_ready());
     assert_closed(&plan.result, "mysql_entrypoint");
-    assert!(!plan.result.to_string().contains("the manifest protocol is not the sealed import manifest"));
+    assert!(
+        !plan
+            .result
+            .to_string()
+            .contains("the manifest protocol is not the sealed import manifest")
+    );
 }
 
 #[test]
@@ -351,7 +403,10 @@ fn clickhouse_admission_does_not_cover_the_oracle_batch() {
     let plan = plan_closed(&document);
     assert!(!plan.loader_ready());
     assert_closed(&plan.result, "digest_mismatch");
-    assert_eq!(plan.result["admission"]["admitted_source_id"], "clickhouse_268");
+    assert_eq!(
+        plan.result["admission"]["admitted_source_id"],
+        "clickhouse_268"
+    );
     assert_eq!(plan.result["admission"]["batch_digests_bound"], false);
 }
 
@@ -375,28 +430,64 @@ fn synthetic_decision_is_not_admitted() {
 }
 
 fn clickhouse_fixture() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/native/clickhouse-attempt06.arrow")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/native/clickhouse-attempt06.arrow")
 }
 
 fn clickhouse_columns() -> Vec<CopyColumnDecl> {
     vec![
-        column("reading_id", "reading_id", "uint64", false, Some(64), None, None),
+        column(
+            "reading_id",
+            "reading_id",
+            "uint64",
+            false,
+            Some(64),
+            None,
+            None,
+        ),
         column("version", "version", "uint64", false, Some(64), None, None),
-        column("amount", "amount", "decimal256", false, Some(76), Some(10), None),
+        column(
+            "amount",
+            "amount",
+            "decimal256",
+            false,
+            Some(76),
+            Some(10),
+            None,
+        ),
         column("note", "note", "binary", true, None, None, None),
         column("code", "code", "dictionary_binary", false, None, None, None),
-        column("code_or_null", "code_or_null", "dictionary_binary", true, None, None, None),
+        column(
+            "code_or_null",
+            "code_or_null",
+            "dictionary_binary",
+            true,
+            None,
+            None,
+            None,
+        ),
         column("ts", "ts", "timestamp_nanos_utc", false, None, None, None),
         column("tags", "tags", "list_int64", false, None, None, None),
         column("labels", "labels", "list_binary", false, None, None, None),
         column("qty", "qty", "int64", false, Some(64), None, None),
         column("label", "label", "binary", false, None, None, None),
-        column("wide_u64", "wide_u64", "uint64", false, Some(64), None, None),
+        column(
+            "wide_u64",
+            "wide_u64",
+            "uint64",
+            false,
+            Some(64),
+            None,
+            None,
+        ),
     ]
 }
 
 fn plain_decimal256(cell: &NativeCell) -> String {
-    let NativeCell::Decimal256 { scale, coefficient, .. } = cell else {
+    let NativeCell::Decimal256 {
+        scale, coefficient, ..
+    } = cell
+    else {
         panic!("expected decimal256");
     };
     let negative = coefficient[31] & 0x80 != 0;
@@ -434,7 +525,11 @@ fn plain_decimal256(cell: &NativeCell) -> String {
     } else {
         format!("0.{:0>width$}", text, width = scale)
     };
-    if negative && text != "0" { format!("-{body}") } else { body }
+    if negative && text != "0" {
+        format!("-{body}")
+    } else {
+        body
+    }
 }
 
 fn json_cell(cell: &NativeCell) -> &str {
@@ -471,12 +566,19 @@ fn clickhouse_stream_decodes_three_rows() {
     assert_eq!(stream.fields[6].timezone.as_deref(), Some("UTC"));
     assert_eq!(stream.fields[7].arrow_type, "list_int64");
     assert_eq!(stream.fields[8].arrow_type, "list_binary");
-    let ids: Vec<u64> = stream.columns[0].iter().map(|cell| match cell {
-        NativeCell::UInt64(value) => *value,
-        other => panic!("{other:?}"),
-    }).collect();
+    let ids: Vec<u64> = stream.columns[0]
+        .iter()
+        .map(|cell| match cell {
+            NativeCell::UInt64(value) => *value,
+            other => panic!("{other:?}"),
+        })
+        .collect();
     assert_eq!(ids, vec![101, 102, 103]);
-    assert!(stream.columns[0].iter().all(|cell| !matches!(cell, NativeCell::Int { .. })));
+    assert!(
+        stream.columns[0]
+            .iter()
+            .all(|cell| !matches!(cell, NativeCell::Int { .. }))
+    );
     match &stream.columns[1][0] {
         NativeCell::UInt64(value) => assert_eq!(*value, 2),
         other => panic!("{other:?}"),
@@ -496,7 +598,11 @@ fn clickhouse_stream_decodes_three_rows() {
     assert_eq!(stream.columns[5][0], NativeCell::Null);
     assert_eq!(binary_cell(&stream.columns[5][1]), b"beta");
     assert_eq!(binary_cell(&stream.columns[5][2]), b"");
-    let stamps = [1_710_506_096_123_456_789i64, 1_704_153_600_000_000_000, 1_706_745_599_999_999_999];
+    let stamps = [
+        1_710_506_096_123_456_789i64,
+        1_704_153_600_000_000_000,
+        1_706_745_599_999_999_999,
+    ];
     for (cell, expected) in stream.columns[6].iter().zip(stamps) {
         match cell {
             NativeCell::TimestampNanos { value, timezone } => {
@@ -508,7 +614,10 @@ fn clickhouse_stream_decodes_three_rows() {
     }
     assert_eq!(json_cell(&stream.columns[7][0]), "[1,-2,0]");
     assert_eq!(json_cell(&stream.columns[7][1]), "[]");
-    assert_eq!(json_cell(&stream.columns[7][2]), "[9223372036854775807,-9223372036854775808]");
+    assert_eq!(
+        json_cell(&stream.columns[7][2]),
+        "[9223372036854775807,-9223372036854775808]"
+    );
     assert_eq!(json_cell(&stream.columns[8][0]), "[\"alpha\",null,\"\"]");
     assert_eq!(json_cell(&stream.columns[8][1]), "[null]");
     assert_eq!(json_cell(&stream.columns[8][2]), "[]");
@@ -529,8 +638,24 @@ fn clickhouse_stream_decodes_three_rows() {
 #[test]
 fn clickhouse_copy_digest_encodes_without_dropping_columns() {
     let bytes = std::fs::read(clickhouse_fixture()).expect("arrow");
-    let first = copy_digest(&bytes, "clickhouse_268", "readings", "final", 1, &clickhouse_columns()).expect("copy");
-    let second = copy_digest(&bytes, "clickhouse_268", "readings", "final", 1, &clickhouse_columns()).expect("copy");
+    let first = copy_digest(
+        &bytes,
+        "clickhouse_268",
+        "readings",
+        "final",
+        1,
+        &clickhouse_columns(),
+    )
+    .expect("copy");
+    let second = copy_digest(
+        &bytes,
+        "clickhouse_268",
+        "readings",
+        "final",
+        1,
+        &clickhouse_columns(),
+    )
+    .expect("copy");
     assert_eq!(first, second);
     assert_eq!(
         first,
@@ -583,7 +708,12 @@ fn manifest_cannot_select_a_registry_or_executable() {
     document["registry_path"] = json!("/tmp/client-picked-registry.json");
     document["admission_bin"] = json!(binary);
     let sha = "ab".repeat(32);
-    let plan = plan_fixed(&document, Some(binary.to_str().unwrap()), Some(binary.to_str().unwrap()), Some(sha.as_str()));
+    let plan = plan_fixed(
+        &document,
+        Some(binary.to_str().unwrap()),
+        Some(binary.to_str().unwrap()),
+        Some(sha.as_str()),
+    );
     assert_closed(&plan.result, "nonadmitted");
     assert!(!marker.exists(), "client-selected executable ran");
     let _ = std::fs::remove_dir_all(&dir);
@@ -602,7 +732,12 @@ fn partial_or_untrusted_operator_env_is_nonadmitted() {
     }]);
     let partial = plan_fixed(&document, None, Some("/tmp/registry.json"), None);
     assert_closed(&partial.result, "nonadmitted");
-    let untrusted = plan_fixed(&document, Some("UNTRUSTED"), Some("UNTRUSTED"), Some("UNTRUSTED"));
+    let untrusted = plan_fixed(
+        &document,
+        Some("UNTRUSTED"),
+        Some("UNTRUSTED"),
+        Some("UNTRUSTED"),
+    );
     assert_closed(&untrusted.result, "nonadmitted");
 }
 
@@ -641,7 +776,9 @@ fn writable_settings_and_wrong_binary_do_not_run() {
     ).expect("catalog");
     std::fs::write(&capture, b"capture\n").expect("capture");
     let decision = "cd".repeat(32);
-    let registry = registry_for(&dir, &report, &config, &catalog, &capture, &digest, &decision);
+    let registry = registry_for(
+        &dir, &report, &config, &catalog, &capture, &digest, &decision,
+    );
     let registry_sha = arrow_sha256(&std::fs::read(&registry).unwrap());
     let binary_text = binary.to_str().unwrap().to_string();
     let registry_text = registry.to_str().unwrap().to_string();
@@ -912,10 +1049,16 @@ fn clickhouse_binding_plans_when_the_frozen_cli_admits() {
     let Some(bin) = frozen_admission_bin() else {
         return;
     };
-    let report = repo_file("../../tools/source-admission/fixtures/native/clickhouse-attempt06-report.json");
-    let config = repo_file("../../tools/source-admission/fixtures/native/clickhouse-attempt06-config.json");
-    let catalog = repo_file("../../evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/raw/run/product-run-05/catalog-faithful.json");
-    let capture = repo_file("../../evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-driver-preflight/raw/attempt-06/arrow-final-decode.json");
+    let report =
+        repo_file("../../tools/source-admission/fixtures/native/clickhouse-attempt06-report.json");
+    let config =
+        repo_file("../../tools/source-admission/fixtures/native/clickhouse-attempt06-config.json");
+    let catalog = repo_file(
+        "../../evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/raw/run/product-run-05/catalog-faithful.json",
+    );
+    let capture = repo_file(
+        "../../evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-driver-preflight/raw/attempt-06/arrow-final-decode.json",
+    );
     require_file(&report);
     require_file(&config);
     require_file(&catalog);
@@ -930,7 +1073,12 @@ fn clickhouse_binding_plans_when_the_frozen_cli_admits() {
     let decision: Value = serde_json::from_slice(&output.stdout).expect("decision json");
     assert_eq!(decision["protocol"], "oo.source-admission.decision/v1");
     assert_eq!(decision["admitted"], true);
-    assert_eq!(decision.pointer("/identity/source_id").and_then(|value| value.as_str()), Some("clickhouse_268"));
+    assert_eq!(
+        decision
+            .pointer("/identity/source_id")
+            .and_then(|value| value.as_str()),
+        Some("clickhouse_268")
+    );
     let catalog_json: Value = serde_json::from_slice(&std::fs::read(&catalog).unwrap()).unwrap();
     assert_eq!(catalog_json["schema_digest"], CLICKHOUSE_SCHEMA_DIGEST);
     assert_eq!(catalog_json["type_digest"], CLICKHOUSE_TYPE_DIGEST);
@@ -995,18 +1143,34 @@ fn clickhouse_binding_plans_when_the_frozen_cli_admits() {
         "arrow_path": clickhouse_fixture(),
         "columns": manifest_columns(&clickhouse_columns())
     }]);
-    let plan = plan_fixed(&document, Some(&bin_text), Some(&registry_text), Some(&registry_sha));
+    let plan = plan_fixed(
+        &document,
+        Some(&bin_text),
+        Some(&registry_text),
+        Some(&registry_sha),
+    );
     assert!(plan.loader_ready());
     assert_eq!(plan.result["reason"], "target_absent");
     assert_eq!(plan.result["load_state"], "not_sealed");
     assert_eq!(plan.result["loader_invoked"], false);
-    assert_eq!(plan.result["admission"]["scope"], "recomputed_capture_binding");
+    assert_eq!(
+        plan.result["admission"]["scope"],
+        "recomputed_capture_binding"
+    );
     assert_eq!(plan.result["admission"]["batch_digests_bound"], true);
     assert_eq!(plan.result["admission"]["decision_sha256"], decision_sha);
     assert_eq!(plan.result["admission"]["registry_sha256"], registry_sha);
-    assert_eq!(plan.result["admission"]["driver_digest"], CLICKHOUSE_DRIVER_DIGEST);
+    assert_eq!(
+        plan.result["admission"]["driver_digest"],
+        CLICKHOUSE_DRIVER_DIGEST
+    );
     assert_eq!(plan.result["tables"][0]["row_count"], 3);
-    assert_eq!(plan.result["tables"][0]["columns"].as_array().map(|items| items.len()), Some(12));
+    assert_eq!(
+        plan.result["tables"][0]["columns"]
+            .as_array()
+            .map(|items| items.len()),
+        Some(12)
+    );
     assert_eq!(
         plan.result["tables"][0]["copy_digest"],
         "0fb023c3168e9ae55a0a4ab6f6d87ddbf8533253f4f6349afe48a21b77a69f8c"
@@ -1019,7 +1183,12 @@ fn clickhouse_binding_plans_when_the_frozen_cli_admits() {
 
     let mut crossed = document.clone();
     crossed["tables"][0]["logical_schema"] = json!("other_schema");
-    let crossed_plan = plan_fixed(&crossed, Some(&bin_text), Some(&registry_text), Some(&registry_sha));
+    let crossed_plan = plan_fixed(
+        &crossed,
+        Some(&bin_text),
+        Some(&registry_text),
+        Some(&registry_sha),
+    );
     assert_closed(&crossed_plan.result, "schema");
     assert!(!crossed_plan.loader_ready());
 
@@ -1029,7 +1198,12 @@ fn clickhouse_binding_plans_when_the_frozen_cli_admits() {
     std::fs::write(&tampered, serde_json::to_vec(&tampered_body).unwrap()).unwrap();
     let tampered_sha = file_sha(&tampered);
     let tampered_text = tampered.to_str().unwrap().to_string();
-    let tampered_plan = plan_fixed(&document, Some(&bin_text), Some(&tampered_text), Some(&tampered_sha));
+    let tampered_plan = plan_fixed(
+        &document,
+        Some(&bin_text),
+        Some(&tampered_text),
+        Some(&tampered_sha),
+    );
     assert_closed(&tampered_plan.result, "nonadmitted");
     assert!(!tampered_plan.loader_ready());
     let _ = std::fs::remove_dir_all(&dir);
@@ -1040,9 +1214,15 @@ fn oracle_historical_receipt_is_cross_source() {
     let Some(bin) = frozen_admission_bin() else {
         return;
     };
-    let report = repo_file("../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/admission-1/report.json");
-    let config = repo_file("../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/admission-1/config.json");
-    let historical = repo_file("../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/admission-1/decision.json");
+    let report = repo_file(
+        "../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/admission-1/report.json",
+    );
+    let config = repo_file(
+        "../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/admission-1/config.json",
+    );
+    let historical = repo_file(
+        "../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/admission-1/decision.json",
+    );
     require_file(&report);
     require_file(&config);
     require_file(&historical);
@@ -1055,7 +1235,12 @@ fn oracle_historical_receipt_is_cross_source() {
     assert_eq!(decision_sha, file_sha(&historical));
     let decision: Value = serde_json::from_slice(&output.stdout).expect("decision json");
     assert_eq!(decision["admitted"], false);
-    assert_eq!(decision.pointer("/identity/source_id").and_then(|value| value.as_str()), Some("oo04_t_batch"));
+    assert_eq!(
+        decision
+            .pointer("/identity/source_id")
+            .and_then(|value| value.as_str()),
+        Some("oo04_t_batch")
+    );
     let dir = std::env::temp_dir().join(format!("oo-native-ora-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("dir");
     let digest = "cd".repeat(32);
@@ -1129,7 +1314,10 @@ fn oracle_historical_receipt_is_cross_source() {
         Some(registry_sha.as_str()),
     );
     assert_closed(&plan.result, "cross_source");
-    assert_eq!(plan.result["admission"]["receipt_sha256"], "65b7f22fe26686f8a1e61d705a78d5a1a69f2a123de0b9dfce827cce2ffb59ef");
+    assert_eq!(
+        plan.result["admission"]["receipt_sha256"],
+        "65b7f22fe26686f8a1e61d705a78d5a1a69f2a123de0b9dfce827cce2ffb59ef"
+    );
     assert!(!plan.loader_ready());
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -1163,7 +1351,13 @@ fn arrow_file_keeps_fixed_binary_uint8_millis_list_struct_and_union() {
     let tokens: Vec<(&str, &str, bool)> = stream
         .fields
         .iter()
-        .map(|field| (field.name.as_str(), field.arrow_type.as_str(), field.nullable))
+        .map(|field| {
+            (
+                field.name.as_str(),
+                field.arrow_type.as_str(),
+                field.nullable,
+            )
+        })
         .collect();
     assert_eq!(
         tokens,
@@ -1218,7 +1412,10 @@ fn arrow_file_keeps_fixed_binary_uint8_millis_list_struct_and_union() {
         stream.columns[12][4],
         NativeCell::Json(r#"{"type_id":1,"type":"int64","value":4104}"#.to_string())
     );
-    assert_eq!(stream.columns[15][0], NativeCell::Json(r#"["m","0"]"#.to_string()));
+    assert_eq!(
+        stream.columns[15][0],
+        NativeCell::Json(r#"["m","0"]"#.to_string())
+    );
     assert!(matches!(stream.columns[15][3], NativeCell::Null));
     assert_eq!(stream.columns[15][4], NativeCell::Json("[]".to_string()));
     assert_eq!(
@@ -1241,32 +1438,104 @@ fn sr_columns(table: &str) -> Vec<CopyColumnDecl> {
     match table {
         "pk_accounts" => vec![
             column("account_id", "account_id", "int64", false, None, None, None),
-            column("balance", "balance", "decimal128(38,9)", true, Some(38), Some(9), None),
+            column(
+                "balance",
+                "balance",
+                "decimal128(38,9)",
+                true,
+                Some(38),
+                Some(9),
+                None,
+            ),
             column("nickname", "nickname", "utf8", true, None, None, None),
-            column("opened", "opened", "timestamp_second_naive", true, None, None, None),
+            column(
+                "opened",
+                "opened",
+                "timestamp_second_naive",
+                true,
+                None,
+                None,
+                None,
+            ),
         ],
         "agg_metrics" => vec![
-            column("metric_day", "metric_day", "date32", false, None, None, None),
-            column("metric_name", "metric_name", "utf8", false, None, None, None),
+            column(
+                "metric_day",
+                "metric_day",
+                "date32",
+                false,
+                None,
+                None,
+                None,
+            ),
+            column(
+                "metric_name",
+                "metric_name",
+                "utf8",
+                false,
+                None,
+                None,
+                None,
+            ),
             column("qty", "qty", "int64", true, None, None, None),
-            column("revenue", "revenue", "decimal128(38,4)", true, Some(38), Some(4), None),
+            column(
+                "revenue",
+                "revenue",
+                "decimal128(38,4)",
+                true,
+                Some(38),
+                Some(4),
+                None,
+            ),
         ],
         "dup_events" => vec![
             column("event_id", "event_id", "int64", false, None, None, None),
             column("bucket", "bucket", "date32", false, None, None, None),
-            column("seen", "seen", "timestamp_second_naive", true, None, None, None),
-            column("amount", "amount", "decimal128(18,4)", true, Some(18), Some(4), None),
+            column(
+                "seen",
+                "seen",
+                "timestamp_second_naive",
+                true,
+                None,
+                None,
+                None,
+            ),
+            column(
+                "amount",
+                "amount",
+                "decimal128(18,4)",
+                true,
+                Some(18),
+                Some(4),
+                None,
+            ),
             column("note", "note", "utf8", true, None, None, None),
         ],
         "uniq_dim" => vec![
             column("dim_id", "dim_id", "int64", false, None, None, None),
             column("label", "label", "utf8", true, None, None, None),
-            column("score", "score", "decimal128(10,2)", true, Some(10), Some(2), None),
+            column(
+                "score",
+                "score",
+                "decimal128(10,2)",
+                true,
+                Some(10),
+                Some(2),
+                None,
+            ),
         ],
         "dup_partition_sums" => vec![
             column("part", "part", "utf8", false, None, None, None),
             column("row_count", "row_count", "int64", false, None, None, None),
-            column("amount_sum", "amount_sum", "decimal128(38,4)", true, Some(38), Some(4), None),
+            column(
+                "amount_sum",
+                "amount_sum",
+                "decimal128(38,4)",
+                true,
+                Some(38),
+                Some(4),
+                None,
+            ),
         ],
         _ => panic!("unknown table"),
     }
@@ -1275,11 +1544,31 @@ fn sr_columns(table: &str) -> Vec<CopyColumnDecl> {
 #[test]
 fn starrocks_standard_types_decode_without_rewriting_tokens() {
     let cases = [
-        ("pk_accounts", 3, "4463f9c889619fcd4e84428cb818b4d36c0534b5435b8df42d4ea82bc493ca6a"),
-        ("agg_metrics", 2, "c44b8d588d996c1c6b6986df2a00160549c6a4a2af80cc9aae24605c3c91d693"),
-        ("dup_events", 6, "e644ea2adaf7a9020c5b9662dfa923188d3509098e181c4a70a004bf0f47e8c0"),
-        ("uniq_dim", 2, "9d08843ba68f57c9dbf8077f3e4572e839e71887ba981e0aa3db92b9b8a5ae06"),
-        ("dup_partition_sums", 2, "68f2ee8ef7fc3b419a900835eb0ca4fb64f451335328ee2bba534ed98dd01d4d"),
+        (
+            "pk_accounts",
+            3,
+            "4463f9c889619fcd4e84428cb818b4d36c0534b5435b8df42d4ea82bc493ca6a",
+        ),
+        (
+            "agg_metrics",
+            2,
+            "c44b8d588d996c1c6b6986df2a00160549c6a4a2af80cc9aae24605c3c91d693",
+        ),
+        (
+            "dup_events",
+            6,
+            "e644ea2adaf7a9020c5b9662dfa923188d3509098e181c4a70a004bf0f47e8c0",
+        ),
+        (
+            "uniq_dim",
+            2,
+            "9d08843ba68f57c9dbf8077f3e4572e839e71887ba981e0aa3db92b9b8a5ae06",
+        ),
+        (
+            "dup_partition_sums",
+            2,
+            "68f2ee8ef7fc3b419a900835eb0ca4fb64f451335328ee2bba534ed98dd01d4d",
+        ),
     ];
     for (name, rows, digest) in cases {
         let bytes = std::fs::read(starrocks_arrow(name)).expect(name);
@@ -1296,7 +1585,8 @@ fn starrocks_standard_types_decode_without_rewriting_tokens() {
             .unwrap_or_else(|err| panic!("{name} copy {err:?}"));
         assert_eq!(encoded.len(), 64, "{name}");
     }
-    let accounts = decode_arrow_stream(&std::fs::read(starrocks_arrow("pk_accounts")).unwrap()).unwrap();
+    let accounts =
+        decode_arrow_stream(&std::fs::read(starrocks_arrow("pk_accounts")).unwrap()).unwrap();
     assert_eq!(accounts.fields[0].arrow_type, "int64");
     assert_eq!(accounts.fields[1].arrow_type, "decimal128");
     assert_eq!(accounts.fields[1].precision, Some(38));
@@ -1309,7 +1599,8 @@ fn starrocks_standard_types_decode_without_rewriting_tokens() {
         other => panic!("opened {other:?}"),
     }
     assert!(matches!(accounts.columns[3][1], NativeCell::Null));
-    let metrics = decode_arrow_stream(&std::fs::read(starrocks_arrow("agg_metrics")).unwrap()).unwrap();
+    let metrics =
+        decode_arrow_stream(&std::fs::read(starrocks_arrow("agg_metrics")).unwrap()).unwrap();
     assert_eq!(metrics.fields[0].arrow_type, "date32");
     match &metrics.columns[0][0] {
         NativeCell::Date32(days) => assert_eq!(*days, 20_574),
@@ -1351,8 +1642,15 @@ fn clickhouse_binary_does_not_become_text() {
     assert_eq!(stream.fields[4].arrow_type, "dictionary_binary");
     assert_eq!(stream.fields[5].arrow_type, "dictionary_binary");
     assert_eq!(stream.fields[10].arrow_type, "binary");
-    let digest = copy_digest(&bytes, "clickhouse_268", "readings", "final", 1, &clickhouse_columns())
-        .expect("bytea copy");
+    let digest = copy_digest(
+        &bytes,
+        "clickhouse_268",
+        "readings",
+        "final",
+        1,
+        &clickhouse_columns(),
+    )
+    .expect("bytea copy");
     assert_eq!(digest.len(), 64);
     let mut pretended = clickhouse_columns();
     pretended[3].arrow_type = "utf8".to_string();

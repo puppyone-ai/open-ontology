@@ -9,10 +9,10 @@ use std::pin::pin;
 use std::time::{Duration, Instant};
 
 use oo_connectors::{
-    config_identity, type_policy_identity, AdmittedCatalog, AdmittedColumn, AdmittedTable,
-    PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
+    AdmittedCatalog, AdmittedColumn, AdmittedTable, CLEANUP_OBSERVATION_BOUND_MS, PgBudget,
+    PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
     SnapshotOwner, SnapshotRequest, SourceError, SourceId, StreamBudget, StreamItem,
-    TableSelection, CLEANUP_OBSERVATION_BOUND_MS,
+    TableSelection, config_identity, type_policy_identity,
 };
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
@@ -66,8 +66,8 @@ async fn owner_drop_while_blocked() {
 impl World {
     async fn start() -> Self {
         let path = std::env::var("OO_PG_DROP_FIXTURE").expect("OO_PG_DROP_FIXTURE is required");
-        let pointer: Pointer =
-            serde_json::from_str(&fs::read_to_string(&path).expect("pointer")).expect("pointer json");
+        let pointer: Pointer = serde_json::from_str(&fs::read_to_string(&path).expect("pointer"))
+            .expect("pointer json");
         let reader_pass = read_pass(&pointer.password_dir, "reader.pass");
         let writer_pass = read_pass(&pointer.password_dir, "writer.pass");
         let super_pass = read_pass(&pointer.password_dir, "super.pass");
@@ -81,7 +81,9 @@ impl World {
         )
         .await;
         let (postmaster, in_recovery) = node_of(&mut admin).await;
-        let log_mark = fs::metadata(&pointer.log_file).map(|meta| meta.len()).unwrap_or(0);
+        let log_mark = fs::metadata(&pointer.log_file)
+            .map(|meta| meta.len())
+            .unwrap_or(0);
         let outcome_path = std::env::var("OO_PG_DROP_OUTCOME").ok();
         let world = Self {
             pointer,
@@ -179,7 +181,12 @@ impl World {
         self.note("owner_drop_finish_called=0 snapshot_finished=0".to_string());
     }
 
-    async fn open(&mut self, deadline_secs: u64, statement_secs: u64, lock_secs: u64) -> SnapshotOwner {
+    async fn open(
+        &mut self,
+        deadline_secs: u64,
+        statement_secs: u64,
+        lock_secs: u64,
+    ) -> SnapshotOwner {
         let generation = self.next_gen();
         SnapshotOwner::open(self.request(generation, deadline_secs, statement_secs, lock_secs))
             .await
@@ -213,8 +220,12 @@ impl World {
     fn config(&self, statement_secs: u64, lock_secs: u64) -> PgSourceConfig {
         PgSourceConfig::try_new(
             SourceId::new(SOURCE).expect("source"),
-            PgEndpoint::new(&self.pointer.host, self.pointer.port, &self.pointer.database)
-                .expect("endpoint"),
+            PgEndpoint::new(
+                &self.pointer.host,
+                self.pointer.port,
+                &self.pointer.database,
+            )
+            .expect("endpoint"),
             PgCredentials::new(&self.pointer.reader_user, self.reader_pass.as_str())
                 .expect("credentials"),
             SecretRef::new("secret://pg/drop/reader").expect("secret"),
@@ -283,7 +294,9 @@ impl World {
 
     async fn drive_until_active(
         &mut self,
-        pull: &mut std::pin::Pin<&mut impl std::future::Future<Output = Result<StreamItem, SourceError>>>,
+        pull: &mut std::pin::Pin<
+            &mut impl std::future::Future<Output = Result<StreamItem, SourceError>>,
+        >,
         pid: i64,
         start: &str,
     ) -> bool {
@@ -324,7 +337,10 @@ impl World {
                 noted_first = true;
             }
             if still.is_empty() && busy.is_empty() {
-                self.note(format!("owner_drop_absent_ms={}", began.elapsed().as_millis()));
+                self.note(format!(
+                    "owner_drop_absent_ms={}",
+                    began.elapsed().as_millis()
+                ));
                 return;
             }
             if began.elapsed() > bound {
@@ -369,7 +385,9 @@ impl World {
                 panic!("postgres log contains a closed string");
             }
         }
-        let mark = usize::try_from(self.log_mark).unwrap_or(0).min(raw_all.len());
+        let mark = usize::try_from(self.log_mark)
+            .unwrap_or(0)
+            .min(raw_all.len());
         let raw = String::from_utf8_lossy(&raw_all[mark..]);
         let mut oo_statements = 0_usize;
         let mut cancel_selects = 0_usize;
@@ -402,7 +420,10 @@ impl World {
             }
         }
         assert!(oo_statements > 0, "reader sql log was empty");
-        assert!(cancel_selects > 0, "reader did not send select pg_cancel_backend");
+        assert!(
+            cancel_selects > 0,
+            "reader did not send select pg_cancel_backend"
+        );
         let verb_text = verbs
             .iter()
             .map(|(verb, count)| format!("{verb}={count}"))
@@ -476,7 +497,10 @@ async fn node_of(admin: &mut PgConnection) -> (String, bool) {
     .fetch_one(&mut *admin)
     .await
     .expect("node");
-    (row.try_get(0).expect("postmaster"), row.try_get(1).expect("recovery"))
+    (
+        row.try_get(0).expect("postmaster"),
+        row.try_get(1).expect("recovery"),
+    )
 }
 
 async fn oo_backends(admin: &mut PgConnection, user: &str) -> Vec<(i64, String, String)> {
@@ -537,7 +561,11 @@ async fn dial(pointer: &Pointer, user: &str, password: &str, ca: &[u8], app: &st
         .application_name(app)
         .ssl_mode(PgSslMode::VerifyFull)
         .ssl_root_cert_from_pem(ca.to_vec());
-    options.disable_statement_logging().connect().await.expect("dial")
+    options
+        .disable_statement_logging()
+        .connect()
+        .await
+        .expect("dial")
 }
 
 fn read_pass(dir: &str, name: &str) -> Zeroizing<String> {

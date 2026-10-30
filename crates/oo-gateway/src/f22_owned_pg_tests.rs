@@ -28,7 +28,9 @@ struct Fixture {
 }
 
 impl Fixture {
-    async fn new() -> Self { Self::with_dates(false).await }
+    async fn new() -> Self {
+        Self::with_dates(false).await
+    }
 
     async fn with_dates(dates: bool) -> Self {
         let path = std::env::var("OO_F22_OWNED_FIXTURE").expect("run tests/f22_owned_pg.py");
@@ -139,8 +141,12 @@ impl Fixture {
                 INSERT INTO _oo.physical_mappings VALUES('f22','{digest}',1,'c','app','items','event_time','{date_column}');
                 GRANT SELECT ({date_column}) ON _oo.{physical} TO {ROLE}; ANALYZE _oo.{physical};", digest="c".repeat(64)))
                 .await.unwrap();
-            policy.table.columns.push(ColumnSpec { name:"event_time".into(), status:ClassStatus::Confirmed,
-                semantic_type:"event_time".into(), pii:PiiClass::None });
+            policy.table.columns.push(ColumnSpec {
+                name: "event_time".into(),
+                status: ClassStatus::Confirmed,
+                semantic_type: "event_time".into(),
+                pii: PiiClass::None,
+            });
         }
         if let Some(pack) = &other_pack {
             admin.batch_execute(&format!("CREATE ROLE oo_r_f22_other NOLOGIN NOINHERIT;
@@ -162,22 +168,26 @@ impl Fixture {
             password: password.clone(),
             ca_pem: ca.clone(),
             connector: rustls_connector(&ca).unwrap(),
-            roles: ReviewedRoles::fixed({ let published = Published {
-                mapping_source: None,
-                policies: vec![policy],
-                role: ROLE.into(),
-                project: "f22".into(),
-                policy_version: "pv1".into(),
-                knowledge_version: "kv1".into(),
-                config_digest: "c".repeat(64),
-                native_vector: None,
-                native_catalog: None,
-                quality_vector: None,
-            };
+            roles: ReviewedRoles::fixed({
+                let published = Published {
+                    mapping_source: None,
+                    policies: vec![policy],
+                    role: ROLE.into(),
+                    project: "f22".into(),
+                    policy_version: "pv1".into(),
+                    knowledge_version: "kv1".into(),
+                    config_digest: "c".repeat(64),
+                    native_vector: None,
+                    native_catalog: None,
+                    quality_vector: None,
+                };
                 let mut roles = vec![published];
                 if dates {
-                    let mut other = roles[0].clone(); other.role = "oo_r_f22_other".into();
-                    for policy in &mut other.policies { policy.role = "f22_other".into(); }
+                    let mut other = roles[0].clone();
+                    other.role = "oo_r_f22_other".into();
+                    for policy in &mut other.policies {
+                        policy.role = "f22_other".into();
+                    }
                     roles.push(other);
                 }
                 roles
@@ -323,7 +333,9 @@ fn tuple(principal: &str) -> CurrentTuple {
     }
 }
 
-fn pack_with_dates(root: &Path, dates: bool) -> String { pack_for_role(root, dates, ROLE) }
+fn pack_with_dates(root: &Path, dates: bool) -> String {
+    pack_for_role(root, dates, ROLE)
+}
 
 fn pack_for_role(root: &Path, dates: bool, role: &str) -> String {
     let mut effective = json!({"protocol":"oo.builder.effective-oos/v1","project":"f22","ontology_version":"oos-1",
@@ -354,7 +366,10 @@ fn pack_for_role(root: &Path, dates: bool, role: &str) -> String {
         effective["datasets"][0]["columns"].as_array_mut().unwrap().push(json!({
             "name":"event_time", "data_type":"timestamp", "semantic_type":"event_time", "pii":"none",
             "classification":{"state":"confirmed","by":"fixture/test"},"provenance":"declared"}));
-        visibility["datasets"][0]["columns"].as_array_mut().unwrap().push(json!("event_time"));
+        visibility["datasets"][0]["columns"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!("event_time"));
     }
     let pack =
         oo_builder::compile_role_pack(&effective.to_string(), &visibility.to_string()).unwrap();
@@ -774,36 +789,76 @@ async fn f22_owned_pg_gateway_and_executor() {
 
 async fn metadata_snapshot_contract(f: &Fixture) {
     let caller = PublicCaller {
-        tuple: tuple("alice"), scope: "client", auth_remaining_ms: 0, auth_cache_hit: false,
+        tuple: tuple("alice"),
+        scope: "client",
+        auth_remaining_ms: 0,
+        auth_cache_hit: false,
     };
-    let binding = f.plane.binding_check(
-        &f.plane.roles.snapshot().unwrap()[0], &caller, &f.pack_digest, None,
-        Expected { publication_id: "current".into(), data_vector_sha256: None },
-    ).unwrap_or_else(|_| panic!("metadata binding"));
+    let binding = f
+        .plane
+        .binding_check(
+            &f.plane.roles.snapshot().unwrap()[0],
+            &caller,
+            &f.pack_digest,
+            None,
+            Expected {
+                publication_id: "current".into(),
+                data_vector_sha256: None,
+            },
+        )
+        .unwrap_or_else(|_| panic!("metadata binding"));
     let (mut client, connection) = f.plane.connect().await.unwrap();
-    let _driver = BindingDriver(tokio::spawn(async move { let _ = connection.await; }));
+    let _driver = BindingDriver(tokio::spawn(async move {
+        let _ = connection.await;
+    }));
     for (isolation, read_only) in [
         (tokio_postgres::IsolationLevel::ReadCommitted, true),
         (tokio_postgres::IsolationLevel::RepeatableRead, false),
     ] {
-        let tx = client.build_transaction().isolation_level(isolation)
-            .read_only(read_only).start().await.unwrap();
-        assert!(binding.metadata_scope(&tx).await.is_err(), "wrong snapshot mode was admitted");
+        let tx = client
+            .build_transaction()
+            .isolation_level(isolation)
+            .read_only(read_only)
+            .start()
+            .await
+            .unwrap();
+        assert!(
+            binding.metadata_scope(&tx).await.is_err(),
+            "wrong snapshot mode was admitted"
+        );
         tx.rollback().await.unwrap();
     }
-    let tx = client.build_transaction()
+    let tx = client
+        .build_transaction()
         .isolation_level(tokio_postgres::IsolationLevel::RepeatableRead)
-        .read_only(true).start().await.unwrap();
+        .read_only(true)
+        .start()
+        .await
+        .unwrap();
     let (receipt, catalog) = binding.metadata_scope(&tx).await.unwrap();
-    let query_binding = f.plane.binding_check(
-        &f.plane.roles.snapshot().unwrap()[0], &caller, &f.pack_digest, Some(&catalog),
-        Expected { publication_id: "current".into(), data_vector_sha256: None },
-    ).unwrap_or_else(|_| panic!("query binding"));
+    let query_binding = f
+        .plane
+        .binding_check(
+            &f.plane.roles.snapshot().unwrap()[0],
+            &caller,
+            &f.pack_digest,
+            Some(&catalog),
+            Expected {
+                publication_id: "current".into(),
+                data_vector_sha256: None,
+            },
+        )
+        .unwrap_or_else(|_| panic!("query binding"));
     assert_eq!(receipt, query_binding.verify(&tx).await.unwrap());
-    assert_eq!(receipt, query_binding.reference_verify(&tx).await.unwrap(),
-        "single-snapshot metadata must preserve the original binding bytes");
-    assert!(query_binding.metadata_scope(&tx).await.is_err(),
-        "metadata must not reuse a catalog admitted outside its snapshot");
+    assert_eq!(
+        receipt,
+        query_binding.reference_verify(&tx).await.unwrap(),
+        "single-snapshot metadata must preserve the original binding bytes"
+    );
+    assert!(
+        query_binding.metadata_scope(&tx).await.is_err(),
+        "metadata must not reuse a catalog admitted outside its snapshot"
+    );
     tx.rollback().await.unwrap();
     fs::write(f.root.join("metadata-single-snapshot.json"), json!({
         "actual_owned_pg":true,"wrong_isolation_refused":true,"read_write_refused":true,
@@ -910,12 +965,27 @@ async fn retired_idle_sessions(f: &Fixture, id: &str, vector: &str) {
         let old = f.plane.session_for(ROLE).await.unwrap();
         let pid = old.lock().await.backend_pid();
         let calls = f.user_calls().await;
-        assert!(f.admin.query_one("SELECT pg_terminate_backend($1,5000)", &[&pid])
-            .await.unwrap().get::<_, bool>(0));
-        let (status, headers, answer) = f.http(
-            "POST", "/v1/query", Some(SQL), Some(id), Some(vector), &f.token,
-        ).await;
-        assert_eq!(status, 200, "first query after backend retirement: {answer}");
+        assert!(
+            f.admin
+                .query_one("SELECT pg_terminate_backend($1,5000)", &[&pid])
+                .await
+                .unwrap()
+                .get::<_, bool>(0)
+        );
+        let (status, headers, answer) = f
+            .http(
+                "POST",
+                "/v1/query",
+                Some(SQL),
+                Some(id),
+                Some(vector),
+                &f.token,
+            )
+            .await;
+        assert_eq!(
+            status, 200,
+            "first query after backend retirement: {answer}"
+        );
         assert_eq!(answer["rows"], json!([["10"]]));
         assert_eq!(headers[ACTUAL], id);
         assert_eq!(headers[ACTUAL_VECTOR], vector);
@@ -928,8 +998,11 @@ async fn retired_idle_sessions(f: &Fixture, id: &str, vector: &str) {
         cases.push(json!({"terminated_pid":pid,"replacement_pid":next_pid,
             "first_request_status":status,"user_sql_calls":1,"same_publication":true}));
     }
-    fs::write(f.root.join("retired-idle-sessions.json"),
-        serde_json::to_vec_pretty(&cases).unwrap()).unwrap();
+    fs::write(
+        f.root.join("retired-idle-sessions.json"),
+        serde_json::to_vec_pretty(&cases).unwrap(),
+    )
+    .unwrap();
 }
 
 async fn executor_races(f: &Fixture) {

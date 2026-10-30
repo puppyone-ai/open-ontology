@@ -1320,7 +1320,11 @@ pub fn encode_refusal(err: &GuardError) -> Result<Vec<u8>, CodecError> {
             write_label(&mut writer, reason, SERIALIZE_REASONS)?;
         }
         GuardError::FunctionNotAllowed => writer.u8(TAG_FUNCTION_NOT_ALLOWED)?,
-        GuardError::SignatureNotAllowed { operator, argument_type_oids, position } => {
+        GuardError::SignatureNotAllowed {
+            operator,
+            argument_type_oids,
+            position,
+        } => {
             writer.u8(TAG_SIGNATURE_NOT_ALLOWED)?;
             writer.flag(*operator)?;
             write_u32s(&mut writer, argument_type_oids, 8)?;

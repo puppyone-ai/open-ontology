@@ -5,8 +5,8 @@
 #[path = "common/mod.rs"]
 mod common;
 
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 use common::{
     CA_PEM, Hit, LOCALHOST_KEY, LOCALHOST_PEM, OTHER_CA_PEM, OTHER_LOCALHOST_KEY,
@@ -35,7 +35,10 @@ async fn connect_ip_preserves_tls_hostname_sni_host_and_bearer() {
     let hits = oracle.hits();
     assert_eq!(hits.len(), 1);
     assert_query(&hits[0], TOKEN, "/v1/query");
-    assert_eq!(hits[0].one("host"), Some(format!("localhost:{}", oracle.port).as_str()));
+    assert_eq!(
+        hits[0].one("host"),
+        Some(format!("localhost:{}", oracle.port).as_str())
+    );
     assert_eq!(*oracle.server_names.lock().unwrap(), ["localhost"]);
 
     // The same trusted server must reject a different URL name, even at the same IP.
@@ -44,9 +47,16 @@ async fn connect_ip_preserves_tls_hostname_sni_host_and_bearer() {
         &format!("https://wrong-name.invalid:{}/", oracle.port),
         TOKEN,
         trust(CA_PEM).with_connect_ip("127.0.0.1".parse().unwrap()),
-    ).query(sample_request()).await.expect_err("TLS name mismatch");
+    )
+    .query(sample_request())
+    .await
+    .expect_err("TLS name mismatch");
     assert!(matches!(error, QueryError::Transport(_)), "{error}");
-    assert_eq!(oracle.accepted.load(Ordering::SeqCst), 1, "override reached TLS");
+    assert_eq!(
+        oracle.accepted.load(Ordering::SeqCst),
+        1,
+        "override reached TLS"
+    );
     assert!(oracle.hits().is_empty(), "no bearer sent on name mismatch");
     assert_secret_free(&error);
 
@@ -55,7 +65,10 @@ async fn connect_ip_preserves_tls_hostname_sni_host_and_bearer() {
         &format!("https://localhost:{}/", oracle.port),
         TOKEN,
         trust(CA_PEM).with_connect_ip("127.0.0.1".parse().unwrap()),
-    ).query(sample_request()).await.expect_err("TLS root mismatch");
+    )
+    .query(sample_request())
+    .await
+    .expect_err("TLS root mismatch");
     assert!(matches!(error, QueryError::Transport(_)), "{error}");
     assert_eq!(oracle.accepted.load(Ordering::SeqCst), 1);
     assert!(oracle.hits().is_empty());
@@ -64,14 +77,20 @@ async fn connect_ip_preserves_tls_hostname_sni_host_and_bearer() {
 #[tokio::test]
 async fn connect_ipv6_preserves_tls_hostname() {
     let oracle = tls_oracle_body_at(
-        LOCALHOST_PEM, LOCALHOST_KEY,
-        json_response(200, "OK", QUERY_RESPONSE_EMPTY, &[]), "[::1]:0",
-    ).await;
+        LOCALHOST_PEM,
+        LOCALHOST_KEY,
+        json_response(200, "OK", QUERY_RESPONSE_EMPTY, &[]),
+        "[::1]:0",
+    )
+    .await;
     open(
         &format!("https://localhost:{}/", oracle.port),
         TOKEN,
         trust(CA_PEM).with_connect_ip("::1".parse().unwrap()),
-    ).query(sample_request()).await.expect("IPv6 routed TLS");
+    )
+    .query(sample_request())
+    .await
+    .expect("IPv6 routed TLS");
     assert_eq!(oracle.hits().len(), 1);
     assert_eq!(*oracle.server_names.lock().unwrap(), ["localhost"]);
 }
@@ -85,10 +104,14 @@ fn connect_ip_rejects_credentials_plaintext_escape_and_numeric_url_hosts() {
         ("https://[::1]", ClientConfig::production()),
     ] {
         let result = oo_sdk::Client::new(
-            origin, oo_sdk::BearerToken::new(TOKEN).unwrap(),
+            origin,
+            oo_sdk::BearerToken::new(TOKEN).unwrap(),
             config.with_connect_ip("192.0.2.1".parse().unwrap()),
         );
-        assert!(matches!(result, Err(QueryError::Local(_))), "{origin}: {result:?}");
+        assert!(
+            matches!(result, Err(QueryError::Local(_))),
+            "{origin}: {result:?}"
+        );
     }
 }
 
@@ -97,24 +120,47 @@ fn connect_ip_rejects_credentials_plaintext_escape_and_numeric_url_hosts() {
 async fn interface_binds_loopback_and_missing_interface_never_falls_back() {
     let oracle = tls_oracle(LOCALHOST_PEM, LOCALHOST_KEY).await;
     let origin = format!("https://localhost:{}/", oracle.port);
-    let interface = if cfg!(target_os = "macos") { "lo0" } else { "lo" };
+    let interface = if cfg!(target_os = "macos") {
+        "lo0"
+    } else {
+        "lo"
+    };
     let config = trust(CA_PEM).with_connect_ip("127.0.0.1".parse().unwrap());
-    open(&origin, TOKEN, config.clone().with_interface(interface.to_owned()).unwrap())
-        .query(sample_request()).await.expect("bound loopback TLS");
+    open(
+        &origin,
+        TOKEN,
+        config.clone().with_interface(interface.to_owned()).unwrap(),
+    )
+    .query(sample_request())
+    .await
+    .expect("bound loopback TLS");
     let error = open(
-        &origin, TOKEN, config.with_interface("oo-missing0".to_owned()).unwrap(),
-    ).query(sample_request()).await.expect_err("missing interface");
+        &origin,
+        TOKEN,
+        config.with_interface("oo-missing0".to_owned()).unwrap(),
+    )
+    .query(sample_request())
+    .await
+    .expect_err("missing interface");
     assert!(matches!(error, QueryError::Transport(_)), "{error}");
-    assert_eq!(oracle.accepted.load(Ordering::SeqCst), 1, "no unbound fallback");
+    assert_eq!(
+        oracle.accepted.load(Ordering::SeqCst),
+        1,
+        "no unbound fallback"
+    );
     assert_eq!(oracle.hits().len(), 1);
 }
 
 #[tokio::test]
 async fn routed_tls_keeps_client_identity_and_custom_roots() {
     let oracle = tls_oracle_body_at_auth(
-        LOCALHOST_PEM, LOCALHOST_KEY,
-        json_response(200, "OK", QUERY_RESPONSE_EMPTY, &[]), "127.0.0.1:0", true,
-    ).await;
+        LOCALHOST_PEM,
+        LOCALHOST_KEY,
+        json_response(200, "OK", QUERY_RESPONSE_EMPTY, &[]),
+        "127.0.0.1:0",
+        true,
+    )
+    .await;
     let identity = include_bytes!("fixtures/route-client.pem").to_vec();
     let config = trust(CA_PEM)
         .with_identity(identity)
@@ -134,26 +180,46 @@ async fn routed_tls_keeps_client_identity_and_custom_roots() {
         &format!("https://localhost:{}/", oracle.port),
         TOKEN,
         trust(CA_PEM).with_connect_ip("127.0.0.1".parse().unwrap()),
-    ).query(sample_request()).await.expect_err("client certificate is required");
+    )
+    .query(sample_request())
+    .await
+    .expect_err("client certificate is required");
     assert!(matches!(error, QueryError::Transport(_)));
-    assert_eq!(oracle.hits().len(), 1, "no HTTP request without client identity");
+    assert_eq!(
+        oracle.hits().len(),
+        1,
+        "no HTTP request without client identity"
+    );
 }
 
 #[cfg(not(any(
-    target_os = "android", target_os = "fuchsia", target_os = "illumos",
-    target_os = "ios", target_os = "linux", target_os = "macos",
-    target_os = "solaris", target_os = "tvos", target_os = "visionos",
+    target_os = "android",
+    target_os = "fuchsia",
+    target_os = "illumos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "solaris",
+    target_os = "tvos",
+    target_os = "visionos",
     target_os = "watchos",
 )))]
 #[test]
 fn unsupported_interface_is_an_explicit_local_error() {
     let error = oo_sdk::Client::new(
-        "https://localhost", oo_sdk::BearerToken::new(TOKEN).unwrap(),
-        ClientConfig::production().with_interface("en0".to_owned()).unwrap(),
-    ).unwrap_err();
-    assert!(matches!(error, QueryError::Local(LocalError::Config(
-        "interface binding is unsupported on this platform"
-    ))));
+        "https://localhost",
+        oo_sdk::BearerToken::new(TOKEN).unwrap(),
+        ClientConfig::production()
+            .with_interface("en0".to_owned())
+            .unwrap(),
+    )
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        QueryError::Local(LocalError::Config(
+            "interface binding is unsupported on this platform"
+        ))
+    ));
 }
 
 #[tokio::test]
@@ -352,11 +418,15 @@ async fn tls_oracle_body_at_auth(
     let key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(pem_block(key_pem, "PRIVATE KEY")));
     let builder = if require_client {
         let mut roots = rustls::RootCertStore::empty();
-        roots.add(CertificateDer::from(pem_block(
-            include_str!("fixtures/route-client.pem"), "CERTIFICATE",
-        ))).unwrap();
+        roots
+            .add(CertificateDer::from(pem_block(
+                include_str!("fixtures/route-client.pem"),
+                "CERTIFICATE",
+            )))
+            .unwrap();
         let verifier = rustls::server::WebPkiClientVerifier::builder(Arc::new(roots))
-            .build().unwrap();
+            .build()
+            .unwrap();
         ServerConfig::builder().with_client_cert_verifier(verifier)
     } else {
         ServerConfig::builder().with_no_client_auth()
@@ -383,7 +453,10 @@ async fn tls_oracle_body_at_auth(
             let Ok(mut tls) = acceptor.accept(tcp).await else {
                 continue;
             };
-            names.lock().unwrap().push(tls.get_ref().1.server_name().unwrap_or("").to_owned());
+            names
+                .lock()
+                .unwrap()
+                .push(tls.get_ref().1.server_name().unwrap_or("").to_owned());
             let Ok(hit) = read_hit(&mut tls).await else {
                 continue;
             };
@@ -392,7 +465,13 @@ async fn tls_oracle_body_at_auth(
             let _ = tls.flush().await;
         }
     });
-    TlsOracle { port, hits, accepted, server_names, task }
+    TlsOracle {
+        port,
+        hits,
+        accepted,
+        server_names,
+        task,
+    }
 }
 
 fn trust(pem: &str) -> ClientConfig {

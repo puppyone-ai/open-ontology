@@ -1146,9 +1146,7 @@ fn ratio_thousandths<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u32, 
     if value <= 1000 {
         Ok(value)
     } else {
-        Err(serde::de::Error::custom(
-            "ratio_thousandths is above 1000",
-        ))
+        Err(serde::de::Error::custom("ratio_thousandths is above 1000"))
     }
 }
 
@@ -1502,7 +1500,7 @@ fn oos(path: &str, message: impl Into<String>) -> crate::diagnostic::Diagnostic 
 
 #[cfg(test)]
 mod source_semantics_contract {
-    use super::{validate_dataset, DatasetFile};
+    use super::{DatasetFile, validate_dataset};
     use serde_json::json;
 
     fn legacy() -> serde_json::Value {

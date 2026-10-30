@@ -101,11 +101,8 @@ impl PgSession {
         })?;
         let limit = session::limit_arg(admitted.limit);
         self.arm_rows(admitted.limit);
-        let member_rows = session::fetch_all(
-            self,
-            sqlx::query(sql::DIRECT_MEMBERS).bind(limit),
-        )
-        .await?;
+        let member_rows =
+            session::fetch_all(self, sqlx::query(sql::DIRECT_MEMBERS).bind(limit)).await?;
         if session::filled_sentinel(&admitted, member_rows.len()) {
             push_block(&mut blocks, "essential_fact_unknown", "membership_width");
         }
@@ -125,7 +122,9 @@ impl PgSession {
         let attr_rows = self
             .fetch_limited(
                 admitted,
-                sqlx::query(sql::ROLE_ATTRS).bind(assumable.clone()).bind(limit),
+                sqlx::query(sql::ROLE_ATTRS)
+                    .bind(assumable.clone())
+                    .bind(limit),
                 "catalog_truncated",
             )
             .await?;
@@ -368,7 +367,8 @@ impl PgSession {
         if schemas.is_empty() {
             return Ok((Vec::new(), false));
         }
-        let wanted = u32::try_from(schemas.len()).map_err(|_| SourceError::budget("max_rows_per_sec"))?;
+        let wanted =
+            u32::try_from(schemas.len()).map_err(|_| SourceError::budget("max_rows_per_sec"))?;
         let admitted = self.admit_rows(session::Admit::Exact {
             wanted,
             natural: true,
@@ -377,7 +377,10 @@ impl PgSession {
         let rows = self
             .fetch_limited(
                 admitted,
-                sqlx::query(sql::TABLES).bind(&schemas).bind(&names).bind(limit),
+                sqlx::query(sql::TABLES)
+                    .bind(&schemas)
+                    .bind(&names)
+                    .bind(limit),
                 "selected_table_missing",
             )
             .await?;

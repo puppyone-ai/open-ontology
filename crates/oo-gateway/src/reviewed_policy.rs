@@ -519,7 +519,10 @@ fn parse_model(effective: &Value, schema: Option<&str>) -> Result<Model, Reviewe
     Ok(Model { datasets })
 }
 
-fn check_ontology(ontology: &OntologyFile, schema: Option<&str>) -> Result<(), ReviewedPolicyError> {
+fn check_ontology(
+    ontology: &OntologyFile,
+    schema: Option<&str>,
+) -> Result<(), ReviewedPolicyError> {
     if !ontology.compile.per_role {
         return Err(ReviewedPolicyError::Shape);
     }
@@ -749,11 +752,23 @@ fn split_logical<'a>(dataset: &'a str, schema: &'a str) -> Option<(&'a str, &'a 
     }
 }
 
-fn split_native_logical<'a>(dataset: &'a str, effective: &Value, vector: bool, schema: &'a str) -> Option<(&'a str, &'a str)> {
-    if !vector { return split_logical(dataset, schema); }
+fn split_native_logical<'a>(
+    dataset: &'a str,
+    effective: &Value,
+    vector: bool,
+    schema: &'a str,
+) -> Option<(&'a str, &'a str)> {
+    if !vector {
+        return split_logical(dataset, schema);
+    }
     let (actual_schema, _) = dataset.split_once('.')?;
     let included = effective["ontology"]["include_schemas"].as_array()?;
-    if !included.iter().any(|name| name.as_str() == Some(actual_schema)) { return None; }
+    if !included
+        .iter()
+        .any(|name| name.as_str() == Some(actual_schema))
+    {
+        return None;
+    }
     split_logical(dataset, actual_schema)
 }
 
@@ -1041,13 +1056,20 @@ fn group_policies(admitted: Vec<Admitted>, binding: &ReviewedBinding) -> Vec<Col
 
 fn policy_for(item: Admitted, binding: &ReviewedBinding) -> ColumnAclPolicy {
     let dataset = format!("{}.{}", item.namespace, item.table);
-    let context = binding.binding_vector.as_ref().and_then(Value::as_array).and_then(|entries| {
-        entries.iter().find(|entry| entry["dataset"] == dataset)
-    });
+    let context = binding
+        .binding_vector
+        .as_ref()
+        .and_then(Value::as_array)
+        .and_then(|entries| entries.iter().find(|entry| entry["dataset"] == dataset));
     ColumnAclPolicy {
         project: binding.identity.project.clone(),
-        config_digest: context.and_then(|entry| entry["config_digest"].as_str()).unwrap_or(&binding.config_digest).to_owned(),
-        generation: context.and_then(|entry| entry["source_generation"].as_i64()).unwrap_or(binding.generation),
+        config_digest: context
+            .and_then(|entry| entry["config_digest"].as_str())
+            .unwrap_or(&binding.config_digest)
+            .to_owned(),
+        generation: context
+            .and_then(|entry| entry["source_generation"].as_i64())
+            .unwrap_or(binding.generation),
         role: binding.role.clone(),
         login: binding.login.clone(),
         table: LogicalTable {
@@ -1320,41 +1342,91 @@ pub fn compile_native_reviewed_policies(
             && provenance["collection_sha256"] == binding.seal.schema_hash
             && vector.as_array().is_some_and(|items| {
                 let mut seen = BTreeSet::new();
-                !items.is_empty() && catalog_entries.is_some_and(|entries| entries.len() == items.len())
+                !items.is_empty()
+                    && catalog_entries.is_some_and(|entries| entries.len() == items.len())
                     && items.iter().all(|entry| {
-                    let Some(dataset) = entry["dataset"].as_str() else { return false; };
-                    let Some(config) = entry["config_digest"].as_str() else { return false; };
-                    let Some(source_generation) = entry["source_generation"].as_i64() else { return false; };
-                    let Some(target_generation) = entry["target_generation"].as_i64() else { return false; };
-                    let Some(stored_namespace) = entry["stored_namespace"].as_str() else { return false; };
-                    let Some(stored_physical) = entry["stored_physical"].as_str() else { return false; };
-                    let Some(source) = entry["source_id"].as_str() else { return false; };
-                    let matches_catalog = catalog_entries.is_some_and(|entries| entries.iter().filter(|item| {
-                        item["source_id"] == source && item["run_id"] == entry["run_id"]
-                            && item["tables"][0]["logical_schema"] == dataset.split_once('.').map(|(schema, _)| schema).unwrap_or("")
-                            && item["tables"][0]["logical_table"] == dataset.split_once('.').map(|(_, table)| table).unwrap_or("")
-                    }).count() == 1);
-                    seen.insert(dataset.to_owned())
-                        && split_native_logical(dataset, &output["effective_oos"], true, &binding.seal.schema).is_some()
-                        && !source.is_empty() && matches_catalog
-                        && config.len() == 64 && config.bytes().all(|b| b.is_ascii_hexdigit())
-                        && source_generation >= 1 && target_generation >= 1
-                        && stored_namespace.starts_with("pn_") && stored_namespace.len() == 63
-                        && stored_physical.starts_with("pt_") && stored_physical.len() == 63
-                })
+                        let Some(dataset) = entry["dataset"].as_str() else {
+                            return false;
+                        };
+                        let Some(config) = entry["config_digest"].as_str() else {
+                            return false;
+                        };
+                        let Some(source_generation) = entry["source_generation"].as_i64() else {
+                            return false;
+                        };
+                        let Some(target_generation) = entry["target_generation"].as_i64() else {
+                            return false;
+                        };
+                        let Some(stored_namespace) = entry["stored_namespace"].as_str() else {
+                            return false;
+                        };
+                        let Some(stored_physical) = entry["stored_physical"].as_str() else {
+                            return false;
+                        };
+                        let Some(source) = entry["source_id"].as_str() else {
+                            return false;
+                        };
+                        let matches_catalog = catalog_entries.is_some_and(|entries| {
+                            entries
+                                .iter()
+                                .filter(|item| {
+                                    item["source_id"] == source
+                                        && item["run_id"] == entry["run_id"]
+                                        && item["tables"][0]["logical_schema"]
+                                            == dataset
+                                                .split_once('.')
+                                                .map(|(schema, _)| schema)
+                                                .unwrap_or("")
+                                        && item["tables"][0]["logical_table"]
+                                            == dataset
+                                                .split_once('.')
+                                                .map(|(_, table)| table)
+                                                .unwrap_or("")
+                                })
+                                .count()
+                                == 1
+                        });
+                        seen.insert(dataset.to_owned())
+                            && split_native_logical(
+                                dataset,
+                                &output["effective_oos"],
+                                true,
+                                &binding.seal.schema,
+                            )
+                            .is_some()
+                            && !source.is_empty()
+                            && matches_catalog
+                            && config.len() == 64
+                            && config.bytes().all(|b| b.is_ascii_hexdigit())
+                            && source_generation >= 1
+                            && target_generation >= 1
+                            && stored_namespace.starts_with("pn_")
+                            && stored_namespace.len() == 63
+                            && stored_physical.starts_with("pt_")
+                            && stored_physical.len() == 63
+                    })
             })
     });
     let vector_sources = collection.and_then(Value::as_array).map(|items| {
-        items.iter().filter_map(|entry| entry["source_id"].as_str()).collect::<BTreeSet<_>>()
+        items
+            .iter()
+            .filter_map(|entry| entry["source_id"].as_str())
+            .collect::<BTreeSet<_>>()
     });
     let provenance_source_ok = match vector_sources {
-        Some(sources) if sources.len() > 1 => binding.seal.source_id.is_empty()
-            && (provenance["source_id"] == "" || provenance["source_id"].is_null()),
+        Some(sources) if sources.len() > 1 => {
+            binding.seal.source_id.is_empty()
+                && (provenance["source_id"] == "" || provenance["source_id"].is_null())
+        }
         _ => provenance["source_id"] == binding.seal.source_id,
     };
     if canonical_sha256(catalog) != binding.seal.artifact_sha256
         || !provenance_source_ok
-        || !(if collection.is_some() { vector_seal } else { legacy_seal })
+        || !(if collection.is_some() {
+            vector_seal
+        } else {
+            legacy_seal
+        })
     {
         return Err(ReviewedPolicyError::Identity);
     }
@@ -1370,11 +1442,18 @@ pub fn compile_native_reviewed_policies(
     {
         return Err(ReviewedPolicyError::Identity);
     }
-    let model = parse_model(effective, collection.is_none().then_some(binding.seal.schema.as_str()))?;
+    let model = parse_model(
+        effective,
+        collection.is_none().then_some(binding.seal.schema.as_str()),
+    )?;
     if let Some(vector) = collection {
         let entries = vector.as_array().ok_or(ReviewedPolicyError::Identity)?;
         if entries.len() != model.datasets.len()
-            || !model.datasets.iter().all(|dataset| entries.iter().any(|entry| entry["dataset"] == dataset.dataset.as_str()))
+            || !model.datasets.iter().all(|dataset| {
+                entries
+                    .iter()
+                    .any(|entry| entry["dataset"] == dataset.dataset.as_str())
+            })
         {
             return Err(ReviewedPolicyError::Identity);
         }
@@ -1390,8 +1469,13 @@ pub fn compile_native_reviewed_policies(
         if !seen.insert((entry.dataset.clone(), entry.column.clone())) {
             return Err(ReviewedPolicyError::Shape);
         }
-        let (namespace, table) = split_native_logical(&entry.dataset, effective, collection.is_some(), &binding.seal.schema)
-            .ok_or(ReviewedPolicyError::Identity)?;
+        let (namespace, table) = split_native_logical(
+            &entry.dataset,
+            effective,
+            collection.is_some(),
+            &binding.seal.schema,
+        )
+        .ok_or(ReviewedPolicyError::Identity)?;
         let column = find_column(&model, &entry.dataset, &entry.column)
             .ok_or(ReviewedPolicyError::Decision { reason: "missing" })?;
         let decision = decisions
@@ -1421,7 +1505,8 @@ pub fn compile_native_reviewed_policies(
         crate::policy::compile_column_acl_native_vector_set(&policies)
     } else {
         compile_column_acl_set(&policies)
-    }.map_err(ReviewedPolicyError::Policy)?;
+    }
+    .map_err(ReviewedPolicyError::Policy)?;
     Ok(ReviewedColumnPolicies { policies, compiled })
 }
 
@@ -1431,9 +1516,16 @@ mod native_review_tests {
     use serde_json::json;
     #[test]
     fn vector_namespaces_must_be_in_the_reviewed_ontology() {
-        let effective = json!({"ontology":{"include_schemas":["logistics","cust_east","cust_west"]}});
-        assert_eq!(split_native_logical("cust_east.k_note", &effective, true, ""), Some(("cust_east", "k_note")));
-        assert_eq!(split_native_logical("logistics.hubs", &effective, true, ""), Some(("logistics", "hubs")));
+        let effective =
+            json!({"ontology":{"include_schemas":["logistics","cust_east","cust_west"]}});
+        assert_eq!(
+            split_native_logical("cust_east.k_note", &effective, true, ""),
+            Some(("cust_east", "k_note"))
+        );
+        assert_eq!(
+            split_native_logical("logistics.hubs", &effective, true, ""),
+            Some(("logistics", "hubs"))
+        );
         assert!(split_native_logical("other.k_note", &effective, true, "").is_none());
         assert!(split_native_logical("cust_east.k_note", &effective, false, "logistics").is_none());
     }

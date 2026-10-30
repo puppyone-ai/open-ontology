@@ -14,8 +14,13 @@ const MAX_REQUEST: usize = 32 * 1024 * 1024;
 pub async fn run() -> Result<(), u8> {
     use std::io::Read;
     let mut bytes = Vec::new();
-    std::io::stdin().take((MAX_REQUEST + 1) as u64).read_to_end(&mut bytes).map_err(|_| 2u8)?;
-    if bytes.is_empty() || bytes.len() > MAX_REQUEST { return refuse("request_size"); }
+    std::io::stdin()
+        .take((MAX_REQUEST + 1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|_| 2u8)?;
+    if bytes.is_empty() || bytes.len() > MAX_REQUEST {
+        return refuse("request_size");
+    }
     let request: Value = serde_json::from_slice(&bytes).map_err(|_| 2u8)?;
     let result = match execute(&request).await {
         Ok(value) => value,
@@ -30,7 +35,9 @@ pub async fn run() -> Result<(), u8> {
 }
 
 async fn execute(request: &Value) -> Result<Value, &'static str> {
-    if request["protocol"].as_str() != Some(PROTOCOL) { return Err("protocol"); }
+    if request["protocol"].as_str() != Some(PROTOCOL) {
+        return Err("protocol");
+    }
     let operation = field(request, "operation")?;
     let source = field(request, "source_id")?;
     let task = field(request, "lease_id")?;
@@ -67,31 +74,61 @@ async fn execute(request: &Value) -> Result<Value, &'static str> {
 }
 
 fn field<'a>(v: &'a Value, key: &str) -> Result<&'a str, &'static str> {
-    v.get(key).and_then(Value::as_str).filter(|s| !s.is_empty()).ok_or("request_field")
+    v.get(key)
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .ok_or("request_field")
 }
-fn integer(v: &Value, key: &str) -> Result<i64, &'static str> { v.get(key).and_then(Value::as_i64).ok_or("request_field") }
+fn integer(v: &Value, key: &str) -> Result<i64, &'static str> {
+    v.get(key).and_then(Value::as_i64).ok_or("request_field")
+}
 fn digest<'a>(v: &'a Value, key: &str) -> Result<&'a str, &'static str> {
-    let s=field(v,key)?;
-    if s.len()!=64 || !s.bytes().all(|b|b.is_ascii_hexdigit() && !b.is_ascii_uppercase()) { return Err("digest"); }
+    let s = field(v, key)?;
+    if s.len() != 64
+        || !s
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    {
+        return Err("digest");
+    }
     Ok(s)
 }
 fn decimal<'a>(v: &'a Value, key: &str) -> Result<&'a str, &'static str> {
-    let s=field(v,key)?;
-    if s.len()>38 || !s.bytes().all(|b|b.is_ascii_digit()) || s.len()>1 && s.starts_with('0') { return Err("position"); }
+    let s = field(v, key)?;
+    if s.len() > 38 || !s.bytes().all(|b| b.is_ascii_digit()) || s.len() > 1 && s.starts_with('0') {
+        return Err("position");
+    }
     Ok(s)
 }
 fn json_text(v: &Value, key: &str) -> Result<String, &'static str> {
-    serde_json::to_string(v.get(key).filter(|item| item.is_array()).ok_or("request_field")?).map_err(|_| "request_field")
+    serde_json::to_string(
+        v.get(key)
+            .filter(|item| item.is_array())
+            .ok_or("request_field")?,
+    )
+    .map_err(|_| "request_field")
 }
 fn sql_token(err: sqlx::Error) -> &'static str {
-    let state=err.as_database_error().and_then(|e|e.code().map(|c|c.to_string())).unwrap_or_default();
+    let state = err
+        .as_database_error()
+        .and_then(|e| e.code().map(|c| c.to_string()))
+        .unwrap_or_default();
     eprintln!("oo-pipeline: c1 baseline target sqlstate={state}");
-    match state.as_str() { "OO010"=>"lease_or_barrier", "OO030"=>"closed", "42P01"=>"not_ready", "42501"=>"permission", _=>"target_apply" }
+    match state.as_str() {
+        "OO010" => "lease_or_barrier",
+        "OO030" => "closed",
+        "42P01" => "not_ready",
+        "42501" => "permission",
+        _ => "target_apply",
+    }
 }
-fn refuse(token: &'static str) -> Result<(),u8> {
-    let out=json!({"protocol":PROTOCOL,"outcome":"refused","reason":token});
-    let mut bytes=serde_json::to_vec(&out).map_err(|_|1u8)?;bytes.push(b'\n');
-    use std::io::Write;std::io::stdout().write_all(&bytes).map_err(|_|1u8)?;Err(1)
+fn refuse(token: &'static str) -> Result<(), u8> {
+    let out = json!({"protocol":PROTOCOL,"outcome":"refused","reason":token});
+    let mut bytes = serde_json::to_vec(&out).map_err(|_| 1u8)?;
+    bytes.push(b'\n');
+    use std::io::Write;
+    std::io::stdout().write_all(&bytes).map_err(|_| 1u8)?;
+    Err(1)
 }
 
 // ---------------------------------------------------------------- chunked-typed/v2
@@ -114,7 +151,8 @@ const MAX_COLUMNS: usize = 1024;
 const MAX_TXNS: u64 = 1000;
 const MAX_BATCH_PARTS: usize = 32;
 /// SHA-256 of zero bytes. A terminal chunk without a part carries this digest.
-pub const EMPTY_PART_SHA256: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+pub const EMPTY_PART_SHA256: &str =
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 const KEY_MIN: i128 = -(1 << 63);
 const KEY_MAX: i128 = (1 << 64) - 1;
 
@@ -330,7 +368,11 @@ pub struct Request {
 
 /// Refuse a request that is empty or over the cap, before it is parsed.
 pub fn check_request_size(len: usize) -> Result<(), Token> {
-    if len == 0 || len > MAX_REQUEST_V2 { Err("request_size") } else { Ok(()) }
+    if len == 0 || len > MAX_REQUEST_V2 {
+        Err("request_size")
+    } else {
+        Ok(())
+    }
 }
 
 /// Validate one v2 request. Every field is checked before any connection opens.
@@ -342,8 +384,13 @@ pub fn parse_request(value: &Value) -> Result<Request, Token> {
         source: ident(value, "source_id")?,
         task: uuid(value, "lease_id")?,
         generation: bounded(value, "lease_generation", 1, i64::MAX)?,
-        epoch: i32::try_from(bounded(value, "source_epoch", 1, i64::from(i32::MAX))?).map_err(|_| "source_epoch")?,
-        target: value.get("target").filter(|item| item.is_object()).cloned().ok_or("target")?,
+        epoch: i32::try_from(bounded(value, "source_epoch", 1, i64::from(i32::MAX))?)
+            .map_err(|_| "source_epoch")?,
+        target: value
+            .get("target")
+            .filter(|item| item.is_object())
+            .cloned()
+            .ok_or("target")?,
     };
     let operation = text(value, "operation")?;
     let (fence, body) = match operation {
@@ -355,12 +402,22 @@ pub fn parse_request(value: &Value) -> Result<Request, Token> {
         "retire" => (Some(fence(value)?), Body::Retire),
         _ => return Err("operation"),
     };
-    Ok(Request { envelope, fence, body })
+    Ok(Request {
+        envelope,
+        fence,
+        body,
+    })
 }
 
 fn fence(value: &Value) -> Result<Fence, Token> {
-    let item = value.get("fence").filter(|item| item.is_object()).ok_or("fence")?;
-    Ok(Fence { shard: text(item, "shard")?.to_owned(), owner: uuid(item, "owner")? })
+    let item = value
+        .get("fence")
+        .filter(|item| item.is_object())
+        .ok_or("fence")?;
+    Ok(Fence {
+        shard: text(item, "shard")?.to_owned(),
+        owner: uuid(item, "owner")?,
+    })
 }
 
 fn open_body(value: &Value) -> Result<OpenBody, Token> {
@@ -371,19 +428,36 @@ fn open_body(value: &Value) -> Result<OpenBody, Token> {
             table: text(item, "table")?.to_owned(),
             table_schema_digest: hex64(item, "table_schema_digest")?,
             columns: columns(item)?,
-            oids: array(item, "oids", 1, MAX_COLUMNS)?.iter().map(|v| v.as_i64().ok_or("oids")).collect::<Result<_, _>>()?,
+            oids: array(item, "oids", 1, MAX_COLUMNS)?
+                .iter()
+                .map(|v| v.as_i64().ok_or("oids"))
+                .collect::<Result<_, _>>()?,
             typmods: array(item, "typmods", 1, MAX_COLUMNS)?
                 .iter()
-                .map(|v| v.as_i64().and_then(|n| i32::try_from(n).ok()).ok_or("typmods"))
+                .map(|v| {
+                    v.as_i64()
+                        .and_then(|n| i32::try_from(n).ok())
+                        .ok_or("typmods")
+                })
                 .collect::<Result<_, _>>()?,
-            not_null: array(item, "not_null", 1, MAX_COLUMNS)?.iter().map(|v| v.as_bool().ok_or("not_null")).collect::<Result<_, _>>()?,
+            not_null: array(item, "not_null", 1, MAX_COLUMNS)?
+                .iter()
+                .map(|v| v.as_bool().ok_or("not_null"))
+                .collect::<Result<_, _>>()?,
             key: text(item, "key")?.to_owned(),
         };
         let n = table.columns.len();
-        if table.oids.len() != n || table.typmods.len() != n || table.not_null.len() != n || !table.columns.contains(&table.key) {
+        if table.oids.len() != n
+            || table.typmods.len() != n
+            || table.not_null.len() != n
+            || !table.columns.contains(&table.key)
+        {
             return Err("open_shape");
         }
-        if tables.iter().any(|old: &OpenTable| old.schema == table.schema && old.table == table.table) {
+        if tables
+            .iter()
+            .any(|old: &OpenTable| old.schema == table.schema && old.table == table.table)
+        {
             return Err("duplicate_table");
         }
         tables.push(table);
@@ -409,7 +483,10 @@ fn open_body(value: &Value) -> Result<OpenBody, Token> {
 }
 
 fn chunk_body(value: &Value) -> Result<ChunkBody, Token> {
-    let terminal = value.get("terminal").and_then(Value::as_bool).ok_or("request_field")?;
+    let terminal = value
+        .get("terminal")
+        .and_then(Value::as_bool)
+        .ok_or("request_field")?;
     let key_lo = opt_key(value, "key_lo")?;
     let key_hi = opt_key(value, "key_hi")?;
     let row_count = bounded(value, "row_count", 0, i64::MAX)?.unsigned_abs();
@@ -421,8 +498,10 @@ fn chunk_body(value: &Value) -> Result<ChunkBody, Token> {
     let body = ChunkBody {
         schema: text(value, "schema")?.to_owned(),
         table: text(value, "table")?.to_owned(),
-        chunk_no: i32::try_from(bounded(value, "chunk_no", 1, i64::from(i32::MAX))?).map_err(|_| "chunk_no")?,
-        attempt: i32::try_from(bounded(value, "attempt", 1, i64::from(i32::MAX))?).map_err(|_| "attempt")?,
+        chunk_no: i32::try_from(bounded(value, "chunk_no", 1, i64::from(i32::MAX))?)
+            .map_err(|_| "chunk_no")?,
+        attempt: i32::try_from(bounded(value, "attempt", 1, i64::from(i32::MAX))?)
+            .map_err(|_| "attempt")?,
         key_lo,
         key_hi,
         terminal,
@@ -450,26 +529,26 @@ fn chunk_body(value: &Value) -> Result<ChunkBody, Token> {
         if body.key_hi.is_none() || body.row_count != part.rows || part.rows == 0 {
             return Err("invalid_chunk");
         }
-        if let (Some(lo), Some(hi)) = (body.key_lo, body.key_hi) {
-            if lo >= hi {
-                return Err("invalid_chunk");
-            }
+        if let (Some(lo), Some(hi)) = (body.key_lo, body.key_hi)
+            && lo >= hi
+        {
+            return Err("invalid_chunk");
         }
-        if let (Some(lo), Some(high)) = (body.key_lo, part.key_lo) {
-            if high <= lo {
-                return Err("chunk_keys");
-            }
+        if let (Some(lo), Some(high)) = (body.key_lo, part.key_lo)
+            && high <= lo
+        {
+            return Err("chunk_keys");
         }
-        if let (Some(hi), Some(high)) = (body.key_hi, part.key_hi) {
-            if high > hi {
-                return Err("chunk_keys");
-            }
+        if let (Some(hi), Some(high)) = (body.key_hi, part.key_hi)
+            && high > hi
+        {
+            return Err("chunk_keys");
         }
     }
-    if let Some(part) = &body.part {
-        if part.sha256 != body.part_sha256 {
-            return Err("part_sha256");
-        }
+    if let Some(part) = &body.part
+        && part.sha256 != body.part_sha256
+    {
+        return Err("part_sha256");
     }
     Ok(body)
 }
@@ -479,7 +558,11 @@ fn batch_body(value: &Value) -> Result<BatchBody, Token> {
     let last_pos = position_text(value, "last_pos")?;
     let txns = bounded(value, "txns", 1, i64::try_from(MAX_TXNS).unwrap_or(1000))?;
     let row_count = bounded(value, "row_count", 0, i64::MAX)?.unsigned_abs();
-    let txn_records = value.get("txn_records").filter(|item| item.is_array()).cloned().ok_or("txn_records")?;
+    let txn_records = value
+        .get("txn_records")
+        .filter(|item| item.is_array())
+        .cloned()
+        .ok_or("txn_records")?;
     if txn_records.as_array().map_or(0, Vec::len) as i64 != txns {
         return Err("batch_txns");
     }
@@ -500,7 +583,10 @@ fn batch_body(value: &Value) -> Result<BatchBody, Token> {
         if !part.columns.contains(&part.key) || part.part.rows == 0 {
             return Err("batch_part");
         }
-        if parts.iter().any(|old: &BatchPart| old.schema == part.schema && old.table == part.table) {
+        if parts
+            .iter()
+            .any(|old: &BatchPart| old.schema == part.schema && old.table == part.table)
+        {
             return Err("duplicate_table");
         }
         parts.push(part);
@@ -509,7 +595,8 @@ fn batch_body(value: &Value) -> Result<BatchBody, Token> {
         return Err("batch_rows");
     }
     Ok(BatchBody {
-        batch_no: i32::try_from(bounded(value, "batch_no", 1, i64::from(i32::MAX))?).map_err(|_| "batch_no")?,
+        batch_no: i32::try_from(bounded(value, "batch_no", 1, i64::from(i32::MAX))?)
+            .map_err(|_| "batch_no")?,
         first_pos,
         last_pos,
         txns: i32::try_from(txns).map_err(|_| "txns")?,
@@ -533,7 +620,10 @@ fn seal_body(value: &Value) -> Result<SealBody, Token> {
             row_count: bounded(item, "row_count", 0, i64::MAX)?.unsigned_abs(),
             payload_digest: hex64(item, "payload_digest")?,
         };
-        if tables.iter().any(|old: &SealTable| old.schema == table.schema && old.table == table.table) {
+        if tables
+            .iter()
+            .any(|old: &SealTable| old.schema == table.schema && old.table == table.table)
+        {
             return Err("duplicate_table");
         }
         tables.push(table);
@@ -547,7 +637,10 @@ fn seal_body(value: &Value) -> Result<SealBody, Token> {
 }
 
 fn part_ref(item: &Value) -> Result<PartRef, Token> {
-    let raw = item.get("path").and_then(Value::as_str).ok_or("part_path")?;
+    let raw = item
+        .get("path")
+        .and_then(Value::as_str)
+        .ok_or("part_path")?;
     if raw.is_empty() || raw.len() > 4096 || raw.contains('\0') {
         return Err("part_path");
     }
@@ -555,17 +648,29 @@ fn part_ref(item: &Value) -> Result<PartRef, Token> {
     if !path.is_absolute() {
         return Err("part_path");
     }
-    let bytes = item.get("bytes").and_then(Value::as_u64).ok_or("request_field")?;
+    let bytes = item
+        .get("bytes")
+        .and_then(Value::as_u64)
+        .ok_or("request_field")?;
     if bytes == 0 || bytes > PART_MAX_BYTES {
         return Err("part_bytes");
     }
     let rows = bounded(item, "rows", 0, i64::MAX)?.unsigned_abs();
     let key_lo = opt_key(item, "key_lo")?;
     let key_hi = opt_key(item, "key_hi")?;
-    if (rows == 0) != (key_lo.is_none() && key_hi.is_none()) || (rows > 0 && key_lo.zip(key_hi).is_some_and(|(lo, hi)| lo > hi)) {
+    if (rows == 0) != (key_lo.is_none() && key_hi.is_none())
+        || (rows > 0 && key_lo.zip(key_hi).is_some_and(|(lo, hi)| lo > hi))
+    {
         return Err("key_range");
     }
-    Ok(PartRef { path, bytes, sha256: hex64(item, "sha256")?, rows, key_lo, key_hi })
+    Ok(PartRef {
+        path,
+        bytes,
+        sha256: hex64(item, "sha256")?,
+        rows,
+        key_lo,
+        key_hi,
+    })
 }
 
 fn text<'a>(value: &'a Value, key: &str) -> Result<&'a str, Token> {
@@ -581,8 +686,14 @@ fn ident(value: &Value, key: &str) -> Result<String, Token> {
     let bytes = item.as_bytes();
     let ok = bytes.len() <= 63
         && bytes[0].is_ascii_lowercase()
-        && bytes.iter().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_');
-    if ok { Ok(item.to_owned()) } else { Err("request_field") }
+        && bytes
+            .iter()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_');
+    if ok {
+        Ok(item.to_owned())
+    } else {
+        Err("request_field")
+    }
 }
 
 fn uuid(value: &Value, key: &str) -> Result<String, Token> {
@@ -592,12 +703,20 @@ fn uuid(value: &Value, key: &str) -> Result<String, Token> {
             8 | 13 | 18 | 23 => b == b'-',
             _ => b.is_ascii_digit() || (b'a'..=b'f').contains(&b),
         });
-    if shaped { Ok(item.to_owned()) } else { Err("request_field") }
+    if shaped {
+        Ok(item.to_owned())
+    } else {
+        Err("request_field")
+    }
 }
 
 fn hex64(value: &Value, key: &str) -> Result<String, Token> {
     let item = text(value, key)?;
-    if item.len() == 64 && item.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) {
+    if item.len() == 64
+        && item
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
         Ok(item.to_owned())
     } else {
         Err("digest")
@@ -606,8 +725,14 @@ fn hex64(value: &Value, key: &str) -> Result<String, Token> {
 
 fn position_text(value: &Value, key: &str) -> Result<String, Token> {
     let item = text(value, key)?;
-    let ok = item.len() <= 38 && item.bytes().all(|b| b.is_ascii_digit()) && (item.len() == 1 || !item.starts_with('0'));
-    if ok { Ok(item.to_owned()) } else { Err("position") }
+    let ok = item.len() <= 38
+        && item.bytes().all(|b| b.is_ascii_digit())
+        && (item.len() == 1 || !item.starts_with('0'));
+    if ok {
+        Ok(item.to_owned())
+    } else {
+        Err("position")
+    }
 }
 
 fn bounded(value: &Value, key: &str, min: i64, max: i64) -> Result<i64, Token> {
@@ -629,7 +754,10 @@ fn array<'a>(value: &'a Value, key: &str, min: usize, max: usize) -> Result<&'a 
 fn columns(value: &Value) -> Result<Vec<String>, Token> {
     let mut names: Vec<String> = Vec::new();
     for item in array(value, "columns", 1, MAX_COLUMNS)? {
-        let name = item.as_str().filter(|n| !n.is_empty() && n.len() <= 255 && !n.contains('\0')).ok_or("request_field")?;
+        let name = item
+            .as_str()
+            .filter(|n| !n.is_empty() && n.len() <= 255 && !n.contains('\0'))
+            .ok_or("request_field")?;
         if names.iter().any(|old| old == name) {
             return Err("duplicate_column");
         }
@@ -673,7 +801,9 @@ pub fn refused_v2(reason: Token) -> Value {
 /// The release is a best effort: a failed release only delays other writers.
 pub async fn execute_v2(conn: &mut PgConnection, request: &Request) -> Result<Value, Token> {
     let result = match &request.body {
-        Body::Open(body) => open_tables(conn, &request.envelope, request.fence.as_ref(), body).await,
+        Body::Open(body) => {
+            open_tables(conn, &request.envelope, request.fence.as_ref(), body).await
+        }
         Body::Chunk(body) => chunk(conn, &request.envelope, body).await,
         Body::TxnBatch(body) => txn_batch(conn, &request.envelope, body).await,
         Body::Rebind => rebind(conn, &request.envelope, request.fence.as_ref()).await,
@@ -687,7 +817,10 @@ pub async fn execute_v2(conn: &mut PgConnection, request: &Request) -> Result<Va
 }
 
 /// Adopt the target generation of the fence and bind this session to it. Returns the generation.
-pub async fn adopt_and_bind(tx: &mut Transaction<'_, Postgres>, fence: &Fence) -> Result<i64, Token> {
+pub async fn adopt_and_bind(
+    tx: &mut Transaction<'_, Postgres>,
+    fence: &Fence,
+) -> Result<i64, Token> {
     let generation: i64 = sqlx::query_scalar("SELECT _oo.adopt_target_generation($1, $2::uuid)")
         .bind(&fence.shard)
         .bind(&fence.owner)
@@ -705,7 +838,9 @@ pub async fn adopt_and_bind(tx: &mut Transaction<'_, Postgres>, fence: &Fence) -
 }
 
 fn is_sqlstate(err: &sqlx::Error, code: &str) -> bool {
-    err.as_database_error().and_then(|db| db.code()).is_some_and(|found| found == code)
+    err.as_database_error()
+        .and_then(|db| db.code())
+        .is_some_and(|found| found == code)
 }
 
 /// Release the shard lock that adoption took on this session.
@@ -718,7 +853,7 @@ pub async fn release_fence(conn: &mut PgConnection, shard: &str) -> Result<(), T
         .map_err(native_c1_apply::sql_error)
 }
 
-fn required<'a>(fence: Option<&'a Fence>) -> Result<&'a Fence, Token> {
+fn required(fence: Option<&Fence>) -> Result<&Fence, Token> {
     fence.ok_or("fence")
 }
 
@@ -754,21 +889,19 @@ async fn open_tables(
             .await
             .map_err(native_c1_apply::sql_error)?;
     }
-    sqlx::query(
-        "SELECT _oo.native_c1_baseline_v2_open($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::numeric)",
-    )
-    .bind(&envelope.source)
-    .bind(&envelope.task)
-    .bind(envelope.generation)
-    .bind(envelope.epoch)
-    .bind(&body.measured_id)
-    .bind(&body.config_digest)
-    .bind(&body.schema_digest)
-    .bind(&body.l0)
-    .bind(&body.l0_pos)
-    .execute(&mut *tx)
-    .await
-    .map_err(native_c1_apply::sql_error)?;
+    sqlx::query("SELECT _oo.native_c1_baseline_v2_open($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::numeric)")
+        .bind(&envelope.source)
+        .bind(&envelope.task)
+        .bind(envelope.generation)
+        .bind(envelope.epoch)
+        .bind(&body.measured_id)
+        .bind(&body.config_digest)
+        .bind(&body.schema_digest)
+        .bind(&body.l0)
+        .bind(&body.l0_pos)
+        .execute(&mut *tx)
+        .await
+        .map_err(native_c1_apply::sql_error)?;
     for table in &body.tables {
         register_table_mappings(&mut tx, envelope, body, table).await?;
     }
@@ -805,7 +938,11 @@ async fn open_tables(
         tables.push(item);
     }
     tx.commit().await.map_err(native_c1_apply::sql_error)?;
-    let outcome = if tables.iter().any(|item| item["outcome"] == "opened") { "opened" } else { "replay" };
+    let outcome = if tables.iter().any(|item| item["outcome"] == "opened") {
+        "opened"
+    } else {
+        "replay"
+    };
     Ok(with_operation(
         json!({"outcome": outcome, "format": "chunked-typed/v2", "target_generation": target_generation, "tables": tables}),
         "open",
@@ -819,24 +956,62 @@ async fn register_table_mappings(
     table: &OpenTable,
 ) -> Result<(), Token> {
     use crate::native_arrow::register_mapping;
-    register_mapping(tx, &envelope.source, &body.config_digest, body.source_generation, "namespace", &table.schema, "", "")
-        .await
-        .map_err(|_| "physical")?;
-    register_mapping(tx, &envelope.source, &body.config_digest, body.source_generation, "table", &table.schema, &table.table, "")
-        .await
-        .map_err(|_| "physical")?;
+    register_mapping(
+        tx,
+        &envelope.source,
+        &body.config_digest,
+        body.source_generation,
+        "namespace",
+        &table.schema,
+        "",
+        "",
+    )
+    .await
+    .map_err(|_| "physical")?;
+    register_mapping(
+        tx,
+        &envelope.source,
+        &body.config_digest,
+        body.source_generation,
+        "table",
+        &table.schema,
+        &table.table,
+        "",
+    )
+    .await
+    .map_err(|_| "physical")?;
     for column in &table.columns {
-        register_mapping(tx, &envelope.source, &body.config_digest, body.source_generation, "column", &table.schema, &table.table, column)
-            .await
-            .map_err(|_| "physical")?;
+        register_mapping(
+            tx,
+            &envelope.source,
+            &body.config_digest,
+            body.source_generation,
+            "column",
+            &table.schema,
+            &table.table,
+            column,
+        )
+        .await
+        .map_err(|_| "physical")?;
     }
     Ok(())
 }
 
-async fn chunk(conn: &mut PgConnection, envelope: &Envelope, body: &ChunkBody) -> Result<Value, Token> {
+async fn chunk(
+    conn: &mut PgConnection,
+    envelope: &Envelope,
+    body: &ChunkBody,
+) -> Result<Value, Token> {
     let mut tx = conn.begin().await.map_err(native_c1_apply::sql_error)?;
     lock(&mut tx, envelope).await?;
-    let target = native_c1_apply::stage_target(&mut tx, &envelope.source, &envelope.task, &body.schema, &body.table).await?;
+    let target = native_c1_apply::stage_target(
+        &mut tx,
+        &envelope.source,
+        &envelope.task,
+        &body.schema,
+        &body.table,
+    )
+    .await?;
     if let Some(part) = &body.part {
         let entry = PartEntry {
             part_no: u32::try_from(body.chunk_no).map_err(|_| "chunk_no")?,
@@ -848,10 +1023,23 @@ async fn chunk(conn: &mut PgConnection, envelope: &Envelope, body: &ChunkBody) -
             sha256: part.sha256.clone(),
         };
         let decoded = native_c1_apply::read_verified(&part.path, PartKind::Fill, &entry)?;
-        let mut rows = CopyRows::new(&decoded, &body.columns, &target.columns, Tags::Snapshot { part_no: body.chunk_no })?;
-        let key_index = body.columns.iter().position(|name| *name == body.key).ok_or("open_shape")?;
+        let mut rows = CopyRows::new(
+            &decoded,
+            &body.columns,
+            &target.columns,
+            Tags::Snapshot {
+                part_no: body.chunk_no,
+            },
+        )?;
+        let key_index = body
+            .columns
+            .iter()
+            .position(|name| *name == body.key)
+            .ok_or("open_shape")?;
         native_c1_apply::check_keys(&decoded, key_index, &entry)?;
-        let copied = native_c1_apply::copy_into_stage(&mut tx, &target.stage, &target.columns, &mut rows).await?;
+        let copied =
+            native_c1_apply::copy_into_stage(&mut tx, &target.stage, &target.columns, &mut rows)
+                .await?;
         if copied != part.rows {
             return Err("chunk_part_rows");
         }
@@ -876,14 +1064,28 @@ async fn chunk(conn: &mut PgConnection, envelope: &Envelope, body: &ChunkBody) -
     .await
     .map_err(native_c1_apply::sql_error)?;
     tx.commit().await.map_err(native_c1_apply::sql_error)?;
-    Ok(with_operation(serde_json::from_str(&out).map_err(|_| "target_receipt")?, "chunk"))
+    Ok(with_operation(
+        serde_json::from_str(&out).map_err(|_| "target_receipt")?,
+        "chunk",
+    ))
 }
 
-async fn txn_batch(conn: &mut PgConnection, envelope: &Envelope, body: &BatchBody) -> Result<Value, Token> {
+async fn txn_batch(
+    conn: &mut PgConnection,
+    envelope: &Envelope,
+    body: &BatchBody,
+) -> Result<Value, Token> {
     let mut tx = conn.begin().await.map_err(native_c1_apply::sql_error)?;
     lock(&mut tx, envelope).await?;
     for part in &body.parts {
-        let target = native_c1_apply::stage_target(&mut tx, &envelope.source, &envelope.task, &part.schema, &part.table).await?;
+        let target = native_c1_apply::stage_target(
+            &mut tx,
+            &envelope.source,
+            &envelope.task,
+            &part.schema,
+            &part.table,
+        )
+        .await?;
         let entry = PartEntry {
             part_no: u32::try_from(body.batch_no).map_err(|_| "batch_no")?,
             kind: PartKind::Cdc,
@@ -894,15 +1096,29 @@ async fn txn_batch(conn: &mut PgConnection, envelope: &Envelope, body: &BatchBod
             sha256: part.part.sha256.clone(),
         };
         let decoded = native_c1_apply::read_verified(&part.part.path, PartKind::Cdc, &entry)?;
-        let mut rows = CopyRows::new(&decoded, &part.columns, &target.columns, Tags::Cdc { part_no: body.batch_no })?;
-        let key_index = part.columns.iter().position(|name| *name == part.key).ok_or("open_shape")?;
+        let mut rows = CopyRows::new(
+            &decoded,
+            &part.columns,
+            &target.columns,
+            Tags::Cdc {
+                part_no: body.batch_no,
+            },
+        )?;
+        let key_index = part
+            .columns
+            .iter()
+            .position(|name| *name == part.key)
+            .ok_or("open_shape")?;
         native_c1_apply::check_keys(&decoded, key_index, &entry)?;
         let deletes = native_c1_apply::delete_count(&decoded, part.columns.len())?;
-        let live = native_c1_apply::tombstone_count(&mut tx, envelope, &part.schema, &part.table).await?;
+        let live =
+            native_c1_apply::tombstone_count(&mut tx, envelope, &part.schema, &part.table).await?;
         if live.saturating_add(deletes) > body.max_tombstones {
             return Err("tombstone_overflow");
         }
-        let copied = native_c1_apply::copy_into_stage(&mut tx, &target.stage, &target.columns, &mut rows).await?;
+        let copied =
+            native_c1_apply::copy_into_stage(&mut tx, &target.stage, &target.columns, &mut rows)
+                .await?;
         if copied != part.part.rows {
             return Err("batch_rows");
         }
@@ -925,10 +1141,17 @@ async fn txn_batch(conn: &mut PgConnection, envelope: &Envelope, body: &BatchBod
     .await
     .map_err(native_c1_apply::sql_error)?;
     tx.commit().await.map_err(native_c1_apply::sql_error)?;
-    Ok(with_operation(serde_json::from_str(&out).map_err(|_| "target_receipt")?, "txn_batch"))
+    Ok(with_operation(
+        serde_json::from_str(&out).map_err(|_| "target_receipt")?,
+        "txn_batch",
+    ))
 }
 
-async fn rebind(conn: &mut PgConnection, envelope: &Envelope, fence: Option<&Fence>) -> Result<Value, Token> {
+async fn rebind(
+    conn: &mut PgConnection,
+    envelope: &Envelope,
+    fence: Option<&Fence>,
+) -> Result<Value, Token> {
     let fence = required(fence)?;
     let mut tx = conn.begin().await.map_err(native_c1_apply::sql_error)?;
     let generation = adopt_and_bind(&mut tx, fence).await?;
@@ -943,16 +1166,18 @@ async fn rebind_in_tx(
     fence: &Fence,
     target_generation: i64,
 ) -> Result<Value, Token> {
-    let out: String = sqlx::query_scalar("SELECT _oo.native_c1_baseline_v2_rebind($1,$2::uuid,$3,$4,$5::uuid,$6)::text")
-        .bind(&envelope.source)
-        .bind(&envelope.task)
-        .bind(envelope.generation)
-        .bind(&fence.shard)
-        .bind(&fence.owner)
-        .bind(target_generation)
-        .fetch_one(&mut **tx)
-        .await
-        .map_err(native_c1_apply::sql_error)?;
+    let out: String = sqlx::query_scalar(
+        "SELECT _oo.native_c1_baseline_v2_rebind($1,$2::uuid,$3,$4,$5::uuid,$6)::text",
+    )
+    .bind(&envelope.source)
+    .bind(&envelope.task)
+    .bind(envelope.generation)
+    .bind(&fence.shard)
+    .bind(&fence.owner)
+    .bind(target_generation)
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(native_c1_apply::sql_error)?;
     serde_json::from_str(&out).map_err(|_| "target_receipt")
 }
 
@@ -999,7 +1224,12 @@ pub async fn seal_in_tx(
     serde_json::from_str(&out).map_err(|_| "target_receipt")
 }
 
-async fn seal(conn: &mut PgConnection, envelope: &Envelope, fence: Option<&Fence>, body: &SealBody) -> Result<Value, Token> {
+async fn seal(
+    conn: &mut PgConnection,
+    envelope: &Envelope,
+    fence: Option<&Fence>,
+    body: &SealBody,
+) -> Result<Value, Token> {
     let fence = required(fence)?;
     let mut tx = conn.begin().await.map_err(native_c1_apply::sql_error)?;
     let generation = adopt_and_bind(&mut tx, fence).await?;
@@ -1015,7 +1245,11 @@ async fn seal(conn: &mut PgConnection, envelope: &Envelope, fence: Option<&Fence
 /// operation adopts the live claim, so the call must come from the holder of the
 /// current claim (on failure, before the job completes; on abandonment, from the
 /// worker that reclaims the task).
-async fn retire(conn: &mut PgConnection, envelope: &Envelope, fence: Option<&Fence>) -> Result<Value, Token> {
+async fn retire(
+    conn: &mut PgConnection,
+    envelope: &Envelope,
+    fence: Option<&Fence>,
+) -> Result<Value, Token> {
     let fence = required(fence)?;
     let mut tx = conn.begin().await.map_err(native_c1_apply::sql_error)?;
     let generation = adopt_and_bind(&mut tx, fence).await?;
@@ -1092,7 +1326,8 @@ mod v2_tests {
     }
 
     fn with_fence(mut value: Value) -> Value {
-        value["fence"] = json!({"shard": "shard_x", "owner": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"});
+        value["fence"] =
+            json!({"shard": "shard_x", "owner": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"});
         value
     }
 
@@ -1138,6 +1373,8 @@ mod v2_tests {
         value
     }
 
+    type RefusalCase = (&'static str, Box<dyn Fn(&mut Value)>, &'static str);
+
     fn expect(value: &Value, token: &str) {
         assert_eq!(parse_request(value).err(), Some(token), "{value}");
     }
@@ -1148,8 +1385,13 @@ mod v2_tests {
         assert_eq!(request.envelope.generation, 7);
         assert_eq!(request.envelope.epoch, 4);
         assert!(request.fence.is_none());
-        let Body::Chunk(body) = request.body else { panic!("chunk") };
-        assert_eq!((body.chunk_no, body.key_lo, body.key_hi), (1, None, Some(3)));
+        let Body::Chunk(body) = request.body else {
+            panic!("chunk")
+        };
+        assert_eq!(
+            (body.chunk_no, body.key_lo, body.key_hi),
+            (1, None, Some(3))
+        );
         assert_eq!(body.part.expect("part").rows, 3);
     }
 
@@ -1163,7 +1405,9 @@ mod v2_tests {
         value["part"] = Value::Null;
         value["part_sha256"] = json!(EMPTY_PART_SHA256);
         let request = parse_request(&value).expect("terminal");
-        let Body::Chunk(body) = request.body else { panic!("chunk") };
+        let Body::Chunk(body) = request.body else {
+            panic!("chunk")
+        };
         assert!(body.terminal && body.part.is_none() && body.key_lo == Some(7));
         value["part_sha256"] = json!(H1);
         expect(&value, "part_sha256");
@@ -1171,42 +1415,162 @@ mod v2_tests {
 
     #[test]
     fn chunk_refusals_are_closed_tokens() {
-        let cases: Vec<(&str, Box<dyn Fn(&mut Value)>, &str)> = vec![
-            ("protocol", Box::new(|v: &mut Value| v["protocol"] = json!("oo.pipeline.native-c1-baseline-stage/v1")), "protocol"),
-            ("operation", Box::new(|v: &mut Value| v["operation"] = json!("drop")), "operation"),
-            ("generation", Box::new(|v: &mut Value| v["lease_generation"] = json!(0)), "request_field"),
-            ("source", Box::new(|v: &mut Value| v["source_id"] = json!("MySQL")), "request_field"),
-            ("lease", Box::new(|v: &mut Value| v["lease_id"] = json!("not-a-uuid")), "request_field"),
-            ("epoch", Box::new(|v: &mut Value| v["source_epoch"] = json!(0)), "request_field"),
-            ("target", Box::new(|v: &mut Value| { v.as_object_mut().expect("o").remove("target"); }), "target"),
-            ("chunk_no", Box::new(|v: &mut Value| v["chunk_no"] = json!(0)), "request_field"),
-            ("digest case", Box::new(|v: &mut Value| v["part_sha256"] = json!(H1.replace('1', "A"))), "digest"),
-            ("relative path", Box::new(|v: &mut Value| v["part"]["path"] = json!("fill-00000001.arrow")), "part_path"),
-            ("part digest", Box::new(|v: &mut Value| v["part"]["sha256"] = json!(H2)), "part_sha256"),
-            ("row count", Box::new(|v: &mut Value| v["row_count"] = json!(2)), "invalid_chunk"),
-            ("missing key_hi", Box::new(|v: &mut Value| v["key_hi"] = Value::Null), "invalid_chunk"),
-            ("lo >= hi", Box::new(|v: &mut Value| { v["key_lo"] = json!("3"); v["key_hi"] = json!("3"); }), "invalid_chunk"),
-            ("part above hi", Box::new(|v: &mut Value| v["part"]["key_hi"] = json!("4")), "chunk_keys"),
-            ("part at lo", Box::new(|v: &mut Value| { v["key_lo"] = json!("1"); }), "chunk_keys"),
-            ("key not a column", Box::new(|v: &mut Value| v["key"] = json!("missing")), "open_shape"),
-            ("duplicate column", Box::new(|v: &mut Value| v["columns"] = json!(["id", "id"])), "duplicate_column"),
-            ("leading zero key", Box::new(|v: &mut Value| v["key_hi"] = json!("03")), "key_range"),
-            ("terminal with hi", Box::new(|v: &mut Value| { v["terminal"] = json!(true); v["row_count"] = json!(0); v["part"] = Value::Null; v["part_sha256"] = json!(EMPTY_PART_SHA256); }), "invalid_chunk"),
-            ("empty non-terminal chunk", Box::new(|v: &mut Value| { v["part"]["rows"] = json!(0); v["part"]["key_lo"] = Value::Null; v["part"]["key_hi"] = Value::Null; v["row_count"] = json!(0); }), "invalid_chunk"),
-            ("empty part with keys", Box::new(|v: &mut Value| { v["part"]["rows"] = json!(0); v["row_count"] = json!(0); }), "key_range"),
-            ("oversize part", Box::new(|v: &mut Value| v["part"]["bytes"] = json!(PART_MAX_BYTES + 1)), "part_bytes"),
+        let cases: Vec<RefusalCase> = vec![
+            (
+                "protocol",
+                Box::new(|v: &mut Value| {
+                    v["protocol"] = json!("oo.pipeline.native-c1-baseline-stage/v1")
+                }),
+                "protocol",
+            ),
+            (
+                "operation",
+                Box::new(|v: &mut Value| v["operation"] = json!("drop")),
+                "operation",
+            ),
+            (
+                "generation",
+                Box::new(|v: &mut Value| v["lease_generation"] = json!(0)),
+                "request_field",
+            ),
+            (
+                "source",
+                Box::new(|v: &mut Value| v["source_id"] = json!("MySQL")),
+                "request_field",
+            ),
+            (
+                "lease",
+                Box::new(|v: &mut Value| v["lease_id"] = json!("not-a-uuid")),
+                "request_field",
+            ),
+            (
+                "epoch",
+                Box::new(|v: &mut Value| v["source_epoch"] = json!(0)),
+                "request_field",
+            ),
+            (
+                "target",
+                Box::new(|v: &mut Value| {
+                    v.as_object_mut().expect("o").remove("target");
+                }),
+                "target",
+            ),
+            (
+                "chunk_no",
+                Box::new(|v: &mut Value| v["chunk_no"] = json!(0)),
+                "request_field",
+            ),
+            (
+                "digest case",
+                Box::new(|v: &mut Value| v["part_sha256"] = json!(H1.replace('1', "A"))),
+                "digest",
+            ),
+            (
+                "relative path",
+                Box::new(|v: &mut Value| v["part"]["path"] = json!("fill-00000001.arrow")),
+                "part_path",
+            ),
+            (
+                "part digest",
+                Box::new(|v: &mut Value| v["part"]["sha256"] = json!(H2)),
+                "part_sha256",
+            ),
+            (
+                "row count",
+                Box::new(|v: &mut Value| v["row_count"] = json!(2)),
+                "invalid_chunk",
+            ),
+            (
+                "missing key_hi",
+                Box::new(|v: &mut Value| v["key_hi"] = Value::Null),
+                "invalid_chunk",
+            ),
+            (
+                "lo >= hi",
+                Box::new(|v: &mut Value| {
+                    v["key_lo"] = json!("3");
+                    v["key_hi"] = json!("3");
+                }),
+                "invalid_chunk",
+            ),
+            (
+                "part above hi",
+                Box::new(|v: &mut Value| v["part"]["key_hi"] = json!("4")),
+                "chunk_keys",
+            ),
+            (
+                "part at lo",
+                Box::new(|v: &mut Value| {
+                    v["key_lo"] = json!("1");
+                }),
+                "chunk_keys",
+            ),
+            (
+                "key not a column",
+                Box::new(|v: &mut Value| v["key"] = json!("missing")),
+                "open_shape",
+            ),
+            (
+                "duplicate column",
+                Box::new(|v: &mut Value| v["columns"] = json!(["id", "id"])),
+                "duplicate_column",
+            ),
+            (
+                "leading zero key",
+                Box::new(|v: &mut Value| v["key_hi"] = json!("03")),
+                "key_range",
+            ),
+            (
+                "terminal with hi",
+                Box::new(|v: &mut Value| {
+                    v["terminal"] = json!(true);
+                    v["row_count"] = json!(0);
+                    v["part"] = Value::Null;
+                    v["part_sha256"] = json!(EMPTY_PART_SHA256);
+                }),
+                "invalid_chunk",
+            ),
+            (
+                "empty non-terminal chunk",
+                Box::new(|v: &mut Value| {
+                    v["part"]["rows"] = json!(0);
+                    v["part"]["key_lo"] = Value::Null;
+                    v["part"]["key_hi"] = Value::Null;
+                    v["row_count"] = json!(0);
+                }),
+                "invalid_chunk",
+            ),
+            (
+                "empty part with keys",
+                Box::new(|v: &mut Value| {
+                    v["part"]["rows"] = json!(0);
+                    v["row_count"] = json!(0);
+                }),
+                "key_range",
+            ),
+            (
+                "oversize part",
+                Box::new(|v: &mut Value| v["part"]["bytes"] = json!(PART_MAX_BYTES + 1)),
+                "part_bytes",
+            ),
         ];
         for (name, mutate, token) in cases {
             let mut value = chunk_request();
             mutate(&mut value);
-            assert_eq!(parse_request(&value).err(), Some(token), "case {name}: {value}");
+            assert_eq!(
+                parse_request(&value).err(),
+                Some(token),
+                "case {name}: {value}"
+            );
         }
     }
 
     #[test]
     fn a_valid_batch_parses_and_defaults_the_tombstone_bound() {
         let request = parse_request(&batch_request()).expect("valid");
-        let Body::TxnBatch(body) = request.body else { panic!("batch") };
+        let Body::TxnBatch(body) = request.body else {
+            panic!("batch")
+        };
         assert_eq!(body.max_tombstones, DEFAULT_MAX_TOMBSTONES);
         assert_eq!(body.parts.len(), 1);
         assert_eq!(body.txns, 3);
@@ -1214,19 +1578,59 @@ mod v2_tests {
 
     #[test]
     fn batch_refusals_are_closed_tokens() {
-        let cases: Vec<(&str, Box<dyn Fn(&mut Value)>, &str)> = vec![
-            ("txn list length", Box::new(|v: &mut Value| { v["txns"] = json!(2); }), "batch_txns"),
-            ("position span", Box::new(|v: &mut Value| { v["last_pos"] = json!("104"); v["txns"] = json!(3); }), "batch_txns"),
-            ("row sum", Box::new(|v: &mut Value| v["row_count"] = json!(7)), "batch_rows"),
-            ("zero rows part", Box::new(|v: &mut Value| { v["parts"][0]["part"]["rows"] = json!(0); v["row_count"] = json!(0); }), "key_range"),
-            ("leading zero pos", Box::new(|v: &mut Value| v["first_pos"] = json!("0101")), "position"),
-            ("zero bound", Box::new(|v: &mut Value| v["max_tombstones"] = json!(0)), "max_tombstones"),
-            ("part key missing", Box::new(|v: &mut Value| v["parts"][0]["key"] = json!("nope")), "batch_part"),
+        let cases: Vec<RefusalCase> = vec![
+            (
+                "txn list length",
+                Box::new(|v: &mut Value| {
+                    v["txns"] = json!(2);
+                }),
+                "batch_txns",
+            ),
+            (
+                "position span",
+                Box::new(|v: &mut Value| {
+                    v["last_pos"] = json!("104");
+                    v["txns"] = json!(3);
+                }),
+                "batch_txns",
+            ),
+            (
+                "row sum",
+                Box::new(|v: &mut Value| v["row_count"] = json!(7)),
+                "batch_rows",
+            ),
+            (
+                "zero rows part",
+                Box::new(|v: &mut Value| {
+                    v["parts"][0]["part"]["rows"] = json!(0);
+                    v["row_count"] = json!(0);
+                }),
+                "key_range",
+            ),
+            (
+                "leading zero pos",
+                Box::new(|v: &mut Value| v["first_pos"] = json!("0101")),
+                "position",
+            ),
+            (
+                "zero bound",
+                Box::new(|v: &mut Value| v["max_tombstones"] = json!(0)),
+                "max_tombstones",
+            ),
+            (
+                "part key missing",
+                Box::new(|v: &mut Value| v["parts"][0]["key"] = json!("nope")),
+                "batch_part",
+            ),
         ];
         for (name, mutate, token) in cases {
             let mut value = batch_request();
             mutate(&mut value);
-            assert_eq!(parse_request(&value).err(), Some(token), "case {name}: {value}");
+            assert_eq!(
+                parse_request(&value).err(),
+                Some(token),
+                "case {name}: {value}"
+            );
         }
     }
 
@@ -1234,7 +1638,9 @@ mod v2_tests {
     fn a_batch_may_carry_a_custom_tombstone_bound() {
         let mut value = batch_request();
         value["max_tombstones"] = json!(1000);
-        let Body::TxnBatch(body) = parse_request(&value).expect("valid").body else { panic!("batch") };
+        let Body::TxnBatch(body) = parse_request(&value).expect("valid").body else {
+            panic!("batch")
+        };
         assert_eq!(body.max_tombstones, 1000);
     }
 
@@ -1266,7 +1672,9 @@ mod v2_tests {
 
     #[test]
     fn open_parses_tables_and_refuses_shape_faults() {
-        let Body::Open(body) = parse_request(&open_request()).expect("valid").body else { panic!("open") };
+        let Body::Open(body) = parse_request(&open_request()).expect("valid").body else {
+            panic!("open")
+        };
         assert_eq!(body.tables[0].oids, vec![20, 25]);
         let mut shape = open_request();
         shape["tables"][0]["not_null"] = json!([true]);
@@ -1282,14 +1690,21 @@ mod v2_tests {
 
     #[test]
     fn successor_open_binds_a_valid_predecessor_only_after_the_first_generation() {
-        let Body::Open(first) = parse_request(&open_request()).unwrap().body else { panic!("open") };
+        let Body::Open(first) = parse_request(&open_request()).unwrap().body else {
+            panic!("open")
+        };
         assert!(first.previous_task.is_none());
         let mut value = open_request();
         value["previous_task"] = json!("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
         expect(&value, "previous_generation");
         value["source_generation"] = json!(2);
-        let Body::Open(next) = parse_request(&value).unwrap().body else { panic!("open") };
-        assert_eq!(next.previous_task.as_deref(), Some("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"));
+        let Body::Open(next) = parse_request(&value).unwrap().body else {
+            panic!("open")
+        };
+        assert_eq!(
+            next.previous_task.as_deref(),
+            Some("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+        );
         value["previous_task"] = json!("not-a-task");
         expect(&value, "request_field");
     }
@@ -1314,8 +1729,11 @@ mod v2_tests {
         value["l_end"] = json!("11111111-2222-3333-4444-555555555555:1-103");
         value["l_end_pos"] = json!("103");
         value["hook_digest"] = json!(H1);
-        value["tables"] = json!([{"schema": "app", "table": "items", "row_count": 4, "payload_digest": H2}]);
-        let Body::Seal(body) = parse_request(&value).expect("valid").body else { panic!("seal") };
+        value["tables"] =
+            json!([{"schema": "app", "table": "items", "row_count": 4, "payload_digest": H2}]);
+        let Body::Seal(body) = parse_request(&value).expect("valid").body else {
+            panic!("seal")
+        };
         assert_eq!(body.tables[0].row_count, 4);
         value["l_end_pos"] = json!("0103");
         expect(&value, "position");
@@ -1340,7 +1758,10 @@ mod v2_tests {
     #[test]
     fn a_refusal_names_only_the_token() {
         let value = refused_v2("chunk_conflict");
-        assert_eq!(value, json!({"protocol": PROTOCOL_V2, "outcome": "refused", "reason": "chunk_conflict"}));
+        assert_eq!(
+            value,
+            json!({"protocol": PROTOCOL_V2, "outcome": "refused", "reason": "chunk_conflict"})
+        );
     }
 
     #[test]

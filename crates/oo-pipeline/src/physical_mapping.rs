@@ -327,7 +327,10 @@ fn is_safe_pgident(name: &str) -> bool {
 
 fn is_full_hex(name: &str) -> bool {
     let bytes = name.as_bytes();
-    if bytes.len() < 4 || bytes.len() > MAX_LOGICAL_BYTES || bytes.len() == 63 || !bytes.starts_with(b"q_")
+    if bytes.len() < 4
+        || bytes.len() > MAX_LOGICAL_BYTES
+        || bytes.len() == 63
+        || !bytes.starts_with(b"q_")
     {
         return false;
     }
@@ -361,7 +364,10 @@ mod tests {
     const GOLDEN_NAME: &str = "pn_d528fe7ee77dde914147ad1edc2b2d6f2f42b25106ccfe6f39d5f8996f1f";
 
     fn reserved() -> BTreeSet<String> {
-        oo_connectors::PG17_RESERVED.iter().map(|word| (*word).to_string()).collect()
+        oo_connectors::PG17_RESERVED
+            .iter()
+            .map(|word| (*word).to_string())
+            .collect()
     }
 
     fn golden() -> MappingRequest {
@@ -389,7 +395,10 @@ mod tests {
         assert_eq!(canonical_bytes(&golden()).len(), 108);
         assert_eq!(plan.scope_namespace_physical, plan.physical_name);
         assert!(plan.scope_table_physical.is_none());
-        assert_eq!(quote_physical_name(&plan.physical_name).expect("quote"), format!("\"{GOLDEN_NAME}\""));
+        assert_eq!(
+            quote_physical_name(&plan.physical_name).expect("quote"),
+            format!("\"{GOLDEN_NAME}\"")
+        );
     }
 
     #[test]
@@ -413,23 +422,61 @@ mod tests {
     #[test]
     fn pgident_forms_round_trip_and_raw_unicode_stays_closed() {
         let words = reserved();
-        assert_eq!(oo_connectors::stable_ident("é", &words).expect("composed"), "q_c3a9");
-        assert_eq!(oo_connectors::stable_ident("e\u{0301}", &words).expect("decomposed"), "q_c3a9");
-        assert_eq!(oo_connectors::stable_ident("ﬁ", &words).expect("ligature"), "q_efac81");
-        assert_eq!(oo_connectors::stable_ident("fi", &words).expect("ascii"), "fi");
-        assert_eq!(oo_connectors::stable_ident("select", &words).expect("reserved"), "q_73656c656374");
-        assert_eq!(oo_connectors::stable_ident("Customer", &words).expect("case"), "q_437573746f6d6572");
-        assert_eq!(oo_connectors::stable_ident("customer", &words).expect("lower"), "customer");
-        assert_eq!(oo_connectors::stable_ident("a\"b", &words).expect("quote"), "q_612262");
-        assert_eq!(oo_connectors::stable_ident("客户", &words).expect("han"), "q_e5aea2e688b7");
+        assert_eq!(
+            oo_connectors::stable_ident("é", &words).expect("composed"),
+            "q_c3a9"
+        );
+        assert_eq!(
+            oo_connectors::stable_ident("e\u{0301}", &words).expect("decomposed"),
+            "q_c3a9"
+        );
+        assert_eq!(
+            oo_connectors::stable_ident("ﬁ", &words).expect("ligature"),
+            "q_efac81"
+        );
+        assert_eq!(
+            oo_connectors::stable_ident("fi", &words).expect("ascii"),
+            "fi"
+        );
+        assert_eq!(
+            oo_connectors::stable_ident("select", &words).expect("reserved"),
+            "q_73656c656374"
+        );
+        assert_eq!(
+            oo_connectors::stable_ident("Customer", &words).expect("case"),
+            "q_437573746f6d6572"
+        );
+        assert_eq!(
+            oo_connectors::stable_ident("customer", &words).expect("lower"),
+            "customer"
+        );
+        assert_eq!(
+            oo_connectors::stable_ident("a\"b", &words).expect("quote"),
+            "q_612262"
+        );
+        assert_eq!(
+            oo_connectors::stable_ident("客户", &words).expect("han"),
+            "q_e5aea2e688b7"
+        );
         let repeated = "一".repeat(80);
-        assert_eq!(oo_connectors::stable_ident(&repeated, &words).expect("long han"), q_utf8(&repeated));
+        assert_eq!(
+            oo_connectors::stable_ident(&repeated, &words).expect("long han"),
+            q_utf8(&repeated)
+        );
         assert!(q_utf8(&repeated).len() > 63);
 
         let truncated = format!("q_{}", "a".repeat(61));
         assert_eq!(truncated.len(), 63);
         let mut request = golden();
-        for closed in ["客户", "select", "Customer", "a\"b", "é", "q_", truncated.as_str()] {
+        for closed in [
+            "客户",
+            "select",
+            "Customer",
+            "a\"b",
+            "é",
+            "q_",
+            truncated.as_str(),
+        ] {
             request.logical_namespace = closed.to_string();
             assert_eq!(
                 plan_physical_mapping(&request).expect_err("closed"),
@@ -458,7 +505,10 @@ mod tests {
         assert!(plan_physical_mapping(&request).is_ok());
         request.logical_namespace = format!("q_{}", "ab".repeat(2048));
         assert_eq!(request.logical_namespace.len(), 4098);
-        assert_eq!(plan_physical_mapping(&request).expect_err("long"), PlanError::ClosedLogicalName);
+        assert_eq!(
+            plan_physical_mapping(&request).expect_err("long"),
+            PlanError::ClosedLogicalName
+        );
 
         let mut request = golden();
         request.level = Level::Table;
@@ -469,9 +519,15 @@ mod tests {
         let column = plan_physical_mapping(&request).expect("column");
         let namespace = plan_physical_mapping(&golden()).expect("namespace");
         assert_eq!(table.scope_namespace_physical, namespace.physical_name);
-        assert_eq!(table.scope_table_physical.as_deref(), Some(table.physical_name.as_str()));
+        assert_eq!(
+            table.scope_table_physical.as_deref(),
+            Some(table.physical_name.as_str())
+        );
         assert_eq!(column.scope_namespace_physical, namespace.physical_name);
-        assert_eq!(column.scope_table_physical.as_deref(), Some(table.physical_name.as_str()));
+        assert_eq!(
+            column.scope_table_physical.as_deref(),
+            Some(table.physical_name.as_str())
+        );
         assert!(column.physical_name.starts_with("pc_"));
         assert_ne!(column.physical_name, table.physical_name);
     }
@@ -485,23 +541,42 @@ mod tests {
         assert!(!error.to_string().contains("_main"));
         request.source = "src_main".to_string();
         request.config_digest = "AB".repeat(32);
-        assert_eq!(plan_physical_mapping(&request).expect_err("config"), PlanError::ClosedConfig);
+        assert_eq!(
+            plan_physical_mapping(&request).expect_err("config"),
+            PlanError::ClosedConfig
+        );
         request.config_digest = "ab".repeat(32);
         request.run_generation = 0;
-        assert_eq!(plan_physical_mapping(&request).expect_err("generation"), PlanError::ClosedGeneration);
-        assert_eq!(quote_physical_name("customer").expect_err("quote"), PlanError::NotPhysicalName);
-        assert_eq!(quote_physical_name(&format!("\"{GOLDEN_NAME}\"")).expect_err("already"), PlanError::NotPhysicalName);
+        assert_eq!(
+            plan_physical_mapping(&request).expect_err("generation"),
+            PlanError::ClosedGeneration
+        );
+        assert_eq!(
+            quote_physical_name("customer").expect_err("quote"),
+            PlanError::NotPhysicalName
+        );
+        assert_eq!(
+            quote_physical_name(&format!("\"{GOLDEN_NAME}\"")).expect_err("already"),
+            PlanError::NotPhysicalName
+        );
     }
 
     #[test]
     fn migration_keeps_the_pgident_reserved_list_and_its_own_writer_gate() {
-        assert!(oo_connectors::PG17_RESERVED.windows(2).all(|pair| pair[0] < pair[1]));
+        assert!(
+            oo_connectors::PG17_RESERVED
+                .windows(2)
+                .all(|pair| pair[0] < pair[1])
+        );
         let start = MIGRATION.find("-- pm-reserved-begin").expect("begin");
         let end = MIGRATION.find("-- pm-reserved-end").expect("end");
         let mut words = Vec::new();
         for line in MIGRATION[start..end].lines() {
             let line = line.trim().trim_end_matches(',');
-            if let Some(word) = line.strip_prefix('\'').and_then(|text| text.strip_suffix('\'')) {
+            if let Some(word) = line
+                .strip_prefix('\'')
+                .and_then(|text| text.strip_suffix('\''))
+            {
                 words.push(word);
             }
         }

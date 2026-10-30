@@ -41,11 +41,15 @@ fn unsupported_capabilities_are_explicit() {
 
 #[tokio::test]
 async fn metadata_refuses_success_status_with_an_error_body() {
-    let oracle =
-        Oracle::spawn(|_, _| Action::Raw(json_response(200, "OK", ERROR_SQL, &[]))).await;
+    let oracle = Oracle::spawn(|_, _| Action::Raw(json_response(200, "OK", ERROR_SQL, &[]))).await;
     let error = open(&oracle.origin(), TOKEN, local_config())
-        .sql_validate("SELECT 1").await.expect_err("error is not success");
-    assert!(matches!(error, QueryError::Protocol(ProtocolError::Rejected)));
+        .sql_validate("SELECT 1")
+        .await
+        .expect_err("error is not success");
+    assert!(matches!(
+        error,
+        QueryError::Protocol(ProtocolError::Rejected)
+    ));
     assert_eq!(oracle.hits().len(), 1);
 }
 
@@ -59,9 +63,12 @@ async fn validation_errors_scrub_submitted_sql_but_keep_safe_diagnostics() {
             "hint": "phase=signature_binding; expression=operator; argument_types=[timestamp,text]"
         }});
         Action::Raw(json_response(400, "Bad Request", &body.to_string(), &[]))
-    }).await;
+    })
+    .await;
     let error = open(&oracle.origin(), TOKEN, local_config())
-        .sql_validate(SQL).await.expect_err("refused");
+        .sql_validate(SQL)
+        .await
+        .expect_err("refused");
     let gateway = error.gateway().unwrap();
     assert_eq!(gateway.code(), ErrorCode::FunctionNotAllowed);
     assert!(!gateway.message().contains(SQL));
@@ -96,10 +103,14 @@ async fn query_budget_reserves_receipt_time_and_does_not_replay_timeout() {
         let budget = value["timeout_ms"].as_u64().unwrap();
         assert!((27_000..=28_500).contains(&budget), "{budget}");
         Action::Raw(json_response(408, "Request Timeout", ERROR_TIMEOUT, &[]))
-    }).await;
+    })
+    .await;
     let mut request = sample_request();
     request.timeout_ms = Some(120_000);
-    let error = open(&oracle.origin(), TOKEN, local_config()).query(request).await.unwrap_err();
+    let error = open(&oracle.origin(), TOKEN, local_config())
+        .query(request)
+        .await
+        .unwrap_err();
     assert_eq!(error.gateway().unwrap().code(), ErrorCode::Timeout);
     assert!(error.gateway().unwrap().query_id().is_some());
     assert_eq!(oracle.hits().len(), 1);
@@ -568,7 +579,9 @@ async fn incomplete_and_reset_connections_are_not_replayed() {
     assert!(matches!(
         error,
         QueryError::Transport(
-            TransportError::Incomplete | TransportError::Other | TransportError::Timeout
+            TransportError::Incomplete
+                | TransportError::Other
+                | TransportError::Timeout
                 | TransportError::ConnectionReset
         )
     ));

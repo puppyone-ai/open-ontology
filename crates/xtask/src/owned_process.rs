@@ -215,7 +215,11 @@ impl OwnedTree {
         if !same {
             return Ok(());
         }
-        signal_target(kill, &format!("-{}", self.root), Some(self.root_start.as_str()))
+        signal_target(
+            kill,
+            &format!("-{}", self.root),
+            Some(self.root_start.as_str()),
+        )
     }
 }
 

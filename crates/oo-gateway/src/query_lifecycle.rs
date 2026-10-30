@@ -1,9 +1,9 @@
 //! Request-owned state; dropping HTTP work must not leave a reusable busy session.
-use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Duration;
 
-use tokio::sync::{watch, OwnedMutexGuard};
+use tokio::sync::{OwnedMutexGuard, watch};
 
 use crate::query_executor::DedicatedSession;
 
@@ -39,7 +39,9 @@ impl QueryState {
             "abandoned" => 4,
             _ => 5,
         };
-        let _ = self.status.compare_exchange(0, value, Ordering::AcqRel, Ordering::Acquire);
+        let _ = self
+            .status
+            .compare_exchange(0, value, Ordering::AcqRel, Ordering::Acquire);
     }
 
     pub fn cancel(&self) -> &'static str {
@@ -91,7 +93,9 @@ mod tests {
     async fn cancellation_is_sticky_and_terminal_status_does_not_change() {
         let state = QueryState::new();
         assert_eq!(state.cancel(), "requested");
-        tokio::time::timeout(Duration::from_millis(20), state.canceled()).await.unwrap();
+        tokio::time::timeout(Duration::from_millis(20), state.canceled())
+            .await
+            .unwrap();
         state.finish("canceled");
         drop(RequestLifetime(Arc::clone(&state)));
         assert_eq!(state.status(), "canceled");

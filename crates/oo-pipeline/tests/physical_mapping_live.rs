@@ -15,8 +15,8 @@ use std::thread;
 use std::time::Duration;
 
 use oo_pipeline::physical_mapping::{
-    plan_physical_mapping, quote_physical_name, Level, MappingRequest, PhysicalPlan, LOOKUP_SQL,
-    REGISTER_SQL,
+    LOOKUP_SQL, Level, MappingRequest, PhysicalPlan, REGISTER_SQL, plan_physical_mapping,
+    quote_physical_name,
 };
 
 const BOOTSTRAP: &str = include_str!("../migrations/0000_bootstrap_roles.sql");
@@ -57,19 +57,79 @@ fn migration_route(stored: Option<&str>, file_hash: &str) -> Route {
 
 fn sha256_hex(message: &[u8]) -> String {
     const K: [u32; 64] = [
-        0x428a_2f98, 0x7137_4491, 0xb5c0_fbcf, 0xe9b5_dba5, 0x3956_c25b, 0x59f1_11f1, 0x923f_82a4,
-        0xab1c_5ed5, 0xd807_aa98, 0x1283_5b01, 0x2431_85be, 0x550c_7dc3, 0x72be_5d74, 0x80de_b1fe,
-        0x9bdc_06a7, 0xc19b_f174, 0xe49b_69c1, 0xefbe_4786, 0x0fc1_9dc6, 0x240c_a1cc, 0x2de9_2c6f,
-        0x4a74_84aa, 0x5cb0_a9dc, 0x76f9_88da, 0x983e_5152, 0xa831_c66d, 0xb003_27c8, 0xbf59_7fc7,
-        0xc6e0_0bf3, 0xd5a7_9147, 0x06ca_6351, 0x1429_2967, 0x27b7_0a85, 0x2e1b_2138, 0x4d2c_6dfc,
-        0x5338_0d13, 0x650a_7354, 0x766a_0abb, 0x81c2_c92e, 0x9272_2c85, 0xa2bf_e8a1, 0xa81a_664b,
-        0xc24b_8b70, 0xc76c_51a3, 0xd192_e819, 0xd699_0624, 0xf40e_3585, 0x106a_a070, 0x19a4_c116,
-        0x1e37_6c08, 0x2748_774c, 0x34b0_bcb5, 0x391c_0cb3, 0x4ed8_aa4a, 0x5b9c_ca4f, 0x682e_6ff3,
-        0x748f_82ee, 0x78a5_636f, 0x84c8_7814, 0x8cc7_0208, 0x90be_fffa, 0xa450_6ceb, 0xbef9_a3f7,
+        0x428a_2f98,
+        0x7137_4491,
+        0xb5c0_fbcf,
+        0xe9b5_dba5,
+        0x3956_c25b,
+        0x59f1_11f1,
+        0x923f_82a4,
+        0xab1c_5ed5,
+        0xd807_aa98,
+        0x1283_5b01,
+        0x2431_85be,
+        0x550c_7dc3,
+        0x72be_5d74,
+        0x80de_b1fe,
+        0x9bdc_06a7,
+        0xc19b_f174,
+        0xe49b_69c1,
+        0xefbe_4786,
+        0x0fc1_9dc6,
+        0x240c_a1cc,
+        0x2de9_2c6f,
+        0x4a74_84aa,
+        0x5cb0_a9dc,
+        0x76f9_88da,
+        0x983e_5152,
+        0xa831_c66d,
+        0xb003_27c8,
+        0xbf59_7fc7,
+        0xc6e0_0bf3,
+        0xd5a7_9147,
+        0x06ca_6351,
+        0x1429_2967,
+        0x27b7_0a85,
+        0x2e1b_2138,
+        0x4d2c_6dfc,
+        0x5338_0d13,
+        0x650a_7354,
+        0x766a_0abb,
+        0x81c2_c92e,
+        0x9272_2c85,
+        0xa2bf_e8a1,
+        0xa81a_664b,
+        0xc24b_8b70,
+        0xc76c_51a3,
+        0xd192_e819,
+        0xd699_0624,
+        0xf40e_3585,
+        0x106a_a070,
+        0x19a4_c116,
+        0x1e37_6c08,
+        0x2748_774c,
+        0x34b0_bcb5,
+        0x391c_0cb3,
+        0x4ed8_aa4a,
+        0x5b9c_ca4f,
+        0x682e_6ff3,
+        0x748f_82ee,
+        0x78a5_636f,
+        0x84c8_7814,
+        0x8cc7_0208,
+        0x90be_fffa,
+        0xa450_6ceb,
+        0xbef9_a3f7,
         0xc671_78f2,
     ];
     let mut state: [u32; 8] = [
-        0x6a09_e667, 0xbb67_ae85, 0x3c6e_f372, 0xa54f_f53a, 0x510e_527f, 0x9b05_688c, 0x1f83_d9ab,
+        0x6a09_e667,
+        0xbb67_ae85,
+        0x3c6e_f372,
+        0xa54f_f53a,
+        0x510e_527f,
+        0x9b05_688c,
+        0x1f83_d9ab,
         0x5be0_cd19,
     ];
     let bits = u64::try_from(message.len()).expect("message length") * 8;
@@ -186,13 +246,18 @@ impl Lab {
     }
 
     fn write(&self, name: &str, body: &str) {
-        fs::write(self.evidence.join(name), body).unwrap_or_else(|error| panic!("write {name}: {error}"));
+        fs::write(self.evidence.join(name), body)
+            .unwrap_or_else(|error| panic!("write {name}: {error}"));
     }
 
     fn connect(&self, user: &str, db: &str) -> Conn {
         let mut conn = Conn::connect(&self.host, self.port, user, db);
         let answer = conn.query("SET statement_timeout = '60s'; SET lock_timeout = '15s';");
-        assert!(answer.code.is_none(), "limits {}", answer.message.unwrap_or_default());
+        assert!(
+            answer.code.is_none(),
+            "limits {}",
+            answer.message.unwrap_or_default()
+        );
         conn
     }
 }
@@ -263,7 +328,11 @@ impl Conn {
     fn startup(&mut self, user: &str, db: &str) {
         let mut payload = Vec::new();
         payload.extend_from_slice(&196_608u32.to_be_bytes());
-        for (key, value) in [("user", user), ("database", db), ("client_encoding", "UTF8")] {
+        for (key, value) in [
+            ("user", user),
+            ("database", db),
+            ("client_encoding", "UTF8"),
+        ] {
             payload.extend_from_slice(key.as_bytes());
             payload.push(0);
             payload.extend_from_slice(value.as_bytes());
@@ -271,7 +340,9 @@ impl Conn {
         }
         payload.push(0);
         let len = u32::try_from(payload.len() + 4).expect("startup len");
-        self.stream.write_all(&len.to_be_bytes()).expect("startup len");
+        self.stream
+            .write_all(&len.to_be_bytes())
+            .expect("startup len");
         self.stream.write_all(&payload).expect("startup");
         let mut authed = false;
         loop {
@@ -385,9 +456,14 @@ impl Conn {
         let mut tag = [0u8; 1];
         self.stream.read_exact(&mut tag).expect("message tag");
         let mut len_bytes = [0u8; 4];
-        self.stream.read_exact(&mut len_bytes).expect("message length");
+        self.stream
+            .read_exact(&mut len_bytes)
+            .expect("message length");
         let len = usize::try_from(u32::from_be_bytes(len_bytes)).expect("length");
-        assert!((4..=32 * 1024 * 1024).contains(&len), "message length {len}");
+        assert!(
+            (4..=32 * 1024 * 1024).contains(&len),
+            "message length {len}"
+        );
         let mut body = vec![0u8; len - 4];
         self.stream.read_exact(&mut body).expect("message body");
         (tag[0], body)
@@ -408,7 +484,8 @@ fn error_fields(body: &[u8]) -> (String, String) {
             .iter()
             .position(|byte| *byte == 0)
             .expect("error field terminator");
-        let text = String::from_utf8(body[cursor..cursor + end].to_vec()).expect("error field utf8");
+        let text =
+            String::from_utf8(body[cursor..cursor + end].to_vec()).expect("error field utf8");
         cursor += end + 1;
         match kind {
             b'C' => code = text,
@@ -441,17 +518,29 @@ fn data_row(body: &[u8]) -> Vec<String> {
 
 fn tx_begin(conn: &mut Conn) {
     let answer = conn.query("BEGIN;");
-    assert!(answer.code.is_none(), "begin {}", answer.message.unwrap_or_default());
+    assert!(
+        answer.code.is_none(),
+        "begin {}",
+        answer.message.unwrap_or_default()
+    );
 }
 
 fn tx_commit(conn: &mut Conn) {
     let answer = conn.query("COMMIT;");
-    assert!(answer.code.is_none(), "commit {}", answer.message.unwrap_or_default());
+    assert!(
+        answer.code.is_none(),
+        "commit {}",
+        answer.message.unwrap_or_default()
+    );
 }
 
 fn tx_rollback(conn: &mut Conn) {
     let answer = conn.query("ROLLBACK;");
-    assert!(answer.code.is_none(), "rollback {}", answer.message.unwrap_or_default());
+    assert!(
+        answer.code.is_none(),
+        "rollback {}",
+        answer.message.unwrap_or_default()
+    );
 }
 
 fn sole(answer: &Answer, label: &str) -> String {
@@ -486,7 +575,10 @@ fn expect_code(conn: &mut Conn, answer: &Answer, code: &str, marker: Option<&str
     );
     if let Some(marker) = marker {
         let message = answer.message.as_deref().unwrap_or("");
-        assert!(!message.contains(marker), "server message echoed the closed input");
+        assert!(
+            !message.contains(marker),
+            "server message echoed the closed input"
+        );
     }
     if answer.status == b'E' {
         tx_rollback(conn);
@@ -496,8 +588,15 @@ fn expect_code(conn: &mut Conn, answer: &Answer, code: &str, marker: Option<&str
 fn assert_physical(name: &str) {
     assert_eq!(name.len(), 63);
     assert!(name.starts_with("pn_") || name.starts_with("pt_") || name.starts_with("pc_"));
-    assert!(name.as_bytes()[3..].iter().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte)));
-    assert_eq!(quote_physical_name(name).expect("quote"), format!("\"{name}\""));
+    assert!(
+        name.as_bytes()[3..]
+            .iter()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte))
+    );
+    assert_eq!(
+        quote_physical_name(name).expect("quote"),
+        format!("\"{name}\"")
+    );
 }
 
 #[derive(Clone)]
@@ -601,28 +700,64 @@ fn lookup_one(conn: &mut Conn, reg: &Reg) -> String {
 
 fn install(conn: &mut Conn, file_hash: &str) {
     assert_eq!(file_hash.len(), 64);
-    assert!(file_hash.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()));
+    assert!(
+        file_hash
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    );
     let begun = conn.query(
         "BEGIN; SET LOCAL lock_timeout = '15s'; SELECT pg_catalog.pg_advisory_xact_lock(6404202605);",
     );
-    assert!(begun.code.is_none(), "migration begin {}", begun.message.unwrap_or_default());
+    assert!(
+        begun.code.is_none(),
+        "migration begin {}",
+        begun.message.unwrap_or_default()
+    );
     let bootstrap = conn.query(BOOTSTRAP);
-    assert!(bootstrap.code.is_none(), "0000 {}", bootstrap.message.unwrap_or_default());
+    assert!(
+        bootstrap.code.is_none(),
+        "0000 {}",
+        bootstrap.message.unwrap_or_default()
+    );
     let role = conn.query("SET ROLE oo_target_owner;");
-    assert!(role.code.is_none(), "set role {}", role.message.unwrap_or_default());
+    assert!(
+        role.code.is_none(),
+        "set role {}",
+        role.message.unwrap_or_default()
+    );
     let expand = conn.query(EXPAND);
-    assert!(expand.code.is_none(), "0001 {}", expand.message.unwrap_or_default());
+    assert!(
+        expand.code.is_none(),
+        "0001 {}",
+        expand.message.unwrap_or_default()
+    );
     let locked = conn.query("SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE;");
-    assert!(locked.code.is_none(), "migration lock {}", locked.message.unwrap_or_default());
+    assert!(
+        locked.code.is_none(),
+        "migration lock {}",
+        locked.message.unwrap_or_default()
+    );
     let mapping = conn.query(MAPPING);
-    assert!(mapping.code.is_none(), "0004 {}", mapping.message.unwrap_or_default());
+    assert!(
+        mapping.code.is_none(),
+        "0004 {}",
+        mapping.message.unwrap_or_default()
+    );
     let marker = format!(
         "INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES ('physical-mapping/v1', '{file_hash}', 'expand', '0004_physical_mapping.sql');"
     );
     let booked = conn.query(&marker);
-    assert!(booked.code.is_none(), "marker {}", booked.message.unwrap_or_default());
+    assert!(
+        booked.code.is_none(),
+        "marker {}",
+        booked.message.unwrap_or_default()
+    );
     let done = conn.query("RESET ROLE; COMMIT;");
-    assert!(done.code.is_none(), "migration commit {}", done.message.unwrap_or_default());
+    assert!(
+        done.code.is_none(),
+        "migration commit {}",
+        done.message.unwrap_or_default()
+    );
 }
 
 fn marker(conn: &mut Conn) -> (String, String) {
@@ -641,10 +776,19 @@ fn physical_mapping_live() {
         .ok()
         .and_then(|value| value.parse().ok())
         .unwrap_or(5432);
-    let evidence = PathBuf::from(env::var("OO_PHYSICAL_MAPPING_EVIDENCE").expect("OO_PHYSICAL_MAPPING_EVIDENCE"));
+    let evidence = PathBuf::from(
+        env::var("OO_PHYSICAL_MAPPING_EVIDENCE").expect("OO_PHYSICAL_MAPPING_EVIDENCE"),
+    );
     fs::create_dir_all(&evidence).expect("evidence dir");
-    let lab = Lab { host, port, evidence };
-    let rustc_out = Command::new("rustc").arg("--version").output().expect("rustc");
+    let lab = Lab {
+        host,
+        port,
+        evidence,
+    };
+    let rustc_out = Command::new("rustc")
+        .arg("--version")
+        .output()
+        .expect("rustc");
     let rustc = String::from_utf8(rustc_out.stdout).expect("rustc utf8");
     assert!(rustc.starts_with("rustc 1.94.0 "), "{rustc}");
     lab.write("rustc-version.txt", &rustc);
@@ -658,7 +802,11 @@ fn physical_mapping_live() {
     let created = admin.query(
         "CREATE DATABASE oo_pm WITH TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER builtin BUILTIN_LOCALE 'C.UTF-8';",
     );
-    assert!(created.code.is_none(), "create database {}", created.message.unwrap_or_default());
+    assert!(
+        created.code.is_none(),
+        "create database {}",
+        created.message.unwrap_or_default()
+    );
     drop(admin);
 
     let mut owner = lab.connect("postgres", "oo_pm");
@@ -677,8 +825,14 @@ fn physical_mapping_live() {
     assert_eq!(stored_hash, file_hash);
     lab.note(&format!("marker={stored_hash} applied_at={applied_at}"));
 
-    let empty = sole(&owner.query("SELECT encode(_oo.pm_sha256(decode('', 'hex')), 'hex');"), "sha-empty");
-    let abc = sole(&owner.query("SELECT encode(_oo.pm_sha256(convert_to('abc', 'UTF8')), 'hex');"), "sha-abc");
+    let empty = sole(
+        &owner.query("SELECT encode(_oo.pm_sha256(decode('', 'hex')), 'hex');"),
+        "sha-empty",
+    );
+    let abc = sole(
+        &owner.query("SELECT encode(_oo.pm_sha256(convert_to('abc', 'UTF8')), 'hex');"),
+        "sha-abc",
+    );
     let many = sole(
         &owner.query("SELECT encode(_oo.pm_sha256(convert_to(repeat('a', 200), 'UTF8')), 'hex');"),
         "sha-a200",
@@ -702,17 +856,27 @@ fn physical_mapping_live() {
     let roles = owner.query(
         "CREATE ROLE oo_a140_runtime LOGIN INHERIT; CREATE ROLE oo_a140_agent LOGIN; GRANT oo_pipeline_runtime TO oo_a140_runtime WITH INHERIT TRUE, SET FALSE; GRANT CONNECT ON DATABASE oo_pm TO oo_a140_runtime; GRANT CONNECT ON DATABASE oo_pm TO oo_a140_agent; ALTER ROLE oo_a140_runtime SET search_path = pg_catalog; ALTER ROLE oo_a140_agent SET search_path = pg_catalog;",
     );
-    assert!(roles.code.is_none(), "roles {}", roles.message.unwrap_or_default());
+    assert!(
+        roles.code.is_none(),
+        "roles {}",
+        roles.message.unwrap_or_default()
+    );
 
     let config = config_ab();
-    assert_eq!(config, "abababababababababababababababababababababababababababababababab");
+    assert_eq!(
+        config,
+        "abababababababababababababababababababababababababababababababab"
+    );
     let golden = Reg::from_plan(&namespace_plan("src_main", &config, 1, "customer"));
     assert_eq!(hex_encode(&golden.digest), GOLDEN_DIGEST);
     let mut runtime = lab.connect("oo_a140_runtime", "oo_pm");
     let path = sole(&runtime.query("SHOW search_path;"), "search_path");
     assert_eq!(path, "pg_catalog");
     tx_begin(&mut runtime);
-    let inserted = sole(&runtime.extended(REGISTER_SQL, &golden.params()), "golden insert");
+    let inserted = sole(
+        &runtime.extended(REGISTER_SQL, &golden.params()),
+        "golden insert",
+    );
     assert_eq!(inserted, "inserted");
     let gucs = sole_row(
         &runtime.query(
@@ -724,10 +888,16 @@ fn physical_mapping_live() {
     tx_commit(&mut runtime);
     let replay = register_commit(&mut runtime, &golden);
     assert_eq!(replay, "replay");
-    let first_stamp = sole_row(&owner.extended(INSPECT_SQL, &golden.inspect_params()), "golden inspect");
+    let first_stamp = sole_row(
+        &owner.extended(INSPECT_SQL, &golden.inspect_params()),
+        "golden inspect",
+    );
     let second = register_commit(&mut runtime, &golden);
     assert_eq!(second, "replay");
-    let second_stamp = sole_row(&owner.extended(INSPECT_SQL, &golden.inspect_params()), "golden replay inspect");
+    let second_stamp = sole_row(
+        &owner.extended(INSPECT_SQL, &golden.inspect_params()),
+        "golden replay inspect",
+    );
     assert_eq!(first_stamp[3], physical_from_digest(&golden.digest, "pn_"));
     assert_eq!(first_stamp[0], "63");
     assert_eq!(first_stamp[2], GOLDEN_DIGEST);
@@ -735,13 +905,19 @@ fn physical_mapping_live() {
     assert_physical(&first_stamp[3]);
     lab.write(
         "durable-name.txt",
-        &format!("physical_name={}\nidentity_digest={GOLDEN_DIGEST}\n", first_stamp[3]),
+        &format!(
+            "physical_name={}\nidentity_digest={GOLDEN_DIGEST}\n",
+            first_stamp[3]
+        ),
     );
     drop(runtime);
     let mut reopened = lab.connect("oo_a140_runtime", "oo_pm");
     let looked = lookup_one(&mut reopened, &golden);
     assert_eq!(looked, first_stamp[3]);
-    lab.note(&format!("golden={} replay_stamp={}", first_stamp[3], first_stamp[4]));
+    lab.note(&format!(
+        "golden={} replay_stamp={}",
+        first_stamp[3], first_stamp[4]
+    ));
 
     let left_name = format!("q_{}", "ab".repeat(40));
     let right_name = format!("{}cd", &left_name[..left_name.len() - 2]);
@@ -750,8 +926,14 @@ fn physical_mapping_live() {
     let right = Reg::from_plan(&namespace_plan("src_long", &config, 1, &right_name));
     assert_eq!(register_commit(&mut reopened, &left), "inserted");
     assert_eq!(register_commit(&mut reopened, &right), "inserted");
-    let left_row = sole_row(&owner.extended(INSPECT_SQL, &left.inspect_params()), "long left");
-    let right_row = sole_row(&owner.extended(INSPECT_SQL, &right.inspect_params()), "long right");
+    let left_row = sole_row(
+        &owner.extended(INSPECT_SQL, &left.inspect_params()),
+        "long left",
+    );
+    let right_row = sole_row(
+        &owner.extended(INSPECT_SQL, &right.inspect_params()),
+        "long right",
+    );
     assert_eq!(left_row[0], "63");
     assert_eq!(right_row[0], "63");
     assert!(left_row[1].parse::<i64>().expect("len") > 63);
@@ -767,10 +949,16 @@ fn physical_mapping_live() {
     let long_han = Reg::from_plan(&namespace_plan("src_han", &config, 1, &long_han_text));
     assert_eq!(register_commit(&mut reopened, &han), "inserted");
     assert_eq!(register_commit(&mut reopened, &long_han), "inserted");
-    let han_row = sole_row(&owner.extended(INSPECT_SQL, &long_han.inspect_params()), "long han");
+    let han_row = sole_row(
+        &owner.extended(INSPECT_SQL, &long_han.inspect_params()),
+        "long han",
+    );
     assert_eq!(han_row[0], "63");
     assert!(han_row[1].parse::<i64>().expect("han len") > 63);
-    lab.note(&format!("unicode physical={} logical_bytes={}", han_row[3], han_row[1]));
+    lab.note(&format!(
+        "unicode physical={} logical_bytes={}",
+        han_row[3], han_row[1]
+    ));
 
     let composed = Reg::from_plan(&namespace_plan("src_norm", &config, 1, "q_c3a9"));
     assert_eq!(register_commit(&mut reopened, &composed), "inserted");
@@ -779,12 +967,23 @@ fn physical_mapping_live() {
     let ascii_fi = Reg::from_plan(&namespace_plan("src_norm", &config, 1, "fi"));
     assert_eq!(register_commit(&mut reopened, &ligature), "inserted");
     assert_eq!(register_commit(&mut reopened, &ascii_fi), "inserted");
-    assert_ne!(lookup_one(&mut reopened, &ligature), lookup_one(&mut reopened, &ascii_fi));
+    assert_ne!(
+        lookup_one(&mut reopened, &ligature),
+        lookup_one(&mut reopened, &ascii_fi)
+    );
     let lower = Reg::from_plan(&namespace_plan("src_case", &config, 1, "customer"));
-    let cased = Reg::from_plan(&namespace_plan("src_case", &config, 1, "q_437573746f6d6572"));
+    let cased = Reg::from_plan(&namespace_plan(
+        "src_case",
+        &config,
+        1,
+        "q_437573746f6d6572",
+    ));
     assert_eq!(register_commit(&mut reopened, &lower), "inserted");
     assert_eq!(register_commit(&mut reopened, &cased), "inserted");
-    assert_ne!(lookup_one(&mut reopened, &lower), lookup_one(&mut reopened, &cased));
+    assert_ne!(
+        lookup_one(&mut reopened, &lower),
+        lookup_one(&mut reopened, &cased)
+    );
     let reserved = Reg::from_plan(&namespace_plan("src_word", &config, 1, "q_73656c656374"));
     let quoted = Reg::from_plan(&namespace_plan("src_word", &config, 1, "q_612262"));
     assert_eq!(register_commit(&mut reopened, &reserved), "inserted");
@@ -842,7 +1041,10 @@ fn physical_mapping_live() {
     assert_eq!(wide_ok_name.len(), 4096);
     let wide_ok = Reg::from_plan(&namespace_plan("src_wide", &config, 1, &wide_ok_name));
     assert_eq!(register_commit(&mut reopened, &wide_ok), "inserted");
-    let wide_row = sole_row(&owner.extended(INSPECT_SQL, &wide_ok.inspect_params()), "wide");
+    let wide_row = sole_row(
+        &owner.extended(INSPECT_SQL, &wide_ok.inspect_params()),
+        "wide",
+    );
     assert_eq!(wide_row[0], "63");
     assert_eq!(wide_row[1], "4096");
     lab.note("closed_payloads=23514 wide=4096");
@@ -872,14 +1074,24 @@ fn physical_mapping_live() {
     expect_code(&mut reopened, &no_parent, "OO024", None);
     let parent_ns = Reg::from_plan(&namespace_plan("src_parent", &config, 1, "sales"));
     assert_eq!(register_commit(&mut reopened, &parent_ns), "inserted");
-    orphan = Reg::from_plan(&plan_column("src_parent", &config, 1, "sales", "orders", "amount"));
+    orphan = Reg::from_plan(&plan_column(
+        "src_parent",
+        &config,
+        1,
+        "sales",
+        "orders",
+        "amount",
+    ));
     tx_begin(&mut reopened);
     let no_table = reopened.extended(REGISTER_SQL, &orphan.params());
     expect_code(&mut reopened, &no_table, "OO024", None);
     let parent_table = Reg::from_plan(&plan_table("src_parent", &config, 1, "sales", "orders"));
     assert_eq!(register_commit(&mut reopened, &parent_table), "inserted");
     assert_eq!(register_commit(&mut reopened, &orphan), "inserted");
-    let column_row = sole_row(&owner.extended(INSPECT_SQL, &orphan.inspect_params()), "column");
+    let column_row = sole_row(
+        &owner.extended(INSPECT_SQL, &orphan.inspect_params()),
+        "column",
+    );
     assert_eq!(column_row[5], parent_ns_physical(&parent_ns));
     assert_eq!(column_row[6], parent_table_physical(&parent_table));
     assert!(column_row[3].starts_with("pc_"));
@@ -903,7 +1115,10 @@ fn physical_mapping_live() {
 
     let rolled = Reg::from_plan(&namespace_plan("src_roll", &config, 1, "customer"));
     tx_begin(&mut reopened);
-    let rolled_answer = sole(&reopened.extended(REGISTER_SQL, &rolled.params()), "rollback insert");
+    let rolled_answer = sole(
+        &reopened.extended(REGISTER_SQL, &rolled.params()),
+        "rollback insert",
+    );
     assert_eq!(rolled_answer, "inserted");
     tx_rollback(&mut reopened);
     tx_begin(&mut reopened);
@@ -919,7 +1134,10 @@ fn physical_mapping_live() {
     let (left_out, right_out) = thread::scope(|scope| {
         let left = scope.spawn(|| race_once(&race_host, race_port, &race, &barrier));
         let right = scope.spawn(|| race_once(&race_host, race_port, &race, &barrier));
-        (left.join().expect("left thread"), right.join().expect("right thread"))
+        (
+            left.join().expect("left thread"),
+            right.join().expect("right thread"),
+        )
     });
     let mut outcomes = [left_out.expect("left"), right_out.expect("right")];
     outcomes.sort();
@@ -938,8 +1156,17 @@ fn physical_mapping_live() {
     let constraints = owner.query(
         "SELECT c.conname || ' ' || pg_catalog.pg_get_constraintdef(c.oid) FROM pg_catalog.pg_constraint AS c WHERE c.conrelid = '_oo.physical_mappings'::regclass ORDER BY c.conname;",
     );
-    assert!(constraints.code.is_none(), "constraints {}", constraints.message.unwrap_or_default());
-    let constraint_text = constraints.rows.iter().map(|row| row[0].as_str()).collect::<Vec<_>>().join("\n");
+    assert!(
+        constraints.code.is_none(),
+        "constraints {}",
+        constraints.message.unwrap_or_default()
+    );
+    let constraint_text = constraints
+        .rows
+        .iter()
+        .map(|row| row[0].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(constraint_text.contains("physical_mappings_physical_name_unique"));
     assert!(constraint_text.contains("physical_mappings_pkey"));
     assert!(constraint_text.contains("physical_mappings_identity_digest_unique"));
@@ -948,7 +1175,12 @@ fn physical_mapping_live() {
     let indexes = owner.query(
         "SELECT pg_catalog.pg_get_indexdef(index.indexrelid) FROM pg_catalog.pg_index AS index WHERE index.indrelid = '_oo.physical_mappings'::regclass ORDER BY 1;",
     );
-    let index_text = indexes.rows.iter().map(|row| row[0].as_str()).collect::<Vec<_>>().join("\n");
+    let index_text = indexes
+        .rows
+        .iter()
+        .map(|row| row[0].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(index_text.contains("UNIQUE"));
     lab.write("indexes.txt", &index_text);
     let relation = sole_row(
@@ -969,7 +1201,12 @@ fn physical_mapping_live() {
         "functions {}",
         functions.message.as_deref().unwrap_or("")
     );
-    let function_text = functions.rows.iter().map(|row| row[0].as_str()).collect::<Vec<_>>().join("\n");
+    let function_text = functions
+        .rows
+        .iter()
+        .map(|row| row[0].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(
         function_text.contains("lookup_physical_mapping|oo_target_owner|true|0"),
         "{function_text}"
@@ -1017,7 +1254,8 @@ fn physical_mapping_live() {
     lab.note("agent_runtime_deny=42501");
 
     tx_begin(&mut owner);
-    let direct = owner.query("SET LOCAL ROLE oo_target_owner; INSERT INTO _oo.physical_mappings DEFAULT VALUES;");
+    let direct = owner
+        .query("SET LOCAL ROLE oo_target_owner; INSERT INTO _oo.physical_mappings DEFAULT VALUES;");
     expect_code(&mut owner, &direct, "OO014", None);
     tx_begin(&mut owner);
     let updated = owner.query(
@@ -1042,7 +1280,10 @@ fn physical_mapping_live() {
         "SELECT _oo.commit_apply_receipt('shard_a', '11111111-1111-4111-8111-111111111111'::uuid, 1, 'src_main', 'table_one', 'batch-1', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', 'snapshot-zero/v1', 'lineage_a', 0, 0, false, true, true, NULL, NULL, decode('', 'hex'));",
     );
     expect_code(&mut reopened, &fence, "OO011", None);
-    let receipts = sole(&owner.query("SELECT count(*)::text FROM _oo.apply_receipts;"), "receipts");
+    let receipts = sole(
+        &owner.query("SELECT count(*)::text FROM _oo.apply_receipts;"),
+        "receipts",
+    );
     assert_eq!(receipts, "0");
     let public_tables = sole(
         &owner.query(
@@ -1054,7 +1295,11 @@ fn physical_mapping_live() {
     lab.note("fence=OO011 receipts=0 public_tables=0");
 
     let again = owner.query("BEGIN; SET LOCAL lock_timeout = '15s'; SELECT pg_catalog.pg_advisory_xact_lock(6404202605);");
-    assert!(again.code.is_none(), "second lock {}", again.message.unwrap_or_default());
+    assert!(
+        again.code.is_none(),
+        "second lock {}",
+        again.message.unwrap_or_default()
+    );
     let (again_hash, again_at) = marker(&mut owner);
     assert_eq!(migration_route(Some(&again_hash), &file_hash), Route::Skip);
     tx_commit(&mut owner);
@@ -1086,7 +1331,13 @@ fn parent_table_physical(reg: &Reg) -> String {
     physical_from_digest(&reg.digest, "pt_")
 }
 
-fn plan_table(source: &str, config: &str, generation: i64, namespace: &str, table: &str) -> PhysicalPlan {
+fn plan_table(
+    source: &str,
+    config: &str,
+    generation: i64,
+    namespace: &str,
+    table: &str,
+) -> PhysicalPlan {
     plan_physical_mapping(&MappingRequest {
         source: source.to_string(),
         config_digest: config.to_string(),
@@ -1141,12 +1392,15 @@ fn race_once(host: &str, port: u16, reg: &Reg, barrier: &Barrier) -> Result<Stri
             answer.message.unwrap_or_default()
         ));
     }
-    let outcome = answer.rows.first().and_then(|row| row.first()).cloned().unwrap_or_default();
+    let outcome = answer
+        .rows
+        .first()
+        .and_then(|row| row.first())
+        .cloned()
+        .unwrap_or_default();
     let done = conn.query("COMMIT;");
     if done.code.is_some() {
         return Err(done.message.unwrap_or_default());
     }
     Ok(outcome)
 }
-
-

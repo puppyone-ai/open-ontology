@@ -13,11 +13,13 @@
 
 use std::collections::HashMap;
 use std::io::{ErrorKind, Read};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
-use arrow_array::{Array, ArrayRef, BooleanArray, Decimal128Array, Int64Array, RecordBatch, StringArray};
+use arrow_array::{
+    Array, ArrayRef, BooleanArray, Decimal128Array, Int64Array, RecordBatch, StringArray,
+};
 use arrow_schema::{DataType, Field, Schema};
 use oo_core::{DecimalError, ExactDecimal};
 use sha2::{Digest, Sha256};
@@ -381,7 +383,10 @@ impl DelimitedProfile {
             return Err(DelimitedError::config("null_token"));
         }
         for (index, column) in columns.iter().enumerate() {
-            if columns[..index].iter().any(|other| other.name == column.name) {
+            if columns[..index]
+                .iter()
+                .any(|other| other.name == column.name)
+            {
                 return Err(DelimitedError::config("duplicate_column"));
             }
         }
@@ -491,7 +496,9 @@ fn valid_label(text: &str) -> bool {
     !bytes.is_empty()
         && bytes.len() <= DELIMITED_MAX_NAME_BYTES
         && text.trim() == text
-        && bytes.iter().all(|byte| (0x20..0x7f).contains(byte) || *byte >= 0x80)
+        && bytes
+            .iter()
+            .all(|byte| (0x20..0x7f).contains(byte) || *byte >= 0x80)
         && !text.chars().any(|ch| ch.is_whitespace() && ch != ' ')
 }
 
@@ -580,7 +587,8 @@ impl DelimitedBudget {
         {
             return Err(DelimitedError::config("max_field"));
         }
-        if max_total_bytes < u64::from(max_record_bytes) || max_total_bytes > DELIMITED_MAX_TOTAL_BYTES
+        if max_total_bytes < u64::from(max_record_bytes)
+            || max_total_bytes > DELIMITED_MAX_TOTAL_BYTES
         {
             return Err(DelimitedError::config("max_total"));
         }
@@ -898,9 +906,24 @@ impl<R: Read> DelimitedReader<R> {
             profile_digest: self.profile.profile_digest(),
             config_identity: self.profile.config_identity(self.expected),
             dialect: self.profile.dialect,
-            columns: self.profile.columns.iter().map(|column| column.name.clone()).collect(),
-            types: self.profile.columns.iter().map(|column| column.ty).collect(),
-            nullability: self.profile.columns.iter().map(|column| column.nullable).collect(),
+            columns: self
+                .profile
+                .columns
+                .iter()
+                .map(|column| column.name.clone())
+                .collect(),
+            types: self
+                .profile
+                .columns
+                .iter()
+                .map(|column| column.ty)
+                .collect(),
+            nullability: self
+                .profile
+                .columns
+                .iter()
+                .map(|column| column.nullable)
+                .collect(),
             admits_import: false,
             published: false,
             arrow_ipc: false,
@@ -1200,13 +1223,17 @@ impl<R: Read> DelimitedReader<R> {
                 }
             };
             let mut metadata = HashMap::new();
-            metadata.insert("oo.delimited.protocol".to_owned(), DELIMITED_PROTOCOL.to_owned());
+            metadata.insert(
+                "oo.delimited.protocol".to_owned(),
+                DELIMITED_PROTOCOL.to_owned(),
+            );
             metadata.insert("oo.delimited.logical".to_owned(), logical.to_owned());
             if let DelimitedType::Decimal { precision, scale } = column.ty {
                 metadata.insert("oo.delimited.precision".to_owned(), precision.to_string());
                 metadata.insert("oo.delimited.scale".to_owned(), scale.to_string());
             }
-            fields.push(Field::new(&column.name, data_type, column.nullable).with_metadata(metadata));
+            fields
+                .push(Field::new(&column.name, data_type, column.nullable).with_metadata(metadata));
             arrays.push(array);
         }
         RecordBatch::try_new(Arc::new(Schema::new(fields)), arrays)
@@ -1577,7 +1604,8 @@ impl<R: Read> DelimitedReader<R> {
                 Ok((Some(CellVal::Int(number)), FieldPresence::Value))
             }
             DelimitedType::Decimal { precision, scale } => {
-                let number = parse_decimal(&field.text, precision, scale).map_err(|err| self.fail(err))?;
+                let number =
+                    parse_decimal(&field.text, precision, scale).map_err(|err| self.fail(err))?;
                 Ok((Some(CellVal::Decimal(number)), FieldPresence::Value))
             }
         }

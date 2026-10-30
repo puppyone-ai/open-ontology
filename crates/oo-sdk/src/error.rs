@@ -320,9 +320,13 @@ mod transport_tests {
     #[test]
     fn nested_io_and_tls_errors_expose_only_fixed_categories() {
         let reset = std::io::Error::other(std::io::Error::new(
-            std::io::ErrorKind::ConnectionReset, "https://private.example/token-secret",
+            std::io::ErrorKind::ConnectionReset,
+            "https://private.example/token-secret",
         ));
-        assert!(matches!(transport_detail(&reset), Some(TransportError::ConnectionReset)));
+        assert!(matches!(
+            transport_detail(&reset),
+            Some(TransportError::ConnectionReset)
+        ));
         let tls = std::io::Error::other(tokio_rustls::rustls::Error::General(
             "https://private.example/token-secret".to_owned(),
         ));

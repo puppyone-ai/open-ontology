@@ -72,9 +72,7 @@ impl Relations {
                     scoped.generation,
                     LEVEL_NAMESPACE,
                     true,
-                    &table.namespace,
-                    "",
-                    "",
+                    (&table.namespace, "", ""),
                 )?
             } else {
                 PHYSICAL_SCHEMA.into()
@@ -85,9 +83,7 @@ impl Relations {
                 scoped.generation,
                 LEVEL_TABLE,
                 scoped.native_namespace,
-                &table.namespace,
-                &table.name,
-                "",
+                (&table.namespace, &table.name, ""),
             )?;
             wanted.insert((schema, physical));
         }
@@ -226,7 +222,8 @@ impl LibraryProofs {
         let pack = catalog["pack_digest"]
             .as_str()
             .ok_or(CatalogError::IdentityMismatch)?;
-        let cut = crate::publication_binding::library_cut(tx, catalog).await
+        let cut = crate::publication_binding::library_cut(tx, catalog)
+            .await
             .map_err(|_| CatalogError::PublicationBindingUnavailable)?;
         let mut run_ids = Vec::new();
         let mut sources = Vec::new();
@@ -243,7 +240,9 @@ impl LibraryProofs {
         let mut receipts = Vec::new();
         for table in &bound.tables {
             let dataset = format!("{}.{}", table.namespace, table.name);
-            let entry = entries.get(dataset.as_str()).ok_or(CatalogError::IdentityMismatch)?;
+            let entry = entries
+                .get(dataset.as_str())
+                .ok_or(CatalogError::IdentityMismatch)?;
             let text = |key: &str| entry[key].as_str().ok_or(CatalogError::IdentityMismatch);
             if text("source_id")? != table.source
                 || text("config_digest")? != table.config_digest
@@ -252,27 +251,33 @@ impl LibraryProofs {
                 return Err(CatalogError::IdentityMismatch);
             }
             let (receipt, published) = crate::publication_binding::library_table(
-                &cut, &table.source, &table.namespace, &table.name,
-            ).map_err(|_| CatalogError::IdentityMismatch)?;
-            if ["run_id","source_generation","target_generation"].iter()
+                &cut,
+                &table.source,
+                &table.namespace,
+                &table.name,
+            )
+            .map_err(|_| CatalogError::IdentityMismatch)?;
+            if ["run_id", "source_generation", "target_generation"]
+                .iter()
                 .any(|key| published[*key] != entry[*key])
-                || published["physical_name"] != entry["stored_physical"] {
+                || published["physical_name"] != entry["stored_physical"]
+            {
                 return Err(CatalogError::IdentityMismatch);
             }
             // C1 storage is current-checked separately; its receipt need not
             // have the original import's count/position.
             receipts.push(if receipt["consistency"] == "per_table" {
                 published.to_string()
-            } else { "null".into() });
+            } else {
+                "null".into()
+            });
             let namespace = mappings.resolve(
                 &table.source,
                 &table.config_digest,
                 table.generation,
                 LEVEL_NAMESPACE,
                 bound.native_namespace,
-                &table.namespace,
-                "",
-                "",
+                (&table.namespace, "", ""),
             )?;
             let physical = mappings.resolve(
                 &table.source,
@@ -280,9 +285,7 @@ impl LibraryProofs {
                 table.generation,
                 LEVEL_TABLE,
                 bound.native_namespace,
-                &table.namespace,
-                &table.name,
-                "",
+                (&table.namespace, &table.name, ""),
             )?;
             let relation = &relations.get(&namespace, &physical)?.relation;
             if relation.schema != text("stored_namespace")? || physical != text("stored_physical")?

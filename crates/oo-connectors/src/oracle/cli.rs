@@ -1,6 +1,6 @@
 //! Oracle source/part JSON entrypoint. No target connection or publication.
 use super::chunk::*;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::os::unix::fs::PermissionsExt;
 use std::{
     fs,
@@ -112,11 +112,22 @@ pub fn run_request(request: Value) -> Result<Value> {
         return super::arrow_part::encode(&part, Path::new(&text(&request, "output")?));
     }
     let action = text(&request, "action")?;
-    if !["inventory", "log-catalog", "chunk", "verify", "server-metadata"].contains(&action.as_str()) {
+    if ![
+        "inventory",
+        "log-catalog",
+        "chunk",
+        "verify",
+        "server-metadata",
+    ]
+    .contains(&action.as_str())
+    {
         return Err("unknown_action".into());
     }
-    if action == "server-metadata" && request.as_object().is_none_or(|v|
-        v.len() != 2 || !v.contains_key("config")) {
+    if action == "server-metadata"
+        && request
+            .as_object()
+            .is_none_or(|v| v.len() != 2 || !v.contains_key("config"))
+    {
         return Err("metadata_request_fields".into());
     }
     let cfg = &request["config"];
@@ -148,8 +159,12 @@ pub fn run_request(request: Value) -> Result<Value> {
         .set_connect_string(&format!("{host}:{port}/{service}"))
         .map_err(db_error)?;
     let conn = oracledb::connect(config).map_err(db_error)?;
-    conn.set_call_timeout(Some(Duration::from_secs(if action == "server-metadata" { 5 } else { 20 })))
-        .map_err(db_error)?;
+    conn.set_call_timeout(Some(Duration::from_secs(if action == "server-metadata" {
+        5
+    } else {
+        20
+    })))
+    .map_err(db_error)?;
     if action == "server-metadata" {
         return super::server_metadata::inspect(&conn);
     }
@@ -255,10 +270,21 @@ mod metadata_tests {
 
     #[test]
     fn metadata_cannot_supply_sql_or_bypass_the_local_source_guard() {
-        assert_eq!(run_request(json!({"action":"arbitrary-sql","config":{}})).unwrap_err(), "unknown_action");
-        assert_eq!(run_request(json!({"action":"server-metadata","config":{},"sql":"SELECT secret FROM t"}))
-            .unwrap_err(), "metadata_request_fields");
-        assert_eq!(run_request(json!({"action":"server-metadata","config":{"host":"remote.invalid"}}))
-            .unwrap_err(), "local_fixture_only");
+        assert_eq!(
+            run_request(json!({"action":"arbitrary-sql","config":{}})).unwrap_err(),
+            "unknown_action"
+        );
+        assert_eq!(
+            run_request(
+                json!({"action":"server-metadata","config":{},"sql":"SELECT secret FROM t"})
+            )
+            .unwrap_err(),
+            "metadata_request_fields"
+        );
+        assert_eq!(
+            run_request(json!({"action":"server-metadata","config":{"host":"remote.invalid"}}))
+                .unwrap_err(),
+            "local_fixture_only"
+        );
     }
 }

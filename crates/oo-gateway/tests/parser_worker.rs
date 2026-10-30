@@ -297,7 +297,8 @@ fn catalog(relations: Vec<VisibleRelation>, threshold: u64) -> PolicyCatalog {
                 schema: "pg_catalog".to_string(),
                 name: "=".to_string(),
                 left_type_oid: INT_OID,
-                right_type_oid: INT_OID, result_type_oid: BOOL_OID,
+                right_type_oid: INT_OID,
+                result_type_oid: BOOL_OID,
             },
             ResolvedOperator {
                 oid: 303,
@@ -305,7 +306,8 @@ fn catalog(relations: Vec<VisibleRelation>, threshold: u64) -> PolicyCatalog {
                 schema: "pg_catalog".to_string(),
                 name: "=".to_string(),
                 left_type_oid: TEXT_OID,
-                right_type_oid: TEXT_OID, result_type_oid: BOOL_OID,
+                right_type_oid: TEXT_OID,
+                result_type_oid: BOOL_OID,
             },
         ],
         literal_types: LiteralTypes {

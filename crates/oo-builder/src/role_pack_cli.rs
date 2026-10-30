@@ -115,7 +115,10 @@ fn map_document(err: serde_json::Error) -> RolePackCommandError {
     let (name, message) = if text.contains("unknown field") {
         ("field.unknown", "role-pack command has an unknown field")
     } else if text.contains("missing field") {
-        ("field.missing", "role-pack command is missing a required field")
+        (
+            "field.missing",
+            "role-pack command is missing a required field",
+        )
     } else {
         (
             "schema.invalid",
@@ -197,9 +200,12 @@ fn require_pack_files(pack: &RolePack, artifact: &Value) -> Result<(), RolePackC
             "compiled artifact digests do not match the pack",
         ));
     }
-    let files = artifact.get("files").and_then(Value::as_array).ok_or_else(|| {
-        RolePackCommandError::named("schema.invalid", "compiled artifact is not an object")
-    })?;
+    let files = artifact
+        .get("files")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RolePackCommandError::named("schema.invalid", "compiled artifact is not an object")
+        })?;
     for file in files {
         let path = file.get("path").and_then(Value::as_str).ok_or_else(|| {
             RolePackCommandError::named("schema.invalid", "compiled artifact is not an object")

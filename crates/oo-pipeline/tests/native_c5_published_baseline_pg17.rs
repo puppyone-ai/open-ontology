@@ -75,8 +75,14 @@ async fn single_and_reordered_multipart_share_real_source_watermark() {
         include_str!("support/c5_published_baseline_seed.sql"),
     )
     .await;
-    sql(&mut db, &format!("BEGIN; SET LOCAL ROLE oo_target_owner; {}\nCOMMIT;",
-        include_str!("../migrations/0074_native_c5_resumed_baseline.sql"))).await;
+    sql(
+        &mut db,
+        &format!(
+            "BEGIN; SET LOCAL ROLE oo_target_owner; {}\nCOMMIT;",
+            include_str!("../migrations/0074_native_c5_resumed_baseline.sql")
+        ),
+    )
+    .await;
     sql(
         &mut db,
         &format!(
@@ -258,19 +264,33 @@ async fn single_and_reordered_multipart_share_real_source_watermark() {
                     ('composite.part.1','composite.part.2','composite.final');
                 COMMIT;").await;
             for invalid_fence in [3] {
-                sql(&mut db, &format!("BEGIN; SET LOCAL session_replication_role=replica;
+                sql(
+                    &mut db,
+                    &format!(
+                        "BEGIN; SET LOCAL session_replication_role=replica;
                     UPDATE _oo.apply_receipts SET fence_generation={invalid_fence}
-                    WHERE txn_or_batch_id='composite.part.0'; COMMIT;")).await;
+                    WHERE txn_or_batch_id='composite.part.0'; COMMIT;"
+                    ),
+                )
+                .await;
                 assert!(native_c5_state::execute(&initialize).await.is_err());
             }
-            sql(&mut db, "BEGIN; SET LOCAL session_replication_role=replica;
+            sql(
+                &mut db,
+                "BEGIN; SET LOCAL session_replication_role=replica;
                 UPDATE _oo.apply_receipts SET fence_generation=1,fence_shard='foreign_shard'
                     WHERE txn_or_batch_id='composite.part.0';
-                COMMIT;").await;
+                COMMIT;",
+            )
+            .await;
             assert!(native_c5_state::execute(&initialize).await.is_err());
-            sql(&mut db, "BEGIN; SET LOCAL session_replication_role=replica;
+            sql(
+                &mut db,
+                "BEGIN; SET LOCAL session_replication_role=replica;
                 UPDATE _oo.apply_receipts SET fence_shard='shared_published'
-                    WHERE txn_or_batch_id='composite.part.0'; COMMIT;").await;
+                    WHERE txn_or_batch_id='composite.part.0'; COMMIT;",
+            )
+            .await;
         }
         let result = native_c5_state::execute(&initialize)
             .await

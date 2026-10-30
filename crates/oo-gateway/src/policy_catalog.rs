@@ -12,10 +12,10 @@
 //! gateway spec stays open; this slice loads only the subset documented in
 //! `contracts/gateway/policy-catalog-v1.md`.
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::fmt;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 
 use tokio_postgres::types::ToSql;
 use tokio_postgres::{Client, Error as PgError, IsolationLevel, Transaction};
@@ -250,7 +250,9 @@ pub(crate) fn builtin_function_result_type(function: &ResolvedFunction) -> Optio
     }
     if let [argument] = args.as_slice()
         && let Some(kind) = Type::from_oid(*argument)
-        && let Some((_, _, result)) = UNARY_AGGREGATE_SIGNATURES.iter().chain(ADDITIONAL_AGGREGATE_SIGNATURES)
+        && let Some((_, _, result)) = UNARY_AGGREGATE_SIGNATURES
+            .iter()
+            .chain(ADDITIONAL_AGGREGATE_SIGNATURES)
             .find(|(name, input, _)| *name == function.name && *input == kind.name())
     {
         return Some(match *result {
@@ -260,7 +262,9 @@ pub(crate) fn builtin_function_result_type(function: &ResolvedFunction) -> Optio
         });
     }
     match function.name.as_str() {
-        "date_trunc" if args == &[Type::TEXT.oid(), Type::TIMESTAMP.oid()] => Some(Type::TIMESTAMP.oid()),
+        "date_trunc" if args == &[Type::TEXT.oid(), Type::TIMESTAMP.oid()] => {
+            Some(Type::TIMESTAMP.oid())
+        }
         "date" if args == &[Type::TIMESTAMP.oid()] => Some(Type::DATE.oid()),
         "abs" if args == &[Type::NUMERIC.oid()] => Some(Type::NUMERIC.oid()),
         "to_char" if args == &[Type::TIMESTAMP.oid(), Type::TEXT.oid()] => Some(Type::TEXT.oid()),
@@ -281,9 +285,11 @@ const PHYSICAL_SCHEMA: &str = "_oo";
 const ABS_MAX_TABLES: u32 = 32;
 const ABS_MAX_COLUMNS: u32 = 512;
 /// Shared capacity for the complete builtin function catalog.
-pub const FUNCTION_CATALOG_LIMIT: u32 =
-    2 + UNARY_AGGREGATE_SIGNATURES.len() as u32 + DAY_FUNCTION_SIGNATURES.len() as u32
-        + ADDITIONAL_AGGREGATE_SIGNATURES.len() as u32 + ADDITIONAL_SCALAR_SIGNATURES.len() as u32;
+pub const FUNCTION_CATALOG_LIMIT: u32 = 2
+    + UNARY_AGGREGATE_SIGNATURES.len() as u32
+    + DAY_FUNCTION_SIGNATURES.len() as u32
+    + ADDITIONAL_AGGREGATE_SIGNATURES.len() as u32
+    + ADDITIONAL_SCALAR_SIGNATURES.len() as u32;
 const ABS_MAX_FUNCTIONS: u32 = FUNCTION_CATALOG_LIMIT;
 const ABS_MAX_OPERATORS: u32 = 128;
 
@@ -456,7 +462,8 @@ pub async fn load_policy_catalog_for_source(
     limits: &CatalogLimits,
     source: &str,
 ) -> Result<PolicyCatalog, CatalogError> {
-    load_policy_catalog_bound_source(client, identity, policies, limits, Some(source), None, None).await
+    load_policy_catalog_bound_source(client, identity, policies, limits, Some(source), None, None)
+        .await
 }
 /// Load one atomically verified native collection with independent per-table versions.
 pub async fn load_policy_catalog_for_source_vector(
@@ -468,7 +475,16 @@ pub async fn load_policy_catalog_for_source_vector(
     vector: Option<&Value>,
     catalog: Option<&Value>,
 ) -> Result<PolicyCatalog, CatalogError> {
-    load_policy_catalog_bound_source(client, identity, policies, limits, Some(source), vector, catalog).await
+    load_policy_catalog_bound_source(
+        client,
+        identity,
+        policies,
+        limits,
+        Some(source),
+        vector,
+        catalog,
+    )
+    .await
 }
 async fn load_policy_catalog_bound_source(
     client: &mut Client,
@@ -513,18 +529,24 @@ fn bound_input(
     vector: Option<&Value>,
     catalog: Option<&Value>,
 ) -> Result<BoundInput, CatalogError> {
-    let library = catalog.is_some_and(|c| c["protocol"]=="oo.gateway.library-binding/v1");
+    let library = catalog.is_some_and(|c| c["protocol"] == "oo.gateway.library-binding/v1");
     let mut bound = prepare_bound(identity, policies, limits, vector.is_some(), library)?;
     if let Some(source) = source {
         if !closed_identity(source) && !(vector.is_some() && source.is_empty()) {
             return Err(CatalogError::IdentityMismatch);
         }
         bound.source = source.to_owned();
-        for table in &mut bound.tables { table.source = source.to_owned(); }
+        for table in &mut bound.tables {
+            table.source = source.to_owned();
+        }
         bound.native_namespace = true;
     }
     if let Some(vector) = vector {
-        bind_vector_sources(&mut bound, vector, catalog.ok_or(CatalogError::IdentityMismatch)?)?;
+        bind_vector_sources(
+            &mut bound,
+            vector,
+            catalog.ok_or(CatalogError::IdentityMismatch)?,
+        )?;
     }
     Ok(bound)
 }
@@ -544,17 +566,31 @@ pub(crate) async fn load_policy_catalog_in_transaction(
     load_in_snapshot(tx, identity, &bound, limits, vector, catalog).await
 }
 
-fn bind_vector_sources(bound: &mut BoundInput, vector: &Value, catalog: &Value) -> Result<(), CatalogError> {
+fn bind_vector_sources(
+    bound: &mut BoundInput,
+    vector: &Value,
+    catalog: &Value,
+) -> Result<(), CatalogError> {
     let entries = vector.as_array().ok_or(CatalogError::IdentityMismatch)?;
-    if entries.len() != bound.tables.len() || catalog["entries"].as_array().is_none_or(|items| items.len() != entries.len()) {
+    if entries.len() != bound.tables.len()
+        || catalog["entries"]
+            .as_array()
+            .is_none_or(|items| items.len() != entries.len())
+    {
         return Err(CatalogError::IdentityMismatch);
     }
     let entries = index_vector(vector)?;
     for table in &mut bound.tables {
         let dataset = format!("{}.{}", table.namespace, table.name);
-        let entry = entries.get(dataset.as_str()).ok_or(CatalogError::IdentityMismatch)?;
-        let table_source = entry["source_id"].as_str().ok_or(CatalogError::IdentityMismatch)?;
-        if !closed_identity(table_source) { return Err(CatalogError::IdentityMismatch); }
+        let entry = entries
+            .get(dataset.as_str())
+            .ok_or(CatalogError::IdentityMismatch)?;
+        let table_source = entry["source_id"]
+            .as_str()
+            .ok_or(CatalogError::IdentityMismatch)?;
+        if !closed_identity(table_source) {
+            return Err(CatalogError::IdentityMismatch);
+        }
         table.source = table_source.to_owned();
     }
     Ok(())
@@ -564,7 +600,9 @@ fn bind_vector_sources(bound: &mut BoundInput, vector: &Value, catalog: &Value) 
 pub(crate) fn index_vector(vector: &Value) -> Result<BTreeMap<&str, &Value>, CatalogError> {
     let mut by_dataset = BTreeMap::new();
     for entry in vector.as_array().ok_or(CatalogError::IdentityMismatch)? {
-        let dataset = entry["dataset"].as_str().ok_or(CatalogError::IdentityMismatch)?;
+        let dataset = entry["dataset"]
+            .as_str()
+            .ok_or(CatalogError::IdentityMismatch)?;
         if by_dataset.insert(dataset, entry).is_some() {
             return Err(CatalogError::IdentityMismatch);
         }
@@ -586,27 +624,44 @@ mod vector_index_tests {
         assert_eq!(indexed["app.a"], &vector[1]);
         assert_eq!(indexed["app.b"], &vector[0]);
         assert!(!indexed.contains_key("APP.A"));
-        assert!(index_vector(&serde_json::json!([{"dataset":"app.a"},{"dataset":"app.a"}])).is_err());
-        for invalid in [serde_json::json!(null), serde_json::json!([{}]), serde_json::json!([{"dataset":1}])] {
+        assert!(
+            index_vector(&serde_json::json!([{"dataset":"app.a"},{"dataset":"app.a"}])).is_err()
+        );
+        for invalid in [
+            serde_json::json!(null),
+            serde_json::json!([{}]),
+            serde_json::json!([{"dataset":1}]),
+        ] {
             assert!(index_vector(&invalid).is_err());
         }
     }
 }
 
+#[cfg(test)]
 fn prepare(
     identity: &PolicyIdentity,
     policies: &[CompiledPolicy],
     limits: &CatalogLimits,
     native_vector: bool,
 ) -> Result<BoundInput, CatalogError> {
-    prepare_bound(identity,policies,limits,native_vector,false)
+    prepare_bound(identity, policies, limits, native_vector, false)
 }
 
-fn prepare_bound(identity: &PolicyIdentity, policies: &[CompiledPolicy], limits: &CatalogLimits, native_vector: bool, library: bool) -> Result<BoundInput,CatalogError> {
+fn prepare_bound(
+    identity: &PolicyIdentity,
+    policies: &[CompiledPolicy],
+    limits: &CatalogLimits,
+    native_vector: bool,
+    library: bool,
+) -> Result<BoundInput, CatalogError> {
     if policies.is_empty() {
         return Err(CatalogError::EmptyInput);
     }
-    if library {check_library_limits(limits, policies.len())?;} else {check_limits(limits, policies.len())?;}
+    if library {
+        check_library_limits(limits, policies.len())?;
+    } else {
+        check_limits(limits, policies.len())?;
+    }
     if !identity_text_ok(identity) {
         return Err(CatalogError::IdentityMismatch);
     }
@@ -658,14 +713,19 @@ fn prepare_bound(identity: &PolicyIdentity, policies: &[CompiledPolicy], limits:
 }
 
 fn check_limits(limits: &CatalogLimits, tables: usize) -> Result<(), CatalogError> {
-    check_capacity(limits,tables,ABS_MAX_TABLES,ABS_MAX_COLUMNS)
+    check_capacity(limits, tables, ABS_MAX_TABLES, ABS_MAX_COLUMNS)
 }
 
-fn check_library_limits(limits:&CatalogLimits,tables:usize)->Result<(),CatalogError> {
-    check_capacity(limits,tables,4096,4096)
+fn check_library_limits(limits: &CatalogLimits, tables: usize) -> Result<(), CatalogError> {
+    check_capacity(limits, tables, 4096, 4096)
 }
 
-fn check_capacity(limits:&CatalogLimits,tables:usize,max_tables:u32,max_columns:u32)->Result<(),CatalogError> {
+fn check_capacity(
+    limits: &CatalogLimits,
+    tables: usize,
+    max_tables: u32,
+    max_columns: u32,
+) -> Result<(), CatalogError> {
     let Some(operators) = u32::try_from(required_operator_count()).ok() else {
         return Err(CatalogError::InvalidLimit);
     };
@@ -706,15 +766,21 @@ fn whitelist_tokens_ok() -> bool {
             .iter()
             .all(|name| operator_name_ok(name))
         && ARITHMETIC_SIGNATURES.iter().all(|(left, right, result)| {
-            [left, right, result].iter().all(|name| SUPPORTED_TYPES.contains(name))
+            [left, right, result]
+                .iter()
+                .all(|name| SUPPORTED_TYPES.contains(name))
         })
-        && ARITHMETIC_OPERATORS.iter().all(|name| operator_name_ok(name))
+        && ARITHMETIC_OPERATORS
+            .iter()
+            .all(|name| operator_name_ok(name))
         && PATTERN_OPERATORS.iter().all(|name| operator_name_ok(name))
-        && UNARY_AGGREGATE_SIGNATURES.iter().all(|(name, argument, result)| {
-            matches!(*name, "sum" | "min" | "max")
-                && SUPPORTED_TYPES.contains(argument)
-                && SUPPORTED_TYPES.contains(result)
-        })
+        && UNARY_AGGREGATE_SIGNATURES
+            .iter()
+            .all(|(name, argument, result)| {
+                matches!(*name, "sum" | "min" | "max")
+                    && SUPPORTED_TYPES.contains(argument)
+                    && SUPPORTED_TYPES.contains(result)
+            })
         && type_name_ok(AGGREGATE_STAR_NAME)
         && type_name_ok(INTEGER_LITERAL_TYPE)
         && type_name_ok(TEXT_LITERAL_TYPE)
@@ -731,7 +797,8 @@ fn type_name_ok(value: &str) -> bool {
 }
 
 fn operator_name_ok(value: &str) -> bool {
-    COMPARISON_OPERATORS.contains(&value) || ARITHMETIC_OPERATORS.contains(&value)
+    COMPARISON_OPERATORS.contains(&value)
+        || ARITHMETIC_OPERATORS.contains(&value)
         || PATTERN_OPERATORS.contains(&value)
 }
 
@@ -793,10 +860,21 @@ struct MappingIndex {
 
 impl MappingIndex {
     fn insert(&mut self, key: MappingKey, value: (String, bool)) -> Option<(String, bool)> {
-        let (source,digest,generation,level,namespace,table,column) = key;
-        self.rows.entry(source).or_default().entry(digest).or_default()
-            .entry(generation).or_default().entry(level).or_default()
-            .entry(namespace).or_default().entry(table).or_default().insert(column,value)
+        let (source, digest, generation, level, namespace, table, column) = key;
+        self.rows
+            .entry(source)
+            .or_default()
+            .entry(digest)
+            .or_default()
+            .entry(generation)
+            .or_default()
+            .entry(level)
+            .or_default()
+            .entry(namespace)
+            .or_default()
+            .entry(table)
+            .or_default()
+            .insert(column, value)
     }
 
     async fn load(tx: &Transaction<'_>, bound: &BoundInput) -> Result<Self, CatalogError> {
@@ -809,8 +887,13 @@ impl MappingIndex {
         for table in &bound.tables {
             for namespace in mapping_keys(&table.namespace, bound.native_namespace) {
                 for name in mapping_keys(&table.name, bound.native_namespace) {
-                    if seen.insert((table.source.clone(), table.config_digest.clone(), table.generation,
-                        namespace.clone(), name.clone())) {
+                    if seen.insert((
+                        table.source.clone(),
+                        table.config_digest.clone(),
+                        table.generation,
+                        namespace.clone(),
+                        name.clone(),
+                    )) {
                         sources.push(table.source.clone());
                         digests.push(table.config_digest.clone());
                         generations.push(table.generation);
@@ -833,7 +916,9 @@ impl MappingIndex {
                  FROM unnest($1::text[],$2::text[],$3::int8[],$4::text[]) w(source,digest,generation,namespace))",
             &[&sources, &digests, &generations, &namespaces, &tables],
         ).await.map_err(db_error)?;
-        let mut index = Self { rows: BTreeMap::new() };
+        let mut index = Self {
+            rows: BTreeMap::new(),
+        };
         for row in &rows {
             let key = (
                 row.get::<_, String>(0),
@@ -844,7 +929,10 @@ impl MappingIndex {
                 row.get::<_, String>(5),
                 row.get::<_, String>(6),
             );
-            if index.insert(key, (row.get::<_, String>(7), row.get::<_, bool>(8))).is_some() {
+            if index
+                .insert(key, (row.get::<_, String>(7), row.get::<_, bool>(8)))
+                .is_some()
+            {
                 return Err(CatalogError::AmbiguousMapping);
             }
         }
@@ -858,21 +946,27 @@ impl MappingIndex {
         generation: i64,
         level: MapLevel,
         native: bool,
-        namespace: &str,
-        table: &str,
-        column: &str,
+        (namespace, table, column): (&str, &str, &str),
     ) -> Result<String, CatalogError> {
         let mut found = None;
         let mut count = 0;
-        let namespaces = self.rows.get(source).and_then(|m|m.get(digest))
-            .and_then(|m|m.get(&generation)).and_then(|m|m.get(level.letter))
+        let namespaces = self
+            .rows
+            .get(source)
+            .and_then(|m| m.get(digest))
+            .and_then(|m| m.get(&generation))
+            .and_then(|m| m.get(level.letter))
             .ok_or(CatalogError::MappingAbsent)?;
-        let table_keys = mapping_keys(table,native);
-        let column_keys = mapping_keys(column,native);
+        let table_keys = mapping_keys(table, native);
+        let column_keys = mapping_keys(column, native);
         for ns in mapping_keys(namespace, native) {
-            let Some(tables) = namespaces.get(ns.as_str()) else {continue};
+            let Some(tables) = namespaces.get(ns.as_str()) else {
+                continue;
+            };
             for tbl in &table_keys {
-                let Some(columns) = tables.get(tbl.as_str()) else {continue};
+                let Some(columns) = tables.get(tbl.as_str()) else {
+                    continue;
+                };
                 for col in &column_keys {
                     if let Some(value) = columns.get(col.as_str()) {
                         count += 1;
@@ -882,7 +976,11 @@ impl MappingIndex {
             }
         }
         if count != 1 {
-            return if count == 0 { Err(CatalogError::MappingAbsent) } else { Err(CatalogError::AmbiguousMapping) };
+            return if count == 0 {
+                Err(CatalogError::MappingAbsent)
+            } else {
+                Err(CatalogError::AmbiguousMapping)
+            };
         }
         let (stored, looked_ok) = found.ok_or(CatalogError::MappingAbsent)?;
         if !*looked_ok || !physical_ok(stored, level.prefix) {
@@ -897,10 +995,22 @@ fn mapped_columns(
     bound: &BoundInput,
     table: &TableBound,
 ) -> Result<Vec<(String, String)>, CatalogError> {
-    table.columns.iter().map(|column| {
-        index.resolve(&bound.source, &bound.config_digest, bound.generation, LEVEL_COLUMN, bound.native_namespace, &table.namespace, &table.name, column)
-            .map(|physical| (column.clone(), physical))
-    }).collect()
+    table
+        .columns
+        .iter()
+        .map(|column| {
+            index
+                .resolve(
+                    &bound.source,
+                    &bound.config_digest,
+                    bound.generation,
+                    LEVEL_COLUMN,
+                    bound.native_namespace,
+                    (&table.namespace, &table.name, column),
+                )
+                .map(|physical| (column.clone(), physical))
+        })
+        .collect()
 }
 
 async fn load_in_snapshot(
@@ -911,30 +1021,43 @@ async fn load_in_snapshot(
     vector: Option<&Value>,
     catalog: Option<&Value>,
 ) -> Result<PolicyCatalog, CatalogError> {
-    let retained_library = catalog.is_some_and(|c| c["protocol"] == "oo.gateway.library-binding/v1");
+    let retained_library =
+        catalog.is_some_and(|c| c["protocol"] == "oo.gateway.library-binding/v1");
     let index = MappingIndex::load(tx, bound).await?;
     // A newer mapping is ingestion, not publication. LibraryProofs below
     // requires exact membership in the current ready immutable receipt instead.
     if !retained_library {
-        snapshot::ensure_generations(tx,bound,vector.is_some()).await?;
+        snapshot::ensure_generations(tx, bound, vector.is_some()).await?;
     }
     ensure_role(tx, &bound.role).await?;
     let types = load_types(tx).await?;
     let operators = load_operators(tx, &types, limits).await?;
     let functions = load_functions(tx, &types, limits).await?;
-    let physical = snapshot::Relations::load(tx,bound,&index,limits).await?;
+    let physical = snapshot::Relations::load(tx, bound, &index, limits).await?;
     let entries = vector.map(index_vector).transpose()?;
-    let library = if let (Some(entries),Some(catalog)) = (entries.as_ref(),catalog)
-        && catalog["protocol"]=="oo.gateway.library-binding/v1" {
-        Some(snapshot::LibraryProofs::load(tx,bound,entries,catalog,&index,&physical).await?)
-    } else {None};
+    let library = if let (Some(entries), Some(catalog)) = (entries.as_ref(), catalog)
+        && catalog["protocol"] == "oo.gateway.library-binding/v1"
+    {
+        Some(snapshot::LibraryProofs::load(tx, bound, entries, catalog, &index, &physical).await?)
+    } else {
+        None
+    };
     let mut relations = Vec::with_capacity(bound.tables.len());
     for table in &bound.tables {
         let scoped = table_scope(bound, table);
         if let Some(entries) = &entries {
-            verify_native_table_vector(tx, &scoped, table, entries, catalog.ok_or(CatalogError::IdentityMismatch)?, &index,&physical,library.as_ref()).await?;
+            verify_native_table_vector(
+                tx,
+                &scoped,
+                table,
+                entries,
+                catalog.ok_or(CatalogError::IdentityMismatch)?,
+                (&index, &physical),
+                library.as_ref(),
+            )
+            .await?;
         }
-        if let Some(relation) = load_relation(&scoped, table, &types, limits, &index,&physical)? {
+        if let Some(relation) = load_relation(&scoped, table, &types, limits, &index, &physical)? {
             relations.push(relation);
         }
     }
@@ -994,15 +1117,23 @@ async fn verify_native_table_vector(
     table: &TableBound,
     entries: &BTreeMap<&str, &Value>,
     catalog: &Value,
-    index: &MappingIndex,
-    physical_index: &snapshot::Relations,
+    (index, physical_index): (&MappingIndex, &snapshot::Relations),
     library: Option<&snapshot::LibraryProofs>,
 ) -> Result<(), CatalogError> {
-    if catalog["protocol"]=="oo.gateway.library-binding/v1" {
-        return verify_library_table_vector(bound,table,entries,index,physical_index,library.ok_or(CatalogError::IdentityMismatch)?);
+    if catalog["protocol"] == "oo.gateway.library-binding/v1" {
+        return verify_library_table_vector(
+            bound,
+            table,
+            entries,
+            index,
+            physical_index,
+            library.ok_or(CatalogError::IdentityMismatch)?,
+        );
     }
     let dataset = format!("{}.{}", table.namespace, table.name);
-    let entry = entries.get(dataset.as_str()).ok_or(CatalogError::IdentityMismatch)?;
+    let entry = entries
+        .get(dataset.as_str())
+        .ok_or(CatalogError::IdentityMismatch)?;
     let text = |key: &str| entry[key].as_str().ok_or(CatalogError::IdentityMismatch);
     if text("source_id")? != bound.source
         || text("config_digest")? != table.config_digest
@@ -1010,12 +1141,28 @@ async fn verify_native_table_vector(
     {
         return Err(CatalogError::IdentityMismatch);
     }
-    let namespace = index.resolve(&bound.source, &bound.config_digest, bound.generation, LEVEL_NAMESPACE, bound.native_namespace, &table.namespace, "", "")?;
-    let physical = index.resolve(&bound.source, &bound.config_digest, bound.generation, LEVEL_TABLE, bound.native_namespace, &table.namespace, &table.name, "")?;
+    let namespace = index.resolve(
+        &bound.source,
+        &bound.config_digest,
+        bound.generation,
+        LEVEL_NAMESPACE,
+        bound.native_namespace,
+        (&table.namespace, "", ""),
+    )?;
+    let physical = index.resolve(
+        &bound.source,
+        &bound.config_digest,
+        bound.generation,
+        LEVEL_TABLE,
+        bound.native_namespace,
+        (&table.namespace, &table.name, ""),
+    )?;
     if namespace != text("stored_namespace")? || physical != text("stored_physical")? {
         return Err(CatalogError::IdentityMismatch);
     }
-    let target_generation = entry["target_generation"].as_i64().ok_or(CatalogError::IdentityMismatch)?;
+    let target_generation = entry["target_generation"]
+        .as_i64()
+        .ok_or(CatalogError::IdentityMismatch)?;
     let row = tx.query_one(
         "SELECT count(*)::int8 FROM _oo.full_import_run r JOIN _oo.full_import_table t USING(run_id) \
          WHERE r.run_id::text=$1 AND r.source_id=$2 AND r.source_generation=$3 \
@@ -1028,14 +1175,23 @@ async fn verify_native_table_vector(
           &table.namespace, &table.name, &physical],
     ).await.map_err(db_error)?;
     let count: i64 = row.get(0);
-    if count != 1 { return Err(CatalogError::IdentityMismatch); }
-    let catalog_entries = catalog["entries"].as_array().ok_or(CatalogError::IdentityMismatch)?;
-    let matching = catalog_entries.iter().filter(|candidate| {
-        candidate["run_id"] == entry["run_id"]
-            && candidate["tables"][0]["logical_schema"] == table.namespace
-            && candidate["tables"][0]["logical_table"] == table.name
-    }).collect::<Vec<_>>();
-    if matching.len() != 1 { return Err(CatalogError::IdentityMismatch); }
+    if count != 1 {
+        return Err(CatalogError::IdentityMismatch);
+    }
+    let catalog_entries = catalog["entries"]
+        .as_array()
+        .ok_or(CatalogError::IdentityMismatch)?;
+    let matching = catalog_entries
+        .iter()
+        .filter(|candidate| {
+            candidate["run_id"] == entry["run_id"]
+                && candidate["tables"][0]["logical_schema"] == table.namespace
+                && candidate["tables"][0]["logical_table"] == table.name
+        })
+        .collect::<Vec<_>>();
+    if matching.len() != 1 {
+        return Err(CatalogError::IdentityMismatch);
+    }
     let catalog_entry = matching[0];
     if catalog_entry["schema_digest"] != entry["schema_digest"]
         || catalog_entry["source_id"] != entry["source_id"]
@@ -1046,34 +1202,63 @@ async fn verify_native_table_vector(
         || catalog_entry["config_digest"] != entry["config_digest"]
         || catalog_entry["tables"][0]["stored_physical"] != physical
         || catalog_entry["tables"][0]["stored_namespace"] != namespace
-    { return Err(CatalogError::IdentityMismatch); }
-    let columns = catalog_entry["tables"][0]["columns"].as_array().ok_or(CatalogError::IdentityMismatch)?;
-    let relation = &physical_index.get(&namespace,&physical)?.relation;
-    let rows = tx.query(
-        "SELECT a.attname::text,a.atttypid::int8,a.atttypmod::int4 \
+    {
+        return Err(CatalogError::IdentityMismatch);
+    }
+    let columns = catalog_entry["tables"][0]["columns"]
+        .as_array()
+        .ok_or(CatalogError::IdentityMismatch)?;
+    let relation = &physical_index.get(&namespace, &physical)?.relation;
+    let rows = tx
+        .query(
+            "SELECT a.attname::text,a.atttypid::int8,a.atttypmod::int4 \
          FROM pg_catalog.pg_attribute a \
          WHERE a.attrelid=($1::int4)::oid \
            AND a.attnum>0 AND NOT a.attisdropped AND a.attname <> '_oo_pos' \
          ORDER BY a.attnum",
-        &[&relation.oid],
-    ).await.map_err(db_error)?;
-    if rows.len() != columns.len() { return Err(CatalogError::IdentityMismatch); }
+            &[&relation.oid],
+        )
+        .await
+        .map_err(db_error)?;
+    if rows.len() != columns.len() {
+        return Err(CatalogError::IdentityMismatch);
+    }
     let mut preimage = String::new();
     oo_core::sealed_import::push_schema_table(&mut preimage, &table.namespace, &table.name);
     for (row, column) in rows.iter().zip(columns) {
         let physical_name: String = row.get(0);
         let oid: i64 = row.get(1);
         let typmod: i32 = row.get(2);
-        let logical_name = column["logical_name"].as_str().ok_or(CatalogError::IdentityMismatch)?;
+        let logical_name = column["logical_name"]
+            .as_str()
+            .ok_or(CatalogError::IdentityMismatch)?;
         if column["stored_physical"] != physical_name
             || column["oid"].as_i64() != Some(oid)
             || column["typmod"].as_i64() != Some(i64::from(typmod))
-        { return Err(CatalogError::IdentityMismatch); }
-        let caveat = if column["caveat"].is_null() { None } else { Some(column["caveat"].as_str().ok_or(CatalogError::IdentityMismatch)?) };
-        oo_core::sealed_import::push_schema_column(&mut preimage, logical_name, oid, typmod, caveat);
+        {
+            return Err(CatalogError::IdentityMismatch);
+        }
+        let caveat = if column["caveat"].is_null() {
+            None
+        } else {
+            Some(
+                column["caveat"]
+                    .as_str()
+                    .ok_or(CatalogError::IdentityMismatch)?,
+            )
+        };
+        oo_core::sealed_import::push_schema_column(
+            &mut preimage,
+            logical_name,
+            oid,
+            typmod,
+            caveat,
+        );
     }
     let calculated = format!("{:x}", Sha256::digest(preimage.as_bytes()));
-    if catalog_entry["schema_digest"] != calculated { return Err(CatalogError::IdentityMismatch); }
+    if catalog_entry["schema_digest"] != calculated {
+        return Err(CatalogError::IdentityMismatch);
+    }
     Ok(())
 }
 
@@ -1221,7 +1406,12 @@ async fn load_operators(
         let left_name: String = row.get(3);
         let right_name: String = row.get(4);
         let result_name: String = row.get(5);
-        if !wanted.remove(&(name.clone(), left_name.clone(), right_name.clone(), result_name.clone())) {
+        if !wanted.remove(&(
+            name.clone(),
+            left_name.clone(),
+            right_name.clone(),
+            result_name.clone(),
+        )) {
             return Err(CatalogError::AmbiguousObject);
         }
         let left = *types.get(&left_name).ok_or(CatalogError::MissingObject)?;
@@ -1347,15 +1537,23 @@ async fn load_functions(
         functions.push(load_count_any(tx, types).await?);
     }
     let unary_count = limits.max_functions.saturating_sub(2) as usize;
-    let signatures = &UNARY_AGGREGATE_SIGNATURES[..unary_count.min(UNARY_AGGREGATE_SIGNATURES.len())];
+    let signatures =
+        &UNARY_AGGREGATE_SIGNATURES[..unary_count.min(UNARY_AGGREGATE_SIGNATURES.len())];
     functions.extend(load_unary_aggregates(tx, types, signatures).await?);
     let day_count = limits.max_functions.saturating_sub(functions.len() as u32) as usize;
     for &(name, arguments, result) in DAY_FUNCTION_SIGNATURES.iter().take(day_count) {
         functions.push(load_scalar_function(tx, types, name, arguments, result).await?);
     }
     let remaining = limits.max_functions.saturating_sub(functions.len() as u32) as usize;
-    functions.extend(load_unary_aggregates(tx, types,
-        &ADDITIONAL_AGGREGATE_SIGNATURES[..remaining.min(ADDITIONAL_AGGREGATE_SIGNATURES.len())]).await?);
+    functions.extend(
+        load_unary_aggregates(
+            tx,
+            types,
+            &ADDITIONAL_AGGREGATE_SIGNATURES
+                [..remaining.min(ADDITIONAL_AGGREGATE_SIGNATURES.len())],
+        )
+        .await?,
+    );
     let remaining = limits.max_functions.saturating_sub(functions.len() as u32) as usize;
     for &(name, arguments, result) in ADDITIONAL_SCALAR_SIGNATURES.iter().take(remaining) {
         functions.push(load_scalar_function(tx, types, name, arguments, result).await?);
@@ -1375,12 +1573,20 @@ async fn load_scalar_function(
     {
         return Err(CatalogError::MissingObject);
     }
-    let oid = |kind| types.get(kind).and_then(|oid| i32::try_from(*oid).ok())
-        .ok_or(CatalogError::MissingObject);
-    let argument_oids = arguments.iter().map(|kind| oid(*kind)).collect::<Result<Vec<_>, _>>()?;
+    let oid = |kind| {
+        types
+            .get(kind)
+            .and_then(|oid| i32::try_from(*oid).ok())
+            .ok_or(CatalogError::MissingObject)
+    };
+    let argument_oids = arguments
+        .iter()
+        .map(|kind| oid(*kind))
+        .collect::<Result<Vec<_>, _>>()?;
     let result_oid = oid(result)?;
-    let rows = tx.query(
-        "SELECT p.oid::int4 FROM pg_catalog.pg_proc p \
+    let rows = tx
+        .query(
+            "SELECT p.oid::int4 FROM pg_catalog.pg_proc p \
          JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace \
          JOIN pg_catalog.pg_language l ON l.oid=p.prolang \
          WHERE n.nspname='pg_catalog' AND p.proname=$1 AND p.prokind='f' \
@@ -1398,8 +1604,10 @@ async fn load_scalar_function(
                  AND c.castmethod='f' AND c.castcontext='a' AND c.castfunc=p.oid \
                  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_depend d WHERE d.objid=c.oid \
                      AND d.classid='pg_catalog.pg_cast'::regclass AND d.deptype='e')))",
-        &[&name, &argument_oids, &result_oid],
-    ).await.map_err(db_error)?;
+            &[&name, &argument_oids, &result_oid],
+        )
+        .await
+        .map_err(db_error)?;
     let row = match rows.as_slice() {
         [row] => row,
         [] => return Err(CatalogError::MissingObject),
@@ -1409,7 +1617,10 @@ async fn load_scalar_function(
         oid: oid_from_i32(row.get(0))?,
         schema: "pg_catalog".into(),
         name: name.into(),
-        argument_type_oids: argument_oids.into_iter().map(oid_from_i32).collect::<Result<_, _>>()?,
+        argument_type_oids: argument_oids
+            .into_iter()
+            .map(oid_from_i32)
+            .collect::<Result<_, _>>()?,
         aggregate_star: false,
     })
 }
@@ -1431,8 +1642,12 @@ async fn load_unary_aggregates(
         {
             return Err(CatalogError::MissingObject);
         }
-        let oid = |kind| types.get(kind).and_then(|oid| i32::try_from(*oid).ok())
-            .ok_or(CatalogError::MissingObject);
+        let oid = |kind| {
+            types
+                .get(kind)
+                .and_then(|oid| i32::try_from(*oid).ok())
+                .ok_or(CatalogError::MissingObject)
+        };
         names.push(name);
         arguments.push(oid(argument)?);
         results.push(oid(result)?);
@@ -1443,7 +1658,9 @@ async fn load_unary_aggregates(
     let expected = signatures.len() as i64;
     let count_row = tx
         .query_one(
-            &format!("SELECT count(*)::int8, count(DISTINCT procedure.oid)::int8 {UNARY_AGGREGATE_FROM}"),
+            &format!(
+                "SELECT count(*)::int8, count(DISTINCT procedure.oid)::int8 {UNARY_AGGREGATE_FROM}"
+            ),
             &params,
         )
         .await
@@ -1459,8 +1676,10 @@ async fn load_unary_aggregates(
     }
     let rows = tx
         .query(
-            &format!("SELECT procedure.oid::int4, procedure.proname, wanted.ordinal \
-                      {UNARY_AGGREGATE_FROM} ORDER BY wanted.ordinal"),
+            &format!(
+                "SELECT procedure.oid::int4, procedure.proname, wanted.ordinal \
+                      {UNARY_AGGREGATE_FROM} ORDER BY wanted.ordinal"
+            ),
             &params,
         )
         .await
@@ -1468,19 +1687,22 @@ async fn load_unary_aggregates(
     if rows.len() != signatures.len() {
         return Err(CatalogError::Snapshot);
     }
-    rows.iter().enumerate().map(|(index, row)| {
-        let name: String = row.get(1);
-        if name != names[index] || row.get::<_, i64>(2) != index as i64 + 1 {
-            return Err(CatalogError::AmbiguousObject);
-        }
-        Ok(ResolvedFunction {
-            oid: oid_from_i32(row.get(0))?,
-            schema: "pg_catalog".to_string(),
-            name,
-            argument_type_oids: vec![oid_from_i32(arguments[index])?],
-            aggregate_star: false,
+    rows.iter()
+        .enumerate()
+        .map(|(index, row)| {
+            let name: String = row.get(1);
+            if name != names[index] || row.get::<_, i64>(2) != index as i64 + 1 {
+                return Err(CatalogError::AmbiguousObject);
+            }
+            Ok(ResolvedFunction {
+                oid: oid_from_i32(row.get(0))?,
+                schema: "pg_catalog".to_string(),
+                name,
+                argument_type_oids: vec![oid_from_i32(arguments[index])?],
+                aggregate_star: false,
+            })
         })
-    }).collect()
+        .collect()
 }
 
 async fn load_count(
@@ -1536,7 +1758,10 @@ async fn load_count_any(
     let name = AGGREGATE_STAR_NAME.to_string();
     let params: [&(dyn ToSql + Sync); 2] = [&name, &int8_i];
     let rows = tx
-        .query(&format!("SELECT procedure.oid::int4, procedure.proargtypes[0]::int4 {COUNT_ANY_FROM}"), &params)
+        .query(
+            &format!("SELECT procedure.oid::int4, procedure.proargtypes[0]::int4 {COUNT_ANY_FROM}"),
+            &params,
+        )
         .await
         .map_err(db_error)?;
     match rows.as_slice() {
@@ -1636,19 +1861,37 @@ fn load_relation(
     physical_index: &snapshot::Relations,
 ) -> Result<Option<VisibleRelation>, CatalogError> {
     let physical_schema = if bound.native_namespace {
-        index.resolve(&bound.source, &bound.config_digest, bound.generation, LEVEL_NAMESPACE, bound.native_namespace, &table.namespace, "", "")?
+        index.resolve(
+            &bound.source,
+            &bound.config_digest,
+            bound.generation,
+            LEVEL_NAMESPACE,
+            bound.native_namespace,
+            (&table.namespace, "", ""),
+        )?
     } else {
         PHYSICAL_SCHEMA.to_owned()
     };
-    let physical_table = index.resolve(&bound.source, &bound.config_digest, bound.generation, LEVEL_TABLE, bound.native_namespace, &table.namespace, &table.name, "")?;
+    let physical_table = index.resolve(
+        &bound.source,
+        &bound.config_digest,
+        bound.generation,
+        LEVEL_TABLE,
+        bound.native_namespace,
+        (&table.namespace, &table.name, ""),
+    )?;
     let published = mapped_columns(index, bound, table)?;
-    let physical = physical_index.get(&physical_schema,&physical_table)?;
+    let physical = physical_index.get(&physical_schema, &physical_table)?;
     let relation = &physical.relation;
     let attributes = &physical.attributes;
-    if attributes.len() > limits.max_columns as usize {return Err(CatalogError::LimitExceeded);}
+    if attributes.len() > limits.max_columns as usize {
+        return Err(CatalogError::LimitExceeded);
+    }
     let mut by_name = BTreeMap::new();
     for item in attributes {
-        if by_name.insert(item.attribute.name.clone(),item).is_some() {return Err(CatalogError::AmbiguousMapping);}
+        if by_name.insert(item.attribute.name.clone(), item).is_some() {
+            return Err(CatalogError::AmbiguousMapping);
+        }
     }
     let mut visible = Vec::new();
     for (logical, physical) in &published {
@@ -1695,7 +1938,6 @@ struct RelationRow {
 fn admitted_native_relation(kind: &str, native: bool, registered_overlay: bool) -> bool {
     kind == "r" || (kind == "v" && native && registered_overlay)
 }
-
 
 fn supported_base(attribute: &Attribute, types: &BTreeMap<String, u32>) -> bool {
     if attribute.type_kind != "b" {
@@ -1895,12 +2137,19 @@ mod tests {
     #[test]
     fn native_vector_scopes_each_table_to_its_real_source() {
         let make_table = |name: &str| TableBound {
-            source: "aggregate".into(), namespace: "sales".into(), name: name.into(),
-            config_digest: "a".repeat(64), generation: 3, columns: vec!["id".into()],
+            source: "aggregate".into(),
+            namespace: "sales".into(),
+            name: name.into(),
+            config_digest: "a".repeat(64),
+            generation: 3,
+            columns: vec!["id".into()],
         };
         let mut bound = BoundInput {
-            source: "aggregate".into(), native_namespace: true, role: "oo_r_sales".into(),
-            config_digest: "a".repeat(64), generation: 3,
+            source: "aggregate".into(),
+            native_namespace: true,
+            role: "oo_r_sales".into(),
+            config_digest: "a".repeat(64),
+            generation: 3,
             tables: vec![make_table("east"), make_table("west")],
         };
         let vector = serde_json::json!([
@@ -1909,7 +2158,14 @@ mod tests {
         ]);
         let catalog = serde_json::json!({"entries":[{},{}]});
         bind_vector_sources(&mut bound, &vector, &catalog).unwrap();
-        assert_eq!(bound.tables.iter().map(|table| table.source.as_str()).collect::<Vec<_>>(), vec!["east_source", "west_source"]);
+        assert_eq!(
+            bound
+                .tables
+                .iter()
+                .map(|table| table.source.as_str())
+                .collect::<Vec<_>>(),
+            vec!["east_source", "west_source"]
+        );
         let mut duplicate = vector.clone();
         duplicate[1]["dataset"] = serde_json::json!("sales.east");
         assert!(bind_vector_sources(&mut bound, &duplicate, &catalog).is_err());
@@ -1988,7 +2244,8 @@ mod tests {
         assert!(COMPARISON_SIGNATURES.contains(&("timestamptz", "timestamptz")));
         assert!(!COMPARISON_SIGNATURES.iter().any(|(left, right)| {
             (["date", "timestamp", "timestamptz"].contains(left)
-                || ["date", "timestamp", "timestamptz"].contains(right)) && left != right
+                || ["date", "timestamp", "timestamptz"].contains(right))
+                && left != right
         }));
         assert!(COMPARISON_OPERATORS.contains(&"="));
         assert!(COMPARISON_OPERATORS.contains(&"<>"));
@@ -2011,7 +2268,11 @@ mod tests {
         let mut seen = BTreeSet::new();
         for index in 0..names.len() {
             let name = names[index].as_str();
-            let signature = (lefts[index].as_str(), rights[index].as_str(), results[index].as_str());
+            let signature = (
+                lefts[index].as_str(),
+                rights[index].as_str(),
+                results[index].as_str(),
+            );
             assert!(seen.insert((name, signature)));
             if COMPARISON_OPERATORS.contains(&name) {
                 assert_eq!(signature.2, BOOLEAN_LITERAL_TYPE);
@@ -2069,20 +2330,40 @@ mod tests {
         let unique = UNARY_AGGREGATE_SIGNATURES.iter().collect::<BTreeSet<_>>();
         assert_eq!(unique.len(), UNARY_AGGREGATE_SIGNATURES.len());
         for name in ["min", "max"] {
-            for kind in ["int2", "int4", "int8", "numeric", "float8", "text", "bpchar",
-                "date", "time", "timestamp", "timestamptz", "interval"] {
+            for kind in [
+                "int2",
+                "int4",
+                "int8",
+                "numeric",
+                "float8",
+                "text",
+                "bpchar",
+                "date",
+                "time",
+                "timestamp",
+                "timestamptz",
+                "interval",
+            ] {
                 assert!(UNARY_AGGREGATE_SIGNATURES.contains(&(name, kind, kind)));
             }
         }
         for predicate in [
-            "namespace.nspname = 'pg_catalog'", "procedure.proname = wanted.name",
-            "procedure.prokind = 'a'", "procedure.pronargs = 1",
-            "procedure.provolatile = 'i'", "NOT procedure.proretset",
-            "NOT procedure.prosecdef", "procedure.provariadic = 0",
-            "procedure.proconfig IS NULL", "procedure.prorettype = wanted.result_oid::oid",
-            "argument.oid = wanted.argument_oid::oid", "aggregate.aggkind = 'n'",
-            "aggregate.aggnumdirectargs = 0", "language.lanname = 'internal'",
-            "depend.classid = 'pg_catalog.pg_proc'::regclass", "depend.deptype = 'e'",
+            "namespace.nspname = 'pg_catalog'",
+            "procedure.proname = wanted.name",
+            "procedure.prokind = 'a'",
+            "procedure.pronargs = 1",
+            "procedure.provolatile = 'i'",
+            "NOT procedure.proretset",
+            "NOT procedure.prosecdef",
+            "procedure.provariadic = 0",
+            "procedure.proconfig IS NULL",
+            "procedure.prorettype = wanted.result_oid::oid",
+            "argument.oid = wanted.argument_oid::oid",
+            "aggregate.aggkind = 'n'",
+            "aggregate.aggnumdirectargs = 0",
+            "language.lanname = 'internal'",
+            "depend.classid = 'pg_catalog.pg_proc'::regclass",
+            "depend.deptype = 'e'",
         ] {
             assert!(UNARY_AGGREGATE_FROM.contains(predicate), "{predicate}");
         }
@@ -2095,7 +2376,10 @@ mod tests {
         for budget in [0, FUNCTION_CATALOG_LIMIT + 1] {
             limits.max_functions = budget;
             assert_eq!(check_limits(&limits, 1), Err(CatalogError::InvalidLimit));
-            assert_eq!(check_library_limits(&limits, 1), Err(CatalogError::InvalidLimit));
+            assert_eq!(
+                check_library_limits(&limits, 1),
+                Err(CatalogError::InvalidLimit)
+            );
         }
     }
 
@@ -2129,7 +2413,12 @@ mod tests {
         let mut wrong = identity();
         wrong.role = "oo_r_auditor".to_string();
         assert_eq!(
-            refused(prepare(&wrong, std::slice::from_ref(&clerk), &limits(), false)),
+            refused(prepare(
+                &wrong,
+                std::slice::from_ref(&clerk),
+                &limits(),
+                false
+            )),
             CatalogError::IdentityMismatch
         );
         let auditor = policy("auditor", vec!["amount"]);
@@ -2171,91 +2460,219 @@ mod library_capacity_tests {
     use super::*;
     #[test]
     fn library_catalog_ceiling_is_explicit_and_does_not_change_legacy_limits() {
-        let mut limits=CatalogLimits {max_tables:72,max_columns:1024,max_functions:FUNCTION_CATALOG_LIMIT,max_operators:128,large_table_row_threshold:1_000_000,unknown_rows:UnknownRows::Refuse};
-        assert!(check_limits(&limits,72).is_err());
-        assert!(check_library_limits(&limits,72).is_ok());
-        limits.max_tables=4097;assert!(check_library_limits(&limits,72).is_err());
+        let mut limits = CatalogLimits {
+            max_tables: 72,
+            max_columns: 1024,
+            max_functions: FUNCTION_CATALOG_LIMIT,
+            max_operators: 128,
+            large_table_row_threshold: 1_000_000,
+            unknown_rows: UnknownRows::Refuse,
+        };
+        assert!(check_limits(&limits, 72).is_err());
+        assert!(check_library_limits(&limits, 72).is_ok());
+        limits.max_tables = 4097;
+        assert!(check_library_limits(&limits, 72).is_err());
     }
 
     #[test]
     fn indexed_mappings_keep_identity_lookup_and_alias_guards() {
-        let key = |column: &str| (
-            "source".to_owned(), "digest".to_owned(), 1, "c".to_owned(),
-            "schema".to_owned(), "table".to_owned(), column.to_owned(),
-        );
+        let key = |column: &str| {
+            (
+                "source".to_owned(),
+                "digest".to_owned(),
+                1,
+                "c".to_owned(),
+                "schema".to_owned(),
+                "table".to_owned(),
+                column.to_owned(),
+            )
+        };
         let physical = format!("pc_{}", "a".repeat(60));
-        let mut index = MappingIndex { rows: BTreeMap::new() };
+        let mut index = MappingIndex {
+            rows: BTreeMap::new(),
+        };
         index.insert(key("column"), (physical.clone(), true));
         let resolve = |index: &MappingIndex, source: &str, generation: i64| {
-            index.resolve(source, "digest", generation, LEVEL_COLUMN, true, "schema", "table", "column")
+            index.resolve(
+                source,
+                "digest",
+                generation,
+                LEVEL_COLUMN,
+                true,
+                ("schema", "table", "column"),
+            )
         };
         assert_eq!(resolve(&index, "source", 1).unwrap(), physical);
-        assert!(matches!(resolve(&index, "other", 1), Err(CatalogError::MappingAbsent)));
-        assert!(matches!(resolve(&index, "source", 2), Err(CatalogError::MappingAbsent)));
+        assert!(matches!(
+            resolve(&index, "other", 1),
+            Err(CatalogError::MappingAbsent)
+        ));
+        assert!(matches!(
+            resolve(&index, "source", 2),
+            Err(CatalogError::MappingAbsent)
+        ));
         let encoded = mapping_keys("column", true).pop().unwrap();
         index.insert(key(&encoded), (physical.clone(), true));
-        assert!(matches!(resolve(&index, "source", 1), Err(CatalogError::AmbiguousMapping)));
-        index = MappingIndex { rows: BTreeMap::new() };
+        assert!(matches!(
+            resolve(&index, "source", 1),
+            Err(CatalogError::AmbiguousMapping)
+        ));
+        index = MappingIndex {
+            rows: BTreeMap::new(),
+        };
         index.insert(key(&encoded), (physical.clone(), true));
         assert_eq!(resolve(&index, "source", 1).unwrap(), physical);
         index.insert(key(&encoded), (physical.clone(), false));
-        assert!(matches!(resolve(&index, "source", 1), Err(CatalogError::AmbiguousMapping)));
+        assert!(matches!(
+            resolve(&index, "source", 1),
+            Err(CatalogError::AmbiguousMapping)
+        ));
         index.insert(key(&encoded), (format!("pt_{}", "a".repeat(60)), true));
-        assert!(matches!(resolve(&index, "source", 1), Err(CatalogError::AmbiguousMapping)));
+        assert!(matches!(
+            resolve(&index, "source", 1),
+            Err(CatalogError::AmbiguousMapping)
+        ));
     }
 
     #[test]
     fn wide_library_mapping_lookups_preserve_all_scopes_without_flat_key_clones() {
-        let mut index=MappingIndex {rows:BTreeMap::new()};
-        let digest="d".repeat(64);
+        let mut index = MappingIndex {
+            rows: BTreeMap::new(),
+        };
+        let digest = "d".repeat(64);
         for table in 0..658 {
             for column in 0..100 {
-                let key=(format!("source_{}",table%47),digest.clone(),1,"c".into(),
-                    "namespace".into(),format!("table_{table}"),format!("column_{column}"));
-                assert!(index.insert(key,(format!("pc_{:060x}",table*100+column),true)).is_none());
+                let key = (
+                    format!("source_{}", table % 47),
+                    digest.clone(),
+                    1,
+                    "c".into(),
+                    "namespace".into(),
+                    format!("table_{table}"),
+                    format!("column_{column}"),
+                );
+                assert!(
+                    index
+                        .insert(key, (format!("pc_{:060x}", table * 100 + column), true))
+                        .is_none()
+                );
             }
         }
-        let started=std::time::Instant::now();
+        let started = std::time::Instant::now();
         for table in 0..658 {
             for column in 0..100 {
-                assert_eq!(index.resolve(&format!("source_{}",table%47),&digest,1,LEVEL_COLUMN,true,
-                    "namespace",&format!("table_{table}"),&format!("column_{column}")).unwrap(),
-                    format!("pc_{:060x}",table*100+column));
+                assert_eq!(
+                    index
+                        .resolve(
+                            &format!("source_{}", table % 47),
+                            &digest,
+                            1,
+                            LEVEL_COLUMN,
+                            true,
+                            (
+                                "namespace",
+                                &format!("table_{table}"),
+                                &format!("column_{column}")
+                            )
+                        )
+                        .unwrap(),
+                    format!("pc_{:060x}", table * 100 + column)
+                );
             }
         }
-        eprintln!("wide_mapping_lookup tables=658 columns=65800 elapsed_ms={}",started.elapsed().as_millis());
-        let alias=mapping_keys("namespace",true).pop().unwrap();
-        index.insert(("source_0".into(),digest.clone(),1,"c".into(),alias,
-            "table_0".into(),"column_0".into()),(format!("pc_{:060x}",0),true));
-        assert_eq!(index.resolve("source_0",&digest,1,LEVEL_COLUMN,true,
-            "namespace","table_0","column_0"),Err(CatalogError::AmbiguousMapping));
+        eprintln!(
+            "wide_mapping_lookup tables=658 columns=65800 elapsed_ms={}",
+            started.elapsed().as_millis()
+        );
+        let alias = mapping_keys("namespace", true).pop().unwrap();
+        index.insert(
+            (
+                "source_0".into(),
+                digest.clone(),
+                1,
+                "c".into(),
+                alias,
+                "table_0".into(),
+                "column_0".into(),
+            ),
+            (format!("pc_{:060x}", 0), true),
+        );
+        assert_eq!(
+            index.resolve(
+                "source_0",
+                &digest,
+                1,
+                LEVEL_COLUMN,
+                true,
+                ("namespace", "table_0", "column_0")
+            ),
+            Err(CatalogError::AmbiguousMapping)
+        );
     }
 }
 
 fn verify_library_table_vector(
-    bound:&BoundInput,table:&TableBound,entries:&BTreeMap<&str,&Value>,index:&MappingIndex,
-    physical_index:&snapshot::Relations,proofs:&snapshot::LibraryProofs,
-)->Result<(),CatalogError> {
-    let dataset=format!("{}.{}",table.namespace,table.name);
-    let entry=entries.get(dataset.as_str()).ok_or(CatalogError::IdentityMismatch)?;
-    let namespace=index.resolve(&bound.source,&bound.config_digest,bound.generation,LEVEL_NAMESPACE,bound.native_namespace,&table.namespace,"","")?;
-    let physical=index.resolve(&bound.source,&bound.config_digest,bound.generation,LEVEL_TABLE,bound.native_namespace,&table.namespace,&table.name,"")?;
-    let relation=physical_index.get(&namespace,&physical)?;
+    bound: &BoundInput,
+    table: &TableBound,
+    entries: &BTreeMap<&str, &Value>,
+    index: &MappingIndex,
+    physical_index: &snapshot::Relations,
+    proofs: &snapshot::LibraryProofs,
+) -> Result<(), CatalogError> {
+    let dataset = format!("{}.{}", table.namespace, table.name);
+    let entry = entries
+        .get(dataset.as_str())
+        .ok_or(CatalogError::IdentityMismatch)?;
+    let namespace = index.resolve(
+        &bound.source,
+        &bound.config_digest,
+        bound.generation,
+        LEVEL_NAMESPACE,
+        bound.native_namespace,
+        (&table.namespace, "", ""),
+    )?;
+    let physical = index.resolve(
+        &bound.source,
+        &bound.config_digest,
+        bound.generation,
+        LEVEL_TABLE,
+        bound.native_namespace,
+        (&table.namespace, &table.name, ""),
+    )?;
+    let relation = physical_index.get(&namespace, &physical)?;
     proofs.verify(&dataset)?;
-    let expected=entry["expected_columns"].as_array().ok_or(CatalogError::IdentityMismatch)?;
-    if expected.len()!=table.columns.len() {return Err(CatalogError::IdentityMismatch);}
-    let mut expected_types=BTreeMap::new();
-    for column in expected {
-        let name=column["name"].as_str().ok_or(CatalogError::IdentityMismatch)?;
-        let ty=column["data_type"].as_str().ok_or(CatalogError::IdentityMismatch)?;
-        if expected_types.insert(name,ty).is_some() {return Err(CatalogError::IdentityMismatch);}
+    let expected = entry["expected_columns"]
+        .as_array()
+        .ok_or(CatalogError::IdentityMismatch)?;
+    if expected.len() != table.columns.len() {
+        return Err(CatalogError::IdentityMismatch);
     }
-    let published=mapped_columns(index,bound,table)?;
-    let actual_types:BTreeMap<_,_>=relation.attributes.iter()
-        .map(|item|(item.attribute.name.as_str(),item.formatted.as_str())).collect();
-    for (column,mapped) in &published {
-        let expected=expected_types.get(column.as_str()).copied().ok_or(CatalogError::IdentityMismatch)?;
-        if actual_types.get(mapped.as_str()).copied()!=Some(expected) {return Err(CatalogError::IdentityMismatch);}
+    let mut expected_types = BTreeMap::new();
+    for column in expected {
+        let name = column["name"]
+            .as_str()
+            .ok_or(CatalogError::IdentityMismatch)?;
+        let ty = column["data_type"]
+            .as_str()
+            .ok_or(CatalogError::IdentityMismatch)?;
+        if expected_types.insert(name, ty).is_some() {
+            return Err(CatalogError::IdentityMismatch);
+        }
+    }
+    let published = mapped_columns(index, bound, table)?;
+    let actual_types: BTreeMap<_, _> = relation
+        .attributes
+        .iter()
+        .map(|item| (item.attribute.name.as_str(), item.formatted.as_str()))
+        .collect();
+    for (column, mapped) in &published {
+        let expected = expected_types
+            .get(column.as_str())
+            .copied()
+            .ok_or(CatalogError::IdentityMismatch)?;
+        if actual_types.get(mapped.as_str()).copied() != Some(expected) {
+            return Err(CatalogError::IdentityMismatch);
+        }
     }
     Ok(())
 }

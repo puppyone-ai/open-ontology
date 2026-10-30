@@ -307,3 +307,4 @@ BEGIN
 END $fn$;
 REVOKE ALL ON FUNCTION _oo.c1_oracle_delta_sealed_resume(text,uuid,bigint,integer,jsonb,text,bigint,jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION _oo.c1_oracle_delta_sealed_resume(text,uuid,bigint,integer,jsonb,text,bigint,jsonb) TO oo_pipeline_runtime;
+

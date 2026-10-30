@@ -113,8 +113,13 @@ mod tests {
     #[test]
     fn target_float_successor_preserves_every_archive_scope_guard() {
         let before = include_str!("../migrations/0065_native_c5_multipart_initialize.sql");
-        let start = before.find("CREATE FUNCTION _oo.c5_seed_multipart_digest(").unwrap();
-        let end = before[start..].find("\nCREATE FUNCTION _oo.c5_digest_receipt_current").unwrap() + start;
+        let start = before
+            .find("CREATE FUNCTION _oo.c5_seed_multipart_digest(")
+            .unwrap();
+        let end = before[start..]
+            .find("\nCREATE FUNCTION _oo.c5_digest_receipt_current")
+            .unwrap()
+            + start;
         let expected = before[start..end]
             .replacen("CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", 1)
             .replace(

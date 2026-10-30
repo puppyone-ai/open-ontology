@@ -1281,7 +1281,10 @@ mod tests {
             let mutated = inject_workspace_edge(metadata(), "oo-builder", target);
             let report = check(&mutated);
             assert!(rules(&report).contains(rule), "{report}");
-            assert!(rules(&report).contains(R_GATEWAY_SOURCE_CREDENTIAL), "{report}");
+            assert!(
+                rules(&report).contains(R_GATEWAY_SOURCE_CREDENTIAL),
+                "{report}"
+            );
         }
         assert!(check(metadata()).is_pass());
     }

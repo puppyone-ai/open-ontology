@@ -87,13 +87,29 @@ fn expand_long_options(args: &[String]) -> Vec<String> {
     let mut output = Vec::new();
     let mut positional = false;
     for arg in args {
-        if arg == "--" { positional = true; }
+        if arg == "--" {
+            positional = true;
+        }
         if !positional
             && let Some((flag, value)) = arg.split_once('=')
-            && matches!(flag, "--gateway" | "--transport" | "--auth" | "--token-file"
-                | "--ca-file" | "--client-pem" | "--connect-ip" | "--interface"
-                | "--max-rows" | "--timeout-ms" | "--path-prefix" | "--offset" | "--limit"
-                | "--expected-publication-id" | "--expected-data-vector-sha256")
+            && matches!(
+                flag,
+                "--gateway"
+                    | "--transport"
+                    | "--auth"
+                    | "--token-file"
+                    | "--ca-file"
+                    | "--client-pem"
+                    | "--connect-ip"
+                    | "--interface"
+                    | "--max-rows"
+                    | "--timeout-ms"
+                    | "--path-prefix"
+                    | "--offset"
+                    | "--limit"
+                    | "--expected-publication-id"
+                    | "--expected-data-vector-sha256"
+            )
         {
             output.extend([flag.to_owned(), value.to_owned()]);
         } else {
@@ -109,14 +125,32 @@ mod long_option_tests {
 
     #[test]
     fn equals_options_never_rewrite_sql_values_or_post_separator_positionals() {
-        let args = ["query", "--max-rows=10", "--gateway=https://gateway.example",
-                    "SELECT '--auth=external'", "--", "--token-file=literal.sql"]
-            .map(str::to_owned);
-        assert_eq!(expand_long_options(&args), [
-            "query", "--max-rows", "10", "--gateway", "https://gateway.example",
-            "SELECT '--auth=external'", "--", "--token-file=literal.sql",
-        ]);
-        assert_eq!(expand_long_options(&["--json=true".into()]), ["--json=true"]);
+        let args = [
+            "query",
+            "--max-rows=10",
+            "--gateway=https://gateway.example",
+            "SELECT '--auth=external'",
+            "--",
+            "--token-file=literal.sql",
+        ]
+        .map(str::to_owned);
+        assert_eq!(
+            expand_long_options(&args),
+            [
+                "query",
+                "--max-rows",
+                "10",
+                "--gateway",
+                "https://gateway.example",
+                "SELECT '--auth=external'",
+                "--",
+                "--token-file=literal.sql",
+            ]
+        );
+        assert_eq!(
+            expand_long_options(&["--json=true".into()]),
+            ["--json=true"]
+        );
     }
 }
 
@@ -141,7 +175,10 @@ fn parse_args(args: &[String]) -> Result<Invocation, Failure> {
     }
     if command == "--version" || command == "-V" {
         return match &args[1..] {
-            [] => Ok(Invocation::Help(format!("oo {}", env!("CARGO_PKG_VERSION")))),
+            [] => Ok(Invocation::Help(format!(
+                "oo {}",
+                env!("CARGO_PKG_VERSION")
+            ))),
             [flag] if flag == "--json" => Ok(Invocation::Help(
                 serde_json::json!({"name": "oo", "version": env!("CARGO_PKG_VERSION")}).to_string(),
             )),
@@ -203,7 +240,9 @@ fn parse_describe(args: &[String]) -> Result<Invocation, Failure> {
     let mut ended = false;
     let mut rest = Vec::new();
     for arg in args {
-        if arg == "--" { ended = true; }
+        if arg == "--" {
+            ended = true;
+        }
         if !ended && arg == "--human" {
             set_flag(&mut force_human)?;
         } else {
@@ -212,7 +251,9 @@ fn parse_describe(args: &[String]) -> Result<Invocation, Failure> {
     }
     let parsed = parse_conn_flags(&rest)?;
     if force_human && parsed.conn.json {
-        return Err(Failure::usage("describe --human and --json are mutually exclusive"));
+        return Err(Failure::usage(
+            "describe --human and --json are mutually exclusive",
+        ));
     }
     let table = one_positional(&parsed.positional, "table is missing")?;
     if !table_ok(&table) {
@@ -236,7 +277,11 @@ fn parse_validate(args: &[String]) -> Result<Invocation, Failure> {
 }
 
 fn parse_sql(args: &[String]) -> Result<Invocation, Failure> {
-    if args.is_empty() || args.first().is_some_and(|arg| arg == "--help" || arg == "-h") {
+    if args.is_empty()
+        || args
+            .first()
+            .is_some_and(|arg| arg == "--help" || arg == "-h")
+    {
         return Ok(Invocation::Help(command_help(
             "Usage: oo sql validate [options] \"<sql>\"\n\nAlias for oo validate.",
         )));
@@ -270,10 +315,14 @@ mod freshness_tests {
 
     #[test]
     fn summary_is_explicit_and_only_valid_for_freshness() {
-        assert!(matches!(parse_freshness(&strings(&["--json", "--summary"])),
-                         Ok(Invocation::Freshness(_, true))));
-        assert!(matches!(parse_freshness(&strings(&["--json"])),
-                         Ok(Invocation::Freshness(_, false))));
+        assert!(matches!(
+            parse_freshness(&strings(&["--json", "--summary"])),
+            Ok(Invocation::Freshness(_, true))
+        ));
+        assert!(matches!(
+            parse_freshness(&strings(&["--json"])),
+            Ok(Invocation::Freshness(_, false))
+        ));
         assert!(parse_tables(&strings(&["--summary"])).is_err());
         assert!(parse_freshness(&strings(&["--summary", "--summary"])).is_err());
         assert!(parse_freshness(&strings(&["--", "--summary"])).is_err());
@@ -281,7 +330,10 @@ mod freshness_tests {
 }
 
 fn parse_knowledge(args: &[String]) -> Result<Invocation, Failure> {
-    if args.is_empty() || args.first().is_some_and(|arg| arg == "--help" || arg == "-h")
+    if args.is_empty()
+        || args
+            .first()
+            .is_some_and(|arg| arg == "--help" || arg == "-h")
     {
         if wants_help(args) {
             return Ok(Invocation::Help(command_help(
@@ -314,13 +366,23 @@ fn parse_knowledge(args: &[String]) -> Result<Invocation, Failure> {
             if needle.is_empty() || needle.len() > 200 || needle.contains('\0') {
                 return Err(Failure::usage("search text is not public"));
             }
-            Ok(Invocation::KnowledgeSearch(parsed.conn, SearchArgs { needle, path_prefix, offset, limit }))
+            Ok(Invocation::KnowledgeSearch(
+                parsed.conn,
+                SearchArgs {
+                    needle,
+                    path_prefix,
+                    offset,
+                    limit,
+                },
+            ))
         }
         _ => Ok(Invocation::Unsupported),
     }
 }
 
-fn parse_search_options(args: &[String]) -> Result<(Vec<String>, Option<String>, u32, u32), Failure> {
+fn parse_search_options(
+    args: &[String],
+) -> Result<(Vec<String>, Option<String>, u32, u32), Failure> {
     let mut remaining = Vec::new();
     let mut prefix = None;
     let mut offset = None;
@@ -334,22 +396,30 @@ fn parse_search_options(args: &[String]) -> Result<(Vec<String>, Option<String>,
         }
         if matches!(flag, "--path-prefix" | "--offset" | "--limit") {
             index += 1;
-            let value = args.get(index).ok_or_else(|| Failure::usage("search option value is missing"))?;
+            let value = args
+                .get(index)
+                .ok_or_else(|| Failure::usage("search option value is missing"))?;
             match flag {
                 "--path-prefix" => {
-                    if prefix.is_some() || !knowledge_path_ok(value.strip_suffix('/').unwrap_or(value)) {
+                    if prefix.is_some()
+                        || !knowledge_path_ok(value.strip_suffix('/').unwrap_or(value))
+                    {
                         return Err(Failure::usage("invalid or repeated search path prefix"));
                     }
                     prefix = Some(value.clone());
                 }
                 "--offset" => {
-                    let number: u32 = value.parse().map_err(|_| Failure::usage("invalid search offset"))?;
+                    let number: u32 = value
+                        .parse()
+                        .map_err(|_| Failure::usage("invalid search offset"))?;
                     if offset.replace(number).is_some() || number > 1_048_576 {
                         return Err(Failure::usage("invalid or repeated search offset"));
                     }
                 }
                 _ => {
-                    let number: u32 = value.parse().map_err(|_| Failure::usage("invalid search limit"))?;
+                    let number: u32 = value
+                        .parse()
+                        .map_err(|_| Failure::usage("invalid search limit"))?;
                     if limit.replace(number).is_some() || !(1..=100).contains(&number) {
                         return Err(Failure::usage("invalid or repeated search limit"));
                     }
@@ -433,7 +503,9 @@ fn parse_conn_flags_mode(args: &[String], allow_summary: bool) -> Result<ConnPar
         }
         if !ended && arg.starts_with('-') {
             if arg.contains('=') {
-                return Err(Failure::usage("this flag does not accept an equals value; see oo help <command>"));
+                return Err(Failure::usage(
+                    "this flag does not accept an equals value; see oo help <command>",
+                ));
             }
             match arg {
                 "--summary" if allow_summary => set_flag(&mut summary)?,
@@ -606,7 +678,9 @@ fn parse_query(args: &[String]) -> Result<Invocation, Failure> {
         }
         if !ended && arg.starts_with('-') {
             if arg.contains('=') {
-                return Err(Failure::usage("this flag does not accept an equals value; see oo query --help"));
+                return Err(Failure::usage(
+                    "this flag does not accept an equals value; see oo query --help",
+                ));
             }
             match arg {
                 "--json" => set_flag(&mut json)?,
@@ -713,13 +787,19 @@ fn parse_query(args: &[String]) -> Result<Invocation, Failure> {
     }))
 }
 
-fn parse_binding(id: Option<String>, vector: Option<String>) -> Result<Option<oo_sdk::PublicationBinding>, Failure> {
+fn parse_binding(
+    id: Option<String>,
+    vector: Option<String>,
+) -> Result<Option<oo_sdk::PublicationBinding>, Failure> {
     match (id.as_deref(), vector.as_deref()) {
         (None, None) => Ok(None),
         (Some("current"), None) => Ok(Some(oo_sdk::PublicationBinding::current())),
-        (Some(id), vector) => oo_sdk::PublicationBinding::expected(id, vector).map(Some)
+        (Some(id), vector) => oo_sdk::PublicationBinding::expected(id, vector)
+            .map(Some)
             .map_err(|_| Failure::usage("invalid publication binding")),
-        _ => Err(Failure::usage("data vector requires expected-publication-id")),
+        _ => Err(Failure::usage(
+            "data vector requires expected-publication-id",
+        )),
     }
 }
 
@@ -759,7 +839,11 @@ fn take_text(
     name: &str,
     max_bytes: usize,
 ) -> Result<String, Failure> {
-    let flag = if name == "sql file" { "-f".to_owned() } else { format!("--{name}") };
+    let flag = if name == "sql file" {
+        "-f".to_owned()
+    } else {
+        format!("--{name}")
+    };
     let Some(value) = args.get(*index + 1) else {
         return Err(Failure::usage(&format!("missing flag value for {flag}")));
     };
@@ -802,20 +886,26 @@ mod route_tests {
     fn query_and_public_flags_accept_only_explicit_literal_routes() {
         for ip in ["127.0.0.1", "::1", "2001:db8::1"] {
             let mut flags = strings(&["--connect-ip", ip, "--interface", "en0"]);
-            let Ok(parsed) = parse_conn_flags(&flags) else { panic!("connection flags"); };
+            let Ok(parsed) = parse_conn_flags(&flags) else {
+                panic!("connection flags");
+            };
             let conn = parsed.conn;
             assert_eq!(conn.connect_ip, Some(ip.parse().unwrap()));
             assert_eq!(conn.interface.as_deref(), Some("en0"));
             flags.push("select 1".to_owned());
-            let Ok(Invocation::Query(query)) = parse_query(&flags) else { panic!("query flags"); };
+            let Ok(Invocation::Query(query)) = parse_query(&flags) else {
+                panic!("query flags");
+            };
             assert_eq!(query.connect_ip, conn.connect_ip);
             assert_eq!(query.interface, conn.interface);
         }
         for flags in [
-            vec!["--connect-ip"], vec!["--interface"],
+            vec!["--connect-ip"],
+            vec!["--interface"],
             vec!["--connect-ip", "https://127.0.0.1"],
             vec!["--connect-ip", "127.0.0.1:443"],
-            vec!["--connect-ip", "[::1]"], vec!["--connect-ip", "gateway.test"],
+            vec!["--connect-ip", "[::1]"],
+            vec!["--connect-ip", "gateway.test"],
             vec!["--connect-ip", "::1", "--connect-ip", "::1"],
             vec!["--interface", "en0", "--interface", "en0"],
         ] {
@@ -829,7 +919,9 @@ mod route_tests {
         };
         assert!(query.connect_ip.is_none() && query.interface.is_none());
         assert_eq!(query.sql.as_deref(), Some(sql));
-        let Ok(parsed) = parse_conn_flags(&[]) else { panic!("default flags"); };
+        let Ok(parsed) = parse_conn_flags(&[]) else {
+            panic!("default flags");
+        };
         let conn = parsed.conn;
         assert!(conn.connect_ip.is_none() && conn.interface.is_none());
     }
@@ -837,9 +929,17 @@ mod route_tests {
     #[test]
     fn route_help_states_operator_boundary_and_failure_behavior() {
         for help in [top_help(), query_help(), command_help("tables")] {
-            for required in ["--connect-ip", "--interface", "Operator-only", "TLS SNI",
-                             "hostname verification", "token/audience", "Proxies remain disabled",
-                             "Unsupported platforms fail", "without fallback"] {
+            for required in [
+                "--connect-ip",
+                "--interface",
+                "Operator-only",
+                "TLS SNI",
+                "hostname verification",
+                "token/audience",
+                "Proxies remain disabled",
+                "Unsupported platforms fail",
+                "without fallback",
+            ] {
                 assert!(help.contains(required), "{required}");
             }
         }
@@ -854,20 +954,28 @@ fn take_number(
     max: u32,
 ) -> Result<u32, Failure> {
     let Some(value) = args.get(*index + 1) else {
-        return Err(Failure::usage(&format!("missing flag value for --{name}; use an integer in {min}..={max}")));
+        return Err(Failure::usage(&format!(
+            "missing flag value for --{name}; use an integer in {min}..={max}"
+        )));
     };
     if value.is_empty()
         || value.len() > 10
         || !value.bytes().all(|byte| byte.is_ascii_digit())
         || (value.len() > 1 && value.starts_with('0'))
     {
-        return Err(Failure::usage(&format!("invalid {name}; use an integer in {min}..={max}")));
+        return Err(Failure::usage(&format!(
+            "invalid {name}; use an integer in {min}..={max}"
+        )));
     }
     let Ok(number) = value.parse::<u32>() else {
-        return Err(Failure::usage(&format!("invalid {name}; use an integer in {min}..={max}")));
+        return Err(Failure::usage(&format!(
+            "invalid {name}; use an integer in {min}..={max}"
+        )));
     };
     if !(min..=max).contains(&number) {
-        return Err(Failure::usage(&format!("invalid {name}; use an integer in {min}..={max}")));
+        return Err(Failure::usage(&format!(
+            "invalid {name}; use an integer in {min}..={max}"
+        )));
     }
     *index += 1;
     Ok(number)
@@ -911,11 +1019,15 @@ fn is_safe_flag(arg: &str) -> bool {
 }
 
 pub fn top_help() -> String {
-    format!("{TOP}\n\n{QUERY_FLAGS}\n\n{SEARCH_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\n{NOTES}")
+    format!(
+        "{TOP}\n\n{QUERY_FLAGS}\n\n{SEARCH_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\n{NOTES}"
+    )
 }
 
 pub fn query_help() -> String {
-    format!("Usage: oo query [options] \"<sql>\"\n       oo query [options] -f <file.sql>\n\nRun one read-only SQL query.\n\n{QUERY_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\nQuery lifecycle:\n  One budget covers admission, metadata, session and SQL; the effective limit is\n  the minimum of your request and Gateway policy (at most 30s). The client reserves\n  1500ms within its 30s transport cap to receive an error receipt.\n  TIMEOUT is not retried and never means zero rows. No partial aggregate is returned.\n  oo operations lists your active query_id values; oo cancel <query_id> requests\n  bounded cleanup; oo status <query_id> reports running/succeeded/failed/timed_out/\n  canceled/abandoned. These records are bounded, process-local, not durable history.\n  A busy role returns OVERLOADED instead of silently blocking other roles.\n  Cancellation/status require the same principal, project and role.\n\n{NOTES}")
+    format!(
+        "Usage: oo query [options] \"<sql>\"\n       oo query [options] -f <file.sql>\n\nRun one read-only SQL query.\n\n{QUERY_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\nQuery lifecycle:\n  One budget covers admission, metadata, session and SQL; the effective limit is\n  the minimum of your request and Gateway policy (at most 30s). The client reserves\n  1500ms within its 30s transport cap to receive an error receipt.\n  TIMEOUT is not retried and never means zero rows. No partial aggregate is returned.\n  oo operations lists your active query_id values; oo cancel <query_id> requests\n  bounded cleanup; oo status <query_id> reports running/succeeded/failed/timed_out/\n  canceled/abandoned. These records are bounded, process-local, not durable history.\n  A busy role returns OVERLOADED instead of silently blocking other roles.\n  Cancellation/status require the same principal, project and role.\n\n{NOTES}"
+    )
 }
 
 fn is_safe_command(command: &str) -> bool {
@@ -1039,18 +1151,37 @@ mod search_tests {
     use super::*;
     #[test]
     fn search_pagination_is_explicit_bounded_and_keeps_connection_arguments() {
-        let args = ["search", "orders", "--path-prefix", "tables/", "--offset", "20",
-                    "--limit", "30", "--json"].map(str::to_owned);
-        let Ok(Invocation::KnowledgeSearch(conn, query)) = parse_knowledge(&args) else { panic!("search"); };
+        let args = [
+            "search",
+            "orders",
+            "--path-prefix",
+            "tables/",
+            "--offset",
+            "20",
+            "--limit",
+            "30",
+            "--json",
+        ]
+        .map(str::to_owned);
+        let Ok(Invocation::KnowledgeSearch(conn, query)) = parse_knowledge(&args) else {
+            panic!("search");
+        };
         assert!(conn.json);
         assert_eq!(query.needle, "orders");
         assert_eq!(query.path_prefix.as_deref(), Some("tables/"));
         assert_eq!((query.offset, query.limit), (20, 30));
         for flags in [
-            vec!["--limit", "0"], vec!["--limit", "101"], vec!["--offset", "-1"],
-            vec!["--path-prefix", "../"], vec!["--limit", "2", "--limit", "3"],
+            vec!["--limit", "0"],
+            vec!["--limit", "101"],
+            vec!["--offset", "-1"],
+            vec!["--path-prefix", "../"],
+            vec!["--limit", "2", "--limit", "3"],
         ] {
-            let args = ["search", "orders"].into_iter().chain(flags).map(str::to_owned).collect::<Vec<_>>();
+            let args = ["search", "orders"]
+                .into_iter()
+                .chain(flags)
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
             assert!(parse_knowledge(&args).is_err());
         }
     }

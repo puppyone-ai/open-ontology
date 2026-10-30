@@ -10,13 +10,13 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use oo_pipeline::target_installer::{
-    compiled_digests, compiled_full_import_digest, install, install_full_import, sha256_hex,
-    verify_full_import_readiness, verify_readiness, FullImportInstallOutcome, InstallError,
-    InstallOutcome, ReadinessError, HISTORICAL_V2_SHA256, VERSION_BOOTSTRAP, VERSION_FENCE,
-    VERSION_FULL_IMPORT, VERSION_MAPPING, VERSION_PREFLIGHT, VERSION_SEGMENT_V2,
+    FullImportInstallOutcome, HISTORICAL_V2_SHA256, InstallError, InstallOutcome, ReadinessError,
+    VERSION_BOOTSTRAP, VERSION_FENCE, VERSION_FULL_IMPORT, VERSION_MAPPING, VERSION_PREFLIGHT,
+    VERSION_SEGMENT_V2, compiled_digests, compiled_full_import_digest, install,
+    install_full_import, sha256_hex, verify_full_import_readiness, verify_readiness,
 };
-use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 use sqlx::Connection;
+use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 
 const BOOTSTRAP: &str = include_str!("../migrations/0000_bootstrap_roles.sql");
 const FENCE: &str = include_str!("../migrations/0001_target_fence_expand.sql");
@@ -28,9 +28,14 @@ const LIE: &str = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 fn installer_embeds_production_scripts_and_not_v2() {
     assert!(INSTALLER.contains("include_str!(\"../migrations/0000_bootstrap_roles.sql\")"));
     assert!(INSTALLER.contains("include_str!(\"../migrations/0001_target_fence_expand.sql\")"));
-    assert!(INSTALLER.contains("include_str!(\"../migrations/0003_target_segment_preflight_expand.sql\")"));
+    assert!(
+        INSTALLER
+            .contains("include_str!(\"../migrations/0003_target_segment_preflight_expand.sql\")")
+    );
     assert!(INSTALLER.contains("include_str!(\"../migrations/0004_physical_mapping.sql\")"));
-    assert!(!INSTALLER.contains("include_str!(\"../migrations/0002_target_segment_null_expand.sql\")"));
+    assert!(
+        !INSTALLER.contains("include_str!(\"../migrations/0002_target_segment_null_expand.sql\")")
+    );
     assert_eq!(sha256_hex(SEGMENT.as_bytes()), HISTORICAL_V2_SHA256);
     let digests = compiled_digests();
     assert_ne!(digests.preflight(), HISTORICAL_V2_SHA256);
@@ -74,7 +79,14 @@ async fn production_installer_on_one_postgres() {
     let fresh_rows = migration_text(&mut empty).await;
     assert_installed(&fresh_rows, &digests, false);
     assert_eq!(count_version(&mut empty, VERSION_SEGMENT_V2).await, 0);
-    assert_eq!(scalar(&mut empty, "SELECT count(*)::text FROM pg_catalog.pg_publication").await, "0");
+    assert_eq!(
+        scalar(
+            &mut empty,
+            "SELECT count(*)::text FROM pg_catalog.pg_publication"
+        )
+        .await,
+        "0"
+    );
     assert_eq!(
         scalar(&mut empty, "SELECT count(*)::text FROM _oo.apply_receipts").await,
         "0"
@@ -93,7 +105,9 @@ async fn production_installer_on_one_postgres() {
     assert_eq!(replay, InstallOutcome::Replay);
     let replay_rows = migration_text(&mut empty).await;
     assert_eq!(replay_rows, fresh_rows);
-    report.push_str("empty=bootstrapped\nempty_replay=replay\nempty_applied_at_same=1\nempty_v2_rows=0\n");
+    report.push_str(
+        "empty=bootstrapped\nempty_replay=replay\nempty_applied_at_same=1\nempty_v2_rows=0\n",
+    );
 
     let runtime_password = hex_bytes(&read_random(16));
     exec(
@@ -104,8 +118,17 @@ async fn production_installer_on_one_postgres() {
     )
     .await;
     raw(&mut empty, "GRANT oo_pipeline_runtime TO oo_a150_runtime").await;
-    let mut runtime = connect(&host, port, "oo_a150_runtime", &runtime_password, "oo_a150_empty").await;
-    let runtime_ready = verify_readiness(&mut runtime).await.expect("runtime readiness");
+    let mut runtime = connect(
+        &host,
+        port,
+        "oo_a150_runtime",
+        &runtime_password,
+        "oo_a150_empty",
+    )
+    .await;
+    let runtime_ready = verify_readiness(&mut runtime)
+        .await
+        .expect("runtime readiness");
     assert_eq!(runtime_ready.digests().mapping(), digests.mapping());
     assert!(!runtime_ready.retains_historical_v2());
     match install(&mut runtime).await {
@@ -125,8 +148,14 @@ async fn production_installer_on_one_postgres() {
     let upgraded = install(&mut v1).await.expect("v1 upgrade");
     assert_eq!(upgraded, InstallOutcome::UpgradedFromV1);
     let v1_after = migration_text(&mut v1).await;
-    assert_eq!(applied_at_of(&v1_before, VERSION_BOOTSTRAP), applied_at_of(&v1_after, VERSION_BOOTSTRAP));
-    assert_eq!(applied_at_of(&v1_before, VERSION_FENCE), applied_at_of(&v1_after, VERSION_FENCE));
+    assert_eq!(
+        applied_at_of(&v1_before, VERSION_BOOTSTRAP),
+        applied_at_of(&v1_after, VERSION_BOOTSTRAP)
+    );
+    assert_eq!(
+        applied_at_of(&v1_before, VERSION_FENCE),
+        applied_at_of(&v1_after, VERSION_FENCE)
+    );
     assert_eq!(count_version(&mut v1, VERSION_SEGMENT_V2).await, 0);
     assert_installed(&v1_after, &digests, false);
     let v1_ready = verify_readiness(&mut v1).await.expect("v1 readiness");
@@ -144,10 +173,22 @@ async fn production_installer_on_one_postgres() {
     let forward = install(&mut v2).await.expect("v2 upgrade");
     assert_eq!(forward, InstallOutcome::UpgradedFromV2);
     let v2_after = migration_text(&mut v2).await;
-    assert_eq!(applied_at_of(&v2_before, VERSION_BOOTSTRAP), applied_at_of(&v2_after, VERSION_BOOTSTRAP));
-    assert_eq!(applied_at_of(&v2_before, VERSION_FENCE), applied_at_of(&v2_after, VERSION_FENCE));
-    assert_eq!(applied_at_of(&v2_before, VERSION_SEGMENT_V2), applied_at_of(&v2_after, VERSION_SEGMENT_V2));
-    assert_eq!(checksum_of(&v2_after, VERSION_SEGMENT_V2), HISTORICAL_V2_SHA256);
+    assert_eq!(
+        applied_at_of(&v2_before, VERSION_BOOTSTRAP),
+        applied_at_of(&v2_after, VERSION_BOOTSTRAP)
+    );
+    assert_eq!(
+        applied_at_of(&v2_before, VERSION_FENCE),
+        applied_at_of(&v2_after, VERSION_FENCE)
+    );
+    assert_eq!(
+        applied_at_of(&v2_before, VERSION_SEGMENT_V2),
+        applied_at_of(&v2_after, VERSION_SEGMENT_V2)
+    );
+    assert_eq!(
+        checksum_of(&v2_after, VERSION_SEGMENT_V2),
+        HISTORICAL_V2_SHA256
+    );
     assert_eq!(scalar(&mut v2, RECEIPT_SQL).await, receipt_before);
     assert_installed(&v2_after, &digests, true);
     let v2_ready = verify_readiness(&mut v2).await.expect("v2 readiness");
@@ -167,7 +208,10 @@ async fn production_installer_on_one_postgres() {
     match install(&mut missing).await {
         Err(err) => {
             assert_eq!(err.sqlstate(), Some("OO002"), "{err}");
-            assert!(err.to_string().contains("segment relation is absent"), "{err}");
+            assert!(
+                err.to_string().contains("segment relation is absent"),
+                "{err}"
+            );
         }
         Ok(outcome) => panic!("missing relation installed: {outcome}"),
     }
@@ -251,7 +295,9 @@ async fn production_installer_on_one_postgres() {
     }
     assert_eq!(migration_text(&mut bad_full).await, bad_full_before);
     assert_eq!(checksum_of(&bad_full_before, VERSION_FULL_IMPORT), LIE);
-    verify_readiness(&mut bad_full).await.expect("0004 readiness ignores 0005");
+    verify_readiness(&mut bad_full)
+        .await
+        .expect("0004 readiness ignores 0005");
     match verify_full_import_readiness(&mut bad_full).await {
         Err(ReadinessError::ChecksumMismatch { version, stored }) => {
             assert_eq!(version, VERSION_FULL_IMPORT);
@@ -282,13 +328,29 @@ async fn production_installer_on_one_postgres() {
         FullImportInstallOutcome::Replay
     );
     let expanded = migration_text(&mut full).await;
-    for version in [VERSION_BOOTSTRAP, VERSION_FENCE, VERSION_PREFLIGHT, VERSION_MAPPING] {
-        assert_eq!(applied_at_of(&stamped, version), applied_at_of(&expanded, version));
+    for version in [
+        VERSION_BOOTSTRAP,
+        VERSION_FENCE,
+        VERSION_PREFLIGHT,
+        VERSION_MAPPING,
+    ] {
+        assert_eq!(
+            applied_at_of(&stamped, version),
+            applied_at_of(&expanded, version)
+        );
     }
-    assert_eq!(checksum_of(&expanded, VERSION_FULL_IMPORT), compiled_full_import_digest());
-    assert_eq!(install(&mut full).await.expect("0004 replay"), InstallOutcome::Replay);
+    assert_eq!(
+        checksum_of(&expanded, VERSION_FULL_IMPORT),
+        compiled_full_import_digest()
+    );
+    assert_eq!(
+        install(&mut full).await.expect("0004 replay"),
+        InstallOutcome::Replay
+    );
     assert_eq!(migration_text(&mut full).await, expanded);
-    let full_ready = verify_full_import_readiness(&mut full).await.expect("0005 ready");
+    let full_ready = verify_full_import_readiness(&mut full)
+        .await
+        .expect("0005 ready");
     assert_eq!(full_ready.digest(), compiled_full_import_digest());
     let runtime_password = hex_bytes(&read_random(16));
     exec(
@@ -299,7 +361,14 @@ async fn production_installer_on_one_postgres() {
     )
     .await;
     raw(&mut full, "GRANT oo_pipeline_runtime TO oo_a154_runtime").await;
-    let mut full_runtime = connect(&host, port, "oo_a154_runtime", &runtime_password, "oo_a154_ok").await;
+    let mut full_runtime = connect(
+        &host,
+        port,
+        "oo_a154_runtime",
+        &runtime_password,
+        "oo_a154_ok",
+    )
+    .await;
     verify_full_import_readiness(&mut full_runtime)
         .await
         .expect("runtime 0005 readiness");
@@ -310,7 +379,11 @@ async fn production_installer_on_one_postgres() {
     drop(full_runtime);
     assert_eq!(migration_text(&mut full).await, expanded);
     assert!(logged_full(&mut full).await.contains("full_import_run=p"));
-    assert!(logged_full(&mut full).await.contains("full_import_quality=p"));
+    assert!(
+        logged_full(&mut full)
+            .await
+            .contains("full_import_quality=p")
+    );
     report.push_str("full_import_installed=1\nfull_import_replay=1\nfull_import_runtime_install=not_administrator\n");
     drop(full);
     reset(&mut admin).await;
@@ -334,7 +407,11 @@ fn expected_functions() -> String {
         .to_string()
 }
 
-fn assert_installed(rows: &str, digests: &oo_pipeline::target_installer::CompiledDigests, historical_v2: bool) {
+fn assert_installed(
+    rows: &str,
+    digests: &oo_pipeline::target_installer::CompiledDigests,
+    historical_v2: bool,
+) {
     assert_eq!(checksum_of(rows, VERSION_BOOTSTRAP), digests.bootstrap());
     assert_eq!(checksum_of(rows, VERSION_FENCE), digests.fence());
     assert_eq!(checksum_of(rows, VERSION_PREFLIGHT), digests.preflight());
@@ -399,7 +476,11 @@ async fn reset(admin: &mut PgConnection) {
         "oo_a154_src",
         "oo_a154_dst",
     ] {
-        raw(admin, &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await;
+        raw(
+            admin,
+            &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"),
+        )
+        .await;
     }
     raw(admin, "DROP ROLE IF EXISTS oo_a154_runtime").await;
     raw(admin, "DROP ROLE IF EXISTS oo_a154_reader").await;
@@ -410,12 +491,19 @@ async fn reset(admin: &mut PgConnection) {
     raw(admin, "DROP ROLE IF EXISTS oo_target_owner").await;
 }
 
-async fn harness_v1(conn: &mut PgConnection, digests: &oo_pipeline::target_installer::CompiledDigests) {
+async fn harness_v1(
+    conn: &mut PgConnection,
+    digests: &oo_pipeline::target_installer::CompiledDigests,
+) {
     let mut tx = conn.begin().await.expect("v1 begin");
     script(&mut tx, BOOTSTRAP).await;
     script(&mut tx, "SET LOCAL ROLE oo_target_owner").await;
     script(&mut tx, FENCE).await;
-    script(&mut tx, "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE").await;
+    script(
+        &mut tx,
+        "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE",
+    )
+    .await;
     let sql = format!(
         "INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES \
          ('{VERSION_BOOTSTRAP}', '{}', 'expand', '0000_bootstrap_roles.sql'), \
@@ -432,9 +520,17 @@ async fn harness_v1(conn: &mut PgConnection, digests: &oo_pipeline::target_insta
 
 async fn harness_v2(conn: &mut PgConnection) {
     let mut tx = conn.begin().await.expect("v2 begin");
-    script(&mut tx, "SELECT pg_catalog.pg_advisory_xact_lock(6404202605)").await;
+    script(
+        &mut tx,
+        "SELECT pg_catalog.pg_advisory_xact_lock(6404202605)",
+    )
+    .await;
     script(&mut tx, "SET LOCAL ROLE oo_target_owner").await;
-    script(&mut tx, "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE").await;
+    script(
+        &mut tx,
+        "SELECT id FROM _oo.migration_lock WHERE id = 1 FOR UPDATE",
+    )
+    .await;
     script(&mut tx, SEGMENT).await;
     let sql = format!(
         "INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES \
@@ -464,10 +560,12 @@ async fn migration_text(conn: &mut PgConnection) -> String {
 }
 
 async fn count_version(conn: &mut PgConnection, version: &str) -> i64 {
-    let sql = format!(
-        "SELECT count(*) FROM _oo.schema_migrations WHERE version = '{version}'"
+    let sql = format!("SELECT count(*) FROM _oo.schema_migrations WHERE version = '{version}'");
+    assert!(
+        version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '/' || c == '-')
     );
-    assert!(version.chars().all(|c| c.is_ascii_alphanumeric() || c == '/' || c == '-'));
     sqlx::query_scalar(sqlx::AssertSqlSafe(sql))
         .fetch_one(&mut *conn)
         .await
@@ -536,7 +634,13 @@ async fn script(conn: &mut PgConnection, sql: &'static str) {
         .unwrap_or_else(|err| panic!("script failed: {err}"));
 }
 
-async fn connect(host: &str, port: u16, user: &str, password: &str, database: &str) -> PgConnection {
+async fn connect(
+    host: &str,
+    port: u16,
+    user: &str,
+    password: &str,
+    database: &str,
+) -> PgConnection {
     let options = PgConnectOptions::new()
         .host(host)
         .port(port)
@@ -544,9 +648,7 @@ async fn connect(host: &str, port: u16, user: &str, password: &str, database: &s
         .password(password)
         .database(database)
         .ssl_mode(PgSslMode::Disable);
-    PgConnection::connect_with(&options)
-        .await
-        .expect("connect")
+    PgConnection::connect_with(&options).await.expect("connect")
 }
 
 fn read_random(len: usize) -> Vec<u8> {

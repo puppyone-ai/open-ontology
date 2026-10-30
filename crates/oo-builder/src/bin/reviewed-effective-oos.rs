@@ -49,11 +49,8 @@ fn read_stdin() -> Result<String, ReviewedEffectiveError> {
         .by_ref()
         .take(max as u64)
         .read_to_end(&mut buf)
-        .map_err(|_| {
-            ReviewedEffectiveError::command("io.read", "/", "stdin could not be read")
-        })?;
-    let text = std::str::from_utf8(&buf).map_err(|_| {
-        ReviewedEffectiveError::command("json.syntax", "/", "stdin is not UTF-8")
-    })?;
+        .map_err(|_| ReviewedEffectiveError::command("io.read", "/", "stdin could not be read"))?;
+    let text = std::str::from_utf8(&buf)
+        .map_err(|_| ReviewedEffectiveError::command("json.syntax", "/", "stdin is not UTF-8"))?;
     Ok(text.to_string())
 }

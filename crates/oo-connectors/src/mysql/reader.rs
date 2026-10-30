@@ -519,13 +519,25 @@ impl FullReader {
         deadline_ms: u64,
         statement_ms: u64,
     ) -> Result<Self> {
-        if binding.schema != schema || binding.table != table || columns.iter().filter(|c| c.key).count() < 2 {
+        if binding.schema != schema
+            || binding.table != table
+            || columns.iter().filter(|c| c.key).count() < 2
+        {
             return Err(MysqlError::new("config", "composite_full"));
         }
         Ok(Self {
             capture_rejects: false,
             inner: TableReader::new_inner(
-                schema, table, columns, binding, 1, max_rows, max_bytes, deadline_ms, statement_ms, false,
+                schema,
+                table,
+                columns,
+                binding,
+                1,
+                max_rows,
+                max_bytes,
+                deadline_ms,
+                statement_ms,
+                false,
             )?,
         })
     }

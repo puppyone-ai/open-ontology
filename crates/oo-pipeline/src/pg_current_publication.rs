@@ -4,22 +4,39 @@ use sqlx::Connection;
 
 fn request(v: &Value) -> Result<(), &'static str> {
     const KEYS: &[&str] = &[
-        "protocol", "operation", "source_id", "task_id", "task_generation",
-        "binding_id", "bundle_sha256", "end_lsn", "target",
+        "protocol",
+        "operation",
+        "source_id",
+        "task_id",
+        "task_generation",
+        "binding_id",
+        "bundle_sha256",
+        "end_lsn",
+        "target",
     ];
     if v["protocol"] != crate::c1_typed_cli::PROTOCOL
         || v["operation"] != "pg_current_publish"
-        || v.as_object().is_none_or(|o| o.len() != KEYS.len()
-            || o.keys().any(|k| !KEYS.contains(&k.as_str())))
+        || v.as_object()
+            .is_none_or(|o| o.len() != KEYS.len() || o.keys().any(|k| !KEYS.contains(&k.as_str())))
         || v["task_generation"].as_i64().is_none_or(|g| g < 1)
     {
         return Err("pg_publication_request");
     }
-    for key in ["source_id", "task_id", "binding_id", "bundle_sha256", "end_lsn"] {
+    for key in [
+        "source_id",
+        "task_id",
+        "binding_id",
+        "bundle_sha256",
+        "end_lsn",
+    ] {
         crate::pg_current_capture::text(v, key)?;
     }
     let sha = v["bundle_sha256"].as_str().ok_or("pg_publication_digest")?;
-    if sha.len() != 64 || !sha.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) {
+    if sha.len() != 64
+        || !sha
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
         return Err("pg_publication_digest");
     }
     crate::pg_current_capture::lsn(v["end_lsn"].as_str().ok_or("pg_publication_lsn")?)?;
@@ -50,16 +67,24 @@ pub async fn execute(v: &Value) -> Result<Value, &'static str> {
     let closed = conn.close().await.map_err(database);
     let result = result?;
     closed?;
-    Ok(json!({"protocol":"oo.pipeline.pg-current-publication-result/v1",
+    Ok(
+        json!({"protocol":"oo.pipeline.pg-current-publication-result/v1",
         "publication":result,"source_contacted":false,"consumer_grants_changed":false,
-        "semantic_release":false,"gateway_pointer_changed":false}))
+        "semantic_release":false,"gateway_pointer_changed":false}),
+    )
 }
 
 fn database(error: sqlx::Error) -> &'static str {
     if let Some(db) = error.as_database_error() {
         let code = db.code().unwrap_or_default();
-        eprintln!("pg-publication sqlstate={code} {}",
-            if code.starts_with("OO") { db.message() } else { "database refusal" });
+        eprintln!(
+            "pg-publication sqlstate={code} {}",
+            if code.starts_with("OO") {
+                db.message()
+            } else {
+                "database refusal"
+            }
+        );
     }
     "pg_publication_target"
 }
@@ -78,7 +103,13 @@ mod tests {
     #[test]
     fn pg_publication_closed_request_does_not_accept_caller_proofs() {
         assert!(request(&valid()).is_ok());
-        for key in ["trusted", "entries", "receipt", "source_generation", "lease_id"] {
+        for key in [
+            "trusted",
+            "entries",
+            "receipt",
+            "source_generation",
+            "lease_id",
+        ] {
             let mut v = valid();
             v[key] = json!(true);
             assert_eq!(request(&v).unwrap_err(), "pg_publication_request");

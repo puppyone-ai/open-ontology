@@ -173,11 +173,13 @@ mod tests {
             "submicrosecond_target_contract_required"
         );
         assert!(micros("2026-10-27T01:02:03.1", "TIMESTAMP(0)").is_err());
-        assert!(micros(
-            "2026-10-27T01:02:03.000000 +14:01",
-            "TIMESTAMP(6) WITH TIME ZONE"
-        )
-        .is_err());
+        assert!(
+            micros(
+                "2026-10-27T01:02:03.000000 +14:01",
+                "TIMESTAMP(6) WITH TIME ZONE"
+            )
+            .is_err()
+        );
         assert!(timestamp_precision("TIMESTAMP(6) WITH LOCAL TIME ZONE").is_err());
     }
 }

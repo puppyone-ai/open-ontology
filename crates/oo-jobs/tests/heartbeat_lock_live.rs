@@ -12,24 +12,49 @@ fn command() -> Command {
     assert!(container.starts_with("oo-cb-K-heartbeat-"));
     let mut command = Command::new("docker");
     command.args([
-        "exec", "-i", &container, "psql", "-X", "-qAt", "-v", "ON_ERROR_STOP=1",
-        "-U", "oo_cb_k_admin", "-d", "oo_cb_k_heartbeat",
+        "exec",
+        "-i",
+        &container,
+        "psql",
+        "-X",
+        "-qAt",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-U",
+        "oo_cb_k_admin",
+        "-d",
+        "oo_cb_k_heartbeat",
     ]);
     command
 }
 
 fn sql(text: &str) -> String {
     let mut child = command()
-        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
-        .spawn().expect("psql");
-    child.stdin.take().unwrap().write_all(text.as_bytes()).unwrap();
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("psql");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(text.as_bytes())
+        .unwrap();
     let output = child.wait_with_output().unwrap();
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     String::from_utf8(output.stdout).unwrap().trim().to_owned()
 }
 
 fn task() -> String {
-    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let kind = format!("heartbeat_{nonce}");
     sql(&format!(
         "SELECT task_id FROM jobs.enqueue('{PROJECT}', '{kind}', 1, '{{}}', \
@@ -46,9 +71,13 @@ fn heartbeat_uses_the_clock_after_a_loader_row_lock() {
     let task = task();
     let application = format!("heartbeat_holder_{}", task.replace('-', ""));
     let mut holder = command()
-        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
-        .spawn().unwrap();
-    write!(holder.stdin.take().unwrap(),
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    write!(
+        holder.stdin.take().unwrap(),
         "SET application_name='{application}'; BEGIN; \
          SELECT id FROM jobs.tasks WHERE id='{task}' FOR UPDATE; \
          DO $loader$ BEGIN FOR i IN 1..32 LOOP \
@@ -56,26 +85,42 @@ fn heartbeat_uses_the_clock_after_a_loader_row_lock() {
            PERFORM jobs.heartbeat('{PROJECT}','{task}','worker',1); \
          END LOOP; END $loader$; \
          SELECT status FROM jobs.heartbeat('{PROJECT}','{task}','worker',1); COMMIT;"
-    ).unwrap();
+    )
+    .unwrap();
     let deadline = Instant::now() + Duration::from_secs(5);
     while sql(&format!(
         "SELECT EXISTS(SELECT 1 FROM pg_stat_activity \
          WHERE application_name='{application}' AND wait_event='PgSleep');"
-    )) != "t" {
-        assert!(Instant::now() < deadline, "holder did not take the task lock");
+    )) != "t"
+    {
+        assert!(
+            Instant::now() < deadline,
+            "holder did not take the task lock"
+        );
         thread::sleep(Duration::from_millis(20));
     }
     assert_eq!(
-        sql(&format!("SELECT status FROM jobs.heartbeat('{PROJECT}','{task}','worker',1);")),
+        sql(&format!(
+            "SELECT status FROM jobs.heartbeat('{PROJECT}','{task}','worker',1);"
+        )),
         "extended",
     );
     let holder = holder.wait_with_output().unwrap();
-    assert!(holder.status.success(), "{}", String::from_utf8_lossy(&holder.stderr));
+    assert!(
+        holder.status.success(),
+        "{}",
+        String::from_utf8_lossy(&holder.stderr)
+    );
     let remaining: f64 = sql(&format!(
         "SELECT extract(epoch FROM lease_until-clock_timestamp()) \
          FROM jobs.tasks WHERE id='{task}';"
-    )).parse().unwrap();
-    assert!(remaining > 29.0, "blocked heartbeat shortened the renewed lease: {remaining}s");
+    ))
+    .parse()
+    .unwrap();
+    assert!(
+        remaining > 29.0,
+        "blocked heartbeat shortened the renewed lease: {remaining}s"
+    );
 }
 
 #[test]
@@ -83,16 +128,22 @@ fn heartbeat_uses_the_clock_after_a_loader_row_lock() {
 fn heartbeat_still_refuses_expired_and_mismatched_claims() {
     let task = task();
     for (worker, generation) in [("another-worker", 1), ("worker", 2)] {
-        assert_eq!(sql(&format!(
-            "SELECT status FROM jobs.heartbeat('{PROJECT}','{task}','{worker}',{generation});"
-        )), "lost_lease");
+        assert_eq!(
+            sql(&format!(
+                "SELECT status FROM jobs.heartbeat('{PROJECT}','{task}','{worker}',{generation});"
+            )),
+            "lost_lease"
+        );
     }
     sql(&format!(
         "UPDATE jobs.tasks SET lease_until=clock_timestamp()-interval '1 second' WHERE id='{task}';"
     ));
-    assert_eq!(sql(&format!(
-        "SELECT status FROM jobs.heartbeat('{PROJECT}','{task}','worker',1);"
-    )), "lost_lease");
+    assert_eq!(
+        sql(&format!(
+            "SELECT status FROM jobs.heartbeat('{PROJECT}','{task}','worker',1);"
+        )),
+        "lost_lease"
+    );
 }
 
 #[test]
@@ -103,14 +154,22 @@ fn a_claim_that_expires_while_waiting_is_not_revived() {
         "UPDATE jobs.tasks SET lease_until=clock_timestamp()+interval '1 second' WHERE id='{task}';"
     ));
     let mut holder = command()
-        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
-        .spawn().unwrap();
-    write!(holder.stdin.take().unwrap(),
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    write!(
+        holder.stdin.take().unwrap(),
         "BEGIN; SELECT id FROM jobs.tasks WHERE id='{task}' FOR UPDATE; SELECT pg_sleep(2); COMMIT;"
-    ).unwrap();
+    )
+    .unwrap();
     thread::sleep(Duration::from_millis(200));
-    assert_eq!(sql(&format!(
-        "SELECT status FROM jobs.heartbeat('{PROJECT}','{task}','worker',1);"
-    )), "lost_lease");
+    assert_eq!(
+        sql(&format!(
+            "SELECT status FROM jobs.heartbeat('{PROJECT}','{task}','worker',1);"
+        )),
+        "lost_lease"
+    );
     assert!(holder.wait_with_output().unwrap().status.success());
 }

@@ -85,8 +85,12 @@ fn a_v2_successor_preserves_format_after_an_authenticated_ack_seed() {
     assert!(sql.contains("current_task.lease_until<=clock_timestamp()"));
     assert!(sql.contains("i.lease_id NOT IN (p_previous,p_task)"));
     assert!(sql.contains("'format_mismatch'"));
-    let prior = NATIVE_UPDATE.find("install_native_source_instance_grant(&mut conn)").unwrap();
-    let next = NATIVE_UPDATE.find("install_native_c1_ack_seed_format(&mut conn)").unwrap();
+    let prior = NATIVE_UPDATE
+        .find("install_native_source_instance_grant(&mut conn)")
+        .unwrap();
+    let next = NATIVE_UPDATE
+        .find("install_native_c1_ack_seed_format(&mut conn)")
+        .unwrap();
     assert!(next > prior);
     let seal = include_str!("../migrations/0046_native_c1_v2_seal_batch_identity.sql");
     assert!(seal.contains("'c1v2.seal:' || p_task::text"));
@@ -390,9 +394,15 @@ async fn install_everything(admin: &mut PgConnection) {
     ti::install_native_c1_chunked_baseline_final(&mut db)
         .await
         .expect("0043 replay");
-    ti::install_native_source_instance_grant(&mut db).await.expect("0044");
-    ti::install_native_c1_ack_seed_format(&mut db).await.expect("0045");
-    ti::install_native_c1_ack_seed_format(&mut db).await.expect("0045 replay");
+    ti::install_native_source_instance_grant(&mut db)
+        .await
+        .expect("0044");
+    ti::install_native_c1_ack_seed_format(&mut db)
+        .await
+        .expect("0045");
+    ti::install_native_c1_ack_seed_format(&mut db)
+        .await
+        .expect("0045 replay");
     // A login member of the runtime role. The loader connects as this role.
     run(
         &mut db,
@@ -844,10 +854,10 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+type ExpectedTable<'a> = (&'a str, Vec<(i64, Vec<Cell>)>);
+
 /// Expected table digest and composed digest of a set of tables, from the rows above.
-fn expected_state(
-    tables: &[(&str, Vec<(i64, Vec<Cell>)>)],
-) -> (String, Vec<(String, usize, String)>) {
+fn expected_state(tables: &[ExpectedTable<'_>]) -> (String, Vec<(String, usize, String)>) {
     let types = types();
     let mut digests: Vec<(String, StateDigest, usize)> = Vec::new();
     for (name, rows) in tables {
@@ -1025,8 +1035,16 @@ async fn scenario_publish(admin: &mut PgConnection, n: usize, pw_file: &Path) {
     .fetch_all(&mut *admin)
     .await
     .expect("quality");
-    assert_eq!(quality.len(), 2, "one batch quality row per sealed table: {quality:?}");
-    assert!(quality.iter().all(|(kind, accepted, rejected)| kind == "batch" && *accepted > 0 && *rejected == 0));
+    assert_eq!(
+        quality.len(),
+        2,
+        "one batch quality row per sealed table: {quality:?}"
+    );
+    assert!(
+        quality
+            .iter()
+            .all(|(kind, accepted, rejected)| kind == "batch" && *accepted > 0 && *rejected == 0)
+    );
     let entries = receipt["entries"].as_array().expect("entries");
     assert_eq!(entries.len(), 2);
     for entry in entries {
@@ -1088,8 +1106,14 @@ async fn scenario_publish(admin: &mut PgConnection, n: usize, pw_file: &Path) {
         let receipts: i64 = sqlx::query_scalar("SELECT count(*) FROM _oo.apply_receipts WHERE table_generation = $1 AND txn_or_batch_id = $2 AND position_codec = 'snapshot-zero/v1'")
             .bind(&tab.phys).bind(format!("c1v2.seal:{}", ids.task)).fetch_one(&mut *admin).await.expect("receipts");
         assert_eq!(receipts, 1);
-        let mirror: i64 = sqlx::query_scalar("SELECT count(*) FROM _oo.control_mirror WHERE physical_name = $1 AND batch_id = $2")
-            .bind(&tab.phys).bind(format!("c1v2.seal:{}", ids.task)).fetch_one(&mut *admin).await.expect("mirror");
+        let mirror: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM _oo.control_mirror WHERE physical_name = $1 AND batch_id = $2",
+        )
+        .bind(&tab.phys)
+        .bind(format!("c1v2.seal:{}", ids.task))
+        .fetch_one(&mut *admin)
+        .await
+        .expect("mirror");
         assert_eq!(mirror, 1);
         let stage: Option<String> = sqlx::query_scalar("SELECT to_regclass($1)::text")
             .bind(format!("_oo.{}", tab.stage))
@@ -1427,7 +1451,7 @@ async fn scenario_bulk_digest(admin: &mut PgConnection, n: usize, pw_file: &Path
         .expect("beats");
     let beats = beats_after - beats_before;
     // The initial lease hold, one heartbeat per window of rows, and one before ANALYZE.
-    let windows = i64::try_from(rows / 500_000).expect("windows");
+    let windows = rows / 500_000;
     assert!(
         beats >= windows + 2,
         "{beats} heartbeats for {windows} windows"

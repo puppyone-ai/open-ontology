@@ -35,9 +35,21 @@ fn captured_mysql_catalog_compiles_without_becoming_a_pg_source() {
     assert!(!draft.document.contains("pc_"));
     assert!(!draft.document.contains("pn_"));
     assert!(!draft.document.contains("oo.source.pgsql/v1"));
-    assert!(draft.document.contains("oo.pipeline.sealed-import-catalog/v1"));
-    assert!(draft.document.contains("\"source_connection\":\"not_used\""));
-    assert!(draft.document.contains("\"live_database\":\"not_connected\""));
+    assert!(
+        draft
+            .document
+            .contains("oo.pipeline.sealed-import-catalog/v1")
+    );
+    assert!(
+        draft
+            .document
+            .contains("\"source_connection\":\"not_used\"")
+    );
+    assert!(
+        draft
+            .document
+            .contains("\"live_database\":\"not_connected\"")
+    );
     let amount = draft
         .columns
         .iter()
@@ -84,7 +96,10 @@ fn engine_is_not_the_success_switch_and_a_changed_digest_changes_identity() {
     oracle["engine"] = json!("oracle");
     let oracle = compile(&oracle.to_string());
     assert_eq!(oracle.source_engine, "oracle");
-    assert_eq!(oracle.normalized_representation, "postgresql_target_storage");
+    assert_eq!(
+        oracle.normalized_representation,
+        "postgresql_target_storage"
+    );
     assert_eq!(oracle.schema_digest, mysql.schema_digest);
     assert_ne!(oracle.identity_hash, mysql.identity_hash);
     let mut changed = serde_json::from_str::<Value>(fixture()).unwrap();
@@ -112,7 +127,10 @@ fn wrong_digest_unsealed_ambiguous_sql_and_precision_key_fail() {
     let err = oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect_err("stale");
     assert!(err.code.ends_with("/seal.stale"), "{}", err.code);
     wrong = serde_json::from_str(fixture()).unwrap();
-    wrong.as_object_mut().unwrap().insert("password_file".to_string(), json!("x"));
+    wrong
+        .as_object_mut()
+        .unwrap()
+        .insert("password_file".to_string(), json!("x"));
     let err = oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect_err("secret");
     assert!(err.code.ends_with("/secret.rejected"), "{}", err.code);
     wrong = serde_json::from_str(fixture()).unwrap();
@@ -136,9 +154,15 @@ fn reviewed_import_keeps_money_unit_and_feeds_the_role_pack() {
     let reviewed = oo_builder::compile_reviewed_sealed_import(&command(&draft, Some("USD")))
         .expect("reviewed");
     let reviewed: Value = serde_json::from_str(&reviewed).unwrap();
-    assert_eq!(reviewed["protocol"], "oo.builder.reviewed-sealed-import-command/v1");
+    assert_eq!(
+        reviewed["protocol"],
+        "oo.builder.reviewed-sealed-import-command/v1"
+    );
     assert_eq!(reviewed["provenance"]["source_engine"], "mysql");
-    assert_eq!(reviewed["provenance"]["normalized_representation"], "postgresql_target_storage");
+    assert_eq!(
+        reviewed["provenance"]["normalized_representation"],
+        "postgresql_target_storage"
+    );
     assert_eq!(reviewed["provenance"]["schema_digest"], SCHEMA_DIGEST);
     assert_eq!(reviewed["provenance"]["identity_hash"], draft.identity_hash);
     assert!(reviewed["provenance"].get("connector_protocol").is_none());
@@ -174,15 +198,24 @@ fn reviewed_import_keeps_money_unit_and_feeds_the_role_pack() {
     assert!(!page.contains(SHADOW));
     assert!(!page.contains("pc_"));
     assert!(pack.cache_key.contains(&draft.identity_hash));
-    let missing = oo_builder::compile_reviewed_sealed_import(&command(&draft, None)).expect_err("unit");
+    let missing =
+        oo_builder::compile_reviewed_sealed_import(&command(&draft, None)).expect_err("unit");
     assert!(missing.code.ends_with("/oos.invalid"), "{}", missing.code);
     let unknown = command(&draft, Some("unknown"));
     let unknown = oo_builder::compile_reviewed_sealed_import(&unknown).expect_err("unknown");
-    assert!(unknown.code.ends_with("/decision.invalid"), "{}", unknown.code);
+    assert!(
+        unknown.code.ends_with("/decision.invalid"),
+        "{}",
+        unknown.code
+    );
     let mut stale = serde_json::from_str::<Value>(&command(&draft, Some("USD"))).unwrap();
     stale["settings"]["catalog_version"] = json!("cat-1");
     let stale = oo_builder::compile_reviewed_sealed_import(&stale.to_string()).expect_err("stale");
-    assert!(stale.code.ends_with("/binding.catalog_version"), "{}", stale.code);
+    assert!(
+        stale.code.ends_with("/binding.catalog_version"),
+        "{}",
+        stale.code
+    );
 }
 
 const PG_FILE_SHA256: &str = "51ee055b40bc478308152b17d78e36ff2864e0c30df640d930553cdd75401cac";
@@ -212,7 +245,11 @@ fn captured_postgresql_uuid_catalog_compiles_through_draft_oos_and_role_pack() {
     assert_eq!(draft.normalized_representation, "postgresql_target_storage");
     assert_eq!(draft.protocol, "oo.builder.sealed-import-draft/v1");
     assert_eq!(draft.compiler, "oo-builder/sealed-import-draft/v1");
-    assert!(draft.document.contains("oo.pipeline.sealed-import-catalog/v1"));
+    assert!(
+        draft
+            .document
+            .contains("oo.pipeline.sealed-import-catalog/v1")
+    );
     assert!(!draft.document.contains("oo.source.pgsql/v1"));
     assert!(!draft.document.contains("pc_"));
     assert!(!draft.document.contains("pn_"));
@@ -223,7 +260,11 @@ fn captured_postgresql_uuid_catalog_compiles_through_draft_oos_and_role_pack() {
         ("public.tracking_events", 90000),
     ];
     for (dataset, accepted) in rows {
-        let table = draft.tables.iter().find(|table| table.dataset == dataset).expect(dataset);
+        let table = draft
+            .tables
+            .iter()
+            .find(|table| table.dataset == dataset)
+            .expect(dataset);
         assert_eq!(table.accepted_rows, accepted);
     }
     let tokens = [
@@ -256,17 +297,28 @@ fn captured_postgresql_uuid_catalog_compiles_through_draft_oos_and_role_pack() {
     assert!(!latitude.precision_loss);
     let again = oo_builder::compile_sealed_import_catalog(pg_fixture()).expect("again");
     assert_eq!(again.identity_hash, draft.identity_hash);
-    let refused = oo_builder::compile_captured_pg_catalog(pg_fixture(), None, None).expect_err("pg abi");
+    let refused =
+        oo_builder::compile_captured_pg_catalog(pg_fixture(), None, None).expect_err("pg abi");
     assert!(refused.code.ends_with("/field.unknown"), "{}", refused.code);
-    assert_eq!(refused.message, "catalog evidence is not oo.source.pgsql/v1");
-    let reviewed = oo_builder::compile_reviewed_sealed_import(&pg_reviewed(&draft)).expect("reviewed");
+    assert_eq!(
+        refused.message,
+        "catalog evidence is not oo.source.pgsql/v1"
+    );
+    let reviewed =
+        oo_builder::compile_reviewed_sealed_import(&pg_reviewed(&draft)).expect("reviewed");
     let reviewed: Value = serde_json::from_str(&reviewed).unwrap();
-    assert_eq!(reviewed["protocol"], "oo.builder.reviewed-sealed-import-command/v1");
+    assert_eq!(
+        reviewed["protocol"],
+        "oo.builder.reviewed-sealed-import-command/v1"
+    );
     assert_eq!(reviewed["provenance"]["source_engine"], "postgresql");
     assert_eq!(reviewed["provenance"]["source_id"], "oo_dl01w1_46");
     assert_eq!(reviewed["provenance"]["schema_digest"], PG_SCHEMA_DIGEST);
     assert_eq!(reviewed["provenance"]["identity_hash"], draft.identity_hash);
-    assert_eq!(reviewed["provenance"]["normalized_representation"], "postgresql_target_storage");
+    assert_eq!(
+        reviewed["provenance"]["normalized_representation"],
+        "postgresql_target_storage"
+    );
     let effective = &reviewed["effective_oos"];
     assert_eq!(effective["protocol"], "oo.builder.effective-oos/v1");
     assert_eq!(effective["catalog_version"], draft.identity_hash);
@@ -305,9 +357,13 @@ fn captured_postgresql_uuid_catalog_compiles_through_draft_oos_and_role_pack() {
     assert!(!pack.cache_key.contains("cat-1"));
     let mut oracle = serde_json::from_str::<Value>(pg_fixture()).unwrap();
     oracle["engine"] = json!("oracle");
-    let oracle = oo_builder::compile_sealed_import_catalog(&oracle.to_string()).expect("oracle engine");
+    let oracle =
+        oo_builder::compile_sealed_import_catalog(&oracle.to_string()).expect("oracle engine");
     assert_eq!(oracle.source_engine, "oracle");
-    assert_eq!(oracle.normalized_representation, "postgresql_target_storage");
+    assert_eq!(
+        oracle.normalized_representation,
+        "postgresql_target_storage"
+    );
     assert_ne!(oracle.identity_hash, draft.identity_hash);
     let oracle_token = oracle
         .columns
@@ -325,12 +381,27 @@ fn postgresql_uuid_catalog_rejects_type_and_digest_errors() {
     let err = oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect_err("digest");
     assert!(err.code.ends_with("/digest.mismatch"), "{}", err.code);
     wrong = serde_json::from_str(pg_fixture()).unwrap();
-    set_pg_column(&mut wrong, "hubs", "hub_token", "source_type", json!("text"));
+    set_pg_column(
+        &mut wrong,
+        "hubs",
+        "hub_token",
+        "source_type",
+        json!("text"),
+    );
     let err = oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect_err("text");
     assert!(err.code.ends_with("/type.ambiguous"), "{}", err.code);
-    assert_eq!(err.message, "source type token names a different normalized type");
+    assert_eq!(
+        err.message,
+        "source type token names a different normalized type"
+    );
     wrong = serde_json::from_str(pg_fixture()).unwrap();
-    set_pg_column(&mut wrong, "hubs", "hub_token", "source_type", json!("uuid"));
+    set_pg_column(
+        &mut wrong,
+        "hubs",
+        "hub_token",
+        "source_type",
+        json!("uuid"),
+    );
     let kept = oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect("named uuid");
     let hub = kept
         .columns
@@ -342,16 +413,26 @@ fn postgresql_uuid_catalog_rejects_type_and_digest_errors() {
     assert_eq!(hub.target_oid, 2950);
     let original = oo_builder::compile_sealed_import_catalog(pg_fixture()).unwrap();
     assert_eq!(kept.identity_hash, original.identity_hash);
-    assert_ne!(hub.fact_fingerprint, original.fact_fingerprint("public.hubs", "hub_token").unwrap());
+    assert_ne!(
+        hub.fact_fingerprint,
+        original
+            .fact_fingerprint("public.hubs", "hub_token")
+            .unwrap()
+    );
     wrong = serde_json::from_str(pg_fixture()).unwrap();
     set_pg_column(&mut wrong, "hubs", "hub_token", "oid", json!(2951));
     wrong["schema_digest"] = json!(schema_digest(&wrong["tables"]));
-    let err = oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect_err("unknown oid");
+    let err =
+        oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect_err("unknown oid");
     assert!(err.code.ends_with("/type.ambiguous"), "{}", err.code);
-    assert_eq!(err.message, "native type has no normalized target representation");
+    assert_eq!(
+        err.message,
+        "native type has no normalized target representation"
+    );
     wrong = serde_json::from_str(pg_fixture()).unwrap();
     set_pg_column(&mut wrong, "hubs", "hub_id", "oid", json!(23));
-    let err = oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect_err("stale digest");
+    let err =
+        oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect_err("stale digest");
     assert!(err.code.ends_with("/digest.mismatch"), "{}", err.code);
     wrong = serde_json::from_str(pg_fixture()).unwrap();
     set_pg_column(&mut wrong, "hubs", "hub_token", "typmod", json!(0));
@@ -557,9 +638,12 @@ fn schema_digest(tables: &Value) -> String {
 }
 
 const ORACLE_FILE_SHA256: &str = "75baa479e1a79cfff11126ce55d11c667f0b69231179d18e863b4a2e666269d6";
-const ORACLE_SCHEMA_DIGEST: &str = "59a1d30cfedb66d93fa8277124851ed6fcb3504c697688ddcf92dcadfcc289dc";
-const ORACLE_CONFIG_DIGEST: &str = "d8eadf809a0942e2043810a67a15e197fd5239c2c81155640a337bcd716d744e";
-const ORACLE_INPUT_DIGEST: &str = "5064f81e25162f8b183b9fe2c515907a29387d9509f1a7ea3d7b129976556f08";
+const ORACLE_SCHEMA_DIGEST: &str =
+    "59a1d30cfedb66d93fa8277124851ed6fcb3504c697688ddcf92dcadfcc289dc";
+const ORACLE_CONFIG_DIGEST: &str =
+    "d8eadf809a0942e2043810a67a15e197fd5239c2c81155640a337bcd716d744e";
+const ORACLE_INPUT_DIGEST: &str =
+    "5064f81e25162f8b183b9fe2c515907a29387d9509f1a7ea3d7b129976556f08";
 const ORACLE_TYPE_DIGEST: &str = "ae32553abc785f74a5b84b6afac4a4f5008df340455b7eabc1e0c23fb47a1f11";
 
 fn oracle_fixture() -> &'static str {
@@ -571,7 +655,8 @@ fn captured_oracle_bpchar_catalog_compiles_through_draft_oos_and_role_pack() {
     let bytes = include_bytes!("fixtures/oo04-oracle-sealed-import-catalog.json");
     assert_eq!(bytes.len(), 3754);
     assert_eq!(oo_core::api::payload_sha256(bytes), ORACLE_FILE_SHA256);
-    let draft = oo_builder::compile_sealed_import_catalog(oracle_fixture()).expect("oracle catalog");
+    let draft =
+        oo_builder::compile_sealed_import_catalog(oracle_fixture()).expect("oracle catalog");
     assert_eq!(draft.schema_digest, ORACLE_SCHEMA_DIGEST);
     assert_eq!(draft.config_digest, ORACLE_CONFIG_DIGEST);
     assert_eq!(draft.input_digest, ORACLE_INPUT_DIGEST);
@@ -583,7 +668,11 @@ fn captured_oracle_bpchar_catalog_compiles_through_draft_oos_and_role_pack() {
     assert_eq!(draft.normalized_representation, "postgresql_target_storage");
     assert_eq!(draft.protocol, "oo.builder.sealed-import-draft/v1");
     assert_eq!(draft.compiler, "oo-builder/sealed-import-draft/v1");
-    assert!(draft.document.contains("oo.pipeline.sealed-import-catalog/v1"));
+    assert!(
+        draft
+            .document
+            .contains("oo.pipeline.sealed-import-catalog/v1")
+    );
     assert!(!draft.document.contains("oo.source.pgsql/v1"));
     assert!(!draft.document.contains("pc_"));
     assert!(!draft.document.contains("pn_"));
@@ -591,7 +680,11 @@ fn captured_oracle_bpchar_catalog_compiles_through_draft_oos_and_role_pack() {
     assert!(!draft.document.contains("bpchar(6)"));
     assert!(!draft.document.contains("trim("));
     assert!(!draft.document.contains("cast("));
-    let table = draft.tables.iter().find(|table| table.dataset == "batch.t_batch").expect("table");
+    let table = draft
+        .tables
+        .iter()
+        .find(|table| table.dataset == "batch.t_batch")
+        .expect("table");
     assert_eq!(table.accepted_rows, 5);
     let expected = [
         ("id", "int2", 21, -1, true),
@@ -625,17 +718,31 @@ fn captured_oracle_bpchar_catalog_compiles_through_draft_oos_and_role_pack() {
     let again = oo_builder::compile_sealed_import_catalog(oracle_fixture()).expect("again");
     assert_eq!(again.identity_hash, draft.identity_hash);
     assert_eq!(oo_core::api::payload_sha256(bytes), ORACLE_FILE_SHA256);
-    let refused = oo_builder::compile_captured_pg_catalog(oracle_fixture(), None, None).expect_err("pg abi");
+    let refused =
+        oo_builder::compile_captured_pg_catalog(oracle_fixture(), None, None).expect_err("pg abi");
     assert!(refused.code.ends_with("/field.unknown"), "{}", refused.code);
-    assert_eq!(refused.message, "catalog evidence is not oo.source.pgsql/v1");
-    let reviewed = oo_builder::compile_reviewed_sealed_import(&oracle_reviewed(&draft)).expect("reviewed");
+    assert_eq!(
+        refused.message,
+        "catalog evidence is not oo.source.pgsql/v1"
+    );
+    let reviewed =
+        oo_builder::compile_reviewed_sealed_import(&oracle_reviewed(&draft)).expect("reviewed");
     let reviewed: Value = serde_json::from_str(&reviewed).unwrap();
-    assert_eq!(reviewed["protocol"], "oo.builder.reviewed-sealed-import-command/v1");
+    assert_eq!(
+        reviewed["protocol"],
+        "oo.builder.reviewed-sealed-import-command/v1"
+    );
     assert_eq!(reviewed["provenance"]["source_engine"], "oracle");
     assert_eq!(reviewed["provenance"]["source_id"], "oo04_t_batch");
-    assert_eq!(reviewed["provenance"]["schema_digest"], ORACLE_SCHEMA_DIGEST);
+    assert_eq!(
+        reviewed["provenance"]["schema_digest"],
+        ORACLE_SCHEMA_DIGEST
+    );
     assert_eq!(reviewed["provenance"]["identity_hash"], draft.identity_hash);
-    assert_eq!(reviewed["provenance"]["normalized_representation"], "postgresql_target_storage");
+    assert_eq!(
+        reviewed["provenance"]["normalized_representation"],
+        "postgresql_target_storage"
+    );
     let effective = &reviewed["effective_oos"];
     assert_eq!(effective["protocol"], "oo.builder.effective-oos/v1");
     assert_eq!(effective["catalog_version"], draft.identity_hash);
@@ -714,7 +821,11 @@ fn captured_oracle_bpchar_catalog_compiles_through_draft_oos_and_role_pack() {
         assert_eq!(compiled.source_engine, engine);
         assert_eq!(compiled.schema_digest, draft.schema_digest);
         assert_ne!(compiled.identity_hash, draft.identity_hash);
-        let copied = compiled.columns.iter().find(|column| column.name == "c6").expect("c6");
+        let copied = compiled
+            .columns
+            .iter()
+            .find(|column| column.name == "c6")
+            .expect("c6");
         assert_eq!(copied.target_type, "bpchar");
         assert_eq!(copied.target_oid, 1042);
         assert_eq!(copied.target_typmod, 10);
@@ -728,7 +839,11 @@ fn oracle_bpchar_catalog_rejects_type_and_digest_errors() {
     let mut named = serde_json::from_str::<Value>(oracle_fixture()).unwrap();
     set_pg_column(&mut named, "t_batch", "c6", "source_type", json!("bpchar"));
     let kept = oo_builder::compile_sealed_import_catalog(&named.to_string()).expect("named bpchar");
-    let c6 = kept.columns.iter().find(|column| column.name == "c6").expect("c6");
+    let c6 = kept
+        .columns
+        .iter()
+        .find(|column| column.name == "c6")
+        .expect("c6");
     assert_eq!(c6.source_type.as_deref(), Some("bpchar"));
     assert_eq!(c6.target_type, "bpchar");
     assert_eq!(c6.target_oid, 1042);
@@ -741,7 +856,11 @@ fn oracle_bpchar_catalog_rejects_type_and_digest_errors() {
     let mut token = serde_json::from_str::<Value>(oracle_fixture()).unwrap();
     set_pg_column(&mut token, "t_batch", "c6", "source_type", json!("char"));
     let token = oo_builder::compile_sealed_import_catalog(&token.to_string()).expect("char token");
-    let c6 = token.columns.iter().find(|column| column.name == "c6").expect("c6");
+    let c6 = token
+        .columns
+        .iter()
+        .find(|column| column.name == "c6")
+        .expect("c6");
     assert_eq!(c6.source_type.as_deref(), Some("char"));
     assert_eq!(c6.target_type, "bpchar");
     assert_eq!(c6.target_oid, 1042);
@@ -750,25 +869,36 @@ fn oracle_bpchar_catalog_rejects_type_and_digest_errors() {
         set_pg_column(&mut wrong, "t_batch", "c6", "source_type", json!(source));
         let err = oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect_err(source);
         assert!(err.code.ends_with("/type.ambiguous"), "{}", err.code);
-        assert_eq!(err.message, "source type token names a different normalized type");
+        assert_eq!(
+            err.message,
+            "source type token names a different normalized type"
+        );
     }
     for typmod in [-1, 0, 4] {
         let mut wrong = serde_json::from_str::<Value>(oracle_fixture()).unwrap();
         set_pg_column(&mut wrong, "t_batch", "c6", "typmod", json!(typmod));
         wrong["schema_digest"] = json!(schema_digest(&wrong["tables"]));
-        let err = oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect_err("typmod");
+        let err =
+            oo_builder::compile_sealed_import_catalog(&wrong.to_string()).expect_err("typmod");
         assert!(err.code.ends_with("/type.ambiguous"), "{}", err.code);
-        assert_eq!(err.message, "native type has no normalized target representation");
+        assert_eq!(
+            err.message,
+            "native type has no normalized target representation"
+        );
     }
     let mut unknown = serde_json::from_str::<Value>(oracle_fixture()).unwrap();
     set_pg_column(&mut unknown, "t_batch", "c6", "oid", json!(1041));
     unknown["schema_digest"] = json!(schema_digest(&unknown["tables"]));
     let err = oo_builder::compile_sealed_import_catalog(&unknown.to_string()).expect_err("oid");
     assert!(err.code.ends_with("/type.ambiguous"), "{}", err.code);
-    assert_eq!(err.message, "native type has no normalized target representation");
+    assert_eq!(
+        err.message,
+        "native type has no normalized target representation"
+    );
     let mut stale = serde_json::from_str::<Value>(oracle_fixture()).unwrap();
     set_pg_column(&mut stale, "t_batch", "id", "oid", json!(23));
-    let err = oo_builder::compile_sealed_import_catalog(&stale.to_string()).expect_err("stale digest");
+    let err =
+        oo_builder::compile_sealed_import_catalog(&stale.to_string()).expect_err("stale digest");
     assert!(err.code.ends_with("/digest.mismatch"), "{}", err.code);
     let mut digest = serde_json::from_str::<Value>(oracle_fixture()).unwrap();
     digest["schema_digest"] = json!("ab".repeat(32));
@@ -780,7 +910,8 @@ fn oracle_bpchar_catalog_rejects_type_and_digest_errors() {
     assert!(err.code.ends_with("/seal.unsealed"), "{}", err.code);
     let mut generation = serde_json::from_str::<Value>(oracle_fixture()).unwrap();
     generation["source_generation"] = json!(0);
-    let err = oo_builder::compile_sealed_import_catalog(&generation.to_string()).expect_err("stale");
+    let err =
+        oo_builder::compile_sealed_import_catalog(&generation.to_string()).expect_err("stale");
     assert!(err.code.ends_with("/seal.stale"), "{}", err.code);
 }
 
@@ -860,13 +991,21 @@ fn jsonb_3802_document_profile_reaches_the_role_pack_and_refuses_bad_documents()
     let text = include_str!("../../oo-core/tests/fixtures/jsonb3802/canonical.txt");
     let catalog = docs_catalog("mongodb", 23, 3802, -1, Some("jsonb"), None);
     let draft = oo_builder::compile_sealed_import_catalog(&catalog.to_string()).expect("catalog");
-    let doc = draft.columns.iter().find(|column| column.name == "doc").expect("doc");
+    let doc = draft
+        .columns
+        .iter()
+        .find(|column| column.name == "doc")
+        .expect("doc");
     assert_eq!(doc.target_type, "jsonb");
     assert_eq!(doc.target_oid, 3802);
     assert_eq!(doc.target_typmod, -1);
     assert!(!doc.precision_loss);
     assert!(!doc.key);
-    let id = draft.columns.iter().find(|column| column.name == "id").expect("id");
+    let id = draft
+        .columns
+        .iter()
+        .find(|column| column.name == "id")
+        .expect("id");
     assert_eq!(id.target_type, "int4");
     assert!(id.key);
     let mysql = docs_catalog("mysql", 23, 3802, -1, Some("jsonb"), None);
@@ -874,23 +1013,33 @@ fn jsonb_3802_document_profile_reaches_the_role_pack_and_refuses_bad_documents()
     assert_eq!(mysql_draft.schema_digest, draft.schema_digest);
     assert_ne!(mysql_draft.identity_hash, draft.identity_hash);
     assert_eq!(
-        mysql_draft.columns.iter().find(|column| column.name == "doc").unwrap().target_type,
+        mysql_draft
+            .columns
+            .iter()
+            .find(|column| column.name == "doc")
+            .unwrap()
+            .target_type,
         "jsonb"
     );
     let document = bson_document(raw, pg, text);
-    let profile = oo_builder::compile_jsonb_document_profile(&catalog.to_string(), &document.to_string())
-        .expect("profile");
+    let profile =
+        oo_builder::compile_jsonb_document_profile(&catalog.to_string(), &document.to_string())
+            .expect("profile");
     assert_eq!(profile.protocol, "oo.builder.document-jsonb-profile/v1");
     assert_eq!(profile.compiler, "compile_jsonb_document_profile");
     assert_eq!(profile.dataset, "public.docs");
     assert_eq!(profile.column, "doc");
     assert_eq!(profile.schema_digest, draft.schema_digest);
     assert_eq!(profile.source_engine, "mongodb");
-    assert_eq!(profile.normalized_representation, "postgresql_target_storage");
+    assert_eq!(
+        profile.normalized_representation,
+        "postgresql_target_storage"
+    );
     assert_eq!(profile.raw_bson_sha256, oo_core::api::payload_sha256(raw));
     assert_eq!(profile.pg_jsonb_sha256, oo_core::api::payload_sha256(pg));
-    let again = oo_builder::compile_jsonb_document_profile(&catalog.to_string(), &document.to_string())
-        .expect("again");
+    let again =
+        oo_builder::compile_jsonb_document_profile(&catalog.to_string(), &document.to_string())
+            .expect("again");
     assert_eq!(again.document_identity_hash, profile.document_identity_hash);
     assert_eq!(again.document, profile.document);
     let parsed: Value = serde_json::from_str(&profile.document).unwrap();
@@ -898,38 +1047,90 @@ fn jsonb_3802_document_profile_reaches_the_role_pack_and_refuses_bad_documents()
     assert_eq!(parsed["arrow"]["metadata"]["oo.storage.type"], "jsonb");
     assert_eq!(parsed["arrow"]["metadata"]["oo.storage.oid"], "3802");
     assert_eq!(parsed["arrow"]["metadata"]["oo.storage.typmod"], "-1");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.document.kind"], "bson_extended_json");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.document.missing"], "absent_not_null");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.document.uuid"], "rfc4122_lowercase");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.document.date"], "unix_millis_utc");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.document.bytes"], "base64_subtype");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.document.decimal"], "exact_decimal_string");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.precision.float"], "rejected");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.document.double"], "canonical_number_double");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.document.double.negative_zero"], "-0.0");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.document.double.non_finite"], "NaN|Infinity|-Infinity");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.document.double.nan_payload"], "not_preserved");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.document.field_scope"], "unchecked");
-    assert_eq!(parsed["arrow"]["metadata"]["oo.quality.loss_concealed"], "false");
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.document.kind"],
+        "bson_extended_json"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.document.missing"],
+        "absent_not_null"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.document.uuid"],
+        "rfc4122_lowercase"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.document.date"],
+        "unix_millis_utc"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.document.bytes"],
+        "base64_subtype"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.document.decimal"],
+        "exact_decimal_string"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.precision.float"],
+        "rejected"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.document.double"],
+        "canonical_number_double"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.document.double.negative_zero"],
+        "-0.0"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.document.double.non_finite"],
+        "NaN|Infinity|-Infinity"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.document.double.nan_payload"],
+        "not_preserved"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.document.field_scope"],
+        "unchecked"
+    );
+    assert_eq!(
+        parsed["arrow"]["metadata"]["oo.quality.loss_concealed"],
+        "false"
+    );
     assert_eq!(parsed["quality"]["loss_concealed"], false);
     assert_eq!(parsed["precision"]["float"], "rejected");
     assert_eq!(parsed["double"]["encoding"], "canonical_number_double");
     assert_eq!(parsed["double"]["negative_zero"], "-0.0");
     assert_eq!(parsed["double"]["non_finite"], "NaN|Infinity|-Infinity");
     assert_eq!(parsed["double"]["nan_payload"], "not_preserved");
-    assert_eq!(parsed["extended_json"]["big"]["$numberLong"], "9223372036854775807");
+    assert_eq!(
+        parsed["extended_json"]["big"]["$numberLong"],
+        "9223372036854775807"
+    );
     assert_eq!(parsed["extended_json"]["fits"]["$numberLong"], "5");
     assert_eq!(parsed["extended_json"]["d"]["$numberDecimal"], "1.2300");
     assert_eq!(parsed["extended_json"]["negd"]["$numberDecimal"], "-1.50");
-    assert_eq!(parsed["extended_json"]["u"]["$uuid"], "00112233-4455-4677-8899-aabbccddeeff");
-    assert_eq!(parsed["extended_json"]["when"]["$date"]["$numberLong"], "-61000");
+    assert_eq!(
+        parsed["extended_json"]["u"]["$uuid"],
+        "00112233-4455-4677-8899-aabbccddeeff"
+    );
+    assert_eq!(
+        parsed["extended_json"]["when"]["$date"]["$numberLong"],
+        "-61000"
+    );
     assert_eq!(parsed["extended_json"]["b"]["$binary"]["base64"], "AA==");
     assert_eq!(parsed["extended_json"]["b"]["$binary"]["subType"], "00");
-    assert_eq!(parsed["extended_json"]["_id"]["$oid"], "507f1f77bcf86cd799439011");
+    assert_eq!(
+        parsed["extended_json"]["_id"]["$oid"],
+        "507f1f77bcf86cd799439011"
+    );
     assert!(parsed["extended_json"]["note"].is_null());
     assert!(parsed["extended_json"].get("gone").is_none());
     assert!(!profile.document.contains(&hex_encode(raw)));
-    let reviewed = oo_builder::compile_reviewed_sealed_import(&docs_reviewed(&catalog, &draft)).expect("reviewed");
+    let reviewed = oo_builder::compile_reviewed_sealed_import(&docs_reviewed(&catalog, &draft))
+        .expect("reviewed");
     let reviewed: Value = serde_json::from_str(&reviewed).unwrap();
     let effective = &reviewed["effective_oos"];
     let file = effective["datasets"]
@@ -958,29 +1159,39 @@ fn jsonb_3802_document_profile_reaches_the_role_pack_and_refuses_bad_documents()
     let mut dropped = document.clone();
     dropped["raw_bson_dropped"] = json!(true);
     dropped["raw_bson_hex"] = json!("");
-    let err = oo_builder::compile_jsonb_document_profile(&catalog.to_string(), &dropped.to_string())
-        .expect_err("dropped");
+    let err =
+        oo_builder::compile_jsonb_document_profile(&catalog.to_string(), &dropped.to_string())
+            .expect_err("dropped");
     assert!(err.code.ends_with("/raw_bson_dropped"), "{}", err.code);
     let bad = docs_catalog("mongodb", 23, 3803, -1, None, None);
     let err = oo_builder::compile_jsonb_document_profile(&bad.to_string(), &dropped.to_string())
         .expect_err("oid");
     assert!(err.code.ends_with("/type.ambiguous"), "{}", err.code);
-    assert_eq!(err.message, "native type has no normalized target representation");
+    assert_eq!(
+        err.message,
+        "native type has no normalized target representation"
+    );
     let mut as_json = document.clone();
     as_json["oid"] = json!(114);
-    let err = oo_builder::compile_jsonb_document_profile(&catalog.to_string(), &as_json.to_string())
-        .expect_err("114");
+    let err =
+        oo_builder::compile_jsonb_document_profile(&catalog.to_string(), &as_json.to_string())
+            .expect_err("114");
     assert!(err.code.ends_with("/json114_not_jsonb"), "{}", err.code);
     as_json["oid"] = json!(3802);
     as_json["typmod"] = json!(0);
-    let err = oo_builder::compile_jsonb_document_profile(&catalog.to_string(), &as_json.to_string())
-        .expect_err("typmod");
+    let err =
+        oo_builder::compile_jsonb_document_profile(&catalog.to_string(), &as_json.to_string())
+            .expect_err("typmod");
     assert!(err.code.ends_with("/typmod.rejected"), "{}", err.code);
     let json_column = docs_catalog("postgresql", 23, 114, -1, Some("json"), None);
-    let err = oo_builder::compile_jsonb_document_profile(&json_column.to_string(), &document.to_string())
-        .expect_err("json column");
+    let err =
+        oo_builder::compile_jsonb_document_profile(&json_column.to_string(), &document.to_string())
+            .expect_err("json column");
     assert!(err.code.ends_with("/type.ambiguous"), "{}", err.code);
-    assert_eq!(err.message, "document column is not jsonb oid 3802 typmod -1");
+    assert_eq!(
+        err.message,
+        "document column is not jsonb oid 3802 typmod -1"
+    );
 }
 
 fn docs_catalog(
@@ -1100,7 +1311,11 @@ fn hex_encode(bytes: &[u8]) -> String {
 fn docs_reviewed(catalog: &Value, draft: &oo_builder::SealedImportDraft) -> String {
     let mut decisions = Vec::new();
     for (name, semantic) in [("id", "identifier"), ("doc", "json")] {
-        let column = draft.columns.iter().find(|column| column.name == name).expect(name);
+        let column = draft
+            .columns
+            .iter()
+            .find(|column| column.name == name)
+            .expect(name);
         decisions.push(json!({
             "column": name,
             "dataset": "public.docs",
@@ -1170,15 +1385,37 @@ fn docs_visibility(identity: &str) -> Value {
 fn curated_label_is_bound_to_native_fact_and_preserves_classification() {
     let draft = compile(fixture());
     let mut input: Value = serde_json::from_str(&command(&draft, Some("USD"))).unwrap();
-    let column = draft.columns.iter().find(|c| c.dataset == "erp.parcel" && c.name == "amount").unwrap();
+    let column = draft
+        .columns
+        .iter()
+        .find(|c| c.dataset == "erp.parcel" && c.name == "amount")
+        .unwrap();
     input["curated_labels"] = json!([{"dataset":"erp.parcel","column":"amount","fact_fingerprint":column.fact_fingerprint,"label":"Reviewed amount"}]);
-    let result: Value = serde_json::from_str(&oo_builder::compile_reviewed_sealed_import(&input.to_string()).unwrap()).unwrap();
-    let dataset = result["effective_oos"]["datasets"].as_array().unwrap().iter().find(|d| d["dataset"] == "erp.parcel").unwrap();
-    let amount = dataset["columns"].as_array().unwrap().iter().find(|c| c["name"] == "amount").unwrap();
+    let result: Value = serde_json::from_str(
+        &oo_builder::compile_reviewed_sealed_import(&input.to_string()).unwrap(),
+    )
+    .unwrap();
+    let dataset = result["effective_oos"]["datasets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["dataset"] == "erp.parcel")
+        .unwrap();
+    let amount = dataset["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "amount")
+        .unwrap();
     assert_eq!(amount["label"], "Reviewed amount");
     assert_eq!(amount["provenance"], "human");
     assert_eq!(amount["unit"], "USD");
     assert_eq!(result["provenance"]["identity_hash"], draft.identity_hash);
     input["curated_labels"][0]["fact_fingerprint"] = json!("00".repeat(32));
-    assert!(oo_builder::compile_reviewed_sealed_import(&input.to_string()).unwrap_err().code.ends_with("/curated.stale"));
+    assert!(
+        oo_builder::compile_reviewed_sealed_import(&input.to_string())
+            .unwrap_err()
+            .code
+            .ends_with("/curated.stale")
+    );
 }

@@ -21,16 +21,16 @@ mod client;
 mod config;
 mod endpoint;
 mod error;
-mod token;
 mod publication;
+mod token;
 mod wire;
 
 pub use client::Client;
 pub use config::{ByteCaps, ClientConfig, RetryPolicy, RootTrust, Timeouts, TransportMode};
 pub use error::{GatewayError, LocalError, ProtocolError, QueryError, TransportError};
 pub use oo_core::api::{ErrorCode, QueryRequest, QueryResponse};
-pub use token::BearerToken;
 pub use publication::{PublicationBinding, PublicationReceipt, QueryReceipt};
+pub use token::BearerToken;
 
 /// Public query body ceiling from REQ-GW-03. Callers may set a lower cap.
 pub const QUERY_HTTP_MAX_BYTES: usize = oo_core::limits::DOCUMENT_MAX_BYTES;

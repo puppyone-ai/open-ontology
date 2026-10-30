@@ -12,7 +12,8 @@ use oo_pipeline::target_installer::{self as ti, sha256_hex};
 use sqlx::Connection;
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 
-const MIGRATION_0044: &str = include_str!("../migrations/0044_native_source_instance_advisory_grant.sql");
+const MIGRATION_0044: &str =
+    include_str!("../migrations/0044_native_source_instance_advisory_grant.sql");
 const INSTALLER: &str = include_str!("../src/target_installer.rs");
 const NATIVE_UPDATE: &str = include_str!("../src/native_update.rs");
 const REGISTER_0024: &str = include_str!("../migrations/0024_native_gtid_transaction.sql");
@@ -20,7 +21,10 @@ const DB: &str = "oo_cb_t13_grant";
 
 #[test]
 fn register_takes_the_integer_overload_that_0044_grants() {
-    assert!(REGISTER_0024.contains("pg_advisory_xact_lock(hashtext('oo-source-instance'), hashtext(p_source))"));
+    assert!(
+        REGISTER_0024
+            .contains("pg_advisory_xact_lock(hashtext('oo-source-instance'), hashtext(p_source))")
+    );
     assert!(MIGRATION_0044.contains(
         "GRANT EXECUTE ON FUNCTION pg_catalog.pg_advisory_xact_lock(integer, integer) TO oo_target_owner"
     ));
@@ -43,7 +47,10 @@ fn installer_runs_0044_after_0043_with_its_compiled_digest() {
     let at_0044 = NATIVE_UPDATE
         .find("install_native_source_instance_grant(&mut conn)")
         .expect("0044 step");
-    assert!(at_0044 > at_0043, "0044 must follow 0043 in the install chain");
+    assert!(
+        at_0044 > at_0043,
+        "0044 must follow 0043 in the install chain"
+    );
     assert!(NATIVE_UPDATE.contains("\"step\": \"0044\""));
     assert!(NATIVE_UPDATE.contains("\"native_source_instance_grant_digest\""));
 }
@@ -77,10 +84,12 @@ async fn flag(conn: &mut PgConnection) -> bool {
 #[ignore]
 async fn fresh_bootstrap_lacks_the_integer_overload_and_0044_grants_it() {
     let mut admin = connect("postgres").await;
-    sqlx::raw_sql(sqlx::AssertSqlSafe(format!("DROP DATABASE IF EXISTS {DB} WITH (FORCE)")))
-        .execute(&mut admin)
-        .await
-        .expect("drop");
+    sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
+        "DROP DATABASE IF EXISTS {DB} WITH (FORCE)"
+    )))
+    .execute(&mut admin)
+    .await
+    .expect("drop");
     sqlx::raw_sql(sqlx::AssertSqlSafe(format!("CREATE DATABASE {DB}")))
         .execute(&mut admin)
         .await
@@ -88,7 +97,10 @@ async fn fresh_bootstrap_lacks_the_integer_overload_and_0044_grants_it() {
     let mut db = connect(DB).await;
     // 0000-0004: bootstrap roles and the fence. The bigint overload is granted, the integer one is not.
     ti::install(&mut db).await.expect("bootstrap chain");
-    assert!(!flag(&mut db).await, "F2: the integer overload is not granted by 0000");
+    assert!(
+        !flag(&mut db).await,
+        "F2: the integer overload is not granted by 0000"
+    );
     sqlx::raw_sql(sqlx::AssertSqlSafe(MIGRATION_0044.to_owned()))
         .execute(&mut db)
         .await
@@ -113,8 +125,10 @@ async fn fresh_bootstrap_lacks_the_integer_overload_and_0044_grants_it() {
     // The bootstrap roles are cluster-wide. Drop this database, so that the next live test
     // can drop and recreate them.
     drop(db);
-    sqlx::raw_sql(sqlx::AssertSqlSafe(format!("DROP DATABASE {DB} WITH (FORCE)")))
-        .execute(&mut admin)
-        .await
-        .expect("cleanup");
+    sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
+        "DROP DATABASE {DB} WITH (FORCE)"
+    )))
+    .execute(&mut admin)
+    .await
+    .expect("cleanup");
 }

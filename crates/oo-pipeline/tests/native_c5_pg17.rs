@@ -142,8 +142,7 @@ async fn pg17_c5_lifecycle() {
             &mut db,
             source,
             table,
-            1,
-            0,
+            (1, 0),
             &[(keys[0], "old"), (keys[1], "keep")],
             text_key,
             false,
@@ -176,8 +175,7 @@ async fn pg17_c5_lifecycle() {
             &mut db,
             source,
             table,
-            2,
-            1,
+            (2, 1),
             &[(keys[0], "updated")],
             text_key,
             true,
@@ -224,8 +222,7 @@ async fn pg17_c5_lifecycle() {
             &mut db,
             source,
             table,
-            2,
-            1,
+            (2, 1),
             &[(keys[0], "updated")],
             text_key,
             false,
@@ -235,7 +232,7 @@ async fn pg17_c5_lifecycle() {
             read_values(&mut db, source, table, 2, &updated_physical).await,
             vec!["updated"]
         );
-        let (_, empty_physical) = load(&mut db, source, table, 3, 2, &[], text_key, false).await;
+        let (_, empty_physical) = load(&mut db, source, table, (3, 2), &[], text_key, false).await;
         assert!(
             read_values(&mut db, source, table, 3, &empty_physical)
                 .await
@@ -251,8 +248,7 @@ async fn pg17_c5_lifecycle() {
             &mut db,
             source,
             table,
-            4,
-            3,
+            (4, 3),
             &[(keys[0], "reinsert")],
             text_key,
             false,
@@ -421,24 +417,18 @@ async fn pg17_c5_lifecycle() {
             &mut db,
             source,
             source,
-            1,
-            0,
+            (1, 0),
             &[("1", "old"), ("2", "old")],
-            text_key,
-            false,
-            false,
+            (text_key, false, false),
         )
         .await;
         let (_, physical) = load_inner(
             &mut db,
             source,
             source,
-            2,
-            0,
+            (2, 0),
             &[("1", "updated")],
-            text_key,
-            false,
-            false,
+            (text_key, false, false),
         )
         .await;
         let n: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
@@ -471,7 +461,7 @@ async fn pg17_c5_lifecycle() {
             .execute(&mut db)
             .await
             .unwrap();
-        load(&mut db, source, source, 3, 1, &[], text_key, false).await;
+        load(&mut db, source, source, (3, 1), &[], text_key, false).await;
         let n: i64 =
             sqlx::query_scalar("SELECT count(*) FROM _oo.update_tombstone WHERE source=$1")
                 .bind(source)
@@ -483,12 +473,9 @@ async fn pg17_c5_lifecycle() {
             &mut db,
             source,
             source,
-            4,
-            0,
+            (4, 0),
             &[("1", "full-reinsert")],
-            text_key,
-            false,
-            false,
+            (text_key, false, false),
         )
         .await;
         let mut tx = db.begin().await.unwrap();
@@ -650,12 +637,9 @@ async fn load_inner(
     db: &mut PgConnection,
     source: &str,
     table: &str,
-    generation: i64,
-    revision: i64,
+    (generation, revision): (i64, i64),
     rows: &[(&str, &str)],
-    text_key: bool,
-    fail: bool,
-    is_range: bool,
+    (text_key, fail, is_range): (bool, bool, bool),
 ) -> (Value, String) {
     use oo_pipeline::native_update::{
         FixtureCell, FixtureColumn, FixtureKind, encode_empty_fixture_arrow, encode_fixture_arrow,
@@ -816,14 +800,18 @@ async fn load(
     db: &mut PgConnection,
     source: &str,
     table: &str,
-    generation: i64,
-    revision: i64,
+    (generation, revision): (i64, i64),
     rows: &[(&str, &str)],
     text_key: bool,
     fail: bool,
 ) -> (Value, String) {
     load_inner(
-        db, source, table, generation, revision, rows, text_key, fail, true,
+        db,
+        source,
+        table,
+        (generation, revision),
+        rows,
+        (text_key, fail, true),
     )
     .await
 }

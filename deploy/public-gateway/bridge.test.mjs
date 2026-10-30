@@ -344,7 +344,7 @@ test('main binds and reports the configured loopback port without starting a ser
 });
 
 test('copied deployment accepts non-repo paths but rejects real repo ancestors', async () => {
-  const deployed = join(dir, '.local', 'share', 'yujia-public-gateway');
+  const deployed = join(dir, '.local', 'share', 'ontology-public-gateway');
   mkdirSync(deployed, { recursive: true });
   const entry = join(deployed, 'bridge.mjs');
   copyFileSync(new URL('./bridge.mjs', import.meta.url), entry);

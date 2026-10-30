@@ -43,19 +43,35 @@ pub fn key_identity(key: &crate::native_c5_range::TypedKey) -> Result<Vec<u8>> {
             KeyComponent::Int(value) => (0, value.to_be_bytes().to_vec()),
             KeyComponent::Text(value) | KeyComponent::Bytes(value) => {
                 if !value.len().is_multiple_of(2)
-                    || !value.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+                    || !value
+                        .bytes()
+                        .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
                 {
                     return Err("c5_parts_key");
                 }
-                let bytes = value.as_bytes().chunks_exact(2)
+                let bytes = value
+                    .as_bytes()
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
                     .map(|pair| {
                         let digit = |c| if c <= b'9' { c - b'0' } else { c - b'a' + 10 };
                         digit(pair[0]) * 16 + digit(pair[1])
-                    }).collect();
-                (if matches!(component, KeyComponent::Text(_)) { 1 } else { 2 }, bytes)
+                    })
+                    .collect();
+                (
+                    if matches!(component, KeyComponent::Text(_)) {
+                        1
+                    } else {
+                        2
+                    },
+                    bytes,
+                )
             }
         };
-        let size = u32::try_from(payload.len()).ok().and_then(|v| v.checked_add(1))
+        let size = u32::try_from(payload.len())
+            .ok()
+            .and_then(|v| v.checked_add(1))
             .ok_or("c5_parts_key")?;
         result.extend_from_slice(&size.to_be_bytes());
         result.push(tag);
@@ -212,21 +228,38 @@ pub fn validate_range_scope(value: &serde_json::Value) -> Result<RangeIdentity> 
     if value["protocol"] != RANGE_PROTOCOL
         || value.as_object().is_none_or(|v| v.len() != 20)
         || value["parts_task"].as_str().is_none_or(|v| {
-            v.len() != 36 || !v.bytes().enumerate().all(|(i, c)|
-                if [8, 13, 18, 23].contains(&i) { c == b'-' } else { c.is_ascii_hexdigit() })
+            v.len() != 36
+                || !v.bytes().enumerate().all(|(i, c)| {
+                    if [8, 13, 18, 23].contains(&i) {
+                        c == b'-'
+                    } else {
+                        c.is_ascii_hexdigit()
+                    }
+                })
         })
         || value["row_count"].as_i64().is_none_or(|v| v < 0)
     {
         return Err("c5_parts_scope");
     }
     let mut legacy = value.clone();
-    legacy.as_object_mut().ok_or("c5_parts_scope")?.remove("parts_task");
+    legacy
+        .as_object_mut()
+        .ok_or("c5_parts_scope")?
+        .remove("parts_task");
     legacy["protocol"] = serde_json::json!(crate::native_c5_range::REQUEST_PROTOCOL);
     legacy["row_count"] = serde_json::json!(0);
     legacy["members"] = serde_json::json!([]);
     crate::native_c5_range::RangeScope::parse(&legacy).map_err(|_| "c5_parts_scope")?;
-    for key in ["protocol", "capture_method", "arrow_sha256", "row_count",
-        "delete_detection", "position_codec", "applied_pos", "members"] {
+    for key in [
+        "protocol",
+        "capture_method",
+        "arrow_sha256",
+        "row_count",
+        "delete_detection",
+        "position_codec",
+        "applied_pos",
+        "members",
+    ] {
         legacy.as_object_mut().ok_or("c5_parts_scope")?.remove(key);
     }
     serde_json::from_value(legacy).map_err(|_| "c5_parts_scope")
@@ -244,27 +277,54 @@ pub struct JsonLines {
 impl JsonLines {
     pub fn open(reference: FileRef) -> Result<Self> {
         let (file, before) = open_private(&reference)?;
-        Ok(Self { reader: BufReader::new(file), reference, before, hash: Sha256::new(), bytes: 0 })
+        Ok(Self {
+            reader: BufReader::new(file),
+            reference,
+            before,
+            hash: Sha256::new(),
+            bytes: 0,
+        })
     }
 
     pub fn next_value(&mut self) -> Result<Option<serde_json::Value>> {
         let mut line = Vec::new();
-        self.reader.by_ref().take(1_048_577).read_until(b'\n', &mut line)
+        self.reader
+            .by_ref()
+            .take(1_048_577)
+            .read_until(b'\n', &mut line)
             .map_err(|_| "c5_parts_read")?;
-        if line.is_empty() { return Ok(None); }
+        if line.is_empty() {
+            return Ok(None);
+        }
         if line.len() > 1_048_576 || line.last() != Some(&b'\n') {
             return Err("c5_parts_line");
         }
-        self.bytes = self.bytes.checked_add(line.len() as u64).ok_or("c5_parts_size")?;
-        if self.bytes > self.reference.bytes { return Err("c5_parts_size"); }
+        self.bytes = self
+            .bytes
+            .checked_add(line.len() as u64)
+            .ok_or("c5_parts_size")?;
+        if self.bytes > self.reference.bytes {
+            return Err("c5_parts_size");
+        }
         self.hash.update(&line);
-        serde_json::from_slice(&line).map(Some).map_err(|_| "c5_parts_line")
+        serde_json::from_slice(&line)
+            .map(Some)
+            .map_err(|_| "c5_parts_line")
     }
 
     pub fn finish(mut self) -> Result<()> {
-        if self.next_value()?.is_some() || self.bytes != self.reference.bytes
-            || !same_file(&self.before, &self.reader.get_ref().metadata().map_err(|_| "c5_parts_file")?)
-            || format!("{:x}", self.hash.finalize()) != self.reference.sha256 {
+        if self.next_value()?.is_some()
+            || self.bytes != self.reference.bytes
+            || !same_file(
+                &self.before,
+                &self
+                    .reader
+                    .get_ref()
+                    .metadata()
+                    .map_err(|_| "c5_parts_file")?,
+            )
+            || format!("{:x}", self.hash.finalize()) != self.reference.sha256
+        {
             return Err("c5_parts_digest");
         }
         Ok(())
@@ -485,28 +545,32 @@ mod tests {
             "delete_detection":"reconcile","position_codec":"snapshot-zero/v1","applied_pos":"0",
             "parts_task":"33333333-3333-4333-8333-333333333333"
         });
-        assert_eq!(validate_range_scope(&scope).unwrap().source_generation,2);
-        for (field,value) in [
-            ("members",serde_json::json!([])),("parts_task",serde_json::json!("invalid")),
-            ("source_generation",serde_json::json!(4)),("row_count",serde_json::json!(-1)),
+        assert_eq!(validate_range_scope(&scope).unwrap().source_generation, 2);
+        for (field, value) in [
+            ("members", serde_json::json!([])),
+            ("parts_task", serde_json::json!("invalid")),
+            ("source_generation", serde_json::json!(4)),
+            ("row_count", serde_json::json!(-1)),
         ] {
-            let mut invalid=scope.clone();invalid[field]=value;
-            assert!(validate_range_scope(&invalid).is_err(),"{field}");
+            let mut invalid = scope.clone();
+            invalid[field] = value;
+            assert!(validate_range_scope(&invalid).is_err(), "{field}");
         }
     }
 
     #[test]
     fn admitted_index_must_be_complete_and_hash_bound() {
-        let f=Fixture::new();
-        let index=f.file("admitted.jsonl",b"{\"ordinal\":0}\n{\"ordinal\":1}\n");
-        let mut reader=JsonLines::open(index.clone()).unwrap();
-        assert_eq!(reader.next_value().unwrap().unwrap()["ordinal"],0);
+        let f = Fixture::new();
+        let index = f.file("admitted.jsonl", b"{\"ordinal\":0}\n{\"ordinal\":1}\n");
+        let mut reader = JsonLines::open(index.clone()).unwrap();
+        assert_eq!(reader.next_value().unwrap().unwrap()["ordinal"], 0);
         assert!(reader.finish().is_err());
-        let mut reader=JsonLines::open(index.clone()).unwrap();
+        let mut reader = JsonLines::open(index.clone()).unwrap();
         while reader.next_value().unwrap().is_some() {}
         reader.finish().unwrap();
-        let mut wrong=index;wrong.sha256="e".repeat(64);
-        let mut reader=JsonLines::open(wrong).unwrap();
+        let mut wrong = index;
+        wrong.sha256 = "e".repeat(64);
+        let mut reader = JsonLines::open(wrong).unwrap();
         while reader.next_value().unwrap().is_some() {}
         assert!(reader.finish().is_err());
     }
@@ -522,7 +586,7 @@ mod tests {
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .unwrap()
                     .as_nanos(),
-                SERIAL.fetch_add(1,std::sync::atomic::Ordering::Relaxed),
+                SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             ));
             fs::create_dir(&p).unwrap();
             Self(p)
@@ -568,13 +632,22 @@ mod tests {
     #[test]
     fn staged_key_encoding_keeps_type_width_and_empty_bytes_distinct() {
         use crate::native_c5_range::KeyComponent::{Bytes, Int, Text};
-        assert_eq!(key_identity(&vec![Int(1)]).unwrap(),
-            vec![0,0,0,9,0,0,0,0,0,0,0,0,1]);
-        assert_ne!(key_identity(&vec![Text("31".into())]).unwrap(),
-            key_identity(&vec![Bytes("31".into())]).unwrap());
-        assert_ne!(key_identity(&vec![Text("6162".into()),Text("63".into())]).unwrap(),
-            key_identity(&vec![Text("61".into()),Text("6263".into())]).unwrap());
-        assert_eq!(key_identity(&vec![Bytes(String::new())]).unwrap(), vec![0,0,0,1,2]);
+        assert_eq!(
+            key_identity(&vec![Int(1)]).unwrap(),
+            vec![0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+        );
+        assert_ne!(
+            key_identity(&vec![Text("31".into())]).unwrap(),
+            key_identity(&vec![Bytes("31".into())]).unwrap()
+        );
+        assert_ne!(
+            key_identity(&vec![Text("6162".into()), Text("63".into())]).unwrap(),
+            key_identity(&vec![Text("61".into()), Text("6263".into())]).unwrap()
+        );
+        assert_eq!(
+            key_identity(&vec![Bytes(String::new())]).unwrap(),
+            vec![0, 0, 0, 1, 2]
+        );
         assert!(key_identity(&vec![Bytes("FG".into())]).is_err());
     }
 

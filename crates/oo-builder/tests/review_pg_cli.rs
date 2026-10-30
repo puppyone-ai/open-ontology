@@ -35,7 +35,8 @@ fn bin() -> Command {
 
 fn catalog_path(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/captured-pg-review").join(name)
+        .join("tests/fixtures/captured-pg-review")
+        .join(name)
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -209,7 +210,12 @@ fn assert_static_failure(output: &std::process::Output, needle: &str) {
     assert!(!stderr.contains(OWNER));
 }
 
-fn assert_command(stdin: &str, catalog: &str, curated: Option<&str>, reviews: Option<&str>) -> Value {
+fn assert_command(
+    stdin: &str,
+    catalog: &str,
+    curated: Option<&str>,
+    reviews: Option<&str>,
+) -> Value {
     let api = compile_captured_pg_catalog(catalog, curated, reviews).unwrap();
     let output = run(&["review-pg-draft"], stdin.as_bytes());
     assert_eq!(
@@ -236,8 +242,14 @@ fn assert_command(stdin: &str, catalog: &str, curated: Option<&str>, reviews: Op
         doc["evidence_envelope"],
         serde_json::from_str::<Value>(&api.evidence_envelope).unwrap()
     );
-    assert_eq!(doc["draft"], serde_json::from_str::<Value>(&api.draft).unwrap());
-    assert_eq!(doc["wrapper"]["draft_hash"], sha256_hex(api.draft.as_bytes()));
+    assert_eq!(
+        doc["draft"],
+        serde_json::from_str::<Value>(&api.draft).unwrap()
+    );
+    assert_eq!(
+        doc["wrapper"]["draft_hash"],
+        sha256_hex(api.draft.as_bytes())
+    );
     assert_eq!(
         doc["wrapper"]["evidence_envelope_hash"],
         sha256_hex(api.evidence_envelope.as_bytes())
@@ -300,7 +312,8 @@ fn unknown_input_and_arguments_exit_without_echo() {
     assert_static_failure(
         &run(
             &["review-pg-draft"],
-            format!(r#"{{"catalog":{{"note":"{MARKER}"}},"catalog":{{"note":"again"}}}}"#).as_bytes(),
+            format!(r#"{{"catalog":{{"note":"{MARKER}"}},"catalog":{{"note":"again"}}}}"#)
+                .as_bytes(),
         ),
         "/json.duplicate_key",
     );
@@ -352,7 +365,12 @@ fn bare_captured_catalog_matches_the_public_api_and_preserved_hashes() {
     assert_eq!(sorted.wrapper, raw.wrapper);
     assert_eq!(sorted.evidence_envelope, raw.evidence_envelope);
 
-    let doc = assert_command(&review_document(before.trim(), None, None), before.trim(), None, None);
+    let doc = assert_command(
+        &review_document(before.trim(), None, None),
+        before.trim(),
+        None,
+        None,
+    );
     assert_eq!(doc["wrapper"]["schema_hash"], BEFORE_SCHEMA);
     assert_eq!(doc["wrapper"]["draft_hash"], BEFORE_DRAFT);
     assert_eq!(doc["wrapper"]["wrapper_hash"], BEFORE_WRAPPER);
@@ -367,10 +385,18 @@ fn bare_captured_catalog_matches_the_public_api_and_preserved_hashes() {
     assert_eq!(empty["wrapper"]["draft_hash"], BEFORE_DRAFT);
     assert_eq!(empty["draft"], doc["draft"]);
 
-    let after_doc = assert_command(&review_document(&after, None, None), after.trim(), None, None);
+    let after_doc = assert_command(
+        &review_document(&after, None, None),
+        after.trim(),
+        None,
+        None,
+    );
     assert_eq!(after_doc["wrapper"]["schema_hash"], AFTER_SCHEMA);
     assert_ne!(after_doc["wrapper"]["schema_hash"], BEFORE_SCHEMA);
-    assert_eq!(after_doc["wrapper"]["captured_catalog_hash"], AFTER_CAPTURED);
+    assert_eq!(
+        after_doc["wrapper"]["captured_catalog_hash"],
+        AFTER_CAPTURED
+    );
     assert_ne!(after_doc["wrapper"]["draft_hash"], BEFORE_DRAFT);
     assert_eq!(
         column_names(&after_doc["draft"], "generated", "ledger.party"),
@@ -452,8 +478,14 @@ fn fresh_accept_reject_and_override_bind_the_captured_items() {
     let draft = &closed["draft"];
     assert!(column_names(draft, "generated", "ledger.party").contains(&"id".to_string()));
     assert!(!column_names(draft, "effective", "ledger.party").contains(&"id".to_string()));
-    assert_eq!(column(draft, "curated", "ledger.party", "id")["status"], "rejected");
-    assert_eq!(column(draft, "curated", "ledger.party", "id")["label"], "Kept label");
+    assert_eq!(
+        column(draft, "curated", "ledger.party", "id")["status"],
+        "rejected"
+    );
+    assert_eq!(
+        column(draft, "curated", "ledger.party", "id")["label"],
+        "Kept label"
+    );
     assert!(relationship(draft, "generated", "invoice_party_fk").is_some());
     assert!(relationship(draft, "effective", "invoice_party_fk").is_none());
     let endpoint = queue_item(draft, REL_ITEM, "relationship_endpoint_not_effective");
@@ -472,7 +504,10 @@ fn fresh_accept_reject_and_override_bind_the_captured_items() {
     );
     let rejected_id = review_decision(draft, ID_ITEM);
     assert_eq!(rejected_id["action"], "reject");
-    assert_eq!(rejected_id["fact_fingerprint"].as_str(), Some(id_fp.as_str()));
+    assert_eq!(
+        rejected_id["fact_fingerprint"].as_str(),
+        Some(id_fp.as_str())
+    );
     assert_eq!(closed["wrapper"]["live_catalog_review"], "pending");
 
     let overlay = r#"{"datasets":[{"dataset":"ledger.party","columns":[{"name":"email","label":"Correspondence","pii":"sensitive"}]}],"relationships":[]}"#;
@@ -495,9 +530,7 @@ fn fresh_accept_reject_and_override_bind_the_captured_items() {
         "Correspondence"
     );
     assert!(column(draft, "effective", "ledger.party", "email")["pii"].is_null());
-    assert!(
-        column(draft, "effective", "ledger.party", "email")["semantic_type"].is_null()
-    );
+    assert!(column(draft, "effective", "ledger.party", "email")["semantic_type"].is_null());
     assert_eq!(
         column(draft, "curated", "ledger.party", "email")["pii"],
         "sensitive"
@@ -507,7 +540,11 @@ fn fresh_accept_reject_and_override_bind_the_captured_items() {
         "Correspondence"
     );
     assert_eq!(
-        queue_item(draft, "pii/ledger.party/email", "semantic_field_not_applied")["detail"],
+        queue_item(
+            draft,
+            "pii/ledger.party/email",
+            "semantic_field_not_applied"
+        )["detail"],
         "pii"
     );
     assert_eq!(
@@ -553,9 +590,7 @@ fn stale_schema_and_fact_decisions_stay_pending() {
         "email"
     );
     assert!(column(draft, "effective", "ledger.party", "email")["pii"].is_null());
-    assert!(
-        column(draft, "effective", "ledger.party", "email")["semantic_type"].is_null()
-    );
+    assert!(column(draft, "effective", "ledger.party", "email")["semantic_type"].is_null());
     assert_eq!(
         column(draft, "curated", "ledger.party", "email")["label"],
         "Correspondence"
@@ -577,7 +612,11 @@ fn stale_schema_and_fact_decisions_stay_pending() {
         "pending"
     );
     assert_eq!(
-        queue_item(draft, "pii/ledger.party/email", "semantic_field_not_applied")["detail"],
+        queue_item(
+            draft,
+            "pii/ledger.party/email",
+            "semantic_field_not_applied"
+        )["detail"],
         "pii"
     );
     assert_eq!(

@@ -172,12 +172,9 @@ async fn load_inner(
     db: &mut PgConnection,
     source: &str,
     table: &str,
-    generation: i64,
-    revision: i64,
+    (generation, revision): (i64, i64),
     rows: &[(&str, &str)],
-    text_key: bool,
-    fail: bool,
-    is_range: bool,
+    (text_key, fail, is_range): (bool, bool, bool),
 ) -> (Value, String) {
     use oo_pipeline::native_update::{
         FixtureCell, FixtureColumn, FixtureKind, encode_empty_fixture_arrow, encode_fixture_arrow,
@@ -345,12 +342,9 @@ async fn fixture(db: &mut PgConnection) -> (Value, Value) {
                 db,
                 &format!("lib_s{shard}"),
                 &format!("t_{shard}_{table:02}"),
-                table + 1,
-                0,
+                (table + 1, 0),
                 &[("1", "anonymous")],
-                false,
-                false,
-                false,
+                (false, false, false),
             )
             .await;
         }
@@ -604,12 +598,9 @@ async fn library_atomic_publication_and_adoption() {
         &mut db,
         "lib_s2",
         "t_2_11",
-        13,
-        0,
+        (13, 0),
         &[("1", "new")],
-        false,
-        false,
-        false,
+        (false, false, false),
     )
     .await;
     assert!(

@@ -239,13 +239,7 @@ fn bare() -> Value {
     artifact_from(&review_body(&shop(), None, None))
 }
 
-fn decision(
-    artifact: &Value,
-    dataset: &str,
-    column: &str,
-    pii: &str,
-    semantic: &str,
-) -> Value {
+fn decision(artifact: &Value, dataset: &str, column: &str, pii: &str, semantic: &str) -> Value {
     json!({
         "dataset": dataset,
         "column": column,
@@ -420,9 +414,17 @@ fn shop_review_classifies_into_two_role_packs_and_keeps_email_hidden() {
     assert_eq!(first, second);
     assert_eq!(value["protocol"], COMMAND);
     assert_eq!(value["compiler"], "oo-builder/reviewed-effective-oos/v1");
-    assert_eq!(value["effective_oos"]["protocol"], "oo.builder.effective-oos/v1");
+    assert_eq!(
+        value["effective_oos"]["protocol"],
+        "oo.builder.effective-oos/v1"
+    );
     assert!(value["effective_oos"].get("decisions").is_none());
-    assert!(value["omitted_relationships"].as_array().unwrap().is_empty());
+    assert!(
+        value["omitted_relationships"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(
         hidden_reason(&value, "public.customer", "email"),
         "classification.absent"
@@ -487,7 +489,12 @@ fn shop_review_classifies_into_two_role_packs_and_keeps_email_hidden() {
             visible("public.purchase", &["tenant_id", "id", "customer_id"])
         ]),
     );
-    assert_eq!(clerk.status.code(), Some(0), "{}", String::from_utf8_lossy(&clerk.stderr));
+    assert_eq!(
+        clerk.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&clerk.stderr)
+    );
     let clerk_value: Value = serde_json::from_slice(&clerk.stdout).unwrap();
     let clerk_text = pack_text(&clerk_value);
     assert!(clerk_text.contains("purchase_customer_fk"));
@@ -503,7 +510,12 @@ fn shop_review_classifies_into_two_role_packs_and_keeps_email_hidden() {
         "oo_r_peek",
         json!([visible("public.customer", &["tenant_id", "id"])]),
     );
-    assert_eq!(peek.status.code(), Some(0), "{}", String::from_utf8_lossy(&peek.stderr));
+    assert_eq!(
+        peek.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&peek.stderr)
+    );
     let peek_text = pack_text(&serde_json::from_slice::<Value>(&peek.stdout).unwrap());
     assert!(!peek_text.contains("purchase_customer_fk"));
     assert!(!peek_text.contains("email"));
@@ -516,7 +528,12 @@ fn shop_review_classifies_into_two_role_packs_and_keeps_email_hidden() {
             visible("public.purchase", &["tenant_id", "id"])
         ]),
     );
-    assert_eq!(ledger.status.code(), Some(0), "{}", String::from_utf8_lossy(&ledger.stderr));
+    assert_eq!(
+        ledger.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&ledger.stderr)
+    );
     let ledger_text = pack_text(&serde_json::from_slice::<Value>(&ledger.stdout).unwrap());
     assert!(!ledger_text.contains("purchase_customer_fk"));
     assert!(!ledger_text.contains("customer_id"));
@@ -543,7 +560,12 @@ fn stale_unknown_duplicate_invalid_and_renamed_stay_explicit() {
         }
     }
     let output = reviewed(&command(&artifact, decisions));
-    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let value: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(
         hidden_reason(&value, "public.customer", "id"),
@@ -604,7 +626,13 @@ fn stale_unknown_duplicate_invalid_and_renamed_stay_explicit() {
 #[test]
 fn curated_pii_is_not_copied_and_money_needs_an_existing_unit() {
     let artifact = bare();
-    let mut money = vec![decision(&artifact, "public.customer", "email", "none", "money")];
+    let mut money = vec![decision(
+        &artifact,
+        "public.customer",
+        "email",
+        "none",
+        "money",
+    )];
     money[0]["schema_hash"] = artifact["draft"]["provenance"]["schema_hash"].clone();
     assert_static_failure(&reviewed(&command(&artifact, money)), "/oos.invalid");
 
@@ -636,7 +664,12 @@ fn curated_pii_is_not_copied_and_money_needs_an_existing_unit() {
         "money",
     ));
     let output = reviewed(&command(&overridden, decisions));
-    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(!stdout.contains("personal"));
     assert!(!stdout.contains(OWNER));
@@ -675,7 +708,10 @@ fn explicit_usd_classifies_money_and_unknown_or_absent_units_fail() {
         let mut bad = decision(&artifact, "public.customer", "email", "none", "money");
         bad["unit"] = json!(unit);
         decisions.push(bad);
-        assert_static_failure(&reviewed(&command(&artifact, decisions)), "/decision.invalid");
+        assert_static_failure(
+            &reviewed(&command(&artifact, decisions)),
+            "/decision.invalid",
+        );
     }
 
     let mut absent = classified_columns(&artifact);
@@ -767,7 +803,10 @@ fn usage_scanner_and_settings_failures_do_not_echo_the_body() {
     let artifact = bare();
     let mut extra = serde_json::from_str::<Value>(&command(&artifact, vec![])).unwrap();
     extra["extra"] = json!(OWNER);
-    assert_static_failure(&reviewed(&serde_json::to_string(&extra).unwrap()), "/field.unknown");
+    assert_static_failure(
+        &reviewed(&serde_json::to_string(&extra).unwrap()),
+        "/field.unknown",
+    );
 
     let bad_protocol = command(&artifact, vec![]).replacen(COMMAND, "oo.builder.other/v1", 1);
     assert_static_failure(&reviewed(&bad_protocol), "/protocol.mismatch");

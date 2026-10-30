@@ -61,7 +61,8 @@ fn operator(oid: u32, name: &str, left: u32, right: u32) -> ResolvedOperator {
         schema: "pg_catalog".to_string(),
         name: name.to_string(),
         left_type_oid: left,
-        right_type_oid: right, result_type_oid: BOOL_OID,
+        right_type_oid: right,
+        result_type_oid: BOOL_OID,
     }
 }
 

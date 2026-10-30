@@ -164,15 +164,20 @@ struct Harness {
 impl Harness {
     async fn connect() -> Self {
         let host = env::var("OO_IMPORT_PG_HOST").expect("OO_IMPORT_PG_HOST");
-        let port: u16 = env::var("OO_IMPORT_PG_PORT").expect("OO_IMPORT_PG_PORT").parse().unwrap();
+        let port: u16 = env::var("OO_IMPORT_PG_PORT")
+            .expect("OO_IMPORT_PG_PORT")
+            .parse()
+            .unwrap();
         let admin_user = env::var("OO_IMPORT_PG_ADMIN_USER").expect("OO_IMPORT_PG_ADMIN_USER");
         let admin_password = password("OO_IMPORT_PG_ADMIN_PASSWORD_FILE");
         let reader_password = password("OO_IMPORT_PG_READER_PASSWORD_FILE");
         let runtime_password = password("OO_IMPORT_PG_RUNTIME_PASSWORD_FILE");
-        let ca_file = PathBuf::from(env::var("OO_IMPORT_PG_CA_FILE").expect("OO_IMPORT_PG_CA_FILE"));
+        let ca_file =
+            PathBuf::from(env::var("OO_IMPORT_PG_CA_FILE").expect("OO_IMPORT_PG_CA_FILE"));
         let ca = fs::read(&ca_file).expect("ca");
         let evidence = PathBuf::from(
-            env::var("OO_IMPORT_PG_EVIDENCE").unwrap_or_else(|_| "/tmp/oo-a162-import-evidence".to_string()),
+            env::var("OO_IMPORT_PG_EVIDENCE")
+                .unwrap_or_else(|_| "/tmp/oo-a162-import-evidence".to_string()),
         );
         fs::create_dir_all(&evidence).unwrap();
         let reader_file = PathBuf::from(env::var("OO_IMPORT_PG_READER_PASSWORD_FILE").unwrap());
@@ -224,22 +229,54 @@ impl Harness {
         reset(&mut self.postgres).await;
         role(&mut self.postgres, "oo_a162_reader", &self.reader_password).await;
         role(&mut self.postgres, "oo_a162_writer", &self.writer_password).await;
-        role(&mut self.postgres, "oo_a162_runtime", &self.runtime_password).await;
+        role(
+            &mut self.postgres,
+            "oo_a162_runtime",
+            &self.runtime_password,
+        )
+        .await;
         role(&mut self.postgres, "oo_a162_agent", &self.agent_password).await;
         raw(&mut self.postgres, "CREATE DATABASE oo_a162_src TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER builtin BUILTIN_LOCALE 'C.UTF-8'").await;
         raw(&mut self.postgres, "CREATE DATABASE oo_a162_dst TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER builtin BUILTIN_LOCALE 'C.UTF-8'").await;
-        self.source = dial(&self.host, self.port, &self.admin_user, &self.admin_password, "oo_a162_src", &self.ca).await;
-        self.target = dial(&self.host, self.port, &self.admin_user, &self.admin_password, "oo_a162_dst", &self.ca).await;
+        self.source = dial(
+            &self.host,
+            self.port,
+            &self.admin_user,
+            &self.admin_password,
+            "oo_a162_src",
+            &self.ca,
+        )
+        .await;
+        self.target = dial(
+            &self.host,
+            self.port,
+            &self.admin_user,
+            &self.admin_password,
+            "oo_a162_dst",
+            &self.ca,
+        )
+        .await;
         raw(&mut self.source, SOURCE_SQL).await;
-        raw(&mut self.postgres, "GRANT CONNECT ON DATABASE oo_a162_dst TO oo_a162_runtime, oo_a162_agent").await;
+        raw(
+            &mut self.postgres,
+            "GRANT CONNECT ON DATABASE oo_a162_dst TO oo_a162_runtime, oo_a162_agent",
+        )
+        .await;
         assert!(
-            !flag(&mut self.source, "SELECT has_table_privilege('oo_a162_reader', 'app.crates', 'INSERT')").await
+            !flag(
+                &mut self.source,
+                "SELECT has_table_privilege('oo_a162_reader', 'app.crates', 'INSERT')"
+            )
+            .await
         );
     }
 
     async fn not_ready(&mut self) -> Result<(), String> {
         use oo_pipeline::target_installer::{InstallOutcome, install};
-        assert_eq!(install(&mut self.target).await.expect("install"), InstallOutcome::Bootstrapped);
+        assert_eq!(
+            install(&mut self.target).await.expect("install"),
+            InstallOutcome::Bootstrapped
+        );
         let (code, out, err) = run(&["import-pg"], &self.request("a162early", 3));
         fs::write(self.evidence.join("not-ready.stdout"), &out).unwrap();
         fs::write(self.evidence.join("not-ready.stderr"), &err).unwrap();
@@ -248,7 +285,11 @@ impl Harness {
             return Err(format!("not ready code={code} err={err}"));
         }
         self.reject_secrets(&out, &err)?;
-        let missing = flag(&mut self.target, "SELECT to_regclass('_oo.full_import_run') IS NULL").await;
+        let missing = flag(
+            &mut self.target,
+            "SELECT to_regclass('_oo.full_import_run') IS NULL",
+        )
+        .await;
         if !missing {
             return Err("0005 appeared without install_full_import".to_string());
         }
@@ -262,7 +303,11 @@ impl Harness {
             install_full_import(&mut self.target).await.expect("0005"),
             FullImportInstallOutcome::Installed
         );
-        raw(&mut self.target, "GRANT oo_pipeline_runtime TO oo_a162_runtime").await;
+        raw(
+            &mut self.target,
+            "GRANT oo_pipeline_runtime TO oo_a162_runtime",
+        )
+        .await;
     }
 
     async fn succeed(&mut self) -> Result<(), String> {
@@ -275,22 +320,47 @@ impl Harness {
         }
         self.reject_secrets(&out, &err)?;
         let doc: Value = serde_json::from_str(out.trim()).map_err(|err| err.to_string())?;
-        if doc["protocol"] != "oo.pipeline.import-pg-result/v1" || doc["state"] != "awaiting_publish" {
+        if doc["protocol"] != "oo.pipeline.import-pg-result/v1"
+            || doc["state"] != "awaiting_publish"
+        {
             return Err(format!("result document {doc}"));
         }
         if doc["source_generation"] != 7 || doc["table_count"] != 2 {
             return Err(format!("counts {doc}"));
         }
         let tables = doc["tables"].as_array().ok_or("tables")?;
-        self.compare_table(&doc["run_id"], &tables[0], "crates", "label", &[("1", "spruce-keel"), ("2", "oak-rib")]).await?;
-        self.compare_table(&doc["run_id"], &tables[1], "tags", "name", &[("1", "hull"), ("2", "keel"), ("3", "deck")]).await?;
+        self.compare_table(
+            &doc["run_id"],
+            &tables[0],
+            "crates",
+            "label",
+            &[("1", "spruce-keel"), ("2", "oak-rib")],
+        )
+        .await?;
+        self.compare_table(
+            &doc["run_id"],
+            &tables[1],
+            "tags",
+            "name",
+            &[("1", "hull"), ("2", "keel"), ("3", "deck")],
+        )
+        .await?;
         let run_id = doc["run_id"].as_str().ok_or("run id")?.to_string();
-        let mut again = dial(&self.host, self.port, &self.admin_user, &self.admin_password, "oo_a162_dst", &self.ca).await;
-        let state: String = sqlx::query_scalar("SELECT state FROM _oo.full_import_run WHERE run_id = $1::uuid")
-            .bind(&run_id)
-            .fetch_one(&mut again)
-            .await
-            .map_err(|err| err.to_string())?;
+        let mut again = dial(
+            &self.host,
+            self.port,
+            &self.admin_user,
+            &self.admin_password,
+            "oo_a162_dst",
+            &self.ca,
+        )
+        .await;
+        let state: String =
+            sqlx::query_scalar("SELECT state FROM _oo.full_import_run WHERE run_id = $1::uuid")
+                .bind(&run_id)
+                .fetch_one(&mut again)
+                .await
+                .map_err(|err| err.to_string())?;
         let sealed: bool = sqlx::query_scalar(
             "SELECT sealed_at IS NOT NULL FROM _oo.full_import_run WHERE run_id = $1::uuid",
         )
@@ -301,7 +371,11 @@ impl Harness {
         if state != "awaiting_publish" || !sealed {
             return Err(format!("seal state={state} sealed={sealed}"));
         }
-        let publications = text(&mut again, "SELECT count(*)::text FROM pg_catalog.pg_publication").await;
+        let publications = text(
+            &mut again,
+            "SELECT count(*)::text FROM pg_catalog.pg_publication",
+        )
+        .await;
         if publications != "0" {
             return Err(format!("publications={publications}"));
         }
@@ -314,8 +388,20 @@ impl Harness {
         if reader_writes != "0" {
             return Err(format!("reader writes={reader_writes}"));
         }
-        let mut writer = dial(&self.host, self.port, "oo_a162_writer", &self.writer_password, "oo_a162_src", &self.ca).await;
-        raw(&mut writer, "INSERT INTO app.crates (id, label) VALUES (3, 'after')").await;
+        let mut writer = dial(
+            &self.host,
+            self.port,
+            "oo_a162_writer",
+            &self.writer_password,
+            "oo_a162_src",
+            &self.ca,
+        )
+        .await;
+        raw(
+            &mut writer,
+            "INSERT INTO app.crates (id, label) VALUES (3, 'after')",
+        )
+        .await;
         let reader_writes = text(
             &mut self.source,
             "SELECT count(*)::text FROM app.write_audit WHERE who = 'oo_a162_reader'",
@@ -327,7 +413,9 @@ impl Harness {
         )
         .await;
         if reader_writes != "0" || writer_writes != "1" {
-            return Err(format!("audit reader={reader_writes} writer={writer_writes}"));
+            return Err(format!(
+                "audit reader={reader_writes} writer={writer_writes}"
+            ));
         }
         self.quiet_source().await;
         fs::write(self.evidence.join("outcome.txt"), "import_pg_cli_live_ok\n").unwrap();
@@ -346,8 +434,14 @@ impl Harness {
         if table["schema"] != "app" || table["name"] != name || table["rows"] != expect.len() {
             return Err(format!("table header {table}"));
         }
-        let physical = table["physical_name"].as_str().ok_or("physical")?.to_string();
-        let digest = table["canonical_digest"].as_str().ok_or("digest")?.to_string();
+        let physical = table["physical_name"]
+            .as_str()
+            .ok_or("physical")?
+            .to_string();
+        let digest = table["canonical_digest"]
+            .as_str()
+            .ok_or("digest")?
+            .to_string();
         if !safe_physical(&physical, "pt_") || digest.len() != 64 {
             return Err(format!("identity {physical} {digest}"));
         }
@@ -380,7 +474,8 @@ impl Harness {
         )
         .await;
         let columns = table["columns"].as_array().ok_or("columns")?;
-        if attrs.first().map(String::as_str) != Some("_oo_pos") || attrs.len() != columns.len() + 1 {
+        if attrs.first().map(String::as_str) != Some("_oo_pos") || attrs.len() != columns.len() + 1
+        {
             return Err(format!("attributes {attrs:?}"));
         }
         let mut id_physical = String::new();
@@ -422,7 +517,10 @@ impl Harness {
             ),
         )
         .await;
-        let mut expect_rows: Vec<String> = expect.iter().map(|(id, label)| format!("{id}={label}")).collect();
+        let mut expect_rows: Vec<String> = expect
+            .iter()
+            .map(|(id, label)| format!("{id}={label}"))
+            .collect();
         let mut got_rows = shadow.clone();
         expect_rows.sort();
         got_rows.sort();
@@ -449,9 +547,9 @@ impl Harness {
         let err = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT 1 FROM _oo.\"{name}\" LIMIT 1",
         )))
-            .fetch_optional(&mut agent)
-            .await
-            .expect_err("agent read");
+        .fetch_optional(&mut agent)
+        .await
+        .expect_err("agent read");
         let sqlx::Error::Database(db) = err else {
             return Err("agent error kind".to_string());
         };
@@ -640,7 +738,14 @@ fn password(var: &str) -> String {
     trimmed
 }
 
-async fn dial(host: &str, port: u16, user: &str, pass: &str, database: &str, ca: &[u8]) -> sqlx::postgres::PgConnection {
+async fn dial(
+    host: &str,
+    port: u16,
+    user: &str,
+    pass: &str,
+    database: &str,
+    ca: &[u8],
+) -> sqlx::postgres::PgConnection {
     let options = PgConnectOptions::from_explicit()
         .host(host)
         .port(port)
@@ -651,7 +756,9 @@ async fn dial(host: &str, port: u16, user: &str, pass: &str, database: &str, ca:
         .ssl_root_cert_from_pem(ca.to_vec());
     assert!(options.get_options().is_none());
     let options = options.disable_statement_logging();
-    sqlx::postgres::PgConnection::connect_with(&options).await.expect("dial")
+    sqlx::postgres::PgConnection::connect_with(&options)
+        .await
+        .expect("dial")
 }
 
 async fn raw(conn: &mut sqlx::postgres::PgConnection, sql: &str) {
@@ -680,14 +787,25 @@ async fn column(conn: &mut sqlx::postgres::PgConnection, sql: &str) -> Vec<Strin
         .fetch_all(&mut *conn)
         .await
         .unwrap_or_else(|err| panic!("rows failed: {err}"));
-    rows.into_iter().map(|row| row.try_get(0).unwrap()).collect()
+    rows.into_iter()
+        .map(|row| row.try_get(0).unwrap())
+        .collect()
 }
 
 async fn reset(admin: &mut sqlx::postgres::PgConnection) {
     for name in ["oo_a162_src", "oo_a162_dst"] {
-        raw(admin, &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await;
+        raw(
+            admin,
+            &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"),
+        )
+        .await;
     }
-    for role_name in ["oo_a162_reader", "oo_a162_writer", "oo_a162_runtime", "oo_a162_agent"] {
+    for role_name in [
+        "oo_a162_reader",
+        "oo_a162_writer",
+        "oo_a162_runtime",
+        "oo_a162_agent",
+    ] {
         raw(admin, &format!("DROP ROLE IF EXISTS {role_name}")).await;
     }
     raw(admin, "DROP ROLE IF EXISTS oo_pipeline_runtime").await;

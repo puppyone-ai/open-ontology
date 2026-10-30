@@ -56,53 +56,65 @@ fn reseal_library(document: &mut Value) {
 
 #[test]
 fn oracle_c1_pack_uses_reversible_storage_keys_without_mutating_receipt() {
-    let mut document=fixture();
-    let receipt:Value=serde_json::from_str(include_str!("fixtures/oracle_c1_library.json")).unwrap();
-    document["publication"]["receipt"]=receipt.clone();
-    document["publication"]["run_id"]=receipt["shards"][0]["anchor_run"].clone();
-    document["publication"]["receipt_sha256"]=json!(sha(&receipt));
-    document["effective"]["ontology"]["include_schemas"]=json!(["q_415050"]);
-    document["effective"]["datasets"][0]["dataset"]=json!("q_415050.q_4954454d53");
-    document["visibility"]["datasets"][0]["dataset"]=json!("q_415050.q_4954454d53");
-    document["bindings"][0]["dataset"]=json!("q_415050.q_4954454d53");
-    document["bindings"][0]["source"]=json!("oracle_fixture");
+    let mut document = fixture();
+    let receipt: Value =
+        serde_json::from_str(include_str!("fixtures/oracle_c1_library.json")).unwrap();
+    document["publication"]["receipt"] = receipt.clone();
+    document["publication"]["run_id"] = receipt["shards"][0]["anchor_run"].clone();
+    document["publication"]["receipt_sha256"] = json!(sha(&receipt));
+    document["effective"]["ontology"]["include_schemas"] = json!(["q_415050"]);
+    document["effective"]["datasets"][0]["dataset"] = json!("q_415050.q_4954454d53");
+    document["visibility"]["datasets"][0]["dataset"] = json!("q_415050.q_4954454d53");
+    document["bindings"][0]["dataset"] = json!("q_415050.q_4954454d53");
+    document["bindings"][0]["source"] = json!("oracle_fixture");
     reseal_library(&mut document);
-    let policy=compile_library(&document).unwrap();
-    assert_eq!(policy.vector[0]["dataset"],"q_415050.q_4954454d53");
-    assert_eq!(document["publication"]["receipt"],receipt);
-    let mut mysql=document.clone();
-    mysql["publication"]["receipt"]["shards"][0]["receipt"].as_object_mut().unwrap().remove("oracle_buffer");
-    mysql["publication"]["receipt"]["shards"][0]["receipt"]["position_codec"]=json!("mysql-gtid/v1");
-    mysql["publication"]["receipt"]["shards"][0]["receipt"]["position_lineage"]=
+    let policy = compile_library(&document).unwrap();
+    assert_eq!(policy.vector[0]["dataset"], "q_415050.q_4954454d53");
+    assert_eq!(document["publication"]["receipt"], receipt);
+    let mut mysql = document.clone();
+    mysql["publication"]["receipt"]["shards"][0]["receipt"]
+        .as_object_mut()
+        .unwrap()
+        .remove("oracle_buffer");
+    mysql["publication"]["receipt"]["shards"][0]["receipt"]["position_codec"] =
+        json!("mysql-gtid/v1");
+    mysql["publication"]["receipt"]["shards"][0]["receipt"]["position_lineage"] =
         json!("mysql.11111111-2222-4333-8444-555555555555");
-    mysql["publication"]["receipt"]["shards"][0]["receipt_sha256"]=
-        json!(sha(&mysql["publication"]["receipt"]["shards"][0]["receipt"]));
-    mysql["publication"]["receipt_sha256"]=json!(sha(&mysql["publication"]["receipt"]));
+    mysql["publication"]["receipt"]["shards"][0]["receipt_sha256"] = json!(sha(
+        &mysql["publication"]["receipt"]["shards"][0]["receipt"]
+    ));
+    mysql["publication"]["receipt_sha256"] = json!(sha(&mysql["publication"]["receipt"]));
     assert!(compile_library(&mysql).is_ok());
-    for (path,value) in [
-        ("/consistency_grade",json!("S0")),
-        ("/target_generation",json!(2)),
-        ("/oracle_buffer/source_offset_write",json!(true)),
-        ("/oracle_buffer/final_cursor/transaction_ordinal",json!("2")),
-        ("/oracle_buffer/commit_scn",json!("0")),
-        ("/oracle_buffer/source_identity/dbid",json!("9")),
-        ("/tables/0/schema",json!("FOREIGN")),
-        ("/tables/0/storage_schema",json!("foreign")),
-        ("/run_ids",json!([])),
+    for (path, value) in [
+        ("/consistency_grade", json!("S0")),
+        ("/target_generation", json!(2)),
+        ("/oracle_buffer/source_offset_write", json!(true)),
+        (
+            "/oracle_buffer/final_cursor/transaction_ordinal",
+            json!("2"),
+        ),
+        ("/oracle_buffer/commit_scn", json!("0")),
+        ("/oracle_buffer/source_identity/dbid", json!("9")),
+        ("/tables/0/schema", json!("FOREIGN")),
+        ("/tables/0/storage_schema", json!("foreign")),
+        ("/run_ids", json!([])),
     ] {
-        let mut bad=document.clone();
-        *bad["publication"]["receipt"]["shards"][0]["receipt"].pointer_mut(path).unwrap()=value;
-        bad["publication"]["receipt"]["shards"][0]["receipt_sha256"]=
+        let mut bad = document.clone();
+        *bad["publication"]["receipt"]["shards"][0]["receipt"]
+            .pointer_mut(path)
+            .unwrap() = value;
+        bad["publication"]["receipt"]["shards"][0]["receipt_sha256"] =
             json!(sha(&bad["publication"]["receipt"]["shards"][0]["receipt"]));
-        bad["publication"]["receipt_sha256"]=json!(sha(&bad["publication"]["receipt"]));
-        assert!(compile_library(&bad).is_err(),"{path}");
+        bad["publication"]["receipt_sha256"] = json!(sha(&bad["publication"]["receipt"]));
+        assert!(compile_library(&bad).is_err(), "{path}");
     }
 }
 
 #[test]
 fn complete_c1_library_keeps_33_members_and_enforces_its_explicit_capacity() {
     let mut document = fixture();
-    let mut receipt: Value = serde_json::from_str(include_str!("fixtures/oracle_c1_library.json")).unwrap();
+    let mut receipt: Value =
+        serde_json::from_str(include_str!("fixtures/oracle_c1_library.json")).unwrap();
     let template = receipt["shards"][0]["receipt"]["tables"][0].clone();
     let definition = document["effective"]["datasets"][0].clone();
     let visible = document["visibility"]["datasets"][0].clone();
@@ -110,33 +122,46 @@ fn complete_c1_library_keeps_33_members_and_enforces_its_explicit_capacity() {
     let mut definitions = Vec::new();
     let mut visibility = Vec::new();
     let mut bindings = Vec::new();
-    let tables: Vec<_> = (1..=33).map(|index| {
-        let mut table = template.clone();
-        let name = format!("T{index:04}");
-        let stored = format!("q_{}", name.bytes().map(|b| format!("{b:02x}")).collect::<String>());
-        let dataset = format!("q_415050.{stored}");
-        table["table"] = json!(name);
-        table["storage_table"] = json!(stored);
-        table["run_id"] = json!(format!("00000000-0000-4000-8000-{index:012x}"));
-        table["physical_name"] = json!(format!("pt_{index:060x}"));
-        let mut one = definition.clone();
-        one["dataset"] = json!(dataset);
-        definitions.push(one);
-        let mut one = visible.clone();
-        one["dataset"] = json!(dataset);
-        visibility.push(one);
-        let mut one = binding.clone();
-        one["dataset"] = json!(dataset);
-        one["source"] = json!("oracle_fixture");
-        bindings.push(one);
-        table
-    }).collect();
-    receipt["library"]["manifest"]["sources"][0]["tables"] =
-        json!(tables.iter().map(|t| t["storage_table"].clone()).collect::<Vec<_>>());
+    let tables: Vec<_> = (1..=33)
+        .map(|index| {
+            let mut table = template.clone();
+            let name = format!("T{index:04}");
+            let stored = format!(
+                "q_{}",
+                name.bytes().map(|b| format!("{b:02x}")).collect::<String>()
+            );
+            let dataset = format!("q_415050.{stored}");
+            table["table"] = json!(name);
+            table["storage_table"] = json!(stored);
+            table["run_id"] = json!(format!("00000000-0000-4000-8000-{index:012x}"));
+            table["physical_name"] = json!(format!("pt_{index:060x}"));
+            let mut one = definition.clone();
+            one["dataset"] = json!(dataset);
+            definitions.push(one);
+            let mut one = visible.clone();
+            one["dataset"] = json!(dataset);
+            visibility.push(one);
+            let mut one = binding.clone();
+            one["dataset"] = json!(dataset);
+            one["source"] = json!("oracle_fixture");
+            bindings.push(one);
+            table
+        })
+        .collect();
+    receipt["library"]["manifest"]["sources"][0]["tables"] = json!(
+        tables
+            .iter()
+            .map(|t| t["storage_table"].clone())
+            .collect::<Vec<_>>()
+    );
     receipt["library"]["manifest_sha256"] = json!(sha(&receipt["library"]["manifest"]));
     receipt["library"]["expected_tables"] = json!(33);
-    receipt["shards"][0]["receipt"]["run_ids"] =
-        json!(tables.iter().map(|t| t["run_id"].clone()).collect::<Vec<_>>());
+    receipt["shards"][0]["receipt"]["run_ids"] = json!(
+        tables
+            .iter()
+            .map(|t| t["run_id"].clone())
+            .collect::<Vec<_>>()
+    );
     receipt["shards"][0]["receipt"]["tables"] = json!(tables);
     receipt["shards"][0]["receipt_sha256"] = json!(sha(&receipt["shards"][0]["receipt"]));
     document["publication"]["receipt"] = receipt.clone();
@@ -159,11 +184,15 @@ fn complete_c1_library_keeps_33_members_and_enforces_its_explicit_capacity() {
         let mut bad = document.clone();
         let vector = &mut bad["publication"]["receipt"]["shards"][0]["receipt"];
         match fault {
-            0 => { vector["run_ids"].as_array_mut().unwrap().pop(); },
+            0 => {
+                vector["run_ids"].as_array_mut().unwrap().pop();
+            }
             1 => vector["tables"][32] = vector["tables"][0].clone(),
             2 => vector["tables"][32]["target_generation"] = json!(2),
             3 => vector["tables"][32]["canonical_digest"] = json!("bad"),
-            _ => { bad["bindings"].as_array_mut().unwrap().pop(); },
+            _ => {
+                bad["bindings"].as_array_mut().unwrap().pop();
+            }
         }
         bad["publication"]["receipt"]["shards"][0]["receipt_sha256"] =
             json!(sha(&bad["publication"]["receipt"]["shards"][0]["receipt"]));
@@ -202,7 +231,13 @@ fn offline_operator_pack_keeps_exact_grants_without_claiming_control_api_authent
     document["envelope"]["review"] = review.clone();
     document["envelope"]["producer"]["review_sha256"] = json!(sha(&review));
     reseal_library(&mut document);
-    assert_eq!(compile_library(&document).unwrap().policies[0].table.columns.len(), 2);
+    assert_eq!(
+        compile_library(&document).unwrap().policies[0]
+            .table
+            .columns
+            .len(),
+        2
+    );
     document["envelope"]["review"]["columns"]["app.items.phone"]["explicit_allow"] = json!(false);
     document["envelope"]["producer"]["review_sha256"] = json!(sha(&document["envelope"]["review"]));
     reseal_library(&mut document);
@@ -345,9 +380,19 @@ print(json.dumps({'effective':effective,'visibility':visibility,'review':review}
     });
     reseal_library(&mut document);
     let compiled = compile_library(&document).unwrap();
-    let files = document["envelope"]["producer"]["artifact"]["files"].as_array().unwrap();
-    let page = files.iter().find(|file| file["path"] == "tables/app.items.md").unwrap();
-    assert!(page["text"].as_str().unwrap().contains("UNREVIEWED: identifier"));
+    let files = document["envelope"]["producer"]["artifact"]["files"]
+        .as_array()
+        .unwrap();
+    let page = files
+        .iter()
+        .find(|file| file["path"] == "tables/app.items.md")
+        .unwrap();
+    assert!(
+        page["text"]
+            .as_str()
+            .unwrap()
+            .contains("UNREVIEWED: identifier")
+    );
     assert_eq!(compiled.policies[0].table.columns[1].name, "note");
     assert_eq!(
         compiled.policies[0].table.columns[1].semantic_type,
@@ -409,11 +454,13 @@ fn library_pack_catalog_capacity_is_explicit_and_legacy_limits_stay_closed() {
     );
     visibility["limits"] =
         json!({"max_file_bytes":4194304,"max_total_bytes":67108864,"max_entries":16384});
-    let mut caps = oo_builder::RolePackCeilings::default();
-    caps.max_datasets = 4096;
-    caps.max_entries = 16384;
-    caps.max_file_bytes = 4194304;
-    caps.max_total_bytes = 67108864;
+    let mut caps = oo_builder::RolePackCeilings {
+        max_datasets: 4096,
+        max_entries: 16384,
+        max_file_bytes: 4194304,
+        max_total_bytes: 67108864,
+        ..Default::default()
+    };
     let pack = oo_builder::compile_role_pack_with_ceilings(
         &effective.to_string(),
         &visibility.to_string(),
@@ -442,23 +489,45 @@ fn metric_candidates_and_readiness_survive_the_actual_role_pack_catalog() {
         "sql":"SELECT count(*) FROM app.items",
         "caveats":["Current role records only, not business entity count."]
     }]);
-    let pack = oo_builder::compile_role_pack(
-        &effective.to_string(), &document["visibility"].to_string()).unwrap();
+    let pack =
+        oo_builder::compile_role_pack(&effective.to_string(), &document["visibility"].to_string())
+            .unwrap();
     let dir = std::env::temp_dir().join(format!("oo-metric-catalog-{}", std::process::id()));
     std::fs::create_dir(&dir).unwrap();
     std::fs::write(dir.join("library.json"), &pack.artifact).unwrap();
     let catalog = oo_gateway::pack_catalog::PackCatalog::load_dir(&dir).unwrap();
-    let body = catalog.file_text("library", "oo_r_library", "1", "1", "metrics.md").unwrap();
+    let body = catalog
+        .file_text("library", "oo_r_library", "1", "1", "metrics.md")
+        .unwrap();
     assert!(body.text.contains("Candidate: visible_record_count"));
     assert!(body.text.contains("NOT CERTIFIED"));
-    let availability = catalog.file_text(
-        "library", "oo_r_library", "1", "1", "metrics/availability.json").unwrap();
+    let availability = catalog
+        .file_text(
+            "library",
+            "oo_r_library",
+            "1",
+            "1",
+            "metrics/availability.json",
+        )
+        .unwrap();
     let status: Value = serde_json::from_str(&availability.text).unwrap();
     assert_eq!(status["certified_metrics"], json!([]));
     assert_eq!(status["candidate_metrics"], json!(["visible_record_count"]));
-    assert!(catalog.file_text("other", "oo_r_library", "1", "1", "metrics.md").is_none());
-    assert!(catalog.file_text("library", "other", "1", "1", "metrics.md").is_none());
-    assert!(catalog.file_text("library", "oo_r_library", "2", "1", "metrics.md").is_none());
+    assert!(
+        catalog
+            .file_text("other", "oo_r_library", "1", "1", "metrics.md")
+            .is_none()
+    );
+    assert!(
+        catalog
+            .file_text("library", "other", "1", "1", "metrics.md")
+            .is_none()
+    );
+    assert!(
+        catalog
+            .file_text("library", "oo_r_library", "2", "1", "metrics.md")
+            .is_none()
+    );
     std::fs::remove_file(dir.join("library.json")).unwrap();
     std::fs::remove_dir(dir).unwrap();
 }

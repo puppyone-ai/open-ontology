@@ -15,37 +15,57 @@ struct MembersFile {
 }
 
 fn expanded_scope(document: &Value) -> Result<Value, &'static str> {
-    let Some(reference) = document.get("members_file") else { return Ok(document.clone()); };
+    let Some(reference) = document.get("members_file") else {
+        return Ok(document.clone());
+    };
     if document.get("members").is_some() {
         return Err("c5_range_members");
     }
-    let reference: MembersFile = serde_json::from_value(reference.clone()).map_err(|_| "c5_range_members")?;
+    let reference: MembersFile =
+        serde_json::from_value(reference.clone()).map_err(|_| "c5_range_members")?;
     let path = Path::new(&reference.path);
-    if !path.is_absolute() || reference.path.contains('\0') || !digest(&reference.sha256)
-        || path.components().any(|part| part == std::path::Component::ParentDir) {
+    if !path.is_absolute()
+        || reference.path.contains('\0')
+        || !digest(&reference.sha256)
+        || path
+            .components()
+            .any(|part| part == std::path::Component::ParentDir)
+    {
         return Err("c5_range_members");
     }
     let before = fs::symlink_metadata(path).map_err(|_| "c5_range_members")?;
-    if !before.is_file() || before.mode() & 0o077 != 0
-        || before.len() == 0 || before.len() > MEMBERS_MAX_BYTES {
+    if !before.is_file()
+        || before.mode() & 0o077 != 0
+        || before.len() == 0
+        || before.len() > MEMBERS_MAX_BYTES
+    {
         return Err("c5_range_members");
     }
     let file = fs::File::open(path).map_err(|_| "c5_range_members")?;
     let opened = file.metadata().map_err(|_| "c5_range_members")?;
-    if !opened.is_file() || (before.dev(), before.ino(), before.len(), before.mode())
-        != (opened.dev(), opened.ino(), opened.len(), opened.mode()) {
+    if !opened.is_file()
+        || (before.dev(), before.ino(), before.len(), before.mode())
+            != (opened.dev(), opened.ino(), opened.len(), opened.mode())
+    {
         return Err("c5_range_members");
     }
     let mut bytes = Vec::new();
-    file.take(MEMBERS_MAX_BYTES + 1).read_to_end(&mut bytes).map_err(|_| "c5_range_members")?;
-    if bytes.len() as u64 != before.len() || format!("{:x}", Sha256::digest(&bytes)) != reference.sha256 {
+    file.take(MEMBERS_MAX_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "c5_range_members")?;
+    if bytes.len() as u64 != before.len()
+        || format!("{:x}", Sha256::digest(&bytes)) != reference.sha256
+    {
         return Err("c5_range_members");
     }
     let members: Vec<TypedKey> = serde_json::from_slice(&bytes).map_err(|_| "c5_range_members")?;
     let mut expanded = document.clone();
     let object = expanded.as_object_mut().ok_or("c5_range_scope")?;
     object.remove("members_file");
-    object.insert("members".into(), serde_json::to_value(members).map_err(|_| "c5_range_members")?);
+    object.insert(
+        "members".into(),
+        serde_json::to_value(members).map_err(|_| "c5_range_members")?,
+    );
     Ok(expanded)
 }
 
@@ -76,12 +96,16 @@ pub struct OracleSnapshot {
 
 impl OracleSnapshot {
     pub fn valid(&self) -> bool {
-        !self.identity.is_empty() && self.identity.len() <= 1024
+        !self.identity.is_empty()
+            && self.identity.len() <= 1024
             && !self.identity.contains('\0')
-            && self.scn.len() <= 38 && !self.scn.starts_with('0')
-            && !self.scn.is_empty() && self.scn.bytes().all(|b| b.is_ascii_digit())
+            && self.scn.len() <= 38
+            && !self.scn.starts_with('0')
+            && !self.scn.is_empty()
+            && self.scn.bytes().all(|b| b.is_ascii_digit())
             && digest(&self.manifest_sha256)
-            && [&self.source_schema, &self.source_table].iter()
+            && [&self.source_schema, &self.source_table]
+                .iter()
                 .all(|s| !s.is_empty() && !s.contains('\0') && s.len() <= 128)
     }
 }
@@ -153,9 +177,10 @@ impl RangeScope {
         }
         match (&*scope.source_engine, &scope.oracle_snapshot) {
             ("mysql", None) => {}
-            ("oracle", Some(snapshot)) if snapshot.valid()
-                && snapshot.source_schema == scope.schema
-                && snapshot.source_table == scope.table => {}
+            ("oracle", Some(snapshot))
+                if snapshot.valid()
+                    && snapshot.source_schema == scope.schema
+                    && snapshot.source_table == scope.table => {}
             _ => return Err("c5_oracle_snapshot"),
         }
         let mut shape: Option<Vec<u8>> = None;
@@ -251,8 +276,8 @@ fn digest(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{io::Write, os::unix::fs::OpenOptionsExt};
     use serde_json::json;
+    use std::{io::Write, os::unix::fs::OpenOptionsExt};
 
     #[test]
     fn oracle_range_is_scn_bound_integer_only_and_mysql_shape_stays_closed() {
@@ -267,32 +292,50 @@ mod tests {
                 "manifest_sha256":"c".repeat(64),"source_schema":"OWNER","source_table":"ORDERS"}});
         assert!(RangeScope::parse(&value).is_ok());
         for (field, changed) in [
-            ("source_engine", json!("mysql")), ("oracle_snapshot", Value::Null),
-            ("schema", json!("OTHER")), ("table", json!("OTHER")),
+            ("source_engine", json!("mysql")),
+            ("oracle_snapshot", Value::Null),
+            ("schema", json!("OTHER")),
+            ("table", json!("OTHER")),
         ] {
-            let mut bad=value.clone(); bad[field]=changed;
+            let mut bad = value.clone();
+            bad[field] = changed;
             assert!(RangeScope::parse(&bad).is_err(), "{field}");
         }
-        let mut bad=value.clone(); bad["oracle_snapshot"]["scn"]=json!("02304141");
+        let mut bad = value.clone();
+        bad["oracle_snapshot"]["scn"] = json!("02304141");
         assert!(RangeScope::parse(&bad).is_err());
-        let mut bad=value.clone(); bad["row_count"]=json!(1);
-        bad["members"]=json!([[{"kind":"int","value":257}]]);
+        let mut bad = value.clone();
+        bad["row_count"] = json!(1);
+        bad["members"] = json!([[{"kind":"int","value":257}]]);
         assert_eq!(RangeScope::parse(&bad).unwrap_err(), "c5_range_bounds");
-        let mut bad=value.clone(); bad["lo"]=json!([{"kind":"text","value":"30"}]);
+        let mut bad = value.clone();
+        bad["lo"] = json!([{"kind":"text","value":"30"}]);
         assert!(RangeScope::parse(&bad).is_err());
     }
 
     #[test]
     fn large_membership_is_a_bounded_hashed_file_not_a_larger_control_envelope() {
-        let root = std::env::temp_dir().join(format!("c5-members-{}-{}",
-            std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let root = std::env::temp_dir().join(format!(
+            "c5-members-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         fs::create_dir(&root).unwrap();
         let path = root.join("members.json");
-        let members: Vec<TypedKey> = (0..30_000).map(|n|
-            vec![KeyComponent::Text(format!("{n:064x}"))]).collect();
+        let members: Vec<TypedKey> = (0..30_000)
+            .map(|n| vec![KeyComponent::Text(format!("{n:064x}"))])
+            .collect();
         let bytes = serde_json::to_vec(&members).unwrap();
         assert!(bytes.len() > 1024 * 1024);
-        let mut file = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path).unwrap();
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&path)
+            .unwrap();
         file.write_all(&bytes).unwrap();
         let mut scope = json!({"protocol":REQUEST_PROTOCOL,"source_engine":"mysql",
             "capture_method":"c5_diff","source_id":"fixture","schema":"app","table":"t",
@@ -305,20 +348,21 @@ mod tests {
         let parsed = RangeScope::parse(&scope).unwrap();
         parsed.validate_keys(&members).unwrap();
         parsed.require_bound(&scope).unwrap();
-        let mut incomplete = members.clone(); incomplete.pop();
+        let mut incomplete = members.clone();
+        incomplete.pop();
         assert!(parsed.validate_keys(&incomplete).is_err());
         scope["members"] = json!([]);
         assert!(RangeScope::parse(&scope).is_err());
         scope.as_object_mut().unwrap().remove("members");
         scope["members_file"]["sha256"] = json!("0".repeat(64));
         assert!(RangeScope::parse(&scope).is_err());
-        scope["members_file"]["sha256"] = json!(format!("{:x}",Sha256::digest(&bytes)));
+        scope["members_file"]["sha256"] = json!(format!("{:x}", Sha256::digest(&bytes)));
         let link = root.join("link.json");
         std::os::unix::fs::symlink(&path, &link).unwrap();
         scope["members_file"]["path"] = json!(link);
         assert!(RangeScope::parse(&scope).is_err());
         scope["members_file"]["path"] = json!(path);
-        fs::write(&path,b"[]").unwrap();
+        fs::write(&path, b"[]").unwrap();
         assert!(RangeScope::parse(&scope).is_err());
         file.set_len(MEMBERS_MAX_BYTES + 1).unwrap();
         assert!(RangeScope::parse(&scope).is_err());

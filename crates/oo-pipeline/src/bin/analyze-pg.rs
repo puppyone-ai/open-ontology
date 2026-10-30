@@ -24,10 +24,10 @@ use serde_json::{Map, Value};
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::{ConnectOptions, Row};
 
-use oo_pipeline::physical_mapping::{plan_physical_mapping, Level, MappingRequest, PlanError};
+use oo_pipeline::physical_mapping::{Level, MappingRequest, PlanError, plan_physical_mapping};
 use oo_pipeline::target_statistics::{
-    analyze_mapped_shadows, ConnectionDisposition, LogicalTableRef, MaintenanceError,
-    StatisticsError, StatisticsRequest, MAX_TABLES, MAX_TIMEOUT_MS, MIN_TIMEOUT_MS, PROTOCOL,
+    ConnectionDisposition, LogicalTableRef, MAX_TABLES, MAX_TIMEOUT_MS, MIN_TIMEOUT_MS,
+    MaintenanceError, PROTOCOL, StatisticsError, StatisticsRequest, analyze_mapped_shadows,
 };
 
 const REQUEST_PROTOCOL: &str = "oo.pipeline.analyze-pg/v1";
@@ -69,8 +69,12 @@ async fn run() -> Result<String, Fail> {
     if !(1..=MAX_CONNECT_MS).contains(&connect_ms) {
         return Err(Fail::input());
     }
-    let endpoint = PgEndpoint::new(&request.target.host, request.target.port, &request.target.database)
-        .map_err(|_| Fail::input())?;
+    let endpoint = PgEndpoint::new(
+        &request.target.host,
+        request.target.port,
+        &request.target.database,
+    )
+    .map_err(|_| Fail::input())?;
     PgCredentials::new(&request.target.operator, "x").map_err(|_| Fail::input())?;
     closed(&request)?;
     let statistics = statistics_request(&request);
@@ -78,7 +82,8 @@ async fn run() -> Result<String, Fail> {
     let ca = read_ca(&request.target.ca_file)?;
     PgCredentials::new(&request.target.operator, password.as_str()).map_err(|_| Fail::input())?;
     let timeout = Duration::from_millis(connect_ms);
-    let mut conn = connect_target(&endpoint, &request.target.operator, &password, &ca, timeout).await?;
+    let mut conn =
+        connect_target(&endpoint, &request.target.operator, &password, &ca, timeout).await?;
     expect_principal(&mut conn, &request.target.operator, timeout).await?;
     let receipt = analyze_mapped_shadows(&mut conn, &statistics)
         .await
@@ -241,8 +246,12 @@ async fn expect_principal(
         Ok(Ok(row)) => row,
         _ => return Err(Fail::new(4, "target principal")),
     };
-    let current: String = row.try_get(0).map_err(|_| Fail::new(4, "target principal"))?;
-    let session: String = row.try_get(1).map_err(|_| Fail::new(4, "target principal"))?;
+    let current: String = row
+        .try_get(0)
+        .map_err(|_| Fail::new(4, "target principal"))?;
+    let session: String = row
+        .try_get(1)
+        .map_err(|_| Fail::new(4, "target principal"))?;
     if current == operator && session == operator {
         Ok(())
     } else {
@@ -265,7 +274,9 @@ fn read_stdin() -> Result<String, Fail> {
     let mut chunk = [0_u8; 8192];
     let limit = oo_core::limits::DOCUMENT_MAX_BYTES;
     loop {
-        let read = stdin.read(&mut chunk).map_err(|_| Fail::new(1, "analyze input"))?;
+        let read = stdin
+            .read(&mut chunk)
+            .map_err(|_| Fail::new(1, "analyze input"))?;
         if read == 0 {
             break;
         }

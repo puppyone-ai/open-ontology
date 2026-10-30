@@ -13,10 +13,10 @@ use std::time::Duration;
 use arrow_array::{Array, BooleanArray, Decimal128Array, Int64Array, StringArray};
 use oo_connectors::{
     BomPolicy, ChildRequest, DelimitedColumn, DelimitedDialect, DelimitedProfile, DelimitedType,
-    FailureKind, HeaderPolicy, JsonlColumn, JsonlProfile, JsonlType, NullPolicy, ParentConfig,
-    ParentError, ParentParseComplete, ParentPull, PullBudget, SourceProfile, VerifiedBatch,
-    FILE_WORKER_PARENT_PROTOCOL, KERNEL_RESTRICTION, PARENT_DEADLINE_MAX_MS, PARENT_DEADLINE_MIN_MS,
-    KernelRestriction,
+    FILE_WORKER_PARENT_PROTOCOL, FailureKind, HeaderPolicy, JsonlColumn, JsonlProfile, JsonlType,
+    KERNEL_RESTRICTION, KernelRestriction, NullPolicy, PARENT_DEADLINE_MAX_MS,
+    PARENT_DEADLINE_MIN_MS, ParentConfig, ParentError, ParentParseComplete, ParentPull, PullBudget,
+    SourceProfile, VerifiedBatch,
 };
 use sha2::{Digest, Sha256};
 
@@ -50,14 +50,7 @@ fn parent(deadline_ms: u64, bin: &Path) -> ParentConfig {
 
 fn jsonl_budget(batch_rows: u32) -> PullBudget {
     PullBudget::jsonl(
-        batch_rows,
-        1_048_576,
-        65_536,
-        1_048_576,
-        1000,
-        16,
-        64,
-        60_000,
+        batch_rows, 1_048_576, 65_536, 1_048_576, 1000, 16, 64, 60_000,
     )
     .unwrap_or_else(|err| panic!("{UUID} jsonl budget {err}"))
 }
@@ -148,7 +141,9 @@ fn assert_not_complete(err: ParentError) -> oo_connectors::Failure {
     failure(err)
 }
 
-fn pull_all(mut pull: ParentPull) -> Result<(Vec<VerifiedBatch>, ParentParseComplete), ParentError> {
+fn pull_all(
+    mut pull: ParentPull,
+) -> Result<(Vec<VerifiedBatch>, ParentParseComplete), ParentError> {
     let mut batches = Vec::new();
     while let Some(batch) = pull.next_batch()? {
         batches.push(batch);
@@ -330,11 +325,17 @@ fn csv_tsv_and_jsonl_round_trip_exact_values() {
     let schema = batch.schema();
     let amount = schema.field(3);
     assert_eq!(
-        amount.metadata().get("oo.delimited.logical").map(String::as_str),
+        amount
+            .metadata()
+            .get("oo.delimited.logical")
+            .map(String::as_str),
         Some("decimal")
     );
     assert_eq!(
-        amount.metadata().get("oo.delimited.scale").map(String::as_str),
+        amount
+            .metadata()
+            .get("oo.delimited.scale")
+            .map(String::as_str),
         Some("2")
     );
     let profile = enterprise_profile();
@@ -433,7 +434,9 @@ fn csv_tsv_and_jsonl_round_trip_exact_values() {
         }
     }
     assert!(pull.next_batch().unwrap().is_none(), "{UUID} jsonl tail");
-    let done = pull.finish().unwrap_or_else(|err| panic!("{UUID} jsonl finish {err}"));
+    let done = pull
+        .finish()
+        .unwrap_or_else(|err| panic!("{UUID} jsonl finish {err}"));
     assert_receipt(&done, 3, 3, jsonl_sha);
     assert_eq!(done.reader_protocol(), "oo.source.jsonl/v1");
     assert_eq!(done.profile_digest(), profile.profile_digest());

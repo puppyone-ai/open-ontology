@@ -35,7 +35,7 @@
 | 引擎 | 审计手段（候选，随目标验证） |
 |---|---|
 | PostgreSQL | `log_statement='all'` 或 `pgaudit` 的会话审计；`pg_stat_statements` 作旁证 |
-| MySQL/MariaDB | 审计插件或 general log（测试实例上）；`performance_schema` 语句事件。三者均不可用时，可由已安装来源配置显式启用 `grant_enforced`（库强制只读授权 + 只读快照事务，[ADR-017](../02-technology-stack.md)），证据等级低于源端审计，须在证据包与交付说明中标明 |
+| MySQL/MariaDB | 审计插件或 general log（测试实例上）；`performance_schema` 语句事件 |
 | SQL Server | SQL Server Audit / Extended Events（按登录名过滤） |
 | Oracle | 统一审计（Unified Auditing）按用户策略 |
 | Db2 | `db2audit` |
@@ -56,7 +56,6 @@
 
 - 字符串/二进制键分块必须强制**二进制排序**：PG `COLLATE "C"`、MySQL `ORDER BY BINARY col` 或二进制排序规则、SQL Server `COLLATE Latin1_General_BIN2`、Oracle `NLSSORT(col,'NLS_SORT=BINARY')`、其他引擎按其二进制排序设施（待各 DBP 验证）。
 - 若引擎无法保证二进制排序，或强制排序使索引不可用而严重放大源负载，则该表采用哈希分块（按主键哈希取模）或 `read_keys` 全键扫描，并在 AccessReport 标明。
-- 第三种做法（提议，[ADR-020](../02-technology-stack.md)）：边界比较全部在源库内以列排序规则完成，客户端不做字符串比较，Agent DB 侧按持久化的分块标识归属（`chunk_key_order: source_collation`）。须通过本节夹具后方可启用。
 - 套件夹具必须包含：中文（GBK/GB18030 与 UTF-8）、大小写、重音、尾空格、二进制主键；对不同排序规则的目标分别验证（AT-SRC-04）。
 
 ## 4. 夹具与许可
@@ -111,9 +110,3 @@
 8. 数据 owner、DBA、安全三类 reviewer 签字（具体人名未确定时标 pending，不得用角色占位冒充签名）。
 
 晋升到 `certified` 另需客户或等价规模证据与故障演练（[01 §2](01-admission-and-support-matrix.md)）。
-
-## 8. 整库与活源的对账口径
-
-冻结窗口零差异与活源容忍分别报告：默认 `oracle_source_chunks_unresolved` 拒绝；显式容忍后仍输出 `live_source_post_snapshot_rows` / `unresolved_chunks` 及阈值，不能记为零差异。大表分别采集并立即独立对账，缩短漂移窗口。double(M,D) 使用类型化数值比较，不能因两端文本格式不同报坏数据，也不能用宽松字符串规则掩盖数值变化。
-
-复合键按索引顺序、源排序规则分块，varchar/date/varbinary 要组合测试；空复合键表也走键感知读取器，不以无数据误报 read_budget。无键空表须有精确 COUNT 与排除/升级条件。补充 unsigned bigint→decimal(20,0) 最大值、零日期/NUL 脱敏 rejects、宽表与大 TEXT/LOB 的独立边界。分块的跨块等级仍为 B。参见 [现场手册 F–G](06-real-source-field-notes.md)。

@@ -12,20 +12,31 @@ use serde::Serialize;
 const RENDER_MAX_BYTES: usize = 16 * 1024 * 1024;
 
 pub fn with_publication(
-    mut bytes: Vec<u8>, json: bool, binding: Option<&oo_sdk::PublicationReceipt>,
+    mut bytes: Vec<u8>,
+    json: bool,
+    binding: Option<&oo_sdk::PublicationReceipt>,
 ) -> Result<Vec<u8>, RenderError> {
     if let Some(binding) = binding {
         if json {
-            let mut value: serde_json::Value = serde_json::from_slice(&bytes).map_err(|_| RenderError::Encode)?;
-            value["publication_binding"] = serde_json::to_value(binding).map_err(|_| RenderError::Encode)?;
+            let mut value: serde_json::Value =
+                serde_json::from_slice(&bytes).map_err(|_| RenderError::Encode)?;
+            value["publication_binding"] =
+                serde_json::to_value(binding).map_err(|_| RenderError::Encode)?;
             bytes = serde_json::to_vec(&value).map_err(|_| RenderError::Encode)?;
             bytes.push(b'\n');
         } else {
-            bytes.extend_from_slice(format!("\n-- publication_id: {}\n-- data_vector_sha256: {}\n",
-                binding.publication_id, binding.data_vector_sha256).as_bytes());
+            bytes.extend_from_slice(
+                format!(
+                    "\n-- publication_id: {}\n-- data_vector_sha256: {}\n",
+                    binding.publication_id, binding.data_vector_sha256
+                )
+                .as_bytes(),
+            );
         }
     }
-    if bytes.len() > RENDER_MAX_BYTES { return Err(RenderError::Budget); }
+    if bytes.len() > RENDER_MAX_BYTES {
+        return Err(RenderError::Budget);
+    }
     Ok(bytes)
 }
 
@@ -37,8 +48,18 @@ pub fn freshness_summary(value: &serde_json::Value) -> serde_json::Value {
     let mut omitted = serde_json::Map::new();
     // Evidence arrays can exceed an Agent's context budget for a whole library.
     // Keep warnings and all unknown fields; the unabridged command remains unchanged.
-    for key in ["imports", "library_publications", "mappings", "receipts", "runs",
-                "source_watermarks", "sources", "table_quality", "target_observations", "freshness"] {
+    for key in [
+        "imports",
+        "library_publications",
+        "mappings",
+        "receipts",
+        "runs",
+        "source_watermarks",
+        "sources",
+        "table_quality",
+        "target_observations",
+        "freshness",
+    ] {
         if let Some(serde_json::Value::Array(items)) = object.get(key) {
             let mut states = std::collections::BTreeMap::<String, usize>::new();
             for item in items {
@@ -46,17 +67,23 @@ pub fn freshness_summary(value: &serde_json::Value) -> serde_json::Value {
                     *states.entry(state.to_owned()).or_default() += 1;
                 }
             }
-            omitted.insert(key.to_owned(), serde_json::json!({
-                "count": items.len(), "state_counts": states
-            }));
+            omitted.insert(
+                key.to_owned(),
+                serde_json::json!({
+                    "count": items.len(), "state_counts": states
+                }),
+            );
             object.remove(key);
         }
     }
-    object.insert("evidence_summary".into(), serde_json::json!({
-        "details_omitted": true, "arrays": omitted,
-        "detail_command": "oo freshness (without --summary)",
-        "scope": "role-wide; not proof of source recency or cross-table consistency"
-    }));
+    object.insert(
+        "evidence_summary".into(),
+        serde_json::json!({
+            "details_omitted": true, "arrays": omitted,
+            "detail_command": "oo freshness (without --summary)",
+            "scope": "role-wide; not proof of source recency or cross-table consistency"
+        }),
+    );
     summary
 }
 
@@ -76,13 +103,22 @@ mod summary_tests {
             "receipts": [{"target_commit_at":"2026-10-20T00:00:00Z"}]
         });
         let result = freshness_summary(&input);
-        for key in ["source_time", "knowledge_version", "policy_version", "warnings",
-                    "source_ids", "future_field"] {
+        for key in [
+            "source_time",
+            "knowledge_version",
+            "policy_version",
+            "warnings",
+            "source_ids",
+            "future_field",
+        ] {
             assert_eq!(result[key], input[key]);
         }
         assert!(result.get("receipts").is_none());
         assert_eq!(result["evidence_summary"]["arrays"]["receipts"]["count"], 1);
-        assert_eq!(result["evidence_summary"]["arrays"]["target_observations"]["state_counts"]["stale"], 1);
+        assert_eq!(
+            result["evidence_summary"]["arrays"]["target_observations"]["state_counts"]["stale"],
+            1
+        );
         assert_eq!(result["evidence_summary"]["details_omitted"], true);
         assert!(input.get("receipts").is_some());
     }
@@ -102,42 +138,70 @@ pub enum RenderError {
 
 pub fn describe_markdown(value: &serde_json::Value) -> Result<Vec<u8>, RenderError> {
     let object = value.as_object().ok_or(RenderError::Encode)?;
-    let table = object.get("table").and_then(serde_json::Value::as_str)
+    let table = object
+        .get("table")
+        .and_then(serde_json::Value::as_str)
         .ok_or(RenderError::Encode)?;
-    let columns = object.get("columns").and_then(serde_json::Value::as_array)
+    let columns = object
+        .get("columns")
+        .and_then(serde_json::Value::as_array)
         .ok_or(RenderError::Encode)?;
-    let details = object.get("column_details").and_then(serde_json::Value::as_array);
-    let mut out = format!("# {}\n\n{} visible columns (all listed)\n\n| Column | Type |\n| --- | --- |\n",
-        escape(table), columns.len());
+    let details = object
+        .get("column_details")
+        .and_then(serde_json::Value::as_array);
+    let mut out = format!(
+        "# {}\n\n{} visible columns (all listed)\n\n| Column | Type |\n| --- | --- |\n",
+        escape(table),
+        columns.len()
+    );
     for column in columns {
         let name = column.as_str().ok_or(RenderError::Encode)?;
         let detail = details.and_then(|items| items.iter().find(|item| item["name"] == name));
-        let kind = detail.and_then(|item| item["type"].as_str()).unwrap_or("unavailable");
+        let kind = detail
+            .and_then(|item| item["type"].as_str())
+            .unwrap_or("unavailable");
         let _ = writeln!(out, "| {} | {} |", escape(name), escape(kind));
     }
     if let Some(caps) = object.get("query_capabilities") {
-        let status = caps.get("status").and_then(serde_json::Value::as_str).unwrap_or("unavailable");
+        let status = caps
+            .get("status")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("unavailable");
         let _ = writeln!(out, "\nQuery capabilities: {}", escape(status));
         if let Some(functions) = caps.get("functions").and_then(serde_json::Value::as_array) {
-            let signatures = functions.iter().map(|function| {
-                let name = function["name"].as_str().unwrap_or("unavailable");
-                let args = if function["aggregate_star"] == true {
-                    "*".to_owned()
-                } else {
-                    function["argument_types"].as_array().map(|args| {
-                        args.iter().map(|arg| arg.as_str().unwrap_or("unavailable"))
-                            .collect::<Vec<_>>().join(", ")
-                    }).unwrap_or_else(|| "unavailable".to_owned())
-                };
-                escape(&format!("{name}({args})"))
-            }).collect::<Vec<_>>();
+            let signatures = functions
+                .iter()
+                .map(|function| {
+                    let name = function["name"].as_str().unwrap_or("unavailable");
+                    let args = if function["aggregate_star"] == true {
+                        "*".to_owned()
+                    } else {
+                        function["argument_types"]
+                            .as_array()
+                            .map(|args| {
+                                args.iter()
+                                    .map(|arg| arg.as_str().unwrap_or("unavailable"))
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            })
+                            .unwrap_or_else(|| "unavailable".to_owned())
+                    };
+                    escape(&format!("{name}({args})"))
+                })
+                .collect::<Vec<_>>();
             let _ = writeln!(out, "Functions: {}", signatures.join(", "));
         }
         if let Some(operators) = caps.get("operators").and_then(serde_json::Value::as_array) {
-            let names = operators.iter().filter_map(|item| item["name"].as_str())
+            let names = operators
+                .iter()
+                .filter_map(|item| item["name"].as_str())
                 .collect::<std::collections::BTreeSet<_>>();
-            let _ = writeln!(out, "Operators: {} ({} typed signatures; see --json)",
-                names.into_iter().map(escape).collect::<Vec<_>>().join(", "), operators.len());
+            let _ = writeln!(
+                out,
+                "Operators: {} ({} typed signatures; see --json)",
+                names.into_iter().map(escape).collect::<Vec<_>>().join(", "),
+                operators.len()
+            );
         }
         // Only the repetitive overload lists are summarized; keep capability caveats.
         for (key, item) in caps.as_object().into_iter().flatten() {
@@ -147,13 +211,18 @@ pub fn describe_markdown(value: &serde_json::Value) -> Result<Vec<u8>, RenderErr
         }
     }
     for (key, item) in object {
-        if !matches!(key.as_str(), "table" | "columns" | "column_details" | "query_capabilities") {
+        if !matches!(
+            key.as_str(),
+            "table" | "columns" | "column_details" | "query_capabilities"
+        ) {
             let _ = writeln!(out, "\n{}: {}", escape(key), escape(&item.to_string()));
         }
     }
     out.push_str("\nFull metadata and exact signatures: oo describe --json <schema.table>\n");
     out.push_str("Check the complete SQL before execution: oo validate \"<sql>\"\n");
-    if out.len() > RENDER_MAX_BYTES { return Err(RenderError::Budget); }
+    if out.len() > RENDER_MAX_BYTES {
+        return Err(RenderError::Budget);
+    }
     Ok(out.into_bytes())
 }
 
@@ -176,10 +245,20 @@ mod describe_tests {
             }
         });
         let out = String::from_utf8(describe_markdown(&input).ok().unwrap()).unwrap();
-        for text in ["3 visible columns", "| id | int8 |", "| amount | numeric |",
-                     "| no_type | unavailable |", "CROSS_TABLE_SKEW", "future_field",
-                     "sum(numeric), count(*)", "2 typed signatures", "requires_validate: true",
-                     "truncated: false", "oo describe --json", "oo validate"] {
+        for text in [
+            "3 visible columns",
+            "| id | int8 |",
+            "| amount | numeric |",
+            "| no_type | unavailable |",
+            "CROSS_TABLE_SKEW",
+            "future_field",
+            "sum(numeric), count(*)",
+            "2 typed signatures",
+            "requires_validate: true",
+            "truncated: false",
+            "oo describe --json",
+            "oo validate",
+        ] {
             assert!(out.contains(text), "{text}: {out}");
         }
         assert!(!out.contains("left_type"));

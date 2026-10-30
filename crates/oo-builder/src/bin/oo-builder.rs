@@ -52,7 +52,10 @@ fn main() -> ExitCode {
             match read_and_compile_captured() {
                 Ok(bytes) => write_command("captured-pg-draft", &bytes),
                 Err(err) => {
-                    eprintln!("oo-builder: captured-pg-draft: {} {}", err.code, err.message);
+                    eprintln!(
+                        "oo-builder: captured-pg-draft: {} {}",
+                        err.code, err.message
+                    );
                     ExitCode::from(1)
                 }
             }
@@ -142,13 +145,9 @@ fn usage() {
     eprintln!(
         "oo-builder:   review-pg-draft       catalog object, optional curated object, optional reviews array"
     );
-    eprintln!(
-        "oo-builder: review-pg-draft passes those values to compile_captured_pg_catalog"
-    );
+    eprintln!("oo-builder: review-pg-draft passes those values to compile_captured_pg_catalog");
     eprintln!("oo-builder:   role-pack             one oo.builder.role-pack-command/v1 document");
-    eprintln!(
-        "oo-builder: role-pack passes effective_oos and visibility to compile_role_pack"
-    );
+    eprintln!("oo-builder: role-pack passes effective_oos and visibility to compile_role_pack");
     eprintln!(
         "oo-builder: the visibility object is caller-supplied public data, not a live permission proof"
     );
@@ -186,8 +185,7 @@ fn read_and_compile_captured() -> Result<String, DraftError> {
 fn read_and_compile_review() -> Result<String, DraftError> {
     let text = read_stdin()?;
     let value = oo_core::parse_json_value(&text, EVIDENCE_PROTOCOL).map_err(map_scan)?;
-    let document: ReviewPgDocument =
-        serde_json::from_value(value).map_err(map_review_document)?;
+    let document: ReviewPgDocument = serde_json::from_value(value).map_err(map_review_document)?;
     if !document.catalog.is_object() {
         return Err(DraftError::new(
             "schema.invalid",
@@ -207,7 +205,10 @@ fn map_review_document(err: serde_json::Error) -> DraftError {
     let (name, message) = if text.contains("unknown field") {
         ("field.unknown", "review document has an unknown field")
     } else if text.contains("missing field") {
-        ("field.missing", "review document is missing a required field")
+        (
+            "field.missing",
+            "review document is missing a required field",
+        )
     } else {
         (
             "schema.invalid",
@@ -311,8 +312,8 @@ fn command_document(compiled: &CapturedPgDraft) -> Result<String, DraftError> {
 }
 
 fn require_object(text: &str, message: &'static str) -> Result<(), DraftError> {
-    let value: Value = serde_json::from_str(text)
-        .map_err(|_| DraftError::new("schema.invalid", "/", message))?;
+    let value: Value =
+        serde_json::from_str(text).map_err(|_| DraftError::new("schema.invalid", "/", message))?;
     if value.is_object() {
         Ok(())
     } else {

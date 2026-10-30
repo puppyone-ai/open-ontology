@@ -6,7 +6,9 @@
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
-use oo_builder::{RolePack, RolePackError, compile_role_pack, normalize_pack_path, unicode_word_tokens};
+use oo_builder::{
+    RolePack, RolePackError, compile_role_pack, normalize_pack_path, unicode_word_tokens,
+};
 
 fn compile(effective: &Value, visibility: &Value) -> Result<RolePack, RolePackError> {
     compile_role_pack(
@@ -62,7 +64,10 @@ fn aggregate_shapes_survive_compilation_without_bypassing_hidden_dependencies() 
         let (mut effective, visibility) = analyst_documents();
         effective["metrics"][0]["sql"] = json!(sql);
         let pack = must(&effective, &visibility);
-        assert!(pack.file("metrics.md").unwrap().contains("## order_amount"), "{sql}");
+        assert!(
+            pack.file("metrics.md").unwrap().contains("## order_amount"),
+            "{sql}"
+        );
     }
     for sql in [
         "SELECT SUM(secret_note) FROM sales.order",
@@ -72,7 +77,13 @@ fn aggregate_shapes_survive_compilation_without_bypassing_hidden_dependencies() 
     ] {
         let (mut effective, visibility) = analyst_documents();
         effective["metrics"][0]["sql"] = json!(sql);
-        assert!(!must(&effective, &visibility).file("metrics.md").unwrap().contains("## order_amount"), "{sql}");
+        assert!(
+            !must(&effective, &visibility)
+                .file("metrics.md")
+                .unwrap()
+                .contains("## order_amount"),
+            "{sql}"
+        );
     }
 }
 
@@ -81,15 +92,35 @@ fn asset_availability_is_role_scoped_and_failed_examples_are_not_published() {
     let (mut effective, visibility) = analyst_documents();
     let pack = must(&effective, &visibility);
     let status: Value = serde_json::from_str(pack.file("availability.json").unwrap()).unwrap();
-    assert!(status["available"]["metrics"].as_array().unwrap().contains(&json!("order_amount")));
-    assert!(!status["available"]["metrics"].as_array().unwrap().contains(&json!("hidden_amount")));
+    assert!(
+        status["available"]["metrics"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("order_amount"))
+    );
+    assert!(
+        !status["available"]["metrics"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("hidden_amount"))
+    );
     assert_eq!(status["runtime_execution_verified"], false);
     effective["examples"][0]["last_checked"] = json!({
         "at": "2026-10-22", "status": "failed", "result_hash": "a".repeat(64)
     });
     let failed = must(&effective, &visibility);
-    assert!(!failed.file("examples/verified.sql").unwrap().contains("-- ex-order"));
-    assert!(!failed.file("availability.json").unwrap().contains("ex-order"));
+    assert!(
+        !failed
+            .file("examples/verified.sql")
+            .unwrap()
+            .contains("-- ex-order")
+    );
+    assert!(
+        !failed
+            .file("availability.json")
+            .unwrap()
+            .contains("ex-order")
+    );
 }
 
 #[test]
@@ -110,14 +141,18 @@ fn large_metric_library_has_bounded_detail_files_without_losing_definitions() {
     let mut index = String::new();
     let mut page = 1;
     loop {
-        let path = if page == 1 { "metrics.md".to_owned() } else {
+        let path = if page == 1 {
+            "metrics.md".to_owned()
+        } else {
             format!("metrics/_index/{page:04}.md")
         };
         let text = pack.file(&path).unwrap();
         assert!(unicode_word_tokens(text) <= 2000);
         assert!(text.contains("NOT CERTIFIED"));
         index.push_str(text);
-        if !text.contains("\nNext: [") { break; }
+        if !text.contains("\nNext: [") {
+            break;
+        }
         page += 1;
     }
     for i in 0..60 {
@@ -129,14 +164,19 @@ fn large_metric_library_has_bounded_detail_files_without_losing_definitions() {
         assert!(detail.contains(&format!("Candidate: {name}")));
         assert!(detail.contains("SELECT SUM(amount)"));
     }
-    let status: Value = serde_json::from_str(pack.file("metrics/availability.json").unwrap()).unwrap();
+    let status: Value =
+        serde_json::from_str(pack.file("metrics/availability.json").unwrap()).unwrap();
     assert_eq!(status["candidate_metrics"].as_array().unwrap().len(), 60);
     assert_eq!(status["certified_metrics"], json!([]));
     let manifest: Value = serde_json::from_str(pack.file("manifest.json").unwrap()).unwrap();
     assert!(manifest["file_index"].is_object());
-    let records = oo_builder::manifest_file_records(&manifest, |path| pack.file(path).ok()).unwrap();
+    let records =
+        oo_builder::manifest_file_records(&manifest, |path| pack.file(path).ok()).unwrap();
     let artifact: Value = serde_json::from_str(&pack.artifact).unwrap();
-    let expected: Vec<_> = artifact["files"].as_array().unwrap().iter()
+    let expected: Vec<_> = artifact["files"]
+        .as_array()
+        .unwrap()
+        .iter()
         .filter(|file| file["path"] != "manifest.json")
         .map(|file| json!({"bytes": file["bytes"], "path": file["path"], "sha256": file["sha256"]}))
         .collect();
@@ -153,7 +193,8 @@ fn large_metric_library_has_bounded_detail_files_without_losing_definitions() {
 fn metric_pages_use_gate_tokens_before_the_old_32k_byte_threshold() {
     let (mut effective, visibility) = analyst_documents();
     effective["ontology"]["publish"]["include_unreviewed"] = json!(["metrics"]);
-    effective["metrics"] = json!((0..17).map(|i| json!({
+    effective["metrics"] =
+        json!((0..17).map(|i| json!({
         "metric": format!("proposal_{i:02}"), "label": format!("Proposal {i}"),
         "sql": "SELECT SUM(amount) FROM sales.order", "status": "draft", "certified": false,
         "caveats": ["Input proposal, not a business approval.".repeat(12)]
@@ -171,8 +212,12 @@ fn metric_pages_use_gate_tokens_before_the_old_32k_byte_threshold() {
         assert!(unicode_word_tokens(detail) <= 2000);
         assert!(detail.contains("NOT CERTIFIED") && detail.contains("SELECT SUM(amount)"));
     }
-    let availability: Value = serde_json::from_str(pack.file("metrics/availability.json").unwrap()).unwrap();
-    assert_eq!(availability["candidate_metrics"].as_array().unwrap().len(), 17);
+    let availability: Value =
+        serde_json::from_str(pack.file("metrics/availability.json").unwrap()).unwrap();
+    assert_eq!(
+        availability["candidate_metrics"].as_array().unwrap().len(),
+        17
+    );
     assert_eq!(availability["certified_metrics"], json!([]));
 }
 
@@ -192,7 +237,11 @@ fn one_large_metric_is_losslessly_fragmented_without_certifying_partial_sql() {
     let expected = original.file("metrics.md").unwrap();
     assert!(unicode_word_tokens(expected) > 2000);
     let pack = must(&effective, &visibility);
-    assert!(pack.file("metrics/large_proposal.md").unwrap().contains("must not be executed"));
+    assert!(
+        pack.file("metrics/large_proposal.md")
+            .unwrap()
+            .contains("must not be executed")
+    );
     let mut path = "metrics/large_proposal/part-0001.json".to_owned();
     let mut complete = String::new();
     let mut sequence = 1;
@@ -203,15 +252,21 @@ fn one_large_metric_is_losslessly_fragmented_without_certifying_partial_sql() {
         assert_eq!(part["sequence"], sequence);
         assert_eq!(part["complete_query"], false);
         assert_eq!(part["review_status"], "UNREVIEWED / NOT CERTIFIED");
-        assert_eq!(part["definition_sha256"], format!("{:x}", Sha256::digest(expected.as_bytes())));
+        assert_eq!(
+            part["definition_sha256"],
+            format!("{:x}", Sha256::digest(expected.as_bytes()))
+        );
         complete.push_str(part["fragment"].as_str().unwrap());
-        let Some(next) = part["next"].as_str() else { break };
+        let Some(next) = part["next"].as_str() else {
+            break;
+        };
         path = next.to_owned();
         sequence += 1;
     }
     assert!(sequence > 1);
     assert_eq!(complete, expected);
-    let availability: Value = serde_json::from_str(pack.file("metrics/availability.json").unwrap()).unwrap();
+    let availability: Value =
+        serde_json::from_str(pack.file("metrics/availability.json").unwrap()).unwrap();
     assert_eq!(availability["candidate_metrics"], json!(["large_proposal"]));
     assert_eq!(availability["certified_metrics"], json!([]));
 }
@@ -222,75 +277,160 @@ fn metric_metadata_cannot_publish_hidden_dependencies_or_uncertified_metrics() {
         let (mut effective, visibility) = analyst_documents();
         effective["metrics"][0][field] = json!(["secret_note"]);
         let pack = must(&effective, &visibility);
-        assert!(!pack.file("metrics.md").unwrap().contains("## order_amount"), "{field}");
+        assert!(
+            !pack.file("metrics.md").unwrap().contains("## order_amount"),
+            "{field}"
+        );
     }
     for (field, value) in [("certified", json!(false)), ("status", json!("draft"))] {
         let (mut effective, visibility) = analyst_documents();
         effective["metrics"][0][field] = value;
         let pack = must(&effective, &visibility);
-        assert!(!pack.file("metrics.md").unwrap().contains("## order_amount"), "{field}");
+        assert!(
+            !pack.file("metrics.md").unwrap().contains("## order_amount"),
+            "{field}"
+        );
     }
 }
 
 #[test]
 fn pending_metric_visibility_is_explicit_and_never_satisfies_certified_dependencies() {
     let (mut effective, visibility) = analyst_documents();
-    assert!(must(&effective, &visibility).file("examples/verified.sql").unwrap().contains("-- ex-order"));
+    assert!(
+        must(&effective, &visibility)
+            .file("examples/verified.sql")
+            .unwrap()
+            .contains("-- ex-order")
+    );
     effective["metrics"][0]["certified"] = json!(false);
     effective["metrics"][0]["status"] = json!("draft");
     let pack = must(&effective, &visibility);
-    assert!(!pack.file("metrics.md").unwrap().contains("Candidate: order_amount"));
-    assert!(pack.file("metrics.md").unwrap().contains("semantic readiness gap"));
-    effective["ontology"]["publish"]["include_unreviewed"].as_array_mut().unwrap().push(json!("metrics"));
+    assert!(
+        !pack
+            .file("metrics.md")
+            .unwrap()
+            .contains("Candidate: order_amount")
+    );
+    assert!(
+        pack.file("metrics.md")
+            .unwrap()
+            .contains("semantic readiness gap")
+    );
+    effective["ontology"]["publish"]["include_unreviewed"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("metrics"));
     let pack = must(&effective, &visibility);
-    assert!(pack.file("metrics.md").unwrap().contains("### Candidate: order_amount"));
+    assert!(
+        pack.file("metrics.md")
+            .unwrap()
+            .contains("### Candidate: order_amount")
+    );
     assert!(pack.file("metrics.md").unwrap().contains("NOT CERTIFIED"));
-    let status: Value = serde_json::from_str(pack.file("metrics/availability.json").unwrap()).unwrap();
+    let status: Value =
+        serde_json::from_str(pack.file("metrics/availability.json").unwrap()).unwrap();
     assert_eq!(status["certified_metrics"], json!([]));
     assert_eq!(status["candidate_metrics"], json!(["order_amount"]));
     assert_eq!(status["business_readiness_verified"], false);
-    assert!(!pack.file("examples/verified.sql").unwrap().contains("-- ex-order"));
+    assert!(
+        !pack
+            .file("examples/verified.sql")
+            .unwrap()
+            .contains("-- ex-order")
+    );
     effective["metrics"][0]["caveats"] = json!(["secret_note"]);
     let hidden = must(&effective, &visibility);
-    assert!(!hidden.file("metrics.md").unwrap().contains("Candidate: order_amount"));
-    assert!(!hidden.file("metrics/availability.json").unwrap().contains("order_amount"));
+    assert!(
+        !hidden
+            .file("metrics.md")
+            .unwrap()
+            .contains("Candidate: order_amount")
+    );
+    assert!(
+        !hidden
+            .file("metrics/availability.json")
+            .unwrap()
+            .contains("order_amount")
+    );
 }
 
 #[test]
 fn effective_grain_is_projected_without_exposing_hidden_references() {
     let (mut effective, visibility) = analyst_documents();
     let pack = must(&effective, &visibility);
-    assert!(pack.file("tables/sales.order.md").unwrap().contains("grain: one row per order"));
+    assert!(
+        pack.file("tables/sales.order.md")
+            .unwrap()
+            .contains("grain: one row per order")
+    );
     effective["datasets"][1]["grain"] = json!("one row per secret_note");
     let pack = must(&effective, &visibility);
-    assert!(!pack.file("tables/sales.order.md").unwrap().contains("grain:"));
-    effective["datasets"][1].as_object_mut().unwrap().remove("grain");
+    assert!(
+        !pack
+            .file("tables/sales.order.md")
+            .unwrap()
+            .contains("grain:")
+    );
+    effective["datasets"][1]
+        .as_object_mut()
+        .unwrap()
+        .remove("grain");
     let pack = must(&effective, &visibility);
-    assert!(!pack.file("tables/sales.order.md").unwrap().contains("grain:"));
+    assert!(
+        !pack
+            .file("tables/sales.order.md")
+            .unwrap()
+            .contains("grain:")
+    );
 }
 
 #[test]
 fn public_execution_types_survive_hidden_name_collisions_without_leaking_prose() {
     let (mut effective, visibility) = analyst_documents();
     let columns = effective["datasets"][1]["columns"].as_array_mut().unwrap();
-    for hidden in ["time", "zone", "numeric", "character", "varying", "precision"] {
+    for hidden in [
+        "time",
+        "zone",
+        "numeric",
+        "character",
+        "varying",
+        "precision",
+    ] {
         columns.push(none_col(hidden));
     }
     columns[4]["label"] = json!("time");
     columns[4]["description"] = json!("private field time describes a hidden workflow");
     columns[4]["review"] = json!({"state": "approved"});
     for public_type in [
-        "timestamp without time zone", "timestamp with time zone",
-        "timestamp(6) without time zone", "time(3) with time zone",
-        "numeric(20,0)", "numeric(10,2)", "numeric(32,8)",
-        "character varying", "character varying(100)", "character(1)",
-        "double precision", "date", "integer", "smallint", "bigint",
-        "bytea", "uuid", "jsonb", "interval", "text[]", "pg_catalog.numeric(12,2)",
+        "timestamp without time zone",
+        "timestamp with time zone",
+        "timestamp(6) without time zone",
+        "time(3) with time zone",
+        "numeric(20,0)",
+        "numeric(10,2)",
+        "numeric(32,8)",
+        "character varying",
+        "character varying(100)",
+        "character(1)",
+        "double precision",
+        "date",
+        "integer",
+        "smallint",
+        "bigint",
+        "bytea",
+        "uuid",
+        "jsonb",
+        "interval",
+        "text[]",
+        "pg_catalog.numeric(12,2)",
     ] {
         effective["datasets"][1]["columns"][4]["data_type"] = json!(public_type);
         let pack = must(&effective, &visibility);
         let table = pack.file("tables/sales.order.md").unwrap();
-        assert!(table.contains(&format!("| `received_at` |  | {public_type} |")), "{public_type}");
+        assert!(
+            table.contains(&format!("| `received_at` |  | {public_type} |")),
+            "{public_type}"
+        );
         assert!(!table.contains("private field"));
         assert!(!table.contains("| `time` |"));
         assert!(!table.contains("secret_note"));
@@ -301,19 +441,37 @@ fn public_execution_types_survive_hidden_name_collisions_without_leaking_prose()
 #[test]
 fn execution_type_slot_does_not_publish_private_types_or_arbitrary_text() {
     for private_type in [
-        "internal_payment_type", "private.customer_status", "\"private\".\"status\"",
-        "numeric secret_note", "numeric(10,secret_note)", "numeric(10,2) private_tag",
-        "text /* private_tag */", "text; SELECT secret_note",
-        "timestamp without time zone private_tag", "varchar(private_tag)",
-        "pg_catalog.private_status", "numeric(0,2)", "numeric(10,2,3)",
-        "timestamp(7)", "integer(3)", "numeric(10,2)(1)", "text[private_tag]",
+        "internal_payment_type",
+        "private.customer_status",
+        "\"private\".\"status\"",
+        "numeric secret_note",
+        "numeric(10,secret_note)",
+        "numeric(10,2) private_tag",
+        "text /* private_tag */",
+        "text; SELECT secret_note",
+        "timestamp without time zone private_tag",
+        "varchar(private_tag)",
+        "pg_catalog.private_status",
+        "numeric(0,2)",
+        "numeric(10,2,3)",
+        "timestamp(7)",
+        "integer(3)",
+        "numeric(10,2)(1)",
+        "text[private_tag]",
     ] {
         let (mut effective, visibility) = analyst_documents();
         effective["datasets"][1]["columns"][4]["data_type"] = json!(private_type);
         let pack = must(&effective, &visibility);
         let table = pack.file("tables/sales.order.md").unwrap();
-        let row = table.lines().find(|line| line.starts_with("| `received_at` |")).unwrap();
-        assert_eq!(row.split('|').nth(3).unwrap().trim(), "unavailable", "{private_type}");
+        let row = table
+            .lines()
+            .find(|line| line.starts_with("| `received_at` |"))
+            .unwrap();
+        assert_eq!(
+            row.split('|').nth(3).unwrap().trim(),
+            "unavailable",
+            "{private_type}"
+        );
         assert!(!table.contains(private_type), "{private_type}");
         assert!(table.contains("describe"));
     }
@@ -339,7 +497,8 @@ fn enum_pages_do_not_invent_an_executable_dictionary_binding() {
 fn enum_warning_is_shared_without_dropping_values_or_disclosing_hidden_codes() {
     let (mut effective, visibility) = analyst_documents();
     let codes: Vec<_> = (0..65).map(|n| format!("code_{n}")).collect();
-    effective["enums"][0]["values"] = json!(codes.iter().map(|code| json!({
+    effective["enums"][0]["values"] =
+        json!(codes.iter().map(|code| json!({
         "code": code, "label": "unknown", "class": "unexplained", "status": "unexplained",
         "evidence": {"rows": 1}
     })).collect::<Vec<_>>());
@@ -352,7 +511,9 @@ fn enum_warning_is_shared_without_dropping_values_or_disclosing_hidden_codes() {
     assert!(page.contains("limited scope"));
     assert!(!page.contains("Evidence rows for this code"));
     for code in &codes {
-        assert!(page.contains(&format!("| `{code}` | unknown | unexplained | unexplained |")));
+        assert!(page.contains(&format!(
+            "| `{code}` | unknown | unexplained | unexplained |"
+        )));
         assert!(page.contains(&format!("- `{code}`\n")));
     }
     effective["enums"][0]["values"] = json!([{
@@ -371,27 +532,46 @@ fn platform_sql_dependencies_are_not_exempt_from_role_visibility() {
         let (mut effective, mut visibility) = analyst_documents();
         let name = format!("{schema}.lookup");
         let sql = format!("SELECT code FROM {name}");
-        effective["examples"].as_array_mut().unwrap().push(closure_example(
-            "platform-example", "approved lookup", &sql, &["dataset:sales.order"],
-        ));
-        effective["metrics"].as_array_mut().unwrap().push(literal_metric(
-            "platform_metric", "lookup count", "bound lookup",
-            &sql, "SELECT count(*) FROM sales.order",
-        ));
+        effective["examples"]
+            .as_array_mut()
+            .unwrap()
+            .push(closure_example(
+                "platform-example",
+                "approved lookup",
+                &sql,
+                &["dataset:sales.order"],
+            ));
+        effective["metrics"]
+            .as_array_mut()
+            .unwrap()
+            .push(literal_metric(
+                "platform_metric",
+                "lookup count",
+                "bound lookup",
+                &sql,
+                "SELECT count(*) FROM sales.order",
+            ));
         // Absent, present-but-hidden and visible are different input states;
         // neither of the first two authorizes the platform reference.
         for stage in 0..4 {
             let pack = must(&effective, &visibility);
             assert_eq!(
-                pack.file("examples/verified.sql").unwrap().contains("platform-example"),
+                pack.file("examples/verified.sql")
+                    .unwrap()
+                    .contains("platform-example"),
                 stage == 2,
             );
             assert_eq!(
-                pack.file("metrics.md").unwrap().contains("## platform_metric"),
+                pack.file("metrics.md")
+                    .unwrap()
+                    .contains("## platform_metric"),
                 stage == 2,
             );
             if stage == 0 {
-                effective["ontology"]["include_schemas"].as_array_mut().unwrap().push(json!(schema));
+                effective["ontology"]["include_schemas"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!(schema));
                 effective["datasets"].as_array_mut().unwrap().push(json!({
                     "schema_version": "oos/v1", "dataset": name, "label": "lookup",
                     "tier": "raw", "primary_key": ["code"],
@@ -403,8 +583,11 @@ fn platform_sql_dependencies_are_not_exempt_from_role_visibility() {
                     "columns": ["code"],
                 }));
             } else if stage == 2 {
-                visibility["datasets"].as_array_mut().unwrap().last_mut().unwrap()["columns"] =
-                    json!(["other"]);
+                visibility["datasets"]
+                    .as_array_mut()
+                    .unwrap()
+                    .last_mut()
+                    .unwrap()["columns"] = json!(["other"]);
             }
         }
     }
@@ -871,7 +1054,9 @@ fn analyst_pack_redacts_hidden_dependencies() {
     let (effective, visibility) = analyst_documents();
     let pack = must(&effective, &visibility);
     let body = prose(&pack);
-    let customer = pack.file("tables/sales.customer.md").expect("customer table");
+    let customer = pack
+        .file("tables/sales.customer.md")
+        .expect("customer table");
     let order = pack.file("tables/sales.order.md").expect("order table");
     let invoice = pack.file("tables/sales.invoice.md").expect("invoice table");
     let relationships = pack.file("relationships.md").expect("relationships");
@@ -902,15 +1087,21 @@ fn analyst_pack_redacts_hidden_dependencies() {
     assert!(invoice.contains("did not re-prove"));
     assert!(pack.file("tables/sales.account.md").is_ok());
     assert_eq!(
-        pack.file("tables/support.ticket.md").expect_err("hidden table").code,
+        pack.file("tables/support.ticket.md")
+            .expect_err("hidden table")
+            .code,
         "oo.builder.role-pack/v1/path.absent"
     );
     assert_eq!(
-        pack.file("entities/customer.md").expect_err("hidden entity").code,
+        pack.file("entities/customer.md")
+            .expect_err("hidden entity")
+            .code,
         "oo.builder.role-pack/v1/path.absent"
     );
     assert_eq!(
-        pack.file("entities/ticket.md").expect_err("other role entity").code,
+        pack.file("entities/ticket.md")
+            .expect_err("other role entity")
+            .code,
         "oo.builder.role-pack/v1/path.absent"
     );
 
@@ -932,7 +1123,11 @@ fn analyst_pack_redacts_hidden_dependencies() {
     assert!(examples.contains("SELECT sum(amount) AS total FROM sales.order WHERE status = 1"));
     assert!(enum_file.contains("Meaning is unconfirmed"));
     assert!(enum_file.contains("Coverage and evidence row counts are omitted."));
-    assert!(pack.file("calendar.md").expect("calendar").contains("Asia/Shanghai"));
+    assert!(
+        pack.file("calendar.md")
+            .expect("calendar")
+            .contains("Asia/Shanghai")
+    );
     assert!(pack.file("calendar.md").expect("calendar").contains("本月"));
 
     for token in [
@@ -1014,7 +1209,12 @@ fn analyst_pack_redacts_hidden_dependencies() {
     assert_eq!(pack.cache_key, expected_key);
     assert!(!pack.artifact.contains("principal"));
     assert!(customer.ends_with('\n') && !customer.ends_with("\n\n"));
-    assert!(!pack.file("manifest.json").expect("manifest").ends_with('\n'));
+    assert!(
+        !pack
+            .file("manifest.json")
+            .expect("manifest")
+            .ends_with('\n')
+    );
 }
 
 #[test]
@@ -1032,10 +1232,23 @@ fn support_pack_is_a_separate_project_artifact() {
     let ticket = support.file("entities/ticket.md").expect("ticket entity");
     assert!(ticket.contains("support.ticket"));
     assert!(ticket.contains("subject"));
-    assert!(support.file("examples/verified.sql").expect("sql").contains("ex-ticket"));
-    assert!(support.file("glossary.md").expect("glossary").contains("工单"));
+    assert!(
+        support
+            .file("examples/verified.sql")
+            .expect("sql")
+            .contains("ex-ticket")
+    );
+    assert!(
+        support
+            .file("glossary.md")
+            .expect("glossary")
+            .contains("工单")
+    );
     assert_eq!(
-        support.file("entities/customer.md").expect_err("hidden entity").code,
+        support
+            .file("entities/customer.md")
+            .expect_err("hidden entity")
+            .code,
         "oo.builder.role-pack/v1/path.absent"
     );
     assert_eq!(
@@ -1095,7 +1308,10 @@ fn bindings_and_policy_inputs_refuse() {
 
     let mut stale = visibility.clone();
     stale["policy"]["version"] = json!("8");
-    assert_eq!(err_code(&effective, &stale), format!("{prefix}binding.policy"));
+    assert_eq!(
+        err_code(&effective, &stale),
+        format!("{prefix}binding.policy")
+    );
 
     let mut compiler = visibility.clone();
     compiler["issued_for_compiler"] = json!("oo-builder/role-pack/v0");
@@ -1154,11 +1370,17 @@ fn bindings_and_policy_inputs_refuse() {
 
     let mut per_role = effective.clone();
     per_role["ontology"]["compile"]["per_role"] = json!(false);
-    assert_eq!(err_code(&per_role, &visibility), format!("{prefix}compile.per_role"));
+    assert_eq!(
+        err_code(&per_role, &visibility),
+        format!("{prefix}compile.per_role")
+    );
 
     let mut raw = effective.clone();
     raw["ontology"]["compile"]["sample_values"]["default"] = json!("raw");
-    assert_eq!(err_code(&raw, &visibility), format!("{prefix}sample.raw_refused"));
+    assert_eq!(
+        err_code(&raw, &visibility),
+        format!("{prefix}sample.raw_refused")
+    );
 
     let mut decisions = effective.clone();
     decisions["decisions"] = json!([]);
@@ -1203,11 +1425,17 @@ fn budgets_refuse() {
 
     let mut entries = visibility.clone();
     entries["limits"]["max_entries"] = json!(2);
-    assert_eq!(err_code(&effective, &entries), format!("{prefix}budget.entries"));
+    assert_eq!(
+        err_code(&effective, &entries),
+        format!("{prefix}budget.entries")
+    );
 
     let mut invalid = visibility.clone();
     invalid["limits"]["max_entries"] = json!(0);
-    assert_eq!(err_code(&effective, &invalid), format!("{prefix}limit.invalid"));
+    assert_eq!(
+        err_code(&effective, &invalid),
+        format!("{prefix}limit.invalid")
+    );
 }
 
 #[test]
@@ -1227,7 +1455,10 @@ fn paths_reject_traversal() {
         assert_eq!(error.path, "/");
         assert!(!error.to_string().contains("../"));
     }
-    assert_eq!(normalize_pack_path("README.md").expect("readme"), "README.md");
+    assert_eq!(
+        normalize_pack_path("README.md").expect("readme"),
+        "README.md"
+    );
     assert_eq!(
         normalize_pack_path("tables/sales.customer.md").expect("table"),
         "tables/sales.customer.md"
@@ -1308,7 +1539,10 @@ fn hashes_match_an_independent_oracle() {
         records.push(json!({"bytes": bytes, "path": file["path"], "sha256": digest}));
     }
     assert_eq!(pack.total_bytes, total);
-    assert_eq!(pack.pack_digest, sha256_hex(canonical_json(&Value::Array(records)).as_bytes()));
+    assert_eq!(
+        pack.pack_digest,
+        sha256_hex(canonical_json(&Value::Array(records)).as_bytes())
+    );
     assert_eq!(pack.cache_key_sha256, sha256_hex(pack.cache_key.as_bytes()));
 
     let manifest_text = pack.file("manifest.json").expect("manifest");
@@ -1758,11 +1992,17 @@ fn closure_keeps_visible_text_and_omits_hidden_references() {
     assert!(relationships.contains("source-declared"));
     assert!(clerk.file("entities/shipment.md").is_ok());
     assert_eq!(
-        clerk.file("tables/yard.slip.md").expect_err("hidden table").code,
+        clerk
+            .file("tables/yard.slip.md")
+            .expect_err("hidden table")
+            .code,
         "oo.builder.role-pack/v1/path.absent"
     );
     assert_eq!(
-        clerk.file("entities/slip.md").expect_err("hidden entity").code,
+        clerk
+            .file("entities/slip.md")
+            .expect_err("hidden entity")
+            .code,
         "oo.builder.role-pack/v1/path.absent"
     );
 
@@ -1802,8 +2042,21 @@ fn closure_keeps_visible_text_and_omits_hidden_references() {
     let audit_body = prose(&audit);
     let audit_calendar = audit.file("calendar.md").expect("audit calendar");
     assert!(audit_calendar.contains("本月"));
-    assert!(audit.file("tables/depot.tally.md").expect("audit tally").contains("estimated rows: 17"));
-    for token in ["queue_note", "客户备注", "é标记", "quarter_start", "shipment", "yard", "4242427"] {
+    assert!(
+        audit
+            .file("tables/depot.tally.md")
+            .expect("audit tally")
+            .contains("estimated rows: 17")
+    );
+    for token in [
+        "queue_note",
+        "客户备注",
+        "é标记",
+        "quarter_start",
+        "shipment",
+        "yard",
+        "4242427",
+    ] {
         assert_absent(&audit_body, token);
     }
     let beta_body = prose(&beta);
@@ -1811,11 +2064,21 @@ fn closure_keeps_visible_text_and_omits_hidden_references() {
     assert!(beta_calendar.contains("本月"));
     assert!(beta.file("tables/yard.slip.md").is_ok());
     assert!(beta.file("entities/slip.md").is_ok());
-    for token in ["queue_note", "客户备注", "é标记", "e\u{0301}标记", "quarter_start", "shipment", "4242427", "8888887"] {
+    for token in [
+        "queue_note",
+        "客户备注",
+        "é标记",
+        "e\u{0301}标记",
+        "quarter_start",
+        "shipment",
+        "4242427",
+        "8888887",
+    ] {
         assert_absent(&beta_body, token);
     }
 
-    let manifest: Value = serde_json::from_str(clerk.file("manifest.json").expect("manifest")).expect("json");
+    let manifest: Value =
+        serde_json::from_str(clerk.file("manifest.json").expect("manifest")).expect("json");
     assert_eq!(manifest["authentication"], "not_claimed");
     assert_eq!(manifest["authorization"], "not_claimed");
     assert_eq!(manifest["publication"], "not_claimed");
@@ -2218,7 +2481,11 @@ fn source_semantics_section_filters_hidden_columns_and_readme_declares_postgresq
         .find(|item| item["dataset"] == "sales.customer")
         .unwrap()["source_semantics"]["grade"] = json!("A");
     let rejected = compile(&effective, &visibility).expect_err("profile grade");
-    assert!(rejected.code.contains("schema.rejected"), "{}", rejected.code);
+    assert!(
+        rejected.code.contains("schema.rejected"),
+        "{}",
+        rejected.code
+    );
 
     effective["datasets"]
         .as_array_mut()
@@ -2233,7 +2500,11 @@ fn source_semantics_section_filters_hidden_columns_and_readme_declares_postgresq
         .find(|item| item["dataset"] == "sales.customer")
         .unwrap()["source_semantics"]["endpoint"] = json!("secret://shop");
     let endpoint = compile(&effective, &visibility).expect_err("endpoint");
-    assert!(endpoint.code.contains("schema.rejected"), "{}", endpoint.code);
+    assert!(
+        endpoint.code.contains("schema.rejected"),
+        "{}",
+        endpoint.code
+    );
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -2384,7 +2655,12 @@ fn configured_pack_scanner_handles_large_effective_document() {
     let (effective, visibility) = analyst_documents();
     let e = format!("{}{}", " ".repeat(1_100_000), effective);
     let v = visibility.to_string();
-    assert!(compile_role_pack(&e, &v).unwrap_err().code.ends_with("json.budget.bytes"));
+    assert!(
+        compile_role_pack(&e, &v)
+            .unwrap_err()
+            .code
+            .ends_with("json.budget.bytes")
+    );
     let mut ceilings = oo_builder::RolePackCeilings::default();
     ceilings.json_scan.max_bytes = 2_000_000;
     assert!(oo_builder::compile_role_pack_with_ceilings(&e, &v, &ceilings).is_ok());
@@ -2406,25 +2682,45 @@ fn readme_domain_map_is_bounded_and_index_has_table_navigation() {
 fn large_relationship_library_is_paginated_without_losing_edges() {
     let (mut effective, visibility) = analyst_documents();
     let edge = effective["relationships"][0].clone();
-    effective["relationships"] = json!((0..200).map(|i| {
-        let mut item = edge.clone();
-        item["name"] = json!(format!("edge_{i:04}"));
-        item
-    }).collect::<Vec<_>>());
+    effective["relationships"] = json!(
+        (0..200)
+            .map(|i| {
+                let mut item = edge.clone();
+                item["name"] = json!(format!("edge_{i:04}"));
+                item
+            })
+            .collect::<Vec<_>>()
+    );
     effective["ontology"]["compile"]["budgets"]["table_file_tokens"] = json!(2000);
     let pack = must(&effective, &visibility);
     let artifact: Value = serde_json::from_str(&pack.artifact).unwrap();
-    let pages: Vec<_> = artifact["files"].as_array().unwrap().iter()
-        .filter(|f| f["path"].as_str().unwrap().starts_with("relationships/")).collect();
+    let pages: Vec<_> = artifact["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|f| f["path"].as_str().unwrap().starts_with("relationships/"))
+        .collect();
     assert!(pages.len() > 1);
-    let all = pages.iter().map(|f| f["text"].as_str().unwrap()).collect::<Vec<_>>().join("\n");
+    let all = pages
+        .iter()
+        .map(|f| f["text"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
     for i in 0..200 {
         assert_eq!(all.matches(&format!("## edge_{i:04}\n")).count(), 1);
     }
     for page in pages {
         assert!(page["text"].as_str().unwrap().len() <= 2000);
-        assert!(pack.file("relationships.md").unwrap().contains(page["path"].as_str().unwrap()));
+        assert!(
+            pack.file("relationships.md")
+                .unwrap()
+                .contains(page["path"].as_str().unwrap())
+        );
     }
-    assert!(pack.file("tables/sales.order.md").unwrap().contains("edge_0199"));
+    assert!(
+        pack.file("tables/sales.order.md")
+            .unwrap()
+            .contains("edge_0199")
+    );
     assert!(pack.file("INDEX.md").unwrap().len() < 2000);
 }

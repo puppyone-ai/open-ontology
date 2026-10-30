@@ -8,10 +8,11 @@ use std::time::{Duration, Instant};
 
 use arrow_array::{Array, Int32Array, RecordBatch};
 use oo_connectors::{
-    config_identity, type_policy_identity, AdmittedCatalog, AdmittedColumn, AdmittedTable,
-    PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, RunCancelled, SecretRef,
-    SelectedTable, SnapshotOwner, SnapshotRequest, SourceError, SourceId, StreamBudget,
-    StreamItem, TableSelection, CLEANUP_OBSERVATION_BOUND_MS, SNAPSHOT_DEADLINE_DEFAULT,
+    AdmittedCatalog, AdmittedColumn, AdmittedTable, CLEANUP_OBSERVATION_BOUND_MS, PgBudget,
+    PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, RunCancelled,
+    SNAPSHOT_DEADLINE_DEFAULT, SecretRef, SelectedTable, SnapshotOwner, SnapshotRequest,
+    SourceError, SourceId, StreamBudget, StreamItem, TableSelection, config_identity,
+    type_policy_identity,
 };
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
@@ -201,7 +202,11 @@ impl World {
             assert!(saw, "backend never became active");
         }
         let still = self.state_of(pid, &start).await;
-        assert_eq!(still.as_deref(), Some("active"), "dropped future ended the backend");
+        assert_eq!(
+            still.as_deref(),
+            Some("active"),
+            "dropped future ended the backend"
+        );
         self.note("dropped_future_backend_still_active".to_string());
         let ended = owner.cancel().await.expect("cancel after dropped future");
         self.unlock_gate().await;
@@ -246,7 +251,11 @@ impl World {
         };
         let elapsed = began.elapsed();
         assert_eq!(err.fact(), Some("deadline"));
-        assert!(elapsed < Duration::from_secs(45), "elapsed {}ms", elapsed.as_millis());
+        assert!(
+            elapsed < Duration::from_secs(45),
+            "elapsed {}ms",
+            elapsed.as_millis()
+        );
         let ended = owner.cancel().await.expect("cancel after deadline");
         self.unlock_gate().await;
         self.note(format!(
@@ -338,7 +347,9 @@ impl World {
 
     async fn drive_until_active(
         &mut self,
-        pull: &mut std::pin::Pin<&mut impl std::future::Future<Output = Result<StreamItem, SourceError>>>,
+        pull: &mut std::pin::Pin<
+            &mut impl std::future::Future<Output = Result<StreamItem, SourceError>>,
+        >,
         pid: i64,
         start: &str,
     ) -> bool {
@@ -410,7 +421,12 @@ impl World {
         }
     }
 
-    async fn open(&mut self, deadline_secs: u64, statement_secs: u64, lock_secs: u64) -> SnapshotOwner {
+    async fn open(
+        &mut self,
+        deadline_secs: u64,
+        statement_secs: u64,
+        lock_secs: u64,
+    ) -> SnapshotOwner {
         let generation = self.next_gen();
         SnapshotOwner::open(self.request(generation, deadline_secs, statement_secs, lock_secs))
             .await
@@ -556,7 +572,10 @@ impl World {
                 .filter(|(_, _, state)| state == "active" || state == "idle in transaction")
                 .collect();
             if began.elapsed() > bound {
-                panic!("reader backends still present after {}ms: {left:?} busy={busy:?}", bound.as_millis());
+                panic!(
+                    "reader backends still present after {}ms: {left:?} busy={busy:?}",
+                    bound.as_millis()
+                );
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
@@ -689,7 +708,10 @@ async fn node_of(admin: &mut PgConnection) -> (String, bool) {
     .fetch_one(&mut *admin)
     .await
     .expect("node");
-    (row.try_get(0).expect("postmaster"), row.try_get(1).expect("recovery"))
+    (
+        row.try_get(0).expect("postmaster"),
+        row.try_get(1).expect("recovery"),
+    )
 }
 
 async fn oo_backends(admin: &mut PgConnection, user: &str) -> Vec<(i64, String, String)> {

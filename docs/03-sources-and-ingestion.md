@@ -118,11 +118,8 @@ pub trait Connector: Send + Sync {
 | 检查 | 方法 | 级别 |
 |---|---|---|
 | 账号是否有写权限 | `SHOW GRANTS FOR CURRENT_USER()` 解析出 `INSERT/UPDATE/DELETE/CREATE/DROP/ALTER/ALL` | block（可由管理员显式 `allow_write_capable_credential: true` 覆盖，记录审计） |
-| 只读观察类附加权限 | `PROCESS`、`LOCK TABLES`、`SHOW VIEW`、`SHOW DATABASES`、`REPLICATION SLAVE/CLIENT`、`USAGE` 按白名单识别；其他未知权限按 block 处理 | ok，写入接入证据；平台不使用 `LOCK TABLES`/`FLUSH`（[ADR-022](02-technology-stack.md)） |
-| 源端审计渠道 | `@@general_log`/`@@log_output`、`@@performance_schema`、审计插件 | 均不可用 → 默认 block 采集；已安装配置显式 `source_audit_policy: grant_enforced` 时按 [ADR-017](02-technology-stack.md) 接受 |
-| TLS 能力 | `@@have_ssl`、会话 `Ssl_cipher` | 不支持 TLS → C1/默认路径 block；全量/C5 路径仅在显式授权下可明文（[ADR-018](02-technology-stack.md)） |
 | 是否读的是从库 | `SELECT @@read_only, @@super_read_only`；`SHOW REPLICA STATUS` 的延迟 | `read_from: replica` 但连上的是主库 → warn |
-| CDC 前提 | `@@log_bin = ON`、`@@binlog_format = ROW`、`@@binlog_row_image = FULL`、`@@gtid_mode = ON`、保留时长（5.7：`@@expire_logs_days`；8.0+：`@@binlog_expire_logs_seconds`；RDS：`mysql.rds_show_configuration` 的 binlog retention hours） | 不满足 → 生成 DBA 清单；`sync: auto` 只在已 verified 的其他方法中选择，显式配置 `cdc` 时报错不降级（[database-support/03 §2](database-support/03-change-capture-and-consistency.md)） |
+| CDC 前提 | `@@binlog_format = ROW`、`@@binlog_row_image = FULL`、`@@gtid_mode = ON`、`@@binlog_expire_logs_seconds`（RDS：`mysql.rds_show_configuration` 的 binlog retention hours） | 不满足 → 回退批量，并生成 DBA 清单 |
 | 从从库做 CDC | 从库需 `log_replica_updates = ON` | 同上 |
 | 复制权限 | `REPLICATION SLAVE, REPLICATION CLIENT` | 同上 |
 | 字符集 | 表/列的 `CHARACTER SET`；`latin1` 列可能存着 GBK 字节（陈旧中文系统常见） | warn，并提示配置 `charset_override` |
@@ -133,7 +130,7 @@ pub trait Connector: Send + Sync {
 |---|---|---|
 | 写权限 | `has_table_privilege(t, 'INSERT,UPDATE,DELETE,TRUNCATE')`、`rolsuper`、`rolbypassrls`、对 schema 的 `CREATE` | block（同上可覆盖） |
 | 是否从库 | `pg_is_in_recovery()` | — |
-| CDC 前提 | `wal_level = logical`（RDS `rds.logical_replication = 1`，Cloud SQL `cloudsql.logical_decoding = on`）；`REPLICATION` 属性或托管库的等价角色；publication 已由 DBA 创建且包含所选表 | 不满足 → DBA 清单；auto/显式规则同 MySQL |
+| CDC 前提 | `wal_level = logical`（RDS `rds.logical_replication = 1`，Cloud SQL `cloudsql.logical_decoding = on`）；`REPLICATION` 属性或托管库的等价角色；publication 已由 DBA 创建且包含所选表 | 不满足 → 回退批量 + DBA 清单 |
 | 复制槽风险 | `max_slot_wal_keep_size`（默认 -1 即无限保留）、磁盘余量 | `-1` → warn：CDC 停摆时 WAL 会撑满源库磁盘，建议 DBA 设置上限 |
 | 从库上做逻辑解码 | PG 16+ 支持在备库创建逻辑复制槽 | 源库 ≥16 且 `read_from: replica` 时优先使用 |
 | TOAST 与 replica identity | 各表 `relreplident`；有大字段的表若为 `default`，UPDATE 事件中未变化的 TOAST 列不会携带值 | warn，Loader 按“保留原值”处理（见 [04 §5.3](04-pipeline.md)） |
@@ -159,8 +156,6 @@ CREATE PUBLICATION oo_pub FOR TABLE public.orders, public.customers;
 ```
 
 清单里标注每一项的**风险与回滚方式**（例如 binlog 保留时长对磁盘的影响），因为 DBA 最关心的是“会不会伤到生产库”。
-
-上例是示意，不能原样交给客户执行：参数名随版本不同（MySQL 5.7 用 `log_slave_updates`、`expire_logs_days`，8.0.26+ 用 `log_replica_updates`、`binlog_expire_logs_seconds`；5.7 开启 `log_bin` 需重启）；不使用全局锁的读取路线不需要 `RELOAD`。清单必须按探测到的具体版本与变体生成。
 
 ## 6. 类型映射
 
@@ -265,25 +260,3 @@ files:
 | 规划中 | MongoDB | CDC | 副本集 / change streams |
 
 接入一种 Debezium 支持的数据库，需要实现连接器、类型/位点/事务映射和 DBA 清单，并验证事件兼容性；可复用缓冲、Loader、Agent DB 与 Gateway 的公共契约。每个新连接器必须通过连接器一致性测试套件（类型映射双路径一致、分块覆盖无重叠、对账零差异）才能进入发布版本。
-
-## Library 与 shard source 的产品边界
-
-Library 表示一个逻辑数据库；shard sources 只决定传输布局，不应成为多个 Agent
-入口。产品入口 `tools/source-onboarding/library.py` 提供 plan/import/status/publish/
-adopt，复用现有布局、调度和发布 gate，见
-[ADR-029](adr/ADR-029-library-layout-publication-and-adoption.md)。
-
-初次导入：plan → import（默认并发 2、错峰 10 秒、16 表/分片；支持成本守卫和
-失败表重试）→ 一个审核 staged Pack → publish。已有分片：用保留原 source_id
-的 membership → adopt，不重新 plan/import；awaiting_publish 和已独立发布都可。
-完整规划 manifest 保留 inventory/排除原因；发布 membership 只列实际成员表。
-命令和配置见 [来源工具](../tools/source-onboarding/SOURCE-LAYOUT.md)。
-
-
-## 库级控制面整合（INT）
-
-库级项目、全局 facts/分批 S5、逐对象审核、一个角色 Pack、库级原子发布和单 Gateway
-接入见 [ADR-030](adr/ADR-030-library-control-worker-and-gateway.md)。库级安装预算不授予
-数据权限；Gateway 保留只读登录、当前导入向量/库 head/fence 校验和原 SQL 子集。
-健康库每表给出 target_observations，但源时间/共同源位点未测量仍为 unmeasured，
-不把 all-in-one 主库称为只读副本。真实库覆盖及评测以独立执行证据为准。

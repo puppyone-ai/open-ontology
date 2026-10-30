@@ -16,7 +16,9 @@ use std::fmt;
 use tokio_postgres::{Client, Error as PgError, Transaction};
 
 use crate::policy::catalog::grantable_base_type;
-use crate::policy::{ColumnAclPolicy, PolicyError, compile_column_acl_set, compile_column_acl_native_vector_set};
+use crate::policy::{
+    ColumnAclPolicy, PolicyError, compile_column_acl_native_vector_set, compile_column_acl_set,
+};
 
 const LOOKUP_FN: &str = "_oo.lookup_physical_mapping(text, text, bigint, text, text, text, text)";
 const REGISTER_FN: &str =
@@ -204,108 +206,248 @@ pub async fn provision_mapping_reader(
     }
 }
 
-const NATIVE_METADATA: &[&str] = &["physical_mappings","table_freshness","source_watermark","table_quality","apply_receipts","full_import_run","full_import_table","full_import_quality"];
+const NATIVE_METADATA: &[&str] = &[
+    "physical_mappings",
+    "table_freshness",
+    "source_watermark",
+    "table_quality",
+    "apply_receipts",
+    "full_import_run",
+    "full_import_table",
+    "full_import_quality",
+];
 
 fn native_read_metadata(schema: &str, table: &str) -> bool {
-    schema == "_oo" && (NATIVE_METADATA.contains(&table)
-        || matches!(table, "native_library_source_status" | "native_library_head" | "native_library_publication"))
+    schema == "_oo"
+        && (NATIVE_METADATA.contains(&table)
+            || matches!(
+                table,
+                "native_library_source_status"
+                    | "native_library_head"
+                    | "native_library_publication"
+            ))
         || schema == "oo_publish_target" && table == "fence"
 }
 
 /// Provision only metadata read after the entire native vector was formally published.
-pub async fn provision_mapping_reader_native_vector(client:&mut Client,login:&str,policies:&[ColumnAclPolicy])->Result<MappingReaderOutcome,MappingReaderError> {
+pub async fn provision_mapping_reader_native_vector(
+    client: &mut Client,
+    login: &str,
+    policies: &[ColumnAclPolicy],
+) -> Result<MappingReaderOutcome, MappingReaderError> {
     compile_column_acl_native_vector_set(policies).map_err(MappingReaderError::Policy)?;
-    let prepared=policies.iter().map(|p|prepare_inner(login,std::slice::from_ref(p),true)).collect::<Result<Vec<_>,_>>()?;
+    let prepared = policies
+        .iter()
+        .map(|p| prepare_inner(login, std::slice::from_ref(p), true))
+        .collect::<Result<Vec<_>, _>>()?;
     require_tls(client).await?;
-    let tx=client.transaction().await.map_err(db_error)?;
-    let result=provision_native_in_transaction(&tx,login,&prepared).await;
-    match result {Ok(value)=>{tx.commit().await.map_err(db_error)?;Ok(value)},Err(err)=>{let _=tx.rollback().await;Err(err)}}
+    let tx = client.transaction().await.map_err(db_error)?;
+    let result = provision_native_in_transaction(&tx, login, &prepared).await;
+    match result {
+        Ok(value) => {
+            tx.commit().await.map_err(db_error)?;
+            Ok(value)
+        }
+        Err(err) => {
+            let _ = tx.rollback().await;
+            Err(err)
+        }
+    }
 }
 
-async fn provision_native_in_transaction(tx:&Transaction<'_>,login:&str,prepared:&[Prepared])->Result<MappingReaderOutcome,MappingReaderError> {
-    require_grantor(tx).await?;ensure_login(tx,login).await?;
-    let role=&prepared[0].role;
-    ensure_role_shape(tx,role).await?;ensure_schema_usage(tx,role).await?;
+async fn provision_native_in_transaction(
+    tx: &Transaction<'_>,
+    login: &str,
+    prepared: &[Prepared],
+) -> Result<MappingReaderOutcome, MappingReaderError> {
+    require_grantor(tx).await?;
+    ensure_login(tx, login).await?;
+    let role = &prepared[0].role;
+    ensure_role_shape(tx, role).await?;
+    ensure_schema_usage(tx, role).await?;
     let shape=tx.query_one("SELECT rolcanlogin,rolsuper,rolinherit,rolcreatedb,rolcreaterole,rolbypassrls,rolreplication FROM pg_catalog.pg_roles WHERE rolname=$1",&[&login]).await.map_err(db_error)?;
-    if !shape.get::<_,bool>(0) || (1..7).any(|n|shape.get::<_,bool>(n)) {return Err(MappingReaderError::LoginAbsent);}
+    if !shape.get::<_, bool>(0) || (1..7).any(|n| shape.get::<_, bool>(n)) {
+        return Err(MappingReaderError::LoginAbsent);
+    }
     let memberships=tx.query("SELECT r.rolname,m.inherit_option,m.set_option,m.admin_option FROM pg_catalog.pg_auth_members m JOIN pg_catalog.pg_roles r ON r.oid=m.roleid JOIN pg_catalog.pg_roles u ON u.oid=m.member WHERE u.rolname=$1",&[&login]).await.map_err(db_error)?;
-    if memberships.len()!=1 || memberships[0].get::<_,String>(0)!=*role || memberships[0].get::<_,bool>(1) || !memberships[0].get::<_,bool>(2) || memberships[0].get::<_,bool>(3) {return Err(MappingReaderError::MembershipMismatch);}
-    let mut resolved=Vec::new();
+    if memberships.len() != 1
+        || memberships[0].get::<_, String>(0) != *role
+        || memberships[0].get::<_, bool>(1)
+        || !memberships[0].get::<_, bool>(2)
+        || memberships[0].get::<_, bool>(3)
+    {
+        return Err(MappingReaderError::MembershipMismatch);
+    }
+    let mut resolved = Vec::new();
     for context in prepared {
         for table in &context.tables {
             let current:Option<i64>=tx.query_one("SELECT max(run_generation) FROM _oo.physical_mappings WHERE source=$1 AND config_digest=$2 AND level='t' AND logical_namespace=$3 AND logical_table=$4",&[&context.project,&context.config_digest,&table.namespace,&table.name]).await.map_err(db_error)?.get(0);
-            if current!=Some(context.generation) {return Err(MappingReaderError::StaleGeneration {policy:context.generation,current});}
+            if current != Some(context.generation) {
+                return Err(MappingReaderError::StaleGeneration {
+                    policy: context.generation,
+                    current,
+                });
+            }
         }
-        resolved.extend(resolve_tables(tx,context).await?);
+        resolved.extend(resolve_tables(tx, context).await?);
     }
-    if prepared.len()!=resolved.len() {return Err(MappingReaderError::GrantMismatch);}
-    for (context,table) in prepared.iter().zip(&resolved) {
-        let logical=context.tables.first().ok_or(MappingReaderError::GrantMismatch)?;
-        let row=native_publish_fence(tx,role,context,logical,table).await?.ok_or(MappingReaderError::GrantMismatch)?;
-        let opened:BTreeSet<String>=row.get::<_,Vec<String>>(0).into_iter().collect();
-        if opened!=table.physical_columns.iter().cloned().collect() {return Err(MappingReaderError::GrantMismatch);}
-        ensure_metadata_hidden(tx,role,&table.physical_table).await?;
+    if prepared.len() != resolved.len() {
+        return Err(MappingReaderError::GrantMismatch);
     }
-    let mut expected=BTreeSet::new();
-    for table in &resolved {for column in &table.physical_columns {expected.insert(("_oo".to_owned(),table.physical_table.clone(),column.clone(),"SELECT".to_owned()));}}
-    let mut actual=BTreeSet::new();
+    for (context, table) in prepared.iter().zip(&resolved) {
+        let logical = context
+            .tables
+            .first()
+            .ok_or(MappingReaderError::GrantMismatch)?;
+        let row = native_publish_fence(tx, role, context, logical, table)
+            .await?
+            .ok_or(MappingReaderError::GrantMismatch)?;
+        let opened: BTreeSet<String> = row.get::<_, Vec<String>>(0).into_iter().collect();
+        if opened != table.physical_columns.iter().cloned().collect() {
+            return Err(MappingReaderError::GrantMismatch);
+        }
+        ensure_metadata_hidden(tx, role, &table.physical_table).await?;
+    }
+    let mut expected = BTreeSet::new();
+    for table in &resolved {
+        for column in &table.physical_columns {
+            expected.insert((
+                "_oo".to_owned(),
+                table.physical_table.clone(),
+                column.clone(),
+                "SELECT".to_owned(),
+            ));
+        }
+    }
+    let mut actual = BTreeSet::new();
     for row in tx.query("SELECT table_schema,table_name,column_name,privilege_type FROM information_schema.column_privileges WHERE grantee=$1",&[role]).await.map_err(db_error)? {
         let schema:String=row.get(0);let table:String=row.get(1);let column:String=row.get(2);let privilege:String=row.get(3);
         if native_read_metadata(&schema,&table) && privilege=="SELECT" {continue;}
         actual.insert((schema,table,column,privilege));
     }
-    if actual!=expected {return Err(MappingReaderError::GrantMismatch);}
+    if actual != expected {
+        return Err(MappingReaderError::GrantMismatch);
+    }
     for row in tx.query("SELECT table_schema,table_name,privilege_type FROM information_schema.table_privileges WHERE grantee=$1",&[role]).await.map_err(db_error)? {
         if !native_read_metadata(&row.get::<_,String>(0),&row.get::<_,String>(1)) || row.get::<_,String>(2)!="SELECT" {return Err(MappingReaderError::GrantMismatch);}
     }
     for row in tx.query("SELECT table_schema,table_name,privilege_type FROM information_schema.column_privileges WHERE grantee=$1",&[&login]).await.map_err(db_error)? {
         if !native_read_metadata(&row.get::<_,String>(0),&row.get::<_,String>(1)) || row.get::<_,String>(2)!="SELECT" {return Err(MappingReaderError::UnexpectedPrivilege);}
     }
-    let mut installed=false;
-    match classify(&mapping_priv(tx,login).await?) {
-        PrivilegeState::Absent=>{grant_mapping(tx,login).await?;installed=true;},
-        PrivilegeState::Exact=>{},PrivilegeState::Refused=>return Err(MappingReaderError::UnexpectedPrivilege),
+    let mut installed = false;
+    match classify(&mapping_priv(tx, login).await?) {
+        PrivilegeState::Absent => {
+            grant_mapping(tx, login).await?;
+            installed = true;
+        }
+        PrivilegeState::Exact => {}
+        PrivilegeState::Refused => return Err(MappingReaderError::UnexpectedPrivilege),
     }
-    if !matches!(classify(&mapping_priv(tx,login).await?),PrivilegeState::Exact) {return Err(MappingReaderError::UnexpectedPrivilege);}
-    for who in [login,role.as_str()] {
+    if !matches!(
+        classify(&mapping_priv(tx, login).await?),
+        PrivilegeState::Exact
+    ) {
+        return Err(MappingReaderError::UnexpectedPrivilege);
+    }
+    for who in [login, role.as_str()] {
         for table in NATIVE_METADATA {
-            let qualified=format!("_oo.{table}");
+            let qualified = format!("_oo.{table}");
             let row=tx.query_one("SELECT has_table_privilege($1::name,$2,'SELECT'),has_table_privilege($1::name,$2,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'),has_table_privilege('public'::name,$2,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')",&[&who,&qualified]).await.map_err(db_error)?;
-            if row.get::<_,bool>(1) || row.get::<_,bool>(2) {return Err(MappingReaderError::UnexpectedPrivilege);}
-            if !row.get::<_,bool>(0) {
-                tx.batch_execute(&format!("GRANT SELECT ON TABLE _oo.{} TO {}",quote_ident(table)?,quote_ident(who)?)).await.map_err(db_error)?;installed=true;
+            if row.get::<_, bool>(1) || row.get::<_, bool>(2) {
+                return Err(MappingReaderError::UnexpectedPrivilege);
+            }
+            if !row.get::<_, bool>(0) {
+                tx.batch_execute(&format!(
+                    "GRANT SELECT ON TABLE _oo.{} TO {}",
+                    quote_ident(table)?,
+                    quote_ident(who)?
+                ))
+                .await
+                .map_err(db_error)?;
+                installed = true;
             }
         }
     }
     // F22 observes the actual library head and fence, never a caller-supplied
     // "ready" flag. These fixed metadata reads add no business-column grants.
-    for (schema,table) in [("_oo","native_library_source_status"),("_oo","native_library_head"),("_oo","native_library_publication"),("oo_publish_target","fence")] {
-        let qualified=format!("{schema}.{table}");
-        if !tx.query_one("SELECT to_regclass($1::text) IS NOT NULL",&[&qualified]).await.map_err(db_error)?.get::<_,bool>(0) {continue;}
-        for who in [login,role.as_str()] {
+    for (schema, table) in [
+        ("_oo", "native_library_source_status"),
+        ("_oo", "native_library_head"),
+        ("_oo", "native_library_publication"),
+        ("oo_publish_target", "fence"),
+    ] {
+        let qualified = format!("{schema}.{table}");
+        if !tx
+            .query_one("SELECT to_regclass($1::text) IS NOT NULL", &[&qualified])
+            .await
+            .map_err(db_error)?
+            .get::<_, bool>(0)
+        {
+            continue;
+        }
+        for who in [login, role.as_str()] {
             let row=tx.query_one("SELECT has_table_privilege($1::name,$2,'SELECT'),has_table_privilege($1::name,$2,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'),has_table_privilege('public'::name,$2,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')",&[&who,&qualified]).await.map_err(db_error)?;
-            if row.get::<_,bool>(1) || row.get::<_,bool>(2) {return Err(MappingReaderError::UnexpectedPrivilege);}
-            if !row.get::<_,bool>(0) {
-                tx.batch_execute(&format!("GRANT USAGE ON SCHEMA {} TO {}; GRANT SELECT ON {}.{} TO {}",
-                    quote_ident(schema)?,quote_ident(who)?,quote_ident(schema)?,quote_ident(table)?,quote_ident(who)?)).await.map_err(db_error)?;
-                installed=true;
+            if row.get::<_, bool>(1) || row.get::<_, bool>(2) {
+                return Err(MappingReaderError::UnexpectedPrivilege);
             }
-            if table=="native_library_source_status" {
-                tx.batch_execute(&format!("GRANT EXECUTE ON FUNCTION _oo.native_library_source_ready(text,text) TO {}",quote_ident(who)?)).await.map_err(db_error)?;
+            if !row.get::<_, bool>(0) {
+                tx.batch_execute(&format!(
+                    "GRANT USAGE ON SCHEMA {} TO {}; GRANT SELECT ON {}.{} TO {}",
+                    quote_ident(schema)?,
+                    quote_ident(who)?,
+                    quote_ident(schema)?,
+                    quote_ident(table)?,
+                    quote_ident(who)?
+                ))
+                .await
+                .map_err(db_error)?;
+                installed = true;
+            }
+            if table == "native_library_source_status" {
+                tx.batch_execute(&format!(
+                    "GRANT EXECUTE ON FUNCTION _oo.native_library_source_ready(text,text) TO {}",
+                    quote_ident(who)?
+                ))
+                .await
+                .map_err(db_error)?;
             }
         }
     }
-    Ok(MappingReaderOutcome {effect:if installed {MappingReaderEffect::Installed} else {MappingReaderEffect::Replay},login:login.to_owned(),role:role.clone()})
+    Ok(MappingReaderOutcome {
+        effect: if installed {
+            MappingReaderEffect::Installed
+        } else {
+            MappingReaderEffect::Replay
+        },
+        login: login.to_owned(),
+        role: role.clone(),
+    })
 }
 
-async fn native_publish_fence(tx:&Transaction<'_>,role:&str,context:&Prepared,logical:&PreparedTable,table:&ResolvedTable)->Result<Option<tokio_postgres::Row>,MappingReaderError> {
-    if tx.query_one("SELECT to_regclass('_oo.native_library_source_status') IS NOT NULL",&[]).await.map_err(db_error)?.get::<_,bool>(0) {
-        if tx.query_opt("SELECT 1 FROM _oo.native_library_source_status WHERE source_id=$1 AND NOT _oo.native_library_source_ready(source_id,receipt_sha256)",&[&context.project]).await.map_err(db_error)?.is_some() {return Ok(None);}
-    }
-    let consistency:Option<String>=tx.query_opt(
-        "SELECT consistency FROM _oo.source_watermark WHERE source=$1 AND state='live'",
-        &[&context.project],
-    ).await.map_err(db_error)?.map(|row|row.get(0));
+async fn native_publish_fence(
+    tx: &Transaction<'_>,
+    role: &str,
+    context: &Prepared,
+    logical: &PreparedTable,
+    table: &ResolvedTable,
+) -> Result<Option<tokio_postgres::Row>, MappingReaderError> {
+    if tx
+        .query_one(
+            "SELECT to_regclass('_oo.native_library_source_status') IS NOT NULL",
+            &[],
+        )
+        .await
+        .map_err(db_error)?
+        .get::<_, bool>(0)
+        && tx.query_opt("SELECT 1 FROM _oo.native_library_source_status WHERE source_id=$1 AND NOT _oo.native_library_source_ready(source_id,receipt_sha256)",&[&context.project]).await.map_err(db_error)?.is_some() {return Ok(None);}
+    let consistency: Option<String> = tx
+        .query_opt(
+            "SELECT consistency FROM _oo.source_watermark WHERE source=$1 AND state='live'",
+            &[&context.project],
+        )
+        .await
+        .map_err(db_error)?
+        .map(|row| row.get(0));
 
     match consistency.as_deref() {
         // Keep the original same-generation gate for global watermarks.
@@ -357,7 +499,7 @@ async fn native_publish_fence(tx:&Transaction<'_>,role:&str,context:&Prepared,lo
     }
 }
 
-const PER_TABLE_PUBLISHED_FENCE_SQL:&str=r#"
+const PER_TABLE_PUBLISHED_FENCE_SQL: &str = r#"
 SELECT f.opened_columns
 FROM oo_publish_target.fence f
 WHERE f.role_name=$1 AND f.schema_name='_oo'
@@ -443,10 +585,19 @@ WHERE f.role_name=$1 AND f.schema_name='_oo'
 "#;
 
 fn prepare(login: &str, policies: &[ColumnAclPolicy]) -> Result<Prepared, MappingReaderError> {
-    prepare_inner(login,policies,false)
+    prepare_inner(login, policies, false)
 }
-fn prepare_inner(login: &str, policies: &[ColumnAclPolicy], native: bool) -> Result<Prepared, MappingReaderError> {
-    (if native {compile_column_acl_native_vector_set(policies)} else {compile_column_acl_set(policies)}).map_err(MappingReaderError::Policy)?;
+fn prepare_inner(
+    login: &str,
+    policies: &[ColumnAclPolicy],
+    native: bool,
+) -> Result<Prepared, MappingReaderError> {
+    (if native {
+        compile_column_acl_native_vector_set(policies)
+    } else {
+        compile_column_acl_set(policies)
+    })
+    .map_err(MappingReaderError::Policy)?;
     let first = &policies[0];
     if login != first.login {
         return Err(MappingReaderError::LoginMismatch);
@@ -764,13 +915,13 @@ async fn ensure_role(
     login: &str,
     tables: &[ResolvedTable],
 ) -> Result<(), MappingReaderError> {
-    ensure_role_shape(tx,role).await?;
+    ensure_role_shape(tx, role).await?;
     ensure_membership(tx, role, login).await?;
     ensure_exact_grants(tx, role, tables).await?;
     ensure_schema_usage(tx, role).await
 }
 
-async fn ensure_role_shape(tx:&Transaction<'_>,role:&str)->Result<(),MappingReaderError> {
+async fn ensure_role_shape(tx: &Transaction<'_>, role: &str) -> Result<(), MappingReaderError> {
     let exists = tx
         .query_one(
             "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = $1)",
@@ -1011,14 +1162,18 @@ mod tests {
 
     #[test]
     fn native_publication_reads_do_not_allow_business_or_control_relations() {
-        assert!(native_read_metadata("_oo","native_library_head"));
-        assert!(native_read_metadata("_oo","native_library_source_status"));
-        assert!(native_read_metadata("_oo","native_library_publication"));
-        assert!(native_read_metadata("oo_publish_target","fence"));
-        for (schema,table) in [("_oo","pt_business"),("jobs","tasks"),
-            ("_oo","native_c1_baseline_typed"),("public","native_library_head"),
-            ("oo_publish_target","revoked_column")] {
-            assert!(!native_read_metadata(schema,table));
+        assert!(native_read_metadata("_oo", "native_library_head"));
+        assert!(native_read_metadata("_oo", "native_library_source_status"));
+        assert!(native_read_metadata("_oo", "native_library_publication"));
+        assert!(native_read_metadata("oo_publish_target", "fence"));
+        for (schema, table) in [
+            ("_oo", "pt_business"),
+            ("jobs", "tasks"),
+            ("_oo", "native_c1_baseline_typed"),
+            ("public", "native_library_head"),
+            ("oo_publish_target", "revoked_column"),
+        ] {
+            assert!(!native_read_metadata(schema, table));
         }
     }
 

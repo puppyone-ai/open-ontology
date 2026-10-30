@@ -36,7 +36,11 @@ impl SourceBoundError {
 
 impl fmt::Display for SourceBoundError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{} at {}: {}", self.code, self.path, self.message)
+        write!(
+            formatter,
+            "{} at {}: {}",
+            self.code, self.path, self.message
+        )
     }
 }
 
@@ -310,7 +314,9 @@ fn match_identity(catalog: &SealedImportCatalog, bound: &BoundIn) -> Result<(), 
         ));
     }
     if !snapshot_token(&bound.registry_snapshot)
-        || !bound.registry_snapshot.ends_with(&format!("-{}", bound.scn))
+        || !bound
+            .registry_snapshot
+            .ends_with(&format!("-{}", bound.scn))
     {
         return Err(SourceBoundError::new(
             "fidelity.contradiction",
@@ -336,9 +342,9 @@ fn snapshot_token(value: &str) -> bool {
     let bytes = value.as_bytes();
     !bytes.is_empty()
         && bytes.len() <= 128
-        && bytes.iter().all(|byte| {
-            byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'+' | b'-')
-        })
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'+' | b'-'))
 }
 
 fn release_token(banner: &str) -> Option<String> {
@@ -582,9 +588,10 @@ fn bind_columns<'a>(
                 "binding names a dictionary column that is absent",
             ));
         };
-        if pairs.iter().any(|(item, _): &(&DictColumn, &SealedImportColumn)| {
-            item.name == dict.name
-        }) {
+        if pairs
+            .iter()
+            .any(|(item, _): &(&DictColumn, &SealedImportColumn)| item.name == dict.name)
+        {
             return Err(SourceBoundError::new(
                 "column.mismatch",
                 "/source_bound/bindings",
@@ -751,7 +758,8 @@ mod tests {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/live-chain")
             .join(relative);
-        std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
+        std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
     }
 
     fn bound_for(catalog_text: &str, audit_relative: &str, bindings: &[(&str, &str)]) -> String {
@@ -808,22 +816,40 @@ mod tests {
             ),
         )
         .expect("batch");
-        assert_eq!(derived.schema_digest, "59a1d30cfedb66d93fa8277124851ed6fcb3504c697688ddcf92dcadfcc289dc");
+        assert_eq!(
+            derived.schema_digest,
+            "59a1d30cfedb66d93fa8277124851ed6fcb3504c697688ddcf92dcadfcc289dc"
+        );
         assert_eq!(derived.version, "23.26.3.0.0");
         assert_eq!(derived.capture, "sealed_import");
         assert!(derived.consistency_grade.is_none());
         assert!(derived.delete_detection.is_none());
-        let c6 = derived.columns.iter().find(|column| column.logical_name == "c6").unwrap();
+        let c6 = derived
+            .columns
+            .iter()
+            .find(|column| column.logical_name == "c6")
+            .unwrap();
         assert_eq!(c6.caveats, vec!["empty_string_is_null".to_string()]);
         assert!(c6.native_note.is_none());
-        let v2 = derived.columns.iter().find(|column| column.logical_name == "v2").unwrap();
+        let v2 = derived
+            .columns
+            .iter()
+            .find(|column| column.logical_name == "v2")
+            .unwrap();
         assert_eq!(v2.caveats, vec!["empty_string_is_null".to_string()]);
-        let date = derived.columns.iter().find(|column| column.logical_name == "d").unwrap();
+        let date = derived
+            .columns
+            .iter()
+            .find(|column| column.logical_name == "d")
+            .unwrap();
         assert!(date.caveats.is_empty());
         assert!(date.native_note.is_none());
         assert!(!derived.columns.iter().any(|column| {
             column.native_note.as_deref() == Some("oracle_date_includes_time")
-                || column.caveats.iter().any(|token| token == "offset_lost" || token == "time_ambiguous")
+                || column
+                    .caveats
+                    .iter()
+                    .any(|token| token == "offset_lost" || token == "time_ambiguous")
         }));
 
         let wide = read("catalog-wide/catalog.json");
@@ -836,8 +862,15 @@ mod tests {
             ),
         )
         .expect("wide");
-        assert_eq!(derived.schema_digest, "71eba817dac14915743a455dc02d55305d1cde2294a0391541bafc1fd347978c");
-        let number = derived.columns.iter().find(|column| column.logical_name == "n_free_text").unwrap();
+        assert_eq!(
+            derived.schema_digest,
+            "71eba817dac14915743a455dc02d55305d1cde2294a0391541bafc1fd347978c"
+        );
+        let number = derived
+            .columns
+            .iter()
+            .find(|column| column.logical_name == "n_free_text")
+            .unwrap();
         assert!(number.caveats.is_empty());
         assert_eq!(number.native_note.as_deref(), Some("unconstrained_number"));
 
@@ -851,9 +884,16 @@ mod tests {
             ),
         )
         .expect("ts");
-        assert_eq!(derived.schema_digest, "89ab99d0ae23b23f05435bbbd3818f736c8fb6ff30ab0ff16dbc3da59b8a4a04");
+        assert_eq!(
+            derived.schema_digest,
+            "89ab99d0ae23b23f05435bbbd3818f736c8fb6ff30ab0ff16dbc3da59b8a4a04"
+        );
         for name in ["ts_text", "tstz_text"] {
-            let column = derived.columns.iter().find(|column| column.logical_name == name).unwrap();
+            let column = derived
+                .columns
+                .iter()
+                .find(|column| column.logical_name == name)
+                .unwrap();
             assert_eq!(column.caveats, vec!["precision_loss".to_string()]);
             assert!(column.native_note.is_none());
         }
@@ -886,7 +926,8 @@ mod tests {
         assert!(err.code.ends_with("/cross_run"));
 
         value = serde_json::from_str(&text).unwrap();
-        value["schema_digest"] = json!("71eba817dac14915743a455dc02d55305d1cde2294a0391541bafc1fd347978c");
+        value["schema_digest"] =
+            json!("71eba817dac14915743a455dc02d55305d1cde2294a0391541bafc1fd347978c");
         let err = derive_source_bound(&batch, &serde_json::to_string(&value).unwrap()).unwrap_err();
         assert!(err.code.ends_with("/digest.mismatch"));
 
