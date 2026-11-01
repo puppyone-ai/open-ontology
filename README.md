@@ -31,42 +31,21 @@ Open Ontology solves this with a CDC and ETL pipeline that feeds an ontology dat
 
 ![Scattered databases flow into Open Ontology, which gives an agent one governed path to them.](docs/assets/readme/architecture.svg)
 
+## ![](docs/assets/readme/icons/anvil.svg) Self-build ontology
+
+Point Open Ontology at a database and it drafts the ontology for you. You review a first draft instead of modeling everything by hand. What a model writes stays a draft until your experts approve it.
+
+![Self-build: rules collect facts, a model drafts meaning, your experts review, and gates publish.](docs/assets/readme/self-build-flow.svg)
+
 ## ![](docs/assets/readme/icons/bell.svg) Inside Open Ontology
 
-Three layers, in the order the data moves through them.
+![An ontology is three layers between your databases and your agent: data, knowledge, and access.](docs/assets/readme/inside.svg)
 
-### Sync
+- **Sync.** Approved tables move one way into a separate PostgreSQL database through CDC or ETL. Nothing writes back to your source.
+- **Knowledge.** Each role gets a Knowledge Pack: a versioned folder that teaches an agent how to use the data it can see.
+- **Access.** Agents query through a Gateway, which checks identity, SQL, and limits, records an audit trail, and runs read-only queries on the tables and columns the role allows.
 
-Approved tables move one way from your databases into a separate PostgreSQL database. Changes follow through whatever each database supports: log-based CDC, native change reads, cursors, partition refresh, or full comparison. Nothing writes back to your source.
-
-### Knowledge
-
-Open Ontology reads your catalog, profiles the data, and has a model draft what each table, field, status code, and metric means. Rules check the draft, and your experts review it.
-
-Each role then gets a Knowledge Pack: a versioned folder that teaches an agent how to use the data that role can see.
-
-```text
-knowledge/
-├── README.md              # Purpose, version, and cautions
-├── INDEX.md               # Map of visible tables
-├── tables/                # Grain, keys, columns, and caveats
-├── enums/                 # What each status code means
-├── entities/              # Business entities and their tables
-├── metrics.md             # Metric definitions
-├── calendar.md            # Business time anchors
-├── glossary.md            # Terms and synonyms
-├── relationships.md       # JOIN paths
-├── examples/verified.sql  # Verified example queries
-└── manifest.json          # Versions and content identity
-```
-
-### Access
-
-Agents read the Pack, then query through a Gateway. It checks identity, SQL, visibility, and limits, and writes an audit record before anything runs. Each query runs in a read-only transaction and returns typed rows, data freshness, warnings, and a `query_id` the agent can cite.
-
-PostgreSQL enforces table and column access for each role. Row-level rules are designed but not in the query path yet.
-
-Connect with the `oo` CLI, the HTTP API, or a local MCP server, using any model and agent you like.
+Connect with the `oo` CLI, the HTTP API, or a local MCP server, using any model and agent.
 
 ## ![](docs/assets/readme/icons/horse.svg) Supported databases
 
@@ -77,8 +56,6 @@ Connect with the `oo` CLI, the HTTP API, or a local MCP server, using any model 
 | Oracle | End to end on a test fixture, using full comparison |
 | SQL Server, MongoDB, ClickHouse, MariaDB, Apache Doris, StarRocks, OpenSearch | Preview work in progress |
 | Amazon RDS, Azure SQL, PolarDB, DuckDB, CSV | Planned |
-
-None of these is certified for production yet.
 
 ## ![](docs/assets/readme/icons/bonfire.svg) Try it
 
@@ -114,15 +91,14 @@ No Gateway yet? Start with the [trusted demo](deploy/trusted-demo/README.md) on 
 4. **Live data and files.** Continuous updates, plus file sources.
 5. **Production release.** Verified with customers and reproducible to deploy.
 
+
 <details>
 <summary><strong>Explore this README</strong></summary>
 
 **Start here**
 
+- [Self-build ontology](#-self-build-ontology)
 - [Inside Open Ontology](#-inside-open-ontology)
-  - [Sync](#sync)
-  - [Knowledge](#knowledge)
-  - [Access](#access)
 - [Supported databases](#-supported-databases)
 - [Try it](#-try-it)
 - [Roadmap](#-roadmap)
