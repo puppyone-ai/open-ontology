@@ -110,6 +110,7 @@ pub fn test_cmd(args: &[String]) -> Report {
                     "help",
                     json!({
                         "implemented": IMPLEMENTED,
+                        "owned_capability_suites": crate::capability::SUITES,
                         "unimplemented_exit": 3,
                         "spec_flags": ["--scale", "--seed", "--database-fallback", "--runtime", "--fault-every-step", "--profile"],
                         "production_faults": false,
@@ -124,6 +125,22 @@ pub fn test_cmd(args: &[String]) -> Report {
     let Some(suite) = suite else {
         return usage("test", "test requires --suite");
     };
+    if crate::capability::SUITES.contains(&suite.as_str()) {
+        if scale.is_some()
+            || seed.is_some()
+            || database_fallback
+            || runtime.is_some()
+            || fault_every_step
+            || profile.is_some()
+            || !parameters.is_empty()
+        {
+            return usage(
+                "test",
+                "owned capability suites use pinned scenarios; scale, seed and environment overrides are not supported",
+            );
+        }
+        return crate::capability::run(&suite);
+    }
     let typed = json!({
         "scale": scale,
         "seed": seed,

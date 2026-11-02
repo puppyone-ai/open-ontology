@@ -5,6 +5,8 @@ import hashlib
 import os
 from pathlib import Path
 import secrets
+import shutil
+import re
 import socket
 import subprocess
 import sys
@@ -12,7 +14,20 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[3]
-BIN = Path("/opt/homebrew/opt/postgresql@17/bin")
+def pg_bin():
+    configured = os.environ.get("OO_CI_PG_BIN")
+    candidates = ([Path(configured)] if configured else
+                  ([Path(shutil.which("pg_ctl")).parent] if shutil.which("pg_ctl") else []) +
+                  [Path("/opt/homebrew/opt/postgresql@17/bin"),
+                   Path("/usr/local/opt/postgresql@17/bin")])
+    for candidate in candidates:
+        if all((candidate / name).is_file() for name in ("postgres", "pg_ctl", "initdb", "psql")):
+            version = subprocess.check_output([str(candidate / "postgres"), "--version"], text=True)
+            if re.search(r"PostgreSQL\) 17\.", version):
+                return candidate
+    raise SystemExit("PostgreSQL 17 binaries required (OO_CI_PG_BIN or PATH or Homebrew)")
+
+BIN = pg_bin()
 EVIDENCE = Path(sys.argv[1]).resolve()
 handoff = sys.argv[2:] == ["--handoff"]
 lifecycle = sys.argv[2:] == ["--lifecycle"]
@@ -28,7 +43,7 @@ nonce = secrets.token_hex(16)
 os.chmod(work / "password", 0o600)
 
 def run(args, **kwargs):
-    return subprocess.run([str(a) for a in args], check=True, **kwargs)
+    return subprocess.run([str(a) for a in args], check=True, timeout=600, **kwargs)
 
 with socket.socket() as sock:
     sock.bind(("127.0.0.1", 0))
@@ -71,6 +86,32 @@ try:
     CREATE ROLE oo_r_f22 NOLOGIN NOINHERIT;
     GRANT oo_r_f22 TO oo_f22_login WITH INHERIT FALSE, SET TRUE;
     """)
+    # Independent database enforcement probes, not SQL-gate mocks.
+    sql("""CREATE SCHEMA ci_security;
+    REVOKE ALL ON SCHEMA ci_security FROM PUBLIC;
+    CREATE TABLE ci_security.probe (visible integer, hidden text);
+    INSERT INTO ci_security.probe VALUES (1, 'synthetic');
+    GRANT USAGE ON SCHEMA ci_security TO oo_r_f22;
+    GRANT SELECT(visible), UPDATE(visible) ON ci_security.probe TO oo_r_f22;
+    """)
+    assert sql("SET ROLE oo_r_f22; SELECT visible FROM ci_security.probe;").strip() == "1"
+    probes = [
+        ("hidden_column", "SET ROLE oo_r_f22; SELECT hidden FROM ci_security.probe;", "42501"),
+        ("no_inherited_select", "SET ROLE oo_f22_login; SELECT visible FROM ci_security.probe;", "42501"),
+        ("read_only_write", "BEGIN READ ONLY; SET LOCAL ROLE oo_r_f22; UPDATE ci_security.probe SET visible=2;", "25006"),
+    ]
+    denial_results = []
+    for label, statement, code in probes:
+        denied = subprocess.run([str(BIN / "psql"), "-X", "-qAt", "-v", "ON_ERROR_STOP=1",
+            "-v", "VERBOSITY=verbose", "-h", "127.0.0.1", "-p", str(port), "-U", "postgres",
+            "-d", "postgres"], input=statement, text=True, capture_output=True, env=env, timeout=30)
+        if denied.returncode == 0 or code not in denied.stderr:
+            raise RuntimeError("database denial probe failed: " + label)
+        denial_results.append({"probe": label, "sqlstate": code, "exit_code": denied.returncode})
+    assert sql("SELECT visible FROM ci_security.probe;").strip() == "1"
+    (work / "database-probes.json").write_text(json.dumps({
+        "positive_control": True, "unchanged_after_denial": True,
+        "denials": denial_results}))
     fixture = {"owned_fixture": "f22-owned/v1", "host": "127.0.0.1", "port": port,
                "database": "f22_owned", "password_file": str(work / "password"),
                "ca_file": str(work / "ca.crt"), "nonce": nonce, "work": str(work),
@@ -83,18 +124,24 @@ try:
     if handoff:
         build += ["-p", "oo-gateway", "--bin", "oo", "--bin", "oo-gateway"]
     with (work / "cli-build.log").open("w") as log:
-        run(build, cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT)
+        built = subprocess.run(build, cwd=ROOT, env=env, stdout=log,
+                               stderr=subprocess.STDOUT, timeout=600)
     cli = Path(env["CARGO_TARGET_DIR"]) / "debug/oo"
     env["OO_F22_CLI"] = str(cli)
     (work / "cli-binary.json").write_text(json.dumps({
-        "command": build, "exit": 0, "path": str(cli),
-        "sha256": hashlib.sha256(cli.read_bytes()).hexdigest(),
+        "command": build, "exit": built.returncode, "path": str(cli),
+        "sha256": hashlib.sha256(cli.read_bytes()).hexdigest() if built.returncode == 0 else None,
     }, indent=2) + "\n")
+    if built.returncode:
+        raise SystemExit(built.returncode)
     command = ["cargo", "test", "--offline", "--locked", "-p", "oo-gateway", "--lib",
                "public_surface::f22_owned_pg::" + ("f22_owned_pg_prepare_runtime" if handoff else "lifecycle::query_lifecycle_owned_pg" if lifecycle else "f22_owned_pg_gateway_and_executor"),
                "--", "--exact", "--ignored", "--nocapture", "--test-threads=1"]
     with (work / "test.log").open("w") as log:
-        result = subprocess.run(command, cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT)
+        result = subprocess.run(command, cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=600)
+    if result.returncode == 0 and not re.search(
+            r"test result: ok\. 1 passed; 0 failed; 0 ignored;", (work / "test.log").read_text()):
+        raise RuntimeError("owned PG test selected zero tests or did not pass exactly one test")
     (work / "result.json").write_text(json.dumps({"command": command, "exit": result.returncode,
         "fixture": str(fixture_path), "ownership": "new dedicated local cluster; no existing database touched"}) + "\n")
     print((work / "test.log").read_text())
@@ -140,5 +187,5 @@ finally:
     if gateway is not None and not kept:
         gateway.terminate()
         gateway.wait(timeout=5)
-    if started and not kept:
+    if (started or (pg / "postmaster.pid").exists()) and not kept:
         run([BIN / "pg_ctl", "-D", pg, "-m", "fast", "-w", "stop"])

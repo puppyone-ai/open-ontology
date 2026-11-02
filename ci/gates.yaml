@@ -193,8 +193,8 @@ gates:
     echo_forbidden: true
     closes_acceptance: false
   - id: gate-integration-a
-    status: not_applicable_until_phase
-    reason: "Pipeline capability is not in this phase. Due when the pipeline is introduced, and no later than SP04."
+    status: required
+    reason: "Owned fixture capability suite; actual execution required, no phase sign-off."
     requirements: [REQ-PL-02]
     acceptance: [AT-PL-01]
     effective_phase: SP04
@@ -207,8 +207,8 @@ gates:
     echo_forbidden: true
     closes_acceptance: false
   - id: gate-security-b
-    status: not_applicable_until_phase
-    reason: "Gateway and database security suite is due by SP06."
+    status: required
+    reason: "Owned fixture capability suite; actual execution required, no phase sign-off."
     requirements: [REQ-DB-02]
     acceptance: [AT-DB-01, AT-GW-01]
     effective_phase: SP06
@@ -235,8 +235,8 @@ gates:
     echo_forbidden: true
     closes_acceptance: false
   - id: gate-ontology-d
-    status: not_applicable_until_phase
-    reason: "Ontology builder suite becomes applicable at SP07 and is due by SP12."
+    status: required
+    reason: "Owned fixture capability suite; actual execution required, no phase sign-off."
     requirements: [REQ-OOS-01]
     acceptance: [AT-OOS-01]
     effective_phase: SP07
@@ -319,8 +319,8 @@ gates:
     echo_forbidden: true
     closes_acceptance: false
   - id: gate-nightly-a-m
-    status: not_applicable_until_phase
-    reason: "Nightly pipeline slice is due by SP04. The nightly workflow does not echo it."
+    status: required
+    reason: "Owned fixture capability suite; actual execution required, no phase sign-off."
     requirements: [REQ-PL-02]
     acceptance: [AT-PL-01]
     effective_phase: SP04

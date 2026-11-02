@@ -1421,6 +1421,42 @@ fn allowed_command(gate_id: &str) -> Option<&'static [&'static str]> {
             "--format",
             "json",
         ],
+        "gate-integration-a" => &[
+            "cargo",
+            "xtask",
+            "test",
+            "--suite",
+            "integration-a",
+            "--format",
+            "json",
+        ],
+        "gate-security-b" => &[
+            "cargo",
+            "xtask",
+            "test",
+            "--suite",
+            "security-b",
+            "--format",
+            "json",
+        ],
+        "gate-ontology-d" => &[
+            "cargo",
+            "xtask",
+            "test",
+            "--suite",
+            "ontology-d",
+            "--format",
+            "json",
+        ],
+        "gate-nightly-a-m" => &[
+            "cargo",
+            "xtask",
+            "test",
+            "--suite",
+            "nightly-a-m",
+            "--format",
+            "json",
+        ],
         _ => return None,
     })
 }
@@ -2093,8 +2129,14 @@ pub fn self_test_at(repo: &Path) -> Report {
             "a sentinel file activated a capability gate",
         ));
     }
+    let mut inactive_capability = manifest.clone();
+    for gate in &mut inactive_capability.gates {
+        if gate.capability.as_deref() == Some("pipeline") {
+            gate.status = "not_applicable_until_phase".to_owned();
+        }
+    }
     let introduced = evaluate(
-        &manifest,
+        &inactive_capability,
         &baseline,
         EvalArgs {
             jobs: Some(&jobs),
@@ -3580,7 +3622,7 @@ fn execute_local_with_deadline(repo: &Path, deadline: std::time::Duration) -> Re
             refused.push(Issue::new(
                 "gate.command",
                 &gate.id,
-                "local execution only spawns the foundation allowlist. It was not spawned.",
+                "local execution only spawns the reviewed command allowlist. It was not spawned.",
             ));
             continue;
         };
@@ -3596,12 +3638,17 @@ fn execute_local_with_deadline(repo: &Path, deadline: std::time::Duration) -> Re
         let id = gate.job.clone().unwrap_or_else(|| gate.id.clone());
         planned.push((id, argv));
     }
-    if !refused.is_empty() || planned.len() != 9 {
-        if planned.len() != 9 && refused.is_empty() {
+    let required_count = manifest
+        .gates
+        .iter()
+        .filter(|gate| gate.status == "required" && gate.evaluated_by == "job")
+        .count();
+    if !refused.is_empty() || planned.len() != required_count {
+        if planned.len() != required_count && refused.is_empty() {
             refused.push(Issue::new(
                 "gate.command",
                 "allowlist",
-                "local execution did not find the nine foundation commands. Nothing was spawned.",
+                "local execution did not find every required command. Nothing was spawned.",
             ));
         }
         return local_fail(refused, true);
@@ -3880,8 +3927,16 @@ fn seal_foundation_jobs(
             source,
         ));
     }
-    if jobs.len() != 9 {
-        return Err(format!("expected 9 foundation jobs, sealed {}", jobs.len()));
+    let required_count = manifest
+        .gates
+        .iter()
+        .filter(|gate| gate.status == "required" && gate.evaluated_by == "job")
+        .count();
+    if jobs.len() != required_count {
+        return Err(format!(
+            "expected {required_count} required jobs, sealed {}",
+            jobs.len()
+        ));
     }
     Ok(JobsFile {
         commit: source.to_owned(),

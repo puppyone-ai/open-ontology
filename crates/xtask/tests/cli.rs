@@ -27,13 +27,7 @@ fn help_version_and_unknown_exit() {
 
 #[test]
 fn unimplemented_suites_are_not_success() {
-    for suite in [
-        "integration-a",
-        "security-b",
-        "runtime-c",
-        "release-state",
-        "operational",
-    ] {
+    for suite in ["runtime-c", "release-state", "operational"] {
         let (code, text) = xtask(&["test", "--suite", suite, "--format", "json"]);
         assert_eq!(code, 3, "{suite}: {text}");
         assert!(text.contains("suite_not_implemented"), "{text}");
@@ -172,6 +166,11 @@ fn spec_suite_flags_return_pending_not_usage() {
     ];
     for (args, suite) in cases {
         let (code, text) = xtask(args);
+        if matches!(*suite, "integration-a" | "security-b") {
+            assert_eq!(code, 2, "{suite}: {text}");
+            assert!(text.contains("pinned scenarios"), "{text}");
+            continue;
+        }
         assert_eq!(code, 3, "{suite}: {text}");
         assert!(text.contains("suite_not_implemented"), "{suite}: {text}");
         assert!(text.contains("\"production_faults\": false"), "{text}");
@@ -484,7 +483,12 @@ fn local_fixture(label: &str) -> std::path::PathBuf {
     let _ = std::fs::remove_dir_all(&temp);
     std::fs::create_dir_all(temp.join("ci/baseline")).unwrap();
     std::fs::create_dir_all(temp.join(".github/workflows")).unwrap();
-    std::fs::copy(root.join("ci/gates.yaml"), temp.join("ci/gates.yaml")).unwrap();
+    // These process-supervision fixtures exercise the original nine foundation
+    // commands, independently of newly enabled database capability suites.
+    let foundation = std::fs::read_to_string(root.join("ci/baseline/gates-baseline.yaml"))
+        .unwrap()
+        .replacen("document: baseline", "document: manifest", 1);
+    std::fs::write(temp.join("ci/gates.yaml"), foundation).unwrap();
     std::fs::copy(
         root.join("ci/baseline/gates-baseline.yaml"),
         temp.join("ci/baseline/gates-baseline.yaml"),
@@ -1252,43 +1256,25 @@ fn execute_local_output_limit_cannot_seal_a_pass() {
 }
 
 #[test]
-fn workflow_binding_accepts_only_full_lowercase_sha256() {
+fn github_receipt_verifier_contract_tests_pass() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    for workflow in ["pr", "nightly"] {
-        let text = std::fs::read_to_string(root.join(format!(".github/workflows/{workflow}.yml")))
-            .unwrap();
-        let body = text
-            .split_once("          bound() {")
-            .unwrap()
-            .1
-            .split_once("\n          }\n")
-            .unwrap()
-            .0;
-        let function = format!("bound() {{{body}\n}}\nbound \"$1\" \"$2\" \"$3\"\n");
-        for (status, code, hash, accepted) in [
-            ("success", "0", "a".repeat(64), true),
-            ("success", "1", "a".repeat(64), false),
-            ("failure", "0", "a".repeat(64), false),
-            ("success", "0", "a".repeat(62), false),
-            ("success", "0", "a".repeat(65), false),
-            ("success", "0", "A".repeat(64), false),
-            ("success", "0", String::new(), false),
-        ] {
-            let output = Command::new("/bin/bash")
-                .args(["-c", &function, "binding-fixture", status, code, &hash])
-                .env_clear()
-                .output()
-                .unwrap();
-            assert!(output.status.success());
-            let output = String::from_utf8(output.stdout).unwrap();
-            assert_eq!(
-                output.starts_with("success 0 "),
-                accepted,
-                "{workflow}: {output}"
-            );
-            if accepted {
-                assert_eq!(output.trim(), format!("success 0 {hash}"));
-            }
-        }
-    }
+    let output = Command::new("python3")
+        .args([
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "ci",
+            "-p",
+            "test_gate_receipts.py",
+        ])
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("Ran 0 tests"));
 }
