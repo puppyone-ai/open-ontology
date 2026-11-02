@@ -86,9 +86,13 @@ fn read_stdin() -> Result<String, DescriptionCandidateError> {
     let mut stdin = std::io::stdin().lock();
     let mut buf = Vec::new();
     let max = u64::try_from(DOCUMENT_MAX_BYTES.saturating_add(1)).unwrap_or(u64::MAX);
-    stdin.by_ref().take(max).read_to_end(&mut buf).map_err(|_| {
-        DescriptionCandidateError::command("io.read", "/", "stdin could not be read")
-    })?;
+    stdin
+        .by_ref()
+        .take(max)
+        .read_to_end(&mut buf)
+        .map_err(|_| {
+            DescriptionCandidateError::command("io.read", "/", "stdin could not be read")
+        })?;
     if buf.len() > DOCUMENT_MAX_BYTES {
         return Err(DescriptionCandidateError::command(
             "json.budget.bytes",

@@ -5,20 +5,20 @@
 use std::fs::{self, File};
 use std::io::{Cursor, Read};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc;
-use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
 use arrow_array::{Array, BooleanArray, Decimal128Array, Int64Array, RecordBatch, StringArray};
 use arrow_schema::DataType;
 use oo_connectors::{
-    BomPolicy, DelimitedBatch, DelimitedBudget, DelimitedColumn, DelimitedComplete,
-    DelimitedDialect, DelimitedError, DelimitedErrorKind, DelimitedExhausted, DelimitedItem,
-    DelimitedProfile, DelimitedReader, DelimitedType, HeaderPolicy, NullPolicy,
-    DelimitedFieldLineage, DelimitedFieldPresence, DelimitedRowLineage, DELIMITED_LINEAGE_VERSION,
-    DELIMITED_PROFILE_VERSION, DELIMITED_PROTOCOL, DELIMITED_RECEIPT_VERSION,
+    BomPolicy, DELIMITED_LINEAGE_VERSION, DELIMITED_PROFILE_VERSION, DELIMITED_PROTOCOL,
+    DELIMITED_RECEIPT_VERSION, DelimitedBatch, DelimitedBudget, DelimitedColumn, DelimitedComplete,
+    DelimitedDialect, DelimitedError, DelimitedErrorKind, DelimitedExhausted,
+    DelimitedFieldLineage, DelimitedFieldPresence, DelimitedItem, DelimitedProfile,
+    DelimitedReader, DelimitedRowLineage, DelimitedType, HeaderPolicy, NullPolicy,
 };
 
 const ENTERPRISE_PREIMAGE: &str = "\
@@ -165,7 +165,14 @@ fn hex(bytes: &[u8]) -> String {
     out
 }
 
-fn budget_with(rows: u32, bytes: u64, record: u32, field: u32, total: u64, max_rows: u64) -> DelimitedBudget {
+fn budget_with(
+    rows: u32,
+    bytes: u64,
+    record: u32,
+    field: u32,
+    total: u64,
+    max_rows: u64,
+) -> DelimitedBudget {
     DelimitedBudget::try_new(
         rows,
         bytes,
@@ -219,7 +226,14 @@ fn enterprise_profile() -> DelimitedProfile {
             col("名称", DelimitedType::Utf8, true),
             col("ok", DelimitedType::Bool, false),
             col("n", DelimitedType::Int64, false),
-            col("amount", DelimitedType::Decimal { precision: 10, scale: 2 }, false),
+            col(
+                "amount",
+                DelimitedType::Decimal {
+                    precision: 10,
+                    scale: 2,
+                },
+                false,
+            ),
             col("note", DelimitedType::Utf8, true),
         ],
     )
@@ -267,10 +281,18 @@ fn pull<R: Read>(reader: DelimitedReader<R>) -> Pulled {
     };
     assert_eq!(repeated, exhausted);
     let done = reader.finish().unwrap();
-    Pulled { batches, exhausted, done }
+    Pulled {
+        batches,
+        exhausted,
+        done,
+    }
 }
 
-fn open_bytes(bytes: &[u8], profile: DelimitedProfile, budget: DelimitedBudget) -> DelimitedReader<Cursor<Vec<u8>>> {
+fn open_bytes(
+    bytes: &[u8],
+    profile: DelimitedProfile,
+    budget: DelimitedBudget,
+) -> DelimitedReader<Cursor<Vec<u8>>> {
     let digest = trusted_sha256(bytes);
     DelimitedReader::open(Cursor::new(bytes.to_vec()), profile, digest, budget).unwrap()
 }
@@ -292,30 +314,70 @@ fn assert_closed(err: &DelimitedError, poisons: &[&str]) {
 }
 
 fn utf8_col(batch: &RecordBatch, index: usize) -> Vec<Option<String>> {
-    let array = batch.column(index).as_any().downcast_ref::<StringArray>().unwrap();
+    let array = batch
+        .column(index)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .unwrap();
     (0..array.len())
-        .map(|row| if array.is_null(row) { None } else { Some(array.value(row).to_owned()) })
+        .map(|row| {
+            if array.is_null(row) {
+                None
+            } else {
+                Some(array.value(row).to_owned())
+            }
+        })
         .collect()
 }
 
 fn bool_col(batch: &RecordBatch, index: usize) -> Vec<Option<bool>> {
-    let array = batch.column(index).as_any().downcast_ref::<BooleanArray>().unwrap();
+    let array = batch
+        .column(index)
+        .as_any()
+        .downcast_ref::<BooleanArray>()
+        .unwrap();
     (0..array.len())
-        .map(|row| if array.is_null(row) { None } else { Some(array.value(row)) })
+        .map(|row| {
+            if array.is_null(row) {
+                None
+            } else {
+                Some(array.value(row))
+            }
+        })
         .collect()
 }
 
 fn i64_col(batch: &RecordBatch, index: usize) -> Vec<Option<i64>> {
-    let array = batch.column(index).as_any().downcast_ref::<Int64Array>().unwrap();
+    let array = batch
+        .column(index)
+        .as_any()
+        .downcast_ref::<Int64Array>()
+        .unwrap();
     (0..array.len())
-        .map(|row| if array.is_null(row) { None } else { Some(array.value(row)) })
+        .map(|row| {
+            if array.is_null(row) {
+                None
+            } else {
+                Some(array.value(row))
+            }
+        })
         .collect()
 }
 
 fn dec_col(batch: &RecordBatch, index: usize) -> Vec<Option<i128>> {
-    let array = batch.column(index).as_any().downcast_ref::<Decimal128Array>().unwrap();
+    let array = batch
+        .column(index)
+        .as_any()
+        .downcast_ref::<Decimal128Array>()
+        .unwrap();
     (0..array.len())
-        .map(|row| if array.is_null(row) { None } else { Some(array.value(row)) })
+        .map(|row| {
+            if array.is_null(row) {
+                None
+            } else {
+                Some(array.value(row))
+            }
+        })
         .collect()
 }
 
@@ -369,11 +431,25 @@ fn oracle_rows(input: &[u8], sep: u8, strip_bom: bool) -> Result<Vec<OracleRow>,
     Ok(rows)
 }
 
-fn oracle_field(input: &[u8], index: &mut usize, line: &mut u64, sep: u8) -> Result<OracleField, &'static str> {
+fn oracle_field(
+    input: &[u8],
+    index: &mut usize,
+    line: &mut u64,
+    sep: u8,
+) -> Result<OracleField, &'static str> {
     let start_line = *line;
     let start = u64::try_from(*index).unwrap();
-    if *index >= input.len() || input[*index] == sep || input[*index] == b'\n' || input[*index] == b'\r' {
-        return Ok(OracleField { text: String::new(), line: start_line, offset: start, quoted: false });
+    if *index >= input.len()
+        || input[*index] == sep
+        || input[*index] == b'\n'
+        || input[*index] == b'\r'
+    {
+        return Ok(OracleField {
+            text: String::new(),
+            line: start_line,
+            offset: start,
+            quoted: false,
+        });
     }
     if input[*index] == b'"' {
         *index += 1;
@@ -399,7 +475,12 @@ fn oracle_field(input: &[u8], index: &mut usize, line: &mut u64, sep: u8) -> Res
             }
         }
         let text = String::from_utf8(raw).map_err(|_| "utf8")?;
-        return Ok(OracleField { text, line: start_line, offset: start, quoted: true });
+        return Ok(OracleField {
+            text,
+            line: start_line,
+            offset: start,
+            quoted: true,
+        });
     }
     let mut raw = Vec::new();
     while *index < input.len()
@@ -414,7 +495,12 @@ fn oracle_field(input: &[u8], index: &mut usize, line: &mut u64, sep: u8) -> Res
         *index += 1;
     }
     let text = String::from_utf8(raw).map_err(|_| "utf8")?;
-    Ok(OracleField { text, line: start_line, offset: start, quoted: false })
+    Ok(OracleField {
+        text,
+        line: start_line,
+        offset: start,
+        quoted: false,
+    })
 }
 
 fn dump_oracle(name: &str, bytes: &[u8], preimage: &str, digest: [u8; 32], lineage: &str) {
@@ -448,7 +534,13 @@ fn field_at<'a>(row: &'a DelimitedRowLineage, name: &str) -> &'a DelimitedFieldL
 fn sha256_oracle_matches_the_empty_and_abc_vectors() {
     assert_eq!(hex(&trusted_sha256(b"")), EMPTY_SHA);
     assert_eq!(hex(&trusted_sha256(b"abc")), ABC_SHA);
-    dump_oracle("sha256-self-check", b"abc", "abc", trusted_sha256(b"abc"), EMPTY_SHA);
+    dump_oracle(
+        "sha256-self-check",
+        b"abc",
+        "abc",
+        trusted_sha256(b"abc"),
+        EMPTY_SHA,
+    );
 }
 
 #[test]
@@ -481,13 +573,19 @@ fn profile_preimage_and_budget_identity_are_exact() {
     let profile = enterprise_profile();
     assert_eq!(profile.profile_preimage(), ENTERPRISE_PREIMAGE);
     let digest = trusted_sha256(b"object");
-    assert_eq!(profile.profile_digest(), trusted_sha256(ENTERPRISE_PREIMAGE.as_bytes()));
+    assert_eq!(
+        profile.profile_digest(),
+        trusted_sha256(ENTERPRISE_PREIMAGE.as_bytes())
+    );
     let expected = format!(
         "oo-delimited-config-identity/v1\n{ENTERPRISE_PREIMAGE}expected_sha256={}\n",
         hex(&digest)
     );
     assert_eq!(profile.config_preimage(digest), expected);
-    assert_eq!(profile.config_identity(digest), trusted_sha256(expected.as_bytes()));
+    assert_eq!(
+        profile.config_identity(digest),
+        trusted_sha256(expected.as_bytes())
+    );
     let left = budget_with(1, 10, 3, 3, 3, 1);
     let right = budget_with(8, 100, 64, 16, 1000, 20);
     assert_eq!(profile.config_identity(digest), {
@@ -501,13 +599,19 @@ fn profile_preimage_and_budget_identity_are_exact() {
 
 #[test]
 fn profile_and_budget_reject_ambiguous_input() {
-    for byte in [b';', b'|', b' ', b'"', b'\n', b'\r', b'\\'] {
+    for byte in *b";| \"\n\r\\" {
         let err = DelimitedDialect::try_from_separator(byte).unwrap_err();
         assert_eq!(err.kind(), DelimitedErrorKind::Config);
         assert_eq!(err.fact(), "ambiguous_dialect");
     }
-    assert_eq!(DelimitedDialect::try_from_separator(b',').unwrap(), DelimitedDialect::Csv);
-    assert_eq!(DelimitedDialect::try_from_separator(b'\t').unwrap(), DelimitedDialect::Tsv);
+    assert_eq!(
+        DelimitedDialect::try_from_separator(b',').unwrap(),
+        DelimitedDialect::Csv
+    );
+    assert_eq!(
+        DelimitedDialect::try_from_separator(b'\t').unwrap(),
+        DelimitedDialect::Tsv
+    );
     let err = DelimitedProfile::try_new(
         "sample",
         DelimitedDialect::Csv,
@@ -524,20 +628,51 @@ fn profile_and_budget_reject_ambiguous_input() {
         BomPolicy::Refuse,
         HeaderPolicy::Absent,
         NullPolicy::Empty,
-        vec![col("a", DelimitedType::Utf8, true), col("a", DelimitedType::Utf8, true)],
+        vec![
+            col("a", DelimitedType::Utf8, true),
+            col("a", DelimitedType::Utf8, true),
+        ],
     )
     .unwrap_err();
     assert_eq!(err.fact(), "duplicate_column");
-    assert_eq!(DelimitedColumn::try_new(" a", DelimitedType::Utf8, true).unwrap_err().fact(), "column_name");
-    assert_eq!(DelimitedColumn::try_new("", DelimitedType::Utf8, true).unwrap_err().fact(), "column_name");
+    assert_eq!(
+        DelimitedColumn::try_new(" a", DelimitedType::Utf8, true)
+            .unwrap_err()
+            .fact(),
+        "column_name"
+    );
+    assert_eq!(
+        DelimitedColumn::try_new("", DelimitedType::Utf8, true)
+            .unwrap_err()
+            .fact(),
+        "column_name"
+    );
     let spaced = col("my col", DelimitedType::Utf8, true);
     assert_eq!(spaced.name(), "my col");
     assert!(DelimitedColumn::try_new("名称", DelimitedType::Utf8, true).is_ok());
-    for (precision, scale, fact) in [(0, 0, "decimal_precision"), (39, 0, "decimal_precision"), (10, 39, "decimal_scale"), (10, -39, "decimal_scale"), (4, 5, "decimal_scale")] {
-        let err = DelimitedColumn::try_new("amount", DelimitedType::Decimal { precision, scale }, false).unwrap_err();
+    for (precision, scale, fact) in [
+        (0, 0, "decimal_precision"),
+        (39, 0, "decimal_precision"),
+        (10, 39, "decimal_scale"),
+        (10, -39, "decimal_scale"),
+        (4, 5, "decimal_scale"),
+    ] {
+        let err =
+            DelimitedColumn::try_new("amount", DelimitedType::Decimal { precision, scale }, false)
+                .unwrap_err();
         assert_eq!(err.fact(), fact, "{precision},{scale}");
     }
-    assert!(DelimitedColumn::try_new("amount", DelimitedType::Decimal { precision: 10, scale: -2 }, false).is_ok());
+    assert!(
+        DelimitedColumn::try_new(
+            "amount",
+            DelimitedType::Decimal {
+                precision: 10,
+                scale: -2
+            },
+            false
+        )
+        .is_ok()
+    );
     let err = DelimitedProfile::try_new(
         "sample",
         DelimitedDialect::Csv,
@@ -548,25 +683,33 @@ fn profile_and_budget_reject_ambiguous_input() {
     )
     .unwrap_err();
     assert_eq!(err.fact(), "null_token");
-    assert!(DelimitedProfile::try_new(
-        "sample",
-        DelimitedDialect::Tsv,
-        BomPolicy::Refuse,
-        HeaderPolicy::Absent,
-        NullPolicy::Token(",".to_owned()),
-        vec![col("a", DelimitedType::Utf8, true)],
-    )
-    .is_ok());
+    assert!(
+        DelimitedProfile::try_new(
+            "sample",
+            DelimitedDialect::Tsv,
+            BomPolicy::Refuse,
+            HeaderPolicy::Absent,
+            NullPolicy::Token(",".to_owned()),
+            vec![col("a", DelimitedType::Utf8, true)],
+        )
+        .is_ok()
+    );
     assert_eq!(
-        DelimitedBudget::try_new(0, 1, 3, 1, 3, 1, 1, 1, Instant::now()).unwrap_err().fact(),
+        DelimitedBudget::try_new(0, 1, 3, 1, 3, 1, 1, 1, Instant::now())
+            .unwrap_err()
+            .fact(),
         "batch_rows"
     );
     assert_eq!(
-        DelimitedBudget::try_new(1, 1, 2, 1, 2, 1, 1, 1, Instant::now()).unwrap_err().fact(),
+        DelimitedBudget::try_new(1, 1, 2, 1, 2, 1, 1, 1, Instant::now())
+            .unwrap_err()
+            .fact(),
         "max_record"
     );
     assert_eq!(
-        DelimitedBudget::try_new(1, 1, 8, 9, 8, 1, 1, 1, Instant::now()).unwrap_err().fact(),
+        DelimitedBudget::try_new(1, 1, 8, 9, 8, 1, 1, 1, Instant::now())
+            .unwrap_err()
+            .fact(),
         "max_field"
     );
 }
@@ -580,10 +723,27 @@ fn enterprise_csv_matches_the_hand_checked_oracle() {
     assert_eq!(oracle.len(), 4);
     assert_eq!(oracle[0].line, 1);
     assert_eq!(oracle[0].offset, 3);
-    assert_eq!(oracle[0].fields.iter().map(|field| field.text.as_str()).collect::<Vec<_>>(), ["名称", "ok", "n", "amount", "note"]);
+    assert_eq!(
+        oracle[0]
+            .fields
+            .iter()
+            .map(|field| field.text.as_str())
+            .collect::<Vec<_>>(),
+        ["名称", "ok", "n", "amount", "note"]
+    );
     let expected = [
-        (2, 28, 50, vec!["熊", "true", "-9223372036854775808", "1.20", note]),
-        (4, 78, 38, vec!["猫", "false", "9223372036854775807", "1.2", ""]),
+        (
+            2,
+            28,
+            50,
+            vec!["熊", "true", "-9223372036854775808", "1.20", note],
+        ),
+        (
+            4,
+            78,
+            38,
+            vec!["猫", "false", "9223372036854775807", "1.2", ""],
+        ),
         (5, 116, 16, vec!["\\N", "true", "-0", "0.00", ""]),
     ];
     for (row, expect) in oracle.iter().skip(1).zip(expected) {
@@ -607,10 +767,26 @@ fn enterprise_csv_matches_the_hand_checked_oracle() {
     let file = File::open(&path).unwrap();
     let pulled = pull(DelimitedReader::open(file, profile.clone(), digest, budget()).unwrap());
     assert_enterprise(&pulled, &digest);
-    let streamed = pull(DelimitedReader::open(OneByte { inner: Cursor::new(bytes.clone()) }, profile, digest, budget()).unwrap());
+    let streamed = pull(
+        DelimitedReader::open(
+            OneByte {
+                inner: Cursor::new(bytes.clone()),
+            },
+            profile,
+            digest,
+            budget(),
+        )
+        .unwrap(),
+    );
     assert_enterprise(&streamed, &digest);
     let lineage = lineage_text(&pulled.batches[0].lineage);
-    dump_oracle("positive-csv", &bytes, ENTERPRISE_PREIMAGE, digest, &lineage);
+    dump_oracle(
+        "positive-csv",
+        &bytes,
+        ENTERPRISE_PREIMAGE,
+        digest,
+        &lineage,
+    );
 }
 
 fn assert_enterprise(pulled: &Pulled, digest: &[u8; 32]) {
@@ -628,23 +804,112 @@ fn assert_enterprise(pulled: &Pulled, digest: &[u8; 32]) {
     assert_eq!(batch.header.protocol, DELIMITED_PROTOCOL);
     assert_eq!(batch.header.dialect, DelimitedDialect::Csv);
     let note = "甲,\"\r\n乙";
-    assert_eq!(utf8_col(&batch.record_batch, 0), vec![Some("熊".to_owned()), Some("猫".to_owned()), None]);
-    assert_eq!(bool_col(&batch.record_batch, 1), vec![Some(true), Some(false), Some(true)]);
-    assert_eq!(i64_col(&batch.record_batch, 2), vec![Some(i64::MIN), Some(i64::MAX), Some(0)]);
-    assert_eq!(dec_col(&batch.record_batch, 3), vec![Some(120), Some(120), Some(0)]);
-    assert_eq!(utf8_col(&batch.record_batch, 4), vec![Some(note.to_owned()), Some(String::new()), Some(String::new())]);
-    assert_eq!(batch.record_batch.schema().field(3).data_type(), &DataType::Decimal128(10, 2));
-    assert_eq!(batch.record_batch.schema().field(0).metadata().get("oo.delimited.logical").unwrap(), "utf8");
-    assert_eq!(batch.record_batch.schema().field(1).metadata().get("oo.delimited.logical").unwrap(), "bool");
-    assert_eq!(batch.record_batch.schema().field(2).metadata().get("oo.delimited.logical").unwrap(), "int64");
-    assert_eq!(batch.record_batch.schema().field(3).metadata().get("oo.delimited.logical").unwrap(), "decimal");
-    assert_eq!(batch.record_batch.schema().field(3).metadata().get("oo.delimited.precision").unwrap(), "10");
-    assert_eq!(batch.record_batch.schema().field(3).metadata().get("oo.delimited.scale").unwrap(), "2");
-    assert_eq!(batch.record_batch.schema().field(0).metadata().get("oo.delimited.protocol").unwrap(), DELIMITED_PROTOCOL);
+    assert_eq!(
+        utf8_col(&batch.record_batch, 0),
+        vec![Some("熊".to_owned()), Some("猫".to_owned()), None]
+    );
+    assert_eq!(
+        bool_col(&batch.record_batch, 1),
+        vec![Some(true), Some(false), Some(true)]
+    );
+    assert_eq!(
+        i64_col(&batch.record_batch, 2),
+        vec![Some(i64::MIN), Some(i64::MAX), Some(0)]
+    );
+    assert_eq!(
+        dec_col(&batch.record_batch, 3),
+        vec![Some(120), Some(120), Some(0)]
+    );
+    assert_eq!(
+        utf8_col(&batch.record_batch, 4),
+        vec![
+            Some(note.to_owned()),
+            Some(String::new()),
+            Some(String::new())
+        ]
+    );
+    assert_eq!(
+        batch.record_batch.schema().field(3).data_type(),
+        &DataType::Decimal128(10, 2)
+    );
+    assert_eq!(
+        batch
+            .record_batch
+            .schema()
+            .field(0)
+            .metadata()
+            .get("oo.delimited.logical")
+            .unwrap(),
+        "utf8"
+    );
+    assert_eq!(
+        batch
+            .record_batch
+            .schema()
+            .field(1)
+            .metadata()
+            .get("oo.delimited.logical")
+            .unwrap(),
+        "bool"
+    );
+    assert_eq!(
+        batch
+            .record_batch
+            .schema()
+            .field(2)
+            .metadata()
+            .get("oo.delimited.logical")
+            .unwrap(),
+        "int64"
+    );
+    assert_eq!(
+        batch
+            .record_batch
+            .schema()
+            .field(3)
+            .metadata()
+            .get("oo.delimited.logical")
+            .unwrap(),
+        "decimal"
+    );
+    assert_eq!(
+        batch
+            .record_batch
+            .schema()
+            .field(3)
+            .metadata()
+            .get("oo.delimited.precision")
+            .unwrap(),
+        "10"
+    );
+    assert_eq!(
+        batch
+            .record_batch
+            .schema()
+            .field(3)
+            .metadata()
+            .get("oo.delimited.scale")
+            .unwrap(),
+        "2"
+    );
+    assert_eq!(
+        batch
+            .record_batch
+            .schema()
+            .field(0)
+            .metadata()
+            .get("oo.delimited.protocol")
+            .unwrap(),
+        DELIMITED_PROTOCOL
+    );
     let lines = [2_u64, 4, 5];
     let offsets = [28_u64, 78, 116];
     let note_at = [63_u64, 112, 132];
-    let presence = [DelimitedFieldPresence::Value, DelimitedFieldPresence::Empty, DelimitedFieldPresence::Empty];
+    let presence = [
+        DelimitedFieldPresence::Value,
+        DelimitedFieldPresence::Empty,
+        DelimitedFieldPresence::Empty,
+    ];
     assert_eq!(batch.lineage.len(), 3);
     for (index, row) in batch.lineage.iter().enumerate() {
         assert_eq!(row.row_index, u64::try_from(index).unwrap());
@@ -655,7 +920,10 @@ fn assert_enterprise(pulled: &Pulled, digest: &[u8; 32]) {
         assert_eq!(field_at(row, "note").byte_offset, note_at[index]);
         assert_eq!(field_at(row, "note").presence, presence[index]);
     }
-    assert_eq!(field_at(&batch.lineage[2], "名称").presence, DelimitedFieldPresence::Null);
+    assert_eq!(
+        field_at(&batch.lineage[2], "名称").presence,
+        DelimitedFieldPresence::Null
+    );
     assert_eq!(field_at(&batch.lineage[0], "note").line, 2);
     assert_eq!(pulled.exhausted.rows, 3);
     assert_eq!(pulled.exhausted.object_sha256, *digest);
@@ -667,7 +935,10 @@ fn assert_enterprise(pulled: &Pulled, digest: &[u8; 32]) {
 fn lineage_text(rows: &[DelimitedRowLineage]) -> String {
     let mut out = String::new();
     for row in rows {
-        out.push_str(&format!("row={} line={} offset={}\n", row.row_index, row.line, row.byte_offset));
+        out.push_str(&format!(
+            "row={} line={} offset={}\n",
+            row.row_index, row.line, row.byte_offset
+        ));
         for field in &row.fields {
             out.push_str(&format!(
                 "  {} line={} offset={} presence={:?}\n",
@@ -731,15 +1002,27 @@ fn tsv_keeps_quoted_tabs_and_unquoted_commas() {
     let digest = trusted_sha256(&bytes);
     let pulled = pull(open_bytes(&bytes, profile.clone(), budget()));
     let batch = &pulled.batches[0];
-    assert_eq!(utf8_col(&batch.record_batch, 0), vec![Some("熊".to_owned()), Some("猫,鼠".to_owned())]);
-    assert_eq!(utf8_col(&batch.record_batch, 1), vec![Some("a\tb".to_owned()), Some("上海".to_owned())]);
+    assert_eq!(
+        utf8_col(&batch.record_batch, 0),
+        vec![Some("熊".to_owned()), Some("猫,鼠".to_owned())]
+    );
+    assert_eq!(
+        utf8_col(&batch.record_batch, 1),
+        vec![Some("a\tb".to_owned()), Some("上海".to_owned())]
+    );
     assert_eq!(i64_col(&batch.record_batch, 2), vec![Some(7), Some(0)]);
     assert_eq!(batch.lineage[0].byte_offset, 0);
     assert_eq!(batch.lineage[1].line, 2);
     assert_eq!(batch.lineage[1].byte_offset, 12);
     assert_eq!(field_at(&batch.lineage[0], "raw").byte_offset, 4);
     assert_receipt(&pulled.done, 2, 1, digest);
-    dump_oracle("positive-tsv", &bytes, &profile.profile_preimage(), digest, &lineage_text(&batch.lineage));
+    dump_oracle(
+        "positive-tsv",
+        &bytes,
+        &profile.profile_preimage(),
+        digest,
+        &lineage_text(&batch.lineage),
+    );
 }
 
 #[test]
@@ -750,14 +1033,23 @@ fn empty_null_policy_distinguishes_quoted_empty_from_null() {
         BomPolicy::Refuse,
         HeaderPolicy::Absent,
         NullPolicy::Empty,
-        vec![col("text", DelimitedType::Utf8, true), col("flag", DelimitedType::Bool, true)],
+        vec![
+            col("text", DelimitedType::Utf8, true),
+            col("flag", DelimitedType::Bool, true),
+        ],
     );
     let pulled = pull(open_bytes(bytes, profile, budget()));
     let batch = &pulled.batches[0];
     assert_eq!(utf8_col(&batch.record_batch, 0), vec![Some(String::new())]);
     assert_eq!(bool_col(&batch.record_batch, 1), vec![None]);
-    assert_eq!(field_at(&batch.lineage[0], "text").presence, DelimitedFieldPresence::Empty);
-    assert_eq!(field_at(&batch.lineage[0], "flag").presence, DelimitedFieldPresence::Null);
+    assert_eq!(
+        field_at(&batch.lineage[0], "text").presence,
+        DelimitedFieldPresence::Empty
+    );
+    assert_eq!(
+        field_at(&batch.lineage[0], "flag").presence,
+        DelimitedFieldPresence::Null
+    );
 }
 
 #[test]
@@ -771,11 +1063,23 @@ fn quoted_null_token_stays_literal_text() {
         vec![col("text", DelimitedType::Utf8, true)],
     );
     let pulled = pull(open_bytes(bytes, profile.clone(), budget()));
-    assert_eq!(utf8_col(&pulled.batches[0].record_batch, 0), vec![Some("\\N".to_owned())]);
-    assert_eq!(field_at(&pulled.batches[0].lineage[0], "text").presence, DelimitedFieldPresence::Value);
+    assert_eq!(
+        utf8_col(&pulled.batches[0].record_batch, 0),
+        vec![Some("\\N".to_owned())]
+    );
+    assert_eq!(
+        field_at(&pulled.batches[0].lineage[0], "text").presence,
+        DelimitedFieldPresence::Value
+    );
     let empty = pull(open_bytes(b"\n", profile, budget()));
-    assert_eq!(utf8_col(&empty.batches[0].record_batch, 0), vec![Some(String::new())]);
-    assert_eq!(field_at(&empty.batches[0].lineage[0], "text").presence, DelimitedFieldPresence::Empty);
+    assert_eq!(
+        utf8_col(&empty.batches[0].record_batch, 0),
+        vec![Some(String::new())]
+    );
+    assert_eq!(
+        field_at(&empty.batches[0].lineage[0], "text").presence,
+        DelimitedFieldPresence::Empty
+    );
 }
 
 #[test]
@@ -785,7 +1089,14 @@ fn negative_scale_decimal_strips_zeros_only() {
         BomPolicy::Refuse,
         HeaderPolicy::Absent,
         NullPolicy::Empty,
-        vec![col("amount", DelimitedType::Decimal { precision: 10, scale: -2 }, false)],
+        vec![col(
+            "amount",
+            DelimitedType::Decimal {
+                precision: 10,
+                scale: -2,
+            },
+            false,
+        )],
     );
     let bytes = b"1200\n";
     let pulled = pull(open_bytes(bytes, profile.clone(), budget()));
@@ -795,7 +1106,13 @@ fn negative_scale_decimal_strips_zeros_only() {
         &DataType::Decimal128(10, -2)
     );
     assert_eq!(
-        pulled.batches[0].record_batch.schema().field(0).metadata().get("oo.delimited.scale").unwrap(),
+        pulled.batches[0]
+            .record_batch
+            .schema()
+            .field(0)
+            .metadata()
+            .get("oo.delimited.scale")
+            .unwrap(),
         "-2"
     );
     let err = refuse(b"12\n", profile, budget());
@@ -810,10 +1127,20 @@ fn signed_decimal_and_lexical_rejections_drop_the_cell() {
         BomPolicy::Refuse,
         HeaderPolicy::Absent,
         NullPolicy::Empty,
-        vec![col("amount", DelimitedType::Decimal { precision: 10, scale: 2 }, false)],
+        vec![col(
+            "amount",
+            DelimitedType::Decimal {
+                precision: 10,
+                scale: 2,
+            },
+            false,
+        )],
     );
     let pulled = pull(open_bytes(b"-1.20\n", decimal.clone(), budget()));
-    assert_eq!(dec_col(&pulled.batches[0].record_batch, 0), vec![Some(-120)]);
+    assert_eq!(
+        dec_col(&pulled.batches[0].record_batch, 0),
+        vec![Some(-120)]
+    );
     for (text, fact) in [
         ("+1.20\n", "not_decimal"),
         (" 1.20\n", "not_decimal"),
@@ -904,10 +1231,16 @@ fn malformed_quotes_encoding_and_controls_hide_the_bytes() {
 fn quoted_controls_that_are_legal_stay_in_the_field() {
     let profile = text_profile(HeaderPolicy::Absent, BomPolicy::Refuse);
     let pulled = pull(open_bytes(b"\"a\rb\"\n", profile.clone(), budget()));
-    assert_eq!(utf8_col(&pulled.batches[0].record_batch, 0), vec![Some("a\rb".to_owned())]);
+    assert_eq!(
+        utf8_col(&pulled.batches[0].record_batch, 0),
+        vec![Some("a\rb".to_owned())]
+    );
     assert_eq!(pulled.batches[0].lineage[0].line, 1);
     let pulled = pull(open_bytes("a\tb\n".as_bytes(), profile, budget()));
-    assert_eq!(utf8_col(&pulled.batches[0].record_batch, 0), vec![Some("a\tb".to_owned())]);
+    assert_eq!(
+        utf8_col(&pulled.batches[0].record_batch, 0),
+        vec![Some("a\tb".to_owned())]
+    );
 }
 
 #[test]
@@ -920,7 +1253,8 @@ fn width_header_and_bom_failures_are_closed() {
     assert_eq!(err.fact(), "header_mismatch");
     let err = refuse(b"a,b\n", exact.clone(), budget());
     assert_eq!(err.fact(), "width_mismatch");
-    let mut reader = DelimitedReader::open(Cursor::new(Vec::<u8>::new()), exact, [0u8; 32], budget()).unwrap();
+    let mut reader =
+        DelimitedReader::open(Cursor::new(Vec::<u8>::new()), exact, [0u8; 32], budget()).unwrap();
     let err = reader.next_batch().unwrap_err();
     assert_eq!(err.fact(), "header_required");
     assert_eq!(reader.finish().unwrap_err().fact(), "header_required");
@@ -928,10 +1262,18 @@ fn width_header_and_bom_failures_are_closed() {
     let bom = [0xEF, 0xBB, 0xBF];
     let mut refused = bom.to_vec();
     refused.extend_from_slice(b"a\n");
-    let err = refuse(&refused, text_profile(HeaderPolicy::Absent, BomPolicy::Refuse), budget());
+    let err = refuse(
+        &refused,
+        text_profile(HeaderPolicy::Absent, BomPolicy::Refuse),
+        budget(),
+    );
     assert_eq!(err.kind(), DelimitedErrorKind::Encoding);
     assert_eq!(err.fact(), "bom_refused");
-    let err = refuse(b"a\n", text_profile(HeaderPolicy::Absent, BomPolicy::Require), budget());
+    let err = refuse(
+        b"a\n",
+        text_profile(HeaderPolicy::Absent, BomPolicy::Require),
+        budget(),
+    );
     assert_eq!(err.fact(), "bom_required");
 }
 
@@ -947,7 +1289,10 @@ fn bom_require_and_exact_header_shift_lineage() {
         vec![col("名称", DelimitedType::Utf8, false)],
     );
     let pulled = pull(open_bytes(&bytes, profile, budget()));
-    assert_eq!(utf8_col(&pulled.batches[0].record_batch, 0), vec![Some("熊".to_owned())]);
+    assert_eq!(
+        utf8_col(&pulled.batches[0].record_batch, 0),
+        vec![Some("熊".to_owned())]
+    );
     assert_eq!(pulled.batches[0].lineage[0].line, 2);
     let header_len = u64::try_from("\"名称\"\n".len()).unwrap();
     assert_eq!(pulled.batches[0].lineage[0].byte_offset, 3 + header_len);
@@ -958,10 +1303,19 @@ fn bom_require_and_exact_header_shift_lineage() {
 fn empty_absent_header_completes_and_a_bad_hash_does_not() {
     let profile = text_profile(HeaderPolicy::Absent, BomPolicy::Refuse);
     let digest = trusted_sha256(b"");
-    let pulled = pull(DelimitedReader::open(Cursor::new(Vec::<u8>::new()), profile.clone(), digest, budget()).unwrap());
+    let pulled = pull(
+        DelimitedReader::open(
+            Cursor::new(Vec::<u8>::new()),
+            profile.clone(),
+            digest,
+            budget(),
+        )
+        .unwrap(),
+    );
     assert!(pulled.batches.is_empty());
     assert_receipt(&pulled.done, 0, 0, digest);
-    let mut reader = DelimitedReader::open(Cursor::new(Vec::<u8>::new()), profile, [0u8; 32], budget()).unwrap();
+    let mut reader =
+        DelimitedReader::open(Cursor::new(Vec::<u8>::new()), profile, [0u8; 32], budget()).unwrap();
     let err = reader.next_batch().unwrap_err();
     assert_eq!(err.kind(), DelimitedErrorKind::Hash);
     assert_eq!(err.fact(), "hash_mismatch");
@@ -982,12 +1336,16 @@ fn header_only_completes_with_zero_data_rows() {
 fn hash_mismatch_returns_the_batch_then_refuses_completion() {
     let bytes = "熊\n".as_bytes();
     let profile = text_profile(HeaderPolicy::Absent, BomPolicy::Refuse);
-    let mut reader = DelimitedReader::open(Cursor::new(bytes.to_vec()), profile, [9u8; 32], budget()).unwrap();
+    let mut reader =
+        DelimitedReader::open(Cursor::new(bytes.to_vec()), profile, [9u8; 32], budget()).unwrap();
     let item = reader.next_batch().unwrap();
     let DelimitedItem::Batch(batch) = item else {
         panic!("pending batch was dropped");
     };
-    assert_eq!(utf8_col(&batch.record_batch, 0), vec![Some("熊".to_owned())]);
+    assert_eq!(
+        utf8_col(&batch.record_batch, 0),
+        vec![Some("熊".to_owned())]
+    );
     let err = reader.next_batch().unwrap_err();
     assert_eq!(err.kind(), DelimitedErrorKind::Hash);
     assert_eq!(err.fact(), "hash_mismatch");
@@ -1002,7 +1360,10 @@ fn early_finish_does_not_mint_completion() {
     let reader = open_bytes(b"a\nb\n", profile.clone(), budget());
     assert_eq!(reader.finish().unwrap_err().fact(), "not_exhausted");
     let mut reader = open_bytes(b"a\nb\n", profile, budget());
-    assert!(matches!(reader.next_batch().unwrap(), DelimitedItem::Batch(_)));
+    assert!(matches!(
+        reader.next_batch().unwrap(),
+        DelimitedItem::Batch(_)
+    ));
     assert_eq!(reader.finish().unwrap_err().fact(), "not_exhausted");
 }
 
@@ -1031,18 +1392,27 @@ fn batch_caps_rewind_or_refuse() {
     assert_eq!(pulled.batches.len(), 2);
     assert_eq!(pulled.batches[0].lineage[0].row_index, 0);
     assert_eq!(pulled.batches[1].lineage[0].row_index, 1);
-    assert_eq!(utf8_col(&pulled.batches[1].record_batch, 0), vec![Some("b".to_owned())]);
+    assert_eq!(
+        utf8_col(&pulled.batches[1].record_batch, 0),
+        vec![Some("b".to_owned())]
+    );
     let bytes = budget_with(8, 3, 64, 64, 1024, 10);
     let pulled = pull(open_bytes(b"aa\nb\n", profile.clone(), bytes));
     assert_eq!(pulled.batches.len(), 2);
     assert_eq!(pulled.batches[0].raw_bytes, 3);
-    assert_eq!(utf8_col(&pulled.batches[0].record_batch, 0), vec![Some("aa".to_owned())]);
+    assert_eq!(
+        utf8_col(&pulled.batches[0].record_batch, 0),
+        vec![Some("aa".to_owned())]
+    );
     let tiny = budget_with(8, 1, 64, 64, 1024, 10);
     let err = refuse(b"aa\n", profile.clone(), tiny);
     assert_eq!(err.fact(), "batch_bytes");
     let rows = budget_with(8, 1024, 64, 64, 1024, 1);
     let mut reader = open_bytes(b"a\nb\n", profile.clone(), rows);
-    assert!(matches!(reader.next_batch().unwrap(), DelimitedItem::Batch(_)));
+    assert!(matches!(
+        reader.next_batch().unwrap(),
+        DelimitedItem::Batch(_)
+    ));
     assert_eq!(reader.next_batch().unwrap_err().fact(), "max_rows");
     assert_eq!(reader.finish().unwrap_err().fact(), "max_rows");
     let narrow = DelimitedBudget::try_new(
@@ -1082,7 +1452,11 @@ fn cancel_before_a_read_and_a_blocked_read_refuse_completion() {
     let due = DelimitedBudget::try_new(1, 16, 8, 8, 16, 1, 1, 1, Instant::now()).unwrap();
     let reads = Arc::new(AtomicUsize::new(0));
     let err = DelimitedReader::open(
-        Counted { data: b"a\n".to_vec(), pos: 0, reads: Arc::clone(&reads) },
+        Counted {
+            data: b"a\n".to_vec(),
+            pos: 0,
+            reads: Arc::clone(&reads),
+        },
         text_profile(HeaderPolicy::Absent, BomPolicy::Refuse),
         digest,
         due,
@@ -1122,12 +1496,18 @@ fn cancel_before_a_read_and_a_blocked_read_refuse_completion() {
     });
     let start = Instant::now();
     while !entered.load(Ordering::SeqCst) {
-        assert!(start.elapsed() < Duration::from_secs(5), "read did not start");
+        assert!(
+            start.elapsed() < Duration::from_secs(5),
+            "read did not start"
+        );
         thread::sleep(Duration::from_millis(1));
     }
     cancel.request();
     thread::sleep(Duration::from_millis(50));
-    assert!(!done.load(Ordering::SeqCst), "next_batch returned while the read was blocked");
+    assert!(
+        !done.load(Ordering::SeqCst),
+        "next_batch returned while the read was blocked"
+    );
     release.store(true, Ordering::SeqCst);
     let (pulled, finished) = rx.recv_timeout(Duration::from_secs(5)).unwrap();
     assert_eq!(pulled, "cancelled");
@@ -1140,7 +1520,11 @@ fn drop_releases_the_reader_and_debug_hides_cells() {
     let flag = Arc::new(AtomicBool::new(false));
     let profile = text_profile(HeaderPolicy::Absent, BomPolicy::Refuse);
     let reader = DelimitedReader::open(
-        FlagRead { flag: Arc::clone(&flag), data: b"\xe7\x86\x8a\n".to_vec(), pos: 0 },
+        FlagRead {
+            flag: Arc::clone(&flag),
+            data: b"\xe7\x86\x8a\n".to_vec(),
+            pos: 0,
+        },
         profile,
         trusted_sha256("熊\n".as_bytes()),
         budget(),
@@ -1155,13 +1539,8 @@ fn drop_releases_the_reader_and_debug_hides_cells() {
 #[test]
 fn io_errors_drop_the_os_message() {
     let profile = text_profile(HeaderPolicy::Absent, BomPolicy::Refuse);
-    let mut reader = DelimitedReader::open(
-        SecretRead,
-        profile,
-        trusted_sha256(b""),
-        budget(),
-    )
-    .unwrap();
+    let mut reader =
+        DelimitedReader::open(SecretRead, profile, trusted_sha256(b""), budget()).unwrap();
     let err = reader.next_batch().unwrap_err();
     assert_eq!(err.kind(), DelimitedErrorKind::Io);
     assert_eq!(err.fact(), "read");
@@ -1174,7 +1553,11 @@ fn open_does_not_read() {
     let reads = Arc::new(AtomicUsize::new(0));
     let profile = text_profile(HeaderPolicy::Absent, BomPolicy::Refuse);
     let reader = DelimitedReader::open(
-        Counted { data: b"a\n".to_vec(), pos: 0, reads: Arc::clone(&reads) },
+        Counted {
+            data: b"a\n".to_vec(),
+            pos: 0,
+            reads: Arc::clone(&reads),
+        },
         profile,
         trusted_sha256(b"a\n"),
         budget(),

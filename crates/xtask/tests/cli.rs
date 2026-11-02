@@ -27,13 +27,7 @@ fn help_version_and_unknown_exit() {
 
 #[test]
 fn unimplemented_suites_are_not_success() {
-    for suite in [
-        "integration-a",
-        "security-b",
-        "runtime-c",
-        "release-state",
-        "operational",
-    ] {
+    for suite in ["runtime-c", "release-state", "operational"] {
         let (code, text) = xtask(&["test", "--suite", suite, "--format", "json"]);
         assert_eq!(code, 3, "{suite}: {text}");
         assert!(text.contains("suite_not_implemented"), "{text}");
@@ -172,6 +166,11 @@ fn spec_suite_flags_return_pending_not_usage() {
     ];
     for (args, suite) in cases {
         let (code, text) = xtask(args);
+        if matches!(*suite, "integration-a" | "security-b") {
+            assert_eq!(code, 2, "{suite}: {text}");
+            assert!(text.contains("pinned scenarios"), "{text}");
+            continue;
+        }
         assert_eq!(code, 3, "{suite}: {text}");
         assert!(text.contains("suite_not_implemented"), "{suite}: {text}");
         assert!(text.contains("\"production_faults\": false"), "{text}");
@@ -484,7 +483,12 @@ fn local_fixture(label: &str) -> std::path::PathBuf {
     let _ = std::fs::remove_dir_all(&temp);
     std::fs::create_dir_all(temp.join("ci/baseline")).unwrap();
     std::fs::create_dir_all(temp.join(".github/workflows")).unwrap();
-    std::fs::copy(root.join("ci/gates.yaml"), temp.join("ci/gates.yaml")).unwrap();
+    // These process-supervision fixtures exercise the original nine foundation
+    // commands, independently of newly enabled database capability suites.
+    let foundation = std::fs::read_to_string(root.join("ci/baseline/gates-baseline.yaml"))
+        .unwrap()
+        .replacen("document: baseline", "document: manifest", 1);
+    std::fs::write(temp.join("ci/gates.yaml"), foundation).unwrap();
     std::fs::copy(
         root.join("ci/baseline/gates-baseline.yaml"),
         temp.join("ci/baseline/gates-baseline.yaml"),
@@ -681,7 +685,11 @@ fn execute_local_shim_is_required_satisfied_and_replay_is_not() {
         );
         assert!(text.contains("\"spawned\": true"), "{text}");
         assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
-        assert_eq!(text.matches("\"containment\": \"verified\"").count(), 9, "{text}");
+        assert_eq!(
+            text.matches("\"containment\": \"verified\"").count(),
+            9,
+            "{text}"
+        );
         assert_eq!(text.matches("\"timed_out\": false").count(), 9, "{text}");
         assert_eq!(
             text.matches("\"cleanup_incomplete\": false").count(),
@@ -718,10 +726,7 @@ fn execute_local_shim_is_required_satisfied_and_replay_is_not() {
         assert!(text.contains("\"code\": \"gate.containment\""), "{text}");
         assert!(text.contains("\"spawned\": false"), "{text}");
         assert!(!text.contains("\"spawned\": true"), "{text}");
-        assert!(
-            text.contains("\"runner_authority\": \"absent\""),
-            "{text}"
-        );
+        assert!(text.contains("\"runner_authority\": \"absent\""), "{text}");
         assert_eq!(invoked.matches("INVOKED").count(), 0, "{invoked}");
     }
     let root = std::path::PathBuf::from(json_string(&text, "integrity_root"));
@@ -749,7 +754,9 @@ fn execute_local_shim_is_required_satisfied_and_replay_is_not() {
             .expect("capture exit_code")
             .trim();
         assert!(
-            exit_code.bytes().all(|byte| byte.is_ascii_digit() || byte == b'-'),
+            exit_code
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || byte == b'-'),
             "{exit_code}"
         );
         jobs.push_str(&format!(
@@ -840,7 +847,11 @@ fn execute_local_failed_child_cannot_seal_a_pass() {
         assert!(text.contains("\"code\": \"gate.job_failed\""), "{text}");
         assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
         assert!(text.contains("\"spawned\": true"), "{text}");
-        assert_eq!(text.matches("\"containment\": \"verified\"").count(), 9, "{text}");
+        assert_eq!(
+            text.matches("\"containment\": \"verified\"").count(),
+            9,
+            "{text}"
+        );
         assert_eq!(text.matches("\"exit_code\": 7").count(), 9, "{text}");
         assert_eq!(invoked.matches("INVOKED").count(), 9, "{invoked}");
     } else {
@@ -880,10 +891,7 @@ fn execute_local_source_drift_keeps_results_and_fails_the_seal() {
         assert!(text.contains("\"code\": \"gate.containment\""), "{text}");
         assert!(text.contains("\"spawned\": false"), "{text}");
         assert!(!text.contains("\"spawned\": true"), "{text}");
-        assert!(
-            !marker.exists(),
-            "refused command wrote the drift marker"
-        );
+        assert!(!marker.exists(), "refused command wrote the drift marker");
     }
     let _ = std::fs::remove_dir_all(&repo);
     let _ = std::fs::remove_dir_all(&shim.dir);
@@ -1084,7 +1092,11 @@ wait\n",
         assert!(!recorded.contains("NO_SETSID"), "{recorded}");
         assert!(text.contains("\"code\": \"gate.deadline\""), "{text}");
         assert!(!text.contains("\"code\": \"gate.containment\""), "{text}");
-        assert_eq!(text.matches("\"containment\": \"verified\"").count(), 9, "{text}");
+        assert_eq!(
+            text.matches("\"containment\": \"verified\"").count(),
+            9,
+            "{text}"
+        );
         assert_eq!(descendant_pids.len(), 9, "{recorded}\n{text}");
         assert!(
             descendants_gone.iter().all(|(_, gone)| *gone),
@@ -1241,4 +1253,28 @@ fn execute_local_output_limit_cannot_seal_a_pass() {
         assert!(!text.contains("\"code\": \"gate.output_limit\""), "{text}");
         assert!(!text.contains("\"spawned\": true"), "{text}");
     }
+}
+
+#[test]
+fn github_receipt_verifier_contract_tests_pass() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let output = Command::new("python3")
+        .args([
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "ci",
+            "-p",
+            "test_gate_receipts.py",
+        ])
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("Ran 0 tests"));
 }

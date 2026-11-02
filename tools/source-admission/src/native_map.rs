@@ -151,6 +151,7 @@ pub fn seal_engine(engine: &str) -> bool {
 /// observation, and the ClickHouse profile are checked by `admit`.
 pub fn interpret_native_grant(compat_mode: &str, name: &str) -> NativeGrant {
     match compat_mode {
+        "mysql-native" if matches!(name, "USAGE" | "PROCESS" | "LOCK TABLES" | "SHOW VIEW" | "REPLICATION SLAVE" | "REPLICATION CLIENT") => NativeGrant::ReadOnly,
         MONGODB_NATIVE => mongo_grant(name),
         CLICKHOUSE_NATIVE => clickhouse_grant(name),
         OPENSEARCH_NATIVE => opensearch_grant(name),

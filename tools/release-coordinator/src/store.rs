@@ -13,7 +13,7 @@ use crate::decide::{
     is_external, is_gate, plan_document, production_outcome, summarize_external, summarize_gates,
 };
 use crate::error::{StoreError, query_error};
-use crate::seal::{self, Expectation, Seal, compile_seal, recompile_g8};
+use crate::seal::{self, Expectation, Seal};
 use crate::sha256::sha256_hex;
 use crate::sql::{self, ADMIN_ROLE, INSTALL_LOCK};
 use crate::tls::rustls_connector;
@@ -47,12 +47,18 @@ macro_rules! audit {
     };
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct Endpoint {
+    pub pack_ceilings: Option<oo_builder::RolePackCeilings>,
     pub host: String,
     pub port: u16,
     pub database: String,
 }
+
+impl PartialEq for Endpoint {
+    fn eq(&self, other: &Self) -> bool { self.host == other.host && self.port == other.port && self.database == other.database }
+}
+impl Eq for Endpoint {}
 
 pub struct Receipt {
     pub code: u8,
@@ -224,7 +230,51 @@ pub async fn install(request: &InstallRequest<'_>) -> Result<Receipt, StoreError
         Ok(receipt) => receipt,
         Err(err) => return Err(rollback(tx, err).await),
     };
+    if receipt.code==0 {
+        if let Err(error)=install_library_document_capacity(&tx,request.endpoint.pack_ceilings.as_ref()).await {return Err(rollback(tx,error).await);}
+    }
     commit(tx, receipt).await
+}
+
+const LIBRARY_DOCUMENT_SQL: &str = include_str!("../migrations/oo_release_library_documents_v2.sql");
+
+async fn install_library_document_capacity(
+    tx: &Transaction<'_>,
+    ceilings: Option<&oo_builder::RolePackCeilings>,
+) -> Result<(), StoreError> {
+    let Some(ceilings) = ceilings else {
+        return Ok(());
+    };
+    let bytes = i32::try_from(ceilings.json_scan.max_bytes).map_err(|_| StoreError::Input)?;
+    let file = i32::try_from(ceilings.max_file_bytes).map_err(|_| StoreError::Input)?;
+    if !(1_048_576..=67_108_864).contains(&bytes) || !(262_144..=4_194_304).contains(&file) {
+        return Err(StoreError::Input);
+    }
+    let hash = sha256_hex(LIBRARY_DOCUMENT_SQL.as_bytes());
+    let exists: bool = tx
+        .query_one(
+            "SELECT to_regclass('oo_release_control.library_document_manifest') IS NOT NULL",
+            &[],
+        )
+        .await
+        .map_err(query_error)?
+        .get(0);
+    if !exists {
+        tx.batch_execute(LIBRARY_DOCUMENT_SQL)
+            .await
+            .map_err(query_error)?;
+        tx.execute(
+            "INSERT INTO oo_release_control.library_document_manifest VALUES(true,$1)",
+            p!(&hash),
+        )
+        .await
+        .map_err(query_error)?;
+    } else {
+        let actual:String=tx.query_one("SELECT sql_sha256 FROM oo_release_control.library_document_manifest WHERE singleton",&[]).await.map_err(query_error)?.get(0);
+        if actual!=hash {return Err(StoreError::Input);}
+    }
+    tx.execute("UPDATE oo_release_control.library_document_limits SET max_document_bytes=GREATEST(max_document_bytes,$1),max_file_bytes=GREATEST(max_file_bytes,$2) WHERE singleton",p!(&bytes,&file)).await.map_err(query_error)?;
+    Ok(())
 }
 
 pub async fn stage(request: &StageRequest<'_>) -> Result<Receipt, StoreError> {
@@ -572,7 +622,7 @@ async fn stage_body(
             json!({"pointer_version": pointer.version}),
         ));
     }
-    let seal = match compile_seal(
+    let seal = match seal::compile_seal_with_ceilings(
         request.effective,
         request.visibility,
         &Expectation {
@@ -586,6 +636,7 @@ async fn stage_body(
             knowledge_version: request.knowledge_version,
             catalog_version: request.catalog_version,
         },
+        request.endpoint.pack_ceilings.as_ref().unwrap_or(&oo_builder::RolePackCeilings::default()),
     ) {
         Ok(seal) => seal,
         Err(reason) => return Ok(refused(reason, json!({"database_used": true}))),
@@ -761,7 +812,9 @@ pub(crate) fn overlay_one(summary: &mut Summary, disposition: &str) -> bool {
     if disposition == "blocked" {
         summary.test_admissible = false;
         summary.production_admissible = false;
-        summary.disposition = "blocked".to_owned();
+        if !matches!(summary.disposition.as_str(), "failed" | "conflict") {
+            summary.disposition = "blocked".to_owned();
+        }
         return false;
     }
     if disposition != "not_applicable" {
@@ -801,6 +854,22 @@ async fn gate_body(
     if candidate.project != request.project_id {
         return Ok(refused("project_binding", json!({})));
     }
+    let effective: Value = serde_json::from_str(&candidate.effective).map_err(|_| StoreError::Input)?;
+    if request.status == "pass"
+        && !request.blocking
+        && let Some(required) = crate::apply::blocked_precondition(&effective, request.gate_id)
+            .map_err(|_| StoreError::Input)?
+    {
+        return Ok(refused(
+            "bound_evidence_required",
+            json!({
+                "gate_id": required.gate_id, "detail": required.detail,
+                "issuer_authentication": "not_established",
+                "test_admissible": false, "production_admissible": false,
+                "database_used": true, "gate_written": false
+            }),
+        ));
+    }
     // A caller receipt cannot be added after the candidate leaves candidate_built.
     // The one exception is the server G7 measurement, which exists only after open.
     let server_g7 = server_detail.is_some()
@@ -822,11 +891,12 @@ async fn gate_body(
                 "component_authority_does_not_cover".to_owned(),
                 "component_authority".to_owned(),
             )
-        } else if recompile_g8(
+        } else if seal::recompile_g8_with_ceilings(
             &candidate.effective,
             &candidate.visibility,
             &candidate.pack_digest,
             &candidate.manifest_sha256,
+            request.endpoint.pack_ceilings.as_ref().unwrap_or(&oo_builder::RolePackCeilings::default()),
         )
         .is_ok()
         {
@@ -1067,6 +1137,7 @@ struct Assessment {
     epoch: Option<String>,
     plan_hash: String,
     gates: Value,
+    business_deadline: Option<i64>,
 }
 
 async fn assess(
@@ -1084,7 +1155,25 @@ async fn assess(
         &deployment.authority_sha,
         &deployment.covers,
     );
-    let evidence = overlay_maintenance(tx, &candidate.id, &mut gates).await?;
+    let mut evidence = overlay_maintenance(tx, &candidate.id, &mut gates).await?;
+    let effective: Value =
+        serde_json::from_str(&candidate.effective).map_err(|_| StoreError::Input)?;
+    crate::apply::enforce_preconditions(&effective, &mut gates).map_err(|_| StoreError::Input)?;
+    let visibility: Value =
+        serde_json::from_str(&candidate.visibility).map_err(|_| StoreError::Input)?;
+    let business = crate::business_positive::verify(
+        tx,
+        &candidate.id,
+        &candidate.source_hash,
+        &effective,
+        &visibility,
+    )
+    .await?;
+    if let Some(proof) = &business {
+        proof.overlay(&mut gates);
+        evidence.extend(proof.certificates.clone());
+    }
+    let business_deadline = business.as_ref().map(|proof| proof.deadline);
     let external = summarize_external(
         &facts,
         &candidate.source_hash,
@@ -1213,6 +1302,9 @@ async fn assess(
                     "disposition": summary.disposition,
                     "test_admissible": summary.test_admissible,
                     "production_admissible": summary.production_admissible,
+                    "business_evidence": if summary.test_admissible {
+                        business.as_ref().and_then(|proof| proof.receipts(&summary.gate_id))
+                    } else { None },
                 })
             })
             .collect::<Vec<_>>(),
@@ -1225,6 +1317,7 @@ async fn assess(
         epoch,
         plan_hash,
         gates: gate_json,
+        business_deadline,
     })
 }
 
@@ -1568,7 +1661,7 @@ async fn commit_body(
     let epoch = assessment.epoch.as_deref().unwrap_or("");
     let updated = tx
         .execute(
-            sql::UPDATE_POINTER,
+            sql::UPDATE_POINTER_WITH_BUSINESS_DEADLINE,
             p!(
                 candidate.version,
                 candidate.id,
@@ -1577,6 +1670,7 @@ async fn commit_body(
                 candidate.manifest_sha256,
                 request.project_id,
                 candidate.base,
+                assessment.business_deadline,
             ),
         )
         .await
@@ -2555,5 +2649,18 @@ mod tests {
         for disposition in ["failed", "conflict", "missing", "not_applicable"] {
             assert_eq!(gate_admissibility(disposition), (false, false));
         }
+    }
+}
+
+#[cfg(test)]
+mod library_document_capacity_tests {
+    #[test]
+    fn storage_migration_is_additive_and_has_a_closed_default_ceiling() {
+        let migration=super::LIBRARY_DOCUMENT_SQL;
+        assert!(migration.contains("library_document_manifest"));
+        assert!(migration.contains("1048576"));
+        assert!(migration.contains("67108864"));
+        assert!(!migration.contains("UPDATE oo_release_control.install_manifest"));
+        assert!(!migration.contains("DELETE FROM oo_release_control"));
     }
 }

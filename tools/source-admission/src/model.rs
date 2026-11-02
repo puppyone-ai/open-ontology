@@ -269,6 +269,9 @@ pub struct SourceConfig {
     /// ClickHouse profile. Must equal the report when either side sets it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native: Option<NativeFacts>,
+    /// `grant_enforced` lets an installed operator accept MySQL-enforced read-only grants in place of a source-side audit log.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_audit_policy: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

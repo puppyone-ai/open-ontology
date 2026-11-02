@@ -1493,3 +1493,105 @@ fn actual_arrow_rows_over_configured_budget_are_not_admitted() {
     assert!(codes(&doc).contains(&"BUDGET_EXCEEDED".to_string()), "{doc}");
     assert!(seal_of(&laid).bundle.is_none());
 }
+
+#[test]
+fn grant_enforced_audit_is_admitted_only_under_the_installed_operator_policy() {
+    let mut laid = lay(
+        "mysql",
+        "mysql-native",
+        nz_table(),
+        nz_columns(),
+        nz_types(),
+        "ns2-nz_obs.arrow",
+    );
+    let mut tick: Value = serde_json::from_slice(&laid.capturer).unwrap();
+    tick["protocol"] = json!("oo.mysql.full-capture/v1");
+    tick["snapshot_complete"] = json!(true);
+    tick["snapshot"] = json!({"kind":"capture-tick","value":"ns2"});
+    tick["source_audit"] = json!({"source":"grant_enforced","schema":"oo_dl01w1_43","table":"nz_obs","connection_id":17,"read_only_transaction":true,"privileges":["LOCK TABLES","PROCESS","SELECT"]});
+    replace_capturer(&mut laid, tick.clone());
+    let (admitted, doc) = decision_of(&laid);
+    assert!(!admitted, "{doc}");
+    assert!(codes(&doc).contains(&"WRITE_UNOBSERVED".to_owned()), "{doc}");
+    laid.config["source_audit_policy"] = json!("grant_enforced");
+    reload(&mut laid);
+    let (admitted, doc) = decision_of(&laid);
+    assert!(admitted, "{doc}");
+    for write in ["INSERT", "UPDATE", "DELETE", "CREATE", "ALL PRIVILEGES"] {
+        let mut bad = tick.clone();
+        bad["source_audit"]["privileges"] = json!(["SELECT", write]);
+        replace_capturer(&mut laid, bad);
+        let (admitted, doc) = decision_of(&laid);
+        assert!(!admitted, "{write}: {doc}");
+    }
+    let mut bad = tick;
+    bad["source_audit"]["read_only_transaction"] = json!(false);
+    replace_capturer(&mut laid, bad);
+    assert!(!decision_of(&laid).0);
+}
+
+#[test]
+fn mysql_full_capture_requires_complete_source_audit_and_keeps_c5() {
+    let mut laid = lay(
+        "mysql",
+        "mysql-native",
+        nz_table(),
+        nz_columns(),
+        nz_types(),
+        "ns2-nz_obs.arrow",
+    );
+    let mut tick: Value = serde_json::from_slice(&laid.capturer).unwrap();
+    tick["protocol"] = json!("oo.mysql.full-capture/v1");
+    tick["snapshot_complete"] = json!(true);
+    tick["snapshot"] = json!({"kind":"capture-tick","value":"ns2"});
+    tick["source_audit"] = json!({"source":"mysql.general_log","schema":"oo_dl01w1_43","table":"nz_obs","connection_id":17,"enabled_before":true,"enabled_after":true,
+        "records":[
+            {"thread_id":17,"command_type":"Connect","argument":"reader@localhost on sample"},
+            {"thread_id":17,"command_type":"Query","argument":"START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY"},
+            {"thread_id":17,"command_type":"Query","argument":"SELECT `id` FROM `oo_dl01w1_43`.`nz_obs` LIMIT 3"},
+            {"thread_id":17,"command_type":"Query","argument":"COMMIT"}]});
+    replace_capturer(&mut laid, tick.clone());
+    let (admitted, doc) = decision_of(&laid);
+    assert!(admitted, "{doc}");
+    let sealed = seal_of(&laid);
+    let bundle = sealed.bundle.expect("full C5 seal");
+    let registry: Value = serde_json::from_slice(&bundle.registry).unwrap();
+    assert_eq!(registry["bindings"][0]["source_engine"], "mysql");
+    let receipt: Value = serde_json::from_slice(&bundle.receipt).unwrap();
+    assert_eq!(receipt["capture_method"], "C5");
+    assert_eq!(receipt["consistency"], "S0");
+    for mutation in [
+        "missing",
+        "wrong_connection",
+        "wrong_table",
+        "write",
+        "partial",
+    ] {
+        let mut bad = tick.clone();
+        match mutation {
+            "missing" => {
+                bad.as_object_mut().unwrap().remove("source_audit");
+            }
+            "wrong_connection" => bad["source_audit"]["records"][2]["thread_id"] = json!(18),
+            "wrong_table" => {
+                bad["source_audit"]["schema"] = json!("other");
+                bad["source_audit"]["records"][2]["argument"] =
+                    json!("SELECT `id` FROM `other`.`nz_obs` LIMIT 3");
+            }
+            "write" => {
+                bad["source_audit"]["records"][2]["argument"] =
+                    json!("UPDATE sample.items SET id=1")
+            }
+            "partial" => bad["snapshot_complete"] = json!(false),
+            _ => unreachable!(),
+        }
+        replace_capturer(&mut laid, bad);
+        let (admitted, doc) = decision_of(&laid);
+        assert!(!admitted, "{mutation}: {doc}");
+        assert!(
+            codes(&doc).contains(&"WRITE_UNOBSERVED".to_owned()),
+            "{mutation}: {doc}"
+        );
+        assert!(seal_of(&laid).bundle.is_none());
+    }
+}

@@ -56,12 +56,129 @@ Applicable publication gates are `G1`, `G2`, `G3`, `G4`, `G5a`, `G5b`, `G6`, `G7
 | `component_authority` for a gate other than G8, or G8 recompile mismatch | `component_uncovered` | no |
 | two admissible certificates for one gate | `conflict` | no |
 | `pass`, not blocking, source matches, test issuer or covered fixture, scope `test_scope` | `admissible` | test scope only |
-| G3 or G4 `warn`, not blocking, same binding | `admissible` | test scope only |
+| G3 or G4 `warn`, not blocking, same binding, `test_issuer` | `admissible` | test scope only |
+| G3 or G4 `warn`, not blocking, covered `fixture_authority` target measurement | `not_run` | existing store warning handling only; not production |
 | G8 recompile matches, samples `omitted`, publication `not_claimed` | `admissible` | test scope only |
 
 `component_authority` for G8 reruns `compile_role_pack` on the stored inputs. The caller’s status is not trusted. The recorded evidence is `role_pack_samples_omitted`. `pii_database_scan` is `not_performed`. That pass is not a production certificate.
 
 Production admissibility requires a production issuer. This slice does not define one, so every test, fixture, and component row is `not_production_admissible`. Production also requires the five external names above. Missing or test-issuer rows block production. The activation transaction still evaluates that list. It does not return early through a waive flag.
+
+### Business receipt trust boundary
+
+`BUSINESS-NATIVE.md` adds the explicitly validated native C1 published ordinary-
+shadow path to the same test-scope issuer resolver. It retains column grants,
+binds the actual publication/current vector and refuses overlays/views or
+unsupported codecs. No source-row courier is used for native data binding.
+
+The generic test-issuer admission table above is not a business-evidence proof.
+Applicable G5a/G5b/G6/G10/G11 claims (and G12 lifecycle requirements) reject a
+generic nonblocking pass at intake. Status/plan/activation/CAS rechecks also apply
+the stored candidate's current preconditions, after maintenance overlays, so
+historical generic pass rows or stale `not_applicable` rows cannot bypass them.
+This closes the direct-plan path without changing production admissibility.
+
+`BUSINESS-EVIDENCE.md` specifies the validation-only candidate/role/data-vector interface.
+The additive `BUSINESS-POSITIVE.md` path now consumes actual, separately
+authenticated test-scope execution/oracle/eval/review records and can satisfy
+G5a/G5b/G6/G10/G11. It reuses the existing plan/CAS and production flags.
+It does not reinterpret the generic `test_issuer` admission table.
+
+The historical fallback checker specifies the candidate/role/data-vector/issuer interface
+and the executable validation-only receipt contract. A perfectly bound body is
+still refused as `business_issuer_unavailable`: the current store has no separate
+authenticated execution/review issuer and immutable receipt resolver. No accepted
+JSON flag, content hash, test label or self-declared reviewer replaces that trust
+dependency. That checker remains non-admitting; only the private installed
+policy plus current immutable database evidence enters the positive resolver.
+
+### Library G4 target observations
+
+`library_semantic_observations` measures local target code coverage and the
+structure of declared reviews, not dictionary-label truth or authenticated owner
+approval. It does not access a source database, publish, certify a metric, or
+issue a production certificate. Neither a label nor a declared reviewer is
+independent evidence that a business meaning is correct.
+
+The server-generated detail has prefix `independent_target_enum_observations;`
+followed by JSON contract `oo.release-coordinator/enum-observations/v1`. It binds:
+
+- The canonical SHA-256 of the current effective document, plus the canonical
+  SHA-256 of each entire enum definition (including codes, labels, classes,
+  owner, reviewer, review state, source, evidence, and validity fields).
+- Every logical enum to its physical schema/table/column. Binding cardinalities
+  and logical column identities must be unambiguous; no enum is silently skipped.
+  An approved enum without a target mapping is `fail`, blocking.
+- The target endpoint, database, observer login, PostgreSQL snapshot and
+  transaction timestamp. Counts run under TLS in one read-only repeatable-read
+  transaction, with the existing active-RLS rejection. The transaction rolls back.
+
+Definitions use the existing OOS enum parser/validator. An approved code needs a
+non-reserved, declared class, a nonblank label, a declared nonblank enum owner,
+and `review.state=approved` with a nonblank `review.by`. The owner can be a group
+and the reviewer an individual; equality is not identity authentication.
+Missing review/owner/label evidence is blocking `not_run`, not an inferred
+approval. Invalid definitions, duplicate codes and reserved approved classes
+are blocking `fail`. All other statuses, including deprecated and superseded,
+are excluded from approved coverage even if they have labels or old reviews.
+Temporal definitions remain blocking `not_run: temporal_scope_unbound`: this
+observer has no row-time/as-of binding and must not union different eras.
+
+For every mapped, structurally valid enum, a real full target-column aggregate
+measures `non_null_rows`, `unlisted_rows`, `approved_rows`, and
+`listed_unapproved_rows`. Codes are parameterized, compared as exact PostgreSQL
+text under the `C` collation, and never interpolated into SQL. NULL is excluded;
+empty strings are not NULL. Caller `coverage`, `unexplained_values`, and
+`evidence.rows` are retained in the definition binding but never substituted for
+measured counts.
+
+Approved row coverage is the exact fraction `approved_rows/non_null_rows`.
+The 95/100 technical threshold is evaluated **per enum**, without floating
+point or averaging away another enum's gaps. Below-threshold coverage is a
+measured warning with `review_needed=true`, not a coverage pass; this preserves
+the documented warning/review treatment and does not prohibit unrelated raw
+statistics. Remaining unapproved rows require review even above the threshold.
+Empty or all-NULL columns have undefined coverage, not 100%. With approved
+codes they yield blocking `not_run`. Only when a successful target query proves
+zero non-NULL rows and there are zero approved codes, the result is nonblocking
+`warn: no_approved_semantics_empty_field`, with undefined/null coverage and
+`review_needed=true`. Undetermined codes do not count as approved, even if they
+carry labels or reviews. Missing approved review/owner evidence is rejected
+before counting and never receives this exception.
+Missing mappings without approved codes are also blocking `not_run`;
+query/permission failures abort observation rather than inventing evidence.
+An empty effective enum list retains `measure_g4`'s nonblocking empty warning.
+
+Measured results are **at most nonblocking `warn`**, even at 100% coverage.
+The report always states `business_label_accuracy=not_measured`,
+`business_owner_signed=false`, `owner_authenticated=false`, and
+`production_certification=not_issued`. The existing `decide.rs` mapping of a
+covered fixture G4 warning to `not_run` and `production_admissible=false` is
+unchanged. Technical directory/candidate deployment and final business
+acceptance are distinct from a production certificate.
+
+During activation, a blocking non-admissible measured gate, a non-admissible
+G8/G7, or a refused gate-record operation returns `refused`, `reason=gate_failed`,
+exit code 2, with the original gate receipt and gate id/detail retained. Recording
+a gate successfully is not a successful activation. The standalone `gate-record`
+command continues to return 0 when recording succeeds.
+
+This output contract is not an input for accepting owner or accuracy claims.
+Business acceptance still needs separate, independently verified meaning and
+owner evidence bound to the definition, data/time scope, and relevant metric.
+95% code coverage cannot establish completeness for a certified metric or
+justify dropping unknown financial amounts. G5 and other business gates remain
+unchanged; this observer neither satisfies nor waives them.
+
+Regression tests are included from `tests/observations/enum_observations.rs`.
+Run unit tests with `cargo test --locked -j 1 --lib target::enum_observation_tests`.
+The explicitly ignored local PG test requires `OO_G4_TEST_CONFIG` containing
+host, port, database, user,
+`password_file`, and `ca_file`; it accepts only loopback, a dedicated
+`g4_observer_test_*` database/login, and a non-superuser/non-bypass-RLS login.
+Run it with `cargo test --locked -j 1 --lib local_pg_enum_observer -- --ignored
+--nocapture`. It creates/removes only its fixture schema and never invokes
+release/install/activation APIs.
 
 ## Fence, replica, CAS
 

@@ -302,7 +302,7 @@
             "type": "boolean"
           },
           {
-            "maxLength": 500,
+            "maxLength": 1048576,
             "type": "string"
           }
         ]
@@ -566,6 +566,12 @@
       "Warning": {
         "additionalProperties": false,
         "properties": {
+          "c5_mode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "code": {
             "$ref": "#/components/schemas/WarningCode"
           },
@@ -589,8 +595,20 @@
               }
             ]
           },
+          "last_full_digest_scan_completed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "message": {
             "$ref": "#/components/schemas/BoundedText2000"
+          },
+          "recent_window_watermark": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "rows": {
             "description": "Row count from the CLI example. It is not an amount.",
@@ -620,6 +638,7 @@
       },
       "WarningCode": {
         "enum": [
+          "DELETES_LAGGED",
           "RECONCILE_MISMATCH",
           "RECONCILE_STALE",
           "VALUES_REJECTED",

@@ -30,7 +30,8 @@ const OID_TIMESTAMP: i64 = 1114;
 const OID_TIMESTAMPTZ: i64 = 1184;
 const OID_NUMERIC: i64 = 1700;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MysqlColumn {
     pub name: String,
     pub ordinal: i32,
@@ -78,6 +79,21 @@ pub fn map_table(
     session_utc: bool,
     reserved: &BTreeSet<String>,
 ) -> Result<Vec<MappedColumn>, PreviewError> {
+    let mapped = map_keyed_table(columns, boolean_tinyint1, session_utc, reserved)?;
+    if mapped.iter().filter(|column| column.key).count() != 1 {
+        return Err(PreviewError::new("catalog", "primary_key"));
+    }
+    Ok(mapped)
+}
+
+/// Opt-in composite-key mapping. Legacy single-key callers keep their refusal.
+/// Primary-key ordering is supplied by the source index catalog, not this list.
+pub fn map_keyed_table(
+    columns: &[MysqlColumn],
+    boolean_tinyint1: bool,
+    session_utc: bool,
+    reserved: &BTreeSet<String>,
+) -> Result<Vec<MappedColumn>, PreviewError> {
     if columns.is_empty() {
         return Err(PreviewError::new("catalog", "columns"));
     }
@@ -90,13 +106,13 @@ pub fn map_table(
         }
         mapped.push(one);
     }
-    if keys != 1 {
+    if keys == 0 {
         return Err(PreviewError::new("catalog", "primary_key"));
     }
     Ok(mapped)
 }
 
-fn map_column(
+pub fn map_column(
     column: &MysqlColumn,
     boolean_tinyint1: bool,
     session_utc: bool,
@@ -188,6 +204,102 @@ type StorePlan = (
 );
 
 #[allow(clippy::too_many_arguments)]
+pub fn map_capture_column(
+    column: &MysqlColumn,
+    boolean_tinyint1: bool,
+    session_utc: bool,
+    reserved: &BTreeSet<String>,
+) -> Result<MappedColumn, PreviewError> {
+    let mut normalized = column.clone();
+    let transcode = matches!(column.charset.as_deref(), Some("gbk" | "ucs2"));
+    if transcode {
+        normalized.charset = Some("utf8mb4".into());
+    }
+    let mut mapped = map_column(&normalized, boolean_tinyint1, session_utc, reserved)?;
+    if transcode {
+        mapped.plan.mapping.metadata.push((
+            "mysql_source_charset".into(),
+            column.charset.clone().unwrap(),
+        ));
+    }
+    Ok(mapped)
+}
+
+pub fn capture_expression(column: &MappedColumn) -> String {
+    let name = format!("`{}`", column.plan.name.replace('`', "``"));
+    if let Some((_, charset)) = column
+        .plan
+        .mapping
+        .metadata
+        .iter()
+        .find(|(k, _)| k == "mysql_source_charset")
+    {
+        if matches!(charset.as_str(), "gbk" | "ucs2") {
+            return format!(
+                "CASE WHEN {name} IS NULL THEN NULL WHEN CAST(CONVERT(CONVERT({name} USING utf8mb4) USING {charset}) AS BINARY) = CAST({name} AS BINARY) THEN CONVERT({name} USING utf8mb4) ELSE REPEAT(CAST(0xFF AS BINARY),OCTET_LENGTH({name})) END AS {name}"
+            );
+        }
+    }
+    name
+}
+
+pub fn column_mapping_conclusion(row: &serde_json::Value, session_utc: bool) -> serde_json::Value {
+    use serde_json::json;
+    let conclusion = || -> Result<MappedColumn, PreviewError> {
+        let text = |key: &str| {
+            row[key]
+                .as_str()
+                .map(str::to_owned)
+                .ok_or_else(|| PreviewError::new("catalog", "column_definition"))
+        };
+        let nullable = match row["IS_NULLABLE"].as_str() {
+            Some("YES") => true,
+            Some("NO") => false,
+            _ => return Err(PreviewError::new("catalog", "column_definition")),
+        };
+        let integer = |key: &str| -> Result<Option<i64>, PreviewError> {
+            if row[key].is_null() {
+                return Ok(None);
+            }
+            row[key]
+                .as_i64()
+                .map(Some)
+                .ok_or_else(|| PreviewError::new("catalog", "column_definition"))
+        };
+        let narrow = |key: &str| -> Result<Option<i32>, PreviewError> {
+            integer(key)?
+                .map(|n| {
+                    i32::try_from(n).map_err(|_| PreviewError::new("catalog", "column_definition"))
+                })
+                .transpose()
+        };
+        let column = MysqlColumn {
+            name: text("COLUMN_NAME")?,
+            ordinal: narrow("ORDINAL_POSITION")?
+                .ok_or_else(|| PreviewError::new("catalog", "ordinal"))?,
+            data_type: text("DATA_TYPE")?,
+            column_type: text("COLUMN_TYPE")?,
+            nullable,
+            char_len: integer("CHARACTER_MAXIMUM_LENGTH")?,
+            precision: narrow("NUMERIC_PRECISION")?,
+            scale: narrow("NUMERIC_SCALE")?,
+            charset: row["CHARACTER_SET_NAME"].as_str().map(str::to_owned),
+            column_key: row["COLUMN_KEY"].as_str().unwrap_or("").to_owned(),
+        };
+        if !super::mysql_ident(&column.name) {
+            return Err(PreviewError::new("ident", "column_read_identifier"));
+        }
+        let reserved = crate::PG17_RESERVED.iter().map(|s| s.to_string()).collect();
+        map_capture_column(&column, false, session_utc, &reserved)
+    };
+    match conclusion() {
+        Ok(mapped) => {
+            json!({"accepted":true,"target_type":mapped.plan.mapping.pg_type,"target_oid":mapped.oid,"target_typmod":mapped.typmod,"nullable":mapped.plan.mapping.nullable,"key":mapped.key,"caveat":mapped.caveat,"read_expression":capture_expression(&mapped)})
+        }
+        Err(error) => json!({"accepted":false,"code":error.code,"reason":error.fact}),
+    }
+}
+
 fn decide(
     data: &str,
     unsigned: bool,
@@ -455,6 +567,11 @@ fn text_plan(
     let typmod =
         i32::try_from(length + 4).map_err(|_| PreviewError::new("catalog", "char_length"))?;
     let limit = usize::try_from(length).ok();
+    let (oid, pg) = if oid == OID_BPCHAR && length > 63 {
+        (OID_VARCHAR, "varchar")
+    } else {
+        (oid, pg)
+    };
     Ok((
         oid,
         typmod,
@@ -470,7 +587,7 @@ fn text_plan(
 
 fn require_utf8(column: &MysqlColumn) -> Result<(), PreviewError> {
     match column.charset.as_deref() {
-        Some("utf8mb4") => Ok(()),
+        Some("utf8" | "utf8mb3" | "utf8mb4") => Ok(()),
         _ => Err(PreviewError::new("catalog", "charset")),
     }
 }
@@ -549,6 +666,33 @@ mod tests {
     }
 
     #[test]
+    fn composite_mapping_is_explicit_and_projection_cannot_drop_a_key() {
+        let mut a = column("bigint", "bigint", "PRI");
+        a.name = "a".into();
+        a.nullable = false;
+        let mut b = a.clone();
+        b.name = "b".into();
+        b.ordinal = 2;
+        let cols = [a.clone(), b];
+        assert!(map_table(&cols, false, true, &reserved()).is_err());
+        let mapped = map_keyed_table(&cols, false, true, &reserved()).unwrap();
+        assert!(super::super::keep_requested_keyed(mapped.clone(), &["a".into()]).is_err());
+        let selected =
+            super::super::keep_requested_keyed(mapped, &["b".into(), "a".into()]).unwrap();
+        assert_eq!(
+            selected
+                .iter()
+                .map(|c| c.plan.name.as_str())
+                .collect::<Vec<_>>(),
+            ["b", "a"]
+        );
+        assert!(map_table(&[a], false, true, &reserved()).is_ok());
+        let mut no_key = cols[0].clone();
+        no_key.column_key.clear();
+        assert!(map_keyed_table(&[no_key], false, true, &reserved()).is_err());
+    }
+
+    #[test]
     fn tinyint1_defaults_to_int2() {
         let mut col = column("tinyint", "tinyint(1)", "PRI");
         col.name = "flag".to_string();
@@ -604,6 +748,30 @@ mod tests {
                 .fact,
             "unsupported_type"
         );
+    }
+
+    #[test]
+    fn utf8_aliases_preserve_varchar_key_and_reject_other_charsets() {
+        for charset in ["utf8", "utf8mb3", "utf8mb4"] {
+            let mut key = column("varchar", "varchar(32)", "PRI");
+            key.nullable = false;
+            key.charset = Some(charset.to_owned());
+            key.char_len = Some(32);
+            let mapped = map_table(&[key.clone()], false, true, &reserved()).unwrap();
+            assert!(mapped[0].key && mapped[0].not_null);
+            assert_eq!(mapped[0].oid, OID_VARCHAR);
+            assert_eq!(mapped[0].typmod, 36);
+            assert_eq!(mapped[0].store, StoreKind::Text { limit: Some(32) });
+            for unsupported in ["latin1", "gbk", "ucs2", "binary"] {
+                key.charset = Some(unsupported.to_owned());
+                assert_eq!(
+                    map_table(&[key.clone()], false, true, &reserved())
+                        .unwrap_err()
+                        .fact,
+                    "charset"
+                );
+            }
+        }
     }
 
     #[test]

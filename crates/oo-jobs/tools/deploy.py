@@ -24,6 +24,7 @@ def program(loader_role):
         ("0002_event_project_binding_expand.sql", "jobs-event-project/1", "expand"),
         ("0003_job_lease_operations_expand.sql", "jobs-lease-operations/1", "expand"),
         ("0004_loader_hold_expand.sql", "jobs-loader-hold/1", "expand"),
+        ("0011_heartbeat_after_lock_expand.sql", "jobs-heartbeat-after-lock/1", "expand"),
     ]
     source = {name: (migrations / name).read_bytes() for name, _, _ in entries}
     # Cluster roles can predate this database. Do not grant owner membership to

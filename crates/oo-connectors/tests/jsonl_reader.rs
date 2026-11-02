@@ -6,16 +6,16 @@ use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use arrow_array::{Array, BooleanArray, Int64Array, RecordBatch, StringArray};
 use arrow_schema::DataType;
 use oo_connectors::{
-    FieldPresence, JsonlBudget, JsonlColumn, JsonlError, JsonlErrorKind, JsonlExhausted,
-    JsonlItem, JsonlProfile, JsonlReader, JsonlType, JSONL_LINEAGE_VERSION, JSONL_PROFILE_VERSION,
-    JSONL_PROTOCOL, JSONL_RECEIPT_VERSION,
+    FieldPresence, JSONL_LINEAGE_VERSION, JSONL_PROFILE_VERSION, JSONL_PROTOCOL,
+    JSONL_RECEIPT_VERSION, JsonlBudget, JsonlColumn, JsonlError, JsonlErrorKind, JsonlExhausted,
+    JsonlItem, JsonlProfile, JsonlReader, JsonlType,
 };
 use sha2::{Digest, Sha256};
 
@@ -43,7 +43,10 @@ fn parse_hex64(text: &str) -> [u8; 32] {
 }
 
 fn sha256sum_file(path: &Path) -> [u8; 32] {
-    let output = Command::new("sha256sum").arg(path).output().expect("sha256sum");
+    let output = Command::new("sha256sum")
+        .arg(path)
+        .output()
+        .expect("sha256sum");
     assert!(output.status.success(), "sha256sum file status");
     parse_hex64(&String::from_utf8(output.stdout).unwrap())
 }
@@ -450,23 +453,39 @@ fn check_batch(batch: &oo_connectors::JsonlBatch, bytes: &[u8], index: usize) {
     assert_eq!(schema.field(0).data_type(), &DataType::Utf8);
     assert!(schema.field(0).is_nullable());
     assert_eq!(
-        schema.field(0).metadata().get("oo.jsonl.logical").map(String::as_str),
+        schema
+            .field(0)
+            .metadata()
+            .get("oo.jsonl.logical")
+            .map(String::as_str),
         Some("utf8")
     );
     assert_eq!(
-        schema.field(0).metadata().get("oo.jsonl.protocol").map(String::as_str),
+        schema
+            .field(0)
+            .metadata()
+            .get("oo.jsonl.protocol")
+            .map(String::as_str),
         Some(JSONL_PROTOCOL)
     );
     assert_eq!(schema.field(1).data_type(), &DataType::Boolean);
     assert!(!schema.field(1).is_nullable());
     assert_eq!(
-        schema.field(1).metadata().get("oo.jsonl.logical").map(String::as_str),
+        schema
+            .field(1)
+            .metadata()
+            .get("oo.jsonl.logical")
+            .map(String::as_str),
         Some("bool")
     );
     assert_eq!(schema.field(2).data_type(), &DataType::Int64);
     assert!(!schema.field(2).is_nullable());
     assert_eq!(
-        schema.field(2).metadata().get("oo.jsonl.logical").map(String::as_str),
+        schema
+            .field(2)
+            .metadata()
+            .get("oo.jsonl.logical")
+            .map(String::as_str),
         Some("int64")
     );
     assert!(batch.arrow_bytes > 0);
@@ -787,11 +806,7 @@ fn bounds_stop_oversized_records_and_extra_bytes() {
     assert!(reader.finish().is_ok());
 }
 
-fn pull_err(
-    prepared: Prepared,
-    profile: JsonlProfile,
-    budget: JsonlBudget,
-) -> (JsonlError, u64) {
+fn pull_err(prepared: Prepared, profile: JsonlProfile, budget: JsonlBudget) -> (JsonlError, u64) {
     let mut reader = JsonlReader::open(prepared.input, profile, prepared.hash, budget).unwrap();
     let mut batches = 0u64;
     let err = loop {
@@ -837,9 +852,24 @@ fn refusals_are_exact_and_do_not_skip_the_row() {
         JsonlErrorKind::Protocol,
         "duplicate_key",
     );
-    refuse(b"{\"n\":1.0}\n", int_profile(), JsonlErrorKind::Protocol, "not_int64");
-    refuse(b"{\"n\":1.5}\n", int_profile(), JsonlErrorKind::Protocol, "not_int64");
-    refuse(b"{\"n\":1e2}\n", int_profile(), JsonlErrorKind::Protocol, "not_int64");
+    refuse(
+        b"{\"n\":1.0}\n",
+        int_profile(),
+        JsonlErrorKind::Protocol,
+        "not_int64",
+    );
+    refuse(
+        b"{\"n\":1.5}\n",
+        int_profile(),
+        JsonlErrorKind::Protocol,
+        "not_int64",
+    );
+    refuse(
+        b"{\"n\":1e2}\n",
+        int_profile(),
+        JsonlErrorKind::Protocol,
+        "not_int64",
+    );
     refuse(
         b"{\"n\":9223372036854775808}\n",
         int_profile(),
@@ -852,7 +882,12 @@ fn refusals_are_exact_and_do_not_skip_the_row() {
         JsonlErrorKind::Protocol,
         "int64_overflow",
     );
-    refuse(b"{\"n\":01}\n", int_profile(), JsonlErrorKind::Protocol, "invalid_number");
+    refuse(
+        b"{\"n\":01}\n",
+        int_profile(),
+        JsonlErrorKind::Protocol,
+        "invalid_number",
+    );
     let nested = refuse(
         b"{\"n\":{\"password\":\"secret\"}}\n",
         int_profile(),
@@ -885,8 +920,18 @@ fn refusals_are_exact_and_do_not_skip_the_row() {
         JsonlErrorKind::Protocol,
         "null_not_allowed",
     );
-    refuse(b"[1]\n", int_profile(), JsonlErrorKind::Protocol, "not_object");
-    refuse(b"{\"n\":1", int_profile(), JsonlErrorKind::Protocol, "truncated");
+    refuse(
+        b"[1]\n",
+        int_profile(),
+        JsonlErrorKind::Protocol,
+        "not_object",
+    );
+    refuse(
+        b"{\"n\":1",
+        int_profile(),
+        JsonlErrorKind::Protocol,
+        "truncated",
+    );
     let mut bad = b"{\"name\":\"".to_vec();
     bad.push(0xff);
     bad.extend_from_slice(b"\"}\n");

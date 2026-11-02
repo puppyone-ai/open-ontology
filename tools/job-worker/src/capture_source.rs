@@ -620,6 +620,16 @@ pub fn attach_observed_lease(request: &mut Value, task_id: &str, generation: i64
     if !uuid_ok(task_id) || generation < 1 {
         return Err("lease_required");
     }
+    if request["protocol"] == "oo.pipeline.native-c5-range/v1" {
+        if request.get("target_fence_certified").is_some() {
+            return Err("fence");
+        }
+        let native = request.get_mut("native_request").ok_or("lease_required")?;
+        if native["protocol"] != "oo.pipeline.native-update/v1" {
+            return Err("lease_required");
+        }
+        return attach_observed_lease(native, task_id, generation);
+    }
     let object = request.as_object_mut().ok_or("lease_required")?;
     if object.contains_key("target_fence_certified") {
         return Err("fence");
@@ -1419,5 +1429,30 @@ mod tests {
         assert_eq!(request["admission_expect"]["declared_receipt_sha256"], receipt_sha);
         assert!(!request.to_string().contains("secret://"));
         assert!(!request.to_string().contains("secret_ref"));
+    }
+}
+
+#[cfg(test)]
+mod c5_range_invocation_tests {
+    use super::*;
+
+    #[test]
+    fn observed_range_lease_is_nested_and_scope_is_unchanged() {
+        let task = "11111111-1111-4111-8111-111111111111";
+        let mut request = serde_json::json!({"protocol":"oo.pipeline.native-c5-range/v1","source_generation":9,"native_request":{"protocol":"oo.pipeline.native-update/v1","lease_id":"old","lease_generation":1}});
+        attach_observed_lease(&mut request, task, 3).unwrap();
+        assert_eq!(request["native_request"]["lease_id"], task);
+        assert_eq!(request["native_request"]["lease_generation"], 3);
+        assert_eq!(request["source_generation"], 9);
+        assert!(request.get("lease_id").is_none());
+        assert!(request.get("lease_generation").is_none());
+        for native in [
+            serde_json::Value::Null,
+            serde_json::json!({"protocol":"other"}),
+            serde_json::json!({"protocol":"oo.pipeline.native-update/v1","target_fence_certified":true}),
+        ] {
+            let mut invalid = serde_json::json!({"protocol":"oo.pipeline.native-c5-range/v1","native_request":native});
+            assert!(attach_observed_lease(&mut invalid, task, 3).is_err());
+        }
     }
 }

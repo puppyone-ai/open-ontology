@@ -1,0 +1,60 @@
+{
+  "api_pg": {
+    "ca_file": "/owned/pg-ca.crt",
+    "database": "{RELEASE_DB}",
+    "host": "oo-dl01w1-06-pg",
+    "password_file": "/owned/c1/release-v1/oo_release_api_admin.hex",
+    "port": 5432,
+    "user": "oo_release_api_admin"
+  },
+  "authority_id": "{AUTHORITY_ID}",
+  "deployment_origins": [
+    "{RELEASE_ORIGIN}"
+  ],
+  "https_origin": "{RELEASE_ORIGIN}",
+  "identity_ca_file": "/identity-mainline/ca.pem",
+  "identity_origin": "{IDENTITY_ORIGIN}",
+  "listen_host": "0.0.0.0",
+  "listen_port": "{RELEASE_PORT}",
+  "pack_dir": "{PACK_DIR}",
+  "producer_pg": {
+    "ca_file": "/owned/pg-ca.crt",
+    "database": "{RELEASE_DB}",
+    "host": "oo-dl01w1-06-pg",
+    "password_file": "/owned/c1/release-v1/oo_release_admin.hex",
+    "port": 5432,
+    "user": "oo_release_admin"
+  },
+  "project_id": "{PROJECT_ID}",
+  "reader_pg": {
+    "ca_file": "/owned/pg-ca.crt",
+    "database": "{RELEASE_DB}",
+    "host": "oo-dl01w1-06-pg",
+    "password_file": "/owned/c1/release-v1/oo_release_reader.hex",
+    "port": 5432,
+    "user": "oo_release_reader"
+  },
+  "target_pg": {
+    "ca_file": "/owned/pg-ca.crt",
+    "database": "{TARGET_DB}",
+    "host": "oo-dl01w1-06-pg",
+    "password_file": "/owned/c1/standby-v1/target-admin-restored-20261015.hex",
+    "port": 5432,
+    "user": "oo_target_admin"
+  },
+  "replica_pg": {
+    "ca_file": "/owned/c1/standby-v1/ca.crt",
+    "database": "{TARGET_DB}",
+    "host": "{STANDBY}",
+    "password_file": "/owned/c1/standby-v1/target-admin-restored-20261015.hex",
+    "port": 5432,
+    "user": "oo_target_admin"
+  },
+  "target_reader_password_file": "{READER_PASSWORD_FILE}",
+  "target_reader_user": "{READER_LOGIN}",
+  "target_relation": "{RELATION}",
+  "target_role": "{ROLE}",
+  "target_schema": "{SCHEMA}",
+  "tls_cert_file": "/cache/tls/api/server.crt",
+  "tls_key_file": "/cache/tls/api/server.key"
+}

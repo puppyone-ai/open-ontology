@@ -34,6 +34,7 @@ const STALE_GENERATION: i64 = 3;
 const CURRENT_GENERATION: i64 = 7;
 
 #[tokio::test]
+#[ignore = "live fixture: requires isolated owned PostgreSQL and module fixture configuration; run with --ignored"]
 async fn shadow_column_acl_installs_and_denies() {
     let admin_pass = read_hex("admin.pass");
     let login_pass = read_hex("login.pass");

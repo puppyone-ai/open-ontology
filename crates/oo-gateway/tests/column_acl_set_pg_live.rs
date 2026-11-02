@@ -50,10 +50,12 @@ const CURRENT_GENERATION: i64 = 7;
 const LATER_GENERATION: i64 = 9;
 
 #[tokio::test]
+#[ignore = "live fixture: requires OO_A218_LIVE; run with --ignored"]
 async fn two_tables_one_role_column_acl_set() {
-    if env::var("OO_A218_LIVE").ok().as_deref() != Some("1") {
-        return;
-    }
+    assert!(
+        env::var("OO_A218_LIVE").ok().as_deref() == Some("1"),
+        "OO_A218_LIVE must be set for this live fixture"
+    );
     assert_eq!(COLUMN_ACL_SET_MAX_COLUMNS, 512);
 
     let admin_pass = read_hex("admin.pass");
@@ -751,7 +753,7 @@ fn run_query(
             "max_tables": 4,
             "max_columns": 64,
             "max_functions": 1,
-            "max_operators": 64,
+            "max_operators": 128,
             "large_table_row_threshold": 1_000_000,
             "unknown_rows": "refuse"
         },

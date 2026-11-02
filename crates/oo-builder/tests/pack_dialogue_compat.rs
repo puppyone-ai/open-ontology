@@ -16,7 +16,8 @@ fn approved_digest_and_intersection_knowledge_are_emitted_unchanged() {
     let artifact: Value = serde_json::from_str(&pack.artifact).expect("artifact");
     assert_eq!(artifact["protocol"], "oo.builder.role-pack/v1");
     assert_eq!(artifact["compiler"], "oo-builder/role-pack/v1");
-    let manifest: Value = serde_json::from_str(pack.file("manifest.json").expect("manifest")).expect("manifest json");
+    let manifest: Value =
+        serde_json::from_str(pack.file("manifest.json").expect("manifest")).expect("manifest json");
     assert_eq!(manifest["protocol"], "oo.builder.role-pack-manifest/v1");
     assert_eq!(manifest["policy"]["id"], DIGEST);
     assert_eq!(manifest["knowledge"]["id"], "know_a317");
@@ -26,12 +27,14 @@ fn approved_digest_and_intersection_knowledge_are_emitted_unchanged() {
 #[test]
 fn hyphenated_knowledge_still_compiles_and_is_not_rewritten() {
     let pack = compile_pair("pol-shop", "know-a317").expect("hyphen knowledge");
-    let manifest: Value = serde_json::from_str(pack.file("manifest.json").expect("manifest")).expect("manifest json");
+    let manifest: Value =
+        serde_json::from_str(pack.file("manifest.json").expect("manifest")).expect("manifest json");
     assert_eq!(manifest["policy"]["id"], "pol-shop");
     assert_eq!(manifest["knowledge"]["id"], "know-a317");
     let with_digest = compile_pair(DIGEST, "know-a317").expect("digest plus hyphen knowledge");
     let manifest: Value =
-        serde_json::from_str(with_digest.file("manifest.json").expect("manifest")).expect("manifest json");
+        serde_json::from_str(with_digest.file("manifest.json").expect("manifest"))
+            .expect("manifest json");
     assert_eq!(manifest["policy"]["id"], DIGEST);
     assert_eq!(manifest["knowledge"]["id"], "know-a317");
 }
@@ -52,7 +55,10 @@ fn dangerous_policy_ids_fail_before_a_pack_exists() {
     ];
     for policy in &policies {
         let err = compile_pair(policy, "know_a317").expect_err("refused policy");
-        assert_eq!(err.code, "oo.builder.role-pack/v1/identity.invalid", "{policy:?}");
+        assert_eq!(
+            err.code, "oo.builder.role-pack/v1/identity.invalid",
+            "{policy:?}"
+        );
         assert_eq!(err.path, "/policy/id");
     }
 }

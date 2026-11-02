@@ -30,8 +30,9 @@ pub const CANONICAL_MAX_DEPTH: usize = 32;
 
 pub const QUERY_SQL_MAX_BYTES: usize = 64 * 1024;
 pub const INSTRUCTIONS_MAX_BYTES: usize = 16 * 1024;
-/// Query cell text cap from REQ-GW-05. This one is Unicode scalars.
-pub const QUERY_CELL_MAX_CHARS: usize = 500;
+/// A cell can use the document budget; the full response is still byte-bounded.
+/// An independent display-length cap must not reject valid database text.
+pub const QUERY_CELL_MAX_CHARS: usize = DOCUMENT_MAX_BYTES;
 pub const ERROR_TEXT_MAX_CHARS: usize = 2_000;
 pub const ROW_FILTER_MAX_CHARS: usize = 2_000;
 pub const DURATION_MAX_SECONDS: u64 = 366 * 10 * 24 * 60 * 60;

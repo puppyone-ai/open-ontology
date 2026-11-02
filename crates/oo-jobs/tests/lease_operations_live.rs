@@ -176,11 +176,16 @@ fn tagged<'a>(stdout: &'a str, prefix: &str) -> &'a str {
 }
 
 fn field(line: &str, index: usize) -> &str {
-    line.split('|').nth(index).unwrap_or_else(|| panic!("field {index} in {line}"))
+    line.split('|')
+        .nth(index)
+        .unwrap_or_else(|| panic!("field {index} in {line}"))
 }
 
 fn gap_ok(value: &str) -> bool {
-    value.parse::<i64>().ok().is_some_and(|gap| (28..=30).contains(&gap))
+    value
+        .parse::<i64>()
+        .ok()
+        .is_some_and(|gap| (28..=30).contains(&gap))
 }
 
 impl Ctx {
@@ -208,7 +213,14 @@ impl Ctx {
         ));
     }
 
-    fn run(&mut self, name: &str, db: &str, user: &str, file: &str, vars: &[(&str, &str)]) -> Output {
+    fn run(
+        &mut self,
+        name: &str,
+        db: &str,
+        user: &str,
+        file: &str,
+        vars: &[(&str, &str)],
+    ) -> Output {
         let output = psql(db, user, file, vars);
         self.record(name, &output);
         let combined = format!("{}{}", output.stderr, output.stdout);
@@ -248,7 +260,14 @@ impl Ctx {
         vars
     }
 
-    fn ok(&mut self, name: &str, db: &str, user: &str, file: &str, vars: &[(&str, &str)]) -> String {
+    fn ok(
+        &mut self,
+        name: &str,
+        db: &str,
+        user: &str,
+        file: &str,
+        vars: &[(&str, &str)],
+    ) -> String {
         let output = self.run(name, db, user, file, vars);
         assert!(
             output.status.success(),
@@ -259,7 +278,15 @@ impl Ctx {
         output.stdout
     }
 
-    fn fail(&mut self, name: &str, db: &str, user: &str, file: &str, vars: &[(&str, &str)], code: &str) {
+    fn fail(
+        &mut self,
+        name: &str,
+        db: &str,
+        user: &str,
+        file: &str,
+        vars: &[(&str, &str)],
+        code: &str,
+    ) {
         let output = self.run(name, db, user, file, vars);
         let found = sqlstate(&format!("{}{}", output.stderr, output.stdout));
         assert!(
@@ -269,11 +296,13 @@ impl Ctx {
         );
         assert_eq!(found, code, "{name} stderr {}", redact(&output.stderr));
     }
-
 }
 
 fn as_refs(owned: &[(String, String)]) -> Vec<(&str, &str)> {
-    owned.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect()
+    owned
+        .iter()
+        .map(|(key, value)| (key.as_str(), value.as_str()))
+        .collect()
 }
 
 fn container_is_running() -> bool {
@@ -338,79 +367,275 @@ fn protocols(ctx: &mut Ctx) {
     let real_ref = as_refs(&real);
     ctx.ok("reset", "postgres", ADMIN, "reset.sql", &[]);
 
-    ctx.ok("bad_control", "oo_a102_bad", ADMIN, "protocol_control.psql", &real_ref);
+    ctx.ok(
+        "bad_control",
+        "oo_a102_bad",
+        ADMIN,
+        "protocol_control.psql",
+        &real_ref,
+    );
     ctx.ok("bad_logins", "oo_a102_bad", ADMIN, "create_logins.sql", &[]);
     ctx.ok("bad_seed", "oo_a102_bad", RUNTIME, "seed_bad.sql", &[]);
-    ctx.fail("bad_event", "oo_a102_bad", ADMIN, "protocol_bad_event.psql", &real_ref, "OO004");
+    ctx.fail(
+        "bad_event",
+        "oo_a102_bad",
+        ADMIN,
+        "protocol_bad_event.psql",
+        &real_ref,
+        "OO004",
+    );
     let fk = ctx.ok("bad_fk", "oo_a102_bad", ADMIN, "probe_fk.sql", &[]);
     assert_eq!(fk.trim(), "0");
-    let versions = ctx.ok("bad_versions", "oo_a102_bad", ADMIN, "probe_versions.sql", &[]);
+    let versions = ctx.ok(
+        "bad_versions",
+        "oo_a102_bad",
+        ADMIN,
+        "probe_versions.sql",
+        &[],
+    );
     assert!(versions.contains("jobs-bootstrap/1"));
     assert!(versions.contains("jobs-control/1"));
     assert!(!versions.contains("jobs-event-project/1"));
     assert!(!versions.contains("jobs-lease-operations/1"));
     ctx.ok("reap_bad", "postgres", ADMIN, "reap_early.sql", &[]);
 
-    ctx.ok("upgrade_v1", "oo_a102_upgrade", ADMIN, "protocol_v1.psql", &real_ref);
-    ctx.ok("upgrade_logins", "oo_a102_upgrade", ADMIN, "create_logins.sql", &[]);
-    ctx.ok("upgrade_seed", "oo_a102_upgrade", RUNTIME, "seed_legal.sql", &[]);
-    let before = ctx.ok("upgrade_before", "oo_a102_upgrade", ADMIN, "snapshot_rows.sql", &[]);
-    ctx.ok("upgrade_v3", "oo_a102_upgrade", ADMIN, "protocol_upgrade_v3.psql", &real_ref);
-    let after = ctx.ok("upgrade_after", "oo_a102_upgrade", ADMIN, "snapshot_rows.sql", &[]);
+    ctx.ok(
+        "upgrade_v1",
+        "oo_a102_upgrade",
+        ADMIN,
+        "protocol_v1.psql",
+        &real_ref,
+    );
+    ctx.ok(
+        "upgrade_logins",
+        "oo_a102_upgrade",
+        ADMIN,
+        "create_logins.sql",
+        &[],
+    );
+    ctx.ok(
+        "upgrade_seed",
+        "oo_a102_upgrade",
+        RUNTIME,
+        "seed_legal.sql",
+        &[],
+    );
+    let before = ctx.ok(
+        "upgrade_before",
+        "oo_a102_upgrade",
+        ADMIN,
+        "snapshot_rows.sql",
+        &[],
+    );
+    ctx.ok(
+        "upgrade_v3",
+        "oo_a102_upgrade",
+        ADMIN,
+        "protocol_upgrade_v3.psql",
+        &real_ref,
+    );
+    let after = ctx.ok(
+        "upgrade_after",
+        "oo_a102_upgrade",
+        ADMIN,
+        "snapshot_rows.sql",
+        &[],
+    );
     assert_eq!(before, after, "legal history bytes changed");
-    ctx.notes.push(format!("legal_history_sha256={}", sha256_bytes(before.as_bytes())));
-    let ready = ctx.ok("upgrade_ready", "oo_a102_upgrade", RUNTIME, "probe_ready.sql", &[]);
+    ctx.notes.push(format!(
+        "legal_history_sha256={}",
+        sha256_bytes(before.as_bytes())
+    ));
+    let ready = ctx.ok(
+        "upgrade_ready",
+        "oo_a102_upgrade",
+        RUNTIME,
+        "probe_ready.sql",
+        &[],
+    );
     assert!(ready.trim().starts_with("true|"));
     assert!(ready.contains(&ctx.lease));
-    let oid = ctx.ok("upgrade_oid", "oo_a102_upgrade", ADMIN, "probe_oid.sql", &[]).trim().to_string();
-    ctx.fail("runtime_replay", "oo_a102_upgrade", RUNTIME, "runtime_replay.sql", &[], "OO013");
-    let oid_after = ctx.ok("upgrade_oid_after", "oo_a102_upgrade", ADMIN, "probe_oid.sql", &[]);
+    let oid = ctx
+        .ok(
+            "upgrade_oid",
+            "oo_a102_upgrade",
+            ADMIN,
+            "probe_oid.sql",
+            &[],
+        )
+        .trim()
+        .to_string();
+    ctx.fail(
+        "runtime_replay",
+        "oo_a102_upgrade",
+        RUNTIME,
+        "runtime_replay.sql",
+        &[],
+        "OO013",
+    );
+    let oid_after = ctx.ok(
+        "upgrade_oid_after",
+        "oo_a102_upgrade",
+        ADMIN,
+        "probe_oid.sql",
+        &[],
+    );
     assert_eq!(oid_after.trim(), oid);
     ctx.ok("reap_upgrade", "postgres", ADMIN, "reap_early.sql", &[]);
 
-    ctx.ok("adopt_v1", "oo_a102_adopt", ADMIN, "protocol_v1.psql", &real_ref);
+    ctx.ok(
+        "adopt_v1",
+        "oo_a102_adopt",
+        ADMIN,
+        "protocol_v1.psql",
+        &real_ref,
+    );
     ctx.ok("adopt_stub", "oo_a102_adopt", ADMIN, "adopt_stub.sql", &[]);
-    ctx.fail("adopt_0003", "oo_a102_adopt", ADMIN, "protocol_0003_noready.psql", &[], "OO014");
-    let adopted = ctx.ok("adopt_after", "oo_a102_adopt", ADMIN, "adopt_after.sql", &[]);
-    let mut adopted_lines = adopted.lines().map(str::trim).filter(|line| !line.is_empty());
+    ctx.fail(
+        "adopt_0003",
+        "oo_a102_adopt",
+        ADMIN,
+        "protocol_0003_noready.psql",
+        &[],
+        "OO014",
+    );
+    let adopted = ctx.ok(
+        "adopt_after",
+        "oo_a102_adopt",
+        ADMIN,
+        "adopt_after.sql",
+        &[],
+    );
+    let mut adopted_lines = adopted
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty());
     assert_eq!(adopted_lines.next(), Some("0|"));
     assert_eq!(adopted_lines.next(), Some("7"));
     ctx.ok("reap_adopt", "postgres", ADMIN, "reap_early.sql", &[]);
 
-    ctx.ok("forced_v1", "oo_a102_forced", ADMIN, "protocol_v1.psql", &real_ref);
-    ctx.fail("forced_0003", "oo_a102_forced", ADMIN, "protocol_0003_forced.psql", &[], "OO003");
-    let shape = ctx.ok("forced_shape", "oo_a102_forced", ADMIN, "probe_claim_shape.sql", &[]);
+    ctx.ok(
+        "forced_v1",
+        "oo_a102_forced",
+        ADMIN,
+        "protocol_v1.psql",
+        &real_ref,
+    );
+    ctx.fail(
+        "forced_0003",
+        "oo_a102_forced",
+        ADMIN,
+        "protocol_0003_forced.psql",
+        &[],
+        "OO003",
+    );
+    let shape = ctx.ok(
+        "forced_shape",
+        "oo_a102_forced",
+        ADMIN,
+        "probe_claim_shape.sql",
+        &[],
+    );
     assert!(shape.trim().is_empty());
-    let versions = ctx.ok("forced_versions", "oo_a102_forced", ADMIN, "probe_versions.sql", &[]);
+    let versions = ctx.ok(
+        "forced_versions",
+        "oo_a102_forced",
+        ADMIN,
+        "probe_versions.sql",
+        &[],
+    );
     assert!(!versions.contains("jobs-lease-operations/1"));
     ctx.ok("reap_forced", "postgres", ADMIN, "reap_early.sql", &[]);
 
-    ctx.ok("v1_install", "oo_a102_v1", ADMIN, "protocol_v1.psql", &real_ref);
+    ctx.ok(
+        "v1_install",
+        "oo_a102_v1",
+        ADMIN,
+        "protocol_v1.psql",
+        &real_ref,
+    );
     ctx.ok("v1_logins", "oo_a102_v1", ADMIN, "create_logins.sql", &[]);
-    let service = ctx.ok("v1_service", "oo_a102_v1", RUNTIME, "probe_service.sql", &[]);
+    let service = ctx.ok(
+        "v1_service",
+        "oo_a102_v1",
+        RUNTIME,
+        "probe_service.sql",
+        &[],
+    );
     assert_eq!(service.trim(), "true");
-    ctx.fail("v1_claim", "oo_a102_v1", RUNTIME, "v1_claim.sql", &[], "42883");
+    ctx.fail(
+        "v1_claim",
+        "oo_a102_v1",
+        RUNTIME,
+        "v1_claim.sql",
+        &[],
+        "42883",
+    );
     ctx.ok("reap_v1", "postgres", ADMIN, "reap_early.sql", &[]);
 
-    ctx.ok("partial_v1", "oo_a102_partial", ADMIN, "protocol_v1.psql", &real_ref);
-    ctx.ok("partial_0003", "oo_a102_partial", ADMIN, "protocol_0003_noready.psql", &[]);
-    ctx.ok("partial_logins", "oo_a102_partial", ADMIN, "create_logins.sql", &[]);
-    let ready = ctx.ok("partial_ready", "oo_a102_partial", ADMIN, "probe_ready.sql", &[]);
+    ctx.ok(
+        "partial_v1",
+        "oo_a102_partial",
+        ADMIN,
+        "protocol_v1.psql",
+        &real_ref,
+    );
+    ctx.ok(
+        "partial_0003",
+        "oo_a102_partial",
+        ADMIN,
+        "protocol_0003_noready.psql",
+        &[],
+    );
+    ctx.ok(
+        "partial_logins",
+        "oo_a102_partial",
+        ADMIN,
+        "create_logins.sql",
+        &[],
+    );
+    let ready = ctx.ok(
+        "partial_ready",
+        "oo_a102_partial",
+        ADMIN,
+        "probe_ready.sql",
+        &[],
+    );
     assert!(ready.trim().is_empty());
-    ctx.fail("partial_claim", "oo_a102_partial", RUNTIME, "v1_claim.sql", &[], "OO015");
+    ctx.fail(
+        "partial_claim",
+        "oo_a102_partial",
+        RUNTIME,
+        "v1_claim.sql",
+        &[],
+        "OO015",
+    );
     ctx.ok("reap_partial", "postgres", ADMIN, "reap_early.sql", &[]);
 
     let zeros = "0".repeat(64);
     let lie = ctx.with_lease(&zeros);
     let lie_ref = as_refs(&lie);
-    ctx.ok("lie_install", "oo_a102_lie", ADMIN, "protocol_v3.psql", &lie_ref);
+    ctx.ok(
+        "lie_install",
+        "oo_a102_lie",
+        ADMIN,
+        "protocol_v3.psql",
+        &lie_ref,
+    );
     ctx.ok("lie_logins", "oo_a102_lie", ADMIN, "create_logins.sql", &[]);
-    let ready = ctx.ok("lie_ready", "oo_a102_lie", RUNTIME, "probe_ready.sql", &[]).trim().to_string();
+    let ready = ctx
+        .ok("lie_ready", "oo_a102_lie", RUNTIME, "probe_ready.sql", &[])
+        .trim()
+        .to_string();
     let view_present = ready.starts_with("true|");
     let conjunction = view_present && ready.split('|').nth(1) == Some(ctx.lease.as_str());
     assert!(view_present);
-    assert!(!conjunction, "a stored lie must not count as file-hash ready");
-    ctx.notes.push(format!("f3_view={ready} conjunction={conjunction}"));
+    assert!(
+        !conjunction,
+        "a stored lie must not count as file-hash ready"
+    );
+    ctx.notes
+        .push(format!("f3_view={ready} conjunction={conjunction}"));
     let touched = ctx.ok("lie_touch", "oo_a102_lie", RUNTIME, "lie_touch.sql", &[]);
     assert!(touched.contains("enqueued|queued"));
     ctx.ok("reap_lie", "postgres", ADMIN, "reap_early.sql", &[]);
@@ -419,18 +644,43 @@ fn protocols(ctx: &mut Ctx) {
     let real_ref = as_refs(&real);
     ctx.ok("live_install", LIVE, ADMIN, "protocol_v3.psql", &real_ref);
     ctx.ok("live_logins", LIVE, ADMIN, "create_logins.sql", &[]);
-    let ready = ctx.ok("live_ready", LIVE, RUNTIME, "probe_ready.sql", &[]).trim().to_string();
+    let ready = ctx
+        .ok("live_ready", LIVE, RUNTIME, "probe_ready.sql", &[])
+        .trim()
+        .to_string();
     assert_eq!(ready, format!("true|{}", ctx.lease));
-    let oid = ctx.ok("live_oid", LIVE, ADMIN, "probe_oid.sql", &[]).trim().to_string();
+    let oid = ctx
+        .ok("live_oid", LIVE, ADMIN, "probe_oid.sql", &[])
+        .trim()
+        .to_string();
     let versions = ctx.ok("live_versions", LIVE, ADMIN, "probe_versions.sql", &[]);
-    ctx.ok("live_repeat", LIVE, ADMIN, "protocol_repeat.psql", &real_ref);
+    ctx.ok(
+        "live_repeat",
+        LIVE,
+        ADMIN,
+        "protocol_repeat.psql",
+        &real_ref,
+    );
     let oid_repeat = ctx.ok("live_oid_repeat", LIVE, ADMIN, "probe_oid.sql", &[]);
     assert_eq!(oid_repeat.trim(), oid);
     let ones = "1".repeat(64);
     let mismatch = ctx.with_bootstrap(&ones);
     let mismatch_ref = as_refs(&mismatch);
-    ctx.fail("live_mismatch", LIVE, ADMIN, "protocol_repeat.psql", &mismatch_ref, "OO001");
-    let versions_after = ctx.ok("live_versions_after", LIVE, ADMIN, "probe_versions.sql", &[]);
+    ctx.fail(
+        "live_mismatch",
+        LIVE,
+        ADMIN,
+        "protocol_repeat.psql",
+        &mismatch_ref,
+        "OO001",
+    );
+    let versions_after = ctx.ok(
+        "live_versions_after",
+        LIVE,
+        ADMIN,
+        "probe_versions.sql",
+        &[],
+    );
     assert_eq!(versions, versions_after);
     assert!(versions_after.contains(&ctx.bootstrap));
     assert!(!versions_after.contains(&ones));
@@ -442,14 +692,26 @@ fn behavior(ctx: &mut Ctx) {
     let who = ctx.ok("whoami", LIVE, RUNTIME, "whoami.sql", &[]);
     assert_eq!(who.trim(), format!("{RUNTIME}|{RUNTIME}"));
     let shape = ctx.ok("catalog_shape", LIVE, ADMIN, "catalog_shape.sql", &[]);
-    for name in ["enqueue", "claim", "heartbeat", "complete_success", "complete_failure", "retry_failure", "cancel"] {
+    for name in [
+        "enqueue",
+        "claim",
+        "heartbeat",
+        "complete_success",
+        "complete_failure",
+        "retry_failure",
+        "cancel",
+    ] {
         let line = tagged(&shape, name);
-        assert!(line.contains("|true|{\"search_path=pg_catalog, jobs\"}|"), "{line}");
+        assert!(
+            line.contains("|true|{\"search_path=pg_catalog, jobs\"}|"),
+            "{line}"
+        );
     }
     let heartbeat = tagged(&shape, "heartbeat");
-    assert!(heartbeat.contains(
-        "p_project_id uuid, p_task_id uuid, p_worker_id text, p_generation bigint"
-    ));
+    assert!(
+        heartbeat
+            .contains("p_project_id uuid, p_task_id uuid, p_worker_id text, p_generation bigint")
+    );
     assert!(!heartbeat.contains("interval"));
     let privileges = ctx.ok("privileges", LIVE, ADMIN, "privileges.sql", &[]);
     assert_eq!(
@@ -474,14 +736,42 @@ fn behavior(ctx: &mut Ctx) {
 
     ctx.fail("dml_task", LIVE, RUNTIME, "dml_task.sql", &[], "42501");
     ctx.fail("dml_event", LIVE, RUNTIME, "dml_event.sql", &[], "42501");
-    ctx.fail("public_exec", LIVE, PUBLIC_LOGIN, "public_exec.sql", &[], "42501");
-    ctx.fail("internal_exec", LIVE, RUNTIME, "internal_exec.sql", &[], "42501");
+    ctx.fail(
+        "public_exec",
+        LIVE,
+        PUBLIC_LOGIN,
+        "public_exec.sql",
+        &[],
+        "42501",
+    );
+    ctx.fail(
+        "internal_exec",
+        LIVE,
+        RUNTIME,
+        "internal_exec.sql",
+        &[],
+        "42501",
+    );
     let scheduled = ctx.ok("schedule_insert", LIVE, RUNTIME, "schedule_insert.sql", &[]);
     assert!(scheduled.trim().starts_with("scheduled|"));
     let fence = ctx.ok("fence_insert", LIVE, RUNTIME, "fence_insert.sql", &[]);
     assert_eq!(fence.trim(), "fence|false");
-    ctx.fail("fence_runtime", LIVE, RUNTIME, "fence_update_runtime.sql", &[], "42501");
-    ctx.fail("fence_owner", LIVE, OWNER, "fence_update_owner.sql", &[], "23514");
+    ctx.fail(
+        "fence_runtime",
+        LIVE,
+        RUNTIME,
+        "fence_update_runtime.sql",
+        &[],
+        "42501",
+    );
+    ctx.fail(
+        "fence_owner",
+        LIVE,
+        OWNER,
+        "fence_update_owner.sql",
+        &[],
+        "23514",
+    );
     let fence_value = ctx.ok("fence_read", LIVE, RUNTIME, "fence_read.sql", &[]);
     assert_eq!(fence_value.trim(), "false");
     ctx.notes.push("target_fence_certified=false".to_string());
@@ -532,7 +822,10 @@ fn behavior(ctx: &mut Ctx) {
 
     let started = Instant::now();
     let hb = ctx.ok("heartbeat_10s", LIVE, RUNTIME, "heartbeat_10s.sql", &[]);
-    assert!(started.elapsed() >= Duration::from_secs(9), "10s heartbeat returned too fast");
+    assert!(
+        started.elapsed() >= Duration::from_secs(9),
+        "10s heartbeat returned too fast"
+    );
     let hb_line = hb
         .lines()
         .map(str::trim)
@@ -543,7 +836,10 @@ fn behavior(ctx: &mut Ctx) {
     assert_eq!(parts.get(1).copied(), Some("claimed"));
     assert_eq!(parts.get(2).copied(), Some("extended"));
     assert_eq!(parts.get(3).copied(), Some("true"));
-    assert!(gap_ok(parts.get(4).copied().unwrap_or("")), "10s gap {hb_line}");
+    assert!(
+        gap_ok(parts.get(4).copied().unwrap_or("")),
+        "10s gap {hb_line}"
+    );
 
     let reclaim = ctx.ok("reclaim_claim", LIVE, RUNTIME, "reclaim_claim.sql", &[]);
     let first = tagged(&reclaim, "claim|");
@@ -583,17 +879,49 @@ fn behavior(ctx: &mut Ctx) {
     assert_eq!(field(tagged(&future, "stored|"), 1), "queued");
     assert_eq!(field(tagged(&future, "empty|"), 1), "none");
 
-    ctx.fail("rollback_enqueue", LIVE, RUNTIME, "rollback_enqueue.sql", &[], "22012");
-    let rolled = ctx.ok("rollback_enqueue_count", LIVE, RUNTIME, "rollback_enqueue_count.sql", &[]);
+    ctx.fail(
+        "rollback_enqueue",
+        LIVE,
+        RUNTIME,
+        "rollback_enqueue.sql",
+        &[],
+        "22012",
+    );
+    let rolled = ctx.ok(
+        "rollback_enqueue_count",
+        LIVE,
+        RUNTIME,
+        "rollback_enqueue_count.sql",
+        &[],
+    );
     assert_eq!(rolled.trim(), "0");
-    let before_claim = ctx.ok("rollback_claim_setup", LIVE, RUNTIME, "rollback_claim_setup.sql", &[]);
+    let before_claim = ctx.ok(
+        "rollback_claim_setup",
+        LIVE,
+        RUNTIME,
+        "rollback_claim_setup.sql",
+        &[],
+    );
     assert_eq!(tagged(&before_claim, "before|"), "before|queued|0|0|1");
     ctx.ok("rollback_claim", LIVE, RUNTIME, "rollback_claim.sql", &[]);
-    let after_claim = ctx.ok("rollback_claim_count", LIVE, RUNTIME, "rollback_claim_count.sql", &[]);
+    let after_claim = ctx.ok(
+        "rollback_claim_count",
+        LIVE,
+        RUNTIME,
+        "rollback_claim_count.sql",
+        &[],
+    );
     assert_eq!(after_claim.trim(), "queued|0|0|1");
 
     ctx.ok("failure_setup", LIVE, RUNTIME, "failure_setup.sql", &[]);
-    ctx.fail("failure_bad_kind", LIVE, RUNTIME, "failure_bad_kind.sql", &[], "OO010");
+    ctx.fail(
+        "failure_bad_kind",
+        LIVE,
+        RUNTIME,
+        "failure_bad_kind.sql",
+        &[],
+        "OO010",
+    );
     let failed = ctx.ok("failure_ok", LIVE, RUNTIME, "failure_ok.sql", &[]);
     assert_eq!(field(tagged(&failed, "fail|"), 1), "failed");
     assert_eq!(field(tagged(&failed, "stored|"), 1), "payload_rejected");
@@ -607,9 +935,22 @@ fn behavior(ctx: &mut Ctx) {
     assert_eq!(field(tagged(&cap, "second|"), 3), "1");
     assert_eq!(field(tagged(&cap, "resurrect|"), 1), "terminal");
 
-    ctx.ok("overflow_enqueue", LIVE, RUNTIME, "overflow_enqueue.sql", &[]);
+    ctx.ok(
+        "overflow_enqueue",
+        LIVE,
+        RUNTIME,
+        "overflow_enqueue.sql",
+        &[],
+    );
     ctx.ok("overflow_bump", LIVE, OWNER, "overflow_bump.sql", &[]);
-    ctx.fail("overflow_claim", LIVE, RUNTIME, "overflow_claim.sql", &[], "OO012");
+    ctx.fail(
+        "overflow_claim",
+        LIVE,
+        RUNTIME,
+        "overflow_claim.sql",
+        &[],
+        "OO012",
+    );
     let over = ctx.ok("overflow_check", LIVE, RUNTIME, "overflow_check.sql", &[]);
     assert_eq!(over.trim(), "queued|9223372036854775807");
 
@@ -618,7 +959,10 @@ fn behavior(ctx: &mut Ctx) {
     assert_eq!(field(tagged(&retry, "miss|"), 1), "lost_lease");
     let d1 = tagged(&retry, "d1|");
     assert_eq!(field(d1, 1), "queued");
-    assert!((0..=2).contains(&field(d1, 2).parse::<i64>().unwrap_or(-1)), "{d1}");
+    assert!(
+        (0..=2).contains(&field(d1, 2).parse::<i64>().unwrap_or(-1)),
+        "{d1}"
+    );
     assert_eq!(field(d1, 3), "worker_failed");
     assert_eq!(field(d1, 4), "1");
     let d6 = field(tagged(&retry, "d6|"), 2).parse::<i64>().unwrap_or(-1);
@@ -649,7 +993,8 @@ fn concurrency(ctx: &mut Ctx) {
     ctx.record("deadlock_claim", &claim);
     let owner_state = sqlstate(&format!("{}{}", owner.stderr, owner.stdout));
     let claim_state = sqlstate(&format!("{}{}", claim.stderr, claim.stdout));
-    ctx.notes.push(format!("deadlock owner={owner_state} claim={claim_state}"));
+    ctx.notes
+        .push(format!("deadlock owner={owner_state} claim={claim_state}"));
     assert!(
         owner_state == "40P01" || claim_state == "40P01",
         "expected 40P01\nowner {}\nclaim {}",
@@ -660,17 +1005,36 @@ fn concurrency(ctx: &mut Ctx) {
     let after = ctx.ok("deadlock_after", LIVE, ADMIN, "deadlock_after.sql", &[]);
     assert!(after.trim().starts_with("1|"));
 
-    let versions = ctx.ok("lock_versions_before", LIVE, ADMIN, "probe_versions.sql", &[]);
+    let versions = ctx.ok(
+        "lock_versions_before",
+        LIVE,
+        ADMIN,
+        "probe_versions.sql",
+        &[],
+    );
     let holder = thread::spawn(|| psql(LIVE, ADMIN, "lock_holder.sql", &[]));
     let saw = wait_stdout(LIVE, ADMIN, "activity_holder.sql", "1", 40);
     assert_eq!(saw, "1", "advisory holder did not reach pg_sleep");
     let real = ctx.vars();
     let real_ref = as_refs(&real);
-    ctx.fail("lock_waiter", LIVE, ADMIN, "protocol_repeat.psql", &real_ref, "55P03");
+    ctx.fail(
+        "lock_waiter",
+        LIVE,
+        ADMIN,
+        "protocol_repeat.psql",
+        &real_ref,
+        "55P03",
+    );
     let _ = psql(LIVE, ADMIN, "terminate_holder.sql", &[]);
     let holder = holder.join().expect("lock holder");
     ctx.record("lock_holder", &holder);
-    let versions_after = ctx.ok("lock_versions_after", LIVE, ADMIN, "probe_versions.sql", &[]);
+    let versions_after = ctx.ok(
+        "lock_versions_after",
+        LIVE,
+        ADMIN,
+        "probe_versions.sql",
+        &[],
+    );
     assert_eq!(versions, versions_after);
 
     let queued = ctx.ok("batch_enqueue", LIVE, RUNTIME, "batch_enqueue.sql", &[]);
@@ -689,7 +1053,11 @@ fn concurrency(ctx: &mut Ctx) {
         let (worker, output) = handle.join().expect("claim worker");
         let name = format!("claim_{worker}");
         ctx.record(&name, &output);
-        assert!(output.status.success(), "{worker} {}", redact(&output.stderr));
+        assert!(
+            output.status.success(),
+            "{worker} {}",
+            redact(&output.stderr)
+        );
         let line = output.stdout.trim().to_string();
         assert_eq!(field(&line, 0), "claimed", "{line}");
         assert_eq!(field(&line, 2), "1", "{line}");
@@ -722,7 +1090,11 @@ fn concurrency(ctx: &mut Ctx) {
         .args(["restart", CONTAINER])
         .output()
         .expect("restart");
-    assert!(restart.status.success(), "{}", String::from_utf8_lossy(&restart.stderr));
+    assert!(
+        restart.status.success(),
+        "{}",
+        String::from_utf8_lossy(&restart.stderr)
+    );
     let mut ready = false;
     for _ in 0..90 {
         let output = psql("postgres", ADMIN, "ready_ping.sql", &[]);
@@ -735,5 +1107,8 @@ fn concurrency(ctx: &mut Ctx) {
     assert!(ready, "postgres did not become ready after restart");
     let durable_after = ctx.ok("durability_after", LIVE, ADMIN, "durability.sql", &[]);
     assert_eq!(durable, durable_after);
-    ctx.notes.push(format!("durability_sha256={}", sha256_bytes(durable.as_bytes())));
+    ctx.notes.push(format!(
+        "durability_sha256={}",
+        sha256_bytes(durable.as_bytes())
+    ));
 }

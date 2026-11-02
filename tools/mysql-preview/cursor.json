@@ -1,0 +1,9 @@
+{
+  "ack": false,
+  "applied": false,
+  "epoch": 1,
+  "file": "mysql-bin.000004",
+  "gtid": "01010101-0101-0101-0101-010101010101:1-90",
+  "position_codec": "mysql-binlog-pos/v1",
+  "protocol": "oo.mysql.c1-cursor/v1"
+}

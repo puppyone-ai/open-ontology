@@ -34,6 +34,14 @@ pub const DEPTH_BUDGET: usize = 128;
 /// Maximum explicit elements in one admitted `IN` or `NOT IN` list.
 pub const IN_LIST_LIMIT: usize = 32;
 
+/// Literal LIKE/ILIKE bounds, additional to the unchanged SQL/tree budgets.
+pub const LIKE_PATTERN_BYTE_LIMIT: usize = 1024;
+/// Unescaped percent/underscore wildcard limit in a single pattern.
+pub const LIKE_WILDCARD_LIMIT: usize = 32;
+
+/// Maximum searched CASE arms, in addition to the SQL/tree budgets.
+pub const CASE_ARM_LIMIT: usize = 16;
+
 /// `PG_VERSION_NUM` embedded in pg_query 6.2.1. Not a live server probe.
 pub const PINNED_PARSER_VERSION: i32 = 170007;
 
@@ -145,6 +153,8 @@ pub struct ResolvedOperator {
     pub left_type_oid: u32,
     /// Right operand type OID.
     pub right_type_oid: u32,
+    /// `pg_operator.oprresult`, verified against the implementation's return type.
+    pub result_type_oid: u32,
 }
 
 /// Literal type OIDs. `None` leaves that literal unresolved in expressions.
@@ -331,6 +341,15 @@ pub enum GuardError {
     },
     /// No single snapshot function or operator matched.
     FunctionNotAllowed,
+    /// A resolved operand list failed signature binding. No SQL or names are stored.
+    SignatureNotAllowed {
+        /// Binary comparison rather than a function call.
+        operator: bool,
+        /// At most eight inferred operand types.
+        argument_type_oids: Vec<u32>,
+        /// Zero-based byte offset in the submitted SQL; -1 means unknown.
+        position: i32,
+    },
     /// The relation is absent or not visible. Those cases use the same error.
     RelationNotFound,
     /// The column is absent, hidden, or ambiguous. The requested name is omitted.
@@ -359,7 +378,9 @@ impl GuardError {
     pub fn code(&self) -> ErrorCode {
         match self {
             Self::Parse => ErrorCode::SqlParseError,
-            Self::FunctionNotAllowed => ErrorCode::FunctionNotAllowed,
+            Self::FunctionNotAllowed | Self::SignatureNotAllowed { .. } => {
+                ErrorCode::FunctionNotAllowed
+            }
             Self::RelationNotFound => ErrorCode::RelationNotFound,
             Self::ColumnNotAllowed { .. } => ErrorCode::ColumnNotAllowed,
             Self::Unqualified { .. } => ErrorCode::UnqualifiedRelation,
@@ -384,6 +405,24 @@ impl GuardError {
             } => Some(format!("use {name}")),
             Self::Unqualified { suggestion: None } => Some("use schema.name".to_string()),
             Self::CostTooHigh { .. } => Some("add a filter or use export".to_string()),
+            Self::FunctionNotAllowed => Some(
+                "no allowed function/operator signature matches; check describe.column_details and argument types. Time filters require matching explicit DATE, TIMESTAMP or TIMESTAMPTZ literals, not bare strings or implicit casts. This alone does not establish a column permission denial"
+                    .to_string(),
+            ),
+            Self::SignatureNotAllowed { operator, argument_type_oids, position } => {
+                let expression = if *operator { "operator" } else { "function" };
+                let types = argument_type_oids.iter()
+                    .map(|oid| Type::from_oid(*oid).map(|ty| ty.name().to_owned())
+                        .unwrap_or_else(|| "unknown".into()))
+                    .collect::<Vec<_>>().join(",");
+                let offset = if *position >= 0 { position.to_string() } else { "unknown".into() };
+                Some(format!(
+                    "phase=signature_binding; expression={expression}; byte_offset={offset}; argument_types=[{types}]; no unique allowed signature matches. Check describe.query_capabilities and column_details, then validate. Time comparisons require matching explicit DATE, TIMESTAMP or TIMESTAMPTZ literals, not bare strings. This is not evidence of denied column access"
+                ))
+            }
+            Self::Unsupported { construct } => Some(format!(
+                "unsupported SQL construct: {construct}; validate a supported SQL shape without changing its meaning; this is not a permission denial"
+            )),
             _ => None,
         }
     }
@@ -413,6 +452,11 @@ impl fmt::Display for GuardError {
                 write!(formatter, "statement could not be serialized: {reason}")
             }
             Self::FunctionNotAllowed => formatter.write_str("function or operator is not allowed"),
+            Self::SignatureNotAllowed { operator, .. } => formatter.write_str(if *operator {
+                "operator signature is not allowed"
+            } else {
+                "function signature is not allowed"
+            }),
             Self::RelationNotFound => formatter.write_str("relation is not visible"),
             Self::ColumnNotAllowed {
                 available,
@@ -573,6 +617,8 @@ struct Ctx<'a> {
     null_tests: u32,
     starred: Vec<usize>,
     next_ordinal: usize,
+    aggregates_allowed: bool,
+    aggregate_depth: usize,
 }
 
 enum ExprKind {
@@ -585,8 +631,16 @@ enum ExprKind {
         kind: LiteralKind,
         fold: Fold,
     },
-    Function(BoundFunction),
-    Operator,
+    Function {
+        bound: BoundFunction,
+        result_type_oid: Option<u32>,
+    },
+    Operator {
+        result_type_oid: u32,
+    },
+    Case {
+        result_type_oid: u32,
+    },
     Bool(Fold),
     NullTest,
 }
@@ -646,18 +700,36 @@ fn admit_select(
         null_tests: 0,
         starred: Vec::new(),
         next_ordinal: 0,
+        aggregates_allowed: false,
+        aggregate_depth: 0,
     };
     bind_from_list(&mut select.from_clause, &mut ctx)?;
+    ctx.aggregates_allowed = true;
     rewrite_targets(&mut select.target_list, &mut ctx)?;
+    ctx.aggregates_allowed = false;
     for key in &mut select.group_clause {
-        if !matches!(admit_expr(key, &mut ctx)?, ExprKind::Column { .. }) {
-            return Err(GuardError::Unsupported {
-                construct: "GROUP BY",
-            });
+        if let Some(index) = output_ordinal(key, &select.target_list, "GROUP BY")? {
+            if contains_aggregate(target_expression(&select.target_list[index])?) {
+                return Err(unsupported("GROUP BY"));
+            }
+        } else if !matches!(
+            admit_expr(key, &mut ctx)?,
+            ExprKind::Column { .. }
+                | ExprKind::Function { .. }
+                | ExprKind::Operator { .. }
+                | ExprKind::Case { .. }
+        ) {
+            return Err(unsupported("GROUP BY"));
         }
     }
     let where_fold = admit_where(select.where_clause.as_mut(), &mut ctx)?;
-    admit_sort(&mut select.sort_clause, &mut ctx)?;
+    ctx.aggregates_allowed = true;
+    if let Some(having) = select.having_clause.as_mut() {
+        let kind = admit_expr(having, &mut ctx)?;
+        predicate_fold(&kind, ctx.catalog)?;
+    }
+    admit_sort(&mut select.sort_clause, &select.target_list, &mut ctx)?;
+    check_grouping(select)?;
     if ctx.ranges.is_empty() && uses_column(&ctx) {
         return Err(GuardError::Unsupported {
             construct: "column reference",
@@ -702,11 +774,6 @@ fn reject_select_shape(select: &pb::SelectStmt) -> Result<(), GuardError> {
     if select.group_distinct {
         return Err(GuardError::Unsupported {
             construct: "GROUP BY",
-        });
-    }
-    if select.having_clause.is_some() {
-        return Err(GuardError::Unsupported {
-            construct: "HAVING",
         });
     }
     if !select.window_clause.is_empty() {
@@ -930,6 +997,17 @@ fn rewrite_one_target(
     if let Some(names) = star_names {
         return expand_star(&names, &alias, ctx);
     }
+    let cast_column_alias = match target_val(&mut target)?.node.as_ref() {
+        Some(pb::node::Node::TypeCast(cast))
+            if cast.type_name.as_ref().is_some_and(plain_date_type) =>
+        {
+            match cast.arg.as_deref().and_then(|arg| arg.node.as_ref()) {
+                Some(pb::node::Node::ColumnRef(column)) => plain_names(column)?.last().cloned(),
+                _ => None,
+            }
+        }
+        _ => None,
+    };
     let kind = {
         let val = target_val(&mut target)?;
         admit_expr(val, ctx)?
@@ -945,6 +1023,12 @@ fn rewrite_one_target(
         res.name
             .clone_from(&ctx.catalog.relations[*rel_index].columns[*column_index].name);
     }
+    if let Some(pb::node::Node::ResTarget(res)) = target.node.as_mut()
+        && res.name.is_empty()
+        && let Some(alias) = cast_column_alias
+    {
+        res.name = alias;
+    }
     let output_name = match target.node.as_ref() {
         Some(pb::node::Node::ResTarget(res)) => res.name.clone(),
         _ => String::new(),
@@ -954,7 +1038,10 @@ fn rewrite_one_target(
     Ok(vec![target])
 }
 
-fn inspect_target(target: &pb::Node, generated: bool) -> Result<(String, Option<Vec<String>>), GuardError> {
+fn inspect_target(
+    target: &pb::Node,
+    generated: bool,
+) -> Result<(String, Option<Vec<String>>), GuardError> {
     let res = match target.node.as_ref() {
         Some(pb::node::Node::ResTarget(res)) => res.as_ref(),
         _ => {
@@ -969,7 +1056,8 @@ fn inspect_target(target: &pb::Node, generated: bool) -> Result<(String, Option<
         });
     }
     if !res.name.is_empty()
-        && !(generated && closed_logical_ident(&res.name) || closed_ident(&res.name)) {
+        && !(generated && closed_logical_ident(&res.name) || closed_ident(&res.name))
+    {
         return Err(GuardError::Unsupported {
             construct: "output alias",
         });
@@ -1111,14 +1199,173 @@ fn admit_where(
     })
 }
 
-fn admit_sort(items: &mut [pb::Node], ctx: &mut Ctx<'_>) -> Result<(), GuardError> {
-    for item in items {
-        admit_sort_item(item, ctx)?;
+fn target_expression(target: &pb::Node) -> Result<&pb::Node, GuardError> {
+    match target.node.as_ref() {
+        Some(pb::node::Node::ResTarget(target)) => target.val.as_deref(),
+        _ => None,
+    }
+    .ok_or_else(|| unsupported("target"))
+}
+
+fn output_ordinal(
+    node: &pb::Node,
+    targets: &[pb::Node],
+    construct: &'static str,
+) -> Result<Option<usize>, GuardError> {
+    let Some(pb::node::Node::AConst(value)) = node.node.as_ref() else {
+        return Ok(None);
+    };
+    if !value.isnull
+        && let Some(pb::a_const::Val::Ival(value)) = &value.val
+        && value.ival > 0
+        && value.ival as usize <= targets.len()
+    {
+        return Ok(Some(value.ival as usize - 1));
+    }
+    Err(unsupported(construct))
+}
+
+fn is_aggregate(node: &pb::Node) -> bool {
+    matches!(node.node.as_ref(), Some(pb::node::Node::FuncCall(call))
+        if function_name(&call.funcname).is_ok_and(|(_, name)|
+            matches!(name.as_str(), "count" | "sum" | "min" | "max")))
+}
+
+fn expression_children(node: &pb::Node) -> Vec<&pb::Node> {
+    match node.node.as_ref() {
+        Some(pb::node::Node::FuncCall(call)) => call.args.iter().collect(),
+        Some(pb::node::Node::AExpr(expr)) => expr
+            .lexpr
+            .iter()
+            .chain(&expr.rexpr)
+            .map(Box::as_ref)
+            .collect(),
+        Some(pb::node::Node::BoolExpr(expr)) => expr.args.iter().collect(),
+        Some(pb::node::Node::TypeCast(cast)) => cast.arg.iter().map(Box::as_ref).collect(),
+        Some(pb::node::Node::NullTest(test)) => test.arg.iter().map(Box::as_ref).collect(),
+        Some(pb::node::Node::SortBy(sort)) => sort.node.iter().map(Box::as_ref).collect(),
+        Some(pb::node::Node::ResTarget(target)) => target.val.iter().map(Box::as_ref).collect(),
+        Some(pb::node::Node::List(list)) => list.items.iter().collect(),
+        Some(pb::node::Node::CaseExpr(case)) => case
+            .args
+            .iter()
+            .chain(case.defresult.iter().map(Box::as_ref))
+            .collect(),
+        Some(pb::node::Node::CaseWhen(when)) => when
+            .expr
+            .iter()
+            .chain(&when.result)
+            .map(Box::as_ref)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn contains_aggregate(node: &pb::Node) -> bool {
+    is_aggregate(node)
+        || expression_children(node)
+            .into_iter()
+            .any(contains_aggregate)
+}
+
+fn expression_key(node: &pb::Node) -> Result<String, GuardError> {
+    // Deparsing ignores source locations but preserves qualified physical bindings.
+    let mut tree = pg_query::parse("SELECT 1")
+        .map_err(|_| unsupported("GROUP BY"))?
+        .protobuf;
+    let Some(pb::node::Node::SelectStmt(select)) = tree.stmts[0]
+        .stmt
+        .as_mut()
+        .and_then(|node| node.node.as_mut())
+    else {
+        return Err(unsupported("GROUP BY"));
+    };
+    select.target_list = vec![res_target_node("", node.clone())];
+    pg_query::deparse(&tree).map_err(|_| unsupported("GROUP BY"))
+}
+
+fn grouped_expression(node: &pb::Node, keys: &BTreeSet<String>) -> Result<bool, GuardError> {
+    // IN lists and CASE arms are containers, not standalone SELECT expressions.
+    let list = matches!(
+        node.node.as_ref(),
+        Some(pb::node::Node::List(_) | pb::node::Node::CaseWhen(_))
+    );
+    if is_aggregate(node) || (!list && !keys.is_empty() && keys.contains(&expression_key(node)?)) {
+        return Ok(true);
+    }
+    if matches!(node.node.as_ref(), Some(pb::node::Node::ColumnRef(_))) {
+        return Ok(false);
+    }
+    for child in expression_children(node) {
+        if !grouped_expression(child, keys)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+fn check_grouping(select: &pb::SelectStmt) -> Result<(), GuardError> {
+    if select.group_clause.is_empty()
+        && select.having_clause.is_none()
+        && !select
+            .target_list
+            .iter()
+            .chain(&select.sort_clause)
+            .any(contains_aggregate)
+    {
+        return Ok(());
+    }
+    let mut keys = BTreeSet::new();
+    for group in &select.group_clause {
+        let expression = match output_ordinal(group, &select.target_list, "GROUP BY")? {
+            Some(index) => target_expression(&select.target_list[index])?,
+            None => group,
+        };
+        keys.insert(expression_key(expression)?);
+    }
+    for target in &select.target_list {
+        if !grouped_expression(target_expression(target)?, &keys)? {
+            return Err(unsupported("GROUP BY"));
+        }
+    }
+    if let Some(having) = &select.having_clause
+        && !grouped_expression(having, &keys)?
+    {
+        return Err(unsupported("HAVING"));
+    }
+    for sort in &select.sort_clause {
+        let Some(pb::node::Node::SortBy(sort)) = sort.node.as_ref() else {
+            return Err(unsupported("order key"));
+        };
+        let expression = sort
+            .node
+            .as_deref()
+            .ok_or_else(|| unsupported("order key"))?;
+        if output_ordinal(expression, &select.target_list, "order key")?.is_none()
+            && !grouped_expression(expression, &keys)?
+        {
+            return Err(unsupported("GROUP BY"));
+        }
     }
     Ok(())
 }
 
-fn admit_sort_item(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<(), GuardError> {
+fn admit_sort(
+    items: &mut [pb::Node],
+    targets: &[pb::Node],
+    ctx: &mut Ctx<'_>,
+) -> Result<(), GuardError> {
+    for item in items {
+        admit_sort_item(item, targets, ctx)?;
+    }
+    Ok(())
+}
+
+fn admit_sort_item(
+    node: &mut pb::Node,
+    targets: &[pb::Node],
+    ctx: &mut Ctx<'_>,
+) -> Result<(), GuardError> {
     let sort = match node.node.as_mut() {
         Some(pb::node::Node::SortBy(sort)) => sort.as_mut(),
         _ => {
@@ -1140,8 +1387,60 @@ fn admit_sort_item(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<(), GuardEr
     let inner = sort.node.as_mut().ok_or(GuardError::Unsupported {
         construct: "order key",
     })?;
+    if output_ordinal(inner, targets, "order key")?.is_some() {
+        return Ok(());
+    }
+    // PostgreSQL resolves an unqualified ORDER BY name against outputs first.
+    // Copy only an already-admitted target, including its physical column binding.
+    if let Some(pb::node::Node::ColumnRef(column)) = inner.node.as_ref()
+        && let [name] = plain_names(column)?.as_slice()
+    {
+        let matches = targets
+            .iter()
+            .filter_map(|target| match target.node.as_ref() {
+                Some(pb::node::Node::ResTarget(res))
+                    if !res.name.is_empty() && res.name == *name =>
+                {
+                    res.val.as_ref()
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [value] => {
+                if !matches!(
+                    value.node.as_ref(),
+                    Some(
+                        pb::node::Node::ColumnRef(_)
+                            | pb::node::Node::FuncCall(_)
+                            | pb::node::Node::TypeCast(_)
+                            | pb::node::Node::AExpr(_)
+                            | pb::node::Node::CaseExpr(_)
+                    )
+                ) {
+                    return Err(GuardError::Unsupported {
+                        construct: "order alias expression",
+                    });
+                }
+                **inner = value.as_ref().clone();
+                return Ok(());
+            }
+            [] => {}
+            _ => {
+                return Err(GuardError::Unsupported {
+                    construct: "ambiguous order alias",
+                });
+            }
+        }
+    }
     let kind = admit_expr(inner, ctx)?;
-    if !matches!(kind, ExprKind::Column { .. }) {
+    if !matches!(
+        kind,
+        ExprKind::Column { .. }
+            | ExprKind::Function { .. }
+            | ExprKind::Operator { .. }
+            | ExprKind::Case { .. }
+    ) {
         return Err(GuardError::Unsupported {
             construct: "order key",
         });
@@ -1157,7 +1456,7 @@ fn admit_expr(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
         Some(pb::node::Node::AExpr(_)) => admit_op(node, ctx),
         Some(pb::node::Node::BoolExpr(_)) => admit_bool(node, ctx),
         Some(pb::node::Node::NullTest(_)) => admit_null(node, ctx),
-        Some(pb::node::Node::TypeCast(_)) => admit_literal_cast(node),
+        Some(pb::node::Node::TypeCast(_)) => admit_cast(node, ctx),
         Some(pb::node::Node::ParamRef(_)) => Err(GuardError::Unsupported {
             construct: "parameter",
         }),
@@ -1166,7 +1465,7 @@ fn admit_expr(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
                 construct: "subquery",
             })
         }
-        Some(pb::node::Node::CaseExpr(_)) => Err(GuardError::Unsupported { construct: "CASE" }),
+        Some(pb::node::Node::CaseExpr(_)) => admit_case(node, ctx),
         Some(_) => Err(GuardError::Unsupported {
             construct: "expression",
         }),
@@ -1174,6 +1473,74 @@ fn admit_expr(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
             construct: "expression",
         }),
     }
+}
+
+fn admit_case(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
+    let Some(pb::node::Node::CaseExpr(case)) = node.node.as_mut() else {
+        return Err(unsupported("CASE"));
+    };
+    if case.arg.is_some() || case.args.is_empty() {
+        return Err(unsupported("CASE"));
+    }
+    if case.args.len() > CASE_ARM_LIMIT {
+        return Err(GuardError::Budget);
+    }
+    let mut result_type = None;
+    for arm in &mut case.args {
+        let Some(pb::node::Node::CaseWhen(when)) = arm.node.as_mut() else {
+            return Err(unsupported("CASE"));
+        };
+        let condition = when
+            .expr
+            .as_deref_mut()
+            .ok_or_else(|| unsupported("CASE"))?;
+        let condition = admit_expr(condition, ctx)?;
+        predicate_fold(&condition, ctx.catalog)?;
+        let value = when
+            .result
+            .as_deref_mut()
+            .ok_or_else(|| unsupported("CASE"))?;
+        case_branch(value, ctx, &mut result_type)?;
+    }
+    if let Some(value) = case.defresult.as_deref_mut() {
+        case_branch(value, ctx, &mut result_type)?;
+    }
+    Ok(ExprKind::Case {
+        result_type_oid: result_type.ok_or_else(|| unsupported("CASE"))?,
+    })
+}
+
+fn case_branch(
+    node: &mut pb::Node,
+    ctx: &mut Ctx<'_>,
+    result: &mut Option<u32>,
+) -> Result<(), GuardError> {
+    let kind = admit_expr(node, ctx)?;
+    if matches!(
+        kind,
+        ExprKind::Literal {
+            kind: LiteralKind::Null,
+            ..
+        }
+    ) {
+        return Ok(());
+    }
+    let oid = infer_type(&kind, ctx.catalog).ok_or_else(|| unsupported("CASE"))?;
+    // No implicit branch coercions, domain/UDF casts, or locale-dependent types.
+    if ![
+        Type::INT2.oid(),
+        Type::INT4.oid(),
+        Type::INT8.oid(),
+        Type::NUMERIC.oid(),
+        Type::FLOAT8.oid(),
+    ]
+    .contains(&oid)
+        || result.is_some_and(|previous| previous != oid)
+    {
+        return Err(unsupported("CASE"));
+    }
+    *result = Some(oid);
+    Ok(())
 }
 
 fn admit_column(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
@@ -1405,6 +1772,46 @@ fn admit_literal_cast(node: &pb::Node) -> Result<ExprKind, GuardError> {
     Err(GuardError::Unsupported { construct: "cast" })
 }
 
+fn admit_cast(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
+    if let Ok(literal) = admit_literal_cast(node) {
+        return Ok(literal);
+    }
+    let Some(pb::node::Node::TypeCast(cast)) = node.node.as_mut() else {
+        return Err(unsupported("cast"));
+    };
+    if !cast.type_name.as_ref().is_some_and(plain_date_type) {
+        return Err(unsupported("cast"));
+    }
+    let arg = cast.arg.as_deref_mut().ok_or_else(|| unsupported("cast"))?;
+    let kind = admit_expr(arg, ctx).map_err(|error| match error {
+        GuardError::FunctionNotAllowed | GuardError::SignatureNotAllowed { .. } => {
+            unsupported("cast")
+        }
+        other => other,
+    })?;
+    if infer_type(&kind, ctx.catalog) != Some(Type::TIMESTAMP.oid()) {
+        return Err(unsupported("cast"));
+    }
+    let resolved = resolve_function(
+        ctx.catalog,
+        Some("pg_catalog"),
+        "date",
+        &[Type::TIMESTAMP.oid()],
+        false,
+    )?;
+    if crate::policy::catalog::builtin_function_result_type(resolved) != Some(Type::DATE.oid()) {
+        return Err(GuardError::FunctionNotAllowed);
+    }
+    // The loader also verifies pg_cast.castfunc; no session-zone cast is admitted.
+    cast.type_name.as_mut().unwrap().names = vec![string_node("pg_catalog"), string_node("date")];
+    let bound = bound_function(resolved);
+    ctx.functions.push(bound.clone());
+    Ok(ExprKind::Function {
+        bound,
+        result_type_oid: Some(Type::DATE.oid()),
+    })
+}
+
 fn plain_date_type(type_name: &pb::TypeName) -> bool {
     plain_literal_type(type_name, "date")
 }
@@ -1463,7 +1870,9 @@ fn civil_date(text: &str) -> bool {
     let last = match month {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
         4 | 6 | 9 | 11 => 30,
-        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+        2 if year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400)) => {
+            29
+        }
         2 => 28,
         _ => return false,
     };
@@ -1507,6 +1916,10 @@ fn bool_string(node: &pb::Node) -> Option<bool> {
 }
 
 fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
+    let position = match node.node.as_ref() {
+        Some(pb::node::Node::FuncCall(func)) => func.location,
+        _ => -1,
+    };
     let (schema, name, aggregate_star) = {
         let func = match node.node.as_ref() {
             Some(pb::node::Node::FuncCall(func)) => func.as_ref(),
@@ -1520,7 +1933,6 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
             || func.agg_filter.is_some()
             || !func.agg_order.is_empty()
             || func.agg_within_group
-            || func.agg_distinct
             || func.func_variadic
         {
             return Err(GuardError::Unsupported {
@@ -1528,6 +1940,20 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
             });
         }
         let (schema, name) = function_name(&func.funcname)?;
+        if func.agg_distinct
+            && (name != "count"
+                || schema.as_deref().is_some_and(|s| s != "pg_catalog")
+                || func.agg_star
+                || func.args.len() != 1
+                || !matches!(
+                    func.args[0].node.as_ref(),
+                    Some(pb::node::Node::ColumnRef(_))
+                ))
+        {
+            return Err(GuardError::Unsupported {
+                construct: "DISTINCT aggregate (only COUNT of one visible column is supported)",
+            });
+        }
         if func.agg_star && !func.args.is_empty() {
             return Err(GuardError::Unsupported {
                 construct: "aggregate star",
@@ -1535,6 +1961,29 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
         }
         (schema, name, func.agg_star)
     };
+    let aggregate = matches!(name.as_str(), "count" | "sum" | "min" | "max");
+    if aggregate && (!ctx.aggregates_allowed || ctx.aggregate_depth != 0) {
+        return Err(unsupported("function"));
+    }
+    if matches!(name.as_str(), "date_trunc" | "date" | "to_char") {
+        let Some(pb::node::Node::FuncCall(call)) = node.node.as_ref() else {
+            return Err(unsupported("function"));
+        };
+        if schema.as_deref().is_some_and(|s| s != "pg_catalog")
+            || aggregate_star
+            || (name == "date_trunc"
+                && (call.args.len() != 2
+                    || call.args.first().and_then(const_string) != Some("day")))
+            || (name == "date" && call.args.len() != 1)
+            || (name == "to_char"
+                && (call.args.len() != 2 || call.args.get(1).and_then(const_string).is_none()))
+        {
+            return Err(unsupported("function"));
+        }
+    }
+    if aggregate {
+        ctx.aggregate_depth += 1;
+    }
     let types = if aggregate_star {
         Vec::new()
     } else {
@@ -1553,16 +2002,40 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
         }
         types
     };
+    if aggregate {
+        ctx.aggregate_depth -= 1;
+    }
     let resolved = resolve_function(
         ctx.catalog,
         schema.as_deref(),
         &name,
         &types,
         aggregate_star,
-    )?;
+    )
+    .map_err(|err| signature_error(err, false, &types, position))?;
+    let result_type_oid = crate::policy::catalog::builtin_function_result_type(resolved);
+    if matches!(name.as_str(), "date_trunc" | "date" | "to_char") && result_type_oid.is_none() {
+        return Err(GuardError::FunctionNotAllowed);
+    }
     let bound = bound_function(resolved);
     ctx.functions.push(bound.clone());
-    Ok(ExprKind::Function(bound))
+    Ok(ExprKind::Function {
+        bound,
+        result_type_oid,
+    })
+}
+
+fn signature_error(err: GuardError, operator: bool, types: &[u32], position: i32) -> GuardError {
+    // Keep oversized/uninferred diagnostics generic, never silently truncate types.
+    if err == GuardError::FunctionNotAllowed && types.len() <= 8 {
+        GuardError::SignatureNotAllowed {
+            operator,
+            argument_type_oids: types.to_vec(),
+            position,
+        }
+    } else {
+        err
+    }
 }
 
 fn function_name(nodes: &[pb::Node]) -> Result<(Option<String>, String), GuardError> {
@@ -1593,7 +2066,17 @@ fn resolve_function<'a>(
         {
             continue;
         }
-        if function.argument_type_oids != args {
+        let count_any = function.schema == "pg_catalog"
+            && function.name == "count"
+            && !function.aggregate_star
+            && function.argument_type_oids.len() == 1
+            && args.len() == 1;
+        let varchar_minmax = function.schema == "pg_catalog"
+            && matches!(name, "min" | "max")
+            && !aggregate_star
+            && args == [Type::VARCHAR.oid()]
+            && function.argument_type_oids == [Type::TEXT.oid()];
+        if function.argument_type_oids != args && !count_any && !varchar_minmax {
             continue;
         }
         if found.is_some() {
@@ -1614,6 +2097,10 @@ fn bound_function(function: &ResolvedFunction) -> BoundFunction {
 }
 
 fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
+    let position = match node.node.as_ref() {
+        Some(pb::node::Node::AExpr(expr)) => expr.location,
+        _ => -1,
+    };
     let kind = match node.node.as_ref() {
         Some(pb::node::Node::AExpr(expr)) => expr.kind,
         _ => {
@@ -1624,6 +2111,16 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
     };
     if kind == AEXPR_IN {
         return admit_in(node, ctx);
+    }
+    if matches!(
+        pb::AExprKind::try_from(kind).ok(),
+        Some(pb::AExprKind::AexprLike | pb::AExprKind::AexprIlike)
+    ) || (kind == AEXPR_OP
+        && matches!(node.node.as_ref(), Some(pb::node::Node::AExpr(expr))
+            if operator_name(&expr.name).is_ok_and(|(_, name)|
+                crate::policy::catalog::PATTERN_OPERATORS.contains(&name.as_str()))))
+    {
+        return admit_pattern(node, ctx);
     }
     let (schema, name) = {
         let expr = match node.node.as_ref() {
@@ -1665,7 +2162,7 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
         (left_type, right_type, left_int, right_int)
     };
     let (left_type, right_type, left_int_literal, right_int_literal) = compared;
-    let resolved = resolve_comparison(
+    let resolved = resolve_binary_operator(
         ctx.catalog,
         schema.as_deref(),
         &name,
@@ -1673,7 +2170,8 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
         right_type,
         left_int_literal,
         right_int_literal,
-    )?;
+    )
+    .map_err(|err| signature_error(err, true, &[left_type, right_type], position))?;
     let bound = BoundOperator {
         oid: resolved.oid,
         procedure_oid: resolved.procedure_oid,
@@ -1681,21 +2179,190 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
         name: resolved.name.clone(),
     };
     ctx.operators.push(bound);
-    Ok(ExprKind::Operator)
+    Ok(ExprKind::Operator {
+        result_type_oid: resolved.result_type_oid,
+    })
+}
+
+fn admit_pattern(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
+    let Some(pb::node::Node::AExpr(expr)) = node.node.as_mut() else {
+        return Err(unsupported("LIKE predicate"));
+    };
+    let (schema, name) = operator_name(&expr.name)?;
+    if schema
+        .as_deref()
+        .is_some_and(|schema| schema != "pg_catalog")
+        || !crate::policy::catalog::PATTERN_OPERATORS.contains(&name.as_str())
+    {
+        return Err(GuardError::FunctionNotAllowed);
+    }
+    if ctx.catalog.literal_types.text != Some(Type::TEXT.oid())
+        || ctx.catalog.literal_types.boolean != Some(Type::BOOL.oid())
+    {
+        return Err(unsupported("LIKE predicate"));
+    }
+    let pattern = expr
+        .rexpr
+        .as_deref()
+        .and_then(const_string)
+        .ok_or_else(|| unsupported("LIKE predicate"))?;
+    let mut escaped = false;
+    let mut wildcards = 0;
+    for ch in pattern.chars() {
+        if escaped {
+            escaped = false;
+        } else if ch == '\\' {
+            escaped = true;
+        } else if matches!(ch, '%' | '_') {
+            wildcards += 1;
+        }
+    }
+    if pattern.len() > LIKE_PATTERN_BYTE_LIMIT || wildcards > LIKE_WILDCARD_LIMIT {
+        return Err(GuardError::Budget);
+    }
+    if escaped || pattern.contains('\0') {
+        return Err(unsupported("LIKE predicate"));
+    }
+    let left = expr
+        .lexpr
+        .as_deref_mut()
+        .ok_or_else(|| unsupported("LIKE predicate"))?;
+    let ExprKind::Column { type_oid, .. } = admit_expr(left, ctx)? else {
+        return Err(unsupported("LIKE predicate"));
+    };
+    if ![Type::TEXT.oid(), Type::VARCHAR.oid()].contains(&type_oid) {
+        return Err(GuardError::FunctionNotAllowed);
+    }
+    let operator = resolve_operator(
+        ctx.catalog,
+        Some("pg_catalog"),
+        &name,
+        Type::TEXT.oid(),
+        Type::TEXT.oid(),
+    )?;
+    if !crate::policy::catalog::pattern_signature_allowed(operator) {
+        return Err(GuardError::FunctionNotAllowed);
+    }
+    ctx.operators.push(BoundOperator {
+        oid: operator.oid,
+        procedure_oid: operator.procedure_oid,
+        schema: operator.schema.clone(),
+        name: operator.name.clone(),
+    });
+    Ok(ExprKind::Operator {
+        result_type_oid: operator.result_type_oid,
+    })
 }
 
 // MySQL TIME is stored as an interval. Admit an explicit builtin interval constant
 // only as a comparator operand; all operators still require the catalogued
 // pg_catalog signature. General casts and projected interval casts stay closed.
-fn admit_comparison_operand(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<(u32, bool), GuardError> {
+fn admit_comparison_operand(
+    node: &mut pb::Node,
+    ctx: &mut Ctx<'_>,
+) -> Result<(u32, bool), GuardError> {
+    // PostgreSQL's date-only TIMESTAMP literal means local midnight, without
+    // timezone conversion. Normalize only a validated constant, never a column.
+    if let Some(pb::node::Node::TypeCast(cast)) = node.node.as_mut()
+        && cast
+            .type_name
+            .as_ref()
+            .is_some_and(|name| plain_literal_type(name, "timestamp"))
+        && let Some(pb::node::Node::AConst(value)) =
+            cast.arg.as_deref_mut().and_then(|arg| arg.node.as_mut())
+        && !value.isnull
+        && let Some(pb::a_const::Val::Sval(text)) = value.val.as_mut()
+        && civil_date(&text.sval)
+    {
+        text.sval.push_str(" 00:00:00");
+    }
     if let Some(pb::node::Node::TypeCast(cast)) = node.node.as_ref()
-        && cast.type_name.as_ref().is_some_and(|name| plain_literal_type(name, "interval"))
-        && cast.arg.as_deref().and_then(const_string).is_some_and(|text| !text.is_empty() && !text.contains('\0'))
+        && let (Some(name), Some(text)) = (
+            cast.type_name.as_ref(),
+            cast.arg.as_deref().and_then(const_string),
+        )
+    {
+        for (kind, oid, zoned) in [
+            ("timestamp", Type::TIMESTAMP.oid(), false),
+            ("timestamptz", Type::TIMESTAMPTZ.oid(), true),
+        ] {
+            if plain_literal_type(name, kind) && civil_timestamp(text, zoned) {
+                return Ok((oid, false));
+            }
+        }
+    }
+    if let Some(pb::node::Node::TypeCast(cast)) = node.node.as_ref()
+        && cast
+            .type_name
+            .as_ref()
+            .is_some_and(|name| plain_literal_type(name, "interval"))
+        && cast
+            .arg
+            .as_deref()
+            .and_then(const_string)
+            .is_some_and(|text| !text.is_empty() && !text.contains('\0'))
     {
         return Ok((Type::INTERVAL.oid(), false));
     }
     let kind = admit_expr(node, ctx)?;
-    Ok((infer_type(&kind, ctx.catalog).ok_or(GuardError::FunctionNotAllowed)?, matches!(kind, ExprKind::Literal {kind: LiteralKind::Integer, ..})))
+    Ok((
+        infer_type(&kind, ctx.catalog).ok_or(GuardError::FunctionNotAllowed)?,
+        matches!(
+            kind,
+            ExprKind::Literal {
+                kind: LiteralKind::Integer,
+                ..
+            }
+        ),
+    ))
+}
+
+// Reject relative times, named zones, locale formats and implicit session-zone
+// conversions. Values are only accepted as comparison operands.
+fn civil_timestamp(text: &str, zoned: bool) -> bool {
+    if !text.is_ascii() || text.len() < 19 || !civil_date(&text[..10]) {
+        return false;
+    }
+    let bytes = text.as_bytes();
+    if !matches!(bytes[10], b' ' | b'T')
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+        || ![11, 12, 14, 15, 17, 18]
+            .iter()
+            .all(|i| bytes[*i].is_ascii_digit())
+    {
+        return false;
+    }
+    let hour = (bytes[11] - b'0') * 10 + bytes[12] - b'0';
+    let minute = (bytes[14] - b'0') * 10 + bytes[15] - b'0';
+    let second = (bytes[17] - b'0') * 10 + bytes[18] - b'0';
+    if hour > 23 || minute > 59 || second > 59 {
+        return false;
+    }
+    let mut end = 19;
+    if bytes.get(end) == Some(&b'.') {
+        end += 1;
+        let start = end;
+        while bytes.get(end).is_some_and(u8::is_ascii_digit) {
+            end += 1;
+        }
+        if !(1..=6).contains(&(end - start)) {
+            return false;
+        }
+    }
+    let suffix = &bytes[end..];
+    if !zoned {
+        return suffix.is_empty();
+    }
+    if suffix == b"Z" {
+        return true;
+    }
+    suffix.len() == 6
+        && matches!(suffix[0], b'+' | b'-')
+        && suffix[3] == b':'
+        && [1, 2, 4, 5].iter().all(|i| suffix[*i].is_ascii_digit())
+        && (suffix[1] - b'0') * 10 + suffix[2] - b'0' <= 15
+        && (suffix[4] - b'0') * 10 + suffix[5] - b'0' <= 59
 }
 
 fn admit_in(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
@@ -1715,7 +2382,7 @@ fn admit_in(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
     for item in &items {
         admit_in_literal(item, left_type, token, ctx)?;
     }
-    Ok(ExprKind::Operator)
+    Ok(ExprKind::Bool(Fold::Other))
 }
 
 fn in_list(node: &pb::Node) -> Result<Vec<pb::Node>, GuardError> {
@@ -1775,7 +2442,7 @@ fn admit_in_literal(
         other => literal_type_oid(other, ctx.catalog.literal_types)
             .ok_or(GuardError::FunctionNotAllowed)?,
     };
-    let resolved = resolve_comparison(
+    let resolved = resolve_binary_operator(
         ctx.catalog,
         None,
         token,
@@ -1861,7 +2528,7 @@ fn operator_name(nodes: &[pb::Node]) -> Result<(Option<String>, String), GuardEr
     }
 }
 
-fn resolve_comparison<'a>(
+fn resolve_binary_operator<'a>(
     catalog: &'a PolicyCatalog,
     schema: Option<&str>,
     name: &str,
@@ -1873,15 +2540,20 @@ fn resolve_comparison<'a>(
     if let Ok(found) = resolve_operator(catalog, schema, name, left, right) {
         return Ok(found);
     }
-    // PostgreSQL compares varchar with a text literal through its implicit
-    // varchar-to-text cast. Bind only equality to the already verified builtin
-    // text/text operator; all other casts and functions remain refused.
-    if name == "="
-        && let Some(text) = catalog.literal_types.text
-        && [left, right].iter().all(|oid| *oid == text || *oid == Type::VARCHAR.oid())
+    // Only varchar's binary-compatible text promotion is admitted. Every token
+    // still needs its exact verified pg_catalog text/text operator in the catalog.
+    if crate::policy::catalog::COMPARISON_OPERATORS.contains(&name)
+        && schema.is_none_or(|schema| schema == "pg_catalog")
+        && let Some(text) = catalog
+            .literal_types
+            .text
+            .filter(|oid| *oid == Type::TEXT.oid())
+        && [left, right]
+            .iter()
+            .all(|oid| *oid == text || *oid == Type::VARCHAR.oid())
         && (left == Type::VARCHAR.oid() || right == Type::VARCHAR.oid())
     {
-        return resolve_operator(catalog, schema, name, text, text);
+        return resolve_operator(catalog, Some("pg_catalog"), name, text, text);
     }
     let numeric = Type::NUMERIC.oid();
     let Some(integer) = catalog.literal_types.integer else {
@@ -2015,7 +2687,14 @@ fn admit_null(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
         construct: "null test",
     })?;
     let kind = admit_expr(arg, ctx)?;
-    if !matches!(kind, ExprKind::Column { .. }) {
+    if !matches!(
+        kind,
+        ExprKind::Column { .. }
+            | ExprKind::Function {
+                result_type_oid: Some(_),
+                ..
+            }
+    ) {
         return Err(GuardError::Unsupported {
             construct: "null test",
         });
@@ -2031,7 +2710,12 @@ fn predicate_fold(kind: &ExprKind, catalog: &PolicyCatalog) -> Result<Fold, Guar
             fold,
         } => Ok(*fold),
         ExprKind::Bool(fold) => Ok(*fold),
-        ExprKind::Operator | ExprKind::NullTest => Ok(Fold::Other),
+        ExprKind::NullTest => Ok(Fold::Other),
+        ExprKind::Operator { result_type_oid }
+            if catalog.literal_types.boolean == Some(*result_type_oid) =>
+        {
+            Ok(Fold::Other)
+        }
         ExprKind::Column { type_oid, .. } if catalog.literal_types.boolean == Some(*type_oid) => {
             Ok(Fold::Other)
         }
@@ -2044,6 +2728,9 @@ fn predicate_fold(kind: &ExprKind, catalog: &PolicyCatalog) -> Result<Fold, Guar
 fn infer_type(kind: &ExprKind, catalog: &PolicyCatalog) -> Option<u32> {
     match kind {
         ExprKind::Column { type_oid, .. } => Some(*type_oid),
+        ExprKind::Operator { result_type_oid } | ExprKind::Case { result_type_oid } => {
+            Some(*result_type_oid)
+        }
         ExprKind::Literal {
             kind: LiteralKind::Integer,
             ..
@@ -2057,17 +2744,18 @@ fn infer_type(kind: &ExprKind, catalog: &PolicyCatalog) -> Option<u32> {
             ..
         }
         | ExprKind::Bool(_)
-        | ExprKind::Operator
         | ExprKind::NullTest => catalog.literal_types.boolean,
         ExprKind::Literal {
             kind: LiteralKind::Date,
             ..
         } => Some(Type::DATE.oid()),
+        ExprKind::Function {
+            result_type_oid, ..
+        } => *result_type_oid,
         ExprKind::Literal {
             kind: LiteralKind::Null,
             ..
-        }
-        | ExprKind::Function(_) => None,
+        } => None,
     }
 }
 
@@ -2094,9 +2782,12 @@ fn output_item(kind: &ExprKind, output_name: &str, catalog: &PolicyCatalog) -> O
                 type_oid: *type_oid,
             })
         }
-        ExprKind::Function(function) => OutputItem::Function(function.clone()),
+        ExprKind::Function { bound, .. } => OutputItem::Function(bound.clone()),
         ExprKind::Literal { kind, .. } => OutputItem::Literal(*kind),
-        ExprKind::Operator | ExprKind::Bool(_) | ExprKind::NullTest => OutputItem::Compound,
+        ExprKind::Operator { .. }
+        | ExprKind::Case { .. }
+        | ExprKind::Bool(_)
+        | ExprKind::NullTest => OutputItem::Compound,
     }
 }
 
@@ -2360,6 +3051,7 @@ fn validate_operators(catalog: &PolicyCatalog) -> Result<(), GuardError> {
             || operator.procedure_oid == 0
             || operator.left_type_oid == 0
             || operator.right_type_oid == 0
+            || operator.result_type_oid == 0
         {
             return Err(GuardError::CatalogInvalid {
                 reason: "operator oid",
@@ -2368,6 +3060,17 @@ fn validate_operators(catalog: &PolicyCatalog) -> Result<(), GuardError> {
         if !function_schema_ok(&operator.schema) || !operator_token_ok(&operator.name) {
             return Err(GuardError::CatalogInvalid {
                 reason: "operator name",
+            });
+        }
+        if (crate::policy::catalog::ARITHMETIC_OPERATORS.contains(&operator.name.as_str())
+            && !crate::policy::catalog::arithmetic_signature_allowed(operator))
+            || (crate::policy::catalog::PATTERN_OPERATORS.contains(&operator.name.as_str())
+                && !crate::policy::catalog::pattern_signature_allowed(operator))
+            || (crate::policy::catalog::COMPARISON_OPERATORS.contains(&operator.name.as_str())
+                && catalog.literal_types.boolean != Some(operator.result_type_oid))
+        {
+            return Err(GuardError::CatalogInvalid {
+                reason: "operator signature",
             });
         }
         let signature = (

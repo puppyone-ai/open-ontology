@@ -14,7 +14,7 @@ The bearer token is caller-supplied bytes. The client does not read a token from
 
 The wire body is canonical JSON: serde_json object keys in sorted order, no extra whitespace. Optional fields that would have been JSON null are omitted. The bytes are accepted only when `parse_api_json::<QueryRequest>` accepts them and the typed value is unchanged. A body over the caller cap, or over the public 1 MiB HTTP ceiling, fails before connect. The client does not truncate the SQL or the body to force it under the cap.
 
-Public ceilings, enforced by `oo-core` on the typed values and by this client on the HTTP buffer, are: HTTP body 1 MiB, SQL 64 KiB, `max_rows` 1..=2000, `timeout_ms` 1..=120000, cell text 500 characters. A response whose `returned_rows` does not match the row array, or whose row width does not match the column list, is a protocol failure.
+Public ceilings, enforced by `oo-core` on the typed values and by this client on the HTTP buffer, are: HTTP body 1 MiB, SQL 64 KiB, `max_rows` 1..=2000, `timeout_ms` 1..=120000. Cell text is preserved within the whole-response byte budget, not clipped at a display-length threshold. A response whose `returned_rows` does not match the row array, or whose row width does not match the column list, is a protocol failure.
 
 ## Response
 

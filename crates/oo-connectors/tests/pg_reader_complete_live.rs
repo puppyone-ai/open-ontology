@@ -14,11 +14,11 @@ use std::time::{Duration, Instant};
 
 use arrow_array::{Array, Int32Array, StringArray};
 use oo_connectors::{
-    config_identity, connector_capabilities, type_capabilities, type_policy_identity,
-    AdmittedCatalog, AdmittedColumn, AdmittedTable, PgBudget, PgCredentials, PgEndpoint,
-    PgSourceConfig, PgTlsConfig, PgTypePolicy, RunComplete, SecretRef, SelectedTable,
-    SnapshotFinished, SnapshotOwner, SnapshotRequest, SourceCatalog, SourceError, SourceErrorKind,
-    SourceId, StreamBudget, StreamItem, TableSelection, CLEANUP_OBSERVATION_BOUND_MS,
+    AdmittedCatalog, AdmittedColumn, AdmittedTable, CLEANUP_OBSERVATION_BOUND_MS, PgBudget,
+    PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, PgTypePolicy, RunComplete, SecretRef,
+    SelectedTable, SnapshotFinished, SnapshotOwner, SnapshotRequest, SourceCatalog, SourceError,
+    SourceErrorKind, SourceId, StreamBudget, StreamItem, TableSelection, config_identity,
+    connector_capabilities, type_capabilities, type_policy_identity,
 };
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
@@ -56,6 +56,7 @@ struct World {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_PG_COMPLETE_FIXTURE; run with --ignored"]
 async fn finish_complete_admits_only_exhausted_delivery() {
     assert_eq!(CLEANUP_OBSERVATION_BOUND_MS, 5_000);
     let mut world = World::start().await;
@@ -75,9 +76,10 @@ async fn finish_complete_admits_only_exhausted_delivery() {
 
 impl World {
     async fn start() -> Self {
-        let path = std::env::var("OO_PG_COMPLETE_FIXTURE").expect("OO_PG_COMPLETE_FIXTURE is required");
-        let pointer: Pointer =
-            serde_json::from_str(&fs::read_to_string(&path).expect("pointer")).expect("pointer json");
+        let path =
+            std::env::var("OO_PG_COMPLETE_FIXTURE").expect("OO_PG_COMPLETE_FIXTURE is required");
+        let pointer: Pointer = serde_json::from_str(&fs::read_to_string(&path).expect("pointer"))
+            .expect("pointer json");
         let reader_pass = read_pass(&pointer.password_dir, "reader.pass");
         let writer_pass = read_pass(&pointer.password_dir, "writer.pass");
         let super_pass = read_pass(&pointer.password_dir, "super.pass");
@@ -91,7 +93,9 @@ impl World {
         )
         .await;
         let (postmaster, in_recovery) = node_of(&mut admin).await;
-        let log_mark = fs::metadata(&pointer.log_file).map(|meta| meta.len()).unwrap_or(0);
+        let log_mark = fs::metadata(&pointer.log_file)
+            .map(|meta| meta.len())
+            .unwrap_or(0);
         let mut world = Self {
             pointer,
             reader_pass,
@@ -204,7 +208,8 @@ impl World {
     }
 
     async fn phase_longitudinal(&mut self) {
-        let admitted = load_admitted(&mut self.admin, "r4", &[("item", true), ("line", false)]).await;
+        let admitted =
+            load_admitted(&mut self.admin, "r4", &[("item", true), ("line", false)]).await;
         let before = oracle_cut(&mut self.admin).await;
         self.note(format!(
             "oracle_before_writer items={} lines={} item1={}",
@@ -228,14 +233,20 @@ impl World {
             "a selected column was marked converted"
         );
         owner
-            .open_stream(StreamBudget::try_new(1, 1024 * 1024, 64 * 1024, 64 * 1024).expect("budget"))
+            .open_stream(
+                StreamBudget::try_new(1, 1024 * 1024, 64 * 1024, 64 * 1024).expect("budget"),
+            )
             .await
             .expect("open stream");
         let owned = self.reader_backends().await;
         assert!(owned.len() >= 2, "expected data and guard, got {owned:?}");
         self.writer_mutates().await;
         let outside = oracle_cut(&mut self.admin).await;
-        assert_eq!(outside.item_name(1), "pine", "writer commit was not visible outside");
+        assert_eq!(
+            outside.item_name(1),
+            "pine",
+            "writer commit was not visible outside"
+        );
         assert!(
             outside.lines.iter().any(|row| row.0 == 13),
             "new line was not visible outside"
@@ -252,7 +263,10 @@ impl World {
             "reader mixed the writer cut into line"
         );
         assert!(read.exhausted, "full drain did not yield Exhausted");
-        assert!(read.saw_item_eof && read.saw_line_eof, "a selected table missed TableEof");
+        assert!(
+            read.saw_item_eof && read.saw_line_eof,
+            "a selected table missed TableEof"
+        );
         assert!(read.batches >= 5, "batch_rows=1 did not split the cut");
         self.note(format!(
             "full_read generation={generation} data_pid={pid} batches={} item_rows={} line_rows={} exhausted=1 table_eof=item,line same_cut_match=1",
@@ -283,7 +297,8 @@ impl World {
             hex32(&token.input_digest)
         ));
 
-        let admitted = load_admitted(&mut self.admin, "r4", &[("item", true), ("line", false)]).await;
+        let admitted =
+            load_admitted(&mut self.admin, "r4", &[("item", true), ("line", false)]).await;
         let mut fresh = self
             .open(&admitted, &[("r4", "item"), ("r4", "line")], 90, 60, 30)
             .await;
@@ -292,7 +307,9 @@ impl World {
         assert_ne!(fresh_generation, generation);
         assert_ne!(fresh_digest, input_digest);
         fresh
-            .open_stream(StreamBudget::try_new(8, 1024 * 1024, 64 * 1024, 64 * 1024).expect("budget"))
+            .open_stream(
+                StreamBudget::try_new(8, 1024 * 1024, 64 * 1024, 64 * 1024).expect("budget"),
+            )
             .await
             .expect("fresh stream");
         let fresh_owned = self.reader_backends().await;
@@ -314,7 +331,8 @@ impl World {
         assert_ne!(fresh_token.generation, generation);
         assert_eq!(fresh_token.input_digest, fresh_digest);
         assert_ne!(fresh_token.input_digest, input_digest);
-        self.wait_absent(&fresh_owned, Instant::now(), "fresh_admit").await;
+        self.wait_absent(&fresh_owned, Instant::now(), "fresh_admit")
+            .await;
         let item_scan = again
             .items
             .iter()
@@ -370,8 +388,13 @@ impl World {
         let admitted = load_admitted(&mut self.admin, "r4e", &[("rows", true)]).await;
         let owner = self.open(&admitted, &[("r4e", "rows")], 90, 60, 30).await;
         let generation = owner.binding().generation;
-        self.expect_not_exhausted(owner, generation, "early_idle", "rows_read=0 exhausted_seen=0 selected=r4e.rows")
-            .await;
+        self.expect_not_exhausted(
+            owner,
+            generation,
+            "early_idle",
+            "rows_read=0 exhausted_seen=0 selected=r4e.rows",
+        )
+        .await;
     }
 
     async fn phase_finish_before_poll(&mut self) {
@@ -379,7 +402,9 @@ impl World {
         let mut owner = self.open(&admitted, &[("r4e", "rows")], 90, 60, 30).await;
         let generation = owner.binding().generation;
         owner
-            .open_stream(StreamBudget::try_new(2, 1024 * 1024, 64 * 1024, 64 * 1024).expect("budget"))
+            .open_stream(
+                StreamBudget::try_new(2, 1024 * 1024, 64 * 1024, 64 * 1024).expect("budget"),
+            )
             .await
             .expect("open stream");
         self.expect_not_exhausted(
@@ -396,7 +421,9 @@ impl World {
         let mut owner = self.open(&admitted, &[("r4e", "rows")], 90, 60, 30).await;
         let generation = owner.binding().generation;
         owner
-            .open_stream(StreamBudget::try_new(2, 1024 * 1024, 64 * 1024, 64 * 1024).expect("budget"))
+            .open_stream(
+                StreamBudget::try_new(2, 1024 * 1024, 64 * 1024, 64 * 1024).expect("budget"),
+            )
             .await
             .expect("open stream");
         let ids = match owner.next_batch().await.expect("one batch") {
@@ -414,25 +441,26 @@ impl World {
         assert_eq!(rows_in_table, 4);
         let detail = format!(
             "rows_read=2 rows_in_table={rows_in_table} exhausted_seen=0 ids={}",
-            ids.iter().map(|id| id.to_string()).collect::<Vec<_>>().join(",")
+            ids.iter()
+                .map(|id| id.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
         );
         self.expect_not_exhausted(owner, generation, "early_after_one_batch", &detail)
             .await;
     }
 
     async fn phase_missing_selected_table(&mut self) {
-        let admitted = load_admitted(
-            &mut self.admin,
-            "r4e",
-            &[("rows", true), ("extra", true)],
-        )
-        .await;
+        let admitted =
+            load_admitted(&mut self.admin, "r4e", &[("rows", true), ("extra", true)]).await;
         let mut owner = self
             .open(&admitted, &[("r4e", "rows"), ("r4e", "extra")], 90, 60, 30)
             .await;
         let generation = owner.binding().generation;
         owner
-            .open_stream(StreamBudget::try_new(8, 1024 * 1024, 64 * 1024, 64 * 1024).expect("budget"))
+            .open_stream(
+                StreamBudget::try_new(8, 1024 * 1024, 64 * 1024, 64 * 1024).expect("budget"),
+            )
             .await
             .expect("open stream");
         let mut saw = BTreeMap::<String, u64>::new();
@@ -573,8 +601,12 @@ impl World {
             .collect();
         let config = PgSourceConfig::try_new(
             SourceId::new(SOURCE).expect("source"),
-            PgEndpoint::new(&self.pointer.host, self.pointer.port, &self.pointer.database)
-                .expect("endpoint"),
+            PgEndpoint::new(
+                &self.pointer.host,
+                self.pointer.port,
+                &self.pointer.database,
+            )
+            .expect("endpoint"),
             PgCredentials::new(&self.pointer.reader_user, self.reader_pass.as_str())
                 .expect("credentials"),
             SecretRef::new("secret://pg/complete/reader").expect("secret"),
@@ -649,10 +681,7 @@ impl World {
                 noted_first = true;
             }
             if still.is_empty() {
-                self.note(format!(
-                    "{label}_absent_ms={}",
-                    began.elapsed().as_millis()
-                ));
+                self.note(format!("{label}_absent_ms={}", began.elapsed().as_millis()));
                 return;
             }
             if began.elapsed() > bound {
@@ -677,7 +706,9 @@ impl World {
                 panic!("postgres log contains a closed string");
             }
         }
-        let mark = usize::try_from(self.log_mark).unwrap_or(0).min(raw_all.len());
+        let mark = usize::try_from(self.log_mark)
+            .unwrap_or(0)
+            .min(raw_all.len());
         let raw = String::from_utf8_lossy(&raw_all[mark..]);
         let mut oo_statements = 0_usize;
         let mut verbs = BTreeMap::<String, usize>::new();
@@ -784,7 +815,8 @@ async fn drain(owner: &mut SnapshotOwner) -> Drained {
                         let line_ids = int_column(&batch.record_batch, "line_id");
                         let item_ids = int_column(&batch.record_batch, "item_id");
                         let qtys = int_column(&batch.record_batch, "qty");
-                        for ((line_id, item_id), qty) in line_ids.into_iter().zip(item_ids).zip(qtys)
+                        for ((line_id, item_id), qty) in
+                            line_ids.into_iter().zip(item_ids).zip(qtys)
                         {
                             out.lines.push((line_id, item_id, qty));
                         }
@@ -984,7 +1016,10 @@ async fn node_of(admin: &mut PgConnection) -> (String, bool) {
     .fetch_one(&mut *admin)
     .await
     .expect("node");
-    (row.try_get(0).expect("postmaster"), row.try_get(1).expect("recovery"))
+    (
+        row.try_get(0).expect("postmaster"),
+        row.try_get(1).expect("recovery"),
+    )
 }
 
 async fn backends_of(admin: &mut PgConnection, user: &str) -> Vec<(i64, String, String)> {
@@ -1018,7 +1053,11 @@ async fn dial(pointer: &Pointer, user: &str, password: &str, ca: &[u8], app: &st
         .application_name(app)
         .ssl_mode(PgSslMode::VerifyFull)
         .ssl_root_cert_from_pem(ca.to_vec());
-    options.disable_statement_logging().connect().await.expect("dial")
+    options
+        .disable_statement_logging()
+        .connect()
+        .await
+        .expect("dial")
 }
 
 fn read_pass(dir: &str, name: &str) -> Zeroizing<String> {

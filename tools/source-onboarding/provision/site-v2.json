@@ -1,0 +1,31 @@
+{
+  "protocol": "oo.source-onboarding.site-profile/v1",
+  "format": "chunked-typed/v2",
+  "note": "v2-only binary overrides; v1 pins are unchanged. Worker and loader include atomic acknowledged-predecessor handoff during stage open (Rust 1.94.0, release; K-build/successor-provenance.json). Producer includes the v2 quality_rejects fix. Admission remains on the loader allowlist. Self-build API verifies native v2 evidence.",
+  "binaries": {
+    "source_onboarding": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261017/chunked-v1/bin/eeb19cf0aa4269d0799fa43c906e56765e5d325030142feb217d3feffd4b6cd7/source-onboarding",
+      "sha256": "eeb19cf0aa4269d0799fa43c906e56765e5d325030142feb217d3feffd4b6cd7"
+    },
+    "producer": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261017/chunked-v1/bin/d1eee194c5393e473c7da638678239c6ce5330e25da4e45ac7122fd4013c280d/mysql-preview",
+      "sha256": "d1eee194c5393e473c7da638678239c6ce5330e25da4e45ac7122fd4013c280d"
+    },
+    "oo_pipeline": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261017/chunked-v1/bin/0a3b13d76f744a1068a39cfe24e331354cb007b708edca2eb186ab7abdc064f2/oo-pipeline",
+      "sha256": "0a3b13d76f744a1068a39cfe24e331354cb007b708edca2eb186ab7abdc064f2"
+    },
+    "job_worker": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261017/chunked-v1/bin/15e69f390456c213d6d6b519055be806f59fb5e1552eebd19ffdd6e8fc7d7567/job-worker",
+      "sha256": "15e69f390456c213d6d6b519055be806f59fb5e1552eebd19ffdd6e8fc7d7567"
+    },
+    "oo_source_admission": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261017/chunked-v1/bin/40f52d923aab6a75d67ad0d796320614d98efd390dbf453d75d557ba40cd6982/oo-source-admission",
+      "sha256": "40f52d923aab6a75d67ad0d796320614d98efd390dbf453d75d557ba40cd6982"
+    },
+    "selfbuild_control_api": {
+      "path": "/tmp/oo-mysql-connection-whole/sol-20261016/mysql-type-semantics-v2/bin/a62aa434d9532d4c8c8c19838ca2c1c2f6a9def52db25bddc0cdd857df90ee95/selfbuild-control-api",
+      "sha256": "a62aa434d9532d4c8c8c19838ca2c1c2f6a9def52db25bddc0cdd857df90ee95"
+    }
+  }
+}

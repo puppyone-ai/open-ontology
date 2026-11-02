@@ -108,15 +108,20 @@ struct Harness {
 impl Harness {
     async fn connect() -> Self {
         let host = env::var("OO_CATALOG_PG_HOST").expect("OO_CATALOG_PG_HOST");
-        let port: u16 = env::var("OO_CATALOG_PG_PORT").expect("OO_CATALOG_PG_PORT").parse().unwrap();
+        let port: u16 = env::var("OO_CATALOG_PG_PORT")
+            .expect("OO_CATALOG_PG_PORT")
+            .parse()
+            .unwrap();
         let admin_user = env::var("OO_CATALOG_PG_ADMIN_USER").expect("OO_CATALOG_PG_ADMIN_USER");
         let admin_password = password("OO_CATALOG_PG_ADMIN_PASSWORD_FILE");
         let reader_password = password("OO_CATALOG_PG_READER_PASSWORD_FILE");
         let writer_password = password("OO_CATALOG_PG_WRITER_PASSWORD_FILE");
-        let ca_file = PathBuf::from(env::var("OO_CATALOG_PG_CA_FILE").expect("OO_CATALOG_PG_CA_FILE"));
+        let ca_file =
+            PathBuf::from(env::var("OO_CATALOG_PG_CA_FILE").expect("OO_CATALOG_PG_CA_FILE"));
         let ca = fs::read(&ca_file).expect("ca");
         let evidence = PathBuf::from(
-            env::var("OO_CATALOG_PG_EVIDENCE").unwrap_or_else(|_| "/tmp/oo-a165-catalog-evidence".to_string()),
+            env::var("OO_CATALOG_PG_EVIDENCE")
+                .unwrap_or_else(|_| "/tmp/oo-a165-catalog-evidence".to_string()),
         );
         fs::create_dir_all(&evidence).unwrap();
         let reader_file = PathBuf::from(env::var("OO_CATALOG_PG_READER_PASSWORD_FILE").unwrap());
@@ -187,7 +192,10 @@ impl Harness {
     }
 
     async fn reader_catalog(&mut self) -> Result<(), String> {
-        let (code, out, err) = run(&["catalog-pg"], &self.request("oo_a165_reader", &self.reader_file));
+        let (code, out, err) = run(
+            &["catalog-pg"],
+            &self.request("oo_a165_reader", &self.reader_file),
+        );
         self.reject_secrets(&out, &err)?;
         self.reject_comments(&out, &err)?;
         fs::write(self.evidence.join("reader.stdout"), &out).unwrap();
@@ -208,7 +216,10 @@ impl Harness {
     }
 
     async fn writer_refused(&mut self) -> Result<(), String> {
-        let (code, out, err) = run(&["catalog-pg"], &self.request("oo_a165_writer", &self.writer_file));
+        let (code, out, err) = run(
+            &["catalog-pg"],
+            &self.request("oo_a165_writer", &self.writer_file),
+        );
         self.reject_secrets(&out, &err)?;
         self.reject_comments(&out, &err)?;
         fs::write(self.evidence.join("writer.stdout"), &out).unwrap();
@@ -222,7 +233,11 @@ impl Harness {
     }
 
     async fn writer_can_insert(&mut self) -> Result<(), String> {
-        raw(&mut self.source, "INSERT INTO app.customer (id, email) VALUES (1, 'kept')").await;
+        raw(
+            &mut self.source,
+            "INSERT INTO app.customer (id, email) VALUES (1, 'kept')",
+        )
+        .await;
         let mut writer = dial(
             &self.host,
             self.port,
@@ -232,7 +247,11 @@ impl Harness {
             &self.ca,
         )
         .await;
-        raw(&mut writer, "INSERT INTO app.order_row (id, customer_id) VALUES (1, 1)").await;
+        raw(
+            &mut writer,
+            "INSERT INTO app.order_row (id, customer_id) VALUES (1, 1)",
+        )
+        .await;
         let mut reader = dial(
             &self.host,
             self.port,
@@ -263,7 +282,9 @@ impl Harness {
         )
         .await;
         if reader_writes != "0" || writer_writes != "1" {
-            return Err(format!("audit reader={reader_writes} writer={writer_writes}"));
+            return Err(format!(
+                "audit reader={reader_writes} writer={writer_writes}"
+            ));
         }
         Ok(())
     }
@@ -302,7 +323,11 @@ impl Harness {
             return Err(format!("captured_at {captured}"));
         }
         let hash = doc["schema_hash"].as_str().unwrap_or("");
-        if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) {
+        if hash.len() != 64
+            || !hash
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        {
             return Err(format!("schema_hash {hash}"));
         }
         Ok(())
@@ -320,7 +345,9 @@ impl Harness {
         fs::write(self.evidence.join("oracle.json"), oracle_bytes).unwrap();
         for table in tables {
             let name = table["name"].as_str().ok_or("table name")?.to_string();
-            let expect = oracle.get(&name).ok_or_else(|| format!("missing oracle {name}"))?;
+            let expect = oracle
+                .get(&name)
+                .ok_or_else(|| format!("missing oracle {name}"))?;
             self.compare_table(table, expect)?;
         }
         Ok(())
@@ -344,7 +371,9 @@ impl Harness {
             {
                 return Err(format!("column {column}"));
             }
-            if column["current_privileges"]["select"] != true || column["current_privileges"]["insert"] != false {
+            if column["current_privileges"]["select"] != true
+                || column["current_privileges"]["insert"] != false
+            {
                 return Err(format!("privileges {column}"));
             }
             assert_hash_only(&column["comment"], item.comment.as_ref())?;
@@ -458,7 +487,8 @@ impl Harness {
         self.attach_foreign_keys(&mut out).await?;
         let customer = out.get("customer").ok_or("customer oracle")?;
         let order_row = out.get("order_row").ok_or("order oracle")?;
-        if customer.comment.as_ref().map(|item| item.sha256.as_str()) != Some(sha256_hex(TABLE_COMMENT).as_str())
+        if customer.comment.as_ref().map(|item| item.sha256.as_str())
+            != Some(sha256_hex(TABLE_COMMENT).as_str())
             || order_row.foreign_keys.len() != 1
             || !customer.foreign_keys.is_empty()
         {
@@ -521,11 +551,16 @@ impl Harness {
         fs::write(self.evidence.join("draft-again.stdout"), &again_out).unwrap();
         fs::write(self.evidence.join("draft-again.exit"), again.to_string()).unwrap();
         if again != 0 || again_out != out || !again_err.is_empty() {
-            return Err(format!("draft is not deterministic code={again} err={again_err}"));
+            return Err(format!(
+                "draft is not deterministic code={again} err={again_err}"
+            ));
         }
-        let catalog_value: Value = serde_json::from_slice(catalog).map_err(|err| err.to_string())?;
-        let review_in = serde_json::to_vec(&json!({"catalog": catalog_value})).map_err(|err| err.to_string())?;
-        let (review_code, review_out, review_err) = run_at(&builder, &["review-pg-draft"], &review_in);
+        let catalog_value: Value =
+            serde_json::from_slice(catalog).map_err(|err| err.to_string())?;
+        let review_in = serde_json::to_vec(&json!({"catalog": catalog_value}))
+            .map_err(|err| err.to_string())?;
+        let (review_code, review_out, review_err) =
+            run_at(&builder, &["review-pg-draft"], &review_in);
         self.reject_secrets(&review_out, &review_err)?;
         self.reject_comments(&review_out, &review_err)?;
         fs::write(self.evidence.join("review.stdout"), &review_out).unwrap();
@@ -551,7 +586,9 @@ impl Harness {
         {
             return Err("draft provenance".to_string());
         }
-        let datasets = doc["draft"]["generated"]["datasets"].as_array().ok_or("datasets")?;
+        let datasets = doc["draft"]["generated"]["datasets"]
+            .as_array()
+            .ok_or("datasets")?;
         let mut columns = 0_usize;
         for dataset in datasets {
             for column in dataset["columns"].as_array().ok_or("dataset columns")? {
@@ -562,7 +599,10 @@ impl Harness {
             }
         }
         let queue = doc["draft"]["review_queue"].as_array().ok_or("queue")?;
-        let pii = queue.iter().filter(|item| item["kind"] == "pii_unknown").count();
+        let pii = queue
+            .iter()
+            .filter(|item| item["kind"] == "pii_unknown")
+            .count();
         if pii != columns || columns == 0 {
             return Err(format!("pii queue {pii} columns {columns}"));
         }
@@ -574,7 +614,9 @@ impl Harness {
         }) {
             return Err("pii queue state".to_string());
         }
-        let relationships = doc["draft"]["generated"]["relationships"].as_array().ok_or("relationships")?;
+        let relationships = doc["draft"]["generated"]["relationships"]
+            .as_array()
+            .ok_or("relationships")?;
         if relationships.len() != 1
             || relationships[0]["provenance"] != "declared_fk"
             || relationships[0]["join_hint"] != "left"
@@ -583,7 +625,10 @@ impl Harness {
         {
             return Err(format!("relationship {}", relationships[0]));
         }
-        let fk = queue.iter().filter(|item| item["kind"] == "candidate_relationship").count();
+        let fk = queue
+            .iter()
+            .filter(|item| item["kind"] == "candidate_relationship")
+            .count();
         if fk != 1 {
             return Err(format!("fk queue {fk}"));
         }
@@ -595,7 +640,11 @@ impl Harness {
         }) {
             return Err("fk queue state".to_string());
         }
-        fs::write(self.evidence.join("outcome.txt"), "catalog_pg_cli_live_ok\n").unwrap();
+        fs::write(
+            self.evidence.join("outcome.txt"),
+            "catalog_pg_cli_live_ok\n",
+        )
+        .unwrap();
         Ok(())
     }
 
@@ -728,8 +777,13 @@ fn assert_hash_only(value: &Value, expect: Option<&Evidence>) -> Result<(), Stri
             Ok(())
         }
         Some(evidence) => {
-            let object = value.as_object().ok_or_else(|| format!("comment {value}"))?;
-            if object.len() != 2 || !object.contains_key("byte_len") || !object.contains_key("sha256") {
+            let object = value
+                .as_object()
+                .ok_or_else(|| format!("comment {value}"))?;
+            if object.len() != 2
+                || !object.contains_key("byte_len")
+                || !object.contains_key("sha256")
+            {
                 return Err(format!("comment fields {value}"));
             }
             if value["byte_len"] != evidence.byte_len || value["sha256"] != evidence.sha256 {
@@ -741,7 +795,10 @@ fn assert_hash_only(value: &Value, expect: Option<&Evidence>) -> Result<(), Stri
 }
 
 fn sha256_hex(text: &str) -> String {
-    Sha256::digest(text.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
+    Sha256::digest(text.as_bytes())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 const SOURCE_SQL: &str = "\
@@ -865,7 +922,9 @@ async fn dial(
         .ssl_root_cert_from_pem(ca.to_vec());
     assert!(options.get_options().is_none());
     let options = options.disable_statement_logging();
-    sqlx::postgres::PgConnection::connect_with(&options).await.expect("dial")
+    sqlx::postgres::PgConnection::connect_with(&options)
+        .await
+        .expect("dial")
 }
 
 async fn raw(conn: &mut sqlx::postgres::PgConnection, sql: &str) {

@@ -21,7 +21,6 @@ use tokio_postgres::Client;
 use crate::canonical::{canonical_json, sha256_hex};
 use crate::config::{binaries_ready, regular_file, Binaries, ProjectCfg};
 use crate::error::ApiError;
-use crate::jsonutil::parse_exact;
 use crate::oosyaml::generated_from_inputs;
 use crate::overlay;
 use crate::store::{self, BuildRow};
@@ -59,6 +58,7 @@ pub fn bundle_ready(dir: &str) -> bool {
 }
 
 pub fn admits_create(project: &ProjectCfg, binaries: &Binaries) -> bool {
+    if project.library.is_some() { return crate::library::ready(project); }
     if project.sealed_bundle.is_empty() {
         binaries_ready(binaries)
     } else {
@@ -203,7 +203,7 @@ pub async fn run(
     if cancel.load(Ordering::SeqCst) {
         return false;
     }
-    let bundle = match load_for(&project.sealed_bundle, project.source_protocol.as_ref()) {
+    let bundle = match load_for_with_budgets(&project.sealed_bundle, project.source_protocol.as_ref(), &project.budgets) {
         Ok(bundle) => bundle,
         Err(_) => return fail(client, job, stage, "sealed.malformed").await,
     };
@@ -215,7 +215,7 @@ pub async fn run(
         return fail(client, job, stage, "catalog.mismatch").await;
     }
     match stage {
-        "S0" => s0(client, job, dir, &bundle).await,
+        "S0" => s0(client, project, job, dir, &bundle).await,
         "S1" => s1(client, job, dir, &bundle).await,
         "S2" => s2(client, project, job, dir, &bundle).await,
         "S3" | "S4" => {
@@ -238,7 +238,7 @@ pub async fn run(
     }
 }
 
-async fn s0(client: &Client, job: &BuildRow, dir: &Path, bundle: &Bundle) -> bool {
+async fn s0(client: &Client, project: &ProjectCfg, job: &BuildRow, dir: &Path, bundle: &Bundle) -> bool {
     if write_private(&dir.join("catalog.json"), bundle.raw.get("catalog.json").map(Vec::as_slice).unwrap_or(b"")).is_err() {
         return fail(client, job, "S0", "catalog.write").await;
     }
@@ -260,13 +260,13 @@ async fn s0(client: &Client, job: &BuildRow, dir: &Path, bundle: &Bundle) -> boo
     if bundle.source_adapted {
         let basis_refs: Vec<&[u8]> = bundle.basis_bytes.iter().map(Vec::as_slice).collect();
         let audit_refs: Vec<&[u8]> = bundle.audit_bytes.iter().map(Vec::as_slice).collect();
-        let prepared = crate::builder_inputs::prepare_observed(
+        let prepared = crate::builder_inputs::prepare_observed_with_budgets(
             bundle.raw.get("catalog.json").map(Vec::as_slice).unwrap_or(b""),
             bundle.raw.get("profile.json").map(Vec::as_slice).unwrap_or(b""),
             bundle.raw.get("comments.json").map(Vec::as_slice),
             &basis_refs,
             &audit_refs,
-            16,
+            &project.budgets,
         );
         if write_private(&dir.join("builder-prepare.json"), &prepared.document).is_err() {
             return fail(client, job, "S0", "builder.prepare_write").await;
@@ -595,12 +595,22 @@ fn load(dir: &str) -> Result<Bundle, ApiError> {
 }
 
 fn load_for(dir: &str, protocol: Option<&crate::config::SourceProtocol>) -> Result<Bundle, ApiError> {
+    load_for_with_budgets(dir, protocol, &Default::default())
+}
+
+fn load_for_with_budgets(dir: &str, protocol: Option<&crate::config::SourceProtocol>, budgets: &crate::config::BuildBudgets) -> Result<Bundle, ApiError> {
+    let parse_operator = |bytes: &[u8]| -> Result<Value, ApiError> {
+        let text = std::str::from_utf8(bytes).map_err(|_| ApiError::malformed())?;
+        oo_core::json_scan::parse_json_value_with_limits(text, "selfbuild.operator", &oo_core::json_scan::JsonScanLimits { max_bytes: budgets.max_document_bytes, max_nodes: budgets.max_json_nodes, max_depth: 32 }).map_err(|_| ApiError::malformed())
+    };
+    let scan = oo_core::json_scan::JsonScanLimits { max_bytes: budgets.max_document_bytes, max_nodes: budgets.max_json_nodes, max_depth: 32 };
+    let limits = oo_core::sealed_import::SealedImportLimits { json_scan: scan, max_tables: budgets.max_tables, max_columns: 1024, max_collection_entries: budgets.max_tables };
     let root = PathBuf::from(dir);
     if !bundle_ready(dir) {
         return Err(ApiError::not_ready());
     }
-    let manifest_bytes = read_regular(&root.join("manifest.json"))?;
-    let manifest = parse_exact(&manifest_bytes)?;
+    let manifest_bytes = read_regular_with_budget(&root.join("manifest.json"), budgets.max_document_bytes)?;
+    let manifest = parse_operator(&manifest_bytes)?;
     let object = manifest.as_object().ok_or_else(ApiError::malformed)?;
     if object.len() != 2 || object.get("contract").and_then(Value::as_str) != Some(BUNDLE_CONTRACT) {
         return Err(ApiError::malformed());
@@ -616,7 +626,7 @@ fn load_for(dir: &str, protocol: Option<&crate::config::SourceProtocol>) -> Resu
         if !crate::ids::hex64(expected) {
             return Err(ApiError::malformed());
         }
-        let bytes = read_regular(&root.join(name))?;
+        let bytes = read_regular_with_budget(&root.join(name), budgets.max_document_bytes)?;
         let actual = sha256_hex(&bytes);
         if actual != expected {
             return Err(ApiError::malformed());
@@ -627,22 +637,22 @@ fn load_for(dir: &str, protocol: Option<&crate::config::SourceProtocol>) -> Resu
     for optional in ["comments.json", "native-model.json"] {
       if let Some(expected) = files.get(optional) {
         let expected = expected.as_str().ok_or_else(ApiError::malformed)?;
-        let bytes = read_regular(&root.join(optional))?;
+        let bytes = read_regular_with_budget(&root.join(optional), budgets.max_document_bytes)?;
         let actual = sha256_hex(&bytes);
         if actual != expected { return Err(ApiError::malformed()); }
-        parse_exact(&bytes)?;
+        parse_operator(&bytes)?;
         file_sha.insert(optional.to_owned(), actual);
         raw.insert(optional.to_owned(), bytes);
       }
     }
-    let catalog = parse_exact(raw.get("catalog.json").ok_or_else(ApiError::malformed)?)?;
-    let profile = parse_exact(raw.get("profile.json").ok_or_else(ApiError::malformed)?)?;
-    let read_logic = parse_exact(raw.get("read_logic.json").ok_or_else(ApiError::malformed)?)?;
-    let semantics = parse_exact(raw.get("source_semantics.json").ok_or_else(ApiError::malformed)?)?;
-    let rules = parse_exact(raw.get("rules.json").ok_or_else(ApiError::malformed)?)?;
-    let suggestions = parse_exact(raw.get("suggestions.json").ok_or_else(ApiError::malformed)?)?;
-    let generation = parse_exact(raw.get("generation.json").ok_or_else(ApiError::malformed)?)?;
-    let roles_value = parse_exact(raw.get("roles.json").ok_or_else(ApiError::malformed)?)?;
+    let catalog = parse_operator(raw.get("catalog.json").ok_or_else(ApiError::malformed)?)?;
+    let profile = parse_operator(raw.get("profile.json").ok_or_else(ApiError::malformed)?)?;
+    let read_logic = parse_operator(raw.get("read_logic.json").ok_or_else(ApiError::malformed)?)?;
+    let semantics = parse_operator(raw.get("source_semantics.json").ok_or_else(ApiError::malformed)?)?;
+    let rules = parse_operator(raw.get("rules.json").ok_or_else(ApiError::malformed)?)?;
+    let suggestions = parse_operator(raw.get("suggestions.json").ok_or_else(ApiError::malformed)?)?;
+    let generation = parse_operator(raw.get("generation.json").ok_or_else(ApiError::malformed)?)?;
+    let roles_value = parse_operator(raw.get("roles.json").ok_or_else(ApiError::malformed)?)?;
     reject_sample(&rules)?;
     if read_logic.get("executed") != Some(&Value::Bool(false)) {
         return Err(ApiError::malformed());
@@ -661,9 +671,9 @@ fn load_for(dir: &str, protocol: Option<&crate::config::SourceProtocol>) -> Resu
             semantics_commit: protocol.semantics_commit.clone(),
         };
         let projection = if protocol.catalog == "oo.pipeline.sealed-import-collection/v1" {
-            crate::adapt::project_native_collection(raw.get("catalog.json").ok_or_else(ApiError::malformed)?, raw.get("profile.json").ok_or_else(ApiError::malformed)?, raw.get("source_semantics.json").ok_or_else(ApiError::malformed)?, &pin)?
+            crate::adapt::project_native_collection_with_limits(raw.get("catalog.json").ok_or_else(ApiError::malformed)?, raw.get("profile.json").ok_or_else(ApiError::malformed)?, raw.get("source_semantics.json").ok_or_else(ApiError::malformed)?, &pin, &limits)?
         } else if protocol.catalog == "oo.pipeline.sealed-import-catalog/v1" {
-            crate::adapt::project_native(raw.get("catalog.json").ok_or_else(ApiError::malformed)?, raw.get("profile.json").ok_or_else(ApiError::malformed)?, raw.get("source_semantics.json").ok_or_else(ApiError::malformed)?, &pin)?
+            crate::adapt::project_native_with_limits(raw.get("catalog.json").ok_or_else(ApiError::malformed)?, raw.get("profile.json").ok_or_else(ApiError::malformed)?, raw.get("source_semantics.json").ok_or_else(ApiError::malformed)?, &pin, &limits)?
         } else if protocol.catalog == crate::adapt::CAPTURE_CATALOG {
             crate::adapt::project(
                 raw.get("catalog.json").ok_or_else(ApiError::malformed)?,
@@ -708,7 +718,7 @@ fn load_for(dir: &str, protocol: Option<&crate::config::SourceProtocol>) -> Resu
     }
     let roles = parse_roles(&roles_value, &catalog)?;
     if let Some(bytes) = raw.get("native-model.json") {
-        let input = parse_exact(bytes)?;
+        let input = parse_operator(bytes)?;
         let visibility = input.get("visibility").ok_or_else(ApiError::malformed)?;
         let role = visibility.get("role").and_then(Value::as_str).ok_or_else(ApiError::malformed)?;
         let allowed = roles.get(role).ok_or_else(ApiError::malformed)?;
@@ -985,8 +995,12 @@ fn manifest_path(dir: &str) -> String {
 }
 
 fn read_regular(path: &Path) -> Result<Vec<u8>, ApiError> {
+    read_regular_with_budget(path, 1_000_000)
+}
+
+fn read_regular_with_budget(path: &Path, max_bytes: usize) -> Result<Vec<u8>, ApiError> {
     let meta = std::fs::symlink_metadata(path).map_err(|_| ApiError::malformed())?;
-    if !meta.file_type().is_file() || meta.len() > 1_000_000 {
+    if !meta.file_type().is_file() || meta.len() > max_bytes as u64 {
         return Err(ApiError::malformed());
     }
     std::fs::read(path).map_err(|_| ApiError::malformed())

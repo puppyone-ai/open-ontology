@@ -10,8 +10,8 @@ use oo_connectors::{
     SecretRef, SelectedTable, SourceErrorKind, SourceId, TableSelection,
 };
 use serde::Deserialize;
-use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 use sqlx::ConnectOptions;
+use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 use zeroize::Zeroizing;
 
 #[derive(Deserialize)]
@@ -27,6 +27,7 @@ struct Pointer {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires OO_PG_CATALOG_RATE_FIXTURE"]
 async fn catalog_rate_live() {
     let pointer = load_pointer();
     let reader_pass = read_pass(&pointer.password_dir, "reader.pass");
@@ -193,7 +194,11 @@ async fn catalog_rate_live() {
     assert!(raw.contains("LIMIT"));
     let audit = audit_log(&raw);
     assert!(audit.reader_statements > 0, "reader log was empty");
-    assert_eq!(audit.reader_writes, 0, "reader wrote: {}", audit.reader_write_word);
+    assert_eq!(
+        audit.reader_writes, 0,
+        "reader wrote: {}",
+        audit.reader_write_word
+    );
     assert!(audit.admin_statements > 0, "admin log was empty");
     eprintln!(
         "catalog_rate big_elapsed={big_elapsed:?} burn_elapsed={burn_elapsed:?} \
@@ -209,8 +214,10 @@ async fn catalog_rate_live() {
 }
 
 fn load_pointer() -> Pointer {
-    let path = std::env::var("OO_PG_CATALOG_RATE_FIXTURE").expect("OO_PG_CATALOG_RATE_FIXTURE is required");
-    serde_json::from_str(&fs::read_to_string(&path).expect("rate pointer")).expect("rate pointer json")
+    let path = std::env::var("OO_PG_CATALOG_RATE_FIXTURE")
+        .expect("OO_PG_CATALOG_RATE_FIXTURE is required");
+    serde_json::from_str(&fs::read_to_string(&path).expect("rate pointer"))
+        .expect("rate pointer json")
 }
 
 fn snap_tables() -> Vec<SelectedTable> {

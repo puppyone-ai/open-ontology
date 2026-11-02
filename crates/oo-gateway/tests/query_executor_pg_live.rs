@@ -50,11 +50,12 @@ const WALL_OK: u64 = 30_000;
 const BYTES_OK: u64 = 256 * 1024;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_A189_LIVE; run with --ignored"]
 async fn live_permission_bound_select() {
-    if std::env::var("OO_A189_LIVE").ok().as_deref() != Some("1") {
-        eprintln!("OO_A189_LIVE is unset; the executor comparison was not run");
-        return;
-    }
+    assert!(
+        std::env::var("OO_A189_LIVE").ok().as_deref() == Some("1"),
+        "OO_A189_LIVE must be set for this live fixture"
+    );
     run_live().await;
 }
 
@@ -1648,6 +1649,7 @@ fn catalog(
             name: "=".to_string(),
             left_type_oid: env.oids.int4,
             right_type_oid: env.oids.int4,
+            result_type_oid: env.oids.bool,
         });
     }
     PolicyCatalog {

@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use axum::body::{Body, Bytes};
+use axum::body::{Body, Bytes, HttpBody};
 use axum::extract::connect_info::{ConnectInfo, Connected};
 use axum::extract::{RawQuery, Request, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
@@ -87,7 +87,8 @@ struct Inner {
     endpoint_path: PathBuf,
     password: String,
     ca_pem: Vec<u8>,
-    catalog: PackCatalog,
+    catalog: Arc<PackCatalog>,
+    reloading_packs: Option<crate::pack_reload::ReloadingPacks>,
     cache: LookupCache,
     tuples: Mutex<HashMap<String, TupleEntry>>,
     body_limit: usize,
@@ -145,6 +146,25 @@ pub fn router(state: AppState) -> Router {
 }
 
 impl AppState {
+    #[cfg(test)]
+    pub(crate) fn for_owned_binding_test(
+        catalog: PackCatalog,
+        endpoint_path: PathBuf,
+        password: String,
+        ca_pem: Vec<u8>,
+        plane: Arc<crate::public_surface::Plane>,
+    ) -> Self {
+        let mut state = Self::local(catalog, PRODUCTION_BODY_LIMIT, None, false);
+        let inner = Arc::get_mut(&mut state.inner).expect("new state");
+        inner.endpoint_path = endpoint_path;
+        inner.password = password;
+        inner.ca_pem = ca_pem;
+        inner.plane = Some(plane);
+        inner.global_concurrency = 4;
+        inner.request_timeout = Duration::from_secs(10);
+        state
+    }
+
     pub fn for_probe(catalog: PackCatalog, body_limit: usize, hooks: Arc<ProbeHooks>) -> Self {
         Self::local(catalog, body_limit, Some(hooks), true)
     }
@@ -166,7 +186,8 @@ impl AppState {
                 endpoint_path: PathBuf::from("endpoint.json"),
                 password: String::new(),
                 ca_pem: Vec::new(),
-                catalog,
+                catalog: Arc::new(catalog),
+                reloading_packs: None,
                 cache: LookupCache::new(),
                 tuples: Mutex::new(HashMap::new()),
                 body_limit,
@@ -180,8 +201,10 @@ impl AppState {
         }
     }
 
-    pub(crate) fn pack_catalog(&self) -> &PackCatalog {
-        &self.inner.catalog
+    pub(crate) fn pack_catalog(&self) -> Arc<PackCatalog> {
+        REQUEST_PACKS
+            .try_with(Arc::clone)
+            .unwrap_or_else(|_| Arc::clone(&self.inner.catalog))
     }
 
     pub(crate) fn data_plane(&self) -> Option<Arc<crate::public_surface::Plane>> {
@@ -193,6 +216,8 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
     let text = fs::read_to_string(dir.join("config.json")).map_err(|_| "config")?;
     let value: Value = serde_json::from_str(&text).map_err(|_| "config")?;
     let object = value.as_object().ok_or("config")?;
+    let deployment_mode = oo_core::config::DeploymentMode::from_installed(&value)?;
+    let data_limits = deployment_mode.query_limits(&value)?;
     let transport_name = transport_name(object)?;
     let tls = transport_name == "tls";
     for key in object.keys() {
@@ -215,8 +240,12 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
     let endpoint_file = one_segment(required_text(object, "endpoint_file")?)?;
     let pack_dir = one_segment(required_text(object, "pack_dir")?)?;
     let body_limit = usize_field(object, "body_limit")?;
+    // HTTP also covers authentication and metadata; the data plane separately caps SQL.
     let timeout_ms = u64_field(object, "request_timeout_ms")?;
-    let global_concurrency = usize_field(object, "global_concurrency")?;
+    let mut global_concurrency = usize_field(object, "global_concurrency")?;
+    if deployment_mode == oo_core::config::DeploymentMode::AllInOne {
+        global_concurrency = global_concurrency.min(data_limits.0);
+    }
     if body_limit == 0 || timeout_ms == 0 || global_concurrency == 0 {
         return Err("limits");
     }
@@ -243,13 +272,23 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
             return Err("ca");
         }
     };
-    let catalog = match PackCatalog::load_dir(&dir.join(pack_dir)) {
-        Ok(catalog) => catalog,
-        Err(_) => {
-            password.zeroize();
-            return Err("packs");
-        }
-    };
+    let pack_ceilings: oo_builder::RolePackCeilings =
+        if let Some(name) = object.get("pack_ceilings_file") {
+            let name = one_segment(name.as_str().ok_or("pack_limits")?)?;
+            serde_json::from_slice(&fs::read(dir.join(name)).map_err(|_| "pack_limits")?)
+                .map_err(|_| "pack_limits")?
+        } else {
+            Default::default()
+        };
+    let reloading_packs =
+        match crate::pack_reload::ReloadingPacks::load(dir.join(pack_dir), pack_ceilings) {
+            Ok(packs) => packs,
+            Err(_) => {
+                password.zeroize();
+                return Err("packs");
+            }
+        };
+    let catalog = reloading_packs.snapshot().map_err(|_| "packs")?;
     if let Err(reason) = read_endpoint(&dir.join(endpoint_file)) {
         password.zeroize();
         return Err(reason);
@@ -276,6 +315,7 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
                 password,
                 ca_pem,
                 catalog,
+                reloading_packs: Some(reloading_packs),
                 cache: LookupCache::new(),
                 tuples: Mutex::new(HashMap::new()),
                 body_limit,
@@ -296,6 +336,9 @@ pub async fn serve(
     listen: SocketAddr,
     addr_path: &Path,
 ) -> Result<(), &'static str> {
+    if let Some(plane) = state.data_plane() {
+        plane.warm_planning_catalogs().await;
+    }
     let tls = match &state.inner.transport {
         Transport::Loopback => None,
         Transport::Tls {
@@ -371,13 +414,57 @@ fn assemble(state: AppState) -> Router {
     if probe {
         router = router.route("/hold", get(hold));
     }
-    router
+    let router = router
         .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed)
-        .layer(RequestBodyLimitLayer::new(body_limit))
-        .layer(GlobalConcurrencyLimitLayer::new(concurrency))
+        .layer(RequestBodyLimitLayer::new(body_limit));
+    let router = if probe {
+        router.layer(GlobalConcurrencyLimitLayer::new(concurrency))
+    } else {
+        let data = Arc::new(tokio::sync::Semaphore::new(concurrency));
+        let control = Arc::new(tokio::sync::Semaphore::new(4));
+        router.layer(axum::middleware::from_fn(
+            move |request: Request, next: Next| {
+                let capacity = if control_path(request.uri().path()) {
+                    Arc::clone(&control)
+                } else {
+                    Arc::clone(&data)
+                };
+                async move {
+                    let Ok(_permit) = capacity.try_acquire_owned() else {
+                        return crate::public_surface::error_response(
+                            ErrorCode::Overloaded,
+                            "HTTP capacity is full; request was not queued",
+                            None,
+                            None,
+                        );
+                    };
+                    next.run(request).await
+                }
+            },
+        ))
+    };
+    router
         .layer(from_fn_with_state(state.clone(), access_log))
         .with_state(state)
+}
+
+fn control_path(path: &str) -> bool {
+    matches!(path, "/health" | "/ready" | "/v1/operations")
+        || path.starts_with("/v1/queries/")
+        || path.starts_with("/v1/operations/")
+}
+
+impl AppState {
+    pub(crate) fn query_request_budget(&self) -> Duration {
+        self.inner
+            .request_timeout
+            .saturating_sub(Duration::from_millis(100))
+    }
+}
+
+tokio::task_local! {
+    static REQUEST_PACKS: Arc<PackCatalog>;
 }
 
 async fn access_log(State(state): State<AppState>, request: Request, next: Next) -> Response {
@@ -393,12 +480,57 @@ async fn access_log(State(state): State<AppState>, request: Request, next: Next)
         return json_error(ApiError::new(ApiCode::Forbidden));
     }
     let path = logged_path(&path_raw, state.inner.log_probe_paths);
-    let response = next.run(request).await;
+    let uses_pack = matches!(
+        path_raw.as_str(),
+        "/v1/query" | "/v1/freshness" | "/v1/tables" | "/v1/sql/validate" | "/v1/pack/metadata"
+    ) || path_raw.starts_with("/v1/knowledge/")
+        || path_raw.starts_with("/v1/tables/");
+    let response = if uses_pack {
+        let catalog = match state
+            .inner
+            .reloading_packs
+            .as_ref()
+            .map(|packs| packs.snapshot())
+            .transpose()
+        {
+            Ok(Some(catalog)) => catalog,
+            Ok(None) => Arc::clone(&state.inner.catalog),
+            Err(_) => {
+                return crate::public_surface::error_response(
+                    ErrorCode::SchemaInvalid,
+                    "published knowledge pack is unavailable; verify the installed artifact",
+                    None,
+                    None,
+                );
+            }
+        };
+        REQUEST_PACKS.scope(catalog, next.run(request)).await
+    } else {
+        next.run(request).await
+    };
+    let response = normalize_layer_timeout(response);
     eprintln!(
         "method={method} path={path} status={}",
         response.status().as_u16()
     );
     response
+}
+
+fn normalize_layer_timeout(response: Response) -> Response {
+    if response.status() == StatusCode::REQUEST_TIMEOUT
+        && !response.headers().contains_key(header::CONTENT_TYPE)
+        && response.body().is_end_stream()
+    {
+        // Tower has no query receipt; never invent an ID or replace an existing SQL error.
+        crate::public_surface::error_response(
+            ErrorCode::Timeout,
+            "HTTP request deadline exceeded",
+            None,
+            None,
+        )
+    } else {
+        response
+    }
 }
 
 fn logged_path(path: &str, probe: bool) -> &'static str {
@@ -557,7 +689,7 @@ async fn pack_metadata(
     {
         return json_error(ApiError::new(ApiCode::Forbidden));
     }
-    let Some(pack) = state.inner.catalog.find(
+    let Some(pack) = state.pack_catalog().find(
         &identity.tuple.project_id,
         &identity.tuple.role,
         &identity.tuple.policy_version,
@@ -656,21 +788,45 @@ fn forged_certificate_header(headers: &HeaderMap) -> bool {
 
 async fn authenticate(state: &AppState, headers: &HeaderMap) -> Result<Identity, ApiError> {
     let mut token = bearer(headers).map_err(|_| ApiError::new(ApiCode::Unauthenticated))?;
-    let result = authenticate_token(state, &token).await;
+    let bound = headers.contains_key(crate::publication_binding::EXPECTED)
+        || headers.contains_key(crate::publication_binding::EXPECTED_VECTOR);
+    let result = authenticate_token(state, &token, bound).await;
     token.zeroize();
     result
 }
 
-async fn authenticate_token(state: &AppState, token: &str) -> Result<Identity, ApiError> {
+/// Recheck after waiting for the per-role SQL session. The original request
+/// already passed peer verification; neither headers nor a pin select a role.
+pub(crate) async fn recheck_bound_caller(
+    state: &AppState,
+    headers: &HeaderMap,
+    caller: &PublicCaller,
+) -> bool {
+    matches!(authenticate(state, headers).await,
+        Ok(identity) if identity.tuple == caller.tuple && identity.scope == caller.scope)
+}
+
+async fn authenticate_token(
+    state: &AppState,
+    token: &str,
+    fresh: bool,
+) -> Result<Identity, ApiError> {
     let (_kind, hash) = token_hash(token).map_err(|_| ApiError::new(ApiCode::Unauthenticated))?;
-    let (tuple, endpoint, from_cache) = load_tuple(state, &hash).await?;
+    let (tuple, endpoint, from_cache) = load_tuple(state, &hash, fresh).await?;
+    // A question binding is not a credential. Recheck revocation on every use.
+    let fresh_cache = LookupCache::new();
+    let cache = if fresh {
+        &fresh_cache
+    } else {
+        &state.inner.cache
+    };
     let transport = DeclaredTransport::ExternalClient;
     let request = LookupRequest {
         endpoint: &endpoint,
         user: RUNTIME_USER,
         password: &state.inner.password,
         ca_pem: &state.inner.ca_pem,
-        cache: &state.inner.cache,
+        cache,
         presented_token: token,
         current: &tuple,
         gateway_audience: &state.inner.audience,
@@ -685,13 +841,11 @@ async fn authenticate_token(state: &AppState, token: &str) -> Result<Identity, A
                 TokenKind::Client => "client",
                 TokenKind::Session => "session",
             };
-            let auth_remaining_ms = state
-                .inner
-                .cache
-                .remaining_ms(&hash)
-                .ok()
-                .flatten()
-                .unwrap_or(0);
+            let auth_remaining_ms = if fresh {
+                0
+            } else {
+                cache.remaining_ms(&hash).ok().flatten().unwrap_or(0)
+            };
             Ok(Identity {
                 tuple,
                 scope,
@@ -710,8 +864,9 @@ async fn authenticate_token(state: &AppState, token: &str) -> Result<Identity, A
 async fn load_tuple(
     state: &AppState,
     hash: &str,
+    fresh: bool,
 ) -> Result<(CurrentTuple, Endpoint, bool), ApiError> {
-    if let Some(hit) = fresh_tuple(state, hash) {
+    if let Some(hit) = (!fresh).then(|| fresh_tuple(state, hash)).flatten() {
         return Ok((hit.0, hit.1, true));
     }
     let endpoint = read_endpoint(&state.inner.endpoint_path)
@@ -1140,10 +1295,14 @@ fn allowed_config_key(tls: bool, key: &str) -> bool {
             | "ca_file"
             | "endpoint_file"
             | "pack_dir"
+            | "pack_ceilings_file"
             | "body_limit"
             | "request_timeout_ms"
             | "global_concurrency"
             | "transport"
+            | "deployment_mode"
+            | "data_query_concurrency"
+            | "data_query_timeout_ms"
     ) || crate::public_surface::data_config_key(key)
         || (tls
             && matches!(
@@ -1183,10 +1342,13 @@ fn load_tls_acceptor(
     let ca = parse_client_ca(&ca_bytes)?;
     let mut roots = RootCertStore::empty();
     roots.add(ca).map_err(|_| "client_ca")?;
-    let verifier = WebPkiClientVerifier::builder(Arc::new(roots))
+    let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
+    let verifier = WebPkiClientVerifier::builder_with_provider(Arc::new(roots), provider.clone())
         .build()
         .map_err(|_| "tls")?;
-    let config = ServerConfig::builder()
+    let config = ServerConfig::builder_with_provider(provider)
+        .with_safe_default_protocol_versions()
+        .map_err(|_| "tls")?
         .with_client_cert_verifier(verifier)
         .with_single_cert(chain, key)
         .map_err(|_| "tls")?;
@@ -1430,7 +1592,12 @@ pub async fn harness_tls_exchange(
         return Err("ca".to_owned());
     }
     roots.add(anchors.remove(0)).map_err(|_| "ca".to_owned())?;
-    let builder = rustls::ClientConfig::builder().with_root_certificates(roots);
+    let builder = rustls::ClientConfig::builder_with_provider(Arc::new(
+        rustls::crypto::aws_lc_rs::default_provider(),
+    ))
+    .with_safe_default_protocol_versions()
+    .map_err(|_| "tls".to_owned())?
+    .with_root_certificates(roots);
     let config = match (client_cert_pem, client_key_pem) {
         (None, None) => builder.with_no_client_auth(),
         (Some(cert_pem), Some(key_pem)) => {
@@ -1548,4 +1715,270 @@ pub async fn harness_revoke_token(
         .await
         .map(|_| ())
         .map_err(|err| err.reason().to_owned())
+}
+
+#[cfg(test)]
+mod http_timeout_tests {
+    use super::*;
+    use oo_core::api::{ErrorEnvelope, parse_api_json};
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn concurrent_requests_keep_their_own_pack_snapshot_across_awaits() {
+        let state = AppState::for_limits(PackCatalog::empty(), 1024);
+        let first = Arc::new(PackCatalog::empty());
+        let second = Arc::new(PackCatalog::empty());
+        let barrier = Arc::new(tokio::sync::Barrier::new(2));
+        let request = |pack: Arc<PackCatalog>| {
+            let state = state.clone();
+            let barrier = Arc::clone(&barrier);
+            tokio::spawn(async move {
+                let expected = Arc::clone(&pack);
+                REQUEST_PACKS
+                    .scope(pack, async move {
+                        assert!(Arc::ptr_eq(&state.pack_catalog(), &expected));
+                        barrier.wait().await;
+                        tokio::task::yield_now().await;
+                        assert!(Arc::ptr_eq(&state.pack_catalog(), &expected));
+                    })
+                    .await;
+            })
+        };
+        let a = request(Arc::clone(&first));
+        let b = request(Arc::clone(&second));
+        a.await.unwrap();
+        b.await.unwrap();
+        assert!(!Arc::ptr_eq(&state.pack_catalog(), &first));
+        assert!(!Arc::ptr_eq(&state.pack_catalog(), &second));
+    }
+
+    fn installed_state(http_ms: u64, sql_ms: u64) -> AppState {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root =
+            std::env::temp_dir().join(format!("oo-http-budget-{}-{nonce}", std::process::id()));
+        fs::create_dir_all(root.join("packs")).unwrap();
+        fs::write(root.join("runtime.pass"), "synthetic-test-only").unwrap();
+        fs::write(root.join("ca.pem"), "synthetic-test-only").unwrap();
+        fs::write(
+            root.join("endpoint.json"),
+            r#"{"host":"127.0.0.1","port":9,"database":"unused"}"#,
+        )
+        .unwrap();
+        let config = serde_json::json!({
+            "deployment_mode": "all_in_one", "listen": "127.0.0.1:0",
+            "audience": "https://gateway.loopback.invalid/v1", "runtime_user": RUNTIME_USER,
+            "password_file": "runtime.pass", "ca_file": "ca.pem",
+            "endpoint_file": "endpoint.json", "pack_dir": "packs",
+            "body_limit": 1024, "request_timeout_ms": http_ms, "global_concurrency": 64,
+            "data_query_concurrency": 2, "data_query_timeout_ms": sql_ms,
+        });
+        fs::write(root.join("config.json"), config.to_string()).unwrap();
+        assert_eq!(
+            oo_core::config::DeploymentMode::AllInOne
+                .query_limits(&config)
+                .unwrap(),
+            (2, sql_ms),
+        );
+        let mut loaded = load_operator_dir(&root).expect("synthetic installed config");
+        // This fixture tests HTTP timing after removing its temporary operator directory.
+        Arc::get_mut(&mut loaded.state.inner)
+            .unwrap()
+            .reloading_packs = None;
+        fs::remove_dir_all(root).unwrap();
+        loaded.state
+    }
+
+    #[test]
+    fn http_budget_is_independent_of_sql_budget_and_concurrency_cap_stays() {
+        let state = installed_state(120_000, 20_000);
+        assert_eq!(state.inner.request_timeout, Duration::from_secs(120));
+        assert_eq!(state.inner.global_concurrency, 2);
+        let shorter = installed_state(10, 20_000);
+        assert_eq!(shorter.inner.request_timeout, Duration::from_millis(10));
+        assert_eq!(shorter.inner.global_concurrency, 2);
+    }
+
+    // Synthetic handlers exercise the HTTP layer only, without credentials or PostgreSQL.
+    async fn delayed_ok() -> Response {
+        tokio::time::sleep(Duration::from_millis(60)).await;
+        json_value(200, serde_json::json!({"status":"completed"}))
+    }
+
+    fn slow_router(state: AppState) -> Router {
+        Router::new()
+            .route("/v1/freshness", get(delayed_ok))
+            .route("/v1/query", post(delayed_ok))
+            .route_layer(TimeoutLayer::with_status_code(
+                StatusCode::REQUEST_TIMEOUT,
+                state.inner.request_timeout,
+            ))
+            .layer(from_fn_with_state(state.clone(), access_log))
+            .with_state(state)
+    }
+
+    #[tokio::test]
+    async fn metadata_may_outlast_sql_budget_and_http_timeout_is_core_json() {
+        let response = slow_router(installed_state(500, 20))
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/freshness")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "metadata was capped by the SQL budget"
+        );
+
+        for version in [axum::http::Version::HTTP_11, axum::http::Version::HTTP_2] {
+            for (method, path) in [("GET", "/v1/freshness"), ("POST", "/v1/query")] {
+                let response = slow_router(installed_state(10, 20))
+                    .oneshot(
+                        Request::builder()
+                            .method(method)
+                            .uri(path)
+                            .version(version)
+                            .body(Body::empty())
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                assert_eq!(response.status(), StatusCode::REQUEST_TIMEOUT);
+                assert_eq!(response.headers()[header::CONTENT_TYPE], JSON_MEDIA_TYPE);
+                let bytes = axum::body::to_bytes(response.into_body(), 4096)
+                    .await
+                    .unwrap();
+                let envelope: ErrorEnvelope =
+                    parse_api_json(std::str::from_utf8(&bytes).unwrap(), |_| Vec::new())
+                        .expect("SDK/CLI core error contract");
+                assert_eq!(envelope.error.code(), ErrorCode::Timeout);
+                assert!(!envelope.error.retryable());
+                assert!(envelope.error.query_id().is_none());
+                let value: Value = serde_json::from_slice(&bytes).unwrap();
+                assert!(value["error"].get("query_id").is_none());
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn existing_query_timeout_receipt_and_non_timeout_bodies_are_preserved() {
+        let response = crate::public_surface::error_response(
+            ErrorCode::Timeout,
+            "SQL execution deadline exceeded",
+            None,
+            Some("q_abc123"),
+        );
+        let response = normalize_layer_timeout(response);
+        let bytes = axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap();
+        let envelope: ErrorEnvelope = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(envelope.error.query_id().unwrap().as_str(), "q_abc123");
+        assert_eq!(
+            envelope.error.message().as_str(),
+            "SQL execution deadline exceeded"
+        );
+        for (status, body) in [
+            (StatusCode::REQUEST_TIMEOUT, "existing body"),
+            (StatusCode::PAYLOAD_TOO_LARGE, ""),
+        ] {
+            let response = Response::builder()
+                .status(status)
+                .body(Body::from(body))
+                .unwrap();
+            let response = normalize_layer_timeout(response);
+            assert_eq!(response.status(), status);
+            assert!(!response.headers().contains_key(header::CONTENT_TYPE));
+            assert_eq!(
+                axum::body::to_bytes(response.into_body(), 4096)
+                    .await
+                    .unwrap(),
+                body
+            );
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[ignore = "requires OO_HTTP_TIMEOUT_CLI pointing to an already built CLI; no rebuild"]
+    async fn existing_cli_reports_gateway_timeout_for_slow_metadata_and_query() {
+        use std::io::Write;
+        use std::process::{Command, Stdio};
+        let cli = std::env::var("OO_HTTP_TIMEOUT_CLI").expect("explicit existing CLI path");
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let app = slow_router(installed_state(10, 20));
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        for command in ["freshness", "query"] {
+            let cli = cli.clone();
+            let origin = origin.clone();
+            let output = tokio::task::spawn_blocking(move || {
+                let mut child = Command::new(cli);
+                child.args([
+                    command,
+                    "--json",
+                    "--gateway",
+                    &origin,
+                    "--transport",
+                    "local-development",
+                    "--auth",
+                    "external",
+                    "--token-stdin",
+                ]);
+                if command == "query" {
+                    child.arg("SELECT 1");
+                }
+                let mut child = child
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn()
+                    .unwrap();
+                child
+                    .stdin
+                    .take()
+                    .unwrap()
+                    .write_all(b"synthetic-timeout-probe\n")
+                    .unwrap();
+                child.wait_with_output().unwrap()
+            })
+            .await
+            .unwrap();
+            assert_eq!(output.status.code(), Some(2), "{output:?}");
+            let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert_eq!(value["class"], "gateway");
+            assert_eq!(value["code"], "TIMEOUT");
+            assert_eq!(value["retryable"], false);
+            assert!(value.get("query_id").is_none());
+        }
+        server.abort();
+    }
+}
+
+#[cfg(test)]
+mod deployment_config_tests {
+    use super::load_operator_dir;
+    #[test]
+    fn unknown_mode_and_all_in_one_replica_fail_before_binding() {
+        let root =
+            std::env::temp_dir().join(format!("oo-wf-allinone-config-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        for (document, expected) in [
+            (r#"{"deployment_mode":"unknown"}"#, "deployment_mode"),
+            (
+                r#"{"deployment_mode":"all_in_one","replica_pg":{}}"#,
+                "all_in_one_replica_conflict",
+            ),
+        ] {
+            std::fs::write(root.join("config.json"), document).unwrap();
+            assert_eq!(load_operator_dir(&root).err(), Some(expected));
+        }
+        std::fs::remove_file(root.join("config.json")).unwrap();
+        std::fs::remove_dir(root).unwrap();
+    }
 }

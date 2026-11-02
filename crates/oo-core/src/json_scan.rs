@@ -11,15 +11,46 @@ use crate::decimal::{DecimalError, ExactDecimal};
 use crate::diagnostic::{Diagnostic, DiagnosticList};
 use crate::limits::{DOCUMENT_MAX_BYTES, JSON_MAX_DEPTH, JSON_MAX_NODES};
 
+#[derive(Clone, Copy, Debug, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct JsonScanLimits {
+    pub max_bytes: usize,
+    pub max_nodes: usize,
+    pub max_depth: usize,
+}
+
+impl Default for JsonScanLimits {
+    fn default() -> Self {
+        Self {
+            max_bytes: DOCUMENT_MAX_BYTES,
+            max_nodes: JSON_MAX_NODES,
+            max_depth: JSON_MAX_DEPTH,
+        }
+    }
+}
+
 pub fn parse_json_value(input: &str, contract: &str) -> Result<Value, DiagnosticList> {
-    if input.len() > DOCUMENT_MAX_BYTES {
+    parse_json_value_with_limits(input, contract, &JsonScanLimits::default())
+}
+
+pub fn parse_json_value_with_limits(
+    input: &str,
+    contract: &str,
+    limits: &JsonScanLimits,
+) -> Result<Value, DiagnosticList> {
+    if limits.max_bytes == 0
+        || limits.max_nodes == 0
+        || limits.max_depth == 0
+        || input.len() > limits.max_bytes
+    {
         return Err(DiagnosticList::one(Diagnostic::error(
             contract,
             "json.budget.bytes",
             "/",
             format!(
-                "document is {} bytes; limit is {DOCUMENT_MAX_BYTES}",
-                input.len()
+                "document is {} bytes; limit is {}",
+                input.len(),
+                limits.max_bytes
             ),
         )));
     }
@@ -31,6 +62,7 @@ pub fn parse_json_value(input: &str, contract: &str) -> Result<Value, Diagnostic
         nodes: 0,
         contract,
         pending_high: None,
+        limits: *limits,
     };
     parser.skip();
     let value = parser.value(1)?;
@@ -42,6 +74,7 @@ pub fn parse_json_value(input: &str, contract: &str) -> Result<Value, Diagnostic
 }
 
 struct Parser<'a> {
+    limits: JsonScanLimits,
     bytes: &'a [u8],
     index: usize,
     line: u32,
@@ -53,11 +86,11 @@ struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     fn value(&mut self, depth: usize) -> Result<Value, DiagnosticList> {
-        if depth > JSON_MAX_DEPTH {
+        if depth > self.limits.max_depth {
             return Err(self.error("json.budget.depth", "JSON nesting exceeds the depth budget"));
         }
         self.nodes += 1;
-        if self.nodes > JSON_MAX_NODES {
+        if self.nodes > self.limits.max_nodes {
             return Err(self.error("json.budget.nodes", "JSON node count exceeds the budget"));
         }
         self.skip();
@@ -370,7 +403,14 @@ fn has_leading_zero(text: &str) -> bool {
 }
 
 fn utf8_char(bytes: &[u8]) -> Option<char> {
-    let text = std::str::from_utf8(bytes).ok()?;
+    let width = match *bytes.first()? {
+        0..=0x7f => 1,
+        0xc2..=0xdf => 2,
+        0xe0..=0xef => 3,
+        0xf0..=0xf4 => 4,
+        _ => return None,
+    };
+    let text = std::str::from_utf8(bytes.get(..width)?).ok()?;
     text.chars().next()
 }
 
@@ -391,5 +431,43 @@ impl NumberExact for Number {
         }
         let _ = parsed;
         Ok(Number::from_string_unchecked(text.to_owned()))
+    }
+}
+
+#[cfg(test)]
+mod configurable_budget_tests {
+    #[test]
+    fn explicit_scan_limits_keep_duplicate_and_node_guards() {
+        let limits = super::JsonScanLimits {
+            max_bytes: 2_000_000,
+            max_nodes: 60_000,
+            max_depth: 32,
+        };
+        let large = format!("\"{}\"", "x".repeat(1_100_000));
+        assert!(super::parse_json_value(&large, "test").is_err());
+        assert!(super::parse_json_value_with_limits(&large, "test", &limits).is_ok());
+        assert!(super::parse_json_value_with_limits("{\"x\":1,\"x\":2}", "test", &limits).is_err());
+        let small = super::JsonScanLimits {
+            max_nodes: 2,
+            ..limits
+        };
+        assert!(super::parse_json_value_with_limits("[1,2]", "test", &small).is_err());
+    }
+}
+
+#[cfg(test)]
+mod utf8_prefix_tests {
+    #[test]
+    fn scalar_decoding_checks_only_the_current_scalar_not_the_document_tail() {
+        assert_eq!(super::utf8_char(&[b'a', 0xff]), Some('a'));
+        assert_eq!(super::utf8_char(&[0xe4, 0xb8, 0xad, 0xff]), Some('中'));
+        for bytes in [
+            &[0xc0, 0x80][..],
+            &[0xed, 0xa0, 0x80],
+            &[0xf4, 0x90, 0x80, 0x80],
+            &[0xe4, 0xb8],
+        ] {
+            assert_eq!(super::utf8_char(bytes), None);
+        }
     }
 }

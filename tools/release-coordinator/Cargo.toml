@@ -11,6 +11,7 @@ description = "Durable candidate, gate, and active-version coordinator for one p
 resolver = "3"
 
 [dependencies]
+oo-core = { path = "../../crates/oo-core", version = "=0.1.0" }
 oo-builder = { path = "../../crates/oo-builder", version = "=0.1.0" }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 jsonschema = { version = "=0.57.0", default-features = false }

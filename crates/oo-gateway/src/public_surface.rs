@@ -36,26 +36,72 @@ use oo_core::text::{ErrorText, Label, QualifiedTable, QueryId, SourceName, Table
 use crate::http_error::JSON_MEDIA_TYPE;
 use crate::http_gateway::{AppState, PublicCaller};
 use crate::pack_catalog::PackCatalog;
-use crate::policy::catalog::{CatalogLimits, UnknownRows, load_policy_catalog};
+use crate::policy::catalog::{CatalogError, CatalogLimits, UnknownRows, load_policy_catalog};
 use crate::policy::{
     ClassStatus, ColumnAclPolicy, ColumnSpec, LogicalTable, PiiClass, TlsEndpoint,
     compile_column_acl, connect_require_tls, rustls_connector,
 };
+use crate::publication_binding::{BindingCheck, BindingReceipt, DRIFT_HINT, Expected};
 use crate::query_executor::{
     Admission, AuditAdmission, Cell, CompletionRecord, DedicatedSession, ExecError,
     ImportRunObserved, ImportTableObserved, MAX_QUERY_BYTES, MAX_QUERY_ROWS, MAX_QUERY_WALL,
-    MappingObserved, QualityCount, QualitySnapshot, QualityTable, QualityWarning, ReceiptObserved,
-    ResultColumn, SelectRequest, SelectStream, WatermarkObserved, observe_quality,
+    MappingObserved, QualityCount, QualitySnapshot, QualityWarning, ReceiptObserved, ResultColumn,
+    SelectRequest, SelectStream, WatermarkObserved, observe_quality,
 };
 use crate::reviewed_policy::{
     ReviewedAllow, ReviewedBinding, ReviewedIdentity, ReviewedSourceSeal, compile_reviewed_policies,
 };
 use crate::sql_guard::{GuardError, OutputItem, PolicyIdentity, guard_select};
 
+#[path = "query_lifecycle.rs"]
+mod query_lifecycle;
+use query_lifecycle::{QueryState, RequestLifetime, SessionLease};
+
+#[cfg(test)]
+#[path = "f22_owned_pg_tests.rs"]
+mod f22_owned_pg;
+
+#[cfg(test)]
+#[path = "performance_owned_pg_tests.rs"]
+mod performance_owned_pg;
+
+#[cfg(test)]
+#[path = "published_cut_owned_pg_tests.rs"]
+mod published_cut_owned_pg;
+
 #[derive(Clone, Copy)]
 struct AuthStamp {
     remaining_ms: u128,
     hit: bool,
+}
+
+struct CatalogFailure {
+    code: ErrorCode,
+    hint: Option<String>,
+}
+
+impl From<ErrorCode> for CatalogFailure {
+    fn from(code: ErrorCode) -> Self {
+        Self { code, hint: None }
+    }
+}
+
+impl From<CatalogError> for CatalogFailure {
+    fn from(error: CatalogError) -> Self {
+        let hint = match error {
+            CatalogError::PublicationBindingUnavailable => Some(
+                "phase=runtime_catalog; reason=publication_binding_unavailable; \
+                 verify the coordinated Pack, reviewed artifact and publication fence; \
+                 do not rewrite SQL or widen permissions"
+                    .to_owned(),
+            ),
+            _ => None,
+        };
+        Self {
+            code: ErrorCode::SchemaInvalid,
+            hint,
+        }
+    }
 }
 
 tokio::task_local! {
@@ -74,7 +120,7 @@ const DATA_KEYS: &[&str] = &[
 const CATALOG_LIMITS: CatalogLimits = CatalogLimits {
     max_tables: 32,
     max_columns: 512,
-    max_functions: 8,
+    max_functions: crate::policy::catalog::FUNCTION_CATALOG_LIMIT,
     max_operators: 128,
     large_table_row_threshold: 1_000_000_000,
     unknown_rows: UnknownRows::Zero,
@@ -85,7 +131,7 @@ pub(crate) fn data_config_key(key: &str) -> bool {
     DATA_KEYS.contains(&key) || key == "audit_collector_dir"
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 struct Published {
     mapping_source: Option<String>,
     policies: Vec<ColumnAclPolicy>,
@@ -99,26 +145,182 @@ struct Published {
     quality_vector: Option<Value>,
 }
 
+impl Published {
+    fn bound_quality_vector(&self) -> Option<Value> {
+        let mut vector = self.quality_vector.clone()?;
+        if let Some(catalog) = self
+            .native_catalog
+            .as_ref()
+            .filter(|c| c["protocol"] == "oo.gateway.library-binding/v1")
+        {
+            for entry in vector.as_array_mut()? {
+                entry["_published_library"] = serde_json::json!({
+                    "library_id": catalog["library_id"], "receipt_sha256": catalog["receipt_sha256"],
+                });
+            }
+        }
+        Some(vector)
+    }
+}
+
+#[derive(PartialEq, Eq)]
+struct ReviewedFileStamp {
+    path: PathBuf,
+    length: u64,
+    modified: SystemTime,
+    #[cfg(unix)]
+    identity: (u64, u64, i64, i64),
+}
+
+struct ReviewedSnapshot {
+    files: Vec<ReviewedFileStamp>,
+    roles: Arc<Vec<Published>>,
+}
+
+struct ReviewedRoles {
+    directory: Option<PathBuf>,
+    current: std::sync::Mutex<ReviewedSnapshot>,
+}
+
+fn reviewed_files(directory: &Path) -> Result<Vec<ReviewedFileStamp>, &'static str> {
+    let mut paths = Vec::new();
+    for entry in fs::read_dir(directory).map_err(|_| "reviewed_dir")? {
+        let entry = entry.map_err(|_| "reviewed_dir")?;
+        if !entry.file_type().map_err(|_| "reviewed_dir")?.is_dir() {
+            return Err("reviewed_dir");
+        }
+        one_segment(entry.file_name().to_str().ok_or("reviewed_dir")?)?;
+        paths.push(entry.path());
+        for name in [
+            "library.json",
+            "native-input.json",
+            "command.json",
+            "artifact.json",
+            "decisions.json",
+            "binding.json",
+            "policy.json",
+            "visibility.json",
+        ] {
+            let path = entry.path().join(name);
+            match fs::symlink_metadata(&path) {
+                Ok(meta) if meta.is_file() => paths.push(path),
+                Ok(_) => return Err("reviewed_input"),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(_) => return Err("reviewed_input"),
+            }
+        }
+    }
+    if paths.is_empty() {
+        return Err("reviewed_dir");
+    }
+    paths.sort();
+    paths
+        .into_iter()
+        .map(|path| {
+            let meta = fs::symlink_metadata(&path).map_err(|_| "reviewed_input")?;
+            if meta.file_type().is_symlink() {
+                return Err("reviewed_input");
+            }
+            #[cfg(unix)]
+            let identity = {
+                use std::os::unix::fs::MetadataExt;
+                (meta.dev(), meta.ino(), meta.ctime(), meta.ctime_nsec())
+            };
+            Ok(ReviewedFileStamp {
+                path,
+                length: meta.len(),
+                modified: meta.modified().map_err(|_| "reviewed_input")?,
+                #[cfg(unix)]
+                identity,
+            })
+        })
+        .collect()
+}
+
+impl ReviewedRoles {
+    fn load(directory: PathBuf) -> Result<Self, &'static str> {
+        let files = reviewed_files(&directory)?;
+        let roles = Arc::new(load_roles(&directory)?);
+        if files != reviewed_files(&directory)? {
+            return Err("reviewed_changed");
+        }
+        Ok(Self {
+            directory: Some(directory),
+            current: std::sync::Mutex::new(ReviewedSnapshot { files, roles }),
+        })
+    }
+
+    #[cfg(test)]
+    fn fixed(roles: Vec<Published>) -> Self {
+        Self {
+            directory: None,
+            current: std::sync::Mutex::new(ReviewedSnapshot {
+                files: Vec::new(),
+                roles: Arc::new(roles),
+            }),
+        }
+    }
+
+    fn snapshot(&self) -> Result<Arc<Vec<Published>>, &'static str> {
+        let mut current = self.current.lock().map_err(|_| "reviewed_lock")?;
+        let Some(directory) = self.directory.as_ref() else {
+            return Ok(Arc::clone(&current.roles));
+        };
+        let files = reviewed_files(directory)?;
+        // Unix file identity detects atomic replacement even with preserved size/mtime.
+        if cfg!(unix) && files == current.files {
+            return Ok(Arc::clone(&current.roles));
+        }
+        let roles = Arc::new(load_roles(directory)?);
+        if files != reviewed_files(directory)? {
+            return Err("reviewed_changed");
+        }
+        *current = ReviewedSnapshot { files, roles };
+        Ok(Arc::clone(&current.roles))
+    }
+}
+
 /// One data plane. The password is wiped when the plane is dropped.
 pub struct Plane {
+    deployment_mode: oo_core::config::DeploymentMode,
+    query_timeout_ms: u64,
+    query_capacity: Option<tokio::sync::Semaphore>,
     endpoint: TlsEndpoint,
     password: String,
     ca_pem: Vec<u8>,
     connector: tokio_postgres_rustls::MakeRustlsConnect,
-    roles: Vec<Published>,
+    roles: ReviewedRoles,
     wal_dir: PathBuf,
     collector_dir: Option<PathBuf>,
-    sessions: Mutex<HashMap<String, Arc<Mutex<DedicatedSession>>>>,
+    sessions: Mutex<HashMap<String, Arc<RoleSession>>>,
     opening: Mutex<()>,
     inflight: Mutex<HashMap<String, Flight>>,
+}
+
+/// One slot per published role, not a second pool. Slow connects and busy
+/// sessions serialize only that role; the map lock never spans network I/O.
+#[derive(Default)]
+struct RoleSession {
+    current: Mutex<Option<Arc<Mutex<DedicatedSession>>>>,
+    admission: Arc<Mutex<()>>,
+    planning: Mutex<Option<(Published, crate::sql_guard::PolicyCatalog)>>,
 }
 
 struct Flight {
     server_id: String,
     query_id: String,
     principal: String,
-    handle: crate::query_executor::CancelHandle,
-    status: &'static str,
+    project: String,
+    role: String,
+    state: Arc<QueryState>,
+}
+
+impl Flight {
+    fn owned_by(&self, caller: &PublicCaller) -> bool {
+        self.principal == caller.tuple.principal_id
+            && self.project == caller.tuple.project_id
+            && self.role == caller.tuple.role
+    }
 }
 
 impl Drop for Plane {
@@ -132,6 +334,9 @@ pub(crate) fn load_plane(
     dir: &Path,
     object: &Map<String, Value>,
 ) -> Result<Option<Arc<Plane>>, &'static str> {
+    let installed = Value::Object(object.clone());
+    let deployment_mode = oo_core::config::DeploymentMode::from_installed(&installed)?;
+    let (query_concurrency, query_timeout_ms) = deployment_mode.query_limits(&installed)?;
     let present = DATA_KEYS.iter().any(|key| object.contains_key(*key));
     let collector = object.contains_key("audit_collector_dir");
     if !present && !collector {
@@ -189,7 +394,7 @@ pub(crate) fn load_plane(
     } else {
         None
     };
-    let roles = match load_roles(&dir.join(reviewed_name)) {
+    let roles = match ReviewedRoles::load(dir.join(reviewed_name)) {
         Ok(roles) => roles,
         Err(reason) => {
             password.zeroize();
@@ -197,6 +402,10 @@ pub(crate) fn load_plane(
         }
     };
     Ok(Some(Arc::new(Plane {
+        deployment_mode,
+        query_timeout_ms,
+        query_capacity: (deployment_mode == oo_core::config::DeploymentMode::AllInOne)
+            .then(|| tokio::sync::Semaphore::new(query_concurrency)),
         endpoint,
         password,
         ca_pem,
@@ -249,6 +458,33 @@ fn load_roles(dir: &Path) -> Result<Vec<Published>, &'static str> {
 }
 
 fn load_role(dir: &Path) -> Result<Published, &'static str> {
+    if dir.join("library.json").is_file() {
+        let bytes = fs::read(dir.join("library.json")).map_err(|_| "library_input")?;
+        let text = std::str::from_utf8(&bytes).map_err(|_| "library_input")?;
+        let document = oo_core::json_scan::parse_json_value_with_limits(
+            text,
+            "oo.gateway.library-reviewed/v1",
+            &oo_core::json_scan::JsonScanLimits {
+                max_bytes: 67_108_864,
+                max_nodes: 4_000_000,
+                max_depth: 32,
+            },
+        )
+        .map_err(|_| "library_input")?;
+        let library = crate::library_policy::compile_library(&document)?;
+        return Ok(Published {
+            mapping_source: Some(String::new()),
+            policies: library.policies,
+            role: library.role,
+            project: library.project,
+            policy_version: library.policy_version,
+            knowledge_version: library.knowledge_version,
+            config_digest: library.config_digest,
+            quality_vector: Some(library.vector.clone()),
+            native_vector: Some(library.vector),
+            native_catalog: Some(library.catalog),
+        });
+    }
     if dir.join("native-input.json").is_file() {
         return load_native_reviewed_role(dir);
     }
@@ -489,17 +725,35 @@ fn parse_binding(text: &str) -> Result<ReviewedBinding, &'static str> {
         },
         seal: ReviewedSourceSeal {
             source_id: if object.get("binding_vector").is_some() {
-                object.get("source_id").and_then(Value::as_str).unwrap_or("").to_owned()
-            } else { required(object, "source_id")? },
+                object
+                    .get("source_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_owned()
+            } else {
+                required(object, "source_id")?
+            },
             schema: if object.get("binding_vector").is_some() {
-                object.get("schema").and_then(Value::as_str).unwrap_or("").to_owned()
-            } else { required(object, "schema")? },
+                object
+                    .get("schema")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_owned()
+            } else {
+                required(object, "schema")?
+            },
             schema_hash: required(object, "schema_hash")?,
             artifact_sha256: required(object, "artifact_sha256")?,
         },
         config_digest: if object.get("binding_vector").is_some() {
-            object.get("config_digest").and_then(Value::as_str).unwrap_or("").to_owned()
-        } else { required(object, "config_digest")? },
+            object
+                .get("config_digest")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned()
+        } else {
+            required(object, "config_digest")?
+        },
         generation,
         role: required(object, "role")?,
         login: required(object, "login")?,
@@ -509,8 +763,26 @@ fn parse_binding(text: &str) -> Result<ReviewedBinding, &'static str> {
 }
 
 impl Plane {
+    async fn connect(
+        &self,
+    ) -> Result<(tokio_postgres::Client, crate::policy::TlsConnection), crate::policy::PolicyError>
+    {
+        if self.deployment_mode == oo_core::config::DeploymentMode::AllInOne {
+            crate::policy::connect_readonly_require_tls(
+                &self.endpoint,
+                &self.password,
+                &self.ca_pem,
+            )
+            .await
+        } else {
+            connect_require_tls(&self.endpoint, &self.password, &self.ca_pem).await
+        }
+    }
+
     fn role_for(&self, caller: &PublicCaller) -> Option<Published> {
         self.roles
+            .snapshot()
+            .ok()?
             .iter()
             .find(|role| {
                 role.project == caller.tuple.project_id
@@ -524,11 +796,11 @@ impl Plane {
     async fn can_start(&self) -> bool {
         let mut guard = self.inflight.lock().await;
         if guard.len() >= 256 {
-            guard.retain(|_, flight| flight.status == "running");
+            guard.retain(|_, flight| flight.state.status() == "running");
         }
         guard
             .values()
-            .filter(|flight| flight.status == "running")
+            .filter(|flight| flight.state.status() == "running")
             .count()
             < 256
     }
@@ -536,14 +808,32 @@ impl Plane {
     async fn catalog_for(
         &self,
         published: &Published,
-    ) -> Result<crate::sql_guard::PolicyCatalog, ErrorCode> {
+    ) -> Result<crate::sql_guard::PolicyCatalog, CatalogFailure> {
         let mut compiled = Vec::with_capacity(published.policies.len());
         for policy in &published.policies {
-            compiled.push(if published.native_vector.is_some() {
-                crate::policy::compile_column_acl_native(policy)
-            } else {
-                compile_column_acl(policy)
-            }.map_err(|_| ErrorCode::SchemaInvalid)?);
+            compiled.push(
+                if published.native_vector.is_some() {
+                    crate::policy::compile_column_acl_native(policy)
+                } else {
+                    compile_column_acl(policy)
+                }
+                .map_err(|_| ErrorCode::SchemaInvalid)?,
+            );
+        }
+        let mut limits = CATALOG_LIMITS;
+        if let Some(catalog) = published
+            .native_catalog
+            .as_ref()
+            .filter(|c| c["protocol"] == "oo.gateway.library-binding/v1")
+        {
+            limits.max_tables = catalog["limits"]["max_tables"]
+                .as_u64()
+                .and_then(|n| u32::try_from(n).ok())
+                .ok_or(ErrorCode::SchemaInvalid)?;
+            limits.max_columns = catalog["limits"]["max_columns"]
+                .as_u64()
+                .and_then(|n| u32::try_from(n).ok())
+                .ok_or(ErrorCode::SchemaInvalid)?;
         }
         let identity = PolicyIdentity {
             project: published.project.clone(),
@@ -551,18 +841,18 @@ impl Plane {
             policy_id: published.config_digest.clone(),
         };
         let (mut client, connection) =
-            connect_require_tls(&self.endpoint, &self.password, &self.ca_pem)
-                .await
-                .map_err(|_| ErrorCode::SchemaInvalid)?;
-        let driver = tokio::spawn(async move {
-            let _ = connection.await;
-        });
+            self.connect().await.map_err(|_| ErrorCode::SchemaInvalid)?;
+        let driver = crate::query_executor::PendingConnection::new(
+            &client,
+            connection,
+            self.connector.clone(),
+        );
         let loaded = if let Some(source) = &published.mapping_source {
             crate::policy::catalog::load_policy_catalog_for_source_vector(
                 &mut client,
                 &identity,
                 &compiled,
-                &CATALOG_LIMITS,
+                &limits,
                 source,
                 published.native_vector.as_ref(),
                 published.native_catalog.as_ref(),
@@ -572,51 +862,179 @@ impl Plane {
             load_policy_catalog(&mut client, &identity, &compiled, &CATALOG_LIMITS).await
         };
         drop(client);
-        driver.abort();
-        loaded.map_err(|_| ErrorCode::SchemaInvalid)
+        driver.release().abort();
+        let catalog = loaded.map_err(CatalogFailure::from)?;
+        let slot = self.role_slot(&published.role).await?;
+        *slot.planning.lock().await = Some((published.clone(), catalog.clone()));
+        Ok(catalog)
+    }
+
+    async fn planning_catalog_for(
+        &self,
+        published: &Published,
+    ) -> Result<crate::sql_guard::PolicyCatalog, CatalogFailure> {
+        let slot = self.role_slot(&published.role).await?;
+        if let Some((revision, catalog)) = slot.planning.lock().await.as_ref()
+            && revision == published
+        {
+            return Ok(catalog.clone());
+        }
+        self.catalog_for(published).await
+    }
+
+    async fn forget_planning_catalog(&self, published: &Published) {
+        if let Ok(slot) = self.role_slot(&published.role).await {
+            let mut cached = slot.planning.lock().await;
+            if cached
+                .as_ref()
+                .is_some_and(|(revision, _)| revision == published)
+            {
+                *cached = None;
+            }
+        }
+    }
+
+    pub(crate) async fn warm_planning_catalogs(&self) {
+        let Ok(roles) = self.roles.snapshot() else {
+            return;
+        };
+        for published in roles.iter().filter(|p| {
+            p.native_catalog
+                .as_ref()
+                .is_some_and(|c| c["protocol"] == "oo.gateway.library-binding/v1")
+        }) {
+            // Only a planning candidate: every bound query still verifies the
+            // complete catalog, ACL and publication inside its own snapshot.
+            if !matches!(
+                tokio::time::timeout(
+                    Duration::from_millis(self.query_timeout_ms),
+                    self.planning_catalog_for(published),
+                )
+                .await,
+                Ok(Ok(_))
+            ) {
+                eprintln!("gateway planning warmup unavailable; live validation retained");
+            }
+        }
     }
 
     async fn session_for(&self, role: &str) -> Result<Arc<Mutex<DedicatedSession>>, ErrorCode> {
-        let _gate = self.opening.lock().await;
-        if let Some(existing) = self.sessions.lock().await.get(role)
+        let slot = self.role_slot(role).await?;
+        let mut current = slot.current.lock().await;
+        if let Some(existing) = current.as_ref()
             && existing.lock().await.is_open()
         {
             return Ok(Arc::clone(existing));
         }
-        let (client, connection) =
-            connect_require_tls(&self.endpoint, &self.password, &self.ca_pem)
-                .await
-                .map_err(|_| ErrorCode::SchemaInvalid)?;
+        let (client, connection) = self.connect().await.map_err(|_| ErrorCode::SchemaInvalid)?;
         let session = DedicatedSession::bind(client, connection, self.connector.clone())
             .await
             .map_err(|_| ErrorCode::SchemaInvalid)?;
         let shared = Arc::new(Mutex::new(session));
-        self.sessions
-            .lock()
-            .await
-            .insert(role.to_owned(), Arc::clone(&shared));
+        *current = Some(Arc::clone(&shared));
         Ok(shared)
+    }
+
+    async fn role_slot(&self, role: &str) -> Result<Arc<RoleSession>, ErrorCode> {
+        // Slot cardinality is bounded by the installed role set, never headers.
+        if !self
+            .roles
+            .snapshot()
+            .map_err(|_| ErrorCode::SchemaInvalid)?
+            .iter()
+            .any(|published| published.role == role)
+        {
+            return Err(ErrorCode::SchemaInvalid);
+        }
+        Ok({
+            let _gate = self.opening.lock().await;
+            let mut sessions = self.sessions.lock().await;
+            Arc::clone(sessions.entry(role.to_owned()).or_default())
+        })
+    }
+
+    fn binding_check(
+        &self,
+        published: &Published,
+        caller: &PublicCaller,
+        pack_digest: &str,
+        catalog: Option<&crate::sql_guard::PolicyCatalog>,
+        expected: Expected,
+    ) -> Result<BindingCheck, Box<Response>> {
+        let policies = published
+            .policies
+            .iter()
+            .map(|policy| {
+                if published.native_vector.is_some() {
+                    crate::policy::compile_column_acl_native(policy)
+                } else {
+                    compile_column_acl(policy)
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| Box::new(binding_drift(None)))?;
+        let mut limits = CATALOG_LIMITS;
+        if let Some(native) = published
+            .native_catalog
+            .as_ref()
+            .filter(|c| c["protocol"] == "oo.gateway.library-binding/v1")
+        {
+            limits.max_tables = native["limits"]["max_tables"]
+                .as_u64()
+                .and_then(|n| u32::try_from(n).ok())
+                .ok_or_else(|| Box::new(binding_drift(None)))?;
+            limits.max_columns = native["limits"]["max_columns"]
+                .as_u64()
+                .and_then(|n| u32::try_from(n).ok())
+                .ok_or_else(|| Box::new(binding_drift(None)))?;
+        }
+        let identity = PolicyIdentity {
+            project: published.project.clone(),
+            role: published.role.clone(),
+            policy_id: published.config_digest.clone(),
+        };
+        if catalog.is_some_and(|catalog| catalog.identity != identity) {
+            return Err(Box::new(binding_drift(None)));
+        }
+        Ok(BindingCheck {
+            expected,
+            identity,
+            principal: caller.tuple.principal_id.clone(),
+            policy_version: published.policy_version.clone(),
+            knowledge_version: published.knowledge_version.clone(),
+            pack_digest: pack_digest.into(),
+            source: published.mapping_source.clone(),
+            policies,
+            limits,
+            vector: published.native_vector.clone(),
+            native_catalog: published.native_catalog.clone(),
+            admitted_catalog: catalog.cloned(),
+        })
     }
 
     async fn track(
         &self,
         query_id: &str,
-        principal: &str,
-        handle: crate::query_executor::CancelHandle,
+        caller: &PublicCaller,
+        state: Arc<QueryState>,
     ) -> Result<String, ()> {
         let server_id = new_server_id()?;
         let mut guard = self.inflight.lock().await;
         if guard.len() >= 256 {
-            guard.retain(|_, flight| flight.status == "running");
+            guard.retain(|_, flight| flight.state.status() == "running");
+        }
+        if guard.len() >= 256 {
+            return Err(());
         }
         guard.insert(
             server_id.clone(),
             Flight {
                 server_id: server_id.clone(),
                 query_id: query_id.to_owned(),
-                principal: principal.to_owned(),
-                handle,
-                status: "running",
+                principal: caller.tuple.principal_id.clone(),
+                project: caller.tuple.project_id.clone(),
+                role: caller.tuple.role.clone(),
+                state,
             },
         );
         Ok(server_id)
@@ -625,7 +1043,7 @@ impl Plane {
     async fn finish(&self, query_id: &str, status: &'static str) {
         for flight in self.inflight.lock().await.values_mut() {
             if flight.query_id == query_id {
-                flight.status = status;
+                flight.state.finish(status);
             }
         }
     }
@@ -880,6 +1298,125 @@ pub(crate) fn mount(router: Router<AppState>) -> Router<AppState> {
         .route("/v1/operations/{server_id}/cancel", post(operation_cancel))
 }
 
+fn expected_binding(headers: &HeaderMap) -> Result<Option<Expected>, Box<Response>> {
+    Expected::from_headers(headers).map_err(|_| {
+        Box::new(error_response(
+            ErrorCode::SchemaInvalid,
+            "invalid publication binding headers",
+            None,
+            None,
+        ))
+    })
+}
+
+fn binding_drift(query_id: Option<&str>) -> Response {
+    error_response(
+        ErrorCode::Conflict,
+        "publication binding is unavailable or has drifted; recompute the whole question",
+        Some(DRIFT_HINT.into()),
+        query_id,
+    )
+}
+
+fn with_binding(mut response: Response, receipt: Option<&BindingReceipt>) -> Response {
+    if response.status().is_success()
+        && let Some(receipt) = receipt
+    {
+        receipt.headers(response.headers_mut());
+    }
+    response
+}
+
+struct BindingDriver(tokio::task::JoinHandle<()>);
+impl Drop for BindingDriver {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+// Metadata is immutable Pack content; validate/describe reuse this checked
+// catalog. Later SQL must verify the same identity again in its own snapshot.
+async fn metadata_binding(
+    state: &AppState,
+    caller: &PublicCaller,
+    headers: &HeaderMap,
+    read_quality: bool,
+) -> Result<
+    Option<(
+        BindingReceipt,
+        crate::sql_guard::PolicyCatalog,
+        Option<QualitySnapshot>,
+    )>,
+    Box<Response>,
+> {
+    agree(headers, caller)?;
+    let expected = expected_binding(headers)?;
+    let plane = state.data_plane();
+    let published = plane.as_ref().and_then(|p| p.role_for(caller));
+    let library = published.as_ref().is_some_and(|p| {
+        p.native_catalog
+            .as_ref()
+            .is_some_and(|c| c["protocol"] == "oo.gateway.library-binding/v1")
+    });
+    let Some(expected) = expected.or_else(|| {
+        library.then(|| Expected {
+            publication_id: "current".into(),
+            data_vector_sha256: None,
+        })
+    }) else {
+        return Ok(None);
+    };
+    let plane = plane.ok_or_else(|| Box::new(binding_drift(None)))?;
+    let published = published.ok_or_else(|| Box::new(binding_drift(None)))?;
+    let pack =
+        find_pack(&state.pack_catalog(), caller).ok_or_else(|| Box::new(binding_drift(None)))?;
+    let checked = async {
+        let binding = plane
+            .binding_check(&published, caller, &pack.pack_digest, None, expected)
+            .map_err(|_| ())?;
+        let (mut client, connection) = plane.connect().await.map_err(|_| ())?;
+        let _driver = BindingDriver(tokio::spawn(async move {
+            let _ = connection.await;
+        }));
+        let tx = client
+            .build_transaction()
+            .isolation_level(tokio_postgres::IsolationLevel::RepeatableRead)
+            .read_only(true)
+            .start()
+            .await
+            .map_err(|_| ())?;
+        tx.batch_execute(&format!(
+            "SET LOCAL statement_timeout = {}",
+            plane.query_timeout_ms
+        ))
+        .await
+        .map_err(|_| ())?;
+        let (receipt, catalog) = binding.metadata_scope(&tx).await.map_err(|_| ())?;
+        let quality = if read_quality {
+            audit_freshness(&plane, &published).await.map_err(|_| ())?;
+            let tables = crate::query_executor::role_quality_tables(
+                &catalog,
+                published.bound_quality_vector().as_ref(),
+            );
+            Some(crate::query_executor::observe_quality_rows(&tx, &tables).await?)
+        } else {
+            None
+        };
+        tx.rollback().await.map_err(|_| ())?;
+        Ok::<_, ()>((receipt, catalog, quality))
+    };
+    match tokio::time::timeout(Duration::from_millis(plane.query_timeout_ms), checked).await {
+        Ok(Ok(result)) => Ok(Some(result)),
+        Ok(Err(())) => Err(Box::new(binding_drift(None))),
+        Err(_) => Err(Box::new(error_response(
+            ErrorCode::Timeout,
+            "binding deadline exceeded",
+            None,
+            None,
+        ))),
+    }
+}
+
 async fn tables(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -890,16 +1427,21 @@ async fn tables(
         Ok(caller) => caller,
         Err(response) => return *response,
     };
+    let binding = match metadata_binding(&state, &caller, &headers, false).await {
+        Ok(binding) => binding,
+        Err(response) => return *response,
+    };
     let stamp = AuthStamp {
         remaining_ms: caller.auth_remaining_ms,
         hit: caller.auth_cache_hit,
     };
-    AUTH_STAMP
+    let receipt = binding.as_ref().map(|(receipt, _, _)| receipt.clone());
+    let response = AUTH_STAMP
         .scope(stamp, async move {
             if let Err(response) = agree(&headers, &caller) {
                 return *response;
             }
-            let Some(pack) = find_pack(state.pack_catalog(), &caller) else {
+            let Some(pack) = find_pack(&state.pack_catalog(), &caller) else {
                 return error_response(
                     ErrorCode::SchemaInvalid,
                     "knowledge pack is not loaded",
@@ -932,7 +1474,8 @@ async fn tables(
                 "pack_digest": pack.pack_digest,
             }))
         })
-        .await
+        .await;
+    with_binding(response, receipt.as_ref())
 }
 
 async fn describe(
@@ -946,11 +1489,16 @@ async fn describe(
         Ok(caller) => caller,
         Err(response) => return *response,
     };
+    let binding = match metadata_binding(&state, &caller, &headers, false).await {
+        Ok(binding) => binding,
+        Err(response) => return *response,
+    };
     let stamp = AuthStamp {
         remaining_ms: caller.auth_remaining_ms,
         hit: caller.auth_cache_hit,
     };
-    AUTH_STAMP
+    let receipt = binding.as_ref().map(|(receipt, _, _)| receipt.clone());
+    let response = AUTH_STAMP
         .scope(stamp, async move {
             if let Err(response) = agree(&headers, &caller) {
                 return *response;
@@ -963,7 +1511,7 @@ async fn describe(
                     None,
                 );
             }
-            let Some(pack) = find_pack(state.pack_catalog(), &caller) else {
+            let Some(pack) = find_pack(&state.pack_catalog(), &caller) else {
                 return error_response(
                     ErrorCode::SchemaInvalid,
                     "knowledge pack is not loaded",
@@ -985,15 +1533,159 @@ async fn describe(
                     None,
                 );
             }
+            let (column_details, query_capabilities) = if let Some(plane) = state.data_plane() {
+                let Some(published) = plane.role_for(&caller) else {
+                    return error_response(
+                        ErrorCode::SchemaInvalid,
+                        "role is not published on this gateway",
+                        None,
+                        None,
+                    );
+                };
+                let catalog = match if let Some((_, catalog, _)) = &binding {
+                    Ok(catalog.clone())
+                } else {
+                    plane.catalog_for(&published).await
+                } {
+                    Ok(catalog) => catalog,
+                    Err(error) => {
+                        return error_response(
+                            error.code,
+                            "policy catalog is not available",
+                            error.hint,
+                            None,
+                        );
+                    }
+                };
+                (
+                    describe_column_details(&table, &columns, &catalog.relations),
+                    query_capabilities(Some(&catalog)),
+                )
+            } else {
+                (Vec::new(), query_capabilities(None))
+            };
             json_ok(serde_json::json!({
                 "table": table,
                 "columns": columns,
+                "column_details": column_details,
+                "query_capabilities": query_capabilities,
                 "knowledge_version": pack.knowledge_version,
                 "policy_version": pack.policy_version,
                 "pack_digest": pack.pack_digest,
             }))
         })
-        .await
+        .await;
+    with_binding(response, receipt.as_ref())
+}
+
+fn query_capabilities(catalog: Option<&crate::sql_guard::PolicyCatalog>) -> Value {
+    let unavailable = |reason| {
+        serde_json::json!({
+            "version": "gateway.query-capabilities.v1",
+            "status": "unavailable",
+            "reason": reason,
+            "requires_validate": true,
+        })
+    };
+    let Some(catalog) = catalog else {
+        return unavailable("runtime_catalog_unavailable");
+    };
+    // Project only the bounded builtin catalog. Never echo extension/private names.
+    if catalog.functions.len() > CATALOG_LIMITS.max_functions as usize
+        || catalog.operators.len() > CATALOG_LIMITS.max_operators as usize
+        || catalog
+            .functions
+            .iter()
+            .any(|f| crate::policy::catalog::builtin_function_result_type(f).is_none())
+        || catalog.operators.iter().any(|op| {
+            op.schema != "pg_catalog"
+                || !(crate::policy::catalog::arithmetic_signature_allowed(op)
+                    || crate::policy::catalog::pattern_signature_allowed(op)
+                    || (crate::policy::catalog::COMPARISON_OPERATORS.contains(&op.name.as_str())
+                        && op.result_type_oid == postgres_types::Type::BOOL.oid()))
+                || postgres_types::Type::from_oid(op.left_type_oid).is_none()
+                || postgres_types::Type::from_oid(op.right_type_oid).is_none()
+                || postgres_types::Type::from_oid(op.result_type_oid).is_none()
+        })
+    {
+        return unavailable("catalog_projection_unsupported");
+    }
+    let type_name = |oid: u32| {
+        postgres_types::Type::from_oid(oid)
+            .map(|kind| kind.name().to_owned())
+            .unwrap_or_else(|| "unavailable".to_owned())
+    };
+    let functions = catalog.functions.iter().map(|function| serde_json::json!({
+        "name": function.name,
+        "schema": "pg_catalog",
+        "argument_type_oids": function.argument_type_oids,
+        "argument_types": function.argument_type_oids.iter().map(|oid| type_name(*oid)).collect::<Vec<_>>(),
+        "aggregate_star": function.aggregate_star,
+    })).collect::<Vec<_>>();
+    let operators = catalog
+        .operators
+        .iter()
+        .map(|operator| {
+            serde_json::json!({
+                "name": operator.name,
+                "schema": "pg_catalog",
+                "left_type_oid": operator.left_type_oid,
+                "right_type_oid": operator.right_type_oid,
+                "left_type": type_name(operator.left_type_oid),
+                "right_type": type_name(operator.right_type_oid),
+                "result_type_oid": operator.result_type_oid,
+                "result_type": type_name(operator.result_type_oid),
+            })
+        })
+        .collect::<Vec<_>>();
+    serde_json::json!({
+        "version": "gateway.query-capabilities.v1",
+        "status": "available",
+        "source": "runtime_policy_catalog",
+        "requires_validate": true,
+        "truncated": false,
+        "functions": functions,
+        "operators": operators,
+        "literal_types": {
+            "integer": catalog.literal_types.integer.map(type_name),
+            "text": catalog.literal_types.text.map(type_name),
+            "boolean": catalog.literal_types.boolean.map(type_name),
+        },
+        "null_test": catalog.null_test_allowed,
+        "sql_shapes": {
+            "group_by_output_ordinal": true,
+            "order_by_output_ordinal": true,
+            "having": true,
+            "searched_numeric_case": true,
+            "timestamp_to_date": catalog.functions.iter().any(|f| f.name == "date"),
+            "date_trunc_day_timestamp": catalog.functions.iter().any(|f| f.name == "date_trunc"),
+            "to_char_timestamp_literal_format": catalog.functions.iter().any(|f| f.name == "to_char"),
+            "like_literal_pattern": catalog.operators.iter().any(crate::policy::catalog::pattern_signature_allowed),
+            "timezone_dependent_day_conversion": false
+        },
+    })
+}
+
+fn describe_column_details(
+    table: &str,
+    pack_columns: &[String],
+    relations: &[crate::sql_guard::VisibleRelation],
+) -> Vec<Value> {
+    // Intersect the role's live catalog with its pack; never expose physical names.
+    relations
+        .iter()
+        .filter(|relation| format!("{}.{}", relation.schema, relation.name) == table)
+        .flat_map(|relation| &relation.columns)
+        .filter(|column| pack_columns.contains(&column.name))
+        .map(|column| {
+            serde_json::json!({
+                "name": column.name,
+                "type_oid": column.type_oid,
+                "type": postgres_types::Type::from_oid(column.type_oid)
+                    .map(|kind| kind.name().to_owned()),
+            })
+        })
+        .collect()
 }
 
 async fn knowledge(
@@ -1007,11 +1699,16 @@ async fn knowledge(
         Ok(caller) => caller,
         Err(response) => return *response,
     };
+    let binding = match metadata_binding(&state, &caller, &headers, false).await {
+        Ok(binding) => binding,
+        Err(response) => return *response,
+    };
     let stamp = AuthStamp {
         remaining_ms: caller.auth_remaining_ms,
         hit: caller.auth_cache_hit,
     };
-    AUTH_STAMP
+    let receipt = binding.as_ref().map(|(receipt, _, _)| receipt.clone());
+    let response = AUTH_STAMP
         .scope(stamp, async move {
             if let Err(response) = agree(&headers, &caller) {
                 return *response;
@@ -1039,7 +1736,8 @@ async fn knowledge(
                 "text": body.text,
             }))
         })
-        .await
+        .await;
+    with_binding(response, receipt.as_ref())
 }
 
 async fn knowledge_search(
@@ -1053,15 +1751,20 @@ async fn knowledge_search(
         Ok(caller) => caller,
         Err(response) => return *response,
     };
+    let binding = match metadata_binding(&state, &caller, &headers, false).await {
+        Ok(binding) => binding,
+        Err(response) => return *response,
+    };
     let stamp = AuthStamp {
         remaining_ms: caller.auth_remaining_ms,
         hit: caller.auth_cache_hit,
     };
-    AUTH_STAMP.scope(stamp, async move {
+    let receipt = binding.as_ref().map(|(receipt, _, _)| receipt.clone());
+    let response = AUTH_STAMP.scope(stamp, async move {
     if let Err(response) = agree(&headers, &caller) {
         return *response;
     }
-    let value: Value = match serde_json::from_slice(&body) {
+    let value: crate::pack_catalog::PackSearch = match serde_json::from_slice(&body) {
         Ok(value) => value,
         Err(_) => {
             return error_response(
@@ -1072,24 +1775,32 @@ async fn knowledge_search(
             );
         }
     };
-    let needle = value.get("q").and_then(Value::as_str).unwrap_or("");
-    let hits = state.pack_catalog().search_text(
+    let page = match state.pack_catalog().search_page(
         &caller.tuple.project_id,
         &caller.tuple.role,
         &caller.tuple.policy_version,
         &caller.tuple.knowledge_version,
-        needle,
-    );
-    let hits = hits
+        &value,
+    ) {
+        Ok(page) => page,
+        Err(_) => return error_response(ErrorCode::SchemaInvalid, "invalid search options", None, None),
+    };
+    let hits = page.hits
         .into_iter()
         .map(|hit| serde_json::json!({"path": hit.path, "sha256": hit.sha256, "excerpt": hit.excerpt}))
         .collect::<Vec<_>>();
     json_ok(serde_json::json!({
         "hits": hits,
+        "total": page.total,
+        "offset": value.offset,
+        "limit": value.limit,
+        "has_more": page.next_offset.is_some(),
+        "next_offset": page.next_offset,
         "knowledge_version": caller.tuple.knowledge_version,
         "policy_version": caller.tuple.policy_version,
     }))
-    }).await
+    }).await;
+    with_binding(response, receipt.as_ref())
 }
 
 async fn validate(
@@ -1103,11 +1814,16 @@ async fn validate(
         Ok(caller) => caller,
         Err(response) => return *response,
     };
+    let binding = match metadata_binding(&state, &caller, &headers, false).await {
+        Ok(binding) => binding,
+        Err(response) => return *response,
+    };
     let stamp = AuthStamp {
         remaining_ms: caller.auth_remaining_ms,
         hit: caller.auth_cache_hit,
     };
-    AUTH_STAMP
+    let receipt = binding.as_ref().map(|(receipt, _, _)| receipt.clone());
+    let response = AUTH_STAMP
         .scope(stamp, async move {
             if let Err(response) = agree(&headers, &caller) {
                 return *response;
@@ -1132,10 +1848,19 @@ async fn validate(
                     None,
                 );
             };
-            let catalog = match plane.catalog_for(&published).await {
+            let catalog = match if let Some((_, catalog, _)) = &binding {
+                Ok(catalog.clone())
+            } else {
+                plane.catalog_for(&published).await
+            } {
                 Ok(catalog) => catalog,
-                Err(code) => {
-                    return error_response(code, "policy catalog is not available", None, None);
+                Err(error) => {
+                    return error_response(
+                        error.code,
+                        "policy catalog is not available",
+                        error.hint,
+                        None,
+                    );
                 }
             };
             let identity = PolicyIdentity {
@@ -1151,7 +1876,8 @@ async fn validate(
                 }
             }
         })
-        .await
+        .await;
+    with_binding(response, receipt.as_ref())
 }
 
 async fn freshness(
@@ -1164,11 +1890,16 @@ async fn freshness(
         Ok(caller) => caller,
         Err(response) => return *response,
     };
+    let binding = match metadata_binding(&state, &caller, &headers, true).await {
+        Ok(binding) => binding,
+        Err(response) => return *response,
+    };
     let stamp = AuthStamp {
         remaining_ms: caller.auth_remaining_ms,
         hit: caller.auth_cache_hit,
     };
-    AUTH_STAMP
+    let receipt = binding.as_ref().map(|(receipt, _, _)| receipt.clone());
+    let response = AUTH_STAMP
         .scope(stamp, async move {
             if let Err(response) = agree(&headers, &caller) {
                 return *response;
@@ -1189,7 +1920,7 @@ async fn freshness(
                     None,
                 );
             };
-            if find_pack(state.pack_catalog(), &caller).is_none() {
+            if find_pack(&state.pack_catalog(), &caller).is_none() {
                 return error_response(
                     ErrorCode::SchemaInvalid,
                     "knowledge pack is not loaded",
@@ -1197,9 +1928,20 @@ async fn freshness(
                     None,
                 );
             }
-            let snapshot = match read_freshness_only(&plane, &published).await {
+            let snapshot = match if let Some((_, _, Some(snapshot))) = &binding {
+                Ok(snapshot.clone())
+            } else {
+                read_freshness_only(&plane, &published).await
+            } {
                 Ok(snapshot) => snapshot,
-                Err(code) => return error_response(code, "freshness is not available", None, None),
+                Err(error) => {
+                    return error_response(
+                        error.code,
+                        "freshness is not available",
+                        error.hint,
+                        None,
+                    );
+                }
             };
             if snapshot.relations == "unreadable" {
                 return error_response(
@@ -1215,7 +1957,8 @@ async fn freshness(
                 &caller.tuple.policy_version,
             ))
         })
-        .await
+        .await;
+    with_binding(response, receipt.as_ref())
 }
 
 async fn query_status(
@@ -1258,10 +2001,10 @@ async fn query_status(
             let Some(flight) = guard.values().find(|flight| flight.query_id == query_id) else {
                 return error_response(ErrorCode::SchemaInvalid, "query was not found", None, None);
             };
-            if flight.principal != caller.tuple.principal_id {
+            if !flight.owned_by(&caller) {
                 return error_response(ErrorCode::SchemaInvalid, "query was not found", None, None);
             }
-            json_ok(serde_json::json!({"query_id": query_id, "status": flight.status}))
+            json_ok(serde_json::json!({"query_id": query_id, "status": flight.state.status()}))
         })
         .await
 }
@@ -1312,7 +2055,7 @@ async fn cancel(
                         None,
                     );
                 };
-                if flight.principal != caller.tuple.principal_id {
+                if !flight.owned_by(&caller) {
                     return error_response(
                         ErrorCode::SchemaInvalid,
                         "query was not found",
@@ -1320,7 +2063,7 @@ async fn cancel(
                         None,
                     );
                 }
-                (flight.handle.clone(), flight.query_id.clone())
+                (Arc::clone(&flight.state), flight.query_id.clone())
             };
             cancel_flight(&plane, &caller, &handle, &audit_id, "query_id", &query_id).await
         })
@@ -1357,10 +2100,11 @@ async fn operations(
             let guard = plane.inflight.lock().await;
             let mut rows = Vec::new();
             for flight in guard.values() {
-                if flight.principal == caller.tuple.principal_id && flight.status == "running" {
+                if flight.owned_by(&caller) && flight.state.status() == "running" {
                     rows.push(serde_json::json!({
                         "server_id": flight.server_id,
-                        "status": flight.status,
+                        "query_id": flight.query_id,
+                        "status": flight.state.status(),
                     }));
                 }
             }
@@ -1410,12 +2154,12 @@ async fn operation_status(
             let Some(flight) = guard.get(&server_id) else {
                 return error_response(ErrorCode::SchemaInvalid, "query was not found", None, None);
             };
-            if flight.principal != caller.tuple.principal_id {
+            if !flight.owned_by(&caller) {
                 return error_response(ErrorCode::SchemaInvalid, "query was not found", None, None);
             }
             json_ok(serde_json::json!({
                 "server_id": flight.server_id,
-                "status": flight.status,
+                "status": flight.state.status(),
             }))
         })
         .await
@@ -1462,7 +2206,7 @@ async fn operation_cancel(
                         None,
                     );
                 };
-                if flight.principal != caller.tuple.principal_id {
+                if !flight.owned_by(&caller) {
                     return error_response(
                         ErrorCode::SchemaInvalid,
                         "query was not found",
@@ -1470,7 +2214,7 @@ async fn operation_cancel(
                         None,
                     );
                 }
-                (flight.handle.clone(), flight.query_id.clone())
+                (Arc::clone(&flight.state), flight.query_id.clone())
             };
             cancel_flight(&plane, &caller, &handle, &query_id, "server_id", &server_id).await
         })
@@ -1480,25 +2224,12 @@ async fn operation_cancel(
 async fn cancel_flight(
     plane: &Plane,
     caller: &PublicCaller,
-    handle: &crate::query_executor::CancelHandle,
+    handle: &QueryState,
     query_id: &str,
     id_field: &str,
     id_value: &str,
 ) -> Response {
-    let outcome = match observer_cancel(plane, handle).await {
-        Ok(value) => value,
-        Err(code) => {
-            return error_response(
-                code,
-                "cancel observer is not available",
-                None,
-                QueryId::new(query_id.to_owned())
-                    .ok()
-                    .as_ref()
-                    .map(|id| id.as_str()),
-            );
-        }
-    };
+    let outcome = handle.cancel();
     let audit = record_cancel_audit(plane, query_id, &caller.tuple.principal_id, outcome).await;
     let mut body = Map::new();
     body.insert(id_field.to_owned(), Value::String(id_value.to_owned()));
@@ -1548,6 +2279,7 @@ async fn query(
     peer: crate::http_gateway::PublicPeer,
     body: Bytes,
 ) -> Response {
+    let request_started = Instant::now();
     let caller = match crate::http_gateway::public_caller(&state, &headers, &raw_query, peer).await
     {
         Ok(caller) => caller,
@@ -1562,7 +2294,12 @@ async fn query(
             if let Err(response) = agree(&headers, &caller) {
                 return *response;
             }
+            let expected = match expected_binding(&headers) {
+                Ok(expected) => expected,
+                Err(response) => return *response,
+            };
             let Some(plane) = state.data_plane() else {
+                if expected.is_some() { return binding_drift(None); }
                 return error_response(
                     ErrorCode::SchemaInvalid,
                     "data plane is not configured",
@@ -1570,7 +2307,8 @@ async fn query(
                     None,
                 );
             };
-            let Some(pack) = find_pack(state.pack_catalog(), &caller) else {
+            let Some(pack) = find_pack(&state.pack_catalog(), &caller) else {
+                if expected.is_some() { return binding_drift(None); }
                 return error_response(
                     ErrorCode::SchemaInvalid,
                     "knowledge pack is not loaded",
@@ -1602,6 +2340,7 @@ async fn query(
                 );
             }
             let Some(published) = plane.role_for(&caller) else {
+                if expected.is_some() { return binding_drift(None); }
                 return error_response(
                     ErrorCode::SchemaInvalid,
                     "role is not published on this gateway",
@@ -1620,6 +2359,30 @@ async fn query(
                     );
                 }
             };
+            let status = QueryState::new();
+            let _lifetime = RequestLifetime(Arc::clone(&status));
+            if plane.track(query_id.as_str(), &caller, Arc::clone(&status)).await.is_err() {
+                return error_response(ErrorCode::Overloaded, "query capacity is full", None, Some(query_id.as_str()));
+            }
+            let budget = Duration::from_millis(u64::from(request.timeout_ms.unwrap_or(plane.query_timeout_ms as u32)))
+                .min(Duration::from_millis(plane.query_timeout_ms))
+                .min(MAX_QUERY_WALL)
+                .min(state.query_request_budget());
+            let work = async {
+            let slot = match plane.role_slot(&published.role).await {
+                Ok(slot) => slot,
+                Err(code) => return error_response(code, "data session is not available", None, Some(query_id.as_str())),
+            };
+            // Do not let same-role waiters consume every global execution slot.
+            let _role_admission = match Arc::clone(&slot.admission).try_lock_owned() {
+                Ok(permit) => permit,
+                Err(_) => return error_response(ErrorCode::Overloaded, "role query is busy; retry after the active query finishes", None, Some(query_id.as_str())),
+            };
+            let _capacity = match plane.query_capacity.as_ref().map(|capacity| capacity.try_acquire()) {
+                Some(Ok(permit)) => Some(permit),
+                Some(Err(_)) => return error_response(ErrorCode::Overloaded, "query capacity is full", None, Some(query_id.as_str())),
+                None => None,
+            };
             if !plane.can_start().await {
                 return error_response(
                     ErrorCode::Overloaded,
@@ -1628,16 +2391,30 @@ async fn query(
                     Some(query_id.as_str()),
                 );
             }
-            let catalog = match plane.catalog_for(&published).await {
+            let expected = expected.or_else(|| published.native_catalog.as_ref()
+                .is_some_and(|c| c["protocol"] == "oo.gateway.library-binding/v1")
+                .then(|| Expected { publication_id: "current".into(), data_vector_sha256: None }));
+            let loaded = if expected.is_some() {
+                plane.planning_catalog_for(&published).await
+            } else {
+                plane.catalog_for(&published).await
+            };
+            let catalog = match loaded {
                 Ok(catalog) => catalog,
-                Err(code) => {
+                Err(error) => {
+                    if expected.is_some() { return binding_drift(Some(query_id.as_str())); }
                     return error_response(
-                        code,
+                        error.code,
                         "policy catalog is not available",
-                        None,
+                        error.hint,
                         Some(query_id.as_str()),
                     );
                 }
+            };
+            let binding = match expected.map(|expected|
+                plane.binding_check(&published, &caller, &pack.pack_digest, Some(&catalog), expected)).transpose() {
+                Ok(binding) => binding,
+                Err(response) => return *response,
             };
             let identity = PolicyIdentity {
                 project: published.project.clone(),
@@ -1648,9 +2425,7 @@ async fn query(
                 .max_rows
                 .unwrap_or(MAX_QUERY_ROWS)
                 .min(MAX_QUERY_ROWS);
-            let timeout_ms = u64::from(request.timeout_ms.unwrap_or(30_000))
-                .min(MAX_QUERY_WALL.as_millis() as u64);
-            let started = Instant::now();
+            let started = request_started;
             let session = match plane.session_for(&published.role).await {
                 Ok(session) => session,
                 Err(code) => {
@@ -1662,15 +2437,25 @@ async fn query(
                     );
                 }
             };
-            let mut guard = session.lock().await;
+            let mut lease = SessionLease(Some(session.lock_owned().await));
+            let guard = lease.0.as_mut().expect("session lease");
+            if binding.is_some() && !crate::http_gateway::recheck_bound_caller(&state, &headers, &caller).await {
+                return error_response(ErrorCode::Unauthenticated, "authentication failed", None, Some(query_id.as_str()));
+            }
             let audit = WalAudit {
                 dir: plane.wal_dir.clone(),
                 collector: plane.collector_dir.clone(),
                 query_id: query_id.as_str().to_owned(),
                 principal: caller.tuple.principal_id.clone(),
             };
+            let quality_vector = published.bound_quality_vector();
+            let remaining_ms = budget.saturating_sub(started.elapsed()).as_millis() as u64;
+            if remaining_ms == 0 {
+                status.finish("timed_out");
+                return error_response(ErrorCode::Timeout, "query deadline exceeded", None, Some(query_id.as_str()));
+            }
             let mut stream = match guard
-                .execute_trusted_select(
+                .execute_bound_select(
                     SelectRequest {
                         identity: &identity,
                         catalog: &catalog,
@@ -1678,30 +2463,26 @@ async fn query(
                         role: &published.role,
                         max_rows,
                         max_result_bytes: MAX_QUERY_BYTES,
-                        wall_clock: Duration::from_millis(timeout_ms),
+                        wall_clock: Duration::from_millis(remaining_ms),
                         read_quality: true,
-                        quality_vector: published.quality_vector.as_ref(),
+                        quality_vector: quality_vector.as_ref(),
                     },
                     audit,
+                    binding,
                 )
                 .await
             {
                 Ok(stream) => stream,
                 Err(err) => {
+                    if matches!(err, ExecError::Timeout { .. }) { status.finish("timed_out"); }
                     let (code, message) = exec_public(&err);
                     return error_response(code, message, exec_hint(&err), Some(query_id.as_str()));
                 }
             };
-            let _server_id = plane
-                .track(
-                    query_id.as_str(),
-                    &caller.tuple.principal_id,
-                    stream.cancel_handle(),
-                )
-                .await;
             let read = read_stream(&mut stream).await;
             let columns = stream.result_columns();
             let quality = stream.quality();
+            let publication = stream.publication();
             let summary = stream.summary();
             drop(stream);
             if let Err(err) = guard.wait_idle().await {
@@ -1709,9 +2490,10 @@ async fn query(
                 let (code, message) = exec_public(&err);
                 return error_response(code, message, exec_hint(&err), Some(query_id.as_str()));
             }
-            drop(guard);
+            drop(lease.0.take());
             match read {
                 Err(err) => {
+                    if matches!(err, ExecError::Timeout { .. }) { status.finish("timed_out"); }
                     plane.finish(query_id.as_str(), "failed").await;
                     let (code, message) = exec_public(&err);
                     error_response(code, message, exec_hint(&err), Some(query_id.as_str()))
@@ -1757,7 +2539,7 @@ async fn query(
                     }) {
                         Ok(response) => {
                             plane.finish(query_id.as_str(), "succeeded").await;
-                            response
+                            with_binding(response, publication.as_ref())
                         }
                         Err(response) => {
                             plane.finish(query_id.as_str(), "failed").await;
@@ -1766,6 +2548,27 @@ async fn query(
                     }
                 }
             }
+            };
+            let remaining = budget.saturating_sub(request_started.elapsed());
+            let response = tokio::select! {
+                biased;
+                _ = status.canceled() => {
+                    status.finish("canceled");
+                    error_response(ErrorCode::Timeout, "query canceled", Some("Cancellation requested; no partial result is returned. Use oo status with this query_id.".into()), Some(query_id.as_str()))
+                }
+                result = tokio::time::timeout(remaining, work) => match result {
+                    Ok(response) => response,
+                    Err(_) => {
+                        status.finish("timed_out");
+                        error_response(ErrorCode::Timeout, "query deadline exceeded (admission, catalog, session and SQL share one budget)", Some("No partial result is returned; cleanup is bounded. Use oo status with this query_id; a new query does not require a Gateway restart.".into()), Some(query_id.as_str()))
+                    }
+                },
+            };
+            if response.status() == StatusCode::CONFLICT {
+                plane.forget_planning_catalog(&published).await;
+            }
+            status.finish("failed");
+            response
         })
         .await
 }
@@ -1781,31 +2584,7 @@ async fn read_stream(stream: &mut SelectStream) -> Result<Vec<Vec<Cell>>, ExecEr
     }
 }
 
-async fn observer_cancel(
-    plane: &Plane,
-    handle: &crate::query_executor::CancelHandle,
-) -> Result<&'static str, ErrorCode> {
-    let (client, connection) = connect_require_tls(&plane.endpoint, &plane.password, &plane.ca_pem)
-        .await
-        .map_err(|_| ErrorCode::SchemaInvalid)?;
-    let driver = tokio::spawn(async move {
-        let _ = connection.await;
-    });
-    let outcome = handle.cancel(&client).await;
-    drop(client);
-    driver.abort();
-    match outcome {
-        Ok(crate::query_executor::CancelOutcome::Sent) => Ok("sent"),
-        Ok(crate::query_executor::CancelOutcome::NotSent) => Ok("not_sent"),
-        Err(_) => Err(ErrorCode::Internal),
-    }
-}
-
-async fn read_freshness_only(
-    plane: &Plane,
-    published: &Published,
-) -> Result<QualitySnapshot, ErrorCode> {
-    let catalog = plane.catalog_for(published).await?;
+async fn audit_freshness(plane: &Plane, published: &Published) -> Result<(), CatalogFailure> {
     let audit_id = new_query_id().map_err(|_| ErrorCode::Internal)?;
     let line = serde_json::json!({
         "phase": "freshness",
@@ -1825,26 +2604,23 @@ async fn read_freshness_only(
             alert_collector(&plane.wal_dir, &line);
         }
     }
-    let tables: Vec<QualityTable> = catalog
-        .relations
-        .iter()
-        .map(|relation| QualityTable {
-            native_binding: published.quality_vector.as_ref().and_then(Value::as_array).and_then(|items| {
-                items.iter().find(|item| item["dataset"] == format!("{}.{}", relation.schema, relation.name))
-            }).cloned(),
-            source: published.quality_vector.as_ref().and_then(Value::as_array).and_then(|items| {
-                items.iter().find(|item| item["dataset"] == format!("{}.{}", relation.schema, relation.name))
-            }).and_then(|item| item["source_id"].as_str()).map(str::to_owned),
-            schema: relation.schema.clone(),
-            name: relation.name.clone(),
-            physical_schema: relation.physical_schema.clone(),
-            physical_name: relation.physical_name.clone(),
-        })
-        .collect();
-    let (mut client, connection) =
-        connect_require_tls(&plane.endpoint, &plane.password, &plane.ca_pem)
-            .await
-            .map_err(|_| ErrorCode::SchemaInvalid)?;
+    Ok(())
+}
+
+async fn read_freshness_only(
+    plane: &Plane,
+    published: &Published,
+) -> Result<QualitySnapshot, CatalogFailure> {
+    let catalog = plane.catalog_for(published).await?;
+    audit_freshness(plane, published).await?;
+    let tables = crate::query_executor::role_quality_tables(
+        &catalog,
+        published.bound_quality_vector().as_ref(),
+    );
+    let (mut client, connection) = plane
+        .connect()
+        .await
+        .map_err(|_| ErrorCode::SchemaInvalid)?;
     let driver = tokio::spawn(async move {
         let _ = connection.await;
     });
@@ -1934,9 +2710,13 @@ fn build_response(parts: Built<'_>) -> Result<Response, Box<Response>> {
         star_expanded: None,
         knowledge_version,
         policy_version,
-        hints: if !mysql_target_observations(quality).is_empty() {
+        hints: if source_time_status(quality) == "unmeasured"
+            && !mysql_target_observations(quality).is_empty()
+        {
             vec![error_text("source_time=unmeasured; source commit time and lag are unavailable; target_applied_at is a target observation, not source freshness.").expect("static hint")]
-        } else { Vec::new() },
+        } else {
+            Vec::new()
+        },
         estimated_total_rows: None,
     };
     let mut value = serde_json::to_value(&response).map_err(|_| {
@@ -1947,6 +2727,7 @@ fn build_response(parts: Built<'_>) -> Result<Response, Box<Response>> {
             Some(query_id.as_str()),
         ))
     })?;
+    annotate_c5plus(&mut value, quality);
     omit_nulls(&mut value);
     let bytes = serde_json::to_vec(&value).map_err(|_| {
         Box::new(error_response(
@@ -2000,6 +2781,58 @@ fn project_quality(snapshot: &QualitySnapshot) -> Projected {
             warnings.push(row);
         }
     }
+    for item in &snapshot.table_quality {
+        if item.capture_method == "c5_diff"
+            && item.delete_detection == "reconcile"
+            && item.c5_mode.as_deref() == Some("layered")
+        {
+            warnings.push(Warning {
+                code: WarningCode::DeletesLagged,
+                table: QualifiedTable::new(format!("{}.{}", item.schema, item.table)).ok(),
+                column: None,
+                impact: None,
+                rows: None,
+                message: error_text(
+                    "Deletes are detected by periodic reconciliation, not a source change stream.",
+                )
+                .expect("static warning"),
+                c5_mode: item.c5_mode.clone(),
+                last_full_digest_scan_completed_at: item.last_full_digest_scan_completed_at.clone(),
+                recent_window_watermark: item.recent_window_watermark.clone(),
+            });
+        }
+    }
+    if !snapshot.libraries.is_empty()
+        && (snapshot
+            .mappings
+            .iter()
+            .map(|m| m.source.as_str())
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            > 1
+            || snapshot.capture_method == "c5_diff"
+            || snapshot
+                .watermarks
+                .iter()
+                .any(|w| !w.cross_table_consistent))
+        || snapshot.capture_method == "c5_diff"
+            && snapshot
+                .mappings
+                .iter()
+                .any(|m| m.source_engine.as_deref() == Some("mysql"))
+            && snapshot.watermarks.iter().any(|w| {
+                w.consistency == "per_table"
+                    && w.codec == "snapshot-zero/v1"
+                    && !w.cross_table_consistent
+            })
+    {
+        warnings.push(Warning {
+            c5_mode: None, last_full_digest_scan_completed_at: None, recent_window_watermark: None,
+            code: WarningCode::CrossTableSkew,
+            table: None, column: None, impact: None, rows: None,
+            message: error_text("Per-table snapshots do not establish cross-table consistency or a common source position.").expect("static warning"),
+        });
+    }
     if snapshot.relations != "skipped"
         && let Some(row) = gap_warning(snapshot)
     {
@@ -2012,11 +2845,38 @@ fn project_quality(snapshot: &QualitySnapshot) -> Projected {
     }
 }
 
+fn annotate_c5plus(value: &mut Value, snapshot: &QualitySnapshot) {
+    for item in &snapshot.table_quality {
+        if item.capture_method != "c5_diff"
+            || item.delete_detection != "reconcile"
+            || item.c5_mode.as_deref() != Some("layered")
+        {
+            continue;
+        }
+        let name = format!("{}.{}", item.schema, item.table);
+        for key in ["table_quality", "target_observations", "warnings"] {
+            if let Some(rows) = value.get_mut(key).and_then(Value::as_array_mut) {
+                for row in rows {
+                    if row["table"] == name || row["dataset"] == name {
+                        row["c5_mode"] = serde_json::json!(item.c5_mode);
+                        row["last_full_digest_scan_completed_at"] =
+                            serde_json::json!(item.last_full_digest_scan_completed_at);
+                        row["recent_window_watermark"] =
+                            serde_json::json!(item.recent_window_watermark);
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn freshness_document(snapshot: &QualitySnapshot, knowledge: &str, policy: &str) -> Value {
     let projected = project_quality(snapshot);
-    serde_json::json!({
+    let mut value = serde_json::json!({
         "freshness": projected.freshness,
         "source_time": source_time_status(snapshot),
+        "source_ids": snapshot.mappings.iter().map(|m|m.source.as_str()).collect::<std::collections::BTreeSet<_>>(),
+        "library_publications": snapshot.libraries.iter().map(|l|serde_json::json!({"source_id":l.source,"library_id":l.library_id,"receipt_sha256":l.receipt_sha256,"ready":l.ready})).collect::<Vec<_>>(),
         "target_observations": mysql_target_observations(snapshot),
         "sources": projected.sources,
         "source_watermarks": snapshot.watermarks.iter().map(|mark| serde_json::json!({
@@ -2052,11 +2912,17 @@ fn freshness_document(snapshot: &QualitySnapshot, knowledge: &str, policy: &str)
         "deletion_guarantee": measured(&snapshot.delete_detection),
         "knowledge_version": knowledge,
         "policy_version": policy,
-    })
+    });
+    annotate_c5plus(&mut value, snapshot);
+    value
 }
 
 fn source_time_status(snapshot: &QualitySnapshot) -> &'static str {
-    if snapshot.mappings.iter().any(|mapping| mapping.source_engine.as_deref() == Some("doris")) {
+    if snapshot
+        .mappings
+        .iter()
+        .any(|mapping| mapping.source_engine.as_deref() == Some("doris"))
+    {
         return "unmeasured";
     }
     let live: Vec<_> = snapshot
@@ -2080,7 +2946,27 @@ fn source_time_status(snapshot: &QualitySnapshot) -> &'static str {
 }
 
 fn global_position_status(snapshot: &QualitySnapshot) -> &'static str {
-    if snapshot.watermarks.is_empty() || snapshot.watermarks.iter().any(|mark| mark.applied_pos.is_none()) {
+    if !snapshot.libraries.is_empty()
+        && (snapshot.watermarks.len() > 1
+            || snapshot
+                .watermarks
+                .iter()
+                .any(|w| w.consistency == "per_table" || w.codec == "snapshot-zero/v1"))
+    {
+        return "unmeasured";
+    }
+    if snapshot.watermarks.is_empty()
+        || snapshot.watermarks.iter().any(|mark| {
+            mark.applied_pos.is_none()
+                || mark.consistency == "per_table"
+                    && mark.codec == "snapshot-zero/v1"
+                    && snapshot.capture_method == "c5_diff"
+                    && snapshot.mappings.iter().any(|mapping| {
+                        mapping.source == mark.source
+                            && mapping.source_engine.as_deref() == Some("mysql")
+                    })
+        })
+    {
         "unmeasured"
     } else {
         "measured"
@@ -2096,7 +2982,9 @@ fn measured(value: &str) -> &str {
 }
 
 fn publication_label(snapshot: &QualitySnapshot) -> &'static str {
-    if snapshot.freshness.iter().any(|row| row.state == "live") {
+    if snapshot.libraries.iter().all(|l| l.ready)
+        && snapshot.freshness.iter().any(|row| row.state == "live")
+    {
         "live"
     } else {
         "not_ready"
@@ -2157,115 +3045,330 @@ fn quality_count_value(item: &QualityCount) -> Value {
     })
 }
 
-fn mysql_unknown_source_time(m: &MappingObserved, w: &WatermarkObserved,
-    f: &crate::query_executor::FreshnessObserved) -> bool {
-    m.source_engine.as_deref() == Some("mysql") && w.codec == "mysql-gtid/v1"
-        && w.consistency_grade == "T" && w.source_epoch.is_some_and(|epoch| epoch > 0)
-        && w.lineage.starts_with("mysql.") && f.source_committed_at.is_empty()
+fn mysql_unknown_source_time(
+    m: &MappingObserved,
+    w: &WatermarkObserved,
+    f: &crate::query_executor::FreshnessObserved,
+) -> bool {
+    m.source_engine.as_deref() == Some("mysql")
+        && w.codec == "mysql-gtid/v1"
+        && w.consistency_grade == "T"
+        && w.source_epoch.is_some_and(|epoch| epoch > 0)
+        && w.lineage.starts_with("mysql.")
+        && f.source_committed_at.is_empty()
         && Rfc3339Timestamp::new(&f.applied_at).is_ok()
 }
 
 fn mysql_target_observations(snapshot: &QualitySnapshot) -> Vec<Value> {
-    if snapshot.capture_method != "c1_cdc" || snapshot.delete_detection != "native" { return Vec::new(); }
-    snapshot.mappings.iter().filter_map(|mapping| {
-        let mark = snapshot.watermarks.iter().find(|w| w.source == mapping.source)?;
-        let row = snapshot.freshness.iter().find(|f| f.schema == mapping.schema
-            && f.table == mapping.table && mysql_unknown_source_time(mapping,mark,f))?;
-        Some(serde_json::json!({"table":format!("{}.{}",row.schema,row.table),
+    if !snapshot.libraries.is_empty() {
+        if snapshot.libraries.iter().any(|l| !l.ready) {
+            return Vec::new();
+        }
+        return snapshot.mappings.iter().filter_map(|mapping| {
+            let row=snapshot.freshness.iter().find(|f| f.schema==mapping.schema && f.table==mapping.table)?;
+            if Rfc3339Timestamp::new(&row.applied_at).is_err() {return None;}
+            Some(serde_json::json!({"table":format!("{}.{}",row.schema,row.table),"source":mapping.source,"source_generation":mapping.run_generation,"state":row.state,"source_time":if row.source_committed_at.is_empty(){"unmeasured"}else{"observed"},"source_committed_at":if row.source_committed_at.is_empty(){Value::Null}else{Value::String(row.source_committed_at.clone())},"target_applied_at":row.applied_at}))
+        }).collect();
+    }
+    let c5 = snapshot.capture_method == "c5_diff"
+        && snapshot.delete_detection == "reconcile"
+        && ready_quality(snapshot);
+    if !c5 && (snapshot.capture_method != "c1_cdc" || snapshot.delete_detection != "native") {
+        return Vec::new();
+    }
+    snapshot
+        .mappings
+        .iter()
+        .filter_map(|mapping| {
+            let mark = snapshot
+                .watermarks
+                .iter()
+                .find(|w| w.source == mapping.source)?;
+            let row = snapshot.freshness.iter().find(|f| {
+                f.schema == mapping.schema
+                    && f.table == mapping.table
+                    && (mysql_unknown_source_time(mapping, mark, f)
+                        || c5
+                            && mapping.source_engine.as_deref() == Some("mysql")
+                            && f.source_committed_at.is_empty())
+            })?;
+            Some(
+                serde_json::json!({"table":format!("{}.{}",row.schema,row.table),
             "source":mapping.source,"source_generation":mapping.run_generation,
             "state":row.state,"source_time":"unmeasured","source_committed_at":Value::Null,
-            "target_applied_at":row.applied_at}))
-    }).collect()
+            "target_applied_at":row.applied_at}),
+            )
+        })
+        .collect()
+}
+
+fn mysql_c5_receipt<'a>(
+    s: &'a QualitySnapshot,
+    m: &MappingObserved,
+) -> Option<&'a ReceiptObserved> {
+    if m.source_engine.as_deref() != Some("mysql") || !m.bound || m.run_generation < 1 {
+        return None;
+    }
+    let mut receipts = s.receipts.iter().filter(|r| {
+        r.source == m.source
+            && r.schema == m.schema
+            && r.table == m.table
+            && r.run_generation == m.run_generation
+    });
+    let receipt = receipts.next()?;
+    if receipts.next().is_some()
+        || receipt.codec != "snapshot-zero/v1"
+        || (receipt.lineage != "full-import.snapshot"
+            && receipt.lineage != format!("{}.{}", m.source, m.table))
+        || receipt.source_epoch != 0
+        || receipt.applied_pos != "0"
+        || receipt.cross_table_consistent
+        || receipt.partial_txn
+        || Rfc3339Timestamp::new(&receipt.target_commit_at).is_err()
+    {
+        return None;
+    }
+    let mut qualities = s
+        .table_quality
+        .iter()
+        .filter(|q| q.schema == m.schema && q.table == m.table);
+    let quality = qualities.next()?;
+    if qualities.next().is_some()
+        || quality.capture_method != "c5_diff"
+        || quality.delete_detection != "reconcile"
+    {
+        return None;
+    }
+    let complete_run = s.runs.iter().any(|r| {
+        r.source == m.source
+            && r.source_generation == m.run_generation
+            && r.target_generation > 0
+            && r.state == "published"
+            && r.sealed
+    });
+    let complete_import = s.imports.iter().any(|i| {
+        i.schema == m.schema
+            && i.table == m.table
+            && i.run_generation == m.run_generation
+            && i.exhausted
+            && i.applied_pos == "0"
+    });
+    let live = s.freshness.iter().any(|f| {
+        f.schema == m.schema
+            && f.table == m.table
+            && f.state == "live"
+            && Rfc3339Timestamp::new(&f.applied_at).is_ok()
+    });
+    (complete_run && complete_import && live).then_some(receipt)
+}
+
+fn mysql_c5_quality(s: &QualitySnapshot, m: &MappingObserved, w: &WatermarkObserved) -> bool {
+    if s.capture_method != "c5_diff"
+        || s.delete_detection != "reconcile"
+        || w.consistency != "per_table"
+        || !matches!(w.consistency_grade.as_str(), "B" | "S0")
+        || w.codec != "snapshot-zero/v1"
+        || w.applied_pos.as_deref() != Some("0")
+        || w.source_epoch.is_some()
+        || w.cross_table_consistent
+    {
+        return false;
+    }
+    let Some(receipt) = mysql_c5_receipt(s, m) else {
+        return false;
+    };
+    let Some(anchor) = s
+        .mappings
+        .iter()
+        .filter(|a| a.source == m.source)
+        .max_by_key(|a| a.run_generation)
+    else {
+        return false;
+    };
+    let Some(anchor_receipt) = mysql_c5_receipt(s, anchor) else {
+        return false;
+    };
+    w.lineage == format!("{}.{}", anchor.source, anchor.table)
+        && stamp_millis(&anchor_receipt.target_commit_at)
+            .zip(stamp_millis(&receipt.target_commit_at))
+            .is_some_and(|(latest, current)| latest >= current)
+        && s.runs
+            .iter()
+            .filter(|r| r.source == m.source && r.source_generation == m.run_generation)
+            .all(|r| {
+                s.runs.iter().any(|a| {
+                    a.source == anchor.source
+                        && a.source_generation == anchor.run_generation
+                        && a.target_generation >= r.target_generation
+                })
+            })
 }
 
 // Readiness is proved for every authorized physical mapping, never a global max generation.
 pub(crate) fn ready_quality(s: &QualitySnapshot) -> bool {
     let doris_only = !s.mappings.is_empty()
-        && s.mappings.iter().all(|m| m.source_engine.as_deref() == Some("doris"));
-    !s.mappings.is_empty() && s.relations=="read" && s.probes.iter().all(|p|p.state=="read")
-    && s.warnings.is_empty() && !s.capture_method.is_empty()
-    && !s.delete_detection.is_empty()
-    && (doris_only || (s.capture_method!="mixed" && s.delete_detection!="mixed"))
-    && s.runs.len()>=s.mappings.len() && s.runs.iter().all(|r|r.state=="published" && r.sealed)
-    && s.mappings.iter().all(|m|m.bound
-        && s.runs.iter().any(|r|r.source==m.source && r.source_generation==m.run_generation && r.state=="published" && r.sealed)
-        && s.imports.iter().any(|i|i.schema==m.schema && i.table==m.table && i.run_generation==m.run_generation && i.exhausted)
-        && s.watermarks.iter().any(|w| {
-            if w.source != m.source || w.state != "live" {
-                return false;
-            }
-            match w.consistency.as_str() {
-                "transactional" => {
-                    w.cross_table_consistent && s.capture_method!="mixed" && s.delete_detection!="mixed"
-                        && s.freshness.iter().any(|f| f.schema==m.schema && f.table==m.table && f.state=="live" && (freshness_row(f).is_some() || s.capture_method=="c1_cdc" && s.delete_detection=="native" && mysql_unknown_source_time(m,w,f)))
-                        && s.receipts.iter().any(|r|r.source==m.source && r.schema==m.schema && r.table==m.table && r.run_generation==m.run_generation
-                            && r.codec==w.codec && r.lineage==w.lineage && Some(r.source_epoch)==w.source_epoch && Some(r.applied_pos.as_str())==w.applied_pos.as_deref()
-                            && r.cross_table_consistent && !r.partial_txn)
-                }
-                "per_table" => {
-                    let Some(engine) = m.source_engine.as_deref() else { return false; };
-                    if !crate::query_executor::supported_source_engine(engine) {
+        && s.mappings
+            .iter()
+            .all(|m| m.source_engine.as_deref() == Some("doris"));
+    s.libraries.iter().all(|l| l.ready)
+        && !s.mappings.is_empty()
+        && s.relations == "read"
+        && s.probes.iter().all(|p| p.state == "read")
+        && s.warnings.is_empty()
+        && !s.capture_method.is_empty()
+        && !s.delete_detection.is_empty()
+        && (doris_only || (s.capture_method != "mixed" && s.delete_detection != "mixed"))
+        && s.runs.len() >= s.mappings.len()
+        && s.runs.iter().all(|r| r.state == "published" && r.sealed)
+        && s.mappings.iter().all(|m| {
+            m.bound
+                && s.runs.iter().any(|r| {
+                    r.source == m.source
+                        && r.source_generation == m.run_generation
+                        && r.state == "published"
+                        && r.sealed
+                })
+                && s.imports.iter().any(|i| {
+                    i.schema == m.schema
+                        && i.table == m.table
+                        && i.run_generation == m.run_generation
+                        && i.exhausted
+                })
+                && s.watermarks.iter().any(|w| {
+                    if w.source != m.source || w.state != "live" {
                         return false;
                     }
-                    if engine == "doris" {
-                        let matching_quality: Vec<_> = s.table_quality.iter().filter(|q| {
-                            q.schema == m.schema && q.table == m.table
-                        }).collect();
-                        let Some(quality) = matching_quality.first() else { return false; };
-                        if matching_quality.len() != 1 {
-                            return false;
-                        }
-                        let expected_delete = match quality.capture_method.as_str() {
-                            "c4_partition" => "partition_replace",
-                            "c5_diff" => "reconcile",
-                            _ => return false,
-                        };
-                        w.codec == "partition-signature/v1"
-                            && w.applied_pos.is_none()
-                            && w.source_epoch.is_none()
-                            && w.consistency_grade == "S0"
-                            && w.lineage == "partition-map"
-                            && !w.cross_table_consistent
-                            && quality.delete_detection == expected_delete
+                    if !s.libraries.is_empty() {
+                        return s.libraries.iter().any(|l| l.source == m.source && l.ready)
                             && s.freshness.iter().any(|f| {
-                                f.schema == m.schema && f.table == m.table && f.state == "live"
-                                    && Rfc3339Timestamp::new(&f.applied_at).is_ok()
-                            })
-                    } else {
-                        let expected_lineage = format!("configured.{engine}");
-                        w.codec == "snapshot-zero/v1"
-                            && w.applied_pos.as_deref() == Some("0")
-                            && w.source_epoch == Some(0)
-                            && !w.cross_table_consistent
-                            && w.lineage == expected_lineage
-                            && s.capture_method != "mixed" && s.delete_detection != "mixed"
-                            && s.freshness.iter().any(|f| {
-                                f.schema == m.schema && f.table == m.table && f.state == "live"
+                                f.schema == m.schema
+                                    && f.table == m.table
+                                    && f.state == "live"
                                     && Rfc3339Timestamp::new(&f.applied_at).is_ok()
                             })
                             && s.receipts.iter().any(|r| {
-                                r.source == m.source && r.schema == m.schema && r.table == m.table
+                                r.source == m.source
+                                    && r.schema == m.schema
+                                    && r.table == m.table
                                     && r.run_generation == m.run_generation
-                                    && r.codec == "snapshot-zero/v1"
-                                    && r.lineage == "full-import.snapshot"
-                                    && r.source_epoch == 0 && r.applied_pos == "0"
-                                    && !r.cross_table_consistent && !r.partial_txn
+                                    && !r.partial_txn
                                     && Rfc3339Timestamp::new(&r.target_commit_at).is_ok()
-                            })
+                            });
                     }
-                }
-                _ => false,
-            }
-        }))
+                    match w.consistency.as_str() {
+                        "transactional" => {
+                            w.cross_table_consistent
+                                && s.capture_method != "mixed"
+                                && s.delete_detection != "mixed"
+                                && s.freshness.iter().any(|f| {
+                                    f.schema == m.schema
+                                        && f.table == m.table
+                                        && f.state == "live"
+                                        && (freshness_row(f).is_some()
+                                            || s.capture_method == "c1_cdc"
+                                                && s.delete_detection == "native"
+                                                && mysql_unknown_source_time(m, w, f))
+                                })
+                                && s.receipts.iter().any(|r| {
+                                    r.source == m.source
+                                        && r.schema == m.schema
+                                        && r.table == m.table
+                                        && r.run_generation == m.run_generation
+                                        && r.codec == w.codec
+                                        && r.lineage == w.lineage
+                                        && Some(r.source_epoch) == w.source_epoch
+                                        && Some(r.applied_pos.as_str()) == w.applied_pos.as_deref()
+                                        && r.cross_table_consistent
+                                        && !r.partial_txn
+                                })
+                        }
+                        "per_table" => {
+                            let Some(engine) = m.source_engine.as_deref() else {
+                                return false;
+                            };
+                            if !crate::query_executor::supported_source_engine(engine) {
+                                return false;
+                            }
+                            if engine == "doris" {
+                                let matching_quality: Vec<_> = s
+                                    .table_quality
+                                    .iter()
+                                    .filter(|q| q.schema == m.schema && q.table == m.table)
+                                    .collect();
+                                let Some(quality) = matching_quality.first() else {
+                                    return false;
+                                };
+                                if matching_quality.len() != 1 {
+                                    return false;
+                                }
+                                let expected_delete = match quality.capture_method.as_str() {
+                                    "c4_partition" => "partition_replace",
+                                    "c5_diff" => "reconcile",
+                                    _ => return false,
+                                };
+                                w.codec == "partition-signature/v1"
+                                    && w.applied_pos.is_none()
+                                    && w.source_epoch.is_none()
+                                    && w.consistency_grade == "S0"
+                                    && w.lineage == "partition-map"
+                                    && !w.cross_table_consistent
+                                    && quality.delete_detection == expected_delete
+                                    && s.freshness.iter().any(|f| {
+                                        f.schema == m.schema
+                                            && f.table == m.table
+                                            && f.state == "live"
+                                            && Rfc3339Timestamp::new(&f.applied_at).is_ok()
+                                    })
+                            } else if engine == "mysql" && w.source_epoch.is_none() {
+                                mysql_c5_quality(s, m, w)
+                            } else {
+                                let expected_lineage = format!("configured.{engine}");
+                                w.codec == "snapshot-zero/v1"
+                                    && w.applied_pos.as_deref() == Some("0")
+                                    && w.source_epoch == Some(0)
+                                    && !w.cross_table_consistent
+                                    && w.lineage == expected_lineage
+                                    && s.capture_method != "mixed"
+                                    && s.delete_detection != "mixed"
+                                    && s.freshness.iter().any(|f| {
+                                        f.schema == m.schema
+                                            && f.table == m.table
+                                            && f.state == "live"
+                                            && Rfc3339Timestamp::new(&f.applied_at).is_ok()
+                                    })
+                                    && s.receipts.iter().any(|r| {
+                                        r.source == m.source
+                                            && r.schema == m.schema
+                                            && r.table == m.table
+                                            && r.run_generation == m.run_generation
+                                            && r.codec == "snapshot-zero/v1"
+                                            && r.lineage == "full-import.snapshot"
+                                            && r.source_epoch == 0
+                                            && r.applied_pos == "0"
+                                            && !r.cross_table_consistent
+                                            && !r.partial_txn
+                                            && Rfc3339Timestamp::new(&r.target_commit_at).is_ok()
+                                    })
+                            }
+                        }
+                        _ => false,
+                    }
+                })
+        })
 }
 
 fn gap_warning(snapshot: &QualitySnapshot) -> Option<Warning> {
-    if ready_quality(snapshot) {return None;}
+    if ready_quality(snapshot) {
+        return None;
+    }
     let message = gap_message(snapshot);
     if message.is_empty() {
         return None;
     }
     Some(Warning {
+        c5_mode: None,
+        last_full_digest_scan_completed_at: None,
+        recent_window_watermark: None,
         code: WarningCode::StaleData,
         table: None,
         column: None,
@@ -2333,7 +3436,8 @@ fn source_row(mark: &WatermarkObserved) -> Option<oo_core::api::SourceWatermark>
         "per_table" => ConsistencyMode::PerTable,
         _ => return None,
     };
-    let applied_pos = Position::new(ExactDecimal::parse_sql(mark.applied_pos.as_deref()?).ok()?).ok()?;
+    let applied_pos =
+        Position::new(ExactDecimal::parse_sql(mark.applied_pos.as_deref()?).ok()?).ok()?;
     Some(oo_core::api::SourceWatermark {
         source,
         consistency,
@@ -2370,7 +3474,7 @@ fn lag_between(source: &str, applied: &str) -> Option<u64> {
 fn stamp_millis(value: &str) -> Option<u64> {
     let (date, rest) = value.split_once('T')?;
     let rest = rest.strip_suffix('Z')?;
-    let (hms, frac) = rest.split_once('.').unwrap_or((rest,""));
+    let (hms, frac) = rest.split_once('.').unwrap_or((rest, ""));
     if frac.len() > 6 || !frac.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
     }
@@ -2384,7 +3488,13 @@ fn stamp_millis(value: &str) -> Option<u64> {
     let second: u32 = clock.next()?.parse().ok()?;
     let days = days_from_civil(year, month, day)?;
     let sod = u64::from(hour) * 3600 + u64::from(minute) * 60 + u64::from(second);
-    let micros: u64 = if frac.is_empty() {0} else {frac.parse::<u64>().ok()?.checked_mul(10u64.pow(6-frac.len() as u32))?};
+    let micros: u64 = if frac.is_empty() {
+        0
+    } else {
+        frac.parse::<u64>()
+            .ok()?
+            .checked_mul(10u64.pow(6 - frac.len() as u32))?
+    };
     days.checked_mul(86_400)?
         .checked_add(sod)?
         .checked_mul(1000)?
@@ -2420,6 +3530,9 @@ fn warning_row(warning: &QualityWarning) -> Option<Warning> {
         _ => return None,
     };
     Some(Warning {
+        c5_mode: None,
+        last_full_digest_scan_completed_at: None,
+        recent_window_watermark: None,
         code,
         table: QualifiedTable::new(format!("{}.{}", warning.schema, warning.table)).ok(),
         column: None,
@@ -2598,6 +3711,10 @@ fn agree(headers: &HeaderMap, caller: &PublicCaller) -> Result<(), Box<Response>
 
 fn exec_hint(err: &ExecError) -> Option<String> {
     match err {
+        ExecError::Protocol {
+            step: "publication_drift",
+        } => Some(DRIFT_HINT.into()),
+        ExecError::Guard(guard) => guard_hint(guard),
         ExecError::Canceled { sqlstate } if sqlstate == "57014" => {
             Some("sqlstate 57014".to_owned())
         }
@@ -2607,6 +3724,12 @@ fn exec_hint(err: &ExecError) -> Option<String> {
 
 fn exec_public(err: &ExecError) -> (ErrorCode, &'static str) {
     match err {
+        ExecError::Protocol {
+            step: "publication_drift",
+        } => (
+            ErrorCode::Conflict,
+            "publication binding is unavailable or has drifted; recompute the whole question",
+        ),
         ExecError::Guard(guard) => guard_public(guard),
         ExecError::AuditUnavailable => (ErrorCode::AuditUnavailable, "audit admission failed"),
         ExecError::Timeout { .. } => (ErrorCode::Timeout, "query deadline exceeded"),
@@ -2629,11 +3752,18 @@ fn guard_public(err: &GuardError) -> (ErrorCode, &'static str) {
     let message = match err {
         GuardError::Parse => "SQL parse failed",
         GuardError::FunctionNotAllowed => "function or operator is not allowed",
+        GuardError::SignatureNotAllowed { operator: true, .. } => {
+            "operator signature is not allowed"
+        }
+        GuardError::SignatureNotAllowed {
+            operator: false, ..
+        } => "function signature is not allowed",
         GuardError::RelationNotFound => "relation is not visible",
         GuardError::ColumnNotAllowed { .. } => "column is not allowed",
         GuardError::Unqualified { .. } => "relation must be schema-qualified",
         GuardError::CostTooHigh { .. } => "statement cost is too high",
         GuardError::Write => "write statement is not allowed",
+        GuardError::Unsupported { .. } => "SQL construct is not supported",
         GuardError::IdentityMismatch | GuardError::CatalogInvalid { .. } => {
             "policy catalog does not match"
         }
@@ -2843,6 +3973,280 @@ mod tests {
     use super::*;
 
     #[test]
+    fn reviewed_roles_reload_atomically_and_never_fall_back_to_stale_permissions() {
+        let root = std::env::temp_dir().join(format!(
+            "oo-role-reload-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let role = root.join("east");
+        fs::create_dir_all(&role).unwrap();
+        fs::write(role.join("policy.json"),
+            r#"{"config_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","generation":2,"login":"oo_login","project":"depot","protocol":"oo.operator-preview.policy/v1","role":"east","table":{"columns":[{"name":"id","pii":{"class":"none"},"semantic_type":"identifier","status":"confirmed"}],"name":"items","namespace":"app"}}"#).unwrap();
+        let original = r#"{"datasets":[{"columns":["id"],"dataset":"app.items"}],"knowledge":{"id":"k","version":"2"},"policy":{"id":"p","version":"2"},"project":"depot","protocol":"oo.builder.role-visibility/v1","role":"oo_r_east"}"#;
+        fs::write(role.join("visibility.json"), original).unwrap();
+        let cache = ReviewedRoles::load(root.clone()).unwrap();
+        let before = cache.snapshot().unwrap();
+        assert_eq!(before[0].knowledge_version, "2");
+        if cfg!(unix) {
+            assert!(Arc::ptr_eq(&before, &cache.snapshot().unwrap()));
+        }
+        let mut next: Value = serde_json::from_str(original).unwrap();
+        next["knowledge"]["version"] = "3".into();
+        fs::write(role.join("pending.json"), next.to_string()).unwrap();
+        fs::rename(role.join("pending.json"), role.join("visibility.json")).unwrap();
+        let after = cache.snapshot().unwrap();
+        assert_eq!(after[0].knowledge_version, "3");
+        assert_eq!(before[0].knowledge_version, "2");
+        fs::write(role.join("visibility.json"), "{unfinished").unwrap();
+        assert!(cache.snapshot().is_err());
+        assert!(cache.snapshot().is_err());
+        next["datasets"][0]["columns"] = serde_json::json!(["id", "hidden"]);
+        fs::write(role.join("visibility.json"), next.to_string()).unwrap();
+        assert!(cache.snapshot().is_err());
+        fs::write(role.join("visibility.json"), original).unwrap();
+        assert_eq!(cache.snapshot().unwrap()[0].knowledge_version, "2");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn describe_types_are_intersection_scoped_and_never_reveal_physical_names() {
+        use crate::sql_guard::{
+            LiteralTypes, PolicyCatalog, PolicyIdentity, ResolvedFunction, ResolvedOperator,
+            VisibleColumn, VisibleRelation,
+        };
+        let relation = VisibleRelation {
+            schema: "sales".into(),
+            name: "payments".into(),
+            physical_schema: "_oo".into(),
+            physical_name: "private_table".into(),
+            columns: vec![
+                VisibleColumn {
+                    name: "paid_time".into(),
+                    physical_name: "private_time".into(),
+                    type_oid: 1114,
+                },
+                VisibleColumn {
+                    name: "hidden".into(),
+                    physical_name: "private_hidden".into(),
+                    type_oid: 25,
+                },
+            ],
+            pending_unclassified: 0,
+            estimated_rows: 0,
+        };
+        let details = describe_column_details(
+            "sales.payments",
+            &["paid_time".into(), "pack_only".into()],
+            std::slice::from_ref(&relation),
+        );
+        assert_eq!(
+            details,
+            vec![serde_json::json!({
+                "name": "paid_time", "type_oid": 1114, "type": "timestamp",
+            })]
+        );
+        assert!(
+            describe_column_details(
+                "sales.other",
+                &["paid_time".into()],
+                std::slice::from_ref(&relation)
+            )
+            .is_empty()
+        );
+        let hint = guard_hint(&GuardError::FunctionNotAllowed).unwrap();
+        assert!(hint.contains("TIMESTAMP"));
+        assert_eq!(
+            exec_hint(&ExecError::Guard(Box::new(GuardError::FunctionNotAllowed))),
+            Some(hint)
+        );
+
+        let mut catalog = PolicyCatalog {
+            identity: PolicyIdentity {
+                project: "p".into(),
+                role: "r".into(),
+                policy_id: "v".into(),
+            },
+            relations: vec![relation],
+            functions: vec![ResolvedFunction {
+                oid: 1,
+                schema: "pg_catalog".into(),
+                name: "sum".into(),
+                argument_type_oids: vec![1700],
+                aggregate_star: false,
+            }],
+            operators: vec![ResolvedOperator {
+                oid: 2,
+                procedure_oid: 3,
+                schema: "pg_catalog".into(),
+                name: ">=".into(),
+                left_type_oid: 1114,
+                right_type_oid: 1114,
+                result_type_oid: 16,
+            }],
+            literal_types: LiteralTypes {
+                integer: Some(23),
+                text: Some(25),
+                boolean: Some(16),
+            },
+            null_test_allowed: true,
+            large_table_row_threshold: 100,
+        };
+        let capabilities = query_capabilities(Some(&catalog));
+        assert_eq!(capabilities["version"], "gateway.query-capabilities.v1");
+        assert_eq!(capabilities["status"], "available");
+        assert_eq!(capabilities["source"], "runtime_policy_catalog");
+        assert_eq!(capabilities["functions"][0]["name"], "sum");
+        assert_eq!(capabilities["functions"][0]["argument_types"][0], "numeric");
+        assert_eq!(capabilities["operators"][0]["left_type"], "timestamp");
+        assert_eq!(capabilities["operators"][0]["result_type"], "bool");
+        assert_eq!(capabilities["operators"][0]["result_type_oid"], 16);
+        assert!(!capabilities.to_string().contains("private_"));
+        assert_eq!(capabilities["requires_validate"], true);
+        assert_eq!(capabilities["truncated"], false);
+        assert_eq!(capabilities["functions"][0]["argument_type_oids"][0], 1700);
+        catalog.operators.push(ResolvedOperator {
+            oid: 1759,
+            procedure_oid: 1725,
+            schema: "pg_catalog".into(),
+            name: "-".into(),
+            left_type_oid: 1700,
+            right_type_oid: 1700,
+            result_type_oid: 1700,
+        });
+        let arithmetic = query_capabilities(Some(&catalog));
+        assert_eq!(arithmetic["status"], "available");
+        assert_eq!(arithmetic["operators"][1]["name"], "-");
+        assert_eq!(arithmetic["operators"][1]["result_type"], "numeric");
+        assert_eq!(arithmetic["operators"][1]["result_type_oid"], 1700);
+        for invalid in [0, 16, 25, u32::MAX] {
+            catalog.operators[1].result_type_oid = invalid;
+            assert_eq!(query_capabilities(Some(&catalog))["status"], "unavailable");
+        }
+        catalog.operators[1].result_type_oid = 1700;
+        catalog.operators[1].left_type_oid = 25;
+        assert_eq!(query_capabilities(Some(&catalog))["status"], "unavailable");
+        catalog.operators.pop();
+        catalog.functions[0].argument_type_oids = vec![20];
+        assert_eq!(
+            query_capabilities(Some(&catalog))["functions"][0]["argument_types"][0],
+            "int8"
+        );
+        catalog.functions.clear();
+        catalog.operators.clear();
+        catalog.null_test_allowed = false;
+        let empty = query_capabilities(Some(&catalog));
+        assert_eq!(empty["functions"], serde_json::json!([]));
+        assert_eq!(empty["operators"], serde_json::json!([]));
+        assert_eq!(empty["null_test"], false);
+        let absent = query_capabilities(None);
+        assert_eq!(absent["status"], "unavailable");
+        assert!(absent.get("functions").is_none());
+
+        catalog.functions.push(ResolvedFunction {
+            oid: 1,
+            schema: "private_schema".into(),
+            name: "private_function".into(),
+            argument_type_oids: vec![1700],
+            aggregate_star: false,
+        });
+        let private = query_capabilities(Some(&catalog));
+        assert_eq!(private["status"], "unavailable");
+        assert!(!private.to_string().contains("private_"));
+        catalog.functions[0].schema = "pg_catalog".into();
+        catalog.functions[0].name = "sum".into();
+        catalog.functions[0].argument_type_oids = vec![u32::MAX];
+        assert_eq!(query_capabilities(Some(&catalog))["status"], "unavailable");
+        catalog.functions[0].argument_type_oids = vec![1700];
+        catalog.functions =
+            vec![catalog.functions[0].clone(); CATALOG_LIMITS.max_functions as usize + 1];
+        assert_eq!(query_capabilities(Some(&catalog))["status"], "unavailable");
+    }
+
+    #[tokio::test]
+    async fn publication_binding_failure_has_a_safe_non_sql_recovery_hint() {
+        let failure = CatalogFailure::from(CatalogError::PublicationBindingUnavailable);
+        let response = error_response(
+            failure.code,
+            "policy catalog is not available",
+            failure.hint,
+            None,
+        );
+        let bytes = axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap();
+        let body: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(body["error"]["code"], "SCHEMA_INVALID");
+        assert_eq!(body["error"]["retryable"], false);
+        assert!(body["error"].get("query_id").is_none());
+        let hint = body["error"]["hint"].as_str().unwrap();
+        assert!(hint.contains("phase=runtime_catalog"));
+        assert!(hint.contains("reason=publication_binding_unavailable"));
+        assert!(hint.contains("do not rewrite SQL or widen permissions"));
+        // Never turn arbitrary database diagnostics into public hints.
+        let other = CatalogFailure::from(CatalogError::Database {
+            sqlstate: "private_canary".into(),
+        });
+        assert!(other.hint.is_none());
+        assert!(
+            CatalogFailure::from(ErrorCode::AuditUnavailable)
+                .hint
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn signature_diagnostic_survives_the_public_error_envelope() {
+        for operator in [false, true] {
+            let guard = GuardError::SignatureNotAllowed {
+                operator,
+                argument_type_oids: vec![1114, 25],
+                position: 62,
+            };
+            let hint = guard_hint(&guard).unwrap();
+            assert_eq!(
+                exec_hint(&ExecError::Guard(Box::new(guard.clone()))),
+                Some(hint.clone())
+            );
+            let (code, message) = guard_public(&guard);
+            let response = error_response(code, message, Some(hint.clone()), None);
+            assert_eq!(response.status(), 400);
+            let bytes = axum::body::to_bytes(response.into_body(), 4096)
+                .await
+                .unwrap();
+            let body: Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(body["error"]["hint"], hint);
+            assert_eq!(body["error"]["code"], "FUNCTION_NOT_ALLOWED");
+            assert_eq!(body["error"]["retryable"], false);
+            assert!(body["error"].get("query_id").is_none());
+        }
+    }
+
+    #[test]
+    fn unsupported_syntax_has_the_same_actionable_hint_on_validate_and_query() {
+        let guard = GuardError::Unsupported {
+            construct: "HAVING",
+        };
+        let (code, message) = guard_public(&guard);
+        assert_eq!(code, ErrorCode::StatementNotAllowed);
+        assert_eq!(message, "SQL construct is not supported");
+        let hint = guard_hint(&guard).expect("unsupported hint");
+        assert!(hint.contains("HAVING"));
+        assert!(hint.contains("not a permission denial"));
+        assert_eq!(exec_hint(&ExecError::Guard(Box::new(guard))), Some(hint));
+        let denied = GuardError::ColumnNotAllowed {
+            available: vec![],
+            pending: 0,
+            ambiguous: false,
+        };
+        assert_eq!(guard_public(&denied).0, ErrorCode::ColumnNotAllowed);
+        assert!(guard_hint(&denied).is_none());
+    }
+
+    #[test]
     fn native_quality_vector_projects_engine_from_sealed_collection_entry() {
         let vector = serde_json::json!([{
             "dataset": "sales.orders",
@@ -2880,7 +4284,10 @@ mod tests {
         ] {
             let mut bad = input.clone();
             if value.is_null() {
-                bad["catalog"]["entries"][0].as_object_mut().unwrap().remove(field);
+                bad["catalog"]["entries"][0]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove(field);
             } else {
                 bad["catalog"]["entries"][0][field] = value;
             }
@@ -2943,52 +4350,136 @@ mod tests {
     #[test]
     fn current_quality_requires_complete_published_same_epoch_receipts() {
         use crate::query_executor::*;
-        let mut s=QualitySnapshot::blank("read");
-        s.probes.push(RelationProbe {name:"physical_mappings",state:"read"});
-        s.capture_method="c1_cdc".into();s.delete_detection="native".into();
-        s.mappings.push(MappingObserved {source:"shop".into(),source_engine:None,schema:"s".into(),table:"t".into(),run_generation:5,bound:true});
-        s.freshness.push(FreshnessObserved {schema:"s".into(),table:"t".into(),state:"live".into(),source_committed_at:"2026-10-15T14:00:00.000000Z".into(),applied_at:"2026-10-15T14:00:01.000000Z".into()});
-        s.runs.push(ImportRunObserved {source:"shop".into(),source_generation:5,target_generation:5,state:"published".into(),sealed:true});
-        s.imports.push(ImportTableObserved {schema:"s".into(),table:"t".into(),run_generation:5,applied_rows:2,applied_pos:"37".into(),exhausted:true});
-        let lineage="mysql.11111111-2222-4333-8444-555555555555";
-        s.watermarks.push(WatermarkObserved {source:"shop".into(),consistency:"transactional".into(),consistency_grade:"T".into(),cross_table_consistent:true,applied_pos:Some("37".into()),state:"live".into(),codec:"mysql-gtid/v1".into(),lineage:lineage.into(),source_epoch:Some(1)});
-        s.receipts.push(ReceiptObserved {source:"shop".into(),schema:"s".into(),table:"t".into(),run_generation:5,applied_pos:"37".into(),codec:"mysql-gtid/v1".into(),lineage:lineage.into(),source_epoch:1,cross_table_consistent:true,partial_txn:false,target_commit_at:"2026-10-15T14:00:01.000000Z".into()});
-        assert!(freshness_row(&s.freshness[0]).is_some(),"freshness row: {:?}",s.freshness[0]);
-        assert!(ready_quality(&s));assert!(gap_warning(&s).is_none());
-        let mut baseline=s.clone();
-        baseline.mappings[0].source_engine=Some("mysql".into());
+        let mut s = QualitySnapshot::blank("read");
+        s.probes.push(RelationProbe {
+            name: "physical_mappings",
+            state: "read",
+        });
+        s.capture_method = "c1_cdc".into();
+        s.delete_detection = "native".into();
+        s.mappings.push(MappingObserved {
+            source: "shop".into(),
+            source_engine: None,
+            schema: "s".into(),
+            table: "t".into(),
+            run_generation: 5,
+            bound: true,
+        });
+        s.freshness.push(FreshnessObserved {
+            schema: "s".into(),
+            table: "t".into(),
+            state: "live".into(),
+            source_committed_at: "2026-10-15T14:00:00.000000Z".into(),
+            applied_at: "2026-10-15T14:00:01.000000Z".into(),
+        });
+        s.runs.push(ImportRunObserved {
+            source: "shop".into(),
+            source_generation: 5,
+            target_generation: 5,
+            state: "published".into(),
+            sealed: true,
+        });
+        s.imports.push(ImportTableObserved {
+            schema: "s".into(),
+            table: "t".into(),
+            run_generation: 5,
+            applied_rows: 2,
+            applied_pos: "37".into(),
+            exhausted: true,
+        });
+        let lineage = "mysql.11111111-2222-4333-8444-555555555555";
+        s.watermarks.push(WatermarkObserved {
+            source: "shop".into(),
+            consistency: "transactional".into(),
+            consistency_grade: "T".into(),
+            cross_table_consistent: true,
+            applied_pos: Some("37".into()),
+            state: "live".into(),
+            codec: "mysql-gtid/v1".into(),
+            lineage: lineage.into(),
+            source_epoch: Some(1),
+        });
+        s.receipts.push(ReceiptObserved {
+            source: "shop".into(),
+            schema: "s".into(),
+            table: "t".into(),
+            run_generation: 5,
+            applied_pos: "37".into(),
+            codec: "mysql-gtid/v1".into(),
+            lineage: lineage.into(),
+            source_epoch: 1,
+            cross_table_consistent: true,
+            partial_txn: false,
+            target_commit_at: "2026-10-15T14:00:01.000000Z".into(),
+        });
+        assert!(
+            freshness_row(&s.freshness[0]).is_some(),
+            "freshness row: {:?}",
+            s.freshness[0]
+        );
+        assert!(ready_quality(&s));
+        assert!(gap_warning(&s).is_none());
+        let mut baseline = s.clone();
+        baseline.mappings[0].source_engine = Some("mysql".into());
         baseline.freshness[0].source_committed_at.clear();
-        assert!(ready_quality(&baseline));assert!(gap_warning(&baseline).is_none());
-        let document=freshness_document(&baseline,"knowledge","policy");
-        assert_eq!(document["source_time"],"unmeasured");
-        assert_eq!(document["freshness"],serde_json::json!([]));
-        assert_eq!(document["target_observations"][0]["target_applied_at"],s.freshness[0].applied_at);
+        assert!(ready_quality(&baseline));
+        assert!(gap_warning(&baseline).is_none());
+        let document = freshness_document(&baseline, "knowledge", "policy");
+        assert_eq!(document["source_time"], "unmeasured");
+        assert_eq!(document["freshness"], serde_json::json!([]));
+        assert_eq!(
+            document["target_observations"][0]["target_applied_at"],
+            s.freshness[0].applied_at
+        );
         assert!(document["target_observations"][0]["source_committed_at"].is_null());
-        for kind in ["apply_time","bad_source_time","negative_lag","other_engine","other_codec","epoch","unpublished","partial","position"] {
-            let mut bad=baseline.clone();match kind {
-                "apply_time"=>bad.freshness[0].applied_at.clear(),
-                "bad_source_time"=>bad.freshness[0].source_committed_at="not-a-time".into(),
-                "negative_lag"=>bad.freshness[0].source_committed_at="2026-10-15T14:00:02Z".into(),
-                "other_engine"=>bad.mappings[0].source_engine=Some("mariadb".into()),
-                "other_codec"=>bad.watermarks[0].codec="mariadb-gtid/v1".into(),
-                "epoch"=>bad.receipts[0].source_epoch=2,
-                "unpublished"=>bad.runs[0].state="awaiting_publish".into(),
-                "partial"=>bad.receipts[0].partial_txn=true,
-                _=>bad.receipts[0].applied_pos="36".into(),
+        for kind in [
+            "apply_time",
+            "bad_source_time",
+            "negative_lag",
+            "other_engine",
+            "other_codec",
+            "epoch",
+            "unpublished",
+            "partial",
+            "position",
+        ] {
+            let mut bad = baseline.clone();
+            match kind {
+                "apply_time" => bad.freshness[0].applied_at.clear(),
+                "bad_source_time" => bad.freshness[0].source_committed_at = "not-a-time".into(),
+                "negative_lag" => {
+                    bad.freshness[0].source_committed_at = "2026-10-15T14:00:02Z".into()
+                }
+                "other_engine" => bad.mappings[0].source_engine = Some("mariadb".into()),
+                "other_codec" => bad.watermarks[0].codec = "mariadb-gtid/v1".into(),
+                "epoch" => bad.receipts[0].source_epoch = 2,
+                "unpublished" => bad.runs[0].state = "awaiting_publish".into(),
+                "partial" => bad.receipts[0].partial_txn = true,
+                _ => bad.receipts[0].applied_pos = "36".into(),
             }
-            assert!(!ready_quality(&bad),"unknown-time accepted {kind}");
+            assert!(!ready_quality(&bad), "unknown-time accepted {kind}");
         }
-        for kind in ["unpublished","epoch","held","missing_run","missing_time","partial","position"] {
-            let mut bad=s.clone();match kind {
-                "unpublished"=>bad.runs[0].state="awaiting_publish".into(),
-                "epoch"=>bad.receipts[0].source_epoch=2,
-                "held"=>bad.mappings[0].bound=false,
-                "missing_run"=>bad.runs.clear(),
-                "missing_time"=>bad.freshness[0].source_committed_at.clear(),
-                "partial"=>bad.receipts[0].partial_txn=true,
-                _=>bad.receipts[0].applied_pos="36".into(),
+        for kind in [
+            "unpublished",
+            "epoch",
+            "held",
+            "missing_run",
+            "missing_time",
+            "partial",
+            "position",
+        ] {
+            let mut bad = s.clone();
+            match kind {
+                "unpublished" => bad.runs[0].state = "awaiting_publish".into(),
+                "epoch" => bad.receipts[0].source_epoch = 2,
+                "held" => bad.mappings[0].bound = false,
+                "missing_run" => bad.runs.clear(),
+                "missing_time" => bad.freshness[0].source_committed_at.clear(),
+                "partial" => bad.receipts[0].partial_txn = true,
+                _ => bad.receipts[0].applied_pos = "36".into(),
             }
-            assert!(!ready_quality(&bad),"{kind}");assert!(gap_warning(&bad).is_some(),"{kind}");
+            assert!(!ready_quality(&bad), "{kind}");
+            assert!(gap_warning(&bad).is_some(), "{kind}");
         }
     }
 
@@ -3065,6 +4556,7 @@ mod tests {
         assert!(gap_warning(&good).is_none());
         assert!(freshness_row(&good.freshness[0]).is_none());
         assert_eq!(source_time_status(&good), "unmeasured");
+        assert_eq!(global_position_status(&good), "measured");
 
         for kind in [
             "no_engine",
@@ -3113,6 +4605,398 @@ mod tests {
         }
     }
 
+    fn native_mysql_c5_snapshot() -> QualitySnapshot {
+        use crate::query_executor::*;
+        let mut s = QualitySnapshot::blank("read");
+        s.capture_method = "c5_diff".into();
+        s.delete_detection = "reconcile".into();
+        s.probes.push(RelationProbe {
+            name: "physical_mappings",
+            state: "read",
+        });
+        for (table, generation, stamp) in [
+            ("orders", 1, "2026-10-17T01:00:00.000001Z"),
+            ("departments", 2, "2026-10-17T01:01:00.000002Z"),
+        ] {
+            s.mappings.push(MappingObserved {
+                source: "snapshot_source".into(),
+                source_engine: Some("mysql".into()),
+                schema: "sales".into(),
+                table: table.into(),
+                run_generation: generation,
+                bound: true,
+            });
+            s.freshness.push(FreshnessObserved {
+                schema: "sales".into(),
+                table: table.into(),
+                state: "live".into(),
+                source_committed_at: String::new(),
+                applied_at: "2026-10-17T01:02:00.000003Z".into(),
+            });
+            s.runs.push(ImportRunObserved {
+                source: "snapshot_source".into(),
+                source_generation: generation,
+                target_generation: generation,
+                state: "published".into(),
+                sealed: true,
+            });
+            s.imports.push(ImportTableObserved {
+                schema: "sales".into(),
+                table: table.into(),
+                run_generation: generation,
+                applied_rows: 2,
+                applied_pos: "0".into(),
+                exhausted: true,
+            });
+            s.receipts.push(ReceiptObserved {
+                source: "snapshot_source".into(),
+                schema: "sales".into(),
+                table: table.into(),
+                run_generation: generation,
+                applied_pos: "0".into(),
+                codec: "snapshot-zero/v1".into(),
+                lineage: format!("snapshot_source.{table}"),
+                source_epoch: 0,
+                cross_table_consistent: false,
+                partial_txn: false,
+                target_commit_at: stamp.into(),
+            });
+            s.table_quality.push(TableQualityObserved {
+                schema: "sales".into(),
+                table: table.into(),
+                capture_method: "c5_diff".into(),
+                delete_detection: "reconcile".into(),
+                c5_mode: None,
+                last_full_digest_scan_completed_at: None,
+                recent_window_watermark: None,
+            });
+        }
+        s.watermarks.push(WatermarkObserved {
+            source: "snapshot_source".into(),
+            consistency: "per_table".into(),
+            consistency_grade: "B".into(),
+            cross_table_consistent: false,
+            applied_pos: Some("0".into()),
+            state: "live".into(),
+            codec: "snapshot-zero/v1".into(),
+            lineage: "snapshot_source.departments".into(),
+            source_epoch: None,
+        });
+        s
+    }
+
+    #[test]
+    fn c5plus_observations_are_not_source_time_or_readiness() {
+        let mut s = native_mysql_c5_snapshot();
+        assert!(
+            !project_quality(&s)
+                .warnings
+                .iter()
+                .any(|w| w.code == WarningCode::DeletesLagged)
+        );
+        s.table_quality[0].c5_mode = Some("layered".into());
+        s.table_quality[0].last_full_digest_scan_completed_at = Some("2026-10-19T01:02:03Z".into());
+        s.table_quality[0].recent_window_watermark = Some("2026-10-19T01:00:00Z".into());
+        assert!(ready_quality(&s));
+        let encoded = serde_json::to_value(project_quality(&s).warnings).unwrap();
+        let decoded: Vec<Warning> = serde_json::from_value(encoded).unwrap();
+        assert!(decoded.iter().any(
+            |w| w.code == WarningCode::DeletesLagged && w.c5_mode.as_deref() == Some("layered")
+        ));
+        let doc = freshness_document(&s, "knowledge", "policy");
+        assert_eq!(doc["source_time"], "unmeasured");
+        assert_eq!(doc["table_quality"][0]["c5_mode"], "layered");
+        assert_eq!(
+            doc["target_observations"][0]["recent_window_watermark"],
+            "2026-10-19T01:00:00Z"
+        );
+        assert!(doc["target_observations"][0]["source_committed_at"].is_null());
+        assert!(
+            doc["warnings"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|w| w["code"] == "DELETES_LAGGED"
+                    && w["c5_mode"] == "layered"
+                    && w["last_full_digest_scan_completed_at"] == "2026-10-19T01:02:03Z")
+        );
+        s.table_quality[0].last_full_digest_scan_completed_at = None;
+        s.table_quality[0].recent_window_watermark = None;
+        let doc = freshness_document(&s, "knowledge", "policy");
+        assert!(doc["table_quality"][0]["recent_window_watermark"].is_null());
+        assert!(ready_quality(&s));
+        s.receipts.clear();
+        assert!(!ready_quality(&s));
+    }
+
+    #[test]
+    fn library_ready_receipt_is_not_stale_only_because_source_engine_is_unmeasured() {
+        use crate::query_executor::LibraryObserved;
+        let mut snapshot = native_mysql_c5_snapshot();
+        for mapping in &mut snapshot.mappings {
+            mapping.source_engine = None;
+        }
+        snapshot.libraries.push(LibraryObserved {
+            source: "snapshot_source".into(),
+            library_id: "library".into(),
+            receipt_sha256: "a".repeat(64),
+            ready: true,
+        });
+        assert!(ready_quality(&snapshot));
+        assert!(gap_warning(&snapshot).is_none());
+        let mut bad = snapshot.clone();
+        bad.libraries[0].ready = false;
+        assert!(!ready_quality(&bad));
+        let mut bad = snapshot.clone();
+        bad.imports[0].exhausted = false;
+        assert!(!ready_quality(&bad));
+        let mut bad = snapshot.clone();
+        bad.runs[0].sealed = false;
+        assert!(!ready_quality(&bad));
+        let mut bad = snapshot;
+        bad.freshness[0].applied_at = "invalid".into();
+        assert!(!ready_quality(&bad));
+    }
+
+    #[test]
+    fn library_readiness_is_closed_and_observations_keep_all_source_identities() {
+        use crate::query_executor::{LibraryObserved, QualitySnapshot};
+        let mut snapshot = QualitySnapshot::blank("read");
+        snapshot.capture_method = "c5_diff".into();
+        snapshot.delete_detection = "reconcile".into();
+        for index in 0..20 {
+            let mut part = native_mysql_c5_snapshot();
+            let source = format!("shard_{index}");
+            let schema = format!("domain_{index}");
+            for m in &mut part.mappings {
+                m.source = source.clone();
+                m.schema = schema.clone();
+            }
+            for f in &mut part.freshness {
+                f.schema = schema.clone();
+            }
+            for r in &mut part.runs {
+                r.source = source.clone();
+            }
+            for r in &mut part.receipts {
+                r.source = source.clone();
+                r.schema = schema.clone();
+                r.lineage = r.lineage.replace("snapshot_source", &source);
+            }
+            for i in &mut part.imports {
+                i.schema = schema.clone();
+            }
+            for q in &mut part.table_quality {
+                q.schema = schema.clone();
+            }
+            for w in &mut part.watermarks {
+                w.source = source.clone();
+                w.lineage = w.lineage.replace("snapshot_source", &source);
+            }
+            snapshot.mappings.extend(part.mappings);
+            snapshot.freshness.extend(part.freshness);
+            snapshot.runs.extend(part.runs);
+            snapshot.receipts.extend(part.receipts);
+            snapshot.imports.extend(part.imports);
+            snapshot.table_quality.extend(part.table_quality);
+            snapshot.watermarks.extend(part.watermarks);
+            snapshot.libraries.push(LibraryObserved {
+                source,
+                library_id: "sample-library".into(),
+                receipt_sha256: "a".repeat(64),
+                ready: true,
+            });
+        }
+        assert!(ready_quality(&snapshot));
+        let doc = freshness_document(&snapshot, "knowledge", "policy");
+        assert_eq!(doc["target_observations"].as_array().unwrap().len(), 40);
+        assert_eq!(doc["source_ids"].as_array().unwrap().len(), 20);
+        assert_eq!(doc["source_time"], "unmeasured");
+        assert!(
+            doc["warnings"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|w| w["code"] == "CROSS_TABLE_SKEW")
+        );
+        snapshot.libraries[19].ready = false;
+        assert!(!ready_quality(&snapshot));
+        assert_eq!(publication_label(&snapshot), "not_ready");
+        assert!(
+            freshness_document(&snapshot, "knowledge", "policy")["target_observations"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn native_mysql_c5_accepts_actual_per_table_shape_without_source_freshness() {
+        let good = native_mysql_c5_snapshot();
+        assert!(ready_quality(&good));
+        assert!(gap_warning(&good).is_none());
+        let document = freshness_document(&good, "knowledge", "policy");
+        assert_eq!(document["global_position"], "unmeasured");
+        assert_eq!(document["source_time"], "unmeasured");
+        assert_eq!(document["freshness"], serde_json::json!([]));
+        assert_eq!(document["target_observations"].as_array().unwrap().len(), 2);
+        for (index, row) in good.freshness.iter().enumerate() {
+            assert!(freshness_row(row).is_none());
+            assert_eq!(
+                document["target_observations"][index]["target_applied_at"],
+                row.applied_at
+            );
+            assert!(document["target_observations"][index]["source_committed_at"].is_null());
+        }
+        assert!(
+            document["warnings"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|w| w["code"] == "CROSS_TABLE_SKEW")
+        );
+        let mut single_grade = good.clone();
+        single_grade.watermarks[0].consistency_grade = "S0".into();
+        assert!(ready_quality(&single_grade));
+    }
+
+    #[test]
+    fn native_mysql_c5_accepts_live_receipt_and_publication_timestamps() {
+        let mut snapshot = native_mysql_c5_snapshot();
+        for (index, (applied, committed)) in [
+            ("2026-10-18T13:30:41.799935Z", "2026-10-18T13:17:01.738021Z"),
+            ("2026-10-18T13:30:41.800077Z", "2026-10-18T13:18:52.131502Z"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            snapshot.freshness[index].applied_at = applied.into();
+            snapshot.receipts[index].target_commit_at = committed.into();
+            snapshot.receipts[index].lineage = "full-import.snapshot".into();
+        }
+        assert!(ready_quality(&snapshot));
+        assert_eq!(mysql_target_observations(&snapshot).len(), 2);
+        snapshot.freshness[0].applied_at = "2026-10-18T13:17:01.736021Z".into();
+        snapshot.freshness[1].applied_at = "2026-10-18T13:18:52.129502Z".into();
+        assert!(ready_quality(&snapshot));
+        assert!(gap_warning(&snapshot).is_none());
+        assert_eq!(mysql_target_observations(&snapshot).len(), 2);
+        for kind in [
+            "lineage",
+            "receipt_generation",
+            "run_generation",
+            "apply_time",
+            "receipt_time",
+        ] {
+            let mut bad = snapshot.clone();
+            match kind {
+                "lineage" => bad.receipts[0].lineage = "arbitrary.snapshot".into(),
+                "receipt_generation" => bad.receipts[0].run_generation = 2,
+                "run_generation" => bad.runs[0].source_generation = 2,
+                "apply_time" => bad.freshness[0].applied_at.clear(),
+                "receipt_time" => bad.receipts[0].target_commit_at.clear(),
+                _ => unreachable!(),
+            }
+            assert!(!ready_quality(&bad), "accepted {kind}");
+        }
+    }
+
+    #[test]
+    fn native_mysql_c5_refuses_crossed_incomplete_or_escalated_evidence() {
+        let good = native_mysql_c5_snapshot();
+        for kind in [
+            "generation",
+            "receipt_generation",
+            "run_generation",
+            "target_generation",
+            "crossed_target_generation",
+            "lineage",
+            "crossed_lineage",
+            "anchor",
+            "old_anchor",
+            "anchor_time",
+            "epoch",
+            "receipt_epoch",
+            "position",
+            "import_position",
+            "codec",
+            "unsealed",
+            "unpublished",
+            "unbound",
+            "partial",
+            "exhausted",
+            "missing_receipt",
+            "missing_run",
+            "missing_quality",
+            "quality",
+            "delete",
+            "capture",
+            "engine",
+            "T",
+            "S1",
+            "cross_table",
+            "receipt_cross_table",
+            "apply_time",
+            "receipt_time",
+            "paused",
+            "duplicate_receipt",
+        ] {
+            let mut bad = good.clone();
+            match kind {
+                "generation" => bad.mappings[0].run_generation = 2,
+                "receipt_generation" => bad.receipts[0].run_generation = 2,
+                "run_generation" => bad.runs[0].source_generation = 2,
+                "target_generation" => bad.runs[0].target_generation = 0,
+                "crossed_target_generation" => bad.runs[0].target_generation = 3,
+                "lineage" => bad.receipts[0].lineage = "arbitrary.orders".into(),
+                "crossed_lineage" => bad.receipts[0].lineage = bad.receipts[1].lineage.clone(),
+                "anchor" => bad.watermarks[0].lineage = "arbitrary.departments".into(),
+                "old_anchor" => bad.watermarks[0].lineage = bad.receipts[0].lineage.clone(),
+                "anchor_time" => {
+                    bad.receipts[1].target_commit_at = "2026-10-17T00:00:00Z".into();
+                    bad.freshness[1].applied_at = "2026-10-17T00:00:01Z".into();
+                }
+                "epoch" => bad.watermarks[0].source_epoch = Some(1),
+                "receipt_epoch" => bad.receipts[0].source_epoch = 1,
+                "position" => bad.receipts[0].applied_pos = "1".into(),
+                "import_position" => bad.imports[0].applied_pos = "1".into(),
+                "codec" => bad.watermarks[0].codec = "mysql-gtid/v1".into(),
+                "unsealed" => bad.runs[0].sealed = false,
+                "unpublished" => bad.runs[0].state = "awaiting_publish".into(),
+                "unbound" => bad.mappings[0].bound = false,
+                "partial" => bad.receipts[0].partial_txn = true,
+                "exhausted" => bad.imports[0].exhausted = false,
+                "missing_receipt" => {
+                    bad.receipts.remove(0);
+                }
+                "missing_run" => {
+                    bad.runs.remove(0);
+                }
+                "missing_quality" => {
+                    bad.table_quality.remove(0);
+                }
+                "quality" => bad.table_quality[0].capture_method = "c1_cdc".into(),
+                "delete" => bad.delete_detection = "native".into(),
+                "capture" => bad.capture_method = "c1_cdc".into(),
+                "engine" => bad.mappings[0].source_engine = None,
+                "T" | "S1" => bad.watermarks[0].consistency_grade = kind.into(),
+                "cross_table" => bad.watermarks[0].cross_table_consistent = true,
+                "receipt_cross_table" => bad.receipts[0].cross_table_consistent = true,
+                "apply_time" => bad.freshness[0].applied_at.clear(),
+                "receipt_time" => bad.receipts[0].target_commit_at.clear(),
+                "paused" => bad.freshness[0].state = "paused".into(),
+                "duplicate_receipt" => bad.receipts.push(bad.receipts[0].clone()),
+                _ => unreachable!(),
+            }
+            assert!(!ready_quality(&bad), "accepted {kind}");
+            assert!(gap_warning(&bad).is_some(), "missing refusal {kind}");
+            assert!(
+                mysql_target_observations(&bad).is_empty(),
+                "unauthenticated observation {kind}"
+            );
+        }
+    }
+
     #[test]
     fn doris_per_table_quality_keeps_mixed_c4_c5_and_null_global_position() {
         use crate::query_executor::*;
@@ -3128,14 +5012,38 @@ mod tests {
         let snapshot = || {
             let mut s = QualitySnapshot::blank("read");
             s.probes.extend([
-                RelationProbe { name: "physical_mappings", state: "read" },
-                RelationProbe { name: "table_freshness", state: "read" },
-                RelationProbe { name: "source_watermark", state: "read" },
-                RelationProbe { name: "table_quality", state: "read" },
-                RelationProbe { name: "apply_receipts", state: "read" },
-                RelationProbe { name: "full_import_run", state: "read" },
-                RelationProbe { name: "full_import_table", state: "read" },
-                RelationProbe { name: "full_import_quality", state: "read" },
+                RelationProbe {
+                    name: "physical_mappings",
+                    state: "read",
+                },
+                RelationProbe {
+                    name: "table_freshness",
+                    state: "read",
+                },
+                RelationProbe {
+                    name: "source_watermark",
+                    state: "read",
+                },
+                RelationProbe {
+                    name: "table_quality",
+                    state: "read",
+                },
+                RelationProbe {
+                    name: "apply_receipts",
+                    state: "read",
+                },
+                RelationProbe {
+                    name: "full_import_run",
+                    state: "read",
+                },
+                RelationProbe {
+                    name: "full_import_table",
+                    state: "read",
+                },
+                RelationProbe {
+                    name: "full_import_quality",
+                    state: "read",
+                },
             ]);
             s.capture_method = "mixed".into();
             s.delete_detection = "mixed".into();
@@ -3186,6 +5094,9 @@ mod tests {
                     table: table.into(),
                     capture_method: capture.into(),
                     delete_detection: deletion.into(),
+                    c5_mode: None,
+                    last_full_digest_scan_completed_at: None,
+                    recent_window_watermark: None,
                 });
             }
             s
@@ -3196,15 +5107,29 @@ mod tests {
         assert_eq!(global_position_status(&good), "unmeasured");
         let document = freshness_document(&good, "knowledge-v", "policy-v");
         assert!(document["sources"].as_array().unwrap().is_empty());
-        assert_eq!(document["source_watermarks"][0]["applied_pos"], serde_json::Value::Null);
-        assert_eq!(document["source_watermarks"][0]["source_epoch"], serde_json::Value::Null);
+        assert_eq!(
+            document["source_watermarks"][0]["applied_pos"],
+            serde_json::Value::Null
+        );
+        assert_eq!(
+            document["source_watermarks"][0]["source_epoch"],
+            serde_json::Value::Null
+        );
         assert_eq!(document["source_watermarks"][0]["consistency_grade"], "S0");
         assert_eq!(document["table_quality"].as_array().unwrap().len(), 7);
-        assert_eq!(document["table_quality"][4]["capture_method"], "c4_partition");
+        assert_eq!(
+            document["table_quality"][4]["capture_method"],
+            "c4_partition"
+        );
 
         for mutate in [
-            "missing_engine", "invented_position", "invented_epoch", "wrong_lineage",
-            "missing_quality", "wrong_delete", "unpublished",
+            "missing_engine",
+            "invented_position",
+            "invented_epoch",
+            "wrong_lineage",
+            "missing_quality",
+            "wrong_delete",
+            "unpublished",
         ] {
             let mut bad = snapshot();
             match mutate {
@@ -3226,7 +5151,10 @@ mod tests {
         let applied = "2000-01-01T00:00:01.500000Z";
         assert_eq!(lag_between(source, applied), Some(1500));
         assert!(lag_between(applied, source).is_none());
-        assert_eq!(lag_between("2000-01-01T00:00:00Z","2000-01-01T00:00:01.5Z"),Some(1500));
+        assert_eq!(
+            lag_between("2000-01-01T00:00:00Z", "2000-01-01T00:00:01.5Z"),
+            Some(1500)
+        );
     }
 }
 
@@ -3245,13 +5173,18 @@ fn load_native_reviewed_role(dir: &Path) -> Result<Published, &'static str> {
         return Err("reviewed_native_policy");
     }
     let input_value: Value = serde_json::from_str(&input).map_err(|_| "reviewed_native_input")?;
-    let output_value: Value = serde_json::from_str(&output).map_err(|_| "reviewed_native_command")?;
+    let output_value: Value =
+        serde_json::from_str(&output).map_err(|_| "reviewed_native_command")?;
     let native_catalog = if binding.binding_vector.is_some() {
         Some(input_value["catalog"].clone())
-    } else { None };
+    } else {
+        None
+    };
     let quality_vector = if let Some(vector) = &binding.binding_vector {
-        Some(authenticated_native_quality_vector(&input_value, &output_value, vector)
-            .ok_or("reviewed_native_quality_vector")?)
+        Some(
+            authenticated_native_quality_vector(&input_value, &output_value, vector)
+                .ok_or("reviewed_native_quality_vector")?,
+        )
     } else {
         single_import_quality_vector(&input_value, &output_value, &binding, &reviewed.policies)
     };
@@ -3265,8 +5198,14 @@ fn load_native_reviewed_role(dir: &Path) -> Result<Published, &'static str> {
         policy_version: binding.identity.policy_version,
         knowledge_version: binding.identity.knowledge_version,
         config_digest: if binding.binding_vector.is_some() {
-            reviewed.policies.first().map(|policy| policy.config_digest.clone()).ok_or("reviewed_native_policy")?
-        } else { binding.config_digest },
+            reviewed
+                .policies
+                .first()
+                .map(|policy| policy.config_digest.clone())
+                .ok_or("reviewed_native_policy")?
+        } else {
+            binding.config_digest
+        },
         policies: reviewed.policies,
     })
 }
@@ -3274,7 +5213,11 @@ fn load_native_reviewed_role(dir: &Path) -> Result<Published, &'static str> {
 // The sealed collection binding vector carries run and table identity, while the
 // closed catalog entries carry the engine. Join them only after reviewed-policy
 // compilation has authenticated the collection and its generated command.
-fn authenticated_native_quality_vector(input: &Value, output: &Value, vector: &Value) -> Option<Value> {
+fn authenticated_native_quality_vector(
+    input: &Value,
+    output: &Value,
+    vector: &Value,
+) -> Option<Value> {
     let catalog = &input["catalog"];
     let provenance = &output["provenance"];
     let items = vector.as_array()?;
@@ -3323,7 +5266,10 @@ fn authenticated_native_quality_vector(input: &Value, output: &Value, vector: &V
         if matching.len() != 1 || matching[0]["engine"].as_str() != Some(engine) {
             return None;
         }
-        if item.get("source_engine").is_some_and(|bound| bound.as_str() != Some(engine)) {
+        if item
+            .get("source_engine")
+            .is_some_and(|bound| bound.as_str() != Some(engine))
+        {
             return None;
         }
         let mut binding = item.clone();
@@ -3386,4 +5332,65 @@ fn single_import_quality_vector(
         "stored_namespace": stored_namespace,
         "stored_physical": stored_physical,
     }]))
+}
+
+#[cfg(test)]
+mod library_unknown_engine_freshness_tests {
+    use super::*;
+    #[test]
+    fn imported_library_observations_do_not_invent_an_engine_or_source_timestamp() {
+        let mut snapshot = QualitySnapshot::blank("read");
+        snapshot.capture_method = "c5_diff".into();
+        snapshot.delete_detection = "reconcile".into();
+        snapshot.mappings.push(MappingObserved {
+            source: "shard_a".into(),
+            source_engine: None,
+            schema: "app".into(),
+            table: "items".into(),
+            run_generation: 1,
+            bound: true,
+        });
+        snapshot
+            .freshness
+            .push(crate::query_executor::FreshnessObserved {
+                schema: "app".into(),
+                table: "items".into(),
+                state: "live".into(),
+                source_committed_at: String::new(),
+                applied_at: "2026-10-20T00:00:00.000000Z".into(),
+            });
+        snapshot
+            .libraries
+            .push(crate::query_executor::LibraryObserved {
+                source: "shard_a".into(),
+                library_id: "library".into(),
+                receipt_sha256: "a".repeat(64),
+                ready: true,
+            });
+        snapshot
+            .watermarks
+            .push(crate::query_executor::WatermarkObserved {
+                source: "shard_a".into(),
+                consistency: "per_table".into(),
+                consistency_grade: "B".into(),
+                cross_table_consistent: false,
+                applied_pos: Some("0".into()),
+                state: "live".into(),
+                codec: "snapshot-zero/v1".into(),
+                lineage: "shard_a.items".into(),
+                source_epoch: None,
+            });
+        let doc = freshness_document(&snapshot, "1", "1");
+        assert_eq!(doc["source_time"], "unmeasured");
+        assert_eq!(doc["global_position"], "unmeasured");
+        assert_eq!(doc["target_observations"].as_array().unwrap().len(), 1);
+        assert!(doc["target_observations"][0]["source_committed_at"].is_null());
+        assert!(
+            doc["warnings"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|w| w["code"] == "CROSS_TABLE_SKEW")
+        );
+    }
 }

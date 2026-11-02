@@ -3,9 +3,8 @@ use std::process::Command;
 
 const BOOTSTRAP: &str = include_str!("../migrations/0000_bootstrap_roles.sql");
 const EXPAND: &str = include_str!("../migrations/0001_target_fence_expand.sql");
-const CONTRACT: &str = include_str!(
-    "../../../contracts/pipeline/target-fence-receipts/target-fence-receipts-v1.json"
-);
+const CONTRACT: &str =
+    include_str!("../../../contracts/pipeline/target-fence-receipts/target-fence-receipts-v1.json");
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -49,7 +48,11 @@ fn json_string<'a>(text: &'a str, key: &str) -> &'a str {
 fn sha_after_filename<'a>(contract: &'a str, filename: &str) -> &'a str {
     let marker = format!("\"filename\": \"{filename}\"");
     let slice = contract
-        .get(contract.find(&marker).unwrap_or_else(|| panic!("missing {filename}"))..)
+        .get(
+            contract
+                .find(&marker)
+                .unwrap_or_else(|| panic!("missing {filename}"))..,
+        )
         .expect("slice");
     let key = "\"sha256\": \"";
     let start = slice.find(key).expect("sha256") + key.len();
@@ -79,8 +82,14 @@ fn target_fence_files_match_the_published_contract() {
     assert_eq!(json_string(CONTRACT, "phase"), "expand");
     assert!(CONTRACT.contains("\"migration_lock_key\": 6404202605"));
     assert!(!CONTRACT.contains("6401202601"));
-    assert_eq!(sha256(&bootstrap_path), sha_after_filename(CONTRACT, "0000_bootstrap_roles.sql"));
-    assert_eq!(sha256(&expand_path), sha_after_filename(CONTRACT, "0001_target_fence_expand.sql"));
+    assert_eq!(
+        sha256(&bootstrap_path),
+        sha_after_filename(CONTRACT, "0000_bootstrap_roles.sql")
+    );
+    assert_eq!(
+        sha256(&expand_path),
+        sha_after_filename(CONTRACT, "0001_target_fence_expand.sql")
+    );
 
     for token in [
         "target_generations",

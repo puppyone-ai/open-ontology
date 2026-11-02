@@ -358,14 +358,8 @@ fn assert_oracle(doc: &Value, pack: &oo_builder::RolePack) {
     assert_eq!(doc["manifest"]["mount"], "not_performed");
     assert_eq!(doc["manifest"]["samples"], "omitted");
     assert_eq!(doc["manifest"]["row_security_reproven"], false);
-    assert_eq!(
-        sha256_hex(manifest_text.as_bytes()),
-        pack.manifest_sha256
-    );
-    assert_eq!(
-        sha256_hex(pack.cache_key.as_bytes()),
-        pack.cache_key_sha256
-    );
+    assert_eq!(sha256_hex(manifest_text.as_bytes()), pack.manifest_sha256);
+    assert_eq!(sha256_hex(pack.cache_key.as_bytes()), pack.cache_key_sha256);
 
     let mut rows = Vec::new();
     for file in doc["artifact"]["files"].as_array().expect("artifact files") {
@@ -380,9 +374,7 @@ fn assert_oracle(doc: &Value, pack: &oo_builder::RolePack) {
     rows.sort();
     let records = Value::Array(
         rows.into_iter()
-            .map(|(path, bytes, digest)| {
-                json!({"bytes": bytes, "path": path, "sha256": digest})
-            })
+            .map(|(path, bytes, digest)| json!({"bytes": bytes, "path": path, "sha256": digest}))
             .collect(),
     );
     let pack_digest = sha256_hex(canonical_json(&records).as_bytes());
@@ -645,7 +637,11 @@ fn usage_lists_role_pack_and_the_existing_commands_still_exit_2() {
 
     let unknown = bin().arg("publish").output().expect("unknown");
     assert_eq!(unknown.status.code(), Some(2));
-    assert!(String::from_utf8(unknown.stderr).expect("stderr").contains("unknown command"));
+    assert!(
+        String::from_utf8(unknown.stderr)
+            .expect("stderr")
+            .contains("unknown command")
+    );
 }
 
 fn assert_static(output: &std::process::Output, needle: &str, absent: &[&str]) {

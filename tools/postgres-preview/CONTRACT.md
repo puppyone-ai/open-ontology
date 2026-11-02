@@ -1,5 +1,10 @@
 # postgres-preview
 
+Current source-only mode: see [CURRENT-CAPTURE.md](CURRENT-CAPTURE.md) for offline
+CLI help, configurable chunked capture, original-slot resume and the explicit
+shared admission/worker ACK boundary. The legacy fixture contract below is not
+current PostgreSQL convergence acceptance.
+
 Operator CLI for one native PostgreSQL 17.10 controlled preview. The binary orchestrates the source session, the frozen admission binary, and the later import stage. It does not link the live workspace crates.
 
 ## Config

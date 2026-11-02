@@ -33,9 +33,9 @@ use crate::model::{AccessReport, FactStatus, SourceCatalog, SourceColumn, Source
 use crate::session::{self, PgConnector, PgSession};
 use crate::sql;
 use crate::types::{
-    assemble_batch, decode_payload, guard_plans, map_column, valid_quoted_ident, ColumnPlan,
-    DecodedCell, MapDecision, PgTypePolicy, RejectCellPolicy, RunBinding, TypeFacts, TypeGraph,
-    TypedBatch, UnsupportedColumnPolicy,
+    ColumnPlan, DecodedCell, MapDecision, PgTypePolicy, RejectCellPolicy, RunBinding, TypeFacts,
+    TypeGraph, TypedBatch, UnsupportedColumnPolicy, assemble_batch, decode_payload, guard_plans,
+    map_column, valid_quoted_ident,
 };
 
 /// Snapshot owner protocol. This is not `oo.source.pgsql/v1` and not the whole reader.
@@ -413,7 +413,8 @@ pub fn type_policy_identity(policy: PgTypePolicy) -> [u8; 32] {
     let reject = match policy.reject {
         RejectCellPolicy::PreserveRow => "preserve_row",
     };
-    let body = format!("oo-pg-type-policy-identity/v1\nunsupported={unsupported}\nreject={reject}\n");
+    let body =
+        format!("oo-pg-type-policy-identity/v1\nunsupported={unsupported}\nreject={reject}\n");
     digest(body.as_bytes())
 }
 
@@ -424,7 +425,8 @@ pub fn snapshot_input_digest(
     schema_hash_hex: &str,
     generation: u64,
 ) -> Result<[u8; 32], SourceError> {
-    let hash = decode_hex(schema_hash_hex).ok_or_else(|| SourceError::catalog("catalog_identity"))?;
+    let hash =
+        decode_hex(schema_hash_hex).ok_or_else(|| SourceError::catalog("catalog_identity"))?;
     let mut hasher = Sha256::new();
     hasher.update(config_identity);
     hasher.update(type_policy_identity);
@@ -455,7 +457,14 @@ impl PgConnector {
             return Err(SourceError::config("selection"));
         }
         let mut session = self.connect().await?;
-        let built = assemble_request(&mut session, self.source_config(), policy, generation, deadline).await;
+        let built = assemble_request(
+            &mut session,
+            self.source_config(),
+            policy,
+            generation,
+            deadline,
+        )
+        .await;
         drop(session);
         built
     }
@@ -504,7 +513,9 @@ fn startup_matches(
     if node.database != config.endpoint().database() {
         return Err(SourceError::config("database"));
     }
-    if node.current_user != node.session_user || node.current_user != config.credentials().username() {
+    if node.current_user != node.session_user
+        || node.current_user != config.credentials().username()
+    {
         return Err(SourceError::config("principal"));
     }
     let Some(principal) = report.principal.value.as_ref() else {
@@ -518,7 +529,9 @@ fn startup_matches(
         return Err(SourceError::protocol("read_node"));
     }
     match report.in_recovery.value {
-        Some(recovery) if report.in_recovery.status == FactStatus::Known && recovery == node.in_recovery => {
+        Some(recovery)
+            if report.in_recovery.status == FactStatus::Known && recovery == node.in_recovery =>
+        {
             Ok(())
         }
         _ => Err(SourceError::protocol("read_node")),
@@ -553,7 +566,11 @@ fn admitted_from_catalog(catalog: &SourceCatalog) -> Result<AdmittedCatalog, Sou
                     not_null: column.not_null,
                 })
                 .collect(),
-            primary_key: table.primary_key.iter().map(|key| key.name.clone()).collect(),
+            primary_key: table
+                .primary_key
+                .iter()
+                .map(|key| key.name.clone())
+                .collect(),
         });
     }
     Ok(AdmittedCatalog { tables })
@@ -646,7 +663,13 @@ impl SnapshotOwner {
         if let Err(err) = ensure_deadline(plan.deadline) {
             return Err(fail_pair(data, guard, err).await);
         }
-        if let Err(err) = observe_current(&mut guard, &captured.node, &captured.catalog, &captured.access).await
+        if let Err(err) = observe_current(
+            &mut guard,
+            &captured.node,
+            &captured.catalog,
+            &captured.access,
+        )
+        .await
         {
             return Err(fail_pair(data, guard, err).await);
         }
@@ -766,7 +789,8 @@ impl SnapshotOwner {
             }
         }
         let released = self.release_both().await;
-        if let Some(err) = stream_err.filter(|err| err.kind() == crate::error::SourceErrorKind::Budget)
+        if let Some(err) =
+            stream_err.filter(|err| err.kind() == crate::error::SourceErrorKind::Budget)
         {
             return Err(err);
         }
@@ -835,7 +859,8 @@ impl SnapshotOwner {
             None
         };
         let released = self.release_both().await;
-        if let Some(err) = stream_err.filter(|err| err.kind() == crate::error::SourceErrorKind::Budget)
+        if let Some(err) =
+            stream_err.filter(|err| err.kind() == crate::error::SourceErrorKind::Budget)
         {
             return Err(err);
         }
@@ -1019,10 +1044,7 @@ impl SnapshotOwner {
         self.session
             .as_ref()
             .is_some_and(PgSession::rollback_skipped)
-            || self
-                .guard
-                .as_ref()
-                .is_some_and(PgSession::rollback_skipped)
+            || self.guard.as_ref().is_some_and(PgSession::rollback_skipped)
     }
 
     async fn release_both(&mut self) -> Result<(), SourceError> {
@@ -1072,7 +1094,10 @@ impl SnapshotOwner {
     ///
     /// `target_rows` is `1..=50_000`. A table with no supported plain key gets one
     /// unkeyed chunk and no resume cursor. Planning uses this transaction.
-    pub async fn plan_keys(&mut self, target_rows: u32) -> Result<crate::key_plan::KeyPlan, SourceError> {
+    pub async fn plan_keys(
+        &mut self,
+        target_rows: u32,
+    ) -> Result<crate::key_plan::KeyPlan, SourceError> {
         if target_rows == 0 || target_rows > crate::key_plan::DEFAULT_TARGET_ROWS {
             return Err(SourceError::config("target_rows"));
         }
@@ -1187,7 +1212,10 @@ impl SnapshotOwner {
         }
     }
 
-    async fn plan_keys_inner(&mut self, target_rows: u32) -> Result<crate::key_plan::KeyPlan, SourceError> {
+    async fn plan_keys_inner(
+        &mut self,
+        target_rows: u32,
+    ) -> Result<crate::key_plan::KeyPlan, SourceError> {
         self.ensure_usable()?;
         self.observe_guard().await?;
         let generation = self.binding.generation;
@@ -1232,7 +1260,8 @@ impl SnapshotOwner {
     ) -> Result<(), SourceError> {
         self.ensure_usable()?;
         self.observe_guard().await?;
-        if chunk.generation != self.binding.generation || chunk.input_digest != self.binding.input_digest
+        if chunk.generation != self.binding.generation
+            || chunk.input_digest != self.binding.input_digest
         {
             return Err(SourceError::protocol("key_plan"));
         }
@@ -1401,7 +1430,12 @@ impl SnapshotOwner {
                 spec.key_attnums.clone(),
             )
         } else {
-            (Vec::new(), Vec::new(), Vec::new(), table.key_attnums.clone())
+            (
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                table.key_attnums.clone(),
+            )
         };
         Ok(crate::stream::StreamTablePlan {
             schema: table.schema.clone(),
@@ -1468,7 +1502,6 @@ impl SnapshotOwner {
             exhausted_delivered: Arc::clone(&self.exhausted_delivered),
         })
     }
-
 }
 
 impl fmt::Debug for SnapshotOwner {
@@ -1595,9 +1628,13 @@ fn reserve(source_id: &str, generation: u64) -> Result<(), SourceError> {
     Ok(())
 }
 
-fn selection_matches(config: &PgSourceConfig, admitted: &AdmittedCatalog) -> Result<(), SourceError> {
+fn selection_matches(
+    config: &PgSourceConfig,
+    admitted: &AdmittedCatalog,
+) -> Result<(), SourceError> {
     let selected = config.selection().tables();
-    if selected.is_empty() || admitted.tables.is_empty() || selected.len() != admitted.tables.len() {
+    if selected.is_empty() || admitted.tables.is_empty() || selected.len() != admitted.tables.len()
+    {
         return Err(SourceError::config("selection"));
     }
     let mut seen = BTreeSet::new();
@@ -1718,17 +1755,19 @@ fn match_admitted(admitted: &AdmittedCatalog, catalog: &SourceCatalog) -> Result
         return Err(SourceError::catalog("catalog_identity"));
     }
     for admitted_table in &admitted.tables {
-        let Some(table) = catalog
-            .tables
-            .iter()
-            .find(|table| table.schema == admitted_table.schema && table.name == admitted_table.name)
-        else {
+        let Some(table) = catalog.tables.iter().find(|table| {
+            table.schema == admitted_table.schema && table.name == admitted_table.name
+        }) else {
             return Err(SourceError::catalog("catalog_identity"));
         };
         if !columns_match(&table.columns, &admitted_table.columns) {
             return Err(SourceError::catalog("catalog_identity"));
         }
-        let got: Vec<&str> = table.primary_key.iter().map(|key| key.name.as_str()).collect();
+        let got: Vec<&str> = table
+            .primary_key
+            .iter()
+            .map(|key| key.name.as_str())
+            .collect();
         let want: Vec<&str> = admitted_table
             .primary_key
             .iter()
@@ -2138,7 +2177,9 @@ pub(crate) fn bind_one<'a>(
         }
         (ProbeValue::Int8(value), OID_INT8) => Ok(query.bind(*value)),
         (ProbeValue::Bool(value), OID_BOOL) => Ok(query.bind(*value)),
-        (ProbeValue::Text(value), OID_TEXT | OID_VARCHAR | OID_BPCHAR) => Ok(query.bind(value.as_str())),
+        (ProbeValue::Text(value), OID_TEXT | OID_VARCHAR | OID_BPCHAR) => {
+            Ok(query.bind(value.as_str()))
+        }
         _ => Err(SourceError::protocol("probe_key")),
     }
 }
@@ -2285,7 +2326,9 @@ async fn read_attributes(
 ) -> Result<Vec<AttrFact>, SourceError> {
     let rows = session::fetch_all(
         session,
-        sqlx::query(sql::SNAPSHOT_ATTRIBUTES).bind(schema).bind(name),
+        sqlx::query(sql::SNAPSHOT_ATTRIBUTES)
+            .bind(schema)
+            .bind(name),
     )
     .await?;
     let mut attrs = Vec::with_capacity(rows.len());
@@ -2349,13 +2392,17 @@ async fn load_type_graph(
         .map(|facts| facts.oid)
         .collect();
     if !enum_oids.is_empty() {
-        let rows = session::fetch_all(session, sqlx::query(sql::ENUM_LABELS).bind(&enum_oids)).await?;
+        let rows =
+            session::fetch_all(session, sqlx::query(sql::ENUM_LABELS).bind(&enum_oids)).await?;
         apply_enum_labels(&mut graph, &rows)?;
     }
     Ok(graph)
 }
 
-fn apply_enum_labels(graph: &mut TypeGraph, rows: &[sqlx::postgres::PgRow]) -> Result<(), SourceError> {
+fn apply_enum_labels(
+    graph: &mut TypeGraph,
+    rows: &[sqlx::postgres::PgRow],
+) -> Result<(), SourceError> {
     let mut grouped: Vec<(i64, Vec<String>)> = Vec::new();
     for row in rows {
         let oid = session::cell_i64(row, 0)?;
@@ -2452,8 +2499,16 @@ async fn observe_current(
 ) -> Result<(), SourceError> {
     let limit = observation_limit(catalog)?;
     let bound = u32::try_from(limit).map_err(|_| SourceError::catalog("schema_drift"))?;
-    let schemas: Vec<String> = catalog.tables.iter().map(|table| table.schema.clone()).collect();
-    let names: Vec<String> = catalog.tables.iter().map(|table| table.name.clone()).collect();
+    let schemas: Vec<String> = catalog
+        .tables
+        .iter()
+        .map(|table| table.schema.clone())
+        .collect();
+    let names: Vec<String> = catalog
+        .tables
+        .iter()
+        .map(|table| table.name.clone())
+        .collect();
     guard.arm_rows(bound);
     let rows = session::fetch_all(
         guard,
@@ -2511,7 +2566,8 @@ async fn observe_current(
     }
     for (index, expected) in catalog.tables.iter().enumerate() {
         let got = &grouped[index];
-        let want_ord = i32::try_from(index + 1).map_err(|_| SourceError::catalog("schema_drift"))?;
+        let want_ord =
+            i32::try_from(index + 1).map_err(|_| SourceError::catalog("schema_drift"))?;
         if got.ord != want_ord || got.relkind != "r" {
             return Err(SourceError::catalog("schema_drift"));
         }
@@ -2881,7 +2937,9 @@ mod tests {
             .block_on(SnapshotOwner::open(request))
             .unwrap_err();
         assert_eq!(err.fact(), Some("max_connections"));
-        let generations = super::GENERATIONS.lock().unwrap_or_else(|err| err.into_inner());
+        let generations = super::GENERATIONS
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
         assert!(!generations.contains(&("cap_src".to_string(), 41)));
         drop(generations);
         drop(held);

@@ -181,7 +181,7 @@ pub async fn cancel_dedupe(config: &Config, dedupe: &str) -> Result<()> {
     let generation: i64 = row.try_get(2).map_err(Error::sql)?;
     let owner: String = row.try_get(3).map_err(Error::sql)?;
     let (worker, held_generation) = if state == "queued" {
-        ("canceller", 0_i64)
+        ("canceller", generation)
     } else if state == "running" {
         if owner.is_empty() {
             return Err(Error::new("cancel"));

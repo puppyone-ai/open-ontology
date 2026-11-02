@@ -211,7 +211,11 @@ pub fn inspect_jsonb_send(bytes: &[u8]) -> Result<JsonbFile, JsonbDocError> {
             .iter()
             .any(|item| item.code.ends_with("/json.duplicate_key"));
         if duplicate {
-            JsonbDocError::new("duplicate_key", "/pg_jsonb", "jsonb text repeats an object key")
+            JsonbDocError::new(
+                "duplicate_key",
+                "/pg_jsonb",
+                "jsonb text repeats an object key",
+            )
         } else {
             JsonbDocError::new(
                 "pg.truncated",
@@ -240,7 +244,11 @@ pub fn seal_bson_jsonb_document(input_json: &str) -> Result<SealedJsonbDocument,
             .iter()
             .any(|item| item.code.ends_with("/json.duplicate_key"));
         if duplicate {
-            JsonbDocError::new("duplicate_key", "/", "document envelope repeats an object key")
+            JsonbDocError::new(
+                "duplicate_key",
+                "/",
+                "document envelope repeats an object key",
+            )
         } else {
             JsonbDocError::new("schema.invalid", "/", "document envelope is not JSON")
         }
@@ -257,11 +265,19 @@ pub fn seal_bson_jsonb_document(input_json: &str) -> Result<SealedJsonbDocument,
     let input: DocumentIn = serde_json::from_value(parsed).map_err(|err| {
         let text = err.to_string();
         if text.contains("unknown field") {
-            JsonbDocError::new("field.unknown", "/", "document envelope has an unknown field")
+            JsonbDocError::new(
+                "field.unknown",
+                "/",
+                "document envelope has an unknown field",
+            )
         } else if text.contains("missing field") {
             JsonbDocError::new("field.missing", "/", "document envelope is missing a field")
         } else {
-            JsonbDocError::new("schema.invalid", "/", "document envelope is not the sealed shape")
+            JsonbDocError::new(
+                "schema.invalid",
+                "/",
+                "document envelope is not the sealed shape",
+            )
         }
     })?;
     if input.protocol != PROTOCOL {
@@ -292,7 +308,11 @@ pub fn seal_bson_jsonb_document(input_json: &str) -> Result<SealedJsonbDocument,
             "jsonb typmod is not -1",
         ));
     }
-    if input.source_type.as_deref().is_some_and(|token| token != "jsonb") {
+    if input
+        .source_type
+        .as_deref()
+        .is_some_and(|token| token != "jsonb")
+    {
         return Err(JsonbDocError::new(
             "source_type.rejected",
             "/source_type",
@@ -464,7 +484,9 @@ fn reject_inexact(value: &Value) -> Result<(), JsonbDocError> {
 
 fn exact_number(number: &Number) -> Result<(), JsonbDocError> {
     let lexeme = number.to_string();
-    if lexeme.bytes().any(|byte| matches!(byte, b'e' | b'E' | b'+'))
+    if lexeme
+        .bytes()
+        .any(|byte| matches!(byte, b'e' | b'E' | b'+'))
         || ExactDecimal::parse_sql(&lexeme).is_err()
     {
         return Err(JsonbDocError::new(
@@ -491,11 +513,9 @@ fn values_eq(left: &Value, right: &Value) -> bool {
         }
         (Value::Object(left), Value::Object(right)) => {
             left.len() == right.len()
-                && left.iter().all(|(key, value)| {
-                    right
-                        .get(key)
-                        .is_some_and(|other| values_eq(value, other))
-                })
+                && left
+                    .iter()
+                    .all(|(key, value)| right.get(key).is_some_and(|other| values_eq(value, other)))
         }
         _ => false,
     }
@@ -521,7 +541,11 @@ fn decode_hex(text: &str, path: &str) -> Result<Vec<u8>, JsonbDocError> {
     while index < bytes.len() {
         let pair = std::str::from_utf8(&bytes[index..index + 2]).unwrap_or("");
         let value = u8::from_str_radix(pair, 16).map_err(|_| {
-            JsonbDocError::new("schema.invalid", path, "hex payload is not lowercase even-length hex")
+            JsonbDocError::new(
+                "schema.invalid",
+                path,
+                "hex payload is not lowercase even-length hex",
+            )
         })?;
         out.push(value);
         index += 2;
@@ -784,10 +808,7 @@ fn read_datetime(bytes: &[u8]) -> Result<(Value, usize), JsonbDocError> {
     }
     let millis = i64::from_le_bytes(copy8(bytes));
     let mut inner = Map::new();
-    inner.insert(
-        "$numberLong".to_string(),
-        Value::String(millis.to_string()),
-    );
+    inner.insert("$numberLong".to_string(), Value::String(millis.to_string()));
     let mut object = Map::new();
     object.insert("$date".to_string(), Value::Object(inner));
     Ok((Value::Object(object), 8))
@@ -1115,7 +1136,10 @@ mod tests {
         assert_eq!(parsed.scale(), 2);
         assert_eq!(parsed.coefficient(), "150");
         let small = inspect_jsonb_send(pg_pair("scale_small").0).expect("small");
-        assert_eq!(small.value["n"].as_number().expect("n").to_string(), "-0.001");
+        assert_eq!(
+            small.value["n"].as_number().expect("n").to_string(),
+            "-0.001"
+        );
     }
 
     #[test]
@@ -1156,13 +1180,20 @@ mod tests {
         assert_eq!(format_decimal128(&neg_scale).expect("-1.50"), "-1.50");
         let mut nan = [0_u8; 16];
         nan[8..].copy_from_slice(&(0x1_F000_u64 << 46).to_le_bytes());
-        assert!(format_decimal128(&nan).unwrap_err().code.ends_with("/decimal.rejected"));
+        assert!(
+            format_decimal128(&nan)
+                .unwrap_err()
+                .code
+                .ends_with("/decimal.rejected")
+        );
         let mut infinity = [0_u8; 16];
         infinity[8..].copy_from_slice(&(0x1_E000_u64 << 46).to_le_bytes());
-        assert!(format_decimal128(&infinity)
-            .unwrap_err()
-            .code
-            .ends_with("/decimal.rejected"));
+        assert!(
+            format_decimal128(&infinity)
+                .unwrap_err()
+                .code
+                .ends_with("/decimal.rejected")
+        );
     }
 
     #[test]
@@ -1170,33 +1201,76 @@ mod tests {
         let raw = encode_document(&[]);
         assert_eq!(raw, vec![5, 0, 0, 0, 0]);
         let (bytes, text) = pg_pair("empty_object");
-        let sealed = seal_bson_jsonb_document(&envelope("public.docs", "doc", &raw, bytes, text, false))
-            .expect("seal");
+        let sealed =
+            seal_bson_jsonb_document(&envelope("public.docs", "doc", &raw, bytes, text, false))
+                .expect("seal");
         assert_eq!(sealed.oid, 3802);
         assert_eq!(sealed.typmod, -1);
         assert_eq!(sealed.arrow_type, "utf8");
-        assert_eq!(sealed.metadata.get("oo.storage.type").map(String::as_str), Some("jsonb"));
-        assert_eq!(sealed.metadata.get("oo.storage.oid").map(String::as_str), Some("3802"));
-        assert_eq!(sealed.metadata.get("oo.document.missing").map(String::as_str), Some("absent_not_null"));
-        assert_eq!(sealed.metadata.get("oo.precision.float").map(String::as_str), Some(FLOAT_PRECISION));
-        assert_eq!(sealed.metadata.get("oo.document.double").map(String::as_str), Some(DOUBLE_ENCODING));
         assert_eq!(
-            sealed.metadata.get("oo.document.double.negative_zero").map(String::as_str),
+            sealed.metadata.get("oo.storage.type").map(String::as_str),
+            Some("jsonb")
+        );
+        assert_eq!(
+            sealed.metadata.get("oo.storage.oid").map(String::as_str),
+            Some("3802")
+        );
+        assert_eq!(
+            sealed
+                .metadata
+                .get("oo.document.missing")
+                .map(String::as_str),
+            Some("absent_not_null")
+        );
+        assert_eq!(
+            sealed
+                .metadata
+                .get("oo.precision.float")
+                .map(String::as_str),
+            Some(FLOAT_PRECISION)
+        );
+        assert_eq!(
+            sealed
+                .metadata
+                .get("oo.document.double")
+                .map(String::as_str),
+            Some(DOUBLE_ENCODING)
+        );
+        assert_eq!(
+            sealed
+                .metadata
+                .get("oo.document.double.negative_zero")
+                .map(String::as_str),
             Some(DOUBLE_NEGATIVE_ZERO)
         );
         assert_eq!(
-            sealed.metadata.get("oo.document.double.non_finite").map(String::as_str),
+            sealed
+                .metadata
+                .get("oo.document.double.non_finite")
+                .map(String::as_str),
             Some(DOUBLE_NON_FINITE)
         );
         assert_eq!(
-            sealed.metadata.get("oo.document.double.nan_payload").map(String::as_str),
+            sealed
+                .metadata
+                .get("oo.document.double.nan_payload")
+                .map(String::as_str),
             Some(DOUBLE_NAN_PAYLOAD)
         );
         assert_eq!(
-            sealed.metadata.get("oo.document.field_scope").map(String::as_str),
+            sealed
+                .metadata
+                .get("oo.document.field_scope")
+                .map(String::as_str),
             Some(FIELD_SCOPE_UNCHECKED)
         );
-        assert_eq!(sealed.metadata.get("oo.quality.loss_concealed").map(String::as_str), Some("false"));
+        assert_eq!(
+            sealed
+                .metadata
+                .get("oo.quality.loss_concealed")
+                .map(String::as_str),
+            Some("false")
+        );
         assert_eq!(sealed.extended_json, serde_json::json!({}));
         assert!(sealed.extended_json.get("gone").is_none());
     }
@@ -1210,8 +1284,9 @@ mod tests {
             raw.as_slice(),
             include_bytes!("../tests/fixtures/jsonb3802/canonical-bson.bin").as_slice()
         );
-        let sealed = seal_bson_jsonb_document(&envelope("public.docs", "doc", &raw, bytes, text, true))
-            .expect("canonical");
+        let sealed =
+            seal_bson_jsonb_document(&envelope("public.docs", "doc", &raw, bytes, text, true))
+                .expect("canonical");
         let expected: Value = serde_json::from_str(include_str!(
             "../tests/fixtures/jsonb3802/canonical-extended.json"
         ))
@@ -1223,10 +1298,22 @@ mod tests {
             sealed.extended_json["big"]["$numberLong"].as_str(),
             Some("9223372036854775807")
         );
-        assert_eq!(sealed.extended_json["fits"]["$numberLong"].as_str(), Some("5"));
-        assert_eq!(sealed.extended_json["n"].as_number().unwrap().to_string(), "7");
-        assert_eq!(sealed.extended_json["d"]["$numberDecimal"].as_str(), Some("1.2300"));
-        assert_eq!(sealed.extended_json["negd"]["$numberDecimal"].as_str(), Some("-1.50"));
+        assert_eq!(
+            sealed.extended_json["fits"]["$numberLong"].as_str(),
+            Some("5")
+        );
+        assert_eq!(
+            sealed.extended_json["n"].as_number().unwrap().to_string(),
+            "7"
+        );
+        assert_eq!(
+            sealed.extended_json["d"]["$numberDecimal"].as_str(),
+            Some("1.2300")
+        );
+        assert_eq!(
+            sealed.extended_json["negd"]["$numberDecimal"].as_str(),
+            Some("-1.50")
+        );
         assert_eq!(
             sealed.extended_json["u"]["$uuid"].as_str(),
             Some("00112233-4455-4677-8899-aabbccddeeff")
@@ -1241,15 +1328,9 @@ mod tests {
         );
         assert_eq!(sealed.raw_bson_sha256, payload_sha256(&raw));
         let json_send = include_bytes!("../tests/fixtures/jsonb3802/canonical-json-send.bin");
-        let err = seal_bson_jsonb_document(&envelope(
-            "public.docs",
-            "doc",
-            &raw,
-            json_send,
-            text,
-            true,
-        ))
-        .expect_err("json send");
+        let err =
+            seal_bson_jsonb_document(&envelope("public.docs", "doc", &raw, json_send, text, true))
+                .expect_err("json send");
         assert!(err.code.ends_with("/json_text_not_jsonb"));
     }
 
@@ -1257,15 +1338,9 @@ mod tests {
     fn wrong_oid_typmod_dropped_bson_and_lossy_flags_are_refused() {
         let raw = encode_document(&[]);
         let (bytes, text) = pg_pair("empty_object");
-        let mut input: Value = serde_json::from_str(&envelope(
-            "public.docs",
-            "doc",
-            &raw,
-            bytes,
-            text,
-            false,
-        ))
-        .unwrap();
+        let mut input: Value =
+            serde_json::from_str(&envelope("public.docs", "doc", &raw, bytes, text, false))
+                .unwrap();
         input["oid"] = json_number("114").unwrap();
         let err = seal_bson_jsonb_document(&input.to_string()).expect_err("114");
         assert!(err.code.ends_with("/json114_not_jsonb"));
@@ -1334,7 +1409,10 @@ mod tests {
         assert_eq!(canonical_number_double(0x7ff0_0000_0000_0001), "NaN");
         assert_eq!(canonical_number_double(0xfff8_0000_0000_0001), "NaN");
         assert_eq!(canonical_number_double(f64::INFINITY.to_bits()), "Infinity");
-        assert_eq!(canonical_number_double(f64::NEG_INFINITY.to_bits()), "-Infinity");
+        assert_eq!(
+            canonical_number_double(f64::NEG_INFINITY.to_bits()),
+            "-Infinity"
+        );
         assert_eq!(canonical_number_double((-0.0f64).to_bits()), "-0.0");
         assert_eq!(canonical_number_double(0.0f64.to_bits()), "0.0");
         assert_eq!(canonical_number_double(41.25f64.to_bits()), "41.25");
@@ -1367,22 +1445,18 @@ mod tests {
         let raw = encode_document(&[("weight", Bson::Double(41.25f64.to_bits()))]);
         let text = r#"{"weight": {"$numberDouble": "41.25"}}"#;
         let pg = send_file(text);
-        let mut input: Value = serde_json::from_str(&envelope(
-            "public.docs",
-            "doc",
-            &raw,
-            &pg,
-            text,
-            false,
-        ))
-        .unwrap();
+        let mut input: Value =
+            serde_json::from_str(&envelope("public.docs", "doc", &raw, &pg, text, false)).unwrap();
         input["approved_fields"] = serde_json::json!(["_id", "code", "weight", "whCode"]);
         let sealed = seal_bson_jsonb_document(&input.to_string()).expect("in scope");
         assert!(sealed.extended_json.get("_id").is_none());
         assert!(sealed.extended_json.get("code").is_none());
         assert_eq!(sealed.extended_json["weight"]["$numberDouble"], "41.25");
         assert_eq!(
-            sealed.metadata.get("oo.document.field_scope").map(String::as_str),
+            sealed
+                .metadata
+                .get("oo.document.field_scope")
+                .map(String::as_str),
             Some(FIELD_SCOPE_APPROVED)
         );
         let extra = encode_document(&[
@@ -1665,11 +1739,13 @@ mod tests {
     /// Customer emit and seal. Idle unless `OO_BSON_EMIT_DIR` is set, so a
     /// normal `cargo test` does not claim the fixed shipment row was proved.
     #[test]
+    #[ignore = "external fixture: requires OO_BSON_EMIT_DIR; run with --ignored"]
     fn w141_bson_double_probe_is_idle_without_emit_dir() {
-        let Ok(dir) = std::env::var("OO_BSON_EMIT_DIR") else {
-            return;
-        };
-        match std::env::var("OO_BSON_PHASE").unwrap_or_else(|_| "emit".to_string()).as_str() {
+        let dir = std::env::var("OO_BSON_EMIT_DIR").expect("OO_BSON_EMIT_DIR is required");
+        match std::env::var("OO_BSON_PHASE")
+            .unwrap_or_else(|_| "emit".to_string())
+            .as_str()
+        {
             "emit" => w141_emit(&dir),
             "seal" => w141_seal(&dir),
             other => panic!("OO_BSON_PHASE {other}"),
@@ -1682,9 +1758,15 @@ mod tests {
         std::fs::create_dir_all(&emit).expect("emit dir");
         let document_path = std::env::var("OO_W141_DOCUMENT").expect("OO_W141_DOCUMENT");
         let fields_path = std::env::var("OO_W141_FIELDS").expect("OO_W141_FIELDS");
-        let document: Value = serde_json::from_str(&std::fs::read_to_string(&document_path).expect("document")).expect("document json");
-        let fields: Value = serde_json::from_str(&std::fs::read_to_string(&fields_path).expect("fields")).expect("fields json");
-        let approved = fields["approved_fields"].as_array().expect("approved_fields");
+        let document: Value =
+            serde_json::from_str(&std::fs::read_to_string(&document_path).expect("document"))
+                .expect("document json");
+        let fields: Value =
+            serde_json::from_str(&std::fs::read_to_string(&fields_path).expect("fields"))
+                .expect("fields json");
+        let approved = fields["approved_fields"]
+            .as_array()
+            .expect("approved_fields");
         let approved_names: Vec<&str> = approved.iter().filter_map(Value::as_str).collect();
         assert_eq!(approved_names, W141_APPROVED);
         let raw_hex = document["raw_bson_hex"].as_str().expect("raw hex");
@@ -1696,7 +1778,11 @@ mod tests {
         let original = bson_to_extended_json(&raw).expect("original");
         let original_keys = object_keys(&original);
         assert!(!original_keys.iter().any(|key| key == "weight"));
-        assert!(original_keys.iter().all(|key| W141_APPROVED.contains(&key.as_str())));
+        assert!(
+            original_keys
+                .iter()
+                .all(|key| W141_APPROVED.contains(&key.as_str()))
+        );
         let bits = 41.25_f64.to_bits();
         assert_eq!(canonical_number_double(bits), "41.25");
         assert_eq!("41.25".parse::<f64>().unwrap().to_bits(), bits);
@@ -1707,25 +1793,44 @@ mod tests {
         for key in &original_keys {
             assert!(values_eq(&value[key], &original[key]), "{key}");
         }
-        write_json(&emit.join("policy.json"), &serde_json::json!({
-            "double": DOUBLE_ENCODING,
-            "negative_zero": DOUBLE_NEGATIVE_ZERO,
-            "non_finite": DOUBLE_NON_FINITE,
-            "nan_payload": DOUBLE_NAN_PAYLOAD,
-            "float": FLOAT_PRECISION,
-            "field_scope_when_listed": FIELD_SCOPE_APPROVED,
-            "weight_bits_hex": hex_encode(&bits.to_le_bytes()),
-            "weight_canonical": "41.25",
-            "original_sha256": W141_RAW_SHA,
-            "completed_sha256": payload_sha256(&completed),
-            "original_root_keys": original_keys,
-        }));
+        write_json(
+            &emit.join("policy.json"),
+            &serde_json::json!({
+                "double": DOUBLE_ENCODING,
+                "negative_zero": DOUBLE_NEGATIVE_ZERO,
+                "non_finite": DOUBLE_NON_FINITE,
+                "nan_payload": DOUBLE_NAN_PAYLOAD,
+                "float": FLOAT_PRECISION,
+                "field_scope_when_listed": FIELD_SCOPE_APPROVED,
+                "weight_bits_hex": hex_encode(&bits.to_le_bytes()),
+                "weight_canonical": "41.25",
+                "original_sha256": W141_RAW_SHA,
+                "completed_sha256": payload_sha256(&completed),
+                "original_root_keys": original_keys,
+            }),
+        );
         write_case(&emit, "original", &raw);
         write_case(&emit, "customer", &completed);
-        write_case(&emit, "neg0", &encode_document(&[("z", Bson::Double((-0.0_f64).to_bits()))]));
-        write_case(&emit, "nan", &encode_document(&[("z", Bson::Double(0x7ff0_0000_0000_0001))]));
-        write_case(&emit, "posinf", &encode_document(&[("z", Bson::Double(f64::INFINITY.to_bits()))]));
-        write_case(&emit, "neginf", &encode_document(&[("z", Bson::Double(f64::NEG_INFINITY.to_bits()))]));
+        write_case(
+            &emit,
+            "neg0",
+            &encode_document(&[("z", Bson::Double((-0.0_f64).to_bits()))]),
+        );
+        write_case(
+            &emit,
+            "nan",
+            &encode_document(&[("z", Bson::Double(0x7ff0_0000_0000_0001))]),
+        );
+        write_case(
+            &emit,
+            "posinf",
+            &encode_document(&[("z", Bson::Double(f64::INFINITY.to_bits()))]),
+        );
+        write_case(
+            &emit,
+            "neginf",
+            &encode_document(&[("z", Bson::Double(f64::NEG_INFINITY.to_bits()))]),
+        );
         write_case(
             &emit,
             "exact",
@@ -1733,7 +1838,13 @@ mod tests {
                 ("big", Bson::Int64(9_223_372_036_854_775_807)),
                 ("d", Bson::Decimal128(decimal_bytes(false, 12300, -4))),
                 ("neg0", Bson::Double((-0.0_f64).to_bits())),
-                ("nested", Bson::Document(vec![("a", Bson::Array(vec![Bson::Int32(1), Bson::String("x".to_string())]))])),
+                (
+                    "nested",
+                    Bson::Document(vec![(
+                        "a",
+                        Bson::Array(vec![Bson::Int32(1), Bson::String("x".to_string())]),
+                    )]),
+                ),
                 ("note", Bson::Null),
                 ("weight", Bson::Double(bits)),
             ]),
@@ -1760,10 +1871,14 @@ mod tests {
         let root = std::path::Path::new(dir);
         let seal_dir = root.join("seal");
         std::fs::create_dir_all(&seal_dir).expect("seal dir");
-        let cases = ["original", "customer", "neg0", "nan", "posinf", "neginf", "exact", "scope"];
+        let cases = [
+            "original", "customer", "neg0", "nan", "posinf", "neginf", "exact", "scope",
+        ];
         let mut summary = Vec::new();
         for name in cases {
-            let raw = hex_bytes(&read_trimmed(&root.join("emit").join(format!("{name}.raw.hex"))));
+            let raw = hex_bytes(&read_trimmed(
+                &root.join("emit").join(format!("{name}.raw.hex")),
+            ));
             let pg = hex_bytes(&read_trimmed(&root.join("pg").join(format!("{name}.hex"))));
             let text = read_trimmed(&root.join("pg").join(format!("{name}.text")));
             let mut input: Value = serde_json::from_str(&envelope(
@@ -1802,17 +1917,27 @@ mod tests {
                             assert_eq!(sealed.extended_json["weight"]["$numberDouble"], "41.25");
                             assert!(sealed.extended_json.get("blob_presence").is_none());
                             assert_eq!(
-                                sealed.metadata.get("oo.document.field_scope").map(String::as_str),
+                                sealed
+                                    .metadata
+                                    .get("oo.document.field_scope")
+                                    .map(String::as_str),
                                 Some(FIELD_SCOPE_APPROVED)
                             );
                         }
                         "original" => assert!(sealed.extended_json.get("weight").is_none()),
                         "neg0" => assert_eq!(sealed.extended_json["z"]["$numberDouble"], "-0.0"),
                         "nan" => assert_eq!(sealed.extended_json["z"]["$numberDouble"], "NaN"),
-                        "posinf" => assert_eq!(sealed.extended_json["z"]["$numberDouble"], "Infinity"),
-                        "neginf" => assert_eq!(sealed.extended_json["z"]["$numberDouble"], "-Infinity"),
+                        "posinf" => {
+                            assert_eq!(sealed.extended_json["z"]["$numberDouble"], "Infinity")
+                        }
+                        "neginf" => {
+                            assert_eq!(sealed.extended_json["z"]["$numberDouble"], "-Infinity")
+                        }
                         "exact" => {
-                            assert_eq!(sealed.extended_json["big"]["$numberLong"], "9223372036854775807");
+                            assert_eq!(
+                                sealed.extended_json["big"]["$numberLong"],
+                                "9223372036854775807"
+                            );
                             assert_eq!(sealed.extended_json["d"]["$numberDecimal"], "1.2300");
                             assert!(sealed.extended_json.get("note").unwrap().is_null());
                             assert!(sealed.extended_json.get("missing").is_none());
@@ -1823,11 +1948,16 @@ mod tests {
                     }
                     if name == "customer" {
                         write_json(&seal_dir.join("customer.envelope.json"), &input);
-                        let command_path = std::env::var("OO_W141_COMMAND").expect("OO_W141_COMMAND");
-                        let mut command: Value = serde_json::from_str(&std::fs::read_to_string(command_path).expect("command")).expect("command");
+                        let command_path =
+                            std::env::var("OO_W141_COMMAND").expect("OO_W141_COMMAND");
+                        let mut command: Value = serde_json::from_str(
+                            &std::fs::read_to_string(command_path).expect("command"),
+                        )
+                        .expect("command");
                         command["document"] = input;
                         write_json(&seal_dir.join("command.json"), &command);
-                        let original_raw = hex_bytes(&read_trimmed(&root.join("emit/original.raw.hex")));
+                        let original_raw =
+                            hex_bytes(&read_trimmed(&root.join("emit/original.raw.hex")));
                         let original_pg = hex_bytes(&read_trimmed(&root.join("pg/original.hex")));
                         let original_text = read_trimmed(&root.join("pg/original.text"));
                         let mut original_input: Value = serde_json::from_str(&envelope(
@@ -1867,7 +1997,14 @@ mod tests {
         let json_send = hex_bytes(&read_trimmed(&root.join("pg/customer.json_send.hex")));
         summary.push(expect_refuse(
             "json_send",
-            &envelope("oo_w141.shipments", "doc", &customer_raw, &json_send, &customer_text, true),
+            &envelope(
+                "oo_w141.shipments",
+                "doc",
+                &customer_raw,
+                &json_send,
+                &customer_text,
+                true,
+            ),
             "/json_text_not_jsonb",
         ));
         let mut oid = serde_json::from_str::<Value>(&envelope(
@@ -1880,15 +2017,30 @@ mod tests {
         ))
         .unwrap();
         oid["oid"] = serde_json::json!(114);
-        summary.push(expect_refuse("oid_114", &oid.to_string(), "/json114_not_jsonb"));
+        summary.push(expect_refuse(
+            "oid_114",
+            &oid.to_string(),
+            "/json114_not_jsonb",
+        ));
         oid["oid"] = serde_json::json!(3802);
         oid["typmod"] = serde_json::json!(0);
-        summary.push(expect_refuse("typmod", &oid.to_string(), "/typmod.rejected"));
+        summary.push(expect_refuse(
+            "typmod",
+            &oid.to_string(),
+            "/typmod.rejected",
+        ));
         let synthetic = r#"{"n":1e2}"#;
         let synthetic_pg = send_file(synthetic);
         summary.push(expect_refuse(
             "synthetic_exponent",
-            &envelope("oo_w141.shipments", "doc", &customer_raw, &synthetic_pg, synthetic, true),
+            &envelope(
+                "oo_w141.shipments",
+                "doc",
+                &customer_raw,
+                &synthetic_pg,
+                synthetic,
+                true,
+            ),
             "/float.rejected",
         ));
         write_json(&seal_dir.join("summary.json"), &Value::Array(summary));
@@ -1914,7 +2066,11 @@ mod tests {
     fn write_case(dir: &std::path::Path, name: &str, raw: &[u8]) {
         let value = bson_to_extended_json(raw).unwrap_or_else(|err| panic!("{name}: {err}"));
         std::fs::write(dir.join(format!("{name}.raw.hex")), hex_encode(raw)).expect("raw");
-        std::fs::write(dir.join(format!("{name}.extended.json")), serde_json::to_string(&value).expect("json")).expect("extended");
+        std::fs::write(
+            dir.join(format!("{name}.extended.json")),
+            serde_json::to_string(&value).expect("json"),
+        )
+        .expect("extended");
     }
 
     fn write_json(path: &std::path::Path, value: &Value) {
@@ -1938,7 +2094,8 @@ mod tests {
     }
 
     fn read_trimmed(path: &std::path::Path) -> String {
-        let mut text = std::fs::read_to_string(path).unwrap_or_else(|err| panic!("{}: {err}", path.display()));
+        let mut text =
+            std::fs::read_to_string(path).unwrap_or_else(|err| panic!("{}: {err}", path.display()));
         while text.ends_with('\n') || text.ends_with('\r') {
             text.pop();
         }
@@ -1956,7 +2113,10 @@ mod tests {
         body.push(0);
         body.extend(payload);
         body.push(0);
-        let mut out = i32::try_from(body.len() + 4).unwrap().to_le_bytes().to_vec();
+        let mut out = i32::try_from(body.len() + 4)
+            .unwrap()
+            .to_le_bytes()
+            .to_vec();
         out.extend(body);
         out
     }

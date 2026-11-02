@@ -34,6 +34,8 @@ pub enum LocalError {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TransportError {
     Connect,
+    ConnectionReset,
+    Tls,
     Timeout,
     Dns,
     Incomplete,
@@ -205,6 +207,8 @@ impl fmt::Display for TransportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Connect => "connect failed; the client stopped",
+            Self::ConnectionReset => "connection reset by peer; the client stopped",
+            Self::Tls => "TLS handshake or certificate verification failed; the client stopped",
             Self::Timeout => "the client stopped waiting before a complete response",
             Self::Dns => "name resolution failed; the client stopped",
             Self::Incomplete => "the response ended before a complete body; the client stopped",
@@ -276,6 +280,8 @@ pub(crate) fn wire_code(code: ErrorCode) -> &'static str {
 pub(crate) fn classify_transport(error: &reqwest::Error) -> TransportError {
     if error.is_timeout() {
         TransportError::Timeout
+    } else if let Some(detail) = transport_detail(error) {
+        detail
     } else if error.is_connect() {
         TransportError::Connect
     } else if error.is_dns() {
@@ -284,5 +290,52 @@ pub(crate) fn classify_transport(error: &reqwest::Error) -> TransportError {
         TransportError::Incomplete
     } else {
         TransportError::Other
+    }
+}
+
+fn transport_detail(error: &(dyn std::error::Error + 'static)) -> Option<TransportError> {
+    let mut current = Some(error);
+    for _ in 0..16 {
+        let source = current?;
+        if source.is::<tokio_rustls::rustls::Error>() {
+            return Some(TransportError::Tls);
+        }
+        if let Some(io) = source.downcast_ref::<std::io::Error>() {
+            if io.kind() == std::io::ErrorKind::ConnectionReset {
+                return Some(TransportError::ConnectionReset);
+            }
+            // io::Error::source can skip the wrapped error itself.
+            current = io.get_ref().map(|inner| inner as &dyn std::error::Error);
+        } else {
+            current = source.source();
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod transport_tests {
+    use super::*;
+
+    #[test]
+    fn nested_io_and_tls_errors_expose_only_fixed_categories() {
+        let reset = std::io::Error::other(std::io::Error::new(
+            std::io::ErrorKind::ConnectionReset,
+            "https://private.example/token-secret",
+        ));
+        assert!(matches!(
+            transport_detail(&reset),
+            Some(TransportError::ConnectionReset)
+        ));
+        let tls = std::io::Error::other(tokio_rustls::rustls::Error::General(
+            "https://private.example/token-secret".to_owned(),
+        ));
+        assert!(matches!(transport_detail(&tls), Some(TransportError::Tls)));
+        for detail in [TransportError::ConnectionReset, TransportError::Tls] {
+            let error = QueryError::Transport(detail);
+            let shown = format!("{error} {error:?}");
+            assert!(!shown.contains("private.example") && !shown.contains("token-secret"));
+            assert!(std::error::Error::source(&error).is_none());
+        }
     }
 }

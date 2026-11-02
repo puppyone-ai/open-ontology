@@ -525,13 +525,10 @@ pub fn private_component(relative: &str) -> bool {
 }
 
 pub const UNIMPLEMENTED_SUITES: &[&str] = &[
-    "integration-a",
-    "security-b",
     "runtime-c",
     "release-state",
     "operational",
     "public-e",
-    "ontology-d",
     "performance-f",
 ];
 

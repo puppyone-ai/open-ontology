@@ -11,8 +11,8 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use sqlx::postgres::{PgBackendFrame, PgConnectOptions, PgConnection, PgSslMode};
 use sqlx::Connection;
+use sqlx::postgres::{PgBackendFrame, PgConnectOptions, PgConnection, PgSslMode};
 
 const HANG: Duration = Duration::from_secs(10);
 const PARK: Duration = Duration::from_millis(750);
@@ -67,7 +67,10 @@ async fn retained_small_frames_keep_order_and_meter() {
         } else {
             assert_eq!(event.reserved_growth, 0, "{event:?}");
         }
-        assert!(event.read_completed == 0 || event.read_completed == 1, "{event:?}");
+        assert!(
+            event.read_completed == 0 || event.read_completed == 1,
+            "{event:?}"
+        );
     }
 
     let before_park = conn.incoming_allocation();

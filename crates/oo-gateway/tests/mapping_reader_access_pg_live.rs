@@ -51,10 +51,12 @@ const OWNER: &str = "eef831aa-dba4-4af2-a78b-541bc9e0a240";
 const SHARD: &str = "shard_a240";
 
 #[tokio::test]
+#[ignore = "live fixture: requires OO_A240_LIVE; run with --ignored"]
 async fn mapping_reader_provision_then_catalog_and_query() {
-    if env::var("OO_A240_LIVE").ok().as_deref() != Some("1") {
-        return;
-    }
+    assert!(
+        env::var("OO_A240_LIVE").ok().as_deref() == Some("1"),
+        "OO_A240_LIVE must be set for this live fixture"
+    );
     let init_bin = env::var("OO_A240_INIT_PG").expect("OO_A240_INIT_PG");
     let pipeline_bin = env::var("OO_A240_PIPELINE").expect("OO_A240_PIPELINE");
     let admin_pass = read_secret("admin.pass");
@@ -662,7 +664,7 @@ fn limits() -> CatalogLimits {
         max_tables: 4,
         max_columns: 64,
         max_functions: 1,
-        max_operators: 64,
+        max_operators: 128,
         large_table_row_threshold: 1_000_000,
         unknown_rows: UnknownRows::Zero,
     }

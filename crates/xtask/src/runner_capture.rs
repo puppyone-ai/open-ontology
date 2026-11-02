@@ -1136,7 +1136,10 @@ exit 0\n",
                 assert!(!executed.cleanup_incomplete(), "{index}");
                 assert!(executed.spawn_error().is_none());
                 assert!(
-                    !executed.stdout().windows(9).any(|bytes| bytes == b"NO_SETSID"),
+                    !executed
+                        .stdout()
+                        .windows(9)
+                        .any(|bytes| bytes == b"NO_SETSID"),
                     "setsid missing"
                 );
                 assert!(
@@ -1287,7 +1290,10 @@ exit 0\n",
             assert!(state_at_return.is_none(), "{state_at_return:?}");
             assert!(gone, "writer survived");
             assert_eq!(size_at, size_after, "side file grew after return");
-            assert_eq!(inode_at, inode_after, "side file inode changed after return");
+            assert_eq!(
+                inode_at, inode_after,
+                "side file inode changed after return"
+            );
             assert!(executed.stdout().len() <= OUTPUT_LIMIT_BYTES);
         } else {
             assert_refused(&executed);
@@ -1363,9 +1369,13 @@ exit 0\n",
             &status,
             OUTPUT_LIMIT_BYTES as u64,
         );
-        let file_len = fs::metadata(&stdout).map(|meta| meta.len()).unwrap_or(u64::MAX);
+        let file_len = fs::metadata(&stdout)
+            .map(|meta| meta.len())
+            .unwrap_or(u64::MAX);
         std::thread::sleep(Duration::from_millis(200));
-        let file_after = fs::metadata(&stdout).map(|meta| meta.len()).unwrap_or(u64::MAX);
+        let file_after = fs::metadata(&stdout)
+            .map(|meta| meta.len())
+            .unwrap_or(u64::MAX);
         let _ = fs::remove_dir_all(&dir);
         assert_eq!(run.containment, crate::containment::VERIFIED);
         assert!(run.output_limited);
@@ -1614,7 +1624,11 @@ exit 0\n",
         let (pid, start) = recorded_pid_and_start(&recorded);
         let capture_note = executed.containment_note().to_owned();
         if cfg!(target_os = "linux") {
-            assert_eq!(executed.containment(), crate::containment::VERIFIED, "{capture_note}");
+            assert_eq!(
+                executed.containment(),
+                crate::containment::VERIFIED,
+                "{capture_note}"
+            );
             assert!(executed.spawned());
             assert!(!executed.cleanup_incomplete(), "{capture_note} {recorded}");
             assert!(!recorded.contains("NO_SETSID"), "{recorded}");

@@ -136,6 +136,19 @@
           "additionalProperties": false,
           "properties": {
             "kind": {
+              "const": "duration_micros",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
               "const": "timestamp_micros_naive",
               "type": "string"
             }

@@ -12,8 +12,8 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use sqlx::postgres::{
-    PgArguments, PgConnectOptions, PgConnection, PgNamedPortal, PgPortalAllowance, PgPortalOutcome,
-    PgSslMode, EXECUTE_LIMIT,
+    EXECUTE_LIMIT, PgArguments, PgConnectOptions, PgConnection, PgNamedPortal, PgPortalAllowance,
+    PgPortalOutcome, PgSslMode,
 };
 use sqlx::{Arguments, Connection, Row};
 
@@ -171,7 +171,12 @@ fn peer_main(listener: TcpListener, plan: Plan, log: Arc<Mutex<Log>>, early: Arc
                 let mut at = 0;
                 let statement = cstring(&body, &mut at);
                 let query = cstring(&body, &mut at);
-                session.log.lock().expect("log").statements.push(statement.clone());
+                session
+                    .log
+                    .lock()
+                    .expect("log")
+                    .statements
+                    .push(statement.clone());
                 session.pending_statement = Some((statement, query.contains("$1")));
                 Ok(())
             }
@@ -293,7 +298,12 @@ impl Session {
         Ok(())
     }
 
-    fn send_rows(&mut self, stream: &mut TcpStream, portal: &str, limit: u32) -> std::io::Result<()> {
+    fn send_rows(
+        &mut self,
+        stream: &mut TcpStream,
+        portal: &str,
+        limit: u32,
+    ) -> std::io::Result<()> {
         let Some(idx) = self.by_portal.get(portal).copied() else {
             return Err(std::io::Error::other("unbound portal"));
         };
@@ -327,7 +337,11 @@ impl Session {
     }
 }
 
-fn write_fragmented(stream: &mut TcpStream, bytes: &[u8], early: &AtomicUsize) -> std::io::Result<()> {
+fn write_fragmented(
+    stream: &mut TcpStream,
+    bytes: &[u8],
+    early: &AtomicUsize,
+) -> std::io::Result<()> {
     stream.set_read_timeout(Some(Duration::from_millis(15)))?;
     let mut buf = [0u8; 128];
     for &byte in bytes {
@@ -444,7 +458,11 @@ async fn named_portal_pages_suspend_and_complete() {
     assert_eq!(finished.accounting.consumed_rows, 0);
     assert_eq!(command_tag.rows_affected(), 0);
     assert!(portal.pull(allowance()).await.is_err(), "closed portal");
-    assert_eq!(peer.executes().len(), 4, "failed pull must not write Execute");
+    assert_eq!(
+        peer.executes().len(),
+        4,
+        "failed pull must not write Execute"
+    );
     drop(portal);
 
     let mut none = tx
@@ -515,10 +533,11 @@ async fn named_portal_pages_suspend_and_complete() {
 
     tx.rollback().await.expect("rollback");
     assert!(!peer.saw_commit());
-    assert!(peer
-        .queries()
-        .iter()
-        .any(|query| query.to_ascii_uppercase().starts_with("ROLLBACK")));
+    assert!(
+        peer.queries()
+            .iter()
+            .any(|query| query.to_ascii_uppercase().starts_with("ROLLBACK"))
+    );
     assert!(!conn.named_portal_poisoned());
     conn.ping().await.expect("ping after rollback");
 }
@@ -540,7 +559,11 @@ async fn fragmented_row_does_not_send_next_execute() {
         panic!("fragmented first row should suspend");
     };
     assert_eq!(row_id(&row), 1);
-    assert_eq!(peer.early_bytes(), 0, "client wrote during a partial DataRow");
+    assert_eq!(
+        peer.early_bytes(),
+        0,
+        "client wrote during a partial DataRow"
+    );
     assert_eq!(peer.executes().len(), 1);
     let step = portal.pull(allowance()).await.expect("second pull");
     let PgPortalOutcome::Suspended(row) = step.outcome else {
@@ -604,7 +627,10 @@ async fn cancelled_pull_poisons_connection() {
     drop(portal);
     drop(tx);
     assert!(conn.named_portal_poisoned());
-    assert!(conn.ping().await.is_err(), "poisoned connection is not reused");
+    assert!(
+        conn.ping().await.is_err(),
+        "poisoned connection is not reused"
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -775,7 +801,12 @@ fn row_desc_id() -> Vec<u8> {
 
 fn error_response(code: &str, message: &str) -> Vec<u8> {
     let mut body = Vec::new();
-    for (tag, value) in [(b'S', "ERROR"), (b'V', "ERROR"), (b'C', code), (b'M', message)] {
+    for (tag, value) in [
+        (b'S', "ERROR"),
+        (b'V', "ERROR"),
+        (b'C', code),
+        (b'M', message),
+    ] {
         body.push(tag);
         body.extend_from_slice(value.as_bytes());
         body.push(0);

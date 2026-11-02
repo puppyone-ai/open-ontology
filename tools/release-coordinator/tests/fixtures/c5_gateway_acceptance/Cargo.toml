@@ -1,0 +1,19 @@
+[package]
+name = "c5-gateway-acceptance"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "c5-gateway-acceptance"
+path = "main.rs"
+
+[dependencies]
+release-coordinator = { path = "../../.." }
+oo-gateway = { path = "../../../../../crates/oo-gateway" }
+oo-builder = { path = "../../../../../crates/oo-builder" }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+tokio = { version = "=1.53.1", features = ["macros", "rt-multi-thread", "time"] }
+tokio-postgres = "=0.7.18"

@@ -6,6 +6,8 @@
 //! and serde accept the same fields.
 
 pub mod de;
+mod deployment;
+pub use deployment::DeploymentMode;
 pub mod model;
 pub mod parse;
 pub mod validate;

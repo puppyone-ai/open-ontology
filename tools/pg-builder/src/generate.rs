@@ -726,6 +726,7 @@ pub(crate) fn parse_completion(config: &Config, token: &str, reply: &RawReply) -
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_owned();
+    let content = strip_json_fence(&content);
     if contains_secret(content.as_bytes(), token) {
         return Ok(Parsed {
             status: "provider_failure",
@@ -985,6 +986,20 @@ fn confidence_ok(text: &str) -> bool {
     (whole == "0") || (whole == "1" && frac.bytes().all(|byte| byte == b'0'))
 }
 
+/// Some providers wrap a JSON-mode reply in a single markdown code fence; the fence is not part of the document.
+fn strip_json_fence(content: &str) -> String {
+    let trimmed = content.trim();
+    if let Some(rest) = trimmed.strip_prefix("```")
+        && let Some(body) = rest.strip_suffix("```")
+    {
+        let body = body.strip_prefix("json").unwrap_or(body);
+        if !body.contains("```") {
+            return body.trim().to_owned();
+        }
+    }
+    content.to_owned()
+}
+
 fn chat_body(config: &Config, user: &str) -> Result<Value, PgBuilderError> {
     chat_request(config, PROMPT, user)
 }
@@ -1003,6 +1018,12 @@ pub(crate) fn chat_request(config: &Config, system: &str, user: &str) -> Result<
     });
     if let Some(effort) = &config.reasoning_effort {
         body["reasoning_effort"] = json!(effort);
+    }
+    if config.model_id.starts_with("devin/claude-") {
+        // The gateway's Claude upstream rejects an explicit temperature (invalid_argument).
+        if let Some(map) = body.as_object_mut() {
+            map.remove("temperature");
+        }
     }
     Ok(body)
 }
@@ -1249,4 +1270,17 @@ fn statements() -> Value {
 pub fn cache_hit_same(left: &Value, right: &Value) -> bool {
     left.get("candidate_sha256") == right.get("candidate_sha256")
         && left.get("candidates") == right.get("candidates")
+}
+
+#[cfg(test)]
+mod fence_tests {
+    use super::strip_json_fence;
+
+    #[test]
+    fn a_single_json_fence_is_removed_and_everything_else_is_kept() {
+        assert_eq!(strip_json_fence("```json\n{\"a\":1}\n```"), "{\"a\":1}");
+        assert_eq!(strip_json_fence("```\n{\"a\":1}\n```"), "{\"a\":1}");
+        assert_eq!(strip_json_fence("{\"a\":1}"), "{\"a\":1}");
+        assert_eq!(strip_json_fence("```json\n{}\n```\ntext\n```"), "```json\n{}\n```\ntext\n```");
+    }
 }

@@ -1,0 +1,8 @@
+5.7.44	0	0
+Execute	SELECT	319
+Prepare	SELECT	86
+Query	COMMIT	287
+Query	SELECT	669
+Query	SET	287
+Query	SHOW	656
+Query	START	287

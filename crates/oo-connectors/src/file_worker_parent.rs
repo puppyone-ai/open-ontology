@@ -14,13 +14,13 @@
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{self, Read, Write};
-use std::path::{Path, PathBuf};
 use std::os::fd::OwnedFd;
 use std::os::unix::process::CommandExt;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError};
-use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -30,10 +30,10 @@ use arrow_schema::{DataType, Field, Schema};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    DelimitedBudget, DelimitedProfile, DelimitedType, JsonlBudget, JsonlProfile, JsonlType,
-    NullPolicy, DELIMITED_LINEAGE_VERSION, DELIMITED_PROFILE_VERSION, DELIMITED_PROTOCOL,
-    DELIMITED_RECEIPT_VERSION, JSONL_LINEAGE_VERSION, JSONL_PROFILE_VERSION, JSONL_PROTOCOL,
-    JSONL_RECEIPT_VERSION,
+    DELIMITED_LINEAGE_VERSION, DELIMITED_PROFILE_VERSION, DELIMITED_PROTOCOL,
+    DELIMITED_RECEIPT_VERSION, DelimitedBudget, DelimitedProfile, DelimitedType,
+    JSONL_LINEAGE_VERSION, JSONL_PROFILE_VERSION, JSONL_PROTOCOL, JSONL_RECEIPT_VERSION,
+    JsonlBudget, JsonlProfile, JsonlType, NullPolicy,
 };
 
 /// Parent protocol. This is not `oo.source.pgsql/v1` and it is not the child
@@ -651,10 +651,9 @@ impl ParentPull {
                 proof.stderr = msg.stderr;
                 proof.stderr_overflow = msg.stderr_overflow;
                 if proof.stderr_overflow || !proof.stderr.is_empty() {
-                    return Err(self.fail(
-                        kind_for_token(token).unwrap_or(FailureKind::Worker),
-                        token,
-                    ));
+                    return Err(
+                        self.fail(kind_for_token(token).unwrap_or(FailureKind::Worker), token)
+                    );
                 }
                 self.phase = Phase::Ready(Box::new(proof));
                 Ok(None)
@@ -826,7 +825,11 @@ struct PipeEnds {
 fn start_parent(config: &ParentConfig, request: &ChildRequest) -> Result<ParentPull, ParentError> {
     let started = Instant::now();
     let deadline = started + config.deadline;
-    let file_hash = hash_file(Path::new(&request.path), request.budget.max_total_bytes, deadline)?;
+    let file_hash = hash_file(
+        Path::new(&request.path),
+        request.budget.max_total_bytes,
+        deadline,
+    )?;
     let ctx = verify_ctx(request, file_hash)?;
     let bytes = encode_request(request)?;
     let cwd = private_cwd().map_err(|_| ParentError::Config("spawn"))?;
@@ -838,15 +841,7 @@ fn start_parent(config: &ParentConfig, request: &ChildRequest) -> Result<ParentP
     let (ev_tx, ev_rx) = mpsc::sync_channel(1);
     let stop_io = Arc::clone(&stop);
     let io = thread::spawn(move || {
-        io_main(
-            spawned.pipes,
-            bytes,
-            ctx,
-            deadline,
-            stop_io,
-            cmd_rx,
-            ev_tx,
-        );
+        io_main(spawned.pipes, bytes, ctx, deadline, stop_io, cmd_rx, ev_tx);
     });
     let mut pull = ParentPull {
         stop,
@@ -949,7 +944,15 @@ fn io_main(
     let mut stderr = Vec::new();
     let mut stderr_overflow = false;
     if let Err(kind) = write_all_within(&mut pipes.parent_write, &request, deadline, &stop) {
-        let _ = send_fail(&events, kind, &pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+        let _ = send_fail(
+            &events,
+            kind,
+            &pipes.parent_err,
+            &mut stderr,
+            &mut stderr_overflow,
+            deadline,
+            &stop,
+        );
         return;
     }
     let _ = pipes.parent_write.shutdown(std::net::Shutdown::Write);
@@ -971,17 +974,44 @@ fn io_main(
         if !recv_next(&commands, deadline, &stop) {
             return;
         }
-        drain_stderr(&pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
-        let frame = match read_frame(&mut pipes.parent_read, ctx.frame_cap, COMPLETE_MAX_BYTES, deadline, &stop)
-        {
+        drain_stderr(
+            &pipes.parent_err,
+            &mut stderr,
+            &mut stderr_overflow,
+            deadline,
+            &stop,
+        );
+        let frame = match read_frame(
+            &mut pipes.parent_read,
+            ctx.frame_cap,
+            COMPLETE_MAX_BYTES,
+            deadline,
+            &stop,
+        ) {
             Ok(frame) => frame,
             Err(kind) => {
-                let _ = send_fail(&events, kind, &pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+                let _ = send_fail(
+                    &events,
+                    kind,
+                    &pipes.parent_err,
+                    &mut stderr,
+                    &mut stderr_overflow,
+                    deadline,
+                    &stop,
+                );
                 return;
             }
         };
         let Some(frame) = frame else {
-            let _ = send_fail(&events, FailureKind::Ended, &pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+            let _ = send_fail(
+                &events,
+                FailureKind::Ended,
+                &pipes.parent_err,
+                &mut stderr,
+                &mut stderr_overflow,
+                deadline,
+                &stop,
+            );
             return;
         };
         match frame.tag {
@@ -996,7 +1026,15 @@ fn io_main(
                 ) {
                     Ok(batch) => batch,
                     Err(kind) => {
-                        let _ = send_fail(&events, kind, &pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+                        let _ = send_fail(
+                            &events,
+                            kind,
+                            &pipes.parent_err,
+                            &mut stderr,
+                            &mut stderr_overflow,
+                            deadline,
+                            &stop,
+                        );
                         return;
                     }
                 };
@@ -1017,10 +1055,24 @@ fn io_main(
             }
             3 => {
                 if let Err(kind) = read_clean_eof(&mut pipes.parent_read, deadline, &stop) {
-                    let _ = send_fail(&events, kind, &pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+                    let _ = send_fail(
+                        &events,
+                        kind,
+                        &pipes.parent_err,
+                        &mut stderr,
+                        &mut stderr_overflow,
+                        deadline,
+                        &stop,
+                    );
                     return;
                 }
-                drain_stderr(&pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+                drain_stderr(
+                    &pipes.parent_err,
+                    &mut stderr,
+                    &mut stderr_overflow,
+                    deadline,
+                    &stop,
+                );
                 match bind_complete(&frame.payload, &ctx, seen_rows, seen_batches) {
                     Ok(proof) => {
                         let _ = send_msg(
@@ -1035,13 +1087,29 @@ fn io_main(
                         );
                     }
                     Err(kind) => {
-                        let _ = send_fail(&events, kind, &pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+                        let _ = send_fail(
+                            &events,
+                            kind,
+                            &pipes.parent_err,
+                            &mut stderr,
+                            &mut stderr_overflow,
+                            deadline,
+                            &stop,
+                        );
                     }
                 }
                 return;
             }
             _ => {
-                let _ = send_fail(&events, FailureKind::Malformed, &pipes.parent_err, &mut stderr, &mut stderr_overflow, deadline, &stop);
+                let _ = send_fail(
+                    &events,
+                    FailureKind::Malformed,
+                    &pipes.parent_err,
+                    &mut stderr,
+                    &mut stderr_overflow,
+                    deadline,
+                    &stop,
+                );
                 return;
             }
         }
@@ -1130,7 +1198,8 @@ fn bind_batch(
     if record.num_rows() == 0 || record.num_columns() != ctx.columns.len() {
         return Err(FailureKind::Protocol);
     }
-    let actual_schema = schema_identity(record.schema().as_ref()).map_err(|_| FailureKind::Protocol)?;
+    let actual_schema =
+        schema_identity(record.schema().as_ref()).map_err(|_| FailureKind::Protocol)?;
     if actual_schema != ctx.schema_identity {
         return Err(FailureKind::Protocol);
     }
@@ -1278,7 +1347,8 @@ fn bind_complete(
             .zip(expect.iter())
             .all(|(got, want)| got == want);
     if !same {
-        if completion_hash(&lines).is_some_and(|got| got != ctx.object_sha256 || got != ctx.file_hash)
+        if completion_hash(&lines)
+            .is_some_and(|got| got != ctx.object_sha256 || got != ctx.file_hash)
         {
             return Err(FailureKind::HashMismatch);
         }
@@ -1493,7 +1563,10 @@ fn arm_read(stream: &std::os::unix::net::UnixStream, deadline: Instant) -> Resul
         .map_err(|_| FailureKind::Io)
 }
 
-fn arm_write(stream: &std::os::unix::net::UnixStream, deadline: Instant) -> Result<(), FailureKind> {
+fn arm_write(
+    stream: &std::os::unix::net::UnixStream,
+    deadline: Instant,
+) -> Result<(), FailureKind> {
     let Some(budget) = slice_budget(deadline) else {
         return Err(FailureKind::TimedOut);
     };
@@ -1626,8 +1699,14 @@ fn encode_request(request: &ChildRequest) -> Result<Vec<u8>, ParentError> {
         SourceProfile::Delimited(profile) => delimited_profile_json(profile),
     };
     let mut budget = serde_json::Map::new();
-    budget.insert("batch_rows".to_owned(), json_u64(u64::from(request.budget.batch_rows)));
-    budget.insert("batch_bytes".to_owned(), json_u64(request.budget.batch_bytes));
+    budget.insert(
+        "batch_rows".to_owned(),
+        json_u64(u64::from(request.budget.batch_rows)),
+    );
+    budget.insert(
+        "batch_bytes".to_owned(),
+        json_u64(request.budget.batch_bytes),
+    );
     budget.insert(
         "max_record_bytes".to_owned(),
         json_u64(u64::from(request.budget.max_record_bytes)),
@@ -1638,7 +1717,10 @@ fn encode_request(request: &ChildRequest) -> Result<Vec<u8>, ParentError> {
             json_u64(u64::from(request.budget.max_field_bytes)),
         );
     }
-    budget.insert("max_total_bytes".to_owned(), json_u64(request.budget.max_total_bytes));
+    budget.insert(
+        "max_total_bytes".to_owned(),
+        json_u64(request.budget.max_total_bytes),
+    );
     budget.insert("max_rows".to_owned(), json_u64(request.budget.max_rows));
     budget.insert(
         "max_columns".to_owned(),
@@ -1738,12 +1820,10 @@ fn jsonl_schema(profile: &JsonlProfile) -> Result<Schema, ParentError> {
         metadata.insert("oo.jsonl.protocol".to_owned(), JSONL_PROTOCOL.to_owned());
         metadata.insert("oo.jsonl.logical".to_owned(), logical.to_owned());
         if logical == "json_text" {
-            metadata.insert(
-                "oo.jsonl.encoding".to_owned(),
-                "raw-json-utf8".to_owned(),
-            );
+            metadata.insert("oo.jsonl.encoding".to_owned(), "raw-json-utf8".to_owned());
         }
-        fields.push(Field::new(column.name(), data_type, column.nullable()).with_metadata(metadata));
+        fields
+            .push(Field::new(column.name(), data_type, column.nullable()).with_metadata(metadata));
     }
     Ok(Schema::new(fields))
 }
@@ -1769,7 +1849,8 @@ fn delimited_schema(profile: &DelimitedProfile) -> Result<Schema, ParentError> {
             metadata.insert("oo.delimited.precision".to_owned(), precision.to_string());
             metadata.insert("oo.delimited.scale".to_owned(), scale.to_string());
         }
-        fields.push(Field::new(column.name(), data_type, column.nullable()).with_metadata(metadata));
+        fields
+            .push(Field::new(column.name(), data_type, column.nullable()).with_metadata(metadata));
     }
     Ok(Schema::new(fields))
 }
@@ -2068,4 +2149,3 @@ fn pid_same(pid: u32, recorded: Option<u64>) -> bool {
 fn pid_same(_pid: u32, _recorded: Option<u64>) -> bool {
     false
 }
-

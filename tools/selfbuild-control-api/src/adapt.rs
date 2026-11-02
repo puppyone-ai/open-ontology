@@ -599,15 +599,50 @@ const PGSQL_PROTOCOL: &str = "oo.source.pgsql/v1";
 
 /// Native importer catalog retains its engine and its original source type/caveat.
 /// This is a structural projection of the actual importer export, never a PG protocol.
-pub fn project_native(catalog_bytes: &[u8], profile_bytes: &[u8], semantics_bytes: &[u8], pin: &ProtocolPin) -> Result<Projection, ApiError> {
+pub fn project_native(
+    catalog_bytes: &[u8],
+    profile_bytes: &[u8],
+    semantics_bytes: &[u8],
+    pin: &ProtocolPin,
+) -> Result<Projection, ApiError> {
+    project_native_with_limits(
+        catalog_bytes,
+        profile_bytes,
+        semantics_bytes,
+        pin,
+        &Default::default(),
+    )
+}
+
+pub fn project_native_with_limits(
+    catalog_bytes: &[u8],
+    profile_bytes: &[u8],
+    semantics_bytes: &[u8],
+    pin: &ProtocolPin,
+    limits: &oo_core::sealed_import::SealedImportLimits,
+) -> Result<Projection, ApiError> {
     let text = std::str::from_utf8(catalog_bytes).map_err(|_| ApiError::malformed())?;
-    let native = oo_core::sealed_import::parse_sealed_import_catalog(text).map_err(|_| ApiError::malformed())?;
-    let profile = parse_object(profile_bytes)?; let semantics = parse_object(semantics_bytes)?;
-    if pin.catalog != "oo.pipeline.sealed-import-catalog/v1" || profile.get("protocol").and_then(Value::as_str) != Some(pin.profile.as_str()) || semantics.get("protocol").and_then(Value::as_str) != Some(pin.semantics.as_str()) { return Err(ApiError::malformed()); }
-    for bound in [&profile, &semantics] {
-        if bound.get("source_id").and_then(Value::as_str).is_some_and(|id| id != native.source_id) { return Err(ApiError::malformed()); }
+    let native = oo_core::sealed_import::parse_sealed_import_catalog_with_limits(text, limits)
+        .map_err(|_| ApiError::malformed())?;
+    let profile = parse_object_with_limits(profile_bytes, &limits.json_scan)?;
+    let semantics = parse_object_with_limits(semantics_bytes, &limits.json_scan)?;
+    if pin.catalog != "oo.pipeline.sealed-import-catalog/v1"
+        || profile.get("protocol").and_then(Value::as_str) != Some(pin.profile.as_str())
+        || semantics.get("protocol").and_then(Value::as_str) != Some(pin.semantics.as_str())
+    {
+        return Err(ApiError::malformed());
     }
-    let mut columns = Vec::new(); let mut tables = Vec::new();
+    for bound in [&profile, &semantics] {
+        if bound
+            .get("source_id")
+            .and_then(Value::as_str)
+            .is_some_and(|id| id != native.source_id)
+        {
+            return Err(ApiError::malformed());
+        }
+    }
+    let mut columns = Vec::new();
+    let mut tables = Vec::new();
     for table in &native.tables {
         let dataset = format!("{}.{}", table.logical_schema, table.logical_table);
         let mut typed = Vec::new();
@@ -619,16 +654,27 @@ pub fn project_native(catalog_bytes: &[u8], profile_bytes: &[u8], semantics_byte
         tables.push(json!({"schema":table.logical_schema,"table":table.logical_table,"columns":typed,"accepted_rows":table.accepted_rows}));
     }
     let mut receipt = json!({"catalog_protocol":pin.catalog,"source_engine":native.engine,"source_id":native.source_id,"source_generation":native.source_generation,"target_generation":native.target_generation,"schema_digest":native.schema_digest,"type_digest":native.type_digest,"catalog_sha256":sha256_hex(catalog_bytes),"profile_sha256":sha256_hex(profile_bytes),"semantics_sha256":sha256_hex(semantics_bytes),"columns":columns,"source_semantics":semantics,"grade_status":"source_declared","delete_status":"source_declared","source_commit":pin.source_commit,"semantics_commit":pin.semantics_commit});
-    if let Some(vector) = &native.partition_vector { receipt["partition_vector"] = serde_json::to_value(vector).map_err(|_| ApiError::malformed())?; }
-    Ok(Projection { typed_catalog:json!({"tables":tables}), receipt })
+    if let Some(vector) = &native.partition_vector {
+        receipt["partition_vector"] =
+            serde_json::to_value(vector).map_err(|_| ApiError::malformed())?;
+    }
+    Ok(Projection {
+        typed_catalog: json!({"tables":tables}),
+        receipt,
+    })
 }
 
 /// Project every producer-exported member of a collection without collapsing
 /// its distinct run and digest bindings into a fabricated single catalog.
 pub fn project_native_collection(catalog_bytes: &[u8], profile_bytes: &[u8], semantics_bytes: &[u8], pin: &ProtocolPin) -> Result<Projection, ApiError> {
+    project_native_collection_with_limits(catalog_bytes, profile_bytes, semantics_bytes, pin, &Default::default())
+}
+
+pub fn project_native_collection_with_limits(catalog_bytes: &[u8], profile_bytes: &[u8], semantics_bytes: &[u8], pin: &ProtocolPin, limits: &oo_core::sealed_import::SealedImportLimits) -> Result<Projection, ApiError> {
     const COLLECTION: &str = "oo.pipeline.sealed-import-collection/v1";
     if pin.catalog != COLLECTION { return Err(ApiError::malformed()); }
-    let mut document = parse_object(catalog_bytes)?;
+    let text = std::str::from_utf8(catalog_bytes).map_err(|_| ApiError::malformed())?;
+    let mut document = oo_core::json_scan::parse_json_value_with_limits(text, pin.catalog.as_str(), &limits.json_scan).map_err(|_| ApiError::malformed())?;
     let declared = document.as_object_mut().ok_or_else(ApiError::malformed)?
         .remove("collection_sha256").and_then(|v| v.as_str().map(str::to_owned)).ok_or_else(ApiError::malformed)?;
     if document.as_object().is_none_or(|object| object.len() != 3)
@@ -638,8 +684,8 @@ pub fn project_native_collection(catalog_bytes: &[u8], profile_bytes: &[u8], sem
     }
     let entries = document.get("entries").and_then(Value::as_array).ok_or_else(ApiError::malformed)?;
     let bindings = document.get("binding_vector").and_then(Value::as_array).ok_or_else(ApiError::malformed)?;
-    if entries.is_empty() || entries.len() > 32 || entries.len() != bindings.len() { return Err(ApiError::malformed()); }
-    let profile = parse_object(profile_bytes)?; let semantics = parse_object(semantics_bytes)?;
+    if entries.is_empty() || entries.len() > limits.max_collection_entries || entries.len() != bindings.len() { return Err(ApiError::malformed()); }
+    let profile = parse_object_with_limits(profile_bytes, &limits.json_scan)?; let semantics = parse_object_with_limits(semantics_bytes, &limits.json_scan)?;
     if profile.get("protocol").and_then(Value::as_str) != Some(pin.profile.as_str())
         || profile.get("sampled") != Some(&Value::Bool(false))
         || semantics.get("protocol").and_then(Value::as_str) != Some(pin.semantics.as_str()) { return Err(ApiError::malformed()); }
@@ -653,7 +699,7 @@ pub fn project_native_collection(catalog_bytes: &[u8], profile_bytes: &[u8], sem
     let mut max_source_generation = 0_i64; let mut max_target_generation = 0_i64;
     let mut first_generation: Option<(i64, i64)> = None; let mut mixed_generations = false;
     for (entry, binding) in entries.iter().zip(bindings) {
-        let native = oo_core::sealed_import::parse_sealed_import_catalog(&serde_json::to_string(entry).map_err(|_| ApiError::malformed())?).map_err(|_| ApiError::malformed())?;
+        let native = oo_core::sealed_import::parse_sealed_import_catalog_with_limits(&serde_json::to_string(entry).map_err(|_| ApiError::malformed())?, limits).map_err(|_| ApiError::malformed())?;
         if native.tables.len() != 1 { return Err(ApiError::malformed()); }
         if shared_engine.as_ref().is_some_and(|value| value != &native.engine) { return Err(ApiError::malformed()); }
         shared_engine = Some(native.engine.clone());
@@ -736,4 +782,18 @@ pub fn project_native_collection(catalog_bytes: &[u8], profile_bytes: &[u8], sem
         column["source_type"] = json!(original);
     }
     Ok(Projection { typed_catalog:json!({"tables":tables}), receipt:json!({"catalog_protocol":COLLECTION,"source_engine":engine,"source_id":if multiple_sources { Value::Null } else { json!(source_id) },"source_ids":source_ids,"generation_semantics":if mixed_generations || multiple_sources { "per_dataset_binding_vector" } else { "uniform" },"source_generation_high_watermark":max_source_generation,"target_generation_high_watermark":max_target_generation,"table_generations":expected_generations,"collection_sha256":declared,"catalog_sha256":sha256_hex(catalog_bytes),"profile_sha256":sha256_hex(profile_bytes),"semantics_sha256":sha256_hex(semantics_bytes),"binding_vector":bindings,"columns":columns,"source_semantics":semantics,"grade_status":"source_declared","delete_status":"source_declared","source_commit":pin.source_commit,"semantics_commit":pin.semantics_commit}) })
+}
+
+fn parse_object_with_limits(
+    bytes: &[u8],
+    limits: &oo_core::json_scan::JsonScanLimits,
+) -> Result<Value, ApiError> {
+    let text = std::str::from_utf8(bytes).map_err(|_| ApiError::malformed())?;
+    let value =
+        oo_core::json_scan::parse_json_value_with_limits(text, "selfbuild.operator", limits)
+            .map_err(|_| ApiError::malformed())?;
+    if !value.is_object() {
+        return Err(ApiError::malformed());
+    }
+    Ok(value)
 }

@@ -41,7 +41,8 @@ fn event_project_files_match_the_published_contract() {
         .and_then(Path::parent)
         .expect("repo root");
     let v1_path = repo.join("contracts/jobs/control-schema/jobs-control-v1.json");
-    let contract_path = repo.join("contracts/jobs/event-project-binding/jobs-event-project-v1.json");
+    let contract_path =
+        repo.join("contracts/jobs/event-project-binding/jobs-event-project-v1.json");
     let bootstrap = crate_root.join("migrations/0000_bootstrap_roles.sql");
     let expand = crate_root.join("migrations/0001_jobs_control_expand.sql");
     let binding = crate_root.join("migrations/0002_event_project_binding_expand.sql");
@@ -102,9 +103,9 @@ fn event_project_files_match_the_published_contract() {
     assert!(binding_sql.contains("NOT DEFERRABLE"));
     assert!(binding_sql.contains("jobs-event-project/1"));
     assert!(binding_sql.contains("ERRCODE = 'OO004'"));
-    assert!(binding_sql.contains(
-        "GRANT SELECT ON jobs.event_project_readiness TO oo_jobs_runtime"
-    ));
+    assert!(
+        binding_sql.contains("GRANT SELECT ON jobs.event_project_readiness TO oo_jobs_runtime")
+    );
     assert!(!binding_lower.contains("security definer"));
     assert!(!binding_lower.contains("create extension"));
     assert!(!binding_lower.contains("delete from"));

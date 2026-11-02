@@ -4,7 +4,9 @@
 //! `supply --run-tools` installs cargo-audit 0.22.2 and cargo-deny 0.20.2 into a
 //! temporary cargo home. It does not change the user cargo installation.
 
+use sha2::{Digest, Sha256};
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -76,7 +78,7 @@ pub fn secrets_cmd(args: &[String]) -> Report {
         json!({
             "scope": "repository files except the .git object store. target, hidden, ignored, and new paths are scanned",
             "full_at_sec_05": false,
-            "allowlist": "exact sha256 only; pending classification is not a pass",
+            "allowlist": "pending classifications fail; reviewed non-secret fixtures require exact path, content sha256 and pattern",
             "diagnostics_echo_secret": false,
             "canary": "generated only in tests, not committed"
         }),
@@ -714,7 +716,8 @@ fn exception_issues(repo: &Path) -> Vec<Issue> {
 pub fn scan_tree(repo: &Path) -> Vec<Issue> {
     let mut issues = Vec::new();
     let allow = allowlist(repo);
-    walk(repo, repo, &allow, &mut issues);
+    let reviewed = reviewed_nonsecrets(repo, &mut issues);
+    walk(repo, repo, &allow, &reviewed, &mut issues);
     issues
 }
 
@@ -722,7 +725,13 @@ const SCAN_LIMIT: u64 = 1_048_576;
 const SCAN_CHUNK: usize = 4096;
 const SCAN_OVERLAP: usize = 512;
 
-fn walk(repo: &Path, dir: &Path, allow: &AllowList, issues: &mut Vec<Issue>) {
+fn walk(
+    repo: &Path,
+    dir: &Path,
+    allow: &AllowList,
+    reviewed: &[NonsecretReview],
+    issues: &mut Vec<Issue>,
+) {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(_) => {
@@ -771,7 +780,7 @@ fn walk(repo: &Path, dir: &Path, allow: &AllowList, issues: &mut Vec<Issue>) {
             continue;
         }
         if metadata.file_type().is_dir() {
-            walk(repo, &path, allow, issues);
+            walk(repo, &path, allow, reviewed, issues);
             continue;
         }
         if !metadata.file_type().is_file() {
@@ -782,16 +791,8 @@ fn walk(repo: &Path, dir: &Path, allow: &AllowList, issues: &mut Vec<Issue>) {
             ));
             continue;
         }
-        if metadata.len() > SCAN_LIMIT {
-            issues.push(Issue::new(
-                "secrets.oversized",
-                relative_path(repo, &path),
-                "file exceeds 1MiB and was not scanned",
-            ));
-            continue;
-        }
-        let bytes = match fs::read(&path) {
-            Ok(bytes) => bytes,
+        let mut file = match fs::File::open(&path) {
+            Ok(file) => file,
             Err(_) => {
                 issues.push(Issue::new(
                     "secrets.unreadable",
@@ -801,8 +802,43 @@ fn walk(repo: &Path, dir: &Path, allow: &AllowList, issues: &mut Vec<Issue>) {
                 continue;
             }
         };
-        if let Some(kind) = scan_bytes(&bytes) {
-            let digest = sha256_hex(&bytes);
+        let mut bytes = Vec::new();
+        let mut hash = Sha256::new();
+        let mut found = None;
+        let mut read_failed = false;
+        loop {
+            let overlap = bytes.len();
+            match file.by_ref().take(SCAN_LIMIT).read_to_end(&mut bytes) {
+                Ok(0) => break,
+                Ok(_) => {
+                    hash.update(&bytes[overlap..]);
+                    found = found.or_else(|| scan_bytes(&bytes));
+                    let keep = bytes.len().min(SCAN_OVERLAP);
+                    bytes.drain(..bytes.len() - keep);
+                }
+                Err(_) => {
+                    issues.push(Issue::new(
+                        "secrets.unreadable",
+                        relative_path(repo, &path),
+                        "file cannot be read",
+                    ));
+                    read_failed = true;
+                    break;
+                }
+            }
+        }
+        if read_failed {
+            continue;
+        }
+        if let Some(kind) = found {
+            let digest = format!("{:x}", hash.finalize());
+            if reviewed.iter().any(|entry| {
+                entry.path == relative_path(repo, &path)
+                    && entry.sha256 == digest
+                    && entry.pattern == kind
+            }) {
+                continue;
+            }
             let (code, message) = match allow.review(&digest) {
                 Some(_) => (
                     "secrets.classified_pending",
@@ -811,6 +847,63 @@ fn walk(repo: &Path, dir: &Path, allow: &AllowList, issues: &mut Vec<Issue>) {
                 None => ("secrets.hit", format!("pattern {kind}")),
             };
             issues.push(Issue::new(code, relative_path(repo, &path), message));
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NonsecretReview {
+    path: String,
+    sha256: String,
+    pattern: String,
+    reason: String,
+    reviewer: String,
+}
+
+fn reviewed_nonsecrets(repo: &Path, issues: &mut Vec<Issue>) -> Vec<NonsecretReview> {
+    const PATH: &str = "supply-chain/secret-review.json";
+    if !repo.join(PATH).exists() {
+        return Vec::new();
+    }
+    let read = || -> Option<Vec<NonsecretReview>> {
+        let bytes = read_no_symlink(repo, PATH).ok()?;
+        let text = std::str::from_utf8(&bytes).ok()?;
+        let value = oo_core::json_scan::parse_json_value(text, "nonsecret-review").ok()?;
+        if value["schema"] != "nonsecret-review/v1" {
+            return None;
+        }
+        let entries: Vec<NonsecretReview> =
+            serde_json::from_value(value.get("entries")?.clone()).ok()?;
+        let mut paths = std::collections::HashSet::new();
+        for entry in &entries {
+            if !paths.insert(&entry.path)
+                || entry.path.is_empty()
+                || Path::new(&entry.path).is_absolute()
+                || entry.path.split('/').any(|p| p == ".." || p.is_empty())
+                || entry.sha256.len() != 64
+                || !entry
+                    .sha256
+                    .bytes()
+                    .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+                || !["assignment", "private-key", "url-userinfo"].contains(&entry.pattern.as_str())
+                || entry.reason.trim().is_empty()
+                || entry.reviewer.trim().is_empty()
+            {
+                return None;
+            }
+        }
+        Some(entries)
+    };
+    match read() {
+        Some(entries) => entries,
+        None => {
+            issues.push(Issue::new(
+                "secrets.review_invalid",
+                PATH,
+                "non-secret review must bind exact paths, hashes, patterns and reviewer rationale",
+            ));
+            Vec::new()
         }
     }
 }
@@ -881,21 +974,26 @@ pub fn scan_bytes(bytes: &[u8]) -> Option<&'static str> {
     if bytes.is_empty() {
         return None;
     }
-    let begin = marker(&[b"-----", b"BEGIN "]);
-    let key = marker(&[b"PRIVATE ", b"KEY-----"]);
-    let mut saw_begin = false;
-    let mut saw_key = false;
+    let key_headers: Vec<_> = ["", "RSA ", "EC ", "OPENSSH ", "ENCRYPTED ", "DSA "]
+        .iter()
+        .map(|kind| {
+            marker(&[
+                b"-----",
+                b"BEGIN ",
+                kind.as_bytes(),
+                b"PRIVATE ",
+                b"KEY-----",
+            ])
+        })
+        .collect();
     let mut index = 0;
     loop {
         let end = (index + SCAN_CHUNK).min(bytes.len());
         let window = &bytes[index..end];
-        if contains_bytes(window, &begin) {
-            saw_begin = true;
-        }
-        if contains_bytes(window, &key) {
-            saw_key = true;
-        }
-        if saw_begin && saw_key {
+        if key_headers
+            .iter()
+            .any(|header| contains_bytes(window, header))
+        {
             return Some("private-key");
         }
         if let Some(kind) = token_hit(window) {
@@ -1039,6 +1137,9 @@ fn assignment_hit(bytes: &[u8]) -> bool {
         while index + key.len() < lower.len() {
             if lower[index..].starts_with(key) && boundary_before(&lower, index) {
                 let mut cursor = index + key.len();
+                if cursor < lower.len() && matches!(lower[cursor], b'"' | b'\'') {
+                    cursor += 1;
+                }
                 while cursor < lower.len() && matches!(lower[cursor], b' ' | b'\t') {
                     cursor += 1;
                 }
@@ -1066,7 +1167,8 @@ fn assignment_hit(bytes: &[u8]) -> bool {
                     {
                         cursor += 1;
                     }
-                    if secret_value(&bytes[start..cursor]) {
+                    let value = &bytes[start..cursor];
+                    if secret_value(value) {
                         return true;
                     }
                 }
@@ -1556,6 +1658,73 @@ fn usage(command: &str, message: &str) -> Report {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn quoted_json_keys_and_unquoted_config_literals_are_scanned() {
+        let value = ["horse", "battery", "99"].join("-");
+        let json = serde_json::json!({"password": value}).to_string();
+        assert_eq!(scan_bytes(json.as_bytes()), Some("assignment"));
+        for tail in [":42", "[42]", "(42)", "{42}"] {
+            let line = format!("password={}{}", ["review", "canary"].join("-"), tail);
+            assert_eq!(scan_bytes(line.as_bytes()), Some("assignment"));
+        }
+        for text in [
+            format!("password: $({value})"),
+            format!("let password: {value}:42"),
+            format!("let config = r#\"\nlet password: {value}:42\n\"#;"),
+        ] {
+            assert_eq!(scan_bytes(text.as_bytes()), Some("assignment"));
+        }
+    }
+
+    #[test]
+    fn large_files_are_scanned_and_review_is_bound_to_exact_content_and_path() {
+        let repo = std::env::temp_dir().join(format!("oo-secret-review-{}", std::process::id()));
+        fs::create_dir_all(repo.join("supply-chain")).unwrap();
+        let path = repo.join("fixture.txt");
+        let mut bytes = vec![b' '; SCAN_LIMIT as usize + 100];
+        let literal = format!("password=\"{}\"", ["horse", "battery", "99"].join("-"));
+        bytes.splice(..0, literal.bytes());
+        bytes.extend_from_slice(literal.as_bytes());
+        fs::write(&path, &bytes).unwrap();
+        let issues = scan_tree(&repo);
+        assert!(issues.iter().any(|issue| issue.code == "secrets.hit"));
+        let review = json!({
+            "schema": "nonsecret-review/v1",
+            "entries": [{
+                "path": "fixture.txt", "sha256": sha256_hex(&bytes), "pattern": "assignment",
+                "reason": "Generated local scanner fixture, never an authentication identity.",
+                "reviewer": "unit-fixture"
+            }]
+        });
+        fs::write(
+            repo.join("supply-chain/secret-review.json"),
+            review.to_string(),
+        )
+        .unwrap();
+        assert!(scan_tree(&repo).is_empty());
+        fs::write(repo.join("other.txt"), &bytes).unwrap();
+        assert!(
+            scan_tree(&repo)
+                .iter()
+                .any(|issue| issue.path == "other.txt")
+        );
+        fs::remove_file(repo.join("other.txt")).unwrap();
+        bytes.push(b'\n');
+        fs::write(&path, &bytes).unwrap();
+        assert!(
+            scan_tree(&repo)
+                .iter()
+                .any(|issue| issue.path == "fixture.txt")
+        );
+        fs::write(repo.join("supply-chain/secret-review.json"), "{}").unwrap();
+        assert!(
+            scan_tree(&repo)
+                .iter()
+                .any(|issue| issue.code == "secrets.review_invalid")
+        );
+        fs::remove_dir_all(repo).unwrap();
+    }
 
     #[test]
     fn canary_is_detected_and_not_a_file_in_the_repo() {

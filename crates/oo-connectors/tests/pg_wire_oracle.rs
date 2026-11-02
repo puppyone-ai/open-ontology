@@ -112,7 +112,9 @@ fn array_lowers(hex_text: &str) -> (Vec<i32>, Vec<i32>, Vec<usize>) {
     for index in 0..ndim as usize {
         let off = 12 + index * 8;
         lengths.push(i32::from_be_bytes(bytes[off..off + 4].try_into().unwrap()));
-        lowers.push(i32::from_be_bytes(bytes[off + 4..off + 8].try_into().unwrap()));
+        lowers.push(i32::from_be_bytes(
+            bytes[off + 4..off + 8].try_into().unwrap(),
+        ));
     }
     let header = 12 + ndim as usize * 8;
     let mut cursor = header;
@@ -193,7 +195,11 @@ pub fn format_exact(value: &ExactDecimal) -> String {
         out
     } else {
         let split = value.digits.len() - value.scale as usize;
-        format!("{}.{}", trim_zeros(&value.digits[..split]), &value.digits[split..])
+        format!(
+            "{}.{}",
+            trim_zeros(&value.digits[..split]),
+            &value.digits[split..]
+        )
     };
     if value.negative && body != "0" {
         format!("-{body}")
@@ -211,7 +217,10 @@ pub fn arrow_coefficient(value: &ExactDecimal, arrow_scale: i32) -> i128 {
         }
     } else {
         let drop = (value.scale - arrow_scale) as usize;
-        assert!(digits.len() >= drop, "scale does not divide the coefficient");
+        assert!(
+            digits.len() >= drop,
+            "scale does not divide the coefficient"
+        );
         let kept = &digits[..digits.len() - drop];
         let lost = &digits[digits.len() - drop..];
         assert!(lost.chars().all(|ch| ch == '0'), "inexact rescale");

@@ -1281,7 +1281,10 @@ mod tests {
             let mutated = inject_workspace_edge(metadata(), "oo-builder", target);
             let report = check(&mutated);
             assert!(rules(&report).contains(rule), "{report}");
-            assert!(rules(&report).contains(R_GATEWAY_SOURCE_CREDENTIAL), "{report}");
+            assert!(
+                rules(&report).contains(R_GATEWAY_SOURCE_CREDENTIAL),
+                "{report}"
+            );
         }
         assert!(check(metadata()).is_pass());
     }
@@ -1671,6 +1674,9 @@ mod tests {
             "libsql-sys",
             "mysqlclient-sys",
             "mysqlclient-src",
+            "oracledb",
+            "oracle",
+            "odpic-sys",
         ] {
             let on_core = inject_external_crate(metadata(), "oo-core", name);
             assert_package_rule(&check(&on_core), R_CORE_DB, "oo-core", name);
@@ -1682,6 +1688,18 @@ mod tests {
                 name,
             );
         }
+    }
+
+    #[test]
+    fn oracle_source_driver_does_not_leak_into_data_clients() {
+        for name in ["oracledb", "oracle", "odpic-sys"] {
+            for client in ["oo-sdk", "oo-cli", "oo-mcp"] {
+                let injected = inject_external_crate(metadata(), client, name);
+                assert_package_rule(&check(&injected), R_CLIENT_DB_DRIVER, client, name);
+            }
+        }
+        let source_only = inject_external_crate(metadata(), "oo-connectors", "oracledb");
+        assert!(check(&source_only).is_pass());
     }
 
     #[test]

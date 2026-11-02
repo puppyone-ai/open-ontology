@@ -9,11 +9,12 @@ use serde_json::{Map, Value};
 
 /// HTTP statuses produced by Tower layers, not by [`ApiError`].
 ///
-/// `TimeoutLayer::with_status_code` answers [`LAYER_TIMEOUT_STATUS`].
-/// `RequestBodyLimitLayer` answers [`LAYER_BODY_LIMIT_STATUS`]. Their bodies
-/// are the layer bodies. This process does not emit [`RATE_LIMITED_STATUS`]:
-/// a request that waits on the one global permit is cut by the same deadline
-/// and receives 408. [`OVERLOADED_STATUS`] is the documented breaker status.
+/// `TimeoutLayer::with_status_code` answers [`LAYER_TIMEOUT_STATUS`]. The HTTP
+/// boundary converts its bare response to the core `TIMEOUT` JSON envelope:
+/// HTTP 408, retryable false, and no query ID. Existing structured errors stay intact.
+/// `RequestBodyLimitLayer` answers [`LAYER_BODY_LIMIT_STATUS`] with its layer body.
+/// This process does not emit [`RATE_LIMITED_STATUS`]; the global permit layer
+/// still enforces concurrency. [`OVERLOADED_STATUS`] is the documented breaker status.
 /// This process does not sample PostgreSQL health and does not emit it.
 pub const LAYER_TIMEOUT_STATUS: u16 = 408;
 pub const LAYER_BODY_LIMIT_STATUS: u16 = 413;

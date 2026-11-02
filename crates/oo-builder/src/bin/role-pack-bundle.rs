@@ -157,7 +157,12 @@ fn read_request(path: &Path) -> Result<String, Fail> {
         Err(err) if err.kind() == ErrorKind::NotFound => {
             return Err(Fail::bundle("io.missing", "the request file is missing"));
         }
-        Err(_) => return Err(Fail::bundle("io.read", "the request file could not be read")),
+        Err(_) => {
+            return Err(Fail::bundle(
+                "io.read",
+                "the request file could not be read",
+            ));
+        }
     };
     if meta.file_type().is_symlink() || !meta.file_type().is_file() {
         return Err(Fail::bundle(
@@ -278,7 +283,12 @@ fn check_statuses(manifest: &Value) -> Result<(), Fail> {
     require_status(manifest, "mount", "not_performed")?;
     require_status(manifest, "samples", "omitted")?;
     require_status(manifest, "domains", "unsupported")?;
-    require_status(manifest, "file_splitting", "unsupported")?;
+    if !matches!(
+        text_field(manifest, "file_splitting")?,
+        "unsupported" | "relationship_pages" | "metric_pages" | "relationship_and_metric_pages"
+    ) {
+        return Err(status());
+    }
     require_status(manifest, "search", "unsupported")?;
     if manifest.get("row_security_reproven") != Some(&Value::Bool(false)) {
         return Err(status());
@@ -302,8 +312,18 @@ fn snapshot_object(manifest: &Value) -> Result<String, Fail> {
     let knowledge = manifest.get("knowledge").ok_or_else(identity)?;
     let mut out = String::from("{");
     let mut first = true;
-    push_str(&mut out, &mut first, "catalog_version", text_field(manifest, "catalog_version")?);
-    push_str(&mut out, &mut first, "knowledge_id", text_field(knowledge, "id")?);
+    push_str(
+        &mut out,
+        &mut first,
+        "catalog_version",
+        text_field(manifest, "catalog_version")?,
+    );
+    push_str(
+        &mut out,
+        &mut first,
+        "knowledge_id",
+        text_field(knowledge, "id")?,
+    );
     push_str(
         &mut out,
         &mut first,
@@ -317,8 +337,18 @@ fn snapshot_object(manifest: &Value) -> Result<String, Fail> {
         text_field(manifest, "ontology_version")?,
     );
     push_str(&mut out, &mut first, "policy_id", text_field(policy, "id")?);
-    push_str(&mut out, &mut first, "policy_version", text_field(policy, "version")?);
-    push_str(&mut out, &mut first, "project", text_field(manifest, "project")?);
+    push_str(
+        &mut out,
+        &mut first,
+        "policy_version",
+        text_field(policy, "version")?,
+    );
+    push_str(
+        &mut out,
+        &mut first,
+        "project",
+        text_field(manifest, "project")?,
+    );
     push_str(&mut out, &mut first, "role", text_field(manifest, "role")?);
     out.push('}');
     Ok(out)
@@ -331,7 +361,12 @@ fn statuses_object(manifest: &Value) -> Result<String, Fail> {
     push_str(&mut out, &mut first, "authentication", "not_claimed");
     push_str(&mut out, &mut first, "authorization", "not_claimed");
     push_str(&mut out, &mut first, "domains", "unsupported");
-    push_str(&mut out, &mut first, "file_splitting", "unsupported");
+    push_str(
+        &mut out,
+        &mut first,
+        "file_splitting",
+        text_field(manifest, "file_splitting")?,
+    );
     push_str(&mut out, &mut first, "mount", "not_performed");
     push_str(&mut out, &mut first, "publication", "not_claimed");
     push_bool(&mut out, &mut first, "row_security_reproven", false);
@@ -343,7 +378,12 @@ fn statuses_object(manifest: &Value) -> Result<String, Fail> {
         "tokens_estimator",
         text_field(tokens, "estimator")?,
     );
-    push_str(&mut out, &mut first, "tokens_status", text_field(tokens, "status")?);
+    push_str(
+        &mut out,
+        &mut first,
+        "tokens_status",
+        text_field(tokens, "status")?,
+    );
     out.push('}');
     Ok(out)
 }
@@ -367,7 +407,12 @@ fn assemble(parts: &BundleParts<'_>) -> String {
     out.push('{');
     push_str(&mut out, &mut first, "compiler", parts.compiler);
     push_raw(&mut out, &mut first, "manifest", parts.manifest_raw);
-    push_u64(&mut out, &mut first, "manifest_length", parts.manifest_length);
+    push_u64(
+        &mut out,
+        &mut first,
+        "manifest_length",
+        parts.manifest_length,
+    );
     push_str(&mut out, &mut first, "manifest_sha256", parts.manifest_sha);
     push_raw(&mut out, &mut first, "pack", parts.pack_raw);
     push_str(&mut out, &mut first, "pack_digest", parts.pack_digest);
@@ -521,7 +566,11 @@ fn path_exists(path: &Path, code: &'static str, message: &'static str) -> Result
 }
 
 fn create_and_write(staging: &Path, bytes: &[u8]) -> Result<(), Fail> {
-    let mut file = match OpenOptions::new().write(true).create_new(true).open(staging) {
+    let mut file = match OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(staging)
+    {
         Ok(file) => file,
         Err(err) if err.kind() == ErrorKind::AlreadyExists => {
             return Err(Fail::bundle(
@@ -692,7 +741,8 @@ fn decode_json_string(quoted: &str) -> Result<String, Fail> {
             }
             index += 1;
         } else {
-            let rest = std::str::from_utf8(&bytes[index..bytes.len() - 1]).map_err(|_| identity())?;
+            let rest =
+                std::str::from_utf8(&bytes[index..bytes.len() - 1]).map_err(|_| identity())?;
             let ch = rest.chars().next().ok_or_else(identity)?;
             out.push(ch);
             index += ch.len_utf8();
@@ -789,7 +839,10 @@ fn skip_string(bytes: &[u8], index: &mut usize) -> Result<(), Fail> {
 }
 
 fn skip_word(bytes: &[u8], index: &mut usize, word: &[u8]) -> Result<(), Fail> {
-    if bytes.get(*index..).is_some_and(|rest| rest.starts_with(word)) {
+    if bytes
+        .get(*index..)
+        .is_some_and(|rest| rest.starts_with(word))
+    {
         *index += word.len();
         Ok(())
     } else {
@@ -840,6 +893,30 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn metric_pages_do_not_change_compiler_authority_or_gate_status() {
+        let mut manifest = serde_json::json!({
+            "authentication":"not_claimed", "authorization":"not_claimed",
+            "publication":"not_claimed", "mount":"not_performed", "samples":"omitted",
+            "domains":"unsupported", "search":"unsupported", "row_security_reproven":false,
+            "tokens":{"status":"unsupported", "estimator":"none"},
+        });
+        for format in [
+            "unsupported",
+            "relationship_pages",
+            "metric_pages",
+            "relationship_and_metric_pages",
+        ] {
+            manifest["file_splitting"] = Value::String(format.to_owned());
+            assert!(check_statuses(&manifest).is_ok());
+        }
+        manifest["publication"] = Value::String("published".to_owned());
+        assert!(check_statuses(&manifest).is_err());
+        manifest["publication"] = Value::String("not_claimed".to_owned());
+        manifest["file_splitting"] = Value::String("unknown".to_owned());
+        assert!(check_statuses(&manifest).is_err());
+    }
+
     fn temp_dir(label: &str) -> PathBuf {
         static NEXT: AtomicU64 = AtomicU64::new(1);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
@@ -863,8 +940,14 @@ mod tests {
     #[test]
     fn field_span_keeps_braces_inside_strings() {
         let doc = r#"{"artifact":{"n":1,"t":"a}b"},"manifest":{"ok":true}}"#;
-        assert_eq!(field_span(doc, "artifact").expect("artifact"), r#"{"n":1,"t":"a}b"}"#);
-        assert_eq!(field_span(doc, "manifest").expect("manifest"), r#"{"ok":true}"#);
+        assert_eq!(
+            field_span(doc, "artifact").expect("artifact"),
+            r#"{"n":1,"t":"a}b"}"#
+        );
+        assert_eq!(
+            field_span(doc, "manifest").expect("manifest"),
+            r#"{"ok":true}"#
+        );
     }
 
     #[test]
@@ -978,7 +1061,12 @@ mod tests {
         std::os::unix::fs::symlink(&real, &dest).unwrap();
         let err = link_no_replace(&staging, &dest).expect_err("symlink");
         assert!(err.code.ends_with("/io.destination"), "{}", err.code);
-        assert!(fs::symlink_metadata(&dest).unwrap().file_type().is_symlink());
+        assert!(
+            fs::symlink_metadata(&dest)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
         assert_eq!(fs::read(&real).unwrap(), b"KEEP-REAL");
         assert_eq!(fs::read(&staging).unwrap(), b"BUNDLE");
         let _ = fs::remove_dir_all(&dir);
@@ -990,15 +1078,18 @@ mod tests {
         const LINUX_EACCES: i32 = 13;
         const LINUX_EEXIST: i32 = 17;
         const LINUX_EXDEV: i32 = 18;
-        const LINUX_EOPNOTSUPP: i32 = 95;
 
         let unsupported = link_failure(std::io::Error::from_raw_os_error(LINUX_LINK_EPERM));
-        assert!(unsupported.code.ends_with("/io.link"), "{}", unsupported.code);
+        assert!(
+            unsupported.code.ends_with("/io.link"),
+            "{}",
+            unsupported.code
+        );
         assert_eq!(
             unsupported.message,
             "the filesystem does not support a hard link"
         );
-        let opnotsupp = link_failure(std::io::Error::from_raw_os_error(LINUX_EOPNOTSUPP));
+        let opnotsupp = link_failure(std::io::Error::from(ErrorKind::Unsupported));
         assert_eq!(
             opnotsupp.message,
             "the filesystem does not support a hard link"

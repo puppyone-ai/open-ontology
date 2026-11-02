@@ -46,7 +46,7 @@ pub fn seal_request(catalog_json: &str) -> Result<Value, PgBuilderError> {
 
 /// Bind the actual configured model before preparing the description request.
 pub fn seal_request_for_model(catalog_json: &str, model_id: &str) -> Result<Value, PgBuilderError> {
-    if !matches!(model_id, "gpt-6.1-sol" | "grok-4.7") {
+    if !crate::config::model_id_ok(model_id) {
         return Err(PgBuilderError::new("config.endpoint", "the model is not the builder model"));
     }
     let compiled = compile_captured_pg_catalog(catalog_json, None, None).map_err(|_| {

@@ -48,14 +48,33 @@ pub fn cli_main() -> ExitCode {
 
 async fn dispatch() -> Result<(), Fail> {
     let raw: Vec<String> = env::args().skip(1).collect();
+    if raw.iter().any(|arg| arg == "--help" || arg == "-h") {
+        println!("Usage: postgres-preview <command> --config <file>\n\
+Current PostgreSQL source commands (no model/DBA/target credentials):\n\
+  capture-preflight             Read metadata, identity, privileges and slot health\n\
+  capture-receipt               Stream a complete baseline into bounded Arrow parts\n\
+  capture-receipt-transaction   Stream original pgoutput transactions; never ACK\n\
+Use oo.postgres-preview.capture-config/v1 for the current path.\n\
+Capture manifests are observations, not admission/target/worker receipts.\n\
+Legacy preview commands retain oo.postgres-preview.config/v1.");
+        return Ok(());
+    }
     if raw.first().map(String::as_str) == Some("model-forward") {
         return model_forward().await;
+    }
+    if raw.first().map(String::as_str) == Some("current-worker-producer") {
+        return current_worker_producer(&raw[1..]);
     }
     if raw.first().map(String::as_str) == Some("builder-bind") {
         return crate::bind::run(&raw[1..]);
     }
     let parsed = parse(raw)?;
-    let config = load_config(&read_text(&parsed.config)?)?;
+    let bytes = read_text(&parsed.config)?;
+    let document: Value = serde_json::from_slice(&bytes).map_err(|_| Fail::new("config.schema", 1))?;
+    if document["protocol"] == crate::receipt::current::CONFIG_PROTOCOL {
+        return crate::receipt::current::run(&parsed.command, &bytes).await;
+    }
+    let config = load_config(&bytes)?;
     fs::create_dir_all(&config.out_dir).map_err(|_| Fail::new("config.read", 1))?;
     match parsed.command.as_str() {
         "dba-load" => {
@@ -113,6 +132,28 @@ async fn dispatch() -> Result<(), Fail> {
     }
 }
 
+fn current_worker_producer(args: &[String]) -> Result<(), Fail> {
+    if args.len() != 2 || args[0] != "--config" {
+        return Err(Fail::new("usage", 2));
+    }
+    let config: Value = serde_json::from_slice(&read_text(&args[1])?)
+        .map_err(|_| Fail::new("pg.worker.config", 2))?;
+    let input: Value = serde_json::from_reader(std::io::stdin())
+        .map_err(|_| Fail::new("pg.worker.context", 2))?;
+    if config["protocol"] != "oo.postgres-preview.worker-config/v1"
+        || input["protocol"] != "oo.jobs.native-producer/v1"
+        || input["method"] != "C1" || input["cycle"] != "pull"
+        || input["source_id"] != config["source_id"]
+        || input["acknowledged_source_generation"] != 0
+        || input["pin"].as_u64().is_none_or(|n| n == 0) {
+        return Err(Fail::new("pg.worker.context", 2));
+    }
+    println!("{}", json!({"protocol":"oo.pipeline.pg-current/v1",
+        "source_id":input["source_id"],"binding":input["binding"],"pin":input["pin"],
+        "source_generation":1,"bundle":config["bundle"],"target":config["target"]}));
+    Ok(())
+}
+
 fn parse(args: Vec<String>) -> Result<Parsed, Fail> {
     let mut args = args.into_iter();
     let Some(command) = args.next() else {
@@ -166,6 +207,7 @@ fn parse(args: Vec<String>) -> Result<Parsed, Fail> {
             | "capture-compare"
             | "capture-schedule"
             | "capture-receipt"
+            | "capture-preflight"
             | "capture-receipt-delta"
             | "capture-receipt-transaction"
     ) {

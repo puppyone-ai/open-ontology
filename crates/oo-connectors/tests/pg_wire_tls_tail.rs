@@ -14,9 +14,9 @@ use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
 use sha2::{Digest, Sha256};
-use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 use sqlx::Connection;
 use sqlx::Row;
+use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 use sqlx_core::bytes::{Buf, BufMut, Bytes, BytesMut};
 use sqlx_core::error::Error;
 use sqlx_core::io::ReadBuf;
@@ -124,7 +124,10 @@ fn init_mut_eof_then_frames_stay_inside_the_plateau() {
         other => panic!("eof became {other}"),
     }
     let after = socket.incoming_meter_parts()[1];
-    assert!(after >= before, "eof rolled reserved_additional {before} -> {after}");
+    assert!(
+        after >= before,
+        "eof rolled reserved_additional {before} -> {after}"
+    );
     let mut warmup = None;
     let mut held = Vec::with_capacity(FRAMES);
     for (index, expected) in payloads.iter().enumerate() {
@@ -158,7 +161,10 @@ fn no_data_cancel_keeps_the_reserve_charge() {
     assert!(parts[1] > 0, "9000-byte ask did not reserve");
     assert!(parts[5] <= PLATEAU, "view {}", parts[5]);
     let events = socket.incoming_meter_events();
-    assert!(events.iter().any(|event| event[12] == 0), "cancel completed a row");
+    assert!(
+        events.iter().any(|event| event[12] == 0),
+        "cancel completed a row"
+    );
     eprintln!("a133_view_peak_cancel_bare={}", parts[5]);
 }
 
@@ -218,6 +224,7 @@ fn bytes_workspace_contract_and_product_blob() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "live fixture: requires OO_A133_TLS_FIXTURE; run with --ignored"]
 async fn tls_pg_sixty_thousand_small_rows() {
     let path = std::env::var("OO_A133_TLS_FIXTURE").expect("OO_A133_TLS_FIXTURE");
     let raw = std::fs::read_to_string(&path).expect("fixture pointer");
@@ -248,13 +255,13 @@ async fn tls_pg_sixty_thousand_small_rows() {
         &secrets,
     )
     .await;
+    exec(&mut admin, "SET log_statement = 'none'", &secrets).await;
     exec(
         &mut admin,
-        "SET log_statement = 'none'",
+        "DROP SCHEMA IF EXISTS oo_a133 CASCADE",
         &secrets,
     )
     .await;
-    exec(&mut admin, "DROP SCHEMA IF EXISTS oo_a133 CASCADE", &secrets).await;
     exec(
         &mut admin,
         &format!("DROP ROLE IF EXISTS {}", fixture.reader_user),
@@ -401,7 +408,11 @@ async fn connect(
         .ssl_mode(PgSslMode::VerifyFull)
         .ssl_root_cert(Path::new(&fixture.ca_file))
         .application_name(app);
-    match tokio::time::timeout(Duration::from_secs(20), PgConnection::connect_with(&options)).await
+    match tokio::time::timeout(
+        Duration::from_secs(20),
+        PgConnection::connect_with(&options),
+    )
+    .await
     {
         Ok(Ok(conn)) => conn,
         Ok(Err(err)) => panic!("{}", redact(&err.to_string(), secrets)),
@@ -425,7 +436,10 @@ async fn reader_sql(path: &str, secrets: &[&str]) -> (usize, usize) {
     for _ in 0..20 {
         let text = std::fs::read_to_string(path).unwrap_or_default();
         let redacted = redact(&text, secrets);
-        assert!(!redacted.contains("[redacted]"), "reader log contains a secret");
+        assert!(
+            !redacted.contains("[redacted]"),
+            "reader log contains a secret"
+        );
         sql_lines = 0;
         write_lines = 0;
         let mut saw_table = false;
@@ -433,7 +447,9 @@ async fn reader_sql(path: &str, secrets: &[&str]) -> (usize, usize) {
             if !line.contains("app=oo-a133-reader") {
                 continue;
             }
-            if !line.contains("statement:") && !line.contains("execute ") && !line.contains("parse ")
+            if !line.contains("statement:")
+                && !line.contains("execute ")
+                && !line.contains("parse ")
             {
                 continue;
             }
@@ -800,10 +816,7 @@ fn frame(body: &[u8]) -> Vec<u8> {
     out
 }
 
-fn take_frame(
-    buf: &mut BytesMut,
-    cap: Option<usize>,
-) -> Result<ControlFlow<Bytes, usize>, Error> {
+fn take_frame(buf: &mut BytesMut, cap: Option<usize>) -> Result<ControlFlow<Bytes, usize>, Error> {
     if buf.len() < 5 {
         return Ok(ControlFlow::Continue(5));
     }
@@ -821,18 +834,11 @@ fn take_frame(
     Ok(ControlFlow::Break(contents))
 }
 
-fn read_one<S: Socket>(
-    socket: &mut BufferedSocket<S>,
-    cap: Option<usize>,
-) -> Result<Bytes, Error> {
+fn read_one<S: Socket>(socket: &mut BufferedSocket<S>, cap: Option<usize>) -> Result<Bytes, Error> {
     drive(socket.try_read(move |buf| take_frame(buf, cap)))
 }
 
-fn note_peak<S: Socket>(
-    socket: &BufferedSocket<S>,
-    index: usize,
-    warmup: &mut Option<u64>,
-) -> u64 {
+fn note_peak<S: Socket>(socket: &BufferedSocket<S>, index: usize, warmup: &mut Option<u64>) -> u64 {
     let peak = socket.incoming_meter_parts()[5];
     assert!(peak <= PLATEAU, "frame {index} view {peak}");
     if index + 1 == WARMUP {

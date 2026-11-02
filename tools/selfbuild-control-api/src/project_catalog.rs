@@ -17,13 +17,17 @@ pub struct Projected {
 }
 
 pub fn project(catalog_bytes: &[u8], profile_bytes: &[u8], bases: &[&[u8]], audits: &[&[u8]]) -> Result<Projected, &'static str> {
+    project_with_limit(catalog_bytes, profile_bytes, bases, audits, 16)
+}
+
+pub fn project_with_limit(catalog_bytes: &[u8], profile_bytes: &[u8], bases: &[&[u8]], audits: &[&[u8]], max_tables: usize) -> Result<Projected, &'static str> {
     if audits.is_empty() {
         return Err("schema audits are empty");
     }
     if bases.is_empty() {
         return Err("sealed type basis is empty");
     }
-    let (wanted, rows_compared) = read_capture(catalog_bytes, profile_bytes)?;
+    let (wanted, rows_compared) = read_capture(catalog_bytes, profile_bytes, max_tables)?;
     let basis = load_basis(bases)?;
     let statements = logged_statements(audits)?;
     let mut live = BTreeMap::new();
@@ -35,7 +39,7 @@ pub fn project(catalog_bytes: &[u8], profile_bytes: &[u8], bases: &[&[u8]], audi
     emit(aligned, &basis.source_id, rows_compared, parsed_creates, audits)
 }
 
-fn read_capture(catalog_bytes: &[u8], profile_bytes: &[u8]) -> Result<(Vec<Wanted>, u64), &'static str> {
+fn read_capture(catalog_bytes: &[u8], profile_bytes: &[u8], max_tables: usize) -> Result<(Vec<Wanted>, u64), &'static str> {
     let capture = object(catalog_bytes)?;
     let profile = object(profile_bytes)?;
     if capture.get("protocol").and_then(Value::as_str) != Some(crate::adapt::CAPTURE_CATALOG) {
@@ -54,7 +58,7 @@ fn read_capture(catalog_bytes: &[u8], profile_bytes: &[u8]) -> Result<(Vec<Wante
     }
     let rows_compared = profile.get("rows_compared").and_then(Value::as_u64).ok_or("the compare profile has no row count")?;
     let wanted = capture_tables(capture.get("tables").ok_or("the capture has no tables")?)?;
-    if wanted.is_empty() || wanted.len() > 16 {
+    if wanted.is_empty() || wanted.len() > max_tables {
         return Err("the capture has no tables");
     }
     Ok((wanted, rows_compared))

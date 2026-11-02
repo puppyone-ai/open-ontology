@@ -146,7 +146,10 @@ impl PgSession {
         })
     }
 
-    pub(crate) fn admit_rows(&self, admit: session::Admit) -> Result<session::AdmittedLimit, SourceError> {
+    pub(crate) fn admit_rows(
+        &self,
+        admit: session::Admit,
+    ) -> Result<session::AdmittedLimit, SourceError> {
         session::admit_limit(&self.source_id, admit)
     }
 
@@ -205,7 +208,8 @@ impl PgSession {
         if schemas.is_empty() {
             return Ok(Vec::new());
         }
-        let wanted = u32::try_from(schemas.len()).map_err(|_| SourceError::budget("max_rows_per_sec"))?;
+        let wanted =
+            u32::try_from(schemas.len()).map_err(|_| SourceError::budget("max_rows_per_sec"))?;
         let admitted = self.admit_rows(session::Admit::Exact {
             wanted,
             natural: true,
@@ -214,7 +218,10 @@ impl PgSession {
         let rows = self
             .fetch_limited(
                 admitted,
-                sqlx::query(sql::TABLES).bind(&schemas).bind(&names).bind(limit),
+                sqlx::query(sql::TABLES)
+                    .bind(&schemas)
+                    .bind(&names)
+                    .bind(limit),
                 "selected_table_missing",
             )
             .await?;
@@ -369,7 +376,9 @@ impl PgSession {
         let rows = self
             .fetch_limited(
                 admitted,
-                sqlx::query(sql::ENUM_LABELS_BOUNDED).bind(type_ids).bind(limit),
+                sqlx::query(sql::ENUM_LABELS_BOUNDED)
+                    .bind(type_ids)
+                    .bind(limit),
                 "catalog_truncated",
             )
             .await?;

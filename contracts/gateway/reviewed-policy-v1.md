@@ -134,3 +134,16 @@ This adapter does not authenticate the caller, the role, or the login. It does n
 M1-D14A, M1-D14B, and SP06-W01 stay open. This contract does not accept a parent plan item and it does not release.
 
 The structure-draft recompile remains the compiler's seal. Live physical-type and grant proof remains the existing installer path cited from a218.
+# Runtime Pack Replacement
+
+The operator may atomically replace a validated Pack artifact without restarting
+the Gateway. Stage temporary files outside `pack_dir`, then rename them into place.
+Every data/knowledge request pins one immutable Pack catalog; later requests see
+the replacement after its complete compiler/digest/manifest validation. Corrupt,
+missing or inconsistent artifacts do not fall back to an older authorized Pack.
+Status/cancel endpoints remain independent of Pack availability.
+
+Replacing Pack files is not publication. The normal release coordinator must
+activate matching policies, column grants and native publication fences. F22
+continues to reject mismatched Pack/role/data cuts. Installing a new Pack does
+not renew credentials or approve its candidate business semantics.

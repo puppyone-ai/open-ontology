@@ -1,5 +1,39 @@
 # Native capture scheduler operator contract
 
+## MySQL typed-C1 cycle recovery (2026-10-29)
+
+`native-cycle-policy --help` and `native-cancel --help` work without credentials.
+Install the pinned Loader's `install-native-c1-typed` migrations before using
+unapplied-delta cancellation; this includes immutable migration 0110.
+
+For a disabled, drained managed MySQL `typed-keys/v3` binding:
+
+```sh
+job-worker --config PRIVATE_CONFIG native-cycle-policy \
+  --binding UUID --expected-manifest-sha256 CURRENT_SHA256 --timeout-ms 3600000
+```
+
+The positive timeout applies to FUTURE occurrences only. A new occurrence
+persists its own start/deadline before source execution; retries cannot renew
+that deadline. This does not change the schedule interval (`period_ms`),
+registered source configuration, source identity, epoch, or acknowledged offset.
+The immutable source configuration may retain an expired installation deadline;
+only a new occurrence's validated worker clock supersedes it.
+
+An expired queued delta with zero applied private CDC receipts can use
+`native-cancel --project UUID --task UUID --worker OWNER --generation N`.
+The binding must be disabled and control/target must share a database. In one
+transaction, the normal jobs cancellation and target guard verify the exact
+acknowledged parent, no pending ACK/final import, and the active lease. They
+preserve private stages/history and restore lease ownership to that parent,
+without resetting the source offset or changing published data. Applied or
+unacknowledged work must resume; this command cannot discard it. A fresh
+`native-enable` / `native-fire` / `native-step` then reads from the same parent.
+
+If executable overrides were installed before changing policy, refresh them
+through `native-loader-put` using the new binding manifest and only the fixed
+producer/loader references. Do not edit an old occurrence or its source files.
+
 ## 2026-10-13 recovery successor
 
 For current native scheduling, install jobs 0000–0004 with `crates/oo-jobs/tools/deploy.py`, then install the exact `jobs-claim-selected/1` migration on the **control** DB with the pinned Loader's `install-native-claim-selected` command. `native-install` adds the worker tables; it does not install base jobs or create historical ACKs. The worker checks the 0009 checksum before claiming. C4 may use a separate operator-pinned target DB; other methods currently use the configured control DB as target.

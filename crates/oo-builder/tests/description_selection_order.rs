@@ -9,9 +9,10 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use oo_builder::{
-    DESCRIPTION_CANDIDATE_COMPILER, DESCRIPTION_CANDIDATE_PROTOCOL, DESCRIPTION_PROMPT_VERSION,
-    DESCRIPTION_REQUEST_COMMAND_PROTOCOL, DESCRIPTION_RESPONSE_PROTOCOL, CapturedPgDraft,
-    compile_captured_pg_catalog, complete_description_candidates, prepare_description_request,
+    CapturedPgDraft, DESCRIPTION_CANDIDATE_COMPILER, DESCRIPTION_CANDIDATE_PROTOCOL,
+    DESCRIPTION_PROMPT_VERSION, DESCRIPTION_REQUEST_COMMAND_PROTOCOL,
+    DESCRIPTION_RESPONSE_PROTOCOL, compile_captured_pg_catalog, complete_description_candidates,
+    prepare_description_request,
 };
 
 const MODEL: &str = "a262-captured";
@@ -419,7 +420,10 @@ fn physical_a_and_b_sort_selected_datasets_on_every_outcome() {
         assert_eq!(outcome["outcome"], status, "{status}");
         assert!(outcome["refusal"].is_null(), "{status}");
         assert_eq!(outcome["candidates"], json!([]), "{status}");
-        assert_eq!(outcome["request_sha256"], request["request_sha256"], "{status}");
+        assert_eq!(
+            outcome["request_sha256"], request["request_sha256"],
+            "{status}"
+        );
         note(&mut mismatches, status, &outcome, &expected);
         dumped.push(("complete_candidates", status, input, output));
     }
@@ -432,14 +436,12 @@ fn physical_a_and_b_sort_selected_datasets_on_every_outcome() {
     assert_eq!(format["outcome"], "format_rejected", "format");
     assert_eq!(format["refusal"], "duplicate_key", "format");
     assert_eq!(format["candidates"], json!([]), "format");
-    assert_eq!(format["request_sha256"], request["request_sha256"], "format");
+    assert_eq!(
+        format["request_sha256"], request["request_sha256"],
+        "format"
+    );
     note(&mut mismatches, "format", &format, &expected);
-    dumped.push((
-        "complete_candidates",
-        "format",
-        format_in,
-        format_out,
-    ));
+    dumped.push(("complete_candidates", "format", format_in, format_out));
 
     let mut tight = full.clone();
     tight["budget"] = budget(16, 1);
@@ -449,7 +451,10 @@ fn physical_a_and_b_sort_selected_datasets_on_every_outcome() {
     );
     let response = parse(&response_out);
     assert_eq!(response["outcome"], "budget_failure", "response-budget");
-    assert_eq!(response["budget_reason"], "response_bytes", "response-budget");
+    assert_eq!(
+        response["budget_reason"], "response_bytes",
+        "response-budget"
+    );
     assert_eq!(response["candidates"], json!([]), "response-budget");
     assert!(response["request_sha256"].is_string(), "response-budget");
     note(&mut mismatches, "response-budget", &response, &expected);

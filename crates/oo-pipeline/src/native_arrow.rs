@@ -12,27 +12,27 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use sha2::{Digest, Sha256};
 use oo_core::canonical::LogicalType;
+use sha2::{Digest, Sha256};
 use sqlx::postgres::PgConnection;
 use sqlx::{ConnectOptions, Connection};
 
 use crate::copy_encoder::{
-    ArrowPhysical, ArrowScalar, CellPresence, ColumnPrivileges, CopyBudgets, CopyColumn, DecodedCell,
-    ExactDecimal, ExactInt, LogicalValue, RunBinding, SourceColumn, TypeFacts, TypeGraph,
-    TypeSupport, TypeUnsupportedReason, assemble_batch, map_column,
+    ArrowPhysical, ArrowScalar, CellPresence, ColumnPrivileges, CopyBudgets, CopyColumn,
+    DecodedCell, ExactDecimal, ExactInt, LogicalValue, RunBinding, SourceColumn, TypeFacts,
+    TypeGraph, TypeSupport, TypeUnsupportedReason, assemble_batch, map_column,
 };
 use crate::copy_sink::{self, SinkError};
 use crate::full_import::{hook_digest, quality_preimage};
-use crate::physical_mapping::{Level, MappingRequest, plan_physical_mapping, quote_physical_name};
 use crate::native_binding::{self, BoundField, BoundObject};
+use crate::physical_mapping::{Level, MappingRequest, plan_physical_mapping, quote_physical_name};
 use crate::target_installer::verify_full_import_readiness;
 
 pub use crate::native_binding::{
-    approved_admission_bin, check_admission_receipt, AdmissionReceiptKind, CaptureReceipt,
     ADMISSION_BIN_SHA256, ADMISSION_BIN_SHA256_3C55, ADMISSION_BIN_SHA256_E465,
-    BINDING_REGISTRY_PROTOCOL,
-    CAPTURE_BINDING_PROTOCOL, CAPTURE_RECEIPT_PROTOCOL, OperatorEnv,
+    AdmissionReceiptKind, BINDING_REGISTRY_PROTOCOL, CAPTURE_BINDING_PROTOCOL,
+    CAPTURE_RECEIPT_PROTOCOL, CaptureReceipt, OperatorEnv, approved_admission_bin,
+    check_admission_receipt,
 };
 
 /// Physical import request.
@@ -149,7 +149,11 @@ pub enum NativeCell {
     /// Signed integer. `bit_width` is 8, 16, 32, or 64.
     Int { bit_width: u8, value: i64 },
     /// Unscaled decimal coefficient.
-    Decimal { precision: u8, scale: i8, coefficient: i128 },
+    Decimal {
+        precision: u8,
+        scale: i8,
+        coefficient: i128,
+    },
     /// Microseconds since the Unix epoch. No timezone.
     TimestampMicros(i64),
     /// Microseconds since the Unix epoch, with the Arrow timezone string.
@@ -492,7 +496,11 @@ pub(crate) fn prepare_table(
             preserve_bson_storage(&mut target, bound)?;
         }
         facts.push(target.facts.clone());
-        sources.push(source_column(decl, &target, i32::try_from(index + 1).unwrap_or(i32::MAX)));
+        sources.push(source_column(
+            decl,
+            &target,
+            i32::try_from(index + 1).unwrap_or(i32::MAX),
+        ));
         verified_columns.push(VerifiedColumn {
             logical_name: decl.logical_name.clone(),
             physical_name: String::new(),
@@ -563,7 +571,13 @@ pub(crate) fn prepare_table(
         .last()
         .map(ExactDecimal::to_plain_string)
         .unwrap_or_else(|| "0".to_string());
-    let quality = quality_preimage(batch_id, decoded.rows as u64, 0, &hex_bytes(&input_digest), &[]);
+    let quality = quality_preimage(
+        batch_id,
+        decoded.rows as u64,
+        0,
+        &hex_bytes(&input_digest),
+        &[],
+    );
     let mut payload = hashed.hasher.clone();
     payload.update(&quality);
     let physical = plan_physical_mapping(&MappingRequest {
@@ -635,9 +649,15 @@ enum TargetKind {
 }
 
 fn preserve_pg_storage(target: &mut TargetType, field: &BoundField) -> Result<(), ArrowFault> {
-    let Some(oid) = field.source_oid else { return Ok(()); };
+    let Some(oid) = field.source_oid else {
+        return Ok(());
+    };
     let typmod = field.source_typmod.ok_or(ArrowFault::Shape)?;
-    field.source_format.as_ref().filter(|value| !value.is_empty()).ok_or(ArrowFault::Shape)?;
+    field
+        .source_format
+        .as_ref()
+        .filter(|value| !value.is_empty())
+        .ok_or(ArrowFault::Shape)?;
     let (name, send, len) = match (oid, &target.kind) {
         (2950, TargetKind::FixedBytes { width: 16 }) if typmod == -1 => ("uuid", "uuid_send", 16),
         (25, TargetKind::Text { char_length: None }) if typmod == -1 => ("text", "textsend", -1),
@@ -655,7 +675,9 @@ fn preserve_pg_storage(target: &mut TargetType, field: &BoundField) -> Result<()
 }
 
 fn preserve_bson_storage(target: &mut TargetType, field: &BoundField) -> Result<(), ArrowFault> {
-    let Some(bson) = field.bson_type.as_ref() else { return Ok(()); };
+    let Some(bson) = field.bson_type.as_ref() else {
+        return Ok(());
+    };
     let kind = match (bson.variant.as_str(), bson.subtype.as_deref(), target.kind) {
         ("07", None, TargetKind::FixedBytes { width: 12 }) => Some(TargetKind::BsonObjectId),
         ("05", Some("04"), TargetKind::FixedBytes { width: 16 }) => Some(TargetKind::BsonUuid),
@@ -663,7 +685,9 @@ fn preserve_bson_storage(target: &mut TargetType, field: &BoundField) -> Result<
         ("07" | "05", _, _) => return Err(ArrowFault::Shape),
         _ => None,
     };
-    if let Some(kind) = kind { *target = target_type(kind)?; }
+    if let Some(kind) = kind {
+        *target = target_type(kind)?;
+    }
     Ok(())
 }
 
@@ -689,14 +713,19 @@ fn target_of(decl: &CopyColumnDecl, field: &DecodedField) -> Result<TargetType, 
             TargetKind::UInt64
         }
         "timestamp_nanos_utc"
-            if field.arrow_type == "timestamp_nanos_utc" && field.timezone.as_deref() == Some("UTC") =>
+            if field.arrow_type == "timestamp_nanos_utc"
+                && field.timezone.as_deref() == Some("UTC") =>
         {
             if decl.precision.is_some() || decl.scale.is_some() {
                 return Err(ArrowFault::Shape);
             }
             TargetKind::Nanos
         }
-        "dictionary_binary" | "dictionary_int32_binary" if field.arrow_type == "dictionary_binary" => TargetKind::Bytes,
+        "dictionary_binary" | "dictionary_int32_binary"
+            if field.arrow_type == "dictionary_binary" =>
+        {
+            TargetKind::Bytes
+        }
         "list_int64" if field.arrow_type == "list_int64" => TargetKind::Json,
         "list_binary" if field.arrow_type == "list_binary" => TargetKind::Json,
         "utf8" if field.arrow_type == "utf8" => {
@@ -712,7 +741,9 @@ fn target_of(decl: &CopyColumnDecl, field: &DecodedField) -> Result<TargetType, 
             }
         }
         "binary" if field.arrow_type == "binary" => TargetKind::Bytes,
-        "timestamp_micros" if field.arrow_type == "timestamp_micros" && field.timezone.is_none() => {
+        "timestamp_micros"
+            if field.arrow_type == "timestamp_micros" && field.timezone.is_none() =>
+        {
             TargetKind::Timestamp
         }
         "timestamp_second_naive"
@@ -724,7 +755,8 @@ fn target_of(decl: &CopyColumnDecl, field: &DecodedField) -> Result<TargetType, 
             TargetKind::Timestamp
         }
         "timestamp_second_utc"
-            if field.arrow_type == "timestamp_second_utc" && field.timezone.as_deref() == Some("UTC") =>
+            if field.arrow_type == "timestamp_second_utc"
+                && field.timezone.as_deref() == Some("UTC") =>
         {
             if decl.precision.is_some() || decl.scale.is_some() {
                 return Err(ArrowFault::Precision);
@@ -764,7 +796,9 @@ fn target_of(decl: &CopyColumnDecl, field: &DecodedField) -> Result<TargetType, 
             }
             TargetKind::UInt8
         }
-        "timestamp(ms,utc)" if field.arrow_type == "timestamp(ms,utc)" && field.timezone.is_none() => {
+        "timestamp(ms,utc)"
+            if field.arrow_type == "timestamp(ms,utc)" && field.timezone.is_none() =>
+        {
             if decl.precision.is_some() || decl.scale.is_some() {
                 return Err(ArrowFault::Shape);
             }
@@ -778,7 +812,10 @@ fn target_of(decl: &CopyColumnDecl, field: &DecodedField) -> Result<TargetType, 
         }
         other if fixed_binary_width(other).is_some() => {
             let width = fixed_binary_width(other).ok_or(ArrowFault::Shape)?;
-            if field.arrow_type != other || !matches!(width, 12 | 16) || decl.precision.is_some() || decl.scale.is_some()
+            if field.arrow_type != other
+                || !matches!(width, 12 | 16)
+                || decl.precision.is_some()
+                || decl.scale.is_some()
             {
                 return Err(ArrowFault::Shape);
             }
@@ -786,18 +823,46 @@ fn target_of(decl: &CopyColumnDecl, field: &DecodedField) -> Result<TargetType, 
                 width: usize::try_from(width).map_err(|_| ArrowFault::Shape)?,
             }
         }
-        other if (other.starts_with("struct(") || other.starts_with("union(dense,")) && other == field.arrow_type => {
+        other
+            if (other.starts_with("struct(") || other.starts_with("union(dense,"))
+                && other == field.arrow_type =>
+        {
             if decl.precision.is_some() || decl.scale.is_some() {
                 return Err(ArrowFault::Shape);
             }
             TargetKind::Json
         }
-        "int8" | "int16" | "int32" | "int64" | "uint64" | "uint8" | "decimal128" | "decimal256" | "utf8"
-        | "binary" | "dictionary_binary" | "dictionary_int32_binary" | "timestamp_micros" | "timestamp_micros_utc"
-        | "timestamp_second_naive" | "timestamp_second_utc" | "timestamp_millis_naive" | "date32"
-        | "date64" | "timestamp_nanos_utc" | "timestamp(ms,utc)" | "bool" | "float64" | "list_int64"
-        | "list_binary" | "list(utf8)" | "fixedsizebinary(12)" | "fixedsizebinary(16)"
-        | "time64_micros" | "time64_nanos" | "duration_micros" => {
+        "int8"
+        | "int16"
+        | "int32"
+        | "int64"
+        | "uint64"
+        | "uint8"
+        | "decimal128"
+        | "decimal256"
+        | "utf8"
+        | "binary"
+        | "dictionary_binary"
+        | "dictionary_int32_binary"
+        | "timestamp_micros"
+        | "timestamp_micros_utc"
+        | "timestamp_second_naive"
+        | "timestamp_second_utc"
+        | "timestamp_millis_naive"
+        | "date32"
+        | "date64"
+        | "timestamp_nanos_utc"
+        | "timestamp(ms,utc)"
+        | "bool"
+        | "float64"
+        | "list_int64"
+        | "list_binary"
+        | "list(utf8)"
+        | "fixedsizebinary(12)"
+        | "fixedsizebinary(16)"
+        | "time64_micros"
+        | "time64_nanos"
+        | "duration_micros" => {
             return Err(ArrowFault::Shape);
         }
         _ => return Err(ArrowFault::Shape),
@@ -805,15 +870,25 @@ fn target_of(decl: &CopyColumnDecl, field: &DecodedField) -> Result<TargetType, 
     target_type(kind)
 }
 
-fn signed_int(decl: &CopyColumnDecl, field: &DecodedField, width: i32) -> Result<TargetKind, ArrowFault> {
-    if field.precision != Some(width) || decl.scale.is_some() || decl.precision.is_some_and(|value| value != width) {
+fn signed_int(
+    decl: &CopyColumnDecl,
+    field: &DecodedField,
+    width: i32,
+) -> Result<TargetKind, ArrowFault> {
+    if field.precision != Some(width)
+        || decl.scale.is_some()
+        || decl.precision.is_some_and(|value| value != width)
+    {
         return Err(ArrowFault::Precision);
     }
     let width = u8::try_from(width).map_err(|_| ArrowFault::Shape)?;
     Ok(TargetKind::Int { width })
 }
 
-fn decimal_target(decl: &CopyColumnDecl, field: &DecodedField) -> Result<Option<TargetKind>, ArrowFault> {
+fn decimal_target(
+    decl: &CopyColumnDecl,
+    field: &DecodedField,
+) -> Result<Option<TargetKind>, ArrowFault> {
     let spelled = parse_decimal_spell(&decl.arrow_type);
     let family = if decl.arrow_type == "decimal128" || decl.arrow_type == "decimal256" {
         decl.arrow_type.as_str()
@@ -852,15 +927,23 @@ fn target_type(kind: TargetKind) -> Result<TargetType, ArrowFault> {
         TargetKind::Int { width: 32 } => (23, -1, 4, "int4send", "int4"),
         TargetKind::Int { width: 64 } => (20, -1, 8, "int8send", "int8"),
         TargetKind::Int { .. } => return Err(ArrowFault::Shape),
-        TargetKind::Decimal { precision, scale } | TargetKind::Decimal256 { precision, scale } => {
-            (1700, numeric_typmod(precision, scale), -1, "numeric_send", "numeric")
+        TargetKind::Decimal { precision, scale } | TargetKind::Decimal256 { precision, scale } => (
+            1700,
+            numeric_typmod(precision, scale),
+            -1,
+            "numeric_send",
+            "numeric",
+        ),
+        TargetKind::UInt64 | TargetKind::Nanos => {
+            (1700, numeric_typmod(20, 0), -1, "numeric_send", "numeric")
         }
-        TargetKind::UInt64 | TargetKind::Nanos => (1700, numeric_typmod(20, 0), -1, "numeric_send", "numeric"),
         TargetKind::UInt8 => (21, -1, 2, "int2send", "int2"),
         TargetKind::Json => (114, -1, -1, "json_send", "json"),
         TargetKind::Jsonb => (3802, -1, -1, "jsonb_send", "jsonb"),
-        TargetKind::Text { char_length: Some(len) } => {
-            if !(1..=63).contains(&len) {
+        TargetKind::Text {
+            char_length: Some(len),
+        } => {
+            if !(1..=255).contains(&len) {
                 return Err(ArrowFault::Shape);
             }
             (1042, len + 4, -1, "bpcharsend", "bpchar")
@@ -937,14 +1020,33 @@ fn cell_of(cell: &NativeCell, target: &TargetType) -> Result<DecodedCell, ArrowF
         return Ok(DecodedCell::sql_null());
     }
     let (value, arrow, precision, scale) = match (cell, target.kind) {
-        (NativeCell::Int { bit_width: 64, value }, TargetKind::Time)
-            if (0..86_400_000_000).contains(value) => {
-                (LogicalValue::TimeMicros(*value), ArrowScalar::Time64(*value), None, None)
-            }
-        (NativeCell::Int { bit_width: 64, value }, TargetKind::Interval) => {
-            (LogicalValue::DurationMicros(*value), ArrowScalar::DurationMicros(*value), None, None)
-        }
-        (NativeCell::Int { bit_width, value }, TargetKind::Int { width }) if *bit_width == width => {
+        (
+            NativeCell::Int {
+                bit_width: 64,
+                value,
+            },
+            TargetKind::Time,
+        ) if (0..86_400_000_000).contains(value) => (
+            LogicalValue::TimeMicros(*value),
+            ArrowScalar::Time64(*value),
+            None,
+            None,
+        ),
+        (
+            NativeCell::Int {
+                bit_width: 64,
+                value,
+            },
+            TargetKind::Interval,
+        ) => (
+            LogicalValue::DurationMicros(*value),
+            ArrowScalar::DurationMicros(*value),
+            None,
+            None,
+        ),
+        (NativeCell::Int { bit_width, value }, TargetKind::Int { width })
+            if *bit_width == width =>
+        {
             let number = ExactInt::parse(&value.to_string()).map_err(|_| ArrowFault::Shape)?;
             let arrow = match width {
                 8 | 16 => ArrowScalar::Int16(i16::try_from(*value).map_err(|_| ArrowFault::Shape)?),
@@ -967,8 +1069,12 @@ fn cell_of(cell: &NativeCell, target: &TargetType) -> Result<DecodedCell, ArrowF
             if i32::from(*precision) != declared || i32::from(*scale) != declared_scale {
                 return Err(ArrowFault::Precision);
             }
-            let exact = ExactDecimal::new(*coefficient < 0, coefficient.unsigned_abs().to_string(), i32::from(*scale))
-                .map_err(|_| ArrowFault::Precision)?;
+            let exact = ExactDecimal::new(
+                *coefficient < 0,
+                coefficient.unsigned_abs().to_string(),
+                i32::from(*scale),
+            )
+            .map_err(|_| ArrowFault::Precision)?;
             if exact.coefficient().len() > usize::try_from(declared).unwrap_or(0) {
                 return Err(ArrowFault::Precision);
             }
@@ -995,7 +1101,8 @@ fn cell_of(cell: &NativeCell, target: &TargetType) -> Result<DecodedCell, ArrowF
                 return Err(ArrowFault::Precision);
             }
             let (negative, digits) = i256_digits(coefficient);
-            let exact = ExactDecimal::new(negative, digits, i32::from(*scale)).map_err(|_| ArrowFault::Precision)?;
+            let exact = ExactDecimal::new(negative, digits, i32::from(*scale))
+                .map_err(|_| ArrowFault::Precision)?;
             if exact.coefficient().len() > usize::try_from(declared).unwrap_or(0) {
                 return Err(ArrowFault::Precision);
             }
@@ -1008,7 +1115,8 @@ fn cell_of(cell: &NativeCell, target: &TargetType) -> Result<DecodedCell, ArrowF
             )
         }
         (NativeCell::UInt64(value), TargetKind::UInt64) => {
-            let exact = ExactDecimal::new(false, value.to_string(), 0).map_err(|_| ArrowFault::Precision)?;
+            let exact = ExactDecimal::new(false, value.to_string(), 0)
+                .map_err(|_| ArrowFault::Precision)?;
             let coefficient = i128::from(*value);
             let actual_precision = i32::try_from(exact.storage_precision()).unwrap_or(i32::MAX);
             (
@@ -1030,9 +1138,12 @@ fn cell_of(cell: &NativeCell, target: &TargetType) -> Result<DecodedCell, ArrowF
                 Some(0),
             )
         }
-        (NativeCell::Json(text), TargetKind::Json) => {
-            (LogicalValue::Text(text.clone()), ArrowScalar::Utf8(text.clone()), None, None)
-        }
+        (NativeCell::Json(text), TargetKind::Json) => (
+            LogicalValue::Text(text.clone()),
+            ArrowScalar::Utf8(text.clone()),
+            None,
+            None,
+        ),
         (NativeCell::Utf8(text), TargetKind::Jsonb) => {
             if text.as_bytes().contains(&0) {
                 return Err(ArrowFault::Shape);
@@ -1042,7 +1153,12 @@ fn cell_of(cell: &NativeCell, target: &TargetType) -> Result<DecodedCell, ArrowF
             wire.push(oo_core::jsonb_doc::JSONB_SEND_VERSION);
             wire.extend_from_slice(text.as_bytes());
             oo_core::jsonb_doc::inspect_jsonb_send(&wire).map_err(|_| ArrowFault::Shape)?;
-            (LogicalValue::Json(node), ArrowScalar::Utf8(text.clone()), None, None)
+            (
+                LogicalValue::Json(node),
+                ArrowScalar::Utf8(text.clone()),
+                None,
+                None,
+            )
         }
         (NativeCell::Utf8(text), TargetKind::Text { char_length }) => {
             if text.as_bytes().contains(&0) {
@@ -1054,7 +1170,12 @@ fn cell_of(cell: &NativeCell, target: &TargetType) -> Result<DecodedCell, ArrowF
                     return Err(ArrowFault::Shape);
                 }
             }
-            (LogicalValue::Text(text.clone()), ArrowScalar::Utf8(text.clone()), None, None)
+            (
+                LogicalValue::Text(text.clone()),
+                ArrowScalar::Utf8(text.clone()),
+                None,
+                None,
+            )
         }
         (NativeCell::Binary(bytes), TargetKind::Bytes) => (
             LogicalValue::Bytes(bytes.clone()),
@@ -1070,10 +1191,18 @@ fn cell_of(cell: &NativeCell, target: &TargetType) -> Result<DecodedCell, ArrowF
         ),
         (NativeCell::Binary(bytes), TargetKind::BsonObjectId) if bytes.len() == 12 => {
             let value = hex_bytes(bytes);
-            (LogicalValue::Text(value.clone()), ArrowScalar::Utf8(value), None, None)
+            (
+                LogicalValue::Text(value.clone()),
+                ArrowScalar::Utf8(value),
+                None,
+                None,
+            )
         }
         (NativeCell::Binary(bytes), TargetKind::BsonUuid) if bytes.len() == 16 => (
-            LogicalValue::Bytes(bytes.clone()), ArrowScalar::Binary(bytes.clone()), None, None,
+            LogicalValue::Bytes(bytes.clone()),
+            ArrowScalar::Binary(bytes.clone()),
+            None,
+            None,
         ),
         (NativeCell::UInt8(value), TargetKind::UInt8) => {
             let number = ExactInt::parse(&value.to_string()).map_err(|_| ArrowFault::Shape)?;
@@ -1085,8 +1214,10 @@ fn cell_of(cell: &NativeCell, target: &TargetType) -> Result<DecodedCell, ArrowF
             )
         }
         (NativeCell::Date32(days), TargetKind::Date) => {
-            let (year, month, day) = civil_from_unix_days(i64::from(*days)).ok_or(ArrowFault::Precision)?;
-            oo_core::canonical::validate_date(year, month, day).map_err(|_| ArrowFault::Precision)?;
+            let (year, month, day) =
+                civil_from_unix_days(i64::from(*days)).ok_or(ArrowFault::Precision)?;
+            oo_core::canonical::validate_date(year, month, day)
+                .map_err(|_| ArrowFault::Precision)?;
             (
                 LogicalValue::Date { year, month, day },
                 ArrowScalar::Date32(*days),
@@ -1111,18 +1242,18 @@ fn cell_of(cell: &NativeCell, target: &TargetType) -> Result<DecodedCell, ArrowF
                 None,
             )
         }
-        (
-            NativeCell::TimestampMicrosUtc { value, .. },
-            TargetKind::TimestampUtc,
-        ) => (
+        (NativeCell::TimestampMicrosUtc { value, .. }, TargetKind::TimestampUtc) => (
             LogicalValue::TimestampTzMicros(*value),
             ArrowScalar::TimestampUtc(*value),
             None,
             None,
         ),
-        (NativeCell::Bool(value), TargetKind::Bool) => {
-            (LogicalValue::Bool(*value), ArrowScalar::Bool(*value), None, None)
-        }
+        (NativeCell::Bool(value), TargetKind::Bool) => (
+            LogicalValue::Bool(*value),
+            ArrowScalar::Bool(*value),
+            None,
+            None,
+        ),
         (NativeCell::Float64(bits), TargetKind::Float64) => (
             LogicalValue::Float(oo_core::canonical::classify_f64(f64::from_bits(*bits))),
             ArrowScalar::Float64(*bits),
@@ -1178,15 +1309,21 @@ pub(crate) fn column_provenance(arrow_type: &str) -> &'static str {
         "uint8" => "uint8 stored as int2; source width 8 unsigned; not bool",
         "decimal256" => "decimal256 stored as numeric; coefficient is not rounded",
         "timestamp_nanos_utc" => "nanoseconds since epoch stored as numeric(20,0); not timestamptz",
-        "timestamp(ms,utc)" => "timestamp milliseconds UTC stored as timestamptz; microseconds are milliseconds * 1000",
-        "dictionary_binary" | "dictionary_int32_binary" => "dictionary Int32 binary resolved to bytea oid 17; not utf8; not text",
+        "timestamp(ms,utc)" => {
+            "timestamp milliseconds UTC stored as timestamptz; microseconds are milliseconds * 1000"
+        }
+        "dictionary_binary" | "dictionary_int32_binary" => {
+            "dictionary Int32 binary resolved to bytea oid 17; not utf8; not text"
+        }
         "binary" => "arrow binary stored as bytea oid 17; not utf8; not text",
         "list_int64" => "list of int64 stored as canonical json; source type remains list",
         "list_binary" => "list of binary stored as canonical json; source type remains list",
         "time64_micros" => "microseconds since midnight stored as time; out-of-day values refused",
         "duration_micros" => "signed microseconds stored as interval with zero months and days",
         "time64_nanos" => "nanoseconds since midnight stored as bigint exactly; not time(6)",
-        "list(utf8)" => "list of utf8 stored as canonical json text; source type remains list; not jsonb",
+        "list(utf8)" => {
+            "list of utf8 stored as canonical json text; source type remains list; not jsonb"
+        }
         "int64" => "int64; arrow bit width 64",
         "int32" => "int32; arrow bit width 32",
         "int16" => "int16; arrow bit width 16",
@@ -1194,10 +1331,18 @@ pub(crate) fn column_provenance(arrow_type: &str) -> &'static str {
         "decimal128" => "decimal128 stored as numeric",
         "utf8" => "utf8 stored as varchar oid 1043; not bytea; not text",
         "date32" => "date32 days since unix epoch stored as date",
-        "date64" => "date64 milliseconds since unix epoch stored as timestamp; microseconds are milliseconds * 1000",
-        "timestamp_second_naive" => "timestamp seconds since unix epoch stored as timestamp; microseconds are seconds * 1000000",
-        "timestamp_second_utc" => "timestamp seconds since unix epoch with timezone UTC stored as timestamptz",
-        "timestamp_millis_naive" => "timestamp milliseconds since unix epoch stored as timestamp; microseconds are milliseconds * 1000",
+        "date64" => {
+            "date64 milliseconds since unix epoch stored as timestamp; microseconds are milliseconds * 1000"
+        }
+        "timestamp_second_naive" => {
+            "timestamp seconds since unix epoch stored as timestamp; microseconds are seconds * 1000000"
+        }
+        "timestamp_second_utc" => {
+            "timestamp seconds since unix epoch with timezone UTC stored as timestamptz"
+        }
+        "timestamp_millis_naive" => {
+            "timestamp milliseconds since unix epoch stored as timestamp; microseconds are milliseconds * 1000"
+        }
         "timestamp_micros" => "timestamp microseconds",
         "timestamp_micros_utc" => "timestamp microseconds with timezone",
         "bool" => "bool",
@@ -1217,8 +1362,12 @@ pub(crate) fn parse_decimal_spell(token: &str) -> Option<(&str, i32, i32)> {
         || raw_scale.is_empty()
         || raw_precision.starts_with('+')
         || raw_scale.starts_with('+')
-        || !raw_precision.bytes().all(|byte| byte.is_ascii_digit() || byte == b'-')
-        || !raw_scale.bytes().all(|byte| byte.is_ascii_digit() || byte == b'-')
+        || !raw_precision
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || byte == b'-')
+        || !raw_scale
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || byte == b'-')
     {
         return None;
     }
@@ -1253,12 +1402,18 @@ fn arrow_tokens_agree(got: &DecodedField, declared: &str) -> bool {
 fn precision_scale_agree(got: &DecodedField, precision: Option<i32>, scale: Option<i32>) -> bool {
     let decimal = got.arrow_type == "decimal128" || got.arrow_type == "decimal256";
     if decimal {
-        return precision.is_some() && scale.is_some() && got.precision == precision && got.scale == scale;
+        return precision.is_some()
+            && scale.is_some()
+            && got.precision == precision
+            && got.scale == scale;
     }
     if let Some(width) = signed_width(&got.arrow_type) {
         // The Arrow field carries the bit width. A capture token may omit precision.
         // An explicit precision has to be that width. A missing width is not a match.
-        if got.precision != Some(width) || scale.is_some() || precision.is_some_and(|value| value != width) {
+        if got.precision != Some(width)
+            || scale.is_some()
+            || precision.is_some_and(|value| value != width)
+        {
             return false;
         }
         return true;
@@ -1290,7 +1445,7 @@ pub(crate) fn numeric_typmod(precision: i32, scale: i32) -> i32 {
     ((precision << 16) | (scale & 0x7FF)) + 4
 }
 
-fn i256_digits(le: &[u8; 32]) -> (bool, String) {
+pub(crate) fn i256_digits(le: &[u8; 32]) -> (bool, String) {
     let negative = le[31] & 0x80 != 0;
     let mut bytes = *le;
     if negative {
@@ -1318,10 +1473,13 @@ fn i256_digits(le: &[u8; 32]) -> (bool, String) {
         digits.push(b'0' + remainder as u8);
     }
     digits.reverse();
-    (negative, String::from_utf8(digits).unwrap_or_else(|_| "0".to_string()))
+    (
+        negative,
+        String::from_utf8(digits).unwrap_or_else(|_| "0".to_string()),
+    )
 }
 
-fn civil_timestamp(micros: i64) -> Option<(i32, u8, u8, u8, u8, u8, u32)> {
+pub(crate) fn civil_timestamp(micros: i64) -> Option<(i32, u8, u8, u8, u8, u8, u32)> {
     let day_us = 86_400_000_000i64;
     let days = micros.div_euclid(day_us);
     let sod = micros.rem_euclid(day_us) as u64;
@@ -1337,7 +1495,7 @@ fn civil_timestamp(micros: i64) -> Option<(i32, u8, u8, u8, u8, u8, u32)> {
     Some((year, month, day, hour, minute, second, sub))
 }
 
-fn civil_from_unix_days(days: i64) -> Option<(i32, u8, u8)> {
+pub(crate) fn civil_from_unix_days(days: i64) -> Option<(i32, u8, u8)> {
     let z = days.checked_add(719_468)?;
     let era = if z >= 0 { z } else { z.checked_sub(146_096)? } / 146_097;
     let doe = u64::try_from(z.checked_sub(era.checked_mul(146_097)?)?).ok()?;
@@ -1348,12 +1506,19 @@ fn civil_from_unix_days(days: i64) -> Option<(i32, u8, u8)> {
     let mp = (5 * doy + 2) / 153;
     let day = u8::try_from(doy - (153 * mp + 2) / 5 + 1).ok()?;
     let month = u8::try_from(if mp < 10 { mp + 3 } else { mp - 9 }).ok()?;
-    let year = if month <= 2 { year.checked_add(1)? } else { year };
+    let year = if month <= 2 {
+        year.checked_add(1)?
+    } else {
+        year
+    };
     Some((i32::try_from(year).ok()?, month, day))
 }
 
 fn plan_inner(document: &serde_json::Value) -> Result<Plan, serde_json::Value> {
-    let protocol = document.get("protocol").and_then(|value| value.as_str()).unwrap_or("");
+    let protocol = document
+        .get("protocol")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
     if protocol == SEMANTIC_CATALOG_PROTOCOL {
         return Err(result_of(
             "semantic_catalog",
@@ -1375,9 +1540,19 @@ fn plan_inner(document: &serde_json::Value) -> Result<Plan, serde_json::Value> {
         ));
     }
     if protocol != IMPORT_PROTOCOL {
-        return Err(result_of("schema", document, None, None, false, serde_json::json!([])));
+        return Err(result_of(
+            "schema",
+            document,
+            None,
+            None,
+            false,
+            serde_json::json!([]),
+        ));
     }
-    let engine = document.get("source_engine").and_then(|value| value.as_str()).unwrap_or("");
+    let engine = document
+        .get("source_engine")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
     if !recognized_engine(engine) {
         return Err(result_of(
             "source_engine_unknown",
@@ -1388,40 +1563,94 @@ fn plan_inner(document: &serde_json::Value) -> Result<Plan, serde_json::Value> {
             serde_json::json!([]),
         ));
     }
-    let storage = document.get("target_storage").and_then(|value| value.as_str()).unwrap_or("");
+    let storage = document
+        .get("target_storage")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
     if storage != "postgresql" {
-        return Err(result_of("target_storage", document, None, None, false, serde_json::json!([])));
+        return Err(result_of(
+            "target_storage",
+            document,
+            None,
+            None,
+            false,
+            serde_json::json!([]),
+        ));
     }
-    let source_id = document.get("source_id").and_then(|value| value.as_str()).unwrap_or("");
+    let source_id = document
+        .get("source_id")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
     if !source_token(source_id) {
-        return Err(result_of("schema", document, None, None, false, serde_json::json!([])));
+        return Err(result_of(
+            "schema",
+            document,
+            None,
+            None,
+            false,
+            serde_json::json!([]),
+        ));
     }
-    let generation = document.get("source_generation").and_then(|value| value.as_i64()).unwrap_or(0);
+    let generation = document
+        .get("source_generation")
+        .and_then(|value| value.as_i64())
+        .unwrap_or(0);
     if generation < 1 {
-        return Err(result_of("schema", document, None, None, false, serde_json::json!([])));
+        return Err(result_of(
+            "schema",
+            document,
+            None,
+            None,
+            false,
+            serde_json::json!([]),
+        ));
     }
-    let snapshot = document.get("snapshot").cloned().unwrap_or(serde_json::Value::Null);
-    let snapshot_kind = snapshot.get("kind").and_then(|value| value.as_str()).unwrap_or("");
-    let snapshot_value = snapshot.get("value").and_then(|value| value.as_str()).unwrap_or("");
+    let snapshot = document
+        .get("snapshot")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let snapshot_kind = snapshot
+        .get("kind")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
+    let snapshot_value = snapshot
+        .get("value")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
     if !matches!(snapshot_kind, "scn" | "generation" | "token")
         || snapshot_value.is_empty()
         || snapshot_value.len() > 128
         || snapshot_value.bytes().any(|byte| byte < 0x20)
     {
-        return Err(result_of("shape", document, None, None, false, serde_json::json!([])));
+        return Err(result_of(
+            "shape",
+            document,
+            None,
+            None,
+            false,
+            serde_json::json!([]),
+        ));
     }
-    let identity = document.get("catalog_identity").unwrap_or(&serde_json::Value::Null);
+    let identity = document
+        .get("catalog_identity")
+        .unwrap_or(&serde_json::Value::Null);
     let digest = |name: &str| {
-        digest_field(identity, name).map_err(|reason| {
-            result_of(reason, document, None, None, false, serde_json::json!([]))
-        })
+        digest_field(identity, name)
+            .map_err(|reason| result_of(reason, document, None, None, false, serde_json::json!([])))
     };
     let config_digest = digest("config_digest")?;
     let schema_digest = digest("schema_digest")?;
     let type_digest = digest("type_digest")?;
     let input_digest = digest("input_digest")?;
     if client_authority(document) {
-        return Err(result_of("nonadmitted", document, None, None, false, serde_json::json!([])));
+        return Err(result_of(
+            "nonadmitted",
+            document,
+            None,
+            None,
+            false,
+            serde_json::json!([]),
+        ));
     }
     let admission = match bind_registry(
         engine,
@@ -1438,16 +1667,40 @@ fn plan_inner(document: &serde_json::Value) -> Result<Plan, serde_json::Value> {
         Ok(None) => match bind_admission(document, engine, source_id) {
             Ok(pin) => pin,
             Err(reason) => {
-                return Err(result_of(reason, document, None, None, false, serde_json::json!([])));
+                return Err(result_of(
+                    reason,
+                    document,
+                    None,
+                    None,
+                    false,
+                    serde_json::json!([]),
+                ));
             }
         },
         Err(reason) => {
-            return Err(result_of(reason, document, None, None, false, serde_json::json!([])));
+            return Err(result_of(
+                reason,
+                document,
+                None,
+                None,
+                false,
+                serde_json::json!([]),
+            ));
         }
     };
-    let tables = document.get("tables").and_then(|value| value.as_array()).ok_or_else(|| {
-        result_of("schema", document, Some(&admission), None, false, serde_json::json!([]))
-    })?;
+    let tables = document
+        .get("tables")
+        .and_then(|value| value.as_array())
+        .ok_or_else(|| {
+            result_of(
+                "schema",
+                document,
+                Some(&admission),
+                None,
+                false,
+                serde_json::json!([]),
+            )
+        })?;
     if tables.is_empty() {
         return Err(result_of(
             "empty",
@@ -1490,12 +1743,7 @@ fn plan_inner(document: &serde_json::Value) -> Result<Plan, serde_json::Value> {
             Some(&admission),
             None,
             false,
-            serde_json::Value::Array(
-                verified
-                    .iter()
-                    .map(|table| table.summary.clone())
-                    .collect(),
-            ),
+            serde_json::Value::Array(verified.iter().map(|table| table.summary.clone()).collect()),
         ),
         ready: Some(VerifiedImport {
             source_id: source_id.to_string(),
@@ -1528,11 +1776,26 @@ fn plan_table(
     input_digest: &str,
     admission: &BoundAdmission,
 ) -> Result<TablePlan, &'static str> {
-    let logical_schema = table.get("logical_schema").and_then(|value| value.as_str()).unwrap_or("");
-    let logical_table = table.get("logical_table").and_then(|value| value.as_str()).unwrap_or("");
-    let row_count = table.get("row_count").and_then(|value| value.as_u64()).unwrap_or(0);
-    let batch_sha = table.get("batch_sha256").and_then(|value| value.as_str()).unwrap_or("");
-    let arrow_path = table.get("arrow_path").and_then(|value| value.as_str()).unwrap_or("");
+    let logical_schema = table
+        .get("logical_schema")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
+    let logical_table = table
+        .get("logical_table")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
+    let row_count = table
+        .get("row_count")
+        .and_then(|value| value.as_u64())
+        .unwrap_or(0);
+    let batch_sha = table
+        .get("batch_sha256")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
+    let arrow_path = table
+        .get("arrow_path")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
     if row_count == 0 {
         return Err("empty");
     }
@@ -1543,7 +1806,9 @@ fn plan_table(
         let object = admission
             .objects
             .iter()
-            .find(|item| item.logical_schema == logical_schema && item.logical_table == logical_table)
+            .find(|item| {
+                item.logical_schema == logical_schema && item.logical_table == logical_table
+            })
             .ok_or("schema")?;
         if object.row_count != row_count || object.arrow_sha256 != batch_sha {
             return Err("digest_mismatch");
@@ -1591,7 +1856,9 @@ fn plan_table(
             return Err("schema");
         }
         for (got, expect) in decoded.fields.iter().zip(&admission.fields) {
-            if got.name != expect.name || got.nullable != expect.nullable || !arrow_tokens_agree(got, &expect.arrow_type)
+            if got.name != expect.name
+                || got.nullable != expect.nullable
+                || !arrow_tokens_agree(got, &expect.arrow_type)
             {
                 return Err("schema");
             }
@@ -1651,7 +1918,7 @@ fn plan_table(
         batch: prepared.batch,
         copy_columns: prepared.copy_columns,
         positions: prepared.positions,
-        };
+    };
     Ok(TablePlan {
         summary: summary.clone(),
         table: PlannedTable { summary, verified },
@@ -1659,21 +1926,41 @@ fn plan_table(
 }
 
 fn column_decls(table: &serde_json::Value) -> Result<Vec<CopyColumnDecl>, &'static str> {
-    let columns = table.get("columns").and_then(|value| value.as_array()).ok_or("schema")?;
+    let columns = table
+        .get("columns")
+        .and_then(|value| value.as_array())
+        .ok_or("schema")?;
     if columns.is_empty() {
         return Err("empty");
     }
     let mut out = Vec::with_capacity(columns.len());
     for column in columns {
-        let name = column.get("name").and_then(|value| value.as_str()).ok_or("schema")?;
-        let logical = column.get("logical_name").and_then(|value| value.as_str()).ok_or("schema")?;
-        let arrow_type = column.get("arrow_type").and_then(|value| value.as_str()).ok_or("schema")?;
-        let nullable = column.get("nullable").and_then(|value| value.as_bool()).ok_or("schema")?;
+        let name = column
+            .get("name")
+            .and_then(|value| value.as_str())
+            .ok_or("schema")?;
+        let logical = column
+            .get("logical_name")
+            .and_then(|value| value.as_str())
+            .ok_or("schema")?;
+        let arrow_type = column
+            .get("arrow_type")
+            .and_then(|value| value.as_str())
+            .ok_or("schema")?;
+        let nullable = column
+            .get("nullable")
+            .and_then(|value| value.as_bool())
+            .ok_or("schema")?;
         let document = match column.get("document") {
             None => false,
             Some(value) => value.as_bool().ok_or("schema")?,
         };
-        if document && (arrow_type != "utf8" || column.get("precision").is_some() || column.get("scale").is_some() || column.get("char_length").is_some()) {
+        if document
+            && (arrow_type != "utf8"
+                || column.get("precision").is_some()
+                || column.get("scale").is_some()
+                || column.get("char_length").is_some())
+        {
             return Err("schema");
         }
         out.push(CopyColumnDecl {
@@ -1681,9 +1968,18 @@ fn column_decls(table: &serde_json::Value) -> Result<Vec<CopyColumnDecl>, &'stat
             logical_name: logical.to_string(),
             arrow_type: arrow_type.to_string(),
             nullable,
-            precision: column.get("precision").and_then(|value| value.as_i64()).and_then(|value| i32::try_from(value).ok()),
-            scale: column.get("scale").and_then(|value| value.as_i64()).and_then(|value| i32::try_from(value).ok()),
-            char_length: column.get("char_length").and_then(|value| value.as_i64()).and_then(|value| i32::try_from(value).ok()),
+            precision: column
+                .get("precision")
+                .and_then(|value| value.as_i64())
+                .and_then(|value| i32::try_from(value).ok()),
+            scale: column
+                .get("scale")
+                .and_then(|value| value.as_i64())
+                .and_then(|value| i32::try_from(value).ok()),
+            char_length: column
+                .get("char_length")
+                .and_then(|value| value.as_i64())
+                .and_then(|value| i32::try_from(value).ok()),
             document,
         });
     }
@@ -1722,15 +2018,25 @@ fn bind_admission(
     source_id: &str,
 ) -> Result<BoundAdmission, &'static str> {
     let admission = document.get("admission").ok_or("nonadmitted")?;
-    let receipt_path = admission.get("receipt_path").and_then(|value| value.as_str()).ok_or("nonadmitted")?;
-    let decision_path = admission.get("decision_path").and_then(|value| value.as_str()).ok_or("nonadmitted")?;
+    let receipt_path = admission
+        .get("receipt_path")
+        .and_then(|value| value.as_str())
+        .ok_or("nonadmitted")?;
+    let decision_path = admission
+        .get("decision_path")
+        .and_then(|value| value.as_str())
+        .ok_or("nonadmitted")?;
     let receipt = read_capped(Path::new(receipt_path), MAX_JSON).map_err(|_| "nonadmitted")?;
     if hex_bytes(&Sha256::digest(&receipt)) != RECEIPT_SHA256 {
         return Err("nonadmitted");
     }
-    let receipt_json: serde_json::Value = serde_json::from_slice(&receipt).map_err(|_| "nonadmitted")?;
+    let receipt_json: serde_json::Value =
+        serde_json::from_slice(&receipt).map_err(|_| "nonadmitted")?;
     if receipt_json.get("schema").and_then(|value| value.as_str()) != Some(ADMISSION_RECEIPT_SCHEMA)
-        || receipt_json.get("content_commit").and_then(|value| value.as_str()) != Some(CONTENT_COMMIT)
+        || receipt_json
+            .get("content_commit")
+            .and_then(|value| value.as_str())
+            != Some(CONTENT_COMMIT)
     {
         return Err("nonadmitted");
     }
@@ -1740,10 +2046,20 @@ fn bind_admission(
         .iter()
         .find(|pin| pin.decision_sha256 == decision_sha)
         .ok_or("nonadmitted")?;
-    let decision_json: serde_json::Value = serde_json::from_slice(&decision).map_err(|_| "nonadmitted")?;
-    if decision_json.get("protocol").and_then(|value| value.as_str()) != Some(ADMISSION_DECISION_PROTOCOL)
-        || decision_json.get("admitted").and_then(|value| value.as_bool()) != Some(true)
-        || decision_json.pointer("/identity/source_id").and_then(|value| value.as_str()) != Some(pin.source_id)
+    let decision_json: serde_json::Value =
+        serde_json::from_slice(&decision).map_err(|_| "nonadmitted")?;
+    if decision_json
+        .get("protocol")
+        .and_then(|value| value.as_str())
+        != Some(ADMISSION_DECISION_PROTOCOL)
+        || decision_json
+            .get("admitted")
+            .and_then(|value| value.as_bool())
+            != Some(true)
+        || decision_json
+            .pointer("/identity/source_id")
+            .and_then(|value| value.as_str())
+            != Some(pin.source_id)
     {
         return Err("nonadmitted");
     }
@@ -1807,7 +2123,10 @@ fn bind_registry(
 }
 
 fn digest_field(identity: &serde_json::Value, name: &str) -> Result<String, &'static str> {
-    let text = identity.get(name).and_then(|value| value.as_str()).unwrap_or("");
+    let text = identity
+        .get(name)
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
     if hex64(text) {
         Ok(text.to_string())
     } else {
@@ -1818,7 +2137,11 @@ fn digest_field(identity: &serde_json::Value, name: &str) -> Result<String, &'st
 fn recognized_engine(engine: &str) -> bool {
     matches!(
         engine,
-        "mysql" | "postgresql" | "postgres" | "sqlserver" | "oracle"
+        "mysql"
+            | "postgresql"
+            | "postgres"
+            | "sqlserver"
+            | "oracle"
             | "clickhouse"
             | "opensearch"
             | "doris"
@@ -1903,7 +2226,10 @@ fn source_token(value: &str) -> bool {
 
 fn hex64(value: &str) -> bool {
     let bytes = value.as_bytes();
-    bytes.len() == 64 && bytes.iter().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    bytes.len() == 64
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
 enum ReadStop {
@@ -2011,7 +2337,9 @@ fn file_interior(bytes: &[u8]) -> Result<&[u8], ArrowFault> {
         return Err(ArrowFault::Truncated);
     }
     let footer_len = usize::try_from(footer_len).map_err(|_| ArrowFault::Truncated)?;
-    let footer_start = size_at.checked_sub(footer_len).ok_or(ArrowFault::Truncated)?;
+    let footer_start = size_at
+        .checked_sub(footer_len)
+        .ok_or(ArrowFault::Truncated)?;
     if footer_start < 8 {
         return Err(ArrowFault::Truncated);
     }
@@ -2072,7 +2400,9 @@ fn frame_messages(bytes: &[u8], require_eos: bool) -> Result<Vec<Framed<'_>>, Ar
         }
         let body_len = usize::try_from(body_len).map_err(|_| ArrowFault::Truncated)?;
         let body_start = align8(meta_end);
-        let body_end = body_start.checked_add(body_len).ok_or(ArrowFault::Truncated)?;
+        let body_end = body_start
+            .checked_add(body_len)
+            .ok_or(ArrowFault::Truncated)?;
         if body_end > bytes.len() {
             return Err(ArrowFault::Truncated);
         }
@@ -2161,14 +2491,31 @@ enum UnionChildKind {
 impl FieldSpec {
     fn decoded(self) -> DecodedField {
         let (arrow_type, precision, scale, timezone) = match &self.kind {
-            FieldKind::Int { bit_width } => (format!("int{bit_width}"), Some(i32::from(*bit_width)), None, None),
+            FieldKind::Int { bit_width } => (
+                format!("int{bit_width}"),
+                Some(i32::from(*bit_width)),
+                None,
+                None,
+            ),
             FieldKind::UInt64 => ("uint64".to_string(), Some(64), None, None),
             FieldKind::UInt8 => ("uint8".to_string(), None, None, None),
             FieldKind::TimestampMillis => ("timestamp(ms,utc)".to_string(), None, None, None),
-            FieldKind::TimestampMillisNaive => ("timestamp_millis_naive".to_string(), None, None, None),
+            FieldKind::TimestampMillisNaive => {
+                ("timestamp_millis_naive".to_string(), None, None, None)
+            }
             FieldKind::Date32 => ("date32".to_string(), None, None, None),
             FieldKind::Date64 => ("date64".to_string(), None, None, None),
-            FieldKind::Time64 { nanos } => (if *nanos { "time64_nanos" } else { "time64_micros" }.to_string(), None, None, None),
+            FieldKind::Time64 { nanos } => (
+                if *nanos {
+                    "time64_nanos"
+                } else {
+                    "time64_micros"
+                }
+                .to_string(),
+                None,
+                None,
+                None,
+            ),
             FieldKind::DurationMicros => ("duration_micros".to_string(), None, None, None),
             FieldKind::TimestampSeconds { timezone } => {
                 let name = if timezone.is_some() {
@@ -2178,20 +2525,33 @@ impl FieldSpec {
                 };
                 (name.to_string(), None, None, timezone.clone())
             }
-            FieldKind::FixedBinary { width } => (format!("fixedsizebinary({width})"), None, None, None),
+            FieldKind::FixedBinary { width } => {
+                (format!("fixedsizebinary({width})"), None, None, None)
+            }
             FieldKind::ListUtf8 { .. } => ("list(utf8)".to_string(), None, None, None),
             FieldKind::Struct { children } => (struct_token(children), None, None, None),
             FieldKind::DenseUnion { children } => (union_token(children), None, None, None),
-            FieldKind::Decimal { precision, scale } => {
-                ("decimal128".to_string(), Some(i32::from(*precision)), Some(i32::from(*scale)), None)
+            FieldKind::Decimal { precision, scale } => (
+                "decimal128".to_string(),
+                Some(i32::from(*precision)),
+                Some(i32::from(*scale)),
+                None,
+            ),
+            FieldKind::Decimal256 { precision, scale } => (
+                "decimal256".to_string(),
+                Some(i32::from(*precision)),
+                Some(i32::from(*scale)),
+                None,
+            ),
+            FieldKind::TimestampNanos { timezone } => (
+                "timestamp_nanos_utc".to_string(),
+                None,
+                None,
+                Some(timezone.clone()),
+            ),
+            FieldKind::DictionaryBinary { .. } => {
+                ("dictionary_binary".to_string(), None, None, None)
             }
-            FieldKind::Decimal256 { precision, scale } => {
-                ("decimal256".to_string(), Some(i32::from(*precision)), Some(i32::from(*scale)), None)
-            }
-            FieldKind::TimestampNanos { timezone } => {
-                ("timestamp_nanos_utc".to_string(), None, None, Some(timezone.clone()))
-            }
-            FieldKind::DictionaryBinary { .. } => ("dictionary_binary".to_string(), None, None, None),
             FieldKind::ListInt64 => ("list_int64".to_string(), None, None, None),
             FieldKind::ListBinary { .. } => ("list_binary".to_string(), None, None, None),
             FieldKind::Timestamp { timezone } => {
@@ -2296,7 +2656,9 @@ fn read_schema(root: &Table<'_>) -> Result<Vec<FieldSpec>, ArrowFault> {
                     let width = type_table.i32_field(0)?.ok_or(ArrowFault::Shape)?;
                     let signed = type_table.bool_field(1, false)?;
                     if signed && matches!(width, 8 | 16 | 32 | 64) {
-                        FieldKind::Int { bit_width: u8::try_from(width).unwrap_or(0) }
+                        FieldKind::Int {
+                            bit_width: u8::try_from(width).unwrap_or(0),
+                        }
                     } else if !signed && width == 64 {
                         FieldKind::UInt64
                     } else if !signed && width == 8 {
@@ -2318,12 +2680,17 @@ fn read_schema(root: &Table<'_>) -> Result<Vec<FieldSpec>, ArrowFault> {
                     let bits = type_table.i32_field(2)?.unwrap_or(128);
                     if bits == 128 && (1..=38).contains(&precision) && (-38..=38).contains(&scale) {
                         FieldKind::Decimal {
-                            precision: u8::try_from(precision).map_err(|_| ArrowFault::Precision)?,
+                            precision: u8::try_from(precision)
+                                .map_err(|_| ArrowFault::Precision)?,
                             scale: i8::try_from(scale).map_err(|_| ArrowFault::Precision)?,
                         }
-                    } else if bits == 256 && (1..=76).contains(&precision) && (-76..=76).contains(&scale) {
+                    } else if bits == 256
+                        && (1..=76).contains(&precision)
+                        && (-76..=76).contains(&scale)
+                    {
                         FieldKind::Decimal256 {
-                            precision: u8::try_from(precision).map_err(|_| ArrowFault::Precision)?,
+                            precision: u8::try_from(precision)
+                                .map_err(|_| ArrowFault::Precision)?,
                             scale: i8::try_from(scale).map_err(|_| ArrowFault::Precision)?,
                         }
                     } else {
@@ -2350,7 +2717,9 @@ fn read_schema(root: &Table<'_>) -> Result<Vec<FieldSpec>, ArrowFault> {
                     FieldKind::Time64 { nanos: unit == 3 }
                 }
                 18 => {
-                    if type_table.i16_field(0)?.unwrap_or(1) != 2 { return Err(ArrowFault::Shape); }
+                    if type_table.i16_field(0)?.unwrap_or(1) != 2 {
+                        return Err(ArrowFault::Shape);
+                    }
                     FieldKind::DurationMicros
                 }
                 10 => {
@@ -2394,7 +2763,11 @@ fn read_schema(root: &Table<'_>) -> Result<Vec<FieldSpec>, ArrowFault> {
                 _ => return Err(ArrowFault::Shape),
             }
         };
-        fields.push(FieldSpec { name, nullable, kind });
+        fields.push(FieldSpec {
+            name,
+            nullable,
+            kind,
+        });
     }
     Ok(fields)
 }
@@ -2423,12 +2796,20 @@ fn union_token(children: &[UnionChild]) -> String {
         .map(|child| (child.type_id, format!("{}:{}", child.type_id, child.token)))
         .collect();
     parts.sort_by_key(|item| item.0);
-    let rendered = parts.into_iter().map(|(_, text)| text).collect::<Vec<_>>().join(",");
+    let rendered = parts
+        .into_iter()
+        .map(|(_, text)| text)
+        .collect::<Vec<_>>()
+        .join(",");
     format!("union(dense,{rendered})")
 }
 
 fn token_name(name: &str) -> bool {
-    !name.is_empty() && name.len() <= 63 && name.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+    !name.is_empty()
+        && name.len() <= 63
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
 }
 
 fn child_table<'a>(field: &Table<'a>, index: usize) -> Result<Table<'a>, ArrowFault> {
@@ -2470,7 +2851,11 @@ fn read_struct_kind(field: &Table<'_>, child_count: usize) -> Result<FieldKind, 
             }
             _ => return Err(ArrowFault::Shape),
         };
-        children.push(StructChild { name, nullable, kind });
+        children.push(StructChild {
+            name,
+            nullable,
+            kind,
+        });
     }
     Ok(FieldKind::Struct { children })
 }
@@ -2490,7 +2875,9 @@ fn read_union_kind(field: &Table<'_>, child_count: usize) -> Result<FieldKind, A
             if len != child_count {
                 return Err(ArrowFault::Shape);
             }
-            field.cursor.need(data, len.checked_mul(4).ok_or(ArrowFault::Shape)?)?;
+            field
+                .cursor
+                .need(data, len.checked_mul(4).ok_or(ArrowFault::Shape)?)?;
             let mut out = Vec::with_capacity(len);
             for index in 0..len {
                 out.push(field.cursor.i32(data + index * 4)?);
@@ -2546,7 +2933,9 @@ fn read_dictionary(
     let header = root.table_field(2)?.ok_or(ArrowFault::Shape)?;
     let id = header.i64_field(0)?.unwrap_or(0);
     let is_delta = header.bool_field(2, false)?;
-    let known = fields.iter().any(|field| matches!(field.kind, FieldKind::DictionaryBinary { id: got } if got == id));
+    let known = fields
+        .iter()
+        .any(|field| matches!(field.kind, FieldKind::DictionaryBinary { id: got } if got == id));
     if !known {
         return Err(ArrowFault::Shape);
     }
@@ -2592,7 +2981,15 @@ fn read_dictionary_values(header: &Table<'_>, body: &[u8]) -> Result<Vec<NativeC
     } else {
         validity_bits(body, &validity, rows, null_count)?
     };
-    let column = read_bytes_like(header.cursor, buffers, &mut buffer_index, buffer_count, body, &valid, false)?;
+    let column = read_bytes_like(
+        header.cursor,
+        buffers,
+        &mut buffer_index,
+        buffer_count,
+        body,
+        &valid,
+        false,
+    )?;
     if buffer_index != buffer_count {
         return Err(ArrowFault::Shape);
     }
@@ -2651,141 +3048,183 @@ fn read_record_batch(
             let validity = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
             let valid = validity_bits(body, &validity, rows, null_count)?;
             let column = match &field.kind {
-            FieldKind::DenseUnion { .. } => return Err(ArrowFault::Shape),
-            FieldKind::Int { bit_width } => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_ints(body, &values, &valid, *bit_width)?
-            }
-            FieldKind::Time64 { nanos } => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                let values = read_ints(body, &values, &valid, 64)?;
-                let ceiling = if *nanos { 86_400_000_000_000 } else { 86_400_000_000 };
-                if values.iter().any(|v| matches!(v, NativeCell::Int { value, .. } if *value < 0 || *value >= ceiling)) {
+                FieldKind::DenseUnion { .. } => return Err(ArrowFault::Shape),
+                FieldKind::Int { bit_width } => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_ints(body, &values, &valid, *bit_width)?
+                }
+                FieldKind::Time64 { nanos } => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    let values = read_ints(body, &values, &valid, 64)?;
+                    let ceiling = if *nanos {
+                        86_400_000_000_000
+                    } else {
+                        86_400_000_000
+                    };
+                    if values.iter().any(|v| matches!(v, NativeCell::Int { value, .. } if *value < 0 || *value >= ceiling)) {
                     return Err(ArrowFault::Shape);
                 }
-                values
-            }
-            FieldKind::DurationMicros => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_ints(body, &values, &valid, 64)?
-            }
-            FieldKind::UInt8 => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_uint8(body, &values, &valid)?
-            }
-            FieldKind::UInt64 => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_uint64(body, &values, &valid)?
-            }
-            FieldKind::Decimal { precision, scale } => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_decimals(body, &values, &valid, *precision, *scale)?
-            }
-            FieldKind::Decimal256 { precision, scale } => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_decimal256(body, &values, &valid, *precision, *scale)?
-            }
-            FieldKind::Timestamp { timezone } => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_timestamps(body, &values, &valid, timezone.clone(), 1)?
-            }
-            FieldKind::TimestampSeconds { timezone } => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_timestamps(body, &values, &valid, timezone.clone(), 1_000_000)?
-            }
-            FieldKind::TimestampNanos { timezone } => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_nanos(body, &values, &valid, timezone)?
-            }
-            FieldKind::TimestampMillis => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_millis(body, &values, &valid, true)?
-            }
-            FieldKind::TimestampMillisNaive => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_millis(body, &values, &valid, false)?
-            }
-            FieldKind::Date32 => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_date32(body, &values, &valid)?
-            }
-            FieldKind::Date64 => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_date64(body, &values, &valid)?
-            }
-            FieldKind::Utf8 => read_bytes_like(header.cursor, buffers, &mut buffer_index, buffer_count, body, &valid, true)?,
-            FieldKind::Binary => read_bytes_like(header.cursor, buffers, &mut buffer_index, buffer_count, body, &valid, false)?,
-            FieldKind::FixedBinary { width } => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_fixed(body, &values, &valid, *width)?
-            }
-            FieldKind::Bool => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_bools(body, &values, &valid)?
-            }
-            FieldKind::Float64 => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_f64(body, &values, &valid)?
-            }
-            FieldKind::DictionaryBinary { id } => {
-                let values = take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
-                read_dictionary_column(body, &values, &valid, *id, dicts)?
-            }
-            FieldKind::ListInt64 => read_list_i64(
-                header.cursor,
-                nodes,
-                &mut node_index,
-                node_count,
-                buffers,
-                &mut buffer_index,
-                buffer_count,
-                body,
-                &valid,
-            )?,
-            FieldKind::ListBinary { elements_nullable } => read_list_binary(
-                header.cursor,
-                nodes,
-                &mut node_index,
-                node_count,
-                buffers,
-                &mut buffer_index,
-                buffer_count,
-                body,
-                &valid,
-                *elements_nullable,
-            )?,
-            FieldKind::ListUtf8 { elements_nullable } => read_list_utf8(
-                header.cursor,
-                nodes,
-                &mut node_index,
-                node_count,
-                buffers,
-                &mut buffer_index,
-                buffer_count,
-                body,
-                &valid,
-                *elements_nullable,
-            )?,
-            FieldKind::Struct { children } => read_struct(
-                header.cursor,
-                nodes,
-                &mut node_index,
-                node_count,
-                buffers,
-                &mut buffer_index,
-                buffer_count,
-                body,
-                &valid,
-                children,
-            )?,
+                    values
+                }
+                FieldKind::DurationMicros => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_ints(body, &values, &valid, 64)?
+                }
+                FieldKind::UInt8 => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_uint8(body, &values, &valid)?
+                }
+                FieldKind::UInt64 => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_uint64(body, &values, &valid)?
+                }
+                FieldKind::Decimal { precision, scale } => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_decimals(body, &values, &valid, *precision, *scale)?
+                }
+                FieldKind::Decimal256 { precision, scale } => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_decimal256(body, &values, &valid, *precision, *scale)?
+                }
+                FieldKind::Timestamp { timezone } => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_timestamps(body, &values, &valid, timezone.clone(), 1)?
+                }
+                FieldKind::TimestampSeconds { timezone } => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_timestamps(body, &values, &valid, timezone.clone(), 1_000_000)?
+                }
+                FieldKind::TimestampNanos { timezone } => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_nanos(body, &values, &valid, timezone)?
+                }
+                FieldKind::TimestampMillis => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_millis(body, &values, &valid, true)?
+                }
+                FieldKind::TimestampMillisNaive => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_millis(body, &values, &valid, false)?
+                }
+                FieldKind::Date32 => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_date32(body, &values, &valid)?
+                }
+                FieldKind::Date64 => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_date64(body, &values, &valid)?
+                }
+                FieldKind::Utf8 => read_bytes_like(
+                    header.cursor,
+                    buffers,
+                    &mut buffer_index,
+                    buffer_count,
+                    body,
+                    &valid,
+                    true,
+                )?,
+                FieldKind::Binary => read_bytes_like(
+                    header.cursor,
+                    buffers,
+                    &mut buffer_index,
+                    buffer_count,
+                    body,
+                    &valid,
+                    false,
+                )?,
+                FieldKind::FixedBinary { width } => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_fixed(body, &values, &valid, *width)?
+                }
+                FieldKind::Bool => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_bools(body, &values, &valid)?
+                }
+                FieldKind::Float64 => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_f64(body, &values, &valid)?
+                }
+                FieldKind::DictionaryBinary { id } => {
+                    let values =
+                        take_buffer(header.cursor, buffers, &mut buffer_index, buffer_count)?;
+                    read_dictionary_column(body, &values, &valid, *id, dicts)?
+                }
+                FieldKind::ListInt64 => read_list_i64(
+                    header.cursor,
+                    nodes,
+                    &mut node_index,
+                    node_count,
+                    buffers,
+                    &mut buffer_index,
+                    buffer_count,
+                    body,
+                    &valid,
+                )?,
+                FieldKind::ListBinary { elements_nullable } => read_list_binary(
+                    header.cursor,
+                    nodes,
+                    &mut node_index,
+                    node_count,
+                    buffers,
+                    &mut buffer_index,
+                    buffer_count,
+                    body,
+                    &valid,
+                    *elements_nullable,
+                )?,
+                FieldKind::ListUtf8 { elements_nullable } => read_list_utf8(
+                    header.cursor,
+                    nodes,
+                    &mut node_index,
+                    node_count,
+                    buffers,
+                    &mut buffer_index,
+                    buffer_count,
+                    body,
+                    &valid,
+                    *elements_nullable,
+                )?,
+                FieldKind::Struct { children } => read_struct(
+                    header.cursor,
+                    nodes,
+                    &mut node_index,
+                    node_count,
+                    buffers,
+                    &mut buffer_index,
+                    buffer_count,
+                    body,
+                    &valid,
+                    children,
+                )?,
             };
             (column, valid)
         };
         if field.nullable {
-            if valid.iter().any(|bit| !bit) && column.iter().all(|cell| !matches!(cell, NativeCell::Null)) {
+            if valid.iter().any(|bit| !bit)
+                && column.iter().all(|cell| !matches!(cell, NativeCell::Null))
+            {
                 return Err(ArrowFault::Shape);
             }
-        } else if valid.iter().any(|bit| !bit) || column.iter().any(|cell| matches!(cell, NativeCell::Null)) {
+        } else if valid.iter().any(|bit| !bit)
+            || column.iter().any(|cell| matches!(cell, NativeCell::Null))
+        {
             return Err(ArrowFault::Shape);
         }
         columns.push(column);
@@ -2796,7 +3235,12 @@ fn read_record_batch(
     Ok(columns)
 }
 
-fn take_node(cursor: &Cursor<'_>, nodes: usize, index: &mut usize, count: usize) -> Result<(i64, i64), ArrowFault> {
+fn take_node(
+    cursor: &Cursor<'_>,
+    nodes: usize,
+    index: &mut usize,
+    count: usize,
+) -> Result<(i64, i64), ArrowFault> {
     if *index >= count {
         return Err(ArrowFault::Shape);
     }
@@ -2805,7 +3249,11 @@ fn take_node(cursor: &Cursor<'_>, nodes: usize, index: &mut usize, count: usize)
     Ok((cursor.i64(at)?, cursor.i64(at + 8)?))
 }
 
-fn read_uint8(body: &[u8], buffer: &RawBuffer, valid: &[bool]) -> Result<Vec<NativeCell>, ArrowFault> {
+fn read_uint8(
+    body: &[u8],
+    buffer: &RawBuffer,
+    valid: &[bool],
+) -> Result<Vec<NativeCell>, ArrowFault> {
     if buffer.length < valid.len() {
         return Err(ArrowFault::Truncated);
     }
@@ -2821,7 +3269,12 @@ fn read_uint8(body: &[u8], buffer: &RawBuffer, valid: &[bool]) -> Result<Vec<Nat
     Ok(out)
 }
 
-fn read_fixed(body: &[u8], buffer: &RawBuffer, valid: &[bool], width: i32) -> Result<Vec<NativeCell>, ArrowFault> {
+fn read_fixed(
+    body: &[u8],
+    buffer: &RawBuffer,
+    valid: &[bool],
+    width: i32,
+) -> Result<Vec<NativeCell>, ArrowFault> {
     let width = usize::try_from(width).map_err(|_| ArrowFault::Shape)?;
     let need = valid.len().checked_mul(width).ok_or(ArrowFault::Shape)?;
     if buffer.length < need {
@@ -2873,7 +3326,11 @@ fn read_millis(
     Ok(out)
 }
 
-fn read_date32(body: &[u8], buffer: &RawBuffer, valid: &[bool]) -> Result<Vec<NativeCell>, ArrowFault> {
+fn read_date32(
+    body: &[u8],
+    buffer: &RawBuffer,
+    valid: &[bool],
+) -> Result<Vec<NativeCell>, ArrowFault> {
     if buffer.length < valid.len().saturating_mul(4) {
         return Err(ArrowFault::Truncated);
     }
@@ -2885,14 +3342,19 @@ fn read_date32(body: &[u8], buffer: &RawBuffer, valid: &[bool]) -> Result<Vec<Na
             continue;
         }
         let days = i32::from_le_bytes(bytes[index * 4..index * 4 + 4].try_into().unwrap());
-        let (year, month, day) = civil_from_unix_days(i64::from(days)).ok_or(ArrowFault::Precision)?;
+        let (year, month, day) =
+            civil_from_unix_days(i64::from(days)).ok_or(ArrowFault::Precision)?;
         oo_core::canonical::validate_date(year, month, day).map_err(|_| ArrowFault::Precision)?;
         out.push(NativeCell::Date32(days));
     }
     Ok(out)
 }
 
-fn read_date64(body: &[u8], buffer: &RawBuffer, valid: &[bool]) -> Result<Vec<NativeCell>, ArrowFault> {
+fn read_date64(
+    body: &[u8],
+    buffer: &RawBuffer,
+    valid: &[bool],
+) -> Result<Vec<NativeCell>, ArrowFault> {
     if buffer.length < valid.len().saturating_mul(8) {
         return Err(ArrowFault::Truncated);
     }
@@ -2965,7 +3427,15 @@ fn read_list_utf8(
     } else {
         validity_bits(body, &child_validity, child_rows, child_nulls)?
     };
-    let flat = read_bytes_like(cursor, buffers, buffer_index, buffer_count, body, &child_valid, true)?;
+    let flat = read_bytes_like(
+        cursor,
+        buffers,
+        buffer_index,
+        buffer_count,
+        body,
+        &child_valid,
+        true,
+    )?;
     let mut out = Vec::with_capacity(parent_valid.len());
     for (row, is_valid) in parent_valid.iter().enumerate() {
         if !is_valid {
@@ -2982,7 +3452,9 @@ fn read_list_utf8(
                 _ => return Err(ArrowFault::Shape),
             }
         }
-        out.push(NativeCell::Json(json_text(&serde_json::Value::Array(items))?));
+        out.push(NativeCell::Json(json_text(&serde_json::Value::Array(
+            items,
+        ))?));
     }
     Ok(out)
 }
@@ -3018,7 +3490,15 @@ fn read_struct(
             }
         }
         let column = match child.kind {
-            StructChildKind::Utf8 => read_bytes_like(cursor, buffers, buffer_index, buffer_count, body, &child_valid, true)?,
+            StructChildKind::Utf8 => read_bytes_like(
+                cursor,
+                buffers,
+                buffer_index,
+                buffer_count,
+                body,
+                &child_valid,
+                true,
+            )?,
             StructChildKind::Int { bit_width } => {
                 let values = take_buffer(cursor, buffers, buffer_index, buffer_count)?;
                 read_ints(body, &values, &child_valid, bit_width)?
@@ -3087,7 +3567,15 @@ fn read_dense_union(
             return Err(ArrowFault::Shape);
         }
         let column = match child.kind {
-            UnionChildKind::Utf8 => read_bytes_like(cursor, buffers, buffer_index, buffer_count, body, &child_valid, true)?,
+            UnionChildKind::Utf8 => read_bytes_like(
+                cursor,
+                buffers,
+                buffer_index,
+                buffer_count,
+                body,
+                &child_valid,
+                true,
+            )?,
             UnionChildKind::Int64 => {
                 let values = take_buffer(cursor, buffers, buffer_index, buffer_count)?;
                 read_ints(body, &values, &child_valid, 64)?
@@ -3107,12 +3595,19 @@ fn read_dense_union(
             return Err(ArrowFault::Shape);
         }
         let slot = usize::try_from(offset).map_err(|_| ArrowFault::Shape)?;
-        let cell = child_columns[child_index].get(slot).ok_or(ArrowFault::Shape)?;
+        let cell = child_columns[child_index]
+            .get(slot)
+            .ok_or(ArrowFault::Shape)?;
         let child = &children[child_index];
         let value = match cell {
             NativeCell::Null if child.nullable => "null".to_string(),
-            NativeCell::Utf8(text) if matches!(child.kind, UnionChildKind::Utf8) => json_string(text),
-            NativeCell::Int { bit_width: 64, value } if matches!(child.kind, UnionChildKind::Int64) => value.to_string(),
+            NativeCell::Utf8(text) if matches!(child.kind, UnionChildKind::Utf8) => {
+                json_string(text)
+            }
+            NativeCell::Int {
+                bit_width: 64,
+                value,
+            } if matches!(child.kind, UnionChildKind::Int64) => value.to_string(),
             _ => return Err(ArrowFault::Shape),
         };
         out.push(NativeCell::Json(format!(
@@ -3123,7 +3618,11 @@ fn read_dense_union(
     Ok(out)
 }
 
-fn read_uint64(body: &[u8], buffer: &RawBuffer, valid: &[bool]) -> Result<Vec<NativeCell>, ArrowFault> {
+fn read_uint64(
+    body: &[u8],
+    buffer: &RawBuffer,
+    valid: &[bool],
+) -> Result<Vec<NativeCell>, ArrowFault> {
     if buffer.length < valid.len() * 8 {
         return Err(ArrowFault::Truncated);
     }
@@ -3221,7 +3720,9 @@ fn read_dictionary_column(
         if slot < 0 {
             return Err(ArrowFault::Shape);
         }
-        let entry = dict.get(usize::try_from(slot).map_err(|_| ArrowFault::Shape)?).ok_or(ArrowFault::Shape)?;
+        let entry = dict
+            .get(usize::try_from(slot).map_err(|_| ArrowFault::Shape)?)
+            .ok_or(ArrowFault::Shape)?;
         match entry {
             NativeCell::Binary(value) => out.push(NativeCell::Binary(value.clone())),
             NativeCell::Null => out.push(NativeCell::Null),
@@ -3299,7 +3800,11 @@ fn read_list_i64(
         }
         let from = usize::try_from(starts[row]).map_err(|_| ArrowFault::Shape)?;
         let to = usize::try_from(starts[row + 1]).map_err(|_| ArrowFault::Shape)?;
-        let items: Vec<serde_json::Value> = flat[from..to].iter().copied().map(serde_json::Value::from).collect();
+        let items: Vec<serde_json::Value> = flat[from..to]
+            .iter()
+            .copied()
+            .map(serde_json::Value::from)
+            .collect();
         let text = serde_json::to_string(&items).map_err(|_| ArrowFault::Shape)?;
         out.push(NativeCell::Json(text));
     }
@@ -3335,7 +3840,15 @@ fn read_list_binary(
     } else {
         validity_bits(body, &child_validity, child_rows, child_nulls)?
     };
-    let flat = read_bytes_like(cursor, buffers, buffer_index, buffer_count, body, &child_valid, false)?;
+    let flat = read_bytes_like(
+        cursor,
+        buffers,
+        buffer_index,
+        buffer_count,
+        body,
+        &child_valid,
+        false,
+    )?;
     let mut out = Vec::with_capacity(parent_valid.len());
     for (row, is_valid) in parent_valid.iter().enumerate() {
         if !is_valid {
@@ -3366,7 +3879,12 @@ struct RawBuffer {
     length: usize,
 }
 
-fn take_buffer(cursor: &Cursor<'_>, buffers: usize, index: &mut usize, count: usize) -> Result<RawBuffer, ArrowFault> {
+fn take_buffer(
+    cursor: &Cursor<'_>,
+    buffers: usize,
+    index: &mut usize,
+    count: usize,
+) -> Result<RawBuffer, ArrowFault> {
     if *index >= count {
         return Err(ArrowFault::Shape);
     }
@@ -3384,14 +3902,22 @@ fn take_buffer(cursor: &Cursor<'_>, buffers: usize, index: &mut usize, count: us
 }
 
 fn slice_body<'a>(body: &'a [u8], buffer: &RawBuffer) -> Result<&'a [u8], ArrowFault> {
-    let end = buffer.offset.checked_add(buffer.length).ok_or(ArrowFault::Truncated)?;
+    let end = buffer
+        .offset
+        .checked_add(buffer.length)
+        .ok_or(ArrowFault::Truncated)?;
     if end > body.len() {
         return Err(ArrowFault::Truncated);
     }
     Ok(&body[buffer.offset..end])
 }
 
-fn validity_bits(body: &[u8], buffer: &RawBuffer, rows: usize, null_count: i64) -> Result<Vec<bool>, ArrowFault> {
+fn validity_bits(
+    body: &[u8],
+    buffer: &RawBuffer,
+    rows: usize,
+    null_count: i64,
+) -> Result<Vec<bool>, ArrowFault> {
     let need = rows.div_ceil(8);
     if buffer.length == 0 {
         if null_count == 0 {
@@ -3418,7 +3944,12 @@ fn validity_bits(body: &[u8], buffer: &RawBuffer, rows: usize, null_count: i64) 
     Ok(out)
 }
 
-fn read_ints(body: &[u8], buffer: &RawBuffer, valid: &[bool], width: u8) -> Result<Vec<NativeCell>, ArrowFault> {
+fn read_ints(
+    body: &[u8],
+    buffer: &RawBuffer,
+    valid: &[bool],
+    width: u8,
+) -> Result<Vec<NativeCell>, ArrowFault> {
     let width = usize::from(width / 8);
     if buffer.length < valid.len() * width {
         return Err(ArrowFault::Truncated);
@@ -3496,7 +4027,9 @@ fn read_timestamps(
             continue;
         }
         let raw = i64::from_le_bytes(bytes[index * 8..index * 8 + 8].try_into().unwrap());
-        let value = raw.checked_mul(micros_per_unit).ok_or(ArrowFault::Precision)?;
+        let value = raw
+            .checked_mul(micros_per_unit)
+            .ok_or(ArrowFault::Precision)?;
         if civil_timestamp(value).is_none() {
             return Err(ArrowFault::Precision);
         }
@@ -3534,7 +4067,11 @@ fn read_bytes_like(
     }
     let mut out = Vec::with_capacity(valid.len());
     for (row, is_valid) in valid.iter().enumerate() {
-        let next = i32::from_le_bytes(offset_bytes[(row + 1) * 4..(row + 2) * 4].try_into().unwrap());
+        let next = i32::from_le_bytes(
+            offset_bytes[(row + 1) * 4..(row + 2) * 4]
+                .try_into()
+                .unwrap(),
+        );
         if next < previous {
             return Err(ArrowFault::Truncated);
         }
@@ -3560,7 +4097,11 @@ fn read_bytes_like(
     Ok(out)
 }
 
-fn read_bools(body: &[u8], buffer: &RawBuffer, valid: &[bool]) -> Result<Vec<NativeCell>, ArrowFault> {
+fn read_bools(
+    body: &[u8],
+    buffer: &RawBuffer,
+    valid: &[bool],
+) -> Result<Vec<NativeCell>, ArrowFault> {
     let need = valid.len().div_ceil(8);
     if buffer.length < need {
         return Err(ArrowFault::Truncated);
@@ -3578,7 +4119,11 @@ fn read_bools(body: &[u8], buffer: &RawBuffer, valid: &[bool]) -> Result<Vec<Nat
     Ok(out)
 }
 
-fn read_f64(body: &[u8], buffer: &RawBuffer, valid: &[bool]) -> Result<Vec<NativeCell>, ArrowFault> {
+fn read_f64(
+    body: &[u8],
+    buffer: &RawBuffer,
+    valid: &[bool],
+) -> Result<Vec<NativeCell>, ArrowFault> {
     if buffer.length < valid.len() * 8 {
         return Err(ArrowFault::Truncated);
     }
@@ -3601,7 +4146,10 @@ struct Cursor<'a> {
 
 impl Cursor<'_> {
     fn need(&self, at: usize, len: usize) -> Result<(), ArrowFault> {
-        if at.checked_add(len).is_some_and(|end| end <= self.data.len()) {
+        if at
+            .checked_add(len)
+            .is_some_and(|end| end <= self.data.len())
+        {
             Ok(())
         } else {
             Err(ArrowFault::Truncated)
@@ -3624,7 +4172,9 @@ impl Cursor<'_> {
 
     fn u32(&self, at: usize) -> Result<u32, ArrowFault> {
         self.need(at, 4)?;
-        Ok(u32::from_le_bytes(self.data[at..at + 4].try_into().unwrap()))
+        Ok(u32::from_le_bytes(
+            self.data[at..at + 4].try_into().unwrap(),
+        ))
     }
 
     fn i32(&self, at: usize) -> Result<i32, ArrowFault> {
@@ -3633,7 +4183,9 @@ impl Cursor<'_> {
 
     fn i64(&self, at: usize) -> Result<i64, ArrowFault> {
         self.need(at, 8)?;
-        Ok(i64::from_le_bytes(self.data[at..at + 8].try_into().unwrap()))
+        Ok(i64::from_le_bytes(
+            self.data[at..at + 8].try_into().unwrap(),
+        ))
     }
 }
 
@@ -3686,7 +4238,10 @@ impl<'a> Table<'a> {
     }
 
     fn bool_field(&self, index: usize, default: bool) -> Result<bool, ArrowFault> {
-        Ok(self.u8_field(index)?.map(|value| value != 0).unwrap_or(default))
+        Ok(self
+            .u8_field(index)?
+            .map(|value| value != 0)
+            .unwrap_or(default))
     }
 
     fn i16_field(&self, index: usize) -> Result<Option<i16>, ArrowFault> {
@@ -3725,7 +4280,8 @@ impl<'a> Table<'a> {
             return Ok(None);
         };
         self.cursor.need(data, len)?;
-        let text = std::str::from_utf8(&self.cursor.data[data..data + len]).map_err(|_| ArrowFault::Shape)?;
+        let text = std::str::from_utf8(&self.cursor.data[data..data + len])
+            .map_err(|_| ArrowFault::Shape)?;
         Ok(Some(text.to_string()))
     }
 
@@ -3744,14 +4300,23 @@ fn root_table<'a>(cursor: &'a Cursor<'a>) -> Result<Table<'a>, ArrowFault> {
     Table::open(cursor, root)
 }
 
-fn table_from_vector<'a>(cursor: &'a Cursor<'a>, data: usize, index: usize) -> Result<Table<'a>, ArrowFault> {
+fn table_from_vector<'a>(
+    cursor: &'a Cursor<'a>,
+    data: usize,
+    index: usize,
+) -> Result<Table<'a>, ArrowFault> {
     let slot = data + index * 4;
     let rel = cursor.u32(slot)? as usize;
     Table::open(cursor, slot + rel)
 }
 
 trait ImportWriter {
-    async fn register(&mut self, plan: &VerifiedImport, shard: &str, owner: &str) -> Result<(), LoadFault>;
+    async fn register(
+        &mut self,
+        plan: &VerifiedImport,
+        shard: &str,
+        owner: &str,
+    ) -> Result<(), LoadFault>;
     async fn adopt(&mut self, shard: &str, owner: &str) -> Result<i64, LoadFault>;
     async fn bind(&mut self, shard: &str, owner: &str, generation: i64) -> Result<(), LoadFault>;
     async fn open_run(
@@ -3806,8 +4371,12 @@ async fn apply<W: ImportWriter>(
     let generation = writer.adopt(shard, owner).await?;
     writer.bind(shard, owner, generation).await?;
     let run_id = writer.open_run(plan, shard, owner, generation).await?;
-    writer.prepare(plan, shard, owner, generation, &run_id).await?;
-    writer.copy_and_write(plan, shard, owner, generation, &run_id).await?;
+    writer
+        .prepare(plan, shard, owner, generation, &run_id)
+        .await?;
+    writer
+        .copy_and_write(plan, shard, owner, generation, &run_id)
+        .await?;
     writer.readback(plan).await?;
     writer.note(plan, shard, owner, generation, &run_id).await?;
     writer.seal(plan, shard, owner, generation, &run_id).await?;
@@ -3819,7 +4388,12 @@ struct PgWriter<'a, 'c> {
 }
 
 impl ImportWriter for PgWriter<'_, '_> {
-    async fn register(&mut self, plan: &VerifiedImport, _shard: &str, _owner: &str) -> Result<(), LoadFault> {
+    async fn register(
+        &mut self,
+        plan: &VerifiedImport,
+        _shard: &str,
+        _owner: &str,
+    ) -> Result<(), LoadFault> {
         for table in &plan.tables {
             register_mapping(
                 self.tx,
@@ -3852,7 +4426,8 @@ impl ImportWriter for PgWriter<'_, '_> {
                     "column",
                     &table.logical_schema,
                     &table.logical_table,
-                    &mapping_ident(&column.logical_name).map_err(|_| LoadFault::Refused("physical"))?,
+                    &mapping_ident(&column.logical_name)
+                        .map_err(|_| LoadFault::Refused("physical"))?,
                 )
                 .await?;
             }
@@ -3887,9 +4462,21 @@ impl ImportWriter for PgWriter<'_, '_> {
         owner: &str,
         generation: i64,
     ) -> Result<String, LoadFault> {
-        let schemas: Vec<&str> = plan.tables.iter().map(|table| table.logical_schema.as_str()).collect();
-        let names: Vec<&str> = plan.tables.iter().map(|table| table.logical_table.as_str()).collect();
-        let physical: Vec<&str> = plan.tables.iter().map(|table| table.physical_name.as_str()).collect();
+        let schemas: Vec<&str> = plan
+            .tables
+            .iter()
+            .map(|table| table.logical_schema.as_str())
+            .collect();
+        let names: Vec<&str> = plan
+            .tables
+            .iter()
+            .map(|table| table.logical_table.as_str())
+            .collect();
+        let physical: Vec<&str> = plan
+            .tables
+            .iter()
+            .map(|table| table.physical_name.as_str())
+            .collect();
         sqlx::query_scalar(
             "SELECT _oo.full_import_open_run($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11::text[], $12::text[])::text",
         )
@@ -3972,11 +4559,15 @@ impl ImportWriter for PgWriter<'_, '_> {
         };
         let hook = hook_digest();
         for table in &plan.tables {
-            let quoted = quote_physical_name(&table.physical_name).map_err(|_| LoadFault::Refused("physical"))?;
+            let quoted = quote_physical_name(&table.physical_name)
+                .map_err(|_| LoadFault::Refused("physical"))?;
             let mut list = String::from("\"_oo_pos\"");
             for column in &table.columns {
                 list.push_str(", ");
-                list.push_str(&quote_physical_name(&column.physical_name).map_err(|_| LoadFault::Refused("physical"))?);
+                list.push_str(
+                    &quote_physical_name(&column.physical_name)
+                        .map_err(|_| LoadFault::Refused("physical"))?,
+                );
             }
             let statement = format!("COPY _oo.{quoted} ({list}) FROM STDIN WITH (FORMAT binary)");
             let sent = copy_sink::send_batch(
@@ -4029,7 +4620,8 @@ impl ImportWriter for PgWriter<'_, '_> {
 
     async fn readback(&mut self, plan: &VerifiedImport) -> Result<(), LoadFault> {
         for table in &plan.tables {
-            let quoted = quote_physical_name(&table.physical_name).map_err(|_| LoadFault::Refused("physical"))?;
+            let quoted = quote_physical_name(&table.physical_name)
+                .map_err(|_| LoadFault::Refused("physical"))?;
             let sql = format!("SELECT count(*)::int8 FROM _oo.{quoted}");
             let count: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(sql))
                 .fetch_one(&mut **self.tx)
@@ -4051,18 +4643,20 @@ impl ImportWriter for PgWriter<'_, '_> {
         run_id: &str,
     ) -> Result<(), LoadFault> {
         for table in &plan.tables {
-            sqlx::query("SELECT _oo.full_import_note_table($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8)")
-                .bind(shard)
-                .bind(owner)
-                .bind(generation)
-                .bind(run_id)
-                .bind(i32::try_from(table.index).unwrap_or(i32::MAX))
-                .bind(i64::try_from(table.row_count).unwrap_or(i64::MAX))
-                .bind(&table.canonical_digest)
-                .bind(&plan.source_id)
-                .execute(&mut **self.tx)
-                .await
-                .map_err(db_fault)?;
+            sqlx::query(
+                "SELECT _oo.full_import_note_table($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8)",
+            )
+            .bind(shard)
+            .bind(owner)
+            .bind(generation)
+            .bind(run_id)
+            .bind(i32::try_from(table.index).unwrap_or(i32::MAX))
+            .bind(i64::try_from(table.row_count).unwrap_or(i64::MAX))
+            .bind(&table.canonical_digest)
+            .bind(&plan.source_id)
+            .execute(&mut **self.tx)
+            .await
+            .map_err(db_fault)?;
         }
         Ok(())
     }
@@ -4081,8 +4675,16 @@ impl ImportWriter for PgWriter<'_, '_> {
             .execute(&mut **self.tx)
             .await
             .map_err(db_fault)?;
-        let schemas: Vec<&str> = plan.tables.iter().map(|table| table.logical_schema.as_str()).collect();
-        let names: Vec<&str> = plan.tables.iter().map(|table| table.logical_table.as_str()).collect();
+        let schemas: Vec<&str> = plan
+            .tables
+            .iter()
+            .map(|table| table.logical_schema.as_str())
+            .collect();
+        let names: Vec<&str> = plan
+            .tables
+            .iter()
+            .map(|table| table.logical_table.as_str())
+            .collect();
         let sealed: String = sqlx::query_scalar(
             "SELECT _oo.full_import_seal_run($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11::text[], $12::text[])",
         )
@@ -4146,17 +4748,18 @@ pub(crate) async fn register_mapping(
         .execute(&mut **tx)
         .await
         .map_err(db_fault)?;
-    let stored: String = sqlx::query_scalar("SELECT _oo.lookup_physical_mapping($1, $2, $3, $4, $5, $6, $7)")
-        .bind(source)
-        .bind(config_digest)
-        .bind(generation)
-        .bind(level)
-        .bind(namespace)
-        .bind(table)
-        .bind(column)
-        .fetch_one(&mut **tx)
-        .await
-        .map_err(db_fault)?;
+    let stored: String =
+        sqlx::query_scalar("SELECT _oo.lookup_physical_mapping($1, $2, $3, $4, $5, $6, $7)")
+            .bind(source)
+            .bind(config_digest)
+            .bind(generation)
+            .bind(level)
+            .bind(namespace)
+            .bind(table)
+            .bind(column)
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(db_fault)?;
     if stored == mapped.physical_name {
         Ok(())
     } else {
@@ -4219,7 +4822,12 @@ pub async fn import_native() -> Result<(), u8> {
     bytes.push(b'\n');
     use std::io::Write;
     std::io::stdout().write_all(&bytes).map_err(|_| 1u8)?;
-    if plan.result.get("load_state").and_then(|value| value.as_str()) == Some("awaiting_publish") {
+    if plan
+        .result
+        .get("load_state")
+        .and_then(|value| value.as_str())
+        == Some("awaiting_publish")
+    {
         Ok(())
     } else {
         Err(1)
@@ -4228,7 +4836,11 @@ pub async fn import_native() -> Result<(), u8> {
 
 async fn load_target(plan: &mut Plan, target: &serde_json::Value) -> Result<String, LoadFault> {
     let host = text_field(target, "host").ok_or(LoadFault::NotReady)?;
-    let port = target.get("port").and_then(|value| value.as_u64()).and_then(|value| u16::try_from(value).ok()).ok_or(LoadFault::NotReady)?;
+    let port = target
+        .get("port")
+        .and_then(|value| value.as_u64())
+        .and_then(|value| u16::try_from(value).ok())
+        .ok_or(LoadFault::NotReady)?;
     let database = text_field(target, "database").ok_or(LoadFault::NotReady)?;
     let username = text_field(target, "runtime_principal").ok_or(LoadFault::NotReady)?;
     let password_file = text_field(target, "password_file").ok_or(LoadFault::NotReady)?;
@@ -4260,7 +4872,10 @@ async fn load_target(plan: &mut Plan, target: &serde_json::Value) -> Result<Stri
 }
 
 fn text_field<'a>(value: &'a serde_json::Value, name: &str) -> Option<&'a str> {
-    value.get(name).and_then(|item| item.as_str()).filter(|item| !item.is_empty())
+    value
+        .get(name)
+        .and_then(|item| item.as_str())
+        .filter(|item| !item.is_empty())
 }
 
 #[cfg(test)]
@@ -4284,7 +4899,12 @@ mod tests {
     }
 
     impl ImportWriter for Script {
-        async fn register(&mut self, _: &VerifiedImport, _: &str, _: &str) -> Result<(), LoadFault> {
+        async fn register(
+            &mut self,
+            _: &VerifiedImport,
+            _: &str,
+            _: &str,
+        ) -> Result<(), LoadFault> {
             self.step("register")
         }
         async fn adopt(&mut self, _: &str, _: &str) -> Result<i64, LoadFault> {
@@ -4294,23 +4914,57 @@ mod tests {
         async fn bind(&mut self, _: &str, _: &str, _: i64) -> Result<(), LoadFault> {
             self.step("bind")
         }
-        async fn open_run(&mut self, _: &VerifiedImport, _: &str, _: &str, _: i64) -> Result<String, LoadFault> {
+        async fn open_run(
+            &mut self,
+            _: &VerifiedImport,
+            _: &str,
+            _: &str,
+            _: i64,
+        ) -> Result<String, LoadFault> {
             self.step("open_run")?;
             Ok("run".to_string())
         }
-        async fn prepare(&mut self, _: &VerifiedImport, _: &str, _: &str, _: i64, _: &str) -> Result<(), LoadFault> {
+        async fn prepare(
+            &mut self,
+            _: &VerifiedImport,
+            _: &str,
+            _: &str,
+            _: i64,
+            _: &str,
+        ) -> Result<(), LoadFault> {
             self.step("prepare")
         }
-        async fn copy_and_write(&mut self, _: &VerifiedImport, _: &str, _: &str, _: i64, _: &str) -> Result<(), LoadFault> {
+        async fn copy_and_write(
+            &mut self,
+            _: &VerifiedImport,
+            _: &str,
+            _: &str,
+            _: i64,
+            _: &str,
+        ) -> Result<(), LoadFault> {
             self.step("copy_and_write")
         }
         async fn readback(&mut self, _: &VerifiedImport) -> Result<(), LoadFault> {
             self.step("readback")
         }
-        async fn note(&mut self, _: &VerifiedImport, _: &str, _: &str, _: i64, _: &str) -> Result<(), LoadFault> {
+        async fn note(
+            &mut self,
+            _: &VerifiedImport,
+            _: &str,
+            _: &str,
+            _: i64,
+            _: &str,
+        ) -> Result<(), LoadFault> {
             self.step("note")
         }
-        async fn seal(&mut self, _: &VerifiedImport, _: &str, _: &str, _: i64, _: &str) -> Result<(), LoadFault> {
+        async fn seal(
+            &mut self,
+            _: &VerifiedImport,
+            _: &str,
+            _: &str,
+            _: i64,
+            _: &str,
+        ) -> Result<(), LoadFault> {
             self.step("seal")
         }
     }
@@ -4337,7 +4991,14 @@ mod tests {
             script.log.push("rollback");
             return script.log;
         }
-        match apply(&mut script, &plan, "shard", "00000000-0000-0000-0000-000000000001").await {
+        match apply(
+            &mut script,
+            &plan,
+            "shard",
+            "00000000-0000-0000-0000-000000000001",
+        )
+        .await
+        {
             Ok(_) => script.log.push("commit"),
             Err(_) => script.log.push("rollback"),
         }
@@ -4371,7 +5032,10 @@ mod tests {
     #[test]
     fn second_scale_refuses_overflow() {
         let raw = i64::MAX.to_le_bytes();
-        let buffer = RawBuffer { offset: 0, length: 8 };
+        let buffer = RawBuffer {
+            offset: 0,
+            length: 8,
+        };
         let err = read_timestamps(&raw, &buffer, &[true], None, 1_000_000).unwrap_err();
         assert_eq!(err, ArrowFault::Precision);
     }
@@ -4380,7 +5044,10 @@ mod tests {
     fn date64_keeps_milliseconds_as_timestamp() {
         // 2026-05-01 00:00:00.001 UTC is not a whole day. It stays a timestamp.
         let millis: i64 = 20_574i64 * 86_400_000 + 1;
-        let buffer = RawBuffer { offset: 0, length: 8 };
+        let buffer = RawBuffer {
+            offset: 0,
+            length: 8,
+        };
         let cells = read_date64(&millis.to_le_bytes(), &buffer, &[true]).unwrap();
         assert_eq!(cells, vec![NativeCell::TimestampMicros(millis * 1_000)]);
     }
@@ -4412,13 +5079,19 @@ mod tests {
     #[test]
     fn utf8_document_is_jsonb_and_plain_utf8_stays_varchar() {
         let target = target_of(&decl("utf8", true), &utf8_field()).expect("jsonb");
-        assert_eq!((target.oid, target.typmod, target.type_name), (3802, -1, "jsonb"));
+        assert_eq!(
+            (target.oid, target.typmod, target.type_name),
+            (3802, -1, "jsonb")
+        );
         assert_eq!(
             column_provenance_for(target.oid, "utf8"),
             "full document stored as jsonb oid 3802 typmod -1; missing keys stay absent; numbers stay exact; not json oid 114"
         );
         let plain = target_of(&decl("utf8", false), &utf8_field()).expect("varchar");
-        assert_eq!((plain.oid, plain.typmod, plain.type_name), (1043, -1, "varchar"));
+        assert_eq!(
+            (plain.oid, plain.typmod, plain.type_name),
+            (1043, -1, "varchar")
+        );
         assert!(target_of(&decl("binary", true), &utf8_field()).is_err());
         let text = r#"{"k": 0, "n": 1.50}"#;
         let cell = cell_of(&NativeCell::Utf8(text.to_string()), &target).expect("cell");
@@ -4437,7 +5110,8 @@ mod source_bound_schema {
     use super::*;
 
     fn fixture() -> std::path::PathBuf {
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/native/oracle-p2-scn2175138.arrow")
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/native/oracle-p2-scn2175138.arrow")
     }
 
     #[test]
@@ -4462,11 +5136,22 @@ mod source_bound_schema {
     fn admitted_bson_tags_select_objectid_text_uuid_and_binary() {
         use crate::native_binding::BsonType;
         let mut field = BoundField {
-            name: "_id".to_string(), arrow_type: "fixedsizebinary(12)".to_string(),
-            nullable: false, precision: None, scale: None, timezone: None,
-            char_length: None, key: true, document: false, source_oid: None,
-            source_typmod: None, source_format: None,
-            bson_type: Some(BsonType { variant: "07".to_string(), subtype: None }),
+            name: "_id".to_string(),
+            arrow_type: "fixedsizebinary(12)".to_string(),
+            nullable: false,
+            precision: None,
+            scale: None,
+            timezone: None,
+            char_length: None,
+            key: true,
+            document: false,
+            source_oid: None,
+            source_typmod: None,
+            source_format: None,
+            bson_type: Some(BsonType {
+                variant: "07".to_string(),
+                subtype: None,
+            }),
         };
         let mut object_id = target_type(TargetKind::FixedBytes { width: 12 }).unwrap();
         preserve_bson_storage(&mut object_id, &field).unwrap();
@@ -4474,11 +5159,17 @@ mod source_bound_schema {
         let cell = cell_of(&NativeCell::Binary(vec![0xab; 12]), &object_id).unwrap();
         assert_eq!(cell.value, Some(LogicalValue::Text("ab".repeat(12))));
         field.arrow_type = "fixedsizebinary(16)".to_string();
-        field.bson_type = Some(BsonType { variant: "05".to_string(), subtype: Some("04".to_string()) });
+        field.bson_type = Some(BsonType {
+            variant: "05".to_string(),
+            subtype: Some("04".to_string()),
+        });
         let mut uuid = target_type(TargetKind::FixedBytes { width: 16 }).unwrap();
         preserve_bson_storage(&mut uuid, &field).unwrap();
         assert_eq!(uuid.oid, 2950);
-        field.bson_type = Some(BsonType { variant: "05".to_string(), subtype: Some("00".to_string()) });
+        field.bson_type = Some(BsonType {
+            variant: "05".to_string(),
+            subtype: Some("00".to_string()),
+        });
         let mut blob = target_type(TargetKind::FixedBytes { width: 16 }).unwrap();
         preserve_bson_storage(&mut blob, &field).unwrap();
         assert_eq!(blob.oid, 17);
@@ -4545,19 +5236,49 @@ mod source_bound_schema {
         assert_ne!(schema, batch);
         assert_ne!(schema, "ab".repeat(32));
         assert!(require_arrow_schema_digest(&bytes, &schema).is_ok());
-        assert_eq!(require_arrow_schema_digest(&bytes, &batch), Err("digest_mismatch"));
+        assert_eq!(
+            require_arrow_schema_digest(&bytes, &batch),
+            Err("digest_mismatch")
+        );
         let document = table(&path, &batch);
         let wrong = "ab".repeat(32);
         assert_eq!(
-            plan_table(&document, 0, "oo04_t_batch", 1, &wrong, &wrong, &admission(&batch, &wrong, true)).err(),
+            plan_table(
+                &document,
+                0,
+                "oo04_t_batch",
+                1,
+                &wrong,
+                &wrong,
+                &admission(&batch, &wrong, true)
+            )
+            .err(),
             Some("digest_mismatch")
         );
         assert_ne!(
-            plan_table(&document, 0, "oo04_t_batch", 1, &wrong, &wrong, &admission(&batch, &schema, true)).err(),
+            plan_table(
+                &document,
+                0,
+                "oo04_t_batch",
+                1,
+                &wrong,
+                &wrong,
+                &admission(&batch, &schema, true)
+            )
+            .err(),
             Some("digest_mismatch")
         );
         assert_ne!(
-            plan_table(&document, 0, "oo04_t_batch", 1, &wrong, &wrong, &admission(&batch, &wrong, false)).err(),
+            plan_table(
+                &document,
+                0,
+                "oo04_t_batch",
+                1,
+                &wrong,
+                &wrong,
+                &admission(&batch, &wrong, false)
+            )
+            .err(),
             Some("digest_mismatch")
         );
     }

@@ -108,6 +108,10 @@ pub fn is_mysql_driver(name: &str) -> bool {
     ) || name.starts_with("mysql_async-")
 }
 
+pub fn is_oracle_driver(name: &str) -> bool {
+    matches!(name, "oracledb" | "oracle" | "odpic-sys")
+}
+
 pub fn is_diesel_family(name: &str) -> bool {
     name == "diesel" || name.starts_with("diesel-") || name.starts_with("diesel_")
 }
@@ -165,6 +169,7 @@ pub fn is_model_sdk(name: &str) -> bool {
 pub fn is_client_database_driver(name: &str) -> bool {
     is_sqlx_family(name)
         || is_mysql_driver(name)
+        || is_oracle_driver(name)
         || is_duckdb_driver(name)
         || is_sqlite_driver(name)
         || is_sync_postgres_driver(name)
@@ -179,6 +184,7 @@ pub fn is_client_database_driver(name: &str) -> bool {
 pub fn is_gateway_forbidden_driver(name: &str) -> bool {
     is_sqlx_family(name)
         || is_mysql_driver(name)
+        || is_oracle_driver(name)
         || is_duckdb_driver(name)
         || is_sqlite_driver(name)
         || is_sync_postgres_driver(name)

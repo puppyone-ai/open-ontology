@@ -47,6 +47,9 @@ const REAP_WAIT: Duration = Duration::from_millis(2000);
 /// Sha256 of `testing/harness/containment-supervisor/bin/containment-supervisor`.
 /// The provenance file must contain this same line. A zero digest matches no
 /// built artifact.
+#[cfg(target_arch = "x86_64")]
+const SUPERVISOR_SHA256: &str = "76efbae5a8488ef5a5a7f77614b995da4362ebda6e6382e6e8578937adef1228";
+#[cfg(not(target_arch = "x86_64"))]
 const SUPERVISOR_SHA256: &str = "3569f4e45f88cdedef55c6eb5b23e2c4eb9e9dc1c14690085ddf72681a95628e";
 
 static STAGE_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -67,15 +70,23 @@ fn fault_note(fault: HelperFault) -> &'static str {
 }
 
 pub(crate) fn artifact_path() -> PathBuf {
-    crate::util::repo_root().join(
-        "testing/harness/containment-supervisor/bin/containment-supervisor",
-    )
+    crate::util::repo_root()
+        .join("testing/harness/containment-supervisor/bin")
+        .join(if cfg!(target_arch = "x86_64") {
+            "containment-supervisor-x86_64"
+        } else {
+            "containment-supervisor"
+        })
 }
 
 fn provenance_path() -> PathBuf {
-    crate::util::repo_root().join(
-        "testing/harness/containment-supervisor/provenance/artifact.sha256",
-    )
+    crate::util::repo_root()
+        .join("testing/harness/containment-supervisor/provenance")
+        .join(if cfg!(target_arch = "x86_64") {
+            "artifact-x86_64.sha256"
+        } else {
+            "artifact.sha256"
+        })
 }
 
 #[derive(Clone, Debug)]
@@ -349,7 +360,10 @@ fn assess_file(path: &Path, expected_digest: &str) -> Result<(), HelperFault> {
     if uid != 0 && uid != euid {
         return Err(HelperFault::Untrusted);
     }
-    let parent = path.parent().filter(|parent| !parent.as_os_str().is_empty()).ok_or(HelperFault::Untrusted)?;
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .ok_or(HelperFault::Untrusted)?;
     let parent_meta = fs::symlink_metadata(parent).map_err(|_| HelperFault::Untrusted)?;
     if parent_meta.file_type().is_symlink() {
         return Err(HelperFault::Untrusted);
@@ -465,7 +479,11 @@ impl Drop for RemoveFile {
 
 fn command_argv(command: &Command) -> Vec<String> {
     let mut argv = vec![command.get_program().to_string_lossy().into_owned()];
-    argv.extend(command.get_args().map(|arg| arg.to_string_lossy().into_owned()));
+    argv.extend(
+        command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned()),
+    );
     argv
 }
 
@@ -670,9 +688,15 @@ mod tests {
         assert!(!blocks_pass(VERIFIED, true, false, "ok"));
         assert!(!blocks_pass(VERIFIED, true, false, "stopped"));
         assert!(!blocks_pass(VERIFIED, true, false, "output-limit"));
-        assert!(artifact_path().ends_with(
-            "testing/harness/containment-supervisor/bin/containment-supervisor"
-        ));
+        let filename = if cfg!(target_arch = "x86_64") {
+            "containment-supervisor-x86_64"
+        } else {
+            "containment-supervisor"
+        };
+        assert!(
+            artifact_path()
+                .ends_with(Path::new("testing/harness/containment-supervisor/bin").join(filename))
+        );
         #[cfg(target_os = "linux")]
         {
             let other = dir.join("other-uid");
@@ -714,10 +738,7 @@ mod tests {
         .unwrap();
         fs::set_permissions(&worker, fs::Permissions::from_mode(0o755)).unwrap();
         let digest = sha256_hex(&fs::read(&worker).unwrap());
-        assert_eq!(
-            assess_file(&worker, "abab"),
-            Err(HelperFault::Mismatch)
-        );
+        assert_eq!(assess_file(&worker, "abab"), Err(HelperFault::Mismatch));
         assert!(!marker.exists(), "a rejected worker was executed");
         assert_ne!(digest, SUPERVISOR_SHA256);
         let _ = fs::remove_dir_all(&dir);

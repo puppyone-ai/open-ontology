@@ -14,8 +14,8 @@ use crate::session::{self, PgSession};
 use crate::snapshot::{self, ProbeValue};
 use crate::sql;
 use crate::types::{
-    compose_key_scan, compose_presence_scan, compose_scan, valid_quoted_ident, ColumnPlan,
-    MapDecision,
+    ColumnPlan, MapDecision, compose_key_scan, compose_presence_scan, compose_scan,
+    valid_quoted_ident,
 };
 
 /// Key-plan protocol. This is not the snapshot protocol and not the whole reader.
@@ -281,11 +281,19 @@ fn spec_from_resolved(
         lower,
         upper,
         key_oids: resolved.oids.clone(),
-        key_attnums: resolved.declared.columns.iter().map(|column| column.attnum).collect(),
+        key_attnums: resolved
+            .declared
+            .columns
+            .iter()
+            .map(|column| column.attnum)
+            .collect(),
     })
 }
 
-fn bound_side(bound: Option<Vec<ProbeValue>>, width: usize) -> Result<Vec<ProbeValue>, SourceError> {
+fn bound_side(
+    bound: Option<Vec<ProbeValue>>,
+    width: usize,
+) -> Result<Vec<ProbeValue>, SourceError> {
     match bound {
         None => Ok(Vec::new()),
         Some(values) if values.len() == width && !values.is_empty() => Ok(values),
@@ -303,9 +311,16 @@ async fn resolve_key(
     if let Some(columns) = local_columns(source, plans, &pk_attnums(source)) {
         let primary = read_primary(session, &source.schema, &source.name).await?;
         if primary.plain {
-            return finish_key(session, source, DeclaredKeyKind::Primary, primary.name, columns, deadline)
-                .await
-                .map(Some);
+            return finish_key(
+                session,
+                source,
+                DeclaredKeyKind::Primary,
+                primary.name,
+                columns,
+                deadline,
+            )
+            .await
+            .map(Some);
         }
     }
     for unique in &source.unique_keys {
@@ -350,7 +365,10 @@ fn local_columns(
         if *attnum <= 0 {
             return None;
         }
-        let column = source.columns.iter().find(|column| column.attnum == *attnum)?;
+        let column = source
+            .columns
+            .iter()
+            .find(|column| column.attnum == *attnum)?;
         if !column.not_null || !snapshot::supported_key_oid(column.type_oid) {
             return None;
         }
@@ -489,7 +507,8 @@ async fn read_count(
 ) -> Result<i64, SourceError> {
     let sql = compose_count(schema_sql, table_sql)?;
     session.arm_rows(1);
-    let rows = session::fetch_all(session, sqlx::query(sqlx_core::sql_str::AssertSqlSafe(sql))).await?;
+    let rows =
+        session::fetch_all(session, sqlx::query(sqlx_core::sql_str::AssertSqlSafe(sql))).await?;
     if rows.len() != 1 {
         return Err(SourceError::protocol("key_plan"));
     }
@@ -513,14 +532,17 @@ async fn walk_bounds(
     let mut prev = first;
     loop {
         ensure_deadline(deadline)?;
-        let Some((next, rows)) = read_page(session, schema_sql, table_sql, key, &prev, stride).await?
+        let Some((next, rows)) =
+            read_page(session, schema_sql, table_sql, key, &prev, stride).await?
         else {
             break;
         };
         if rows < stride {
             break;
         }
-        if rows != stride || next == prev || starts.len() >= usize::try_from(MAX_PLAN_CHUNKS).unwrap_or(64)
+        if rows != stride
+            || next == prev
+            || starts.len() >= usize::try_from(MAX_PLAN_CHUNKS).unwrap_or(64)
         {
             return Err(SourceError::protocol("key_plan"));
         }
@@ -538,7 +560,8 @@ async fn read_first(
 ) -> Result<Option<Vec<ProbeValue>>, SourceError> {
     let sql = compose_first(schema_sql, table_sql, &key.quoted)?;
     session.arm_rows(1);
-    let rows = session::fetch_all(session, sqlx::query(sqlx_core::sql_str::AssertSqlSafe(sql))).await?;
+    let rows =
+        session::fetch_all(session, sqlx::query(sqlx_core::sql_str::AssertSqlSafe(sql))).await?;
     match rows.as_slice() {
         [] => Ok(None),
         [row] => Ok(Some(decode_key(row, &key.oids)?)),
@@ -569,7 +592,8 @@ async fn read_page(
         [] => Ok(None),
         [row] => {
             let values = decode_key(row, &key.oids)?;
-            let count = session::cell_i64(row, key.oids.len()).map_err(|_| SourceError::protocol("key_plan"))?;
+            let count = session::cell_i64(row, key.oids.len())
+                .map_err(|_| SourceError::protocol("key_plan"))?;
             Ok(Some((values, count)))
         }
         _ => Err(SourceError::protocol("key_plan")),
@@ -683,7 +707,11 @@ pub(crate) fn compose_page(
 }
 
 fn checked_keys(schema: &str, table: &str, keys: &[String]) -> Result<(), SourceError> {
-    if keys.is_empty() || keys.len() > 8 || !valid_quoted_ident(schema) || !valid_quoted_ident(table) {
+    if keys.is_empty()
+        || keys.len() > 8
+        || !valid_quoted_ident(schema)
+        || !valid_quoted_ident(table)
+    {
         return Err(SourceError::protocol("key_plan"));
     }
     if keys.iter().any(|key| !valid_quoted_ident(key)) {
@@ -740,7 +768,9 @@ fn ceil_div(numerator: i64, denominator: i64) -> Result<i64, SourceError> {
     if numerator % denominator == 0 {
         Ok(quotient)
     } else {
-        quotient.checked_add(1).ok_or_else(|| SourceError::protocol("key_plan"))
+        quotient
+            .checked_add(1)
+            .ok_or_else(|| SourceError::protocol("key_plan"))
     }
 }
 
@@ -937,7 +967,12 @@ mod tests {
         .unwrap();
         assert!(composite.contains("ORDER BY 1 DESC,2 DESC"));
         assert!(!composite.contains(" AS n"));
-        let first = compose_first("\"s\"", "\"t\"", &["\"k\"".to_string(), "\"n\"".to_string()]).unwrap();
+        let first = compose_first(
+            "\"s\"",
+            "\"t\"",
+            &["\"k\"".to_string(), "\"n\"".to_string()],
+        )
+        .unwrap();
         assert_eq!(
             first,
             "SELECT \"k\",\"n\" FROM \"s\".\"t\" ORDER BY \"k\",\"n\" LIMIT 1"

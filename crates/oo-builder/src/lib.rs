@@ -21,14 +21,20 @@ mod description_candidate;
 mod draft;
 mod error;
 mod ident;
+mod incremental;
+mod jsonb_profile;
+mod knowledge_budget;
 mod limits;
 mod nfc;
+mod oos_tree;
+mod pack_index;
 mod pgsql;
 mod reviewed_effective;
 mod role_pack;
 mod role_pack_cli;
-mod jsonb_profile;
 mod sealed_import;
+
+pub use incremental::compile_library_incremental;
 
 pub use captured_pg::{
     CAPTURED_COMPILER, CAPTURED_PROTOCOL, CapturedPgDraft, compile_captured_pg_catalog,
@@ -39,24 +45,33 @@ pub use description_candidate::{
     DESCRIPTION_RESPONSE_PROTOCOL, DescriptionCandidateError, complete_description_candidates,
     prepare_description_request,
 };
-pub use reviewed_effective::{
-    REVIEWED_EFFECTIVE_COMMAND_PROTOCOL, REVIEWED_EFFECTIVE_COMPILER, REVIEWED_EFFECTIVE_PROTOCOL,
-    ReviewedEffectiveError, compile_reviewed_effective, compile_reviewed_sealed_import,
-};
-pub use role_pack::{RolePack, RolePackError, compile_role_pack, normalize_pack_path};
+pub use draft::{COMPILER, DRAFT_PROTOCOL, compile_structure_draft};
+pub use error::{DraftError, EVIDENCE_PROTOCOL};
 pub use jsonb_profile::{
     JSONB_PROFILE_COMPILER, JSONB_PROFILE_PROTOCOL, JsonbDocumentProfile,
     compile_jsonb_document_profile,
 };
+pub use knowledge_budget::unicode_word_tokens;
+pub use nfc::nfc;
+pub use oos_tree::{OosTreeCompilation, compile_oos_tree};
+pub use pack_index::manifest_file_records;
+pub use pgsql::EMPTY_SCHEMA_HASH;
+pub use reviewed_effective::{
+    REVIEWED_EFFECTIVE_COMMAND_PROTOCOL, REVIEWED_EFFECTIVE_COMPILER, REVIEWED_EFFECTIVE_PROTOCOL,
+    ReviewedEffectiveError, compile_reviewed_effective, compile_reviewed_sealed_import,
+};
+pub use role_pack::{
+    RolePack, RolePackCeilings, RolePackError, compile_role_pack, compile_role_pack_with_ceilings,
+    normalize_pack_path,
+};
+pub use role_pack_cli::{
+    RolePackCommandError, compile_role_pack_command, compile_role_pack_command_with_ceilings,
+};
 pub use sealed_import::{
     REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL, REVIEWED_SEALED_IMPORT_COMPILER,
-    REVIEWED_SEALED_IMPORT_PROTOCOL, SEALED_IMPORT_COMPILER, SealedImportColumnDraft,
-    SealedImportDraft, SealedImportError, SealedImportTableDraft, compile_sealed_import_catalog,
-    compile_sealed_import_collection, SEALED_IMPORT_COLLECTION_PROTOCOL,
+    REVIEWED_SEALED_IMPORT_PROTOCOL, SEALED_IMPORT_COLLECTION_PROTOCOL, SEALED_IMPORT_COMPILER,
+    SealedImportColumnDraft, SealedImportDraft, SealedImportError, SealedImportTableDraft,
+    compile_sealed_import_catalog, compile_sealed_import_catalog_with_limits,
+    compile_sealed_import_collection, compile_sealed_import_collection_with_limits,
     identity_preimage,
 };
-pub use role_pack_cli::{RolePackCommandError, compile_role_pack_command};
-pub use draft::{COMPILER, DRAFT_PROTOCOL, compile_structure_draft};
-pub use error::{DraftError, EVIDENCE_PROTOCOL};
-pub use nfc::nfc;
-pub use pgsql::EMPTY_SCHEMA_HASH;

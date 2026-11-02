@@ -38,10 +38,113 @@ pub enum RawCell {
     },
 }
 
+/// MySQL 5.7 table-map events omit unsigned metadata. Reinterpret a negative
+/// binlog integer only when the independently read column type proves unsigned.
+/// Snapshot values must NOT use this conversion.
+pub fn normalize_binlog_integer(source_type: &str, raw: RawCell) -> Result<RawCell, PreviewError> {
+    let RawCell::Int(n) = raw else {
+        return Ok(raw);
+    };
+    let ty = source_type.to_ascii_lowercase();
+    if !ty.split_whitespace().any(|word| word == "unsigned") || n >= 0 {
+        return Ok(RawCell::Int(n));
+    }
+    let base = ty.split(['(', ' ']).next().unwrap_or("");
+    let bits = match base {
+        "tinyint" => 8,
+        "smallint" => 16,
+        "mediumint" => 24,
+        "int" | "integer" => 32,
+        "bigint" => 64,
+        _ => return Err(PreviewError::new("value", "binlog_unsigned_type")),
+    };
+    if i128::from(n) < -(1i128 << (bits - 1)) {
+        return Err(PreviewError::new("value", "binlog_unsigned_range"));
+    }
+    Ok(RawCell::Uint((i128::from(n) + (1i128 << bits)) as u64))
+}
+
 #[derive(Clone, Debug)]
 pub struct RejectNote {
     pub reason: &'static str,
     pub value_len: u64,
+}
+
+#[derive(Clone, Copy, Debug, Default, serde::Deserialize, serde::Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct TypePolicy {
+    pub zero_date_to_null: bool,
+    pub strip_text_nul: bool,
+}
+
+pub fn decode_with_policy(
+    store: StoreKind,
+    raw: &RawCell,
+    nullable: bool,
+    key: bool,
+    policy: TypePolicy,
+) -> Result<(DecodedCell, Option<RejectNote>), PreviewError> {
+    if !key && policy.strip_text_nul && matches!(store, StoreKind::Text { .. }) {
+        if let RawCell::Bytes(bytes) = raw {
+            if bytes.contains(&0) {
+                let cleaned = RawCell::Bytes(bytes.iter().copied().filter(|b| *b != 0).collect());
+                let (cell, _) = decode_cell(store, &cleaned, nullable)?;
+                return Ok((
+                    cell,
+                    Some(RejectNote {
+                        reason: "nul_byte",
+                        value_len: bytes.len() as u64,
+                    }),
+                ));
+            }
+        }
+    }
+    if key {
+        return decode_present(store, raw)
+            .map(|cell| (cell, None))
+            .map_err(|reason| PreviewError::new("value", reason));
+    }
+    if policy.zero_date_to_null
+        && nullable
+        && matches!(
+            store,
+            StoreKind::Date | StoreKind::TimestampNaive | StoreKind::TimestampTz
+        )
+        && matches!(decode_present(store, raw), Err("zero_date"))
+    {
+        return Ok((
+            DecodedCell::sql_null(),
+            Some(RejectNote {
+                reason: "zero_date",
+                value_len: raw_len(raw),
+            }),
+        ));
+    }
+    decode_cell(store, raw, nullable)
+}
+
+pub fn decode_mapped(
+    column: &super::map::MappedColumn,
+    raw: &RawCell,
+) -> Result<(DecodedCell, Option<RejectNote>), PreviewError> {
+    let enabled = |key: &str| {
+        column
+            .plan
+            .mapping
+            .metadata
+            .iter()
+            .any(|(k, v)| k == key && v == "true")
+    };
+    decode_with_policy(
+        column.store,
+        raw,
+        column.plan.mapping.nullable,
+        column.key,
+        TypePolicy {
+            zero_date_to_null: enabled("mysql_zero_date_to_null"),
+            strip_text_nul: enabled("mysql_strip_text_nul"),
+        },
+    )
 }
 
 pub fn decode_cell(
@@ -463,6 +566,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn unsigned_binlog_sign_extension_needs_exact_source_metadata() {
+        for (ty, bits) in [
+            ("tinyint(3) unsigned", 8),
+            ("smallint unsigned", 16),
+            ("mediumint unsigned", 24),
+            ("int(10) unsigned", 32),
+            ("bigint(20) unsigned", 64),
+        ] {
+            let got = normalize_binlog_integer(ty, RawCell::Int(-1)).unwrap();
+            assert!(matches!(got,RawCell::Uint(n) if u128::from(n)==(1u128<<bits)-1));
+        }
+        assert!(matches!(
+            normalize_binlog_integer("bigint", RawCell::Int(-1)).unwrap(),
+            RawCell::Int(-1)
+        ));
+        assert!(normalize_binlog_integer("tinyint unsigned", RawCell::Int(-129)).is_err());
+    }
+
+    #[test]
     fn decimal_text_is_not_float() {
         let raw = RawCell::Bytes(b"10.50".to_vec());
         let (cell, note) = decode_cell(
@@ -565,7 +687,8 @@ mod tests {
             decode_cell(StoreKind::Time, &outside, true),
             Err(PreviewError {
                 code: "value",
-                fact: "time_range"
+                fact: "time_range",
+                value_len: None
             })
         ));
     }
@@ -685,5 +808,57 @@ mod snapshot_frame_tests {
                 .unwrap()
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod installed_policy_tests {
+    use super::*;
+
+    #[test]
+    fn explicit_policy_normalizes_only_nonkeys_and_reports_masked_facts() {
+        let policy = TypePolicy {
+            zero_date_to_null: true,
+            strip_text_nul: true,
+        };
+        let raw = RawCell::Date {
+            year: 0,
+            month: 0,
+            day: 0,
+            hour: 0,
+            minute: 0,
+            second: 0,
+            micros: 0,
+        };
+        assert!(
+            decode_with_policy(StoreKind::Date, &raw, false, false, TypePolicy::default()).is_err()
+        );
+        let (cell, note) = decode_with_policy(StoreKind::Date, &raw, true, false, policy).unwrap();
+        assert_eq!(cell.presence, CellPresence::Null);
+        assert_eq!(note.unwrap().reason, "zero_date");
+        assert!(decode_with_policy(StoreKind::Date, &raw, true, true, policy).is_err());
+        let raw = RawCell::Bytes(b"a\0b\0".to_vec());
+        assert!(
+            decode_with_policy(
+                StoreKind::Text { limit: None },
+                &raw,
+                true,
+                false,
+                TypePolicy::default()
+            )
+            .is_err()
+        );
+        let (cell, note) =
+            decode_with_policy(StoreKind::Text { limit: None }, &raw, true, false, policy).unwrap();
+        assert_eq!(cell.arrow, Some(ArrowScalar::Utf8("ab".into())));
+        let note = note.unwrap();
+        assert_eq!((note.reason, note.value_len), ("nul_byte", 4));
+        assert!(
+            decode_with_policy(StoreKind::Text { limit: None }, &raw, true, true, policy).is_err()
+        );
+        let (cell, note) = decode_with_policy(StoreKind::Bytes, &raw, true, false, policy).unwrap();
+        assert_eq!(cell.arrow, Some(ArrowScalar::Binary(b"a\0b\0".to_vec())));
+        assert!(note.is_none());
+        assert!(serde_json::from_value::<TypePolicy>(json!({"unknown":true})).is_err());
     }
 }

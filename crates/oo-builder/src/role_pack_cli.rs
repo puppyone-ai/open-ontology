@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::canonical::{canonical_json, push_string};
-use crate::role_pack::{RolePack, RolePackError, compile_role_pack};
+use crate::role_pack::{RolePack, RolePackError};
 
 pub const ROLE_PACK_COMMAND_PROTOCOL: &str = "oo.builder.role-pack-command/v1";
 
@@ -50,7 +50,19 @@ struct RolePackCommand {
 /// when the envelope has an unknown field, then passed to `compile_role_pack`.
 /// Digests, the manifest, and file text come from that `RolePack`.
 pub fn compile_role_pack_command(input: &str) -> Result<String, RolePackCommandError> {
-    let value = oo_core::parse_json_value(input, ROLE_PACK_COMMAND_PROTOCOL).map_err(map_scan)?;
+    compile_role_pack_command_with_ceilings(input, &Default::default())
+}
+
+pub fn compile_role_pack_command_with_ceilings(
+    input: &str,
+    ceilings: &crate::RolePackCeilings,
+) -> Result<String, RolePackCommandError> {
+    let value = oo_core::json_scan::parse_json_value_with_limits(
+        input,
+        ROLE_PACK_COMMAND_PROTOCOL,
+        &ceilings.json_scan,
+    )
+    .map_err(map_scan)?;
     let document: RolePackCommand = serde_json::from_value(value).map_err(map_document)?;
     if document.protocol != ROLE_PACK_COMMAND_PROTOCOL {
         return Err(RolePackCommandError::named(
@@ -70,9 +82,10 @@ pub fn compile_role_pack_command(input: &str) -> Result<String, RolePackCommandE
             "visibility is not an object",
         ));
     }
-    let pack = compile_role_pack(
+    let pack = crate::compile_role_pack_with_ceilings(
         &canonical_json(&document.effective_oos),
         &canonical_json(&document.visibility),
+        ceilings,
     )?;
     command_document(&pack)
 }
@@ -102,7 +115,10 @@ fn map_document(err: serde_json::Error) -> RolePackCommandError {
     let (name, message) = if text.contains("unknown field") {
         ("field.unknown", "role-pack command has an unknown field")
     } else if text.contains("missing field") {
-        ("field.missing", "role-pack command is missing a required field")
+        (
+            "field.missing",
+            "role-pack command is missing a required field",
+        )
     } else {
         (
             "schema.invalid",
@@ -184,9 +200,12 @@ fn require_pack_files(pack: &RolePack, artifact: &Value) -> Result<(), RolePackC
             "compiled artifact digests do not match the pack",
         ));
     }
-    let files = artifact.get("files").and_then(Value::as_array).ok_or_else(|| {
-        RolePackCommandError::named("schema.invalid", "compiled artifact is not an object")
-    })?;
+    let files = artifact
+        .get("files")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RolePackCommandError::named("schema.invalid", "compiled artifact is not an object")
+        })?;
     for file in files {
         let path = file.get("path").and_then(Value::as_str).ok_or_else(|| {
             RolePackCommandError::named("schema.invalid", "compiled artifact is not an object")

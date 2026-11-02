@@ -5,6 +5,10 @@ A transaction may name one table. Unmentioned tables keep their mappings.
 """
 import sys, json, pathlib, subprocess, time, shutil, fcntl, os, hashlib
 BASE = pathlib.Path(__file__).resolve().parent
+if __name__ == '__main__' and len(sys.argv) > 1:
+    from current_cycle import main as current_main
+    raise SystemExit(current_main())
+
 HELPER_SHA256 = {
     'prepare.py': '2990a084954e5d653cddca9bb0f7e8208795d644dc2b7a412fbc3142c68e6479',
     'transaction_group.py': 'e801559534e3ab8e78a61ba7767ab7a7d92bda29aa48852bcd2ccffaa652c6ca',

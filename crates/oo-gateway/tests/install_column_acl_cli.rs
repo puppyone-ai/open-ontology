@@ -153,10 +153,12 @@ fn symlink_password_is_request() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_A235_LIVE; run with --ignored"]
 async fn private_tls_two_tables_two_roles() {
-    if env::var("OO_A235_LIVE").ok().as_deref() != Some("1") {
-        return;
-    }
+    assert!(
+        env::var("OO_A235_LIVE").ok().as_deref() == Some("1"),
+        "OO_A235_LIVE must be set for this live fixture"
+    );
     assert_eq!(CONFIG.len(), 64);
     let admin_pass = read_hex("admin.pass");
     let login_pass = read_hex("login.pass");

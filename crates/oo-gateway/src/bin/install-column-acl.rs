@@ -15,7 +15,11 @@ use std::process::ExitCode;
 
 use oo_core::json_scan::parse_json_value;
 use oo_core::limits::DOCUMENT_MAX_BYTES;
-use oo_gateway::policy::{compile_column_acl_set, install_column_acl_set, compile_column_acl_native_vector_set, install_column_acl_native_vector_set, compile_column_acl_native_transition, transition_column_acl_native_vector_set};
+use oo_gateway::policy::{
+    compile_column_acl_native_transition, compile_column_acl_native_vector_set,
+    compile_column_acl_set, install_column_acl_native_vector_set, install_column_acl_set,
+    transition_column_acl_native_vector_set,
+};
 use oo_gateway::{
     ClassStatus, ColumnAclPolicy, ColumnSpec, InstallEffect, LogicalTable, PiiClass, PolicyError,
     RowFilter, TlsEndpoint, connect_require_tls,
@@ -50,7 +54,11 @@ fn run() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let previous = match args.as_slice() {
         [] => None,
-        [flag, path, hash_flag, hash] if flag == "--previous-policy-file" && hash_flag == "--previous-policy-sha256" => Some((path.as_str(), hash.as_str())),
+        [flag, path, hash_flag, hash]
+            if flag == "--previous-policy-file" && hash_flag == "--previous-policy-sha256" =>
+        {
+            Some((path.as_str(), hash.as_str()))
+        }
         _ => return Fail::Usage.emit(),
     };
     let text = match read_stdin() {
@@ -119,19 +127,44 @@ fn prepare(text: &str, previous: Option<(&str, &str)>) -> Result<Prepared, Fail>
     for policy in &request.policies {
         policies.push(policy.to_acl()?);
     }
-    if native_vector { compile_column_acl_native_vector_set(&policies) } else { compile_column_acl_set(&policies) }.map_err(from_policy)?;
+    if native_vector {
+        compile_column_acl_native_vector_set(&policies)
+    } else {
+        compile_column_acl_set(&policies)
+    }
+    .map_err(from_policy)?;
     let previous = if let Some((path, expected)) = previous {
-        if !native_vector || !Path::new(path).is_absolute() || expected.len() != 64 || !expected.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)) { return Err(Fail::Request); }
+        if !native_vector
+            || !Path::new(path).is_absolute()
+            || expected.len() != 64
+            || !expected
+                .bytes()
+                .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+        {
+            return Err(Fail::Request);
+        }
         let raw = read_regular(Path::new(path), DOCUMENT_MAX_BYTES)?;
-        if format!("{:x}", Sha256::digest(&raw)) != expected { return Err(Fail::Request); }
-        let old_value = parse_json_value(std::str::from_utf8(&raw).map_err(|_| Fail::Scan)?, PROTOCOL).map_err(|_| Fail::Scan)?;
+        if format!("{:x}", Sha256::digest(&raw)) != expected {
+            return Err(Fail::Request);
+        }
+        let old_value =
+            parse_json_value(std::str::from_utf8(&raw).map_err(|_| Fail::Scan)?, PROTOCOL)
+                .map_err(|_| Fail::Scan)?;
         reject_null(&old_value)?;
         let old: RequestDoc = serde_json::from_value(old_value).map_err(|_| Fail::Request)?;
-        if old.protocol != NATIVE_VECTOR_PROTOCOL || old.endpoint != endpoint_doc { return Err(Fail::Request); }
-        let old_policies = old.policies.iter().map(PolicyDoc::to_acl).collect::<Result<Vec<_>,_>>()?;
+        if old.protocol != NATIVE_VECTOR_PROTOCOL || old.endpoint != endpoint_doc {
+            return Err(Fail::Request);
+        }
+        let old_policies = old
+            .policies
+            .iter()
+            .map(PolicyDoc::to_acl)
+            .collect::<Result<Vec<_>, _>>()?;
         compile_column_acl_native_transition(&old_policies, &policies).map_err(from_policy)?;
         Some(old_policies)
-    } else { None };
+    } else {
+        None
+    };
     let password = read_password(Path::new(&request.password_file))?;
     if contains_bytes(text.as_bytes(), password.as_bytes()) {
         return Err(Fail::Request);
@@ -186,7 +219,11 @@ async fn install(prepared: Prepared) -> Result<String, Fail> {
         InstallEffect::Replay => "replay",
     };
     let body = OutcomeDoc {
-        protocol: if prepared.native_vector { NATIVE_VECTOR_PROTOCOL } else { PROTOCOL },
+        protocol: if prepared.native_vector {
+            NATIVE_VECTOR_PROTOCOL
+        } else {
+            PROTOCOL
+        },
         effect,
         role: &outcome.role,
         grantor: &outcome.grantor,

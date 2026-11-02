@@ -8,11 +8,11 @@ use std::time::{Duration, Instant};
 
 use oo_connectors::types::{ArrowColumn, ArrowScalar};
 use oo_connectors::{
-    config_identity, snapshot_input_digest, type_policy_identity, AdmittedCatalog, AdmittedColumn,
-    AdmittedTable, CutProbe, PgBudget, PgConnector, PgCredentials, PgEndpoint, PgSourceConfig,
-    PgTlsConfig, ProbeValue, SecretRef, SelectedTable, SnapshotOwner, SnapshotRequest, SourceId,
-    TableSelection, CLEANUP_OBSERVATION_BOUND_MS, SNAPSHOT_PROTOCOL, TYPE_CONVERSION_PROTOCOL,
-    SourceError, SourceErrorKind,
+    AdmittedCatalog, AdmittedColumn, AdmittedTable, CLEANUP_OBSERVATION_BOUND_MS, CutProbe,
+    PgBudget, PgConnector, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, ProbeValue,
+    SNAPSHOT_PROTOCOL, SecretRef, SelectedTable, SnapshotOwner, SnapshotRequest, SourceError,
+    SourceErrorKind, SourceId, TYPE_CONVERSION_PROTOCOL, TableSelection, config_identity,
+    snapshot_input_digest, type_policy_identity,
 };
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
@@ -68,6 +68,7 @@ struct World {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_PG_SNAPSHOT_FIXTURE; run with --ignored"]
 async fn snapshot_owner_live() {
     let mut world = World::start().await;
     world.regression_catalog().await;
@@ -100,12 +101,11 @@ impl Drop for World {
 
 impl World {
     async fn start() -> Self {
-        let path = std::env::var("OO_PG_SNAPSHOT_FIXTURE")
-            .expect("OO_PG_SNAPSHOT_FIXTURE is required");
-        let pointer: Pointer = serde_json::from_str(
-            &fs::read_to_string(&path).expect("snapshot pointer"),
-        )
-        .expect("snapshot pointer json");
+        let path =
+            std::env::var("OO_PG_SNAPSHOT_FIXTURE").expect("OO_PG_SNAPSHOT_FIXTURE is required");
+        let pointer: Pointer =
+            serde_json::from_str(&fs::read_to_string(&path).expect("snapshot pointer"))
+                .expect("snapshot pointer json");
         let reader_pass = read_pass(&pointer.password_dir, "reader.pass");
         let writer_pass = read_pass(&pointer.password_dir, "writer.pass");
         let guc_pass = read_pass(&pointer.password_dir, "guc.pass");
@@ -167,8 +167,12 @@ impl World {
     fn config(&self, user: &str, password: &str, ca: &[u8]) -> PgSourceConfig {
         PgSourceConfig::try_new(
             SourceId::new(SOURCE).unwrap(),
-            PgEndpoint::new(&self.pointer.host, self.pointer.port, &self.pointer.database)
-                .unwrap(),
+            PgEndpoint::new(
+                &self.pointer.host,
+                self.pointer.port,
+                &self.pointer.database,
+            )
+            .unwrap(),
             PgCredentials::new(user, password).unwrap(),
             SecretRef::new("secret://pg/snap/reader").unwrap(),
             PgTlsConfig::from_ca_pem(ca).unwrap(),
@@ -283,7 +287,9 @@ impl World {
             &self.pointer.database,
         );
         request.config_identity = identity;
-        let err = SnapshotOwner::open(request).await.expect_err("bad config identity");
+        let err = SnapshotOwner::open(request)
+            .await
+            .expect_err("bad config identity");
         assert_eq!(err.fact(), Some("config_identity"), "{err}");
 
         config = self.config(&self.pointer.reader_user, &self.reader_pass, &self.ca);
@@ -296,7 +302,9 @@ impl World {
             &self.pointer.database,
         );
         request.type_policy_identity[0] ^= 0xff;
-        let err = SnapshotOwner::open(request).await.expect_err("bad policy identity");
+        let err = SnapshotOwner::open(request)
+            .await
+            .expect_err("bad policy identity");
         assert_eq!(err.fact(), Some("type_policy_identity"), "{err}");
 
         let err = self
@@ -411,10 +419,7 @@ impl World {
         let mut wrong_shape = self.admitted.clone();
         wrong_shape.tables[0].columns[0].type_oid = 1;
         let err = self
-            .open_next(
-                wrong_shape,
-                Instant::now() + Duration::from_secs(30),
-            )
+            .open_next(wrong_shape, Instant::now() + Duration::from_secs(30))
             .await
             .expect_err("type oid");
         assert_eq!(err.fact(), Some("catalog_identity"), "{err}");
@@ -549,10 +554,7 @@ impl World {
         let finished = owner.finish().await;
         assert!(finished.is_err(), "terminate returned finished");
         self.wait_gone(backend.pid, &backend.backend_start).await;
-        self.note(format!(
-            "terminate_probe={}",
-            err.fact().unwrap_or("none")
-        ));
+        self.note(format!("terminate_probe={}", err.fact().unwrap_or("none")));
     }
 
     async fn same_cut(&mut self) {
@@ -676,10 +678,7 @@ impl World {
     async fn schema_and_privilege(&mut self) {
         let old = self.admitted.clone();
         let mut owner = self
-            .open_next(
-                old.clone(),
-                Instant::now() + Duration::from_secs(50),
-            )
+            .open_next(old.clone(), Instant::now() + Duration::from_secs(50))
             .await
             .expect("schema open");
         sqlx::query("ALTER TABLE snap.parent ADD COLUMN note text")
@@ -693,15 +692,9 @@ impl World {
         assert_eq!(err.fact(), Some("schema_drift"), "{err}");
         let finished = owner.finish().await.expect_err("schema drift finished");
         assert_eq!(finished.fact(), Some("schema_drift"), "{finished}");
-        self.note(format!(
-            "schema_inflight={}",
-            err.fact().unwrap_or("none")
-        ));
+        self.note(format!("schema_inflight={}", err.fact().unwrap_or("none")));
         let err = self
-            .open_next(
-                old,
-                Instant::now() + Duration::from_secs(30),
-            )
+            .open_next(old, Instant::now() + Duration::from_secs(30))
             .await
             .expect_err("new generation sees the column");
         assert_eq!(err.fact(), Some("catalog_identity"), "{err}");
@@ -847,10 +840,19 @@ impl World {
             .expect("touch")
             .try_get(0)
             .expect("touch n");
-        Counters { ins, upd, del, touch }
+        Counters {
+            ins,
+            upd,
+            del,
+            touch,
+        }
     }
 
-    async fn oracle_binding(&mut self, oracle: &mut PgConnection, binding: &oo_connectors::SnapshotBinding) {
+    async fn oracle_binding(
+        &mut self,
+        oracle: &mut PgConnection,
+        binding: &oo_connectors::SnapshotBinding,
+    ) {
         let select: bool = sqlx::query(
             "SELECT pg_catalog.has_table_privilege(CURRENT_USER, c.oid, 'SELECT') \
              FROM pg_catalog.pg_class c \
@@ -1000,13 +1002,7 @@ fn column<'a>(batch: &'a oo_connectors::TypedBatch, name: &str) -> &'a ArrowColu
         .unwrap_or_else(|| panic!("missing {name}"))
 }
 
-async fn dial(
-    pointer: &Pointer,
-    user: &str,
-    password: &str,
-    ca: &[u8],
-    app: &str,
-) -> PgConnection {
+async fn dial(pointer: &Pointer, user: &str, password: &str, ca: &[u8], app: &str) -> PgConnection {
     let options = PgConnectOptions::from_explicit()
         .host(&pointer.host)
         .port(pointer.port)
@@ -1165,10 +1161,31 @@ fn strip_sql_literals(sql: &str) -> String {
 
 fn write_word(sql: &str) -> Option<&'static str> {
     const WORDS: &[&str] = &[
-        "INSERT", "UPDATE", "DELETE", "TRUNCATE", "MERGE", "COPY", "CREATE", "ALTER", "DROP",
-        "GRANT", "REVOKE", "COMMENT", "VACUUM", "CLUSTER", "REINDEX", "CALL", "DO", "COMMIT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "TRUNCATE",
+        "MERGE",
+        "COPY",
+        "CREATE",
+        "ALTER",
+        "DROP",
+        "GRANT",
+        "REVOKE",
+        "COMMENT",
+        "VACUUM",
+        "CLUSTER",
+        "REINDEX",
+        "CALL",
+        "DO",
+        "COMMIT",
         "NEXTVAL",
-        "LO_IMPORT", "LO_EXPORT", "LO_CREATE", "DBLINK", "PG_WRITE_FILE", "PG_READ_FILE",
+        "LO_IMPORT",
+        "LO_EXPORT",
+        "LO_CREATE",
+        "DBLINK",
+        "PG_WRITE_FILE",
+        "PG_READ_FILE",
         "PG_READ_BINARY_FILE",
     ];
     for token in sql.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_') {

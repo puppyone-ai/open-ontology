@@ -10,12 +10,10 @@ use std::process::{Command, Output, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
-const V1_JSON: &str = include_str!(
-    "../../../contracts/pipeline/target-fence-receipts/target-fence-receipts-v1.json"
-);
-const V2_JSON: &str = include_str!(
-    "../../../contracts/pipeline/target-fence-receipts/target-fence-receipts-v2.json"
-);
+const V1_JSON: &str =
+    include_str!("../../../contracts/pipeline/target-fence-receipts/target-fence-receipts-v1.json");
+const V2_JSON: &str =
+    include_str!("../../../contracts/pipeline/target-fence-receipts/target-fence-receipts-v2.json");
 const BOOTSTRAP: &str = include_str!("../migrations/0000_bootstrap_roles.sql");
 const EXPAND: &str = include_str!("../migrations/0001_target_fence_expand.sql");
 const SEGMENT: &str = include_str!("../migrations/0002_target_segment_null_expand.sql");
@@ -25,8 +23,7 @@ const V1_BOOT: &str = "37d745803589ba48cde1703a4ed7c4c63a956c7c5074aa618851d09db
 const V1_EXPAND: &str = "97a5bad069392988a4ee5f7b58a7bc526885b17aa26c606566aa4c8671fb96e9";
 const V2_FILE: &str = "59489035c1dba8d559efa9e2cc149f39a131495b247f803d49bf5a8a15ec3512";
 const LIE: &str = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-const PG_IMAGE: &str =
-    "docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb";
+const PG_IMAGE: &str = "docker.io/library/postgres@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb";
 const RUN_ID: &str = "d4e8a092-7c31-4b6e-9f10-a0925e600001";
 
 fn crate_root() -> PathBuf {
@@ -70,7 +67,11 @@ fn json_string<'a>(text: &'a str, key: &str) -> &'a str {
 fn sha_after_filename<'a>(contract: &'a str, filename: &str) -> &'a str {
     let marker = format!("\"filename\": \"{filename}\"");
     let slice = contract
-        .get(contract.find(&marker).unwrap_or_else(|| panic!("missing {filename}"))..)
+        .get(
+            contract
+                .find(&marker)
+                .unwrap_or_else(|| panic!("missing {filename}"))..,
+        )
         .expect("slice");
     let key = "\"sha256\": \"";
     let start = slice.find(key).expect("sha256") + key.len();
@@ -92,18 +93,42 @@ fn published_v1_bytes_stay_and_v2_closes_unknown_segments() {
     assert_eq!(sha256(&boot), V1_BOOT);
     assert_eq!(sha256(&expand), V1_EXPAND);
     assert_eq!(sha256(&segment), V2_FILE);
-    assert_eq!(sha256(&boot), sha_after_filename(V1_JSON, "0000_bootstrap_roles.sql"));
-    assert_eq!(sha256(&expand), sha_after_filename(V1_JSON, "0001_target_fence_expand.sql"));
-    assert_eq!(sha256(&boot), sha_after_filename(V2_JSON, "0000_bootstrap_roles.sql"));
-    assert_eq!(sha256(&expand), sha_after_filename(V2_JSON, "0001_target_fence_expand.sql"));
+    assert_eq!(
+        sha256(&boot),
+        sha_after_filename(V1_JSON, "0000_bootstrap_roles.sql")
+    );
+    assert_eq!(
+        sha256(&expand),
+        sha_after_filename(V1_JSON, "0001_target_fence_expand.sql")
+    );
+    assert_eq!(
+        sha256(&boot),
+        sha_after_filename(V2_JSON, "0000_bootstrap_roles.sql")
+    );
+    assert_eq!(
+        sha256(&expand),
+        sha_after_filename(V2_JSON, "0001_target_fence_expand.sql")
+    );
     assert_eq!(
         sha256(&segment),
         sha_after_filename(V2_JSON, "0002_target_segment_null_expand.sql")
     );
-    assert_eq!(json_string(V1_JSON, "contract"), "oo.pipeline.target-fence-receipts/v1");
-    assert_eq!(json_string(V1_JSON, "schema_version"), "target-fence-receipts/1");
-    assert_eq!(json_string(V2_JSON, "contract"), "oo.pipeline.target-fence-receipts/v2");
-    assert_eq!(json_string(V2_JSON, "schema_version"), "target-fence-receipts/2");
+    assert_eq!(
+        json_string(V1_JSON, "contract"),
+        "oo.pipeline.target-fence-receipts/v1"
+    );
+    assert_eq!(
+        json_string(V1_JSON, "schema_version"),
+        "target-fence-receipts/1"
+    );
+    assert_eq!(
+        json_string(V2_JSON, "contract"),
+        "oo.pipeline.target-fence-receipts/v2"
+    );
+    assert_eq!(
+        json_string(V2_JSON, "schema_version"),
+        "target-fence-receipts/2"
+    );
     assert!(V2_JSON.contains("\"v1_schema_ready_authorizes_this_contract\": false"));
     assert!(V2_JSON.contains("\"segment_contract_ready_reads_migration_file\": false"));
     assert!(V2_JSON.contains("\"illegal_segment_history\": \"OO021\""));
@@ -114,9 +139,7 @@ fn published_v1_bytes_stay_and_v2_closes_unknown_segments() {
     assert!(SEGMENT.contains("p_segment_count IS NOT NULL"));
     assert!(SEGMENT.contains("segment_count IS NOT NULL"));
     assert!(SEGMENT.contains("ERRCODE = 'OO021'"));
-    assert!(SEGMENT.contains(
-        "this migration does not delete, rewrite, or mutate receipts"
-    ));
+    assert!(SEGMENT.contains("this migration does not delete, rewrite, or mutate receipts"));
     assert!(!SEGMENT.contains("DELETE FROM _oo.apply_receipts"));
     assert!(!SEGMENT.contains("UPDATE _oo.apply_receipts"));
     assert!(!SEGMENT.contains("GRANT oo_target_owner TO oo_pipeline_runtime"));
@@ -126,7 +149,10 @@ fn published_v1_bytes_stay_and_v2_closes_unknown_segments() {
     let fence_at = SEGMENT
         .find("PERFORM _oo._load_held_generation")
         .expect("fence check");
-    assert!(segment_at < fence_at, "segment rejection follows the fence check");
+    assert!(
+        segment_at < fence_at,
+        "segment rejection follows the fence check"
+    );
     assert_eq!(BOOTSTRAP, fs::read_to_string(&boot).unwrap());
     assert_eq!(EXPAND, fs::read_to_string(&expand).unwrap());
     assert_eq!(SEGMENT, fs::read_to_string(&segment).unwrap());
@@ -174,8 +200,16 @@ impl Pg {
     fn write_case(&self, name: &str, output: &Output) {
         let dir = self.evidence.join("cases");
         fs::create_dir_all(&dir).expect("cases");
-        fs::write(dir.join(format!("{name}.stdout")), self.scrub(&String::from_utf8_lossy(&output.stdout))).unwrap();
-        fs::write(dir.join(format!("{name}.stderr")), self.scrub(&String::from_utf8_lossy(&output.stderr))).unwrap();
+        fs::write(
+            dir.join(format!("{name}.stdout")),
+            self.scrub(&String::from_utf8_lossy(&output.stdout)),
+        )
+        .unwrap();
+        fs::write(
+            dir.join(format!("{name}.stderr")),
+            self.scrub(&String::from_utf8_lossy(&output.stderr)),
+        )
+        .unwrap();
         fs::write(
             dir.join(format!("{name}.exit")),
             output.status.code().unwrap_or(127).to_string() + "\n",
@@ -198,15 +232,31 @@ impl Pg {
             bootstrap = self.bootstrap_password
         );
         let mut child = Command::new("docker")
-            .args(["exec", "-i", &self.name, "bash", "-c", "umask 077; cat > /tmp/pgpass"])
+            .args([
+                "exec",
+                "-i",
+                &self.name,
+                "bash",
+                "-c",
+                "umask 077; cat > /tmp/pgpass",
+            ])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .expect("pgpass");
-        child.stdin.take().expect("stdin").write_all(body.as_bytes()).expect("pgpass write");
+        child
+            .stdin
+            .take()
+            .expect("stdin")
+            .write_all(body.as_bytes())
+            .expect("pgpass write");
         let output = child.wait_with_output().expect("pgpass wait");
-        assert!(output.status.success(), "pgpass {}", self.scrub(&String::from_utf8_lossy(&output.stderr)));
+        assert!(
+            output.status.success(),
+            "pgpass {}",
+            self.scrub(&String::from_utf8_lossy(&output.stderr))
+        );
     }
 
     fn psql(&self, user: &str, db: &str, sql: &str) -> Output {
@@ -242,7 +292,12 @@ impl Pg {
             .stderr(Stdio::piped())
             .spawn()
             .expect("psql");
-        child.stdin.take().expect("stdin").write_all(sql.as_bytes()).expect("sql");
+        child
+            .stdin
+            .take()
+            .expect("stdin")
+            .write_all(sql.as_bytes())
+            .expect("sql");
         child.wait_with_output().expect("psql wait")
     }
 
@@ -270,7 +325,12 @@ impl Pg {
         );
         let stderr = String::from_utf8_lossy(&output.stderr);
         let found = sqlstate(&stderr);
-        assert_eq!(found.as_deref(), Some(state), "{name} stderr {}", self.scrub(&stderr));
+        assert_eq!(
+            found.as_deref(),
+            Some(state),
+            "{name} stderr {}",
+            self.scrub(&stderr)
+        );
         self.note(&format!("{name}={state}"));
     }
 }
@@ -305,7 +365,15 @@ fn sqlstate(stderr: &str) -> Option<String> {
     None
 }
 
-fn receipt(shard: &str, generation: i64, batch: &str, payload: char, index: &str, count: &str, bitmap: &str) -> String {
+fn receipt(
+    shard: &str,
+    generation: i64,
+    batch: &str,
+    payload: char,
+    index: &str,
+    count: &str,
+    bitmap: &str,
+) -> String {
     format!(
         "SELECT _oo.commit_apply_receipt('{shard}', '{OWNER}'::uuid, {generation}, 'warehouse', 'orders_g1', '{batch}', repeat('a', 64), repeat('b', 64), repeat('c', 64), repeat('d', 64), repeat('{payload}', 64), 'pg-commit-lsn/v1', 'src_main', 1, 0, false, true, true, {index}, {count}, {bitmap});\n"
     )
@@ -348,7 +416,9 @@ fn book_sql(rows: &[(&str, &str, &str)]) -> String {
         })
         .collect::<Vec<_>>()
         .join(",\n");
-    format!("INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values};\n")
+    format!(
+        "INSERT INTO _oo.schema_migrations (version, checksum, phase, filename) VALUES\n{values};\n"
+    )
 }
 
 #[test]
@@ -363,11 +433,27 @@ fn live_segment_null_correction() {
 }
 
 fn exercise(pg: &Pg) {
-    let version = pg.ok("version", "oo_fixture_admin", "postgres", "SELECT version();\n");
+    let version = pg.ok(
+        "version",
+        "oo_fixture_admin",
+        "postgres",
+        "SELECT version();\n",
+    );
     pg.note(&format!("server={version}"));
     assert!(version.contains("PostgreSQL 17.10"), "{version}");
-    for db in ["oo_seg_red", "oo_seg_fix", "oo_seg_fresh", "oo_seg_roll", "oo_seg_lie"] {
-        pg.ok(&format!("create-{db}"), "oo_fixture_admin", "postgres", &format!("CREATE DATABASE {db};\n"));
+    for db in [
+        "oo_seg_red",
+        "oo_seg_fix",
+        "oo_seg_fresh",
+        "oo_seg_roll",
+        "oo_seg_lie",
+    ] {
+        pg.ok(
+            &format!("create-{db}"),
+            "oo_fixture_admin",
+            "postgres",
+            &format!("CREATE DATABASE {db};\n"),
+        );
     }
     apply(pg, "oo_seg_red", false, false);
     create_logins(pg);
@@ -401,7 +487,11 @@ fn apply(pg: &Pg, db: &str, roles_exist: bool, with_v2: bool) {
     }
     let mut rows = vec![
         ("target-bootstrap/1", V1_BOOT, "0000_bootstrap_roles.sql"),
-        ("target-fence-receipts/1", V1_EXPAND, "0001_target_fence_expand.sql"),
+        (
+            "target-fence-receipts/1",
+            V1_EXPAND,
+            "0001_target_fence_expand.sql",
+        ),
     ];
     if with_v2 {
         rows.push((
@@ -425,8 +515,14 @@ fn apply(pg: &Pg, db: &str, roles_exist: bool, with_v2: bool) {
     );
     if with_v2 {
         let text = String::from_utf8_lossy(&output.stdout);
-        assert!(text.contains("before=false"), "{db} ready before marker: {text}");
-        assert!(text.contains("after=true"), "{db} ready after marker: {text}");
+        assert!(
+            text.contains("before=false"),
+            "{db} ready before marker: {text}"
+        );
+        assert!(
+            text.contains("after=true"),
+            "{db} ready after marker: {text}"
+        );
         assert!(text.contains("v1=true"), "{db} v1 ready: {text}");
         pg.note(&format!("{db} fresh_ready before=false after=true v1=true"));
     }
@@ -440,9 +536,19 @@ fn create_logins(pg: &Pg) {
     );
     let output = pg.psql("oo_fixture_admin", "oo_seg_red", &sql);
     pg.write_case("create-logins", &output);
-    assert!(output.status.success(), "{}", pg.scrub(&String::from_utf8_lossy(&output.stderr)));
+    assert!(
+        output.status.success(),
+        "{}",
+        pg.scrub(&String::from_utf8_lossy(&output.stderr))
+    );
     pg.install_pgpass();
-    for db in ["oo_seg_red", "oo_seg_fix", "oo_seg_fresh", "oo_seg_roll", "oo_seg_lie"] {
+    for db in [
+        "oo_seg_red",
+        "oo_seg_fix",
+        "oo_seg_fresh",
+        "oo_seg_roll",
+        "oo_seg_lie",
+    ] {
         pg.ok(
             &format!("grant-{db}"),
             "oo_fixture_admin",
@@ -455,21 +561,52 @@ fn create_logins(pg: &Pg) {
 fn phase_red(pg: &Pg) {
     let db = "oo_seg_red";
     let cases = [
-        ("seg-null-index", "seg_null_index", "NULL", "1", "'\\x01'::bytea"),
-        ("seg-null-count", "seg_null_count", "0", "NULL", "'\\x01'::bytea"),
-        ("seg-null-both", "seg_null_both", "NULL", "NULL", "'\\x01'::bytea"),
+        (
+            "seg-null-index",
+            "seg_null_index",
+            "NULL",
+            "1",
+            "'\\x01'::bytea",
+        ),
+        (
+            "seg-null-count",
+            "seg_null_count",
+            "0",
+            "NULL",
+            "'\\x01'::bytea",
+        ),
+        (
+            "seg-null-both",
+            "seg_null_both",
+            "NULL",
+            "NULL",
+            "'\\x01'::bytea",
+        ),
     ];
     for (batch, shard, index, count, bitmap) in cases {
         let inserted = pg.ok(
             &format!("red-adopt-{batch}"),
             "oo_a092_runtime",
             db,
-            &format!("{}{}", adopt(shard), receipt(shard, 1, batch, 'e', index, count, bitmap)),
+            &format!(
+                "{}{}",
+                adopt(shard),
+                receipt(shard, 1, batch, 'e', index, count, bitmap)
+            ),
         );
-        assert_eq!(inserted.lines().next_back().unwrap(), "inserted", "{batch} {inserted}");
+        assert_eq!(
+            inserted.lines().next_back().unwrap(),
+            "inserted",
+            "{batch} {inserted}"
+        );
         pg.note(&format!("red {batch}=inserted"));
     }
-    let before = pg.ok("red-snapshot-before", "oo_fixture_admin", db, snapshot_sql());
+    let before = pg.ok(
+        "red-snapshot-before",
+        "oo_fixture_admin",
+        db,
+        snapshot_sql(),
+    );
     pg.expect_state(
         "red-forward",
         "oo_fixture_admin",
@@ -504,7 +641,15 @@ fn phase_red(pg: &Pg) {
         &format!(
             "{}{}",
             adopt("seg_null_again"),
-            receipt("seg_null_again", 1, "seg-null-again", 'e', "NULL", "1", "'\\x01'::bytea")
+            receipt(
+                "seg_null_again",
+                1,
+                "seg-null-again",
+                'e',
+                "NULL",
+                "1",
+                "'\\x01'::bytea"
+            )
         ),
     );
     assert_eq!(again.lines().next_back().unwrap(), "inserted");
@@ -538,11 +683,32 @@ fn phase_fix(pg: &Pg) {
         &format!(
             "{}{}{}",
             adopt("shard_lawful"),
-            receipt("shard_lawful", 1, "batch-empty", 'e', "NULL", "NULL", "''::bytea"),
-            receipt("shard_lawful", 1, "batch-one", 'e', "0", "1", "'\\x01'::bytea")
+            receipt(
+                "shard_lawful",
+                1,
+                "batch-empty",
+                'e',
+                "NULL",
+                "NULL",
+                "''::bytea"
+            ),
+            receipt(
+                "shard_lawful",
+                1,
+                "batch-one",
+                'e',
+                "0",
+                "1",
+                "'\\x01'::bytea"
+            )
         ),
     );
-    let before = pg.ok("fix-snapshot-before", "oo_fixture_admin", db, snapshot_sql());
+    let before = pg.ok(
+        "fix-snapshot-before",
+        "oo_fixture_admin",
+        db,
+        snapshot_sql(),
+    );
     let generations = pg.ok(
         "fix-generations-before",
         "oo_fixture_admin",
@@ -599,7 +765,11 @@ fn forward_v2(pg: &Pg, db: &str) -> String {
         ),
     );
     let text = String::from_utf8_lossy(&output.stdout).to_string();
-    assert!(output.status.success(), "{}", pg.scrub(&String::from_utf8_lossy(&output.stderr)));
+    assert!(
+        output.status.success(),
+        "{}",
+        pg.scrub(&String::from_utf8_lossy(&output.stderr))
+    );
     assert!(text.contains("before=false"), "{text}");
     assert!(text.contains("after=true"), "{text}");
     pg.ok(
@@ -615,14 +785,38 @@ fn matrix(pg: &Pg, db: &str) {
         ("cross-absent", "NULL", "NULL", "''::bytea", true),
         ("cross-both-byte", "NULL", "NULL", "'\\x01'::bytea", false),
         ("cross-null-index-empty", "NULL", "1", "''::bytea", false),
-        ("cross-null-index-byte", "NULL", "1", "'\\x01'::bytea", false),
+        (
+            "cross-null-index-byte",
+            "NULL",
+            "1",
+            "'\\x01'::bytea",
+            false,
+        ),
         ("cross-null-count-empty", "0", "NULL", "''::bytea", false),
-        ("cross-null-count-byte", "0", "NULL", "'\\x01'::bytea", false),
+        (
+            "cross-null-count-byte",
+            "0",
+            "NULL",
+            "'\\x01'::bytea",
+            false,
+        ),
         ("cross-empty-present", "0", "1", "''::bytea", false),
         ("cross-one", "0", "1", "'\\x01'::bytea", true),
         ("null-bitmap", "0", "1", "NULL", false),
-        ("bound-8192", "0", "1", "decode(repeat('aa', 8192), 'hex')", true),
-        ("bound-8193", "0", "1", "decode(repeat('aa', 8193), 'hex')", false),
+        (
+            "bound-8192",
+            "0",
+            "1",
+            "decode(repeat('aa', 8192), 'hex')",
+            true,
+        ),
+        (
+            "bound-8193",
+            "0",
+            "1",
+            "decode(repeat('aa', 8193), 'hex')",
+            false,
+        ),
         ("bound-last", "8191", "8192", "'\\x01'::bytea", true),
         ("bound-index-eq", "8192", "8192", "'\\x01'::bytea", false),
         ("neg-index", "-1", "1", "'\\x01'::bytea", false),
@@ -643,11 +837,19 @@ fn matrix(pg: &Pg, db: &str) {
             pg.note(&format!("fix {name}=inserted"));
         } else {
             pg.expect_state(&format!("fix-{name}"), "oo_a092_runtime", db, &sql, "23514");
-            let stderr = fs::read_to_string(pg.evidence.join("cases").join(format!("fix-{name}.stderr"))).unwrap();
+            let stderr =
+                fs::read_to_string(pg.evidence.join("cases").join(format!("fix-{name}.stderr")))
+                    .unwrap();
             if bitmap == "NULL" {
-                assert!(stderr.contains("closed completion metadata"), "{name} {stderr}");
+                assert!(
+                    stderr.contains("closed completion metadata"),
+                    "{name} {stderr}"
+                );
             } else {
-                assert!(stderr.contains("closed segment metadata"), "{name} {stderr}");
+                assert!(
+                    stderr.contains("closed segment metadata"),
+                    "{name} {stderr}"
+                );
                 assert!(!stderr.contains("OO013"), "{name} hid behind OO013");
             }
         }
@@ -681,12 +883,26 @@ fn preserved(pg: &Pg, db: &str) {
         "INSERT INTO _oo.apply_receipts (source) VALUES ('warehouse');\n",
         "42501",
     );
-    pg.ok("fix-codec-adopt", "oo_a092_runtime", db, &adopt("shard_codec"));
+    pg.ok(
+        "fix-codec-adopt",
+        "oo_a092_runtime",
+        db,
+        &adopt("shard_codec"),
+    );
     pg.expect_state(
         "fix-codec",
         "oo_a092_runtime",
         db,
-        &receipt("shard_codec", 1, "batch-codec", 'e', "NULL", "NULL", "''::bytea").replace("'pg-commit-lsn/v1'", "'nope'"),
+        &receipt(
+            "shard_codec",
+            1,
+            "batch-codec",
+            'e',
+            "NULL",
+            "NULL",
+            "''::bytea",
+        )
+        .replace("'pg-commit-lsn/v1'", "'nope'"),
         "OO015",
     );
     pg.ok(
@@ -702,7 +918,8 @@ fn preserved(pg: &Pg, db: &str) {
         "BEGIN;\nSET ROLE oo_target_owner;\nSELECT pg_catalog.set_config('_oo.writer', 'apply-receipt', true);\nINSERT INTO _oo.apply_receipts (source, table_generation, txn_or_batch_id, config_version, config_digest, type_policy_version, type_digest, hook_digest, schema_digest, payload_digest, protocol_version, position_codec, position_lineage, source_epoch, applied_pos, partial_txn, cross_table_consistent, txn_complete, segment_index, segment_count, segment_bitmap, fence_shard, fence_generation) VALUES ('warehouse', 'orders_g1', 'direct-illegal', 'config/v1', repeat('a', 64), 'type-policy/v1', repeat('b', 64), repeat('c', 64), repeat('d', 64), repeat('e', 64), 'batch/v1', 'pg-commit-lsn/v1', 'src_main', 1, 0, false, true, true, NULL, 1, '\\x01'::bytea, 'owner_direct', 1);\nCOMMIT;\n",
         "23514",
     );
-    let direct_err = fs::read_to_string(pg.evidence.join("cases").join("fix-direct-illegal.stderr")).unwrap();
+    let direct_err =
+        fs::read_to_string(pg.evidence.join("cases").join("fix-direct-illegal.stderr")).unwrap();
     assert!(
         direct_err.contains("apply_receipts_segment_check"),
         "direct insert did not hit the segment check: {direct_err}"
@@ -738,23 +955,63 @@ fn side_and_replay(pg: &Pg, db: &str) {
     let replay_sql = format!(
         "{}{}SELECT pg_catalog.pg_sleep(2);\n{}",
         adopt("shard_replay"),
-        receipt("shard_replay", 1, "batch-replay", 'e', "NULL", "NULL", "''::bytea"),
-        receipt("shard_replay", 1, "batch-replay", 'e', "NULL", "NULL", "''::bytea")
+        receipt(
+            "shard_replay",
+            1,
+            "batch-replay",
+            'e',
+            "NULL",
+            "NULL",
+            "''::bytea"
+        ),
+        receipt(
+            "shard_replay",
+            1,
+            "batch-replay",
+            'e',
+            "NULL",
+            "NULL",
+            "''::bytea"
+        )
     );
     let stdout_path = pg.evidence.join("replay-holder.stdout");
     let stderr_path = pg.evidence.join("replay-holder.stderr");
     let mut holder = Command::new("docker")
         .args([
-            "exec", "-i", "-e", "PGPASSFILE=/tmp/pgpass", "-e", "PGAPPNAME=a092-replay", &pg.name, "psql",
-            "-U", "oo_a092_runtime", "-d", db, "-h", "127.0.0.1", "-X", "-q", "-t", "-A",
-            "-v", "ON_ERROR_STOP=1", "-f", "-",
+            "exec",
+            "-i",
+            "-e",
+            "PGPASSFILE=/tmp/pgpass",
+            "-e",
+            "PGAPPNAME=a092-replay",
+            &pg.name,
+            "psql",
+            "-U",
+            "oo_a092_runtime",
+            "-d",
+            db,
+            "-h",
+            "127.0.0.1",
+            "-X",
+            "-q",
+            "-t",
+            "-A",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-f",
+            "-",
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::from(fs::File::create(&stdout_path).unwrap()))
         .stderr(Stdio::from(fs::File::create(&stderr_path).unwrap()))
         .spawn()
         .expect("replay holder");
-    holder.stdin.take().unwrap().write_all(replay_sql.as_bytes()).unwrap();
+    holder
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(replay_sql.as_bytes())
+        .unwrap();
     thread::sleep(Duration::from_secs(1));
     let line = pg.ok(
         "replay-line",
@@ -771,7 +1028,11 @@ fn side_and_replay(pg: &Pg, db: &str) {
         "replay holder {}\n{holder_out}",
         fs::read_to_string(&stderr_path).unwrap_or_default()
     );
-    assert_eq!(holder_out.lines().next_back().unwrap(), "replay", "{holder_out}");
+    assert_eq!(
+        holder_out.lines().next_back().unwrap(),
+        "replay",
+        "{holder_out}"
+    );
     let again = pg.ok(
         "replay-line-2",
         "oo_fixture_admin",
@@ -786,10 +1047,22 @@ fn side_and_replay(pg: &Pg, db: &str) {
         &format!(
             "{}{}",
             adopt("shard_replay"),
-            receipt("shard_replay", 2, "batch-replay", 'e', "NULL", "NULL", "''::bytea")
+            receipt(
+                "shard_replay",
+                2,
+                "batch-replay",
+                'e',
+                "NULL",
+                "NULL",
+                "''::bytea"
+            )
         ),
     );
-    assert_eq!(takeover.lines().next_back().unwrap(), "replay", "{takeover}");
+    assert_eq!(
+        takeover.lines().next_back().unwrap(),
+        "replay",
+        "{takeover}"
+    );
     let kept = pg.ok(
         "replay-kept",
         "oo_fixture_admin",
@@ -829,15 +1102,42 @@ fn locks_and_kill(pg: &Pg, db: &str) {
     let holder_sql = format!("{}SELECT pg_catalog.pg_sleep(12);\n", adopt("shard_held"));
     let mut holder = Command::new("docker")
         .args([
-            "exec", "-i", "-e", "PGPASSFILE=/tmp/pgpass", "-e", "PGAPPNAME=a092-holder", &pg.name, "psql",
-            "-U", "oo_a092_runtime", "-d", db, "-h", "127.0.0.1", "-X", "-q", "-v", "ON_ERROR_STOP=1", "-f", "-",
+            "exec",
+            "-i",
+            "-e",
+            "PGPASSFILE=/tmp/pgpass",
+            "-e",
+            "PGAPPNAME=a092-holder",
+            &pg.name,
+            "psql",
+            "-U",
+            "oo_a092_runtime",
+            "-d",
+            db,
+            "-h",
+            "127.0.0.1",
+            "-X",
+            "-q",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-f",
+            "-",
         ])
         .stdin(Stdio::piped())
-        .stdout(Stdio::from(fs::File::create(pg.evidence.join("holder.stdout")).unwrap()))
-        .stderr(Stdio::from(fs::File::create(pg.evidence.join("holder.stderr")).unwrap()))
+        .stdout(Stdio::from(
+            fs::File::create(pg.evidence.join("holder.stdout")).unwrap(),
+        ))
+        .stderr(Stdio::from(
+            fs::File::create(pg.evidence.join("holder.stderr")).unwrap(),
+        ))
         .spawn()
         .expect("holder");
-    holder.stdin.take().unwrap().write_all(holder_sql.as_bytes()).unwrap();
+    holder
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(holder_sql.as_bytes())
+        .unwrap();
     thread::sleep(Duration::from_secs(2));
     pg.ok(
         "locks",
@@ -852,15 +1152,39 @@ fn locks_and_kill(pg: &Pg, db: &str) {
     let mig_sql = "BEGIN;\nSET LOCAL lock_timeout = '5s';\nSELECT pg_catalog.pg_advisory_xact_lock(6404202605);\nSELECT pg_catalog.pg_sleep(10);\nCOMMIT;\n";
     let mut mig = Command::new("docker")
         .args([
-            "exec", "-i", "-e", "PGPASSFILE=/tmp/pgpass", "-e", "PGAPPNAME=a092-mig", &pg.name, "psql",
-            "-U", "oo_fixture_admin", "-d", db, "-h", "127.0.0.1", "-X", "-q", "-v", "ON_ERROR_STOP=1", "-f", "-",
+            "exec",
+            "-i",
+            "-e",
+            "PGPASSFILE=/tmp/pgpass",
+            "-e",
+            "PGAPPNAME=a092-mig",
+            &pg.name,
+            "psql",
+            "-U",
+            "oo_fixture_admin",
+            "-d",
+            db,
+            "-h",
+            "127.0.0.1",
+            "-X",
+            "-q",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-f",
+            "-",
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
-        .stderr(Stdio::from(fs::File::create(pg.evidence.join("mig.stderr")).unwrap()))
+        .stderr(Stdio::from(
+            fs::File::create(pg.evidence.join("mig.stderr")).unwrap(),
+        ))
         .spawn()
         .expect("mig");
-    mig.stdin.take().unwrap().write_all(mig_sql.as_bytes()).unwrap();
+    mig.stdin
+        .take()
+        .unwrap()
+        .write_all(mig_sql.as_bytes())
+        .unwrap();
     thread::sleep(Duration::from_secs(2));
     let started = Instant::now();
     pg.expect_state(
@@ -871,16 +1195,32 @@ fn locks_and_kill(pg: &Pg, db: &str) {
         "55P03",
     );
     let elapsed = started.elapsed();
-    assert!(elapsed >= Duration::from_millis(1500) && elapsed < Duration::from_secs(8), "migration wait {elapsed:?}");
+    assert!(
+        elapsed >= Duration::from_millis(1500) && elapsed < Duration::from_secs(8),
+        "migration wait {elapsed:?}"
+    );
     pg.note(&format!("fix migration_wait_ms={}", elapsed.as_millis()));
     let _ = mig.kill();
     let _ = mig.wait();
 
-    spawn_sleep(pg, db, "a092-kill-before", &format!(
-        "SET application_name = 'a092-kill-before';\n{}BEGIN;\n{}SELECT pg_catalog.pg_sleep(30);\nCOMMIT;\n",
-        adopt("shard_kill_before"),
-        receipt("shard_kill_before", 1, "batch-kill-before", 'e', "NULL", "NULL", "''::bytea")
-    ));
+    spawn_sleep(
+        pg,
+        db,
+        "a092-kill-before",
+        &format!(
+            "SET application_name = 'a092-kill-before';\n{}BEGIN;\n{}SELECT pg_catalog.pg_sleep(30);\nCOMMIT;\n",
+            adopt("shard_kill_before"),
+            receipt(
+                "shard_kill_before",
+                1,
+                "batch-kill-before",
+                'e',
+                "NULL",
+                "NULL",
+                "''::bytea"
+            )
+        ),
+    );
     terminate_when_visible(pg, db, "a092-kill-before");
     let before_count = pg.ok("kill-before-count", "oo_fixture_admin", db, "SELECT count(*)::text FROM _oo.apply_receipts WHERE txn_or_batch_id = 'batch-kill-before';\n");
     assert_eq!(before_count, "0");
@@ -888,15 +1228,44 @@ fn locks_and_kill(pg: &Pg, db: &str) {
         "kill-before-retry",
         "oo_a092_runtime",
         db,
-        &format!("{}{}", adopt("shard_kill_before"), receipt("shard_kill_before", 2, "batch-kill-before", 'e', "NULL", "NULL", "''::bytea")),
+        &format!(
+            "{}{}",
+            adopt("shard_kill_before"),
+            receipt(
+                "shard_kill_before",
+                2,
+                "batch-kill-before",
+                'e',
+                "NULL",
+                "NULL",
+                "''::bytea"
+            )
+        ),
     );
-    assert_eq!(retried.lines().next_back().unwrap(), "inserted", "{retried}");
+    assert_eq!(
+        retried.lines().next_back().unwrap(),
+        "inserted",
+        "{retried}"
+    );
 
-    spawn_sleep(pg, db, "a092-kill-after", &format!(
-        "SET application_name = 'a092-kill-after';\n{}BEGIN;\n{}COMMIT;\nSELECT pg_catalog.pg_sleep(30);\n",
-        adopt("shard_kill_after"),
-        receipt("shard_kill_after", 1, "batch-kill-after", 'e', "0", "1", "'\\x01'::bytea")
-    ));
+    spawn_sleep(
+        pg,
+        db,
+        "a092-kill-after",
+        &format!(
+            "SET application_name = 'a092-kill-after';\n{}BEGIN;\n{}COMMIT;\nSELECT pg_catalog.pg_sleep(30);\n",
+            adopt("shard_kill_after"),
+            receipt(
+                "shard_kill_after",
+                1,
+                "batch-kill-after",
+                'e',
+                "0",
+                "1",
+                "'\\x01'::bytea"
+            )
+        ),
+    );
     let mut seen = false;
     for wait in [2u64, 4] {
         thread::sleep(Duration::from_secs(wait));
@@ -915,7 +1284,19 @@ fn locks_and_kill(pg: &Pg, db: &str) {
         "kill-after-replay",
         "oo_a092_runtime",
         db,
-        &format!("{}{}", adopt("shard_kill_after"), receipt("shard_kill_after", 2, "batch-kill-after", 'e', "0", "1", "'\\x01'::bytea")),
+        &format!(
+            "{}{}",
+            adopt("shard_kill_after"),
+            receipt(
+                "shard_kill_after",
+                2,
+                "batch-kill-after",
+                'e',
+                "0",
+                "1",
+                "'\\x01'::bytea"
+            )
+        ),
     );
     assert_eq!(replay.lines().next_back().unwrap(), "replay", "{replay}");
     let kept = pg.ok("kill-after-kept", "oo_fixture_admin", db, "SELECT payload_digest || '~' || fence_generation::text || '~' || target_commit_at::text FROM _oo.apply_receipts WHERE txn_or_batch_id = 'batch-kill-after';\n");
@@ -926,15 +1307,42 @@ fn locks_and_kill(pg: &Pg, db: &str) {
 fn spawn_sleep(pg: &Pg, db: &str, name: &str, sql: &str) {
     let mut child = Command::new("docker")
         .args([
-            "exec", "-i", "-e", "PGPASSFILE=/tmp/pgpass", "-e", &format!("PGAPPNAME={name}"), &pg.name, "psql",
-            "-U", "oo_a092_runtime", "-d", db, "-h", "127.0.0.1", "-X", "-q", "-v", "ON_ERROR_STOP=1", "-f", "-",
+            "exec",
+            "-i",
+            "-e",
+            "PGPASSFILE=/tmp/pgpass",
+            "-e",
+            &format!("PGAPPNAME={name}"),
+            &pg.name,
+            "psql",
+            "-U",
+            "oo_a092_runtime",
+            "-d",
+            db,
+            "-h",
+            "127.0.0.1",
+            "-X",
+            "-q",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-f",
+            "-",
         ])
         .stdin(Stdio::piped())
-        .stdout(Stdio::from(fs::File::create(pg.evidence.join(format!("{name}.stdout"))).unwrap()))
-        .stderr(Stdio::from(fs::File::create(pg.evidence.join(format!("{name}.stderr"))).unwrap()))
+        .stdout(Stdio::from(
+            fs::File::create(pg.evidence.join(format!("{name}.stdout"))).unwrap(),
+        ))
+        .stderr(Stdio::from(
+            fs::File::create(pg.evidence.join(format!("{name}.stderr"))).unwrap(),
+        ))
         .spawn()
         .expect(name);
-    child.stdin.take().unwrap().write_all(sql.as_bytes()).unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(sql.as_bytes())
+        .unwrap();
     // Detach the child. terminate_when_visible stops the backend; the process exits.
     thread::spawn(move || {
         let _ = child.wait();
@@ -984,10 +1392,27 @@ fn phase_fresh_checks(pg: &Pg) {
         "fresh-both",
         "oo_a092_runtime",
         db,
-        &format!("{}{}", adopt("fresh_both"), receipt("fresh_both", 1, "fresh-both", 'e', "NULL", "NULL", "'\\x01'::bytea")),
+        &format!(
+            "{}{}",
+            adopt("fresh_both"),
+            receipt(
+                "fresh_both",
+                1,
+                "fresh-both",
+                'e',
+                "NULL",
+                "NULL",
+                "'\\x01'::bytea"
+            )
+        ),
         "23514",
     );
-    let absent = pg.ok("fresh-absent", "oo_fixture_admin", db, "SELECT count(*)::text FROM _oo.apply_receipts;\n");
+    let absent = pg.ok(
+        "fresh-absent",
+        "oo_fixture_admin",
+        db,
+        "SELECT count(*)::text FROM _oo.apply_receipts;\n",
+    );
     assert_eq!(absent, "0");
     pg.note("fresh illegal=23514");
 }
@@ -1007,8 +1432,16 @@ fn phase_rollback(pg: &Pg) {
     assert_eq!(marker, "false");
     let probe = "SELECT pg_get_functiondef('_oo.commit_apply_receipt(text,uuid,bigint,text,text,text,text,text,text,text,text,text,text,integer,numeric,boolean,boolean,boolean,integer,integer,bytea)'::regprocedure);\n";
     let body = pg.ok("roll-body", "oo_fixture_admin", db, probe);
-    assert!(!body.contains("IS NOT TRUE"), "rollback left the new function");
-    let ready = pg.ok("roll-v1", "oo_fixture_admin", db, &format!("SELECT _oo.schema_ready('{V1_EXPAND}')::text;\n"));
+    assert!(
+        !body.contains("IS NOT TRUE"),
+        "rollback left the new function"
+    );
+    let ready = pg.ok(
+        "roll-v1",
+        "oo_fixture_admin",
+        db,
+        &format!("SELECT _oo.schema_ready('{V1_EXPAND}')::text;\n"),
+    );
     assert_eq!(ready, "true");
     assert!(!driver_requiring_v2_authorized(true, false));
     pg.note("rollback=OO003 v2_ready=false v1_function_restored=true");
@@ -1025,7 +1458,11 @@ fn phase_lie(pg: &Pg) {
             book_sql(&[("target-fence-receipts/2", LIE, "0002_target_segment_null_expand.sql")])
         ),
     );
-    assert!(output.status.success(), "{}", pg.scrub(&String::from_utf8_lossy(&output.stderr)));
+    assert!(
+        output.status.success(),
+        "{}",
+        pg.scrub(&String::from_utf8_lossy(&output.stderr))
+    );
     let flags = pg.ok(
         "lie-flags",
         "oo_a092_runtime",
@@ -1066,41 +1503,155 @@ fn provision() -> Pg {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(secrets.join("admin_password"), fs::Permissions::from_mode(0o600)).unwrap();
+        fs::set_permissions(
+            secrets.join("admin_password"),
+            fs::Permissions::from_mode(0o600),
+        )
+        .unwrap();
     }
     let existing = Command::new("docker")
-        .args(["ps", "-a", "--filter", "label=oo.owner=a092", "--filter", "label=oo.kind=postgres", "--format", "{{.Names}}"])
+        .args([
+            "ps",
+            "-a",
+            "--filter",
+            "label=oo.owner=a092",
+            "--filter",
+            "label=oo.kind=postgres",
+            "--format",
+            "{{.Names}}",
+        ])
         .output()
         .expect("docker ps");
     let names = String::from_utf8_lossy(&existing.stdout);
-    assert!(names.trim().is_empty(), "a092 postgres already exists: {names}");
-    let image = Command::new("docker").args(["image", "inspect", PG_IMAGE]).output().expect("image");
-    assert!(image.status.success(), "pinned postgres image is not present locally; not pulling");
-    let _ = Command::new("docker").args(["network", "create", "--label", "oo.project=open-ontology", "--label", "oo.owner=a092", "--label", "oo.session=eef831aa-dba4-4af2-a78b-541bc9e0a092", "--label", &format!("oo.run_id={RUN_ID}"), "--label", "oo.kind=postgres", &net]).status();
-    let _ = Command::new("docker").args(["volume", "create", "--label", "oo.project=open-ontology", "--label", "oo.owner=a092", "--label", "oo.session=eef831aa-dba4-4af2-a78b-541bc9e0a092", "--label", &format!("oo.run_id={RUN_ID}"), "--label", "oo.kind=postgres", &vol]).status();
+    assert!(
+        names.trim().is_empty(),
+        "a092 postgres already exists: {names}"
+    );
+    let image = Command::new("docker")
+        .args(["image", "inspect", PG_IMAGE])
+        .output()
+        .expect("image");
+    assert!(
+        image.status.success(),
+        "pinned postgres image is not present locally; not pulling"
+    );
+    let _ = Command::new("docker")
+        .args([
+            "network",
+            "create",
+            "--label",
+            "oo.project=open-ontology",
+            "--label",
+            "oo.owner=a092",
+            "--label",
+            "oo.session=eef831aa-dba4-4af2-a78b-541bc9e0a092",
+            "--label",
+            &format!("oo.run_id={RUN_ID}"),
+            "--label",
+            "oo.kind=postgres",
+            &net,
+        ])
+        .status();
+    let _ = Command::new("docker")
+        .args([
+            "volume",
+            "create",
+            "--label",
+            "oo.project=open-ontology",
+            "--label",
+            "oo.owner=a092",
+            "--label",
+            "oo.session=eef831aa-dba4-4af2-a78b-541bc9e0a092",
+            "--label",
+            &format!("oo.run_id={RUN_ID}"),
+            "--label",
+            "oo.kind=postgres",
+            &vol,
+        ])
+        .status();
     let run = Command::new("docker")
         .args([
-            "run", "-d", "--name", &name, "--platform", "linux/arm64", "--pull", "never", "--init",
-            "--security-opt", "no-new-privileges:true", "--cap-drop", "ALL",
-            "--cap-add", "CHOWN", "--cap-add", "DAC_OVERRIDE", "--cap-add", "FOWNER", "--cap-add", "SETGID", "--cap-add", "SETUID",
-            "--memory", "1g", "--cpus", "1", "--pids-limit", "256", "--network", &net,
-            "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m",
-            "--mount", &format!("type=volume,source={vol},target=/var/lib/postgresql/data"),
-            "--mount", &format!("type=bind,source={},target=/run/secrets,readonly", secrets.display()),
-            "-e", "POSTGRES_USER=oo_fixture_admin", "-e", "POSTGRES_DB=postgres",
-            "-e", "POSTGRES_PASSWORD_FILE=/run/secrets/admin_password",
-            "-e", "POSTGRES_INITDB_ARGS=--data-checksums", "-e", "POSTGRES_HOST_AUTH_METHOD=scram-sha-256",
-            "--label", "oo.project=open-ontology", "--label", "oo.owner=a092",
-            "--label", "oo.session=eef831aa-dba4-4af2-a78b-541bc9e0a092",
-            "--label", "oo.task=segment-null-correction", "--label", &format!("oo.run_id={RUN_ID}"),
-            "--label", "oo.scope=sp04-segment-null", "--label", "oo.kind=postgres", "--label", "oo.platform=linux/arm64",
-            PG_IMAGE, "-c", "listen_addresses=*", "-c", "max_connections=40", "-c", "shared_preload_libraries=",
+            "run",
+            "-d",
+            "--name",
+            &name,
+            "--platform",
+            "linux/arm64",
+            "--pull",
+            "never",
+            "--init",
+            "--security-opt",
+            "no-new-privileges:true",
+            "--cap-drop",
+            "ALL",
+            "--cap-add",
+            "CHOWN",
+            "--cap-add",
+            "DAC_OVERRIDE",
+            "--cap-add",
+            "FOWNER",
+            "--cap-add",
+            "SETGID",
+            "--cap-add",
+            "SETUID",
+            "--memory",
+            "1g",
+            "--cpus",
+            "1",
+            "--pids-limit",
+            "256",
+            "--network",
+            &net,
+            "--tmpfs",
+            "/tmp:rw,nosuid,nodev,size=256m",
+            "--mount",
+            &format!("type=volume,source={vol},target=/var/lib/postgresql/data"),
+            "--mount",
+            &format!(
+                "type=bind,source={},target=/run/secrets,readonly",
+                secrets.display()
+            ),
+            "-e",
+            "POSTGRES_USER=oo_fixture_admin",
+            "-e",
+            "POSTGRES_DB=postgres",
+            "-e",
+            "POSTGRES_PASSWORD_FILE=/run/secrets/admin_password",
+            "-e",
+            "POSTGRES_INITDB_ARGS=--data-checksums",
+            "-e",
+            "POSTGRES_HOST_AUTH_METHOD=scram-sha-256",
+            "--label",
+            "oo.project=open-ontology",
+            "--label",
+            "oo.owner=a092",
+            "--label",
+            "oo.session=eef831aa-dba4-4af2-a78b-541bc9e0a092",
+            "--label",
+            "oo.task=segment-null-correction",
+            "--label",
+            &format!("oo.run_id={RUN_ID}"),
+            "--label",
+            "oo.scope=sp04-segment-null",
+            "--label",
+            "oo.kind=postgres",
+            "--label",
+            "oo.platform=linux/arm64",
+            PG_IMAGE,
+            "-c",
+            "listen_addresses=*",
+            "-c",
+            "max_connections=40",
+            "-c",
+            "shared_preload_libraries=",
         ])
         .output()
         .expect("docker run");
     if !run.status.success() {
         let _ = Command::new("docker").args(["rm", "-f", &name]).status();
-        let _ = Command::new("docker").args(["network", "rm", &net]).status();
+        let _ = Command::new("docker")
+            .args(["network", "rm", &net])
+            .status();
         let _ = Command::new("docker").args(["volume", "rm", &vol]).status();
         panic!("postgres start {}", String::from_utf8_lossy(&run.stderr));
     }

@@ -94,6 +94,8 @@ struct Witness {
     driver_path: String,
     schema_preimage_path: String,
     type_preimage_path: String,
+    #[serde(default)]
+    multipart_anchor: bool,
 }
 
 #[derive(Deserialize)]
@@ -201,11 +203,16 @@ struct Material {
     driver_name: String,
     driver_version: String,
     fields: Vec<FieldOut>,
+    multipart_scope: Option<Value>,
+    multipart_anchor: bool,
+    range_scope: Option<Value>,
     partition_scope: Option<Value>,
     transaction_scope: Option<Value>,
     gtid_scope: Option<Value>,
     source_instance: Option<Value>,
     baseline_scope: Option<Value>,
+    /// Chunked baseline v2 facts. `None` for v1, so v1 receipts are unchanged.
+    c1_v2: Option<Value>,
 }
 
 struct Prepared {
@@ -432,6 +439,16 @@ fn observe(
         blocks.push(block("GENERATION_MISMATCH", "source_generation"));
     }
     let writes = bind_writes(capturer, producer, &mut blocks);
+    if protocol == "oo.mysql.full-capture/v1"
+        && ((!crate::mysql_full_audit_valid(&capturer["source_audit"])
+            && !(config.source_audit_policy.as_deref() == Some("grant_enforced")
+                && crate::mysql_full_grant_audit_valid(&capturer["source_audit"])))
+            || capturer["snapshot_complete"] != true
+            || capturer["source_audit"]["schema"].as_str() != Some(witness.logical_schema.as_str())
+            || capturer["source_audit"]["table"].as_str() != Some(witness.logical_table.as_str()))
+    {
+        blocks.push(block("WRITE_UNOBSERVED", "source_audit"));
+    }
     let requires_r1 = capturer.get("protocol").and_then(Value::as_str) == Some("oo.postgres-preview.native-page-capture/v1")
         || capturer.get("protocol").and_then(Value::as_str) == Some("oo.mssql-preview.capture/v1");
     let dba_objects = r1_objects(capturer, witness);
@@ -493,7 +510,9 @@ fn observe(
         &mut blocks,
     );
     let mysql_baseline=witness.source_engine=="mysql" && method_token.as_deref()==Some("C1") && capturer.get("baseline_scope").is_some();
-    let mut observed_cursor = if mysql_baseline {None} else {bind_cursor(source, producer, method_token.as_deref(), &mut blocks)};
+    let oracle_buffer=witness.source_engine=="oracle" && method_token.as_deref()==Some("C1")
+        && capturer["protocol"]=="oo.oracle.c1-buffer-capture/v1";
+    let mut observed_cursor = if mysql_baseline || oracle_buffer {None} else {bind_cursor(source, producer, method_token.as_deref(), &mut blocks)};
     let quality_value = source.get("quality").or_else(|| {
         if std::ptr::eq(source, capturer) {
             None
@@ -506,6 +525,20 @@ fn observe(
     }
     let quality = quality_token(quality_value);
     let cross_table = cross_token(capturer.get("cross_table_consistency"), grade.as_deref(), &mut blocks);
+    let aggregate_rows=table.and_then(|t|t["row_count"].as_u64());
+    let projected = if witness.multipart_anchor {
+        match capturer.get("multipart_scope").and_then(|v|crate::native_c5_multipart::Manifest::parse(v).ok()) {
+            Some(scope) => table.map(|table| {
+                let mut table=table.clone();
+                table["row_count"]=serde_json::json!(scope.parts[0].rows);
+                table["arrow"]=serde_json::json!("0.arrow");
+                table["arrow_sha256"]=serde_json::json!(scope.parts[0].arrow_sha256);
+                table
+            }),
+            None => {blocks.push(block("SOURCE_METADATA_UNBOUND","multipart_anchor"));None}
+        }
+    } else {None};
+    let table=projected.as_ref().or(table);
     let row_len = table
         .or(producer.then_some(capturer))
         .and_then(|table| row_len(table, producer, &mut blocks));
@@ -559,6 +592,33 @@ fn observe(
     let type_digest = sha256_hex(input.type_preimage);
     let config_digest = sha256_hex(input.config);
     let input_digest = sha256_hex(input.arrow);
+    let multipart_scope = capturer.get("multipart_scope").cloned();
+    if let Some(value) = &multipart_scope {
+        let valid = crate::native_c5_multipart::Manifest::parse(value).ok().is_some_and(|scope|
+            witness.source_engine == "mysql" && scope.source_id == witness.source_id
+            && scope.source_generation == witness.source_generation && scope.occurrence == witness.run_id
+            && scope.schema == witness.logical_schema && scope.table == witness.logical_table
+            && scope.schema_sha256 == schema_digest && capturer["config_sha256"] == scope.capture_config_sha256
+            && grade.as_deref() == Some("B")
+            && if witness.multipart_anchor {
+                Some(scope.parts.iter().map(|p|p.rows).sum::<u64>())==aggregate_rows
+                && scope.parts[0].arrow_sha256==input_digest
+                && Some(scope.parts[0].rows)==parsed.as_ref().map(|p|p.rows)
+            } else {scope.parts.iter().map(|p|p.rows).sum::<u64>() == parsed.as_ref().map(|p|p.rows).unwrap_or(0)});
+        if !valid {blocks.push(block("SOURCE_METADATA_UNBOUND", "multipart_scope"));}
+    }
+    let range_scope = if capturer.get("range_scope").is_some() {
+        bind_range_scope(
+            capturer,
+            witness,
+            method_token.as_deref(),
+            &input_digest,
+            parsed.as_ref().map(|arrow| arrow.rows),
+            &mut blocks,
+        )
+    } else {
+        None
+    };
     let partition_scope = match (witness.source_engine.as_str(), method_token.as_deref()) {
         ("clickhouse" | "doris" | "starrocks", Some("C4")) =>
             bind_partition_scope(capturer, witness, &schema_digest, &type_digest, &input_digest,
@@ -609,7 +669,7 @@ fn observe(
         _ => None,
     };
     let baseline_scope = match (witness.source_engine.as_str(), method_token.as_deref()) {
-        ("mysql" | "mariadb" | "mongodb", Some("C1")) => bind_c1_baseline_scope(
+        ("mysql" | "mariadb" | "mongodb" | "oracle", Some("C1")) => bind_c1_baseline_scope(
             capturer, witness, &config_digest, &schema_digest, parsed.as_ref().map(|arrow| arrow.rows), &input_digest,
             grade.as_deref(), cross_table.as_deref(), &mut blocks),
         _ if capturer.get("baseline_scope").is_some() => {
@@ -623,6 +683,11 @@ fn observe(
             None=>{blocks.push(block("CURSOR_UNOBSERVED","baseline_gtid"));None},
         }
     } else {None};
+    if oracle_buffer {
+        if let Some(scope)=baseline_scope.as_ref().filter(|s|crate::oracle_buffer::valid(s)) {
+            observed_cursor=scope["l_end"].as_str().map(str::to_owned);
+        } else {blocks.push(block("CURSOR_UNOBSERVED","oracle_buffer"));}
+    }
     if let Some(parsed) = parsed.as_ref()
         && schema_digest == parsed.schema_sha256
     {
@@ -652,7 +717,7 @@ fn observe(
             retention_window: mysql_retention,
             cursor: if requires_r1 && method == "C2" { Some("Sequence".to_string()) } else { None },
             feed: if requires_r1 && method == "C2" { Some("ChangeTracking".to_string()) } else { None },
-            cdc: if mysql_baseline {Some("Binlog".to_string())} else if requires_r1 && method == "C1" { Some("LogicalDecoding".to_string()) } else { None },
+            cdc: if oracle_buffer {Some("ExternalBuffer".to_string())} else if mysql_baseline {Some("Binlog".to_string())} else if requires_r1 && method == "C1" { Some("LogicalDecoding".to_string()) } else { None },
             delete_detection: Some(delete),
         }),
         _ => None,
@@ -679,7 +744,7 @@ fn observe(
             run_id: witness.run_id.clone(),
             logical_schema: witness.logical_schema.clone(),
             logical_table: witness.logical_table.clone(),
-            row_count: parsed.rows,
+            row_count: if witness.multipart_anchor {aggregate_rows.unwrap_or(0)}else{parsed.rows},
             quality,
             cross_table,
             delete_observation: delete_observation(table),
@@ -701,11 +766,15 @@ fn observe(
             driver_name: report.driver.name.clone(),
             driver_version: report.driver.version.clone(),
             fields,
+            multipart_scope,
+            multipart_anchor: witness.multipart_anchor,
+            range_scope,
             partition_scope,
             transaction_scope,
             gtid_scope,
             source_instance,
             baseline_scope,
+            c1_v2: None,
         })
     } else {
         None
@@ -738,8 +807,11 @@ fn bind_c1_baseline_scope(capturer: &Value, witness: &Witness, config_digest: &s
         let object = scope.as_object()?;
         let keys = ["protocol", "engine", "lineage", "l0", "l_end", "complete", "read_fence_digest",
             "config_digest", "schema_digest", "capture_digest", "consistency_grade", "cross_table_consistent", "source_identity", "tables"];
-        if object.len() != keys.len() || keys.iter().any(|key| !object.contains_key(*key))
-            || scope["protocol"].as_str() != Some("oo.source-admission.c1-baseline-scope/v1")
+        let oracle=witness.source_engine=="oracle";
+        if oracle && (!crate::oracle_buffer::valid(scope) || witness.snapshot.kind!="oracle_buffer"
+            || witness.snapshot.value!=scope["l_end"].as_str()?) {return None;}
+        if object.len() != keys.len()+usize::from(oracle) || keys.iter().any(|key| !object.contains_key(*key))
+            || scope["protocol"].as_str() != Some(if oracle {crate::oracle_buffer::SCOPE}else{"oo.source-admission.c1-baseline-scope/v1"})
             || scope["engine"].as_str() != Some(witness.source_engine.as_str())
             || scope["complete"].as_bool() != Some(true)
             || scope["config_digest"].as_str() != Some(config_digest)
@@ -817,6 +889,75 @@ fn canonical_uuid(value: &str) -> bool {
         if matches!(index, 8 | 13 | 18 | 23) { byte == b'-' }
         else { byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase() }
     })
+}
+
+fn bind_range_scope(
+    capturer: &Value,
+    witness: &Witness,
+    method: Option<&str>,
+    arrow_digest: &str,
+    rows: Option<u64>,
+    blocks: &mut Vec<Block>,
+) -> Option<Value> {
+    let valid = capturer.get("range_scope").and_then(|value| {
+        if value["protocol"] == crate::native_c5_parts::PART_SCOPE_PROTOCOL {
+            let scope = crate::native_c5_parts::PartScope::parse(value).ok()?;
+            return (method == Some("C5")
+                && scope.range.source_engine == witness.source_engine
+                && scope.range.source_id == witness.source_id
+                && scope.range.schema == witness.logical_schema
+                && scope.range.table == witness.logical_table
+                && scope.range.source_generation == witness.source_generation
+                && scope.snapshot.kind == witness.snapshot.kind
+                && scope.snapshot.value == witness.snapshot.value
+                && scope.part.arrow.path == witness.arrow_path
+                && scope.part.arrow.sha256 == arrow_digest
+                && Some(scope.part.row_count) == rows
+                && !["multipart_scope", "partition_scope", "transaction_scope", "baseline_scope"]
+                    .iter().any(|key| capturer.get(*key).is_some()))
+                .then(|| value.clone());
+        }
+        let scope = crate::native_c5_range::RangeScope::parse(value).ok()?;
+        (method == Some("C5")
+            && scope.source_engine == witness.source_engine
+            && (witness.source_engine == "mysql"
+                || oracle_range_snapshot_bound(capturer, witness, &scope))
+            && scope.source_id == witness.source_id
+            && scope.schema == witness.logical_schema
+            && scope.table == witness.logical_table
+            && scope.source_generation == witness.source_generation
+            && scope.arrow_sha256 == arrow_digest
+            && Some(scope.row_count) == rows)
+            .then(|| value.clone())
+    });
+    if valid.is_none() {
+        blocks.push(block("SOURCE_METADATA_UNBOUND", "range_scope"));
+    }
+    valid
+}
+
+
+fn oracle_range_snapshot_bound(
+    capturer: &Value, witness: &Witness, scope: &crate::native_c5_range::RangeScope,
+) -> bool {
+    let Some(oracle) = &scope.oracle_snapshot else { return false; };
+    let Some(raw) = capturer["oracle_snapshot_manifest"].as_str() else { return false; };
+    if raw.len() > 1024 * 1024 || sha256_hex(raw.as_bytes()) != oracle.manifest_sha256 {
+        return false;
+    }
+    let Ok(manifest) = serde_json::from_str::<Value>(raw) else { return false; };
+    witness.source_engine == "oracle"
+        && manifest["protocol"] == "oo.oracle.sealed-snapshot/v1"
+        && manifest["complete"] == true && manifest["scope_complete"] == true
+        && manifest["binding"]["source_id"] == witness.source_id
+        && manifest["binding"]["identity"] == oracle.identity
+        && manifest["binding"]["scn"] == oracle.scn
+        && manifest["binding"]["inventory"].as_array().is_some_and(|tables| tables.iter().any(|t|
+            t["owner"] == witness.logical_schema && t["table"] == witness.logical_table
+                && t["keys"].as_array().is_some_and(|keys| keys.len() == 1)))
+        && witness.snapshot.kind == "oracle_scn" && witness.snapshot.value == oracle.scn
+        && select_table(capturer, &witness.logical_table)
+            .is_some_and(|table| table["consistency"] == "S0" && table["route"] == "C5")
 }
 
 fn bind_partition_scope(
@@ -1689,7 +1830,7 @@ fn bind_columns(
         blocks.push(block("OBJECT_UNBOUND", "schema_preimage"));
         return None;
     };
-    if preimage.columns.is_empty() || preimage.columns.len() > 64 {
+    if preimage.columns.is_empty() || preimage.columns.len() > 1024 {
         blocks.push(block("SCHEMA_MISMATCH", "columns"));
         return None;
     }
@@ -2123,6 +2264,9 @@ fn receipt_bytes(
     if let Some(scope) = &material.gtid_scope { map.insert("gtid_scope".to_string(), scope.clone()); }
     if let Some(instance) = &material.source_instance { map.insert("source_instance".to_string(), instance.clone()); }
     if let Some(scope) = &material.baseline_scope { map.insert("baseline_scope".to_string(), scope.clone()); }
+    if let Some(c1) = &material.c1_v2 { map.insert("c1_parts".to_string(), c1.clone()); }
+    if material.multipart_anchor {map.insert("multipart_anchor".to_string(),serde_json::json!(true));}
+    if let Some(scope) = &material.multipart_scope {map.insert("multipart_scope".to_string(),scope.clone());}
     map.insert(
         "driver_digest".to_string(),
         json_str(&material.driver_digest),
@@ -2184,6 +2328,11 @@ fn registry_bytes(
         }],
         "fields": material.fields.iter().map(field_json).collect::<Vec<_>>()
     });
+    if material.multipart_anchor {binding["multipart_anchor"]=serde_json::json!(true);}
+    if let Some(scope) = &material.multipart_scope { binding["multipart_scope"] = scope.clone(); }
+    if let Some(scope) = &material.range_scope {
+        binding["range_scope"] = scope.clone();
+    }
     if let Some(scope) = &material.partition_scope {
         binding["partition_scope"] = scope.clone();
     }
@@ -2193,6 +2342,7 @@ fn registry_bytes(
     if let Some(scope) = &material.gtid_scope { binding["gtid_scope"] = scope.clone(); }
     if let Some(instance) = &material.source_instance { binding["source_instance"] = instance.clone(); }
     if let Some(scope) = &material.baseline_scope { binding["baseline_scope"] = scope.clone(); }
+    if let Some(c1) = &material.c1_v2 { binding["c1_parts"] = c1.clone(); }
     with_newline(&serde_json::json!({
         "protocol": BINDING_REGISTRY_PROTOCOL,
         "bindings": [binding]
@@ -2278,9 +2428,10 @@ fn producer_engine(protocol: &str) -> Option<&str> {
     match protocol {
         "oo.mongodb-preview.c1-baseline-capture/v1" => Some("mongodb"),
         "oo.oracle.c5-producer-catalog/v1" => Some("oracle"),
+        "oo.oracle.c1-buffer-capture/v1" => Some("oracle"),
         "oo.mariadb.c5-capture-catalog/v1" => Some("mariadb"),
         "oo.postgres-preview.capture-check/v1" | "oo.postgres-preview.native-page-capture/v1" => Some("postgresql"),
-        "oo.mysql-customer.audit-receipt/v1" => Some("mysql"),
+        "oo.mysql-customer.audit-receipt/v1" | "oo.mysql.full-capture/v1" => Some("mysql"),
         "oo.mssql-preview.capture/v1" => Some("sqlserver"),
         _ => None,
     }
@@ -2621,7 +2772,7 @@ fn read_schema(meta: &[u8], table: usize) -> Result<Vec<ArrowField>, &'static st
     }
     let slot = field_slot(meta, table, 1).ok_or("schema")?;
     let tables = read_offset_vector(meta, slot)?;
-    if tables.is_empty() || tables.len() > 64 {
+    if tables.is_empty() || tables.len() > 1024 {
         return Err("schema");
     }
     let mut fields = Vec::with_capacity(tables.len());
@@ -2917,7 +3068,7 @@ fn read_uoffset_at(buf: &[u8], pos: usize) -> Option<usize> {
 fn read_offset_vector(buf: &[u8], slot: usize) -> Result<Vec<usize>, &'static str> {
     let start = read_uoffset_at(buf, slot).ok_or("truncated")?;
     let count = u32_at(buf, start).ok_or("truncated")? as usize;
-    if count > 64 {
+    if count > 1024 {
         return Err("schema");
     }
     let mut tables = Vec::with_capacity(count);
@@ -2995,9 +3146,1698 @@ fn align8(value: usize) -> Option<usize> {
     value.checked_add(7).map(|sum| sum & !7)
 }
 
+// ---------------------------------------------------------------------------
+// Chunked baseline v2 (T10; DESIGN §3.6 and §3.8; plan Q1). Additive: the v1
+// functions above are unchanged. A v2 witness names a per-table parts manifest
+// and a global CDC batch list. Admission reads one part at a time through
+// `PartSource`, checks its size, SHA-256, row count and schema, and binds the
+// manifest digest, the ordered batch digests, L0/L_end and the schema digests.
+// It does not recompute the composed state digest, because that needs value
+// decoding (oo-pipeline `c1_parts`, which this crate does not depend on). The
+// final load checks the composed digest of T_new against the bound expectation.
+// ---------------------------------------------------------------------------
+
+/// Witness protocol v2.
+pub const WITNESS_PROTOCOL_V2: &str = "oo.source-admission.capture-witness/v2";
+const CDC_BATCHES_PROTOCOL_V2: &str = "oo.source-admission.c1-cdc-batches/v2";
+const SCOPE_PROTOCOL_V2: &str = "oo.source-admission.c1-baseline-scope/v2";
+const PARTS_PROTOCOL_V2: &str = "oo.pipeline.c1-parts/v2";
+const COMPOSITION_RULE_V2: &str = "c1-compose/v2";
+const BUCKET_BITS_V2: u64 = 12;
+const PART_MAX_BYTES_V2: u64 = 32 * 1024 * 1024;
+const PARTS_DIGEST_PREFIX_V2: &str = "oo.c1.parts/v2\n";
+const BATCH_PREFIX_V2: &str = "oo.c1.batch/v2\n";
+const CHAIN_PREFIX_V2: &str = "oo.c1.cdc-chain/v2\n";
+const KEY_MIN_V2: i128 = -(1 << 63);
+const KEY_MAX_V2: i128 = (1 << 64) - 1;
+
+/// Reads one part file. `name` comes from the manifest, for example
+/// `fill-00000001.arrow`. The caller owns the bytes it returns and must refuse a
+/// file larger than 32 MiB. Admission holds one part at a time.
+pub trait PartSource {
+    /// Bytes of `dir/name`.
+    fn read(&mut self, dir: &std::path::Path, name: &str) -> Result<Vec<u8>, InputFault>;
+}
+
+/// Inputs of a v2 admission. Part bytes come from a [`PartSource`], not from here.
+pub struct CapturedInputV2<'a> {
+    /// Witness v2 bytes.
+    pub witness: &'a [u8],
+    /// Capturer bytes, which carry the v2 baseline scope.
+    pub capturer: &'a [u8],
+    /// Table parts manifest bytes.
+    pub table_manifest: &'a [u8],
+    /// Global CDC batch list bytes.
+    pub cdc_batches: &'a [u8],
+    /// Driver bytes.
+    pub driver: &'a [u8],
+    /// Schema preimage bytes of this table.
+    pub schema_preimage: &'a [u8],
+    /// Type preimage bytes.
+    pub type_preimage: &'a [u8],
+    /// Target report bytes.
+    pub report: &'a [u8],
+    /// Config bytes.
+    pub config: &'a [u8],
+}
+
+/// Paths named by a v2 witness. The caller reads these files.
+pub struct WitnessFilesV2 {
+    /// Capturer path.
+    pub capturer_path: String,
+    /// Table parts manifest path. Its directory holds the part files.
+    pub table_manifest_path: String,
+    /// CDC batch list path.
+    pub cdc_batches_path: String,
+    /// Driver path.
+    pub driver_path: String,
+    /// Schema preimage path.
+    pub schema_preimage_path: String,
+    /// Type preimage path.
+    pub type_preimage_path: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WitnessV2 {
+    protocol: String,
+    source_engine: String,
+    source_id: String,
+    source_generation: i64,
+    snapshot: SnapshotName,
+    run_id: String,
+    logical_schema: String,
+    logical_table: String,
+    capturer_path: String,
+    table_manifest_path: String,
+    table_manifest_sha256: String,
+    cdc_batches_path: String,
+    cdc_batches_sha256: String,
+    driver_path: String,
+    schema_preimage_path: String,
+    type_preimage_path: String,
+    expected_rows: u64,
+    expected_composed_digest: String,
+    composition_rule: String,
+    bucket_bits: u64,
+}
+
+/// True when the bytes are a v2 witness. Only the protocol field is read.
+pub fn witness_is_v2(bytes: &[u8]) -> bool {
+    serde_json::from_slice::<Value>(bytes)
+        .ok()
+        .and_then(|value| value.get("protocol").and_then(Value::as_str).map(str::to_owned))
+        .as_deref()
+        == Some(WITNESS_PROTOCOL_V2)
+}
+
+fn parse_witness_v2(bytes: &[u8]) -> Result<WitnessV2, InputFault> {
+    let protocol: Value = serde_json::from_slice(bytes).map_err(|_| fault("witness"))?;
+    if protocol["protocol"].as_str() != Some(WITNESS_PROTOCOL_V2) {
+        return Err(fault("protocol"));
+    }
+    let witness: WitnessV2 = parse_strict(bytes).map_err(|err| fault(&safe_fact(&err.fact)))?;
+    if witness.protocol != WITNESS_PROTOCOL_V2 {
+        return Err(fault("protocol"));
+    }
+    if witness.composition_rule != COMPOSITION_RULE_V2
+        || witness.bucket_bits != BUCKET_BITS_V2
+        || witness.source_engine != "mysql"
+    {
+        return Err(fault("composition"));
+    }
+    if !token_ok(&witness.source_id)
+        || !simple_id(&witness.source_id)
+        || !token_ok(&witness.snapshot.kind)
+        || !token_ok(&witness.snapshot.value)
+        || !token_ok(&witness.logical_schema)
+        || !token_ok(&witness.logical_table)
+        || !run_ok(&witness.run_id)
+        || !hex64(&witness.table_manifest_sha256)
+        || !hex64(&witness.cdc_batches_sha256)
+        || !hex64(&witness.expected_composed_digest)
+    {
+        return Err(fault("witness"));
+    }
+    for path in [
+        &witness.capturer_path,
+        &witness.table_manifest_path,
+        &witness.cdc_batches_path,
+        &witness.driver_path,
+        &witness.schema_preimage_path,
+        &witness.type_preimage_path,
+    ] {
+        if !absolute_path(path) {
+            return Err(fault("path"));
+        }
+    }
+    Ok(witness)
+}
+
+/// Paths named by a v2 witness.
+pub fn witness_paths_v2(bytes: &[u8]) -> Result<WitnessFilesV2, InputFault> {
+    let witness = parse_witness_v2(bytes)?;
+    Ok(WitnessFilesV2 {
+        capturer_path: witness.capturer_path,
+        table_manifest_path: witness.table_manifest_path,
+        cdc_batches_path: witness.cdc_batches_path,
+        driver_path: witness.driver_path,
+        schema_preimage_path: witness.schema_preimage_path,
+        type_preimage_path: witness.type_preimage_path,
+    })
+}
+
+/// The v1 witness shape, filled from a v2 witness. Only the fields that `pack`
+/// and the public helpers read are meaningful here.
+fn witness_from_v2(witness: &WitnessV2) -> Witness {
+    Witness {
+        protocol: WITNESS_PROTOCOL_V2.to_string(),
+        source_engine: witness.source_engine.clone(),
+        source_id: witness.source_id.clone(),
+        source_generation: witness.source_generation,
+        snapshot: SnapshotName {
+            kind: witness.snapshot.kind.clone(),
+            value: witness.snapshot.value.clone(),
+        },
+        run_id: witness.run_id.clone(),
+        logical_schema: witness.logical_schema.clone(),
+        logical_table: witness.logical_table.clone(),
+        capturer_path: witness.capturer_path.clone(),
+        arrow_path: witness.table_manifest_path.clone(),
+        driver_path: witness.driver_path.clone(),
+        schema_preimage_path: witness.schema_preimage_path.clone(),
+        type_preimage_path: witness.type_preimage_path.clone(),
+        multipart_anchor: false,
+    }
+}
+
+/// One part as the manifest records it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct PartV2 {
+    kind: &'static str,
+    part_no: u64,
+    key_lo: Option<i128>,
+    key_hi: Option<i128>,
+    rows: u64,
+    bytes: u64,
+    sha256: String,
+}
+
+fn kind_rank_v2(kind: &str) -> u8 {
+    if kind == "fill" { 0 } else { 1 }
+}
+
+fn in_key_domain_v2(key: i128) -> bool {
+    (KEY_MIN_V2..=KEY_MAX_V2).contains(&key)
+}
+
+fn key_field_v2(value: &Value) -> Result<Option<i128>, &'static str> {
+    match value {
+        Value::Null => Ok(None),
+        Value::String(text) => text.parse::<i128>().map(Some).map_err(|_| "manifest_key"),
+        _ => Err("manifest_key"),
+    }
+}
+
+fn opt_key_v2(key: Option<i128>) -> String {
+    key.map(|value| value.to_string()).unwrap_or_default()
+}
+
+/// Aggregate digest, as `oo_pipeline::c1_parts::parts_digest_of`. One part gives
+/// its own SHA-256. Several parts give a digest over sorted lines. The golden
+/// vector in the tests pins this against the loader's implementation.
+fn parts_digest_v2(parts: &[PartV2]) -> String {
+    if let [single] = parts {
+        return single.sha256.clone();
+    }
+    let mut sorted: Vec<&PartV2> = parts.iter().collect();
+    sorted.sort_by_key(|part| (kind_rank_v2(part.kind), part.part_no));
+    let mut text = String::from(PARTS_DIGEST_PREFIX_V2);
+    for part in sorted {
+        text.push_str(&format!(
+            "{}|{}|{}|{}|{}|{}|{}\n",
+            part.kind,
+            part.part_no,
+            opt_key_v2(part.key_lo),
+            opt_key_v2(part.key_hi),
+            part.rows,
+            part.bytes,
+            part.sha256
+        ));
+    }
+    sha256_hex(text.as_bytes())
+}
+
+/// Parse and validate a table manifest, as `PartManifest::from_json` does. The
+/// stored `parts_digest` must match the recomputed one.
+fn parse_manifest_v2(value: &Value) -> Result<(Vec<PartV2>, String), &'static str> {
+    if value["protocol"].as_str() != Some(PARTS_PROTOCOL_V2) {
+        return Err("manifest_protocol");
+    }
+    let items = value["parts"].as_array().ok_or("manifest_parts")?;
+    let mut parts = Vec::with_capacity(items.len());
+    for item in items {
+        let kind: &'static str = match item["kind"].as_str() {
+            Some("fill") => "fill",
+            Some("cdc") => "cdc",
+            _ => return Err("part_kind"),
+        };
+        let part_no = item["part_no"]
+            .as_u64()
+            .filter(|number| (1..=u64::from(u32::MAX)).contains(number))
+            .ok_or("part_no")?;
+        let key_lo = key_field_v2(&item["key_lo"])?;
+        let key_hi = key_field_v2(&item["key_hi"])?;
+        let rows = item["rows"].as_u64().ok_or("part_rows")?;
+        let bytes = item["bytes"]
+            .as_u64()
+            .filter(|number| (1..=PART_MAX_BYTES_V2).contains(number))
+            .ok_or("part_bytes")?;
+        let sha256 = item["sha256"]
+            .as_str()
+            .filter(|text| hex64(text))
+            .ok_or("part_sha256")?
+            .to_string();
+        let keys_ok = match (rows, key_lo, key_hi) {
+            (0, None, None) => true,
+            (1.., Some(lo), Some(hi)) => {
+                lo <= hi && in_key_domain_v2(lo) && in_key_domain_v2(hi)
+            }
+            _ => false,
+        };
+        if !keys_ok {
+            return Err("key_range");
+        }
+        parts.push(PartV2 {
+            kind,
+            part_no,
+            key_lo,
+            key_hi,
+            rows,
+            bytes,
+            sha256,
+        });
+    }
+    if parts.is_empty() {
+        return Err("manifest_empty");
+    }
+    parts.sort_by_key(|part| (kind_rank_v2(part.kind), part.part_no));
+    let mut next = [1u64; 2];
+    let mut fill_high: Option<i128> = None;
+    for part in &parts {
+        let slot = &mut next[usize::from(kind_rank_v2(part.kind))];
+        if part.part_no < *slot {
+            return Err("part_no_duplicate");
+        }
+        if part.part_no > *slot {
+            return Err("part_no_gap");
+        }
+        *slot += 1;
+        if part.kind == "fill" && part.rows > 0 {
+            if let (Some(high), Some(low)) = (fill_high, part.key_lo)
+                && low <= high
+            {
+                return Err("chunk_order");
+            }
+            fill_high = part.key_hi;
+        }
+    }
+    let digest = parts_digest_v2(&parts);
+    if value["parts_digest"].as_str() != Some(digest.as_str()) {
+        return Err("parts_digest");
+    }
+    Ok((parts, digest))
+}
+
+/// Digest of one CDC batch: its number, positions, and its part references in
+/// sorted order. Each reference carries the part SHA-256 and row count.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct BatchRefV2 {
+    schema: String,
+    table: String,
+    part_no: u64,
+    sha256: String,
+    rows: u64,
+}
+
+fn batch_digest_v2(batch_no: u64, first_pos: u64, last_pos: u64, refs: &[BatchRefV2]) -> String {
+    let mut text = String::from(BATCH_PREFIX_V2);
+    text.push_str(&format!("{batch_no}|{first_pos}|{last_pos}\n"));
+    for part in refs {
+        text.push_str(&format!(
+            "{}.{}|{}|{}|{}\n",
+            part.schema, part.table, part.part_no, part.sha256, part.rows
+        ));
+    }
+    sha256_hex(text.as_bytes())
+}
+
+fn gtid_tail_v2(text: &str) -> Option<u64> {
+    text.rsplit(['-', ':']).next()?.parse::<u64>().ok()
+}
+
+fn is_oo_column_v2(name: &str) -> bool {
+    name == "_oo_pos" || name == "_oo_op"
+}
+
+/// Check one part against its manifest entry. Returns its parsed Arrow metadata.
+/// The bytes are dropped by the caller after this call.
+fn verify_part_v2(bytes: &[u8], part: &PartV2) -> Result<ParsedArrow, &'static str> {
+    if bytes.len() as u64 != part.bytes {
+        return Err("part_bytes");
+    }
+    if sha256_hex(bytes) != part.sha256 {
+        return Err("part_sha256");
+    }
+    let parsed = parse_arrow(bytes)?;
+    if parsed.rows != part.rows {
+        return Err("part_rows");
+    }
+    let fields = &parsed.fields;
+    if part.kind == "fill" {
+        if fields.iter().any(|field| is_oo_column_v2(&field.name)) {
+            return Err("part_schema");
+        }
+        return Ok(parsed);
+    }
+    let n = fields.len();
+    if n < 3 || fields[..n - 2].iter().any(|field| is_oo_column_v2(&field.name)) {
+        return Err("part_schema");
+    }
+    let (pos, op) = (&fields[n - 2], &fields[n - 1]);
+    let pos_ok = pos.name == "_oo_pos"
+        && pos.typed.arrow_type == "decimal128"
+        && pos.typed.precision == Some(38)
+        && pos.typed.scale == Some(0);
+    let op_ok = op.name == "_oo_op" && op.typed.arrow_type == "utf8";
+    if !(pos_ok && op_ok) {
+        return Err("part_schema");
+    }
+    Ok(parsed)
+}
+
+fn same_field_v2(left: &ArrowField, right: &ArrowField) -> bool {
+    left.dictionary_id == right.dictionary_id
+        && left.name == right.name
+        && left.nullable == right.nullable
+        && left.typed.arrow_type == right.typed.arrow_type
+        && left.typed.precision == right.typed.precision
+        && left.typed.scale == right.typed.scale
+        && left.typed.timezone == right.typed.timezone
+}
+
+fn same_fields_v2(left: &[ArrowField], right: &[ArrowField]) -> bool {
+    left.len() == right.len() && left.iter().zip(right).all(|(a, b)| same_field_v2(a, b))
+}
+
+/// Facts from the streamed parts.
+struct WalkedV2 {
+    fill_rows: u64,
+    cdc_rows: u64,
+    fill_parts: usize,
+    cdc_parts: usize,
+    first_fill: Option<ParsedArrow>,
+}
+
+/// Visit the parts in manifest order. Each part is read, checked and dropped
+/// before the next one is read, so memory is one part, not the table.
+fn walk_parts_v2(
+    dir: &std::path::Path,
+    parts: &[PartV2],
+    source: &mut dyn PartSource,
+    blocks: &mut Vec<Block>,
+) -> WalkedV2 {
+    let mut walked = WalkedV2 {
+        fill_rows: 0,
+        cdc_rows: 0,
+        fill_parts: 0,
+        cdc_parts: 0,
+        first_fill: None,
+    };
+    for part in parts {
+        let name = format!("{}-{:08}.arrow", part.kind, part.part_no);
+        let bytes = match source.read(dir, &name) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                blocks.push(block("PART_UNVERIFIED", &format!("{name}:read")));
+                continue;
+            }
+        };
+        let parsed = match verify_part_v2(&bytes, part) {
+            Ok(parsed) => parsed,
+            Err(fact) => {
+                blocks.push(block("PART_UNVERIFIED", &format!("{name}:{fact}")));
+                continue;
+            }
+        };
+        drop(bytes);
+        if part.kind == "fill" {
+            walked.fill_rows += part.rows;
+            walked.fill_parts += 1;
+            if walked.first_fill.is_none() {
+                walked.first_fill = Some(parsed);
+            } else {
+                let same = walked
+                    .first_fill
+                    .as_ref()
+                    .is_some_and(|first| same_fields_v2(&first.fields, &parsed.fields));
+                if !same {
+                    blocks.push(block("PART_SCHEMA_MISMATCH", &name));
+                }
+            }
+        } else {
+            walked.cdc_rows += part.rows;
+            walked.cdc_parts += 1;
+            let same = walked.first_fill.as_ref().is_some_and(|first| {
+                parsed.fields.len() == first.fields.len() + 2
+                    && same_fields_v2(&first.fields, &parsed.fields[..first.fields.len()])
+            });
+            if !same {
+                blocks.push(block("PART_SCHEMA_MISMATCH", &name));
+            }
+        }
+    }
+    if walked.fill_parts == 0 {
+        blocks.push(block("PART_UNVERIFIED", "fill:none"));
+    }
+    walked
+}
+
+/// Checked batch list: the chain, the batch digests, and the per-table CDC part
+/// references.
+struct BatchSummary {
+    count: u64,
+    chain_sha256: String,
+    first_pos: Option<u64>,
+    last_pos: Option<u64>,
+}
+
+/// Verify the global batch list against L0, L_end and this table's CDC parts.
+/// Batches must number from 1 and chain from `l0_pos + 1` to `l_end_pos`. Each
+/// CDC part of this table must be referenced once, in part order and batch order.
+fn verify_batches_v2(
+    batches: &Value,
+    l0_pos: u64,
+    l_end_pos: u64,
+    table: (&str, &str),
+    parts: &[PartV2],
+    blocks: &mut Vec<Block>,
+) -> Option<BatchSummary> {
+    let refuse = |blocks: &mut Vec<Block>, fact: &str| {
+        blocks.push(block("CDC_CHAIN_BROKEN", fact));
+        None
+    };
+    if batches["protocol"].as_str() != Some(CDC_BATCHES_PROTOCOL_V2) {
+        return refuse(blocks, "protocol");
+    }
+    let Some(items) = batches["batches"].as_array() else {
+        return refuse(blocks, "batches");
+    };
+    if batches["count"].as_u64() != Some(items.len() as u64) {
+        return refuse(blocks, "count");
+    }
+    let mut previous = l0_pos;
+    let mut first_pos = None;
+    let mut chain = String::from(CHAIN_PREFIX_V2);
+    let mut seen: std::collections::BTreeMap<u64, (usize, String, u64)> = Default::default();
+    for (index, item) in items.iter().enumerate() {
+        let batch_no = index as u64 + 1;
+        if item["batch_no"].as_u64() != Some(batch_no) {
+            return refuse(blocks, "batch_no");
+        }
+        let first = item["first_pos"].as_str().and_then(|text| text.parse::<u64>().ok());
+        let last = item["last_pos"].as_str().and_then(|text| text.parse::<u64>().ok());
+        let (Some(first), Some(last)) = (first, last) else {
+            return refuse(blocks, "pos");
+        };
+        if first != previous + 1 || last < first {
+            return refuse(blocks, "chain");
+        }
+        let Some(declared) = item["batch_sha256"].as_str().filter(|text| hex64(text)) else {
+            return refuse(blocks, "batch_sha256");
+        };
+        let Some(part_items) = item["parts"].as_array() else {
+            return refuse(blocks, "parts");
+        };
+        let mut refs = Vec::with_capacity(part_items.len());
+        for part in part_items {
+            let schema = part["schema"].as_str();
+            let name = part["table"].as_str();
+            let part_no = part["part_no"].as_u64();
+            let sha = part["sha256"].as_str().filter(|text| hex64(text));
+            let rows = part["rows"].as_u64();
+            let (Some(schema), Some(name), Some(part_no), Some(sha), Some(rows)) =
+                (schema, name, part_no, sha, rows)
+            else {
+                return refuse(blocks, "part_ref");
+            };
+            refs.push(BatchRefV2 {
+                schema: schema.to_string(),
+                table: name.to_string(),
+                part_no,
+                sha256: sha.to_string(),
+                rows,
+            });
+        }
+        refs.sort_by(|a, b| (&a.schema, &a.table, a.part_no).cmp(&(&b.schema, &b.table, b.part_no)));
+        let digest = batch_digest_v2(batch_no, first, last, &refs);
+        if digest != declared {
+            return refuse(blocks, "batch_sha256");
+        }
+        for part in refs.iter().filter(|r| r.schema == table.0 && r.table == table.1) {
+            if seen.insert(part.part_no, (index, part.sha256.clone(), part.rows)).is_some() {
+                return refuse(blocks, "part_ref_repeat");
+            }
+        }
+        chain.push_str(&format!("{batch_no}|{digest}\n"));
+        first_pos.get_or_insert(first);
+        previous = last;
+    }
+    if items.is_empty() {
+        if l0_pos != l_end_pos {
+            return refuse(blocks, "l_end");
+        }
+    } else if previous != l_end_pos {
+        return refuse(blocks, "l_end");
+    }
+    let cdc: Vec<&PartV2> = parts.iter().filter(|part| part.kind == "cdc").collect();
+    let mut last_index: Option<usize> = None;
+    for part in &cdc {
+        let Some((index, sha, rows)) = seen.get(&part.part_no) else {
+            return refuse(blocks, "part_unreferenced");
+        };
+        if *sha != part.sha256 || *rows != part.rows {
+            return refuse(blocks, "part_mismatch");
+        }
+        if last_index.is_some_and(|prev| *index <= prev) {
+            return refuse(blocks, "batch_order");
+        }
+        last_index = Some(*index);
+    }
+    if seen.len() != cdc.len() {
+        return refuse(blocks, "part_extra");
+    }
+    Some(BatchSummary {
+        count: items.len() as u64,
+        chain_sha256: sha256_hex(chain.as_bytes()),
+        first_pos,
+        last_pos: items.last().and_then(|item| item["last_pos"].as_str()?.parse::<u64>().ok()),
+    })
+}
+
+/// Bind the v2 baseline scope to the verified facts. Returns the scope when every
+/// binding holds. The scope lives in the capturer and is copied into the receipt.
+#[allow(clippy::too_many_arguments)]
+/// Input digest of one chunked-typed/v2 baseline run. The producer computes the same value at
+/// `open` and sends it in the open frame (mysql-preview `c1_materialize::input_digest`).
+fn input_digest_v2(l0: &str, config_digest: &str, schema_digest: &str, type_digest: &str) -> String {
+    sha256_hex(format!("oo.c1.input/v3\n{l0}\n{config_digest}\n{schema_digest}\n{type_digest}\n").as_bytes())
+}
+
+fn verify_scope_v2(
+    capturer: &Value,
+    witness: &WitnessV2,
+    config_digest: &str,
+    schema_digest: &str,
+    parts_digest: &str,
+    walked: &WalkedV2,
+    batches: &BatchSummary,
+    l0_pos: u64,
+    l_end_pos: u64,
+) -> Option<Value> {
+    let scope = capturer.get("baseline_scope")?;
+    let object = scope.as_object()?;
+    let keys = [
+        "protocol", "engine", "lineage", "l0", "l0_pos", "l_end", "l_end_pos", "complete",
+        "config_digest", "schema_digest", "consistency_grade", "cross_table_consistent",
+        "composition_rule", "bucket_bits", "cdc_batches", "source_identity", "tables",
+        "expected_rows", "expected_composed_digest",
+    ];
+    if object.len() != keys.len() || keys.iter().any(|key| !object.contains_key(*key)) {
+        return None;
+    }
+    if scope["protocol"].as_str() != Some(SCOPE_PROTOCOL_V2)
+        || scope["engine"].as_str() != Some("mysql")
+        || scope["complete"].as_bool() != Some(true)
+        || scope["config_digest"].as_str() != Some(config_digest)
+        || scope["schema_digest"].as_str().is_none_or(|text| !hex64(text))
+        || scope["consistency_grade"].as_str() != Some("T")
+        || scope["cross_table_consistent"].as_bool() != Some(true)
+        || scope["composition_rule"].as_str() != Some(COMPOSITION_RULE_V2)
+        || scope["bucket_bits"].as_u64() != Some(BUCKET_BITS_V2)
+    {
+        return None;
+    }
+    let lineage = scope["lineage"].as_str().filter(|text| !text.is_empty() && text.len() <= 128)?;
+    let l0 = scope["l0"].as_str().filter(|text| !text.is_empty() && text.len() <= 256)?;
+    let l_end = scope["l_end"].as_str().filter(|text| !text.is_empty() && text.len() <= 256)?;
+    if scope["l0_pos"].as_u64() != Some(l0_pos)
+        || scope["l_end_pos"].as_u64() != Some(l_end_pos)
+        || gtid_tail_v2(l0) != Some(l0_pos)
+        || gtid_tail_v2(l_end) != Some(l_end_pos)
+        || witness.snapshot.value != l_end
+        || witness.snapshot.kind != "mysql_cdc_first"
+    {
+        return None;
+    }
+    let identity = scope["source_identity"].as_object()?;
+    if identity.len() != 4
+        || identity["engine"].as_str() != Some("mysql")
+        || identity["measured_id"].as_str() != Some(lineage)
+        || !identity["shard_id"].as_str().is_some_and(|text| !text.is_empty() && text.len() <= 128)
+        || !identity["owner_token"].as_str().is_some_and(canonical_uuid)
+    {
+        return None;
+    }
+    let batches_scope = &scope["cdc_batches"];
+    if batches_scope["sha256"].as_str() != Some(witness.cdc_batches_sha256.as_str())
+        || batches_scope["count"].as_u64() != Some(batches.count)
+        || batches_scope["chain_sha256"].as_str() != Some(batches.chain_sha256.as_str())
+        || batches_scope["first_pos"].as_str().and_then(|text| text.parse::<u64>().ok()) != batches.first_pos
+        || batches_scope["last_pos"].as_str().and_then(|text| text.parse::<u64>().ok()) != batches.last_pos
+    {
+        return None;
+    }
+    let tables = scope["tables"].as_array().filter(|items| !items.is_empty() && items.len() <= 64)?;
+    let mut prior: Option<(&str, &str)> = None;
+    let mut current = None;
+    for table in tables {
+        let schema = table["schema"].as_str().filter(|text| !text.is_empty())?;
+        let name = table["table"].as_str().filter(|text| !text.is_empty())?;
+        if prior.is_some_and(|old| old >= (schema, name)) {
+            return None;
+        }
+        prior = Some((schema, name));
+        if schema == witness.logical_schema && name == witness.logical_table {
+            current = Some(table);
+        }
+    }
+    let table = current?;
+    // The scope names the whole baseline: its row total is the sum over its tables and its composed
+    // digest covers all tables. The loader recomputes both from the tables. For one table the two
+    // digests are equal, so the witness binds the scope exactly.
+    let total = tables
+        .iter()
+        .try_fold(0u64, |acc, item| acc.checked_add(item["expected_rows"].as_u64()?))?;
+    let composed = scope["expected_composed_digest"].as_str().filter(|text| hex64(text))?;
+    if scope["expected_rows"].as_u64() != Some(total)
+        || (tables.len() == 1 && composed != witness.expected_composed_digest.as_str())
+    {
+        return None;
+    }
+    if table["parts_digest"].as_str() != Some(parts_digest)
+        || table["fill_rows"].as_u64() != Some(walked.fill_rows)
+        || table["cdc_rows"].as_u64() != Some(walked.cdc_rows)
+        || table["schema_sha256"].as_str() != Some(schema_digest)
+        || table["expected_rows"].as_u64() != Some(witness.expected_rows)
+        || table["expected_composed_digest"].as_str() != Some(witness.expected_composed_digest.as_str())
+    {
+        return None;
+    }
+    Some(scope.clone())
+}
+
+/// Result of a v2 admission before sealing.
+struct PreparedV2 {
+    decision: Decision,
+    material: Option<Material>,
+    witness: Witness,
+}
+
+fn prepare_v2(
+    report: &TargetReport,
+    config: &SourceConfig,
+    input: &CapturedInputV2<'_>,
+    source: &mut dyn PartSource,
+) -> Result<PreparedV2, InputFault> {
+    let witness_v2 = parse_witness_v2(input.witness)?;
+    let witness = witness_from_v2(&witness_v2);
+    let capturer: Value = parse_strict(input.capturer).map_err(|err| fault(&safe_fact(&err.fact)))?;
+    if !capturer.is_object() {
+        return Err(fault("capturer"));
+    }
+    let schema_value: Value = parse_strict(input.schema_preimage).map_err(|err| fault(&safe_fact(&err.fact)))?;
+    let type_value: Value = parse_strict(input.type_preimage).map_err(|err| fault(&safe_fact(&err.fact)))?;
+    let manifest_value: Value = parse_strict(input.table_manifest).map_err(|err| fault(&safe_fact(&err.fact)))?;
+    let batches_value: Value = parse_strict(input.cdc_batches).map_err(|err| fault(&safe_fact(&err.fact)))?;
+    let tables: Vec<PreimageTable> =
+        serde_json::from_value(schema_value.clone()).map_err(|_| fault("schema preimage"))?;
+    if [&capturer, &schema_value, &type_value, &manifest_value, &batches_value]
+        .iter()
+        .any(|value| contains_secret(value))
+    {
+        let mut decision = admit(report, config);
+        decision.blocks.push(block("SECRET_LEAK", "capturer"));
+        return Ok(PreparedV2 {
+            decision: finish_public(decision)?,
+            material: None,
+            witness,
+        });
+    }
+
+    let mut blocks = Vec::new();
+    match engine_for_compat(&report.compat_mode) {
+        Some("mysql") => {}
+        Some(_) => blocks.push(block("ENGINE_MISMATCH", "source_engine")),
+        None => blocks.push(block("ENGINE_UNSUPPORTED", "compat_mode")),
+    }
+    if witness.source_id != report.source_id || !simple_id(&witness.source_id) {
+        blocks.push(block("IDENTITY_MISMATCH", "source_id"));
+    }
+    if witness.source_generation < 1 {
+        blocks.push(block("GENERATION_INVALID", "source_generation"));
+    }
+    if capturer.get("protocol").and_then(Value::as_str) != Some("oo.mysql.capture-tick/v1") {
+        blocks.push(block("PROTOCOL_UNSUPPORTED", "capturer.protocol"));
+    }
+    if let Some(value) = capturer.get("source_id")
+        && value.as_str() != Some(witness.source_id.as_str())
+    {
+        blocks.push(block("CROSS_SOURCE", "source_id"));
+    }
+    if let Some(value) = capturer.get("source_generation")
+        && value.as_i64() != Some(witness.source_generation)
+    {
+        blocks.push(block("GENERATION_MISMATCH", "source_generation"));
+    }
+    let writes = bind_writes(&capturer, true, &mut blocks);
+    bind_snapshot(&capturer, None, &witness, true, &mut blocks);
+    let table = match select_table(&capturer, &witness.logical_table) {
+        Some(table) => Some(table),
+        None => {
+            blocks.push(block("OBJECT_UNBOUND", "logical_table"));
+            None
+        }
+    };
+    bind_schema_name(&capturer, table, &witness, &mut blocks);
+    if !object_scope_ok(report, &witness.logical_schema, &witness.logical_table, &capturer, table) {
+        blocks.push(block("OBJECT_UNAPPROVED", "logical_table"));
+    }
+    let entry = table.unwrap_or(&capturer);
+    if entry.get("route").and_then(Value::as_str) != Some("C1") {
+        blocks.push(block("CAPTURE_UNKNOWN", "route"));
+    }
+    if entry.get("consistency").and_then(Value::as_str) != Some("T") {
+        blocks.push(block("CONSISTENCY_UNKNOWN", "consistency"));
+    }
+    if entry.get("delete_mode").and_then(Value::as_str) != Some("native") {
+        blocks.push(block("CAPTURE_UNKNOWN", "delete_mode"));
+    }
+    if capturer.get("cross_table_consistency").and_then(Value::as_str) != Some("T") {
+        blocks.push(block("CONSISTENCY_UNKNOWN", "cross_table_consistency"));
+    }
+
+    let scope_value = capturer.get("baseline_scope").cloned().unwrap_or(Value::Null);
+    let l0_pos = scope_value["l0_pos"].as_u64();
+    let l_end_pos = scope_value["l_end_pos"].as_u64();
+    let manifest = match parse_manifest_v2(&manifest_value) {
+        Ok(manifest) => Some(manifest),
+        Err(fact) => {
+            blocks.push(block("PARTS_UNVERIFIED", fact));
+            None
+        }
+    };
+    let dir = std::path::Path::new(&witness_v2.table_manifest_path)
+        .parent()
+        .unwrap_or(std::path::Path::new("/"))
+        .to_path_buf();
+    if sha256_hex(input.table_manifest) != witness_v2.table_manifest_sha256 {
+        blocks.push(block("PARTS_UNVERIFIED", "manifest_sha256"));
+    }
+    if sha256_hex(input.cdc_batches) != witness_v2.cdc_batches_sha256 {
+        blocks.push(block("CDC_CHAIN_BROKEN", "cdc_batches_sha256"));
+    }
+    let walked = manifest
+        .as_ref()
+        .map(|(parts, _)| walk_parts_v2(&dir, parts, &mut *source, &mut blocks));
+    let summary = match (&manifest, l0_pos, l_end_pos) {
+        (Some((parts, _)), Some(l0), Some(end)) => verify_batches_v2(
+            &batches_value,
+            l0,
+            end,
+            (&witness.logical_schema, &witness.logical_table),
+            parts,
+            &mut blocks,
+        ),
+        _ => None,
+    };
+    let schema_digest = sha256_hex(input.schema_preimage);
+    let config_digest = sha256_hex(input.config);
+    let scope = match (&manifest, &walked, &summary, l0_pos, l_end_pos) {
+        (Some((_, digest)), Some(walk), Some(batches), Some(l0), Some(end)) => verify_scope_v2(
+            &capturer,
+            &witness_v2,
+            &config_digest,
+            &schema_digest,
+            digest,
+            walk,
+            batches,
+            l0,
+            end,
+        ),
+        _ => None,
+    };
+    if scope.is_none() {
+        blocks.push(block("COMPOSITION_UNBOUND", "baseline_scope"));
+    }
+    if let Some(walk) = &walked {
+        let source_rows = walk.fill_rows + walk.cdc_rows;
+        if config.budget.unit == "Rows" && source_rows > config.budget.hard_limit {
+            blocks.push(block("BUDGET_EXCEEDED", "arrow.rows"));
+        }
+    }
+    let cursor = match (&scope, l0_pos, l_end_pos) {
+        (Some(scope), Some(_), Some(_)) => mysql_baseline_cursor(&capturer, scope),
+        _ => None,
+    };
+    if cursor.is_none() {
+        blocks.push(block("CURSOR_UNOBSERVED", "baseline_gtid"));
+    }
+    let method = cursor.as_ref().map(|(_, retention)| CaptureMethod {
+        method: "C1".to_string(),
+        write_class: "R0".to_string(),
+        consistency: "T".to_string(),
+        token_order: "Total".to_string(),
+        retention_window: Some(retention.clone()),
+        cursor: None,
+        feed: None,
+        cdc: Some("Binlog".to_string()),
+        delete_detection: Some("native".to_string()),
+    });
+    let writes_ok = writes.attempts_zero && writes.token_observed;
+
+    let mut policy = report.clone();
+    if policy.capture_methods.is_empty()
+        && let Some(method) = &method
+    {
+        policy.capture_methods = vec![method.clone()];
+    }
+    let mut decision = admit(&policy, config);
+    if !report.capture_methods.is_empty() {
+        match &method {
+            Some(method) if methods_agree(&report.capture_methods, method) => {
+                decision.model.capture_methods = vec![method.clone()];
+            }
+            Some(method) => {
+                decision.model.capture_methods = vec![method.clone()];
+                decision.blocks.push(block("CAPTURE_UNTRUSTED", "capture_methods"));
+            }
+            None => decision.blocks.push(block("CAPTURE_UNTRUSTED", "capture_methods")),
+        }
+    }
+    let driver_digest = sha256_hex(input.driver);
+    if input.driver.is_empty()
+        || report.driver.kind.is_empty()
+        || report.driver.name.is_empty()
+        || report.driver.version.is_empty()
+    {
+        blocks.push(block("DRIVER_MISSING", "driver"));
+    } else if !hex64(&report.driver.digest) || report.driver.digest != driver_digest {
+        blocks.push(block("DRIVER_DIGEST_MISMATCH", "driver.digest"));
+    }
+    let fields = bind_columns(
+        &capturer,
+        "mysql",
+        &tables,
+        &witness.logical_table,
+        walked.as_ref().and_then(|walk| walk.first_fill.as_ref()),
+        &type_value,
+        &mut blocks,
+    );
+    decision.blocks.append(&mut blocks);
+    if report.capabilities.is_empty() {
+        decision.blocks.push(block("CAPABILITY_ABSENT", "capabilities"));
+    }
+    if decision.blocks.is_empty() && !writes.token_observed {
+        decision.blocks.push(block("WRITE_UNOBSERVED", "snapshot_token"));
+    }
+    let admitted = decision.blocks.is_empty();
+    decision.admitted = admitted;
+
+    let type_digest = sha256_hex(input.type_preimage);
+    // FRAMES-V2 §3.1: the input digest the producer bound at `open`, recomputed from the same facts
+    // (L0, the admission config digest, the baseline schema digest, the type digest).
+    let input_digest_v2 = input_digest_v2(
+        scope_value["l0"].as_str().unwrap_or_default(),
+        &config_digest,
+        scope_value["schema_digest"].as_str().unwrap_or_default(),
+        &type_digest,
+    );
+    let material = match (admitted && writes_ok, walked, scope, method, fields, manifest, summary, cursor) {
+        (true, Some(walk), Some(scope), Some(method), Some(fields), Some((_, digest)), Some(batches), Some((cursor, _))) => {
+            let first = walk.first_fill.as_ref().ok_or_else(|| fault("fill"))?;
+            let c1 = serde_json::json!({
+                "protocol": "oo.source-admission.c1-parts-bound/v2",
+                "table_manifest_sha256": witness_v2.table_manifest_sha256,
+                "parts_digest": digest,
+                "fill_parts": walk.fill_parts,
+                "cdc_parts": walk.cdc_parts,
+                "fill_rows": walk.fill_rows,
+                "cdc_rows": walk.cdc_rows,
+                "expected_rows": witness_v2.expected_rows,
+                "expected_composed_digest": witness_v2.expected_composed_digest,
+                "composition_rule": COMPOSITION_RULE_V2,
+                "bucket_bits": BUCKET_BITS_V2,
+                "cdc_batches": {
+                    "sha256": witness_v2.cdc_batches_sha256,
+                    "count": batches.count,
+                    "chain_sha256": batches.chain_sha256,
+                    "first_pos": batches.first_pos,
+                    "last_pos": batches.last_pos,
+                },
+                "l0_pos": l0_pos,
+                "l_end_pos": l_end_pos,
+            });
+            Some(Material {
+                engine: "mysql".to_string(),
+                source_id: witness_v2.source_id.clone(),
+                generation: witness_v2.source_generation,
+                snapshot_kind: witness_v2.snapshot.kind.clone(),
+                snapshot_value: witness_v2.snapshot.value.clone(),
+                run_id: witness_v2.run_id.clone(),
+                logical_schema: witness_v2.logical_schema.clone(),
+                logical_table: witness_v2.logical_table.clone(),
+                row_count: walk.fill_rows,
+                quality: None,
+                cross_table: Some("T".to_string()),
+                delete_observation: delete_observation(table),
+                capture_method: method.method.clone(),
+                consistency: method.consistency.clone(),
+                delete_detection: "native".to_string(),
+                write_attempts: 0,
+                write_class: method.write_class.clone(),
+                dba_objects: None,
+                source_cursor: Some(cursor),
+                snapshot_token: false,
+                schema_digest: schema_digest.clone(),
+                type_digest,
+                config_digest: config_digest.clone(),
+                input_digest: input_digest_v2.clone(),
+                arrow_schema_sha256: first.schema_sha256.clone(),
+                driver_digest: driver_digest.clone(),
+                driver_kind: report.driver.kind.clone(),
+                driver_name: report.driver.name.clone(),
+                driver_version: report.driver.version.clone(),
+                fields,
+                multipart_scope: None,
+                multipart_anchor: false,
+                range_scope: None,
+                partition_scope: None,
+                transaction_scope: None,
+                gtid_scope: None,
+                source_instance: None,
+                baseline_scope: Some(scope),
+                c1_v2: Some(c1),
+            })
+        }
+        _ => None,
+    };
+    Ok(PreparedV2 {
+        decision: finish_public(decision)?,
+        material,
+        witness,
+    })
+}
+
+/// Decide a v2 witness. Parts are read through `parts`, one at a time.
+pub fn decide_captured_v2(
+    report: &TargetReport,
+    config: &SourceConfig,
+    input: &CapturedInputV2<'_>,
+    parts: &mut dyn PartSource,
+) -> Result<Decision, InputFault> {
+    Ok(prepare_v2(report, config, input, parts)?.decision)
+}
+
+/// Decide and seal a v2 witness. Output has the same bundle shape as v1, with the
+/// v2 binding facts in `c1_parts`.
+pub fn seal_captured_v2(
+    report: &TargetReport,
+    config: &SourceConfig,
+    input: &CapturedInputV2<'_>,
+    parts: &mut dyn PartSource,
+    paths: &OutputPaths<'_>,
+) -> Result<SealResult, InputFault> {
+    for path in [
+        paths.report_path,
+        paths.config_path,
+        paths.catalog_path,
+        paths.receipt_path,
+    ] {
+        if !absolute_path(path) {
+            return Err(fault("path"));
+        }
+    }
+    let prepared = prepare_v2(report, config, input, parts)?;
+    let decision_bytes = decision_json(&prepared.decision).map_err(|_| fault("decision"))?;
+    if !prepared.decision.admitted {
+        return Ok(SealResult {
+            decision: prepared.decision,
+            decision_bytes,
+            bundle: None,
+            refusal: None,
+        });
+    }
+    if let Some(refusal) = seal_refusal(report, config, &prepared.decision) {
+        return Ok(SealResult {
+            decision: prepared.decision,
+            decision_bytes,
+            bundle: None,
+            refusal: Some(refusal),
+        });
+    }
+    let material = prepared.material.ok_or_else(|| fault("seal"))?;
+    // `pack` reads the report, config and capturer only. The v1 arrow field is
+    // not used for v2, so it is an empty slice here.
+    let as_v1 = CapturedInput {
+        witness: input.witness,
+        capturer: input.capturer,
+        arrow: &[],
+        driver: input.driver,
+        schema_preimage: input.schema_preimage,
+        type_preimage: input.type_preimage,
+        report: input.report,
+        config: input.config,
+    };
+    let bundle = pack(&decision_bytes, &material, &prepared.witness, &as_v1, paths)?;
+    Ok(SealResult {
+        decision: prepared.decision,
+        decision_bytes,
+        bundle: Some(bundle),
+        refusal: None,
+    })
+}
+
+#[cfg(test)]
+mod c1_v2_tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    use serde_json::json;
+
+    const UUID: &str = "3f1a2b3c-4d5e-4f60-8172-93a4b5c6d7e8";
+    const OWNER: &str = "0d9f7c2e-1b3a-4c5d-8e9f-a0b1c2d3e4f5";
+    const DIR: &str = "/virtual/parts/s.t";
+    /// Golden digests. The same values are asserted in oo-pipeline and
+    /// mysql-preview, which compute them with `c1_parts`.
+    const GOLDEN_PARTS_DIGEST: &str = "d0826b6ea78b56aed4ef6878c65f4a16077baa552a0d5a3316ae549d555f27e3";
+    const GOLDEN_BATCH_DIGEST: &str = "2afcb6226ae87da9bb44f420844662f2251917e95c0aef4f31cce2e30b86d1df";
+
+    // Stored as `.ipc` because the repository ignores `*.arrow`. The manifest names
+    // them `*.arrow`, which is what `Mem` serves.
+    const FILL_1: &[u8] = include_bytes!("../fixtures/native/c1v2/fill-00000001.ipc");
+    const FILL_2: &[u8] = include_bytes!("../fixtures/native/c1v2/fill-00000002.ipc");
+    const CDC_1: &[u8] = include_bytes!("../fixtures/native/c1v2/cdc-00000001.ipc");
+    const CDC_2: &[u8] = include_bytes!("../fixtures/native/c1v2/cdc-00000002.ipc");
+
+    /// Serves parts from memory and records the order of reads.
+    struct Mem {
+        files: BTreeMap<String, Vec<u8>>,
+        reads: Vec<String>,
+    }
+
+    impl PartSource for Mem {
+        fn read(&mut self, dir: &std::path::Path, name: &str) -> Result<Vec<u8>, InputFault> {
+            self.reads.push(name.to_string());
+            if dir != std::path::Path::new(DIR) {
+                return Err(fault("dir"));
+            }
+            self.files.get(name).cloned().ok_or_else(|| fault("missing"))
+        }
+    }
+
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Shape {
+        /// Two fill parts and two CDC batches. Positions: L0 10, L_end 18.
+        Full,
+        /// One fill part and no CDC. L_end equals L0.
+        SingleFill,
+    }
+
+    /// Every input of one v2 admission, as bytes.
+    #[derive(Clone)]
+    struct Bundle {
+        witness: Vec<u8>,
+        capturer: Vec<u8>,
+        manifest: Vec<u8>,
+        batches: Vec<u8>,
+        driver: Vec<u8>,
+        schema: Vec<u8>,
+        types: Vec<u8>,
+        report: Vec<u8>,
+        config: Vec<u8>,
+        files: BTreeMap<String, Vec<u8>>,
+        hard_limit: u64,
+    }
+
+    fn l0() -> String {
+        format!("{UUID}:1-10")
+    }
+
+    fn l_end(shape: Shape) -> String {
+        match shape {
+            Shape::Full => format!("{UUID}:1-18"),
+            Shape::SingleFill => format!("{UUID}:1-10"),
+        }
+    }
+
+    fn part(kind: &'static str, part_no: u32, lo: Option<i128>, hi: Option<i128>, rows: u64, bytes: &[u8]) -> PartV2 {
+        PartV2 {
+            kind,
+            part_no: u64::from(part_no),
+            key_lo: lo,
+            key_hi: hi,
+            rows,
+            bytes: bytes.len() as u64,
+            sha256: sha256_hex(bytes),
+        }
+    }
+
+    fn part_json(part: &PartV2) -> Value {
+        json!({"part_no": part.part_no, "kind": part.kind, "key_lo": part.key_lo.map(|k| k.to_string()),
+            "key_hi": part.key_hi.map(|k| k.to_string()), "rows": part.rows, "bytes": part.bytes, "sha256": part.sha256})
+    }
+
+    fn manifest_bytes(parts: &[PartV2]) -> Vec<u8> {
+        let value = json!({"protocol": PARTS_PROTOCOL_V2, "parts": parts.iter().map(part_json).collect::<Vec<_>>(),
+            "parts_digest": parts_digest_v2(parts)});
+        serde_json::to_vec(&value).unwrap()
+    }
+
+    fn batch_ref(part: &PartV2) -> BatchRefV2 {
+        BatchRefV2 {
+            schema: "s".into(),
+            table: "t".into(),
+            part_no: part.part_no,
+            sha256: part.sha256.clone(),
+            rows: part.rows,
+        }
+    }
+
+    /// Batch list for the full shape. Each entry is `(batch_no, first, last, parts)`.
+    fn batches_value(entries: &[(u64, u64, u64, &PartV2)]) -> Value {
+        let mut chain = String::from(CHAIN_PREFIX_V2);
+        let mut items = Vec::new();
+        for (batch_no, first, last, part) in entries {
+            let refs = vec![batch_ref(part)];
+            let digest = batch_digest_v2(*batch_no, *first, *last, &refs);
+            chain.push_str(&format!("{batch_no}|{digest}\n"));
+            items.push(json!({"batch_no": batch_no, "first_pos": first.to_string(), "last_pos": last.to_string(),
+                "batch_sha256": digest, "parts": [{"schema": "s", "table": "t", "part_no": part.part_no,
+                    "sha256": part.sha256, "rows": part.rows}]}));
+        }
+        let first = entries.first().map(|e| e.1.to_string());
+        let last = entries.last().map(|e| e.2.to_string());
+        json!({"protocol": CDC_BATCHES_PROTOCOL_V2, "count": entries.len(), "first_pos": first, "last_pos": last,
+            "chain_sha256": sha256_hex(chain.as_bytes()), "batches": items})
+    }
+
+    fn chain_of(batches: &Value) -> String {
+        let mut chain = String::from(CHAIN_PREFIX_V2);
+        for item in batches["batches"].as_array().unwrap() {
+            chain.push_str(&format!("{}|{}\n", item["batch_no"], item["batch_sha256"].as_str().unwrap()));
+        }
+        sha256_hex(chain.as_bytes())
+    }
+
+    fn report_json(driver: &[u8]) -> Value {
+        json!({"protocol":"oo.source-admission.report/v1","target_id":"s1","source_id":"s1","secret_ref":"secret://mysql-native",
+            "compat_mode":"mysql-native","permissions":[{"name":"SELECT","status":"known","granted":true,
+                "scope":{"database":"s","table":"t"}}],"r1w":null,
+            "driver":{"kind":"native","name":"mysql_async","version":"0.36.1","digest":sha256_hex(driver)},
+            "license_flags":["GPL-2.0"],
+            "capabilities":[{"name":"Cdc","cursor":null,"feed":null,"cdc":"Binlog","token_order":"Total","budget_unit":"Rows",
+                "level":"experimental","write_class":"R0","consistency":"T"}],
+            "capture_methods":[{"method":"C1","write_class":"R0","consistency":"T","token_order":"Total",
+                "retention_window":"604800s","cursor":null,"feed":null,"cdc":"Binlog","delete_detection":"native"}],
+            "cost_model":{"unit":"Rows","confidence":"unknown","estimate":"bounded owned fixture"},
+            "capture_witness":"/virtual/witness.json"})
+    }
+
+    fn config_json(hard_limit: u64) -> Value {
+        json!({"protocol":"oo.source-admission.config/v1","target_id":"s1","source_id":"s1","secret_ref":"secret://mysql-native",
+            "compat_mode":"mysql-native","permissions":[{"name":"SELECT","status":"known","granted":true,
+                "scope":{"database":"s","table":"t"}}],"r1w":null,
+            "budget":{"unit":"Rows","hard_limit":hard_limit,"confidence":"unknown"},
+            "write_options":{"signal_table":false,"heartbeat_write":false,"create_stream":false,"create_trigger":false},
+            "debezium":{"signal_data_collection":null,"heartbeat_action_query":null,"snapshot_mode":"never",
+                "create_stream":false,"create_trigger":false},
+            "requested_write_class":"R0"})
+    }
+
+    fn schema_json() -> Value {
+        json!([{"table":"t","columns":[
+            {"name":"id","arrow_type":"int64","nullable":false,"key":true},
+            {"name":"name","arrow_type":"utf8","nullable":true}]}])
+    }
+
+    fn types_json() -> Value {
+        json!([
+            {"name":"id","table":"t","arrow_type":"int64","nullable":false,"key":true,"precision":null,"scale":null,
+                "document":false,"char_length":null,"source_type":"bigint","target_oid":20,"target_typmod":-1,"caveat":null},
+            {"name":"name","table":"t","arrow_type":"utf8","nullable":true,"key":false,"precision":null,"scale":null,
+                "document":false,"char_length":null,"source_type":"varchar","target_oid":1043,"target_typmod":-1,"caveat":null}
+        ])
+    }
+
+    /// Build a consistent v2 bundle. Digests are computed from the bytes it holds.
+    fn bundle(shape: Shape) -> Bundle {
+        let driver = b"driver-binary".to_vec();
+        let mut files = BTreeMap::new();
+        let (parts, batches) = match shape {
+            Shape::Full => {
+                files.insert("fill-00000001.arrow".into(), FILL_1.to_vec());
+                files.insert("fill-00000002.arrow".into(), FILL_2.to_vec());
+                files.insert("cdc-00000001.arrow".into(), CDC_1.to_vec());
+                files.insert("cdc-00000002.arrow".into(), CDC_2.to_vec());
+                let fill1 = part("fill", 1, Some(1), Some(3), 3, FILL_1);
+                let fill2 = part("fill", 2, Some(10), Some(11), 2, FILL_2);
+                let cdc1 = part("cdc", 1, Some(2), Some(7), 3, CDC_1);
+                let cdc2 = part("cdc", 2, Some(2), Some(11), 2, CDC_2);
+                let parts = vec![fill1, fill2, cdc1.clone(), cdc2.clone()];
+                let batches = batches_value(&[(1, 11, 15, &cdc1), (2, 16, 18, &cdc2)]);
+                (parts, batches)
+            }
+            Shape::SingleFill => {
+                files.insert("fill-00000001.arrow".into(), FILL_1.to_vec());
+                let fill1 = part("fill", 1, Some(1), Some(3), 3, FILL_1);
+                let batches = json!({"protocol": CDC_BATCHES_PROTOCOL_V2, "count": 0, "first_pos": null,
+                    "last_pos": null, "chain_sha256": sha256_hex(CHAIN_PREFIX_V2.as_bytes()), "batches": []});
+                (vec![fill1], batches)
+            }
+        };
+        let manifest = manifest_bytes(&parts);
+        let batches_bytes = serde_json::to_vec(&batches).unwrap();
+        let manifest_value: Value = serde_json::from_slice(&manifest).unwrap();
+        let digest = manifest_value["parts_digest"].as_str().unwrap().to_string();
+        let rows: u64 = parts.iter().filter(|p| p.kind == "fill").map(|p| p.rows).sum();
+        let cdc_rows: u64 = parts.iter().filter(|p| p.kind == "cdc").map(|p| p.rows).sum();
+        let lend = l_end(shape);
+        let witness_path = "/virtual/parts/s.t/parts-manifest.json";
+        let config = serde_json::to_vec(&config_json(50_000_000)).unwrap();
+        let schema = serde_json::to_vec(&schema_json()).unwrap();
+        let types = serde_json::to_vec(&types_json()).unwrap();
+        let config_digest = sha256_hex(&config);
+        let schema_digest_table = sha256_hex(&schema);
+        let batches_sha = sha256_hex(&batches_bytes);
+        let chain = if shape == Shape::Full { chain_of(&batches) } else { sha256_hex(CHAIN_PREFIX_V2.as_bytes()) };
+        let (first_pos, last_pos) = match shape {
+            Shape::Full => (Some(11u64), Some(18u64)),
+            Shape::SingleFill => (None, None),
+        };
+        let scope = json!({"protocol": SCOPE_PROTOCOL_V2, "engine": "mysql", "lineage": format!("mysql.{UUID}"),
+            "l0": l0(), "l0_pos": 10, "l_end": lend, "l_end_pos": if shape == Shape::Full { 18 } else { 10 },
+            "complete": true, "config_digest": config_digest, "schema_digest": "5".repeat(64),
+            "consistency_grade": "T", "cross_table_consistent": true, "composition_rule": COMPOSITION_RULE_V2,
+            "bucket_bits": BUCKET_BITS_V2,
+            "cdc_batches": {"sha256": batches_sha, "count": batches["count"], "chain_sha256": chain,
+                "first_pos": first_pos.map(|p| p.to_string()), "last_pos": last_pos.map(|p| p.to_string())},
+            "source_identity": {"engine": "mysql", "measured_id": format!("mysql.{UUID}"), "shard_id": "shard-a",
+                "owner_token": OWNER},
+            "tables": [{"schema": "s", "table": "t", "fill_rows": rows, "cdc_rows": cdc_rows, "parts_digest": digest,
+                "schema_sha256": schema_digest_table, "expected_rows": 4, "expected_composed_digest": "ab".repeat(32)}],
+            "expected_rows": 4, "expected_composed_digest": "ab".repeat(32)});
+        let capturer = json!({"protocol": "oo.mysql.capture-tick/v1", "source_id": "s1", "source_generation": 1,
+            "run_id": OWNER, "source_preflight": {"gtid_mode": "ON", "enforce_gtid_consistency": "ON",
+                "binlog_format": "ROW", "binlog_row_image": "FULL", "log_bin": "1", "binlog_expire_logs_seconds": 604800},
+            "snapshot": {"kind": "mysql_cdc_first", "value": lend},
+            "tables": [{"name": "t", "table": "t", "schema": "s", "database": "s", "route": "C1", "consistency": "T",
+                "delete_mode": "native", "cursor_safety": "no_cursor", "parts_digest": digest,
+                "fill_rows": rows, "cdc_rows": cdc_rows}],
+            "product_reader_write_attempts": 0, "snapshot_token": false, "cross_table_consistency": "T",
+            "baseline_scope": scope});
+        let witness = json!({"protocol": WITNESS_PROTOCOL_V2, "source_engine": "mysql", "source_id": "s1",
+            "source_generation": 1, "snapshot": {"kind": "mysql_cdc_first", "value": lend}, "run_id": OWNER,
+            "logical_schema": "s", "logical_table": "t", "capturer_path": "/virtual/capturer.json",
+            "table_manifest_path": witness_path, "table_manifest_sha256": sha256_hex(&manifest),
+            "cdc_batches_path": "/virtual/cdc-batches.json", "cdc_batches_sha256": batches_sha,
+            "driver_path": "/virtual/driver", "schema_preimage_path": "/virtual/schema.json",
+            "type_preimage_path": "/virtual/types.json", "expected_rows": 4,
+            "expected_composed_digest": "ab".repeat(32), "composition_rule": COMPOSITION_RULE_V2, "bucket_bits": 12});
+        Bundle {
+            witness: serde_json::to_vec(&witness).unwrap(),
+            capturer: serde_json::to_vec(&capturer).unwrap(),
+            manifest,
+            batches: batches_bytes,
+            driver,
+            schema,
+            types,
+            report: serde_json::to_vec(&report_json(b"driver-binary")).unwrap(),
+            config,
+            files,
+            hard_limit: 50_000_000,
+        }
+    }
+
+    impl Bundle {
+        fn input(&self) -> CapturedInputV2<'_> {
+            CapturedInputV2 {
+                witness: &self.witness,
+                capturer: &self.capturer,
+                table_manifest: &self.manifest,
+                cdc_batches: &self.batches,
+                driver: &self.driver,
+                schema_preimage: &self.schema,
+                type_preimage: &self.types,
+                report: &self.report,
+                config: &self.config,
+            }
+        }
+
+        fn source(&self) -> Mem {
+            Mem { files: self.files.clone(), reads: Vec::new() }
+        }
+
+        fn target(&self) -> TargetReport {
+            parse_strict(&self.report).unwrap()
+        }
+
+        fn policy(&self) -> SourceConfig {
+            let mut value: Value = serde_json::from_slice(&self.config).unwrap();
+            value["budget"]["hard_limit"] = json!(self.hard_limit);
+            parse_strict(&serde_json::to_vec(&value).unwrap()).unwrap()
+        }
+
+        /// Replace the batch list and re-bind its digest in the witness and scope.
+        /// A caller that re-signs gets past the file digest, not past the chain.
+        fn set_batches(&mut self, batches: &Value) {
+            self.batches = serde_json::to_vec(batches).unwrap();
+            let sha = sha256_hex(&self.batches);
+            let mut witness: Value = serde_json::from_slice(&self.witness).unwrap();
+            witness["cdc_batches_sha256"] = json!(sha);
+            self.witness = serde_json::to_vec(&witness).unwrap();
+            let mut capturer: Value = serde_json::from_slice(&self.capturer).unwrap();
+            capturer["baseline_scope"]["cdc_batches"]["sha256"] = json!(sha);
+            self.capturer = serde_json::to_vec(&capturer).unwrap();
+        }
+    }
+
+    fn codes(decision: &Decision) -> Vec<String> {
+        decision.blocks.iter().map(|b| b.code.clone()).collect()
+    }
+
+    fn decide(bundle: &Bundle) -> (Decision, Mem) {
+        let mut source = bundle.source();
+        let decision = decide_captured_v2(&bundle.target(), &bundle.policy(), &bundle.input(), &mut source).unwrap();
+        (decision, source)
+    }
+
+    #[test]
+    fn golden_digests_match_the_loader_and_producer() {
+        let parts = vec![
+            part("fill", 1, Some(1), Some(3), 3, FILL_1),
+            part("fill", 2, Some(10), Some(11), 2, FILL_2),
+            part("cdc", 1, Some(2), Some(7), 3, CDC_1),
+            part("cdc", 2, Some(2), Some(11), 2, CDC_2),
+        ];
+        assert_eq!(parts_digest_v2(&parts), GOLDEN_PARTS_DIGEST);
+        let refs = vec![BatchRefV2 { schema: "s".into(), table: "t".into(), part_no: 1, sha256: "ab".repeat(32), rows: 3 }];
+        assert_eq!(batch_digest_v2(1, 11, 15, &refs), GOLDEN_BATCH_DIGEST);
+    }
+
+    #[test]
+    fn full_v2_witness_is_admitted_and_reads_each_part_once_in_order() {
+        let b = bundle(Shape::Full);
+        let (decision, source) = decide(&b);
+        assert!(decision.blocks.is_empty(), "{:?}", codes(&decision));
+        assert!(decision.admitted);
+        assert_eq!(source.reads, ["fill-00000001.arrow", "fill-00000002.arrow", "cdc-00000001.arrow", "cdc-00000002.arrow"]);
+    }
+
+    #[test]
+    fn sealed_registry_binds_the_manifest_digest_and_the_batch_chain() {
+        let b = bundle(Shape::Full);
+        let mut source = b.source();
+        let paths = OutputPaths {
+            report_path: "/virtual/report.json",
+            config_path: "/virtual/config.json",
+            catalog_path: "/virtual/catalog.json",
+            receipt_path: "/virtual/receipt.json",
+        };
+        let sealed = seal_captured_v2(&b.target(), &b.policy(), &b.input(), &mut source, &paths).unwrap();
+        let bundle = sealed.bundle.expect("admitted v2 seals");
+        let registry: Value = serde_json::from_slice(&bundle.registry).unwrap();
+        let facts = &registry["bindings"][0]["c1_parts"];
+        assert_eq!(facts["parts_digest"], json!(parts_digest_v2(&[
+            part("fill", 1, Some(1), Some(3), 3, FILL_1),
+            part("fill", 2, Some(10), Some(11), 2, FILL_2),
+            part("cdc", 1, Some(2), Some(7), 3, CDC_1),
+            part("cdc", 2, Some(2), Some(11), 2, CDC_2),
+        ])));
+        assert_eq!(facts["cdc_batches"]["count"], json!(2));
+        assert_eq!(facts["l0_pos"], json!(10));
+        assert_eq!(facts["l_end_pos"], json!(18));
+        assert_eq!(facts["expected_composed_digest"], json!("ab".repeat(32)));
+        // The binding's input digest is the open-time formula over the same four facts.
+        let binding = &registry["bindings"][0];
+        let scope = &binding["baseline_scope"];
+        assert_eq!(
+            binding["input_digest"],
+            json!(input_digest_v2(
+                scope["l0"].as_str().unwrap(),
+                binding["config_digest"].as_str().unwrap(),
+                scope["schema_digest"].as_str().unwrap(),
+                binding["type_digest"].as_str().unwrap(),
+            ))
+        );
+        let receipt: Value = serde_json::from_slice(&bundle.receipt).unwrap();
+        assert_eq!(receipt["c1_parts"]["cdc_batches"]["chain_sha256"], facts["cdc_batches"]["chain_sha256"]);
+    }
+
+    #[test]
+    fn single_part_table_keeps_the_file_digest() {
+        let b = bundle(Shape::SingleFill);
+        let (decision, _) = decide(&b);
+        assert!(decision.admitted, "{:?}", codes(&decision));
+        let manifest: Value = serde_json::from_slice(&b.manifest).unwrap();
+        assert_eq!(manifest["parts_digest"], json!(sha256_hex(FILL_1)));
+    }
+
+    #[test]
+    fn a_flipped_byte_in_a_cdc_part_is_refused() {
+        let mut b = bundle(Shape::Full);
+        let bytes = b.files.get_mut("cdc-00000002.arrow").unwrap();
+        let last = bytes.len() - 1;
+        bytes[last] ^= 0x01;
+        let (decision, _) = decide(&b);
+        assert!(!decision.admitted);
+        assert!(codes(&decision).contains(&"PART_UNVERIFIED".to_string()), "{:?}", codes(&decision));
+        let fact = decision.blocks.iter().find(|x| x.code == "PART_UNVERIFIED").unwrap();
+        assert!(fact.fact.contains("part_sha256"), "{}", fact.fact);
+    }
+
+    #[test]
+    fn a_missing_fill_part_is_refused() {
+        let mut b = bundle(Shape::Full);
+        b.files.remove("fill-00000002.arrow");
+        let (decision, _) = decide(&b);
+        assert!(!decision.admitted);
+        assert!(codes(&decision).contains(&"PART_UNVERIFIED".to_string()));
+    }
+
+    #[test]
+    fn reordered_cdc_batches_break_the_chain() {
+        let mut b = bundle(Shape::Full);
+        let cdc1 = part("cdc", 1, Some(2), Some(7), 3, CDC_1);
+        let cdc2 = part("cdc", 2, Some(2), Some(11), 2, CDC_2);
+        // Batch 2 (16..=18) first, then batch 1 (11..=15), with the numbers kept.
+        let reordered = batches_value(&[(1, 16, 18, &cdc2), (2, 11, 15, &cdc1)]);
+        b.set_batches(&reordered);
+        let (decision, _) = decide(&b);
+        assert!(!decision.admitted);
+        let chain = decision.blocks.iter().find(|x| x.code == "CDC_CHAIN_BROKEN");
+        assert!(chain.is_some(), "{:?}", codes(&decision));
+    }
+
+    #[test]
+    fn a_batch_with_a_wrong_digest_is_refused() {
+        let mut b = bundle(Shape::Full);
+        let mut batches: Value = serde_json::from_slice(&b.batches).unwrap();
+        batches["batches"][0]["batch_sha256"] = json!("cd".repeat(32));
+        b.set_batches(&batches);
+        let (decision, _) = decide(&b);
+        assert!(!decision.admitted);
+        assert!(decision.blocks.iter().any(|x| x.code == "CDC_CHAIN_BROKEN" && x.fact == "batch_sha256"));
+    }
+
+    #[test]
+    fn the_row_budget_comes_from_the_config_policy() {
+        let mut tight = bundle(Shape::Full);
+        tight.hard_limit = 4;
+        let (decision, _) = decide(&tight);
+        assert!(codes(&decision).contains(&"BUDGET_EXCEEDED".to_string()), "{:?}", codes(&decision));
+        let mut exact = bundle(Shape::Full);
+        exact.hard_limit = 10;
+        let (decision, _) = decide(&exact);
+        assert!(decision.admitted, "{:?}", codes(&decision));
+    }
+
+    #[test]
+    fn a_manifest_that_lies_about_rows_is_refused_even_when_re_signed() {
+        let mut b = bundle(Shape::Full);
+        let mut manifest: Value = serde_json::from_slice(&b.manifest).unwrap();
+        manifest["parts"][0]["rows"] = json!(4);
+        let parts = parse_manifest_v2(&manifest);
+        // The digest no longer matches, so the lie is caught even before the parts are read.
+        assert_eq!(parts.unwrap_err(), "parts_digest");
+        // Re-signing the digest moves the lie into the part check.
+        let typed = vec![
+            part("fill", 1, Some(1), Some(3), 4, FILL_1),
+            part("fill", 2, Some(10), Some(11), 2, FILL_2),
+            part("cdc", 1, Some(2), Some(7), 3, CDC_1),
+            part("cdc", 2, Some(2), Some(11), 2, CDC_2),
+        ];
+        b.manifest = manifest_bytes(&typed);
+        let mut witness: Value = serde_json::from_slice(&b.witness).unwrap();
+        witness["table_manifest_sha256"] = json!(sha256_hex(&b.manifest));
+        b.witness = serde_json::to_vec(&witness).unwrap();
+        let (decision, _) = decide(&b);
+        assert!(!decision.admitted);
+        let fact = decision.blocks.iter().find(|x| x.code == "PART_UNVERIFIED").expect("row lie is caught");
+        assert!(fact.fact.contains("part_rows"), "{}", fact.fact);
+    }
+
+    #[test]
+    fn input_digest_golden_vector_matches_the_producer() {
+        // Golden value shared with mysql-preview `c1_materialize::input_digest`.
+        assert_eq!(
+            input_digest_v2("u:1-5", &"a".repeat(64), &"b".repeat(64), &"c".repeat(64)),
+            "b01997b5e1399dc2a04ffe16f303d3230f48c8696599c539753803a23884a1eb"
+        );
+    }
+
+    #[test]
+    fn multi_table_scope_binds_the_row_total_over_all_tables() {
+        let mut b = bundle(Shape::Full);
+        let mut capturer: Value = serde_json::from_slice(&b.capturer).unwrap();
+        let mut second = capturer["baseline_scope"]["tables"][0].clone();
+        second["table"] = json!("u");
+        second["expected_rows"] = json!(6);
+        second["expected_composed_digest"] = json!("cd".repeat(32));
+        capturer["baseline_scope"]["tables"].as_array_mut().unwrap().push(second);
+        capturer["baseline_scope"]["expected_rows"] = json!(10);
+        capturer["baseline_scope"]["expected_composed_digest"] = json!("ef".repeat(32));
+        b.capturer = serde_json::to_vec(&capturer).unwrap();
+        let (decision, _) = decide(&b);
+        assert!(!codes(&decision).contains(&"COMPOSITION_UNBOUND".to_string()), "{:?}", codes(&decision));
+
+        let mut wrong: Value = serde_json::from_slice(&b.capturer).unwrap();
+        wrong["baseline_scope"]["expected_rows"] = json!(4);
+        b.capturer = serde_json::to_vec(&wrong).unwrap();
+        let (decision, _) = decide(&b);
+        assert!(!decision.admitted);
+        assert!(codes(&decision).contains(&"COMPOSITION_UNBOUND".to_string()), "{:?}", codes(&decision));
+    }
+
+    #[test]
+    fn expected_composed_digest_is_bound_not_trusted() {
+        let mut b = bundle(Shape::Full);
+        let mut capturer: Value = serde_json::from_slice(&b.capturer).unwrap();
+        capturer["baseline_scope"]["expected_composed_digest"] = json!("cd".repeat(32));
+        b.capturer = serde_json::to_vec(&capturer).unwrap();
+        let (decision, _) = decide(&b);
+        assert!(!decision.admitted);
+        assert!(codes(&decision).contains(&"COMPOSITION_UNBOUND".to_string()), "{:?}", codes(&decision));
+    }
+
+    /// `VmHWM` of this process in kB (Linux). `None` where `/proc` is absent.
+    fn peak_rss_kb() -> Option<u64> {
+        let status = std::fs::read_to_string("/proc/self/status").ok()?;
+        status
+            .lines()
+            .find(|line| line.starts_with("VmHWM:"))
+            .and_then(|line| line.split_whitespace().nth(1)?.parse().ok())
+    }
+
+    /// Reads parts from a directory, one `fs::read` per part.
+    struct Disk;
+
+    impl PartSource for Disk {
+        fn read(&mut self, dir: &std::path::Path, name: &str) -> Result<Vec<u8>, InputFault> {
+            std::fs::read(dir.join(name)).map_err(|_| fault("missing"))
+        }
+    }
+
+    /// Admission walk over about 200 MiB of fill parts. Run with
+    /// `OO_C1_V2_RSS_DIR=<dir> OO_C1_V2_RSS_ROWS=<rows per part> cargo test --release -- --ignored rss_`.
+    #[test]
+    #[ignore]
+    fn rss_admission_walk_over_large_parts() {
+        let dir = std::path::PathBuf::from(std::env::var_os("OO_C1_V2_RSS_DIR").expect("OO_C1_V2_RSS_DIR"));
+        let rows: i128 = std::env::var("OO_C1_V2_RSS_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(30_000);
+        let mut names: Vec<std::path::PathBuf> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).collect();
+        names.sort();
+        let mut parts = Vec::new();
+        for (index, path) in names.iter().enumerate() {
+            let bytes = std::fs::read(path).unwrap();
+            let lo = index as i128 * rows + 1;
+            let parsed = parse_arrow(&bytes).unwrap();
+            parts.push(PartV2 {
+                kind: "fill",
+                part_no: index as u64 + 1,
+                key_lo: Some(lo),
+                key_hi: Some(lo + rows - 1),
+                rows: parsed.rows,
+                bytes: bytes.len() as u64,
+                sha256: sha256_hex(&bytes),
+            });
+        }
+        // Reset the high-water mark so it covers only the walk below.
+        let _ = std::fs::write("/proc/self/clear_refs", "5");
+        let before = peak_rss_kb();
+        let started = std::time::Instant::now();
+        let mut blocks = Vec::new();
+        let walked = walk_parts_v2(&dir, &parts, &mut Disk, &mut blocks);
+        let after = peak_rss_kb();
+        println!(
+            "rss-admission parts={} fill_rows={} blocks={} hwm_reset_kb={:?} hwm_peak_during_kb={:?} seconds={:.2}",
+            parts.len(), walked.fill_rows, blocks.len(), before, after, started.elapsed().as_secs_f64()
+        );
+        assert!(blocks.is_empty());
+        assert_eq!(walked.fill_rows, rows as u64 * parts.len() as u64);
+    }
+
+    #[test]
+    fn v1_witness_is_not_a_v2_witness() {
+        let v1 = br#"{"protocol":"oo.source-admission.capture-witness/v1"}"#;
+        assert!(!witness_is_v2(v1));
+        let b = bundle(Shape::Full);
+        assert!(witness_is_v2(&b.witness));
+        let mut source = b.source();
+        let refused = decide_captured_v2(&b.target(), &b.policy(), &CapturedInputV2 { witness: v1, ..b.input() }, &mut source);
+        assert_eq!(refused.unwrap_err().fact, "protocol");
+    }
+}
+
 #[cfg(test)]
 mod native_type_tests {
     use super::*;
+
+    #[test]
+    fn wide_reserved_column_stream_is_bound_without_raising_table_batch_limits() {
+        let bytes = include_bytes!("../fixtures/native/wide-reserved.ipc");
+        let parsed = parse_arrow(bytes).expect("292-column bounded stream");
+        assert_eq!(parsed.fields.len(), 292);
+        assert_eq!(parsed.rows, 1);
+        assert_eq!(parsed.fields[1].name, "group");
+        let columns = parsed.fields.iter().map(|f| serde_json::json!({
+            "name":f.name,"arrow_type":"int32","nullable":false
+        })).collect::<Vec<_>>();
+        let tables: Vec<PreimageTable> = serde_json::from_value(serde_json::json!([
+            {"table":"wide","columns":columns}
+        ])).unwrap();
+        let types = serde_json::json!(parsed.fields.iter().map(|f| serde_json::json!({
+            "table":"wide","name":f.name,"arrow_type":"int32"
+        })).collect::<Vec<_>>());
+        let mut blocks = Vec::new();
+        let fields = bind_columns(&serde_json::json!({}), "mysql", &tables, "wide",
+                                  Some(&parsed), &types, &mut blocks).unwrap();
+        assert_eq!(fields.len(), 292);
+        assert!(blocks.is_empty());
+        let mut forged = bytes.to_vec();
+        forged.truncate(80);
+        assert!(parse_arrow(&forged).is_err());
+    }
 
     #[test]
     fn pg_per_table_observation_only_binds_s1() {
@@ -3166,6 +5006,162 @@ mod native_type_tests {
         let field = ArrowField { dictionary_id: None, name: "uid".to_string(), nullable: false,
             typed: plain("binary") };
         assert!(bind_column(&field, &columns[0]).is_err());
+    }
+
+    #[test]
+    fn c5_range_part_is_bound_to_one_real_witness_not_the_whole_range() {
+        let witness: Witness = serde_json::from_value(serde_json::json!({
+            "protocol":WITNESS_PROTOCOL,"source_engine":"mysql","source_id":"source",
+            "source_generation":2,"snapshot":{"kind":"mysql_read_only","value":"one-snapshot"},"run_id":"test",
+            "logical_schema":"app","logical_table":"items","capturer_path":"/capture/capturer.json",
+            "arrow_path":"/capture/part-0.arrow","driver_path":"/driver","schema_preimage_path":"/schema",
+            "type_preimage_path":"/types"})).unwrap();
+        let scope = serde_json::json!({
+            "protocol":"oo.pipeline.native-c5-range-part/v1",
+            "range":{"source_engine":"mysql","source_id":"source","schema":"app","table":"items",
+                "schema_fingerprint":"a".repeat(64),"chunk_topology_revision":1,"chunk_id":"0",
+                "lo":null,"hi":null,"prior_membership_revision":1,"parent_generation":1,"source_generation":2},
+            "parts_index":{"path":"/capture/parts.jsonl","sha256":"c".repeat(64),"bytes":900},
+            "part_count":2,"total_rows":100001,
+            "part":{"ordinal":0,"arrow":{"path":"/capture/part-0.arrow","sha256":"b".repeat(64),"bytes":4096},
+                "row_count":100000},
+            "snapshot":{"kind":"mysql_read_only","value":"one-snapshot"}
+        });
+        let capture = serde_json::json!({"range_scope":scope});
+        let check = |document:&Value, rows| {
+            let mut blocks=Vec::new();
+            let result=bind_range_scope(document,&witness,Some("C5"),&"b".repeat(64),Some(rows),&mut blocks);
+            (result,blocks)
+        };
+        let (bound,blocks)=check(&capture,100000);
+        assert_eq!(bound,Some(scope));
+        assert!(blocks.is_empty());
+        assert!(check(&capture,100001).0.is_none());
+        for (path, value) in [
+            ("/range_scope/range/source_id",serde_json::json!("other")),
+            ("/range_scope/snapshot/value",serde_json::json!("another-snapshot")),
+            ("/range_scope/part/arrow/sha256",serde_json::json!("d".repeat(64))),
+            ("/range_scope/part/ordinal",serde_json::json!(2)),
+        ] {
+            let mut bad=capture.clone();
+            *bad.pointer_mut(path).unwrap()=value;
+            let (bound,blocks)=check(&bad,100000);
+            assert!(bound.is_none(),"{path}");
+            assert!(!blocks.is_empty(),"{path}");
+        }
+        let mut conflicting=capture;
+        conflicting["multipart_scope"]=serde_json::json!({});
+        assert!(check(&conflicting,100000).0.is_none());
+    }
+
+    #[test]
+    fn c5_range_scope_binds_witness_and_complete_empty_arrow() {
+        let witness: Witness = serde_json::from_value(serde_json::json!({
+            "protocol":WITNESS_PROTOCOL,"source_engine":"mysql","source_id":"source",
+            "source_generation":1,"snapshot":{"kind":"seal","value":"test"},"run_id":"test",
+            "logical_schema":"app","logical_table":"t_orders","capturer_path":"/test",
+            "arrow_path":"/test","driver_path":"/test","schema_preimage_path":"/test",
+            "type_preimage_path":"/test"}))
+        .unwrap();
+        let scope = serde_json::json!({"protocol":"oo.pipeline.native-c5-range/v1",
+            "source_engine":"mysql","capture_method":"c5_diff","source_id":"source",
+            "schema":"app","table":"t_orders","schema_fingerprint":"a".repeat(64),
+            "chunk_topology_revision":1,"chunk_id":"block-1","lo":null,"hi":null,
+            "prior_membership_revision":0,"parent_generation":0,"source_generation":1,
+            "arrow_sha256":"b".repeat(64),"row_count":0,"delete_detection":"reconcile",
+            "position_codec":"snapshot-zero/v1","applied_pos":"0","members":[]});
+        let capture = serde_json::json!({"range_scope":scope});
+        let mut blocks = Vec::new();
+        assert_eq!(
+            bind_range_scope(
+                &capture,
+                &witness,
+                Some("C5"),
+                &"b".repeat(64),
+                Some(0),
+                &mut blocks
+            ),
+            Some(scope.clone())
+        );
+        assert!(blocks.is_empty());
+        for (field, value) in [
+            ("source_id", serde_json::json!("other")),
+            ("schema", serde_json::json!("other")),
+            ("table", serde_json::json!("other")),
+            ("source_generation", serde_json::json!(2)),
+            ("arrow_sha256", serde_json::json!("c".repeat(64))),
+            ("row_count", serde_json::json!(1)),
+            ("where", serde_json::json!("true")),
+        ] {
+            let mut changed = capture.clone();
+            changed["range_scope"][field] = value;
+            assert!(
+                bind_range_scope(
+                    &changed,
+                    &witness,
+                    Some("C5"),
+                    &"b".repeat(64),
+                    Some(0),
+                    &mut blocks
+                )
+                .is_none(),
+                "{field}"
+            );
+        }
+        assert!(
+            bind_range_scope(
+                &capture,
+                &witness,
+                Some("C1"),
+                &"b".repeat(64),
+                Some(0),
+                &mut blocks
+            )
+            .is_none()
+        );
+        assert!(
+            bind_range_scope(
+                &serde_json::json!({}),
+                &witness,
+                Some("C5"),
+                &"b".repeat(64),
+                Some(0),
+                &mut blocks
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn oracle_c5_range_requires_actual_manifest_identity_scn_and_s0() {
+        let witness: Witness = serde_json::from_value(serde_json::json!({
+            "protocol":WITNESS_PROTOCOL,"source_engine":"oracle","source_id":"source",
+            "source_generation":2,"snapshot":{"kind":"oracle_scn","value":"2304141"},"run_id":"test",
+            "logical_schema":"OWNER","logical_table":"ORDERS","capturer_path":"/test",
+            "arrow_path":"/test","driver_path":"/test","schema_preimage_path":"/test",
+            "type_preimage_path":"/test"})).unwrap();
+        let raw = serde_json::json!({"protocol":"oo.oracle.sealed-snapshot/v1","complete":true,
+            "scope_complete":true,"binding":{"source_id":"source","identity":"owned-oracle",
+                "scn":"2304141","inventory":[{"owner":"OWNER","table":"ORDERS","keys":["ID"]}]}}).to_string();
+        let scope = serde_json::json!({"protocol":"oo.pipeline.native-c5-range/v1",
+            "source_engine":"oracle","capture_method":"c5_diff","source_id":"source",
+            "schema":"OWNER","table":"ORDERS","schema_fingerprint":"a".repeat(64),
+            "chunk_topology_revision":1,"chunk_id":"0","lo":null,"hi":null,
+            "prior_membership_revision":1,"parent_generation":1,"source_generation":2,
+            "arrow_sha256":"b".repeat(64),"row_count":0,"delete_detection":"reconcile",
+            "position_codec":"snapshot-zero/v1","applied_pos":"0","members":[],
+            "oracle_snapshot":{"identity":"owned-oracle","scn":"2304141",
+                "manifest_sha256":sha256_hex(raw.as_bytes()),"source_schema":"OWNER","source_table":"ORDERS"}});
+        let capture = serde_json::json!({"range_scope":scope,"oracle_snapshot_manifest":raw,
+            "tables":[{"name":"ORDERS","route":"C5","consistency":"S0"}]});
+        let check = |value: &Value| bind_range_scope(value,&witness,Some("C5"),&"b".repeat(64),Some(0),&mut Vec::new());
+        assert!(check(&capture).is_some());
+        for (field,value) in [("identity","other"),("scn","2304142"),("manifest_sha256","bad")] {
+            let mut bad=capture.clone();bad["range_scope"]["oracle_snapshot"][field]=serde_json::json!(value);
+            assert!(check(&bad).is_none(),"{field}");
+        }
+        let mut bad=capture.clone();bad["tables"][0]["consistency"]=serde_json::json!("B");
+        assert!(check(&bad).is_none());
     }
 
     #[test]

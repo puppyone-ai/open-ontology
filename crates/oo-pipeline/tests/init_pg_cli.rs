@@ -90,12 +90,22 @@ fn password_and_ca_files_fail_without_echoing_secrets() {
     let mut document = body("db.example", None);
     document["target"]["password_file"] = json!(missing.display().to_string());
     document["target"]["ca_file"] = json!(missing.display().to_string());
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     let folder = dir.join(format!("not-a-file-{SECRET}"));
     fs::create_dir_all(&folder).unwrap();
     document["target"]["password_file"] = json!(folder.display().to_string());
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     let password = dir.join("password");
     write_file(&password, format!("{SECRET}\n").as_bytes());
@@ -103,19 +113,39 @@ fn password_and_ca_files_fail_without_echoing_secrets() {
     let _ = fs::remove_file(&link);
     std::os::unix::fs::symlink(&password, &link).unwrap();
     document["target"]["password_file"] = json!(link.display().to_string());
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     write_file(&password, b"\r\n");
     document["target"]["password_file"] = json!(password.display().to_string());
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     let mut nul = SECRET.as_bytes().to_vec();
     nul.push(0);
     write_file(&password, &nul);
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     write_file(&password, &vec![b'a'; 1025]);
-    assert_fail(&[], document.to_string().as_bytes(), 3, "target password file");
+    assert_fail(
+        &[],
+        document.to_string().as_bytes(),
+        3,
+        "target password file",
+    );
 
     write_file(&password, format!("{SECRET}\r\n").as_bytes());
     let ca = dir.join("ca.crt");
@@ -164,7 +194,10 @@ struct Harness {
 impl Harness {
     async fn connect() -> Self {
         let host = env::var("OO_INIT_PG_HOST").expect("OO_INIT_PG_HOST");
-        let port: u16 = env::var("OO_INIT_PG_PORT").expect("OO_INIT_PG_PORT").parse().unwrap();
+        let port: u16 = env::var("OO_INIT_PG_PORT")
+            .expect("OO_INIT_PG_PORT")
+            .parse()
+            .unwrap();
         let admin_user = env::var("OO_INIT_PG_ADMIN_USER").expect("OO_INIT_PG_ADMIN_USER");
         let admin_file = PathBuf::from(env::var("OO_INIT_PG_ADMIN_PASSWORD_FILE").unwrap());
         let admin_password = read_secret(&admin_file);
@@ -221,7 +254,12 @@ impl Harness {
         self.reject_secrets(&first.1, &first.2)?;
         let sealed = self.migration_text("oo_a223_dst").await;
         self.expect_no_publish("oo_a223_dst").await?;
-        let runs = self.scalar("oo_a223_dst", "SELECT count(*)::text FROM _oo.full_import_run").await;
+        let runs = self
+            .scalar(
+                "oo_a223_dst",
+                "SELECT count(*)::text FROM _oo.full_import_run",
+            )
+            .await;
         if runs != "0" {
             return Err(format!("import rows before import-pg: {runs}"));
         }
@@ -245,7 +283,12 @@ impl Harness {
         if self.migration_text("oo_a223_dst").await != sealed {
             return Err("post-import replay changed schema_migrations".to_string());
         }
-        let runs = self.scalar("oo_a223_dst", "SELECT count(*)::text FROM _oo.full_import_run").await;
+        let runs = self
+            .scalar(
+                "oo_a223_dst",
+                "SELECT count(*)::text FROM _oo.full_import_run",
+            )
+            .await;
         if runs != "1" {
             return Err(format!("import rows after replay: {runs}"));
         }
@@ -265,9 +308,25 @@ impl Harness {
         self.reset().await;
         create_login(&mut self.postgres, "oo_a223_reader", &self.reader_password).await;
         create_login(&mut self.postgres, "oo_a223_writer", &self.writer_password).await;
-        create_login(&mut self.postgres, "oo_a223_runtime", &self.runtime_password).await;
-        create_login(&mut self.postgres, "oo_a223_limited", &self.limited_password).await;
-        for name in ["oo_a223_src", "oo_a223_dst", "oo_a223_second", "oo_a223_partial", "oo_a223_checksum"] {
+        create_login(
+            &mut self.postgres,
+            "oo_a223_runtime",
+            &self.runtime_password,
+        )
+        .await;
+        create_login(
+            &mut self.postgres,
+            "oo_a223_limited",
+            &self.limited_password,
+        )
+        .await;
+        for name in [
+            "oo_a223_src",
+            "oo_a223_dst",
+            "oo_a223_second",
+            "oo_a223_partial",
+            "oo_a223_checksum",
+        ] {
             create_db(&mut self.postgres, name).await;
         }
         self.source = dial(
@@ -298,11 +357,12 @@ impl Harness {
             return Err(format!("not ready code={code} err={err}"));
         }
         self.reject_secrets(&out, &err)?;
-        let schema = self.scalar(
-            "oo_a223_dst",
-            "SELECT count(*)::text FROM pg_catalog.pg_namespace WHERE nspname = '_oo'",
-        )
-        .await;
+        let schema = self
+            .scalar(
+                "oo_a223_dst",
+                "SELECT count(*)::text FROM pg_catalog.pg_namespace WHERE nspname = '_oo'",
+            )
+            .await;
         if schema != "0" {
             return Err("import-pg installed a schema".to_string());
         }
@@ -315,7 +375,11 @@ impl Harness {
             "GRANT CONNECT ON DATABASE oo_a223_dst TO oo_a223_runtime",
         )
         .await;
-        raw(&mut self.postgres, "GRANT oo_pipeline_runtime TO oo_a223_runtime").await;
+        raw(
+            &mut self.postgres,
+            "GRANT oo_pipeline_runtime TO oo_a223_runtime",
+        )
+        .await;
     }
 
     async fn wrong_ca(&mut self, sealed: &str) -> Result<(), String> {
@@ -324,7 +388,9 @@ impl Harness {
             &path,
             &format!("-----BEGIN CERTIFICATE-----\n{SECRET}\n-----END CERTIFICATE-----\n"),
         );
-        let got = self.init_as("oo_a223_dst", &self.admin_user, &self.admin_file, &path).await?;
+        let got = self
+            .init_as("oo_a223_dst", &self.admin_user, &self.admin_file, &path)
+            .await?;
         self.save("wrong-ca", &got);
         if got.0 != 4 || !got.1.is_empty() || got.2 != "init-pg: target connect\n" {
             return Err(format!("wrong ca code={} err={}", got.0, got.2));
@@ -343,7 +409,12 @@ impl Harness {
         )
         .await;
         let got = self
-            .init_as("oo_a223_dst", "oo_a223_limited", &self.limited_file, &self.ca_file)
+            .init_as(
+                "oo_a223_dst",
+                "oo_a223_limited",
+                &self.limited_file,
+                &self.ca_file,
+            )
             .await?;
         self.save("privilege", &got);
         if got.0 != 5 || !got.1.is_empty() || got.2 != "init-pg: target administrator\n" {
@@ -367,11 +438,19 @@ impl Harness {
 
     async fn second_empty(&mut self, sealed: &str) -> Result<(), String> {
         let limited = self
-            .init_as("oo_a223_second", "oo_a223_limited", &self.limited_file, &self.ca_file)
+            .init_as(
+                "oo_a223_second",
+                "oo_a223_limited",
+                &self.limited_file,
+                &self.ca_file,
+            )
             .await?;
         self.save("second-privilege", &limited);
         if limited.0 != 5 || limited.2 != "init-pg: target administrator\n" {
-            return Err(format!("second privilege code={} err={}", limited.0, limited.2));
+            return Err(format!(
+                "second privilege code={} err={}",
+                limited.0, limited.2
+            ));
         }
         raw(
             &mut self.postgres,
@@ -379,11 +458,19 @@ impl Harness {
         )
         .await;
         let limited = self
-            .init_as("oo_a223_second", "oo_a223_limited", &self.limited_file, &self.ca_file)
+            .init_as(
+                "oo_a223_second",
+                "oo_a223_limited",
+                &self.limited_file,
+                &self.ca_file,
+            )
             .await?;
         self.save("second-privilege-connect", &limited);
         if limited.0 != 5 || limited.2 != "init-pg: target administrator\n" {
-            return Err(format!("second connect privilege code={} err={}", limited.0, limited.2));
+            return Err(format!(
+                "second connect privilege code={} err={}",
+                limited.0, limited.2
+            ));
         }
         let got = self.init_admin("oo_a223_second", &self.ca_file).await?;
         self.save("second-empty", &got);
@@ -394,11 +481,12 @@ impl Harness {
             return Err("second stderr echoed the server".to_string());
         }
         self.reject_secrets(&got.1, &got.2)?;
-        let schema = self.scalar(
-            "oo_a223_second",
-            "SELECT count(*)::text FROM pg_catalog.pg_namespace WHERE nspname = '_oo'",
-        )
-        .await;
+        let schema = self
+            .scalar(
+                "oo_a223_second",
+                "SELECT count(*)::text FROM pg_catalog.pg_namespace WHERE nspname = '_oo'",
+            )
+            .await;
         if schema != "0" {
             return Err(format!("second schema count {schema}"));
         }
@@ -435,14 +523,22 @@ impl Harness {
         if got.2.contains("segment relation") || got.2.contains("OO002") {
             return Err("partial stderr echoed the server".to_string());
         }
-        let note = self.scalar("oo_a223_partial", "SELECT note FROM public.kept WHERE id = 1").await;
-        let migrations = self.scalar(
-            "oo_a223_partial",
-            "SELECT (pg_catalog.to_regclass('_oo.schema_migrations') IS NULL)::text",
-        )
-        .await;
+        let note = self
+            .scalar(
+                "oo_a223_partial",
+                "SELECT note FROM public.kept WHERE id = 1",
+            )
+            .await;
+        let migrations = self
+            .scalar(
+                "oo_a223_partial",
+                "SELECT (pg_catalog.to_regclass('_oo.schema_migrations') IS NULL)::text",
+            )
+            .await;
         if note != "partial-a223" || migrations != "true" {
-            return Err(format!("partial preserved note={note} migrations_absent={migrations}"));
+            return Err(format!(
+                "partial preserved note={note} migrations_absent={migrations}"
+            ));
         }
         Ok(())
     }
@@ -483,7 +579,12 @@ impl Harness {
         if got.2.contains(BAD_CHECKSUM) || got.1.contains(BAD_CHECKSUM) || got.2.contains("OO001") {
             return Err("checksum stderr echoed the stored digest".to_string());
         }
-        let note = self.scalar("oo_a223_checksum", "SELECT note FROM public.kept WHERE id = 1").await;
+        let note = self
+            .scalar(
+                "oo_a223_checksum",
+                "SELECT note FROM public.kept WHERE id = 1",
+            )
+            .await;
         let stored = self
             .scalar(
                 "oo_a223_checksum",
@@ -502,22 +603,44 @@ impl Harness {
         }
         self.reject_secrets(&got.1, &got.2)?;
         let doc: Value = serde_json::from_str(got.1.trim()).map_err(|err| err.to_string())?;
-        if doc["protocol"] != "oo.pipeline.import-pg-result/v1" || doc["state"] != "awaiting_publish" {
+        if doc["protocol"] != "oo.pipeline.import-pg-result/v1"
+            || doc["state"] != "awaiting_publish"
+        {
             return Err(format!("import document {doc}"));
         }
         if doc["source_generation"] != 11 || doc["table_count"] != 2 {
             return Err(format!("import counts {doc}"));
         }
         let tables = doc["tables"].as_array().ok_or("tables")?;
-        self.compare_table(&tables[0], "crates", "label", &[("1", "spruce-keel"), ("2", "oak-rib")])
-            .await?;
-        self.compare_table(&tables[1], "tags", "name", &[("1", "hull"), ("2", "keel"), ("3", "deck")])
-            .await?;
-        let publications = self.scalar("oo_a223_dst", "SELECT count(*)::text FROM pg_catalog.pg_publication").await;
+        self.compare_table(
+            &tables[0],
+            "crates",
+            "label",
+            &[("1", "spruce-keel"), ("2", "oak-rib")],
+        )
+        .await?;
+        self.compare_table(
+            &tables[1],
+            "tags",
+            "name",
+            &[("1", "hull"), ("2", "keel"), ("3", "deck")],
+        )
+        .await?;
+        let publications = self
+            .scalar(
+                "oo_a223_dst",
+                "SELECT count(*)::text FROM pg_catalog.pg_publication",
+            )
+            .await;
         if publications != "0" {
             return Err(format!("publications={publications}"));
         }
-        let runs = self.scalar("oo_a223_dst", "SELECT count(*)::text FROM _oo.full_import_run").await;
+        let runs = self
+            .scalar(
+                "oo_a223_dst",
+                "SELECT count(*)::text FROM _oo.full_import_run",
+            )
+            .await;
         if runs != "1" {
             return Err(format!("runs={runs}"));
         }
@@ -545,7 +668,11 @@ impl Harness {
             &self.ca,
         )
         .await;
-        raw(&mut writer, "INSERT INTO app.crates (id, label) VALUES (3, 'after')").await;
+        raw(
+            &mut writer,
+            "INSERT INTO app.crates (id, label) VALUES (3, 'after')",
+        )
+        .await;
         let reader_writes = self
             .scalar(
                 "oo_a223_src",
@@ -559,7 +686,9 @@ impl Harness {
             )
             .await;
         if reader_writes != "0" || writer_writes != "1" {
-            return Err(format!("audit reader={reader_writes} writer={writer_writes}"));
+            return Err(format!(
+                "audit reader={reader_writes} writer={writer_writes}"
+            ));
         }
         Ok(())
     }
@@ -574,8 +703,14 @@ impl Harness {
         if table["schema"] != "app" || table["name"] != name || table["rows"] != expect.len() {
             return Err(format!("table header {table}"));
         }
-        let physical = table["physical_name"].as_str().ok_or("physical")?.to_string();
-        let digest = table["canonical_digest"].as_str().ok_or("digest")?.to_string();
+        let physical = table["physical_name"]
+            .as_str()
+            .ok_or("physical")?
+            .to_string();
+        let digest = table["canonical_digest"]
+            .as_str()
+            .ok_or("digest")?
+            .to_string();
         if !safe_physical(&physical, "pt_") || digest.len() != 64 {
             return Err(format!("identity {physical} {digest}"));
         }
@@ -601,7 +736,10 @@ impl Harness {
             "SELECT {id_physical}::text || '=' || {label_physical}::text FROM _oo.\"{physical}\" ORDER BY \"_oo_pos\""
         );
         let got_rows = column_on(&mut self.target, &sql).await;
-        let expect_rows: Vec<String> = expect.iter().map(|(id, label)| format!("{id}={label}")).collect();
+        let expect_rows: Vec<String> = expect
+            .iter()
+            .map(|(id, label)| format!("{id}={label}"))
+            .collect();
         if got_rows != expect_rows {
             return Err(format!("values {got_rows:?}"));
         }
@@ -623,7 +761,9 @@ impl Harness {
         if object.len() != 6 || doc["protocol"] != "oo.pipeline.init-pg-result/v1" {
             return Err(format!("init document {doc}"));
         }
-        if doc["install"] != install_outcome || doc["full_import"] != full_outcome || doc["historical_v2"] != historical_v2
+        if doc["install"] != install_outcome
+            || doc["full_import"] != full_outcome
+            || doc["historical_v2"] != historical_v2
         {
             return Err(format!("outcomes {doc}"));
         }
@@ -646,7 +786,10 @@ impl Harness {
 
     async fn expect_no_publish(&mut self, database: &str) -> Result<(), String> {
         let publications = self
-            .scalar(database, "SELECT count(*)::text FROM pg_catalog.pg_publication")
+            .scalar(
+                database,
+                "SELECT count(*)::text FROM pg_catalog.pg_publication",
+            )
             .await;
         let owner = self
             .scalar(
@@ -655,13 +798,20 @@ impl Harness {
             )
             .await;
         if publications != "0" || owner != "false" {
-            return Err(format!("publish publications={publications} owner_member={owner}"));
+            return Err(format!(
+                "publish publications={publications} owner_member={owner}"
+            ));
         }
         Ok(())
     }
 
-    async fn init_admin(&self, database: &str, ca_file: &Path) -> Result<(i32, String, String), String> {
-        self.init_as(database, &self.admin_user, &self.admin_file, ca_file).await
+    async fn init_admin(
+        &self,
+        database: &str,
+        ca_file: &Path,
+    ) -> Result<(i32, String, String), String> {
+        self.init_as(database, &self.admin_user, &self.admin_file, ca_file)
+            .await
     }
 
     async fn init_as(
@@ -683,7 +833,11 @@ impl Harness {
                 "ca_file": ca_file.display().to_string()
             }
         });
-        Ok(spawn(env!("CARGO_BIN_EXE_init-pg"), &[], body.to_string().as_bytes()))
+        Ok(spawn(
+            env!("CARGO_BIN_EXE_init-pg"),
+            &[],
+            body.to_string().as_bytes(),
+        ))
     }
 
     fn spawn_import(&self) -> (i32, String, String) {
@@ -715,13 +869,21 @@ impl Harness {
             "owner": OWNER,
             "source_generation": 11
         });
-        spawn(env!("CARGO_BIN_EXE_oo-pipeline"), &["import-pg"], body.to_string().as_bytes())
+        spawn(
+            env!("CARGO_BIN_EXE_oo-pipeline"),
+            &["import-pg"],
+            body.to_string().as_bytes(),
+        )
     }
 
     fn save(&self, name: &str, got: &(i32, String, String)) {
         fs::write(self.evidence.join(format!("{name}.stdout")), &got.1).unwrap();
         fs::write(self.evidence.join(format!("{name}.stderr")), &got.2).unwrap();
-        fs::write(self.evidence.join(format!("{name}.exit")), got.0.to_string()).unwrap();
+        fs::write(
+            self.evidence.join(format!("{name}.exit")),
+            got.0.to_string(),
+        )
+        .unwrap();
     }
 
     fn reject_secrets(&self, out: &str, err: &str) -> Result<(), String> {
@@ -782,13 +944,36 @@ impl Harness {
     }
 
     async fn reset(&mut self) {
-        for name in ["oo_a223_src", "oo_a223_dst", "oo_a223_second", "oo_a223_partial", "oo_a223_checksum"] {
-            raw(&mut self.postgres, &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await;
+        for name in [
+            "oo_a223_src",
+            "oo_a223_dst",
+            "oo_a223_second",
+            "oo_a223_partial",
+            "oo_a223_checksum",
+        ] {
+            raw(
+                &mut self.postgres,
+                &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"),
+            )
+            .await;
         }
-        for role_name in ["oo_a223_reader", "oo_a223_writer", "oo_a223_runtime", "oo_a223_limited"] {
-            raw(&mut self.postgres, &format!("DROP ROLE IF EXISTS {role_name}")).await;
+        for role_name in [
+            "oo_a223_reader",
+            "oo_a223_writer",
+            "oo_a223_runtime",
+            "oo_a223_limited",
+        ] {
+            raw(
+                &mut self.postgres,
+                &format!("DROP ROLE IF EXISTS {role_name}"),
+            )
+            .await;
         }
-        raw(&mut self.postgres, "DROP ROLE IF EXISTS oo_pipeline_runtime").await;
+        raw(
+            &mut self.postgres,
+            "DROP ROLE IF EXISTS oo_pipeline_runtime",
+        )
+        .await;
         raw(&mut self.postgres, "DROP ROLE IF EXISTS oo_target_owner").await;
     }
 
@@ -855,7 +1040,10 @@ fn spawn(bin: &str, args: &[&str], stdin: &[u8]) -> (i32, String, String) {
         .env("HOME", "/tmp")
         .env("PGPASSWORD", DECOY)
         .env("PGSSLROOTCERT", "/tmp/not-a-ca")
-        .env("DATABASE_URL", format!("postgres://user:{DECOY}@db.example/app"))
+        .env(
+            "DATABASE_URL",
+            format!("postgres://user:{DECOY}@db.example/app"),
+        )
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -909,7 +1097,8 @@ fn read_secret(path: &Path) -> String {
 }
 
 async fn hex_secret(conn: &mut sqlx::postgres::PgConnection, label: &str) -> String {
-    let sql = format!("SELECT encode(sha256(('{label}-' || clock_timestamp()::text)::bytea), 'hex')");
+    let sql =
+        format!("SELECT encode(sha256(('{label}-' || clock_timestamp()::text)::bytea), 'hex')");
     let value = text(conn, &sql).await;
     assert!(value.chars().all(|ch| ch.is_ascii_hexdigit()) && value.len() == 64);
     value
@@ -933,7 +1122,9 @@ async fn dial(
         .ssl_root_cert_from_pem(ca.to_vec());
     assert!(options.get_options().is_none());
     let options = options.disable_statement_logging();
-    sqlx::postgres::PgConnection::connect_with(&options).await.expect("dial")
+    sqlx::postgres::PgConnection::connect_with(&options)
+        .await
+        .expect("dial")
 }
 
 async fn raw(conn: &mut sqlx::postgres::PgConnection, sql: &str) {
@@ -962,7 +1153,9 @@ async fn column_on(conn: &mut sqlx::postgres::PgConnection, sql: &str) -> Vec<St
         .fetch_all(&mut *conn)
         .await
         .unwrap_or_else(|_| panic!("rows failed"));
-    rows.into_iter().map(|row| row.try_get(0).unwrap()).collect()
+    rows.into_iter()
+        .map(|row| row.try_get(0).unwrap())
+        .collect()
 }
 
 async fn create_login(conn: &mut sqlx::postgres::PgConnection, name: &str, secret: &str) {
@@ -993,5 +1186,7 @@ fn safe_physical(name: &str, prefix: &str) -> bool {
     let prefix = prefix.as_bytes();
     bytes.len() == 63
         && bytes.starts_with(prefix)
-        && bytes[prefix.len()..].iter().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+        && bytes[prefix.len()..]
+            .iter()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
 }

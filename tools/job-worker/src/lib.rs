@@ -11,6 +11,7 @@ pub mod config;
 pub mod error;
 pub mod lease;
 pub mod native_schedule;
+pub mod c1_typed_ack;
 pub mod prepare;
 pub mod report;
 pub mod schedule;

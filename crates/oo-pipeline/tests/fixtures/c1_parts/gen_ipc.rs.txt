@@ -1,0 +1,107 @@
+// Writes C1 part fixtures as Arrow IPC streams (uncompressed, metadata V5, 8-byte alignment),
+// the same options as oo-connectors bounded_read.rs. Run once; outputs are committed.
+use std::fs::File;
+use std::path::Path;
+use std::sync::Arc;
+
+use arrow_array::{
+    ArrayRef, BinaryArray, Decimal128Array, Int64Array, RecordBatch, StringArray,
+    TimestampMicrosecondArray,
+};
+use arrow_ipc::MetadataVersion;
+use arrow_ipc::writer::{IpcWriteOptions, StreamWriter};
+use arrow_schema::{DataType, Field, Schema, TimeUnit};
+
+fn fields(with_cdc: bool) -> Vec<Field> {
+    let mut out = vec![
+        Field::new("id", DataType::Int64, false),
+        Field::new("qty", DataType::Decimal128(10, 2), true),
+        Field::new("name", DataType::Utf8, true),
+        Field::new("blob", DataType::Binary, true),
+        Field::new("created", DataType::Timestamp(TimeUnit::Microsecond, None), true),
+    ];
+    if with_cdc {
+        out.push(Field::new("_oo_pos", DataType::Decimal128(38, 0), false));
+        out.push(Field::new("_oo_op", DataType::Utf8, false));
+    }
+    out
+}
+
+fn write(path: &Path, fields: Vec<Field>, columns: Vec<ArrayRef>) {
+    let schema = Arc::new(Schema::new(fields));
+    let batch = RecordBatch::try_new(schema.clone(), columns).expect("batch");
+    let options = IpcWriteOptions::try_new(8, false, MetadataVersion::V5).expect("options");
+    let file = File::create(path).expect("create");
+    let mut writer = StreamWriter::try_new_with_options(file, schema.as_ref(), options).expect("writer");
+    writer.write(&batch).expect("write");
+    writer.finish().expect("finish");
+}
+
+fn base_columns(ids: Vec<i64>, qty: Vec<Option<i128>>, name: Vec<Option<&str>>, blob: Vec<Option<&[u8]>>, created: Vec<Option<i64>>) -> Vec<ArrayRef> {
+    vec![
+        Arc::new(Int64Array::from(ids)),
+        Arc::new(Decimal128Array::from(qty).with_precision_and_scale(10, 2).expect("scale")),
+        Arc::new(StringArray::from(name)),
+        Arc::new(BinaryArray::from(blob)),
+        Arc::new(TimestampMicrosecondArray::from(created)),
+    ]
+}
+
+fn main() {
+    let out = Path::new("/out");
+    // Fill part 1: keys 1..=3, one NULL in each nullable column.
+    write(
+        &out.join("fill-00000001.arrow"),
+        fields(false),
+        base_columns(
+            vec![1, 2, 3],
+            vec![Some(150), None, Some(-5)],
+            vec![Some("héllo 世界"), Some(""), None],
+            vec![Some(&[0u8, 255, 16][..]), None, Some(&[][..])],
+            vec![Some(1_704_164_645_123_456), None, Some(-1)],
+        ),
+    );
+    // Fill part 2: keys 10..=11.
+    write(
+        &out.join("fill-00000002.arrow"),
+        fields(false),
+        base_columns(
+            vec![10, 11],
+            vec![Some(99_999_999_99), Some(0)],
+            vec![Some("x"), Some("y")],
+            vec![None, None],
+            vec![None, None],
+        ),
+    );
+    // Fill part 3: terminal, zero rows.
+    write(
+        &out.join("fill-00000003.arrow"),
+        fields(false),
+        base_columns(vec![], vec![], vec![], vec![], vec![]),
+    );
+    // CDC part 1: upsert, upsert, delete. Positions are 5231, 5231, 5260.
+    let pos = |v: Vec<i128>| -> ArrayRef { Arc::new(Decimal128Array::from(v).with_precision_and_scale(38, 0).expect("pos")) };
+    let op = |v: Vec<&str>| -> ArrayRef { Arc::new(StringArray::from(v)) };
+    let mut cdc = base_columns(
+        vec![1, 2, 3],
+        vec![Some(150), Some(7), None],
+        vec![Some("a"), None, Some("c")],
+        vec![None, Some(&[1u8][..]), None],
+        vec![Some(0), None, None],
+    );
+    cdc.push(pos(vec![5231, 5231, 5260]));
+    cdc.push(op(vec!["upsert", "upsert", "delete"]));
+    write(&out.join("cdc-00000001.arrow"), fields(true), cdc);
+    // Negative fixture: an operation other than upsert or delete.
+    let mut bad_op = base_columns(vec![4], vec![None], vec![None], vec![None], vec![None]);
+    bad_op.push(pos(vec![5300]));
+    bad_op.push(op(vec!["update"]));
+    write(&out.join("cdc-bad-op-00000001.arrow"), fields(true), bad_op);
+    // Negative fixture: a fill part that carries _oo_pos.
+    let mut fill_pos = base_columns(vec![5], vec![None], vec![None], vec![None], vec![None]);
+    fill_pos.push(pos(vec![0]));
+    let mut f = fields(false);
+    f.push(Field::new("_oo_pos", DataType::Decimal128(38, 0), false));
+    write(&out.join("fill-with-pos-00000001.arrow"), f, fill_pos);
+    println!("ok");
+}

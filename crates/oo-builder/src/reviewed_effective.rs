@@ -31,9 +31,9 @@ use crate::captured_pg::{CAPTURED_COMPILER, CAPTURED_PROTOCOL};
 use crate::draft::{self, DRAFT_PROTOCOL, compile_structure_draft, manifest_preimage_hash};
 use crate::role_pack::EFFECTIVE_PROTOCOL;
 use crate::sealed_import::{
-    REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL, REVIEWED_SEALED_IMPORT_COMPILER, SealedImportDraft,
-    SealedImportError, compile_sealed_import_catalog, compile_sealed_import_collection,
-    SEALED_IMPORT_COLLECTION_PROTOCOL,
+    REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL, REVIEWED_SEALED_IMPORT_COMPILER,
+    SEALED_IMPORT_COLLECTION_PROTOCOL, SealedImportDraft, SealedImportError,
+    compile_sealed_import_catalog, compile_sealed_import_collection,
 };
 
 pub const REVIEWED_EFFECTIVE_PROTOCOL: &str = "oo.builder.reviewed-effective-oos/v1";
@@ -171,7 +171,9 @@ pub fn compile_reviewed_effective(input: &str) -> Result<String, ReviewedEffecti
             "the command protocol is not the reviewed effective command this entry accepts",
         ));
     }
-    if !command.artifact.is_object() || !command.settings.is_object() || !command.decisions.is_array()
+    if !command.artifact.is_object()
+        || !command.settings.is_object()
+        || !command.decisions.is_array()
     {
         return Err(ReviewedEffectiveError::command(
             "schema.invalid",
@@ -216,9 +218,7 @@ pub fn compile_reviewed_effective(input: &str) -> Result<String, ReviewedEffecti
 /// bytes are compiled again. `settings.catalog_version` must be the identity
 /// hash from that compile. This entry does not accept a captured PostgreSQL
 /// wrapper.
-pub fn compile_reviewed_sealed_import(
-    input: &str,
-) -> Result<String, SealedImportError> {
+pub fn compile_reviewed_sealed_import(input: &str) -> Result<String, SealedImportError> {
     let value = parse_json_value(input, REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL)
         .map_err(map_sealed_scan)?;
     let command: SealedCommandIn = serde_json::from_value(value).map_err(map_sealed_command)?;
@@ -229,7 +229,9 @@ pub fn compile_reviewed_sealed_import(
             "the command protocol is not the reviewed sealed import command",
         ));
     }
-    if !command.catalog.is_object() || !command.settings.is_object() || !command.decisions.is_array()
+    if !command.catalog.is_object()
+        || !command.settings.is_object()
+        || !command.decisions.is_array()
     {
         return Err(SealedImportError::command(
             "schema.invalid",
@@ -237,14 +239,15 @@ pub fn compile_reviewed_sealed_import(
             "catalog, settings, or decisions has the wrong JSON shape",
         ));
     }
-    let collection = command.catalog.get("protocol").and_then(Value::as_str) == Some(SEALED_IMPORT_COLLECTION_PROTOCOL);
+    let collection = command.catalog.get("protocol").and_then(Value::as_str)
+        == Some(SEALED_IMPORT_COLLECTION_PROTOCOL);
     let compiled = if collection {
         compile_sealed_import_collection(&canonical_json(&command.catalog))?
     } else {
         compile_sealed_import_catalog(&canonical_json(&command.catalog))?
     };
-    let settings: SettingsIn =
-        serde_json::from_value(command.settings.clone()).map_err(|err| as_sealed(map_settings(err)))?;
+    let settings: SettingsIn = serde_json::from_value(command.settings.clone())
+        .map_err(|err| as_sealed(map_settings(err)))?;
     check_settings(&settings).map_err(as_sealed)?;
     if settings.catalog_version != compiled.identity_hash {
         return Err(SealedImportError::draft(
@@ -266,7 +269,11 @@ pub fn compile_reviewed_sealed_import(
         datasets,
         relationships: Vec::new(),
         fingerprints,
-        schema_hash: if collection { compiled.identity_hash.clone() } else { compiled.schema_digest.clone() },
+        schema_hash: if collection {
+            compiled.identity_hash.clone()
+        } else {
+            compiled.schema_digest.clone()
+        },
         draft_hash: sha256_hex(compiled.document.as_bytes()),
         wrapper_hash: compiled.identity_hash.clone(),
         generated_sha256: sha256_hex(compiled.document.as_bytes()),
@@ -278,7 +285,8 @@ pub fn compile_reviewed_sealed_import(
     check_schemas(&settings, &datasets).map_err(as_sealed)?;
     validate_datasets(&datasets).map_err(as_sealed)?;
     let (relationships, omitted) =
-        partition_relationships(&sealed.relationships, &column_index(&datasets)).map_err(as_sealed)?;
+        partition_relationships(&sealed.relationships, &column_index(&datasets))
+            .map_err(as_sealed)?;
     validate_relationship_file(&settings, &relationships).map_err(as_sealed)?;
     let effective = effective_document(&settings, &datasets, &relationships).map_err(as_sealed)?;
     let effective_text = canonical_json(&effective);
@@ -327,16 +335,35 @@ pub fn compile_reviewed_sealed_import(
     if let Some(vector) = &compiled.binding_vector {
         result["provenance"]["binding_vector"] = vector.clone();
         result["provenance"]["collection_sha256"] = serde_json::json!(compiled.identity_hash);
-        result["provenance"]["generation_semantics"] = serde_json::json!("per_dataset_binding_vector");
-        for key in ["config_digest", "input_digest", "schema_digest", "type_digest", "source_generation", "target_generation"] {
-            result["provenance"].as_object_mut().expect("object").remove(key);
+        result["provenance"]["generation_semantics"] =
+            serde_json::json!("per_dataset_binding_vector");
+        for key in [
+            "config_digest",
+            "input_digest",
+            "schema_digest",
+            "type_digest",
+            "source_generation",
+            "target_generation",
+        ] {
+            result["provenance"]
+                .as_object_mut()
+                .expect("object")
+                .remove(key);
         }
     }
     if let Some(vector) = &compiled.partition_vector {
         result["provenance"]["partition_vector"] = vector.clone();
     }
     if !command.curated_labels.is_empty() {
-        result["provenance"]["curated_labels_sha256"] = serde_json::json!(canonical_sha256(&serde_json::to_value(&command.curated_labels).map_err(|_| SealedImportError::command("curated.invalid", "/curated_labels", "curated labels cannot be encoded"))?));
+        result["provenance"]["curated_labels_sha256"] = serde_json::json!(canonical_sha256(
+            &serde_json::to_value(&command.curated_labels).map_err(|_| {
+                SealedImportError::command(
+                    "curated.invalid",
+                    "/curated_labels",
+                    "curated labels cannot be encoded",
+                )
+            })?
+        ));
     }
     let text = canonical_json(&result);
     if text.len() > DOCUMENT_MAX_BYTES {
@@ -347,11 +374,7 @@ pub fn compile_reviewed_sealed_import(
         ));
     }
     parse_json_value(&text, REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL).map_err(|_| {
-        SealedImportError::command(
-            "schema.invalid",
-            "/",
-            "command result is not an object",
-        )
+        SealedImportError::command("schema.invalid", "/", "command result is not an object")
     })?;
     Ok(text)
 }
@@ -376,15 +399,45 @@ struct SealedCuratedLabel {
     label: String,
 }
 
-fn apply_sealed_curated_labels(datasets: &mut [DatasetFile], sealed: &SealedDraft, labels: &[SealedCuratedLabel]) -> Result<(), SealedImportError> {
+fn apply_sealed_curated_labels(
+    datasets: &mut [DatasetFile],
+    sealed: &SealedDraft,
+    labels: &[SealedCuratedLabel],
+) -> Result<(), SealedImportError> {
     let mut seen = BTreeSet::new();
     for item in labels {
         let key = (item.dataset.clone(), item.column.clone());
-        if !seen.insert(key.clone()) || sealed.fingerprints.get(&key) != Some(&item.fact_fingerprint) {
-            return Err(SealedImportError::draft("curated.stale", "/curated_labels", "curated label is duplicated or bound to another source fact"));
+        if !seen.insert(key.clone())
+            || sealed.fingerprints.get(&key) != Some(&item.fact_fingerprint)
+        {
+            return Err(SealedImportError::draft(
+                "curated.stale",
+                "/curated_labels",
+                "curated label is duplicated or bound to another source fact",
+            ));
         }
-        let column = datasets.iter_mut().find(|d| d.dataset.as_str() == item.dataset).and_then(|d| d.columns.iter_mut().find(|c| c.name.as_str() == item.column)).ok_or_else(|| SealedImportError::draft("curated.scope", "/curated_labels", "curated column is not in the reviewed effective model"))?;
-        column.label = Some(Label::new(item.label.clone()).map_err(|_| SealedImportError::draft("curated.label", "/curated_labels", "curated label is invalid"))?);
+        let column = datasets
+            .iter_mut()
+            .find(|d| d.dataset.as_str() == item.dataset)
+            .and_then(|d| {
+                d.columns
+                    .iter_mut()
+                    .find(|c| c.name.as_str() == item.column)
+            })
+            .ok_or_else(|| {
+                SealedImportError::draft(
+                    "curated.scope",
+                    "/curated_labels",
+                    "curated column is not in the reviewed effective model",
+                )
+            })?;
+        column.label = Some(Label::new(item.label.clone()).map_err(|_| {
+            SealedImportError::draft(
+                "curated.label",
+                "/curated_labels",
+                "curated label is invalid",
+            )
+        })?);
         column.provenance = Some(ColumnProvenance::Human);
     }
     Ok(())
@@ -481,9 +534,9 @@ fn datasets_from_sealed(
 
 fn map_sealed_scan(err: DiagnosticList) -> SealedImportError {
     let item = err.items.first();
-    let code = item.map(|diag| diag.code.clone()).unwrap_or_else(|| {
-        format!("{}/json.syntax", REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL)
-    });
+    let code = item
+        .map(|diag| diag.code.clone())
+        .unwrap_or_else(|| format!("{}/json.syntax", REVIEWED_SEALED_IMPORT_COMMAND_PROTOCOL));
     let path = item
         .map(|diag| diag.path.clone())
         .unwrap_or_else(|| "/".to_string());
@@ -546,9 +599,9 @@ fn as_sealed(err: ReviewedEffectiveError) -> SealedImportError {
 
 fn map_scan(err: DiagnosticList) -> ReviewedEffectiveError {
     let item = err.items.first();
-    let code = item.map(|diag| diag.code.clone()).unwrap_or_else(|| {
-        format!("{REVIEWED_EFFECTIVE_COMMAND_PROTOCOL}/json.syntax")
-    });
+    let code = item
+        .map(|diag| diag.code.clone())
+        .unwrap_or_else(|| format!("{REVIEWED_EFFECTIVE_COMMAND_PROTOCOL}/json.syntax"));
     let path = item
         .map(|diag| diag.path.clone())
         .unwrap_or_else(|| "/".to_string());
@@ -619,9 +672,17 @@ fn map_shape(
 ) -> ReviewedEffectiveError {
     let text = err.to_string();
     if text.contains("unknown field") {
-        ReviewedEffectiveError::command("field.unknown", path, "reviewed effective command has an unknown field")
+        ReviewedEffectiveError::command(
+            "field.unknown",
+            path,
+            "reviewed effective command has an unknown field",
+        )
     } else if text.contains("missing field") {
-        ReviewedEffectiveError::command("field.missing", path, "reviewed effective command is missing a required field")
+        ReviewedEffectiveError::command(
+            "field.missing",
+            path,
+            "reviewed effective command is missing a required field",
+        )
     } else {
         ReviewedEffectiveError::command("schema.invalid", path, schema_message)
     }
@@ -662,12 +723,15 @@ fn open_sealed(artifact: &Value) -> Result<SealedDraft, ReviewedEffectiveError> 
     }
     let envelope = object.get("evidence_envelope").ok_or_else(seal_error)?;
     if !envelope.is_object()
-        || wrapper.get("evidence_envelope_hash").and_then(Value::as_str)
+        || wrapper
+            .get("evidence_envelope_hash")
+            .and_then(Value::as_str)
             != Some(canonical_sha256(envelope).as_str())
     {
         return Err(seal_error());
     }
-    let recomputed = compile_structure_draft(&canonical_json(envelope)).map_err(|_| seal_error())?;
+    let recomputed =
+        compile_structure_draft(&canonical_json(envelope)).map_err(|_| seal_error())?;
     let embedded = object.get("draft").ok_or_else(seal_error)?;
     if !embedded.is_object() || canonical_json(embedded) != recomputed {
         return Err(seal_error());
@@ -741,7 +805,10 @@ fn draft_statements(draft: &Value, wrapper: &Value) -> bool {
         && same(provenance, "certification", "none")
         && same(provenance, "llm", "not_used")
         && same(provenance, "source_connection", "not_used")
-        && provenance.get("schema_hash").and_then(Value::as_str).is_some()
+        && provenance
+            .get("schema_hash")
+            .and_then(Value::as_str)
+            .is_some()
         && provenance.get("schema_hash") == wrapper.get("schema_hash")
 }
 
@@ -788,7 +855,8 @@ fn parse_datasets(effective: &Value) -> Result<Vec<DatasetFile>, ReviewedEffecti
     };
     let mut parsed = Vec::with_capacity(datasets.len());
     for dataset in datasets {
-        let file: DatasetFile = serde_json::from_value(dataset.clone()).map_err(|_| seal_error())?;
+        let file: DatasetFile =
+            serde_json::from_value(dataset.clone()).map_err(|_| seal_error())?;
         parsed.push(file);
     }
     parsed.sort_by(|left, right| left.dataset.as_str().cmp(right.dataset.as_str()));
@@ -924,9 +992,9 @@ fn check_version(value: &str, path: &str) -> Result<(), ReviewedEffectiveError> 
     let bytes = value.as_bytes();
     let ok = !bytes.is_empty()
         && bytes.len() <= 64
-        && bytes.iter().all(|byte| {
-            byte.is_ascii_alphanumeric() || matches!(*byte, b'.' | b'_' | b'+' | b'-')
-        });
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'.' | b'_' | b'+' | b'-'));
     if ok {
         Ok(())
     } else {
@@ -1097,8 +1165,13 @@ fn apply_decisions(
 }
 
 fn column_rejected(datasets: &[DatasetFile], dataset: &str, column: &str) -> Option<bool> {
-    let file = datasets.iter().find(|item| item.dataset.as_str() == dataset)?;
-    let column = file.columns.iter().find(|item| item.name.as_str() == column)?;
+    let file = datasets
+        .iter()
+        .find(|item| item.dataset.as_str() == dataset)?;
+    let column = file
+        .columns
+        .iter()
+        .find(|item| item.name.as_str() == column)?;
     Some(column.status == Some(ItemStatus::Rejected))
 }
 
@@ -1273,11 +1346,7 @@ fn effective_document(
         .map(serde_json::to_value)
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| {
-            ReviewedEffectiveError::new(
-                "oos.invalid",
-                "/effective_oos/relationships",
-                OOS_MESSAGE,
-            )
+            ReviewedEffectiveError::new("oos.invalid", "/effective_oos/relationships", OOS_MESSAGE)
         })?;
     let ontology = serde_json::to_value(&settings.ontology).map_err(|_| {
         ReviewedEffectiveError::new("oos.invalid", "/effective_oos/ontology", OOS_MESSAGE)
@@ -1334,11 +1403,7 @@ fn finish(text: String) -> Result<String, ReviewedEffectiveError> {
         ));
     }
     let parsed = parse_json_value(&text, REVIEWED_EFFECTIVE_COMMAND_PROTOCOL).map_err(|_| {
-        ReviewedEffectiveError::command(
-            "schema.invalid",
-            "/",
-            "command result is not an object",
-        )
+        ReviewedEffectiveError::command("schema.invalid", "/", "command result is not an object")
     })?;
     if !parsed.is_object() {
         return Err(ReviewedEffectiveError::command(
@@ -1356,11 +1421,11 @@ mod tests {
 
     use serde_json::json;
 
+    use crate::CapturedPgDraft;
     use crate::canonical::canonical_sha256;
     use crate::compile_captured_pg_catalog;
     use crate::compile_role_pack;
     use crate::pgsql::{parse_catalog, schema_hash};
-    use crate::CapturedPgDraft;
 
     const OWNER: &str = "owner_role_do_not_leak";
     const CAPTURED_AT: &str = "2026-10-04T12:00:00.000000Z";
@@ -1537,14 +1602,25 @@ mod tests {
             .unwrap()
             .to_string();
         assert_ne!(email_fingerprint, contact_fingerprint);
-        assert!(email_artifact["draft"]["effective"].to_string().contains("email"));
-        assert!(!contact_artifact["draft"]["effective"]
-            .to_string()
-            .contains("\"email\""));
+        assert!(
+            email_artifact["draft"]["effective"]
+                .to_string()
+                .contains("email")
+        );
+        assert!(
+            !contact_artifact["draft"]["effective"]
+                .to_string()
+                .contains("\"email\"")
+        );
 
         let unknown = run(
             &contact_artifact,
-            json!([decision("public.customer", "email", &schema, &contact_fingerprint)]),
+            json!([decision(
+                "public.customer",
+                "email",
+                &schema,
+                &contact_fingerprint
+            )]),
         );
         assert!(unknown.unwrap_err().code.ends_with("/decision.unknown"));
 
@@ -1660,7 +1736,10 @@ mod tests {
     fn approved_digest_is_a_legal_policy_id_and_is_not_rewritten() {
         const DIGEST: &str = "e7490f751339374bf5d7ef3647cb55190a639d603b4f9186ecff65c0335cdd2e";
         let (artifact, draft) = compile_named("contact");
-        let schema = draft["provenance"]["schema_hash"].as_str().unwrap().to_string();
+        let schema = draft["provenance"]["schema_hash"]
+            .as_str()
+            .unwrap()
+            .to_string();
         let contact_fingerprint = fingerprint(&draft, "contact");
         let mut bound = settings();
         bound["policy"]["id"] = json!(DIGEST);
@@ -1740,7 +1819,9 @@ mod tests {
         assert!(kept.is_empty());
         assert_eq!(omitted[0]["name"], "gone_fk");
         assert_eq!(omitted[0]["reason"], "endpoint_not_effective");
-        assert!(!classified_column(&json!({"pii": null, "semantic_type": null})));
+        assert!(!classified_column(
+            &json!({"pii": null, "semantic_type": null})
+        ));
         assert!(classified_column(&json!({"pii": "personal"})));
     }
 

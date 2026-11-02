@@ -38,7 +38,7 @@ use crate::sql_guard::{
 pub const MAGIC: [u8; 4] = *b"OOSW";
 
 /// Wire version. A different version is rejected before the body is decoded.
-pub const PROTOCOL_VERSION: u16 = 1;
+pub const PROTOCOL_VERSION: u16 = 2;
 
 /// Parent to child: identity, catalog, and the original SQL.
 pub const KIND_REQUEST: u16 = 1;
@@ -148,6 +148,7 @@ pub const TAG_RELATION_NOT_FOUND: u8 = 13;
 pub const TAG_COLUMN_NOT_ALLOWED: u8 = 14;
 pub const TAG_UNQUALIFIED: u8 = 15;
 pub const TAG_COST_TOO_HIGH: u8 = 16;
+pub const TAG_SIGNATURE_NOT_ALLOWED: u8 = 17;
 
 pub const TAG_OUTPUT_COLUMN: u8 = 1;
 pub const TAG_OUTPUT_FUNCTION: u8 = 2;
@@ -173,6 +174,7 @@ pub const CATALOG_REASONS: &[&str] = &[
     "identity",
     "operator name",
     "operator oid",
+    "operator signature",
     "physical schema",
     "relation schema",
     "type oid",
@@ -1318,6 +1320,16 @@ pub fn encode_refusal(err: &GuardError) -> Result<Vec<u8>, CodecError> {
             write_label(&mut writer, reason, SERIALIZE_REASONS)?;
         }
         GuardError::FunctionNotAllowed => writer.u8(TAG_FUNCTION_NOT_ALLOWED)?,
+        GuardError::SignatureNotAllowed {
+            operator,
+            argument_type_oids,
+            position,
+        } => {
+            writer.u8(TAG_SIGNATURE_NOT_ALLOWED)?;
+            writer.flag(*operator)?;
+            write_u32s(&mut writer, argument_type_oids, 8)?;
+            writer.i32(*position)?;
+        }
         GuardError::RelationNotFound => writer.u8(TAG_RELATION_NOT_FOUND)?,
         GuardError::ColumnNotAllowed {
             available,
@@ -1363,6 +1375,11 @@ pub fn decode_refusal(bytes: &[u8]) -> Result<GuardError, CodecError> {
             reason: read_label(&mut reader, SERIALIZE_REASONS)?,
         },
         TAG_FUNCTION_NOT_ALLOWED => GuardError::FunctionNotAllowed,
+        TAG_SIGNATURE_NOT_ALLOWED => GuardError::SignatureNotAllowed {
+            operator: reader.flag()?,
+            argument_type_oids: read_u32s(&mut reader, 8)?,
+            position: reader.i32()?,
+        },
         TAG_RELATION_NOT_FOUND => GuardError::RelationNotFound,
         TAG_COLUMN_NOT_ALLOWED => GuardError::ColumnNotAllowed {
             available: read_strings(&mut reader, MAX_AVAILABLE, MAX_LABEL)?,
@@ -1483,7 +1500,8 @@ fn write_operator(writer: &mut Writer, operator: &ResolvedOperator) -> Result<()
     writer.str(&operator.schema, MAX_IDENT)?;
     writer.str(&operator.name, MAX_IDENT)?;
     writer.u32(operator.left_type_oid)?;
-    writer.u32(operator.right_type_oid)
+    writer.u32(operator.right_type_oid)?;
+    writer.u32(operator.result_type_oid)
 }
 
 fn read_operator(reader: &mut Reader<'_>) -> Result<ResolvedOperator, CodecError> {
@@ -1494,6 +1512,7 @@ fn read_operator(reader: &mut Reader<'_>) -> Result<ResolvedOperator, CodecError
         name: reader.str(MAX_IDENT)?,
         left_type_oid: reader.u32()?,
         right_type_oid: reader.u32()?,
+        result_type_oid: reader.u32()?,
     })
 }
 

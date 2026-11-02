@@ -6,8 +6,44 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use mysql_preview::{
-    baseline_stream, capture_native, audit_source, audit_target, guard_source, install_column_acl, load_fixture, load_logistics, prepare_random_gold, run, run_customer, write_manifest,
+    baseline_stream, baseline_stream_v2, capture_native, audit_source, audit_target, guard_source, install_column_acl, load_fixture, load_logistics, prepare_random_gold, run, run_customer, write_manifest,
 };
+
+fn masked_error(error: &(dyn std::error::Error + 'static)) -> String {
+    if let Some(error) = error.downcast_ref::<oo_connectors::mysql::MysqlError>() {
+        return format!("connector:{}:{}", error.code, error.fact);
+    }
+    if let Some(mysql_async::Error::Server(error)) = error.downcast_ref::<mysql_async::Error>() {
+        return format!("mysql_server:{}:{}", error.code, error.state);
+    }
+    if let Some(error) = error.downcast_ref::<std::io::Error>() {
+        return format!("io:{:?}", error.kind());
+    }
+    if error.is::<tokio::time::error::Elapsed>() { return "client_timeout".into(); }
+    let message = error.to_string();
+    let code = message.split(':').next().unwrap_or("");
+    if ["SCHEMA_DRIFT","PROJECTION_DRIFT","KEY_ORDER_DRIFT","budget","source facts","plaintext source facts",
+        "occurrence/authority mismatch","config changed","pin changed","needs_bootstrap"].contains(&code)
+        || code.starts_with("C5_") && code.len() <= 96 && code.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
+    { return code.into(); }
+    "internal_refusal".into()
+}
+
+#[cfg(test)]
+mod diagnostic_tests {
+    use super::*;
+    #[test]
+    fn error_codes_never_include_server_messages_or_connection_secrets() {
+        let error = mysql_async::Error::Server(mysql_async::ServerError {
+            code: 1064, state: "42000".into(), message: "secret customer value".into(),
+        });
+        assert_eq!(masked_error(&error), "mysql_server:1064:42000");
+        let error: Box<dyn std::error::Error + Send + Sync> = "password=private".into();
+        assert_eq!(masked_error(error.as_ref()), "internal_refusal");
+        let error = oo_connectors::mysql::MysqlError::new("catalog", "columns");
+        assert_eq!(masked_error(&error), "connector:catalog:columns");
+    }
+}
 
 fn main() -> ExitCode {
     let mut args = env::args().skip(1);
@@ -17,6 +53,42 @@ fn main() -> ExitCode {
     };
     match command.as_str() {
         "capture-native" => capture_cmd(&mut args),
+        "c5-inspect" => {
+            let (Some(flag), Some(path), None) = (args.next(), args.next(), args.next()) else {return ExitCode::from(2);};
+            if flag != "--config" {return ExitCode::from(2);}
+            let runtime = tokio::runtime::Runtime::new().expect("runtime");
+            match runtime.block_on(mysql_preview::c5_inspect::run(std::path::Path::new(&path))) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(error) => {
+                    eprintln!("mysql-preview: c5 inspection refused code={}", masked_error(error.as_ref()));
+                    ExitCode::from(1)
+                }
+            }
+        }
+        "c5-layered" => {
+            let (Some(flag), Some(path), None) = (args.next(), args.next(), args.next()) else {return ExitCode::from(2);};
+            if flag != "--config" {return ExitCode::from(2);}
+            let runtime=tokio::runtime::Runtime::new().expect("runtime");
+            match runtime.block_on(mysql_preview::c5_layered::run_stdio(std::path::Path::new(&path))) {
+                Ok(())=>ExitCode::SUCCESS,
+                Err(error)=>{
+                    if error.to_string()=="SCHEMA_DRIFT" {eprintln!("mysql-preview: SCHEMA_DRIFT");}
+                    else {eprintln!("mysql-preview: layered producer refused code={}", masked_error(error.as_ref()));}
+                    ExitCode::from(1)
+                }
+            }
+        }
+        "arrow-cells" => {
+            let (Some(flag),Some(path),None)=(args.next(),args.next(),args.next())else{return ExitCode::from(2);};
+            if flag!="--arrow" {return ExitCode::from(2);}
+            match arrow_cells(std::path::Path::new(&path)) {Ok(())=>ExitCode::SUCCESS,Err(_)=>{eprintln!("mysql-preview: arrow cells refused");ExitCode::from(1)}}
+        }
+        "capture-full" => {
+            let (Some(config), Some(out)) = pair(&mut args) else {
+                return ExitCode::from(2);
+            };
+            block_on(mysql_preview::capture_full(&config, &out))
+        }
         "manifest" => manifest(&mut args),
         "run" => run_cmd(&mut args),
         "customer" => customer_cmd(&mut args),
@@ -31,8 +103,20 @@ fn main() -> ExitCode {
         "c1-expire" => c1_expire(&mut args),
         "c1-native" => c1_native(&mut args),
         "c1-onboarding-prepare" => c1_onboarding_prepare(&mut args),
+        "c1-handoff-preflight" => {
+            let (Some(flag),Some(path),None)=(args.next(),args.next(),args.next()) else {return ExitCode::from(2);};
+            if flag!="--config" {return ExitCode::from(2);}
+            block_on(mysql_preview::c1_handoff::preflight(std::path::Path::new(&path)))
+        }
         "c1-baseline-stream" => c1_baseline_stream(&mut args),
+        "c1-baseline-stream-v2" => c1_baseline_stream_v2(&mut args),
+        "c1-baseline-stream-v3" => {
+            let (Some(config),Some(out))=pair(&mut args) else {return ExitCode::from(2);};
+            block_on(mysql_preview::c1_typed_source::run_stdio(&config,&out))
+        }
+        "c1-materialize-v2" => c1_materialize_v2(&mut args),
         "c1-random-gold" => c1_random_gold(&mut args),
+        "source-sql" => block_on(mysql_preview::source_sql::run_stdio()),
         _ => {
             eprintln!("mysql-preview: usage");
             ExitCode::from(2)
@@ -41,8 +125,18 @@ fn main() -> ExitCode {
 }
 
 fn c1_onboarding_prepare(args: &mut impl Iterator<Item=String>)->ExitCode {
-    let (Some(config),Some(out))=pair(args) else {return ExitCode::from(2);};
-    block_on(mysql_preview::prepare_onboarding(&config,&out))
+    let mut format=None;
+    let mut rest=Vec::new();
+    while let Some(arg)=args.next() {
+        if arg=="--c1-baseline-format" {
+            let Some(value)=args.next() else {return ExitCode::from(2);};
+            format=Some(value);
+        } else {
+            rest.push(arg);
+        }
+    }
+    let (Some(config),Some(out))=pair(&mut rest.into_iter()) else {return ExitCode::from(2);};
+    block_on(mysql_preview::prepare_onboarding(&config,&out,format.as_deref()))
 }
 
 fn c1_baseline_stream(args: &mut impl Iterator<Item = String>) -> ExitCode {
@@ -51,6 +145,45 @@ fn c1_baseline_stream(args: &mut impl Iterator<Item = String>) -> ExitCode {
         return ExitCode::from(2);
     };
     block_on(baseline_stream(&config, &out))
+}
+
+fn c1_baseline_stream_v2(args: &mut impl Iterator<Item = String>) -> ExitCode {
+    let (Some(config), Some(out)) = pair(args) else {
+        eprintln!("mysql-preview: usage");
+        return ExitCode::from(2);
+    };
+    block_on(baseline_stream_v2(&config, &out))
+}
+
+/// `c1-materialize-v2 --out DIR --context PATH`. Prints the final-load request as one JSON line.
+fn c1_materialize_v2(args: &mut impl Iterator<Item = String>) -> ExitCode {
+    let mut out = None;
+    let mut context = None;
+    while let Some(flag) = args.next() {
+        let value = args.next();
+        match (flag.as_str(), value) {
+            ("--out", Some(path)) => out = Some(PathBuf::from(path)),
+            ("--context", Some(path)) => context = Some(PathBuf::from(path)),
+            _ => {
+                eprintln!("mysql-preview: usage");
+                return ExitCode::from(2);
+            }
+        }
+    }
+    let (Some(out), Some(context)) = (out, context) else {
+        eprintln!("mysql-preview: usage");
+        return ExitCode::from(2);
+    };
+    match mysql_preview::c1_materialize_v2(&out, &context) {
+        Ok(request) => {
+            println!("{request}");
+            ExitCode::SUCCESS
+        }
+        Err(err) => {
+            eprintln!("mysql-preview: {} {}", err.code, err.fact);
+            ExitCode::from(exit_code(err.code))
+        }
+    }
 }
 
 fn run_cmd(args: &mut impl Iterator<Item = String>) -> ExitCode {
@@ -306,4 +439,17 @@ fn c1_expire_args(args: &mut impl Iterator<Item = String>) -> (Option<(PathBuf, 
         (Some(config), Some(from)) => (Some((config, from)), out),
         _ => (None, None),
     }
+}
+
+fn arrow_cells(path:&std::path::Path)->Result<(),Box<dyn std::error::Error>> {
+    use std::io::{Read,Write};
+    let mut bytes=Vec::new();std::fs::File::open(path)?.take(33554433).read_to_end(&mut bytes)?;
+    if bytes.len()>33554432{return Err("part_bytes".into());}
+    let decoded=oo_pipeline::native_arrow::decode_arrow_stream(&bytes).map_err(|_|"arrow")?;
+    let mut out=std::io::BufWriter::new(std::io::stdout().lock());
+    for row in 0..decoded.rows {
+        let cells=decoded.columns.iter().map(|column|oo_pipeline::multipart_cells::text_cell(&column[row])).collect::<Result<Vec<_>,_>>()?;
+        serde_json::to_writer(&mut out,&cells)?;out.write_all(b"\n")?;
+    }
+    out.flush()?;Ok(())
 }

@@ -86,7 +86,11 @@ async fn slow_route_returns_408_before_the_handler_finishes() {
     )
     .await;
     assert_eq!(status, LAYER_TIMEOUT_STATUS);
-    assert_ne!(body, b"{\"status\":\"late\"}");
+    let value: Value =
+        serde_json::from_slice(&body).expect("timeout is JSON, not an empty layer body");
+    assert_eq!(value["error"]["code"], "TIMEOUT");
+    assert_eq!(value["error"]["retryable"], false);
+    assert!(value["error"].get("query_id").is_none());
     assert!(
         started.elapsed() < Duration::from_secs(2),
         "handler sleep completed"
@@ -303,6 +307,16 @@ fn parse_response(bytes: &[u8]) -> (u16, Vec<u8>) {
             None
         }
     });
+    if status == LAYER_TIMEOUT_STATUS {
+        assert!(
+            head.lines().any(|line| {
+                line.split_once(':').is_some_and(|(name, value)| {
+                    name.eq_ignore_ascii_case("content-type") && value.trim() == "application/json"
+                })
+            }),
+            "timeout must advertise the core JSON error body"
+        );
+    }
     let body = match length {
         Some(length) => {
             assert!(rest.len() >= length, "short body");

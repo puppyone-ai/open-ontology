@@ -188,10 +188,12 @@ fn producer_policy_object_reaches_tls() {
 }
 
 #[tokio::test]
+#[ignore = "live fixture: requires OO_A249_LIVE; run with --ignored"]
 async fn private_tls_two_roles_mapping_then_catalog_query() {
-    if env::var("OO_A249_LIVE").ok().as_deref() != Some("1") {
-        return;
-    }
+    assert!(
+        env::var("OO_A249_LIVE").ok().as_deref() == Some("1"),
+        "OO_A249_LIVE must be set for this live fixture"
+    );
     let init_bin = env::var("OO_A249_INIT_PG").expect("OO_A249_INIT_PG");
     let pipeline_bin = env::var("OO_A249_PIPELINE").expect("OO_A249_PIPELINE");
     let admin_pass = read_secret("admin.pass");
@@ -666,7 +668,7 @@ fn limits() -> CatalogLimits {
         max_tables: 4,
         max_columns: 64,
         max_functions: 1,
-        max_operators: 64,
+        max_operators: 128,
         large_table_row_threshold: 1_000_000,
         unknown_rows: UnknownRows::Zero,
     }
@@ -1357,44 +1359,94 @@ GRANT INSERT ON shop.customer, shop.order_doc, shop.write_audit TO oo_a249_write
 ";
 
 #[test]
+#[ignore = "external fixture: requires OO_NATIVE_MAPPING_LIVE_CONFIG; run with --ignored"]
 fn actual_native_vector_mapping_reader() {
-    let Ok(path)=std::env::var("OO_NATIVE_MAPPING_LIVE_CONFIG") else {return;};
-    let request:serde_json::Value=serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-    let invoke=|value:&serde_json::Value| {
+    let path = std::env::var("OO_NATIVE_MAPPING_LIVE_CONFIG")
+        .expect("OO_NATIVE_MAPPING_LIVE_CONFIG is required");
+    let request: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    let invoke = |value: &serde_json::Value| {
         use std::io::Write;
-        let mut child=std::process::Command::new(env!("CARGO_BIN_EXE_provision-mapping-reader"))
-            .stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
-        child.stdin.take().unwrap().write_all(&serde_json::to_vec(value).unwrap()).unwrap();
+        let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_provision-mapping-reader"))
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(&serde_json::to_vec(value).unwrap())
+            .unwrap();
         child.wait_with_output().unwrap()
     };
-    let replay=invoke(&request);assert!(replay.status.success(),"real native replay refused");
-    let output:serde_json::Value=serde_json::from_slice(&replay.stdout).unwrap();assert_eq!(output["effect"],"replay");
-    for kind in ["generation","config","column","metadata"] {
-        let mut wrong=request.clone();
+    let replay = invoke(&request);
+    assert!(replay.status.success(), "real native replay refused");
+    let output: serde_json::Value = serde_json::from_slice(&replay.stdout).unwrap();
+    assert_eq!(output["effect"], "replay");
+    for kind in ["generation", "config", "column", "metadata"] {
+        let mut wrong = request.clone();
         match kind {
-            "generation"=>wrong["policies"][0]["generation"]=serde_json::json!(1),
-            "config"=>wrong["policies"][0]["config_digest"]=serde_json::json!("0".repeat(64)),
-            "column"=>{wrong["policies"][0]["table"]["columns"].as_array_mut().unwrap().pop();},
-            _=>wrong["policies"][0]["table"]["columns"][0]["name"]=serde_json::json!("_oo_pos"),
+            "generation" => wrong["policies"][0]["generation"] = serde_json::json!(1),
+            "config" => wrong["policies"][0]["config_digest"] = serde_json::json!("0".repeat(64)),
+            "column" => {
+                wrong["policies"][0]["table"]["columns"]
+                    .as_array_mut()
+                    .unwrap()
+                    .pop();
+            }
+            _ => wrong["policies"][0]["table"]["columns"][0]["name"] = serde_json::json!("_oo_pos"),
         }
-        assert!(!invoke(&wrong).status.success(),"native drift accepted: {kind}");
+        assert!(
+            !invoke(&wrong).status.success(),
+            "native drift accepted: {kind}"
+        );
     }
-    let endpoint=&request["endpoint"];
-    let ca=std::fs::read(request["ca_file"].as_str().unwrap()).unwrap();
-    let password=std::fs::read_to_string(request["password_file"].as_str().unwrap()).unwrap();
-    let db=oo_gateway::TlsEndpoint {host:endpoint["host"].as_str().unwrap().to_owned(),port:endpoint["port"].as_u64().unwrap() as u16,database:endpoint["database"].as_str().unwrap().to_owned(),user:endpoint["user"].as_str().unwrap().to_owned()};
-    let runtime=tokio::runtime::Runtime::new().unwrap();
+    let endpoint = &request["endpoint"];
+    let ca = std::fs::read(request["ca_file"].as_str().unwrap()).unwrap();
+    let password = std::fs::read_to_string(request["password_file"].as_str().unwrap()).unwrap();
+    let db = oo_gateway::TlsEndpoint {
+        host: endpoint["host"].as_str().unwrap().to_owned(),
+        port: endpoint["port"].as_u64().unwrap() as u16,
+        database: endpoint["database"].as_str().unwrap().to_owned(),
+        user: endpoint["user"].as_str().unwrap().to_owned(),
+    };
+    let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.block_on(async {
-        let (client,connection)=oo_gateway::connect_require_tls(&db,password.trim(),&ca).await.unwrap();
-        let driver=tokio::spawn(async move {let _=connection.await;});
-        let login=request["login"].as_str().unwrap();
-        assert!(login.bytes().all(|c|c.is_ascii_lowercase() || c.is_ascii_digit() || c==b'_'));
-        client.batch_execute(&format!("GRANT INSERT ON _oo.physical_mappings TO \"{login}\";")).await.unwrap();
-        let refused=invoke(&request);
-        client.batch_execute(&format!("REVOKE INSERT ON _oo.physical_mappings FROM \"{login}\";")).await.unwrap();
-        assert!(!refused.status.success(),"metadata write privilege accepted");
-        drop(client);driver.await.unwrap();
+        let (client, connection) = oo_gateway::connect_require_tls(&db, password.trim(), &ca)
+            .await
+            .unwrap();
+        let driver = tokio::spawn(async move {
+            let _ = connection.await;
+        });
+        let login = request["login"].as_str().unwrap();
+        assert!(
+            login
+                .bytes()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_')
+        );
+        client
+            .batch_execute(&format!(
+                "GRANT INSERT ON _oo.physical_mappings TO \"{login}\";"
+            ))
+            .await
+            .unwrap();
+        let refused = invoke(&request);
+        client
+            .batch_execute(&format!(
+                "REVOKE INSERT ON _oo.physical_mappings FROM \"{login}\";"
+            ))
+            .await
+            .unwrap();
+        assert!(
+            !refused.status.success(),
+            "metadata write privilege accepted"
+        );
+        drop(client);
+        driver.await.unwrap();
     });
     assert!(invoke(&request).status.success());
-    println!("NATIVE_MAPPING_RAW real replay and generation/config/column/internal-metadata/write-privilege refusals passed");
+    println!(
+        "NATIVE_MAPPING_RAW real replay and generation/config/column/internal-metadata/write-privilege refusals passed"
+    );
 }

@@ -2,7 +2,7 @@
 //!
 //! The harness is the parent. It clears the child environment, reads bounded
 //! frames, and kills and reaps the child on a timeout or a test panic.
-//! SHA-256 oracles come from `sha256sum`, not from the worker's `sha2` crate.
+//! SHA-256 oracles use the platform's checksum command independently of the worker.
 //! No PostgreSQL is started. Exit and stderr failures name this session.
 
 use std::fs;
@@ -60,7 +60,15 @@ fn scratch(name: &str) -> PathBuf {
 fn sha256_bytes(bytes: &[u8]) -> String {
     let path = scratch("oracle");
     fs::write(&path, bytes).unwrap_or_else(|err| panic!("{UUID} oracle write {err}"));
-    let output = Command::new("/usr/bin/sha256sum")
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = Command::new("/usr/bin/shasum");
+        command.args(["-a", "256"]);
+        command
+    };
+    #[cfg(not(target_os = "macos"))]
+    let mut command = Command::new("/usr/bin/sha256sum");
+    let output = command
         .arg(&path)
         .env_clear()
         .output()

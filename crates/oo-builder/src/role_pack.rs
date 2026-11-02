@@ -10,23 +10,27 @@
 //! the snapshot names must already be classified. Unknown PII stays out, and
 //! naming it in the allowlist refuses the pack instead of inventing a class.
 //! User-authored text is copied only when it passes the visibility closure.
-//! That includes data types, units, labels, calendar phrases and anchors,
+//! That includes units, labels, calendar phrases and anchors,
 //! relationship names, and entity names and paths.
+//! Execution types use a closed public PostgreSQL vocabulary instead of
+//! prose filtering; private or unrecognized type strings are not emitted.
 //! Hidden names and hidden labels are matched after NFC. Quoted identifiers
 //! use PostgreSQL doubled quotes. A supported SQL string decodes `''` to one
-//! apostrophe before that comparison. Unquoted DISTINCT is reserved and does
-//! not parse. Verified SQL must parse as the supported subset; this module
+//! apostrophe before that comparison. DISTINCT is supported inside aggregates,
+//! not as a top-level SELECT modifier. SQL must parse as the supported subset; this module
 //! does not execute SQL and is not a gateway.
 //! `classification.auto_accept` is not applied.
+//! Explicit unreviewed metric publication labels visible candidates separately;
+//! they never satisfy certified metric dependencies or business readiness.
 //!
 //! Samples are never emitted. The OOS model has no sample or most-common
 //! field; a document that tries to carry one is rejected. RLS datasets omit
 //! global statistics unless the snapshot itself says those statistics are
 //! proven. This compiler does not re-prove that claim.
 //!
-//! Token counts are unsupported. Byte and entry ceilings are enforced and are
-//! not token budgets. Domain files, file splitting, search, mount, and a
-//! publish gate are unsupported.
+//! Metric pages use the release gate's deterministic token estimate, not a
+//! model tokenizer. Byte and entry ceilings remain separate. Compilation
+//! does not claim a publish gate, mount, or live search.
 //!
 //! README states that every SQL example is PostgreSQL, whatever the source
 //! was. A dataset `source_semantics` record renders `## 来源与语义` on that
@@ -40,7 +44,6 @@ use serde_json::Value;
 
 use oo_core::config::{PiiLevel, SampleValues};
 use oo_core::diagnostic::DiagnosticList;
-use oo_core::json_scan::parse_json_value;
 use oo_core::oos::{
     CalendarFile, ClassName, ClassState, DatasetColumn, DatasetFile, EntityFile, EnumFile,
     EnumValueStatus, GlossaryFile, ItemStatus, Metric, MetricStatus, MetricsFile, OntologyFile,
@@ -52,6 +55,9 @@ use oo_core::text::{BoundedText, Label, TableName};
 
 use crate::canonical::{canonical_json, sha256_hex};
 use crate::nfc::nfc;
+
+#[path = "role_pack_pages.rs"]
+mod pages;
 
 pub const ROLE_PACK_PROTOCOL: &str = "oo.builder.role-pack/v1";
 pub const ROLE_PACK_COMPILER: &str = "oo-builder/role-pack/v1";
@@ -65,6 +71,7 @@ const MAX_TOTAL_BYTES: u64 = 1_048_576;
 const MAX_ENTRIES: u64 = 128;
 const MAX_DATASETS: usize = 64;
 const MAX_COLUMNS: usize = 256;
+const MAX_EFFECTIVE_COLUMNS: usize = 1024;
 const MAX_RELATIONSHIPS: usize = 256;
 const MAX_METRICS: usize = 128;
 const MAX_TERMS: usize = 256;
@@ -74,6 +81,46 @@ const MAX_ENUM_VALUES: usize = 256;
 const MAX_ENTITIES: usize = 64;
 const MAX_PATH_BYTES: usize = 256;
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct RolePackCeilings {
+    pub json_scan: oo_core::json_scan::JsonScanLimits,
+    pub max_file_bytes: u64,
+    pub max_total_bytes: u64,
+    pub max_entries: u64,
+    pub max_datasets: usize,
+    pub max_columns: usize,
+    pub max_effective_columns: usize,
+    pub max_relationships: usize,
+    pub max_metrics: usize,
+    pub max_terms: usize,
+    pub max_examples: usize,
+    pub max_enums: usize,
+    pub max_enum_values: usize,
+    pub max_entities: usize,
+}
+
+impl Default for RolePackCeilings {
+    fn default() -> Self {
+        Self {
+            json_scan: Default::default(),
+            max_file_bytes: MAX_FILE_BYTES,
+            max_total_bytes: MAX_TOTAL_BYTES,
+            max_entries: MAX_ENTRIES,
+            max_datasets: MAX_DATASETS,
+            max_columns: MAX_COLUMNS,
+            max_effective_columns: MAX_EFFECTIVE_COLUMNS,
+            max_relationships: MAX_RELATIONSHIPS,
+            max_metrics: MAX_METRICS,
+            max_terms: MAX_TERMS,
+            max_examples: MAX_EXAMPLES,
+            max_enums: MAX_ENUMS,
+            max_enum_values: MAX_ENUM_VALUES,
+            max_entities: MAX_ENTITIES,
+        }
+    }
+}
+
 const PG_DIALECT_SENTENCE: &str = "所有 SQL 为 PostgreSQL 方言，无论数据来自何种源库";
 
 const UNREVIEWED_TOKENS: &[&str] = &[
@@ -81,6 +128,7 @@ const UNREVIEWED_TOKENS: &[&str] = &[
     "dataset_descriptions",
     "caveats",
     "relationships",
+    "metrics",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -201,10 +249,31 @@ pub fn compile_role_pack(
     effective_json: &str,
     visibility_json: &str,
 ) -> Result<RolePack, RolePackError> {
-    let effective_value = parse_json_value(effective_json, EFFECTIVE_PROTOCOL)
-        .map_err(|list| reject_json(&list))?;
-    let visibility_value = parse_json_value(visibility_json, VISIBILITY_PROTOCOL)
-        .map_err(|list| reject_json(&list))?;
+    compile_role_pack_with_ceilings(
+        effective_json,
+        visibility_json,
+        &RolePackCeilings::default(),
+    )
+}
+
+pub fn compile_role_pack_with_ceilings(
+    effective_json: &str,
+    visibility_json: &str,
+    ceilings: &RolePackCeilings,
+) -> Result<RolePack, RolePackError> {
+    check_ceilings(ceilings)?;
+    let effective_value = oo_core::json_scan::parse_json_value_with_limits(
+        effective_json,
+        EFFECTIVE_PROTOCOL,
+        &ceilings.json_scan,
+    )
+    .map_err(|list| reject_json(&list))?;
+    let visibility_value = oo_core::json_scan::parse_json_value_with_limits(
+        visibility_json,
+        VISIBILITY_PROTOCOL,
+        &ceilings.json_scan,
+    )
+    .map_err(|list| reject_json(&list))?;
     refuse_unsupported(&effective_value, true)?;
     refuse_unsupported(&visibility_value, false)?;
     let effective: EffectiveDoc = serde_json::from_value(effective_value).map_err(|_| {
@@ -221,7 +290,7 @@ pub fn compile_role_pack(
             "the visibility snapshot does not match the role-pack contract",
         )
     })?;
-    let model = bind(effective, visibility)?;
+    let model = bind(effective, visibility, ceilings)?;
     let selected = select(&model)?;
     let files = render(&model, &selected)?;
     seal(&model, files)
@@ -260,7 +329,14 @@ fn refuse_unsupported(value: &Value, effective: bool) -> Result<(), RolePackErro
         ]
         .as_slice()
     } else {
-        ["samples", "most_common_vals", "credentials", "privileges", "grants"].as_slice()
+        [
+            "samples",
+            "most_common_vals",
+            "credentials",
+            "privileges",
+            "grants",
+        ]
+        .as_slice()
     };
     for name in names {
         if object.contains_key(*name) {
@@ -396,18 +472,25 @@ struct Model {
     grants: BTreeMap<String, Grant>,
     limits: LimitsIn,
     unreviewed: BTreeSet<String>,
+    hidden_names: BTreeSet<String>,
+    hidden_labels: Vec<String>,
 }
 
 struct Selected {
     relationships: Vec<Relationship>,
     metrics: Vec<Metric>,
+    metric_candidates: Vec<Metric>,
     glossary: Vec<Term>,
     examples: Vec<VerifiedExample>,
     enums: Vec<EnumFile>,
     entities: Vec<EntityFile>,
 }
 
-fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, RolePackError> {
+fn bind(
+    effective: EffectiveDoc,
+    visibility: VisibilityDoc,
+    ceilings: &RolePackCeilings,
+) -> Result<Model, RolePackError> {
     if effective.protocol != EFFECTIVE_PROTOCOL || visibility.protocol != VISIBILITY_PROTOCOL {
         return Err(RolePackError::new(
             "protocol.mismatch",
@@ -487,7 +570,7 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
         "/knowledge/version",
         "the snapshot knowledge version does not match the effective document",
     )?;
-    check_limits(&visibility.limits)?;
+    check_limits(&visibility.limits, ceilings)?;
     if !effective.ontology.compile.per_role {
         return Err(RolePackError::new(
             "compile.per_role",
@@ -520,7 +603,13 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
         }
     }
     let mut unreviewed = BTreeSet::new();
-    for (index, token) in effective.ontology.publish.include_unreviewed.iter().enumerate() {
+    for (index, token) in effective
+        .ontology
+        .publish
+        .include_unreviewed
+        .iter()
+        .enumerate()
+    {
         let name = token.as_str();
         if !UNREVIEWED_TOKENS.contains(&name) {
             return Err(RolePackError::new(
@@ -537,7 +626,7 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
             ));
         }
     }
-    if effective.datasets.len() > MAX_DATASETS {
+    if effective.datasets.len() > ceilings.max_datasets {
         return Err(object_budget("/datasets"));
     }
     let mut datasets = BTreeMap::new();
@@ -565,7 +654,7 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
                 "a dataset schema is not in include_schemas",
             ));
         }
-        if dataset.columns.len() > MAX_COLUMNS {
+        if dataset.columns.len() > ceilings.max_effective_columns {
             return Err(object_budget("/datasets"));
         }
         let mut columns = BTreeSet::new();
@@ -577,9 +666,21 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
                     "a column name is repeated",
                 ));
             }
-            reject_secret(column.description.as_ref().map(BoundedText::<4000>::as_str).unwrap_or(""))?;
+            reject_secret(
+                column
+                    .description
+                    .as_ref()
+                    .map(BoundedText::<4000>::as_str)
+                    .unwrap_or(""),
+            )?;
         }
-        reject_secret(dataset.description.as_ref().map(BoundedText::<4000>::as_str).unwrap_or(""))?;
+        reject_secret(
+            dataset
+                .description
+                .as_ref()
+                .map(BoundedText::<4000>::as_str)
+                .unwrap_or(""),
+        )?;
         if let Some(source) = &dataset.source_name {
             reject_secret(source.as_str())?;
         }
@@ -609,7 +710,7 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
             ));
         }
     }
-    if effective.relationships.len() > MAX_RELATIONSHIPS {
+    if effective.relationships.len() > ceilings.max_relationships {
         return Err(object_budget("/relationships"));
     }
     if !effective.relationships.is_empty() {
@@ -647,7 +748,7 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
             "/relationships",
         )?;
     }
-    if effective.metrics.len() > MAX_METRICS {
+    if effective.metrics.len() > ceilings.max_metrics {
         return Err(object_budget("/metrics"));
     }
     if !effective.metrics.is_empty() {
@@ -677,7 +778,7 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
             reject_secret(control.sql.as_str())?;
         }
     }
-    if effective.glossary.len() > MAX_TERMS {
+    if effective.glossary.len() > ceilings.max_terms {
         return Err(object_budget("/glossary"));
     }
     if !effective.glossary.is_empty() {
@@ -704,7 +805,7 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
         }
         reject_secret(term.definition.as_str())?;
     }
-    if effective.examples.len() > MAX_EXAMPLES {
+    if effective.examples.len() > ceilings.max_examples {
         return Err(object_budget("/examples"));
     }
     let mut example_ids = BTreeSet::new();
@@ -719,7 +820,7 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
         reject_secret(example.sql.as_str())?;
         reject_secret(example.question.as_str())?;
     }
-    if effective.enums.len() > MAX_ENUMS {
+    if effective.enums.len() > ceilings.max_enums {
         return Err(object_budget("/enums"));
     }
     let mut enum_names = BTreeSet::new();
@@ -732,7 +833,7 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
                 "an enum failed OOS validation",
             ));
         }
-        if enum_file.values.len() > MAX_ENUM_VALUES {
+        if enum_file.values.len() > ceilings.max_enum_values {
             return Err(object_budget("/enums"));
         }
         let name = enum_file.enum_name.as_str();
@@ -752,7 +853,7 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
         };
         require_known_column(&datasets, schema, table, column, &format!("/enums/{name}"))?;
     }
-    if effective.entities.len() > MAX_ENTITIES {
+    if effective.entities.len() > ceilings.max_entities {
         return Err(object_budget("/entities"));
     }
     let mut entity_names = BTreeSet::new();
@@ -824,8 +925,8 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
             ));
         }
     }
-    let grants = bind_grants(&datasets, &visibility.datasets)?;
-    Ok(Model {
+    let grants = bind_grants(&datasets, &visibility.datasets, ceilings)?;
+    let mut model = Model {
         project: effective.project,
         principal: visibility.principal,
         role: visibility.role,
@@ -847,14 +948,36 @@ fn bind(effective: EffectiveDoc, visibility: VisibilityDoc) -> Result<Model, Rol
         grants,
         limits: visibility.limits,
         unreviewed,
-    })
+        hidden_names: BTreeSet::new(),
+        hidden_labels: Vec::new(),
+    };
+    for dataset in model.datasets.values() {
+        let grant = model.grants.get(dataset.dataset.as_str());
+        if grant.is_none() {
+            index_hidden_name(&mut model.hidden_names, dataset.label.as_str());
+        }
+        for column in &dataset.columns {
+            if grant.is_some_and(|g| g.columns.contains(column.name.as_str())) {
+                continue;
+            }
+            index_hidden_name(&mut model.hidden_names, column.name.as_str());
+            if let Some(label) = &column.label {
+                index_hidden_name(&mut model.hidden_names, label.as_str());
+            }
+        }
+    }
+    model.hidden_labels = hidden_substrings(&model);
+    model.hidden_labels.sort();
+    model.hidden_labels.dedup();
+    Ok(model)
 }
 
 fn bind_grants(
     datasets: &BTreeMap<String, DatasetFile>,
     rows: &[VisibleDataset],
+    ceilings: &RolePackCeilings,
 ) -> Result<BTreeMap<String, Grant>, RolePackError> {
-    if rows.len() > MAX_DATASETS {
+    if rows.len() > ceilings.max_datasets {
         return Err(object_budget("/datasets"));
     }
     let mut grants = BTreeMap::new();
@@ -874,7 +997,7 @@ fn bind_grants(
                 "the snapshot repeats a dataset",
             ));
         }
-        if row.columns.is_empty() || row.columns.len() > MAX_COLUMNS {
+        if row.columns.is_empty() || row.columns.len() > ceilings.max_columns {
             return Err(RolePackError::new(
                 "visibility.columns",
                 format!("{path}/columns"),
@@ -1017,8 +1140,7 @@ fn select(model: &Model) -> Result<Selected, RolePackError> {
             .is_some_and(|review| review.state == ReviewState::Approved);
         let declared = relationship.provenance == RelationProvenance::DeclaredFk;
         let unreviewed = model.unreviewed.contains("relationships");
-        if (approved || declared || unreviewed)
-            && visible_prose(model, relationship.name.as_str())
+        if (approved || declared || unreviewed) && visible_prose(model, relationship.name.as_str())
         {
             relationships.push(relationship.clone());
         }
@@ -1040,8 +1162,15 @@ fn select(model: &Model) -> Result<Selected, RolePackError> {
     let enum_names: BTreeSet<&str> = enums.iter().map(|item| item.enum_name.as_str()).collect();
 
     let mut metrics = Vec::new();
+    let mut metric_candidates = Vec::new();
     for metric in &model.metrics {
         if !metric.certified || metric.status == MetricStatus::Draft {
+            if model.unreviewed.contains("metrics")
+                && metric.status != MetricStatus::Deprecated
+                && metric_kept(model, metric, &enum_names)
+            {
+                metric_candidates.push(metric.clone());
+            }
             continue;
         }
         if metric_kept(model, metric, &enum_names) {
@@ -1049,6 +1178,7 @@ fn select(model: &Model) -> Result<Selected, RolePackError> {
         }
     }
     metrics.sort_by(|left, right| left.metric.as_str().cmp(right.metric.as_str()));
+    metric_candidates.sort_by(|left, right| left.metric.as_str().cmp(right.metric.as_str()));
     let metric_names: BTreeSet<&str> = metrics.iter().map(|item| item.metric.as_str()).collect();
     let relationship_names: BTreeSet<&str> = relationships
         .iter()
@@ -1068,7 +1198,12 @@ fn select(model: &Model) -> Result<Selected, RolePackError> {
 
     let mut examples = Vec::new();
     for example in &model.examples {
-        if example_kept(model, example, &metric_names, &relationship_names) {
+        if example
+            .last_checked
+            .as_ref()
+            .is_none_or(|check| check.status == oo_core::oos::CheckStatus::Ok)
+            && example_kept(model, example, &metric_names, &relationship_names)
+        {
             examples.push(example.clone());
         }
     }
@@ -1084,6 +1219,7 @@ fn select(model: &Model) -> Result<Selected, RolePackError> {
     Ok(Selected {
         relationships,
         metrics,
+        metric_candidates,
         glossary,
         examples,
         enums,
@@ -1095,7 +1231,11 @@ fn metric_kept(model: &Model, metric: &Metric, enums: &BTreeSet<&str>) -> bool {
     if !verified_sql(metric.sql.as_str()) {
         return false;
     }
-    let mut texts = vec![metric.metric.as_str(), metric.label.as_str(), metric.sql.as_str()];
+    let mut texts = vec![
+        metric.metric.as_str(),
+        metric.label.as_str(),
+        metric.sql.as_str(),
+    ];
     if let Some(description) = &metric.description {
         texts.push(description.as_str());
     }
@@ -1104,6 +1244,12 @@ fn metric_kept(model: &Model, metric: &Metric, enums: &BTreeSet<&str>) -> bool {
     }
     for synonym in &metric.synonyms {
         texts.push(synonym.as_str());
+    }
+    for grain in &metric.grain {
+        texts.push(grain.as_str());
+    }
+    for dimension in &metric.dimensions {
+        texts.push(dimension.as_str());
     }
     if let Some(unit) = &metric.unit {
         texts.push(unit.as_str());
@@ -1127,21 +1273,22 @@ fn metric_kept(model: &Model, metric: &Metric, enums: &BTreeSet<&str>) -> bool {
         }
     }
     for filter in &metric.enum_filters {
-        if !path_visible(model, filter.column.as_str()) || !path_visible(model, filter.enum_name.as_str())
+        if !path_visible(model, filter.column.as_str())
+            || !path_visible(model, filter.enum_name.as_str())
         {
             return false;
         }
         if !enums.contains(filter.enum_name.as_str()) {
             return false;
         }
+        for class in &filter.classes {
+            texts.push(class.as_str());
+        }
         if let Some(dataset) = dataset_of_path(filter.column.as_str()) {
             forced.insert(dataset);
         }
     }
-    matches!(
-        scan_texts(model, &texts, &forced, true),
-        Scan::Ok { .. }
-    )
+    matches!(scan_texts(model, &texts, &forced, true), Scan::Ok { .. })
 }
 
 fn term_kept(model: &Model, term: &Term, metrics: &BTreeSet<&str>) -> bool {
@@ -1309,33 +1456,17 @@ fn scan_texts(
         match scan_one(model, &text) {
             Scan::Affected => return Scan::Affected,
             Scan::Unbound => return Scan::Unbound,
-            Scan::Ok {
-                datasets: found,
-            } => {
+            Scan::Ok { datasets: found } => {
                 datasets.extend(found);
                 bare.extend(idents);
             }
         }
     }
-    for dataset in model.datasets.values() {
-        let grant = model.grants.get(dataset.dataset.as_str());
-        if grant.is_none() && ident_hit(&bare, dataset.label.as_str()) {
-            return Scan::Affected;
-        }
-        for column in &dataset.columns {
-            let visible = grant.is_some_and(|grant| grant.columns.contains(column.name.as_str()));
-            if visible {
-                continue;
-            }
-            if ident_hit(&bare, column.name.as_str()) {
-                return Scan::Affected;
-            }
-            if let Some(label) = &column.label
-                && ident_hit(&bare, label.as_str())
-            {
-                return Scan::Affected;
-            }
-        }
+    if bare
+        .iter()
+        .any(|ident| model.hidden_names.contains(&ident.to_ascii_lowercase()))
+    {
+        return Scan::Affected;
     }
     if require_dataset && datasets.is_empty() {
         return Scan::Unbound;
@@ -1343,18 +1474,38 @@ fn scan_texts(
     Scan::Ok { datasets }
 }
 
-fn ident_hit(bare: &BTreeSet<String>, candidate: &str) -> bool {
+fn index_hidden_name(index: &mut BTreeSet<String>, candidate: &str) {
     let candidate = nfc(candidate);
-    if !is_plain_ident(&candidate) {
-        return false;
+    if is_plain_ident(&candidate) {
+        index.insert(candidate.to_ascii_lowercase());
     }
-    bare.iter()
-        .any(|ident| ident.eq_ignore_ascii_case(&candidate))
+}
+
+#[cfg(test)]
+mod hidden_name_index_tests {
+    use super::*;
+
+    #[test]
+    fn index_preserves_identifier_case_and_non_identifier_rules() {
+        let mut names = BTreeSet::new();
+        for candidate in [
+            "Private_ID",
+            "private_id",
+            "private label",
+            "姓名",
+            "e\u{301}",
+        ] {
+            index_hidden_name(&mut names, candidate);
+        }
+        assert_eq!(names, BTreeSet::from(["private_id".to_owned()]));
+        assert!(names.contains(&"PRIVATE_ID".to_ascii_lowercase()));
+        assert!(!names.contains("public_id"));
+    }
 }
 
 fn copies_hidden_label(model: &Model, decoded: &str, idents: &BTreeSet<String>) -> bool {
-    hidden_substrings(model).into_iter().any(|label| {
-        label_in_text(decoded, &label) || idents.iter().any(|ident| label_eq(ident, &label))
+    model.hidden_labels.iter().any(|label| {
+        label_in_text(decoded, label) || idents.iter().any(|ident| label_eq(ident, label))
     })
 }
 
@@ -1500,9 +1651,6 @@ fn scan_one(model: &Model, text: &str) -> Scan {
         if is_system_schema(schema) {
             return Scan::Affected;
         }
-        if is_platform_schema(schema) {
-            continue;
-        }
         match find_dataset(model, schema, table) {
             Some(dataset) => {
                 let name = dataset.dataset.as_str().to_owned();
@@ -1521,7 +1669,9 @@ fn scan_one(model: &Model, text: &str) -> Scan {
                 }
                 datasets.insert(name);
             }
-            None if schema_included(model, schema) => return Scan::Unbound,
+            None if schema_included(model, schema) || is_platform_schema(schema) => {
+                return Scan::Unbound;
+            }
             None => {}
         }
     }
@@ -1531,11 +1681,16 @@ fn scan_one(model: &Model, text: &str) -> Scan {
 struct Walk<'a> {
     text: &'a str,
     index: usize,
+    depth: usize,
 }
 
 impl<'a> Walk<'a> {
     fn new(text: &'a str) -> Self {
-        Self { text, index: 0 }
+        Self {
+            text,
+            index: 0,
+            depth: 0,
+        }
     }
 
     fn peek(&self) -> Option<char> {
@@ -1653,7 +1808,45 @@ fn is_ident_cont(ch: char) -> bool {
 }
 
 const SQL_KEYWORDS: &[&str] = &[
-    "select", "distinct", "from", "where", "union", "all", "as", "and", "is", "not", "null",
+    "select",
+    "distinct",
+    "from",
+    "where",
+    "union",
+    "all",
+    "as",
+    "and",
+    "or",
+    "is",
+    "not",
+    "null",
+    "group",
+    "by",
+    "order",
+    "asc",
+    "desc",
+    "nulls",
+    "first",
+    "last",
+    "limit",
+    "offset",
+    "join",
+    "inner",
+    "left",
+    "right",
+    "full",
+    "outer",
+    "on",
+    "in",
+    "date",
+    "timestamp",
+    "having",
+    "into",
+    "for",
+    "with",
+    "returning",
+    "true",
+    "false",
 ];
 
 fn keyword_matches(walk: &Walk<'_>, keyword: &str) -> bool {
@@ -1668,7 +1861,9 @@ fn keyword_matches(walk: &Walk<'_>, keyword: &str) -> bool {
 }
 
 fn keyword_here(walk: &Walk<'_>) -> bool {
-    SQL_KEYWORDS.iter().any(|keyword| keyword_matches(walk, keyword))
+    SQL_KEYWORDS
+        .iter()
+        .any(|keyword| keyword_matches(walk, keyword))
 }
 
 fn eat_keyword(walk: &mut Walk<'_>, keyword: &str) -> bool {
@@ -1700,6 +1895,10 @@ fn verified_sql(text: &str) -> bool {
         return false;
     }
     walk.skip_ws();
+    if walk.peek() == Some(';') {
+        walk.bump();
+        walk.skip_ws();
+    }
     walk.index == walk.text.len()
 }
 
@@ -1734,10 +1933,77 @@ fn parse_select(walk: &mut Walk<'_>) -> Result<(), ()> {
         return Err(());
     }
     parse_relation(walk)?;
+    loop {
+        let mark = walk.index;
+        let join_kind = ["inner", "left", "right", "full"]
+            .iter()
+            .any(|word| eat_keyword(walk, word));
+        if join_kind {
+            eat_keyword(walk, "outer");
+        }
+        if !eat_keyword(walk, "join") {
+            if join_kind {
+                return Err(());
+            }
+            walk.index = mark;
+            break;
+        }
+        parse_relation(walk)?;
+        if !eat_keyword(walk, "on") {
+            return Err(());
+        }
+        parse_predicate(walk)?;
+    }
     if eat_keyword(walk, "where") {
         parse_predicate(walk)?;
     }
+    if eat_keyword(walk, "group") {
+        if !eat_keyword(walk, "by") {
+            return Err(());
+        }
+        parse_expr_list(walk)?;
+    }
+    if eat_keyword(walk, "order") {
+        if !eat_keyword(walk, "by") {
+            return Err(());
+        }
+        loop {
+            parse_expr(walk)?;
+            if !eat_keyword(walk, "asc") {
+                eat_keyword(walk, "desc");
+            }
+            if eat_keyword(walk, "nulls")
+                && !eat_keyword(walk, "first")
+                && !eat_keyword(walk, "last")
+            {
+                return Err(());
+            }
+            walk.skip_ws();
+            if walk.peek() != Some(',') {
+                break;
+            }
+            walk.bump();
+        }
+    }
+    if eat_keyword(walk, "limit") {
+        parse_number(walk)?;
+    }
+    if eat_keyword(walk, "offset") {
+        parse_number(walk)?;
+    }
     Ok(())
+}
+
+fn parse_expr_list(walk: &mut Walk<'_>) -> Result<(), ()> {
+    parse_expr(walk)?;
+    loop {
+        walk.skip_ws();
+        if walk.peek() != Some(',') {
+            return Ok(());
+        }
+        walk.bump();
+        parse_expr(walk)?;
+    }
 }
 
 fn parse_item(walk: &mut Walk<'_>) -> Result<(), ()> {
@@ -1755,18 +2021,43 @@ fn parse_relation(walk: &mut Walk<'_>) -> Result<(), ()> {
         walk.bump();
         parse_name(walk)?;
     }
+    if eat_keyword(walk, "as") {
+        parse_name(walk)?;
+    } else {
+        walk.skip_ws();
+        if !keyword_here(walk)
+            && (walk.peek() == Some('"') || walk.peek().is_some_and(is_ident_start))
+        {
+            parse_name(walk)?;
+        }
+    }
     Ok(())
 }
 
 fn parse_predicate(walk: &mut Walk<'_>) -> Result<(), ()> {
     parse_comparison(walk)?;
-    while eat_keyword(walk, "and") {
+    while eat_keyword(walk, "and") || eat_keyword(walk, "or") {
         parse_comparison(walk)?;
     }
     Ok(())
 }
 
 fn parse_comparison(walk: &mut Walk<'_>) -> Result<(), ()> {
+    walk.skip_ws();
+    if walk.peek() == Some('(') {
+        if walk.depth >= 64 {
+            return Err(());
+        }
+        walk.depth += 1;
+        walk.bump();
+        parse_predicate(walk)?;
+        walk.skip_ws();
+        if walk.bump() != Some(')') {
+            return Err(());
+        }
+        walk.depth -= 1;
+        return Ok(());
+    }
     parse_expr(walk)?;
     if eat_keyword(walk, "is") {
         if eat_keyword(walk, "not") {
@@ -1780,6 +2071,23 @@ fn parse_comparison(walk: &mut Walk<'_>) -> Result<(), ()> {
         }
         return Err(());
     }
+    let negated = eat_keyword(walk, "not");
+    if eat_keyword(walk, "in") {
+        walk.skip_ws();
+        if walk.bump() != Some('(') {
+            return Err(());
+        }
+        parse_expr_list(walk)?;
+        walk.skip_ws();
+        return if walk.bump() == Some(')') {
+            Ok(())
+        } else {
+            Err(())
+        };
+    }
+    if negated {
+        return Err(());
+    }
     if !eat_op(walk) {
         return Err(());
     }
@@ -1787,7 +2095,46 @@ fn parse_comparison(walk: &mut Walk<'_>) -> Result<(), ()> {
 }
 
 fn parse_expr(walk: &mut Walk<'_>) -> Result<(), ()> {
+    if walk.depth >= 64 {
+        return Err(());
+    }
+    walk.depth += 1;
+    parse_atom(walk)?;
+    loop {
+        walk.skip_ws();
+        if !matches!(walk.peek(), Some('+') | Some('-') | Some('*') | Some('/')) {
+            break;
+        }
+        walk.bump();
+        parse_atom(walk)?;
+    }
+    walk.depth -= 1;
+    Ok(())
+}
+
+fn parse_atom(walk: &mut Walk<'_>) -> Result<(), ()> {
     walk.skip_ws();
+    if eat_keyword(walk, "timestamp") || eat_keyword(walk, "date") {
+        walk.skip_ws();
+        return parse_string(walk);
+    }
+    if eat_keyword(walk, "null") || eat_keyword(walk, "true") || eat_keyword(walk, "false") {
+        return Ok(());
+    }
+    if walk.peek() == Some('(') {
+        walk.bump();
+        parse_expr(walk)?;
+        walk.skip_ws();
+        return if walk.bump() == Some(')') {
+            Ok(())
+        } else {
+            Err(())
+        };
+    }
+    if walk.peek() == Some('-') || walk.peek() == Some('+') {
+        walk.bump();
+        return parse_number(walk);
+    }
     if walk.peek() == Some('\'') {
         return parse_string(walk);
     }
@@ -1808,6 +2155,7 @@ fn parse_expr(walk: &mut Walk<'_>) -> Result<(), ()> {
             walk.bump();
             return Ok(());
         }
+        eat_keyword(walk, "distinct");
         parse_expr(walk)?;
         loop {
             walk.skip_ws();
@@ -1837,7 +2185,13 @@ fn parse_expr(walk: &mut Walk<'_>) -> Result<(), ()> {
 
 fn parse_name(walk: &mut Walk<'_>) -> Result<(), ()> {
     walk.skip_ws();
-    if keyword_here(walk) {
+    // Preserve legacy catalog identifiers; clause boundaries use the fuller list.
+    if [
+        "select", "distinct", "from", "where", "union", "all", "as", "and", "is", "not", "null",
+    ]
+    .iter()
+    .any(|word| keyword_matches(walk, word))
+    {
         return Err(());
     }
     match take_ident(walk)? {
@@ -1847,6 +2201,7 @@ fn parse_name(walk: &mut Walk<'_>) -> Result<(), ()> {
 }
 
 fn parse_number(walk: &mut Walk<'_>) -> Result<(), ()> {
+    walk.skip_ws();
     if !walk.peek().is_some_and(|ch| ch.is_ascii_digit()) {
         return Err(());
     }
@@ -1957,13 +2312,105 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
             continue;
         };
         let path = normalize_pack_path(&format!("tables/{name}.md"))?;
-        add_file(&mut files, &path, render_table(model, selected, dataset, grant)?)?;
+        add_file(
+            &mut files,
+            &path,
+            render_table(model, selected, dataset, grant)?,
+        )?;
     }
-    add_file(&mut files, "metrics.md", render_metrics(model, selected)?)?;
+    for (path, text) in &files {
+        check_file_budget(path, text, &model.limits)?;
+    }
+    pages::metrics(&mut files, model, selected)?;
+    add_file(
+        &mut files,
+        "metrics/availability.json",
+        canonical_json(&serde_json::json!({
+            "protocol": "oo.knowledge.metric-availability/v1",
+            "certified_metrics": selected.metrics.iter()
+                .filter(|metric| metric.status == MetricStatus::Active)
+                .map(|metric| metric.metric.as_str()).collect::<Vec<_>>(),
+            "candidate_metrics": selected.metric_candidates.iter()
+                .map(|metric| metric.metric.as_str()).collect::<Vec<_>>(),
+            "runtime_execution_verified": false,
+            "business_readiness_verified": false,
+        })),
+    )?;
+    add_file(
+        &mut files,
+        "availability.json",
+        canonical_json(&serde_json::json!({
+            "protocol": "oo.knowledge.asset-availability/v1",
+            "available": {
+                "datasets": model.grants.keys().collect::<Vec<_>>(),
+                "relationships": selected.relationships.iter().filter(|r|
+                    r.provenance == RelationProvenance::DeclaredFk || r.review.as_ref()
+                        .is_some_and(|v| v.state == ReviewState::Approved))
+                    .map(|r| r.name.as_str()).collect::<Vec<_>>(),
+                "metrics": selected.metrics.iter().filter(|m| m.status == MetricStatus::Active)
+                    .map(|m| m.metric.as_str()).collect::<Vec<_>>(),
+                "glossary": selected.glossary.iter().map(|t| t.term.as_str()).collect::<Vec<_>>(),
+                "examples": selected.examples.iter().filter(|e| e.last_checked.as_ref()
+                    .is_some_and(|c| c.status == oo_core::oos::CheckStatus::Ok))
+                    .map(|e| e.id.as_str()).collect::<Vec<_>>(),
+                "enums": selected.enums.iter().filter(|e| !e.values.is_empty()
+                    && e.values.iter().all(|v| v.status == EnumValueStatus::Approved
+                        && visible_prose(model, v.code.as_str())
+                        && v.label.as_ref().is_some_and(|l| visible_prose(model, l.as_str()))))
+                    .map(|e| e.enum_name.as_str()).collect::<Vec<_>>(),
+                "entities": selected.entities.iter().map(|e| e.entity.as_str()).collect::<Vec<_>>(),
+            },
+            "candidate_metrics": selected.metric_candidates.iter()
+                .map(|m| m.metric.as_str()).collect::<Vec<_>>(),
+            "semantics": "Only role-visible assets; enums require every observed code approved, examples require a successful check. Empty collections are readiness gaps, not zero business activity.",
+            "runtime_execution_verified": false,
+            "business_readiness_verified": false,
+        })),
+    )?;
     add_file(&mut files, "calendar.md", render_calendar(model)?)?;
     add_file(&mut files, "glossary.md", render_glossary(model, selected)?)?;
-    add_file(&mut files, "relationships.md", render_relationships(model, selected)?)?;
-    add_file(&mut files, "examples/verified.sql", render_examples(model, selected)?)?;
+    let relationships = render_relationships(model, selected)?;
+    let page_bytes = model
+        .ontology
+        .compile
+        .budgets
+        .readme_tokens
+        .min(model.ontology.compile.budgets.table_file_tokens) as usize;
+    // UTF-8 bytes conservatively bound the release gate's unicode-word tokens.
+    if relationships.len() <= page_bytes {
+        add_file(&mut files, "relationships.md", relationships)?;
+    } else {
+        let mut navigation = String::from(
+            "# relationships\n\nRelationship pages; table pages also list incident JOIN keys.\n\n",
+        );
+        let mut number = 1;
+        let mut content = String::new();
+        for section in relationships.split("\n## ") {
+            let block = if content.is_empty() && number == 1 {
+                section.to_owned()
+            } else {
+                format!("\n## {section}")
+            };
+            if !content.is_empty() && content.len() + block.len() > page_bytes {
+                let path = format!("relationships/page-{number:04}.md");
+                navigation.push_str(&format!("- [{path}]({path})\n"));
+                add_file(&mut files, &path, std::mem::take(&mut content))?;
+                number += 1;
+            }
+            content.push_str(&block);
+        }
+        if !content.is_empty() {
+            let path = format!("relationships/page-{number:04}.md");
+            navigation.push_str(&format!("- [{path}]({path})\n"));
+            add_file(&mut files, &path, content)?;
+        }
+        add_file(&mut files, "relationships.md", navigation)?;
+    }
+    add_file(
+        &mut files,
+        "examples/verified.sql",
+        render_examples(model, selected)?,
+    )?;
     for enum_file in &selected.enums {
         let path = normalize_pack_path(&format!("enums/{}.md", enum_file.enum_name.as_str()))?;
         add_file(&mut files, &path, render_enum(model, enum_file)?)?;
@@ -2008,14 +2455,58 @@ fn render_readme(model: &Model) -> Result<String, RolePackError> {
         &format!("ontology_version: `{}`", model.ontology_version.as_str()),
     );
     line(&mut text, &format!("compiler: `{ROLE_PACK_COMPILER}`"));
-    line(&mut text, &format!("locale: `{}`", model.ontology.locale.as_str()));
+    line(
+        &mut text,
+        &format!("locale: `{}`", model.ontology.locale.as_str()),
+    );
     line(&mut text, &format!("project: `{}`", model.project.as_str()));
     line(&mut text, &format!("role: `{}`", model.role.as_str()));
     text.push('\n');
     text.push_str("This file is a read-only role pack. It does not authenticate the caller and it does not grant privileges. Visibility came from a supplied policy snapshot.\n\n");
     text.push_str(PG_DIALECT_SENTENCE);
-    text.push_str("\n\n");
-    text.push_str("Read README.md, then INDEX.md, then tables, metrics.md, and examples/verified.sql.\n\n");
+    text.push_str("\n\nThe Gateway accepts a versioned restricted SQL subset, not all PostgreSQL syntax or function overloads. Use current CLI help, describe for execution types, and validate before query. This compiler does not verify runtime capabilities or business readiness.\n\n");
+    text.push_str(
+        "Read README.md, then INDEX.md, then tables, metrics.md, and examples/verified.sql.\n\n",
+    );
+    text.push_str("## Domain map\n\nSearch INDEX.md for table paths; read each table page for related tables and JOIN paths.\n\n");
+    let mut domains: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    for name in model.grants.keys() {
+        let (schema, table) = name.split_once('.').expect("bound dataset");
+        let prefix = table.split('_').next().unwrap_or(table);
+        domains
+            .entry(format!("{schema}.{prefix}"))
+            .or_default()
+            .push(name.as_str());
+    }
+    for (domain, names) in domains.iter().take(16) {
+        text.push_str(&format!("- `{domain}`: {} visible tables grouped by schema/table prefix; start at `{}`. See INDEX.md for the full group.", names.len(), names[0]));
+        if let Some(relation) = model.relationships.iter().find(|relation| {
+            names.contains(&relation.from.dataset.as_str())
+                && end_visible(
+                    model,
+                    relation.from.dataset.as_str(),
+                    &relation.from.columns,
+                )
+                && end_visible(model, relation.to.dataset.as_str(), &relation.to.columns)
+                && relation.status != Some(ItemStatus::Rejected)
+                && (relation.provenance == RelationProvenance::DeclaredFk
+                    || relation
+                        .review
+                        .as_ref()
+                        .is_some_and(|r| r.state == ReviewState::Approved))
+        }) {
+            text.push_str(&format!(
+                " Key relationship: `{}` → `{}`.",
+                relation.from.dataset.as_str(),
+                relation.to.dataset.as_str()
+            ));
+        }
+        text.push('\n');
+    }
+    if domains.len() > 16 {
+        text.push_str("Additional domains are listed in INDEX.md; the README intentionally does not enumerate the library.\n");
+    }
+    text.push('\n');
     text.push_str("Visible schemas: ");
     text.push_str(&schemas.into_iter().collect::<Vec<_>>().join(", "));
     text.push_str("\n\nSamples are never included. This compiler has no fixed tokenizer, does not treat byte counts as tokens, and does not claim a publish gate.\n");
@@ -2032,10 +2523,7 @@ fn render_index(model: &Model) -> Result<String, RolePackError> {
         let Some((schema, _)) = name.split_once('.') else {
             continue;
         };
-        schemas
-            .entry(schema.to_owned())
-            .or_default()
-            .push(dataset);
+        schemas.entry(schema.to_owned()).or_default().push(dataset);
     }
     if schemas.is_empty() {
         text.push_str("No dataset is visible.\n");
@@ -2046,10 +2534,21 @@ fn render_index(model: &Model) -> Result<String, RolePackError> {
         text.push_str(&schema);
         text.push_str("\n\n");
         for dataset in datasets {
-            text.push_str("- `");
+            text.push_str("- [");
+            text.push_str(
+                dataset
+                    .dataset
+                    .as_str()
+                    .split_once('.')
+                    .expect("bound dataset")
+                    .1,
+            );
+            text.push_str("](tables/");
             text.push_str(dataset.dataset.as_str());
-            text.push('`');
-            if visible_prose(model, dataset.label.as_str()) {
+            text.push_str(".md)");
+            if dataset.label.as_str() != dataset.dataset.as_str()
+                && visible_prose(model, dataset.label.as_str())
+            {
                 text.push_str(" — ");
                 text.push_str(dataset.label.as_str());
             }
@@ -2081,7 +2580,10 @@ fn render_table(
         text.push_str(dataset.label.as_str());
     }
     text.push_str("\n\n");
-    line(&mut text, &format!("tier: `{}`", enum_token(&dataset.tier)?));
+    line(
+        &mut text,
+        &format!("tier: `{}`", enum_token(&dataset.tier)?),
+    );
     if let Some(grain) = &dataset.grain
         && visible_prose(model, grain.as_str())
     {
@@ -2111,7 +2613,9 @@ fn render_table(
             text.push_str(proof);
             text.push_str("). This compiler did not re-prove that claim.\n");
         } else {
-            text.push_str("Global statistics are omitted. This compiler did not re-prove row security.\n");
+            text.push_str(
+                "Global statistics are omitted. This compiler did not re-prove row security.\n",
+            );
         }
     } else {
         text.push_str("Row security: none. This compiler did not query the database.\n");
@@ -2162,8 +2666,8 @@ fn render_table(
             .data_type
             .as_ref()
             .map(Label::as_str)
-            .filter(|text| visible_prose(model, text))
-            .unwrap_or("");
+            .filter(|text| public_execution_type(text))
+            .unwrap_or("unavailable");
         text.push_str(&cell(data_type));
         text.push_str(" | ");
         let semantic = match &column.semantic_type {
@@ -2179,6 +2683,15 @@ fn render_table(
         text.push_str(" |\n");
     }
     text.push('\n');
+    if dataset.columns.iter().any(|column| {
+        grant.columns.contains(column.name.as_str())
+            && !column
+                .data_type
+                .as_ref()
+                .is_some_and(|kind| public_execution_type(kind.as_str()))
+    }) {
+        text.push_str("Unavailable execution types are missing or outside the public type vocabulary. Use the current role's describe metadata; do not infer a type from a column name or source type.\n\n");
+    }
     text.push_str("## relationships\n\n");
     let mut any = false;
     for relationship in &selected.relationships {
@@ -2187,9 +2700,15 @@ fn render_table(
             text.push_str("- `");
             text.push_str(relationship.name.as_str());
             text.push_str("` ");
-            text.push_str(&end_text(relationship.from.dataset.as_str(), &relationship.from.columns));
+            text.push_str(&end_text(
+                relationship.from.dataset.as_str(),
+                &relationship.from.columns,
+            ));
             text.push_str(" -> ");
-            text.push_str(&end_text(relationship.to.dataset.as_str(), &relationship.to.columns));
+            text.push_str(&end_text(
+                relationship.to.dataset.as_str(),
+                &relationship.to.columns,
+            ));
             text.push('\n');
         }
     }
@@ -2198,6 +2717,73 @@ fn render_table(
     }
     render_source_semantics(&mut text, dataset, grant)?;
     finish(text)
+}
+
+/// Type metadata is not prose: a hidden column named `time` must not erase
+/// a public timestamp type. Unknown/custom types stay out rather than using
+/// the absence of a hidden-name match as permission to publish arbitrary text.
+fn public_execution_type(text: &str) -> bool {
+    if !text.is_ascii() || text.bytes().any(|b| b.is_ascii_control()) {
+        return false;
+    }
+    let normalized = text.to_ascii_lowercase();
+    let mut bare = normalized.trim();
+    while let Some(inner) = bare.strip_suffix("[]") {
+        bare = inner.trim_end();
+    }
+    let bare = bare.strip_prefix("pg_catalog.").unwrap_or(bare);
+    let (name, params) = if let Some((head, rest)) = bare.split_once('(') {
+        let Some((args, tail)) = rest.split_once(')') else {
+            return false;
+        };
+        let params: Option<Vec<i32>> = args
+            .split(',')
+            .map(|arg| {
+                let arg = arg.trim();
+                let digits = arg.strip_prefix('-').unwrap_or(arg);
+                if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+                    return None;
+                }
+                arg.parse().ok()
+            })
+            .collect();
+        let Some(params) = params else { return false };
+        (format!("{}{}", head.trim_end(), tail), params)
+    } else {
+        (bare.to_owned(), Vec::new())
+    };
+    match name.as_str() {
+        "numeric" | "decimal" => match params.as_slice() {
+            [] => true,
+            [precision] => (1..=1000).contains(precision),
+            [precision, scale] => (1..=1000).contains(precision) && (-1000..=1000).contains(scale),
+            _ => false,
+        },
+        "character" | "character varying" | "char" | "varchar" | "bpchar" | "bit"
+        | "bit varying" | "varbit" => match params.as_slice() {
+            [] => true,
+            [length] => *length > 0,
+            _ => false,
+        },
+        "timestamp"
+        | "timestamp without time zone"
+        | "timestamp with time zone"
+        | "timestamptz"
+        | "time"
+        | "time without time zone"
+        | "time with time zone"
+        | "timetz"
+        | "interval" => match params.as_slice() {
+            [] => true,
+            [precision] => (0..=6).contains(precision),
+            _ => false,
+        },
+        "smallint" | "integer" | "bigint" | "int2" | "int4" | "int8" | "real"
+        | "double precision" | "float4" | "float8" | "boolean" | "bool" | "text" | "bytea"
+        | "date" | "uuid" | "json" | "jsonb" | "xml" | "inet" | "cidr" | "macaddr" | "macaddr8"
+        | "money" | "oid" => params.is_empty(),
+        _ => false,
+    }
 }
 
 fn render_source_semantics(
@@ -2220,10 +2806,7 @@ fn render_source_semantics(
         &format!("source_kind: {}", semantics.source_kind.as_str()),
     );
     if let Some(grade) = semantics.grade {
-        line(
-            text,
-            &format!("consistency_grade: {}", enum_token(&grade)?),
-        );
+        line(text, &format!("consistency_grade: {}", enum_token(&grade)?));
     }
     if let Some(delete_detection) = &semantics.delete_detection {
         line(
@@ -2268,12 +2851,19 @@ fn render_source_semantics(
                 &format!("native: {} {}", column.column.as_str(), note.as_str()),
             );
             let explanation = match note.as_str() {
-                "mysql_zero_date_to_null_authenticated_reject" => Some("MySQL DATE/DATETIME zero components are stored as SQL NULL with an authenticated quality reject; valid dates retain their exact values."),
-                "mysql_signed_time_duration_to_interval" => Some("MySQL TIME is a signed duration, including negative and greater-than-24-hour values, represented as PostgreSQL interval with microsecond precision."),
+                "mysql_zero_date_to_null_authenticated_reject" => Some(
+                    "MySQL DATE/DATETIME zero components are stored as SQL NULL with an authenticated quality reject; valid dates retain their exact values.",
+                ),
+                "mysql_signed_time_duration_to_interval" => Some(
+                    "MySQL TIME is a signed duration, including negative and greater-than-24-hour values, represented as PostgreSQL interval with microsecond precision.",
+                ),
                 _ => None,
             };
             if let Some(explanation) = explanation {
-                line(text, &format!("mapping: {}: {}", column.column.as_str(), explanation));
+                line(
+                    text,
+                    &format!("mapping: {}: {}", column.column.as_str(), explanation),
+                );
             }
         }
     }
@@ -2313,7 +2903,8 @@ fn visible_source_columns<'a>(
         .columns
         .iter()
         .filter(|column| {
-            !hidden.contains(column.column.as_str()) && grant.columns.contains(column.column.as_str())
+            !hidden.contains(column.column.as_str())
+                && grant.columns.contains(column.column.as_str())
         })
         .collect()
 }
@@ -2387,21 +2978,54 @@ fn description_text(
 }
 
 fn render_metrics(model: &Model, selected: &Selected) -> Result<String, RolePackError> {
+    render_metrics_filtered(model, selected, None)
+}
+
+fn render_metrics_filtered(
+    model: &Model,
+    selected: &Selected,
+    only: Option<&str>,
+) -> Result<String, RolePackError> {
     let mut text = String::from("# metrics\n\n");
-    text.push_str("Only certified metrics with a visible dependency set are included. Reconciliation is not executed and is not claimed.\n\n");
+    text.push_str("These definitions carry certification in the input and have a visible dependency set. Input certification is not a business-readiness decision. Runtime execution, completeness and reconciliation are not verified by this compiler.\n\n");
     if selected.metrics.is_empty() {
-        text.push_str("None.\n");
-        return finish(text);
+        text.push_str("No certified metrics are available in this role Pack. This is a semantic readiness gap, not evidence of missing rows or a zero business total. Check metrics/availability.json and the operator's metric projection audit; do not invent a certified definition.\n\n");
     }
-    for metric in &selected.metrics {
-        text.push_str("## ");
+    for (metric, candidate) in selected.metrics.iter().map(|metric| (metric, false)).chain(
+        selected
+            .metric_candidates
+            .iter()
+            .map(|metric| (metric, true)),
+    ) {
+        if only.is_some_and(|name| metric.metric.as_str() != name) {
+            continue;
+        }
+        text.push_str(if candidate { "### Candidate: " } else { "## " });
         text.push_str(metric.metric.as_str());
         if visible_prose(model, metric.label.as_str()) {
             text.push_str(" — ");
             text.push_str(metric.label.as_str());
         }
         text.push_str("\n\n");
-        line(&mut text, &format!("status: `{}`", enum_token(&metric.status)?));
+        if candidate {
+            text.push_str("> UNREVIEWED / NOT CERTIFIED. This is a proposed definition, not an approved business metric or verified SQL. Do not use it as the complete business answer. Resolve the stated gaps, validate with the current Gateway, and obtain explicit review and independent reconciliation.\n\n");
+        }
+        line(
+            &mut text,
+            &format!("status: `{}`", enum_token(&metric.status)?),
+        );
+        for synonym in &metric.synonyms {
+            line(&mut text, &format!("synonym: {}", cell(synonym.as_str())));
+        }
+        for grain in &metric.grain {
+            line(&mut text, &format!("grain: {}", cell(grain.as_str())));
+        }
+        if let Some(path) = &metric.time_dimension {
+            line(&mut text, &format!("time dimension: `{}`", path.as_str()));
+        }
+        for dimension in &metric.dimensions {
+            line(&mut text, &format!("dimension: `{}`", dimension.as_str()));
+        }
         if metric.status == MetricStatus::Deprecated {
             text.push_str("Deprecated. A replacement is not named unless it is a visible column path on the metric itself.\n");
         }
@@ -2418,6 +3042,20 @@ fn render_metrics(model: &Model, selected: &Selected) -> Result<String, RolePack
         }
         let mut warned = BTreeSet::new();
         for filter in &metric.enum_filters {
+            line(
+                &mut text,
+                &format!(
+                    "enum filter: `{}` via `{}`; classes: {}",
+                    filter.column.as_str(),
+                    filter.enum_name.as_str(),
+                    filter
+                        .classes
+                        .iter()
+                        .map(|class| format!("`{}`", class.as_str()))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            );
             if enum_has_unconfirmed(selected, filter.enum_name.as_str()) {
                 warned.insert(filter.enum_name.as_str().to_owned());
             }
@@ -2425,9 +3063,15 @@ fn render_metrics(model: &Model, selected: &Selected) -> Result<String, RolePack
         for name in warned {
             text.push_str("> Unconfirmed codes: ");
             text.push_str(&name);
-            text.push_str(" has undetermined or unexplained values. Those codes count in no class.\n\n");
+            text.push_str(" has undetermined or unexplained values. Those codes count in no class. This definition cannot certify a complete total while relevant meanings are unknown; report only an explicitly scoped subtotal.\n\n");
         }
-        text.push_str("> Reconciliation status is not in this pack. control_total was not executed and is not claimed to match.\n\n");
+        if !candidate {
+            text.push_str("> Reconciliation status is not in this pack. control_total was not executed and is not claimed to match.\n\n");
+        }
+        for caveat in &metric.caveats {
+            text.push_str("Caveat:\n");
+            text.push_str(&fence(caveat.as_str()));
+        }
         if let Some(description) = &metric.description
             && visible_prose(model, description.as_str())
         {
@@ -2464,10 +3108,16 @@ fn render_calendar(model: &Model) -> Result<String, RolePackError> {
         text.push_str("The effective document has no calendar. This compiler does not substitute a civil month.\n");
         return finish(text);
     };
-    line(&mut text, &format!("business time zone: `{}`", calendar.business_tz.as_str()));
+    line(
+        &mut text,
+        &format!("business time zone: `{}`", calendar.business_tz.as_str()),
+    );
     let month = calendar.fiscal_year_start_month;
     line(&mut text, &format!("fiscal year start month: {month}"));
-    line(&mut text, &format!("week start: `{}`", enum_token(&calendar.week_start)?));
+    line(
+        &mut text,
+        &format!("week start: `{}`", enum_token(&calendar.week_start)?),
+    );
     text.push_str("\nAnchors:\n\n");
     let mut any_anchor = false;
     for anchor in &calendar.anchors {
@@ -2554,7 +3204,10 @@ fn render_glossary(model: &Model, selected: &Selected) -> Result<String, RolePac
         }
         if let Some(mapping) = &term.maps_to {
             if let Some(dataset) = &mapping.dataset {
-                line(&mut text, &format!("maps to dataset `{}`", dataset.as_str()));
+                line(
+                    &mut text,
+                    &format!("maps to dataset `{}`", dataset.as_str()),
+                );
             }
             if let Some(metric) = &mapping.metric {
                 line(&mut text, &format!("maps to metric `{}`", metric.as_str()));
@@ -2585,12 +3238,21 @@ fn render_relationships(model: &Model, selected: &Selected) -> Result<String, Ro
             &mut text,
             &format!(
                 "`{}` -> `{}`",
-                end_text(relationship.from.dataset.as_str(), &relationship.from.columns),
+                end_text(
+                    relationship.from.dataset.as_str(),
+                    &relationship.from.columns
+                ),
                 end_text(relationship.to.dataset.as_str(), &relationship.to.columns)
             ),
         );
-        line(&mut text, &format!("cardinality: `{}`", enum_token(&relationship.cardinality)?));
-        line(&mut text, &format!("join: `{}`", enum_token(&relationship.join_hint)?));
+        line(
+            &mut text,
+            &format!("cardinality: `{}`", enum_token(&relationship.cardinality)?),
+        );
+        line(
+            &mut text,
+            &format!("join: `{}`", enum_token(&relationship.join_hint)?),
+        );
         let approved = relationship
             .review
             .as_ref()
@@ -2610,7 +3272,10 @@ fn render_relationships(model: &Model, selected: &Selected) -> Result<String, Ro
             && let Some(evidence) = &relationship.evidence
         {
             if let Some(name_match) = evidence.name_match {
-                line(&mut text, &format!("name match: `{}`", enum_token(&name_match)?));
+                line(
+                    &mut text,
+                    &format!("name match: `{}`", enum_token(&name_match)?),
+                );
             }
             if let Some(compatible) = evidence.type_compatible {
                 line(&mut text, &format!("type compatible: {compatible}"));
@@ -2622,9 +3287,10 @@ fn render_relationships(model: &Model, selected: &Selected) -> Result<String, Ro
 }
 
 fn stats_allowed(model: &Model, dataset: &str) -> bool {
-    model.grants.get(dataset).is_some_and(|grant| {
-        grant.global_stats && (!grant.rls || grant.proof_ref.is_some())
-    })
+    model
+        .grants
+        .get(dataset)
+        .is_some_and(|grant| grant.global_stats && (!grant.rls || grant.proof_ref.is_some()))
 }
 
 fn render_examples(model: &Model, selected: &Selected) -> Result<String, RolePackError> {
@@ -2665,7 +3331,7 @@ fn render_enum(model: &Model, enum_file: &EnumFile) -> Result<String, RolePackEr
     text.push_str("# ");
     text.push_str(name);
     text.push_str("\n\n");
-    text.push_str("Filter with `oo_dict.enum_values` and class. Do not copy codes into a negative predicate.\n\n");
+    text.push_str("This file describes semantic classes, not an executable dictionary binding. Use an approved, scope-specific mapping only after its objects and SQL have been validated for the current role. Do not infer a binding or copy codes into a negative predicate.\n\n");
     let dataset = dataset_of_path(name).unwrap_or_default();
     let stats = stats_allowed(model, &dataset);
     if stats && let Some(coverage) = &enum_file.coverage {
@@ -2675,6 +3341,7 @@ fn render_enum(model: &Model, enum_file: &EnumFile) -> Result<String, RolePackEr
         text.push_str("Coverage and evidence row counts are omitted.\n\n");
     }
     text.push_str("| code | label | class | status |\n| --- | --- | --- | --- |\n");
+    let mut has_unconfirmed = false;
     for value in &enum_file.values {
         if !visible_prose(model, value.code.as_str()) {
             continue;
@@ -2703,12 +3370,13 @@ fn render_enum(model: &Model, enum_file: &EnumFile) -> Result<String, RolePackEr
         if stats && let Some(rows) = value.evidence.as_ref().and_then(|item| item.rows) {
             line(&mut text, &format!("Evidence rows for this code: {rows}."));
         }
-        if matches!(
+        has_unconfirmed |= matches!(
             value.status,
             EnumValueStatus::Undetermined | EnumValueStatus::Unexplained
-        ) {
-            text.push_str("\nMeaning is unconfirmed. It counts in no class. Filter by joining `oo_dict.enum_values` on class. Do not copy codes into a predicate.\n\n");
-        }
+        );
+    }
+    if has_unconfirmed {
+        text.push_str("\nFor rows marked undetermined or unexplained: Meaning is unconfirmed. It counts in no class. Excluding unknown meanings cannot certify a complete total; any subtotal must state its limited scope.\n\n");
     }
     if !enum_file.unexplained_values.is_empty() {
         text.push_str("\nUnexplained codes present in the enum document:\n\n");
@@ -2733,9 +3401,15 @@ fn render_entity(model: &Model, entity: &EntityFile) -> Result<String, RolePackE
         text.push_str(entity.label.as_str());
     }
     text.push_str("\n\n");
-    line(&mut text, &format!("primary dataset: `{}`", entity.primary_dataset.as_str()));
+    line(
+        &mut text,
+        &format!("primary dataset: `{}`", entity.primary_dataset.as_str()),
+    );
     line(&mut text, &format!("key: `{}`", entity.key.as_str()));
-    line(&mut text, &format!("display: `{}`", entity.display.as_str()));
+    line(
+        &mut text,
+        &format!("display: `{}`", entity.display.as_str()),
+    );
     text.push_str("\nThe member list is every member in the effective document. This compiler does not emit an entity when any member is hidden.\n\n");
     if entity.members.is_empty() {
         text.push_str("Members: none.\n");
@@ -2770,13 +3444,15 @@ fn seal(model: &Model, mut files: BTreeMap<String, String>) -> Result<RolePack, 
         check_file_budget(path, text, &model.limits)?;
     }
     let listed = file_records(&files);
-    let manifest = serde_json::json!({
+    let mut manifest = serde_json::json!({
         "authentication": "not_claimed",
         "authorization": "not_claimed",
         "catalog_version": model.catalog_version,
         "compiler": ROLE_PACK_COMPILER,
         "domains": "unsupported",
-        "file_splitting": "unsupported",
+        "file_splitting": if files.keys().any(|p| p.starts_with("metrics/") && p != "metrics/availability.json") {
+            if files.keys().any(|p| p.starts_with("relationships/")) { "relationship_and_metric_pages" } else { "metric_pages" }
+        } else if files.keys().any(|p| p.starts_with("relationships/")) { "relationship_pages" } else { "unsupported" },
         "files": listed,
         "knowledge": {"id": model.knowledge_id, "version": model.knowledge_version},
         "mount": "not_performed",
@@ -2797,6 +3473,7 @@ fn seal(model: &Model, mut files: BTreeMap<String, String>) -> Result<RolePack, 
             "table_file_token_budget": model.ontology.compile.budgets.table_file_tokens
         }
     });
+    pages::manifest_index(&mut files, &mut manifest, model)?;
     let manifest_text = canonical_json(&manifest);
     check_file_budget("manifest.json", &manifest_text, &model.limits)?;
     add_file(&mut files, "manifest.json", manifest_text.clone())?;
@@ -3064,13 +3741,39 @@ fn check_version(value: &str, path: &str) -> Result<(), RolePackError> {
     }
 }
 
-fn check_limits(limits: &LimitsIn) -> Result<(), RolePackError> {
+fn check_ceilings(ceilings: &RolePackCeilings) -> Result<(), RolePackError> {
+    if ceilings.max_file_bytes == 0
+        || ceilings.max_total_bytes == 0
+        || ceilings.max_entries == 0
+        || ceilings.max_datasets == 0
+        || ceilings.max_columns == 0
+        || ceilings.max_effective_columns == 0
+        || ceilings.max_relationships == 0
+        || ceilings.max_metrics == 0
+        || ceilings.max_terms == 0
+        || ceilings.max_examples == 0
+        || ceilings.max_enums == 0
+        || ceilings.max_enum_values == 0
+        || ceilings.max_entities == 0
+        || ceilings.max_total_bytes < ceilings.max_file_bytes
+        || ceilings.max_effective_columns < ceilings.max_columns
+    {
+        return Err(RolePackError::new(
+            "limit.invalid",
+            "/ceilings",
+            "installation ceilings must be positive and internally consistent",
+        ));
+    }
+    Ok(())
+}
+
+fn check_limits(limits: &LimitsIn, ceilings: &RolePackCeilings) -> Result<(), RolePackError> {
     if limits.max_file_bytes == 0
-        || limits.max_file_bytes > MAX_FILE_BYTES
+        || limits.max_file_bytes > ceilings.max_file_bytes
         || limits.max_total_bytes == 0
-        || limits.max_total_bytes > MAX_TOTAL_BYTES
+        || limits.max_total_bytes > ceilings.max_total_bytes
         || limits.max_entries == 0
-        || limits.max_entries > MAX_ENTRIES
+        || limits.max_entries > ceilings.max_entries
         || limits.max_total_bytes < limits.max_file_bytes
     {
         return Err(RolePackError::new(
@@ -3148,23 +3851,21 @@ fn require_known_column(
 }
 
 fn schema_of(dataset: &str) -> Result<&str, RolePackError> {
-    dataset.split_once('.').map(|(schema, _)| schema).ok_or_else(|| {
-        RolePackError::new(
-            "oos.invalid",
-            dataset,
-            "a dataset name is not schema.table",
-        )
-    })
+    dataset
+        .split_once('.')
+        .map(|(schema, _)| schema)
+        .ok_or_else(|| {
+            RolePackError::new("oos.invalid", dataset, "a dataset name is not schema.table")
+        })
 }
 
 fn table_of(dataset: &str) -> Result<&str, RolePackError> {
-    dataset.split_once('.').map(|(_, table)| table).ok_or_else(|| {
-        RolePackError::new(
-            "oos.invalid",
-            dataset,
-            "a dataset name is not schema.table",
-        )
-    })
+    dataset
+        .split_once('.')
+        .map(|(_, table)| table)
+        .ok_or_else(|| {
+            RolePackError::new("oos.invalid", dataset, "a dataset name is not schema.table")
+        })
 }
 
 fn split_column(path: &str) -> Option<(&str, &str, &str)> {
@@ -3176,7 +3877,6 @@ fn split_column(path: &str) -> Option<(&str, &str, &str)> {
         Some((schema, table, column))
     }
 }
-
 
 #[cfg(test)]
 mod mysql_native_note_tests {
@@ -3194,13 +3894,20 @@ mod mysql_native_note_tests {
                     {"column":"elapsed","native_note":"mysql_signed_time_duration_to_interval"},
                     {"column":"other","native_note":"existing_unknown_token"}]}
         })).unwrap();
-        let grant=Grant {rls:false,global_stats:false,proof_ref:None,columns:columns.iter().map(|name|name.to_string()).collect()};
-        let mut text=String::new();render_source_semantics(&mut text,&dataset,&grant).unwrap();text
+        let grant = Grant {
+            rls: false,
+            global_stats: false,
+            proof_ref: None,
+            columns: columns.iter().map(|name| name.to_string()).collect(),
+        };
+        let mut text = String::new();
+        render_source_semantics(&mut text, &dataset, &grant).unwrap();
+        text
     }
 
     #[test]
     fn mysql_native_notes_explain_null_conversion_and_signed_duration() {
-        let text=rendered(&["date_value","elapsed","other"]);
+        let text = rendered(&["date_value", "elapsed", "other"]);
         assert!(text.contains("date_value: MySQL DATE/DATETIME zero components are stored as SQL NULL with an authenticated quality reject"));
         assert!(text.contains("elapsed: MySQL TIME is a signed duration, including negative and greater-than-24-hour values, represented as PostgreSQL interval with microsecond precision"));
         assert!(text.contains("native: other existing_unknown_token"));
@@ -3209,9 +3916,11 @@ mod mysql_native_note_tests {
 
     #[test]
     fn hidden_mysql_mapping_notes_do_not_leak_into_role_pack() {
-        let text=rendered(&["other"]);
-        assert!(!text.contains("date_value"));assert!(!text.contains("elapsed"));
-        assert!(!text.contains("SQL NULL"));assert!(!text.contains("mysql_zero_date"));
+        let text = rendered(&["other"]);
+        assert!(!text.contains("date_value"));
+        assert!(!text.contains("elapsed"));
+        assert!(!text.contains("SQL NULL"));
+        assert!(!text.contains("mysql_zero_date"));
         assert!(text.contains("native: other existing_unknown_token"));
     }
 }

@@ -264,9 +264,7 @@ pub fn compile_column_acl(policy: &ColumnAclPolicy) -> Result<CompiledPolicy, Po
     compile_column_acl_with_native_identifiers(policy, false)
 }
 
-pub fn compile_column_acl_native(
-    policy: &ColumnAclPolicy,
-) -> Result<CompiledPolicy, PolicyError> {
+pub fn compile_column_acl_native(policy: &ColumnAclPolicy) -> Result<CompiledPolicy, PolicyError> {
     compile_column_acl_with_native_identifiers(policy, true)
 }
 
@@ -379,7 +377,36 @@ pub async fn connect_require_tls(
     config.connect(tls).await.map_err(db_error)
 }
 
-/// Maximum tables in one [`install_column_acl_set`] call.
+pub async fn connect_readonly_require_tls(
+    endpoint: &TlsEndpoint,
+    password: &str,
+    ca_pem: &[u8],
+) -> Result<(Client, TlsConnection), PolicyError> {
+    if endpoint.host.is_empty() || endpoint.database.is_empty() || endpoint.user.is_empty() {
+        return Err(PolicyError::InvalidIdentifier { field: "endpoint" });
+    }
+    let tls = rustls_connector(ca_pem)?;
+    let mut config = tokio_postgres::Config::new();
+    config.user(&endpoint.user);
+    config.password(password);
+    config.host(&endpoint.host);
+    config.port(endpoint.port);
+    config.dbname(&endpoint.database);
+    config.ssl_mode(tokio_postgres::config::SslMode::Require);
+    config.application_name("oo-gateway-all-in-one");
+    config.options("-c default_transaction_read_only=on");
+    let (client, mut connection) = config.connect(tls).await.map_err(db_error)?;
+    let check = client.query_one("SELECT rolcanlogin AND NOT (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls), current_setting('default_transaction_read_only') = 'on' FROM pg_catalog.pg_roles WHERE rolname = session_user", &[]);
+    let row = tokio::select! {
+        row = check => row.map_err(db_error)?,
+        _ = &mut connection => return Err(PolicyError::LoginAbsent),
+    };
+    if !row.get::<_, bool>(0) || !row.get::<_, bool>(1) {
+        return Err(PolicyError::LoginAbsent);
+    }
+    Ok((client, connection))
+}
+/// Maximum tables in one legacy [`install_column_acl_set`] call.
 pub const COLUMN_ACL_SET_MAX_TABLES: usize = 32;
 
 /// Maximum columns on one table in that call. Matches the catalog column bound.
@@ -441,17 +468,22 @@ pub fn compile_column_acl_set(
 
 /// Compile one native source whose sealed collection binds each table independently.
 /// The shared project, role and login remain identical; each table retains its own mapping seal.
+/// This complete vector is validated member by member, not truncated to a legacy
+/// call's table budget. The native provisioner still checks the entire grant set.
 pub fn compile_column_acl_native_vector_set(
     policies: &[ColumnAclPolicy],
 ) -> Result<CompiledPolicySet, PolicyError> {
     compile_set(policies, true)
 }
 
-fn compile_set(policies: &[ColumnAclPolicy], native_vector: bool) -> Result<CompiledPolicySet, PolicyError> {
+fn compile_set(
+    policies: &[ColumnAclPolicy],
+    native_vector: bool,
+) -> Result<CompiledPolicySet, PolicyError> {
     if policies.is_empty() {
         return Err(PolicyError::EmptyPolicySet);
     }
-    if policies.len() > COLUMN_ACL_SET_MAX_TABLES {
+    if !native_vector && policies.len() > COLUMN_ACL_SET_MAX_TABLES {
         return Err(PolicyError::LimitExceeded);
     }
     let mut compiled = Vec::with_capacity(policies.len());
@@ -528,27 +560,44 @@ pub async fn install_column_acl_native_vector_set(
     require_tls_session(client).await?;
     let mut tx = client.transaction().await.map_err(db_error)?;
     match install_set_in_transaction(&mut tx, &compiled).await {
-        Ok(outcome) => { tx.commit().await.map_err(db_error)?; Ok(outcome) }
-        Err(err) => { let _ = tx.rollback().await; Err(err) }
+        Ok(outcome) => {
+            tx.commit().await.map_err(db_error)?;
+            Ok(outcome)
+        }
+        Err(err) => {
+            let _ = tx.rollback().await;
+            Err(err)
+        }
     }
 }
 
 /// Validate an operator-authorized previous native policy set. Only generations may advance.
 pub fn compile_column_acl_native_transition(
-    previous: &[ColumnAclPolicy], current: &[ColumnAclPolicy],
+    previous: &[ColumnAclPolicy],
+    current: &[ColumnAclPolicy],
 ) -> Result<(), PolicyError> {
     let before = compile_column_acl_native_vector_set(previous)?;
     let after = compile_column_acl_native_vector_set(current)?;
-    if before.policies.len() != after.policies.len() { return Err(PolicyError::MixedIdentity); }
+    if before.policies.len() != after.policies.len() {
+        return Err(PolicyError::MixedIdentity);
+    }
     let mut advanced = false;
     for old in &before.policies {
-        let new = after.policies.iter().find(|p| p.namespace == old.namespace && p.table == old.table)
+        let new = after
+            .policies
+            .iter()
+            .find(|p| p.namespace == old.namespace && p.table == old.table)
             .ok_or(PolicyError::MixedIdentity)?;
-        let mut equal = new.clone(); equal.generation = old.generation;
-        if equal != *old || new.generation < old.generation { return Err(PolicyError::MixedIdentity); }
+        let mut equal = new.clone();
+        equal.generation = old.generation;
+        if equal != *old || new.generation < old.generation {
+            return Err(PolicyError::MixedIdentity);
+        }
         advanced |= new.generation > old.generation;
     }
-    if !advanced { return Err(PolicyError::MixedIdentity); }
+    if !advanced {
+        return Err(PolicyError::MixedIdentity);
+    }
     Ok(())
 }
 
@@ -558,7 +607,9 @@ pub fn compile_column_acl_native_transition(
 /// are detached from the `NOLOGIN` role in the same transaction. Default installers
 /// retain their strict full-set replay contract.
 pub async fn transition_column_acl_native_vector_set(
-    client: &mut Client, previous: &[ColumnAclPolicy], current: &[ColumnAclPolicy],
+    client: &mut Client,
+    previous: &[ColumnAclPolicy],
+    current: &[ColumnAclPolicy],
 ) -> Result<SetInstallOutcome, PolicyError> {
     compile_column_acl_native_transition(previous, current)?;
     let before = compile_column_acl_native_vector_set(previous)?;
@@ -578,25 +629,48 @@ pub async fn transition_column_acl_native_vector_set(
 }
 
 async fn transition_set_in_transaction(
-    tx: &mut Transaction<'_>, before: &CompiledPolicySet, after: &CompiledPolicySet,
+    tx: &mut Transaction<'_>,
+    before: &CompiledPolicySet,
+    after: &CompiledPolicySet,
 ) -> Result<SetInstallOutcome, PolicyError> {
     let grantor = require_grantor(tx).await?;
     let first = &after.policies[0];
-    tx.query_one("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&first.role]).await.map_err(db_error)?;
+    tx.query_one(
+        "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+        &[&first.role],
+    )
+    .await
+    .map_err(db_error)?;
     let old = resolve_set(tx, before, false).await?;
     let new = resolve_set(tx, after, true).await?;
     // Physical source types must match too; a policy label cannot conceal a type change.
     for (index, policy) in after.policies.iter().enumerate() {
-        let old_index = before.policies.iter().position(|p| p.namespace == policy.namespace && p.table == policy.table).ok_or(PolicyError::MixedIdentity)?;
+        let old_index = before
+            .policies
+            .iter()
+            .position(|p| p.namespace == policy.namespace && p.table == policy.table)
+            .ok_or(PolicyError::MixedIdentity)?;
         for (column_index, column) in policy.columns.iter().enumerate() {
-            let (old_table, old_column) = (&old[old_index].physical_table, &old[old_index].physical_columns[column_index]);
-            let (new_table, new_column) = (&new[index].physical_table, &new[index].physical_columns[column_index]);
+            let (old_table, old_column) = (
+                &old[old_index].physical_table,
+                &old[old_index].physical_columns[column_index],
+            );
+            let (new_table, new_column) = (
+                &new[index].physical_table,
+                &new[index].physical_columns[column_index],
+            );
             let same: bool = tx.query_one("SELECT (SELECT ROW(a.atttypid,a.atttypmod,a.attcollation)::text FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid=a.attrelid WHERE c.relnamespace='_oo'::regnamespace AND c.relname=$1 AND a.attname=$2 AND NOT a.attisdropped) IS NOT DISTINCT FROM (SELECT ROW(a.atttypid,a.atttypmod,a.attcollation)::text FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid=a.attrelid WHERE c.relnamespace='_oo'::regnamespace AND c.relname=$3 AND a.attname=$4 AND NOT a.attisdropped)", &[old_table, old_column, new_table, new_column]).await.map_err(db_error)?.get(0);
-            if !same { return Err(PolicyError::TypeRefused { column: column.name.clone() }); }
+            if !same {
+                return Err(PolicyError::TypeRefused {
+                    column: column.name.clone(),
+                });
+            }
         }
     }
     ensure_login(tx, &first.login).await?;
-    if !role_exists(tx, &first.role).await? { return Err(PolicyError::RoleMismatch); }
+    if !role_exists(tx, &first.role).await? {
+        return Err(PolicyError::RoleMismatch);
+    }
     ensure_role_shape(tx, &first.role).await?;
     ensure_members_preserved(tx, &first.role, &first.login).await?;
     ensure_schema_usage(tx, &first.role).await?;
@@ -610,17 +684,44 @@ async fn transition_set_in_transaction(
             let role = quote_ident(&first.role)?;
             for table in &old {
                 let table_name = require_physical(&table.physical_table, "pt_")?;
-                let columns = table.physical_columns.iter().map(|c| require_physical(c, "pc_")).collect::<Result<Vec<_>,_>>()?.join(", ");
-                tx.batch_execute(&format!("REVOKE SELECT ({columns}) ON TABLE \"_oo\".{table_name} FROM {role}")).await.map_err(db_error)?;
+                let columns = table
+                    .physical_columns
+                    .iter()
+                    .map(|c| require_physical(c, "pc_"))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .join(", ");
+                tx.batch_execute(&format!(
+                    "REVOKE SELECT ({columns}) ON TABLE \"_oo\".{table_name} FROM {role}"
+                ))
+                .await
+                .map_err(db_error)?;
             }
-            for table in &new { grant_usage_and_columns(tx, &first.role, &table.physical_table, &table.physical_columns).await?; }
+            for table in &new {
+                grant_usage_and_columns(
+                    tx,
+                    &first.role,
+                    &table.physical_table,
+                    &table.physical_columns,
+                )
+                .await?;
+            }
             ensure_exact_grants(tx, &first.role, &new).await?;
             InstallEffect::Installed
         }
         Err(error) => return Err(error),
     };
-    Ok(SetInstallOutcome { effect, role: first.role.clone(), grantor,
-        tables: new.into_iter().map(|t| SetTableGrant { physical_table:t.physical_table, physical_columns:t.physical_columns }).collect() })
+    Ok(SetInstallOutcome {
+        effect,
+        role: first.role.clone(),
+        grantor,
+        tables: new
+            .into_iter()
+            .map(|t| SetTableGrant {
+                physical_table: t.physical_table,
+                physical_columns: t.physical_columns,
+            })
+            .collect(),
+    })
 }
 
 struct ResolvedTable {
@@ -629,14 +730,26 @@ struct ResolvedTable {
 }
 
 async fn resolve_set(
-    tx: &mut Transaction<'_>, compiled: &CompiledPolicySet, require_current: bool,
+    tx: &mut Transaction<'_>,
+    compiled: &CompiledPolicySet,
+    require_current: bool,
 ) -> Result<Vec<ResolvedTable>, PolicyError> {
     let mut resolved = Vec::with_capacity(compiled.policies.len());
     let mut physical_tables = BTreeSet::new();
     for policy in &compiled.policies {
-        let current = current_generation(tx, &policy.project, &policy.config_digest, &policy.namespace, &policy.table).await?;
+        let current = current_generation(
+            tx,
+            &policy.project,
+            &policy.config_digest,
+            &policy.namespace,
+            &policy.table,
+        )
+        .await?;
         if require_current && current != Some(policy.generation) {
-            return Err(PolicyError::StaleGeneration { policy: policy.generation, current });
+            return Err(PolicyError::StaleGeneration {
+                policy: policy.generation,
+                current,
+            });
         }
         let physical_table = lookup_relation(
             tx,
@@ -783,7 +896,14 @@ async fn install_in_transaction(
     policy: &CompiledPolicy,
 ) -> Result<InstallOutcome, PolicyError> {
     let grantor = require_grantor(tx).await?;
-    let current = current_generation(tx, &policy.project, &policy.config_digest, &policy.namespace, &policy.table).await?;
+    let current = current_generation(
+        tx,
+        &policy.project,
+        &policy.config_digest,
+        &policy.namespace,
+        &policy.table,
+    )
+    .await?;
     if current != Some(policy.generation) {
         return Err(PolicyError::StaleGeneration {
             policy: policy.generation,
@@ -1570,7 +1690,13 @@ fn plan_metadata_detach(
         if !known || !login_tables.contains(&(schema.clone(), name.clone(), privilege.clone())) {
             return Err(PolicyError::GrantMismatch);
         }
-        tables.push(METADATA_SELECT_TABLES.iter().copied().find(|item| *item == name).ok_or(PolicyError::GrantMismatch)?);
+        tables.push(
+            METADATA_SELECT_TABLES
+                .iter()
+                .copied()
+                .find(|item| *item == name)
+                .ok_or(PolicyError::GrantMismatch)?,
+        );
     }
     tables.sort_unstable();
     tables.dedup();
@@ -1580,12 +1706,16 @@ fn plan_metadata_detach(
             && name == "lookup_physical_mapping"
             && args == LOOKUP_IDENTITY_ARGS
             && !grantable;
-        if !lookup || !login_routines.contains(&(schema.clone(), name.clone(), args.clone(), false)) {
+        if !lookup || !login_routines.contains(&(schema.clone(), name.clone(), args.clone(), false))
+        {
             return Err(PolicyError::GrantMismatch);
         }
         revoke_lookup = true;
     }
-    Ok(MetadataDetach { tables, revoke_lookup })
+    Ok(MetadataDetach {
+        tables,
+        revoke_lookup,
+    })
 }
 
 async fn direct_table_privileges(
@@ -1827,21 +1957,87 @@ mod tests {
         let mut extra = kept.clone();
         extra.table.name = "gamma".to_string();
         extra.generation = 13;
-        assert!(compile_column_acl_native_transition(&before, &[kept, moved.clone(), extra]).is_err());
+        assert!(
+            compile_column_acl_native_transition(&before, &[kept, moved.clone(), extra]).is_err()
+        );
         let mut back = moved.clone();
         back.generation = 5;
         assert!(compile_column_acl_native_transition(&[moved], &[back]).is_err());
     }
 
     #[test]
+    fn complete_native_vector_checks_every_member_beyond_legacy_call_budget() {
+        let policies: Vec<_> = (0..257)
+            .map(|index| {
+                let mut item = policy(None, vec![column("id", PiiClass::None)]);
+                item.table.name = format!("t{index}");
+                item
+            })
+            .collect();
+        for size in [33, 257] {
+            assert_eq!(
+                compile_column_acl_native_vector_set(&policies[..size])
+                    .unwrap()
+                    .len(),
+                size
+            );
+            assert_eq!(
+                compile_column_acl_set(&policies[..size]),
+                Err(PolicyError::LimitExceeded)
+            );
+        }
+        for fault in 0..6 {
+            let mut bad = policies.clone();
+            match fault {
+                0 => bad[256].table.name = bad[0].table.name.clone(),
+                1 => bad[256].login = "oo_foreign".into(),
+                2 => bad[256].role = "foreign".into(),
+                3 => bad[256].project = "foreign".into(),
+                4 => {
+                    bad[256].table.columns[0].pii = PiiClass::Declared {
+                        explicit_allow: false,
+                    }
+                }
+                _ => {
+                    bad[256].table.columns = (0..513)
+                        .map(|index| column(&format!("c{index}"), PiiClass::None))
+                        .collect()
+                }
+            }
+            assert!(
+                compile_column_acl_native_vector_set(&bad).is_err(),
+                "{fault}"
+            );
+        }
+        let mut next = policies.clone();
+        next[256].generation += 1;
+        assert!(compile_column_acl_native_transition(&policies, &next).is_ok());
+        assert!(compile_column_acl_native_transition(&policies, &next[..256]).is_err());
+    }
+
+    #[test]
     fn native_transition_only_advances_generations_with_identical_authority() {
         let old = policy(None, vec![column("order_id", PiiClass::None)]);
-        let mut next = old.clone(); next.generation += 1;
-        assert!(compile_column_acl_native_transition(&[old.clone()], &[next.clone()]).is_ok());
-        let mut third = next.clone(); third.generation += 1;
+        let mut next = old.clone();
+        next.generation += 1;
+        assert!(
+            compile_column_acl_native_transition(std::slice::from_ref(&old), &[next.clone()])
+                .is_ok()
+        );
+        let mut third = next.clone();
+        third.generation += 1;
         assert!(compile_column_acl_native_transition(&[next.clone()], &[third]).is_ok());
-        assert!(compile_column_acl_native_transition(&[old.clone()], &[old.clone()]).is_err());
-        assert!(compile_column_acl_native_transition(&[next.clone()], &[old.clone()]).is_err());
+        assert!(
+            compile_column_acl_native_transition(
+                std::slice::from_ref(&old),
+                std::slice::from_ref(&old)
+            )
+            .is_err()
+        );
+        assert!(
+            compile_column_acl_native_transition(&[next.clone()], std::slice::from_ref(&old))
+                .is_err()
+        );
         for field in 0..8 {
             let mut bad = next.clone();
             match field {
@@ -1852,9 +2048,15 @@ mod tests {
                 4 => bad.table.namespace = "other".into(),
                 5 => bad.table.columns[0].name = "other".into(),
                 6 => bad.table.columns[0].semantic_type = "other".into(),
-                _ => bad.table.columns[0].pii = PiiClass::Declared { explicit_allow:true },
+                _ => {
+                    bad.table.columns[0].pii = PiiClass::Declared {
+                        explicit_allow: true,
+                    }
+                }
             }
-            assert!(compile_column_acl_native_transition(&[old.clone()], &[bad]).is_err());
+            assert!(
+                compile_column_acl_native_transition(std::slice::from_ref(&old), &[bad]).is_err()
+            );
         }
         assert!(compile_column_acl_native_transition(&[old], &[]).is_err());
     }
@@ -1976,25 +2178,45 @@ mod tests {
         }
         let mut role_routines = BTreeSet::from([lookup_routine(false)]);
         let login_routines = role_routines.clone();
-        let full = plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines)
-            .expect("full");
+        let full =
+            plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines)
+                .expect("full");
         assert_eq!(full.tables.as_slice(), METADATA_SELECT_TABLES);
         assert!(full.revoke_lookup);
 
         login_tables.remove(&table_priv("physical_mappings"));
-        assert!(plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines).is_err());
+        assert!(
+            plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines)
+                .is_err()
+        );
         login_tables.insert(table_priv("physical_mappings"));
         role_tables.insert(("_oo".into(), "other_table".into(), "SELECT".into()));
-        assert!(plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines).is_err());
+        assert!(
+            plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines)
+                .is_err()
+        );
         role_tables.remove(&("_oo".into(), "other_table".into(), "SELECT".into()));
         role_tables.insert(("_oo".into(), "physical_mappings".into(), "INSERT".into()));
-        assert!(plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines).is_err());
+        assert!(
+            plan_metadata_detach(&role_tables, &login_tables, &role_routines, &login_routines)
+                .is_err()
+        );
 
-        role_routines.insert(("_oo".into(), "register_physical_mapping".into(), "text".into(), false));
+        role_routines.insert((
+            "_oo".into(),
+            "register_physical_mapping".into(),
+            "text".into(),
+            false,
+        ));
         let only_tables = BTreeSet::new();
-        assert!(plan_metadata_detach(&only_tables, &only_tables, &role_routines, &login_routines).is_err());
+        assert!(
+            plan_metadata_detach(&only_tables, &only_tables, &role_routines, &login_routines)
+                .is_err()
+        );
         let grantable = BTreeSet::from([lookup_routine(true)]);
-        assert!(plan_metadata_detach(&only_tables, &only_tables, &grantable, &login_routines).is_err());
+        assert!(
+            plan_metadata_detach(&only_tables, &only_tables, &grantable, &login_routines).is_err()
+        );
         let held = BTreeSet::from([lookup_routine(false)]);
         assert!(plan_metadata_detach(&only_tables, &only_tables, &held, &routines).is_err());
     }

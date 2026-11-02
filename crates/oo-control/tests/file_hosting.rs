@@ -1798,6 +1798,7 @@ async fn conflict_child() {
     std::fs::write(result, line).unwrap();
 }
 
+#[cfg(target_os = "linux")]
 fn pattern_digest(size: usize) -> [u8; 32] {
     let chunk = [0xA5_u8; 8192];
     let mut hasher = Sha256::new();
@@ -2013,6 +2014,7 @@ fn hash_file(path: &Path, chunk_len: usize) -> [u8; 32] {
     out
 }
 
+#[cfg(target_os = "linux")]
 fn metric_str(text: &str, key: &str) -> String {
     for line in text.lines() {
         if let Some(rest) = line.strip_prefix(&format!("{key}=")) {
@@ -2022,6 +2024,7 @@ fn metric_str(text: &str, key: &str) -> String {
     panic!("missing {key} in {text}");
 }
 
+#[cfg(target_os = "linux")]
 fn metric_u64(text: &str, key: &str) -> u64 {
     for line in text.lines() {
         if let Some(rest) = line.strip_prefix(&format!("{key}=")) {

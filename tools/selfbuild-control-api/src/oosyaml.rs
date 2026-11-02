@@ -113,8 +113,10 @@ pub fn relationship_fact(name: &str, from_column: &str, to_column: &str, cardina
     }))
 }
 
-pub fn parse_yaml(text: &str) -> Result<Y, ApiError> {
-    if text.is_empty() || text.len() > 1_000_000 || text.contains('\t') || text.contains('\r') || text.contains('#') {
+pub fn parse_yaml(text: &str) -> Result<Y, ApiError> {parse_yaml_with_limit(text,1_000_000)}
+
+pub fn parse_yaml_with_limit(text:&str,max_bytes:usize)->Result<Y,ApiError>{
+    if max_bytes>67_108_864 || text.is_empty() || text.len() > max_bytes || text.contains('\t') || text.contains('\r') || text.contains('#') {
         return Err(ApiError::malformed());
     }
     let lines: Vec<&str> = text.lines().filter(|line| !line.trim().is_empty()).collect();
@@ -151,6 +153,11 @@ pub fn generated_from_inputs(catalog: &Value, rules: &Value, auto_accept: &str) 
     let model = model_from_inputs(catalog, rules, auto_accept)?;
     let yaml = canonical_doc(&model_to_y(&model, "generated"))?;
     Ok((model, yaml))
+}
+
+pub fn parse_model_with_limit(text:&str,kind:&str,max_bytes:usize)->Result<Model,ApiError>{
+    let value=parse_yaml_with_limit(text,max_bytes)?;
+    model_from_y(&value,kind)
 }
 
 pub fn parse_model(text: &str, kind: &str) -> Result<Model, ApiError> {
@@ -1047,7 +1054,17 @@ fn column_id_ok(value: &str) -> bool {
 }
 
 fn data_type_ok(value: &str) -> bool {
-    matches!(value, "bigint" | "integer" | "numeric" | "text" | "boolean" | "date" | "timestamp" | "timestamptz" | "interval" | "jsonb" | "uuid" | "bytea" | "int2" | "float4" | "float8" | "varchar" | "bpchar" | "time" | "json")
+    if matches!(value, "bigint" | "integer" | "numeric" | "text" | "boolean" | "date" | "timestamp" | "timestamptz" | "interval" | "jsonb" | "uuid" | "bytea" | "int2" | "float4" | "float8" | "varchar" | "bpchar" | "time" | "json" | "smallint" | "double precision" | "real" | "character varying" | "character" | "timestamp without time zone" | "timestamp with time zone" | "time without time zone" | "time with time zone") {return true;}
+    let Some((base,rest))=value.split_once('(')else{return false;};
+    let Some((parameters,suffix))=rest.split_once(')')else{return false;};
+    let parts=parameters.split(',').collect::<Vec<_>>();
+    let numbers=parts.iter().all(|p|!p.is_empty() && p.bytes().all(|c|c.is_ascii_digit()) && p.parse::<u32>().is_ok_and(|n|n<=65535));
+    numbers && match base {
+        "numeric"|"decimal"=>suffix.is_empty() && parts.len()<=2 && parts[0].parse::<u32>().is_ok_and(|n|n>0),
+        "varchar"|"character varying"|"character"|"bpchar"=>suffix.is_empty() && parts.len()==1 && parts[0].parse::<u32>().is_ok_and(|n|n>0),
+        "timestamp"|"time"=>parts.len()==1 && parts[0].parse::<u32>().is_ok_and(|n|n<=6) && matches!(suffix,""|" without time zone"|" with time zone"),
+        _=>false,
+    }
 }
 
 #[cfg(test)]
@@ -1174,4 +1191,25 @@ pub fn sealed_types(model: &Model) -> BTreeMap<String, String> {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod formatted_pg_type_tests {
+    #[test]
+    fn exact_pg_formatted_types_survive_overlay_without_losing_modifiers() {
+        for ty in ["character varying","character varying(64)","numeric(18,2)","timestamp without time zone","timestamp(6) without time zone","time without time zone","double precision","smallint"] {
+            assert!(super::data_type_ok(ty),"{ty}");
+        }
+        for ty in ["numeric(1); DROP TABLE x","text arbitrary","numeric()","varchar(-1)","timestamp(3) unexpected"] {assert!(!super::data_type_ok(ty));}
+    }
+}
+
+#[cfg(test)]
+mod library_yaml_budget_tests {
+    #[test]
+    fn library_yaml_capacity_is_explicit_and_legacy_default_stays_closed() {
+        let yaml=format!("value: {}\n","a".repeat(1_000_001));
+        assert!(super::parse_yaml(&yaml).is_err());
+        assert!(super::parse_yaml_with_limit(&yaml,2_000_000).is_ok());
+    }
 }

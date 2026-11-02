@@ -247,7 +247,9 @@ fn read_gated(path: &Path, cap: u64, material: Material) -> Result<Vec<u8>, Stop
     options.read(true);
     // Stat-then-open would follow a symlink. `O_NOFOLLOW` alone waits on a FIFO.
     options.custom_flags(open_flags());
-    let file = options.open(path).map_err(|error| Stop::Gate(map_open(error, material)))?;
+    let file = options
+        .open(path)
+        .map_err(|error| Stop::Gate(map_open(error, material)))?;
     inspect(&file, cap, material)?;
     let mut buf = Vec::new();
     file.take(cap.saturating_add(1))
@@ -318,49 +320,103 @@ fn map_open(error: io::Error, material: Material) -> Gate {
 
 fn missing(material: Material) -> Gate {
     match material {
-        Material::Token => Gate { exit: 4, message: "token file rejected: missing" },
-        Material::Ca => Gate { exit: 1, message: "ca file rejected: missing" },
-        Material::ClientPem => Gate { exit: 1, message: "client pem rejected: missing" },
+        Material::Token => Gate {
+            exit: 4,
+            message: "token file rejected: missing",
+        },
+        Material::Ca => Gate {
+            exit: 1,
+            message: "ca file rejected: missing",
+        },
+        Material::ClientPem => Gate {
+            exit: 1,
+            message: "client pem rejected: missing",
+        },
     }
 }
 
 fn permission(material: Material) -> Gate {
     match material {
-        Material::Token => Gate { exit: 4, message: "token file rejected: permission" },
-        Material::Ca => Gate { exit: 1, message: "ca file rejected: permission" },
-        Material::ClientPem => Gate { exit: 1, message: "client pem rejected: permission" },
+        Material::Token => Gate {
+            exit: 4,
+            message: "token file rejected: permission",
+        },
+        Material::Ca => Gate {
+            exit: 1,
+            message: "ca file rejected: permission",
+        },
+        Material::ClientPem => Gate {
+            exit: 1,
+            message: "client pem rejected: permission",
+        },
     }
 }
 
 fn symlink(material: Material) -> Gate {
     match material {
-        Material::Token => Gate { exit: 4, message: "token file rejected: symlink" },
-        Material::Ca => Gate { exit: 1, message: "ca file rejected: symlink" },
-        Material::ClientPem => Gate { exit: 1, message: "client pem rejected: symlink" },
+        Material::Token => Gate {
+            exit: 4,
+            message: "token file rejected: symlink",
+        },
+        Material::Ca => Gate {
+            exit: 1,
+            message: "ca file rejected: symlink",
+        },
+        Material::ClientPem => Gate {
+            exit: 1,
+            message: "client pem rejected: symlink",
+        },
     }
 }
 
 fn not_file(material: Material) -> Gate {
     match material {
-        Material::Token => Gate { exit: 4, message: "token file rejected: not-file" },
-        Material::Ca => Gate { exit: 1, message: "ca file rejected: not-file" },
-        Material::ClientPem => Gate { exit: 1, message: "client pem rejected: not-file" },
+        Material::Token => Gate {
+            exit: 4,
+            message: "token file rejected: not-file",
+        },
+        Material::Ca => Gate {
+            exit: 1,
+            message: "ca file rejected: not-file",
+        },
+        Material::ClientPem => Gate {
+            exit: 1,
+            message: "client pem rejected: not-file",
+        },
     }
 }
 
 fn budget(material: Material) -> Gate {
     match material {
-        Material::Token => Gate { exit: 4, message: "token file rejected: budget" },
-        Material::Ca => Gate { exit: 1, message: "ca file rejected: budget" },
-        Material::ClientPem => Gate { exit: 1, message: "client pem rejected: budget" },
+        Material::Token => Gate {
+            exit: 4,
+            message: "token file rejected: budget",
+        },
+        Material::Ca => Gate {
+            exit: 1,
+            message: "ca file rejected: budget",
+        },
+        Material::ClientPem => Gate {
+            exit: 1,
+            message: "client pem rejected: budget",
+        },
     }
 }
 
 fn other(material: Material) -> Gate {
     match material {
-        Material::Token => Gate { exit: 4, message: "token file rejected: other" },
-        Material::Ca => Gate { exit: 1, message: "ca file rejected: other" },
-        Material::ClientPem => Gate { exit: 1, message: "client pem rejected: other" },
+        Material::Token => Gate {
+            exit: 4,
+            message: "token file rejected: other",
+        },
+        Material::Ca => Gate {
+            exit: 1,
+            message: "ca file rejected: other",
+        },
+        Material::ClientPem => Gate {
+            exit: 1,
+            message: "client pem rejected: other",
+        },
     }
 }
 

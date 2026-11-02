@@ -14,7 +14,7 @@ use sqlx::postgres::PgConnection;
 use sqlx::{Connection, Row};
 
 use crate::physical_mapping::{
-    plan_physical_mapping, quote_physical_name, Level, MappingRequest, PlanError,
+    Level, MappingRequest, PlanError, plan_physical_mapping, quote_physical_name,
 };
 
 /// Protocol name stored on a receipt.
@@ -184,17 +184,27 @@ impl fmt::Display for StatisticsError {
             Self::OpenTransaction => {
                 formatter.write_str("target statistics connection already has a transaction")
             }
-            Self::RuntimeCaller => formatter.write_str("target statistics runtime caller is refused"),
-            Self::ReadOnlyCaller => formatter.write_str("target statistics read-only caller is refused"),
+            Self::RuntimeCaller => {
+                formatter.write_str("target statistics runtime caller is refused")
+            }
+            Self::ReadOnlyCaller => {
+                formatter.write_str("target statistics read-only caller is refused")
+            }
             Self::RoleDenied => formatter.write_str("target statistics caller cannot maintain"),
             Self::LockTimeout => formatter.write_str("target statistics lock timed out"),
             Self::StatementTimeout => formatter.write_str("target statistics statement timed out"),
-            Self::StaleGeneration => formatter.write_str("target statistics generation is not current"),
+            Self::StaleGeneration => {
+                formatter.write_str("target statistics generation is not current")
+            }
             Self::MissingTable => formatter.write_str("target statistics mapping is absent"),
             Self::MissingRelation => formatter.write_str("target statistics relation is absent"),
-            Self::ForgedRelation => formatter.write_str("target statistics relation is not the mapped shadow"),
+            Self::ForgedRelation => {
+                formatter.write_str("target statistics relation is not the mapped shadow")
+            }
             Self::EstimateUnknown => formatter.write_str("target statistics estimate is unknown"),
-            Self::EstimateUnusable => formatter.write_str("target statistics estimate is not usable"),
+            Self::EstimateUnusable => {
+                formatter.write_str("target statistics estimate is not usable")
+            }
             Self::TransactionIncomplete => {
                 formatter.write_str("target statistics transaction did not complete")
             }
@@ -422,7 +432,12 @@ async fn apply_local_limits(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     request: &StatisticsRequest,
 ) -> Result<(), StatisticsError> {
-    set_local(tx, "statement_timeout", &timeout_text(request.statement_timeout_ms)).await?;
+    set_local(
+        tx,
+        "statement_timeout",
+        &timeout_text(request.statement_timeout_ms),
+    )
+    .await?;
     set_local(tx, "lock_timeout", &timeout_text(request.lock_timeout_ms)).await?;
     set_local(tx, "search_path", "pg_catalog").await?;
     Ok(())
@@ -432,7 +447,11 @@ fn timeout_text(milliseconds: u32) -> String {
     format!("{milliseconds}ms")
 }
 
-async fn set_local(conn: &mut PgConnection, name: &str, value: &str) -> Result<(), StatisticsError> {
+async fn set_local(
+    conn: &mut PgConnection,
+    name: &str,
+    value: &str,
+) -> Result<(), StatisticsError> {
     sqlx::query("SELECT set_config($1, $2, true)")
         .bind(name)
         .bind(value)
@@ -489,17 +508,16 @@ async fn resolve_one(
         logical_column: String::new(),
     })
     .map_err(plan_error)?;
-    let stored: String = sqlx::query_scalar(
-        "SELECT _oo.lookup_physical_mapping($1, $2, $3, 'table', $4, $5, '')",
-    )
-    .bind(&request.source)
-    .bind(&request.config_digest)
-    .bind(request.source_generation)
-    .bind(&table.namespace)
-    .bind(&table.name)
-    .fetch_one(&mut *conn)
-    .await
-    .map_err(|err| driver_kind(&err))?;
+    let stored: String =
+        sqlx::query_scalar("SELECT _oo.lookup_physical_mapping($1, $2, $3, 'table', $4, $5, '')")
+            .bind(&request.source)
+            .bind(&request.config_digest)
+            .bind(request.source_generation)
+            .bind(&table.namespace)
+            .bind(&table.name)
+            .fetch_one(&mut *conn)
+            .await
+            .map_err(|err| driver_kind(&err))?;
     if stored != plan.physical_name {
         return Err(StatisticsError::ForgedRelation);
     }
@@ -521,17 +539,24 @@ async fn resolve_one(
     if row.len() != 1 {
         return Err(StatisticsError::ForgedRelation);
     }
-    let oid: i64 = row[0].try_get(0).map_err(|_| StatisticsError::ForgedRelation)?;
-    let relkind: String = row[0].try_get(1).map_err(|_| StatisticsError::ForgedRelation)?;
-    let owner: String = row[0].try_get(2).map_err(|_| StatisticsError::ForgedRelation)?;
+    let oid: i64 = row[0]
+        .try_get(0)
+        .map_err(|_| StatisticsError::ForgedRelation)?;
+    let relkind: String = row[0]
+        .try_get(1)
+        .map_err(|_| StatisticsError::ForgedRelation)?;
+    let owner: String = row[0]
+        .try_get(2)
+        .map_err(|_| StatisticsError::ForgedRelation)?;
     if relkind != "r" || owner != SHADOW_OWNER {
         return Err(StatisticsError::ForgedRelation);
     }
-    let allowed: bool = sqlx::query_scalar("SELECT pg_catalog.has_table_privilege($1::oid, 'MAINTAIN')")
-        .bind(oid)
-        .fetch_one(&mut *conn)
-        .await
-        .map_err(|err| driver_kind(&err))?;
+    let allowed: bool =
+        sqlx::query_scalar("SELECT pg_catalog.has_table_privilege($1::oid, 'MAINTAIN')")
+            .bind(oid)
+            .fetch_one(&mut *conn)
+            .await
+            .map_err(|err| driver_kind(&err))?;
     if !allowed {
         return Err(StatisticsError::RoleDenied);
     }
@@ -707,10 +732,22 @@ mod tests {
 
     #[test]
     fn reltuples_rounding_is_not_an_exact_claim() {
-        assert_eq!(classify_reltuples(-1.0), Err(StatisticsError::EstimateUnknown));
-        assert_eq!(classify_reltuples(-2.0), Err(StatisticsError::EstimateUnusable));
-        assert_eq!(classify_reltuples(f32::NAN), Err(StatisticsError::EstimateUnusable));
-        assert_eq!(classify_reltuples(f32::INFINITY), Err(StatisticsError::EstimateUnusable));
+        assert_eq!(
+            classify_reltuples(-1.0),
+            Err(StatisticsError::EstimateUnknown)
+        );
+        assert_eq!(
+            classify_reltuples(-2.0),
+            Err(StatisticsError::EstimateUnusable)
+        );
+        assert_eq!(
+            classify_reltuples(f32::NAN),
+            Err(StatisticsError::EstimateUnusable)
+        );
+        assert_eq!(
+            classify_reltuples(f32::INFINITY),
+            Err(StatisticsError::EstimateUnusable)
+        );
         assert_eq!(classify_reltuples(0.0), Ok(0));
         assert_eq!(classify_reltuples(2.0), Ok(2));
         assert_eq!(classify_reltuples(2.5), Ok(3));

@@ -93,11 +93,13 @@ async fn proxy_env_is_not_inherited() {
     );
     proxy_task.abort();
     let hits = oracle.hits();
-    assert_eq!(hits.len(), 1);
-    assert_query(&hits[0], TOKEN, "/v1/query");
-    assert_eq!(hits[0].path, "/v1/query");
-    for (_, value) in &hits[0].headers {
-        assert!(!value.contains(CANARY), "canary reached the origin");
+    assert_eq!(hits.len(), 2);
+    for hit in &hits {
+        assert_query(hit, TOKEN, "/v1/query");
+        assert_eq!(hit.path, "/v1/query");
+        for (_, value) in &hit.headers {
+            assert!(!value.contains(CANARY), "canary reached the origin");
+        }
     }
 }
 
@@ -108,7 +110,15 @@ async fn child_probe() -> bool {
         return false;
     };
     let config = oo_sdk::ClientConfig::local_development().with_retry(oo_sdk::RetryPolicy::none());
-    let Ok(client) = oo_sdk::Client::new(&base, token, config) else {
+    let Ok(client) = oo_sdk::Client::new(&base, token.clone(), config.clone()) else {
+        return false;
+    };
+    if client.query(sample_request()).await.is_err() {
+        return false;
+    }
+    let routed_base = base.replace("127.0.0.1", "localhost");
+    let config = config.with_connect_ip("127.0.0.1".parse().unwrap());
+    let Ok(client) = oo_sdk::Client::new(&routed_base, token, config) else {
         return false;
     };
     client.query(sample_request()).await.is_ok()

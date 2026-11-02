@@ -1,0 +1,14 @@
+[package]
+name = "native-c5-float-codec-fixture"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+
+[[test]]
+name = "native_c5_float_codec"
+path = "../../native_c5_float_codec.rs"

@@ -34,6 +34,7 @@ fn runtime() -> Result<u8, u8> {
                 .map_err(|_| 1u8)?;
             match runtime.block_on(store::install_schema(&config.postgres)) {
                 Ok(()) => {
+                    runtime.block_on(store::install_library_overlay_capacity(&config)).map_err(exit_of)?;
                     println!("{}", stdout_line("install", "ready"));
                     Ok(0)
                 }

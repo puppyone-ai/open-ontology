@@ -1,19 +1,18 @@
 //! Live PostgreSQL 17.10 lossless decode. `OO_PG_TYPES_FIXTURE` is required.
-//! The package test does not run this: it is `ignore`d so the catalog test's
-//! missing `OO_PG_FIXTURE` exit stays the package-test result.
+//! Run explicitly with `--ignored`; a missing pointer fails the selected test.
 
 use std::fs;
 use std::time::Duration;
 
-use arrow_array::cast::AsArray;
 use arrow_array::Array;
+use arrow_array::cast::AsArray;
 use arrow_array::types::{Decimal128Type, Decimal256Type, Float64Type};
 use arrow_schema::DataType;
 use oo_connectors::types::{ArrowScalar, MapDecision};
 use oo_connectors::{
-    type_capabilities, PgBudget, PgConnector, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig,
-    PgTypePolicy, RunBinding, SecretRef, SelectedTable, SourceId, TableSelection, TypedBatch,
-    connector_capabilities,
+    PgBudget, PgConnector, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, PgTypePolicy,
+    RunBinding, SecretRef, SelectedTable, SourceId, TableSelection, TypedBatch,
+    connector_capabilities, type_capabilities,
 };
 use serde::Deserialize;
 use zeroize::Zeroizing;
@@ -36,8 +35,10 @@ struct Pointer {
 #[ignore = "requires OO_PG_TYPES_FIXTURE"]
 async fn live_lossless_types() {
     let path = std::env::var("OO_PG_TYPES_FIXTURE").expect("OO_PG_TYPES_FIXTURE is required");
-    let pointer: Pointer = serde_json::from_str(&fs::read_to_string(&path).expect("pointer")).unwrap();
-    let password = Zeroizing::new(fs::read_to_string(&pointer.password_file).expect("reader password"));
+    let pointer: Pointer =
+        serde_json::from_str(&fs::read_to_string(&path).expect("pointer")).unwrap();
+    let password =
+        Zeroizing::new(fs::read_to_string(&pointer.password_file).expect("reader password"));
     let password = Zeroizing::new(password.trim().to_string());
     let ca = fs::read(&pointer.ca_file).expect("ca");
     let raw = fs::read_to_string(&pointer.raw_file).expect("raw oracle");
@@ -60,7 +61,10 @@ async fn live_lossless_types() {
     assert_eq!(wire1.nums_lowers, vec![2]);
     assert_eq!(wire1.nums_lengths, vec![3]);
     assert_eq!(wire1.nums_null_at, vec![1]);
-    assert_eq!(f32::from_be_bytes(wire1.float4_be).to_bits(), (-0.0f32).to_bits());
+    assert_eq!(
+        f32::from_be_bytes(wire1.float4_be).to_bits(),
+        (-0.0f32).to_bits()
+    );
     assert!(f32::from_be_bytes(wire2.float4_be).is_nan());
     assert_eq!(u64::from_be_bytes(wire2.hi_be), f64::INFINITY.to_bits());
     assert_eq!(wire1.grid_ndim, 2);
@@ -75,7 +79,8 @@ async fn live_lossless_types() {
     assert_eq!(pg_wire_oracle::format_exact(&fine_exact), wire1.fine_text);
     let wide_le = pg_wire_oracle::le_twos_complement(&wide_exact);
 
-    let selection = TableSelection::new(vec![SelectedTable::new("lab", "sample").unwrap()]).unwrap();
+    let selection =
+        TableSelection::new(vec![SelectedTable::new("lab", "sample").unwrap()]).unwrap();
     let config = PgSourceConfig::try_new(
         SourceId::new("pg_type_lab").unwrap(),
         PgEndpoint::new(&pointer.host, pointer.port, &pointer.database).unwrap(),
@@ -99,7 +104,11 @@ async fn live_lossless_types() {
     assert!(
         report.registration_allowed,
         "blocked: {:?}",
-        report.block_reasons.iter().map(|reason| reason.code.as_str()).collect::<Vec<_>>()
+        report
+            .block_reasons
+            .iter()
+            .map(|reason| reason.code.as_str())
+            .collect::<Vec<_>>()
     );
     assert_eq!(report.write.state, "read_only");
     assert!(report.write.findings.is_empty());
@@ -132,10 +141,16 @@ async fn live_lossless_types() {
             "source_write"
         ]
     );
-    assert!(type_capabilities().iter().any(|item| item.name == "pg_arrow_crate" && item.supported));
-    assert!(type_capabilities()
-        .iter()
-        .any(|item| item.name == "pg_signed_numeric_typmod" && item.supported));
+    assert!(
+        type_capabilities()
+            .iter()
+            .any(|item| item.name == "pg_arrow_crate" && item.supported)
+    );
+    assert!(
+        type_capabilities()
+            .iter()
+            .any(|item| item.name == "pg_signed_numeric_typmod" && item.supported)
+    );
 
     let catalog = session.catalog().await.expect("catalog");
     let table = catalog
@@ -143,8 +158,17 @@ async fn live_lossless_types() {
         .iter()
         .find(|table| table.schema == "lab" && table.name == "sample")
         .expect("sample");
-    assert!(table.columns.iter().all(|column| !column.type_support.converted));
-    let units_col = table.columns.iter().find(|column| column.name == "units").unwrap();
+    assert!(
+        table
+            .columns
+            .iter()
+            .all(|column| !column.type_support.converted)
+    );
+    let units_col = table
+        .columns
+        .iter()
+        .find(|column| column.name == "units")
+        .unwrap();
     assert_eq!(units_col.numeric_precision, Some(10));
     assert_eq!(units_col.numeric_scale, Some(2046));
 
@@ -171,9 +195,18 @@ async fn live_lossless_types() {
     let row2 = row_of(&batch, 2);
     let frame = batch.record_batch().expect("record batch");
     assert_eq!(frame.num_rows(), 2);
-    let ratio = frame.column_by_name("ratio").expect("ratio").as_primitive::<Float64Type>();
-    assert_eq!(ratio.value(row1).to_bits(), u64::from_be_bytes(wire1.float8_be));
-    assert_eq!(ratio.value(row2).to_bits(), u64::from_be_bytes(wire2.float8_be));
+    let ratio = frame
+        .column_by_name("ratio")
+        .expect("ratio")
+        .as_primitive::<Float64Type>();
+    assert_eq!(
+        ratio.value(row1).to_bits(),
+        u64::from_be_bytes(wire1.float8_be)
+    );
+    assert_eq!(
+        ratio.value(row2).to_bits(),
+        u64::from_be_bytes(wire2.float8_be)
+    );
     assert_ne!(ratio.value(row1).to_bits(), ratio.value(row2).to_bits());
     let units_arrow = frame
         .column_by_name("units")
@@ -208,13 +241,28 @@ async fn live_lossless_types() {
         ArrowScalar::Decimal256(bytes) => assert_eq!(*bytes, wide_le),
         other => panic!("{other:?}"),
     }
-    assert_eq!(at(&batch, "huge", row1), &ArrowScalar::Utf8(wire1.huge_text.clone()));
-    assert_eq!(at(&batch, "open_num", row1), &ArrowScalar::Utf8(wire1.open_text.clone()));
+    assert_eq!(
+        at(&batch, "huge", row1),
+        &ArrowScalar::Utf8(wire1.huge_text.clone())
+    );
+    assert_eq!(
+        at(&batch, "open_num", row1),
+        &ArrowScalar::Utf8(wire1.open_text.clone())
+    );
     assert!(matches!(at(&batch, "flag", row1), ArrowScalar::Bool(true)));
     assert!(matches!(at(&batch, "flag", row2), ArrowScalar::Bool(false)));
-    assert!(matches!(at(&batch, "small", row1), ArrowScalar::Int16(i16::MIN)));
-    assert!(matches!(at(&batch, "big", row1), ArrowScalar::Int64(i64::MIN)));
-    assert!(matches!(at(&batch, "big", row2), ArrowScalar::Int64(i64::MAX)));
+    assert!(matches!(
+        at(&batch, "small", row1),
+        ArrowScalar::Int16(i16::MIN)
+    ));
+    assert!(matches!(
+        at(&batch, "big", row1),
+        ArrowScalar::Int64(i64::MIN)
+    ));
+    assert!(matches!(
+        at(&batch, "big", row2),
+        ArrowScalar::Int64(i64::MAX)
+    ));
     match at(&batch, "ratio", row1) {
         ArrowScalar::Float64(bits) => assert_eq!(*bits, (-0.0f64).to_bits()),
         other => panic!("{other:?}"),
@@ -235,18 +283,33 @@ async fn live_lossless_types() {
         ArrowScalar::Float64(bits) => assert_eq!(*bits, f64::INFINITY.to_bits()),
         other => panic!("{other:?}"),
     }
-    assert_eq!(at(&batch, "label", row1), &ArrowScalar::Utf8("雪".to_string()));
+    assert_eq!(
+        at(&batch, "label", row1),
+        &ArrowScalar::Utf8("雪".to_string())
+    );
     assert_eq!(at(&batch, "blank", row1), &ArrowScalar::Utf8(String::new()));
-    assert_eq!(at(&batch, "code", row1), &ArrowScalar::Utf8("hi".to_string()));
-    assert_eq!(at(&batch, "padded", row1), &ArrowScalar::Utf8("ab ".to_string()));
+    assert_eq!(
+        at(&batch, "code", row1),
+        &ArrowScalar::Utf8("hi".to_string())
+    );
+    assert_eq!(
+        at(&batch, "padded", row1),
+        &ArrowScalar::Utf8("ab ".to_string())
+    );
     assert_eq!(at(&batch, "blob", row1), &ArrowScalar::Binary(Vec::new()));
     assert_eq!(
         at(&batch, "ext", row1),
         &ArrowScalar::Binary(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
     );
     assert_eq!(at(&batch, "day", row1), &ArrowScalar::Date32(10957));
-    assert_eq!(at(&batch, "clock", row1), &ArrowScalar::Time64(3_723_000_004));
-    assert_eq!(at(&batch, "civil", row1), &ArrowScalar::TimestampNaive(1_710_037_800_000_000));
+    assert_eq!(
+        at(&batch, "clock", row1),
+        &ArrowScalar::Time64(3_723_000_004)
+    );
+    assert_eq!(
+        at(&batch, "civil", row1),
+        &ArrowScalar::TimestampNaive(1_710_037_800_000_000)
+    );
     let earlier = match at(&batch, "instant", row1) {
         ArrowScalar::TimestampUtc(value) => *value,
         other => panic!("{other:?}"),
@@ -257,7 +320,10 @@ async fn live_lossless_types() {
     };
     assert_eq!(later - earlier, 3_600_000_000);
     assert_eq!(earlier, 1_730_611_800_000_000);
-    assert_eq!(plan(&batch, "instant").mapping.timezone.as_deref(), Some("UTC"));
+    assert_eq!(
+        plan(&batch, "instant").mapping.timezone.as_deref(),
+        Some("UTC")
+    );
     match at(&batch, "span", row1) {
         ArrowScalar::List(items) => {
             assert!(matches!(items[0], ArrowScalar::Int64(3)));
@@ -283,15 +349,37 @@ async fn live_lossless_types() {
         other => panic!("{other:?}"),
     }
     assert_eq!(plan(&batch, "grid").mapping.arrow_type, "list<int32>");
-    assert_eq!(at(&batch, "hue", row1), &ArrowScalar::Utf8("red".to_string()));
-    assert!(matches!(at(&batch, "on_flag", row1), ArrowScalar::Bool(true)));
-    assert!(plan(&batch, "on_flag").mapping.source_type.ends_with("flag_domain"));
-    assert_eq!(at(&batch, "doc", row1), &ArrowScalar::Utf8("{\"z\":1,\"a\":2,\"a\":3}".to_string()));
-    assert_eq!(at(&batch, "docb", row1), &ArrowScalar::Utf8("{\"a\":3,\"z\":1}".to_string()));
+    assert_eq!(
+        at(&batch, "hue", row1),
+        &ArrowScalar::Utf8("red".to_string())
+    );
+    assert!(matches!(
+        at(&batch, "on_flag", row1),
+        ArrowScalar::Bool(true)
+    ));
+    assert!(
+        plan(&batch, "on_flag")
+            .mapping
+            .source_type
+            .ends_with("flag_domain")
+    );
+    assert_eq!(
+        at(&batch, "doc", row1),
+        &ArrowScalar::Utf8("{\"z\":1,\"a\":2,\"a\":3}".to_string())
+    );
+    assert_eq!(
+        at(&batch, "docb", row1),
+        &ArrowScalar::Utf8("{\"a\":3,\"z\":1}".to_string())
+    );
     assert_ne!(hash_of(&batch, 1), [0u8; 32]);
 
     assert!(matches!(at(&batch, "note", row1), ArrowScalar::Null));
-    assert!(batch.rejects.iter().all(|reject| reject.column != "note" || reject.row_index != row1 as u64));
+    assert!(
+        batch
+            .rejects
+            .iter()
+            .all(|reject| reject.column != "note" || reject.row_index != row1 as u64)
+    );
     assert!(matches!(at(&batch, "bad_num", row2), ArrowScalar::Null));
     let nan = batch
         .rejects
@@ -313,7 +401,10 @@ async fn live_lossless_types() {
     assert_eq!(far.reason, "date_infinity");
     assert_eq!(far.value_len, 4);
     let paid = plan(&batch, "paid;drop");
-    assert!(matches!(paid.mapping.decision, MapDecision::Unsupported("money_locale")));
+    assert!(matches!(
+        paid.mapping.decision,
+        MapDecision::Unsupported("money_locale")
+    ));
     assert!(batch.arrow.iter().all(|column| column.name != "paid;drop"));
     let omitted = batch
         .rejects
@@ -321,15 +412,26 @@ async fn live_lossless_types() {
         .filter(|reject| reject.column == "paid;drop")
         .collect::<Vec<_>>();
     assert_eq!(omitted.len(), 2);
-    assert!(omitted.iter().all(|reject| reject.value_len == 0 && reject.reason == "money_locale"));
+    assert!(
+        omitted
+            .iter()
+            .all(|reject| reject.value_len == 0 && reject.reason == "money_locale")
+    );
     let pack = plan(&batch, "pack");
-    assert!(matches!(pack.mapping.decision, MapDecision::Unsupported("composite")));
+    assert!(matches!(
+        pack.mapping.decision,
+        MapDecision::Unsupported("composite")
+    ));
     assert_eq!(batch.rows.len(), 2);
     assert_eq!(batch.plans.len(), table.columns.len());
 }
 
 fn plan<'a>(batch: &'a TypedBatch, name: &str) -> &'a oo_connectors::types::ColumnPlan {
-    batch.plans.iter().find(|item| item.name == name).unwrap_or_else(|| panic!("plan {name}"))
+    batch
+        .plans
+        .iter()
+        .find(|item| item.name == name)
+        .unwrap_or_else(|| panic!("plan {name}"))
 }
 
 fn row_of(batch: &TypedBatch, id: i32) -> usize {

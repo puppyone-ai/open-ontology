@@ -166,7 +166,9 @@ enum RunError {
 use RunError::{Failed, Usage};
 
 fn usage() {
-    eprintln!("ontology-artifact-diff: usage: ontology-artifact-diff --before <file> --after <file>");
+    eprintln!(
+        "ontology-artifact-diff: usage: ontology-artifact-diff --before <file> --after <file>"
+    );
     eprintln!(
         "ontology-artifact-diff: reads two oo.builder.captured-pg-draft-command/v1 artifacts"
     );
@@ -280,10 +282,7 @@ fn read_file(path: &str) -> Result<String, Fail> {
 fn project_text(text: &str) -> Result<Projected, Fail> {
     let value = parse_json_value(text, PROTOCOL).map_err(map_scan)?;
     let root = as_map(&value)?;
-    require_only(
-        root,
-        &["draft", "evidence_envelope", "protocol", "wrapper"],
-    )?;
+    require_only(root, &["draft", "evidence_envelope", "protocol", "wrapper"])?;
     version_is(root, "protocol", COMMAND_PROTOCOL)?;
     let wrapper = as_map(key(root, "wrapper")?)?;
     let envelope = as_map(key(root, "evidence_envelope")?)?;
@@ -296,7 +295,11 @@ fn project_text(text: &str) -> Result<Projected, Fail> {
 }
 
 fn map_scan(err: oo_core::DiagnosticList) -> Fail {
-    let code = err.items.first().map(|item| item.code.as_str()).unwrap_or("");
+    let code = err
+        .items
+        .first()
+        .map(|item| item.code.as_str())
+        .unwrap_or("");
     if code.ends_with("/json.duplicate_key") {
         DUP_KEY
     } else if code.ends_with("/json.budget.bytes") {
@@ -554,7 +557,10 @@ fn check_seals(
         return Err(HASH);
     }
     let mut preimage = draft.clone();
-    let Some(object) = preimage.get_mut("provenance").and_then(Value::as_object_mut) else {
+    let Some(object) = preimage
+        .get_mut("provenance")
+        .and_then(Value::as_object_mut)
+    else {
         return Err(INVALID);
     };
     if object.remove("manifest_hash").is_none() {
@@ -566,7 +572,10 @@ fn check_seals(
     Ok(())
 }
 
-fn project_draft(wrapper: &Map<String, Value>, draft: &Map<String, Value>) -> Result<Projected, Fail> {
+fn project_draft(
+    wrapper: &Map<String, Value>,
+    draft: &Map<String, Value>,
+) -> Result<Projected, Fail> {
     let provenance = as_map(key(draft, "provenance")?)?;
     let mut projected = Projected {
         source_id: text(provenance, "source_id")?,
@@ -593,10 +602,7 @@ fn project_draft(wrapper: &Map<String, Value>, draft: &Map<String, Value>) -> Re
         decisions: BTreeMap::new(),
         stale_queue: BTreeMap::new(),
     };
-    let source_id = format!(
-        "source/{}/{}",
-        projected.source_id, projected.database
-    );
+    let source_id = format!("source/{}/{}", projected.source_id, projected.database);
     insert(
         &mut projected.source,
         source_id,
@@ -877,11 +883,7 @@ fn project_generated(generated: &Map<String, Value>, out: &mut Projected) -> Res
     Ok(())
 }
 
-fn project_generated_column(
-    value: &Value,
-    dataset: &str,
-    out: &mut Projected,
-) -> Result<(), Fail> {
+fn project_generated_column(value: &Value, dataset: &str, out: &mut Projected) -> Result<(), Fail> {
     let column = as_map(value)?;
     require_only(
         column,
@@ -1001,10 +1003,7 @@ fn project_curated(curated: &Map<String, Value>, out: &mut Projected) -> Result<
     Ok(())
 }
 
-fn project_curated_datasets(
-    datasets: &[Value],
-    out: &mut Projected,
-) -> Result<(), Fail> {
+fn project_curated_datasets(datasets: &[Value], out: &mut Projected) -> Result<(), Fail> {
     for dataset in datasets {
         let dataset = as_map(dataset)?;
         allow_only(
@@ -1291,11 +1290,7 @@ fn render(before: &Projected, after: &Projected) -> String {
         &mut facts,
         &mut unchanged,
     );
-    diff_stale_queue(
-        &before.stale_queue,
-        &after.stale_queue,
-        &mut facts,
-    );
+    diff_stale_queue(&before.stale_queue, &after.stale_queue, &mut facts);
     facts.sort_by(|left, right| {
         left.status
             .cmp(right.status)
@@ -1497,7 +1492,10 @@ fn push_fact(
     });
 }
 
-fn union_keys(before: &BTreeMap<String, Value>, after: &BTreeMap<String, Value>) -> BTreeSet<String> {
+fn union_keys(
+    before: &BTreeMap<String, Value>,
+    after: &BTreeMap<String, Value>,
+) -> BTreeSet<String> {
     before.keys().chain(after.keys()).cloned().collect()
 }
 
@@ -1650,7 +1648,11 @@ fn evidence_or_null(value: &Value) -> Result<(), Fail> {
     require_only(object, &["byte_len", "sha256"])?;
     require_number(key(object, "byte_len")?)?;
     let digest = require_text(object, "sha256")?;
-    if is_hex(&digest) { Ok(()) } else { Err(INVALID) }
+    if is_hex(&digest) {
+        Ok(())
+    } else {
+        Err(INVALID)
+    }
 }
 
 fn string_list(value: &Value) -> Result<Vec<String>, Fail> {
@@ -1741,22 +1743,38 @@ fn require_marker(object: &Map<String, Value>, name: &str) -> Result<String, Fai
 
 fn require_token(object: &Map<String, Value>, name: &str) -> Result<String, Fail> {
     let text = require_text(object, name)?;
-    if is_token(&text) { Ok(text) } else { Err(INVALID) }
+    if is_token(&text) {
+        Ok(text)
+    } else {
+        Err(INVALID)
+    }
 }
 
 fn require_ident(object: &Map<String, Value>, name: &str) -> Result<(), Fail> {
     let text = require_text(object, name)?;
-    if is_source_id(&text) { Ok(()) } else { Err(INVALID) }
+    if is_source_id(&text) {
+        Ok(())
+    } else {
+        Err(INVALID)
+    }
 }
 
 fn require_name(object: &Map<String, Value>, name: &str) -> Result<(), Fail> {
     let text = require_text(object, name)?;
-    if is_token(&text) { Ok(()) } else { Err(INVALID) }
+    if is_token(&text) {
+        Ok(())
+    } else {
+        Err(INVALID)
+    }
 }
 
 fn require_item(object: &Map<String, Value>, name: &str) -> Result<String, Fail> {
     let text = require_text(object, name)?;
-    if text.len() <= 512 { Ok(text) } else { Err(INVALID) }
+    if text.len() <= 512 {
+        Ok(text)
+    } else {
+        Err(INVALID)
+    }
 }
 
 fn require_hex(object: &Map<String, Value>, name: &str) -> Result<(), Fail> {
@@ -1769,7 +1787,11 @@ fn require_bool(value: &Value) -> Result<bool, Fail> {
 }
 
 fn require_number(value: &Value) -> Result<(), Fail> {
-    if value.is_number() { Ok(()) } else { Err(INVALID) }
+    if value.is_number() {
+        Ok(())
+    } else {
+        Err(INVALID)
+    }
 }
 
 fn number_or_null(value: &Value) -> Result<(), Fail> {
@@ -1799,7 +1821,10 @@ fn as_array(value: &Value) -> Result<&Vec<Value>, Fail> {
 }
 
 fn is_hex(value: &str) -> bool {
-    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
 fn is_source_id(value: &str) -> bool {
@@ -1813,10 +1838,7 @@ fn is_source_id(value: &str) -> bool {
 }
 
 fn is_token(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 512
-        && !value.contains('/')
-        && !has_control(value)
+    !value.is_empty() && value.len() <= 512 && !value.contains('/') && !has_control(value)
 }
 
 fn has_control(value: &str) -> bool {

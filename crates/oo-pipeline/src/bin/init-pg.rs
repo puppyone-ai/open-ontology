@@ -71,15 +71,27 @@ async fn run() -> Result<String, Fail> {
     if !(1..=MAX_CONNECT_MS).contains(&connect_ms) {
         return Err(Fail::input());
     }
-    let endpoint = PgEndpoint::new(&request.target.host, request.target.port, &request.target.database)
-        .map_err(|_| Fail::input())?;
+    let endpoint = PgEndpoint::new(
+        &request.target.host,
+        request.target.port,
+        &request.target.database,
+    )
+    .map_err(|_| Fail::input())?;
     // The placeholder is not sent. `PgCredentials` is the public username check.
     PgCredentials::new(&request.target.administrator, "x").map_err(|_| Fail::input())?;
     let password = read_password(&request.target.password_file)?;
     let ca = read_ca(&request.target.ca_file)?;
-    PgCredentials::new(&request.target.administrator, password.as_str()).map_err(|_| Fail::input())?;
+    PgCredentials::new(&request.target.administrator, password.as_str())
+        .map_err(|_| Fail::input())?;
     let timeout = Duration::from_millis(connect_ms);
-    let mut conn = connect_target(&endpoint, &request.target.administrator, &password, &ca, timeout).await?;
+    let mut conn = connect_target(
+        &endpoint,
+        &request.target.administrator,
+        &password,
+        &ca,
+        timeout,
+    )
+    .await?;
     expect_principal(&mut conn, &request.target.administrator, timeout).await?;
     expect_administrator(&mut conn, timeout).await?;
     let install_outcome = install(&mut conn).await.map_err(map_install)?;
@@ -93,7 +105,9 @@ async fn run() -> Result<String, Fail> {
         return Err(Fail::not_ready());
     }
     let full_outcome = install_full_import(&mut conn).await.map_err(map_install)?;
-    let full = verify_full_import_readiness(&mut conn).await.map_err(map_ready)?;
+    let full = verify_full_import_readiness(&mut conn)
+        .await
+        .map_err(map_ready)?;
     let full_digest = compiled_full_import_digest();
     if full.digest() != full_digest {
         return Err(Fail::not_ready());
@@ -137,8 +151,12 @@ fn map_install(err: InstallError) -> Fail {
         InstallError::MissingRelation { .. } | InstallError::Refused { .. } => {
             Fail::new(6, "target catalog refused")
         }
-        InstallError::Database { sqlstate, .. } if sqlstate == "OO001" => Fail::new(7, "migration checksum"),
-        InstallError::Database { sqlstate, .. } if sqlstate == "OO002" => Fail::new(6, "target catalog refused"),
+        InstallError::Database { sqlstate, .. } if sqlstate == "OO001" => {
+            Fail::new(7, "migration checksum")
+        }
+        InstallError::Database { sqlstate, .. } if sqlstate == "OO002" => {
+            Fail::new(6, "target catalog refused")
+        }
         InstallError::Database { .. } => Fail::new(1, "target database"),
     }
 }
@@ -147,7 +165,9 @@ fn map_ready(err: ReadinessError) -> Fail {
     match err {
         ReadinessError::NotInstalled | ReadinessError::Incomplete => Fail::not_ready(),
         ReadinessError::ChecksumMismatch { .. } => Fail::new(7, "migration checksum"),
-        ReadinessError::Database { sqlstate, .. } if sqlstate == "OO001" => Fail::new(7, "migration checksum"),
+        ReadinessError::Database { sqlstate, .. } if sqlstate == "OO001" => {
+            Fail::new(7, "migration checksum")
+        }
         ReadinessError::Database { .. } => Fail::new(1, "target database"),
     }
 }
@@ -194,23 +214,32 @@ async fn expect_administrator(
         Ok(Ok(row)) => row,
         _ => return Err(Fail::new(1, "target database")),
     };
-    let superuser: bool = row.try_get(0).map_err(|_| Fail::new(1, "target database"))?;
-    let owner_exists: bool = row.try_get(1).map_err(|_| Fail::new(1, "target database"))?;
+    let superuser: bool = row
+        .try_get(0)
+        .map_err(|_| Fail::new(1, "target database"))?;
+    let owner_exists: bool = row
+        .try_get(1)
+        .map_err(|_| Fail::new(1, "target database"))?;
     if superuser {
         return Ok(());
     }
     if !owner_exists {
         return Err(Fail::new(5, "target administrator"));
     }
-    let member_query = sqlx::query(
-        "SELECT pg_catalog.pg_has_role(current_user, 'oo_target_owner', 'MEMBER')",
-    );
+    let member_query =
+        sqlx::query("SELECT pg_catalog.pg_has_role(current_user, 'oo_target_owner', 'MEMBER')");
     let member_row = match tokio::time::timeout(timeout, member_query.fetch_one(&mut *conn)).await {
         Ok(Ok(row)) => row,
         _ => return Err(Fail::new(1, "target database")),
     };
-    let member: bool = member_row.try_get(0).map_err(|_| Fail::new(1, "target database"))?;
-    if member { Ok(()) } else { Err(Fail::new(5, "target administrator")) }
+    let member: bool = member_row
+        .try_get(0)
+        .map_err(|_| Fail::new(1, "target database"))?;
+    if member {
+        Ok(())
+    } else {
+        Err(Fail::new(5, "target administrator"))
+    }
 }
 
 async fn expect_principal(
@@ -223,8 +252,12 @@ async fn expect_principal(
         Ok(Ok(row)) => row,
         _ => return Err(Fail::new(4, "target principal")),
     };
-    let current: String = row.try_get(0).map_err(|_| Fail::new(4, "target principal"))?;
-    let session: String = row.try_get(1).map_err(|_| Fail::new(4, "target principal"))?;
+    let current: String = row
+        .try_get(0)
+        .map_err(|_| Fail::new(4, "target principal"))?;
+    let session: String = row
+        .try_get(1)
+        .map_err(|_| Fail::new(4, "target principal"))?;
     if current == administrator && session == administrator {
         Ok(())
     } else {
@@ -236,7 +269,9 @@ fn write_stdout(document: &str) -> Result<(), Fail> {
     let mut payload = Vec::with_capacity(document.len() + 1);
     payload.extend_from_slice(document.as_bytes());
     payload.push(b'\n');
-    io::stdout().write_all(&payload).map_err(|_| Fail::new(1, "init output"))
+    io::stdout()
+        .write_all(&payload)
+        .map_err(|_| Fail::new(1, "init output"))
 }
 
 fn read_stdin() -> Result<String, Fail> {
@@ -245,7 +280,9 @@ fn read_stdin() -> Result<String, Fail> {
     let mut chunk = [0_u8; 8192];
     let limit = oo_core::limits::DOCUMENT_MAX_BYTES;
     loop {
-        let read = stdin.read(&mut chunk).map_err(|_| Fail::new(1, "init input"))?;
+        let read = stdin
+            .read(&mut chunk)
+            .map_err(|_| Fail::new(1, "init input"))?;
         if read == 0 {
             break;
         }
@@ -418,4 +455,3 @@ struct TargetIn {
     password_file: String,
     ca_file: String,
 }
-

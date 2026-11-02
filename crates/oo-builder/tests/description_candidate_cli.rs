@@ -10,10 +10,10 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use oo_builder::{
-    DESCRIPTION_CANDIDATE_PROTOCOL, DESCRIPTION_PROMPT_VERSION,
+    CapturedPgDraft, DESCRIPTION_CANDIDATE_PROTOCOL, DESCRIPTION_PROMPT_VERSION,
     DESCRIPTION_REQUEST_COMMAND_PROTOCOL, DESCRIPTION_REQUEST_PROTOCOL,
-    DESCRIPTION_RESPONSE_PROTOCOL, CapturedPgDraft, DescriptionCandidateError,
-    compile_captured_pg_catalog, complete_description_candidates, prepare_description_request,
+    DESCRIPTION_RESPONSE_PROTOCOL, DescriptionCandidateError, compile_captured_pg_catalog,
+    complete_description_candidates, prepare_description_request,
 };
 
 const STDIN_MAX: usize = 1_048_576;
@@ -423,7 +423,12 @@ fn compiled_draft_prepare_and_hand_response_are_the_public_documents() {
     let (compiled, command, draft) = shop();
     let command_text = serde_json::to_string(&command).unwrap();
     let prepared = run(&["prepare_request"], command_text.as_bytes());
-    assert_eq!(prepared.status.code(), Some(0), "{}", String::from_utf8_lossy(&prepared.stderr));
+    assert_eq!(
+        prepared.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&prepared.stderr)
+    );
     assert!(prepared.stderr.is_empty());
     let request_text = String::from_utf8(prepared.stdout).unwrap();
     let expected = prepare_description_request(&command_text).unwrap();
@@ -449,13 +454,26 @@ fn compiled_draft_prepare_and_hand_response_are_the_public_documents() {
     let body = response_body(
         &request,
         vec![
-            candidate("public.purchase", &card_sha(&request, "public.purchase"), "Purchase"),
-            candidate("public.customer", &card_sha(&request, "public.customer"), "Buyer"),
+            candidate(
+                "public.purchase",
+                &card_sha(&request, "public.purchase"),
+                "Purchase",
+            ),
+            candidate(
+                "public.customer",
+                &card_sha(&request, "public.customer"),
+                "Buyer",
+            ),
         ],
     );
     let complete_text = with_response(&command, captured("complete", Some(&body)));
     let completed = run(&["complete_candidates"], complete_text.as_bytes());
-    assert_eq!(completed.status.code(), Some(0), "{}", String::from_utf8_lossy(&completed.stderr));
+    assert_eq!(
+        completed.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&completed.stderr)
+    );
     assert!(completed.stderr.is_empty());
     let outcome_text = String::from_utf8(completed.stdout).unwrap();
     assert_eq!(
@@ -483,14 +501,23 @@ fn compiled_draft_prepare_and_hand_response_are_the_public_documents() {
     let injected = response_body(
         &request,
         vec![
-            candidate("public.customer", &card_sha(&request, "public.customer"), INJECTION),
-            candidate("public.purchase", &card_sha(&request, "public.purchase"), "Purchase"),
+            candidate(
+                "public.customer",
+                &card_sha(&request, "public.customer"),
+                INJECTION,
+            ),
+            candidate(
+                "public.purchase",
+                &card_sha(&request, "public.purchase"),
+                "Purchase",
+            ),
         ],
     );
     let injected_text = with_response(&command, captured("complete", Some(&injected)));
     let injected_out = run(&["complete_candidates"], injected_text.as_bytes());
     assert_eq!(injected_out.status.code(), Some(0));
-    let injected_outcome: Value = serde_json::from_str(&String::from_utf8(injected_out.stdout).unwrap()).unwrap();
+    let injected_outcome: Value =
+        serde_json::from_str(&String::from_utf8(injected_out.stdout).unwrap()).unwrap();
     assert_eq!(injected_outcome["candidates"][0]["label"], INJECTION);
     assert_eq!(injected_outcome["candidates"][0]["effect"], "review_only");
     assert_statements(&injected_outcome);
@@ -503,7 +530,10 @@ fn compiled_draft_prepare_and_hand_response_are_the_public_documents() {
     assert_eq!(budget.status.code(), Some(0));
     assert!(budget.stderr.is_empty());
     let budget_text = String::from_utf8(budget.stdout).unwrap();
-    assert_eq!(budget_text, prepare_description_request(&tight_text).unwrap());
+    assert_eq!(
+        budget_text,
+        prepare_description_request(&tight_text).unwrap()
+    );
     let budget_outcome: Value = serde_json::from_str(&budget_text).unwrap();
     assert_eq!(budget_outcome["outcome"], "budget_failure");
     assert_eq!(budget_outcome["budget_reason"], "tables");
@@ -632,12 +662,21 @@ fn hidden_and_stale_selections_exit_closed() {
 fn incomplete_truncated_and_response_oversize_keep_the_draft() {
     let (compiled, command, draft) = shop();
     let command_text = serde_json::to_string(&command).unwrap();
-    let request: Value = serde_json::from_str(&prepare_description_request(&command_text).unwrap()).unwrap();
+    let request: Value =
+        serde_json::from_str(&prepare_description_request(&command_text).unwrap()).unwrap();
     let body = response_body(
         &request,
         vec![
-            candidate("public.customer", &card_sha(&request, "public.customer"), "KeptLabel"),
-            candidate("public.purchase", &card_sha(&request, "public.purchase"), "KeptLabel"),
+            candidate(
+                "public.customer",
+                &card_sha(&request, "public.customer"),
+                "KeptLabel",
+            ),
+            candidate(
+                "public.purchase",
+                &card_sha(&request, "public.purchase"),
+                "KeptLabel",
+            ),
         ],
     );
 
@@ -646,8 +685,16 @@ fn incomplete_truncated_and_response_oversize_keep_the_draft() {
         let marked = response_body(
             &request,
             vec![
-                candidate("public.customer", &card_sha(&request, "public.customer"), &marker),
-                candidate("public.purchase", &card_sha(&request, "public.purchase"), &marker),
+                candidate(
+                    "public.customer",
+                    &card_sha(&request, "public.customer"),
+                    &marker,
+                ),
+                candidate(
+                    "public.purchase",
+                    &card_sha(&request, "public.purchase"),
+                    &marker,
+                ),
             ],
         );
         let text = with_response(&command, captured(status, Some(&marked)));
@@ -655,7 +702,10 @@ fn incomplete_truncated_and_response_oversize_keep_the_draft() {
         assert_eq!(output.status.code(), Some(0), "{status}");
         assert!(output.stderr.is_empty());
         let outcome_text = String::from_utf8(output.stdout).unwrap();
-        assert_eq!(outcome_text, complete_description_candidates(&text).unwrap());
+        assert_eq!(
+            outcome_text,
+            complete_description_candidates(&text).unwrap()
+        );
         let outcome: Value = serde_json::from_str(&outcome_text).unwrap();
         assert_eq!(outcome["outcome"], status);
         assert_eq!(outcome["candidates"], json!([]));
@@ -678,7 +728,10 @@ fn incomplete_truncated_and_response_oversize_keep_the_draft() {
     let output = run(&["complete_candidates"], text.as_bytes());
     assert_eq!(output.status.code(), Some(0));
     let outcome_text = String::from_utf8(output.stdout).unwrap();
-    assert_eq!(outcome_text, complete_description_candidates(&text).unwrap());
+    assert_eq!(
+        outcome_text,
+        complete_description_candidates(&text).unwrap()
+    );
     let outcome: Value = serde_json::from_str(&outcome_text).unwrap();
     assert_eq!(outcome["outcome"], "incomplete");
     assert_eq!(outcome["candidates"], json!([]));
@@ -693,7 +746,10 @@ fn incomplete_truncated_and_response_oversize_keep_the_draft() {
     let output = run(&["complete_candidates"], text.as_bytes());
     assert_eq!(output.status.code(), Some(0));
     let outcome_text = String::from_utf8(output.stdout).unwrap();
-    assert_eq!(outcome_text, complete_description_candidates(&text).unwrap());
+    assert_eq!(
+        outcome_text,
+        complete_description_candidates(&text).unwrap()
+    );
     let outcome: Value = serde_json::from_str(&outcome_text).unwrap();
     assert_eq!(outcome["outcome"], "budget_failure");
     assert_eq!(outcome["budget_reason"], "response_bytes");

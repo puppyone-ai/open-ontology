@@ -8,11 +8,11 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
+use sqlx::Connection;
 use sqlx::postgres::{
     IncomingWireError, PgBackendFrame, PgConnectOptions, PgConnection, PgIncomingAllocation,
     PgIncomingBounds, PgIncomingLimit, PgSslMode,
 };
-use sqlx::Connection;
 
 const HANG: Duration = Duration::from_secs(10);
 const CANCEL_WAIT: Duration = Duration::from_millis(1000);
@@ -71,10 +71,7 @@ async fn default_off_accepts_row_over_tight_cap() {
         prefix
     }));
     let err = recv_err(&mut limited).await;
-    assert_wire(
-        &err,
-        IncomingWireError::Limit(PgIncomingLimit::Value),
-    );
+    assert_wire(&err, IncomingWireError::Limit(PgIncomingLimit::Value));
     let meter = limited.incoming_allocation();
     trace("default-off-counterpart-value-reject", &meter);
     assert_small_reject(&base, &meter, 11, 11);
@@ -176,12 +173,7 @@ async fn row_cap_exact_and_plus_one() {
     let base = conn.incoming_allocation();
     // prefix 10 + first payload 2 + second payload 3 = 15, one past the row cap.
     // The second body is not sent.
-    peer.write(prefix_row(
-        4 + 2 + 4 + 2 + 4 + 3,
-        2,
-        &[Some(&b"AB"[..])],
-        3,
-    ));
+    peer.write(prefix_row(4 + 2 + 4 + 2 + 4 + 3, 2, &[Some(&b"AB"[..])], 3));
     let err = recv_err(&mut conn).await;
     assert_wire(&err, IncomingWireError::Limit(PgIncomingLimit::Row));
     let meter = conn.incoming_allocation();
@@ -213,10 +205,7 @@ async fn columns_1600_and_1601() {
     let declared = 4 + 2 + 1601 * 4;
     peer.write(columns_header(1601, declared));
     let err = recv_err(&mut conn).await;
-    assert_wire(
-        &err,
-        IncomingWireError::Limit(PgIncomingLimit::Columns),
-    );
+    assert_wire(&err, IncomingWireError::Limit(PgIncomingLimit::Columns));
     let meter = conn.incoming_allocation();
     trace("columns-1601", &meter);
     assert_small_reject(&base, &meter, 7, 7);
@@ -575,9 +564,12 @@ fn assert_no_declared(meter: &PgIncomingAllocation, declared: u64) {
         meter.view_capacity_peak
     );
     assert!(meter.last_logical_need < declared);
-    assert!(meter.events.iter().all(|event| {
-        event.logical_need < declared && event.reserve_argument < declared
-    }));
+    assert!(
+        meter
+            .events
+            .iter()
+            .all(|event| { event.logical_need < declared && event.reserve_argument < declared })
+    );
 }
 
 fn assert_wire(err: &sqlx::Error, expected: IncomingWireError) {
@@ -587,10 +579,7 @@ fn assert_wire(err: &sqlx::Error, expected: IncomingWireError) {
     assert!(!text.contains("SECRET"), "{text}");
     assert!(!debug.contains("SECRET"), "{debug}");
     assert!(!text.chars().any(|ch| ch.is_ascii_digit()), "{text}");
-    assert!(
-        !debug.chars().any(|ch| ch.is_ascii_digit()),
-        "{debug}"
-    );
+    assert!(!debug.chars().any(|ch| ch.is_ascii_digit()), "{debug}");
 }
 
 fn assert_invalid(err: sqlx::Error) {

@@ -28,6 +28,8 @@ use crate::config::{Capture, Config};
 use crate::error::Fail;
 use crate::pg::{connect_read_only, endpoint_from_files};
 
+pub(crate) mod current;
+
 const RECEIPT_PROTOCOL: &str = "oo.source-admission.capture-receipt/v1";
 const REQUEST_PROTOCOL: &str = "oo.pipeline.native-update/v1";
 // An exported PostgreSQL snapshot has one source position. Splitting one table
@@ -286,23 +288,54 @@ async fn read_table(
     if !ident_ok(schema) || !ident_ok(table) {
         return Err(Fail::new("capture.refused", 4));
     }
-    let catalog_sql = "SELECT a.attname::text, a.atttypid::bigint, a.atttypmod, a.attnotnull, pg_catalog.format_type(a.atttypid, a.atttypmod), EXISTS (SELECT 1 FROM pg_catalog.pg_index i WHERE i.indrelid = c.oid AND i.indisprimary AND i.indnkeyatts = 1 AND a.attnum = ANY (i.indkey)) FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE a.attnum > 0 AND NOT a.attisdropped AND n.nspname = CAST(CAST($1 AS text) AS name) AND c.relname = CAST(CAST($2 AS text) AS name) ORDER BY a.attnum";
+    let catalog_sql = TABLE_SHAPE_SQL;
     audit_sql.push(catalog_sql.to_owned());
     let found = client.query(catalog_sql, &[&schema, &table]).await.map_err(|err| blocked(config, &err))?;
+    let mut shaped = table_shape(&found, &config.approved_fields, schema, table)?;
+    let count_sql = format!("SELECT count(*)::bigint FROM {}.{}", quote(schema), quote(table));
+    audit_sql.push(count_sql.clone());
+    if !platform_sql_allowed(&count_sql) {
+        return Err(Fail::new("audit.write", 7));
+    }
+    let count: i64 = client.query_one(&count_sql, &[]).await.map_err(|err| blocked(config, &err))?.try_get(0).map_err(|_| Fail::new("capture.protocol", 4))?;
+    if count < 0 || count as u64 > config.budget.max_rows {
+        return Err(Fail::new("capture.budget", 5));
+    }
+    let select_sql = data_sql(schema, table, &shaped.pk, &shaped.columns)?;
+    audit_sql.push(select_sql.clone());
+    let loaded = client.query(&select_sql, &[]).await.map_err(|err| blocked(config, &err))?;
+    if loaded.len() as i64 != count {
+        return Err(Fail::new("capture.diff", 7));
+    }
+    for row in &loaded {
+        shaped.rows.push(typed_row(row, &shaped.columns)?);
+    }
+    shaped.rows.sort_by_key(|row| row.0);
+    Ok(shaped)
+}
+
+const TABLE_SHAPE_SQL: &str = "SELECT a.attname::text, a.atttypid::bigint, a.atttypmod, a.attnotnull, pg_catalog.format_type(a.atttypid, a.atttypmod), EXISTS (SELECT 1 FROM pg_catalog.pg_index i WHERE i.indrelid = c.oid AND i.indisprimary AND i.indnkeyatts = 1 AND a.attnum = ANY (i.indkey)) FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE a.attnum > 0 AND NOT a.attisdropped AND n.nspname = CAST(CAST($1 AS text) AS name) AND c.relname = CAST(CAST($2 AS text) AS name) ORDER BY a.attnum";
+
+fn table_shape(
+    found: &[tokio_postgres::Row],
+    approved_fields: &[crate::config::FieldName],
+    schema: &str,
+    table: &str,
+) -> Result<TableData, Fail> {
     if found.is_empty() {
         return Err(Fail::new("capture.refused", 4));
     }
     let mut columns = Vec::new();
     let mut excluded = Vec::new();
     let mut pk = None;
-    for row in &found {
+    for row in found {
         let name: String = row.try_get(0).map_err(|_| Fail::new("capture.protocol", 4))?;
         let oid: i64 = row.try_get(1).map_err(|_| Fail::new("capture.protocol", 4))?;
         let typmod: i32 = row.try_get(2).map_err(|_| Fail::new("capture.protocol", 4))?;
         let not_null: bool = row.try_get(3).map_err(|_| Fail::new("capture.protocol", 4))?;
         let format: String = row.try_get(4).map_err(|_| Fail::new("capture.protocol", 4))?;
         let primary: bool = row.try_get(5).map_err(|_| Fail::new("capture.protocol", 4))?;
-        let approved = config.approved_fields.iter().any(|field| field.schema == schema && field.table == table && field.column == name);
+        let approved = approved_fields.iter().any(|field| field.schema == schema && field.table == table && field.column == name);
         if !approved {
             excluded.push(json!({"column": name, "source_oid": oid, "format": format, "native_note": "not_approved"}));
             continue;
@@ -327,53 +360,30 @@ async fn read_table(
             primary_key: primary,
         });
     }
-    for field in config.approved_fields.iter().filter(|field| field.schema == schema && field.table == table) {
+    for field in approved_fields.iter().filter(|field| field.schema == schema && field.table == table) {
         if !columns.iter().any(|column| column.name == field.column) {
             return Err(Fail::new("capture.refused", 4));
         }
     }
     let pk_name = pk.ok_or(Fail::new("capture.refused", 4))?;
-    let count_sql = format!("SELECT count(*)::bigint FROM {}.{}", quote(schema), quote(table));
-    audit_sql.push(count_sql.clone());
-    if !platform_sql_allowed(&count_sql) {
-        return Err(Fail::new("audit.write", 7));
-    }
-    let count: i64 = client.query_one(&count_sql, &[]).await.map_err(|err| blocked(config, &err))?.try_get(0).map_err(|_| Fail::new("capture.protocol", 4))?;
-    if count < 0 || count as u64 > config.budget.max_rows {
-        return Err(Fail::new("capture.budget", 5));
-    }
-    let select_sql = data_sql(schema, table, &pk_name, &columns)?;
-    audit_sql.push(select_sql.clone());
-    let loaded = client.query(&select_sql, &[]).await.map_err(|err| blocked(config, &err))?;
-    if loaded.len() as i64 != count {
-        return Err(Fail::new("capture.diff", 7));
-    }
-    let mut rows = Vec::with_capacity(loaded.len());
-    for row in &loaded {
-        let mut values = Vec::with_capacity(columns.len());
-        let mut pk_value = None;
-        for (index, column) in columns.iter().enumerate() {
-            let value = read_cell(row, index, column)?;
-            if column.primary_key {
-                pk_value = match &value {
-                    CellValue::Int(pk) => Some(*pk),
-                    _ => None,
-                };
-            }
-            values.push(value);
-        }
-        rows.push((pk_value.ok_or(Fail::new("capture.protocol", 4))?, values));
-    }
-    rows.sort_by_key(|row| row.0);
     Ok(TableData {
         schema: schema.to_owned(),
         table: table.to_owned(),
         pk: pk_name,
         columns,
         excluded,
-        rows,
+        rows: Vec::new(),
         tombstones: Vec::new(),
     })
+}
+
+fn typed_row(row: &tokio_postgres::Row, columns: &[ColumnPlan]) -> Result<(i64, Vec<CellValue>), Fail> {
+    let values = columns.iter().enumerate().map(|(i, c)| read_cell(row, i, c)).collect::<Result<Vec<_>, _>>()?;
+    let pk = columns.iter().position(|c| c.primary_key).ok_or(Fail::new("capture.protocol", 4))?;
+    match values[pk] {
+        CellValue::Int(key) => Ok((key, values)),
+        _ => Err(Fail::new("capture.protocol", 4)),
+    }
 }
 
 fn data_sql(schema: &str, table: &str, pk: &str, columns: &[ColumnPlan]) -> Result<String, Fail> {
@@ -1090,9 +1100,9 @@ async fn read_table_shape(
     schema: &str,
     table: &str,
 ) -> Result<TableData, Fail> {
-    let mut shaped = read_table(config, client, audit_sql, schema, table).await?;
-    shaped.rows.clear();
-    Ok(shaped)
+    audit_sql.push(TABLE_SHAPE_SQL.to_owned());
+    let found = client.query(TABLE_SHAPE_SQL, &[&schema, &table]).await.map_err(|err| blocked(config, &err))?;
+    table_shape(&found, &config.approved_fields, schema, table)
 }
 
 fn filtered_sql(schema: &str, table: &str, pk: &str, columns: &[ColumnPlan]) -> Result<String, Fail> {

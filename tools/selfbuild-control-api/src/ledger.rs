@@ -69,17 +69,8 @@ pub async fn decide(config: &AppConfig, input: DecisionIn<'_>) -> Result<Value, 
     )
     .await?;
     let head = store::queue_head(&config.ledger, &input.build.project_id, &input.member.object_id).await?;
-    let revision = match (&head, input.expected_revision) {
-        (None, Some(expected)) if expected != 1 => return Err(ApiError::revision()),
-        (None, _) => 1,
-        (Some(head), Some(expected)) if expected != head.revision => return Err(ApiError::revision()),
-        (Some(head), _) => {
-            if !same_binding(head, input.member, &input.build.input_sha256) {
-                return Err(ApiError::membership());
-            }
-            head.revision
-        }
-    };
+    let revision = review_revision(head.as_ref().map(|h| h.revision), input.expected_revision,
+        head.as_ref().is_some_and(|h| same_binding(h, input.member, &input.build.input_sha256)))?;
     let bound = binding_json(input.member, &input.build.input_sha256);
     let mut enqueue = json!({
         "protocol": "oo.review-ledger.enqueue/v1",
@@ -101,7 +92,7 @@ pub async fn decide(config: &AppConfig, input: DecisionIn<'_>) -> Result<Value, 
     if head.is_some() {
         enqueue["expected_revision"] = json!(revision);
     }
-    run_json(
+    let enqueued = run_json(
         &config.binaries.review_ledger,
         "enqueue",
         &enqueue,
@@ -109,6 +100,7 @@ pub async fn decide(config: &AppConfig, input: DecisionIn<'_>) -> Result<Value, 
         needles.copy(),
     )
     .await?;
+    let decision_revision = enqueue_revision(&enqueued, revision)?;
     let mut decide_body = json!({
         "protocol": "oo.review-ledger.decide/v1",
         "project_id": &input.build.project_id,
@@ -116,7 +108,7 @@ pub async fn decide(config: &AppConfig, input: DecisionIn<'_>) -> Result<Value, 
         "credential_file": &principal.credential_file,
         "postgres": postgres(&config.ledger),
         "object_id": &input.member.object_id,
-        "expected_revision": revision,
+        "expected_revision": decision_revision,
         "idempotency_key": input.idempotency_key,
         "decision_kind": input.decision_kind,
         "choice": input.choice,
@@ -286,14 +278,15 @@ fn ensure_control(config: &AppConfig, project_id: &str) -> Result<String, ApiErr
             "scope": &principal.object_scope
         }));
     }
-    let body = serde_json::to_vec(&json!({
-        "protocol": "oo.review-ledger.control/v1",
-        "project_id": project_id,
-        "authority": "not_verified",
-        "management_identity": "not_claimed",
-        "principals": listed
-    }))
-    .map_err(|_| ApiError::not_ready())?;
+    let mut document = json!({
+        "protocol": "oo.review-ledger.control/v1", "project_id": project_id,
+        "authority": "not_verified", "management_identity": "not_claimed", "principals": listed
+    });
+    if config.budgets.max_review_objects > 64 {
+        document["limits"] = json!({"max_scope_objects": config.budgets.max_review_objects,
+                                  "max_bytes": config.budgets.max_document_bytes.min(4_194_304)});
+    }
+    let body = serde_json::to_vec(&document).map_err(|_| ApiError::not_ready())?;
     let path = PathBuf::from(&config.work_dir).join("ledger").join(project_id).join("control.json");
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|_| ApiError::not_ready())?;
@@ -434,15 +427,61 @@ fn read_secret(path: &str) -> Result<Secret, ApiError> {
 fn write_private(path: &std::path::Path, bytes: &[u8]) -> Result<(), ApiError> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|_| ApiError::not_ready())?;
+    static NEXT:std::sync::atomic::AtomicU64=std::sync::atomic::AtomicU64::new(0);
+    if let Some(parent)=path.parent(){std::fs::create_dir_all(parent).map_err(|_|ApiError::not_ready())?;}
+    if let Ok(existing)=std::fs::read(path){if existing==bytes{return Ok(());}return Err(ApiError::membership());}
+    let n=NEXT.fetch_add(1,std::sync::atomic::Ordering::Relaxed);
+    let temp=path.with_extension(format!("{}-{n}.pending",std::process::id()));
+    let mut file=std::fs::OpenOptions::new().create_new(true).write(true).mode(0o600).open(&temp).map_err(|_|ApiError::not_ready())?;
+    file.write_all(bytes).map_err(|_|ApiError::not_ready())?;
+    std::fs::rename(temp,path).map_err(|_|ApiError::not_ready())
+}
+
+#[cfg(test)]
+mod library_rebuild_tests {
+    #[test]
+    fn enqueue_advancement_uses_the_returned_revision_and_refuses_invalid_receipts() {
+        assert_eq!(super::enqueue_revision(&serde_json::json!({"revision":2}),1).unwrap(),2);
+        assert_eq!(super::enqueue_revision(&serde_json::json!({"revision":1}),1).unwrap(),1);
+        assert!(super::enqueue_revision(&serde_json::json!({"revision":0}),1).is_err());
+        assert!(super::enqueue_revision(&serde_json::json!({"revision":3}),1).is_err());
     }
-    let mut file = std::fs::OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .mode(0o600)
-        .open(path)
-        .map_err(|_| ApiError::not_ready())?;
-    file.write_all(bytes).map_err(|_| ApiError::not_ready())
+}
+
+fn enqueue_revision(receipt: &Value, previous: i64) -> Result<i64, ApiError> {
+    receipt.get("revision").and_then(Value::as_i64).filter(|r| *r >= 1 && (*r == previous || previous.checked_add(1) == Some(*r))).ok_or_else(ApiError::revision)
+}
+
+#[cfg(test)]
+mod library_cas_tests {
+    #[test]
+    fn explicit_current_revision_can_review_a_new_bound_candidate_but_implicit_reuse_cannot() {
+        assert_eq!(super::review_revision(Some(1),Some(1),false).unwrap(),1);
+        assert!(super::review_revision(Some(1),None,false).is_err());
+        assert!(super::review_revision(Some(2),Some(1),false).is_err());
+        assert_eq!(super::review_revision(Some(2),None,true).unwrap(),2);
+    }
+}
+
+fn review_revision(head: Option<i64>, expected: Option<i64>, same: bool) -> Result<i64, ApiError> {
+    match (head, expected) {
+        (None, None | Some(1)) => Ok(1),
+        (Some(current), Some(expected)) if current == expected => Ok(current),
+        (Some(current), None) if same => Ok(current),
+        (Some(_), None) => Err(ApiError::membership()),
+        _ => Err(ApiError::revision()),
+    }
+}
+
+#[cfg(test)]
+mod parallel_artifact_tests {
+    #[test]
+    fn concurrent_identical_requests_never_expose_truncated_json() {
+        use std::sync::{Arc,Barrier};
+        let root=std::env::temp_dir().join(format!("oo-int-ledger-atomic-{}",std::process::id()));std::fs::create_dir_all(&root).unwrap();let path=root.join("request.json");let body=Arc::new(format!("{{\"value\":\"{}\"}}","a".repeat(200000)).into_bytes());super::write_private(&path,&body).unwrap();
+        let barrier=Arc::new(Barrier::new(9));let mut threads=Vec::new();
+        for _ in 0..8 {let p=path.clone();let bytes=body.clone();let gate=barrier.clone();threads.push(std::thread::spawn(move||{gate.wait();for _ in 0..20 {super::write_private(&p,&bytes).unwrap();}}));}
+        barrier.wait();for _ in 0..500 {assert_eq!(std::fs::read(&path).unwrap(),*body);}
+        for t in threads{t.join().unwrap();}std::fs::remove_file(path).unwrap();std::fs::remove_dir(root).unwrap();
+    }
 }

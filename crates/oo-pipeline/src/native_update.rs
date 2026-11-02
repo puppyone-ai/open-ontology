@@ -22,6 +22,10 @@ use sha2::{Digest, Sha256};
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::{ConnectOptions, Connection};
 
+pub use crate::c1_parts::C1_BUCKET_BITS;
+use crate::c1_parts::{
+    StateDigest, bucket_key, canonical_row, composed_digest, logical_type_from_name, pg_text_cell,
+};
 use crate::copy_encoder::{CopyBudgets, ExactDecimal};
 use crate::copy_sink::{self, SinkError};
 use crate::full_import::hook_digest;
@@ -30,6 +34,7 @@ use crate::native_arrow::{
     mapping_ident, prepare_table, register_mapping,
 };
 use crate::native_binding::{self, CaptureReceipt};
+use crate::native_c1_baseline;
 use crate::physical_mapping::quote_physical_name;
 use crate::target_installer::{self, InstallError};
 
@@ -67,7 +72,7 @@ pub async fn import_native_update() -> Result<(), u8> {
     bytes.push(b'\n');
     std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
     match result.get("load_state").and_then(|value| value.as_str()) {
-        Some("awaiting_publish" | "replay") => Ok(()),
+        Some("awaiting_publish" | "replay" | "part_acknowledged") => Ok(()),
         _ => Err(1),
     }
 }
@@ -76,141 +81,401 @@ pub async fn import_native_update() -> Result<(), u8> {
 pub async fn import_native_transaction() -> Result<(), u8> {
     let mut stdin = Vec::new();
     std::io::Read::read_to_end(&mut std::io::stdin(), &mut stdin).map_err(|_| 2u8)?;
-    if stdin.is_empty() || stdin.len() > 4 * READ_BUDGET { return Err(2); }
+    if stdin.is_empty() || stdin.len() > 4 * READ_BUDGET {
+        return Err(2);
+    }
     let document: Value = serde_json::from_slice(&stdin).map_err(|_| 2u8)?;
-    let result = match execute_transaction(&document).await {
+    let outcome = if document["protocol"] == "oo.pipeline.pg-current/v1" {
+        crate::pg_current::execute(&document).await
+    } else {
+        execute_transaction(&document).await
+    };
+    let result = match outcome {
         Ok(value) => value,
-        Err(reason) => json!({"protocol":TRANSACTION_RESULT_PROTOCOL,"load_state":"not_sealed","reason":reason}),
+        Err(reason) => {
+            json!({"protocol":TRANSACTION_RESULT_PROTOCOL,"load_state":"not_sealed","reason":reason})
+        }
     };
     let mut bytes = serde_json::to_vec(&result).map_err(|_| 1u8)?;
     bytes.push(b'\n');
     std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
-    if matches!(result["load_state"].as_str(), Some("awaiting_publish" | "replay")) { Ok(()) } else { Err(1) }
+    if matches!(
+        result["load_state"].as_str(),
+        Some("awaiting_publish" | "replay")
+    ) || document["protocol"] == "oo.pipeline.pg-current/v1" && result["load_state"] == "staged"
+    {
+        Ok(())
+    } else {
+        Err(1)
+    }
 }
 
 /// Materialize every admitted table from one sealed CDC-first stage atomically.
 pub async fn import_native_c1_baseline() -> Result<(), u8> {
-    let mut bytes = Vec::new();
-    std::io::Read::read_to_end(&mut std::io::stdin().take((4 * READ_BUDGET + 1) as u64), &mut bytes).map_err(|_| 2u8)?;
-    if bytes.is_empty() || bytes.len() > 4 * READ_BUDGET { return Err(2); }
-    let document: Value = serde_json::from_slice(&bytes).map_err(|_| 2u8)?;
-    let result = match execute_c1_baseline(&document).await {
-        Ok(value) => value,
-        Err(reason) => json!({"protocol":"oo.pipeline.native-c1-baseline-result/v1","load_state":"not_sealed","reason":reason}),
-    };
-    let mut out = serde_json::to_vec(&result).map_err(|_| 1u8)?; out.push(b'\n');
-    std::io::Write::write_all(&mut std::io::stdout(), &out).map_err(|_| 1u8)?;
-    if result["load_state"] == "awaiting_publish" { Ok(()) } else { Err(1) }
+    import_c1_baseline(false).await
 }
 
-fn baseline_quality(entry:&Value,plan:&UpdatePlan)->Result<Vec<Value>,&'static str> {
-    let registry_bytes=read_capped(Path::new(text_field(entry,"admission_registry_path")?)).map_err(|_|"nonadmitted")?;
-    if hex_bytes(&Sha256::digest(&registry_bytes))!=text_field(entry,"admission_registry_sha256")? {return Err("digest_mismatch");}
-    let registry:Value=serde_json::from_slice(&registry_bytes).map_err(|_|"nonadmitted")?;
-    let binding=registry.pointer("/bindings/0").ok_or("nonadmitted")?;
-    let bytes=read_capped(Path::new(text_field(binding,"capture_receipt_path")?)).map_err(|_|"nonadmitted")?;
-    if hex_bytes(&Sha256::digest(&bytes))!=text_field(binding,"capture_receipt_sha256")? {return Err("digest_mismatch");}
-    let capture:Value=serde_json::from_slice(&bytes).map_err(|_|"nonadmitted")?;
-    let table=capture["tables"].as_array().ok_or("baseline_quality")?.iter().find(|t|t["schema"]==plan.schema && t["name"]==plan.table).ok_or("baseline_quality")?;
-    table["quality_rejects"].as_array().cloned().ok_or("baseline_quality")
+pub async fn import_native_c1_baseline_v3() -> Result<(), u8> {
+    import_c1_baseline(true).await
 }
+
+async fn import_c1_baseline(typed: bool) -> Result<(), u8> {
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(
+        &mut std::io::stdin().take((4 * READ_BUDGET + 1) as u64),
+        &mut bytes,
+    )
+    .map_err(|_| 2u8)?;
+    if bytes.is_empty() || bytes.len() > 4 * READ_BUDGET {
+        return Err(2);
+    }
+    let document: Value = serde_json::from_slice(&bytes).map_err(|_| 2u8)?;
+    if typed && document["c1_baseline_format"] != "typed-keys/v3" {
+        return Err(2);
+    }
+    let outcome = if typed && document.get("typed_export").is_some() {
+        crate::c1_typed_export::finalize(&document).await
+    } else {
+        execute_c1_baseline(&document).await
+    };
+    let result = match outcome {
+        Ok(value) => value,
+        Err(reason) => {
+            json!({"protocol":"oo.pipeline.native-c1-baseline-result/v1","load_state":"not_sealed","reason":reason})
+        }
+    };
+    let mut out = serde_json::to_vec(&result).map_err(|_| 1u8)?;
+    out.push(b'\n');
+    std::io::Write::write_all(&mut std::io::stdout(), &out).map_err(|_| 1u8)?;
+    if result["load_state"] == "awaiting_publish" {
+        Ok(())
+    } else {
+        Err(1)
+    }
+}
+
+fn baseline_quality(entry: &Value, plan: &UpdatePlan) -> Result<Vec<Value>, &'static str> {
+    let registry_bytes = read_capped(Path::new(text_field(entry, "admission_registry_path")?))
+        .map_err(|_| "nonadmitted")?;
+    if hex_bytes(&Sha256::digest(&registry_bytes))
+        != text_field(entry, "admission_registry_sha256")?
+    {
+        return Err("digest_mismatch");
+    }
+    let registry: Value = serde_json::from_slice(&registry_bytes).map_err(|_| "nonadmitted")?;
+    let binding = registry.pointer("/bindings/0").ok_or("nonadmitted")?;
+    let bytes = read_capped(Path::new(text_field(binding, "capture_receipt_path")?))
+        .map_err(|_| "nonadmitted")?;
+    if hex_bytes(&Sha256::digest(&bytes)) != text_field(binding, "capture_receipt_sha256")? {
+        return Err("digest_mismatch");
+    }
+    let capture: Value = serde_json::from_slice(&bytes).map_err(|_| "nonadmitted")?;
+    if mapped_name(text_field(entry, "schema")?)? != plan.schema
+        || mapped_name(text_field(entry, "table")?)? != plan.table
+    {
+        return Err("baseline_quality");
+    }
+    let table = capture["tables"]
+        .as_array()
+        .ok_or("baseline_quality")?
+        .iter()
+        .find(|t| t["schema"] == entry["schema"] && t["name"] == entry["table"])
+        .ok_or("baseline_quality")?;
+    table["quality_rejects"]
+        .as_array()
+        .cloned()
+        .ok_or("baseline_quality")
+}
+
+#[path = "c1_mysql_handoff.rs"]
+pub(crate) mod mysql_handoff;
 
 struct BaselineCopy {
     epoch: i32,
+    source_schema: String,
+    source_table: String,
     positions: Vec<String>,
     quality: Vec<Value>,
     lease: Value,
 }
 
-async fn baseline_held_heartbeat(tx:&mut sqlx::Transaction<'_,sqlx::Postgres>,lease:&Value)->Result<(),&'static str> {
+async fn baseline_held_heartbeat(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    lease: &Value,
+) -> Result<(), &'static str> {
     // jobs.loader_hold already locked and authenticated this current claim.
     // Renew through the normal API on that same connection; an external
     // heartbeat cannot update the row while the atomic import holds its lock.
-    let status:String=sqlx::query_scalar("SELECT status FROM jobs.heartbeat($1::uuid,$2::uuid,$3,$4)")
-        .bind(text_field(lease,"project_id")?).bind(text_field(lease,"id")?).bind(text_field(lease,"owner")?)
-        .bind(lease["generation"].as_i64().ok_or("lease_required")?)
-        .fetch_one(&mut **tx).await.map_err(sql_token)?;
-    if status!="extended" {return Err("OO010");} Ok(())
+    let status: String =
+        sqlx::query_scalar("SELECT status FROM jobs.heartbeat($1::uuid,$2::uuid,$3,$4)")
+            .bind(text_field(lease, "project_id")?)
+            .bind(text_field(lease, "id")?)
+            .bind(text_field(lease, "owner")?)
+            .bind(lease["generation"].as_i64().ok_or("lease_required")?)
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(sql_token)?;
+    if status != "extended" {
+        return Err("OO010");
+    }
+    Ok(())
+}
+
+/// Lease time-to-live of a claim (worker `api.rs`: 30 s). A loader transaction must renew it before
+/// it expires, through the transaction itself (`baseline_held_heartbeat`).
+pub(crate) const BASELINE_LEASE_TTL: Duration = Duration::from_secs(30);
+
+/// Time-based lease renewal for one loader transaction. The loop that owns the transaction asks
+/// `is_due` between pages, tables and phases and renews when it is due. Renewing a third of the
+/// lease early keeps the claim alive through slow phases that have no per-row hook.
+#[derive(Debug)]
+pub(crate) struct LeaseKeeper {
+    every_ms: u128,
+    last_ms: u128,
+}
+
+impl LeaseKeeper {
+    pub(crate) fn for_lease(lease: Duration) -> Self {
+        Self {
+            every_ms: lease.as_millis() / 3,
+            last_ms: 0,
+        }
+    }
+
+    /// `now_ms` is milliseconds since the transaction started.
+    pub(crate) fn is_due(&self, now_ms: u128) -> bool {
+        now_ms.saturating_sub(self.last_ms) >= self.every_ms
+    }
+
+    pub(crate) fn renewed(&mut self, now_ms: u128) {
+        self.last_ms = now_ms;
+    }
+}
+
+/// Renew the lease if the keeper says it is due. Called between pages, tables and phases.
+pub(crate) async fn renew_if_due(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    lease: &Value,
+    keeper: &mut LeaseKeeper,
+    started: std::time::Instant,
+) -> Result<(), &'static str> {
+    let now = started.elapsed().as_millis();
+    if keeper.is_due(now) {
+        baseline_held_heartbeat(tx, lease).await?;
+        keeper.renewed(now);
+    }
+    Ok(())
 }
 
 async fn execute_c1_baseline(document: &Value) -> Result<Value, &'static str> {
-    if document["protocol"] != "oo.pipeline.native-c1-baseline/v1" { return Err("protocol"); }
+    if document["protocol"] != "oo.pipeline.native-c1-baseline/v1" {
+        return Err("protocol");
+    }
     let source = ident(document, "source_id")?;
     let job = text_field(document, "lease_id")?;
-    let lease_generation = document["lease_generation"].as_i64().filter(|n| *n > 0).ok_or("lease_required")?;
-    let epoch = document["source_epoch"].as_i64().and_then(|n| i32::try_from(n).ok()).filter(|n| *n > 0).ok_or("source_epoch")?;
+    let lease_generation = document["lease_generation"]
+        .as_i64()
+        .filter(|n| *n > 0)
+        .ok_or("lease_required")?;
+    let epoch = document["source_epoch"]
+        .as_i64()
+        .and_then(|n| i32::try_from(n).ok())
+        .filter(|n| *n > 0)
+        .ok_or("source_epoch")?;
     let scope = document.get("baseline_scope").ok_or("baseline_scope")?;
-    let entries = document["entries"].as_array().filter(|e| !e.is_empty() && e.len() <= 32).ok_or("baseline_entries")?;
+    let oracle = scope["engine"] == "oracle";
+    if oracle {
+        crate::c1_buffer_position::validate_scope(scope)?;
+    }
+    let entries = document["entries"]
+        .as_array()
+        .filter(|e| !e.is_empty())
+        .ok_or("baseline_entries")?;
     let bin = std::env::var("OO_NATIVE_ADMISSION_BIN").map_err(|_| "nonadmitted")?;
     let mut plans = Vec::with_capacity(entries.len());
     let mut prior = None;
-    let requests = document["native_requests"].as_array().filter(|r| r.len() == entries.len()).ok_or("baseline_entry")?;
+    let requests = document["native_requests"]
+        .as_array()
+        .filter(|r| r.len() == entries.len())
+        .ok_or("baseline_entry")?;
     for (entry, request) in entries.iter().zip(requests) {
         let mut request = request.clone();
-        request["lease_id"] = json!(job); request["lease_generation"] = json!(lease_generation);
+        request["lease_id"] = json!(job);
+        request["lease_generation"] = json!(lease_generation);
         let path = text_field(entry, "admission_registry_path")?;
         let sha = hex_field(entry, "admission_registry_sha256").map_err(|_| "digest_mismatch")?;
         let registry = fs::read(path).map_err(|_| "nonadmitted")?;
-        if hex_bytes(&Sha256::digest(&registry)) != sha { return Err("digest_mismatch"); }
+        if hex_bytes(&Sha256::digest(&registry)) != sha {
+            return Err("digest_mismatch");
+        }
         let registry_value: Value = serde_json::from_slice(&registry).map_err(|_| "nonadmitted")?;
-        if registry_value.pointer("/bindings/0/baseline_scope") != Some(scope) { return Err("baseline_scope"); }
-        let plan = native_binding::with_operator_env(native_binding::OperatorEnv::Fixed {
-            bin: Some(bin.clone()), registry: Some(path.to_string()), registry_sha256: Some(sha),
-        }, || classify(&request))?;
-        let key = (plan.schema.clone(), plan.table.clone());
+        if registry_value.pointer("/bindings/0/baseline_scope") != Some(scope) {
+            return Err("baseline_scope");
+        }
+        let plan = native_binding::with_operator_env(
+            native_binding::OperatorEnv::Fixed {
+                bin: Some(bin.clone()),
+                registry: Some(path.to_string()),
+                registry_sha256: Some(sha),
+            },
+            || classify_inner(&request, false, false, oracle),
+        )?;
+        let key = (
+            text_field(entry, "schema")?.to_string(),
+            text_field(entry, "table")?.to_string(),
+        );
         if prior.as_ref().is_some_and(|old| old >= &key)
-            || plan.source_engine != "mysql" || plan.source_id != source
-            || plan.source_generation != document["source_generation"].as_i64().ok_or("stale_run")?
-            || plan.schema != entry["schema"] || plan.table != entry["table"]
-            || plan.mode != "full" || !plan.source_bound || !plan.cross_table || plan.consistency_grade != "T"
-            || plan.capture_method != "c1_cdc" || plan.delete_detection != "native"
-            || plan.position_codec != "mysql-gtid/v1" || plan.position_lineage != scope["lineage"]
-            || plan.mirror { return Err("baseline_entry"); }
+            || plan.source_engine != if oracle { "oracle" } else { "mysql" }
+            || plan.source_id != source
+            || plan.source_generation
+                != document["source_generation"].as_i64().ok_or("stale_run")?
+            || plan.schema != mapped_name(text_field(entry, "schema")?)?
+            || plan.table != mapped_name(text_field(entry, "table")?)?
+            || plan.mode != "full"
+            || !plan.source_bound
+            || !plan.cross_table
+            || plan.consistency_grade != "T"
+            || plan.capture_method != "c1_cdc"
+            || plan.delete_detection != "native"
+            || plan.position_codec
+                != if oracle {
+                    crate::c1_buffer_position::CODEC
+                } else {
+                    "mysql-gtid/v1"
+                }
+            || plan.position_lineage != scope["lineage"]
+            || plan.mirror
+        {
+            return Err("baseline_entry");
+        }
         if let Some(first) = plans.first() {
             let first: &UpdatePlan = first;
-            if plan.target != first.target || plan.owner != first.owner || plan.shard != first.shard
-                || plan.applied_pos_request != first.applied_pos_request || plan.config_digest != first.config_digest { return Err("baseline_entry"); }
+            if plan.target != first.target
+                || plan.owner != first.owner
+                || plan.shard != first.shard
+                || plan.applied_pos_request != first.applied_pos_request
+                || plan.config_digest != first.config_digest
+            {
+                return Err("baseline_entry");
+            }
         }
-        prior = Some(key); plans.push(plan);
+        prior = Some(key);
+        plans.push(plan);
     }
     let first = &plans[0];
-    let mut immutable=document.clone();immutable.as_object_mut().ok_or("baseline_request")?.remove("lease_generation");
-    let request_digest = hex_bytes(&Sha256::digest(serde_json::to_vec(&immutable).map_err(|_| "baseline_request")?));
+    let mut immutable = document.clone();
+    immutable
+        .as_object_mut()
+        .ok_or("baseline_request")?
+        .remove("lease_generation");
+    let request_digest = hex_bytes(&Sha256::digest(
+        serde_json::to_vec(&immutable).map_err(|_| "baseline_request")?,
+    ));
     let mut conn = connect_target(&first.target).await?;
     let mut tx = conn.begin().await.map_err(sql_token)?;
-    let (held_lease,_)=lease_hold(&mut tx, job, Some(lease_generation)).await?;
-    baseline_held_heartbeat(&mut tx,&held_lease).await?;
+    let (held_lease, _) = lease_hold(&mut tx, job, Some(lease_generation)).await?;
+    baseline_held_heartbeat(&mut tx, &held_lease).await?;
     sqlx::query("SELECT _oo.native_c1_baseline_rebind($1,$2::uuid,$3)")
-        .bind(&source).bind(job).bind(lease_generation).execute(&mut *tx).await.map_err(sql_token)?;
-    let saved: Option<String> = sqlx::query_scalar("SELECT _oo.native_c1_baseline_typed_receipt($1,$2::uuid)::text")
-        .bind(&source).bind(job).fetch_one(&mut *tx).await.map_err(sql_token)?;
+        .bind(&source)
+        .bind(job)
+        .bind(lease_generation)
+        .execute(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+    let saved: Option<String> =
+        sqlx::query_scalar("SELECT _oo.native_c1_baseline_typed_receipt($1,$2::uuid)::text")
+            .bind(&source)
+            .bind(job)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(sql_token)?;
     if let Some(saved) = saved {
         let saved: Value = serde_json::from_str(&saved).map_err(|_| "not_sealed")?;
-        if saved["request_digest"] != request_digest { return Err("OO010"); }
+        if saved["request_digest"] != request_digest {
+            return Err("OO010");
+        }
         tx.commit().await.map_err(sql_token)?;
         return Ok(saved["receipt"].clone());
     }
+    if oracle && first.source_generation > 1 {
+        sqlx::query("SELECT _oo.c1_oracle_delta_final_assert($1,$2::uuid,$3,$4)")
+            .bind(&source)
+            .bind(job)
+            .bind(lease_generation)
+            .bind(epoch)
+            .execute(&mut *tx)
+            .await
+            .map_err(sql_token)?;
+    }
+    if !oracle {
+        mysql_handoff::final_assert(
+            &mut tx,
+            &source,
+            job,
+            lease_generation,
+            first.source_generation,
+        )
+        .await?;
+    }
     // Run shadow row guards inside each bounded COPY, rather than accumulating
     // all deferred checks until the first table binder.
-    sqlx::query("SET CONSTRAINTS ALL IMMEDIATE").execute(&mut *tx).await.map_err(sql_token)?;
+    sqlx::query("SET CONSTRAINTS ALL IMMEDIATE")
+        .execute(&mut *tx)
+        .await
+        .map_err(sql_token)?;
     let mut receipts = Vec::with_capacity(plans.len());
     let mut target_generation = None;
-    for (plan,request) in plans.iter().zip(requests) {
-        baseline_held_heartbeat(&mut tx,&held_lease).await?;
-        let started=std::time::Instant::now();
-        let positions=request["row_positions"].as_array().ok_or("baseline_positions")?.iter()
-            .map(|v|v.as_str().map(str::to_owned).ok_or("baseline_positions")).collect::<Result<Vec<_>,_>>()?;
-        let applied = apply_tx_baseline(&mut tx, plan, Some(BaselineCopy {epoch,positions,quality:baseline_quality(&entries[receipts.len()],plan)?,lease:held_lease.clone()})).await?;
-        eprintln!("oo-pipeline: baseline-table table={} rows={} elapsed_ms={}",plan.table,applied.row_count,started.elapsed().as_millis());
-        baseline_held_heartbeat(&mut tx,&held_lease).await?;
-        if target_generation.is_some_and(|n| n != applied.target_generation) { return Err("OO010"); }
+    for (plan, request) in plans.iter().zip(requests) {
+        baseline_held_heartbeat(&mut tx, &held_lease).await?;
+        let started = std::time::Instant::now();
+        let positions = request["row_positions"]
+            .as_array()
+            .ok_or("baseline_positions")?
+            .iter()
+            .map(|v| v.as_str().map(str::to_owned).ok_or("baseline_positions"))
+            .collect::<Result<Vec<_>, _>>()?;
+        let entry = &entries[receipts.len()];
+        let source_schema = text_field(entry, "schema")?.to_string();
+        let source_table = text_field(entry, "table")?.to_string();
+        let applied = apply_tx_baseline(
+            &mut tx,
+            plan,
+            Some(BaselineCopy {
+                epoch,
+                source_schema: source_schema.clone(),
+                source_table: source_table.clone(),
+                positions,
+                quality: baseline_quality(entry, plan)?,
+                lease: held_lease.clone(),
+            }),
+        )
+        .await?;
+        eprintln!(
+            "oo-pipeline: baseline-table table={} rows={} elapsed_ms={}",
+            plan.table,
+            applied.row_count,
+            started.elapsed().as_millis()
+        );
+        baseline_held_heartbeat(&mut tx, &held_lease).await?;
+        if target_generation.is_some_and(|n| n != applied.target_generation) {
+            return Err("OO010");
+        }
         target_generation = Some(applied.target_generation);
         sqlx::query("SELECT _oo.native_update_mirror($1,$2,$3)")
-            .bind(&source).bind(&plan.batch_id).bind(&applied.physical_name)
-            .execute(&mut *tx).await.map_err(sql_token)?;
+            .bind(&source)
+            .bind(&plan.batch_id)
+            .bind(&applied.physical_name)
+            .execute(&mut *tx)
+            .await
+            .map_err(sql_token)?;
         let rows = applied.row_count;
-        receipts.push(json!({"schema":plan.schema,"table":plan.table,"physical_id":applied.physical_name,
-            "run_id":applied.run_id,"sha256":plan.payload_digest,"row_count":rows}));
+        let mut receipt = json!({"schema":source_schema,"table":source_table,"physical_id":applied.physical_name,
+            "run_id":applied.run_id,"sha256":plan.payload_digest,"row_count":rows});
+        if plan.schema != source_schema || plan.table != source_table {
+            receipt["storage_schema"] = json!(plan.schema);
+            receipt["storage_table"] = json!(plan.table);
+        }
+        receipts.push(receipt);
     }
     let raw: String = sqlx::query_scalar("SELECT _oo.native_c1_baseline_typed_commit($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb)::text")
         .bind(&source).bind(job).bind(lease_generation).bind(epoch).bind(target_generation.ok_or("not_sealed")?)
@@ -223,21 +488,748 @@ async fn execute_c1_baseline(document: &Value) -> Result<Value, &'static str> {
     serde_json::from_str(&raw).map_err(|_| "not_sealed")
 }
 
+// ---------------------------------------------------------------- chunked-typed/v2 final load (T8)
+//
+// One transaction, in this order: lease hold, task lock (R2), fence adoption, a
+// rebind that must show applied = L_end, the composed digest of every shadow
+// read from the shadow in this transaction (D4), the composed check against the
+// request, ANALYZE, the seal, the quality and full-import seal of each table, and
+// the typed commit. A refusal before the seal rolls the whole transaction back, so
+// nothing is written. Design: DESIGN s3.1, s3.8, s4.1; decisions D2 and D4.
+
+/// Request protocol of the chunked-typed/v2 final load.
+pub const C1_BASELINE_V2_PROTOCOL: &str = "oo.pipeline.native-c1-baseline/v2";
+/// Default rows between two lease heartbeats while a shadow is digested (DESIGN s3.9 `seal_window_keys`).
+pub const C1_SEAL_WINDOW_ROWS: u64 = 500_000;
+/// Rows per keyset page read from a shadow. This bounds the loader's memory.
+const C1_DIGEST_PAGE_ROWS: i32 = 10_000;
+/// Tables of one final load. The v1 collection bound (migration 0036) and the stage bound.
+const C1_V2_MAX_TABLES: usize = 32;
+/// Columns of one table in a final load. The producer's column cap (`MAX_COLUMNS`) is 1024.
+const C1_V2_MAX_COLUMNS: usize = 1024;
+/// Batch name of the final load's apply receipts. Migration 0042 writes receipts under it.
+/// Result protocol. The typed-commit receipt keeps the v1 shape, so the worker reads it unchanged.
+const C1_V2_RESULT_PROTOCOL: &str = "oo.pipeline.native-c1-baseline-result/v1";
+/// Verification object added to the result. It is not stored in the typed receipt.
+const C1_V2_VERIFICATION_PROTOCOL: &str = "oo.pipeline.c1-composed/v2";
+
+/// Read one chunked-typed/v2 final-load document and write one result document.
+pub async fn import_native_c1_baseline_v2() -> Result<(), u8> {
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(
+        &mut std::io::stdin().take((4 * READ_BUDGET + 1) as u64),
+        &mut bytes,
+    )
+    .map_err(|_| 2u8)?;
+    if bytes.is_empty() || bytes.len() > 4 * READ_BUDGET {
+        return Err(2);
+    }
+    let document: Value = serde_json::from_slice(&bytes).map_err(|_| 2u8)?;
+    let result = match execute_c1_baseline_v2(&document).await {
+        Ok(value) => value,
+        Err(reason) => {
+            json!({"protocol": C1_V2_RESULT_PROTOCOL, "load_state": "not_sealed", "reason": reason})
+        }
+    };
+    let mut out = serde_json::to_vec(&result).map_err(|_| 1u8)?;
+    out.push(b'\n');
+    std::io::Write::write_all(&mut std::io::stdout(), &out).map_err(|_| 1u8)?;
+    if result["load_state"] == "awaiting_publish" {
+        Ok(())
+    } else {
+        Err(1)
+    }
+}
+
+/// One table of a final load. `expected` is the producer's composed state of the table.
+struct C1V2Table {
+    schema: String,
+    table: String,
+    rows: u64,
+    table_digest: String,
+    schema_digest: String,
+    /// Canonical logical type of each column, in catalog order (DESIGN D7). The producer
+    /// sends these from its source mapping. The loader does not derive them from oids.
+    canonical: Vec<oo_core::canonical::LogicalType>,
+}
+
+/// A validated final-load request. Every field is checked before a connection opens.
+struct C1V2Request {
+    source: String,
+    job: String,
+    lease_generation: i64,
+    epoch: i32,
+    source_generation: i64,
+    lineage: String,
+    l0: String,
+    l_end: String,
+    l_end_pos: String,
+    config_digest: String,
+    type_digest: String,
+    input_digest: String,
+    scope: Value,
+    rows: u64,
+    composed_digest: String,
+    tables: Vec<C1V2Table>,
+    shard: String,
+    owner: String,
+    target: Value,
+    window_rows: u64,
+}
+
+fn hex_of(value: &Value, name: &str) -> Result<String, &'static str> {
+    value
+        .get(name)
+        .and_then(Value::as_str)
+        .filter(|text| hex64(text))
+        .map(str::to_owned)
+        .ok_or("digest_mismatch")
+}
+
+fn c1_v2_request(document: &Value) -> Result<C1V2Request, &'static str> {
+    if document["protocol"] != C1_BASELINE_V2_PROTOCOL {
+        return Err("protocol");
+    }
+    let source = ident(document, "source_id")?;
+    let job = text_field(document, "lease_id")?;
+    if !is_uuid(job) {
+        return Err("lease_required");
+    }
+    let lease_generation = document["lease_generation"]
+        .as_i64()
+        .filter(|n| *n > 0)
+        .ok_or("lease_required")?;
+    let epoch = document["source_epoch"]
+        .as_i64()
+        .and_then(|n| i32::try_from(n).ok())
+        .filter(|n| *n > 0)
+        .ok_or("source_epoch")?;
+    let source_generation = document["source_generation"]
+        .as_i64()
+        .filter(|n| *n > 0)
+        .ok_or("stale_run")?;
+    let measured = text_field(document, "measured_id")?;
+    let measured_uuid = measured
+        .strip_prefix("mysql.")
+        .filter(|uuid| is_uuid(uuid))
+        .ok_or("closed")?;
+    let l0 = text_field(document, "l0")?;
+    let l0_pos = digits(document, "l0_pos")?;
+    let l_end = text_field(document, "l_end")?;
+    let l_end_pos = digits(document, "l_end_pos")?;
+    if l0 != format!("{measured_uuid}:1-{l0_pos}")
+        || l_end != format!("{measured_uuid}:1-{l_end_pos}")
+    {
+        return Err("closed");
+    }
+    let l0_n: u128 = l0_pos.parse().map_err(|_| "closed")?;
+    let l_end_n: u128 = l_end_pos.parse().map_err(|_| "closed")?;
+    if l_end_n < l0_n {
+        return Err("closed");
+    }
+
+    let scope = document
+        .get("baseline_scope")
+        .filter(|value| value.is_object())
+        .ok_or("baseline_scope")?
+        .clone();
+    if scope["lineage"] != measured || scope["l0"] != l0 || scope["l_end"] != l_end {
+        return Err("baseline_scope");
+    }
+    let config_digest = hex_of(&scope, "config_digest").map_err(|_| "baseline_scope")?;
+    let type_digest = hex_field(document, "type_digest").map_err(|_| "digest_mismatch")?;
+    let input_digest = hex_field(document, "input_digest").map_err(|_| "digest_mismatch")?;
+
+    let expected = document
+        .get("expected")
+        .filter(|value| value.is_object())
+        .ok_or("expected_required")?;
+    if expected["bucket_bits"].as_u64() != Some(u64::from(C1_BUCKET_BITS)) {
+        return Err("bucket_bits");
+    }
+    let rows = expected["rows"].as_u64().ok_or("closed")?;
+    let composed_digest = hex_of(expected, "composed_digest")?;
+    let items = expected["tables"]
+        .as_array()
+        .filter(|items| (1..=C1_V2_MAX_TABLES).contains(&items.len()))
+        .ok_or("baseline_entries")?;
+    let scope_tables = scope["tables"].as_array().ok_or("baseline_scope")?;
+    if scope_tables.len() != items.len() {
+        return Err("baseline_scope");
+    }
+    let mut tables = Vec::with_capacity(items.len());
+    for item in items {
+        let schema = text_field(item, "schema")?.to_owned();
+        let table = text_field(item, "table")?.to_owned();
+        if tables
+            .iter()
+            .any(|old: &C1V2Table| old.schema == schema && old.table == table)
+        {
+            return Err("closed");
+        }
+        let scope_item = scope_tables
+            .iter()
+            .find(|candidate| {
+                candidate["schema"] == schema.as_str() && candidate["table"] == table.as_str()
+            })
+            .ok_or("baseline_scope")?;
+        let canonical = item["canonical_types"]
+            .as_array()
+            .filter(|names| !names.is_empty() && names.len() <= C1_V2_MAX_COLUMNS)
+            .ok_or("digest_type")?
+            .iter()
+            .map(|name| {
+                name.as_str()
+                    .ok_or("digest_type")
+                    .and_then(|name| logical_type_from_name(name).map_err(|_| "digest_type"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        tables.push(C1V2Table {
+            schema,
+            table,
+            rows: item["row_count"].as_u64().ok_or("closed")?,
+            table_digest: hex_of(item, "table_digest")?,
+            schema_digest: hex_of(scope_item, "schema_sha256").map_err(|_| "baseline_scope")?,
+            canonical,
+        });
+    }
+    let total = tables
+        .iter()
+        .try_fold(0u64, |acc, table| acc.checked_add(table.rows))
+        .ok_or("closed")?;
+    if total != rows {
+        return Err("closed");
+    }
+
+    let fence = document
+        .get("fence")
+        .filter(|value| value.is_object())
+        .ok_or("fence")?;
+    let shard = text_field(fence, "shard")?.to_owned();
+    if !ident_text(&shard) {
+        return Err("closed");
+    }
+    let owner = text_field(fence, "owner")?.to_owned();
+    if !is_uuid(&owner) {
+        return Err("closed");
+    }
+    let target = document
+        .get("target")
+        .filter(|value| value.is_object())
+        .cloned()
+        .ok_or("target")?;
+    let window_rows = match document.get("seal_window_rows") {
+        None | Some(Value::Null) => C1_SEAL_WINDOW_ROWS,
+        Some(value) => value
+            .as_u64()
+            .filter(|n| (1_000..=5_000_000).contains(n))
+            .ok_or("closed")?,
+    };
+    // The witness the admission report binds. If the scope names a composed digest, it must be this one.
+    if scope
+        .get("expected_composed_digest")
+        .is_some_and(|value| value != &json!(composed_digest))
+    {
+        return Err("composed_mismatch");
+    }
+    Ok(C1V2Request {
+        source,
+        job: job.to_owned(),
+        lease_generation,
+        epoch,
+        source_generation,
+        lineage: measured.to_owned(),
+        l0: l0.to_owned(),
+        l_end: l_end.to_owned(),
+        l_end_pos,
+        config_digest,
+        type_digest,
+        input_digest,
+        scope,
+        rows,
+        composed_digest,
+        tables,
+        shard,
+        owner,
+        target,
+        window_rows,
+    })
+}
+
+/// The admission report must bind this exact scope, and the report's digest must match.
+fn admit_c1_v2_registry(document: &Value, request: &C1V2Request) -> Result<(), &'static str> {
+    // Every table has its own admission registry (`tables[].admission`). All of them bind the
+    // same baseline scope. A one-table request also names its registry at the top level.
+    let mut registries: Vec<(String, String)> = Vec::new();
+    match document.get("tables").and_then(Value::as_array) {
+        Some(items) if items.len() > 1 => {
+            for item in items {
+                let admission = &item["admission"];
+                let path = text_field(admission, "registry_path")?;
+                let sha = hex_field(admission, "registry_sha256").map_err(|_| "digest_mismatch")?;
+                registries.push((path.to_string(), sha));
+            }
+        }
+        _ => {
+            let path = text_field(document, "admission_registry_path")?;
+            let sha =
+                hex_field(document, "admission_registry_sha256").map_err(|_| "digest_mismatch")?;
+            registries.push((path.to_string(), sha));
+        }
+    }
+    let single = registries.len() == 1;
+    for (path, sha) in &registries {
+        let bytes = fs::read(path).map_err(|_| "nonadmitted")?;
+        if hex_bytes(&Sha256::digest(&bytes)) != *sha {
+            return Err("digest_mismatch");
+        }
+        let registry: Value = serde_json::from_slice(&bytes).map_err(|_| "nonadmitted")?;
+        if registry.pointer("/bindings/0/baseline_scope") != Some(&request.scope) {
+            return Err("baseline_scope");
+        }
+        // The per-table composed digest is checked against the rows by the final load itself
+        // (`composed_mismatch` over the parts of every table). It equals the overall digest only
+        // for one table.
+        if single
+            && registry
+                .pointer("/bindings/0/expected_composed_digest")
+                .is_some_and(|value| value != &json!(request.composed_digest))
+        {
+            return Err("composed_mismatch");
+        }
+    }
+    Ok(())
+}
+
+/// Shadow read parameters shared by every page of one final load.
+struct ShadowRead<'a> {
+    source: &'a str,
+    job: &'a str,
+    generation: i64,
+    epoch: i32,
+    lease: &'a Value,
+    window_rows: u64,
+}
+
+/// Stream one shadow through keyset pages and digest it. Returns the row count and the digest.
+/// Memory is one page. A lease heartbeat is sent after every window of rows.
+async fn digest_shadow(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    read: &ShadowRead<'_>,
+    schema: &str,
+    table: &str,
+    key_index: usize,
+    catalog: &[(i64, i32)],
+    types: &[oo_core::canonical::LogicalType],
+) -> Result<(u64, StateDigest), &'static str> {
+    let mut digest = StateDigest::new(C1_BUCKET_BITS).map_err(|_| "digest_bucket")?;
+    let mut after: Option<String> = None;
+    let mut rows: u64 = 0;
+    let mut since_beat: u64 = 0;
+    let started = std::time::Instant::now();
+    let mut keeper = LeaseKeeper::for_lease(BASELINE_LEASE_TTL);
+    loop {
+        let page: Vec<Vec<Option<String>>> = sqlx::query_scalar(
+            "SELECT _oo.native_c1_baseline_v2_digest_page($1,$2::uuid,$3,$4,$5,$6,$7,$8)",
+        )
+        .bind(read.source)
+        .bind(read.job)
+        .bind(read.generation)
+        .bind(read.epoch)
+        .bind(schema)
+        .bind(table)
+        .bind(after.as_deref())
+        .bind(C1_DIGEST_PAGE_ROWS)
+        .fetch_all(&mut **tx)
+        .await
+        .map_err(sql_token)?;
+        let fetched = page.len();
+        if fetched == 0 {
+            break;
+        }
+        for cells in &page {
+            if cells.len() != types.len() {
+                return Err("digest_shape");
+            }
+            let mut values = Vec::with_capacity(types.len());
+            for (cell, (oid, _)) in cells.iter().zip(catalog) {
+                values.push(pg_text_cell(*oid, cell.as_deref()).map_err(|_| "digest_cell")?);
+            }
+            let key = bucket_key(&values[key_index]).map_err(|_| "digest_key")?;
+            let row = canonical_row(types, &values).map_err(|_| "digest_cell")?;
+            digest.add_row(key, &row).map_err(|_| "digest_bucket")?;
+        }
+        rows += fetched as u64;
+        after = page.last().and_then(|cells| cells[key_index].clone());
+        if after.is_none() {
+            return Err("digest_key");
+        }
+        since_beat += fetched as u64;
+        let last_page = fetched < C1_DIGEST_PAGE_ROWS as usize;
+        if since_beat >= read.window_rows || last_page {
+            baseline_held_heartbeat(tx, read.lease).await?;
+            since_beat = 0;
+        }
+        renew_if_due(tx, read.lease, &mut keeper, started).await?;
+        if last_page {
+            break;
+        }
+    }
+    Ok((rows, digest))
+}
+
+/// Verified chunked-typed/v2 final load. Returns the typed-commit receipt with a verification object.
+pub async fn execute_c1_baseline_v2(document: &Value) -> Result<Value, &'static str> {
+    let request = c1_v2_request(document)?;
+    admit_c1_v2_registry(document, &request)?;
+    let request_digest = {
+        let mut immutable = document.clone();
+        immutable
+            .as_object_mut()
+            .ok_or("baseline_request")?
+            .remove("lease_generation");
+        hex_bytes(&Sha256::digest(
+            serde_json::to_vec(&immutable).map_err(|_| "baseline_request")?,
+        ))
+    };
+    let mut conn = connect_target(&request.target).await?;
+    let mut tx = conn.begin().await.map_err(sql_token)?;
+    sqlx::raw_sql(sqlx::AssertSqlSafe(
+        "SET LOCAL TimeZone = 'UTC'; SET LOCAL DateStyle = 'ISO, YMD'; SET LOCAL IntervalStyle = 'postgres'; SET LOCAL bytea_output = 'hex'",
+    ))
+    .execute(&mut *tx)
+    .await
+    .map_err(sql_token)?;
+    let (held, _) = lease_hold(&mut tx, &request.job, Some(request.lease_generation)).await?;
+    baseline_held_heartbeat(&mut tx, &held).await?;
+    let started = std::time::Instant::now();
+    let mut keeper = LeaseKeeper::for_lease(BASELINE_LEASE_TTL);
+    sqlx::query("SELECT _oo.native_c1_baseline_lock($1, $2::uuid)")
+        .bind(&request.source)
+        .bind(&request.job)
+        .execute(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+    let saved: Option<String> =
+        sqlx::query_scalar("SELECT _oo.native_c1_baseline_typed_receipt($1,$2::uuid)::text")
+            .bind(&request.source)
+            .bind(&request.job)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(sql_token)?;
+    if let Some(saved) = saved {
+        let saved: Value = serde_json::from_str(&saved).map_err(|_| "not_sealed")?;
+        if saved["request_digest"] != request_digest {
+            return Err("OO010");
+        }
+        tx.commit().await.map_err(sql_token)?;
+        let _ = release(&mut conn, &request.shard).await;
+        let mut receipt = saved["receipt"].clone();
+        receipt["verification"] =
+            json!({"protocol": C1_V2_VERIFICATION_PROTOCOL, "replayed": true});
+        return Ok(receipt);
+    }
+
+    let fence = native_c1_baseline::Fence {
+        shard: request.shard.clone(),
+        owner: request.owner.clone(),
+    };
+    let envelope = native_c1_baseline::Envelope {
+        source: request.source.clone(),
+        task: request.job.clone(),
+        generation: request.lease_generation,
+        epoch: request.epoch,
+        target: request.target.clone(),
+    };
+    let target_generation = native_c1_baseline::adopt_and_bind(&mut tx, &fence).await?;
+    let rebind: String = sqlx::query_scalar(
+        "SELECT _oo.native_c1_baseline_v2_rebind($1,$2::uuid,$3,$4,$5::uuid,$6)::text",
+    )
+    .bind(&request.source)
+    .bind(&request.job)
+    .bind(request.lease_generation)
+    .bind(&request.shard)
+    .bind(&request.owner)
+    .bind(target_generation)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(sql_token)?;
+    let state: Value = serde_json::from_str(&rebind).map_err(|_| "not_sealed")?;
+    if state["state"] != "open" || state["l0"] != request.l0.as_str() {
+        return Err("not_open");
+    }
+    let applied: u128 = state["applied_pos"]
+        .as_str()
+        .and_then(|text| text.parse().ok())
+        .ok_or("not_sealed")?;
+    let l_end: u128 = request.l_end_pos.parse().map_err(|_| "closed")?;
+    match applied.cmp(&l_end) {
+        std::cmp::Ordering::Less => return Err("not_caught_up"),
+        std::cmp::Ordering::Greater => return Err("past_l_end"),
+        std::cmp::Ordering::Equal => {}
+    }
+
+    let plan_text: String =
+        sqlx::query_scalar("SELECT _oo.native_c1_baseline_v2_plan($1,$2::uuid,$3,$4)::text")
+            .bind(&request.source)
+            .bind(&request.job)
+            .bind(request.lease_generation)
+            .bind(request.epoch)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(sql_token)?;
+    let plan: Vec<Value> = serde_json::from_str::<Value>(&plan_text)
+        .map_err(|_| "not_sealed")?
+        .as_array()
+        .cloned()
+        .ok_or("not_sealed")?;
+    if plan.len() != request.tables.len() {
+        return Err("table_set");
+    }
+
+    let read = ShadowRead {
+        source: &request.source,
+        job: &request.job,
+        generation: request.lease_generation,
+        epoch: request.epoch,
+        lease: &held,
+        window_rows: request.window_rows,
+    };
+    let mut verified: Vec<(u64, StateDigest)> = Vec::with_capacity(plan.len());
+    let mut ordered: Vec<&C1V2Table> = Vec::with_capacity(plan.len());
+    // Receipts follow the request's table order, which the worker checks against its
+    // `entries`. The plan supplies only the physical names, and it is matched by name.
+    for wanted in &request.tables {
+        let schema = wanted.schema.as_str();
+        let table = wanted.table.as_str();
+        let entry = plan
+            .iter()
+            .find(|item| {
+                item["schema"].as_str() == Some(schema) && item["table"].as_str() == Some(table)
+            })
+            .ok_or("table_set")?;
+        let physical = entry["physical"].as_str().ok_or("table_set")?;
+        let key_column = entry["key_column"].as_str().ok_or("table_set")?;
+        let columns: Vec<String> = entry["columns"]
+            .as_array()
+            .ok_or("table_set")?
+            .iter()
+            .map(|item| item.as_str().map(str::to_owned).ok_or("table_set"))
+            .collect::<Result<_, _>>()?;
+        let catalog: Vec<(String, i64, i32)> = sqlx::query_as(
+            "SELECT a.attname::text, a.atttypid::int8, a.atttypmod::int4 \
+             FROM pg_attribute a \
+             WHERE a.attrelid = to_regclass($1) AND a.attnum > 0 AND NOT a.attisdropped AND a.attname <> '_oo_pos' \
+             ORDER BY a.attnum",
+        )
+        .bind(format!("_oo.{physical}"))
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+        let names: Vec<&str> = catalog.iter().map(|(name, _, _)| name.as_str()).collect();
+        if names != columns.iter().map(String::as_str).collect::<Vec<_>>() {
+            return Err("digest_shape");
+        }
+        let key_index = columns
+            .iter()
+            .position(|name| name == key_column)
+            .ok_or("digest_shape")?;
+        let oids: Vec<(i64, i32)> = catalog
+            .iter()
+            .map(|(_, oid, typmod)| (*oid, *typmod))
+            .collect();
+        // D7: the canonical types are the producer's source mapping, from the request.
+        if wanted.canonical.len() != oids.len() {
+            return Err("digest_shape");
+        }
+        let types = wanted.canonical.clone();
+        let started = std::time::Instant::now();
+        let (rows, digest) =
+            digest_shadow(&mut tx, &read, schema, table, key_index, &oids, &types).await?;
+        eprintln!(
+            "oo-pipeline: c1-v2-digest table={table} rows={rows} elapsed_ms={}",
+            started.elapsed().as_millis()
+        );
+        if rows != wanted.rows || hex_bytes(&digest.table_digest()) != wanted.table_digest {
+            return Err("composed_mismatch");
+        }
+        verified.push((rows, digest));
+        ordered.push(wanted);
+    }
+    let names: Vec<String> = ordered
+        .iter()
+        .map(|t| format!("{}.{}", t.schema, t.table))
+        .collect();
+    let parts: Vec<(&str, &StateDigest)> = names
+        .iter()
+        .map(String::as_str)
+        .zip(verified.iter().map(|(_, d)| d))
+        .collect();
+    if composed_digest(&parts).map_err(|_| "digest_bucket")? != request.composed_digest {
+        return Err("composed_mismatch");
+    }
+    sqlx::query("SELECT _oo.native_c1_baseline_v2_analyze($1,$2::uuid,$3,$4)")
+        .bind(&request.source)
+        .bind(&request.job)
+        .bind(request.lease_generation)
+        .bind(request.epoch)
+        .execute(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+    baseline_held_heartbeat(&mut tx, &held).await?;
+
+    let body = native_c1_baseline::SealBody {
+        l_end: request.l_end.clone(),
+        l_end_pos: request.l_end_pos.clone(),
+        hook_digest: hook_digest(),
+        tables: ordered
+            .iter()
+            .map(|table| native_c1_baseline::SealTable {
+                schema: table.schema.clone(),
+                table: table.table.clone(),
+                row_count: table.rows,
+                payload_digest: table.table_digest.clone(),
+            })
+            .collect(),
+    };
+    let sealed =
+        native_c1_baseline::seal_in_tx(&mut tx, &envelope, &fence, target_generation, &body)
+            .await?;
+    let sealed_tables = sealed["tables"].as_array().ok_or("not_sealed")?;
+    let mut entries = Vec::with_capacity(ordered.len());
+    for table in &ordered {
+        renew_if_due(&mut tx, &held, &mut keeper, started).await?;
+        let item = sealed_tables
+            .iter()
+            .find(|item| {
+                item["schema"] == table.schema.as_str() && item["table"] == table.table.as_str()
+            })
+            .ok_or("not_sealed")?;
+        let run_id = item["run_id"].as_str().ok_or("not_sealed")?;
+        let physical = item["physical"].as_str().ok_or("not_sealed")?;
+        let receipt_batch = item["receipt_batch_id"].as_str().ok_or("not_sealed")?;
+        sqlx::query("SELECT _oo.native_update_seal_quality($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12::numeric, $13, $14, $15, $16, $17, $18, $19::text[], $20, $21, $22, $23)")
+            .bind(&request.shard)
+            .bind(&request.owner)
+            .bind(target_generation)
+            .bind(run_id)
+            .bind(&request.source)
+            .bind(request.source_generation)
+            .bind(&table.schema)
+            .bind(&table.table)
+            .bind(physical)
+            .bind(receipt_batch)
+            .bind(&table.table_digest)
+            .bind(&request.l_end_pos)
+            .bind("mysql-gtid/v1")
+            .bind(&request.lineage)
+            .bind("c1_cdc")
+            .bind("native")
+            .bind("T")
+            .bind(true)
+            .bind(Vec::<String>::new())
+            .bind(i64::try_from(table.rows).map_err(|_| "closed")?)
+            .bind("never")
+            .bind(0_i64)
+            .bind("full")
+            .execute(&mut *tx)
+            .await
+            .map_err(sql_token)?;
+        sqlx::query("SELECT _oo.native_update_mirror($1,$2,$3)")
+            .bind(&request.source)
+            .bind(receipt_batch)
+            .bind(physical)
+            .execute(&mut *tx)
+            .await
+            .map_err(sql_token)?;
+        let status: String = sqlx::query_scalar(
+            "SELECT _oo.full_import_seal_run($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11::text[], $12::text[])",
+        )
+        .bind(&request.shard)
+        .bind(&request.owner)
+        .bind(target_generation)
+        .bind(run_id)
+        .bind(&request.source)
+        .bind(request.source_generation)
+        .bind(&request.config_digest)
+        .bind(&request.type_digest)
+        .bind(&request.input_digest)
+        .bind(&table.schema_digest)
+        .bind(vec![table.schema.as_str()])
+        .bind(vec![table.table.as_str()])
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+        if status != "awaiting_publish" {
+            return Err("seal");
+        }
+        entries.push(json!({
+            "schema": table.schema,
+            "table": table.table,
+            "physical_id": physical,
+            "run_id": run_id,
+            "sha256": table.table_digest,
+            "row_count": table.rows
+        }));
+    }
+    let raw: String = sqlx::query_scalar("SELECT _oo.native_c1_baseline_typed_commit($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb)::text")
+        .bind(&request.source)
+        .bind(&request.job)
+        .bind(request.lease_generation)
+        .bind(request.epoch)
+        .bind(target_generation)
+        .bind(request.source_generation)
+        .bind(&request_digest)
+        .bind(serde_json::to_string(&request.scope).map_err(|_| "baseline_scope")?)
+        .bind(serde_json::to_string(&entries).map_err(|_| "baseline_entries")?)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+    lease_hold(&mut tx, &request.job, Some(request.lease_generation)).await?;
+    tx.commit().await.map_err(sql_token)?;
+    let _ = release(&mut conn, &request.shard).await;
+    let mut receipt: Value = serde_json::from_str(&raw).map_err(|_| "not_sealed")?;
+    receipt["verification"] = json!({
+        "protocol": C1_V2_VERIFICATION_PROTOCOL,
+        "bucket_bits": C1_BUCKET_BITS,
+        "composed_digest": request.composed_digest,
+        "rows": request.rows,
+        "replayed": false,
+        "tables": ordered.iter().zip(&verified).map(|(table, (rows, digest))| json!({
+            "schema": table.schema,
+            "table": table.table,
+            "row_count": rows,
+            "table_digest": hex_bytes(&digest.table_digest())
+        })).collect::<Vec<Value>>()
+    });
+    Ok(receipt)
+}
+
 /// Complete the target-side C4 ACK after `jobs.complete_success` commits.
 /// Retrying the exact receipt is safe after a lost response.
 pub async fn ack_native_partition() -> Result<(), u8> {
     let mut stdin = Vec::new();
     std::io::Read::read_to_end(&mut std::io::stdin(), &mut stdin).map_err(|_| 2u8)?;
-    if stdin.is_empty() || stdin.len() > READ_BUDGET { return Err(2); }
+    if stdin.is_empty() || stdin.len() > READ_BUDGET {
+        return Err(2);
+    }
     let document: Value = serde_json::from_slice(&stdin).map_err(|_| 2u8)?;
     let result = match ack_partition(&document).await {
-        Ok(()) => json!({"protocol":"oo.pipeline.native-partition-ack-result/v1","acknowledged":true}),
-        Err(reason) => json!({"protocol":"oo.pipeline.native-partition-ack-result/v1","acknowledged":false,"reason":reason}),
+        Ok(()) => {
+            json!({"protocol":"oo.pipeline.native-partition-ack-result/v1","acknowledged":true})
+        }
+        Err(reason) => {
+            json!({"protocol":"oo.pipeline.native-partition-ack-result/v1","acknowledged":false,"reason":reason})
+        }
     };
     let mut bytes = serde_json::to_vec(&result).map_err(|_| 1u8)?;
     bytes.push(b'\n');
     std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
-    if result["acknowledged"] == true { Ok(()) } else { Err(1) }
+    if result["acknowledged"] == true {
+        Ok(())
+    } else {
+        Err(1)
+    }
 }
 
 /// Rebind an expired target task mirror to the same live control task before
@@ -245,16 +1237,26 @@ pub async fn ack_native_partition() -> Result<(), u8> {
 pub async fn recover_native_partition_mirror() -> Result<(), u8> {
     let mut stdin = Vec::new();
     std::io::Read::read_to_end(&mut std::io::stdin(), &mut stdin).map_err(|_| 2u8)?;
-    if stdin.is_empty() || stdin.len() > READ_BUDGET { return Err(2); }
+    if stdin.is_empty() || stdin.len() > READ_BUDGET {
+        return Err(2);
+    }
     let document: Value = serde_json::from_slice(&stdin).map_err(|_| 2u8)?;
     let result = match recover_partition_mirror(&document).await {
-        Ok(generation) => json!({"protocol":"oo.pipeline.native-partition-mirror-rebind-result/v1","rebound":true,"job_generation":generation}),
-        Err(reason) => json!({"protocol":"oo.pipeline.native-partition-mirror-rebind-result/v1","rebound":false,"reason":reason}),
+        Ok(generation) => {
+            json!({"protocol":"oo.pipeline.native-partition-mirror-rebind-result/v1","rebound":true,"job_generation":generation})
+        }
+        Err(reason) => {
+            json!({"protocol":"oo.pipeline.native-partition-mirror-rebind-result/v1","rebound":false,"reason":reason})
+        }
     };
     let mut bytes = serde_json::to_vec(&result).map_err(|_| 1u8)?;
     bytes.push(b'\n');
     std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
-    if result["rebound"] == true { Ok(()) } else { Err(1) }
+    if result["rebound"] == true {
+        Ok(())
+    } else {
+        Err(1)
+    }
 }
 
 /// Mirror only the current control claim through the target owner. The worker
@@ -262,52 +1264,93 @@ pub async fn recover_native_partition_mirror() -> Result<(), u8> {
 pub async fn sync_native_task_mirror() -> Result<(), u8> {
     let mut stdin = Vec::new();
     std::io::Read::read_to_end(&mut std::io::stdin(), &mut stdin).map_err(|_| 2u8)?;
-    if stdin.is_empty() || stdin.len() > READ_BUDGET { return Err(2); }
+    if stdin.is_empty() || stdin.len() > READ_BUDGET {
+        return Err(2);
+    }
     let document: Value = serde_json::from_slice(&stdin).map_err(|_| 2u8)?;
     let result = match sync_task_mirror(&document).await {
-        Ok(generation) => json!({"protocol":"oo.pipeline.native-task-mirror-result/v1","mirrored":true,"job_generation":generation}),
-        Err(reason) => json!({"protocol":"oo.pipeline.native-task-mirror-result/v1","mirrored":false,"reason":reason}),
+        Ok(generation) => {
+            json!({"protocol":"oo.pipeline.native-task-mirror-result/v1","mirrored":true,"job_generation":generation})
+        }
+        Err(reason) => {
+            json!({"protocol":"oo.pipeline.native-task-mirror-result/v1","mirrored":false,"reason":reason})
+        }
     };
     let mut bytes = serde_json::to_vec(&result).map_err(|_| 1u8)?;
     bytes.push(b'\n');
     std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
-    if result["mirrored"] == true { Ok(()) } else { Err(1) }
+    if result["mirrored"] == true {
+        Ok(())
+    } else {
+        Err(1)
+    }
 }
 
 async fn sync_task_mirror(document: &Value) -> Result<i64, &'static str> {
     let object = document.as_object().ok_or("closed")?;
-    if object.len() != 2 || document["protocol"] != "oo.pipeline.native-task-mirror/v1"
-       || object.keys().any(|key| key != "protocol" && key != "job_task_id") {
+    if object.len() != 2
+        || document["protocol"] != "oo.pipeline.native-task-mirror/v1"
+        || object
+            .keys()
+            .any(|key| key != "protocol" && key != "job_task_id")
+    {
         return Err("closed");
     }
     let job = text_field(document, "job_task_id")?;
-    if !is_uuid(job) { return Err("closed"); }
-    let control_target = pinned_ack_target("OO_NATIVE_CONTROL_TARGET", "OO_NATIVE_CONTROL_TARGET_SHA256")?;
+    if !is_uuid(job) {
+        return Err("closed");
+    }
+    let control_target = pinned_ack_target(
+        "OO_NATIVE_CONTROL_TARGET",
+        "OO_NATIVE_CONTROL_TARGET_SHA256",
+    )?;
     let mut control = connect_target(&control_target).await?;
     let query = "SELECT row_to_json(task)::text FROM jobs.tasks AS task WHERE task.id=$1::uuid AND task.state='running' AND task.lease_until>clock_timestamp()";
-    let control_row: Option<String> = sqlx::query_scalar(query).bind(job)
-        .fetch_optional(&mut control).await.map_err(sql_token)?;
+    let control_row: Option<String> = sqlx::query_scalar(query)
+        .bind(job)
+        .fetch_optional(&mut control)
+        .await
+        .map_err(sql_token)?;
     let control_row = control_row.ok_or("jobs_lease_lost")?;
     let observed: Value = serde_json::from_str(&control_row).map_err(|_| "jobs_lease_lost")?;
-    let generation = observed["generation"].as_i64().filter(|value| *value >= 1).ok_or("jobs_lease_lost")?;
+    let generation = observed["generation"]
+        .as_i64()
+        .filter(|value| *value >= 1)
+        .ok_or("jobs_lease_lost")?;
     let target = pinned_ack_target("OO_NATIVE_MIRROR_TARGET", "OO_NATIVE_MIRROR_TARGET_SHA256")?;
     let mut conn = connect_target(&target).await?;
     let mut tx = conn.begin().await.map_err(sql_token)?;
     let sidecars: Vec<bool> = sqlx::query_scalar(
-        "SELECT acknowledged FROM _oo.native_partition_state WHERE job_task_id=$1::uuid FOR UPDATE"
-    ).bind(job).fetch_all(&mut *tx).await.map_err(sql_token)?;
+        "SELECT acknowledged FROM _oo.native_partition_state WHERE job_task_id=$1::uuid FOR UPDATE",
+    )
+    .bind(job)
+    .fetch_all(&mut *tx)
+    .await
+    .map_err(sql_token)?;
     if sidecars.len() > 1 || sidecars.iter().any(|acknowledged| *acknowledged) {
         return Err("partition_prior_ack");
     }
-    let result_text: String = sqlx::query_scalar("SELECT jobs.mirror_sync($1::uuid,$2::jsonb)::text")
-        .bind(job).bind(&control_row).fetch_one(&mut *tx).await.map_err(sql_token)?;
+    let result_text: String =
+        sqlx::query_scalar("SELECT jobs.mirror_sync($1::uuid,$2::jsonb)::text")
+            .bind(job)
+            .bind(&control_row)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(sql_token)?;
     let mirrored: Value = serde_json::from_str(&result_text).map_err(|_| "jobs_lease_lost")?;
     if mirrored["mirrored"] != true || mirrored["generation"] != generation {
         return Err("jobs_lease_lost");
     }
-    let still_live: Option<String> = sqlx::query_scalar(query).bind(job)
-        .fetch_optional(&mut control).await.map_err(sql_token)?;
-    if still_live.as_deref().and_then(|row| serde_json::from_str::<Value>(row).ok()) != Some(observed) {
+    let still_live: Option<String> = sqlx::query_scalar(query)
+        .bind(job)
+        .fetch_optional(&mut control)
+        .await
+        .map_err(sql_token)?;
+    if still_live
+        .as_deref()
+        .and_then(|row| serde_json::from_str::<Value>(row).ok())
+        != Some(observed)
+    {
         return Err("jobs_lease_lost");
     }
     tx.commit().await.map_err(sql_token)?;
@@ -316,27 +1359,51 @@ async fn sync_task_mirror(document: &Value) -> Result<i64, &'static str> {
 
 async fn recover_partition_mirror(document: &Value) -> Result<i64, &'static str> {
     let object = document.as_object().ok_or("closed")?;
-    const FIELDS: &[&str] = &["protocol", "source_id", "logical_schema", "logical_table",
-        "partition_id", "run_id", "job_task_id"];
-    if object.len() != FIELDS.len() || object.keys().any(|key| !FIELDS.contains(&key.as_str()))
-        || document["protocol"] != "oo.pipeline.native-partition-mirror-rebind/v1" { return Err("closed"); }
+    const FIELDS: &[&str] = &[
+        "protocol",
+        "source_id",
+        "logical_schema",
+        "logical_table",
+        "partition_id",
+        "run_id",
+        "job_task_id",
+    ];
+    if object.len() != FIELDS.len()
+        || object.keys().any(|key| !FIELDS.contains(&key.as_str()))
+        || document["protocol"] != "oo.pipeline.native-partition-mirror-rebind/v1"
+    {
+        return Err("closed");
+    }
     let source = ident(document, "source_id")?;
     let schema = mapped_name(text_field(document, "logical_schema")?)?;
     let table = mapped_name(text_field(document, "logical_table")?)?;
     let partition = document["partition_id"].as_str();
     let run = document["run_id"].as_str();
-    if !matches!((partition,run), (None,None) | (Some(_),Some(_))) { return Err("closed"); }
-    if partition.is_some_and(|value| value.is_empty() || value.len() > 128 || value.contains('\0')) { return Err("closed"); }
+    if !matches!((partition, run), (None, None) | (Some(_), Some(_))) {
+        return Err("closed");
+    }
+    if partition.is_some_and(|value| value.is_empty() || value.len() > 128 || value.contains('\0'))
+    {
+        return Err("closed");
+    }
     let job = text_field(document, "job_task_id")?;
-    if run.is_some_and(|value| !is_uuid(value)) || !is_uuid(job) { return Err("closed"); }
-    let control_target = pinned_ack_target("OO_NATIVE_CONTROL_TARGET", "OO_NATIVE_CONTROL_TARGET_SHA256")?;
+    if run.is_some_and(|value| !is_uuid(value)) || !is_uuid(job) {
+        return Err("closed");
+    }
+    let control_target = pinned_ack_target(
+        "OO_NATIVE_CONTROL_TARGET",
+        "OO_NATIVE_CONTROL_TARGET_SHA256",
+    )?;
     let mut control = connect_target(&control_target).await?;
     let control_row: Option<String> = sqlx::query_scalar(
         "SELECT row_to_json(task)::text FROM jobs.tasks AS task WHERE task.id=$1::uuid AND task.state='running' AND task.lease_until>clock_timestamp()"
     ).bind(job).fetch_optional(&mut control).await.map_err(sql_token)?;
     let control_row = control_row.ok_or("jobs_lease_lost")?;
     let observed: Value = serde_json::from_str(&control_row).map_err(|_| "jobs_lease_lost")?;
-    let generation = observed["generation"].as_i64().filter(|value| *value >= 1).ok_or("jobs_lease_lost")?;
+    let generation = observed["generation"]
+        .as_i64()
+        .filter(|value| *value >= 1)
+        .ok_or("jobs_lease_lost")?;
     let target = pinned_ack_target("OO_NATIVE_MIRROR_TARGET", "OO_NATIVE_MIRROR_TARGET_SHA256")?;
     let mut conn = connect_target(&target).await?;
     let mut tx = conn.begin().await.map_err(sql_token)?;
@@ -345,20 +1412,34 @@ async fn recover_partition_mirror(document: &Value) -> Result<i64, &'static str>
             "SELECT acknowledged,job_task_id::text,job_generation,run_id::text FROM _oo.native_partition_state WHERE source=$1 AND schema_name=$2 AND table_name=$3 AND partition_id=$4 FOR UPDATE"
         ).bind(source).bind(schema).bind(table).bind(partition)
          .fetch_optional(&mut *tx).await.map_err(sql_token)?;
-        let Some((acknowledged, stored_job, stored_generation, stored_run)) = sidecar else { return Err("partition_prior_ack"); };
-        if acknowledged || stored_job != job || stored_run != run || stored_generation >= generation {
+        let Some((acknowledged, stored_job, stored_generation, stored_run)) = sidecar else {
+            return Err("partition_prior_ack");
+        };
+        if acknowledged || stored_job != job || stored_run != run || stored_generation >= generation
+        {
             return Err("partition_prior_ack");
         }
     } else {
         // C4 seals and its sidecar commit atomically. No sidecar means no
         // durable COPY for this task, so its expired mirror can be rebound.
         let sealed: bool = sqlx::query_scalar(
-            "SELECT EXISTS (SELECT 1 FROM _oo.native_partition_state WHERE job_task_id=$1::uuid)"
-        ).bind(job).fetch_one(&mut *tx).await.map_err(sql_token)?;
-        if sealed { return Err("partition_prior_ack"); }
+            "SELECT EXISTS (SELECT 1 FROM _oo.native_partition_state WHERE job_task_id=$1::uuid)",
+        )
+        .bind(job)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(sql_token)?;
+        if sealed {
+            return Err("partition_prior_ack");
+        }
     }
-    let rebound_text: String = sqlx::query_scalar("SELECT jobs.mirror_rebind($1::uuid,$2::jsonb)::text")
-        .bind(job).bind(&control_row).fetch_one(&mut *tx).await.map_err(sql_token)?;
+    let rebound_text: String =
+        sqlx::query_scalar("SELECT jobs.mirror_rebind($1::uuid,$2::jsonb)::text")
+            .bind(job)
+            .bind(&control_row)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(sql_token)?;
     let rebound: Value = serde_json::from_str(&rebound_text).map_err(|_| "jobs_lease_lost")?;
     if rebound["rebound"] != true || rebound["generation"] != generation {
         return Err("jobs_lease_lost");
@@ -366,7 +1447,11 @@ async fn recover_partition_mirror(document: &Value) -> Result<i64, &'static str>
     let still_live: Option<String> = sqlx::query_scalar(
         "SELECT row_to_json(task)::text FROM jobs.tasks AS task WHERE task.id=$1::uuid AND task.state='running' AND task.lease_until>clock_timestamp()"
     ).bind(job).fetch_optional(&mut control).await.map_err(sql_token)?;
-    if still_live.as_deref().and_then(|row| serde_json::from_str::<Value>(row).ok()) != Some(observed) {
+    if still_live
+        .as_deref()
+        .and_then(|row| serde_json::from_str::<Value>(row).ok())
+        != Some(observed)
+    {
         return Err("jobs_lease_lost");
     }
     tx.commit().await.map_err(sql_token)?;
@@ -375,42 +1460,84 @@ async fn recover_partition_mirror(document: &Value) -> Result<i64, &'static str>
 
 async fn ack_partition(document: &Value) -> Result<(), &'static str> {
     let object = document.as_object().ok_or("closed")?;
-    const FIELDS: &[&str] = &["protocol", "source_id", "logical_schema", "logical_table",
-        "partition_id", "run_id", "batch_id", "payload_digest", "job_task_id",
-        "job_generation"];
-    if object.len() != FIELDS.len() || object.keys().any(|key| !FIELDS.contains(&key.as_str()))
-        || document["protocol"] != "oo.pipeline.native-partition-ack/v1" { return Err("closed"); }
+    const FIELDS: &[&str] = &[
+        "protocol",
+        "source_id",
+        "logical_schema",
+        "logical_table",
+        "partition_id",
+        "run_id",
+        "batch_id",
+        "payload_digest",
+        "job_task_id",
+        "job_generation",
+    ];
+    if object.len() != FIELDS.len()
+        || object.keys().any(|key| !FIELDS.contains(&key.as_str()))
+        || document["protocol"] != "oo.pipeline.native-partition-ack/v1"
+    {
+        return Err("closed");
+    }
     let source = ident(document, "source_id")?;
     let schema = mapped_name(text_field(document, "logical_schema")?)?;
     let table = mapped_name(text_field(document, "logical_table")?)?;
     let partition = text_field(document, "partition_id")?;
-    if partition.is_empty() || partition.len() > 128 || partition.contains('\0') { return Err("closed"); }
+    if partition.is_empty() || partition.len() > 128 || partition.contains('\0') {
+        return Err("closed");
+    }
     let run = text_field(document, "run_id")?;
     let job = text_field(document, "job_task_id")?;
-    if !is_uuid(run) || !is_uuid(job) { return Err("closed"); }
+    if !is_uuid(run) || !is_uuid(job) {
+        return Err("closed");
+    }
     let batch = batch_token(document)?;
     let payload = hex_field(document, "payload_digest").map_err(|_| "closed")?;
-    let generation = document["job_generation"].as_i64().filter(|value| *value >= 1).ok_or("closed")?;
-    let control_target = pinned_ack_target("OO_NATIVE_CONTROL_TARGET", "OO_NATIVE_CONTROL_TARGET_SHA256")?;
+    let generation = document["job_generation"]
+        .as_i64()
+        .filter(|value| *value >= 1)
+        .ok_or("closed")?;
+    let control_target = pinned_ack_target(
+        "OO_NATIVE_CONTROL_TARGET",
+        "OO_NATIVE_CONTROL_TARGET_SHA256",
+    )?;
     let mut control = connect_target(&control_target).await?;
     let completed: Option<bool> = sqlx::query_scalar(
-        "SELECT state = 'succeeded' AND generation = $2 FROM jobs.tasks WHERE id = $1::uuid")
-        .bind(job).bind(generation).fetch_optional(&mut control).await.map_err(sql_token)?;
-    if completed != Some(true) { return Err("jobs_cas_absent"); }
+        "SELECT state = 'succeeded' AND generation = $2 FROM jobs.tasks WHERE id = $1::uuid",
+    )
+    .bind(job)
+    .bind(generation)
+    .fetch_optional(&mut control)
+    .await
+    .map_err(sql_token)?;
+    if completed != Some(true) {
+        return Err("jobs_cas_absent");
+    }
     let target = pinned_ack_target("OO_NATIVE_ACK_TARGET", "OO_NATIVE_ACK_TARGET_SHA256")?;
     let mut conn = connect_target(&target).await?;
     let ack: bool = sqlx::query_scalar(
-        "SELECT _oo.native_partition_ack($1,$2,$3,$4,$5::uuid,$6,$7,$8::uuid,$9)")
-        .bind(source).bind(schema).bind(table).bind(partition).bind(run)
-        .bind(batch).bind(payload).bind(job).bind(generation)
-        .fetch_one(&mut conn).await.map_err(sql_token)?;
+        "SELECT _oo.native_partition_ack($1,$2,$3,$4,$5::uuid,$6,$7,$8::uuid,$9)",
+    )
+    .bind(source)
+    .bind(schema)
+    .bind(table)
+    .bind(partition)
+    .bind(run)
+    .bind(batch)
+    .bind(payload)
+    .bind(job)
+    .bind(generation)
+    .fetch_one(&mut conn)
+    .await
+    .map_err(sql_token)?;
     if ack { Ok(()) } else { Err("OO010") }
 }
 
 fn pinned_ack_target(path_var: &str, digest_var: &str) -> Result<Value, &'static str> {
     let path = std::env::var(path_var).map_err(|_| "control_required")?;
     let digest = std::env::var(digest_var).map_err(|_| "control_required")?;
-    if !path.starts_with('/') || !hex64(&digest) { return Err("control_required"); }
+    if !path.starts_with('/') || !hex64(&digest) {
+        return Err("control_required");
+    }
     let bytes = fs::read(path).map_err(|_| "control_required")?;
     if bytes.len() > 8192 || hex_bytes(&Sha256::digest(&bytes)) != digest {
         return Err("control_required");
@@ -448,55 +1575,163 @@ pub async fn install_native_update_cli() -> Result<(), u8> {
 pub async fn install_native_mirror_rebind_cli() -> Result<(), u8> {
     let mut stdin = Vec::new();
     std::io::Read::read_to_end(&mut std::io::stdin(), &mut stdin).map_err(|_| 2u8)?;
-    if stdin.is_empty() || stdin.len() > READ_BUDGET { return Err(2); }
+    if stdin.is_empty() || stdin.len() > READ_BUDGET {
+        return Err(2);
+    }
     let document: Value = serde_json::from_slice(&stdin).map_err(|_| 2u8)?;
     let result = if document.get("protocol").and_then(Value::as_str) != Some(INSTALL_PROTOCOL) {
         json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":false,"reason":"invalid_version"})
     } else {
-        match document.get("target").ok_or(2u8).and_then(|target| Ok(target.clone())) {
+        match document.get("target").ok_or(2u8).cloned() {
             Ok(target) => match connect_target(&target).await {
-                Ok(mut conn) => match target_installer::install_jobs_mirror_rebind(&mut conn).await {
-                    Ok(()) => json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":true,"digest":target_installer::compiled_jobs_receipt_read_digest()}),
-                    Err(err) => json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":false,"reason":install_token(&err),"detail":err.to_string()}),
+                Ok(mut conn) => match target_installer::install_jobs_mirror_rebind(&mut conn).await
+                {
+                    Ok(()) => {
+                        json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":true,"digest":target_installer::compiled_jobs_receipt_read_digest()})
+                    }
+                    Err(err) => {
+                        json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":false,"reason":install_token(&err),"detail":err.to_string()})
+                    }
                 },
-                Err(reason) => json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":false,"reason":reason}),
+                Err(reason) => {
+                    json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":false,"reason":reason})
+                }
             },
-            Err(_) => json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":false,"reason":"closed"}),
+            Err(_) => {
+                json!({"protocol":"oo.pipeline.native-mirror-rebind-install-result/v1","installed":false,"reason":"closed"})
+            }
         }
     };
     let mut bytes = serde_json::to_vec(&result).map_err(|_| 1u8)?;
     bytes.push(b'\n');
     std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
-    if result["installed"] == true { Ok(()) } else { Err(1) }
+    if result["installed"] == true {
+        Ok(())
+    } else {
+        Err(1)
+    }
 }
 
 /// Install exact-task claiming on the control database under its jobs owner.
 pub async fn install_native_claim_selected_cli() -> Result<(), u8> {
     let mut stdin = Vec::new();
     std::io::Read::read_to_end(&mut std::io::stdin(), &mut stdin).map_err(|_| 2u8)?;
-    if stdin.is_empty() || stdin.len() > READ_BUDGET { return Err(2); }
+    if stdin.is_empty() || stdin.len() > READ_BUDGET {
+        return Err(2);
+    }
     let document: Value = serde_json::from_slice(&stdin).map_err(|_| 2u8)?;
     let result = if document.get("protocol").and_then(Value::as_str) != Some(INSTALL_PROTOCOL) {
         json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":false,"reason":"invalid_version"})
     } else {
         match document.get("target") {
             Some(target) => match connect_target(target).await {
-                Ok(mut conn) => match target_installer::install_jobs_claim_selected(&mut conn).await {
-                    Ok(()) => json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":true,"digest":target_installer::compiled_jobs_claim_selected_digest()}),
-                    Err(err) => json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":false,"reason":install_token(&err),"detail":err.to_string()}),
-                },
-                Err(reason) => json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":false,"reason":reason}),
+                Ok(mut conn) => {
+                    match target_installer::install_jobs_claim_selected(&mut conn).await {
+                        Ok(()) => {
+                            json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":true,"digest":target_installer::compiled_jobs_claim_selected_digest()})
+                        }
+                        Err(err) => {
+                            json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":false,"reason":install_token(&err),"detail":err.to_string()})
+                        }
+                    }
+                }
+                Err(reason) => {
+                    json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":false,"reason":reason})
+                }
             },
-            None => json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":false,"reason":"closed"}),
+            None => {
+                json!({"protocol":"oo.pipeline.native-claim-selected-install-result/v1","installed":false,"reason":"closed"})
+            }
         }
     };
     let mut bytes = serde_json::to_vec(&result).map_err(|_| 1u8)?;
     bytes.push(b'\n');
     std::io::Write::write_all(&mut std::io::stdout(), &bytes).map_err(|_| 1u8)?;
-    if result["installed"] == true { Ok(()) } else { Err(1) }
+    if result["installed"] == true {
+        Ok(())
+    } else {
+        Err(1)
+    }
+}
+
+mod multipart;
+mod range_parts;
+
+pub async fn c5_part_stage_stdio(install: bool) -> Result<(), u8> {
+    c5_parts_stdio(if install { "parts" } else { "stage" }).await
+}
+
+pub async fn c5_widening_install_stdio() -> Result<(), u8> {
+    c5_parts_stdio("widening").await
+}
+
+pub async fn c5_observer_install_stdio() -> Result<(), u8> {
+    c5_parts_stdio("observer").await
+}
+
+async fn c5_parts_stdio(mode: &str) -> Result<(), u8> {
+    let mut bytes = Vec::new();
+    std::io::stdin()
+        .take(1_048_577)
+        .read_to_end(&mut bytes)
+        .map_err(|_| 2u8)?;
+    if bytes.len() > 1_048_576 {
+        return Err(2);
+    }
+    let input: Value = serde_json::from_slice(&bytes).map_err(|_| 2u8)?;
+    let outcome = if mode != "stage" {
+        match connect_target(&input["target"]).await {
+            Ok(mut conn) if mode=="observer"=>target_installer::install_native_c5_privileged_observer(&mut conn).await
+                .map(|_|json!({"protocol":"oo.pipeline.c5-observer-install/v1","installed":true,
+                    "digest":target_installer::compiled_native_c5_privileged_observer_digest()}))
+                .map_err(|_|"c5_observer_install"),
+            Ok(mut conn) if mode=="widening"=>target_installer::install_native_c5_widening_rebase(&mut conn).await
+                .map(|_|json!({"protocol":"oo.pipeline.c5-widening-install/v1","installed":true,
+                    "digest":target_installer::compiled_native_c5_widening_rebase_digest(),
+                    "type_receipt_digest":target_installer::compiled_native_c5_widening_type_receipt_digest(),
+                    "source_types_digest":target_installer::compiled_native_c5_widening_source_types_digest()}))
+                .map_err(|_|"c5_widening_install"),
+            Ok(mut conn)=>target_installer::install_native_c5_range_parts(&mut conn).await
+                .map(|_|json!({"protocol":"oo.pipeline.c5-parts-install/v1","installed":true,
+                    "apply_digest":target_installer::compiled_native_c5_range_parts_apply_digest()}))
+                .map_err(|_|"c5_parts_install"),
+            Err(reason)=>Err(reason),
+        }
+    } else {
+        range_parts::stage(&input).await
+    };
+    let (value, ok) = match outcome {
+        Ok(value) => (value, true),
+        Err(reason) => (
+            json!({"protocol":"oo.pipeline.c5-private-part-stage/v1",
+            "outcome":"refused","reason":reason,"published":false,"acknowledged":false}),
+            false,
+        ),
+    };
+    use std::io::Write;
+    writeln!(std::io::stdout(), "{value}").map_err(|_| 1u8)?;
+    if ok { Ok(()) } else { Err(1) }
 }
 
 async fn dispatch(document: &Value) -> Value {
+    if document["protocol"] == crate::native_c5_parts::RANGE_PROTOCOL {
+        return match range_parts::execute(document).await {
+            Ok(value) => value,
+            Err(reason) => refused(document, reason),
+        };
+    }
+    if document["protocol"] == REQUEST_PROTOCOL && document.get("multipart_scope").is_some() {
+        return match multipart::execute_all(document).await {
+            Ok(value) => value,
+            Err(reason) => refused(document, reason),
+        };
+    }
+    if document["protocol"] == "oo.pipeline.native-c5-multipart/v1" {
+        return match multipart::execute(document).await {
+            Ok(value) => value,
+            Err(reason) => refused(document, reason),
+        };
+    }
     if document.get("protocol").and_then(|value| value.as_str()) == Some(INSTALL_PROTOCOL) {
         return install_document(document).await;
     }
@@ -577,6 +1812,33 @@ async fn install_document(document: &Value) -> Value {
         Ok(()) => match target_installer::install_native_per_table_publication(&mut conn).await {
         Ok(()) => match target_installer::install_native_source_progress_read(&mut conn).await {
         Ok(()) => match target_installer::install_native_partition_observation_read(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_chunked_baseline(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_chunked_baseline_final(&mut conn).await {
+        Ok(()) => match target_installer::install_native_source_instance_grant(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c1_ack_seed_format(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_range(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_range_apply(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_scan(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_replay_guard(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_full_initialize(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_closed_observation(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_multipart(&mut conn).await {
+        Ok(()) => match target_installer::install_masked_rejects(&mut conn).await {
+        Ok(()) => match target_installer::install_multipart_cells(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_publication(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_single_baseline(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_multipart_baseline_guard(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_wide_columns(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_cells_array(&mut conn).await {
+        Ok(()) => match target_installer::install_native_library_publication(&mut conn).await {
+        Ok(()) => match target_installer::install_native_library_closed_pointer(&mut conn).await {
+        Ok(()) => match target_installer::install_native_library_closed_receipt(&mut conn).await {
+        Ok(()) => match target_installer::install_native_library_existing_receipt_fields(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_incremental(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_oracle_range(&mut conn).await {
+        Ok(()) => match target_installer::install_native_c5_oracle_publication(&mut conn).await {
+        Ok(()) => match target_installer::install_native_oracle_c5_catalog(&mut conn).await {
+        Ok(()) => match target_installer::install_native_oracle_observation(&mut conn).await {
         Ok(()) => json!({
             "protocol": RESULT_PROTOCOL,
             "installed": true,
@@ -605,7 +1867,72 @@ async fn install_document(document: &Value) -> Value {
             ,"native_per_table_publication_digest": target_installer::compiled_native_per_table_publication_digest()
             ,"native_source_progress_read_digest": target_installer::compiled_native_source_progress_read_digest()
             ,"native_partition_observation_read_digest": target_installer::compiled_native_partition_observation_read_digest()
+            ,"native_c1_chunked_baseline_digest": target_installer::compiled_native_c1_chunked_baseline_digest()
+            ,"native_c1_chunked_baseline_final_digest": target_installer::compiled_native_c1_chunked_baseline_final_digest()
+            ,"native_source_instance_grant_digest": target_installer::compiled_native_source_instance_grant_digest()
+            ,"native_c5_publication_digest": target_installer::compiled_native_c5_publication_digest()
+            ,"native_c5_single_baseline_digest": target_installer::compiled_native_c5_single_baseline_digest()
+            ,"native_library_publication_digest": target_installer::compiled_native_library_publication_digest()
+            ,"native_c5_incremental_digest": target_installer::compiled_native_c5_incremental_digest()
+            ,"oracle_c5_range_digest": target_installer::compiled_native_c5_oracle_range_digest()
+            ,"oracle_c5_publication_digest": target_installer::compiled_native_c5_oracle_publication_digest()
+            ,"oracle_c5_catalog_digest": target_installer::compiled_native_oracle_c5_catalog_digest()
+            ,"oracle_observation_digest": target_installer::compiled_native_oracle_observation_digest()
         }),
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0096"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0094"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0093"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0090"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0065-0068"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0064"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0063"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0062"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0061"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0060"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0059"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0058"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0057"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0056"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0055"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0054"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0053"}),
+        },
+        Err(err) => json!({"protocol":RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"detail":err.to_string(),"step":"0052"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"step":"0051"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"step":"0050"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"step":"0049"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"step":"0048"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL,"installed":false,"reason":install_token(&err),"step":"0047"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0045"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0044"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0043"}),
+        },
+        Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0042"}),
+        },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0041"}),
         },
         Err(err) => json!({"protocol": RESULT_PROTOCOL, "installed": false, "reason": install_token(&err), "detail": err.to_string(), "step": "0040"}),
@@ -685,6 +2012,10 @@ fn install_token(err: &InstallError) -> &'static str {
 
 async fn execute(document: &Value) -> Result<Value, &'static str> {
     let plan = classify(document)?;
+    execute_plan(document, plan).await
+}
+
+async fn execute_plan(document: &Value, plan: UpdatePlan) -> Result<Value, &'static str> {
     if plan.transaction_scope.is_some() {
         return Ok(refused(document, "transaction_group_required"));
     }
@@ -722,16 +2053,34 @@ async fn execute(document: &Value) -> Result<Value, &'static str> {
             let _ = tx.rollback().await;
             return Ok(refused(document, "OO010"));
         }
+        let parts_deleted: Option<i64> = if plan.parts_index.is_some() {
+            Some(
+                sqlx::query_scalar("SELECT _oo.c5_parts_rebind($1,$2::uuid,$3)")
+                    .bind(&plan.source_id)
+                    .bind(lease_id)
+                    .bind(plan.lease_generation.ok_or("lease_required")?)
+                    .fetch_one(&mut *tx)
+                    .await
+                    .map_err(sql_token)?,
+            )
+        } else {
+            None
+        };
         if let Some(scope) = plan.partition_scope.as_ref() {
-            let stored_digest: Option<String> = sqlx::query_scalar(
-                "SELECT checksum FROM _oo.schema_migrations WHERE version = $1"
-            ).bind(target_installer::VERSION_NATIVE_PARTITION_REBIND)
-             .fetch_optional(&mut *tx).await.map_err(sql_token)?;
-            if stored_digest.as_deref() != Some(target_installer::compiled_native_partition_rebind_digest().as_str()) {
+            let stored_digest: Option<String> =
+                sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version = $1")
+                    .bind(target_installer::VERSION_NATIVE_PARTITION_REBIND)
+                    .fetch_optional(&mut *tx)
+                    .await
+                    .map_err(sql_token)?;
+            if stored_digest.as_deref()
+                != Some(target_installer::compiled_native_partition_rebind_digest().as_str())
+            {
                 let _ = tx.rollback().await;
                 return Ok(refused(document, "partition_schema_not_ready"));
             }
-            let scope_text = serde_json::to_string(scope).map_err(|_| "partition_scope_required")?;
+            let scope_text =
+                serde_json::to_string(scope).map_err(|_| "partition_scope_required")?;
             let status: String = sqlx::query_scalar(
                 "SELECT _oo.native_partition_rebind($1,$2,$3,$4,$5::jsonb,$6::uuid,$7,$8,$9,$10::uuid,$11)"
             )
@@ -762,16 +2111,16 @@ async fn execute(document: &Value) -> Result<Value, &'static str> {
             None
         };
         let jobs = jobs_regclass(&mut conn).await;
-        return Ok(replay_result(
-            &plan,
-            &existing,
-            mirror,
-            jobs,
-            lease_receipt,
-            lease_call,
-        ));
+        let mut replay = replay_result(&plan, &existing, mirror, jobs, lease_receipt, lease_call);
+        if let Some(deleted) = parts_deleted {
+            replay["tombstone_count"] = json!(deleted);
+        }
+        return Ok(replay);
     }
-    if plan.partition_scope.is_none() && let Err(token) = position_ahead(&mut tx, &plan).await {
+    if plan.partition_scope.is_none()
+        && plan.range_scope.is_none()
+        && let Err(token) = position_ahead(&mut tx, &plan).await
+    {
         let _ = tx.rollback().await;
         return Ok(refused(document, token));
     }
@@ -828,99 +2177,221 @@ async fn execute(document: &Value) -> Result<Value, &'static str> {
 
 fn admitted_plans(document: &Value) -> Result<Vec<UpdatePlan>, &'static str> {
     let object = document.as_object().ok_or("closed")?;
-    if object.len() != 2 || document["protocol"] != TRANSACTION_PROTOCOL
-        || object.keys().any(|key| key != "protocol" && key != "entries") { return Err("closed"); }
-    let requests = document["entries"].as_array().filter(|items| (1..=32).contains(&items.len())).ok_or("closed")?;
-    let vector_path = std::env::var("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR").map_err(|_| "nonadmitted")?;
-    let vector_sha = std::env::var("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR_SHA256").map_err(|_| "nonadmitted")?;
+    if object.len() != 2
+        || document["protocol"] != TRANSACTION_PROTOCOL
+        || object
+            .keys()
+            .any(|key| key != "protocol" && key != "entries")
+    {
+        return Err("closed");
+    }
+    let requests = document["entries"]
+        .as_array()
+        .filter(|items| (1..=32).contains(&items.len()))
+        .ok_or("closed")?;
+    let vector_path =
+        std::env::var("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR").map_err(|_| "nonadmitted")?;
+    let vector_sha =
+        std::env::var("OO_NATIVE_TRANSACTION_REGISTRY_VECTOR_SHA256").map_err(|_| "nonadmitted")?;
     let admission_bin = std::env::var("OO_NATIVE_ADMISSION_BIN").map_err(|_| "nonadmitted")?;
-    if !vector_path.starts_with('/') || !admission_bin.starts_with('/') || !hex64(&vector_sha) { return Err("nonadmitted"); }
+    if !vector_path.starts_with('/') || !admission_bin.starts_with('/') || !hex64(&vector_sha) {
+        return Err("nonadmitted");
+    }
     let bytes = fs::read(&vector_path).map_err(|_| "nonadmitted")?;
-    if bytes.is_empty() || bytes.len() > 65_536 || hex_bytes(&Sha256::digest(&bytes)) != vector_sha { return Err("nonadmitted"); }
+    if bytes.is_empty() || bytes.len() > 65_536 || hex_bytes(&Sha256::digest(&bytes)) != vector_sha
+    {
+        return Err("nonadmitted");
+    }
     let vector: Value = serde_json::from_slice(&bytes).map_err(|_| "nonadmitted")?;
     let vector_object = vector.as_object().ok_or("nonadmitted")?;
-    if vector_object.len() != 2 || vector["protocol"] != "oo.pipeline.native-transaction-registry-vector/v1" { return Err("nonadmitted"); }
-    let entries = vector["entries"].as_array().filter(|items| items.len() == requests.len()).ok_or("nonadmitted")?;
+    if vector_object.len() != 2
+        || vector["protocol"] != "oo.pipeline.native-transaction-registry-vector/v1"
+    {
+        return Err("nonadmitted");
+    }
+    let entries = vector["entries"]
+        .as_array()
+        .filter(|items| items.len() == requests.len())
+        .ok_or("nonadmitted")?;
     let mut plans = Vec::with_capacity(requests.len());
     for (request, entry) in requests.iter().zip(entries) {
         let e = entry.as_object().ok_or("nonadmitted")?;
-        if e.len() != 4 || !["logical_schema", "logical_table", "registry_path", "registry_sha256"].iter().all(|key| e.contains_key(*key))
-            || request["logical_schema"] != entry["logical_schema"] || request["logical_table"] != entry["logical_table"] { return Err("nonadmitted"); }
-        let path = entry["registry_path"].as_str().filter(|value| value.starts_with('/')).ok_or("nonadmitted")?;
-        let sha = entry["registry_sha256"].as_str().filter(|value| hex64(value)).ok_or("nonadmitted")?;
-        let plan = native_binding::with_operator_env(native_binding::OperatorEnv::Fixed {
-            bin: Some(admission_bin.clone()), registry: Some(path.to_string()), registry_sha256: Some(sha.to_string()),
-        }, || classify(request))?;
+        if e.len() != 4
+            || ![
+                "logical_schema",
+                "logical_table",
+                "registry_path",
+                "registry_sha256",
+            ]
+            .iter()
+            .all(|key| e.contains_key(*key))
+            || request["logical_schema"] != entry["logical_schema"]
+            || request["logical_table"] != entry["logical_table"]
+        {
+            return Err("nonadmitted");
+        }
+        let path = entry["registry_path"]
+            .as_str()
+            .filter(|value| value.starts_with('/'))
+            .ok_or("nonadmitted")?;
+        let sha = entry["registry_sha256"]
+            .as_str()
+            .filter(|value| hex64(value))
+            .ok_or("nonadmitted")?;
+        let plan = native_binding::with_operator_env(
+            native_binding::OperatorEnv::Fixed {
+                bin: Some(admission_bin.clone()),
+                registry: Some(path.to_string()),
+                registry_sha256: Some(sha.to_string()),
+            },
+            || classify(request),
+        )?;
         plans.push(plan);
     }
     Ok(plans)
 }
 
-fn transaction_plans(document: &Value) -> Result<(Vec<UpdatePlan>, Value, String, u64), &'static str> {
+fn transaction_plans(
+    document: &Value,
+) -> Result<(Vec<UpdatePlan>, Value, String, u64), &'static str> {
     let plans = admitted_plans(document)?;
     let first = plans.first().ok_or("closed")?;
-    let scope = first.transaction_scope.as_ref().ok_or("transaction_scope_required")?.clone();
-    let scope_tables = scope["tables"].as_array().filter(|items| items.len() == plans.len()).ok_or("transaction_scope_required")?;
-    let end_lsn = pg_lsn_value(scope["end_lsn"].as_str().ok_or("transaction_scope_required")?)?;
-    let scope_digest = hex_bytes(&Sha256::digest(serde_json::to_vec(&scope).map_err(|_| "transaction_scope_required")?));
+    let scope = first
+        .transaction_scope
+        .as_ref()
+        .ok_or("transaction_scope_required")?
+        .clone();
+    let scope_tables = scope["tables"]
+        .as_array()
+        .filter(|items| items.len() == plans.len())
+        .ok_or("transaction_scope_required")?;
+    let end_lsn = pg_lsn_value(
+        scope["end_lsn"]
+            .as_str()
+            .ok_or("transaction_scope_required")?,
+    )?;
+    let scope_digest = hex_bytes(&Sha256::digest(
+        serde_json::to_vec(&scope).map_err(|_| "transaction_scope_required")?,
+    ));
     let mut prior = None;
     for (plan, table) in plans.iter().zip(scope_tables) {
         let key = (&plan.schema, &plan.table);
-        if prior.is_some_and(|old| old >= key) { return Err("transaction_scope_required"); }
+        if prior.is_some_and(|old| old >= key) {
+            return Err("transaction_scope_required");
+        }
         prior = Some(key);
         if !matches!(plan.source_engine.as_str(), "postgres" | "postgresql")
-            || plan.capture_method != "c1_cdc" || plan.delete_detection != "native"
-            || plan.consistency_grade != "T" || !plan.cross_table || plan.position_codec != "pg-commit-lsn/v1"
-            || plan.mode != "incremental" || plan.partition_scope.is_some() || plan.mirror
-            || !plan.source_bound || plan.lease_id.is_none() || plan.lease_generation.is_none()
+            || plan.capture_method != "c1_cdc"
+            || plan.delete_detection != "native"
+            || plan.consistency_grade != "T"
+            || !plan.cross_table
+            || plan.position_codec != "pg-commit-lsn/v1"
+            || plan.mode != "incremental"
+            || plan.partition_scope.is_some()
+            || plan.mirror
+            || !plan.source_bound
+            || plan.lease_id.is_none()
+            || plan.lease_generation.is_none()
             || plan.transaction_scope.as_ref() != Some(&scope)
-            || plan.source_id != first.source_id || plan.target != first.target
-            || plan.shard != first.shard || plan.owner != first.owner
-            || plan.lease_id != first.lease_id || plan.lease_generation != first.lease_generation
+            || plan.source_id != first.source_id
+            || plan.target != first.target
+            || plan.shard != first.shard
+            || plan.owner != first.owner
+            || plan.lease_id != first.lease_id
+            || plan.lease_generation != first.lease_generation
             || plan.config_digest != first.config_digest
             || plan.applied_pos_request != end_lsn.to_string()
-            || table["logical_schema"] != plan.schema || table["logical_table"] != plan.table
+            || table["logical_schema"] != plan.schema
+            || table["logical_table"] != plan.table
             || table["source_generation"] != plan.source_generation
             || table["parent_source_generation"] != json!(plan.parent_source_generation)
             || table["arrow_sha256"] != native_arrow::arrow_sha256(&plan.arrow)
-            || table["row_count"].as_u64() != Some(if plan.arrow.is_empty() { 0 } else {
-                decode_arrow_stream(&plan.arrow).map_err(arrow_token)?.rows as u64
-            })
-            || table["tombstones_sha256"] != hex_bytes(&Sha256::digest(serde_json::to_vec(&plan.tombstones).map_err(|_| "transaction_scope_required")?))
-        { return Err("transaction_scope_required"); }
+            || table["row_count"].as_u64()
+                != Some(if plan.arrow.is_empty() {
+                    0
+                } else {
+                    decode_arrow_stream(&plan.arrow).map_err(arrow_token)?.rows as u64
+                })
+            || table["tombstones_sha256"]
+                != hex_bytes(&Sha256::digest(
+                    serde_json::to_vec(&plan.tombstones)
+                        .map_err(|_| "transaction_scope_required")?,
+                ))
+        {
+            return Err("transaction_scope_required");
+        }
     }
-    if scope["source_id"] != first.source_id || scope["complete"] != true
-        || scope["xid"].as_i64().is_none_or(|xid| xid <= 0) { return Err("transaction_scope_required"); }
+    if scope["source_id"] != first.source_id
+        || scope["complete"] != true
+        || scope["xid"].as_i64().is_none_or(|xid| xid <= 0)
+    {
+        return Err("transaction_scope_required");
+    }
     Ok((plans, scope, scope_digest, end_lsn))
 }
 
 fn pg_lsn_value(value: &str) -> Result<u64, &'static str> {
     let (hi, lo) = value.split_once('/').ok_or("transaction_scope_required")?;
-    if hi.is_empty() || hi.len() > 8 || lo.is_empty() || lo.len() > 8
-        || !hi.bytes().chain(lo.bytes()).all(|byte| byte.is_ascii_hexdigit()) { return Err("transaction_scope_required"); }
-    Ok((u64::from(u32::from_str_radix(hi, 16).map_err(|_| "transaction_scope_required")?) << 32)
-        | u64::from(u32::from_str_radix(lo, 16).map_err(|_| "transaction_scope_required")?))
+    if hi.is_empty()
+        || hi.len() > 8
+        || lo.is_empty()
+        || lo.len() > 8
+        || !hi
+            .bytes()
+            .chain(lo.bytes())
+            .all(|byte| byte.is_ascii_hexdigit())
+    {
+        return Err("transaction_scope_required");
+    }
+    Ok(
+        (u64::from(u32::from_str_radix(hi, 16).map_err(|_| "transaction_scope_required")?) << 32)
+            | u64::from(u32::from_str_radix(lo, 16).map_err(|_| "transaction_scope_required")?),
+    )
 }
 
-async fn completed_snapshot_vector(source: &str, target_database: &str) -> Result<Value, &'static str> {
-    let descriptor = pinned_ack_target("OO_NATIVE_CONTROL_TARGET", "OO_NATIVE_CONTROL_TARGET_SHA256")?;
+async fn completed_snapshot_vector(
+    source: &str,
+    target_database: &str,
+) -> Result<Value, &'static str> {
+    let descriptor = pinned_ack_target(
+        "OO_NATIVE_CONTROL_TARGET",
+        "OO_NATIVE_CONTROL_TARGET_SHA256",
+    )?;
     let mut control = connect_target(&descriptor).await?;
     let raw: Option<String> = sqlx::query_scalar(
         "SELECT w.result::text FROM jw_native.source_progress p \
          JOIN jw_native.watermarks w ON w.binding_id=p.binding_id AND w.task_id=p.task_id \
          JOIN jobs.tasks t ON t.id=p.task_id \
          WHERE p.source_id=$1 AND p.target_database=$2 AND p.source_generation=1 \
-         AND w.source_generation=1 AND w.pin=1 AND t.state='succeeded'"
-    ).bind(source).bind(target_database).fetch_optional(&mut control).await.map_err(sql_token)?;
+         AND w.source_generation=1 AND w.pin=1 AND t.state='succeeded'",
+    )
+    .bind(source)
+    .bind(target_database)
+    .fetch_optional(&mut control)
+    .await
+    .map_err(sql_token)?;
     let result: Value = serde_json::from_str(&raw.ok_or("OO030")?).map_err(|_| "OO030")?;
     if result["protocol"] != "oo.jobs.native-baseline-result/v1"
-        || result["source_id"] != source || result["source_generation"] != 1
-        || result["consistency_grade"] != "S1" || result["cross_table_consistent"] != false
-        || result["load_state"] != "awaiting_publish" { return Err("OO030"); }
-    let entries = result["entries"].as_array().filter(|entries| (1..=32).contains(&entries.len())).ok_or("OO030")?;
-    if entries.iter().any(|entry| entry["source_id"] != source
-        || entry["source_generation"] != 1 || entry["source_bound"] != true
-        || entry["producer_trust"]["trusted"] != true) { return Err("OO030"); }
+        || result["source_id"] != source
+        || result["source_generation"] != 1
+        || result["consistency_grade"] != "S1"
+        || result["cross_table_consistent"] != false
+        || result["load_state"] != "awaiting_publish"
+    {
+        return Err("OO030");
+    }
+    let entries = result["entries"]
+        .as_array()
+        .filter(|entries| (1..=32).contains(&entries.len()))
+        .ok_or("OO030")?;
+    if entries.iter().any(|entry| {
+        entry["source_id"] != source
+            || entry["source_generation"] != 1
+            || entry["source_bound"] != true
+            || entry["producer_trust"]["trusted"] != true
+    }) {
+        return Err("OO030");
+    }
     Ok(result["entries"].clone())
 }
 
@@ -931,7 +2402,11 @@ async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
     let (plans, scope, scope_digest, end_lsn) = transaction_plans(document)?;
     let first = &plans[0];
     let xid = scope["xid"].as_i64().ok_or("transaction_scope_required")?;
-    let legacy_group_generation = plans.iter().map(|plan| plan.source_generation).min().ok_or("transaction_scope_required")?;
+    let legacy_group_generation = plans
+        .iter()
+        .map(|plan| plan.source_generation)
+        .min()
+        .ok_or("transaction_scope_required")?;
     let job = first.lease_id.as_deref().ok_or("lease_required")?;
     let job_generation = first.lease_generation.ok_or("lease_required")?;
     let mut conn = connect_target(&first.target).await?;
@@ -1039,14 +2514,17 @@ async fn execute_transaction(document: &Value) -> Result<Value, &'static str> {
 }
 
 fn gtid_entries(document: &Value) -> bool {
-    document.get("entries").and_then(Value::as_array).is_some_and(|entries| {
-        entries.iter().any(|entry| {
-            matches!(
-                entry.get("position_codec").and_then(Value::as_str),
-                Some("mariadb-gtid/v1" | "mysql-gtid/v1")
-            )
+    document
+        .get("entries")
+        .and_then(Value::as_array)
+        .is_some_and(|entries| {
+            entries.iter().any(|entry| {
+                matches!(
+                    entry.get("position_codec").and_then(Value::as_str),
+                    Some("mariadb-gtid/v1" | "mysql-gtid/v1")
+                )
+            })
         })
-    })
 }
 
 async fn execute_gtid_transaction(document: &Value) -> Result<Value, &'static str> {
@@ -1209,18 +2687,33 @@ async fn execute_gtid_transaction(document: &Value) -> Result<Value, &'static st
 }
 
 async fn transaction_read_batch(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, plan: &UpdatePlan,
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    plan: &UpdatePlan,
 ) -> Result<Option<StoredBatch>, &'static str> {
-    let raw: Option<String> = sqlx::query_scalar("SELECT _oo.native_update_read_batch($1,$2,$3,$4)")
-        .bind(&plan.source_id).bind(&plan.schema).bind(&plan.table).bind(&plan.batch_id)
-        .fetch_one(&mut **tx).await.map_err(sql_token)?;
-    let Some(raw) = raw else { return Ok(None); };
+    let raw: Option<String> =
+        sqlx::query_scalar("SELECT _oo.native_update_read_batch($1,$2,$3,$4)")
+            .bind(&plan.source_id)
+            .bind(&plan.schema)
+            .bind(&plan.table)
+            .bind(&plan.batch_id)
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(sql_token)?;
+    let Some(raw) = raw else {
+        return Ok(None);
+    };
     let value: Value = serde_json::from_str(&raw).map_err(|_| "not_sealed")?;
     Ok(Some(StoredBatch {
-        payload_digest: value["payload_digest"].as_str().ok_or("not_sealed")?.to_string(),
+        payload_digest: value["payload_digest"]
+            .as_str()
+            .ok_or("not_sealed")?
+            .to_string(),
         run_id: value["run_id"].as_str().ok_or("not_sealed")?.to_string(),
         target_generation: value["target_generation"].as_i64().ok_or("not_sealed")?,
-        physical_name: value["physical_name"].as_str().ok_or("not_sealed")?.to_string(),
+        physical_name: value["physical_name"]
+            .as_str()
+            .ok_or("not_sealed")?
+            .to_string(),
         row_count: value["row_count"].as_i64().ok_or("not_sealed")?,
     }))
 }
@@ -1291,6 +2784,8 @@ struct UpdatePlan {
     derived_semantics: Option<Value>,
     lease_id: Option<String>,
     lease_generation: Option<i64>,
+    range_scope: Option<Value>,
+    parts_index: Option<crate::native_c5_parts::FileRef>,
     partition_scope: Option<Value>,
     transaction_scope: Option<Value>,
     gtid_scope: Option<Value>,
@@ -1301,6 +2796,21 @@ struct UpdatePlan {
 }
 
 fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
+    classify_inner(document, false, false, false)
+}
+
+fn classify_inner(
+    document: &Value,
+    allow_c5_binding: bool,
+    allow_multipart: bool,
+    allow_oracle_delta: bool,
+) -> Result<UpdatePlan, &'static str> {
+    if document["protocol"] == crate::native_c5_range::REQUEST_PROTOCOL {
+        return classify_c5_range(document);
+    }
+    if document.get("range_scope").is_some() {
+        return Err("c5_range_loader_required");
+    }
     let protocol = document.get("protocol").and_then(|value| value.as_str());
     let partition_mode = protocol == Some(PARTITION_PROTOCOL);
     if protocol != Some(REQUEST_PROTOCOL) && !partition_mode {
@@ -1370,11 +2880,16 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         "delete_detection",
         &["native", "partition_replace", "reconcile", "none"],
     )?;
-    if !partition_mode && (capture_method == "c4_partition" || delete_detection == "partition_replace") {
+    if !partition_mode
+        && (capture_method == "c4_partition" || delete_detection == "partition_replace")
+    {
         return Err("partition_scope_required");
     }
-    if partition_mode && (!matches!(source_engine.as_str(), "clickhouse" | "doris" | "starrocks") || capture_method != "c4_partition"
-        || delete_detection != "partition_replace") {
+    if partition_mode
+        && (!matches!(source_engine.as_str(), "clickhouse" | "doris" | "starrocks")
+            || capture_method != "c4_partition"
+            || delete_detection != "partition_replace")
+    {
         return Err("partition_scope_required");
     }
     let consistency_grade = closed(document, "consistency_grade", &["T", "S1", "S0", "B"])?;
@@ -1393,6 +2908,7 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
             "mssql-ct-version/v1",
             "mysql-binlog-pos/v1",
             "mysql-gtid/v1",
+            "oracle-capture-sequence/v1",
             "mariadb-gtid/v1",
             "mongo-cluster-time/v1",
             "mongo-resume-token/v1",
@@ -1405,7 +2921,25 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
     if partition_mode != (position_codec == "partition-signature/v1") {
         return Err("partition_scope_required");
     }
-    let applied_pos_request = if partition_mode { "0".to_string() } else { digits(document, "applied_pos")? };
+    let applied_pos_request = if partition_mode {
+        "0".to_string()
+    } else {
+        digits(document, "applied_pos")?
+    };
+    if position_codec == crate::c1_buffer_position::CODEC
+        && (source_engine != "oracle"
+            || capture_method != "c1_cdc"
+            || consistency_grade != "T"
+            || !cross_table
+            || full_snapshot != Some(true)
+            || lease_id.is_none()
+            || lease_generation.is_none()
+            || (parent.is_some()
+                && !(allow_oracle_delta && parent == source_generation.checked_sub(1)))
+            || !position_lineage.starts_with("oracle."))
+    {
+        return Err("oracle_buffer_scope");
+    }
     if position_codec == "mariadb-gtid/v1" {
         if source_engine != "mariadb" {
             return Err("gtid_family");
@@ -1435,14 +2969,25 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
     if position_codec == "mongo-resume-token/v1" {
         return Err("resume_token_not_ordered");
     }
-    if position_codec == "mongo-cluster-time/v1" || (source_engine == "mongodb" && capture_method == "c1_cdc") {
-        if source_engine != "mongodb" || capture_method != "c1_cdc" || position_codec != "mongo-cluster-time/v1" {
+    if position_codec == "mongo-cluster-time/v1"
+        || (source_engine == "mongodb" && capture_method == "c1_cdc")
+    {
+        if source_engine != "mongodb"
+            || capture_method != "c1_cdc"
+            || position_codec != "mongo-cluster-time/v1"
+        {
             return Err("mongo_identity");
         }
-        if consistency_grade == "T" || cross_table || !matches!(consistency_grade.as_str(), "S0" | "B") {
+        if consistency_grade == "T"
+            || cross_table
+            || !matches!(consistency_grade.as_str(), "S0" | "B")
+        {
             return Err("mongo_t_unverified");
         }
-        if !mongo_lineage(&position_lineage) || !mongo_pos(&applied_pos_request) || mongo_epoch(document).is_none() {
+        if !mongo_lineage(&position_lineage)
+            || !mongo_pos(&applied_pos_request)
+            || mongo_epoch(document).is_none()
+        {
             return Err("mongo_identity");
         }
     }
@@ -1468,25 +3013,52 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         refuse_bare_document_double(&arrow, &columns)?;
     }
     let admission = bind_admission(document, &arrow)?;
+    if !allow_multipart && admission.source_bound {
+        let registry: Value =
+            serde_json::from_slice(&read_registry(document)?).map_err(|_| "nonadmitted")?;
+        if registry.pointer("/bindings/0/multipart_scope").is_some() {
+            return Err("multipart_loader_required");
+        }
+    }
+    if admission.range_scope.is_some() && !allow_c5_binding {
+        return Err("c5_range_loader_required");
+    }
     if source_engine == "sqlserver" || position_codec == "mssql-ct-version/v1" {
-        if !admission.source_bound { return Err("nonadmitted"); }
-        let registry: Value = serde_json::from_slice(&read_registry(document)?).map_err(|_| "nonadmitted")?;
+        if !admission.source_bound {
+            return Err("nonadmitted");
+        }
+        let registry: Value =
+            serde_json::from_slice(&read_registry(document)?).map_err(|_| "nonadmitted")?;
         let binding = registry.pointer("/bindings/0").ok_or("nonadmitted")?;
-        let capture_bytes = read_capped(Path::new(text_field(binding, "capture_receipt_path")?)).map_err(|_| "nonadmitted")?;
-        if hex_bytes(&Sha256::digest(&capture_bytes)) != text_field(binding, "capture_receipt_sha256")? { return Err("digest_mismatch"); }
+        let capture_bytes = read_capped(Path::new(text_field(binding, "capture_receipt_path")?))
+            .map_err(|_| "nonadmitted")?;
+        if hex_bytes(&Sha256::digest(&capture_bytes))
+            != text_field(binding, "capture_receipt_sha256")?
+        {
+            return Err("digest_mismatch");
+        }
         let capture: Value = serde_json::from_slice(&capture_bytes).map_err(|_| "nonadmitted")?;
         validate_mssql_capture(document, &capture, &arrow)?;
     }
     let partition_scope = if partition_mode {
-        let scope = admission.partition_scope.clone().ok_or("partition_scope_required")?;
-        if scope["source_id"] != source_id || scope["source_generation"] != source_generation
-            || scope["logical_schema"] != schema || scope["logical_table"] != table
-            || scope["schema_digest"] != schema_digest || scope["type_digest"] != type_digest
-            || scope["arrow_sha256"] != native_arrow::arrow_sha256(&arrow) {
+        let scope = admission
+            .partition_scope
+            .clone()
+            .ok_or("partition_scope_required")?;
+        if scope["source_id"] != source_id
+            || scope["source_generation"] != source_generation
+            || scope["logical_schema"] != schema
+            || scope["logical_table"] != table
+            || scope["schema_digest"] != schema_digest
+            || scope["type_digest"] != type_digest
+            || scope["arrow_sha256"] != native_arrow::arrow_sha256(&arrow)
+        {
             return Err("partition_scope_required");
         }
         Some(scope)
-    } else { None };
+    } else {
+        None
+    };
     if arrow.is_empty() && parent.is_none() {
         return Err("empty");
     }
@@ -1494,19 +3066,36 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
     if partition_mode && !tombstones.is_empty() {
         return Err("partition_scope_required");
     }
-    let previous_ack_auto = partition_mode && matches!(source_engine.as_str(), "doris" | "starrocks");
-    if partition_mode && !previous_ack_auto && document.get("row_identity").and_then(Value::as_str) != Some("unique") {
+    let previous_ack_auto =
+        partition_mode && matches!(source_engine.as_str(), "doris" | "starrocks");
+    if partition_mode
+        && !previous_ack_auto
+        && document.get("row_identity").and_then(Value::as_str) != Some("unique")
+    {
         return Err("partition_scope_required");
     }
     if previous_ack_auto {
         let scope = partition_scope.as_ref().ok_or("partition_scope_required")?;
-        validate_olap_route(document, scope, &columns, &key_indexes, &arrow, &source_engine)?;
+        validate_olap_route(
+            document,
+            scope,
+            &columns,
+            &key_indexes,
+            &arrow,
+            &source_engine,
+        )?;
     }
     if !tombstones_fit(&tombstones, &columns, &key_indexes, shape) {
         return Err("bad_type");
     }
     refuse_upsert_conflict(&arrow, &tombstones, &key_indexes, shape)?;
-    if !partition_mode && parent.is_some() && shape != "snapshot" && decimal_is_zero(&applied_pos_request) {
+    if zero_position_is_expired(
+        parent.is_some(),
+        shape,
+        partition_mode,
+        allow_c5_binding && admission.range_scope.is_some(),
+    ) && decimal_is_zero(&applied_pos_request)
+    {
         return Err("expired");
     }
     let (consistency_grade, cross_table) =
@@ -1540,20 +3129,31 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         "incremental"
     };
     let previous_ack_exists = if previous_ack_auto {
-        if document.get("previous_ack_exists").is_some() || document.get("previous_signature").is_some() {
+        if document.get("previous_ack_exists").is_some()
+            || document.get("previous_signature").is_some()
+        {
             return Err("partition_scope_required");
         }
         false
     } else if partition_mode {
-        document.get("previous_ack_exists").and_then(Value::as_bool).ok_or("partition_scope_required")?
-    } else { false };
-    let previous_signature = if previous_ack_auto { None } else if partition_mode {
+        document
+            .get("previous_ack_exists")
+            .and_then(Value::as_bool)
+            .ok_or("partition_scope_required")?
+    } else {
+        false
+    };
+    let previous_signature = if previous_ack_auto {
+        None
+    } else if partition_mode {
         match document.get("previous_signature") {
             None | Some(Value::Null) => None,
             Some(Value::String(value)) if !value.is_empty() => Some(value.clone()),
             _ => return Err("partition_scope_required"),
         }
-    } else { None };
+    } else {
+        None
+    };
     let mut payload_digest = payload_digest(
         &source_id,
         &schema,
@@ -1575,9 +3175,11 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
     );
     if let Some(scope) = partition_scope.as_ref() {
         let scope_bytes = if previous_ack_auto {
-            serde_json::to_vec(&(scope, "target-prior/v1")).map_err(|_| "partition_scope_required")?
+            serde_json::to_vec(&(scope, "target-prior/v1"))
+                .map_err(|_| "partition_scope_required")?
         } else {
-            serde_json::to_vec(&(scope, previous_ack_exists, &previous_signature)).map_err(|_| "partition_scope_required")?
+            serde_json::to_vec(&(scope, previous_ack_exists, &previous_signature))
+                .map_err(|_| "partition_scope_required")?
         };
         let mut hashed = Sha256::new();
         hashed.update(payload_digest.as_bytes());
@@ -1599,9 +3201,19 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         position_codec: position_codec.clone(),
         position_lineage,
         ct_prior_position: if position_codec == "mssql-ct-version/v1" && mode == "incremental" {
-            document["sqlserver_prior_position"]["tables"].as_array().and_then(|tables| tables.iter().find(|t| t["schema"] == document["logical_schema"] && t["name"] == document["logical_table"]))
-                .and_then(|table| table["version"].as_i64()).map(|version| version.to_string())
-        } else { None },
+            document["sqlserver_prior_position"]["tables"]
+                .as_array()
+                .and_then(|tables| {
+                    tables.iter().find(|t| {
+                        t["schema"] == document["logical_schema"]
+                            && t["name"] == document["logical_table"]
+                    })
+                })
+                .and_then(|table| table["version"].as_i64())
+                .map(|version| version.to_string())
+        } else {
+            None
+        },
         applied_pos_request,
         config_digest,
         schema_digest,
@@ -1634,6 +3246,8 @@ fn classify(document: &Value) -> Result<UpdatePlan, &'static str> {
         derived_semantics,
         lease_id,
         lease_generation,
+        range_scope: None,
+        parts_index: None,
         partition_scope,
         transaction_scope: admission.transaction_scope,
         gtid_scope: admission.gtid_scope,
@@ -1698,6 +3312,8 @@ fn classify_mirror(document: &Value) -> Result<UpdatePlan, &'static str> {
         derived_semantics: None,
         lease_id: None,
         lease_generation: None,
+        range_scope: None,
+        parts_index: None,
         partition_scope: None,
         transaction_scope: None,
         gtid_scope: None,
@@ -1712,6 +3328,7 @@ struct Admission {
     source_bound: bool,
     producer_trust: Value,
     trusted_fields: Vec<native_binding::BoundField>,
+    range_scope: Option<Value>,
     partition_scope: Option<Value>,
     transaction_scope: Option<Value>,
     gtid_scope: Option<Value>,
@@ -1725,6 +3342,7 @@ fn unbound_admission() -> Admission {
         source_bound: false,
         producer_trust: producer_trust_absent(),
         trusted_fields: Vec::new(),
+        range_scope: None,
         partition_scope: None,
         transaction_scope: None,
         gtid_scope: None,
@@ -1823,10 +3441,13 @@ fn bind_admission(document: &Value, arrow: &[u8]) -> Result<Admission, &'static 
         }
         return Err("nonadmitted");
     }
-    bind_document_to_producer(document, &parsed)?;
+    bind_document_to_producer(document, &parsed).inspect_err(|&reason| {
+        eprintln!("oo-pipeline: native_admission stage=document_binding reason={reason}");
+    })?;
     let arrows = string_list(&parsed, "arrow_sha256")?;
     let file_hash = native_arrow::arrow_sha256(arrow);
     if !arrow.is_empty() && !arrows.iter().any(|item| item == &file_hash) {
+        eprintln!("oo-pipeline: native_admission stage=arrow_bytes reason=digest_mismatch");
         return Err("digest_mismatch");
     }
     if arrow.is_empty() {
@@ -1835,6 +3456,7 @@ fn bind_admission(document: &Value, arrow: &[u8]) -> Result<Admission, &'static 
         let schema_hash =
             native_arrow::arrow_schema_sha256(arrow).map_err(|_| "digest_mismatch")?;
         if hex_ref(&parsed, "arrow_schema_sha256")? != schema_hash {
+            eprintln!("oo-pipeline: native_admission stage=arrow_schema reason=digest_mismatch");
             return Err("digest_mismatch");
         }
     }
@@ -1848,7 +3470,9 @@ fn bind_admission(document: &Value, arrow: &[u8]) -> Result<Admission, &'static 
     if declared.is_some_and(|value| value != receipt_sha256) {
         return Err("digest_mismatch");
     }
-    require_server_registration(document, arrow, &bytes)
+    require_server_registration(document, arrow, &bytes).inspect_err(|&reason| {
+        eprintln!("oo-pipeline: native_admission stage=server_registration reason={reason}");
+    })
 }
 
 fn historical_admission(
@@ -1885,6 +3509,7 @@ fn historical_admission(
         native_binding::AdmissionReceiptKind::HistoricalReadonly => Ok(Admission {
             source_bound: false,
             trusted_fields: Vec::new(),
+            range_scope: None,
             partition_scope: None,
             transaction_scope: None,
             gtid_scope: None,
@@ -1968,6 +3593,7 @@ fn bind_document_to_producer(document: &Value, receipt: &Value) -> Result<(), &'
             .and_then(|value| value.as_str())
             .ok_or("digest_mismatch")?;
         if !hex64(want) || got != want {
+            eprintln!("oo-pipeline: native_admission field={name} reason=digest_mismatch");
             return Err("digest_mismatch");
         }
     }
@@ -1975,7 +3601,7 @@ fn bind_document_to_producer(document: &Value, receipt: &Value) -> Result<(), &'
         None | Some(Value::Null) => Ok(()),
         Some(Value::String(got)) => {
             let want = text_field(document, "audit_digest").map_err(|_| "digest_mismatch")?;
-            if hex64(&want) && got == &want {
+            if hex64(want) && got == want {
                 Ok(())
             } else {
                 Err("digest_mismatch")
@@ -2061,13 +3687,15 @@ fn column_storage(column: &CopyColumnDecl) -> Result<(i64, i32), &'static str> {
         kind if native_arrow::fixed_binary_width(kind).is_some() && plain => {
             if matches!(native_arrow::fixed_binary_width(kind), Some(12 | 16)) {
                 Ok((17, -1))
-            } else { Err("bad_type") }
+            } else {
+                Err("bad_type")
+            }
         }
         kind if (kind.starts_with("struct(") || kind.starts_with("union(dense,")) && plain => {
             Ok((114, -1))
         }
         "utf8" => match column.char_length {
-            Some(len) if (1..=63).contains(&len) && plain => Ok((1042, len + 4)),
+            Some(len) if (1..=255).contains(&len) && plain => Ok((1042, len + 4)),
             None if plain => Ok((1043, -1)),
             _ => Err("bad_type"),
         },
@@ -2229,7 +3857,11 @@ fn bind_producer_catalog(
 
 fn read_registry(document: &Value) -> Result<Vec<u8>, &'static str> {
     let (path, bytes) = native_binding::read_operator_registry()?;
-    if document.get("registry_path").and_then(Value::as_str).is_some_and(|requested| requested != path) {
+    if document
+        .get("registry_path")
+        .and_then(Value::as_str)
+        .is_some_and(|requested| requested != path)
+    {
         return Err("nonadmitted");
     }
     Ok(bytes)
@@ -2274,9 +3906,18 @@ fn open_registration(
     // the process operator registry and reexecution of the frozen validator.
     let authorized = native_binding::resolve_sealed(
         text_field(document, "source_id")?,
-        document.get("source_generation").and_then(Value::as_i64).ok_or("stale_run")?,
-        document.pointer("/snapshot/kind").and_then(Value::as_str).ok_or("cross_source")?,
-        document.pointer("/snapshot/value").and_then(Value::as_str).ok_or("cross_source")?,
+        document
+            .get("source_generation")
+            .and_then(Value::as_i64)
+            .ok_or("stale_run")?,
+        document
+            .pointer("/snapshot/kind")
+            .and_then(Value::as_str)
+            .ok_or("cross_source")?,
+        document
+            .pointer("/snapshot/value")
+            .and_then(Value::as_str)
+            .ok_or("cross_source")?,
         text_field(document, "config_digest")?,
         text_field(document, "schema_digest")?,
         text_field(document, "type_digest")?,
@@ -2288,83 +3929,166 @@ fn open_registration(
     {
         return Err("nonadmitted");
     }
+    if document["position_codec"] == crate::c1_buffer_position::CODEC {
+        let scope = authorized
+            .baseline_scope
+            .as_ref()
+            .ok_or("oracle_buffer_scope")?;
+        crate::c1_buffer_position::validate_scope(scope)?;
+        if document["source_engine"] != "oracle"
+            || document["position_lineage"] != scope["lineage"]
+            || document["applied_pos"] != scope["buffer"]["final_cursor"]["transaction_ordinal"]
+        {
+            return Err("oracle_buffer_scope");
+        }
+    }
     opened.fields = authorized.fields;
+    opened.range_scope = authorized.range_scope;
     opened.partition_scope = authorized.partition_scope;
     opened.transaction_scope = authorized.transaction_scope;
     Ok(opened)
 }
 
 fn canonical_ct_key(text: &str) -> bool {
-    if text.is_empty() { return false; }
-    if text.contains('\u{001f}') { return text.split('\u{001f}').all(canonical_ct_part); }
+    if text.is_empty() {
+        return false;
+    }
+    if text.contains('\u{001f}') {
+        return text.split('\u{001f}').all(canonical_ct_part);
+    }
     canonical_ct_single(text)
 }
 
 fn canonical_ct_single(text: &str) -> bool {
     if let Some(hex) = text.strip_prefix("\\x") {
-        return hex.len() % 2 == 0 && hex.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase());
+        return hex.len() % 2 == 0
+            && hex
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase());
     }
     canonical_i64(text) || !text.chars().any(|c| c.is_control())
 }
 
 fn canonical_ct_part(text: &str) -> bool {
-    let Some((len, body)) = text.split_once(':') else { return false; };
-    !len.is_empty() && len.bytes().all(|byte| byte.is_ascii_digit()) && !len.starts_with('0')
-        && len == body.len().to_string() && canonical_ct_single(body)
+    let Some((len, body)) = text.split_once(':') else {
+        return false;
+    };
+    !len.is_empty()
+        && len.bytes().all(|byte| byte.is_ascii_digit())
+        && !len.starts_with('0')
+        && len == body.len().to_string()
+        && canonical_ct_single(body)
 }
 
 // The operator registry already pins these captured bytes; caller CT fields cannot rebind them.
-fn validate_mssql_capture(document: &Value, capture: &Value, arrow: &[u8]) -> Result<(), &'static str> {
-    if document["source_engine"] != "sqlserver" || document["position_codec"] != "mssql-ct-version/v1"
-        || document["capture_method"] != "c2_change_feed" || document["delete_detection"] != "native"
-        || document["consistency_grade"] != "S1" || document["cross_table_consistent"] != false
-        || capture["protocol"] != "oo.mssql-preview.capture/v1" || capture["tds_query_executed"] != true
-        || capture["source_id"] != document["source_id"] || capture["source_generation"] != document["source_generation"]
-        || capture["logical_schema"] != document["logical_schema"] || capture["logical_table"] != document["logical_table"]
+fn validate_mssql_capture(
+    document: &Value,
+    capture: &Value,
+    arrow: &[u8],
+) -> Result<(), &'static str> {
+    if document["source_engine"] != "sqlserver"
+        || document["position_codec"] != "mssql-ct-version/v1"
+        || document["capture_method"] != "c2_change_feed"
+        || document["delete_detection"] != "native"
+        || document["consistency_grade"] != "S1"
+        || document["cross_table_consistent"] != false
+        || capture["protocol"] != "oo.mssql-preview.capture/v1"
+        || capture["tds_query_executed"] != true
+        || capture["source_id"] != document["source_id"]
+        || capture["source_generation"] != document["source_generation"]
+        || capture["logical_schema"] != document["logical_schema"]
+        || capture["logical_table"] != document["logical_table"]
         || capture["candidate_position"] != document["sqlserver_candidate_position"]
         || capture["prior_position"] != document["sqlserver_prior_position"]
-        || capture["snapshot"] != document["snapshot"] || capture["tombstones"] != document["tombstones"]
-        || capture["primary_key"] != document["key_columns"] {
+        || capture["snapshot"] != document["snapshot"]
+        || capture["tombstones"] != document["tombstones"]
+        || capture["primary_key"] != document["key_columns"]
+    {
         return Err("ct_scope");
     }
     let candidate = &capture["candidate_position"];
-    if candidate["protocol"] != "oo.mssql-preview.ct-position/v1" || candidate["source_id"] != document["source_id"] {
+    if candidate["protocol"] != "oo.mssql-preview.ct-position/v1"
+        || candidate["source_id"] != document["source_id"]
+    {
         return Err("ct_scope");
     }
     let guid = text_field(candidate, "database_guid")?;
     let fork = text_field(candidate, "recovery_fork_guid")?;
-    if !is_uuid(guid) || !is_uuid(fork) || document["position_lineage"] != format!("mssql.{guid}.{fork}") { return Err("ct_scope"); }
+    if !is_uuid(guid)
+        || !is_uuid(fork)
+        || document["position_lineage"] != format!("mssql.{guid}.{fork}")
+    {
+        return Err("ct_scope");
+    }
     let selected = |position: &Value| -> Result<Value, &'static str> {
         let rows = position["tables"].as_array().ok_or("ct_scope")?;
-        let matching: Vec<_> = rows.iter().filter(|row| row["schema"] == document["logical_schema"] && row["name"] == document["logical_table"]).collect();
-        if matching.len() != 1 { return Err("ct_scope"); }
+        let matching: Vec<_> = rows
+            .iter()
+            .filter(|row| {
+                row["schema"] == document["logical_schema"]
+                    && row["name"] == document["logical_table"]
+            })
+            .collect();
+        if matching.len() != 1 {
+            return Err("ct_scope");
+        }
         Ok(matching[0].clone())
     };
     let current = selected(candidate)?;
-    let version = current["version"].as_i64().filter(|n| *n >= 0).ok_or("ct_scope")?;
-    if current["object_id"] != capture["object_id"] || current["keys"] != capture["primary_key"]
+    let version = current["version"]
+        .as_i64()
+        .filter(|n| *n >= 0)
+        .ok_or("ct_scope")?;
+    if current["object_id"] != capture["object_id"]
+        || current["keys"] != capture["primary_key"]
         || current["object_id"].as_i64().is_none_or(|n| n <= 0)
         || !current["schema_sha256"].as_str().is_some_and(hex64)
-        || document["snapshot"]["kind"] != "mssql_ct_version" || document["snapshot"]["value"] != version.to_string()
-        || document["applied_pos"] != version.to_string() { return Err("ct_scope"); }
+        || document["snapshot"]["kind"] != "mssql_ct_version"
+        || document["snapshot"]["value"] != version.to_string().as_str()
+        || document["applied_pos"] != version.to_string().as_str()
+    {
+        return Err("ct_scope");
+    }
     let tombs = document["tombstones"].as_array().ok_or("ct_scope")?;
     for item in tombs {
-        if !item.as_str().is_some_and(canonical_ct_key) { return Err("ct_scope"); }
+        if !item.as_str().is_some_and(canonical_ct_key) {
+            return Err("ct_scope");
+        }
     }
     let rows = decode_arrow_stream(arrow).map_err(arrow_token)?.rows;
-    if capture["upserts"].as_u64() != Some(rows as u64) { return Err("ct_scope"); }
+    if capture["upserts"].as_u64() != Some(rows as u64) {
+        return Err("ct_scope");
+    }
     let snapshot = capture["mode"] == "snapshot";
-    if document["full_snapshot"] != snapshot { return Err("ct_scope"); }
+    if document["full_snapshot"] != snapshot {
+        return Err("ct_scope");
+    }
     if !snapshot {
         let prior = &capture["prior_position"];
-        for key in ["protocol", "source_id", "database_guid", "recovery_fork_guid", "database"] {
-            if prior[key] != candidate[key] { return Err("ct_scope"); }
+        for key in [
+            "protocol",
+            "source_id",
+            "database_guid",
+            "recovery_fork_guid",
+            "database",
+        ] {
+            if prior[key] != candidate[key] {
+                return Err("ct_scope");
+            }
         }
         let old = selected(prior)?;
-        for key in ["object_id", "schema_sha256", "keys"] { if old[key] != current[key] { return Err("ct_scope"); } }
+        for key in ["object_id", "schema_sha256", "keys"] {
+            if old[key] != current[key] {
+                return Err("ct_scope");
+            }
+        }
         let before = old["version"].as_i64().ok_or("ct_scope")?;
         let minimum = capture["min_valid_version"].as_i64().ok_or("ct_scope")?;
-        if before < minimum || before > version || (before == version && (rows != 0 || !document["tombstones"].as_array().is_some_and(Vec::is_empty))) {
+        if before < minimum
+            || before > version
+            || (before == version
+                && (rows != 0 || !document["tombstones"].as_array().is_some_and(Vec::is_empty)))
+        {
             return Err("expired");
         }
     }
@@ -2375,6 +4099,7 @@ fn registration_admission(opened: native_binding::ServerRegistration) -> Admissi
     Admission {
         source_bound: true,
         trusted_fields: opened.fields,
+        range_scope: opened.range_scope,
         partition_scope: opened.partition_scope,
         transaction_scope: opened.transaction_scope,
         gtid_scope: opened.gtid_scope,
@@ -2443,7 +4168,10 @@ fn expect_matches_document(document: &Value) -> Result<(), &'static str> {
     if let Some(generation) = expect
         .get("source_generation")
         .and_then(|value| value.as_i64())
-        && document.get("source_generation").and_then(|value| value.as_i64()) != Some(generation)
+        && document
+            .get("source_generation")
+            .and_then(|value| value.as_i64())
+            != Some(generation)
     {
         return Err("stale_run");
     }
@@ -2562,14 +4290,23 @@ fn read_arrow(document: &Value) -> Result<Vec<u8>, &'static str> {
     if let Some(path) = document.get("arrow_path").and_then(|value| value.as_str()) {
         let budget = match document.get("max_arrow_bytes") {
             None => READ_BUDGET,
-            Some(value) => value.as_u64().filter(|n| *n > 0 && *n <= 268_435_456)
-                .and_then(|n| usize::try_from(n).ok()).ok_or("read_budget")?,
+            Some(value) => value
+                .as_u64()
+                .filter(|n| *n > 0 && *n <= 268_435_456)
+                .and_then(|n| usize::try_from(n).ok())
+                .ok_or("read_budget")?,
         };
         let meta = fs::metadata(path).map_err(|_| "digest_missing")?;
-        if !meta.is_file() { return Err("digest_missing"); }
-        if meta.len() > budget as u64 { return Err("read_budget"); }
+        if !meta.is_file() {
+            return Err("digest_missing");
+        }
+        if meta.len() > budget as u64 {
+            return Err("read_budget");
+        }
         let bytes = fs::read(path).map_err(|_| "digest_missing")?;
-        if bytes.len() > budget { return Err("read_budget"); }
+        if bytes.len() > budget {
+            return Err("read_budget");
+        }
         return Ok(bytes);
     }
     Ok(Vec::new())
@@ -2698,7 +4435,13 @@ fn canonical_u32(text: &str) -> Option<u32> {
     text.parse().ok()
 }
 
-fn maria_order(left_lineage: &str, left_pos: &str, right_lineage: &str, right_pos: &str) -> Result<std::cmp::Ordering, &'static str> {
+#[cfg(test)]
+fn maria_order(
+    left_lineage: &str,
+    left_pos: &str,
+    right_lineage: &str,
+    right_pos: &str,
+) -> Result<std::cmp::Ordering, &'static str> {
     if !maria_stored(left_lineage, left_pos) || !maria_stored(right_lineage, right_pos) {
         return Err("gtid_identity");
     }
@@ -2721,7 +4464,9 @@ fn one_gtid(document: &Value) -> Result<GtidCommit, &'static str> {
     let object = document.as_object().ok_or("closed")?;
     if object.len() != 2
         || document["protocol"] != TRANSACTION_PROTOCOL
-        || object.keys().any(|key| key != "protocol" && key != "entries")
+        || object
+            .keys()
+            .any(|key| key != "protocol" && key != "entries")
     {
         return Err("closed");
     }
@@ -2788,10 +4533,8 @@ fn gtid_plans_match(plans: &[UpdatePlan], identity: &GtidCommit) -> Result<(), &
         if !gtid_binding_matches(
             plan.gtid_scope.as_ref(),
             plan.source_instance.as_ref(),
-            &plan.source_id,
-            &plan.source_engine,
-            &plan.config_digest,
-            &plan.schema_digest,
+            (&plan.source_id, &plan.source_engine),
+            (&plan.config_digest, &plan.schema_digest),
             &plan.shard,
             &plan.owner,
             identity,
@@ -2805,15 +4548,15 @@ fn gtid_plans_match(plans: &[UpdatePlan], identity: &GtidCommit) -> Result<(), &
 fn gtid_binding_matches(
     scope: Option<&Value>,
     instance: Option<&Value>,
-    source: &str,
-    engine: &str,
-    config: &str,
-    schema: &str,
+    (source, engine): (&str, &str),
+    (config, schema): (&str, &str),
     shard: &str,
     owner: &str,
     identity: &GtidCommit,
 ) -> bool {
-    let Some(scope) = scope else { return false; };
+    let Some(scope) = scope else {
+        return false;
+    };
     if scope["codec"] != identity.codec
         || scope["lineage"] != identity.lineage
         || scope["source_epoch"].as_i64() != Some(i64::from(identity.epoch))
@@ -2854,12 +4597,31 @@ fn gtid_order(left: &GtidCommit, right: &GtidCommit) -> Result<std::cmp::Orderin
 }
 
 fn gtid_commit_identity(entry: &Value) -> Result<GtidCommit, &'static str> {
-    let engine = entry.get("source_engine").and_then(Value::as_str).ok_or("gtid_family")?;
-    let codec = entry.get("position_codec").and_then(Value::as_str).ok_or("gtid_identity")?;
-    let lineage = entry.get("position_lineage").and_then(Value::as_str).ok_or("gtid_identity")?;
-    let applied_pos = entry.get("applied_pos").and_then(Value::as_str).ok_or("gtid_identity")?;
-    let txn_id = entry.get("txn_id").and_then(Value::as_str).ok_or("gtid_identity")?;
-    if codec.contains(',') || lineage.contains(',') || applied_pos.contains(',') || txn_id.contains(',') {
+    let engine = entry
+        .get("source_engine")
+        .and_then(Value::as_str)
+        .ok_or("gtid_family")?;
+    let codec = entry
+        .get("position_codec")
+        .and_then(Value::as_str)
+        .ok_or("gtid_identity")?;
+    let lineage = entry
+        .get("position_lineage")
+        .and_then(Value::as_str)
+        .ok_or("gtid_identity")?;
+    let applied_pos = entry
+        .get("applied_pos")
+        .and_then(Value::as_str)
+        .ok_or("gtid_identity")?;
+    let txn_id = entry
+        .get("txn_id")
+        .and_then(Value::as_str)
+        .ok_or("gtid_identity")?;
+    if codec.contains(',')
+        || lineage.contains(',')
+        || applied_pos.contains(',')
+        || txn_id.contains(',')
+    {
         return Err("gtid_identity");
     }
     let epoch = match entry.get("source_epoch") {
@@ -2919,7 +4681,11 @@ fn gtid_commit_identity(entry: &Value) -> Result<GtidCommit, &'static str> {
 fn assist_not_identity(entry: &Value, txn_id: &str, applied_pos: &str) -> Result<(), &'static str> {
     let file = match entry.get("resume_file") {
         None | Some(Value::Null) => None,
-        Some(Value::String(text)) if !text.is_empty() && text.len() <= 128 && !text.contains(',') => Some(text.as_str()),
+        Some(Value::String(text))
+            if !text.is_empty() && text.len() <= 128 && !text.contains(',') =>
+        {
+            Some(text.as_str())
+        }
         _ => return Err("gtid_identity"),
     };
     let pos = match entry.get("resume_pos") {
@@ -2949,8 +4715,14 @@ fn mysql_lineage(lineage: &str) -> Option<&str> {
 fn mysql_uuid(text: &str) -> bool {
     let mut parts = text.split('-');
     for width in [8, 4, 4, 4, 12] {
-        let Some(part) = parts.next() else { return false };
-        if part.len() != width || !part.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) {
+        let Some(part) = parts.next() else {
+            return false;
+        };
+        if part.len() != width
+            || !part
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        {
             return false;
         }
     }
@@ -2961,6 +4733,7 @@ fn mysql_gno(pos: &str) -> bool {
     maria_seq(pos) && pos != "0"
 }
 
+#[cfg(test)]
 fn decimal_add(text: &str, addend: u64) -> Result<String, &'static str> {
     if text.is_empty() || text.len() > 38 || !text.bytes().all(|byte| byte.is_ascii_digit()) {
         return Err("closed");
@@ -3174,9 +4947,17 @@ fn key_type_ok(column: &CopyColumnDecl) -> bool {
         "int64" => column.scale.is_none() && width_ok(column, 64),
         "uint8" => column.scale.is_none() && width_ok(column, 8),
         "uint64" => column.precision == Some(64) && column.scale.is_none(),
+        "decimal128" => {
+            column.scale == Some(0)
+                && column
+                    .precision
+                    .is_some_and(|precision| (1..=38).contains(&precision))
+        }
         "utf8" => column.precision.is_none() && column.scale.is_none(),
         "date32" => column.precision.is_none() && column.scale.is_none(),
-        "binary" | "fixedsizebinary(12)" | "fixedsizebinary(16)" => column.precision.is_none() && column.scale.is_none(),
+        "binary" | "fixedsizebinary(12)" | "fixedsizebinary(16)" => {
+            column.precision.is_none() && column.scale.is_none()
+        }
         _ => false,
     }
 }
@@ -3229,15 +5010,37 @@ fn canonical_key_text(column: &CopyColumnDecl, text: &str) -> bool {
         "int64" => canonical_i64(text),
         "uint8" => canonical_unsigned(text, u128::from(u8::MAX)),
         "uint64" => canonical_u64(text),
+        "decimal128" => {
+            column.scale == Some(0)
+                && column
+                    .precision
+                    .is_some_and(|precision| canonical_decimal_key(text, precision))
+        }
         "utf8" => !text.is_empty(),
         "date32" => canonical_date(text),
         "binary" | "fixedsizebinary(12)" | "fixedsizebinary(16)" => {
-            let Some(raw) = text.strip_prefix("\\x") else { return false; };
-            raw.len() % 2 == 0 && raw.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
-                && native_arrow::fixed_binary_width(&column.arrow_type).is_none_or(|width| raw.len() == width as usize * 2)
+            let Some(raw) = text.strip_prefix("\\x") else {
+                return false;
+            };
+            raw.len() % 2 == 0
+                && raw
+                    .bytes()
+                    .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+                && native_arrow::fixed_binary_width(&column.arrow_type)
+                    .is_none_or(|width| raw.len() == width as usize * 2)
         }
         _ => false,
     }
+}
+
+fn canonical_decimal_key(text: &str, precision: i32) -> bool {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    (1..=38).contains(&precision)
+        && !digits.is_empty()
+        && digits.len() <= precision as usize
+        && digits.bytes().all(|byte| byte.is_ascii_digit())
+        && (digits == "0" || !digits.starts_with('0'))
+        && text != "-0"
 }
 
 fn canonical_signed(text: &str, width: u32) -> bool {
@@ -3469,6 +5272,18 @@ fn cell_key_text(cell: &NativeCell) -> Result<String, &'static str> {
                 Err("bad_type")
             }
         }
+        NativeCell::Decimal {
+            precision,
+            scale: 0,
+            coefficient,
+        } => {
+            let text = coefficient.to_string();
+            if canonical_decimal_key(&text, i32::from(*precision)) {
+                Ok(text)
+            } else {
+                Err("bad_type")
+            }
+        }
         NativeCell::UInt64(value) => Ok(value.to_string()),
         NativeCell::UInt8(value) => Ok(value.to_string()),
         NativeCell::Utf8(text) if !text.is_empty() => Ok(text.clone()),
@@ -3488,28 +5303,52 @@ fn validate_olap_route(
     if scope["source_engine"] != source_engine || key_indexes.len() != 1 {
         return Err("partition_scope_required");
     }
-    let route = scope["routing_column"].as_str().ok_or("partition_scope_required")?;
-    let column = columns.get(key_indexes[0]).ok_or("partition_scope_required")?;
+    let route = scope["routing_column"]
+        .as_str()
+        .ok_or("partition_scope_required")?;
+    let column = columns
+        .get(key_indexes[0])
+        .ok_or("partition_scope_required")?;
     if column.logical_name != route || column.arrow_type != "date32" || column.nullable {
         return Err("partition_scope_required");
     }
-    let model = scope["key_model"].as_str().ok_or("partition_scope_required")?;
-    let identity = document.get("row_identity").and_then(Value::as_str).ok_or("partition_scope_required")?;
-    if !matches!((model, identity), ("duplicate", "duplicate") | ("unique", "unique") | ("primary", "unique")) {
+    let model = scope["key_model"]
+        .as_str()
+        .ok_or("partition_scope_required")?;
+    let identity = document
+        .get("row_identity")
+        .and_then(Value::as_str)
+        .ok_or("partition_scope_required")?;
+    if !matches!(
+        (model, identity),
+        ("duplicate", "duplicate") | ("unique", "unique") | ("primary", "unique")
+    ) {
         return Err("partition_scope_required");
     }
-    let lower = scope["partition_range"]["lower"].as_str().ok_or("partition_scope_required")?;
-    let upper = scope["partition_range"]["upper"].as_str().ok_or("partition_scope_required")?;
+    let lower = scope["partition_range"]["lower"]
+        .as_str()
+        .ok_or("partition_scope_required")?;
+    let upper = scope["partition_range"]["upper"]
+        .as_str()
+        .ok_or("partition_scope_required")?;
     // StarRocks reports a MINVALUE range bound as 0000-01-01. The target
     // copy-forward maps this exact token to -infinity; Arrow rows remain dates.
     if !(canonical_date(lower) || source_engine == "starrocks" && lower == "0000-01-01")
-        || !canonical_date(upper) || lower >= upper {
+        || !canonical_date(upper)
+        || lower >= upper
+    {
         return Err("partition_scope_required");
     }
     let decoded = decode_arrow_stream(arrow).map_err(arrow_token)?;
     for row in 0..decoded.rows {
-        let cell = decoded.columns.get(key_indexes[0]).and_then(|column| column.get(row)).ok_or("bad_type")?;
-        let NativeCell::Date32(days) = cell else { return Err("bad_type"); };
+        let cell = decoded
+            .columns
+            .get(key_indexes[0])
+            .and_then(|column| column.get(row))
+            .ok_or("bad_type")?;
+        let NativeCell::Date32(days) = cell else {
+            return Err("bad_type");
+        };
         let date = date32_iso(*days).ok_or("bad_type")?;
         if date.as_str() < lower || date.as_str() >= upper {
             return Err("partition_scope_required");
@@ -3522,47 +5361,130 @@ async fn apply_tx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     plan: &UpdatePlan,
 ) -> Result<Applied, &'static str> {
-    apply_tx_baseline(tx,plan,None).await
+    apply_tx_baseline(tx, plan, None).await
 }
 
 async fn apply_tx_baseline(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, plan: &UpdatePlan, baseline: Option<BaselineCopy>,
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    plan: &UpdatePlan,
+    baseline: Option<BaselineCopy>,
 ) -> Result<Applied, &'static str> {
-    if plan.columns.iter().any(|column| column.arrow_type == "duration_micros") {
-        let stored_digest: Option<String> = sqlx::query_scalar(
-            "SELECT checksum FROM _oo.schema_migrations WHERE version = $1"
-        ).bind(target_installer::VERSION_NATIVE_INTERVAL)
-         .fetch_optional(&mut **tx).await.map_err(sql_token)?;
-        if stored_digest.as_deref() != Some(target_installer::compiled_native_interval_digest().as_str()) {
+    let parts_scope = plan
+        .range_scope
+        .as_ref()
+        .filter(|scope| scope["protocol"] == crate::native_c5_parts::RANGE_PROTOCOL);
+    let c5_lease = if plan.range_scope.is_some() {
+        Some(
+            lease_hold(
+                tx,
+                plan.lease_id.as_deref().ok_or("lease_required")?,
+                plan.lease_generation,
+            )
+            .await?
+            .0,
+        )
+    } else {
+        None
+    };
+    let copy_lease = baseline
+        .as_ref()
+        .map(|b| b.lease.clone())
+        .or_else(|| c5_lease.clone());
+    if let Some(lease) = &c5_lease {
+        baseline_held_heartbeat(tx, lease).await?;
+    }
+    if plan
+        .columns
+        .iter()
+        .any(|column| column.arrow_type == "duration_micros")
+    {
+        let stored_digest: Option<String> =
+            sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version = $1")
+                .bind(target_installer::VERSION_NATIVE_INTERVAL)
+                .fetch_optional(&mut **tx)
+                .await
+                .map_err(sql_token)?;
+        if stored_digest.as_deref()
+            != Some(target_installer::compiled_native_interval_digest().as_str())
+        {
             return Err("interval_schema_not_ready");
         }
     }
     if plan.partition_scope.is_some() {
-        let stored_digest: Option<String> = sqlx::query_scalar(
-            "SELECT checksum FROM _oo.schema_migrations WHERE version = $1"
-        ).bind(target_installer::VERSION_NATIVE_PARTITION)
-         .fetch_optional(&mut **tx).await.map_err(sql_token)?;
-        if stored_digest.as_deref() != Some(target_installer::compiled_native_partition_digest().as_str()) {
+        let stored_digest: Option<String> =
+            sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version = $1")
+                .bind(target_installer::VERSION_NATIVE_PARTITION)
+                .fetch_optional(&mut **tx)
+                .await
+                .map_err(sql_token)?;
+        if stored_digest.as_deref()
+            != Some(target_installer::compiled_native_partition_digest().as_str())
+        {
             return Err("partition_schema_not_ready");
         }
         if plan.previous_ack_auto {
             for (version, digest) in [
-                (target_installer::VERSION_NATIVE_OLAP_PARTITION, target_installer::compiled_native_olap_partition_digest()),
-                (target_installer::VERSION_NATIVE_OLAP_GUARD, target_installer::compiled_native_olap_guard_digest()),
-                (target_installer::VERSION_NATIVE_OLAP_GUARD_SIGNATURE, target_installer::compiled_native_olap_guard_signature_digest()),
+                (
+                    target_installer::VERSION_NATIVE_OLAP_PARTITION,
+                    target_installer::compiled_native_olap_partition_digest(),
+                ),
+                (
+                    target_installer::VERSION_NATIVE_OLAP_GUARD,
+                    target_installer::compiled_native_olap_guard_digest(),
+                ),
+                (
+                    target_installer::VERSION_NATIVE_OLAP_GUARD_SIGNATURE,
+                    target_installer::compiled_native_olap_guard_signature_digest(),
+                ),
             ] {
-                let stored_digest: Option<String> = sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version = $1")
-                    .bind(version).fetch_optional(&mut **tx).await.map_err(sql_token)?;
+                let stored_digest: Option<String> = sqlx::query_scalar(
+                    "SELECT checksum FROM _oo.schema_migrations WHERE version = $1",
+                )
+                .bind(version)
+                .fetch_optional(&mut **tx)
+                .await
+                .map_err(sql_token)?;
                 if stored_digest.as_deref() != Some(digest.as_str()) {
                     return Err("partition_schema_not_ready");
                 }
             }
         }
     }
+    if plan.range_scope.is_some() {
+        let stored: Option<String> =
+            sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version=$1")
+                .bind(target_installer::VERSION_NATIVE_C5_CLOSED_OBSERVATION)
+                .fetch_optional(&mut **tx)
+                .await
+                .map_err(sql_token)?;
+        if stored.as_deref()
+            != Some(target_installer::compiled_native_c5_closed_observation_digest().as_str())
+        {
+            return Err("c5_schema_not_ready");
+        }
+    }
+    if parts_scope.is_some() {
+        let stored: Option<String> =
+            sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version=$1")
+                .bind(target_installer::VERSION_NATIVE_C5_RANGE_PARTS_APPLY)
+                .fetch_optional(&mut **tx)
+                .await
+                .map_err(sql_token)?;
+        if stored.as_deref()
+            != Some(target_installer::compiled_native_c5_range_parts_apply_digest().as_str())
+        {
+            return Err("c5_parts_schema_not_ready");
+        }
+    }
     if plan.audit_digest.len() != 64 {
         return Err("no_audit");
     }
-    let (upsert_keys, upsert_rows) = if plan.shape == "snapshot" {
+    let (upsert_keys, upsert_rows) = if let Some(scope) = parts_scope {
+        (
+            Vec::new(),
+            usize::try_from(scope["row_count"].as_u64().ok_or("rows")?).map_err(|_| "rows")?,
+        )
+    } else if plan.shape == "snapshot" {
         refuse_upsert_conflict(&plan.arrow, &plan.tombstones, &plan.key_indexes, plan.shape)?;
         if plan.arrow.is_empty() {
             (Vec::new(), 0usize)
@@ -3579,7 +5501,9 @@ async fn apply_tx_baseline(
             let mut keys = key_rows(&decoded, &plan.key_indexes)?;
             if plan.shape == "partition" {
                 keys.sort();
-                if plan.source_engine == "clickhouse" && keys.windows(2).any(|pair| pair[0] == pair[1]) {
+                if plan.source_engine == "clickhouse"
+                    && keys.windows(2).any(|pair| pair[0] == pair[1])
+                {
                     return Err("partition_duplicate_key");
                 }
             }
@@ -3624,6 +5548,9 @@ async fn apply_tx_baseline(
         .await
         .map_err(|_| "physical")?;
     }
+    if let Some(lease) = &c5_lease {
+        baseline_held_heartbeat(tx, lease).await?;
+    }
     let target_generation: i64 =
         sqlx::query_scalar("SELECT _oo.adopt_target_generation($1, $2::uuid)")
             .bind(&plan.shard)
@@ -3645,8 +5572,42 @@ async fn apply_tx_baseline(
         .execute(&mut **tx)
         .await
         .map_err(sql_token)?;
+    let parts_deleted: Option<i64> = if let Some(scope) = parts_scope {
+        Some(
+            sqlx::query_scalar("SELECT _oo.c5_parts_guard($1,$2::uuid,$3,$4::jsonb)")
+                .bind(&plan.shard)
+                .bind(&plan.owner)
+                .bind(target_generation)
+                .bind(scope.to_string())
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(sql_token)?,
+        )
+    } else {
+        None
+    };
+    let range_replaced =
+        if let Some(scope) = plan.range_scope.as_ref().filter(|_| parts_scope.is_none()) {
+            Some({
+                let text = serde_json::to_string(scope).map_err(|_| "c5_range_scope")?;
+                sqlx::query_scalar("SELECT _oo.c5_range_guard($1,$2::uuid,$3,$4::jsonb,$5::text[])")
+                    .bind(&plan.shard)
+                    .bind(&plan.owner)
+                    .bind(target_generation)
+                    .bind(text)
+                    .bind(&upsert_keys)
+                    .fetch_one(&mut **tx)
+                    .await
+                    .map_err(sql_token)?
+            })
+        } else {
+            None
+        };
+    if let Some(lease) = &c5_lease {
+        baseline_held_heartbeat(tx, lease).await?;
+    }
     let input_bytes = decode_hex32(&plan.input_digest).map_err(|_| "digest_mismatch")?;
-    let prepare_started=std::time::Instant::now();
+    let prepare_started = std::time::Instant::now();
     let prepared = if plan.arrow.is_empty() {
         None
     } else {
@@ -3666,7 +5627,13 @@ async fn apply_tx_baseline(
             .map_err(arrow_token)?,
         )
     };
-    if baseline.is_some() {eprintln!("oo-pipeline: baseline-phase table={} phase=prepare elapsed_ms={}",plan.table,prepare_started.elapsed().as_millis());}
+    if baseline.is_some() {
+        eprintln!(
+            "oo-pipeline: baseline-phase table={} phase=prepare elapsed_ms={}",
+            plan.table,
+            prepare_started.elapsed().as_millis()
+        );
+    }
     let physical = if let Some(prepared) = prepared.as_ref() {
         prepared.physical_name.clone()
     } else {
@@ -3735,19 +5702,36 @@ async fn apply_tx_baseline(
         return Err("shadow");
     }
     let (previous_ack_exists, previous_signature) = if plan.previous_ack_auto {
-        let scope = plan.partition_scope.as_ref().ok_or("partition_scope_required")?;
-        let partition = scope["partition_id"].as_str().ok_or("partition_scope_required")?;
+        let scope = plan
+            .partition_scope
+            .as_ref()
+            .ok_or("partition_scope_required")?;
+        let partition = scope["partition_id"]
+            .as_str()
+            .ok_or("partition_scope_required")?;
         let prior_text: String = sqlx::query_scalar(
-            "SELECT _oo.native_partition_prior($1,$2::uuid,$3,$4,$5,$6,$7)::text"
-        ).bind(&plan.shard).bind(&plan.owner).bind(target_generation)
-         .bind(&plan.source_id).bind(&plan.schema).bind(&plan.table).bind(partition)
-         .fetch_one(&mut **tx).await.map_err(sql_token)?;
+            "SELECT _oo.native_partition_prior($1,$2::uuid,$3,$4,$5,$6,$7)::text",
+        )
+        .bind(&plan.shard)
+        .bind(&plan.owner)
+        .bind(target_generation)
+        .bind(&plan.source_id)
+        .bind(&plan.schema)
+        .bind(&plan.table)
+        .bind(partition)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(sql_token)?;
         let prior: Value = serde_json::from_str(&prior_text).map_err(|_| "partition_prior_ack")?;
         let exists = prior["exists"].as_bool().ok_or("partition_prior_ack")?;
         let signature = prior["signature"].as_str().map(str::to_owned);
         (exists, signature)
-    } else { (plan.previous_ack_exists, plan.previous_signature.clone()) };
-    let replaced_keys: Vec<String> = if let Some(scope) = plan.partition_scope.as_ref() {
+    } else {
+        (plan.previous_ack_exists, plan.previous_signature.clone())
+    };
+    let replaced_keys: Vec<String> = if let Some(keys) = range_replaced {
+        keys
+    } else if let Some(scope) = plan.partition_scope.as_ref() {
         let scope_text = serde_json::to_string(scope).map_err(|_| "partition_scope_required")?;
         sqlx::query_scalar("SELECT _oo.native_partition_guard($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12::text[])")
             .bind(&plan.shard).bind(&plan.owner).bind(target_generation)
@@ -3759,12 +5743,37 @@ async fn apply_tx_baseline(
     } else {
         plan.tombstones.clone()
     };
-    let copied: i64 = if let Some(parent) = plan
+    let copied: i64 = if let Some(scope) = parts_scope {
+        sqlx::query_scalar("SELECT _oo.c5_parts_overlay_prepare($1,$2::uuid,$3,$4::uuid,$5::jsonb,$6::text[],$7::text[])")
+            .bind(&plan.shard).bind(&plan.owner).bind(target_generation).bind(&run_id)
+            .bind(scope.to_string()).bind(&plan.column_idents).bind(&plan.key_idents)
+            .fetch_one(&mut **tx).await.map_err(sql_token)?
+    } else if let Some(scope) = &plan.range_scope {
+        // Reuse immutable parent storage; C5 must not copy unchanged rows into every generation.
+        sqlx::query_scalar(
+            "SELECT _oo.c5_overlay_prepare($1,$2::uuid,$3,$4::uuid,$5::jsonb,$6::text[],$7::text[],$8::text[])",
+        )
+        .bind(&plan.shard)
+        .bind(&plan.owner)
+        .bind(target_generation)
+        .bind(&run_id)
+        .bind(serde_json::to_string(scope).map_err(|_| "c5_range_scope")?)
+        .bind(&upsert_keys)
+        .bind(&plan.column_idents)
+        .bind(&plan.key_idents)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(sql_token)?
+    } else if let Some(parent) = plan
         .parent_source_generation
         .filter(|_| plan.shape != "snapshot")
     {
-        let scope = plan.partition_scope.as_ref().map(serde_json::to_string)
-            .transpose().map_err(|_| "partition_scope_required")?;
+        let scope = plan
+            .partition_scope
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|_| "partition_scope_required")?;
         let statement = if plan.previous_ack_auto {
             "SELECT _oo.native_olap_copy_forward($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11::text[], $12::text[], $13::text[], $14::jsonb)"
         } else if plan.position_codec == "mssql-ct-version/v1" {
@@ -3773,31 +5782,90 @@ async fn apply_tx_baseline(
             "SELECT _oo.native_update_copy_forward($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11::text[], $12::text[], $13::text[])"
         };
         let query = sqlx::query_scalar(statement)
-        .bind(&plan.shard)
-        .bind(&plan.owner)
-        .bind(target_generation)
-        .bind(&plan.source_id)
-        .bind(&plan.config_digest)
-        .bind(&plan.schema)
-        .bind(&plan.table)
-        .bind(parent)
-        .bind(plan.source_generation)
-        .bind(&plan.column_idents)
-        .bind(&replaced_keys)
-        .bind(&upsert_keys)
-        .bind(&plan.key_idents);
-        let query = if plan.previous_ack_auto { query.bind(scope) } else { query };
-        query.fetch_one(&mut **tx)
-        .await
-        .map_err(sql_token)?
+            .bind(&plan.shard)
+            .bind(&plan.owner)
+            .bind(target_generation)
+            .bind(&plan.source_id)
+            .bind(&plan.config_digest)
+            .bind(&plan.schema)
+            .bind(&plan.table)
+            .bind(parent)
+            .bind(plan.source_generation)
+            .bind(&plan.column_idents)
+            .bind(&replaced_keys)
+            .bind(&upsert_keys)
+            .bind(&plan.key_idents);
+        let query = if plan.previous_ack_auto {
+            query.bind(scope)
+        } else {
+            query
+        };
+        query.fetch_one(&mut **tx).await.map_err(sql_token)?
     } else {
         0
     };
-    if let Some(prepared) = prepared.as_ref() {
+    if let Some(lease) = &c5_lease {
+        baseline_held_heartbeat(tx, lease).await?;
+        // Charge row guards to each bounded COPY, not one unrenewable deferred tail.
+        sqlx::raw_sql(sqlx::AssertSqlSafe("SET CONSTRAINTS ALL IMMEDIATE"))
+            .execute(&mut **tx)
+            .await
+            .map_err(sql_token)?;
+    }
+    if let Some(scope) = parts_scope {
+        let lease = c5_lease.as_ref().ok_or("lease_required")?;
+        let mut last_key: Option<String> = None;
+        let mut copied = 0i64;
+        loop {
+            let raw: String = sqlx::query_scalar(
+                "SELECT _oo.c5_parts_copy_page($1,$2::uuid,$3,$4::uuid,$5::jsonb,$6,$7)::text",
+            )
+            .bind(&plan.shard)
+            .bind(&plan.owner)
+            .bind(target_generation)
+            .bind(&run_id)
+            .bind(scope.to_string())
+            .bind(&last_key)
+            .bind(512_i32)
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(sql_token)?;
+            let page: Value = serde_json::from_str(&raw).map_err(|_| "c5_parts_copy")?;
+            let n = page["copied_rows"]
+                .as_i64()
+                .filter(|n| *n >= 0 && *n <= 512)
+                .ok_or("c5_parts_copy")?;
+            if n == 0 {
+                break;
+            }
+            let key = page["last_key"]
+                .as_str()
+                .filter(|k| !k.is_empty())
+                .ok_or("c5_parts_copy")?;
+            if last_key.as_deref().is_some_and(|old| old >= key) {
+                return Err("c5_parts_copy");
+            }
+            last_key = Some(key.into());
+            copied = copied.checked_add(n).ok_or("rows")?;
+            baseline_held_heartbeat(tx, lease).await?;
+        }
+        if u64::try_from(copied).ok() != Some(upsert_rows as u64) {
+            return Err("rows");
+        }
+        range_parts::record_quality(tx, plan, target_generation, lease).await?;
+    } else if let Some(prepared) = prepared.as_ref() {
         let mut positions = Vec::with_capacity(upsert_rows);
-        if baseline.as_ref().is_some_and(|b|b.positions.len()!=upsert_rows) {return Err("baseline_positions");}
+        if baseline
+            .as_ref()
+            .is_some_and(|b| b.positions.len() != upsert_rows)
+        {
+            return Err("baseline_positions");
+        }
         for index in 0..upsert_rows {
-            let pos = match baseline.as_ref() { Some(b)=>b.positions[index].clone(),None=>plan.applied_pos_request.clone() };
+            let pos = match baseline.as_ref() {
+                Some(b) => b.positions[index].clone(),
+                None => plan.applied_pos_request.clone(),
+            };
             positions.push(ExactDecimal::new(false, pos, 0).map_err(|_| "encode")?);
         }
         let quoted = quote_physical_name(&physical).map_err(|_| "physical")?;
@@ -3813,8 +5881,8 @@ async fn apply_tx_baseline(
             max_chunk_bytes: 1_048_576,
             max_rows_per_chunk: 1024,
         };
-        let copy_started=std::time::Instant::now();
-        let sent_rows = if let Some(baseline) = baseline.as_ref() {
+        let copy_started = std::time::Instant::now();
+        let sent_rows = if let Some(lease) = copy_lease.as_ref() {
             let mut rows = 0_u64;
             let mut max_chunk_ms = 0_u128;
             for (index, chunk) in prepared.batch.rows.chunks(512).enumerate() {
@@ -3824,30 +5892,125 @@ async fn apply_tx_baseline(
                     protocol: prepared.batch.protocol,
                     type_policy_version: prepared.batch.type_policy_version,
                     source_id: prepared.batch.source_id.clone(),
-                    schema: prepared.batch.schema.clone(), table: prepared.batch.table.clone(),
-                    run_generation: prepared.batch.run_generation, input_digest: prepared.batch.input_digest,
-                    plans: prepared.batch.plans.clone(), fields: prepared.batch.fields.clone(),
-                    rows: chunk.to_vec(), arrow: Vec::new(), rejects: Vec::new(),
+                    schema: prepared.batch.schema.clone(),
+                    table: prepared.batch.table.clone(),
+                    run_generation: prepared.batch.run_generation,
+                    input_digest: prepared.batch.input_digest,
+                    plans: prepared.batch.plans.clone(),
+                    fields: prepared.batch.fields.clone(),
+                    rows: chunk.to_vec(),
+                    arrow: Vec::new(),
+                    rejects: Vec::new(),
                 };
                 let start = index * 512;
                 let chunk_started = std::time::Instant::now();
-                let sent = copy_sink::send_batch(tx, &statement, &batch, &prepared.copy_columns,
-                    &positions[start..start + chunk.len()], budgets).await.map_err(sink_token)?;
-                if sent.rows != chunk.len() as u64 { return Err("rows"); }
+                let sent = copy_sink::send_batch(
+                    tx,
+                    &statement,
+                    &batch,
+                    &prepared.copy_columns,
+                    &positions[start..start + chunk.len()],
+                    budgets,
+                )
+                .await
+                .map_err(sink_token)?;
+                if sent.rows != chunk.len() as u64 {
+                    return Err("rows");
+                }
                 rows += sent.rows;
                 max_chunk_ms = max_chunk_ms.max(chunk_started.elapsed().as_millis());
-                baseline_held_heartbeat(tx, &baseline.lease).await?;
+                baseline_held_heartbeat(tx, lease).await?;
             }
-            eprintln!("oo-pipeline: baseline-copy-chunks table={} rows={} chunk_rows=512 max_chunk_ms={}",plan.table,rows,max_chunk_ms);
+            let phase = if c5_lease.is_some() {
+                "c5-copy-chunks"
+            } else {
+                "baseline-copy-chunks"
+            };
+            eprintln!(
+                "oo-pipeline: {phase} table={} rows={} chunk_rows=512 max_chunk_ms={}",
+                plan.table, rows, max_chunk_ms
+            );
             rows
         } else {
-            copy_sink::send_batch(tx, &statement, &prepared.batch, &prepared.copy_columns,
-                &positions, budgets).await.map_err(sink_token)?.rows
+            copy_sink::send_batch(
+                tx,
+                &statement,
+                &prepared.batch,
+                &prepared.copy_columns,
+                &positions,
+                budgets,
+            )
+            .await
+            .map_err(sink_token)?
+            .rows
         };
-        if baseline.is_some() {eprintln!("oo-pipeline: baseline-phase table={} phase=copy rows={} elapsed_ms={}",plan.table,sent_rows,copy_started.elapsed().as_millis());}
-        if sent_rows != upsert_rows as u64 { return Err("rows"); }
+        if baseline.is_some() {
+            eprintln!(
+                "oo-pipeline: baseline-phase table={} phase=copy rows={} elapsed_ms={}",
+                plan.table,
+                sent_rows,
+                copy_started.elapsed().as_millis()
+            );
+        }
+        if sent_rows != upsert_rows as u64 {
+            return Err("rows");
+        }
     }
-    let expected = copied + i64::try_from(upsert_rows).unwrap_or(i64::MAX);
+    let expected = copied
+        .checked_add(i64::try_from(upsert_rows).map_err(|_| "rows")?)
+        .ok_or("rows")?;
+    if plan.range_scope.is_some() {
+        if let Some(lease) = &c5_lease {
+            baseline_held_heartbeat(tx, lease).await?;
+        }
+        sqlx::raw_sql(sqlx::AssertSqlSafe("SET CONSTRAINTS ALL IMMEDIATE"))
+            .execute(&mut **tx)
+            .await
+            .map_err(|_| "seal")?;
+        if let Some(scope) = parts_scope {
+            let checked: i64 = sqlx::query_scalar(
+                "SELECT _oo.c5_parts_reconcile($1,$2::uuid,$3,$4::uuid,$5::jsonb)",
+            )
+            .bind(&plan.shard)
+            .bind(&plan.owner)
+            .bind(target_generation)
+            .bind(&run_id)
+            .bind(scope.to_string())
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(sql_token)?;
+            if checked != upsert_rows as i64 {
+                return Err("readback");
+            }
+        } else {
+            reconcile_c5_delta(tx, &run_id, plan, prepared.as_ref(), c5_lease.as_ref()).await?;
+        }
+        if let Some(lease) = &c5_lease {
+            baseline_held_heartbeat(tx, lease).await?;
+        }
+        let finish = if parts_scope.is_some() {
+            "SELECT _oo.c5_parts_overlay_finish($1,$2::uuid,$3,$4::uuid,$5::jsonb)"
+        } else {
+            "SELECT _oo.c5_overlay_finish($1,$2::uuid,$3,$4::uuid)"
+        };
+        let finish = sqlx::query_scalar(finish)
+            .bind(&plan.shard)
+            .bind(&plan.owner)
+            .bind(target_generation)
+            .bind(&run_id);
+        let finish = if let Some(scope) = parts_scope {
+            finish.bind(scope.to_string())
+        } else {
+            finish
+        };
+        let composed: i64 = finish.fetch_one(&mut **tx).await.map_err(sql_token)?;
+        if composed != expected {
+            return Err("readback");
+        }
+        if let Some(lease) = &c5_lease {
+            baseline_held_heartbeat(tx, lease).await?;
+        }
+    }
     let counted: i64 = sqlx::query_scalar("SELECT _oo.native_update_shadow_count($1)")
         .bind(&physical)
         .fetch_one(&mut **tx)
@@ -3875,12 +6038,42 @@ async fn apply_tx_baseline(
     // Row ordinals/counts are not source cursor positions, for any codec.
     let applied_pos = plan.applied_pos_request.clone();
     let hook = hook_digest();
-    let rejects=baseline.as_ref().map(|b|b.quality.as_slice()).unwrap_or(&[]);
-    let reasons=rejects.iter().map(|r|text_field(r,"reason").map(str::to_owned)).collect::<Result<Vec<_>,_>>()?;
-    let value_lens=rejects.iter().map(|r|r["value_len"].as_i64().ok_or("baseline_quality")).collect::<Result<Vec<_>,_>>()?;
-    let attnums=rejects.iter().map(|r|r["attnum"].as_i64().and_then(|n|i32::try_from(n).ok()).filter(|n|*n>0 && (*n as usize)<=plan.columns.len()).ok_or("baseline_quality")).collect::<Result<Vec<_>,_>>()?;
-    let row_indexes=rejects.iter().map(|r|r["row"].as_i64().filter(|n|*n>=0 && *n<counted).ok_or("baseline_quality")).collect::<Result<Vec<_>,_>>()?;
-    let key_digests=rejects.iter().map(|r|hex_field(r,"key_digest")).collect::<Result<Vec<_>,_>>().map_err(|_|"baseline_quality")?;
+    let rejects = baseline
+        .as_ref()
+        .map(|b| b.quality.as_slice())
+        .unwrap_or(&[]);
+    let reasons = rejects
+        .iter()
+        .map(|r| text_field(r, "reason").map(str::to_owned))
+        .collect::<Result<Vec<_>, _>>()?;
+    let value_lens = rejects
+        .iter()
+        .map(|r| r["value_len"].as_i64().ok_or("baseline_quality"))
+        .collect::<Result<Vec<_>, _>>()?;
+    let attnums = rejects
+        .iter()
+        .map(|r| {
+            r["attnum"]
+                .as_i64()
+                .and_then(|n| i32::try_from(n).ok())
+                .filter(|n| *n > 0 && (*n as usize) <= plan.columns.len())
+                .ok_or("baseline_quality")
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let row_indexes = rejects
+        .iter()
+        .map(|r| {
+            r["row"]
+                .as_i64()
+                .filter(|n| *n >= 0 && *n < counted)
+                .ok_or("baseline_quality")
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let key_digests = rejects
+        .iter()
+        .map(|r| hex_field(r, "key_digest"))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| "baseline_quality")?;
     let wrote: String = sqlx::query_scalar(
         "SELECT _oo.full_import_write_batch($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::numeric, $16, $17, $18::text[], $19::bigint[], $20::integer[], $21::bigint[], $22::text[])",
     )
@@ -3921,50 +6114,65 @@ async fn apply_tx_baseline(
         .execute(&mut **tx)
         .await
         .map_err(sql_token)?;
-    if let Some(baseline)=baseline {
-        baseline_held_heartbeat(tx,&baseline.lease).await?;
-        let compare_started=std::time::Instant::now();
+    if let Some(baseline) = baseline {
+        baseline_held_heartbeat(tx, &baseline.lease).await?;
+        let compare_started = std::time::Instant::now();
         let rows: i64=sqlx::query_scalar("SELECT _oo.native_c1_baseline_bind_table($1,$2::uuid,$3,$4,$5,$6::uuid,$7,$8::uuid,$9,$10,$11::text[],$12::text[])")
             .bind(&plan.source_id).bind(plan.lease_id.as_deref().ok_or("lease_required")?)
             .bind(plan.lease_generation.ok_or("lease_required")?).bind(baseline.epoch)
             .bind(&plan.shard).bind(&plan.owner).bind(target_generation).bind(&run_id)
-            .bind(&plan.schema).bind(&plan.table).bind(&plan.column_idents).bind(&plan.key_idents)
+            .bind(&baseline.source_schema).bind(&baseline.source_table).bind(&plan.column_sources)
+            .bind(plan.key_indexes.iter().map(|i|plan.column_sources[*i].clone()).collect::<Vec<_>>())
             .fetch_one(&mut **tx).await.map_err(sql_token)?;
-        eprintln!("oo-pipeline: baseline-phase table={} phase=compare rows={} elapsed_ms={}",plan.table,rows,compare_started.elapsed().as_millis());
-        if rows!=counted {return Err("readback");}
+        eprintln!(
+            "oo-pipeline: baseline-phase table={} phase=compare rows={} elapsed_ms={}",
+            plan.table,
+            rows,
+            compare_started.elapsed().as_millis()
+        );
+        if rows != counted {
+            return Err("readback");
+        }
     }
     let seal = if plan.position_codec == "mssql-ct-version/v1" {
-        sqlx::query("SELECT _oo.native_sqlserver_ct_seal_quality($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12::numeric, $13, $14, $15, $16, $17, $18, $19::text[], $20, $21, $22, $23)")
+        sqlx::query(
+            "SELECT _oo.native_sqlserver_ct_seal_quality($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12::numeric, $13, $14, $15, $16, $17, $18, $19::text[], $20, $21, $22, $23)",
+        )
     } else {
-        sqlx::query("SELECT _oo.native_update_seal_quality($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12::numeric, $13, $14, $15, $16, $17, $18, $19::text[], $20, $21, $22, $23)")
+        sqlx::query(
+            "SELECT _oo.native_update_seal_quality($1, $2::uuid, $3, $4::uuid, $5, $6, $7, $8, $9, $10, $11, $12::numeric, $13, $14, $15, $16, $17, $18, $19::text[], $20, $21, $22, $23)",
+        )
     };
-    seal
-    .bind(&plan.shard)
-    .bind(&plan.owner)
-    .bind(target_generation)
-    .bind(&run_id)
-    .bind(&plan.source_id)
-    .bind(plan.source_generation)
-    .bind(&plan.schema)
-    .bind(&plan.table)
-    .bind(&physical)
-    .bind(&plan.batch_id)
-    .bind(&plan.payload_digest)
-    .bind(&applied_pos)
-    .bind(if plan.partition_scope.is_some() { "snapshot-zero/v1" } else { &plan.position_codec })
-    .bind(&plan.position_lineage)
-    .bind(&plan.capture_method)
-    .bind(&plan.delete_detection)
-    .bind(&plan.consistency_grade)
-    .bind(plan.cross_table)
-    .bind(&replaced_keys)
-    .bind(counted)
-    .bind(reconcile)
-    .bind(0_i64)
-    .bind(plan.mode)
-    .execute(&mut **tx)
-    .await
-    .map_err(sql_token)?;
+    seal.bind(&plan.shard)
+        .bind(&plan.owner)
+        .bind(target_generation)
+        .bind(&run_id)
+        .bind(&plan.source_id)
+        .bind(plan.source_generation)
+        .bind(&plan.schema)
+        .bind(&plan.table)
+        .bind(&physical)
+        .bind(&plan.batch_id)
+        .bind(&plan.payload_digest)
+        .bind(&applied_pos)
+        .bind(if plan.partition_scope.is_some() {
+            "snapshot-zero/v1"
+        } else {
+            &plan.position_codec
+        })
+        .bind(&plan.position_lineage)
+        .bind(&plan.capture_method)
+        .bind(&plan.delete_detection)
+        .bind(&plan.consistency_grade)
+        .bind(plan.cross_table)
+        .bind(&replaced_keys)
+        .bind(counted)
+        .bind(reconcile)
+        .bind(0_i64)
+        .bind(plan.mode)
+        .execute(&mut **tx)
+        .await
+        .map_err(sql_token)?;
     if let Some(scope) = plan.partition_scope.as_ref() {
         let scope_text = serde_json::to_string(scope).map_err(|_| "partition_scope_required")?;
         sqlx::query("SELECT _oo.native_partition_commit($1, $2::uuid, $3, $4, $5, $6, $7::jsonb, $8::text[], $9::uuid, $10, $11, $12, $13, $14, $15, $16::uuid, $17)")
@@ -4003,17 +6211,133 @@ async fn apply_tx_baseline(
     if sealed != "awaiting_publish" {
         return Err("seal");
     }
+    if let Some(scope) = parts_scope {
+        if let Some(lease) = &c5_lease {
+            baseline_held_heartbeat(tx, lease).await?;
+        }
+        sqlx::query("SELECT _oo.c5_parts_commit($1,$2::uuid,$3,$4::jsonb,$5::uuid,$6,$7)")
+            .bind(&plan.shard)
+            .bind(&plan.owner)
+            .bind(target_generation)
+            .bind(scope.to_string())
+            .bind(&run_id)
+            .bind(&plan.batch_id)
+            .bind(&plan.payload_digest)
+            .execute(&mut **tx)
+            .await
+            .map_err(sql_token)?;
+    } else if let Some(scope) = &plan.range_scope {
+        if let Some(lease) = &c5_lease {
+            baseline_held_heartbeat(tx, lease).await?;
+        }
+        sqlx::query(
+            "SELECT _oo.c5_range_commit($1,$2::uuid,$3,$4::jsonb,$5::text[],$6::uuid,$7,$8)",
+        )
+        .bind(&plan.shard)
+        .bind(&plan.owner)
+        .bind(target_generation)
+        .bind(serde_json::to_string(scope).map_err(|_| "c5_range_scope")?)
+        .bind(&upsert_keys)
+        .bind(&run_id)
+        .bind(&plan.batch_id)
+        .bind(&plan.payload_digest)
+        .execute(&mut **tx)
+        .await
+        .map_err(sql_token)?;
+    }
     let stage = stage_probe(tx, &physical).await?;
     Ok(Applied {
         run_id,
         target_generation,
         physical_name: physical,
         row_count: counted,
-        tombstone_count: replaced_keys.len(),
+        tombstone_count: match parts_deleted {
+            Some(count) => usize::try_from(count).map_err(|_| "rows")?,
+            None => replaced_keys.len(),
+        },
         receipt: wrote,
         stage_select_granted: stage.as_ref().map(|flags| flags.table_select),
         stage_freshness_select: stage.as_ref().map(|flags| flags.freshness_select),
     })
+}
+
+async fn reconcile_c5_delta(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    run_id: &str,
+    plan: &UpdatePlan,
+    prepared: Option<&native_arrow::PreparedTable>,
+    lease: Option<&Value>,
+) -> Result<(), &'static str> {
+    use crate::c1_parts::{logical_type_of_pg, source_cell};
+    let columns = column_physical_names(plan, prepared)?;
+    let rows: Vec<String> = sqlx::query_scalar(
+        "SELECT cells::text FROM _oo.c5_delta_read_cells($1::uuid,$2::text[]) AS r(cells)",
+    )
+    .bind(run_id)
+    .bind(columns)
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(sql_token)?;
+    if let Some(lease) = lease {
+        baseline_held_heartbeat(tx, lease).await?;
+    }
+    let Some(prepared) = prepared else {
+        return if rows.is_empty() {
+            Ok(())
+        } else {
+            Err("cell_mismatch")
+        };
+    };
+    let types = prepared
+        .verified_columns
+        .iter()
+        .map(|column| logical_type_of_pg(column.oid, column.typmod))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| "c5_delta_cell_type")?;
+    let mut expected = std::collections::BTreeMap::<Vec<u8>, u64>::new();
+    let started = std::time::Instant::now();
+    let mut keeper = LeaseKeeper::for_lease(BASELINE_LEASE_TTL);
+    for (index, row) in prepared.batch.rows.iter().enumerate() {
+        let cells = row
+            .cells
+            .iter()
+            .map(source_cell)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| "c5_delta_cell_type")?;
+        let bytes = canonical_row(&types, &cells).map_err(|_| "c5_delta_cell_type")?;
+        *expected.entry(bytes).or_default() += 1;
+        if index % 512 == 0
+            && let Some(lease) = lease
+        {
+            renew_if_due(tx, lease, &mut keeper, started).await?;
+        }
+    }
+    let mut actual = std::collections::BTreeMap::<Vec<u8>, u64>::new();
+    for (index, row) in rows.into_iter().enumerate() {
+        let values: Vec<Option<String>> =
+            serde_json::from_str(&row).map_err(|_| "c5_delta_cell_type")?;
+        if values.len() != prepared.verified_columns.len() {
+            return Err("cell_mismatch");
+        }
+        let cells = values
+            .iter()
+            .zip(&prepared.verified_columns)
+            .map(|(text, column)| pg_text_cell(column.oid, text.as_deref()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| "c5_delta_cell_type")?;
+        let bytes = canonical_row(&types, &cells).map_err(|_| "c5_delta_cell_type")?;
+        *actual.entry(bytes).or_default() += 1;
+        if index % 512 == 0
+            && let Some(lease) = lease
+        {
+            renew_if_due(tx, lease, &mut keeper, started).await?;
+        }
+    }
+    // This proves changed cells only; it must not advance full-table L4 freshness.
+    if actual != expected {
+        return Err("cell_mismatch");
+    }
+    Ok(())
 }
 
 fn column_physical_names(
@@ -4238,7 +6562,7 @@ pub fn jobs_lease_interface() -> Value {
     value
 }
 
-async fn lease_hold(
+pub(crate) async fn lease_hold(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     lease_id: &str,
     lease_generation: Option<i64>,
@@ -4308,10 +6632,22 @@ async fn position_ahead(
             "SELECT applied_pos::text, position_codec, position_lineage FROM _oo.source_watermark WHERE source=$1"
         ).bind(&plan.source_id).fetch_optional(&mut **tx).await.map_err(sql_token)?;
         let (position, codec, lineage) = stored.ok_or("expired")?;
-        if codec != plan.position_codec || lineage != plan.position_lineage || plan.ct_prior_position.as_deref() != Some(position.as_str()) { return Err("expired"); }
+        if codec != plan.position_codec
+            || lineage != plan.position_lineage
+            || plan.ct_prior_position.as_deref() != Some(position.as_str())
+        {
+            return Err("expired");
+        }
         let ordering = decimal_cmp(&plan.applied_pos_request, &position)?;
-        let empty = decode_arrow_stream(&plan.arrow).map_err(arrow_token)?.rows == 0 && plan.tombstones.is_empty();
-        return if ordering == std::cmp::Ordering::Greater || ordering == std::cmp::Ordering::Equal && empty { Ok(()) } else { Err("expired") };
+        let empty = decode_arrow_stream(&plan.arrow).map_err(arrow_token)?.rows == 0
+            && plan.tombstones.is_empty();
+        return if ordering == std::cmp::Ordering::Greater
+            || ordering == std::cmp::Ordering::Equal && empty
+        {
+            Ok(())
+        } else {
+            Err("expired")
+        };
     }
     if plan.position_codec == "mongo-cluster-time/v1" {
         // Same replica-set lineage only. source_epoch is not a column on this
@@ -4325,7 +6661,8 @@ async fn position_ahead(
         if codec != plan.position_codec || lineage != plan.position_lineage {
             return Err("incomparable");
         }
-        return if decimal_cmp(&plan.applied_pos_request, &position)? == std::cmp::Ordering::Greater {
+        return if decimal_cmp(&plan.applied_pos_request, &position)? == std::cmp::Ordering::Greater
+        {
             Ok(())
         } else {
             Err("expired")
@@ -4341,18 +6678,26 @@ async fn position_ahead(
         if codec != plan.position_codec || lineage != plan.position_lineage {
             return Err("incomparable");
         }
-        return if decimal_cmp(&plan.applied_pos_request, &position)? == std::cmp::Ordering::Greater {
+        return if decimal_cmp(&plan.applied_pos_request, &position)? == std::cmp::Ordering::Greater
+        {
             Ok(())
         } else {
             Err("expired")
         };
     }
     if plan.source_engine == "postgresql" || plan.source_engine == "postgres" {
-        if plan.position_codec != "pg-commit-lsn/v1" { return Err("expired"); }
-        let ahead: bool = sqlx::query_scalar(
-            "SELECT _oo.native_pg_position_ahead($1, $2, $3, $4::numeric)"
-        ).bind(&plan.source_id).bind(&plan.schema).bind(&plan.table)
-         .bind(&plan.applied_pos_request).fetch_one(&mut **tx).await.map_err(sql_token)?;
+        if plan.position_codec != "pg-commit-lsn/v1" {
+            return Err("expired");
+        }
+        let ahead: bool =
+            sqlx::query_scalar("SELECT _oo.native_pg_position_ahead($1, $2, $3, $4::numeric)")
+                .bind(&plan.source_id)
+                .bind(&plan.schema)
+                .bind(&plan.table)
+                .bind(&plan.applied_pos_request)
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(sql_token)?;
         return if ahead { Ok(()) } else { Err("expired") };
     }
     let stored: Option<String> =
@@ -4412,7 +6757,9 @@ fn success_result(
 }
 
 fn partition_target_receipt(plan: &UpdatePlan) -> Value {
-    let Some(scope) = plan.partition_scope.as_ref() else { return Value::Null; };
+    let Some(scope) = plan.partition_scope.as_ref() else {
+        return Value::Null;
+    };
     let mut receipt = json!({
         "partition_scope": scope,
         "payload_digest": plan.payload_digest,
@@ -4836,7 +7183,9 @@ fn mongo_lineage(lineage: &str) -> bool {
         && bytes.len() <= 128
         && bytes[0].is_ascii_lowercase()
         && bytes.iter().all(|byte| {
-            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'.' | b':' | b'-')
+            byte.is_ascii_lowercase()
+                || byte.is_ascii_digit()
+                || matches!(byte, b'_' | b'.' | b':' | b'-')
         })
 }
 
@@ -4927,6 +7276,16 @@ pub fn encode_fixture_arrow(
     let body = encode_body(columns, rows)?;
     let schema = schema_meta(columns)?;
     let batch = batch_meta(columns, rows, body.len())?;
+    Ok(wrap_file(&schema, &batch, &body))
+}
+
+pub fn encode_empty_fixture_arrow(columns: &[FixtureColumn]) -> Result<Vec<u8>, &'static str> {
+    if columns.is_empty() {
+        return Err("bad_type");
+    }
+    let body = encode_body(columns, &[])?;
+    let schema = schema_meta(columns)?;
+    let batch = batch_meta(columns, &[], body.len())?;
     Ok(wrap_file(&schema, &batch, &body))
 }
 
@@ -5357,11 +7716,22 @@ mod tests {
 
     #[test]
     fn ct_batch_anchor_no_change_and_scope_are_checked() {
-        let columns = [FixtureColumn { name: "id".into(), nullable: false, kind: FixtureKind::Int64 }];
+        let columns = [FixtureColumn {
+            name: "id".into(),
+            nullable: false,
+            kind: FixtureKind::Int64,
+        }];
         let none: &[Vec<FixtureCell>] = &[];
         let body = encode_body(&columns, none).unwrap();
-        let empty = wrap_file(&schema_meta(&columns).unwrap(), &batch_meta(&columns, none, body.len()).unwrap(), &body);
-        assert_eq!(decode_arrow_stream(&empty).map(|decoded| decoded.rows), Ok(0));
+        let empty = wrap_file(
+            &schema_meta(&columns).unwrap(),
+            &batch_meta(&columns, none, body.len()).unwrap(),
+            &body,
+        );
+        assert_eq!(
+            decode_arrow_stream(&empty).map(|decoded| decoded.rows),
+            Ok(0)
+        );
         let one = encode_fixture_arrow(&columns, &[vec![FixtureCell::Int(1)]]).unwrap();
         let candidate = json!({"protocol":"oo.mssql-preview.ct-position/v1","source_id":"sql1","database":"fixture",
             "database_guid":"11111111-1111-4111-8111-111111111111","recovery_fork_guid":"22222222-2222-4222-8222-222222222222",
@@ -5376,34 +7746,187 @@ mod tests {
             "snapshot":capture["snapshot"],"tombstones":[],"key_columns":["id"],"full_snapshot":false,"applied_pos":"5",
             "position_lineage":"mssql.11111111-1111-4111-8111-111111111111.22222222-2222-4222-8222-222222222222"});
         assert_eq!(validate_mssql_capture(&request, &capture, &empty), Ok(()));
-        let mut wrong=request.clone();wrong["applied_pos"]=json!("6");
-        assert_eq!(validate_mssql_capture(&wrong,&capture,&empty),Err("ct_scope"));
-        wrong=request.clone();wrong["tombstones"]=json!(["1"]);
-        assert_eq!(validate_mssql_capture(&wrong,&capture,&empty),Err("ct_scope"));
+        let mut wrong = request.clone();
+        wrong["applied_pos"] = json!("6");
+        assert_eq!(
+            validate_mssql_capture(&wrong, &capture, &empty),
+            Err("ct_scope")
+        );
+        wrong = request.clone();
+        wrong["tombstones"] = json!(["1"]);
+        assert_eq!(
+            validate_mssql_capture(&wrong, &capture, &empty),
+            Err("ct_scope")
+        );
         let echoed = "\\x000000FF";
-        wrong=request.clone();wrong["tombstones"]=json!([echoed]);wrong["applied_pos"]=json!("6");
-        wrong["sqlserver_candidate_position"]["tables"][0]["version"]=json!(6);
-        wrong["snapshot"]=json!({"kind":"mssql_ct_version","value":"6"});
-        let mut echoed_capture=capture.clone();
-        echoed_capture["tombstones"]=json!([echoed]);
-        echoed_capture["candidate_position"]=wrong["sqlserver_candidate_position"].clone();
-        echoed_capture["snapshot"]=wrong["snapshot"].clone();
-        assert_eq!(validate_mssql_capture(&wrong,&echoed_capture,&empty),Err("ct_scope"));
-        let key = cell_key_text(&NativeCell::Binary(vec![0,0,0,255])).unwrap();
+        wrong = request.clone();
+        wrong["tombstones"] = json!([echoed]);
+        wrong["applied_pos"] = json!("6");
+        wrong["sqlserver_candidate_position"]["tables"][0]["version"] = json!(6);
+        wrong["snapshot"] = json!({"kind":"mssql_ct_version","value":"6"});
+        let mut echoed_capture = capture.clone();
+        echoed_capture["tombstones"] = json!([echoed]);
+        echoed_capture["candidate_position"] = wrong["sqlserver_candidate_position"].clone();
+        echoed_capture["snapshot"] = wrong["snapshot"].clone();
+        assert_eq!(
+            validate_mssql_capture(&wrong, &echoed_capture, &empty),
+            Err("ct_scope")
+        );
+        let key = cell_key_text(&NativeCell::Binary(vec![0, 0, 0, 255])).unwrap();
         assert_eq!(key, "\\x000000ff");
-        wrong["tombstones"]=json!([key]);
-        echoed_capture["tombstones"]=wrong["tombstones"].clone();
-        assert_eq!(validate_mssql_capture(&wrong,&echoed_capture,&empty),Ok(()));
-        let mut changed=capture.clone();changed["upserts"]=json!(1);changed["candidate_position"]["tables"][0]["version"]=json!(6);
-        let mut advanced=request.clone();advanced["applied_pos"]=json!("6");
-        advanced["sqlserver_candidate_position"]=changed["candidate_position"].clone();
-        advanced["snapshot"]=json!({"kind":"mssql_ct_version","value":"6"});
-        changed["snapshot"]=advanced["snapshot"].clone();
-        assert_eq!(validate_mssql_capture(&advanced,&changed,&empty),Err("ct_scope"));
-        changed["upserts"]=json!(1);
-        assert_eq!(validate_mssql_capture(&request,&changed,&one),Err("ct_scope"));
-        changed=capture.clone();changed["upserts"]=json!(1);
-        assert_eq!(validate_mssql_capture(&request,&changed,&one),Err("expired"));
+        wrong["tombstones"] = json!([key]);
+        echoed_capture["tombstones"] = wrong["tombstones"].clone();
+        assert_eq!(
+            validate_mssql_capture(&wrong, &echoed_capture, &empty),
+            Ok(())
+        );
+        let mut changed = capture.clone();
+        changed["upserts"] = json!(1);
+        changed["candidate_position"]["tables"][0]["version"] = json!(6);
+        let mut advanced = request.clone();
+        advanced["applied_pos"] = json!("6");
+        advanced["sqlserver_candidate_position"] = changed["candidate_position"].clone();
+        advanced["snapshot"] = json!({"kind":"mssql_ct_version","value":"6"});
+        changed["snapshot"] = advanced["snapshot"].clone();
+        assert_eq!(
+            validate_mssql_capture(&advanced, &changed, &empty),
+            Err("ct_scope")
+        );
+        changed["upserts"] = json!(1);
+        assert_eq!(
+            validate_mssql_capture(&request, &changed, &one),
+            Err("ct_scope")
+        );
+        changed = capture.clone();
+        changed["upserts"] = json!(1);
+        assert_eq!(
+            validate_mssql_capture(&request, &changed, &one),
+            Err("expired")
+        );
+    }
+
+    #[test]
+    fn c5_range_scope_cannot_fall_back_to_whole_table_snapshot() {
+        let mut request = base_request();
+        request["range_scope"] = json!({});
+        request["full_snapshot"] = json!(true);
+        assert!(matches!(
+            classify(&request),
+            Err("c5_range_loader_required")
+        ));
+        request["protocol"] = json!(PARTITION_PROTOCOL);
+        assert!(matches!(
+            classify(&request),
+            Err("c5_range_loader_required")
+        ));
+    }
+
+    #[test]
+    fn admitted_ranges_advance_generations_not_snapshot_zero_positions() {
+        assert!(!zero_position_is_expired(true, "unique", false, true));
+        assert!(zero_position_is_expired(true, "unique", false, false));
+        assert!(!zero_position_is_expired(true, "snapshot", false, false));
+        assert!(!zero_position_is_expired(false, "unique", false, false));
+    }
+
+    #[test]
+    fn c5_range_dispatch_requires_sealed_binding_and_closed_envelope() {
+        let mut native = base_request();
+        native["source_engine"] = json!("mysql");
+        native["source_id"] = json!("fixture");
+        native["full_snapshot"] = json!(false);
+        native["snapshot"] = json!({"kind":"c5_cycle","value":"fixture"});
+        native["consistency_grade"] = json!("B");
+        let arrow = encode_fixture_arrow(
+            &[
+                FixtureColumn {
+                    name: "reading_id".into(),
+                    nullable: false,
+                    kind: FixtureKind::Int64,
+                },
+                FixtureColumn {
+                    name: "amount".into(),
+                    nullable: false,
+                    kind: FixtureKind::Int64,
+                },
+                FixtureColumn {
+                    name: "note".into(),
+                    nullable: false,
+                    kind: FixtureKind::Utf8,
+                },
+            ],
+            &[vec![
+                FixtureCell::Int(1),
+                FixtureCell::Int(2),
+                FixtureCell::Text("value".into()),
+            ]],
+        )
+        .unwrap();
+        let path = std::env::temp_dir().join(format!(
+            "oo-wf-c5load-dispatch-{}.arrow",
+            std::process::id()
+        ));
+        fs::write(&path, &arrow).unwrap();
+        native["arrow_path"] = json!(path);
+        native["input_digest"] = json!(native_arrow::arrow_sha256(&arrow));
+
+        let mut request = json!({"protocol":crate::native_c5_range::REQUEST_PROTOCOL,"source_engine":"mysql","capture_method":"c5_diff","source_id":"fixture","schema":"meter","table":"readings","schema_fingerprint":"a".repeat(64),"chunk_topology_revision":1,"chunk_id":"0","lo":null,"hi":null,"prior_membership_revision":0,"parent_generation":0,"source_generation":1,"arrow_sha256":native["input_digest"],"row_count":0,"delete_detection":"reconcile","position_codec":"snapshot-zero/v1","applied_pos":"0","members":[[{"kind":"int","value":1}]],"native_request":native});
+        request["row_count"] = json!(1);
+        match classify(&request) {
+            Err("nonadmitted") => {}
+            Err(reason) => panic!("{reason}"),
+            Ok(_) => panic!("unbound range accepted"),
+        }
+        request["where"] = json!("true");
+        assert!(classify(&request).is_err());
+        request.as_object_mut().unwrap().remove("where");
+        request["native_request"]["where"] = json!("true");
+        assert!(matches!(classify(&request), Err("c5_range_request")));
+        request["native_request"]
+            .as_object_mut()
+            .unwrap()
+            .remove("where");
+        for field in [
+            "source_id",
+            "logical_schema",
+            "logical_table",
+            "input_digest",
+            "consistency_grade",
+        ] {
+            let mut changed = request.clone();
+            changed["native_request"][field] = json!("other");
+            assert!(
+                matches!(classify(&changed), Err("c5_range_scope_mismatch")),
+                "{field}"
+            );
+        }
+        request["native_request"]["key_columns"] = json!(["reading_id"]);
+        request["native_request"]
+            .as_object_mut()
+            .unwrap()
+            .remove("key_column");
+        request["key_columns"] = json!(["reading_id"]);
+        request["type_policy"] = json!({"zero_date_to_null":true,"strip_text_nul":true});
+        request["normalization_rejects"] =
+            json!({"path":"/owned/masked-notes.json","sha256":"b".repeat(64)});
+        assert!(matches!(classify(&request), Err("nonadmitted")));
+        for (field, value) in [
+            ("key_columns", json!(["unbound_key"])),
+            ("type_policy", json!({"arbitrary_conversion":true})),
+            ("type_policy", json!({"strip_text_nul":"true"})),
+            (
+                "normalization_rejects",
+                json!({"path":"relative","sha256":"b".repeat(64)}),
+            ),
+        ] {
+            let mut changed = request.clone();
+            changed[field] = value;
+            assert!(
+                matches!(classify(&changed), Err("c5_range_scope_mismatch")),
+                "{field}"
+            );
+        }
+        fs::remove_file(path).unwrap();
     }
 
     fn digests() -> Value {
@@ -5672,13 +8195,16 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
     fn historical_receipt_on_oracle_is_cross_source() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
             "../../evidence/2ecaf08e-eb23-4b7a-a720-e07459e6f2a6/DL01/budget-report/native-readonly-completion/receipt.json",
         );
-        if !path.is_file() {
-            return;
-        }
+        assert!(
+            path.is_file(),
+            "required retained receipt {}",
+            path.display()
+        );
         let digest = "ab".repeat(32);
         let mut request = base_request();
         request["source_engine"] = json!("doris");
@@ -5914,7 +8440,7 @@ mod tests {
         let registry = splice_stamp(&registry_blank, blank, &receipt_sha);
         fs::write(&receipt_path, &receipt).unwrap();
         fs::write(&registry_path, &registry).unwrap();
-        let mut opened = native_binding::open_server_registration(
+        let opened = native_binding::open_server_registration(
             &registry,
             &receipt,
             &arrow_sha,
@@ -5944,7 +8470,10 @@ mod tests {
         document["audit_digest"] = json!(audit_sha);
         native_binding::with_operator_env(native_binding::OperatorEnv::Absent, || {
             assert_eq!(classify(&document).err(), Some("nonadmitted"));
-            assert_eq!(trusted_capture(&document, &arrow).err(), Some("nonadmitted"));
+            assert_eq!(
+                trusted_capture(&document, &arrow).err(),
+                Some("nonadmitted")
+            );
         });
         if keep {
             let good_receipt = dir.join("receipt-good.json");
@@ -6031,11 +8560,23 @@ mod tests {
         assert!(!maria_stored("d0.s0", "6"));
         assert!(!maria_stored("d0.s1", "06"));
         assert!(!maria_stored("d00.s1", "6"));
-        assert_eq!(maria_order("d0.s1", "6", "d0.s1", "7").unwrap(), std::cmp::Ordering::Less);
-        assert_eq!(maria_order("d0.s1", "10", "d0.s1", "6").unwrap(), std::cmp::Ordering::Greater);
-        assert_eq!(maria_order("d0.s1", "6", "d1.s1", "100"), Err("incomparable"));
+        assert_eq!(
+            maria_order("d0.s1", "6", "d0.s1", "7").unwrap(),
+            std::cmp::Ordering::Less
+        );
+        assert_eq!(
+            maria_order("d0.s1", "10", "d0.s1", "6").unwrap(),
+            std::cmp::Ordering::Greater
+        );
+        assert_eq!(
+            maria_order("d0.s1", "6", "d1.s1", "100"),
+            Err("incomparable")
+        );
         assert_eq!(maria_order("d0.s1", "6", "d0.s2", "7"), Err("incomparable"));
-        assert_eq!(maria_order("d0.s1", "0-1-6", "d0.s1", "7"), Err("gtid_identity"));
+        assert_eq!(
+            maria_order("d0.s1", "0-1-6", "d0.s1", "7"),
+            Err("gtid_identity")
+        );
 
         let mut request = base_request();
         request["source_engine"] = json!("mariadb");
@@ -6142,7 +8683,10 @@ mod tests {
         let result = execute(&request).await.expect("refusal");
         assert_eq!(result["load_state"], json!("not_sealed"));
         assert_eq!(result["reason"], json!("lease_required"));
-        assert_eq!(result["jobs_observation"]["target_fence_certified"], json!(false));
+        assert_eq!(
+            result["jobs_observation"]["target_fence_certified"],
+            json!(false)
+        );
     }
 
     #[test]
@@ -6150,8 +8694,13 @@ mod tests {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tools/mariadb-preview/tests/fixtures/c1-gtid-0-1-7");
         let spool_bytes = fs::read(dir.join("spool.ndjson")).expect("spool");
-        let signature: Value = serde_json::from_slice(&fs::read(dir.join("signature.json")).expect("signature")).unwrap();
-        assert_eq!(signature["spool_sha256"], hex_bytes(&Sha256::digest(&spool_bytes)));
+        let signature: Value =
+            serde_json::from_slice(&fs::read(dir.join("signature.json")).expect("signature"))
+                .unwrap();
+        assert_eq!(
+            signature["spool_sha256"],
+            hex_bytes(&Sha256::digest(&spool_bytes))
+        );
         assert_eq!(signature["ack_allowed"], false);
         let lines: Vec<Value> = std::str::from_utf8(&spool_bytes)
             .unwrap()
@@ -6159,12 +8708,19 @@ mod tests {
             .filter(|line| !line.is_empty())
             .map(|line| serde_json::from_str(line).unwrap())
             .collect();
-        let ops: Vec<&str> = lines.iter().filter_map(|line| line["op"].as_str()).collect();
+        let ops: Vec<&str> = lines
+            .iter()
+            .filter_map(|line| line["op"].as_str())
+            .collect();
         assert_eq!(ops, ["c", "u", "d"]);
         assert_eq!(lines.last().unwrap()["txn_id"], "0-1-7");
         assert!(lines.last().unwrap().get("source_epoch").is_none());
-        assert_eq!(gtid_commit_identity(lines.last().unwrap()).err(), Some("gtid_identity"));
-        let positive: Value = serde_json::from_slice(&fs::read(dir.join("positive-maria.json")).unwrap()).unwrap();
+        assert_eq!(
+            gtid_commit_identity(lines.last().unwrap()).err(),
+            Some("gtid_identity")
+        );
+        let positive: Value =
+            serde_json::from_slice(&fs::read(dir.join("positive-maria.json")).unwrap()).unwrap();
         let parsed = gtid_commit_identity(&positive).expect("maria");
         assert_eq!(parsed.codec, "mariadb-gtid/v1");
         assert_eq!(parsed.lineage, "d0.s1");
@@ -6174,14 +8730,18 @@ mod tests {
         assert_ne!(parsed.txn_id, positive["resume_file"]);
         assert_ne!(parsed.applied_pos, positive["resume_pos"]);
         let mut without_resume = positive.clone();
-        without_resume.as_object_mut().unwrap().remove("resume_file");
+        without_resume
+            .as_object_mut()
+            .unwrap()
+            .remove("resume_file");
         without_resume.as_object_mut().unwrap().remove("resume_pos");
         assert_eq!(gtid_commit_identity(&without_resume).unwrap(), parsed);
         assert_eq!(
             gtid_scope_digest("logistics", &parsed),
             gtid_scope_digest("logistics", &gtid_commit_identity(&without_resume).unwrap())
         );
-        let mysql: Value = serde_json::from_slice(&fs::read(dir.join("positive-mysql.json")).unwrap()).unwrap();
+        let mysql: Value =
+            serde_json::from_slice(&fs::read(dir.join("positive-mysql.json")).unwrap()).unwrap();
         let mysql_id = gtid_commit_identity(&mysql).expect("mysql");
         assert_eq!(mysql_id.codec, "mysql-gtid/v1");
         assert_eq!(mysql_id.applied_pos, "7");
@@ -6189,27 +8749,36 @@ mod tests {
         assert!(!mysql_id.txn_id.contains("binlog"));
         let mut unregistered = mysql.clone();
         unregistered["source_epoch"] = json!(0);
-        assert_eq!(gtid_commit_identity(&unregistered).err(), Some("gtid_identity"));
+        assert_eq!(
+            gtid_commit_identity(&unregistered).err(),
+            Some("gtid_identity")
+        );
         assert_ne!(mysql_id.applied_pos, mysql["resume_pos"]);
         let mut other_epoch = mysql.clone();
         other_epoch["source_epoch"] = json!(2);
         let other = gtid_commit_identity(&other_epoch).unwrap();
         assert_eq!(gtid_order(&mysql_id, &other), Err("incomparable"));
-        let negatives: Vec<Value> = serde_json::from_slice(&fs::read(dir.join("negative.json")).unwrap()).unwrap();
+        let negatives: Vec<Value> =
+            serde_json::from_slice(&fs::read(dir.join("negative.json")).unwrap()).unwrap();
         assert!(negatives.len() >= 8);
         for case in &negatives {
             assert_eq!(
-                gtid_commit_identity(&case["entry"]).err().map(str::to_string),
+                gtid_commit_identity(&case["entry"])
+                    .err()
+                    .map(str::to_string),
                 case["error"].as_str().map(str::to_string),
                 "{}",
                 case["name"]
             );
         }
-        let lease: Value = serde_json::from_slice(&fs::read(dir.join("lease.json")).unwrap()).unwrap();
+        let lease: Value =
+            serde_json::from_slice(&fs::read(dir.join("lease.json")).unwrap()).unwrap();
         assert_eq!(lease["ack_allowed"], false);
         assert!(lease["lease_id"].is_null());
-        let rules: Value = serde_json::from_slice(&fs::read(dir.join("source-rules.json")).unwrap()).unwrap();
-        let gold: Value = serde_json::from_slice(&fs::read(dir.join("source-money-gold.json")).unwrap()).unwrap();
+        let rules: Value =
+            serde_json::from_slice(&fs::read(dir.join("source-rules.json")).unwrap()).unwrap();
+        let gold: Value =
+            serde_json::from_slice(&fs::read(dir.join("source-money-gold.json")).unwrap()).unwrap();
         let mut money = Vec::new();
         for column in rules["columns"].as_array().unwrap() {
             if column["semantic_type"] == "identifier" {
@@ -6225,7 +8794,10 @@ mod tests {
         money.sort();
         assert_eq!(
             money,
-            vec!["cust_east.k_note.money".to_string(), "logistics.shipments.cost_amount".to_string()]
+            vec![
+                "cust_east.k_note.money".to_string(),
+                "logistics.shipments.cost_amount".to_string()
+            ]
         );
         assert_eq!(gold["observed"]["currency_columns"], 0);
         assert_eq!(gold["observed"]["hub_9000000000001"], 0);
@@ -6364,15 +8936,18 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
     fn oracle_producer_catalog_seals_int16_and_refuses_a_crossed_source() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(
             "../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/c5-capture",
         );
         let arrow_path = root.join("run/arrow/t_wide-gen-1.arrow");
         let catalog_path = root.join("run/producer-catalog.json");
-        if !arrow_path.is_file() || !catalog_path.is_file() {
-            return;
-        }
+        assert!(
+            arrow_path.is_file() && catalog_path.is_file(),
+            "required Oracle capture at {}",
+            root.display()
+        );
         for (name, rows, kind) in [
             ("t_batch-gen-1.arrow", 5usize, "D:timestamp_micros"),
             ("t_batch-gen-3.arrow", 6, "N1:int8"),
@@ -6710,10 +9285,17 @@ mod tests {
             "config_digest":"a".repeat(64),"schema_digest":"b".repeat(64),
             "shard_id":"shard","owner_token":"00000000-0000-4000-8000-000000000001"
         });
-        let matches = |scope: &Value, instance: &Value| gtid_binding_matches(
-            Some(scope), Some(instance), "mysql_source", "mysql", &"a".repeat(64),
-            &"b".repeat(64), "shard", "00000000-0000-4000-8000-000000000001", &identity,
-        );
+        let matches = |scope: &Value, instance: &Value| {
+            gtid_binding_matches(
+                Some(scope),
+                Some(instance),
+                ("mysql_source", "mysql"),
+                (&"a".repeat(64), &"b".repeat(64)),
+                "shard",
+                "00000000-0000-4000-8000-000000000001",
+                &identity,
+            )
+        };
         assert!(matches(&scope, &instance));
         let mut changed_scope = scope.clone();
         changed_scope["source_epoch"] = json!(2);
@@ -6721,15 +9303,58 @@ mod tests {
         let mut changed_instance = instance.clone();
         changed_instance["owner_token"] = json!("00000000-0000-4000-8000-000000000002");
         assert!(!matches(&scope, &changed_instance));
-        assert!(!gtid_binding_matches(None, Some(&instance), "mysql_source", "mysql",
-            &"a".repeat(64), &"b".repeat(64), "shard",
-            "00000000-0000-4000-8000-000000000001", &identity));
+        assert!(!gtid_binding_matches(
+            None,
+            Some(&instance),
+            ("mysql_source", "mysql"),
+            (&"a".repeat(64), &"b".repeat(64)),
+            "shard",
+            "00000000-0000-4000-8000-000000000001",
+            &identity
+        ));
     }
 
     fn with_parent(request: &mut Value) {
         request["source_generation"] = json!(1);
         request["parent_source_generation"] = json!(0);
         request["applied_pos"] = json!("1");
+    }
+
+    #[test]
+    fn decimal_integer_primary_key_classifies_and_keeps_exact_identity() {
+        let mut request = base_request();
+        with_parent(&mut request);
+        request["columns"][0]["arrow_type"] = json!("decimal128");
+        request["columns"][0]["precision"] = json!(20);
+        request["columns"][0]["scale"] = json!(0);
+        request["tombstones"] = json!(["18446744073709551615"]);
+        let plan = classify(&request).expect("unsigned bigint mapped to decimal key");
+        assert_eq!(plan.key_indexes, vec![0]);
+        assert_eq!(
+            cell_key_text(&NativeCell::Decimal {
+                precision: 20,
+                scale: 0,
+                coefficient: 18446744073709551615,
+            })
+            .unwrap(),
+            "18446744073709551615"
+        );
+        for text in ["01", "-0", "1.0", "100000000000000000000", "1e2"] {
+            request["tombstones"] = json!([text]);
+            assert_eq!(classify(&request).err(), Some("bad_type"), "{text}");
+        }
+        request["tombstones"] = json!(["-99999999999999999999"]);
+        assert!(classify(&request).is_ok());
+        request["columns"][0]["scale"] = json!(1);
+        assert_eq!(classify(&request).err(), Some("bad_type"));
+        assert!(
+            cell_key_text(&NativeCell::Decimal {
+                precision: 2,
+                scale: 0,
+                coefficient: 100,
+            })
+            .is_err()
+        );
     }
 
     #[test]
@@ -6891,7 +9516,10 @@ mod tests {
         with_parent(&mut clickhouse);
         assert!(classify(&clickhouse).is_ok());
         clickhouse["capture_method"] = json!("c4_partition");
-        assert_eq!(classify(&clickhouse).err(), Some("partition_scope_required"));
+        assert_eq!(
+            classify(&clickhouse).err(),
+            Some("partition_scope_required")
+        );
         let mut request = base_request();
         request["source_engine"] = json!("starrocks");
         assert_eq!(classify(&request).err(), Some("upsert_window_unsupported"));
@@ -6907,6 +9535,67 @@ mod tests {
         request["upsert_supported"] = json!(true);
         let plan = classify(&request).expect("upsert");
         assert_eq!(plan.shape, "unique");
+    }
+
+    #[test]
+    fn synthetic_key_models_classify_without_capture_history() {
+        let dir = std::env::temp_dir().join(format!("oo-key-models-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("keys.arrow");
+        let columns = vec![FixtureColumn {
+            name: "id".to_string(),
+            nullable: false,
+            kind: FixtureKind::Int64,
+        }];
+        fs::write(
+            &path,
+            encode_fixture_arrow(
+                &columns,
+                &[vec![FixtureCell::Int(7)], vec![FixtureCell::Int(7)]],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            classify(&capture_request(&path, "id", "unique", "reconcile")).err(),
+            Some("conflict")
+        );
+        for identity in ["duplicate", "aggregate"] {
+            assert_eq!(
+                classify(&capture_request(&path, "id", identity, "reconcile"))
+                    .unwrap()
+                    .shape,
+                "snapshot"
+            );
+        }
+        assert_eq!(
+            classify(&capture_request(
+                &path,
+                "id",
+                "duplicate",
+                "partition_replace"
+            ))
+            .err(),
+            Some("partition_scope_required")
+        );
+        fs::write(
+            &path,
+            encode_fixture_arrow(
+                &columns,
+                &[vec![FixtureCell::Int(7)], vec![FixtureCell::Int(8)]],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        for engine in ["doris", "clickhouse"] {
+            let mut request = capture_request(&path, "id", "unique", "reconcile");
+            request["source_engine"] = json!(engine);
+            assert_eq!(classify(&request).unwrap().shape, "unique");
+        }
+        let mut request = capture_request(&path, "id", "unique", "reconcile");
+        request["source_engine"] = json!("starrocks");
+        assert_eq!(classify(&request).err(), Some("upsert_window_unsupported"));
+        fs::remove_dir_all(dir).unwrap();
     }
 
     fn capture_request(path: &Path, key: &str, identity: &str, delete_detection: &str) -> Value {
@@ -6943,6 +9632,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
     fn doris_b2_and_clickhouse_c4_classify_from_the_capture_key_model() {
         let doris = Path::new(env!("CARGO_MANIFEST_DIR")).join(
             "../../evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product/capture-live",
@@ -7034,7 +9724,8 @@ mod tests {
         let ch = Path::new(env!("CARGO_MANIFEST_DIR")).join(
             "../../evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/raw/run/product-run-14-c4/arrows/oo-dl01w1-40-c4b-a18-all.arrow",
         );
-        if ch.is_file() {
+        assert!(ch.is_file(), "required ClickHouse capture {}", ch.display());
+        {
             let mut request = capture_request(&ch, "reading_id", "unique", "reconcile");
             request["source_engine"] = json!("clickhouse");
             request["source_id"] = json!("clickhouse_268");
@@ -7049,14 +9740,10 @@ mod tests {
 
     #[test]
     fn oracle_wide_derives_unconstrained_number_without_forging_a_grade() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(
-            "../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/live-chain",
-        );
+        let root =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../oo-core/tests/fixtures/source-bound");
         let catalog_path = root.join("catalog-wide/catalog.json");
         let audit_path = root.join("identity-67/wide/audit/readonly-audit.json");
-        if !catalog_path.is_file() || !audit_path.is_file() {
-            return;
-        }
         let catalog: Value =
             serde_json::from_str(&fs::read_to_string(catalog_path).unwrap()).unwrap();
         let audit: Value = serde_json::from_str(&fs::read_to_string(audit_path).unwrap()).unwrap();
@@ -7416,13 +10103,34 @@ mod tests {
     #[test]
     #[ignore = "explicit owned baseline registry/Arrow preflight without target writes"]
     fn owned_baseline_plan_preflight() {
-        let root=std::path::PathBuf::from(std::env::var("OO_MYSQL_STAGE_PREFLIGHT").unwrap());
-        let request:Value=serde_json::from_slice(&std::fs::read(root.join("out/native-request.json")).unwrap()).unwrap();
-        for (entry,document) in request["entries"].as_array().unwrap().iter().zip(request["native_requests"].as_array().unwrap()) {
-            let bin="/tmp/oo-mysql-connection-whole/sol-20261015/admission-target/debug/oo-source-admission";
-            let plan=native_binding::with_operator_env(native_binding::OperatorEnv::Fixed {bin:Some(bin.into()),registry:Some(entry["admission_registry_path"].as_str().unwrap().into()),registry_sha256:Some(entry["admission_registry_sha256"].as_str().unwrap().into())},||classify(document)).expect("real sealed table registry, types and Arrow classify");
-            let quality=baseline_quality(entry,&plan).expect("quality tied to authenticated capture receipt");
-            if entry["table"]=="value_probe" {assert_eq!(quality.len(),1);assert_eq!(quality[0]["reason"],"zero_date");}
+        let root = std::path::PathBuf::from(std::env::var("OO_MYSQL_STAGE_PREFLIGHT").unwrap());
+        let request: Value =
+            serde_json::from_slice(&std::fs::read(root.join("out/native-request.json")).unwrap())
+                .unwrap();
+        for (entry, document) in request["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(request["native_requests"].as_array().unwrap())
+        {
+            let bin = "/tmp/oo-mysql-connection-whole/sol-20261015/admission-target/debug/oo-source-admission";
+            let plan = native_binding::with_operator_env(
+                native_binding::OperatorEnv::Fixed {
+                    bin: Some(bin.into()),
+                    registry: Some(entry["admission_registry_path"].as_str().unwrap().into()),
+                    registry_sha256: Some(
+                        entry["admission_registry_sha256"].as_str().unwrap().into(),
+                    ),
+                },
+                || classify(document),
+            )
+            .expect("real sealed table registry, types and Arrow classify");
+            let quality = baseline_quality(entry, &plan)
+                .expect("quality tied to authenticated capture receipt");
+            if entry["table"] == "value_probe" {
+                assert_eq!(quality.len(), 1);
+                assert_eq!(quality[0]["reason"], "zero_date");
+            }
         }
     }
 
@@ -7465,5 +10173,363 @@ mod tests {
             assert_eq!(wrong,0);eprintln!("owned-copy-timing table={} rows={} prepare_ms={} copy_ms={} compare_ms={} rollback=true",plan.table,copied.rows,prepared_ms,copy_ms,compare_ms);
         });
     }
+}
 
+#[cfg(test)]
+mod c1_v2_admission_tests {
+    use super::*;
+
+    fn request(scope: Value) -> C1V2Request {
+        C1V2Request {
+            source: "mysql_x".into(),
+            job: "11111111-2222-3333-4444-555555555555".into(),
+            lease_generation: 1,
+            epoch: 1,
+            source_generation: 1,
+            lineage: "mysql.x".into(),
+            l0: "x:1-1".into(),
+            l_end: "x:1-1".into(),
+            l_end_pos: "1".into(),
+            config_digest: "a".repeat(64),
+            type_digest: "b".repeat(64),
+            input_digest: "c".repeat(64),
+            scope,
+            rows: 2,
+            composed_digest: "d".repeat(64),
+            tables: Vec::new(),
+            shard: "shard_x".into(),
+            owner: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".into(),
+            target: json!({}),
+            window_rows: 1_000,
+        }
+    }
+
+    fn write_registry(dir: &Path, name: &str, scope: &Value) -> (String, String) {
+        let path = dir.join(name);
+        let bytes = serde_json::to_vec(&json!({"bindings": [{"baseline_scope": scope}]})).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        (
+            path.to_string_lossy().into_owned(),
+            hex_bytes(&Sha256::digest(&bytes)),
+        )
+    }
+
+    fn document(entries: &[(String, String)]) -> Value {
+        let tables: Vec<Value> = entries
+            .iter()
+            .map(
+                |(path, sha)| json!({"admission": {"registry_path": path, "registry_sha256": sha}}),
+            )
+            .collect();
+        json!({"tables": tables})
+    }
+
+    #[test]
+    fn every_table_registry_is_checked_and_all_bind_the_same_scope() {
+        let dir = std::env::temp_dir().join(format!("oo-c1-v2-admission-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let scope =
+            json!({"protocol": "oo.source-admission.c1-baseline-scope/v2", "l_end": "x:1-1"});
+        let other =
+            json!({"protocol": "oo.source-admission.c1-baseline-scope/v2", "l_end": "x:1-2"});
+        let first = write_registry(&dir, "a.json", &scope);
+        let second = write_registry(&dir, "b.json", &scope);
+        let req = request(scope.clone());
+        assert!(admit_c1_v2_registry(&document(&[first.clone(), second.clone()]), &req).is_ok());
+
+        let mismatched = write_registry(&dir, "c.json", &other);
+        assert_eq!(
+            admit_c1_v2_registry(&document(&[first.clone(), mismatched]), &req),
+            Err("baseline_scope")
+        );
+
+        let mut stale = second.clone();
+        stale.1 = "0".repeat(64);
+        assert_eq!(
+            admit_c1_v2_registry(&document(&[first, stale]), &req),
+            Err("digest_mismatch")
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod lease_keeper_tests {
+    use super::*;
+
+    #[test]
+    fn renewal_is_due_a_third_of_the_lease_after_the_last_renewal() {
+        let keeper = LeaseKeeper::for_lease(BASELINE_LEASE_TTL);
+        assert!(!keeper.is_due(9_999));
+        assert!(keeper.is_due(10_000));
+    }
+
+    #[test]
+    fn a_slow_phase_longer_than_the_lease_keeps_the_claim_alive() {
+        // Three phases of 45 s each: 135 s in total, longer than the 30 s lease. The loader checks
+        // the keeper at every one-second page, as digest_shadow does, and renews when it is due.
+        let ttl_ms = BASELINE_LEASE_TTL.as_millis();
+        let mut keeper = LeaseKeeper::for_lease(BASELINE_LEASE_TTL);
+        keeper.renewed(0);
+        let mut last_renewal = 0u128;
+        let mut renewals = 0u32;
+        let mut now = 0u128;
+        for _phase in 0..3 {
+            for _page in 0..45 {
+                now += 1_000;
+                if keeper.is_due(now) {
+                    keeper.renewed(now);
+                    last_renewal = now;
+                    renewals += 1;
+                }
+                assert!(
+                    now - last_renewal < ttl_ms,
+                    "lease would expire at {now} ms"
+                );
+            }
+        }
+        assert!(
+            u128::from(renewals) >= 135_000 / (ttl_ms / 3) - 1,
+            "renewals={renewals}"
+        );
+        // Without renewal the same schedule would have passed the lease: the test is not vacuous.
+        assert!(now > ttl_ms);
+    }
+}
+
+fn zero_position_is_expired(
+    has_parent: bool,
+    shape: &str,
+    partition: bool,
+    admitted_range: bool,
+) -> bool {
+    has_parent && shape != "snapshot" && !partition && !admitted_range
+}
+
+fn classify_c5_range(document: &Value) -> Result<UpdatePlan, &'static str> {
+    let mut scope_value = document.clone();
+    scope_value
+        .as_object_mut()
+        .ok_or("c5_range_scope")?
+        .remove("native_request");
+    for key in [
+        "input_digest",
+        "arrow_path",
+        "consistency_grade",
+        "cross_table_consistent",
+        "target",
+        "c5_completed_layers",
+        "c5_observation",
+        "binding",
+        "pin",
+        "key_columns",
+        "type_policy",
+        "normalization_rejects",
+    ] {
+        scope_value
+            .as_object_mut()
+            .ok_or("c5_range_scope")?
+            .remove(key);
+    }
+
+    let scope = crate::native_c5_range::RangeScope::parse(&scope_value)?;
+    let mut request = document
+        .get("native_request")
+        .filter(|v| v.is_object())
+        .cloned()
+        .ok_or("c5_range_request")?;
+    if document.get("key_columns").is_some_and(|keys| {
+        keys.as_array().is_none_or(Vec::is_empty) || keys != &request["key_columns"]
+    }) || document.get("type_policy").is_some_and(|policy| {
+        policy.as_object().is_none_or(|fields| {
+            fields.iter().any(|(key, value)| {
+                !["zero_date_to_null", "strip_text_nul"].contains(&key.as_str())
+                    || !value.is_boolean()
+            })
+        })
+    }) || document
+        .get("normalization_rejects")
+        .is_some_and(|reference| {
+            reference.as_object().is_none_or(|fields| {
+                fields.len() != 2
+                    || reference["sha256"].as_str().is_none_or(|sha| !hex64(sha))
+                    || reference["path"].as_str().is_none_or(|path| {
+                        !Path::new(path).is_absolute() || path.contains("..") || path.contains('\0')
+                    })
+            })
+        })
+    {
+        return Err("c5_range_scope_mismatch");
+    }
+    if document["protocol"] != crate::native_c5_range::REQUEST_PROTOCOL
+        || request["protocol"] != REQUEST_PROTOCOL
+        || request.get("range_scope").is_some()
+        || request["full_snapshot"] != false
+        || request["tombstones"] != json!([])
+        || request["source_engine"] != scope.source_engine
+        || request["source_id"] != scope.source_id
+        || request["source_generation"] != scope.source_generation
+        || request["logical_schema"] != scope.schema
+        || request["logical_table"] != scope.table
+        || request["input_digest"] != scope.arrow_sha256
+        || request["capture_method"] != "c5_diff"
+        || request["delete_detection"] != "reconcile"
+        || request["position_codec"] != "snapshot-zero/v1"
+        || request["applied_pos"] != "0"
+        || request["consistency_grade"]
+            != if scope.source_engine == "oracle" {
+                "S0"
+            } else {
+                "B"
+            }
+        || request["cross_table_consistent"] != false
+    {
+        return Err("c5_range_scope_mismatch");
+    }
+    for key in [
+        "input_digest",
+        "arrow_path",
+        "consistency_grade",
+        "cross_table_consistent",
+        "target",
+    ] {
+        if document
+            .get(key)
+            .is_some_and(|value| Some(value) != request.get(key))
+        {
+            return Err("c5_range_scope_mismatch");
+        }
+    }
+    let allowed = [
+        "protocol",
+        "source_engine",
+        "source_id",
+        "source_generation",
+        "parent_source_generation",
+        "logical_schema",
+        "logical_table",
+        "key_column",
+        "key_columns",
+        "row_identity",
+        "batch_id",
+        "capture_method",
+        "delete_detection",
+        "consistency_grade",
+        "cross_table_consistent",
+        "position_codec",
+        "position_lineage",
+        "applied_pos",
+        "columns",
+        "tombstones",
+        "target",
+        "full_snapshot",
+        "snapshot",
+        "config_digest",
+        "schema_digest",
+        "type_digest",
+        "input_digest",
+        "audit_digest",
+        "lease_id",
+        "lease_generation",
+        "admission_path",
+        "admission_expect",
+        "registry_path",
+        "arrow_path",
+        "max_arrow_bytes",
+        "mirror",
+        "arrow_schema_sha256",
+        "run_id",
+        "driver_digest",
+    ];
+    if request
+        .as_object()
+        .ok_or("c5_range_request")?
+        .keys()
+        .any(|key| !allowed.contains(&key.as_str()))
+    {
+        return Err("c5_range_request");
+    }
+    for (object, allowed) in [
+        (
+            &request["target"],
+            &[
+                "host",
+                "port",
+                "database",
+                "runtime_principal",
+                "password_file",
+                "ssl",
+                "ca_file",
+                "shard",
+                "owner",
+            ][..],
+        ),
+        (&request["snapshot"], &["kind", "value"][..]),
+    ] {
+        if object
+            .as_object()
+            .is_none_or(|fields| fields.keys().any(|key| !allowed.contains(&key.as_str())))
+        {
+            return Err("c5_range_request");
+        }
+    }
+    if request["columns"].as_array().is_none_or(|columns| {
+        columns.iter().any(|column| {
+            column.as_object().is_none_or(|fields| {
+                fields.keys().any(|key| {
+                    ![
+                        "name",
+                        "logical_name",
+                        "arrow_type",
+                        "nullable",
+                        "precision",
+                        "scale",
+                        "char_length",
+                        "document",
+                    ]
+                    .contains(&key.as_str())
+                })
+            })
+        })
+    }) {
+        return Err("c5_range_request");
+    }
+    let parent = request["parent_source_generation"].as_i64().unwrap_or(0);
+    if parent != scope.parent_generation {
+        return Err("c5_range_scope_mismatch");
+    }
+    if let Some(oracle) = &scope.oracle_snapshot
+        && (request["snapshot"] != json!({"kind":"oracle_scn","value":oracle.scn})
+            || request["position_lineage"] != "oracle.snapshot")
+    {
+        return Err("c5_oracle_snapshot");
+    }
+    request["full_snapshot"] = json!(false);
+    let mut plan = classify_inner(&request, true, false, false)?;
+    if !plan.source_bound || plan.shape != "unique" {
+        return Err("nonadmitted");
+    }
+    if plan.schema != mapped_name(&scope.schema)?
+        || plan.table != mapped_name(&scope.table)?
+        || scope.source_engine == "mysql"
+            && (plan.schema != scope.schema || plan.table != scope.table)
+    {
+        return Err("c5_mapped_names_unsupported");
+    }
+    let admission = bind_admission(&request, &plan.arrow)?;
+    scope.require_bound(admission.range_scope.as_ref().ok_or("nonadmitted")?)?;
+    scope.validate_arrow_digest(&plan.arrow)?;
+    scope.validate_decoded_keys(
+        &decode_arrow_stream(&plan.arrow).map_err(arrow_token)?,
+        &plan.key_indexes,
+    )?;
+    let mut digest = Sha256::new();
+    digest.update(plan.payload_digest.as_bytes());
+    digest.update(serde_json::to_vec(&scope).map_err(|_| "c5_range_scope")?);
+    plan.payload_digest = hex_bytes(&digest.finalize());
+    let mut storage_scope = serde_json::to_value(scope).map_err(|_| "c5_range_scope")?;
+    storage_scope["schema"] = json!(plan.schema);
+    storage_scope["table"] = json!(plan.table);
+    plan.range_scope = Some(storage_scope);
+    Ok(plan)
 }

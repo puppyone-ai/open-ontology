@@ -1,6 +1,8 @@
 //! Seal a candidate by calling the role-pack compiler. No second compiler.
 
-use oo_builder::{RolePack, compile_role_pack, normalize_pack_path};
+use oo_builder::{
+    RolePack, RolePackCeilings, compile_role_pack_with_ceilings, normalize_pack_path,
+};
 use serde_json::{Map, Value, json};
 
 use crate::canon::{canonical, canonical_sha};
@@ -60,12 +62,29 @@ pub fn compile_seal(
     visibility: &Value,
     expected: &Expectation<'_>,
 ) -> Result<Seal, &'static str> {
+    compile_seal_with_ceilings(
+        effective,
+        visibility,
+        expected,
+        &RolePackCeilings::default(),
+    )
+}
+
+pub fn compile_seal_with_ceilings(
+    effective: &Value,
+    visibility: &Value,
+    expected: &Expectation<'_>,
+    ceilings: &RolePackCeilings,
+) -> Result<Seal, &'static str> {
     let effective_text = canonical(effective);
     let visibility_text = canonical(visibility);
-    if effective_text.len() > 1_048_576 || visibility_text.len() > 1_048_576 {
+    if effective_text.len() > ceilings.json_scan.max_bytes
+        || visibility_text.len() > ceilings.json_scan.max_bytes
+    {
         return Err("document_size");
     }
-    let pack = compile_role_pack(&effective_text, &visibility_text).map_err(|_| "compiler")?;
+    let pack = compile_role_pack_with_ceilings(&effective_text, &visibility_text, ceilings)
+        .map_err(|_| "compiler")?;
     let manifest_text = pack.file("manifest.json").map_err(|_| "manifest_absent")?;
     let manifest: Value = serde_json::from_str(manifest_text).map_err(|_| "manifest_json")?;
     let manifest_map = manifest.as_object().ok_or("manifest_object")?;
@@ -100,7 +119,7 @@ pub fn compile_seal(
     if !role.starts_with("oo_r_") || role.len() > 63 {
         return Err("role");
     }
-    let files = pack_files(&pack, manifest_map, manifest_text)?;
+    let files = pack_files(&pack, manifest_map, manifest_text, ceilings)?;
     let effective_sha256 = sha256_hex(effective_text.as_bytes());
     let visibility_sha256 = sha256_hex(visibility_text.as_bytes());
     let source = json!({
@@ -149,7 +168,24 @@ pub fn recompile_g8(
     pack_digest: &str,
     manifest_sha256: &str,
 ) -> Result<(), &'static str> {
-    let pack = compile_role_pack(effective, visibility).map_err(|_| "compiler")?;
+    recompile_g8_with_ceilings(
+        effective,
+        visibility,
+        pack_digest,
+        manifest_sha256,
+        &RolePackCeilings::default(),
+    )
+}
+
+pub fn recompile_g8_with_ceilings(
+    effective: &str,
+    visibility: &str,
+    pack_digest: &str,
+    manifest_sha256: &str,
+    ceilings: &RolePackCeilings,
+) -> Result<(), &'static str> {
+    let pack =
+        compile_role_pack_with_ceilings(effective, visibility, ceilings).map_err(|_| "compiler")?;
     if pack.pack_digest != pack_digest || pack.manifest_sha256 != manifest_sha256 {
         return Err("recompile_mismatch");
     }
@@ -165,12 +201,11 @@ fn pack_files(
     pack: &RolePack,
     manifest: &Map<String, Value>,
     manifest_text: &str,
+    ceilings: &RolePackCeilings,
 ) -> Result<Vec<PackFile>, &'static str> {
-    let listed = manifest
-        .get("files")
-        .and_then(Value::as_array)
-        .ok_or("files")?;
-    if listed.is_empty() || listed.len() > 127 {
+    let listed = oo_builder::manifest_file_records(&Value::Object(manifest.clone()),
+        |path| pack.file(path).ok()).map_err(|_| "files")?;
+    if listed.is_empty() || listed.len() >= ceilings.max_entries as usize {
         return Err("files");
     }
     let mut files = Vec::with_capacity(listed.len() + 1);
@@ -184,7 +219,7 @@ fn pack_files(
             || path == "manifest.json"
             || sha.len() != 64
             || bytes == 0
-            || bytes > 1_048_576
+            || bytes > ceilings.max_file_bytes
         {
             return Err("path");
         }
@@ -283,8 +318,17 @@ impl CompiledPack {
 }
 
 pub fn compiled_pack(effective: &Value, visibility: &Value) -> Result<CompiledPack, &'static str> {
+    compiled_pack_with_ceilings(effective, visibility, &RolePackCeilings::default())
+}
+
+pub fn compiled_pack_with_ceilings(
+    effective: &Value,
+    visibility: &Value,
+    ceilings: &RolePackCeilings,
+) -> Result<CompiledPack, &'static str> {
     let pack =
-        compile_role_pack(&canonical(effective), &canonical(visibility)).map_err(|_| "compiler")?;
+        compile_role_pack_with_ceilings(&canonical(effective), &canonical(visibility), ceilings)
+            .map_err(|_| "compiler")?;
     let artifact: Value = serde_json::from_str(&pack.artifact).map_err(|_| "artifact")?;
     let listed = artifact
         .get("files")
@@ -328,9 +372,78 @@ pub fn hex64(value: &str) -> bool {
 }
 
 /// Verify a native maintenance artifact with the same role-pack compiler used by stage.
-pub fn verify_native_artifact(effective: &Value, visibility: &Value, artifact: &Value) -> Result<(), &'static str> {
-    let pack = compile_role_pack(&canonical(effective), &canonical(visibility)).map_err(|_| "compiler")?;
+pub fn verify_native_artifact(
+    effective: &Value,
+    visibility: &Value,
+    artifact: &Value,
+) -> Result<(), &'static str> {
+    verify_native_artifact_with_ceilings(
+        effective,
+        visibility,
+        artifact,
+        &RolePackCeilings::default(),
+    )
+}
+
+pub fn verify_native_artifact_with_ceilings(
+    effective: &Value,
+    visibility: &Value,
+    artifact: &Value,
+    ceilings: &RolePackCeilings,
+) -> Result<(), &'static str> {
+    let pack =
+        compile_role_pack_with_ceilings(&canonical(effective), &canonical(visibility), ceilings)
+            .map_err(|_| "compiler")?;
     let actual: Value = serde_json::from_str(&pack.artifact).map_err(|_| "artifact")?;
-    if &actual != artifact { return Err("recompile_mismatch"); }
+    if &actual != artifact {
+        return Err("recompile_mismatch");
+    }
     Ok(())
+}
+
+#[cfg(test)]
+mod library_installation_tests {
+    use super::*;
+
+    #[test]
+    fn library_seal_uses_explicit_installation_caps_and_keeps_legacy_default() {
+        let names: Vec<String> = (0..72).map(|i| format!("item_{i:03}")).collect();
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        let (mut effective, mut visibility) = crate::live::shop_tables(&["contact", "id"], &["item"]);
+        let prototype = effective["datasets"][0].clone();
+        let visible = visibility["datasets"][0].clone();
+        effective["datasets"] = Value::Array(refs.iter().map(|name| { let mut table=prototype.clone(); table["dataset"]=json!(format!("public.{name}")); table["source_name"]=table["dataset"].clone(); table }).collect());
+        visibility["datasets"] = Value::Array(refs.iter().map(|name| { let mut table=visible.clone(); table["dataset"]=json!(format!("public.{name}")); table }).collect());
+
+        let expected = Expectation {
+            project_id: "shop",
+            candidate_id: "library",
+            version: "v1",
+            base_version: None,
+            policy_id: "pol-shop",
+            policy_version: "1",
+            knowledge_id: "know-shop",
+            knowledge_version: "1",
+            catalog_version: "cat-1",
+        };
+        assert!(compile_seal(&effective, &visibility, &expected).is_err());
+        visibility["limits"]["max_entries"] = json!(1024);
+        visibility["limits"]["max_total_bytes"] = json!(16777216);
+        let mut caps = oo_builder::RolePackCeilings::default();
+        caps.max_datasets = 4096;
+        caps.max_entries = 16384;
+        caps.max_total_bytes = 67108864;
+        let seal = compile_seal_with_ceilings(&effective, &visibility, &expected, &caps)
+            .expect("explicit library seal");
+        let pack = compiled_pack_with_ceilings(&effective, &visibility, &caps).unwrap();
+        assert_eq!(seal.files.len(), pack.files.len());
+        assert!(seal.files.iter().any(|file| file.path.starts_with("manifest/")));
+        for file in &pack.files {
+            let sealed = seal.files.iter().find(|item| item.path == file.path).unwrap();
+            assert_eq!(sealed.sha256, sha256_hex(file.text.as_bytes()));
+            assert_eq!(sealed.byte_len as usize, file.text.len());
+        }
+        caps.max_datasets = 71;
+        assert!(compile_seal_with_ceilings(&effective, &visibility, &expected, &caps).is_err());
+    }
 }

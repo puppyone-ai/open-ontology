@@ -49,25 +49,26 @@ fn main() {
         "oversize" => oversize(),
         "version" => write_header(99, 2, 0),
         "magic" => {
+            read_request();
             let mut out = std::io::stdout().lock();
             out.write_all(b"NOPE").unwrap();
             out.flush().unwrap();
         }
         "echo" => echo(),
         "trailer" => {
-            write_header(1, 3, 1);
+            write_header(2, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1, 0xff]).unwrap();
             out.flush().unwrap();
         }
         "delayed" => {
             thread::sleep(Duration::from_millis(250));
-            write_header(1, 3, 1);
+            write_header(2, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
         }
-        "kind" => write_header(1, 99, 0),
+        "kind" => write_header(2, 99, 0),
         "partial" => {
             let mut out = std::io::stdout().lock();
             out.write_all(b"OOSW").unwrap();
@@ -75,7 +76,7 @@ fn main() {
             thread::sleep(Duration::from_secs(30));
         }
         "hold-stdout" => {
-            write_header(1, 3, 1);
+            write_header(2, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
@@ -83,7 +84,7 @@ fn main() {
         }
         "late" => {
             thread::sleep(Duration::from_millis(700));
-            write_header(1, 3, 1);
+            write_header(2, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
@@ -134,11 +135,17 @@ fn setsid_stdout() {
 }
 
 fn oversize() {
-    write_header(1, 2, u32::MAX);
+    write_header(2, 2, u32::MAX);
     thread::sleep(Duration::from_secs(30));
 }
 
+fn read_request() {
+    let mut bytes = Vec::new();
+    std::io::stdin().read_to_end(&mut bytes).unwrap();
+}
+
 fn write_header(version: u16, kind: u16, len: u32) {
+    read_request();
     let mut out = std::io::stdout().lock();
     out.write_all(b"OOSW").unwrap();
     out.write_all(&version.to_le_bytes()).unwrap();
@@ -298,6 +305,7 @@ fn catalog(relations: Vec<VisibleRelation>, threshold: u64) -> PolicyCatalog {
                 name: "=".to_string(),
                 left_type_oid: INT_OID,
                 right_type_oid: INT_OID,
+                result_type_oid: BOOL_OID,
             },
             ResolvedOperator {
                 oid: 303,
@@ -306,6 +314,7 @@ fn catalog(relations: Vec<VisibleRelation>, threshold: u64) -> PolicyCatalog {
                 name: "=".to_string(),
                 left_type_oid: TEXT_OID,
                 right_type_oid: TEXT_OID,
+                result_type_oid: BOOL_OID,
             },
         ],
         literal_types: LiteralTypes {
@@ -373,13 +382,22 @@ fn live_child(pid: u32, worker: &TrustedWorker) -> u64 {
         u64::from(pid),
         "worker did not get its own process group"
     );
+    // procfs can briefly expose an empty cmdline while exec installs the new mm.
+    // Still require the exact argv and all isolation assertions within the deadline.
+    let observed = Instant::now();
+    let cmd = loop {
+        let cmd = fs::read(format!("/proc/{pid}/cmdline")).unwrap();
+        if !cmd.is_empty() || observed.elapsed() >= Duration::from_millis(100) {
+            break cmd;
+        }
+        thread::sleep(Duration::from_millis(1));
+    };
     let env = fs::read(format!("/proc/{pid}/environ")).unwrap();
     assert!(
         env.is_empty(),
         "child inherited environment bytes {}",
         env.len()
     );
-    let cmd = fs::read(format!("/proc/{pid}/cmdline")).unwrap();
     let parts: Vec<_> = cmd
         .split(|byte| *byte == 0)
         .filter(|part| !part.is_empty())
@@ -556,6 +574,11 @@ fn refusal_matrix() -> Vec<GuardError> {
         GuardError::Locking,
         GuardError::SystemSchema,
         GuardError::FunctionNotAllowed,
+        GuardError::SignatureNotAllowed {
+            operator: true,
+            argument_type_oids: vec![1114, 25],
+            position: 42,
+        },
         GuardError::RelationNotFound,
         GuardError::ColumnNotAllowed {
             available: vec!["s.order_id".to_string(), "s.region".to_string()],
@@ -661,7 +684,7 @@ fn admission_stays_blocked_and_the_sandbox_is_unsupported() {
     let deadline = PARSE_DEADLINE;
     assert_eq!(restriction, RestrictionCapability::Unsupported);
     assert_eq!(admission, UntrustedAdmission::Blocked);
-    assert_eq!(version, 1);
+    assert_eq!(version, 2);
     assert_eq!(request_kind, 1);
     assert_eq!(plan_kind, 2);
     assert_eq!(refusal_kind, 3);
@@ -705,13 +728,13 @@ fn worker_path_is_a_separate_approval() {
 }
 
 #[test]
-fn frame_v1_rejects_a_bad_header_before_a_large_body() {
+fn frame_v2_rejects_a_bad_header_before_a_large_body() {
     let body = encode_request(&request(&small(), "SELECT 1")).unwrap();
     let frame = encode_frame(KIND_REQUEST, &body).unwrap();
     assert_eq!(&frame[..4], b"OOSW");
     assert_eq!(u16::from_le_bytes([frame[4], frame[5]]), PROTOCOL_VERSION);
     let decoded = decode_frame(&frame).unwrap();
-    assert_eq!(decoded.version, 1);
+    assert_eq!(decoded.version, PROTOCOL_VERSION);
     assert_eq!(decoded.kind, KIND_REQUEST);
     assert_eq!(decoded.body, body);
     assert_eq!(decode_frame(b"OOS"), Err(CodecError::Truncated));
@@ -752,8 +775,10 @@ fn catalog_oids_and_options_roundtrip() {
     assert!(back.catalog.functions[0].aggregate_star);
     assert_eq!(back.catalog.operators[0].oid, 301);
     assert_eq!(back.catalog.operators[0].procedure_oid, 302);
+    assert_eq!(back.catalog.operators[0].result_type_oid, BOOL_OID);
     assert_eq!(back.catalog.operators[1].oid, 303);
     assert_eq!(back.catalog.operators[1].procedure_oid, 304);
+    assert_eq!(back.catalog.operators[1].result_type_oid, BOOL_OID);
     assert_eq!(back.catalog.literal_types.integer, Some(INT_OID));
     assert_eq!(back.catalog.literal_types.text, Some(TEXT_OID));
     assert_eq!(back.catalog.literal_types.boolean, Some(BOOL_OID));
@@ -1013,6 +1038,10 @@ fn identity_mismatch_is_the_guard_error() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn two_legal_calls_are_two_children() {
     let req = request(&small(), "SELECT order_id FROM logistics.shipment");
     let expected = guard_select(&req.identity, &req.catalog, &req.sql).unwrap();
@@ -1035,6 +1064,10 @@ fn two_legal_calls_are_two_children() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn production_worker_clears_the_environment() {
     assert!(std::env::var_os("HOME").is_some() || std::env::var_os("CARGO_HOME").is_some());
     let req = request(&small(), "SELECT order_id, region FROM logistics.shipment");
@@ -1062,7 +1095,7 @@ fn direct_binary_matches_the_guard_and_rejects_a_non_request() {
     });
     assert_eq!(code, 0, "stderr {}", String::from_utf8_lossy(&err));
     let frame = decode_frame(&out).unwrap();
-    assert_eq!(frame.version, 1);
+    assert_eq!(frame.version, PROTOCOL_VERSION);
     assert_eq!(frame.kind, KIND_PLAN);
     let plan = decode_plan(&frame.body).unwrap();
     let expected = guard_select(&req.identity, &req.catalog, sql).unwrap();
@@ -1110,9 +1143,10 @@ fn production_binary_rejects_fault_switches() {
 fn over_budget_sql_does_not_spawn() {
     let sql = " ".repeat(SQL_BYTE_BUDGET + 1);
     let started_child = Cell::new(false);
+    let worker = fault("slow");
     let started = Instant::now();
     let err = supervise_with(
-        &fault("slow"),
+        &worker,
         &request(&small(), &sql),
         &CancelFlag::new(),
         |_| started_child.set(true),
@@ -1145,6 +1179,10 @@ fn cancel_before_spawn_has_no_pid() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn cancel_after_spawn_kills_and_reaps() {
     let flag = CancelFlag::new();
     let worker = fault("slow");
@@ -1169,6 +1207,10 @@ fn cancel_after_spawn_kills_and_reaps() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn slow_worker_is_killed_inside_the_deadline_and_the_pid_is_gone() {
     let worker = fault("slow");
     let pid = Cell::new(0u32);
@@ -1195,6 +1237,10 @@ fn slow_worker_is_killed_inside_the_deadline_and_the_pid_is_gone() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn crash_worker_is_reaped_with_its_exit_code() {
     let worker = fault("crash");
     let pid = Cell::new(0u32);
@@ -1222,6 +1268,10 @@ fn crash_worker_is_reaped_with_its_exit_code() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn oversize_header_kills_without_waiting_out_the_sleep() {
     let worker = fault("oversize");
     let pid = Cell::new(0u32);
@@ -1249,6 +1299,10 @@ fn oversize_header_kills_without_waiting_out_the_sleep() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn bad_version_magic_kind_and_trailer_are_malformed() {
     for mode in ["version", "magic", "kind", "trailer"] {
         let worker = fault(mode);
@@ -1276,6 +1330,10 @@ fn bad_version_magic_kind_and_trailer_are_malformed() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn echo_is_not_accepted_and_the_sql_stays_out_of_the_error() {
     let worker = fault("echo");
     let pid = Cell::new(0u32);
@@ -1300,6 +1358,10 @@ fn echo_is_not_accepted_and_the_sql_stays_out_of_the_error() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn a_timeout_does_not_kill_the_next_child() {
     let slow = fault("slow");
     let req = request(&small(), "SELECT 1");
@@ -1384,6 +1446,10 @@ fn signal_one(pid: u32) {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn deadline_covers_blocked_stdin_stdout_partial_and_late() {
     let mut bulky = request(&small(), "SELECT 1");
     bulky.catalog.relations.clear();
@@ -1480,6 +1546,10 @@ fn deadline_covers_blocked_stdin_stdout_partial_and_late() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn same_group_grandchild_is_reaped_inside_one_second() {
     let mut neighbor = Command::new("/bin/sleep")
         .arg("30")
@@ -1493,13 +1563,14 @@ fn same_group_grandchild_is_reaped_inside_one_second() {
     let req = request(&small(), "SELECT 1");
 
     for mode in ["orphan", "orphan-stdout"] {
+        let worker = fault(mode);
         let wall = Instant::now();
         let child_pid = Cell::new(0u32);
         let child_start = Cell::new(0u64);
         let grand = Cell::new(0u32);
-        let err = supervise_with(&fault(mode), &req, &CancelFlag::new(), |pid| {
+        let err = supervise_with(&worker, &req, &CancelFlag::new(), |pid| {
             child_pid.set(pid);
-            child_start.set(live_child(pid, &fault(mode)));
+            child_start.set(live_child(pid, &worker));
             wait_for_grandchild(pid, &grand);
         });
         let report = expect_timeout(err, mode);
@@ -1512,6 +1583,11 @@ fn same_group_grandchild_is_reaped_inside_one_second() {
         assert_gone(&report, child_pid.get(), child_start.get());
         let grandchild = grand.get();
         assert_ne!(grandchild, 0, "{mode} grandchild pid was not recorded");
+        // SIGKILL delivery and init's orphan reap are asynchronous; observe the
+        // same original one-second budget instead of asserting at signal return.
+        while proc_field(grandchild, 19).is_some() && wall.elapsed() < Duration::from_secs(1) {
+            thread::sleep(Duration::from_millis(5));
+        }
         if let Some(now) = proc_field(grandchild, 19) {
             panic!("{mode} grandchild {grandchild} still alive start {now}");
         }
@@ -1528,6 +1604,10 @@ fn same_group_grandchild_is_reaped_inside_one_second() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn escaped_session_is_not_reaped_and_the_parent_still_returns() {
     let setsid_present =
         Path::new("/usr/bin/setsid").is_file() || Path::new("/bin/setsid").is_file();

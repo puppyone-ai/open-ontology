@@ -11,19 +11,19 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use oo_connectors::{
-    config_identity, type_policy_identity, AdmittedCatalog, AdmittedColumn, AdmittedTable,
-    PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
-    SnapshotRequest, SourceId, StreamBudget, TableSelection,
+    AdmittedCatalog, AdmittedColumn, AdmittedTable, PgBudget, PgCredentials, PgEndpoint,
+    PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable, SnapshotRequest, SourceId, StreamBudget,
+    TableSelection, config_identity, type_policy_identity,
 };
 use oo_pipeline::copy_encoder::CopyBudgets;
-use oo_pipeline::full_import::{import_unpublished, ImportRequest, RunState};
+use oo_pipeline::full_import::{ImportRequest, RunState, import_unpublished};
 use oo_pipeline::physical_mapping::quote_physical_name;
 use oo_pipeline::target_installer::{
-    install, install_full_import, FullImportInstallOutcome, InstallOutcome,
+    FullImportInstallOutcome, InstallOutcome, install, install_full_import,
 };
 use oo_pipeline::target_statistics::{
-    analyze_mapped_shadows, ConnectionDisposition, LogicalTableRef, StatisticsError,
-    StatisticsRequest, PROTOCOL,
+    ConnectionDisposition, LogicalTableRef, PROTOCOL, StatisticsError, StatisticsRequest,
+    analyze_mapped_shadows,
 };
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 use sqlx::{Connection, Row};
@@ -76,13 +76,16 @@ impl Harness {
             .parse()
             .expect("port");
         assert!(!host.contains(':') && !host.contains('/') && !host.contains('@'));
-        let admin_user = env::var("OO_TARGET_STATS_ADMIN_USER").expect("OO_TARGET_STATS_ADMIN_USER");
+        let admin_user =
+            env::var("OO_TARGET_STATS_ADMIN_USER").expect("OO_TARGET_STATS_ADMIN_USER");
         let admin_password = password("OO_TARGET_STATS_ADMIN_PASSWORD_FILE");
         let reader_password = password("OO_TARGET_STATS_READER_PASSWORD_FILE");
         let runtime_password = password("OO_TARGET_STATS_RUNTIME_PASSWORD_FILE");
         let readonly_password = password("OO_TARGET_STATS_READONLY_PASSWORD_FILE");
-        let ca = fs::read(env::var("OO_TARGET_STATS_CA_FILE").expect("OO_TARGET_STATS_CA_FILE")).expect("ca");
-        let evidence = PathBuf::from(env::var("OO_TARGET_STATS_EVIDENCE").expect("OO_TARGET_STATS_EVIDENCE"));
+        let ca = fs::read(env::var("OO_TARGET_STATS_CA_FILE").expect("OO_TARGET_STATS_CA_FILE"))
+            .expect("ca");
+        let evidence =
+            PathBuf::from(env::var("OO_TARGET_STATS_EVIDENCE").expect("OO_TARGET_STATS_EVIDENCE"));
         fs::create_dir_all(&evidence).expect("evidence dir");
         let mut postgres = dial(&host, port, &admin_user, &admin_password, "postgres", &ca).await;
         let version = text(&mut postgres, "SELECT version()").await;
@@ -116,8 +119,18 @@ impl Harness {
     async fn setup(&mut self) {
         reset_cluster(&mut self.postgres).await;
         exec_role(&mut self.postgres, "oo_a219_reader", &self.reader_password).await;
-        exec_role(&mut self.postgres, "oo_a219_runtime", &self.runtime_password).await;
-        exec_role(&mut self.postgres, "oo_a219_readonly", &self.readonly_password).await;
+        exec_role(
+            &mut self.postgres,
+            "oo_a219_runtime",
+            &self.runtime_password,
+        )
+        .await;
+        exec_role(
+            &mut self.postgres,
+            "oo_a219_readonly",
+            &self.readonly_password,
+        )
+        .await;
         raw(
             &mut self.postgres,
             "ALTER ROLE oo_a219_readonly SET default_transaction_read_only = on",
@@ -159,7 +172,11 @@ impl Harness {
             install_full_import(&mut self.target).await.expect("0005"),
             FullImportInstallOutcome::Installed
         );
-        raw(&mut self.target, "GRANT oo_pipeline_runtime TO oo_a219_runtime").await;
+        raw(
+            &mut self.target,
+            "GRANT oo_pipeline_runtime TO oo_a219_runtime",
+        )
+        .await;
         raw(
             &mut self.target,
             "GRANT CONNECT ON DATABASE oo_a219_dst TO oo_a219_runtime, oo_a219_readonly",
@@ -181,7 +198,8 @@ impl Harness {
         .await;
         assert!(self.audit_before >= 2);
         let audit_before = self.audit_before;
-        self.facts.push_str(&format!("audit_before={audit_before}\n"));
+        self.facts
+            .push_str(&format!("audit_before={audit_before}\n"));
     }
 
     async fn import_one_table(&mut self) {
@@ -220,7 +238,8 @@ impl Harness {
         let generation: i64 = row.try_get(1).expect("generation");
         assert_eq!(generation, i64::try_from(GENERATION).expect("generation"));
         assert_eq!(self.digest.len(), 64);
-        self.facts.push_str("import_state=awaiting_publish\nimport_rows=2\n");
+        self.facts
+            .push_str("import_state=awaiting_publish\nimport_rows=2\n");
     }
 
     async fn unknown_before_maintenance(&mut self) {
@@ -228,7 +247,8 @@ impl Harness {
         assert_eq!(bits, (-1.0f32).to_bits(), "import left a known estimate");
         let sentinel = reltuples_bits(&mut self.target, "sentinel").await;
         assert_eq!(sentinel, (-1.0f32).to_bits());
-        self.facts.push_str("reltuples_before=-1\nsentinel_before=-1\n");
+        self.facts
+            .push_str("reltuples_before=-1\nsentinel_before=-1\n");
     }
 
     async fn refuse_before_analyze(&mut self) {
@@ -247,7 +267,12 @@ impl Harness {
         )
         .await;
         let runtime_request = self.identity(GENERATION, "app", "party");
-        expect_kind(&mut runtime, runtime_request, &StatisticsError::RuntimeCaller).await;
+        expect_kind(
+            &mut runtime,
+            runtime_request,
+            &StatisticsError::RuntimeCaller,
+        )
+        .await;
         runtime.close().await.expect("close runtime refusal");
         let mut readonly = dial(
             &self.host,
@@ -259,7 +284,12 @@ impl Harness {
         )
         .await;
         let readonly_request = self.identity(GENERATION, "app", "party");
-        expect_kind(&mut readonly, readonly_request, &StatisticsError::ReadOnlyCaller).await;
+        expect_kind(
+            &mut readonly,
+            readonly_request,
+            &StatisticsError::ReadOnlyCaller,
+        )
+        .await;
         readonly.close().await.expect("close readonly");
         let bits = reltuples_bits(&mut self.target, &self.physical).await;
         assert_eq!(bits, (-1.0f32).to_bits());
@@ -325,7 +355,8 @@ impl Harness {
         self.forged_relation(&quoted).await;
         let bits = reltuples_bits(&mut self.target, &self.physical).await;
         assert_ne!(bits, (-1.0f32).to_bits());
-        self.facts.push_str("refused_after=lock_timeout,forged\nreltuples_restored=known\n");
+        self.facts
+            .push_str("refused_after=lock_timeout,forged\nreltuples_restored=known\n");
     }
 
     async fn forged_relation(&mut self, quoted: &str) {
@@ -350,7 +381,11 @@ impl Harness {
     }
 
     async fn source_audit(&mut self) {
-        let audit = scalar_i64(&mut self.source, "SELECT count(*)::int8 FROM app.write_audit").await;
+        let audit = scalar_i64(
+            &mut self.source,
+            "SELECT count(*)::int8 FROM app.write_audit",
+        )
+        .await;
         let reader = scalar_i64(
             &mut self.source,
             "SELECT count(*)::int8 FROM app.write_audit WHERE who = 'oo_a219_reader'",
@@ -360,7 +395,8 @@ impl Harness {
         assert_eq!(audit, self.audit_before);
         assert_eq!(reader, 0);
         assert_eq!(source_bits, (-1.0f32).to_bits());
-        self.facts.push_str("source_audit_delta=0\nsource_reader_writes=0\nsource_reltuples=-1\n");
+        self.facts
+            .push_str("source_audit_delta=0\nsource_reader_writes=0\nsource_reltuples=-1\n");
     }
 
     fn write_facts(&self) {
@@ -409,7 +445,8 @@ impl Harness {
                 8 * 1024 * 1024,
             )
             .expect("budget"),
-            TableSelection::new(vec![SelectedTable::new("app", "party").expect("table")]).expect("selection"),
+            TableSelection::new(vec![SelectedTable::new("app", "party").expect("table")])
+                .expect("selection"),
         )
         .expect("config");
         ImportRequest {
@@ -417,7 +454,9 @@ impl Harness {
             owner: String::new(),
             snapshot: SnapshotRequest {
                 config_identity: config_identity(&config),
-                type_policy_identity: type_policy_identity(oo_connectors::PgTypePolicy::PRESERVE_ROW),
+                type_policy_identity: type_policy_identity(
+                    oo_connectors::PgTypePolicy::PRESERVE_ROW,
+                ),
                 config,
                 admitted: admitted.clone(),
                 policy: oo_connectors::PgTypePolicy::PRESERVE_ROW,
@@ -463,7 +502,9 @@ INSERT INTO app.party (id, label, active) VALUES (1, 'north', true), (2, 'south'
 ";
 
 async fn expect_kind(conn: &mut PgConnection, request: StatisticsRequest, kind: &StatisticsError) {
-    let err = analyze_mapped_shadows(conn, &request).await.expect_err("refused");
+    let err = analyze_mapped_shadows(conn, &request)
+        .await
+        .expect_err("refused");
     assert_eq!(&err.kind, kind, "{err}");
     assert_eq!(err.disposition, ConnectionDisposition::Reusable, "{err}");
 }
@@ -550,14 +591,27 @@ async fn scalar_i64(conn: &mut PgConnection, sql: &str) -> i64 {
 }
 
 async fn ssl_on(conn: &mut PgConnection) -> String {
-    text(conn, "SELECT ssl::text FROM pg_stat_ssl WHERE pid = pg_backend_pid()").await
+    text(
+        conn,
+        "SELECT ssl::text FROM pg_stat_ssl WHERE pid = pg_backend_pid()",
+    )
+    .await
 }
 
 async fn reset_cluster(admin: &mut PgConnection) {
     for name in ["oo_a219_src", "oo_a219_dst"] {
-        raw(admin, &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await;
+        raw(
+            admin,
+            &format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"),
+        )
+        .await;
     }
-    for role in ["oo_a219_reader", "oo_a219_runtime", "oo_a219_readonly", "oo_a219_login"] {
+    for role in [
+        "oo_a219_reader",
+        "oo_a219_runtime",
+        "oo_a219_readonly",
+        "oo_a219_login",
+    ] {
         raw(admin, &format!("DROP ROLE IF EXISTS {role}")).await;
     }
     raw(admin, "DROP ROLE IF EXISTS oo_pipeline_runtime").await;
@@ -566,7 +620,10 @@ async fn reset_cluster(admin: &mut PgConnection) {
 
 async fn exec_role(conn: &mut PgConnection, name: &str, secret: &str) {
     assert!(secret.chars().all(|ch| ch.is_ascii_hexdigit()));
-    assert!(name.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_'));
+    assert!(
+        name.chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+    );
     raw(
         conn,
         &format!(
@@ -584,7 +641,14 @@ fn password(var: &str) -> String {
     trimmed
 }
 
-async fn dial(host: &str, port: u16, user: &str, pass: &str, database: &str, ca: &[u8]) -> PgConnection {
+async fn dial(
+    host: &str,
+    port: u16,
+    user: &str,
+    pass: &str,
+    database: &str,
+    ca: &[u8],
+) -> PgConnection {
     let options = PgConnectOptions::new()
         .host(host)
         .port(port)

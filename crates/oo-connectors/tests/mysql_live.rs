@@ -140,6 +140,7 @@ async fn mysql57_and_mysql84_bounded_arrow_contract() {
             mysql_database: text(fixture, "database").to_owned(),
             mysql_user: text(fixture, "user").to_owned(),
             mysql_ca_file: text(fixture, "ca_file").into(),
+            mysql_tls_server_name: None,
             secret_ref: SecretRef::new(text(fixture, "secret_ref")).unwrap(),
             connect_timeout_ms: 5000,
         };

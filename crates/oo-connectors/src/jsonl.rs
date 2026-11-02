@@ -9,8 +9,8 @@
 
 use std::collections::HashMap;
 use std::io::{ErrorKind, Read};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use arrow_array::{Array, ArrayRef, BooleanArray, Int64Array, RecordBatch, StringArray};
@@ -236,7 +236,10 @@ impl JsonlProfile {
             return Err(JsonlError::config("column_count"));
         }
         for (index, column) in columns.iter().enumerate() {
-            if columns[..index].iter().any(|other| other.name == column.name) {
+            if columns[..index]
+                .iter()
+                .any(|other| other.name == column.name)
+            {
                 return Err(JsonlError::config("duplicate_column"));
             }
         }
@@ -271,7 +274,9 @@ fn valid_label(text: &str) -> bool {
     !bytes.is_empty()
         && bytes.len() <= JSONL_MAX_NAME_BYTES
         && text.trim() == text
-        && bytes.iter().all(|byte| (0x20..0x7f).contains(byte) || *byte >= 0x80)
+        && bytes
+            .iter()
+            .all(|byte| (0x20..0x7f).contains(byte) || *byte >= 0x80)
         && !text.chars().any(|ch| ch.is_whitespace() && ch != ' ')
 }
 
@@ -667,8 +672,18 @@ impl<R: Read> JsonlReader<R> {
             profile_id: self.profile.id.clone(),
             profile_digest: self.profile.profile_digest(),
             config_identity: self.profile.config_identity(self.expected),
-            columns: self.profile.columns.iter().map(|column| column.name.clone()).collect(),
-            types: self.profile.columns.iter().map(|column| column.ty).collect(),
+            columns: self
+                .profile
+                .columns
+                .iter()
+                .map(|column| column.name.clone())
+                .collect(),
+            types: self
+                .profile
+                .columns
+                .iter()
+                .map(|column| column.ty)
+                .collect(),
             nullability: self
                 .profile
                 .columns
@@ -717,7 +732,8 @@ impl<R: Read> JsonlReader<R> {
             let accepted = self.rows + pending_rows;
             let batch_row_cap = u64::from(self.budget.batch_rows);
             let overflow_rows = pending_rows + 1 > batch_row_cap;
-            let overflow_bytes = pending_bytes.saturating_add(row.raw_len) > self.budget.batch_bytes;
+            let overflow_bytes =
+                pending_bytes.saturating_add(row.raw_len) > self.budget.batch_bytes;
             let overflow_total = accepted + 1 > self.budget.max_rows;
             if pending_rows == 0 && overflow_bytes {
                 return Err(self.fail(JsonlError::budget("batch_bytes")));
@@ -925,14 +941,10 @@ impl<R: Read> JsonlReader<R> {
             metadata.insert("oo.jsonl.protocol".to_owned(), JSONL_PROTOCOL.to_owned());
             metadata.insert("oo.jsonl.logical".to_owned(), logical.to_owned());
             if logical == "json_text" {
-                metadata.insert(
-                    "oo.jsonl.encoding".to_owned(),
-                    "raw-json-utf8".to_owned(),
-                );
+                metadata.insert("oo.jsonl.encoding".to_owned(), "raw-json-utf8".to_owned());
             }
-            fields.push(
-                Field::new(&column.name, data_type, column.nullable).with_metadata(metadata),
-            );
+            fields
+                .push(Field::new(&column.name, data_type, column.nullable).with_metadata(metadata));
             arrays.push(array);
         }
         RecordBatch::try_new(Arc::new(Schema::new(fields)), arrays)
@@ -1570,7 +1582,12 @@ impl<R: Read> JsonlReader<R> {
         Ok(raw)
     }
 
-    fn scan_int_rest(&mut self, keep: u64, raw: &mut Vec<u8>, first_digit: u8) -> Result<(), JsonlError> {
+    fn scan_int_rest(
+        &mut self,
+        keep: u64,
+        raw: &mut Vec<u8>,
+        first_digit: u8,
+    ) -> Result<(), JsonlError> {
         if first_digit == b'0' {
             if matches!(self.peek_keep(keep)?, Some(byte) if byte.is_ascii_digit()) {
                 return Err(self.fail(JsonlError::protocol("invalid_number")));

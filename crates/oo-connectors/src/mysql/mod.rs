@@ -1,17 +1,23 @@
 //! MySQL 5.7/8 source-only catalog, shared batch/CDC mapping and bounded Arrow pulls.
 //! No COPY, target credentials, Loader or tool dependencies live here.
 
+pub mod chunk;
 pub mod map;
 mod reader;
 mod source;
 pub mod values;
 pub mod version;
 
-pub use reader::{Batch, Cancel, ReadConnection, TableReader, cancel_connection};
+pub use reader::{
+    Batch, CHUNK_DEADLINE_MS, CHUNK_MAX_BYTES, CHUNK_MAX_ROWS, CHUNK_STATEMENT_MS, Cancel,
+    ChunkBatch, ChunkCursor, ChunkReader, FullReader, ReadConnection, TableReader,
+    cancel_connection,
+};
 use sha2::{Digest, Sha256};
 pub use source::{
-    Access, catalog_columns, connect, current_user_is, inspect, inspect_replication,
-    keep_requested, query_drop, raw_cell, replication_grants_ok, scalar,
+    Access, FullReadGrants, catalog_columns, connect, current_user_is, full_read_grants, inspect,
+    inspect_full, inspect_replication, keep_requested, keep_requested_keyed, query_drop, raw_cell,
+    replication_grants_ok, scalar,
 };
 use std::{fmt, path::PathBuf};
 
@@ -20,10 +26,15 @@ use std::{fmt, path::PathBuf};
 pub struct MysqlError {
     pub code: &'static str,
     pub fact: &'static str,
+    pub value_len: Option<u64>,
 }
 impl MysqlError {
     pub fn new(code: &'static str, fact: &'static str) -> Self {
-        Self { code, fact }
+        Self {
+            code,
+            fact,
+            value_len: None,
+        }
     }
 }
 impl fmt::Display for MysqlError {
@@ -48,6 +59,9 @@ pub struct MysqlConfig {
     pub mysql_database: String,
     pub mysql_user: String,
     pub mysql_ca_file: PathBuf,
+    /// Optional certificate name. TCP still goes to `mysql_host:mysql_port`, and
+    /// the certificate is verified against this name. `None` verifies the host.
+    pub mysql_tls_server_name: Option<String>,
     pub secret_ref: crate::SecretRef,
     pub connect_timeout_ms: u64,
 }
@@ -65,4 +79,48 @@ pub fn mysql_ident(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 64
         && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+}
+
+/// Host name accepted as a certificate name override (`tls_server_name`). Only
+/// letters, digits, `-` and `.`, with no empty label. Anything else is refused,
+/// so the value cannot carry a path, a space or a URL fragment.
+pub fn tls_server_name_ok(name: &str) -> bool {
+    name.len() <= 253
+        && !name.starts_with('.')
+        && !name.ends_with('.')
+        && name.split('.').all(|label| {
+            !label.is_empty()
+                && label.len() <= 63
+                && label
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        })
+}
+
+#[cfg(test)]
+mod tls_name_tests {
+    use super::tls_server_name_ok;
+
+    #[test]
+    fn accepts_dns_names_and_refuses_anything_else() {
+        assert!(tls_server_name_ok("mysql57.owned.example"));
+        assert!(tls_server_name_ok("db-1.internal"));
+        assert!(tls_server_name_ok("localhost"));
+        for bad in [
+            "",
+            ".",
+            ".leading",
+            "trailing.",
+            "a..b",
+            "has space",
+            "host/path",
+            "user@host",
+            "[::1]",
+            "a:3306",
+            &"a".repeat(64),
+        ] {
+            assert!(!tls_server_name_ok(bad), "{bad:?} must be refused");
+        }
+        assert!(!tls_server_name_ok(&format!("{}.com", "a.".repeat(127))));
+    }
 }

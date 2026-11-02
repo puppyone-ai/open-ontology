@@ -328,11 +328,12 @@ fn policy_and_audit_and_ca_fail_closed() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_A198_LIVE; run with --ignored"]
 async fn live_query_pg_against_private_postgres() {
-    if env::var("OO_A198_LIVE").ok().as_deref() != Some("1") {
-        eprintln!("OO_A198_LIVE is unset; the private postgres comparison was not run");
-        return;
-    }
+    assert!(
+        env::var("OO_A198_LIVE").ok().as_deref() == Some("1"),
+        "OO_A198_LIVE must be set for this live fixture"
+    );
     let admin_pass = read_secret("admin.pass");
     let login_pass = read_secret("login.pass");
     let ca = fs::read(Path::new(SECRET_DIR).join("ca.crt")).expect("ca");
@@ -1175,7 +1176,7 @@ fn base_value(
             "max_tables": 4,
             "max_columns": 64,
             "max_functions": 1,
-            "max_operators": 64,
+            "max_operators": 128,
             "large_table_row_threshold": 1_000_000,
             "unknown_rows": "refuse"
         },
@@ -1310,7 +1311,7 @@ fn limits() -> CatalogLimits {
         max_tables: 4,
         max_columns: 64,
         max_functions: 1,
-        max_operators: 64,
+        max_operators: 128,
         large_table_row_threshold: 1_000_000,
         unknown_rows: UnknownRows::Refuse,
     }

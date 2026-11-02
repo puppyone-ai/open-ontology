@@ -39,6 +39,7 @@ wasm-bindgen-macro-support = { version = "=0.2.128", default-features = false }
 wasm-bindgen-shared = { version = "=0.2.128", default-features = false }
 web-sys = { version = "=0.3.105", default-features = false }
 yoke-derive = { version = "=0.8.2", default-features = false }
+source-admission = { version = "0.1.0", path = "../source-admission" }
 
 [patch.crates-io]
 sqlx-core = { path = "../../crates/oo-connectors/vendor/sqlx-core" }

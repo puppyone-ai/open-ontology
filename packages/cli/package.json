@@ -1,0 +1,29 @@
+{
+  "name": "@reduxxx888/ontology-cli",
+  "version": "0.1.2",
+  "description": "Standalone Open Ontology CLI with a verified packaged native executable.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": {
+    "oo": "bin/oo.mjs",
+    "ontology": "bin/oo.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "bin/oo.mjs",
+    "native/manifest.json",
+    "native/*/oo",
+    "native/*/oo.exe",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.txt",
+    "dependencies.json",
+    "SKILL.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}

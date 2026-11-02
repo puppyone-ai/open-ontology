@@ -53,8 +53,13 @@ class Flow:
     def run(self, prepare_only=False, decisions_path=None, reuse_product=None, reuse_receipt=None, current_source_semantics=None):
         c=self.c
         self.current_source_semantics_file=Path(current_source_semantics) if current_source_semantics else None
-        require(c.get('fixture_authorized') is True, 'fixture_authority_required')
+        management = c.get('review_authority') == 'oidc_management'
+        require(management or c.get('fixture_authorized') is True, 'fixture_authority_required')
+        if management:
+            require(c.get('fixture_authorized') is not True, 'fixture_not_customer_review')
         require(digest(OPERATOR) == c['operator_sha256'], 'operator_drift')
+        if management:
+            require(not reuse_product and not reuse_receipt and not current_source_semantics, 'management_reuse_not_supported')
         if reuse_product or reuse_receipt:
             require(isinstance(reuse_product, str) and reuse_product and hex64(reuse_receipt), 'product_resume_drift')
             self.bind_retained(reuse_product, reuse_receipt)
@@ -62,7 +67,7 @@ class Flow:
             require(reused is not None, 'product_resume_drift')
             return self.bind_current(reused)
         reused=self.completed()
-        if reused is not None: return self.bind_current(reused)
+        if reused is not None: return reused if management else self.bind_current(reused)
         build_file=self.out/'build.json'
         if build_file.exists():
             saved=load(build_file);require(saved['config_sha256'] == c['_sha256'], 'product_resume_drift');build=saved['build_id']
@@ -91,7 +96,7 @@ class Flow:
         require(generation.get('evidence_hash') == c['catalog_sha256'],'model_source_binding')
         require(re.fullmatch(r'[a-f0-9]{64}',generation.get('input_sha256','')) is not None,'model_input_hash')
         identity=generation.get('response_identity',{})
-        require(identity.get('model') in {'gpt-6.1-sol','grok-4.7','grok-4.7-build'} and identity.get('id') and len(identity.get('envelope_sha256',''))==64,'model_identity')
+        require(identity.get('model') in {'gpt-6.1-sol','grok-4.7','grok-4.7-build','devin/claude-opus-5-5'} and identity.get('id') and len(identity.get('envelope_sha256',''))==64,'model_identity')
         usage=identity.get('usage',{})
         require(all(type(usage.get(k)) is int and usage[k]>=0 for k in ('prompt_tokens','completion_tokens','total_tokens')) and usage['prompt_tokens']+usage['completion_tokens']==usage['total_tokens'],'model_usage')
         cache=load(actual_build/'cache'/'pg-builder'/(generation['input_sha256']+'.json'))
@@ -105,21 +110,24 @@ class Flow:
         prepared_overlay=self.call('admin',path+'/overlay',name='prepared-overlay')
         save(self.out/'prepared-overlay.json',prepared_overlay)
         if prepare_only:
-            save(self.out/'prepared.json',{'build_id':build,'s0_s8':'succeeded','overlay_sha256':digest(self.out/'prepared-overlay.json'),'awaiting_fixture_review':True})
-            return {'build_id':build,'s0_s8':'succeeded','awaiting_fixture_review':True,'published':False}
+            save(self.out/'prepared.json',{'build_id':build,'s0_s8':'succeeded','overlay_sha256':digest(self.out/'prepared-overlay.json'),'awaiting_fixture_review':not management,'awaiting_management_review':management})
+            return {'build_id':build,'s0_s8':'succeeded','awaiting_fixture_review':not management,'awaiting_management_review':management,'published':False}
         decisions=c
         if decisions_path:
             dp=private(decisions_path);decisions=load(dp)
-            require(set(decisions) == {'reviews','confirm_columns','role','fixture_authorized'},'decisions_shape')
-            require(decisions['fixture_authorized'] is True,'fixture_authority_required')
+            authority = 'review_authority' if management else 'fixture_authorized'
+            require(set(decisions) == {'reviews','confirm_columns','role',authority},'decisions_shape')
+            require(decisions[authority] == ('oidc_management' if management else True),'fixture_authority_required')
             binding=self.out/'decisions-binding.json'
             if binding.exists():require(load(binding)['sha256'] == digest(dp),'decisions_drift')
             else:save(binding,{'sha256':digest(dp),'build_id':build})
         # Explicit source-owner decisions, authenticated with actual fixture roles.
         for decision in decisions['reviews']:
             require(set(decision) == {'name','binds_fact','decision'}, 'review_shape')
-            self.call('reviewer',path+'/review',decision,'review')
+            reviewed=self.call('reviewer',path+'/review',decision,'review')
+            if management: self.require_management_action(reviewed, build, 'reviewer')
         confirmed=self.call('owner',path+'/confirm',{'columns':decisions['confirm_columns']},'confirm')
+        if management: self.require_management_action(confirmed, build, 'owner')
         require(confirmed.get('business_owner_signed') is False and confirmed.get('signer_class') == 'control_plane_test','business_signature_not_fixture')
         pack=self.call('admin',path+'/role-pack',{'policy_version':'oos/v1','role':decisions['role']},'role-pack')
         fetched=self.call('admin',path+'/role-pack?role='+decisions['role'],name='pack')
@@ -150,8 +158,13 @@ class Flow:
         require(load(self.out/'oos'/'source.json').get('actual_core_effective_sha256')==digest(self.out/'effective.json'),'oos_source_binding')
         s5_proof={'outcome':s5['outcome'],'builder_spawned':s5['builder_spawned'],'structural_draft':s5['structural_draft'],'cache_hit':s5['cache_hit'],'llm_calls':s5['llm_calls'],'model':identity['model'],'input_sha256':generation['input_sha256'],'evidence_hash':generation['evidence_hash']}
         receipt=self.out/'product-receipt.json'
-        save(receipt,{'protocol':'oo.source-onboarding.product/v1','build_id':build,'stages':list(stages.values()),'pack':pack,'pack_artifact_sha256':digest(self.out/'pack.json'),'effective_oos_sha256':digest(self.out/'effective.json'),'native_role_pack_sha256':digest(self.out/'role-pack.json'),'native_artifact_revision':native['artifact_revision'],'overlay_sha256':digest(self.out/'overlay.json'),'catalog_sha256':c['catalog_sha256'],'source_fresh':True,'s5':s5_proof,'standard_oos':standard,'producer':'tools/source-onboarding/product_flow.py','producer_sha256':digest(Path(__file__).resolve()),'fixture_review':True,'business_owner_signed':False,'published':False,'gateway_dialogue_complete':False})
-        return {'build_id':build,'s0_s10':'succeeded','fixture_review':True,'published':False}
+        save(receipt,{'protocol':'oo.source-onboarding.product/v1','build_id':build,'stages':list(stages.values()),'pack':pack,'pack_artifact_sha256':digest(self.out/'pack.json'),'effective_oos_sha256':digest(self.out/'effective.json'),'native_role_pack_sha256':digest(self.out/'role-pack.json'),'native_artifact_revision':native['artifact_revision'],'overlay_sha256':digest(self.out/'overlay.json'),'catalog_sha256':c['catalog_sha256'],'source_fresh':True,'s5':s5_proof,'standard_oos':standard,'producer':'tools/source-onboarding/product_flow.py','producer_sha256':digest(Path(__file__).resolve()),'fixture_review':not management,'management_review':management,'review_authority':c.get('review_authority','fixture'),'management_confirmation':confirmed.get('management_action'),'business_owner_signed':False,'published':False,'gateway_dialogue_complete':False})
+        return {'build_id':build,'s0_s10':'succeeded','fixture_review':not management,'management_review':management,'business_owner_signed':False,'published':False}
+    def require_management_action(self, response, build, role):
+        proof=response.get('management_action') or {}
+        require(proof.get('authority') == 'management_session' and proof.get('build_id') == build and proof.get('project_id') == self.c['create']['project_id'] and proof.get('subject') == self.c['review_subjects'][role] and isinstance(proof.get('issuer'),str) and proof['issuer'].startswith('https://') and type(proof.get('identity_revision')) is int and proof['identity_revision'] > 0, 'management_review_binding')
+        require(proof.get('business_owner_signed') is False and proof.get('owner_certification') == 'not_issued', 'management_not_customer_signature')
+
     def bind_retained(self, src, receipt_sha):
         """Bind one owner-private S5 product into this empty run. Do not create, and do not copy its maintenance call."""
         src=self.owned(src, stat.S_ISDIR)
@@ -202,6 +215,9 @@ class Flow:
         require(saved.get('config_sha256') == self.c['_sha256'], 'product_resume_drift')
         receipt=load(receipt_path)
         require(receipt.get('protocol') == 'oo.source-onboarding.product/v1' and receipt.get('build_id') == saved.get('build_id') and receipt.get('catalog_sha256') == self.c['catalog_sha256'], 'product_resume_drift')
+        if self.c.get('review_authority') == 'oidc_management':
+            require(receipt.get('management_review') is True and receipt.get('fixture_review') is False and receipt.get('business_owner_signed') is False, 'management_review_binding')
+            self.require_management_action({'management_action':receipt.get('management_confirmation')}, saved['build_id'], 'owner')
         return {'build_id':saved['build_id'],'s0_s10':'succeeded','fixture_review':receipt.get('fixture_review') is True,'published':False,'reused_completed':True}
     def bind_current(self, reused):
         receipt_path=self.out/'product-receipt.json'

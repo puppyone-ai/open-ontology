@@ -21,6 +21,7 @@ mod client;
 mod config;
 mod endpoint;
 mod error;
+mod publication;
 mod token;
 mod wire;
 
@@ -28,6 +29,7 @@ pub use client::Client;
 pub use config::{ByteCaps, ClientConfig, RetryPolicy, RootTrust, Timeouts, TransportMode};
 pub use error::{GatewayError, LocalError, ProtocolError, QueryError, TransportError};
 pub use oo_core::api::{ErrorCode, QueryRequest, QueryResponse};
+pub use publication::{PublicationBinding, PublicationReceipt, QueryReceipt};
 pub use token::BearerToken;
 
 /// Public query body ceiling from REQ-GW-03. Callers may set a lower cap.

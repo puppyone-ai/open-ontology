@@ -203,6 +203,14 @@ fn summarize_one(
         "conflict"
     } else if admissible_count == 1 {
         "admissible"
+    } else if matches!(gate_id, "G3" | "G4")
+        && labels.iter().all(|label| *label == "not_run")
+        && rows.iter().all(|fact| !fact.blocking && fact.status == "warn"
+            && fact.issuer_class == "fixture_authority" && fact.report_type == "target_measurement")
+    {
+        // Repeated authenticated, nonblocking observations remain unmeasured;
+        // snapshot timestamps must not turn a retry into a semantic conflict.
+        "not_run"
     } else if labels.len() > 1 {
         "conflict"
     } else {
@@ -427,6 +435,28 @@ mod tests {
             .expect("g4");
         assert_eq!(g4.disposition, "conflict");
         assert!(!g4.test_admissible);
+    }
+
+    #[test]
+    fn repeated_unmeasured_observations_never_become_a_pass_or_mask_failure() {
+        let source = "ab".repeat(32);
+        let covered = vec!["G4".to_owned()];
+        let mut a = fact("G4", "warn", "fixture_authority");
+        a.report_type = "target_measurement".into();
+        a.authority_statement_sha256 = Some(source.clone());
+        let mut b = a.clone();
+        b.certificate_sha256 = "second-observation".into();
+        let summary = super::summarize_one("G4", &[a.clone(), b.clone()], &source, &source, &covered);
+        assert_eq!(summary.disposition, "not_run");
+        assert!(!summary.test_admissible && !summary.production_admissible);
+        b.status = "fail".into();
+        assert_eq!(super::summarize_one("G4", &[a.clone(), b.clone()], &source, &source, &covered).disposition, "conflict");
+        b.status = "warn".into();
+        b.blocking = true;
+        assert_eq!(super::summarize_one("G4", &[a.clone(), b.clone()], &source, &source, &covered).disposition, "conflict");
+        b.blocking = false;
+        b.source_hash = "cd".repeat(32);
+        assert_eq!(super::summarize_one("G4", &[a, b], &source, &source, &covered).disposition, "conflict");
     }
 
     #[test]

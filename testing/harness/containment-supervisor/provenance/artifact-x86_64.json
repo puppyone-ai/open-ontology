@@ -1,0 +1,15 @@
+{
+  "scope": "generic test harness, not customer runtime",
+  "run_url": "https://github.com/puppyone-ai/open-ontology/actions/runs/41420458540",
+  "source_commit": "68ed9c190d460ef9fae1e334e676b2c9ea362647",
+  "target": "x86_64-unknown-linux-gnu",
+  "toolchain": "1.98.1",
+  "profile": "release",
+  "sha256": "76efbae5a8488ef5a5a7f77614b995da4362ebda6e6382e6e8578937adef1228",
+  "inputs": {
+    "testing/harness/containment-supervisor/Cargo.toml": "4c0ed714c5c5a0dfed0230fef59d6fabe5d5b4c77b3da7e01a5574cc16b82767",
+    "testing/harness/containment-supervisor/Cargo.lock": "14a0a0c66d604bae81f59b770e66a2d7cf00b38e427c3afbc8344bb4864189c1",
+    "testing/harness/containment-supervisor/src/lib.rs": "e9810bd659ccc2ac8adc44dc67631744d1ab40b681bdc20b9dbeb29927cb54d5",
+    "testing/harness/containment-supervisor/src/main.rs": "7c25da40ba3aece4f1d38ea45a8f777a1c53a685bf3a9b1ed8514898e97e51c7"
+  }
+}

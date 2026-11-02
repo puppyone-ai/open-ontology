@@ -27,7 +27,10 @@ fn sha256_hex(bytes: &[u8]) -> String {
     let independent = Sha256::digest(bytes);
     let core = oo_core::canonical::hash_bytes(bytes);
     assert!(independent.iter().copied().eq(core));
-    independent.iter().map(|byte| format!("{byte:02x}")).collect()
+    independent
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 fn compiled_command(bytes: &[u8]) -> String {
@@ -64,7 +67,11 @@ fn run_bundle(request: &Path, output: &Path) -> Output {
 }
 
 fn staging_of(dest: &Path) -> PathBuf {
-    let name = dest.file_name().expect("file name").to_str().expect("utf8 name");
+    let name = dest
+        .file_name()
+        .expect("file name")
+        .to_str()
+        .expect("utf8 name");
     dest.parent()
         .expect("parent")
         .join(format!("{name}.role-pack-bundle-staging"))
@@ -73,7 +80,13 @@ fn staging_of(dest: &Path) -> PathBuf {
 fn names(dir: &Path) -> Vec<String> {
     let mut found = fs::read_dir(dir)
         .expect("read dir")
-        .map(|entry| entry.expect("entry").file_name().to_string_lossy().into_owned())
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
         .collect::<Vec<_>>();
     found.sort();
     found
@@ -413,7 +426,10 @@ fn assert_bundle(bytes: &[u8], pack: &oo_builder::RolePack, role: &str) {
     let pack_sha = sha256_hex(pack.artifact.as_bytes());
     assert_eq!(manifest_sha, pack.manifest_sha256);
     assert_ne!(pack_sha, pack.pack_digest);
-    assert!(text.contains(&format!("\"manifest\":{manifest},\"manifest_length\":{},\"manifest_sha256\":\"{manifest_sha}\"", manifest.len())));
+    assert!(text.contains(&format!(
+        "\"manifest\":{manifest},\"manifest_length\":{},\"manifest_sha256\":\"{manifest_sha}\"",
+        manifest.len()
+    )));
     assert!(text.contains(&format!(
         "\"pack\":{},\"pack_digest\":\"{}\",\"pack_length\":{},\"pack_protocol\":\"oo.builder.role-pack/v1\",\"pack_sha256\":\"{pack_sha}\"",
         pack.artifact,
@@ -421,7 +437,10 @@ fn assert_bundle(bytes: &[u8], pack: &oo_builder::RolePack, role: &str) {
         pack.artifact.len()
     )));
     let manifest_value: Value = serde_json::from_str(manifest).expect("manifest json");
-    assert!(text.contains(&format!("\"snapshot\":{}", expect_snapshot(&manifest_value))));
+    assert!(text.contains(&format!(
+        "\"snapshot\":{}",
+        expect_snapshot(&manifest_value)
+    )));
     assert!(text.contains(&format!("\"statuses\":{STATUSES}")));
     let doc: Value = serde_json::from_str(text).expect("bundle json");
     assert_eq!(doc["protocol"], BUNDLE_PROTOCOL);
@@ -437,22 +456,42 @@ fn assert_bundle(bytes: &[u8], pack: &oo_builder::RolePack, role: &str) {
     assert_eq!(doc["snapshot"]["role"], role);
     assert_eq!(doc["snapshot"]["project"], manifest_value["project"]);
     assert_eq!(doc["snapshot"]["policy_id"], manifest_value["policy"]["id"]);
-    assert_eq!(doc["snapshot"]["policy_version"], manifest_value["policy"]["version"]);
-    assert_eq!(doc["snapshot"]["knowledge_id"], manifest_value["knowledge"]["id"]);
-    assert_eq!(doc["snapshot"]["knowledge_version"], manifest_value["knowledge"]["version"]);
+    assert_eq!(
+        doc["snapshot"]["policy_version"],
+        manifest_value["policy"]["version"]
+    );
+    assert_eq!(
+        doc["snapshot"]["knowledge_id"],
+        manifest_value["knowledge"]["id"]
+    );
+    assert_eq!(
+        doc["snapshot"]["knowledge_version"],
+        manifest_value["knowledge"]["version"]
+    );
     assert_eq!(doc["statuses"]["authentication"], "not_claimed");
     assert_eq!(doc["statuses"]["authorization"], "not_claimed");
     assert_eq!(doc["statuses"]["publication"], "not_claimed");
     assert_eq!(doc["statuses"]["mount"], "not_performed");
     assert_eq!(doc["statuses"]["row_security_reproven"], false);
-    assert_eq!(doc["statuses"]["tokens_status"], manifest_value["tokens"]["status"]);
-    assert_eq!(doc["statuses"]["tokens_estimator"], manifest_value["tokens"]["estimator"]);
+    assert_eq!(
+        doc["statuses"]["tokens_status"],
+        manifest_value["tokens"]["status"]
+    );
+    assert_eq!(
+        doc["statuses"]["tokens_estimator"],
+        manifest_value["tokens"]["estimator"]
+    );
     assert!(doc.get("cache_key").is_none());
     assert!(doc.get("cache_key_sha256").is_none());
     assert!(doc.get("principal").is_none());
     assert!(doc["statuses"].get("readme_tokens").is_none());
     assert_eq!(doc["statuses"].as_object().expect("statuses").len(), 11);
-    let keys: Vec<&str> = doc.as_object().expect("object").keys().map(String::as_str).collect();
+    let keys: Vec<&str> = doc
+        .as_object()
+        .expect("object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     assert_eq!(
         keys,
         [
@@ -517,7 +556,12 @@ fn two_roles_splice_compiler_bytes_and_independent_hashes() {
     let clerk_run = run_bundle(&clerk_input, &clerk_output);
     let audit_run = run_bundle(&audit_input, &audit_output);
     for output in [&clerk_run, &audit_run] {
-        assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
         assert!(output.stdout.is_empty());
         assert!(output.stderr.is_empty());
     }
@@ -618,31 +662,56 @@ fn missing_kind_and_parent_failures_are_static() {
     fs::write(&request, command_bytes(&effective, &clerk_vis)).expect("request");
     let absent = dir.join(format!("{MARKER}-missing.json"));
     let missing = run_bundle(&absent, &dir.join("out.json"));
-    assert_line(&missing, 1, &own("io.missing", "the request file is missing"), &[MARKER]);
+    assert_line(
+        &missing,
+        1,
+        &own("io.missing", "the request file is missing"),
+        &[MARKER],
+    );
     assert_eq!(names(&dir), vec!["request.json".to_string()]);
 
     let folder = dir.join(format!("{MARKER}-dir"));
     fs::create_dir(&folder).expect("dir request");
     let kind = run_bundle(&folder, &dir.join("out.json"));
-    assert_line(&kind, 1, &own("io.kind", "the request path is not a regular file"), &[MARKER]);
+    assert_line(
+        &kind,
+        1,
+        &own("io.kind", "the request path is not a regular file"),
+        &[MARKER],
+    );
 
     let target = dir.join("target.json");
     fs::write(&target, b"keep").expect("target");
     let link = dir.join(format!("{MARKER}-link.json"));
     std::os::unix::fs::symlink(&target, &link).expect("symlink");
     let linked = run_bundle(&link, &dir.join("out.json"));
-    assert_line(&linked, 1, &own("io.kind", "the request path is not a regular file"), &[MARKER]);
+    assert_line(
+        &linked,
+        1,
+        &own("io.kind", "the request path is not a regular file"),
+        &[MARKER],
+    );
     assert_eq!(fs::read(&target).expect("target bytes"), b"keep");
 
     let parent = dir.join("no-parent").join("out.json");
     let no_parent = run_bundle(&request, &parent);
-    assert_line(&no_parent, 1, &own("io.parent", "the output parent is not a directory"), &[MARKER]);
+    assert_line(
+        &no_parent,
+        1,
+        &own("io.parent", "the output parent is not a directory"),
+        &[MARKER],
+    );
     assert!(!dir.join("no-parent").exists());
 
     let parent_file = dir.join("parent-file");
     fs::write(&parent_file, b"not-dir").expect("parent file");
     let file_parent = run_bundle(&request, &parent_file.join("out.json"));
-    assert_line(&file_parent, 1, &own("io.parent", "the output parent is not a directory"), &[]);
+    assert_line(
+        &file_parent,
+        1,
+        &own("io.parent", "the output parent is not a directory"),
+        &[],
+    );
     assert_eq!(fs::read(&parent_file).expect("parent bytes"), b"not-dir");
 
     let real_parent = dir.join("real-parent");
@@ -650,7 +719,12 @@ fn missing_kind_and_parent_failures_are_static() {
     let link_parent = dir.join("link-parent");
     std::os::unix::fs::symlink(&real_parent, &link_parent).expect("parent symlink");
     let followed = run_bundle(&request, &link_parent.join("out.json"));
-    assert_line(&followed, 1, &own("io.parent", "the output parent is not a directory"), &[]);
+    assert_line(
+        &followed,
+        1,
+        &own("io.parent", "the output parent is not a directory"),
+        &[],
+    );
     assert!(names(&real_parent).is_empty());
     let _ = fs::remove_dir_all(&dir);
 }
@@ -659,7 +733,11 @@ fn missing_kind_and_parent_failures_are_static() {
 fn corrupt_utf8_and_oversize_do_not_echo_or_create_output() {
     let dir = scratch("corrupt");
     let bad = dir.join("bad.json");
-    fs::write(&bad, format!(r#"{{"protocol":"{COMMAND_PROTOCOL}","note":"{MARKER}""#)).expect("bad");
+    fs::write(
+        &bad,
+        format!(r#"{{"protocol":"{COMMAND_PROTOCOL}","note":"{MARKER}""#),
+    )
+    .expect("bad");
     let output = dir.join("out.json");
     let syntax = run_bundle(&bad, &output);
     assert_line(
@@ -677,16 +755,38 @@ fn corrupt_utf8_and_oversize_do_not_echo_or_create_output() {
     let utf8 = dir.join("utf8.json");
     fs::write(&utf8, [0xff, 0xfe]).expect("utf8");
     let bytes = run_bundle(&utf8, &output);
-    assert_line(&bytes, 1, &own("json.syntax", "the request file is not UTF-8"), &[MARKER]);
+    assert_line(
+        &bytes,
+        1,
+        &own("json.syntax", "the request file is not UTF-8"),
+        &[MARKER],
+    );
 
     let mut huge = vec![b' '; DOCUMENT_MAX_BYTES + 1];
     huge[..MARKER.len()].copy_from_slice(MARKER.as_bytes());
     let over_path = dir.join("over.json");
     fs::write(&over_path, &huge).expect("over");
     let over = run_bundle(&over_path, &output);
-    assert_line(&over, 1, &own("json.budget.bytes", "document exceeds the byte budget"), &[MARKER]);
-    assert!(!over.stderr.windows(64).any(|window| window.iter().all(|byte| *byte == b' ')));
-    assert_eq!(names(&dir), vec!["bad.json".to_string(), "over.json".to_string(), "utf8.json".to_string()]);
+    assert_line(
+        &over,
+        1,
+        &own("json.budget.bytes", "document exceeds the byte budget"),
+        &[MARKER],
+    );
+    assert!(
+        !over
+            .stderr
+            .windows(64)
+            .any(|window| window.iter().all(|byte| *byte == b' '))
+    );
+    assert_eq!(
+        names(&dir),
+        vec![
+            "bad.json".to_string(),
+            "over.json".to_string(),
+            "utf8.json".to_string()
+        ]
+    );
     let _ = fs::remove_dir_all(&dir);
 }
 
@@ -699,7 +799,12 @@ fn existing_destination_keeps_the_sentinel() {
     let dest = dir.join("out.json");
     fs::write(&dest, b"SENTINEL-a214").expect("sentinel");
     let output = run_bundle(&request, &dest);
-    assert_line(&output, 1, &own("io.destination", "the output path already exists"), &[MARKER, "SENTINEL-a214"]);
+    assert_line(
+        &output,
+        1,
+        &own("io.destination", "the output path already exists"),
+        &[MARKER, "SENTINEL-a214"],
+    );
     assert_eq!(fs::read(&dest).expect("dest"), b"SENTINEL-a214");
     assert!(!staging_of(&dest).exists());
 
@@ -708,9 +813,19 @@ fn existing_destination_keeps_the_sentinel() {
     let link = dir.join("link.json");
     std::os::unix::fs::symlink(&real, &link).expect("dest symlink");
     let linked = run_bundle(&request, &link);
-    assert_line(&linked, 1, &own("io.destination", "the output path already exists"), &[]);
+    assert_line(
+        &linked,
+        1,
+        &own("io.destination", "the output path already exists"),
+        &[],
+    );
     assert_eq!(fs::read(&real).expect("real bytes"), b"KEEP-REAL");
-    assert!(fs::symlink_metadata(&link).expect("link meta").file_type().is_symlink());
+    assert!(
+        fs::symlink_metadata(&link)
+            .expect("link meta")
+            .file_type()
+            .is_symlink()
+    );
     assert!(!staging_of(&link).exists());
     let _ = fs::remove_dir_all(&dir);
 }
@@ -727,14 +842,34 @@ fn destination_collision_removes_only_the_owned_staging_file() {
     fs::create_dir(dir.join("neighbor")).expect("neighbor");
     fs::write(dir.join("neighbor").join("child.txt"), b"CHILD-a214").expect("child");
     std::thread::sleep(Duration::from_secs(2));
-    let before = fs::metadata(&dir).expect("mtime").modified().expect("modified");
+    let before = fs::metadata(&dir)
+        .expect("mtime")
+        .modified()
+        .expect("modified");
     let output = run_bundle(&request, &dest);
-    let after = fs::metadata(&dir).expect("mtime").modified().expect("modified");
-    assert_line(&output, 1, &own("io.destination", "the output path already exists"), &[MARKER]);
-    assert!(after > before, "directory mtime did not move: {before:?} -> {after:?}");
+    let after = fs::metadata(&dir)
+        .expect("mtime")
+        .modified()
+        .expect("modified");
+    assert_line(
+        &output,
+        1,
+        &own("io.destination", "the output path already exists"),
+        &[MARKER],
+    );
+    assert!(
+        after > before,
+        "directory mtime did not move: {before:?} -> {after:?}"
+    );
     assert_eq!(fs::read(&dest).expect("dest"), b"SENTINEL-a214");
-    assert_eq!(fs::read(dir.join("foreign.txt")).expect("foreign"), b"FOREIGN-a214");
-    assert_eq!(fs::read(dir.join("neighbor").join("child.txt")).expect("child"), b"CHILD-a214");
+    assert_eq!(
+        fs::read(dir.join("foreign.txt")).expect("foreign"),
+        b"FOREIGN-a214"
+    );
+    assert_eq!(
+        fs::read(dir.join("neighbor").join("child.txt")).expect("child"),
+        b"CHILD-a214"
+    );
     assert!(!staging_of(&dest).exists());
     assert!(dir.join("neighbor").is_dir());
     let _ = fs::remove_dir_all(&dir);
@@ -752,8 +887,16 @@ fn preexisting_staging_and_long_name_are_left_untouched() {
     let foreign = dir.join("foreign.txt");
     fs::write(&foreign, b"FOREIGN").expect("foreign");
     let output = run_bundle(&request, &dest);
-    assert_line(&output, 1, &own("io.collision", "the staging path already exists"), &[MARKER]);
-    assert_eq!(fs::read_to_string(&staging).expect("staging bytes"), format!("KEEP-{MARKER}"));
+    assert_line(
+        &output,
+        1,
+        &own("io.collision", "the staging path already exists"),
+        &[MARKER],
+    );
+    assert_eq!(
+        fs::read_to_string(&staging).expect("staging bytes"),
+        format!("KEEP-{MARKER}")
+    );
     assert!(!dest.exists());
     assert_eq!(fs::read(&foreign).expect("foreign"), b"FOREIGN");
 
@@ -761,8 +904,16 @@ fn preexisting_staging_and_long_name_are_left_untouched() {
     fs::create_dir(&staging_dir).expect("staging dir");
     fs::write(staging_dir.join("child.txt"), b"KEEP-DIR").expect("child");
     let held = run_bundle(&request, &dir.join("held.json"));
-    assert_line(&held, 1, &own("io.collision", "the staging path already exists"), &[]);
-    assert_eq!(fs::read(staging_dir.join("child.txt")).expect("child"), b"KEEP-DIR");
+    assert_line(
+        &held,
+        1,
+        &own("io.collision", "the staging path already exists"),
+        &[],
+    );
+    assert_eq!(
+        fs::read(staging_dir.join("child.txt")).expect("child"),
+        b"KEEP-DIR"
+    );
     assert!(!dir.join("held.json").exists());
 
     let long_name = "n".repeat(231);
@@ -773,7 +924,15 @@ fn preexisting_staging_and_long_name_are_left_untouched() {
         "--output",
         long_out.to_str().expect("long"),
     ]);
-    assert_line(&long, 1, &own("io.name", "the output file name does not fit the staging suffix"), &[]);
+    assert_line(
+        &long,
+        1,
+        &own(
+            "io.name",
+            "the output file name does not fit the staging suffix",
+        ),
+        &[],
+    );
     assert!(!long_out.exists());
 
     let slash = format!("{}/", dest.display());
@@ -783,8 +942,19 @@ fn preexisting_staging_and_long_name_are_left_untouched() {
         "--output",
         &slash,
     ]);
-    assert_line(&slashed, 1, &own("io.name", "the output file name does not fit the staging suffix"), &[]);
-    assert_eq!(fs::read_to_string(&staging).expect("staging still"), format!("KEEP-{MARKER}"));
+    assert_line(
+        &slashed,
+        1,
+        &own(
+            "io.name",
+            "the output file name does not fit the staging suffix",
+        ),
+        &[],
+    );
+    assert_eq!(
+        fs::read_to_string(&staging).expect("staging still"),
+        format!("KEEP-{MARKER}")
+    );
     let _ = fs::remove_dir_all(&dir);
 }
 
@@ -823,7 +993,11 @@ fn help_and_usage_do_not_touch_files() {
     let cases = [
         vec!["--request".to_string()],
         vec![format!("--request={MARKER}")],
-        vec!["--help".to_string(), "--request".to_string(), MARKER.to_string()],
+        vec![
+            "--help".to_string(),
+            "--request".to_string(),
+            MARKER.to_string(),
+        ],
         vec![
             "--request".to_string(),
             "request.json".to_string(),
@@ -862,7 +1036,12 @@ fn second_publish_keeps_the_first_bundle() {
     let neighbor = dir.join("neighbor.txt");
     fs::write(&neighbor, b"KEEP-NEIGHBOR").expect("neighbor");
     let first = run_bundle(&clerk_input, &dest);
-    assert_eq!(first.status.code(), Some(0), "{}", String::from_utf8_lossy(&first.stderr));
+    assert_eq!(
+        first.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
     let kept = fs::read(&dest).expect("first bundle");
     assert_bundle(&kept, &clerk_pack, "oo_r_clerk");
     let second = run_bundle(&audit_input, &dest);
@@ -892,8 +1071,18 @@ fn competing_processes_one_publishes_and_the_other_refuses() {
     let audit_only = dir.join("audit-only.json");
     let clerk_ref = run_bundle(&clerk_input, &clerk_only);
     let audit_ref = run_bundle(&audit_input, &audit_only);
-    assert_eq!(clerk_ref.status.code(), Some(0), "{}", String::from_utf8_lossy(&clerk_ref.stderr));
-    assert_eq!(audit_ref.status.code(), Some(0), "{}", String::from_utf8_lossy(&audit_ref.stderr));
+    assert_eq!(
+        clerk_ref.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&clerk_ref.stderr)
+    );
+    assert_eq!(
+        audit_ref.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&audit_ref.stderr)
+    );
     let clerk_bytes = fs::read(&clerk_only).expect("clerk bytes");
     let audit_bytes = fs::read(&audit_only).expect("audit bytes");
     assert_ne!(clerk_bytes, audit_bytes);
@@ -957,4 +1146,41 @@ fn competing_processes_one_publishes_and_the_other_refuses() {
     assert_eq!(fs::read(&audit_only).expect("audit kept"), audit_bytes);
     assert_eq!(fs::read(&neighbor).expect("neighbor"), b"KEEP-NEIGHBOR");
     let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn relationship_pages_survive_bundle_with_truthful_status() {
+    let (mut effective, mut visibility, audit) = wharf();
+    visibility["datasets"]
+        .as_array_mut()
+        .unwrap()
+        .extend(audit["datasets"].as_array().unwrap().clone());
+    let edge = effective["relationships"][0].clone();
+    effective["relationships"] = json!(
+        (0..80)
+            .map(|i| {
+                let mut item = edge.clone();
+                item["name"] = json!(format!("edge_{i:04}"));
+                item
+            })
+            .collect::<Vec<_>>()
+    );
+    let expected = library_pack(&effective, &visibility);
+    let dir = scratch("relationship-pages");
+    let request = dir.join("request.json");
+    let output = dir.join("bundle.json");
+    fs::write(&request, command_bytes(&effective, &visibility)).unwrap();
+    let result = run_bundle(&request, &output);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let bundle: Value = serde_json::from_slice(&fs::read(output).unwrap()).unwrap();
+    assert_eq!(bundle["statuses"]["file_splitting"], "relationship_pages");
+    assert_eq!(bundle["pack_digest"], expected.pack_digest);
+    assert_eq!(
+        bundle["pack"],
+        serde_json::from_str::<Value>(&expected.artifact).unwrap()
+    );
 }

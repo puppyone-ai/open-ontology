@@ -51,9 +51,8 @@ const PASSWORD_BYTES: usize = 1024;
 const CA_BYTES: usize = 1_048_576;
 const MAX_POLICIES: usize = 32;
 const MAX_COLUMNS: usize = 512;
-const MIN_OPERATORS: u32 = 54;
 const MAX_OPERATORS: u32 = 128;
-const MAX_FUNCTIONS: u32 = 8;
+const MAX_FUNCTIONS: u32 = oo_gateway::policy::catalog::FUNCTION_CATALOG_LIMIT;
 const MAX_TABLES: u32 = 32;
 
 const EXIT_IO: u8 = 1;
@@ -587,7 +586,7 @@ fn limits_from(doc: &CatalogDoc) -> Result<CatalogLimits, Fail> {
         || doc.max_columns > MAX_COLUMNS as u32
         || doc.max_functions == 0
         || doc.max_functions > MAX_FUNCTIONS
-        || doc.max_operators < MIN_OPERATORS
+        || (doc.max_operators as usize) < oo_gateway::policy::catalog::required_operator_count()
         || doc.max_operators > MAX_OPERATORS
     {
         return Err(Fail::Request);
@@ -1334,10 +1333,12 @@ mod a327_live {
     }
 
     #[test]
+    #[ignore = "live fixture: requires OO_A327_LIVE; run with --ignored"]
     fn live_numeric_proof() {
-        if std::env::var_os("OO_A327_LIVE").is_none() {
-            return;
-        }
+        assert!(
+            std::env::var_os("OO_A327_LIVE").is_some(),
+            "OO_A327_LIVE must be set for this live fixture"
+        );
         assert_eq!(AMOUNT_COEFF.len(), 18);
         assert_eq!(WIDE_COEFF.len(), 38);
         assert!(AMOUNT_COEFF.bytes().all(|byte| byte.is_ascii_digit()));

@@ -34,6 +34,15 @@ use tokio::time::timeout;
 use crate::config::{read_ca, read_secret};
 use crate::error::PreviewError;
 
+#[path = "c1_typed_source.rs"]
+pub mod typed;
+#[path = "c1_identity.rs"]
+pub(crate) mod identity;
+#[path = "c1_cycle_clock.rs"]
+pub(crate) mod cycle_clock;
+#[path = "c1_handoff.rs"]
+pub mod handoff;
+
 const FIXTURE: &str = "owned-mysql-8";
 const SOURCE: &str = "mysql_c1";
 const DATABASE: &str = "oo_c1";
@@ -47,7 +56,8 @@ const NATIVE_TABLES: [&str; 5] = [
     "native_mysql_20261012.value_probe",
 ];
 const RETENTION: u64 = 604_800;
-const MAX_EVENTS: u64 = 20_000;
+const MAX_TXN_EVENTS: u64 = 200_000;
+const MAX_TXN_BYTES: u64 = 268_435_456;
 const PROVENANCE: &str = "caller_declared";
 
 pub async fn configure_dba(config: &Path, out: &Path) -> Result<(), PreviewError> {
@@ -400,16 +410,64 @@ pub async fn capture_business(config: &Path, out: &Path) -> Result<(), PreviewEr
     )
 }
 
+/// Baseline format written by `c1-onboarding-prepare` when the operator opts in.
+const ONBOARDING_V2_FORMAT: &str = "chunked-typed/v2";
+
+/// `None` and `v1` keep the v1 manifest. `chunked-typed/v2` selects the v2 manifest.
+fn onboarding_v2(format: Option<&str>) -> Result<bool, PreviewError> {
+    match format {
+        None | Some("v1") => Ok(false),
+        Some(ONBOARDING_V2_FORMAT) => Ok(true),
+        Some(_) => Err(PreviewError::new("config", "c1_baseline_format")),
+    }
+}
+
+/// Producer output template of the onboarding manifest. v2 is per task (no generation), so a
+/// resumed run finds its journal (job-worker `producer_paths` refuses a generation template).
+fn onboarding_out_template(v2: bool) -> &'static str {
+    if v2 { "capture-{task}" } else { "capture-{task}-{generation}" }
+}
+
+/// Producer subcommand and loader argument of the onboarding manifest for one format.
+fn onboarding_protocol(v2: bool) -> (&'static str, &'static str) {
+    if v2 {
+        ("c1-baseline-stream-v2", "import-native-c1-baseline-v2")
+    } else {
+        ("c1-baseline-stream", "import-native-c1-baseline")
+    }
+}
+
+/// Only the v2 onboarding manifest carries `c1_baseline_format`. The v1 manifest is unchanged.
+fn mark_baseline_format(manifest: &mut Value, v2: bool) {
+    if v2 {
+        manifest["c1_baseline_format"] = json!(ONBOARDING_V2_FORMAT);
+    }
+}
+
 /// Prepare the ordinary connection entry using the supplied six fields and
 /// private operator handles. Capturing still requires the formal worker lease.
-pub async fn prepare_onboarding(config:&Path,out:&Path)->Result<(),PreviewError> {
+/// `format` is the optional `c1_baseline_format` (`v1` by default, or `chunked-typed/v2`).
+pub async fn prepare_onboarding(config:&Path,out:&Path,format:Option<&str>)->Result<(),PreviewError> {
+    let v3=format==Some("typed-keys/v3");
+    let v2=if v3 {false}else{onboarding_v2(format)?};
     if out.exists() {return Err(PreviewError::new("config","out_exists"));}
     let bytes=fs::read(config).map_err(|_|PreviewError::new("config","path"))?;
     let mut input:Value=serde_json::from_slice(&bytes).map_err(|_|PreviewError::new("config","json"))?;
+    if !v3 && input.get("c1_export_parts").is_some() {
+        return Err(PreviewError::new("config","typed_export_requires_v3"));
+    }
+    if typed::initial_resume_enabled(&input)? && !v3 {
+        return Err(PreviewError::new("config","initial_resume_requires_v3"));
+    }
     let cfg=load_config(config)?;configured_selection(&cfg)?;
     let secret=input["secret_ref"].as_str().filter(|s|s.starts_with("secret://")).ok_or_else(||PreviewError::new("config","secret_ref"))?.to_string();
     let connection=json!({"type":"mysql","host":cfg.host,"port":cfg.port,"database":cfg.database,"user":cfg.user,"secret_ref":secret});
-    let source=format!("mysql_{}",&sha256_hex(&serde_json::to_vec(&connection).map_err(|_|PreviewError::new("config","json"))?)[..24]);
+    let managed=identity::verify(&input)?;
+    if managed.is_some() && !v3 {return Err(PreviewError::new("identity","managed_requires_typed_v3"));}
+    let source=match &managed {
+        Some(v)=>v.record["source_id"].as_str().ok_or_else(||PreviewError::new("identity","source_id"))?.to_owned(),
+        None=>format!("mysql_{}",&sha256_hex(&serde_json::to_vec(&connection).map_err(|_|PreviewError::new("config","json"))?)[..24]),
+    };
     let operator=input.as_object_mut().ok_or_else(||PreviewError::new("config","json"))?.remove("onboarding").ok_or_else(||PreviewError::new("config","onboarding"))?;
     fresh_dir(out)?;
     let mut probe=connect_cdc(&cfg).await?;let facts=preflight_values(&mut probe).await?;
@@ -424,15 +482,36 @@ pub async fn prepare_onboarding(config:&Path,out:&Path)->Result<(),PreviewError>
     };
     let binding=operator["binding"].as_str().ok_or_else(||PreviewError::new("config","binding"))?;
     let project=operator["project_id"].as_str().ok_or_else(||PreviewError::new("config","project"))?;
-    let manifest=json!({"protocol":"oo.jobs.native-schedule/v1","binding":binding,"project_id":project,"source_id":source,
+    let (producer_subcommand,loader_argument)=if v3 {
+        ("c1-baseline-stream-v3","import-native-c1-baseline-v3")
+    } else {onboarding_protocol(v2)};
+    let mut manifest=json!({"protocol":"oo.jobs.native-schedule/v1","binding":binding,"project_id":project,"source_id":source,
         "method":"C1","cycle":"pull","period_ms":operator["period_ms"],
-        "producer":executable("producer",json!(["c1-baseline-stream","--config",out.join("native-config.json"),"--out",out.join("capture-{task}-{generation}")]))?,
-        "loader":executable("loader",json!(["import-native-c1-baseline"]))?,
+        "producer":executable("producer",json!([producer_subcommand,"--config",out.join("native-config.json"),"--out",out.join(onboarding_out_template(v2||v3))]))?,
+        "loader":executable("loader",json!([loader_argument]))?,
         "registration":{"admission_binary":operator["admission"],"admission_sha256":sha256_hex(&fs::read(operator["admission"].as_str().ok_or_else(||PreviewError::new("config","admission"))?).map_err(|_|PreviewError::new("config","admission"))?)}});
+    mark_baseline_format(&mut manifest,v2);
+    if v3 {manifest["c1_baseline_format"]=json!("typed-keys/v3");}
+    if let Some(v)=&managed {
+        manifest["source_registration"]=v.registration.clone();
+        if let Some(rebind)=operator.get("connection_rebind") {
+            manifest["connection_rebind"]=rebind.clone();
+        }
+    }
     let context=json!({"source_id":source,"secret_ref":secret});
-    crate::c1_materialize::write(&out.join("source-config.json"),&crate::c1_materialize::admission_config(&context,&cfg.tables))?;
+    let mut admission=crate::c1_materialize::admission_config(&context,&cfg.tables);
+    if let Some(limit)=typed::export_row_limit(&input)? {admission["budget"]["hard_limit"]=json!(limit);}
+    crate::c1_materialize::write(&out.join("source-config.json"),&admission)?;
     crate::c1_materialize::write(&out.join("native-manifest.json"),&manifest)?;
-    crate::c1_materialize::write(&out.join("identity.json"),&json!({"source_id":source,"binding_id":binding,"project_id":project,"database":cfg.database,"measured_id":format!("mysql.{uuid}"),"connection":connection,"source_preflight":facts,"source_config_sha256":sha256_hex(&fs::read(out.join("source-config.json")).map_err(|_|PreviewError::new("config","out"))?)}))?;
+    let mut document=json!({"source_id":source,"binding_id":binding,"project_id":project,"database":cfg.database,"measured_id":format!("mysql.{uuid}"),"connection":connection,"source_preflight":facts,"source_config_sha256":sha256_hex(&fs::read(out.join("source-config.json")).map_err(|_|PreviewError::new("config","out"))?)});
+    if let Some(v)=managed {document["source_registration"]=v.registration;}
+    crate::c1_materialize::write(&out.join("identity.json"),&document)?;
+    if document.get("source_registration").is_some() {
+        for name in ["identity.json","native-manifest.json","source-config.json"] {
+            fs::set_permissions(out.join(name),fs::Permissions::from_mode(0o600))
+                .map_err(|_|PreviewError::new("identity","private_output"))?;
+        }
+    }
     Ok(())
 }
 
@@ -537,7 +616,7 @@ pub async fn baseline_stream(config: &Path, out: &Path) -> Result<(), PreviewErr
         counts: BTreeMap::new(),
         globals: 0,
         rows: Vec::new(),
-        events: 0,
+        txn_budget: TxnBudget::default(),
         foreign: false,
         source_commit_timestamp: None,
         out: out.to_path_buf(),
@@ -625,7 +704,7 @@ pub async fn baseline_stream(config: &Path, out: &Path) -> Result<(), PreviewErr
         let _ = exec_static(&mut snapshot, "ROLLBACK").await;
         return Err(PreviewError::new("c1", "snapshot_l0"));
     }
-    let source_config=oo_connectors::mysql::MysqlConfig {mysql_host:cfg.host.clone(),mysql_port:cfg.port,mysql_database:cfg.database.clone(),mysql_user:cfg.user.clone(),mysql_ca_file:cfg.ca_file.clone(),secret_ref:oo_connectors::SecretRef::new(context["secret_ref"].as_str().ok_or_else(||PreviewError::new("config","secret_ref"))?).map_err(|_|PreviewError::new("config","secret_ref"))?,connect_timeout_ms:30000};
+    let source_config=oo_connectors::mysql::MysqlConfig {mysql_host:cfg.host.clone(),mysql_port:cfg.port,mysql_database:cfg.database.clone(),mysql_user:cfg.user.clone(),mysql_ca_file:cfg.ca_file.clone(),mysql_tls_server_name:cfg.tls_server_name.clone(),secret_ref:oo_connectors::SecretRef::new(context["secret_ref"].as_str().ok_or_else(||PreviewError::new("config","secret_ref"))?).map_err(|_|PreviewError::new("config","secret_ref"))?,connect_timeout_ms:30000};
     let mut snapshot=oo_connectors::mysql::ReadConnection::new(snapshot,source_config,read_secret(&cfg.password_file)?);
     {
         let pk = live.pk.clone();
@@ -711,7 +790,7 @@ async fn reader_write_audit(cfg:&C1Config,out:&Path)->Result<u64,PreviewError> {
     Ok(attempts)
 }
 
-fn gtid_contains(set: &str, uuid: &str, pos: u64) -> bool {
+pub(crate) fn gtid_contains(set: &str, uuid: &str, pos: u64) -> bool {
     set.split(',').any(|part| {
         part.split_once(':').is_some_and(|(id, ranges)| {
             id == uuid
@@ -743,7 +822,7 @@ fn consume_stream_event(
     if live.span.end == before {
         return Ok(last_pos);
     }
-    if live.span.end <= last_pos || live.events > MAX_EVENTS {
+    if live.span.end <= last_pos {
         return Err(PreviewError::new("c1", "position"));
     }
     let txn = format!("{}:{}", live.span.uuid, live.span.end);
@@ -752,6 +831,7 @@ fn consume_stream_event(
         &json!({"kind":"transaction","txn_id":txn,"applied_pos":live.span.end,"rows":rows,"source_commit_timestamp":live.source_commit_timestamp}),
     )?;
     read_worker_reply(input, "transaction")?;
+    release_acknowledged(&mut live.rows, &txn);
     Ok(live.span.end)
 }
 
@@ -764,6 +844,13 @@ fn transaction_rows(rows:&[Seen],txn:&str)->Vec<Value> {
         final_rows.insert((row.table.clone(),row.key.clone()),row);
     }
     final_rows.into_values().map(|row|json!({"schema":row.table.split_once('.').map(|pair|pair.0).unwrap_or(""),"table":row.table.split_once('.').map(|pair|pair.1).unwrap_or(""),"key":row.key_value,"op":if row.deleted {"delete"} else {"upsert"},"value":if row.deleted {Value::Null} else {payload_object_from_row(row)}})).collect()
+}
+
+// Called only after the worker has durably acknowledged the transaction frame.
+// The frame already carries the rows, so keeping them would only grow memory
+// and the per-transaction scans with the total CDC volume.
+fn release_acknowledged(rows:&mut Vec<Seen>,txn:&str) {
+    rows.retain(|row|row.txn_id!=txn);
 }
 
 struct SnapshotProgress {table:usize,reader:Option<oo_connectors::mysql::TableReader>,batches:u64,rows:u64,peak_rows:usize,started:Instant,binding:oo_connectors::types::RunBinding}
@@ -867,7 +954,7 @@ fn mysql_snapshot_cell(ordinal:u16,value:&MyValue,kind:&str)->Result<Value,Previ
     oo_connectors::mysql::values::snapshot_cell(ordinal,value,kind).map_err(Into::into)
 }
 
-fn send_frame(frame: &Value) -> Result<(), PreviewError> {
+pub(crate) fn send_frame(frame: &Value) -> Result<(), PreviewError> {
     let mut out = std::io::stdout().lock();
     serde_json::to_writer(&mut out, frame).map_err(|_| PreviewError::new("protocol", "stdout"))?;
     out.write_all(b"\n")
@@ -967,31 +1054,34 @@ pub async fn prepare_random_gold(config: &Path, out: &Path) -> Result<(), Previe
 }
 
 #[derive(Clone)]
-struct C1Config {
-    database: String,
-    secret_ref: String,
-    host: String,
-    port: u16,
-    user: String,
-    password_file: PathBuf,
-    dba_user: String,
-    dba_password_file: PathBuf,
-    ca_file: PathBuf,
-    server_id: u32,
-    health_every_ms: u64,
-    reconcile_every_ms: u64,
-    preserve_dir: PathBuf,
-    fixture: String,
-    tables: Vec<String>,
-    columns: BTreeMap<String, Vec<String>>,
-    full_table_gold: bool,
+pub(crate) struct C1Config {
+    pub(crate) managed_config: Option<Value>,
+    pub(crate) database: String,
+    pub(crate) secret_ref: String,
+    pub(crate) host: String,
+    pub(crate) port: u16,
+    pub(crate) user: String,
+    pub(crate) password_file: PathBuf,
+    pub(crate) dba_user: String,
+    pub(crate) dba_password_file: PathBuf,
+    pub(crate) ca_file: PathBuf,
+    pub(crate) server_id: u32,
+    pub(crate) health_every_ms: u64,
+    pub(crate) reconcile_every_ms: u64,
+    pub(crate) preserve_dir: PathBuf,
+    pub(crate) fixture: String,
+    pub(crate) tables: Vec<String>,
+    pub(crate) columns: BTreeMap<String, Vec<String>>,
+    pub(crate) full_table_gold: bool,
+    /// Optional certificate name (ONBOARDING-API §5). TCP uses `host`.
+    pub(crate) tls_server_name: Option<String>,
 }
 
 #[derive(Clone)]
-struct Span {
-    uuid: String,
-    start: u64,
-    end: u64,
+pub(crate) struct Span {
+    pub(crate) uuid: String,
+    pub(crate) start: u64,
+    pub(crate) end: u64,
 }
 
 struct Phase {
@@ -1042,13 +1132,32 @@ struct Live {
     counts: BTreeMap<String, u64>,
     globals: u64,
     rows: Vec<Seen>,
-    events: u64,
+    txn_budget: TxnBudget,
     foreign: bool,
     source_commit_timestamp: Option<String>,
     out: PathBuf,
 }
 
-fn load_config(path: &Path) -> Result<C1Config, PreviewError> {
+/// Binlog events and bytes charged to the transaction being assembled. It is
+/// cleared when the transaction ends, so the limits are per transaction.
+#[derive(Default)]
+struct TxnBudget {
+    events: u64,
+    bytes: u64,
+}
+
+impl TxnBudget {
+    fn charge(&mut self, bytes: u64) -> Result<(), PreviewError> {
+        self.events += 1;
+        self.bytes = self.bytes.saturating_add(bytes);
+        if self.events > MAX_TXN_EVENTS || self.bytes > MAX_TXN_BYTES {
+            return Err(PreviewError::new("budget", "large_txn"));
+        }
+        Ok(())
+    }
+}
+
+pub(crate) fn load_config(path: &Path) -> Result<C1Config, PreviewError> {
     let bytes = fs::read(path).map_err(|_| PreviewError::new("config", "path"))?;
     let text = std::str::from_utf8(&bytes).map_err(|_| PreviewError::new("config", "json"))?;
     let value: Value =
@@ -1080,6 +1189,7 @@ fn load_config(path: &Path) -> Result<C1Config, PreviewError> {
     let database=map.get("database").and_then(Value::as_str).unwrap_or_else(||names[0].split_once('.').map(|p|p.0).unwrap_or("")).to_string();
     if names.iter().any(|n|n.split_once('.').is_none_or(|p|p.0!=database)) {return Err(PreviewError::new("config","database"));}
     Ok(C1Config {
+        managed_config: value.get("source_registration").map(|_|value.clone()),
         secret_ref:map.get("secret_ref").and_then(Value::as_str).unwrap_or("secret://mysql-owned-fixture").to_owned(),
         database,
         host: text_field(map, "host")?,
@@ -1114,6 +1224,15 @@ fn load_config(path: &Path) -> Result<C1Config, PreviewError> {
         tables: names.into_iter().map(str::to_string).collect(),
         columns,
         full_table_gold,
+        tls_server_name: match map.get("tls_server_name") {
+            None | Some(Value::Null) => None,
+            Some(item) => Some(
+                item.as_str()
+                    .filter(|name| oo_connectors::mysql::tls_server_name_ok(name))
+                    .ok_or_else(|| PreviewError::new("config", "tls_server_name"))?
+                    .to_owned(),
+            ),
+        },
     })
 }
 
@@ -1129,7 +1248,7 @@ fn path_field(map: &serde_json::Map<String, Value>, key: &str) -> Result<PathBuf
     Ok(PathBuf::from(text_field(map, key)?))
 }
 
-fn configured_selection(cfg:&C1Config)->Result<(),PreviewError> {
+pub(crate) fn configured_selection(cfg:&C1Config)->Result<(),PreviewError> {
     if cfg.full_table_gold || cfg.tables.is_empty() || cfg.columns.len()!=cfg.tables.len()
         || cfg.tables.iter().any(|t|cfg.columns.get(t).is_none_or(Vec::is_empty)) {
         return Err(PreviewError::new("config","tables"));
@@ -1137,7 +1256,7 @@ fn configured_selection(cfg:&C1Config)->Result<(),PreviewError> {
     one_schema(&cfg.tables)?;Ok(())
 }
 
-fn replication_grants_ok(grants:&[String])->Result<(),PreviewError> {
+pub(crate) fn replication_grants_ok(grants:&[String])->Result<(),PreviewError> {
     oo_connectors::mysql::replication_grants_ok(grants).map_err(Into::into)
 }
 
@@ -1183,12 +1302,13 @@ fn preserved(dir: &Path) -> Result<(), PreviewError> {
     }
 }
 
-async fn connect(cfg: &C1Config, user: &str, password: &str) -> Result<Conn, PreviewError> {
+pub(crate) async fn connect(cfg: &C1Config, user: &str, password: &str) -> Result<Conn, PreviewError> {
     let _ca = read_ca(&cfg.ca_file)?;
     let ssl = SslOpts::default()
         .with_root_certs(vec![cfg.ca_file.clone().into()])
         .with_danger_accept_invalid_certs(false)
         .with_danger_skip_domain_validation(false)
+        .with_danger_tls_hostname_override(cfg.tls_server_name.clone())
         .with_disable_built_in_roots(true);
     let opts = OptsBuilder::default()
         .ip_or_hostname(cfg.host.clone())
@@ -1205,13 +1325,21 @@ async fn connect(cfg: &C1Config, user: &str, password: &str) -> Result<Conn, Pre
     Ok(conn)
 }
 
-fn batch_source_config(cfg:&C1Config)->Result<oo_connectors::mysql::MysqlConfig,PreviewError>{
-    Ok(oo_connectors::mysql::MysqlConfig{mysql_host:cfg.host.clone(),mysql_port:cfg.port,mysql_database:cfg.database.clone(),mysql_user:cfg.user.clone(),mysql_ca_file:cfg.ca_file.clone(),secret_ref:oo_connectors::SecretRef::new(&cfg.secret_ref).map_err(|_|PreviewError::new("config","secret_ref"))?,connect_timeout_ms:30000})
+pub(crate) fn batch_source_config(cfg:&C1Config)->Result<oo_connectors::mysql::MysqlConfig,PreviewError>{
+    Ok(oo_connectors::mysql::MysqlConfig{mysql_host:cfg.host.clone(),mysql_port:cfg.port,mysql_database:cfg.database.clone(),mysql_user:cfg.user.clone(),mysql_ca_file:cfg.ca_file.clone(),mysql_tls_server_name:cfg.tls_server_name.clone(),secret_ref:oo_connectors::SecretRef::new(&cfg.secret_ref).map_err(|_|PreviewError::new("config","secret_ref"))?,connect_timeout_ms:30000})
 }
 
-async fn connect_cdc(cfg: &C1Config) -> Result<Conn, PreviewError> {
+pub(crate) async fn connect_cdc(cfg: &C1Config) -> Result<Conn, PreviewError> {
+    if let Some(config)=&cfg.managed_config {identity::verify(config)?;}
     let password = read_secret(&cfg.password_file)?;
-    oo_connectors::mysql::connect(&batch_source_config(cfg)?,password.as_str()).await.map_err(Into::into)
+    let mut conn=oo_connectors::mysql::connect(&batch_source_config(cfg)?,password.as_str()).await?;
+    if let Some(config)=&cfg.managed_config {identity::check_open(config,&mut conn).await?;}
+    // Snapshot TIMESTAMP values must use the same UTC basis as binlog values.
+    exec_static(&mut conn, "SET SESSION time_zone = '+00:00'").await?;
+    if scalar(&mut conn, "SELECT @@session.time_zone").await? != "+00:00" {
+        return Err(PreviewError::new("session", "time_zone"));
+    }
+    Ok(conn)
 }
 
 async fn connect_dba(cfg: &C1Config) -> Result<Conn, PreviewError> {
@@ -1219,7 +1347,7 @@ async fn connect_dba(cfg: &C1Config) -> Result<Conn, PreviewError> {
     connect(cfg, &cfg.dba_user, password.as_str()).await
 }
 
-async fn scalar(conn: &mut Conn, sql: &str) -> Result<String, PreviewError> {
+pub(crate) async fn scalar(conn: &mut Conn, sql: &str) -> Result<String, PreviewError> {
     let row: Option<Row> = conn
         .query_first(sql)
         .await
@@ -1245,7 +1373,7 @@ fn value_string(value: &MyValue) -> Result<String, PreviewError> {
     }
 }
 
-fn rows_first(rows: &[Row]) -> Result<Vec<String>, PreviewError> {
+pub(crate) fn rows_first(rows: &[Row]) -> Result<Vec<String>, PreviewError> {
     rows.iter()
         .map(|row| value_string(&row_value(row, 0)?))
         .collect()
@@ -1255,7 +1383,7 @@ async fn exec_static(conn: &mut Conn, sql: &'static str) -> Result<(), PreviewEr
     conn.query_drop(sql).await.map_err(|err| mysql_err(&err))
 }
 
-fn mysql_err(err: &mysql_async::Error) -> PreviewError {
+pub(crate) fn mysql_err(err: &mysql_async::Error) -> PreviewError {
     match err {
         mysql_async::Error::Server(server) if server.code == 1236 => {
             PreviewError::new("c1", "position_expired")
@@ -1363,7 +1491,7 @@ async fn ensure_user(conn: &mut Conn, password: &str) -> Result<(), PreviewError
     Ok(())
 }
 
-async fn preflight_values(conn: &mut Conn) -> Result<Value, PreviewError> {
+pub(crate) async fn preflight_values(conn: &mut Conn) -> Result<Value, PreviewError> {
     let version = scalar(conn, "SELECT @@GLOBAL.version").await?;
     let server = crate::version::ServerVersion::parse(&version)?;
     let gtid = scalar(conn, "SELECT @@GLOBAL.gtid_mode").await?;
@@ -1373,21 +1501,10 @@ async fn preflight_values(conn: &mut Conn) -> Result<Value, PreviewError> {
     let expire = scalar(conn, server.retention_query()).await?;
     let log_bin = scalar(conn, "SELECT @@GLOBAL.log_bin").await?;
     let server_id = scalar(conn, "SELECT @@GLOBAL.server_id").await?;
-    if gtid != "ON"
-        || consistent != "ON"
-        || format != "ROW"
-        || image != "FULL"
-        || log_bin != "1"
-    {
-        return Err(PreviewError::new("c1", "dba_required"));
-    }
     let expire_secs: u64 = expire
         .parse()
         .map_err(|_| PreviewError::new("c1", "dba_required"))?;
-    if expire_secs < RETENTION {
-        return Err(PreviewError::new("c1", "dba_required"));
-    }
-    Ok(json!({
+    let facts=json!({
         "version": version,
         "gtid_mode": gtid,
         "enforce_gtid_consistency": consistent,
@@ -1396,7 +1513,9 @@ async fn preflight_values(conn: &mut Conn) -> Result<Value, PreviewError> {
         "binlog_expire_logs_seconds": expire_secs,
         "log_bin": log_bin,
         "server_id": server_id
-    }))
+    });
+    handoff::eligible(&facts)?;
+    Ok(facts)
 }
 
 fn grants_ok(grants: &[String]) -> Result<(), PreviewError> {
@@ -1549,7 +1668,7 @@ async fn stream(
         counts: BTreeMap::new(),
         globals: 0,
         rows: Vec::new(),
-        events: 0,
+        txn_budget: TxnBudget::default(),
         foreign: false,
         source_commit_timestamp: None,
         out: out.to_path_buf(),
@@ -1699,10 +1818,8 @@ impl Live {
         event: mysql_async::binlog::events::Event,
         stream: &BinlogStream,
     ) -> Result<bool, PreviewError> {
-        self.events += 1;
-        if self.events > MAX_EVENTS {
-            return Err(PreviewError::new("budget", "max_rows"));
-        }
+        self.txn_budget
+            .charge(u64::from(event.header().event_size()))?;
         let header_pos = event.header().log_pos();
         let header_ts = event.header().timestamp();
         let data = event
@@ -1778,10 +1895,8 @@ impl Live {
             self.pending = None;
             self.buf.clear();
             self.foreign = false;
+            self.txn_budget = TxnBudget::default();
             self.rows.retain(|row| row.commit_order != 0);
-            return Ok(false);
-        }
-        if self.buf.is_empty() {
             return Ok(false);
         }
         if matches!(
@@ -1789,6 +1904,9 @@ impl Live {
             "ALTER" | "CREATE" | "DROP" | "TRUNCATE" | "RENAME"
         ) {
             return Err(PreviewError::new("c1", "schema_pause"));
+        }
+        if self.buf.is_empty() {
+            return Ok(false);
         }
         if matches!(verb.as_str(), "INSERT" | "UPDATE" | "DELETE") {
             return Err(PreviewError::new("c1", "statement_dml"));
@@ -1821,95 +1939,157 @@ impl Live {
             .get(&qualified)
             .cloned()
             .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
+        self.apply_row_pairs(
+            &txn,
+            &qualified,
+            &pk,
+            &ordinals,
+            rows.rows(tme)
+                .map(|pair| pair.map_err(|_| PreviewError::new("protocol", "event"))),
+        )
+    }
+
+    fn apply_row_pairs(
+        &mut self,
+        txn: &str,
+        qualified: &str,
+        pk: &[usize],
+        ordinals: &[usize],
+        pairs: impl IntoIterator<Item = Result<(Option<BinlogRow>, Option<BinlogRow>), PreviewError>>,
+    ) -> Result<bool, PreviewError> {
         let mut hit = false;
-        for pair in rows.rows(tme) {
-            let (before, after) = pair.map_err(|_| PreviewError::new("protocol", "event"))?;
-            let (op, image, deleted) = match (before, after) {
-                (None, Some(after)) => ("upsert", after, false),
-                (Some(_before), Some(after)) => ("upsert", after, false),
-                (Some(before), None) => ("delete", before, true),
-                (None, None) => return Err(PreviewError::new("protocol", "event")),
-            };
-            let key_cells = row_cells(&image, &pk)?;
-            let payload_cells = row_cells_typed(
-                &image,
-                &ordinals,
-                self.column_kinds
-                    .get(&qualified)
-                    .ok_or_else(|| PreviewError::new("catalog", "types"))?,
+        for pair in pairs {
+            let (before, after) = pair?;
+            self.apply_row_pair(
+                txn,
+                qualified,
+                pk,
+                ordinals,
+                before.as_ref(),
+                after.as_ref(),
             )?;
-            if key_cells.iter().any(json_null)
-                || !self.allow_nullable && payload_cells.iter().any(json_null)
-            {
-                return Err(PreviewError::new("value", "null"));
-            }
-            self.globals += 1;
-            let collection = self.counts.entry(qualified.clone()).or_default();
-            *collection += 1;
-            let sequence = self.globals;
-            let collection_sequence = *collection;
-            let key = json_cell_text(
-                key_cells
-                    .first()
-                    .ok_or_else(|| PreviewError::new("value", "key"))?,
-            )?;
-            let key_value = named_cells(&self.column_names, &qualified, &pk, &key_cells)?;
-            let selected = self
-                .selected_columns
-                .get(&qualified)
-                .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
-            if selected.len() != payload_cells.len() {
-                return Err(PreviewError::new("catalog", "columns"));
-            }
-            let row_value = selected
-                .iter()
-                .cloned()
-                .zip(payload_cells.iter().cloned())
-                .collect::<serde_json::Map<_, _>>();
-            let payload = payload_cells
-                .iter()
-                .map(|cell| {
-                    json_cell_text(cell).or_else(|_| {
-                        if self.allow_nullable && json_null(cell) {
-                            Ok(String::new())
-                        } else {
-                            Err(PreviewError::new("value", "cell"))
-                        }
-                    })
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            self.buf.push(
-                json!({
-                    "kind": "data",
-                    "txn_id": txn,
-                    "global_txn_sequence": sequence,
-                    "data_collection_sequence": collection_sequence,
-                    "table": qualified,
-                    "key": key_cells,
-                    "op": op,
-                    "payload": payload_cells,
-                    "unavailable_ordinals": []
-                })
-                .to_string(),
-            );
-            self.rows.push(Seen {
-                txn_id: txn.clone(),
-                commit_order: 0,
-                commit_lsn: String::new(),
-                table: qualified.clone(),
-                key,
-                key_value,
-                payload,
-                row_value: Value::Object(row_value),
-                sequence,
-                deleted,
-            });
             hit = true;
         }
         Ok(hit)
     }
 
+    fn apply_row_pair(
+        &mut self,
+        txn: &str,
+        qualified: &str,
+        pk: &[usize],
+        ordinals: &[usize],
+        before: Option<&BinlogRow>,
+        after: Option<&BinlogRow>,
+    ) -> Result<(), PreviewError> {
+        if pk.is_empty() {
+            return Err(PreviewError::new("c1", "no_primary_key_cdc_use_c5plus_or_full"));
+        }
+        match (before, after) {
+            (None, Some(after)) => self.push_row(txn, qualified, pk, ordinals, "upsert", after),
+            (Some(before), Some(after)) => {
+                // A changed primary key moves the row. The old key must be
+                // deleted, or its staged row would survive the update.
+                if row_cells(before, pk)? != row_cells(after, pk)? {
+                    self.push_row(txn, qualified, pk, ordinals, "delete", before)?;
+                }
+                self.push_row(txn, qualified, pk, ordinals, "upsert", after)
+            }
+            (Some(before), None) => self.push_row(txn, qualified, pk, ordinals, "delete", before),
+            (None, None) => Err(PreviewError::new("protocol", "event")),
+        }
+    }
+
+    fn push_row(
+        &mut self,
+        txn: &str,
+        qualified: &str,
+        pk: &[usize],
+        ordinals: &[usize],
+        op: &str,
+        image: &BinlogRow,
+    ) -> Result<(), PreviewError> {
+        let deleted = op == "delete";
+        let key_cells = row_cells(image, pk)?;
+        let payload_cells = row_cells_typed(
+            image,
+            ordinals,
+            self.column_kinds
+                .get(qualified)
+                .ok_or_else(|| PreviewError::new("catalog", "types"))?,
+        )?;
+        if key_cells.iter().any(json_null)
+            || !self.allow_nullable && payload_cells.iter().any(json_null)
+        {
+            return Err(PreviewError::new("value", "null"));
+        }
+        self.globals += 1;
+        let collection = self.counts.entry(qualified.to_owned()).or_default();
+        *collection += 1;
+        let sequence = self.globals;
+        let collection_sequence = *collection;
+        let key = match key_cells.as_slice() {
+            [] => return Err(PreviewError::new("c1", "no_primary_key_cdc_use_c5plus_or_full")),
+            [cell] => json_cell_text(cell)?,
+            _ => serde_json::to_string(&key_cells)
+                .map_err(|_| PreviewError::new("value", "key"))?,
+        };
+        let key_value = named_cells(&self.column_names, qualified, pk, &key_cells)?;
+        let selected = self
+            .selected_columns
+            .get(qualified)
+            .ok_or_else(|| PreviewError::new("catalog", "columns"))?;
+        if selected.len() != payload_cells.len() {
+            return Err(PreviewError::new("catalog", "columns"));
+        }
+        let row_value = selected
+            .iter()
+            .cloned()
+            .zip(payload_cells.iter().cloned())
+            .collect::<serde_json::Map<_, _>>();
+        let payload = payload_cells
+            .iter()
+            .map(|cell| {
+                json_cell_text(cell).or_else(|_| {
+                    if self.allow_nullable && json_null(cell) {
+                        Ok(String::new())
+                    } else {
+                        Err(PreviewError::new("value", "cell"))
+                    }
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        self.buf.push(
+            json!({
+                "kind": "data",
+                "txn_id": txn,
+                "global_txn_sequence": sequence,
+                "data_collection_sequence": collection_sequence,
+                "table": qualified,
+                "key": key_cells,
+                "op": op,
+                "payload": payload_cells,
+                "unavailable_ordinals": []
+            })
+            .to_string(),
+        );
+        self.rows.push(Seen {
+            txn_id: txn.to_owned(),
+            commit_order: 0,
+            commit_lsn: String::new(),
+            table: qualified.to_owned(),
+            key,
+            key_value,
+            payload,
+            row_value: Value::Object(row_value),
+            sequence,
+            deleted,
+        });
+        Ok(())
+    }
+
     fn on_xid(&mut self, pos: u32, timestamp: u32) -> Result<bool, PreviewError> {
+        self.txn_budget = TxnBudget::default();
         let Some(txn) = self.pending.clone() else {
             return Ok(false);
         };
@@ -1998,7 +2178,7 @@ fn gno_of(txn: &str) -> Result<u64, PreviewError> {
         .ok_or_else(|| PreviewError::new("c1", "gtid"))
 }
 
-fn format_uuid(sid: &[u8; 16]) -> String {
+pub(crate) fn format_uuid(sid: &[u8; 16]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(36);
     for (index, byte) in sid.iter().enumerate() {
@@ -2025,7 +2205,7 @@ fn commit_lsn(file: &str, pos: u32) -> Result<(String, String), PreviewError> {
     Ok((lsn, position))
 }
 
-fn unix_text(secs: u32) -> Option<String> {
+pub(crate) fn unix_text(secs: u32) -> Option<String> {
     if secs == 0 {
         return None;
     }
@@ -2057,7 +2237,7 @@ fn civil_from_unix(secs: u32) -> (i32, u32, u32, u32, u32, u32) {
     (year as i32, month as u32, day as u32, hour, minute, second)
 }
 
-fn parse_span(text: &str) -> Result<Span, PreviewError> {
+pub(crate) fn parse_span(text: &str) -> Result<Span, PreviewError> {
     let text = text.trim();
     if text.is_empty() {
         return Ok(Span {
@@ -2130,6 +2310,393 @@ mod baseline_stream_tests {
             28
         ));
     }
+
+    use super::{BinlogRow, BinlogValue, MyValue, PreviewError, Seen, Value, transaction_rows};
+    use serde_json::json;
+
+    fn live_for_s_t(pk: Vec<usize>) -> super::Live {
+        let table = "s.t".to_string();
+        super::Live {
+            assembler: super::Assembler::new(),
+            span: super::Span {
+                uuid: "uuid".into(),
+                start: 1,
+                end: 1,
+            },
+            file: String::new(),
+            epoch: 1,
+            bind: String::new(),
+            schema_hash: String::new(),
+            type_hash: String::new(),
+            pk: super::BTreeMap::from([(table.clone(), pk)]),
+            selected: super::BTreeSet::from([table.clone()]),
+            visible: super::BTreeMap::from([(table.clone(), vec![0, 1, 2])]),
+            column_names: super::BTreeMap::from([(
+                table.clone(),
+                vec![(0, "a".into()), (1, "b".into()), (2, "c".into())],
+            )]),
+            column_kinds: super::BTreeMap::from([(
+                table.clone(),
+                vec![(0, "int".into()), (1, "int".into()), (2, "text".into())],
+            )]),
+            selected_columns: super::BTreeMap::from([(
+                table,
+                vec!["a".into(), "b".into(), "c".into()],
+            )]),
+            allow_nullable: true,
+            pending: Some("uuid:7".into()),
+            buf: Vec::new(),
+            counts: super::BTreeMap::new(),
+            globals: 0,
+            rows: Vec::new(),
+            txn_budget: super::TxnBudget::default(),
+            foreign: false,
+            source_commit_timestamp: None,
+            out: Default::default(),
+        }
+    }
+
+    fn image(a: i64, b: i64, c: &str) -> BinlogRow {
+        BinlogRow::new(
+            vec![
+                Some(BinlogValue::Value(MyValue::Int(a))),
+                Some(BinlogValue::Value(MyValue::Int(b))),
+                Some(BinlogValue::Value(MyValue::Bytes(c.as_bytes().to_vec()))),
+            ],
+            std::sync::Arc::from(Vec::new()),
+        )
+    }
+
+    fn data_lines(live: &super::Live) -> Vec<Value> {
+        live.buf
+            .iter()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect()
+    }
+
+    fn seen(txn: &str, key: &str, commit_order: u64) -> Seen {
+        Seen {
+            txn_id: txn.into(),
+            commit_order,
+            commit_lsn: String::new(),
+            table: "s.t".into(),
+            key: key.into(),
+            key_value: json!({"a": key}),
+            payload: vec![],
+            row_value: json!({"a": key}),
+            sequence: 1,
+            deleted: false,
+        }
+    }
+
+    #[test]
+    fn standalone_ddl_pauses_even_without_buffered_rows() {
+        for query in [
+            "ALTER TABLE s.t ADD COLUMN d INT",
+            "ALTER TABLE s.t MODIFY COLUMN b BIGINT",
+        ] {
+            let mut live = live_for_s_t(vec![0]);
+            let error = live.on_query(query, 100, 1_700_000_000).unwrap_err();
+            assert_eq!(error.fact, "schema_pause");
+            assert!(live.rows.is_empty() && live.buf.is_empty());
+        }
+    }
+
+    #[test]
+    #[ignore = "explicit owned oo-wf-cdc MySQL 5.7 catalog fixture"]
+    fn owned_mysql_unkeyed_cdc_catalog_refusal() {
+        let port: u16 = std::env::var("OO_WF_CDC_MYSQL_PORT")
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert!(![3306, 13306, 13307, 11521].contains(&port));
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let options = mysql_async::OptsBuilder::default()
+                .ip_or_hostname("127.0.0.1")
+                .tcp_port(port)
+                .user(Some("oo_cdc"));
+            let mut conn = mysql_async::Conn::new(options).await.unwrap();
+            let (pk, _, _) = super::load_pk(&mut conn, &["cdc_keys.composite_key".into()])
+                .await
+                .unwrap();
+            assert_eq!(pk["cdc_keys.composite_key"], vec![0, 1]);
+            let error = super::load_pk(&mut conn, &["cdc_keys.no_key".into()])
+                .await
+                .unwrap_err();
+            assert_eq!(error.fact, "no_primary_key_cdc_use_c5plus_or_full");
+            conn.disconnect().await.unwrap();
+        });
+    }
+
+    #[test]
+    fn composite_keys_with_shared_first_column_survive_transaction_collapse() {
+        let mut live = live_for_s_t(vec![0, 2]);
+        for text in ["中文", "Alpha", "alpha "] {
+            live.apply_row_pair(
+                "uuid:7",
+                "s.t",
+                &[0, 2],
+                &[0, 1, 2],
+                None,
+                Some(&image(1, 10, text)),
+            )
+            .unwrap();
+        }
+        let rows = transaction_rows(&live.rows, "uuid:7");
+        assert_eq!(rows.len(), 3);
+        for text in ["中文", "Alpha", "alpha "] {
+            assert!(rows.iter().any(|row| row["key"]["c"]["value"] == text));
+        }
+    }
+
+    #[test]
+    fn composite_key_move_and_partial_update_keep_both_identities() {
+        let mut live = live_for_s_t(vec![0, 2]);
+        live.apply_row_pair(
+            "uuid:7",
+            "s.t",
+            &[0, 2],
+            &[0, 1, 2],
+            Some(&image(1, 10, "旧")),
+            Some(&image(1, 10, "新")),
+        )
+        .unwrap();
+        live.apply_row_pair(
+            "uuid:7",
+            "s.t",
+            &[0, 2],
+            &[0, 1, 2],
+            Some(&image(1, 10, "新")),
+            Some(&image(1, 20, "新")),
+        )
+        .unwrap();
+        let rows = transaction_rows(&live.rows, "uuid:7");
+        assert_eq!(rows.len(), 2);
+        assert!(
+            rows.iter()
+                .any(|row| row["key"]["c"]["value"] == "旧" && row["op"] == "delete")
+        );
+        assert!(
+            rows.iter()
+                .any(|row| row["key"]["c"]["value"] == "新" && row["value"]["b"]["value"] == "20")
+        );
+    }
+
+    #[test]
+    fn unkeyed_cdc_is_refused_before_buffering_with_full_scan_guidance() {
+        let mut live = live_for_s_t(vec![]);
+        let error = live
+            .apply_row_pair(
+                "uuid:7",
+                "s.t",
+                &[],
+                &[0, 1, 2],
+                None,
+                Some(&image(1, 10, "x")),
+            )
+            .unwrap_err();
+        assert_eq!(error.fact, "no_primary_key_cdc_use_c5plus_or_full");
+        assert!(live.rows.is_empty() && live.buf.is_empty());
+        assert_eq!(live.globals, 0);
+    }
+
+    #[test]
+    fn primary_key_change_deletes_the_old_key_and_upserts_the_new_one() {
+        let mut live = live_for_s_t(vec![0]);
+        live.apply_row_pairs(
+            "uuid:7",
+            "s.t",
+            &[0],
+            &[0, 1, 2],
+            vec![Ok((Some(image(1, 10, "x")), Some(image(2, 11, "y"))))],
+        )
+        .unwrap();
+        let lines = data_lines(&live);
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0]["op"], "delete");
+        assert_eq!(lines[0]["key"][0]["value"], "1");
+        assert_eq!(lines[1]["op"], "upsert");
+        assert_eq!(lines[1]["key"][0]["value"], "2");
+        assert_eq!(lines[1]["payload"][1]["value"], "11");
+        let staged: Vec<(&str, bool)> = live
+            .rows
+            .iter()
+            .map(|row| (row.key.as_str(), row.deleted))
+            .collect();
+        assert_eq!(staged, vec![("1", true), ("2", false)]);
+        let applied = transaction_rows(&live.rows, "uuid:7");
+        assert_eq!(applied.len(), 2);
+        assert_eq!(applied[0]["op"], "delete");
+        assert_eq!(applied[0]["key"]["a"]["value"], "1");
+        assert!(applied[0]["value"].is_null());
+        assert_eq!(applied[1]["op"], "upsert");
+        assert_eq!(applied[1]["key"]["a"]["value"], "2");
+        assert_eq!(applied[1]["value"]["b"]["value"], "11");
+    }
+
+    #[test]
+    fn primary_key_change_with_other_columns_unchanged_still_emits_both_keys() {
+        let mut live = live_for_s_t(vec![0]);
+        live.apply_row_pairs(
+            "uuid:7",
+            "s.t",
+            &[0],
+            &[0, 1, 2],
+            vec![Ok((Some(image(1, 10, "x")), Some(image(2, 10, "x"))))],
+        )
+        .unwrap();
+        let lines = data_lines(&live);
+        assert_eq!(
+            lines
+                .iter()
+                .map(|line| line["op"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["delete", "upsert"]
+        );
+        assert_eq!(lines[0]["key"][0]["value"], "1");
+        assert_eq!(lines[1]["key"][0]["value"], "2");
+    }
+
+    #[test]
+    fn update_without_key_change_emits_one_upsert() {
+        let mut live = live_for_s_t(vec![0]);
+        live.apply_row_pairs(
+            "uuid:7",
+            "s.t",
+            &[0],
+            &[0, 1, 2],
+            vec![
+                Ok((Some(image(1, 10, "x")), Some(image(1, 11, "x")))),
+                Ok((Some(image(3, 30, "p")), Some(image(3, 30, "q")))),
+            ],
+        )
+        .unwrap();
+        let lines = data_lines(&live);
+        assert_eq!(lines.len(), 2);
+        assert!(lines.iter().all(|line| line["op"] == "upsert"));
+        assert_eq!(lines[0]["key"][0]["value"], "1");
+        assert_eq!(lines[0]["payload"][1]["value"], "11");
+        assert_eq!(lines[1]["key"][0]["value"], "3");
+        assert_eq!(lines[1]["payload"][2]["value"], "q");
+    }
+
+    #[test]
+    fn one_event_with_several_rows_keeps_each_row_and_its_sequence() {
+        let mut live = live_for_s_t(vec![0]);
+        let hit = live
+            .apply_row_pairs(
+                "uuid:7",
+                "s.t",
+                &[0],
+                &[0, 1, 2],
+                vec![
+                    Ok((Some(image(1, 10, "x")), Some(image(2, 10, "x")))),
+                    Ok((None, Some(image(3, 30, "p")))),
+                    Ok((Some(image(4, 40, "q")), None)),
+                ],
+            )
+            .unwrap();
+        assert!(hit);
+        let lines = data_lines(&live);
+        let ops: Vec<(&str, &str, u64)> = lines
+            .iter()
+            .map(|line| {
+                (
+                    line["op"].as_str().unwrap(),
+                    line["key"][0]["value"].as_str().unwrap(),
+                    line["global_txn_sequence"].as_u64().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            ops,
+            vec![
+                ("delete", "1", 1),
+                ("upsert", "2", 2),
+                ("upsert", "3", 3),
+                ("delete", "4", 4),
+            ]
+        );
+        assert_eq!(lines[3]["data_collection_sequence"], 4);
+        assert_eq!(live.globals, 4);
+        assert_eq!(live.counts.get("s.t"), Some(&4));
+        assert!(live.rows.iter().all(|row| row.txn_id == "uuid:7"));
+    }
+
+    #[test]
+    fn txn_budget_limits_each_transaction_not_the_total() {
+        let mut live = live_for_s_t(vec![0]);
+        for _ in 0..50_000 {
+            for _ in 0..4 {
+                live.txn_budget.charge(100).unwrap();
+            }
+            live.pending = None;
+            live.on_xid(0, 0).unwrap();
+        }
+        assert_eq!(live.txn_budget.events, 0);
+        assert_eq!(live.txn_budget.bytes, 0);
+    }
+
+    #[test]
+    fn oversized_transaction_fails_with_large_txn() {
+        let mut budget = super::TxnBudget::default();
+        for _ in 0..super::MAX_TXN_EVENTS {
+            budget.charge(1).unwrap();
+        }
+        assert_eq!(
+            budget.charge(1),
+            Err(PreviewError::new("budget", "large_txn"))
+        );
+    }
+
+    #[test]
+    fn oversized_transaction_bytes_fail_with_large_txn() {
+        let mut budget = super::TxnBudget::default();
+        budget.charge(super::MAX_TXN_BYTES).unwrap();
+        assert_eq!(
+            budget.charge(1),
+            Err(PreviewError::new("budget", "large_txn"))
+        );
+    }
+
+    #[test]
+    fn acknowledged_transaction_rows_are_released_and_only_the_current_one_is_read() {
+        let mut rows = vec![
+            seen("uuid:1", "1", 1),
+            seen("uuid:2", "2", 0),
+            seen("uuid:2", "3", 0),
+        ];
+        super::release_acknowledged(&mut rows, "uuid:1");
+        assert_eq!(rows.len(), 2);
+        assert!(transaction_rows(&rows, "uuid:1").is_empty());
+        assert_eq!(transaction_rows(&rows, "uuid:2").len(), 2);
+        super::release_acknowledged(&mut rows, "uuid:2");
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn released_rows_do_not_accumulate_across_many_transactions() {
+        let mut rows = Vec::new();
+        for gno in 1..=20_000u64 {
+            let txn = format!("uuid:{gno}");
+            rows.push(seen(&txn, "1", 0));
+            rows.push(seen(&txn, "2", 0));
+            assert_eq!(transaction_rows(&rows, &txn).len(), 2);
+            super::release_acknowledged(&mut rows, &txn);
+            assert!(rows.is_empty());
+        }
+    }
+
+    #[test]
+    fn rollback_still_drops_only_uncommitted_rows() {
+        let mut live = live_for_s_t(vec![0]);
+        live.rows = vec![seen("uuid:1", "1", 5), seen("uuid:2", "2", 0)];
+        live.pending = Some("uuid:2".into());
+        assert!(!live.on_query("ROLLBACK", 0, 0).unwrap());
+        assert!(live.pending.is_none());
+        assert_eq!(live.rows.len(), 1);
+        assert_eq!(live.rows[0].txn_id, "uuid:1");
+    }
 }
 
 fn display_span(span: &Span) -> String {
@@ -2169,6 +2736,10 @@ fn seal_spool(dir: &Path, lines: &[String]) -> Result<(), PreviewError> {
         body.extend_from_slice(line.as_bytes());
         body.push(b'\n');
     }
+    if dir.exists() {
+        return cdc_spool::verify_replay(dir, Cursor::new(body))
+            .map_err(|_| PreviewError::new("c1", "spool_replay_conflict"));
+    }
     let mut spool =
         Spool::create_new(dir, Limits::product()).map_err(|_| PreviewError::new("c1", "spool"))?;
     let outcome = spool
@@ -2186,7 +2757,70 @@ fn seal_spool(dir: &Path, lines: &[String]) -> Result<(), PreviewError> {
     Ok(())
 }
 
-async fn load_pk(
+#[cfg(test)]
+mod sealed_spool_tests {
+    use super::*;
+
+    #[test]
+    fn committed_source_replay_is_read_only_and_conflicting_replay_refuses() {
+        let root=std::env::temp_dir().join(format!("mysql-sealed-replay-{}-{}",
+            std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        fs::create_dir(&root).unwrap();
+        let dir=root.join("txn");
+        let table="db.events";
+        let mut lines=vec![
+            bind_line(&"a".repeat(64),&"b".repeat(64),&"c".repeat(64),&"d".repeat(64),&[table.into()]),
+            json!({"kind":"begin","txn_id":"uuid:1"}).to_string(),
+            json!({"kind":"data","txn_id":"uuid:1","global_txn_sequence":1,
+                "data_collection_sequence":1,"table":table,"key":[{"ordinal":0,"type":"int","value":"1"}],
+                "op":"upsert","payload":[{"ordinal":1,"type":"text","value":"retained"}],
+                "unavailable_ordinals":[]}).to_string(),
+            json!({"kind":"end","txn_id":"uuid:1","count":1,"per_collection_counts":{table:1},
+                "commit_lsn":"1/20","source_commit_timestamp":"2026-10-29T00:00:00Z"}).to_string(),
+        ];
+        seal_spool(&dir,&lines).unwrap();
+        let before=fs::read(dir.join("SEAL")).unwrap();
+        seal_spool(&dir,&lines).unwrap();
+        assert_eq!(fs::read(dir.join("SEAL")).unwrap(),before);
+        lines[2]=lines[2].replace("retained","changed");
+        assert_eq!(seal_spool(&dir,&lines),Err(PreviewError::new("c1","spool_replay_conflict")));
+        assert_eq!(fs::read(dir.join("SEAL")).unwrap(),before);
+        let incomplete=root.join("incomplete");
+        fs::create_dir(&incomplete).unwrap();
+        assert!(seal_spool(&incomplete,&lines).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[ignore = "requires OO_MYSQL_REPLAY_SPOOL containing an owned, already sealed source transaction"]
+    fn retained_real_source_transaction_replays_offline_without_rewriting_evidence() {
+        let dir=PathBuf::from(std::env::var("OO_MYSQL_REPLAY_SPOOL").unwrap());
+        let Recovery::Committed(committed)=recover(&dir).unwrap() else {panic!("not committed")};
+        let m=&committed.manifest;
+        let mut lines=vec![
+            json!({"kind":"bind","source":m.source,"lineage":m.lineage,"epoch":m.epoch,
+                "selected_tables":m.selected_tables,"schema_hash":m.schema_hash,"config_hash":m.config_hash,
+                "type_hash":m.type_hash,"hook_hashes":m.hook_hashes,
+                "commit_position_provenance":m.commit_position_provenance}).to_string(),
+            json!({"kind":"begin","txn_id":m.txn_id}).to_string(),
+        ];
+        for event in committed.iter().unwrap() {
+            let mut value:Value=serde_json::from_str(&event.unwrap().preimage).unwrap();
+            value["kind"]=json!("data");
+            lines.push(value.to_string());
+        }
+        lines.push(json!({"kind":"end","txn_id":m.txn_id,"count":m.count,
+            "per_collection_counts":m.per_collection_counts,"commit_lsn":m.commit_lsn,
+            "source_commit_timestamp":m.source_commit_timestamp}).to_string());
+        let before=fs::read(dir.join("SEAL")).unwrap();
+        seal_spool(&dir,&lines).unwrap();
+        assert_eq!(fs::read(dir.join("SEAL")).unwrap(),before);
+        assert!(!committed.ack_allowed() && !m.target_applied);
+        println!("SEALED_REPLAY_OFFLINE events={} original_evidence_unchanged=true source_connected=false target_applied=false",m.count);
+    }
+}
+
+pub(crate) async fn load_pk(
     conn: &mut Conn,
     tables: &[String],
 ) -> Result<
@@ -2239,13 +2873,13 @@ async fn load_pk(
     }
     for table in tables {
         if pk.get(table).is_none_or(|cols| cols.is_empty()) {
-            return Err(PreviewError::new("catalog", "primary_key"));
+            return Err(PreviewError::new("c1", "no_primary_key_cdc_use_c5plus_or_full"));
         }
     }
     Ok((pk, found, catalog))
 }
 
-fn native_table_schemas(
+pub(crate) fn native_table_schemas(
     tables: &[String],
     names: &BTreeMap<String, Vec<(usize, String)>>,
     primary_keys: &BTreeMap<String, Vec<usize>>,
@@ -2282,7 +2916,7 @@ fn native_table_schemas(
     Ok(result)
 }
 
-async fn load_column_kinds(
+pub(crate) async fn load_column_kinds(
     conn: &mut Conn,
     tables: &[String],
 ) -> Result<BTreeMap<String, Vec<(usize, String)>>, PreviewError> {
@@ -2322,7 +2956,7 @@ async fn load_column_kinds(
     Ok(result)
 }
 
-async fn full_status(conn: &mut Conn) -> Result<(String, u64, String), PreviewError> {
+pub(crate) async fn full_status(conn: &mut Conn) -> Result<(String, u64, String), PreviewError> {
     let (file, pos) = binary_status(conn).await?;
     let executed = scalar(conn, "SELECT @@GLOBAL.gtid_executed").await?;
     Ok((file, pos, executed))
@@ -2587,7 +3221,7 @@ fn loader_gap() -> Value {
     })
 }
 
-fn write_json(path: &Path, value: &Value) -> Result<(), PreviewError> {
+pub(crate) fn write_json(path: &Path, value: &Value) -> Result<(), PreviewError> {
     let bytes = serde_json::to_vec_pretty(value).map_err(|_| PreviewError::new("config", "out"))?;
     let tmp = path.with_extension("tmp");
     fs::write(&tmp, bytes).map_err(|_| PreviewError::new("config", "out"))?;
@@ -2628,6 +3262,15 @@ fn row_cells_typed(
         let ordinal=u16::try_from(*index).map_err(|_|PreviewError::new("value","ordinal"))?;
         let kind=kinds.iter().find(|(actual,_)|actual==index).map(|(_,kind)|kind.as_str()).ok_or_else(||PreviewError::new("catalog","types"))?;
         let value=row.as_ref(*index);
+        if matches!(kind, "date" | "datetime" | "timestamp" | "time") {
+            let value = match value {
+                None => MyValue::NULL,
+                Some(value) => MyValue::try_from(value.clone())
+                    .map_err(|_| PreviewError::new("c1", "partial_image"))?,
+            };
+            return oo_connectors::mysql::values::snapshot_cell(ordinal, &value, kind)
+                .map_err(Into::into);
+        }
         if matches!(kind,"decimal"|"numeric") {
             return match value {None=>Ok(json!({"ordinal":ordinal,"type":"null"})),Some(value)=>match MyValue::try_from(value.clone()).map_err(|_|PreviewError::new("value","cell"))? {
                 MyValue::Bytes(bytes)=>Ok(json!({"ordinal":ordinal,"type":"decimal","value":String::from_utf8(bytes).map_err(|_|PreviewError::new("value","decimal"))?})),
@@ -2688,14 +3331,56 @@ fn one_cell(ordinal: u16, value: Option<&BinlogValue<'_>>) -> Result<Value, Prev
         MyValue::Time(neg, days, hour, minute, second, micros) => Ok(
             json!({"ordinal": ordinal, "type": "text", "value": time_text(neg, days, hour, minute, second, micros)?}),
         ),
-        MyValue::Date(year, month, day, hour, minute, second, _) => {
+        MyValue::Date(year, month, day, hour, minute, second, micros) => {
             if year == 0 {
                 return Err(PreviewError::new("value", "zero_date"));
             }
-            Ok(
-                json!({"ordinal": ordinal, "type": "text", "value": format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")}),
-            )
+            if micros > 999_999 {
+                return Err(PreviewError::new("value", "timestamp_range"));
+            }
+            let fraction = if micros == 0 { String::new() } else { format!(".{micros:06}") };
+            Ok(json!({"ordinal": ordinal, "type": "text",
+                "value": format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}{fraction}Z")}))
         }
+    }
+}
+
+#[cfg(test)]
+mod temporal_binlog_tests {
+    use super::*;
+    use oo_connectors::mysql::{map::StoreKind, values};
+
+    #[test]
+    fn temporal_binlog_matches_snapshot_codec_without_fraction_loss() {
+        for (kind, store, value) in [
+            ("date", StoreKind::Date, MyValue::Date(1969, 12, 31, 0, 0, 0, 0)),
+            ("datetime", StoreKind::TimestampNaive, MyValue::Date(1969, 12, 31, 23, 59, 59, 999999)),
+            ("datetime", StoreKind::TimestampNaive, MyValue::Date(2026, 10, 29, 12, 1, 2, 1)),
+            ("timestamp", StoreKind::TimestampTz, MyValue::Date(2026, 10, 29, 0, 1, 2, 123456)),
+            ("time", StoreKind::Time, MyValue::Time(true, 1, 1, 2, 3, 100000)),
+            ("time", StoreKind::Time, MyValue::Time(false, 34, 22, 59, 59, 0)),
+        ] {
+            let row = BinlogRow::new(vec![Some(BinlogValue::Value(value.clone()))], Arc::from(Vec::new()));
+            let actual = row_cells_typed(&row, &[0], &[(0, kind.into())]).unwrap().remove(0);
+            assert_eq!(actual, values::snapshot_cell(0, &value, kind).unwrap());
+            let raw = crate::c1_materialize::raw_cell(&actual, store).unwrap();
+            let (_, reject) = values::decode_cell(store, &raw, false).unwrap();
+            assert!(reject.is_none());
+        }
+        for kind in ["date", "datetime", "timestamp", "time"] {
+            let row = BinlogRow::new(vec![Some(BinlogValue::Value(MyValue::NULL))], Arc::from(Vec::new()));
+            assert_eq!(row_cells_typed(&row, &[0], &[(0, kind.into())]).unwrap()[0]["type"], "null");
+        }
+    }
+
+    #[test]
+    fn legacy_date_cell_does_not_drop_microseconds() {
+        let value = BinlogValue::Value(MyValue::Date(2026, 10, 29, 0, 0, 0, 1));
+        assert_eq!(one_cell(0, Some(&value)).unwrap()["value"], "2026-10-29T00:00:00.000001Z");
+        let value = BinlogValue::Value(MyValue::Date(2026, 10, 29, 0, 0, 0, 0));
+        assert_eq!(one_cell(0, Some(&value)).unwrap()["value"], "2026-10-29T00:00:00Z");
+        let value = BinlogValue::Value(MyValue::Date(2026, 10, 29, 0, 0, 0, 1000000));
+        assert!(one_cell(0, Some(&value)).is_err());
     }
 }
 
@@ -2849,7 +3534,7 @@ fn native_columns_match(columns: &BTreeMap<String, Vec<String>>) -> bool {
         })
 }
 
-fn visible_ordinals(
+pub(crate) fn visible_ordinals(
     cfg: &C1Config,
     names: &BTreeMap<String, Vec<(usize, String)>>,
 ) -> Result<BTreeMap<String, Vec<usize>>, PreviewError> {
@@ -3011,7 +3696,7 @@ mod tests {
             pk: Default::default(), selected: Default::default(), visible: Default::default(),
             column_names: Default::default(), column_kinds: Default::default(), selected_columns: Default::default(),
             allow_nullable: true, pending: None, buf: Vec::new(), counts: Default::default(),
-            globals: 0, rows: Vec::new(), events: 0, foreign: false,
+            globals: 0, rows: Vec::new(), txn_budget: super::TxnBudget::default(), foreign: false,
             source_commit_timestamp: None, out: Default::default(),
         };
         live.on_gtid(sid, 90).unwrap();
@@ -3096,4 +3781,36 @@ mod tests {
         assert!(super::replication_grants_ok(&["GRANT SELECT, UPDATE, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO reader".into()]).is_err());
     }
 
+    #[test]
+    fn onboarding_format_defaults_to_v1_and_accepts_only_v2_opt_in() {
+        assert!(!super::onboarding_v2(None).unwrap());
+        assert!(!super::onboarding_v2(Some("v1")).unwrap());
+        assert!(super::onboarding_v2(Some("chunked-typed/v2")).unwrap());
+        for refused in ["chunked-typed/v1", "v2", "", "chunked-typed/v2 "] {
+            assert!(super::onboarding_v2(Some(refused)).is_err(), "{refused}");
+        }
+    }
+
+    #[test]
+    fn onboarding_protocol_names_match_the_worker_whitelist() {
+        assert_eq!(super::onboarding_protocol(false), ("c1-baseline-stream", "import-native-c1-baseline"));
+        assert_eq!(super::onboarding_protocol(true), ("c1-baseline-stream-v2", "import-native-c1-baseline-v2"));
+    }
+
+    #[test]
+    fn v2_onboarding_output_is_per_task_and_v1_is_unchanged() {
+        assert_eq!(super::onboarding_out_template(false), "capture-{task}-{generation}");
+        assert_eq!(super::onboarding_out_template(true), "capture-{task}");
+        assert!(!super::onboarding_out_template(true).contains("{generation}"));
+    }
+
+    #[test]
+    fn only_the_v2_onboarding_manifest_carries_the_format() {
+        let mut v1 = serde_json::json!({"method": "C1"});
+        super::mark_baseline_format(&mut v1, false);
+        assert!(v1.get("c1_baseline_format").is_none());
+        let mut v2 = serde_json::json!({"method": "C1"});
+        super::mark_baseline_format(&mut v2, true);
+        assert_eq!(v2["c1_baseline_format"], "chunked-typed/v2");
+    }
 }
