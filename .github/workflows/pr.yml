@@ -691,10 +691,11 @@ jobs:
             case "${exit_code}" in
               ''|*[!0-9-]*) exit_code=-1 ;;
             esac
-            case "${log_sha}" in
-              [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
-              *) log_sha=0000000000000000000000000000000000000000000000000000000000000000; exit_code=-1; result=failure ;;
-            esac
+            if [[ ! "${log_sha}" =~ ^[0-9a-f]{64}$ ]]; then
+              log_sha=0000000000000000000000000000000000000000000000000000000000000000
+              exit_code=-1
+              result=failure
+            fi
             printf '%s %s %s\n' "${result}" "${exit_code}" "${log_sha}"
           }
           docs_bound=$(bound "${DOCS_RESULT}" "${DOCS_EXIT}" "${DOCS_LOG}")

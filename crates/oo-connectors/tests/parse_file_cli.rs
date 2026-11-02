@@ -153,13 +153,12 @@ fn run_parse(args: &[&str], stdin_bytes: Option<&[u8]>) -> Run {
         command.stdin(Stdio::null());
     }
     let mut child = command.spawn().expect("spawn parse-file");
-    if let Some(bytes) = stdin_bytes {
-        child
-            .stdin
-            .take()
-            .expect("stdin")
-            .write_all(bytes)
-            .expect("stdin write");
+    if let Some(bytes) = stdin_bytes
+        && let Err(error) = child.stdin.take().expect("stdin").write_all(bytes)
+    {
+        // Usage rejection can exit before reading stdin. Still check the
+        // actual exit code and diagnostics below, rather than racing it.
+        assert_eq!(error.kind(), std::io::ErrorKind::BrokenPipe, "{error}");
     }
     let output = child.wait_with_output().expect("wait parse-file");
     Run {

@@ -1250,3 +1250,45 @@ fn execute_local_output_limit_cannot_seal_a_pass() {
         assert!(!text.contains("\"spawned\": true"), "{text}");
     }
 }
+
+#[test]
+fn workflow_binding_accepts_only_full_lowercase_sha256() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    for workflow in ["pr", "nightly"] {
+        let text = std::fs::read_to_string(root.join(format!(".github/workflows/{workflow}.yml")))
+            .unwrap();
+        let body = text
+            .split_once("          bound() {")
+            .unwrap()
+            .1
+            .split_once("\n          }\n")
+            .unwrap()
+            .0;
+        let function = format!("bound() {{{body}\n}}\nbound \"$1\" \"$2\" \"$3\"\n");
+        for (status, code, hash, accepted) in [
+            ("success", "0", "a".repeat(64), true),
+            ("success", "1", "a".repeat(64), false),
+            ("failure", "0", "a".repeat(64), false),
+            ("success", "0", "a".repeat(62), false),
+            ("success", "0", "a".repeat(65), false),
+            ("success", "0", "A".repeat(64), false),
+            ("success", "0", String::new(), false),
+        ] {
+            let output = Command::new("/bin/bash")
+                .args(["-c", &function, "binding-fixture", status, code, &hash])
+                .env_clear()
+                .output()
+                .unwrap();
+            assert!(output.status.success());
+            let output = String::from_utf8(output.stdout).unwrap();
+            assert_eq!(
+                output.starts_with("success 0 "),
+                accepted,
+                "{workflow}: {output}"
+            );
+            if accepted {
+                assert_eq!(output.trim(), format!("success 0 {hash}"));
+            }
+        }
+    }
+}
