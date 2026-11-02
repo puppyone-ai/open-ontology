@@ -1,37 +1,109 @@
-<p align="center">
-  <a href="https://github.com/puppyone-ai"><img src="docs/assets/readme/puppyone-logo.png" width="78" height="78" alt="puppyone — the orange puppy" /></a>
-</p>
+<div align="center">
+  <img src="docs/assets/brand/open-ontology-logo.svg" alt="Open Ontology Logo" width="220" height="220" />
 
-<h1 align="center">Open Ontology</h1>
+  <h1>Open Ontology</h1>
 
-<p align="center"><strong>Turn enterprise data into context your agents can understand — and access responsibly.</strong></p>
-<p align="center">A PostgreSQL data replica. Reviewed business semantics. A governed interface for your agent.</p>
+  <p>The open-source ontology layer for your agents.</p>
 
-<p align="center">
-  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/License-Apache_2.0-FFA832?style=flat-square" /></a>
-  <a href="docs/17-rust-implementation.md"><img alt="Architecture: Rust first" src="https://img.shields.io/badge/Architecture-Rust_first-292724?style=flat-square&amp;logo=rust" /></a>
-  <a href="https://github.com/puppyone-ai/open-ontology/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/puppyone-ai/open-ontology?style=flat-square&amp;color=FFA832" /></a>
-</p>
+  <p>
+    <a href="#-try-it"><b>Get started</b></a> ·
+    <a href="#-inside-open-ontology"><b>How it works</b></a>
+  </p>
 
-<p align="center">
-  <a href="#why-open-ontology">Why OO?</a> ·
-  <a href="#how-it-works">How it works</a> ·
-  <a href="#getting-started">Get started</a> ·
-  <a href="#deployment">Deployment</a> ·
-  <a href="docs/README.md">Documentation</a> ·
-  <a href="#contributing">Contribute</a>
-</p>
+  <p>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-FFA832?style=flat-square" alt="License: Apache 2.0" /></a>
+    <a href="docs/17-rust-implementation.md"><img src="https://img.shields.io/badge/Architecture-Rust_first-292724?style=flat-square&logo=rust" alt="Architecture: Rust first" /></a>
+  </p>
+</div>
 
-![An amber puppy engineer connects enterprise databases, a semantic notebook, and a governed gateway to agents.](docs/assets/readme/hero.png)
+**Your data ≠ your agent's world**
 
-**Open Ontology (OO)** is an open-source system for building, reviewing, publishing, and maintaining an agent-facing semantic and access layer over enterprise data. It reads approved source objects into a separate PostgreSQL database, builds versioned ontology assets and role-specific Knowledge Packs, and exposes governed queries through a Gateway.
+In an agent's worldview, an ontology answers three questions: what data a company has, how that data relates, and how the agent should understand it.
 
-Connect your own model and agent through the OO CLI, HTTP, or SDK. Internal Pi sessions provide an integrated conversation experience; external agents use Packs and the Gateway independently.
+**Open Ontology** (made by [puppyone](https://github.com/puppyone-ai)) turns the data in your databases into a database your agents can directly understand, query, and interact with.
 
-Built by [puppyone](https://github.com/puppyone-ai): **Making the world friendly for AI agents.**
+It solves 2 major problems :
+
+- **Agents can't understand your databases.** Data sits in separate systems that don't connect and often conflict.
+- **Connecting agents directly to production databases is dangerous.** They could delete data or overload the database.
+
+Open Ontology solves this with a CDC and ETL pipeline that feeds an ontology database built only for AI agents. A reviewed knowledge layer on top tells agents what each field means and how your systems map together, so they can query your data without touching production. It's an early preview: designed for 10+ databases, with PostgreSQL, MySQL, and Oracle running end to end on our own test data.
+
+![Scattered databases flow into Open Ontology, which gives an agent one governed path to them.](docs/assets/readme/architecture.svg)
+
+## ![](docs/assets/readme/icons/anvil.svg) Self-build ontology
+
+Point Open Ontology at a database and it drafts the ontology for you. You review a first draft instead of modeling everything by hand. What a model writes stays a draft until your experts approve it.
+
+![Self-build: rules collect facts, a model drafts meaning, your experts review, and gates publish.](docs/assets/readme/self-build-flow.svg)
+
+## ![](docs/assets/readme/icons/bell.svg) Inside Open Ontology
+
+![An ontology is three layers between your databases and your agent: data, knowledge, and access.](docs/assets/readme/inside.svg)
+
+- **Sync.** Approved tables move one way into a separate PostgreSQL database through CDC or ETL. Nothing writes back to your source.
+- **Knowledge.** Each role gets a Knowledge Pack: a versioned folder that teaches an agent how to use the data it can see.
+- **Access.** Agents query through a Gateway, which checks identity, SQL, and limits, records an audit trail, and runs read-only queries on the tables and columns the role allows.
+
+Connect with the `oo` CLI, the HTTP API, or a local MCP server, using any model and agent.
+
+## ![](docs/assets/readme/icons/horse.svg) Supported databases
+
+| Database | Status |
+| --- | --- |
+| MySQL 5.7, 8.4 | End to end on 110,019 rows of our own test data |
+| PostgreSQL | End to end on 100,000 rows of test data, with an unreviewed draft Pack |
+| Oracle | End to end on a test fixture, using full comparison |
+| SQL Server, MongoDB, ClickHouse, MariaDB, Apache Doris, StarRocks, OpenSearch | Preview work in progress |
+| Amazon RDS, Azure SQL, PolarDB, DuckDB, CSV | Planned |
+
+## ![](docs/assets/readme/icons/bonfire.svg) Try it
+
+There is no one-command setup yet. Build the CLI from source:
+
+```bash
+git clone https://github.com/puppyone-ai/open-ontology.git
+cd open-ontology
+
+rustup toolchain install 1.94.0 --profile minimal
+cargo +1.94.0 build --locked -p oo-cli --bin oo
+```
+
+Then point it at a running Gateway:
+
+```bash
+OO=./target/debug/oo
+CONN=(--json --gateway https://oo.example.com --transport production
+  --auth external --token-file "$HOME/.config/open-ontology/client.token"
+  --ca-file "$HOME/.config/open-ontology/ca.pem")
+
+"$OO" tables "${CONN[@]}"
+"$OO" query 'SELECT COUNT(*) FROM logistics.shipments' "${CONN[@]}"
+```
+
+No Gateway yet? Start with the [trusted demo](deploy/trusted-demo/README.md) on public sample data, or the [logistics commands](deploy/logistics-demo/COMMANDS.md) for the full loop with an agent.
+
+## ![](docs/assets/readme/icons/sun.svg) Roadmap
+
+1. **Ten databases.** A working preview across ten database engines. *In progress.*
+2. **Reviewed ontologies.** Review, version, and publish your ontology.
+3. **Any agent.** A general service that works with any agent harness.
+4. **Live data and files.** Continuous updates, plus file sources.
+5. **Production release.** Verified with customers and reproducible to deploy.
+
 
 <details>
 <summary><strong>Explore this README</strong></summary>
+
+**Start here**
+
+- [Self-build ontology](#-self-build-ontology)
+- [Inside Open Ontology](#-inside-open-ontology)
+- [Supported databases](#-supported-databases)
+- [Try it](#-try-it)
+- [Roadmap](#-roadmap)
+
+**Reference**
 
 - [Why Open Ontology?](#why-open-ontology)
 - [How it works](#how-it-works)
