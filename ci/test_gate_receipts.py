@@ -143,6 +143,10 @@ class Receipts(unittest.TestCase):
         with self.assertRaises(gates.GateFailure):
             gates.parse_json('{"exit_code":0,"exit_code":1}')
 
+    def test_record_refuses_source_drift_before_binding_head(self):
+        with patch.object(gates, "git", return_value=" M Cargo.toml"), self.assertRaisesRegex(gates.GateFailure, "source_dirty"):
+            gates.record("gate-docs", "unused", "unused", 0, "unused", "unused")
+
     def test_redirect_does_not_forward_authorization(self):
         api = gates.Github("fixture/repo", "synthetic")
         location = "https://fixture.blob.core.windows.net/result.zip?signature=synthetic"

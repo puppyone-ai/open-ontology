@@ -175,6 +175,7 @@ def policy_jobs(baseline, candidate, changed):
 
 def record(gate, log, output, code, started, finished):
     require(gate in COMMANDS, "unknown_gate")
+    require(not git("status", "--porcelain"), "source_dirty")
     path = Path(log)
     require(path.is_file() and not path.is_symlink(), "log_missing")
     content = path.read_bytes()
