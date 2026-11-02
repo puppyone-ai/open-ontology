@@ -47,6 +47,9 @@ const REAP_WAIT: Duration = Duration::from_millis(2000);
 /// Sha256 of `testing/harness/containment-supervisor/bin/containment-supervisor`.
 /// The provenance file must contain this same line. A zero digest matches no
 /// built artifact.
+#[cfg(target_arch = "x86_64")]
+const SUPERVISOR_SHA256: &str = "76efbae5a8488ef5a5a7f77614b995da4362ebda6e6382e6e8578937adef1228";
+#[cfg(not(target_arch = "x86_64"))]
 const SUPERVISOR_SHA256: &str = "3569f4e45f88cdedef55c6eb5b23e2c4eb9e9dc1c14690085ddf72681a95628e";
 
 static STAGE_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -68,12 +71,22 @@ fn fault_note(fault: HelperFault) -> &'static str {
 
 pub(crate) fn artifact_path() -> PathBuf {
     crate::util::repo_root()
-        .join("testing/harness/containment-supervisor/bin/containment-supervisor")
+        .join("testing/harness/containment-supervisor/bin")
+        .join(if cfg!(target_arch = "x86_64") {
+            "containment-supervisor-x86_64"
+        } else {
+            "containment-supervisor"
+        })
 }
 
 fn provenance_path() -> PathBuf {
     crate::util::repo_root()
-        .join("testing/harness/containment-supervisor/provenance/artifact.sha256")
+        .join("testing/harness/containment-supervisor/provenance")
+        .join(if cfg!(target_arch = "x86_64") {
+            "artifact-x86_64.sha256"
+        } else {
+            "artifact.sha256"
+        })
 }
 
 #[derive(Clone, Debug)]
