@@ -365,8 +365,6 @@ jobs:
       started_at: ${{ steps.record.outputs.started_at }}
       finished_at: ${{ steps.record.outputs.finished_at }}
       run_id: ${{ steps.record.outputs.run_id }}
-    env:
-      CARGO_TARGET_DIR: ${{ runner.temp }}/secret-scan-build
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -387,6 +385,7 @@ jobs:
           grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
           started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           set +e
+          export CARGO_TARGET_DIR="${RUNNER_TEMP}/secret-scan-build"
           cargo xtask secrets --check --format json | tee "${RUNNER_TEMP}/secret-scan.log"
           code=${PIPESTATUS[0]}
           set -e
