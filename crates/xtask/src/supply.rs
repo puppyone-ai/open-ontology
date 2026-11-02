@@ -4,6 +4,7 @@
 //! `supply --run-tools` installs cargo-audit 0.22.2 and cargo-deny 0.20.2 into a
 //! temporary cargo home. It does not change the user cargo installation.
 
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -802,16 +803,16 @@ fn walk(
             }
         };
         let mut bytes = Vec::new();
+        let mut hash = Sha256::new();
         let mut found = None;
         let mut read_failed = false;
         loop {
+            let overlap = bytes.len();
             match file.by_ref().take(SCAN_LIMIT).read_to_end(&mut bytes) {
                 Ok(0) => break,
                 Ok(_) => {
-                    found = scan_bytes(&bytes);
-                    if found.is_some() {
-                        break;
-                    }
+                    hash.update(&bytes[overlap..]);
+                    found = found.or_else(|| scan_bytes(&bytes));
                     let keep = bytes.len().min(SCAN_OVERLAP);
                     bytes.drain(..bytes.len() - keep);
                 }
@@ -830,7 +831,7 @@ fn walk(
             continue;
         }
         if let Some(kind) = found {
-            let digest = sha256_file(&path).unwrap_or_default();
+            let digest = format!("{:x}", hash.finalize());
             if reviewed.iter().any(|entry| {
                 entry.path == relative_path(repo, &path)
                     && entry.sha256 == digest
@@ -1154,8 +1155,7 @@ fn assignment_hit(bytes: &[u8]) -> bool {
                     while cursor < lower.len() && matches!(lower[cursor], b' ' | b'\t') {
                         cursor += 1;
                     }
-                    let quoted = cursor < lower.len() && matches!(lower[cursor], b'"' | b'\'');
-                    if quoted {
+                    if cursor < lower.len() && matches!(lower[cursor], b'"' | b'\'') {
                         cursor += 1;
                     }
                     let start = cursor;
@@ -1168,14 +1168,7 @@ fn assignment_hit(bytes: &[u8]) -> bool {
                         cursor += 1;
                     }
                     let value = &bytes[start..cursor];
-                    let expression = !quoted
-                        && (value
-                            .iter()
-                            .any(|b| matches!(b, b'(' | b')' | b'[' | b']' | b'{' | b'}'))
-                            || value.contains(&b':')
-                            || value.starts_with(b"&")
-                            || value.starts_with(b"$"));
-                    if !expression && secret_value(value) {
+                    if secret_value(value) {
                         return true;
                     }
                 }
@@ -1667,22 +1660,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn quoted_json_keys_are_scanned_but_runtime_expressions_are_not_credentials() {
+    fn quoted_json_keys_and_unquoted_config_literals_are_scanned() {
         let value = ["horse", "battery", "99"].join("-");
         let json = serde_json::json!({"password": value}).to_string();
         assert_eq!(scan_bytes(json.as_bytes()), Some("assignment"));
-        for text in [
-            "password = config.password_file.clone();",
-            "token: &GatewayToken",
-            "secret = os.environ['RUNTIME_SECRET']",
-            "password=$(read_runtime_secret)",
-        ] {
-            assert_eq!(scan_bytes(text.as_bytes()), None, "{text}");
+        for tail in [":42", "[42]", "(42)", "{42}"] {
+            let line = format!("password={}{}", ["review", "canary"].join("-"), tail);
+            assert_eq!(scan_bytes(line.as_bytes()), Some("assignment"));
         }
-        assert_eq!(
-            scan_bytes(format!("password={value}").as_bytes()),
-            Some("assignment")
-        );
+        for text in [
+            format!("password: $({value})"),
+            format!("let password: {value}:42"),
+            format!("let config = r#\"\nlet password: {value}:42\n\"#;"),
+        ] {
+            assert_eq!(scan_bytes(text.as_bytes()), Some("assignment"));
+        }
     }
 
     #[test]
@@ -1691,9 +1683,9 @@ mod tests {
         fs::create_dir_all(repo.join("supply-chain")).unwrap();
         let path = repo.join("fixture.txt");
         let mut bytes = vec![b' '; SCAN_LIMIT as usize + 100];
-        bytes.extend_from_slice(
-            format!("password=\"{}\"", ["horse", "battery", "99"].join("-")).as_bytes(),
-        );
+        let literal = format!("password=\"{}\"", ["horse", "battery", "99"].join("-"));
+        bytes.splice(..0, literal.bytes());
+        bytes.extend_from_slice(literal.as_bytes());
         fs::write(&path, &bytes).unwrap();
         let issues = scan_tree(&repo);
         assert!(issues.iter().any(|issue| issue.code == "secrets.hit"));

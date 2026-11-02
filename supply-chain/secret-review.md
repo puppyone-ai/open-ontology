@@ -14,8 +14,8 @@ they must never be used by deployed services or packaged as runtime trust.
 Their source locations are retained only for reproducible TLS behavior.
 
 The scanner now reads large source/assets in overlapping bounded chunks instead
-of refusing every file above 1 MiB. It also recognizes quoted JSON keys and
-separates unquoted runtime expressions from literal assignments. Known token
+of refusing every file above 1 MiB. It also recognizes quoted JSON keys. Runtime expressions that resemble
+credentials require exact-content review; punctuation is never an exemption. Known token
 and URL detectors still run independently. Symlinks and unreadable files still
 fail. CI builds the scanner under runner.temp so its own compiler output does
 not contaminate the source scan; the scanner itself does not exclude target,
