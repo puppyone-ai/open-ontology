@@ -297,11 +297,9 @@ def operative_holds(text: str, sentence: str) -> bool:
     """
 
     visible = visible_prose(text)
-    start = 0
-    while True:
-        index = visible.find(sentence, start)
-        if index < 0:
-            return False
+    pattern = r"\s+".join(re.escape(word) for word in sentence.split())
+    for match in re.finditer(pattern, visible):
+        index = match.start()
         line_start = visible.rfind("\n", 0, index) + 1
         prefix = visible[line_start:index]
         boundary = max(prefix.rfind(". "), prefix.rfind("? "), prefix.rfind("! "))
@@ -309,7 +307,7 @@ def operative_holds(text: str, sentence: str) -> bool:
             prefix = prefix[boundary + 2 :]
         if NEGATION_PREFIX.search(prefix) is None:
             return True
-        start = index + len(sentence)
+    return False
 
 
 def local_link_errors(text: str, path: Path) -> list[str]:
@@ -461,6 +459,9 @@ def self_test(root: Path) -> list[tuple[str, str | None]]:
     results: list[tuple[str, str | None]] = []
     security = (root / "governance/SECURITY.md").read_text()
     sentence = "The design requires an admission audit record before a result is returned, a hash chain so tampering is detectable, and a collector that is not a general write account on the control database."
+    wrapped = sentence.replace(", ", ",\n        ")
+    results.append(("operative:wrapped-sentence", None if operative_holds(wrapped, sentence) else "wrapped prose lost the rule"))
+    results.append(("operative:negated-wrapped-sentence", "negated wrapped prose accepted" if operative_holds("Never " + wrapped, sentence) else None))
     if not operative_holds(security, sentence):
         results.append(("operative:real-hash-chain-sentence", "real SECURITY.md lost the sentence"))
     else:

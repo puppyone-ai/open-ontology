@@ -554,6 +554,7 @@ jobs:
           components: rustfmt, clippy
       - name: gates
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
           BASE_SHA: ${{ github.sha }}
           HEAD_SHA: ${{ github.sha }}

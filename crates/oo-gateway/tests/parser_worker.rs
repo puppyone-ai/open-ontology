@@ -49,6 +49,7 @@ fn main() {
         "oversize" => oversize(),
         "version" => write_header(99, 2, 0),
         "magic" => {
+            read_request();
             let mut out = std::io::stdout().lock();
             out.write_all(b"NOPE").unwrap();
             out.flush().unwrap();
@@ -138,7 +139,13 @@ fn oversize() {
     thread::sleep(Duration::from_secs(30));
 }
 
+fn read_request() {
+    let mut bytes = Vec::new();
+    std::io::stdin().read_to_end(&mut bytes).unwrap();
+}
+
 fn write_header(version: u16, kind: u16, len: u32) {
+    read_request();
     let mut out = std::io::stdout().lock();
     out.write_all(b"OOSW").unwrap();
     out.write_all(&version.to_le_bytes()).unwrap();
@@ -1556,13 +1563,14 @@ fn same_group_grandchild_is_reaped_inside_one_second() {
     let req = request(&small(), "SELECT 1");
 
     for mode in ["orphan", "orphan-stdout"] {
+        let worker = fault(mode);
         let wall = Instant::now();
         let child_pid = Cell::new(0u32);
         let child_start = Cell::new(0u64);
         let grand = Cell::new(0u32);
-        let err = supervise_with(&fault(mode), &req, &CancelFlag::new(), |pid| {
+        let err = supervise_with(&worker, &req, &CancelFlag::new(), |pid| {
             child_pid.set(pid);
-            child_start.set(live_child(pid, &fault(mode)));
+            child_start.set(live_child(pid, &worker));
             wait_for_grandchild(pid, &grand);
         });
         let report = expect_timeout(err, mode);
@@ -1575,6 +1583,11 @@ fn same_group_grandchild_is_reaped_inside_one_second() {
         assert_gone(&report, child_pid.get(), child_start.get());
         let grandchild = grand.get();
         assert_ne!(grandchild, 0, "{mode} grandchild pid was not recorded");
+        // SIGKILL delivery and init's orphan reap are asynchronous; observe the
+        // same original one-second budget instead of asserting at signal return.
+        while proc_field(grandchild, 19).is_some() && wall.elapsed() < Duration::from_secs(1) {
+            thread::sleep(Duration::from_millis(5));
+        }
         if let Some(now) = proc_field(grandchild, 19) {
             panic!("{mode} grandchild {grandchild} still alive start {now}");
         }

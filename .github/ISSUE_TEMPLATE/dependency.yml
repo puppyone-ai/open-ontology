@@ -6,18 +6,22 @@ body:
     attributes:
       value: |
         Read supply-chain/policy.md before opening this.
-        Admission follows supply-chain/policy.md sections 1 through 4, including OSI-approved permissive licenses, reviewed weak copyleft, prohibited tokens inside OR expressions, strong copyleft, unknown LicenseRef identifiers, the seven-day rule, and the advisory disposition.
+        Admission follows supply-chain/policy.md sections 1 through 4, including OSI-approved permissive
+        licenses, reviewed weak copyleft, prohibited tokens inside OR expressions, strong copyleft, unknown
+        LicenseRef identifiers, the seven-day rule, and the advisory disposition.
         Naming only AGPL, BSL, ELv2, and SSPL is not the whole rule.
         The blank shape is supply-chain/dependency-audit-record.template.json.
         Do not edit supply-chain/dependency-baseline.json in this issue.
         That file belongs to the foundation owner.
-        A prohibited AGPL, BUSL, Elastic, or SSPL token does not enter the default artifact, including inside an OR expression and including a record that sets prohibited_license to false.
+        A prohibited AGPL, BUSL, Elastic, or SSPL token does not enter the default artifact, including inside an
+        OR expression and including a record that sets prohibited_license to false.
         GPL and any other strong copyleft stay out. An unknown LicenseRef stays out.
         Weak copyleft needs a named reviewer, obligations, evidence, and scope. A boolean is not that review.
         An AND expression keeps every obligation, including a case such as MIT AND Unicode-3.0.
         MIT OR Apache-2.0 needs an explicit dual_license_choice and LICENSE evidence for every declared license.
         native_transitive entries are objects. A string license is not ignored.
-        A version younger than seven days needs a security-fix exception with an appointed named owner and regression evidence. OWNER_PENDING means nobody is appointed, so that exception is not valid.
+        A version younger than seven days needs a security-fix exception with an appointed named owner and
+        regression evidence. OWNER_PENDING means nobody is appointed, so that exception is not valid.
         Absence or a pending advisory does not clear an audited record.
         A known exploitable high-severity issue cannot be waived.
         This form is not cargo audit, cargo deny, or an image or native scan.

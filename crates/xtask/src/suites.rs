@@ -982,6 +982,8 @@ fn byte_scan(repo: &Path) -> (Vec<Issue>, Vec<String>) {
             || relative.starts_with("bench/datagen/target/")
             || relative.contains("/.git/")
             || relative == "testing/harness/containment-supervisor/bin/containment-supervisor"
+            || relative
+                == "testing/harness/containment-supervisor/bin/containment-supervisor-x86_64"
             || relative.starts_with("testing/harness/containment-supervisor/provenance/licenses/")
         {
             // The supervisor is a pinned ELF. License files are upstream

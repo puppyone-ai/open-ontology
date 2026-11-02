@@ -414,7 +414,7 @@ def add_tree_checks(results: list[dict], commands: list[dict]) -> None:
             ]
         )
         commands.append(lint)
-        record(results, "yamllint", "passed" if lint["exit_code"] == 0 else "failed", {"exit_code": lint["exit_code"], "stderr": lint["stderr"][-500:]})
+        record(results, "yamllint", "passed" if lint["exit_code"] == 0 else "failed", {"exit_code": lint["exit_code"], "stdout": lint["stdout"][-1500:], "stderr": lint["stderr"][-500:]})
     else:
         record(
             results,
