@@ -260,6 +260,8 @@ class FullVerification(unittest.TestCase):
             log = self.log
             if gate == "gate-evidence":
                 log = b'{"status":"self_test_pass","exit_code":0}\n'
+            if gate == "gate-dependencies":
+                log = b'{"status":"tools_ran","exit_code":0}\n'
             if gate.removeprefix("gate-") in gates.SUITES:
                 log = json.dumps({"status": "pass", "exit_code": 0, "details": {"receipt": {
                     "protocol": "oo.ci.capability-suite/v1", "suite": gate.removeprefix("gate-"),

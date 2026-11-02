@@ -305,7 +305,10 @@ def check_receipt(receipt, log, gate, run, job):
     # Structured commands may return shell success but report a failed gate.
     if gate not in ("gate-fmt", "gate-clippy", "gate-unit"):
         report = parse_json(log)
-        expected_status = "self_test_pass" if gate == "gate-evidence" else "pass"
+        expected_status = {
+            "gate-evidence": "self_test_pass",
+            "gate-dependencies": "tools_ran",
+        }.get(gate, "pass")
         require(type(report.get("exit_code")) is int and report["exit_code"] == 0 and
                 report.get("status") == expected_status, "report_failure")
         if gate.removeprefix("gate-") in SUITES:
