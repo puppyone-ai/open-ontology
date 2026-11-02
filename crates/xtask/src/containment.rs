@@ -688,9 +688,14 @@ mod tests {
         assert!(!blocks_pass(VERIFIED, true, false, "ok"));
         assert!(!blocks_pass(VERIFIED, true, false, "stopped"));
         assert!(!blocks_pass(VERIFIED, true, false, "output-limit"));
+        let filename = if cfg!(target_arch = "x86_64") {
+            "containment-supervisor-x86_64"
+        } else {
+            "containment-supervisor"
+        };
         assert!(
             artifact_path()
-                .ends_with("testing/harness/containment-supervisor/bin/containment-supervisor")
+                .ends_with(Path::new("testing/harness/containment-supervisor/bin").join(filename))
         );
         #[cfg(target_os = "linux")]
         {
