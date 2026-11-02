@@ -4171,7 +4171,7 @@ mod mysql_handoff_resume_tests {
                 "OR NOT _oo.mysql_initial_generation_allowed(s,t,g,e,p)",
             );
         let script = include_str!("../migrations/0114_native_mysql_handoff_initial_resume.sql");
-        assert!(script.ends_with(&expected));
+        assert!(script.trim_end().ends_with(expected.trim_end()));
         for guard in [
             "h.task IS DISTINCT FROM t",
             "h.source_epoch IS DISTINCT FROM e",
@@ -4398,8 +4398,8 @@ mod complete_scope_tests {
             .unwrap()
             .1;
         assert_eq!(
-            format!("CREATE OR REPLACE FUNCTION{body}"),
-            format!("{publication}\n{library}\n{fill}\n{mixed}\n{buffer}")
+            format!("CREATE OR REPLACE FUNCTION{body}").trim_end(),
+            format!("{publication}\n\n{library}\n{fill}\n{mixed}\n{buffer}").trim_end()
         );
     }
 }

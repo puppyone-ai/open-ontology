@@ -63,6 +63,7 @@ struct World {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_PG_WINDOW_FIXTURE; run with --ignored"]
 async fn bounded_window_reads_the_ninety_thousand_row_table() {
     let mut world = World::start().await;
     world.load_logistics().await;

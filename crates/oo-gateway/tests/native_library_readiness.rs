@@ -1,6 +1,7 @@
 use serde_json::Value;
 
 #[tokio::test]
+#[ignore = "live fixture: requires isolated owned PostgreSQL and module fixture configuration; run with --ignored"]
 async fn library_query_gate_rejects_closed_and_stale_heads() {
     let fixture: Value = serde_json::from_slice(
         &std::fs::read(std::env::var("OO_LIBRARY_FIXTURE").expect("owned fixture")).unwrap(),

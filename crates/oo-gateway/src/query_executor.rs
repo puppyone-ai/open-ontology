@@ -5403,10 +5403,10 @@ mod tests {
         assert!(s.receipts.is_empty());
     }
     #[tokio::test]
+    #[ignore = "external fixture: requires OO_MYSQL_CURRENT_QUALITY_CONFIG; run with --ignored"]
     async fn actual_current_native_quality_with_retained_history() {
-        let Ok(path) = std::env::var("OO_MYSQL_CURRENT_QUALITY_CONFIG") else {
-            return;
-        };
+        let path = std::env::var("OO_MYSQL_CURRENT_QUALITY_CONFIG")
+            .expect("OO_MYSQL_CURRENT_QUALITY_CONFIG is required");
         let c: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
         let endpoint = &c["endpoint"];
         let db = crate::TlsEndpoint {

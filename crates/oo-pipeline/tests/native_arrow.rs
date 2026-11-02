@@ -341,11 +341,11 @@ fn mysql_manifest_stays_on_its_entrypoint() {
 }
 
 #[test]
-fn postgresql_and_unknown_engines_fail_closed() {
+fn unadmitted_postgresql_and_unknown_engines_fail_closed() {
     let mut postgres = base_manifest("postgresql", "oracle_p2");
     postgres["admission"] = Value::Null;
     let plan = plan_closed(&postgres);
-    assert_closed(&plan.result, "postgresql_retag");
+    assert_closed(&plan.result, "nonadmitted");
     assert!(!plan.loader_ready());
 
     let hive = base_manifest("hive", "oracle_p2");
@@ -356,8 +356,6 @@ fn postgresql_and_unknown_engines_fail_closed() {
 
 #[test]
 fn oracle_batch_is_not_admitted() {
-    require_file(&receipt_path());
-    require_file(&decision_path());
     let document = base_manifest("oracle", "oracle_p2");
     let plan = plan_closed(&document);
     assert!(!plan.loader_ready());
@@ -369,6 +367,7 @@ fn oracle_batch_is_not_admitted() {
 }
 
 #[test]
+#[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
 fn clickhouse_without_arrow_is_missing() {
     require_file(&receipt_path());
     require_file(&decision_path());
@@ -388,6 +387,7 @@ fn clickhouse_without_arrow_is_missing() {
 }
 
 #[test]
+#[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
 fn clickhouse_admission_does_not_cover_the_oracle_batch() {
     require_file(&receipt_path());
     require_file(&decision_path());
@@ -412,7 +412,6 @@ fn clickhouse_admission_does_not_cover_the_oracle_batch() {
 
 #[test]
 fn synthetic_decision_is_not_admitted() {
-    require_file(&receipt_path());
     let dir = std::env::temp_dir().join(format!("oo-native-import-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("tmpdir");
     let decision = dir.join("decision.json");
@@ -813,8 +812,8 @@ fn registry_for(
     decision: &str,
 ) -> PathBuf {
     let registry = dir.join("registry.json");
-    let receipt = receipt_path();
-    let body = json!({
+    let receipt = dir.join("synthetic-admission.json");
+    let mut body = json!({
         "protocol": "oo.source-admission.binding-registry/v1",
         "bindings": [{
             "protocol": "oo.source-admission.capture-binding/v1",
@@ -836,6 +835,8 @@ fn registry_for(
             "catalog_sha256": arrow_sha256(&std::fs::read(catalog).unwrap()),
             "catalog_path": catalog,
             "admission_receipt_path": receipt,
+            "admission_receipt_sha256": "0".repeat(64),
+            "arrow_schema_sha256": digest,
             "schema_digest": digest,
             "type_digest": digest,
             "config_digest": digest,
@@ -849,6 +850,32 @@ fn registry_for(
             "fields": [{"name": "reading_id", "arrow_type": "uint64", "nullable": false, "precision": 64}]
         }]
     });
+    let preimage = arrow_sha256(&serde_json::to_vec(&body).unwrap());
+    let binding = &body["bindings"][0];
+    let mut admission = json!({
+        "schema": "oo.source-admission.capture-receipt/v1",
+        "run_id": "synthetic-refusal",
+        "registry_sha256": preimage,
+        "arrow_sha256": [binding["objects"][0]["arrow_sha256"]]
+    });
+    for key in [
+        "source_engine",
+        "source_id",
+        "source_generation",
+        "snapshot",
+        "schema_digest",
+        "type_digest",
+        "config_digest",
+        "input_digest",
+        "catalog_sha256",
+        "driver_digest",
+        "arrow_schema_sha256",
+    ] {
+        admission[key] = binding[key].clone();
+    }
+    let bytes = serde_json::to_vec(&admission).unwrap();
+    body["bindings"][0]["admission_receipt_sha256"] = json!(arrow_sha256(&bytes));
+    std::fs::write(receipt, bytes).unwrap();
     std::fs::write(&registry, serde_json::to_vec(&body).unwrap()).expect("registry");
     registry
 }
@@ -871,7 +898,8 @@ const CLICKHOUSE_ARROW_SHA256: &str =
     "3e32e4f95456b2285bdaf9aa2988578635d97cabe5e83d07319c574f272fcf8b";
 
 fn proof_required() -> bool {
-    std::env::var_os("OO_NATIVE_BINDING_PROOF_TOUCH").is_some()
+    // Selecting an evidence test is itself the opt-in; absent artifacts never pass.
+    true
 }
 
 fn repo_file(relative: &str) -> PathBuf {
@@ -1045,6 +1073,7 @@ fn clickhouse_snapshot_mismatch_is_nonadmitted_before_arrow() {
 }
 
 #[test]
+#[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
 fn clickhouse_binding_plans_when_the_frozen_cli_admits() {
     let Some(bin) = frozen_admission_bin() else {
         return;
@@ -1210,6 +1239,7 @@ fn clickhouse_binding_plans_when_the_frozen_cli_admits() {
 }
 
 #[test]
+#[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
 fn oracle_historical_receipt_is_cross_source() {
     let Some(bin) = frozen_admission_bin() else {
         return;
@@ -1339,6 +1369,7 @@ fn cell_hex(bytes: &[u8]) -> String {
 }
 
 #[test]
+#[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
 fn arrow_file_keeps_fixed_binary_uint8_millis_list_struct_and_union() {
     let path = frozen_arrow_file();
     if !path.is_file() {
@@ -1542,6 +1573,7 @@ fn sr_columns(table: &str) -> Vec<CopyColumnDecl> {
 }
 
 #[test]
+#[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
 fn starrocks_standard_types_decode_without_rewriting_tokens() {
     let cases = [
         (
@@ -1658,4 +1690,96 @@ fn clickhouse_binary_does_not_become_text() {
         copy_digest(&bytes, "clickhouse_268", "readings", "final", 1, &pretended),
         Err(ArrowFault::Shape)
     );
+}
+
+#[test]
+fn synthetic_standard_types_preserve_precision_nulls_and_timestamp_units() {
+    let bytes = include_bytes!("fixtures/native/synthetic-standard.arrow");
+    let stream = decode_arrow_stream(bytes).unwrap();
+    assert_eq!(stream.rows, 3);
+    assert_eq!(stream.fields[0].arrow_type, "int64");
+    assert_eq!(stream.fields[0].precision, Some(64));
+    assert_eq!(stream.fields[1].precision, Some(38));
+    assert_eq!(stream.fields[1].scale, Some(9));
+    assert_eq!(stream.fields[2].arrow_type, "date32");
+    assert_eq!(stream.fields[3].arrow_type, "timestamp_second_naive");
+    assert_eq!(int_cell(&stream.columns[0][0]), (64, 1));
+    assert!(matches!(stream.columns[1][1], NativeCell::Null));
+    assert!(matches!(stream.columns[2][2], NativeCell::Date32(-1)));
+    assert!(matches!(
+        stream.columns[3][0],
+        NativeCell::TimestampMicros(1_000_000)
+    ));
+    assert!(matches!(
+        stream.columns[3][2],
+        NativeCell::TimestampMicros(-1_000_000)
+    ));
+    let mut columns = vec![
+        column("id", "id", "int64", false, Some(64), None, None),
+        column(
+            "amount",
+            "amount",
+            "decimal128(38,9)",
+            true,
+            Some(38),
+            Some(9),
+            None,
+        ),
+        column("day", "day", "date32", true, None, None, None),
+        column("at", "at", "timestamp_second_naive", true, None, None, None),
+        column("text", "text", "utf8", true, None, None, None),
+    ];
+    let digest = copy_digest(bytes, "synthetic", "fixture", "standard", 1, &columns).unwrap();
+    assert_eq!(
+        digest,
+        copy_digest(bytes, "synthetic", "fixture", "standard", 1, &columns).unwrap()
+    );
+    columns[0].precision = Some(32);
+    assert_eq!(
+        copy_digest(bytes, "synthetic", "fixture", "standard", 1, &columns),
+        Err(ArrowFault::Precision)
+    );
+    columns[0].precision = Some(64);
+    columns[3].arrow_type = "timestamp_micros".to_string();
+    assert_eq!(
+        copy_digest(bytes, "synthetic", "fixture", "standard", 1, &columns),
+        Err(ArrowFault::Shape)
+    );
+}
+
+#[test]
+fn synthetic_nested_types_preserve_presence_null_empty_and_union_tags() {
+    let bytes = include_bytes!("fixtures/native/synthetic-nested.arrow");
+    let stream = decode_arrow_stream(bytes).unwrap();
+    assert_eq!(stream.rows, 3);
+    assert_eq!(stream.fields[0].arrow_type, "fixedsizebinary(12)");
+    assert_eq!(stream.columns[0][2], NativeCell::Binary(vec![255; 12]));
+    assert_eq!(stream.columns[1][2], NativeCell::UInt8(255));
+    match &stream.columns[2][0] {
+        NativeCell::TimestampMicrosUtc { value, timezone } => {
+            assert_eq!(*value, 1_000_000);
+            assert_eq!(timezone, "UTC");
+        }
+        other => panic!("timestamp {other:?}"),
+    }
+    assert_eq!(
+        stream.columns[3][0],
+        NativeCell::Json(r#"["a","b"]"#.to_string())
+    );
+    assert!(matches!(stream.columns[3][1], NativeCell::Null));
+    assert_eq!(stream.columns[3][2], NativeCell::Json("[]".to_string()));
+    assert_eq!(
+        stream.columns[4][0],
+        NativeCell::Json(r#"{"kind":"crate","n":7}"#.to_string())
+    );
+    assert!(matches!(stream.columns[4][1], NativeCell::Null));
+    assert_eq!(
+        stream.columns[5][0],
+        NativeCell::Json(r#"{"type_id":0,"type":"utf8","value":"lane"}"#.to_string())
+    );
+    assert_eq!(
+        stream.columns[5][1],
+        NativeCell::Json(r#"{"type_id":1,"type":"int64","value":42}"#.to_string())
+    );
+    assert!(decode_arrow_stream(&bytes[..bytes.len() - 1]).is_err());
 }

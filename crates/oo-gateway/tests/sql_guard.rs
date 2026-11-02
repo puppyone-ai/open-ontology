@@ -1542,11 +1542,12 @@ fn ambiguous_column_lists_visible_labels_only() {
 }
 
 #[tokio::test]
+#[ignore = "live fixture: requires OO_A175_LIVE; run with --ignored"]
 async fn live_column_role_executes_guarded_select() {
-    if std::env::var("OO_A175_LIVE").ok().as_deref() != Some("1") {
-        eprintln!("OO_A175_LIVE is unset; the PostgreSQL comparison was not run");
-        return;
-    }
+    assert!(
+        std::env::var("OO_A175_LIVE").ok().as_deref() == Some("1"),
+        "OO_A175_LIVE must be set for this live fixture"
+    );
     run_live().await;
 }
 

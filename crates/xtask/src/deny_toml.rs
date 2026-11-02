@@ -579,7 +579,21 @@ fn reviewed_shape_issues(value: &Value) -> Vec<Issue> {
     );
     let graph = object_at(root, "graph", &mut issues);
     if let Some(graph) = graph {
-        unknown_keys(graph, &["all-features", "no-default-features"], &mut issues);
+        unknown_keys(
+            graph,
+            &["all-features", "no-default-features", "targets"],
+            &mut issues,
+        );
+        if graph.get("targets")
+            != Some(&serde_json::json!([
+                "aarch64-unknown-linux-gnu",
+                "x86_64-unknown-linux-gnu"
+            ]))
+        {
+            issues.push(shape(
+                "graph.targets must cover both supported GNU Linux architectures",
+            ));
+        }
         expect_bool(graph, "all-features", false, &mut issues);
         expect_bool(graph, "no-default-features", false, &mut issues);
     }
@@ -802,6 +816,14 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join("; ")
         );
+        for target in ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"] {
+            let changed = text.replace(target, "wasm32-unknown-unknown");
+            assert!(
+                deny_policy_issues(&changed)
+                    .iter()
+                    .any(|issue| issue.message.contains("graph.targets"))
+            );
+        }
         let weakened = text
             .replace("wildcards = \"deny\"", "wildcards = \"allow\"")
             .replace(

@@ -1333,10 +1333,12 @@ mod a327_live {
     }
 
     #[test]
+    #[ignore = "live fixture: requires OO_A327_LIVE; run with --ignored"]
     fn live_numeric_proof() {
-        if std::env::var_os("OO_A327_LIVE").is_none() {
-            return;
-        }
+        assert!(
+            std::env::var_os("OO_A327_LIVE").is_some(),
+            "OO_A327_LIVE must be set for this live fixture"
+        );
         assert_eq!(AMOUNT_COEFF.len(), 18);
         assert_eq!(WIDE_COEFF.len(), 38);
         assert!(AMOUNT_COEFF.bytes().all(|byte| byte.is_ascii_digit()));

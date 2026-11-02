@@ -401,6 +401,7 @@ async fn publish(
 }
 
 #[tokio::test]
+#[ignore = "live fixture: requires isolated owned PostgreSQL and module fixture configuration; run with --ignored"]
 async fn library_atomic_publication_and_adoption() {
     let mut admin = connect("postgres").await;
     admin
@@ -649,6 +650,7 @@ fn library_installer_is_additive_and_ordered() {
 }
 
 #[tokio::test]
+#[ignore = "live fixture: requires isolated owned PostgreSQL and module fixture configuration; run with --ignored"]
 async fn library_export_coordinator_fixture() {
     let mut admin = connect("postgres").await;
     admin

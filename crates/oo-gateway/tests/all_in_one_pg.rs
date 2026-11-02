@@ -1,11 +1,12 @@
 use oo_gateway::policy::{TlsEndpoint, connect_readonly_require_tls};
 
 #[tokio::test]
+#[ignore = "live fixture: requires OO_ALL_IN_ONE_LIVE; run with --ignored"]
 async fn installed_all_in_one_session_is_readonly_and_rejects_admin() {
-    if std::env::var("OO_ALL_IN_ONE_LIVE").as_deref() != Ok("1") {
-        eprintln!("OO_ALL_IN_ONE_LIVE unset; owned PostgreSQL proof not run");
-        return;
-    }
+    assert!(
+        std::env::var("OO_ALL_IN_ONE_LIVE").as_deref() == Ok("1"),
+        "OO_ALL_IN_ONE_LIVE must be set for this live fixture"
+    );
     let password =
         std::fs::read_to_string(std::env::var("OO_W73_ROLE_PASSWORD_FILE").unwrap()).unwrap();
     let ca = std::fs::read(std::env::var("OO_W73_CA_FILE").unwrap()).unwrap();

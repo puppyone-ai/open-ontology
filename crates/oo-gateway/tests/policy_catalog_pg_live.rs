@@ -50,11 +50,12 @@ const CURRENT_GENERATION: i64 = 11;
 const ADVISORY_LOCK: i64 = 64_042_026_190;
 
 #[tokio::test]
+#[ignore = "live fixture: requires OO_A190_LIVE; run with --ignored"]
 async fn policy_catalog_loads_from_postgres_and_executes() {
-    if std::env::var("OO_A190_LIVE").ok().as_deref() != Some("1") {
-        eprintln!("OO_A190_LIVE is unset; the policy catalog comparison was not run");
-        return;
-    }
+    assert!(
+        std::env::var("OO_A190_LIVE").ok().as_deref() == Some("1"),
+        "OO_A190_LIVE must be set for this live fixture"
+    );
     let mut live = Live::setup().await;
     live.refuse_before_user_rows().await;
     live.revoke_then_restore_paid().await;

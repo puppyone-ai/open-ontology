@@ -354,6 +354,7 @@ async fn load_builder_table(
 }
 
 #[tokio::test]
+#[ignore = "live fixture: requires isolated owned PostgreSQL and module fixture configuration; run with --ignored"]
 async fn builder_library_import_fixture() {
     use oo_pipeline::native_update::{FixtureCell, FixtureColumn, FixtureKind};
     let input = std::env::var("OO_LIBRARY_BUILDER_INVENTORY").expect("owned anonymous inventory");
@@ -449,6 +450,7 @@ async fn builder_library_import_fixture() {
 }
 
 #[tokio::test]
+#[ignore = "live fixture: requires isolated owned PostgreSQL and module fixture configuration; run with --ignored"]
 async fn catalog_replay_works_with_transaction_lock_but_no_session_lock_permission() {
     let mut admin = connect("postgres").await;
     let database = format!("oo_yjlib_lock_{}", std::process::id());

@@ -756,7 +756,7 @@ mod tests {
 
     fn read(relative: &str) -> String {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/live-chain")
+            .join("tests/fixtures/source-bound")
             .join(relative);
         std::fs::read_to_string(&path)
             .unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
@@ -797,7 +797,7 @@ mod tests {
     }
 
     #[test]
-    fn real_oracle_dictionaries_derive_three_flags_without_stamped_grade() {
+    fn synthetic_oracle_dictionaries_derive_three_flags_without_stamped_grade() {
         let batch = read("catalog-batch/catalog.json");
         let derived = derive_source_bound(
             &batch,
@@ -818,7 +818,7 @@ mod tests {
         .expect("batch");
         assert_eq!(
             derived.schema_digest,
-            "59a1d30cfedb66d93fa8277124851ed6fcb3504c697688ddcf92dcadfcc289dc"
+            "e1776b8e0b47d86a4ab8cf98a3c5633c19c1d9ef71329e02bf1d2b0ef3306a8c"
         );
         assert_eq!(derived.version, "23.26.3.0.0");
         assert_eq!(derived.capture, "sealed_import");
@@ -864,7 +864,7 @@ mod tests {
         .expect("wide");
         assert_eq!(
             derived.schema_digest,
-            "71eba817dac14915743a455dc02d55305d1cde2294a0391541bafc1fd347978c"
+            "58d15e4d157eafb1f65fa9492ea9e7ad1c578433786fc05144d55afd1a381f31"
         );
         let number = derived
             .columns
@@ -886,7 +886,7 @@ mod tests {
         .expect("ts");
         assert_eq!(
             derived.schema_digest,
-            "89ab99d0ae23b23f05435bbbd3818f736c8fb6ff30ab0ff16dbc3da59b8a4a04"
+            "d910f5f9c4f64cf57275e75626215be066ef3d12c51210e00a42b5cd4bf0f242"
         );
         for name in ["ts_text", "tstz_text"] {
             let column = derived
@@ -927,7 +927,7 @@ mod tests {
 
         value = serde_json::from_str(&text).unwrap();
         value["schema_digest"] =
-            json!("71eba817dac14915743a455dc02d55305d1cde2294a0391541bafc1fd347978c");
+            json!("58d15e4d157eafb1f65fa9492ea9e7ad1c578433786fc05144d55afd1a381f31");
         let err = derive_source_bound(&batch, &serde_json::to_string(&value).unwrap()).unwrap_err();
         assert!(err.code.ends_with("/digest.mismatch"));
 

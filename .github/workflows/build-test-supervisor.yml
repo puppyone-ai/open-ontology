@@ -1,0 +1,28 @@
+name: build-test-supervisor
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: Build fixed helper source
+        run: |
+          cargo build --locked --release --manifest-path testing/harness/containment-supervisor/Cargo.toml
+          mkdir -p "$RUNNER_TEMP/supervisor"
+          cp testing/harness/containment-supervisor/target/release/containment-supervisor "$RUNNER_TEMP/supervisor/containment-supervisor-x86_64"
+          sha256sum "$RUNNER_TEMP/supervisor/containment-supervisor-x86_64" > "$RUNNER_TEMP/supervisor/build.sha256"
+          git rev-parse HEAD > "$RUNNER_TEMP/supervisor/source-commit.txt"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: test-supervisor-x86_64
+          path: ${{ runner.temp }}/supervisor/
+          retention-days: 14

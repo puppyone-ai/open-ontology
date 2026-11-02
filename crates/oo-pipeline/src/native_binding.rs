@@ -3659,10 +3659,10 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "external fixture: requires OO_TEST_MARIA_CAPTURE_RECEIPT; run with --ignored"]
     fn maria_tracking_capture_receipt_uses_the_scoped_limit() {
-        let Ok(path) = std::env::var("OO_TEST_MARIA_CAPTURE_RECEIPT") else {
-            return;
-        };
+        let path = std::env::var("OO_TEST_MARIA_CAPTURE_RECEIPT")
+            .expect("OO_TEST_MARIA_CAPTURE_RECEIPT is required");
         let digest = "34434c139e5c106cc99b41614cb775ee25b9d3db35bc42878761febdbfbbfa32";
         assert_eq!(read_hashed(&path, digest), Err("nonadmitted"));
         assert_eq!(
@@ -3905,6 +3905,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
     fn historical_receipt_is_clickhouse_or_opensearch_only() {
         let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
             "../../evidence/2ecaf08e-eb23-4b7a-a720-e07459e6f2a6/DL01/budget-report/native-readonly-completion/receipt.json",

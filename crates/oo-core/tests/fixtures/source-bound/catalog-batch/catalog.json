@@ -1,0 +1,115 @@
+{
+  "capture": "sealed_import",
+  "config_digest": "abababababababababababababababababababababababababababababababab",
+  "engine": "oracle",
+  "hook_checked": false,
+  "input_digest": "abababababababababababababababababababababababababababababababab",
+  "protocol": "oo.pipeline.sealed-import-catalog/v1",
+  "quality": {
+    "loss_concealed": false,
+    "manifest_reject_count": 0,
+    "payload_includes_reject_lines": false,
+    "stored_omits_manifest_rejects": false,
+    "stored_rejected_rows": 0,
+    "stored_rows": [
+      {
+        "accepted_rows": 1,
+        "attnum": null,
+        "batch_id": "t0.b0",
+        "key_digest": null,
+        "kind": "batch",
+        "physical_name": "pt_444444444444444444444444444444444444444444444444444444444444",
+        "reason": null,
+        "rejected_rows": 0,
+        "row_index": null,
+        "value_len": null
+      }
+    ]
+  },
+  "run_id": "11111111-1111-4111-8111-111111111111",
+  "schema_digest": "e1776b8e0b47d86a4ab8cf98a3c5633c19c1d9ef71329e02bf1d2b0ef3306a8c",
+  "shadows_queried": false,
+  "source_generation": 1,
+  "source_id": "synthetic_batch",
+  "source_introspection": "not_used",
+  "state": "awaiting_publish",
+  "tables": [
+    {
+      "accepted_rows": 1,
+      "canonical_digest": "abababababababababababababababababababababababababababababababab",
+      "columns": [
+        {
+          "caveat": null,
+          "key": true,
+          "logical_name": "id",
+          "oid": 21,
+          "source_type": "int16",
+          "stored_physical": "pc_000000000000000000000000000000000000000000000000000000000001",
+          "typmod": -1
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "n16",
+          "oid": 1700,
+          "source_type": "decimal128",
+          "stored_physical": "pc_000000000000000000000000000000000000000000000000000000000002",
+          "typmod": 1048586
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "n1",
+          "oid": 21,
+          "source_type": null,
+          "stored_physical": "pc_000000000000000000000000000000000000000000000000000000000003",
+          "typmod": -1
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "d",
+          "oid": 1114,
+          "source_type": "timestamp_micros",
+          "stored_physical": "pc_000000000000000000000000000000000000000000000000000000000004",
+          "typmod": -1
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "c6",
+          "oid": 1042,
+          "source_type": "utf8",
+          "stored_physical": "pc_000000000000000000000000000000000000000000000000000000000005",
+          "typmod": 10
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "v2",
+          "oid": 1043,
+          "source_type": "utf8",
+          "stored_physical": "pc_000000000000000000000000000000000000000000000000000000000006",
+          "typmod": -1
+        },
+        {
+          "caveat": null,
+          "key": false,
+          "logical_name": "r",
+          "oid": 17,
+          "source_type": "binary",
+          "stored_physical": "pc_000000000000000000000000000000000000000000000000000000000007",
+          "typmod": -1
+        }
+      ],
+      "logical_schema": "fixture",
+      "logical_table": "batch",
+      "rejects": [],
+      "stored_namespace": "pn_333333333333333333333333333333333333333333333333333333333333",
+      "stored_physical": "pt_444444444444444444444444444444444444444444444444444444444444"
+    }
+  ],
+  "target_generation": 1,
+  "tool_hook_digest": "abababababababababababababababababababababababababababababababab",
+  "type_digest": "abababababababababababababababababababababababababababababababab"
+}

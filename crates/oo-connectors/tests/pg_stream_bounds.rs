@@ -51,6 +51,7 @@ struct World {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_PG_STREAM_FIXTURE; run with --ignored"]
 async fn bounded_arrow_stream_bounds() {
     let mut world = World::start().await;
     world.note(

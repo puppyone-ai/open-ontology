@@ -1,0 +1,13 @@
+{
+  "banner": "Synthetic Oracle fixture 23.26.3.0.0",
+  "dictionary_columns": [
+    "ID|NUMBER|4|0|0",
+    "N_FREE|NUMBER|-|-|0"
+  ],
+  "published_scn": "100",
+  "registry_snapshot": "fixture-registry-100",
+  "run_id": "11111111-1111-4111-8111-111111111111",
+  "schema_digest": "58d15e4d157eafb1f65fa9492ea9e7ad1c578433786fc05144d55afd1a381f31",
+  "scn": "100",
+  "source_id": "synthetic_wide"
+}

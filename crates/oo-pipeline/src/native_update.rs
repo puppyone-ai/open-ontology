@@ -8195,13 +8195,16 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
     fn historical_receipt_on_oracle_is_cross_source() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
             "../../evidence/2ecaf08e-eb23-4b7a-a720-e07459e6f2a6/DL01/budget-report/native-readonly-completion/receipt.json",
         );
-        if !path.is_file() {
-            return;
-        }
+        assert!(
+            path.is_file(),
+            "required retained receipt {}",
+            path.display()
+        );
         let digest = "ab".repeat(32);
         let mut request = base_request();
         request["source_engine"] = json!("doris");
@@ -8933,15 +8936,18 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
     fn oracle_producer_catalog_seals_int16_and_refuses_a_crossed_source() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(
             "../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/c5-capture",
         );
         let arrow_path = root.join("run/arrow/t_wide-gen-1.arrow");
         let catalog_path = root.join("run/producer-catalog.json");
-        if !arrow_path.is_file() || !catalog_path.is_file() {
-            return;
-        }
+        assert!(
+            arrow_path.is_file() && catalog_path.is_file(),
+            "required Oracle capture at {}",
+            root.display()
+        );
         for (name, rows, kind) in [
             ("t_batch-gen-1.arrow", 5usize, "D:timestamp_micros"),
             ("t_batch-gen-3.arrow", 6, "N1:int8"),
@@ -9531,6 +9537,67 @@ mod tests {
         assert_eq!(plan.shape, "unique");
     }
 
+    #[test]
+    fn synthetic_key_models_classify_without_capture_history() {
+        let dir = std::env::temp_dir().join(format!("oo-key-models-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("keys.arrow");
+        let columns = vec![FixtureColumn {
+            name: "id".to_string(),
+            nullable: false,
+            kind: FixtureKind::Int64,
+        }];
+        fs::write(
+            &path,
+            encode_fixture_arrow(
+                &columns,
+                &[vec![FixtureCell::Int(7)], vec![FixtureCell::Int(7)]],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            classify(&capture_request(&path, "id", "unique", "reconcile")).err(),
+            Some("conflict")
+        );
+        for identity in ["duplicate", "aggregate"] {
+            assert_eq!(
+                classify(&capture_request(&path, "id", identity, "reconcile"))
+                    .unwrap()
+                    .shape,
+                "snapshot"
+            );
+        }
+        assert_eq!(
+            classify(&capture_request(
+                &path,
+                "id",
+                "duplicate",
+                "partition_replace"
+            ))
+            .err(),
+            Some("partition_scope_required")
+        );
+        fs::write(
+            &path,
+            encode_fixture_arrow(
+                &columns,
+                &[vec![FixtureCell::Int(7)], vec![FixtureCell::Int(8)]],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        for engine in ["doris", "clickhouse"] {
+            let mut request = capture_request(&path, "id", "unique", "reconcile");
+            request["source_engine"] = json!(engine);
+            assert_eq!(classify(&request).unwrap().shape, "unique");
+        }
+        let mut request = capture_request(&path, "id", "unique", "reconcile");
+        request["source_engine"] = json!("starrocks");
+        assert_eq!(classify(&request).err(), Some("upsert_window_unsupported"));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     fn capture_request(path: &Path, key: &str, identity: &str, delete_detection: &str) -> Value {
         let bytes = fs::read(path).expect("arrow");
         let decoded = decode_arrow_stream(&bytes).expect("decode");
@@ -9565,6 +9632,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "retained evidence: requires pinned capture artifacts; see crates/test-suites/README.md"]
     fn doris_b2_and_clickhouse_c4_classify_from_the_capture_key_model() {
         let doris = Path::new(env!("CARGO_MANIFEST_DIR")).join(
             "../../evidence/5106fed0-5bcd-4aaf-8df7-838c95a7d7e2/DL01/doris-product/capture-live",
@@ -9656,7 +9724,8 @@ mod tests {
         let ch = Path::new(env!("CARGO_MANIFEST_DIR")).join(
             "../../evidence/4dbc6d5c-aeeb-46fe-9a28-6cc12626e2de/DL01/clickhouse-product/raw/run/product-run-14-c4/arrows/oo-dl01w1-40-c4b-a18-all.arrow",
         );
-        if ch.is_file() {
+        assert!(ch.is_file(), "required ClickHouse capture {}", ch.display());
+        {
             let mut request = capture_request(&ch, "reading_id", "unique", "reconcile");
             request["source_engine"] = json!("clickhouse");
             request["source_id"] = json!("clickhouse_268");
@@ -9671,14 +9740,10 @@ mod tests {
 
     #[test]
     fn oracle_wide_derives_unconstrained_number_without_forging_a_grade() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(
-            "../../evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/live-chain",
-        );
+        let root =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../oo-core/tests/fixtures/source-bound");
         let catalog_path = root.join("catalog-wide/catalog.json");
         let audit_path = root.join("identity-67/wide/audit/readonly-audit.json");
-        if !catalog_path.is_file() || !audit_path.is_file() {
-            return;
-        }
         let catalog: Value =
             serde_json::from_str(&fs::read_to_string(catalog_path).unwrap()).unwrap();
         let audit: Value = serde_json::from_str(&fs::read_to_string(audit_path).unwrap()).unwrap();

@@ -33,6 +33,7 @@ struct Pointer {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_PG_STREAM_FIXTURE; run with --ignored"]
 async fn revoke_after_first_eof_is_select_not_granted_before_scan() {
     let path = std::env::var("OO_PG_STREAM_FIXTURE").expect("OO_PG_STREAM_FIXTURE is required");
     let pointer: Pointer =

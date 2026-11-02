@@ -1031,6 +1031,10 @@ fn identity_mismatch_is_the_guard_error() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn two_legal_calls_are_two_children() {
     let req = request(&small(), "SELECT order_id FROM logistics.shipment");
     let expected = guard_select(&req.identity, &req.catalog, &req.sql).unwrap();
@@ -1053,6 +1057,10 @@ fn two_legal_calls_are_two_children() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn production_worker_clears_the_environment() {
     assert!(std::env::var_os("HOME").is_some() || std::env::var_os("CARGO_HOME").is_some());
     let req = request(&small(), "SELECT order_id, region FROM logistics.shipment");
@@ -1128,9 +1136,10 @@ fn production_binary_rejects_fault_switches() {
 fn over_budget_sql_does_not_spawn() {
     let sql = " ".repeat(SQL_BYTE_BUDGET + 1);
     let started_child = Cell::new(false);
+    let worker = fault("slow");
     let started = Instant::now();
     let err = supervise_with(
-        &fault("slow"),
+        &worker,
         &request(&small(), &sql),
         &CancelFlag::new(),
         |_| started_child.set(true),
@@ -1163,6 +1172,10 @@ fn cancel_before_spawn_has_no_pid() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn cancel_after_spawn_kills_and_reaps() {
     let flag = CancelFlag::new();
     let worker = fault("slow");
@@ -1187,6 +1200,10 @@ fn cancel_after_spawn_kills_and_reaps() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn slow_worker_is_killed_inside_the_deadline_and_the_pid_is_gone() {
     let worker = fault("slow");
     let pid = Cell::new(0u32);
@@ -1213,6 +1230,10 @@ fn slow_worker_is_killed_inside_the_deadline_and_the_pid_is_gone() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn crash_worker_is_reaped_with_its_exit_code() {
     let worker = fault("crash");
     let pid = Cell::new(0u32);
@@ -1240,6 +1261,10 @@ fn crash_worker_is_reaped_with_its_exit_code() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn oversize_header_kills_without_waiting_out_the_sleep() {
     let worker = fault("oversize");
     let pid = Cell::new(0u32);
@@ -1267,6 +1292,10 @@ fn oversize_header_kills_without_waiting_out_the_sleep() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn bad_version_magic_kind_and_trailer_are_malformed() {
     for mode in ["version", "magic", "kind", "trailer"] {
         let worker = fault(mode);
@@ -1294,6 +1323,10 @@ fn bad_version_magic_kind_and_trailer_are_malformed() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn echo_is_not_accepted_and_the_sql_stays_out_of_the_error() {
     let worker = fault("echo");
     let pid = Cell::new(0u32);
@@ -1318,6 +1351,10 @@ fn echo_is_not_accepted_and_the_sql_stays_out_of_the_error() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn a_timeout_does_not_kill_the_next_child() {
     let slow = fault("slow");
     let req = request(&small(), "SELECT 1");
@@ -1402,6 +1439,10 @@ fn signal_one(pid: u32) {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn deadline_covers_blocked_stdin_stdout_partial_and_late() {
     let mut bulky = request(&small(), "SELECT 1");
     bulky.catalog.relations.clear();
@@ -1498,6 +1539,10 @@ fn deadline_covers_blocked_stdin_stdout_partial_and_late() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn same_group_grandchild_is_reaped_inside_one_second() {
     let mut neighbor = Command::new("/bin/sleep")
         .arg("30")
@@ -1546,6 +1591,10 @@ fn same_group_grandchild_is_reaped_inside_one_second() {
 }
 
 #[test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "platform: requires native Linux /proc process identity; included in Linux default suite"
+)]
 fn escaped_session_is_not_reaped_and_the_parent_still_returns() {
     let setsid_present =
         Path::new("/usr/bin/setsid").is_file() || Path::new("/bin/setsid").is_file();

@@ -1,13 +1,13 @@
 {
   "schema_version": "oo-source-baseline/v1",
   "spec_id": "OO-SPEC-001",
-  "captured_date": "2026-10-09",
+  "captured_date": "2026-11-02",
   "timezone": "Asia/Shanghai",
-  "revision": 4,
-  "supersedes_baseline_head": "b504fd8f4369750f6a329075c77dcc4bf3720702",
-  "supersedes_sha256": "9875ee32eeacb3655a92b7803e5e9eb88dea89ca3930c30a52118d30024972b0",
-  "review_record": "execution/decisions/source-baseline-revision-4.md",
-  "baseline_head": "12cfdc48260636032429449d4e66253d54c1e3cd",
+  "revision": 5,
+  "supersedes_baseline_head": "12cfdc48260636032429449d4e66253d54c1e3cd",
+  "supersedes_sha256": "0d99205cae69754d0c3a7152cec6db3695a2db06107c90160a6aa6059d76dab7",
+  "review_record": "specs/source-baseline-revision-5.md",
+  "baseline_head": "b495c9e0a1e51e9d707e60e795fd2d58f70430d9",
   "source_count": 19,
   "sources": [
     {
@@ -54,9 +54,9 @@
     },
     {
       "path": "docs/07-gateway.md",
-      "sha256": "dd3964c9070cf7185f81f27f53b6557c2971e6b2906ced8523b575a86543f681",
-      "bytes": 25922,
-      "lines": 294
+      "sha256": "f30ae1ca056106ca64a47da4d87425cc1f225afe12548b987609ba786c8b151a",
+      "bytes": 28138,
+      "lines": 296
     },
     {
       "path": "docs/08-agent-interface.md",
@@ -125,7 +125,7 @@
       "lines": 43
     }
   ],
-  "supersedes_revision": 3,
+  "supersedes_revision": 4,
   "supersedes_sha256_rev2": "9638d1857397321be9bacc9f6e09e8be47045a9944ed83e65b299f9b8b98f3f6",
-  "review_status": "explicit product-owner direction on 2026-10-09: ontology production system and harness-independent outputs; Pi is built-in experience and internal verification; independent review not claimed"
+  "review_status": "User-authorized gate-docs correction; source impact reviewed locally on 2026-11-02; no independent review or product acceptance claimed"
 }

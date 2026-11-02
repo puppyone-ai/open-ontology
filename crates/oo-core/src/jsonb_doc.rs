@@ -1739,10 +1739,9 @@ mod tests {
     /// Customer emit and seal. Idle unless `OO_BSON_EMIT_DIR` is set, so a
     /// normal `cargo test` does not claim the fixed shipment row was proved.
     #[test]
+    #[ignore = "external fixture: requires OO_BSON_EMIT_DIR; run with --ignored"]
     fn w141_bson_double_probe_is_idle_without_emit_dir() {
-        let Ok(dir) = std::env::var("OO_BSON_EMIT_DIR") else {
-            return;
-        };
+        let dir = std::env::var("OO_BSON_EMIT_DIR").expect("OO_BSON_EMIT_DIR is required");
         match std::env::var("OO_BSON_PHASE")
             .unwrap_or_else(|_| "emit".to_string())
             .as_str()

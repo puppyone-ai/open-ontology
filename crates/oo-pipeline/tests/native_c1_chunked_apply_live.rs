@@ -53,9 +53,10 @@ fn v2_stage_protocol_is_the_documented_one_and_v1_is_untouched() {
 fn v2_loader_builds_no_sql_from_row_values_and_grants_only_the_stage_insert() {
     // Dynamic SQL is limited to the COPY statement, which names only the stage and
     // the catalog columns. Values travel as bind parameters.
-    let apply_dynamic: Vec<&str> = APPLY_SRC
-        .lines()
-        .filter(|line| line.contains("format!(\"COPY"))
+    let compact: String = APPLY_SRC.chars().filter(|c| !c.is_whitespace()).collect();
+    let apply_dynamic: Vec<&str> = compact
+        .split("format!")
+        .filter(|line| line.starts_with("(\"COPY"))
         .collect();
     assert_eq!(
         apply_dynamic.len(),

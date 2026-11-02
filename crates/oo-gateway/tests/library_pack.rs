@@ -533,6 +533,7 @@ fn metric_candidates_and_readiness_survive_the_actual_role_pack_catalog() {
 }
 
 #[tokio::test]
+#[ignore = "live fixture: requires isolated owned PostgreSQL and module fixture configuration; run with --ignored"]
 async fn actual_library_read_only_catalog_matches_all_published_tables() {
     let path = std::env::var("OO_LIBRARY_GATEWAY_INPUT").expect("owned library fixture input");
     let document: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();

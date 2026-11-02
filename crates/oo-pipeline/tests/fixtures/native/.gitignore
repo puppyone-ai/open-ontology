@@ -1,0 +1,3 @@
+# Synthetic public test inputs must remain visible even with a local *.arrow exclude.
+!synthetic-standard.arrow
+!synthetic-nested.arrow

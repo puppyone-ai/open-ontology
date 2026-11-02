@@ -774,8 +774,8 @@ mod widening_migration_tests {
                 "IF p_reader IN ('oo_target_owner','oo_target_admin')\n    OR EXISTS(SELECT FROM pg_catalog.pg_roles WHERE rolname=p_reader AND rolsuper)\n  THEN RETURN true; END IF;", 1);
         let new = include_str!("../migrations/0108_native_c5_privileged_observer.sql");
         assert_eq!(
-            &new[new.find("CREATE OR REPLACE FUNCTION").unwrap()..],
-            expected
+            new[new.find("CREATE OR REPLACE FUNCTION").unwrap()..].trim_end(),
+            expected.trim_end()
         );
     }
 

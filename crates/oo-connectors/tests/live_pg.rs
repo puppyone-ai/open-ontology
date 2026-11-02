@@ -1,4 +1,5 @@
-//! Live PostgreSQL 17.10 checks. `OO_PG_FIXTURE` is required; there is no skip.
+//! Opt-in PostgreSQL 17.10 checks: run with `--ignored`.
+//! A missing `OO_PG_FIXTURE` fails the selected test.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -50,6 +51,7 @@ struct Pointer {
 }
 
 #[tokio::test]
+#[ignore = "live fixture: requires OO_PG_FIXTURE; run with --ignored"]
 async fn live_source_catalog() {
     if let Ok(kind) = std::env::var("OO_A066_PROBE") {
         run_env_probe(&kind).await;

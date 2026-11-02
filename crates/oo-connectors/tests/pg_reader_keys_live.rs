@@ -51,6 +51,7 @@ struct World {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_PG_KEYS_FIXTURE; run with --ignored"]
 async fn typed_key_plan_live() {
     let mut world = World::start().await;
     world.seed().await;

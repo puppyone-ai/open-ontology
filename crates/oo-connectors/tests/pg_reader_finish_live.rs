@@ -55,6 +55,7 @@ struct World {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_PG_FINISH_FIXTURE; run with --ignored"]
 async fn finish_does_not_report_a_failed_read() {
     assert_eq!(CLEANUP_OBSERVATION_BOUND_MS, 5_000);
     let mut world = World::start().await;

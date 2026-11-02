@@ -6,7 +6,7 @@
 | 版本 | 1.0.1 |
 | 状态 | Proposed / Ready for implementation review |
 | 创建日期 | 2026-10-01，Asia/Shanghai |
-| 输入基线 | `docs/` 全部 19 份文档（另有扩展设计目录 `docs/database-support/`，见第 7A 章，不在哈希基线内）；来源 revision 4，Git HEAD `12cfdc48260636032429449d4e66253d54c1e3cd`（按项目负责人本次明确指令对齐产品定义，见 [变更记录](../execution/decisions/source-baseline-revision-4.md)）；上一基线 revision 3 的 HEAD `b504fd8f4369750f6a329075c77dcc4bf3720702`；上一基线 revision 2 的 HEAD `34fae5ddd73ff250fde6f51aa681fb0f7fbd0362` 与更早的 `e271542aa645aa181da7887d416de0698752a805` 保留在来源变更记录 |
+| 输入基线 | `docs/` 全部 19 份文档；来源 revision 5，Git HEAD `b495c9e0a1e51e9d707e60e795fd2d58f70430d9`；[本次 ACL 文档漂移纠正](source-baseline-revision-5.md)保留 [revision 4 原清单](sources-baseline-revision-4.json)及[历史记录](../execution/decisions/source-baseline-revision-4.md)。扩展设计目录 `docs/database-support/` 不在哈希基线内；不宣称独立审阅或产品验收。 |
 | 实施语言 | 第一方后端、连接器、CLI、SDK、Builder、评测器：Rust；控制台与 TS SDK：TypeScript |
 | 产品许可证 | Apache-2.0；依赖与数据集分别审计 |
 | 交付方式 | 私有化部署；Linux Docker Compose 为首个完整路径 |

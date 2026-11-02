@@ -52,6 +52,7 @@ struct World {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_PG_CANCEL_FIXTURE; run with --ignored"]
 async fn run_cancel_live() {
     assert_eq!(SNAPSHOT_DEADLINE_DEFAULT, Duration::from_secs(300));
     assert_eq!(CLEANUP_OBSERVATION_BOUND_MS, 5_000);

@@ -5,7 +5,8 @@
 //! extremes below. This file does not open a database and does not install.
 
 use std::collections::BTreeMap;
-use std::env;
+#[path = "support/product_bins.rs"]
+mod product_bins;
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -300,7 +301,7 @@ struct Spawn {
 }
 
 fn spawn(env_name: &str, args: &[&str], stdin_text: &str) -> Spawn {
-    let program = env::var(env_name).unwrap_or_else(|_| panic!("missing {env_name}"));
+    let program = product_bins::program(env_name);
     let mut child = Command::new(&program)
         .args(args)
         .stdin(Stdio::piped())

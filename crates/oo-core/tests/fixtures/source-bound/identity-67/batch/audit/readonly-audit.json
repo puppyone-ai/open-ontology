@@ -1,0 +1,18 @@
+{
+  "banner": "Synthetic Oracle fixture 23.26.3.0.0",
+  "dictionary_columns": [
+    "ID|NUMBER|4|0|0",
+    "N16|NUMBER|16|6|0",
+    "N1|NUMBER|1|0|0",
+    "D|DATE|-|-|0",
+    "C6|CHAR|-|-|6",
+    "V2|VARCHAR2|-|-|40",
+    "R|RAW|-|-|0"
+  ],
+  "published_scn": "100",
+  "registry_snapshot": "fixture-registry-100",
+  "run_id": "11111111-1111-4111-8111-111111111111",
+  "schema_digest": "e1776b8e0b47d86a4ab8cf98a3c5633c19c1d9ef71329e02bf1d2b0ef3306a8c",
+  "scn": "100",
+  "source_id": "synthetic_batch"
+}

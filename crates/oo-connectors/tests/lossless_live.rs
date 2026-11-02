@@ -1,6 +1,5 @@
 //! Live PostgreSQL 17.10 lossless decode. `OO_PG_TYPES_FIXTURE` is required.
-//! The package test does not run this: it is `ignore`d so the catalog test's
-//! missing `OO_PG_FIXTURE` exit stays the package-test result.
+//! Run explicitly with `--ignored`; a missing pointer fails the selected test.
 
 use std::fs;
 use std::time::Duration;

@@ -156,6 +156,7 @@ async fn through_0057(db: &mut PgConnection) {
 }
 
 #[tokio::test]
+#[ignore = "live fixture: requires isolated owned PostgreSQL and module fixture configuration; run with --ignored"]
 async fn merged_migrations_fresh_and_upgrade() {
     let mut admin = connect("postgres").await;
     let version: String = sqlx::query_scalar("SHOW server_version")

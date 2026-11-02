@@ -188,10 +188,12 @@ fn producer_policy_object_reaches_tls() {
 }
 
 #[tokio::test]
+#[ignore = "live fixture: requires OO_A249_LIVE; run with --ignored"]
 async fn private_tls_two_roles_mapping_then_catalog_query() {
-    if env::var("OO_A249_LIVE").ok().as_deref() != Some("1") {
-        return;
-    }
+    assert!(
+        env::var("OO_A249_LIVE").ok().as_deref() == Some("1"),
+        "OO_A249_LIVE must be set for this live fixture"
+    );
     let init_bin = env::var("OO_A249_INIT_PG").expect("OO_A249_INIT_PG");
     let pipeline_bin = env::var("OO_A249_PIPELINE").expect("OO_A249_PIPELINE");
     let admin_pass = read_secret("admin.pass");
@@ -1357,10 +1359,10 @@ GRANT INSERT ON shop.customer, shop.order_doc, shop.write_audit TO oo_a249_write
 ";
 
 #[test]
+#[ignore = "external fixture: requires OO_NATIVE_MAPPING_LIVE_CONFIG; run with --ignored"]
 fn actual_native_vector_mapping_reader() {
-    let Ok(path) = std::env::var("OO_NATIVE_MAPPING_LIVE_CONFIG") else {
-        return;
-    };
+    let path = std::env::var("OO_NATIVE_MAPPING_LIVE_CONFIG")
+        .expect("OO_NATIVE_MAPPING_LIVE_CONFIG is required");
     let request: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
     let invoke = |value: &serde_json::Value| {
         use std::io::Write;

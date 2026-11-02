@@ -368,6 +368,8 @@ jobs:
       started_at: ${{ steps.record.outputs.started_at }}
       finished_at: ${{ steps.record.outputs.finished_at }}
       run_id: ${{ steps.record.outputs.run_id }}
+    env:
+      CARGO_TARGET_DIR: ${{ runner.temp }}/secret-scan-build
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -779,7 +781,6 @@ jobs:
             env -u RUSTC_WRAPPER -u RUSTC_WORKSPACE_WRAPPER -u RUSTFLAGS -u CARGO_ENCODED_RUSTFLAGS -u CARGO_TARGET_DIR \
               cargo run --locked \
               --config 'build.rustc-wrapper=""' \
-              --config 'source.crates-io.replace-with="crates-io"' \
               --manifest-path "${archive}/Cargo.toml" \
               -p xtask -- gates --check \
               --repo "${GITHUB_WORKSPACE}" \

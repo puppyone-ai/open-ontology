@@ -68,6 +68,7 @@ struct World {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_PG_SNAPSHOT_FIXTURE; run with --ignored"]
 async fn snapshot_owner_live() {
     let mut world = World::start().await;
     world.regression_catalog().await;

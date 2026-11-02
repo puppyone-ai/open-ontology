@@ -54,6 +54,7 @@ struct World {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live fixture: requires OO_PG_DROP_FIXTURE; run with --ignored"]
 async fn owner_drop_while_blocked() {
     assert_eq!(CLEANUP_OBSERVATION_BOUND_MS, 5_000);
     let mut world = World::start().await;

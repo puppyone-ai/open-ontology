@@ -224,6 +224,7 @@ fn bytes_workspace_contract_and_product_blob() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "live fixture: requires OO_A133_TLS_FIXTURE; run with --ignored"]
 async fn tls_pg_sixty_thousand_small_rows() {
     let path = std::env::var("OO_A133_TLS_FIXTURE").expect("OO_A133_TLS_FIXTURE");
     let raw = std::fs::read_to_string(&path).expect("fixture pointer");

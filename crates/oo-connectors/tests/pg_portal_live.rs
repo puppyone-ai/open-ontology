@@ -29,6 +29,7 @@ const FORBIDDEN: &[&str] = &[
 ];
 
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "live fixture: requires OO_A127_FIXTURE; run with --ignored"]
 async fn live_named_portal_repeatable_read() {
     let pointer = env::var("OO_A127_FIXTURE").expect("OO_A127_FIXTURE");
     let cfg = load_pointer(&pointer);
