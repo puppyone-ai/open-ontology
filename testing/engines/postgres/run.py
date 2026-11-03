@@ -2,11 +2,13 @@
 """One owned TLS PostgreSQL container at a time. Secrets never enter argv/logs."""
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
 import secrets
 import subprocess
+import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -17,6 +19,28 @@ def run(argv, *, out=None, data=None, env=None):
     if out: out.write_bytes(p.stdout)
     if p.returncode: raise RuntimeError(f'{argv[0]} failed ({p.returncode}); see evidence')
     return p.stdout
+
+def compare_with_lane_h(directory):
+    spec = importlib.util.spec_from_file_location('oo_test_comparison', ROOT/'tools/oo-test/comparison.py')
+    oracle = importlib.util.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(oracle)
+    finally:
+        sys.dont_write_bytecode = previous
+    reports = []
+    for suite in ['c1', 'c5']:
+        checks = json.loads((directory/f'oracle-{suite}.json').read_text())
+        if len(checks) != 4:
+            raise RuntimeError('incomplete lane-H oracle inputs')
+        for check in checks:
+            report = oracle.compare(check['source'], check['target'],
+                                    key_columns=check['key_columns'], chunk_size=2, consistency='B')
+            reports.append(dict(name=check['name'], **report))
+    (directory/'H-comparison.json').write_text(json.dumps(reports, indent=2))
+    if not all(report['equal'] for report in reports):
+        raise RuntimeError('lane-H typed oracle mismatch')
 
 def main():
     ap=argparse.ArgumentParser()
@@ -33,7 +57,7 @@ def main():
         d.mkdir(exist_ok=False)
         inputs = sorted((ROOT/'crates/oo-connectors/src').rglob('*.rs'))
         inputs += [ROOT/f'crates/oo-connectors/tests/{target}.rs', Path(__file__).resolve(), ROOT/'testing/engines/postgres'/fixture,
-                   ROOT/'crates/oo-pipeline/src/pg_current_capture.rs']
+                   ROOT/'crates/oo-pipeline/src/pg_current_capture.rs', ROOT/'tools/oo-test/comparison.py']
         (d/'source-sha256.json').write_text(json.dumps({str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}, indent=2))
         secret=d/'private'; secret.mkdir(mode=0o700)
         for name in ['admin','reader']:
@@ -72,6 +96,12 @@ def main():
             env=dict(os.environ,OO_PG_TEST_DIR=str(d),OO_PG_TEST_PORT=port,OO_PG_TEST_MAJOR=str(major))
             start=time.monotonic()
             p=subprocess.run(['cargo','test','--config','profile.test.package.oo-connectors.opt-level=2','--config','profile.test.package.sha2.opt-level=3','--config','profile.test.package.oo-core.opt-level=2','-p','oo-connectors','--locked','--test',target,'--','--ignored','--nocapture'],cwd=ROOT,env=env,stdout=(d/'test.log').open('wb'),stderr=subprocess.STDOUT)
+            if p.returncode == 0 and a.suite == 'changes':
+                try:
+                    compare_with_lane_h(d)
+                except Exception:
+                    (d/'result.json').write_text(json.dumps({'exit':1,'stage':'lane-H-oracle','image':image}))
+                    raise
             (d/'result.json').write_text(json.dumps({'exit':p.returncode,'elapsed_seconds':time.monotonic()-start,'image':image}))
             if p.returncode: raise RuntimeError(f'PG {major} tests failed; see {d.name}/test.log')
         finally:

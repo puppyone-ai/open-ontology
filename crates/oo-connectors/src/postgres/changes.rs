@@ -266,7 +266,7 @@ impl PostgresChanges {
                     }
                 }
                 Message::Relation(r) => {
-                    relations.insert(r.oid, r);
+                    relations.insert(r.oid, std::sync::Arc::new(r));
                 }
                 Message::Event {
                     kind,
@@ -310,12 +310,26 @@ impl PostgresChanges {
         let mut changes = Vec::new();
         let mut images = Vec::new();
         let mut image_bytes = 0u64;
+        let mut checked_relations = BTreeSet::new();
         for (kind, relation, old, new) in events {
             let table = TableRef {
                 schema: relation.schema.clone(),
                 name: relation.table.clone(),
             };
             self.engine.selected(&table)?;
+            if checked_relations.insert(relation.oid) {
+                let current = session::fetch_control(s, sqlx::query(
+                    "SELECT c.oid::int8 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace \
+                     WHERE n.nspname=$1 AND c.relname=$2"
+                ).bind(&table.schema).bind(&table.name)).await?;
+                // Equal column shapes do not make a dropped/recreated table
+                // the same replication object.
+                if cell_i64(&current, 0)? != i64::from(relation.oid) {
+                    return Err(SourceError::catalog(
+                        "rebaseline_required_relation_identity",
+                    ));
+                }
+            }
             let shape = catalog
                 .tables
                 .iter()

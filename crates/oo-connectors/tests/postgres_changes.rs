@@ -169,6 +169,22 @@ async fn t1_window_t2_cycles_and_slot_lifecycle() {
         .map(|(k, v)| (("items".into(), k), v))
         .collect();
     target.insert(("root".into(), 1), Some("partition".into()));
+    let tiny = ReadBudget {
+        max_chunk_rows: 1,
+        ..budget.clone()
+    };
+    assert_eq!(
+        source
+            .next_batch(&checkpoint, &tiny)
+            .await
+            .unwrap_err()
+            .fact(),
+        Some("capture_transaction_rows")
+    );
+    assert_eq!(
+        source.preflight().await.unwrap().confirmed_flush_lsn,
+        status.confirmed_flush_lsn
+    );
     let window = source
         .next_batch(&checkpoint, &budget)
         .await
@@ -201,6 +217,8 @@ async fn t1_window_t2_cycles_and_slot_lifecycle() {
         source.preflight().await.unwrap().confirmed_flush_lsn,
         status.confirmed_flush_lsn
     );
+    let mut oracle_checks = Vec::new();
+    record_c1_oracle(&mut admin_conn, &target, "window", &mut oracle_checks).await;
     let mut cycle_counts = Vec::new();
     for cycle in 0..3 {
         if cycle == 0 {
@@ -215,21 +233,32 @@ async fn t1_window_t2_cycles_and_slot_lifecycle() {
             checkpoint = batch.position;
         }
         cycle_counts.push(count);
-        let gold=sqlx::query("SELECT 'items' AS t,id,payload FROM fixture.items UNION ALL SELECT 'root',id,payload FROM fixture.root")
-            .fetch_all(&mut admin_conn).await.unwrap();
-        let expected: BTreeMap<_, _> = gold
-            .iter()
-            .map(|r| {
-                (
-                    (r.get::<String, _>(0), r.get::<i64, _>(1)),
-                    r.get::<Option<String>, _>(2),
-                )
-            })
-            .collect();
-        assert_eq!(target, expected);
+        record_c1_oracle(
+            &mut admin_conn,
+            &target,
+            &format!("c1-{cycle}"),
+            &mut oracle_checks,
+        )
+        .await;
     }
     assert_eq!(cycle_counts, vec![2, 3, 0]);
+    std::fs::write(
+        dir.join("oracle-c1.json"),
+        serde_json::to_vec(&oracle_checks).unwrap(),
+    )
+    .unwrap();
     let c5_metrics = c5_cycles(&dir, port, &mut admin_conn).await;
+    // Same name/columns, different identity: do not replay an old table's WAL
+    // into a newly created target table. No automatic baseline repair here.
+    admin_conn.execute("BEGIN; DROP TABLE fixture.items; CREATE TABLE fixture.items(id bigint PRIMARY KEY,payload text); GRANT SELECT ON fixture.items TO oo_reader; ALTER PUBLICATION oo_changes ADD TABLE fixture.items; COMMIT").await.unwrap();
+    assert_eq!(
+        source
+            .next_batch(&checkpoint, &budget)
+            .await
+            .unwrap_err()
+            .fact(),
+        Some("rebaseline_required_relation_identity")
+    );
     let mut missing = capture();
     missing.slot = "missing".into();
     assert_eq!(
@@ -337,7 +366,8 @@ async fn t1_window_t2_cycles_and_slot_lifecycle() {
         serde_json::to_vec_pretty(&serde_json::json!({
             "major":major,"proto_version":status.protocol_version,"window_correction":true,
             "c1_cycle_events":cycle_counts,"idle_invalidation":idle,"product_slot_ack":false,
-            "c5_in_memory_target_metrics":c5_metrics
+            "c5_in_memory_target_metrics":c5_metrics,"recreated_relation_refused":true,
+            "over_budget_transaction_refused_without_ack":true
         }))
         .unwrap(),
     )
@@ -347,6 +377,35 @@ async fn t1_window_t2_cycles_and_slot_lifecycle() {
 
 fn source_position(lsn: u64) -> Watermark {
     Watermark::PgLsn { lsn }
+}
+
+async fn record_c1_oracle(
+    admin: &mut sqlx::PgConnection,
+    target: &BTreeMap<(String, i64), Option<String>>,
+    name: &str,
+    checks: &mut Vec<serde_json::Value>,
+) {
+    let gold = sqlx::query("SELECT 'items' AS t,id,payload FROM fixture.items UNION ALL SELECT 'root',id,payload FROM fixture.root ORDER BY t,id")
+        .fetch_all(admin).await.unwrap();
+    let expected: BTreeMap<_, _> = gold
+        .iter()
+        .map(|r| {
+            (
+                (r.get::<String, _>(0), r.get::<i64, _>(1)),
+                r.get::<Option<String>, _>(2),
+            )
+        })
+        .collect();
+    assert_eq!(*target, expected);
+    // Source orders the business keys. The fixture's only textual key is the
+    // fixed ASCII table label ("items"/"root"), not a collated business value.
+    checks.push(serde_json::json!({
+        "name":name, "key_columns":[0,1],
+        "source":gold.iter().map(|r|serde_json::json!([
+            r.get::<String,_>(0),r.get::<i64,_>(1),r.get::<Option<String>,_>(2)
+        ])).collect::<Vec<_>>(),
+        "target":target.iter().map(|((table,id),value)|serde_json::json!([table,id,value])).collect::<Vec<_>>()
+    }));
 }
 
 async fn c5_cycles(
@@ -370,6 +429,7 @@ async fn c5_cycles(
     let mut previous = Vec::new();
     let mut target = BTreeMap::new();
     let mut metrics = Vec::new();
+    let mut oracle_checks = Vec::new();
     struct Sink(Vec<(i64, Option<String>)>);
     impl ChunkSink for Sink {
         fn push(&mut self, batch: RecordBatch) -> Result<(), SourceError> {
@@ -418,7 +478,7 @@ async fn c5_cycles(
             });
             target.extend(sink.0);
         }
-        let gold = sqlx::query("SELECT id,payload FROM fixture.items")
+        let gold = sqlx::query("SELECT id,payload FROM fixture.items ORDER BY id")
             .fetch_all(&mut *admin)
             .await
             .unwrap();
@@ -427,6 +487,13 @@ async fn c5_cycles(
             .map(|r| (r.get::<i64, _>(0), r.get::<Option<String>, _>(1)))
             .collect();
         assert_eq!(target, expected);
+        oracle_checks.push(serde_json::json!({
+            "name":format!("c5-{cycle}"),"key_columns":[0],
+            "source":gold.iter().map(|r|serde_json::json!([
+                r.get::<i64,_>(0),r.get::<Option<String>,_>(1)
+            ])).collect::<Vec<_>>(),
+            "target":target.iter().map(|(id,value)|serde_json::json!([id,value])).collect::<Vec<_>>()
+        }));
         if cycle == 4 {
             assert!(inspection.read_chunks.is_empty());
             assert_eq!((payload, rewritten), (0, 0));
@@ -465,5 +532,10 @@ async fn c5_cycles(
         .unwrap();
     assert!(fallback.full_read_due);
     assert_eq!(fallback.read_chunks.len(), 2);
+    std::fs::write(
+        dir.join("oracle-c5.json"),
+        serde_json::to_vec(&oracle_checks).unwrap(),
+    )
+    .unwrap();
     metrics
 }
