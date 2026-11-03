@@ -40,6 +40,7 @@ use super::keyset::{
     page_sql,
 };
 use super::rules::{self, Dialect, Multitenant};
+use super::worker::{DriverError, Worker};
 
 /// Connection settings. The password comes from the caller's secret
 /// reference and is never logged, echoed or put on a command line.
@@ -169,7 +170,8 @@ enum ScnSource {
 
 /// One read-only Oracle session.
 pub struct OracleEngine {
-    conn: Connection,
+    conn: Option<Connection>,
+    worker: Option<Worker>,
     cfg: OracleConnectConfig,
     session_user: String,
     version: Option<EngineVersion>,
@@ -224,10 +226,34 @@ fn map_error_kind(error: &ErrorKind) -> SourceError {
     SourceError::new(kind, Some(fact), None)
 }
 
-fn ora_code(e: &oracledb::Error) -> Option<usize> {
-    match e.kind() {
-        ErrorKind::DbError(db) => Some(db.code()),
-        _ => None,
+fn ora_code(e: &DriverError) -> Option<usize> {
+    match e {
+        DriverError::Thin(e) => match e.kind() {
+            ErrorKind::DbError(db) => Some(db.code()),
+            _ => None,
+        },
+        DriverError::Worker { code, .. } => (*code != 0).then_some(*code),
+    }
+}
+
+fn map_driver(e: &DriverError) -> SourceError {
+    match e {
+        DriverError::Thin(e) => map_ora(e),
+        DriverError::Worker { code, timeout } => {
+            if *timeout {
+                return SourceError::budget("call_timeout");
+            }
+            let (kind, fact) = match code {
+                1555 => (SourceErrorKind::Budget, "ora_01555_snapshot_too_old"),
+                1466 | 8180 | 8181 => (SourceErrorKind::Budget, "ora_snapshot_unavailable"),
+                942 | 1031 => (SourceErrorKind::Privilege, "oracle_not_readable"),
+                904 => (SourceErrorKind::Catalog, "ora_00904_invalid_identifier"),
+                1013 => (SourceErrorKind::Budget, "ora_01013_call_cancelled"),
+                1017 | 28000 => (SourceErrorKind::Auth, "authentication_failed"),
+                _ => (SourceErrorKind::Protocol, "oracle_worker_error"),
+            };
+            SourceError::new(kind, Some(fact), None)
+        }
     }
 }
 
@@ -354,6 +380,22 @@ fn shrink_page(page: &mut u64, retries: &mut u32, limit: u32) -> bool {
 impl OracleEngine {
     /// Open the one session this engine reads through.
     pub fn connect(cfg: OracleConnectConfig) -> Result<Self, SourceError> {
+        Self::connect_driver(cfg, None)
+    }
+
+    /// Use a trusted, digest-pinned external P2 worker command. The worker
+    /// receives only source credentials through stdin and returns Arrow IPC.
+    pub fn connect_worker(
+        cfg: OracleConnectConfig,
+        command: &mut std::process::Command,
+    ) -> Result<Self, SourceError> {
+        Self::connect_driver(cfg, Some(command))
+    }
+
+    fn connect_driver(
+        cfg: OracleConnectConfig,
+        command: Option<&mut std::process::Command>,
+    ) -> Result<Self, SourceError> {
         if cfg.host.is_empty()
             || cfg.port == 0
             || !cfg
@@ -363,15 +405,24 @@ impl OracleEngine {
         {
             return Err(SourceError::config("oracle_endpoint"));
         }
-        let config = oracledb::Config::default()
-            .set_credentials(&cfg.user, cfg.password.as_str())
-            .set_connect_string(&format!("{}:{}/{}", cfg.host, cfg.port, cfg.service))
-            .map_err(|e| map_ora(&e))?;
-        let conn = oracledb::connect(config).map_err(|e| map_ora(&e))?;
-        conn.set_module("oo-source-engine")
-            .map_err(|e| map_ora(&e))?;
+        let (conn, worker) = if let Some(command) = command {
+            (
+                None,
+                Some(Worker::connect(command, &cfg).map_err(|e| map_driver(&e))?),
+            )
+        } else {
+            let config = oracledb::Config::default()
+                .set_credentials(&cfg.user, cfg.password.as_str())
+                .set_connect_string(&format!("{}:{}/{}", cfg.host, cfg.port, cfg.service))
+                .map_err(|e| map_ora(&e))?;
+            let conn = oracledb::connect(config).map_err(|e| map_ora(&e))?;
+            conn.set_module("oo-source-engine")
+                .map_err(|e| map_ora(&e))?;
+            (Some(conn), None)
+        };
         let mut engine = Self {
             conn,
+            worker,
             cfg,
             session_user: String::new(),
             version: None,
@@ -418,14 +469,22 @@ impl OracleEngine {
     }
 
     fn set_timeout(&self, d: Duration) -> Result<(), SourceError> {
-        self.conn.set_call_timeout(Some(d)).map_err(|e| map_ora(&e))
+        if let Some(worker) = &self.worker {
+            worker.set_timeout(d);
+            return Ok(());
+        }
+        self.conn
+            .as_ref()
+            .unwrap()
+            .set_call_timeout(Some(d))
+            .map_err(|e| map_ora(&e))
     }
 
     /// Run a query and return up to `max_rows` rows of nullable text.
     fn query(&mut self, text: &str, binds: &[Bind], max_rows: usize) -> Result<Rows, SourceError> {
         let rows = self.query_raw(text, binds, max_rows).map_err(|e| {
             self.last_ora = ora_code(&e);
-            map_ora(&e)
+            map_driver(&e)
         })?;
         if rows.len() > max_rows {
             return Err(SourceError::budget("query_row_limit"));
@@ -433,7 +492,14 @@ impl OracleEngine {
         Ok(rows)
     }
 
-    fn query_raw(
+    fn query_raw(&self, text: &str, binds: &[Bind], max_rows: usize) -> Result<Rows, DriverError> {
+        if let Some(worker) = &self.worker {
+            return worker.query(text, binds, max_rows + 1)?.collect();
+        }
+        self.query_thin(text, binds, max_rows).map_err(Into::into)
+    }
+
+    fn query_thin(
         &self,
         text: &str,
         binds: &[Bind],
@@ -454,7 +520,7 @@ impl OracleEngine {
                 BindValue::S(s) => s as &dyn ToDbValue,
             })
             .collect();
-        let cursor = self.conn.query(text, &refs)?;
+        let cursor = self.conn.as_ref().unwrap().query(text, &refs)?;
         let width = cursor.columns().len();
         let mut out = Vec::new();
         for row in cursor {
@@ -487,7 +553,7 @@ impl OracleEngine {
                 Some(942 | 1031 | 904) => Ok(false),
                 // V$LOGMNR_CONTENTS outside a LogMiner session: visible.
                 Some(1306) => Ok(true),
-                _ => Err(map_ora(&e)),
+                _ => Err(map_driver(&e)),
             },
         }
     }
@@ -507,7 +573,7 @@ impl OracleEngine {
                 "SELECT version FROM product_component_version WHERE product LIKE 'Oracle%Database%' AND ROWNUM <= 1",
                 &[],
             )?,
-            Err(e) => return Err(map_ora(&e)),
+            Err(e) => return Err(map_driver(&e)),
         }
         .ok_or(SourceError::version("oracle_version_absent"))?;
         let v = EngineVersion::parse(EngineFamily::Oracle, &raw)?;
@@ -1103,12 +1169,30 @@ impl OracleEngine {
             .collect();
         let stmt = self
             .conn
-            .statement(&sql.text)
-            .map_err(PageError::Driver)?
-            .fetch_array_size(512)
-            .build()
-            .map_err(PageError::Driver)?;
-        let cursor = stmt.query(&refs).map_err(PageError::Driver)?;
+            .as_ref()
+            .map(|conn| conn.statement(&sql.text)?.fetch_array_size(512).build())
+            .transpose()
+            .map_err(|e| PageError::Driver(e.into()))?;
+        let cursor: Box<dyn Iterator<Item = Result<Vec<Option<String>>, DriverError>> + '_> =
+            if let Some(worker) = &self.worker {
+                Box::new(
+                    worker
+                        .query(&sql.text, &sql.binds, 100_001)
+                        .map_err(PageError::Driver)?,
+                )
+            } else {
+                let cursor = stmt
+                    .unwrap()
+                    .query(&refs)
+                    .map_err(|e| PageError::Driver(e.into()))?;
+                let width = meta.columns.len();
+                Box::new(cursor.map(move |row| {
+                    let row = row?;
+                    (0..width)
+                        .map(|i| row.get::<Option<String>>(i).map_err(Into::into))
+                        .collect()
+                }))
+            };
         let width = meta.columns.len();
         let mut cols: Vec<Vec<Option<String>>> = vec![Vec::new(); width];
         let mut n = 0u64;
@@ -1149,8 +1233,12 @@ impl OracleEngine {
                 return Err(PageError::Source(SourceError::budget("chunk_deadline")));
             }
             let mut cells = Vec::with_capacity(width);
-            for (i, c) in meta.columns.iter().enumerate() {
-                let v = row.get::<Option<String>>(i).map_err(PageError::Driver)?;
+            if row.len() != width {
+                return Err(PageError::Source(SourceError::protocol(
+                    "worker_column_count",
+                )));
+            }
+            for (v, c) in row.into_iter().zip(&meta.columns) {
                 let v = v
                     .map(|v| canonical(c.kind, v))
                     .transpose()
@@ -1282,13 +1370,13 @@ impl OracleEngine {
                                 self.last_ora = Some(1555);
                                 if !shrink_page(&mut page, &mut retries, self.cfg.snapshot_retries)
                                 {
-                                    return Err(map_ora(&e));
+                                    return Err(map_driver(&e));
                                 }
                                 self.stats.snapshot_retries += 1;
                             }
                             Err(PageError::Driver(e)) => {
                                 self.last_ora = ora_code(&e);
-                                return Err(map_ora(&e));
+                                return Err(map_driver(&e));
                             }
                             Err(PageError::Source(e)) => return Err(e),
                         }
@@ -1341,7 +1429,7 @@ impl OracleEngine {
                             if ora_code(&e) == Some(1555) {
                                 return Err(SourceError::budget("ora_01555_physical_replan"));
                             }
-                            return Err(map_ora(&e));
+                            return Err(map_driver(&e));
                         }
                         Err(PageError::Source(e)) => return Err(e),
                     }
@@ -1513,7 +1601,15 @@ impl OracleEngine {
         let mut caps = BTreeMap::new();
         settings.insert("version_raw".into(), version.raw.clone());
         settings.insert("session_user".into(), user.clone());
-        settings.insert("driver".into(), "oracledb 26.0.0-beta.4 thin".into());
+        settings.insert(
+            "driver".into(),
+            if self.worker.is_some() {
+                "external thick worker (Arrow IPC)"
+            } else {
+                "oracledb 26.0.0-beta.4 thin"
+            }
+            .into(),
+        );
         let container = match self.query_raw(
             "SELECT SYS_CONTEXT('USERENV','CON_NAME'), SYS_CONTEXT('USERENV','CON_ID') FROM dual",
             &[],
@@ -2036,7 +2132,7 @@ struct Progress {
 }
 
 enum PageError {
-    Driver(oracledb::Error),
+    Driver(DriverError),
     Source(SourceError),
 }
 
