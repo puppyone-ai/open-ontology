@@ -37,7 +37,7 @@ Status: pending 23, in_progress 14, author_complete 13, integrated 14.
 | [x] S1-B-01 | B | Gateway 管理 API：issue/list/renew/rotate/revoke/enroll；自助 `POST /v1/auth/renew`（策略可关） | integrated | lane-B | v0.2/b-token-lifecycle | `5ec402635`, `d9f61691b`, `48878c28f`, `976b77e81`, `2ab36682e`, `4f564202d` |
 | [x] S1-B-02 | B | `GET /v1/meta`（协议版本、最低 CLI 版本、发布与新鲜度）；mTLS 证书与 token 到期纳入 `/v1/health` | integrated | lane-B | v0.2/b-token-lifecycle | `5ec402635`, `d9f61691b`, `48878c28f`, `976b77e81`, `2ab36682e`, `4f564202d` |
 | [x] S1-A-01 | A | `tools/model-egress`：loopback 监听、持 key、OpenAI 兼容/Anthropic 方言、限流、统一额度错误码、计量；能力探测（W、O_max、JSON 模式） | integrated | lane-A | v0.2/a-onboarding | `b59054b84`, `e5a532fc9`, `f97d41d39`, `660a74d01`, `da5808571`, `2319f2f75`, `26ae7237e`, `df178ab74`, `8ea763cd5`, `57e48301d` |
-| [ ] S1-A-02 | A | `oo doctor` 接入三引擎 `probe/capabilities`，输出分块计划、行字节估算、DBA 清单 | in_progress | lane-A | v0.2/a-onboarding | `8d5e056a2`, `d36a240e9`, `b59054b84`, `2319f2f75`, `26ae7237e`, `8ea763cd5` |
+| [ ] S1-A-02 | A | `oo doctor` 接入三引擎 `probe/capabilities`，输出分块计划、行字节估算、DBA 清单 | in_progress | lane-A | v0.2/a-onboarding | `0c9160cdb`, `8d5e056a2`, `d36a240e9`, `b59054b84`, `2319f2f75`, `26ae7237e`, `8ea763cd5` |
 
 ## S2
 
@@ -47,8 +47,8 @@ Status: pending 23, in_progress 14, author_complete 13, integrated 14.
 | [ ] S2-C-02 | C | MySQL C5 统一到接口；C5→C1 多来源多绑定交接屏障；保留期按实际最早日志预检 | in_progress | lane-C | v0.2/c-mysql-engine | — |
 | [ ] S2-D-01 | D | PG 逻辑复制：slot/publication 预检、proto 版本协商、`publish_via_partition_root`、18 slot 作废检测与重基线 | in_progress | lane-D | v0.2/d-postgres-engine | `0071a5139`, `91a0c7de0`, `beee6ffc4` |
 | [ ] S2-E-01 | E | Oracle LogMiner 位点：19c+ 自管日志列表、CDB/PDB、SCN 水位；C5 统一到接口 | in_progress | lane-E | v0.2/e-oracle-engine | — |
-| [ ] S2-A-01 | A | `oo init` TUI（ratatui）：7 步向导，结果写 `stack.yaml`；秘密写 0600 或 keychain | in_progress | lane-A | v0.2/a-onboarding | — |
-| [ ] S2-A-02 | A | `deploy/lite` compose 与 `oo up/down/status`：Agent DB、控制库、worker、Builder、Gateway、model-egress、scheduler；镜像 digest 锁定 | in_progress | lane-A | v0.2/a-onboarding | — |
+| [ ] S2-A-01 | A | `oo init` TUI（ratatui）：7 步向导，结果写 `stack.yaml`；秘密写 0600 或 keychain | in_progress | lane-A | v0.2/a-onboarding | `48e8f5cf5`, `ae0172c2a` |
+| [ ] S2-A-02 | A | `deploy/lite` compose 与 `oo up/down/status`：Agent DB、控制库、worker、Builder、Gateway、model-egress、scheduler；镜像 digest 锁定 | in_progress | lane-A | v0.2/a-onboarding | `48e8f5cf5`, `ae0172c2a` |
 | [ ] S2-G-01 | G | 预算器 v1：能力探测接入、双向预算、usage 校准、降级顺序、NDJSON 输出与缺失项重请求 | author_complete | lane-G | v0.2/g-selfbuild-budget | `9479defeb`, `06041717f`, `8f0465b2e`, `97b81b265`, `e7de562c0`, `129a13586`, `50d5ad471`, `9a1cc88fc`, `1f353c6ea`, `f3df0e39e`, `95a1b490f`, `f9a3da579`, `564c644b1`, `008987088` |
 | [ ] S2-G-02 | G | 移除项目级 `MAX_TABLES=64`，改为批级预算；Python 与 Rust 路线统一到同一预算器 | author_complete | lane-G | v0.2/g-selfbuild-budget | `9479defeb`, `06041717f`, `8f0465b2e`, `97b81b265`, `e7de562c0`, `129a13586`, `50d5ad471`, `9a1cc88fc`, `1f353c6ea`, `f3df0e39e`, `95a1b490f`, `f9a3da579`, `564c644b1`, `008987088` |
 
