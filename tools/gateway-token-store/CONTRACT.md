@@ -357,3 +357,14 @@ and `ok|warning|expired|unmeasured`; <=14 days warns, <=now is expired.
 Expired non-revoked credentials remain visible until revoked. This does not
 inventory certificates on other machines or claim to monitor their private
 keys. `/health` retains its existing unauthenticated liveness behavior.
+
+### Reproducible validation
+
+`python3 crates/oo-gateway/tests/token_owned_pg.py evidence/<run-id>` creates
+an isolated PostgreSQL 17 cluster in this worktree, generated 0600 credentials,
+a temporary TLS Gateway, and fixtures through a separate admin connection.
+It runs real-store refusal/concurrency/cache tests, v1 upgrade/replay tests,
+a real publication/freshness meta test, HTTPS admin/public lifecycle checks,
+TLS trust rejection, expiry warnings, enrollment rate limiting and CLI file
+permissions. It shuts down only its own Gateway and PG processes. It never
+uses a pre-existing database, Gateway, LaunchAgent or customer token file.
