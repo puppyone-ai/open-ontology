@@ -22,14 +22,18 @@ def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--versions', default='13,14,15,16,17,18')
     ap.add_argument('--run-id',default='d-s0s1-20261104')
+    ap.add_argument('--suite', choices=['snapshot', 'changes'], default='snapshot')
     a=ap.parse_args()
+    target = 'postgres_changes' if a.suite == 'changes' else 'postgres_engine'
+    fixture = 'changes.sql' if a.suite == 'changes' else 'fixture.sql'
     base=ROOT/'evidence'/a.run_id
     base.mkdir(parents=True,exist_ok=True)
     for major in map(int,a.versions.split(',')):
         d=base/f'pg{major}'
         d.mkdir(exist_ok=False)
         inputs = sorted((ROOT/'crates/oo-connectors/src').rglob('*.rs'))
-        inputs += [ROOT/'crates/oo-connectors/tests/postgres_engine.rs', Path(__file__).resolve(), ROOT/'testing/engines/postgres/fixture.sql']
+        inputs += [ROOT/f'crates/oo-connectors/tests/{target}.rs', Path(__file__).resolve(), ROOT/'testing/engines/postgres'/fixture,
+                   ROOT/'crates/oo-pipeline/src/pg_current_capture.rs']
         (d/'source-sha256.json').write_text(json.dumps({str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}, indent=2))
         secret=d/'private'; secret.mkdir(mode=0o700)
         for name in ['admin','reader']:
@@ -62,12 +66,12 @@ def main():
                 raise RuntimeError('server did not start')
             # Secret is on stdin, and setup output deliberately does not echo SQL.
             password=(secret/'reader').read_text()
-            setup=f"CREATE ROLE oo_reader LOGIN REPLICATION PASSWORD '{password}';\n".encode()+(ROOT/'testing/engines/postgres/fixture.sql').read_bytes()
+            setup=f"CREATE ROLE oo_reader LOGIN REPLICATION PASSWORD '{password}';\n".encode()+(ROOT/'testing/engines/postgres'/fixture).read_bytes()
             run(['docker','exec','-i',name,'psql','-U','postgres','-v','ON_ERROR_STOP=1'],data=setup,out=d/'fixture.log')
             port=run(['docker','port',name,'5432/tcp']).decode().strip().rsplit(':',1)[1]
             env=dict(os.environ,OO_PG_TEST_DIR=str(d),OO_PG_TEST_PORT=port,OO_PG_TEST_MAJOR=str(major))
             start=time.monotonic()
-            p=subprocess.run(['cargo','test','--config','profile.test.package.oo-connectors.opt-level=2','--config','profile.test.package.sha2.opt-level=3','--config','profile.test.package.oo-core.opt-level=2','-p','oo-connectors','--locked','--test','postgres_engine','--','--ignored','--nocapture'],cwd=ROOT,env=env,stdout=(d/'test.log').open('wb'),stderr=subprocess.STDOUT)
+            p=subprocess.run(['cargo','test','--config','profile.test.package.oo-connectors.opt-level=2','--config','profile.test.package.sha2.opt-level=3','--config','profile.test.package.oo-core.opt-level=2','-p','oo-connectors','--locked','--test',target,'--','--ignored','--nocapture'],cwd=ROOT,env=env,stdout=(d/'test.log').open('wb'),stderr=subprocess.STDOUT)
             (d/'result.json').write_text(json.dumps({'exit':p.returncode,'elapsed_seconds':time.monotonic()-start,'image':image}))
             if p.returncode: raise RuntimeError(f'PG {major} tests failed; see {d.name}/test.log')
         finally:

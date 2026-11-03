@@ -5,6 +5,7 @@
 //! import it with `with_snapshot` and keep its exporter alive until completion.
 //! Plans belong to this engine instance, not a durable/cross-cycle checkpoint.
 
+pub mod changes;
 pub mod lsn;
 mod plan;
 mod probe;
