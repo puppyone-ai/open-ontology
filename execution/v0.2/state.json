@@ -92,10 +92,14 @@
    "sprint": "S0",
    "lane": "H",
    "title": "中性合成夹具生成器（[05 §3](../docs/product/05-version-matrix-and-testing.md) 全部形状）+ 方言 DDL：MySQL、PG、Oracle",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-H",
    "branch": "v0.2/h-test-infra",
-   "commits": [],
+   "commits": [
+    "17a4447de",
+    "e54a5388d",
+    "07520d7c3"
+   ],
    "evidence": []
   },
   {
@@ -103,10 +107,14 @@
    "sprint": "S0",
    "lane": "H",
    "title": "20 道金标准题与 gold 生成 SQL",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-H",
    "branch": "v0.2/h-test-infra",
-   "commits": [],
+   "commits": [
+    "17a4447de",
+    "e54a5388d",
+    "07520d7c3"
+   ],
    "evidence": []
   },
   {
@@ -114,10 +122,14 @@
    "sprint": "S0",
    "lane": "H",
    "title": "`oo-test` 统一入口：起库（固定 digest）、灌数、跑套件、写证据包",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-H",
    "branch": "v0.2/h-test-infra",
-   "commits": [],
+   "commits": [
+    "17a4447de",
+    "e54a5388d",
+    "07520d7c3"
+   ],
    "evidence": []
   },
   {
@@ -125,10 +137,14 @@
    "sprint": "S0",
    "lane": "H",
    "title": "P0 镜像 digest 锁定：MySQL 5.7/8.0/8.4/9、PG 12–18、Oracle 23ai/11g XE/21c XE（19c 待授权）",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-H",
    "branch": "v0.2/h-test-infra",
-   "commits": [],
+   "commits": [
+    "17a4447de",
+    "e54a5388d",
+    "07520d7c3"
+   ],
    "evidence": []
   },
   {
@@ -136,10 +152,14 @@
    "sprint": "S0",
    "lane": "H",
    "title": "amd64 仿真 runner：`oo-test --platform linux/amd64` 在本机 Docker Desktop（Rosetta）运行 amd64-only 镜像；保留 `--runner remote` 接口供日后接入云主机",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-H",
    "branch": "v0.2/h-test-infra",
-   "commits": [],
+   "commits": [
+    "17a4447de",
+    "e54a5388d",
+    "07520d7c3"
+   ],
    "evidence": []
   },
   {
@@ -775,7 +795,7 @@
   "H": {
    "branch": "v0.2/h-test-infra",
    "base": "cd78da1e1",
-   "status": "running"
+   "status": "idle"
   },
   "B": {
    "branch": "v0.2/b-token-lifecycle",
