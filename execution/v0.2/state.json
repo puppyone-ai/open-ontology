@@ -179,10 +179,18 @@
    "sprint": "S0",
    "lane": "C",
    "title": "MySQL 适配 `SourceEngine`；`capabilities` 覆盖 5.7/8.0/8.4/9.x 差异（认证、`SHOW BINARY LOG STATUS`、tagged GTID、`expire_logs_days`）",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-C",
    "branch": "v0.2/c-mysql-engine",
-   "commits": [],
+   "commits": [
+    "684fa5170",
+    "12b320242",
+    "f3e596eb0",
+    "1d4fbb3dd",
+    "4d0236dd3",
+    "1f6affb12",
+    "07520d7c3"
+   ],
    "evidence": []
   },
   {
@@ -270,7 +278,13 @@
    "status": "in_progress",
    "owner": "lane-C",
    "branch": "v0.2/c-mysql-engine",
-   "commits": [],
+   "commits": [
+    "12b320242",
+    "f3e596eb0",
+    "1d4fbb3dd",
+    "4d0236dd3",
+    "1f6affb12"
+   ],
    "evidence": []
   },
   {
@@ -281,7 +295,13 @@
    "status": "in_progress",
    "owner": "lane-C",
    "branch": "v0.2/c-mysql-engine",
-   "commits": [],
+   "commits": [
+    "12b320242",
+    "f3e596eb0",
+    "1d4fbb3dd",
+    "4d0236dd3",
+    "1f6affb12"
+   ],
    "evidence": []
   },
   {
@@ -292,7 +312,10 @@
    "status": "in_progress",
    "owner": "lane-D",
    "branch": "v0.2/d-postgres-engine",
-   "commits": [],
+   "commits": [
+    "ac947b531",
+    "90e88d366"
+   ],
    "evidence": []
   },
   {
@@ -303,7 +326,13 @@
    "status": "in_progress",
    "owner": "lane-E",
    "branch": "v0.2/e-oracle-engine",
-   "commits": [],
+   "commits": [
+    "9d1e51825",
+    "09c211f11",
+    "be4f8da2b",
+    "426c290c8",
+    "c93adb524"
+   ],
    "evidence": []
   },
   {
@@ -314,7 +343,11 @@
    "status": "in_progress",
    "owner": "coordinator (Codex lane M)",
    "branch": "v0.2/m-pipeline",
-   "commits": [],
+   "commits": [
+    "effdc19ba",
+    "b877c1885",
+    "0e5420a5c"
+   ],
    "evidence": []
   },
   {
@@ -322,10 +355,14 @@
    "sprint": "S1",
    "lane": "M",
    "title": "有界滚动调度（并发 1–4）、失败即停派、周期预算文件",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "coordinator (Codex lane M)",
    "branch": "v0.2/m-pipeline",
-   "commits": [],
+   "commits": [
+    "effdc19ba",
+    "b877c1885",
+    "0e5420a5c"
+   ],
    "evidence": []
   },
   {
@@ -409,9 +446,9 @@
    "sprint": "S2",
    "lane": "C",
    "title": "MySQL 只读水位（GTID / file-pos）与块级日志修正；首次全量前记 L0 并持续消费",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-C",
+   "branch": "v0.2/c-mysql-engine",
    "commits": [],
    "evidence": []
   },
@@ -420,9 +457,9 @@
    "sprint": "S2",
    "lane": "C",
    "title": "MySQL C5 统一到接口；C5→C1 多来源多绑定交接屏障；保留期按实际最早日志预检",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-C",
+   "branch": "v0.2/c-mysql-engine",
    "commits": [],
    "evidence": []
   },
@@ -431,10 +468,14 @@
    "sprint": "S2",
    "lane": "D",
    "title": "PG 逻辑复制：slot/publication 预检、proto 版本协商、`publish_via_partition_root`、18 slot 作废检测与重基线",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
+   "status": "in_progress",
+   "owner": "lane-D",
+   "branch": "v0.2/d-postgres-engine",
+   "commits": [
+    "0071a5139",
+    "91a0c7de0",
+    "beee6ffc4"
+   ],
    "evidence": []
   },
   {
@@ -442,9 +483,9 @@
    "sprint": "S2",
    "lane": "E",
    "title": "Oracle LogMiner 位点：19c+ 自管日志列表、CDB/PDB、SCN 水位；C5 统一到接口",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-E",
+   "branch": "v0.2/e-oracle-engine",
    "commits": [],
    "evidence": []
   },
@@ -736,10 +777,15 @@
    "sprint": "S5",
    "lane": "H",
    "title": "T7 只读证明自动化（general log / log_statement / 统一审计）",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "lane-H",
    "branch": "v0.2/h-test-infra",
-   "commits": [],
+   "commits": [
+    "ed4560449",
+    "4d76b8e1b",
+    "40992bba2",
+    "f1d99cb72"
+   ],
    "evidence": []
   },
   {
@@ -747,10 +793,15 @@
    "sprint": "S5",
    "lane": "H",
    "title": "夜间矩阵（本机原生 + amd64 仿真），失败自动降级并通知 owner",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "lane-H",
    "branch": "v0.2/h-test-infra",
-   "commits": [],
+   "commits": [
+    "ed4560449",
+    "4d76b8e1b",
+    "40992bba2",
+    "f1d99cb72"
+   ],
    "evidence": []
   },
   {
@@ -859,6 +910,10 @@
   {
    "what": "Oracle 19c EE image",
    "needs": "human completes Oracle account registration and sign-in (Plan D2)"
+  },
+  {
+   "what": "mysql-binlog in the default artifact",
+   "needs": "zstd 0.13.4 / zstd-safe 7.4.0 past 2026-11-08T14:12:08Z and license files verified (D10)"
   }
  ],
  "lanes": {
