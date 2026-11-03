@@ -378,9 +378,9 @@
    "sprint": "S2",
    "lane": "G",
    "title": "预算器 v1：能力探测接入、双向预算、usage 校准、降级顺序、NDJSON 输出与缺失项重请求",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-G",
+   "branch": "v0.2/g-selfbuild-budget",
    "commits": [],
    "evidence": []
   },
@@ -389,9 +389,9 @@
    "sprint": "S2",
    "lane": "G",
    "title": "移除项目级 `MAX_TABLES=64`，改为批级预算；Python 与 Rust 路线统一到同一预算器",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-G",
+   "branch": "v0.2/g-selfbuild-budget",
    "commits": [],
    "evidence": []
   },
@@ -400,9 +400,9 @@
    "sprint": "S3",
    "lane": "G",
    "title": "关系图（声明 FK + 包含度候选 + 命名）、分表族折叠、社区划分、枢纽签名",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-G",
+   "branch": "v0.2/g-selfbuild-budget",
    "commits": [],
    "evidence": []
   },
@@ -411,9 +411,9 @@
    "sprint": "S3",
    "lane": "G",
    "title": "三遍生成与全局实体登记表；连通性门禁指标写入审核摘要",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-G",
+   "branch": "v0.2/g-selfbuild-budget",
    "commits": [],
    "evidence": []
   },
@@ -422,9 +422,9 @@
    "sprint": "S3",
    "lane": "G",
    "title": "语义依赖哈希按社区；数据-only 周期零模型调用",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-G",
+   "branch": "v0.2/g-selfbuild-budget",
    "commits": [],
    "evidence": []
   },
@@ -758,37 +758,37 @@
   "C": {
    "branch": "v0.2/c-mysql-engine",
    "base": "cd78da1e1",
-   "status": "paused"
+   "status": "running"
   },
   "D": {
    "branch": "v0.2/d-postgres-engine",
    "base": "cd78da1e1",
-   "status": "paused"
+   "status": "running"
   },
   "E": {
    "branch": "v0.2/e-oracle-engine",
    "base": "cd78da1e1",
-   "status": "paused"
+   "status": "running"
   },
   "H": {
    "branch": "v0.2/h-test-infra",
    "base": "cd78da1e1",
-   "status": "paused"
+   "status": "running"
   },
   "B": {
    "branch": "v0.2/b-token-lifecycle",
    "base": "cd78da1e1",
-   "status": "paused"
+   "status": "running"
   },
   "A": {
    "branch": "v0.2/a-onboarding",
    "base": "4113744a7",
-   "status": "paused"
+   "status": "running"
+  },
+  "G": {
+   "branch": "v0.2/g-selfbuild-budget",
+   "base": "2bca1de16",
+   "status": "running"
   }
- },
- "paused": {
-  "since": "2026-11-04",
-  "by": "human",
-  "ledger": "E019"
  }
 }
