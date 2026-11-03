@@ -1,0 +1,26 @@
+[package]
+name = "oo-load"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+oo-pipeline = { path = "../../crates/oo-pipeline" }
+oo-connectors = { path = "../../crates/oo-connectors", features = ["oracle", "mysql"] }
+oo-stack = { path = "../../crates/oo-stack" }
+arrow-array = { version = "=60.0.0", default-features = false }
+arrow-ipc = { version = "=60.0.0", default-features = false }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+sha2 = "=0.10.9"
+zeroize = "=1.9.0"
+tokio = { version = "=1.53.3", features = ["macros", "rt-multi-thread"] }
+sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }
+sqlx-core = { version = "=0.9.0", default-features = false, features = ["_rt-tokio", "_tls-rustls-ring-no-roots"] }
+
+[patch.crates-io]
+sqlx-core = { path = "../../crates/oo-connectors/vendor/sqlx-core" }
+sqlx-postgres = { path = "../../crates/oo-connectors/vendor/sqlx-postgres" }
