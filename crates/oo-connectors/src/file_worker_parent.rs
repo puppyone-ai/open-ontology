@@ -1562,11 +1562,7 @@ fn arm_read(stream: &std::os::unix::net::UnixStream, deadline: Instant) -> Resul
         Ok(()) => Ok(()),
         // Darwin 27 returns EINVAL after the peer closes, even while
         // buffered bytes remain. Reading those bytes/EOF does not block.
-        Err(error)
-            if cfg!(target_os = "macos") && error.raw_os_error() == Some(22) =>
-        {
-            Ok(())
-        }
+        Err(error) if cfg!(target_os = "macos") && error.raw_os_error() == Some(22) => Ok(()),
         Err(_) => Err(FailureKind::Io),
     }
 }
