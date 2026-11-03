@@ -433,7 +433,10 @@ async function main(args) {
   const beforeSeparator = args.includes('--') ? args.slice(0, args.indexOf('--')) : args;
   const offline = args[0] === 'agent-skill' || beforeSeparator.some(arg => arg === '--help' || arg === '-h');
   const binary = nativeBinary();
-  const profile = !offline && connectedCommands.has(args[0]) ? readProfile(configDirectory()) : null;
+  const adminStatus = args[0] === 'status' && (args.length === 1
+    || args.slice(1).some(arg => arg === '--config' || arg.startsWith('--config=') || arg === '--yes')
+    || args.slice(1).every(arg => arg === '--json'));
+  const profile = !offline && !adminStatus && connectedCommands.has(args[0]) ? readProfile(configDirectory()) : null;
   if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
     process.stdout.write('Open Ontology npm wrapper (oo and ontology are aliases):\n'
       + '  oo configure --gateway https://host (--token-stdin | --token-file FILE)\n'

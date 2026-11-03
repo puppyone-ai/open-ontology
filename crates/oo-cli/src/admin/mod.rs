@@ -1,8 +1,5 @@
 //! Administrative skeleton; never reads consumer credentials or stdin.
-// shortcut: the card excludes Cargo.toml/lib.rs/run.rs wiring. Compile the same
-// schema source until the coordinator adds the oo-stack dependency and dispatcher.
-#[path = "../../../oo-stack/src/stack.rs"]
-mod stack;
+use oo_stack::stack;
 
 use super::Invocation;
 use crate::outcome::Failure;
