@@ -7,6 +7,7 @@ use std::time::Duration;
 use oo_connectors::engine::{
     Capability, CapabilityState, EngineFamily, ProbeReport, ReadBudget, SourceEngine, TableRef,
 };
+use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine};
 use oo_connectors::postgres::PostgresEngine;
 use oo_connectors::{
     PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
@@ -20,6 +21,7 @@ use super::{Failure, Invocation};
 #[derive(Clone, Copy)]
 enum Adapter {
     Postgres,
+    Oracle,
     Unavailable,
 }
 
@@ -27,8 +29,61 @@ fn registry() -> BTreeMap<EngineFamily, Adapter> {
     BTreeMap::from([
         (EngineFamily::Postgres, Adapter::Postgres),
         (EngineFamily::Mysql, Adapter::Unavailable),
-        (EngineFamily::Oracle, Adapter::Unavailable),
+        (EngineFamily::Oracle, Adapter::Oracle),
     ])
+}
+
+fn oracle(
+    source: &Source,
+    tables: &[TableRef],
+    store: &SecretStore,
+) -> Result<OracleEngine, String> {
+    // The current Oracle transport does not implement the stack TLS contract.
+    // Never silently discard an operator-specified trust anchor.
+    if source.tls_ca.is_some() {
+        return Err("ORACLE_TLS_NOT_AVAILABLE".into());
+    }
+    let mut config = OracleConnectConfig::new(
+        &source.host,
+        source.port,
+        &source.database,
+        &source.user,
+        store.read(&source.password.secret_ref)?.into(),
+    );
+    config.scope = tables.to_vec();
+    let engine = match std::env::var("OO_ORACLE_WORKER_IMAGE") {
+        Ok(image) => {
+            if !pinned_worker(&image) {
+                return Err("ORACLE_WORKER_DIGEST_REQUIRED".into());
+            }
+            OracleEngine::connect_worker(
+                config,
+                Command::new("docker").args([
+                    "run",
+                    "--rm",
+                    "-i",
+                    "--platform",
+                    "linux/amd64",
+                    "--label",
+                    "oo.lane=a",
+                    "--cap-drop",
+                    "ALL",
+                    "--security-opt",
+                    "no-new-privileges",
+                    &image,
+                ]),
+            )
+        }
+        Err(std::env::VarError::NotPresent) => OracleEngine::connect(config),
+        Err(_) => return Err("ORACLE_WORKER_DIGEST_REQUIRED".into()),
+    };
+    engine.map_err(|e| e.to_string())
+}
+
+fn pinned_worker(image: &str) -> bool {
+    image
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.bytes().all(|b| b.is_ascii_hexdigit()))
 }
 
 fn family(source: &Source) -> Result<EngineFamily, &'static str> {
@@ -127,11 +182,16 @@ async fn inspect<E: SourceEngine>(engine: &mut E, tables: &[TableRef], mode: &st
     let mut plans = Vec::new();
     for table in tables {
         match engine.plan_chunks(table, &ReadBudget::default()).await {
-            Ok(plan) => plans.push(json!({
-                "table": table, "strategy": plan.strategy, "key": plan.key,
-                "chunks": plan.chunks.len(), "estimated_rows": plan.estimated_rows,
-                "estimated_bytes": null, "bytes_basis": "not_exposed_by_source_engine"
-            })),
+            Ok(plan) => {
+                let estimate = engine.estimate_bytes(table).await;
+                let mut report = json!({
+                    "table": table, "strategy": plan.strategy, "key": plan.key,
+                    "chunks": plan.chunks.len(), "estimated_rows": plan.estimated_rows,
+                    "estimated_bytes": null, "bytes_basis": "unknown"
+                });
+                blocked |= apply_estimate(&mut report, estimate);
+                plans.push(report);
+            }
             Err(error) => {
                 blocked = true;
                 plans.push(json!({"table":table,"error":error.to_string()}));
@@ -142,6 +202,26 @@ async fn inspect<E: SourceEngine>(engine: &mut E, tables: &[TableRef], mode: &st
         "status": if blocked { "blocked" } else { "ok" },
         "probe": probe, "dba_requirements": probe.requirements(), "chunk_plans": plans,
     })
+}
+
+fn apply_estimate(
+    report: &mut Value,
+    estimate: Result<Option<u64>, oo_connectors::SourceError>,
+) -> bool {
+    report["estimated_bytes"] = json!(null);
+    report["bytes_basis"] = json!("unknown");
+    match estimate {
+        Ok(Some(bytes)) => {
+            report["estimated_bytes"] = json!(bytes);
+            report["bytes_basis"] = json!("source_engine_estimate");
+            false
+        }
+        Ok(None) => false,
+        Err(error) => {
+            report["estimate_error"] = json!(error.to_string());
+            true
+        }
+    }
 }
 
 fn available(probe: &ProbeReport, capability: Capability) -> bool {
@@ -161,18 +241,27 @@ async fn sources(stack: &Stack) -> Vec<Value> {
             }
             let family = family(source)?;
             match registry.get(&family) {
-                Some(Adapter::Postgres) => (),
+                Some(Adapter::Postgres | Adapter::Oracle) => (),
                 _ => return Err("engine not available in this build".into()),
             }
             let selection = tables(source);
             let selected = selection.as_ref().cloned().unwrap_or_default();
             let store = SecretStore::from_home()?;
-            let engine = postgres(source, &selected, &store)?;
-            Ok::<_, String>((engine, selected, selection.err()))
+            Ok::<_, String>((family, store, selected, selection.err()))
         })();
         let mut result = match setup {
-            Ok((mut engine, selected, scope_error)) => {
-                let mut report = inspect(&mut engine, &selected, &source.sync.mode).await;
+            Ok((family, store, selected, scope_error)) => {
+                let mut report = match family {
+                    EngineFamily::Postgres => match postgres(source, &selected, &store) {
+                        Ok(mut engine) => inspect(&mut engine, &selected, &source.sync.mode).await,
+                        Err(error) => json!({"status":"blocked","error":error}),
+                    },
+                    EngineFamily::Oracle => match oracle(source, &selected, &store) {
+                        Ok(mut engine) => inspect(&mut engine, &selected, &source.sync.mode).await,
+                        Err(error) => json!({"status":"blocked","error":error}),
+                    },
+                    _ => unreachable!("registry checked above"),
+                };
                 if let Some(error) = scope_error {
                     report["status"] = json!("blocked");
                     report["scope_error"] = json!(error);
@@ -271,10 +360,39 @@ mod tests {
             registry()[&EngineFamily::Mysql],
             Adapter::Unavailable
         ));
-        assert!(matches!(
-            registry()[&EngineFamily::Oracle],
-            Adapter::Unavailable
+        assert!(matches!(registry()[&EngineFamily::Oracle], Adapter::Oracle));
+    }
+
+    #[test]
+    fn worker_requires_content_id_not_tag_or_command() {
+        assert!(pinned_worker(&format!("sha256:{}", "a".repeat(64))));
+        for image in ["latest", "sha256:abc", "sh -c anything", "repo:tag"] {
+            assert!(!pinned_worker(image));
+        }
+    }
+
+    #[test]
+    fn byte_estimates_preserve_unknown_zero_and_failure() {
+        for value in [None, Some(0), Some(u64::MAX)] {
+            let mut report = json!({});
+            assert!(!apply_estimate(&mut report, Ok(value)));
+            assert_eq!(report["estimated_bytes"], json!(value));
+            assert_eq!(
+                report["bytes_basis"],
+                if value.is_some() {
+                    "source_engine_estimate"
+                } else {
+                    "unknown"
+                }
+            );
+        }
+        let mut report = json!({});
+        assert!(apply_estimate(
+            &mut report,
+            Err(SourceId::new("").err().unwrap())
         ));
+        assert!(report["estimated_bytes"].is_null());
+        assert!(report["estimate_error"].is_string());
     }
 
     #[test]

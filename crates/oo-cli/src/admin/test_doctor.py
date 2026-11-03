@@ -186,7 +186,7 @@ def matrix(major, base):
         config["sources"].pop()
         config["sources"][0]["scope"]["include"] = ["*"]
         assert "scope_error" in doctor("wildcard-blocked", 1)["sources"][0]
-        for family in ["mysql", "oracle"]:
+        for family in ["mysql"]:
             config["sources"][0]["engine"] = family
             assert doctor(family + "-pending", 1)["sources"][0]["error"] == (
                 "engine not available in this build")

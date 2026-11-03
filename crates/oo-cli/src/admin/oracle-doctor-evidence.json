@@ -1,0 +1,43 @@
+{
+  "run_id": "a-s2-doctor-healthy",
+  "fixture": "lane-H generator through lane-A-owned serial fixture adapter; scale=1000 tables=3, reduced smoke",
+  "model": "synthetic replay, not live acceptance",
+  "results": [
+    {
+      "version": "23.5",
+      "status": "passed",
+      "doctor_status": "ok",
+      "doctor_exit": 0,
+      "missing_flashback": "blocked with DBA advice",
+      "cleanup_failures": [],
+      "sha256": {
+        "doctor.json": "9b20a153b6f34eb3a1f6f0ed94435a593365cc63b03566fa5628416764896f8c",
+        "healthy.json": "74d132c8fa7cf93cb70af231caa7372d75b9300509d08e8d4460a0d544b834da"
+      }
+    },
+    {
+      "version": "21",
+      "status": "passed",
+      "doctor_status": "ok",
+      "doctor_exit": 0,
+      "missing_flashback": "blocked with DBA advice",
+      "cleanup_failures": [],
+      "sha256": {
+        "doctor.json": "aae6a5439a868589b91523a3ccafa7dde2a3a9d78b40d61d34c9a43c78d2ce99",
+        "healthy.json": "353d1dc993c4c8e663c5a5c205e550aacb80295709455d45f7e141c599eb2147"
+      }
+    },
+    {
+      "version": "11",
+      "status": "passed",
+      "doctor_status": "ok",
+      "doctor_exit": 0,
+      "missing_flashback": "blocked with DBA advice",
+      "cleanup_failures": [],
+      "sha256": {
+        "doctor.json": "9e2936ad6ccf379e733327ee57b52fdef5fd1d6868453a56398c9c9d793836a7",
+        "healthy.json": "63d24dc2a853effb8e10be389382ef508ea249d8af48a70dfaa656037a4ea5a3"
+      }
+    }
+  ]
+}
