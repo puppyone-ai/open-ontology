@@ -3,12 +3,121 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use oo_core::api::payload_sha256;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{RolePackCeilings, compile_role_pack_with_ceilings};
 
 type Result<T> = std::result::Result<T, String>;
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct SemanticSnapshot {
+    pub tables: BTreeMap<String, String>,
+    pub communities: BTreeMap<String, String>,
+    pub cut_edges: BTreeMap<String, String>,
+    pub merge_items: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct SemanticWork {
+    pub communities: Vec<String>,
+    pub cut_edges: Vec<String>,
+    pub merge_items: Vec<String>,
+    pub removed_communities: Vec<String>,
+    pub removed_edges: Vec<String>,
+    pub removed_merge_items: Vec<String>,
+}
+
+/// Only semantic inputs belong here. Observation counts and generations do not.
+pub fn semantic_snapshot(
+    tables: &[Value],
+    graph: &crate::community::GraphPlan,
+) -> Result<SemanticSnapshot> {
+    let mut snapshot = SemanticSnapshot::default();
+    for table in tables {
+        let name = table["dataset"].as_str().ok_or("semantic_dataset")?;
+        let mut columns: Vec<_> = table["columns"].as_array().ok_or("semantic_columns")?
+            .iter().map(|c| json!({
+                "name":c["name"], "data_type":c["data_type"], "type_name":c["type_name"],
+                "source_type":c["source_type"], "nullable":c["nullable"], "comment":c["comment"],
+                "classification":c["classification"], "enum":c["enum"]
+            })).collect();
+        columns.sort_by_key(Value::to_string);
+        let relationships: Vec<_> = graph
+            .edges
+            .iter()
+            .filter(|e| e.from == name || e.to == name)
+            .collect();
+        let value = json!({"columns":columns,"primary_key":table["primary_key"],
+            "comment":table["comment"],"relationships":relationships});
+        if snapshot
+            .tables
+            .insert(name.into(), digest(&value))
+            .is_some()
+        {
+            return Err("semantic_duplicate_table".into());
+        }
+        snapshot.merge_items.insert(
+            crate::budget::stable_id(crate::budget::Kind::Entity, name, None),
+            digest(&value),
+        );
+    }
+    for community in &graph.communities {
+        let members: BTreeMap<_, _> = community
+            .tables
+            .iter()
+            .flat_map(|t| &graph.families[t])
+            .map(|t| {
+                Ok((
+                    t.clone(),
+                    snapshot
+                        .tables
+                        .get(t)
+                        .ok_or("semantic_family_binding")?
+                        .clone(),
+                ))
+            })
+            .collect::<Result<_>>()?;
+        snapshot.communities.insert(
+            community.id.clone(),
+            digest(&json!({"tables":members,"hubs":community.hub_signatures})),
+        );
+    }
+    for edge in &graph.cut_edges {
+        snapshot.cut_edges.insert(
+            edge.id.clone(),
+            digest(&json!({
+                "edge":edge, "from":snapshot.tables.get(&edge.from).ok_or("semantic_edge_binding")?,
+                "to":snapshot.tables.get(&edge.to).ok_or("semantic_edge_binding")?
+            })),
+        );
+    }
+    Ok(snapshot)
+}
+
+pub fn semantic_work(old: &SemanticSnapshot, new: &SemanticSnapshot) -> SemanticWork {
+    fn changed(old: &BTreeMap<String, String>, new: &BTreeMap<String, String>) -> Vec<String> {
+        new.iter()
+            .filter(|(key, value)| old.get(*key) != Some(*value))
+            .map(|(key, _)| key.clone())
+            .collect()
+    }
+    fn removed(old: &BTreeMap<String, String>, new: &BTreeMap<String, String>) -> Vec<String> {
+        old.keys()
+            .filter(|key| !new.contains_key(*key))
+            .cloned()
+            .collect()
+    }
+    SemanticWork {
+        communities: changed(&old.communities, &new.communities),
+        cut_edges: changed(&old.cut_edges, &new.cut_edges),
+        merge_items: changed(&old.merge_items, &new.merge_items),
+        removed_communities: removed(&old.communities, &new.communities),
+        removed_edges: removed(&old.cut_edges, &new.cut_edges),
+        removed_merge_items: removed(&old.merge_items, &new.merge_items),
+    }
+}
 const COLLECTIONS: [&str; 6] = [
     "relationships",
     "enums",
@@ -413,6 +522,27 @@ pub fn compile_library_incremental(input: &str, ceilings: &RolePackCeilings) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn semantic_cycles_ignore_data_and_scope_schema_changes() {
+        let mut tables = vec![
+            json!({"dataset":"app.a","columns":[{"name":"id","data_type":"text","profile":{"rows":10}}]}),
+            json!({"dataset":"app.b","columns":[{"name":"id","data_type":"text"}]}),
+        ];
+        let graph = crate::community::build_graph(&tables, &[], &Default::default()).unwrap();
+        let old = semantic_snapshot(&tables, &graph).unwrap();
+        tables[0]["columns"][0]["profile"]["rows"] = json!(100);
+        tables[0]["source_generation"] = json!(9);
+        let data = semantic_snapshot(&tables, &graph).unwrap();
+        assert!(semantic_work(&old, &data).communities.is_empty());
+        assert!(semantic_work(&old, &data).cut_edges.is_empty());
+        assert!(semantic_work(&old, &data).merge_items.is_empty());
+        tables[0]["columns"][0]["data_type"] = json!("bigint");
+        let schema = semantic_snapshot(&tables, &graph).unwrap();
+        let work = semantic_work(&old, &schema);
+        assert_eq!(work.communities.len(), 1);
+        assert_eq!(work.merge_items.len(), 1);
+    }
 
     fn fixture() -> (Value, Value, Value, Value, Value, BTreeSet<String>) {
         let col = json!({"name":"id","data_type":"text","pii":"none","semantic_type":"identifier"});

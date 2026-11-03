@@ -36,7 +36,9 @@ mod role_pack;
 mod role_pack_cli;
 mod sealed_import;
 
-pub use incremental::compile_library_incremental;
+pub use incremental::{
+    SemanticSnapshot, SemanticWork, compile_library_incremental, semantic_snapshot, semantic_work,
+};
 
 pub use captured_pg::{
     CAPTURED_COMPILER, CAPTURED_PROTOCOL, CapturedPgDraft, compile_captured_pg_catalog,
