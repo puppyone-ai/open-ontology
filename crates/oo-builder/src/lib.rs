@@ -18,6 +18,7 @@
 pub mod budget;
 mod canonical;
 mod captured_pg;
+pub mod community;
 mod description_candidate;
 mod draft;
 mod error;
