@@ -580,6 +580,8 @@ fn normalize_layer_timeout(response: Response) -> Response {
 fn logged_path(path: &str, probe: bool) -> &'static str {
     match path {
         "/health" => "/health",
+        "/v1/auth/enroll" => "/v1/auth/enroll",
+        "/v1/auth/renew" => "/v1/auth/renew",
         "/internal/v1/tokens" => "/internal/v1/tokens",
         "/ready" => "/ready",
         "/v1/session/current" => "/v1/session/current",
@@ -1146,6 +1148,10 @@ fn insert_auth(body: &mut JsonMap<String, Value>, peer: Option<&TlsPeer>) {
             );
             body.insert("external_mtls".to_owned(), Value::Bool(false));
         }
+        Some(peer) if peer.workload.is_empty() => {
+            body.insert("authentication".into(), Value::String("tls".into()));
+            body.insert("external_mtls".into(), Value::Bool(false));
+        }
         Some(peer) => {
             body.insert(
                 "authentication".to_owned(),
@@ -1293,8 +1299,10 @@ impl Listener for TlsListener {
             else {
                 continue;
             };
-            let Some(workload) = workload_from_stream(&stream) else {
-                continue;
+            let workload = match workload_from_stream(&stream) {
+                Some(workload) => workload,
+                None if stream.get_ref().1.peer_certificates().is_none() => String::new(),
+                None => continue,
             };
             return (stream, TlsPeer { workload });
         }
@@ -1390,9 +1398,13 @@ fn load_tls_acceptor(
     let mut roots = RootCertStore::empty();
     roots.add(ca).map_err(|_| "client_ca")?;
     let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
-    let verifier = WebPkiClientVerifier::builder_with_provider(Arc::new(roots), provider.clone())
-        .build()
-        .map_err(|_| "tls")?;
+    let builder = WebPkiClientVerifier::builder_with_provider(Arc::new(roots), provider.clone());
+    let builder = if object.contains_key("token_admin_password_file") {
+        builder.allow_unauthenticated()
+    } else {
+        builder
+    };
+    let verifier = builder.build().map_err(|_| "tls")?;
     let config = ServerConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
         .map_err(|_| "tls")?

@@ -289,7 +289,9 @@ new admin issue is a new grant, unlike renewal/rotation.
 Operator config may add `token_admin_password_file` (one filename, mode 0600)
 and `token_admin_workload` (an exact trusted certificate workload URI).
 Lifecycle HTTP is disabled without this configuration and requires TLS.
-Client certificates remain required for the admin-only HTTP surface.
+This opt-in permits ordinary verified-server TLS clients without client
+certificates; it does not make their requests mTLS-authenticated. Existing
+mTLS-only deployments without the opt-in retain their handshake policy.
 
 `POST /internal/v1/tokens` accepts an `operation` discriminator and requires
 an actual verified client certificate matching `token_admin_workload`.
@@ -306,6 +308,18 @@ A bearer token or certificate-looking header is not admin authority. Other
 {"operation":"policy","project":"demo","policy":{"max_lifetime_ms":7776000000,"default_ttl_ms":7776000000,"self_renew_enabled":false,"self_renew_window_ms":1209600000,"rotate_overlap_ms":604800000,"enroll_ttl_ms":86400000}}
 ```
 
+`POST /v1/auth/enroll {"code":"OO-XXXX-XXXX"}` atomically consumes the code
+and returns `token`, `token_sha256`, role, audience, first issuance and expiry.
+Audience comes from server configuration, not request JSON. A wrong-audience
+attempt does not consume the code. Simultaneous redemptions have one winner.
+A global process-local budget permits 10 enrollment attempts per minute;
+restart resets that budget. Distributed deployments must enforce a shared
+edge limit as well. There is no device approval flow on this card.
+
+`POST /v1/auth/renew` accepts an empty body or `{}` and the bearer token;
+it returns deadline metadata, never the token. Responses use
+`Cache-Control: no-store`. Token/code values occur only once in a secret-
+producing response. Errors expose stable reason codes, not database errors.
 List returns hash prefixes, role, expiry, first issuance, last-use observation
 and overlap; it never returns plaintext. The retained v1 client's last-use
 column is not a per-request activity counter (cache hits do not write).
