@@ -47,6 +47,13 @@ for f in $big; do
 done
 
 echo "== build and test gate (on the rebased lane tree)"
+# Same build settings as dispatch.sh; a target built with other settings is
+# dropped first so two artifact sets never coexist on a full disk.
+export CARGO_INCREMENTAL=0
+export CARGO_PROFILE_DEV_DEBUG=line-tables-only
+export CARGO_PROFILE_TEST_DEBUG=line-tables-only
+export PATH="$HOME/.cargo/bin:$PATH"
+if [ -d "$lane_wt/target/debug/incremental" ]; then rm -rf "$lane_wt/target"; fi
 ( cd "$lane_wt"
   cargo check --workspace --locked
   touched=$(git diff --name-only "$target...$lane" | sed -n 's#^crates/\([^/]*\)/.*#\1#p' | sort -u)
@@ -77,3 +84,5 @@ echo "== build and test gate (on the rebased lane tree)"
 echo "== fast-forward"
 git merge --ff-only "$lane"
 git log --oneline -1
+# The lane is idle after integration; reclaim its build directory.
+rm -rf "$lane_wt/target"
