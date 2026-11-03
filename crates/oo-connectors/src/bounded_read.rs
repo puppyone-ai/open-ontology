@@ -587,7 +587,7 @@ fn note_window(meter: &mut Meter, window: Instant) {
     *count = count.saturating_add(1);
 }
 
-fn decode_row(
+pub(crate) fn decode_row(
     plans: &[ColumnPlan],
     row: &sqlx::postgres::PgRow,
 ) -> Result<(Vec<DecodedCell>, u64), SourceError> {

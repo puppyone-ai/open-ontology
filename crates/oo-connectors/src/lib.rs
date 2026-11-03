@@ -43,6 +43,7 @@ mod model;
 pub mod mysql;
 #[cfg(feature = "oracle")]
 pub mod oracle;
+pub mod postgres;
 mod session;
 mod snapshot;
 mod sql;
