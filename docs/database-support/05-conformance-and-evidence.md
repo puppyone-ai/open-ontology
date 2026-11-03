@@ -1,7 +1,7 @@
 # 05 连接器一致性套件、夹具与证据
 
 > Status: Proposed
-> Last reviewed: 2026-11-03
+> Last reviewed: 2026-11-04
 > 依赖：[01](01-admission-and-support-matrix.md)、[03](03-change-capture-and-consistency.md)；Spec 第 18 章、20 章；Plan §5、§6
 > 对应 Spec：REQ-SRC-15；AT-SRC-06 至 AT-SRC-14
 
@@ -55,7 +55,7 @@
 分块与对账依赖“键范围”。源按其排序规则比较字符串，Agent DB 与 Loader 按规范字节比较，二者若各自判断范围归属，就会造成块重叠或遗漏。v0.2 的规则是**只让源库做比较**（参考生产部署的大表全部是大小写不敏感排序规则下的 `varchar` 主键，强制二进制排序会让主键索引失效）：
 
 - 字符串键按 keyset 分块：块边界值取自源库返回的上一块最后一行，下一块以 `WHERE key > ? ORDER BY key LIMIT n` 在**源库**用列自身排序规则比较；客户端、Loader 与 Agent DB 不用字符串比较来决定某行属于哪个块，块成员以源返回的行为准，对账也按块逐行比对（[product/05 §5](../product/05-version-matrix-and-testing.md)）。
-- 不加 `COLLATE xxx_bin`、`ORDER BY BINARY col`、`NLSSORT(...)` 等使索引不可用的强制排序；`EXPLAIN` 确认走主键或选定的唯一索引。列本身已是二进制排序规则时照常使用。
+- 不加 `COLLATE xxx_bin`、`ORDER BY BINARY col`、`NLSSORT(...)` 等使索引不可用的强制排序；执行计划（Oracle 为 `V$SQL_PLAN`，不用写 `PLAN_TABLE` 的 `EXPLAIN PLAN`）确认走主键或选定的唯一索引。列本身已是二进制排序规则时照常使用。
 - 无法走索引 keyset 的表采用哈希分块（按主键哈希取模）、引擎物理分块（单快照内的 PG `ctid`、extents 生成的 Oracle ROWID）或 `read_keys` 全键扫描，并在 AccessReport 与分块计划中标明。
 - 套件夹具必须包含：中文（GBK/GB18030 与 UTF-8）、大小写、重音、尾空格、二进制主键、大小写不敏感排序规则下的 `varchar` 主键；对不同排序规则的目标分别验证（AT-SRC-04）。
 

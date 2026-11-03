@@ -405,7 +405,7 @@ REQ-SRC-12：连接器把各家 catalog 归一为 `SourceCatalog`（对象、列
 1. 声明约束 `declared_only` 的关系不得作为确定外键，S3 必须做包含依赖检验。
 2. 源方言 SQL 只能作为 Evidence 与翻译提示（`translated_unverified`），不得用于授权，不得出现在 Agent 可执行示例；S8 示例仅经 Gateway 在 Agent DB 验证。
 3. caveats 与 `consistency_grade`、`delete_detection`、`capture_method` 必须出现在 Knowledge Pack 的表页与 `get_freshness`；Pack 顶层固定声明所有 SQL 为 PG 方言。
-4. 字符串/复合主键分块的边界比较只在源库内以该列自身排序规则完成（`chunk_key_order: source_collation`），客户端不比较字符串；不得用 `COLLATE …_bin`/`NLSSORT` 强制二进制排序（会失去索引并触发整表排序），每个分块查询须经 `EXPLAIN` 确认走键索引；排序规则写入 `semantic_caveats`（`source_collation_ci` 等）。无法满足时改用单次整表读取或 `read_keys`。见 [product/02 §2](../docs/product/02-ingestion-playbook.md)。
+4. 字符串/复合主键分块的边界比较只在源库内以该列自身排序规则完成（`chunk_key_order: source_collation`），客户端不比较字符串；不得用 `COLLATE …_bin`/`NLSSORT` 强制二进制排序（会失去索引并触发整表排序），每个分块查询须经执行计划确认走键索引（Oracle 读本会话游标的 `V$SQL_PLAN`，不得用会写 `PLAN_TABLE` 的 `EXPLAIN PLAN`；缺视图权限时报告未验证）；排序规则写入 `semantic_caveats`（`source_collation_ci` 等）。无法满足时改用单次整表读取或 `read_keys`。见 [product/02 §2](../docs/product/02-ingestion-playbook.md)。
 5. OOS 生成层可追加可选字段 `datasets[].source_semantics`，属 `oos/v1` 追加式契约变更，须由 F0 契约 owner 先合入。
 
 ### 7A.7 读取预算与计量源

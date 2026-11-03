@@ -2,7 +2,7 @@
 
 > Status: Accepted（规则来自参考生产部署的实际运行；跨引擎推广部分为 Proposed）
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-03
+> Last reviewed: 2026-11-04
 > 依赖：[03 数据源](../03-sources-and-ingestion.md)、[04 管线](../04-pipeline.md)、[database-support/03](../database-support/03-change-capture-and-consistency.md)
 
 参考生产部署是一套 MySQL 5.7 源（约 670 张表、1.6 万列、百万行级大表若干），每 8 小时一个周期，经 SSH 转发读取，持续发布到 Gateway。下面的规则都在那里出过问题并修过。引擎无关的部分适用于所有源；引擎相关的部分见 §7。
@@ -20,13 +20,15 @@
 |---|---|---|
 | 整数单列主键 | keyset 范围 `WHERE pk > ? ORDER BY pk LIMIT n` | 不用 OFFSET |
 | 字符串单列主键 | keyset，边界比较在**源库**用列自身排序规则完成 | 客户端不比较字符串（避免排序规则不一致导致漏读/重读）；不加 `COLLATE xxx_bin`，否则走不了索引 |
-| 复合主键 | 行值比较改写为 `a > ? OR (a = ? AND b > ?)` | 用 `EXPLAIN` 确认走主键；不信任各版本对行值比较的优化 |
+| 复合主键 | 行值比较改写为 `a > ? OR (a = ? AND b > ?)` | 用执行计划确认走主键（Oracle 不用会写 `PLAN_TABLE` 的 `EXPLAIN PLAN`，改查本会话游标的 `V$SQL_PLAN`）；不信任各版本对行值比较的优化 |
 | 无主键但有非空唯一索引 | 用该索引做 keyset | 预检时选定并记录 |
 | 无任何唯一键 | 单次整表读取，或引擎原生物理分块（PG ctid 范围、Oracle ROWID 范围） | 写入计划并标注一致性等级；不能用 OFFSET 假装可续 |
 
 **估算块数与切边界**：先算分布因子 `(MAX(pk)-MIN(pk)+1)/行数`；落在 [0.05, 100] 内视为均匀，按步长切；否则逐块 keyset 探边界；预计块数超过 1000 时按 1/1000 抽样切分（Flink CDC / SeaTunnel 的做法）。行数用 `EXPLAIN` 或 MIN/MAX 估，不用 `information_schema.TABLES.TABLE_ROWS`（MySQL 8.0 默认缓存 24 小时）。用非主键列做 chunk key 时，更新可能让同一行跨块出现两次，只能配合日志窗口修正或整表重读。
 
 **物理分块的限制**：PG 14 起有 TID Range Scan，`ctid` 范围切块很快，但 `ctid` 会因 UPDATE / `VACUUM FULL` 改变，只能在单个快照内使用，不能作为跨周期断点。Oracle 的 ROWID 范围不在源端建 `DBMS_PARALLEL_EXECUTE` 任务（只读账号不允许写），改为读 `DBA_EXTENTS`/`ALL_EXTENTS` 后用 `DBMS_ROWID.ROWID_CREATE` 生成。
+
+**Oracle 执行计划检查**：`EXPLAIN PLAN` 会写入 `PLAN_TABLE`，零写连接器改为检查实际只读游标的 `V$SQL_PLAN`（通过 `V$SESSION` 定位）；缺少视图权限时明确报告未验证，不视为索引检查通过。
 
 **块大小自适应**（`crates/oo-connectors/src/mysql/chunk.rs` `AdaptiveRows`）：硬上限 100,000 行 / 32 MiB；按 EWMA 估算读取速率，下一块取“约 3 倍当前速率 × 目标耗时”并受字节上限约束；失败时折半。这些是**内部资源预算**，不是业务上限。
 

@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-03
+> Last reviewed: 2026-11-04
 > 依赖：[01 架构](01-architecture.md)、[02 技术栈](02-technology-stack.md)
 > 实战细则：[product/02 数据拉取手册](product/02-ingestion-playbook.md)（分块、并行、源库保护、引擎版本差异）
 > 被依赖：[04 管线](04-pipeline.md)、[06 Ontology](06-ontology-layer.md)
@@ -117,7 +117,7 @@ pub trait Connector: Send + Sync {
 |---|---|---|
 | 整数单列主键 | keyset 范围 `WHERE pk > ? ORDER BY pk LIMIT n` | 不用 `OFFSET` |
 | 字符串单列主键 | keyset；边界值取自上一块最后一行，比较在**源库**用列自身排序规则完成 | 客户端与 Agent DB 不比较字符串来决定块归属；不加 `COLLATE xxx_bin`、`NLSSORT` 等让索引失效的强制排序（[database-support/05 §3](database-support/05-conformance-and-evidence.md)） |
-| 复合主键 | 行值比较改写为 `a > ? OR (a = ? AND b > ?)` | 用 `EXPLAIN` 确认走主键，不依赖各版本对行值比较的优化 |
+| 复合主键 | 行值比较改写为 `a > ? OR (a = ? AND b > ?)` | 用执行计划确认走主键（Oracle 不用会写 `PLAN_TABLE` 的 `EXPLAIN PLAN`，改查本会话游标的 `V$SQL_PLAN`），不依赖各版本对行值比较的优化 |
 | 无主键但有非空唯一索引 | 用该索引做 keyset | 预检时选定并记录 |
 | 无任何唯一键 | 单次整表读取，或引擎原生物理分块（PG `ctid` 范围、Oracle ROWID 范围） | 写入计划并标注一致性等级；不用 `OFFSET` 假装可续读 |
 
