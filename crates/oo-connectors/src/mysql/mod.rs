@@ -4,6 +4,8 @@
 //! 8.4 and 9.x; [`capability`] holds its version dispatch table.
 
 pub mod c5;
+#[cfg(feature = "mysql-binlog")]
+pub use engine::change::MysqlChanges;
 pub mod capability;
 pub mod chunk;
 pub mod engine;

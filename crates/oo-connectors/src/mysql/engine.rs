@@ -34,6 +34,10 @@ use crate::engine::{
 use crate::types::RunBinding;
 use crate::{SourceError, SourceErrorKind};
 
+#[cfg(feature = "mysql-binlog")]
+#[path = "change.rs"]
+pub mod change;
+
 type Result<T> = std::result::Result<T, SourceError>;
 
 /// Server error: maximum statement execution time exceeded.

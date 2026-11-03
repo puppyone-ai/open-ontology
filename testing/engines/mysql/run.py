@@ -57,7 +57,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--versions", nargs="+", default=["5.7.44", "8.0.44", "8.4.7", "9.5.0"])
     p.add_argument("--run-id", default="c-s0s1-" + time.strftime("%Y%m%d-%H%M%S"))
-    p.add_argument("--suite", choices=["s0s1", "s2-digest", "s2-watermark", "s2-c5", "s2-retention"], default="s0s1")
+    p.add_argument("--suite", choices=["s0s1", "s2-digest", "s2-watermark", "s2-c5", "s2-retention", "s2-c1"], default="s0s1")
     args = p.parse_args()
     root = Path(__file__).resolve().parents[3]
     os.chdir(root)
@@ -128,7 +128,13 @@ def main():
                 time.sleep(1)
             else:
                 raise RuntimeError("fixture did not become ready")
-            if args.suite == "s0s1":
+            if args.suite == "s2-c1":
+                seed = """CREATE DATABASE fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE TABLE fixture.cdc_a (id INT PRIMARY KEY, payload VARCHAR(64));
+CREATE TABLE fixture.cdc_b LIKE fixture.cdc_a;
+CREATE TABLE fixture.cdc_empty LIKE fixture.cdc_a;
+"""
+            elif args.suite == "s0s1":
                 seed = seed_sql()
             else:
                 seed = "CREATE DATABASE fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; USE fixture;\n" + run([
@@ -144,6 +150,8 @@ CREATE USER 'writer'@'%' IDENTIFIED BY '{writer_pw}';
 GRANT SELECT, INSERT, UPDATE, DELETE ON fixture.* TO 'writer'@'%';
 GRANT PROCESS ON *.* TO 'writer'@'%';
 """
+            if args.suite == "s2-c1" and version in ["8.4.7", "9.5.0"]:
+                setup += "GRANT TRANSACTION_GTID_TAG, SESSION_VARIABLES_ADMIN ON *.* TO 'writer'@'%';\n"
             run(["docker", "exec", "-i", name, "mysql",
                  "--defaults-extra-file=/fixture/admin.cnf"], input=setup.encode())
             port = run(["docker", "port", name, "3306/tcp"]).decode().strip().rsplit(":", 1)[1]
@@ -167,7 +175,11 @@ GRANT PROCESS ON *.* TO 'writer'@'%';
                 for path in sources}, indent=2))
             env = os.environ.copy()
             env["OO_MYSQL_ENGINE_FIXTURE"] = str(directory / "config.json")
-            if args.suite == "s2-retention":
+            if args.suite == "s2-c1":
+                test_command = ["cargo", "test", "-p", "oo-connectors", "--locked",
+                    "--features", "mysql-binlog", "--lib", "mysql::engine::change::tests::live_c1",
+                    "--", "--ignored", "--nocapture"]
+            elif args.suite == "s2-retention":
                 test_command = [
                     "cargo", "test", "--manifest-path", "tools/mysql-preview/Cargo.toml",
                     "--locked", "--test", "retention_owned",

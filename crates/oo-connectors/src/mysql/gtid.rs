@@ -106,6 +106,42 @@ impl GtidSet {
         self.sets.is_empty()
     }
 
+    #[cfg(feature = "mysql-binlog")]
+    pub(crate) fn wire(&self) -> Result<Vec<mysql_async::Sid<'static>>, SourceError> {
+        self.sets
+            .iter()
+            .map(|((uuid, tag), intervals)| {
+                let mut text = uuid.clone();
+                if !tag.is_empty() {
+                    text.push(':');
+                    text.push_str(tag);
+                }
+                for (lo, hi) in intervals {
+                    text.push_str(&format!(":{lo}-{hi}"));
+                }
+                text.parse().map_err(|_| SourceError::protocol("gtid_wire"))
+            })
+            .collect()
+    }
+
+    /// Advance exactly one transaction in a lineage; never conceal a gap.
+    #[cfg(feature = "mysql-binlog")]
+    pub(crate) fn advance(&mut self, uuid: &str, tag: &str, n: u64) -> Result<(), SourceError> {
+        let key = (uuid.to_ascii_lowercase(), tag.to_ascii_lowercase());
+        let intervals = self.sets.entry(key).or_default();
+        let expected = intervals
+            .last()
+            .map_or(Some(1), |(_, hi)| hi.checked_add(1));
+        if expected != Some(n) {
+            return Err(SourceError::protocol(
+                "mysql_gtid_gap_new_generation_rebaseline",
+            ));
+        }
+        intervals.push((n, n));
+        merge(intervals);
+        Ok(())
+    }
+
     /// Whether any member carries a tag (MySQL 8.3+ only).
     pub fn has_tags(&self) -> bool {
         self.sets.keys().any(|(_, tag)| !tag.is_empty())
