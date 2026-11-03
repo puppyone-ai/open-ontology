@@ -11,8 +11,8 @@ use crate::canonical::{push_string, sha256_hex};
 use crate::error::DraftError;
 use crate::ident::{assign_idents, stable_ident};
 use crate::limits::{
-    MAX_COLUMNS, MAX_DOMAIN_CHECKS, MAX_ENUM_LABELS, MAX_KEY_COLUMNS, MAX_KEYS, MAX_NAME_BYTES,
-    MAX_POLICIES, MAX_PRIVILEGES, MAX_TABLES, MAX_UNTRUSTED_BYTES,
+    MAX_DOMAIN_CHECKS, MAX_ENUM_LABELS, MAX_KEY_COLUMNS, MAX_KEYS, MAX_NAME_BYTES, MAX_POLICIES,
+    MAX_PRIVILEGES, MAX_UNTRUSTED_BYTES,
 };
 
 pub const PROTOCOL: &str = "oo.source.pgsql/v1";
@@ -576,13 +576,6 @@ fn validate(input: CatalogIn) -> Result<Catalog, DraftError> {
     }
     check_token(&input.source_id, "/catalog/source_id")?;
     check_pg_name(&input.database, "/catalog/database")?;
-    if input.tables.len() > MAX_TABLES {
-        return Err(DraftError::new(
-            "budget.tables",
-            "/catalog/tables",
-            "table count exceeds the draft budget",
-        ));
-    }
     if input.tables.iter().any(|table| {
         input
             .tables
@@ -649,13 +642,6 @@ fn validate_table(input: TableIn) -> Result<Table, DraftError> {
     check_mark(&input.relkind, "/catalog/tables/relkind")?;
     check_mark(&input.replica_identity, "/catalog/tables/replica_identity")?;
     check_pg_name(&input.owner, "/catalog/tables/owner")?;
-    if input.columns.len() > MAX_COLUMNS {
-        return Err(DraftError::new(
-            "budget.columns",
-            "/catalog/tables/columns",
-            "column count exceeds the draft budget",
-        ));
-    }
     let key_count = input.unique_keys.len()
         + input.foreign_keys.len()
         + usize::from(!input.primary_key.is_empty());

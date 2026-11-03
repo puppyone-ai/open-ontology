@@ -21,7 +21,7 @@ use oo_core::text::{HexDigest, Label, QualifiedTable, SourceName, TableName};
 
 use crate::canonical::{canonical_json, canonical_sha256};
 use crate::error::{DraftError, EVIDENCE_PROTOCOL};
-use crate::limits::{MAX_CURATED_ITEMS, MAX_ITEM_ID_BYTES, MAX_REVIEWS, MAX_TABLES};
+use crate::limits::{MAX_CURATED_ITEMS, MAX_ITEM_ID_BYTES, MAX_REVIEWS};
 use crate::pgsql::{self, Catalog, Column, ForeignKey, Table, TypeReason};
 
 pub const DRAFT_PROTOCOL: &str = "oo.builder.structure-draft/v1";
@@ -360,13 +360,6 @@ fn check_versions(envelope: &EnvelopeIn) -> Result<(), DraftError> {
 }
 
 fn check_selection(selection: &SelectionIn, catalog: &Catalog) -> Result<(), DraftError> {
-    if selection.tables.len() > MAX_TABLES {
-        return Err(DraftError::new(
-            "budget.tables",
-            "/selection/tables",
-            "table count exceeds the draft budget",
-        ));
-    }
     let mut seen = BTreeSet::new();
     for table in &selection.tables {
         if !seen.insert((table.schema.clone(), table.name.clone())) {
