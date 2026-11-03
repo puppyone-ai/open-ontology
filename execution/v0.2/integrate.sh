@@ -73,6 +73,10 @@ if [ -d "$lane_wt/target/debug/incremental" ]; then rm -rf "$lane_wt/target"; fi
   if git diff --name-only "$target...$lane" | grep -q '^packages/cli/'; then
     node --test packages/cli/test/*.test.mjs
   fi
+  if git diff --name-only "$target...$lane" | grep -q '^Cargo.lock$'; then
+    cargo audit
+    cargo deny --config ci/deny.toml check advisories licenses
+  fi
   [ -z "$extra" ] || sh -c "$extra"
   python3 specs/scripts/check_spec.py
   python3 specs/scripts/check_plan.py
