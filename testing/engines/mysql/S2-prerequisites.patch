@@ -1,0 +1,26 @@
+--- a/crates/oo-connectors/Cargo.toml
++++ b/crates/oo-connectors/Cargo.toml
+@@ -52,3 +52,3 @@
+ tokio = { version = "=1.53.3", default-features = false, features = ["time"] }
+-mysql_async = { version = "=0.37.1", optional = true, default-features = false, features = ["minimal-rust", "native-tls-tls"] }
++mysql_async = { version = "=0.37.1", optional = true, default-features = false, features = ["binlog", "minimal-rust", "native-tls-tls"] }
+ # The source cursor uses the driver without its optional Arrow 59 dependency.
+--- a/tools/mysql-preview/Cargo.toml
++++ b/tools/mysql-preview/Cargo.toml
+@@ -20,3 +20,3 @@
+ futures-util = { version = "=0.3.34", default-features = false, features = ["alloc", "std"] }
+-mysql_async = { version = "=0.36.1", default-features = false, features = ["binlog", "minimal", "native-tls-tls"] }
++mysql_async = { version = "=0.37.1", default-features = false, features = ["binlog", "minimal-rust", "native-tls-tls"] }
+ serde_json = "=1.0.151"
+@@ -24,3 +24,3 @@
+ sqlx-core = { version = "=0.9.0", default-features = false, features = ["_rt-tokio", "_tls-rustls-ring-no-roots"] }
+-tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
++tokio = { version = "=1.53.3", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+ zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
+--- a/tools/source-admission/Cargo.toml
++++ b/tools/source-admission/Cargo.toml
+@@ -17,3 +17,3 @@
+ sqlx-core = { version = "=0.9.0", default-features = false, features = ["_rt-tokio", "_tls-rustls-ring-no-roots"] }
+-tokio = { version = "=1.53.1", default-features = false, features = ["rt-multi-thread", "macros", "time", "net", "io-util"] }
++tokio = { version = "=1.53.3", default-features = false, features = ["rt-multi-thread", "macros", "time", "net", "io-util"] }
+ zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }

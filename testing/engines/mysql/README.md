@@ -8,6 +8,7 @@ Task card C-S0S1: S0-C-01, S1-C-01, S1-C-02.
 cargo test -p oo-connectors --features mysql --lib --locked
 python3 testing/engines/mysql/run.py --run-id c-mysql-new-run
 python3 testing/engines/mysql/run.py --suite s2-digest --run-id c-mysql-digest-new-run
+python3 testing/engines/mysql/run.py --suite s2-watermark --run-id c-mysql-watermark-new-run
 ```
 
 The runner uses exact tags `5.7.44`, `8.0.44`, `8.4.7`, `9.5.0`, sequentially.
@@ -34,6 +35,13 @@ digest independence from internal page sizes, a same-count update/delete/insert
 cycle, an unchanged digest cycle, and source-ordered canonical row equality.
 These are source primitive tests, not the complete C5 scheduler/T2 gate:
 no target writes, generation transitions or four-layer scheduling are exercised.
+
+The `s2-watermark` suite checks actual log inventory across rotation/purge,
+GTID and file-position modes, missing topology privileges, and repeated
+commit-order checks on a configured, stopped replica channel. It never
+starts replication and does not claim active replica or CDC acceptance.
+`MysqlEngine::earliest_binlog` exposes the actual oldest file at position 4;
+it does not measure retention age or implement `ChangeSource`.
 
 ## Adapter contract
 

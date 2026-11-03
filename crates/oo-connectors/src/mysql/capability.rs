@@ -371,6 +371,8 @@ pub struct Observed {
     pub max_connections: Option<u64>,
     pub threads_connected: Option<u64>,
     pub max_execution_time_ms: Option<u64>,
+    pub is_replica: bool,
+    pub replica_preserve_commit_order: Option<bool>,
 }
 
 /// Quote `user@host` from `CURRENT_USER()` for a GRANT statement.
@@ -481,20 +483,38 @@ pub fn grade(version: &EngineVersion, dialect: &Dialect, o: &Observed) -> ProbeR
         state(select.iter().cloned().collect()),
     );
 
-    // Watermark: gtid_executed needs no privilege; file/pos needs REPLICATION CLIENT.
+    // Both modes inspect replica channels before issuing a safe watermark.
     let gtid_on = o
         .gtid_mode
         .as_deref()
         .is_some_and(|m| m.eq_ignore_ascii_case("ON"));
     let mut wm = Vec::new();
+    let replica_order =
+        (o.is_replica && o.replica_preserve_commit_order != Some(true)).then(|| {
+            let name = if (version.major, version.minor, version.patch) >= (8, 0, 26) {
+                "replica_preserve_commit_order"
+            } else {
+                "slave_preserve_commit_order"
+            };
+            req(
+                RequirementKind::Parameter,
+                name,
+                o.replica_preserve_commit_order
+                    .map(|on| if on { "ON" } else { "OFF" }.into()),
+                "ON for read-only replica watermarks",
+                Some(dialect.set_global(name, "ON")),
+            )
+        });
     wm.extend(log_bin.clone());
     wm.extend(gtid.clone());
-    if o.log_bin && !gtid_on {
+    wm.extend(replica_order.clone());
+    if o.log_bin {
         wm.extend(repl_client.clone());
     }
     caps.insert(Capability::Watermark, state(wm));
 
     let mut cdc = Vec::new();
+    cdc.extend(replica_order);
     cdc.extend(log_bin);
     if o.server_id == Some(0) {
         cdc.push(req(
@@ -939,6 +959,40 @@ mod tests {
                 assert_eq!(requirements[0].name, "replication_client")
             }
             other => panic!("{other:?}"),
+        }
+        o.gtid_mode = Some("ON".into());
+        let report = grade(&ver, &d, &o);
+        assert!(matches!(
+            &report.capabilities[&Capability::Watermark],
+            CapabilityState::NeedsSetup { requirements }
+                if requirements.iter().any(|r| r.name == "replication_client")
+        ));
+    }
+
+    #[test]
+    fn replica_commit_order_is_a_versioned_requirement() {
+        for raw in ["5.7.44", "8.0.25", "8.0.44", "8.4.7", "9.5.0"] {
+            let ver = v(raw);
+            let dialect = Dialect::for_version(&ver).unwrap();
+            let mut observed = ready("fixture");
+            observed.is_replica = true;
+            for preserve in [None, Some(false)] {
+                observed.replica_preserve_commit_order = preserve;
+                let report = grade(&ver, &dialect, &observed);
+                for capability in [Capability::Watermark, Capability::LogCdc] {
+                    assert!(matches!(
+                        &report.capabilities[&capability],
+                        CapabilityState::NeedsSetup { requirements }
+                            if requirements.iter().any(|r| r.name.ends_with("preserve_commit_order"))
+                    ));
+                }
+            }
+            observed.replica_preserve_commit_order = Some(true);
+            let report = grade(&ver, &dialect, &observed);
+            assert_eq!(
+                report.capabilities[&Capability::Watermark],
+                CapabilityState::Available
+            );
         }
     }
 

@@ -57,7 +57,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--versions", nargs="+", default=["5.7.44", "8.0.44", "8.4.7", "9.5.0"])
     p.add_argument("--run-id", default="c-s0s1-" + time.strftime("%Y%m%d-%H%M%S"))
-    p.add_argument("--suite", choices=["s0s1", "s2-digest"], default="s0s1")
+    p.add_argument("--suite", choices=["s0s1", "s2-digest", "s2-watermark"], default="s0s1")
     args = p.parse_args()
     root = Path(__file__).resolve().parents[3]
     os.chdir(root)
@@ -104,6 +104,9 @@ def main():
                 "--enforce-gtid-consistency=ON --ssl-ca=/tmp/ca.pem "
                 "--ssl-cert=/tmp/server-cert.pem --ssl-key=/tmp/server-key.pem"
             )
+            if args.suite == "s2-watermark":
+                script += (" --log-slave-updates=ON" if version.startswith("5.7")
+                           else " --log-replica-updates=ON")
             cmd = ["docker", "run", "-d", "--name", name, "--label", "oo.lane=c",
                    "--label", f"oo.run_id={args.run_id}"]
             if version.startswith("5.7"):
@@ -161,7 +164,8 @@ GRANT PROCESS ON *.* TO 'writer'@'%';
                 result = subprocess.run(
                     ["cargo", "test", "-p", "oo-connectors", "--locked", "--features", "mysql",
                      "--test", "mysql_engine_live",
-                     "engine_matrix_contract" if args.suite == "s0s1" else "digest_primitives",
+                     {"s0s1": "engine_matrix_contract", "s2-digest": "digest_primitives",
+                      "s2-watermark": "watermark_primitives"}[args.suite],
                      "--", "--ignored", "--nocapture"],
                     env=env, stdout=log, stderr=subprocess.STDOUT)
             results[version] = {"exit": result.returncode}

@@ -299,6 +299,128 @@ async fn digest_primitives() {
     admin.disconnect().await.unwrap();
 }
 
+#[tokio::test]
+#[ignore = "requires the owned fixture via run.py --suite s2-watermark"]
+async fn watermark_primitives() {
+    let path = std::env::var("OO_MYSQL_ENGINE_FIXTURE").expect("owned fixture config");
+    let v: Json = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+    let mut e = engine(&v, EngineOptions::default());
+    let report = e.probe().await.unwrap();
+    let oldest = e.earliest_binlog().await.unwrap();
+    let Watermark::MysqlFilePos { file, position } = &oldest else {
+        panic!("inventory must return the actual first file");
+    };
+    assert_eq!(*position, 4);
+    let inventory = root_sql(&v, "SHOW BINARY LOGS");
+    assert_eq!(inventory.split_whitespace().next(), Some(file.as_str()));
+    root_sql(&v, "FLUSH BINARY LOGS");
+    assert_eq!(oldest, e.earliest_binlog().await.unwrap());
+    let inventory = root_sql(&v, "SHOW BINARY LOGS");
+    let newest = inventory
+        .lines()
+        .last()
+        .unwrap()
+        .split_whitespace()
+        .next()
+        .unwrap();
+    assert_ne!(file, newest);
+    assert!(
+        newest
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'.')
+    );
+    root_sql(&v, &format!("PURGE BINARY LOGS TO '{newest}'"));
+    let after_purge = e.earliest_binlog().await.unwrap();
+    assert_eq!(
+        after_purge,
+        Watermark::MysqlFilePos {
+            file: newest.into(),
+            position: 4
+        }
+    );
+
+    assert!(matches!(
+        e.watermark().await.unwrap(),
+        Some(Watermark::MysqlGtidSet { .. })
+    ));
+    root_sql(&v, "REVOKE REPLICATION CLIENT ON *.* FROM 'reader'@'%'");
+    // Use a fresh session because account grants may be cached by MySQL.
+    let mut missing = engine(&v, EngineOptions::default());
+    assert_eq!(missing.watermark().await.unwrap(), None);
+    assert!(
+        missing
+            .probe()
+            .await
+            .unwrap()
+            .requirements()
+            .iter()
+            .any(|r| r.name == "replication_client")
+    );
+    missing.close().await;
+    root_sql(&v, "GRANT REPLICATION CLIENT ON *.* TO 'reader'@'%'");
+
+    let old_names = report.version.major == 5;
+    let (configure, variable, reset) = if old_names {
+        (
+            "CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=1, MASTER_USER='fixture_unused'",
+            "slave_preserve_commit_order",
+            "RESET SLAVE ALL",
+        )
+    } else {
+        (
+            "CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=1, SOURCE_USER='fixture_unused'",
+            "replica_preserve_commit_order",
+            "RESET REPLICA ALL",
+        )
+    };
+    root_sql(&v, &format!("SET GLOBAL {variable}=OFF"));
+    root_sql(&v, configure);
+    // This same engine was previously a primary. No replication thread starts.
+    assert_eq!(
+        e.watermark().await.unwrap_err().fact(),
+        Some("replica_preserve_commit_order_required")
+    );
+    assert!(
+        e.probe()
+            .await
+            .unwrap()
+            .requirements()
+            .iter()
+            .any(|r| r.name == variable)
+    );
+    if old_names {
+        root_sql(&v, "SET GLOBAL slave_parallel_type='LOGICAL_CLOCK'");
+    }
+    root_sql(&v, &format!("SET GLOBAL {variable}=ON"));
+    assert!(matches!(
+        e.watermark().await.unwrap(),
+        Some(Watermark::MysqlGtidSet { .. })
+    ));
+    root_sql(&v, &format!("SET GLOBAL {variable}=OFF"));
+    assert!(e.watermark().await.is_err());
+    root_sql(&v, reset);
+    assert!(e.watermark().await.unwrap().is_some());
+    e.close().await;
+
+    root_sql(
+        &v,
+        "SET GLOBAL gtid_mode=ON_PERMISSIVE; SET GLOBAL gtid_mode=OFF_PERMISSIVE; SET GLOBAL gtid_mode=OFF;",
+    );
+    let mut filepos = engine(&v, EngineOptions::default());
+    let watermark = filepos.watermark().await.unwrap();
+    assert!(matches!(watermark, Some(Watermark::MysqlFilePos { position, .. }) if position >= 4));
+    filepos.close().await;
+    save(
+        &v,
+        "watermark-primitives.json",
+        &json!({
+            "oldest":oldest, "after_purge":after_purge, "gtid_off_watermark":watermark,
+            "replica_setting_guard":"pass", "topology_rechecked":true,
+            "scope":"configured stopped channel only; not active replica CDC or retention-age acceptance"
+        }),
+    );
+}
+
 async fn capture(
     e: &mut MysqlEngine,
     chunks: Vec<ChunkSpec>,

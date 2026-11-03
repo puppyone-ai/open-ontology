@@ -249,6 +249,15 @@ fn on_off(text: Option<String>) -> bool {
     matches!(text.as_deref(), Some("1" | "ON" | "on"))
 }
 
+fn require_replica_commit_order(is_replica: bool, preserve: Option<bool>) -> Result<()> {
+    if is_replica && preserve != Some(true) {
+        return Err(SourceError::config(
+            "replica_preserve_commit_order_required",
+        ));
+    }
+    Ok(())
+}
+
 fn raw_row_bytes(row: &Row) -> u64 {
     (0..row.len())
         .map(|i| match row.as_ref(i) {
@@ -586,6 +595,16 @@ impl MysqlEngine {
 
     async fn read_watermark(&mut self) -> Result<Option<Watermark>> {
         self.ensure_basics().await?;
+        if self.basics.as_ref().expect("basics").watermark != WatermarkMode::None {
+            if let Err(error) = self.check_replica_commit_order().await {
+                if error.kind() == SourceErrorKind::Privilege {
+                    // Snapshot/C5 remains usable, but unknown topology cannot
+                    // authorize a log-corrected read.
+                    return Ok(None);
+                }
+                return Err(error);
+            }
+        }
         let basics = self.basics.as_ref().expect("basics");
         match basics.watermark {
             WatermarkMode::None => Ok(None),
@@ -625,6 +644,52 @@ impl MysqlEngine {
                 }
             }
         }
+    }
+
+    async fn check_replica_commit_order(&mut self) -> Result<()> {
+        let (replica, preserve) = self.replica_commit_order().await?;
+        require_replica_commit_order(replica, preserve)
+    }
+
+    async fn replica_commit_order(&mut self) -> Result<(bool, Option<bool>)> {
+        let sql = self.basics.as_ref().expect("basics").dialect.replica_status;
+        // Inspect channels on every boundary: a cached primary classification
+        // would miss a topology change during a long full read.
+        if self.exec(sql, vec![]).await?.is_empty() {
+            return Ok((false, None));
+        }
+        let rows = self
+            .exec(
+                "SHOW GLOBAL VARIABLES WHERE Variable_name IN ('replica_preserve_commit_order', 'slave_preserve_commit_order')",
+                vec![],
+            )
+            .await?;
+        let preserve = (!rows.is_empty()).then(|| rows.iter().all(|row| on_off(row_text(row, 1))));
+        Ok((true, preserve))
+    }
+
+    /// Actual first file in the server's binlog index, not a retention setting.
+    ///
+    /// This is a file cursor even on GTID servers. It does not measure retained
+    /// history in seconds; that requires reading the log's event timestamps.
+    /// A transport must still detect a purge racing its subsequent subscription.
+    pub async fn earliest_binlog(&mut self) -> Result<Watermark> {
+        self.ensure_basics().await?;
+        self.gate().await?;
+        let started = Instant::now();
+        let rows = self.exec("SHOW BINARY LOGS", vec![]).await;
+        self.finish_op(started);
+        let rows = rows?;
+        let row = rows
+            .first()
+            .ok_or_else(|| SourceError::protocol("binlog_unavailable_rebaseline"))?;
+        let file = row_text(row, 0)
+            .filter(|s| !s.is_empty() && !s.contains('\0'))
+            .ok_or_else(|| SourceError::protocol("binlog_inventory"))?;
+        if row_u64(row, 1).is_none_or(|size| size < 4) {
+            return Err(SourceError::protocol("binlog_inventory"));
+        }
+        Ok(Watermark::MysqlFilePos { file, position: 4 })
     }
 
     async fn meta(&mut self, table: &TableRef) -> Result<()> {
@@ -1560,6 +1625,9 @@ impl MysqlEngine {
         let grants = self.exec("SHOW GRANTS FOR CURRENT_USER()", vec![]).await?;
         let lines: Vec<String> = grants.iter().filter_map(|r| row_text(r, 0)).collect();
         o.grants = Grants::parse(&lines, &self.config.mysql_database);
+        if o.log_bin && o.grants.replication_client {
+            (o.is_replica, o.replica_preserve_commit_order) = self.replica_commit_order().await?;
+        }
         let status = self
             .exec(
                 "SHOW GLOBAL STATUS WHERE Variable_name = 'Threads_connected'",
@@ -1767,6 +1835,21 @@ pub fn dispatch_table() -> BTreeMap<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn replica_watermarks_require_known_commit_order() {
+        assert!(require_replica_commit_order(false, None).is_ok());
+        assert!(require_replica_commit_order(false, Some(false)).is_ok());
+        assert!(require_replica_commit_order(true, Some(true)).is_ok());
+        for observed in [None, Some(false)] {
+            assert_eq!(
+                require_replica_commit_order(true, observed)
+                    .unwrap_err()
+                    .fact(),
+                Some("replica_preserve_commit_order_required")
+            );
+        }
+    }
 
     #[tokio::test]
     async fn duty_receipt_counts_consumer_idle_without_claiming_sleep() {
