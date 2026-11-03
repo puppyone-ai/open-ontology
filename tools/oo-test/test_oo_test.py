@@ -11,6 +11,13 @@ import comparison
 import runner
 
 
+
+def evidence_root():
+    """The git-ignored evidence directory is absent in a fresh checkout."""
+    path = runner.ROOT / "evidence"
+    path.mkdir(exist_ok=True)
+    return path
+
 class ComparisonTests(unittest.TestCase):
     def test_decimal_lossless_and_typed(self):
         number = Decimal("12345678901234567890.1234567890")
@@ -114,7 +121,7 @@ class RunnerTests(unittest.TestCase):
     def test_reader_grants_include_views_without_public_create(self):
         from argparse import Namespace
         for engine, version in [("oracle", "11g"), ("postgres", "13")]:
-            with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+            with tempfile.TemporaryDirectory(dir=evidence_root()) as directory:
                 run = runner.Run(Path(directory), engine, version, Namespace(scale=1, tables=0))
                 self.assertLessEqual(len(run.secret), 30)
                 self.assertNotEqual(run.secret, run.reader_secret)
@@ -130,7 +137,7 @@ class RunnerTests(unittest.TestCase):
                 run.cleanup()
 
     def test_cleanup_checks_both_labels(self):
-        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+        with tempfile.TemporaryDirectory(dir=evidence_root()) as directory:
             run = runner.Run(Path(directory), "mysql", "8.4", None)
             run.created_container = True
             with patch.object(run, "command", return_value=(0, '{"oo.lane":"other","oo.run_id":"other"}')) as cmd:
@@ -138,7 +145,7 @@ class RunnerTests(unittest.TestCase):
                 self.assertEqual(cmd.call_count, 1)
 
     def test_cleanup_rejects_unparseable_labels(self):
-        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+        with tempfile.TemporaryDirectory(dir=evidence_root()) as directory:
             run = runner.Run(Path(directory), "mysql", "8.4", None)
             run.created_container = True
             with patch.object(run, "command", return_value=(0, "null")) as cmd:
@@ -146,7 +153,7 @@ class RunnerTests(unittest.TestCase):
                 self.assertEqual(cmd.call_count, 1)
 
     def test_checksums_cover_nested_manifest_not_private_material(self):
-        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+        with tempfile.TemporaryDirectory(dir=evidence_root()) as directory:
             path = Path(directory)
             (path / "child").mkdir()
             (path / "child" / "receipt.json").write_text("{}")
@@ -159,7 +166,7 @@ class RunnerTests(unittest.TestCase):
             self.assertNotIn("password", manifest)
 
     def test_failure_raw_exit_and_redaction(self):
-        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+        with tempfile.TemporaryDirectory(dir=evidence_root()) as directory:
             run = runner.Run(Path(directory), "mysql", "8.4", None)
             import subprocess
             result = subprocess.CompletedProcess([], 9, run.secret, run.secret)
@@ -175,7 +182,7 @@ class RunnerTests(unittest.TestCase):
                          'failed "https://registry.invalid/blob?[REDACTED_QUERY]"')
 
     def test_sqlplus_error_with_zero_exit_is_failure(self):
-        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+        with tempfile.TemporaryDirectory(dir=evidence_root()) as directory:
             run = runner.Run(Path(directory), "oracle", "11g", None)
             import subprocess
             result = subprocess.CompletedProcess([], 0, "SP2-0027: Input is too long", "")
