@@ -264,7 +264,7 @@ Web UI；短期 access + refresh 轮换 token（v0.3 评估）；云数仓（Sno
 
 ### 10.4 车道交付与合入
 
-执行者交付：车道分支上的一组符合 10.3 的提交 + 证据包 run-id。主线程合入前复核：提交粒度与信息、构建与相关测试、证据 sha256、写域未越界。复核不通过退回车道，不在集成分支上补丁式修复别人的提交。
+执行者交付：车道分支上的一组符合 10.3 的提交 + 证据包 run-id。执行者为本地 Codex 时由 `execution/v0.2/dispatch.sh` 派发任务卡（`execution/v0.2/cards/`），运行记录在 git 之外。合入只经 `execution/v0.2/integrate.sh`：rebase、提交信息与 Plan 尾注、秘密与客户信息、> 1 MiB 文件、`cargo check --workspace --locked`、被改 crate 的测试与三个文档检查全部通过后 fast-forward。主线程合入前另行复核：提交粒度与信息、构建与相关测试、证据 sha256、写域未越界。复核不通过退回车道，不在集成分支上补丁式修复别人的提交。
 
 ## 11. 最终 PR
 
