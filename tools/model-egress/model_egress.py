@@ -5,6 +5,7 @@ from collections import deque
 import http.client
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import ipaddress
+import io
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,7 @@ import re
 import socket
 import ssl
 import stat
+import sys
 import threading
 import time
 from urllib.parse import urlsplit
@@ -206,7 +208,8 @@ class Egress:
         self.timeout, self.rpm = timeout, rpm
         self.calls, self.block_until, self.block_code = deque(), 0, None
         self.lock = threading.Lock()
-        self.meter = os.fdopen(private_open(meter, os.O_WRONLY | os.O_APPEND | os.O_CREAT), 'a')
+        self.meter = (io.StringIO() if meter is None else
+                      os.fdopen(private_open(meter, os.O_WRONLY | os.O_APPEND | os.O_CREAT), 'a'))
 
     def close(self):
         self.meter.close()
@@ -551,7 +554,7 @@ class SafeParser(argparse.ArgumentParser):
 def main():
     parser = SafeParser(description=__doc__)
     parser.add_argument('--config', required=True, help='JSON stack config; key must be a secret_ref')
-    parser.add_argument('--meter', required=True, help='owner-only usage JSONL file')
+    parser.add_argument('--meter', help='owner-only usage JSONL file; optional for probe')
     parser.add_argument('--listen', default='127.0.0.1')
     parser.add_argument('--port', default=8317, type=int)
     parser.add_argument('--rpm', default=30, type=int)
@@ -559,11 +562,16 @@ def main():
     egress = None
     try:
         args = parser.parse_args()
+        if not args.probe and args.meter is None:
+            raise Refusal('METER_REQUIRED', 500)
         # Refuse non-loopback before reading the credential.
         if not ipaddress.ip_address(args.listen).is_loopback or not 0 <= args.port <= 65535:
             raise Refusal('LISTEN_NOT_LOOPBACK', 500)
-        with open(args.config, 'rb') as file:
-            raw = file.read(MAX_BYTES + 1)
+        if args.config == '-':
+            raw = sys.stdin.buffer.read(MAX_BYTES + 1)
+        else:
+            with open(args.config, 'rb') as file:
+                raw = file.read(MAX_BYTES + 1)
         if len(raw) > MAX_BYTES:
             raise Refusal('CONFIG_BUDGET', 500)
         config = json.loads(raw)

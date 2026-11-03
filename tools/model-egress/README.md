@@ -8,6 +8,12 @@ python3 tools/model-egress/model_egress.py --config stack.yaml --meter usage.jso
 python3 -m unittest discover -s tools/model-egress/tests -v
 ```
 
+`--config -` reads bounded JSON from stdin. With `--probe`, `--meter` may be
+omitted: call accounting remains in memory and no meter file is created.
+Serving requests still requires a persistent meter. Native `oo doctor` embeds
+this implementation and pipes its validated stack to the probe subprocess;
+it does not resolve a helper script from the working directory.
+
 The config is JSON (see oo-stack), including `model.provider`, `base_url`,
 `model`, `key: {"secret_ref":"model-key"}` and optional `context_window`.
 Default listen is **127.0.0.1:8317**, 30 requests/minute, serial calls, no retries.

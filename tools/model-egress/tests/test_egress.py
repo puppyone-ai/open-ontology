@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import subprocess
 import sys
 import tempfile
 import threading
@@ -97,6 +98,30 @@ class Tests(unittest.TestCase):
     def request(self, stream=False):
         return {'model': 'fixture-model', 'messages': [{'role': 'system', 'content': 'Be brief.'},
                     {'role': 'user', 'content': 'OK'}], 'max_tokens': 1, 'stream': stream}
+
+    def test_probe_cli_accepts_piped_config_without_persistent_meter(self):
+        egress, _, _ = self.egress()
+        home = self.root / 'home'
+        store = home / '.config/open-ontology/secrets'
+        store.mkdir(parents=True, mode=0o700)
+        path = store / 'model-key'
+        path.write_text(self.key)
+        path.chmod(0o600)
+        command = [sys.executable, str(Path(__file__).resolve().parents[1] / 'model_egress.py'),
+                   '--config', '-', '--probe']
+        result = subprocess.run(command, input=json.dumps({'model': egress.model}),
+                                text=True, capture_output=True,
+                                env=dict(os.environ, HOME=str(home)), timeout=10)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report['context_window'], 272000)
+        self.assertEqual(report['proxy_injected_prompt_tokens'], 2503)
+        self.assertNotIn(self.key, result.stdout + result.stderr)
+        self.assertEqual(list(store.iterdir()), [path])
+        refused = subprocess.run(command[:-1], input='{}', text=True,
+                                 capture_output=True, timeout=10)
+        self.assertEqual(refused.returncode, 2)
+        self.assertEqual(json.loads(refused.stdout)['error']['code'], 'METER_REQUIRED')
 
     def test_nonstream_both_dialects_and_usage(self):
         for dialect, tokens in [('openai', 2503), ('anthropic', 17)]:
