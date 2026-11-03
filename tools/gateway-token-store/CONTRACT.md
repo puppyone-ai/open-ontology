@@ -221,3 +221,65 @@ Public HTTP authentication, IdP, OAuth, PKCE, refresh rotation, RFC 8693
 token exchange, mTLS handshake, Redis or any pub/sub, audit WAL, agent SQL,
 session-lease certification, and cancellation of an active query. This
 contract does not close SP06-W01, GW-D01's parent, or a release.
+
+## v0.2 lifecycle extension (D9)
+
+The preceding sections describe the immutable, checksum-pinned v1 reader.
+The v0.2 service-account entry point is `src/lifecycle.rs`, compiled directly
+by `oo-gateway::http_gateway::token_lifecycle`. It uses the Gateway's already
+locked dependencies, not a second copy of the v1 crate. The standalone v1
+library and session issuance remain unchanged. The `Control` service-account entry point uses the policy default rather
+than the legacy one-hour issuance default.
+
+### Install and storage
+
+`Control::install` first calls the v1 installer (including its exact schema,
+privilege and checksum verification). It then applies
+`migrations/oo_token_control_v2.sql` transactionally under the installation
+advisory lock. The new schema is **oo_token_lifecycle**, not an alteration of
+v1: the pinned reader rejects additional columns or tables in its schema.
+The v1 file SHA-256 remains
+`501d52c0f1f8de46470fc3192fca7de3d59dfd1a3b990dc70daef97341b85597`.
+The extension records its own digest; exact replay verifies it and does not
+execute DDL again. Apply through `install`, not by blindly rerunning SQL.
+An interrupted extension transaction rolls back; the installed v1 remains
+usable and a subsequent install can retry. This works on empty and v1 DBs.
+
+- `policy`: per-project max lifetime and default TTL both default to 90 days;
+  max lifetime must be positive and at most 365 days. Default TTL cannot
+  exceed it. Self-renew defaults disabled, with a 14-day window; overlap is
+  7 days; enrollment expiry is 24 hours. Policy replacement is audited.
+- `token`: first issuance, rotation predecessor, overlap end, issuer and
+  purpose; v1 rows are backfilled without changing their original deadlines.
+  Legacy rows issued after migration use their v1 issuance time as fallback.
+- `enrollment`: SHA-256 of the complete `OO-XXXX-XXXX` code, frozen grant,
+  expiry, redeemed time and trusted redemption origin. Codes contain 40
+  random bits (eight uniform Crockford base32 symbols); never plaintext in DB.
+- `audit`: exactly one row for each dispatched operation, including list,
+  replay and semantic refusal. Operation changes and the success audit commit
+  together; a savepoint rolls back refused changes before recording refusal.
+  Hashes, actor and old/new deadlines only; no token or code values. Malformed
+  HTTP, unauthenticated requests and unavailable-DB failures cannot promise a
+  database audit row. A commit acknowledgement failure is `commit_unknown`;
+  do not automatically retry secret-producing operations.
+
+All operations use the v1 project advisory lock, a TLS-verified
+`oo_token_admin` connection and fixed parameterized SQL. Runtime credentials
+cannot read enrollment grants or mutate lifecycle policy/audit. Revocation
+and overlap shortening update the same v1 records consumed by the unchanged
+five-second positive cache. No pub/sub or immediate warm-cache revocation is
+claimed. A previously cached deadline can survive its original <=5s TTL;
+new reads enforce `now < deadline`, including the exact overlap boundary.
+
+`renew` never returns or changes the token value, never resurrects expired
+or revoked material, and requires a strictly later deadline no later than
+`first_issued_at_ms + max_lifetime_ms`. Self-renew verifies token and Gateway
+canonical audience directly against live state, requires the policy flag and
+`deadline - now <= self_renew_window_ms`, and clamps the requested extension
+to the lifetime ceiling. An already maximal deadline cannot be extended.
+
+`rotate` preserves first issuance and the frozen tuple. New expiry is bounded
+by the same lifetime ceiling. Old expiry is the earlier of its existing
+expiry and `now + rotate_overlap_ms`; zero overlap immediately invalidates
+it. Rotated predecessors cannot be renewed or rotated again. An explicit
+new admin issue is a new grant, unlike renewal/rotation.
