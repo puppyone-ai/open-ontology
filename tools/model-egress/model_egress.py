@@ -297,10 +297,13 @@ class Egress:
                 return
             if 'text/event-stream' not in response.getheader('Content-Type', ''):
                 raise Refusal('UPSTREAM_PROTOCOL')
-            finished = False
+            finished, terminal_sent = False, False
             for raw in events(response):
                 if raw == b'[DONE]' and not anthropic:
                     finished = True
+                    terminal_sent = True
+                    if None in counts.values():
+                        raise Refusal('STREAM_USAGE_MISSING')
                     yield None
                     break
                 try:
@@ -312,6 +315,9 @@ class Egress:
                 if 'error' in event or event.get('type') == 'error':
                     raise Refusal(error_code(200, event))
                 if not anthropic:
+                    if any(isinstance(c, dict) and c.get('finish_reason') is not None
+                           for c in event.get('choices', [])):
+                        finished = True
                     if event.get('usage'):
                         counts = usage(event['usage'])
                     self.safe(event)
@@ -331,10 +337,14 @@ class Egress:
                         raise Refusal('UNSUPPORTED_RESPONSE')
                     delta = {'content': event['delta']['text']}
                 elif kind == 'message_delta':
-                    finish = stop_reason(event.get('delta', {}).get('stop_reason'))
+                    reason = event.get('delta', {}).get('stop_reason')
+                    if reason is not None:
+                        finish = stop_reason(reason)
+                        finished = True
                     counts['completion_tokens'] = usage(event.get('usage'))['completion_tokens']
                 elif kind == 'message_stop':
                     finished = True
+                    terminal_sent = True
                     yield {'object': 'chat.completion.chunk', 'choices': [], 'usage': counts}
                     yield None
                     break
@@ -346,6 +356,12 @@ class Egress:
                 yield result
             if not finished:
                 raise Refusal('STREAM_INCOMPLETE')
+            if not terminal_sent:
+                if None in counts.values():
+                    raise Refusal('STREAM_USAGE_MISSING')
+                if anthropic:
+                    yield {'object': 'chat.completion.chunk', 'choices': [], 'usage': counts}
+                yield None
         except Refusal as error:
             code = error.code
             self.block(code)

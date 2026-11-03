@@ -17,7 +17,7 @@ FIXTURES = Path(__file__).parent / 'fixtures'
 
 
 class Replay:
-    def __init__(self, dialect='openai', status=200, error=None, truncate=False):
+    def __init__(self, dialect='openai', status=200, error=None, truncate=False, wire=None):
         self.seen = []
         self.dialect, self.status, self.error, self.truncate = dialect, status, error, truncate
         replay = self
@@ -44,7 +44,9 @@ class Replay:
                     fixture = FIXTURES / (replay.dialect + ('.sse.json' if stream else '.json'))
                     body = json.loads(fixture.read_text()).encode() if stream else fixture.read_bytes()
                     if replay.truncate:
-                        body = body.split(b'data: [DONE]')[0] if replay.dialect == 'openai' else body.split(b'event: message_stop')[0]
+                        body = body.split(b'data: {"object":"chat.completion.chunk","choices":[{"index":0,"delta":{}')[0] if replay.dialect == 'openai' else body.split(b'event: message_delta')[0]
+                    if wire is not None:
+                        body = wire
                 self.send_response(replay.status)
                 self.send_header('Content-Type', 'text/event-stream' if stream else 'application/json')
                 self.send_header('Content-Length', str(len(body)))
@@ -161,6 +163,25 @@ class Tests(unittest.TestCase):
         self.assertEqual(output['json_mode'], 'accepted_parameter_output_not_verified_at_one_token')
         self.assertEqual(len(replay.seen), 3)
         self.assertEqual(len(meter.read_text().splitlines()), 2)
+
+    def test_finish_frame_completes_without_terminal_marker(self):
+        for dialect, marker in [('openai', b'data: [DONE]'), ('anthropic', b'event: message_stop')]:
+            wire = json.loads((FIXTURES / (dialect + '.sse.json')).read_text()).encode().split(marker)[0]
+            egress, _, meter = self.egress(dialect, wire=wire)
+            self.assertIsNone(list(egress.call(self.request(True)))[-1])
+            self.assertEqual(json.loads(meter.read_text())['code'], 'OK')
+
+    def test_finish_then_separate_usage_and_missing_usage(self):
+        finish = b'data: {"choices":[{"finish_reason":"length","delta":{}}]}\n\n'
+        counts = b'data: {"choices":[],"usage":{"prompt_tokens":10,"completion_tokens":2}}\n\n'
+        for suffix in (b'', b'data: [DONE]\n\n'):
+            egress, _, meter = self.egress(wire=finish + counts + suffix)
+            self.assertIsNone(list(egress.call(self.request(True)))[-1])
+            self.assertEqual(json.loads(meter.read_text())['prompt_tokens'], 10)
+        egress, _, meter = self.egress(wire=finish)
+        with self.assertRaisesRegex(Refusal, 'STREAM_USAGE_MISSING'):
+            list(egress.call(self.request(True)))
+        self.assertFalse(json.loads(meter.read_text())['usage_measured'])
 
     def test_secret_modes_symlinks_fifo_and_names(self):
         self.assertEqual(read_key('model-key', self.secrets), self.key)

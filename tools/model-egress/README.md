@@ -33,8 +33,11 @@ structured-output translation and other unsupported Anthropic fields fail
 explicitly rather than silently dropping semantics. Upstream 429, quota and
 cooldown refusals become RATE_LIMITED, USAGE_LIMIT and COOLDOWN with an immediate
 local cooldown (60s; quota 300s). Authentication and other errors are sanitized.
-Streams require `[DONE]` (OpenAI) or message_stop (Anthropic); clean EOF without
-that terminal marker is still STREAM_INCOMPLETE, even after a finish_reason.
+Streams accept a non-null finish reason plus requested usage, with or without
+a terminal marker. Egress emits a normalized `[DONE]` after clean EOF. EOF
+without either finish or terminal marker is STREAM_INCOMPLETE; missing requested
+usage is STREAM_USAGE_MISSING. Finish frames with length still mean truncation
+of model output, not a transport failure.
 
 Probe calls `/models`, a minimal one-token completion, and (OpenAI) a one-token
 JSON-mode request. Metadata limits are labeled provider-declared, not boundary
