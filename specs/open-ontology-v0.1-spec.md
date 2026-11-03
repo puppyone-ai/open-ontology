@@ -6,7 +6,7 @@
 | 版本 | 1.0.1 |
 | 状态 | Proposed / Ready for implementation review |
 | 创建日期 | 2026-10-01，Asia/Shanghai |
-| 输入基线 | `docs/` 与 `docs/product/` 共 26 份文档；来源 revision 8，Git HEAD `b56c43d551e98c37d568c62479c026ff9afff391`；[revision 8 记录](source-baseline-revision-8.md)；保留 [revision 7 原清单](sources-baseline-revision-7.json)、更早的 sources-baseline-revision-*.json 与[revision 4 历史记录](../execution/decisions/source-baseline-revision-4.md)保留。扩展设计目录 `docs/database-support/` 不在哈希基线内；不宣称独立审阅或产品验收。 |
+| 输入基线 | `docs/` 与 `docs/product/` 共 26 份文档；来源 revision 9，Git HEAD `7ba80230556b7fb6230832d5623e499bbb7ded22`；[revision 9 记录](source-baseline-revision-9.md)；保留 [revision 8 原清单](sources-baseline-revision-8.json)、更早的 sources-baseline-revision-*.json 与[revision 4 历史记录](../execution/decisions/source-baseline-revision-4.md)保留。扩展设计目录 `docs/database-support/` 不在哈希基线内；不宣称独立审阅或产品验收。 |
 | 实施语言 | 第一方后端、连接器、CLI、SDK、Builder、评测器：Rust；控制台与 TS SDK：TypeScript |
 | 产品许可证 | Apache-2.0；依赖与数据集分别审计 |
 | 交付方式 | 私有化部署；Linux Docker Compose 为首个完整路径 |
@@ -1760,6 +1760,8 @@ M1 MVP、M2完整v0.x、M3扩展分别验收，不能把M3探索当M1未完成�
 ### 24.1 全量来源阅读记录
 
 本规范依据以下26份文档（`docs/` 19 份与 `docs/product/` 7 份，revision 6 起）全文编制；[来源基线](sources-baseline.json)记录每文件sha256、字节数、行数和输入Git HEAD。摘要/候选版本以这些已给定设计为依据，未将参考链接的当前内容或未实现制品假称已验证。之后docs变化必须重新检查本规范受影响需求，更新基线需review，不能自动接受漂移。
+
+revision 9（2026-11-04）：Oracle LogMiner 的 SYS 会话级临时表递归写入经 T7 实测后定级为“R1，含 Oracle 内部递归临时写”，C1 需显式选用（Plan D11）：[变更记录](source-baseline-revision-9.md)。
 
 revision 8（2026-11-04）：Oracle 分块的索引检查改读 `V$SQL_PLAN`，不用会写 `PLAN_TABLE` 的 `EXPLAIN PLAN`（REQ-SRC-12 第 4 条同步）：[变更记录](source-baseline-revision-8.md)。
 
