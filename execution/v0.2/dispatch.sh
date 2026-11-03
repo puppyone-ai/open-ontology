@@ -13,6 +13,11 @@ run=$runs/$id
 mkdir -p "$run"
 cat "$here/cards/_common.md" "$card" > "$run/card.md"
 git -C "$worktree" rev-parse HEAD > "$run/base-sha"
+# Keep lane build directories small: no incremental cache, line tables only.
+export CARGO_INCREMENTAL=0
+export CARGO_PROFILE_DEV_DEBUG=line-tables-only
+export CARGO_PROFILE_TEST_DEBUG=line-tables-only
+export PATH="$HOME/.cargo/bin:$PATH"
 codex exec \
   -m 'cx/gpt-6-astra[1m]' \
   -c model_reasoning_effort=medium \
