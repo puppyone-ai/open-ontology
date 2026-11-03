@@ -229,6 +229,7 @@ async fn t1_window_t2_cycles_and_slot_lifecycle() {
         assert_eq!(target, expected);
     }
     assert_eq!(cycle_counts, vec![2, 3, 0]);
+    let c5_metrics = c5_cycles(&dir, port, &mut admin_conn).await;
     let mut missing = capture();
     missing.slot = "missing".into();
     assert_eq!(
@@ -335,7 +336,8 @@ async fn t1_window_t2_cycles_and_slot_lifecycle() {
         dir.join("T2.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
             "major":major,"proto_version":status.protocol_version,"window_correction":true,
-            "c1_cycle_events":cycle_counts,"idle_invalidation":idle,"product_slot_ack":false
+            "c1_cycle_events":cycle_counts,"idle_invalidation":idle,"product_slot_ack":false,
+            "c5_in_memory_target_metrics":c5_metrics
         }))
         .unwrap(),
     )
@@ -345,4 +347,123 @@ async fn t1_window_t2_cycles_and_slot_lifecycle() {
 
 fn source_position(lsn: u64) -> Watermark {
     Watermark::PgLsn { lsn }
+}
+
+async fn c5_cycles(
+    dir: &Path,
+    port: u16,
+    admin: &mut sqlx::PgConnection,
+) -> Vec<serde_json::Value> {
+    use oo_connectors::postgres::reconcile::C5Cycle;
+    let mut engine = PostgresEngine::new(config(dir, port));
+    let table = TableRef {
+        schema: "fixture".into(),
+        name: "items".into(),
+    };
+    let budget = ReadBudget {
+        // Planner reserves half the row budget for growth: target two rows.
+        max_chunk_rows: 4,
+        ..ReadBudget::default()
+    };
+    let plan = engine.plan_chunks(&table, &budget).await.unwrap();
+    assert_eq!(plan.chunks.len(), 2);
+    let mut previous = Vec::new();
+    let mut target = BTreeMap::new();
+    let mut metrics = Vec::new();
+    struct Sink(Vec<(i64, Option<String>)>);
+    impl ChunkSink for Sink {
+        fn push(&mut self, batch: RecordBatch) -> Result<(), SourceError> {
+            self.0.extend(rows(&batch));
+            Ok(())
+        }
+    }
+    for cycle in 1..=4 {
+        if cycle == 2 {
+            // Same COUNT; NULL changes without a reliable timestamp hint.
+            admin
+                .execute("UPDATE fixture.items SET payload='c5-null-change' WHERE id=1")
+                .await
+                .unwrap();
+        } else if cycle == 3 {
+            admin.execute("BEGIN; DELETE FROM fixture.items WHERE id=4; INSERT INTO fixture.items VALUES(5,NULL); COMMIT").await.unwrap();
+        }
+        let policy = C5Cycle {
+            cycle,
+            full_read_every: 100,
+            positive_hints: Default::default(),
+            recent_chunks: [plan.chunks[1].chunk_id].into_iter().collect(),
+        };
+        let inspection = engine.inspect_c5(&table, &previous, &policy).await.unwrap();
+        assert_eq!(inspection.source_digests.len(), 2); // Recent is not exhaustive.
+        assert_eq!(inspection.source_digests[0].lo, plan.chunks[1].lo);
+        assert!(!inspection.full_read_due);
+        let mut payload = 0;
+        let mut rewritten = 0;
+        let bound = |v: &Option<Vec<KeyValue>>| {
+            v.as_ref().map(|keys| {
+                let KeyValue::Int(id) = keys[0] else {
+                    panic!("integer fixture")
+                };
+                id as i64
+            })
+        };
+        for chunk in &inspection.read_chunks {
+            let mut sink = Sink(Vec::new());
+            let receipt = engine.read_chunk(chunk, &budget, &mut sink).await.unwrap();
+            payload += receipt.bytes;
+            rewritten += receipt.rows;
+            target.retain(|id, _| {
+                bound(&chunk.lo).is_some_and(|lo| *id < lo)
+                    || bound(&chunk.hi).is_some_and(|hi| *id >= hi)
+            });
+            target.extend(sink.0);
+        }
+        let gold = sqlx::query("SELECT id,payload FROM fixture.items")
+            .fetch_all(&mut *admin)
+            .await
+            .unwrap();
+        let expected: BTreeMap<_, _> = gold
+            .iter()
+            .map(|r| (r.get::<i64, _>(0), r.get::<Option<String>, _>(1)))
+            .collect();
+        assert_eq!(target, expected);
+        if cycle == 4 {
+            assert!(inspection.read_chunks.is_empty());
+            assert_eq!((payload, rewritten), (0, 0));
+        } else {
+            assert!(payload > 0 && rewritten > 0);
+        }
+        metrics.push(serde_json::json!({
+            "cycle":cycle, "payload_bytes":payload, "rewritten_rows":rewritten,
+            "generation_requested":!inspection.read_chunks.is_empty()
+        }));
+        previous = inspection.source_digests;
+    }
+    let forced = C5Cycle {
+        cycle: 5,
+        full_read_every: 100,
+        positive_hints: [plan.chunks[0].chunk_id].into_iter().collect(),
+        recent_chunks: Default::default(),
+    };
+    assert_eq!(
+        engine
+            .inspect_c5(&table, &previous, &forced)
+            .await
+            .unwrap()
+            .read_chunks
+            .len(),
+        1
+    );
+    let fallback = C5Cycle {
+        cycle: 100,
+        positive_hints: Default::default(),
+        ..forced
+    };
+    let fallback = engine
+        .inspect_c5(&table, &previous, &fallback)
+        .await
+        .unwrap();
+    assert!(fallback.full_read_due);
+    assert_eq!(fallback.read_chunks.len(), 2);
+    metrics
 }

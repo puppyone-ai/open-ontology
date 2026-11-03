@@ -10,6 +10,7 @@ pub mod lsn;
 mod plan;
 mod probe;
 mod read;
+pub mod reconcile;
 mod sqltext;
 pub mod version;
 

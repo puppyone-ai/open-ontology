@@ -77,3 +77,28 @@ EXPLAIN-verified composite index fail closed. Digest framing is
 with UTC/ISO/hex output settings and order-independent sums; it is not the
 Arrow IPC receipt hash. C1 is only prerequisite-graded; this card does not
 implement ChangeSource or create slots/publications.
+
+## D-S2 extension
+
+`postgres::changes::PostgresChanges` now provides read-only pgoutput capture;
+`postgres::reconcile::C5Cycle` drives four-layer digest inspection through
+`PostgresEngine::inspect_c5`. See `S2.md` for supported cases and explicit
+acceptance limits. Run the separate small adversarial fixture with:
+
+```sh
+python3 testing/engines/postgres/run.py --suite changes --versions 13,14,15,16,17,18 --run-id <new-id>
+```
+
+Start capture before reading snapshot chunks. Persist complete transactions
+before any external durable-owner ACK; this reader never advances a slot.
+`next_batch` returns complete transactions with one image per change, including
+key-only delete images. Unsupported messages and unchanged TOAST are refusals,
+not silently omitted data. `required_wal_headroom` is a measured byte budget,
+not proof that a particular number of hours remains.
+
+For C5, persist the returned source digests only after every requested payload
+read and target application succeeds. An empty `read_chunks` suppresses payload
+work; the target coordinator must also suppress rewrites and new generations.
+Timestamp hints are positive evidence supplied by the caller, never cursors.
+Recent ranges do not limit digest coverage. C5 remains range reconciliation
+with per-read snapshots, not transactionally consistent CDC.
