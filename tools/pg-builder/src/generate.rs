@@ -163,8 +163,9 @@ pub fn generate(mut input: GenerateIn<'_>) -> Result<Value, PgBuilderError> {
         return Err(PgBuilderError::new("approval.schema", "the cards have no tables"));
     }
     let mut docs = Vec::new();
+    let mut budget = generation_budget(input.config);
     for table in &tables {
-        docs.extend(generate_table(&mut input, table)?);
+        docs.extend(generate_table(&mut input, table, &mut budget)?);
     }
     if docs.len() == 1 {
         return Ok(docs.remove(0));
@@ -172,15 +173,17 @@ pub fn generate(mut input: GenerateIn<'_>) -> Result<Value, PgBuilderError> {
     Ok(aggregate(input.config, &docs))
 }
 
-fn generate_table(input: &mut GenerateIn<'_>, table: &Value) -> Result<Vec<Value>, PgBuilderError> {
+fn generate_table(input: &mut GenerateIn<'_>, table: &Value,
+    calibrated: &mut oo_builder::budget::Budgeter) -> Result<Vec<Value>, PgBuilderError> {
     let dataset = table.get("dataset").and_then(Value::as_str).unwrap_or("");
     let column_count = table.get("columns").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
     let columns = table.get("columns").and_then(Value::as_array)
         .ok_or_else(|| PgBuilderError::new("compiler.columns", "a selected table has no columns"))?;
-    let mut budget = generation_budget(input.config);
+    let mut budget = calibrated.clone();
     // Leave room for the first shard's table-level candidate.
-    budget.capabilities.max_output = budget.capabilities.max_output.saturating_sub(250);
-    budget.capabilities.system_overhead += 250;
+    let table_reserve = budget.table_output.ceil() as u64;
+    budget.capabilities.max_output = budget.capabilities.max_output.saturating_sub(table_reserve);
+    budget.capabilities.system_overhead = budget.capabilities.system_overhead.saturating_add(table_reserve);
     let items: Vec<_> = columns.iter().enumerate().map(|(i,c)|oo_builder::budget::Item {
         id:format!("column:{i}"),kind:oo_builder::budget::Kind::Column,input:c.clone()
     }).collect();
@@ -222,7 +225,7 @@ fn generate_table(input: &mut GenerateIn<'_>, table: &Value) -> Result<Vec<Value
     let mut docs = Vec::new();
     for (batch_index, (column_from, column_to)) in ranges.into_iter().enumerate() {
         let scope = BatchScope { table, column_from, column_to, batch_index, batch_count, dataset };
-        docs.push(generate_batch(input, &command_text, &request_text, &request, &scope)?);
+        docs.push(generate_batch(input, &command_text, &request_text, &request, &scope, calibrated)?);
     }
     Ok(docs)
 }
@@ -233,6 +236,7 @@ fn generate_batch(
     request_text: &str,
     request: &Value,
     scope: &BatchScope<'_>,
+    budget: &mut oo_builder::budget::Budgeter,
 ) -> Result<Value, PgBuilderError> {
     let model_input = model_input(input.config, request, scope)?;
     let model_input_text = canonical_json(&model_input);
@@ -244,7 +248,7 @@ fn generate_batch(
         items.push(oo_builder::budget::Item {id:"table".into(),
             kind:oo_builder::budget::Kind::Table,input:Value::Null});
     }
-    let allocation = generation_budget(input.config).allocation(&items,
+    let allocation = budget.allocation(&items,
         &json!({"instructions":PROMPT,"request":model_input}));
     if allocation.is_none() {
         return Ok(failure_document(input, "", request_text, "budget_failure",
@@ -256,6 +260,11 @@ fn generate_batch(
     let input_sha = input_hash(input.config, input.cards, request, scope)?;
     let evidence_hash = input.cards.get("evidence_hash").and_then(Value::as_str).unwrap_or("");
     if let Some(cached) = read_validated(input.cache_dir, &input_sha, evidence_hash)? {
+        let usage = &cached["transport"]["usage"];
+        if let (Some(prompt), Some(completion)) =
+            (usage["prompt_tokens"].as_u64(), usage["completion_tokens"].as_u64()) {
+            budget.calibrate(&items, allocation.expect("checked allocation").0, prompt, completion);
+        }
         return Ok(mark_hit(cached));
     }
     let mut chat = chat_body(input.config, &model_input_text)?;
@@ -278,6 +287,11 @@ fn generate_batch(
     if reply.http_status == 429 || parsed.refusal.is_some_and(|s|
         s.contains("usage_limit") || s.contains("cooldown")) {
         return Err(PgBuilderError::new("provider.quota", "quota stopped new batch dispatch; completed cache receipts are retained"));
+    }
+    if parsed.status == "complete" {
+        if let Some((prompt, completion, _)) = parsed.usage {
+            budget.calibrate(&items, allocation.expect("checked allocation").0, prompt, completion);
+        }
     }
     finish_generation(input, &input_sha, command_text, &model_input_text, parsed, scope)
 }

@@ -738,6 +738,25 @@ fn column_batches_follow_output_budget_without_truncating_wide_tables() {
 }
 
 #[test]
+fn egress_probe_budget_reaches_the_rust_adapter() {
+    let dir = temp_dir();
+    let text = write_config(&dir, "generate", 8317, r#"{"status":"unknown"}"#, "bearer");
+    let mut value: Value = serde_json::from_str(&text).unwrap();
+    value["capability_probe"] = json!({
+        "protocol":"oo.model-capabilities/v1","context_window":272000,
+        "max_output_tokens":128000,"proxy_injected_prompt_tokens":2490
+    });
+    value["budget"]["max_completion_tokens"] = json!(128000);
+    value["budget"]["max_total_tokens"] = json!(272000);
+    let config = load_config(&value.to_string()).unwrap();
+    let caps = config.capabilities.unwrap();
+    assert_eq!((caps.window, caps.max_output, caps.system_overhead), (272000, 128000, 2490));
+    value["capability_probe"]["context_window"] = json!(0);
+    assert!(load_config(&value.to_string()).is_err());
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
 fn cache_refuses_structural_drafts() {
     let dir = temp_dir();
     let err = store_validated(&dir, "abc", &json!({"outcome": "structural_draft"})).expect_err("store");
