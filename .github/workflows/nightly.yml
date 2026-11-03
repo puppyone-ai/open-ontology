@@ -27,6 +27,47 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  engine-matrix:
+    name: engine-matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: P0 source audit and regression matrix
+        shell: bash
+        run: |
+          set -o pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 ci/nightly_matrix.py \
+            | tee "${RUNNER_TEMP}/engine-matrix.log"
+      - name: owner-visible result
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Engine matrix'
+            echo 'Missing hooks/images fail closed. This job is not product sign-off.'
+            cat "${RUNNER_TEMP}/engine-matrix.log"
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - name: preserve engine evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: engine-matrix-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            evidence/h-s5-*/**/*.json
+            evidence/h-s5-*/**/*.stdout
+            evidence/h-s5-*/**/*.stderr
+            evidence/h-s5-*/**/SHA256SUMS
+            ${{ runner.temp }}/engine-matrix.log
+          retention-days: 14
+          if-no-files-found: error
+
   gate-docs:
     name: gate-docs
     runs-on: ubuntu-24.04
