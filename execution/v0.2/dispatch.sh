@@ -19,6 +19,8 @@ cat "$here/cards/_common.md" "$card" > "$run/card.md"
 git -C "$worktree" rev-parse HEAD > "$run/base-sha"
 # Keep lane build directories small: no incremental cache, line tables only.
 export CARGO_INCREMENTAL=0
+# Several lanes compile at once; full parallelism each thrashes the host.
+export CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-6}
 export CARGO_PROFILE_DEV_DEBUG=line-tables-only
 export CARGO_PROFILE_TEST_DEBUG=line-tables-only
 export PATH="$HOME/.cargo/bin:$PATH"
