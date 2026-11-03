@@ -44,3 +44,4 @@ evidence run-id.
 | E026 | 2026-11-04 | dispatch | S0-B-01, S1-B-01, S1-B-02 | run `B-S0S1-token-20261104T042541` on `v0.2/b-token-lifecycle` @ `c76db7270` | Codex card dispatched (cx/gpt-6-astra[1m], medium) |
 | E027 | 2026-11-04 | dispatch | S0-M-04, S0-A-01, S1-A-01 | run `A-S0S1-onboarding-20261104T042541` on `v0.2/a-onboarding` @ `c76db7270` | Codex card dispatched (cx/gpt-6-astra[1m], medium) |
 | E028 | 2026-11-04 | dispatch | S2-G-01, S2-G-02, S3-G-01, S3-G-02, S3-G-03 | run `G-S2S3-selfbuild-20261104T043144` on `v0.2/g-selfbuild-budget` @ `2bca1de16` | Codex card dispatched ahead of its sprint under the cross-sprint rule (author_complete only until S1/S2 exits) |
+| E029 | 2026-11-04 | delivery | S5-M-01 | `1d2c3966f` | Evidence → support-matrix generator with self-test; author complete ahead of S5 (cross-sprint rule: no further status until S4 exit) |

@@ -653,10 +653,12 @@
    "sprint": "S5",
    "lane": "M",
    "title": "证据包 → `support-matrix.yaml` 生成器；禁止手写 verified",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
+   "status": "author_complete",
+   "owner": "coordinator",
+   "branch": "v0.2/product-loops",
+   "commits": [
+    "1d2c3966f"
+   ],
    "evidence": []
   },
   {
