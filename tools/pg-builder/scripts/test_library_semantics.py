@@ -56,6 +56,12 @@ class SemanticCacheTest(unittest.TestCase):
         self.number = 0
         self.config = {
             'model': 'fixture/local-v1', 'endpoint': 'https://fixture.invalid/v1',
+            # Pin the simulated route's historical capacity, not fallback limits.
+            'capability_probe': {
+                'protocol': 'oo.model-capabilities/v1',
+                'context_window': 140000, 'max_output_tokens': 40000,
+                'proxy_injected_prompt_tokens': 2500,
+            },
             'max_draft_batches': 32, 's5_concurrency': 1,
             'semantic_scope': {'project': 'fixture', 'role': 'oo_r_reader',
                                'principal': 'reader', 'permissions_sha256': 'a' * 64},
