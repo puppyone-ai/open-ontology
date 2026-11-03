@@ -98,14 +98,22 @@ Current limitations (do not upgrade the support matrix from these tests):
 - Non-binary session-bound key ordering is rejected rather than forced with
   NLSSORT. Data-bound collations use source comparisons but need broader
   live NLS coverage.
-- ORA-01555 retries are bounded, shrink keyed pages, retain the same SCN,
-  and resume only after a successfully flushed key. Lost undo cannot be
-  repaired by shrinking; exhaustion fails. Physical ORA-01555 fails with
+- `SourceEngine::read_chunk` retains the same SCN on bounded ORA-01555
+  page retries and fails closed when undo is lost. Callers with chunk-local,
+  unpublished staging can use `OracleEngine::read_chunk_recovering` and
+  `RetryableChunkSink`: after exhaustion it discards the entire failed chunk
+  and restarts from its lower bound at a fresh SCN, never from the old cursor.
+  The successful receipt brackets the new snapshot. Correct its log window
+  or verify its range with C5 before publishing. The generic pipeline does
+  not yet opt into this Oracle-specific recovery API.
+  Physical ORA-01555 still fails with
   `ora_01555_physical_replan`. The separate `--undo-stress` fixture installs
   an 8 MiB, non-autoextending undo tablespace with retention 1 second. It
   pauses after a flushed batch while a separate writer churns future rows.
-  Its result distinguishes full same-SCN recovery from safe retry exhaustion;
-  a passing fail-closed assertion is **not** recovery acceptance.
+  The test requires a real ORA-01555, successful fresh-SCN recovery of all
+  12,000 rows, and zero diff against an independent high-SCN read. A key
+  moves behind the old cursor to catch partial-resume bugs; a stopped-writer
+  C5 digest recheck also runs. Failure exhaustion is no longer a pass.
 - Heap chunks can still exceed a row budget on unusually dense blocks and
   fail closed. They cannot use the keyed split API.
 - Unsupported types and virtual columns fail admission; no silent column

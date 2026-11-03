@@ -1,5 +1,6 @@
 #![cfg(feature = "oracle")]
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -7,7 +8,9 @@ use std::time::Duration;
 use arrow_array::{Array, RecordBatch, StringArray};
 use oo_connectors::SourceError;
 use oo_connectors::engine::*;
-use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine, map_ora};
+use oo_connectors::oracle::engine::{
+    OracleConnectConfig, OracleEngine, RetryableChunkSink, map_ora,
+};
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
@@ -21,8 +24,9 @@ struct Fixture {
 }
 
 struct Sink {
-    rows: usize,
+    rows: BTreeMap<String, String>,
     batches: Vec<usize>,
+    discarded_rows: Vec<usize>,
     start: Option<mpsc::Sender<()>>,
     finished: mpsc::Receiver<()>,
 }
@@ -42,13 +46,12 @@ impl ChunkSink for Sink {
             .unwrap();
         for i in 0..batch.num_rows() {
             assert!(!id.is_null(i));
-            assert_eq!(id.value(i).parse::<usize>().unwrap(), self.rows + 1);
-            assert_eq!(
-                value.value(i),
-                "a".repeat(1000),
-                "snapshot changed on retry"
+            assert!(
+                self.rows
+                    .insert(id.value(i).into(), value.value(i).into())
+                    .is_none(),
+                "retry duplicated a key"
             );
-            self.rows += 1;
         }
         if let Some(start) = self.start.take() {
             start.send(()).unwrap();
@@ -60,9 +63,18 @@ impl ChunkSink for Sink {
     }
 }
 
+impl RetryableChunkSink for Sink {
+    fn reset(&mut self) -> Result<(), SourceError> {
+        self.discarded_rows.push(self.rows.len());
+        self.rows.clear();
+        self.batches.clear();
+        Ok(())
+    }
+}
+
 #[tokio::test]
 #[ignore = "owned undo-stress fixture only; never run against a customer source"]
-async fn real_ora_01555_preserves_flushed_prefix_or_fails_closed() {
+async fn real_ora_01555_restarts_whole_chunk_at_fresh_scn_with_zero_diff() {
     let f: Fixture = serde_json::from_slice(
         &std::fs::read(std::env::var("OO_ORACLE_FIXTURE_CONFIG").unwrap()).unwrap(),
     )
@@ -116,16 +128,26 @@ async fn real_ora_01555_preserves_flushed_prefix_or_fails_closed() {
                 transactions += 1;
             }
         }
+        // Cross the already flushed cursor; resuming instead of restarting
+        // would miss the moved row and retain the deleted old key.
+        writer
+            .execute("UPDATE UNDO_PROBE SET ID=0 WHERE ID=12000", &[])
+            .map_err(|e| map_ora(&e))
+            .unwrap();
+        writer.commit().map_err(|e| map_ora(&e)).unwrap();
         finished.send(()).unwrap();
         transactions
     });
     let mut sink = Sink {
-        rows: 0,
+        rows: BTreeMap::new(),
         batches: Vec::new(),
+        discarded_rows: Vec::new(),
         start: Some(start),
         finished: done,
     };
-    let result = engine.read_chunk(&plan.chunks[0], &budget, &mut sink).await;
+    let result = engine
+        .read_chunk_recovering(&plan.chunks[0], &budget, &mut sink)
+        .await;
     let transactions = writer.join().unwrap();
     let successful_receipt = result.is_ok();
     let error = result.as_ref().err().map(|e| e.fact());
@@ -134,12 +156,12 @@ async fn real_ora_01555_preserves_flushed_prefix_or_fails_closed() {
         serde_json::to_vec_pretty(&serde_json::json!({
             "transactions": transactions,
             "last_ora": engine.last_ora_code(),
-            "stats": engine.stats(), "flushed_rows": sink.rows,
+            "stats": engine.stats(), "flushed_rows": sink.rows.len(),
             "flushed_batches": sink.batches,
-            "flushed_prefix_diff": 0, "successful_receipt": successful_receipt,
+            "discarded_rows": sink.discarded_rows,
+            "successful_receipt": successful_receipt,
             "error": error,
-            "interpretation": if successful_receipt { "recovered_same_snapshot" }
-                else { "undo_lost_same_scn_retry_exhausted_not_recovery_acceptance" }
+            "interpretation": "fresh_scn_whole_chunk_retry_requires_independent_comparison"
         }))
         .unwrap(),
     )
@@ -153,20 +175,48 @@ async fn real_ora_01555_preserves_flushed_prefix_or_fails_closed() {
         engine.stats().snapshot_retries > 0,
         "must exercise shrink/retry"
     );
-    assert!(
-        sink.rows > 4096,
-        "retry must continue beyond the first flushed batch"
+    let receipt = result.expect("lost undo must recover, not merely fail closed");
+    assert!(engine.stats().fresh_scn_retries > 0);
+    assert!(sink.discarded_rows.iter().any(|n| *n > 4096));
+    assert_eq!(receipt.rows, 12000);
+    assert_eq!(sink.rows.len(), 12000);
+    let cfg = oracledb::Config::default()
+        .set_credentials("OO_READER", &f.reader_password)
+        .set_connect_string(&format!("127.0.0.1:{}/{}", f.port, f.service))
+        .unwrap();
+    let reference = oracledb::connect(cfg).unwrap();
+    let Some(Watermark::OracleScn { scn: high }) = receipt.high else {
+        panic!("SCN")
+    };
+    let expected: BTreeMap<String, String> = reference
+        .query(
+            &format!("SELECT TO_CHAR(ID),PAYLOAD FROM OO_FIXTURE.UNDO_PROBE AS OF SCN {high}"),
+            &[],
+        )
+        .unwrap()
+        .map(|row| {
+            let row = row.unwrap();
+            (row.get(0).unwrap(), row.get(1).unwrap())
+        })
+        .collect();
+    assert_eq!(sink.rows, expected, "fresh-SCN range must have zero diff");
+    // The writer is stopped. A C5 range recheck must also remain stable;
+    // the independent row comparison above verifies the staged payload.
+    let digest = engine.digest_range(&plan.table, None, None).await.unwrap();
+    assert_eq!(digest.rows, 12000);
+    assert_eq!(
+        digest,
+        engine.digest_range(&plan.table, None, None).await.unwrap()
     );
-    if let Ok(receipt) = result {
-        assert_eq!(receipt.rows, 12000);
-        assert_eq!(sink.rows, 12000);
-    } else {
-        assert_eq!(error, Some(Some("ora_01555_snapshot_too_old")));
-        assert!(sink.rows < 12000);
-        assert_eq!(
-            engine.stats().chunks,
-            0,
-            "failed chunk must not have a receipt"
-        );
-    }
+    std::fs::write(
+        f.out.join("undo-verified.json"),
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "rows": expected.len(), "diff": 0, "digest_recheck": true,
+            "key_moved_behind_old_cursor": true, "receipt": receipt,
+            "stats": engine.stats(),
+            "target": "in-memory staging, not Agent DB"
+        }))
+        .unwrap(),
+    )
+    .unwrap();
 }

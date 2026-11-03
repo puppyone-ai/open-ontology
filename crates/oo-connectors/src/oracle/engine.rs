@@ -133,7 +133,15 @@ pub struct EngineStats {
     pub busy_pauses: u64,
     pub busy_pause_ms: u64,
     pub snapshot_retries: u64,
+    pub fresh_scn_retries: u64,
     pub peak_other_active_sessions: u32,
+}
+
+/// A chunk-local staging sink. Reset must discard all rows and receipt state,
+/// not delete an already published range. Publish only after a successful read
+/// and chunk-window correction (or C5 verification).
+pub trait RetryableChunkSink: ChunkSink {
+    fn reset(&mut self) -> Result<(), SourceError>;
 }
 
 #[derive(Clone, Debug)]
@@ -466,6 +474,43 @@ impl OracleEngine {
     /// ORA code of the last database error, for evidence only.
     pub fn last_ora_code(&self) -> Option<usize> {
         self.last_ora
+    }
+
+    /// Restart a keyed chunk at a fresh SCN when bounded same-SCN retries
+    /// exhaust its undo. Never resume after the old cursor: key moves could
+    /// cross it. The caller still corrects the receipt's complete SCN window,
+    /// or rechecks this range with C5, before publishing the staging sink.
+    ///
+    /// `SourceEngine::read_chunk` remains streaming/fail-closed for sinks that
+    /// cannot discard a partial chunk. Physical ranges require a table replan.
+    pub async fn read_chunk_recovering(
+        &mut self,
+        chunk: &ChunkSpec,
+        budget: &ReadBudget,
+        sink: &mut impl RetryableChunkSink,
+    ) -> Result<ChunkReceipt, SourceError> {
+        validate_budget(budget)?;
+        let keyed = self
+            .tables
+            .get(&chunk.table)
+            .is_some_and(|state| matches!(state.strategy, ChunkStrategy::Keyset { .. }));
+        let mut retries = 0;
+        loop {
+            match self.read_chunk(chunk, budget, sink).await {
+                Ok(receipt) => return Ok(receipt),
+                Err(error) => {
+                    sink.reset()?;
+                    if !keyed
+                        || error.fact() != Some("ora_01555_snapshot_too_old")
+                        || retries >= self.cfg.snapshot_retries
+                    {
+                        return Err(error);
+                    }
+                    retries += 1;
+                    self.stats.fresh_scn_retries += 1;
+                }
+            }
+        }
     }
 
     fn set_timeout(&self, d: Duration) -> Result<(), SourceError> {
