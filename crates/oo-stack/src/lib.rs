@@ -1,6 +1,7 @@
 //! oo.stack/v1. Diagnostics never contain configuration values.
 //! Bounded YAML and JSON are accepted regardless of filename.
 
+pub mod credentials;
 pub mod secret;
 pub mod stack;
 
