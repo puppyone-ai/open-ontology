@@ -544,6 +544,50 @@ mod tests {
         assert_eq!(work.merge_items.len(), 1);
     }
 
+    #[test]
+    fn growing_profiles_do_not_repartition_semantic_communities() {
+        let mut tables: Vec<_> = (0..6)
+            .map(|t| {
+                json!({
+                    "dataset":format!("app.t{t}"),"columns":(0..20).map(|c|json!({
+                        "name":format!("c{c}"),"data_type":"text","profile":{"rows":1}
+                    })).collect::<Vec<_>>()
+                })
+            })
+            .collect();
+        let edges: Vec<_> = (1..6)
+            .map(|t| {
+                json!({
+                    "from":{"dataset":format!("app.t{t}"),"columns":["c0"]},
+                    "to":{"dataset":format!("app.t{}",t-1),"columns":["c0"]},
+                    "provenance":"declared_fk","confidence":1
+                })
+            })
+            .collect();
+        let mut budget = crate::budget::Budgeter::default();
+        budget.capabilities.max_output = 128000;
+        let graph = crate::community::build_graph(&tables, &edges, &budget).unwrap();
+        let before = semantic_snapshot(&tables, &graph).unwrap();
+        for table in &mut tables {
+            for column in table["columns"].as_array_mut().unwrap() {
+                column["profile"] = json!({"rows":100000,"distribution":"x".repeat(5000)});
+            }
+        }
+        let graph = crate::community::build_graph(&tables, &edges, &budget).unwrap();
+        let after = semantic_snapshot(&tables, &graph).unwrap();
+        let work = semantic_work(&before, &after);
+        assert!(work.communities.is_empty());
+        assert!(work.cut_edges.is_empty());
+        assert!(work.merge_items.is_empty());
+        assert!(
+            graph
+                .communities
+                .iter()
+                .flat_map(|c| &c.batches)
+                .all(|b| b.input_tokens <= b.input_available)
+        );
+    }
+
     fn fixture() -> (Value, Value, Value, Value, Value, BTreeSet<String>) {
         let col = json!({"name":"id","data_type":"text","pii":"none","semantic_type":"identifier"});
         let new = json!({"name":"status","data_type":"text","pii":"none","semantic_type":"status_code",

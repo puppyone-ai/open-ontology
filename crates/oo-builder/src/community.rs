@@ -272,7 +272,19 @@ pub fn build_graph(
         let cards: Vec<_> = names.iter().map(|n| (*inventory[n]).clone()).collect();
         let items = table_items(&cards)?;
         let batches = budget.plan(&items, &json!({"hubs":signatures}))?;
-        if batches.len() > 1 && members.len() > 1 {
+        // Observation growth may shard calls, but must not change semantic owners.
+        let semantic_cards: Vec<_> = cards
+            .iter()
+            .map(|table| {
+                let mut card = structure(table);
+                card["dataset"] = table["dataset"].clone();
+                card["comment"] = table["comment"].clone();
+                card
+            })
+            .collect();
+        let semantic_batches =
+            budget.plan(&table_items(&semantic_cards)?, &json!({"hubs":signatures}))?;
+        if semantic_batches.len() > 1 && members.len() > 1 {
             let cut = budget_cut(&members, &local);
             pending.push_back(members[..cut].to_vec());
             pending.push_back(members[cut..].to_vec());
