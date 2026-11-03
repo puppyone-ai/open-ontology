@@ -101,7 +101,11 @@ Current limitations (do not upgrade the support matrix from these tests):
 - ORA-01555 retries are bounded, shrink keyed pages, retain the same SCN,
   and resume only after a successfully flushed key. Lost undo cannot be
   repaired by shrinking; exhaustion fails. Physical ORA-01555 fails with
-  `ora_01555_physical_replan`. Real undo stress is a separate test concern.
+  `ora_01555_physical_replan`. The separate `--undo-stress` fixture installs
+  an 8 MiB, non-autoextending undo tablespace with retention 1 second. It
+  pauses after a flushed batch while a separate writer churns future rows.
+  Its result distinguishes full same-SCN recovery from safe retry exhaustion;
+  a passing fail-closed assertion is **not** recovery acceptance.
 - Heap chunks can still exceed a row budget on unusually dense blocks and
   fail closed. They cannot use the keyed split API.
 - Unsupported types and virtual columns fail admission; no silent column
@@ -117,3 +121,10 @@ Current limitations (do not upgrade the support matrix from these tests):
 Raw logs, image identity, plans, probe, test exit status, and SHA256SUMS are
 under `evidence/<run-id>/<version>/`. Failed attempts remain evidence.
 Only this documentation and the separate evidence summary are committed.
+
+For the destructive undo stress test, **only** against a newly created fixture:
+
+```sh
+python3 testing/engines/oracle/run.py --version 23 --run-id oracle-e-undo --undo-stress
+python3 testing/engines/oracle/worker/test_worker.py
+```

@@ -23,7 +23,11 @@ def main():
     parser.add_argument("--version", choices=IMAGES, required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--worker-image", help="local thick-worker image; required for 11g")
+    parser.add_argument("--undo-stress", action="store_true",
+                        help="shrink undo in this owned 23ai fixture; test lost-undo behavior")
     args = parser.parse_args()
+    if args.undo_stress and (args.version != "23" or args.worker_image):
+        parser.error("undo stress currently requires the native 23ai fixture")
     if not all(c.isalnum() or c in "-_" for c in args.run_id):
         parser.error("invalid run-id")
     out = ROOT / "evidence" / args.run_id / args.version
@@ -183,6 +187,36 @@ print(json.dumps(results))
                 "worker-timeout-codes", input=json.dumps({
                     "password": passwords[1], "dsn": f"host.docker.internal:{port}/{service}",
                 }))
+        if args.undo_stress:
+            undo_sql = f"""
+SET ECHO OFF VERIFY OFF FEEDBACK ON
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+{switch}
+CREATE TABLE OO_FIXTURE.UNDO_PROBE (ID NUMBER(12) PRIMARY KEY, PAYLOAD VARCHAR2(1000));
+INSERT INTO OO_FIXTURE.UNDO_PROBE SELECT LEVEL, RPAD('a',1000,'a') FROM DUAL CONNECT BY LEVEL<=12000;
+COMMIT;
+GRANT SELECT, FLASHBACK ON OO_FIXTURE.UNDO_PROBE TO OO_READER;
+BEGIN DBMS_STATS.GATHER_TABLE_STATS('OO_FIXTURE','UNDO_PROBE'); END;
+/
+DECLARE
+  directory VARCHAR2(4000);
+BEGIN
+  SELECT SUBSTR(file_name,1,INSTR(file_name,'/',-1)) INTO directory
+  FROM dba_data_files WHERE tablespace_name='USERS' AND ROWNUM=1;
+  EXECUTE IMMEDIATE 'CREATE UNDO TABLESPACE OO_UNDO DATAFILE '''||directory||'oo_undo.dbf'' SIZE 8M AUTOEXTEND OFF';
+END;
+/
+ALTER TABLESPACE OO_UNDO RETENTION NOGUARANTEE;
+ALTER SYSTEM SET UNDO_TABLESPACE=OO_UNDO;
+ALTER SYSTEM SET UNDO_RETENTION=1;
+BEGIN DBMS_SESSION.SLEEP(5); END;
+/
+SELECT name,value FROM v$parameter WHERE name IN ('undo_tablespace','undo_retention');
+SELECT tablespace_name,bytes,autoextensible FROM dba_data_files WHERE tablespace_name='OO_UNDO';
+EXIT
+"""
+            run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
+                "undo-setup", input=undo_sql, timeout=300)
         env = os.environ.copy()
         env["OO_ORACLE_FIXTURE_CONFIG"] = str(out / "config.json")
         source_files = sorted((ROOT / "crates/oo-connectors/src/oracle").glob("*.rs"))
@@ -194,7 +228,7 @@ print(json.dumps(results))
         (out / "source-hashes.json").write_text(json.dumps(sources, indent=2) + "\n")
         p = subprocess.run(
             ["cargo", "test", "-p", "oo-connectors", "--features", "oracle",
-             "--locked", "--test", "oracle_engine_real",
+             "--locked", "--test", "oracle_undo_real" if args.undo_stress else "oracle_engine_real",
              "--", "--ignored", "--nocapture"],
             cwd=ROOT, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             timeout=1800,
@@ -204,6 +238,16 @@ print(json.dumps(results))
             raw = raw.replace(password, "[redacted]")
         (out / "test.log").write_text(raw)
         (out / "test.exit").write_text(str(p.returncode) + "\n")
+        if args.undo_stress:
+            run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
+                "undo-observation", input=f"""
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+{switch}
+SELECT SUM(ssolderrcnt) snapshot_too_old, SUM(unxpstealcnt) unexpired_steals,
+       SUM(nospaceerrcnt) no_space FROM v$undostat;
+SELECT tablespace_name,bytes,autoextensible FROM dba_data_files WHERE tablespace_name='OO_UNDO';
+EXIT
+""")
         if sources != source_hashes():
             raise RuntimeError("source changed during test; rerun for fixed-source evidence")
         if p.returncode:
