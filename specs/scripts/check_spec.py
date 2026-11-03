@@ -17,6 +17,11 @@ SPEC = ROOT / 'specs/open-ontology-v0.1-spec.md'
 BASELINE = ROOT / 'specs/sources-baseline.json'
 ID = r'REQ-[A-Z]+-\d{2}'
 AT = r'AT-[A-Z]+-\d{2}'
+# Revision 6 (2026-11-03): v0.2 chapter 7B adds REQ-ONB/TOK/BLD/ENG (19) and AT-ONB/TOK/BLD/ENG (12);
+# docs/product joins the hashed source set.
+EXPECTED_REQS = 107
+EXPECTED_ATS = 117
+SOURCE_DIRS = ('docs', 'docs/product')
 
 
 def section(text: str, start: str, end: str) -> str:
@@ -39,8 +44,8 @@ def inspect(text: str, baseline: dict) -> tuple[list[str], dict]:
     traced = re.findall(rf'^\| ({ID}) \|', trace, re.M)
     reqs = set(definitions)
     stats['requirements'] = len(reqs)
-    if len(reqs) != 88:
-        errors.append(f'Expected 88 requirements, found {len(reqs)}')
+    if len(reqs) != EXPECTED_REQS:
+        errors.append(f'Expected {EXPECTED_REQS} requirements, found {len(reqs)}')
     for label, values in [('requirement definitions', definitions), ('trace rows', traced)]:
         if duplicate_ids(values):
             errors.append(f'Duplicate {label}: {duplicate_ids(values)}')
@@ -54,8 +59,8 @@ def inspect(text: str, baseline: dict) -> tuple[list[str], dict]:
     acceptance = re.findall(rf'^\| ({AT}) \|', acceptance_section, re.M)
     ats = set(acceptance)
     stats['acceptance_cases'] = len(ats)
-    if len(ats) != 105 or duplicate_ids(acceptance):
-        errors.append(f'AT definitions: expected 105 unique; count={len(ats)}, duplicates={duplicate_ids(acceptance)}')
+    if len(ats) != EXPECTED_ATS or duplicate_ids(acceptance):
+        errors.append(f'AT definitions: expected {EXPECTED_ATS} unique; count={len(ats)}, duplicates={duplicate_ids(acceptance)}')
     unknown = set(re.findall(AT, text)) - ats
     if unknown:
         errors.append(f'Undefined acceptance references: {sorted(unknown)}')
@@ -172,10 +177,10 @@ def inspect(text: str, baseline: dict) -> tuple[list[str], dict]:
     stats['local_links'] = local_links
 
     entries = baseline.get('sources', [])
-    source_paths = {str(p.relative_to(ROOT)) for p in (ROOT/'docs').glob('*.md')}
+    source_paths = {str(p.relative_to(ROOT)) for d in SOURCE_DIRS for p in (ROOT/d).glob('*.md')}
     listed = [e.get('path', '') for e in entries]
-    if len(entries) != 19 or baseline.get('source_count') != 19 or set(listed) != source_paths or len(set(listed)) != len(listed):
-        errors.append('Source baseline must contain all 19 docs exactly once')
+    if len(entries) != len(source_paths) or baseline.get('source_count') != len(source_paths) or set(listed) != source_paths or len(set(listed)) != len(listed):
+        errors.append(f'Source baseline must contain all {len(source_paths)} docs in {SOURCE_DIRS} exactly once')
     for entry in entries:
         p = ROOT / entry['path']
         if not p.is_file():
