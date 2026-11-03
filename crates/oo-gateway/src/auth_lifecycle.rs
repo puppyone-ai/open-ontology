@@ -3,11 +3,15 @@ use super::token_lifecycle::{AdminRequest, Control, DAY, Operation, Receipt};
 use super::*;
 use zeroize::Zeroizing;
 
+#[path = "auth_device.rs"]
+mod device;
+
 pub(super) struct Lifecycle {
     pub control: Control,
     pub admin_workload: String,
     // Global enrollment limiter bounds guessing even if source addresses are spoofed.
     attempts: Mutex<(Instant, u32)>,
+    devices: Mutex<device::Devices>,
 }
 impl Lifecycle {
     pub fn new(control: Control, admin_workload: String) -> Self {
@@ -15,6 +19,7 @@ impl Lifecycle {
             control,
             admin_workload,
             attempts: Mutex::new((Instant::now(), 0)),
+            devices: Mutex::new(device::Devices::default()),
         }
     }
     fn admit(&self) -> bool {
@@ -35,6 +40,10 @@ pub(super) fn mount(router: Router<AppState>) -> Router<AppState> {
     router
         .route("/v1/auth/enroll", post(enroll))
         .route("/v1/auth/renew", post(renew))
+        .route("/v1/auth/whoami", get(whoami))
+        .route("/v1/auth/device/code", post(device::authorize))
+        .route("/v1/auth/device/token", post(device::poll))
+        .route("/v1/auth/device", get(device::verification))
         .route("/internal/v1/tokens", post(admin))
         .route("/v1/health", get(expiry_health))
 }
@@ -179,6 +188,12 @@ async fn admin(
     if peer.workload.is_empty() || peer.workload != lifecycle.admin_workload {
         return failure("forbidden");
     }
+    if serde_json::from_slice::<Value>(&body)
+        .ok()
+        .is_some_and(|v| v["operation"] == "device_approve")
+    {
+        return device::approve(&state, &body, &peer.workload).await;
+    }
     let Ok(request) = serde_json::from_slice::<AdminRequest>(&body) else {
         return failure("input");
     };
@@ -188,6 +203,50 @@ async fn admin(
             .execute(request.into(), &peer.workload)
             .await,
     )
+}
+
+async fn whoami(
+    State(state): State<AppState>,
+    peer: PublicPeer,
+    RawQuery(query): RawQuery,
+    headers: HeaderMap,
+) -> Response {
+    let caller = match public_caller(&state, &headers, &query, peer).await {
+        Ok(caller) => caller,
+        Err(response) => return *response,
+    };
+    let hash = match bearer(&headers).and_then(|token| token_hash(&token).map_err(|_| ())) {
+        Ok((_, hash)) => hash,
+        Err(_) => return failure("unauthenticated"),
+    };
+    let endpoint = match read_endpoint(&state.inner.endpoint_path) {
+        Ok(endpoint) => endpoint,
+        Err(_) => return failure("database"),
+    };
+    let client = match connect(&state, &endpoint).await {
+        Ok(client) => client,
+        Err(_) => return failure("database"),
+    };
+    let row = match client.query_one(READ_TOKEN, &[&hash]).await {
+        Ok(row) => row,
+        Err(_) => return failure("unauthenticated"),
+    };
+    let absolute: i64 = row.get(12);
+    let idle: Option<i64> = row.get(11);
+    let mut response = json_value(
+        200,
+        serde_json::json!({
+            "project_id": caller.tuple.project_id,
+            "principal_id": caller.tuple.principal_id,
+            "role": caller.tuple.role,
+            "expires_at_ms": idle.map_or(absolute, |at| at.min(absolute)),
+            "protocol_version": "0.2",
+        }),
+    );
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
 }
 pub fn expiry(deadline: Option<i64>, now: i64) -> Value {
     match deadline {
