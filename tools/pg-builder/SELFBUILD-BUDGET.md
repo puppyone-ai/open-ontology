@@ -32,6 +32,13 @@ Absent capabilities use 32k/4k and 2.5k injected system overhead; preflight mark
 them unprobed. The legacy JSON adapter retains its historical route limits;
 new routes should always supply a capability probe/override. No automatic
 maximum-context probing or provider price lookup is performed.
+For credential-free dispatch, set `transport: "model-egress"` and a literal
+HTTP loopback endpoint. Supply the egress `oo.model-capabilities/v1` result as
+`capability_probe`; the Rust bridge parses it for both language paths.
+Overrides may lower limits, not enlarge a probed window/output limit or reduce
+measured overhead. Legacy Rust generation replays usage calibration on cache
+hits. The legacy JSON format remains supported; it does not silently discard
+columns to satisfy an output limit.
 
 The runner re-budgets the actual registry/instructions/repair context before
 dispatch. Table and column IDs are framed physical-name hashes. Missing or
@@ -57,8 +64,24 @@ coordinator's publication path, but that external publisher is not wired by
 this lane. Pack compilation exports a visibility-filtered
 `relationships/graph.json` (with JSON pages when needed).
 That Pack graph is rendered from reviewed OOS entities/relationships, not
-automatically from the new candidate registry. The registry-to-reviewed-OOS
-adapter and the authenticated publication hook remain integration work.
+automatically from the new candidate registry.
+
+The `reviewed` bridge operation accepts an
+`oo.builder.reviewed-community/v1` command: candidate `draft`, existing reviewed
+`effective`, `visibility`, `ceilings`, `orphan_threshold`, independent `review`
+and the existing `classification_review`. Review binds draft/effective/summary
+hashes, reviewer/date/mode, explicit entity key/display selections and G14
+decisions. Conversion recomputes connectivity and compiles a role Pack;
+it does not authenticate the reviewer, grant access, or publish.
+Existing nonempty curated entities/relationships require reconciliation and
+are refused rather than overwritten.
+
+`PUBLISHER-INTEGRATION.patch` is the exact coordinator-owned
+`library_policy.rs` hook. It recompiles the supplied `community_review` command
+and compares the effective document, visibility and producer before admission.
+The envelope's ordinary `review` remains the separate classification review;
+existing publisher classification/authentication/receipt checks still apply.
+The patch passes `git apply --check` but is not applied in this lane.
 
 ## Retained evidence and remaining acceptance
 
@@ -74,11 +97,58 @@ base `2bca1de16`; under task-card rule 9 they do not block commits.
   an entity conflict correctly left G14 blocked pending independent review.
 - The live 660-table attempt was interrupted to bound usage while acceptance
   prerequisites were unavailable. Retained partial receipts are not a T5 pass.
-- The lane-H generator is not present in this checkout; scale tests use a local
+- At that run the lane-H generator was absent; scale tests used a local
   neutral fixture, not that generator's gold output.
 - The full standalone Rust adapter suite requires ignored historical MongoDB,
   Oracle and stored-receipt evidence absent from this checkout. Those tests
   remain failures; no synthetic replacement was installed and no guard relaxed.
-- Legacy JSON generation is not migrated wholesale to the three-pass NDJSON
+- At that run legacy JSON generation was not migrated wholesale to the three-pass NDJSON
   runner. Automatic capability discovery, full preflight cost/time estimates,
   hierarchical domain summaries and publisher integration remain follow-ups.
+
+## Continuation acceptance
+
+Run ID: `g-commit-cont-20261104`. The seven retained commits were rebased onto
+`v0.2/product-loops` before integrating egress and lane H's generator.
+
+```sh
+python3 tools/pg-builder/scripts/live_selfbuild_acceptance.py \
+  --config evidence/local/stack.json --output evidence/local/t4-t5 \
+  --tables 660 --retained-receipts evidence/previous/draft/receipts --execute
+# Small connected-table T4 run; reuses the completed initial semantic snapshot.
+python3 tools/pg-builder/scripts/live_selfbuild_acceptance.py \
+  --config evidence/local/stack.json --output evidence/local/t4-connected \
+  --tables 660 --base-result evidence/local/t4-t5/draft/result.json \
+  --connected-mutations --execute
+```
+
+The harness imports oo-test's fixture runner/generator unchanged, substitutes
+lane `g` labels for its own resources, and refuses cleanup on either lane or
+run-id mismatch. Sources use the read-only fixture principal; only the separate
+admin seeds and applies T4 mutations. Listeners are ephemeral and closed.
+
+- PostgreSQL **17.10**, native linux/arm64, pinned image. `--tables 660`
+  creates 660 small tables plus the fixed fixture: **694 tables/views and
+  1,713 columns**, including all 300 columns of `wide_rows`.
+- T5: full table/column coverage, zero unresolved items, **7/7 declared FKs
+  mapped**. The first attempt failed on three hyphenated cardinalities.
+  Actionable enum feedback fixed repair without accepting invalid values.
+  The resumed run reused **19 receipts**, made **4 new calls**, and passed.
+  Original failures remain in `live-t4-t5`; success is `live-resumed`.
+- Metered connected T4 (`live-connected-t4`): data-only **0 calls**;
+  add column and type change **5 calls each**, including repairs, each scoped
+  to **1 community / 2 cut edges / 1 merge item**; new table **2 calls**,
+  **1 community / 0 cut edges / 1 merge item**. Initial snapshot reuse made
+  zero calls. An earlier isolated-table T4 also passed.
+- Probe: **272,000 window / 128,000 output / 2,490 minimal-prompt tokens**.
+  These are provider metadata and measured minimal-prompt usage, not boundary
+  testing or an isolated measurement of injection.
+- Final-code replay uses copied receipts, makes zero provider calls and matches
+  accepted candidates, registry, work, snapshot and review exactly.
+- G14 is **not approved**: live T5 reports 16 components and an orphan ratio
+  of about 0.652. No reviewer decisions or authentication were fabricated.
+  Local conversion/Pack tests use explicitly synthetic reviews.
+- Fixture row scale is 1,000; this is schema T4/T5, not row-throughput or
+  cross-engine acceptance. No live 1,000-table run was started.
+- No lane-owned containers/volumes or listeners remain. No lane-authored
+  Cargo.lock changes. Shared publisher integration is still coordinator work.
