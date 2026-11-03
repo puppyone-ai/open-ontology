@@ -1,0 +1,287 @@
+{
+  "protocol": "oo.oracle.lane-e-evidence/v1",
+  "status": "partial",
+  "todos": {
+    "S0-E-01": "not_done: 11g thin driver rejects server",
+    "S1-E-01": "not_done: 11g blocked; Agent DB end-to-end and full source protection acceptance absent"
+  },
+  "commit": "split into version rules, SQL builders, engine, and fixture commits; see git log",
+  "engines": [
+    {
+      "version": {
+        "family": "oracle",
+        "major": 21,
+        "minor": 3,
+        "patch": 0,
+        "raw": "21.3.0.0.0"
+      },
+      "run_id": "e-s0s1-20261104-delivery",
+      "platform": "linux/amd64",
+      "exit": 0,
+      "T0": "component_pass",
+      "T1": "component_pass_not_Agent_DB",
+      "T8": "component_pass_not_full_acceptance",
+      "tables": [
+        {
+          "corrections": 10,
+          "diff": 0,
+          "growth_splits": 0,
+          "reference_scn": 2985926,
+          "rows": 2000000,
+          "table": "NUMERIC_PK",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        },
+        {
+          "corrections": 0,
+          "diff": 0,
+          "growth_splits": 0,
+          "reference_scn": 2989296,
+          "rows": 5,
+          "table": "TEXT_PK",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        },
+        {
+          "corrections": 0,
+          "diff": 0,
+          "growth_splits": 1,
+          "reference_scn": 2989323,
+          "rows": 3000,
+          "table": "COMPOSITE_PK",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        },
+        {
+          "corrections": 0,
+          "diff": 0,
+          "growth_splits": 0,
+          "reference_scn": 2989350,
+          "rows": 3000,
+          "table": "UNIQUE_ONLY",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        },
+        {
+          "corrections": 0,
+          "diff": 0,
+          "growth_splits": 0,
+          "reference_scn": 2984159,
+          "rows": 3000,
+          "table": "HEAP",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        },
+        {
+          "corrections": 2,
+          "diff": 0,
+          "growth_splits": 0,
+          "reference_scn": 2989372,
+          "rows": 10803,
+          "table": "GROWING",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        }
+      ],
+      "writer_cycles": 806,
+      "stats": {
+        "busy_pause_ms": 0,
+        "busy_pauses": 0,
+        "chunks": 75,
+        "ipc_bytes": 63236248,
+        "paced_sleep_ms": 107472,
+        "peak_other_active_sessions": 1,
+        "read_ms": 35790,
+        "rows": 2020812,
+        "sessions": 1,
+        "snapshot_retries": 0
+      },
+      "active_gate": {
+        "busy_pause_ms": 100,
+        "busy_pauses": 5,
+        "chunks": 0,
+        "ipc_bytes": 0,
+        "paced_sleep_ms": 449,
+        "peak_other_active_sessions": 1,
+        "read_ms": 149,
+        "rows": 0,
+        "sessions": 1,
+        "snapshot_retries": 0
+      },
+      "timeout": "timeout_connection_closed",
+      "growth_split_rows": 1006,
+      "digest_collision_regression": "passed",
+      "sha256": {
+        "SHA256SUMS.json": "2938fb246f7e97a86a524e5cf59a94480b4a6a3af693af88bf582841b45154e2",
+        "source-hashes.json": "7296b0ca8d75d365865240fdfd35602f9e79f7b30803243724827ee8a4ab1472",
+        "test.log": "94c7a750ea394e9ebf19f5ca8bf30df6696515c98973c3df8c94d1582056a8d1",
+        "result.json": "f7c30dbd7768972542e1d552a01a4ffef2201a74197bdc1b44717415ef389521",
+        "probe.json": "732807b028e22ff58f3905a03f36ca5dd49845c82e7d2e6cfd70d1bb44307084",
+        "image.json": "8a3e121af6ec6f11d1e8a1510f50fc4b33eb93a38bad4aec84fccd8a05f89e2c"
+      }
+    },
+    {
+      "version": {
+        "family": "oracle",
+        "major": 23,
+        "minor": 26,
+        "patch": 3,
+        "raw": "23.26.3.0.0"
+      },
+      "run_id": "e-s0s1-20261104-delivery",
+      "platform": "linux/arm64",
+      "exit": 0,
+      "T0": "component_pass",
+      "T1": "component_pass_not_Agent_DB",
+      "T8": "component_pass_not_full_acceptance",
+      "tables": [
+        {
+          "corrections": 10,
+          "diff": 0,
+          "growth_splits": 0,
+          "reference_scn": 2153357,
+          "rows": 2000000,
+          "table": "NUMERIC_PK",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        },
+        {
+          "corrections": 0,
+          "diff": 0,
+          "growth_splits": 0,
+          "reference_scn": 2153983,
+          "rows": 5,
+          "table": "TEXT_PK",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        },
+        {
+          "corrections": 0,
+          "diff": 0,
+          "growth_splits": 1,
+          "reference_scn": 2154007,
+          "rows": 3000,
+          "table": "COMPOSITE_PK",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        },
+        {
+          "corrections": 0,
+          "diff": 0,
+          "growth_splits": 0,
+          "reference_scn": 2154029,
+          "rows": 3000,
+          "table": "UNIQUE_ONLY",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        },
+        {
+          "corrections": 0,
+          "diff": 0,
+          "growth_splits": 0,
+          "reference_scn": 2151591,
+          "rows": 3000,
+          "table": "HEAP",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        },
+        {
+          "corrections": 2,
+          "diff": 0,
+          "growth_splits": 0,
+          "reference_scn": 2154051,
+          "rows": 10712,
+          "table": "GROWING",
+          "target": "in-memory canonical row hashes (not Agent DB)"
+        }
+      ],
+      "writer_cycles": 714,
+      "stats": {
+        "busy_pause_ms": 0,
+        "busy_pauses": 0,
+        "chunks": 75,
+        "ipc_bytes": 63234776,
+        "paced_sleep_ms": 93986,
+        "peak_other_active_sessions": 1,
+        "read_ms": 31299,
+        "rows": 2020729,
+        "sessions": 1,
+        "snapshot_retries": 0
+      },
+      "active_gate": {
+        "busy_pause_ms": 80,
+        "busy_pauses": 4,
+        "chunks": 0,
+        "ipc_bytes": 0,
+        "paced_sleep_ms": 377,
+        "peak_other_active_sessions": 1,
+        "read_ms": 125,
+        "rows": 0,
+        "sessions": 1,
+        "snapshot_retries": 0
+      },
+      "timeout": "timeout_connection_closed",
+      "growth_split_rows": 1014,
+      "digest_collision_regression": "passed",
+      "sha256": {
+        "SHA256SUMS.json": "b2fd6d2647dc24c228e2d65047dc25deb7f7d603d22ad1f128f2fd7419a3a43c",
+        "source-hashes.json": "7296b0ca8d75d365865240fdfd35602f9e79f7b30803243724827ee8a4ab1472",
+        "test.log": "bfe34ee2c6fc5111f42dbc7f6987024903d0c7a02734b27827eb3be3b95d4623",
+        "result.json": "45589f624833909484fbbca0ba4b28981e38b382fd477ee023cc4a91de019afc",
+        "probe.json": "96048db5b405f4f24dac10760f166bef28a18483492ab3ad2d5ca8386b2fe7b7",
+        "image.json": "b6d8d46b3acc69e68761ead20b14b9eb914c47f30f24686dcae3b14f8bbddb47"
+      }
+    },
+    {
+      "version": "11.2.0.2.0",
+      "platform": "linux/amd64",
+      "run_id": "e-s0s1-20261104-fix2",
+      "exit": 101,
+      "T0": "blocked: thin_driver_server_version_not_supported",
+      "T1": "not_run",
+      "T8": "not_run",
+      "sha256": {
+        "SHA256SUMS.json": "9bed2231dcfed3d1821c9e16d643835e865c023d56b7d7b6187996501f8a7354",
+        "test.log": "1cc51b536011a9dfa1e249bffa1fed645a60bbaa423ebe384fa7dba30963ec20",
+        "connect-error.txt": "9f96aba7d263bbb90b2d1147dbda1507651bc86e60e2d0b827e753e2f8be57e1",
+        "image.json": "4658f191a02a0e2961c55c2d1ef748e5182f1e812841525c93137da0e481c46c"
+      }
+    },
+    {
+      "version": "19c",
+      "status": "blocked_by_D2_not_attempted"
+    }
+  ],
+  "checks": {
+    "workspace-check-final": {
+      "exit": 0,
+      "result": "pass",
+      "log_sha256": "b2c020f27a01faabb96e5d55c11fd219cf7c484c9cf34b3342bfc8444d934c89"
+    },
+    "unit-commit": {
+      "exit": 0,
+      "result": "pass_111_tests",
+      "log_sha256": "b64ee5901684145f1ab0297fb626314d86c64186dcab5445d0aecaf8a6d76ca3"
+    },
+    "fmt": {
+      "exit": 0,
+      "result": "pass",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "default-tests": {
+      "exit": 101,
+      "result": "fail_5_file_worker_parent_tests",
+      "log_sha256": "4ce41bca4888336455ce24cc5950dca9427abd207f4963dfe79323550723cb91"
+    },
+    "parent-recheck": {
+      "exit": 101,
+      "result": "same_5_failures_serial_worktree_TMPDIR",
+      "log_sha256": "fb7a561690f7bb9ea6466e909ec535e2705be97aba5d871c2c35b677d81306c8"
+    },
+    "default-lib": {
+      "exit": 0,
+      "result": "pass_79_tests",
+      "log_sha256": "c2a09fcf751e98985b37287f367c330d858eba1357b5b34442e9b681ca8e7d67"
+    }
+  },
+  "failed_attempts_retained": [
+    "e-s0s1-20261104-real/23: compilation/SQL builder failure",
+    "e-s0s1-20261104-real/11: fixture password length failure",
+    "e-s0s1-20261104-fix1/11: CONNECT BY memory failure",
+    "e-s0s1-20261104-fix1/23: ORA-03089",
+    "e-s0s1-20261104-fix2/23: row-limit bind diagnostic",
+    "e-s0s1-20261104-final/23: concurrent growth requires split",
+    "e-s0s1-20261104-accept/21: timeout recovery classification failure"
+  ],
+  "containers_remaining": [],
+  "lock_or_manifest_changes": false
+}
