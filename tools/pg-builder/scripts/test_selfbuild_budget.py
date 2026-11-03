@@ -182,6 +182,67 @@ class ReceiptAndFamilyTest(unittest.TestCase):
             self.assertEqual(len(resumed.receipts[0]['attempts']),2)
             self.assertEqual(resumed.successes,0)
 
+    def test_reviewed_registry_compiles_pack_and_rejects_stale_review(self):
+        tables,edges = fixture(2,2)
+        root = lib.ROOT / 'testing/real-db/gateway-compiled-pack/fixtures'
+        effective = json.loads((root/'effective.json').read_text())
+        visibility = json.loads((root/'visibility-picker.json').read_text())
+        effective['ontology']['include_schemas'] = ['app']
+        effective['datasets'] = [
+            dict(schema_version='oos/v1', dataset=t['dataset'], tier='file',
+                 label=t['dataset'],primary_key=['id'],
+                 columns=[dict(name=c['name'],pii='none',
+                               classification={'state':'confirmed','by':'fixture.reviewer'})
+                          for c in t['columns']]) for t in tables]
+        visibility['datasets'] = [
+            dict(dataset=t['dataset'],row_security='none',global_stats='denied',
+                 columns=[c['name'] for c in t['columns']]) for t in tables]
+        with tempfile.TemporaryDirectory() as output:
+            draft = lib.Runner(Acceptance().config(),output,Model()).run(tables,edges)
+            review = dict(reviewer='fixture.reviewer',reviewed_at='2026-11-04',
+                          mode='self',review_origin='operator_pinned_file',
+                          draft_sha256=lib.digest(draft),effective_sha256=lib.digest(effective),
+                          summary_sha256=draft['review']['summary_sha256'],
+                          entities={id_:dict(key='id',display='id') for id_ in draft['registry']['entities']},
+                          decisions={})
+            command = dict(protocol='oo.builder.reviewed-community/v1',
+                           draft=draft,effective=effective,visibility=visibility,
+                           review=review,orphan_threshold=.2,ceilings={},
+                           classification_review=dict(review_origin='operator_pinned_file',
+                               project=effective['project'],role=visibility['role'],
+                               principal=visibility['principal'],hidden_columns=[],
+                               columns={t['dataset']+'.'+c['name']:
+                                   dict(pii='none',semantic_type=None,reviewer='fixture.reviewer')
+                                   for t in tables for c in t['columns']}))
+            compiled = lib.bridge('reviewed',command=command)
+            self.assertFalse(compiled['published'])
+            self.assertEqual(len(compiled['effective']['entities']),2)
+            self.assertEqual(len(compiled['effective']['relationships']),1)
+            artifact = lib.canonical(compiled['producer']['artifact'])
+            self.assertIn('relationships/graph.json',artifact)
+            hidden = copy.deepcopy(command)
+            hidden['visibility']['datasets'] = hidden['visibility']['datasets'][:1]
+            limited = lib.bridge('reviewed',command=hidden)
+            files = {f['path']:f['text'] for f in limited['producer']['artifact']['files']}
+            graph = json.loads(files['relationships/graph.json'])
+            self.assertEqual(len(graph['entities']),1)
+            self.assertEqual(graph['relationships'],[])
+            self.assertNotIn('app.item1',files['relationships/graph.json'])
+            missing = copy.deepcopy(command)
+            missing['draft']['accepted'].pop(next(iter(
+                id_ for id_,value in missing['draft']['accepted'].items()
+                if value['kind']=='relation')))
+            missing['review']['draft_sha256']=lib.digest(missing['draft'])
+            with self.assertRaises(ValueError):
+                lib.bridge('reviewed',command=missing)
+            command['draft']['registry']['entities'][next(iter(review['entities']))]['canonical_name']='changed'
+            with self.assertRaises(ValueError):
+                lib.bridge('reviewed',command=command)
+            command['review']['draft_sha256']=lib.digest(command['draft'])
+            command['review']['reviewer']='model'
+            with self.assertRaises(ValueError):
+                lib.bridge('reviewed',command=command)
+
     def test_added_column_and_new_table_invalidate_only_their_communities(self):
         tables,edges=fixture(20,3)
         config=Acceptance().config()
