@@ -75,3 +75,6 @@ evidence run-id.
 | E057 | 2026-11-04 | dispatch | S0-C-01, S1-C-01, S1-C-02, S2-C-01, S2-C-02 | run `C-commit-S2-20261104T055409` on `v0.2/c-mysql-engine` | Lane C: commit S0/S1 work, rebase, then S2 |
 | E058 | 2026-11-04 | dispatch | S2-D-01 | run `D-S2-postgres-20261104T055409` on `v0.2/d-postgres-engine` | Lane D S2 card |
 | E059 | 2026-11-04 | dispatch | S2-G-01, S2-G-02, S3-G-01, S3-G-02, S3-G-03 | run `G-commit-cont-20261104T055409` on `v0.2/g-selfbuild-budget` | Lane G: commit, rebase, finish S2/S3 exits |
+| E060 | 2026-11-04 | dispatch | S1-A-02, S2-A-01, S2-A-02 | run `A-S1S2-onboarding-20261104T055552` on `v0.2/a-onboarding` @ `d15fa794f` | Lane A next card (doctor wires the integrated PostgreSQL engine first; MySQL/Oracle as they land) |
+| E061 | 2026-11-04 | dispatch | S3-B-01, S3-B-02 | run `B-S3-cli-binding-20261104T055554` on `v0.2/b-token-lifecycle` @ `d15fa794f` | Lane B works ahead on S3 (author_complete only until S2 exit) |
+| E062 | 2026-11-04 | dispatch | S5-H-01, S5-H-02 | run `H-S5-matrix-20261104T055554` on `v0.2/h-test-infra` @ `d15fa794f` | Lane H works ahead on S5 (author_complete only until S4 exit) |

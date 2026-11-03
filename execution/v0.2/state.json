@@ -380,9 +380,9 @@
    "sprint": "S1",
    "lane": "A",
    "title": "`oo doctor` 接入三引擎 `probe/capabilities`，输出分块计划、行字节估算、DBA 清单",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-A",
+   "branch": "v0.2/a-onboarding",
    "commits": [],
    "evidence": []
   },
@@ -435,9 +435,9 @@
    "sprint": "S2",
    "lane": "A",
    "title": "`oo init` TUI（ratatui）：7 步向导，结果写 `stack.yaml`；秘密写 0600 或 keychain",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-A",
+   "branch": "v0.2/a-onboarding",
    "commits": [],
    "evidence": []
   },
@@ -446,9 +446,9 @@
    "sprint": "S2",
    "lane": "A",
    "title": "`deploy/lite` compose 与 `oo up/down/status`：Agent DB、控制库、worker、Builder、Gateway、model-egress、scheduler；镜像 digest 锁定",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-A",
+   "branch": "v0.2/a-onboarding",
    "commits": [],
    "evidence": []
   },
@@ -512,9 +512,9 @@
    "sprint": "S3",
    "lane": "B",
    "title": "`oo login`（绑定码 / 设备码）、`oo whoami`、到期预警、`/v1/meta` 版本协商与升级提示",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-B",
+   "branch": "v0.2/b-token-lifecycle",
    "commits": [],
    "evidence": []
   },
@@ -523,9 +523,9 @@
    "sprint": "S3",
    "lane": "B",
    "title": "`oo share-prompt [--role] [--agent claude",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-B",
+   "branch": "v0.2/b-token-lifecycle",
    "commits": [],
    "evidence": []
   },
@@ -710,9 +710,9 @@
    "sprint": "S5",
    "lane": "H",
    "title": "T7 只读证明自动化（general log / log_statement / 统一审计）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-H",
+   "branch": "v0.2/h-test-infra",
    "commits": [],
    "evidence": []
   },
@@ -721,9 +721,9 @@
    "sprint": "S5",
    "lane": "H",
    "title": "夜间矩阵（本机原生 + amd64 仿真），失败自动降级并通知 owner",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-H",
+   "branch": "v0.2/h-test-infra",
    "commits": [],
    "evidence": []
   },
@@ -854,17 +854,17 @@
   "H": {
    "branch": "v0.2/h-test-infra",
    "base": "cd78da1e1",
-   "status": "idle"
+   "status": "running"
   },
   "B": {
    "branch": "v0.2/b-token-lifecycle",
    "base": "cd78da1e1",
-   "status": "idle"
+   "status": "running"
   },
   "A": {
    "branch": "v0.2/a-onboarding",
    "base": "4113744a7",
-   "status": "idle"
+   "status": "running"
   },
   "G": {
    "branch": "v0.2/g-selfbuild-budget",
