@@ -1,5 +1,5 @@
 //! oo.stack/v1. Diagnostics never contain configuration values.
-//! YAML admission is blocked; JSON is accepted regardless of filename.
+//! Bounded YAML and JSON are accepted regardless of filename.
 
 pub mod secret;
 pub mod stack;

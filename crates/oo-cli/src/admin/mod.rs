@@ -16,7 +16,7 @@ Admin commands (skeleton; no deployment or source writes):
   oo token issue|list|renew|rotate|revoke [--config stack.yaml] [--yes] [--json]
   oo share-prompt [--role R] [--config stack.yaml] [--yes] [--json]
 init --config validates and atomically normalizes that file as JSON.
-YAML admission is blocked. The filename does not select the parser.
+YAML and JSON are accepted. The filename does not select the parser.
 TTY wizard is not yet implemented (S2). Non-TTY never prompts.
 status <query_id> remains the consumer query-status command.
 Other admin operations return ADMIN_NOT_IMPLEMENTED, not a success receipt.";
@@ -190,4 +190,36 @@ fn normalize(path: &Path) -> Result<(), Failure> {
         let _ = fs::remove_file(temp);
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn init_normalizes_yaml_for_json_consumers() {
+        let dir = std::env::temp_dir().join(format!("oo-admin-yaml-{}", std::process::id()));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("stack.yaml");
+        // Flow YAML deliberately uses an unquoted key, so this is not JSON.
+        let yaml = include_str!("../../../oo-stack/example.stack.json").replacen(
+            "\"version\":",
+            "version:",
+            1,
+        );
+        fs::write(&path, yaml).unwrap();
+        let args = vec![
+            "init".into(),
+            "--config".into(),
+            path.to_str().unwrap().into(),
+            "--yes".into(),
+            "--json".into(),
+        ];
+        assert!(dispatch(&args).unwrap().is_ok());
+        let value: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(value["model"]["key"]["secret_ref"], "model-key");
+        assert_eq!(fs::metadata(&path).unwrap().mode() & 0o777, 0o600);
+        fs::remove_dir_all(dir).unwrap();
+    }
 }

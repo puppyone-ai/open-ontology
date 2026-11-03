@@ -1,15 +1,19 @@
 # oo-stack
 
-`parse` accepts bounded JSON documents for `oo.stack/v1`; filename suffixes
+`parse` accepts bounded YAML and JSON documents for `oo.stack/v1`; filename suffixes
 are irrelevant. `validate` is also available for programmatically constructed
 types. Errors are static codes and never include values or serde diagnostics.
 `stack.schema.json` describes structure; the Rust validator additionally
 checks URL policy, secret-like strings, interval overflow and unique source IDs.
 `example.stack.json` is a synthetic, non-secret example.
 
-YAML is deliberately blocked pending the audit described in
-`supply-chain/stack-yaml-admission-blocked.md`. No custom YAML parser or fallback
-with weaker validation is used. Normalized JSON may be stored as `stack.yaml`.
+YAML uses pinned serde-saphyr 1.3.0 with the admission record in
+`supply-chain/stack-yaml-audit.json`. Both formats deserialize directly into the
+same strict types and semantic validator. YAML rejects duplicate keys, aliases,
+anchors, merge keys, unsupported tags and multiple documents; input, depth and
+scalar budgets bound parsing. Include and interpolation features are disabled.
+Normalized JSON may be stored as `stack.yaml`; model-egress reads that normalized
+JSON, not raw YAML.
 
 Secrets are references with 1-64 ASCII alphanumeric/underscore/hyphen names,
 starting alphanumeric. Secret slots reject strings, unknown fields and duplicate

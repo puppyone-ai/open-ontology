@@ -88,11 +88,57 @@ fn reject_unknown_duplicate_and_inline_nested_fields() {
     assert!(parse(&c.to_string()).is_ok());
     c["sources"][0]["ssh"]["key"]["unknown"] = json!(true);
     assert!(parse(&c.to_string()).is_err());
+    assert_eq!(parse("version: oo.stack/v1").err(), Some("STACK_SCHEMA"));
+}
+
+#[test]
+fn yaml_preserves_json_validation_and_secret_redaction() {
+    let yaml = "\
+version: oo.stack/v1
+sources:
+  - id: erp
+    host: db.internal
+    port: 3306
+    database: erp
+    user: reader
+    password: {secret_ref: erp-password}
+model:
+  provider: openai-compatible
+  base_url: https://api.example.com/v1
+  model: model
+  key: {secret_ref: model-key}
+";
+    let stack = parse(yaml).unwrap();
+    let flow = config()
+        .to_string()
+        .replacen("\"version\":", "version: ", 1);
+    assert!(parse(&flow).is_ok());
+    assert_eq!(
+        serde_json::to_value(stack).unwrap(),
+        serde_json::to_value(parse(&config().to_string()).unwrap()).unwrap()
+    );
+    for bad in [
+        yaml.replace("{secret_ref: model-key}", "inline-private-value"),
+        yaml.replace(
+            "{secret_ref: model-key}",
+            "{secret_ref: model-key, password: inline-private-value}",
+        ),
+        yaml.replace(
+            "{secret_ref: model-key}",
+            "{secret_ref: model-key, secret_ref: duplicate}",
+        ),
+        format!("{yaml}version: oo.stack/v1\n"),
+        format!("{yaml}---\n{yaml}"),
+        yaml.replace("model: model", "model: !include private-file"),
+        yaml.replace("model: model", "model: &alias model"),
+        yaml.replace("model: model", "model: *alias"),
+        yaml.replace("model: model", "<<: {model: model}"),
+    ] {
+        assert_eq!(parse(&bad).err(), Some("STACK_SCHEMA"));
+    }
+    assert_eq!(parse(&" ".repeat(1_048_577)).err(), Some("STACK_BUDGET"));
     assert!(
-        parse("version: oo.stack/v1")
-            .err()
-            .unwrap()
-            .contains("YAML_NOT_ADMITTED")
+        parse(&yaml.replace("https://api.example.com/v1", "http://api.example.com/v1")).is_err()
     );
 }
 

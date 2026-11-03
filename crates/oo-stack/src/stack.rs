@@ -154,11 +154,24 @@ pub fn parse(text: &str) -> Result<Stack> {
     if text.len() > 1_048_576 {
         return Err("STACK_BUDGET");
     }
-    if !text.trim_start().starts_with('{') {
-        return Err("STACK_YAML_NOT_ADMITTED: use JSON; YAML advisory audit is blocked");
-    }
     // Deserialize directly: duplicate and unknown fields fail, including secret objects.
-    let stack: Stack = serde_json::from_str(text).map_err(|_| "STACK_SCHEMA")?;
+    let stack: Stack = if let Ok(stack) = serde_json::from_str(text) {
+        stack
+    } else {
+        let options = serde_saphyr::options! {
+            budget: serde_saphyr::budget! {
+                max_aliases: 0,
+                max_anchors: 0,
+                max_depth: 32,
+                max_documents: 1,
+                max_total_scalar_bytes: 1_048_576,
+            },
+            merge_keys: serde_saphyr::MergeKeyPolicy::Error,
+            reject_unsupported_tags: true,
+            with_snippet: false,
+        };
+        serde_saphyr::from_str_with_options(text, options).map_err(|_| "STACK_SCHEMA")?
+    };
     validate(&stack)?;
     Ok(stack)
 }
