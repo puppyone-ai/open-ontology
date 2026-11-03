@@ -3,6 +3,10 @@
 # Usage: execution/v0.2/integrate.sh <lane-branch> [extra test command]
 # Run from the integration worktree. Refuses on any failed gate; never
 # merges with a merge commit and never force-pushes.
+# Edit by writing a new file and renaming it over this one: a running
+# shell keeps reading the old inode. The body is a function so it is fully
+# parsed before it runs.
+main() {
 set -eu
 lane=$1
 extra=${2:-}
@@ -86,3 +90,5 @@ git merge --ff-only "$lane"
 git log --oneline -1
 # The lane is idle after integration; reclaim its build directory.
 rm -rf "$lane_wt/target"
+}
+main "$@"

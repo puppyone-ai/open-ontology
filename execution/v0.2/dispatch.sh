@@ -2,6 +2,10 @@
 # Dispatch one v0.2 task card to a local Codex executor and record the run.
 # Usage: execution/v0.2/dispatch.sh <card.md> <lane-worktree>
 # Runs land in $OO_V02_RUNS (default: <repo parent>/oo-v02/_runs), outside git.
+# Edit by writing a new file and renaming it over this one: a running
+# shell keeps reading the old inode. The body is a function so it is fully
+# parsed before it runs.
+main() {
 set -eu
 card=$1
 worktree=$2
@@ -30,3 +34,5 @@ echo "$rc" > "$run/exit"
 git -C "$worktree" rev-parse HEAD > "$run/head-sha"
 git -C "$worktree" log --format='%h %s' "$(cat "$run/base-sha")..HEAD" > "$run/commits.txt"
 echo "$id exit=$rc"
+}
+main "$@"
