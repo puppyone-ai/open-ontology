@@ -11,11 +11,15 @@
 //! `[lo, hi)` while legacy C5 topology has its own source-authenticated bounds.
 //! In particular this adapter does not relabel a PostgreSQL receipt as MySQL to
 //! pass the current MySQL-only multipart admission contract.
+//!
+//! Receipt hashes cover the original IPC, including field metadata. Only after
+//! validation does the adapter apply Oracle's per-field empty-string flag.
+//! Unflagged text and JSON content are left unchanged.
 
 use oo_connectors::engine::{ChunkReceipt, ChunkSpec, ReadBudget};
 use sha2::{Digest, Sha256};
 
-use crate::native_arrow::{DecodedStream, decode_arrow_stream};
+use crate::native_arrow::{DecodedStream, NativeCell, arrow_field_metadata, decode_arrow_stream};
 
 /// Verify identity, budget, IPC digest and row count before exposing typed rows.
 /// Watermarks are retained by the caller with the original receipt; they are
@@ -46,25 +50,145 @@ pub fn decode_chunk(
     if receipt.bytes != ipc.len() as u64 || receipt.sha256 != format!("{:x}", Sha256::digest(ipc)) {
         return Err("engine_chunk_digest");
     }
-    let decoded = decode_arrow_stream(ipc).map_err(|_| "engine_chunk_arrow")?;
+    let mut decoded = decode_arrow_stream(ipc).map_err(|_| "engine_chunk_arrow")?;
     if decoded.rows as u64 != receipt.rows {
         return Err("engine_chunk_rows");
     }
+    let metadata = arrow_field_metadata(ipc).map_err(|_| "engine_chunk_metadata")?;
+    apply_empty_string_semantics(&mut decoded, &metadata)?;
     Ok(decoded)
+}
+
+fn apply_empty_string_semantics(
+    decoded: &mut DecodedStream,
+    metadata: &[std::collections::BTreeMap<String, String>],
+) -> Result<(), &'static str> {
+    if metadata.len() != decoded.fields.len() {
+        return Err("engine_chunk_metadata");
+    }
+    for ((field, cells), metadata) in decoded
+        .fields
+        .iter()
+        .zip(&mut decoded.columns)
+        .zip(metadata)
+    {
+        match metadata
+            .get("oo.oracle.empty_string_is_null")
+            .map(String::as_str)
+        {
+            None | Some("false") => {}
+            Some("true") if field.arrow_type == "utf8" && field.nullable => {
+                for cell in cells {
+                    if matches!(cell, NativeCell::Utf8(text) if text.is_empty()) {
+                        *cell = NativeCell::Null;
+                    }
+                }
+            }
+            _ => return Err("engine_chunk_empty_string_semantics"),
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::native_arrow::DecodedField;
     use oo_connectors::engine::{TableRef, Watermark};
 
-    // A fake producer emits the same receipt + sealed IPC pair as an engine sink.
-    struct FakeEngine {
+    #[test]
+    fn receipt_hash_covers_original_bytes_before_flagged_cells_are_normalized() {
+        let producer = FixtureProducer::new();
+        let ipc = include_bytes!("engine_chunk/empty-semantics.arrow");
+        let mut receipt = producer.receipt();
+        receipt.rows = 4;
+        receipt.bytes = ipc.len() as u64;
+        receipt.sha256 = format!("{:x}", Sha256::digest(ipc));
+        let raw = decode_arrow_stream(ipc).unwrap();
+        let decoded = decode_chunk(&producer.chunk, &receipt, ipc, &ReadBudget::default()).unwrap();
+        assert_eq!(raw.columns[0][0], NativeCell::Utf8(String::new()));
+        assert_eq!(decoded.columns[0][0], NativeCell::Null);
+        assert_eq!(decoded.columns[1], raw.columns[1]);
+        assert_eq!(&decoded.columns[0][1..], &raw.columns[0][1..]);
+        assert_eq!(decoded.rows, 4);
+        assert_eq!(
+            arrow_field_metadata(ipc).unwrap()[0]["oo.oracle.type"],
+            "VARCHAR2"
+        );
+        let mut damaged = ipc.to_vec();
+        let flag = damaged.windows(4).position(|b| b == b"true").unwrap();
+        damaged[flag] = b'f';
+        assert_eq!(
+            decode_chunk(&producer.chunk, &receipt, &damaged, &ReadBudget::default()).unwrap_err(),
+            "engine_chunk_digest"
+        );
+    }
+
+    #[test]
+    fn oracle_empty_semantics_are_per_column_and_do_not_parse_text_as_json() {
+        let field = DecodedField {
+            name: "text".into(),
+            nullable: true,
+            arrow_type: "utf8".into(),
+            precision: None,
+            scale: None,
+            timezone: None,
+        };
+        let cells = vec![
+            NativeCell::Utf8(String::new()),
+            NativeCell::Null,
+            NativeCell::Utf8(" ".into()),
+            NativeCell::Utf8(r#"{"value":""}"#.into()),
+        ];
+        let mut decoded = DecodedStream {
+            rows: cells.len(),
+            fields: vec![field.clone(), field],
+            columns: vec![cells.clone(), cells.clone()],
+        };
+        let flagged = std::collections::BTreeMap::from([(
+            "oo.oracle.empty_string_is_null".into(),
+            "true".into(),
+        )]);
+        apply_empty_string_semantics(&mut decoded, &[flagged.clone(), Default::default()]).unwrap();
+        assert_eq!(decoded.columns[0][0], NativeCell::Null);
+        assert_eq!(&decoded.columns[0][1..], &cells[1..]);
+        assert_eq!(decoded.columns[1], cells);
+        let disabled = std::collections::BTreeMap::from([(
+            "oo.oracle.empty_string_is_null".into(),
+            "false".into(),
+        )]);
+        decoded.columns[0] = cells.clone();
+        apply_empty_string_semantics(&mut decoded, &[disabled, Default::default()]).unwrap();
+        assert_eq!(decoded.columns[0], cells);
+
+        for value in ["TRUE", "yes", ""] {
+            let mut invalid = flagged.clone();
+            invalid.insert("oo.oracle.empty_string_is_null".into(), value.into());
+            assert_eq!(
+                apply_empty_string_semantics(&mut decoded, &[invalid, Default::default()]),
+                Err("engine_chunk_empty_string_semantics")
+            );
+        }
+        decoded.fields[0].nullable = false;
+        assert_eq!(
+            apply_empty_string_semantics(&mut decoded, &[flagged.clone(), Default::default()]),
+            Err("engine_chunk_empty_string_semantics")
+        );
+        decoded.fields[0].nullable = true;
+        decoded.fields[0].arrow_type = "binary".into();
+        assert_eq!(
+            apply_empty_string_semantics(&mut decoded, &[flagged, Default::default()]),
+            Err("engine_chunk_empty_string_semantics")
+        );
+    }
+
+    // This fixture is not a SourceEngine implementation or a target-load test.
+    struct FixtureProducer {
         chunk: ChunkSpec,
         ipc: &'static [u8],
     }
 
-    impl FakeEngine {
+    impl FixtureProducer {
         fn new() -> Self {
             Self {
                 chunk: ChunkSpec {
@@ -97,8 +221,8 @@ mod tests {
     }
 
     #[test]
-    fn fake_engine_receipt_feeds_existing_typed_loader() {
-        let engine = FakeEngine::new();
+    fn fixture_receipt_decodes_to_existing_typed_representation() {
+        let engine = FixtureProducer::new();
         let receipt = engine.receipt();
         let decoded =
             decode_chunk(&engine.chunk, &receipt, engine.ipc, &ReadBudget::default()).unwrap();
@@ -109,7 +233,7 @@ mod tests {
 
     #[test]
     fn empty_chunk_keeps_its_schema_but_malformed_ipc_is_not_a_chunk() {
-        let engine = FakeEngine::new();
+        let engine = FixtureProducer::new();
         let mut receipt = engine.receipt();
         receipt.rows = 0;
         receipt.bytes = 736;
@@ -128,7 +252,7 @@ mod tests {
 
     #[test]
     fn swapped_stale_corrupt_and_oversized_chunks_are_refused() {
-        let engine = FakeEngine::new();
+        let engine = FixtureProducer::new();
         let good = engine.receipt();
         let check = |receipt: &ChunkReceipt, ipc: &[u8], budget: &ReadBudget| {
             decode_chunk(&engine.chunk, receipt, ipc, budget).unwrap_err()

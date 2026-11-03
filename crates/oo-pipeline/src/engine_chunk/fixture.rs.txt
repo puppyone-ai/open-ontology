@@ -1,0 +1,23 @@
+// Synthetic metadata regression fixture; run with the workspace's Arrow 60 rlibs.
+use std::{collections::HashMap, fs::File, sync::Arc};
+use arrow_array::{ArrayRef, RecordBatch, StringArray};
+use arrow_ipc::writer::StreamWriter;
+use arrow_schema::{DataType, Field, Schema};
+
+fn main() {
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("oracle_text", DataType::Utf8, true).with_metadata(HashMap::from([
+            ("oo.oracle.empty_string_is_null".into(), "true".into()),
+            ("oo.oracle.type".into(), "VARCHAR2".into()),
+        ])),
+        Field::new("plain_text", DataType::Utf8, true),
+    ]));
+    let values: ArrayRef = Arc::new(StringArray::from(vec![
+        Some(""), None, Some(" "), Some("{\"value\":\"\"}"),
+    ]));
+    let batch = RecordBatch::try_new(schema.clone(), vec![values.clone(), values]).unwrap();
+    let file = File::create(std::env::args().nth(1).expect("output file")).unwrap();
+    let mut writer = StreamWriter::try_new(file, &schema).unwrap();
+    writer.write(&batch).unwrap();
+    writer.finish().unwrap();
+}
