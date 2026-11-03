@@ -1,11 +1,12 @@
 # Open Ontology CLI
 
-Standalone package `@reduxxx888/ontology-cli`, version `0.1.2`. Requires Node.js
+Standalone package `@reduxxx888/ontology-cli`, version `0.2.0`. Requires Node.js
 22 or newer. The Node launcher verifies and executes the packaged Rust `oo`;
 it does not download executables, install dependencies, or require a repository,
 Rust toolchain, model API key, or direct database access.
 
-HTTPS uses the operating system's trusted CA store. Minimal Linux images must
+Native query HTTPS uses the operating system's trusted CA store; the launcher
+uses Node's trusted roots for authentication and version checks. Minimal Linux images must
 provide a CA bundle, or the operator must configure an approved `--ca-file`.
 The CLI never disables certificate or hostname verification to make a query work.
 
@@ -14,7 +15,7 @@ The CLI never disables certificate or hostname verification to make a query work
 After the package has been published:
 
 ```sh
-npm install --global @reduxxx888/ontology-cli@0.1.2
+npm install --global @reduxxx888/ontology-cli@0.2.0
 ontology --version
 ontology configure --gateway https://gateway.example --token-stdin \
   --business-timezone Asia/Shanghai < /secure/gateway-token
@@ -44,6 +45,65 @@ token files and the profile are `0600`. Keep the directory protected by the
 current user's ACL on Windows; POSIX modes do not replace Windows ACLs.
 The profile stores file references, never token contents. `config show` omits
 credential/certificate paths and contents.
+
+## Login, identity and sharing
+
+```sh
+oo login --gateway https://gateway.example --code-stdin \
+  --business-timezone Asia/Shanghai < /secure/one-time-code
+oo whoami --json
+oo tables
+```
+
+Alternatively use `--code CODE` (visible in process arguments), or `--device`.
+Prefer stdin for enrollment codes. Device login prints the verification address
+and user code to stderr and polls until approval or expiry. Each `slow_down`
+adds five seconds to all subsequent poll intervals; network errors back off.
+TLS and hostname verification remain enabled, even when Node's TLS environment
+variable asks to disable them. Redirects are never followed.
+
+Login verifies identity and one real tables read before activating the profile.
+It writes `tokens/default.token` with mode `0600` and saves only its reference
+and identity metadata in `config.json`. Use `--profile NAME` for a different
+token filename; login refuses to overwrite an existing name. The active
+profile remains `config.json`, not a separate named-profile registry.
+An unsuccessful read check leaves the active profile unchanged. A code may
+already have been consumed when a later verification fails; request a new one.
+`whoami` shows identity, role, expiry and protocol, warns on stderr at seven
+days or less, and gives renewal/login guidance for expired or refused access.
+
+Connected commands check anonymous `/v1/meta` before sending credentials.
+Only protocol/minimum-version metadata is cached, for 24 hours, separately by
+Gateway, routing and CA content. Exit `9` means the CLI is below the Gateway
+minimum and includes a pinned npm upgrade command; exit `10` means an
+unsupported protocol. Offline help, version and `agent-skill` stay offline.
+
+Administrator operations require the already-approved mTLS identity and a
+reviewed grant file with `project_id`, `principal_id`, `role`, `claims`,
+`policy_version`, `knowledge_version`, `audience_url`, and optional `ttl_ms`
+and `purpose`. The Gateway, not the launcher, validates grant authority.
+
+```sh
+oo token approve ABCD-1234 --gateway https://gateway.example \
+  --client-pem /secure/admin.pem --grant-file /secure/reviewed-grant.json
+oo share-prompt --gateway https://gateway.example \
+  --client-pem /secure/admin.pem --grant-file /secure/reviewed-grant.json \
+  --role analyst --agent codex
+```
+
+The default prompt contains a single-use enrollment code, its expiry, an exact
+package version, verification commands and honest-query rules. `--raw-token`
+instead issues a long-lived credential and adds a prominent risk warning.
+Never store that output in public logs. Agent variants (`claude`, `cursor`,
+`codex`) add setup instructions for the separate `tools/mcp-gateway` binary.
+That existing bridge is loopback-HTTP-only: the prompt explicitly requires an
+administrator-approved local endpoint and does not claim direct HTTPS support.
+
+These lifecycle commands currently run in the npm launcher. The standalone
+Rust binary does not yet expose them or perform version negotiation. Native
+SDK/dependency wiring and the HTTPS MCP bridge remain integration follow-ups.
+
+## Profile updates
 
 Each configure operation replaces the profile rather than merging old settings.
 Files are written atomically; a newly written token is referenced only after the

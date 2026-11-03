@@ -10,6 +10,7 @@ import { isIP } from 'node:net';
 import { constants as osConstants, homedir } from 'node:os';
 import { dirname, isAbsolute, join, parse, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { AuthError, login, whoami, sharePrompt, approve, negotiate } from './auth.mjs';
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const fields = {
@@ -130,7 +131,7 @@ function endpointKey(value, allowHttp = false) {
 
 function validateProfile(profile) {
   if (!object(profile) || profile.schema_version !== 1
-      || Object.keys(profile).some(key => !['schema_version', 'business_timezone'].includes(key) && !Object.hasOwn(fields, key))
+      || Object.keys(profile).some(key => !['schema_version', 'business_timezone', 'identity'].includes(key) && !Object.hasOwn(fields, key))
       || !endpointKey(profile.gateway) || !text(profile.token_file) || !isAbsolute(profile.token_file)) {
     fail('CONFIG_INVALID', 'Expected a valid HTTPS gateway and an absolute token-file reference; run oo configure.');
   }
@@ -150,6 +151,10 @@ function validateProfile(profile) {
     fail('CONFIG_INVALID', 'interface must be printable ASCII without whitespace.');
   }
   if (Object.hasOwn(profile, 'business_timezone')) timeContext(profile.business_timezone);
+  if (Object.hasOwn(profile, 'identity') && (!object(profile.identity)
+      || Object.keys(profile.identity).some(key => !['principal_id', 'project_id', 'role', 'expires_at_ms', 'protocol_version'].includes(key)))) {
+    fail('CONFIG_INVALID', 'Invalid saved identity metadata.');
+  }
   return profile;
 }
 
@@ -285,7 +290,8 @@ export function nativeArgs(args, profile) {
 export function expandLongOptions(args) {
   const values = new Set([...Object.values(fields), '--business-timezone', '--timezone', '--at',
     '--transport', '--auth', '--max-rows', '--timeout-ms', '--path-prefix', '--offset', '--limit',
-    '--expected-publication-id', '--expected-data-vector-sha256']);
+    '--expected-publication-id', '--expected-data-vector-sha256',
+    '--code', '--profile', '--role', '--agent', '--grant-file']);
   const result = [];
   let positional = false;
   for (const arg of args) {
@@ -355,6 +361,28 @@ async function main(args) {
     process.stdout.write(args[1] === '--json'
       ? `${JSON.stringify({ name, version })}\n` : `${name} ${version}\n`);
     return 0;
+  }
+  const authCommand = ['login', 'whoami', 'share-prompt'].includes(args[0])
+    || (args[0] === 'token' && args[1] === 'approve');
+  if (authCommand) {
+    if (args.includes('--help') || args.includes('-h')) {
+      process.stdout.write('Usage:\n'
+        + '  oo login --gateway URL (--code CODE | --code-stdin | --device)\n'
+        + '    [--profile NAME] [--business-timezone ZONE] [--json]\n'
+        + '  oo whoami [--json]\n'
+        + '  oo share-prompt --grant-file FILE [--role R] [--agent claude|cursor|codex] [--raw-token]\n'
+        + '  oo token approve CODE --grant-file FILE [--role R] [--json]\n'
+        + 'Connection options: --gateway URL --ca-file FILE --connect-ip IP --interface NAME\n'
+        + 'Admin operations require --client-pem FILE (approved mTLS identity).\n'
+        + 'Grant files contain reviewed project/principal/role/policy/knowledge/audience fields, never credentials.\n'
+        + 'TLS verification cannot be disabled. Prefer --code-stdin; raw tokens never go in argv.\n');
+      return 0;
+    }
+    const context = authContext();
+    if (args[0] === 'login') return login(context, args.slice(1));
+    if (args[0] === 'whoami') return whoami(context, args.slice(1));
+    if (args[0] === 'share-prompt') return sharePrompt(context, args.slice(1));
+    return approve(context, args.slice(2));
   }
   if (args[0] === 'configure') {
     if (args.includes('--help') || args.includes('-h')) {
@@ -445,6 +473,9 @@ async function main(args) {
       + '  oo time --timezone Asia/Shanghai [--at RFC3339] [--json]\n'
       + '  oo --version [--json]\n'
       + '  oo agent-skill [--json]\n\n'
+      + '  oo login --gateway URL (--code-stdin | --device)\n'
+      + '  oo whoami [--json]\n'
+      + '  oo share-prompt --grant-file FILE [--agent claude|cursor|codex]\n\n'
       + 'Quick start (no Skill, model, database driver or repository required):\n'
       + '  oo configure --gateway https://gateway.example --token-file /absolute/path/to/token\n'
       + '  oo tables\n'
@@ -459,13 +490,39 @@ async function main(args) {
   const forwarded = nativeArgs(args, profile);
   const head = forwarded.includes('--') ? forwarded.slice(0, forwarded.indexOf('--')) : forwarded;
   const gatewayIndex = head.indexOf('--gateway');
+  if (!offline && !adminStatus && connectedCommands.has(args[0]) && gatewayIndex >= 0
+      && head[head.indexOf('--transport') + 1] !== 'local-development') {
+    const selected = {};
+    for (const [key, flag] of Object.entries(fields)) {
+      const index = head.indexOf(flag);
+      if (index >= 0) selected[key] = head[index + 1];
+    }
+    if (!endpointKey(selected.gateway)) fail('GATEWAY_INVALID', 'A valid HTTPS Gateway is required.');
+    await negotiate(authContext(), selected);
+  }
   const timezone = profile && gatewayIndex >= 0
     && endpointKey(head[gatewayIndex + 1], true) === endpointKey(profile.gateway)
     ? profile.business_timezone : undefined;
   return delegate(binary, forwarded, timezone);
 }
 
+function authContext() {
+  const { name, version } = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
+  return { dir: configDirectory(), packageName: name, packageVersion: version,
+    privatePath, atomicWrite, readProfile, validateProfile, endpointKey, stdinToken, timeContext,
+    createToken(path, token) {
+      const fd = openSync(path, 'wx', 0o600);
+      try { fchmodSync(fd, 0o600); writeFileSync(fd, token); fsyncSync(fd); }
+      finally { closeSync(fd); }
+    },
+  };
+}
+
 function wrapperFailure(error) {
+  if (error instanceof AuthError) return {
+    class: error.exit === 2 ? 'usage' : error.exit === 4 ? 'auth' : 'local',
+    code: error.code, message: error.message, exit: error.exit, retryable: false,
+  };
   const match = error instanceof CliError && /^([A-Z][A-Z0-9_]+): (.*)$/s.exec(error.message);
   const code = match ? match[1] : 'LOCAL_FAILURE';
   const message = match ? match[2] : 'Unable to read or update local CLI files.';

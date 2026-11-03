@@ -34,6 +34,7 @@ test('stage is allowlisted, self-contained, hashed, and refuses existing output'
     await writeFile(join(root, 'package.json'), '{"name":"example"}');
     await writeFile(join(root, 'README.md'), 'usage');
     await writeFile(join(root, 'bin/oo.mjs'), '#!/usr/bin/env node\n');
+    await writeFile(join(root, 'bin/auth.mjs'), '// auth module\n');
     await writeFile(join(root, 'secret.token'), 'do-not-publish');
     const notices = join(dir, 'notices');
     await mkdir(notices);

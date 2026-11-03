@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nativeArgs, nativeBinary, timeContext, expandLongOptions } from '../bin/oo.mjs';
+import { cachePath } from '../bin/auth.mjs';
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const digest = data => createHash('sha256').update(data).digest('hex');
@@ -112,6 +113,7 @@ function fixture(t) {
   mkdirSync(dirname(wrapper), { recursive: true });
   mkdirSync(dirname(binary), { recursive: true });
   copyFileSync(join(source, 'bin', 'oo.mjs'), wrapper);
+  copyFileSync(join(source, 'bin', 'auth.mjs'), join(pkg, 'bin', 'auth.mjs'));
   chmodSync(wrapper, 0o755);
   for (const name of ['package.json', 'README.md']) copyFileSync(join(source, name), join(pkg, name));
   const fake = `#!/usr/bin/env node
@@ -144,6 +146,25 @@ if (process.argv[2] === 'wait') {
   delete env.FAKE_EXIT;
   delete env.FAKE_STDERR;
   function run(args, options = {}) {
+    // These tests isolate native argument forwarding; negotiation has its own HTTPS tests.
+    if (['query', 'tables', 'describe', 'validate', 'sql', 'freshness', 'knowledge', 'cancel', 'status', 'operations'].includes(args[0])
+        && !args.includes('--help')) {
+      try {
+        const profile = existsSync(join(dir, 'config.json')) ? JSON.parse(readFileSync(join(dir, 'config.json'))) : null;
+        const forwarded = nativeArgs(args, profile);
+        const selected = {};
+        for (const key of ['gateway', 'ca_file', 'connect_ip', 'interface']) {
+          const index = forwarded.indexOf(`--${key.replaceAll('_', '-')}`);
+          if (index >= 0) selected[key] = forwarded[index + 1];
+        }
+        if (selected.gateway?.startsWith('https:')) {
+          const path = cachePath(dir, selected);
+          mkdirSync(dir, { recursive: true, mode: 0o700 });
+          writeFileSync(path, JSON.stringify({ checked_at_ms: Date.now(),
+            meta: { minimum_cli_version: '0.2.0', protocol_version: '0.2' } }), { mode: 0o600 });
+        }
+      } catch { /* Invalid profiles and arguments must still be refused by the wrapper. */ }
+    }
     return spawnSync(process.execPath, [wrapper, ...args], {
       cwd: root, env, encoding: 'utf8', input: '', timeout: 10000, ...options,
     });
@@ -409,9 +430,11 @@ integration('a different gateway requires explicit credentials and never inherit
     }
     assert(!argv.includes(profile.token_file));
   }
+  const newCa = join(f.root, 'new-ca.pem');
+  writeFileSync(newCa, 'fixture-new-ca');
   const override = output(f.run(['tables', '--gateway', 'https://other.example',
-    '--token-file', '/new/token', '--ca-file', '/new/ca', '--client-pem', '/new/client'])).argv;
-  for (const value of ['/new/token', '/new/ca', '/new/client']) assert(override.includes(value));
+    '--token-file', '/new/token', '--ca-file', newCa, '--client-pem', '/new/client'])).argv;
+  for (const value of ['/new/token', newCa, '/new/client']) assert(override.includes(value));
   for (const value of [profile.token_file, profile.ca_file, profile.client_pem]) assert(!override.includes(value));
   const same = output(f.run(['tables', '--gateway', 'https://GATEWAY.EXAMPLE:443/'])).argv;
   for (const value of [profile.token_file, profile.ca_file, profile.client_pem]) assert(same.includes(value));
@@ -502,7 +525,7 @@ test('package has no dependencies or network lifecycle and npm packs only releas
   const f = fixture(t);
   const pkg = JSON.parse(readFileSync(join(source, 'package.json')));
   assert.equal(pkg.name, '@reduxxx888/ontology-cli');
-  assert.equal(pkg.version, '0.1.2');
+  assert.equal(pkg.version, '0.2.0');
   assert.equal(pkg.engines.node, '>=22');
   assert.deepEqual(pkg.bin, { oo: 'bin/oo.mjs', ontology: 'bin/oo.mjs' });
   assert.deepEqual(Object.keys(pkg.scripts), ['test']);
@@ -521,6 +544,6 @@ test('package has no dependencies or network lifecycle and npm packs only releas
   assert.equal(result.status, 0, result.stderr);
   const files = JSON.parse(result.stdout)[0].files.map(file => file.path).sort();
   assert.deepEqual(files, ['LICENSE', 'NOTICE', 'README.md', 'SKILL.md',
-    'THIRD_PARTY_NOTICES.txt', 'dependencies.json', 'bin/oo.mjs',
+    'THIRD_PARTY_NOTICES.txt', 'dependencies.json', 'bin/oo.mjs', 'bin/auth.mjs',
     `native/${target}/${process.platform === 'win32' ? 'oo.exe' : 'oo'}`, 'native/manifest.json', 'package.json'].sort());
 });

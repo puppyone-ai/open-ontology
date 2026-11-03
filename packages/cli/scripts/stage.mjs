@@ -42,7 +42,7 @@ export async function stage({ output, binaries, notices, root = packageRoot }) {
     throw new Error('absolute output, native binaries, and dependency notices required');
   }
   await outsideRepository(output);
-  const files = ['package.json', 'README.md', 'bin/oo.mjs'];
+  const files = ['package.json', 'README.md', 'bin/oo.mjs', 'bin/auth.mjs'];
   const sources = await Promise.all(files.map(file => readFile(join(root, file))));
   const license = await readFile(join(productRoot, 'LICENSE'));
   const notice = await readFile(join(productRoot, 'NOTICE'));
