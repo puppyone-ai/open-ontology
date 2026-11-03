@@ -31,6 +31,25 @@ fn defaults_and_roundtrip() {
 }
 
 #[test]
+fn source_tls_anchor_is_a_reference_not_inline_material() {
+    let mut value = config();
+    value["sources"][0]["tls_ca"] = json!({"secret_ref":"fixture-ca"});
+    let stack = parse(&value.to_string()).unwrap();
+    assert_eq!(
+        stack.sources[0].tls_ca.as_ref().unwrap().secret_ref,
+        "fixture-ca"
+    );
+    for bad in [
+        json!("certificate"),
+        json!({"secret_ref":"../ca"}),
+        json!({"path":"ca.pem"}),
+    ] {
+        value["sources"][0]["tls_ca"] = bad;
+        assert!(parse(&value.to_string()).is_err());
+    }
+}
+
+#[test]
 fn reject_invalid_values_without_echoing_them() {
     for (pointer, bad) in [
         ("/sources/0/password", json!("SYNTHETIC-PRIVATE")),

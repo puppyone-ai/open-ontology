@@ -7,6 +7,12 @@ types. Errors are static codes and never include values or serde diagnostics.
 checks URL policy, secret-like strings, interval overflow and unique source IDs.
 `example.stack.json` is a synthetic, non-secret example.
 
+Sources may carry `tls_ca: {"secret_ref":"source-ca"}`. This references a
+PEM trust anchor in the same owner-private store; it is not a path or inline
+certificate. PostgreSQL doctor requires it and always verifies the hostname.
+Omitting it remains parse-compatible with older stacks, but cannot authorize
+an insecure source connection.
+
 YAML uses pinned serde-saphyr 1.3.0 with the admission record in
 `supply-chain/stack-yaml-audit.json`. Both formats deserialize directly into the
 same strict types and semantic validator. YAML rejects duplicate keys, aliases,

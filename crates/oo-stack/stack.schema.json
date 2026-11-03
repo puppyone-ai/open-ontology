@@ -160,6 +160,9 @@
         "password": {
           "$ref": "#/$defs/secret"
         },
+        "tls_ca": {
+          "$ref": "#/$defs/secret"
+        },
         "ssh": {
           "$ref": "#/$defs/ssh"
         },

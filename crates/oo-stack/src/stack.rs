@@ -31,6 +31,9 @@ pub struct Source {
     pub database: String,
     pub user: String,
     pub password: SecretRef,
+    /// Caller trust anchor; source TLS always verifies the server hostname.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tls_ca: Option<SecretRef>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ssh: Option<Ssh>,
     #[serde(default)]
@@ -309,6 +312,9 @@ pub fn validate(stack: &Stack) -> Result<()> {
             || !text(&s.database)
             || !text(&s.user)
             || !secret_name(&s.password.secret_ref)
+            || s.tls_ca
+                .as_ref()
+                .is_some_and(|ca| !secret_name(&ca.secret_ref))
             || s.engine.is_empty()
             || s.engine.len() > 64
             || !s
