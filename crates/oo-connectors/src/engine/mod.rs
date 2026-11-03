@@ -326,6 +326,22 @@ pub trait ChunkSink: Send {
 pub trait SourceEngine: Send {
     fn family(&self) -> EngineFamily;
 
+    /// Bounded catalog discovery; never enumerate rows from source tables.
+    fn discover_tables(
+        &mut self,
+        _budget: &ReadBudget,
+    ) -> impl Future<Output = Result<Vec<TableRef>, SourceError>> + Send {
+        async { Err(SourceError::config("discovery_unavailable")) }
+    }
+
+    /// Advisory byte estimate. None means unavailable, never zero.
+    fn estimate_bytes(
+        &mut self,
+        _table: &TableRef,
+    ) -> impl Future<Output = Result<Option<u64>, SourceError>> + Send {
+        async { Ok(None) }
+    }
+
     /// Identify the version and grade capabilities without reading rows.
     fn probe(&mut self) -> impl Future<Output = Result<ProbeReport, SourceError>> + Send;
 
