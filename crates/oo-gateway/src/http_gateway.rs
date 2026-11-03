@@ -39,13 +39,14 @@ use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use zeroize::Zeroize;
 
+#[path = "auth_lifecycle.rs"]
+mod auth_lifecycle;
 #[path = "../../../tools/gateway-token-store/src/lifecycle.rs"]
 pub mod token_lifecycle;
 
 pub use crate::accepted_token_store::{CurrentTuple, Endpoint, IssueGrant, TokenKind};
 use crate::accepted_token_store::{
-    DeclaredTransport, LookupCache, LookupRequest, RevokeScope, TrustedControlAdapter, lookup,
-    rustls_connector, token_hash,
+    DeclaredTransport, LookupCache, LookupRequest, lookup, rustls_connector, token_hash,
 };
 use crate::http_error::{ApiCode, ApiError, JSON_MEDIA_TYPE};
 use crate::pack_catalog::{PackCatalog, PackMetadata};
@@ -86,6 +87,7 @@ struct TupleEntry {
 }
 
 struct Inner {
+    lifecycle: Option<auth_lifecycle::Lifecycle>,
     audience: String,
     endpoint_path: PathBuf,
     password: String,
@@ -186,6 +188,7 @@ impl AppState {
         Self {
             inner: Arc::new(Inner {
                 audience: "https://gateway.loopback.invalid/v1".to_owned(),
+                lifecycle: None,
                 endpoint_path: PathBuf::from("endpoint.json"),
                 password: String::new(),
                 ca_pem: Vec::new(),
@@ -303,6 +306,39 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
             return Err(reason);
         }
     };
+    let lifecycle = if let Some(name) = object.get("token_admin_password_file") {
+        if !tls {
+            return Err("lifecycle_requires_tls");
+        }
+        let name = one_segment(name.as_str().ok_or("token_admin_password_file")?)?;
+        use std::os::unix::fs::PermissionsExt;
+        let path = dir.join(name);
+        if fs::metadata(&path)
+            .map_err(|_| "admin_password")?
+            .permissions()
+            .mode()
+            & 0o777
+            != 0o600
+        {
+            return Err("admin_password_permissions");
+        }
+        let secret =
+            zeroize::Zeroizing::new(fs::read_to_string(path).map_err(|_| "admin_password")?);
+        let workload = required_text(object, "token_admin_workload")?;
+        if !workload.starts_with(WORKLOAD_PREFIX) {
+            return Err("admin_workload");
+        }
+        Some(auth_lifecycle::Lifecycle::new(
+            token_lifecycle::Control::new(
+                read_endpoint(&dir.join(endpoint_file))?,
+                secret.trim_end().into(),
+                ca_pem.clone(),
+            ),
+            workload.into(),
+        ))
+    } else {
+        None
+    };
     let transport = match loaded_tls {
         Some((acceptor, handshake_timeout)) => Transport::Tls {
             acceptor,
@@ -314,6 +350,7 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
         state: AppState {
             inner: Arc::new(Inner {
                 audience,
+                lifecycle,
                 endpoint_path: dir.join(endpoint_file),
                 password,
                 ca_pem,
@@ -410,6 +447,7 @@ fn assemble(state: AppState) -> Router {
         .route("/v1/pack/metadata", get(pack_metadata))
         .route("/v1/sql", post(sql_unsupported));
     router = crate::public_surface::mount(router);
+    router = auth_lifecycle::mount(router);
     router = router.route_layer(TimeoutLayer::with_status_code(
         StatusCode::REQUEST_TIMEOUT,
         timeout,
@@ -473,7 +511,10 @@ tokio::task_local! {
 async fn access_log(State(state): State<AppState>, request: Request, next: Next) -> Response {
     let method = request.method().clone();
     let path_raw = request.uri().path().to_owned();
-    if path_raw == "/internal" || path_raw.starts_with("/internal/") {
+    let token_admin = path_raw == "/internal/v1/tokens"
+        && state.inner.lifecycle.is_some()
+        && matches!(state.inner.transport, Transport::Tls { .. });
+    if (path_raw == "/internal" || path_raw.starts_with("/internal/")) && !token_admin {
         eprintln!("method={method} path=internal status=403");
         return json_error(ApiError::new(ApiCode::Forbidden));
     }
@@ -539,6 +580,7 @@ fn normalize_layer_timeout(response: Response) -> Response {
 fn logged_path(path: &str, probe: bool) -> &'static str {
     match path {
         "/health" => "/health",
+        "/internal/v1/tokens" => "/internal/v1/tokens",
         "/ready" => "/ready",
         "/v1/session/current" => "/v1/session/current",
         "/v1/pack/metadata" => "/v1/pack/metadata",
@@ -1306,6 +1348,8 @@ fn allowed_config_key(tls: bool, key: &str) -> bool {
             | "deployment_mode"
             | "data_query_concurrency"
             | "data_query_timeout_ms"
+            | "token_admin_password_file"
+            | "token_admin_workload"
     ) || crate::public_surface::data_config_key(key)
         || (tls
             && matches!(
@@ -1676,13 +1720,10 @@ pub async fn harness_install(
     password: &str,
     ca_pem: &[u8],
 ) -> Result<(), String> {
-    let adapter = TrustedControlAdapter::new(endpoint, ADMIN_USER, password, ca_pem.to_vec())
-        .map_err(|err| err.reason().to_owned())?;
-    adapter
+    token_lifecycle::Control::new(endpoint, password.into(), ca_pem.into())
         .install()
         .await
-        .map(|_| ())
-        .map_err(|err| err.reason().to_owned())
+        .map_err(str::to_owned)
 }
 
 pub async fn harness_issue(
@@ -1691,14 +1732,18 @@ pub async fn harness_issue(
     ca_pem: &[u8],
     grant: IssueGrant,
 ) -> Result<(String, String), String> {
-    let adapter = TrustedControlAdapter::new(endpoint, ADMIN_USER, password, ca_pem.to_vec())
-        .map_err(|err| err.reason().to_owned())?;
-    let receipt = adapter
-        .issue(grant)
+    let g = token_lifecycle::Grant::from_legacy(grant, String::new()).map_err(str::to_owned)?;
+    let result = token_lifecycle::Control::new(endpoint, password.into(), ca_pem.into())
+        .execute(token_lifecycle::Operation::Issue(g), ADMIN_USER)
         .await
-        .map_err(|err| err.reason().to_owned())?;
-    let token = receipt.token.reveal_once();
-    Ok((token, receipt.hash))
+        .map_err(str::to_owned)?;
+    Ok((
+        result.secret.ok_or("secret")?.to_string(),
+        result.metadata["token_sha256"]
+            .as_str()
+            .ok_or("hash")?
+            .into(),
+    ))
 }
 
 pub async fn harness_revoke_token(
@@ -1708,16 +1753,17 @@ pub async fn harness_revoke_token(
     project_id: String,
     token_sha256: String,
 ) -> Result<(), String> {
-    let adapter = TrustedControlAdapter::new(endpoint, ADMIN_USER, password, ca_pem.to_vec())
-        .map_err(|err| err.reason().to_owned())?;
-    adapter
-        .revoke(RevokeScope::Token {
-            project_id,
-            token_sha256,
-        })
+    token_lifecycle::Control::new(endpoint, password.into(), ca_pem.into())
+        .execute(
+            token_lifecycle::Operation::Revoke {
+                project: project_id,
+                hash: token_sha256,
+            },
+            ADMIN_USER,
+        )
         .await
         .map(|_| ())
-        .map_err(|err| err.reason().to_owned())
+        .map_err(str::to_owned)
 }
 
 #[cfg(test)]

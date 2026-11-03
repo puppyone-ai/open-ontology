@@ -8,12 +8,12 @@ use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 
+use oo_gateway::http_gateway::token_lifecycle::{AdminRequest, Control, Grant, Operation};
 use serde_json::Value;
 use zeroize::Zeroize;
 
 use oo_gateway::http_gateway::{
-    CurrentTuple, Endpoint, IssueGrant, TokenKind, harness_install, harness_issue,
-    harness_revoke_token,
+    CurrentTuple, Endpoint, IssueGrant, TokenKind, harness_install, harness_revoke_token,
 };
 
 fn main() -> std::process::ExitCode {
@@ -46,11 +46,23 @@ fn run() -> Result<(), &'static str> {
             let (endpoint, mut password, ca) = material(&args, 6)?;
             let grant = read_grant(Path::new(&args[4]))?;
             let out = Path::new(&args[5]);
-            let result = runtime.block_on(harness_issue(endpoint, &password, &ca, grant));
-            password.zeroize();
-            let (token, hash) = result.map_err(|_| "issue")?;
+            let value: Value = serde_json::from_slice(&fs::read(&args[4]).map_err(|_| "grant")?)
+                .map_err(|_| "grant")?;
+            let purpose = match value.get("purpose") {
+                None => String::new(),
+                Some(Value::String(text)) => text.clone(),
+                _ => return Err("purpose"),
+            };
+            let grant = Grant::from_legacy(grant, purpose)?;
+            let control = Control::new(endpoint, std::mem::take(&mut password), ca);
+            let result =
+                runtime.block_on(control.execute(Operation::Issue(grant), "oo_token_admin"))?;
+            let token = result.secret.ok_or("issue")?;
             write_token(out, &token)?;
-            println!("hash {hash}");
+            println!(
+                "hash {}",
+                result.metadata["token_sha256"].as_str().ok_or("hash")?
+            );
             Ok(())
         }
         "revoke" => {
@@ -66,6 +78,23 @@ fn run() -> Result<(), &'static str> {
             ));
             password.zeroize();
             result.map_err(|_| "revoke")
+        }
+        "list" | "renew" | "rotate" | "enroll" | "policy" => {
+            let secret_output = matches!(args[0].as_str(), "rotate" | "enroll");
+            let (endpoint, mut password, ca) = material(&args, if secret_output { 6 } else { 5 })?;
+            let mut value: Value =
+                serde_json::from_slice(&fs::read(&args[4]).map_err(|_| "request")?)
+                    .map_err(|_| "request")?;
+            let object = value.as_object_mut().ok_or("request")?;
+            object.insert("operation".into(), Value::String(args[0].clone()));
+            let request: AdminRequest = serde_json::from_value(value).map_err(|_| "request")?;
+            let control = Control::new(endpoint, std::mem::take(&mut password), ca);
+            let result = runtime.block_on(control.execute(request.into(), "oo_token_admin"))?;
+            if let Some(secret) = result.secret {
+                write_token(Path::new(&args[5]), &secret)?;
+            }
+            println!("{}", result.metadata);
+            Ok(())
         }
         _ => Err("usage"),
     }

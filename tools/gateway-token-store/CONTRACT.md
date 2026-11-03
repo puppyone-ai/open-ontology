@@ -228,8 +228,8 @@ The preceding sections describe the immutable, checksum-pinned v1 reader.
 The v0.2 service-account entry point is `src/lifecycle.rs`, compiled directly
 by `oo-gateway::http_gateway::token_lifecycle`. It uses the Gateway's already
 locked dependencies, not a second copy of the v1 crate. The standalone v1
-library and session issuance remain unchanged. The `Control` service-account entry point uses the policy default rather
-than the legacy one-hour issuance default.
+library and session issuance remain unchanged. New CLI and HTTP client-token
+issuance use `Control`, not the legacy one-hour issuance default.
 
 ### Install and storage
 
@@ -283,3 +283,44 @@ by the same lifetime ceiling. Old expiry is the earlier of its existing
 expiry and `now + rotate_overlap_ms`; zero overlap immediately invalidates
 it. Rotated predecessors cannot be renewed or rotated again. An explicit
 new admin issue is a new grant, unlike renewal/rotation.
+
+### Admin and public HTTP
+
+Operator config may add `token_admin_password_file` (one filename, mode 0600)
+and `token_admin_workload` (an exact trusted certificate workload URI).
+Lifecycle HTTP is disabled without this configuration and requires TLS.
+Client certificates remain required for the admin-only HTTP surface.
+
+`POST /internal/v1/tokens` accepts an `operation` discriminator and requires
+an actual verified client certificate matching `token_admin_workload`.
+A bearer token or certificate-looking header is not admin authority. Other
+`/internal/**` routes remain denied. Accepted request shapes:
+
+```json
+{"operation":"issue","grant":{"project_id":"demo","principal_id":"alice","role":"reader","claims":{},"policy_version":"v1","knowledge_version":"v1","audience_url":"https://gateway.example/","ttl_ms":3600000,"purpose":"automation"}}
+{"operation":"list","project":"demo"}
+{"operation":"renew","project":"demo","hash":"<full SHA-256>","deadline_ms":1800000000000}
+{"operation":"rotate","project":"demo","hash":"<full SHA-256>"}
+{"operation":"revoke","project":"demo","hash":"<full SHA-256>"}
+{"operation":"enroll","grant":{"project_id":"demo","principal_id":"alice","role":"reader","policy_version":"v1","knowledge_version":"v1","audience_url":"https://gateway.example/"}}
+{"operation":"policy","project":"demo","policy":{"max_lifetime_ms":7776000000,"default_ttl_ms":7776000000,"self_renew_enabled":false,"self_renew_window_ms":1209600000,"rotate_overlap_ms":604800000,"enroll_ttl_ms":86400000}}
+```
+
+List returns hash prefixes, role, expiry, first issuance, last-use observation
+and overlap; it never returns plaintext. The retained v1 client's last-use
+column is not a per-request activity counter (cache hits do not write).
+
+### CLI
+
+Existing `issue-token install ENDPOINT PASSWORD_FILE CA`, `issue ... GRANT
+OUTPUT`, and `revoke ... PROJECT HASH` argument order remains supported.
+The issue grant retains `kind=client` and optional `client_ttl_ms`; it also
+accepts `purpose`. Client TTL now defaults to 90 days.
+
+New commands: `list|renew|policy ENDPOINT PASSWORD_FILE CA REQUEST_JSON` and
+`rotate|enroll ENDPOINT PASSWORD_FILE CA REQUEST_JSON OUTPUT`. Request JSON
+is the admin request without `operation`. Plaintext goes only to a newly
+created 0600 output file; stdout contains metadata. Existing output files
+are never replaced. Failure to write a file after issuance does not roll
+back a committed credential: revoke it by its audited hash and issue again.
+Passwords, enrollment codes and bearer values are never argv arguments.
