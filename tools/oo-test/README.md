@@ -27,7 +27,8 @@ Registry pulls retry at most three times; each failed attempt remains evidence.
 
 ## Evidence and acceptance boundaries
 
-Each invocation prints `evidence/h-s0-<uuid>/`. Each version directory contains:
+Each invocation prints a timestamped `evidence/h-s5-<timestamp>-<uuid>/`.
+Historical S0 runs retain their original names. Each version directory contains:
 
 - Numbered argv/exit records and stdout/stderr (passwords and signed URL query
   strings redacted; SQL containing passwords travels through stdin only).
@@ -113,6 +114,42 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/oo-test/audit_smoke.py
 owned fixtures and checks both read capture and a denied DELETE. It does
 **not** run product snapshot/incremental workloads or produce T7 admission
 evidence. Raw failed attempts are retained alongside successful retries.
+
+## Nightly matrix and evidence index
+
+```sh
+tools/oo-test/oo-test matrix --all --suites T0-T4,T7,T8
+```
+
+`--all` covers all 14 P0 version targets, including a failed Oracle 19c entry
+when its licensed image is not locked. It does not silently exclude that
+target or claim P1/P2 coverage. Execution remains serial with automatic
+amd64 selection for images without native support. Missing product hooks
+fail the target before pulling/starting a container; every requested suite
+still receives an evidence row. Interrupted targets also receive failure
+rows. No unrelated container, image or volume is removed.
+
+`evidence-index.json` is a list compatible with
+`specs/scripts/gen_support_matrix.py`. Rows contain `target` (support-matrix
+ID), `version`, `capability`, `suite`, `variant`, `result` (`pass|fail|skip`),
+`run_id`, `sha256`, `evidence`, `emulated`, `version_measured` and error detail.
+The hash binds the target's `SHA256SUMS`, which binds command outputs,
+audit and comparison receipts. Unstarted targets use the locked patch with
+`version_measured=false`, never a claimed observed server version.
+
+Use `--variant c1` or `--variant c5` to identify the hook path, also exposed
+in `OO_TEST_CONTEXT`. Run each path separately; a generic incremental hook
+does not establish either variant. Missing T2/T3/T7 evidence emits failure
+rows for both variants to prevent an old CDC/digest pass surviving omission.
+Bare fixture T0 exports `skip`, not a product-doctor pass; install a real
+`--hook T0=PATH` to produce product T0 evidence.
+
+`downgrade-report.json` lists all non-passes and never edits shared matrix
+files. The coordinator must ingest the index and apply its generator;
+capability promotion still requires review of the hooked tests. A zero
+exit from an arbitrary hook is not independent proof of its correctness.
+The local/CI launcher and three-attempt stability reporting are described
+in `ci/README.md`. No scheduler is installed by these tools.
 
 ## Comparison API
 

@@ -13,6 +13,8 @@ import subprocess
 import time
 import uuid
 from audit import Audit
+from datetime import datetime, timezone
+from matrix import P0, downgrade_report, index_rows
 
 ROOT = Path(__file__).resolve().parents[2]
 ENGINES = ROOT / "testing/engines"
@@ -470,8 +472,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     matrix = sub.add_parser("matrix")
-    matrix.add_argument("--engine", choices=["mysql", "postgres", "oracle"], required=True)
-    matrix.add_argument("--versions", required=True)
+    selection = matrix.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--engine", choices=["mysql", "postgres", "oracle"])
+    selection.add_argument("--all", action="store_true", help="all P0 targets, including blocked Oracle 19c")
+    matrix.add_argument("--versions")
     matrix.add_argument("--suites", type=suites, default=["T0"])
     matrix.add_argument("--scale", type=int, default=2_000_000)
     matrix.add_argument("--tables", type=int, default=200)
@@ -479,6 +483,7 @@ def main():
     matrix.add_argument("--runner", choices=["local", "remote"], default="local")
     matrix.add_argument("--health-timeout", type=int)
     matrix.add_argument("--baseline", type=Path, help="another run's gold-answers.json")
+    matrix.add_argument("--variant", choices=["c1", "c5"], help="capability path exercised by hooks")
     matrix.add_argument("--hook", action="append", default=[], metavar="T1=PATH",
                         help="executable hook; receives owned-container context via OO_TEST_CONTEXT")
     args = parser.parse_args()
@@ -488,7 +493,9 @@ def main():
         parser.error("remote runner not implemented; no SSH connection attempted")
     if not 1 <= args.scale <= 10_000_000 or not 0 <= args.tables <= 5000:
         parser.error("scale must be 1..10000000; tables must be 0..5000")
-    versions = args.versions.split(",")
+    if args.all and args.versions or not args.all and not args.versions:
+        parser.error("--versions is required with --engine and forbidden with --all")
+    versions = args.versions.split(",") if args.versions else []
     if len(versions) != len(set(versions)):
         parser.error("duplicate versions")
     if args.health_timeout is not None and args.health_timeout <= 0:
@@ -500,10 +507,11 @@ def main():
     hooks = {}
     for hook in args.hook:
         suite, sep, path = hook.partition("=")
-        if not sep or not re.fullmatch(r"T[1-68]", suite) or not Path(path).is_file() or not os.access(path, os.X_OK):
-            parser.error("hook must be T1..T6 or T8=existing-executable; T7 is built in")
+        if not sep or not re.fullmatch(r"T[0-68]", suite) or not Path(path).is_file() or not os.access(path, os.X_OK):
+            parser.error("hook must be T0..T6 or T8=existing-executable; T7 is built in")
         hooks[suite] = str(Path(path).resolve())
-    run_id = "h-s0-" + str(uuid.uuid4())
+    targets = P0 if args.all else [(args.engine, version) for version in versions]
+    run_id = "h-s5-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ-") + str(uuid.uuid4())
     root = ROOT / "evidence" / run_id
     root.mkdir(parents=True)
     print(f"evidence/{run_id}", flush=True)
@@ -514,12 +522,20 @@ def main():
         raise KeyboardInterrupt(f"signal {signum}")
     signal.signal(signal.SIGTERM, interrupted)
     interrupted_run = False
-    for version in versions:
-        path = root / f"{args.engine}-{version}"
+    for engine, version in targets:
+        path = root / f"{engine}-{version}"
         path.mkdir()
-        run = Run(path, args.engine, version, args)
-        result = {"engine": args.engine, "version": version, "status": "failed", "suites": {}}
+        run = Run(path, engine, version, args)
+        result = {"engine": engine, "version": version, "status": "failed", "suites": {},
+                  "product_t0": "T0" in hooks, "variant": args.variant}
         try:
+            item = resolve(engine, version)
+            result["version_locked"] = re.search(r"\d+(?:\.\d+)*", item["id"]).group()
+            if args.all:
+                missing = [s for s in args.suites if s not in ("T0", "T7") and s not in hooks]
+                if missing:
+                    result["suites"].update({s: "not_implemented" for s in missing})
+                    raise RuntimeError("missing product hooks: " + ",".join(missing))
             run.setup()
             run.seed()
             run.verify_shapes()
@@ -557,5 +573,18 @@ def main():
         print(json.dumps(result), flush=True)
         if interrupted_run:
             break
+    # Unstarted targets must not disappear on interruption.
+    for engine, version in targets[len(report["results"]):]:
+        path = root / f"{engine}-{version}"
+        path.mkdir()
+        result = {"engine": engine, "version": version, "status": "failed",
+                  "suites": {}, "error": "interrupted before target"}
+        write_json(path / "comparison-report.json", result)
+        checksums(path)
+        report["results"].append(result)
+    write_json(root / "comparison-report.json", report)
+    rows = index_rows(root, report, args.suites)
+    write_json(root / "evidence-index.json", rows)
+    write_json(root / "downgrade-report.json", downgrade_report(rows))
     checksums(root)
-    return 0 if len(report["results"]) == len(versions) and all(r["status"] == "passed" for r in report["results"]) else 1
+    return 0 if all(r["status"] == "passed" for r in report["results"]) else 1
