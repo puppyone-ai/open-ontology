@@ -6,6 +6,7 @@ pub mod chunk;
 pub mod gtid;
 pub mod keyset;
 pub mod map;
+pub mod protect;
 mod reader;
 mod source;
 pub mod values;
