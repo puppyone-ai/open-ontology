@@ -165,6 +165,11 @@ class Runner:
             accepted = parsed['accepted']
             if not parsed['unresolved'] and old.get('stream_complete'):
                 return dict(old, unresolved=[], cache='hit', new_calls=0)
+            attempts = list(old.get('attempts', []))
+            if not parsed['unresolved']:
+                # Complete-looking bytes without a finish frame are not a receipt.
+                accepted = {}
+        previous_attempts = len(attempts)
         feedback = []
         stream_complete = False
         for _ in range(3):
@@ -211,7 +216,7 @@ class Runner:
             missing = [item['id'] for item in batch['items']]
         receipt = dict(key=key, accepted=accepted, accepted_hash=digest(accepted), unresolved=missing,
             stream_complete=stream_complete, attempts=attempts, degradations=batch['degradations'],
-            cache='miss', new_calls=len(attempts), model_certified=False)
+            cache='miss', new_calls=len(attempts)-previous_attempts, model_certified=False)
         write_private(path, receipt)
         return receipt
 
@@ -239,7 +244,9 @@ class Runner:
                     self.receipts.append(receipt)
                     self.calls += receipt['new_calls']
                     complete = receipt['stream_complete'] and not receipt['unresolved']
-                    self.successes = self.successes + 1 if complete else 0
+                    uninterrupted = complete and all(a['stream_complete'] and not a['missing']
+                                                    for a in receipt['attempts'])
+                    self.successes = self.successes + 1 if uninterrupted else 0
                     accepted.update(receipt['accepted'])
                     unresolved.extend(receipt['unresolved'])
                     # Replay calibration on cache hits as well so --resume keeps

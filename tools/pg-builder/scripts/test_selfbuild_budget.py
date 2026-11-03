@@ -164,6 +164,24 @@ class Acceptance(unittest.TestCase):
 
 
 class ReceiptAndFamilyTest(unittest.TestCase):
+    def test_resume_preserves_attempts_and_retries_missing_finish_frame(self):
+        tables,_=fixture(1,1)
+        items=lib.bridge('tables',tables=tables)[0]['items']
+        with tempfile.TemporaryDirectory() as output:
+            model=Model()
+            def incomplete(request):
+                reply=model(request)
+                reply['choices'][0]['finish_reason']=None
+                return reply
+            values,missing=lib.Runner(Acceptance().config(),output,incomplete).generate(items,{})
+            self.assertTrue(missing)
+            resumed=lib.Runner(Acceptance().config(),output,Model())
+            values,missing=resumed.generate(items,{})
+            self.assertFalse(missing)
+            self.assertEqual(resumed.calls,1)
+            self.assertEqual(len(resumed.receipts[0]['attempts']),2)
+            self.assertEqual(resumed.successes,0)
+
     def test_added_column_and_new_table_invalidate_only_their_communities(self):
         tables,edges=fixture(20,3)
         config=Acceptance().config()

@@ -376,7 +376,7 @@ pub fn parse_ndjson(items: &[Item], text: &str) -> ParsedItems {
             }
         } else if result.feedback.len() < 8 {
             result.feedback.push(
-                "invalid_item: require requested id, kind and nonempty semantic fields".into(),
+                "invalid_item: require requested id, kind and nonempty semantic fields; proposed relations require name and cardinality exactly one_to_one, one_to_many, many_to_one or many_to_many (underscores, not hyphens); rejected relations require reason".into(),
             );
         }
     }
@@ -523,6 +523,21 @@ mod tests {
                 .len(),
             0
         );
+    }
+    #[test]
+    fn invalid_cardinality_feedback_names_the_allowed_values() {
+        let item = Item {
+            id: "relation:fixture".into(),
+            kind: Kind::Relation,
+            input: json!({}),
+        };
+        let value = json!({"id":item.id,"kind":"relation","decision":"proposed",
+            "name":"References","cardinality":"many-to-one"});
+        let parsed = parse_ndjson(&[item], &value.to_string());
+        assert!(parsed.accepted.is_empty());
+        assert_eq!(parsed.unresolved, vec!["relation:fixture"]);
+        assert!(parsed.feedback[0].contains("many_to_one"));
+        assert!(parsed.feedback[0].contains("not hyphens"));
     }
     #[test]
     fn receipt_is_model_prompt_and_input_bound_and_quota_stops_dispatch() {
