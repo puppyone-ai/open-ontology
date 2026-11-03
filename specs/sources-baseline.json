@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 6,
-  "supersedes_revision": 5,
-  "supersedes_baseline_head": "b495c9e0a1e51e9d707e60e795fd2d58f70430d9",
-  "supersedes_sha256": "5cfcc7a39e8c01a0f4e87f593a473229a39a62974aef04df1fafca9c3bb08e7b",
-  "review_record": "specs/source-baseline-revision-6.md",
-  "baseline_head": "26f11610162ba926396af90095f166122010386b",
+  "revision": 7,
+  "supersedes_revision": 6,
+  "supersedes_baseline_head": "26f11610162ba926396af90095f166122010386b",
+  "supersedes_sha256": "81b4eb8761e9d811befad33d95b01c6a1552b7a41d1ef46e2af6a8e0aae0171b",
+  "review_record": "specs/source-baseline-revision-7.md",
+  "baseline_head": "f905c314083d10d563f69557d5b2ced5addd198d",
   "source_count": 26,
   "sources": [
     {
@@ -127,9 +127,9 @@
     },
     {
       "path": "docs/product/01-working-model.md",
-      "sha256": "1616ad7c6fff26b4015e0a2acbf4529892d7b87e436bebc75b2ad0358fcec73b",
-      "bytes": 5757,
-      "lines": 75
+      "sha256": "aae01f53928a67e4833e06669089a4523b45e6801496f0fcbb2707e6fe488409",
+      "bytes": 5988,
+      "lines": 76
     },
     {
       "path": "docs/product/02-ingestion-playbook.md",
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "User-authorized v0.2 design backfill and baseline scope extension (docs/product); impact reviewed by the coordinator on 2026-11-04; no independent review or product acceptance claimed"
+  "review_status": "User-directed same-period docs update (Plan D7): docs/product/01 records the v0.2 ledger and TODO rules; reviewed by the coordinator; no independent review or product acceptance claimed"
 }
