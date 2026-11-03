@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 7,
-  "supersedes_revision": 6,
-  "supersedes_baseline_head": "26f11610162ba926396af90095f166122010386b",
-  "supersedes_sha256": "81b4eb8761e9d811befad33d95b01c6a1552b7a41d1ef46e2af6a8e0aae0171b",
-  "review_record": "specs/source-baseline-revision-7.md",
-  "baseline_head": "f905c314083d10d563f69557d5b2ced5addd198d",
+  "revision": 8,
+  "supersedes_revision": 7,
+  "supersedes_baseline_head": "f905c314083d10d563f69557d5b2ced5addd198d",
+  "supersedes_sha256": "3a1cc0c893a46a635b640b10feb00af6f6925a04727876abe00eab4c7202eba3",
+  "review_record": "specs/source-baseline-revision-8.md",
+  "baseline_head": "b56c43d551e98c37d568c62479c026ff9afff391",
   "source_count": 26,
   "sources": [
     {
@@ -31,8 +31,8 @@
     },
     {
       "path": "docs/03-sources-and-ingestion.md",
-      "sha256": "3295b56a21689cd5cc50fb4ca7c3e3b245c37d8dc6f466e2a6e530cdd5e1fdfe",
-      "bytes": 24623,
+      "sha256": "d22665a938a9c9fb594da854f46e9bdf7c95365651838fc8ea4213cb81029247",
+      "bytes": 24721,
       "lines": 288
     },
     {
@@ -133,9 +133,9 @@
     },
     {
       "path": "docs/product/02-ingestion-playbook.md",
-      "sha256": "1102892eff410cdcc768db236553f5454256eaed0523fee545c901a0eda9bfb7",
-      "bytes": 13203,
-      "lines": 132
+      "sha256": "d0b74ebbe563ce96cf34f8926faca84f9dbda210f3125a05b8e878a04e5c5f36",
+      "bytes": 13545,
+      "lines": 134
     },
     {
       "path": "docs/product/03-selfbuild-context-budget.md",
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "User-directed same-period docs update (Plan D7): docs/product/01 records the v0.2 ledger and TODO rules; reviewed by the coordinator; no independent review or product acceptance claimed"
+  "review_status": "Plan D7 same-period docs correction requested by lane E: Oracle plan checks through V$SQL_PLAN instead of write-producing EXPLAIN PLAN; reviewed by the coordinator; no independent review or product acceptance claimed"
 }
