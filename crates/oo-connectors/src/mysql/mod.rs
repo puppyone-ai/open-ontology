@@ -4,6 +4,7 @@
 pub mod capability;
 pub mod chunk;
 pub mod gtid;
+pub mod keyset;
 pub mod map;
 mod reader;
 mod source;
