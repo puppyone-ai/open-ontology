@@ -91,7 +91,7 @@ fn write_config(dir: &Path, purpose: &str, port: u16, price: &str, bearer_name: 
             "endpoint": {{
                 "origin": "http://127.0.0.1:{port}",
                 "path": "/v1/chat/completions",
-                "model_id": "grok-4.7"
+                "model_id": "gpt-6.1-sol"
             }},
             "secret": {{"bearer_file": "{}"}},
             "declared_price": {price},
@@ -725,11 +725,16 @@ fn catalog_request_has_no_password_bytes() {
 }
 
 #[test]
-fn column_batches_are_eight() {
+fn column_batches_follow_output_budget_without_truncating_wide_tables() {
     assert!(column_batch_ranges(0).is_empty());
     assert_eq!(column_batch_ranges(5), vec![(0, 5)]);
     assert_eq!(column_batch_ranges(8), vec![(0, 8)]);
-    assert_eq!(column_batch_ranges(9), vec![(0, 8), (8, 9)]);
+    assert_eq!(column_batch_ranges(9), vec![(0, 9)]);
+    let ranges = column_batch_ranges(300);
+    assert_eq!(ranges.first().unwrap().0, 0);
+    assert_eq!(ranges.last().unwrap().1, 300);
+    assert!(ranges.windows(2).all(|w| w[0].1 == w[1].0));
+    assert!(ranges.iter().all(|(a,b)| 128 + (b-a)*70 <= 4000));
 }
 
 #[test]
@@ -822,7 +827,7 @@ fn configured_namespaced_model_is_preserved_in_config_and_seal() {
     let model = "devin/claude-opus-5-5";
     assert!(pg_builder::model_id_ok(model));
     let dir = temp_dir();
-    let config = write_config(&dir, "generate", 8317, r#"{"status":"unknown"}"#, "bearer").replace("grok-4.7", model);
+    let config = write_config(&dir, "generate", 8317, r#"{"status":"unknown"}"#, "bearer").replace("gpt-6.1-sol", model);
     assert_eq!(load_config(&config).unwrap().model_id, model);
     fs::remove_dir_all(dir).unwrap();
     for bad in ["", "model\nheader", "model?x=1", "model name"] {
