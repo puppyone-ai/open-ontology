@@ -1,0 +1,16 @@
+[package]
+name = "oo-stack"
+description = "Strict stack configuration and owner-private secret references."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+libc = "=0.2.189"
+
+[lints]
+workspace = true
