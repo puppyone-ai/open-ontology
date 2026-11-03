@@ -1,4 +1,5 @@
-//! Administrative skeleton; never reads consumer credentials or stdin.
+//! Administrative commands; consumer credentials are never read here.
+mod doctor;
 use oo_stack::stack;
 
 use super::Invocation;
@@ -9,7 +10,7 @@ use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::Path;
 
 pub const HELP: &str = "\
-Admin commands (skeleton; no deployment or source writes):
+Admin commands (no deployment or source writes):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
   oo build [--resume] [--config stack.yaml] [--yes] [--json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
@@ -18,8 +19,11 @@ Admin commands (skeleton; no deployment or source writes):
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
 TTY wizard is not yet implemented (S2). Non-TTY never prompts.
+doctor probes sources read-only and the model through model-egress.
+PostgreSQL requires tls_ca.secret_ref and explicit scope.include tables.
+Unknown estimates remain null; blocked diagnostics exit nonzero.
 status <query_id> remains the consumer query-status command.
-Other admin operations return ADMIN_NOT_IMPLEMENTED, not a success receipt.";
+Other admin operations are not yet implemented (ADMIN_NOT_IMPLEMENTED).";
 
 pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
     let (command, rest) = args.split_first()?;
@@ -126,6 +130,11 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
             "ADMIN_ARGUMENT: missing or invalid subcommand/argument",
         ));
     }
+    if command == "doctor" {
+        let path = Path::new(config.unwrap_or("stack.yaml"));
+        let stack = read_stack(path)?;
+        return doctor::run(&stack, json);
+    }
     if command != "init" {
         return Err(Failure::local(
             "ADMIN_NOT_IMPLEMENTED: administrative operation is not yet available",
@@ -144,6 +153,25 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     } else {
         "Stack validated and normalized as JSON; no services started.".into()
     }))
+}
+
+fn read_stack(path: &Path) -> Result<stack::Stack, Failure> {
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(path)
+        .map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+    let meta = file
+        .metadata()
+        .map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+    if !meta.is_file() || meta.len() > 1_048_576 || meta.nlink() != 1 {
+        return Err(Failure::local("ADMIN_CONFIG_IO"));
+    }
+    let mut text = String::new();
+    file.take(1_048_577)
+        .read_to_string(&mut text)
+        .map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+    stack::parse(&text).map_err(Failure::usage)
 }
 
 fn normalize(path: &Path) -> Result<(), Failure> {

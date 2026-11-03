@@ -19,6 +19,10 @@ use crate::render::{self, RenderError};
 pub fn run() -> u8 {
     let json = command_json_mode();
     match parse() {
+        Ok(Invocation::AdminReport(text, exit)) => {
+            let written = write_text(&text);
+            if written == 0 { exit } else { written }
+        }
         Err(failure) => emit(&failure, json),
         Ok(Invocation::Help(text)) => write_text(&text),
         Ok(Invocation::AgentSkill(json)) => {

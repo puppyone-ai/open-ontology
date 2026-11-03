@@ -2202,6 +2202,7 @@ name = "oo-cli"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "oo-connectors",
  "oo-core",
  "oo-sdk",
  "oo-stack",

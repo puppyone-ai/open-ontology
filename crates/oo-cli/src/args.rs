@@ -65,6 +65,7 @@ pub struct SearchArgs {
 }
 
 pub enum Invocation {
+    AdminReport(String, u8),
     Help(String),
     AgentSkill(bool),
     Unsupported,
