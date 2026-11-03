@@ -797,9 +797,9 @@
    "sprint": "S4",
    "lane": "D",
    "title": "P1：openGauss 快照 + C5（认证与逻辑解码分叉单独处理）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-D",
+   "branch": "v0.2/d-postgres-engine",
    "commits": [],
    "evidence": []
   },
