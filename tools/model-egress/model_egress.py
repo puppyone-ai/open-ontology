@@ -391,7 +391,12 @@ class Egress:
                   'context_window': None, 'max_output_tokens': None, 'json_mode': 'unknown',
                   'proxy_injected_prompt_tokens': None,
                   'overhead_basis': 'minimal_prompt_total_not_isolated_injection',
-                  'limits_basis': 'unmeasured'}
+                  'limits_basis': {}, 'matched_models': [], 'model_match': 'none'}
+        override = self.model.get('context_window', 'auto')
+        fallbacks = {'context_window': override if type(override) is int else 32000,
+                     'max_output_tokens': 4000}
+        fields = {'context_window': ('context_window', 'context_length'),
+                  'max_output_tokens': ('max_output_tokens', 'max_completion_tokens')}
         conn = None
         try:
             self.admit()
@@ -399,24 +404,39 @@ class Egress:
             raw = response.read(MAX_BYTES + 1)
             if response.status == 200 and len(raw) <= MAX_BYTES:
                 body = json.loads(raw)
-                selected = next((m for m in body.get('data', [])
-                                 if isinstance(m, dict) and m.get('id') == self.model['model']), None)
-                result['models_status'] = 'present' if selected else 'model_not_listed'
+                models = [m for m in body.get('data', [])
+                          if isinstance(m, dict) and isinstance(m.get('id'), str)]
+                selected = [m for m in models if m['id'] == self.model['model']]
                 if selected:
-                    for dest, fields in [('context_window', ('context_window', 'context_length')),
-                                         ('max_output_tokens', ('max_output_tokens', 'max_completion_tokens'))]:
-                        for field in fields:
-                            if type(selected.get(field)) is int and selected[field] > 0:
-                                result[dest] = selected[field]
-                                result['limits_basis'] = 'provider_metadata_not_boundary_tested'
-                                break
+                    result['model_match'] = 'exact'
+                else:
+                    selected = [m for m in models
+                                if m['id'].rsplit('/', 1)[-1] == self.model['model']]
+                    if selected:
+                        result['model_match'] = 'last_segment'
+                result['models_status'] = 'present' if selected else 'model_not_listed'
+                for model in selected:
+                    match = {'id': model['id']}
+                    for dest, aliases in fields.items():
+                        match[dest] = next((model[f] for f in aliases
+                                            if type(model.get(f)) is int and model[f] > 0), None)
+                    result['matched_models'].append(match)
             elif response.status not in (404, 405):
                 raise Refusal(error_code(response.status, json.loads(raw)))
-        except (ValueError, OSError, http.client.HTTPException):
+        except (ValueError, TypeError, AttributeError, OSError, http.client.HTTPException):
             result['models_status'] = 'unavailable'
         finally:
             if conn:
                 conn.close()
+        for dest in fields:
+            values = [m[dest] for m in result['matched_models']]
+            fallback_basis = ('stack_fallback' if dest == 'context_window' and type(override) is int
+                              else 'conservative_default')
+            result[dest] = min((v if v is not None else fallbacks[dest] for v in values),
+                               default=fallbacks[dest])
+            result['limits_basis'][dest] = (
+                'provider_metadata_minimum_not_boundary_tested' if values and None not in values
+                else ('provider_metadata_minimum_with_' + fallback_basis if values else fallback_basis))
         request = {'model': self.model['model'], 'messages': [{'role': 'user', 'content': '.'}],
                    'max_tokens': 1}
         reply = list(self.call(request))[0]
@@ -431,10 +451,6 @@ class Egress:
                 if error.code in ('RATE_LIMITED', 'USAGE_LIMIT', 'COOLDOWN', 'UPSTREAM_AUTH'):
                     raise
                 result['json_mode'] = 'probe_failed'
-        override = self.model.get('context_window', 'auto')
-        if type(override) is int and override > 0:
-            result['context_window'] = override
-            result['limits_basis'] = 'operator_override'
         self.safe(result)
         return result
 

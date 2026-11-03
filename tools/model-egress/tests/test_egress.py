@@ -17,7 +17,7 @@ FIXTURES = Path(__file__).parent / 'fixtures'
 
 
 class Replay:
-    def __init__(self, dialect='openai', status=200, error=None, truncate=False, wire=None):
+    def __init__(self, dialect='openai', status=200, error=None, truncate=False, wire=None, models=None):
         self.seen = []
         self.dialect, self.status, self.error, self.truncate = dialect, status, error, truncate
         replay = self
@@ -28,8 +28,9 @@ class Replay:
 
             def do_GET(self):
                 replay.seen.append((self.path, None, dict(self.headers)))
-                body = json.dumps({'data': [{'id': 'fixture-model', 'context_window': 272000,
-                                             'max_output_tokens': 128000}]}).encode()
+                body = json.dumps({'data': models if models is not None else [
+                    {'id': 'fixture-model', 'context_window': 272000,
+                     'max_output_tokens': 128000}]}).encode()
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(body)
@@ -170,6 +171,32 @@ class Tests(unittest.TestCase):
             egress, _, meter = self.egress(dialect, wire=wire)
             self.assertIsNone(list(egress.call(self.request(True)))[-1])
             self.assertEqual(json.loads(meter.read_text())['code'], 'OK')
+
+    def test_probe_exact_then_channel_minimum_and_unknown_fallbacks(self):
+        channels = [
+            {'id': 'cx/fixture-model', 'context_length': 1050000, 'max_completion_tokens': 128000},
+            {'id': 'cb/fixture-model', 'context_window': 272000, 'max_output_tokens': 64000},
+            {'id': 'cb/fixture-model-other', 'context_window': 1, 'max_output_tokens': 1}]
+        for models, expected, match in [
+            (channels, (272000, 64000), 'last_segment'),
+            (channels + [{'id': 'fixture-model', 'context_window': 500000, 'max_output_tokens': 100000}],
+             (500000, 100000), 'exact'),
+            ([], (32000, 4000), 'none'),
+            (channels + [{'id': 'unknown/fixture-model', 'context_window': True}],
+             (32000, 4000), 'last_segment')]:
+            egress, _, _ = self.egress(models=models)
+            output = egress.probe()
+            self.assertEqual((output['context_window'], output['max_output_tokens']), expected)
+            self.assertEqual(output['model_match'], match)
+            self.assertEqual(output['proxy_injected_prompt_tokens'], 2503)
+            self.assertEqual(len(output['matched_models']),
+                             1 if match == 'exact' else len(models) - 1 if models else 0)
+        egress, _, _ = self.egress(models=[])
+        egress.model['context_window'] = 16000
+        output = egress.probe()
+        self.assertEqual(output['context_window'], 16000)
+        self.assertEqual(output['limits_basis']['context_window'], 'stack_fallback')
+        self.assertEqual(output['limits_basis']['max_output_tokens'], 'conservative_default')
 
     def test_finish_then_separate_usage_and_missing_usage(self):
         finish = b'data: {"choices":[{"finish_reason":"length","delta":{}}]}\n\n'

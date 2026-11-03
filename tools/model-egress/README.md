@@ -41,11 +41,15 @@ of model output, not a transport failure.
 
 Probe calls `/models`, a minimal one-token completion, and (OpenAI) a one-token
 JSON-mode request. Metadata limits are labeled provider-declared, not boundary
-measured. Missing limits remain null. JSON parameter acceptance is not proof
+measured. Exact model IDs win over channel-prefixed last-segment matches; all
+matching metadata is recorded and each budget takes the minimum. Unknown limits
+use the stack context window or conservative defaults (32k context, 4k output),
+with a per-field basis. Missing metadata for one channel also participates in
+the conservative minimum. JSON parameter acceptance is not proof
 of valid output at one token. Prompt overhead is the **total prompt_tokens of
 the minimal prompt**, not an isolated measurement of injected system text.
-Operator context-window overrides are labeled; no model-name lookup invents
-limits. This tool does not infer unlisted limits by making oversized paid calls.
+Stack context windows are fallbacks, never permission to enlarge a measured
+channel minimum. This tool does not infer unlisted limits by making oversized paid calls.
 
 ## Builder
 
