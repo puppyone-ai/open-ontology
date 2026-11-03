@@ -1558,9 +1558,17 @@ fn arm_read(stream: &std::os::unix::net::UnixStream, deadline: Instant) -> Resul
     let Some(budget) = slice_budget(deadline) else {
         return Err(FailureKind::TimedOut);
     };
-    stream
-        .set_read_timeout(Some(budget))
-        .map_err(|_| FailureKind::Io)
+    match stream.set_read_timeout(Some(budget)) {
+        Ok(()) => Ok(()),
+        // Darwin 27 returns EINVAL after the peer closes, even while
+        // buffered bytes remain. Reading those bytes/EOF does not block.
+        Err(error)
+            if cfg!(target_os = "macos") && error.raw_os_error() == Some(22) =>
+        {
+            Ok(())
+        }
+        Err(_) => Err(FailureKind::Io),
+    }
 }
 
 fn arm_write(
