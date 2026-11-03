@@ -13,6 +13,9 @@ workspace = true
 [features]
 default = []
 mysql = ["dep:mysql_async", "tokio/sync", "tokio/macros"]
+# In-process MySQL binlog C1. Not default: its zstd stack is admitted for the
+# default artifact only after the seven-day rule (supply-chain/mysql-binlog-audit.json).
+mysql-binlog = ["mysql", "mysql_async/binlog"]
 oracle = ["dep:oracledb"]
 
 [[bin]]
