@@ -9,7 +9,9 @@ use std::time::Duration;
 
 use arrow_array::{Array, StringArray};
 use arrow_ipc::reader::StreamReader;
+use arrow_schema::DataType;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
 use super::engine::OracleConnectConfig;
@@ -94,7 +96,11 @@ impl Worker {
         worker.send(&request)?;
         let (kind, data) = worker.frame()?;
         let reply: Value = serde_json::from_slice(&data).map_err(|_| invalid())?;
-        if kind != b'J' || reply["ok"] != true || reply["thin"] != false {
+        if kind != b'J'
+            || reply["protocol"] != PROTOCOL
+            || reply["ok"] != true
+            || reply["thin"] != false
+        {
             return Err(invalid());
         }
         Ok(worker)
@@ -159,6 +165,9 @@ impl Worker {
             worker: self,
             buffered: VecDeque::new(),
             done: false,
+            sequence: 0,
+            rows: 0,
+            schema_hash: None,
         })
     }
 }
@@ -173,6 +182,32 @@ pub struct WorkerRows<'a> {
     worker: &'a Worker,
     buffered: VecDeque<Vec<Option<String>>>,
     done: bool,
+    sequence: u64,
+    rows: u64,
+    schema_hash: Option<String>,
+}
+
+fn validate_schema(schema: &arrow_schema::Schema, sequence: u64) -> Result<String, DriverError> {
+    let mut signature = String::new();
+    for (i, field) in schema.fields().iter().enumerate() {
+        if field.name() != &i.to_string()
+            || field.data_type() != &DataType::Utf8
+            || !field.is_nullable()
+        {
+            return Err(invalid());
+        }
+        signature.push_str(&format!("{i}:utf8:nullable\n"));
+    }
+    let hash = format!("{:x}", Sha256::digest(signature.as_bytes()));
+    let metadata = schema.metadata();
+    if schema.fields().is_empty()
+        || metadata.get("oo.protocol").map(String::as_str) != Some(PROTOCOL)
+        || metadata.get("oo.sequence") != Some(&sequence.to_string())
+        || metadata.get("oo.schema_sha256") != Some(&hash)
+    {
+        return Err(invalid());
+    }
+    Ok(hash)
 }
 
 impl Iterator for WorkerRows<'_> {
@@ -187,8 +222,14 @@ impl Iterator for WorkerRows<'_> {
         let result = (|| {
             let (kind, data) = self.worker.frame()?;
             if kind == b'J' {
-                self.done = true;
                 let value: Value = serde_json::from_slice(&data).map_err(|_| invalid())?;
+                if value["protocol"] != PROTOCOL {
+                    return Err(invalid());
+                }
+                if value["ok"] == true && value["rows"].as_u64() != Some(self.rows) {
+                    return Err(invalid());
+                }
+                self.done = true;
                 return if value["ok"] == true {
                     Ok(())
                 } else {
@@ -200,9 +241,20 @@ impl Iterator for WorkerRows<'_> {
             }
             let stream =
                 StreamReader::try_new(std::io::Cursor::new(data), None).map_err(|_| invalid())?;
+            let hash = validate_schema(&stream.schema(), self.sequence)?;
+            if self
+                .schema_hash
+                .as_ref()
+                .is_some_and(|previous| previous != &hash)
+            {
+                return Err(invalid());
+            }
+            self.schema_hash = Some(hash);
+            let mut batches = 0;
             for batch in stream {
+                batches += 1;
                 let batch = batch.map_err(|_| invalid())?;
-                if batch.num_rows() > 512 || batch.num_columns() == 0 {
+                if batches != 1 || batch.num_rows() > 512 || batch.num_columns() == 0 {
                     return Err(invalid());
                 }
                 for i in 0..batch.num_rows() {
@@ -223,6 +275,8 @@ impl Iterator for WorkerRows<'_> {
             if self.buffered.is_empty() {
                 return Err(invalid());
             }
+            self.rows += self.buffered.len() as u64;
+            self.sequence += 1;
             Ok(())
         })();
         if let Err(error) = result {
@@ -230,6 +284,7 @@ impl Iterator for WorkerRows<'_> {
                 self.worker.stop();
             }
             self.done = true;
+            self.buffered.clear();
             return Some(Err(error));
         }
         self.buffered.pop_front().map(Ok)
@@ -258,13 +313,16 @@ mod tests {
     #[test]
     fn preserve_database_error_and_reject_missing_completion() {
         for reply in [
-            Some(br#"{"ok":false,"code":1555,"timeout":false}"#.as_slice()),
+            Some(
+                br#"{"protocol":"oo.oracle.driver/v1","ok":false,"code":1555,"timeout":false}"#
+                    .as_slice(),
+            ),
             None,
         ] {
             let mut command = Command::new("sh");
             let script = format!(
                 "read request; printf '{}'; read request; {}",
-                shell_frame(br#"{"ok":true,"thin":false}"#),
+                shell_frame(br#"{"protocol":"oo.oracle.driver/v1","ok":true,"thin":false}"#),
                 reply
                     .map(|r| format!("printf '{}'", shell_frame(r)))
                     .unwrap_or("exit 0".into()),
@@ -293,6 +351,27 @@ mod tests {
             }
             assert!(rows.next().is_none());
         }
+    }
+
+    #[test]
+    fn require_batch_version_sequence_and_schema_fingerprint() {
+        use arrow_schema::{Field, Schema};
+        let fields = vec![Field::new("0", DataType::Utf8, true)];
+        let hash = format!("{:x}", Sha256::digest(b"0:utf8:nullable\n"));
+        let metadata = std::collections::HashMap::from([
+            ("oo.protocol".into(), PROTOCOL.into()),
+            ("oo.sequence".into(), "0".into()),
+            ("oo.schema_sha256".into(), hash.clone()),
+        ]);
+        assert!(validate_schema(&Schema::new(fields.clone()), 0).is_err());
+        let schema = Schema::new_with_metadata(fields, metadata);
+        assert_eq!(validate_schema(&schema, 0).unwrap(), hash);
+        assert!(validate_schema(&schema, 1).is_err());
+        let forged = Schema::new_with_metadata(
+            vec![Field::new("0", DataType::Utf8, false)],
+            schema.metadata().clone(),
+        );
+        assert!(validate_schema(&forged, 0).is_err());
     }
 
     #[test]
