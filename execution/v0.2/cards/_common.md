@@ -36,11 +36,22 @@ every exit on the card holds or you can prove it cannot; never ask questions.
    worktree; commit only summaries. A test that did not run is not a pass.
    Record failures honestly; never weaken a test or gold value to pass.
 
+9. Pre-existing failures: a test that fails identically on the base commit
+   of your branch is not yours to fix and does not block your commits. Prove it
+   (run it on the base), name each test in the commit body, and continue. Known:
+   5 `crates/oo-connectors/tests/file_worker_parent.rs` tests fail on the macOS
+   host (Linux-only process isolation), 3 tools/pg-builder tests need absent
+   historical evidence.
+
 ## Commit standard (plan §10.3)
 
 - One logical change per commit; Conventional Commits
   `<type>(<scope>): <imperative summary>` in English, ≤72 chars.
-- Body: why, behavior change, how it was validated (commands + result).
+- Body: why, behavior change, how it was validated (commands + result). Write
+  the message with real line breaks (`git commit -F file`), never literal `\n`.
+- Split by concern: migration, store/library, API surface, CLI, tests may go
+  with the code they test. A card that lists several deliverables normally
+  yields several commits.
 - Trailers: `Plan: <TODO IDs>` and
   `Co-Authored-By: GPT-6 Astra (Codex) <noreply@openai.com>`.
 - Every commit builds: `cargo check --workspace --locked` (state in the body
