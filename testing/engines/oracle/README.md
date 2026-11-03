@@ -63,7 +63,7 @@ separately for fixture writes and is not included in the source worker image.
 
 - T0 component: real version, settings, missing C1 prerequisites, DBA grants,
   online_catalog-only policy, key shapes, and plans. This is not `oo doctor`
-  CLI integration. C1 always reports the S2 reader/T7 acceptance requirement.
+  CLI integration. C1 reports the experimental reader/T7 acceptance gate.
 - T1 component: two million NUMBER-key rows, VARCHAR2 case/accent/trailing
   spaces across chunks, composite and unique-only keys, extent-based heap
   ranges, growing ranges, and empty-string NULLs. A separate writer commits
@@ -136,3 +136,59 @@ For the destructive undo stress test, **only** against a newly created fixture:
 python3 testing/engines/oracle/run.py --version 23 --run-id oracle-e-undo --undo-stress
 python3 testing/engines/oracle/worker/test_worker.py
 ```
+
+## S2 incremental component tests
+
+```sh
+python3 testing/engines/oracle/run.py --version 23 --run-id oracle-e-s2-23 --incremental
+python3 testing/engines/oracle/run.py --version 21 --run-id oracle-e-s2-21 --incremental
+python3 testing/engines/oracle/run.py --version 11 --run-id oracle-e-s2-11 \
+  --incremental --worker-image oo-e-oracle-worker:oracle-e-worker
+```
+
+`OracleLogMiner` implements `ChangeSource` over the existing engine transport,
+column metadata, canonicalization, Arrow schema and key conversion. The old
+preview C1 producer consumes Debezium envelopes; it contains no platform-owned
+LogMiner reader to call. Its sealing/native-loader contracts are not duplicated
+or replaced by this component. The existing native Oracle loader is unchanged.
+
+The adapter admits keyed NUMBER/CHAR/VARCHAR2 tables with conventional uppercase
+identifiers. Other types fail admission. CDB mining uses a common user in
+CDB$ROOT, a matching PDB engine for metadata admission, and SRC_CON_NAME filtering.
+It adds retained files itself and uses only DICT_FROM_ONLINE_CATALOG plus
+COMMITTED_DATA_ONLY; it never executes SQL_REDO or builds a dictionary.
+The oldest active transaction at admission pins the mining start. Each poll
+replays from that start and filters by commit SCN, preserving transactions that
+straddle a commit watermark. Missing logs, changed incarnation, and a new
+process attempting an old checkpoint require rebaseline. There is no durable
+in-flight transaction store or automatic retirement of that pinned start.
+Multiple redo threads/RAC are refused: admission currently observes this
+instance's V$TRANSACTION, not a cluster-wide active-transaction inventory.
+Dictionary failures identify the affected tables and stop watermark advancement.
+
+The fixture compares a real snapshot corrected with LogMiner in-window
+insert/update/delete/key-move events, a transaction spanning polls, and an empty
+cycle. DDL must request rebaseline. C5 uses `digest_range` for three cycles and
+checks zero capture payload, zero staging rewrites and no new in-memory generation
+on the unchanged cycle. This is **digest-layer component evidence**, not the
+four-layer scheduler or native Agent DB acceptance. Hints, recent-window
+acceleration, low-frequency full-read fallback, and native-loader integration
+remain coordinator follow-up; the test's independent full reference is an oracle,
+not a production fallback.
+
+The strict T7 runner intentionally fails if its unfiltered unified audit contains
+anything except SELECT, session connect/disconnect, and LogMiner package calls.
+On the tested 23ai path the audit includes driver `ALTER SESSION SET TIME_ZONE`
+and package-recursive operations on `SYS.LOGMNR_GT_*`, including DELETE/COMMIT.
+Do not suppress these records or label this R1 verified. Functional test results
+and the failing audit have separate artifacts and exit statuses. `--c5-only`
+omits C1 and T7 entirely and makes no claim about either.
+
+11g C1 is not implemented: the current thick-worker protocol deliberately accepts
+only SELECT. It remains C5-only rather than permitting arbitrary PL/SQL in that
+worker. 19c remains blocked by D2. No support-matrix promotion is justified.
+
+Version qualification: the local `gvenzl/oracle-free:23-slim` digest used by
+these S2 runs reports `23.26.3.0.0` and an Oracle AI Database **26ai** banner.
+The run name `23` denotes the version-family/image target, not proof against an
+older 23ai-branded build. Consult the pinned image and raw startup/probe output.

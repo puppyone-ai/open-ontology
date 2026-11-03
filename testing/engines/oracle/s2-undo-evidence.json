@@ -1,7 +1,7 @@
 {
   "todo": "S2-E-01",
   "run_id": "e-s2-undo-20261104-a",
-  "engine": "Oracle Free 23ai",
+  "engine": "Oracle Free 23.26.3.0.0 (26ai banner; 23 image family)",
   "test": "real_ora_01555_restarts_whole_chunk_at_fresh_scn_with_zero_diff",
   "rows": 12000,
   "diff": 0,

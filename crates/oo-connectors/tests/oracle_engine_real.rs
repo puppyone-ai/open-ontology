@@ -27,7 +27,14 @@ struct Fixture {
     out: PathBuf,
     #[serde(default)]
     worker_container: Option<String>,
+    #[serde(default)]
+    miner_password: Option<String>,
+    #[serde(default)]
+    root_service: Option<String>,
 }
+
+#[path = "oracle_incremental_cases/mod.rs"]
+mod incremental;
 
 enum Connection {
     Thin(oracledb::Connection),

@@ -25,7 +25,15 @@ def main():
     parser.add_argument("--worker-image", help="local thick-worker image; required for 11g")
     parser.add_argument("--undo-stress", action="store_true",
                         help="shrink undo in this owned 23ai fixture; test lost-undo behavior")
+    parser.add_argument("--incremental", action="store_true",
+                        help="C5 cycles and, on 21/23, owned LogMiner/audit fixture")
+    parser.add_argument("--c5-only", action="store_true",
+                        help="run incremental C5 without claiming C1 or T7")
     args = parser.parse_args()
+    if args.incremental and args.undo_stress:
+        parser.error("run incremental and undo stress separately")
+    if args.c5_only and not args.incremental:
+        parser.error("--c5-only requires --incremental")
     if args.undo_stress and (args.version != "23" or args.worker_image):
         parser.error("undo stress currently requires the native 23ai fixture")
     if not all(c.isalnum() or c in "-_" for c in args.run_id):
@@ -95,6 +103,9 @@ def main():
             "reader_password": passwords[1], "writer_password": passwords[2],
             "out": str(out),
         }
+        if args.incremental and args.version != "11" and not args.c5_only:
+            config["miner_password"] = passwords[1]
+            config["root_service"] = "FREE" if args.version == "23" else "XE"
         if args.worker_image:
             worker_image = json.loads(run(["docker", "image", "inspect", args.worker_image], "worker-image"))[0]
             worker_digest = worker_image["Id"]
@@ -158,8 +169,38 @@ BEGIN DBMS_STATS.GATHER_TABLE_STATS('OO_FIXTURE','{table}'); END;
 /
 """
         ddl += "EXIT\n"
+        if args.incremental:
+            # T2 uses GROWING; do not generate the unrelated two-million-row
+            # T1 fixture's redo for every LogMiner test.
+            ddl = ddl.replace("CONNECT BY LEVEL<=1000) a CROSS", "CONNECT BY LEVEL<=1) a CROSS")
         run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
             "fixture", input=ddl, timeout=600)
+        if args.incremental and args.version != "11" and not args.c5_only:
+            mining = f"""
+SET ECHO OFF VERIFY OFF FEEDBACK OFF
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+SHUTDOWN IMMEDIATE;
+STARTUP MOUNT;
+ALTER DATABASE ARCHIVELOG;
+ALTER DATABASE OPEN;
+ALTER PLUGGABLE DATABASE ALL OPEN;
+ALTER DATABASE ADD SUPPLEMENTAL LOG DATA;
+CREATE USER C##OO_MINER IDENTIFIED BY "{passwords[1]}" CONTAINER=ALL;
+GRANT CREATE SESSION, LOGMINING, SELECT ANY TRANSACTION TO C##OO_MINER CONTAINER=ALL;
+GRANT EXECUTE ON SYS.DBMS_LOGMNR TO C##OO_MINER CONTAINER=ALL;
+"""
+            for view in ["V_$DATABASE", "V_$ARCHIVED_LOG", "V_$LOG", "V_$LOGFILE",
+                         "V_$LOGMNR_CONTENTS", "V_$LOGMNR_LOGS", "V_$SESSION", "V_$TRANSACTION"]:
+                mining += f"GRANT SELECT ON SYS.{view} TO C##OO_MINER CONTAINER=ALL;\n"
+            mining += f"""
+CREATE AUDIT POLICY OO_MINER_AUDIT ACTIONS ALL;
+AUDIT POLICY OO_MINER_AUDIT BY C##OO_MINER;
+{switch}
+ALTER TABLE OO_FIXTURE.GROWING ADD SUPPLEMENTAL LOG DATA (ALL) COLUMNS;
+EXIT
+"""
+            run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
+                "logminer-setup", input=mining, timeout=300)
         if worker_id:
             probe = """
 import json,sys,oracledb
@@ -220,16 +261,24 @@ EXIT
         env = os.environ.copy()
         env["OO_ORACLE_FIXTURE_CONFIG"] = str(out / "config.json")
         source_files = sorted((ROOT / "crates/oo-connectors/src/oracle").glob("*.rs"))
-        source_files.extend(sorted((ROOT / "crates/oo-connectors/tests").glob("oracle_*real.rs")))
+        source_files.extend(sorted((ROOT / "crates/oo-connectors/tests").glob("oracle_*.rs")))
+        source_files.extend(sorted((ROOT / "crates/oo-connectors/tests/oracle_incremental_cases").glob("*.rs")))
+        source_files.append(Path(__file__).resolve())
         def source_hashes():
             return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
                     for p in source_files}
         sources = source_hashes()
         (out / "source-hashes.json").write_text(json.dumps(sources, indent=2) + "\n")
-        p = subprocess.run(
-            ["cargo", "test", "-p", "oo-connectors", "--features", "oracle",
+        command = ["cargo", "test", "-p", "oo-connectors", "--features", "oracle",
              "--locked", "--test", "oracle_undo_real" if args.undo_stress else "oracle_engine_real",
-             "--", "--ignored", "--nocapture"],
+             "--"]
+        if args.incremental:
+            command.append("real_incremental_cycles")
+        elif not args.undo_stress:
+            command.append("oracle_engine_t0_t1_t8")
+        command += ["--ignored", "--nocapture"]
+        p = subprocess.run(
+            command,
             cwd=ROOT, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             timeout=1800,
         )
@@ -238,6 +287,41 @@ EXIT
             raw = raw.replace(password, "[redacted]")
         (out / "test.log").write_text(raw)
         (out / "test.exit").write_text(str(p.returncode) + "\n")
+        if args.incremental and args.version != "11" and not args.c5_only:
+            audit_sql = """
+SET ECHO OFF VERIFY OFF FEEDBACK OFF HEADING OFF PAGESIZE 0 LINESIZE 32767
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+SELECT JSON_OBJECT('action' VALUE action_name, 'object' VALUE object_name,
+ 'return_code' VALUE return_code, 'sql' VALUE DBMS_LOB.SUBSTR(sql_text,3000,1))
+FROM unified_audit_trail WHERE dbusername='C##OO_MINER'
+ORDER BY event_timestamp;
+EXIT
+"""
+            if args.version == "21":
+                audit_sql = audit_sql.replace(
+                    "SELECT JSON_OBJECT",
+                    "EXEC DBMS_AUDIT_MGMT.FLUSH_UNIFIED_AUDIT_TRAIL;\nSELECT JSON_OBJECT")
+            audit = run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
+                        "miner-audit", input=audit_sql)
+            records = [json.loads(line.strip(), strict=False) for line in audit.splitlines()
+                       if line.strip().startswith("{")]
+            if not records or not any(r["action"] == "SELECT" for r in records):
+                raise RuntimeError("missing LogMiner source audit")
+            unexpected = []
+            for record in records:
+                sql = (record.get("sql") or "").strip().upper()
+                allowed = (record["action"] in ("LOGON", "LOGOFF")
+                           or sql.startswith("SELECT ")
+                           or sql.startswith("BEGIN DBMS_LOGMNR."))
+                if not allowed:
+                    unexpected.append(record)
+            (out / "audit-result.json").write_text(json.dumps({
+                "records": len(records), "unexpected_records": unexpected,
+                "strict_zero_write_pass": not unexpected,
+                "actions": sorted({r["action"] for r in records}),
+            }, indent=2) + "\n")
+            if unexpected:
+                raise RuntimeError("strict T7 failed: unexpected reader audit operations")
         if args.undo_stress:
             run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
                 "undo-observation", input=f"""

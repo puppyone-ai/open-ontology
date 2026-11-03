@@ -1,7 +1,8 @@
 //! [`SourceEngine`] for Oracle 11g-23ai over the `oracledb` thin driver.
 //!
-//! Read-only by construction: the engine issues `SELECT` statements and
-//! nothing else. It does not `ALTER SESSION`, does not run `EXPLAIN PLAN`
+//! Application-generated snapshot SQL consists of `SELECT` statements. The
+//! pinned thin driver also initializes the session time zone; strict T7 audit
+//! acceptance is still pending. The adapter does not run `EXPLAIN PLAN`
 //! (which inserts into `PLAN_TABLE`), creates no `DBMS_PARALLEL_EXECUTE`
 //! task and takes no lock. Index use of the keyset query is verified from
 //! the shared cursor in `V$SQL_PLAN` when that view is readable.
@@ -41,6 +42,9 @@ use super::keyset::{
 };
 use super::rules::{self, Dialect, Multitenant};
 use super::worker::{DriverError, Worker};
+
+#[path = "logminer.rs"]
+pub mod logminer;
 
 /// Connection settings. The password comes from the caller's secret
 /// reference and is never logged, echoed or put on a command line.
@@ -1851,8 +1855,8 @@ impl OracleEngine {
             );
         }
 
-        // C1 LogMiner prerequisites. Reported per instance; the reader is
-        // S2-E-01 and stays experimental until the T7 source audit.
+        // Prerequisites are not acceptance: keep the experimental reader gated
+        // until the strict T7 source audit has been accepted.
         let mut c1: Vec<Requirement> = Vec::new();
         match &db {
             Some(r) => {
@@ -1894,6 +1898,7 @@ impl OracleEngine {
             "V$LOGFILE",
             "V$LOGMNR_CONTENTS",
             "V$LOGMNR_LOGS",
+            "V$TRANSACTION",
         ] {
             if !self.readable(view)? {
                 c1.push(rules::view_grant(view, &user, cdb));
@@ -1908,7 +1913,7 @@ impl OracleEngine {
         c1.push(Requirement {
             kind: crate::engine::RequirementKind::Feature,
             name: "logminer_reader".into(),
-            observed: Some("prerequisites only; S2-E-01 not implemented".into()),
+            observed: Some("experimental reader; strict T7 audit not accepted".into()),
             required: "LogMiner reader and T7 read-only acceptance".into(),
             dba_statement: None,
         });
