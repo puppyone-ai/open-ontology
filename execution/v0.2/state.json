@@ -205,10 +205,21 @@
    "sprint": "S0",
    "lane": "E",
    "title": "Oracle 适配接口；`capabilities` 覆盖 11g/12c+/19c/21c/23ai（CDB/PDB、common user、CONTINUOUS_MINE、字典策略）",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-E",
    "branch": "v0.2/e-oracle-engine",
-   "commits": [],
+   "commits": [
+    "a92b1fd48",
+    "9c718ecdf",
+    "1ec73defc",
+    "9d1e51825",
+    "09c211f11",
+    "01d289453",
+    "be4f8da2b",
+    "426c290c8",
+    "c93adb524",
+    "07520d7c3"
+   ],
    "evidence": []
   },
   {
@@ -383,7 +394,14 @@
    "status": "in_progress",
    "owner": "lane-A",
    "branch": "v0.2/a-onboarding",
-   "commits": [],
+   "commits": [
+    "8d5e056a2",
+    "d36a240e9",
+    "b59054b84",
+    "2319f2f75",
+    "26ae7237e",
+    "8ea763cd5"
+   ],
    "evidence": []
   },
   {
@@ -512,10 +530,14 @@
    "sprint": "S3",
    "lane": "B",
    "title": "`oo login`（绑定码 / 设备码）、`oo whoami`、到期预警、`/v1/meta` 版本协商与升级提示",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "lane-B",
    "branch": "v0.2/b-token-lifecycle",
-   "commits": [],
+   "commits": [
+    "5486bca2b",
+    "b6121b8cc",
+    "833b947e9"
+   ],
    "evidence": []
   },
   {
@@ -523,10 +545,14 @@
    "sprint": "S3",
    "lane": "B",
    "title": "`oo share-prompt [--role] [--agent claude",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "lane-B",
    "branch": "v0.2/b-token-lifecycle",
-   "commits": [],
+   "commits": [
+    "5486bca2b",
+    "b6121b8cc",
+    "833b947e9"
+   ],
    "evidence": []
   },
   {
