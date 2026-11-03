@@ -417,6 +417,251 @@ fn connected_order(members: &[usize], graph: &[BTreeMap<usize, f64>]) -> Vec<usi
     result
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Entity {
+    pub id: String,
+    pub canonical_name: String,
+    pub aliases: Vec<String>,
+    pub main_table: String,
+    pub related_tables: Vec<String>,
+    pub primary_key: Value,
+}
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct Registry {
+    pub entities: BTreeMap<String, Entity>,
+}
+impl Registry {
+    pub fn insert(&mut self, entity: Entity, inventory: &BTreeSet<String>) -> Result<(), String> {
+        if entity.id != stable_id(Kind::Entity, &entity.main_table, None)
+            || entity.canonical_name.trim().is_empty()
+            || !inventory.contains(&entity.main_table)
+            || entity.related_tables.iter().any(|t| !inventory.contains(t))
+        {
+            return Err("registry_entity_binding".into());
+        }
+        self.entities.insert(entity.id.clone(), entity);
+        Ok(())
+    }
+    pub fn compact(&self) -> Value {
+        json!(
+            self.entities
+                .values()
+                .map(|e| json!({"id":e.id,"canonical_name":e.canonical_name,
+            "primary_key":e.primary_key}))
+                .collect::<Vec<_>>()
+        )
+    }
+    pub fn conflict_groups(&self) -> Vec<Value> {
+        let mut groups: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for entity in self.entities.values() {
+            for name in entity
+                .aliases
+                .iter()
+                .chain(std::iter::once(&entity.canonical_name))
+            {
+                groups
+                    .entry(format!("name:{}", name.trim().to_lowercase()))
+                    .or_default()
+                    .insert(entity.id.clone());
+            }
+            for table in entity
+                .related_tables
+                .iter()
+                .chain(std::iter::once(&entity.main_table))
+            {
+                groups
+                    .entry(format!("table:{table}"))
+                    .or_default()
+                    .insert(entity.id.clone());
+            }
+        }
+        // Group conflicts avoid an unbounded quadratic list of pairwise clashes.
+        groups
+            .into_iter()
+            .filter(|(_, ids)| ids.len() > 1)
+            .map(|(key, ids)| json!({"id":hash(&json!([key,ids])),"key":key,"entities":ids}))
+            .collect()
+    }
+    pub fn naming_conflicts(&self) -> Vec<String> {
+        self.conflict_groups()
+            .iter()
+            .map(|v| v["id"].as_str().unwrap().to_owned())
+            .collect()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ReviewDecision {
+    pub reviewer: String,
+    pub decision: String,
+    pub summary_sha256: String,
+}
+
+pub fn connectivity(
+    graph: &GraphPlan,
+    registry: &Registry,
+    mapped: &BTreeSet<String>,
+    rejections: &BTreeMap<String, String>,
+    core: &BTreeSet<String>,
+    orphan_threshold: f64,
+) -> Result<Value, String> {
+    if !orphan_threshold.is_finite() || !(0.0..=1.0).contains(&orphan_threshold) {
+        return Err("connectivity_threshold".into());
+    }
+    let mut owners: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut adjacency: BTreeMap<String, BTreeSet<String>> = registry
+        .entities
+        .keys()
+        .map(|k| (k.clone(), BTreeSet::new()))
+        .collect();
+    for entity in registry.entities.values() {
+        for table in entity
+            .related_tables
+            .iter()
+            .chain(std::iter::once(&entity.main_table))
+        {
+            owners
+                .entry(table.clone())
+                .or_default()
+                .insert(entity.id.clone());
+        }
+    }
+    if !core.iter().all(|id| adjacency.contains_key(id)) {
+        return Err("connectivity_core_entity".into());
+    }
+    let known: BTreeSet<_> = graph.edges.iter().map(|e| e.id.clone()).collect();
+    if !mapped.is_subset(&known)
+        || rejections
+            .keys()
+            .any(|k| !known.contains(k) || mapped.contains(k))
+    {
+        return Err("connectivity_relationship_binding".into());
+    }
+    for edge in graph.edges.iter().filter(|e| mapped.contains(&e.id)) {
+        if let (Some(from), Some(to)) = (owners.get(&edge.from), owners.get(&edge.to)) {
+            for a in from {
+                for b in to {
+                    if a != b {
+                        adjacency.get_mut(a).unwrap().insert(b.clone());
+                        adjacency.get_mut(b).unwrap().insert(a.clone());
+                    }
+                }
+            }
+        }
+    }
+    let declared: Vec<_> = graph
+        .edges
+        .iter()
+        .filter(|e| e.provenance == "declared_fk")
+        .collect();
+    let missing: Vec<_> = declared
+        .iter()
+        .filter(|e| {
+            !mapped.contains(&e.id) && !rejections.get(&e.id).is_some_and(|s| !s.trim().is_empty())
+        })
+        .map(|e| e.id.clone())
+        .collect();
+    let orphan_count = adjacency.values().filter(|v| v.is_empty()).count();
+    let ratio = if adjacency.is_empty() {
+        0.0
+    } else {
+        orphan_count as f64 / adjacency.len() as f64
+    };
+    let mut visited = BTreeSet::new();
+    let mut components = 0;
+    for start in adjacency.keys() {
+        if !visited.contains(start) {
+            components += 1;
+            let mut queue = VecDeque::from([start.clone()]);
+            while let Some(node) = queue.pop_front() {
+                if visited.insert(node.clone()) {
+                    queue.extend(adjacency[&node].iter().cloned());
+                }
+            }
+        }
+    }
+    let mut reachable = core.clone();
+    let mut frontier = core.clone();
+    for _ in 0..3 {
+        let next: BTreeSet<_> = frontier
+            .iter()
+            .flat_map(|n| adjacency[n].iter().cloned())
+            .filter(|n| !reachable.contains(n))
+            .collect();
+        reachable.extend(next.iter().cloned());
+        frontier = next;
+    }
+    let tables: BTreeSet<_> = graph.families.values().flatten().cloned().collect();
+    let reached = tables
+        .iter()
+        .filter(|t| {
+            owners
+                .get(*t)
+                .is_some_and(|ids| ids.iter().any(|id| reachable.contains(id)))
+        })
+        .count();
+    let conflicts = registry.naming_conflicts();
+    let mapped_fk = declared.iter().filter(|e| mapped.contains(&e.id)).count();
+    let summary = json!({"declared_fk_count":declared.len(),"mapped_fk_count":mapped_fk,
+        "fk_mapping_rate":if declared.is_empty() { 1.0 } else { mapped_fk as f64 / declared.len() as f64 },
+        "unmapped_without_reason":missing,"rejection_reasons":rejections,"orphan_entity_ratio":ratio,
+        "orphan_review_required":ratio>orphan_threshold,"connected_components":components,
+        "three_hop_table_ratio":if tables.is_empty() { 0.0 } else { reached as f64 / tables.len() as f64 },
+        "core_entities":core,"naming_conflicts":conflicts,"naming_conflict_count":conflicts.len(),
+        "unassigned_tables":tables.iter().filter(|t|!owners.contains_key(*t)).collect::<Vec<_>>(),
+        "model_certified":false});
+    Ok(summary)
+}
+
+pub fn gate_g14(
+    summary: Option<&Value>,
+    decisions: &BTreeMap<String, ReviewDecision>,
+) -> Result<(), String> {
+    let summary = summary.ok_or("g14_missing_summary")?;
+    let missing = summary["unmapped_without_reason"]
+        .as_array()
+        .ok_or("g14_summary_shape")?;
+    let conflicts = summary["naming_conflicts"]
+        .as_array()
+        .ok_or("g14_summary_shape")?;
+    let orphans = summary["orphan_review_required"]
+        .as_bool()
+        .ok_or("g14_summary_shape")?;
+    if !missing.is_empty() {
+        return Err("g14_unmapped_fk".into());
+    }
+    let mut required: Vec<_> = conflicts
+        .iter()
+        .map(|v| v.as_str().ok_or("g14_summary_shape"))
+        .collect::<Result<_, _>>()?;
+    if orphans {
+        required.push("orphan_entities");
+    }
+    let digest = hash(summary);
+    for id in required {
+        if !decisions.get(id).is_some_and(|d| {
+            !d.reviewer.trim().is_empty()
+                && d.reviewer != "model"
+                && d.decision == "approved"
+                && d.summary_sha256 == digest
+        }) {
+            return Err("g14_review_required".into());
+        }
+    }
+    Ok(())
+}
+
+pub fn relation_items(edges: &[Edge]) -> Vec<Item> {
+    edges
+        .iter()
+        .map(|edge| Item {
+            id: edge.id.clone(),
+            kind: Kind::Relation,
+            input: json!(edge),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -460,5 +705,89 @@ mod tests {
                 assert_eq!(community.hub_signatures.len(), 1);
             }
         }
+    }
+    #[test]
+    fn g14_requires_hash_bound_operator_decisions_not_good_numbers() {
+        let graph = build_graph(&[table("a.t")], &[], &Budgeter::default()).unwrap();
+        let mut registry = Registry::default();
+        registry
+            .insert(
+                Entity {
+                    id: stable_id(Kind::Entity, "a.t", None),
+                    canonical_name: "T".into(),
+                    aliases: vec![],
+                    main_table: "a.t".into(),
+                    related_tables: vec![],
+                    primary_key: json!(["id"]),
+                },
+                &BTreeSet::from(["a.t".into()]),
+            )
+            .unwrap();
+        let summary = connectivity(
+            &graph,
+            &registry,
+            &BTreeSet::new(),
+            &BTreeMap::new(),
+            &BTreeSet::new(),
+            0.2,
+        )
+        .unwrap();
+        assert!(gate_g14(Some(&summary), &BTreeMap::new()).is_err());
+        let mut decisions = BTreeMap::from([(
+            "orphan_entities".into(),
+            ReviewDecision {
+                reviewer: "operator".into(),
+                decision: "approved".into(),
+                summary_sha256: hash(&summary),
+            },
+        )]);
+        assert!(gate_g14(Some(&summary), &decisions).is_ok());
+        decisions.get_mut("orphan_entities").unwrap().reviewer = "model".into();
+        assert!(gate_g14(Some(&summary), &decisions).is_err());
+        assert!(gate_g14(None, &BTreeMap::new()).is_err());
+    }
+
+    #[test]
+    fn connectivity_reports_entity_components_and_three_hop_table_coverage() {
+        let tables: Vec<_> = (0..5).map(|i| table(&format!("app.t{i}"))).collect();
+        let edges: Vec<_> = (1..5)
+            .map(|i| {
+                json!({
+                    "from":{"dataset":format!("app.t{i}")},
+                    "to":{"dataset":format!("app.t{}",i-1)},
+                    "provenance":"declared_fk","confidence":1
+                })
+            })
+            .collect();
+        let graph = build_graph(&tables, &edges, &Budgeter::default()).unwrap();
+        let names: BTreeSet<_> = tables
+            .iter()
+            .map(|t| t["dataset"].as_str().unwrap().to_owned())
+            .collect();
+        let mut registry = Registry::default();
+        for name in &names {
+            registry
+                .insert(
+                    Entity {
+                        id: stable_id(Kind::Entity, name, None),
+                        canonical_name: name.clone(),
+                        aliases: vec![],
+                        main_table: name.clone(),
+                        related_tables: vec![],
+                        primary_key: json!(["id"]),
+                    },
+                    &names,
+                )
+                .unwrap();
+        }
+        let mapped = graph.edges.iter().map(|e| e.id.clone()).collect();
+        let core = BTreeSet::from([stable_id(Kind::Entity, "app.t0", None)]);
+        let summary =
+            connectivity(&graph, &registry, &mapped, &BTreeMap::new(), &core, 0.2).unwrap();
+        assert_eq!(summary["fk_mapping_rate"], 1.0);
+        assert_eq!(summary["connected_components"], 1);
+        assert_eq!(summary["orphan_entity_ratio"], 0.0);
+        assert_eq!(summary["three_hop_table_ratio"], 0.8);
+        assert!(gate_g14(Some(&summary), &BTreeMap::new()).is_ok());
     }
 }
