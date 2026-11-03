@@ -231,6 +231,7 @@ Web UI；短期 access + refresh 轮换 token（v0.3 评估）；云数仓（Sno
 | D8 | Oracle C1 写入分类 | LogMiner 只用 `online_catalog` 字典策略，视为 R1（源端零写，只读 common user）；需在源端构建字典的 `redo_log_catalog` 属 R1w，默认禁用；结构变化期间 online_catalog 无法解析的事件触发该表重基线 | Oracle 19c/23ai C1 可按 R1 进入 verified；S2-E-01 必须用源端审计（T7）证明零写 |
 | D9 | 服务账号 token 寿命 | 默认有效期与默认最大寿命均为 90 天，项目策略可配置最大寿命至 365 天；自助续期不超过“首次签发 + 最大寿命” | REQ-TOK-01/02；docs/07 §3.4 |
 | D10 | MySQL 进程内 binlog C1 的依赖 | `mysql_async` 的 binlog 支持引入 bitvec 与 zstd 栈；zstd 0.13.3 / zstd-safe 7.3.0 有 RUSTSEC-2026-0391/0398/0403/0410，修复版 2026-11-01 发布，未满 7 天，且在 CODEOWNERS 仍为 `OWNER_PENDING` 时安全例外不可用（supply-chain/policy.md §4）。因此 C1 放在非默认 feature `mysql-binlog` 后开发与测试，锁文件钉修复版（cargo audit 0 漏洞）；2026-11-08T14:12:08Z 之后且许可证文件核验完成，才在默认制品启用 | S2-C-01/S2-C-02 可在 feature 下验收；默认制品启用列入 S6-M-04；记录 `supply-chain/mysql-binlog-audit.json` |
+| D11 | Oracle LogMiner 的源端写入分类（修订 D8） | 23ai 实测：LogMiner 会话由 Oracle 内部包递归（depth > 0）对 SYS 拥有的会话级全局临时表 `SYS.LOGMNR_GT_*` 执行 DELETE/COMMIT，另有驱动的会话时区设置；读取账号本身不发出任何 DML/DDL，不写业务表或持久对象。归类为“R1，含 Oracle 内部递归临时写”：T7 只放行这一显式类别（递归深度 > 0、对象限 `SYS.LOGMNR_GT_*`、会话设置语句），其余任何写入仍判失败；`oo doctor` 与 DBA 清单向用户披露该行为；Oracle C1 不进入 `sync: auto` 默认选择，需用户显式选用 | S2-E-01、S5-E-04、AT-ENG-03；docs/database-support/04 §5.3 与 docs/product/02 §7 同步 |
 
 ## 10. 提交规范
 

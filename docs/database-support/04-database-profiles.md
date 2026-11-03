@@ -1,7 +1,7 @@
 # 04 逐库画像：体检、最小权限、捕获路径、类型与限制
 
 > Status: Proposed
-> Last reviewed: 2026-11-03
+> Last reviewed: 2026-11-04
 > 依赖：[02](02-connector-architecture.md)、[03](03-change-capture-and-consistency.md)、[product/02 §7](../product/02-ingestion-playbook.md)、[product/05 §1](../product/05-version-matrix-and-testing.md)；事实来源与“未核实”清单见 [06 §3](06-risks-open-questions-and-sources.md)
 > 约定：本文所有 SQL/GRANT 是**DBA 清单草案**，由 DBA 执行，平台不执行；凡标“待验证”者，对应 Plan 4A 的 DBP 原型，验证前不得写入 `verified`。等级见 [support-matrix.yaml](support-matrix.yaml)，当前**没有任何目标是 verified**。
 
@@ -182,7 +182,7 @@ GRANT EXECUTE ON sys.dbms_flashback TO oo_reader;        -- 读取当前 SCN
 - 上游示例的连接器账号包含 `CREATE TABLE`、`CREATE SEQUENCE`、`LOCK ANY TABLE`、`SELECT ANY TABLE`、`FLASHBACK ANY TABLE` 等，其中 LogMiner 适配器使用一张连接器辅助表（flush 表）。这类写入属于 **R1w**：必须由 DBA 预创建专用 schema/对象，账号去掉 `CREATE TABLE` 与 `ANY` 权限，**经 DBP1 验证实际写入范围仅为该辅助表**，并取得最小权限 ADR 后才能进入 `experimental`。
 - XStream 需要商业许可且创建出站服务器：默认 `excluded`。
 - 补充日志与 ARCHIVELOG（R1）、归档保留（RDS Oracle 需用 `rdsadmin` 过程设置）进入 DBA 清单；补充日志增加 redo 量，需披露。
-- v0.2 的 C1 路线是平台自有的 LogMiner 读取器（不使用 Debezium 的 flush 表）：19c 起没有 `CONTINUOUS_MINE`，须自行维护日志文件列表；CDB 下以 `c##` common user 连接 CDB$ROOT；字典策略只用 `online_catalog`（不在源端构建字典，设计上为 R1 零写）；需要 `DBMS_LOGMNR_D.BUILD` 的 `redo_log_catalog` 属 R1w，默认禁用；online_catalog 无法解析的结构变化事件触发该表重基线；水位取 `CURRENT_SCN`。R1 定级仍须由源端统一审计（T7）证明零写后生效（Plan D8）。
+- v0.2 的 C1 路线是平台自有的 LogMiner 读取器（不使用 Debezium 的 flush 表）：19c 起没有 `CONTINUOUS_MINE`，须自行维护日志文件列表；CDB 下以 `c##` common user 连接 CDB$ROOT；字典策略只用 `online_catalog`（不在源端构建字典，设计上为 R1 零写）；需要 `DBMS_LOGMNR_D.BUILD` 的 `redo_log_catalog` 属 R1w，默认禁用；online_catalog 无法解析的结构变化事件触发该表重基线；水位取 `CURRENT_SCN`。源端统一审计（T7）实测：读取账号不发出任何 DML/DDL，但 LogMiner 会话由 Oracle 内部包递归（depth > 0）对 SYS 拥有的会话级全局临时表 `SYS.LOGMNR_GT_*` 执行 DELETE/COMMIT。定级为“R1，含 Oracle 内部递归临时写”（Plan D11）：T7 只放行该显式类别，其他写入仍失败；`oo doctor` 与 DBA 清单披露此行为；Oracle C1 不被 `sync: auto` 默认选择，需显式选用。
 - 因此 Oracle 的路线：**先 verified 批量与 C5，C1 在源审计与最小权限 ADR 通过后单独定级**；在此之前 `sync: auto` 不会为 Oracle 选 CDC。
 
 ### 5.4 类型映射与陷阱
