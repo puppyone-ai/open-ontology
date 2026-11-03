@@ -177,7 +177,8 @@ class Run:
                         "consistency": "B", "scope": "fixture T0, not product doctor or T1-T8"}
         self.receipt["source_sha256"] = {
             str(file.relative_to(ROOT)): hashlib.sha256(file.read_bytes()).hexdigest()
-            for file in [Path(__file__), ENGINES / "seed-common/generate.py",
+            for file in [Path(__file__), Path(__file__).with_name("audit.py"),
+                         ENGINES / "seed-common/generate.py",
                          ENGINES / self.engine / "seed/preamble.sql",
                          ENGINES / "gold" / f"{self.engine}.sql"]}
         write_json(self.path / "resource-receipt.json", self.receipt)
@@ -517,6 +518,10 @@ def main():
     print(f"evidence/{run_id}", flush=True)
     baseline = json.loads(args.baseline.read_text()) if args.baseline else None
     report = {"run_id": run_id, "consistency": "B", "cross_engine_baseline": str(args.baseline) if args.baseline else None,
+              "hook_sha256": {suite: hashlib.sha256(Path(path).read_bytes()).hexdigest()
+                              for suite, path in hooks.items()},
+              "source_sha256": {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+                                for name in ("runner.py", "audit.py", "matrix.py")},
               "results": []}
     def interrupted(signum, frame):
         raise KeyboardInterrupt(f"signal {signum}")

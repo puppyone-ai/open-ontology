@@ -28,6 +28,9 @@ def main():
         try:
             run.setup()
             run.seed()
+            run.verify_shapes()
+            run.gold()
+            result["version_actual"] = run.receipt["version_actual"]
             audit = Audit(run)
             audit.enable()
             audit.marker("start")
