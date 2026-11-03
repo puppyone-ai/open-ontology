@@ -3,6 +3,7 @@
 //! [`engine::MysqlEngine`] implements the v0.2 `SourceEngine` for 5.7, 8.0,
 //! 8.4 and 9.x; [`capability`] holds its version dispatch table.
 
+pub mod c5;
 pub mod capability;
 pub mod chunk;
 pub mod engine;

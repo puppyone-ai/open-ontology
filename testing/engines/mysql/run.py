@@ -57,7 +57,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--versions", nargs="+", default=["5.7.44", "8.0.44", "8.4.7", "9.5.0"])
     p.add_argument("--run-id", default="c-s0s1-" + time.strftime("%Y%m%d-%H%M%S"))
-    p.add_argument("--suite", choices=["s0s1", "s2-digest", "s2-watermark"], default="s0s1")
+    p.add_argument("--suite", choices=["s0s1", "s2-digest", "s2-watermark", "s2-c5"], default="s0s1")
     args = p.parse_args()
     root = Path(__file__).resolve().parents[3]
     os.chdir(root)
@@ -162,10 +162,10 @@ GRANT PROCESS ON *.* TO 'writer'@'%';
             env["OO_MYSQL_ENGINE_FIXTURE"] = str(directory / "config.json")
             with (directory / "test.log").open("wb") as log:
                 result = subprocess.run(
-                    ["cargo", "test", "-p", "oo-connectors", "--locked", "--features", "mysql",
+                    ["cargo", "test", "-p", "oo-connectors", "--locked", "--features", "mysql-binlog",
                      "--test", "mysql_engine_live",
                      {"s0s1": "engine_matrix_contract", "s2-digest": "digest_primitives",
-                      "s2-watermark": "watermark_primitives"}[args.suite],
+                      "s2-watermark": "watermark_primitives", "s2-c5": "c5_cycles"}[args.suite],
                      "--", "--ignored", "--nocapture"],
                     env=env, stdout=log, stderr=subprocess.STDOUT)
             results[version] = {"exit": result.returncode}

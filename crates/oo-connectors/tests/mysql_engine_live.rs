@@ -300,6 +300,103 @@ async fn digest_primitives() {
 }
 
 #[tokio::test]
+#[ignore = "requires the shared fixture via run.py --suite s2-c5"]
+async fn c5_cycles() {
+    use oo_connectors::mysql::c5::{Cycle, Hints};
+    use std::collections::BTreeMap;
+
+    let path = std::env::var("OO_MYSQL_ENGINE_FIXTURE").expect("owned fixture config");
+    let v: Json = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+    let mut writer = connect(&config(&v, "writer"), &password(&v, "writer"))
+        .await
+        .unwrap();
+    let budget = ReadBudget {
+        max_chunk_rows: 97,
+        ..Default::default()
+    };
+    let mut e = engine(&v, EngineOptions::default());
+    let plan = e.plan_chunks(&table("events"), &budget).await.unwrap();
+    let mut cycle = Cycle::new(plan.chunks, 4).unwrap();
+    let mut staged = BTreeMap::new();
+    let mut evidence = Vec::new();
+    let mut last = GtidSet::parse("").unwrap();
+    for index in 0..4 {
+        if index == 1 {
+            writer
+                .query_drop("UPDATE fixture.events SET event_no=event_no+1 WHERE id=1")
+                .await
+                .unwrap();
+            writer
+                .query_drop("DELETE FROM fixture.events WHERE id=2")
+                .await
+                .unwrap();
+            writer
+                .query_drop("INSERT INTO fixture.events VALUES (2001,1,0)")
+                .await
+                .unwrap();
+        }
+        let proposal = cycle
+            .prepare(&mut e, &budget, &Hints::default())
+            .await
+            .unwrap();
+        if index < 2 {
+            assert!(!proposal.replacements.is_empty());
+        } else {
+            assert!(proposal.replacements.is_empty());
+        }
+        if index == 2 {
+            assert_eq!(proposal.full_reads, 0);
+        } else if index == 3 {
+            assert!(proposal.full_reads > 0, "rare full-read fallback");
+        }
+        for replacement in &proposal.replacements {
+            let mut rows = Vec::new();
+            for batch in &replacement.batches {
+                let columns: Vec<_> = batch
+                    .columns()
+                    .iter()
+                    .map(|c| {
+                        c.as_any()
+                            .downcast_ref::<arrow_array::Int64Array>()
+                            .unwrap()
+                    })
+                    .collect();
+                for row in 0..batch.num_rows() {
+                    rows.push((
+                        columns[0].value(row),
+                        columns[1].value(row),
+                        columns[2].value(row),
+                    ));
+                }
+            }
+            staged.insert(replacement.chunk.chunk_id, rows);
+        }
+        let actual: Vec<_> = staged.values().flatten().copied().collect();
+        let expected: Vec<(i64, i64, i64)> = writer
+            .query("SELECT id,order_id,event_no FROM fixture.events ORDER BY id")
+            .await
+            .unwrap();
+        assert_eq!(actual, expected);
+        let Some(Watermark::MysqlGtidSet { gtid_set }) = e.watermark().await.unwrap() else {
+            panic!("GTID fixture");
+        };
+        let current = GtidSet::parse(&gtid_set).unwrap();
+        assert!(current.contains(&last));
+        last = current;
+        evidence.push(json!({
+            "cycle": index + 1, "replacement_ranges": proposal.replacements.len(),
+            "full_reads": proposal.full_reads, "digest_reads": proposal.digest_reads,
+            "rows": actual.len(), "source_equal": true, "watermark": gtid_set,
+            "agent_db": "pending", "generation_publication": "pending",
+        }));
+        cycle.confirm(proposal).unwrap();
+    }
+    save(&v, "c5-cycles.json", &json!(evidence));
+    e.close().await;
+    writer.disconnect().await.unwrap();
+}
+
+#[tokio::test]
 #[ignore = "requires the owned fixture via run.py --suite s2-watermark"]
 async fn watermark_primitives() {
     let path = std::env::var("OO_MYSQL_ENGINE_FIXTURE").expect("owned fixture config");
