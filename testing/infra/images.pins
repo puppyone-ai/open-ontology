@@ -15,3 +15,29 @@ debezium-server-3.5.2.Final linux/arm64 sha256:842a0aa66dfab8a8cbe40634d53df5d1e
 debezium-server-3.5.2.Final linux/amd64 sha256:91b0fe6d803dbdc8bd08da8fc8d12041ab6e7e5b3b2a9ffe9582640f439ce4cf
 toxiproxy-2.12.0 linux/arm64 sha256:5ab4b4e8f476fd5452eb9584a608dd7cf8c11135878a8f7953722a9fcb9b3d87
 toxiproxy-2.12.0 linux/amd64 sha256:a3e244375123dad8849091bcc59775e188624d3f602db01901f9af855682fef8
+
+# v0.2 engine matrix (S0-H-04). Resolved 2026-11-04 with `docker buildx imagetools inspect`;
+# selection rules and refused newer tags are in images.lock.json. Rows are runnable platform manifests.
+mysql-5.7.44 linux/amd64 sha256:dab0a802b44617303694fb17d166501de279c3031ddeb28c56ecf7fcab5ef0da
+mysql-8.0.46 linux/amd64 sha256:62fb722c78b24245ddff1796a0fcee4a49cc5b87e0aaaf20c92d1da9e0a2497b
+mysql-8.0.46 linux/arm64 sha256:213bbfaf699693a40a20a12bb4342d2589a15a3dc7153db698eaed252a92458e
+mysql-8.4.11 linux/amd64 sha256:6f3a50835c54d61ffdcf78d71381ba268c27804cd96755231d2fd6f180f822f0
+mysql-8.4.11 linux/arm64 sha256:4452d4257b94692c09df0f6011a3275744746001150f3cdbdc9278bacfa385bb
+mysql-9.7.2 linux/amd64 sha256:79b171dd2361300260ebceb30bb1c669fa8f70183ae250773b56b62d9031338b
+mysql-9.7.2 linux/arm64 sha256:ebaa6b336278200e9c5530e16e4949f548fa4a36ac34f9ce286027fe8427a395
+postgres-12.22-bookworm linux/amd64 sha256:4bf4eb8e5932534db5fb9d3d91a212a91406aecf1fa626a60df4a9e2781d73ae
+postgres-12.22-bookworm linux/arm64 sha256:9fc57848f07313edb7e40e2f659b5e7ac7f59fe70885dff51f0c0b4e7b16d4d7
+postgres-13.23-bookworm linux/amd64 sha256:2e78713a29d695a6ea8faf96bb9267946e89c6199c9310158af765dc61394009
+postgres-13.23-bookworm linux/arm64 sha256:fb7d1e42340aa01689ea2ce654dfa140ab260a9e26796e63d545860942a34c71
+postgres-14.23-bookworm linux/amd64 sha256:64913aa7cc176c9735f5be9fc69ac1bba938c7547e3a4f832dec42b6d9c7df84
+postgres-14.23-bookworm linux/arm64 sha256:8d9f8d8b12f2de8c0c840e583dd8b7ba3309d95b785c9a4aa8106b3dc24f2052
+postgres-15.18-bookworm linux/amd64 sha256:752791ad6ccfc6fbfcf4d9b43413c8642901f1c2008ebdc1423ea32fd66fd4f1
+postgres-15.18-bookworm linux/arm64 sha256:a38537c57af74ffb68a99c51a69ee4faad6426befc4724b061172f99fabbb219
+postgres-16.14-bookworm linux/amd64 sha256:714b08dd70c05160db032e4321033ac4e5b6328935b2d03ed419c3a898aa8219
+postgres-16.14-bookworm linux/arm64 sha256:e84240fdc0f11ac4cff65865db840555aa09c02ae532eb4c95822881164da0e4
+postgres-18.4-bookworm linux/amd64 sha256:7e6103cf85f88f7a0eddb3ec0b1ba8940eba098ed118ade25a729ca9daee5568
+postgres-18.4-bookworm linux/arm64 sha256:83b9631dbb4121d9235ef910018272798b7d3041ef5b716aa481122d4c49353f
+oracle-xe-21.3.0-slim linux/amd64 sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d2b6d551aa79b2346f1ab8f792
+oracle-xe-11.2.0.2 linux/amd64 sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8
+oracle-free-23.5-slim linux/amd64 sha256:51e82abdffb69eeffaf26a9beef265c9fc62966ff69b228240281edcf4ec2444
+oracle-free-23.5-slim linux/arm64 sha256:0b6d2a693d9f77c8cb5e756411f60a38b4f854cf2a6b0be2f002942a66582aeb
