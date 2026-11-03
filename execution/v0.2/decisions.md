@@ -14,3 +14,4 @@ Current task state lives in [state.json](state.json); the plan is
 | 2026-11-03 | Human | Keep npm package name, bump version | Plan D3: `@reduxxx888/ontology-cli@0.2.0` |
 | 2026-11-03 | Human | Commit directly with clear history; plan states commit scope and standard; one final PR for review after all loops converge | Plan §10, §11 |
 | 2026-11-03 | Coordinator | Owner self-review accepted as the publication gate for single-owner deployments, recorded as `mode=self` | Plan D6 |
+| 2026-11-04 | Coordinator | Lane A (onboarding: stack schema, admin CLI skeleton, model egress) starts in S0 instead of waiting for a free slot; S0–S1 concurrency is 6 | Plan §2.1; L1 critical path |
