@@ -634,7 +634,7 @@ def database_enums(db, min_containment=.5):
     return match
 
 
-def draft_batches(facts, batch_size=16, max_context_bytes=240000):
+def draft_batches(facts, batch_size=16, max_context_bytes=240000, capabilities=None):
     if not 1 <= batch_size <= 16 or max_context_bytes <= 0:
         raise ValueError('s5_batch_budget')
     batches = []
@@ -700,7 +700,8 @@ def draft_batches(facts, batch_size=16, max_context_bytes=240000):
     for batch in batches:
         library_semantics.bind_batch(batch, facts)
         try:
-            allocation = selfbuild_budget.legacy_allocation(batch['tables'], library_semantics.prompt_batch(batch))
+            allocation = selfbuild_budget.legacy_allocation(
+                batch['tables'], library_semantics.prompt_batch(batch), capabilities)
             fits = True
         except ValueError as error:
             if str(error) != 's5_requires_ndjson_shards':
@@ -710,7 +711,8 @@ def draft_batches(facts, batch_size=16, max_context_bytes=240000):
             names = {t['dataset'] for t in batch['tables']}
             partial = dict(facts, tables=[t for t in facts['tables'] if t['dataset'] in names],
                            all_tables=facts.get('all_tables', facts['tables']))
-            bounded.extend(draft_batches(partial, max(1, len(batch['tables']) // 2), max_context_bytes))
+            bounded.extend(draft_batches(partial, max(1, len(batch['tables']) // 2),
+                                         max_context_bytes, capabilities))
         else:
             if not fits:
                 raise ValueError('s5_requires_ndjson_shards')
@@ -922,8 +924,9 @@ def configured_batches(facts, config):
     """Keep prior partitions stable when unrelated tables enter the inventory."""
     document = retained_document(config)
     budget = config.get('max_batch_context_bytes', 240000)
+    capabilities = selfbuild_budget.capability_input(config)
     if document is None:
-        return draft_batches(facts, max_context_bytes=budget)
+        return draft_batches(facts, max_context_bytes=budget, capabilities=capabilities)
     remaining = {t['dataset']: t for t in facts['tables']}
     batches, seen = [], set()
     for receipt in document['receipts']:
@@ -934,10 +937,12 @@ def configured_batches(facts, config):
         tables = [remaining.pop(n) for n in sorted(names) if n in remaining]
         if tables:
             batches.extend(draft_batches(dict(facts, tables=tables,
-                all_tables=facts.get('all_tables', facts['tables'])), max_context_bytes=budget))
+                all_tables=facts.get('all_tables', facts['tables'])), max_context_bytes=budget,
+                capabilities=capabilities))
     if remaining:
         batches.extend(draft_batches(dict(facts, tables=list(remaining.values()),
-            all_tables=facts.get('all_tables', facts['tables'])), max_context_bytes=budget))
+            all_tables=facts.get('all_tables', facts['tables'])), max_context_bytes=budget,
+            capabilities=capabilities))
     for index, batch in enumerate(batches):
         batch['index'] = index
     return batches
@@ -1010,9 +1015,7 @@ def draft_request(batch, config):
         raise ValueError('s5_stream_config')
     if stream:
         request['stream'] = True
-    capabilities = dict(window=config.get('max_total_tokens', 140000),max_output=40000,
-                        system_overhead=2500)
-    capabilities.update(config.get('capabilities', {}))
+    capabilities = selfbuild_budget.capability_input(config)
     if 'max_total_tokens' in config:
         capabilities['window'] = min(capabilities['window'], config['max_total_tokens'])
     allocation = selfbuild_budget.legacy_allocation(batch['tables'], request['messages'], capabilities)

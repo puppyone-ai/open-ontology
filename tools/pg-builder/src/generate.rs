@@ -283,12 +283,11 @@ fn generate_batch(
 }
 
 fn generation_budget(config: &Config) -> oo_builder::budget::Budgeter {
+    let mut capabilities = config.capabilities.clone().unwrap_or_default();
+    capabilities.window = capabilities.window.min(config.max_total_tokens);
+    capabilities.max_output = capabilities.max_output.min(config.max_completion_tokens);
     oo_builder::budget::Budgeter {
-        capabilities: oo_builder::budget::Capabilities {
-            window: config.max_total_tokens,
-            max_output: config.max_completion_tokens,
-            ..Default::default()
-        },
+        capabilities,
         ..Default::default()
     }
 }

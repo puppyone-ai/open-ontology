@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
+import io
 
 import model_provider
 import selfbuild_budget as lib
@@ -47,6 +49,27 @@ class Model:
 
 
 class Acceptance(unittest.TestCase):
+    def test_probe_limits_and_credential_free_egress(self):
+        probe = dict(protocol='oo.model-capabilities/v1', context_window=272000,
+                     max_output_tokens=128000, proxy_injected_prompt_tokens=2490)
+        config = dict(model='fixture', capability_probe=probe,
+                      transport='model-egress', endpoint='http://127.0.0.1:12345/v1')
+        caps = lib.capability_input(config)
+        self.assertEqual((caps['window'], caps['max_output'], caps['system_overhead']),
+                         (272000,128000,2490))
+        with self.assertRaises(ValueError):
+            lib.capability_input(dict(config, capabilities={'window':1050000}))
+        requests = []
+        def response(request, timeout):
+            requests.append(request)
+            return io.BytesIO(b'{"choices":[]}')
+        with patch.object(model_provider, 'credential', side_effect=AssertionError('no key read')), \
+             patch.object(model_provider, 'open_request', side_effect=response):
+            lib.model_call(config, {'stream':False})
+            self.assertFalse(requests[0].has_header('Authorization'))
+            with self.assertRaises(ValueError):
+                lib.model_call(dict(config,endpoint='https://example.test/v1'),{})
+
     def config(self):
         return dict(model='offline-fixture',capabilities=dict(window=272000,max_output=8000,
                     system_overhead=2500,probed=True),orphan_threshold=0.2)

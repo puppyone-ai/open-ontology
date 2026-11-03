@@ -72,13 +72,23 @@ def write_private(path, value):
 
 
 def model_call(config, request):
-    credential_config = dict(config)
-    if 'secret_ref' in config:
-        credential_config['bearer_file'] = str(Path(config['secret_ref']).expanduser())
-    token = model_provider.credential(credential_config)
-    req = urllib.request.Request(model_provider.endpoint(config) + '/chat/completions',
-        data=canonical(request).encode(), headers={'Content-Type':'application/json',
-                                                   'Authorization':'Bearer ' + token})
+    endpoint = model_provider.endpoint(config)
+    headers = {'Content-Type':'application/json'}
+    token = None
+    if config.get('transport') == 'model-egress':
+        from urllib.parse import urlsplit
+        import ipaddress
+        parsed = urlsplit(endpoint)
+        if parsed.scheme != 'http' or not ipaddress.ip_address(parsed.hostname).is_loopback:
+            raise ValueError('selfbuild_egress_requires_loopback')
+    else:
+        credential_config = dict(config)
+        if 'secret_ref' in config:
+            credential_config['bearer_file'] = str(Path(config['secret_ref']).expanduser())
+        token = model_provider.credential(credential_config)
+        headers['Authorization'] = 'Bearer ' + token
+    req = urllib.request.Request(endpoint + '/chat/completions',
+        data=canonical(request).encode(), headers=headers)
     try:
         with model_provider.open_request(req, timeout=config.get('request_timeout_seconds', 600)) as response:
             if request.get('stream'):
@@ -92,7 +102,7 @@ def model_call(config, request):
         raise model_provider.http_failure(error.code, error.read(8192)) from None
     except (OSError, urllib.error.URLError):
         raise RuntimeError('selfbuild_provider_transport') from None
-    if token in canonical(envelope):
+    if token and token in canonical(envelope):
         raise ValueError('selfbuild_secret_echo')
     if config.get('_evidence_dir'):
         write_private(Path(config['_evidence_dir']) / (digest(request) + '.json'),
@@ -106,7 +116,17 @@ def capability_input(config):
     # Overrides must come from a probe/operator, not an assumed model name.
     result = dict(window=32000, max_output=4000, system_overhead=2500,
                   json_mode=False, usage=False, probed=False)
-    result.update(config.get('capabilities', {}))
+    if 'capability_probe' in config:
+        result = bridge('probe', probe=config['capability_probe'])
+    override = config.get('capabilities', {})
+    if 'capability_probe' in config:
+        # Operator limits may tighten a probe, never enlarge a measured route.
+        for key in ('window', 'max_output'):
+            if key in override and override[key] > result[key]:
+                raise ValueError('budget_probe_override_enlarges_limit')
+        if override.get('system_overhead', result['system_overhead']) < result['system_overhead']:
+            raise ValueError('budget_probe_override_reduces_overhead')
+    result.update(override)
     return result
 
 

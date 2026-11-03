@@ -28,6 +28,38 @@ impl Default for Capabilities {
     }
 }
 
+impl Capabilities {
+    /// Egress metadata is a conservative limit, not a measured boundary.
+    pub fn from_probe(probe: &Value) -> Result<Self, String> {
+        if probe["protocol"] != "oo.model-capabilities/v1" {
+            return Err("budget_probe_protocol".into());
+        }
+        let positive = |key: &str| {
+            probe[key]
+                .as_u64()
+                .filter(|v| *v > 0)
+                .ok_or_else(|| "budget_probe_limits".to_owned())
+        };
+        let overhead = probe["proxy_injected_prompt_tokens"].as_u64();
+        let capabilities = Self {
+            window: positive("context_window")?,
+            max_output: positive("max_output_tokens")?,
+            system_overhead: overhead.unwrap_or(2_500),
+            json_mode: probe["json_mode"]
+                .as_str()
+                .is_some_and(|s| s.starts_with("accepted_parameter")),
+            usage: overhead.is_some(),
+            probed: true,
+        };
+        Budgeter {
+            capabilities: capabilities.clone(),
+            ..Default::default()
+        }
+        .validate()?;
+        Ok(capabilities)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
@@ -427,6 +459,22 @@ impl Dispatch {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn egress_probe_retains_conservative_limits_and_measured_overhead() {
+        let probe = json!({"protocol":"oo.model-capabilities/v1",
+            "context_window":272000,"max_output_tokens":128000,
+            "proxy_injected_prompt_tokens":2490,
+            "json_mode":"accepted_parameter_output_not_verified_at_one_token"});
+        let caps = Capabilities::from_probe(&probe).unwrap();
+        assert_eq!(
+            (caps.window, caps.max_output, caps.system_overhead),
+            (272000, 128000, 2490)
+        );
+        assert!(caps.probed && caps.usage && caps.json_mode);
+        let mut invalid = probe.clone();
+        invalid["context_window"] = json!(0);
+        assert!(Capabilities::from_probe(&invalid).is_err());
+    }
     #[test]
     fn wide_table_and_660_table_inventory_are_never_truncated() {
         for (tables, columns) in [(1, 300), (660, 24), (1000, 24)] {

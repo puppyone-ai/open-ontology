@@ -12,6 +12,7 @@ use crate::error::PgBuilderError;
 
 #[derive(Clone, Debug)]
 pub struct Config {
+    pub capabilities: Option<oo_builder::budget::Capabilities>,
     pub purpose: Purpose,
     pub origin: String,
     pub path: String,
@@ -100,6 +101,7 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
                 | "postgres"
                 | "reasoning_effort"
                 | "project_max_tables"
+                | "capability_probe"
         )
     }) {
         return Err(PgBuilderError::new(
@@ -211,6 +213,10 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
         }
     };
     Ok(Config {
+        capabilities: map.get("capability_probe")
+            .map(oo_builder::budget::Capabilities::from_probe)
+            .transpose()
+            .map_err(|_| PgBuilderError::new("config.capability_probe", "invalid egress capability probe"))?,
         project_max_tables,
         purpose,
         origin,
@@ -222,9 +228,9 @@ pub fn load_config(text: &str) -> Result<Config, PgBuilderError> {
         deadline: Duration::from_millis(deadline_ms),
         max_request_bytes: bounded(budget, "max_request_bytes", 1, 262_144)? as usize,
         max_response_bytes: bounded(budget, "max_response_bytes", 1, 262_144)? as usize,
-        max_prompt_tokens: bounded(budget, "max_prompt_tokens", 1, 100_000)?,
-        max_completion_tokens: bounded(budget, "max_completion_tokens", 1, 100_000)?,
-        max_total_tokens: bounded(budget, "max_total_tokens", 1, 200_000)?,
+        max_prompt_tokens: bounded(budget, "max_prompt_tokens", 1, 272_000)?,
+        max_completion_tokens: bounded(budget, "max_completion_tokens", 1, 128_000)?,
+        max_total_tokens: bounded(budget, "max_total_tokens", 1, 272_000)?,
         max_tables: bounded(budget, "max_tables", 1, 16)? as usize,
         price: parse_price(map.get("declared_price").unwrap_or(&Value::Null))?,
         postgres,

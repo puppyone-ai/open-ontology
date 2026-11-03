@@ -8,6 +8,9 @@ use std::io::{Read, Write};
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 enum Request {
+    Probe {
+        probe: Value,
+    },
     Plan {
         #[serde(default)]
         budget: Budgeter,
@@ -64,6 +67,7 @@ enum Request {
 }
 fn run(request: Request) -> Result<Value, String> {
     match request {
+        Request::Probe { probe } => Ok(json!(Capabilities::from_probe(&probe)?)),
         Request::Plan {
             budget,
             items,
