@@ -81,10 +81,21 @@
    "sprint": "S0",
    "lane": "M",
    "title": "`stack.yaml`（`oo.stack/v1`）schema 与 secret_ref 规则",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-A",
    "branch": "v0.2/a-onboarding",
-   "commits": [],
+   "commits": [
+    "b59054b84",
+    "e5a532fc9",
+    "f97d41d39",
+    "660a74d01",
+    "da5808571",
+    "2319f2f75",
+    "26ae7237e",
+    "df178ab74",
+    "8ea763cd5",
+    "57e48301d"
+   ],
    "evidence": []
   },
   {
@@ -179,10 +190,14 @@
    "sprint": "S0",
    "lane": "D",
    "title": "PG 连接器从 `tools/postgres-preview` 收敛到 `crates/oo-connectors/src/postgres/`，适配接口",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-D",
    "branch": "v0.2/d-postgres-engine",
-   "commits": [],
+   "commits": [
+    "ac947b531",
+    "90e88d366",
+    "07520d7c3"
+   ],
    "evidence": []
   },
   {
@@ -201,10 +216,21 @@
    "sprint": "S0",
    "lane": "A",
    "title": "管理端命令骨架：`oo init/up/down/status/doctor/build` 参数与 `--help`，非 TTY 全非交互",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-A",
    "branch": "v0.2/a-onboarding",
-   "commits": [],
+   "commits": [
+    "b59054b84",
+    "e5a532fc9",
+    "f97d41d39",
+    "660a74d01",
+    "da5808571",
+    "2319f2f75",
+    "26ae7237e",
+    "df178ab74",
+    "8ea763cd5",
+    "57e48301d"
+   ],
    "evidence": []
   },
   {
@@ -274,9 +300,9 @@
    "sprint": "S1",
    "lane": "M",
    "title": "统一暂存→原子替换→发布；不可变父存储 + 变化块组合；目标写入计量",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "coordinator (Codex lane M)",
+   "branch": "v0.2/m-pipeline",
    "commits": [],
    "evidence": []
   },
@@ -285,9 +311,9 @@
    "sprint": "S1",
    "lane": "M",
    "title": "有界滚动调度（并发 1–4）、失败即停派、周期预算文件",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "coordinator (Codex lane M)",
+   "branch": "v0.2/m-pipeline",
    "commits": [],
    "evidence": []
   },
@@ -332,10 +358,21 @@
    "sprint": "S1",
    "lane": "A",
    "title": "`tools/model-egress`：loopback 监听、持 key、OpenAI 兼容/Anthropic 方言、限流、统一额度错误码、计量；能力探测（W、O_max、JSON 模式）",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-A",
    "branch": "v0.2/a-onboarding",
-   "commits": [],
+   "commits": [
+    "b59054b84",
+    "e5a532fc9",
+    "f97d41d39",
+    "660a74d01",
+    "da5808571",
+    "2319f2f75",
+    "26ae7237e",
+    "df178ab74",
+    "8ea763cd5",
+    "57e48301d"
+   ],
    "evidence": []
   },
   {
@@ -796,10 +833,6 @@
   {
    "what": "Oracle 19c EE image",
    "needs": "human completes Oracle account registration and sign-in (Plan D2)"
-  },
-  {
-   "what": "S1-M-01/S1-M-02 dispatch",
-   "needs": "free disk ≥ 25 GB (ledger E037)"
   }
  ],
  "lanes": {
@@ -831,11 +864,15 @@
   "A": {
    "branch": "v0.2/a-onboarding",
    "base": "4113744a7",
-   "status": "running"
+   "status": "idle"
   },
   "G": {
    "branch": "v0.2/g-selfbuild-budget",
    "base": "2bca1de16",
+   "status": "running"
+  },
+  "M": {
+   "branch": "v0.2/m-pipeline",
    "status": "running"
   }
  }
