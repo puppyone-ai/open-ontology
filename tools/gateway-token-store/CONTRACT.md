@@ -338,3 +338,22 @@ created 0600 output file; stdout contains metadata. Existing output files
 are never replaced. Failure to write a file after issuance does not roll
 back a committed credential: revoke it by its audited hash and issue again.
 Passwords, enrollment codes and bearer values are never argv arguments.
+
+### Metadata and monitoring
+
+`GET /v1/meta` anonymously returns `gateway_version` (compiled crate version),
+`protocol_version=0.2`, `minimum_cli_version=0.2.0`, with null publication and
+freshness: role-scoped publication details are not public. Authenticated calls
+read the current publication fence and freshness in the existing repeatable-
+read binding path. Explicit publication pins remain honored; drift fails
+closed. The publication id matches the response binding header, and freshness
+preserves `source_time=unmeasured` when the source cannot be measured.
+
+Authenticated `GET /v1/health` returns `token_expiry` (nearest non-revoked token
+in the caller's project and configured audience) and
+`internal_mtls_certificate_expiry` (nearest notAfter in the loaded server
+chain and internal client CA). Each reports `expires_at_ms`, `remaining_ms`,
+and `ok|warning|expired|unmeasured`; <=14 days warns, <=now is expired.
+Expired non-revoked credentials remain visible until revoked. This does not
+inventory certificates on other machines or claim to monitor their private
+keys. `/health` retains its existing unauthenticated liveness behavior.

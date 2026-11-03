@@ -69,6 +69,10 @@ mod performance_owned_pg;
 #[path = "published_cut_owned_pg_tests.rs"]
 mod published_cut_owned_pg;
 
+#[cfg(test)]
+#[path = "../tests/token_meta_pg/mod.rs"]
+mod token_meta_pg;
+
 #[derive(Clone, Copy)]
 struct AuthStamp {
     remaining_ms: u128,
@@ -1289,6 +1293,7 @@ pub(crate) fn mount(router: Router<AppState>) -> Router<AppState> {
         .route("/v1/sql/validate", post(validate))
         .route("/v1/query", post(query))
         .route("/v1/freshness", get(freshness))
+        .route("/v1/meta", get(meta))
         .route("/v1/knowledge/search", post(knowledge_search))
         .route("/v1/knowledge/{*path}", get(knowledge))
         .route("/v1/queries/{query_id}", get(query_status))
@@ -1878,6 +1883,70 @@ async fn validate(
         })
         .await;
     with_binding(response, receipt.as_ref())
+}
+
+async fn meta(
+    State(state): State<AppState>,
+    mut headers: HeaderMap,
+    RawQuery(query): RawQuery,
+    peer: crate::http_gateway::PublicPeer,
+) -> Response {
+    // Anonymous negotiation reveals no role-scoped publication or internal hosts.
+    let mut document = serde_json::json!({
+        "gateway_version": env!("CARGO_PKG_VERSION"),
+        "protocol_version": "0.2",
+        "minimum_cli_version": "0.2.0",
+        "publication_id": null,
+        "freshness": null
+    });
+    if query.is_some() {
+        return error_response(
+            ErrorCode::SchemaInvalid,
+            "query string is not allowed",
+            None,
+            None,
+        );
+    }
+    if headers.contains_key(axum::http::header::AUTHORIZATION) {
+        headers
+            .entry(crate::publication_binding::EXPECTED)
+            .or_insert(axum::http::HeaderValue::from_static("current"));
+        let response = freshness(State(state), headers, RawQuery(query), peer).await;
+        if !response.status().is_success() {
+            return response;
+        }
+        let (parts, body) = response.into_parts();
+        if let Some(id) = parts
+            .headers
+            .get(crate::publication_binding::ACTUAL)
+            .and_then(|v| v.to_str().ok())
+        {
+            document["publication_id"] = serde_json::json!(id);
+        }
+        let bytes = match axum::body::to_bytes(body, 4 * 1024 * 1024).await {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return error_response(ErrorCode::Internal, "metadata unavailable", None, None);
+            }
+        };
+        document["freshness"] = match serde_json::from_slice(&bytes) {
+            Ok(value) => value,
+            Err(_) => {
+                return error_response(ErrorCode::Internal, "metadata unavailable", None, None);
+            }
+        };
+        let mut response = json_ok(document);
+        response.headers_mut().extend(parts.headers);
+        response
+            .headers_mut()
+            .remove(axum::http::header::CONTENT_LENGTH);
+        response.headers_mut().insert(
+            axum::http::header::CACHE_CONTROL,
+            axum::http::HeaderValue::from_static("no-store"),
+        );
+        return response;
+    }
+    json_ok(document)
 }
 
 async fn freshness(

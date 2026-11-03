@@ -88,6 +88,7 @@ struct TupleEntry {
 
 struct Inner {
     lifecycle: Option<auth_lifecycle::Lifecycle>,
+    certificate_expiry_ms: Option<i64>,
     audience: String,
     endpoint_path: PathBuf,
     password: String,
@@ -189,6 +190,7 @@ impl AppState {
             inner: Arc::new(Inner {
                 audience: "https://gateway.loopback.invalid/v1".to_owned(),
                 lifecycle: None,
+                certificate_expiry_ms: None,
                 endpoint_path: PathBuf::from("endpoint.json"),
                 password: String::new(),
                 ca_pem: Vec::new(),
@@ -306,6 +308,18 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
             return Err(reason);
         }
     };
+    let certificate_expiry_ms = if tls {
+        let mut expiries = Vec::new();
+        for key in ["tls_chain_file", "client_ca_file"] {
+            let name = one_segment(required_text(object, key)?)?;
+            for cert in parse_chain(&fs::read(dir.join(name)).map_err(|_| "certificate")?)? {
+                expiries.push(auth_lifecycle::certificate_expiry(cert.as_ref())?);
+            }
+        }
+        expiries.into_iter().min()
+    } else {
+        None
+    };
     let lifecycle = if let Some(name) = object.get("token_admin_password_file") {
         if !tls {
             return Err("lifecycle_requires_tls");
@@ -351,6 +365,7 @@ pub fn load_operator_dir(dir: &Path) -> Result<OperatorLoad, &'static str> {
             inner: Arc::new(Inner {
                 audience,
                 lifecycle,
+                certificate_expiry_ms,
                 endpoint_path: dir.join(endpoint_file),
                 password,
                 ca_pem,
@@ -491,8 +506,10 @@ fn assemble(state: AppState) -> Router {
 }
 
 fn control_path(path: &str) -> bool {
-    matches!(path, "/health" | "/ready" | "/v1/operations")
-        || path.starts_with("/v1/queries/")
+    matches!(
+        path,
+        "/health" | "/ready" | "/v1/health" | "/v1/meta" | "/v1/operations"
+    ) || path.starts_with("/v1/queries/")
         || path.starts_with("/v1/operations/")
 }
 
@@ -580,6 +597,8 @@ fn normalize_layer_timeout(response: Response) -> Response {
 fn logged_path(path: &str, probe: bool) -> &'static str {
     match path {
         "/health" => "/health",
+        "/v1/health" => "/v1/health",
+        "/v1/meta" => "/v1/meta",
         "/v1/auth/enroll" => "/v1/auth/enroll",
         "/v1/auth/renew" => "/v1/auth/renew",
         "/internal/v1/tokens" => "/internal/v1/tokens",
