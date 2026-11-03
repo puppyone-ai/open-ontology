@@ -3,7 +3,7 @@
  "as_of": "2026-11-04T00:00:00+08:00",
  "integration_branch": "v0.2/product-loops",
  "current_sprint": "S0",
- "active_executors_max": 5,
+ "active_executors_max": 6,
  "loops": {
   "L1": {
    "status": "open",
@@ -37,10 +37,15 @@
    "sprint": "S0",
    "lane": "M",
    "title": "建 `execution/v0.2/state.json` 与 `decisions.md`；从本 Plan 生成任务卡",
-   "status": "author_complete",
+   "status": "in_progress",
    "owner": "coordinator",
    "branch": "v0.2/product-loops",
-   "commits": [],
+   "commits": [
+    "3d2c44f62",
+    "26f116101",
+    "a241fb04e",
+    "e1390d404"
+   ],
    "evidence": []
   },
   {
@@ -51,7 +56,9 @@
    "status": "author_complete",
    "owner": "coordinator",
    "branch": "v0.2/product-loops",
-   "commits": [],
+   "commits": [
+    "cd78da1e1"
+   ],
    "evidence": []
   },
   {
@@ -62,7 +69,9 @@
    "status": "author_complete",
    "owner": "coordinator",
    "branch": "v0.2/product-loops",
-   "commits": [],
+   "commits": [
+    "cd78da1e1"
+   ],
    "evidence": []
   },
   {
@@ -70,9 +79,9 @@
    "sprint": "S0",
    "lane": "M",
    "title": "`stack.yaml`（`oo.stack/v1`）schema 与 secret_ref 规则",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-A",
+   "branch": "v0.2/a-onboarding",
    "commits": [],
    "evidence": []
   },
@@ -169,9 +178,9 @@
    "sprint": "S0",
    "lane": "A",
    "title": "管理端命令骨架：`oo init/up/down/status/doctor/build` 参数与 `--help`，非 TTY 全非交互",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-A",
+   "branch": "v0.2/a-onboarding",
    "commits": [],
    "evidence": []
   },
@@ -279,9 +288,9 @@
    "sprint": "S1",
    "lane": "A",
    "title": "`tools/model-egress`：loopback 监听、持 key、OpenAI 兼容/Anthropic 方言、限流、统一额度错误码、计量；能力探测（W、O_max、JSON 模式）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-A",
+   "branch": "v0.2/a-onboarding",
    "commits": [],
    "evidence": []
   },
@@ -747,27 +756,37 @@
   "C": {
    "branch": "v0.2/c-mysql-engine",
    "base": "cd78da1e1",
-   "status": "running"
+   "status": "paused"
   },
   "D": {
    "branch": "v0.2/d-postgres-engine",
    "base": "cd78da1e1",
-   "status": "running"
+   "status": "paused"
   },
   "E": {
    "branch": "v0.2/e-oracle-engine",
    "base": "cd78da1e1",
-   "status": "running"
+   "status": "paused"
   },
   "H": {
    "branch": "v0.2/h-test-infra",
    "base": "cd78da1e1",
-   "status": "running"
+   "status": "paused"
   },
   "B": {
    "branch": "v0.2/b-token-lifecycle",
    "base": "cd78da1e1",
-   "status": "running"
+   "status": "paused"
+  },
+  "A": {
+   "branch": "v0.2/a-onboarding",
+   "base": "4113744a7",
+   "status": "paused"
   }
+ },
+ "paused": {
+  "since": "2026-11-04",
+  "by": "human",
+  "ledger": "E019"
  }
 }

@@ -35,9 +35,10 @@
 |---|---|---|
 | `execution/v0.2/state.json` | 当前 sprint、每张任务卡 owner/写域/状态、每个闭环的验收层级 | 唯一当前真相；覆盖写，不追加历史 |
 | `execution/v0.2/decisions.md` | 人类指令与范围变化，按时间追加 | 只追加；每条一句话 + 生效范围 |
+| `execution/v0.2/ledger.md` | 派发、交付、审阅、合入、sprint 退出、偏离与更正 | 只追加；编号连续；更正是新行 |
 | Plan 文档 | 任务定义与退出条件 | 内容变化走 PR，不在顶部堆“最新覆盖”段落 |
 
-TODO 由 `state.json` 生成，不手工勾选。
+TODO 由 `state.json` 经 `execution/v0.2/render_todo.py` 生成，不手工勾选；`--check` 校验状态与 Plan、ledger 一致。
 
 ## 4. 验收层级
 

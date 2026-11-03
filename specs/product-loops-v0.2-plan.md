@@ -38,8 +38,8 @@
 按 [docs/product/01](../docs/product/01-working-model.md)。要点：
 
 - 主线程负责契约、集成、短修复、验收与文档；子智能体只领长程独占任务卡。
-- 同时在跑的执行者 ≤ 5。
-- 状态只看 `execution/v0.2/state.json`，人类指令记入 `execution/v0.2/decisions.md`。
+- 同时在跑的执行者：S0–S1 ≤ 6（见 ledger E016），之后 ≤ 5。
+- 状态只看 `execution/v0.2/state.json`（覆盖写），人类指令记入 `execution/v0.2/decisions.md`，派发、交付、审阅、合入、sprint 退出、偏离与更正逐条追加到 `execution/v0.2/ledger.md`；`TODO.md` 由 `execution/v0.2/render_todo.py` 生成，每次状态变化后运行并以 `--check` 校验。
 - 提交、分支与最终 PR 按 §10、§11。
 - 普通功能不单独审阅；每个闭环收敛时对固定 SHA 做一次独立审阅。
 
@@ -61,6 +61,8 @@
 ## 3. Sprint 划分
 
 每个 sprint 约一周；日期为建议，按交付推进，不按日历宣称完成。
+
+**跨 sprint 规则**：车道可在自己的分支上继续做下一 sprint 的任务，但下一 sprint 的任务在本 sprint 退出被记为 ledger 的 `sprint-exit` 行之前，状态不得超过 `author_complete`，也不得合入集成分支（由 `render_todo.py --check` 强制）。
 
 | Sprint | 建议时间 | 主题 | sprint 退出 |
 |---|---|---|---|
@@ -225,7 +227,7 @@ Web UI；短期 access + refresh 轮换 token（v0.3 评估）；云数仓（Sno
 | D4 | 测试模型 | `gpt-6.1-sol`，OpenAI 兼容端点由人类提供；key 只存 `~/.config/open-ontology/secrets/` 下 0600 文件，经 `secret_ref` 引用，绝不进仓库、argv、日志 | 实测：代理对每次调用注入约 2.5k token 系统提示；同名模型存在 272k 与 1.05M 两种上下文路由，最大输出 128k；预算器默认按 272k 并以首调探测与 usage 校准（03 §3） |
 | D5 | 达梦 / KingbaseES | 人类授权获取；如官方下载无需注册则直接获取，需注册则同 D2 由人类本人完成注册 | P2，不阻塞退出 |
 | D6 | 所有者自审 | 作为开源单所有者场景下发布门禁的合规形态，记录 `review_decision.mode=self`；多人部署仍要求独立审阅者 | S4-A-01 |
-| D7 | 文档与基线 | 设计变化当期回填原文档，不延后；来源基线随文档同步升级（revision 6 起纳入 `docs/product/*`），检查脚本按新范围更新 | 本 Plan 每个 sprint 末 `check_spec`、`check_plan`、`check_v02_plan` 必须通过 |
+| D7 | 文档与基线 | 设计变化当期回填原文档，不延后；来源基线随文档同步升级（revision 6 起纳入 `docs/product/*`），检查脚本按新范围更新 | 本 Plan 每个 sprint 末 `check_spec`、`check_plan`、`check_v02_plan` 与 `render_todo.py --check` 必须通过 |
 | D8 | Oracle C1 写入分类 | LogMiner 只用 `online_catalog` 字典策略，视为 R1（源端零写，只读 common user）；需在源端构建字典的 `redo_log_catalog` 属 R1w，默认禁用；结构变化期间 online_catalog 无法解析的事件触发该表重基线 | Oracle 19c/23ai C1 可按 R1 进入 verified；S2-E-01 必须用源端审计（T7）证明零写 |
 | D9 | 服务账号 token 寿命 | 默认有效期与默认最大寿命均为 90 天，项目策略可配置最大寿命至 365 天；自助续期不超过“首次签发 + 最大寿命” | REQ-TOK-01/02；docs/07 §3.4 |
 
@@ -236,6 +238,7 @@ Web UI；短期 access + refresh 轮换 token（v0.3 评估）；云数仓（Sno
 - 集成分支 `v0.2/product-loops`（自 origin/master `6bbb368d4` 起）。只有主线程向它写入。
 - 每条车道一个 worktree 与分支 `v0.2/<车道>-<主题>`，例如 `v0.2/c-mysql-chunking`，从集成分支最新提交切出。
 - 车道分支完成一张任务卡后，由主线程 rebase 到集成分支并 fast-forward 合入，保持线性历史；不在集成分支上做 merge commit，不 force-push 集成分支。
+- 唯一例外：尚未推送的集成分支提交中发现秘密或客户信息时，主线程可在推送前改写该提交将其移除，并在 ledger 记一条 `deviation`（见 E005）；已推送的历史永不改写，只能另行处置。
 - 不从旧主工作区（`chore/product-sync-*` 系列）挑拣或推送任何提交；它带有历史大对象。
 
 ### 10.2 提交范围
