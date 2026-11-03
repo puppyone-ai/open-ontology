@@ -1,4 +1,7 @@
-//! Command flags. Parsing does not open files, sockets, or environment credentials.
+//! Consumer flags are pure. Admin dispatch validates arguments before local IO.
+
+#[path = "admin/mod.rs"]
+mod admin;
 
 use std::net::IpAddr;
 
@@ -80,6 +83,9 @@ pub enum Invocation {
 pub fn parse() -> Result<Invocation, Failure> {
     let args = os_args()?;
     let args = expand_long_options(&args);
+    if let Some(result) = admin::dispatch(&args) {
+        return result;
+    }
     parse_args(&args)
 }
 
@@ -1020,7 +1026,8 @@ fn is_safe_flag(arg: &str) -> bool {
 
 pub fn top_help() -> String {
     format!(
-        "{TOP}\n\n{QUERY_FLAGS}\n\n{SEARCH_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\n{NOTES}"
+        "{TOP}\n\n{}\n\n{QUERY_FLAGS}\n\n{SEARCH_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\n{NOTES}",
+        admin::HELP
     )
 }
 
