@@ -3,6 +3,7 @@
 pub mod arrow_part;
 pub mod chunk;
 pub mod cli;
+pub mod keyset;
 pub mod rules;
 mod server_metadata;
 mod temporal;
