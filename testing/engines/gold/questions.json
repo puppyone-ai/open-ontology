@@ -1,0 +1,82 @@
+[
+  {
+    "id": "Q01",
+    "question": "How many orders exist?"
+  },
+  {
+    "id": "Q02",
+    "question": "What is the exact total order amount?"
+  },
+  {
+    "id": "Q03",
+    "question": "How many customers exist?"
+  },
+  {
+    "id": "Q04",
+    "question": "How many shipments join to existing orders and customers?"
+  },
+  {
+    "id": "Q05",
+    "question": "Order amount by region through customer, site and area?"
+  },
+  {
+    "id": "Q06",
+    "question": "Order count by translated status?"
+  },
+  {
+    "id": "Q07",
+    "question": "How many orders are in January 2026?"
+  },
+  {
+    "id": "Q08",
+    "question": "January exact amount?"
+  },
+  {
+    "id": "Q09",
+    "question": "How many customer notes are NULL or empty under portable source semantics?"
+  },
+  {
+    "id": "Q10",
+    "question": "How many nonempty customer notes?"
+  },
+  {
+    "id": "Q11",
+    "question": "How many orders have no shipment?"
+  },
+  {
+    "id": "Q12",
+    "question": "Total quantity by customer?"
+  },
+  {
+    "id": "Q13",
+    "question": "Shipment counts by implicit destination site?"
+  },
+  {
+    "id": "Q14",
+    "question": "Composite-key order line quantity?"
+  },
+  {
+    "id": "Q15",
+    "question": "How many distinct customers placed shipped-status orders?"
+  },
+  {
+    "id": "Q16",
+    "question": "How many calendar dates in January?"
+  },
+  {
+    "id": "Q17",
+    "question": "How many bulk events exist?"
+  },
+  {
+    "id": "Q18",
+    "question": "How many event-to-order-to-customer relations?"
+  },
+  {
+    "id": "Q19",
+    "question": "Minimum and maximum exact order amounts?"
+  },
+  {
+    "id": "Q20",
+    "question": "How many rows across January and February shards?"
+  }
+]
