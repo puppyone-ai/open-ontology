@@ -15,7 +15,7 @@ default = []
 mysql = ["dep:mysql_async", "tokio/sync", "tokio/macros"]
 # In-process MySQL binlog C1. Not default: its zstd stack is admitted for the
 # default artifact only after the seven-day rule (supply-chain/mysql-binlog-audit.json).
-mysql-binlog = ["mysql", "mysql_async/binlog"]
+mysql-binlog = ["mysql", "mysql_async/binlog", "dep:futures-util"]
 oracle = ["dep:oracledb"]
 
 [[bin]]
@@ -24,6 +24,8 @@ path = "src/oracle/main.rs"
 required-features = ["oracle"]
 
 [dependencies]
+# Already locked by other workspace crates; only mysql-binlog uses it here.
+futures-util = { version = "=0.3.34", optional = true, default-features = false, features = ["std"] }
 oo-core = { path = "../oo-core" }
 # Series 60, the same crates the workspace Arrow type names describe.
 # Default features stay off. `public-dependency` is unstable on Rust 1.94,
