@@ -57,7 +57,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--versions", nargs="+", default=["5.7.44", "8.0.44", "8.4.7", "9.5.0"])
     p.add_argument("--run-id", default="c-s0s1-" + time.strftime("%Y%m%d-%H%M%S"))
-    p.add_argument("--suite", choices=["s0s1", "s2-digest", "s2-watermark", "s2-c5"], default="s0s1")
+    p.add_argument("--suite", choices=["s0s1", "s2-digest", "s2-watermark", "s2-c5", "s2-retention"], default="s0s1")
     args = p.parse_args()
     root = Path(__file__).resolve().parents[3]
     os.chdir(root)
@@ -155,18 +155,35 @@ GRANT PROCESS ON *.* TO 'writer'@'%';
             sources = list((root / "crates/oo-connectors/src/mysql").glob("*.rs"))
             sources += list((root / "crates/oo-connectors/tests").glob("mysql_*.rs"))
             sources += [Path(__file__).resolve()]
+            if args.suite == "s2-retention":
+                sources += list((root / "tools/mysql-preview/src").glob("*.rs"))
+                sources += [
+                    root / "tools/mysql-preview/tests/retention_owned.rs",
+                    root / "tools/mysql-preview/Cargo.toml",
+                    root / "tools/mysql-preview/Cargo.lock",
+                ]
             (directory / "source-sha256.json").write_text(json.dumps({
                 str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
                 for path in sources}, indent=2))
             env = os.environ.copy()
             env["OO_MYSQL_ENGINE_FIXTURE"] = str(directory / "config.json")
+            if args.suite == "s2-retention":
+                test_command = [
+                    "cargo", "test", "--manifest-path", "tools/mysql-preview/Cargo.toml",
+                    "--locked", "--test", "retention_owned",
+                    "--", "--ignored", "--nocapture",
+                ]
+            else:
+                test_command = [
+                    "cargo", "test", "-p", "oo-connectors", "--locked", "--features", "mysql-binlog",
+                    "--test", "mysql_engine_live",
+                    {"s0s1": "engine_matrix_contract", "s2-digest": "digest_primitives",
+                     "s2-watermark": "watermark_primitives", "s2-c5": "c5_cycles"}[args.suite],
+                    "--", "--ignored", "--nocapture",
+                ]
             with (directory / "test.log").open("wb") as log:
                 result = subprocess.run(
-                    ["cargo", "test", "-p", "oo-connectors", "--locked", "--features", "mysql-binlog",
-                     "--test", "mysql_engine_live",
-                     {"s0s1": "engine_matrix_contract", "s2-digest": "digest_primitives",
-                      "s2-watermark": "watermark_primitives", "s2-c5": "c5_cycles"}[args.suite],
-                     "--", "--ignored", "--nocapture"],
+                    test_command,
                     env=env, stdout=log, stderr=subprocess.STDOUT)
             results[version] = {"exit": result.returncode}
             if args.suite == "s2-digest" and result.returncode == 0:
