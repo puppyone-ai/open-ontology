@@ -68,14 +68,8 @@ if [ -d "$lane_wt/target/debug/incremental" ]; then rm -rf "$lane_wt/target"; fi
       *) cargo test --locked -p "$c" ;;
     esac
   done
-  for d in $(git diff --name-only "$target...$lane" | sed -n 's#^tools/\([^/]*\)/.*#\1#p' | sort -u); do
-    for t in "tools/$d" "tools/$d/tests"; do
-      if find "$t" -maxdepth 1 -name 'test_*.py' 2>/dev/null | grep -q .; then
-        mkdir -p evidence
-        PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$t" -p 'test_*.py'
-      fi
-    done
-  done
+  tools=$(git diff --name-only "$target...$lane" | sed -n 's#^\(tools/[^/]*\)/.*#\1#p' | sort -u)
+  [ -z "$tools" ] || python3 "$here/pytests.py" "$lane_wt" "$repo" $tools
   if git diff --name-only "$target...$lane" | grep -q '^packages/cli/'; then
     node --test packages/cli/test/*.test.mjs
   fi
