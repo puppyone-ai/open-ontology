@@ -1438,6 +1438,12 @@ impl OracleEngine {
                     }
                 }
             }
+            if progress.rows == 0 {
+                let batch = RecordBatch::new_empty(schema.clone());
+                ipc.write(&batch)
+                    .map_err(|_| SourceError::protocol("arrow_ipc"))?;
+                sink.push(batch)?;
+            }
             ipc.finish()
                 .map_err(|_| SourceError::protocol("arrow_ipc"))?;
         }

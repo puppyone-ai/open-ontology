@@ -353,6 +353,7 @@ pub trait SourceEngine: Send {
     ) -> impl Future<Output = Result<TableChunkPlan, SourceError>> + Send;
 
     /// Read one chunk into `sink`, bracketed by watermarks when available.
+    /// Empty chunks must push a schema-bearing empty batch, included in the IPC hash.
     fn read_chunk(
         &mut self,
         chunk: &ChunkSpec,
