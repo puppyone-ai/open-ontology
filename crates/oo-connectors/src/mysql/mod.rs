@@ -1,6 +1,7 @@
 //! MySQL 5.7/8 source-only catalog, shared batch/CDC mapping and bounded Arrow pulls.
 //! No COPY, target credentials, Loader or tool dependencies live here.
 
+pub mod capability;
 pub mod chunk;
 pub mod map;
 mod reader;
