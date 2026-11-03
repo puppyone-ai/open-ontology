@@ -11,6 +11,9 @@ correction; C5 digests via digest_range with the four layers; no-change cycle = 
 generation. Reuse tools/oracle-preview and tools/job-worker native_oracle* code; don't duplicate.
 Prove zero source writes for C1 with Oracle unified/standard auditing in the test container (T7 slice): only
 SELECT and LogMiner package calls appear, no DML/DDL by the reader account.
+Also close the ORA-01555 gap from your S1 run: when undo is exhausted at the chunk's SCN, re-read that
+chunk at a fresh SCN and rely on the chunk-window log correction (or C5 digest re-check) for consistency;
+prove zero diff on the undo-stress test instead of stopping at 7,846/12,000.
 Tests: 23ai C1 + C5 three cycles incl. no-change; 11g/21c C5 three cycles (C1 on 11g/21c if feasible,
 else record why). 19c remains blocked.
 Write scope: crates/oo-connectors/src/oracle/**, crates/oo-connectors/tests/oracle_*, tools/oracle-preview/**,
