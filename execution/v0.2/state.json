@@ -2,7 +2,7 @@
  "schema": "oo.v02-state/v1",
  "as_of": "2026-11-04T00:00:00+08:00",
  "integration_branch": "v0.2/product-loops",
- "current_sprint": "S0",
+ "current_sprint": "S1",
  "active_executors_max": 6,
  "loops": {
   "L1": {
@@ -212,10 +212,17 @@
    "sprint": "S0",
    "lane": "B",
    "title": "token-store 迁移设计：renew/rotate/enroll 字段与审计事件",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-B",
    "branch": "v0.2/b-token-lifecycle",
-   "commits": [],
+   "commits": [
+    "5ec402635",
+    "d9f61691b",
+    "48878c28f",
+    "976b77e81",
+    "2ab36682e",
+    "4f564202d"
+   ],
    "evidence": []
   },
   {
@@ -289,10 +296,17 @@
    "sprint": "S1",
    "lane": "B",
    "title": "Gateway 管理 API：issue/list/renew/rotate/revoke/enroll；自助 `POST /v1/auth/renew`（策略可关）",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-B",
    "branch": "v0.2/b-token-lifecycle",
-   "commits": [],
+   "commits": [
+    "5ec402635",
+    "d9f61691b",
+    "48878c28f",
+    "976b77e81",
+    "2ab36682e",
+    "4f564202d"
+   ],
    "evidence": []
   },
   {
@@ -300,10 +314,17 @@
    "sprint": "S1",
    "lane": "B",
    "title": "`GET /v1/meta`（协议版本、最低 CLI 版本、发布与新鲜度）；mTLS 证书与 token 到期纳入 `/v1/health`",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-B",
    "branch": "v0.2/b-token-lifecycle",
-   "commits": [],
+   "commits": [
+    "5ec402635",
+    "d9f61691b",
+    "48878c28f",
+    "976b77e81",
+    "2ab36682e",
+    "4f564202d"
+   ],
    "evidence": []
   },
   {
@@ -805,7 +826,7 @@
   "B": {
    "branch": "v0.2/b-token-lifecycle",
    "base": "cd78da1e1",
-   "status": "running"
+   "status": "idle"
   },
   "A": {
    "branch": "v0.2/a-onboarding",
