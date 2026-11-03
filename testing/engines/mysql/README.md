@@ -7,6 +7,7 @@ Task card C-S0S1: S0-C-01, S1-C-01, S1-C-02.
 ```sh
 cargo test -p oo-connectors --features mysql --lib --locked
 python3 testing/engines/mysql/run.py --run-id c-mysql-new-run
+python3 testing/engines/mysql/run.py --suite s2-digest --run-id c-mysql-digest-new-run
 ```
 
 The runner uses exact tags `5.7.44`, `8.0.44`, `8.4.7`, `9.5.0`, sequentially.
@@ -26,6 +27,13 @@ The generator is local to `run.py`, outside lane H's `seed/` directory, and
 can be replaced by the shared generator. It creates all five key shapes,
 case/accent/PAD SPACE collisions, an empty table, a 2,000,000-row table, digest
 separator-collision cases, and a table that grows beyond its original budget.
+
+The `s2-digest` suite instead uses lane H's shared generator (2,000 events,
+three small tables) and comparison oracle. It tests duplicate multiplicity,
+digest independence from internal page sizes, a same-count update/delete/insert
+cycle, an unchanged digest cycle, and source-ordered canonical row equality.
+These are source primitive tests, not the complete C5 scheduler/T2 gate:
+no target writes, generation transitions or four-layer scheduling are exercised.
 
 ## Adapter contract
 

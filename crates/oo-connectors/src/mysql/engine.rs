@@ -1599,9 +1599,9 @@ impl MysqlEngine {
             let r = rows
                 .first()
                 .ok_or_else(|| SourceError::protocol("digest"))?;
-            rows_total = row_u64(r, 0).unwrap_or(0);
-            x1 = row_u64(r, 1).unwrap_or(0);
-            x2 = row_u64(r, 2).unwrap_or(0);
+            rows_total = row_u64(r, 0).ok_or_else(|| SourceError::protocol("digest_count"))?;
+            x1 = row_u64(r, 1).ok_or_else(|| SourceError::protocol("digest_sum"))?;
+            x2 = row_u64(r, 2).ok_or_else(|| SourceError::protocol("digest_sum"))?;
         } else {
             let lo_v = Self::bound(lo, &keys)?;
             let hi_v = Self::bound(hi, &keys)?;
@@ -1639,9 +1639,17 @@ impl MysqlEngine {
                 let r = rows
                     .first()
                     .ok_or_else(|| SourceError::protocol("digest"))?;
-                rows_total += row_u64(r, 0).unwrap_or(0);
-                x1 ^= row_u64(r, 1).unwrap_or(0);
-                x2 ^= row_u64(r, 2).unwrap_or(0);
+                rows_total = rows_total
+                    .checked_add(
+                        row_u64(r, 0).ok_or_else(|| SourceError::protocol("digest_count"))?,
+                    )
+                    .ok_or_else(|| SourceError::budget("digest_count"))?;
+                x1 = x1.wrapping_add(
+                    row_u64(r, 1).ok_or_else(|| SourceError::protocol("digest_sum"))?,
+                );
+                x2 = x2.wrapping_add(
+                    row_u64(r, 2).ok_or_else(|| SourceError::protocol("digest_sum"))?,
+                );
                 match next {
                     Some(n) => cursor = Some(n),
                     None => break,
@@ -1653,7 +1661,7 @@ impl MysqlEngine {
             lo: lo.map(<[KeyValue]>::to_vec),
             hi: hi.map(<[KeyValue]>::to_vec),
             rows: rows_total,
-            digest: format!("md5x2:{x1:016x}{x2:016x}"),
+            digest: format!("md5sum2:{x1:016x}{x2:016x}"),
         })
     }
 }

@@ -35,8 +35,10 @@ The concurrent writer test covers 2,000 rows, 100 committed transactions,
 checksum-verified real binlog window and a verified quiescent end cut;
 it is not a production streaming CDC test or an Agent DB acceptance run.
 
-Source hashes in these four evidence directories match the delivered Rust
-and runner files. Per-artifact hashes, including binary log windows:
+Source hashes in these four evidence directories identify the original
+signed-off S0/S1 files, before commit-time formatting and subsequent S2
+changes. S2 evidence is recorded separately in `S2-SUMMARY.md`.
+Per-artifact hashes, including binary log windows:
 `evidence/c-s0s1-20261104/final-evidence-index.json`
 
 Index SHA-256:

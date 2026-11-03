@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import secrets
 import subprocess
+import sys
 import time
 
 
@@ -56,6 +57,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--versions", nargs="+", default=["5.7.44", "8.0.44", "8.4.7", "9.5.0"])
     p.add_argument("--run-id", default="c-s0s1-" + time.strftime("%Y%m%d-%H%M%S"))
+    p.add_argument("--suite", choices=["s0s1", "s2-digest"], default="s0s1")
     args = p.parse_args()
     root = Path(__file__).resolve().parents[3]
     os.chdir(root)
@@ -123,7 +125,15 @@ def main():
                 time.sleep(1)
             else:
                 raise RuntimeError("fixture did not become ready")
-            setup = seed_sql() + f"""
+            if args.suite == "s0s1":
+                seed = seed_sql()
+            else:
+                seed = "CREATE DATABASE fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; USE fixture;\n" + run([
+                    sys.executable, "testing/engines/seed-common/generate.py",
+                    "--engine", "mysql", "--version", version, "--scale", "2000",
+                    "--tables", "3",
+                ]).decode()
+            setup = seed + f"""
 CREATE USER 'reader'@'%' IDENTIFIED BY '{reader_pw}';
 GRANT SELECT ON fixture.* TO 'reader'@'%';
 GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'reader'@'%';
@@ -150,11 +160,21 @@ GRANT PROCESS ON *.* TO 'writer'@'%';
             with (directory / "test.log").open("wb") as log:
                 result = subprocess.run(
                     ["cargo", "test", "-p", "oo-connectors", "--locked", "--features", "mysql",
-                     "--test", "mysql_engine_live", "engine_matrix_contract",
+                     "--test", "mysql_engine_live",
+                     "engine_matrix_contract" if args.suite == "s0s1" else "digest_primitives",
                      "--", "--ignored", "--nocapture"],
                     env=env, stdout=log, stderr=subprocess.STDOUT)
             results[version] = {"exit": result.returncode}
-            print(version, "PASS" if result.returncode == 0 else "FAIL", flush=True)
+            if args.suite == "s2-digest" and result.returncode == 0:
+                sys.path.insert(0, str(root / "tools/oo-test"))
+                from comparison import compare
+                rows = json.loads((directory / "digest-oracle.json").read_text())
+                report = compare(rows["source"], rows["adapter"], key_columns=[0],
+                                 chunk_size=97, consistency="B")
+                (directory / "comparison-report.json").write_text(json.dumps(report, indent=2))
+                if not report["equal"]:
+                    results[version]["exit"] = 1
+            print(version, "PASS" if results[version]["exit"] == 0 else "FAIL", flush=True)
             (directory / "image.json").write_bytes(run(
                 ["docker", "image", "inspect", f"mysql:{version}", "--format",
                  '{"id":"{{.Id}}","digests":{{json .RepoDigests}},"arch":"{{.Architecture}}"}']))

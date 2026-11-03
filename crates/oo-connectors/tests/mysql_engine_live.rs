@@ -130,8 +130,19 @@ async fn oracle(conn: &mut Conn, name: &str, keys: &[(&str, KeyKind)]) -> Vec<Ro
         run_generation: 0,
         input_digest: Sha256::digest(format!("fixture.{name}")).into(),
     };
+    let order = if keys.is_empty() {
+        String::new()
+    } else {
+        format!(
+            " ORDER BY {}",
+            keys.iter()
+                .map(|(key, _)| format!("`{key}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    };
     let mut result = conn
-        .query_iter(format!("SELECT * FROM fixture.`{name}`"))
+        .query_iter(format!("SELECT * FROM fixture.`{name}`{order}"))
         .await
         .unwrap();
     let mut answer = Vec::new();
@@ -187,6 +198,107 @@ async fn oracle(conn: &mut Conn, name: &str, keys: &[(&str, KeyKind)]) -> Vec<Ro
     answer
 }
 
+#[tokio::test]
+#[ignore = "requires the shared fixture via run.py --suite s2-digest"]
+async fn digest_primitives() {
+    let path = std::env::var("OO_MYSQL_ENGINE_FIXTURE").expect("owned fixture config");
+    let v: Json = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+    let mut admin = connect(&config(&v, "writer"), &password(&v, "writer"))
+        .await
+        .unwrap();
+    let budget = ReadBudget {
+        max_chunk_rows: 97,
+        ..Default::default()
+    };
+    let mut e = engine(
+        &v,
+        EngineOptions {
+            budget: budget.clone(),
+            ..Default::default()
+        },
+    );
+    // Equal duplicate pairs must not cancel, even when the count is unchanged.
+    admin
+        .query_drop("DELETE FROM fixture.no_key")
+        .await
+        .unwrap();
+    admin
+        .query_drop("INSERT INTO fixture.no_key VALUES (1,'old'),(1,'old'),(2,NULL),(2,NULL)")
+        .await
+        .unwrap();
+    let before = e.digest_range(&table("no_key"), None, None).await.unwrap();
+    admin
+        .query_drop("UPDATE fixture.no_key SET note='new' WHERE value_no=1")
+        .await
+        .unwrap();
+    let after = e.digest_range(&table("no_key"), None, None).await.unwrap();
+    assert_eq!(before.rows, after.rows);
+    assert_ne!(before.digest, after.digest);
+
+    let first = e.digest_range(&table("events"), None, None).await.unwrap();
+    // Internal partition sizes must not change the digest.
+    let mut whole = engine(&v, EngineOptions::default());
+    assert_eq!(
+        first,
+        whole
+            .digest_range(&table("events"), None, None)
+            .await
+            .unwrap()
+    );
+    whole.close().await;
+    admin
+        .query_drop("UPDATE fixture.events SET event_no=event_no+1 WHERE id=1")
+        .await
+        .unwrap();
+    admin
+        .query_drop("DELETE FROM fixture.events WHERE id=2")
+        .await
+        .unwrap();
+    admin
+        .query_drop("INSERT INTO fixture.events VALUES (2001,1,0)")
+        .await
+        .unwrap();
+    let second = e.digest_range(&table("events"), None, None).await.unwrap();
+    assert_eq!(first.rows, second.rows);
+    assert_ne!(first.digest, second.digest);
+    let third = e.digest_range(&table("events"), None, None).await.unwrap();
+    assert_eq!(second, third);
+    let plan = e.plan_chunks(&table("events"), &budget).await.unwrap();
+    let (actual, _) = capture(&mut e, plan.chunks, &budget).await;
+    let expected = oracle(&mut admin, "events", &[("id", KeyKind::Int)]).await;
+    assert_eq!(actual, expected);
+    let wire = |rows: &[RowFingerprint]| {
+        rows.iter()
+            .map(|r| {
+                let KeyValue::Int(id) = r.key[0] else {
+                    panic!("integer fixture key")
+                };
+                json!([
+                    id,
+                    r.canonical_hash
+                        .iter()
+                        .map(|b| format!("{b:02x}"))
+                        .collect::<String>()
+                ])
+            })
+            .collect::<Vec<_>>()
+    };
+    save(
+        &v,
+        "digest-oracle.json",
+        &json!({"source":wire(&expected),"adapter":wire(&actual)}),
+    );
+    save(
+        &v,
+        "digest-primitives.json",
+        &json!({"duplicate_before":before,"duplicate_after":after,
+            "cycles":[first,second,third],"rows":actual.len(),"canonical_diff":0,
+            "scope":"source primitives only; no target, generation or C5 scheduler"}),
+    );
+    e.close().await;
+    admin.disconnect().await.unwrap();
+}
+
 async fn capture(
     e: &mut MysqlEngine,
     chunks: Vec<ChunkSpec>,
@@ -219,7 +331,10 @@ async fn capture(
                         .all(|c| c.plan_revision == chunk.plan_revision + 1)
                 );
                 next_id += children.len() as u32;
-                pending.extend(children);
+                // Finish the split range before later ranges, retaining source order.
+                for child in children.into_iter().rev() {
+                    pending.push_front(child);
+                }
             }
             Err(e) => panic!("chunk read failed: {e}"),
         }

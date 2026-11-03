@@ -349,11 +349,12 @@ pub fn row_bytes_sql(
     ))
 }
 
-/// C5 digest of a key range: `COUNT(*)` and the BIT_XOR of both 64-bit halves
+/// C5 digest of a key range: `COUNT(*)` and modular sums of both 64-bit halves
 /// of `MD5(CONCAT_WS(0x1f, ISNULL flags, values))`. Values are cast to
 /// BINARY then HEX so separators in values cannot collide, case-only changes
 /// change the digest, and mixed column collations cannot fail. ISNULL flags tell NULL from
-/// empty, since CONCAT_WS skips NULL arguments.
+/// empty, since CONCAT_WS skips NULL arguments. Sums retain duplicate rows;
+/// XOR would cancel equal pairs in a no-key table.
 pub fn digest_sql(
     schema: &str,
     table: &str,
@@ -377,7 +378,9 @@ pub fn digest_sql(
         .join(", ");
     let md5 = format!("MD5(CONCAT_WS(0x1f, CONCAT({flags}), {values}))");
     let half = |from: u32| {
-        format!("BIT_XOR(CAST(CONV(SUBSTRING({md5}, {from}, 16), 16, 10) AS UNSIGNED))")
+        format!(
+            "CAST(MOD(COALESCE(SUM(CAST(CONV(SUBSTRING({md5}, {from}, 16), 16, 10) AS DECIMAL(20,0))), 0), 18446744073709551616) AS UNSIGNED)"
+        )
     };
     Ok(format!(
         "SELECT {}COUNT(*), {}, {} FROM {}{}{predicate}",
@@ -713,7 +716,9 @@ mod tests {
             Some(5000),
         )
         .unwrap();
-        assert!(sql.starts_with("SELECT /*+ MAX_EXECUTION_TIME(5000) */ COUNT(*), BIT_XOR(CAST(CONV(SUBSTRING(MD5(CONCAT_WS(0x1f, CONCAT(ISNULL(`id`), ISNULL(`v`)), HEX(CAST(`id` AS BINARY)), HEX(CAST(`v` AS BINARY)))), 1, 16), 16, 10) AS UNSIGNED))"));
+        assert!(sql.starts_with("SELECT /*+ MAX_EXECUTION_TIME(5000) */ COUNT(*), CAST(MOD(COALESCE(SUM(CAST(CONV(SUBSTRING(MD5(CONCAT_WS(0x1f, CONCAT(ISNULL(`id`), ISNULL(`v`)), HEX(CAST(`id` AS BINARY)), HEX(CAST(`v` AS BINARY)))), 1, 16), 16, 10) AS DECIMAL(20,0)))"));
+        assert!(sql.contains("18446744073709551616"));
+        assert!(!sql.contains("BIT_XOR"));
         assert!(sql.contains(", 17, 16)"));
         assert!(sql.ends_with("FROM `s`.`t` FORCE INDEX (`PRIMARY`) WHERE (`id` >= ?)"));
         assert_eq!(guard(&sql).unwrap(), "SELECT");
