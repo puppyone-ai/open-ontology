@@ -58,10 +58,12 @@ echo "== build and test gate (on the rebased lane tree)"
     esac
   done
   for d in $(git diff --name-only "$target...$lane" | sed -n 's#^tools/\([^/]*\)/.*#\1#p' | sort -u); do
-    if ls "tools/$d"/test_*.py "tools/$d"/tests/test_*.py >/dev/null 2>&1; then
-      mkdir -p evidence
-      PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "tools/$d" -p 'test_*.py'
-    fi
+    for t in "tools/$d" "tools/$d/tests"; do
+      if find "$t" -maxdepth 1 -name 'test_*.py' 2>/dev/null | grep -q .; then
+        mkdir -p evidence
+        PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$t" -p 'test_*.py'
+      fi
+    done
   done
   if git diff --name-only "$target...$lane" | grep -q '^packages/cli/'; then
     node --test packages/cli/test/*.test.mjs
