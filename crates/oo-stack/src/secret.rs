@@ -1,5 +1,5 @@
 //! Owner-private secret files. Same fd checks as oo-cli/load.rs, plus parent
-//! symlink rejection. Unix only; ACL and same-owner concurrent mutation are
+//! leaf symlink rejection. Unix only; ACL and same-owner concurrent mutation are
 //! outside this file-mode boundary. Secret bytes are not wiped on drop.
 
 use std::fs::{self, File, OpenOptions};
@@ -21,8 +21,7 @@ impl SecretStore {
     }
 
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
-        let root = root.into();
-        check_parents(&root)?;
+        let root = canonical_parent(root.into())?;
         let store = Self { root };
         store.check()?;
         Ok(store)
@@ -30,8 +29,7 @@ impl SecretStore {
 
     /// The caller creates the non-secret parent configuration directory.
     pub fn create(root: impl Into<PathBuf>) -> Result<Self> {
-        let root = root.into();
-        check_parents(root.parent().ok_or("SECRET_PATH")?)?;
+        let root = canonical_parent(root.into())?;
         match fs::DirBuilder::new().mode(0o700).create(&root) {
             Ok(()) => (),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => (),
@@ -123,6 +121,19 @@ fn check_parents(path: &Path) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn canonical_parent(path: PathBuf) -> Result<PathBuf> {
+    if path.components().any(|c| matches!(c, Component::ParentDir)) {
+        return Err("SECRET_PATH");
+    }
+    let name = path.file_name().ok_or("SECRET_PATH")?;
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let parent = fs::canonicalize(parent).map_err(|_| "SECRET_PATH")?;
+    Ok(parent.join(name))
 }
 
 fn process_owner() -> Result<u32> {

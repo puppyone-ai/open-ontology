@@ -23,7 +23,7 @@ localhost or literal loopback IP addresses. SSH pins are canonical OpenSSH
 `~/.config/open-ontology/secrets` directory. `create` creates only the final
 0700 directory under an existing parent. Files must be regular, 0600,
 single-link and owned by the effective process owner. Reads use O_NOFOLLOW,
-O_NONBLOCK and fd metadata, following oo-cli/load.rs; parents reject symlinks.
+O_NONBLOCK and fd metadata, following oo-cli/load.rs; parent aliases are canonicalized; the secrets directory and files reject symlinks.
 Writes use create-new, never silently rotate existing keys. ACL enforcement,
 zeroization and same-owner concurrent mutation are not promised. Parent
 validation in the Rust helper is path-based, not an openat sandbox.

@@ -19,7 +19,7 @@ settings are not used. TLS uses system validation; redirects are refused.
 The server accepts POST `/v1/chat/completions`; it does not expose upstream keys.
 
 Key bytes come only from the named 0600 owner file under the 0700 secret store.
-Directory-fd traversal refuses symlinks. Keys never enter argv, logs or meter
+Parent aliases are canonicalized; directory-fd traversal refuses private-leaf symlinks. Keys never enter argv, logs or meter
 records. Access/error logging is disabled; errors use fixed codes. The JSONL
 meter includes duration, stream flag, outcome and measured token counts (null
 when unavailable), never prompt, response, credential, endpoint or headers.

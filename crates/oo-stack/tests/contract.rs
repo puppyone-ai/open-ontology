@@ -138,3 +138,24 @@ fn secret_files_fail_closed() {
     assert!(SecretStore::open(dir.join("secrets")).is_err());
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn secret_store_accepts_symlinked_ancestors_not_private_leaves() {
+    let dir = std::env::temp_dir().join(format!("oo-stack-ancestor-{}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    std::fs::create_dir(dir.join("config")).unwrap();
+    symlink(dir.join("config"), dir.join("alias")).unwrap();
+    let store = SecretStore::create(dir.join("alias/secrets")).unwrap();
+    store.write_new("key", b"fixture").unwrap();
+    assert_eq!(
+        SecretStore::open(dir.join("alias/secrets"))
+            .unwrap()
+            .read("key")
+            .unwrap(),
+        "fixture"
+    );
+    symlink(dir.join("config/secrets"), dir.join("private-link")).unwrap();
+    assert!(SecretStore::open(dir.join("private-link")).is_err());
+    assert!(SecretStore::create(dir.join("private-link")).is_err());
+    std::fs::remove_dir_all(dir).unwrap();
+}

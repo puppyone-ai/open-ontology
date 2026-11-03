@@ -184,6 +184,15 @@ class Tests(unittest.TestCase):
         with self.assertRaises(Refusal):
             read_key('model-key', self.secrets)
 
+    def test_symlinked_ancestor_but_not_secret_directory_is_accepted(self):
+        alias = self.root / 'alias'
+        alias.symlink_to(self.root, target_is_directory=True)
+        self.assertEqual(read_key('model-key', alias / 'secrets'), self.key)
+        leaf = self.root / 'private-link'
+        leaf.symlink_to(self.secrets, target_is_directory=True)
+        with self.assertRaises(OSError):
+            read_key('model-key', leaf)
+
     def test_url_and_listener_guards(self):
         for url in ('http://example.com/v1', 'https://user:pass@example.com',
                     'https://example.com?key=x', 'http://127.0.0.1.evil/v1'):

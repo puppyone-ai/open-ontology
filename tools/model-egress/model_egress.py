@@ -27,8 +27,9 @@ class Refusal(Exception):
 
 
 def private_open(path, flags=os.O_RDONLY, mode=0o600, directory=False):
-    """Traverse using directory fds: no symlink or parent-replacement race."""
+    """Resolve legitimate ancestor aliases; never follow the private leaf."""
     path = Path(os.path.abspath(path))
+    path = path.parent.resolve(strict=True) / path.name
     fd = os.open('/', os.O_RDONLY | os.O_DIRECTORY)
     try:
         for part in path.parts[1:-1]:
