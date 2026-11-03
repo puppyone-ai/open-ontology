@@ -15,7 +15,7 @@ Status: pending 37, in_progress 18, author_complete 4, integrated 5.
 | [ ] S0-M-04 | M | `stack.yaml`（`oo.stack/v1`）schema 与 secret_ref 规则 | in_progress | lane-A | v0.2/a-onboarding | — |
 | [x] S0-H-01 | H | 中性合成夹具生成器（[05 §3](../docs/product/05-version-matrix-and-testing.md) 全部形状）+ 方言 DDL：MySQL、PG、Oracle | integrated | lane-H | v0.2/h-test-infra | `17a4447de`, `e54a5388d`, `07520d7c3` |
 | [x] S0-H-02 | H | 20 道金标准题与 gold 生成 SQL | integrated | lane-H | v0.2/h-test-infra | `17a4447de`, `e54a5388d`, `07520d7c3` |
-| [x] S0-H-03 | H | `oo-test` 统一入口：起库（固定 digest）、灌数、跑套件、写证据包 | integrated | lane-H | v0.2/h-test-infra | `17a4447de`, `e54a5388d`, `07520d7c3` |
+| [x] S0-H-03 | H | `oo-test` 统一入口：起库（固定 digest）、灌数、跑套件、写证据包 | integrated | lane-H | v0.2/h-test-infra | `17a4447de`, `e54a5388d`, `07520d7c3`, `6290dc05c` |
 | [x] S0-H-04 | H | P0 镜像 digest 锁定：MySQL 5.7/8.0/8.4/9、PG 12–18、Oracle 23ai/11g XE/21c XE（19c 待授权） | integrated | lane-H | v0.2/h-test-infra | `17a4447de`, `e54a5388d`, `07520d7c3` |
 | [x] S0-H-05 | H | amd64 仿真 runner：`oo-test --platform linux/amd64` 在本机 Docker Desktop（Rosetta）运行 amd64-only 镜像；保留 `--runner remote` 接口供日后接入云主机 | integrated | lane-H | v0.2/h-test-infra | `17a4447de`, `e54a5388d`, `07520d7c3` |
 | [ ] S0-C-01 | C | MySQL 适配 `SourceEngine`；`capabilities` 覆盖 5.7/8.0/8.4/9.x 差异（认证、`SHOW BINARY LOG STATUS`、tagged GTID、`expire_logs_days`） | in_progress | lane-C | v0.2/c-mysql-engine | — |
