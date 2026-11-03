@@ -4,9 +4,7 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
-use oo_connectors::engine::{
-    Capability, CapabilityState, EngineFamily, ProbeReport, ReadBudget, SourceEngine, TableRef,
-};
+use oo_connectors::engine::{EngineFamily, TableRef};
 use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine};
 use oo_connectors::postgres::PostgresEngine;
 use oo_connectors::{
@@ -17,20 +15,61 @@ use oo_stack::{Stack, secret::SecretStore, stack::Source};
 use serde_json::{Value, json};
 
 use super::{Failure, Invocation};
+#[path = "inspect.rs"]
+mod inspection;
+use inspection::inspect;
 
 #[derive(Clone, Copy)]
 enum Adapter {
     Postgres,
     Oracle,
-    Unavailable,
+    Mysql,
 }
 
 fn registry() -> BTreeMap<EngineFamily, Adapter> {
     BTreeMap::from([
         (EngineFamily::Postgres, Adapter::Postgres),
-        (EngineFamily::Mysql, Adapter::Unavailable),
+        (EngineFamily::Mysql, Adapter::Mysql),
         (EngineFamily::Oracle, Adapter::Oracle),
     ])
+}
+
+fn mysql(source: &Source, tables: &[TableRef]) -> Value {
+    let result = (|| {
+        // Resolve only beside this installation, never from cwd or PATH.
+        let helper = std::env::current_exe()
+            .map_err(|_| "MYSQL_DOCTOR_INSTALL")?
+            .with_file_name("oo-mysql-doctor");
+        let mut child = Command::new(helper)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|_| "MYSQL_DOCTOR_INSTALL")?;
+        let body = json!({"source":source,"tables":tables}).to_string();
+        if child
+            .stdin
+            .take()
+            .ok_or("MYSQL_DOCTOR_STDIN")?
+            .write_all(body.as_bytes())
+            .is_err()
+        {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("MYSQL_DOCTOR_STDIN");
+        }
+        let output = child.wait_with_output().map_err(|_| "MYSQL_DOCTOR_WAIT")?;
+        if !output.status.success() {
+            return Err("MYSQL_DOCTOR_FAILED");
+        }
+        let report: Value =
+            serde_json::from_slice(&output.stdout).map_err(|_| "MYSQL_DOCTOR_PROTOCOL")?;
+        if !matches!(report["status"].as_str(), Some("ok" | "blocked")) {
+            return Err("MYSQL_DOCTOR_PROTOCOL");
+        }
+        Ok(report)
+    })();
+    result.unwrap_or_else(|error| json!({"status":"blocked","error":error}))
 }
 
 fn oracle(
@@ -172,65 +211,6 @@ fn postgres(
     Ok(PostgresEngine::new(config))
 }
 
-async fn inspect<E: SourceEngine>(engine: &mut E, tables: &[TableRef], mode: &str) -> Value {
-    let probe = match engine.probe().await {
-        Ok(probe) => probe,
-        Err(error) => return json!({"status":"blocked","error":error.to_string()}),
-    };
-    let mut blocked = !available(&probe, Capability::ChunkedSnapshot)
-        || (mode == "C1" && !available(&probe, Capability::LogCdc));
-    let mut plans = Vec::new();
-    for table in tables {
-        match engine.plan_chunks(table, &ReadBudget::default()).await {
-            Ok(plan) => {
-                let estimate = engine.estimate_bytes(table).await;
-                let mut report = json!({
-                    "table": table, "strategy": plan.strategy, "key": plan.key,
-                    "chunks": plan.chunks.len(), "estimated_rows": plan.estimated_rows,
-                    "estimated_bytes": null, "bytes_basis": "unknown"
-                });
-                blocked |= apply_estimate(&mut report, estimate);
-                plans.push(report);
-            }
-            Err(error) => {
-                blocked = true;
-                plans.push(json!({"table":table,"error":error.to_string()}));
-            }
-        }
-    }
-    json!({
-        "status": if blocked { "blocked" } else { "ok" },
-        "probe": probe, "dba_requirements": probe.requirements(), "chunk_plans": plans,
-    })
-}
-
-fn apply_estimate(
-    report: &mut Value,
-    estimate: Result<Option<u64>, oo_connectors::SourceError>,
-) -> bool {
-    report["estimated_bytes"] = json!(null);
-    report["bytes_basis"] = json!("unknown");
-    match estimate {
-        Ok(Some(bytes)) => {
-            report["estimated_bytes"] = json!(bytes);
-            report["bytes_basis"] = json!("source_engine_estimate");
-            false
-        }
-        Ok(None) => false,
-        Err(error) => {
-            report["estimate_error"] = json!(error.to_string());
-            true
-        }
-    }
-}
-
-fn available(probe: &ProbeReport, capability: Capability) -> bool {
-    matches!(
-        probe.capabilities.get(&capability),
-        Some(CapabilityState::Available)
-    )
-}
-
 async fn sources(stack: &Stack) -> Vec<Value> {
     let registry = registry();
     let mut results = Vec::new();
@@ -241,7 +221,7 @@ async fn sources(stack: &Stack) -> Vec<Value> {
             }
             let family = family(source)?;
             match registry.get(&family) {
-                Some(Adapter::Postgres | Adapter::Oracle) => (),
+                Some(Adapter::Postgres | Adapter::Oracle | Adapter::Mysql) => (),
                 _ => return Err("engine not available in this build".into()),
             }
             let selection = tables(source);
@@ -260,6 +240,7 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                         Ok(mut engine) => inspect(&mut engine, &selected, &source.sync.mode).await,
                         Err(error) => json!({"status":"blocked","error":error}),
                     },
+                    EngineFamily::Mysql => mysql(source, &selected),
                     _ => unreachable!("registry checked above"),
                 };
                 if let Some(error) = scope_error {
@@ -356,10 +337,7 @@ mod tests {
         assert_eq!(family(&s).unwrap(), EngineFamily::Postgres);
         s.engine = "opengauss".into();
         assert!(family(&s).is_err());
-        assert!(matches!(
-            registry()[&EngineFamily::Mysql],
-            Adapter::Unavailable
-        ));
+        assert!(matches!(registry()[&EngineFamily::Mysql], Adapter::Mysql));
         assert!(matches!(registry()[&EngineFamily::Oracle], Adapter::Oracle));
     }
 
@@ -369,30 +347,6 @@ mod tests {
         for image in ["latest", "sha256:abc", "sh -c anything", "repo:tag"] {
             assert!(!pinned_worker(image));
         }
-    }
-
-    #[test]
-    fn byte_estimates_preserve_unknown_zero_and_failure() {
-        for value in [None, Some(0), Some(u64::MAX)] {
-            let mut report = json!({});
-            assert!(!apply_estimate(&mut report, Ok(value)));
-            assert_eq!(report["estimated_bytes"], json!(value));
-            assert_eq!(
-                report["bytes_basis"],
-                if value.is_some() {
-                    "source_engine_estimate"
-                } else {
-                    "unknown"
-                }
-            );
-        }
-        let mut report = json!({});
-        assert!(apply_estimate(
-            &mut report,
-            Err(SourceId::new("").err().unwrap())
-        ));
-        assert!(report["estimated_bytes"].is_null());
-        assert!(report["estimate_error"].is_string());
     }
 
     #[test]

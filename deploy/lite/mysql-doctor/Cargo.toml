@@ -1,0 +1,18 @@
+[package]
+name = "oo-mysql-doctor"
+version = "0.2.0"
+edition = "2024"
+publish = false
+
+# Lane-local feature boundary until the coordinator enables mysql in oo-cli.
+[workspace]
+
+[dependencies]
+oo-connectors = { path = "../../../crates/oo-connectors", features = ["mysql"] }
+oo-stack = { path = "../../../crates/oo-stack" }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+tokio = { version = "=1.53.3", features = ["rt", "time", "net"] }
+
+[patch.crates-io]
+sqlx-core = { path = "../../../crates/oo-connectors/vendor/sqlx-core" }
+sqlx-postgres = { path = "../../../crates/oo-connectors/vendor/sqlx-postgres" }

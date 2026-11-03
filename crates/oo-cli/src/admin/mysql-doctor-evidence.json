@@ -1,0 +1,65 @@
+{
+  "run_id": "a-s2b-mysql-2",
+  "command": "python3 crates/oo-cli/src/admin/test_mysql_doctor.py --run-id a-s2b-mysql-2",
+  "scope": "Reduced oo-test fixture product doctor, TLS SELECT-only account, synthetic model replay; not T1 or full matrix acceptance",
+  "versions": [
+    {
+      "version": "5.7.44",
+      "status": "passed",
+      "execution": "emulated",
+      "cases": [
+        "healthy",
+        "c1-missing-grants",
+        "missing-ca"
+      ],
+      "bytes": "unknown: integrated adapter inherits default estimate_bytes -> None",
+      "cleanup_failures": []
+    },
+    {
+      "version": "8.0.44",
+      "status": "passed",
+      "execution": "native",
+      "cases": [
+        "healthy",
+        "c1-missing-grants",
+        "missing-ca"
+      ],
+      "bytes": "unknown: integrated adapter inherits default estimate_bytes -> None",
+      "cleanup_failures": []
+    },
+    {
+      "version": "8.4.7",
+      "status": "passed",
+      "execution": "native",
+      "cases": [
+        "healthy",
+        "c1-missing-grants",
+        "missing-ca"
+      ],
+      "bytes": "unknown: integrated adapter inherits default estimate_bytes -> None",
+      "cleanup_failures": []
+    },
+    {
+      "version": "9.5.0",
+      "status": "passed",
+      "execution": "native",
+      "cases": [
+        "healthy",
+        "c1-missing-grants",
+        "missing-ca"
+      ],
+      "bytes": "unknown: integrated adapter inherits default estimate_bytes -> None",
+      "cleanup_failures": []
+    }
+  ],
+  "previous_run": {
+    "run_id": "a-s2b-mysql-1",
+    "result": "failed: test incorrectly assumed physical byte estimates; requested patch versions absent from shared image lock. No source gold changed; local immutable pins and unknown-estimate contract checked on rerun."
+  },
+  "sha256": {
+    "mysql-8.4.7/result.json": "92007f3ac4049693db98200f4382535dca74e186ea39a8d69fecc391903a4bc3",
+    "mysql-8.0.44/result.json": "abd28d1042967d90557169224912fed966c723e95b7dec10e8561d8e738d7ff9",
+    "mysql-5.7.44/result.json": "561f50e757e7ee5a83d17920ff110772acf69266cc4d65f2c007f0b771ea904b",
+    "mysql-9.5.0/result.json": "b3726b527f3e812ed3e962d22ae1c23b711ecca26312b4405a6a6d26958205f8"
+  }
+}
