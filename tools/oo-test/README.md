@@ -72,7 +72,47 @@ via SQL*Plus stdin and the FREEPDB1/XEPDB1 service (11g uses XE).
 Only the separate fixture admin may apply growth/change workloads. Product
 connections must always use the read-only reader. Hooks own their additional
 labelled resources and evidence; a zero hook exit is not automatic capability
-admission. Missing T1-T8 hooks are `not_implemented`, never skipped-as-passed.
+admission. Missing product hooks are `not_implemented`, never skipped-as-passed.
+T7 is built in and cannot be replaced by a hook.
+
+## Source audit (T7)
+
+Requesting T7 automatically includes T1 and T2. The audit is enabled after
+admin seeding and before either hook. It collects through all requested hooks,
+even after a hook returns nonzero. A failed dependency, empty audit, missing
+boundary marker, hook without observed reader activity, malformed/truncated
+record, or unrecognized statement fails T7. Raw source output and the parsed
+`audit-report.json` stay in the evidence directory.
+
+- MySQL: general log to TABLE; exact authenticated reader identity selected
+  by the admin collector. General log cannot be enabled per account, so the
+  fixture logs globally but only reader rows enter the proof.
+- PostgreSQL: CSV collector, reader-only role `log_statement=all` and error
+  statement logging. CSV parsing retains multiline/extended-protocol queries.
+- Oracle 23ai: reader-only unified audit policy. Oracle XE 11g/21c in mixed
+  mode: standard `DB,EXTENDED` auditing, configured before seed via an owned
+  instance restart. SQL is exported explicitly as UTF-8 hexadecimal.
+
+The conservative classifier allows reads, reviewed metadata/session setup,
+transaction boundaries and explicit log-reader operations. It rejects
+unknown routines, executable comments, write CTEs, SELECT INTO/OUTFILE and
+LogMiner dictionary building. LogMiner startup requires online_catalog.
+SQL*Plus NLS/session instrumentation is not source-table writing and is
+explicitly allowlisted. This is a fixture-specific audit policy, not a SQL
+firewall or a complete parser; new connector syntax requires reviewed rules
+and regression tests. Native audit coverage has engine limitations (for
+example Oracle standard audit can omit parse-time errors).
+
+```sh
+tools/oo-test/oo-test matrix --engine postgres --versions 17 \
+  --suites T0-T2,T7 --hook T1=./my-t1 --hook T2=./my-t2
+PYTHONDONTWRITEBYTECODE=1 python3 tools/oo-test/audit_smoke.py
+```
+
+`audit_smoke.py --targets mysql:8.4,postgres:17,oracle:23ai` boots reduced
+owned fixtures and checks both read capture and a denied DELETE. It does
+**not** run product snapshot/incremental workloads or produce T7 admission
+evidence. Raw failed attempts are retained alongside successful retries.
 
 ## Comparison API
 

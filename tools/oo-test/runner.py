@@ -12,6 +12,7 @@ import signal
 import subprocess
 import time
 import uuid
+from audit import Audit
 
 ROOT = Path(__file__).resolve().parents[2]
 ENGINES = ROOT / "testing/engines"
@@ -210,10 +211,13 @@ class Run:
             file.chmod(0o644)
         self.private.chmod(0o755)
         self.created_container = True
+        server_args = (["-c", "logging_collector=on", "-c", "log_destination=csvlog",
+                        "-c", "log_filename=oo-audit.csv", "-c", "log_rotation_age=0",
+                        "-c", "log_rotation_size=0"] if self.engine == "postgres" else [])
         self.command(["docker", "create", "--name", self.name, *labels, "--platform", platform,
                       "--mount", f"type=volume,src={self.volume},dst={destination}",
                       "--mount", f"type=bind,src={self.private},dst=/run/oo,readonly",
-                      "--shm-size", "1g", *env, image])
+                      "--shm-size", "1g", *env, image, *server_args])
         self.command(["docker", "start", self.name])
         timeout = self.args.health_timeout or (1200 if platform != native or self.engine == "oracle" else 300)
         deadline = time.monotonic() + timeout
@@ -244,6 +248,18 @@ class Run:
 
     def seed(self):
         if self.engine == "oracle":
+            if "T7" in getattr(self.args, "suites", []) and self.version.startswith(("11", "21")):
+                # Standard audit configuration is static, before any fixture activity.
+                _, unified = self.command(
+                    ["docker", "exec", "-i", self.name, "sqlplus", "-s", "/nolog"],
+                    data="whenever sqlerror exit failure\nconnect / as sysdba\n"
+                         "set heading off feedback off pagesize 0\n"
+                         "SELECT value FROM v$option WHERE parameter='Unified Auditing';\nexit\n")
+                if unified.strip() != "TRUE":
+                    self.command(["docker", "exec", "-i", self.name, "sqlplus", "-s", "/nolog"],
+                                 data="whenever sqlerror exit failure\nconnect / as sysdba\n"
+                                      "ALTER SYSTEM SET audit_trail='DB','EXTENDED' SCOPE=SPFILE;\n"
+                                      "SHUTDOWN IMMEDIATE;\nSTARTUP;\nexit\n")
             # Bootstrap schema before sql() starts using CURRENT_SCHEMA.
             pdb = "" if self.version.startswith("11") else (
                 "ALTER SESSION SET CONTAINER=" + ("FREEPDB1" if self.version.startswith("23") else "XEPDB1") + ";\n")
@@ -409,6 +425,47 @@ class Run:
         return failures
 
 
+def execute_suites(run, requested, hooks):
+    results = {}
+    audit = Audit(run) if "T7" in requested else None
+    if audit:
+        audit.enable()
+        audit.marker("start")
+    context = run.path / "hook-context.json"
+    write_json(context, {"container": run.name, "engine": run.engine, "version": run.version,
+                         "run_id": run.id, "evidence": str(run.path), "reader": "fixture_reader",
+                         "variant": getattr(run.args, "variant", None),
+                         "reader_password_file": str(run.private / "reader-password")})
+    old_context = os.environ.get("OO_TEST_CONTEXT")
+    os.environ["OO_TEST_CONTEXT"] = str(context)
+    try:
+        for suite in requested:
+            if suite == "T7" or suite == "T0" and suite not in hooks:
+                continue
+            if suite not in hooks:
+                results[suite] = "not_implemented"
+                continue
+            if audit:
+                audit.marker(suite + "_start")
+            code, _ = run.command([hooks[suite]], timeout=3600, required=False)
+            results[suite] = "passed" if code == 0 else "failed"
+            if audit:
+                audit.marker(suite + "_end")
+    finally:
+        if old_context is None:
+            os.environ.pop("OO_TEST_CONTEXT", None)
+        else:
+            os.environ["OO_TEST_CONTEXT"] = old_context
+        if audit:
+            audit.marker("end")
+            report = audit.collect()
+            report["dependencies"] = {s: results.get(s, "not_run") for s in ("T1", "T2")}
+            report["passed"] &= all(v == "passed" for v in report["dependencies"].values())
+            write_json(run.path / "audit-report.json", report)
+            results["T7"] = "passed" if report["passed"] else "failed"
+    return results
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -425,6 +482,8 @@ def main():
     matrix.add_argument("--hook", action="append", default=[], metavar="T1=PATH",
                         help="executable hook; receives owned-container context via OO_TEST_CONTEXT")
     args = parser.parse_args()
+    if "T7" in args.suites:
+        args.suites = sorted(set(args.suites) | {"T1", "T2"})
     if args.runner == "remote":
         parser.error("remote runner not implemented; no SSH connection attempted")
     if not 1 <= args.scale <= 10_000_000 or not 0 <= args.tables <= 5000:
@@ -441,8 +500,8 @@ def main():
     hooks = {}
     for hook in args.hook:
         suite, sep, path = hook.partition("=")
-        if not sep or not re.fullmatch(r"T[1-8]", suite) or not Path(path).is_file():
-            parser.error("hook must be T1..T8=existing-executable")
+        if not sep or not re.fullmatch(r"T[1-68]", suite) or not Path(path).is_file() or not os.access(path, os.X_OK):
+            parser.error("hook must be T1..T6 or T8=existing-executable; T7 is built in")
         hooks[suite] = str(Path(path).resolve())
     run_id = "h-s0-" + str(uuid.uuid4())
     root = ROOT / "evidence" / run_id
@@ -475,26 +534,9 @@ def main():
                     raise RuntimeError("gold mismatch")
             if "T0" in args.suites:
                 result["suites"]["T0"] = "passed"
-            for suite in args.suites:
-                if suite == "T0":
-                    continue
-                if suite not in hooks:
-                    result["suites"][suite] = "not_implemented"
-                    raise RuntimeError(f"{suite} hook not installed")
-                context = path / "hook-context.json"
-                write_json(context, {"container": run.name, "engine": args.engine, "version": version,
-                                     "run_id": run.id, "evidence": str(path), "reader": "fixture_reader",
-                                     "reader_password_file": str(run.private / "reader-password")})
-                old_context = os.environ.get("OO_TEST_CONTEXT")
-                os.environ["OO_TEST_CONTEXT"] = str(context)
-                try:
-                    run.command([hooks[suite]], timeout=3600)
-                finally:
-                    if old_context is None:
-                        os.environ.pop("OO_TEST_CONTEXT", None)
-                    else:
-                        os.environ["OO_TEST_CONTEXT"] = old_context
-                result["suites"][suite] = "passed"
+            result["suites"].update(execute_suites(run, args.suites, hooks))
+            if any(value != "passed" for value in result["suites"].values()):
+                raise RuntimeError("requested suite failed or is not implemented")
             result["status"] = "passed"
         except (Exception, KeyboardInterrupt) as error:
             result["error"] = redact(str(error), run.secret, run.reader_secret)
