@@ -20,6 +20,8 @@
 //! [`FILE_WORKER_PARENT_PROTOCOL`] supervises one trusted file-parser worker and
 //! returns [`ParentParseComplete`] only after a verified IPC end. That receipt
 //! does not admit an import.
+//! [`engine`] is the engine-neutral v0.2 interface (`oo.source-engine/v1`)
+//! that every database connector implements.
 //! Gateway crates do not depend on this crate.
 
 #![forbid(unsafe_code)]
@@ -30,6 +32,7 @@ mod budget_report;
 mod catalog;
 mod config;
 mod delimited;
+pub mod engine;
 mod error;
 mod file_worker_parent;
 mod ident;
