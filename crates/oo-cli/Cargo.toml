@@ -17,6 +17,8 @@ oo-core = { path = "../oo-core" }
 oo-sdk = { path = "../oo-sdk" }
 # Already locked by oo-sdk. No new registry version.
 libc = "=0.2.189"
+ratatui = { version = "=0.30.2", default-features = false, features = ["crossterm"] }
+crossterm = { version = "=0.29.0", default-features = false, features = ["events"] }
 serde = "=1.0.229"
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 tokio = { version = "=1.53.3", default-features = false, features = ["macros", "net", "rt-multi-thread", "time"] }

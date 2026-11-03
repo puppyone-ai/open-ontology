@@ -1,11 +1,12 @@
 //! Administrative commands; consumer credentials are never read here.
 mod doctor;
+mod wizard;
 use oo_stack::stack;
 
 use super::Invocation;
 use crate::outcome::Failure;
 use std::fs::{self, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{IsTerminal, Read, Write};
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::Path;
 
@@ -18,7 +19,8 @@ Admin commands (no deployment or source writes):
   oo share-prompt [--role R] [--config stack.yaml] [--yes] [--json]
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
-TTY wizard is not yet implemented (S2). Non-TTY never prompts.
+TTY init collects configuration and runs preflight; non-TTY never prompts.
+The wizard saves configuration only; draft/build/publication are not yet wired.
 doctor probes sources read-only and the model through model-egress.
 PostgreSQL requires tls_ca.secret_ref and explicit scope.include tables.
 Unknown estimates remain null; blocked diagnostics exit nonzero.
@@ -141,8 +143,11 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
         ));
     }
     let Some(config) = config else {
+        if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() && !json {
+            return wizard::run();
+        }
         return Err(Failure::usage(
-            "ADMIN_CONFIG_REQUIRED: use --config; interactive wizard is not yet available (S2)",
+            "ADMIN_CONFIG_REQUIRED: use --config for non-interactive init",
         ));
     };
     normalize(Path::new(config))?;
