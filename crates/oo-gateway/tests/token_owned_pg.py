@@ -84,7 +84,10 @@ try:
         sock.bind(("127.0.0.1", 0))
         gateway_port = sock.getsockname()[1]
     audience = f"https://localhost:{gateway_port}/"
-    (WORK / "packs").mkdir()
+    shutil.copytree(WORK / "meta/packs", WORK / "packs")
+    shutil.copytree(WORK / "meta/reviewed", WORK / "reviewed")
+    (WORK / "wal").mkdir()
+    (WORK / "data-endpoint.json").write_text(json.dumps({"host": "localhost", "port": port, "database": "meta"}))
     (WORK / "config.json").write_text(json.dumps({
         "listen": f"127.0.0.1:{gateway_port}", "audience": audience,
         "runtime_user": "oo_token_runtime", "password_file": "runtime.pass",
@@ -94,6 +97,9 @@ try:
         "client_ca_file": "ca.crt", "handshake_timeout_ms": 5000,
         "token_admin_password_file": "admin.pass",
         "token_admin_workload": "urn:oo:workload:token-admin",
+        "data_endpoint_file": "data-endpoint.json", "data_password_file": "admin.pass",
+        "data_ca_file": "ca.crt", "data_user": "oo_token_admin",
+        "wal_dir": "wal", "reviewed_dir": "reviewed",
     }))
     with (WORK / "gateway.log").open("w") as log:
         gateway = subprocess.Popen([str(ROOT / "target/debug/oo-gateway"), str(WORK)],
@@ -147,6 +153,9 @@ try:
     status, bound, headers = http("/v1/auth/enroll", {"code": enrolled["code"]})
     assert status == 200 and headers["Cache-Control"] == "no-store"
     assert bound["token"].startswith("ooct_")
+    status, who, _ = http("/v1/auth/whoami", token=bound["token"])
+    assert status == 200 and who["principal_id"] == "alice" and who["role"] == "reader"
+    assert who["expires_at_ms"] == bound["expires_at_ms"] and "token" not in who
     assert http("/v1/auth/enroll", {"code": enrolled["code"]})[0] != 200
     assert http("/v1/auth/renew", {}, token=bound["token"])[1]["error"]["message"] == "self_renew_disabled"
     admin_op("policy", project="http", policy={
@@ -206,6 +215,11 @@ try:
         pass
     else:
         raise AssertionError("TLS trust was bypassed")
+    # Installed npm entrypoint, real TLS enrollment, role-scoped tables and native query.
+    from token_cli_e2e import cli_e2e
+    # Respect the production ten-attempts/minute enrollment limiter.
+    time.sleep(61)
+    cli_e2e(ROOT, RUN, WORK, audience, http, admin_op)
     for _ in range(10):
         last = http("/v1/auth/enroll", {"code": "OO-0000-0000"})[0]
     assert last == 429

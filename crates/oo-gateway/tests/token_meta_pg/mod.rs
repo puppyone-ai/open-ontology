@@ -53,6 +53,30 @@ async fn current_meta_is_bound_to_publication_and_freshness() {
          INSERT INTO oo_publish_target.fence VALUES('{ROLE}','_oo','{physical}','open','{pack_digest}','release1');
          GRANT USAGE ON SCHEMA _oo TO {ROLE};
          GRANT SELECT ({column}) ON _oo.{physical} TO {ROLE};", digest="c".repeat(64))).await.unwrap();
+    admin
+        .batch_execute(&format!("INSERT INTO _oo.{physical} VALUES (42)"))
+        .await
+        .unwrap();
+    // Retain neutral reviewed inputs for the subsequent real HTTPS CLI fixture.
+    let reviewed = work.join("reviewed/reader");
+    fs::create_dir_all(&reviewed).unwrap();
+    fs::write(reviewed.join("policy.json"), json!({
+        "protocol":"oo.operator-preview.policy/v1","project":"f22","role":"meta",
+        "login":"oo_token_admin","config_digest":"c".repeat(64),"generation":1,
+        "table":{"namespace":"app","name":"items","columns":[
+            {"name":"amount","semantic_type":"amount","status":"confirmed","pii":{"class":"none"}}
+        ]}
+    }).to_string()).unwrap();
+    fs::write(
+        reviewed.join("visibility.json"),
+        json!({
+            "protocol":"oo.builder.role-visibility/v1","project":"f22","role":ROLE,
+            "knowledge":{"version":"kv1"},"policy":{"version":"pv1"},
+            "datasets":[{"dataset":"app.items","columns":["amount"]}]
+        })
+        .to_string(),
+    )
+    .unwrap();
     let policy = ColumnAclPolicy {
         project: "f22".into(),
         config_digest: "c".repeat(64),
