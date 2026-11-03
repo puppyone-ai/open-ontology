@@ -107,3 +107,4 @@ Status: pending 37, in_progress 18, author_complete 4, integrated 5.
 ## Blocked
 
 - Oracle 19c EE image: human completes Oracle account registration and sign-in (Plan D2)
+- S1-M-01/S1-M-02 dispatch: free disk ≥ 25 GB (ledger E037)

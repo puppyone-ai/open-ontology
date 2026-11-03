@@ -775,6 +775,10 @@
   {
    "what": "Oracle 19c EE image",
    "needs": "human completes Oracle account registration and sign-in (Plan D2)"
+  },
+  {
+   "what": "S1-M-01/S1-M-02 dispatch",
+   "needs": "free disk ≥ 25 GB (ledger E037)"
   }
  ],
  "lanes": {
