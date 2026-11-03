@@ -1,6 +1,35 @@
 //! Private target staging for independently admitted C5 range parts.
 //! The caller authenticates admission; this layer enforces the real job lease,
 //! typed COPY, durable order/replay and complete-range checkpoint.
+//!
+//! ## Staging, generations and publication
+//!
+//! `stage` commits only an inbox-to-private-stage move and its part receipt.
+//! `complete` requires every declared part and row. Neither updates the public
+//! table, source watermark, ACK or publication pointer. `native_update` then
+//! runs the 0104 guard/prepare/copy/reconcile/finish/commit functions in one
+//! transaction. The resulting generation is `awaiting_publish`; publication
+//! is a separate admitted worker step, never inferred from loader success.
+//!
+//! The 0075/0104 overlay contains immutable root storage plus the latest delta
+//! for each chunk and indexed exclusions. Applying a changed chunk copies that
+//! chunk only, not the whole parent. A resumed task uses a higher jobs lease
+//! generation; staged part receipts suppress COPY and a committed apply uses
+//! `c5_parts_rebind` to verify exact durable receipts without reapplying rows.
+//!
+//! Migration 0119 meters committed logical tuple bytes in `c5_write_meter`.
+//! Sum `bytes` across inbox, stage and delta phases for the task/run IDs in a
+//! cycle (multipart tasks join `jw_native.occurrences`). It includes the two
+//! private staging writes; it excludes indexes, WAL, TOAST and metadata costs.
+//! Receipt-keyed inserts are transactional: rollback/replay add no meter rows.
+//! Historical and non-C5 writes are not backfilled; a missing meter is not zero.
+//! The table is owner-only, not a new runtime data-reading privilege.
+//!
+//! Target-only recovery evidence is reproducible with
+//! `python3 crates/oo-pipeline/tests/c5_recovery_pg17.py --evidence evidence/<run-id>`.
+//! It kills actual child processes after staging and after target commit, then
+//! reclaims the same task via the real jobs API and compares every typed row.
+//! It does not certify source admission or public Gateway publication.
 use crate::{
     native_arrow::{DecodedStream, NativeCell},
     native_c1_apply::cell_text,

@@ -1,8 +1,10 @@
 //! One native update generation.
 //!
-//! The command is `oo-pipeline import-native-update`. It copies forward the
-//! parent shadow, applies upserts and tombstones, and commits the shadow,
-//! apply receipt, freshness, watermark, and quality in that same transaction.
+//! The command is `oo-pipeline import-native-update`. Legacy update paths copy
+//! forward the parent shadow; admitted C5 ranges instead compose immutable
+//! parent storage with changed-chunk heaps (see `native_c5_parts_stage`).
+//! The shadow, apply receipt, freshness, watermark, and quality commit in the
+//! same transaction.
 //! `awaiting_publish` is not publication. The loader locks the `jobs.tasks`
 //! row that `jobs.claim` already wrote. It does not insert `jobs.leases` and
 //! does not set `target_fence_certified`. An empty `lease_id` is refused
