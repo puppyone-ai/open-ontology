@@ -1,7 +1,13 @@
 ## Card A-S1S2 — lane A: oo doctor, oo init TUI, lite compose and oo up/down/status
 
 TODO: S1-A-02, S2-A-01, S2-A-02. Lane label: `a`. Spec: REQ-ONB-01/02/03, AT-ONB-02.
-Requires: your S0/S1 work and the engine lanes' S0/S1 adapters integrated (rebase first).
+Prerequisites on the integration branch now: your S0/S1 work, the PostgreSQL `SourceEngine` adapter
+(crates/oo-connectors/src/postgres), lane H fixtures/oo-test, lane B tokens. MySQL and Oracle adapters are
+still on their lane branches. Do NOT stop for that: build everything against the generic `SourceEngine`
+interface with an engine registry keyed by `EngineFamily`, wire PostgreSQL now, and leave MySQL/Oracle as
+registry entries that return a clear `engine not available in this build` until the coordinator integrates
+them (the coordinator will dispatch a short follow-up to wire them). Every exit below is run on PostgreSQL
+now; record the MySQL/Oracle parts as pending integration.
 
 Deliver:
 1. S1-A-02: `oo doctor` calls the MySQL/PostgreSQL/Oracle `SourceEngine::probe` and `plan_chunks` for the
@@ -17,9 +23,8 @@ Deliver:
    Builder, Gateway, model-egress, scheduler; images built from this repo (Dockerfiles you add under
    deploy/lite/) for linux/amd64 and linux/arm64 locally; `oo up/down/status` drive it (status shows last
    success, last failure, next due, nearest credential expiry). First `oo up` generates internal CA + mTLS
-   certs (2-year) and admin credentials into the 0600 secret dir. Exit: one command from a local fixture DB
-   (MySQL, PostgreSQL, Oracle — use the lane H fixture containers or the engine lanes' test fixtures) runs to
-   an unreviewed draft (Self-build draft produced through model-egress with the configured model).
+   certs (2-year) and admin credentials into the 0600 secret dir. Exit: one command from a local PostgreSQL fixture DB (lane H
+   fixture via oo-test) runs to an unreviewed draft (Self-build draft produced through model-egress with the configured model).
 Write scope: crates/oo-cli/src/admin/**, crates/oo-cli wiring, crates/oo-stack/**, tools/model-egress/**,
 deploy/lite/** (new), supply-chain/ new records, root Cargo.toml members/Cargo.lock (report). Prefix `cli`,
 `stack`, `deploy`, `build(deps)`.
