@@ -1,6 +1,6 @@
 {
  "schema": "oo.v02-state/v1",
- "as_of": "2026-11-03T00:00:00+08:00",
+ "as_of": "2026-11-04T00:00:00+08:00",
  "integration_branch": "v0.2/product-loops",
  "current_sprint": "S0",
  "active_executors_max": 5,
@@ -37,9 +37,9 @@
    "sprint": "S0",
    "lane": "M",
    "title": "建 `execution/v0.2/state.json` 与 `decisions.md`；从本 Plan 生成任务卡",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "author_complete",
+   "owner": "coordinator",
+   "branch": "v0.2/product-loops",
    "commits": [],
    "evidence": []
   },
@@ -48,9 +48,9 @@
    "sprint": "S0",
    "lane": "M",
    "title": "定义 `SourceEngine` 公共接口：`probe/capabilities(version)/catalog/plan_chunks/read_chunk/watermark/change_stream/digest_range`",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "author_complete",
+   "owner": "coordinator",
+   "branch": "v0.2/product-loops",
    "commits": [],
    "evidence": []
   },
@@ -59,9 +59,9 @@
    "sprint": "S0",
    "lane": "M",
    "title": "版本分派表格式与 `doctor` 输出契约（含 DBA GRANT 清单）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "author_complete",
+   "owner": "coordinator",
+   "branch": "v0.2/product-loops",
    "commits": [],
    "evidence": []
   },
@@ -81,9 +81,9 @@
    "sprint": "S0",
    "lane": "H",
    "title": "中性合成夹具生成器（[05 §3](../docs/product/05-version-matrix-and-testing.md) 全部形状）+ 方言 DDL：MySQL、PG、Oracle",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-H",
+   "branch": "v0.2/h-test-infra",
    "commits": [],
    "evidence": []
   },
@@ -92,9 +92,9 @@
    "sprint": "S0",
    "lane": "H",
    "title": "20 道金标准题与 gold 生成 SQL",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-H",
+   "branch": "v0.2/h-test-infra",
    "commits": [],
    "evidence": []
   },
@@ -103,9 +103,9 @@
    "sprint": "S0",
    "lane": "H",
    "title": "`oo-test` 统一入口：起库（固定 digest）、灌数、跑套件、写证据包",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-H",
+   "branch": "v0.2/h-test-infra",
    "commits": [],
    "evidence": []
   },
@@ -114,9 +114,9 @@
    "sprint": "S0",
    "lane": "H",
    "title": "P0 镜像 digest 锁定：MySQL 5.7/8.0/8.4/9、PG 12–18、Oracle 23ai/11g XE/21c XE（19c 待授权）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-H",
+   "branch": "v0.2/h-test-infra",
    "commits": [],
    "evidence": []
   },
@@ -125,9 +125,9 @@
    "sprint": "S0",
    "lane": "H",
    "title": "amd64 仿真 runner：`oo-test --platform linux/amd64` 在本机 Docker Desktop（Rosetta）运行 amd64-only 镜像；保留 `--runner remote` 接口供日后接入云主机",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-H",
+   "branch": "v0.2/h-test-infra",
    "commits": [],
    "evidence": []
   },
@@ -136,9 +136,9 @@
    "sprint": "S0",
    "lane": "C",
    "title": "MySQL 适配 `SourceEngine`；`capabilities` 覆盖 5.7/8.0/8.4/9.x 差异（认证、`SHOW BINARY LOG STATUS`、tagged GTID、`expire_logs_days`）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-C",
+   "branch": "v0.2/c-mysql-engine",
    "commits": [],
    "evidence": []
   },
@@ -147,9 +147,9 @@
    "sprint": "S0",
    "lane": "D",
    "title": "PG 连接器从 `tools/postgres-preview` 收敛到 `crates/oo-connectors/src/postgres/`，适配接口",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-D",
+   "branch": "v0.2/d-postgres-engine",
    "commits": [],
    "evidence": []
   },
@@ -158,9 +158,9 @@
    "sprint": "S0",
    "lane": "E",
    "title": "Oracle 适配接口；`capabilities` 覆盖 11g/12c+/19c/21c/23ai（CDB/PDB、common user、CONTINUOUS_MINE、字典策略）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-E",
+   "branch": "v0.2/e-oracle-engine",
    "commits": [],
    "evidence": []
   },
@@ -180,9 +180,9 @@
    "sprint": "S0",
    "lane": "B",
    "title": "token-store 迁移设计：renew/rotate/enroll 字段与审计事件",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-B",
+   "branch": "v0.2/b-token-lifecycle",
    "commits": [],
    "evidence": []
   },
@@ -191,9 +191,9 @@
    "sprint": "S1",
    "lane": "C",
    "title": "MySQL 分块：键形态识别、分布因子与抽样切分、字符串主键源端比较、复合主键改写、无键表策略、自适应块",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-C",
+   "branch": "v0.2/c-mysql-engine",
    "commits": [],
    "evidence": []
   },
@@ -202,9 +202,9 @@
    "sprint": "S1",
    "lane": "C",
    "title": "源库保护：占空比、`Threads_running` 暂停、语句超时双保险、`net_*_timeout`、连接余量限流",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-C",
+   "branch": "v0.2/c-mysql-engine",
    "commits": [],
    "evidence": []
   },
@@ -213,9 +213,9 @@
    "sprint": "S1",
    "lane": "D",
    "title": "PG 分块：keyset + 单快照内 ctid（14+）；`statement_timeout`；活跃会话保护",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-D",
+   "branch": "v0.2/d-postgres-engine",
    "commits": [],
    "evidence": []
   },
@@ -224,9 +224,9 @@
    "sprint": "S1",
    "lane": "E",
    "title": "Oracle 分块：keyset + extents 生成 ROWID 范围；`ORA-01555` 缩块重试；空串语义",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-E",
+   "branch": "v0.2/e-oracle-engine",
    "commits": [],
    "evidence": []
   },
@@ -257,9 +257,9 @@
    "sprint": "S1",
    "lane": "B",
    "title": "Gateway 管理 API：issue/list/renew/rotate/revoke/enroll；自助 `POST /v1/auth/renew`（策略可关）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-B",
+   "branch": "v0.2/b-token-lifecycle",
    "commits": [],
    "evidence": []
   },
@@ -268,9 +268,9 @@
    "sprint": "S1",
    "lane": "B",
    "title": "`GET /v1/meta`（协议版本、最低 CLI 版本、发布与新鲜度）；mTLS 证书与 token 到期纳入 `/v1/health`",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-B",
+   "branch": "v0.2/b-token-lifecycle",
    "commits": [],
    "evidence": []
   },
@@ -742,5 +742,32 @@
    "what": "Oracle 19c EE image",
    "needs": "human completes Oracle account registration and sign-in (Plan D2)"
   }
- ]
+ ],
+ "lanes": {
+  "C": {
+   "branch": "v0.2/c-mysql-engine",
+   "base": "cd78da1e1",
+   "status": "running"
+  },
+  "D": {
+   "branch": "v0.2/d-postgres-engine",
+   "base": "cd78da1e1",
+   "status": "running"
+  },
+  "E": {
+   "branch": "v0.2/e-oracle-engine",
+   "base": "cd78da1e1",
+   "status": "running"
+  },
+  "H": {
+   "branch": "v0.2/h-test-infra",
+   "base": "cd78da1e1",
+   "status": "running"
+  },
+  "B": {
+   "branch": "v0.2/b-token-lifecycle",
+   "base": "cd78da1e1",
+   "status": "running"
+  }
+ }
 }
