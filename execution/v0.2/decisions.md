@@ -15,3 +15,4 @@ Current task state lives in [state.json](state.json); the plan is
 | 2026-11-03 | Human | Commit directly with clear history; plan states commit scope and standard; one final PR for review after all loops converge | Plan §10, §11 |
 | 2026-11-03 | Coordinator | Owner self-review accepted as the publication gate for single-owner deployments, recorded as `mode=self` | Plan D6 |
 | 2026-11-04 | Coordinator | Lane A (onboarding: stack schema, admin CLI skeleton, model egress) starts in S0 instead of waiting for a free slot; S0–S1 concurrency is 6 | Plan §2.1; L1 critical path |
+| 2026-11-04 | Human | Resume: drive the whole plan to convergence and testing this round; at most 2 native subagents; local Codex (`cx/gpt-6-astra[1m]`, reasoning medium, dangerously-bypass mode) as executors via long task cards and sign-off; main thread owns shared parts | `execution/v0.2/dispatch.sh` and `cards/`; ledger E021 |
