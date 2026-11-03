@@ -30,7 +30,7 @@ echo "== commit message gate"
 for c in $(git rev-list "$range"); do
   subject=$(git log -1 --format=%s "$c")
   body=$(git log -1 --format=%B "$c")
-  echo "$subject" | grep -Eq '^(feat|fix|refactor|test|docs|build|ci|chore|perf)(\([a-z0-9/._-]+\))?: .{1,72}$' \
+  echo "$subject" | grep -Eq '^(feat|fix|refactor|style|test|docs|build|ci|chore|perf)(\([a-z0-9/._-]+\))?: .{1,72}$' \
     || { echo "bad subject in $c: $subject" >&2; exit 1; }
   echo "$body" | grep -q '^Plan: ' || { echo "missing Plan trailer in $c" >&2; exit 1; }
 done
