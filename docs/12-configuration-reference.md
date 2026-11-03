@@ -2,7 +2,7 @@
 
 > Status: Proposed（字段在实现时以 `oo-core` 导出的 JSON Schema 为准）
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-11-03
 
 ## 1. 配置仓库结构
 
@@ -24,6 +24,8 @@ config/                         # 内置 Git 仓库或企业 Git 仓库
 ```
 
 所有文件经 `oo validate` 校验；`oo plan` 展示差异；`oo apply` 执行。控制台的编辑最终都落为对这些文件的提交。
+
+lite 档与接入向导使用单文件 `stack.yaml`（`oo.stack/v1`，§9）：它描述“接哪些库、用哪个模型、部署到哪里”，由 `oo init` 写出或手工编写，`oo up` / `oo build` 据此生成并维护上述配置仓库中的对应条目。两者是同一组设置的两种入口，不是两套语义。
 
 ## 2. `oo.yaml`
 
@@ -218,3 +220,50 @@ items_file: eval/suites/customer-core.items.jsonl
 ```
 
 题目格式见 [13 §4](13-evaluation-and-benchmarks.md)。
+
+## 9. `stack.yaml`（`oo.stack/v1`）
+
+接入向导的每一步对应本文件的一个字段，向导结束时写出它；非交互运行（CI、Agent）直接 `oo init --config stack.yaml`。秘密只能是 `secret_ref`，校验器拒绝内联密码或 key。
+
+```yaml
+version: oo.stack/v1
+sources:
+  - id: erp
+    engine: auto            # 预检时识别为 mysql-5.7 / mysql-8.0 / oracle-19c ...
+    host: db.internal
+    port: 3306
+    database: erp
+    user: oo_reader
+    password: { secret_ref: erp-password }
+    ssh: { host: bastion.example.com, user: ops, key: { secret_ref: bastion-key }, host_key_sha256: "..." }
+    scope: { include: ["*"], exclude: [] }
+    sync: { mode: auto, interval: 8h }   # auto = 有日志条件用 C1，否则 C5
+model:
+  provider: openai-compatible
+  base_url: https://api.example.com/v1
+  model: some-model
+  key: { secret_ref: model-key }
+  context_window: auto      # 首次调用后探测，可覆盖
+deploy:
+  target: local             # local | ssh
+  profile: lite             # lite（单机 compose，无 runsc）| standard
+gateway:
+  public_url: auto          # local 时为 https://localhost:<port>
+```
+
+| 字段 | 默认 | 说明 |
+|---|---|---|
+| `version` | — | 固定 `oo.stack/v1`；未知版本拒绝 |
+| `sources[].engine` | `auto` | `auto` 时由 `oo doctor` 识别引擎与版本，并按版本分派能力（[database-support/04](database-support/04-database-profiles.md)） |
+| `sources[].password` / `ssh.key` | — | 只接受 `secret_ref`；秘密文件 0600，或系统 keychain |
+| `sources[].ssh` | 无 | 数据库跳板；`host_key_sha256` 在首次连接确认后写入，之后不匹配即失败 |
+| `sources[].scope` | 全部 | 选择 schema / 排除表 |
+| `sources[].sync.mode` | `auto` | `auto`：日志条件与保留期预检通过则 C1，否则 C5（[database-support/03 §2](database-support/03-change-capture-and-consistency.md)） |
+| `sources[].sync.interval` | `8h` | 周期间隔；C1 的日志保留须覆盖“最长周期间隔 + 最长故障恢复时间” |
+| `model.provider` / `base_url` / `model` / `key` | — | 任意 OpenAI 兼容或 Anthropic 端点，经 `model-egress` 转发（[11 §1.1](11-deployment-and-operations.md)） |
+| `model.context_window` | `auto` | 首次调用探测上下文窗口与最大输出，供 Self-build 预算器使用（[06 §4.11](06-ontology-layer.md)）；可手工覆盖 |
+| `deploy.target` | `local` | `local`（本机 Docker）或 `ssh`（远程主机安装 compose 栈与 systemd 单元） |
+| `deploy.profile` | `lite` | `lite` 或 `standard`（[11 §1](11-deployment-and-operations.md)） |
+| `gateway.public_url` | `auto` | 写入 Agent 提示词与 CLI profile 的 Gateway 地址 |
+
+示例中的主机名与端点均为占位值。字段的权威定义以实现导出的 JSON Schema 为准。

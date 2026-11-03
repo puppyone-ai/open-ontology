@@ -2,8 +2,9 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-11-03
 > 依赖：[01 架构](01-architecture.md)、[02 技术栈](02-technology-stack.md)
+> 实战细则：[product/02 数据拉取手册](product/02-ingestion-playbook.md)（分块、并行、源库保护、引擎版本差异）
 > 被依赖：[04 管线](04-pipeline.md)、[06 Ontology](06-ontology-layer.md)
 
 ## 1. 职责与不变量
@@ -26,7 +27,7 @@
 | 类型 | 例子 | 同步方式 | 第一版 |
 |---|---|---|---|
 | 关系数据库（可 CDC） | MySQL / MariaDB、PostgreSQL（含 RDS、Aurora、Cloud SQL、AlloyDB、Azure） | CDC + 每日对账 | ✓ |
-| 关系数据库（不可 CDC） | 同上但无法开日志；以及任何有 SQL 接口的库 | 批量增量（`updated_at` 水位）+ 每日对账 | ✓ |
+| 关系数据库（不可 CDC） | 同上但无法开日志；以及任何有 SQL 接口的库 | C5 范围摘要差分（时间列只作提示，见 [database-support/03 §2](database-support/03-change-capture-and-consistency.md)）+ 每日对账 | ✓ |
 | 数据仓库 | Snowflake、BigQuery、Databricks、Redshift、ClickHouse | 批量增量（对应 Rust 驱动 / 可选 ADBC） | 第二批 |
 | 需要额外配置的 CDC 库 | SQL Server（CDC 表）、Oracle（LogMiner） | CDC | 第二、三批 |
 | 文档库 | MongoDB | CDC（Debezium）→ `jsonb` 列 + 展开视图 | 规划中 |
@@ -62,13 +63,13 @@ sources:
     hooks: [mask_phone]
 ```
 
-`sync: auto` 的判定：连接器 `check_access` 确认日志配置与复制权限齐备则走 CDC，否则走批量增量；没有主键也没有声明唯一键的表只能 `full`。
+`sync: auto` 的判定：连接器 `check_access` 确认日志配置、复制权限与日志保留（按实际可见的最早日志位点，见 [database-support/03 §4](database-support/03-change-capture-and-consistency.md)）齐备则走 C1 日志 CDC，否则走 C5 范围摘要差分；`updated_at` 一类时间列只作正向提示，不作可靠游标。没有主键也没有非空唯一索引的表按 §4.1 的无键策略读取。
 
 ### 3.2 登记流程
 
 ```text
-填写连接信息 ──▶ 连通性测试 ──▶ 权限体检 check_access ──▶ 表清单与体量估算
-  ──▶ 选择表/列（默认排除大对象列）──▶ 生成 DBA 操作清单（若走 CDC）
+填写连接信息 ──▶ 连通性测试 ──▶ 权限体检 check_access ──▶ 表清单、体量估算与键形态统计
+  ──▶ 分块计划（§4.1）──▶ 选择表/列（默认排除大对象列）──▶ 生成 DBA 操作清单（若走 CDC）
   ──▶ plan（将要启动的容器、预计首次同步时长、源库预计读取量）──▶ apply
 ```
 
@@ -106,8 +107,33 @@ pub trait Connector: Send + Sync {
 - `read_chunk` 返回有界异步 Arrow RecordBatch 流。首版用 SQLx 的 PG/MySQL 驱动流式取行，再用 Arrow builders 按行数与字节预算组批；不是驱动天然零拷贝列式读取。ADBC / ConnectorX 的 Rust 路径作为可选优化，驱动覆盖、许可证、类型转换与取消语义验证后启用。
 - `type_map` 是**连接器的职责**：批量路径与 CDC 路径必须产出同样的 Arrow 类型，否则对账会误报。每个连接器都要有“同一行经两条路径读取、schema 与规范值一致”的一致性测试。
 - `capabilities()` 与 `AccessReport` 必须是结构化声明（能力种类、游标/变更读取/CDC 种类、位点序、预算单位、各捕获方法所需的源端写入分类、保留窗口、一致性等级、驱动出处与兼容模式），不得用连接器名称字符串判断路径；字段与等级见 [database-support/02 §2](database-support/02-connector-architecture.md)。未知权限、兼容模式或计费单位按 `block` 处理。
-- 字符串/二进制主键的分块必须强制二进制排序，否则改用哈希分块或 `read_keys`（[database-support/05 §3](database-support/05-conformance-and-evidence.md)）。
-- 分块按主键范围（`plan_chunks` 用主键的 min/max 与统计直方图切分；主键不均匀时用 `LIMIT` 游标式分块），每块默认 5 万行。
+- `plan_chunks` 按表的键形态选择策略（§4.1）；块大小是自适应的内部资源预算，不是业务上限。
+
+### 4.1 分块策略
+
+真实库的大表往往不是整数自增主键：参考生产部署中百万行以上的大表全部是 `varchar` 主键且排序规则大小写不敏感，另有复合主键表和无主键表。因此预检统计每张表的键形态，并输出一份**分块计划**交用户确认：每表策略、估计块数、无法分块的表及原因。
+
+| 键形态 | 策略 | 要点 |
+|---|---|---|
+| 整数单列主键 | keyset 范围 `WHERE pk > ? ORDER BY pk LIMIT n` | 不用 `OFFSET` |
+| 字符串单列主键 | keyset；边界值取自上一块最后一行，比较在**源库**用列自身排序规则完成 | 客户端与 Agent DB 不比较字符串来决定块归属；不加 `COLLATE xxx_bin`、`NLSSORT` 等让索引失效的强制排序（[database-support/05 §3](database-support/05-conformance-and-evidence.md)） |
+| 复合主键 | 行值比较改写为 `a > ? OR (a = ? AND b > ?)` | 用 `EXPLAIN` 确认走主键，不依赖各版本对行值比较的优化 |
+| 无主键但有非空唯一索引 | 用该索引做 keyset | 预检时选定并记录 |
+| 无任何唯一键 | 单次整表读取，或引擎原生物理分块（PG `ctid` 范围、Oracle ROWID 范围） | 写入计划并标注一致性等级；不用 `OFFSET` 假装可续读 |
+
+- **估块数与切边界：** 先算分布因子 `(MAX(pk) − MIN(pk) + 1) / 行数`，落在 [0.05, 100] 内视为均匀并按步长切；否则逐块 keyset 探边界；预计块数超过 1,000 时按 1/1000 抽样切分。行数用 `EXPLAIN` 或 MIN/MAX 估算，不用 `information_schema.TABLES.TABLE_ROWS`（MySQL 8.0 默认缓存 24 小时）。用非主键列作 chunk key 时，更新可能让同一行在两块中出现，只能配合日志窗口修正或整表重读。
+- **物理分块：** PG 14 起 `ctid` 范围可走 TID Range Scan，但 `ctid` 会因 UPDATE / `VACUUM FULL` 改变，只能在单个快照内使用，不作跨周期断点。Oracle ROWID 范围由读取 `DBA_EXTENTS` / `ALL_EXTENTS` 后用 `DBMS_ROWID.ROWID_CREATE` 生成，不在源端创建 `DBMS_PARALLEL_EXECUTE` 任务（I-SRC-1）。
+- **块大小自适应：** 硬上限 100,000 行 / 32 MiB；按 EWMA 估计读取速率，下一块取“约 3 倍当前速率 × 目标耗时”并受字节上限约束；失败时折半。
+- **增长中的块：** 周期间某个范围长到超出单块预算时，不截断、不退回全量，而是拆分该块、生成新的块计划 revision 后完整读取。
+- **断点：** 每块落盘 `(table, chunk_id, lo, hi, rows, bytes, sha256)`；块内中断则整块重读；大块的成员清单写成文件并以 sha256 引用，不塞进控制库单个字段。
+
+### 4.2 并行与源库保护
+
+- **调度：** 有界滚动补位，不按组等待（整组完成才放下一组会让最慢的任务拖住全部槽位）。默认并发 2，可配 1–4；同一 `(source, target_database)` 内串行。一旦出现失败即停止派发新任务，等在途任务结束并写回执后，再按断点重试。
+- **源库保护（默认开启，不为提速关闭）：** 每个读任务单连接；块目标耗时约 0.5 秒，占空比 ≤ 25%（读完休眠 ≥ 读耗时 × 3）；源端负载指标（MySQL `Threads_running`、PG 活跃会话、Oracle 活跃会话/等待）超阈值即暂停；服务端语句超时（MySQL `max_execution_time`、PG `statement_timeout`、Oracle 资源管理或客户端取消）与客户端超时双保险；不 `LOCK TABLES`、不 `FLUSH`、不建对象；按 `max_connections` 余量动态限并发；流式读取时调大会话级 `net_read_timeout` / `net_write_timeout`；从副本读时水位取自同一实例，复制延迟超阈值暂停。
+- **不开长事务、不加全局锁：** 一致性快照持续越久，源端越受影响（MySQL undo 历史、PG 旧快照钉住 xmin、Oracle `ORA-01555`）。全量导入按块使用短事务，跨表一致靠只读水位对齐（[04 §4.4](04-pipeline.md)）。FTWRL / `LOCK INSTANCE FOR BACKUP` 只作为用户显式选择的选项，默认走无锁分块。
+
+完整规则、故障处理表与引擎版本差异见 [product/02](product/02-ingestion-playbook.md)。
 
 ## 5. 权限体检（`check_access`）
 
@@ -119,7 +145,7 @@ pub trait Connector: Send + Sync {
 |---|---|---|
 | 账号是否有写权限 | `SHOW GRANTS FOR CURRENT_USER()` 解析出 `INSERT/UPDATE/DELETE/CREATE/DROP/ALTER/ALL` | block（可由管理员显式 `allow_write_capable_credential: true` 覆盖，记录审计） |
 | 是否读的是从库 | `SELECT @@read_only, @@super_read_only`；`SHOW REPLICA STATUS` 的延迟 | `read_from: replica` 但连上的是主库 → warn |
-| CDC 前提 | `@@binlog_format = ROW`、`@@binlog_row_image = FULL`、`@@gtid_mode = ON`、`@@binlog_expire_logs_seconds`（RDS：`mysql.rds_show_configuration` 的 binlog retention hours） | 不满足 → 回退批量，并生成 DBA 清单 |
+| CDC 前提 | `@@binlog_format = ROW`、`@@binlog_row_image = FULL`；`@@gtid_mode = ON` 为推荐项（未开时水位用 binlog file/pos，仅在同一实例内有效）；日志保留按 `SHOW BINARY LOGS` 实际可见的最早文件推算，`@@binlog_expire_logs_seconds` 与 RDS binlog retention hours 只作参考（托管库参数可能与实际不一致） | 不满足 → 回退 C5，并生成 DBA 清单 |
 | 从从库做 CDC | 从库需 `log_replica_updates = ON` | 同上 |
 | 复制权限 | `REPLICATION SLAVE, REPLICATION CLIENT` | 同上 |
 | 字符集 | 表/列的 `CHARACTER SET`；`latin1` 列可能存着 GBK 字节（陈旧中文系统常见） | warn，并提示配置 `charset_override` |
@@ -144,7 +170,7 @@ pub trait Connector: Send + Sync {
 -- my.cnf: binlog_format=ROW, binlog_row_image=FULL, gtid_mode=ON, enforce_gtid_consistency=ON,
 --         log_replica_updates=ON, binlog_expire_logs_seconds=604800
 CREATE USER 'oo_cdc'@'10.0.2.%' IDENTIFIED BY '<由 DBA 设置>';
-GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'oo_cdc'@'10.0.2.%';
+GRANT SELECT, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'oo_cdc'@'10.0.2.%';   -- 不需要 RELOAD：默认无锁分块，不做全局读锁
 -- RDS: CALL mysql.rds_set_configuration('binlog retention hours', 168);
 
 -- PostgreSQL

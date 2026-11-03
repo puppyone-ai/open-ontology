@@ -2,8 +2,9 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-11-03
 > 依赖：[05 Agent DB](05-agent-db.md)、[06 Ontology](06-ontology-layer.md)
+> token 生命周期与 CLI 绑定细则：[product/04 §5](product/04-onboarding-and-gateway-binding.md)
 > 被依赖：[08 Agent 接口](08-agent-interface.md)、[09 沙盒](09-sandbox-and-agent-runtime.md)、[10 安全](10-security.md)
 
 ## 1. 职责与不变量
@@ -46,7 +47,7 @@ HTTP 请求
 | token | 持有者 | 签发 | 形态 | 有效期 | 绑定 |
 |---|---|---|---|---|---|
 | **会话 token** | 出口代理（沙盒内不可见） | Agent 入口在建会话时调用 Gateway 内部签发接口（mTLS） | 不透明随机串 `oost_…`，Gateway 只存其哈希 | 与会话相同，默认空闲 30 分钟、绝对上限 8 小时 | `session_id`、`sandbox_id`、最终用户、角色、claims；**只接受经出口代理（mTLS 客户端证书）发来的请求** |
-| **外部客户端 token** | 直接接 MCP/SDK/HTTP 的客户端 | MCP：OAuth 2.1 授权码 + PKCE（Control API 作为授权服务器或对接企业 IdP）；SDK/HTTP：管理员签发的服务账号 token | 不透明串 `ooct_…` | 默认 1 小时（OAuth，可刷新），服务账号最长 90 天 | 固定的用户或服务账号、角色；受众（audience）固定为该 Gateway 的规范 URL |
+| **外部客户端 token** | 直接接 MCP/SDK/HTTP/CLI 的客户端 | MCP：OAuth 2.1 授权码 + PKCE（Control API 作为授权服务器或对接企业 IdP），为外部 MCP 客户端的目标形态；SDK/HTTP/CLI：服务账号 token，由管理员签发或经一次性绑定码兑换（§3.4） | 不透明串 `ooct_…` | 默认 1 小时（OAuth，可刷新）；服务账号单次有效期默认 90 天，可在策略上限内续期（§3.4） | 固定的用户或服务账号、角色；受众（audience）固定为该 Gateway 的规范 URL |
 
 选择**不透明 token + 服务端查找**而非自包含 JWT：Gateway 是唯一的验证方，不需要离线验证；吊销通过服务端状态生效（缓存窗口最长 5 秒，不承诺即时）；token 泄漏时无法被解码出 claims。查找结果在 Gateway 本地缓存 ≤ 5 秒，吊销时通过 Redis pub/sub 加速失效，但不能只依赖可能丢失的通知；缓存过期后必须重新验证，状态存储不可用时拒绝，不延长旧缓存。活跃查询由会话关闭流程另行取消。
 
@@ -80,6 +81,24 @@ bindings:
 
 - Gateway 的 MCP 端点作为 OAuth 资源服务器，发布 RFC 9728 受保护资源元数据；要求客户端使用 RFC 8707 resource indicator，token 的 audience 必须等于本资源 URL。
 - **禁止 token 透传：** MCP Server（[08](08-agent-interface.md)）调用 Gateway HTTP API 时，不转发它收到的用户 token，而是用 RFC 8693 token exchange 换取一个受众为 Gateway 的内部 token。
+
+### 3.4 服务账号 token 的生命周期
+
+v0.2 先补齐服务账号 token 的完整生命周期；MCP 的 OAuth 2.1 仍按 §3.1、§3.3 作为外部 MCP 客户端的后续目标，两者不冲突（同一 token store，不同签发途径）。短期 access + 轮换 refresh token 不在 v0.2 范围，v0.3 再评估。
+
+| 操作 | 语义 | 审计 |
+|---|---|---|
+| `issue` | 签发新 token，指定角色与有效期（默认 90 天；最大寿命由项目策略定，默认 90 天、可配置至 365 天） | 签发人、用途 |
+| `renew` | **同一 token 值**延长 absolute deadline，不超过策略允许的最大寿命；已吊销或已过期的不可 renew | 旧/新到期；正式 API，不手工改表 |
+| `rotate` | 签发新值，旧值进入重叠窗口（默认 7 天）后自动失效 | 新旧关联 |
+| `revoke` | 立即失效；粒度 token / session / principal / project | 原有 |
+| `list` | 列出 hash 前缀、角色、到期、最后使用时间 | 不输出明文 |
+| `enroll` | 签发一次性绑定码（默认 24 小时、只能兑换一次）；兑换时生成 client token | 兑换来源 |
+
+- **自助续期：** 策略允许时，持有 token 的客户端可调用 `POST /v1/auth/renew`，在到期前 N 天内把 deadline 延到不超过“首次签发 + 最大寿命”；管理员可关闭。
+- **绑定：** `POST /v1/auth/enroll` 用绑定码换取 client token，只接受校验通过的 TLS。设备码方式（RFC 8628）由管理员 `approve` 后发放，轮询遵守 `slow_down` 加 5 秒的规定。客户端命令见 [08 §3.5](08-agent-interface.md)。
+- **到期监控：** Gateway 内部 mTLS 证书与 token 一起纳入到期监控；`oo status` 与 `/v1/health` 报告最近到期项，≤ 14 天警告，过期即标红。
+- **协议协商：** `GET /v1/meta` 返回 Gateway 版本、协议版本、最低兼容 CLI 版本、当前发布与新鲜度。CLI 每 24 小时缓存检查一次；低于最低版本时给出升级命令并以明确错误码退出，而不是在查询中途出现语义错误。
 
 ## 4. SQL 静态检查
 
@@ -270,6 +289,11 @@ ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;   -- 此后新
 | `POST /v1/feedback/gap` | Agent 报告知识缺口，进入 Ontology 审核队列 | 认证；限频；内容作为不可信文本存储 |
 | `GET /v1/queries/{query_id}` | 调用方查询自己发起过的查询的元数据（不含结果） | 只能看自己的；导出最终状态含行数、字节、truncated、哈希、freshness 与 warnings |
 | `POST /internal/v1/session-tokens` | Agent 入口签发/吊销会话 token | mTLS，仅入口 |
+| `GET /v1/meta` | Gateway 版本、协议版本、最低兼容 CLI 版本、当前发布与新鲜度（§3.4） | 只读元数据；不含凭证与内部主机名（I-GW-5） |
+| `GET /v1/health` | 组件健康；mTLS 证书与 token 的最近到期项（§3.4） | 认证 |
+| `POST /v1/auth/enroll` | 一次性绑定码兑换 client token | 绑定码本身；限频；只能兑换一次 |
+| `POST /v1/auth/renew` | 持有者自助续期（策略可关） | 认证；不超过最大寿命 |
+| 管理端 token API（issue/list/renew/rotate/revoke/enroll/approve） | 供 `oo token` 管理命令调用 | 管理员身份；全部写审计 |
 
 ### 9.1 实体解析的分层规则
 

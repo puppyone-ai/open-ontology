@@ -43,6 +43,8 @@
 | [06 风险、开放问题与来源](06-risks-open-questions-and-sources.md) | DBX 风险登记、需客户/法务确认的问题、本次检索事实与来源、未核实清单 |
 | [support-matrix.yaml](support-matrix.yaml) | 机器可读矩阵初稿（当前**无任何目标处于 verified**） |
 
+v0.2 版本目标、测试镜像与 T0–T8 套件见 [product/05](../product/05-version-matrix-and-testing.md)；分块与水位的实战规则见 [product/02](../product/02-ingestion-playbook.md)。
+
 规范与计划：[Spec 第 7A 章](../../specs/open-ontology-v0.1-spec.md)、[Plan 第 4A 章](../../specs/open-ontology-v0.1-plan.md)。
 
 ## 4. 事实与决策的边界

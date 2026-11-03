@@ -2,7 +2,7 @@
 
 > Status: Proposed（设计文档；实际实现与验收范围见Spec、Plan和固定证据）
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-09
+> Last reviewed: 2026-11-03
 
 Open Ontology（OO）是生成、审核、发布和维护Ontology的开源系统。企业登记数据源后，系统把获准读取的数据汇聚到独立PostgreSQL，产出标准语义资产和Knowledge Pack，并通过Gateway及CLI、HTTP/SDK、MCP等接口供外部harness使用。这里的ontology是Agent理解和访问企业数据的语义与访问层。
 
@@ -23,14 +23,15 @@ Open Ontology（OO）是生成、审核、发布和维护Ontology的开源系统
 | 08 | [Agent 接口](08-agent-interface.md) | 工程、Agent 开发者 | HTTP API、SDK、`oo` CLI 输出契约、MCP Server、引用约定 |
 | 09 | [沙盒与 Agent 运行时](09-sandbox-and-agent-runtime.md) | 工程、安全 | 会话模型、沙盒规格、出口代理、harness 适配、`AGENTS.md`、**状态释放**、预热池 |
 | 10 | [安全](10-security.md) | 安全、合规 | 资产、攻击者、信任边界与 STRIDE、提示注入、输出处理、凭证、数据保护、合规、测试 |
-| 11 | [部署与运维](11-deployment-and-operations.md) | 运维 | 一键启动、Compose 网络、控制台、升级、备份、SLO、Runbook、K8s |
-| 12 | [配置参考](12-configuration-reference.md) | 管理员 | 配置仓库与各文件字段 |
+| 11 | [部署与运维](11-deployment-and-operations.md) | 运维 | 启动形态（lite 开源默认 / standard）、Compose 网络、控制台、升级、备份、SLO、Runbook、K8s |
+| 12 | [配置参考](12-configuration-reference.md) | 管理员 | 配置仓库与各文件字段、`stack.yaml`（`oo.stack/v1`） |
 | 13 | [评测与 Benchmark](13-evaluation-and-benchmarks.md) | 工程、客户项目 | OO-Bench 六条轨道、合成数据集、冻结快照、评分与统计、发布门禁、客户数据迭代闭环 |
 | 14 | [路线图、风险与待决问题](14-roadmap-and-risks.md) | 所有人 | M0–M4、原型验证清单、风险登记、需与客户确认的问题 |
 | 15 | [术语表](15-glossary.md) | 所有人 | — |
 | 16 | [参考资料](16-references.md) | 工程 | 调研来源与待核实项 |
 | 17 | [Rust 实现契约与迁移验收](17-rust-implementation.md) | 工程、安全 | crate 关系、任务与取消、FFI/插件隔离、类型/托管、构建与验收 |
 | 附 | [数据库支持扩展设计](database-support/README.md) | 工程、DBA、安全、客户交付 | 统一准入路线与支持矩阵（等级、晋升/降级）、能力模型与源库写入分类、各类捕获方法与一致性等级、驱动策略、Self-build/Pack/Gateway 复用、逐库画像（MySQL/PG 家族、SQL Server、Oracle、Db2、HANA、国产库、云数仓、OLAP、文档/KV）、一致性套件与证据。数据库范围与准入以其及 Spec 第 7A 章为准，覆盖 03 §2、§8 的路线表 |
+| 附 | [产品侧文档 v0.2](product/README.md) | 工程、产品、DBA | v0.2 三个产品闭环的设计输入：工作形态、数据拉取手册（分块、源库保护、只读水位、C5/C1 交接、引擎版本差异）、Self-build 上下文预算、开源接入与 Gateway 绑定（`oo init`、`stack.yaml`、lite 档、token 生命周期、`oo login`）、版本矩阵与 T0–T8 测试。上列文档已按其回填；任务与 sprint 见 [v0.2 Plan](../specs/product-loops-v0.2-plan.md) |
 
 ## 文档约定
 
