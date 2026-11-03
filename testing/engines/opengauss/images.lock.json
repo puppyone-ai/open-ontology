@@ -1,0 +1,20 @@
+{
+  "schema": "oo.opengauss-probe-images/v1",
+  "platform": "linux/arm64",
+  "images": [
+    {
+      "version": "5.0.3",
+      "tag": "enmotech/opengauss:5.0.3",
+      "index_digest": "sha256:daee26443c16723b0e08b442f379ad01e069713b68ad0a328e55d9e65a508753",
+      "image": "enmotech/opengauss@sha256:083a530b83efe82a094d86e5e8edc4625cb08d4fd1931273032e30bd3f702312",
+      "binary_build": "89d144c2"
+    },
+    {
+      "version": "6.0.0",
+      "tag": "enmotech/opengauss:6.0.0",
+      "index_digest": "sha256:9bd81380273944e5a02a2139c90954d4f46813b71810f7b23fe8f738014d03b5",
+      "image": "enmotech/opengauss@sha256:803427c264b647b3caf0ab712f66567d892066624ca4a082a01dbc31053986c7",
+      "binary_build": "aee4abd5"
+    }
+  ]
+}
