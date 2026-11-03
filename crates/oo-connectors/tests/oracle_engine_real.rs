@@ -10,10 +10,11 @@ use arrow_array::{Array, RecordBatch, StringArray};
 use arrow_ipc::writer::StreamWriter;
 use oo_connectors::SourceError;
 use oo_connectors::engine::*;
-use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine, map_ora};
-use oracledb::Connection;
+use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine, map_ora as thin_error};
+use oo_connectors::oracle::worker::{DriverError, Worker};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use std::process::Command;
 use zeroize::Zeroizing;
 
 #[derive(Deserialize)]
@@ -24,6 +25,91 @@ struct Fixture {
     reader_password: String,
     writer_password: String,
     out: PathBuf,
+    #[serde(default)]
+    worker_container: Option<String>,
+}
+
+enum Connection {
+    Thin(oracledb::Connection),
+    Thick(Worker),
+}
+struct Row(Vec<Option<String>>);
+impl Row {
+    fn get(&self, i: usize) -> Result<Option<String>, String> {
+        self.0.get(i).cloned().ok_or("fixture_column".to_owned())
+    }
+}
+fn worker_error(e: DriverError) -> String {
+    eprintln!("fixture driver code: {e:?}");
+    "fixture_driver".to_owned()
+}
+impl Connection {
+    fn query(
+        &self,
+        sql: &str,
+        _binds: &[()],
+    ) -> Result<Box<dyn Iterator<Item = Result<Row, String>> + '_>, String> {
+        match self {
+            Self::Thin(conn) => {
+                let cursor = conn
+                    .query(sql, &[])
+                    .map_err(|e| thin_error(&e).to_string())?;
+                let width = cursor.columns().len();
+                Ok(Box::new(cursor.map(move |row| {
+                    let row = row.map_err(|e| thin_error(&e).to_string())?;
+                    (0..width)
+                        .map(|i| {
+                            row.get::<Option<String>>(i)
+                                .map_err(|e| thin_error(&e).to_string())
+                        })
+                        .collect::<Result<Vec<_>, _>>()
+                        .map(Row)
+                })))
+            }
+            Self::Thick(conn) => Ok(Box::new(
+                conn.query(sql, &[], 2_000_001)
+                    .map_err(worker_error)?
+                    .map(|row| row.map(Row).map_err(worker_error)),
+            )),
+        }
+    }
+    fn execute(&self, sql: &str, _binds: &[()]) -> Result<(), String> {
+        match self {
+            Self::Thin(conn) => {
+                conn.execute(sql, &[])
+                    .map_err(|e| thin_error(&e).to_string())?;
+            }
+            Self::Thick(conn) => {
+                for row in conn.query(sql, &[], 1).map_err(worker_error)? {
+                    row.map_err(worker_error)?;
+                }
+            }
+        }
+        Ok(())
+    }
+    fn commit(&self) -> Result<(), String> {
+        match self {
+            Self::Thin(conn) => conn.commit().map_err(|e| thin_error(&e).to_string()),
+            Self::Thick(_) => self.execute("COMMIT", &[]),
+        }
+    }
+}
+
+fn worker_command(f: &Fixture, admin: bool) -> Command {
+    let mut command = Command::new("docker");
+    command.args([
+        "exec",
+        "-i",
+        f.worker_container.as_ref().unwrap(),
+        "python",
+        "-u",
+        if admin {
+            "/fixture_admin.py"
+        } else {
+            "/worker.py"
+        },
+    ]);
+    command
 }
 
 fn connect(f: &Fixture, writer: bool) -> Connection {
@@ -32,20 +118,46 @@ fn connect(f: &Fixture, writer: bool) -> Connection {
     } else {
         ("OO_READER", &f.reader_password)
     };
+    if f.worker_container.is_some() {
+        let cfg = OracleConnectConfig::new(
+            "host.docker.internal",
+            f.port,
+            &f.service,
+            user,
+            Zeroizing::new(password.clone()),
+        );
+        return Connection::Thick(
+            Worker::connect(&mut worker_command(f, writer), &cfg)
+                .map_err(worker_error)
+                .unwrap(),
+        );
+    }
     let cfg = oracledb::Config::default()
         .set_credentials(user, password)
         .set_connect_string(&format!("127.0.0.1:{}/{}", f.port, f.service))
-        .map_err(|e| map_ora(&e))
+        .map_err(|e| thin_error(&e))
         .unwrap();
-    let conn = oracledb::connect(cfg).map_err(|e| map_ora(&e)).unwrap();
+    let conn = oracledb::connect(cfg).map_err(|e| thin_error(&e)).unwrap();
     conn.set_call_timeout(Some(Duration::from_secs(30)))
-        .map_err(|e| map_ora(&e))
+        .map_err(|e| thin_error(&e))
         .unwrap();
-    conn
+    Connection::Thin(conn)
+}
+
+fn engine_connect(
+    f: &Fixture,
+    mut config: OracleConnectConfig,
+) -> Result<OracleEngine, SourceError> {
+    if f.worker_container.is_some() {
+        config.host = "host.docker.internal".into();
+        OracleEngine::connect_worker(config, &mut worker_command(f, false))
+    } else {
+        OracleEngine::connect(config)
+    }
 }
 
 fn execute(conn: &Connection, sql: &str) {
-    conn.execute(sql, &[]).map_err(|e| map_ora(&e)).unwrap();
+    conn.execute(sql, &[]).unwrap();
 }
 
 type Rows = BTreeMap<String, [u8; 32]>;
@@ -99,16 +211,14 @@ fn reference(conn: &Connection, table: &str, scn: u64, keys: usize) -> Rows {
     };
     let sql = format!("SELECT {projection} FROM OO_FIXTURE.{table} AS OF SCN {scn}");
     let mut result = Rows::new();
-    for row in conn.query(&sql, &[]).map_err(|e| map_ora(&e)).unwrap() {
-        let row = row.map_err(|e| map_ora(&e)).unwrap();
+    for row in conn.query(&sql, &[]).unwrap() {
+        let row = row.unwrap();
         let width = if matches!(table, "NUMERIC_PK" | "COMPOSITE_PK") {
             3
         } else {
             2
         };
-        let cells: Vec<Option<String>> = (0..width)
-            .map(|i| row.get(i).map_err(|e| map_ora(&e)).unwrap())
-            .collect();
+        let cells: Vec<Option<String>> = (0..width).map(|i| row.get(i).unwrap()).collect();
         assert!(
             result
                 .insert(row_key(&cells, keys), row_hash(&cells))
@@ -150,7 +260,7 @@ async fn oracle_engine_t0_t1_t8() {
         Zeroizing::new(f.reader_password.clone()),
     );
     config.scope = tables.iter().map(|t| table_ref(t)).collect();
-    let mut engine = match OracleEngine::connect(config) {
+    let mut engine = match engine_connect(&f, config) {
         Ok(e) => e,
         Err(e) => {
             std::fs::write(f.out.join("connect-error.txt"), format!("{e:?}\n")).unwrap();
@@ -233,7 +343,7 @@ async fn oracle_engine_t0_t1_t8() {
                     500 + cycles % 2
                 ),
             );
-            writer_conn.commit().map_err(|e| map_ora(&e)).unwrap();
+            writer_conn.commit().unwrap();
             std::thread::sleep(Duration::from_millis(200));
         }
         cycles
@@ -355,15 +465,15 @@ async fn oracle_engine_t0_t1_t8() {
     let edge = table_ref("DIGEST_EDGE");
     let before = engine.digest_range(&edge, None, None).await.unwrap();
     execute(&admin, "UPDATE DIGEST_EDGE SET A='x', B='y'||CHR(31)||'vz'");
-    admin.commit().map_err(|e| map_ora(&e)).unwrap();
+    admin.commit().unwrap();
     let after = engine.digest_range(&edge, None, None).await.unwrap();
     assert_eq!(before.rows, after.rows);
     assert_ne!(before.digest, after.digest);
     execute(&admin, "INSERT INTO DIGEST_EDGE VALUES (NULL, 'tail')");
-    admin.commit().map_err(|e| map_ora(&e)).unwrap();
+    admin.commit().unwrap();
     let null_digest = engine.digest_range(&edge, None, None).await.unwrap();
     execute(&admin, "UPDATE DIGEST_EDGE SET A='' WHERE A IS NULL");
-    admin.commit().map_err(|e| map_ora(&e)).unwrap();
+    admin.commit().unwrap();
     assert_eq!(
         null_digest,
         engine.digest_range(&edge, None, None).await.unwrap()
@@ -382,7 +492,7 @@ async fn oracle_engine_t0_t1_t8() {
         &admin,
         "INSERT INTO GROWING SELECT 30000+LEVEL, 'growth' FROM DUAL CONNECT BY LEVEL<=1001",
     );
-    admin.commit().map_err(|e| map_ora(&e)).unwrap();
+    admin.commit().unwrap();
     let last = growth.chunks.last().unwrap();
     let failure = engine
         .read_chunk(
@@ -427,13 +537,18 @@ async fn oracle_engine_t0_t1_t8() {
     config.active_session_limit = Some(0);
     config.pause_poll = Duration::from_millis(20);
     config.pause_max = Duration::from_millis(100);
-    let mut guarded = OracleEngine::connect(config).unwrap();
+    let mut guarded = engine_connect(&f, config).unwrap();
     let guarded_plan = guarded
         .plan_chunks(&table_ref("TEXT_PK"), &budget)
         .await
         .unwrap();
+    let sleep_sql = if f.version == 11 {
+        "BEGIN DBMS_LOCK.SLEEP(2); END;"
+    } else {
+        "BEGIN DBMS_SESSION.SLEEP(2); END;"
+    };
     let sleeper = std::thread::spawn(move || {
-        execute(&admin, "BEGIN DBMS_SESSION.SLEEP(2); END;");
+        execute(&admin, sleep_sql);
     });
     tokio::time::sleep(Duration::from_millis(100)).await;
     let busy = guarded

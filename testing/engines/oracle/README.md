@@ -5,7 +5,9 @@ Run from the worktree root, one version at a time:
 ```sh
 python3 testing/engines/oracle/run.py --version 23 --run-id oracle-e-23
 python3 testing/engines/oracle/run.py --version 21 --run-id oracle-e-21
-python3 testing/engines/oracle/run.py --version 11 --run-id oracle-e-11
+python3 testing/engines/oracle/worker/build.py --run-id oracle-e-worker
+python3 testing/engines/oracle/run.py --version 11 --run-id oracle-e-11 \
+  --worker-image oo-e-oracle-worker:oracle-e-worker
 cargo test -p oo-connectors --features oracle --lib --locked
 ```
 
@@ -28,19 +30,34 @@ run's labeled container and evidence-local data directories.
 
 ## Driver and client setup
 
-Product code uses the existing pinned `oracledb = 26.0.0-beta.4` thin driver,
+23ai/21c use the existing pinned `oracledb = 26.0.0-beta.4` thin driver,
 with default features disabled. **No host Instant Client, OCI library,
 SQL*Plus installation, or library-path setting is required.** The fixture
 uses the SQL*Plus binary already on PATH in each Oracle image, as the preview
 tools use container-provided SQL*Plus. The old preview scripts contain
 environment-specific paths and are not executed or reused as configuration.
 
-The thin driver rejects 11g during protocol negotiation with
-`ServerVersionNotSupported`. The 11g dialect/DBA SQL has unit coverage, but
-the 11g integration test deliberately fails rather than treating an
-unsupported connection as a pass. A separately reviewed 11g-capable backend
-and its client-library setup are still needed. 19c remains blocked by D2;
-this runner has no 19c target.
+The thin driver rejects 11g with `ServerVersionNotSupported`. Use
+`OracleEngine::connect_worker` for the documented P2 path. The trusted caller
+supplies a pinned worker command; the same engine SQL, Arrow canonicalization,
+chunk receipts and budget controls apply to both transports. Versioned JSON
+control travels over stdin, and stdout carries bounded length-prefixed JSON
+status and Arrow IPC batches. Database errors preserve their numeric ORA code
+without exposing vendor messages. Each Arrow batch carries its protocol
+version, monotone sequence and validated schema SHA-256. Completion row counts
+must match decoded rows. Missing completion is never success. Nested OCI
+timeout codes remain budget failures even when wrapped by DPY-4011.
+
+`worker/build.py` obtains Instant Client 19.30 only from Oracle's public
+no-login download, validates its fixed SHA-256, records the supplied
+`BASIC_LICENSE` (Oracle Free Use Terms and Conditions) in ignored evidence, and
+builds a local-only amd64 Linux image with python-oracledb 3.4.2 in thick mode.
+The Python base is digest-pinned. Do not publish this image or commit the
+client archive; no redistribution authorization is implied. The runner resolves
+the worker image to its content ID and records the runtime client version.
+No Agent DB credentials enter the worker. `fixture_admin.py` is mounted
+separately for fixture writes and is not included in the source worker image.
+19c remains blocked by D2; this runner has no 19c database target.
 
 ## Coverage and boundaries
 
@@ -84,7 +101,7 @@ Current limitations (do not upgrade the support matrix from these tests):
 - ORA-01555 retries are bounded, shrink keyed pages, retain the same SCN,
   and resume only after a successfully flushed key. Lost undo cannot be
   repaired by shrinking; exhaustion fails. Physical ORA-01555 fails with
-  `ora_01555_physical_replan`. Actual ORA-01555 injection is not yet covered.
+  `ora_01555_physical_replan`. Real undo stress is a separate test concern.
 - Heap chunks can still exceed a row budget on unusually dense blocks and
   fail closed. They cannot use the keyed split API.
 - Unsupported types and virtual columns fail admission; no silent column
