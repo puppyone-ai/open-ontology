@@ -37,14 +37,16 @@
    "sprint": "S0",
    "lane": "M",
    "title": "建 `execution/v0.2/state.json` 与 `decisions.md`；从本 Plan 生成任务卡",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "coordinator",
    "branch": "v0.2/product-loops",
    "commits": [
     "3d2c44f62",
     "26f116101",
     "a241fb04e",
-    "e1390d404"
+    "e1390d404",
+    "f905c3140",
+    "1a2493ac1"
    ],
    "evidence": []
   },
