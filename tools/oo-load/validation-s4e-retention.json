@@ -1,0 +1,53 @@
+{
+  "policy_seconds": 86400,
+  "age_override_for_test": 0,
+  "young": {
+    "busy": 0,
+    "released": 0
+  },
+  "held": {
+    "busy": 1,
+    "released": 2
+  },
+  "released": {
+    "busy": 0,
+    "released": 1
+  },
+  "proof_valid_before_switch": true,
+  "holder_rows_across_switch": [
+    "10",
+    "10"
+  ],
+  "remaining_generations": 1,
+  "remaining_stages": 1,
+  "hold_basis": "real read-only SQL transaction as Gateway role on identical retained view",
+  "ready_head_query_status": 200,
+  "todo": "S4-M-01",
+  "run_id": "m-s4e-retention-4",
+  "result_sha256": "1ec4662094d119c20e97d039338804acfee6c1cd6d7641a6e4da813bcb308ff4",
+  "live": {
+    "cycles": 3,
+    "queries": 51,
+    "errors": 0,
+    "header_vector_rows_consistent": true,
+    "freshness_advancing": true,
+    "source_time": "unmeasured",
+    "legacy_imports": 0,
+    "legacy_acks": 0,
+    "negative_cases": [
+      "changed_view",
+      "closed_fence",
+      "superseded_replay"
+    ],
+    "handoff_delay_ms": 250,
+    "engine": "postgres",
+    "version": "17.11 (Debian 17.11-1.pgdg12+2)"
+  },
+  "cleanup": {
+    "failures": []
+  },
+  "failed_attempts": {
+    "m-s4e-retention-1": "PL/pgSQL record name shadowed query alias; fixed",
+    "compile-3": "ambiguous AssertSqlSafe type; fixed"
+  }
+}

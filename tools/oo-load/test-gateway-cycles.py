@@ -29,10 +29,12 @@ def load_fixture():
 
 
 class Live:
-    def __init__(self, out, engine='postgres'):
+    def __init__(self, out, engine='postgres', retention=False):
         self.out = out
         self.engine = engine
         self.source = None
+        self.retention = retention
+        self.holder = None
         self.cycle_count = 3 if engine == 'postgres' else 1
         self.run = LaneRun(out, 'postgres', '17', argparse.Namespace())
         self.db = AgentDB(self.run)
@@ -364,6 +366,20 @@ UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY['{column}']
         initial = self.http()
         assert initial['status'] == 200 and initial['body']['rows'] == [['10']], initial
         self.baselines['10'] = (initial['publication'], initial['vector'])
+        if self.retention:
+            assert self.prune(86400, 'retention-bootstrap') == {'released': 0, 'busy': 0}
+            self.holder = subprocess.Popen(['docker', 'exec', '-i', '-e',
+                'PGAPPNAME=lane-m-retention-holder', self.db.name, 'psql', '-X', '-qAt',
+                '-v', 'ON_ERROR_STOP=1', '-U', 'postgres'], stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            self.holder.stdin.write('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;\n'
+                'SET LOCAL ROLE oo_f22_login;\n'
+                f"SELECT _oo.native_library_retained_table('{physical}') IS NOT NULL;\n"
+                f'SET LOCAL ROLE oo_r_f22;\nSELECT "{column}" FROM _oo."{physical}";\n')
+            self.holder.stdin.flush()
+            self.fixture.wait(lambda: self.db.sql("SELECT count(*) FROM pg_stat_activity "
+                "WHERE application_name='lane-m-retention-holder' "
+                "AND state='idle in transaction'").strip() == '1', 'retention query pin')
         def read():
             while not self.stop.is_set():
                 self.reads.append(self.http())
@@ -420,6 +436,8 @@ UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY['{column}']
         assert replay.returncode != 0
         assert json.loads(replay.stderr)['error'] == 'publication_superseded'
         assert self.db.sql("SELECT receipt_sha256 FROM _oo.native_library_head WHERE library_id='owned'").strip() == self.cuts[-1]['receipt_sha256']
+        if self.retention:
+            self.check_retention(physical, column)
         write_json(self.out / 'live-result.json', {'cycles': self.cycle_count, 'queries': len(self.reads), 'errors': 0,
             'header_vector_rows_consistent': True, 'freshness_advancing': True,
             'source_time': 'unmeasured', 'legacy_imports': 0, 'legacy_acks': 0,
@@ -427,10 +445,44 @@ UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY['{column}']
             'engine': self.engine, 'version': self.db.sql('SHOW server_version').strip()
             if self.engine == 'postgres' else self.source_version})
 
+    def prune(self, age, label):
+        return json.loads(self.command([ROOT / 'target/debug/oo-load', 'prune',
+            '--stack', self.stack, '--source', 'owned', '--target', self.target,
+            '--secrets-dir', self.db.directory, '--library', 'owned',
+            '--retain-seconds', str(age)], label).stdout)
+
+    def check_retention(self, physical, column):
+        young = self.prune(86400, 'retention-young')
+        assert young == {'released': 0, 'busy': 0}, young
+        held = self.prune(0, 'retention-held')
+        assert held['busy'] >= 1 and held['released'] == self.cycle_count - 1, held
+        assert self.db.sql(f"SELECT to_regclass('_oo.{physical}') IS NOT NULL").strip() == 't'
+        self.holder.stdin.write(f'SELECT "{column}" FROM _oo."{physical}";\nROLLBACK;\n')
+        stdout, stderr = self.holder.communicate(timeout=10)
+        (self.out / 'retention-holder.stdout').write_text(stdout)
+        (self.out / 'retention-holder.stderr').write_text(stderr)
+        assert self.holder.returncode == 0 and stdout.split() == ['t', '10', '10'], (stdout, stderr)
+        released = self.prune(0, 'retention-released')
+        assert released['released'] == 1 and released['busy'] == 0, released
+        assert self.db.sql(f"SELECT to_regclass('_oo.{physical}') IS NULL").strip() == 't'
+        assert self.prune(0, 'retention-replay') == {'released': 0, 'busy': 0}
+        query = self.http()
+        assert query['status'] == 200 and query['body']['rows'] == [[str(10 + self.cycle_count)]], query
+        assert self.db.sql('SELECT count(*) FROM _oo_load.generations').strip() == '1'
+        assert self.db.sql('SELECT count(*) FROM _oo_load.schemas').strip() == '1'
+        write_json(self.out / 'retention-result.json', {
+            'policy_seconds': 86400, 'age_override_for_test': 0, 'young': young,
+            'held': held, 'released': released, 'proof_valid_before_switch': stdout.split()[0] == 't',
+            'holder_rows_across_switch': stdout.split()[1:],
+            'ready_head_query': query, 'remaining_generations': 1, 'remaining_stages': 1,
+            'hold_basis': 'real read-only SQL transaction as Gateway role on identical retained view'})
+
     def close(self):
         self.stop.set()
         if self.worker:
             self.worker.join(timeout=35)
+        if self.holder and self.holder.poll() is None:
+            self.holder.communicate('ROLLBACK;\n', timeout=10)
         write_json(self.out / 'queries.json', self.reads)
         if self.gateway:
             self.gateway.terminate()
@@ -452,12 +504,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--engine', choices=['postgres', 'mysql', 'oracle'], default='postgres')
+    parser.add_argument('--retention', action='store_true')
     args = parser.parse_args()
     assert args.run_id and all(c.isalnum() or c == '-' for c in args.run_id)
     os.umask(0o077)
     out = ROOT / 'evidence' / args.run_id
     out.mkdir(exist_ok=False)
-    live = Live(out, args.engine)
+    live = Live(out, args.engine, args.retention)
     status = 'failed'
     try:
         live.start()

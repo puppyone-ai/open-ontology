@@ -299,7 +299,8 @@ fn mysql_sync_family(family: EngineFamily) -> Result<(), &'static str> {
 async fn execute() -> Result<(), String> {
     let mut arguments = std::env::args().skip(1).peekable();
     let publish = arguments.peek().is_some_and(|a| a == "publish");
-    if publish {
+    let prune = arguments.peek().is_some_and(|a| a == "prune");
+    if publish || prune {
         arguments.next();
     }
     let (sync_command, arguments) = sync_command::arguments(arguments);
@@ -315,6 +316,7 @@ async fn execute() -> Result<(), String> {
                 [--handoff FILE] Atomic MySQL multi-source C5-to-C1 repair (mysql-binlog feature).\n\
                 oo-load sync uses the same flags, requires an explicit sync mode and --run-id ID.\n\
                 oo-load publish --generation ID --library ID uses --stack, --source and --target.\n\
+                oo-load prune --library ID [--retain-seconds 86400] uses --stack, --source and --target.\n\
                 It prepares a verified data cut; pending is NOT a Gateway-ready semantic publication.\n\
                 --run-id ID overrides the target run_id; reuse it only to resume that cycle.\n\
                 Target JSON requires run_id and password.secret_ref. Same run_id resumes; new run_id refreshes.\n\
@@ -336,6 +338,7 @@ async fn execute() -> Result<(), String> {
             "--run-id",
             "--generation",
             "--library",
+            "--retain-seconds",
         ]
         .contains(&key.as_str())
             || opts.contains_key(&key)
@@ -345,7 +348,7 @@ async fn execute() -> Result<(), String> {
         opts.insert(key, args.next().ok_or("argument_value")?);
     }
     sync_command::validate(sync_command, &opts)?;
-    if publish {
+    if publish || prune {
         if [
             "--sync",
             "--c5",
@@ -359,8 +362,15 @@ async fn execute() -> Result<(), String> {
         {
             return Err("publication_arguments".into());
         }
+        if (prune && opts.contains_key("--generation"))
+            || (publish && opts.contains_key("--retain-seconds"))
+        {
+            return Err("publication_arguments".into());
+        }
     } else if opts.contains_key("--generation") || opts.contains_key("--library") {
         return Err("publication_subcommand_required".into());
+    } else if opts.contains_key("--retain-seconds") {
+        return Err("prune_subcommand_required".into());
     }
     let stack = oo_stack::parse(
         std::str::from_utf8(&read(opts.get("--stack").ok_or("stack_required")?)?)
@@ -398,6 +408,24 @@ async fn execute() -> Result<(), String> {
         Some(dir) => SecretStore::open(PathBuf::from(dir))?,
         None => SecretStore::from_home()?,
     };
+    if prune {
+        let age = opts
+            .get("--retain-seconds")
+            .map(|v| v.parse::<u32>())
+            .transpose()
+            .map_err(|_| "retention_policy")?
+            .unwrap_or(86400);
+        let mut conn = target_connection(&target, &store).await?;
+        let result = oo_pipeline::engine_publication::release_expired(
+            &mut conn,
+            opts.get("--library").ok_or("library_required")?,
+            age,
+        )
+        .await?;
+        conn.close().await.map_err(|_| "publication_target_close")?;
+        println!("{result}");
+        return Ok(());
+    }
     if publish {
         let request = oo_pipeline::engine_publication::PublicationRequest {
             library_id: opts.get("--library").ok_or("library_required")?.clone(),
