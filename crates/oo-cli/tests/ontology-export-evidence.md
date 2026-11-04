@@ -68,27 +68,17 @@ Coordinator patch (not applied; outside card write scope):
 ```diff
 --- a/crates/oo-cli/src/admin/mod.rs
 +++ b/crates/oo-cli/src/admin/mod.rs
-@@ -1,6 +1,7 @@
- //! Administrative commands; consumer credentials are never read here.
- mod doctor;
+@@ -3,2 +3,3 @@
  mod lite;
 +mod ontology;
  mod progress;
- mod wizard;
- use oo_stack::stack;
-@@ -39,6 +40,9 @@
- 
- pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
+@@ -41,2 +42,5 @@
      let (command, rest) = args.split_first()?;
 +    if command == "help" && rest.first().is_some_and(|c| c == "ontology") {
 +        return Some(Ok(Invocation::Help(ontology::HELP.into())));
 +    }
      if command == "help" && rest.first().is_some_and(|c| is_admin(c) && c != "status") {
-         return Some(Ok(Invocation::Help(HELP.into())));
-     }
-@@ -75,6 +79,17 @@
- }
- 
+@@ -77,2 +81,13 @@
  fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
 +    if command == "ontology" {
 +        return ontology::run(rest)
@@ -102,8 +92,6 @@ Coordinator patch (not applied; outside card write scope):
 +            });
 +    }
      if rest.iter().any(|s| s == "--help" || s == "-h") {
-         return Ok(Invocation::Help(HELP.into()));
-     }
 ```
 
 Default input is `.oo/role-pack.json` beside `--config`; `--pack PATH` accepts
