@@ -4,6 +4,9 @@
 Build oo locally, then run with a Python environment containing pexpect:
   python tools/oo-test/l1_clean.py --run-id h-s4-l1-RUN --binary target/debug/oo
 
+The binary must have its release's pinned oo-lite-image sibling, as stage.mjs
+requires. The probe copies that sidecar; it never invents a runtime image pin.
+
 All writes stay under evidence/. The diagnostic npm pack uses the package's
 actual wrapper and native manifest format, but omits release dependency notices.
 It is not a release artifact. No database, model, customer, or SSH is contacted.
@@ -42,7 +45,10 @@ def secret_hits(files, values):
 
 def reached_ca_prompt(raw):
     # ratatui moves the cursor instead of emitting literal intervening spaces.
-    return bool(re.search(rb"TLS\s*CA\s*secret_ref", ANSI.sub(b"", raw)))
+    # Match the changed prefix: later characters may be reused by a screen diff.
+    # Also recognize the old label when diagnosing an older installed binary.
+    return bool(re.search(rb"TLS\s*CA\s*(?:PEM\s*file|secret_ref)",
+                          ANSI.sub(b"", raw)))
 
 
 def clean_env(home, tools, prefix):
@@ -66,6 +72,9 @@ def command(argv, cwd, env, output, name, timeout=120):
 
 def diagnostic_pack(binary, output, tools):
     """Mirror runtime inputs of stage.mjs, without claiming release staging."""
+    image = binary.with_name("oo-lite-image").read_text().strip()
+    if not re.fullmatch(r"(?:[a-z0-9][a-z0-9./:_-]*@)?sha256:[0-9a-f]{64}", image):
+        raise ValueError("oo-lite-image must contain a pinned content digest")
     package = output / "package"
     package.mkdir()
     for name in ["package.json", "README.md", "bin/oo.mjs", "bin/auth.mjs"]:
@@ -80,6 +89,7 @@ def diagnostic_pack(binary, output, tools):
     native.parent.mkdir(parents=True)
     shutil.copy2(binary, native)
     native.chmod(0o755)
+    (native.parent / "oo-lite-image").write_text(image + "\n")
     write_json(package / "native/manifest.json", {
         "schema_version": 1, "skill_sha256": hashlib.sha256(skill).hexdigest(),
         "binaries": {"darwin-arm64": {"path": "native/darwin-arm64/oo",
@@ -93,6 +103,9 @@ def diagnostic_pack(binary, output, tools):
         raise RuntimeError("npm pack failed; see raw evidence")
     metadata = json.loads(result.stdout)[0]
     write_json(output / "pack-inventory.json", metadata)
+    if "native/darwin-arm64/oo-lite-image" not in {
+            entry["path"] for entry in metadata["files"]}:
+        raise RuntimeError("npm pack omitted the lite image sidecar")
     return output / metadata["filename"]
 
 
@@ -141,13 +154,11 @@ def tty_probe(cli, work, env, output, engine, password):
         child.send(b"\x1b")
         child.expect(pexpect.EOF)
         child.close()
-        return {"status": "blocked" if reached and engine != "oracle" else "not_run",
+        return {"status": "not_run",
                 "reached_ca_prompt": reached, "exit": child.exitstatus,
                 "scope": "TTY input to CA prompt only; cancelled before doctor/model",
                 "reason": "CA prompt not observed; inspect raw transcript" if not reached else
-                          "Fresh secret store has no CA; wizard accepts only an existing reference"
-                          if engine != "oracle" else
-                          "Optional CA prompt reached; downstream flow not exercised"}
+                          "CA prompt reached; probe cancelled before CA import and downstream flow"}
     finally:
         stop.set()
         thread.join()
@@ -170,6 +181,12 @@ def case(output, tools, archive, engine):
                         work, env, output, "install")
     if installed.returncode:
         raise RuntimeError("local npm installation failed")
+    package_name = json.loads((ROOT / "packages/cli/package.json").read_text())["name"]
+    installed_pin = (prefix / "lib/node_modules" / package_name /
+                     "native/darwin-arm64/oo-lite-image")
+    expected_pin = output.parent / "package/native/darwin-arm64/oo-lite-image"
+    if installed_pin.read_bytes() != expected_pin.read_bytes():
+        raise RuntimeError("installed lite image sidecar differs from diagnostic package")
     cli = prefix / "bin/oo"
     password = secrets.token_hex(24)
     tty = tty_probe(cli, work, env, output, engine, password)
