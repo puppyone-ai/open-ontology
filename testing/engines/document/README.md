@@ -92,3 +92,34 @@ Required follow-ups:
 - Resolve the feature-only `cargo deny` CC0-1.0 rejection for transitive
   `tiny-keccak` through the coordinator's supply-chain process or a driver
   replacement. No license policy was relaxed and MongoDB is not default-enabled.
+
+## Resume validation (2026-11-05)
+
+The retained CLI and fixture changes were committed, then rebased onto
+`9af453c7e` (`v0.2/product-loops`). The proposed patch was refreshed for the
+new `numeric(20,0)` mapping without changing any shared target source file.
+Raw validation output is in `evidence/f-s5-resume-20261105/`.
+
+- Rebased workspace locked check passed.
+- Document-enabled `oo-load` tests passed: 35 passed, 7 live tests ignored.
+- Document-enabled connector library tests passed: 124 passed.
+- Full connector tests reproduce the pre-existing macOS failure
+  `parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes`
+  (`group_signal=rejected`, expected `sent`). A serial run on archived base
+  `9af453c7e` fails identically. With only that test excluded, 234 pass,
+  25 are ignored, and one is filtered out. The earlier overlapping base run
+  encountered executable-hash replacement; its output is retained separately.
+- Both lockfiles passed `cargo audit`. The search-enabled tool passed
+  `cargo deny`; the MongoDB-enabled workspace still fails the `tiny-keccak`
+  CC0-1.0 gate. No supply-chain policy was weakened.
+- Archived source-only results were inspected: `f-s5-mongo-08` (8.0.34),
+  `f-s5-os-04` (3.9.0), and `f-s5-es-04` (9.2.0). All explicitly mark
+  T0/T1/T2/T8 as not accepted and report successful container cleanup.
+- No fresh database fixtures were started: after builds, available host
+  space was below the repository's 20 GiB dispatch floor. This is not a
+  fresh live-engine pass. No containers were created during this resume.
+
+S5-F-02 remains incomplete. In particular, applying `coordinator.patch`
+alone is not acceptance: MongoDB CLI baseline alignment, durable C5 range
+reuse, actual history eviction, Agent DB comparisons and measured T8 resource
+limits still require implementation and live verification.

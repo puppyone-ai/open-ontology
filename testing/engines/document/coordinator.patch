@@ -28,7 +28,7 @@
 --- a/crates/oo-pipeline/src/engine_load_pg.rs
 +++ b/crates/oo-pipeline/src/engine_load_pg.rs
 @@ -40,6 +40,7 @@
-         "uint64" => (1700, "numeric"),
+         "uint64" => (1700, "numeric(20,0)"),
          "bool" => (16, "boolean"),
          "utf8" => (25, "text"),
 +        "utf8_document" => (3802, "jsonb"),
