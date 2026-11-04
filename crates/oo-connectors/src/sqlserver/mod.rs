@@ -295,6 +295,16 @@ pub struct SqlServerEngine {
     queries: u64,
 }
 impl SqlServerEngine {
+    /// Recheck database and object identity instead of reusing a cached probe.
+    pub async fn source_lineage(&mut self) -> Result<String, SourceError> {
+        self.rows("ROLLBACK TRANSACTION", 0).await?;
+        self.tables.clear();
+        self.plans.clear();
+        self.anchor = None;
+        self.initialize().await?;
+        Ok(format!("{}:{}", self.epoch, self.schema))
+    }
+
     pub fn resource_receipt(&self) -> serde_json::Value {
         serde_json::json!({
             "queries": self.queries,
@@ -1020,7 +1030,9 @@ impl ChangeSource for SqlServerEngine {
                     return Err(SourceError::budget("sqlserver_change_bytes"));
                 }
                 let image = if delete {
-                    None
+                    // Shared durable targets require one image per event, including
+                    // deletes; an empty typed batch carries no invented row values.
+                    Some(Self::decode(&t, &[], 0)?.0)
                 } else {
                     let (image, ipc) = Self::decode(&t, &[r], 2 + t.keys.len())?;
                     total_bytes = total_bytes.saturating_add(ipc.len() as u64);

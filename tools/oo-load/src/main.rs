@@ -19,6 +19,7 @@ mod epoch;
 #[cfg(feature = "mysql-binlog")]
 mod handoff;
 mod log_sync;
+mod sqlserver_load;
 mod sync;
 mod sync_command;
 // The public connector export is coordinator-owned; compile the lane module here.
@@ -436,28 +437,7 @@ async fn execute() -> Result<(), String> {
     }
     let password = store.read(&source.password.secret_ref)?;
     match source.engine.as_str() {
-        "sqlserver" => {
-            let ca = source.tls_ca.as_ref().ok_or("source_tls_required")?;
-            let config = sqlserver_config(
-                source,
-                &tables,
-                password,
-                store.read(&ca.secret_ref)?.into_bytes(),
-            )?;
-            let mut engine = sqlserver::SqlServerEngine::connect(config, budget.clone())
-                .await
-                .map_err(|e| e.to_string())?;
-            let result = run_engine(&mut engine, source, &tables, &target, &store, &budget).await;
-            eprintln!(
-                "{}",
-                serde_json::json!({
-                    "protocol":"oo.load.resources/v1",
-                    "source":source.id,
-                    "resources":engine.resource_receipt()
-                })
-            );
-            result
-        }
+        "sqlserver" => sqlserver_load::run(source, &tables, &target, &store, &budget, &opts).await,
         "postgres" => {
             let config = (|| {
                 PgSourceConfig::try_new(
