@@ -89,7 +89,7 @@ Status: pending 5, in_progress 6, author_complete 7, integrated 46.
 | [ ] S5-E-04 | E | Oracle 23ai/11g/21c（及 19c 如 D2 就绪）的 T3、T4 | pending | — | — | — |
 | [ ] S5-H-01 | H | T7 只读证明自动化（general log / log_statement / 统一审计） | author_complete | lane-H | v0.2/h-test-infra | `cb22e4d65`, `1f0697974`, `9c32c0d49`, `04887dbc0` |
 | [ ] S5-H-02 | H | 夜间矩阵（本机原生 + amd64 仿真），失败自动降级并通知 owner | author_complete | lane-H | v0.2/h-test-infra | `cb22e4d65`, `1f0697974`, `9c32c0d49`, `04887dbc0` |
-| [ ] S5-M-01 | M | 证据包 → `support-matrix.yaml` 生成器；禁止手写 verified | author_complete | coordinator | v0.2/product-loops | `1d2c3966f` |
+| [ ] S5-M-01 | M | 证据包 → `support-matrix.yaml` 生成器；禁止手写 verified | author_complete | lane-M | v0.2/m-pipeline | `1d2c3966f`, `32e787ba9`, `4e8004698` |
 | [ ] S5-G-01 | G | T5/T6 在 P0 全版本：20 道金标准题由真实模型 Agent 回答 | in_progress | lane-G | v0.2/g-selfbuild-budget | — |
 | [ ] S5-F-02 | F | P1：MongoDB change stream、OpenSearch/ES 快照 | in_progress | lane-F | v0.2/f-olap | — |
 | [ ] S5-E-03 | E | P2：Db2 快照；达梦/Kingbase 视镜像与许可 | in_progress | lane-E | v0.2/e-oracle-engine | — |
@@ -98,7 +98,7 @@ Status: pending 5, in_progress 6, author_complete 7, integrated 46.
 
 | ID | Lane | Task | Status | Owner | Branch | Commits |
 |---|---|---|---|---|---|---|
-| [ ] S6-M-01 | M | 多架构镜像 CI 构建与签名；lite 档离线安装包 | author_complete | lane-M | v0.2/m-pipeline | `72e6509f2`, `a41aab6f9`, `b05c806b5` |
+| [ ] S6-M-01 | M | 多架构镜像 CI 构建与签名；lite 档离线安装包 | author_complete | lane-M | v0.2/m-pipeline | `e1754fef2`, `4b25daa65`, `7bceacc5e` |
 | [ ] S6-M-02 | M | Quickstart（三分钟上手）、`oo --help` 全命令、故障排查、DBA 权限清单（按引擎版本） | pending | — | — | — |
 | [ ] S6-M-03 | M | **L1、L3 闭环独立审阅**（固定 SHA） | pending | — | — | — |
 | [ ] S6-B-01 | B | npm 发布 `@reduxxx888/ontology-cli@0.2.0`：`npm pack` → 空目录安装 → 全命令 → 同一 tarball 发布；报告精确版本与升级命令 | pending | — | — | — |

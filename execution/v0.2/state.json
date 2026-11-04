@@ -1229,10 +1229,12 @@
       "lane": "M",
       "title": "证据包 → `support-matrix.yaml` 生成器；禁止手写 verified",
       "status": "author_complete",
-      "owner": "coordinator",
-      "branch": "v0.2/product-loops",
+      "owner": "lane-M",
+      "branch": "v0.2/m-pipeline",
       "commits": [
-        "1d2c3966f"
+        "1d2c3966f",
+        "32e787ba9",
+        "4e8004698"
       ],
       "evidence": []
     },
@@ -1278,9 +1280,9 @@
       "owner": "lane-M",
       "branch": "v0.2/m-pipeline",
       "commits": [
-        "72e6509f2",
-        "a41aab6f9",
-        "b05c806b5"
+        "e1754fef2",
+        "4b25daa65",
+        "7bceacc5e"
       ],
       "evidence": []
     },
