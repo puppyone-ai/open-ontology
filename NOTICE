@@ -136,3 +136,7 @@ authorization of the copyright holder.
 `crates/oo-builder/ERRATUM.md` records the removed embedded tables and the
 unsupported generator claim in their old header. Older evidence that
 hashed the previous NOTICE is left as it was.
+
+
+webpki-roots 1.0.10 (Mozilla CA certificate data, via oracledb) is made available under the
+Community Data License Agreement - Permissive, Version 2.0: https://cdla.dev/permissive-2-0/
