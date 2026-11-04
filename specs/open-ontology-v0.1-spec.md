@@ -6,7 +6,7 @@
 | 版本 | 1.0.1 |
 | 状态 | Proposed / Ready for implementation review |
 | 创建日期 | 2026-10-01，Asia/Shanghai |
-| 输入基线 | `docs/` 与 `docs/product/` 共 26 份文档；来源 revision 17，Git HEAD `fb89c773a768a1e0cbd8c11a95eba271fa7a91aa`；[revision 17 记录](source-baseline-revision-17.md)；保留 [revision 16 原清单](sources-baseline-revision-16.json)、更早的 sources-baseline-revision-*.json 与[revision 4 历史记录](../execution/decisions/source-baseline-revision-4.md)保留。扩展设计目录 `docs/database-support/` 不在哈希基线内；不宣称独立审阅或产品验收。 |
+| 输入基线 | `docs/` 与 `docs/product/` 共 26 份文档；来源 revision 18，Git HEAD `6d8f908bc5b044ffcaaa21a3957c2eeffb08538f`；[revision 18 记录](source-baseline-revision-18.md)；保留 [revision 17 原清单](sources-baseline-revision-17.json)、更早的 sources-baseline-revision-*.json 与[revision 4 历史记录](../execution/decisions/source-baseline-revision-4.md)保留。扩展设计目录 `docs/database-support/` 不在哈希基线内；不宣称独立审阅或产品验收。 |
 | 实施语言 | 第一方后端、连接器、CLI、SDK、Builder、评测器：Rust；控制台与 TS SDK：TypeScript |
 | 产品许可证 | Apache-2.0；依赖与数据集分别审计 |
 | 交付方式 | 私有化部署；Linux Docker Compose 为首个完整路径 |

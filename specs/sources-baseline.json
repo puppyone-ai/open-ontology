@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 17,
-  "supersedes_revision": 16,
-  "supersedes_baseline_head": "de71a1e7a6e4dc65a168a98c2d31a9824ae9395f",
-  "supersedes_sha256": "d896139d4e585fd748f072a7df65b83bf04cc0cf9ab93354cd7e007fea26411e",
-  "review_record": "specs/source-baseline-revision-17.md",
-  "baseline_head": "fb89c773a768a1e0cbd8c11a95eba271fa7a91aa",
+  "revision": 18,
+  "supersedes_revision": 17,
+  "supersedes_baseline_head": "fb89c773a768a1e0cbd8c11a95eba271fa7a91aa",
+  "supersedes_sha256": "a19a806f6f81ba2f8ceb37f3134b02a99b111879a329914e50dabe8f2206127a",
+  "review_record": "specs/source-baseline-revision-18.md",
+  "baseline_head": "6d8f908bc5b044ffcaaa21a3957c2eeffb08538f",
   "source_count": 26,
   "sources": [
     {
@@ -151,8 +151,8 @@
     },
     {
       "path": "docs/product/05-version-matrix-and-testing.md",
-      "sha256": "b2643f4cfe2a79055d5845b9452dcd234b9392081d487031f15a5f1f259b793a",
-      "bytes": 11431,
+      "sha256": "34714e7d3415baee826a8045233446edecdbdcbd77fa32f9f0fc5f0703dd152a",
+      "bytes": 11432,
       "lines": 121
     },
     {
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); OLAP engine status"
+  "review_status": "owner self-review (D6); ClickHouse version token"
 }
