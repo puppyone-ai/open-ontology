@@ -109,6 +109,8 @@ gateway:
 | 数据库跳板 | worker 内用 `russh` 建 direct-tcpip 通道，每个读连接一个通道 | 首次连接显示主机指纹并要求确认，写入 `host_key_sha256`；之后不匹配即失败；不改全局 SSH 配置；keepalive 与断线重连按分块断点续读 |
 | 远程部署 | `oo up` 经 SSH 在目标机安装 compose 栈与 systemd 单元，日志与状态通过 SSH 读取 | 只写约定目录；需要 Docker 时检测并给出安装指引，不静默 `sudo` |
 
+S4 实现（2026-11-04，S4-A-04）：`oo up --target ssh`（或 `deploy.target: ssh`）读取 `deploy.ssh {host, port, user, key|password secret_ref, host_key_sha256}`；固定主机指纹，不匹配时在写入任何文件前拒绝；不经 `sudo` 检查 Docker、compose、systemd 与磁盘；秘密只经 SSH stdin 写为 `~/.open-ontology` 下的 0600 文件；镜像按 digest 拉取，离线时用 `docker save`/`load` 传输并按层 digest 校验；按最短源同步间隔安装 `open-ontology-lite-cycle` systemd timer；重复执行无变化；`oo down --target ssh` 删除它创建的一切（含数据库卷，与本地 `down` 保留卷不同）。本机 sshd + Docker 容器（arm64、amd64 仿真）上验证；云主机真机待补。
+
 反向通道（把本地 Gateway 暴露到公网）不属于默认路径；远程部署本身就提供可达的 Gateway。
 
 ### 4.4 模型出口代理
