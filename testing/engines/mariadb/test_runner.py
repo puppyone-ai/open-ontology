@@ -3,14 +3,43 @@ import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+import sys
+from unittest.mock import MagicMock, patch
 
 spec = importlib.util.spec_from_file_location("family_runner", Path(__file__).with_name("run.py"))
 runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
+sys.path.insert(0, str(runner.ROOT / "tools/oo-test"))
+from t2_p0 import duration_micros, mariadb_source_epoch
 
 
 class SafetyTests(unittest.TestCase):
+    def test_generated_bootstrap_credentials_are_redacted(self):
+        directory = MagicMock()
+        path = directory.__truediv__.return_value
+        path.exists.return_value = True
+        path.read_bytes.return_value = b"generated-fixture-value\n"
+        self.assertEqual(
+            runner.redact_generated(directory, b"bootstrap generated-fixture-value done"),
+            b"bootstrap [REDACTED] done",
+        )
+        path.read_bytes.return_value = b""
+        self.assertEqual(runner.redact_generated(directory, b"unchanged"), b"unchanged")
+
+    def test_duration_keeps_fraction_sign_and_hours_beyond_day(self):
+        self.assertEqual(duration_micros("-27:02:03.123456"), -97323123456)
+        self.assertEqual(duration_micros("00:00:00.000001"), 1)
+        self.assertEqual(duration_micros("-00:00:00.000001"), -1)
+        self.assertEqual(duration_micros("00:00:00"), 0)
+        self.assertIsNone(duration_micros(None))
+
+    def test_epoch_matches_product_domain_identity(self):
+        epoch = mariadb_source_epoch("731", "0", "0-731-2,7-42-1")
+        self.assertEqual(epoch, "mariadb:731:0:0-731,7-42")
+        self.assertEqual(epoch, mariadb_source_epoch("731", "0", "7-42-99,0-731-12"))
+        self.assertNotEqual(epoch, mariadb_source_epoch("731", "1", "0-731-2,7-42-1"))
+        self.assertNotEqual(epoch, mariadb_source_epoch("731", "0", "0-731-2,7-43-1"))
+
     def test_each_version_has_one_exact_platform_pin(self):
         for family, images in runner.IMAGES.items():
             platform = "linux/arm64" if family == "mariadb" else "linux/amd64"

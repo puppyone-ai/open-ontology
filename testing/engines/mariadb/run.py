@@ -8,6 +8,7 @@ from pathlib import Path
 import secrets
 import shutil
 import subprocess
+import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -33,6 +34,13 @@ def private(path, text):
     path.write_text(text)
     path.chmod(0o600)
 
+def redact_generated(directory, data):
+    for user in ("root", "reader", "writer"):
+        path = directory / (user + "-password")
+        if path.exists() and (secret := path.read_bytes().strip()):
+            data = data.replace(secret, b"[REDACTED]")
+    return data
+
 def pinned_image(image, family, platform):
     repository, version = image.rsplit(":", 1)
     pin_id = family + "-" + version.split("-")[0].lstrip("v")
@@ -43,7 +51,8 @@ def pinned_image(image, family, platform):
     return repository + "@" + matches[0]
 
 def source_manifest():
-    files = [Path(__file__).resolve(), Path(__file__).with_name("load.py"), ROOT / "crates/oo-connectors/tests/mysql_families_live.rs", ROOT / "testing/infra/images.pins"]
+    files = [Path(__file__).resolve(), Path(__file__).with_name("load.py"), ROOT / "crates/oo-connectors/tests/mysql_families_live.rs", ROOT / "testing/infra/images.pins", ROOT / "tools/oo-test/t2_p0.py", ROOT / "tools/oo-test/t1.py"]
+    files.extend((ROOT / "tools/oo-load/src").glob("*.rs"))
     for family in ["mysql", "mariadb", "tidb", "oceanbase"]:
         files.extend((ROOT / "crates/oo-connectors/src" / family).glob("*.rs"))
     return {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(files)}
@@ -61,7 +70,10 @@ def main():
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--loader-snapshot", action="store_true",
                         help="compare static oo-load snapshots against an owned Agent DB")
+    parser.add_argument("--acceptance", action="store_true", help="run shared T1/T2/T8 oo-load acceptance (requires PyMySQL)")
     args = parser.parse_args()
+    if args.acceptance and args.loader_snapshot:
+        parser.error("choose acceptance or the legacy static snapshot")
     if not args.run_id or not all(c.isascii() and (c.isalnum() or c in "-_") for c in args.run_id):
         parser.error("run-id must contain only ASCII letters, digits, dash or underscore")
     os.chdir(ROOT)
@@ -129,6 +141,12 @@ def main():
             test = subprocess.run(["cargo", "test", "-p", "oo-connectors", "--locked", "--features", "mysql-binlog", "--test", "mysql_families_live", "family_snapshot_c5", "--", "--ignored", "--nocapture"], capture_output=True, env=env, timeout=900)
             (directory / "test.log").write_bytes(test.stdout + test.stderr)
             results[image] = {"exit": test.returncode, "fixture": "unistore single-node" if args.family == "tidb" else "standalone", "digest": digest}
+            if args.acceptance and test.returncode == 0:
+                acceptance = subprocess.run([sys.executable, str(ROOT / "tools/oo-test/t2_p0.py"),
+                    "--family-config", str(directory / "config.json")], capture_output=True, timeout=1800)
+                (directory / "acceptance-driver.log").write_bytes(acceptance.stdout + acceptance.stderr)
+                results[image]["acceptance_exit"] = acceptance.returncode
+                results[image]["exit"] = acceptance.returncode
             loader_result = directory / "loader/result.json"
             if args.loader_snapshot and loader_result.exists():
                 loader = json.loads(loader_result.read_text())
@@ -146,7 +164,7 @@ def main():
                 try:
                     logs = subprocess.run(["docker", "logs", name], capture_output=True, timeout=15)
                     # Bootstrap logs stay private and are never committed.
-                    (directory / "server.log").write_bytes(logs.stdout + logs.stderr)
+                    (directory / "server.log").write_bytes(redact_generated(directory, logs.stdout + logs.stderr))
                 except subprocess.TimeoutExpired:
                     results[image]["logs"] = "Docker log request timed out"
                 try:
