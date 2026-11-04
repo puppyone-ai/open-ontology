@@ -171,6 +171,36 @@ fn secret(
     Ok(json!({"secret_ref":name}))
 }
 
+/// Like `secret`, but an owner who already keeps the value in a private file
+/// can import it by path instead of typing it.
+fn secret_or_import(
+    screen: &mut Screen,
+    store: &SecretStore,
+    step: u8,
+    label: &str,
+    default: &str,
+) -> Result<Value, Failure> {
+    let path = screen.prompt(
+        step,
+        &format!("{label}: private file to import (blank: type the value next)"),
+        "",
+        false,
+    )?;
+    if path.is_empty() {
+        return secret(screen, store, step, label, default);
+    }
+    let name = screen.prompt(
+        step,
+        &format!("{label} secret name (new file; never overwritten)"),
+        default,
+        false,
+    )?;
+    if !oo_stack::stack::secret_name(&name) {
+        return Err(Failure::usage("SECRET_NAME"));
+    }
+    import_file(store, &name, Path::new(&path), false)
+}
+
 fn list(value: &str) -> Vec<String> {
     value
         .split(',')
@@ -291,9 +321,14 @@ fn build_saved(path: &str, preflight_exit: u8) -> Result<Invocation, Failure> {
             "TUI_PREFLIGHT_BLOCKED: configuration saved; resolve oo doctor failures before oo build",
         ));
     }
-    // Use the same entry point as the shell, including deployment resolution,
-    // retained checkpoints, owner review and the final share prompt.
-    super::execute("build", &["--config".into(), path.into()])
+    // Use the same entry points as the shell: deploy (idempotent), then the
+    // runtime build with retained checkpoints, owner review and share prompt.
+    let args = ["--config".into(), path.into()];
+    let up = super::execute("up", &args)?;
+    if matches!(up, Invocation::AdminReport(_, exit) if exit != 0) {
+        return Ok(up);
+    }
+    super::execute("build", &args)
 }
 
 pub(super) fn run() -> Result<Invocation, Failure> {
@@ -336,11 +371,38 @@ pub(super) fn run() -> Result<Invocation, Failure> {
         "include":list(&screen.prompt(2, "Include schema.table entries, comma separated (wildcard discovery not yet available)", "*", false)?),
         "exclude":list(&screen.prompt(2, "Exclude tables or schema.*, comma separated", "", false)?),
     });
+    let provider = screen.prompt(
+        3,
+        "Provider: openai-compatible / anthropic",
+        "openai-compatible",
+        false,
+    )?;
+    let url = screen.prompt(
+        3,
+        "Model base URL, or @PATH to import a private endpoint file",
+        "",
+        false,
+    )?;
+    let base_url = match url.strip_prefix('@') {
+        Some(path) => {
+            let name = screen.prompt(
+                3,
+                "Endpoint secret name (new file)",
+                "model-endpoint",
+                false,
+            )?;
+            if !oo_stack::stack::secret_name(&name) {
+                return Err(Failure::usage("SECRET_NAME"));
+            }
+            import_file(&store, &name, Path::new(path), false)?
+        }
+        None => json!(url),
+    };
     let model = json!({
-        "provider":screen.prompt(3, "Provider: openai-compatible / anthropic", "openai-compatible", false)?,
-        "base_url":screen.prompt(3, "Model base URL", "", false)?,
+        "provider":provider,
+        "base_url":base_url,
         "model":screen.prompt(3, "Model ID", "", false)?,
-        "key":secret(&mut screen, &store, 3, "Model key", "model-key")?,
+        "key":secret_or_import(&mut screen, &store, 3, "Model key", "model-key")?,
         "context_window":"auto",
     });
     screen.prompt(4, "Deployment: local Docker / lite. Remote SSH deployment is not yet available. Enter to continue.", "", false)?;
@@ -366,7 +428,7 @@ pub(super) fn run() -> Result<Invocation, Failure> {
     };
     screen.prompt(5, &format!("Preflight (exit {exit}):\n{report}\n\nEnter to continue. Blocked preflight never deploys."), "", false)?;
     let confirm = screen.prompt(6,
-        "Type SAVE for configuration only, or BUILD to run oo build: load, Self-build, owner review, publication, Gateway and share prompt. BUILD requires passing preflight. Credentials remain saved on cancellation.",
+        "Type SAVE for configuration only, or BUILD to run oo up and oo build: deploy, load, Self-build, owner review, publication, Gateway and share prompt. BUILD requires passing preflight. Credentials remain saved on cancellation.",
         "", false)?;
     if confirm != "SAVE" && confirm != "BUILD" {
         return Err(Failure::local("TUI_CANCELLED"));

@@ -66,7 +66,7 @@ def main():
             "mysql", "source", "localhost", "3306", "fixture", "reader",
             "source-password", password, str(ca), "source-ca", "", "fixture.events", "",
             "openai-compatible", f"http://127.0.0.1:{replay.httpd.server_port}/v1",
-            "fixture-model", "model-key", key, "", "",
+            "fixture-model", "", "model-key", key, "", "",
         ]
         for value in values:
             os.write(master, (value + "\r").encode())
