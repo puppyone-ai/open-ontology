@@ -106,6 +106,14 @@ class LaneRun(runner.Run):
         data = (kwargs.get("data") or "").lstrip()
         readonly = data.startswith(("SELECT ", "SET TIME ZONE 'UTC'; SELECT ",
                                     "SET time_zone='+00:00'; SELECT "))
+        if "sqlplus" in command and data.startswith("whenever sqlerror exit failure rollback\n"):
+            # Run.sql prepends login/session settings before Oracle SELECTs.
+            body = data.partition("\nconnect ")[2].partition("\n")[2]
+            body = re.sub(
+                r"^(?:(?:ALTER SESSION SET (?:CONTAINER=(?:FREEPDB1|XEPDB1)|"
+                r"CURRENT_SCHEMA=fixture);|SET ARRAYSIZE 1000|SET LINESIZE 1024)\n)*",
+                "", body)
+            readonly = body.startswith("SELECT ")
         if command[:2] == ["docker", "exec"] and readonly:
             for attempt in range(3):
                 try:
