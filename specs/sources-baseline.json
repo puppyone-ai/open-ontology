@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 15,
-  "supersedes_revision": 14,
-  "supersedes_baseline_head": "439f4d95ef29a9b838f8ff6135e7380e14742d52",
-  "supersedes_sha256": "53f52da7ba2bd0b10ff81c6f77b72e3db635b28b985f6bfd905ca5ebbc27894f",
-  "review_record": "specs/source-baseline-revision-15.md",
-  "baseline_head": "ac98f1c9c481eb4744d1ba4525e792c621cecd5a",
+  "revision": 16,
+  "supersedes_revision": 15,
+  "supersedes_baseline_head": "ac98f1c9c481eb4744d1ba4525e792c621cecd5a",
+  "supersedes_sha256": "4872e655ff9197ba581b06e2ebf51b8e2139a3c4dd2671369d039710a16f22f6",
+  "review_record": "specs/source-baseline-revision-16.md",
+  "baseline_head": "de71a1e7a6e4dc65a168a98c2d31a9824ae9395f",
   "source_count": 26,
   "sources": [
     {
@@ -151,8 +151,8 @@
     },
     {
       "path": "docs/product/05-version-matrix-and-testing.md",
-      "sha256": "f46ddedbc4c9043f621f84ac4fce25d257b49752ab9dabf405ccc93ff083347c",
-      "bytes": 10677,
+      "sha256": "4a315e57972fe7a11cc745e119ed7132d3ca27312605648c799d05a1798633ca",
+      "bytes": 10770,
       "lines": 119
     },
     {
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); S4 self-review and build handoff boundary"
+  "review_status": "owner self-review (D6); SQL Server acceptance status"
 }
