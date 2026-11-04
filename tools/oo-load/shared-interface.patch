@@ -18,6 +18,6 @@ diff --git a/crates/oo-connectors/src/engine/mod.rs b/crates/oo-connectors/src/e
 +    ) -> impl Future<Output = Result<Option<Vec<ChunkSpec>>, SourceError>> + Send {
 +        async { Ok(None) }
 +    }
- 
+
      /// Current read-only position, or `None` when the engine has none.
      fn watermark(&mut self) -> impl Future<Output = Result<Option<Watermark>, SourceError>> + Send;
