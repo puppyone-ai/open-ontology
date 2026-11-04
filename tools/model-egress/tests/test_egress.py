@@ -99,6 +99,23 @@ class Tests(unittest.TestCase):
         return {'model': 'fixture-model', 'messages': [{'role': 'system', 'content': 'Be brief.'},
                     {'role': 'user', 'content': 'OK'}], 'max_tokens': 1, 'stream': stream}
 
+    def test_endpoint_reference_is_private_and_validated_after_resolution(self):
+        original, replay, _ = self.egress()
+        endpoint = self.secrets / 'model-endpoint'
+        endpoint.write_text(original.model['base_url'])
+        endpoint.chmod(0o600)
+        model = dict(original.model, base_url={'secret_ref': 'model-endpoint'})
+        resolved = Egress(model, None, secret_root=self.secrets)
+        self.resources.append(resolved)
+        self.assertEqual(resolved.url.port, replay.httpd.server_port)
+        self.assertEqual(resolved.model['base_url'], {'secret_ref': 'model-endpoint'})
+        endpoint.write_text('http://not-loopback.example/v1')
+        with self.assertRaisesRegex(Refusal, 'CONFIG_ENDPOINT'):
+            Egress(model, None, secret_root=self.secrets)
+        endpoint.chmod(0o644)
+        with self.assertRaisesRegex(Refusal, 'SECRET_PERMISSIONS'):
+            Egress(model, None, secret_root=self.secrets)
+
     def test_probe_cli_accepts_piped_config_without_persistent_meter(self):
         egress, _, _ = self.egress()
         home = self.root / 'home'

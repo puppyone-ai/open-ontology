@@ -202,7 +202,12 @@ class Egress:
                         or (type(model.get('context_window')) is int and model['context_window'] > 0))
                 or type(rpm) is not int or not 1 <= rpm <= 10000):
             raise Refusal('CONFIG_SCHEMA', 500)
-        self.url = validate_url(model.get('base_url'))
+        endpoint = model.get('base_url')
+        if isinstance(endpoint, dict):
+            if set(endpoint) != {'secret_ref'}:
+                raise Refusal('CONFIG_ENDPOINT', 500)
+            endpoint = read_key(endpoint['secret_ref'], secret_root)
+        self.url = validate_url(endpoint)
         self.model = model
         self.key = read_key(model['key']['secret_ref'], secret_root)
         self.timeout, self.rpm = timeout, rpm

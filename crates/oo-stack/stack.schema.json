@@ -193,10 +193,15 @@
           ]
         },
         "base_url": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 2048,
-          "description": "HTTPS, or HTTP only for a literal loopback address/localhost. No credentials/query/fragment."
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            {"$ref": "#/$defs/secret"}
+          ],
+          "description": "URL or owner-private secret_ref. Resolved URLs require HTTPS, or HTTP only on loopback; no credentials/query/fragment."
         },
         "model": {
           "type": "string",

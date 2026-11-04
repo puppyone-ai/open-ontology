@@ -39,6 +39,9 @@ pub(super) fn run(
         store
             .read(&stack.model.key.secret_ref)
             .map_err(Failure::local)?;
+        if let oo_stack::stack::ModelEndpoint::Secret(reference) = &stack.model.base_url {
+            store.read(&reference.secret_ref).map_err(Failure::local)?;
+        }
         for source in &stack.sources {
             store
                 .read(&source.password.secret_ref)

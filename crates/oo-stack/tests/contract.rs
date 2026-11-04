@@ -13,6 +13,25 @@ fn config() -> Value {
 }
 
 #[test]
+fn model_endpoint_reference_roundtrips_without_resolving() {
+    let mut c = config();
+    c["model"]["base_url"] = json!({"secret_ref":"model-endpoint"});
+    let stack = parse(&c.to_string()).unwrap();
+    assert_eq!(
+        serde_json::to_value(stack).unwrap()["model"]["base_url"],
+        c["model"]["base_url"]
+    );
+    for value in [
+        json!({"secret_ref":"../endpoint"}),
+        json!({"secret_ref":"endpoint","value":"https://example.com"}),
+        json!({}),
+    ] {
+        c["model"]["base_url"] = value;
+        assert!(parse(&c.to_string()).is_err());
+    }
+}
+
+#[test]
 fn defaults_and_roundtrip() {
     let s = parse(&config().to_string()).unwrap();
     assert_eq!(s.sources[0].sync.interval, "8h");

@@ -133,6 +133,8 @@ def main(request):
         for sub in ('home/.config','home/.config/open-ontology','home/.config/open-ontology/secrets'):
             private_dir(root/sub)
         refs=[request['stack']['model']['key']['secret_ref']]
+        endpoint=request['stack']['model']['base_url']
+        if isinstance(endpoint,dict):refs.append(endpoint['secret_ref'])
         for source in request['stack']['sources']:
             refs.append(source['password']['secret_ref'])
             if source.get('tls_ca'):refs.append(source['tls_ca']['secret_ref'])

@@ -98,10 +98,17 @@ impl Default for ContextWindow {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ModelEndpoint {
+    Url(String),
+    Secret(SecretRef),
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Model {
     pub provider: String,
-    pub base_url: String,
+    pub base_url: ModelEndpoint,
     pub model: String,
     pub key: SecretRef,
     #[serde(default)]
@@ -350,7 +357,10 @@ pub fn validate(stack: &Stack) -> Result<()> {
     }
     let m = &stack.model;
     if !matches!(m.provider.as_str(), "openai-compatible" | "anthropic")
-        || !endpoint(&m.base_url)
+        || !match &m.base_url {
+            ModelEndpoint::Url(url) => endpoint(url),
+            ModelEndpoint::Secret(reference) => secret_name(&reference.secret_ref),
+        }
         || !text(&m.model)
         || !secret_name(&m.key.secret_ref)
     {

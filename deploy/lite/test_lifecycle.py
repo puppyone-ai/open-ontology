@@ -88,4 +88,24 @@ class Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             lifecycle.private_dir(alias)
 
+    def test_up_copies_endpoint_reference_without_expanding_stack(self):
+        home=self.root.parent/'source-home'
+        store=home/'.config/open-ontology/secrets'
+        store.mkdir(parents=True,mode=0o700)
+        for name,data in [('endpoint',b'https://private.example/v1'),('model',b'synthetic-key')]:
+            lifecycle.write(store/name,data)
+        self.request.update(action='up',image='sha256:'+'a'*64,
+            templates={name:'' for name in ('compose.yaml','postgres.sh','scheduler.py')},
+            stack={'sources':[],'gateway':{'public_url':'auto'},
+                   'model':{'key':{'secret_ref':'model'},'base_url':{'secret_ref':'endpoint'}}})
+        with patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''):
+            lifecycle.main(self.request)
+        self.assertEqual(lifecycle.read_private(self.root/'home/.config/open-ontology/secrets/endpoint'),
+                         b'https://private.example/v1')
+        self.assertNotIn(b'private.example',lifecycle.read_private(self.root/'work/stack.json'))
+        lifecycle.write(store/'endpoint',b'https://changed.example/v1')
+        with patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''):
+            with self.assertRaisesRegex(ValueError,'LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION'):
+                lifecycle.main(self.request)
+
 if __name__=='__main__':unittest.main()
