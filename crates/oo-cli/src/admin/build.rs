@@ -102,7 +102,7 @@ pub(super) fn status(root: &Path, json_output: bool) -> Result<Invocation, Failu
     Ok(report(&state, json_output))
 }
 
-fn report(state: &Value, json_output: bool) -> Invocation {
+pub(super) fn report(state: &Value, json_output: bool) -> Invocation {
     Invocation::AdminReport(
         if json_output {
             state.to_string()
@@ -131,6 +131,21 @@ pub(super) fn run(
     runtime_config: Option<&Path>,
     cycle: Option<&str>,
 ) -> Result<Invocation, Failure> {
+    if agent_target.is_none() && runtime_config.is_none() && stack.deploy.profile == "lite" {
+        // D16: deployments build inside their runtime; the two flags below
+        // remain developer overrides for an explicitly provisioned Agent DB.
+        if review_input.is_some() {
+            return Err(Failure::usage(
+                "ADMIN_ARGUMENT: --review-input is a developer override; deployments copy review input out of the runtime",
+            ));
+        }
+        if stack.deploy.target != "local" {
+            return Err(Failure::local(
+                "BUILD_REMOTE_RUNTIME_NOT_IMPLEMENTED: oo build for --target ssh deployments is not yet available",
+            ));
+        }
+        return super::build_lite::run(config, stack, resume, json_output, review_file, cycle);
+    }
     if agent_target.is_none() {
         return Err(Failure::usage(
             "BUILD_AGENT_TARGET_REQUIRED: full build loads an Agent DB; use --draft-only for metadata-only work",
@@ -383,7 +398,11 @@ pub(super) fn run(
     completion(&state, &base, json_output)
 }
 
-fn completion(state: &Value, base: &Path, json_output: bool) -> Result<Invocation, Failure> {
+pub(super) fn completion(
+    state: &Value,
+    base: &Path,
+    json_output: bool,
+) -> Result<Invocation, Failure> {
     let mut result = report(&state, json_output);
     if state["status"] == "complete"
         && !json_output

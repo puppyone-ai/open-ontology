@@ -1,5 +1,6 @@
 //! Administrative commands; consumer credentials are never read here.
 mod build;
+mod build_lite;
 mod build_retained;
 mod build_tail;
 mod build_token;
@@ -32,17 +33,19 @@ init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
 TTY init collects configuration and runs preflight; non-TTY never prompts.
 The wizard can save or run the retained build chain after passing preflight.
-build requires pg-builder and oo-pipeline beside oo; --resume retains checkpoints.
---agent-target uses oo-load to load explicit source tables before drafting.
-The target file is private oo-load JSON; TLS and secret_ref credentials are required.
-Full build requires private oo.build-runtime/v1 configuration for the retained Builder,
-publisher and Gateway. It checkpoints load/candidate/Builder/review/publication.
+On a local lite deployment, build runs every stage (load, Self-build, publication,
+Gateway, first token, share prompt) inside the pinned runtime image that oo up
+started; only owner review runs here, on the review input copied out of it.
+--resume retains checkpoints; without a TTY add --review-file DECISIONS.json.
+Developer overrides: --agent-target (private oo-load target JSON) and
+--runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
 status reports saved build state; missing Gateway health fields stay unmeasured.
-up bootstraps private credentials and starts only lite foundations; exit 1
-and foundations_only mean worker/scheduler/Gateway integration is still pending.
-up requires a repository-built OO_LITE_RUNTIME_IMAGE content digest.
+up bootstraps private credentials, starts the lite foundations and Gateway, and
+provisions the retained build chain (retained_ready); healthy needs a measured
+scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
 Linux host: pinned host key, Docker/compose/systemd checks, digest images,

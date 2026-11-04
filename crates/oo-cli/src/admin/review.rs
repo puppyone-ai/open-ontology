@@ -313,9 +313,24 @@ fn decide(screen: &mut Screen, item: &Item) -> Result<Decision> {
     }
 }
 
+static COMPILER: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+
+/// Run the review compiler through `argv` (the deployed runtime image) rather
+/// than a `selfbuild-budget` beside `oo`. Review itself stays on this host.
+pub(super) fn use_compiler(argv: Vec<String>) -> bool {
+    !argv.is_empty() && COMPILER.set(argv).is_ok()
+}
+
 fn bridge(request: &Value) -> Result<Value> {
-    let exe = std::env::current_exe().map_err(|_| Failure::local("REVIEW_COMPILER_INSTALL"))?;
-    let mut child = Command::new(exe.with_file_name("selfbuild-budget"))
+    let mut command = if let Some(argv) = COMPILER.get() {
+        let mut command = Command::new(&argv[0]);
+        command.args(&argv[1..]);
+        command
+    } else {
+        let exe = std::env::current_exe().map_err(|_| Failure::local("REVIEW_COMPILER_INSTALL"))?;
+        Command::new(exe.with_file_name("selfbuild-budget"))
+    };
+    let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())

@@ -247,10 +247,19 @@ pub(super) fn run(root: &Path, name: &str, publication: &Value) -> Result<Value>
             // share-prompt omits private-CA/mTLS flags; the printed login must
             // carry those references, not their credential contents.
             let shell = |s: &str| format!("'{}'", s.replace('\'', "'\\''"));
+            // A runtime-executed build names the consumer's own files as the
+            // owner sees them; the operator identity stays inside the runtime.
+            let named = |prompt: &str, field: &str| {
+                if publication.get(prompt).is_some() {
+                    super::build_retained::text(publication, prompt)
+                } else {
+                    super::build_retained::text(publication, field)
+                }
+            };
             let flags = format!(
                 "--code-stdin --ca-file {} --client-pem {}",
-                shell(super::build_retained::text(publication, "ca_file")?),
-                shell(super::build_retained::text(publication, "client_pem")?)
+                shell(named("prompt_ca_file", "ca_file")?),
+                shell(named("prompt_client_pem", "client_pem")?)
             );
             prompt = prompt.replace("--code-stdin", &flags);
             Ok(json!({"prompt":prompt}))

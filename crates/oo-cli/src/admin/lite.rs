@@ -21,14 +21,7 @@ pub(super) fn run(
         .ok_or_else(|| Failure::local("ADMIN_CONFIG_IO"))?
         .join(".oo");
     let root = state.join("lite");
-    let image = std::env::var("OO_LITE_RUNTIME_IMAGE").unwrap_or_else(|_| {
-        std::env::current_exe()
-            .ok()
-            .and_then(|exe| fs::read_to_string(exe.with_file_name("oo-lite-image")).ok())
-            .unwrap_or_default()
-            .trim()
-            .to_owned()
-    });
+    let image = pinned_image();
     if action == "up" && !digest(&image) {
         return Err(Failure::local(
             "LITE_IMAGE_DIGEST_REQUIRED: install the repository-built image and set OO_LITE_RUNTIME_IMAGE",
@@ -63,9 +56,24 @@ pub(super) fn run(
                 return Err(Failure::local("LITE_STATE_DIRECTORY"));
             }
         }
-        oo_stack::credentials::bootstrap(&root.join("pki")).map_err(Failure::local)?;
     }
-    let request = json!({"action":action,"root":root,"stack":stack,"image":image,
+    // One helper per process: credential creation and the status report below.
+    let saved = saved_image(&root);
+    let _openssl = if action == "up" {
+        Some(OpensslHelper::start(&root.join("pki"), &image)?)
+    } else if root.join("pki").exists() {
+        OpensslHelper::start(&root.join("pki"), saved.as_deref().unwrap_or(&image)).ok()
+    } else {
+        None
+    };
+    if action == "up" {
+        oo_stack::credentials::bootstrap(&root.join("pki")).map_err(Failure::local)?;
+        // The owner's CLI gets its own workload identity, not the admin pair.
+        oo_stack::credentials::workload_identity(&root.join("pki"), "consumer")
+            .map_err(Failure::local)?;
+    }
+    // D16: deployments provision the retained build chain for runtime builds.
+    let request = json!({"action":action,"root":root,"stack":stack,"image":image,"retained":true,
     "templates":{
         "compose.yaml":include_str!("../../../../deploy/lite/compose.yaml"),
         "postgres.sh":include_str!("../../../../deploy/lite/postgres.sh"),
@@ -105,7 +113,122 @@ pub(super) fn run(
     ))
 }
 
-fn digest(image: &str) -> bool {
+/// The runtime image this installation is pinned to (empty when absent).
+pub(super) fn pinned_image() -> String {
+    std::env::var("OO_LITE_RUNTIME_IMAGE").unwrap_or_else(|_| {
+        std::env::current_exe()
+            .ok()
+            .and_then(|exe| fs::read_to_string(exe.with_file_name("oo-lite-image")).ok())
+            .unwrap_or_default()
+            .trim()
+            .to_owned()
+    })
+}
+
+fn saved_image(root: &Path) -> Option<String> {
+    let owner: Value = serde_json::from_slice(&fs::read(root.join("owner.json")).ok()?).ok()?;
+    owner["image"].as_str().map(str::to_owned)
+}
+
+/// The deployment's lane label; `OO_LITE_LANE` only applies before first up.
+pub(super) fn lane(root: &Path) -> String {
+    fs::read(root.join("owner.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .and_then(|owner| owner["lane"].as_str().map(str::to_owned))
+        .or_else(|| std::env::var("OO_LITE_LANE").ok())
+        .filter(|l| {
+            !l.is_empty()
+                && l.len() <= 8
+                && l.as_bytes()[0].is_ascii_lowercase()
+                && l.bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+        })
+        .unwrap_or_else(|| "a".into())
+}
+
+/// The runtime user: the owner of the private deployment directory, so
+/// bind-mounted 0600 files stay readable without widening their modes.
+pub(super) fn user(root: &Path) -> Result<String, Failure> {
+    use std::os::unix::fs::MetadataExt;
+    let meta = fs::symlink_metadata(root).map_err(|_| Failure::local("LITE_STATE_DIRECTORY"))?;
+    Ok(format!("{}:{}", meta.uid(), meta.gid()))
+}
+
+/// Lite credentials use Ed25519, which macOS LibreSSL cannot create or read.
+/// Without a capable host `openssl`, run OpenSSL from the pinned runtime image
+/// (D16: no host helpers), seeing only the credential directory at its path.
+struct OpensslHelper(Option<String>);
+
+impl OpensslHelper {
+    fn start(pki: &Path, image: &str) -> Result<Self, Failure> {
+        if oo_stack::credentials::host_openssl_supports_ed25519() {
+            return Ok(Self(None));
+        }
+        match fs::DirBuilder::new().mode(0o700).create(pki) {
+            Ok(()) => (),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => (),
+            Err(_) => return Err(Failure::local("LITE_STATE_DIRECTORY")),
+        }
+        let pki = fs::canonicalize(pki).map_err(|_| Failure::local("LITE_STATE_DIRECTORY"))?;
+        let root = pki
+            .parent()
+            .ok_or_else(|| Failure::local("LITE_STATE_DIRECTORY"))?;
+        let name = format!("oo-lite-openssl-{}", std::process::id());
+        let path = pki
+            .to_str()
+            .ok_or_else(|| Failure::local("LITE_STATE_DIRECTORY"))?;
+        let mut command = Command::new("docker");
+        command
+            .args([
+                "run",
+                "--detach",
+                "--rm",
+                "--name",
+                &name,
+                "--network",
+                "none",
+            ])
+            .args(["--label", &format!("oo.lane={}", lane(root))])
+            .args(["--read-only", "--cap-drop", "ALL"])
+            .args([
+                "--security-opt",
+                "no-new-privileges:true",
+                "--user",
+                &user(root)?,
+            ])
+            .args(["--volume", &format!("{path}:{path}")])
+            .args(["--entrypoint", "sleep", image, "900"]);
+        let (exit, _, _) = super::build_retained::invoke(command, vec![], 120)?;
+        if exit != 0
+            || !oo_stack::credentials::use_openssl(
+                ["docker", "exec", "-i", &name, "openssl"]
+                    .map(str::to_owned)
+                    .to_vec(),
+            )
+        {
+            let _ = Command::new("docker").args(["rm", "-f", &name]).output();
+            return Err(Failure::local("LITE_OPENSSL_RUNTIME"));
+        }
+        Ok(Self(Some(name)))
+    }
+}
+
+impl Drop for OpensslHelper {
+    fn drop(&mut self) {
+        if let Some(name) = &self.0 {
+            let _ = Command::new("docker")
+                .args(["rm", "-f", name])
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+    }
+}
+
+/// Whether `image` is an acceptable pinned content address.
+pub(super) fn digest(image: &str) -> bool {
     let value = if let Some((repository, value)) = image.split_once('@') {
         if repository.is_empty()
             || !repository
