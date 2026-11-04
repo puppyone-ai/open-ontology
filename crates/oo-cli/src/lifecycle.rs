@@ -796,8 +796,10 @@ async fn token_command(args: &[String]) -> Result<String> {
         None
     };
     let opts = options(rest, command)?;
-    let p = connection(saved(&directory()?)?, &opts)?;
+    let dir = directory()?;
+    let p = connection(saved(&dir)?, &opts)?;
     let http = Http::new(&p, true)?;
+    negotiate(&dir, &p, &http).await?;
     let mut request =
         json!({"operation": if command == "approve" { "device_approve" } else { command }});
     if ["issue", "enroll", "approve"].contains(&command.as_str()) {

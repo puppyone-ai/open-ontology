@@ -447,3 +447,32 @@ test('invalid issued secrets remove reservations and report only recovery hashes
     }
   }
 });
+
+test('all token operations negotiate before admin requests or output reservation', async t => {
+  for (const direct of [true, false]) {
+    const f = await fixture(t);
+    f.state.direct = direct;
+    f.state.minimum = '0.3.0';
+    const pem = join(f.root, 'admin.pem');
+    writeFileSync(pem, readFileSync(join(f.root, 'server.key')) + readFileSync(f.cert), { mode: 0o600 });
+    const grant = join(f.root, 'grant.json');
+    writeFileSync(grant, JSON.stringify({ role: 'reader', audience_url: f.gateway + '/' }));
+    for (const op of ['issue', 'enroll', 'rotate', 'renew', 'revoke', 'list', 'approve']) {
+      const output = join(f.root, op + '.secret');
+      const args = ['token', op, ...(op === 'approve' ? ['ABCD-EFGH'] : []),
+        '--gateway', f.gateway, '--ca-file', f.cert, '--client-pem', pem, '--json'];
+      if (['issue', 'enroll', 'approve'].includes(op)) args.push('--grant-file', grant);
+      else args.push('--project', 'fixture');
+      if (['rotate', 'renew', 'revoke'].includes(op)) args.push('--hash', 'a'.repeat(12));
+      if (op === 'renew') args.push('--deadline-ms', '1800000000000');
+      if (['issue', 'enroll', 'rotate'].includes(op)) args.push('--output-file', output);
+      const result = await f.cli(args);
+      assert.equal(result.status, 9, result.stderr || result.stdout);
+      assert.match(result.stdout + result.stderr, /ontology-cli@0\.3\.0/);
+      assert.equal(existsSync(output), false);
+      assert.equal(f.state.adminRequests.length, 0);
+      assert(f.seen.every(path => path === '/v1/meta'));
+    }
+    assert.equal(f.seen.length, 7);
+  }
+});
