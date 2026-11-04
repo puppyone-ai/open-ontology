@@ -15,6 +15,8 @@ use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
 mod c5;
 mod epoch;
+#[cfg(feature = "mysql-binlog")]
+mod handoff;
 mod log_sync;
 mod sync;
 
@@ -204,6 +206,47 @@ async fn run_engine<E: SourceEngine>(
     Ok(())
 }
 
+fn mysql_engine(
+    source: &Source,
+    store: &SecretStore,
+    opts: &BTreeMap<String, String>,
+) -> Result<oo_connectors::mysql::engine::MysqlEngine, String> {
+    use oo_connectors::mysql::{
+        MysqlConfig,
+        engine::{EngineOptions, MysqlEngine},
+    };
+    let ca = source.tls_ca.as_ref().ok_or("source_tls_required")?;
+    // Validate the owner-private reference before passing its path to the driver.
+    store.read(&ca.secret_ref)?;
+    let root = opts
+        .get("--secrets-dir")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
+                .join(".config/open-ontology/secrets")
+        });
+    let config = MysqlConfig {
+        mysql_host: source.host.clone(),
+        mysql_port: source.port,
+        mysql_database: source.database.clone(),
+        mysql_user: source.user.clone(),
+        mysql_ca_file: root.join(&ca.secret_ref),
+        mysql_tls_server_name: None,
+        secret_ref: SecretRef::new(format!("secret://{}", source.password.secret_ref))
+            .map_err(|e| e.to_string())?,
+        connect_timeout_ms: 10000,
+    };
+    let engine = MysqlEngine::new(
+        config,
+        zeroize::Zeroizing::new(store.read(&source.password.secret_ref)?),
+        EngineOptions {
+            source_id: source.id.clone(),
+            ..Default::default()
+        },
+    );
+    Ok(engine)
+}
+
 async fn execute() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
     let mut opts = BTreeMap::new();
@@ -214,6 +257,7 @@ async fn execute() -> Result<(), String> {
                 [--secrets-dir DIR] [--chunk-rows N] [--oracle-worker EXECUTABLE]\n\
                 [--sync FILE] Explicit epoch-bound C1; MySQL requires mysql-binlog; Oracle requires opt-in.\n\
                 [--c5 FILE] PostgreSQL/MySQL/Oracle C5 range cycle over an existing snapshot.\n\
+                [--handoff FILE] Atomic MySQL multi-source C5-to-C1 repair (mysql-binlog feature).\n\
                 Target JSON requires run_id and password.secret_ref. Same run_id resumes; new run_id refreshes.\n\
                 Local table publication only; not Gateway publication. See tools/oo-load/README.md."
             );
@@ -229,6 +273,7 @@ async fn execute() -> Result<(), String> {
             "--oracle-worker",
             "--sync",
             "--c5",
+            "--handoff",
         ]
         .contains(&key.as_str())
             || opts.contains_key(&key)
@@ -246,7 +291,12 @@ async fn execute() -> Result<(), String> {
         .iter()
         .find(|s| Some(&s.id) == opts.get("--source"))
         .ok_or("source_required")?;
-    if opts.contains_key("--sync") && opts.contains_key("--c5") {
+    if ["--sync", "--c5", "--handoff"]
+        .iter()
+        .filter(|k| opts.contains_key(**k))
+        .count()
+        > 1
+    {
         return Err("sync_modes_conflict".into());
     }
     if source.ssh.is_some() {
@@ -266,6 +316,21 @@ async fn execute() -> Result<(), String> {
         if budget.max_chunk_rows == 0 || budget.max_chunk_rows > 100_000 {
             return Err("chunk_rows".into());
         }
+    }
+    if let Some(_path) = opts.get("--handoff") {
+        #[cfg(feature = "mysql-binlog")]
+        return handoff::run(
+            &stack.sources,
+            source,
+            &target,
+            &store,
+            &budget,
+            &opts,
+            serde_json::from_slice(&read(_path)?).map_err(|_| "handoff_config")?,
+        )
+        .await;
+        #[cfg(not(feature = "mysql-binlog"))]
+        return Err("mysql_binlog_feature_required".into());
     }
     let password = store.read(&source.password.secret_ref)?;
     match source.engine.as_str() {
@@ -410,39 +475,7 @@ async fn execute() -> Result<(), String> {
             run_engine(&mut engine, source, &tables, &target, &store, &budget).await
         }
         "mysql" => {
-            use oo_connectors::mysql::{
-                MysqlConfig,
-                engine::{EngineOptions, MysqlEngine},
-            };
-            let ca = source.tls_ca.as_ref().ok_or("source_tls_required")?;
-            // Validate the owner-private reference before passing its path to the driver.
-            store.read(&ca.secret_ref)?;
-            let root = opts
-                .get("--secrets-dir")
-                .map(PathBuf::from)
-                .unwrap_or_else(|| {
-                    PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
-                        .join(".config/open-ontology/secrets")
-                });
-            let config = MysqlConfig {
-                mysql_host: source.host.clone(),
-                mysql_port: source.port,
-                mysql_database: source.database.clone(),
-                mysql_user: source.user.clone(),
-                mysql_ca_file: root.join(&ca.secret_ref),
-                mysql_tls_server_name: None,
-                secret_ref: SecretRef::new(format!("secret://{}", source.password.secret_ref))
-                    .map_err(|e| e.to_string())?,
-                connect_timeout_ms: 10000,
-            };
-            let mut engine = MysqlEngine::new(
-                config,
-                zeroize::Zeroizing::new(password),
-                EngineOptions {
-                    source_id: source.id.clone(),
-                    ..Default::default()
-                },
-            );
+            let mut engine = mysql_engine(source, &store, &opts)?;
             if let Some(_path) = opts.get("--sync") {
                 #[cfg(feature = "mysql-binlog")]
                 return log_sync::mysql(

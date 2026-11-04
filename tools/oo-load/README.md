@@ -188,10 +188,79 @@ Byte meters count committed logical staged/delta/tombstone tuples, excluding
 indexes, WAL and control metadata. The test runner separately measures total
 target relation bytes across no-change cycles.
 
-MySQL `mysql-binlog`, Oracle opt-in LogMiner, durable engine-specific C5
-checkpoint adapters, and multi-source/multi-binding handoff are not integrated
-into these commands. Unsupported engines fail rather than falling back to
-snapshots. This delivery does not close the M-S2 card or the S2 sprint.
+MySQL and Oracle use the same durable C5 checkpoint boundary. Oracle C5 never
+starts LogMiner. MySQL persists server UUID; Oracle persists DBID/resetlogs.
+The coordinator rechecks these before confirming a cycle. Numeric file cursors
+are used for MySQL C1, even when the server enables GTIDs; this loader does not
+compare GTID sets. Unsupported modes fail rather than falling back to snapshots.
+
+Build MySQL C1 explicitly (it is not in the default artifact):
+
+```sh
+cargo build --manifest-path tools/oo-load/Cargo.toml --locked --features mysql-binlog
+```
+
+MySQL `--sync` configuration:
+
+```json
+{
+  "initial_position": {"kind":"mysql_file_pos","file":"bin.000001","position":4},
+  "source_epoch": "server-uuid-from-the-aligned-baseline",
+  "baseline_aligned": true,
+  "max_batches": 100,
+  "server_id": 42,
+  "longest_cycle_seconds": 28800,
+  "recovery_seconds": 3600
+}
+```
+
+The initial epoch/position must belong to an already aligned baseline, not
+the time this command is invoked. Retention is checked against actual binlog
+history. The client server ID must be unique and distinct from the server.
+Prefer the repair handoff below over a manual alignment assertion.
+
+Oracle `--sync` additionally requires `oracle_logminer_opt_in: true`,
+`initial_position: {"kind":"oracle_scn","scn":...}` and a `mining` object with
+`service`, `user`, and `password.secret_ref`. Use a common user on the matching
+root service for CDB sources, and the thick worker for 11g. D11a applies:
+Oracle may write its own SYS/SYSTEM LogMiner session objects internally; this
+is not the default C5 path and is not a source-wide zero-write claim.
+The current engine rejects SCNs preceding its new reader session with
+`logminer_session_rebaseline`. The one-shot CLI cannot yet resume such an
+Oracle C1 session safely; do not bypass this guard or replace the cursor with
+the current SCN. C1 integration is not Oracle T2 acceptance.
+
+### MySQL C5-to-C1 Handoff
+
+`--handoff FILE` uses the complete explicit table scopes of all listed stack
+sources. `--source` must name the first member; `--tables` overrides are refused.
+All members share this invocation's target Agent DB.
+
+```json
+{
+  "sources": [
+    {"source":"first_source","server_id":42},
+    {"source":"second_source","server_id":43}
+  ],
+  "max_keys":100000,
+  "max_bytes":33554432,
+  "required_history_seconds":32400
+}
+```
+
+Subscribe before reading, repair every member through its L_end with log
+priority/tombstones, then atomically publish all baselines and durable C1
+positions in one outer target transaction. A failed member rolls back the
+whole switch. Epoch and retained-file boundaries are rechecked before commit.
+The output positions/epochs can seed subsequent `--sync` configurations.
+Use a new target run ID; a previously successful handoff is not replayed as
+another snapshot. Resume via C1 instead.
+
+This bounded prototype admits up to 16 sources and 100,000 keys / 32 MiB
+repair state per source; each final table must also fit the supplied chunk
+budget. Exceeding a budget fails explicitly, without partial publication.
+It is not an unbounded disk-spooled bootstrap or cross-source snapshot claim.
+Only local Agent DB views are published.
 
 Validation entry points (all create only labelled, owned fixtures):
 
