@@ -51,7 +51,30 @@ class Tests(unittest.TestCase):
             result=lifecycle.main(self.request)
         self.assertEqual(result['services'][0]['Status'],'succeeded')
         self.assertFalse(result['healthy'])
-        self.assertEqual(result['publication'],'not_published')
+        self.assertEqual(result['publication'],'unmeasured')
+
+    def test_seven_healthy_requires_measured_completed_cycle(self):
+        self.request['action']='status'
+        rows=[{'Service':name,'State':'running','Health':'healthy'} for name in
+              ('agent-db','control-db','gateway','worker','scheduler','model-egress')]
+        rows.append({'Service':'builder','State':'exited','ExitCode':0})
+        def docker(args,env):
+            return json.dumps(rows).encode() if '--format' in args and 'ps' in args else b''
+        history={'schedule_status':'measured','last_success':'2026-11-04T01:00:00.000Z',
+                 'last_failure':None,'next_due':'2026-11-04T02:00:00.000Z'}
+        with patch.object(lifecycle,'docker',side_effect=docker), patch.object(
+                lifecycle,'health',return_value={'status':'measured'}), patch.object(
+                lifecycle,'control_status',return_value=history):
+            self.assertTrue(lifecycle.main(self.request)['healthy'])
+            for key,value in [('next_due',None),('last_success',None),
+                              ('last_failure','2026-11-04T01:30:00.000Z'),
+                              ('schedule_status','unavailable')]:
+                old=history[key]
+                history[key]=value
+                self.assertFalse(lifecycle.main(self.request)['healthy'])
+                history[key]=old
+            rows[-1]['State']='running'
+            self.assertFalse(lifecycle.main(self.request)['healthy'])
 
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory(dir=HERE.parents[1]/'evidence')
@@ -116,6 +139,17 @@ class Tests(unittest.TestCase):
         self.assertEqual(args[1:5],['exec','-T','control-db','psql'])
         self.assertIn('READ ONLY',args[-1])
         self.assertIn('SET LOCAL ROLE oo_jobs_runtime',args[-1])
+
+    def test_retained_status_excludes_other_successful_job_kinds(self):
+        self.schedule()
+        path=self.root/'work/operator/schedule.json'
+        config=json.loads(path.read_text())
+        config['cycle']={}
+        lifecycle.write(path,json.dumps(config).encode())
+        with patch.object(lifecycle,'docker',return_value=b'{"last_success":null,"last_failure":null,"next_due":null}') as call:
+            lifecycle.control_status(self.root,['compose'],{})
+        sql=call.call_args.args[0][-1]
+        self.assertEqual(sql.count("kind='lite_retained'"),3)
 
     def test_control_errors_do_not_fall_back_to_saved_success(self):
         self.schedule()

@@ -1,0 +1,146 @@
+{
+  "todo": "S4-M-01",
+  "card": "M-S4f",
+  "exit": "single-source coherent-retained-run scheduled acceptance passed",
+  "base": "3ee1ec34e2af665dec6373f060bfe81a947d6166",
+  "engine": "PostgreSQL",
+  "version": "17.11 (Debian 17.11-1.pgdg12+2)",
+  "seven_healthy": true,
+  "scheduled_cycles": [
+    "noop",
+    "data-change"
+  ],
+  "scheduled_model_calls": 0,
+  "continuous_scheduled_queries": 44,
+  "scheduled_query_errors": 0,
+  "semantic_change": "review_required; schedule disabled; previous publication still serves data",
+  "retention": "held cut and current head protected; released fence rows removed transactionally",
+  "timestamps": [
+    {
+      "cycle": "noop",
+      "last_success": "2026-11-04T15:01:56.611Z",
+      "next_due": "2026-11-04T16:01:51.098Z"
+    },
+    {
+      "cycle": "data-change",
+      "last_success": "2026-11-04T15:02:06.925Z",
+      "next_due": "2026-11-04T16:02:01.145Z"
+    }
+  ],
+  "runtime_image": "sha256:dce299e97ada6879e2a333c69be67c4100e0069e3a411670cacb4ff5e6ebfd35",
+  "runtime_scheduler": "work-volume scheduler from this lane; image supplies Rust binaries and Builder dependencies",
+  "initial_model": "deterministic replay transport through real community Builder and owner-review compiler; synthetic decision file, not human review evidence",
+  "tests": {
+    "workspace_check": "passed",
+    "pipeline": {
+      "passed": 351,
+      "ignored": 55
+    },
+    "oo_load": {
+      "passed": 35,
+      "ignored": 7
+    },
+    "oo_cli": {
+      "passed": 68,
+      "ignored": 2
+    },
+    "lite_python": {
+      "passed": 51
+    },
+    "document_checks": 3
+  },
+  "known_limits": [
+    "Initial oo up configuration remains the onboarding lane responsibility.",
+    "Mixed per-table retained runs fail closed; the current publication proof requires one retained run.",
+    "Fixture CA is not the standard oo up bootstrap layout; bootstrap_credentials=invalid is not hidden. Service/job health and token/certificate expiry are independently measured.",
+    "No MySQL or Oracle rerun on this card; no source-real-time or cross-table consistency claim."
+  ],
+  "preserved_failed_runs": {
+    "m-s4f-scheduled-1": "control roles already existed; first replay-count implementation superseded",
+    "m-s4f-scheduled-2": "transient Docker daemon unavailability",
+    "m-s4f-scheduled-3": "no-op requested run was not sealed; fixed retained_run output",
+    "m-s4f-compose-1": "fixture certificate extension path",
+    "m-s4f-compose-2": "docker cp into tmpfs did not expose files to process; fixture uses mounted private files",
+    "m-s4f-compose-3": "missing token lifecycle migration; integration-profile cleanup subsequently completed explicitly"
+  },
+  "shared_patch": "deploy/lite/s4f-shared-docs.patch (not applied)",
+  "cargo_lock_changes": false,
+  "containers_left_running": 0,
+  "evidence": [
+    {
+      "run_id": "m-s4f-prune",
+      "file": "live-result.json",
+      "sha256": "673d68874450b5a9aece2070cfe788a05579fa9ff8a8ba40a2eba25ee6374dbf"
+    },
+    {
+      "run_id": "m-s4f-prune",
+      "file": "retention-result.json",
+      "sha256": "bf47f749c734d4de72be9821ec87aa6918e6d15ebda6fa1e93a65809547de6af"
+    },
+    {
+      "run_id": "m-s4f-scheduled-4",
+      "file": "scheduled-result.json",
+      "sha256": "5c11c9b0867141a73ed7d34b9adf818debb2559553023aa76f0663d8798c488d"
+    },
+    {
+      "run_id": "m-s4f-compose-kind-filter",
+      "file": "compose-result.json",
+      "sha256": "852100a3e3ca739ac3e85aee0499faa86c623ad9a3d7bd3e80418df96ba2c7fa"
+    },
+    {
+      "run_id": "m-s4f-compose-kind-filter",
+      "file": "noop-status.json",
+      "sha256": "1a76faa1908860860cd64b4c5c8d79934fc28a16abc28fc9a9e3f4e8355de86e"
+    },
+    {
+      "run_id": "m-s4f-compose-kind-filter",
+      "file": "data-change-status.json",
+      "sha256": "356c350b746a74e5c3a033fdf8a72951502acdb9fd9acd297307928bd5166275"
+    },
+    {
+      "run_id": "m-s4f-compose-kind-filter",
+      "file": ".oo/lite/work/usage.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run_id": "m-s4f-cycle",
+      "file": "workspace-check-accepted.log",
+      "sha256": "c1af2b7709003020983daceef4882fcbc89ac014e0a2903b692dbb01f588e7ce"
+    },
+    {
+      "run_id": "m-s4f-cycle",
+      "file": "pipeline-tests.log",
+      "sha256": "4939929f756d748f1c6ad18f1f916b008ea224aaede9a227325a430e1909b740"
+    },
+    {
+      "run_id": "m-s4f-cycle",
+      "file": "loader-tests.log",
+      "sha256": "049a8f63fa7732fb8765bb3e23d0cd5ba2a05d841ce5cd9c1ffbbaadc9a059f6"
+    },
+    {
+      "run_id": "m-s4f-cycle",
+      "file": "cli-tests-accepted.log",
+      "sha256": "1b2c359bef57ceca4d76b906cb5ca92e5b6a03270d050511ec0176bc602c941f"
+    },
+    {
+      "run_id": "m-s4f-cycle",
+      "file": "lite-tests-accepted.log",
+      "sha256": "3c8fd4c0b9da3ee8f28964e93d264db7e852e8ff619025b15acf7edddac65f8f"
+    },
+    {
+      "run_id": "m-s4f-cycle",
+      "file": "check-spec.log",
+      "sha256": "341d87269554bd330947a8570481e4c360ca59bafd8bb2f5ee3a36eb444899f7"
+    },
+    {
+      "run_id": "m-s4f-cycle",
+      "file": "check-plan.log",
+      "sha256": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9"
+    },
+    {
+      "run_id": "m-s4f-cycle",
+      "file": "check-v02-plan.log",
+      "sha256": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135"
+    }
+  ]
+}

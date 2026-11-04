@@ -42,9 +42,13 @@ def control_status(root,argv,env):
     if not path.exists():
         return {**empty,'schedule_basis':'control_db','schedule_status':'not_configured'}
     try:
-        project=json.loads(read_private(path))['project']
+        config=json.loads(read_private(path))
+        project=config['project']
         if str(uuid.UUID(project))!=project:
             raise ValueError('LITE_SCHEDULE_PROJECT')
+        task_kind=(" AND e.task_id IN (SELECT id FROM jobs.tasks WHERE kind='lite_retained')"
+                   if 'cycle' in config else '')
+        schedule_kind=" AND kind='lite_retained'" if 'cycle' in config else ''
         # The socket is inside this owned control container, never a source DB.
         # One read-only snapshot; enqueue/fire success is not job completion.
         sql=f"""
@@ -54,15 +58,15 @@ SET LOCAL statement_timeout = '5s';
 SELECT json_build_object(
  'last_success', (SELECT to_char(max(e.occurred_at) AT TIME ZONE 'UTC',
    'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') FROM jobs.task_events e
-   WHERE e.project_id = '{project}'::uuid AND e.to_state = 'succeeded'),
+   WHERE e.project_id = '{project}'::uuid AND e.to_state = 'succeeded'{task_kind}),
  'last_failure', (SELECT to_char(max(e.occurred_at) AT TIME ZONE 'UTC',
    'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') FROM jobs.task_events e
    WHERE e.project_id = '{project}'::uuid
      AND (e.to_state = 'failed' OR
-          (e.from_state = 'running' AND e.to_state = 'queued' AND e.note IS NOT NULL))),
+          (e.from_state = 'running' AND e.to_state = 'queued' AND e.note IS NOT NULL)){task_kind}),
  'next_due', (SELECT to_char(min(next_run_at) AT TIME ZONE 'UTC',
    'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') FROM jobs.schedules
-   WHERE project_id = '{project}'::uuid AND enabled));
+   WHERE project_id = '{project}'::uuid AND enabled{schedule_kind}));
 COMMIT;
 """
         raw=docker(argv+['exec','-T','control-db','psql','-X','-qAt',
@@ -254,8 +258,11 @@ def main(request):
     image=request['image'] if action=='up' else json.loads(read_private(owner))['image']
     if not re.fullmatch(r'(?:[a-zA-Z0-9./:_-]+@)?sha256:[0-9a-f]{64}',image):
         raise ValueError('LITE_IMAGE_DIGEST_REQUIRED')
-    env.update(OO_LITE_STATE=str(root),OO_LITE_RUNTIME_IMAGE=image,OO_LITE_UID=str(os.getuid()),OO_LITE_GID=str(os.getgid()))
     saved=json.loads(read_private(owner)) if owner.exists() else {}
+    lane=saved.get('lane',os.environ.get('OO_LITE_LANE','a'))
+    if not re.fullmatch('[a-z]',lane):raise ValueError('LITE_LANE')
+    env.update(OO_LITE_STATE=str(root),OO_LITE_RUNTIME_IMAGE=image,OO_LITE_UID=str(os.getuid()),
+               OO_LITE_GID=str(os.getgid()),OO_LITE_LANE=lane)
     network=saved.get('subnet')
     if not network:network=subnet(project,env)
     if not ipaddress.ip_network(network).is_private:raise ValueError('LITE_SUBNET')
@@ -264,12 +271,12 @@ def main(request):
     ids=docker(['ps','-aq','--filter','label=com.docker.compose.project='+project],env).decode().split()
     for cid in ids:
         labels=json.loads(docker(['inspect','--format','{{json .Config.Labels}}',cid],env))
-        if labels.get('oo.lane')!='a': raise ValueError('LITE_OWNERSHIP')
+        if labels.get('oo.lane')!=lane: raise ValueError('LITE_OWNERSHIP')
     for kind in ('network','volume'):
         names=docker([kind,'ls','-q','--filter','label=com.docker.compose.project='+project],env).decode().split()
         for name in names:
             labels=json.loads(docker([kind,'inspect','--format','{{json .Labels}}',name],env))
-            if labels.get('oo.lane')!='a':raise ValueError('LITE_OWNERSHIP')
+            if labels.get('oo.lane')!=lane:raise ValueError('LITE_OWNERSHIP')
     if action=='up':
         if owner.exists() and json.loads(read_private(owner))['image']!=image:
             raise ValueError('LITE_IMAGE_CHANGE_REQUIRES_EXPLICIT_MIGRATION')
@@ -294,13 +301,13 @@ def main(request):
             dest=root/('work' if name=='scheduler.py' else '')/name
             write(dest,request['templates'][name].encode())
         write(root/'work/stack.json',json.dumps(request['stack']).encode())
-        write(owner,json.dumps({'project':project,'image':image,'lane':'a','subnet':network}).encode())
+        write(owner,json.dumps({'project':project,'image':image,'lane':lane,'subnet':network}).encode())
         docker(argv+['up','--detach','--wait','--wait-timeout','120'],env)
         operator_bootstrap(root,argv,env,request['stack'])
         provision_retained_login(root,argv,env)
     elif action=='down':
         # Keep database volumes and credentials. No prune, orphan or volume flags.
-        docker(argv+['down'],env)
+        docker(argv+['--profile','integration','down'],env)
     elif action!='status':raise ValueError('LITE_ACTION')
     raw=docker(argv+['ps','--all','--format','json'],env).decode().strip()
     rows=json.loads(raw) if raw.startswith('[') else [json.loads(line) for line in raw.splitlines()]
@@ -312,11 +319,18 @@ def main(request):
     history=({'last_success':None,'last_failure':None,'next_due':None,
               'schedule_basis':'control_db','schedule_status':'stopped'}
              if action=='down' else control_status(root,argv,env))
-    return {'status':'stopped' if action=='down' else 'foundations_only',
+    expected={'agent-db','control-db','model-egress','worker','scheduler','builder','gateway'}
+    measured={row['Service']:row for row in services if row['Service'] in expected}
+    healthy=(action!='down' and set(measured)==expected
+             and all(row['Healthy'] for row in measured.values())
+             and gateway['status']=='measured' and history['schedule_status']=='measured'
+             and history['last_success'] is not None and history['next_due'] is not None
+             and (history['last_failure'] is None or history['last_failure']<history['last_success']))
+    return {'status':'stopped' if action=='down' else 'healthy' if healthy else 'foundations_only',
             'services':services,'gateway_health':gateway,**history,
-            'pending':['worker admission/migrations','scheduler bindings',
+            'pending':[] if healthy else ['worker admission/migrations','scheduler bindings',
                 'Builder target binding and publication','Gateway operator configuration'],
-            'publication':'not_published','healthy':False}
+            'publication':'live' if healthy else 'unmeasured','healthy':healthy}
 
 if __name__=='__main__':
     os.umask(0o077)

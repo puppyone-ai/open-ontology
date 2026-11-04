@@ -4,7 +4,7 @@
 x-runtime: &runtime
   image: ${OO_LITE_RUNTIME_IMAGE:?build the repository runtime and supply its content digest}
   pull_policy: never
-  labels: {oo.lane: a}
+  labels: {oo.lane: "${OO_LITE_LANE:-a}"}
   cap_drop: [ALL]
   security_opt: [no-new-privileges:true]
   read_only: true
@@ -20,7 +20,7 @@ x-runtime: &runtime
 
 x-db: &db
   image: docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
-  labels: {oo.lane: a}
+  labels: {oo.lane: "${OO_LITE_LANE:-a}"}
   entrypoint: [/bin/sh, /ops/postgres.sh]
   cap_drop: [ALL]
   cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
@@ -78,25 +78,40 @@ services:
     entrypoint: [python3, /work/scheduler.py]
     command: [--worker]
     depends_on: {control-db: {condition: service_healthy}}
+    healthcheck:
+      test: [CMD, python3, /work/scheduler.py, --worker, --health]
+      interval: 5s
+      timeout: 5s
+      retries: 3
   scheduler:
     <<: *runtime
     profiles: [integration]
     entrypoint: [python3, /work/scheduler.py]
     depends_on: {control-db: {condition: service_healthy}}
+    healthcheck:
+      test: [CMD, python3, /work/scheduler.py, --health]
+      interval: 5s
+      timeout: 5s
+      retries: 3
   gateway:
     <<: *runtime
     profiles: [integration]
     entrypoint: [oo-gateway, /work/operator/gateway]
     depends_on: {control-db: {condition: service_healthy}, agent-db: {condition: service_healthy}}
+    healthcheck:
+      test: [CMD, python3, /work/scheduler.py, --gateway-health]
+      interval: 5s
+      timeout: 15s
+      retries: 3
 
 volumes:
   agent-data:
-    labels: {oo.lane: a}
+    labels: {oo.lane: "${OO_LITE_LANE:-a}"}
   control-data:
-    labels: {oo.lane: a}
+    labels: {oo.lane: "${OO_LITE_LANE:-a}"}
 networks:
   default:
-    labels: {oo.lane: a}
+    labels: {oo.lane: "${OO_LITE_LANE:-a}"}
     ipam:
       config:
         - subnet: ${OO_LITE_SUBNET:?owned non-overlapping subnet}
