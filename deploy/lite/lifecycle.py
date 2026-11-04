@@ -415,7 +415,9 @@ def provision_retained(root,argv,env,request,port):
         'publisher_config':'/work/operator/publisher.json','gateway_login':DATA_LOGIN,
         'gateway':{'runtime_dir':'/work/operator/gateway','gateway_url':public,
                    'ca_file':'/pki/lite-ca-cert','client_pem':'/pki/lite-admin.pem',
-                   'prompt_ca_file':str(consumer/'ca.crt'),'prompt_client_pem':str(consumer/'client.pem'),
+                   # Remote deployments name the owner's local copies instead.
+                   'prompt_ca_file':(request.get('prompt') or {}).get('ca_file',str(consumer/'ca.crt')),
+                   'prompt_client_pem':(request.get('prompt') or {}).get('client_pem',str(consumer/'client.pem')),
                    'first_user_grant':{'project_id':'lite','principal_id':'owner','role':'oo_r_owner',
                        'claims':{},'policy_version':'draft-v1','knowledge_version':'draft-v1',
                        'audience_url':public,'ttl_ms':7776000000,'purpose':'first build'}}})

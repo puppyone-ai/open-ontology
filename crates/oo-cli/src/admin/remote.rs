@@ -75,6 +75,29 @@ impl Remote {
         command
     }
 
+    /// argv and environment for one fixed remote command over the pinned
+    /// connection (no agent, no secrets in either).
+    fn plain(&self, command: &str) -> (Vec<String>, Vec<(String, String)>) {
+        let mut argv = vec!["ssh".to_owned()];
+        argv.extend(
+            self.options
+                .iter()
+                .map(|o| o.to_string_lossy().into_owned()),
+        );
+        argv.extend(["--".to_owned(), self.host.clone(), command.to_owned()]);
+        let mut env = Vec::new();
+        if let Some(name) = &self.password {
+            let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("oo"));
+            env = vec![
+                ("SSH_ASKPASS".into(), exe.to_string_lossy().into_owned()),
+                ("SSH_ASKPASS_REQUIRE".into(), "force".into()),
+                ("DISPLAY".into(), "oo:0".into()),
+                (ASKPASS.into(), name.clone()),
+            ];
+        }
+        (argv, env)
+    }
+
     /// One agent call. `stream` follows the request line on the same stdin.
     fn call(
         &self,
@@ -504,6 +527,11 @@ pub(super) fn run(action: &str, path: &Path, stack: &Stack) -> Result<Invocation
         private_dir(dir)?;
     }
     let remote = connect(ssh, &state)?;
+    // Credentials are created and inspected here; without an Ed25519-capable
+    // host OpenSSL, use the local pinned runtime image (requires local Docker).
+    let _openssl = (action == "up" || state.join("pki").exists()).then(|| {
+        super::lite::OpensslHelper::start(&state.join("pki"), &super::lite::pinned_image())
+    });
     let mut summary = json!({"host":ssh.host,"port":ssh.port,"user":ssh.user,
         "host_key_sha256":ssh.host_key_sha256,"host_key":"pinned"});
     match action {
@@ -531,6 +559,97 @@ pub(super) fn run(action: &str, path: &Path, stack: &Stack) -> Result<Invocation
     }
 }
 
+/// D16 for `--target ssh`: each phase runs the pinned runtime image on the
+/// remote host (same container as local lite) through the pinned connection;
+/// owner review and the review compiler's caller stay on this host.
+pub(super) fn build(
+    path: &Path,
+    stack: &Stack,
+    resume: bool,
+    json_output: bool,
+    review_file: Option<&Path>,
+    cycle: Option<&str>,
+) -> Result<Invocation, Failure> {
+    use std::io::IsTerminal;
+    let ssh = stack
+        .deploy
+        .ssh
+        .as_ref()
+        .ok_or_else(|| fail("SSH_TARGET_REQUIRED: add deploy.ssh to stack.yaml"))?;
+    let config = fs::canonicalize(path).map_err(|_| fail("ADMIN_CONFIG_IO"))?;
+    let dot = config
+        .parent()
+        .ok_or_else(|| fail("ADMIN_CONFIG_IO"))?
+        .join(".oo");
+    let state = dot.join("ssh");
+    if !state.join("pki").exists() {
+        return Err(fail(
+            "BUILD_LITE_NOT_PROVISIONED: run oo up --target ssh first",
+        ));
+    }
+    let remote = connect(ssh, &state)?;
+    let mut fresh = !resume;
+    let mut run_phase = true;
+    for _ in 0..3 {
+        let reply = checked(remote.call(
+            "build",
+            json!({"fresh":fresh,"run":run_phase,"cycle":cycle}),
+            None,
+        )?)?;
+        fresh = false;
+        run_phase = true;
+        let chain = &reply["chain"];
+        if chain["status"] == "complete" {
+            // Reconcile: arms the scheduled cycle and starts the Gateway.
+            if let Invocation::AdminReport(text, _) = self::run("up", path, stack)? {
+                let up: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
+                if !matches!(up["status"].as_str(), Some("retained_ready" | "healthy")) {
+                    return Err(fail("BUILD_LITE_GATEWAY_SERVICE"));
+                }
+            }
+            let mut out = super::build::report(chain, json_output);
+            if !json_output && let Invocation::AdminReport(text, _) = &mut out {
+                text.push_str("\n\n");
+                text.push_str(
+                    reply["prompt"]
+                        .as_str()
+                        .ok_or_else(|| fail("BUILD_PROMPT_RECEIPT"))?,
+                );
+            }
+            return Ok(out);
+        }
+        let Some(input) = reply.get("review_input").filter(|_| {
+            cycle.is_none()
+                && chain["stages"][2]["status"] == "complete"
+                && chain["stages"][3]["status"] == "blocked"
+        }) else {
+            return Ok(super::build::report(chain, json_output));
+        };
+        if review_file.is_none()
+            && !(std::io::stdin().is_terminal() && std::io::stdout().is_terminal())
+        {
+            let copy = dot.join("review-input.json");
+            if !copy.exists() {
+                super::review::save_new(&copy, input)?;
+            } else if super::review::read(&copy)? != *input {
+                return Err(fail("BUILD_REVIEW_INPUT_CHANGED"));
+            }
+            return Ok(super::build::report(chain, json_output));
+        }
+        let image = super::build_retained::text(&reply, "image")?;
+        let lane = super::lite::lane(Path::new("/nonexistent"));
+        let compiler = super::build_lite::compiler_argv(&lane, None, image)
+            .iter()
+            .map(|a| format!("'{}'", a.replace('\'', "'\\''")))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let (argv, env) = remote.plain(&compiler);
+        let reviewed = super::build_lite::review_on_host(&dot, input, review_file, argv, env)?;
+        checked(remote.call("handoff", json!({"reviewed":reviewed}), None)?)?;
+    }
+    Err(fail("BUILD_LITE_NO_PROGRESS"))
+}
+
 fn report(reply: Value, summary: Value, state: &Path) -> Result<Invocation, Failure> {
     let mut out = reply["lifecycle"].clone();
     if !out.is_object() {
@@ -545,11 +664,15 @@ fn report(reply: Value, summary: Value, state: &Path) -> Result<Invocation, Fail
             Err(_) => json!({"status":"invalid","nearest_credential_expiry":null}),
         };
     }
-    // Same contract as local lite: anything short of a healthy stack exits 1.
+    // Same contract as local lite: provisioned for `oo build` (retained_ready)
+    // or healthy exits 0; anything else exits 1.
     let code = if out["status"] == "not_started" {
         0
     } else {
-        u8::from(out["healthy"] != true || reply["lifecycle_exit"] != 0)
+        u8::from(
+            !(out["healthy"] == true || out["status"] == "retained_ready")
+                || reply["lifecycle_exit"] != 0,
+        )
     };
     Ok(Invocation::AdminReport(out.to_string(), code))
 }
@@ -606,7 +729,28 @@ fn up(
     let compose = COMPOSE.replace(&format!("image: {pinned}"), &format!("image: {postgres}"));
     let pki = state.join("pki");
     oo_stack::credentials::bootstrap(&pki).map_err(Failure::local)?;
+    oo_stack::credentials::workload_identity(&pki, "consumer").map_err(Failure::local)?;
     let bootstrap = oo_stack::secret::SecretStore::open(&pki).map_err(Failure::local)?;
+    // The owner's CLI reaches the remote Gateway with its own local copies.
+    let consumer = state.join("consumer");
+    private_dir(&consumer)?;
+    for (name, parts) in [
+        ("ca.crt", &["lite-ca-cert"][..]),
+        (
+            "client.pem",
+            &["lite-consumer-cert", "lite-consumer-key"][..],
+        ),
+    ] {
+        let mut bytes = Vec::new();
+        for part in parts {
+            bytes.extend(bootstrap.read(part).map_err(Failure::local)?.into_bytes());
+        }
+        let path = consumer.join(name);
+        if fs::read(&path).ok().as_deref() != Some(&bytes[..]) {
+            write_private(&path, &bytes)?;
+        }
+    }
+    let text = |path: PathBuf| path.to_string_lossy().into_owned();
     let mut files = serde_json::Map::new();
     for entry in fs::read_dir(&pki).map_err(|_| fail("SSH_STATE_PKI"))? {
         let name = entry
@@ -630,6 +774,8 @@ fn up(
         "install",
         json!({"stack":remote_stack,"image":runtime,"pki":files,"secrets":secrets,
             "templates":{"compose.yaml":compose,"postgres.sh":POSTGRES_SH,"scheduler.py":SCHEDULER},
+            "retained":true,"jobs":super::lite::jobs(),
+            "prompt":{"ca_file":text(consumer.join("ca.crt")),"client_pem":text(consumer.join("client.pem"))},
             "lifecycle":LIFECYCLE,"agent":AGENT,"scope":probe["scope"],"python3":probe["python3"],
             "interval_seconds":interval}),
         None,

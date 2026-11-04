@@ -80,12 +80,7 @@ pub(super) fn run(
         "scheduler.py":include_str!("../../../../deploy/lite/scheduler.py"),
     },
     // Control-DB jobs schema for the scheduled cycle, armed after the first build.
-    "jobs":{
-        "0000_bootstrap_roles.sql":include_str!("../../../oo-jobs/migrations/0000_bootstrap_roles.sql"),
-        "0001_jobs_control_expand.sql":include_str!("../../../oo-jobs/migrations/0001_jobs_control_expand.sql"),
-        "0002_event_project_binding_expand.sql":include_str!("../../../oo-jobs/migrations/0002_event_project_binding_expand.sql"),
-        "0003_job_lease_operations_expand.sql":include_str!("../../../oo-jobs/migrations/0003_job_lease_operations_expand.sql"),
-    }});
+    "jobs":jobs()});
     let mut child = Command::new("python3")
         .args(["-c", include_str!("../../../../deploy/lite/lifecycle.py")])
         .stdin(Stdio::piped())
@@ -118,6 +113,16 @@ pub(super) fn run(
         report.to_string(),
         if out.status.success() { 0 } else { 1 },
     ))
+}
+
+/// Control-DB jobs migrations for the scheduled retained cycle.
+pub(super) fn jobs() -> Value {
+    json!({
+        "0000_bootstrap_roles.sql":include_str!("../../../oo-jobs/migrations/0000_bootstrap_roles.sql"),
+        "0001_jobs_control_expand.sql":include_str!("../../../oo-jobs/migrations/0001_jobs_control_expand.sql"),
+        "0002_event_project_binding_expand.sql":include_str!("../../../oo-jobs/migrations/0002_event_project_binding_expand.sql"),
+        "0003_job_lease_operations_expand.sql":include_str!("../../../oo-jobs/migrations/0003_job_lease_operations_expand.sql"),
+    })
 }
 
 /// The runtime image this installation is pinned to (empty when absent).
@@ -165,10 +170,10 @@ pub(super) fn user(root: &Path) -> Result<String, Failure> {
 /// Lite credentials use Ed25519, which macOS LibreSSL cannot create or read.
 /// Without a capable host `openssl`, run OpenSSL from the pinned runtime image
 /// (D16: no host helpers), seeing only the credential directory at its path.
-struct OpensslHelper(Option<String>);
+pub(super) struct OpensslHelper(Option<String>);
 
 impl OpensslHelper {
-    fn start(pki: &Path, image: &str) -> Result<Self, Failure> {
+    pub(super) fn start(pki: &Path, image: &str) -> Result<Self, Failure> {
         if oo_stack::credentials::host_openssl_supports_ed25519() {
             return Ok(Self(None));
         }

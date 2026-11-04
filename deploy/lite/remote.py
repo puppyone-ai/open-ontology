@@ -309,8 +309,12 @@ def install(request, _stdin):
         owner = ROOT / 'owner.json'
         project = json.loads(read_private(owner))['project'] if owner.exists() else None
         before = project_containers(project) if project else {}
-        report, code = lifecycle('up', {'stack': request['stack'], 'image': request['image'],
-                                        'templates': request['templates']})
+        body = {'stack': request['stack'], 'image': request['image'], 'templates': request['templates']}
+        # D16: the CLI asks for the retained build chain; prompt paths are its own.
+        for key in ('retained', 'jobs', 'prompt'):
+            if key in request:
+                body[key] = request[key]
+        report, code = lifecycle('up', body)
         project = json.loads(read_private(owner))['project'] if owner.exists() else None
         after = project_containers(project) if project else {}
         if before != after:
@@ -443,10 +447,12 @@ def cycle():
                    OO_LITE_UID=str(os.getuid()), OO_LITE_GID=str(os.getgid()),
                    OO_LITE_SUBNET=owner['subnet'])
         env.setdefault('PATH', '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin')
+        # One enqueue and one claim through the scheduler's own functions; the
+        # worker's volume lock keeps this from overlapping the worker service.
         code = ('import json,sys;sys.path.insert(0,"/work");import scheduler;'
                 'c=json.load(open("/work/operator/schedule.json"));'
-                'r=[scheduler.dispatch(c["project"]),scheduler.dispatch(c["project"],True)];'
-                'print(json.dumps(r));sys.exit(max(x["dispatch_exit_code"] for x in r))')
+                'scheduler.fire(c);r=scheduler.work(c);print(json.dumps(r));'
+                'sys.exit(1 if r.get("stage") in ("failed","review_required") else 0)')
         p = run(['docker', 'compose', '--project-name', owner['project'], '--file', str(ROOT / 'compose.yaml'),
                  'run', '--rm', '--no-deps', '--entrypoint', 'python3', 'scheduler', '-c', code], 3600, env=env)
         result = {'status': 'dispatched' if p.returncode == 0 else 'failed', 'at': at,
@@ -458,8 +464,97 @@ def cycle():
         os.close(fd)
 
 
+BUILD_SECONDS = 4 * 3600
+
+
+def service_id(project, service):
+    raw = run(['docker', 'ps', '-q', '--filter', 'label=com.docker.compose.project=' + project,
+               '--filter', 'label=com.docker.compose.service=' + service,
+               '--filter', 'status=running']).stdout.decode().split()
+    return raw[0] if len(raw) == 1 else None
+
+
+def build_state(cycle):
+    state = ROOT / 'work/build/.oo'
+    chain = (state / 'cycles' / cycle / 'chain.json') if cycle else state / 'chain.json'
+    return state, chain
+
+
+def build(request, _stdin):
+    """One phase of the runtime build (D16), the same container as local lite."""
+    cycle = request.get('cycle')
+    if cycle is not None and not re.fullmatch('[A-Za-z0-9-]{1,100}', cycle):
+        raise Refused('REMOTE_BUILD_CYCLE')
+    if not (ROOT / 'work/operator/build-runtime.json').exists():
+        raise Refused('BUILD_LITE_NOT_PROVISIONED')
+    owner = json.loads(read_private(ROOT / 'owner.json'))
+    project, image, lane = owner['project'], owner['image'], owner.get('lane', 'a')
+    state, chain = build_state(cycle)
+    if request.get('fresh') and chain.exists():
+        raise Refused('BUILD_EXISTS_USE_RESUME')
+    if request.get('run', True):
+        name = project + '-build'
+        # A disconnected client leaves its phase running; never start a second.
+        p = run(['docker', 'inspect', '--format', '{{.State.Running}}', name])
+        if p.returncode == 0:
+            if p.stdout.startswith(b'true'):
+                run(['docker', 'wait', name], BUILD_SECONDS)
+            run(['docker', 'rm', '-f', name])
+        if not service_id(project, 'agent-db'):
+            raise Refused('BUILD_LITE_SERVICE_NOT_RUNNING')
+        gateway = service_id(project, 'gateway')
+        argv = ['docker', 'run', '--rm', '--name', name, '--label', 'oo.lane=' + lane,
+                '--label', 'oo.lite.project=' + project,
+                '--network', 'container:' + gateway if gateway else project + '_default',
+                '--user', f'{os.getuid()}:{os.getgid()}', '--read-only', '--tmpfs', '/tmp',
+                '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
+                '--memory', '2g', '--pids-limit', '512',
+                '--volume', f'{ROOT}/work:/work', '--volume', f'{ROOT}/home:/home/oo:ro',
+                '--volume', f'{ROOT}/pki:/pki:ro', '--env', 'HOME=/home/oo',
+                '--env', 'PYTHONDONTWRITEBYTECODE=1', '--entrypoint', 'oo', image,
+                'build', '--config', '/work/build/stack.json', '--json',
+                '--agent-target', '/work/operator/target.json',
+                '--runtime-config', '/work/operator/build-runtime.json']
+        if not request.get('fresh'):
+            argv.append('--resume')
+        if cycle:
+            argv += ['--cycle', cycle]
+        p = run(argv, BUILD_SECONDS)
+        if p.returncode > 1:
+            raise Refused('BUILD_RUNTIME_FAILED')
+    reply = {'chain': json.loads(read_private(chain)), 'image': image}
+    if reply['chain'].get('status') == 'complete':
+        receipt = state / 'share_prompt-receipt.json'
+        reply['prompt'] = json.loads(read_private(receipt))['result']['prompt']
+    elif not cycle and (state / 'review-input.json').exists() and not (state / 'reviewed-registry.json').exists():
+        reply['review_input'] = json.loads(read_private(state / 'review-input.json'))
+    return reply
+
+
+def handoff(request, _stdin):
+    """Accept the owner's locally reviewed registry; the runtime verifies it."""
+    state, _ = build_state(None)
+    data = json.dumps(request['reviewed']).encode()
+    path = state / 'reviewed-registry.json'
+    if path.exists():
+        if json.loads(read_private(path)) != request['reviewed']:
+            raise Refused('BUILD_REVIEW_INPUT_CHANGED')
+    else:
+        put(path, data, [])
+    owner = json.loads(read_private(ROOT / 'owner.json'))
+    agent = service_id(owner['project'], 'agent-db')
+    if not agent:
+        raise Refused('BUILD_LITE_SERVICE_NOT_RUNNING')
+    sql = b'GRANT EXECUTE ON FUNCTION _oo.native_library_retained_table(text) TO "oo_gateway_login";\n'
+    p = run(['docker', 'exec', '-i', agent, 'psql', '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres'],
+            60, input=sql)
+    if p.returncode:
+        raise Refused('BUILD_LITE_RETAINED_GRANT')
+    return {'handed_off': True}
+
+
 ACTIONS = {'probe': probe, 'images': images, 'load': load, 'pull': pull,
-           'install': install, 'status': status, 'down': down}
+           'install': install, 'status': status, 'down': down, 'build': build, 'handoff': handoff}
 
 
 def serve():

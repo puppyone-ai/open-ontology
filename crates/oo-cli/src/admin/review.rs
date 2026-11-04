@@ -313,18 +313,22 @@ fn decide(screen: &mut Screen, item: &Item) -> Result<Decision> {
     }
 }
 
-static COMPILER: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+type Compiler = (Vec<String>, Vec<(String, String)>);
+static COMPILER: std::sync::OnceLock<Compiler> = std::sync::OnceLock::new();
 
-/// Run the review compiler through `argv` (the deployed runtime image) rather
-/// than a `selfbuild-budget` beside `oo`. Review itself stays on this host.
-pub(super) fn use_compiler(argv: Vec<String>) -> bool {
-    !argv.is_empty() && COMPILER.set(argv).is_ok()
+/// Run the review compiler through `argv` (the deployed runtime image, locally
+/// or over the pinned SSH connection) rather than a `selfbuild-budget` beside
+/// `oo`. Review itself stays on this host. `env` holds no secret values.
+pub(super) fn use_compiler(argv: Vec<String>, env: Vec<(String, String)>) -> bool {
+    !argv.is_empty() && COMPILER.set((argv, env)).is_ok()
 }
 
 fn bridge(request: &Value) -> Result<Value> {
-    let mut command = if let Some(argv) = COMPILER.get() {
+    let mut command = if let Some((argv, env)) = COMPILER.get() {
         let mut command = Command::new(&argv[0]);
-        command.args(&argv[1..]);
+        command
+            .args(&argv[1..])
+            .envs(env.iter().map(|(k, v)| (k, v)));
         command
     } else {
         let exe = std::env::current_exe().map_err(|_| Failure::local("REVIEW_COMPILER_INSTALL"))?;

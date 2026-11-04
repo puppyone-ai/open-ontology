@@ -218,13 +218,15 @@ fn phase(
 }
 
 /// Owner review on this host, on the input copied out of the runtime.
-fn owner_review(
-    deployment: &Deployment,
+/// Owner review on this host, on the review input copied out of a runtime;
+/// `compiler` runs the review compiler from that runtime image.
+pub(super) fn review_on_host(
     base: &Path,
-    state: &Path,
+    input: &Value,
     review_file: Option<&Path>,
-) -> Result<()> {
-    let input = review::read(&state.join("review-input.json"))?;
+    compiler: Vec<String>,
+    env: Vec<(String, String)>,
+) -> Result<Value> {
     let host = base.join("review");
     fs::DirBuilder::new()
         .mode(0o700)
@@ -233,43 +235,64 @@ fn owner_review(
         .map_err(|_| Failure::local("BUILD_STATE_DIRECTORY"))?;
     let copy = host.join("review-input.json");
     if copy.exists() {
-        if review::read(&copy)? != input {
+        if review::read(&copy)? != *input {
             return Err(Failure::local("BUILD_REVIEW_INPUT_CHANGED"));
         }
     } else {
-        review::save_new(&copy, &input)?;
+        review::save_new(&copy, input)?;
     }
-    let compiler = ["docker", "run", "--rm", "--interactive"]
-        .into_iter()
-        .map(str::to_owned)
-        .chain([
-            "--network".into(),
-            "none".into(),
-            "--label".into(),
-            format!("oo.lane={}", deployment.lane),
-            "--read-only".into(),
-            "--cap-drop".into(),
-            "ALL".into(),
-            "--security-opt".into(),
-            "no-new-privileges:true".into(),
-            "--user".into(),
-            deployment.user.clone(),
-            "--entrypoint".into(),
-            "selfbuild-budget".into(),
-            deployment.image.clone(),
-        ])
-        .collect();
-    review::use_compiler(compiler);
+    review::use_compiler(compiler, env);
     let output = host.join("reviewed-registry.json");
     let reviewed = if output.exists() {
         review::read(&output)?
     } else {
-        review::review(&input, review_file, &output)?
+        review::review(input, review_file, &output)?
     };
     if reviewed["status"] != "reviewed" || reviewed["compiled"].is_null() {
         return Err(Failure::local("BUILD_REVIEW_REJECTED"));
     }
-    review::verify_handoff(&input, &reviewed)?;
+    review::verify_handoff(input, &reviewed)?;
+    Ok(reviewed)
+}
+
+/// The runtime's review compiler: no network, no capabilities, stdin only.
+pub(super) fn compiler_argv(lane: &str, user: Option<&str>, image: &str) -> Vec<String> {
+    let mut argv: Vec<String> = [
+        "docker",
+        "run",
+        "--rm",
+        "--interactive",
+        "--network",
+        "none",
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges:true",
+    ]
+    .map(str::to_owned)
+    .to_vec();
+    argv.extend(["--label".into(), format!("oo.lane={lane}")]);
+    if let Some(user) = user {
+        argv.extend(["--user".into(), user.to_owned()]);
+    }
+    argv.extend([
+        "--entrypoint".into(),
+        "selfbuild-budget".into(),
+        image.to_owned(),
+    ]);
+    argv
+}
+
+fn owner_review(
+    deployment: &Deployment,
+    base: &Path,
+    state: &Path,
+    review_file: Option<&Path>,
+) -> Result<()> {
+    let input = review::read(&state.join("review-input.json"))?;
+    let compiler = compiler_argv(&deployment.lane, Some(&deployment.user), &deployment.image);
+    let reviewed = review_on_host(base, &input, review_file, compiler, vec![])?;
     let handoff = state.join("reviewed-registry.json");
     if !handoff.exists() {
         review::save_new(&handoff, &reviewed)?;

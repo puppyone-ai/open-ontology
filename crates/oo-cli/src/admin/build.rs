@@ -139,10 +139,8 @@ pub(super) fn run(
                 "ADMIN_ARGUMENT: --review-input is a developer override; deployments copy review input out of the runtime",
             ));
         }
-        if stack.deploy.target != "local" {
-            return Err(Failure::local(
-                "BUILD_REMOTE_RUNTIME_NOT_IMPLEMENTED: oo build for --target ssh deployments is not yet available",
-            ));
+        if stack.deploy.target == "ssh" {
+            return super::remote::build(config, stack, resume, json_output, review_file, cycle);
         }
         return super::build_lite::run(config, stack, resume, json_output, review_file, cycle);
     }

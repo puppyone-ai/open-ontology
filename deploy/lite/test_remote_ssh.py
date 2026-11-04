@@ -222,8 +222,9 @@ def run_platform(arch, run_id, binary, images, offline, password_case, keep=Fals
         assert target.exec('test', '-e', '/root/.open-ontology', check=False).returncode == 1
         results['host_key_mismatch'] = 'refused before any remote write; offered key reported'
 
-        up = oo('up', 'up', good, 1)
-        assert up['status'] == 'foundations_only' and up['healthy'] is False, up
+        # D16: up also provisions the retained build chain (exit 0, retained_ready).
+        up = oo('up', 'up', good, 0)
+        assert up['status'] == 'retained_ready' and up['healthy'] is False, up
         assert up['target'] == 'ssh' and up['remote']['arch'] == arch
         assert {r['Service'] for r in up['services']} == {'agent-db', 'control-db', 'model-egress'}
         assert all(r['Healthy'] for r in up['services']), up['services']
@@ -248,7 +249,7 @@ def run_platform(arch, run_id, binary, images, offline, password_case, keep=Fals
         before = target.snapshot()
         (out / 'containers-before.txt').write_text(before)
 
-        again = oo('up-again', 'up', good, 1)
+        again = oo('up-again', 'up', good, 0)
         assert again['remote']['noop'] is True and again['remote']['changed'] == [], again['remote']
         assert all(t['transfer'] == 'present' for t in again['remote']['images'])
         after = target.snapshot()
@@ -258,8 +259,8 @@ def run_platform(arch, run_id, binary, images, offline, password_case, keep=Fals
         results['rerun'] = 'noop: no transfer, no file/unit/container change, credentials unchanged'
 
         target.exec('systemctl', 'start', 'open-ontology-lite-cycle.service')
-        status = oo('status', 'status', good, 1)
-        assert status['status'] == 'foundations_only'
+        status = oo('status', 'status', good, 0)
+        assert status['status'] == 'retained_ready'
         assert all(r['Healthy'] for r in status['services'])
         assert status['gateway_health']['status'] == 'unavailable'
         assert status['remote']['timer']['last_cycle']['status'] == 'not_configured'
@@ -273,8 +274,8 @@ def run_platform(arch, run_id, binary, images, offline, password_case, keep=Fals
                              'last_cycle': status['remote']['timer']['last_cycle']['status']}
         if password_case:
             pw = config('stack-password.json', password={'secret_ref': 'root-password'}, host_key_sha256=pin)
-            via = oo('status-password', 'status', pw, 1)
-            assert via['status'] == 'foundations_only' and all(r['Healthy'] for r in via['services'])
+            via = oo('status-password', 'status', pw, 0)
+            assert via['status'] == 'retained_ready' and all(r['Healthy'] for r in via['services'])
             results['password_auth'] = 'status over password authentication via SSH_ASKPASS file reference'
 
         journal = target.exec('sh', '-c', 'journalctl --no-pager -o cat > /tmp/j; '
