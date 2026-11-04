@@ -29,6 +29,8 @@ class GoldFixture(cycles.Live):
         self.run.secret = self.db.password  # Shared logger redacts the fixture DB password.
         self.command_seq = 0
         self.cli_env = dict(os.environ, OO_CONFIG_DIR=str(self.root / "client"))
+        self.identity = {"project_id": "f22", "principal_id": "alice", "role": "oo_r_f22",
+                         "policy_version": "pv1", "knowledge_version": "kv1"}
 
     def source_sql(self, sql):
         result = super().source_sql(sql)
@@ -218,7 +220,7 @@ class GoldFixture(cycles.Live):
         self.base_catalog["envelope"]["output_sha256"] = self.fixture.sha(producer)
         write_json(self.out / "pack-input.json", self.pack_request)
 
-    def publish(self, run):
+    def prepare(self, run):
         argv = [ROOT / "target/debug/oo-load", "publish", "--stack", self.stack,
                 "--source", "owned", "--target", self.target, "--secrets-dir", self.db.directory,
                 "--generation", run, "--library", "owned"]
@@ -232,6 +234,10 @@ class GoldFixture(cycles.Live):
         if pending.returncode == 0 or cut["state"] != "pending":
             raise ValueError("EXPECTED_PENDING_FENCE")
         self.cuts.append(cut)
+        return argv, cut
+
+    def publish(self, run):
+        argv, cut = self.prepare(run)
         self.compile_catalog(cut)
         for entry in cut["data_vector"]:
             physical = entry["physical_name"]
@@ -297,7 +303,12 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA oo_token_control,oo_token_lifecycle TO oo_t
         # audiences; keep the fixture's issued tuples and Gateway in agreement.
         config.update(audience=self.origin + "/", token_admin_password_file="password",
                       token_admin_workload="urn:oo:workload:lane-m")
-        self.db.sql(f"UPDATE oo_token_control.token_record SET audience_url='{self.origin}/';")
+        fields = {"project_id": "project_id", "principal_id": "principal_id", "role": "role_name",
+                  "policy_version": "policy_version", "knowledge_version": "knowledge_version"}
+        values = [(field, self.identity[key]) for key, field in fields.items()]
+        values.append(("audience_url", self.origin + "/"))
+        assignments = ",".join(field + "='" + value.replace("'", "''") + "'" for field, value in values)
+        self.db.sql("UPDATE oo_token_control.token_record SET " + assignments + ";")
         self.fixture.write(config_path, config)
         (self.runtime / "listen.addr").unlink()
         self.gateway = subprocess.Popen([str(ROOT / "target/debug/oo-gateway"), str(self.runtime)],
@@ -317,9 +328,8 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA oo_token_control,oo_token_lifecycle TO oo_t
                    "token_file": str(self.root / "client-token"),
                    "ca_file": str(self.runtime / "ca.crt"), "client_pem": str(self.root / "client.pem")}
         private(client / "config.json", json.dumps(profile))
-        grant = {"project_id": "f22", "principal_id": "alice", "role": "oo_r_f22",
-                 "policy_version": "pv1", "knowledge_version": "kv1",
-                 "audience_url": self.origin + "/", "ttl_ms": 3600000, "purpose": "gold-dialogue"}
+        grant = dict(self.identity, audience_url=self.origin + "/", ttl_ms=3600000,
+                     purpose="gold-dialogue")
         private(self.root / "grant.json", json.dumps(grant))
         result = self.cli(["share-prompt", "--grant-file", str(self.root / "grant.json")], record=False)
         if result["exit"]:
@@ -366,6 +376,16 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA oo_token_control,oo_token_lifecycle TO oo_t
         return output
 
     def close(self):
+        if self.db.created and hasattr(self, "stack"):
+            try:
+                state = self.db.sql(
+                    "SELECT json_build_object('open_fences',"
+                    "(SELECT count(*) FROM oo_publish_target.fence WHERE state='open'),"
+                    "'heads',(SELECT json_agg(json_build_object('library',library_id,'state',state)) "
+                    "FROM _oo.native_library_head));")
+                write_json(self.out / "final-publication-state.json", json.loads(state))
+            except Exception:
+                write_json(self.out / "final-publication-state.json", {"status": "unmeasured"})
         super().close()
         paths = [self.out / "cleanup.json"]
         if self.source:

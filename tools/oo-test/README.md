@@ -280,6 +280,7 @@ table), consistency `B`; not full type/scale or T7 proof.
 ```sh
 cargo build --locked -p oo-cli -p oo-builder -p oo-gateway
 CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path tools/oo-load/Cargo.toml
+CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path tools/release-coordinator/Cargo.toml
 tools/oo-test/oo-test t6 --engine postgres --run-id g-t6-pg --execute
 tools/oo-test/oo-test t6 --engine mysql --run-id g-t6-mysql --execute
 tools/oo-test/oo-test t6 --engine oracle --run-id g-t6-oracle --execute
@@ -296,10 +297,16 @@ read-only source account, and loads the 12 tables used by those questions.
 Mapped schema/table/column identifiers and types come from the native
 publication candidate, including Oracle's encoded uppercase identifiers.
 Source names remain labels; the harness does not reimplement name encoding.
-It compiles the real role Pack from observed column metadata with an explicit
-synthetic accept-all review. This is **not** full-model T5 Self-build or a
-privacy-review example for real data. The inherited test fixture opens the
-reviewed fences directly; it is **not** the production publisher entry.
+The default `--publisher reviewed` invokes the real retained Builder with at
+most six model calls, writes an accept-all decision file, runs native
+`oo review --review-file`, and calls `release-coordinator publish-retained`.
+It does not open fences manually. Only these 12 gold tables are built, not
+the complete fixture: this is **not** full-fixture T5 acceptance or a
+privacy-review example for real data.
+
+`--publisher fixture` preserves the first-run diagnostic path: deterministic
+role Pack, synthetic pinned review, and directly opened test fences. Its
+results are explicitly separate from the default product publisher path.
 
 The real native `oo share-prompt` issues an enrollment code. A real-model
 Agent receives that prompt and a constrained native CLI tool, binds using
@@ -310,10 +317,12 @@ available to the Agent. TLS paths, destination and token references are
 operator-fixed. Enrollment codes and tokens are removed from evidence.
 
 `--execute` authorizes paid calls. Before any call, stdout and
-`preflight.json` show limits: 160 total calls (including binding), 8 model
+`preflight.json` show limits: 160 total Agent calls (including binding), 12 model
 turns/question, 2,048 output tokens/call, 250,000 request bytes, 12M reserved
 tokens (request bytes + output + 10k proxy allowance), one-hour dispatch
 deadline, serial execution and no retries. Currency cost is unmeasured.
+The real Builder's additional six-call bound and separate preflight/usage
+receipts are reported (166 maximum model calls across Builder and Agent).
 Model `gpt-6.1-sol` uses the existing metered egress: endpoint and key are
 resolved only through `secret_ref` names `model-endpoint-9r` and
 `model-key-9r-sol` in the owner's private secret store, never copied.

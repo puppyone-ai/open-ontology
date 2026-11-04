@@ -22,6 +22,8 @@ MODEL = {
 }
 QUESTIONS = ROOT / "testing/engines/gold/questions.json"
 MAX_CALLS = 160
+MAX_TURNS = 12
+BUILDER_CALL_LIMIT = 6
 # Five complete native describe responses include repeated capability catalogs.
 # Bytes + proxy allowance + output remain below the plan's 272k context floor.
 MAX_REQUEST_BYTES = 250000
@@ -212,7 +214,7 @@ def dialogue(model, cli, prompt, question, gold, out):
     transcript = []
     error = None
     try:
-        for _ in range(8):
+        for _ in range(MAX_TURNS):
             response = model.call(messages)
             choice = response["choices"][0]
             message = choice["message"]
@@ -266,6 +268,7 @@ def main():
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--engine", choices=["postgres", "mysql", "oracle"], default="postgres")
     parser.add_argument("--scale", type=int, default=2_000_000)
+    parser.add_argument("--publisher", choices=["reviewed", "fixture"], default="reviewed")
     parser.add_argument("--execute", action="store_true", help="authorize bounded paid model calls")
     args = parser.parse_args()
     if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9-]{0,100}", args.run_id):
@@ -277,9 +280,12 @@ def main():
     out.mkdir(mode=0o700, parents=True, exist_ok=False)
     preflight = {"model": MODEL["model"], "engine": args.engine,
                  "questions": 20, "max_calls": MAX_CALLS, "max_output_per_call": MAX_OUTPUT,
+                 "max_turns_per_question": MAX_TURNS,
                  "max_reserved_tokens": MAX_RESERVED_TOKENS, "max_request_bytes": MAX_REQUEST_BYTES,
                  "deadline_seconds": 3600, "currency_cost": None, "retries": 0,
-                 "scale": args.scale, "publisher": "fixture-reviewed-fence",
+                 "scale": args.scale, "publisher": args.publisher,
+                 "builder_call_limit": BUILDER_CALL_LIMIT if args.publisher == "reviewed" else 0,
+                 "max_total_model_calls": MAX_CALLS + (BUILDER_CALL_LIMIT if args.publisher == "reviewed" else 0),
                  "t5_full_selfbuild": False}
     write_json(out / "preflight.json", preflight)
     print(json.dumps(preflight), flush=True)
@@ -296,8 +302,11 @@ def main():
         stage = "fixture"
         # Import after setting lane ownership, before t1 creates any resources.
         os.environ["OO_TEST_LANE"] = "g"
-        from t6_fixture import GoldFixture
-        fixture = GoldFixture(out, args.engine, args.scale)
+        if args.publisher == "reviewed":
+            from t6_reviewed import ReviewedGoldFixture as Fixture
+        else:
+            from t6_fixture import GoldFixture as Fixture
+        fixture = Fixture(out, args.engine, args.scale)
         fixture.start()
         stage = "dialogue"
         prompt = bind_agent(model, fixture.cli, fixture.share_prompt(), out)
@@ -314,9 +323,19 @@ def main():
             for f in traceback.extract_tb(exc.__traceback__)])
     finally:
         if model:
-            report["model_calls"] = model.calls
+            report["agent_model_calls"] = model.calls
             report["reserved_tokens"] = model.reserved
             model.close()
+        builder_calls = 0 if args.publisher == "fixture" else None
+        count_file = out / "builder-baseline/model-call-count.json"
+        if count_file.exists():
+            try:
+                builder_calls = json.loads(count_file.read_text())["calls"]
+            except (OSError, ValueError, KeyError):
+                builder_calls = None
+        report["builder_model_calls"] = builder_calls
+        report["model_calls"] = ((model.calls if model else 0) + builder_calls
+                                 if builder_calls is not None else None)
         try:
             if fixture:
                 fixture.close()

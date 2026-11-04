@@ -7,6 +7,8 @@ import types
 import unittest
 
 import t6
+from t6_fixture import GoldFixture
+from t6_reviewed import ReviewedGoldFixture
 
 
 class GoldDialogueTests(unittest.TestCase):
@@ -103,6 +105,59 @@ class GoldDialogueTests(unittest.TestCase):
                                     (["t6", "--run-id", "test-no-opt-in"], 2)]:
             result = subprocess.run([str(entry), *arguments], capture_output=True)
             self.assertEqual(result.returncode, expected)
+
+    def test_catalog_uses_native_aliases_without_changing_source_names(self):
+        with tempfile.TemporaryDirectory() as root:
+            fixture = GoldFixture.__new__(GoldFixture)
+            fixture.out = Path(root)
+            fixture.schema, fixture.names = "FIXTURE", ["ORDERS"]
+            fixture.columns = {"ORDERS": [{"name": "ID", "data_type": "text",
+                                           "semantic_type": "identifier"}]}
+            fixture.pack_request = {"effective_oos": {"ontology": {}}, "visibility": {}}
+            fixture.args = types.SimpleNamespace(builder="unused")
+            fixture.fixture = types.SimpleNamespace(encode=lambda v: json.dumps(v).encode(),
+                                                     sha=lambda v: "test-hash")
+            fixture.base_catalog = {"envelope": {"review": {}, "producer": {}}}
+            fixture.command = lambda *args: types.SimpleNamespace(
+                stdout=b'{"artifact":{"pack_digest":"test-pack"}}')
+            cut = {"receipt": {"shards": [{"receipt": {"tables": [{
+                "physical_name": "physical", "schema": "FIXTURE", "table": "ORDERS"}]}}]},
+                "data_vector": [{"physical_name": "physical", "dataset": "q_fixture.q_orders",
+                                 "expected_columns": [{"name": "q_id", "data_type": "text"}]}]}
+            fixture.compile_catalog(cut)
+            table = fixture.pack_request["effective_oos"]["datasets"][0]
+            self.assertEqual(table["dataset"], "q_fixture.q_orders")
+            self.assertEqual(table["columns"][0]["name"], "q_id")
+            self.assertEqual(table["columns"][0]["label"], "ID")
+            self.assertEqual(fixture.columns["ORDERS"][0]["name"], "ID")
+            cut["data_vector"][0]["expected_columns"][0]["data_type"] = "numeric"
+            with self.assertRaisesRegex(ValueError, "PACK_TARGET_TYPES"):
+                fixture.compile_catalog(cut)
+
+    def test_reviewed_path_uses_publisher_document_and_never_opens_fences(self):
+        with tempfile.TemporaryDirectory() as root:
+            fixture = ReviewedGoldFixture.__new__(ReviewedGoldFixture)
+            fixture.out = fixture.runtime = Path(root)
+            sql = []
+            fixture.db = types.SimpleNamespace(sql=sql.append)
+            fixture.prepare = lambda run: None
+            fixture.fixture = types.SimpleNamespace(
+                encode=lambda v: json.dumps(v).encode(), replace=lambda p, v: p.write_bytes(v))
+            document = {"visibility": {
+                "project": "owned", "principal": "owner", "role": "oo_r_owner",
+                "policy": {"version": "draft-v1"}, "knowledge": {"version": "draft-v1"}},
+                "envelope": {"producer": {"artifact": {"pack_digest": "real"}}}}
+            receipt = {"outcome": "activated", "state": "ready", "gateway_document": document,
+                       "receipt_sha256": "receipt", "pack_digest": "real", "fences": []}
+            fixture.product = types.SimpleNamespace(Retained=types.SimpleNamespace(
+                builder=lambda self, run: ({"stage": "review_required", "model_calls": 2}, Path(root)),
+                review=lambda self, output: b"reviewed",
+                publisher=lambda *args: (0, receipt)))
+            self.assertEqual(fixture.publish("baseline"), receipt)
+            self.assertEqual(fixture.identity["role"], "oo_r_owner")
+            self.assertFalse(any("fence" in s for s in sql))
+            self.assertEqual(json.loads(
+                (Path(root) / "reviewed/library/library.json").read_text()), document)
 
 
 if __name__ == "__main__":
