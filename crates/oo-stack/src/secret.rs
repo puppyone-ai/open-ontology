@@ -72,6 +72,13 @@ impl SecretStore {
         Ok(text)
     }
 
+    /// Path of a checked private file, for tools that must open it themselves
+    /// (for example an OpenSSH identity). The bytes are not returned.
+    pub fn path(&self, name: &str) -> Result<PathBuf> {
+        self.read(name)?;
+        Ok(self.root.join(name))
+    }
+
     /// Never replace an existing credential implicitly.
     pub fn write_new(&self, name: &str, bytes: &[u8]) -> Result<()> {
         if !secret_name(name) {

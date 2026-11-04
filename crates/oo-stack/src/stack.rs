@@ -122,14 +122,33 @@ pub struct Deploy {
     pub target: String,
     #[serde(default = "lite")]
     pub profile: String,
+    /// Remote host for `target: ssh`; credentials are references only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ssh: Option<DeploySsh>,
 }
 impl Default for Deploy {
     fn default() -> Self {
         Self {
             target: local(),
             profile: lite(),
+            ssh: None,
         }
     }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeploySsh {
+    pub host: String,
+    #[serde(default = "ssh_port")]
+    pub port: u16,
+    pub user: String,
+    /// Exactly one of `key` (private key file) or `password`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<SecretRef>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub password: Option<SecretRef>,
+    pub host_key_sha256: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -149,6 +168,9 @@ fn auto() -> String {
 }
 fn interval() -> String {
     "8h".into()
+}
+fn ssh_port() -> u16 {
+    22
 }
 fn local() -> String {
     "local".into()
@@ -205,6 +227,20 @@ fn host(value: &str) -> bool {
             && value
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b".-_".contains(&b)))
+}
+
+/// Portable login name; never parsed by ssh as an option.
+pub fn login_name(value: &str) -> bool {
+    (1..=32).contains(&value.len())
+        && (value.as_bytes()[0].is_ascii_alphanumeric() || value.as_bytes()[0] == b'_')
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+}
+
+/// Remote deployment host: a hostname or IP that cannot be read as an option.
+pub fn ssh_host(value: &str) -> bool {
+    host(value) && !value.starts_with('-')
 }
 
 pub fn interval_seconds(value: &str) -> Option<u64> {
@@ -375,6 +411,23 @@ pub fn validate(stack: &Stack) -> Result<()> {
         || !matches!(stack.deploy.profile.as_str(), "lite" | "standard")
     {
         return Err("STACK_DEPLOY");
+    }
+    if let Some(ssh) = &stack.deploy.ssh
+        && (!ssh_host(&ssh.host)
+            || ssh.port == 0
+            || !login_name(&ssh.user)
+            || !fingerprint(&ssh.host_key_sha256)
+            || ssh.key.is_some() == ssh.password.is_some()
+            || ssh
+                .key
+                .iter()
+                .chain(&ssh.password)
+                .any(|r| !secret_name(&r.secret_ref)))
+    {
+        return Err("STACK_DEPLOY_SSH");
+    }
+    if stack.deploy.target == "ssh" && stack.deploy.ssh.is_none() {
+        return Err("STACK_DEPLOY_SSH");
     }
     if stack.gateway.public_url != "auto" && !endpoint(&stack.gateway.public_url) {
         return Err("STACK_GATEWAY");

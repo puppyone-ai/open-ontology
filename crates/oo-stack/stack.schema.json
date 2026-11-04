@@ -249,9 +249,60 @@
             "standard"
           ],
           "default": "lite"
+        },
+        "ssh": {
+          "$ref": "#/$defs/deploy_ssh"
         }
       },
       "required": []
+    },
+    "deploy_ssh": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 22
+        },
+        "user": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]{0,31}$"
+        },
+        "key": {
+          "$ref": "#/$defs/secret"
+        },
+        "password": {
+          "$ref": "#/$defs/secret"
+        },
+        "host_key_sha256": {
+          "type": "string",
+          "pattern": "^SHA256:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]$"
+        }
+      },
+      "required": [
+        "host",
+        "user",
+        "host_key_sha256"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "key"
+          ]
+        },
+        {
+          "required": [
+            "password"
+          ]
+        }
+      ]
     },
     "gateway": {
       "type": "object",

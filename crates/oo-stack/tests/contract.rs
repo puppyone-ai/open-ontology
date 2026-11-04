@@ -243,3 +243,56 @@ fn secret_store_accepts_symlinked_ancestors_not_private_leaves() {
     assert!(SecretStore::create(dir.join("private-link")).is_err());
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn remote_deploy_requires_one_reference_credential_and_pinned_key() {
+    let pin = format!("SHA256:{}", "A".repeat(43));
+    let mut stack = config();
+    stack["deploy"] = json!({"target":"ssh","ssh":{"host":"deploy.example.com",
+        "user":"ops","key":{"secret_ref":"deploy-key"},"host_key_sha256":pin}});
+    let parsed = parse(&stack.to_string()).unwrap();
+    let ssh = parsed.deploy.ssh.as_ref().unwrap();
+    assert_eq!(ssh.port, 22);
+    assert!(ssh.password.is_none());
+    let normalized = serde_json::to_value(&parsed).unwrap();
+    assert!(normalized["deploy"]["ssh"].get("password").is_none());
+    assert!(parse(&normalized.to_string()).is_ok());
+    let mut password = stack.clone();
+    password["deploy"]["ssh"]["port"] = json!(2222);
+    password["deploy"]["ssh"]
+        .as_object_mut()
+        .unwrap()
+        .remove("key");
+    password["deploy"]["ssh"]["password"] = json!({"secret_ref":"deploy-password"});
+    assert!(parse(&password.to_string()).is_ok());
+    let mut local = stack.clone();
+    local["deploy"]["target"] = json!("local");
+    assert!(parse(&local.to_string()).is_ok());
+    let cases: Vec<(&str, Value)> = vec![
+        ("host", json!("-oProxyCommand")),
+        ("host", json!("bad host")),
+        ("user", json!("-l")),
+        ("user", json!("a b")),
+        ("port", json!(0)),
+        ("host_key_sha256", json!("SHA256:short")),
+        ("password", json!({"secret_ref":"also"})),
+        ("key", json!("-----BEGIN OPENSSH PRIVATE KEY-----")),
+        ("key", json!({"secret_ref":"../escape"})),
+        ("extra", json!(true)),
+    ];
+    for (field, value) in cases {
+        let mut bad = stack.clone();
+        bad["deploy"]["ssh"][field] = value.clone();
+        let text = bad.to_string();
+        assert!(parse(&text).is_err(), "{field}");
+    }
+    let mut neither = stack.clone();
+    neither["deploy"]["ssh"]
+        .as_object_mut()
+        .unwrap()
+        .remove("key");
+    assert_eq!(parse(&neither.to_string()).err(), Some("STACK_DEPLOY_SSH"));
+    let mut missing = stack;
+    missing["deploy"].as_object_mut().unwrap().remove("ssh");
+    assert_eq!(parse(&missing.to_string()).err(), Some("STACK_DEPLOY_SSH"));
+}
