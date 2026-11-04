@@ -1908,6 +1908,25 @@ async fn meta(
         );
     }
     if headers.contains_key(axum::http::header::AUTHORIZATION) {
+        let caller = match crate::http_gateway::public_caller(
+            &state,
+            &headers,
+            &query,
+            peer.clone(),
+        )
+        .await
+        {
+            Ok(caller) => caller,
+            Err(response) => return *response,
+        };
+        if caller.tuple.role == "lite_operator" {
+            let mut response = json_ok(document);
+            response.headers_mut().insert(
+                axum::http::header::CACHE_CONTROL,
+                axum::http::HeaderValue::from_static("no-store"),
+            );
+            return response;
+        }
         headers
             .entry(crate::publication_binding::EXPECTED)
             .or_insert(axum::http::HeaderValue::from_static("current"));

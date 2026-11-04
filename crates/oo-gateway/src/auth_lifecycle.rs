@@ -366,7 +366,7 @@ async fn expiry_health(
     let row = client
         .query_one(
             HEALTH_EXPIRY_SQL,
-            &[&caller.tuple.project_id, &state.inner.audience, &now],
+            &[&caller.tuple.project_id, &caller.tuple.audience_url, &now],
         )
         .await;
     let Ok(row) = row else {

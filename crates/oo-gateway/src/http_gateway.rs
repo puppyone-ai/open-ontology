@@ -501,8 +501,23 @@ fn assemble(state: AppState) -> Router {
         ))
     };
     router
+        .layer(from_fn_with_state(state.clone(), operator_scope))
         .layer(from_fn_with_state(state.clone(), access_log))
         .with_state(state)
+}
+
+// Reserved bootstrap role: no data, session, or credential-management routes.
+async fn operator_scope(State(state): State<AppState>, request: Request, next: Next) -> Response {
+    let allowed = request.method() == axum::http::Method::GET
+        && matches!(request.uri().path(), "/v1/health" | "/v1/meta");
+    if !allowed && request.headers().contains_key(header::AUTHORIZATION) {
+        if let Ok(identity) = authenticate(&state, request.headers()).await {
+            if identity.tuple.role == "lite_operator" {
+                return json_error(ApiError::new(ApiCode::Forbidden));
+            }
+        }
+    }
+    next.run(request).await
 }
 
 fn control_path(path: &str) -> bool {
