@@ -803,9 +803,9 @@
    "sprint": "S3",
    "lane": "M",
    "title": "**L2 闭环独立审阅**（固定 SHA）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "coordinator (native reviewer)",
+   "branch": "review @ d876260db",
    "commits": [],
    "evidence": []
   },
