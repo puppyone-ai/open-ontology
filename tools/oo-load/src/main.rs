@@ -90,7 +90,14 @@ async fn run_engine<E: SourceEngine>(
     store: &SecretStore,
     budget: &ReadBudget,
 ) -> Result<(), String> {
+    let duty = u32::from(budget.duty_cycle_percent);
+    if !(1..=100).contains(&duty) {
+        return Err("invalid_probe_duty_cycle".into());
+    }
+    let probe_started = std::time::Instant::now();
     let probe = engine.probe().await.map_err(|e| e.to_string())?;
+    // Metadata reads also consume source budget on no-rewrite resumes.
+    tokio::time::sleep(probe_started.elapsed() * (100 - duty) / duty).await;
     for table in tables {
         let password = store.read(&target.password.secret_ref)?;
         let mut options = PgConnectOptions::new()
