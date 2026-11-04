@@ -1243,10 +1243,21 @@
       "sprint": "S5",
       "lane": "G",
       "title": "T5/T6 在 P0 全版本：20 道金标准题由真实模型 Agent 回答",
-      "status": "in_progress",
+      "status": "author_complete",
       "owner": "lane-G",
       "branch": "v0.2/g-selfbuild-budget",
-      "commits": [],
+      "commits": [
+        "83bb07d69",
+        "a7f595279",
+        "aeefb2a71",
+        "30960c6bf",
+        "f4f2ca677",
+        "fca9fc047",
+        "b5d06d033",
+        "d02b9eb22",
+        "a32e74a35",
+        "50f7de96e"
+      ],
       "evidence": []
     },
     {
