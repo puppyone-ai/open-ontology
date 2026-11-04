@@ -734,13 +734,16 @@
    "sprint": "S3",
    "lane": "B",
    "title": "`oo login`（绑定码 / 设备码）、`oo whoami`、到期预警、`/v1/meta` 版本协商与升级提示",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "lane-B",
    "branch": "v0.2/b-token-lifecycle",
    "commits": [
-    "5486bca2b",
-    "b6121b8cc",
-    "833b947e9"
+    "d876260db",
+    "480ba308d",
+    "6628e6e49",
+    "6b132e226",
+    "9e8a1a64b",
+    "8854223e4"
    ],
    "evidence": []
   },
@@ -749,13 +752,16 @@
    "sprint": "S3",
    "lane": "B",
    "title": "`oo share-prompt [--role] [--agent claude",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "lane-B",
    "branch": "v0.2/b-token-lifecycle",
    "commits": [
-    "5486bca2b",
-    "b6121b8cc",
-    "833b947e9"
+    "d876260db",
+    "480ba308d",
+    "6628e6e49",
+    "6b132e226",
+    "9e8a1a64b",
+    "8854223e4"
    ],
    "evidence": []
   },
