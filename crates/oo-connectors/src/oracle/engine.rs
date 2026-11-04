@@ -168,6 +168,28 @@ struct TableMeta {
 }
 
 impl TableMeta {
+    fn shape(&self) -> Result<String, SourceError> {
+        // Exclude optimizer statistics: ordinary growth must not change lineage.
+        let columns: Vec<_> = self
+            .columns
+            .iter()
+            .map(|c| {
+                (
+                    &c.name,
+                    &c.data_type,
+                    c.nullable,
+                    c.data_length,
+                    &c.collation,
+                    c.precision,
+                    c.scale,
+                )
+            })
+            .collect();
+        let bytes = serde_json::to_vec(&(columns, &self.key))
+            .map_err(|_| SourceError::catalog("table_shape"))?;
+        Ok(format!("oracle-shape-v1:{:x}", Sha256::digest(bytes)))
+    }
+
     fn keys(&self) -> Vec<&Column> {
         self.key_cols.iter().map(|i| &self.columns[*i]).collect()
     }
@@ -410,6 +432,11 @@ fn shrink_page(page: &mut u64, retries: &mut u32, limit: u32) -> bool {
 }
 
 impl OracleEngine {
+    /// Fresh column/key fingerprint, independent of cached plans and row counts.
+    pub fn table_shape(&mut self, table: &TableRef) -> Result<String, SourceError> {
+        self.load_meta(table)?.shape()
+    }
+
     /// Read DBID/resetlogs without starting LogMiner or changing source data.
     pub fn source_epoch(&mut self) -> Result<String, SourceError> {
         self.scalar(
@@ -2396,6 +2423,48 @@ impl SourceEngine for OracleEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn table_shape_tracks_metadata_not_optimizer_statistics() {
+        let meta = TableMeta {
+            columns: vec![Column {
+                name: "ID".into(),
+                data_type: "NUMBER".into(),
+                kind: ColKind::Number,
+                nullable: false,
+                data_length: 22,
+                collation: None,
+                precision: Some(10),
+                scale: Some(0),
+            }],
+            key: KeyShape::IntegerPrimaryKey {
+                column: "ID".into(),
+            },
+            key_cols: vec![0],
+            key_index: Some("PK".into()),
+            integer_key: true,
+            num_rows: Some(20),
+            avg_row_len: Some(10),
+        };
+        let original = meta.shape().unwrap();
+        let mut growth = meta.clone();
+        growth.num_rows = Some(20000);
+        growth.avg_row_len = Some(100);
+        assert_eq!(original, growth.shape().unwrap());
+        for change in 0..7 {
+            let mut changed = meta.clone();
+            match change {
+                0 => changed.columns[0].name = "RENAMED".into(),
+                1 => changed.columns[0].precision = Some(18),
+                2 => changed.columns[0].data_length = 80,
+                3 => changed.columns[0].nullable = true,
+                4 => changed.columns[0].scale = Some(2),
+                5 => changed.key = KeyShape::NoKey,
+                _ => changed.columns.push(changed.columns[0].clone()),
+            }
+            assert_ne!(original, changed.shape().unwrap(), "change {change}");
+        }
+    }
 
     #[test]
     fn logminer_disclosure_is_an_unconditional_feature_requirement() {
