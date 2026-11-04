@@ -96,3 +96,22 @@ async fn pin_auth_reconnect_and_shutdown() {
     tunnel.shutdown().await;
     assert!(tokio::net::TcpStream::connect(address).await.is_err());
 }
+
+#[tokio::test]
+#[ignore = "PTY driven by tests/ssh/run.py; replies no, then yes"]
+async fn first_use_tty_confirmation() {
+    let stack =
+        oo_stack::parse(&fs::read_to_string(std::env::var("OO_SSH_STACK").unwrap()).unwrap())
+            .unwrap();
+    let jump = stack.sources[0].ssh.as_ref().unwrap();
+    assert_eq!(
+        ssh::confirm_first_use(&jump.host, jump.port)
+            .await
+            .unwrap_err(),
+        "SSH_HOST_KEY_REJECTED"
+    );
+    assert_eq!(
+        ssh::confirm_first_use(&jump.host, jump.port).await.unwrap(),
+        jump.host_key_sha256
+    );
+}

@@ -332,6 +332,39 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn reconnect_is_bounded_and_backs_off() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = tokio::spawn(async move {
+            for _ in 0..3 {
+                drop(listener.accept().await.unwrap());
+            }
+        });
+        let credentials = Credentials {
+            ssh: Ssh {
+                host: "127.0.0.1".into(),
+                port,
+                user: "fixture".into(),
+                key: None,
+                password: Some(oo_stack::stack::SecretRef {
+                    secret_ref: "unused".into(),
+                }),
+                host_key_sha256: format!("SHA256:{}", "A".repeat(43)),
+            },
+            secret: Zeroizing::new("unused".into()),
+        };
+        let started = std::time::Instant::now();
+        let result = timeout(Duration::from_secs(3), retry_session(&credentials))
+            .await
+            .unwrap();
+        assert!(matches!(result, Err("SSH_CONNECT")));
+        assert!(started.elapsed() >= Duration::from_millis(750));
+        server.await.unwrap();
+        assert_eq!(config().keepalive_interval, Some(Duration::from_secs(15)));
+        assert_eq!(config().keepalive_max, 3);
+    }
+
+    #[tokio::test]
     async fn cancelling_stalled_key_exchange_closes_the_socket() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
