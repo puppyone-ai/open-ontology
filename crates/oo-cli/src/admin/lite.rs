@@ -210,7 +210,7 @@ impl OpensslHelper {
                 &user(root)?,
             ])
             .args(["--volume", &format!("{path}:{path}")])
-            .args(["--entrypoint", "sleep", image, "900"]);
+            .args(["--entrypoint", "sleep", image, "600"]);
         let (exit, _, _) = super::build_retained::invoke(command, vec![], 120)?;
         // Wait until the helper accepts exec before the first credential call.
         let ready = exit == 0
@@ -243,13 +243,24 @@ impl OpensslHelper {
 
 impl Drop for OpensslHelper {
     fn drop(&mut self) {
+        // Confirm removal; the helper's own short sleep bounds any leftover.
         if let Some(name) = &self.0 {
-            let _ = Command::new("docker")
-                .args(["rm", "-f", name])
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status();
+            for _ in 0..3 {
+                let quiet = |args: &[&str]| {
+                    Command::new("docker")
+                        .args(args)
+                        .stdin(Stdio::null())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .status()
+                        .is_ok_and(|s| s.success())
+                };
+                quiet(&["rm", "-f", name]);
+                if !quiet(&["container", "inspect", name]) {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
         }
     }
 }
