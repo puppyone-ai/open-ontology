@@ -65,6 +65,14 @@ replans and rereads; only identical receipts skip COPY. Physical plans may be
 recaptured and are never treated as durable source snapshots.
 Use the same source ID only for the same source endpoint and table namespace.
 
+Scheduled callers can use `oo-load sync` with the same connection/scope flags,
+exactly one explicit `--c5`, `--sync` or `--handoff` configuration, and
+`--run-id cycle-001`. The run ID overrides the target file without rewriting it;
+reuse it to resume a C5 cycle, and choose a new ID for the next cycle. C1 still
+resumes from its durable source checkpoint, not from this invocation label.
+A missing mode is refused before opening connections, never converted into a
+full snapshot. This command does not install a scheduler or publish to Gateway.
+
 Output is one JSON line per completed table, including its target view name,
 receipts, the effective ReadBudget and write bytes. The meter counts committed logical stage tuple bytes,
 including overwritten chunks and abandoned plans of the same run; it is not

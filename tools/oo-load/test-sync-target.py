@@ -54,6 +54,10 @@ def main():
             subprocess.run([binary, "--exact", "c5_target_reuses_parent_and_no_change_writes_nothing",
                             "--ignored", "--nocapture"], env=env, stdout=out,
                            stderr=subprocess.STDOUT, timeout=90, check=True)
+        with (path / "publication-snapshots.log").open("w") as out:
+            subprocess.run([binary, "--exact", "three_publications_preserve_inflight_repeatable_read",
+                            "--ignored", "--nocapture"], env=env, stdout=out,
+                           stderr=subprocess.STDOUT, timeout=90, check=True)
         marker = run.private / "committed"
         env.update(OO_SYNC_MARKER=str(marker), OO_SYNC_PHASE="commit")
         with (path / "kill.log").open("w") as out:

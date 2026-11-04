@@ -20,6 +20,7 @@ mod epoch;
 mod handoff;
 mod log_sync;
 mod sync;
+mod sync_command;
 // The public connector export is coordinator-owned; compile the lane module here.
 #[path = "../../../crates/oo-connectors/src/sqlserver/mod.rs"]
 mod sqlserver;
@@ -294,7 +295,8 @@ fn mysql_sync_family(family: EngineFamily) -> Result<(), &'static str> {
 }
 
 async fn execute() -> Result<(), String> {
-    let mut args = std::env::args().skip(1);
+    let (sync_command, arguments) = sync_command::arguments(std::env::args().skip(1));
+    let mut args = arguments.into_iter();
     let mut opts = BTreeMap::new();
     while let Some(key) = args.next() {
         if key == "--help" {
@@ -304,6 +306,8 @@ async fn execute() -> Result<(), String> {
                 [--sync FILE] Explicit epoch-bound C1; MySQL requires mysql-binlog; Oracle requires opt-in.\n\
                 [--c5 FILE] PostgreSQL/MySQL/Oracle C5 range cycle over an existing snapshot.\n\
                 [--handoff FILE] Atomic MySQL multi-source C5-to-C1 repair (mysql-binlog feature).\n\
+                oo-load sync uses the same flags, requires an explicit sync mode and --run-id ID.\n\
+                --run-id ID overrides the target run_id; reuse it only to resume that cycle.\n\
                 Target JSON requires run_id and password.secret_ref. Same run_id resumes; new run_id refreshes.\n\
                 Local table publication only; not Gateway publication. See tools/oo-load/README.md."
             );
@@ -320,6 +324,7 @@ async fn execute() -> Result<(), String> {
             "--sync",
             "--c5",
             "--handoff",
+            "--run-id",
         ]
         .contains(&key.as_str())
             || opts.contains_key(&key)
@@ -328,6 +333,7 @@ async fn execute() -> Result<(), String> {
         }
         opts.insert(key, args.next().ok_or("argument_value")?);
     }
+    sync_command::validate(sync_command, &opts)?;
     let stack = oo_stack::parse(
         std::str::from_utf8(&read(opts.get("--stack").ok_or("stack_required")?)?)
             .map_err(|_| "stack_utf8")?,
@@ -349,9 +355,12 @@ async fn execute() -> Result<(), String> {
         return Err("ssh_not_supported".into());
     }
     let tables = selected(source, opts.get("--tables"))?;
-    let target: TargetConfig =
+    let mut target: TargetConfig =
         serde_json::from_slice(&read(opts.get("--target").ok_or("target_required")?)?)
             .map_err(|_| "target_config")?;
+    if let Some(run_id) = opts.get("--run-id") {
+        target.run_id = run_id.clone();
+    }
     let store = match opts.get("--secrets-dir") {
         Some(dir) => SecretStore::open(PathBuf::from(dir))?,
         None => SecretStore::from_home()?,

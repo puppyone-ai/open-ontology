@@ -393,3 +393,102 @@ async fn c5_target_reuses_parent_and_no_change_writes_nothing() {
             .is_err()
     );
 }
+
+#[tokio::test]
+#[ignore = "requires an owned synthetic PostgreSQL target; not Gateway acceptance"]
+async fn three_publications_preserve_inflight_repeatable_read() {
+    let binding = "three-publications";
+    let mut writer = connect().await;
+    let relation = baseline(&mut writer, binding).await;
+    writer.close().await.unwrap();
+    let mut reader = connect().await;
+    let mut observer = connect().await;
+    for cycle in 1..=3 {
+        sqlx::raw_sql("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            .execute(&mut reader)
+            .await
+            .unwrap();
+        let select = format!("SELECT payload FROM {relation}");
+        let old: String = sqlx::query_scalar(AssertSqlSafe(select.clone()))
+            .fetch_one(&mut reader)
+            .await
+            .unwrap();
+        assert_eq!(
+            old,
+            if cycle == 1 {
+                "baseline".into()
+            } else {
+                format!("cycle-{}", cycle - 1)
+            }
+        );
+        let (ready, started) = tokio::sync::oneshot::channel();
+        let publish = tokio::spawn(async move {
+            let mut writer = connect().await;
+            sqlx::raw_sql("SET statement_timeout = '10s'")
+                .execute(&mut writer)
+                .await
+                .unwrap();
+            let pid: i32 = sqlx::query_scalar("SELECT pg_backend_pid()")
+                .fetch_one(&mut writer)
+                .await
+                .unwrap();
+            let mut target =
+                PgTarget::new(&mut writer, binding, &format!("cycle-{cycle}"), &table())
+                    .await
+                    .unwrap();
+            let parent = target.c5_baseline().await.unwrap();
+            let plan = parent.plan.clone();
+            target.begin(&plan).await.unwrap();
+            let (ipc, decoded) = decode(image(1, &format!("cycle-{cycle}")));
+            let receipt = ChunkReceipt {
+                table: table(),
+                plan_revision: plan.chunks[0].plan_revision,
+                chunk_id: 0,
+                rows: 1,
+                bytes: ipc.len() as u64,
+                sha256: format!("{:x}", Sha256::digest(&ipc)),
+                low: Some(pos(10)),
+                high: Some(pos(10)),
+            };
+            target.stage(&receipt, &decoded).await.unwrap();
+            ready.send(pid).unwrap();
+            target.publish(&plan).await.unwrap();
+            assert_eq!(target.generations().await.unwrap(), cycle + 1);
+            drop(target);
+            writer.close().await.unwrap();
+        });
+        let pid = started.await.unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                let blocked: bool = sqlx::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid=$1 AND wait_event_type='Lock')",
+                )
+                .bind(pid)
+                .fetch_one(&mut observer)
+                .await
+                .unwrap();
+                if blocked {
+                    break;
+                }
+                assert!(!publish.is_finished(), "publisher must wait for the pinned view");
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("publisher did not reach the reader's relation lock");
+        let pinned: String = sqlx::query_scalar(AssertSqlSafe(select.clone()))
+            .fetch_one(&mut reader)
+            .await
+            .unwrap();
+        assert_eq!(pinned, old);
+        sqlx::raw_sql("COMMIT").execute(&mut reader).await.unwrap();
+        publish.await.unwrap();
+        let current: String = sqlx::query_scalar(AssertSqlSafe(select))
+            .fetch_one(&mut reader)
+            .await
+            .unwrap();
+        assert_eq!(current, format!("cycle-{cycle}"));
+    }
+    reader.close().await.unwrap();
+    observer.close().await.unwrap();
+}
