@@ -312,6 +312,22 @@ class Harness:
         try:
             code = proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
+            # Where did it hang? Keep a stack sample before killing (macOS `sample`).
+            sample = self.run.path / f"{proc.seq:04d}.hang-sample.txt"
+            subprocess.run(["sample", str(proc.pid), "3", "-file", str(sample)],
+                           capture_output=True, timeout=60)
+            sockets = subprocess.run(["lsof", "-a", "-p", str(proc.pid), "-i", "-n", "-P"],
+                                     capture_output=True, text=True, timeout=60).stdout
+            activity = {}
+            for side, query in (("source", self.src), ("target", self.tgt)):
+                code, text = query("SELECT usename,application_name,state,wait_event_type,wait_event,"
+                                   "left(query,80) FROM pg_stat_activity WHERE usename IS NOT NULL;"
+                                   if self.run.engine == "postgres" or side == "target" else
+                                   "SELECT USER,COMMAND,STATE,LEFT(INFO,80) FROM information_schema.PROCESSLIST;",
+                                   required=False)
+                activity[side] = text if code == 0 else None
+            runner.write_json(self.run.path / f"{proc.seq:04d}.hang.json",
+                              {"sockets": sockets, "activity": activity})
             proc.kill()
             proc.wait()
             code = 124
@@ -542,8 +558,9 @@ def interrupted(h, fault, proc, progressed, outage=20):
             h.run.command(["docker", "network", "connect", "bridge", h.run.name])
             h.disconnected, h.pending_flush = False, True
             step["outage_seconds"] = outage
-    timeout = 240 if fault == "network_drop" else 600
-    code, receipts, error = h.finish(proc, timeout=timeout)
+    # The loader paces itself at >=3x each stalled cycle (25% duty), so a
+    # stall during the outage legitimately extends the run well past it.
+    code, receipts, error = h.finish(proc, timeout=900)
     if fault == "network_drop":
         time.sleep(1)
     step.update(first_exit=code, first_error=error, hung_past_timeout=code == 124)
@@ -973,6 +990,15 @@ def run_version(run, binary, cases):
     return report
 
 
+def disk_ready(min_free_gb, wait_minutes):
+    deadline = time.monotonic() + wait_minutes * 60
+    while shutil.disk_usage("/").free < min_free_gb * 1024 ** 3:
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(60)
+    return True
+
+
 def main(argv=None):
     def stop(signum, frame):
         raise KeyboardInterrupt(f"signal {signum}")
@@ -983,6 +1009,8 @@ def main(argv=None):
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--cases", default=",".join(ORDER))
     parser.add_argument("--binary", type=Path, default=ROOT / "target/debug/oo-load")
+    parser.add_argument("--min-free-gb", type=float, default=20.0)
+    parser.add_argument("--disk-wait-minutes", type=float, default=90.0)
     args = parser.parse_args(argv)
     t1.LANE = "n"  # lane-owned labels for LaneRun/AgentDB cleanup checks
     versions = args.versions.split(",")
@@ -1000,6 +1028,13 @@ def main(argv=None):
     for version in versions:
         path = root / f"{args.engine}-{version}"
         path.mkdir()
+        if not disk_ready(args.min_free_gb, args.disk_wait_minutes):
+            # Shared host: never start containers below the free-space floor.
+            results[version] = {"error": "host_disk_below_floor", "cases": {}, "cleanup_failures": [],
+                                "min_free_gb": args.min_free_gb}
+            runner.write_json(path / "t3t4.json", results[version])
+            runner.write_json(root / "matrix.json", results)
+            continue
         run = Source(path, args.engine, version,
                      argparse.Namespace(platform=None, health_timeout=1200, scale=1, tables=0))
         try:

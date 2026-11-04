@@ -2,6 +2,7 @@ import subprocess
 import sys
 import types
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import t3t4
@@ -53,6 +54,12 @@ class T3T4(unittest.TestCase):
         order = list(t3t4.ORDER)
         for case in ("retention_expiry", "slot_invalidation", "gtid_purge"):
             self.assertGreater(order.index(case), max(order.index(c) for c in t3t4.T4))
+
+    def test_containers_never_start_below_the_disk_floor(self):
+        usage = types.SimpleNamespace(free=19 * 1024 ** 3)
+        with mock.patch("t3t4.shutil.disk_usage", return_value=usage):
+            self.assertFalse(t3t4.disk_ready(20, 0))
+            self.assertTrue(t3t4.disk_ready(18, 0))
 
     def test_invalid_scope_exits_before_creating_resources(self):
         entry = str(Path(__file__).with_name("t3t4.py"))
