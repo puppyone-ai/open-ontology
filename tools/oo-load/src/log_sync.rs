@@ -153,6 +153,8 @@ async fn run<E: Epoch, C: ChangeSource>(
         .await;
         tokio::time::sleep(started.elapsed() * (100 - duty) / duty).await;
         if !changed? {
+            // Empty polling must not turn into a metadata/connection hot loop.
+            tokio::time::sleep(Duration::from_secs(1)).await;
             break;
         }
         batches += 1;
