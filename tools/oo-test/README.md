@@ -297,8 +297,9 @@ read-only source account, and loads the 12 tables used by those questions.
 Mapped schema/table/column identifiers and types come from the native
 publication candidate, including Oracle's encoded uppercase identifiers.
 Source names remain labels; the harness does not reimplement name encoding.
-The default `--publisher reviewed` invokes the real retained Builder with at
-most six model calls, writes an accept-all decision file, runs native
+The default `--publisher reviewed` invokes the real retained Builder with a
+call limit derived from its own retained-inventory preflight batch count plus
+two repair calls per batch, writes an accept-all decision file, runs native
 `oo review --review-file`, and calls `release-coordinator publish-retained`.
 It does not open fences manually. Only these 12 gold tables are built, not
 the complete fixture: this is **not** full-fixture T5 acceptance or a
@@ -321,8 +322,11 @@ operator-fixed. Enrollment codes and tokens are removed from evidence.
 turns/question, 2,048 output tokens/call, 250,000 request bytes, 12M reserved
 tokens (request bytes + output + 10k proxy allowance), one-hour dispatch
 deadline, serial execution and no retries. Currency cost is unmeasured.
-The real Builder's additional six-call bound and separate preflight/usage
-receipts are reported (166 maximum model calls across Builder and Agent).
+The real Builder's derived call bound and separate preflight/usage receipts
+are printed before Builder dispatch, including the total bound across Builder
+and Agent (160 + three times the planned batch count). Limits outside the
+Builder's supported 1..4096 range fail before dispatch. Replanning can change
+the actual batch count; exhaustion remains a failure, not permission to retry.
 Model `gpt-6.1-sol` uses the existing metered egress: endpoint and key are
 resolved only through `secret_ref` names `model-endpoint-9r` and
 `model-key-9r-sol` in the owner's private secret store, never copied.

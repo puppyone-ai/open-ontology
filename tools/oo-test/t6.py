@@ -23,7 +23,6 @@ MODEL = {
 QUESTIONS = ROOT / "testing/engines/gold/questions.json"
 MAX_CALLS = 160
 MAX_TURNS = 12
-BUILDER_CALL_LIMIT = 6
 # Five complete native describe responses include repeated capability catalogs.
 # Bytes + proxy allowance + output remain below the plan's 272k context floor.
 MAX_REQUEST_BYTES = 250000
@@ -284,8 +283,10 @@ def main():
                  "max_reserved_tokens": MAX_RESERVED_TOKENS, "max_request_bytes": MAX_REQUEST_BYTES,
                  "deadline_seconds": 3600, "currency_cost": None, "retries": 0,
                  "scale": args.scale, "publisher": args.publisher,
-                 "builder_call_limit": BUILDER_CALL_LIMIT if args.publisher == "reviewed" else 0,
-                 "max_total_model_calls": MAX_CALLS + (BUILDER_CALL_LIMIT if args.publisher == "reviewed" else 0),
+                 "builder_call_limit": None if args.publisher == "reviewed" else 0,
+                 "max_total_model_calls": None if args.publisher == "reviewed" else MAX_CALLS,
+                 "builder_budget_basis": ("pending retained inventory preflight"
+                                          if args.publisher == "reviewed" else "fixture; no model build"),
                  "t5_full_selfbuild": False}
     write_json(out / "preflight.json", preflight)
     print(json.dumps(preflight), flush=True)

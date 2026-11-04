@@ -141,6 +141,8 @@ class GoldDialogueTests(unittest.TestCase):
             sql = []
             fixture.db = types.SimpleNamespace(sql=sql.append)
             fixture.prepare = lambda run: None
+            fixture.builder_call_limit = 21
+            fixture.plan_builder = lambda run: None
             fixture.fixture = types.SimpleNamespace(
                 encode=lambda v: json.dumps(v).encode(), replace=lambda p, v: p.write_bytes(v))
             document = {"visibility": {
@@ -158,6 +160,22 @@ class GoldDialogueTests(unittest.TestCase):
             self.assertFalse(any("fence" in s for s in sql))
             self.assertEqual(json.loads(
                 (Path(root) / "reviewed/library/library.json").read_text()), document)
+
+    def test_builder_limit_is_preflight_batches_plus_repairs(self):
+        with tempfile.TemporaryDirectory() as root:
+            fixture = ReviewedGoldFixture.__new__(ReviewedGoldFixture)
+            fixture.out = Path(root)
+            path = fixture.out / "preflight.json"
+            path.write_text("{}")
+            for batches in (7, 13):
+                fixture.set_builder_budget({"batches": batches})
+                report = json.loads(path.read_text())
+                self.assertEqual(fixture.builder_call_limit, batches * 3)
+                self.assertEqual(report["builder_repair_calls"], batches * 2)
+                self.assertEqual(report["max_total_model_calls"], t6.MAX_CALLS + batches * 3)
+            for batches in (0, -1, 1366, True, 1.5, None, "7"):
+                with self.assertRaisesRegex(ValueError, "BUILDER_PREFLIGHT_BUDGET"):
+                    fixture.set_builder_budget({"batches": batches})
 
 
 if __name__ == "__main__":

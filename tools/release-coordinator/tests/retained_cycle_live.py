@@ -65,7 +65,7 @@ class Retained(cycles.Live):
                   'psql_command': ['docker', 'exec', '-i', self.db.name, 'psql', '-U', 'postgres'],
                   'library_id': 'owned', 'generation': run, 'source_engine': self.engine, 'project': 'owned',
                   'model': {'stack': str(self.model_stack), 'egress': str(ROOT / 'tools/model-egress/model_egress.py'),
-                            'call_limit': 6}}
+                            'call_limit': getattr(self, 'builder_call_limit', 6)}}
         if origin:
             config['origin'] = origin
         path = self.root / ('build-' + run + '.json')
