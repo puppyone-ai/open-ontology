@@ -17,7 +17,7 @@ Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
   oo build [--resume] [--config stack.yaml] [--yes] [--json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
-  oo token issue|list|renew|rotate|revoke [--config stack.yaml] [--yes] [--json]
+  oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
 TTY init collects configuration and runs preflight; non-TTY never prompts.

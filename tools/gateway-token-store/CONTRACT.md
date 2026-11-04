@@ -301,9 +301,9 @@ A bearer token or certificate-looking header is not admin authority. Other
 ```json
 {"operation":"issue","grant":{"project_id":"demo","principal_id":"alice","role":"reader","claims":{},"policy_version":"v1","knowledge_version":"v1","audience_url":"https://gateway.example/","ttl_ms":3600000,"purpose":"automation"}}
 {"operation":"list","project":"demo"}
-{"operation":"renew","project":"demo","hash":"<full SHA-256>","deadline_ms":1800000000000}
-{"operation":"rotate","project":"demo","hash":"<full SHA-256>"}
-{"operation":"revoke","project":"demo","hash":"<full SHA-256>"}
+{"operation":"renew","project":"demo","hash":"<unique 12-64 lowercase hex prefix>","deadline_ms":1800000000000}
+{"operation":"rotate","project":"demo","hash":"<unique 12-64 lowercase hex prefix>"}
+{"operation":"revoke","project":"demo","hash":"<unique 12-64 lowercase hex prefix>"}
 {"operation":"enroll","grant":{"project_id":"demo","principal_id":"alice","role":"reader","policy_version":"v1","knowledge_version":"v1","audience_url":"https://gateway.example/"}}
 {"operation":"policy","project":"demo","policy":{"max_lifetime_ms":7776000000,"default_ttl_ms":7776000000,"self_renew_enabled":false,"self_renew_window_ms":1209600000,"rotate_overlap_ms":604800000,"enroll_ttl_ms":86400000}}
 ```
@@ -312,14 +312,30 @@ A bearer token or certificate-looking header is not admin authority. Other
 and returns `token`, `token_sha256`, role, audience, first issuance and expiry.
 Audience comes from server configuration, not request JSON. A wrong-audience
 attempt does not consume the code. Simultaneous redemptions have one winner.
-A global process-local budget permits 10 enrollment attempts per minute;
-restart resets that budget. Distributed deployments must enforce a shared
-edge limit as well. There is no device approval flow on this card.
+Process-local minute budgets are separate for enrollment, device-code issuance
+and renewal (10 per route, 5 per peer identity), and device polling (60 per
+route, 30 per identity), under an aggregate cap of 80. Restart resets them.
+Currently the TLS listener drops remote addresses: verified workloads have
+separate buckets and anonymous peers share one conservative bucket. This is
+NOT per-IP isolation; `S3C-peer-address.patch` is the coordinator integration
+patch. Distributed deployments also need a shared edge limit.
+
+Device-code issuance and well-formed polls require durable audit first.
+These observations use the existing `enroll` / `redeem` audit categories,
+with `device_code_issued` / `device_poll_requested` outcomes and device-code
+SHA-256 in `related_sha256`. Redemption audits link the enrollment-code
+SHA-256 (including semantic refusals); actors contain verified workload
+SHA-256, and device redemption also carries the device digest. Peer addresses
+are explicitly `unmeasured` pending the listener integration. Malformed and
+rate-limited requests are rejected before privileged DB access.
 
 `POST /v1/auth/renew` accepts an empty body or `{}` and the bearer token;
-it returns deadline metadata, never the token. Responses use
+a fresh runtime-role lookup authenticates it before any admin connection or
+audit write. It returns deadline metadata, never the token. Responses use
 `Cache-Control: no-store`. Token/code values occur only once in a secret-
 producing response. Errors expose stable reason codes, not database errors.
+Admin renew/rotate/revoke resolve a unique 12-64 character lowercase hex
+prefix under the project lock; ambiguous matches return `ambiguous_hash_prefix`.
 List returns hash prefixes, role, expiry, first issuance, last-use observation
 and overlap; it never returns plaintext. The retained v1 client's last-use
 column is not a per-request activity counter (cache hits do not write).
@@ -339,6 +355,17 @@ are never replaced. Failure to write a file after issuance does not roll
 back a committed credential: revoke it by its audited hash and issue again.
 Passwords, enrollment codes and bearer values are never argv arguments.
 
+The native `oo token issue|list|renew|rotate|revoke|enroll|approve` commands
+use the HTTPS admin API with `--client-pem`, plus the usual `--gateway`,
+`--ca-file`, `--connect-ip` and `--interface` options. `oo help token` lists
+operation-specific flags. Issue/enroll/rotate require `--output-file`: the
+file is reserved exclusively before issuance, mode 0600, and stdout contains
+only metadata. The npm wrapper delegates these commands to the native binary.
+`oo login` saves a redeemed credential before identity/read verification;
+on verification failure the file stays private, the active profile is not
+replaced, and the error explains recovery. A failed profile save likewise
+retains the already-issued credential.
+
 ### Metadata and monitoring
 
 `GET /v1/meta` anonymously returns `gateway_version` (compiled crate version),
@@ -349,12 +376,13 @@ read binding path. Explicit publication pins remain honored; drift fails
 closed. The publication id matches the response binding header, and freshness
 preserves `source_time=unmeasured` when the source cannot be measured.
 
-Authenticated `GET /v1/health` returns `token_expiry` (nearest non-revoked token
+Authenticated `GET /v1/health` returns `token_expiry` (nearest live non-revoked token
 in the caller's project and configured audience) and
 `internal_mtls_certificate_expiry` (nearest notAfter in the loaded server
 chain and internal client CA). Each reports `expires_at_ms`, `remaining_ms`,
 and `ok|warning|expired|unmeasured`; <=14 days warns, <=now is expired.
-Expired non-revoked credentials remain visible until revoked. This does not
+Expired absolute/idle deadlines, future-issued records, and rotated-out
+credentials past overlap are excluded; an empty live set is unmeasured. This does not
 inventory certificates on other machines or claim to monitor their private
 keys. `/health` retains its existing unauthenticated liveness behavior.
 

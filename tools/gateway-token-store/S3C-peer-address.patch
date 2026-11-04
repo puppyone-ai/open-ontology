@@ -1,0 +1,91 @@
+--- a/crates/oo-gateway/src/http_gateway.rs
++++ b/crates/oo-gateway/src/http_gateway.rs
+@@ -1290,6 +1290,7 @@
+ #[derive(Clone, Debug)]
+ pub(crate) struct TlsPeer {
+     workload: String,
++    remote_ip: Option<IpAddr>,
+ }
+ 
+ struct TlsListener {
+@@ -1304,7 +1305,7 @@
+ 
+     async fn accept(&mut self) -> (Self::Io, Self::Addr) {
+         loop {
+-            let (tcp, _remote) = match self.tcp.accept().await {
++            let (tcp, remote) = match self.tcp.accept().await {
+                 Ok(pair) => pair,
+                 Err(error) => {
+                     if !is_connection_error(&error) {
+@@ -1323,7 +1324,7 @@
+                 None if stream.get_ref().1.peer_certificates().is_none() => String::new(),
+                 None => continue,
+             };
+-            return (stream, TlsPeer { workload });
++            return (stream, TlsPeer { workload, remote_ip: Some(remote.ip()) });
+         }
+     }
+ 
+@@ -1331,6 +1332,7 @@
+         self.tcp.local_addr()?;
+         Ok(TlsPeer {
+             workload: String::new(),
++            remote_ip: None,
+         })
+     }
+ }
+--- a/crates/oo-gateway/src/auth_lifecycle.rs
++++ b/crates/oo-gateway/src/auth_lifecycle.rs
+@@ -28,10 +28,8 @@
+     }
+ }
+ fn peer_key(peer: &PublicPeer) -> String {
+-    // shortcut: the listener discards TCP addresses; anonymous peers share one
+-    // conservative bucket until the coordinator carries the address into TlsPeer.
+     peer.as_ref()
+-        .map(|Extension(ConnectInfo(p))| p.workload.clone())
++        .map(|Extension(ConnectInfo(p))| p.remote_ip.map(|ip| ip.to_string()).unwrap_or_else(|| p.workload.clone()))
+         .unwrap_or_default()
+ }
+ fn audit_actor(route: &str, peer: &PublicPeer) -> String {
+@@ -42,7 +40,8 @@
+         .unwrap_or("");
+     // Hash the verified workload, not headers or supplied redemption metadata.
+     format!(
+-        "{route};peer=unmeasured;workload_sha256={:x}",
++        "{route};peer={};workload_sha256={:x}",
++        peer.as_ref().and_then(|Extension(ConnectInfo(p))| p.remote_ip).map(|ip| ip.to_string()).unwrap_or_else(|| "unmeasured".into()),
+         Sha256::digest(workload.as_bytes())
+     )
+ }
+@@ -477,7 +476,22 @@
+     fn test_peer(workload: &str) -> PublicPeer {
+         Some(Extension(ConnectInfo(TlsPeer {
+             workload: workload.into(),
++            remote_ip: match workload {
++                "one" => Some("192.0.2.1".parse().unwrap()),
++                "two" => Some("192.0.2.2".parse().unwrap()),
++                "three" => Some("192.0.2.3".parse().unwrap()),
++                _ => None,
++            },
+         })))
++    }
++    #[test]
++    fn peer_address_buckets_ignore_workload_changes() {
++        let mut peer = test_peer("one");
++        let key = peer_key(&peer);
++        peer.as_mut().unwrap().0.0.workload = "another-workload".into();
++        assert_eq!(peer_key(&peer), key);
++        assert!(audit_actor("device-code", &peer).contains("peer=192.0.2.1;"));
++        assert_ne!(peer_key(&test_peer("two")), key);
+     }
+     #[tokio::test]
+     async fn route_and_peer_budgets_are_independent() {
+@@ -637,6 +651,7 @@
+                 State(state.clone()),
+                 Some(Extension(ConnectInfo(TlsPeer {
+                     workload: String::new(),
++                    remote_ip: None,
+                 }))),
+                 RawQuery(None),
+                 headers,
