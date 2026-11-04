@@ -21,6 +21,7 @@ pub struct MysqlChanges {
     engine: MysqlEngine,
     server_id: u32,
     source_uuid: String,
+    source_epoch: String,
     mariadb_anchor: Option<Vec<(u32, u32, u64)>>,
 }
 
@@ -47,6 +48,13 @@ impl MysqlEngine {
     /// Opens no source objects and writes no source data. The replication client
     /// id must be unique among concurrently connected replication clients.
     pub async fn changes(&mut self, tables: &[TableRef], server_id: u32) -> Result<MysqlChanges> {
+        match self.family {
+            EngineFamily::Tidb => return Err(SourceError::config("tidb_c1_unsupported_use_c5")),
+            EngineFamily::Oceanbase => {
+                return Err(SourceError::config("oceanbase_c1_unsupported_use_c5"));
+            }
+            _ => {}
+        }
         if tables.is_empty() || server_id == 0 {
             return Err(SourceError::config("binlog_subscription"));
         }
@@ -101,10 +109,12 @@ impl MysqlEngine {
                 return Err(SourceError::config("binlog_charset_unsupported"));
             }
         }
+        let source_epoch = engine.source_epoch().await?;
         Ok(MysqlChanges {
             engine,
             server_id,
             source_uuid,
+            source_epoch,
             mariadb_anchor,
         })
     }
@@ -275,7 +285,7 @@ async fn image(
 impl MysqlChanges {
     /// Persist with the durable cursor; compare on reconstruction before replay.
     pub fn source_epoch(&self) -> &str {
-        &self.source_uuid
+        &self.source_epoch
     }
 
     pub async fn close(&mut self) {
@@ -355,6 +365,9 @@ impl MysqlChanges {
     pub(super) async fn validate_position(&mut self, from: &Watermark) -> Result<()> {
         self.engine.ensure_basics().await?;
         self.engine.check_replica_commit_order().await?;
+        if self.engine.source_epoch().await? != self.source_epoch {
+            return Err(rebaseline());
+        }
         let rows = self
             .engine
             .exec(

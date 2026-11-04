@@ -318,11 +318,52 @@ impl MysqlEngine {
 
     /// Read the live instance identity, including on C5-only sources.
     pub async fn source_epoch(&mut self) -> Result<String> {
-        let rows = self.exec("SELECT @@GLOBAL.server_uuid", vec![]).await?;
+        self.ensure_basics().await?;
+        if self.family == EngineFamily::Mariadb {
+            let rows = self
+                .exec(
+                    "SELECT @@GLOBAL.server_id, @@GLOBAL.gtid_domain_id, @@GLOBAL.gtid_binlog_pos",
+                    vec![],
+                )
+                .await?;
+            let row = rows
+                .first()
+                .ok_or_else(|| SourceError::protocol("mariadb_epoch"))?;
+            return family::mariadb_epoch(
+                row_u64(row, 0).ok_or_else(|| SourceError::protocol("mariadb_epoch"))?,
+                row_u64(row, 1).ok_or_else(|| SourceError::protocol("mariadb_epoch"))?,
+                &row_text(row, 2).ok_or_else(|| SourceError::protocol("mariadb_epoch"))?,
+            );
+        }
+        let sql = match self.family {
+            EngineFamily::Mysql => "SELECT @@GLOBAL.server_uuid",
+            // Conservative incarnation: membership/restarts require a new baseline.
+            EngineFamily::Tidb => {
+                "SELECT DDL_ID FROM information_schema.TIDB_SERVERS_INFO ORDER BY DDL_ID"
+            }
+            EngineFamily::Oceanbase => {
+                "SELECT CONCAT(TENANT_ID, ':', CREATE_TIME) FROM oceanbase.DBA_OB_TENANTS WHERE TENANT_TYPE='USER'"
+            }
+            _ => return Err(SourceError::config("source_epoch_family")),
+        };
+        let rows = self.exec(sql, vec![]).await?;
+        if self.family == EngineFamily::Tidb {
+            let ids: Option<Vec<_>> = rows
+                .iter()
+                .map(|row| row_text(row, 0).filter(|s| !s.is_empty()))
+                .collect();
+            return ids
+                .filter(|ids| !ids.is_empty())
+                .map(|ids| format!("tidb:{}", ids.join(",")))
+                .ok_or_else(|| SourceError::protocol("tidb_source_epoch_unavailable"));
+        }
+        if rows.len() != 1 {
+            return Err(SourceError::protocol("source_epoch_unavailable"));
+        }
         rows.first()
             .and_then(|row| row_text(row, 0))
-            .filter(|epoch| !epoch.is_empty())
-            .ok_or_else(|| SourceError::protocol("server_uuid"))
+            .filter(|epoch| !epoch.is_empty() && epoch != "0")
+            .ok_or_else(|| SourceError::protocol("source_epoch_unavailable"))
     }
 
     /// No connection is opened until the first operation.

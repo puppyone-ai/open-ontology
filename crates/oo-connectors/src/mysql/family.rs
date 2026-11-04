@@ -3,6 +3,41 @@ use super::*;
 use crate::engine::{Capability, CapabilityState, Requirement, RequirementKind};
 use crate::mysql::{mariadb, oceanbase, tidb};
 
+pub(super) fn mariadb_epoch(server: u64, domain: u64, gtid: &str) -> Result<String> {
+    if server == 0 || server > u32::MAX as u64 || domain > u32::MAX as u64 {
+        return Err(SourceError::protocol("mariadb_epoch"));
+    }
+    let mut identities = std::collections::BTreeSet::from([(domain as u32, server as u32)]);
+    for (domain, server, _) in mariadb::parse_gtid(gtid)? {
+        identities.insert((domain, server));
+    }
+    // Sequence advancement is progress, not a new source incarnation.
+    Ok(format!(
+        "mariadb:{server}:{domain}:{}",
+        identities
+            .iter()
+            .map(|(d, s)| format!("{d}-{s}"))
+            .collect::<Vec<_>>()
+            .join(",")
+    ))
+}
+
+#[cfg(test)]
+mod epoch_tests {
+    use super::*;
+
+    #[test]
+    fn maria_epoch_tracks_domains_and_servers_not_progress() {
+        let epoch = mariadb_epoch(41, 0, "0-41-1,7-42-2").unwrap();
+        assert_eq!(epoch, mariadb_epoch(41, 0, "7-42-99,0-41-20").unwrap());
+        assert_ne!(epoch, mariadb_epoch(41, 1, "0-41-1,7-42-2").unwrap());
+        assert_ne!(epoch, mariadb_epoch(41, 0, "0-41-1,7-43-2").unwrap());
+        assert_ne!(epoch, mariadb_epoch(41, 0, "0-41-1").unwrap());
+        assert!(mariadb_epoch(0, 0, "").is_err());
+        assert!(mariadb_epoch(41, 0, "0-41-1,0-41-2").is_err());
+    }
+}
+
 impl MysqlEngine {
     pub(super) async fn oceanbase_verify_index(
         &mut self,
@@ -76,6 +111,7 @@ impl MysqlEngine {
             Err(SourceError::catalog("chunk_index_unused"))
         }
     }
+    /// Construct an explicitly selected MySQL-wire family without connecting.
     pub fn new_family(
         family: EngineFamily,
         config: MysqlConfig,
