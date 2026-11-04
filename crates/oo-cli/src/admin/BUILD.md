@@ -5,19 +5,24 @@ chain rather than returning success for an unpublished draft. It records:
 
 1. `pull_selfbuild`: existing bounded `oo-load` and draft stages.
 2. `self_review`: explicit owner review and real Builder recompilation.
-3. `publish`: **blocked** at `publish_reviewed_registry` until lane M supplies
-   the authenticated lite publication entry.
+3. `publish`: **blocked** at `publish_reviewed_registry`: D15 activation exists,
+   but the current authenticated publisher rejects the retained-cut contract.
 4. `gateway`: fail-closed start/reload seam pending lane M's publication contract.
-5. `first_token`: lane B `oo token issue`, private credential and receipt.
+5. `first_token`: lane B's authenticated issue API with durable retry material,
+   private credential and receipt.
 6. `share_prompt`: lane B `oo share-prompt`, separate short-lived enrollment code
    in a private JSON receipt, never stdout of the outer build.
 
 Stages 5 and 6 are implemented but unreachable while the publication and Gateway
 seams fail closed. This does not claim live token or Gateway acceptance.
 
-This is not a full-chain delivery claim. The Gateway consumes `_oo` publication
-and policy state, whereas `oo-load` currently publishes `_oo_load` local table
-views. Copying a local Pack or fabricating release gates cannot bridge that gap.
+This is not a full-chain delivery claim. `oo-load publish` now prepares retained
+cuts and D15 activation, but requires reviewed open fences. The existing
+`release-coordinator` publisher accepts the legacy library fixture and rejects
+the retained consistency, receipt protocol and non-UUID generation independently
+(probe `a3-s4-publisher-contract`). Direct fixture SQL in the Gateway-cycle harness
+is not authenticated publisher acceptance. Copying a local Pack or fabricating
+release gates cannot bridge that gap.
 
 Use `--draft-only` explicitly for the previous metadata/draft-only behavior.
 The wizard's existing bounded bridge still stops at draft. The existing live
@@ -75,12 +80,24 @@ receipt containing `protocol: oo.build-publication/v1`, `published: true`,
 lane-B `first_user_grant`. These fields are a proposed adapter contract, not a
 claim that lane M has accepted or implemented it.
 
-Each lifecycle stage reserves an intent before invoking lane B. A durable receipt
-allows recovery after completion without duplicate issuance; changed bindings
-or a changed first-user credential refuse resume. An intent without a receipt
-fails with `BUILD_ISSUANCE_UNCERTAIN_RECONCILE_AUDIT`. Lane B does not currently
-accept an idempotency key, so a lost remote response cannot safely be retried.
-Audit reconciliation/revocation is still required for that interior failure.
-Tests SIGKILL child processes before/after private receipts for all four tail
-stages and verify recovery never dispatches twice. These use synthetic effects,
-not live Gateway tests or SIGKILL tests of remote issuance.
+First-user issuance now reserves CSPRNG token material, the idempotency key and
+the publication/grant binding in atomic private `first-token-request.json`
+before dispatch. It calls lane B's existing mTLS admin route with optional
+`retry` material. The server stores only hashes and serializes retries with the
+project lock. It refuses changed bindings and never revives expired, revoked or
+rotated credentials. Install the additive token-store extension with the
+existing `issue-token install` before use; accepted v1/v2 migrations are unchanged.
+
+`cargo test --locked -p oo-cli` tests real SIGKILL at request, committed-response
+and receipt boundaries with a synthetic remote. For a real PostgreSQL 17.11 +
+mTLS Gateway remote, run
+`python3 tools/gateway-token-store/test_issue_retry.py --run-id UNIQUE --cli`.
+Run `a3-s4-token-mtls-kill-2` kills the first-token client after the real remote
+commit and observes exactly one credential after recovery. This tests lifecycle
+only, not a published Pack, source ingestion, or a Gateway data query.
+
+Legacy first-token intents without reserved material still require audit
+reconciliation; guessing their outcome could duplicate a credential. The
+share-prompt enrollment stage also still uses a fail-closed intent: its lost
+response is not replay-safe. Publication, Gateway startup, enrollment recovery,
+printed-prompt delivery and the three-engine full build remain incomplete.

@@ -1,4 +1,4 @@
-//! Private lifecycle receipts. Ambiguous remote issuance must never be retried.
+//! Private lifecycle receipts. Enrollment still refuses ambiguous retries.
 use std::fs;
 use std::io::Read;
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt};
@@ -28,8 +28,8 @@ fn once(
     }
     let intent = root.join(format!("{name}-intent.json"));
     if intent.exists() {
-        // Lane B has no issuance idempotency key. Do not create another credential
-        // after a lost HTTP response or a crash before the private receipt.
+        // Enrollment has no replay material. Unlike first-user issuance, do not
+        // retry it after a lost response or a crash before the private receipt.
         return Err(Failure::local("BUILD_ISSUANCE_UNCERTAIN_RECONCILE_AUDIT"));
     }
     review::save_new(&intent, &json!({"input_sha256":fingerprint}))?;
@@ -47,7 +47,7 @@ fn once(
     Ok(result)
 }
 
-fn credential_hash(path: &Path) -> Result<String> {
+pub(super) fn credential_hash(path: &Path) -> Result<String> {
     let file = fs::OpenOptions::new()
         .read(true)
         .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
@@ -110,12 +110,6 @@ fn lifecycle(root: &Path, publication: &Value, command: &[&str]) -> Result<Vec<u
     process
         .arg("--grant-file")
         .arg(root.join("first-user-grant.json"));
-    if command == ["token", "issue"] {
-        process
-            .arg("--output-file")
-            .arg(root.join("first-user.token"))
-            .arg("--json");
-    }
     let output = process
         .env("OO_CONFIG_DIR", client)
         .stdin(Stdio::null())
@@ -150,22 +144,7 @@ pub(super) fn run(root: &Path, name: &str, publication: &Value) -> Result<Value>
         review::save_new(&grant, &publication["first_user_grant"])?;
     }
     match name {
-        "first_token" => {
-            let result = once(root, name, publication, || {
-                let raw = lifecycle(root, publication, &["token", "issue"])?;
-                let receipt: Value = serde_json::from_slice(&raw)
-                    .map_err(|_| Failure::local("BUILD_TOKEN_RECEIPT"))?;
-                let hash = credential_hash(&root.join("first-user.token"))?;
-                if receipt["credential_saved"] != true || receipt["token_sha256"] != hash {
-                    return Err(Failure::local("BUILD_TOKEN_RECEIPT"));
-                }
-                Ok(json!({"token_sha256":hash,"expires_at_ms":receipt["expires_at_ms"]}))
-            })?;
-            if result["token_sha256"] != credential_hash(&root.join("first-user.token"))? {
-                return Err(Failure::local("BUILD_TOKEN_RECEIPT"));
-            }
-            Ok(result)
-        }
+        "first_token" => super::build_token::run(root, publication),
         "share_prompt" => once(root, name, publication, || {
             // Lane B issues a separate short-lived enrollment code, not the
             // first user's long-lived token. Keep the entire prompt private.
