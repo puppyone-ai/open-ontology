@@ -1,6 +1,6 @@
 # Index digests contain both linux/amd64 and linux/arm64. Build one at a time.
 FROM docker.io/library/rust@sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f AS build
-ARG OO_LANE=a
+ARG OO_LANE=m
 LABEL oo.lane=$OO_LANE
 RUN apt-get update && apt-get install -y --no-install-recommends cmake pkg-config libssl-dev clang libclang-dev protobuf-compiler && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
@@ -19,13 +19,14 @@ RUN cargo build --locked -p oo-cli -p oo-pipeline -p oo-gateway -p oo-builder --
     /build/target/debug/release-coordinator /build/target/debug/install-retained-target /out/ && \
     rm -rf /build/target
 FROM docker.io/library/python@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f
-ARG OO_LANE=a
+ARG OO_LANE=m
 LABEL oo.lane=$OO_LANE
 RUN apt-get update && apt-get install -y --no-install-recommends libssl3 openssl ca-certificates libaio1 postgresql-client && rm -rf /var/lib/apt/lists/*
 COPY --from=build /out/ /usr/local/bin/
 COPY tools/model-egress/model_egress.py /opt/oo/model_egress.py
 COPY deploy/lite/draft.py /opt/oo/draft.py
 COPY tools/pg-builder/scripts/ /opt/oo/pg-builder/
+COPY deploy/lite/scheduler.py /opt/oo/scheduler.py
 ENV PYTHONDONTWRITEBYTECODE=1
 WORKDIR /work
 ENTRYPOINT ["oo"]

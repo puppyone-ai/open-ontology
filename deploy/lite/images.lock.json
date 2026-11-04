@@ -19,7 +19,7 @@
       "tag": "oo-lane-a-lite:a-s2f-load-runtime-arm64",
       "dockerfile_sha256": "26ba9ddd53ae22803fd4a320519f7fdd2b9102d8095a206e949aabc70cac6324",
       "run_id": "a-s2f-load-runtime",
-      "build_matches_current_dockerfile": true
+      "build_matches_current_dockerfile": false
     }
   }
 }
