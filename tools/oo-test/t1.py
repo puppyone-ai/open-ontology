@@ -2,10 +2,12 @@
 """T1 hook and lane-M matrix driver. Does not change lane H's runner API."""
 import argparse
 import copy
+import datetime as dt
 import hashlib
 from decimal import Decimal
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import signal
@@ -234,10 +236,28 @@ def compare_pg(run, target, receipt, table):
     def rows(text):
         for line in text.splitlines():
             if line.startswith("{"):
-                row = json.loads(line, parse_float=Decimal)
-                yield [row[n] for n in names]
+                row = json.loads(line, parse_float=Decimal, parse_int=Decimal)
+                yield [pg_cell(row[name], kind) for name, kind in columns]
     return compare(rows(left), rows(right), key_columns=[names.index(k) for k in keys],
                    chunk_size=10_000, consistency="B")
+
+
+def pg_cell(value, kind):
+    if value is None:
+        return None
+    if kind == "date":
+        return dt.date.fromisoformat(value)
+    if kind.startswith("timestamp"):
+        return dt.datetime.fromisoformat(value)
+    if kind == "bytea":
+        if not value.startswith("\\x"):
+            raise RuntimeError("bytea hex representation required")
+        return bytes.fromhex(value[2:])
+    if kind in ("real", "double precision"):
+        if isinstance(value, str):
+            raise RuntimeError("nonfinite float requires a wire-bit comparison")
+        return float(value)
+    return value
 
 
 def compare_oracle(run, target, receipt, table):
@@ -284,9 +304,10 @@ def compare_oracle(run, target, receipt, table):
             elif kind == "RAW":
                 out.append(bytes.fromhex(value))
             elif kind == "DATE" or kind.startswith("TIMESTAMP"):
-                # Engine text preserves nine fractional digits; no rounding in
-                # this comparison, including the original timezone offset.
-                out.append(value.lstrip(" +"))
+                fraction = re.search(r"\.(\d+)", value)
+                if fraction and any(c != "0" for c in fraction[1][6:]):
+                    raise RuntimeError("submicrosecond Oracle comparison unavailable")
+                out.append(dt.datetime.fromisoformat(value.lstrip(" +").replace(" ", "")))
             else:
                 out.append(value)
         return out
@@ -339,6 +360,9 @@ def run_t1(run, binary, worker_image=None):
                     "EXECUTE IMMEDIATE 'GRANT FLASHBACK ON fixture.'||t.table_name||' TO fixture_reader'; END LOOP; END;\n/\n", admin=True)
             _, table_text = run.sql("SELECT table_name FROM all_tables WHERE owner='FIXTURE' ORDER BY table_name;")
             tables = [s for s in table_text.split() if s.isidentifier()]
+            # Fail early on the required type-edge fixture rather than copying
+            # millions of rows before discovering an unsupported source type.
+            tables.sort(key=lambda t: (t not in ("AREAS", "TYPE_EDGES"), t))
         if not tables:
             raise RuntimeError("fixture tables missing")
         code, port_text = run.command(["docker", "port", run.name, f"{source_port}/tcp"], required=False)
