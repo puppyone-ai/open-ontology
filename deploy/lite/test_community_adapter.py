@@ -19,6 +19,15 @@ from test_selfbuild_budget import Model
 
 
 class Tests(unittest.TestCase):
+    def test_embedded_modules_at_shallow_container_path(self):
+        sources = {name: (ROOT/'tools/pg-builder/scripts'/(name+'.py')).read_text()
+                   for name in ('model_provider', 'selfbuild_budget')}
+        sources['community_adapter'] = Path(adapter.__file__).read_text()
+        with patch.dict(sys.modules):
+            loaded = draft.load_community_modules(sources, Path('/work/.oo'))
+            self.assertTrue(callable(loaded.generate))
+            self.assertEqual(sys.modules['selfbuild_budget'].ROOT, Path('/work/.oo'))
+
     def fixture(self):
         catalog = dict(tables=[dict(schema='app', name='regions',
             primary_key=[dict(name='id')],
@@ -68,9 +77,8 @@ class Tests(unittest.TestCase):
                     decisions['description/'+id_] = dict(action='accept')
             for table in command['effective']['datasets']:
                 for col in table['columns']:
-                    decisions['classification/'+table['dataset']+'/'+col['name']] = dict(
-                        action='edit', reason='Synthetic fixture checked by test operator',
-                        replacement=dict(pii='none', semantic_type='identifier'))
+                    self.assertEqual(col['pii'], 'restricted')
+                    decisions['classification/'+table['dataset']+'/'+col['name']] = dict(action='accept')
             draft.save(root/'decisions.json', dict(protocol='oo.owner-review/v1',
                 input_sha256=builder.digest(command), reviewed_at='2026-11-04', items=decisions,
                 g14=dict(action='accept', reason='Synthetic isolated fixture',

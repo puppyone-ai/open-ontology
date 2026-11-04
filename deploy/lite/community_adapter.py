@@ -51,7 +51,9 @@ def review_input(tables, draft, project, source_hash):
                          sample_values=dict(default='masked', max_per_column=0))),
         datasets=[dict(schema_version='oos/v1', dataset=t['dataset'], tier='file',
             label=t['dataset'], primary_key=t['primary_key'],
-            columns=[dict(name=c['name'], pii='unknown', semantic_type='free_text')
+            # Most restrictive proposal, not a confirmed classification. The
+            # owner must explicitly accept or edit every column before compile.
+            columns=[dict(name=c['name'], pii='restricted', semantic_type='free_text')
                      for c in t['columns']]) for t in tables])
     # This is a local compilation proposal, never an authenticated role grant.
     visibility = dict(versions, protocol='oo.builder.role-visibility/v1', principal='owner',

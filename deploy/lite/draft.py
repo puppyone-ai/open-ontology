@@ -13,6 +13,16 @@ import time
 
 STAGES = ('preflight', 'catalog', 'profile', 'comments', 'seal', 'cards', 'generation')
 
+def load_community_modules(sources, root):
+    import types
+    for name in ('model_provider', 'selfbuild_budget', 'community_adapter'):
+        module = types.ModuleType(name)
+        module.__file__ = str(root/'embedded/tools/pg-builder/scripts'/(name+'.py'))
+        sys.modules[name] = module
+        exec(compile(sources[name], module.__file__, 'exec'), module.__dict__)
+        module.ROOT = root
+    return sys.modules['community_adapter']
+
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
@@ -250,15 +260,9 @@ def build(request, root):
                 else:
                     raise ValueError('EGRESS_START_TIMEOUT')
                 if 'community_modules' in request:
-                    import types
-                    for module_name in ('model_provider','selfbuild_budget','community_adapter'):
-                        module = types.ModuleType(module_name)
-                        module.__file__ = str(root/(module_name+'.py'))
-                        sys.modules[module_name] = module
-                        exec(compile(request['community_modules'][module_name],
-                                     module.__file__, 'exec'), module.__dict__)
+                    adapter = load_community_modules(request['community_modules'], root)
                     os.environ['OO_SELFBUILD_BUDGET_BIN'] = str(binaries/'selfbuild-budget')
-                    sys.modules['community_adapter'].generate(root,stack,binaries,
+                    adapter.generate(root,stack,binaries,
                         lambda p: json.loads(read_private(p)), save)
                     artifacts = ['draft.json','review-input.json']
                 else:
