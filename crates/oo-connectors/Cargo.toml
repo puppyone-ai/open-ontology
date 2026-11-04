@@ -17,6 +17,7 @@ mysql = ["dep:mysql_async", "tokio/sync", "tokio/macros"]
 # default artifact only after the seven-day rule (supply-chain/mysql-binlog-audit.json).
 mysql-binlog = ["mysql", "mysql_async/binlog", "dep:futures-util"]
 oracle = ["dep:oracledb"]
+sqlserver = ["dep:tiberius", "dep:tokio-util", "dep:futures-util", "tokio/net", "tokio/io-util"]
 
 [[bin]]
 name = "oo-oracle-source"
@@ -59,6 +60,8 @@ mysql_async = { version = "=0.37.1", optional = true, default-features = false, 
 # The source cursor uses the driver without its optional Arrow 59 dependency.
 # All product IPC continues to use the workspace's Arrow 60 types.
 oracledb = { version = "=26.0.0-beta.4", optional = true, default-features = false }
+tiberius = { version = "=0.13.0", optional = true, default-features = false, features = ["tds73", "rustls"] }
+tokio-util = { version = "=0.7.19", optional = true, default-features = false, features = ["compat"] }
 unicode-normalization = "=0.1.25"
 zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
 
