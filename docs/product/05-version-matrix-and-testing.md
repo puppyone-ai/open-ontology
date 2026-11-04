@@ -55,6 +55,8 @@
 
 **SQL Server 现状（2026-11-04，S3-E-02）。** 2019 CU32、2022 CU20、2025 CU1 在 `oo-test matrix --engine sqlserver` 上通过完整夹具 T0/T1/T2/T8（231 表、2M 事件、300 列宽表，并发写入下 Agent DB 零差异；C5、Change Tracking、CDC 各三周期，空闲周期零写入、零新代际；错误 epoch 拒绝且不改持久状态）与 T7（只读审计归因；CDC 空闲映射追加按 D12 归因）。T3/T4 未做，级别仍由生成矩阵决定。
 
+**OLAP 现状（2026-11-04，S4-F-01）。** ClickHouse 26.8.21.10、Doris 3.1.4、StarRocks 3.5.21 经 MySQL 线协议读取（ClickHouse 端口 9004、`readonly` profile，不引入 HTTP crate），在 `oo-load` 上通过 T0/T1/T2/T8：快照按分区切块（超预算分区按大小档哈希分桶，计划跨周期稳定），分区刷新只重读摘要变化的范围，空闲周期零读写，结构变化拒绝且不改目标；读端连接峰值 1，占空比 ≤25%。夹具规模小（最大表 3 万行），Doris/StarRocks 夹具未启用 TLS，ClickHouse 24.x、Doris 4.x、StarRocks 4.x 未测；新增分区或分区跨档会触发重基线。
+
 **amd64 镜像怎么跑。** 开发机是 Apple Silicon。MySQL 5.7、Oracle XE 11g/21c、SQL Server、Db2 只有 amd64 镜像，本期在本机 Docker Desktop 用 `--platform linux/amd64`（Rosetta）运行，已实测可用（Plan D1）。仿真比原生慢，套件的超时与吞吐预期对这些目标单独放宽并在证据中注明“仿真”。macOS 27 是最后一个完整支持 Rosetta 2 的版本，`oo-test` 因此保留 `--runner remote` 接口，必要时接入一台 x86 Linux 主机，无需改测试本身。
 
 **磁盘。** 全部镜像约需 40–60 GB。`oo-test` 每次运行使用带 `oo.run_id` 标签的容器与卷，结束时只清理自己创建的资源；不清理来历不明的容器或卷。

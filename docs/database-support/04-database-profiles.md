@@ -306,7 +306,7 @@ GRANT EXECUTE ON sys.dbms_flashback TO oo_reader;        -- 读取当前 SCN
 
 ### 9.6 ClickHouse、StarRocks、Doris
 
-- ClickHouse：P1 官方 HTTP crate；**无 binlog/CDC、无多语句事务**；`ReplacingMergeTree` 去重发生在后台合并，一致读需 `FINAL`；轻量 `DELETE` 异步生效；表级捕获用 C4（`system.parts` 修改时间）或 C3/C5，对账靠主键键集（列式扫描主键列代价低）。账号：`readonly` profile + quota + `max_execution_time`。类型：`UInt64`→`numeric(20,0)`，`Int128/UInt128/Int256/UInt256`→`numeric`，`Decimal256`，`LowCardinality(T)` 视为 `T`，`Nullable` 保留；非 Nullable 列的“默认值代替缺失” → `default_for_missing`。
+- ClickHouse：P1 经 MySQL 线协议接口（端口 9004，`readonly` profile，复用 `mysql_async`，2026-11-04 S4-F-01 实现；原设计为官方 HTTP crate）；**无 binlog/CDC、无多语句事务**；`ReplacingMergeTree` 去重发生在后台合并，一致读需 `FINAL`；轻量 `DELETE` 异步生效；表级捕获用 C4（`system.parts` 修改时间）或 C3/C5，对账靠主键键集（列式扫描主键列代价低）。账号：`readonly` profile + quota + `max_execution_time`。类型：`UInt64`→`numeric(20,0)`，`Int128/UInt128/Int256/UInt256`→`numeric`，`Decimal256`，`LowCardinality(T)` 视为 `T`，`Nullable` 保留；非 Nullable 列的“默认值代替缺失” → `default_for_missing`。
 - StarRocks / Doris：MySQL 协议（P1）；Primary/Unique Key 表可变、Duplicate 表只追加；**2.x/3.x（Doris）无对外变更流**，Doris 5.x 的 Row Binlog/Table Stream（实验、文档标注未发布）不作依据；采用 C4 分区刷新或 C3/C5。`BITMAP/HLL/QUANTILE_STATE` 等聚合类型排除。资源限制靠 resource/workload group。
 
 ### 9.7 Iceberg、Delta（对象存储直读）与 Trino
