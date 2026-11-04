@@ -258,6 +258,11 @@ async fn image(
 }
 
 impl MysqlChanges {
+    /// Persist with the durable cursor; compare on reconstruction before replay.
+    pub fn source_epoch(&self) -> &str {
+        &self.source_uuid
+    }
+
     pub async fn close(&mut self) {
         self.engine.close().await;
     }

@@ -93,6 +93,11 @@ pub struct OracleLogMiner {
 }
 
 impl OracleLogMiner {
+    /// Persist DBID/resetlogs identity with the SCN and compare on reconstruction.
+    pub fn source_epoch(&self) -> &str {
+        &self.identity
+    }
+
     pub fn new(
         mut engine: OracleEngine,
         data: &mut OracleEngine,
