@@ -1,0 +1,54 @@
+--- a/tools/oo-test/t1.py
++++ b/tools/oo-test/t1.py
+@@ -24,2 +24,5 @@
+ ROOT = runner.ROOT
++LANE = os.environ.get("OO_TEST_LANE", "m")
++if LANE not in ("m", "e"):
++    raise ValueError("unsupported T1 lane")
+
+@@ -80,3 +83,3 @@
+     def command(self, command, **kwargs):
+-        command = ["oo.lane=m" if x == "oo.lane=h" else x for x in command]
++        command = ["oo.lane=" + LANE if x == "oo.lane=h" else x for x in command]
+         if command[:2] == ["docker", "create"] and self.name in command:
+@@ -96,3 +99,3 @@
+                 labels = json.loads(raw)
+-                if labels.get("oo.lane") != "m" or labels.get("oo.run_id") != self.id:
++                if labels.get("oo.lane") != LANE or labels.get("oo.run_id") != self.id:
+                     raise RuntimeError("cleanup ownership")
+@@ -128,3 +131,3 @@
+         self.run.command(["docker", "pull", "--platform", platform, image], timeout=1200)
+-        self.run.command(["docker", "create", "--name", self.name, "--label", "oo.lane=m",
++        self.run.command(["docker", "create", "--name", self.name, "--label", "oo.lane=" + LANE,
+                           "--label", "oo.run_id=" + self.run.id, "--platform", platform,
+@@ -156,3 +159,3 @@
+             labels = json.loads(raw)
+-            if labels.get("oo.lane") != "m" or labels.get("oo.run_id") != self.run.id:
++            if labels.get("oo.lane") != LANE or labels.get("oo.run_id") != self.run.id:
+                 raise RuntimeError("target cleanup ownership")
+@@ -379,2 +382,6 @@
+
++from functools import partial
++from oracle_t1 import compare_oracle as compare_oracle_lobs
++compare_oracle = partial(compare_oracle_lobs, scalar_compare=compare_oracle)
++
+ def run_t1(run, binary, worker_image=None):
+@@ -428,4 +435,6 @@
+             run.command(["docker", "create", "--name", worker, "--platform", "linux/amd64",
+-                         "--label", "oo.lane=m", "--label", "oo.run_id=" + run.id,
+-                         "--network", "container:" + run.name, "--entrypoint", "sleep", worker_image, "infinity"])
++                         "--label", "oo.lane=" + LANE, "--label", "oo.run_id=" + run.id,
++                         "--network", "container:" + run.name,
++                         "--mount", f"type=bind,src={ROOT / 'testing/engines/oracle/worker/worker.py'},dst=/worker.py,readonly",
++                         "--entrypoint", "sleep", worker_image, "infinity"])
+             run.command(["docker", "start", worker])
+@@ -503,3 +512,3 @@
+             labels = json.loads(raw)
+-            if labels.get("oo.lane") != "m" or labels.get("oo.run_id") != run.id:
++            if labels.get("oo.lane") != LANE or labels.get("oo.run_id") != run.id:
+                 raise RuntimeError("worker cleanup ownership")
+@@ -523,3 +532,3 @@
+             ["docker", "inspect", "--format", "{{json .Config.Labels}}", context["container"]], text=True))
+-        if labels.get("oo.lane") not in ("h", "m") or labels.get("oo.run_id") != context["run_id"]:
++        if labels.get("oo.lane") not in ("h", LANE) or labels.get("oo.run_id") != context["run_id"]:
+             raise RuntimeError("hook fixture ownership")
