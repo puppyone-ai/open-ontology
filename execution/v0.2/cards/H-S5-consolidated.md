@@ -16,3 +16,8 @@ experimental. Fix that at the source and rerun:
    (+ `--check`, `--self-test`) and commit the generated matrix; report the version × capability levels and every
    failure or downgrade.
 T5/T6 (model-backed) are a separate step; do not run them here.
+Rerun note (E327): your first attempt found every target disk-blocked (< 20 GB). The coordinator pruned unused build
+cache (free 28 GB). Rebase (your 77c39378e, 022f02a25 stay), then run the matrix again. Between targets remove each
+target's containers and volumes before starting the next, and do not pull images that are not already present unless
+free disk is ≥ 25 GB. If disk blocks a target again, wait up to 30 minutes for other lanes to free space before marking
+it blocked.
