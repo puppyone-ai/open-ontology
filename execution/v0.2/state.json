@@ -1018,10 +1018,15 @@
       "sprint": "S4",
       "lane": "A",
       "title": "远程部署：`oo up --target ssh` 安装 compose 栈与 systemd timer",
-      "status": "in_progress",
+      "status": "author_complete",
       "owner": "lane-A2 (native Opus)",
       "branch": "v0.2/a-onboarding",
-      "commits": [],
+      "commits": [
+        "ae0b7748d",
+        "8ae6bad66",
+        "55f86b9fe",
+        "a129c772c"
+      ],
       "evidence": []
     },
     {
