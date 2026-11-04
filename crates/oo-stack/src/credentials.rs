@@ -218,6 +218,8 @@ pub fn bootstrap(root: &Path) -> Result<CredentialStatus, &'static str> {
                 "basicConstraints=critical,CA:TRUE,pathlen:0",
                 "-addext",
                 "keyUsage=critical,keyCertSign,cRLSign",
+                "-addext",
+                "subjectKeyIdentifier=hash",
             ],
             b"",
         )?,
@@ -236,9 +238,17 @@ pub fn bootstrap(root: &Path) -> Result<CredentialStatus, &'static str> {
             ],
             b"",
         )?;
+        // Gateway workload authentication requires exactly one URI SAN.
+        let san = if matches!(service, "agent-db" | "control-db" | "gateway") {
+            format!("DNS:{service},DNS:localhost,IP:127.0.0.1")
+        } else {
+            format!("URI:urn:oo:workload:{service}")
+        };
         let extensions = format!(
             "basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\n\
-             extendedKeyUsage=serverAuth,clientAuth\nsubjectAltName=DNS:{service},DNS:localhost,IP:127.0.0.1\n"
+             subjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid,issuer\n\
+             extendedKeyUsage=serverAuth,clientAuth\n\
+             subjectAltName={san}\n"
         );
         let ext = format!("lite-{service}-extensions");
         store.write_new(&ext, extensions.as_bytes())?;
@@ -298,6 +308,27 @@ mod tests {
             );
         }
         for service in SERVICES {
+            let san = openssl(
+                &[
+                    "x509",
+                    "-in",
+                    &location(&root, &format!("lite-{service}-cert")).unwrap(),
+                    "-noout",
+                    "-ext",
+                    "subjectAltName",
+                ],
+                b"",
+            )
+            .unwrap();
+            let san = String::from_utf8(san).unwrap();
+            if matches!(service, "agent-db" | "control-db" | "gateway") {
+                assert!(san.contains(&format!("DNS:{service}")));
+            } else {
+                assert_eq!(
+                    san.lines().last().unwrap().trim(),
+                    format!("URI:urn:oo:workload:{service}")
+                );
+            }
             assert!(!checkend(&root, &format!("lite-{service}-cert"), "62985600").unwrap());
             assert!(checkend(&root, &format!("lite-{service}-cert"), "63072001").unwrap());
             for purpose in ["sslserver", "sslclient"] {
@@ -305,6 +336,7 @@ mod tests {
                     openssl(
                         &[
                             "verify",
+                            "-x509_strict",
                             "-CAfile",
                             &location(&root, "lite-ca-cert").unwrap(),
                             "-purpose",
