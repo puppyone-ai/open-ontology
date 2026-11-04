@@ -28,7 +28,7 @@ def main():
     parser.add_argument("--incremental", action="store_true",
                         help="C5 cycles and owned LogMiner/audit fixture")
     parser.add_argument("--c5-only", action="store_true",
-                        help="run incremental C5 without claiming C1 or T7")
+                        help="run incremental C5 and strict T7 with a non-LogMiner reader")
     args = parser.parse_args()
     if args.incremental and args.undo_stress:
         parser.error("run incremental and undo stress separately")
@@ -221,11 +221,47 @@ SELECT name,value FROM v$parameter WHERE name='audit_trail';
 EXIT""")
             run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
                 "logminer-setup", input=mining, timeout=300)
+        if args.c5_only:
+            audit_setup = """
+SET ECHO OFF VERIFY OFF FEEDBACK OFF
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+"""
+            if args.version != "23":
+                audit_setup += """
+ALTER SYSTEM SET AUDIT_TRAIL='DB','EXTENDED' SCOPE=SPFILE;
+SHUTDOWN IMMEDIATE;
+STARTUP;
+"""
+                if args.version != "11":
+                    audit_setup += "ALTER PLUGGABLE DATABASE ALL OPEN;\n"
+            audit_setup += switch + "\n"
+            if args.version == "11":
+                audit_setup += """
+AUDIT ALL BY OO_READER BY ACCESS;
+AUDIT SELECT TABLE, INSERT TABLE, UPDATE TABLE, DELETE TABLE, EXECUTE PROCEDURE BY OO_READER BY ACCESS;
+"""
+            else:
+                audit_setup += """
+CREATE AUDIT POLICY OO_C5_AUDIT ACTIONS ALL;
+AUDIT POLICY OO_C5_AUDIT BY OO_READER;
+"""
+            audit_setup += """
+SELECT parameter,value FROM v$option WHERE parameter='Unified Auditing';
+SELECT name,value FROM v$parameter WHERE name='audit_trail';
+SELECT privilege FROM dba_sys_privs WHERE grantee='OO_READER';
+SELECT owner,table_name,privilege FROM dba_tab_privs WHERE grantee='OO_READER';
+EXIT
+"""
+            run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
+                "c5-audit-setup", input=audit_setup, timeout=300)
+        if args.incremental:
             tracing = """
 WHENEVER SQLERROR EXIT SQL.SQLCODE
 EXEC DBMS_MONITOR.DATABASE_TRACE_ENABLE(waits=>FALSE,binds=>FALSE);
 EXIT
 """
+            if args.c5_only:
+                tracing = tracing.replace("EXEC DBMS_MONITOR", switch + "\nEXEC DBMS_MONITOR")
             run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
                 "trace-enable", input=tracing)
 
@@ -322,9 +358,12 @@ EXIT
         (out / "source-hashes-match.json").write_text(json.dumps({"match": sources == after}) + "\n")
         if sources != after:
             raise RuntimeError("source changed during test; rerun for fixed-source evidence")
-        if args.incremental and not args.c5_only:
+        if args.incremental:
             from audit import collect
-            collect(run, name, args.version, out, miner_user)
+            collect(run, name, args.version, out,
+                    "OO_READER" if args.c5_only else miner_user,
+                    mode="c5" if args.c5_only else "c1",
+                    service=service if args.c5_only else None)
         if args.undo_stress:
             run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
                 "undo-observation", input=f"""

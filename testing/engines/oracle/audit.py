@@ -1,7 +1,6 @@
-"""D11 classification: retain every audit row and require trace evidence."""
+"""D11a/C5 classification. Preserve rejected records; never infer attribution."""
 import json
 import re
-from pathlib import Path
 
 from worker.worker import LOGMINER_CALLS
 
@@ -10,132 +9,147 @@ def normalized(sql):
     return " ".join((sql or "").rstrip("\0").strip().upper().split())
 
 
-def driver_setting(sql):
-    return re.fullmatch(
-        r"ALTER SESSION SET (TIME_ZONE|NLS_[A-Z_]+)\s*=\s*'[^';]*'", sql
-    ) is not None
+def written_object(sql):
+    match = re.match(r"(?:DELETE FROM|INSERT INTO|UPDATE|MERGE INTO) ([A-Z0-9_.$#]+)(?=\s|\(|$)", sql)
+    return match[1] if match else None
 
 
-def temp_delete(sql):
-    # Deliberately narrow: the observed package deletes contain no subqueries,
-    # quoted identifiers, comments, literals, or second object references.
-    match = re.fullmatch(
-        r"DELETE FROM SYS\.(LOGMNR_GT_[A-Z0-9_$#]+)(?: [A-Z])?"
-        r"(?: WHERE [A-Z0-9_$#:(). =]+)?", sql
-    )
-    if match and not re.search(r"\b(SELECT|FROM|JOIN|INSERT|UPDATE|DELETE|MERGE)\b", sql[12:]):
-        return "SYS." + match[1]
-    return None
+def logminer_dml(sql):
+    obj = written_object(sql)
+    if not obj or not re.fullmatch(r"(?:SYS|SYSTEM)\.LOGMNR[A-Z0-9_$#]*", obj):
+        return None
+    # Fail closed on additional statements, source objects or opaque syntax.
+    rest = sql[sql.index(obj) + len(obj):]
+    if re.search(r"[;\"'/]|\b(SELECT|FROM|JOIN|INSERT|UPDATE|DELETE|MERGE|EXECUTE)\b", rest):
+        return None
+    return obj
 
 
-def classify(record):
+def logminer_query(sql):
+    return sql.startswith("SELECT ") and re.search(r"\bV\$LOGMNR_CONTENTS\b", sql) is not None
+
+
+def classify(record, mode="c1"):
     sql = normalized(record.get("sql"))
     action = record.get("action")
     if action in ("LOGON", "LOGOFF") and not sql:
         return "read_session"
     if sql.startswith("SELECT ") and action in ("SELECT", "EXECUTE PROCEDURE"):
         return "read"
+    if mode == "c5":
+        return "rejected_c5_non_select"
     if sql in LOGMINER_CALLS and action in ("EXECUTE", "EXECUTE PROCEDURE"):
         return "logminer_call"
-    if action == "ALTER SESSION" and driver_setting(sql):
-        return "d11_driver_session_setting"
-    depth = record.get("depth")
-    if not isinstance(depth, int) or depth <= 0:
-        return "rejected_missing_or_nonrecursive_depth"
-    obj = temp_delete(sql)
-    if obj and record.get("objects") == [obj]:
-        return "d11_recursive_temporary_write"
-    if sql == "COMMIT" and record.get("objects") and all(
-        re.fullmatch(r"SYS\.LOGMNR_GT_[A-Z0-9_$#]+", obj)
-        for obj in record["objects"]
-    ):
-        return "d11_recursive_temporary_write"
-    return "rejected_operation_or_object"
+    if record.get("depth") == 0:
+        return "rejected_top_level_non_select"
+    if action in ("DELETE", "INSERT", "UPDATE", "MERGE"):
+        obj = logminer_dml(sql)
+        if obj and record.get("objects") == [obj]:
+            return "d11a_logminer_object_dml"
+    if sql == "COMMIT" and record.get("logminer_context") is True:
+        return "d11a_logminer_commit"
+    return "rejected_operation_or_unproven_context"
 
 
 def trace_records(text):
     records = []
-    pattern = r"PARSING IN CURSOR #(\S+) len=\d+ dep=(\d+) uid=(\d+)[^\n]*\n(.*?)\nEND OF STMT"
-    parsed = list(re.finditer(pattern, text, re.S))
-    for i, match in enumerate(parsed):
-        sql = normalized(match[4])
-        obj = temp_delete(sql)
-        if not obj:
-            written = re.match(r"(?:DELETE FROM|INSERT INTO|UPDATE|MERGE INTO) ([A-Z0-9_.$#]+)", sql)
-            obj = written[1] if written else None
-        # Cursor ids are reused. Attribute executions only until its next parse.
-        end = next((m.start() for m in parsed[i + 1:] if m[1] == match[1]), len(text))
-        executions = re.findall(r"EXEC #" + re.escape(match[1]) + r":([^\n]*)", text[match.end():end])
-        records.append({"sql": sql, "depth": int(match[2]), "uid": int(match[3]),
-                        "objects": [obj] if obj else [], "executions": len(executions),
-                        "cursor": match[1],
-                        "action": ("EXECUTE" if sql.startswith("BEGIN ") else
-                                   "ALTER SESSION" if sql.startswith("ALTER SESSION ") else sql.split(" ", 1)[0])})
-    # A commit has no object column. Use the entire observed session's write
-    # set conservatively, never the preceding table name alone.
-    writes = sorted({obj for r in records for obj in r["objects"]})
-    for record in records:
-        if record["sql"] == "COMMIT":
-            record["objects"] = writes
+    # A process trace can contain more than one session. Do not correlate them.
+    sections = re.split(r"\*\*\* SESSION ID:\(([^)]+)\)[^\n]*\n", text)
+    for session, body in zip(sections[1::2], sections[2::2]):
+        pattern = r"PARSING IN CURSOR #(\S+) len=\d+ dep=(\d+) uid=(\d+)[^\n]*\n(.*?)\nEND OF STMT"
+        parsed = list(re.finditer(pattern, body, re.S))
+        scoped = []
+        for i, match in enumerate(parsed):
+            sql = normalized(match[4])
+            obj = written_object(sql)
+            end = next((m.start() for m in parsed[i + 1:] if m[1] == match[1]), len(body))
+            events = []
+            for event in re.finditer(r"(EXEC|FETCH) #" + re.escape(match[1]) + r":([^\n]*)", body[match.end():end]):
+                fields = dict(re.findall(r"(\w+)=(\d+)", event[2]))
+                if "tim" in fields and "e" in fields:
+                    finish = int(fields["tim"])
+                    events.append({"kind": event[1], "start": finish - int(fields["e"]), "end": finish})
+            scoped.append({"sql": sql, "depth": int(match[2]), "uid": int(match[3]),
+                           "session": session, "objects": [obj] if obj else [],
+                           "executions": sum(e["kind"] == "EXEC" for e in events),
+                           "events": events, "cursor": match[1],
+                           "action": ("EXECUTE" if sql.startswith("BEGIN ") else
+                                      "ALTER SESSION" if sql.startswith("ALTER SESSION ") else sql.split(" ", 1)[0])})
+        parents = [r for r in scoped if r["sql"] in LOGMINER_CALLS or logminer_query(r["sql"])]
+        for record in scoped:
+            if record["sql"] == "COMMIT":
+                executions = [e for e in record["events"] if e["kind"] == "EXEC"]
+                record["logminer_context"] = bool(executions) and all(
+                    any(parent["depth"] < record["depth"] and
+                        any(p["start"] <= e["start"] <= e["end"] <= p["end"] for p in parent["events"])
+                        for parent in parents) for e in executions)
+        records.extend(scoped)
     return records
 
 
-def collect(run, container, version, out, miner):
+def collect(run, container, version, out, reader, mode="c1", service=None):
     def admin(sql, label):
+        switch = f"ALTER SESSION SET CONTAINER={service};\n" if service and version != "11" else ""
         return run(["docker", "exec", "-i", container, "sqlplus", "-s", "/", "as", "sysdba"],
                    label, input="SET ECHO OFF VERIFY OFF FEEDBACK OFF HEADING OFF PAGESIZE 0 LINESIZE 32767\n"
-                   "WHENEVER SQLERROR EXIT SQL.SQLCODE\n" + sql + "\nEXIT\n")
+                   "WHENEVER SQLERROR EXIT SQL.SQLCODE\n" + switch + sql + "\nEXIT\n")
 
-    # Query both modes. Mixed-mode XE can expose conventional records only.
     sources = [("standard", "dba_audit_trail", "username", "obj_name", "owner", "returncode",
-                "sql_text", "timestamp")]
+                "sql_text", "timestamp", "sessionid")]
     if version == "21":
         admin("EXEC DBMS_AUDIT_MGMT.FLUSH_UNIFIED_AUDIT_TRAIL;", "audit-flush")
     if version != "11":
         sources.append(("unified", "unified_audit_trail", "dbusername", "object_name",
                         "object_schema", "return_code", "DBMS_LOB.SUBSTR(sql_text,3000,1)",
-                        "event_timestamp"))
+                        "event_timestamp", "sessionid"))
     records = []
-    for mode, view, user, obj, owner, code, sql, stamp in sources:
-        # JSON_OBJECT is absent in 11g; SQL*Plus emits escaped one-line JSON.
+    for source, view, user, obj, owner, code, sql, stamp, session in sources:
         def quote(expr):
             return ("'\"'||REPLACE(REPLACE(REPLACE(REPLACE(NVL(" + expr +
                     ",''),'\\','\\\\'),'\"','\\\"'),CHR(10),'\\n'),CHR(13),'\\r')||'\"'")
         expression = "'{\"action\":'||" + quote("action_name")
-        for key, expr in [("object", obj), ("owner", owner), ("sql", sql)]:
+        for key, expr in [("object", obj), ("owner", owner), ("sql", sql),
+                          ("db_user", user), ("session_id", f"TO_CHAR({session})"),
+                          ("timestamp", f"TO_CHAR({stamp},'YYYY-MM-DD HH24:MI:SS')")]:
             expression += f"||',\"{key}\":'||" + quote(expr)
         expression += "||',\"return_code\":'||TO_CHAR(" + code + ")||'}'"
-        raw = admin(f"SELECT {expression} FROM {view} WHERE {user}='{miner}' ORDER BY {stamp};",
-                    "miner-audit-" + mode)
+        raw = admin(f"SELECT {expression} FROM {view} WHERE {user}='{reader}' ORDER BY {stamp};",
+                    "reader-audit-" + source)
         for line in raw.splitlines():
             if line.strip().startswith("{"):
-                records.append({**json.loads(line.strip(), strict=False), "source": mode})
+                record = {**json.loads(line.strip(), strict=False), "source": source}
+                record["objects"] = [record["owner"] + "." + record["object"]] if record["owner"] and record["object"] else []
+                records.append(record)
 
     directory = admin("SELECT value FROM v$diag_info WHERE name='Diag Trace';", "trace-directory").strip()
-    uid = int(admin(f"SELECT user_id FROM dba_users WHERE username='{miner}';", "miner-uid").strip())
+    uid = int(admin(f"SELECT user_id FROM dba_users WHERE username='{reader}';", "reader-uid").strip())
     paths = run(["docker", "exec", container, "sh", "-c",
-                 'printf "%s\\n" "$1"/*.trc', "sh", directory],
-                "trace-files").splitlines()
+                 'printf "%s\\n" "$1"/*.trc', "sh", directory], "trace-files").splitlines()
     trace = []
     for i, path in enumerate(paths):
         text = run(["docker", "exec", container, "cat", path], f"trace-{i:03}")
         parsed = trace_records(text)
-        if any(r["depth"] == 0 and r["uid"] == uid for r in parsed):
-            trace.extend({**r, "source": f"trace-{i:03}"} for r in parsed)
-    # Never infer a positive depth from an object name or from action=SELECT.
+        sessions = {r["session"] for r in parsed if r["depth"] == 0 and r["uid"] == uid}
+        trace.extend({**r, "source": f"trace-{i:03}"} for r in parsed if r["session"] in sessions)
+    # SQL equality alone cannot prove that an audit COMMIT happened during a
+    # LogMiner call. Only correlate sessions explicitly measured by the reader.
+    session_file = out / "miner-session.json"
+    session_map = json.loads(session_file.read_text()) if mode == "c1" and session_file.exists() else {}
     for record in records:
-        matches = [r for r in trace if r["sql"] == normalized(record.get("sql"))]
+        session = session_map.get(record["session_id"])
+        matches = [r for r in trace if session and r["session"] == session and r["sql"] == normalized(record.get("sql"))]
         if matches:
             record["depth"] = min(r["depth"] for r in matches)
-            record["objects"] = sorted({obj for r in matches for obj in r["objects"]})
+            record["logminer_context"] = all(r.get("logminer_context") is True for r in matches)
             record["trace_sources"] = sorted({r["source"] for r in matches})
-        record["classification"] = classify(record)
+        record["classification"] = classify(record, mode)
     for record in trace:
-        record["classification"] = classify(record)
+        record["classification"] = classify(record, mode)
     rejected = [r for r in records + trace if r["classification"].startswith("rejected")]
     present = bool(records) and any(r["classification"] == "read" for r in records)
-    result = {"records": records, "trace_records": trace, "rejected": rejected,
-              "audit_present": present, "d11_pass": present and bool(trace) and not rejected}
+    result = {"mode": mode, "reader": reader, "records": records, "trace_records": trace,
+              "rejected": rejected, "audit_present": present,
+              "pass": present and bool(trace) and not rejected}
     (out / "audit-result.json").write_text(json.dumps(result, indent=2) + "\n")
-    if not result["d11_pass"]:
-        raise RuntimeError("T7 D11 failed; see all classified records in audit-result.json")
+    if not result["pass"]:
+        raise RuntimeError(f"T7 {mode} failed; see all classified records in audit-result.json")

@@ -2,50 +2,71 @@ import json
 from pathlib import Path
 import unittest
 
-from audit import classify, normalized, temp_delete, trace_records
+from audit import classify, logminer_dml, trace_records
 
 
-class D11Tests(unittest.TestCase):
-    def test_original_41_are_retained_and_missing_depth_is_not_invented(self):
+def statement(cursor, sql, depth, start, end, uid=0):
+    return (f'PARSING IN CURSOR #{cursor} len={len(sql)} dep={depth} uid={uid} oct=7\n'
+            f'{sql}\nEND OF STMT\nEXEC #{cursor}:e={end-start},tim={end}\n')
+
+
+class D11aTests(unittest.TestCase):
+    def test_original_41_remain_fail_closed_without_owner_or_context(self):
         records = json.loads(Path(__file__).with_name('fixtures').joinpath('d11-original-41.json').read_text())['records']
         self.assertEqual(len(records), 41)
-        outcomes = [classify(r) for r in records]
-        self.assertEqual(outcomes.count('d11_driver_session_setting'), 1)
-        self.assertEqual(outcomes.count('rejected_missing_or_nonrecursive_depth'), 40)
-        for record in records:
-            if record['action'] == 'ALTER SESSION':
-                continue
-            sql = normalized(record['sql'])
-            obj = temp_delete(sql)
-            # Explicit synthetic depth/transaction-context cases; these are
-            # not asserted to be trace evidence for the historical records.
-            if obj:
-                enriched = {**record, 'depth': 1, 'objects': [obj]}
-                self.assertEqual(classify(enriched), 'd11_recursive_temporary_write')
-                for depth in (None, 0, -1):
-                    self.assertTrue(classify({**enriched, 'depth': depth}).startswith('rejected'))
-                self.assertTrue(classify({**enriched, 'objects': [obj, 'APP.T']}).startswith('rejected'))
-            elif sql == 'COMMIT':
-                self.assertTrue(classify({**record, 'depth': 1, 'objects': []}).startswith('rejected'))
-                self.assertEqual(classify({**record, 'depth': 1, 'objects': ['SYS.LOGMNR_GT_XID_INCLUDE$']}), 'd11_recursive_temporary_write')
-            else:
-                self.fail('unaccounted historical record')
+        self.assertTrue(all(classify(r).startswith('rejected') for r in records))
 
-    def test_foreign_object_and_top_level_writes_fail(self):
-        for sql in ['DELETE FROM APP.LOGMNR_GT_X', 'DELETE FROM SYS.OTHER',
+    def test_sys_and_system_dml_without_depth(self):
+        for owner in ('SYS', 'SYSTEM'):
+            for sql in (f'DELETE FROM {owner}.LOGMNR_GT_XID_INCLUDE$',
+                        f'UPDATE {owner}.LOGMNR_SESSION$ SET FLAGS = :1 WHERE SESSION# = :2',
+                        f'INSERT INTO {owner}.LOGMNR_SESSION$ (FLAGS) VALUES (:1)'):
+                obj = logminer_dml(sql)
+                self.assertIsNotNone(obj)
+                self.assertTrue(obj.endswith('$'))
+                record = {'action': sql.split()[0], 'sql': sql, 'objects': [obj]}
+                self.assertEqual(classify(record), 'd11a_logminer_object_dml')
+                self.assertTrue(classify({**record, 'depth': 0}).startswith('rejected'))
+                self.assertTrue(classify({**record, 'objects': [obj, 'APP.T']}).startswith('rejected'))
+                self.assertTrue(classify(record, 'c5').startswith('rejected'))
+
+    def test_other_writes_and_driver_settings_fail(self):
+        for sql in ('DELETE FROM APP.LOGMNR_GT_X', 'DELETE FROM SYS.AUD$',
+                    'UPDATE SYSTEM.OTHER SET X=1', 'INSERT INTO AUDSYS.AUD$UNIFIED VALUES (:1)',
                     'DELETE FROM SYS.LOGMNR_GT_X WHERE ID IN (SELECT ID FROM APP.T)',
                     'DELETE FROM SYS.LOGMNR_GT_X; DELETE FROM APP.T',
                     'CREATE TABLE SYS.LOGMNR_GT_X(ID NUMBER)',
-                    'BEGIN DBMS_LOGMNR.END_LOGMNR; DELETE FROM APP.T; END;']:
-            self.assertTrue(classify({'action': 'EXECUTE', 'sql': sql, 'depth': 1,
+                    'BEGIN DBMS_LOGMNR.END_LOGMNR; DELETE FROM APP.T; END;',
+                    "ALTER SESSION SET TIME_ZONE='+08:00'"):
+            self.assertTrue(classify({'action': sql.split()[0], 'sql': sql, 'depth': 1,
                                      'objects': ['SYS.LOGMNR_GT_X']}).startswith('rejected'))
-        self.assertTrue(classify({'action': 'ALTER SESSION', 'sql': "ALTER SESSION SET CURRENT_SCHEMA='SYS'"}).startswith('rejected'))
 
-    def test_trace_parser_keeps_depth(self):
-        trace = 'PARSING IN CURSOR #123 len=40 dep=1 uid=0 oct=7\nDELETE FROM SYS.LOGMNR_GT_XID_INCLUDE$\nEND OF STMT\n'
-        record, = trace_records(trace)
-        self.assertEqual(record['depth'], 1)
-        self.assertEqual(classify(record), 'd11_recursive_temporary_write')
+    def test_commit_requires_enclosing_call_in_same_session(self):
+        call = 'BEGIN DBMS_LOGMNR.END_LOGMNR; END;'
+        trace = ('*** SESSION ID:(1.2) now\n' + statement(1, call, 0, 100, 300, 99)
+                 + statement(2, 'COMMIT', 1, 150, 200)
+                 + statement(2, 'COMMIT', 1, 350, 400)
+                 + '*** SESSION ID:(2.3) now\n' + statement(3, 'COMMIT', 1, 150, 200))
+        records = trace_records(trace)
+        self.assertEqual(classify(records[1]), 'd11a_logminer_commit')
+        self.assertTrue(classify(records[2]).startswith('rejected'))
+        self.assertTrue(classify(records[3]).startswith('rejected'))
+        self.assertTrue(classify({'action': 'COMMIT', 'sql': 'COMMIT', 'depth': 0,
+                                  'logminer_context': True}).startswith('rejected'))
+
+    def test_all_commit_executions_must_be_enclosed(self):
+        trace = ('*** SESSION ID:(1.2) now\n'
+                 + statement(1, 'SELECT * FROM V$LOGMNR_CONTENTS', 0, 100, 300, 99)
+                 + statement(2, 'COMMIT', 1, 150, 200)
+                 + 'EXEC #2:e=50,tim=400\n')
+        self.assertFalse(trace_records(trace)[1]['logminer_context'])
+
+    def test_c5_only_reads_and_session_lifecycle(self):
+        self.assertEqual(classify({'action': 'SELECT', 'sql': 'SELECT X FROM APP.T'}, 'c5'), 'read')
+        self.assertEqual(classify({'action': 'LOGON'}, 'c5'), 'read_session')
+        for sql, action in [('COMMIT', 'COMMIT'),
+                            ('BEGIN DBMS_LOGMNR.END_LOGMNR; END;', 'EXECUTE')]:
+            self.assertTrue(classify({'sql': sql, 'action': action}, 'c5').startswith('rejected'))
 
 
 if __name__ == '__main__':
