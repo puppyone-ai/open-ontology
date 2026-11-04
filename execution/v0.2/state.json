@@ -926,9 +926,9 @@
       "sprint": "S3",
       "lane": "E",
       "title": "P1：SQL Server 2019/2022/2025 快照 + CT/CDC（amd64 仿真）",
-      "status": "pending",
-      "owner": null,
-      "branch": null,
+      "status": "in_progress",
+      "owner": "lane-E",
+      "branch": "v0.2/e-oracle-engine",
       "commits": [],
       "evidence": []
     },
