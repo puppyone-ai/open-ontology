@@ -115,6 +115,8 @@ def build(request, root):
         fingerprint_input = {'stack': stack, 'load_target': target}
     if 'builder_postgres' in request:
         fingerprint_input = {'stack': stack, 'builder_postgres': request['builder_postgres']}
+    if 'community_modules' in request:
+        fingerprint_input = {'input': fingerprint_input, 'builder_path': 'community-v1'}
     fingerprint = digest(json.dumps(fingerprint_input, sort_keys=True).encode())
     path = root / 'run.json'
     if request['resume']:
@@ -224,7 +226,7 @@ def build(request, root):
             else:
                 cards = json.loads(read_private(root/'cards.json'))
                 calls = sum((len(t['columns'])+7)//8 for t in cards['tables'])
-                if not 1 <= calls <= 2:
+                if 'community_modules' not in request and not 1 <= calls <= 2:
                     raise ValueError('DRAFT_BRIDGE_CALL_BUDGET')
                 # Refuse a pre-existing listener: never send a draft to somebody else's proxy.
                 import socket
@@ -247,13 +249,26 @@ def build(request, root):
                         time.sleep(0.05)
                 else:
                     raise ValueError('EGRESS_START_TIMEOUT')
-                invoke([builder,'generate','--config',cfg,'--seal',str(root/'seal.json'),
-                        '--cards',str(root/'cards.json'),'--approval',str(root/'generation-permission.json'),
-                        '--cache',str(root/'cache'),'--out',str(root/'draft.json')],None,timeout=600)
-                draft = json.loads((root/'draft.json').read_bytes())
-                if draft.get('outcome') != 'validated':
-                    raise ValueError('DRAFT_NOT_VALIDATED')
-                artifacts = ['draft.json']
+                if 'community_modules' in request:
+                    import types
+                    for module_name in ('model_provider','selfbuild_budget','community_adapter'):
+                        module = types.ModuleType(module_name)
+                        module.__file__ = str(root/(module_name+'.py'))
+                        sys.modules[module_name] = module
+                        exec(compile(request['community_modules'][module_name],
+                                     module.__file__, 'exec'), module.__dict__)
+                    os.environ['OO_SELFBUILD_BUDGET_BIN'] = str(binaries/'selfbuild-budget')
+                    sys.modules['community_adapter'].generate(root,stack,binaries,
+                        lambda p: json.loads(read_private(p)), save)
+                    artifacts = ['draft.json','review-input.json']
+                else:
+                    invoke([builder,'generate','--config',cfg,'--seal',str(root/'seal.json'),
+                            '--cards',str(root/'cards.json'),'--approval',str(root/'generation-permission.json'),
+                            '--cache',str(root/'cache'),'--out',str(root/'draft.json')],None,timeout=600)
+                    draft = json.loads((root/'draft.json').read_bytes())
+                    if draft.get('outcome') != 'validated':
+                        raise ValueError('DRAFT_NOT_VALIDATED')
+                    artifacts = ['draft.json']
             stage['artifacts'] = {}
             for name_out in artifacts:
                 # Existing builder writers run under this process's owner-only umask.

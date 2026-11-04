@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends cmake pkg-confi
 WORKDIR /src
 COPY . .
 ENV PROTOC=/usr/bin/protoc CARGO_TARGET_DIR=/build/target CARGO_PROFILE_DEV_DEBUG=0 CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=4
-RUN cargo build --locked -p oo-cli -p oo-pipeline -p oo-gateway --bins && \
+RUN cargo build --locked -p oo-cli -p oo-pipeline -p oo-gateway -p oo-builder --bins && \
     cargo build --locked --manifest-path deploy/lite/mysql-doctor/Cargo.toml && \
     cargo build --locked --manifest-path tools/oo-load/Cargo.toml --bin oo-load && \
     cargo build --locked --manifest-path tools/pg-builder/Cargo.toml --bin pg-builder && \
@@ -13,7 +13,7 @@ RUN cargo build --locked -p oo-cli -p oo-pipeline -p oo-gateway --bins && \
     mkdir /out && cp /build/target/debug/oo /build/target/debug/oo-pipeline \
     /build/target/debug/oo-mysql-doctor /build/target/debug/pg-builder \
     /build/target/debug/job-worker /build/target/debug/oo-gateway /build/target/debug/issue-token \
-    /build/target/debug/oo-load /out/ && rm -rf /build/target
+    /build/target/debug/oo-load /build/target/debug/selfbuild-budget /out/ && rm -rf /build/target
 FROM docker.io/library/python@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f
 LABEL oo.lane=a
 RUN apt-get update && apt-get install -y --no-install-recommends libssl3 openssl ca-certificates libaio1 && rm -rf /var/lib/apt/lists/*

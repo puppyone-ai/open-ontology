@@ -144,6 +144,11 @@ pub(super) fn build(
     let mut body = json!({"stack":stack,"state_dir":state_dir(config)?,
         "bin_dir":exe.parent(),"resume":resume,
         "egress_code":include_str!("../../../../tools/model-egress/model_egress.py")});
+    body["community_modules"] = json!({
+        "community_adapter": include_str!("../../../../deploy/lite/community_adapter.py"),
+        "selfbuild_budget": include_str!("../../../../tools/pg-builder/scripts/selfbuild_budget.py"),
+        "model_provider": include_str!("../../../../tools/pg-builder/scripts/model_provider.py")
+    });
     if let Some(target) = agent_target {
         body["load_target"] =
             json!(std::fs::canonicalize(target).map_err(|_| Failure::local("BUILD_TARGET_IO"))?);
