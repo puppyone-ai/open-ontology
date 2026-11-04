@@ -1855,8 +1855,7 @@ impl OracleEngine {
             );
         }
 
-        // Prerequisites are not acceptance: keep the experimental reader gated
-        // until the strict T7 source audit has been accepted.
+        // D11 is an opt-in requirement even when every DBA prerequisite is met.
         let mut c1: Vec<Requirement> = Vec::new();
         match &db {
             Some(r) => {
@@ -1910,13 +1909,7 @@ impl OracleEngine {
                 &user,
             ));
         }
-        c1.push(Requirement {
-            kind: crate::engine::RequirementKind::Feature,
-            name: "logminer_reader".into(),
-            observed: Some("experimental reader; strict T7 audit not accepted".into()),
-            required: "LogMiner reader and T7 read-only acceptance".into(),
-            dba_statement: None,
-        });
+        c1.push(logminer_opt_in());
         caps.insert(
             Capability::LogCdc,
             if c1.is_empty() {
@@ -2187,6 +2180,22 @@ struct Progress {
     bytes: u64,
 }
 
+fn logminer_opt_in() -> Requirement {
+    Requirement {
+        kind: crate::engine::RequirementKind::Feature,
+        name: "logminer_reader".into(),
+        observed: Some(
+            "R1 with Oracle-internal recursive temporary writes to SYS.LOGMNR_GT_*; \
+             driver ALTER SESSION time zone/NLS settings (D11)"
+                .into(),
+        ),
+        required: "Explicit Oracle C1 opt-in and version-specific T7 acceptance; \
+                   sync: auto must remain C5"
+            .into(),
+        dba_statement: None,
+    }
+}
+
 enum PageError {
     Driver(DriverError),
     Source(SourceError),
@@ -2268,6 +2277,16 @@ impl SourceEngine for OracleEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn logminer_disclosure_is_an_unconditional_feature_requirement() {
+        let requirement = logminer_opt_in();
+        assert_eq!(requirement.kind, crate::engine::RequirementKind::Feature);
+        assert!(requirement.observed.unwrap().contains("SYS.LOGMNR_GT_*"));
+        assert!(requirement.required.contains("Explicit Oracle C1 opt-in"));
+        assert!(requirement.required.contains("sync: auto must remain C5"));
+        assert!(requirement.dba_statement.is_none());
+    }
 
     #[test]
     fn engine_futures_are_send() {
