@@ -1094,9 +1094,9 @@
       "sprint": "S4",
       "lane": "M",
       "title": "**L1 干净机器验收**：macOS arm64 与 Linux amd64 各一，MySQL/PG/Oracle 各一次",
-      "status": "pending",
-      "owner": null,
-      "branch": null,
+      "status": "in_progress",
+      "owner": "lane-H (reassigned)",
+      "branch": "v0.2/h-test-infra",
       "commits": [],
       "evidence": []
     },
