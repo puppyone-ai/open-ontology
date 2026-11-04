@@ -257,6 +257,28 @@ def oracle_data_only(value):
     return result
 
 
+RETAINED = 'oo.builder.retained-generation-observation/v1'
+RETAINED_STABLE = ('protocol', 'receipt_protocol', 'consistency', 'library_id', 'config_digest',
+                   'key', 'expected_columns')
+
+
+def retained_data_only(item):
+    """D15 route: an oo-load retained cut is the data source for PG/MySQL/Oracle.
+
+    Generation, receipt, recipe and relation identities change on every cut and
+    are not semantics. Library, source binding, key and typed columns remain
+    dependencies, so any shape change still requires a new S5 request/review.
+    """
+    retained = item.get('retained')
+    if (not isinstance(retained, dict) or retained.get('protocol') != RETAINED
+            or retained.get('receipt_protocol') != 'oo.load.per-table-receipt/v1'
+            or retained.get('consistency') != 'retained_generation'
+            or item.get('source_engine') not in ('postgres', 'mysql', 'oracle')
+            or 'oracle' in item or any(k not in retained for k in RETAINED_STABLE)):
+        raise ValueError('data_only_retained_generation_required')
+    item['retained'] = {k: copy.deepcopy(retained[k]) for k in RETAINED_STABLE}
+
+
 def data_profile(value):
     result = profile(value)
     if 'rows' in value:
@@ -275,7 +297,9 @@ def data_only_digest(facts, *, mysql_ddl=False):
         if collection not in projected:
             continue
         for item in projected[collection]:
-            if item.get('source_engine') == 'oracle':
+            if 'retained' in item:
+                retained_data_only(item)
+            elif item.get('source_engine') == 'oracle':
                 item['oracle'] = oracle_data_only(item['oracle'])
             elif mysql_ddl and item.get('source_engine') in (None, 'mysql') and 'oracle' not in item:
                 # Legacy MySQL facts are identified by their validated DDL route,

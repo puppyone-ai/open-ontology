@@ -382,3 +382,29 @@ projection, regular OOS YAML compiler and Pack digest equality against a fresh
 build. Separate existing dictionary/metrics/assets/OOS tests cover pending and
 tampered approvals. This is a deterministic local slice, not L1-05/L3-06 completion,
 10k I/U/D acceptance, real-model evidence or the full business publication gate.
+
+## Retained generations (D15)
+
+`scripts/retained_build.py --config build.json --output NEW_DIR` uses one sealed
+`oo-load` retained cut as the Builder's data source for PostgreSQL, MySQL and
+Oracle sources. `scripts/retained_observation.py` reads only Agent DB metadata
+(`_oo_load.gateway_publications`, `_oo.physical_mappings`, catalog proofs) and
+value-free aggregates over the mapped `_oo` view; it refuses unsealed cuts,
+relation-proof drift, recipe/receipt hash mismatch and column type drift.
+
+```json
+{"protocol":"oo.builder.retained-build/v1","psql_command":["psql","service=agent_owner"],
+ "library_id":"owned","generation":"cycle-7","source_engine":"mysql","project":"owned",
+ "origin":{"facts":{"path":"...","sha256":"..."},"reviewed_registry":{"path":"...","sha256":"..."}},
+ "model":{"stack":"model-stack.json","egress":"tools/model-egress/model_egress.py","call_limit":6}}
+```
+
+Without `origin` (or when `library_semantics.data_only_digest` differs) it runs
+the bounded community runner through model-egress and writes `review-input.json`
+for `oo review`. With a pinned origin and an unchanged data-only digest it writes
+`data-only-reuse.json` with zero model calls; the same owner-reviewed registry
+then goes to `release-coordinator publish-retained` for the new generation.
+The retained route projects out generation, receipt, recipe and relation
+identities only; library, source binding, key shape and typed columns remain
+semantic dependencies. Legacy refusals (`data_only_oracle_c1_required`,
+`data_only_source_route_required`) are unchanged for non-retained facts.
