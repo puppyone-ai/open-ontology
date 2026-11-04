@@ -32,13 +32,44 @@ pub(crate) async fn library_cut(tx: &Transaction<'_>, catalog: &Value) -> Result
         .as_str()
         .filter(|s| hex64(s))
         .ok_or_else(drift)?;
-    let row = tx.query_opt(
+    let mut row = tx.query_opt(
         "SELECT p.library::text,p.shards::text FROM _oo.native_library_publication p \
          JOIN _oo.native_library_head h ON h.library_id=p.library_id AND h.receipt_sha256=p.receipt_sha256 \
          WHERE p.library_id=$1 AND p.receipt_sha256=$2 AND h.state='ready' \
          AND h.manifest_sha256=p.library->>'manifest_sha256'",
         &[&library,&sha],
-    ).await.map_err(database)?.ok_or_else(drift)?;
+    ).await.map_err(database)?;
+    if row.is_none() {
+        // A reviewed-file refresh and the DB head cannot be one transaction.
+        // Already activated retained cuts remain usable while their fences
+        // stay open; pending cuts and mutable C1 never take this path.
+        let installed: bool = tx
+            .query_one(
+                "SELECT coalesce(has_function_privilege(current_user,
+                 to_regprocedure('_oo.native_library_retained_table(text)'),'EXECUTE'),false)",
+                &[],
+            )
+            .await
+            .map_err(database)?
+            .get(0);
+        if installed {
+            row = tx.query_opt(
+                "SELECT p.library::text,p.shards::text FROM _oo.native_library_publication p
+                 JOIN _oo.native_library_head h ON h.library_id=p.library_id AND h.state='ready'
+                 WHERE p.library_id=$1 AND p.receipt_sha256=$2
+                  AND h.manifest_sha256=p.library->>'manifest_sha256'
+                  AND jsonb_array_length(p.shards)>0
+                  AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(p.shards) s
+                   WHERE s->'receipt'->>'consistency' IS DISTINCT FROM 'retained_generation'
+                    OR jsonb_array_length(s->'receipt'->'tables')=0
+                    OR EXISTS(SELECT 1 FROM jsonb_array_elements(s->'receipt'->'tables') t
+                     WHERE _oo.native_library_retained_table(t->>'physical_name')->>'library_receipt_sha256'
+                      IS DISTINCT FROM p.receipt_sha256))",
+                &[&library,&sha],
+            ).await.map_err(database)?;
+        }
+    }
+    let row = row.ok_or_else(drift)?;
     let library: Value = serde_json::from_str(&row.get::<_, String>(0)).map_err(|_| drift())?;
     let shards: Value = serde_json::from_str(&row.get::<_, String>(1)).map_err(|_| drift())?;
     let cut = json!({"library":library,"shards":shards});

@@ -122,6 +122,25 @@ impl Relations {
             .collect();
         let mut overlays = BTreeMap::new();
         if !views.is_empty() {
+            let retained: bool = tx
+                .query_one(
+                    "SELECT coalesce(has_function_privilege(current_user,
+                     to_regprocedure('_oo.native_library_retained_table(text)'),'EXECUTE'),false)",
+                    &[],
+                )
+                .await
+                .map_err(db_error)?
+                .get(0);
+            if retained {
+                for row in tx.query(
+                    "SELECT v,(_oo.native_library_retained_table(v)->>'accepted_rows')::bigint FROM unnest($1::text[]) v",
+                    &[&views],
+                ).await.map_err(db_error)? {
+                    if let Some(count) = row.get::<_,Option<i64>>(1) {
+                        overlays.insert(row.get::<_,String>(0),(true,Some(count)));
+                    }
+                }
+            }
             let installed: bool = tx
                 .query_one(
                     "SELECT to_regprocedure('_oo.c5_overlay_is_valid(text)') IS NOT NULL \
@@ -136,7 +155,7 @@ impl Relations {
                     "SELECT v,_oo.c5_overlay_is_valid(v),_oo.c5_overlay_row_count(v) FROM unnest($1::text[]) AS v",
                     &[&views],
                 ).await.map_err(db_error)? {
-                    overlays.insert(row.get::<_,String>(0),(row.get::<_,bool>(1),row.get::<_,Option<i64>>(2)));
+                    overlays.entry(row.get::<_,String>(0)).or_insert((row.get::<_,bool>(1),row.get::<_,Option<i64>>(2)));
                 }
             }
         }
@@ -238,6 +257,7 @@ impl LibraryProofs {
         let mut inputs = Vec::new();
         let mut datasets = Vec::new();
         let mut receipts = Vec::new();
+        let mut by_dataset = BTreeMap::new();
         for table in &bound.tables {
             let dataset = format!("{}.{}", table.namespace, table.name);
             let entry = entries
@@ -263,6 +283,37 @@ impl LibraryProofs {
                 || published["physical_name"] != entry["stored_physical"]
             {
                 return Err(CatalogError::IdentityMismatch);
+            }
+            if receipt["consistency"] == "retained_generation" {
+                let physical = text("stored_physical")?;
+                let row = tx.query_one(
+                    "SELECT _oo.native_library_retained_table($1)::text, EXISTS(
+                     SELECT 1 FROM oo_publish_target.fence WHERE schema_name='_oo'
+                      AND relation_name=$1 AND role_name=$2 AND state='open' AND opened_pack_digest=$3)",
+                    &[&physical,&bound.role,&pack],
+                ).await.map_err(db_error)?;
+                let proof: Value = serde_json::from_str(
+                    &row.get::<_, Option<String>>(0)
+                        .ok_or(CatalogError::IdentityMismatch)?,
+                )
+                .map_err(|_| CatalogError::IdentityMismatch)?;
+                if [
+                    "run_id",
+                    "source_generation",
+                    "target_generation",
+                    "recipe_sha256",
+                    "physical_name",
+                ]
+                .iter()
+                .any(|key| proof[*key] != published[*key])
+                    || proof["config_digest"] != table.config_digest
+                    || proof["source_id"] != table.source
+                    || proof["library_receipt_sha256"] != catalog["receipt_sha256"]
+                {
+                    return Err(CatalogError::IdentityMismatch);
+                }
+                by_dataset.insert(dataset, (row.get(1), 1));
+                continue;
             }
             // C1 storage is current-checked separately; its receipt need not
             // have the original import's count/position.
@@ -309,6 +360,9 @@ impl LibraryProofs {
             types.push(text("type_digest")?.to_owned());
             inputs.push(text("input_digest")?.to_owned());
         }
+        if datasets.is_empty() {
+            return Ok(Self { by_dataset });
+        }
         // Keep exact text equality as well: the UUID index narrows the lookup,
         // but PostgreSQL's permissive UUID spelling must not widen the binding.
         let rows=tx.query(
@@ -333,7 +387,6 @@ impl LibraryProofs {
                 w(run_id,source,generation,target,digest,namespace,table_name,physical,actual_schema,type_digest,input_digest,receipt,ordinality)",
             &[&run_ids,&sources,&generations,&targets,&digests,&namespaces,&tables,&physicals,&actual_schemas,&types,&inputs,&bound.role,&pack,&receipts],
         ).await.map_err(db_error)?;
-        let mut by_dataset = BTreeMap::new();
         for row in rows {
             let idx = usize::try_from(row.get::<_, i64>(0))
                 .ok()
@@ -347,7 +400,7 @@ impl LibraryProofs {
                 return Err(CatalogError::Snapshot);
             }
         }
-        if by_dataset.len() != datasets.len() {
+        if by_dataset.len() != bound.tables.len() {
             return Err(CatalogError::Snapshot);
         }
         Ok(Self { by_dataset })

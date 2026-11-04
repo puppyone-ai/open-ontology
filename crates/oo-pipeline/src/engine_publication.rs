@@ -369,6 +369,12 @@ pub async fn publish_generation(
         .execute(&mut *tx)
         .await
         .map_err(db)?;
+    sqlx::raw_sql(include_str!(
+        "../migrations/0125_retained_generation_read.sql"
+    ))
+    .execute(&mut *tx)
+    .await
+    .map_err(db)?;
     let config = hash(r.source_binding.as_bytes());
     let descriptor = json!({"source_id":r.source_id,"binding_sha256":config,
         "tables":r.tables,"recipes":verified.iter().map(|v| &v.recipe).collect::<Vec<_>>()});
@@ -665,6 +671,8 @@ pub async fn activate_generation(conn: &mut PgConnection, candidate: &Value) -> 
         .execute(&mut *tx)
         .await
         .map_err(|_| "publication_semantic_admission_required")?;
+    sqlx::query("UPDATE _oo_load.gateway_publications SET activated_at=coalesce(activated_at,clock_timestamp()) WHERE receipt_sha256=$1")
+        .bind(sha).execute(&mut *tx).await.map_err(db)?;
     tx.commit().await.map_err(db)?;
     let mut result = candidate.clone();
     result["state"] = json!("ready");

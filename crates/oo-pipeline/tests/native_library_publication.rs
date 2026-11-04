@@ -324,6 +324,26 @@ async fn retained_engine_publication_candidate() {
         .unwrap();
     assert!(ready);
     println!("retained activation and exact freshness: passed");
+    for change in [
+        "UPDATE _oo.source_watermark SET source_committed_at=clock_timestamp() WHERE source='owned'",
+        "UPDATE _oo.source_watermark SET position_lineage='oo-load.other' WHERE source='owned'",
+        "UPDATE _oo.table_freshness SET last_pos=1 WHERE source='owned'",
+        "UPDATE _oo.table_freshness SET source_committed_at=clock_timestamp() WHERE source='owned'",
+    ] {
+        let mut tx = db.begin().await.unwrap();
+        tx.execute(change).await.unwrap();
+        let ready: bool = sqlx::query_scalar("SELECT _oo.native_library_source_ready('owned',$1)")
+            .bind(
+                first["receipt"]["shards"][0]["receipt_sha256"]
+                    .as_str()
+                    .unwrap(),
+            )
+            .fetch_one(&mut *tx)
+            .await
+            .unwrap();
+        assert!(!ready, "readiness accepted mismatched immutable metadata");
+        tx.rollback().await.unwrap();
+    }
     let activated = oo_pipeline::engine_publication::activate_generation(&mut db, &first)
         .await
         .unwrap();
