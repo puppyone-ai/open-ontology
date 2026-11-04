@@ -295,7 +295,12 @@ fn mysql_sync_family(family: EngineFamily) -> Result<(), &'static str> {
 }
 
 async fn execute() -> Result<(), String> {
-    let (sync_command, arguments) = sync_command::arguments(std::env::args().skip(1));
+    let mut arguments = std::env::args().skip(1).peekable();
+    let publish = arguments.peek().is_some_and(|a| a == "publish");
+    if publish {
+        arguments.next();
+    }
+    let (sync_command, arguments) = sync_command::arguments(arguments);
     let mut args = arguments.into_iter();
     let mut opts = BTreeMap::new();
     while let Some(key) = args.next() {
@@ -307,6 +312,8 @@ async fn execute() -> Result<(), String> {
                 [--c5 FILE] PostgreSQL/MySQL/Oracle C5 range cycle over an existing snapshot.\n\
                 [--handoff FILE] Atomic MySQL multi-source C5-to-C1 repair (mysql-binlog feature).\n\
                 oo-load sync uses the same flags, requires an explicit sync mode and --run-id ID.\n\
+                oo-load publish --generation ID --library ID uses --stack, --source and --target.\n\
+                It prepares a verified data cut; pending is NOT a Gateway-ready semantic publication.\n\
                 --run-id ID overrides the target run_id; reuse it only to resume that cycle.\n\
                 Target JSON requires run_id and password.secret_ref. Same run_id resumes; new run_id refreshes.\n\
                 Local table publication only; not Gateway publication. See tools/oo-load/README.md."
@@ -325,6 +332,8 @@ async fn execute() -> Result<(), String> {
             "--c5",
             "--handoff",
             "--run-id",
+            "--generation",
+            "--library",
         ]
         .contains(&key.as_str())
             || opts.contains_key(&key)
@@ -334,6 +343,23 @@ async fn execute() -> Result<(), String> {
         opts.insert(key, args.next().ok_or("argument_value")?);
     }
     sync_command::validate(sync_command, &opts)?;
+    if publish {
+        if [
+            "--sync",
+            "--c5",
+            "--handoff",
+            "--run-id",
+            "--chunk-rows",
+            "--oracle-worker",
+        ]
+        .iter()
+        .any(|k| opts.contains_key(*k))
+        {
+            return Err("publication_arguments".into());
+        }
+    } else if opts.contains_key("--generation") || opts.contains_key("--library") {
+        return Err("publication_subcommand_required".into());
+    }
     let stack = oo_stack::parse(
         std::str::from_utf8(&read(opts.get("--stack").ok_or("stack_required")?)?)
             .map_err(|_| "stack_utf8")?,
@@ -366,6 +392,26 @@ async fn execute() -> Result<(), String> {
         Some(dir) => SecretStore::open(PathBuf::from(dir))?,
         None => SecretStore::from_home()?,
     };
+    if publish {
+        let request = oo_pipeline::engine_publication::PublicationRequest {
+            library_id: opts.get("--library").ok_or("library_required")?.clone(),
+            source_id: source.id.clone(),
+            source_binding: binding(source)?,
+            generation: opts
+                .get("--generation")
+                .ok_or("generation_required")?
+                .clone(),
+            tables,
+        };
+        let mut conn = target_connection(&target, &store).await?;
+        let result = oo_pipeline::engine_publication::publish_generation(&mut conn, &request).await;
+        let closed = conn.close().await.map_err(|_| "publication_target_close");
+        let result = result?;
+        closed?;
+        println!("{result}");
+        // A scheduler must not mistake a prepared candidate for activation.
+        return Err("publication_semantic_admission_required".into());
+    }
     let mut budget = ReadBudget::default();
     if let Some(rows) = opts.get("--chunk-rows") {
         budget.max_chunk_rows = rows.parse().map_err(|_| "chunk_rows")?;
