@@ -11,6 +11,10 @@ use sha2::{Digest, Sha256};
 use sqlx::{Connection, PgConnection};
 use sqlx_core::sql_str::AssertSqlSafe;
 
+#[path = "engine_load_pg_c5.rs"]
+mod c5;
+pub use c5::{C5Baseline, C5Part, same_ranges};
+
 fn db(_: sqlx::Error) -> &'static str {
     "load_target"
 }
@@ -25,7 +29,7 @@ fn quote(name: &str) -> Result<String> {
 }
 
 /// Closed, lossless target types. Unsupported types fail before COPY.
-fn column(field: &DecodedField) -> Result<(i64, &'static str)> {
+pub(crate) fn column(field: &DecodedField) -> Result<(i64, &'static str)> {
     Ok(match field.arrow_type.as_str() {
         "int8" | "int16" => (21, "smallint"),
         "int32" => (23, "integer"),
@@ -163,6 +167,23 @@ impl<'a> PgTarget<'a> {
 
 impl Target for PgTarget<'_> {
     async fn begin(&mut self, plan: &TableChunkPlan) -> Result<()> {
+        let installed: bool =
+            sqlx::query_scalar("SELECT to_regclass('_oo_load.sync_bindings') IS NOT NULL")
+                .fetch_one(&mut *self.conn)
+                .await
+                .map_err(db)?;
+        if installed {
+            let active: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM _oo_load.sync_bindings WHERE identity=$1)",
+            )
+            .bind(&self.identity)
+            .fetch_one(&mut *self.conn)
+            .await
+            .map_err(db)?;
+            if active {
+                return Err("load_rebaseline_required_active_sync");
+            }
+        }
         if self.completed().await?.is_some() {
             return Err("load_already_published");
         }
