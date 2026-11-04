@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 
 use super::{Failure, Invocation, wizard::Screen};
 
-fn state_dir(config: &Path) -> Result<PathBuf, Failure> {
+pub(super) fn state_dir(config: &Path) -> Result<PathBuf, Failure> {
     let config = std::fs::canonicalize(config).map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
     Ok(config
         .parent()
@@ -27,6 +27,9 @@ pub(super) fn status(config: &Path, json_output: bool) -> Result<Invocation, Fai
         .is_ok_and(|m| !m.is_dir() || m.mode() & 0o777 != 0o700)
     {
         return Err(Failure::local("BUILD_STATE_DIRECTORY"));
+    }
+    if root.join("chain.json").exists() {
+        return super::build::status(&root, json_output);
     }
     let path = root.join("run.json");
     if !path

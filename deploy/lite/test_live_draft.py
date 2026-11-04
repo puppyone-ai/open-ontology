@@ -67,7 +67,7 @@ def main():
                 'model':{'provider':'openai-compatible','base_url':read_private(Path.home()/'.config/open-ontology/secrets/model-endpoint-9r').decode().strip(),
                          'model':'gpt-6.1-sol','key':{'secret_ref':'model-key'}}}
         path=out/'stack.json';private_file(path,json.dumps(config))
-        argv=[str(ROOT/'target/debug/oo'),'build','--config',str(path),'--json']
+        argv=[str(ROOT/'target/debug/oo'),'build','--draft-only','--config',str(path),'--json']
         if a.image:
             import re
             if not re.fullmatch(r'sha256:[0-9a-f]{64}',a.image):
@@ -80,7 +80,7 @@ def main():
                   '--user',str(os.getuid())+':'+str(os.getgid()),'-e','HOME=/private/home',
                   '--mount','type=bind,src='+str(out)+',dst=/work',
                   '--mount','type=bind,src='+str(p)+',dst=/private,readonly',
-                  a.image,'build','--config','/work/stack.json','--json']
+                  a.image,'build','--draft-only','--config','/work/stack.json','--json']
         proc=subprocess.run(argv,env=dict(os.environ,HOME=str(home)),capture_output=True,timeout=700)
         raw=proc.stdout+proc.stderr
         assert key.strip() not in raw and f.reader_secret.encode() not in raw

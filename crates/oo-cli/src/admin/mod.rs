@@ -1,4 +1,5 @@
 //! Administrative commands; consumer credentials are never read here.
+mod build;
 mod doctor;
 mod lite;
 mod ontology;
@@ -17,7 +18,8 @@ use std::path::Path;
 pub const HELP: &str = "\
 Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
-  oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--yes] [--json]
+  oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
+    [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
@@ -28,7 +30,9 @@ The wizard can save or run a bounded PostgreSQL metadata-to-draft bridge.
 build requires pg-builder and oo-pipeline beside oo; --resume retains checkpoints.
 --agent-target uses oo-load to load explicit source tables before drafting.
 The target file is private oo-load JSON; TLS and secret_ref credentials are required.
-Agent DB loading, review and publication are pending integration.
+Full build checkpoints the draft, then requires an owner-reviewed community input.
+Missing review input or lane-M publication integration blocks with a nonzero exit.
+--draft-only explicitly stops at the old bounded, unreviewed draft bridge.
 status reports saved build state; missing Gateway health fields stay unmeasured.
 up bootstraps private credentials and starts only lite foundations; exit 1
 and foundations_only mean worker/scheduler/Gateway integration is still pending.
@@ -106,7 +110,15 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     let mut args = Vec::new();
     for arg in rest {
         if let Some((flag, value)) = arg.split_once('=')
-            && matches!(flag, "--config" | "--format" | "--role" | "--agent-target")
+            && matches!(
+                flag,
+                "--config"
+                    | "--format"
+                    | "--role"
+                    | "--agent-target"
+                    | "--review-input"
+                    | "--review-file"
+            )
         {
             args.extend([flag.to_owned(), value.to_owned()]);
         } else {
@@ -117,6 +129,9 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     let mut json = false;
     let mut resume = false;
     let mut agent_target = None;
+    let mut review_input = None;
+    let mut review_file = None;
+    let mut draft_only = false;
     let mut seen = std::collections::HashSet::new();
     let mut positionals = Vec::new();
     let mut format = false;
@@ -130,7 +145,9 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
             "--json" => json = true,
             "--yes" => (),
             "--resume" if command == "build" => resume = true,
-            "--config" | "--format" | "--role" | "--agent-target" => {
+            "--draft-only" if command == "build" => draft_only = true,
+            "--config" | "--format" | "--role" | "--agent-target" | "--review-input"
+            | "--review-file" => {
                 index += 1;
                 let value = args
                     .get(index)
@@ -139,6 +156,8 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
                 match arg {
                     "--config" => config = Some(value.as_str()),
                     "--agent-target" if command == "build" => agent_target = Some(Path::new(value)),
+                    "--review-input" if command == "build" => review_input = Some(Path::new(value)),
+                    "--review-file" if command == "build" => review_file = Some(Path::new(value)),
                     "--format"
                         if command == "ontology"
                             && matches!(value.as_str(), "html" | "mermaid" | "yaml") =>
@@ -177,12 +196,40 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     }
     if command == "build" {
         let path = Path::new(config.unwrap_or("stack.yaml"));
-        return progress::build(path, &read_stack(path)?, resume, json, agent_target);
+        let stack = read_stack(path)?;
+        if draft_only {
+            if review_input.is_some() || review_file.is_some() {
+                return Err(Failure::usage(
+                    "ADMIN_ARGUMENT: draft-only cannot accept review options",
+                ));
+            }
+            if progress::state_dir(path)?.join("chain.json").exists() {
+                return Err(Failure::usage(
+                    "BUILD_CHAIN_EXISTS: resume without --draft-only",
+                ));
+            }
+            return progress::build(path, &stack, resume, json, agent_target);
+        }
+        return build::run(
+            path,
+            &stack,
+            resume,
+            json,
+            agent_target,
+            review_input,
+            review_file,
+        );
     }
     if command == "status" {
         let path = Path::new(config.unwrap_or("stack.yaml"));
         let stack = read_stack(path)?;
         let root = std::fs::canonicalize(path).map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+        if root
+            .parent()
+            .is_some_and(|p| p.join(".oo/chain.json").exists())
+        {
+            return progress::status(path, json);
+        }
         if root
             .parent()
             .is_some_and(|p| p.join(".oo/lite/owner.json").exists())

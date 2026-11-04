@@ -112,7 +112,7 @@ def main():
         # fake successes or model spend. Resume retries the failed preflight.
         master2, slave2 = pty.openpty()
         fcntl.ioctl(slave2, termios.TIOCSWINSZ, struct.pack("HHHH", 60, 180, 0, 0))
-        proc2 = subprocess.Popen([str(binary), "build", "--config", str(out/"stack.yaml")],
+        proc2 = subprocess.Popen([str(binary), "build", "--draft-only", "--config", str(out/"stack.yaml")],
                                  cwd=out, env=env, stdin=slave2, stdout=slave2, stderr=slave2)
         os.close(slave2)
         captured = bytearray()
@@ -142,7 +142,7 @@ def main():
                 proc2.kill()
                 proc2.wait()
             os.close(master2)
-        resumed = subprocess.run([str(binary),"build","--resume","--config",str(out/"stack.yaml"),"--json"],
+        resumed = subprocess.run([str(binary),"build","--draft-only","--resume","--config",str(out/"stack.yaml"),"--json"],
                                  env=env,capture_output=True,timeout=30)
         assert resumed.returncode == 1
         state = json.loads(resumed.stdout)
@@ -162,7 +162,7 @@ def main():
         replay.httpd.handle_error = lambda *_: None
         master3, slave3 = pty.openpty()
         fcntl.ioctl(slave3, termios.TIOCSWINSZ, struct.pack("HHHH", 60, 180, 0, 0))
-        proc3 = subprocess.Popen([str(binary),"build","--resume","--config",str(out/"stack.yaml")],
+        proc3 = subprocess.Popen([str(binary),"build","--draft-only","--resume","--config",str(out/"stack.yaml")],
                                  cwd=out,env=env,stdin=slave3,stdout=slave3,stderr=slave3)
         os.close(slave3)
         cancelled = bytearray()

@@ -151,7 +151,7 @@ def main():
                  '--label','oo.run_id='+fixture.id,'--network','container:'+fixture.name,
                  '--user',str(os.getuid())+':'+str(os.getgid()),'-e','HOME=/private/home',
                  '-v',str(out)+':/work','-v',str(private)+':/private:ro',args.image,
-                 'build','--config','/work/stack.json','--agent-target','/work/target.json','--json'],
+                 'build','--draft-only','--config','/work/stack.json','--agent-target','/work/target.json','--json'],
                 'build',timeout=900)
         report=json.loads(raw)
         assert report['status']=='draft' and report['agent_db_load']=='local_table_views'

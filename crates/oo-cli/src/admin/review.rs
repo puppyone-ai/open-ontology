@@ -402,6 +402,52 @@ fn summary(command: &Value) -> Result<Value> {
     )
 }
 
+/// Recheck a recovered output before the publisher consumes it; file existence is not a receipt.
+pub(super) fn verify_handoff(input: &Value, reviewed: &Value) -> Result<()> {
+    let session: Session = serde_json::from_value(reviewed["review_decision"]["decisions"].clone())
+        .map_err(|_| Failure::local("REVIEW_HANDOFF_SHAPE"))?;
+    if reviewed["protocol"] != "oo.owner-reviewed-registry/v1"
+        || reviewed["status"] != "reviewed"
+        || reviewed["published"] != false
+        || reviewed["authentication"] != "not_claimed"
+        || reviewed["review_decision"]["reviewer"] != "owner"
+        || reviewed["review_decision"]["mode"] != "self"
+        || session.items.values().any(|d| d.action == "reject")
+    {
+        return Err(Failure::local("REVIEW_HANDOFF_BINDING"));
+    }
+    let mut expected = prepare(input, &items(input)?, &session)?;
+    let report = summary(&expected)?;
+    let gate = session
+        .g14
+        .as_ref()
+        .ok_or_else(|| Failure::local("REVIEW_G14_REQUIRED"))?;
+    if gate.action != "accept"
+        || gate.reason.trim().is_empty()
+        || gate.summary_sha256 != hash(&report["summary"])
+        || reviewed["summary"] != report["summary"]
+    {
+        return Err(Failure::local("REVIEW_G14_BINDING"));
+    }
+    let mut required = array(&report["summary"]["naming_conflicts"])?.clone();
+    if report["summary"]["orphan_review_required"] == true {
+        required.push(json!("orphan_entities"));
+    }
+    for id in required {
+        expected["review"]["decisions"][text(&id)?] = json!({"reviewer":"owner",
+            "decision":"approved","summary_sha256":gate.summary_sha256});
+    }
+    expected["review"]["summary_sha256"] = json!(gate.summary_sha256);
+    expected["review"]["draft_sha256"] = json!(hash(&expected["draft"]));
+    expected["review"]["effective_sha256"] = json!(hash(&expected["effective"]));
+    if expected != reviewed["command"]
+        || bridge(&json!({"operation":"reviewed","command":expected}))? != reviewed["compiled"]
+    {
+        return Err(Failure::local("REVIEW_HANDOFF_BINDING"));
+    }
+    Ok(())
+}
+
 pub(super) fn review(input: &Value, decision_file: Option<&Path>, out: &Path) -> Result<Value> {
     let candidates = items(input)?;
     if out
