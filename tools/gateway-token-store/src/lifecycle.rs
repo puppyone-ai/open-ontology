@@ -420,12 +420,20 @@ impl Control {
         tx.commit().await.map_err(|_| "commit_unknown")
     }
     pub async fn execute(&self, operation: Operation, actor: &str) -> Result<Receipt> {
-        self.execute_at(operation, actor, now_ms()?).await
+        self.execute_inner(operation, actor, None).await
     }
     /// Injected wall-clock seam; not evidence of the production clock.
     pub async fn execute_at(&self, operation: Operation, actor: &str, now: i64) -> Result<Receipt> {
+        self.execute_inner(operation, actor, Some(now)).await
+    }
+    async fn execute_inner(
+        &self,
+        operation: Operation,
+        actor: &str,
+        clock: Option<i64>,
+    ) -> Result<Receipt> {
         safe_text(actor)?;
-        if actor.is_empty() || now < 0 {
+        if actor.is_empty() || clock.is_some_and(|now| now < 0) {
             return Err("input");
         }
         let mut client = self.connect().await?;
@@ -441,6 +449,12 @@ impl Control {
         )
         .await
         .map_err(|_| "database")?;
+        // Sample after serialization: an older in-flight request can acquire the
+        // lock after another request has already issued the same retry token.
+        let now = match clock {
+            Some(now) => now,
+            None => now_ms()?,
+        };
         tx.batch_execute("SAVEPOINT operation")
             .await
             .map_err(|_| "database")?;

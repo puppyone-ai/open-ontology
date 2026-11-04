@@ -114,8 +114,8 @@ async fn owned_pg_issue_retry() {
     // Both requests race the same project lock, with a different idempotency key.
     let race_token = Zeroizing::new(material());
     let (a, b) = tokio::join!(
-        control.execute_at(retry(grant(), "race", &race_token), "owner", now + 3),
-        control.execute_at(retry(grant(), "race", &race_token), "owner", now + 4)
+        control.execute(retry(grant(), "race", &race_token), "owner"),
+        control.execute(retry(grant(), "race", &race_token), "owner")
     );
     assert_eq!(a.unwrap().metadata, b.unwrap().metadata);
     assert_eq!(count().await.unwrap().get::<_, i64>(0), 2);
