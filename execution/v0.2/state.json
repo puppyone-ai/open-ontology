@@ -942,10 +942,20 @@
       "sprint": "S3",
       "lane": "E",
       "title": "P1：SQL Server 2019/2022/2025 快照 + CT/CDC（amd64 仿真）",
-      "status": "in_progress",
+      "status": "integrated",
       "owner": "lane-E",
       "branch": "v0.2/e-oracle-engine",
-      "commits": [],
+      "commits": [
+        "81aa58673",
+        "bf7c6e7d6",
+        "4bab185cb",
+        "4f94cd79c",
+        "bb8ecc2f3",
+        "2e8b76663",
+        "1a800e913",
+        "dfa0853ed",
+        "00ba5af65"
+      ],
       "evidence": []
     },
     {
@@ -1194,9 +1204,9 @@
       "sprint": "S5",
       "lane": "E",
       "title": "P2：Db2 快照；达梦/Kingbase 视镜像与许可",
-      "status": "pending",
-      "owner": null,
-      "branch": null,
+      "status": "in_progress",
+      "owner": "lane-E",
+      "branch": "v0.2/e-oracle-engine",
       "commits": [],
       "evidence": []
     },
