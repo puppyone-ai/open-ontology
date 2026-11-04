@@ -5,6 +5,7 @@ import copy
 import datetime as dt
 import hashlib
 from decimal import Decimal
+from functools import partial
 import json
 import os
 import re
@@ -19,9 +20,13 @@ import time
 import uuid
 
 from comparison import compare
+from oracle_t1 import compare_oracle as compare_oracle_lobs
 import runner
 
 ROOT = runner.ROOT
+LANE = os.environ.get("OO_TEST_LANE", "m")
+if LANE not in ("m", "e"):
+    raise ValueError("unsupported T1 lane")
 _resolve = runner.resolve
 
 
@@ -90,9 +95,9 @@ def private(path, text):
 
 
 class LaneRun(runner.Run):
-    """Reuse H's generator/seed SQL, but own only explicitly labelled M resources."""
+    """Reuse H's generator/seed SQL, but own only explicitly labelled lane resources."""
     def command(self, command, **kwargs):
-        command = ["oo.lane=m" if x == "oo.lane=h" else x for x in command]
+        command = ["oo.lane=" + LANE if x == "oo.lane=h" else x for x in command]
         if command[:2] == ["docker", "create"] and self.name in command:
             port = {"postgres": 5432, "mysql": 3306, "oracle": 1521}[self.engine]
             command[2:2] = ["-p", f"127.0.0.1::{port}"]
@@ -131,7 +136,7 @@ class LaneRun(runner.Run):
                 fmt = "{{json .Config.Labels}}" if kind == "container" else "{{json .Labels}}"
                 _, raw = self.command(["docker", kind, "inspect", "--format", fmt, name])
                 labels = json.loads(raw)
-                if labels.get("oo.lane") != "m" or labels.get("oo.run_id") != self.id:
+                if labels.get("oo.lane") != LANE or labels.get("oo.run_id") != self.id:
                     raise RuntimeError("cleanup ownership")
                 if kind == "container":
                     self.command(["docker", "logs", name], required=False)
@@ -163,7 +168,7 @@ class AgentDB:
         platform = "linux/arm64" if arch.strip() in ("arm64", "aarch64") else "linux/amd64"
         image = item["ref"] + "@" + item["platforms"][platform]["digest"]
         self.run.command(["docker", "pull", "--platform", platform, image], timeout=1200)
-        self.run.command(["docker", "create", "--name", self.name, "--label", "oo.lane=m",
+        self.run.command(["docker", "create", "--name", self.name, "--label", "oo.lane=" + LANE,
                           "--label", "oo.run_id=" + self.run.id, "--platform", platform,
                           "-p", "127.0.0.1::5432", "--tmpfs", "/var/lib/postgresql/data",
                           "-v", f"{self.directory}:/run/private:ro",
@@ -191,7 +196,7 @@ class AgentDB:
         if self.created:
             _, raw = self.run.command(["docker", "inspect", "--format", "{{json .Config.Labels}}", self.name])
             labels = json.loads(raw)
-            if labels.get("oo.lane") != "m" or labels.get("oo.run_id") != self.run.id:
+            if labels.get("oo.lane") != LANE or labels.get("oo.run_id") != self.run.id:
                 raise RuntimeError("target cleanup ownership")
             self.run.command(["docker", "rm", "-f", "-v", self.name])
         shutil.rmtree(self.directory)
@@ -586,6 +591,8 @@ def compare_oracle(run, target, receipt, table):
                    consistency="B", oracle_empty=True)
 
 
+compare_oracle = partial(compare_oracle_lobs, scalar_compare=compare_oracle)
+
 def run_t1(run, binary, worker_image=None):
     target = AgentDB(run)
     store = run.path / ".load-private"
@@ -643,8 +650,10 @@ def run_t1(run, binary, worker_image=None):
                 raise RuntimeError("11g thick worker image required")
             worker = "oo-m-worker-" + uuid.uuid4().hex[:12]
             run.command(["docker", "create", "--name", worker, "--platform", "linux/amd64",
-                         "--label", "oo.lane=m", "--label", "oo.run_id=" + run.id,
-                         "--network", "container:" + run.name, "--entrypoint", "sleep", worker_image, "infinity"])
+                         "--label", "oo.lane=" + LANE, "--label", "oo.run_id=" + run.id,
+                         "--network", "container:" + run.name,
+                         "--mount", f"type=bind,src={ROOT / 'testing/engines/oracle/worker/worker.py'},dst=/worker.py,readonly",
+                         "--entrypoint", "sleep", worker_image, "infinity"])
             run.command(["docker", "start", worker])
             executable = store / "worker"
             private(executable, f'#!/bin/sh\nexec docker exec -i {worker} python /worker.py\n')
@@ -727,7 +736,7 @@ def run_t1(run, binary, worker_image=None):
         if worker:
             _, raw = run.command(["docker", "inspect", "--format", "{{json .Config.Labels}}", worker])
             labels = json.loads(raw)
-            if labels.get("oo.lane") != "m" or labels.get("oo.run_id") != run.id:
+            if labels.get("oo.lane") != LANE or labels.get("oo.run_id") != run.id:
                 raise RuntimeError("worker cleanup ownership")
             run.command(["docker", "rm", "-f", worker])
         target.close()
@@ -747,7 +756,7 @@ def main():
         context = json.loads(Path(os.environ["OO_TEST_CONTEXT"]).read_text())
         labels = json.loads(subprocess.check_output(
             ["docker", "inspect", "--format", "{{json .Config.Labels}}", context["container"]], text=True))
-        if labels.get("oo.lane") not in ("h", "m") or labels.get("oo.run_id") != context["run_id"]:
+        if labels.get("oo.lane") not in ("h", LANE) or labels.get("oo.run_id") != context["run_id"]:
             raise RuntimeError("hook fixture ownership")
         if context["engine"] not in ("postgres", "mysql", "oracle"):
             raise RuntimeError("T1 hook engine unavailable")
