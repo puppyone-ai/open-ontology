@@ -391,4 +391,89 @@ mod tests {
                 .unwrap();
         assert_eq!(old.completed().await.unwrap_err(), "load_run_superseded");
     }
+
+    struct PauseAfterStage<'a, T> {
+        target: &'a mut T,
+        pause: bool,
+    }
+    async fn checkpoint() {
+        std::fs::write(std::env::var("OO_LOAD_TEST_MARKER").unwrap(), b"committed").unwrap();
+        tokio::time::sleep(std::time::Duration::from_secs(300)).await;
+        panic!("kill harness did not terminate the process");
+    }
+    impl<T: Target> Target for PauseAfterStage<'_, T> {
+        async fn begin(&mut self, plan: &TableChunkPlan) -> Result<()> {
+            self.target.begin(plan).await
+        }
+        async fn stage(&mut self, receipt: &ChunkReceipt, decoded: &DecodedStream) -> Result<()> {
+            self.target.stage(receipt, decoded).await?;
+            if self.pause {
+                checkpoint().await;
+            }
+            Ok(())
+        }
+        async fn publish(&mut self, plan: &TableChunkPlan) -> Result<()> {
+            self.target.publish(plan).await
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "subprocess fixture for test-target.py; actually killed twice by that harness"]
+    async fn sigkill_target_fixture() {
+        use sqlx::{
+            Connection,
+            postgres::{PgConnectOptions, PgConnection, PgSslMode},
+        };
+        let config: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(std::env::var("OO_LOAD_TEST_TARGET").unwrap()).unwrap(),
+        )
+        .unwrap();
+        let password = std::fs::read_to_string(config["password_file"].as_str().unwrap()).unwrap();
+        let options = PgConnectOptions::new()
+            .host("127.0.0.1")
+            .port(config["port"].as_u64().unwrap() as u16)
+            .username("postgres")
+            .database("postgres")
+            .password(password.trim())
+            .ssl_mode(PgSslMode::Disable);
+        let phase = std::env::var("OO_LOAD_TEST_PHASE").unwrap();
+        let mut conn = PgConnection::connect_with(&options).await.unwrap();
+        let mut target =
+            oo_pipeline::engine_load_pg::PgTarget::new(&mut conn, "kill-fake", "kill-1", &table())
+                .await
+                .unwrap();
+        match target.completed().await.unwrap() {
+            Some(receipts) => {
+                assert_eq!(phase, "complete");
+                assert_eq!(receipts.len(), 1);
+                assert_eq!(receipts[0].rows, 3);
+            }
+            None => {
+                load(
+                    &mut Fake::new(),
+                    &table(),
+                    &ReadBudget::default(),
+                    IpcSink::new,
+                    &mut PauseAfterStage {
+                        target: &mut target,
+                        pause: phase == "stage",
+                    },
+                )
+                .await
+                .unwrap();
+            }
+        }
+        if phase == "published" {
+            checkpoint().await;
+        }
+        let relation = target.relation();
+        drop(target);
+        let rows: i64 = sqlx::query_scalar(sqlx_core::sql_str::AssertSqlSafe(format!(
+            "SELECT count(*) FROM {relation}"
+        )))
+        .fetch_one(&mut conn)
+        .await
+        .unwrap();
+        assert_eq!(rows, 3);
+    }
 }

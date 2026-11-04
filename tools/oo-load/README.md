@@ -89,3 +89,15 @@ CARGO_TARGET_DIR=target cargo test --manifest-path tools/oo-load/Cargo.toml --lo
 The real PostgreSQL target test is explicitly ignored unless run with
 `OO_LOAD_TEST_TARGET` pointing at an owner-private synthetic config containing
 `port` and `password_file`. A default ignored test is not acceptance evidence.
+
+Run both dedicated-target regressions and actual process-kill recovery with:
+
+```sh
+python3 tools/oo-load/test-target.py --run-id m-load-recovery
+```
+
+This starts one fresh lane-M-labelled PostgreSQL target, tests superseded-run
+refusal and empty replacement, then SIGKILLs real test processes after chunk
+commit and after publication commit. A final resume must preserve exactly one
+receipt, three fixture rows and unchanged metered bytes. Only its own container
+and generated secrets are removed. Do not run alongside a two-database matrix.
