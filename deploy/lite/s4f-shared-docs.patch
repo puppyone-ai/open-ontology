@@ -1,5 +1,11 @@
 --- a/docs/product/04-onboarding-and-gateway-binding.md
 +++ b/docs/product/04-onboarding-and-gateway-binding.md
-@@ -124 +124 @@
+@@ -121,7 +121,7 @@
+ 
+ `oo up` 默认安装周期任务（compose 内 scheduler；远程用 systemd timer）。每个周期：增量（C1 或 C5）→ 发布新数据代际 → Gateway 原子切换发布指针。只有结构或语义依赖变化时才触发定向 Self-build。这就是“实时匹配”的含义：Gateway 始终服务最近一次已验证的发布，并通过 `/v1/freshness` 告诉调用者数据截至何时；Gateway 不直连源库。
+ 
 -lite 的目标周期为 `oo-load sync` → data-only Builder → `oo-load publish` → 按策略回收。发布由 Agent DB 属主执行 `release-coordinator publish-retained`；返回的 `gateway_document` 写入 Gateway 的 `reviewed/library/library.json`，其产物写入 `packs/library.json`，然后重载 Gateway。数据-only 周期复用所有者已审注册表，模型调用为零。Gateway 数据登录须获 `_oo.native_library_retained_table(text)` 的 EXECUTE。Builder 是完成后退出的一次性作业；七项健康必须来自一次真实计划周期与 `oo status`，不能以进程存在或 dispatch 成功代替。M-S4e 已验证该授权；retained-generation Builder 路由、调度接线与七项健康仍待验收。
-+lite 的目标周期为 `oo-load sync` → data-only Builder → `oo-load publish` → 按策略回收。发布由 Agent DB 属主执行 `release-coordinator publish-retained`；返回的 `gateway_document` 写入 Gateway 的 `reviewed/library/library.json`，其产物写入 `packs/library.json`，然后重载 Gateway。数据-only 周期复用所有者已审注册表，模型调用为零。Gateway 数据登录须获 `_oo.native_library_retained_table(text)` 的 EXECUTE。Builder 是完成后退出的一次性作业；七项健康必须来自一次真实计划周期与 `oo status`，不能以进程存在或 dispatch 成功代替。M-S4f 已在 PostgreSQL 17.11 合成夹具上验证计划 no-op、数据变化、零新增模型调用及七项服务/作业健康（初次草稿使用显式模型回放）。语义变化以 `review_required` 停止计划；标准 `oo up` 自动配置及混合表代际仍不在该证据范围。
++lite 的周期为 `oo-load sync` → `oo-load publish` 候选 → data-only Builder → `publish-retained` → Gateway 重载验证 → 按策略回收。发布由 Agent DB 属主执行 `release-coordinator publish-retained`；返回的 `gateway_document` 写入 Gateway 的 `reviewed/library/library.json`，其产物写入 `packs/library.json`，然后重载 Gateway。数据-only 周期复用所有者已审注册表，模型调用为零。Gateway 数据登录须获 `_oo.native_library_retained_table(text)` 的 EXECUTE。Builder 是完成后退出的一次性作业；七项健康必须来自一次真实计划周期与 `oo status`，不能以进程存在或 dispatch 成功代替。M-S4f 已在 PostgreSQL 17.11 合成夹具上验证计划 no-op、数据变化、零新增模型调用及七项服务/作业健康（初次草稿使用显式模型回放）。语义变化以 `review_required` 停止计划；标准 `oo up` 自动配置及混合表代际仍不在该证据范围。
+ 
+ ## 5. Token 生命周期（闭环 L2）
+ 
