@@ -1,0 +1,23 @@
+diff --git a/crates/oo-connectors/src/engine/mod.rs b/crates/oo-connectors/src/engine/mod.rs
+--- a/crates/oo-connectors/src/engine/mod.rs
++++ b/crates/oo-connectors/src/engine/mod.rs
+@@ -360,6 +360,19 @@
+         budget: &ReadBudget,
+         sink: &mut dyn ChunkSink,
+     ) -> impl Future<Output = Result<ChunkReceipt, SourceError>> + Send;
++
++    /// Optional source-authenticated replacement for a chunk that outgrew its
++    /// budget. Children must exactly cover the parent's bounds, have distinct
++    /// IDs and a newer revision, and be registered for subsequent read_chunk.
++    /// None means the caller must replan the whole table. Physical ranges must
++    /// never escape their owning snapshot.
++    fn split_chunk(
++        &mut self,
++        _chunk: &ChunkSpec,
++        _budget: &ReadBudget,
++    ) -> impl Future<Output = Result<Option<Vec<ChunkSpec>>, SourceError>> + Send {
++        async { Ok(None) }
++    }
+ 
+     /// Current read-only position, or `None` when the engine has none.
+     fn watermark(&mut self) -> impl Future<Output = Result<Option<Watermark>, SourceError>> + Send;
