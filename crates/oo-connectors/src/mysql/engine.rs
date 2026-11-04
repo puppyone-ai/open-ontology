@@ -37,6 +37,9 @@ use crate::{SourceError, SourceErrorKind};
 #[cfg(feature = "mysql-binlog")]
 #[path = "change.rs"]
 pub mod change;
+#[cfg(feature = "mysql-binlog")]
+#[path = "repair.rs"]
+pub mod repair;
 
 type Result<T> = std::result::Result<T, SourceError>;
 
@@ -91,6 +94,7 @@ pub enum WatermarkMode {
     None,
 }
 
+#[derive(Clone)]
 struct TableMeta {
     key: ChosenKey,
     columns: Vec<MappedColumn>,

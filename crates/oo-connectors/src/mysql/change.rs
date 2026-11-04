@@ -10,7 +10,7 @@ use mysql_async::binlog::{
 use mysql_async::{BinlogStream, BinlogStreamRequest};
 
 use super::*;
-use crate::engine::{ChangeBatch, ChangeSource, RowChange};
+use crate::engine::{ChangeBatch, ChangeSource, Requirement, RequirementKind, RowChange};
 use crate::mysql::values::{self, RawCell};
 use crate::types::assemble_batch;
 
@@ -21,6 +21,25 @@ pub struct MysqlChanges {
     engine: MysqlEngine,
     server_id: u32,
     source_uuid: String,
+}
+
+/// Actual retained history, measured from the oldest readable binlog event.
+#[derive(Debug)]
+pub struct BinlogRetention {
+    pub earliest: Watermark,
+    pub oldest_event_unix: Option<u32>,
+    pub server_unix: u64,
+    pub required_seconds: u64,
+    pub rebaseline: Option<Requirement>,
+}
+
+impl BinlogRetention {
+    pub fn require_sufficient(self) -> std::result::Result<Self, Requirement> {
+        match &self.rebaseline {
+            Some(requirement) => Err(requirement.clone()),
+            None => Ok(self),
+        }
+    }
 }
 
 impl MysqlEngine {
@@ -130,7 +149,11 @@ fn raw(value: Value) -> RawCell {
     }
 }
 
-fn image(meta: &TableMeta, row: &BinlogRow) -> Result<(Vec<KeyValue>, RecordBatch)> {
+async fn image(
+    engine: &mut MysqlEngine,
+    meta: &TableMeta,
+    row: &BinlogRow,
+) -> Result<(Vec<KeyValue>, RecordBatch)> {
     if row.len() != meta.columns.len() {
         return Err(SourceError::protocol(
             "binlog_schema_new_generation_rebaseline",
@@ -143,8 +166,63 @@ fn image(meta: &TableMeta, row: &BinlogRow) -> Result<(Vec<KeyValue>, RecordBatc
         let value = row
             .as_ref(i)
             .ok_or_else(|| SourceError::protocol("binlog_partial_image"))?;
-        let value = Value::try_from(value.clone())
+        let mut value = Value::try_from(value.clone())
             .map_err(|_| SourceError::protocol("binlog_partial_image"))?;
+        // mysql_common adds 1900 to YEAR's zero byte as well. MySQL's zero
+        // YEAR is 0, while 1900 itself is outside the type's valid range.
+        if column
+            .plan
+            .mapping
+            .source_type
+            .to_ascii_lowercase()
+            .starts_with("year")
+            && value == Value::Bytes(b"1900".to_vec())
+        {
+            value = Value::Int(0);
+        }
+        if matches!(value, Value::Bytes(_))
+            && matches!(column.store, super::super::map::StoreKind::Json)
+        {
+            // The driver emits compact JSON, but snapshot JSON preserves the
+            // server's spelling. Format the logged value, never reread a row
+            // that could already belong to a later transaction.
+            let rows = engine
+                .exec(
+                    "SELECT CAST(CAST(? AS JSON) AS CHAR CHARACTER SET utf8mb4)",
+                    vec![value],
+                )
+                .await?;
+            value = row_value(
+                rows.first()
+                    .ok_or_else(|| SourceError::protocol("binlog_json"))?,
+                0,
+            )?;
+        }
+        if !matches!(value, Value::NULL)
+            && column
+                .plan
+                .mapping
+                .source_type
+                .to_ascii_lowercase()
+                .starts_with("timestamp")
+        {
+            if matches!(&value, Value::Bytes(b) if b == b"0" || b == b"0.000000")
+                || value == Value::Int(0)
+            {
+                return Err(SourceError::protocol("binlog_zero_timestamp"));
+            }
+            let rows = engine
+                .exec("SELECT CAST(FROM_UNIXTIME(?) AS DATETIME(6))", vec![value])
+                .await?;
+            value = row_value(
+                rows.first()
+                    .ok_or_else(|| SourceError::protocol("binlog_timestamp"))?,
+                0,
+            )?;
+            if matches!(value, Value::NULL) {
+                return Err(SourceError::protocol("binlog_timestamp_range"));
+            }
+        }
         let cell = values::normalize_binlog_integer(&column.plan.mapping.source_type, raw(value))
             .map_err(mysql_err)?;
         let (decoded, reject) = values::decode_mapped(column, &cell).map_err(mysql_err)?;
@@ -184,7 +262,77 @@ impl MysqlChanges {
         self.engine.close().await;
     }
 
-    async fn validate(&mut self, from: &Watermark) -> Result<()> {
+    /// Same oldest-event measurement as the preview retention helper, now
+    /// available to connector callers without depending on a preview tool.
+    pub async fn retention(
+        &mut self,
+        longest_cycle_seconds: u64,
+        recovery_seconds: u64,
+    ) -> Result<BinlogRetention> {
+        let required_seconds = longest_cycle_seconds
+            .checked_add(recovery_seconds)
+            .ok_or_else(|| SourceError::config("retention_interval"))?;
+        let earliest = self.earliest_available().await?;
+        self.validate_position(&earliest).await?;
+        let Watermark::MysqlFilePos { file, position } = &earliest else {
+            unreachable!()
+        };
+        let rows = self.engine.exec("SELECT UNIX_TIMESTAMP()", vec![]).await?;
+        let server_unix = rows
+            .first()
+            .and_then(|r| row_u64(r, 0))
+            .ok_or_else(|| SourceError::protocol("retention_server_time"))?;
+        let conn = super::super::connect(&self.engine.config, &self.engine.password)
+            .await
+            .map_err(mysql_err)?;
+        let mut stream = Box::pin(
+            conn.get_binlog_stream(
+                BinlogStreamRequest::new(self.server_id)
+                    .with_filename(file.as_bytes())
+                    .with_pos(*position)
+                    .with_non_blocking(),
+            )
+            .await
+            .map_err(stream_error)?,
+        );
+        let measured = tokio::time::timeout(Duration::from_secs(10), async {
+            while let Some(event) = poll_fn(|cx| stream.as_mut().poll_next(cx)).await {
+                let timestamp = event.map_err(stream_error)?.header().timestamp();
+                if timestamp > 0 {
+                    return Ok::<_, SourceError>(Some(timestamp));
+                }
+            }
+            Ok(None)
+        })
+        .await;
+        let _ = tokio::time::timeout(Duration::from_secs(2), Pin::into_inner(stream).close()).await;
+        let oldest_event_unix =
+            measured.map_err(|_| SourceError::budget("retention_timeout"))??;
+        if self.earliest_available().await? != earliest {
+            return Err(SourceError::protocol("retention_inventory_changed_retry"));
+        }
+        self.validate_position(&earliest).await?;
+        let age = oldest_event_unix.and_then(|old| server_unix.checked_sub(u64::from(old)));
+        let rebaseline = age
+            .filter(|age| *age >= required_seconds)
+            .is_none()
+            .then(|| Requirement {
+                kind: RequirementKind::Retention,
+                name: "actual_binlog_history_new_generation_rebaseline".into(),
+                observed: age.map(|age| age.to_string()),
+                required: format!("{required_seconds} seconds (longest cycle + recovery)"),
+                dba_statement: None,
+            });
+        Ok(BinlogRetention {
+            earliest,
+            oldest_event_unix,
+            server_unix,
+            required_seconds,
+            rebaseline,
+        })
+    }
+
+    pub(super) async fn validate_position(&mut self, from: &Watermark) -> Result<()> {
         self.engine.ensure_basics().await?;
         self.engine.check_replica_commit_order().await?;
         let rows = self
@@ -223,8 +371,7 @@ impl MysqlChanges {
     }
 
     async fn read(&mut self, from: &Watermark, budget: &ReadBudget) -> Result<Option<ChangeBatch>> {
-        self.engine.apply_budget(budget).await?;
-        self.validate(from).await?;
+        self.validate_position(from).await?;
         let mut set = match from {
             Watermark::MysqlGtidSet { gtid_set } => Some(GtidSet::parse(gtid_set)?),
             _ => None,
@@ -256,7 +403,7 @@ impl MysqlChanges {
     }
 
     async fn transaction(
-        &self,
+        &mut self,
         mut stream: Pin<&mut BinlogStream>,
         from: &Watermark,
         set: &mut Option<GtidSet>,
@@ -350,7 +497,7 @@ impl MysqlChanges {
                         schema: tme.database_name().into_owned(),
                         name: tme.table_name().into_owned(),
                     };
-                    if let Some(meta) = self.engine.tables.get(&table) {
+                    if let Some(meta) = self.engine.tables.get(&table).cloned() {
                         if tme.columns_count() != meta.columns.len() as u64 {
                             return Err(SourceError::protocol(
                                 "binlog_schema_new_generation_rebaseline",
@@ -359,8 +506,14 @@ impl MysqlChanges {
                         for pair in rows.rows(tme) {
                             let (before, after) =
                                 pair.map_err(|_| SourceError::protocol("binlog_row"))?;
-                            let before = before.as_ref().map(|r| image(meta, r)).transpose()?;
-                            let after = after.as_ref().map(|r| image(meta, r)).transpose()?;
+                            let before = match before.as_ref() {
+                                Some(row) => Some(image(&mut self.engine, &meta, row).await?),
+                                None => None,
+                            };
+                            let after = match after.as_ref() {
+                                Some(row) => Some(image(&mut self.engine, &meta, row).await?),
+                                None => None,
+                            };
                             let (change, batch) = match (before, after) {
                                 (None, Some((key, batch))) => (
                                     RowChange::Insert {
@@ -448,14 +601,19 @@ impl ChangeSource for MysqlChanges {
         from: &Watermark,
         budget: &ReadBudget,
     ) -> Result<Option<ChangeBatch>> {
+        self.engine.apply_budget(budget).await?;
+        self.engine.gate().await?;
+        let started = Instant::now();
         let deadline = Duration::from_millis(budget.statement_timeout_ms.clamp(1, 600_000));
-        match tokio::time::timeout(deadline, self.read(from, budget)).await {
+        let result = match tokio::time::timeout(deadline, self.read(from, budget)).await {
             Ok(result) => result,
             Err(_) => {
                 self.engine.drop_conn().await;
                 Err(SourceError::budget("binlog_read_timeout"))
             }
-        }
+        };
+        self.engine.finish_op(started);
+        result
     }
 }
 

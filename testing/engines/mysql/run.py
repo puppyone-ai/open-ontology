@@ -57,7 +57,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--versions", nargs="+", default=["5.7.44", "8.0.44", "8.4.7", "9.5.0"])
     p.add_argument("--run-id", default="c-s0s1-" + time.strftime("%Y%m%d-%H%M%S"))
-    p.add_argument("--suite", choices=["s0s1", "s2-digest", "s2-watermark", "s2-c5", "s2-retention", "s2-c1"], default="s0s1")
+    p.add_argument("--suite", choices=["s0s1", "s2-digest", "s2-watermark", "s2-c5", "s2-retention", "s2-c1", "s2-handoff"], default="s0s1")
     args = p.parse_args()
     root = Path(__file__).resolve().parents[3]
     os.chdir(root)
@@ -72,6 +72,8 @@ def main():
         name = "oo-c-" + secrets.token_hex(6)
         volume = name + "-data"
         created = False
+        secondary = None
+        secondary_created = False
         root_pw, reader_pw, writer_pw = [secrets.token_hex(24) for _ in range(3)]
         private(directory / "root-password", root_pw)
         private(directory / "reader-password", reader_pw)
@@ -128,12 +130,20 @@ def main():
                 time.sleep(1)
             else:
                 raise RuntimeError("fixture did not become ready")
-            if args.suite == "s2-c1":
+            if args.suite in ["s2-c1", "s2-handoff"]:
                 seed = """CREATE DATABASE fixture CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE TABLE fixture.cdc_a (id INT PRIMARY KEY, payload VARCHAR(64));
 CREATE TABLE fixture.cdc_b LIKE fixture.cdc_a;
 CREATE TABLE fixture.cdc_empty LIKE fixture.cdc_a;
+CREATE TABLE fixture.cdc_typed (
+    id BIGINT UNSIGNED NOT NULL, shard VARCHAR(20) NOT NULL,
+    amount DECIMAL(30,8), doc JSON, dt DATETIME(6), elapsed TIME(6), ts TIMESTAMP(6) NULL,
+    binary_value VARBINARY(20), yr YEAR, PRIMARY KEY(shard,id));
 """
+                if args.suite == "s2-handoff":
+                    seed += "INSERT INTO fixture.cdc_a VALUES " + ",".join(
+                        f"({n},'initial-{n}')" for n in range(1, 501)) + ";\n"
+                    seed += "INSERT INTO fixture.cdc_b SELECT * FROM fixture.cdc_a WHERE id<=100;\n"
             elif args.suite == "s0s1":
                 seed = seed_sql()
             else:
@@ -152,6 +162,11 @@ GRANT PROCESS ON *.* TO 'writer'@'%';
 """
             if args.suite == "s2-c1" and version in ["8.4.7", "9.5.0"]:
                 setup += "GRANT TRANSACTION_GTID_TAG, SESSION_VARIABLES_ADMIN ON *.* TO 'writer'@'%';\n"
+            if args.suite == "s2-handoff":
+                setup += """UPDATE performance_schema.setup_consumers SET ENABLED='YES'
+WHERE NAME='events_statements_history_long';
+GRANT SELECT ON performance_schema.* TO 'writer'@'%';
+"""
             run(["docker", "exec", "-i", name, "mysql",
                  "--defaults-extra-file=/fixture/admin.cnf"], input=setup.encode())
             port = run(["docker", "port", name, "3306/tcp"]).decode().strip().rsplit(":", 1)[1]
@@ -159,6 +174,30 @@ GRANT PROCESS ON *.* TO 'writer'@'%';
                           reader_password=str(directory / "reader-password"),
                           writer_password=str(directory / "writer-password"),
                           version=version, container=name, out=str(directory))
+            if args.suite == "s2-handoff":
+                # Two independent sources, not two aliases of one server.
+                secondary = "oo-c-" + secrets.token_hex(6)
+                run(["docker", "volume", "create", "--label", "oo.lane=c",
+                     "--label", f"oo.run_id={args.run_id}", secondary + "-data"])
+                second_cmd = [
+                    arg.replace(f"source={volume},", f"source={secondary}-data,")
+                    if arg != name else secondary for arg in cmd
+                ]
+                run(second_cmd)
+                secondary_created = True
+                for _ in range(180):
+                    ready = subprocess.run(["docker", "exec", secondary, "mysql",
+                        "--defaults-extra-file=/fixture/admin.cnf", "--protocol=TCP",
+                        "-h127.0.0.1", "-Nse", "SELECT 1"], capture_output=True)
+                    if ready.returncode == 0:
+                        break
+                    time.sleep(1)
+                else:
+                    raise RuntimeError("secondary fixture did not become ready")
+                run(["docker", "exec", "-i", secondary, "mysql",
+                     "--defaults-extra-file=/fixture/admin.cnf"], input=setup.encode())
+                second_port = run(["docker", "port", secondary, "3306/tcp"]).decode().strip().rsplit(":", 1)[1]
+                config["second"] = dict(config, port=int(second_port), container=secondary)
             private(directory / "config.json", json.dumps(config))
             sources = list((root / "crates/oo-connectors/src/mysql").glob("*.rs"))
             sources += list((root / "crates/oo-connectors/tests").glob("mysql_*.rs"))
@@ -175,9 +214,10 @@ GRANT PROCESS ON *.* TO 'writer'@'%';
                 for path in sources}, indent=2))
             env = os.environ.copy()
             env["OO_MYSQL_ENGINE_FIXTURE"] = str(directory / "config.json")
-            if args.suite == "s2-c1":
+            if args.suite in ["s2-c1", "s2-handoff"]:
                 test_command = ["cargo", "test", "-p", "oo-connectors", "--locked",
-                    "--features", "mysql-binlog", "--lib", "mysql::engine::change::tests::live_c1",
+                    "--features", "mysql-binlog", "--lib",
+                    "mysql::engine::change::tests::" + ("live_c1" if args.suite == "s2-c1" else "live_handoff"),
                     "--", "--ignored", "--nocapture"]
             elif args.suite == "s2-retention":
                 test_command = [
@@ -221,6 +261,16 @@ GRANT PROCESS ON *.* TO 'writer'@'%';
                 (directory / "setup-error.log").write_text(text)
             print(version, type(exc).__name__, flush=True)
         finally:
+            if secondary_created:
+                # Same secret redaction and ownership-only cleanup as source 1.
+                logs = subprocess.run(["docker", "logs", secondary], capture_output=True)
+                text = (logs.stdout + logs.stderr).decode(errors="replace")
+                for secret in [root_pw, reader_pw, writer_pw]:
+                    text = text.replace(secret, "[redacted]")
+                (directory / "secondary-container.log").write_text(text)
+                run(["docker", "rm", "-f", secondary])
+            if secondary is not None:
+                run(["docker", "volume", "rm", secondary + "-data"])
             if created:
                 logs = subprocess.run(["docker", "logs", name], capture_output=True)
                 text = (logs.stdout + logs.stderr).decode(errors="replace")

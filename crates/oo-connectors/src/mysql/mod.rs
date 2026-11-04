@@ -5,7 +5,9 @@
 
 pub mod c5;
 #[cfg(feature = "mysql-binlog")]
-pub use engine::change::MysqlChanges;
+pub use engine::change::{BinlogRetention, MysqlChanges};
+#[cfg(feature = "mysql-binlog")]
+pub use engine::repair::{HandoffBarrier, RepairBinding, RepairBudget, SourceRepair};
 pub mod capability;
 pub mod chunk;
 pub mod engine;
