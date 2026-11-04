@@ -14,5 +14,19 @@
     "result.json": "ce24adeb5022086c96e5f31f2e72571a952cd98bd7c2ba3d056914090b9cf674",
     "http-statuses.json": "0b0e5ba5124958849359c5a1a7e3a9cccc59e8132cd57fa31cd82bda0d8454a3",
     "health.json": "6396530f9043014a65ae1d3c50ae42cdb13a827545c410c13bfc888893aed2af"
+  },
+  "first_up": {
+    "run_id": "a-s2f-first-up",
+    "result": "passed",
+    "scope": "three-service foundations ONLY",
+    "full_stack_acceptance": false,
+    "installed_pointer": false,
+    "healthy_foundation_services": 3,
+    "credential_reuse": "unchanged",
+    "operator_issued_automatically": true,
+    "operator_role": "lite_operator",
+    "gateway_health": "unavailable",
+    "containers_left": 0,
+    "result_sha256": "0ae821750e0e830bcd723d0fa4f780d856990cd583e83a5050d7a3188117bb84"
   }
 }

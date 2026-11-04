@@ -154,7 +154,7 @@ class Tests(unittest.TestCase):
             templates={name:'' for name in ('compose.yaml','postgres.sh','scheduler.py')},
             stack={'sources':[],'gateway':{'public_url':'auto'},
                    'model':{'key':{'secret_ref':'model'},'base_url':{'secret_ref':'endpoint'}}})
-        with patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''):
+        with patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''), patch.object(lifecycle,'operator_bootstrap'):
             lifecycle.main(self.request)
         self.assertEqual(lifecycle.read_private(self.root/'home/.config/open-ontology/secrets/endpoint'),
                          b'https://private.example/v1')
@@ -163,5 +163,39 @@ class Tests(unittest.TestCase):
         with patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''):
             with self.assertRaisesRegex(ValueError,'LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION'):
                 lifecycle.main(self.request)
+
+    def test_operator_bootstrap_is_reserved_idempotent_and_file_only(self):
+        pki=self.root/'pki'
+        pki.mkdir(mode=0o700)
+        calls=[]
+        def docker(args,env):
+            calls.append(args)
+            if 'issue' in args:
+                lifecycle.write(pki/'operator-token',b'ooct_fixture')
+            return b''
+        with patch.object(lifecycle,'docker',side_effect=docker), patch.object(
+                lifecycle.subprocess,'run',return_value=MagicMock(returncode=0)) as sql:
+            for _ in range(2):
+                lifecycle.operator_bootstrap(self.root,['compose'],{},self.request['stack'])
+        self.assertEqual(sum('issue' in args for args in calls),1)
+        grant=json.loads(lifecycle.read_private(pki/'operator-grant.json'))
+        self.assertEqual(grant['role'],'lite_operator')
+        self.assertEqual(grant['knowledge_version'],'unpublished')
+        self.assertEqual(grant['claims'],[])
+        for name in ('token-admin-password','token-runtime-password','operator-token'):
+            secret=lifecycle.read_private(pki/name).decode()
+            self.assertNotIn(secret,json.dumps(calls))
+            self.assertNotIn(secret,json.dumps(sql.call_args.args))
+        self.request['stack']['gateway']['public_url']='https://changed.invalid'
+        with self.assertRaisesRegex(ValueError,'LITE_OPERATOR_CHANGE'):
+            lifecycle.operator_bootstrap(self.root,['compose'],{},self.request['stack'])
+
+    def test_operator_bootstrap_does_not_issue_after_role_failure(self):
+        (self.root/'pki').mkdir(mode=0o700)
+        with patch.object(lifecycle,'docker') as docker, patch.object(
+                lifecycle.subprocess,'run',return_value=MagicMock(returncode=1)):
+            with self.assertRaisesRegex(ValueError,'LITE_OPERATOR_ROLES'):
+                lifecycle.operator_bootstrap(self.root,['compose'],{},self.request['stack'])
+        docker.assert_not_called()
 
 if __name__=='__main__':unittest.main()

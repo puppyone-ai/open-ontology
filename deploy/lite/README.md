@@ -76,9 +76,11 @@ API's token/certificate deadlines is reported; arbitrary response fields are
 not relayed. Without an enrolled credential/Gateway it says `unmeasured`, not
 healthy. Local bootstrap certificate expiry is a separate measurement.
 
-Card S2d authorizes a separate internal health/meta-only operator token on first
-up; the user's first token remains S4. The current implementation does not yet
-issue that operator token. D14 resolves the previous database client-certificate
+First up issues a separate internal health/meta-only operator token; the user's
+first token remains S4. Token-store admin/runtime credentials are distinct from
+the database superuser password, stay private, and are reused on repeated up.
+Issuance runs in a one-shot bootstrap container, not an eighth steady service.
+Changing the operator audience requires explicit migration. D14 resolves the database client-certificate
 blocker. The Gateway health/meta-only role contract now passes the S2f live probe.
 The opt-in scheduler invokes the existing `job-worker native-fire` operation.
 It needs installed control schemas, worker configuration and a project UUID in
@@ -91,6 +93,11 @@ switch is therefore insufficient; no invented catalog is installed here.
 
 ## Evidence
 
+- `a-s2f-first-up`: real first `oo up` issues the reserved operator token through
+  the runtime image; repeated up preserves its bytes and credentials. The three
+  foundation services are healthy. Gateway is still unavailable, so the overall
+  result remains `healthy:false`; no scheduled-cycle or seven-service pass.
+  The runner removes its containers, volumes, network and private credentials.
 - `a-s2e-d14-live-final`: PostgreSQL 17.10 TLS/SCRAM installation and
   real token issuance pass without a database client certificate. Plaintext,
   mismatched hostname and untrusted CA fail.

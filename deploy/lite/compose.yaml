@@ -36,6 +36,12 @@ x-db: &db
     retries: 60
 
 services:
+  operator-bootstrap:
+    <<: *runtime
+    profiles: [bootstrap]
+    entrypoint: [issue-token]
+    volumes:
+      - ${OO_LITE_STATE}/pki:/pki
   agent-db:
     <<: *db
     environment: {OO_DB_IDENTITY: agent-db, POSTGRES_PASSWORD_FILE: /tmp/admin-password}

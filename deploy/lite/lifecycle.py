@@ -1,11 +1,13 @@
 """Owned compose lifecycle. Foundations are not full product-stack acceptance."""
 import hashlib
+import fcntl
 import http.client
 import ipaddress
 import json
 import os
 from pathlib import Path
 import re
+import secrets
 import ssl
 import stat
 import subprocess
@@ -148,6 +150,56 @@ def health(root,stack):
         conn.close()
 
 
+def operator_bootstrap(root,argv,env,stack):
+    """Issue only the reserved operator role, never a user's data-plane token."""
+    pki=root/'pki'
+    lock=os.open(pki/'operator.lock',os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
+    with os.fdopen(lock,'w') as stream:
+        fcntl.flock(stream,fcntl.LOCK_EX)
+        audience=stack['gateway']['public_url']
+        if audience=='auto':
+            audience='https://localhost:8443/'
+        grant={'kind':'client','project_id':'lite-operator','principal_id':'operator',
+               'role':'lite_operator','claims':[],'policy_version':'bootstrap',
+               'knowledge_version':'unpublished','audience_url':audience,
+               'purpose':'deployment-local health and protocol negotiation'}
+        grant_path=pki/'operator-grant.json'
+        if grant_path.exists() and json.loads(read_private(grant_path))!=grant:
+            raise ValueError('LITE_OPERATOR_CHANGE_REQUIRES_EXPLICIT_MIGRATION')
+        write(grant_path,json.dumps(grant).encode())
+        for name in ('token-admin-password','token-runtime-password'):
+            if not (pki/name).exists():
+                write(pki/name,secrets.token_hex(32).encode())
+        passwords=[read_private(pki/name).decode() for name in
+                   ('token-admin-password','token-runtime-password')]
+        if any(not re.fullmatch('[0-9a-f]{64}',value) for value in passwords):
+            raise ValueError('LITE_OPERATOR_PASSWORD')
+        # Only this deployment's control DB is administered. Secrets use stdin.
+        sql="SET log_statement='none'; SET log_min_error_statement='panic';\n"
+        for role,password in zip(('oo_token_admin','oo_token_runtime'),passwords):
+            sql+=("SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', "
+                  f"'{role}', '{password}') WHERE NOT EXISTS "
+                  f"(SELECT 1 FROM pg_roles WHERE rolname='{role}') \\gexec\n")
+        sql+='GRANT CREATE ON DATABASE postgres TO oo_token_admin;\n'
+        result=subprocess.run(['docker',*argv,'exec','-T','control-db','psql',
+                               '-X','-q','-v','ON_ERROR_STOP=1','-U','postgres'],
+                              input=sql.encode(),capture_output=True,env=env,timeout=30)
+        if result.returncode:
+            raise ValueError('LITE_OPERATOR_ROLES')
+        write(pki/'operator-endpoint.json',json.dumps({
+            'host':'control-db','port':5432,'database':'postgres'}).encode())
+        command=argv+['run','--rm','--no-deps','--entrypoint','issue-token','operator-bootstrap']
+        material=['/pki/operator-endpoint.json','/pki/token-admin-password','/pki/lite-ca-cert']
+        docker(command+['install',*material],env)
+        token=pki/'operator-token'
+        if not token.exists():
+            docker(command+['issue',*material,'/pki/operator-grant.json','/pki/operator-token'],env)
+        if not read_private(token).strip().startswith(b'ooct_'):
+            raise ValueError('LITE_OPERATOR_TOKEN')
+        write(root/'health-client.json',json.dumps({
+            'token':'operator-token','ca':'lite-ca-cert',
+            'cert':'lite-admin-cert','key':'lite-admin-key'}).encode())
+
 def main(request):
     root=Path(request['root'])
     action=request['action']
@@ -202,6 +254,7 @@ def main(request):
         write(root/'work/stack.json',json.dumps(request['stack']).encode())
         write(owner,json.dumps({'project':project,'image':image,'lane':'a','subnet':network}).encode())
         docker(argv+['up','--detach','--wait','--wait-timeout','120'],env)
+        operator_bootstrap(root,argv,env,request['stack'])
     elif action=='down':
         # Keep database volumes and credentials. No prune, orphan or volume flags.
         docker(argv+['down'],env)

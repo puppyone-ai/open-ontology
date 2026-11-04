@@ -52,11 +52,16 @@ def main():
         assert {r['Service'] for r in up['services']}=={'agent-db','control-db','model-egress'}
         assert all(r['Health']=='healthy' for r in up['services'])
         pki=out/'.oo/lite/pki'
+        token=(pki/'operator-token').read_bytes()
+        assert token.startswith(b'ooct_')
+        grant=json.loads((pki/'operator-grant.json').read_bytes())
+        assert grant['role']=='lite_operator' and grant['knowledge_version']=='unpublished'
+        assert (pki/'operator-token').stat().st_mode & 0o777 == 0o600
         before={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in pki.iterdir()}
         again=command('up','up-again',1)
         assert before=={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in pki.iterdir()}
         status=command('status','status',1)
-        assert status['gateway_health']['status']=='unmeasured'
+        assert status['gateway_health']['status']=='unavailable'
         assert status['bootstrap_credentials']['token_expiry_measured'] is False
         assert status['bootstrap_credentials']['nearest_credential_expiry']
         assert status['last_success'] is None and status['next_due'] is None
@@ -64,11 +69,12 @@ def main():
         assert down['status']=='stopped' and down['services']==[]
         reports=b''.join((out/(name+'.json')).read_bytes() for name in ('up','up-again','status','down'))
         for secret in pki.iterdir():
-            if secret.name.endswith('-key') or secret.name=='lite-admin-password':
+            if secret.name.endswith(('-key','-password')) or secret.name=='operator-token':
                 assert secret.read_bytes() not in reports
         (out/'result.json').write_text(json.dumps({'result':'passed','scope':'three-service foundations ONLY',
             'full_stack_acceptance':False,'installed_pointer':a.installed,'healthy_foundation_services':3,'credential_reuse':'unchanged',
-            'gateway_health':'unmeasured','containers_left':0},indent=2))
+            'operator_issued_automatically':True,'operator_role':'lite_operator',
+            'gateway_health':'unavailable','containers_left':0},indent=2))
         return 0
     finally:
         ids=subprocess.check_output(['docker','ps','-aq','--filter','label=com.docker.compose.project='+project],text=True).split()
