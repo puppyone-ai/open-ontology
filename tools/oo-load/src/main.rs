@@ -15,6 +15,7 @@ use sqlx::{
 use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
 mod c5;
+mod documents;
 mod epoch;
 #[cfg(feature = "mysql-binlog")]
 mod handoff;
@@ -704,6 +705,9 @@ async fn execute() -> Result<(), String> {
         }
         e if olap::family(e).is_some() => {
             olap::run(e, source, &tables, &target, &store, &budget, &opts).await
+        }
+        "mongodb" | "opensearch" | "elasticsearch" => {
+            documents::run(source, &tables, &target, &store, &budget, &opts).await
         }
         _ => Err("explicit_supported_engine_required".into()),
     }
