@@ -9,6 +9,28 @@ pub(super) trait Epoch: SourceEngine {
         store: &SecretStore,
         tables: &[TableRef],
     ) -> Result<String, String>;
+
+    /// Catalog fingerprint for engines whose epoch does not cover columns.
+    async fn shape(&mut self, _table: &TableRef) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+}
+
+/// C5 lineage: instance epoch plus, where separate, the table's catalog shape.
+/// Rename/widen/nullability DDL can leave every range digest equal; a changed
+/// shape must refuse (`c5_rebaseline_required_lineage`), never publish stale columns.
+pub(super) fn c5_lineage(epoch: String, shape: Option<String>) -> String {
+    match shape {
+        Some(shape) => format!("{epoch}{SHAPE}{shape}"),
+        None => epoch,
+    }
+}
+
+const SHAPE: &str = "#shape:";
+
+/// The instance epoch part of a stored C5 lineage, for C5-to-C1 handoff.
+pub(super) fn epoch_part(lineage: &str) -> &str {
+    lineage.split(SHAPE).next().unwrap_or(lineage)
 }
 
 impl Epoch for PostgresEngine {
@@ -40,6 +62,13 @@ impl Epoch for oo_connectors::mysql::engine::MysqlEngine {
     ) -> Result<String, String> {
         self.source_epoch().await.map_err(|e| e.to_string())
     }
+
+    async fn shape(&mut self, table: &TableRef) -> Result<Option<String>, String> {
+        self.table_shape(table)
+            .await
+            .map(Some)
+            .map_err(|e| e.to_string())
+    }
 }
 
 impl Epoch for oo_connectors::oracle::engine::OracleEngine {
@@ -50,5 +79,20 @@ impl Epoch for oo_connectors::oracle::engine::OracleEngine {
         _: &[TableRef],
     ) -> Result<String, String> {
         self.source_epoch().map_err(|e| e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shape_is_part_of_c5_lineage_but_not_of_the_handoff_epoch() {
+        let a = c5_lineage("uuid".into(), Some("s1".into()));
+        let b = c5_lineage("uuid".into(), Some("s2".into()));
+        assert_ne!(a, b);
+        assert_eq!(epoch_part(&a), "uuid");
+        assert_eq!(c5_lineage("pg".into(), None), "pg");
+        assert_eq!(epoch_part("pg"), "pg");
     }
 }

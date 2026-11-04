@@ -149,7 +149,7 @@ pub(super) async fn run(
             if previous
                 .lineage
                 .as_ref()
-                .is_some_and(|old| old != &epochs[&source.id])
+                .is_some_and(|old| epoch::epoch_part(old) != epochs[&source.id].as_str())
             {
                 return Err("handoff_rebaseline_required_epoch".into());
             }

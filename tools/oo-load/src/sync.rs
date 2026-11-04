@@ -90,7 +90,20 @@ pub(super) async fn lineage(
         .fetch_one(&mut *conn)
         .await
         .map_err(|_| "sync_rebaseline_required_relation")?;
-        relations.push((table, oid));
+        // Column names/types/nullability and primary key: metadata-only DDL
+        // (rename, widen) changes no row or range digest, so it must change lineage.
+        let columns: String = sqlx::query_scalar(
+            "SELECT COALESCE(json_agg(json_build_array(a.attname::text,
+               format_type(a.atttypid,a.atttypmod),a.attnotnull,
+               COALESCE(a.attnum=ANY(i.indkey),false)) ORDER BY a.attnum)::text,'[]')
+             FROM pg_attribute a LEFT JOIN pg_index i ON i.indrelid=a.attrelid AND i.indisprimary
+             WHERE a.attrelid=$1::oid AND a.attnum>0 AND NOT a.attisdropped",
+        )
+        .bind(oid)
+        .fetch_one(&mut *conn)
+        .await
+        .map_err(|_| "sync_lineage_permission_required")?;
+        relations.push((table, oid, columns));
     }
     serde_json::to_string(&(system, relations)).map_err(|_| "sync_lineage")
 }

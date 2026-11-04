@@ -367,6 +367,23 @@ impl MysqlEngine {
             .ok_or_else(|| SourceError::protocol("source_epoch_unavailable"))
     }
 
+    /// Catalog fingerprint of one table: column names, mapped target types,
+    /// nullability and the chosen key. Re-read on every call, so a C5 cycle
+    /// sees metadata-only DDL (rename, widen) that leaves range digests equal.
+    pub async fn table_shape(&mut self, table: &TableRef) -> Result<String> {
+        self.ensure_basics().await?;
+        self.tables.remove(table);
+        self.meta(table).await?;
+        let meta = self.meta_ref(table)?;
+        let columns: Vec<_> = meta
+            .columns
+            .iter()
+            .map(|c| (c.plan.name.as_str(), c.oid, c.typmod, c.not_null, c.key))
+            .collect();
+        let keys: Vec<_> = meta.key.columns.iter().map(|k| k.name.as_str()).collect();
+        shape_digest(&columns, &keys)
+    }
+
     /// No connection is opened until the first operation.
     pub fn new(config: MysqlConfig, password: Zeroizing<String>, options: EngineOptions) -> Self {
         let duty = DutyCycle::new(options.budget.duty_cycle_percent);
@@ -1978,6 +1995,13 @@ impl SourceEngine for MysqlEngine {
     }
 }
 
+/// `(name, target oid, typmod, not null, key)` per column plus key order.
+fn shape_digest(columns: &[(&str, i64, i32, bool, bool)], keys: &[&str]) -> Result<String> {
+    let encoded =
+        serde_json::to_vec(&(columns, keys)).map_err(|_| SourceError::protocol("table_shape"))?;
+    Ok(format!("{:x}", Sha256::digest(&encoded)))
+}
+
 /// Version dispatch rows for `oo doctor`, keyed by note.
 pub fn dispatch_table() -> BTreeMap<String, String> {
     capability::version_rules()
@@ -2004,6 +2028,32 @@ pub fn dispatch_table() -> BTreeMap<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn table_shape_changes_on_metadata_only_ddl() {
+        let base = [
+            ("id", 20, -1, true, true),
+            ("payload", 25, -1, true, false),
+            ("n", 23, -1, true, false),
+        ];
+        let digest = shape_digest(&base, &["id"]).unwrap();
+        assert_eq!(digest, shape_digest(&base, &["id"]).unwrap());
+        let mut renamed = base;
+        renamed[1].0 = "label";
+        let mut widened = base;
+        widened[2].1 = 20;
+        let mut nullable = base;
+        nullable[2].3 = false;
+        for (columns, keys) in [
+            (&renamed[..], &["id"][..]),
+            (&widened[..], &["id"][..]),
+            (&nullable[..], &["id"][..]),
+            (&base[..2], &["id"][..]),
+            (&base[..], &["id", "payload"][..]),
+        ] {
+            assert_ne!(digest, shape_digest(columns, keys).unwrap());
+        }
+    }
 
     #[test]
     fn replica_watermarks_require_known_commit_order() {

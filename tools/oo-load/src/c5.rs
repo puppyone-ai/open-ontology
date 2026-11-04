@@ -101,9 +101,12 @@ async fn run_cycle<E: epoch::Epoch>(
     }
     for table in tables {
         let started = std::time::Instant::now();
-        let live_lineage = engine
-            .epoch(source, store, std::slice::from_ref(table))
-            .await?;
+        let live_lineage = epoch::c5_lineage(
+            engine
+                .epoch(source, store, std::slice::from_ref(table))
+                .await?,
+            engine.shape(table).await?,
+        );
         let live_plan = engine
             .plan_chunks(table, budget)
             .await
@@ -194,10 +197,12 @@ async fn run_cycle<E: epoch::Epoch>(
                     receipts.push(receipt);
                 }
             }
-            if engine
-                .epoch(source, store, std::slice::from_ref(table))
-                .await?
-                != live_lineage
+            if epoch::c5_lineage(
+                engine
+                    .epoch(source, store, std::slice::from_ref(table))
+                    .await?,
+                engine.shape(table).await?,
+            ) != live_lineage
             {
                 return Err("c5_rebaseline_required_lineage".into());
             }
