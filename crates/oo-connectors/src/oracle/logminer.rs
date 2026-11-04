@@ -93,6 +93,19 @@ pub struct OracleLogMiner {
 }
 
 impl OracleLogMiner {
+    /// Resume with the transaction floor captured before the aligned baseline.
+    /// Persist it with DBID/resetlogs and the cursor; advancing a commit SCN
+    /// does not permit advancing this floor.
+    pub fn resume_from_floor(&mut self, floor: u64, from: u64) -> Result<(), SourceError> {
+        let files = self.inventory()?;
+        let high = self.engine.current_scn()?;
+        let available = coverage(&files, high)?;
+        validate_resume_floor(floor, from, available, self.retained_floor, high)?;
+        self.retained_floor = floor;
+        self.admitted_scn = from;
+        Ok(())
+    }
+
     /// Persist DBID/resetlogs identity with the SCN and compare on reconstruction.
     pub fn source_epoch(&self) -> &str {
         &self.identity
@@ -420,9 +433,8 @@ impl OracleLogMiner {
         let high = current.saturating_sub(1);
         let files = self.inventory()?;
         let floor = coverage(&files, high)?;
-        // This reader has no durable in-flight transaction store. A restarted
-        // reader must establish a new baseline, and a live reader must retain
-        // its admitted log floor, even if the commit watermark has advanced.
+        // Without a durable pre-baseline floor, restart needs a new baseline.
+        // Never advance the transaction floor with the commit watermark.
         if from < self.admitted_scn || floor > self.retained_floor {
             return Err(SourceError::catalog("logminer_session_rebaseline"));
         }
@@ -523,6 +535,24 @@ impl ChangeSource for OracleLogMiner {
     }
 }
 
+fn validate_resume_floor(
+    floor: u64,
+    from: u64,
+    available: u64,
+    oldest_active_or_high: u64,
+    high: u64,
+) -> Result<(), SourceError> {
+    if floor == 0
+        || floor > from
+        || floor < available
+        || floor > oldest_active_or_high
+        || from > high
+    {
+        return Err(SourceError::catalog("logminer_resume_floor_rebaseline"));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -550,6 +580,20 @@ mod tests {
     fn positions_reject_other_engines() {
         assert!(scn(&Watermark::PgLsn { lsn: 10 }).is_err());
         assert_eq!(scn(&Watermark::OracleScn { scn: 10 }).unwrap(), 10);
+    }
+
+    #[test]
+    fn durable_floor_covers_retained_history_and_active_transactions() {
+        assert!(validate_resume_floor(10, 20, 5, 15, 30).is_ok());
+        for (floor, from, available, active, high) in [
+            (0, 20, 0, 15, 30),
+            (21, 20, 5, 30, 30),
+            (10, 20, 11, 15, 30),
+            (16, 20, 5, 15, 30),
+            (10, 31, 5, 15, 30),
+        ] {
+            assert!(validate_resume_floor(floor, from, available, active, high).is_err());
+        }
     }
 
     #[test]
