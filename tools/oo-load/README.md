@@ -42,9 +42,13 @@ Every chunk passes identity/revision, row/byte-budget and canonical IPC SHA-256
 validation before typed COPY. Empty chunks must carry a schema. Oracle flagged
 empty strings become NULL after the original IPC has been verified.
 Bounds are opaque: the client checks adjacency, not source collation order.
-Budget failure discards the partial sink and replans the entire table at half
-the row budget (at most 16 attempts), never mixes old and new plan revisions.
-This conservative fallback replaces an absent shared growth-split interface.
+Budget failure discards the partial sink and asks `SourceEngine::split_chunk`
+to replace only the failed source range. MySQL and PostgreSQL keyset plans
+support this hook; children must cover the exact parent bounds, have newer
+revisions and preserve plan-wide unique IDs. Other chunks keep their revisions.
+An unsupported hook falls back to a whole-table replan at half the row budget.
+There are at most 16 attempts. Each replacement still starts a new private target
+stage and rereads the resulting plan; this is not immutable-parent composition.
 
 Target-only namespace `_oo_load` keeps private storage, original per-chunk
 receipts (including watermarks), complete plans and logical tuple write bytes.
@@ -62,7 +66,7 @@ recaptured and are never treated as durable source snapshots.
 Use the same source ID only for the same source endpoint and table namespace.
 
 Output is one JSON line per completed table, including its target view name,
-receipts and write bytes. The meter counts committed logical stage tuple bytes,
+receipts, the effective ReadBudget and write bytes. The meter counts committed logical stage tuple bytes,
 including overwritten chunks and abandoned plans of the same run; it is not
 WAL/index/TOAST/physical I/O. Atomic publication changes metadata only.
 Error messages are closed codes; no SQL, credentials or driver errors are echoed.

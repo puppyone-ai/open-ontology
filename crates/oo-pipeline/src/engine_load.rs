@@ -36,7 +36,6 @@ pub fn validate_plan(plan: &TableChunkPlan, table: &TableRef) -> Result<()> {
     let mut ids = std::collections::BTreeSet::new();
     for chunk in &plan.chunks {
         if &chunk.table != table
-            || chunk.plan_revision != first.plan_revision
             || !ids.insert(chunk.chunk_id)
             || (chunk.lo.is_some() && chunk.lo == chunk.hi)
         {
@@ -53,8 +52,8 @@ pub fn validate_plan(plan: &TableChunkPlan, table: &TableRef) -> Result<()> {
     Ok(())
 }
 
-/// One table at a time, one bounded chunk resident. Growth triggers a complete
-/// replan at a smaller row budget; already staged old-plan rows remain private.
+/// One table at a time, one bounded chunk resident. Growth splits only the
+/// failed source range when supported. Replaced staging remains private.
 /// This is snapshot admission, not CDC or a cross-table snapshot guarantee.
 pub async fn load<E: SourceEngine, S: Capture, T: Target>(
     engine: &mut E,
@@ -68,25 +67,51 @@ pub async fn load<E: SourceEngine, S: Capture, T: Target>(
         return Err("load_budget");
     }
     // No successful partial read may be mistaken for a complete table.
+    let mut plan = engine
+        .plan_chunks(table, &budget)
+        .await
+        .map_err(|error| error.fact().unwrap_or("load_plan_source"))?;
     for attempt in 0..16 {
-        let plan = engine
-            .plan_chunks(table, &budget)
-            .await
-            .map_err(|error| error.fact().unwrap_or("load_plan_source"))?;
         validate_plan(&plan, table)?;
         target.begin(&plan).await?;
         let mut receipts = Vec::new();
         let mut replan = false;
-        for chunk in &plan.chunks {
+        for (index, chunk) in plan.chunks.iter().enumerate() {
             let mut sink = make_sink(&budget);
             let receipt = match engine.read_chunk(chunk, &budget, &mut sink).await {
                 Ok(receipt) => receipt,
                 Err(error)
-                    if error.kind() == oo_connectors::SourceErrorKind::Budget
-                        && budget.max_chunk_rows > 1
-                        && attempt < 15 =>
+                    if error.kind() == oo_connectors::SourceErrorKind::Budget && attempt < 15 =>
                 {
-                    budget.max_chunk_rows = (budget.max_chunk_rows / 2).max(1);
+                    match engine
+                        .split_chunk(chunk, &budget)
+                        .await
+                        .map_err(|e| e.fact().unwrap_or("load_split_source"))?
+                    {
+                        Some(children) => {
+                            if children.len() < 2
+                                || children.first().unwrap().lo != chunk.lo
+                                || children.last().unwrap().hi != chunk.hi
+                                || children
+                                    .iter()
+                                    .any(|c| c.plan_revision <= chunk.plan_revision)
+                            {
+                                return Err("load_split_coverage");
+                            }
+                            plan.chunks.splice(index..=index, children);
+                            validate_plan(&plan, table)?;
+                        }
+                        None => {
+                            if budget.max_chunk_rows == 1 {
+                                return Err(error.fact().unwrap_or("load_read_source"));
+                            }
+                            budget.max_chunk_rows = (budget.max_chunk_rows / 2).max(1);
+                            plan = engine
+                                .plan_chunks(table, &budget)
+                                .await
+                                .map_err(|e| e.fact().unwrap_or("load_plan_source"))?;
+                        }
+                    }
                     replan = true;
                     break;
                 }
@@ -147,9 +172,9 @@ mod tests {
             ],
         };
         validate_plan(&plan, &table).unwrap();
-        plan.chunks[1].plan_revision = 2;
+        plan.chunks[1].table.name = "other".into();
         assert!(validate_plan(&plan, &table).is_err());
-        plan.chunks[1].plan_revision = 3;
+        plan.chunks[1].table = table.clone();
         plan.chunks[1].lo = None;
         assert!(validate_plan(&plan, &table).is_err());
         plan.chunks[1].lo = plan.chunks[0].hi.clone();

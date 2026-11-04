@@ -91,6 +91,8 @@ mod tests {
         corrupt: bool,
         empty: bool,
         unsigned: bool,
+        split: bool,
+        split_gap: bool,
     }
     impl Fake {
         fn new() -> Self {
@@ -100,6 +102,8 @@ mod tests {
                 corrupt: false,
                 empty: false,
                 unsigned: false,
+                split: false,
+                split_gap: false,
             }
         }
     }
@@ -155,6 +159,30 @@ mod tests {
                 estimated_rows: None,
                 chunks,
             })
+        }
+        async fn split_chunk(
+            &mut self,
+            chunk: &ChunkSpec,
+            _: &ReadBudget,
+        ) -> std::result::Result<Option<Vec<ChunkSpec>>, SourceError> {
+            if !self.split {
+                return Ok(None);
+            }
+            assert_eq!(self.revision, 1, "must not replan the whole table");
+            self.revision = 2;
+            Ok(Some(vec![
+                ChunkSpec {
+                    plan_revision: 2,
+                    hi: Some(vec![KeyValue::Int(2)]),
+                    ..chunk.clone()
+                },
+                ChunkSpec {
+                    plan_revision: 2,
+                    chunk_id: 1,
+                    lo: Some(vec![KeyValue::Int(if self.split_gap { 3 } else { 2 })]),
+                    ..chunk.clone()
+                },
+            ]))
         }
         async fn read_chunk(
             &mut self,
@@ -256,6 +284,52 @@ mod tests {
             self.published = true;
             Ok(())
         }
+    }
+
+    #[tokio::test]
+    async fn growth_splits_the_failed_range_without_a_whole_table_replan() {
+        let mut engine = Fake {
+            fail_once: true,
+            split: true,
+            ..Fake::new()
+        };
+        let mut target = Memory::default();
+        let receipts = load(
+            &mut engine,
+            &table(),
+            &ReadBudget::default(),
+            IpcSink::new,
+            &mut target,
+        )
+        .await
+        .unwrap();
+        assert_eq!(engine.revision, 2);
+        assert_eq!(target.rows, 3);
+        assert!(target.published);
+        assert_eq!(receipts.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_split_gap_never_publishes() {
+        let mut engine = Fake {
+            fail_once: true,
+            split: true,
+            split_gap: true,
+            ..Fake::new()
+        };
+        let mut target = Memory::default();
+        assert_eq!(
+            load(
+                &mut engine,
+                &table(),
+                &ReadBudget::default(),
+                IpcSink::new,
+                &mut target
+            )
+            .await,
+            Err("load_plan_gap")
+        );
+        assert!(!target.published);
     }
 
     #[tokio::test]
