@@ -9,9 +9,7 @@ mod device;
 pub(super) struct Lifecycle {
     pub control: Control,
     pub admin_workload: String,
-    // Global enrollment limiter bounds guessing even if source addresses are spoofed.
-    attempts: Mutex<(Instant, u32)>,
-    renew_attempts: Mutex<(Instant, u32)>,
+    attempts: Mutex<Attempts>,
     devices: Mutex<device::Devices>,
 }
 impl Lifecycle {
@@ -19,25 +17,53 @@ impl Lifecycle {
         Self {
             control,
             admin_workload,
-            attempts: Mutex::new((Instant::now(), 0)),
-            renew_attempts: Mutex::new((Instant::now(), 0)),
+            attempts: Mutex::new(Attempts::new()),
             devices: Mutex::new(device::Devices::default()),
         }
     }
-    fn admit(&self) -> bool {
-        Self::admit_window(&self.attempts)
+    fn admit(&self, route: &'static str, peer: &PublicPeer) -> bool {
+        self.attempts
+            .lock()
+            .is_ok_and(|mut attempts| attempts.admit(route, peer_key(peer)))
     }
-    fn admit_window(attempts: &Mutex<(Instant, u32)>) -> bool {
-        let Ok(mut state) = attempts.lock() else {
-            return false;
-        };
-        if state.0.elapsed() >= Duration::from_secs(60) {
-            *state = (Instant::now(), 0);
+}
+fn peer_key(peer: &PublicPeer) -> String {
+    // shortcut: the listener discards TCP addresses; anonymous peers share one
+    // conservative bucket until the coordinator carries the address into TlsPeer.
+    peer.as_ref()
+        .map(|Extension(ConnectInfo(p))| p.workload.clone())
+        .unwrap_or_default()
+}
+struct Attempts {
+    start: Instant,
+    total: u32,
+    routes: HashMap<&'static str, u32>,
+    peers: HashMap<(&'static str, String), u32>,
+}
+impl Attempts {
+    fn new() -> Self {
+        Self {
+            start: Instant::now(),
+            total: 0,
+            routes: HashMap::new(),
+            peers: HashMap::new(),
         }
-        if state.1 >= 10 {
+    }
+    fn admit(&mut self, route: &'static str, peer: String) -> bool {
+        if self.start.elapsed() >= Duration::from_secs(60) {
+            *self = Self::new();
+        }
+        let limit = if route == "device_poll" { 60 } else { 10 };
+        let key = (route, peer);
+        if self.total >= 80
+            || self.routes.get(route).copied().unwrap_or(0) >= limit
+            || self.peers.get(&key).copied().unwrap_or(0) >= limit / 2
+        {
             return false;
         }
-        state.1 += 1;
+        self.total += 1;
+        *self.routes.entry(route).or_default() += 1;
+        *self.peers.entry(key).or_default() += 1;
         true
     }
 }
@@ -113,7 +139,7 @@ async fn enroll(
     let Some(lifecycle) = &state.inner.lifecycle else {
         return failure("disabled");
     };
-    if !lifecycle.admit() {
+    if !lifecycle.admit("enroll", &peer) {
         return failure("rate_limit");
     }
     #[derive(serde::Deserialize)]
@@ -157,7 +183,7 @@ async fn renew(
     let Some(lifecycle) = &state.inner.lifecycle else {
         return failure("disabled");
     };
-    if !Lifecycle::admit_window(&lifecycle.renew_attempts) {
+    if !lifecycle.admit("renew", &peer) {
         return failure("rate_limit");
     }
     let token = match bearer(&headers) {
@@ -420,6 +446,99 @@ mod tests {
             "test-admin".into(),
         ));
         state
+    }
+    #[test]
+    fn global_cap_and_window_reset_bound_all_route_buckets() {
+        let mut attempts = Attempts::new();
+        for route in ["enroll", "device_code", "device_poll"] {
+            let limit = if route == "device_poll" { 60 } else { 10 };
+            for n in 0..limit {
+                assert!(attempts.admit(route, n.to_string()));
+            }
+        }
+        assert!(!attempts.admit("renew", "new-peer".into()));
+        assert_eq!(attempts.peers.len(), 80);
+        attempts.start -= Duration::from_secs(60);
+        assert!(attempts.admit("renew", "new-peer".into()));
+        assert_eq!(attempts.peers.len(), 1);
+    }
+    fn test_peer(workload: &str) -> PublicPeer {
+        Some(Extension(ConnectInfo(TlsPeer {
+            workload: workload.into(),
+        })))
+    }
+    #[tokio::test]
+    async fn route_and_peer_budgets_are_independent() {
+        let state = lifecycle_state();
+        for _ in 0..5 {
+            assert_eq!(
+                enroll(
+                    State(state.clone()),
+                    test_peer("one"),
+                    RawQuery(None),
+                    HeaderMap::new(),
+                    Bytes::from_static(b"{}")
+                )
+                .await
+                .status(),
+                StatusCode::BAD_REQUEST
+            );
+        }
+        assert_eq!(
+            enroll(
+                State(state.clone()),
+                test_peer("one"),
+                RawQuery(None),
+                HeaderMap::new(),
+                Bytes::from_static(b"{}")
+            )
+            .await
+            .status(),
+            StatusCode::TOO_MANY_REQUESTS
+        );
+        for _ in 0..5 {
+            assert_eq!(
+                enroll(
+                    State(state.clone()),
+                    test_peer("two"),
+                    RawQuery(None),
+                    HeaderMap::new(),
+                    Bytes::from_static(b"{}")
+                )
+                .await
+                .status(),
+                StatusCode::BAD_REQUEST
+            );
+        }
+        assert_eq!(
+            enroll(
+                State(state.clone()),
+                test_peer("three"),
+                RawQuery(None),
+                HeaderMap::new(),
+                Bytes::from_static(b"{}")
+            )
+            .await
+            .status(),
+            StatusCode::TOO_MANY_REQUESTS
+        );
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/x-www-form-urlencoded"),
+        );
+        assert_eq!(
+            device::authorize(
+                State(state.clone()),
+                test_peer("one"),
+                RawQuery(None),
+                headers,
+                Bytes::from_static(b"client_id=oo-cli")
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
     }
     #[tokio::test]
     async fn junk_renew_never_opens_admin_connection() {

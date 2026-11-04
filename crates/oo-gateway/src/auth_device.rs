@@ -96,7 +96,7 @@ pub(super) async fn authorize(
     let Some(lifecycle) = &state.inner.lifecycle else {
         return error("access_denied");
     };
-    if !lifecycle.admit() {
+    if !lifecycle.admit("device_code", &peer) {
         return response(429, serde_json::json!({"error":"slow_down"}));
     }
     if !form(&headers, &body).is_ok_and(|f| f.len() == 1) {
@@ -185,6 +185,9 @@ pub(super) async fn poll(
     let Some(lifecycle) = &state.inner.lifecycle else {
         return error("access_denied");
     };
+    if !lifecycle.admit("device_poll", &peer) {
+        return response(429, serde_json::json!({"error":"slow_down"}));
+    }
     let Ok(fields) = form(&headers, &body) else {
         return error("invalid_request");
     };
