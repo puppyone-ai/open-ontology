@@ -26,6 +26,14 @@ impl Lifecycle {
             .lock()
             .is_ok_and(|mut attempts| attempts.admit(route, peer_key(peer)))
     }
+    fn admit_renew(&self, token: &str) -> bool {
+        let Ok((_, hash)) = token_hash(token) else {
+            return false;
+        };
+        self.attempts
+            .lock()
+            .is_ok_and(|mut attempts| attempts.admit("renew", hash))
+    }
 }
 fn peer_key(peer: &PublicPeer) -> String {
     peer.as_ref()
@@ -73,7 +81,19 @@ impl Attempts {
         }
         let limit = if route == "device_poll" { 60 } else { 10 };
         let key = (route, peer);
-        if self.total >= 80
+        // Bound memory even for authenticated callers with many distinct tokens.
+        if !self.peers.contains_key(&key) && self.peers.len() >= 4096 {
+            return false;
+        }
+        if route == "renew" {
+            let count = self.peers.entry(key).or_default();
+            if *count >= 10 {
+                return false;
+            }
+            *count += 1;
+            return true;
+        }
+        if self.total >= 90
             || self.routes.get(route).copied().unwrap_or(0) >= limit
             || self.peers.get(&key).copied().unwrap_or(0) >= limit / 2
         {
@@ -201,9 +221,6 @@ async fn renew(
     let Some(lifecycle) = &state.inner.lifecycle else {
         return failure("disabled");
     };
-    if !lifecycle.admit("renew", &peer) {
-        return failure("rate_limit");
-    }
     let token = match bearer(&headers) {
         Ok(token) => Zeroizing::new(token),
         Err(_) => return failure("unauthenticated"),
@@ -213,6 +230,9 @@ async fn renew(
         Ok(identity) if identity.scope == "client")
     {
         return failure("unauthenticated");
+    }
+    if !lifecycle.admit_renew(&token) {
+        return failure("rate_limit");
     }
     receipt(
         lifecycle
@@ -466,7 +486,7 @@ mod tests {
         state
     }
     #[test]
-    fn global_cap_and_window_reset_bound_all_route_buckets() {
+    fn renewal_buckets_do_not_starve_public_routes() {
         let mut attempts = Attempts::new();
         for route in ["enroll", "device_code", "device_poll"] {
             let limit = if route == "device_poll" { 60 } else { 10 };
@@ -474,8 +494,13 @@ mod tests {
                 assert!(attempts.admit(route, n.to_string()));
             }
         }
-        assert!(!attempts.admit("renew", "new-peer".into()));
-        assert_eq!(attempts.peers.len(), 80);
+        for n in 0..20 {
+            for _ in 0..10 {
+                assert!(attempts.admit("renew", format!("token-{n}")));
+            }
+            assert!(!attempts.admit("renew", format!("token-{n}")));
+        }
+        assert_eq!(attempts.total, 80);
         attempts.start -= Duration::from_secs(60);
         assert!(attempts.admit("renew", "new-peer".into()));
         assert_eq!(attempts.peers.len(), 1);

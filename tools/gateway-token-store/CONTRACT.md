@@ -312,13 +312,17 @@ A bearer token or certificate-looking header is not admin authority. Other
 and returns `token`, `token_sha256`, role, audience, first issuance and expiry.
 Audience comes from server configuration, not request JSON. A wrong-audience
 attempt does not consume the code. Simultaneous redemptions have one winner.
-Process-local minute budgets are separate for enrollment, device-code issuance
-and renewal (10 per route, 5 per peer identity), and device polling (60 per
-route, 30 per identity), under an aggregate cap of 80. Restart resets them.
-Currently the TLS listener drops remote addresses: verified workloads have
-separate buckets and anonymous peers share one conservative bucket. This is
-NOT per-IP isolation; `S3C-peer-address.patch` is the coordinator integration
-patch. Distributed deployments also need a shared edge limit.
+Process-local minute budgets are separate for enrollment and device-code
+issuance (10 per route, 5 per TCP peer), and device polling (60 per route,
+30 per peer), under an aggregate cap of 90 (at least the sum of route caps).
+Self-renewal is limited to 10 per authenticated token SHA-256 per minute,
+after fresh authentication, independently of public route/peer budgets.
+The bucket table is bounded at 4096 entries per minute; new identities fail
+closed when full. Restart resets these process-local limits.
+Behind a load balancer, all clients share the balancer's TCP peer bucket.
+There is no trusted forwarded-for configuration: request forwarding headers
+are not used as client identities. Distributed deployments need a shared
+edge limit; these counters are not a distributed quota.
 
 Device-code issuance and well-formed polls require durable audit first.
 These observations use the existing `enroll` / `redeem` audit categories,
@@ -326,7 +330,7 @@ with `device_code_issued` / `device_poll_requested` outcomes and device-code
 SHA-256 in `related_sha256`. Redemption audits link the enrollment-code
 SHA-256 (including semantic refusals); actors contain verified workload
 SHA-256, and device redemption also carries the device digest. Peer addresses
-are explicitly `unmeasured` pending the listener integration. Malformed and
+come from the TCP listener (or are `unmeasured` when unavailable). Malformed and
 rate-limited requests are rejected before privileged DB access.
 
 `POST /v1/auth/renew` accepts an empty body or `{}` and the bearer token;
