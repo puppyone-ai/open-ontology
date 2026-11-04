@@ -1,7 +1,7 @@
 ## Card B-S3 — lane B: oo login / whoami / share-prompt
 
 TODO: S3-B-01, S3-B-02. Lane label: `b`. Spec: REQ-TOK-03/05, AT-TOK-02.
-Requires: your S0/S1 token work integrated (rebase first).
+Builds on your token work (integrated); rebase first.
 Read: docs/product/04 §5.3–§6, docs/08-agent-interface.md §3.5/§4.3, crates/oo-cli, packages/cli/bin/oo.mjs,
 packages/cli/SKILL.md.
 

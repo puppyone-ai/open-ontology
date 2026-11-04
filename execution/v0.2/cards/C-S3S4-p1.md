@@ -1,7 +1,7 @@
 ## Card C-S3S4 — lane C: P1 MySQL-compatible families (MariaDB, TiDB, OceanBase)
 
 TODO: S3-C-02, S4-C-03. Lane label: `c`. Spec: REQ-ENG-01/04. Each product is its own `EngineFamily`
-(D10: compatibility is never inherited). Requires your MySQL work integrated (rebase first).
+(D10: compatibility is never inherited). Builds on your MySQL work on your own lane branch (it may not be on the integration branch yet — do not stop for that; rebase on v0.2/product-loops first).
 Read docs/database-support/04-database-profiles.md (MariaDB, TiDB, OceanBase sections), tools/mariadb-preview.
 
 Deliver:

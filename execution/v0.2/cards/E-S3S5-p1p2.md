@@ -1,6 +1,6 @@
 ## Card E-S3S5 — lane E: P1 SQL Server, P2 Db2 / Dameng / KingbaseES
 
-TODO: S3-E-02, S5-E-03. Lane label: `e`. Spec: REQ-ENG-01/04. Requires your Oracle work integrated (rebase first).
+TODO: S3-E-02, S5-E-03. Lane label: `e`. Spec: REQ-ENG-01/04. Builds on your Oracle work on your own lane branch (it may not be on the integration branch yet — do not stop for that; rebase on v0.2/product-loops first).
 Read docs/database-support/04 (SQL Server, Db2, domestic DB sections), tools/mssql-preview.
 Deliver:
 1. S3-E-02 SQL Server 2019 / 2022 / 2025 (`mcr.microsoft.com/mssql/server:<ver>-<CU>`, amd64 under Rosetta;

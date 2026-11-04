@@ -1,7 +1,7 @@
 ## Card D-S2 — lane D (PostgreSQL): logical replication C1, C5, slot lifecycle
 
 TODO: S2-D-01. Lane label: `d`. Spec: REQ-ENG-03, AT-ENG-01. Playbook docs/product/02 §5.
-Requires: your S0/S1 work integrated (rebase on v0.2/product-loops first).
+Builds on your S0/S1 work on your lane branch; rebase on v0.2/product-loops first.
 
 Deliver: `ChangeSource` for PostgreSQL via pgoutput — preflight of slot/publication existence and
 privileges (slots and publications are DBA-created R1 objects; the product never creates them unless the

@@ -1,7 +1,7 @@
 ## Card C-S2 — lane C (MySQL): read-only watermark, C1 binlog, C5 and C5→C1 handoff
 
 TODO: S2-C-01, S2-C-02. Lane label: `c`. Spec: REQ-ENG-03, AT-ENG-01. Playbook docs/product/02 §5.
-Requires: your S0/S1 work integrated (rebase on v0.2/product-loops first).
+Builds on your S0/S1 work on your lane branch; rebase on v0.2/product-loops first.
 
 Deliver:
 1. S2-C-01: read-only chunk watermarks (GTID set; file/pos when GTID off; replica_preserve_commit_order

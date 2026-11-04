@@ -1,7 +1,7 @@
 ## Card E-S2 — lane E (Oracle): LogMiner C1 (online_catalog), C5
 
 TODO: S2-E-01. Lane label: `e`. Spec: REQ-ENG-03, AT-ENG-01. Decisions D8 (online_catalog only, R1).
-Requires: your S0/S1 work integrated (rebase on v0.2/product-loops first).
+Builds on your S0/S1 work on your lane branch; rebase on v0.2/product-loops first.
 
 Deliver: `ChangeSource` for Oracle with a platform-owned LogMiner reader: self-managed log file list for
 19c+ (no CONTINUOUS_MINE), CONTINUOUS_MINE allowed on 11g, CDB/PDB with c## common user, SCN watermarks,
