@@ -274,3 +274,54 @@ Desktop published port lost after reconnect is restored by a container
 restart. Evidence is `evidence/<run-id>/<engine>-<version>/t3t4.json` plus
 raw numbered commands. Compact fixture (bigint/int/varchar, 20,000-row bulk
 table), consistency `B`; not full type/scale or T7 proof.
+
+## Lane G gold dialogue (T6)
+
+```sh
+cargo build --locked -p oo-cli -p oo-builder -p oo-gateway
+CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path tools/oo-load/Cargo.toml
+tools/oo-test/oo-test t6 --engine postgres --run-id g-t6-pg --execute
+tools/oo-test/oo-test t6 --engine mysql --run-id g-t6-mysql --execute
+tools/oo-test/oo-test t6 --engine oracle --run-id g-t6-oracle --execute
+```
+
+Run engines serially: PostgreSQL uses one owned container; MySQL/Oracle use
+one source plus one PostgreSQL Agent DB. All carry `oo.lane=g` and cleanup
+checks ownership. Patches are pinned to PostgreSQL 17.11, MySQL 8.4.7 and Oracle
+23.5. `--scale 1000` is only a reduced diagnostic, not the default 2M-event run.
+
+The harness extends `test-gateway-cycles.py`, seeds lane H's neutral fixture
+with a separate admin connection, computes all 20 gold answers using a
+read-only source account, and loads the 12 tables used by those questions.
+Mapped schema/table/column identifiers and types come from the native
+publication candidate, including Oracle's encoded uppercase identifiers.
+Source names remain labels; the harness does not reimplement name encoding.
+It compiles the real role Pack from observed column metadata with an explicit
+synthetic accept-all review. This is **not** full-model T5 Self-build or a
+privacy-review example for real data. The inherited test fixture opens the
+reviewed fences directly; it is **not** the production publisher entry.
+
+The real native `oo share-prompt` issues an enrollment code. A real-model
+Agent receives that prompt and a constrained native CLI tool, binds using
+`oo login` with stdin, verifies `oo whoami`, and answers each gold question.
+Only login, whoami, tables, describe, agent-skill and query are exposed; no
+shell, file-reading tool, source connection, gold SQL or gold answers are
+available to the Agent. TLS paths, destination and token references are
+operator-fixed. Enrollment codes and tokens are removed from evidence.
+
+`--execute` authorizes paid calls. Before any call, stdout and
+`preflight.json` show limits: 160 total calls (including binding), 8 model
+turns/question, 2,048 output tokens/call, 250,000 request bytes, 12M reserved
+tokens (request bytes + output + 10k proxy allowance), one-hour dispatch
+deadline, serial execution and no retries. Currency cost is unmeasured.
+Model `gpt-6.1-sol` uses the existing metered egress: endpoint and key are
+resolved only through `secret_ref` names `model-endpoint-9r` and
+`model-key-9r-sol` in the owner's private secret store, never copied.
+
+Raw redacted model responses, native CLI results, source gold, exact ordered
+comparisons, usage and cleanup receipts remain under `evidence/<run-id>/`.
+Numeric formatting is normalized losslessly; strings/NULL and row/column
+order remain distinct. Truncated, refused, invalid, unverified, failed and
+not-run answers cannot pass. A correct answer must follow a successful native
+query; structured errors and nonzero exits remain visible. Setup/binding
+failure records all 20 questions as not run, never as zero or passed.

@@ -25,7 +25,7 @@ import runner
 
 ROOT = runner.ROOT
 LANE = os.environ.get("OO_TEST_LANE", "m")
-if LANE not in ("m", "e", "p"):
+if LANE not in ("m", "e", "p", "g"):
     raise ValueError("unsupported T1 lane")
 class Relay:
     """Loopback transport to an owned fixture with no published port."""
