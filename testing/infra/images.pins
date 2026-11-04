@@ -53,3 +53,11 @@ mariadb-11.8.9 linux/arm64 sha256:51d5a3273562df11f0642bf1815ae64922f1657b0ee0ed
 tidb-7.5.0 linux/amd64 sha256:0c9de57434eafa090a11cb510e0748bb39c39837538f15b348a7fc968b128243
 tidb-8.5.0 linux/amd64 sha256:5dea0d93bf399ed583a762113fc1ead528d92f2b6dff68c0ca45a3d523d41e2b
 oceanbase-4.3.5.4 linux/amd64 sha256:e0c6ae0df920c86e81bb09d8b365b2c2d70b4c74d9b995f7c311294d3d167f43
+
+# Lane F OLAP fixtures (S4-F-01); one exact patch per exercised line, native arm64.
+# Runnable platform manifests resolved with `docker buildx imagetools inspect` on 2026-11-04.
+# Doris runs FE and BE in one container: the BE image with the FE image mounted read-only.
+clickhouse-26.8.21.10 linux/arm64 sha256:4ea38f8345ad67dc437b41638804421ee6d21e6d8c6f794bf4b28305541de2aa
+doris-fe-3.1.4 linux/arm64 sha256:bdff678e691b1950638d6ea5dc1aa14824a433602bd57bb6684f67133aacce25
+doris-be-3.1.4 linux/arm64 sha256:013bea9345a905f088ce901b12c834ae908452fae2c0fbe0cc6adfee8ac75692
+starrocks-allin1-3.5.21 linux/arm64 sha256:9b98696ee0cb46831eabe197ae5e71f483ee3c2e16ab57fd27cb51a5c9ee6618
