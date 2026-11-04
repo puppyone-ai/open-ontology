@@ -32,6 +32,8 @@ mod budget_report;
 mod catalog;
 mod config;
 mod delimited;
+#[cfg(any(feature = "mongodb", feature = "opensearch"))]
+pub mod document;
 pub mod engine;
 mod error;
 mod file_worker_parent;
@@ -39,8 +41,12 @@ mod ident;
 mod jsonl;
 mod key_plan;
 mod model;
+#[cfg(feature = "mongodb")]
+pub mod mongodb;
 #[cfg(feature = "mysql")]
 pub mod mysql;
+#[cfg(feature = "opensearch")]
+pub mod opensearch;
 #[cfg(feature = "mysql")]
 pub use mysql::{mariadb, oceanbase, tidb};
 #[cfg(feature = "olap")]

@@ -19,6 +19,8 @@ mysql-binlog = ["mysql", "mysql_async/binlog", "dep:futures-util"]
 oracle = ["dep:oracledb"]
 # ClickHouse, Doris and StarRocks over the MySQL wire protocol; no new driver.
 olap = ["mysql"]
+mongodb = ["dep:mongodb", "dep:mongodb-internal-macros"]
+opensearch = ["dep:reqwest"]
 sqlserver = ["dep:tiberius", "dep:tokio-util", "dep:futures-util", "tokio/net", "tokio/io-util"]
 
 [[bin]]
@@ -27,6 +29,9 @@ path = "src/oracle/main.rs"
 required-features = ["oracle"]
 
 [dependencies]
+mongodb = { version = "=3.3.0", optional = true, default-features = false, features = ["compat-3-0-0", "rustls-tls"] }
+mongodb-internal-macros = { version = "=3.3.0", optional = true }
+reqwest = { version = "=0.13.5", optional = true, default-features = false, features = ["rustls", "http2"] }
 # Already locked by other workspace crates; only mysql-binlog uses it here.
 futures-util = { version = "=0.3.34", optional = true, default-features = false, features = ["std"] }
 oo-core = { path = "../oo-core" }
