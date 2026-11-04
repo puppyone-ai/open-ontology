@@ -1,7 +1,7 @@
 use oo_connectors::{
     PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
     SourceId, TableSelection,
-    engine::{ReadBudget, SourceEngine, TableRef},
+    engine::{EngineFamily, ReadBudget, SourceEngine, TableRef},
     postgres::PostgresEngine,
 };
 use oo_connectors::{SourceError, engine};
@@ -232,6 +232,7 @@ async fn run_engine<E: SourceEngine>(
 }
 
 fn mysql_engine(
+    family: EngineFamily,
     source: &Source,
     store: &SecretStore,
     opts: &BTreeMap<String, String>,
@@ -261,7 +262,8 @@ fn mysql_engine(
             .map_err(|e| e.to_string())?,
         connect_timeout_ms: 10000,
     };
-    let engine = MysqlEngine::new(
+    let engine = MysqlEngine::new_family(
+        family,
         config,
         zeroize::Zeroizing::new(store.read(&source.password.secret_ref)?),
         EngineOptions {
@@ -270,6 +272,16 @@ fn mysql_engine(
         },
     );
     Ok(engine)
+}
+
+fn mysql_family(name: &str) -> Option<EngineFamily> {
+    match name {
+        "mysql" => Some(EngineFamily::Mysql),
+        "mariadb" => Some(EngineFamily::Mariadb),
+        "tidb" => Some(EngineFamily::Tidb),
+        "oceanbase" => Some(EngineFamily::Oceanbase),
+        _ => None,
+    }
 }
 
 async fn execute() -> Result<(), String> {
@@ -521,8 +533,8 @@ async fn execute() -> Result<(), String> {
             }
             run_engine(&mut engine, source, &tables, &target, &store, &budget).await
         }
-        "mysql" => {
-            let mut engine = mysql_engine(source, &store, &opts)?;
+        family if mysql_family(family).is_some() => {
+            let mut engine = mysql_engine(mysql_family(family).unwrap(), source, &store, &opts)?;
             if let Some(_path) = opts.get("--sync") {
                 #[cfg(feature = "mysql-binlog")]
                 return log_sync::mysql(
@@ -586,6 +598,21 @@ mod tests {
         assert_eq!(config.tables, tables);
         assert_eq!(config.port, 1433);
         assert_eq!(config.mode, None);
+    }
+
+    #[test]
+    fn mysql_family_dispatch_is_explicit() {
+        for (name, family) in [
+            ("mysql", EngineFamily::Mysql),
+            ("mariadb", EngineFamily::Mariadb),
+            ("tidb", EngineFamily::Tidb),
+            ("oceanbase", EngineFamily::Oceanbase),
+        ] {
+            assert_eq!(mysql_family(name), Some(family));
+        }
+        for name in ["auto", "postgres", "mysql-compatible", "MariaDB", ""] {
+            assert_eq!(mysql_family(name), None);
+        }
     }
 
     #[test]

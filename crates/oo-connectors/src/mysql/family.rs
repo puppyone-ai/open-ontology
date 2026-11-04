@@ -42,7 +42,7 @@ impl MysqlEngine {
             Err(SourceError::catalog("chunk_index_unused"))
         }
     }
-    pub(crate) fn new_family(
+    pub fn new_family(
         family: EngineFamily,
         config: MysqlConfig,
         password: Zeroizing<String>,

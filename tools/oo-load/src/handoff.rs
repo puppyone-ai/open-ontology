@@ -88,7 +88,7 @@ pub(super) async fn run(
             .iter()
             .find(|s| s.id == member.source)
             .ok_or("handoff_source")?;
-        let mut engine = mysql_engine(source, store, opts)?;
+        let mut engine = mysql_engine(EngineFamily::Mysql, source, store, opts)?;
         engine
             .use_file_positions()
             .await
