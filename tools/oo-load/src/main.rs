@@ -19,6 +19,7 @@ mod epoch;
 #[cfg(feature = "mysql-binlog")]
 mod handoff;
 mod log_sync;
+mod olap;
 mod sqlserver_load;
 mod sync;
 mod sync_command;
@@ -614,6 +615,9 @@ async fn execute() -> Result<(), String> {
             let result = run_engine(&mut engine, source, &tables, &target, &store, &budget).await;
             engine.close().await;
             result
+        }
+        e if olap::family(e).is_some() => {
+            olap::run(e, source, &tables, &target, &store, &budget, &opts).await
         }
         _ => Err("explicit_supported_engine_required".into()),
     }
