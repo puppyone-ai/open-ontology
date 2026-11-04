@@ -6,7 +6,7 @@
 | 版本 | 1.0.1 |
 | 状态 | Proposed / Ready for implementation review |
 | 创建日期 | 2026-10-01，Asia/Shanghai |
-| 输入基线 | `docs/` 与 `docs/product/` 共 26 份文档；来源 revision 11，Git HEAD `4ed15e7d65ddcc7b8c17619924aec462032e4686`；[revision 11 记录](source-baseline-revision-11.md)；保留 [revision 10 原清单](sources-baseline-revision-10.json)、更早的 sources-baseline-revision-*.json 与[revision 4 历史记录](../execution/decisions/source-baseline-revision-4.md)保留。扩展设计目录 `docs/database-support/` 不在哈希基线内；不宣称独立审阅或产品验收。 |
+| 输入基线 | `docs/` 与 `docs/product/` 共 26 份文档；来源 revision 12，Git HEAD `3a8d4f8f350eb3fac15e8cbdca1e48650f2d44c9`；[revision 12 记录](source-baseline-revision-12.md)；保留 [revision 11 原清单](sources-baseline-revision-11.json)、更早的 sources-baseline-revision-*.json 与[revision 4 历史记录](../execution/decisions/source-baseline-revision-4.md)保留。扩展设计目录 `docs/database-support/` 不在哈希基线内；不宣称独立审阅或产品验收。 |
 | 实施语言 | 第一方后端、连接器、CLI、SDK、Builder、评测器：Rust；控制台与 TS SDK：TypeScript |
 | 产品许可证 | Apache-2.0；依赖与数据集分别审计 |
 | 交付方式 | 私有化部署；Linux Docker Compose 为首个完整路径 |
@@ -1760,6 +1760,8 @@ M1 MVP、M2完整v0.x、M3扩展分别验收，不能把M3探索当M1未完成�
 ### 24.1 全量来源阅读记录
 
 本规范依据以下26份文档（`docs/` 19 份与 `docs/product/` 7 份，revision 6 起）全文编制；[来源基线](sources-baseline.json)记录每文件sha256、字节数、行数和输入Git HEAD。摘要/候选版本以这些已给定设计为依据，未将参考链接的当前内容或未实现制品假称已验证。之后docs变化必须重新检查本规范受影响需求，更新基线需review，不能自动接受漂移。
+
+revision 12（2026-11-04）：lite 档数据库连接改为 TLS + SCRAM、不要求客户端证书，standard 不变（Plan D14）：[变更记录](source-baseline-revision-12.md)。
 
 revision 11（2026-11-04）：T7 只读证明中“写入”的定义（Plan D12），AT-ENG-03 成功判定同步：[变更记录](source-baseline-revision-11.md)。
 

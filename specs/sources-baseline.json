@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 11,
-  "supersedes_revision": 10,
-  "supersedes_baseline_head": "a34c383bb47e846e35be2cade0faf2d736235a35",
-  "supersedes_sha256": "77eb0ebbaff27b35648480a205605d189f922f0608f4066a572f2d48464a9e50",
-  "review_record": "specs/source-baseline-revision-11.md",
-  "baseline_head": "4ed15e7d65ddcc7b8c17619924aec462032e4686",
+  "revision": 12,
+  "supersedes_revision": 11,
+  "supersedes_baseline_head": "4ed15e7d65ddcc7b8c17619924aec462032e4686",
+  "supersedes_sha256": "0b2e43fcf5b6ca6094042a0aa1326f55b75a8473c32c3a09dc4e17ca7da20575",
+  "review_record": "specs/source-baseline-revision-12.md",
+  "baseline_head": "3a8d4f8f350eb3fac15e8cbdca1e48650f2d44c9",
   "source_count": 26,
   "sources": [
     {
@@ -145,8 +145,8 @@
     },
     {
       "path": "docs/product/04-onboarding-and-gateway-binding.md",
-      "sha256": "8017cc36ff464658bd43c9ef62884d5f8cf15e5e2a26f347f2f837198b01d9ab",
-      "bytes": 14594,
+      "sha256": "17c50bf2fbed0aa9bee5e569697d65ddcb9b2ee75f26a18033657af292d30a56",
+      "bytes": 14850,
       "lines": 192
     },
     {
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "Plan D7/D12: definition of a write for the T7 read-only proof; reviewed by the coordinator; no independent review or product acceptance claimed"
+  "review_status": "Plan D7/D14: lite database connection security; reviewed by the coordinator; no independent review or product acceptance claimed"
 }
