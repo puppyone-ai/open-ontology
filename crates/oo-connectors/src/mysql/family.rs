@@ -4,16 +4,14 @@ use crate::engine::{Capability, CapabilityState, Requirement, RequirementKind};
 use crate::mysql::{mariadb, oceanbase, tidb};
 
 impl MysqlEngine {
-    pub(super) async fn tidb_load(&mut self) -> Result<Vec<Row>> {
+    pub(super) async fn compatible_load(&mut self) -> Result<Vec<Row>> {
         let grants = self.exec("SHOW GRANTS FOR CURRENT_USER()", vec![]).await?;
         if !grants
             .iter()
             .filter_map(|r| row_text(r, 0))
             .any(|g| has_process(&g))
         {
-            return Err(SourceError::privilege(
-                "tidb_process_required_for_load_budget",
-            ));
+            return Err(SourceError::privilege("process_required_for_load_budget"));
         }
         self.exec("SELECT 'Threads_connected', COUNT(*) FROM information_schema.PROCESSLIST UNION ALL SELECT 'Threads_running', COUNT(*) FROM information_schema.PROCESSLIST WHERE COMMAND <> 'Sleep'", vec![]).await
     }
@@ -153,7 +151,9 @@ impl MysqlEngine {
             }
             _ => unreachable!(),
         };
-        if self.family == EngineFamily::Tidb && !lines.iter().any(|g| has_process(g)) {
+        if matches!(self.family, EngineFamily::Tidb | EngineFamily::Oceanbase)
+            && !lines.iter().any(|g| has_process(g))
+        {
             for capability in [Capability::ChunkedSnapshot, Capability::DigestDiff] {
                 report.capabilities.insert(
                     capability,
@@ -162,7 +162,7 @@ impl MysqlEngine {
                             kind: RequirementKind::Privilege,
                             name: "PROCESS".into(),
                             observed: Some("missing".into()),
-                            required: "PROCESS to measure all local TiDB sessions before reads"
+                            required: "PROCESS to measure all visible source sessions before reads"
                                 .into(),
                             dba_statement: account
                                 .as_ref()
@@ -420,6 +420,50 @@ mod tests {
                     CapabilityState::Unsupported { .. }
                 ));
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod timeout_tests {
+    use super::*;
+    #[test]
+    fn timeout_units_follow_the_actual_family() {
+        let config = MysqlConfig {
+            mysql_host: "localhost".into(),
+            mysql_port: 3306,
+            mysql_database: "fixture".into(),
+            mysql_user: "reader".into(),
+            mysql_ca_file: Default::default(),
+            mysql_tls_server_name: None,
+            secret_ref: crate::SecretRef::new("secret://fixture").unwrap(),
+            connect_timeout_ms: 1000,
+        };
+        for (family, expected) in [
+            (
+                EngineFamily::Mariadb,
+                "SET SESSION max_statement_time = 1.234",
+            ),
+            (EngineFamily::Tidb, "SET SESSION max_execution_time = 1234"),
+            (
+                EngineFamily::Oceanbase,
+                "SET SESSION ob_query_timeout = 1234000",
+            ),
+        ] {
+            let engine = MysqlEngine::new_family(
+                family,
+                config.clone(),
+                Zeroizing::new(String::new()),
+                EngineOptions {
+                    budget: ReadBudget {
+                        statement_timeout_ms: 1234,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            );
+            assert_eq!(engine.timeout_setting(), expected);
+            assert!(keyset::guard(expected).is_ok());
         }
     }
 }

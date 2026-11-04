@@ -576,8 +576,8 @@ impl MysqlEngine {
         self.rest().await;
         let mut paused = Duration::ZERO;
         loop {
-            let rows = if self.family == EngineFamily::Tidb {
-                self.tidb_load().await?
+            let rows = if matches!(self.family, EngineFamily::Tidb | EngineFamily::Oceanbase) {
+                self.compatible_load().await?
             } else {
                 self
                 .exec(
@@ -752,11 +752,9 @@ impl MysqlEngine {
             )
             .await?;
         let storage = engine.first().and_then(|r| row_text(r, 0));
-        let expected = if self.family == EngineFamily::Oceanbase {
-            "OceanBase"
-        } else {
-            "InnoDB"
-        };
+        // OceanBase MySQL mode reports the compatibility label InnoDB too;
+        // family identity and mode were checked independently before catalog reads.
+        let expected = "InnoDB";
         if !storage
             .as_deref()
             .is_some_and(|s| s.eq_ignore_ascii_case(expected))
