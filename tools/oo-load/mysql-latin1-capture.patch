@@ -1,0 +1,20 @@
+--- a/crates/oo-connectors/src/mysql/map.rs
++++ b/crates/oo-connectors/src/mysql/map.rs
+@@ -211,7 +211,7 @@
+     reserved: &BTreeSet<String>,
+ ) -> Result<MappedColumn, PreviewError> {
+     let mut normalized = column.clone();
+-    let transcode = matches!(column.charset.as_deref(), Some("gbk" | "ucs2"));
++    let transcode = matches!(column.charset.as_deref(), Some("latin1" | "gbk" | "ucs2"));
+     if transcode {
+         normalized.charset = Some("utf8mb4".into());
+     }
+@@ -234,7 +234,7 @@
+         .iter()
+         .find(|(k, _)| k == "mysql_source_charset")
+     {
+-        if matches!(charset.as_str(), "gbk" | "ucs2") {
++        if matches!(charset.as_str(), "latin1" | "gbk" | "ucs2") {
+             return format!(
+                 "CASE WHEN {name} IS NULL THEN NULL WHEN CAST(CONVERT(CONVERT({name} USING utf8mb4) USING {charset}) AS BINARY) = CAST({name} AS BINARY) THEN CONVERT({name} USING utf8mb4) ELSE REPEAT(CAST(0xFF AS BINARY),OCTET_LENGTH({name})) END AS {name}"
+             );
