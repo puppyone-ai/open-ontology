@@ -44,6 +44,8 @@ pub mod mysql;
 #[cfg(feature = "oracle")]
 pub mod oracle;
 pub mod postgres;
+#[cfg(feature = "sqlserver")]
+pub mod sqlserver;
 mod session;
 mod snapshot;
 mod sql;

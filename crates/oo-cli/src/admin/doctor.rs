@@ -24,6 +24,7 @@ enum Adapter {
     Postgres,
     Oracle,
     Mysql,
+    Sqlserver,
 }
 
 fn registry() -> BTreeMap<EngineFamily, Adapter> {
@@ -31,6 +32,7 @@ fn registry() -> BTreeMap<EngineFamily, Adapter> {
         (EngineFamily::Postgres, Adapter::Postgres),
         (EngineFamily::Mysql, Adapter::Mysql),
         (EngineFamily::Oracle, Adapter::Oracle),
+        (EngineFamily::Sqlserver, Adapter::Sqlserver),
     ])
 }
 
@@ -131,6 +133,7 @@ fn family(source: &Source) -> Result<EngineFamily, &'static str> {
         "postgres" | "postgresql" => Ok(EngineFamily::Postgres),
         "mysql" => Ok(EngineFamily::Mysql),
         "oracle" => Ok(EngineFamily::Oracle),
+        "sqlserver" => Ok(EngineFamily::Sqlserver),
         // Port selects a candidate only. The adapter must verify server identity.
         "auto" => match source.port {
             5432 => Ok(EngineFamily::Postgres),
@@ -221,7 +224,9 @@ async fn sources(stack: &Stack) -> Vec<Value> {
             }
             let family = family(source)?;
             match registry.get(&family) {
-                Some(Adapter::Postgres | Adapter::Oracle | Adapter::Mysql) => (),
+                Some(Adapter::Postgres | Adapter::Oracle | Adapter::Mysql | Adapter::Sqlserver) => {
+                    ()
+                }
                 _ => return Err("engine not available in this build".into()),
             }
             let selection = tables(source);
@@ -241,6 +246,35 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                         Err(error) => json!({"status":"blocked","error":error}),
                     },
                     EngineFamily::Mysql => mysql(source, &selected),
+                    EngineFamily::Sqlserver => {
+                        let config = (|| {
+                            let ca = source.tls_ca.as_ref().ok_or("SQLSERVER_TLS_REQUIRED")?;
+                            Ok::<_, String>(oo_connectors::sqlserver::ConnectConfig {
+                                host: source.host.clone(),
+                                port: source.port,
+                                database: source.database.clone(),
+                                user: source.user.clone(),
+                                password: store.read(&source.password.secret_ref)?.into(),
+                                ca_pem: store.read(&ca.secret_ref)?.into_bytes(),
+                                tables: selected.clone(),
+                                mode: None,
+                            })
+                        })();
+                        match config {
+                            Ok(config) => match oo_connectors::sqlserver::SqlServerEngine::connect(
+                                config,
+                                oo_connectors::engine::ReadBudget::default(),
+                            )
+                            .await
+                            {
+                                Ok(mut engine) => {
+                                    inspect(&mut engine, &selected, &source.sync.mode).await
+                                }
+                                Err(error) => json!({"status":"blocked","error":error.to_string()}),
+                            },
+                            Err(error) => json!({"status":"blocked","error":error}),
+                        }
+                    }
                     _ => unreachable!("registry checked above"),
                 };
                 if let Some(error) = scope_error {

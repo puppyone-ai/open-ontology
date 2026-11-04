@@ -11,7 +11,7 @@ version = "0.2.0"
 workspace = true
 
 [dependencies]
-oo-connectors = { path = "../oo-connectors", features = ["oracle"] }
+oo-connectors = { path = "../oo-connectors", features = ["oracle", "sqlserver"] }
 oo-stack = { path = "../oo-stack" }
 oo-core = { path = "../oo-core" }
 oo-sdk = { path = "../oo-sdk" }
