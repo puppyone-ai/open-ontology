@@ -42,6 +42,29 @@ fn ordered_chunks(
     Ok(chunks)
 }
 
+/// Keep the baseline's key ranges while the key shape is unchanged. Live
+/// boundaries follow optimizer row estimates and MIN/MAX, so replanning every
+/// cycle turned ordinary growth or a drifting estimate into a spurious
+/// rebaseline. The durable ranges still partition the whole key space (first
+/// and last bounds are open); a changed key or strategy must rebaseline.
+fn durable_ranges(previous: &TableChunkPlan, live: TableChunkPlan) -> TableChunkPlan {
+    if previous.protocol == live.protocol
+        && previous.table == live.table
+        && previous.key == live.key
+        && previous.strategy == live.strategy
+        && matches!(live.strategy, ChunkStrategy::Keyset { .. })
+        && previous.chunks.first().is_some_and(|c| c.lo.is_none())
+        && previous.chunks.last().is_some_and(|c| c.hi.is_none())
+    {
+        TableChunkPlan {
+            estimated_rows: live.estimated_rows,
+            ..previous.clone()
+        }
+    } else {
+        live
+    }
+}
+
 fn needs_read(old: Option<&RangeDigest>, new: &RangeDigest, hint: bool, full: bool) -> bool {
     hint || full || old != Some(new)
 }
@@ -81,7 +104,7 @@ async fn run_cycle<E: epoch::Epoch>(
         let live_lineage = engine
             .epoch(source, store, std::slice::from_ref(table))
             .await?;
-        let plan = engine
+        let live_plan = engine
             .plan_chunks(table, budget)
             .await
             .map_err(|e| e.to_string())?;
@@ -95,6 +118,7 @@ async fn run_cycle<E: epoch::Epoch>(
         {
             return Err("c5_rebaseline_required_lineage".into());
         }
+        let plan = durable_ranges(&previous.plan, live_plan);
         if !oo_pipeline::engine_load_pg::same_ranges(&previous.plan, &plan) {
             return Err("c5_rebaseline_required_plan".into());
         }
@@ -213,6 +237,60 @@ async fn run_cycle<E: epoch::Epoch>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oo_connectors::engine::{ChunkSpec, KeyShape, KeyValue};
+
+    fn plan(bounds: &[i64], key: &str) -> TableChunkPlan {
+        let table = TableRef {
+            schema: "fixture".into(),
+            name: "bulk".into(),
+        };
+        let mut edges: Vec<Option<Vec<KeyValue>>> = vec![None];
+        edges.extend(
+            bounds
+                .iter()
+                .map(|b| Some(vec![KeyValue::Int((*b).into())])),
+        );
+        edges.push(None);
+        TableChunkPlan {
+            protocol: "p".into(),
+            table: table.clone(),
+            key: KeyShape::IntegerPrimaryKey { column: key.into() },
+            strategy: ChunkStrategy::Keyset {
+                columns: vec![key.into()],
+            },
+            estimated_rows: Some(1),
+            chunks: edges
+                .windows(2)
+                .enumerate()
+                .map(|(i, w)| ChunkSpec {
+                    table: table.clone(),
+                    plan_revision: 0,
+                    chunk_id: i as u32,
+                    lo: w[0].clone(),
+                    hi: w[1].clone(),
+                    estimated_rows: None,
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn estimate_drift_keeps_durable_ranges_but_key_change_rebaselines() {
+        let baseline = plan(&[500, 1000], "id");
+        // A drifting optimizer estimate or a new MAX(id) moves live boundaries.
+        let kept = durable_ranges(&baseline, plan(&[507, 1014, 1521], "id"));
+        assert!(oo_pipeline::engine_load_pg::same_ranges(&baseline, &kept));
+        let changed = durable_ranges(&baseline, plan(&[500, 1000], "other"));
+        assert!(!oo_pipeline::engine_load_pg::same_ranges(
+            &baseline, &changed
+        ));
+        let mut single = baseline.clone();
+        single.strategy = ChunkStrategy::SingleRead;
+        assert!(!oo_pipeline::engine_load_pg::same_ranges(
+            &baseline,
+            &durable_ranges(&baseline, single)
+        ));
+    }
     #[test]
     fn hints_never_replace_digest_comparison_and_full_reads_detect_collisions() {
         let old = RangeDigest {
