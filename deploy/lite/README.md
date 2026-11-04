@@ -60,6 +60,15 @@ fixture volumes after teardown. No prune or unrelated-container cleanup occurs.
 ## Status and pending integration
 
 Status exposes actual compose service states. Job success/failure timestamps
+are separate from each service row's `Kind`, `Status`, and `Healthy` fields.
+Builder is a one-shot `job`: `exited` with a measured zero exit code is
+`succeeded`, not a failed daemon. A running Builder has not yet completed.
+An exited job with no usable exit code is `unmeasured`. Long-running services
+need both `running` and an actual `healthy` healthcheck result; running alone
+is not health evidence. A successful Builder row does not imply publication
+or make the entire stack healthy.
+
+Job success/failure timestamps
 come from `jobs.task_events` and next due from enabled `jobs.schedules`, filtered
 by the project in `work/operator/schedule.json`. It uses one read-only snapshot
 as `oo_jobs_runtime` over the owned control container's local socket. It never

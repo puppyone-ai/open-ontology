@@ -12,6 +12,47 @@ lifecycle=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lifecycle)
 
 class Tests(unittest.TestCase):
+    def test_builder_success_is_a_completed_job_not_a_running_daemon(self):
+        for code in (0,'0'):
+            status=lifecycle.service_status({'Service':'builder','State':'exited','ExitCode':code})
+            self.assertEqual(status['Kind'],'job')
+            self.assertEqual(status['Status'],'succeeded')
+            self.assertTrue(status['Healthy'])
+        for code in (1,'1'):
+            status=lifecycle.service_status({'Service':'builder','State':'exited','ExitCode':code})
+            self.assertEqual(status['Status'],'failed')
+            self.assertFalse(status['Healthy'])
+        for code in (None,False,0.0,''):
+            status=lifecycle.service_status({'Service':'builder','State':'exited','ExitCode':code})
+            self.assertEqual(status['Status'],'unmeasured')
+            self.assertFalse(status['Healthy'])
+        for state in ('running','created','restarting','dead',None):
+            status=lifecycle.service_status({'Service':'builder','State':state,'ExitCode':0})
+            self.assertFalse(status['Healthy'])
+
+    def test_daemon_requires_health_not_merely_running_or_exited_zero(self):
+        for state,health,expected in [
+            ('running','healthy',True),('running','unhealthy',False),
+            ('running','starting',False),('running','',False),
+            ('exited','healthy',False),('created',None,False),
+        ]:
+            status=lifecycle.service_status({
+                'Service':'worker','State':state,'Health':health,'ExitCode':0})
+            self.assertEqual(status['Kind'],'service')
+            self.assertEqual(status['Healthy'],expected)
+
+    def test_completed_builder_does_not_claim_full_stack_or_publication(self):
+        self.request['action']='status'
+        def docker(args,env):
+            if 'ps' in args and '--format' in args:
+                return b'[{"Service":"builder","State":"exited","ExitCode":0}]'
+            return b''
+        with patch.object(lifecycle,'docker',side_effect=docker):
+            result=lifecycle.main(self.request)
+        self.assertEqual(result['services'][0]['Status'],'succeeded')
+        self.assertFalse(result['healthy'])
+        self.assertEqual(result['publication'],'not_published')
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory(dir=HERE.parents[1]/'evidence')
         self.root=Path(self.tmp.name)/'lite'

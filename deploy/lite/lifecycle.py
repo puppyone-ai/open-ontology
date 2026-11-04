@@ -15,6 +15,27 @@ import sys
 import urllib.parse
 import uuid
 
+def service_status(row):
+    result={key:row.get(key) for key in ('Service','State','Health','ExitCode')}
+    job=row.get('Service')=='builder'
+    result['Kind']='job' if job else 'service'
+    state=row.get('State')
+    if job:
+        # Exited successfully is the expected lifecycle of a one-shot Builder.
+        # It proves job completion, not review, publication or Gateway readiness.
+        code=row.get('ExitCode')
+        measured=type(code) is int or (type(code) is str and code.isascii() and code.isdecimal())
+        success=measured and int(code)==0
+        result['Status']=('succeeded' if success else 'failed' if measured else 'unmeasured') if state=='exited' else (
+            'running' if state=='running' else 'not_completed')
+        result['Healthy']=state=='exited' and success
+    else:
+        result['Healthy']=state=='running' and row.get('Health')=='healthy'
+        result['Status']=('healthy' if result['Healthy'] else
+                          'unmeasured' if state=='running' and not row.get('Health') else
+                          'unhealthy')
+    return result
+
 def control_status(root,argv,env):
     empty={'last_success':None,'last_failure':None,'next_due':None}
     path=root/'work/operator/schedule.json'
@@ -261,7 +282,7 @@ def main(request):
     elif action!='status':raise ValueError('LITE_ACTION')
     raw=docker(argv+['ps','--all','--format','json'],env).decode().strip()
     rows=json.loads(raw) if raw.startswith('[') else [json.loads(line) for line in raw.splitlines()]
-    services=[{k:r.get(k) for k in ('Service','State','Health','ExitCode')} for r in rows]
+    services=[service_status(r) for r in rows]
     gateway={'status':'unmeasured','nearest_credential_expiry_ms':None}
     if action!='down':
         try:gateway=health(root,request['stack'])
@@ -272,7 +293,7 @@ def main(request):
     return {'status':'stopped' if action=='down' else 'foundations_only',
             'services':services,'gateway_health':gateway,**history,
             'pending':['worker admission/migrations','scheduler bindings',
-                'Builder service lifecycle and target binding','Gateway operator configuration'],
+                'Builder target binding and publication','Gateway operator configuration'],
             'publication':'not_published','healthy':False}
 
 if __name__=='__main__':
