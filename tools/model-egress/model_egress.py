@@ -564,6 +564,8 @@ def main():
     parser.add_argument('--port', default=8317, type=int)
     parser.add_argument('--rpm', default=30, type=int)
     parser.add_argument('--probe', action='store_true')
+    # Idle read timeout per upstream request; long-context models can pause for minutes.
+    parser.add_argument('--timeout', default=45, type=int)
     egress = None
     try:
         args = parser.parse_args()
@@ -580,7 +582,7 @@ def main():
         if len(raw) > MAX_BYTES:
             raise Refusal('CONFIG_BUDGET', 500)
         config = json.loads(raw)
-        egress = Egress(config['model'], args.meter, args.rpm)
+        egress = Egress(config['model'], args.meter, args.rpm, timeout=args.timeout)
         if args.probe:
             print(json.dumps(egress.probe()))
         else:
