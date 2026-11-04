@@ -178,6 +178,22 @@ impl PostgresEngine {
         }
     }
 
+    /// Read a durable keyset partition (C5 keeps its baseline's ranges) after a
+    /// live `plan_chunks` of the same table, key and strategy. Keyset bounds are
+    /// key values, not snapshot-bound locators, so any durable partition of the
+    /// key space stays readable; physical or changed-key plans are refused.
+    pub fn adopt_keyset_plan(&mut self, durable: &TableChunkPlan) -> Result<(), SourceError> {
+        let planned = self
+            .plans
+            .get_mut(&durable.table)
+            .ok_or_else(|| SourceError::protocol("unknown_plan"))?;
+        if !adoptable(&planned.plan, durable) {
+            return Err(SourceError::protocol("stale_chunk"));
+        }
+        planned.plan.chunks = durable.chunks.clone();
+        Ok(())
+    }
+
     pub async fn catalog(&mut self) -> Result<SourceCatalog, SourceError> {
         let mut s = self.connect().await?;
         self.protect(&mut s).await?;
@@ -421,6 +437,16 @@ impl PostgresEngine {
         );
         Ok(result)
     }
+}
+
+fn adoptable(live: &TableChunkPlan, durable: &TableChunkPlan) -> bool {
+    matches!(durable.strategy, ChunkStrategy::Keyset { .. })
+        && live.protocol == durable.protocol
+        && live.table == durable.table
+        && live.key == durable.key
+        && live.strategy == durable.strategy
+        && !durable.chunks.is_empty()
+        && durable.chunks.iter().all(|c| c.table == durable.table)
 }
 
 fn valid_snapshot(s: &str) -> bool {
@@ -737,6 +763,47 @@ impl SourceEngine for PostgresEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_same_key_keyset_plans_are_adoptable() {
+        let table = TableRef {
+            schema: "public".into(),
+            name: "bulk".into(),
+        };
+        let chunk = |hi: Option<i64>| ChunkSpec {
+            table: table.clone(),
+            plan_revision: 0,
+            chunk_id: 0,
+            lo: None,
+            hi: hi.map(|v| vec![KeyValue::Int(v.into())]),
+            estimated_rows: None,
+        };
+        let live = TableChunkPlan {
+            protocol: ENGINE_PROTOCOL.into(),
+            table: table.clone(),
+            key: KeyShape::IntegerPrimaryKey {
+                column: "id".into(),
+            },
+            strategy: ChunkStrategy::Keyset {
+                columns: vec!["id".into()],
+            },
+            estimated_rows: Some(10),
+            chunks: vec![chunk(None)],
+        };
+        let mut durable = live.clone();
+        durable.chunks = vec![chunk(Some(5)), chunk(None)];
+        assert!(adoptable(&live, &durable));
+        let mut other_key = durable.clone();
+        other_key.key = KeyShape::IntegerPrimaryKey { column: "n".into() };
+        assert!(!adoptable(&live, &other_key));
+        let mut physical = durable.clone();
+        physical.strategy = ChunkStrategy::SingleRead;
+        assert!(!adoptable(&live, &physical));
+        let mut empty = durable;
+        empty.chunks.clear();
+        assert!(!adoptable(&live, &empty));
+    }
+
     #[test]
     fn bounds_and_snapshot_validation() {
         assert!(validate_budget(&ReadBudget::default()).is_ok());

@@ -125,6 +125,7 @@ async fn run_cycle<E: epoch::Epoch>(
         if !oo_pipeline::engine_load_pg::same_ranges(&previous.plan, &plan) {
             return Err("c5_rebaseline_required_plan".into());
         }
+        engine.adopt_plan(&plan)?;
         let before = target.generations().await?;
         let mut receipts = Vec::new();
         let mut payload_bytes = 0u64;

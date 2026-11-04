@@ -14,6 +14,12 @@ pub(super) trait Epoch: SourceEngine {
     async fn shape(&mut self, _table: &TableRef) -> Result<Option<String>, String> {
         Ok(None)
     }
+
+    /// Let engines that only read chunks they planned read the durable C5
+    /// partition (after `plan_chunks` of the same key and strategy).
+    fn adopt_plan(&mut self, _plan: &engine::TableChunkPlan) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 /// C5 lineage: instance epoch plus, where separate, the table's catalog shape.
@@ -34,6 +40,10 @@ pub(super) fn epoch_part(lineage: &str) -> &str {
 }
 
 impl Epoch for PostgresEngine {
+    fn adopt_plan(&mut self, plan: &engine::TableChunkPlan) -> Result<(), String> {
+        self.adopt_keyset_plan(plan).map_err(|e| e.to_string())
+    }
+
     async fn epoch(
         &mut self,
         source: &Source,
