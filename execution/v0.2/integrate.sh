@@ -87,6 +87,8 @@ echo "== fast-forward"
 git merge --ff-only "$lane"
 git log --oneline -1
 # The lane is idle after integration; reclaim its build directory.
-rm -rf "$lane_wt/target"
+# Every Cargo build directory (tools/* and evidence/ ones too), recognised by
+# the CACHEDIR.TAG Cargo writes.
+find "$lane_wt" -maxdepth 5 -type d -name target -exec test -e {}/CACHEDIR.TAG \; -prune -exec rm -rf {} +
 }
 main "$@"

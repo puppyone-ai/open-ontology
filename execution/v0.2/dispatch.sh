@@ -50,7 +50,9 @@ git -C "$worktree" rev-parse HEAD > "$run/head-sha"
 git -C "$worktree" log --format='%h %s' "$(cat "$run/base-sha")..HEAD" > "$run/commits.txt"
 # Host disk is small: a finished lane keeps no build directory; the next
 # dispatch or the integration gate rebuilds it.
-rm -rf "$worktree/target"
+# Every Cargo build directory (tools/* and evidence/ ones too), recognised by
+# the CACHEDIR.TAG Cargo writes.
+find "$worktree" -maxdepth 5 -type d -name target -exec test -e {}/CACHEDIR.TAG \; -prune -exec rm -rf {} +
 echo "$id exit=$rc"
 }
 main "$@"
