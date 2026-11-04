@@ -12,6 +12,60 @@ import recompare_t1
 
 
 class T1Tests(unittest.TestCase):
+    def test_source_meter_fails_closed_and_enforces_aggregate_duty(self):
+        class Run:
+            engine = "mysql"
+        meter = t1.SourceMeter(Run(), 0, 1)
+        meter.started, meter.ended = 0, 10
+        meter.samples = [(0, 1, 1), (2, 1, 0), (9, 1, 0)]
+        self.assertEqual(meter.result()["status"], "passed")
+        self.assertEqual(meter.result()["aggregate_duty_percent"], 20)
+        meter.samples[1] = (3, 1, 0)
+        self.assertEqual(meter.result()["status"], "failed")
+        meter.samples = [(0, 2, 0), (9, 1, 0)]
+        self.assertEqual(meter.result()["status"], "failed")
+        meter.samples = [(0, 1, 0), (9, 1, 0)]
+        meter.error = "query_failed"
+        self.assertEqual(meter.result()["status"], "failed")
+        meter.error, meter.samples = None, []
+        self.assertEqual(meter.result()["status"], "failed")
+
+    def test_source_meter_excludes_query_finishing_after_load(self):
+        class Run:
+            engine = "postgres"
+        meter = t1.SourceMeter(Run(), 0, 2)
+        meter.started, meter.ended = 0, 10
+        meter.samples = [(1, 1, 0), (9, 1, 0), (11, 9, 9)]
+        result = meter.result()
+        self.assertEqual(result["status"], "passed")
+        self.assertEqual(result["sample_count"], 2)
+        self.assertEqual(result["connections_peak"], 1)
+        self.assertEqual(result["aggregate_duty_percent"], 0)
+
+    def test_mysql_cells_preserve_unsigned_decimal_binary_and_utc(self):
+        self.assertEqual(t1.mysql_cell("18446744073709551615", "bigint"), Decimal(2**64-1))
+        self.assertEqual(t1.mysql_cell("12345678901234567890.1234567890", "decimal"),
+                         Decimal("12345678901234567890.1234567890"))
+        self.assertEqual(t1.mysql_cell("\\x0001ff", "longblob"), b"\x00\x01\xff")
+        self.assertEqual(t1.mysql_cell("2026-01-01 00:00:00.123456", "timestamp").tzinfo,
+                         dt.timezone.utc)
+
+    def test_mysql_comparison_keeps_null_and_empty_rows_in_source_order(self):
+        class Source:
+            def sql(self, sql):
+                if "information_schema.columns" in sql:
+                    return 0, "value_no\tbigint\nnote\tvarchar\n"
+                return 0, "31|-\n31|\n"
+        class Target:
+            def sql(self, sql):
+                self.query = sql
+                return '{"value_no":1,"note":null}\n{"value_no":1,"note":""}\n'
+        target = Target()
+        result = t1.compare_mysql(Source(), target, {"target": "synthetic"}, "no_key")
+        self.assertTrue(result["equal"])
+        self.assertIn('"note" NULLS FIRST', target.query)
+        self.assertEqual(result["chunks"][0]["rows"], [2, 2])
+
     def test_persistent_writer_requires_a_commit_acknowledgement(self):
         class Input(io.StringIO):
             def close(self):

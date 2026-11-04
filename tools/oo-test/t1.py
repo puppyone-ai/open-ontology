@@ -22,6 +22,20 @@ from comparison import compare
 import runner
 
 ROOT = runner.ROOT
+_resolve = runner.resolve
+
+
+def resolve(engine, version):
+    # Exact card versions supplement H's newer pins without changing shared files.
+    pins = Path(__file__).with_name("t1-images.json")
+    if engine == "mysql" and pins.exists():
+        for item in json.loads(pins.read_text()):
+            if item["id"] == "mysql-" + version:
+                return item
+    return _resolve(engine, version)
+
+
+runner.resolve = resolve
 
 
 class Relay:
@@ -80,7 +94,7 @@ class LaneRun(runner.Run):
     def command(self, command, **kwargs):
         command = ["oo.lane=m" if x == "oo.lane=h" else x for x in command]
         if command[:2] == ["docker", "create"] and self.name in command:
-            port = 5432 if self.engine == "postgres" else 1521
+            port = {"postgres": 5432, "mysql": 3306, "oracle": 1521}[self.engine]
             command[2:2] = ["-p", f"127.0.0.1::{port}"]
         return super().command(command, **kwargs)
 
@@ -160,7 +174,7 @@ class AgentDB:
         shutil.rmtree(self.directory)
 
 
-def configure_pg(run, store):
+def configure_tls(run, store):
     # All of these are fixture-admin actions, never product source writes.
     for cmd in [
         ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", str(store / "ca-key"),
@@ -175,6 +189,11 @@ def configure_pg(run, store):
     run.command(["openssl", "x509", "-req", "-in", str(store / "server-csr"),
                  "-CA", str(store / "source-ca"), "-CAkey", str(store / "ca-key"), "-CAcreateserial",
                  "-out", str(store / "server-cert"), "-days", "2", "-extfile", str(store / "extensions")])
+    for file in ("source-ca", "server-cert", "server-key"):
+        (store / file).chmod(0o600)
+
+def configure_pg(run, store):
+    configure_tls(run, store)
     for file in ("server-key", "source-ca", "server-cert"):
         (store / file).chmod(0o600)
         run.command(["docker", "cp", str(store / file), run.name + ":/tmp/" + file])
@@ -188,6 +207,80 @@ def configure_pg(run, store):
             "ALTER ROLE fixture_reader RESET default_transaction_read_only;\n"
             "GRANT pg_read_all_stats TO fixture_reader;\n", admin=True)
     time.sleep(1)
+
+
+def configure_mysql(run, store):
+    configure_tls(run, store)
+    for source, dest in (("source-ca", "ca.pem"), ("server-cert", "server-cert.pem"),
+                         ("server-key", "server-key.pem")):
+        run.command(["docker", "cp", str(store / source), run.name + ":/var/lib/mysql/" + dest])
+    run.command(["docker", "exec", "-u", "root", run.name, "bash", "-c",
+                 "chown mysql:mysql /var/lib/mysql/*.pem; chmod 600 /var/lib/mysql/*key.pem"])
+    run.sql(f"CREATE USER 'fixture_reader'@'%' IDENTIFIED BY '{run.reader_secret}' REQUIRE SSL;\n"
+            "GRANT SELECT,SHOW VIEW ON fixture.* TO 'fixture_reader'@'%';\n", admin=True)
+    run.command(["docker", "restart", run.name])
+    for _ in range(90):
+        if run.sql("SELECT 1;", admin=True, required=False)[0] == 0:
+            return
+        time.sleep(1)
+    raise RuntimeError("mysql TLS restart timeout")
+
+
+class SourceMeter:
+    """Admin-only source samples; aggregate active session seconds / load seconds."""
+    def __init__(self, run, label, connections, duty=25):
+        self.run = copy.copy(run)
+        self.run.seq = 2_000_000 + label * 100_000
+        self.stop = threading.Event()
+        self.samples = []
+        self.error = None
+        self.connections, self.duty = connections, duty
+        self.thread = threading.Thread(target=self.sample, daemon=True)
+
+    def sample(self):
+        queries = {
+            "postgres": "SELECT count(*),count(*) FILTER (WHERE state='active') FROM pg_stat_activity WHERE usename='fixture_reader';",
+            "mysql": "SELECT count(*),COALESCE(sum(COMMAND<>'Sleep'),0) FROM information_schema.PROCESSLIST WHERE USER='fixture_reader';",
+            "oracle": "SELECT count(*),count(CASE WHEN status='ACTIVE' THEN 1 END) FROM v$session WHERE username='FIXTURE_READER';",
+        }
+        try:
+            while not self.stop.is_set():
+                _, text = self.run.sql(queries[self.run.engine], admin=True)
+                values = re.split(r"[|\s]+", text.strip())
+                connections, active = map(int, values)
+                self.samples.append((time.monotonic(), connections, active))
+                self.stop.wait(0.2)
+        except Exception as error:
+            self.error = type(error).__name__
+
+    def __enter__(self):
+        self.started = time.monotonic()
+        self.thread.start()
+        return self
+
+    def __exit__(self, *args):
+        self.ended = time.monotonic()
+        self.stop.set()
+        self.thread.join(timeout=60)
+        if self.thread.is_alive():
+            self.error = "sampler_timeout"
+
+    def result(self):
+        elapsed = self.ended - self.started
+        # A query already in flight can finish after the loader exits.
+        samples = [(t, c, a) for t, c, a in self.samples if self.started <= t <= self.ended]
+        busy = sum(active * ((samples[i+1][0] if i+1 < len(samples) else self.ended) - stamp)
+                   for i, (stamp, _, active) in enumerate(samples))
+        peak = max((c for _, c, _ in samples), default=0)
+        duty = 100 * busy / elapsed if elapsed else None
+        passed = (not self.error and len(samples) >= 2 and peak > 0 and
+                  peak <= self.connections and duty is not None and duty <= self.duty)
+        return {"status": "passed" if passed else "failed", "error": self.error,
+                "connections_peak": peak, "aggregate_duty_percent": duty,
+                "elapsed_seconds": elapsed, "sample_count": len(samples),
+                "budget": {"reader_connections": self.connections, "duty_cycle_percent": self.duty},
+                "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time",
+                "samples": [[t-self.started, c, a] for t,c,a in self.samples]}
 
 
 def writer(run, stop, result):
@@ -260,6 +353,58 @@ def postgres_writer(run, stop, result):
             child.wait()
         runner.write_json(run.path / "writer-process.json",
                           {"argv": command, "exit": child.returncode if child else None, **result})
+
+
+def mysql_cell(value, kind):
+    if value is None:
+        return None
+    if kind in ("tinyint", "smallint", "mediumint", "int", "bigint", "decimal"):
+        return Decimal(value)
+    if kind in ("float", "double"):
+        return float(value)
+    if kind in ("blob", "longblob", "mediumblob", "tinyblob", "binary", "varbinary"):
+        return bytes.fromhex(value.removeprefix("\\x"))
+    if kind == "json":
+        return json.loads(value, parse_float=Decimal, parse_int=Decimal) if isinstance(value, str) else value
+    if kind == "date":
+        return dt.date.fromisoformat(value)
+    if kind in ("timestamp", "datetime"):
+        stamp = dt.datetime.fromisoformat(value)
+        return stamp.replace(tzinfo=dt.timezone.utc) if kind == "timestamp" and stamp.tzinfo is None else stamp
+    return value
+
+
+def compare_mysql(run, target, receipt, table):
+    _, metadata = run.sql("SELECT column_name,data_type FROM information_schema.columns "
+                          f"WHERE table_schema='fixture' AND table_name='{table}' ORDER BY ordinal_position;")
+    columns = [line.split("\t") for line in metadata.splitlines() if line]
+    if not columns:
+        raise RuntimeError("comparison metadata missing")
+    names = [n for n, _ in columns]
+    keys = ["order_id", "line_no"] if table == "order_lines" else (
+        ["id", "month_no"] if table == "partition_events" else
+        ["id"] if "id" in names else ["code"] if "code" in names else
+        ["c000"] if "c000" in names else names)
+    binary = ("blob", "longblob", "mediumblob", "tinyblob", "binary", "varbinary")
+    projection = ",".join(f"IFNULL(HEX(`{n}`),'-')" if k in binary else
+                          f"IFNULL(HEX(CAST(`{n}` AS CHAR CHARACTER SET utf8mb4)),'-')" for n,k in columns)
+    source_order = ",".join(f"`{n}`" for n in keys)
+    _, left = run.sql(f"SET time_zone='+00:00'; SELECT CONCAT_WS('|',{projection}) FROM `{table}` ORDER BY {source_order};")
+    target_order = ",".join('"' + n + '"' + (' COLLATE fixture_ci' if table == "string_keys" and n == "id" else "") + " NULLS FIRST" for n in keys)
+    right = target.sql(f"SET TIME ZONE 'UTC'; SELECT row_to_json(t) FROM (SELECT * FROM {receipt['target']} ORDER BY {target_order}) t;")
+    def source_rows():
+        for line in left.splitlines():
+            cells = line.split("|")
+            if len(cells) != len(columns):
+                raise RuntimeError("mysql comparison framing")
+            yield [None if cell == "-" else mysql_cell(cell if kind in binary else bytes.fromhex(cell).decode("utf-8"), kind)
+                   for cell, (_, kind) in zip(cells, columns)]
+    def target_rows():
+        for line in right.splitlines():
+            if line.startswith("{"):
+                row = json.loads(line, parse_float=Decimal, parse_int=Decimal)
+                yield [mysql_cell(row[n], kind) for n,kind in columns]
+    return compare(source_rows(), target_rows(), key_columns=[names.index(k) for k in keys], consistency="B")
 
 
 def compare_pg(run, target, receipt, table):
@@ -385,6 +530,7 @@ def run_t1(run, binary, worker_image=None):
     thread = None
     worker = None
     relay = None
+    measurements = []
     report = {"T1": "failed", "T8": "not_measured", "tables": [], "writer": {},
               "correction": "quiesce_writer_then_reread_all_tables", "consistency": "B"}
     try:
@@ -395,6 +541,11 @@ def run_t1(run, binary, worker_image=None):
             configure_pg(run, store)
             schema, service, source_port = "public", "fixture", 5432
             _, table_text = run.sql("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;")
+            tables = table_text.split()
+        elif run.engine == "mysql":
+            configure_mysql(run, store)
+            schema, service, source_port = "fixture", "fixture", 3306
+            _, table_text = run.sql("SELECT table_name FROM information_schema.tables WHERE table_schema='fixture' AND table_type='BASE TABLE' ORDER BY table_name;")
             tables = table_text.split()
         else:
             schema = "FIXTURE"
@@ -437,7 +588,7 @@ def run_t1(run, binary, worker_image=None):
         source = {"id": "fixture", "engine": run.engine, "host": "127.0.0.1", "port": port,
                   "database": service, "user": "fixture_reader", "password": {"secret_ref": "source-password"},
                   "scope": {"include": [f"{schema}.{t}" for t in tables], "exclude": []}}
-        if run.engine == "postgres":
+        if run.engine in ("postgres", "mysql"):
             source["tls_ca"] = {"secret_ref": "source-ca"}
         stack = {"version": "oo.stack/v1", "sources": [source],
                  "model": {"provider": "openai-compatible", "base_url": "https://example.invalid/v1",
@@ -450,16 +601,26 @@ def run_t1(run, binary, worker_image=None):
         thread.start()
         def load(run_id):
             runner.write_json(store / "target.json", dict(target_config, run_id=run_id))
-            code, out = run.command([str(binary), "--stack", str(store / "stack.json"),
-                                    "--source", "fixture", "--target", str(store / "target.json"),
-                                    "--secrets-dir", str(store), "--chunk-rows", "10000", *worker_args],
-                                   timeout=7200, required=False)
+            with SourceMeter(run, len(measurements), 2 if run.engine == "postgres" else 1) as meter:
+                code, out = run.command([str(binary), "--stack", str(store / "stack.json"),
+                                        "--source", "fixture", "--target", str(store / "target.json"),
+                                        "--secrets-dir", str(store), "--chunk-rows", "10000", *worker_args],
+                                       timeout=7200, required=False)
+            measurement = meter.result()
+            measurements.append(measurement)
+            runner.write_json(run.path / f"source-meter-{len(measurements)}.json", measurement)
             receipts = [json.loads(line) for line in out.splitlines() if line.startswith("{")]
             runner.write_json(run.path / f"{run_id}-receipts.json", receipts)
             if code:
                 raise RuntimeError(f"{run_id} product load failed")
             if len(receipts) != len(tables):
                 raise RuntimeError("incomplete table receipts")
+            if any(r["read_budget"]["duty_cycle_percent"] != meter.duty for r in receipts):
+                raise RuntimeError("sampled budget does not match product ReadBudget")
+            if run.engine == "mysql" and any(
+                    ".".join(str(r["version"][key]) for key in ("major", "minor", "patch")) != run.version
+                    for r in receipts):
+                raise RuntimeError("MySQL version does not match exact card version")
             return receipts
         first = load("concurrent")
         stop.set()
@@ -473,21 +634,19 @@ def run_t1(run, binary, worker_image=None):
         report["target_write_bytes"] = sum(r["target_write_bytes"] for r in first + corrected)
         for receipt in corrected:
             table = receipt["table"]["name"]
-            comparison = (compare_pg if run.engine == "postgres" else compare_oracle)(run, target, receipt, table)
+            comparison = ({"postgres": compare_pg, "mysql": compare_mysql, "oracle": compare_oracle}[run.engine])(run, target, receipt, table)
             runner.write_json(run.path / f"compare-{table}.json", comparison)
             report["tables"].append({"table": table, "equal": comparison["equal"]})
             if not comparison["equal"]:
                 raise RuntimeError("source target difference")
         report["T1"] = "passed"
-        # SourceEngine does not expose a neutral resource meter. Do not turn
-        # an observed target byte count into full resource-budget acceptance.
-        report["T8"] = "partial"
-        report["connections_peak"] = None
-        report["source_duty_cycle"] = None
+        # Enforce every invocation, including the no-rewrite resume.
+        report["T8"] = "passed" if all(m["status"] == "passed" for m in measurements) else "failed"
         report["model_tokens"] = 0
     except Exception as error:
         report["failure"] = str(error) if isinstance(error, RuntimeError) else type(error).__name__
     finally:
+        report["source_metrics"] = [{k:v for k,v in m.items() if k != "samples"} for m in measurements]
         stop.set()
         if thread:
             thread.join(timeout=1800)
@@ -495,7 +654,8 @@ def run_t1(run, binary, worker_image=None):
             try:
                 total = target.sql("SELECT COALESCE(sum(write_bytes),0)::bigint FROM _oo_load.chunks;")
                 report["target_write_bytes"] = int(total.strip())
-                report["T8"] = "partial"
+                if report["T8"] == "not_measured":
+                    report["T8"] = "partial"
             except (RuntimeError, ValueError):
                 report["target_write_bytes"] = None
         if worker:
@@ -523,7 +683,7 @@ def main():
             ["docker", "inspect", "--format", "{{json .Config.Labels}}", context["container"]], text=True))
         if labels.get("oo.lane") not in ("h", "m") or labels.get("oo.run_id") != context["run_id"]:
             raise RuntimeError("hook fixture ownership")
-        if context["engine"] not in ("postgres", "oracle"):
+        if context["engine"] not in ("postgres", "mysql", "oracle"):
             raise RuntimeError("T1 hook engine unavailable")
         run = LaneRun.__new__(LaneRun)
         run.name, run.id = context["container"], context["run_id"]
@@ -534,9 +694,9 @@ def main():
         run.reader_secret = Path(context["reader_password_file"]).read_text().strip()
         result = run_t1(run, ROOT / "target/debug/oo-load", os.environ.get("OO_TEST_ORACLE_WORKER_IMAGE"))
         runner.checksums(run.path)
-        raise SystemExit(0 if result["T1"] == "passed" else 1)
+        raise SystemExit(0 if result["T1"] == "passed" and result["T8"] == "passed" else 1)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--engine", choices=["postgres", "oracle"], required=True)
+    parser.add_argument("--engine", choices=["postgres", "mysql", "oracle"], required=True)
     parser.add_argument("--versions", required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--binary", type=Path, default=ROOT / "target/debug/oo-load")
@@ -569,7 +729,7 @@ def main():
         results.append(dict(result, version=version, cleanup_failed=failures))
         runner.write_json(base / "results.json", results)
     print(base)
-    raise SystemExit(0 if all(r["T1"] == "passed" and not r["cleanup_failed"] for r in results) else 1)
+    raise SystemExit(0 if all(r["T1"] == "passed" and r["T8"] == "passed" and not r["cleanup_failed"] for r in results) else 1)
 
 
 if __name__ == "__main__":

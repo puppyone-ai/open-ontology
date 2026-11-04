@@ -137,6 +137,7 @@ async fn run_engine<E: SourceEngine>(
                 "protocol":"oo.load/v1", "source":source.id, "family":probe.family, "version":probe.version,
                 "table":table, "target":sink.relation(), "run_id":target.run_id,
                 "receipts":receipts, "replay":replay, "target_write_bytes":bytes,
+                "read_budget":budget,
                 "write_basis":"committed_logical_stage_tuples_including_replaced_plans",
                 "publication":"local_table_view", "gateway_published":false,
                 "consistency":"B", "source_time":"unmeasured"

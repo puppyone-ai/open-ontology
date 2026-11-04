@@ -1,0 +1,38 @@
+[
+  {
+    "id": "mysql-8.0.44",
+    "ref": "docker.io/library/mysql:8.0.44",
+    "platforms": {
+      "linux/amd64": {
+        "digest": "sha256:f7878bec832c6be5e61c39d3949651be8aa977daf875089b4560ae1434d2cb9c"
+      },
+      "linux/arm64": {
+        "digest": "sha256:2c4989e05aa3ceb8cb6eb8a1b1f38ffa361eac2fec96ec67705d1b21c6390527"
+      }
+    }
+  },
+  {
+    "id": "mysql-8.4.7",
+    "ref": "docker.io/library/mysql:8.4.7",
+    "platforms": {
+      "linux/amd64": {
+        "digest": "sha256:6c6706ec58d3ac9e925d5f0435c6a923117f68232551b9c8271a294ea72ee331"
+      },
+      "linux/arm64": {
+        "digest": "sha256:6f952b3897aca5d7ca620d3d9679845351641265b1dbc3012ea29253abb57e65"
+      }
+    }
+  },
+  {
+    "id": "mysql-9.5.0",
+    "ref": "docker.io/library/mysql:9.5.0",
+    "platforms": {
+      "linux/amd64": {
+        "digest": "sha256:00f711aeca86bf8a3e0e6dfd44f2a2b76014fc5fb59eda6c16cca3d692078d6e"
+      },
+      "linux/arm64": {
+        "digest": "sha256:3427e5b50d1eaf469e858e1ac026d643b87b2dde1037c59d87bceb1751fd1fa4"
+      }
+    }
+  }
+]
