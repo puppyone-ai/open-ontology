@@ -230,3 +230,62 @@ TLS is required. Certificate verification uses the caller CA. There is no `NoTls
 ## Dependencies
 
 Direct pins already in the repository root lock, plus path package `oo-builder` at `../../crates/oo-builder`. No new crate, no version bump, no root manifest edit, no root lock edit, no `cargo update`. `rust-version` is 1.94.0. Safe Rust only.
+
+## Retained generations (D15, `publish-retained`)
+
+`release-coordinator publish-retained --config CONFIG` publishes one
+owner-reviewed registry for one sealed `oo-load` retained generation. Library
+entry: `release_coordinator::publish_reviewed_registry(&TargetConn,
+&RetainedRequest { library_id, generation, login, reviewed })`. Stdin:
+
+```json
+{"protocol":"oo.release-coordinator/publish-retained/v1","library_id":"owned",
+ "generation":"cycle-7","login":"oo_gateway_data","reviewed_registry":{...}}
+```
+
+`CONFIG` has host, port, database, user, `password_file` and `ca_file` (TLS
+required). The login is the Agent DB owner that prepared the cut with
+`oo-load publish`; the database checks that it owns every retained `_oo` view.
+
+- The cut is read from `_oo_load.gateway_publications` joined to
+  `_oo.native_library_publication`, re-hashed and checked against a closed
+  contract: one shard, `oo.load.per-table-receipt/v1`,
+  `consistency=retained_generation`, grade B, snapshot-zero, per-table
+  `recipe_sha256`. Generation ids are oo-load run tokens
+  (`[A-Za-z0-9._-]{1,128}`), not UUIDs. The legacy `native_library::validate`
+  still refuses this shape; it never reaches `publish_native_library`.
+- The registry must be `oo.owner-reviewed-registry/v1`, `status=reviewed`,
+  `review_decision.reviewer=owner`, `mode=self` (D6), no rejected item and an
+  accepted G14 gate. `compiled` is recompiled with
+  `oo_builder::compile_reviewed_community` and must be identical.
+- Visibility must cover exactly the cut's datasets. Every visible column must
+  exist in the cut with the same `data_type` and map through
+  `_oo.physical_mappings` to a column of the retained view. A non-`none` PII
+  column needs an explicit owner classification decision.
+- The reviewed role must be NOLOGIN/NOINHERIT and safe; the Gateway login must
+  be a non-superuser LOGIN role with SET on it.
+- One target transaction: lock the library, open each fence
+  closed -> granted -> open with the recompiled Pack digest and only the
+  reviewed physical columns, switch the head and call
+  `_oo.native_library_mark_ready` (which runs `native_library_check_retained`
+  and requires every fence open). Any failure rolls back fences, grants and
+  head. A generation older than the ready head is `publication_superseded`.
+  No import or ACK row is written. Replaying the same generation is `replay`.
+- The receipt carries `gateway_document`: the operator-local
+  `oo.gateway.library-reviewed/v1` document (local operator review derived
+  from the owner's classification decisions, the reviewed Pack, the cut as
+  publication and the dataset bindings) for the Gateway reviewed directory.
+  Writing it and reloading Gateway remain the caller's step.
+
+Refusal codes (exit 2, nothing changed): `review_mode_self_required`,
+`review_rejected_item`, `review_compile_refused`, `review_compiled_mismatch`,
+`retained_candidate_missing`, `retained_visibility_coverage`,
+`retained_column_binding`, `retained_classification_decision`,
+`retained_fence_schema_missing`, `retained_role_missing`,
+`retained_role_unsafe`, `retained_login_binding`, `retained_relation_missing`,
+`retained_owner_required`, `publication_superseded`,
+`semantic_admission_refused` (with `sqlstate`).
+
+Previous generations' fences stay open on their (immutable, prunable) views;
+the ready head selects what Gateway serves. Units: `cargo test --locked --lib
+retained`; owned PostgreSQL plus live engines: `tests/retained_cycle_live.py`.
