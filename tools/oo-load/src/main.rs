@@ -116,9 +116,34 @@ async fn source_control_connection(
             ("default_transaction_read_only", "on"),
         ])
         .disable_statement_logging();
-    PgConnection::connect_with(&options)
+    bounded(
+        SOURCE_CONNECT_TIMEOUT,
+        async {
+            PgConnection::connect_with(&options)
+                .await
+                .map_err(|_| "sync_source_connect")
+        },
+        "sync_source_connect_timeout",
+    )
+    .await
+    .map_err(String::from)
+}
+
+/// Client-side bounds for oo-load's own source control connection. The
+/// server statement_timeout cannot fire when the network path is gone: a
+/// connect or reply lost in a drop otherwise waits forever (T3 network drop,
+/// PostgreSQL 13 C5 hung past 240 s in evidence n-s5-pg-01).
+const SOURCE_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const SOURCE_CONTROL_TIMEOUT: Duration = Duration::from_secs(35);
+
+async fn bounded<T>(
+    limit: Duration,
+    operation: impl std::future::Future<Output = Result<T, &'static str>>,
+    code: &'static str,
+) -> Result<T, &'static str> {
+    tokio::time::timeout(limit, operation)
         .await
-        .map_err(|_| "sync_source_connect".into())
+        .map_err(|_| code)?
 }
 
 async fn target_connection(
@@ -695,6 +720,24 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn source_control_operations_are_bounded_on_the_client() {
+        let hung = bounded(
+            Duration::from_millis(20),
+            std::future::pending::<Result<(), &'static str>>(),
+            "sync_lineage_timeout",
+        );
+        assert_eq!(hung.await, Err("sync_lineage_timeout"));
+        let done = bounded(Duration::from_secs(1), async { Ok(7) }, "unused");
+        assert_eq!(done.await, Ok(7));
+        let failed = bounded(
+            Duration::from_secs(1),
+            async { Err::<(), _>("x") },
+            "unused",
+        );
+        assert_eq!(failed.await, Err("x"));
+    }
 
     #[test]
     fn sqlserver_arm_preserves_scope_and_requires_tls() {

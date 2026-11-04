@@ -71,6 +71,18 @@ pub(super) async fn lineage(
     conn: &mut PgConnection,
     tables: &[TableRef],
 ) -> engine_load::Result<String> {
+    super::bounded(
+        super::SOURCE_CONTROL_TIMEOUT,
+        lineage_unbounded(conn, tables),
+        "sync_lineage_timeout",
+    )
+    .await
+}
+
+async fn lineage_unbounded(
+    conn: &mut PgConnection,
+    tables: &[TableRef],
+) -> engine_load::Result<String> {
     let system: (String, i32, i64) = sqlx::query_as(
         "SELECT s.system_identifier::text,c.timeline_id,d.oid::bigint
          FROM pg_control_system() s,pg_control_checkpoint() c,pg_database d
@@ -111,39 +123,43 @@ pub(super) async fn lineage(
 impl engine_sync::Feedback for Feedback {
     async fn acknowledge(&mut self, durable: &Watermark) -> engine_load::Result<()> {
         let started = std::time::Instant::now();
-        let result = async {
-            if lineage(&mut self.connection, &self.tables).await? != self.lineage {
-                return Err("sync_rebaseline_required_lineage");
-            }
-            let Watermark::PgLsn { lsn } = durable else {
-                return Err("sync_position_kind");
-            };
-            let high: String = sqlx::query_scalar("SELECT pg_current_wal_lsn()::text")
+        let result = super::bounded(
+            super::SOURCE_CONTROL_TIMEOUT,
+            async {
+                if lineage(&mut self.connection, &self.tables).await? != self.lineage {
+                    return Err("sync_rebaseline_required_lineage");
+                }
+                let Watermark::PgLsn { lsn } = durable else {
+                    return Err("sync_position_kind");
+                };
+                let high: String = sqlx::query_scalar("SELECT pg_current_wal_lsn()::text")
+                    .fetch_one(&mut self.connection)
+                    .await
+                    .map_err(|_| "sync_source_position")?;
+                if *lsn
+                    > oo_connectors::postgres::lsn::parse_lsn(&high)
+                        .map_err(|_| "sync_source_position")?
+                {
+                    return Err("sync_rebaseline_required_future_position");
+                }
+                let lsn = format!("{:X}/{:X}", lsn >> 32, lsn & 0xffff_ffff);
+                // This is replication progress feedback, never business DML. Only
+                // the durable target position may release retained source WAL.
+                let actual: String = sqlx::query_scalar(
+                    "SELECT end_lsn::text FROM pg_replication_slot_advance($1,$2::pg_lsn)",
+                )
+                .bind(&self.slot)
+                .bind(&lsn)
                 .fetch_one(&mut self.connection)
                 .await
-                .map_err(|_| "sync_source_position")?;
-            if *lsn
-                > oo_connectors::postgres::lsn::parse_lsn(&high)
-                    .map_err(|_| "sync_source_position")?
-            {
-                return Err("sync_rebaseline_required_future_position");
-            }
-            let lsn = format!("{:X}/{:X}", lsn >> 32, lsn & 0xffff_ffff);
-            // This is replication progress feedback, never business DML. Only
-            // the durable target position may release retained source WAL.
-            let actual: String = sqlx::query_scalar(
-                "SELECT end_lsn::text FROM pg_replication_slot_advance($1,$2::pg_lsn)",
-            )
-            .bind(&self.slot)
-            .bind(&lsn)
-            .fetch_one(&mut self.connection)
-            .await
-            .map_err(|_| "sync_feedback")?;
-            if actual != lsn {
-                return Err("sync_feedback_position");
-            }
-            Ok(())
-        }
+                .map_err(|_| "sync_feedback")?;
+                if actual != lsn {
+                    return Err("sync_feedback_position");
+                }
+                Ok(())
+            },
+            "sync_feedback_timeout",
+        )
         .await;
         tokio::time::sleep(started.elapsed() * (100 - u32::from(self.duty)) / u32::from(self.duty))
             .await;
