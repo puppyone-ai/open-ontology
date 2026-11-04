@@ -94,6 +94,13 @@ pub enum WatermarkMode {
     None,
 }
 
+fn file_position_mode(mode: WatermarkMode) -> Result<WatermarkMode> {
+    match mode {
+        WatermarkMode::None => Err(SourceError::config("binlog_unavailable")),
+        WatermarkMode::GtidSet | WatermarkMode::FilePos => Ok(WatermarkMode::FilePos),
+    }
+}
+
 #[derive(Clone)]
 struct TableMeta {
     key: ChosenKey,
@@ -297,6 +304,15 @@ fn ipc_digest(batches: &[RecordBatch]) -> Result<(u64, String)> {
 }
 
 impl MysqlEngine {
+    /// Select file cursors before a repair when the durable consumer uses that
+    /// position family. This does not change server GTID settings.
+    pub async fn use_file_positions(&mut self) -> Result<()> {
+        self.ensure_basics().await?;
+        let basics = self.basics.as_mut().expect("basics");
+        basics.watermark = file_position_mode(basics.watermark)?;
+        Ok(())
+    }
+
     /// Read the live instance identity, including on C5-only sources.
     pub async fn source_epoch(&mut self) -> Result<String> {
         let rows = self.exec("SELECT @@GLOBAL.server_uuid", vec![]).await?;
@@ -1935,5 +1951,18 @@ mod tests {
         let t = dispatch_table();
         assert_eq!(t.len(), capability::RULES.len());
         assert!(t.values().any(|v| v.contains("[8.2.0, ∞)")));
+    }
+
+    #[test]
+    fn file_cursor_selection_preserves_disabled_binlog_refusal() {
+        assert_eq!(
+            file_position_mode(WatermarkMode::GtidSet).unwrap(),
+            WatermarkMode::FilePos
+        );
+        assert_eq!(
+            file_position_mode(WatermarkMode::FilePos).unwrap(),
+            WatermarkMode::FilePos
+        );
+        assert!(file_position_mode(WatermarkMode::None).is_err());
     }
 }
