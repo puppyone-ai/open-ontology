@@ -38,11 +38,18 @@ fn registry() -> BTreeMap<EngineFamily, Adapter> {
 
 fn mysql(source: &Source, tables: &[TableRef]) -> Value {
     let result = (|| {
-        // Resolve only beside this installation, never from cwd or PATH.
+        // Resolve only beside this installation, never from cwd or PATH. A
+        // clean install has none (D16): use the pinned runtime image instead.
         let helper = std::env::current_exe()
             .map_err(|_| "MYSQL_DOCTOR_INSTALL")?
             .with_file_name("oo-mysql-doctor");
-        let mut child = Command::new(helper)
+        let mut source = json!(source);
+        let mut command = if helper.exists() {
+            Command::new(helper)
+        } else {
+            runtime_mysql_doctor(&mut source)?
+        };
+        let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -72,6 +79,51 @@ fn mysql(source: &Source, tables: &[TableRef]) -> Value {
         Ok(report)
     })();
     result.unwrap_or_else(|error| json!({"status":"blocked","error":error}))
+}
+
+/// One-shot `oo-mysql-doctor` from the pinned lite runtime image. It sees only
+/// the owner's secret store, read-only; a loopback source is this host.
+fn runtime_mysql_doctor(source: &mut Value) -> Result<Command, &'static str> {
+    let image = super::lite::pinned_image();
+    if !super::lite::digest(&image) {
+        return Err("MYSQL_DOCTOR_INSTALL");
+    }
+    let home = std::env::var_os("HOME").ok_or("SECRET_HOME")?;
+    let store = std::path::Path::new(&home).join(".config/open-ontology/secrets");
+    let store = std::fs::canonicalize(store).map_err(|_| "SECRET_HOME")?;
+    let user = super::lite::user(&store).map_err(|_| "SECRET_HOME")?;
+    if source["host"]
+        .as_str()
+        .is_some_and(|h| matches!(h, "localhost" | "127.0.0.1" | "::1"))
+    {
+        source["host"] = json!("host.docker.internal");
+    }
+    let mut command = Command::new("docker");
+    command
+        .args([
+            "run",
+            "--rm",
+            "--interactive",
+            "--read-only",
+            "--tmpfs",
+            "/tmp",
+            "--cap-drop",
+            "ALL",
+        ])
+        .args(["--security-opt", "no-new-privileges:true", "--user", &user])
+        .arg("--label")
+        .arg(format!(
+            "oo.lane={}",
+            super::lite::lane(std::path::Path::new("/nonexistent"))
+        ))
+        .args(["--env", "HOME=/home/oo"])
+        .arg("--volume")
+        .arg(format!(
+            "{}:/home/oo/.config/open-ontology/secrets:ro",
+            store.to_str().ok_or("SECRET_HOME")?
+        ))
+        .args(["--entrypoint", "oo-mysql-doctor", &image]);
+    Ok(command)
 }
 
 fn oracle(
