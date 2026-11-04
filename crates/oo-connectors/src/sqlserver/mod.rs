@@ -1029,18 +1029,17 @@ impl ChangeSource for SqlServerEngine {
                 if total_bytes > b.max_chunk_bytes {
                     return Err(SourceError::budget("sqlserver_change_bytes"));
                 }
-                let image = if delete {
+                let (image, ipc) = if delete {
                     // Shared durable targets require one image per event, including
                     // deletes; an empty typed batch carries no invented row values.
-                    Some(Self::decode(&t, &[], 0)?.0)
+                    Self::decode(&t, &[], 0)?
                 } else {
-                    let (image, ipc) = Self::decode(&t, &[r], 2 + t.keys.len())?;
-                    total_bytes = total_bytes.saturating_add(ipc.len() as u64);
-                    if total_bytes > b.max_chunk_bytes {
-                        return Err(SourceError::budget("sqlserver_change_bytes"));
-                    }
-                    Some(image)
+                    Self::decode(&t, &[r], 2 + t.keys.len())?
                 };
+                total_bytes = total_bytes.saturating_add(ipc.len() as u64);
+                if total_bytes > b.max_chunk_bytes {
+                    return Err(SourceError::budget("sqlserver_change_bytes"));
+                }
                 let order = if high.mode == ChangeMode::Ct {
                     format!(
                         "{:020}",
@@ -1060,9 +1059,7 @@ impl ChangeSource for SqlServerEngine {
         let mut images = Vec::new();
         for (_, change, image) in events {
             changes.push(change);
-            if let Some(image) = image {
-                images.push(image);
-            }
+            images.push(image);
         }
         Ok(Some(ChangeBatch {
             position: high.watermark()?,
