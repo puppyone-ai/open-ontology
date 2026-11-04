@@ -55,6 +55,21 @@ pub(super) async fn run<E: epoch::Epoch>(
     budget: &ReadBudget,
     policy: Config,
 ) -> Result<(), String> {
+    let result = run_cycle(&mut engine, source, tables, config, store, budget, policy).await;
+    // MySQL-wire disconnect must finish before the short-lived runtime exits.
+    engine.close_source().await;
+    result
+}
+
+async fn run_cycle<E: epoch::Epoch>(
+    engine: &mut E,
+    source: &Source,
+    tables: &[TableRef],
+    config: &TargetConfig,
+    store: &SecretStore,
+    budget: &ReadBudget,
+    policy: Config,
+) -> Result<(), String> {
     if policy.cycle == 0
         || policy.full_read_every == 0
         || !(1..=100).contains(&budget.duty_cycle_percent)

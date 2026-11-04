@@ -1,6 +1,8 @@
 use super::*;
 
 pub(super) trait Epoch: SourceEngine {
+    async fn close_source(&mut self) {}
+
     async fn epoch(
         &mut self,
         source: &Source,
@@ -26,6 +28,10 @@ impl Epoch for PostgresEngine {
 }
 
 impl Epoch for oo_connectors::mysql::engine::MysqlEngine {
+    async fn close_source(&mut self) {
+        self.close().await;
+    }
+
     async fn epoch(
         &mut self,
         _: &Source,

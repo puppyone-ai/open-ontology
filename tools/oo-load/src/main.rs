@@ -575,7 +575,9 @@ async fn execute() -> Result<(), String> {
                 )
                 .await;
             }
-            run_engine(&mut engine, source, &tables, &target, &store, &budget).await
+            let result = run_engine(&mut engine, source, &tables, &target, &store, &budget).await;
+            engine.close().await;
+            result
         }
         _ => Err("explicit_supported_engine_required".into()),
     }
