@@ -1018,9 +1018,9 @@
       "sprint": "S4",
       "lane": "A",
       "title": "远程部署：`oo up --target ssh` 安装 compose 栈与 systemd timer",
-      "status": "pending",
-      "owner": null,
-      "branch": null,
+      "status": "in_progress",
+      "owner": "lane-A2 (native Opus)",
+      "branch": "v0.2/a-onboarding",
       "commits": [],
       "evidence": []
     },
@@ -1093,10 +1093,15 @@
       "sprint": "S4",
       "lane": "F",
       "title": "P1：ClickHouse/Doris/StarRocks 快照 + 分区刷新（由 preview 收敛到接口）",
-      "status": "in_progress",
+      "status": "integrated",
       "owner": "lane-F (native Opus)",
       "branch": "v0.2/f-olap",
-      "commits": [],
+      "commits": [
+        "34bf2ef2c",
+        "a23b3875d",
+        "7d16fcbe5",
+        "586f04b2f"
+      ],
       "evidence": []
     },
     {
