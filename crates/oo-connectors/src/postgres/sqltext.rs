@@ -213,6 +213,17 @@ pub fn close() -> String {
 
 /// Key text of the row `offset` rows after `lo` (planning probe, returns one row).
 pub fn boundary_probe(rel: &str, keys: &[KeyCol], form: CompareForm, lo: bool) -> String {
+    bounded_boundary_probe(rel, keys, form, lo, false)
+}
+
+/// Split probes must stay within both parent bounds, using source collation.
+pub fn bounded_boundary_probe(
+    rel: &str,
+    keys: &[KeyCol],
+    form: CompareForm,
+    lo: bool,
+    hi: bool,
+) -> String {
     let cols: Vec<String> = keys.iter().map(|k| format!("{}::text", k.quoted)).collect();
     // Unqualified ORDER BY would resolve the ::text output alias, sorting
     // integer keys lexicographically instead of by the source column type.
@@ -220,7 +231,7 @@ pub fn boundary_probe(rel: &str, keys: &[KeyCol], form: CompareForm, lo: bool) -
         .iter()
         .map(|k| format!("oo_source.{}", k.quoted))
         .collect();
-    let (where_sql, used) = range_where(keys, form, lo, false);
+    let (where_sql, used) = range_where(keys, form, lo, hi);
     format!(
         "SELECT {} FROM {rel} AS oo_source{where_sql} ORDER BY {} OFFSET ${} LIMIT 1",
         cols.join(","),
@@ -301,6 +312,19 @@ mod tests {
             class,
             collation: None,
         }
+    }
+
+    #[test]
+    fn split_probe_binds_both_parent_bounds_before_the_offset() {
+        let keys = [
+            key("a", "bigint", KeyClass::Int),
+            key("b", "text", KeyClass::Text),
+        ];
+        let sql = bounded_boundary_probe("fixture.growing", &keys, CompareForm::Row, true, true);
+        assert!(sql.contains("(a,b) >= (CAST($1 AS bigint),CAST($2 AS text))"));
+        assert!(sql.contains("(a,b) < (CAST($3 AS bigint),CAST($4 AS text))"));
+        assert!(sql.ends_with("ORDER BY oo_source.a,oo_source.b OFFSET $5 LIMIT 1"));
+        assert!(read_only(&sql));
     }
 
     #[test]

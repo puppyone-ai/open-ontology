@@ -520,6 +520,121 @@ impl SourceEngine for PostgresEngine {
         duty(start, budget.duty_cycle_percent).await;
         result
     }
+    async fn split_chunk(
+        &mut self,
+        chunk: &ChunkSpec,
+        budget: &ReadBudget,
+    ) -> Result<Option<Vec<ChunkSpec>>, SourceError> {
+        self.selected(&chunk.table)?;
+        validate_budget(budget)?;
+        let planned = self
+            .plans
+            .get(&chunk.table)
+            .ok_or_else(|| SourceError::protocol("unknown_plan"))?
+            .clone();
+        if !planned.plan.chunks.contains(chunk) {
+            return Err(SourceError::protocol("stale_chunk"));
+        }
+        if planned.keys.is_empty() {
+            return Ok(None);
+        }
+        let first_id = planned
+            .plan
+            .chunks
+            .iter()
+            .map(|c| c.chunk_id)
+            .max()
+            .unwrap_or(0)
+            .checked_add(1)
+            .ok_or_else(|| SourceError::budget("chunk_id"))?;
+        let revision = chunk
+            .plan_revision
+            .checked_add(1)
+            .ok_or_else(|| SourceError::budget("plan_revision"))?;
+        let mut s = self.connect().await?;
+        guards(&mut s, budget).await?;
+        self.protect(&mut s).await?;
+        let start = Instant::now();
+        self.transaction(&mut s).await?;
+        let result = async {
+            let keys = &planned.keys;
+            let sql = sqltext::bounded_boundary_probe(
+                &planned.relation,
+                keys,
+                CompareForm::Row,
+                chunk.lo.is_some(),
+                chunk.hi.is_some(),
+            );
+            let mut offset = budget.max_chunk_rows.div_ceil(2).max(1);
+            let middle = loop {
+                let mut q = sqlx::query(sqlx_core::sql_str::AssertSqlSafe(sql.clone()));
+                for bound in [&chunk.lo, &chunk.hi].into_iter().flatten() {
+                    if bound.len() != keys.len() {
+                        return Err(SourceError::protocol("chunk_bound_width"));
+                    }
+                    for value in bound {
+                        q = q.bind(sqltext::bind_text(value)?);
+                    }
+                }
+                q = q.bind(
+                    i64::try_from(offset).map_err(|_| SourceError::budget("max_chunk_rows"))?,
+                );
+                s.arm_rows(1);
+                let rows = session::fetch_all(&mut s, q).await?;
+                if let Some(row) = rows.first() {
+                    break keys
+                        .iter()
+                        .enumerate()
+                        .map(|(i, k)| k.class.value(cell_opt_string(row, i)?))
+                        .collect::<Result<Vec<_>, _>>()?;
+                }
+                if offset == 1 {
+                    return Err(SourceError::budget("single_row_cannot_split"));
+                }
+                offset = (offset / 2).max(1);
+            };
+            Ok(vec![
+                ChunkSpec {
+                    plan_revision: revision,
+                    chunk_id: first_id,
+                    hi: Some(middle.clone()),
+                    estimated_rows: None,
+                    ..chunk.clone()
+                },
+                ChunkSpec {
+                    plan_revision: revision,
+                    chunk_id: first_id
+                        .checked_add(1)
+                        .ok_or_else(|| SourceError::budget("chunk_id"))?,
+                    lo: Some(middle),
+                    estimated_rows: None,
+                    ..chunk.clone()
+                },
+            ])
+        }
+        .await;
+        let result = s.finish(result).await;
+        if result.is_ok() {
+            self.session = Some(s);
+        } else {
+            drop(s);
+        }
+        duty(start, budget.duty_cycle_percent).await;
+        let children = result?;
+        let registered = self.plans.get_mut(&chunk.table).unwrap();
+        let index = registered
+            .plan
+            .chunks
+            .iter()
+            .position(|c| c == chunk)
+            .unwrap();
+        registered
+            .plan
+            .chunks
+            .splice(index..=index, children.clone());
+        Ok(Some(children))
+    }
+
     async fn read_chunk(
         &mut self,
         chunk: &ChunkSpec,

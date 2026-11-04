@@ -123,6 +123,7 @@ pub struct MysqlEngine {
     first_op: Option<Instant>,
     last_op: Option<Instant>,
     idle_since: Option<Instant>,
+    next_split_id: u32,
 }
 
 fn mysql_err(e: MysqlError) -> SourceError {
@@ -294,6 +295,7 @@ impl MysqlEngine {
             first_op: None,
             last_op: None,
             idle_since: None,
+            next_split_id: 0,
         }
     }
 
@@ -1671,7 +1673,32 @@ impl SourceEngine for MysqlEngine {
         budget: &ReadBudget,
     ) -> Result<TableChunkPlan> {
         self.apply_budget(budget).await?;
-        self.plan_inner(table, budget).await
+        let plan = self.plan_inner(table, budget).await?;
+        self.next_split_id = self.next_split_id.max(
+            plan.chunks
+                .iter()
+                .map(|c| c.chunk_id)
+                .max()
+                .unwrap_or(0)
+                .checked_add(1)
+                .ok_or_else(|| SourceError::budget("chunk_id"))?,
+        );
+        Ok(plan)
+    }
+
+    async fn split_chunk(
+        &mut self,
+        chunk: &ChunkSpec,
+        budget: &ReadBudget,
+    ) -> Result<Option<Vec<ChunkSpec>>> {
+        let children = MysqlEngine::split_chunk(self, chunk, budget, self.next_split_id).await?;
+        self.next_split_id = children
+            .last()
+            .ok_or_else(|| SourceError::protocol("empty_split"))?
+            .chunk_id
+            .checked_add(1)
+            .ok_or_else(|| SourceError::budget("chunk_id"))?;
+        Ok(Some(children))
     }
 
     async fn read_chunk(
