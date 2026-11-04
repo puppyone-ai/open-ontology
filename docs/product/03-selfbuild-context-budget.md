@@ -112,6 +112,12 @@ Pack 继续由 `crates/oo-builder/src/role_pack.rs` 渲染，文件布局以 [06
 
 预检阶段用 §3 的公式对整库做一次“干跑”切分，输出：批数、预计输入/输出 token、按 provider 单价折算的费用区间、按当前并发估计的耗时。用户确认后才开始调用模型。
 
+## 7.1 S3 实测（2026-11-04）
+
+`g-s3-thousand-20261104/live-04`：PG 17.11 经 oo-load 装载 1,033 表、2,391 列；19 个社区均在规划预算内，7/7 声明外键映射，零 unresolved。
+审核摘要：15 个连通分量，孤立实体 14/22（63.64%）；G14 仍待审核。T4 数据刷新经 oo-load 到达 Agent DB，模型调用为零。
+实测含探测共 26 次调用、156,828 token（预留 530,874 / 上限 2M）、约 15 分钟；费用未知（provider 未给单价）。有 5 次补全超出预估输出预留，已按 provider 元数据上限执行，3 次不完整尝试经修复重请求补齐；输出预留估计需按 usage 校准收紧。无 Gateway 发布或业务验收声明。证据索引：`tools/pg-builder/tests/selfbuild-thousand-evidence.json`。
+
 ## 8. 外部参考（2026-11-03 检索）
 
 - GraphRAG（Leiden 社区 + 层级摘要）：https://arxiv.org/abs/2404.16130

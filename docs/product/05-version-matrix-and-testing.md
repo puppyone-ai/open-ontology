@@ -53,6 +53,8 @@
 | Db2 | `icr.io/db2_community/db2` | 否 | 本机 amd64 仿真 |
 | 达梦 / KingbaseES | 官方下载 tar 后 `docker load` | 视包而定 | 需人类下载并确认许可 |
 
+**SQL Server 现状（2026-11-04，S3-E-02）。** 2019 CU32、2022 CU20、2025 CU1 已有合成夹具上的快照、Change Tracking 与源端 C5 摘要证据，2019 另有 CDC 证据；三版本均通过并发写入下的 Agent DB 比对（小规模）与读端审计归因。仍是 `experimental`：完整夹具规模的 T0/T1、`oo-load` 持久增量周期与 2022/2025 CDC 待补。
+
 **amd64 镜像怎么跑。** 开发机是 Apple Silicon。MySQL 5.7、Oracle XE 11g/21c、SQL Server、Db2 只有 amd64 镜像，本期在本机 Docker Desktop 用 `--platform linux/amd64`（Rosetta）运行，已实测可用（Plan D1）。仿真比原生慢，套件的超时与吞吐预期对这些目标单独放宽并在证据中注明“仿真”。macOS 27 是最后一个完整支持 Rosetta 2 的版本，`oo-test` 因此保留 `--runner remote` 接口，必要时接入一台 x86 Linux 主机，无需改测试本身。
 
 **磁盘。** 全部镜像约需 40–60 GB。`oo-test` 每次运行使用带 `oo.run_id` 标签的容器与卷，结束时只清理自己创建的资源；不清理来历不明的容器或卷。
