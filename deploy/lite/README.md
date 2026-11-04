@@ -97,6 +97,17 @@ catalog is installed by this delivery.
   filtering. This does not test the production scheduler or seven services.
 - `a-s2d-control`: lifecycle regressions, workspace check and CLI/stack tests.
   Failed live attempt 1 is retained (fixture used a non-allowlisted error kind).
+- `a-s2d-operator-boundary-1`: the real `issue-token install` exits 1 against
+  the production lite PostgreSQL TLS policy. The server records
+  `connection requires a valid client certificate`; a CA-verified connection
+  presenting the fixture client certificate succeeds against that same DB.
+  Reproduce with `cargo build -p oo-gateway --bin issue-token --locked`, then
+  `python3 deploy/lite/test_operator_boundary.py --run-id <new-run-id>`.
+  The script succeeds only when it reproduces this blocker, not when operator
+  issuance works. Both fixture runners remove their own containers and secrets.
+  Worker client-auth remains a source-inspected limitation, not a live worker
+  test. Authenticated `/v1/meta` also delegates to published-data freshness;
+  a pre-publication health/meta-only operator contract needs lane B integration.
 - `a-s2c-endpoint`: endpoint-reference parsing/egress/lifecycle regressions,
   workspace check, CLI/stack tests and source-boundary inspection.
 - `a-s2c-runtime`: native arm64 runtime build and real `oo-load --help` launch.
