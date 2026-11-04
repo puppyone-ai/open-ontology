@@ -231,3 +231,5 @@ evidence run-id.
 | E213 | 2026-11-04 | integrate | S3-C-02, S4-C-03 | `…43d1f5406` | Lane C integrated; coordinator resolved the oo-load test-module conflicts with lane E's SQL Server arm (both kept; oo-load tests pass default and mysql-binlog) |
 | E214 | 2026-11-04 | dispatch | S4-A-01, S4-A-02 | card `A-S4-build-chain.md` on `v0.2/a-onboarding` | Lane A: self-review TUI, full `oo build` chain with resume, pinned-version drafts |
 | E215 | 2026-11-04 | dispatch | S3-E-02 | card `E-S3b-sqlserver.md` on `v0.2/e-oracle-engine` | Lane E: SQL Server in oo-test runner, full-fixture T0/T1/T8, durable C5/CT cycles |
+| E216 | 2026-11-04 | dispatch | S4-F-01 | native Opus executor on `v0.2/f-olap` (new worktree) | Owner asked to speed up with up to two native Opus lanes. Lane F: ClickHouse/Doris/StarRocks SourceEngine, partition refresh, T0–T2/T8 through oo-load |
+| E217 | 2026-11-04 | dispatch | S5-C-04, S5-D-03 | native Opus executor on `v0.2/c-mysql-engine` (lane C idle) | Lane N: T3 fault injection and T4 schema change on MySQL 5.7.44–9.5.0 and PostgreSQL 13.23–18.6; works ahead of the S4 exit, integration after it |
