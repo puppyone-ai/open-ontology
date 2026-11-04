@@ -3,6 +3,7 @@ from pathlib import Path
 import unittest
 
 from audit import classify, logminer_dml, trace_records
+from recursive_sql import LOGMINER_RECURSIVE_BLOCKS
 
 
 def statement(cursor, sql, depth, start, end, uid=0):
@@ -11,6 +12,16 @@ def statement(cursor, sql, depth, start, end, uid=0):
 
 
 class D11aTests(unittest.TestCase):
+    def test_recursive_blocks_are_exact_and_context_bound(self):
+        for sql, category in LOGMINER_RECURSIVE_BLOCKS.items():
+            record = {'sql': sql, 'depth': 1, 'uid': 0, 'logminer_context': True}
+            self.assertEqual(classify(record), category)
+            self.assertTrue(classify(record, 'c5').startswith('rejected'))
+            for changes in ({'depth': 0}, {'uid': 99}, {'logminer_context': False},
+                            {'sql': sql + ' DELETE FROM APP.T'},
+                            {'sql': sql.replace('SYS.', 'APP.').replace('SYSTEM.', 'APP.').replace('SELECT ', 'DELETE ')}):
+                self.assertTrue(classify({**record, **changes}).startswith('rejected'))
+
     def test_original_41_only_session_settings_allowed_by_d12(self):
         records = json.loads(Path(__file__).with_name('fixtures').joinpath('d11-original-41.json').read_text())['records']
         self.assertEqual(len(records), 41)

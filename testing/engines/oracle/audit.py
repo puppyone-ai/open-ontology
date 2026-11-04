@@ -4,6 +4,7 @@ import json
 import re
 
 from worker.worker import LOGMINER_CALLS
+from recursive_sql import LOGMINER_RECURSIVE_BLOCKS
 
 
 def normalized(sql):
@@ -64,6 +65,8 @@ def classify(record, mode="c1"):
                 "SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;")
     if sql == internal and recursive and record.get("uid") == 0 and record.get("logminer_context") is True:
         return "d11a_logminer_internal"
+    if sql in LOGMINER_RECURSIVE_BLOCKS and recursive and record.get("uid") == 0 and record.get("logminer_context") is True:
+        return LOGMINER_RECURSIVE_BLOCKS[sql]
     # Unified auditing can label a recursive DELETE as SELECT. Require
     # same-session trace correlation before overriding that audit label.
     traced_dml = (action == "SELECT" and record.get("trace_sources")
