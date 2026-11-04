@@ -1,0 +1,259 @@
+{
+  "todo": "S2-E-01",
+  "decision": "D12",
+  "status": "component_T2_C5_and_T7_passed",
+  "versions": [
+    {
+      "version_family": "23",
+      "version": {
+        "family": "oracle",
+        "major": 23,
+        "minor": 26,
+        "patch": 3,
+        "raw": "23.26.3.0.0"
+      },
+      "mode": "c5",
+      "run_id": "e-s2d-r2-c5-23",
+      "command": "python3 testing/engines/oracle/run.py --version 23 --run-id e-s2d-r2-c5-23 --incremental --c5-only",
+      "image": {
+        "tag": "gvenzl/oracle-free:23-slim",
+        "digest": "gvenzl/oracle-free@sha256:6d61d267a3b978c24c5ac1790e62e927416a0aec446bd86e4b3a1527562757bd",
+        "platform": "linux/arm64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": true,
+      "audit_records": 1343,
+      "trace_records": 201,
+      "rejected_count": 0,
+      "categories": {
+        "read_session": 4,
+        "d12_session_state": 4,
+        "read": 1526,
+        "d12_audit_trail": 5,
+        "d12_logon_bookkeeping": 2,
+        "d12_dictionary_bookkeeping": 3
+      },
+      "artifacts_sha256": {
+        "audit-result.json": "9a10cfbaa972503369d860ed6dbe4b7badb791f4c9b8210e2996b018710db113",
+        "test.log": "71b064480ccabc32596c8caa35c89edaade3f940716e5098a074d86490665fc0",
+        "image.json": "b6d8d46b3acc69e68761ead20b14b9eb914c47f30f24686dcae3b14f8bbddb47",
+        "probe.json": "67101a504dc7ebc24153b3557be6ebc0fea2902a8ab1430566a83520eebdd594",
+        "source-hashes.json": "7d93e49d6150ddc29716e21dd3361ecde9df94fb2cefc5de6508c5cefac21c85",
+        "source-hashes-match.json": "a16b5f6fc9cdba8371dccadf4b77791219b0871f5dfd05b113ef374bd9a51b3c"
+      }
+    },
+    {
+      "version_family": "23",
+      "version": {
+        "family": "oracle",
+        "major": 23,
+        "minor": 26,
+        "patch": 3,
+        "raw": "23.26.3.0.0"
+      },
+      "mode": "c1",
+      "run_id": "e-s2d-r2-c1-23",
+      "command": "python3 testing/engines/oracle/run.py --version 23 --run-id e-s2d-r2-c1-23 --incremental",
+      "image": {
+        "tag": "gvenzl/oracle-free:23-slim",
+        "digest": "gvenzl/oracle-free@sha256:6d61d267a3b978c24c5ac1790e62e927416a0aec446bd86e4b3a1527562757bd",
+        "platform": "linux/arm64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": true,
+      "audit_records": 601,
+      "trace_records": 404,
+      "rejected_count": 0,
+      "categories": {
+        "read_session": 2,
+        "d12_session_state": 2,
+        "read": 874,
+        "logminer_call": 30,
+        "d11a_logminer_object_dml": 40,
+        "d11a_logminer_commit": 19,
+        "d12_audit_trail": 3,
+        "d12_logon_bookkeeping": 1,
+        "d12_dictionary_bookkeeping": 1,
+        "d11a_logminer_internal": 17,
+        "d11a_logminer_metadata_block": 16
+      },
+      "artifacts_sha256": {
+        "audit-result.json": "270630eaf74bcfcabab5c259704faa3f6d26be0b000de1357c8b889aa1f8f397",
+        "test.log": "9ebbed433d6d2aa0e105f84086dbcdd582c9038ca90697830d6e47bc15baf037",
+        "image.json": "b6d8d46b3acc69e68761ead20b14b9eb914c47f30f24686dcae3b14f8bbddb47",
+        "probe.json": "e14f858953978c9e877a1edb05d380ca215611312ae732b8558ffaef448eb89e",
+        "source-hashes.json": "7d93e49d6150ddc29716e21dd3361ecde9df94fb2cefc5de6508c5cefac21c85",
+        "source-hashes-match.json": "a16b5f6fc9cdba8371dccadf4b77791219b0871f5dfd05b113ef374bd9a51b3c"
+      }
+    },
+    {
+      "version_family": "21",
+      "version": {
+        "family": "oracle",
+        "major": 21,
+        "minor": 3,
+        "patch": 0,
+        "raw": "21.3.0.0.0"
+      },
+      "mode": "c5",
+      "run_id": "e-s2d-r2-c5-21",
+      "command": "python3 testing/engines/oracle/run.py --version 21 --run-id e-s2d-r2-c5-21 --incremental --c5-only",
+      "image": {
+        "tag": "gvenzl/oracle-xe:21-slim",
+        "digest": "gvenzl/oracle-xe@sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d2b6d551aa79b2346f1ab8f792",
+        "platform": "linux/amd64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": true,
+      "audit_records": 1316,
+      "trace_records": 324,
+      "rejected_count": 0,
+      "categories": {
+        "read_session": 4,
+        "d12_session_state": 4,
+        "read": 1621,
+        "d12_dictionary_bookkeeping": 4,
+        "d12_audit_trail": 5,
+        "d12_logon_bookkeeping": 2
+      },
+      "artifacts_sha256": {
+        "audit-result.json": "f153c567fdcef0e54448419fdababb69d9fb899bdf12614c6aa32eaaf4533081",
+        "test.log": "6dda31b9a4f0f4f573b5d5f4e3d1dac508227870f002479e13d270307c9e769b",
+        "image.json": "8a3e121af6ec6f11d1e8a1510f50fc4b33eb93a38bad4aec84fccd8a05f89e2c",
+        "probe.json": "03eadf99284e15c8a2ea55dac5eb4ac843f198d3e8458e5beb4dccfc6884d2c6",
+        "source-hashes.json": "7d93e49d6150ddc29716e21dd3361ecde9df94fb2cefc5de6508c5cefac21c85",
+        "source-hashes-match.json": "a16b5f6fc9cdba8371dccadf4b77791219b0871f5dfd05b113ef374bd9a51b3c"
+      }
+    },
+    {
+      "version_family": "21",
+      "version": {
+        "family": "oracle",
+        "major": 21,
+        "minor": 3,
+        "patch": 0,
+        "raw": "21.3.0.0.0"
+      },
+      "mode": "c1",
+      "run_id": "e-s2d-r3-c1-21",
+      "command": "python3 testing/engines/oracle/run.py --version 21 --run-id e-s2d-r3-c1-21 --incremental",
+      "image": {
+        "tag": "gvenzl/oracle-xe:21-slim",
+        "digest": "gvenzl/oracle-xe@sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d2b6d551aa79b2346f1ab8f792",
+        "platform": "linux/amd64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": true,
+      "audit_records": 667,
+      "trace_records": 393,
+      "rejected_count": 0,
+      "categories": {
+        "read_session": 2,
+        "d12_session_state": 2,
+        "read": 940,
+        "logminer_call": 28,
+        "d11a_logminer_object_dml": 34,
+        "d11a_logminer_commit": 20,
+        "d12_dictionary_bookkeeping": 3,
+        "d12_audit_trail": 3,
+        "d12_logon_bookkeeping": 1,
+        "d11a_logminer_internal": 15,
+        "d11a_logminer_metadata_block": 12
+      },
+      "artifacts_sha256": {
+        "audit-result.json": "594fdfbb4e020563c82531ea53703b6b501d1d482a2a468088bb0faa822eab19",
+        "test.log": "aea930aaf4ab737548499d13e37678f96d8073c9a287c75df7d4db473f44dbfc",
+        "image.json": "8a3e121af6ec6f11d1e8a1510f50fc4b33eb93a38bad4aec84fccd8a05f89e2c",
+        "probe.json": "115fdfcb847e1750ecb5cf01e5e995f5fe7a12e3a00315d793bf0bc8eb1d7448",
+        "source-hashes.json": "53344c2eb8ec5a579466d917b8621b44ef9c0dbf908abcd7437ed4f97fd4869f",
+        "source-hashes-match.json": "a16b5f6fc9cdba8371dccadf4b77791219b0871f5dfd05b113ef374bd9a51b3c"
+      }
+    },
+    {
+      "version_family": "11",
+      "version": {
+        "family": "oracle",
+        "major": 11,
+        "minor": 2,
+        "patch": 0,
+        "raw": "11.2.0.2.0"
+      },
+      "mode": "c5",
+      "run_id": "e-s2d-r2-c5-11",
+      "command": "python3 testing/engines/oracle/run.py --version 11 --run-id e-s2d-r2-c5-11 --incremental --c5-only --worker-image oo-e-oracle-worker:e-fix-worker-v4",
+      "image": {
+        "tag": "gvenzl/oracle-xe:11",
+        "digest": "gvenzl/oracle-xe@sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8",
+        "platform": "linux/amd64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": true,
+      "audit_records": 1185,
+      "trace_records": 484,
+      "rejected_count": 0,
+      "categories": {
+        "read_session": 10,
+        "read": 1641,
+        "d12_dictionary_bookkeeping": 3,
+        "d12_audit_trail": 10,
+        "d12_session_state": 5
+      },
+      "artifacts_sha256": {
+        "audit-result.json": "78f89a3d3b109205b025465b905e5fb3c65346b77d3ecc9da87cd12b60aa7226",
+        "test.log": "39929b77a574492ce4a6f82c48696a2a996c57c045f82d771701a3ac4af1dac2",
+        "image.json": "4658f191a02a0e2961c55c2d1ef748e5182f1e812841525c93137da0e481c46c",
+        "probe.json": "372502bbc769625e6036a80c49125a15325a152067888bdec7005e98b814cf53",
+        "source-hashes.json": "53344c2eb8ec5a579466d917b8621b44ef9c0dbf908abcd7437ed4f97fd4869f",
+        "source-hashes-match.json": "a16b5f6fc9cdba8371dccadf4b77791219b0871f5dfd05b113ef374bd9a51b3c"
+      }
+    },
+    {
+      "version_family": "11",
+      "version": {
+        "family": "oracle",
+        "major": 11,
+        "minor": 2,
+        "patch": 0,
+        "raw": "11.2.0.2.0"
+      },
+      "mode": "c1",
+      "run_id": "e-s2d-r2-c1-11",
+      "command": "python3 testing/engines/oracle/run.py --version 11 --run-id e-s2d-r2-c1-11 --incremental --worker-image oo-e-oracle-worker:e-fix-worker-v4",
+      "image": {
+        "tag": "gvenzl/oracle-xe:11",
+        "digest": "gvenzl/oracle-xe@sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8",
+        "platform": "linux/amd64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": true,
+      "audit_records": 310,
+      "trace_records": 256,
+      "rejected_count": 0,
+      "categories": {
+        "read_session": 2,
+        "read": 492,
+        "logminer_call": 32,
+        "d12_audit_trail": 2,
+        "d12_session_state": 1,
+        "d12_dictionary_bookkeeping": 2,
+        "d11a_logminer_internal": 9,
+        "d11a_logminer_object_dml": 15,
+        "d11a_logminer_commit": 2,
+        "d11a_logminer_metadata_block": 9
+      },
+      "artifacts_sha256": {
+        "audit-result.json": "a564e9de8834a2ee6c95e8a461b4bdf65e8b066ba18283f25c9dcac5ab181619",
+        "test.log": "47795bc7a0bfa6db4950f8e500e4ceffc06bc8bcdd56a8deabcd104676244cee",
+        "image.json": "4658f191a02a0e2961c55c2d1ef748e5182f1e812841525c93137da0e481c46c",
+        "probe.json": "c7b871ac6b4b1df6545acc6e845ae64bcbfdc03810cbede897114227f6a31bf7",
+        "source-hashes.json": "53344c2eb8ec5a579466d917b8621b44ef9c0dbf908abcd7437ed4f97fd4869f",
+        "source-hashes-match.json": "a16b5f6fc9cdba8371dccadf4b77791219b0871f5dfd05b113ef374bd9a51b3c"
+      }
+    }
+  ],
+  "limits": [
+    "23 target is 23.26.3 (26ai banner), not the older 23ai build.",
+    "C1 remains explicit opt-in; 19c is not tested.",
+    "Component C5 is not durable Agent DB publication. Historical D11/D11a failures are retained."
+  ]
+}

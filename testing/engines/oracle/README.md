@@ -284,3 +284,22 @@ The full connector suite has one unrelated macOS failure:
 reports `group_signal=rejected` rather than `sent`. The same test fails on
 archived base `f27d1a2c0`; with that one test filtered, 253 pass and 22 are
 ignored. Ignored database tests are not counted as real engine passes.
+
+## S2d: D12 attribution (2026-11-04)
+
+`s2d-d12-evidence-summary.json` records new live C5 and C1 runs on 23.26.3,
+21.3 and 11.2: all six component tests and T7 classifications pass. This
+supersedes the strict D11/D11a verdict for these new runs only; historical
+failed evidence above is unchanged.
+
+The classifier lists session settings, recursive system login/dictionary
+bookkeeping, system audit trails, and D11a LogMiner objects/internal blocks
+separately. It rejects top-level writes, unknown calls, foreign objects and
+missing attribution. Comment-prefixed blank-object INSERTs are resolved from
+the trace SQL target, parser UID, recursion depth and SQL ID, never ignored.
+Internal LogMiner blocks use exact reviewed SQL plus an enclosing same-session
+LogMiner execution, not a package-name prefix allowance. C5 has its own
+non-LogMiner reader and audit.
+
+These are source component/T7 results, not durable Agent DB publication.
+19c remains untested; C1 still requires explicit opt-in.
