@@ -48,12 +48,13 @@ pub mod olap;
 #[cfg(feature = "oracle")]
 pub mod oracle;
 pub mod postgres;
-#[cfg(feature = "sqlserver")]
-pub mod sqlserver;
 mod session;
 mod snapshot;
 mod sql;
+#[cfg(feature = "sqlserver")]
+pub mod sqlserver;
 mod stream;
+pub mod transport;
 pub mod types;
 
 pub use bounded_read::{WINDOW_PAGE_ROWS_MAX, WINDOW_PROTOCOL, WindowReceipt, WindowRequest};

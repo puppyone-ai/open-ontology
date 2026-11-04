@@ -130,6 +130,7 @@ enum ExecError {
 
 pub struct MysqlEngine {
     family: EngineFamily,
+    tunnel: Option<std::sync::Arc<crate::transport::ssh::Tunnel>>,
     config: MysqlConfig,
     password: Zeroizing<String>,
     options: EngineOptions,
@@ -371,6 +372,7 @@ impl MysqlEngine {
         let duty = DutyCycle::new(options.budget.duty_cycle_percent);
         Self {
             family: EngineFamily::Mysql,
+            tunnel: None,
             config,
             password,
             options,
@@ -388,6 +390,25 @@ impl MysqlEngine {
 
     pub fn options(&self) -> &EngineOptions {
         &self.options
+    }
+
+    /// Retain original TLS identity while routing every connection, including
+    /// resumed chunks, through the same lifetime-managed transport.
+    pub fn with_tunnel(
+        mut self,
+        tunnel: std::sync::Arc<crate::transport::ssh::Tunnel>,
+    ) -> Result<Self> {
+        if self.conn.is_some() || !tunnel.forwards(&self.config.mysql_host, self.config.mysql_port)
+        {
+            return Err(SourceError::config("ssh_target"));
+        }
+        if self.config.mysql_tls_server_name.is_none() {
+            self.config.mysql_tls_server_name = Some(self.config.mysql_host.clone());
+        }
+        self.config.mysql_host = tunnel.address().ip().to_string();
+        self.config.mysql_port = tunnel.address().port();
+        self.tunnel = Some(tunnel);
+        Ok(self)
     }
 
     /// Resource receipt (T8). `peak_connections` counts this engine's own

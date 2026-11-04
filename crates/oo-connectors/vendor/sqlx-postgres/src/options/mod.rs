@@ -16,6 +16,7 @@ mod ssl_mode;
 #[derive(Debug, Clone)]
 pub struct PgConnectOptions {
     pub(crate) host: String,
+    pub(crate) tcp_address: Option<std::net::SocketAddr>,
     pub(crate) port: u16,
     pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
@@ -59,6 +60,7 @@ impl PgConnectOptions {
             port: 5432,
             host: String::new(),
             socket: None,
+            tcp_address: None,
             username: String::new(),
             password: None,
             database: None,
@@ -105,6 +107,7 @@ impl PgConnectOptions {
             port,
             host,
             socket: None,
+            tcp_address: None,
             username,
             password: var("PGPASSWORD").ok(),
             database,
@@ -157,6 +160,12 @@ impl PgConnectOptions {
     /// ```
     pub fn host(mut self, host: &str) -> Self {
         host.clone_into(&mut self.host);
+        self
+    }
+
+    /// Route TCP through a local transport without changing the TLS server name.
+    pub fn tcp_address(mut self, address: std::net::SocketAddr) -> Self {
+        self.tcp_address = Some(address);
         self
     }
 

@@ -30,6 +30,8 @@ required-features = ["oracle"]
 # Already locked by other workspace crates; only mysql-binlog uses it here.
 futures-util = { version = "=0.3.34", optional = true, default-features = false, features = ["std"] }
 oo-core = { path = "../oo-core" }
+oo-stack = { path = "../oo-stack" }
+russh = { version = "=0.65.0", default-features = false, features = ["ring"] }
 # Series 60, the same crates the workspace Arrow type names describe.
 # Default features stay off. `public-dependency` is unstable on Rust 1.94,
 # so these stay private. `TypedBatch::record_batch` returns `RecordBatch`.
@@ -57,7 +59,7 @@ sqlx-core = { version = "=0.9.0", default-features = false, features = [
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
-tokio = { version = "=1.53.3", default-features = false, features = ["time"] }
+tokio = { version = "=1.53.3", default-features = false, features = ["time", "net", "rt", "macros", "sync", "io-util"] }
 mysql_async = { version = "=0.37.1", optional = true, default-features = false, features = ["minimal-rust", "native-tls-tls"] }
 # The source cursor uses the driver without its optional Arrow 59 dependency.
 # All product IPC continues to use the workspace's Arrow 60 types.

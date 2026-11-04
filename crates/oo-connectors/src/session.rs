@@ -510,6 +510,10 @@ impl PgConnector {
             return Err(SourceError::config("startup_options"));
         }
         let options = options.disable_statement_logging();
+        let options = match self.config.tunnel_address() {
+            Some(address) => options.tcp_address(address),
+            None => options,
+        };
         let connect_timeout = self.config.budget().connect_timeout();
         let connect = options.connect();
         let conn = match tokio::time::timeout(connect_timeout, connect).await {

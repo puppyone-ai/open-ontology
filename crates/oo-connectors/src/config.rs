@@ -336,6 +336,7 @@ impl TableSelection {
 /// Complete input to [`crate::PgConnector::new`].
 #[derive(Clone)]
 pub struct PgSourceConfig {
+    tunnel: Option<std::sync::Arc<crate::transport::ssh::Tunnel>>,
     source_id: SourceId,
     endpoint: PgEndpoint,
     credentials: PgCredentials,
@@ -360,6 +361,7 @@ impl PgSourceConfig {
             return Err(SourceError::config("selection_budget"));
         }
         Ok(Self {
+            tunnel: None,
             source_id,
             endpoint,
             credentials,
@@ -373,6 +375,22 @@ impl PgSourceConfig {
     /// Trusted source id.
     pub fn source_id(&self) -> &SourceId {
         &self.source_id
+    }
+
+    /// Keep the transport alive and retain the original database TLS identity.
+    pub fn with_tunnel(
+        mut self,
+        tunnel: std::sync::Arc<crate::transport::ssh::Tunnel>,
+    ) -> Result<Self, SourceError> {
+        if !tunnel.forwards(self.endpoint.host(), self.endpoint.port()) {
+            return Err(SourceError::config("ssh_target"));
+        }
+        self.tunnel = Some(tunnel);
+        Ok(self)
+    }
+
+    pub(crate) fn tunnel_address(&self) -> Option<std::net::SocketAddr> {
+        self.tunnel.as_ref().map(|t| t.address())
     }
 
     /// Endpoint the caller already chose.
