@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 13,
-  "supersedes_revision": 12,
-  "supersedes_baseline_head": "3a8d4f8f350eb3fac15e8cbdca1e48650f2d44c9",
-  "supersedes_sha256": "50b96574a8843ef95636d44e172871a5feb52e8651690364de2f291ef038fdc8",
-  "review_record": "specs/source-baseline-revision-13.md",
-  "baseline_head": "455032af270b5cc2f7062fa152fb99a07ce8f753",
+  "revision": 14,
+  "supersedes_revision": 13,
+  "supersedes_baseline_head": "455032af270b5cc2f7062fa152fb99a07ce8f753",
+  "supersedes_sha256": "f95060761029c75ffd40f89a717d69fbd34a8ffd621606470fdf7029d020c6fd",
+  "review_record": "specs/source-baseline-revision-14.md",
+  "baseline_head": "439f4d95ef29a9b838f8ff6135e7380e14742d52",
   "source_count": 26,
   "sources": [
     {
@@ -139,9 +139,9 @@
     },
     {
       "path": "docs/product/03-selfbuild-context-budget.md",
-      "sha256": "7af2abec599b47a45100b9ef343625e8b101c9efa561217ca8a2b8a3bf319ea2",
-      "bytes": 8346,
-      "lines": 122
+      "sha256": "07ac0b336d287d7d4cb15bdbc723e1acd743f7e5625077b6e11558178a594ac6",
+      "bytes": 9135,
+      "lines": 128
     },
     {
       "path": "docs/product/04-onboarding-and-gateway-binding.md",
@@ -151,9 +151,9 @@
     },
     {
       "path": "docs/product/05-version-matrix-and-testing.md",
-      "sha256": "97e65a06d096785be8f99926fd60c8e24bf7a8dc8b743aaf9842945a3e298f67",
-      "bytes": 10289,
-      "lines": 117
+      "sha256": "f46ddedbc4c9043f621f84ac4fce25d257b49752ab9dabf405ccc93ff083347c",
+      "bytes": 10677,
+      "lines": 119
     },
     {
       "path": "docs/product/README.md",
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); Oracle C1 transaction floor (02 §5.1)"
+  "review_status": "owner self-review (D6); thousand-table Self-build and SQL Server status"
 }
