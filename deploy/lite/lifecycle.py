@@ -133,12 +133,13 @@ def subnet(project,env):
     raise ValueError('LITE_SUBNET_UNAVAILABLE')
 
 
-def health(root,stack):
+def health(root,stack,port=8443):
     client=root/'health-client.json'
     if not client.exists():
         return {'status':'unmeasured','nearest_credential_expiry_ms':None}
     config=json.loads(read_private(client))
-    url=urllib.parse.urlsplit(stack['gateway']['public_url'])
+    public=stack['gateway']['public_url']
+    url=urllib.parse.urlsplit(f'https://localhost:{port}/' if public=='auto' else public)
     if url.scheme!='https' or not url.hostname or url.username or url.password or url.query or url.fragment:
         raise ValueError('LITE_HEALTH_URL')
     # Health credentials must belong to this deployment, never arbitrary paths.
@@ -196,7 +197,24 @@ def provision_retained_login(root,argv,env):
     if result.returncode:
         raise ValueError('LITE_GATEWAY_RETAINED_GRANT')
 
-def operator_bootstrap(root,argv,env,stack):
+def gateway_port(stack,saved):
+    """The host loopback port for this deployment's Gateway."""
+    url=stack['gateway']['public_url']
+    if url!='auto':
+        parts=urllib.parse.urlsplit(url)
+        if parts.scheme!='https' or parts.hostname not in ('localhost','127.0.0.1'):
+            raise ValueError('LITE_PUBLIC_URL_LOCAL_HTTPS')
+        return parts.port or 443
+    if saved.get('gateway_port'):
+        return saved['gateway_port']
+    if saved:
+        return 8443  # Deployments created before the port was recorded.
+    import socket
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1',0))
+        return sock.getsockname()[1]
+
+def operator_bootstrap(root,argv,env,stack,port=8443):
     """Issue only the reserved operator role, never a user's data-plane token."""
     pki=root/'pki'
     lock=os.open(pki/'operator.lock',os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
@@ -204,7 +222,7 @@ def operator_bootstrap(root,argv,env,stack):
         fcntl.flock(stream,fcntl.LOCK_EX)
         audience=stack['gateway']['public_url']
         if audience=='auto':
-            audience='https://localhost:8443/'
+            audience=f'https://localhost:{port}/'
         grant={'kind':'client','project_id':'lite-operator','principal_id':'operator',
                'role':'lite_operator','claims':[],'policy_version':'bootstrap',
                'knowledge_version':'unpublished','audience_url':audience,
@@ -246,6 +264,137 @@ def operator_bootstrap(root,argv,env,stack):
             'token':'operator-token','ca':'lite-ca-cert',
             'cert':'lite-admin-cert','key':'lite-admin-key'}).encode())
 
+LOOPBACK={'localhost','127.0.0.1','::1'}
+DATA_LOGIN='oo_gateway_login'
+
+def copy_private(src,dest):
+    data=read_private(src)
+    if dest.exists():
+        if read_private(dest)!=data:raise ValueError('LITE_PROVISION_CHANGED')
+    else:write(dest,data)
+
+def save_json(path,value):
+    data=json.dumps(value,sort_keys=True).encode()
+    if path.exists() and read_private(path)==data:return
+    write(path,data)
+
+def compose_input(argv,env,args,data,code,timeout=300):
+    result=subprocess.run(['docker',*argv,*args],input=data,capture_output=True,env=env,timeout=timeout)
+    if result.returncode:raise ValueError(code)
+    return result.stdout
+
+def runtime_stack(stack):
+    """The runtime's copy: a loopback source is this host, not the container."""
+    copy=json.loads(json.dumps(stack))
+    for source in copy['sources']:
+        if source['host'] in LOOPBACK:source['host']='host.docker.internal'
+    return copy
+
+def provision_retained(root,argv,env,request,port):
+    """Install the retained build chain's configuration inside this deployment.
+
+    D16: `oo build` runs every stage in the runtime image; this derives what it
+    needs from stack.yaml and the deployment's own credentials. Secrets are
+    copied between private files or sent on stdin, never placed in argv.
+    """
+    stack=request['stack']
+    if len(stack['sources'])!=1:raise ValueError('LITE_BUILD_ONE_SOURCE')
+    source=stack['sources'][0]['id']
+    pki,work,home=root/'pki',root/'work',root/'home'
+    operator,gateway,consumer=work/'operator',work/'operator/gateway',root/'consumer'
+    for path in (operator,work/'build',gateway,consumer,*(gateway/n for n in ('packs','wal','reviewed','collector'))):
+        private_dir(path)
+    store=home/'.config/open-ontology/secrets'
+    # Agent DB schema: the runtime's checked installer, idempotent by design.
+    compose_input(argv,env,['run','--rm','--no-deps','-T','--entrypoint','install-retained-target',
+        'operator-bootstrap'],json.dumps({'protocol':'oo.pipeline.install-retained-target/v1',
+        'host':'agent-db','port':5432,'database':'postgres','user':'postgres',
+        'password_file':'/pki/lite-admin-password','ca_file':'/pki/lite-ca-cert'}).encode(),
+        'LITE_AGENT_DB_INSTALL',600)
+    if not (pki/'gateway-data-password').exists():
+        write(pki/'gateway-data-password',secrets.token_hex(32).encode())
+    password=read_private(pki/'gateway-data-password').decode()
+    if not re.fullmatch('[0-9a-f]{64}',password):raise ValueError('LITE_PROVISION_PASSWORD')
+    sql=("SET log_statement='none'; SET log_min_error_statement='panic';\n"
+         f"SELECT format('CREATE ROLE {DATA_LOGIN} LOGIN NOINHERIT PASSWORD %L','{password}') "
+         f"WHERE NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='{DATA_LOGIN}') \\gexec\n"
+         "SELECT 'CREATE ROLE oo_r_owner NOLOGIN NOINHERIT' "
+         "WHERE NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='oo_r_owner') \\gexec\n"
+         f"GRANT oo_r_owner TO {DATA_LOGIN} WITH INHERIT FALSE, SET TRUE;\n"
+         f"GRANT CONNECT ON DATABASE postgres TO {DATA_LOGIN};\n"
+         f"GRANT USAGE ON SCHEMA _oo,oo_publish_target TO {DATA_LOGIN};\n"
+         f"GRANT SELECT ON ALL TABLES IN SCHEMA _oo,oo_publish_target TO {DATA_LOGIN};\n"
+         "GRANT EXECUTE ON FUNCTION _oo.lookup_physical_mapping(text,text,bigint,text,text,text,text) "
+         f"TO {DATA_LOGIN};\n"
+         f"ALTER ROLE {DATA_LOGIN} SET default_transaction_read_only=on;\n")
+    compose_input(argv,env,['exec','-T','agent-db','psql','-X','-q','-v','ON_ERROR_STOP=1',
+                            '-U','postgres'],sql.encode(),'LITE_GATEWAY_DATA_LOGIN')
+    # Gateway operator directory: tokens in control-db, data in agent-db.
+    for src,dest in [('token-runtime-password','password'),('lite-ca-cert','ca.crt'),
+                     ('lite-gateway-key','tls.key'),('lite-gateway-cert','tls.crt'),
+                     ('gateway-data-password','data-password'),('token-admin-password','token-admin-password')]:
+        copy_private(pki/src,gateway/dest)
+    save_json(gateway/'endpoint.json',{'host':'control-db','port':5432,'database':'postgres'})
+    save_json(gateway/'data-endpoint.json',{'host':'agent-db','port':5432,'database':'postgres'})
+    public=f'https://localhost:{port}'
+    save_json(gateway/'config.json',{'listen':f'0.0.0.0:{port}','transport':'tls','audience':public,
+        'runtime_user':'oo_token_runtime','password_file':'password','ca_file':'ca.crt',
+        'endpoint_file':'endpoint.json','pack_dir':'packs','body_limit':1048576,
+        'request_timeout_ms':30000,'global_concurrency':8,'tls_key_file':'tls.key',
+        'tls_chain_file':'tls.crt','client_ca_file':'ca.crt','handshake_timeout_ms':10000,
+        'data_endpoint_file':'data-endpoint.json','data_password_file':'data-password',
+        'data_ca_file':'ca.crt','data_user':DATA_LOGIN,'wal_dir':'wal','reviewed_dir':'reviewed',
+        'audit_collector_dir':'collector','token_admin_password_file':'token-admin-password',
+        'token_admin_workload':'urn:oo:workload:admin'})
+    # Runtime-side identities. The admin pair issues the first user's token;
+    # the owner's CLI receives a separate consumer workload certificate.
+    admin=read_private(pki/'lite-admin-cert')+read_private(pki/'lite-admin-key')
+    if not (pki/'lite-admin.pem').exists():write(pki/'lite-admin.pem',admin)
+    copy_private(pki/'lite-ca-cert',consumer/'ca.crt')
+    pem=read_private(pki/'lite-consumer-cert')+read_private(pki/'lite-consumer-key')
+    if not (consumer/'client.pem').exists():write(consumer/'client.pem',pem)
+    copy_private(pki/'lite-admin-password',store/'oo-lite-agent-db-password')
+    copy_private(pki/'lite-ca-cert',store/'oo-lite-ca')
+    admin_password=read_private(pki/'lite-admin-password').decode().strip()
+    if not re.fullmatch('[0-9a-f]{64}',admin_password):raise ValueError('LITE_PROVISION_PASSWORD')
+    services=''.join(f'[{name}]\nhost={name}-db\nport=5432\ndbname=postgres\nuser=postgres\n'
+                     'sslmode=verify-full\nsslrootcert=/pki/lite-ca-cert\n'
+                     # tls-server-end-point binding has no digest for Ed25519 leaves.
+                     'channel_binding=disable\n' for name in ('agent','control'))
+    for path,data in [(home/'.pg_service.conf',services.encode()),
+                      (home/'.pgpass',''.join(f'{name}-db:5432:postgres:postgres:{admin_password}\n'
+                                             for name in ('agent','control')).encode())]:
+        if not path.exists() or read_private(path)!=data:write(path,data)
+    save_json(work/'build/stack.json',runtime_stack(stack))
+    save_json(operator/'target.json',{'host':'agent-db','port':5432,'database':'postgres','user':'postgres',
+        'password':{'secret_ref':'oo-lite-agent-db-password'},'tls_ca':{'secret_ref':'oo-lite-ca'},
+        'run_id':'initial'})
+    save_json(operator/'publisher.json',{'host':'agent-db','port':5432,'database':'postgres',
+        'user':'postgres','password_file':'/pki/lite-admin-password','ca_file':'/pki/lite-ca-cert'})
+    save_json(operator/'model.json',{'model':stack['model']})
+    save_json(operator/'build-runtime.json',{'protocol':'oo.build-runtime/v1','source_id':source,
+        'library_id':'library','secrets_dir':'/home/oo/.config/open-ontology/secrets',
+        'builder_script':'/opt/oo/pg-builder/retained_build.py',
+        'builder':{'project':'lite','psql_command':['psql','service=agent'],
+                   'model':{'stack':'/work/operator/model.json','egress':'/opt/oo/model_egress.py','call_limit':6}},
+        'publisher_config':'/work/operator/publisher.json','gateway_login':DATA_LOGIN,
+        'gateway':{'runtime_dir':'/work/operator/gateway','gateway_url':public,
+                   'ca_file':'/pki/lite-ca-cert','client_pem':'/pki/lite-admin.pem',
+                   'prompt_ca_file':str(consumer/'ca.crt'),'prompt_client_pem':str(consumer/'client.pem'),
+                   'first_user_grant':{'project_id':'lite','principal_id':'owner','role':'oo_r_owner',
+                       'claims':{},'policy_version':'draft-v1','knowledge_version':'draft-v1',
+                       'audience_url':public,'ttl_ms':7776000000,'purpose':'first build'}}})
+    # Gateway needs a reviewed publication; the first `oo build` publishes it
+    # (verifying it inside the runtime) and then reconciles this deployment.
+    if (gateway/'reviewed/library/library.json').exists():
+        docker(argv+['--profile','integration','up','--detach','--no-deps','gateway'],env)
+
+def retained_function_exists(argv,env):
+    result=subprocess.run(['docker',*argv,'exec','-T','agent-db','psql','-X','-qAt','-U','postgres','-c',
+        "SELECT to_regprocedure('_oo.native_library_retained_table(text)') IS NOT NULL"],
+        capture_output=True,env=env,timeout=30)
+    return result.returncode==0 and result.stdout.strip()==b't'
+
 def main(request):
     root=Path(request['root'])
     action=request['action']
@@ -260,14 +409,20 @@ def main(request):
         raise ValueError('LITE_IMAGE_DIGEST_REQUIRED')
     saved=json.loads(read_private(owner)) if owner.exists() else {}
     lane=saved.get('lane',os.environ.get('OO_LITE_LANE','a'))
-    if not re.fullmatch('[a-z]',lane):raise ValueError('LITE_LANE')
+    if not re.fullmatch('[a-z][a-z0-9]{0,7}',lane):raise ValueError('LITE_LANE')
     env.update(OO_LITE_STATE=str(root),OO_LITE_RUNTIME_IMAGE=image,OO_LITE_UID=str(os.getuid()),
                OO_LITE_GID=str(os.getgid()),OO_LITE_LANE=lane)
     network=saved.get('subnet')
     if not network:network=subnet(project,env)
     if not ipaddress.ip_network(network).is_private:raise ValueError('LITE_SUBNET')
     env['OO_LITE_SUBNET']=network
+    port=gateway_port(request['stack'],saved) if action=='up' else saved.get('gateway_port',8443)
     argv=['compose','--project-name',project,'--file',str(root/'compose.yaml')]
+    if action=='up' and request.get('retained'):
+        write(root/'compose.local.yaml',json.dumps({'services':{'gateway':{
+            'ports':[f'127.0.0.1:{port}:{port}']}}}).encode())
+    if (root/'compose.local.yaml').exists():
+        argv+=['--file',str(root/'compose.local.yaml')]
     ids=docker(['ps','-aq','--filter','label=com.docker.compose.project='+project],env).decode().split()
     for cid in ids:
         labels=json.loads(docker(['inspect','--format','{{json .Config.Labels}}',cid],env))
@@ -301,10 +456,14 @@ def main(request):
             dest=root/('work' if name=='scheduler.py' else '')/name
             write(dest,request['templates'][name].encode())
         write(root/'work/stack.json',json.dumps(request['stack']).encode())
-        write(owner,json.dumps({'project':project,'image':image,'lane':lane,'subnet':network}).encode())
+        write(owner,json.dumps({'project':project,'image':image,'lane':lane,'subnet':network,
+                                'gateway_port':port}).encode())
         docker(argv+['up','--detach','--wait','--wait-timeout','120'],env)
-        operator_bootstrap(root,argv,env,request['stack'])
-        provision_retained_login(root,argv,env)
+        operator_bootstrap(root,argv,env,request['stack'],port)
+        if request.get('retained'):
+            provision_retained(root,argv,env,request,port)
+        if not request.get('retained') or retained_function_exists(argv,env):
+            provision_retained_login(root,argv,env)
     elif action=='down':
         # Keep database volumes and credentials. No prune, orphan or volume flags.
         docker(argv+['--profile','integration','down'],env)
@@ -314,7 +473,7 @@ def main(request):
     services=[service_status(r) for r in rows]
     gateway={'status':'unmeasured','nearest_credential_expiry_ms':None}
     if action!='down':
-        try:gateway=health(root,request['stack'])
+        try:gateway=health(root,request['stack'],port)
         except Exception:gateway={'status':'unavailable','nearest_credential_expiry_ms':None}
     history=({'last_success':None,'last_failure':None,'next_due':None,
               'schedule_basis':'control_db','schedule_status':'stopped'}
@@ -326,10 +485,20 @@ def main(request):
              and gateway['status']=='measured' and history['schedule_status']=='measured'
              and history['last_success'] is not None and history['next_due'] is not None
              and (history['last_failure'] is None or history['last_failure']<history['last_success']))
-    return {'status':'stopped' if action=='down' else 'healthy' if healthy else 'foundations_only',
-            'services':services,'gateway_health':gateway,**history,
-            'pending':[] if healthy else ['worker admission/migrations','scheduler bindings',
-                'Builder target binding and publication','Gateway operator configuration'],
+    status='stopped' if action=='down' else 'healthy' if healthy else 'foundations_only'
+    pending=[] if healthy else ['worker admission/migrations','scheduler bindings',
+        'Builder target binding and publication','Gateway operator configuration']
+    build=None
+    if status=='foundations_only' and (root/'work/operator/build-runtime.json').exists():
+        # Retained chain provisioned (D16): `oo build` runs in this runtime.
+        # A completed first build is not a measured scheduled cycle.
+        chain=root/'work/build/.oo/chain.json'
+        try:build=json.loads(read_private(chain))['status'] if chain.exists() else 'not_started'
+        except Exception:build='unavailable'
+        status='retained_ready'
+        pending=['oo build' if build!='complete' else 'scheduled retained cycle']
+    return {'status':status,'services':services,'gateway_health':gateway,**history,
+            'pending':pending,'build':build,'gateway_url':f'https://localhost:{port}' if build else None,
             'publication':'live' if healthy else 'unmeasured','healthy':healthy}
 
 if __name__=='__main__':
