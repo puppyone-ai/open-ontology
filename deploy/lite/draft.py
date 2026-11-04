@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import re
 import stat
 import subprocess
 import sys
@@ -65,6 +66,30 @@ def check_resume(state, fingerprint, root):
                 raise ValueError('RESUME_ARTIFACT_CHANGED')
 
 
+def loaded_postgres(receipts,target,source_id,tables,secret_root,binaries):
+    expected={(t['schema'],t['table']) for t in tables}
+    actual=set()
+    views=[]
+    for receipt in receipts:
+        table=receipt.get('table',{})
+        identity=(table.get('schema'),table.get('name'))
+        relation=receipt.get('target','')
+        if (receipt.get('protocol')!='oo.load/v1' or receipt.get('source')!=source_id
+                or receipt.get('run_id')!=target['run_id']
+                or receipt.get('gateway_published') is not False
+                or receipt.get('publication')!='local_table_view'
+                or identity not in expected or identity in actual
+                or not re.fullmatch(r'oo_load_data\.[a-z0-9_]+',relation)):
+            raise ValueError('DRAFT_LOAD_RECEIPT')
+        actual.add(identity)
+        views.append({'schema':'oo_load_data','table':relation.split('.')[1]})
+    if actual!=expected or len({v['table'] for v in views})!=len(views):
+        raise ValueError('DRAFT_LOAD_COVERAGE')
+    return {'host':target['host'],'port':target['port'],'database':target['database'],
+            'username':target['user'],'password_file':str(secret_root/target['password']['secret_ref']),
+            'ca_file':str(secret_root/target['tls_ca']['secret_ref']),
+            'catalog_bin':str(binaries/'oo-pipeline'),'tables':views}
+
 def main(request):
     root = Path(request['state_dir'])
     root.mkdir(mode=0o700, exist_ok=True)
@@ -82,6 +107,12 @@ def main(request):
 def build(request, root):
     stack = request['stack']
     fingerprint_input = stack
+    target = None
+    if 'load_target' in request:
+        target = json.loads(read_private(Path(request['load_target'])))
+        if not target.get('tls_ca') or target.get('local_fixture'):
+            raise ValueError('DRAFT_AGENT_TLS_REQUIRED')
+        fingerprint_input = {'stack': stack, 'load_target': target}
     if 'builder_postgres' in request:
         fingerprint_input = {'stack': stack, 'builder_postgres': request['builder_postgres']}
     fingerprint = digest(json.dumps(fingerprint_input, sort_keys=True).encode())
@@ -125,7 +156,8 @@ def build(request, root):
                 report = json.loads(read_private(root/'doctor.json'))
                 if report.get('status') != 'ok':
                     raise ValueError('PREFLIGHT_BLOCKED')
-                if len(stack['sources']) != 1 or stack['sources'][0]['engine'].split('-')[0] not in ('postgres','postgresql'):
+                if len(stack['sources']) != 1 or (target is None and 'builder_postgres' not in request
+                        and stack['sources'][0]['engine'].split('-')[0] not in ('postgres','postgresql')):
                     raise ValueError('DRAFT_ENGINE_PENDING_OO_LOAD')
                 source = stack['sources'][0]
                 secret_root = Path.home()/'.config/open-ontology/secrets'
@@ -140,6 +172,22 @@ def build(request, root):
                 # The bridge is bounded; it does not silently truncate a project.
                 if not 1 <= len(tables) <= 16:
                     raise ValueError('DRAFT_BRIDGE_TABLE_BUDGET')
+                postgres = request.get('builder_postgres')
+                if target is not None:
+                    save(root/'agent-target.json',target)
+                    invoke([str(binaries/'oo-load'),'--stack',str(root/'stack.json'),
+                            '--source',source['id'],'--tables',
+                            ','.join(t['schema']+'.'+t['table'] for t in tables),
+                            '--target',str(root/'agent-target.json'),'--secrets-dir',str(secret_root)],
+                           'load-receipts.jsonl',timeout=600)
+                    receipts=[json.loads(line) for line in read_private(root/'load-receipts.jsonl').splitlines()]
+                    postgres=loaded_postgres(receipts,target,source['id'],tables,secret_root,binaries)
+                    state.update(agent_db_load='local_table_views',consistency='B',source_time='unmeasured')
+                if postgres is None:
+                    postgres={'host':source['host'],'port':source['port'],'database':source['database'],
+                              'username':source['user'],'password_file':str(secret_root/source['password']['secret_ref']),
+                              'ca_file':str(secret_root/source['tls_ca']['secret_ref']),
+                              'catalog_bin':str(binaries/'oo-pipeline'),'tables':tables}
                 config = {'protocol':'oo.pg-builder.config/v1', 'adapter':'loopback_http_local_dev',
                           'namespace':'pg-builder', 'purpose':'generate', 'sample_policy':'none',
                           'temperature':0, 'reasoning_effort':'low',
@@ -148,15 +196,11 @@ def build(request, root):
                           'budget':{'deadline_ms':180000,'max_completion_tokens':8192,'max_in_flight':1,
                                     'max_prompt_tokens':50000,'max_request_bytes':262144,'max_response_bytes':262144,
                                     'max_tables':16,'max_total_tokens':60000},
-                          'postgres':{'host':source['host'],'port':source['port'],'database':source['database'],
-                                      'username':source['user'],'password_file':str(secret_root/source['password']['secret_ref']),
-                                      'ca_file':str(secret_root/source['tls_ca']['secret_ref']),
-                                      'catalog_bin':str(binaries/'oo-pipeline'),'tables':tables}}
-                # Caller supplies the Agent DB connection and explicit oo-load views.
-                if 'builder_postgres' in request:
-                    config['postgres'] = request['builder_postgres']
+                          'postgres':postgres}
                 save(root/'builder.json', config)
                 artifacts = ['doctor.json']
+                if target is not None:
+                    artifacts += ['load-receipts.jsonl','agent-target.json']
             elif name == 'catalog':
                 source = stack['sources'][0]
                 invoke([builder,'catalog','--config',cfg,'--source-id',source['id'],

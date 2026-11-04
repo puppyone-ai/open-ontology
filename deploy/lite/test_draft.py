@@ -57,6 +57,25 @@ class Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             draft.read_private(path)
 
+    def test_loaded_catalog_uses_only_complete_matching_public_views(self):
+        target={'host':'agent-db','port':5432,'database':'agent','user':'loader',
+                'run_id':'test','password':{'secret_ref':'password'},'tls_ca':{'secret_ref':'ca'}}
+        tables=[{'schema':'fixture','table':'regions'}]
+        receipt={'protocol':'oo.load/v1','source':'fixture','run_id':'test',
+                 'table':{'schema':'fixture','name':'regions'},
+                 'target':'oo_load_data.t_123','gateway_published':False,
+                 'publication':'local_table_view'}
+        def load(rows):
+            return draft.loaded_postgres(rows,target,'fixture',tables,self.root,self.root)
+        self.assertEqual(load([receipt])['tables'],[{'schema':'oo_load_data','table':'t_123'}])
+        for rows in ([],[receipt,receipt]):
+            with self.assertRaises(ValueError):
+                load(rows)
+        for key,value in [('target','_oo_load.private'),('source','other'),
+                          ('run_id','other'),('gateway_published',True)]:
+            with self.assertRaisesRegex(ValueError,'DRAFT_LOAD_RECEIPT'):
+                load([{**receipt,key:value}])
+
     def test_process_group_cancellation_saves_failure_and_releases_lock(self):
         binary = self.root/'oo'
         binary.write_text('#!/usr/bin/env python3\nimport time\ntime.sleep(60)\n')

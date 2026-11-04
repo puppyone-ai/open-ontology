@@ -282,7 +282,7 @@ pub(super) fn run() -> Result<Invocation, Failure> {
     save_new(&stack, Path::new("stack.yaml"))?;
     if confirm == "BUILD" {
         drop(screen);
-        return super::progress::build(Path::new("stack.yaml"), &stack, false, false);
+        return super::progress::build(Path::new("stack.yaml"), &stack, false, false, None);
     }
     screen.prompt(
         7,

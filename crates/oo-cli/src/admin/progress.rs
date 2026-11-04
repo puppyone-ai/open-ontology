@@ -104,7 +104,11 @@ pub(super) fn display(state: &Value) -> String {
             }
         }
     }
-    text.push_str("\nRow throughput: unmeasured. Agent DB load: pending oo-load integration.\n\
+    text.push_str(&format!(
+        "\nRow throughput: unmeasured. Agent DB load: {}.\n",
+        state["agent_db_load"].as_str().unwrap_or("unmeasured")
+    ));
+    text.push_str("\
         q / Esc / Ctrl-C: stop; saved state is retained.\n\
         Inspect: oo status --config <same stack>\nResume: oo build --resume --config <same stack>\n");
     text
@@ -116,7 +120,7 @@ pub(super) fn completion(state: &Value) -> String {
         Pack path: pending owner review and publication\nGateway URL: pending publication\n\
         First token: pending publication; use the Gateway enroll flow, never display a long-lived token here\n\
         Agent prompt: pending publication and share-prompt CLI integration\n\
-        No output was reviewed, published or loaded into Agent DB.",
+        No output was reviewed or published through Gateway.",
         display(state),
         if state["status"] == "draft" {
             ".oo/draft.json (unreviewed)"
@@ -131,11 +135,16 @@ pub(super) fn build(
     stack: &oo_stack::Stack,
     resume: bool,
     json_output: bool,
+    agent_target: Option<&Path>,
 ) -> Result<Invocation, Failure> {
     let exe = std::env::current_exe().map_err(|_| Failure::local("BUILD_INSTALL"))?;
-    let body = json!({"stack":stack,"state_dir":state_dir(config)?,
+    let mut body = json!({"stack":stack,"state_dir":state_dir(config)?,
         "bin_dir":exe.parent(),"resume":resume,
         "egress_code":include_str!("../../../../tools/model-egress/model_egress.py")});
+    if let Some(target) = agent_target {
+        body["load_target"] =
+            json!(std::fs::canonicalize(target).map_err(|_| Failure::local("BUILD_TARGET_IO"))?);
+    }
     let mut command = Command::new("python3");
     command
         .args(["-c", include_str!("../../../../deploy/lite/draft.py")])

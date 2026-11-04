@@ -87,12 +87,27 @@ It needs installed control schemas, worker configuration and a project UUID in
 `work/operator/schedule.json`. Gateway needs its existing reviewed operator
 directory. The builder remains a one-shot unreviewed metadata draft, not an
 Agent DB loader. These prerequisites are why full S2-A-02 is still **not done**.
-Additionally, `oo-load` publishes views in `oo_load_data`, while the Builder's
-existing PostgreSQL catalog selects physical tables only. A direct connection
-switch is therefore insufficient; no invented catalog is installed here.
+Builder now supports `oo_load_data` views. `oo build --agent-target` explicitly
+loads the source and hands its verified view receipts to that catalog path.
+This does not install the native worker's legacy admission/watermark state,
+nor does it make the opt-in Builder a long-running healthy service.
 
 ## Evidence
 
+- `a-s2f-pg-draft-3`, `a-s2f-mysql-draft-1`, `a-s2f-oracle-draft-2`:
+  `oo build --agent-target` loads an owned fixture into a separate Agent DB
+  and produces an unreviewed draft from its real published views. Versions:
+  PostgreSQL 17.10, MySQL 8.4.11, Oracle 23.5.0.24.07. Each uses one live
+  generation call through private-file model configuration. This is not a
+  Gateway publication or a seven-service/scheduled-cycle pass.
+  Failed PostgreSQL fixture attempts (non-clean session startup) and Oracle
+  attempt 1 (missing CURRENT_SCN read privilege) remain in evidence.
+- `a-s2f-boundary/integration-seams.json` records source-inspected wiring gaps:
+  the configured `serve` worker accepts `pg_effect` in its proof project,
+  while `native-fire` creates `native_capture`. The native no-change path
+  checks durable parent admission in `jw_native`, not `oo-load` receipts in
+  `_oo_load`. No parent watermark or successful task was invented to bridge
+  these contracts. This inspection is not a live scheduled-cycle test.
 - `a-s2f-first-up`: real first `oo up` issues the reserved operator token through
   the runtime image; repeated up preserves its bytes and credentials. The three
   foundation services are healthy. Gateway is still unavailable, so the overall
@@ -120,7 +135,7 @@ switch is therefore insufficient; no invented catalog is installed here.
   Gateway server leaves retain DNS/IP SANs; workload client leaves have one
   URI SAN as required by Gateway. Existing credentials are never silently
   rotated; older deployments need explicit credential migration.
-- Rechecked integration at `15d1ec0c8`: Builder still calls `catalog-pg`,
+- Historical integration check at `15d1ec0c8`: Builder still called `catalog-pg`,
   whose table query accepts only base/partitioned tables, not oo-load's
   published views. Three-engine drafts remain pending lane G. No paid model
   call was made. The production scheduler/worker/bootstrap are still

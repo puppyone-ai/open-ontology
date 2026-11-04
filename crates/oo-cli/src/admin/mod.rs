@@ -15,7 +15,7 @@ use std::path::Path;
 pub const HELP: &str = "\
 Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
-  oo build [--resume] [--config stack.yaml] [--yes] [--json]
+  oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--yes] [--json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
@@ -23,6 +23,8 @@ YAML and JSON are accepted. The filename does not select the parser.
 TTY init collects configuration and runs preflight; non-TTY never prompts.
 The wizard can save or run a bounded PostgreSQL metadata-to-draft bridge.
 build requires pg-builder and oo-pipeline beside oo; --resume retains checkpoints.
+--agent-target uses oo-load to load explicit source tables before drafting.
+The target file is private oo-load JSON; TLS and secret_ref credentials are required.
 Agent DB loading, review and publication are pending integration.
 status reports saved build state; missing Gateway health fields stay unmeasured.
 up bootstraps private credentials and starts only lite foundations; exit 1
@@ -80,7 +82,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     let mut args = Vec::new();
     for arg in rest {
         if let Some((flag, value)) = arg.split_once('=')
-            && matches!(flag, "--config" | "--format" | "--role")
+            && matches!(flag, "--config" | "--format" | "--role" | "--agent-target")
         {
             args.extend([flag.to_owned(), value.to_owned()]);
         } else {
@@ -90,6 +92,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     let mut config = None;
     let mut json = false;
     let mut resume = false;
+    let mut agent_target = None;
     let mut seen = std::collections::HashSet::new();
     let mut positionals = Vec::new();
     let mut format = false;
@@ -103,7 +106,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
             "--json" => json = true,
             "--yes" => (),
             "--resume" if command == "build" => resume = true,
-            "--config" | "--format" | "--role" => {
+            "--config" | "--format" | "--role" | "--agent-target" => {
                 index += 1;
                 let value = args
                     .get(index)
@@ -111,6 +114,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
                     .ok_or_else(|| Failure::usage("ADMIN_ARGUMENT: missing option value"))?;
                 match arg {
                     "--config" => config = Some(value.as_str()),
+                    "--agent-target" if command == "build" => agent_target = Some(Path::new(value)),
                     "--format"
                         if command == "ontology"
                             && matches!(value.as_str(), "html" | "mermaid" | "yaml") =>
@@ -149,7 +153,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     }
     if command == "build" {
         let path = Path::new(config.unwrap_or("stack.yaml"));
-        return progress::build(path, &read_stack(path)?, resume, json);
+        return progress::build(path, &read_stack(path)?, resume, json, agent_target);
     }
     if command == "status" {
         let path = Path::new(config.unwrap_or("stack.yaml"));
@@ -258,6 +262,18 @@ fn normalize(path: &Path) -> Result<(), Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn agent_target_is_build_only_and_requires_one_value() {
+        for values in [
+            vec!["build", "--agent-target"],
+            vec!["up", "--agent-target", "target.json"],
+            vec!["build", "--agent-target", "a", "--agent-target=b"],
+        ] {
+            let args = values.into_iter().map(str::to_owned).collect::<Vec<_>>();
+            assert!(dispatch(&args).unwrap().is_err());
+        }
+    }
 
     #[test]
     fn init_normalizes_yaml_for_json_consumers() {
