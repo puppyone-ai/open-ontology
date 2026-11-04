@@ -14,6 +14,7 @@ import re
 import shutil
 import signal
 import socket
+import ssl
 import subprocess
 import time
 import uuid
@@ -195,16 +196,17 @@ class Harness:
                 self.run.command(["docker", "start", name])
         self.wait_source()
         self.target.ready()
-        for name, port, kind in ((self.run.name, self.run.host_port, self.run.engine),
-                                 (self.target.name, self.target.port, "postgres")):
-            if wait_until(lambda: probe(port, kind), 30, 0.5):
+        tls = self.run.engine == "postgres"
+        for name, port, kind, handshake in ((self.run.name, self.run.host_port, self.run.engine, tls),
+                                         (self.target.name, self.target.port, "postgres", False)):
+            if wait_until(lambda: probe(port, kind, handshake), 30, 0.5):
                 continue
             # Docker Desktop can lose a published port after network reconnect;
             # a container restart restores it. Harness recovery, recorded.
             self.run.command(["docker", "restart", name], timeout=600)
             self.recoveries.append({"after": "port_unreachable", "action": "docker restart", "container": name})
             self.wait_source() if name == self.run.name else self.target.ready()
-            if not wait_until(lambda: probe(port, kind), 60, 0.5):
+            if not wait_until(lambda: probe(port, kind, handshake), 60, 0.5):
                 raise RuntimeError("published port unreachable")
         if reconnected and self.run.engine == "mysql":
             # Handshakes cut by the drop count as host connection errors
@@ -293,9 +295,27 @@ class Harness:
     def call(self, sid, run_id, mode=None, policy=None, required=True, timeout=900):
         code, out = self.run.command(self.argv(sid, run_id, mode, policy), timeout=timeout, required=False)
         error = self.error(self.run.seq) if code else None
+        if error and "connect" in error:
+            self.connect_diagnostics(self.run.seq)
         if required and code:
             raise RuntimeError(f"oo-load {mode or 'snapshot'} {sid} failed: {error}")
         return code, rows(out), error
+
+    def connect_diagnostics(self, seq):
+        """Server-side view when the loader cannot connect: sessions and FATALs."""
+        if self.run.engine == "postgres":
+            _, sessions = self.src("SELECT usename,state,count(*) FROM pg_stat_activity "
+                                   "WHERE usename IS NOT NULL GROUP BY 1,2 ORDER BY 1,2;", required=False)
+            logs = ("/var/lib/postgresql/18/docker" if int(self.run.version) >= 18
+                    else "/var/lib/postgresql/data") + "/log/oo-audit.csv"
+            _, fatal = self.run.command(["docker", "exec", self.run.name, "bash", "-c",
+                                         f"grep -h 'FATAL' {logs} | tail -5 | cut -c1-300"], required=False)
+        else:
+            _, sessions = self.src("SELECT USER,COMMAND,COUNT(*) FROM information_schema.PROCESSLIST "
+                                   "GROUP BY 1,2;", required=False)
+            fatal = None
+        runner.write_json(self.run.path / f"{seq:04d}.connect-diagnostics.json",
+                          {"sessions": sessions, "fatal": fatal})
 
     def spawn(self, sid, run_id, mode=None, policy=None):
         command = self.argv(sid, run_id, mode, policy)
@@ -506,16 +526,30 @@ class Harness:
             self.src("BEGIN;" + "".join(statements) + "COMMIT;")
 
 
-def probe(port, kind):
-    """Protocol-level reachability: Docker Desktop accepts TCP even with no backend."""
+def probe(port, kind, tls=False):
+    """Protocol-level reachability: Docker Desktop accepts TCP even with no backend.
+
+    With `tls`, a PostgreSQL probe also completes the TLS handshake (multi-KB
+    server flight), not only the one-byte SSLRequest answer.
+    """
     try:
-        with socket.create_connection(("127.0.0.1", port), timeout=3) as sock:
-            sock.settimeout(3)
+        with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
+            sock.settimeout(5)
             if kind == "postgres":
                 sock.sendall(b"\x00\x00\x00\x08\x04\xd2\x16\x2f")  # SSLRequest
-                return sock.recv(1) in (b"S", b"N")
+                answer = sock.recv(1)
+                if not tls or answer != b"S":
+                    return answer in (b"S", b"N") and not tls
+                # Reachability only: the handshake must complete. OpenSSL cannot
+                # verify the fixture chain (CA and leaf share CN=localhost; the
+                # loader's rustls verifier does); verification is oo-load's job.
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+                with context.wrap_socket(sock, server_hostname="localhost"):
+                    return True
             return len(sock.recv(4)) == 4  # MySQL server greeting header
-    except OSError:
+    except (OSError, ssl.SSLError):
         return False
 
 
