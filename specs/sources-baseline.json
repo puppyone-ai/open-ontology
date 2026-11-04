@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 10,
-  "supersedes_revision": 9,
-  "supersedes_baseline_head": "7ba80230556b7fb6230832d5623e499bbb7ded22",
-  "supersedes_sha256": "4312b78e97ac4f809fddc2a2033dfc029f82372f21c2019f96bd2c4747f5dc00",
-  "review_record": "specs/source-baseline-revision-10.md",
-  "baseline_head": "a34c383bb47e846e35be2cade0faf2d736235a35",
+  "revision": 11,
+  "supersedes_revision": 10,
+  "supersedes_baseline_head": "a34c383bb47e846e35be2cade0faf2d736235a35",
+  "supersedes_sha256": "77eb0ebbaff27b35648480a205605d189f922f0608f4066a572f2d48464a9e50",
+  "review_record": "specs/source-baseline-revision-11.md",
+  "baseline_head": "4ed15e7d65ddcc7b8c17619924aec462032e4686",
   "source_count": 26,
   "sources": [
     {
@@ -151,8 +151,8 @@
     },
     {
       "path": "docs/product/05-version-matrix-and-testing.md",
-      "sha256": "935f35c41370b9c68fe47241eaffd4e33d754a34d70a893c1ff6ecb00635ab7a",
-      "bytes": 9954,
+      "sha256": "97e65a06d096785be8f99926fd60c8e24bf7a8dc8b743aaf9842945a3e298f67",
+      "bytes": 10289,
       "lines": 117
     },
     {
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "Plan D7/D11a: Oracle LogMiner internal objects in SYS or SYSTEM per version; reviewed by the coordinator; no independent review or product acceptance claimed"
+  "review_status": "Plan D7/D12: definition of a write for the T7 read-only proof; reviewed by the coordinator; no independent review or product acceptance claimed"
 }
