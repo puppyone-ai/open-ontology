@@ -248,7 +248,7 @@ def configure_mysql(run, store):
 
 class SourceMeter:
     """Admin-only source samples; aggregate active session seconds / load seconds."""
-    def __init__(self, run, label, connections, duty=25):
+    def __init__(self, run, label, connections, duty=25, include_logminer=False):
         self.run = copy.copy(run)
         self.run.seq = 2_000_000 + label * 100_000
         self.stop = threading.Event()
@@ -257,6 +257,7 @@ class SourceMeter:
         self.child = None
         self.label = label
         self.connections, self.duty = connections, duty
+        self.include_logminer = include_logminer
         self.thread = threading.Thread(target=self.sample, daemon=True)
 
     def sample(self):
@@ -265,6 +266,10 @@ class SourceMeter:
             "mysql": "SELECT count(*),COALESCE(sum(COMMAND<>'Sleep'),0) FROM information_schema.PROCESSLIST WHERE USER='fixture_reader';",
             "oracle": "SELECT count(*),count(CASE WHEN status='ACTIVE' THEN 1 END) FROM v$session WHERE username='FIXTURE_READER';",
         }
+        if self.include_logminer:
+            # PDB-local V$SESSION hides the common user's root mining session.
+            queries["oracle"] = "ALTER SESSION SET CONTAINER=CDB$ROOT;\n" + queries["oracle"].replace(
+                "username='FIXTURE_READER'", "username IN ('FIXTURE_READER','C##OO_MINER')")
         stderr = None
         try:
             if self.run.engine == "postgres":
@@ -330,6 +335,7 @@ class SourceMeter:
         passed = (not self.error and len(samples) >= 2 and peak > 0 and
                   peak <= self.connections and duty is not None and duty <= self.duty)
         return {"status": "passed" if passed else "failed", "error": self.error,
+                "session_scope": "root_reader_and_miner" if self.include_logminer else "fixture_reader",
                 "connections_peak": peak, "aggregate_duty_percent": duty,
                 "elapsed_seconds": elapsed, "sample_count": len(samples),
                 "budget": {"reader_connections": self.connections, "duty_cycle_percent": self.duty},
