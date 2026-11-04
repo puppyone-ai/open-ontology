@@ -268,6 +268,8 @@ impl Receipt {
     }
 }
 pub struct Control {
+    #[cfg(test)]
+    pub(crate) connections: std::sync::atomic::AtomicUsize,
     endpoint: Endpoint,
     password: Zeroizing<String>,
     ca: Vec<u8>,
@@ -275,12 +277,17 @@ pub struct Control {
 impl Control {
     pub fn new(endpoint: Endpoint, password: String, ca: Vec<u8>) -> Self {
         Self {
+            #[cfg(test)]
+            connections: std::sync::atomic::AtomicUsize::new(0),
             endpoint,
             password: Zeroizing::new(password),
             ca,
         }
     }
     async fn connect(&self) -> Result<Client> {
+        #[cfg(test)]
+        self.connections
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let mut cfg = tokio_postgres::Config::new();
         cfg.host(&self.endpoint.host)
             .port(self.endpoint.port)

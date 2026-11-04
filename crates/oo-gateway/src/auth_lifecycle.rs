@@ -11,6 +11,7 @@ pub(super) struct Lifecycle {
     pub admin_workload: String,
     // Global enrollment limiter bounds guessing even if source addresses are spoofed.
     attempts: Mutex<(Instant, u32)>,
+    renew_attempts: Mutex<(Instant, u32)>,
     devices: Mutex<device::Devices>,
 }
 impl Lifecycle {
@@ -19,11 +20,15 @@ impl Lifecycle {
             control,
             admin_workload,
             attempts: Mutex::new((Instant::now(), 0)),
+            renew_attempts: Mutex::new((Instant::now(), 0)),
             devices: Mutex::new(device::Devices::default()),
         }
     }
     fn admit(&self) -> bool {
-        let Ok(mut state) = self.attempts.lock() else {
+        Self::admit_window(&self.attempts)
+    }
+    fn admit_window(attempts: &Mutex<(Instant, u32)>) -> bool {
+        let Ok(mut state) = attempts.lock() else {
             return false;
         };
         if state.0.elapsed() >= Duration::from_secs(60) {
@@ -152,10 +157,19 @@ async fn renew(
     let Some(lifecycle) = &state.inner.lifecycle else {
         return failure("disabled");
     };
+    if !Lifecycle::admit_window(&lifecycle.renew_attempts) {
+        return failure("rate_limit");
+    }
     let token = match bearer(&headers) {
         Ok(token) => Zeroizing::new(token),
         Err(_) => return failure("unauthenticated"),
     };
+    // Fresh runtime-role lookup precedes every privileged connection and write.
+    if !matches!(authenticate_token(&state, &token, true).await,
+        Ok(identity) if identity.scope == "client")
+    {
+        return failure("unauthenticated");
+    }
     receipt(
         lifecycle
             .control
@@ -379,6 +393,68 @@ fn digits(bytes: &[u8]) -> Result<i64, &'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn lifecycle_state() -> AppState {
+        let mut state = AppState::for_limits(PackCatalog::empty(), 1024);
+        let inner = Arc::get_mut(&mut state.inner).unwrap();
+        let config = rustls::ServerConfig::builder_with_provider(Arc::new(
+            rustls::crypto::aws_lc_rs::default_provider(),
+        ))
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_no_client_auth()
+        .with_cert_resolver(Arc::new(rustls::server::ResolvesServerCertUsingSni::new()));
+        inner.transport = Transport::Tls {
+            acceptor: TlsAcceptor::from(Arc::new(config)),
+            handshake_timeout: Duration::from_secs(1),
+        };
+        inner.lifecycle = Some(Lifecycle::new(
+            Control::new(
+                Endpoint {
+                    host: "localhost".into(),
+                    port: 1,
+                    database: "unused".into(),
+                },
+                String::new(),
+                Vec::new(),
+            ),
+            "test-admin".into(),
+        ));
+        state
+    }
+    #[tokio::test]
+    async fn junk_renew_never_opens_admin_connection() {
+        let state = lifecycle_state();
+        for material in ["junk".to_string(), format!("ooct_{}", "A".repeat(43))] {
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                header::AUTHORIZATION,
+                format!("Bearer {material}").parse().unwrap(),
+            );
+            let response = renew(
+                State(state.clone()),
+                Some(Extension(ConnectInfo(TlsPeer {
+                    workload: String::new(),
+                }))),
+                RawQuery(None),
+                headers,
+                Bytes::new(),
+            )
+            .await;
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
+        // Audit INSERTs use this same connection: zero opens implies zero audit writes.
+        assert_eq!(
+            state
+                .inner
+                .lifecycle
+                .as_ref()
+                .unwrap()
+                .control
+                .connections
+                .load(Ordering::SeqCst),
+            0
+        );
+    }
     #[test]
     fn health_query_excludes_dead_credentials() {
         assert!(pg_query::parse(HEALTH_EXPIRY_SQL).is_ok());
