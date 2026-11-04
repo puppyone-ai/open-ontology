@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shutil
 import signal
 import subprocess
 import sys
@@ -174,6 +175,10 @@ class Run:
         return self.command(command, data=text, timeout=1800, required=required)
 
     def setup(self):
+        free = shutil.disk_usage(ROOT).free
+        write_json(self.path / "disk-gate.json", {"free_bytes": free, "minimum_gib": 20})
+        if free < 20 * 1024 ** 3:
+            raise RuntimeError("host_disk_below_floor")
         item = resolve(self.engine, self.version)
         _, arch = self.command(["docker", "info", "--format", "{{.Architecture}}"])
         native = "linux/arm64" if arch.strip() in ("aarch64", "arm64") else "linux/amd64"
@@ -309,7 +314,10 @@ class Run:
                       "END LOOP; END;\n/\n")
         self.sql(grants, admin=True)
 
-    def gold(self):
+    def record_version(self):
+        if not getattr(self, "created_container", True):
+            raise RuntimeError("version_unmeasured")
+        self.receipt.pop("version_actual", None)
         version_sql = {"mysql": "SELECT VERSION();", "postgres": "SHOW server_version;",
                        "oracle": ("SELECT " + ("version" if self.version.startswith("11") else "version_full") +
                                   " FROM product_component_version WHERE product LIKE 'Oracle Database%';")}[self.engine]
@@ -321,6 +329,10 @@ class Run:
             if not (self.engine == "oracle" and actual and actual.group().startswith(locked + ".")):
                 raise RuntimeError(f"version mismatch: expected {locked}, found {raw_version.strip()}")
         self.receipt["version_actual"] = actual.group()
+        write_json(self.path / "resource-receipt.json", self.receipt)
+
+    def gold(self):
+        self.record_version()
         answers = {}
         text = (ENGINES / "gold" / f"{self.engine}.sql").read_text()
         for question, statement in re.findall(r"-- (Q\d+):[^\n]*\n(.*?);", text, re.S):
@@ -441,6 +453,14 @@ class Run:
 
 
 def execute_suites(run, requested, hooks):
+    from verdicts import merge
+    def explicit(suite):
+        from matrix import target_id
+        rows = [r for r in merge(run.path) if r["suite"] == suite
+                and r["run_id"] == run.id and r["target"] == target_id(run.engine, run.version)
+                and r["version"] == getattr(run, "receipt", {}).get("version_actual")]
+        return bool(rows) and all(r["result"] == "pass" for r in rows)
+
     results = {}
     audit = Audit(run) if "T7" in requested else None
     if audit:
@@ -458,12 +478,12 @@ def execute_suites(run, requested, hooks):
             if suite == "T7" or suite == "T0" and suite not in hooks:
                 continue
             if suite not in hooks:
-                results[suite] = "not_implemented"
+                results[suite] = "passed" if explicit(suite) else "not_implemented"
                 continue
             if audit:
                 audit.marker(suite + "_start")
             code, _ = run.command([hooks[suite]], timeout=3600, required=False)
-            results[suite] = "passed" if code == 0 else "failed"
+            results[suite] = "passed" if code == 0 and explicit(suite) else "failed"
             if audit:
                 audit.marker(suite + "_end")
     finally:
@@ -497,9 +517,17 @@ def main():
     matrix.add_argument("--health-timeout", type=int)
     matrix.add_argument("--baseline", type=Path, help="another run's gold-answers.json")
     matrix.add_argument("--variant", choices=["c1", "c5"], help="capability path exercised by hooks")
+    matrix.add_argument("--min-free-gb", type=float, default=20.0)
+    matrix.add_argument("--merge-evidence", action="append", type=Path, default=[],
+                        help="merge explicit index-rows.json from additional local evidence runs")
     matrix.add_argument("--hook", action="append", default=[], metavar="T1=PATH",
                         help="executable hook; receives owned-container context via OO_TEST_CONTEXT")
     args = parser.parse_args()
+    if args.min_free_gb < 20 or not args.min_free_gb < float("inf"):
+        parser.error("minimum disk floor is 20 GiB")
+    for path in args.merge_evidence:
+        if not path.resolve().is_relative_to((ROOT / "evidence").resolve()) or not path.is_dir():
+            parser.error("--merge-evidence must be an existing worktree evidence directory")
     if args.engine == "sqlserver" and args.hook:
         parser.error("SQL Server uses built-in product suites; external hooks are not supported")
     if "T7" in args.suites:
@@ -535,7 +563,7 @@ def main():
               "hook_sha256": {suite: hashlib.sha256(Path(path).read_bytes()).hexdigest()
                               for suite, path in hooks.items()},
               "source_sha256": {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-                                for name in ("runner.py", "audit.py", "matrix.py")},
+                                for name in ("runner.py", "audit.py", "matrix.py", "verdicts.py")},
               "results": []}
     def interrupted(signum, frame):
         raise KeyboardInterrupt(f"signal {signum}")
@@ -554,6 +582,10 @@ def main():
         try:
             item = resolve(engine, version)
             result["version_locked"] = re.search(r"\d+(?:\.\d+)*", item["id"]).group()
+            free = shutil.disk_usage(ROOT).free
+            write_json(path / "disk-gate.json", {"free_bytes": free, "minimum_gib": args.min_free_gb})
+            if free < args.min_free_gb * 1024 ** 3:
+                raise RuntimeError("host_disk_below_floor")
             if args.all:
                 missing = [s for s in args.suites if s not in ("T0", "T7") and s not in hooks]
                 if missing:
@@ -613,8 +645,14 @@ def main():
         checksums(path)
         report["results"].append(result)
     write_json(root / "comparison-report.json", report)
-    rows = index_rows(root, report, args.suites)
+    index_rows(root, report, args.suites)
+    from verdicts import merge
+    rows = merge(root)
+    for path in args.merge_evidence:
+        for row in merge(path):
+            rows.append(dict(row, evidence=str((path / row["evidence"]).resolve().relative_to(ROOT))))
     write_json(root / "evidence-index.json", rows)
     write_json(root / "downgrade-report.json", downgrade_report(rows))
     checksums(root)
-    return 0 if all(r["status"] == "passed" for r in report["results"]) else 1
+    return 0 if (all(r["status"] == "passed" for r in report["results"])
+                 and not any(row["result"] == "fail" for row in rows)) else 1

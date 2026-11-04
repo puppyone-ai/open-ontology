@@ -11,6 +11,8 @@ import signal
 import uuid
 
 import runner
+import t1
+from verdicts import incremental, write_rows
 from t1 import AgentDB, LaneRun, SourceMeter, configure_mysql, private
 
 ROOT = runner.ROOT
@@ -23,20 +25,8 @@ class SyncRun(LaneRun):
         return super().command(command, **kwargs)
 
     def setup(self):
-        original = runner.resolve
-        if self.engine == "mysql":
-            version = MYSQL[self.version]
-            ref = "mysql:" + version
-            _, raw = self.command(["docker", "image", "inspect", ref])
-            image = json.loads(raw)[0]
-            digest = image["RepoDigests"][0].split("@")[1]
-            item = {"id": "mysql-"+version, "ref": ref,
-                    "platforms": {"linux/"+image["Architecture"]: {"digest": digest}}}
-            runner.resolve = lambda engine, major: item if engine == "mysql" else original(engine, major)
-        try:
-            super().setup()
-        finally:
-            runner.resolve = original
+        # Resolve the same immutable lock as every other suite, never a local tag.
+        super().setup()
 
 
 def rows(text):
@@ -96,7 +86,7 @@ def run_cycles(run, binary, worker_image):
                 raise RuntimeError("11g thick worker image required")
             worker = "oo-m-worker-" + uuid.uuid4().hex[:12]
             run.command(["docker", "create", "--name", worker, "--platform", "linux/amd64",
-                         "--label", "oo.lane=m", "--label", "oo.run_id="+run.id,
+                         "--label", "oo.lane=" + t1.LANE, "--label", "oo.run_id="+run.id,
                          "--network", "container:"+run.name, "--mount",
                          f"type=bind,src={ROOT / 'testing/engines/oracle/worker/worker.py'},dst=/worker.py,readonly",
                          "--entrypoint", "sleep", worker_image, "infinity"])
@@ -406,7 +396,7 @@ def run_cycles(run, binary, worker_image):
         if worker:
             _, raw = run.command(["docker", "inspect", "--format", "{{json .Config.Labels}}", worker])
             labels = json.loads(raw)
-            if labels.get("oo.lane") != "m" or labels.get("oo.run_id") != run.id:
+            if labels.get("oo.lane") != t1.LANE or labels.get("oo.run_id") != run.id:
                 raise RuntimeError("worker cleanup ownership")
             run.command(["docker", "rm", "-f", worker])
         target.close()
@@ -736,18 +726,29 @@ def main():
         directory.mkdir()
         run = SyncRun(directory, args.engine, version,
                       argparse.Namespace(platform=None, health_timeout=1200, scale=1, tables=0))
+        results[version] = {"T2": "not_passed", "C1": "not_run", "C5": "not_run"}
         try:
             results[version] = run_cycles(run, args.binary.resolve(), args.worker_image)
         except Exception as error:
-            results[version] = json.loads((directory / "t2.json").read_text())
-            results[version]["error"] = str(error)
+            raw = directory / "t2.json"
+            results[version] = json.loads(raw.read_text()) if raw.exists() else {}
+            results[version].update(error=type(error).__name__, T2="not_passed")
         finally:
+            try:
+                run.record_version()
+            except Exception:
+                results[version]["version_error"] = "version_unmeasured"
             results[version]["cleanup_failures"] = run.cleanup()
+            runner.write_json(directory / "t2.json", results[version])
+            write_rows(run, directory / "t2.json", incremental(results[version]),
+                       cleanup_failed=bool(results[version]["cleanup_failures"]))
             runner.checksums(directory)
             runner.write_json(path / "matrix.json", results)
     runner.checksums(path)
     print(json.dumps({v: {k: r.get(k) for k in ("C1", "C5", "T2", "error", "cleanup_failures")} for v, r in results.items()}))
-    if any(r["C5"] != "passed" or r["cleanup_failures"] or ((args.engine == "mysql" or v == "23") and r["C1"] != "passed") for v, r in results.items()):
+    if any(r.get("T2") != "passed" or r.get("version_error") or r.get("C5") != "passed"
+           or r["cleanup_failures"] or ((args.engine == "mysql" or v == "23") and r.get("C1") != "passed")
+           for v, r in results.items()):
         raise SystemExit(1)
 
 if __name__ == "__main__":

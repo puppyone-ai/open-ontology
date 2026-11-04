@@ -1,6 +1,7 @@
 """Nightly evidence contract shared with the coordinator's matrix generator."""
 import hashlib
 import json
+from datetime import datetime, timezone
 
 P0 = [("mysql", v) for v in ("5.7", "8.0", "8.4", "9.x")]
 P0 += [("postgres", str(v)) for v in range(13, 19)]
@@ -23,9 +24,11 @@ def target_id(engine, version):
 def index_rows(root, report, requested):
     rows = []
     for result in report["results"]:
+        first = len(rows)
         engine, version = result["engine"], result["version"]
         path = root / f"{engine}-{version}"
-        digest = hashlib.sha256((path / "SHA256SUMS").read_bytes()).hexdigest()
+        raw = path / "comparison-report.json"
+        digest = hashlib.sha256(raw.read_bytes() if raw.exists() else (path / "SHA256SUMS").read_bytes()).hexdigest()
         receipt_path = path / "resource-receipt.json"
         receipt = json.loads(receipt_path.read_text()) if receipt_path.exists() else {}
         for suite in requested:
@@ -36,6 +39,8 @@ def index_rows(root, report, requested):
                        "skip" if status == "passed" else "fail")
             if receipt.get("cleanup_failed"):
                 outcome = "fail"
+            if outcome == "pass" and "version_actual" not in receipt:
+                outcome = "fail"
             rows.append({
                 "target": target_id(engine, version),
                 "version": receipt.get("version_actual", result.get("version_locked", version)),
@@ -43,10 +48,11 @@ def index_rows(root, report, requested):
                 "capability": {"T0": "fixture", "T1": "snapshot", "T2": "incremental",
                                "T3": "recovery", "T4": "schema_change", "T5": "selfbuild",
                                "T6": "dialogue", "T7": "read_only", "T8": "budget"}[suite],
-                "suite": suite, "variant": result.get("variant") if suite in ("T2", "T3", "T7") else None,
+                "suite": suite, "variant": (result.get("variant") or "snapshot") if suite in ("T2", "T3", "T7") else "snapshot",
                 "result": outcome,
                 "run_id": report["run_id"], "sha256": digest,
-                "evidence": f"{engine}-{version}/SHA256SUMS",
+                "evidence": raw.name if raw.exists() else "SHA256SUMS",
+                "observed_at": result.get("observed_at") or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 "emulated": receipt.get("execution") == "emulated",
                 "detail": status, "error": result.get("error"),
             })
@@ -61,6 +67,7 @@ def index_rows(root, report, requested):
             if suite in ("T2", "T3", "T7") and outcome != "pass" and not result.get("variant"):
                 row = rows.pop()
                 rows.extend(dict(row, variant=variant) for variant in ("c1", "c5"))
+        (path / "index-rows.json").write_text(json.dumps(rows[first:], indent=2) + "\n")
     return rows
 
 

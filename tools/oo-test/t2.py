@@ -10,6 +10,7 @@ import time
 import signal
 
 import runner
+from verdicts import incremental, write_rows
 from t1 import LaneRun, SourceMeter, configure_pg, private
 
 ROOT = runner.ROOT
@@ -296,6 +297,7 @@ def main():
         path.mkdir()
         run = LaneRun(path, "postgres", version,
                       argparse.Namespace(platform=None, health_timeout=300, scale=1, tables=0))
+        results[version] = {"T2": "not_passed", "C1": "not_run", "C5": "not_run"}
         try:
             results[version] = run_postgres(run, args.binary.resolve())
         except Exception as error:
@@ -304,14 +306,21 @@ def main():
                 "C1": "failed", "C5": "not_implemented"}
             results[version].update(error=type(error).__name__, T2="not_passed")
         finally:
+            try:
+                run.record_version()
+            except Exception:
+                results[version]["version_error"] = "version_unmeasured"
             results[version]["cleanup_failures"] = run.cleanup()
+            runner.write_json(path / "t2.json", results[version])
+            write_rows(run, path / "t2.json", incremental(results[version]),
+                       cleanup_failed=bool(results[version]["cleanup_failures"]))
             runner.checksums(path)
             runner.write_json(root / "matrix.json", results)
     runner.checksums(root)
     print(json.dumps({"run_id": args.run_id, "results": {
         v: {key: r.get(key) for key in ("C1", "C5", "T2", "handoff", "cleanup_failures")}
         for v, r in results.items()}}))
-    if any(r["T2"] != "passed" or r["cleanup_failures"] for r in results.values()):
+    if any(r["T2"] != "passed" or r.get("version_error") or r["cleanup_failures"] for r in results.values()):
         raise SystemExit(1)
 
 

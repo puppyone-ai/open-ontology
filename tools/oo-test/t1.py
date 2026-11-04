@@ -22,10 +22,11 @@ import uuid
 from comparison import compare
 from oracle_t1 import compare_oracle as compare_oracle_lobs
 import runner
+from verdicts import status, write_rows
 
 ROOT = runner.ROOT
 LANE = os.environ.get("OO_TEST_LANE", "m")
-if LANE not in ("m", "e", "p", "g"):
+if LANE not in ("h", "m", "e", "p", "g"):
     raise ValueError("unsupported T1 lane")
 class Relay:
     """Loopback transport to an owned fixture with no published port."""
@@ -750,10 +751,18 @@ def run_t1(run, binary, worker_image=None):
             relay.close()
         shutil.rmtree(store)
         runner.write_json(run.path / "t1-t8.json", report)
+        try:
+            run.record_version()
+        except Exception:
+            report["version_error"] = "version_unmeasured"
+            runner.write_json(run.path / "t1-t8.json", report)
+        write_rows(run, run.path / "t1-t8.json",
+                   [(suite, "snapshot", status(report[suite])) for suite in ("T1", "T8")])
     return report
 
 
 def main():
+    global LANE
     def interrupted(signum, frame):
         raise KeyboardInterrupt(f"signal {signum}")
     signal.signal(signal.SIGINT, interrupted)
@@ -764,6 +773,7 @@ def main():
             ["docker", "inspect", "--format", "{{json .Config.Labels}}", context["container"]], text=True))
         if labels.get("oo.lane") not in ("h", LANE) or labels.get("oo.run_id") != context["run_id"]:
             raise RuntimeError("hook fixture ownership")
+        LANE = labels["oo.lane"]
         if context["engine"] not in ("postgres", "mysql", "oracle"):
             raise RuntimeError("T1 hook engine unavailable")
         run = LaneRun.__new__(LaneRun)
@@ -773,6 +783,8 @@ def main():
         run.path.mkdir(mode=0o700)
         run.seq, run.secret = 0, secrets.token_hex(24)
         run.reader_secret = Path(context["reader_password_file"]).read_text().strip()
+        receipt = Path(context["evidence"]) / "resource-receipt.json"
+        run.receipt = json.loads(receipt.read_text())
         result = run_t1(run, ROOT / "target/debug/oo-load", os.environ.get("OO_TEST_ORACLE_WORKER_IMAGE"))
         runner.checksums(run.path)
         raise SystemExit(0 if result["T1"] == "passed" and result["T8"] == "passed" else 1)
@@ -797,6 +809,7 @@ def main():
         path.mkdir(mode=0o700)
         options = argparse.Namespace(scale=args.scale, tables=args.tables, platform=None, health_timeout=None)
         run = LaneRun(path, args.engine, version, options)
+        result = {"T1": "failed", "T8": "not_run"}
         try:
             run.setup()
             run.seed()
@@ -806,11 +819,17 @@ def main():
             runner.write_json(path / "t1-t8.json", result)
         finally:
             failures = run.cleanup()
+            result["cleanup_failed"] = failures
+            runner.write_json(path / "t1-t8.json", result)
+            write_rows(run, path / "t1-t8.json",
+                       [(suite, "snapshot", status(result[suite])) for suite in ("T1", "T8")],
+                       cleanup_failed=bool(failures))
             runner.checksums(path)
         results.append(dict(result, version=version, cleanup_failed=failures))
         runner.write_json(base / "results.json", results)
     print(base)
-    raise SystemExit(0 if all(r["T1"] == "passed" and r["T8"] == "passed" and not r["cleanup_failed"] for r in results) else 1)
+    raise SystemExit(0 if all(r["T1"] == "passed" and r["T8"] == "passed"
+                             and not r.get("version_error") and not r["cleanup_failed"] for r in results) else 1)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ passes only if every fault resumes, or refuses with a named error and an
 unchanged published target, and the Agent DB has zero divergence afterwards.
 """
 import argparse
+import os
 import hashlib
 import json
 from pathlib import Path
@@ -20,6 +21,7 @@ import time
 import uuid
 
 import runner
+from verdicts import write_rows
 import t1
 from t1 import AgentDB, LaneRun, configure_mysql, configure_pg, private
 
@@ -1069,10 +1071,26 @@ def disk_ready(min_free_gb, wait_minutes):
 
 def accepted(result, cases):
     return (not result.get("error") and not result.get("cleanup_failures")
+            and not result.get("version_error")
             and not result.get("target_cleanup_error")
             and not result.get("worker_cleanup_error")
             and set(result.get("cases", {})) == set(cases)
             and all(r["status"] in ("passed", "not_applicable") for r in result["cases"].values()))
+
+def suite_verdicts(result, engine, version):
+    verdicts = []
+    for suite, required in (("T3", T3), ("T4", T4)):
+        cases = {c: result.get("cases", {}).get(c, {}) for c in required}
+        passed = (not any(result.get(k) for k in
+                          ("error", "cleanup_failures", "target_cleanup_error", "worker_cleanup_error"))
+                  and all(r.get("status") in ("passed", "not_applicable") for r in cases.values())
+                  and any(r.get("status") == "passed" for r in cases.values()))
+        for variant in ("c1", "c5"):
+            outcome = "pass" if passed else "fail"
+            if engine == "oracle" and version in ("11", "21") and variant == "c1":
+                outcome = "skip"
+            verdicts.append((suite, variant, outcome))
+    return verdicts
 
 def main(argv=None):
     def stop(signum, frame):
@@ -1088,7 +1106,7 @@ def main(argv=None):
     parser.add_argument("--disk-wait-minutes", type=float, default=90.0)
     parser.add_argument("--worker-image", help="digest-pinned 11g thick client image")
     args = parser.parse_args(argv)
-    t1.LANE = "e" if args.engine == "oracle" else "n"  # lane-owned labels for LaneRun/AgentDB cleanup checks
+    t1.LANE = os.environ.get("OO_TEST_LANE", "e" if args.engine == "oracle" else "n")
     versions = args.versions.split(",")
     allowed = {"mysql": MYSQL, "postgres": POSTGRES, "oracle": ORACLE}[args.engine]
     cases = args.cases.split(",")
@@ -1114,6 +1132,9 @@ def main(argv=None):
                                 "min_free_gb": args.min_free_gb,
                                 "observed_free_bytes": shutil.disk_usage("/").free}
             runner.write_json(path / "t3t4.json", results[version])
+            from types import SimpleNamespace
+            write_rows(SimpleNamespace(engine=args.engine, version=version, id=args.run_id),
+                       path / "t3t4.json", suite_verdicts(results[version], args.engine, version))
             runner.write_json(root / "matrix.json", results)
             continue
         run = Source(path, args.engine, version,
@@ -1122,7 +1143,14 @@ def main(argv=None):
         try:
             results[version] = run_version(run, args.binary.resolve(), cases)
         finally:
+            try:
+                run.record_version()
+            except Exception:
+                results.setdefault(version, {})["version_error"] = "version_unmeasured"
             results.setdefault(version, {})["cleanup_failures"] = run.cleanup()
+            runner.write_json(path / "t3t4.json", results[version])
+            write_rows(run, path / "t3t4.json", suite_verdicts(results[version], args.engine, version),
+                       cleanup_failed=bool(results[version]["cleanup_failures"]))
             runner.checksums(path)
             runner.write_json(root / "matrix.json", results)
     runner.checksums(root)

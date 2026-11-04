@@ -64,7 +64,8 @@ tools/oo-test/oo-test matrix --engine postgres --versions 17 \
 ```
 
 Hooks are executables, invoked without shell evaluation after seeding. They
-must return nonzero on any failure. `OO_TEST_CONTEXT` points to a JSON file
+must return nonzero on any failure and write explicit `index-rows.json` under
+their evidence directory. A zero exit alone fails closed. `OO_TEST_CONTEXT` points to a JSON file
 with `container`, `engine`, `version`, `run_id`, `evidence`, `reader`, and
 `reader_password_file`. The container has no exposed host port. Use `docker
 exec` or a lane-owned client on its network. Do not put passwords in argv.
@@ -133,10 +134,33 @@ rows. No unrelated container, image or volume is removed.
 `evidence-index.json` is a list compatible with
 `specs/scripts/gen_support_matrix.py`. Rows contain `target` (support-matrix
 ID), `version`, `capability`, `suite`, `variant`, `result` (`pass|fail|skip`),
-`run_id`, `sha256`, `evidence`, `emulated`, `version_measured` and error detail.
-The hash binds the target's `SHA256SUMS`, which binds command outputs,
-audit and comparison receipts. Unstarted targets use the locked patch with
+`run_id`, `sha256`, `evidence`, `emulated`, `version_measured`, UTC `observed_at`
+and error detail. Each runner writes `index-rows.json`; the hash binds its raw
+JSON result, and `SHA256SUMS` additionally binds command outputs. The matrix
+checks raw hashes before merging rows. Pass rows require a measured version.
+Unstarted targets use the locked image version with
 `version_measured=false`, never a claimed observed server version.
+In particular, an Oracle image tag is not an observed five-component DB version.
+
+Standalone T1/T8, PostgreSQL and MySQL/Oracle T2/T8, and T3/T4 runners emit the
+same contract. T3/T4 subset runs cannot pass the whole suite; Oracle 11g/21c
+C1 fault paths are skipped, not promoted. Failed cleanup invalidates admission.
+T8 rows require explicit meter verdicts, not just a successful loader exit.
+Use `--merge-evidence evidence/<run-id>` (repeatable) to ingest standalone runs
+alongside the matrix run. It only accepts directories inside this worktree's
+ignored evidence tree. Example:
+
+```sh
+OO_TEST_LANE=h tools/oo-test/oo-test matrix --all --suites T0-T4,T7,T8 \
+  --merge-evidence evidence/<standalone-run-id>
+```
+
+This merges observations; it does not supply missing product hooks, turn a
+fixture precheck into `oo doctor`, or make separate fixtures one audited T7
+session. Missing hooks remain failures. T5/T6 are never implied by these rows.
+Every matrix target and standalone source setup checks at least 20 GiB free
+before starting containers; disk blocks are recorded as non-passes. There is no
+automatic deletion of images, volumes, Cargo artifacts or unrelated data.
 
 Use `--variant c1` or `--variant c5` to identify the hook path, also exposed
 in `OO_TEST_CONTEXT`. Run each path separately; a generic incremental hook

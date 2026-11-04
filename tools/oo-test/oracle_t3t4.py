@@ -116,7 +116,7 @@ class OracleHarness(t3t4.Harness):
             _, image = run.command(["docker", "image", "inspect", run.args.worker_image, "--format", "{{.Id}}"])
             self.worker = "oo-e-t3-worker-" + uuid.uuid4().hex[:12]
             run.command(["docker", "create", "--name", self.worker, "--platform", "linux/amd64",
-                         "--label", "oo.lane=e", "--label", "oo.run_id=" + run.id,
+                         "--label", "oo.lane=" + t3t4.t1.LANE, "--label", "oo.run_id=" + run.id,
                          "--mount", f"type=bind,src={runner.ROOT / 'testing/engines/oracle/worker/worker.py'},dst=/worker.py,readonly",
                          "--entrypoint", "sleep", image.strip(), "infinity"])
             run.command(["docker", "start", self.worker])
@@ -133,7 +133,7 @@ class OracleHarness(t3t4.Harness):
         if self.worker:
             _, raw = self.run.command(["docker", "inspect", "--format", "{{json .Config.Labels}}", self.worker])
             labels = json.loads(raw)
-            if labels.get("oo.lane") != "e" or labels.get("oo.run_id") != self.run.id:
+            if labels.get("oo.lane") != t3t4.t1.LANE or labels.get("oo.run_id") != self.run.id:
                 raise RuntimeError("worker cleanup ownership")
             self.run.command(["docker", "rm", "-f", self.worker])
             self.worker = None

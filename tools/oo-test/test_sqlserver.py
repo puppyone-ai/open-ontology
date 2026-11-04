@@ -2,6 +2,7 @@ import unittest
 import tempfile
 import base64
 import copy
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -108,12 +109,14 @@ class SqlServerTests(unittest.TestCase):
             path = root / "sqlserver-2022"
             path.mkdir()
             (path / "SHA256SUMS").write_text("fixture")
+            (path / "resource-receipt.json").write_text(json.dumps({"version_actual": "16.0.4205.1"}))
             report = {"run_id": "test", "results": [{
                 "engine": "sqlserver", "version": "2022",
                 "suites": {"T2": "passed", "T7": "passed"}}]}
             rows = matrix.index_rows(root, report, ["T2", "T7"])
             self.assertEqual([(r["suite"], r["variant"]) for r in rows],
                              [("T2", "c1"), ("T2", "c5"), ("T7", "c1")])
+            self.assertTrue(all(r["result"] == "pass" for r in rows))
 
     def test_only_native_idle_mapping_appends_are_attributed(self):
         binary = lambda n, size: base64.b64encode(n.to_bytes(size, "big")).decode()
