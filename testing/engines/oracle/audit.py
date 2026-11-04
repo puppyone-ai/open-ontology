@@ -1,4 +1,5 @@
-"""D11a/C5 classification. Preserve rejected records; never infer attribution."""
+"""D12 attribution. Preserve rejected records; missing provenance fails closed."""
+from collections import Counter
 import json
 import re
 
@@ -10,6 +11,8 @@ def normalized(sql):
 
 
 def written_object(sql):
+    sql = re.sub(r"/\*[^*]*\*/", " ", sql)
+    sql = " ".join(sql.split())
     match = re.match(r"(?:DELETE FROM|INSERT INTO|UPDATE|MERGE INTO) ([A-Z0-9_.$#]+)(?=\s|\(|$)", sql)
     return match[1] if match else None
 
@@ -34,21 +37,40 @@ def classify(record, mode="c1"):
     action = record.get("action")
     if action in ("LOGON", "LOGOFF", "LOGOFF BY CLEANUP") and not sql:
         return "read_session"
-    if sql.startswith("SELECT ") and action in ("SELECT", "EXECUTE PROCEDURE"):
+    if sql.startswith("SELECT ") and action in ("SELECT", "EXECUTE PROCEDURE") and ";" not in sql:
         return "read"
-    if mode == "c5":
-        return "rejected_c5_non_select"
-    if sql in LOGMINER_CALLS and action in ("EXECUTE", "EXECUTE PROCEDURE"):
+    if re.fullmatch(r"ALTER SESSION SET [A-Z_]+=(?:'[^']*'|[A-Z0-9_:+.-]+)", sql):
+        return "d12_session_state"
+    if mode == "c1" and sql in LOGMINER_CALLS and action in ("EXECUTE", "EXECUTE PROCEDURE"):
         return "logminer_call"
     if record.get("depth") == 0:
         return "rejected_top_level_non_select"
+    recursive = isinstance(record.get("depth"), int) and record["depth"] > 0
+    objects = record.get("objects", [])
+    obj = written_object(sql)
+    # The parser UID identifies the schema of unqualified recursive SQL.
+    if obj and "." not in obj and record.get("uid") == 0 and recursive:
+        obj = "SYS." + obj
+    if obj and objects == [obj] and recursive and record.get("uid") == 0 and ";" not in sql:
+        if (obj, action) in {("SYS.USER$", "UPDATE"), ("SYS.SEQ$", "UPDATE"),
+                            ("SYS.SEG$", "UPDATE"), ("SYS.EXP_HEAD$", "INSERT")}:
+            return "d12_logon_bookkeeping" if obj == "SYS.USER$" else "d12_dictionary_bookkeeping"
+        if (obj, action) in {("SYS.AUD$", "INSERT"), ("AUDSYS.AUD$UNIFIED", "INSERT")}:
+            return "d12_audit_trail"
+    if mode == "c5":
+        return "rejected_c5_non_select"
+    internal = ("DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); "
+                "SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); "
+                "SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;")
+    if sql == internal and recursive and record.get("uid") == 0 and record.get("logminer_context") is True:
+        return "d11a_logminer_internal"
     # Unified auditing can label a recursive DELETE as SELECT. Require
     # same-session trace correlation before overriding that audit label.
     traced_dml = (action == "SELECT" and record.get("trace_sources")
                   and isinstance(record.get("depth"), int) and record["depth"] > 0)
     if action in ("DELETE", "INSERT", "UPDATE", "MERGE") or traced_dml:
         obj = logminer_dml(sql)
-        if obj and record.get("objects") == [obj]:
+        if obj and record.get("objects") == [obj] and recursive and record.get("logminer_context") is True:
             return "d11a_logminer_object_dml"
     if sql == "COMMIT" and record.get("logminer_context") is True:
         return "d11a_logminer_commit"
@@ -66,6 +88,9 @@ def trace_records(text):
         for i, match in enumerate(parsed):
             sql = normalized(match[4])
             obj = written_object(sql)
+            if obj and "." not in obj and int(match[3]) == 0 and int(match[2]) > 0:
+                obj = "SYS." + obj
+            sql_id = re.search(r"\bsqlid='([^']+)'", match[0].splitlines()[0])
             end = next((m.start() for m in parsed[i + 1:] if m[1] == match[1]), len(body))
             events = []
             for event in re.finditer(r"(EXEC|FETCH) #" + re.escape(match[1]) + r":([^\n]*)", body[match.end():end]):
@@ -75,13 +100,16 @@ def trace_records(text):
                     events.append({"kind": event[1], "start": finish - int(fields["e"]), "end": finish})
             scoped.append({"sql": sql, "depth": int(match[2]), "uid": int(match[3]),
                            "session": session, "objects": [obj] if obj else [],
+                           "owner": obj.split(".")[0] if obj and "." in obj else None,
+                           "object": obj.split(".")[-1] if obj else None,
+                           "sql_id": sql_id[1] if sql_id else None,
                            "executions": sum(e["kind"] == "EXEC" for e in events),
                            "events": events, "cursor": match[1],
                            "action": ("EXECUTE" if sql.startswith("BEGIN ") else
                                       "ALTER SESSION" if sql.startswith("ALTER SESSION ") else sql.split(" ", 1)[0])})
         parents = [r for r in scoped if r["sql"] in LOGMINER_CALLS or logminer_query(r["sql"])]
         for record in scoped:
-            if record["sql"] == "COMMIT":
+            if record["depth"] > 0:
                 executions = [e for e in record["events"] if e["kind"] == "EXEC"]
                 record["logminer_context"] = bool(executions) and all(
                     any(parent["depth"] < record["depth"] and
@@ -146,12 +174,20 @@ def collect(run, container, version, out, reader, mode="c1", service=None):
             record["depth"] = min(r["depth"] for r in matches)
             record["logminer_context"] = all(r.get("logminer_context") is True for r in matches)
             record["trace_sources"] = sorted({r["source"] for r in matches})
+            if len({r["uid"] for r in matches}) == 1:
+                record["uid"] = matches[0]["uid"]
+            if not record["objects"] and all(r["objects"] == matches[0]["objects"] for r in matches):
+                record["objects"] = matches[0]["objects"]
+                record["owner"] = matches[0]["owner"]
+                record["object"] = matches[0]["object"]
+            record["sql_ids"] = sorted({r["sql_id"] for r in matches if r["sql_id"]})
         record["classification"] = classify(record, mode)
     for record in trace:
         record["classification"] = classify(record, mode)
     rejected = [r for r in records + trace if r["classification"].startswith("rejected")]
     present = bool(records) and any(r["classification"] == "read" for r in records)
     result = {"mode": mode, "reader": reader, "records": records, "trace_records": trace,
+              "categories": dict(Counter(r["classification"] for r in records + trace)),
               "rejected": rejected, "audit_present": present,
               "pass": present and bool(trace) and not rejected}
     (out / "audit-result.json").write_text(json.dumps(result, indent=2) + "\n")

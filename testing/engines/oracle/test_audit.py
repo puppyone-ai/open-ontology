@@ -11,12 +11,16 @@ def statement(cursor, sql, depth, start, end, uid=0):
 
 
 class D11aTests(unittest.TestCase):
-    def test_original_41_remain_fail_closed_without_owner_or_context(self):
+    def test_original_41_only_session_settings_allowed_by_d12(self):
         records = json.loads(Path(__file__).with_name('fixtures').joinpath('d11-original-41.json').read_text())['records']
         self.assertEqual(len(records), 41)
-        self.assertTrue(all(classify(r).startswith('rejected') for r in records))
+        for record in records:
+            if record.get('sql', '').strip().upper().startswith('ALTER SESSION SET '):
+                self.assertEqual(classify(record), 'd12_session_state')
+            else:
+                self.assertTrue(classify(record).startswith('rejected'))
 
-    def test_sys_and_system_dml_without_depth(self):
+    def test_sys_and_system_dml_requires_recursive_context(self):
         for owner in ('SYS', 'SYSTEM'):
             for sql in (f'DELETE FROM {owner}.LOGMNR_GT_XID_INCLUDE$',
                         f'UPDATE {owner}.LOGMNR_SESSION$ SET FLAGS = :1 WHERE SESSION# = :2',
@@ -24,8 +28,11 @@ class D11aTests(unittest.TestCase):
                 obj = logminer_dml(sql)
                 self.assertIsNotNone(obj)
                 self.assertTrue(obj.endswith('$'))
-                record = {'action': sql.split()[0], 'sql': sql, 'objects': [obj]}
+                record = {'action': sql.split()[0], 'sql': sql, 'objects': [obj],
+                          'depth': 1, 'logminer_context': True}
                 self.assertEqual(classify(record), 'd11a_logminer_object_dml')
+                self.assertTrue(classify({**record, 'depth': None}).startswith('rejected'))
+                self.assertTrue(classify({**record, 'logminer_context': False}).startswith('rejected'))
                 self.assertTrue(classify({**record, 'depth': 0}).startswith('rejected'))
                 self.assertTrue(classify({**record, 'objects': [obj, 'APP.T']}).startswith('rejected'))
                 self.assertTrue(classify(record, 'c5').startswith('rejected'))
@@ -36,8 +43,7 @@ class D11aTests(unittest.TestCase):
                     'DELETE FROM SYS.LOGMNR_GT_X WHERE ID IN (SELECT ID FROM APP.T)',
                     'DELETE FROM SYS.LOGMNR_GT_X; DELETE FROM APP.T',
                     'CREATE TABLE SYS.LOGMNR_GT_X(ID NUMBER)',
-                    'BEGIN DBMS_LOGMNR.END_LOGMNR; DELETE FROM APP.T; END;',
-                    "ALTER SESSION SET TIME_ZONE='+08:00'"):
+                    'BEGIN DBMS_LOGMNR.END_LOGMNR; DELETE FROM APP.T; END;'):
             self.assertTrue(classify({'action': sql.split()[0], 'sql': sql, 'depth': 1,
                                      'objects': ['SYS.LOGMNR_GT_X']}).startswith('rejected'))
 
@@ -45,7 +51,7 @@ class D11aTests(unittest.TestCase):
         record = {'action': 'SELECT', 'sql': 'DELETE FROM SYS.LOGMNR_GT_X',
                   'objects': ['SYS.LOGMNR_GT_X']}
         self.assertTrue(classify(record).startswith('rejected'))
-        record.update(depth=2, trace_sources=['trace-001'])
+        record.update(depth=2, trace_sources=['trace-001'], logminer_context=True)
         self.assertEqual(classify(record), 'd11a_logminer_object_dml')
         self.assertTrue(classify({**record, 'depth': 0}).startswith('rejected'))
         self.assertTrue(classify({**record, 'objects': ['SYS.AUD$']}).startswith('rejected'))
@@ -78,6 +84,49 @@ class D11aTests(unittest.TestCase):
         for sql, action in [('COMMIT', 'COMMIT'),
                             ('BEGIN DBMS_LOGMNR.END_LOGMNR; END;', 'EXECUTE')]:
             self.assertTrue(classify({'sql': sql, 'action': action}, 'c5').startswith('rejected'))
+
+    def test_d12_settings_are_not_arbitrary_calls(self):
+        for mode in ('c1', 'c5'):
+            self.assertEqual(classify({'sql': "ALTER SESSION SET TIME_ZONE='+08:00'",
+                                       'depth': 0, 'action': 'ALTER SESSION'}, mode),
+                             'd12_session_state')
+            for sql in ("ALTER SYSTEM SET X=1", "ALTER SESSION SET X=1; DELETE FROM APP.T",
+                        "BEGIN DBMS_STATS.GATHER_TABLE_STATS('APP','T'); END;"):
+                self.assertTrue(classify({'sql': sql, 'depth': 0}, mode).startswith('rejected'))
+
+    def test_blank_object_insert_is_resolved_from_trace_not_ignored(self):
+        sql = 'INSERT /* QOSD */ INTO EXP_HEAD$ (EXP_ID) VALUES (:1)'
+        text = '*** SESSION ID:(1.2) now\n' + statement(1, sql, 1, 100, 200)
+        text = text.replace('oct=7', "oct=7 sqlid='abc123'")
+        record = trace_records(text)[0]
+        self.assertEqual((record['owner'], record['object'], record['sql_id']),
+                         ('SYS', 'EXP_HEAD$', 'abc123'))
+        self.assertEqual(classify(record, 'c5'), 'd12_dictionary_bookkeeping')
+        for changes in ({'objects': []}, {'uid': 99}, {'depth': 0},
+                        {'objects': ['APP.EXP_HEAD$']}, {'sql': 'INSERT INTO MYSTERY VALUES (:1)'}):
+            self.assertTrue(classify({**record, **changes}, 'c5').startswith('rejected'))
+
+    def test_d12_bookkeeping_requires_system_recursive_provenance(self):
+        for sql, obj, category in (
+            ('UPDATE SYS.USER$ SET X=:1', 'SYS.USER$', 'd12_logon_bookkeeping'),
+            ('UPDATE SEQ$ SET X=:1', 'SYS.SEQ$', 'd12_dictionary_bookkeeping'),
+            ('UPDATE SEG$ SET X=:1', 'SYS.SEG$', 'd12_dictionary_bookkeeping'),
+            ('INSERT INTO SYS.AUD$ VALUES (:1)', 'SYS.AUD$', 'd12_audit_trail'),
+            ('INSERT INTO AUDSYS.AUD$UNIFIED VALUES (:1)', 'AUDSYS.AUD$UNIFIED', 'd12_audit_trail')):
+            record = {'sql': sql, 'action': sql.split()[0], 'objects': [obj], 'uid': 0, 'depth': 1}
+            self.assertEqual(classify(record, 'c5'), category)
+            for changes in ({'depth': 0}, {'depth': None}, {'uid': 99}, {'objects': ['APP.T']}):
+                self.assertTrue(classify({**record, **changes}).startswith('rejected'))
+
+    def test_internal_block_requires_enclosing_miner_call(self):
+        sql = ('DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); '
+               'SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); '
+               'SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;')
+        record = {'sql': sql, 'depth': 1, 'uid': 0, 'logminer_context': True}
+        self.assertEqual(classify(record), 'd11a_logminer_internal')
+        for changes in ({'depth': 0}, {'logminer_context': False}, {'uid': 99},
+                        {'sql': sql.replace('DELETE_XID_INCLUSION_RULE()', 'OTHER()')}):
+            self.assertTrue(classify({**record, **changes}).startswith('rejected'))
 
 
 if __name__ == '__main__':
