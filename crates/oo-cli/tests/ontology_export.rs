@@ -1,5 +1,6 @@
-#[path = "../src/admin/ontology_export.rs"]
-mod export;
+#[path = "../src/admin/ontology.rs"]
+mod ontology;
+use ontology::export;
 
 use oo_core::api::payload_sha256;
 use serde_json::{Value, json};
@@ -115,4 +116,51 @@ fn untrusted_labels_are_inert_and_invalid_references_fail_closed() {
     assert!(export::Model::parse(&cycle, None).is_err());
     let corrupt = pack.replacen("Visible count", "Hidden count", 1);
     assert!(export::Model::parse(&corrupt, None).is_err());
+}
+
+#[test]
+fn command_exports_privately_without_overwrite_and_opens_headlessly() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("oo-export-test-{}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    let pack = dir.join("pack.json");
+    std::fs::write(&pack, fixture(2)).unwrap();
+    let out = dir.join("atlas.html");
+    let args = vec![
+        "export".into(),
+        "--pack".into(),
+        pack.display().to_string(),
+        "--out".into(),
+        out.display().to_string(),
+        "--role=reader".into(),
+    ];
+    assert!(ontology::run(&args).is_ok());
+    assert_eq!(
+        std::fs::metadata(&out).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+    assert!(ontology::run(&args).is_err());
+    let path = ontology::run(&[
+        "open".into(),
+        "--pack".into(),
+        pack.display().to_string(),
+        "--print-path".into(),
+    ])
+    .unwrap();
+    assert!(
+        std::fs::read_to_string(&path)
+            .unwrap()
+            .contains("FIELD ATLAS")
+    );
+    std::fs::remove_file(path).unwrap();
+    std::fs::remove_dir_all(dir).unwrap();
+    assert!(
+        ontology::run(&["export".into(), "--format=yaml".into(), "--out=a".into()])
+            .unwrap_err()
+            .contains("YAML_ROLE_OOS")
+    );
+    assert_eq!(
+        ontology::run(&["open".into(), "--format=html".into()]).unwrap_err(),
+        "ADMIN_ARGUMENT"
+    );
 }

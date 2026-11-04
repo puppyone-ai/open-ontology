@@ -47,3 +47,66 @@ that serializer has no role visibility filter, and the role Pack contains no
 reviewed OOS document. A role-closed reviewed OOS contract is needed before
 reusing that serializer; the command fails closed rather than exporting hidden
 fields or substituting graph JSON as OOS YAML. No Cargo.lock changes.
+
+## Command module evidence
+
+The command module is compiled directly by the integration test while admin
+registration remains coordinator-owned. `cargo test -p oo-cli --locked` passes
+51 tests, including `--print-path`, private output mode 0600, no overwrite,
+strict option handling and explicit YAML refusal. `cargo check --workspace
+--locked` and `cargo fmt -p oo-cli --check` pass. Rustfmt was also run directly
+on the not-yet-registered modules. The interactive OS opener was not launched;
+only the headless path was tested. No containers or services were started.
+
+| Raw output | SHA-256 |
+| --- | --- |
+| command-tests.log | 38a473838231ad7f6b7d3ce7e2cfb34127dadd8423b5d2069e23390a4019feca |
+| command-check.log | 9ef874b9c11d031702e9fa83e641fcb2d4be8b577d302017e094ca7223b24fe7 |
+
+Coordinator patch (not applied; outside card write scope):
+
+```diff
+--- a/crates/oo-cli/src/admin/mod.rs
++++ b/crates/oo-cli/src/admin/mod.rs
+@@ -1,6 +1,7 @@
+ //! Administrative commands; consumer credentials are never read here.
+ mod doctor;
+ mod lite;
++mod ontology;
+ mod progress;
+ mod wizard;
+ use oo_stack::stack;
+@@ -39,6 +40,9 @@
+ 
+ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
+     let (command, rest) = args.split_first()?;
++    if command == "help" && rest.first().is_some_and(|c| c == "ontology") {
++        return Some(Ok(Invocation::Help(ontology::HELP.into())));
++    }
+     if command == "help" && rest.first().is_some_and(|c| is_admin(c) && c != "status") {
+         return Some(Ok(Invocation::Help(HELP.into())));
+     }
+@@ -75,6 +79,17 @@
+ }
+ 
+ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
++    if command == "ontology" {
++        return ontology::run(rest)
++            .map(Invocation::Help)
++            .map_err(|message| {
++                if message == "ADMIN_ARGUMENT" {
++                    Failure::usage(message)
++                } else {
++                    Failure::local(message)
++                }
++            });
++    }
+     if rest.iter().any(|s| s == "--help" || s == "-h") {
+         return Ok(Invocation::Help(HELP.into()));
+     }
+```
+
+Default input is `.oo/role-pack.json` beside `--config`; `--pack PATH` accepts
+an explicit `oo.builder.role-pack/v1` artifact. This default must be connected
+to the coordinator's eventual publication artifact locator. `--role` never
+selects an unrelated file or expands visibility.
