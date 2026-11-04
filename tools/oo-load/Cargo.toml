@@ -7,6 +7,9 @@ publish = false
 [workspace]
 resolver = "3"
 
+[features]
+mysql-binlog = ["oo-connectors/mysql-binlog"]
+
 [dependencies]
 oo-pipeline = { path = "../../crates/oo-pipeline" }
 oo-connectors = { path = "../../crates/oo-connectors", features = ["oracle", "mysql"] }

@@ -15,6 +15,7 @@ use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
 mod c5;
 mod epoch;
+mod log_sync;
 mod sync;
 
 #[derive(Deserialize)]
@@ -211,7 +212,7 @@ async fn execute() -> Result<(), String> {
             println!(
                 "oo-load --stack FILE --source ID [--tables schema.table,...] --target FILE\n\
                 [--secrets-dir DIR] [--chunk-rows N] [--oracle-worker EXECUTABLE]\n\
-                [--sync FILE] PostgreSQL C1 from an explicitly aligned baseline; see README.\n\
+                [--sync FILE] Explicit epoch-bound C1; MySQL requires mysql-binlog; Oracle requires opt-in.\n\
                 [--c5 FILE] PostgreSQL/MySQL/Oracle C5 range cycle over an existing snapshot.\n\
                 Target JSON requires run_id and password.secret_ref. Same run_id resumes; new run_id refreshes.\n\
                 Local table publication only; not Gateway publication. See tools/oo-load/README.md."
@@ -247,9 +248,6 @@ async fn execute() -> Result<(), String> {
         .ok_or("source_required")?;
     if opts.contains_key("--sync") && opts.contains_key("--c5") {
         return Err("sync_modes_conflict".into());
-    }
-    if opts.contains_key("--sync") && source.engine != "postgres" {
-        return Err("sync_engine_not_integrated".into());
     }
     if source.ssh.is_some() {
         return Err("ssh_not_supported".into());
@@ -384,6 +382,19 @@ async fn execute() -> Result<(), String> {
                 None => OracleEngine::connect(config),
             }
             .map_err(|e| e.to_string())?;
+            if let Some(path) = opts.get("--sync") {
+                return log_sync::oracle(
+                    engine,
+                    source,
+                    &tables,
+                    &target,
+                    &store,
+                    &budget,
+                    serde_json::from_slice(&read(path)?).map_err(|_| "sync_config")?,
+                    opts.get("--oracle-worker"),
+                )
+                .await;
+            }
             if let Some(path) = opts.get("--c5") {
                 return c5::run(
                     engine,
@@ -432,6 +443,21 @@ async fn execute() -> Result<(), String> {
                     ..Default::default()
                 },
             );
+            if let Some(_path) = opts.get("--sync") {
+                #[cfg(feature = "mysql-binlog")]
+                return log_sync::mysql(
+                    engine,
+                    source,
+                    &tables,
+                    &target,
+                    &store,
+                    &budget,
+                    serde_json::from_slice(&read(_path)?).map_err(|_| "sync_config")?,
+                )
+                .await;
+                #[cfg(not(feature = "mysql-binlog"))]
+                return Err("mysql_binlog_feature_required".into());
+            }
             if let Some(path) = opts.get("--c5") {
                 return c5::run(
                     engine,
