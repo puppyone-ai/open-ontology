@@ -171,6 +171,27 @@ def health(root,stack):
         conn.close()
 
 
+def retained_login_grant(login):
+    if (not isinstance(login,str) or login=='public'
+            or not re.fullmatch('[a-z_][a-z0-9_]{0,62}',login)):
+        raise ValueError('LITE_GATEWAY_DATA_LOGIN')
+    # This helper exposes verified retained proofs, not source access or DDL.
+    return f'GRANT EXECUTE ON FUNCTION _oo.native_library_retained_table(text) TO "{login}";\n'
+
+def provision_retained_login(root,argv,env):
+    config=root/'work/operator/gateway/config.json'
+    if not config.exists():
+        return
+    login=json.loads(read_private(config)).get('data_user')
+    if login is None:
+        return
+    sql=retained_login_grant(login)
+    result=subprocess.run(['docker',*argv,'exec','-T','agent-db','psql',
+        '-X','-q','-v','ON_ERROR_STOP=1','-U','postgres'],
+        input=sql.encode(),capture_output=True,env=env,timeout=30)
+    if result.returncode:
+        raise ValueError('LITE_GATEWAY_RETAINED_GRANT')
+
 def operator_bootstrap(root,argv,env,stack):
     """Issue only the reserved operator role, never a user's data-plane token."""
     pki=root/'pki'
@@ -276,6 +297,7 @@ def main(request):
         write(owner,json.dumps({'project':project,'image':image,'lane':'a','subnet':network}).encode())
         docker(argv+['up','--detach','--wait','--wait-timeout','120'],env)
         operator_bootstrap(root,argv,env,request['stack'])
+        provision_retained_login(root,argv,env)
     elif action=='down':
         # Keep database volumes and credentials. No prune, orphan or volume flags.
         docker(argv+['down'],env)

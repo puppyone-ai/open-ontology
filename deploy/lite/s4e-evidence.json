@@ -1,0 +1,44 @@
+{
+  "todo": "S4-M-01",
+  "status": "partial",
+  "gateway_execute_grant": "passed",
+  "scheduled_cycle": "blocked_not_run",
+  "seven_healthy": false,
+  "run_id": "m-s4e-lite-boundary-1",
+  "boundary_sha256": "5846a7f222ec314bc64ec1e9b6c3e98c62be0871cc2a43ea84e9efde20519262",
+  "query_status_without_grant": 409,
+  "query_status_with_grant": 200,
+  "builder_blockers": {
+    "oracle_retained": "data_only_oracle_c1_required",
+    "postgres_route": "data_only_source_route_required"
+  },
+  "boundary_basis": "actual Oracle retained receipt; minimal route-dispatch inputs, not a full Builder run",
+  "outside_write_scope": "tools/pg-builder/scripts/library_semantics.py",
+  "scheduler_changed": false,
+  "follow_up": "Add a verified retained-generation Builder observation/data-only route under a separate scope grant, then wire scheduler, control job events, completed Builder one-shot and seven-service live status. Do not substitute role-pack compilation or local dispatch receipts for those gates.",
+  "tests": {
+    "workspace_check": "passed",
+    "pipeline": {
+      "passed": 351,
+      "ignored": 55
+    },
+    "oo_load": {
+      "passed": 35,
+      "ignored": 7
+    },
+    "oo_cli": {
+      "passed": 60,
+      "ignored": 0
+    },
+    "lite_unittests": {
+      "passed": 30
+    }
+  },
+  "cleanup": {
+    "created_containers": 17,
+    "created_volumes": 6,
+    "containers_left": [],
+    "volumes_left": []
+  },
+  "lockfiles_changed": false
+}
