@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify D14 TLS/SCRAM and real token issuance on an owned lite DB."""
 import argparse
+import datetime
 import json
 import os
 from pathlib import Path
@@ -138,6 +139,10 @@ exec psql -X -qAt "host=%s hostaddr=127.0.0.1 user=postgres dbname=postgres sslm
         (out/'database.log').write_bytes(logs)
         version=lifecycle.docker(argv+['exec','-T','control-db','psql','-X','-qAt',
                                       '-U','postgres','-c','SHOW server_version'],env).decode().strip()
+        token_deadline=int(lifecycle.docker(argv+[
+            'exec','-T','control-db','psql','-X','-qAt','-U','postgres','-c',
+            "SELECT absolute_deadline_ms FROM oo_token_control.token_record "
+            "WHERE role_name='lite_operator'"],env).decode().strip())
         result={'status':'passed','positive_mtls_connection':'passed',
                 'engine':'PostgreSQL','version':version,
                 'issue_token_install_exit':issue.returncode,
@@ -147,7 +152,7 @@ exec psql -X -qAt "host=%s hostaddr=127.0.0.1 user=postgres dbname=postgres sslm
                 'client_certificate_required':False,'token_issued':True,
                 'health_meta_role_enforcement_tested':False}
         if args.gateway_boundary:
-            result['gateway_boundary']=gateway_boundary(out,pki,grant)
+            result['gateway_boundary']=gateway_boundary(out,pki,grant,token_deadline)
             result['health_meta_role_enforcement_tested']=True
         (out/'result.json').write_text(json.dumps(result,indent=2))
     finally:
@@ -157,11 +162,12 @@ exec psql -X -qAt "host=%s hostaddr=127.0.0.1 user=postgres dbname=postgres sslm
         lifecycle.docker(argv+['down'],env)
         shutil.rmtree(pki)
 
-def gateway_boundary(out,pki,grant):
+def gateway_boundary(out,pki,grant,token_deadline):
     """Exercise the real pre-publication API; never substitute a fake Pack."""
     lifecycle.write(pki/'endpoint.json',(out/'endpoint.json').read_bytes())
     (pki/'packs').mkdir(mode=0o700)
-    config={'listen':'127.0.0.1:0','audience':grant['audience_url'],
+    # Deliberately omit the slash: expiry must use the token's canonical audience.
+    config={'listen':'127.0.0.1:0','audience':grant['audience_url'].rstrip('/'),
             'runtime_user':'oo_token_runtime','password_file':'lite-admin-password',
             'ca_file':'lite-ca-cert','endpoint_file':'endpoint.json','pack_dir':'packs',
             'body_limit':65536,'request_timeout_ms':10000,'global_concurrency':2,
@@ -184,30 +190,50 @@ def gateway_boundary(out,pki,grant):
             port=int((pki/'listen.addr').read_text().strip().rsplit(':',1)[1])
             health=lifecycle.health(out,{'gateway':{'public_url':f'https://localhost:{port}'}})
             assert health['status']=='measured' and health['nearest_credential_expiry_ms']
-            assert health['token_expiry']['expires_at_ms']
-            assert health['internal_mtls_certificate_expiry']['expires_at_ms']
+            assert health['token_expiry']['expires_at_ms']==token_deadline
+            certificate=lifecycle.ssl._ssl._test_decode_cert(str(pki/'lite-control-db-cert'))
+            certificate_deadline=int(datetime.datetime.strptime(
+                certificate['notAfter'],'%b %d %H:%M:%S %Y %Z'
+            ).replace(tzinfo=datetime.timezone.utc).timestamp()*1000)
+            assert health['internal_mtls_certificate_expiry']['expires_at_ms']==certificate_deadline
+            assert health['nearest_credential_expiry_ms']==min(token_deadline,certificate_deadline)
             lifecycle.write(out/'health.json',json.dumps(health).encode())
             context=lifecycle.ssl.create_default_context(cafile=pki/'lite-ca-cert')
             context.load_cert_chain(pki/'lite-admin-cert',pki/'lite-admin-key')
             token=lifecycle.read_private(pki/'operator-token').decode().strip()
             statuses={}
-            for route in ('/v1/health','/v1/meta','/v1/session/current','/v1/tables'):
+            routes=['/health','/ready','/v1/session/current','/v1/pack/metadata',
+                    '/v1/sql','/v1/tables','/v1/tables/fixture','/v1/sql/validate',
+                    '/v1/query','/v1/freshness','/v1/knowledge/search',
+                    '/v1/knowledge/fixture','/v1/queries/fixture',
+                    '/v1/queries/fixture/cancel','/v1/operations',
+                    '/v1/operations/fixture','/v1/operations/fixture/cancel',
+                    '/v1/auth/enroll','/v1/auth/renew','/v1/auth/whoami',
+                    '/v1/auth/device/code','/v1/auth/device/token','/v1/auth/device',
+                    '/internal/v1/tokens','/not-a-route']
+            cases=[('GET','/v1/health',200),('GET','/v1/meta',200)]
+            cases += [(method,route,403) for route in routes
+                      for method in ('GET','POST','PUT','PATCH','DELETE','HEAD','OPTIONS')]
+            cases += [(method,route,403) for route in ('/v1/health','/v1/meta')
+                      for method in ('POST','PUT','PATCH','DELETE','HEAD','OPTIONS')]
+            for method,route,expected in cases:
                 conn=lifecycle.http.client.HTTPSConnection('localhost',port,context=context,timeout=10)
                 try:
-                    conn.request('GET',route,headers={'Authorization':'Bearer '+token})
+                    conn.request(method,route,headers={'Authorization':'Bearer '+token})
                     response=conn.getresponse()
                     body=response.read(65537)
                     assert token.encode() not in body
-                    statuses[route]=response.status
-                    lifecycle.write(out/(route.rsplit('/',1)[1]+'-response.json'),body)
+                    statuses[method+' '+route]=response.status
+                    lifecycle.write(out/'http-statuses.json',json.dumps(statuses).encode())
+                    assert response.status==expected, (method,route,response.status,expected)
+                    if method=='GET' and route=='/v1/meta':
+                        meta=json.loads(body)
+                        assert meta['publication_id'] is None and meta['freshness'] is None
                 finally:
                     conn.close()
-            assert statuses['/v1/health']==200
-            assert statuses['/v1/session/current']==200
-            assert statuses['/v1/meta']!=200, 'operator meta contract changed; recheck integration'
-            assert statuses['/v1/tables']!=200
-            return {'status':'blocked','http_statuses':statuses,
-                    'reason':'authenticated meta requires a publication; role is not health/meta-only',
+            return {'status':'passed','http_statuses':statuses,
+                    'canonical_audience_expiry_verified':True,
+                    'certificate_expiry_verified':True,
                     'gateway_internal_mtls':True,'fake_publication_created':False}
         finally:
             process.terminate()

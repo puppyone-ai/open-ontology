@@ -1,0 +1,18 @@
+{
+  "todo": "S2-A-02",
+  "status": "partial",
+  "run_id": "a-s2f-operator-1",
+  "engine": "PostgreSQL",
+  "version": "17.10 (Debian 17.10-1.pgdg12+1)",
+  "operator_boundary": "passed",
+  "http_cases": 189,
+  "canonical_audience_expiry_verified": true,
+  "certificate_expiry_verified": true,
+  "seven_service_acceptance": false,
+  "three_engine_drafts": false,
+  "sha256": {
+    "result.json": "ce24adeb5022086c96e5f31f2e72571a952cd98bd7c2ba3d056914090b9cf674",
+    "http-statuses.json": "0b0e5ba5124958849359c5a1a7e3a9cccc59e8132cd57fa31cd82bda0d8454a3",
+    "health.json": "6396530f9043014a65ae1d3c50ae42cdb13a827545c410c13bfc888893aed2af"
+  }
+}

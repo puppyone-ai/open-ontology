@@ -79,8 +79,7 @@ healthy. Local bootstrap certificate expiry is a separate measurement.
 Card S2d authorizes a separate internal health/meta-only operator token on first
 up; the user's first token remains S4. The current implementation does not yet
 issue that operator token. D14 resolves the previous database client-certificate
-blocker. The remaining Gateway health/meta-only role contract is reproduced
-by the S2e live probe below and requires a shared-file change.
+blocker. The Gateway health/meta-only role contract now passes the S2f live probe.
 The opt-in scheduler invokes the existing `job-worker native-fire` operation.
 It needs installed control schemas, worker configuration and a project UUID in
 `work/operator/schedule.json`. Gateway needs its existing reviewed operator
@@ -102,14 +101,14 @@ switch is therefore insufficient; no invented catalog is installed here.
   and the reserved-role candidate can still read session/current.
   This is a reproduced **operator-contract blocker**, not first-up or
   seven-service acceptance. No publication is fabricated.
-- `operator-contract-request.patch` is an exact, **unapplied and untested**
-  request for the Gateway owner: reserve `lite_operator` for health/meta,
-  allow authenticated pre-publication meta, and use the authenticated
-  canonical audience when measuring token expiry. `git apply --check` passes.
-  The live probe also exposed null token expiry when the operator config
-  omitted the trailing slash that token issuance canonicalizes; the final
-  fixture uses the canonical audience and requires both deadlines.
-  Lane A does not install a broadly authorized token as a health-only token.
+- `a-s2f-operator-1`: the integrated Gateway passes 189 real HTTPS/mTLS
+  route/method cases. The operator gets 200 on GET health/meta without a
+  publication and 403 on the tested data, session, token administration,
+  unknown and non-GET routes. Token expiry exactly matches its database
+  deadline even when the configured audience omits the canonical trailing
+  slash; certificate expiry matches the signed certificate. The applied
+  request patch has been removed. This does not establish automatic first-up
+  issuance, a scheduled cycle, seven healthy services or three-engine drafts.
 - New lite credentials include strict X.509 key identifiers. Database and
   Gateway server leaves retain DNS/IP SANs; workload client leaves have one
   URI SAN as required by Gateway. Existing credentials are never silently
