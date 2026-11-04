@@ -313,8 +313,11 @@ and returns `token`, `token_sha256`, role, audience, first issuance and expiry.
 Audience comes from server configuration, not request JSON. A wrong-audience
 attempt does not consume the code. Simultaneous redemptions have one winner.
 Process-local minute budgets are separate for enrollment and device-code
-issuance (10 per route, 5 per TCP peer), and device polling (60 per route,
-30 per peer), under an aggregate cap of 90 (at least the sum of route caps).
+issuance (10 per route, 5 per TCP peer), under an aggregate cap of 90
+(at least the sum of route caps). Device polling is independent of these
+aggregate/route budgets: 30 per TCP peer and 12 per device-code SHA-256 per
+minute. Different devices on different peers do not consume each other's
+poll budgets; devices sharing a peer still share its anti-abuse limit.
 Self-renewal is limited to 10 per authenticated token SHA-256 per minute,
 after fresh authentication, independently of public route/peer budgets.
 The bucket table is bounded at 4096 entries per minute; new identities fail
@@ -324,7 +327,12 @@ There is no trusted forwarded-for configuration: request forwarding headers
 are not used as client identities. Distributed deployments need a shared
 edge limit; these counters are not a distributed quota.
 
-Device-code issuance and well-formed polls require durable audit first.
+Device-code issuance and polls for known grants require durable audit first.
+Unknown device-code hashes are rejected before any admin connection. Instead
+of durable database audit, a process-local atomic counter counts every unknown
+poll admitted by the peer budget; only the count is logged on the first and
+every 128th subsequent rejection. No device code, hash or peer is logged by
+this sampled path. Restart resets the counter.
 These observations use the existing `enroll` / `redeem` audit categories,
 with `device_code_issued` / `device_poll_requested` outcomes and device-code
 SHA-256 in `related_sha256`. Redemption audits link the enrollment-code

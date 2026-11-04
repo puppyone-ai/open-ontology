@@ -215,6 +215,28 @@ pub(super) async fn poll(
         return error("invalid_grant");
     };
     let digest = hash(code);
+    {
+        let Ok(devices) = lifecycle.devices.lock() else {
+            return error("server_error");
+        };
+        if !devices.0.contains_key(&digest) {
+            // Count every unknown grant cheaply; sample logs without code/peer material.
+            let count = lifecycle
+                .unknown_device_polls
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            if count % 128 == 0 {
+                eprintln!("device_poll_unknown: count={}", count.saturating_add(1));
+            }
+            return error("expired_token");
+        }
+    }
+    if !lifecycle
+        .attempts
+        .lock()
+        .is_ok_and(|mut attempts| attempts.admit("device_grant", digest.clone()))
+    {
+        return response(429, serde_json::json!({"error":"slow_down"}));
+    }
     // Audit before consuming the single-use grant; an audit outage leaves it retryable.
     if lifecycle
         .control

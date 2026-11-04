@@ -11,6 +11,7 @@ pub(super) struct Lifecycle {
     pub admin_workload: String,
     attempts: Mutex<Attempts>,
     devices: Mutex<device::Devices>,
+    unknown_device_polls: std::sync::atomic::AtomicU64,
 }
 impl Lifecycle {
     pub fn new(control: Control, admin_workload: String) -> Self {
@@ -19,6 +20,7 @@ impl Lifecycle {
             admin_workload,
             attempts: Mutex::new(Attempts::new()),
             devices: Mutex::new(device::Devices::default()),
+            unknown_device_polls: std::sync::atomic::AtomicU64::new(0),
         }
     }
     fn admit(&self, route: &'static str, peer: &PublicPeer) -> bool {
@@ -79,23 +81,28 @@ impl Attempts {
         if self.start.elapsed() >= Duration::from_secs(60) {
             *self = Self::new();
         }
-        let limit = if route == "device_poll" { 60 } else { 10 };
         let key = (route, peer);
         // Bound memory even for authenticated callers with many distinct tokens.
         if !self.peers.contains_key(&key) && self.peers.len() >= 4096 {
             return false;
         }
-        if route == "renew" {
+        let keyed_limit = match route {
+            "renew" => Some(10),
+            "device_poll" => Some(30),
+            "device_grant" => Some(12),
+            _ => None,
+        };
+        if let Some(limit) = keyed_limit {
             let count = self.peers.entry(key).or_default();
-            if *count >= 10 {
+            if *count >= limit {
                 return false;
             }
             *count += 1;
             return true;
         }
         if self.total >= 90
-            || self.routes.get(route).copied().unwrap_or(0) >= limit
-            || self.peers.get(&key).copied().unwrap_or(0) >= limit / 2
+            || self.routes.get(route).copied().unwrap_or(0) >= 10
+            || self.peers.get(&key).copied().unwrap_or(0) >= 5
         {
             return false;
         }
@@ -500,10 +507,30 @@ mod tests {
             }
             assert!(!attempts.admit("renew", format!("token-{n}")));
         }
-        assert_eq!(attempts.total, 80);
+        assert_eq!(attempts.total, 20);
         attempts.start -= Duration::from_secs(60);
         assert!(attempts.admit("renew", "new-peer".into()));
         assert_eq!(attempts.peers.len(), 1);
+    }
+    #[test]
+    fn device_poll_budgets_are_per_peer_and_per_code() {
+        let mut attempts = Attempts::new();
+        for peer in 0..10 {
+            for _ in 0..30 {
+                assert!(attempts.admit("device_poll", peer.to_string()));
+            }
+            assert!(!attempts.admit("device_poll", peer.to_string()));
+        }
+        for code in 0..10 {
+            for _ in 0..12 {
+                assert!(attempts.admit("device_grant", code.to_string()));
+            }
+            assert!(!attempts.admit("device_grant", code.to_string()));
+        }
+        assert!(attempts.admit("enroll", "one".into()));
+        attempts.start -= Duration::from_secs(60);
+        assert!(attempts.admit("device_poll", "0".into()));
+        assert!(attempts.admit("device_grant", "0".into()));
     }
     fn test_peer(workload: &str) -> PublicPeer {
         Some(Extension(ConnectInfo(TlsPeer {
@@ -634,7 +661,7 @@ mod tests {
         );
     }
     #[tokio::test]
-    async fn device_poll_is_audited_even_for_unknown_grants() {
+    async fn unknown_device_poll_never_opens_admin_connection() {
         let state = lifecycle_state();
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -648,7 +675,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             serde_json::from_slice::<Value>(&body).unwrap()["error"],
-            "server_error"
+            "expired_token"
         );
         assert_eq!(
             state
@@ -659,6 +686,16 @@ mod tests {
                 .control
                 .connections
                 .load(Ordering::SeqCst),
+            0
+        );
+        assert_eq!(
+            state
+                .inner
+                .lifecycle
+                .as_ref()
+                .unwrap()
+                .unknown_device_polls
+                .load(Ordering::Relaxed),
             1
         );
     }
