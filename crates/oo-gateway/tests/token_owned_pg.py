@@ -162,6 +162,9 @@ try:
     assert status == 200 and who["principal_id"] == "alice" and who["role"] == "reader"
     assert who["expires_at_ms"] == bound["expires_at_ms"] and "token" not in who
     assert http("/v1/auth/enroll", {"code": enrolled["code"]})[0] != 200
+    code_digest = hashlib.sha256(enrolled["code"].encode()).hexdigest()
+    empty_workload_digest = hashlib.sha256(b'').hexdigest()
+    assert sql("SELECT count(*) FROM oo_token_lifecycle.audit WHERE operation='redeem' AND related_sha256='" + code_digest + "' AND actor LIKE 'public-enrollment;peer=%;workload_sha256=" + empty_workload_digest + "'").strip() == '2'
     assert http("/v1/auth/renew", {}, token=bound["token"])[1]["error"]["message"] == "self_renew_disabled"
     admin_op("policy", project="http", policy={
         "max_lifetime_ms": 90 * 86400000, "default_ttl_ms": 3600000,
@@ -225,6 +228,8 @@ try:
     # Respect the production ten-attempts/minute enrollment limiter.
     time.sleep(61)
     cli_e2e(ROOT, RUN, WORK, audience, http, admin_op)
+    assert int(sql("SELECT count(*) FROM oo_token_lifecycle.audit WHERE outcome='device_code_issued' AND related_sha256 IS NOT NULL").strip()) >= 2
+    assert int(sql("SELECT count(*) FROM oo_token_lifecycle.audit WHERE outcome='device_poll_requested' AND related_sha256 IS NOT NULL").strip()) >= 3
     for _ in range(10):
         last = http("/v1/auth/enroll", {"code": "OO-0000-0000"})[0]
     assert last == 429

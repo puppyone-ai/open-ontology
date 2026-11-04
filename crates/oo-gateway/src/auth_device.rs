@@ -122,24 +122,38 @@ pub(super) async fn authorize(
     );
     random.zeroize();
     let now = Instant::now();
-    let Ok(mut devices) = lifecycle.devices.lock() else {
-        return error("server_error");
-    };
-    devices.0.retain(|_, pending| pending.expires > now);
-    if devices.0.len() >= 256 || devices.0.values().any(|p| p.user_code == user_code) {
-        return error("temporarily_unavailable");
+    let digest = hash(&device_code);
+    {
+        let Ok(mut devices) = lifecycle.devices.lock() else {
+            return error("server_error");
+        };
+        devices.0.retain(|_, pending| pending.expires > now);
+        if devices.0.len() >= 256 || devices.0.values().any(|p| p.user_code == user_code) {
+            return error("temporarily_unavailable");
+        }
+        devices.0.insert(
+            digest.clone(),
+            Pending {
+                user_code: user_code.clone(),
+                expires: now + TTL,
+                next_poll: now + INTERVAL,
+                interval: INTERVAL,
+                approving: false,
+                enrollment: None,
+            },
+        );
     }
-    devices.0.insert(
-        hash(&device_code),
-        Pending {
-            user_code: user_code.clone(),
-            expires: now + TTL,
-            next_poll: now + INTERVAL,
-            interval: INTERVAL,
-            approving: false,
-            enrollment: None,
-        },
-    );
+    if lifecycle
+        .control
+        .audit_device(&audit_actor("device-code", &peer), &digest, false)
+        .await
+        .is_err()
+    {
+        if let Ok(mut devices) = lifecycle.devices.lock() {
+            devices.0.remove(&digest);
+        }
+        return error("server_error");
+    }
     // The audience may include /v1, but HTTP routes are rooted at the origin.
     let Ok(uri) = state.inner.audience.parse::<axum::http::Uri>() else {
         return error("server_error");
@@ -201,6 +215,15 @@ pub(super) async fn poll(
         return error("invalid_grant");
     };
     let digest = hash(code);
+    // Audit before consuming the single-use grant; an audit outage leaves it retryable.
+    if lifecycle
+        .control
+        .audit_device(&audit_actor("device-poll", &peer), &digest, true)
+        .await
+        .is_err()
+    {
+        return error("server_error");
+    }
     let enrollment = {
         let Ok(mut devices) = lifecycle.devices.lock() else {
             return error("server_error");
@@ -223,7 +246,10 @@ pub(super) async fn poll(
                 code: enrollment,
                 audience: state.inner.audience.clone(),
             },
-            "device-enrollment",
+            &format!(
+                "{};device_sha256={digest}",
+                audit_actor("device-enrollment", &peer)
+            ),
         )
         .await
     {

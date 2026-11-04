@@ -34,6 +34,18 @@ fn peer_key(peer: &PublicPeer) -> String {
         .map(|Extension(ConnectInfo(p))| p.workload.clone())
         .unwrap_or_default()
 }
+fn audit_actor(route: &str, peer: &PublicPeer) -> String {
+    use sha2::{Digest, Sha256};
+    let workload = peer
+        .as_ref()
+        .map(|Extension(ConnectInfo(p))| p.workload.as_str())
+        .unwrap_or("");
+    // Hash the verified workload, not headers or supplied redemption metadata.
+    format!(
+        "{route};peer=unmeasured;workload_sha256={:x}",
+        Sha256::digest(workload.as_bytes())
+    )
+}
 struct Attempts {
     start: Instant,
     total: u32,
@@ -162,7 +174,7 @@ async fn enroll(
                     code,
                     audience: state.inner.audience.clone(),
                 },
-                "public-enrollment",
+                &audit_actor("public-enrollment", &peer),
             )
             .await,
     )
@@ -537,8 +549,80 @@ mod tests {
             )
             .await
             .status(),
-            StatusCode::OK
+            StatusCode::BAD_REQUEST
         );
+    }
+    #[tokio::test]
+    async fn device_code_requires_a_durable_audit_before_disclosure() {
+        let state = lifecycle_state();
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/x-www-form-urlencoded"),
+        );
+        let response = device::authorize(
+            State(state.clone()),
+            test_peer("device"),
+            RawQuery(None),
+            headers,
+            Bytes::from_static(b"client_id=oo-cli"),
+        )
+        .await;
+        let body = axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::from_slice::<Value>(&body).unwrap()["error"],
+            "server_error"
+        );
+        assert_eq!(
+            state
+                .inner
+                .lifecycle
+                .as_ref()
+                .unwrap()
+                .control
+                .connections
+                .load(Ordering::SeqCst),
+            1
+        );
+    }
+    #[tokio::test]
+    async fn device_poll_is_audited_even_for_unknown_grants() {
+        let state = lifecycle_state();
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/x-www-form-urlencoded"),
+        );
+        let response = device::poll(State(state.clone()), test_peer("device"), RawQuery(None), headers,
+            Bytes::from(format!("client_id=oo-cli&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code={}", "a".repeat(64)))).await;
+        let body = axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::from_slice::<Value>(&body).unwrap()["error"],
+            "server_error"
+        );
+        assert_eq!(
+            state
+                .inner
+                .lifecycle
+                .as_ref()
+                .unwrap()
+                .control
+                .connections
+                .load(Ordering::SeqCst),
+            1
+        );
+    }
+    #[test]
+    fn audit_actor_uses_only_verified_workload_and_marks_missing_peer() {
+        use sha2::{Digest, Sha256};
+        let actor = audit_actor("public-enrollment", &test_peer("verified-workload"));
+        assert!(actor.contains("peer=unmeasured"));
+        assert!(actor.ends_with(&format!("{:x}", Sha256::digest(b"verified-workload"))));
+        assert!(!actor.contains("verified-workload"));
     }
     #[tokio::test]
     async fn junk_renew_never_opens_admin_connection() {

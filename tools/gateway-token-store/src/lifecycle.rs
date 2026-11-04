@@ -363,6 +363,37 @@ impl Control {
         .await?;
         tx.commit().await.map_err(|_| "commit_unknown")
     }
+    /// Device observations use existing enrollment/redemption audit categories.
+    pub async fn audit_device(&self, actor: &str, digest: &str, poll: bool) -> Result<()> {
+        safe_text(actor)?;
+        if actor.is_empty()
+            || digest.len() != 64
+            || !digest
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return Err("input");
+        }
+        let mut client = self.connect().await?;
+        let tx = client.transaction().await.map_err(|_| "database")?;
+        tx.batch_execute("SET LOCAL search_path TO pg_catalog; SET LOCAL lock_timeout='10s'; SET LOCAL statement_timeout='15s'; SET LOCAL synchronous_commit=on").await.map_err(|_| "database")?;
+        verify(&tx).await?;
+        audit(
+            &tx,
+            now_ms()?,
+            "",
+            actor,
+            if poll { "redeem" } else { "enroll" },
+            if poll {
+                "device_poll_requested"
+            } else {
+                "device_code_issued"
+            },
+            &json!({"code_sha256":digest}),
+        )
+        .await?;
+        tx.commit().await.map_err(|_| "commit_unknown")
+    }
     pub async fn execute(&self, operation: Operation, actor: &str) -> Result<Receipt> {
         self.execute_at(operation, actor, now_ms()?).await
     }
@@ -389,13 +420,16 @@ impl Control {
             .await
             .map_err(|_| "database")?;
         let name = operation.name();
+        let refusal_metadata = match &operation {
+            Operation::Redeem { code, .. } => json!({"code_sha256":digest(code.as_bytes())}),
+            _ => json!({}),
+        };
         let result = operate(&tx, operation, actor, now, &project).await;
         if result.is_err() {
             tx.batch_execute("ROLLBACK TO SAVEPOINT operation")
                 .await
                 .map_err(|_| "database")?;
         }
-        let empty = json!({});
         audit(
             &tx,
             now,
@@ -403,7 +437,10 @@ impl Control {
             actor,
             name,
             result.as_ref().err().copied().unwrap_or("ok"),
-            result.as_ref().map(|r| &r.metadata).unwrap_or(&empty),
+            result
+                .as_ref()
+                .map(|r| &r.metadata)
+                .unwrap_or(&refusal_metadata),
         )
         .await?;
         tx.commit().await.map_err(|_| "commit_unknown")?;
@@ -436,6 +473,11 @@ async fn verify(tx: &Transaction<'_>) -> Result<()> {
     }
     Ok(())
 }
+fn audit_related(m: &Value) -> Option<&str> {
+    m["code_sha256"]
+        .as_str()
+        .or_else(|| m["rotated_from"].as_str())
+}
 async fn audit(
     tx: &Transaction<'_>,
     now: i64,
@@ -446,7 +488,7 @@ async fn audit(
     m: &Value,
 ) -> Result<()> {
     let hash = m["token_sha256"].as_str();
-    let related = m["rotated_from"].as_str();
+    let related = audit_related(m);
     let old = m["old_deadline_ms"].as_i64();
     let new = m["expires_at_ms"].as_i64();
     tx.execute("INSERT INTO oo_token_lifecycle.audit (at_ms,project_id,actor,operation,outcome,token_sha256,related_sha256,old_deadline_ms,new_deadline_ms) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",&[&now,&project,&actor,&op,&outcome,&hash,&related,&old,&new]).await.map_err(|_|"audit")?;
@@ -705,7 +747,7 @@ async fn operate(
             let grant = serde_json::to_string(&g).map_err(|_| "input")?;
             tx.execute("INSERT INTO oo_token_lifecycle.enrollment (code_sha256,project_id,grant_json,created_at_ms,expires_at_ms) VALUES ($1,$2,$3,$4,$5)",&[&hash,&project,&grant,&now,&expiry]).await.map_err(|_|"database")?;
             Ok(Receipt {
-                metadata: json!({"expires_at_ms":expiry}),
+                metadata: json!({"expires_at_ms":expiry,"code_sha256":hash}),
                 secret: Some(code),
             })
         }
@@ -725,7 +767,8 @@ async fn operate(
             if g.audience_url != audience(&aud)? {
                 return Err("audience");
             }
-            let receipt = issue(tx, g, actor, now, &p, None, None).await?;
+            let mut receipt = issue(tx, g, actor, now, &p, None, None).await?;
+            receipt.metadata["code_sha256"] = json!(hash);
             tx.execute("UPDATE oo_token_lifecycle.enrollment SET redeemed_at_ms=$1,redeemed_by=$2 WHERE code_sha256=$3",&[&now,&actor,&hash]).await.map_err(|_|"database")?;
             Ok(receipt)
         }
@@ -846,6 +889,18 @@ pub use legacy::{
 mod tests {
     use super::*;
 
+    #[test]
+    fn redemption_audit_links_the_enrollment_digest() {
+        let hash = digest(b"synthetic-redemption-source");
+        assert_eq!(
+            audit_related(&json!({"code_sha256":hash})),
+            Some(hash.as_str())
+        );
+        assert_eq!(
+            audit_related(&json!({"rotated_from":hash})),
+            Some(hash.as_str())
+        );
+    }
     #[test]
     fn hash_prefix_resolution_refuses_missing_and_ambiguous_matches() {
         assert_eq!(
