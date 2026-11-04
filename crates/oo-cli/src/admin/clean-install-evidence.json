@@ -1,83 +1,220 @@
 {
-  "status": "partial",
-  "card": "A3-S4c",
+  "status": "complete",
+  "card": "A4",
   "todo_ids": [
-    "S4-A-01",
-    "S4-A-02"
+    "S4-A-02",
+    "S4-M-02"
   ],
+  "decision": "D16",
   "run_ids": [
-    "a3-s4c-20261105",
-    "a3-s4c-wizard-20261105",
-    "a3-s4c-npm-smoke-20261105",
-    "a3-s4c-l1-clean-20261105"
+    "a4-l1-20261105",
+    "a4-image-1",
+    "a4-wizard-1",
+    "a4-dev-6",
+    "a4-dev-8",
+    "a4-dev-9"
   ],
   "changes": [
-    "Import source CA files into new private secrets; pinned SSH discovery with out-of-band confirmation and key/password imports.",
-    "Stage native lite image sidecars and verify NOTICE files in npm pack; report exact pinned pull or local archive instructions before deployment state writes.",
-    "Route wizard BUILD through retained CLI command and preserve failed preflight gate; successful text completion prints share prompt."
+    "oo up provisions the retained chain inside the lite deployment (Agent DB catalog via the runtime's install-retained-target, Gateway data login, Gateway operator directory, build runtime configuration, consumer workload identity, host loopback Gateway port).",
+    "oo build without developer overrides runs every stage in one-shot containers of the pinned runtime image; owner review stays on the host on the copied-out input, with the compiler run from the image.",
+    "Credential OpenSSL and the MySQL doctor run from the runtime image when the host lacks them; the wizard imports model endpoint/key files by path and BUILD deploys first."
   ],
   "checks": [
     {
       "command": "cargo check --workspace --locked",
-      "result": "passed"
+      "result": "passed on every commit"
     },
     {
       "command": "cargo test -p oo-cli --locked",
-      "result": "80 passed; 2 ignored; 0 failed"
+      "result": "83 passed; 2 ignored; 0 failed (includes build.rs/build_tail.rs SIGKILL checkpoint tests)"
     },
     {
-      "command": "cargo test -p oo-connectors --locked transport::ssh",
-      "result": "4 passed; remaining tests filtered; not full connector acceptance"
+      "command": "cargo test -p oo-stack --locked",
+      "result": "14 passed; 0 failed"
     },
     {
-      "command": "node --test packages/cli/scripts/stage.test.mjs packages/cli/test/*.test.mjs",
-      "result": "46 passed"
+      "command": "python3 -m unittest test_retained_provision test_lifecycle test_retained_grant (deploy/lite)",
+      "result": "26 passed"
     },
     {
-      "command": "python3 crates/oo-cli/src/admin/test_wizard.py --run-id a3-s4c-wizard-20261105",
-      "result": "passed; synthetic CA/model replay; blocked source preflight; no live SSH claim"
+      "command": "python3 crates/oo-cli/src/admin/test_wizard.py --run-id a4-wizard-1",
+      "result": "passed"
     },
     {
-      "command": "python3 crates/oo-cli/src/admin/test_npm_lite.py --run-id a3-s4c-npm-smoke-20261105",
-      "result": "passed; native CLI from diagnostic npm pack; fake Docker; synthetic dependency notices"
-    },
-    {
-      "command": "python tools/oo-test/l1_clean.py --run-id a3-s4c-l1-clean-20261105 --binary target/debug/oo",
-      "result": "exit 1; blocker diagnostics only; no engine started or share prompt reached"
+      "command": "python3 tools/oo-test/l1_clean.py --run-id a4-l1-20261105 --binary target/debug/oo --model-endpoint <owner file> --model-key <owner file>",
+      "result": "passed; 3 engines x (TTY, stack.yaml)"
     }
   ],
-  "engine_results": {
-    "PostgreSQL 17.11": "not run; installed CLI configuration validated, full build blocked before engine access",
-    "MySQL 8.4.7": "not run; diagnostic CLI only",
-    "Oracle 23.5": "not run; diagnostic CLI only",
-    "Linux": "not run"
+  "runtime_image": {
+    "platform": "linux/arm64",
+    "id": "sha256:8937f6aeb263ea3fb9c99045621e11c2c276a4b44fec7efb64eb1d4a6cdd46bd",
+    "dockerfile": "deploy/lite/Dockerfile",
+    "build_run": "a4-image-1"
   },
-  "remaining": [
-    "Card item 1 not implemented: stack-only retained target/runtime provisioning and installed chain execution remain absent; explicit flags still required.",
-    "Lane M bundle is not integrated at the observed ref. Rust --bundle support is not implemented; its Linux-only bundle launcher is not macOS acceptance.",
-    "The unchanged lane H diagnostic pack omits oo-lite-image, so its up still reports LITE_IMAGE_DIGEST_REQUIRED. Separate actual npm inventory/native smoke passes.",
-    "The unchanged lane H PTY detector matches the old CA secret_ref label; the new CA import prompt is not recognized. Separate import PTY passed.",
-    "No clean-install owner review, PostgreSQL live source, publication, Gateway or enrollment/share-prompt acceptance."
+  "cli_binary_sha256": "a18bd1e3ad374b2c3ad676a300205ee2ac8f8aae8dba6f8ce4f5b0ff34d63433",
+  "base_commit": "479b47c54bef1aa4f8b07d261a53cba9ce22ef42",
+  "harness_sha256": "21c107cc97846d392bc581924de6091edeb50395f42888e6f38f31fcec5d2978",
+  "engine_results": {
+    "PostgreSQL 17.11": {
+      "tty": {
+        "result": "passed",
+        "model_calls": 3,
+        "review": {
+          "reviewer": "owner",
+          "mode": "self",
+          "items": 29
+        },
+        "query_rows": [
+          [
+            "1.1250"
+          ]
+        ],
+        "secret_scan": "passed",
+        "seconds": 105.5
+      },
+      "stack": {
+        "result": "passed",
+        "model_calls": 3,
+        "review": {
+          "reviewer": "owner",
+          "mode": "self",
+          "items": 29
+        },
+        "query_rows": [
+          [
+            "1.1250"
+          ]
+        ],
+        "secret_scan": "passed",
+        "seconds": 69.6
+      },
+      "observed_version": "17.11",
+      "same_result": true,
+      "stack_sigkill_resume": {
+        "signal": "SIGKILL",
+        "after": "load",
+        "attempts_after_resume": {
+          "builder": 1,
+          "candidate": 1,
+          "first_token": 0,
+          "gateway": 0,
+          "load": 1,
+          "publish": 0,
+          "self_review": 2,
+          "share_prompt": 0
+        }
+      }
+    },
+    "MySQL 8.4.7": {
+      "tty": {
+        "result": "passed",
+        "model_calls": 3,
+        "review": {
+          "reviewer": "owner",
+          "mode": "self",
+          "items": 29
+        },
+        "query_rows": [
+          [
+            "1.1250"
+          ]
+        ],
+        "secret_scan": "passed",
+        "seconds": 102.3
+      },
+      "stack": {
+        "result": "passed",
+        "model_calls": 3,
+        "review": {
+          "reviewer": "owner",
+          "mode": "self",
+          "items": 29
+        },
+        "query_rows": [
+          [
+            "1.1250"
+          ]
+        ],
+        "secret_scan": "passed",
+        "seconds": 67.6
+      },
+      "observed_version": "8.4.7",
+      "same_result": true,
+      "stack_sigkill_resume": {
+        "signal": "SIGKILL",
+        "after": "load",
+        "attempts_after_resume": {
+          "builder": 1,
+          "candidate": 1,
+          "first_token": 0,
+          "gateway": 0,
+          "load": 1,
+          "publish": 0,
+          "self_review": 2,
+          "share_prompt": 0
+        }
+      }
+    },
+    "Oracle 23.5": {
+      "tty": {
+        "result": "passed",
+        "model_calls": 3,
+        "review": {
+          "reviewer": "owner",
+          "mode": "self",
+          "items": 28
+        },
+        "query_rows": [
+          [
+            "1.125"
+          ]
+        ],
+        "secret_scan": "passed",
+        "seconds": 107.1
+      },
+      "stack": {
+        "result": "passed",
+        "model_calls": 3,
+        "review": {
+          "reviewer": "owner",
+          "mode": "self",
+          "items": 28
+        },
+        "query_rows": [
+          [
+            "1.125"
+          ]
+        ],
+        "secret_scan": "passed",
+        "seconds": 67.8
+      },
+      "observed_version": "23.5.0.24.07",
+      "same_result": true,
+      "stack_sigkill_resume": {
+        "signal": "SIGKILL",
+        "after": "load",
+        "attempts_after_resume": {
+          "builder": 1,
+          "candidate": 1,
+          "first_token": 0,
+          "gateway": 0,
+          "load": 1,
+          "publish": 0,
+          "self_review": 2,
+          "share_prompt": 0
+        }
+      }
+    }
+  },
+  "not_run": [
+    "Linux amd64 clean install",
+    "--target ssh runtime build",
+    "gold question answers",
+    "scheduled retained cycle after first build"
   ],
-  "failures_preserved": [
-    "Initial CA import unit fixture used a noncanonical path; corrected fixture and reran.",
-    "Initial wizard dispatch check used i32 instead of the existing u8 exit type; corrected and reran."
-  ],
-  "cargo_lock_changes": false,
-  "containers_created": [],
   "containers_left_running": [],
   "evidence_sha256": {
-    "evidence/a3-s4c-20261105/precommit-check.log": "ef528b720101102bbea69fe369233dc89949c9ee3adeee2d41412edafbf52040",
-    "evidence/a3-s4c-20261105/precommit-tests.log": "6f27d681d7c79dca0b9328c410c9a71f27cdd51e75217a63dfa96497085192dd",
-    "evidence/a3-s4c-20261105/package-tests.log": "0df3edc61a9ea5db7985076fec760da7b65274be7dc6053876e6a9dbcd0a1b03",
-    "evidence/a3-s4c-20261105/build-action-check2.log": "b83f16cb50558386a85c84893cac58aebb5fb71affd50e9ae59396abf22b9381",
-    "evidence/a3-s4c-20261105/build-action-tests.log": "c4d7608d951363fb625c1858bf2c9a7330fc97c6d48c8bac7997e3f90725453e",
-    "evidence/a3-s4c-20261105/final-build.log": "a16685927daa0790a2b357e2b56df170e7bad259186d3c802d6d441422dfd0cf",
-    "evidence/a3-s4c-20261105/ssh-transport-tests.log": "e0ad9b6fdfcc6c9cbda9930d7fd1e12c4b3e072b23ad0737df76a2ddb554122c",
-    "evidence/a3-s4c-20261105/blocker-evidence.json": "84b10b3f3f1d40ab1fe4f6e07008fd7c6c9a0b59f22e69ae365c3b5d83d1ca7c",
-    "evidence/a3-s4c-wizard-20261105/result.json": "35b560e554307b264f0e0877cf9ee1db2cbbc501860b24631150a81aee23195e",
-    "evidence/a3-s4c-npm-smoke-20261105/result.json": "672f5d2eed0a7a02d8e433f029998c68c7e281adc61f13870569048463fe3dfa",
-    "evidence/a3-s4c-l1-clean-20261105/summary.json": "d1bcb230e22e389ffeccf232915ee02e4bfbdac63a3bfa06fb6c85d1e964b285",
-    "evidence/a3-s4c-l1-clean-20261105/macos-arm64-postgres/report.json": "baa1a297b8d567a79e9adcf79a430a670da6429238ba7d98146c0f87896ab5fe"
+    "evidence/a4-l1-20261105/summary.json": "a2a3e3765ba0c041a05a965477915a5f407e0921e066f083094d601f8f17af95",
+    "evidence/a4-l1-20261105/SHA256SUMS": "e543451c9a085aed49fba733cce0476a6ba545ea747cc9807198edfcc29e8058"
   }
 }

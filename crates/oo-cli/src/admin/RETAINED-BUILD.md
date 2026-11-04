@@ -1,5 +1,42 @@
 # Retained build runtime
 
+## Deployment builds (D16)
+
+On a local lite deployment, `oo build --config stack.yaml` needs nothing
+beside `oo` except its `oo-lite-image` pin. `oo up` provisions the chain from
+stack.yaml and the deployment itself (`.oo/lite`): it installs the Agent DB
+catalog with the runtime's `install-retained-target`, creates the Gateway data
+login, and writes the Gateway operator directory, `target.json`,
+`publisher.json`, `model.json` and `build-runtime.json` under
+`work/operator`, plus `work/build/stack.json` (loopback source hosts become
+`host.docker.internal`). It reports `retained_ready`.
+
+`oo build` then runs each phase as a one-shot container of the pinned runtime
+image with the deployment's `work`, `home` and read-only `pki` mounts. Before
+the first publication it joins the deployment network and verifies the
+publication with a transient in-runtime Gateway; afterwards it joins the
+Gateway service's network namespace. Load, candidate, Builder and model
+egress, `publish-retained`, the reviewed document and Pack, Gateway
+verification, first-token issuance and the share prompt all run there, with
+checkpoints in `work/build/.oo/chain.json` (so `--resume` boundaries are the
+runtime's). Owner review runs on the host: the review input is copied to
+`.oo/review/`, the TUI or `--review-file` decides, and the compiler runs from
+the runtime image. Without a TTY or decision file the build stops at review
+and leaves `.oo/review-input.json`. On completion the host reconciles the
+deployment (`oo up`), which starts the Gateway on the host loopback port in
+`owner.json`, and prints the share prompt. The prompt names the owner's
+consumer CA and client certificate under `.oo/lite/consumer`; the admin
+identity stays inside the runtime. A host killed during a phase leaves the
+container running; the next `oo build --resume` waits for it.
+
+Limits: one source per deployment; `--target ssh` builds report
+`BUILD_REMOTE_RUNTIME_NOT_IMPLEMENTED`; a TLS source on loopback must present
+a certificate valid for `host.docker.internal`; the scheduled cycle
+(`work/operator/schedule.json`, control-DB jobs migrations) is not yet
+provisioned by the first build.
+
+## Developer overrides
+
 `oo build --config stack.json --agent-target target.json --runtime-config runtime.json`
 loads explicit source tables into an already provisioned Agent DB. The initial
 load is a snapshot (oo-load C5 requires a baseline); subsequent explicit cycles
