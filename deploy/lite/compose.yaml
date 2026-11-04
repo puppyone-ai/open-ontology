@@ -1,0 +1,96 @@
+# Single-owner foundation. Integration services are opt-in until their existing
+# operator contracts (migrations, reviewed Pack, mappings) have been installed.
+# A foundation-only start MUST NOT be reported as a healthy seven-service stack.
+x-runtime: &runtime
+  image: ${OO_LITE_RUNTIME_IMAGE:?build the repository runtime and supply its content digest}
+  pull_policy: never
+  labels: {oo.lane: a}
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  read_only: true
+  tmpfs: [/tmp]
+  mem_limit: 1g
+  cpus: 1
+  pids_limit: 256
+  volumes:
+    - ${OO_LITE_STATE:?}/work:/work
+    - ${OO_LITE_STATE:?}/home:/home/oo:ro
+  environment: {HOME: /home/oo, PYTHONDONTWRITEBYTECODE: '1'}
+  user: ${OO_LITE_UID:?}:${OO_LITE_GID:?}
+
+x-db: &db
+  image: docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
+  labels: {oo.lane: a}
+  entrypoint: [/bin/sh, /ops/postgres.sh]
+  cap_drop: [ALL]
+  cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+  security_opt: [no-new-privileges:true]
+  mem_limit: 512m
+  cpus: 1
+  pids_limit: 128
+  tmpfs: [/tmp]
+  healthcheck:
+    test: [CMD-SHELL, 'pg_isready -U postgres -d postgres']
+    interval: 2s
+    timeout: 2s
+    retries: 60
+
+services:
+  agent-db:
+    <<: *db
+    environment: {OO_DB_IDENTITY: agent-db, POSTGRES_PASSWORD_FILE: /tmp/admin-password}
+    volumes:
+      - agent-data:/var/lib/postgresql/data
+      - ${OO_LITE_STATE}/pki:/pki:ro
+      - ${OO_LITE_STATE}/postgres.sh:/ops/postgres.sh:ro
+  control-db:
+    <<: *db
+    environment: {OO_DB_IDENTITY: control-db, POSTGRES_PASSWORD_FILE: /tmp/admin-password}
+    volumes:
+      - control-data:/var/lib/postgresql/data
+      - ${OO_LITE_STATE}/pki:/pki:ro
+      - ${OO_LITE_STATE}/postgres.sh:/ops/postgres.sh:ro
+  model-egress:
+    <<: *runtime
+    entrypoint: [python3, /opt/oo/model_egress.py]
+    command: [--config, /work/stack.json, --meter, /work/usage.jsonl]
+    healthcheck:
+      test: [CMD, python3, -c, 'import socket; socket.create_connection(("127.0.0.1",8317),2).close()']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  builder:
+    <<: *runtime
+    profiles: [integration]
+    # One-shot bridge has its own loopback egress; not a fabricated daemon.
+    entrypoint: [oo]
+    command: [build, --config, /work/stack.json, --json]
+    depends_on: {agent-db: {condition: service_healthy}}
+  worker:
+    <<: *runtime
+    profiles: [integration]
+    entrypoint: [job-worker]
+    command: [--config, /work/operator/worker.json, serve, --workers, '1', --barrier-prefix, lite, --barrier-target, '1']
+    depends_on: {control-db: {condition: service_healthy}}
+  scheduler:
+    <<: *runtime
+    profiles: [integration]
+    entrypoint: [python3, /work/scheduler.py]
+    depends_on: {control-db: {condition: service_healthy}}
+  gateway:
+    <<: *runtime
+    profiles: [integration]
+    entrypoint: [oo-gateway, /work/operator/gateway]
+    depends_on: {control-db: {condition: service_healthy}, agent-db: {condition: service_healthy}}
+
+volumes:
+  agent-data:
+    labels: {oo.lane: a}
+  control-data:
+    labels: {oo.lane: a}
+networks:
+  default:
+    labels: {oo.lane: a}
+    ipam:
+      config:
+        - subnet: ${OO_LITE_SUBNET:?owned non-overlapping subnet}

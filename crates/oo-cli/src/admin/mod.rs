@@ -1,5 +1,6 @@
 //! Administrative commands; consumer credentials are never read here.
 mod doctor;
+mod lite;
 mod progress;
 mod wizard;
 use oo_stack::stack;
@@ -25,6 +26,10 @@ The wizard can save or run a bounded PostgreSQL metadata-to-draft bridge.
 build requires pg-builder and oo-pipeline beside oo; --resume retains checkpoints.
 Agent DB loading, review and publication are pending integration.
 status reports saved build state; missing Gateway health fields stay unmeasured.
+up bootstraps private credentials and starts only lite foundations; exit 1
+and foundations_only mean worker/scheduler/Gateway integration is still pending.
+up requires a repository-built OO_LITE_RUNTIME_IMAGE content digest.
+down stops this deployment only; database volumes and credentials are retained.
 doctor probes sources read-only and the model through model-egress.
 PostgreSQL/MySQL require tls_ca.secret_ref and explicit scope.include tables.
 MySQL requires oo-mysql-doctor beside oo.
@@ -149,8 +154,19 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     }
     if command == "status" {
         let path = Path::new(config.unwrap_or("stack.yaml"));
-        read_stack(path)?;
+        let stack = read_stack(path)?;
+        let root = std::fs::canonicalize(path).map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+        if root
+            .parent()
+            .is_some_and(|p| p.join(".oo/lite/owner.json").exists())
+        {
+            return lite::run("status", path, &stack);
+        }
         return progress::status(path, json);
+    }
+    if matches!(command, "up" | "down") {
+        let path = Path::new(config.unwrap_or("stack.yaml"));
+        return lite::run(command, path, &read_stack(path)?);
     }
     if command != "init" {
         return Err(Failure::local(

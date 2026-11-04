@@ -1,0 +1,71 @@
+{
+  "protocol": "oo.lite-author-evidence/v1",
+  "card": "A-S2b",
+  "status": "partial",
+  "todo": {
+    "S1-A-02": "MySQL part done; four versions; estimate_bytes called, adapter returns unknown",
+    "S2-A-01": "progress/failures/retries/quit/resume/completion and PTY tests done; publication outputs explicitly pending",
+    "S2-A-02": "NOT DONE: only three foundational services started; no Agent DB load, control bindings, reviewed Gateway or healthy seven-service stack"
+  },
+  "commands": [
+    "cargo check --workspace --locked",
+    "cargo test -p oo-cli -p oo-stack --locked",
+    "python3 -m unittest discover -s deploy/lite -p test_*.py -v",
+    "python3 -m unittest discover -s tools/model-egress/tests -v",
+    "python3 crates/oo-cli/src/admin/test_mysql_doctor.py --run-id a-s2b-mysql-final",
+    "python3 crates/oo-cli/src/admin/test_wizard.py --run-id a-s2b-pty-5",
+    "python3 deploy/lite/build_images.py --run-id a-s2b-images-protoc --platforms linux/amd64,linux/arm64",
+    "python3 deploy/lite/test_foundations.py --run-id a-s2b-foundations-final --installed --image sha256:7e62f7f7ba419e0826ccf9182ca9a8f480b3053e4877f837b61ec7cc26f47c05",
+    "python3 deploy/lite/test_live_draft.py --run-id a-s2b-live-draft-final --live --image sha256:7e62f7f7ba419e0826ccf9182ca9a8f480b3053e4877f837b61ec7cc26f47c05"
+  ],
+  "engines": {
+    "mysql": [
+      "5.7.44 amd64 emulated",
+      "8.0.44 arm64",
+      "8.4.7 arm64",
+      "9.5.0 arm64"
+    ],
+    "postgres": "17.10 arm64, one-table metadata-to-unreviewed-draft only",
+    "oracle": "not run on this card"
+  },
+  "images": "both architectures built serially; six executable launch checks passed",
+  "foundations": "three service health checks, unchanged bootstrap credentials, installed digest pointer, truthful partial status and down passed",
+  "health_api": "parser tested with synthetic HTTPS-client response; no real Gateway /v1/health acceptance",
+  "live_model": {
+    "model": "gpt-6.1-sol",
+    "generation_calls_final_run": 1,
+    "prompt_tokens": 962,
+    "completion_tokens": 534,
+    "additional_probe_calls_final_run": 2,
+    "review": "unreviewed",
+    "publication": "not_published"
+  },
+  "unit_tests": {
+    "lite_python": 11,
+    "model_egress": 16
+  },
+  "failures_preserved": [
+    "a-s2b-mysql-1: unknown-estimate assumption/shared patch pins absent",
+    "a-s2b-pty-1/2/3: terminal test harness fixes",
+    "a-s2b-live-draft-1: occupied native egress port",
+    "a-s2b-foundations-1: isolated HOME hid compose plugin",
+    "a-s2b-foundations-2/3: Docker default address pools exhausted",
+    "initial image builds: transient registry/Debian downloads, missing libclang, amd64 protoc failure"
+  ],
+  "shared_files": "no root Cargo.lock, root manifest, migrations, engine API, docs/specs/execution or support matrix changes",
+  "cargo_lock": "new standalone helper lock contains only versions already in the root lock",
+  "cleanup": "all owned test containers/networks/volumes removed; two superseded owned images removed; final two tagged images retained",
+  "sha256": {
+    "evidence/a-s2b-images-protoc/images.json": "ecfc91ed06c06729bceb47e8bec2beb2b71dd59025b356dee2332e2a4b945931",
+    "evidence/a-s2b-images-protoc/smoke.json": "14877e24d1ce9607ff812afee102d02783ff04b2f6644f9dc33a1dbbb340e1ad",
+    "evidence/a-s2b-foundations-final/result.json": "b88084f51d6cb3f6dd78f6fb6f27895f60c61ca31fa172de0b39e6273f9cdc39",
+    "evidence/a-s2b-live-draft-final/result.json": "f166e709051f87e0a435725bebf8e24e7f7dc1a1f45773416f74b5cfa6812752",
+    "evidence/a-s2b-live-draft-final/.oo/usage.jsonl": "465a0d36281c8b1bc9a0c097e451044832882a1442816f6fef17578608c3a4eb",
+    "evidence/a-s2b-mysql-final/results.json": "13fde91a7a9ea7d86919d3207bcc942735922cbfd2f638fba2ef64f13253d81d",
+    "evidence/a-s2b-pty-5/result.json": "dfea779f235d9f512a92ba6136856f33e3161512f96de5bee461bd673ec4e1d8",
+    "evidence/a-s2b-check/commit-final-check.log": "ec678d78a49b0600fcbb403a44f4094057fd7404ff3d3ea762e05aa6da2fe5fb",
+    "evidence/a-s2b-check/commit-final-tests.log": "bf060aecbbc2751008107b5d84a13a01fd9c3199757441fd4c3e156f531a9955",
+    "evidence/a-s2b-check/commit-final-python.log": "57d25ad42d4da2cdd7154481496e24f72d5bb110eb2da01eab14278b627a8a6b",
+    "evidence/a-s2b-check/egress-final-tests.log": "9fbeccf604a9bb4b76863d99dd0c2a30f89c0f6fa024ecce84f16d4671ead930"
+  }
+}
