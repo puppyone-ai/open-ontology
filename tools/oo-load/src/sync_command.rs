@@ -33,6 +33,21 @@ pub(super) fn validate(sync: bool, opts: &BTreeMap<String, String>) -> Result<()
     Ok(())
 }
 
+pub(super) fn validate_engine(
+    engine: &str,
+    opts: &BTreeMap<String, String>,
+) -> Result<(), &'static str> {
+    if (opts.contains_key("--handoff") && engine != "mysql")
+        || (["--c5", "--sync"]
+            .iter()
+            .any(|mode| opts.contains_key(*mode))
+            && !matches!(engine, "postgres" | "mysql" | "oracle"))
+    {
+        return Err("sync_engine_not_supported");
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -76,5 +91,23 @@ mod tests {
             let options = BTreeMap::from([("--run-id".into(), id.into())]);
             assert!(validate(false, &options).is_err(), "{id:?}");
         }
+    }
+
+    #[test]
+    fn snapshot_only_engines_cannot_silently_accept_sync_flags() {
+        for mode in ["--c5", "--sync", "--handoff"] {
+            let opts = BTreeMap::from([(mode.into(), "mode.json".into())]);
+            for engine in ["sqlserver", "auto", "unknown"] {
+                assert_eq!(
+                    validate_engine(engine, &opts),
+                    Err("sync_engine_not_supported")
+                );
+            }
+            assert!(validate_engine("mysql", &opts).is_ok());
+            for engine in ["postgres", "oracle"] {
+                assert_eq!(validate_engine(engine, &opts).is_ok(), mode != "--handoff");
+            }
+        }
+        assert!(validate_engine("sqlserver", &BTreeMap::new()).is_ok());
     }
 }

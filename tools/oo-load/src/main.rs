@@ -343,6 +343,7 @@ async fn execute() -> Result<(), String> {
         .iter()
         .find(|s| Some(&s.id) == opts.get("--source"))
         .ok_or("source_required")?;
+    sync_command::validate_engine(&source.engine, &opts)?;
     if ["--sync", "--c5", "--handoff"]
         .iter()
         .filter(|k| opts.contains_key(**k))
