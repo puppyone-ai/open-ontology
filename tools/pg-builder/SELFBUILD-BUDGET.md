@@ -225,3 +225,45 @@ The SHA-indexed summary is `tests/selfbuild-s3b-evidence.json`.
   PostgreSQL 17.10 T4/T5 evidence remains historical, not a new run. No public
   publication, owner approval or business acceptance is claimed. The owned
   ephemeral listener closed; no containers were created. No lockfiles changed.
+
+## G-S3 thousand-table exit
+
+Run `g-s3-thousand-20261104/live-04`; committed summary and raw-file SHA-256
+index: `tests/selfbuild-thousand-evidence.json`. Run the opt-in
+`scripts/live_thousand_acceptance.py --config <private-0600-stack.json>
+--output evidence/<new-run> --execute` with `PYTHONPATH=tools/oo-test` and
+the built `oo-load` and `selfbuild-budget` binaries.
+
+- PostgreSQL **17.11**, native linux/arm64: lane H's 1,000 small tables plus
+  its fixed shapes give **1,033 physical tables / 2,391 columns**. The source
+  view is explicitly excluded. `oo-load` admits every table to a separate
+  Agent database in one owned container; all 2,650 source/target row counts
+  match, including the 300-column table. Agent physical columns drive T5;
+  source PK/FK facts are joined through load receipts, not claimed as target
+  view constraints.
+- All **19 communities** fit both planning budgets. T5 covers all 3,424
+  table/column items with zero unresolved; **7/7 declared FKs mapped**.
+  Review records **15 components**, isolated-entity ratio **14/22 (63.64%)**,
+  and reasons for 23 rejected naming/duplicate candidates. G14 remains
+  blocked pending review, not approved by the model.
+- Live `gpt-6.1-sol`: **24 generation/repair calls + 2 probes**,
+  **126,445 prompt / 30,383 completion tokens**. Reservations consume
+  530,874 of the 2,000,000-token allowance; 26 of 80 calls; whole run
+  895.512 seconds versus the 3,600-second dispatch window. Price remains
+  unknown. Five measured completions exceed their estimated output reserve,
+  but all measured calls fit provider metadata limits; three incomplete
+  attempts are repaired. HTTP timeout is an inactivity limit, not a total
+  call deadline (longest call 369.788 seconds).
+- T4 updates `unique_only` through the admin connection and reloads it with
+  `oo-load`: Agent value changes from 1 to 2; zero model/metered calls and
+  empty semantic work. Exact receipt replay also makes zero calls and
+  reproduces candidates, registry, review, work, snapshot and graph.
+- Workspace check, 184 Builder tests and 22 Python tests pass. Standalone
+  adapter: 45 library / 15 contract / 7 combined tests pass; the same five
+  absent-historical-evidence failures reproduce on base `c1d944b36`.
+  The separate PostgreSQL 17.11 mTLS regression passes its positive path
+  and ten refusal cases. Three pre-model setup failures remain preserved.
+- No owned containers/volumes/listeners remain; no lockfiles change.
+  This is local candidate acceptance, not Gateway publication, source-real-time
+  freshness, owner review, cross-engine or large-row throughput acceptance.
+  The S4 ontology-export commits remain held.
