@@ -13,6 +13,9 @@ use sqlx::{
 };
 use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
+mod c5;
+mod sync;
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TargetConfig {
@@ -40,6 +43,76 @@ fn read(path: &str) -> Result<Vec<u8>, &'static str> {
         return Err("config_budget");
     }
     Ok(bytes)
+}
+
+fn binding(source: &Source) -> Result<String, &'static str> {
+    serde_json::to_string(&(
+        &source.id,
+        &source.engine,
+        &source.host,
+        source.port,
+        &source.database,
+        &source.user,
+    ))
+    .map_err(|_| "source_binding")
+}
+
+async fn source_control_connection(
+    source: &Source,
+    store: &SecretStore,
+) -> Result<PgConnection, String> {
+    let options = PgConnectOptions::new()
+        .host(&source.host)
+        .port(source.port)
+        .database(&source.database)
+        .username(&source.user)
+        .password(&store.read(&source.password.secret_ref)?)
+        .ssl_mode(PgSslMode::VerifyFull)
+        .ssl_root_cert_from_pem(
+            store
+                .read(
+                    &source
+                        .tls_ca
+                        .as_ref()
+                        .ok_or("source_tls_required")?
+                        .secret_ref,
+                )?
+                .into_bytes(),
+        )
+        .options([
+            ("statement_timeout", "30000"),
+            ("default_transaction_read_only", "on"),
+        ])
+        .disable_statement_logging();
+    PgConnection::connect_with(&options)
+        .await
+        .map_err(|_| "sync_source_connect".into())
+}
+
+async fn target_connection(
+    target: &TargetConfig,
+    store: &SecretStore,
+) -> Result<PgConnection, String> {
+    let password = store.read(&target.password.secret_ref)?;
+    let mut options = PgConnectOptions::new()
+        .host(&target.host)
+        .port(target.port)
+        .database(&target.database)
+        .username(&target.user)
+        .password(&password)
+        .disable_statement_logging();
+    if let Some(ca) = &target.tls_ca {
+        options = options
+            .ssl_mode(PgSslMode::VerifyFull)
+            .ssl_root_cert_from_pem(store.read(&ca.secret_ref)?.into_bytes());
+    } else if target.local_fixture && matches!(target.host.as_str(), "127.0.0.1" | "::1") {
+        options = options.ssl_mode(PgSslMode::Disable);
+    } else {
+        return Err("target_tls_required".into());
+    }
+    PgConnection::connect_with(&options)
+        .await
+        .map_err(|_| "target_connect".into())
 }
 
 fn selected(source: &Source, requested: Option<&String>) -> Result<Vec<TableRef>, &'static str> {
@@ -99,36 +172,9 @@ async fn run_engine<E: SourceEngine>(
     // Metadata reads also consume source budget on no-rewrite resumes.
     tokio::time::sleep(probe_started.elapsed() * (100 - duty) / duty).await;
     for table in tables {
-        let password = store.read(&target.password.secret_ref)?;
-        let mut options = PgConnectOptions::new()
-            .host(&target.host)
-            .port(target.port)
-            .database(&target.database)
-            .username(&target.user)
-            .password(&password)
-            .disable_statement_logging();
-        if let Some(ca) = &target.tls_ca {
-            options = options
-                .ssl_mode(PgSslMode::VerifyFull)
-                .ssl_root_cert_from_pem(store.read(&ca.secret_ref)?.into_bytes());
-        } else if target.local_fixture && matches!(target.host.as_str(), "127.0.0.1" | "::1") {
-            options = options.ssl_mode(PgSslMode::Disable);
-        } else {
-            return Err("target_tls_required".into());
-        }
-        let mut conn = PgConnection::connect_with(&options)
-            .await
-            .map_err(|_| "target_connect")?;
+        let mut conn = target_connection(target, store).await?;
         // Bind resume to the endpoint, not just a user-reusable display ID.
-        let binding = serde_json::to_string(&(
-            &source.id,
-            &source.engine,
-            &source.host,
-            source.port,
-            &source.database,
-            &source.user,
-        ))
-        .map_err(|_| "source_binding")?;
+        let binding = binding(source)?;
         let mut sink = PgTarget::new(&mut conn, &binding, &target.run_id, table).await?;
         let (receipts, replay) = match sink.completed().await? {
             Some(receipts) => (receipts, true),
@@ -164,6 +210,8 @@ async fn execute() -> Result<(), String> {
             println!(
                 "oo-load --stack FILE --source ID [--tables schema.table,...] --target FILE\n\
                 [--secrets-dir DIR] [--chunk-rows N] [--oracle-worker EXECUTABLE]\n\
+                [--sync FILE] PostgreSQL C1 from an explicitly aligned baseline; see README.\n\
+                [--c5 FILE] PostgreSQL C5 range cycle over an existing snapshot.\n\
                 Target JSON requires run_id and password.secret_ref. Same run_id resumes; new run_id refreshes.\n\
                 Local table publication only; not Gateway publication. See tools/oo-load/README.md."
             );
@@ -177,6 +225,8 @@ async fn execute() -> Result<(), String> {
             "--secrets-dir",
             "--chunk-rows",
             "--oracle-worker",
+            "--sync",
+            "--c5",
         ]
         .contains(&key.as_str())
             || opts.contains_key(&key)
@@ -194,6 +244,12 @@ async fn execute() -> Result<(), String> {
         .iter()
         .find(|s| Some(&s.id) == opts.get("--source"))
         .ok_or("source_required")?;
+    if opts.contains_key("--sync") && opts.contains_key("--c5") {
+        return Err("sync_modes_conflict".into());
+    }
+    if (opts.contains_key("--sync") || opts.contains_key("--c5")) && source.engine != "postgres" {
+        return Err("sync_engine_not_integrated".into());
+    }
     if source.ssh.is_some() {
         return Err("ssh_not_supported".into());
     }
@@ -250,6 +306,30 @@ async fn execute() -> Result<(), String> {
                 )
             })()
             .map_err(|e: oo_connectors::SourceError| e.to_string())?;
+            if let Some(path) = opts.get("--sync") {
+                return sync::run(
+                    config,
+                    source,
+                    &tables,
+                    &target,
+                    &store,
+                    &budget,
+                    serde_json::from_slice(&read(path)?).map_err(|_| "sync_config")?,
+                )
+                .await;
+            }
+            if let Some(path) = opts.get("--c5") {
+                return c5::run(
+                    PostgresEngine::new(config),
+                    source,
+                    &tables,
+                    &target,
+                    &store,
+                    &budget,
+                    serde_json::from_slice(&read(path)?).map_err(|_| "c5_config")?,
+                )
+                .await;
+            }
             // Physical ctid plans require a live exported snapshot. Keep its
             // read-only owner alive until every table has finished or failed.
             let ca = store.read(

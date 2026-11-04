@@ -73,7 +73,7 @@ Error messages are closed codes; no SQL, credentials or driver errors are echoed
 
 ## Acceptance boundary
 
-This is a local workaround, **not** integration with the legacy C5 admission,
+The snapshot entry point is a local workaround, **not** integration with the legacy C5 admission,
 jobs lease, immutable-parent overlays, release coordinator or Gateway.
 It does not claim CDC, chunk-window correction, transactional cross-table
 consistency, or completed S1-M-01 acceptance. Its local view publication is
@@ -107,3 +107,100 @@ refusal and empty replacement, then SIGKILLs real test processes after chunk
 commit and after publication commit. A final resume must preserve exactly one
 receipt, three fixture rows and unchanged metered bytes. Only its own container
 and generated secrets are removed. Do not run alongside a two-database matrix.
+
+## Incremental local target (M-S2, partial)
+
+PostgreSQL has two explicit incremental entry points, using the same `--stack`,
+`--source`, `--target` and `--secrets-dir` arguments as the snapshot loader:
+
+```sh
+oo-load --stack stack.json --source fixture --target target.json --sync sync.json
+oo-load --stack stack.json --source fixture --target target.json --c5 c5.json
+```
+
+`sync.json`:
+
+```json
+{
+  "initial_position": {"kind": "pg_lsn", "lsn": 123456},
+  "baseline_aligned": true,
+  "slot": "oo_slot",
+  "publication": "oo_publication",
+  "required_wal_headroom": 134217728,
+  "max_batches": 100
+}
+```
+
+The position is an example, not a usable starting position. The caller must
+already have a baseline aligned to that recorded position. The loader does
+**not** infer alignment from a successful snapshot or implement C5-to-C1
+handoff. It rejects a C5 parent with `sync_c5_handoff_required`.
+
+C1 commits each source batch across its selected tables in one target
+transaction. Typed delta rows and durable tombstones overlay the immutable
+snapshot; unchanged parent rows are not copied. The target position, generation
+counter and logical tuple-byte meter commit in that transaction. A retry resumes
+from the target position, ignoring the initial position in the configuration.
+Only after commit does the coordinator advance the configured replication slot.
+Restart also repairs feedback lost after a committed target transaction.
+
+The DBA must create the publication/slot and grant the reader REPLICATION,
+read access, and EXECUTE on `pg_control_system()` and
+`pg_control_checkpoint()`. The reader must not own or have write privileges on
+source tables. Slot advancement is replication metadata feedback, not business
+DML. The control connection requests read-only transactions. Source controls,
+including lineage/retention queries, are paced; do not disable source budgets.
+
+Lineage records system identifier, timeline, database and relation OIDs, slot
+and publication. Changed lineage/scope/baseline, expired history, future
+positions and non-monotonic batches fail explicitly. This is not a failover
+acceptance claim: the shared ChangeBatch contract does not carry an authenticated
+source epoch. Use a direct, stable instance endpoint.
+
+`c5.json`:
+
+```json
+{
+  "cycle": 1,
+  "full_read_every": 10,
+  "positive_hints": [],
+  "recent_chunks": []
+}
+```
+
+The scheduler supplies the cycle number and optional positive time/recent-window
+hints; NULL/absent hints cannot exclude ranges. PostgreSQL's C5 inspection checks
+all source range digests, with periodic full reads. Replacements are bracketed
+by digest checks; concurrent drift returns `c5_range_changed_retry` without
+confirming the new source baseline. Retry under a new cycle run ID after a
+successful publication, or the same ID after a failed attempt.
+
+Use a new target `run_id` for each C5 attempt. Unchanged parent ranges remain
+referenced, and complete replacement ranges are staged before atomic view
+replacement. An established no-change cycle does not update target metadata,
+write row payload or create a generation. Initial source-digest/lineage
+checkpoint creation does write metadata even when baseline rows match.
+Changed range plans/lineage require explicit rebaseline rather than a silent
+whole-table refresh. C1 and C5 cannot operate simultaneously on one binding.
+
+Both paths publish **local table views only**, not Gateway generations.
+Byte meters count committed logical staged/delta/tombstone tuples, excluding
+indexes, WAL and control metadata. The test runner separately measures total
+target relation bytes across no-change cycles.
+
+MySQL `mysql-binlog`, Oracle opt-in LogMiner, durable engine-specific C5
+checkpoint adapters, and multi-source/multi-binding handoff are not integrated
+into these commands. Unsupported engines fail rather than falling back to
+snapshots. This delivery does not close the M-S2 card or the S2 sprint.
+
+Validation entry points (all create only labelled, owned fixtures):
+
+```sh
+python3 tools/oo-load/test-sync-target.py --run-id my-sync-target-run
+tools/oo-test/oo-test t2 --versions 13,14,15,16,17,18 --run-id my-pg-t2-run
+```
+
+The PostgreSQL T2 runner uses one database container at a time, with separate
+source and Agent databases and separate reader/admin connections. Its compact
+fixture exercises inserts, updates, deletes, key changes and cross-table source
+transactions. It is not full type/scale coverage or a T7 proof.
