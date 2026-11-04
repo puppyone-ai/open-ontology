@@ -428,10 +428,11 @@
    "sprint": "S1",
    "lane": "A",
    "title": "`oo doctor` 接入三引擎 `probe/capabilities`，输出分块计划、行字节估算、DBA 清单",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-A",
    "branch": "v0.2/a-onboarding",
    "commits": [
+    "98976c1c1",
     "0c9160cdb",
     "8d5e056a2",
     "d36a240e9",
@@ -513,12 +514,12 @@
    "sprint": "S2",
    "lane": "A",
    "title": "`oo init` TUI（ratatui）：7 步向导，结果写 `stack.yaml`；秘密写 0600 或 keychain",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "lane-A",
    "branch": "v0.2/a-onboarding",
    "commits": [
-    "48e8f5cf5",
-    "ae0172c2a"
+    "cde470c42",
+    "59a11dee5"
    ],
    "evidence": []
   },
@@ -531,8 +532,8 @@
    "owner": "lane-A",
    "branch": "v0.2/a-onboarding",
    "commits": [
-    "48e8f5cf5",
-    "ae0172c2a"
+    "295c73624",
+    "d54657c5d"
    ],
    "evidence": []
   },
@@ -1053,7 +1054,7 @@
   "A": {
    "branch": "v0.2/a-onboarding",
    "base": "4113744a7",
-   "status": "running"
+   "status": "waiting on oo-load"
   },
   "G": {
    "branch": "v0.2/g-selfbuild-budget",
