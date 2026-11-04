@@ -26,7 +26,7 @@
 +    }
 +    next.run(request).await
  }
- 
+
  fn control_path(path: &str) -> bool {
 --- a/crates/oo-gateway/src/public_surface.rs
 +++ b/crates/oo-gateway/src/public_surface.rs
