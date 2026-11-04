@@ -14,6 +14,11 @@ repo=$(cd "$here/../.." && pwd)
 runs=${OO_V02_RUNS:-$(dirname "$repo")/oo-v02/_runs}
 id=$(basename "$card" .md)-$(date +%Y%m%dT%H%M%S)
 run=$runs/$id
+free_gb() { df -g / | awk 'NR==2{print $4}'; }
+# A full disk took Docker Desktop down once (ledger); refuse to start below 20 GB.
+if [ "$(free_gb)" -lt "${OO_MIN_FREE_GB:-20}" ]; then
+  echo "refusing to dispatch: $(free_gb) GB free" >&2; exit 3
+fi
 mkdir -p "$run"
 cat "$here/cards/_common.md" "$card" > "$run/card.md"
 git -C "$worktree" rev-parse HEAD > "$run/base-sha"
@@ -24,6 +29,13 @@ export CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-6}
 export CARGO_PROFILE_DEV_DEBUG=line-tables-only
 export CARGO_PROFILE_TEST_DEBUG=line-tables-only
 export PATH="$HOME/.cargo/bin:$PATH"
+( while sleep 60; do
+    if [ "$(free_gb)" -lt "${OO_STOP_FREE_GB:-8}" ]; then
+      echo "disk_guard: $(free_gb) GB free" > "$run/disk-guard"
+      pkill -f "codex exec .* -C $worktree" ; exit 0
+    fi
+  done ) &
+guard=$!
 codex exec \
   -m 'cx/gpt-6-astra[1m]' \
   -c model_reasoning_effort=medium \
@@ -32,6 +44,7 @@ codex exec \
   --json \
   -o "$run/report.md" \
   - < "$run/card.md" > "$run/events.jsonl" 2> "$run/stderr.txt" && rc=0 || rc=$?
+kill "$guard" 2>/dev/null || true
 echo "$rc" > "$run/exit"
 git -C "$worktree" rev-parse HEAD > "$run/head-sha"
 git -C "$worktree" log --format='%h %s' "$(cat "$run/base-sha")..HEAD" > "$run/commits.txt"
