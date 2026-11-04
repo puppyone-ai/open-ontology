@@ -69,30 +69,56 @@ missing schema, database errors or malformed results are `unavailable`, with
 null timestamps rather than stale fallback data. Down does not query the DB.
 With a deployment-local `health-client.json` containing
 `token` and `ca` filenames under `pki/`, it calls the configured HTTPS Gateway's
-`/v1/health` using a private bearer file and verified CA. The minimum of the
+`/v1/health` using a private bearer file and verified CA. Optional `cert` and
+`key` filenames provide a deployment-local mTLS client identity; both must
+be private 0600 files. The minimum of the
 API's token/certificate deadlines is reported; arbitrary response fields are
 not relayed. Without an enrolled credential/Gateway it says `unmeasured`, not
 healthy. Local bootstrap certificate expiry is a separate measurement.
 
 Card S2d authorizes a separate internal health/meta-only operator token on first
 up; the user's first token remains S4. The current implementation does not yet
-issue that operator token. In addition to operator setup, the shared
-token-store and job-worker TCP clients currently use `with_no_client_auth()`,
-which cannot connect to lite's `clientcert=verify-ca` database. This is not
-resolved by the Builder-only TLS fix. No TLS exception is installed here.
+issue that operator token. D14 resolves the previous database client-certificate
+blocker. The remaining Gateway health/meta-only role contract is reproduced
+by the S2e live probe below and requires a shared-file change.
 The opt-in scheduler invokes the existing `job-worker native-fire` operation.
 It needs installed control schemas, worker configuration and a project UUID in
 `work/operator/schedule.json`. Gateway needs its existing reviewed operator
 directory. The builder remains a one-shot unreviewed metadata draft, not an
 Agent DB loader. These prerequisites are why full S2-A-02 is still **not done**.
 Additionally, `oo-load` publishes views in `oo_load_data`, while the Builder's
-existing PostgreSQL catalog selects physical tables only. Builder profiling uses
-TLS without a client certificate, while lite's database requires mTLS. A direct
-connection switch is therefore insufficient; no TLS exception or invented
-catalog is installed by this delivery.
+existing PostgreSQL catalog selects physical tables only. A direct connection
+switch is therefore insufficient; no invented catalog is installed here.
 
 ## Evidence
 
+- `a-s2e-d14-live-final`: PostgreSQL 17.10 TLS/SCRAM installation and
+  real token issuance pass without a database client certificate. Plaintext,
+  mismatched hostname and untrusted CA fail.
+- S2e's `test_operator_boundary.py --gateway-boundary --run-id <new-run-id>`
+  additionally starts the real Gateway with mTLS, no data plane and empty
+  Packs. Build `oo-gateway` and `issue-token` first. Health returns both expiry
+  measurements through the lifecycle client; authenticated meta returns 409
+  and the reserved-role candidate can still read session/current.
+  This is a reproduced **operator-contract blocker**, not first-up or
+  seven-service acceptance. No publication is fabricated.
+- `operator-contract-request.patch` is an exact, **unapplied and untested**
+  request for the Gateway owner: reserve `lite_operator` for health/meta,
+  allow authenticated pre-publication meta, and use the authenticated
+  canonical audience when measuring token expiry. `git apply --check` passes.
+  The live probe also exposed null token expiry when the operator config
+  omitted the trailing slash that token issuance canonicalizes; the final
+  fixture uses the canonical audience and requires both deadlines.
+  Lane A does not install a broadly authorized token as a health-only token.
+- New lite credentials include strict X.509 key identifiers. Database and
+  Gateway server leaves retain DNS/IP SANs; workload client leaves have one
+  URI SAN as required by Gateway. Existing credentials are never silently
+  rotated; older deployments need explicit credential migration.
+- Rechecked integration at `15d1ec0c8`: Builder still calls `catalog-pg`,
+  whose table query accepts only base/partitioned tables, not oo-load's
+  published views. Three-engine drafts remain pending lane G. No paid model
+  call was made. The production scheduler/worker/bootstrap are still
+  incomplete; fixture-driven transitions do not establish a scheduled cycle.
 - `a-s2d-control-live-2`: PostgreSQL 17.10, real control migrations and
   fixture-driven scheduled no-op success/failure transitions; measured DB
   timestamps, missing-schema failure, empty DB and project/disabled-schedule

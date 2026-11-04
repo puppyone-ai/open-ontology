@@ -122,6 +122,28 @@ class Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             lifecycle.private_dir(alias)
 
+    def test_health_client_certificate_pair_stays_private_and_local(self):
+        (self.root/'pki').mkdir()
+        for name in ('token','ca','cert','key'):
+            lifecycle.write(self.root/'pki'/name,b'synthetic')
+        config={'token':'token','ca':'ca','cert':'cert','key':'key'}
+        lifecycle.write(self.root/'health-client.json',json.dumps(config).encode())
+        connection=MagicMock()
+        connection.getresponse.return_value.status=200
+        connection.getresponse.return_value.read.return_value=b'{"token_expiry":{},"internal_mtls_certificate_expiry":{}}'
+        with patch.object(lifecycle.ssl,'create_default_context') as context, patch.object(
+                lifecycle.http.client,'HTTPSConnection',return_value=connection):
+            lifecycle.health(self.root,{'gateway':{'public_url':'https://localhost'}})
+            context.return_value.load_cert_chain.assert_called_once_with(
+                self.root/'pki/cert',self.root/'pki/key')
+            (self.root/'pki/key').chmod(0o644)
+            with self.assertRaisesRegex(ValueError,'LITE_PRIVATE_FILE'):
+                lifecycle.health(self.root,{'gateway':{'public_url':'https://localhost'}})
+            config['key']='../outside'
+            lifecycle.write(self.root/'health-client.json',json.dumps(config).encode())
+            with self.assertRaisesRegex(ValueError,'LITE_HEALTH_REFERENCE'):
+                lifecycle.health(self.root,{'gateway':{'public_url':'https://localhost'}})
+
     def test_up_copies_endpoint_reference_without_expanding_stack(self):
         home=self.root.parent/'source-home'
         store=home/'.config/open-ontology/secrets'

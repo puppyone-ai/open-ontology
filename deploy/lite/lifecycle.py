@@ -115,15 +115,22 @@ def health(root,stack):
     if url.scheme!='https' or not url.hostname or url.username or url.password or url.query or url.fragment:
         raise ValueError('LITE_HEALTH_URL')
     # Health credentials must belong to this deployment, never arbitrary paths.
-    for name in ('token','ca'):
+    names=['token','ca']
+    if 'cert' in config or 'key' in config:
+        names+=['cert','key']
+    for name in names:
         if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}',config[name]):
             raise ValueError('LITE_HEALTH_REFERENCE')
     token=read_private(root/'pki'/config['token']).decode().strip()
     ca=read_private(root/'pki'/config['ca']).decode()
     if not token or any(c.isspace() for c in token):
         raise ValueError('LITE_HEALTH_TOKEN')
-    conn=http.client.HTTPSConnection(url.hostname,url.port or 443,
-        context=ssl.create_default_context(cadata=ca),timeout=5)
+    context=ssl.create_default_context(cadata=ca)
+    if 'cert' in config:
+        for name in ('cert','key'):
+            read_private(root/'pki'/config[name])
+        context.load_cert_chain(root/'pki'/config['cert'],root/'pki'/config['key'])
+    conn=http.client.HTTPSConnection(url.hostname,url.port or 443,context=context,timeout=5)
     try:
         conn.request('GET',url.path.rstrip('/')+'/v1/health',headers={'Authorization':'Bearer '+token})
         response=conn.getresponse()

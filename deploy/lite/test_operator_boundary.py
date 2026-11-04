@@ -8,6 +8,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import time
 
 import lifecycle
 
@@ -16,6 +17,7 @@ ROOT=Path(__file__).resolve().parents[2]
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--run-id',required=True)
+    parser.add_argument('--gateway-boundary',action='store_true')
     args=parser.parse_args()
     if not re.fullmatch('[a-z0-9-]+',args.run_id):
         parser.error('invalid run ID')
@@ -31,12 +33,18 @@ def main():
         subprocess.run(['openssl',*arguments],check=True,capture_output=True,cwd=pki)
 
     openssl('req','-x509','-newkey','rsa:2048','-nodes','-days','1','-subj','/CN=lite-test-ca',
-            '-keyout','ca-key','-out','lite-ca-cert')
+            '-keyout','ca-key','-out','lite-ca-cert',
+            '-addext','basicConstraints=critical,CA:TRUE',
+            '-addext','keyUsage=critical,keyCertSign,cRLSign')
     for name,usage in [('control-db','serverAuth'),('admin','clientAuth')]:
         stem='lite-'+name
+        san='DNS:localhost,DNS:control-db' if name=='control-db' else 'URI:urn:oo:workload:lite-operator'
         openssl('req','-newkey','rsa:2048','-nodes','-subj','/CN='+name,
                 '-keyout',stem+'-key','-out',stem+'.csr')
-        (pki/'extensions').write_text('subjectAltName=DNS:localhost,DNS:control-db\n'
+        (pki/'extensions').write_text('basicConstraints=critical,CA:FALSE\n'
+                                    'keyUsage=critical,digitalSignature,keyEncipherment\n'
+                                    'subjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid,issuer\n'
+                                    'subjectAltName='+san+'\n'
                                     'extendedKeyUsage='+usage+'\n')
         openssl('x509','-req','-in',stem+'.csr','-CA','lite-ca-cert','-CAkey','ca-key',
                 '-CAcreateserial','-days','1','-extfile','extensions','-out',stem+'-cert')
@@ -75,7 +83,8 @@ exec psql -X -qAt -h localhost -U postgres -d postgres -c 'SELECT version();'
 SET log_min_error_statement='panic';
 SELECT format('CREATE ROLE oo_token_admin LOGIN PASSWORD %L',
               pg_read_file('/tmp/admin-password')) \\gexec
-CREATE ROLE oo_token_runtime LOGIN;
+SELECT format('CREATE ROLE oo_token_runtime LOGIN PASSWORD %L',
+              pg_read_file('/tmp/admin-password')) \\gexec
 GRANT CREATE ON DATABASE postgres TO oo_token_admin;
 """
         provision=subprocess.run(['docker',*argv,'exec','-T','control-db','psql',
@@ -91,7 +100,7 @@ GRANT CREATE ON DATABASE postgres TO oo_token_admin;
         assert issue.returncode==0, 'TLS/SCRAM token store install failed'
         grant={'kind':'client','project_id':'lite-boundary','principal_id':'operator',
                'role':'lite_operator','claims':[],'policy_version':'bootstrap',
-               'knowledge_version':'unpublished','audience_url':'https://localhost:8443',
+               'knowledge_version':'unpublished','audience_url':'https://localhost:8443/',
                'purpose':'owned D14 regression'}
         lifecycle.write(out/'grant.json',json.dumps(grant).encode())
         issued=subprocess.run([str(ROOT/'target/debug/issue-token'),'issue',
@@ -137,6 +146,9 @@ exec psql -X -qAt "host=%s hostaddr=127.0.0.1 user=postgres dbname=postgres sslm
                 'untrusted_ca_refused':True,
                 'client_certificate_required':False,'token_issued':True,
                 'health_meta_role_enforcement_tested':False}
+        if args.gateway_boundary:
+            result['gateway_boundary']=gateway_boundary(out,pki,grant)
+            result['health_meta_role_enforcement_tested']=True
         (out/'result.json').write_text(json.dumps(result,indent=2))
     finally:
         for cid in lifecycle.docker(argv+['ps','-aq'],env).decode().split():
@@ -144,6 +156,65 @@ exec psql -X -qAt "host=%s hostaddr=127.0.0.1 user=postgres dbname=postgres sslm
             assert labels.get('oo.lane')=='a' and labels.get('com.docker.compose.project')==project
         lifecycle.docker(argv+['down'],env)
         shutil.rmtree(pki)
+
+def gateway_boundary(out,pki,grant):
+    """Exercise the real pre-publication API; never substitute a fake Pack."""
+    lifecycle.write(pki/'endpoint.json',(out/'endpoint.json').read_bytes())
+    (pki/'packs').mkdir(mode=0o700)
+    config={'listen':'127.0.0.1:0','audience':grant['audience_url'],
+            'runtime_user':'oo_token_runtime','password_file':'lite-admin-password',
+            'ca_file':'lite-ca-cert','endpoint_file':'endpoint.json','pack_dir':'packs',
+            'body_limit':65536,'request_timeout_ms':10000,'global_concurrency':2,
+            'transport':'tls','tls_key_file':'lite-control-db-key',
+            'tls_chain_file':'lite-control-db-cert','client_ca_file':'lite-ca-cert',
+            'handshake_timeout_ms':3000}
+    lifecycle.write(pki/'config.json',json.dumps(config).encode())
+    lifecycle.write(out/'health-client.json',json.dumps({
+        'token':'operator-token','ca':'lite-ca-cert','cert':'lite-admin-cert',
+        'key':'lite-admin-key'}).encode())
+    with (out/'gateway.log').open('wb') as log:
+        process=subprocess.Popen([str(ROOT/'target/debug/oo-gateway'),str(pki)],
+                                 stdout=log,stderr=log)
+        try:
+            deadline=time.monotonic()+15
+            while not (pki/'listen.addr').exists():
+                assert process.poll() is None, 'Gateway failed; see gateway.log'
+                assert time.monotonic()<deadline, 'Gateway startup timed out'
+                time.sleep(.05)
+            port=int((pki/'listen.addr').read_text().strip().rsplit(':',1)[1])
+            health=lifecycle.health(out,{'gateway':{'public_url':f'https://localhost:{port}'}})
+            assert health['status']=='measured' and health['nearest_credential_expiry_ms']
+            assert health['token_expiry']['expires_at_ms']
+            assert health['internal_mtls_certificate_expiry']['expires_at_ms']
+            lifecycle.write(out/'health.json',json.dumps(health).encode())
+            context=lifecycle.ssl.create_default_context(cafile=pki/'lite-ca-cert')
+            context.load_cert_chain(pki/'lite-admin-cert',pki/'lite-admin-key')
+            token=lifecycle.read_private(pki/'operator-token').decode().strip()
+            statuses={}
+            for route in ('/v1/health','/v1/meta','/v1/session/current','/v1/tables'):
+                conn=lifecycle.http.client.HTTPSConnection('localhost',port,context=context,timeout=10)
+                try:
+                    conn.request('GET',route,headers={'Authorization':'Bearer '+token})
+                    response=conn.getresponse()
+                    body=response.read(65537)
+                    assert token.encode() not in body
+                    statuses[route]=response.status
+                    lifecycle.write(out/(route.rsplit('/',1)[1]+'-response.json'),body)
+                finally:
+                    conn.close()
+            assert statuses['/v1/health']==200
+            assert statuses['/v1/session/current']==200
+            assert statuses['/v1/meta']!=200, 'operator meta contract changed; recheck integration'
+            assert statuses['/v1/tables']!=200
+            return {'status':'blocked','http_statuses':statuses,
+                    'reason':'authenticated meta requires a publication; role is not health/meta-only',
+                    'gateway_internal_mtls':True,'fake_publication_created':False}
+        finally:
+            process.terminate()
+            try:process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
 
 if __name__=='__main__':
     main()

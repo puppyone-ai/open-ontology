@@ -1,0 +1,64 @@
+--- a/crates/oo-gateway/src/http_gateway.rs
++++ b/crates/oo-gateway/src/http_gateway.rs
+@@ -501,8 +501,27 @@
+         ))
+     };
+     router
++        .layer(from_fn_with_state(state.clone(), operator_scope))
+         .layer(from_fn_with_state(state.clone(), access_log))
+         .with_state(state)
++}
++
++// Reserved bootstrap role: no data, session, or credential-management routes.
++async fn operator_scope(
++    State(state): State<AppState>,
++    request: Request,
++    next: Next,
++) -> Response {
++    let allowed = request.method() == axum::http::Method::GET
++        && matches!(request.uri().path(), "/v1/health" | "/v1/meta");
++    if !allowed && request.headers().contains_key(header::AUTHORIZATION) {
++        if let Ok(identity) = authenticate(&state, request.headers()).await {
++            if identity.tuple.role == "lite_operator" {
++                return json_error(ApiError::new(ApiCode::Forbidden));
++            }
++        }
++    }
++    next.run(request).await
+ }
+ 
+ fn control_path(path: &str) -> bool {
+--- a/crates/oo-gateway/src/public_surface.rs
++++ b/crates/oo-gateway/src/public_surface.rs
+@@ -1908,6 +1908,20 @@
+         );
+     }
+     if headers.contains_key(axum::http::header::AUTHORIZATION) {
++        let caller = match crate::http_gateway::public_caller(
++            &state, &headers, &query, peer.clone(),
++        ).await {
++            Ok(caller) => caller,
++            Err(response) => return *response,
++        };
++        if caller.tuple.role == "lite_operator" {
++            let mut response = json_ok(document);
++            response.headers_mut().insert(
++                axum::http::header::CACHE_CONTROL,
++                axum::http::HeaderValue::from_static("no-store"),
++            );
++            return response;
++        }
+         headers
+             .entry(crate::publication_binding::EXPECTED)
+             .or_insert(axum::http::HeaderValue::from_static("current"));
+--- a/crates/oo-gateway/src/auth_lifecycle.rs
++++ b/crates/oo-gateway/src/auth_lifecycle.rs
+@@ -215,7 +215,7 @@
+         Ok(c) => c,
+         Err(_) => return failure("database"),
+     };
+-    let row=client.query_one("SELECT min(t.absolute_deadline_ms) FROM oo_token_control.token_record t WHERE t.project_id=$1 AND t.audience_url=$2 AND NOT EXISTS (SELECT 1 FROM oo_token_control.revocation r WHERE r.project_id=t.project_id AND ((r.scope='token' AND r.token_sha256=t.token_sha256) OR (r.seq>t.revocation_floor AND (r.scope='project' OR (r.scope='principal' AND r.principal_id=t.principal_id) OR (r.scope='session' AND r.session_id=t.session_id)))))",&[&caller.tuple.project_id,&state.inner.audience]).await;
++    let row=client.query_one("SELECT min(t.absolute_deadline_ms) FROM oo_token_control.token_record t WHERE t.project_id=$1 AND t.audience_url=$2 AND NOT EXISTS (SELECT 1 FROM oo_token_control.revocation r WHERE r.project_id=t.project_id AND ((r.scope='token' AND r.token_sha256=t.token_sha256) OR (r.seq>t.revocation_floor AND (r.scope='project' OR (r.scope='principal' AND r.principal_id=t.principal_id) OR (r.scope='session' AND r.session_id=t.session_id)))))",&[&caller.tuple.project_id,&caller.tuple.audience_url]).await;
+     let Ok(row) = row else {
+         return failure("database");
+     };
