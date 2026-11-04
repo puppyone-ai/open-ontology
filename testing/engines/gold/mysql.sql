@@ -10,7 +10,7 @@ SELECT COUNT(*) AS value FROM customers;
 -- Q04: How many shipments join to existing orders and customers?
 SELECT COUNT(*) AS value FROM shipments s JOIN orders o ON s.order_id=o.id JOIN customers c ON o.customer_id=c.id;
 
--- Q05: Order amount by region through customer, site and area?
+-- Q05: Total order amount per region (reach regions through customer, site and area); answer as region id and total, ordered by region id?
 SELECT r.id,SUM(o.amount) FROM orders o JOIN customers c ON o.customer_id=c.id JOIN sites s ON c.site_id=s.id JOIN areas a ON s.area_id=a.id JOIN regions r ON a.region_id=r.id GROUP BY r.id ORDER BY r.id;
 
 -- Q06: Order count by translated status?
@@ -31,13 +31,13 @@ SELECT COUNT(NULLIF(note,'')) FROM customers;
 -- Q11: How many orders have no shipment?
 SELECT COUNT(*) FROM orders o LEFT JOIN shipments s ON s.order_id=o.id WHERE s.id IS NULL;
 
--- Q12: Total quantity by customer?
+-- Q12: Total ordered quantity per customer; answer as customer id and total, ordered by customer id?
 SELECT customer_id,SUM(qty) FROM orders GROUP BY customer_id ORDER BY customer_id;
 
--- Q13: Shipment counts by implicit destination site?
+-- Q13: Shipment count per destination site (the shipment's site, joined implicitly); answer as site id and count, ordered by site id?
 SELECT s.site_id,COUNT(*) FROM shipments s JOIN sites t ON s.site_id=t.id GROUP BY s.site_id ORDER BY s.site_id;
 
--- Q14: Composite-key order line quantity?
+-- Q14: Total quantity across all order lines (order lines have a composite key) that belong to an existing order; answer as one number?
 SELECT SUM(l.qty) FROM order_lines l JOIN orders o ON l.order_id=o.id;
 
 -- Q15: How many distinct customers placed shipped-status orders?

@@ -17,7 +17,7 @@
   },
   {
     "id": "Q05",
-    "question": "Order amount by region through customer, site and area?"
+    "question": "Total order amount per region (reach regions through customer, site and area); answer as region id and total, ordered by region id?"
   },
   {
     "id": "Q06",
@@ -45,15 +45,15 @@
   },
   {
     "id": "Q12",
-    "question": "Total quantity by customer?"
+    "question": "Total ordered quantity per customer; answer as customer id and total, ordered by customer id?"
   },
   {
     "id": "Q13",
-    "question": "Shipment counts by implicit destination site?"
+    "question": "Shipment count per destination site (the shipment's site, joined implicitly); answer as site id and count, ordered by site id?"
   },
   {
     "id": "Q14",
-    "question": "Composite-key order line quantity?"
+    "question": "Total quantity across all order lines (order lines have a composite key) that belong to an existing order; answer as one number?"
   },
   {
     "id": "Q15",
