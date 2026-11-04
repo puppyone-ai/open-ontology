@@ -2,7 +2,7 @@
  "schema": "oo.v02-state/v1",
  "as_of": "2026-11-04T00:00:00+08:00",
  "integration_branch": "v0.2/product-loops",
- "current_sprint": "S1",
+ "current_sprint": "S2",
  "active_executors_max": 6,
  "loops": {
   "L1": {
