@@ -109,7 +109,7 @@ fn report(state: &Value, json_output: bool) -> Invocation {
         } else {
             format!(
                 "{}\nPublication: {}. Gateway: {}.\n\
-                Credentials and prompt stay in private files, never this report.\n\
+                Credentials are retained in private files. A completed text build prints the share prompt.\n\
                 Use the same oo build --resume command after resolving any blocker.",
                 progress::display(state),
                 state["publication"],
@@ -380,8 +380,15 @@ pub(super) fn run(
     }
     state["status"] = json!("complete");
     persist(&root, &state)?;
+    completion(&state, &base, json_output)
+}
+
+fn completion(state: &Value, base: &Path, json_output: bool) -> Result<Invocation, Failure> {
     let mut result = report(&state, json_output);
-    if !json_output && let Invocation::AdminReport(text, _) = &mut result {
+    if state["status"] == "complete"
+        && !json_output
+        && let Invocation::AdminReport(text, _) = &mut result
+    {
         let prompt = review::read(&base.join("share_prompt-receipt.json"))?;
         text.push_str("\n\n");
         text.push_str(
@@ -400,6 +407,44 @@ mod tests {
         process::{Command, Stdio},
         time::{Duration, Instant},
     };
+
+    #[test]
+    fn completion_prints_share_prompt_only_for_successful_text_output() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evidence")
+            .join(format!("chain-completion-{}", std::process::id()));
+        fs::DirBuilder::new().mode(0o700).create(&root).unwrap();
+        build_retained::save(
+            &root.join("share_prompt-receipt.json"),
+            &json!({"result":{"prompt":"Synthetic agent installation instructions"}}),
+        )
+        .ok()
+        .unwrap();
+        let mut state = json!({"status":"complete","stages":[],"publication":"published","gateway_health":"verified"});
+        for json_output in [true, false] {
+            let Invocation::AdminReport(text, exit) =
+                completion(&state, &root, json_output).ok().unwrap()
+            else {
+                panic!("expected completion report")
+            };
+            assert_eq!(exit, 0);
+            assert_eq!(
+                text.contains("Synthetic agent installation instructions"),
+                !json_output
+            );
+        }
+        state["status"] = json!("blocked");
+        let Invocation::AdminReport(text, exit) = completion(&state, &root, false).ok().unwrap()
+        else {
+            panic!("expected blocked report")
+        };
+        assert_eq!(exit, 1);
+        assert!(!text.contains("Synthetic agent installation instructions"));
+        fs::remove_file(root.join("share_prompt-receipt.json")).unwrap();
+        state["status"] = json!("complete");
+        assert!(completion(&state, &root, false).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn checkpoint_child() {

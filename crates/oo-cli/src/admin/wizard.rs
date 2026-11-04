@@ -285,6 +285,17 @@ fn save_new(stack: &oo_stack::Stack, path: &Path) -> Result<(), Failure> {
         .map_err(|_| Failure::local("TUI_CONFIG_IO"))
 }
 
+fn build_saved(path: &str, preflight_exit: u8) -> Result<Invocation, Failure> {
+    if preflight_exit != 0 {
+        return Err(Failure::local(
+            "TUI_PREFLIGHT_BLOCKED: configuration saved; resolve oo doctor failures before oo build",
+        ));
+    }
+    // Use the same entry point as the shell, including deployment resolution,
+    // retained checkpoints, owner review and the final share prompt.
+    super::execute("build", &["--config".into(), path.into()])
+}
+
 pub(super) fn run() -> Result<Invocation, Failure> {
     if Path::new("stack.yaml").symlink_metadata().is_ok() {
         return Err(Failure::local("TUI_CONFIG_EXISTS_OR_IO"));
@@ -355,7 +366,7 @@ pub(super) fn run() -> Result<Invocation, Failure> {
     };
     screen.prompt(5, &format!("Preflight (exit {exit}):\n{report}\n\nEnter to continue. Blocked preflight never deploys."), "", false)?;
     let confirm = screen.prompt(6,
-        "Type SAVE for configuration only, or BUILD for the bounded PostgreSQL metadata-to-draft bridge. Agent DB loading/review/publication are pending. Credentials remain saved on cancellation.",
+        "Type SAVE for configuration only, or BUILD to run oo build: load, Self-build, owner review, publication, Gateway and share prompt. BUILD requires passing preflight. Credentials remain saved on cancellation.",
         "", false)?;
     if confirm != "SAVE" && confirm != "BUILD" {
         return Err(Failure::local("TUI_CANCELLED"));
@@ -363,7 +374,7 @@ pub(super) fn run() -> Result<Invocation, Failure> {
     save_new(&stack, Path::new("stack.yaml"))?;
     if confirm == "BUILD" {
         drop(screen);
-        return super::progress::build(Path::new("stack.yaml"), &stack, false, false, None);
+        return build_saved("stack.yaml", exit);
     }
     screen.prompt(
         7,
@@ -382,6 +393,23 @@ pub(super) fn run() -> Result<Invocation, Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn build_action_uses_the_cli_entry_point_and_refuses_failed_preflight() {
+        let path = "nonexistent-wizard-stack.yaml";
+        let wizard = build_saved(path, 0).err().unwrap().json_bytes();
+        let cli = super::super::execute("build", &["--config".into(), path.into()])
+            .err()
+            .unwrap()
+            .json_bytes();
+        assert_eq!(wizard, cli);
+        let blocked = build_saved(path, 1).err().unwrap().json_bytes();
+        assert!(
+            String::from_utf8(blocked)
+                .unwrap()
+                .contains("TUI_PREFLIGHT_BLOCKED")
+        );
+    }
 
     #[test]
     fn imports_bounded_ca_into_new_private_secret_without_overwriting() {

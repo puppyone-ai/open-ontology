@@ -31,7 +31,7 @@ Admin commands (source connections remain read-only):
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
 TTY init collects configuration and runs preflight; non-TTY never prompts.
-The wizard can save or run a bounded PostgreSQL metadata-to-draft bridge.
+The wizard can save or run the retained build chain after passing preflight.
 build requires pg-builder and oo-pipeline beside oo; --resume retains checkpoints.
 --agent-target uses oo-load to load explicit source tables before drafting.
 The target file is private oo-load JSON; TLS and secret_ref credentials are required.
