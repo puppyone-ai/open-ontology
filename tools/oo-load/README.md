@@ -220,15 +220,24 @@ history. The client server ID must be unique and distinct from the server.
 Prefer the repair handoff below over a manual alignment assertion.
 
 Oracle `--sync` additionally requires `oracle_logminer_opt_in: true`,
-`initial_position: {"kind":"oracle_scn","scn":...}` and a `mining` object with
+`initial_position: {"kind":"oracle_scn","scn":...}`, `oracle_retained_floor`
+and a `mining` object with
 `service`, `user`, and `password.secret_ref`. Use a common user on the matching
 root service for CDB sources, and the thick worker for 11g. D11a applies:
 Oracle may write its own SYS/SYSTEM LogMiner session objects internally; this
 is not the default C5 path and is not a source-wide zero-write claim.
-The current engine rejects SCNs preceding its new reader session with
-`logminer_session_rebaseline`. The one-shot CLI cannot yet resume such an
-Oracle C1 session safely; do not bypass this guard or replace the cursor with
-the current SCN. C1 integration is not Oracle T2 acceptance.
+Capture the transaction floor **before the aligned baseline**, no later than
+the oldest active source transaction's start SCN (or the baseline SCN if
+none is active). This is part of the caller's baseline-alignment assertion,
+not a value inferred at restart. The loader persists the floor together with
+DBID/resetlogs and rejects changing it on resume. Each reader re-mines from
+this fixed floor and filters by the durable commit SCN, preserving transactions
+that began before the snapshot but committed afterward. Missing redo covering
+the floor requires explicit rebaseline; do not move the floor forward to
+bypass the refusal. Unrelated SCN movement creates no target generation.
+The floor remains fixed for the lifetime of this baseline, so this prototype
+needs rebaseline before that history is purged; it is not an unbounded durable
+in-flight transaction spool.
 
 ### MySQL C5-to-C1 Handoff
 

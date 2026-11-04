@@ -21,6 +21,7 @@ pub(super) struct Config {
     recovery_seconds: u64,
     #[serde(default)]
     oracle_logminer_opt_in: bool,
+    oracle_retained_floor: Option<u64>,
     mining: Option<Mining>,
 }
 
@@ -42,6 +43,9 @@ fn validate(config: &Config, live: &str, oracle: bool) -> Result<(), &'static st
     if oracle {
         if !config.oracle_logminer_opt_in {
             return Err("oracle_logminer_explicit_opt_in_required");
+        }
+        if config.oracle_retained_floor.is_none_or(|floor| floor == 0) {
+            return Err("oracle_retained_floor_required");
         }
         if !matches!(config.initial_position, Watermark::OracleScn { .. }) {
             return Err("sync_position_kind");
@@ -95,6 +99,29 @@ impl<E: Epoch> engine_sync::Target for Target<'_, '_, E> {
     }
 }
 
+struct OracleData(oo_connectors::oracle::engine::logminer::OracleLogMiner);
+impl ChangeSource for OracleData {
+    async fn earliest_available(&mut self) -> Result<Watermark, oo_connectors::SourceError> {
+        self.0.earliest_available().await
+    }
+    async fn next_batch(
+        &mut self,
+        from: &Watermark,
+        budget: &ReadBudget,
+    ) -> Result<Option<ChangeBatch>, oo_connectors::SourceError> {
+        // Oracle scans the whole SCN window on every poll, not one transaction.
+        // Keeping the old cursor on an empty window cannot hide later changes.
+        Ok(self
+            .0
+            .next_batch(from, budget)
+            .await?
+            .and_then(oracle_data_batch))
+    }
+}
+fn oracle_data_batch(batch: ChangeBatch) -> Option<ChangeBatch> {
+    (!batch.changes.is_empty()).then_some(batch)
+}
+
 struct NoFeedback;
 impl engine_sync::Feedback for NoFeedback {
     async fn acknowledge(&mut self, _: &Watermark) -> engine_load::Result<()> {
@@ -121,10 +148,15 @@ async fn run<E: Epoch, C: ChangeSource>(
         return Err("sync_budget".into());
     }
     let mut conn = target_connection(target, store).await?;
+    let durable_epoch = if source.engine == "oracle" {
+        serde_json::to_string(&(&live, config.oracle_retained_floor)).map_err(|_| "sync_epoch")?
+    } else {
+        live.clone()
+    };
     let sink = PgSync::open(
         &mut conn,
         &binding(source)?,
-        &live,
+        &durable_epoch,
         tables,
         &config.initial_position,
     )
@@ -170,7 +202,8 @@ async fn run<E: Epoch, C: ChangeSource>(
             "write_basis":"committed_delta_and_new_tombstone_tuple_bytes_excluding_indexes_wal_metadata",
             "baseline_alignment":"caller_asserted", "publication":"local_table_view",
             "gateway_published":false, "source_time":"unmeasured",
-            "oracle_internal_logminer_writes":source.engine == "oracle"
+            "oracle_internal_logminer_writes":source.engine == "oracle",
+            "oracle_retained_floor":config.oracle_retained_floor
         })
     );
     drop(target);
@@ -255,6 +288,18 @@ pub(super) async fn oracle(
     .map_err(|e| e.to_string())?;
     let mut changes = OracleLogMiner::new(root, &mut engine, tables).map_err(|e| e.to_string())?;
     validate(&config, changes.source_epoch(), true)?;
+    let Watermark::OracleScn { scn } = config.initial_position else {
+        return Err("sync_position_kind".into());
+    };
+    changes
+        .resume_from_floor(
+            config
+                .oracle_retained_floor
+                .ok_or("oracle_retained_floor_required")?,
+            scn,
+        )
+        .map_err(|e| e.to_string())?;
+    let mut changes = OracleData(changes);
     run(
         &mut engine,
         &mut changes,
@@ -272,6 +317,18 @@ pub(super) async fn oracle(
 mod tests {
     use super::*;
     #[test]
+    fn unrelated_oracle_scn_advance_does_not_publish_a_generation() {
+        assert!(
+            oracle_data_batch(ChangeBatch {
+                position: Watermark::OracleScn { scn: 42 },
+                changes: vec![],
+                images: vec![],
+            })
+            .is_none()
+        );
+    }
+
+    #[test]
     fn epoch_and_explicit_oracle_opt_in_are_required() {
         let mut config: Config = serde_json::from_value(serde_json::json!({
             "initial_position":{"kind":"oracle_scn","scn":42}, "source_epoch":"1:2",
@@ -283,6 +340,11 @@ mod tests {
             Err("oracle_logminer_explicit_opt_in_required")
         );
         config.oracle_logminer_opt_in = true;
+        assert_eq!(
+            validate(&config, "1:2", true),
+            Err("oracle_retained_floor_required")
+        );
+        config.oracle_retained_floor = Some(1);
         assert!(validate(&config, "1:2", true).is_ok());
         assert_eq!(
             validate(&config, "1:3", true),
