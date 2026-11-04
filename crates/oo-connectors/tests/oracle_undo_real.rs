@@ -37,7 +37,7 @@ impl ChunkSink for Sink {
         let id = batch
             .column(0)
             .as_any()
-            .downcast_ref::<StringArray>()
+            .downcast_ref::<arrow_array::Int64Array>()
             .unwrap();
         let value = batch
             .column(1)
@@ -48,7 +48,7 @@ impl ChunkSink for Sink {
             assert!(!id.is_null(i));
             assert!(
                 self.rows
-                    .insert(id.value(i).into(), value.value(i).into())
+                    .insert(id.value(i).to_string(), value.value(i).into())
                     .is_none(),
                 "retry duplicated a key"
             );

@@ -43,7 +43,7 @@ pub(crate) fn column(field: &DecodedField) -> Result<(i64, String)> {
         "list(utf8)" => (114, "json"),
         "binary" => (17, "bytea"),
         "float64" => (701, "double precision"),
-        "decimal128" if field.scale.is_some_and(|s| s >= 0) => {
+        "decimal128" => {
             let precision = field
                 .precision
                 .filter(|p| (1..=38).contains(p))
@@ -52,6 +52,11 @@ pub(crate) fn column(field: &DecodedField) -> Result<(i64, String)> {
                 .scale
                 .filter(|s| *s <= precision)
                 .ok_or("load_unsupported_type")?;
+            if scale < 0 {
+                // NUMBER(p,-s) holds integers of up to p+s digits; stay bounded so the
+                // Gateway can grant the column (it refuses unconstrained numeric).
+                return Ok((1700, format!("numeric({},0)", precision - scale)));
+            }
             return Ok((1700, format!("numeric({precision},{scale})")));
         }
         "date32" => (1082, "date"),
@@ -453,6 +458,22 @@ mod tests {
         assert_eq!(column(&field), Ok((1700, "numeric(38,0)".into())));
         field.precision = None;
         assert!(column(&field).is_err());
+        field.precision = Some(5);
+        field.scale = Some(-2);
+        assert_eq!(column(&field), Ok((1700, "numeric(7,0)".into())));
+        let mut out = Vec::new();
+        cell_text(
+            &mut out,
+            1700,
+            -1,
+            &NativeCell::Decimal {
+                precision: 5,
+                scale: -2,
+                coefficient: 123,
+            },
+        )
+        .unwrap();
+        assert_eq!(out, b"12300");
         field.arrow_type = "uint64".into();
         assert_eq!(column(&field), Ok((1700, "numeric(20,0)".into())));
     }
