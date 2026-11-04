@@ -456,6 +456,8 @@ UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY['{column}']
         assert young == {'released': 0, 'busy': 0}, young
         held = self.prune(0, 'retention-held')
         assert held['busy'] >= 1 and held['released'] == self.cycle_count - 1, held
+        assert self.db.sql(f"SELECT count(*) FROM oo_publish_target.fence WHERE "
+                           f"schema_name='_oo' AND relation_name='{physical}'").strip() == '1'
         assert self.db.sql(f"SELECT to_regclass('_oo.{physical}') IS NOT NULL").strip() == 't'
         self.holder.stdin.write(f'SELECT "{column}" FROM _oo."{physical}";\nROLLBACK;\n')
         stdout, stderr = self.holder.communicate(timeout=10)
@@ -465,6 +467,10 @@ UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY['{column}']
         released = self.prune(0, 'retention-released')
         assert released['released'] == 1 and released['busy'] == 0, released
         assert self.db.sql(f"SELECT to_regclass('_oo.{physical}') IS NULL").strip() == 't'
+        assert self.db.sql(f"SELECT count(*) FROM oo_publish_target.fence WHERE "
+                           f"schema_name='_oo' AND relation_name='{physical}'").strip() == '0'
+        assert self.db.sql("SELECT count(*) FROM oo_publish_target.fence WHERE "
+                           "schema_name='_oo' AND state='open'").strip() == '1'
         assert self.prune(0, 'retention-replay') == {'released': 0, 'busy': 0}
         query = self.http()
         assert query['status'] == 200 and query['body']['rows'] == [[str(10 + self.cycle_count)]], query

@@ -734,6 +734,29 @@ pub async fn release_expired(
         .fetch_one(&mut *tx)
         .await
         .map_err(db)?;
+    let fences_installed: bool =
+        sqlx::query_scalar("SELECT to_regclass('oo_publish_target.fence') IS NOT NULL")
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(db)?;
+    if fences_installed {
+        // Reclamation and its authorization rows commit together. Also clean up
+        // cuts released by older versions, without touching held or shared cuts.
+        sqlx::query(
+            "DELETE FROM oo_publish_target.fence f WHERE f.schema_name='_oo' \
+             AND EXISTS (SELECT 1 FROM _oo_load.gateway_publications p, \
+               jsonb_array_elements(p.data_vector) v \
+               WHERE p.library_id=$1 AND p.released_at IS NOT NULL \
+                 AND v->>'physical_name'=f.relation_name) \
+             AND NOT EXISTS (SELECT 1 FROM _oo_load.gateway_publications p, \
+               jsonb_array_elements(p.data_vector) v \
+               WHERE p.released_at IS NULL AND v->>'physical_name'=f.relation_name)",
+        )
+        .bind(library)
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+    }
     tx.commit().await.map_err(db)?;
     serde_json::from_str(&result).map_err(|_| "publication_retention_result")
 }
