@@ -973,10 +973,14 @@
       "sprint": "S4",
       "lane": "A",
       "title": "`oo ontology open/export --format html",
-      "status": "in_progress",
+      "status": "integrated",
       "owner": "lane-G (reassigned)",
       "branch": "v0.2/g-selfbuild-budget",
-      "commits": [],
+      "commits": [
+        "80d1b7e23",
+        "016cdd7f1",
+        "3ece166de"
+      ],
       "evidence": []
     },
     {
@@ -995,9 +999,9 @@
       "sprint": "S4",
       "lane": "M",
       "title": "发布跟随：每周期发布新数据代际，Gateway 原子切换指针，`/v1/freshness` 报告",
-      "status": "pending",
-      "owner": null,
-      "branch": null,
+      "status": "in_progress",
+      "owner": "lane-M",
+      "branch": "v0.2/m-pipeline",
       "commits": [],
       "evidence": []
     },
@@ -1028,13 +1032,13 @@
       "sprint": "S4",
       "lane": "D",
       "title": "P1：openGauss 快照 + C5（认证与逻辑解码分叉单独处理）",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-D",
       "branch": "v0.2/d-postgres-engine",
       "commits": [
-        "a4e705eab",
-        "505c89e3f",
-        "c4234cfc5"
+        "99cdb9d55",
+        "d98f8ffad",
+        "aa11ab1ae"
       ],
       "evidence": []
     },
