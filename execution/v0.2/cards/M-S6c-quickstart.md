@@ -17,3 +17,7 @@ docs/product/*.md that are in the source hash baseline — propose changes to th
    each connector's `doctor` output contract — generate it from code where the GRANT lists live, not by hand.
 Then do a docs-only dry run: in a fresh HOME follow docs/quickstart.md literally for PostgreSQL 17.11 and record any step
 that did not work as written (fix the doc, or report the product gap).
+Rebase note: your bundle commit 4b25daa65 conflicts in `deploy/lite/lifecycle.py` with lane A4's D16 provisioning
+(`oo up` now provisions the retained chain and reports `retained_ready`). Resolve keeping both; rerun your bundle
+tests (`test_bundle_dind.py`, arm64) on the rebased tree before the docs work, since the bundle must now also carry
+A4's `install-retained-target` provisioning.
