@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-03
+> Last reviewed: 2026-11-04
 > 依赖：[database-support/05 一致性套件](../database-support/05-conformance-and-evidence.md)、[support-matrix.yaml](../database-support/support-matrix.yaml)、[02 拉取手册](02-ingestion-playbook.md)
 
 ## 1. 本期引擎范围
@@ -85,7 +85,7 @@
 | T4 结构变化 | 加列、改类型、新建表、删表、改名 | 数据-only 周期零模型调用；结构变化只触发受影响社区的定向 Self-build |
 | T5 Self-build 与 Pack | 全库 Self-build，含上下文预算器 | 覆盖率 100%；连通性指标写入审核摘要（[03](03-selfbuild-context-budget.md) §4.3）；Pack 往返一致 |
 | T6 Gateway 对话 | 真实模型 Agent 按 `oo share-prompt` 提示词绑定，回答 20 道金标准题 | 每题答案与 gold 一致；失败/NULL/截断如实标注；不出现把 NULL 写成 0 |
-| T7 只读证明 | 源端审计（MySQL general log、PG `log_statement`、Oracle 统一审计）| 只出现 SELECT 与元数据读取；读取账号仅有只读权限 |
+| T7 只读证明 | 源端审计（MySQL general log、PG `log_statement`、Oracle 统一审计）| 读取账号顶层只发出 SELECT、元数据读取与白名单读取过程；任何非系统 schema 对象无变化；会话状态语句（`ALTER SESSION SET`、`SET`）、引擎在系统 schema 上的登录/字典记账与审计轨迹写入、Oracle LogMiner 自有对象（D11a）允许但必须逐类归因列入证据；无法归因的记录判失败（Plan D12）；读取账号仅有只读权限 |
 | T8 资源 | 记录源端连接数峰值、读取占空比、目标写入字节、模型 token 用量 | 不超过配置预算 |
 
 T1–T4 是引擎 owner 每次提交前必跑的；T5–T6 在每个 sprint 末对 P0 全版本跑一次；T7、T8 随 T1–T4 自动收集。
