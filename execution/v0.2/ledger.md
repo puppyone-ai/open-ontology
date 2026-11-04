@@ -309,3 +309,6 @@ evidence run-id.
 | E291 | 2026-11-05 | integrate | S4-A-01, S4-A-02 | `a4486f8dd`…`c58513cc7` | Lane A3 integrated |
 | E292 | 2026-11-05 | plan | S4-A-02, S4-M-02 | plan §9 D16; decisions.md; check_v02_plan D1–D16 | Coordinator decision D16: on lite/remote deployments `oo build` stages run inside the deployed lite runtime image (which already contains every helper), configured from stack.yaml and deployment state |
 | E293 | 2026-11-05 | dispatch | S4-A-02 | card `A3-S4d-in-runtime.md` on `v0.2/a-chain` | Lane A3: in-runtime stage execution, probe expectations, live clean-HOME npm install to share prompt on three engines |
+| E294 | 2026-11-05 | delivery | S4-A-02 | run `A3-S4d-in-runtime`; evidence `a3-s4d-20261105`, `a3-s4d-clean-final-20261105` | Lane A3 partial: probe expectations refreshed (CA prompt, sidecar); D16 in-runtime execution not implemented; no engine run. Noted: lite (two DBs) plus a source DB exceeds the two-container rule |
+| E295 | 2026-11-05 | integrate | S4-A-02 | `a96795310` | Probe refresh integrated |
+| E296 | 2026-11-05 | dispatch | S4-A-02, S4-M-02 | native Opus executor on `v0.2/a-chain` | Lane A4: D16 implementation and the clean-HOME npm acceptance on three engines; container cap raised to three for lite + source |
