@@ -22,6 +22,32 @@ type Result<T> = std::result::Result<T, &'static str>;
 const DEADLINE: Duration = Duration::from_secs(10);
 const CONNECTIONS: usize = 4;
 
+// russh runs its protocol task separately. Close the OS socket even if a
+// caller cancels while key exchange is stalled, before a handle is returned.
+struct SocketGuard(std::net::TcpStream);
+
+impl Drop for SocketGuard {
+    fn drop(&mut self) {
+        let _ = self.0.shutdown(std::net::Shutdown::Both);
+    }
+}
+
+async fn socket(host: &str, port: u16) -> Result<(tokio::net::TcpStream, SocketGuard)> {
+    let socket = tokio::net::TcpStream::connect((host, port))
+        .await
+        .map_err(|_| "SSH_CONNECT")?
+        .into_std()
+        .map_err(|_| "SSH_CONNECT")?;
+    let guard = SocketGuard(socket.try_clone().map_err(|_| "SSH_CONNECT")?);
+    let stream = tokio::net::TcpStream::from_std(socket).map_err(|_| "SSH_CONNECT")?;
+    Ok((stream, guard))
+}
+
+struct Session {
+    handle: client::Handle<Pinned>,
+    _socket: SocketGuard,
+}
+
 struct Pinned {
     expected: String,
     observed: Arc<Mutex<Option<String>>>,
@@ -59,7 +85,12 @@ pub async fn discover(host: &str, port: u16) -> Result<String> {
         expected: String::new(),
         observed: observed.clone(),
     };
-    let _ = timeout(DEADLINE, client::connect(config(), (host, port), handler)).await;
+    let _ = timeout(DEADLINE, async {
+        let (stream, _guard) = socket(host, port).await?;
+        let _ = client::connect_stream(config(), stream, handler).await;
+        Ok::<_, &'static str>(())
+    })
+    .await;
     observed
         .lock()
         .map_err(|_| "SSH_HOST_KEY")?
@@ -92,14 +123,14 @@ struct Credentials {
     secret: Zeroizing<String>,
 }
 
-async fn session(auth: &Credentials) -> Result<client::Handle<Pinned>> {
+async fn session(auth: &Credentials) -> Result<Session> {
     let observed = Arc::new(Mutex::new(None));
     let handler = Pinned {
         expected: auth.ssh.host_key_sha256.clone(),
         observed: observed.clone(),
     };
-    let connection =
-        client::connect(config(), (auth.ssh.host.as_str(), auth.ssh.port), handler).await;
+    let (stream, guard) = socket(&auth.ssh.host, auth.ssh.port).await?;
+    let connection = client::connect_stream(config(), stream, handler).await;
     let mut handle = match connection {
         Ok(handle) => handle,
         Err(_) => {
@@ -136,10 +167,13 @@ async fn session(auth: &Credentials) -> Result<client::Handle<Pinned>> {
             .await;
         return Err("SSH_AUTH");
     }
-    Ok(handle)
+    Ok(Session {
+        handle,
+        _socket: guard,
+    })
 }
 
-async fn retry_session(auth: &Credentials) -> Result<client::Handle<Pinned>> {
+async fn retry_session(auth: &Credentials) -> Result<Session> {
     for attempt in 0..3 {
         let result = timeout(DEADLINE, session(auth))
             .await
@@ -230,20 +264,20 @@ pub async fn connect(source: &Source, store: &SecretStore) -> Result<Option<Arc<
                     let cached = initial.take();
                     channels.spawn(async move {
                         let handle = match cached {
-                            Some(handle) if !handle.is_closed() => handle,
+                            Some(handle) if !handle.handle.is_closed() => handle,
                             _ => match retry_session(&auth).await {
                                 Ok(handle) => handle,
                                 Err(_) => return,
                             },
                         };
                         if let Ok(Ok(channel)) = timeout(DEADLINE,
-                            handle.channel_open_direct_tcpip(host, u32::from(port), "127.0.0.1", 0)
+                            handle.handle.channel_open_direct_tcpip(host, u32::from(port), "127.0.0.1", 0)
                         ).await {
                             let mut stream = channel.into_stream();
                             let _ = tokio::io::copy_bidirectional(&mut socket, &mut stream).await;
                         }
                         let _ = timeout(DEADLINE,
-                            handle.disconnect(russh::Disconnect::ByApplication, "", "")
+                            handle.handle.disconnect(russh::Disconnect::ByApplication, "", "")
                         ).await;
                     });
                 }
@@ -262,6 +296,37 @@ pub async fn connect(source: &Source, store: &SecretStore) -> Result<Option<Arc<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn cancelling_stalled_key_exchange_closes_the_socket() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (ready, received) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            stream
+                .write_all(b"SSH-2.0-stalled-fixture\r\n")
+                .await
+                .unwrap();
+            // More than the client identification: key exchange has started.
+            stream.read_exact(&mut [0; 100]).await.unwrap();
+            ready.send(()).unwrap();
+            let mut remaining = Vec::new();
+            stream.read_to_end(&mut remaining).await.unwrap();
+        });
+        let client = tokio::spawn(async move { discover("127.0.0.1", port).await });
+        timeout(Duration::from_secs(2), received)
+            .await
+            .unwrap()
+            .unwrap();
+        client.abort();
+        let _ = client.await;
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
 
     #[tokio::test]
     async fn handler_refuses_mismatch_without_secret_resolution() {

@@ -25,12 +25,14 @@ Driver/SSH error strings are not propagated with credential-bearing details.
 ## First-use integration hook (TUI owned by lane A)
 
 After collecting the jump host, optional port (22), user and one authentication
-reference, call `ssh::confirm_first_use(host, port).await` if no pin was supplied.
-It refuses non-TTY input, discovers without authenticating, displays the
-SHA256 fingerprint and requires the exact answer `yes`. Store its return value
-as `source.ssh.host_key_sha256` using the existing stack writer before running
-doctor/build. Cancellation does not create a pin. Subsequent connections never
-prompt over a mismatch. No global known_hosts or SSH config is read or changed.
+reference, call `ssh::discover(host, port).await` if no pin was supplied, then
+display the fingerprint through the existing raw-mode `Screen::prompt` and
+require the exact answer `yes`. Store the confirmed value as
+`source.ssh.host_key_sha256` using the existing stack writer before doctor/build.
+For a normal terminal outside raw mode, `ssh::confirm_first_use` implements
+this flow and refuses non-TTY input. Discovery never authenticates. Cancellation
+does not create a pin. Subsequent connections never prompt over a mismatch.
+No global known_hosts or SSH config is read or changed.
 
 Suggested TUI text: "SSH jump host (optional); port [22]; user; key secret_ref
 or password secret_ref (choose one). Verify this SHA256 host fingerprint out
