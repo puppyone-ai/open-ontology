@@ -1,5 +1,7 @@
 # OceanBase CE owned fixture
 
+C-S3b results and remaining loader blockers: [summary](../mariadb/C-S3b-SUMMARY.md).
+
 ```sh
 python3 testing/engines/mariadb/run.py --family oceanbase --run-id <unique-id>
 ```

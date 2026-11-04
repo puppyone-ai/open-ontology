@@ -1,5 +1,7 @@
 # TiDB owned fixtures
 
+C-S3b results and remaining loader blockers: [summary](../mariadb/C-S3b-SUMMARY.md).
+
 ```sh
 python3 testing/engines/mariadb/run.py --family tidb --run-id <unique-id>
 ```

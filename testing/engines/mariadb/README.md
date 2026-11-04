@@ -1,5 +1,7 @@
 # Lane-C compatible-family fixtures
 
+C-S3b results and remaining loader blockers: [summary](C-S3b-SUMMARY.md).
+
 Run from the worktree root:
 
 ```sh
