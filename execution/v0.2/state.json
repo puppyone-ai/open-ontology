@@ -683,7 +683,7 @@
    "sprint": "S3",
    "lane": "B",
    "title": "`oo login`（绑定码 / 设备码）、`oo whoami`、到期预警、`/v1/meta` 版本协商与升级提示",
-   "status": "author_complete",
+   "status": "in_progress",
    "owner": "lane-B",
    "branch": "v0.2/b-token-lifecycle",
    "commits": [
@@ -698,7 +698,7 @@
    "sprint": "S3",
    "lane": "B",
    "title": "`oo share-prompt [--role] [--agent claude",
-   "status": "author_complete",
+   "status": "in_progress",
    "owner": "lane-B",
    "branch": "v0.2/b-token-lifecycle",
    "commits": [
