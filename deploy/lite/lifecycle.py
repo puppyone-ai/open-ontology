@@ -521,7 +521,7 @@ def main(request):
     root=Path(request['root'])
     action=request['action']
     for p in (root.parent,root): private_dir(p)
-    env={k:v for k,v in os.environ.items() if k in ('PATH','HOME','DOCKER_HOST','DOCKER_CONTEXT','DOCKER_CONFIG','TMPDIR')}
+    env={k:v for k,v in os.environ.items() if k in ('PATH','HOME','DOCKER_HOST','DOCKER_CONTEXT','DOCKER_CONFIG','DOCKER_DEFAULT_PLATFORM','TMPDIR')}
     project='oo-a-lite-'+hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:16]
     owner=root/'owner.json'
     if action!='up' and not owner.exists():

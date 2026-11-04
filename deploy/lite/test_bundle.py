@@ -24,7 +24,7 @@ class Bundle(unittest.TestCase):
                      'os': 'linux', 'arch': 'arm64', 'layers': []}
         for name in bundle.PAYLOAD:
             path = self.root / name
-            path.parent.mkdir(exist_ok=True)
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b'fixture')
         for role in ('runtime', 'postgres'):
             self.archive(self.root / (role + '.tar'))
@@ -59,7 +59,8 @@ class Bundle(unittest.TestCase):
                 bundle.verify(self.root, expected)
 
     def test_all_payloads_checked_before_load(self):
-        for name in ('runtime.tar', 'postgres.tar', 'bin/oo', 'compose.yaml'):
+        for name in ('runtime.tar', 'postgres.tar', 'bin/oo', 'compose.yaml',
+                     'bin/oo-fixture-migrate', 'support/' + bundle.MIGRATIONS[0]):
             path = self.root / name
             original = path.read_bytes()
             path.write_bytes(b'tampered')
@@ -149,6 +150,25 @@ class Bundle(unittest.TestCase):
             bundle.install(self.root, self.trust)
             loader.assert_not_called()
 
+    def test_emulation_requires_explicit_matching_linux_client(self):
+        self.manifest['platform'] = 'linux/amd64'
+        for info in self.manifest['images'].values():
+            info['arch'] = 'amd64'
+        with patch.object(bundle, 'verify', return_value=self.manifest), \
+                patch.object(subprocess, 'check_output', return_value='linux/arm64\n'), \
+                patch.object(bundle.platform, 'system', return_value='Linux'), \
+                patch.object(bundle.platform, 'machine', return_value='x86_64'), \
+                patch.object(remote, 'image_info', return_value=self.manifest['images']['runtime']):
+            with self.assertRaisesRegex(ValueError, 'TARGET_PLATFORM'):
+                bundle.install(self.root, self.trust)
+            bundle.install(self.root, self.trust, emulated=True)
+            with patch.object(bundle.platform, 'machine', return_value='aarch64'):
+                with self.assertRaisesRegex(ValueError, 'TARGET_PLATFORM'):
+                    bundle.install(self.root, self.trust, emulated=True)
+            with patch.object(bundle.platform, 'system', return_value='Darwin'):
+                with self.assertRaisesRegex(ValueError, 'TARGET_PLATFORM'):
+                    bundle.install(self.root, self.trust, emulated=True)
+
     def test_remote_loader_verifies_config_id_and_architecture(self):
         result = subprocess.CompletedProcess([], 0, b'Loaded image ID: sha256:fixture\n', b'')
         with patch.object(remote, 'run', return_value=result), \
@@ -192,6 +212,58 @@ class Bundle(unittest.TestCase):
         self.assertIn('pull_policy: never', compose)
         for service in bundle.SERVICES:
             self.assertIn('  ' + service + ':', compose)
+        self.assertIn('/build/target/debug/oo-builder', dockerfile)
+        self.assertIn('--test native_library_publication --no-run', dockerfile)
+        self.assertIn('/out/oo-fixture-migrate', dockerfile)
+        self.assertIn('oo-fixture-migrate', bundle.BINARIES)
+
+    def test_staged_target_has_no_checkout_or_host_binaries(self):
+        import test_bundle_dind
+        harness = self.root / 'harness'
+        test_bundle_dind.stage_harness(harness, self.root, self.root / 'out', 'fixture')
+        self.assertFalse(list(harness.rglob('Cargo.toml')))
+        self.assertFalse(list(harness.rglob('*.rs')))
+        self.assertFalse((harness / '.git').exists())
+        self.assertEqual((harness / 'target/debug').readlink(), self.root / 'bin')
+        for name in bundle.MIGRATIONS:
+            self.assertEqual((harness / name).readlink(), self.root / 'support' / name)
+
+    def test_timeout_cleanup_refuses_unowned_siblings(self):
+        import test_bundle_dind
+        project = 'oo-a-lite-' + 'a' * 16
+        owner = self.root / 'foundation/.oo/lite/owner.json'
+        owner.parent.mkdir(parents=True)
+        owner.write_text(json.dumps({'project': project}))
+        labels = {'oo.lane': 'a', 'com.docker.compose.project': project}
+        with patch.object(subprocess, 'check_output', side_effect=['container\n', json.dumps(labels)]), \
+                patch.object(subprocess, 'run') as run:
+            with self.assertRaises(AssertionError):
+                test_bundle_dind.cleanup_siblings(self.root, 'docker')
+            run.assert_not_called()
+
+    def test_fixture_forward_preserves_bytes_in_both_directions(self):
+        import socket
+        import socketserver
+        import threading
+        import test_bundle_dind
+        class Echo(socketserver.BaseRequestHandler):
+            def handle(self):
+                self.request.sendall(b'ready')
+                self.request.sendall(self.request.recv(16))
+        with socketserver.TCPServer(('127.0.0.1', 0), Echo) as upstream:
+            worker = threading.Thread(target=upstream.handle_request)
+            worker.start()
+            server, proxy = test_bundle_dind.forward(upstream.server_address)
+            try:
+                with socket.create_connection(server.server_address, timeout=5) as client:
+                    self.assertEqual(client.recv(5), b'ready')
+                    client.sendall(b'\x00\xffopaque')
+                    self.assertEqual(client.recv(16), b'\x00\xffopaque')
+            finally:
+                server.shutdown()
+                server.server_close()
+                proxy.join(timeout=5)
+                worker.join(timeout=5)
 
 
 if __name__ == '__main__':

@@ -12,12 +12,16 @@ RUN cargo build --locked -p oo-cli -p oo-pipeline -p oo-gateway -p oo-builder --
     cargo build --locked --manifest-path tools/pg-builder/Cargo.toml --bin pg-builder && \
     cargo build --locked --manifest-path tools/release-coordinator/Cargo.toml --bin release-coordinator && \
     cargo build --locked --manifest-path tools/job-worker/Cargo.toml --bin job-worker && \
+    cargo test --locked -p oo-pipeline --test native_library_publication --no-run && \
     mkdir /out && cp /build/target/debug/oo /build/target/debug/oo-pipeline \
+    /build/target/debug/oo-builder \
     /build/target/debug/oo-mysql-doctor /build/target/debug/pg-builder \
     /build/target/debug/job-worker /build/target/debug/oo-gateway /build/target/debug/issue-token \
     /build/target/debug/oo-load /build/target/debug/selfbuild-budget \
     /build/target/debug/release-coordinator /build/target/debug/install-retained-target /out/ && \
-    rm -rf /build/target
+    find /build/target/debug/deps -maxdepth 1 -type f -executable \
+      -name 'native_library_publication-*' -exec cp {} /out/oo-fixture-migrate \; && \
+    test -x /out/oo-fixture-migrate && rm -rf /build/target
 FROM docker.io/library/python@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f
 ARG OO_LANE=m
 LABEL oo.lane=$OO_LANE

@@ -6,6 +6,7 @@ import io
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import shutil
 import subprocess
@@ -17,10 +18,20 @@ import remote
 HERE = Path(__file__).resolve().parent
 PROTOCOL = 'oo.lite-bundle/v1'
 DIGEST = re.compile(r'sha256:[0-9a-f]{64}')
-BINARIES = ('oo', 'oo-load', 'oo-pipeline', 'oo-mysql-doctor', 'pg-builder',
+BINARIES = ('oo', 'oo-builder', 'oo-fixture-migrate', 'oo-load', 'oo-pipeline', 'oo-mysql-doctor', 'pg-builder',
             'selfbuild-budget', 'release-coordinator', 'job-worker', 'oo-gateway', 'issue-token')
 FILES = ('compose.yaml', 'postgres.sh', 'scheduler.py', 'bundle.py', 'remote.py', 'oo')
-PAYLOAD = set(FILES) | {'bin/' + name for name in BINARIES} | {'runtime.tar', 'postgres.tar'}
+MIGRATIONS = (
+    'crates/oo-jobs/migrations/0000_bootstrap_roles.sql',
+    'crates/oo-jobs/migrations/0001_jobs_control_expand.sql',
+    'crates/oo-jobs/migrations/0002_event_project_binding_expand.sql',
+    'crates/oo-jobs/migrations/0003_job_lease_operations_expand.sql',
+    'tools/gateway-token-store/migrations/oo_token_control_v1.sql',
+    'tools/gateway-token-store/migrations/oo_token_control_v2.sql',
+    'tools/release-coordinator/migrations/oo_publish_target_v1.sql',
+)
+PAYLOAD = (set(FILES) | {'bin/' + name for name in BINARIES}
+           | {'runtime.tar', 'postgres.tar'} | {'support/' + name for name in MIGRATIONS})
 SERVICES = ('gateway', 'worker', 'builder', 'scheduler', 'model-egress', 'operator-bootstrap')
 
 
@@ -116,6 +127,10 @@ def create(output, platform, runtime, postgres):
     (output / 'bin').mkdir()
     for name in FILES:
         shutil.copyfile(HERE / name, output / name)
+    for name in MIGRATIONS:
+        dest = output / 'support' / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(HERE.parents[1] / name, dest)
     os.chmod(output / 'oo', 0o755)
     cid = None
     try:
@@ -173,11 +188,16 @@ def verify(root, expected):
     return manifest
 
 
-def install(root, expected):
+def install(root, expected, emulated=False):
     manifest = verify(root, expected)
     daemon = subprocess.check_output(['docker', 'version', '--format',
         '{{.Server.Os}}/{{.Server.Arch}}'], text=True).strip()
-    require(daemon == manifest['platform'], 'BUNDLE_TARGET_PLATFORM')
+    # Explicit client-side emulation only; never silently run a foreign CLI.
+    client = {'aarch64': 'arm64', 'x86_64': 'amd64'}.get(platform.machine(), platform.machine())
+    require(daemon == manifest['platform'] or (
+        emulated and platform.system() == 'Linux' and client == 'amd64'
+        and manifest['platform'] == 'linux/amd64' and daemon == 'linux/arm64'),
+        'BUNDLE_TARGET_PLATFORM')
     for info in manifest['images'].values():
         current = remote.image_info(info['id'])
         if not current and info.get('config_id'):
@@ -194,14 +214,17 @@ def launch(argv):
     parser.add_argument('action', choices=['up', 'status', 'down'])
     parser.add_argument('--bundle', type=Path, required=True)
     parser.add_argument('--manifest-sha256', required=True)
+    parser.add_argument('--emulated-client', action='store_true',
+                        help='explicit Linux amd64 client on an arm64 Docker daemon')
     args, rest = parser.parse_known_args(argv)
     require(not any(arg == '--target' or arg.startswith('--target=') for arg in rest),
             'BUNDLE_LOCAL_ONLY')
     root = args.bundle.resolve()
-    manifest = install(root, args.manifest_sha256) if args.action == 'up' else verify(
+    manifest = install(root, args.manifest_sha256, args.emulated_client) if args.action == 'up' else verify(
         root, args.manifest_sha256)
     env = dict(os.environ, OO_LITE_RUNTIME_IMAGE=manifest['images']['runtime']['id'],
-               OO_LITE_POSTGRES_IMAGE=manifest['images']['postgres']['id'], OO_LITE_LANE='m')
+               OO_LITE_POSTGRES_IMAGE=manifest['images']['postgres']['id'], OO_LITE_LANE='m',
+               DOCKER_DEFAULT_PLATFORM=manifest['platform'])
     # Preserve CLI health semantics: foundations_only remains a nonzero exit.
     return subprocess.run([str(root / 'bin/oo'), args.action, '--target', 'local', *rest],
                           env=env).returncode

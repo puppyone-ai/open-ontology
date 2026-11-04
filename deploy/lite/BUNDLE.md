@@ -63,7 +63,10 @@ python3 deploy/lite/bundle.py verify --bundle /media/bundle-arm64 \
 This `oo` is the bundle-local Python launcher, not a new Rust admin flag.
 Lane A3 owns that parser. The target needs Python 3.11+, Docker with Compose,
 OpenSSL and a glibc Linux userspace compatible with the runtime's Debian base.
-Host and daemon must use the bundle's architecture. Host prerequisites are not
+The client and daemon normally use the bundle's architecture. For a Linux
+amd64 client on an arm64 Docker daemon with working emulation, explicitly pass
+`--emulated-client`; the launcher pins `DOCKER_DEFAULT_PLATFORM=linux/amd64`.
+This does not install or change emulators. Host prerequisites are not
 installed by the bundle. Configuration and private secret-reference files are
 operator-supplied; no credentials, customer configuration, review decisions or
 database data enter the bundle.
@@ -73,22 +76,50 @@ The lifecycle uses the verified local PostgreSQL ID and `--pull never --no-build
 Normal non-bundle installs retain their prior missing-image pull behavior.
 `down` uses the same launcher arguments and preserves database volumes.
 
-**First up is still foundations-only.** The bundle does not invent an owner
-review, install the missing control/job bindings, or claim Gateway publication.
+**First up provisions the reserved operator role and remains foundations-only.**
+The packaged CLI installs the control token store, issues a deployment-local
+operator token and writes its health-client references. It does not invent an owner
+review, install control/job bindings, or claim Gateway publication.
 `healthy:false` and the CLI's nonzero exit are preserved. Follow `RETAINED.md`
 for the existing operator prerequisites; packaging is not automatic onboarding.
 
 ## Verification and cleanup
 
 `test_bundle.py` exercises corruption, trust, archive paths/tags, architecture,
-config identity and idempotent loading. `test_bundle_dind.py --bundle PATH
+explicit client emulation, config identity and idempotent loading.
+`test_bundle_dind.py --bundle PATH
 --manifest-sha256 SHA --run-id RUN` uses a fresh labelled `docker:dind` target
 with no external network and a private cgroup namespace. It uses the standard
 `dind` nesting wrapper, never systemd, binfmt or sysctl. It removes its outer
-container/volume and runs at most two database containers. Its fixture-assisted
-scheduled test is distinct from first-up acceptance and currently requires the
-existing test fixture's migration bootstrap; a missing test binary/compiler is
-a failure, not a passed scheduled cycle.
+container/volume and runs at most two database containers. For amd64 pass
+`--host-daemon`: the emulated client mounts the host Docker socket and launches
+explicit amd64 sibling containers. The evidence names the host daemon; this is
+not a fresh or isolated amd64 daemon. The client joins only its owned fixture
+network. Local TCP forwards connect the fixture's loopback endpoints to its
+database and Gateway siblings; they do not terminate TLS or fabricate replies.
+This avoids assuming Docker Desktop's published loopback ports are reachable
+from another container. No host networking or emulator settings are changed.
+
+Only a separately staged synthetic Python test harness and the bundle are
+mounted, never the checkout, Cargo or host product binaries. The bundle includes
+`oo-builder`, the compiled `oo-fixture-migrate` test helper, and the exact jobs,
+token-store and publisher SQL used by the fixture. Builder Python modules come
+from the bundled runtime image. `oo-fixture-migrate` runs the existing
+`retained_gateway_install --ignored --exact` administrative test against the
+fixture's private target config; it is **not a general production migration
+CLI**, and is never invoked by ordinary `oo up`. It contains fixture-only jobs
+scaffolding. The initial model transport and owner-review inputs remain
+explicitly synthetic; scheduled workers and Gateway queries are real.
+
+### A3 launcher contract
+
+`bundle.launch(argv: list[str]) -> int` accepts `up|status|down`, required
+`--bundle PATH --manifest-sha256 SHA`, optional `--emulated-client`, and forwards
+the remaining CLI arguments to the bundled `bin/oo` with `--target local`.
+It returns the CLI exit unchanged and rejects a caller-supplied `--target`.
+The executable equivalent is `BUNDLE/oo` with the same arguments. A3 can invoke
+this contract without changing bundle internals; no Rust admin or npm staging
+files are modified here.
 
 For a local-only signing proof, install the checksum-pinned cosign into an
 ignored temporary directory with `bash ci/lite-cosign.sh DIRECTORY`, then run
