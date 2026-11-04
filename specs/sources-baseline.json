@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 16,
-  "supersedes_revision": 15,
-  "supersedes_baseline_head": "ac98f1c9c481eb4744d1ba4525e792c621cecd5a",
-  "supersedes_sha256": "4872e655ff9197ba581b06e2ebf51b8e2139a3c4dd2671369d039710a16f22f6",
-  "review_record": "specs/source-baseline-revision-16.md",
-  "baseline_head": "de71a1e7a6e4dc65a168a98c2d31a9824ae9395f",
+  "revision": 17,
+  "supersedes_revision": 16,
+  "supersedes_baseline_head": "de71a1e7a6e4dc65a168a98c2d31a9824ae9395f",
+  "supersedes_sha256": "d896139d4e585fd748f072a7df65b83bf04cc0cf9ab93354cd7e007fea26411e",
+  "review_record": "specs/source-baseline-revision-17.md",
+  "baseline_head": "fb89c773a768a1e0cbd8c11a95eba271fa7a91aa",
   "source_count": 26,
   "sources": [
     {
@@ -151,9 +151,9 @@
     },
     {
       "path": "docs/product/05-version-matrix-and-testing.md",
-      "sha256": "4a315e57972fe7a11cc745e119ed7132d3ca27312605648c799d05a1798633ca",
-      "bytes": 10770,
-      "lines": 119
+      "sha256": "b2643f4cfe2a79055d5845b9452dcd234b9392081d487031f15a5f1f259b793a",
+      "bytes": 11431,
+      "lines": 121
     },
     {
       "path": "docs/product/README.md",
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); SQL Server acceptance status"
+  "review_status": "owner self-review (D6); OLAP engine status"
 }
