@@ -172,9 +172,8 @@ pub(super) async fn run<E: epoch::Epoch>(
             return Err("c5_budget".into());
         }
         tokio::time::sleep(started.elapsed() * (100 - duty) / duty).await;
-        if receipts.is_empty() {
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
+        // Small changed ranges also need a floor between metadata bursts.
+        tokio::time::sleep(Duration::from_secs(1)).await;
         println!(
             "{}",
             serde_json::json!({
