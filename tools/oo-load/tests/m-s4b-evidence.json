@@ -1,0 +1,92 @@
+{
+  "task": "S4-M-01",
+  "card": "M-S4b",
+  "status": "partial",
+  "base": "b1b06e95cc8ec4877b62f5125f4e8eaab60748e5",
+  "completed": [
+    "New migration 0122 stores private per-generation storage recipes.",
+    "Snapshot and C5 views reference immutable generation views, composed from verified stage/chunk receipts without copying parent payload.",
+    "Rejects parent receipt/schema/identity mismatch and replacement writes into sealed stages.",
+    "PgTarget::generation_relation returns retained snapshot/C5 storage relations; it is NOT a Gateway publication entry."
+  ],
+  "validation": {
+    "workspace_check_locked": "passed",
+    "pipeline": {
+      "passed": 350,
+      "ignored": 53,
+      "failed": 0
+    },
+    "oo_load": {
+      "passed": 29,
+      "ignored": 7,
+      "failed": 0
+    },
+    "postgres_target": "Owned PostgreSQL 17 fixture: atomic overlay, C5 parent reuse/no-change/forgery refusal, three pointer switches with old cuts readable in new transactions, SIGKILL resume passed.",
+    "mysql_8_4_7": "not_run",
+    "oracle_23_5": "not_run",
+    "gateway_continuous_queries": "not_run",
+    "lite_seven_services": "not_run"
+  },
+  "failures": [
+    "Initial workspace compile failed because DecodedField does not implement Serialize; recipe now stores the exact SQL column definition; final check and tests passed."
+  ],
+  "gaps": [
+    "No _oo contract adapter, publish library entry or oo-load publish CLI yet.",
+    "No Gateway HTTP/header/freshness acceptance; Gateway and auth are unchanged.",
+    "Retained storage has no reclamation policy yet. Pre-migration generations are not backfilled. C1 overlays are not retained immutable cuts.",
+    "Source data-as-of remains unmeasured; sealed_at is target metadata time, never source freshness.",
+    "Scheduler remains unchanged; no scheduled sync -> data-only Builder -> publish chain claimed."
+  ],
+  "proposed_docs_mapping": [
+    {
+      "load_object": "generations(identity,run,recipe)",
+      "contract": "native_library_publication.library/shards + native_library_head",
+      "rule": "Derive canonical immutable library and per-table receipt only after import/provenance, reviewed policy and fence validation; storage sealing alone is not ready."
+    },
+    {
+      "load_object": "generation recipe parts[].stage / receipt",
+      "contract": "full_import_run/table + apply_receipts",
+      "rule": "An adapter must establish and validate real provenance; do not invent legacy task/lease/ACK rows."
+    },
+    {
+      "load_object": "private generation view + definition",
+      "contract": "physical_mappings namespace/table/column rows",
+      "rule": "Register physical-mapping/v1 names and expose generation-specific mapped views, not mutable current aliases."
+    },
+    {
+      "load_object": "receipt low/high + C5 lineage/digests",
+      "contract": "source_watermark + table_freshness.source_committed_at",
+      "rule": "Keep per-table/B and false cross_table_consistent; unknown source time stays NULL, not sealed_at."
+    },
+    {
+      "load_object": "reviewed Builder mapping and grants",
+      "contract": "policy catalog + oo_publish_target.fence + native_library_source_ready",
+      "rule": "Open only reviewed column grants; activate the head only after all contract proofs pass."
+    }
+  ],
+  "shared_file_patches": [],
+  "cargo_lock_changes": false,
+  "containers_left_running": [],
+  "evidence_sha256": {
+    "m-s4b-20261104": {
+      "base.txt": "5463a281acfc5024d1ac82b1df7c90c0312fe8f87ffbe70421559d33c4a5ead5",
+      "workspace-check.log": "d5f4f98c6f67c3d3e50cde1f613027b42df291b5cfed881ee48fd31d5bb3055f",
+      "workspace-check-change.log": "add1d76ef87319d5c45c82b2d5a8deed97b710ffe0facfd7908ccb294f12371b",
+      "workspace-check-final.log": "6c4413432bfe4c756955c02aabfbcc7583e1a686ba92f1697276c2d61cf3a35d",
+      "pipeline-tests-final.log": "92700a0ac587bb0967cd8d9f52a5f0c873b3c1419f95f44858e10499c827ec5e",
+      "load-tests.log": "384ce93e954c76d2fc50afb9a873517ed20df02f718a0c3cce8f263456871dfb",
+      "fmt-pipeline.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "fmt-load.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "m-s4b-generation-final-20261104": {
+      "result.json": "7f07379cef9807a2c955595c52d952324a8cabd496c75f94890f8837d9001dad",
+      "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+      "c5.log": "0a87b14f2f400a1ff75c72cb963a28bebcaf3403e4a1b03587a3c4d258bb15cf",
+      "publication-snapshots.log": "e4064fc91ff586dc96647443dfe9a16cd45d5bb34d971d64eef86c8106366925",
+      "atomic.log": "5604b57fea9caa5b15a53f3f23c1911a3cb4dee7514e6c62756c9f7cf976d9d4",
+      "resume.log": "e62c327c66344893974a7461f284c58222cce81520e8bfae175925748603b9ce",
+      "kill.log": "daf071121a9ffe32bbce44190e37a068c96d08bff63fd7b660dd95b77d786dca",
+      "build.log": "f3980eb510eca424f643bd1e44571ca6d86b8e72ccbd8273858b1e20facb28b6"
+    }
+  }
+}

@@ -326,6 +326,12 @@ async fn c5_target_reuses_parent_and_no_change_writes_nothing() {
     }
     sink.publish(&plan).await.unwrap();
     let relation = sink.relation();
+    let base_relation = sink.generation_relation("base").await.unwrap().unwrap();
+    let (ipc, decoded) = decode(image(1, "must-not-rewrite-sealed-storage"));
+    assert_eq!(
+        sink.stage(&receipt(0, &ipc), &decoded).await,
+        Err("load_stage_sealed")
+    );
     drop(sink);
     conn.close().await.unwrap();
     let mut conn = connect().await;
@@ -348,6 +354,20 @@ async fn c5_target_reuses_parent_and_no_change_writes_nothing() {
             digest: format!("fixture-{}", c.chunk_id),
         })
         .collect();
+    let mut corrupt = parent.clone();
+    corrupt.parts[0].receipt.rows += 1;
+    assert_eq!(
+        sink.publish_c5(
+            &corrupt,
+            &plan,
+            digests.clone(),
+            std::slice::from_ref(&new_receipt),
+            "fixture-lineage",
+        )
+        .await,
+        Err("generation_part_mismatch")
+    );
+    assert!(sink.generation_relation("cycle-1").await.unwrap().is_none());
     sink.publish_c5(
         &parent,
         &plan,
@@ -369,6 +389,13 @@ async fn c5_target_reuses_parent_and_no_change_writes_nothing() {
     .await
     .unwrap();
     assert_eq!(rows, vec![(1, "base".into()), (2, "replacement".into())]);
+    let retained: Vec<(i64, String)> = sqlx::query_as(AssertSqlSafe(format!(
+        "SELECT id,payload FROM {base_relation} ORDER BY id"
+    )))
+    .fetch_all(&mut conn)
+    .await
+    .unwrap();
+    assert_eq!(retained, vec![(1, "base".into()), (2, "base".into())]);
     conn.close().await.unwrap();
     let mut conn = connect().await;
     let mut sink = PgTarget::new(&mut conn, "c5-test", "cycle-2", &t)
@@ -386,6 +413,7 @@ async fn c5_target_reuses_parent_and_no_change_writes_nothing() {
     assert_eq!(sink.generations().await.unwrap(), 2);
     assert_eq!(sink.write_bytes().await.unwrap(), 0);
     assert!(sink.completed().await.unwrap().is_none());
+    assert!(sink.generation_relation("cycle-2").await.unwrap().is_none());
     drop(sink);
     assert!(
         PgSync::open(&mut conn, "c5-test", "lineage", &[t], &pos(10))
@@ -489,6 +517,25 @@ async fn three_publications_preserve_inflight_repeatable_read() {
             .unwrap();
         assert_eq!(current, format!("cycle-{cycle}"));
     }
+    let mut conn = connect().await;
+    let mut target = PgTarget::new(&mut conn, binding, "inspect", &table())
+        .await
+        .unwrap();
+    let mut retained = Vec::new();
+    for run in ["baseline", "cycle-1", "cycle-2", "cycle-3"] {
+        retained.push((run, target.generation_relation(run).await.unwrap().unwrap()));
+    }
+    drop(target);
+    // New transactions can still read every old cut after all pointer switches.
+    for (run, relation) in retained {
+        let payload: String =
+            sqlx::query_scalar(AssertSqlSafe(format!("SELECT payload FROM {relation}")))
+                .fetch_one(&mut conn)
+                .await
+                .unwrap();
+        assert_eq!(payload, run);
+    }
+    conn.close().await.unwrap();
     reader.close().await.unwrap();
     observer.close().await.unwrap();
 }

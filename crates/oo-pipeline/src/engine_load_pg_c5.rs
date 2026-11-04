@@ -163,40 +163,19 @@ impl PgTarget<'_> {
                 .map(|f| quote(&f.name))
                 .collect::<Result<Vec<_>>>()?
                 .join(",");
-            let mut groups = std::collections::BTreeMap::<String, Vec<String>>::new();
-            for part in &next.parts {
-                let stored: String = sqlx::query_scalar(
-                    "SELECT receipt::text FROM _oo_load.chunks WHERE stage=$1 AND chunk=$2",
-                )
-                .bind(&part.stage)
-                .bind(i64::from(part.receipt.chunk_id))
-                .fetch_one(&mut *tx)
-                .await
-                .map_err(db)?;
-                if serde_json::from_str::<ChunkReceipt>(&stored).map_err(|_| "c5_receipt")?
-                    != part.receipt
-                {
-                    return Err("c5_receipt_mismatch");
-                }
-                groups
-                    .entry(part.stage.clone())
-                    .or_default()
-                    .push(part.receipt.chunk_id.to_string());
-            }
-            let selects = groups
-                .into_iter()
-                .map(|(stage, chunks)| {
-                    Ok(format!(
-                        "SELECT {names} FROM _oo_load.{} WHERE __oo_chunk IN ({})",
-                        quote(&stage)?,
-                        chunks.join(",")
-                    ))
-                })
-                .collect::<Result<Vec<_>>>()?
-                .join(" UNION ALL ");
+            let sealed = generation::seal(
+                &mut tx,
+                &self.identity,
+                &self.run,
+                plan,
+                &next.parts,
+                fields,
+            )
+            .await?;
             sqlx::query(AssertSqlSafe(format!(
-                "CREATE OR REPLACE VIEW oo_load_data.{} AS {selects}",
-                quote(&self.view)?
+                "CREATE OR REPLACE VIEW oo_load_data.{} AS SELECT {names} FROM _oo_load.{}",
+                quote(&self.view)?,
+                quote(&sealed)?
             )))
             .execute(&mut *tx)
             .await

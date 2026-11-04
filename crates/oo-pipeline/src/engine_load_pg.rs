@@ -14,6 +14,8 @@ use sqlx_core::sql_str::AssertSqlSafe;
 #[path = "engine_load_pg_c5.rs"]
 mod c5;
 pub use c5::{C5Baseline, C5Part, same_ranges};
+#[path = "engine_load_generation.rs"]
+mod generation;
 
 fn db(_: sqlx::Error) -> &'static str {
     "load_target"
@@ -101,6 +103,10 @@ impl<'a> PgTarget<'a> {
         .execute(&mut *conn)
         .await
         .map_err(db)?;
+        sqlx::raw_sql(include_str!("../migrations/0122_engine_generation.sql"))
+            .execute(&mut *conn)
+            .await
+            .map_err(db)?;
         Ok(Self {
             conn,
             view: format!("t_{}", &identity[..40]),
@@ -265,6 +271,16 @@ impl Target for PgTarget<'_> {
             .as_ref()
             == Some(receipt);
         if !same {
+            let sealed: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM _oo_load.publications WHERE stage=$1)",
+            )
+            .bind(&self.stage)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(db)?;
+            if sealed {
+                return Err("load_stage_sealed");
+            }
             sqlx::query(AssertSqlSafe(format!(
                 "DELETE FROM _oo_load.{} WHERE __oo_chunk=$1",
                 quote(&self.stage)?
@@ -359,6 +375,7 @@ impl Target for PgTarget<'_> {
         if rows.len() != plan.chunks.len() {
             return Err("load_incomplete");
         }
+        let mut parts = Vec::new();
         for row in rows {
             let receipt: ChunkReceipt = serde_json::from_str(&row).map_err(|_| "load_receipt")?;
             if !plan.chunks.iter().any(|c| {
@@ -368,11 +385,25 @@ impl Target for PgTarget<'_> {
             }) {
                 return Err("load_incomplete");
             }
+            parts.push(C5Part {
+                receipt,
+                stage: self.stage.clone(),
+            });
         }
+        parts.sort_by_key(|p| p.receipt.chunk_id);
+        let sealed = generation::seal(
+            &mut tx,
+            &self.identity,
+            &self.run,
+            plan,
+            &parts,
+            self.fields.as_ref().ok_or("load_schema")?,
+        )
+        .await?;
         sqlx::query(AssertSqlSafe(format!(
             "CREATE OR REPLACE VIEW oo_load_data.{} AS SELECT {fields} FROM _oo_load.{}",
             quote(&self.view)?,
-            quote(&self.stage)?
+            quote(&sealed)?
         )))
         .execute(&mut *tx)
         .await
