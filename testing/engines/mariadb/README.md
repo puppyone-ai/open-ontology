@@ -78,4 +78,3 @@ TiDB's DDL server identities are conservative: membership or process restart
 requires a new baseline. Its local fixtures use unistore, not distributed TiKV.
 MariaDB C1 remains primary-only and behind the non-default `mysql-binlog`
 feature. See `C-S3c-SUMMARY.md` for evidence and earlier failed runs.
-
