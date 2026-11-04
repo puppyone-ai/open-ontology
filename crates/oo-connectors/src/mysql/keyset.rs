@@ -482,6 +482,11 @@ pub fn distribution_factor(min: i128, max: i128, rows: u64) -> f64 {
 
 pub const EVEN_LOW: f64 = 0.05;
 pub const EVEN_HIGH: f64 = 100.0;
+/// Step chunks target this share of the row budget. The step comes from the
+/// optimizer row estimate, which can be low (InnoDB re-samples statistics,
+/// e.g. after a restart); with no headroom every chunk then overflows and the
+/// loader exhausts its split attempts. 3/4 absorbs a 25% underestimate.
+pub const STEP_FILL: f64 = 0.75;
 
 /// Pick the split. `min_max` is set for a single integer key.
 pub fn choose_split(
@@ -500,7 +505,7 @@ pub fn choose_split(
     if let Some((min, max)) = min_max {
         let factor = distribution_factor(min, max, rows.max(1));
         if (EVEN_LOW..=EVEN_HIGH).contains(&factor) {
-            let step = ((chunk_rows as f64) * factor).ceil().max(1.0) as i128;
+            let step = ((chunk_rows as f64) * factor * STEP_FILL).ceil().max(1.0) as i128;
             return Split::Step { step };
         }
     }
@@ -762,15 +767,20 @@ mod tests {
 
     #[test]
     fn distribution_factor_selects_step_probe_or_sample() {
-        // Dense ids: step equals chunk rows.
+        // Dense ids: step is chunk rows less the estimate headroom.
         assert_eq!(
             choose_split(2_000_000, 100_000, Some((1, 2_000_000)), 1000),
-            Split::Step { step: 100_000 }
+            Split::Step { step: 75_000 }
         );
         // Sparse but within 100x: step scales with the factor.
         assert_eq!(
             choose_split(1000, 100, Some((1, 50_000)), 1000),
-            Split::Step { step: 5000 }
+            Split::Step { step: 3750 }
+        );
+        // A 20% low estimate (16,000 for dense ids 1..=20,000) still fits 500 rows.
+        assert_eq!(
+            choose_split(16_000, 500, Some((1, 20_000)), 1000),
+            Split::Step { step: 469 }
         );
         // Factor above 100: probe boundaries.
         assert_eq!(
