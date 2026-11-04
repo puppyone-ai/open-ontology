@@ -257,3 +257,86 @@ async fn cli_request_is_closed_before_reading_config() {
         (1, b"release-coordinator: malformed config\n".to_vec())
     );
 }
+
+const COMPOSITE_FIXTURE: &str = include_str!("../fixtures/retained_reviewed_composite.json");
+
+fn lines_vector(columns: &[&str]) -> Value {
+    let expected: Vec<_> = columns
+        .iter()
+        .map(|name| json!({"name":name,"data_type":"bigint"}))
+        .collect();
+    json!([{"dataset":"app.lines","source_id":"owned","generation":3,"recipe_sha256":"b".repeat(64),
+        "storage_relation":format!("g_{}", "c".repeat(40)),"physical_name":format!("pt_{}", "a".repeat(60)),
+        "expected_columns":expected,"source_committed_at":null}])
+}
+
+#[test]
+fn composite_identity_review_is_recompiled_bound_and_documented() {
+    let fixture: Value = serde_json::from_str(COMPOSITE_FIXTURE).unwrap();
+    let review = reviewed(&fixture).unwrap();
+    let entity = &review.effective["entities"][0];
+    assert_eq!(entity["key"], json!(["order_id", "line_no"]));
+    let bound = bind(&review, &lines_vector(&["order_id", "line_no"])).unwrap();
+    assert_eq!(bound[0].logical_columns, ["order_id", "line_no"]);
+    assert_eq!(
+        bind(&review, &lines_vector(&["order_id"])),
+        Err("retained_column_binding")
+    );
+    let value = cut("cycle-1");
+    let publication = json!({"protocol":crate::native_library::PROTOCOL,"run_id":"cycle-1",
+        "receipt_sha256":crate::canon::canonical_sha(&value),"receipt":value});
+    let document = gateway_document(
+        &review,
+        &publication,
+        &lines_vector(&["order_id", "line_no"]),
+        &"c".repeat(64),
+        "owned",
+        "oo_login",
+    )
+    .unwrap();
+    assert_eq!(document["effective"]["entities"][0]["key"], entity["key"]);
+    let pack = oo_builder::compile_role_pack_with_ceilings(
+        &document["effective"].to_string(),
+        &document["visibility"].to_string(),
+        &serde_json::from_value(document["ceilings"].clone()).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        document["envelope"]["producer"]["pack_digest"],
+        json!(pack.pack_digest)
+    );
+    assert!(pack.artifact.contains("key: `order_id`, `line_no`"));
+}
+
+#[test]
+fn composite_identity_cannot_be_reordered_or_left_unopened() {
+    let fixture: Value = serde_json::from_str(COMPOSITE_FIXTURE).unwrap();
+    for key in [
+        json!(["line_no", "order_id"]),
+        json!(["order_id"]),
+        json!(null),
+    ] {
+        let mut bad = fixture.clone();
+        let selection = bad["command"]["review"]["entities"]
+            .as_object_mut()
+            .unwrap()
+            .values_mut()
+            .next()
+            .unwrap();
+        selection["key"] = key.clone();
+        assert_eq!(
+            reviewed(&bad).err(),
+            Some("review_compile_refused"),
+            "{key}"
+        );
+    }
+    // A fence that does not open every identity column is refused before any database work.
+    let mut review = reviewed(&fixture).unwrap();
+    review.visibility["datasets"][0]["columns"] = json!(["order_id"]);
+    assert_eq!(
+        bind(&review, &lines_vector(&["order_id"])),
+        Err("retained_entity_key_binding")
+    );
+    let scalar = reviewed(&serde_json::from_str(REVIEWED_FIXTURE).unwrap()).unwrap();
+    assert_eq!(scalar.effective["entities"][0]["key"], json!("amount"));
+}

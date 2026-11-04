@@ -371,6 +371,23 @@ pub fn bind(review: &Reviewed, vector: &Value) -> Result<Vec<Binding>, &'static 
             columns.push(name.to_owned());
             typed.push(json!({"name":name,"data_type":stored[0]["data_type"]}));
         }
+        // Every identity column (scalar or ordered composite) must be opened by this fence.
+        for entity in review.effective["entities"]
+            .as_array()
+            .ok_or("retained_entity_key_binding")?
+            .iter()
+            .filter(|e| e["primary_dataset"] == dataset)
+        {
+            let key: oo_core::oos::EntityKey = serde_json::from_value(entity["key"].clone())
+                .map_err(|_| "retained_entity_key_binding")?;
+            if !key
+                .columns()
+                .iter()
+                .all(|c| columns.iter().any(|o| o == c.as_str()))
+            {
+                return Err("retained_entity_key_binding");
+            }
+        }
         out.push(Binding {
             dataset: dataset.to_owned(),
             physical: entry["physical_name"]
