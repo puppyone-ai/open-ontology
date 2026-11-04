@@ -4,6 +4,7 @@ use oo_connectors::{
     engine::{ReadBudget, SourceEngine, TableRef},
     postgres::PostgresEngine,
 };
+use oo_connectors::{SourceError, engine};
 use oo_pipeline::{engine_load, engine_load_pg::PgTarget};
 use oo_stack::{secret::SecretStore, stack::Source};
 use serde::Deserialize;
@@ -19,6 +20,30 @@ mod epoch;
 mod handoff;
 mod log_sync;
 mod sync;
+// The public connector export is coordinator-owned; compile the lane module here.
+#[path = "../../../crates/oo-connectors/src/sqlserver/mod.rs"]
+mod sqlserver;
+
+fn sqlserver_config(
+    source: &Source,
+    tables: &[TableRef],
+    password: String,
+    ca_pem: Vec<u8>,
+) -> Result<sqlserver::ConnectConfig, &'static str> {
+    if source.engine != "sqlserver" || ca_pem.is_empty() || tables.is_empty() {
+        return Err("sqlserver_tls_and_scope_required");
+    }
+    Ok(sqlserver::ConnectConfig {
+        host: source.host.clone(),
+        port: source.port,
+        database: source.database.clone(),
+        user: source.user.clone(),
+        password: zeroize::Zeroizing::new(password),
+        ca_pem,
+        tables: tables.to_vec(),
+        mode: None,
+    })
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -334,6 +359,28 @@ async fn execute() -> Result<(), String> {
     }
     let password = store.read(&source.password.secret_ref)?;
     match source.engine.as_str() {
+        "sqlserver" => {
+            let ca = source.tls_ca.as_ref().ok_or("source_tls_required")?;
+            let config = sqlserver_config(
+                source,
+                &tables,
+                password,
+                store.read(&ca.secret_ref)?.into_bytes(),
+            )?;
+            let mut engine = sqlserver::SqlServerEngine::connect(config, budget.clone())
+                .await
+                .map_err(|e| e.to_string())?;
+            let result = run_engine(&mut engine, source, &tables, &target, &store, &budget).await;
+            eprintln!(
+                "{}",
+                serde_json::json!({
+                    "protocol":"oo.load.resources/v1",
+                    "source":source.id,
+                    "resources":engine.resource_receipt()
+                })
+            );
+            result
+        }
         "postgres" => {
             let config = (|| {
                 PgSourceConfig::try_new(
@@ -520,6 +567,26 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sqlserver_arm_preserves_scope_and_requires_tls() {
+        let source: Source = serde_json::from_value(serde_json::json!({
+            "id":"fixture","engine":"sqlserver","host":"localhost","port":1433,
+            "database":"fixture","user":"reader","password":{"secret_ref":"reader"},
+            "scope":{"include":["dbo.fixture"],"exclude":[]}
+        }))
+        .unwrap();
+        let tables = vec![TableRef {
+            schema: "dbo".into(),
+            name: "fixture".into(),
+        }];
+        assert!(sqlserver_config(&source, &tables, String::new(), vec![]).is_err());
+        let config =
+            sqlserver_config(&source, &tables, String::new(), b"test CA".to_vec()).unwrap();
+        assert_eq!(config.tables, tables);
+        assert_eq!(config.port, 1433);
+        assert_eq!(config.mode, None);
+    }
 
     #[test]
     fn table_override_cannot_escape_stack_scope() {

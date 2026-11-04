@@ -12,10 +12,14 @@ mysql-binlog = ["oo-connectors/mysql-binlog"]
 
 [dependencies]
 oo-pipeline = { path = "../../crates/oo-pipeline" }
-oo-connectors = { path = "../../crates/oo-connectors", features = ["oracle", "mysql"] }
+oo-connectors = { path = "../../crates/oo-connectors", features = ["oracle", "mysql", "sqlserver"] }
 oo-stack = { path = "../../crates/oo-stack" }
 arrow-array = { version = "=60.0.0", default-features = false }
 arrow-ipc = { version = "=60.0.0", default-features = false }
+arrow-schema = { version = "=60.0.0", default-features = false }
+tiberius = { version = "=0.13.0", default-features = false, features = ["tds73", "rustls"] }
+tokio-util = { version = "=0.7.19", default-features = false, features = ["compat"] }
+futures-util = { version = "=0.3.34", default-features = false, features = ["std"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 sha2 = "=0.10.9"
