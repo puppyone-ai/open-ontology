@@ -700,6 +700,10 @@ impl MysqlEngine {
         if self.exec(sql, vec![]).await?.is_empty() {
             return Ok((false, None));
         }
+        if self.family == EngineFamily::Mariadb {
+            // MariaDB parallel-replica commit ordering is a separate capability.
+            return Ok((true, None));
+        }
         let rows = self
             .exec(
                 "SHOW GLOBAL VARIABLES WHERE Variable_name IN ('replica_preserve_commit_order', 'slave_preserve_commit_order')",

@@ -98,10 +98,20 @@ impl MysqlEngine {
                 return Err(SourceError::version("oceanbase_mysql_mode_required"));
             }
         }
+        let watermark = if self.family == EngineFamily::Mariadb {
+            let rows = self.exec("SELECT @@GLOBAL.log_bin", vec![]).await?;
+            if rows.first().is_some_and(|r| on_off(row_text(r, 0))) {
+                WatermarkMode::FilePos
+            } else {
+                WatermarkMode::None
+            }
+        } else {
+            WatermarkMode::None
+        };
         self.basics = Some(Basics {
             version,
             dialect,
-            watermark: WatermarkMode::None,
+            watermark,
             max_connections: row_u64(row, 2).map(|n| {
                 if self.family == EngineFamily::Tidb && n == 0 {
                     u64::MAX
@@ -211,6 +221,12 @@ impl MysqlEngine {
                     .map(String::as_str)
                     .unwrap_or(""),
             )?;
+            let replica = match self.exec("SHOW SLAVE STATUS", vec![]).await {
+                Ok(rows) => Some(!rows.is_empty()),
+                Err(error) if error.kind() == SourceErrorKind::Privilege => None,
+                Err(error) => return Err(error),
+            };
+            mariadb::grade_log(&mut report, &lines, account.as_deref(), replica);
         }
         Ok(report)
     }

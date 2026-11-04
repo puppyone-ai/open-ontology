@@ -124,3 +124,243 @@ mod tests {
         }
     }
 }
+
+#[cfg(any(test, feature = "mysql-binlog"))]
+pub(crate) fn gtid_follows(previous: &[(u32, u32, u64)], current: &[(u32, u32, u64)]) -> bool {
+    previous.iter().all(|(domain, server, seq)| {
+        current
+            .iter()
+            .any(|(d, s, n)| d == domain && s == server && n >= seq)
+    })
+}
+
+#[cfg(feature = "mysql-binlog")]
+pub struct MariadbChanges(crate::mysql::MysqlChanges);
+
+#[cfg(feature = "mysql-binlog")]
+impl MariadbEngine {
+    /// Primary-only ROW/FULL binlog in legacy-slave mode. Resume is file/position,
+    /// never a MySQL GTID set. Purge, GTID regression or replica topology fails closed.
+    pub async fn changes(
+        &mut self,
+        tables: &[crate::engine::TableRef],
+        server_id: u32,
+    ) -> Result<MariadbChanges, SourceError> {
+        Ok(MariadbChanges(self.0.changes(tables, server_id).await?))
+    }
+}
+#[cfg(feature = "mysql-binlog")]
+impl MariadbChanges {
+    pub async fn close(&mut self) {
+        self.0.close().await;
+    }
+    pub async fn retention(
+        &mut self,
+        cycle_seconds: u64,
+        recovery_seconds: u64,
+    ) -> Result<crate::mysql::BinlogRetention, SourceError> {
+        self.0.retention(cycle_seconds, recovery_seconds).await
+    }
+}
+#[cfg(feature = "mysql-binlog")]
+impl crate::engine::ChangeSource for MariadbChanges {
+    async fn earliest_available(&mut self) -> Result<crate::engine::Watermark, SourceError> {
+        self.0.earliest_available().await
+    }
+    async fn next_batch(
+        &mut self,
+        from: &crate::engine::Watermark,
+        budget: &crate::engine::ReadBudget,
+    ) -> Result<Option<crate::engine::ChangeBatch>, SourceError> {
+        self.0.next_batch(from, budget).await
+    }
+}
+
+pub(crate) fn grade_log(
+    report: &mut ProbeReport,
+    grants: &[String],
+    account: Option<&str>,
+    replica: Option<bool>,
+) {
+    use crate::engine::{CapabilityState, Requirement, RequirementKind};
+    let mut requirements = vec![];
+    let has = |privilege: &str| {
+        grants.iter().any(|line| {
+            let line = line.to_ascii_uppercase();
+            line.strip_prefix("GRANT ")
+                .and_then(|s| s.split_once(" ON *.* TO "))
+                .is_some_and(|(p, _)| {
+                    p.split(',')
+                        .any(|p| matches!(p.trim(), "ALL PRIVILEGES") || p.trim() == privilege)
+                })
+        })
+    };
+    for privilege in ["BINLOG MONITOR", "REPLICA MONITOR"] {
+        if !has(privilege)
+            && !(privilege == "BINLOG MONITOR" && has("REPLICATION CLIENT"))
+            && !(privilege == "REPLICA MONITOR" && has("SLAVE MONITOR"))
+        {
+            requirements.push(Requirement {
+                kind: RequirementKind::Privilege,
+                name: privilege.into(),
+                observed: Some("missing".into()),
+                required: privilege.into(),
+                dba_statement: account.map(|a| format!("GRANT {privilege} ON *.* TO {a};")),
+            });
+        }
+    }
+    if report.settings.get("log_bin").map(String::as_str) != Some("1") {
+        requirements.push(Requirement {
+            kind: RequirementKind::Parameter,
+            name: "log_bin".into(),
+            observed: report.settings.get("log_bin").cloned(),
+            required: "ON".into(),
+            dba_statement: Some(
+                "-- DBA: enable log_bin in my.cnf and restart; rollback by disabling log_bin"
+                    .into(),
+            ),
+        });
+    }
+    let watermark = if replica == Some(true) {
+        CapabilityState::Unsupported {
+            reason: "MariaDB replica commit ordering is not verified; primary only".into(),
+        }
+    } else if requirements.is_empty() && replica == Some(false) {
+        CapabilityState::Available
+    } else {
+        if requirements.is_empty() {
+            requirements.push(Requirement {
+                kind: RequirementKind::Privilege,
+                name: "replica_topology".into(),
+                observed: None,
+                required: "successful SHOW SLAVE STATUS on primary".into(),
+                dba_statement: None,
+            });
+        }
+        CapabilityState::NeedsSetup {
+            requirements: requirements.clone(),
+        }
+    };
+    report
+        .capabilities
+        .insert(Capability::Watermark, watermark.clone());
+    if !cfg!(feature = "mysql-binlog") {
+        report.capabilities.insert(
+            Capability::LogCdc,
+            CapabilityState::Unsupported {
+                reason:
+                    "build requires opt-in mysql-binlog feature; default artifact remains gated"
+                        .into(),
+            },
+        );
+        return;
+    }
+    if matches!(watermark, CapabilityState::Unsupported { .. }) {
+        report.capabilities.insert(Capability::LogCdc, watermark);
+        return;
+    }
+    if !has("REPLICATION SLAVE") {
+        requirements.push(Requirement {
+            kind: RequirementKind::Privilege,
+            name: "REPLICATION SLAVE".into(),
+            observed: Some("missing".into()),
+            required: "REPLICATION SLAVE".into(),
+            dba_statement: account.map(|a| format!("GRANT REPLICATION SLAVE ON *.* TO {a};")),
+        });
+    }
+    for (name, expected) in [("binlog_format", "ROW"), ("binlog_row_image", "FULL")] {
+        if report.settings.get(name).map(String::as_str) != Some(expected) {
+            requirements.push(Requirement {kind:RequirementKind::Parameter,name:name.into(),observed:report.settings.get(name).cloned(),required:expected.into(),dba_statement:Some(format!("SET GLOBAL {name} = '{expected}'; -- persist in my.cnf; restore the previous value to roll back"))});
+        }
+    }
+    report.settings.insert(
+        "cdc_resume".into(),
+        "file-position; MariaDB GTID monotonic lineage guard; legacy-slave annotation no-op only"
+            .into(),
+    );
+    report.settings.insert(
+        "retention".into(),
+        "configured retention does not prove availability; call retention() before resume".into(),
+    );
+    report.capabilities.insert(
+        Capability::LogCdc,
+        if requirements.is_empty() {
+            CapabilityState::Available
+        } else {
+            CapabilityState::NeedsSetup { requirements }
+        },
+    );
+}
+
+/// Legacy-slave annotation comments are truncated to the original event size.
+#[cfg(feature = "mysql-binlog")]
+pub(crate) fn annotation_noop(sql: &str) -> bool {
+    sql.starts_with("# DUMMY EVENT")
+        && "# DUMMY EVENT REPLACING EVENT TYPE 160 THAT SLAVE CANNOT HANDLE.".starts_with(sql)
+}
+
+#[cfg(test)]
+mod log_tests {
+    use super::*;
+    #[test]
+    fn domain_server_sequence_cannot_regress_or_change_server() {
+        assert!(gtid_follows(&[(0, 1, 3)], &[(0, 1, 4), (2, 3, 1)]));
+        assert!(!gtid_follows(&[(0, 1, 3)], &[(0, 1, 2)]));
+        assert!(!gtid_follows(&[(0, 1, 3)], &[(0, 2, 4)]));
+        assert!(!gtid_follows(&[(0, 1, 3)], &[]));
+    }
+    #[cfg(feature = "mysql-binlog")]
+    #[test]
+    fn only_known_truncated_annotation_comments_are_noops() {
+        for sql in [
+            "# DUMMY EVENT REPLACING EVENT",
+            "# DUMMY EVENT REPLACING EVENT TYPE 160",
+        ] {
+            assert!(annotation_noop(sql));
+        }
+        for sql in [
+            "#",
+            "# DUMMY EVENT; DELETE FROM t",
+            "# DUMMY EVENT REPLACING EVENT TYPE 162",
+            "DELETE FROM t",
+            "# arbitrary comment",
+        ] {
+            assert!(!annotation_noop(sql));
+        }
+    }
+    #[test]
+    fn grants_and_topology_gate_log_capabilities() {
+        use crate::engine::CapabilityState;
+        let mut r = report(parse_version("11.4.8-MariaDB").unwrap());
+        for (key, value) in [
+            ("log_bin", "1"),
+            ("binlog_format", "ROW"),
+            ("binlog_row_image", "FULL"),
+        ] {
+            r.settings.insert(key.into(), value.into());
+        }
+        let grants =
+            vec!["GRANT BINLOG MONITOR, SLAVE MONITOR, REPLICATION SLAVE ON *.* TO 'r'@'%'".into()];
+        grade_log(&mut r, &grants, Some("'r'@'%'"), Some(false));
+        assert_eq!(
+            r.capabilities[&Capability::Watermark],
+            CapabilityState::Available
+        );
+        if cfg!(feature = "mysql-binlog") {
+            assert_eq!(
+                r.capabilities[&Capability::LogCdc],
+                CapabilityState::Available
+            );
+        }
+        grade_log(&mut r, &grants, Some("'r'@'%'"), Some(true));
+        assert!(matches!(
+            r.capabilities[&Capability::Watermark],
+            CapabilityState::Unsupported { .. }
+        ));
+        grade_log(&mut r, &[], Some("'r'@'%'"), None);
+        assert!(matches!(
+            r.capabilities[&Capability::Watermark],
+            CapabilityState::NeedsSetup { .. }
+        ));
+    }
+}

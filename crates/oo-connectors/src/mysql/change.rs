@@ -21,6 +21,7 @@ pub struct MysqlChanges {
     engine: MysqlEngine,
     server_id: u32,
     source_uuid: String,
+    mariadb_anchor: Option<Vec<(u32, u32, u64)>>,
 }
 
 /// Actual retained history, measured from the oldest readable binlog event.
@@ -49,14 +50,20 @@ impl MysqlEngine {
         if tables.is_empty() || server_id == 0 {
             return Err(SourceError::config("binlog_subscription"));
         }
-        let mut engine = MysqlEngine::new(
+        let mut engine = MysqlEngine::new_family(
+            self.family,
             self.config.clone(),
             self.password.clone(),
             self.options.clone(),
         );
         engine.ensure_basics().await?;
         engine.check_replica_commit_order().await?;
-        let settings = engine.exec("SELECT @@GLOBAL.server_uuid, @@GLOBAL.server_id, @@GLOBAL.binlog_format, @@GLOBAL.binlog_row_image, @@GLOBAL.log_bin", vec![]).await?;
+        let maria = engine.family == EngineFamily::Mariadb;
+        let settings = engine.exec(if maria {
+            "SELECT CAST(@@GLOBAL.server_id AS CHAR), @@GLOBAL.server_id, @@GLOBAL.binlog_format, @@GLOBAL.binlog_row_image, @@GLOBAL.log_bin, @@GLOBAL.gtid_binlog_pos"
+        } else {
+            "SELECT @@GLOBAL.server_uuid, @@GLOBAL.server_id, @@GLOBAL.binlog_format, @@GLOBAL.binlog_row_image, @@GLOBAL.log_bin"
+        }, vec![]).await?;
         let row = settings
             .first()
             .ok_or_else(|| SourceError::protocol("binlog_settings"))?;
@@ -70,6 +77,13 @@ impl MysqlEngine {
             ));
         }
         let source_uuid = row_text(row, 0).ok_or_else(|| SourceError::protocol("server_uuid"))?;
+        let mariadb_anchor = if maria {
+            Some(crate::mysql::mariadb::parse_gtid(
+                &row_text(row, 5).ok_or_else(rebaseline)?,
+            )?)
+        } else {
+            None
+        };
         for table in tables {
             engine.meta(table).await?;
             let meta = engine.meta_ref(table)?;
@@ -91,6 +105,7 @@ impl MysqlEngine {
             engine,
             server_id,
             source_uuid,
+            mariadb_anchor,
         })
     }
 }
@@ -343,13 +358,28 @@ impl MysqlChanges {
         let rows = self
             .engine
             .exec(
-                "SELECT @@GLOBAL.server_uuid, @@GLOBAL.gtid_executed, @@GLOBAL.gtid_purged",
+                if self.mariadb_anchor.is_some() {
+                    "SELECT CAST(@@GLOBAL.server_id AS CHAR), @@GLOBAL.gtid_binlog_pos, ''"
+                } else {
+                    "SELECT @@GLOBAL.server_uuid, @@GLOBAL.gtid_executed, @@GLOBAL.gtid_purged"
+                },
                 vec![],
             )
             .await?;
         let row = rows.first().ok_or_else(rebaseline)?;
         if row_text(row, 0).as_deref() != Some(&self.source_uuid) {
             return Err(rebaseline());
+        }
+        if let Some(anchor) = &self.mariadb_anchor {
+            if !matches!(from, Watermark::MysqlFilePos { .. }) {
+                return Err(SourceError::config("mariadb_file_position_required"));
+            }
+            let current =
+                crate::mysql::mariadb::parse_gtid(&row_text(row, 1).ok_or_else(rebaseline)?)?;
+            if !crate::mysql::mariadb::gtid_follows(anchor, &current) {
+                return Err(rebaseline());
+            }
+            self.mariadb_anchor = Some(current);
         }
         match from {
             Watermark::MysqlGtidSet { gtid_set } => {
@@ -447,7 +477,15 @@ impl MysqlChanges {
             let mut commit = false;
             match data {
                 EventData::RotateEvent(e) => {
-                    file = e.name().into_owned();
+                    // MariaDB's synthetic initial rotate precedes the format
+                    // descriptor; the driver can include its CRC in the name.
+                    // Keep the already inventory-validated requested filename.
+                    if !(self.mariadb_anchor.is_some()
+                        && event.header().timestamp() == 0
+                        && event.header().log_pos() == 0)
+                    {
+                        file = e.name().into_owned();
+                    }
                 }
                 EventData::GtidEvent(e) => {
                     if pending {
@@ -469,6 +507,11 @@ impl MysqlChanges {
                 EventData::QueryEvent(e) => {
                     let sql = e.query().trim().to_ascii_uppercase();
                     match sql.as_str() {
+                        // MariaDB's legacy-slave protocol replaces row annotations
+                        // (type 160) with a known truncated comment, not arbitrary SQL.
+                        _ if self.mariadb_anchor.is_some()
+                            && pending
+                            && crate::mysql::mariadb::annotation_noop(&sql) => {}
                         "BEGIN" => {
                             pending = true;
                         }
