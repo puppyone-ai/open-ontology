@@ -113,7 +113,7 @@ def draft(facts, config, output):
     model = config.get('model')
     if not isinstance(model, dict) or set(model) != {'stack', 'egress', 'call_limit'}:
         raise ValueError('retained_model_config')
-    if type(model['call_limit']) is not int or not 1 <= model['call_limit'] <= 6:
+    if type(model['call_limit']) is not int or not 1 <= model['call_limit'] <= 4096:
         raise ValueError('retained_model_budget')
     stack = json.loads(Path(model['stack']).read_text())
     port = free_port()
