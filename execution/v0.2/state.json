@@ -1222,7 +1222,7 @@
       "sprint": "S5",
       "lane": "H",
       "title": "T7 只读证明自动化（general log / log_statement / 统一审计）",
-      "status": "author_complete",
+      "status": "in_progress",
       "owner": "lane-H",
       "branch": "v0.2/h-test-infra",
       "commits": [
@@ -1238,7 +1238,7 @@
       "sprint": "S5",
       "lane": "H",
       "title": "夜间矩阵（本机原生 + amd64 仿真），失败自动降级并通知 owner",
-      "status": "author_complete",
+      "status": "in_progress",
       "owner": "lane-H",
       "branch": "v0.2/h-test-infra",
       "commits": [
