@@ -284,6 +284,15 @@ fn mysql_family(name: &str) -> Option<EngineFamily> {
     }
 }
 
+fn mysql_sync_family(family: EngineFamily) -> Result<(), &'static str> {
+    match family {
+        EngineFamily::Mysql | EngineFamily::Mariadb => Ok(()),
+        EngineFamily::Tidb => Err("tidb_c1_unsupported_use_c5"),
+        EngineFamily::Oceanbase => Err("oceanbase_c1_unsupported_use_c5"),
+        _ => Err("explicit_supported_engine_required"),
+    }
+}
+
 async fn execute() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
     let mut opts = BTreeMap::new();
@@ -534,7 +543,11 @@ async fn execute() -> Result<(), String> {
             run_engine(&mut engine, source, &tables, &target, &store, &budget).await
         }
         family if mysql_family(family).is_some() => {
-            let mut engine = mysql_engine(mysql_family(family).unwrap(), source, &store, &opts)?;
+            let family = mysql_family(family).unwrap();
+            if opts.contains_key("--sync") {
+                mysql_sync_family(family)?;
+            }
+            let mut engine = mysql_engine(family, source, &store, &opts)?;
             if let Some(_path) = opts.get("--sync") {
                 #[cfg(feature = "mysql-binlog")]
                 return log_sync::mysql(
@@ -598,6 +611,20 @@ mod tests {
         assert_eq!(config.tables, tables);
         assert_eq!(config.port, 1433);
         assert_eq!(config.mode, None);
+    }
+
+    #[test]
+    fn family_sync_policy_is_explicit() {
+        assert_eq!(mysql_sync_family(EngineFamily::Mysql), Ok(()));
+        assert_eq!(mysql_sync_family(EngineFamily::Mariadb), Ok(()));
+        assert_eq!(
+            mysql_sync_family(EngineFamily::Tidb),
+            Err("tidb_c1_unsupported_use_c5")
+        );
+        assert_eq!(
+            mysql_sync_family(EngineFamily::Oceanbase),
+            Err("oceanbase_c1_unsupported_use_c5")
+        );
     }
 
     #[test]
