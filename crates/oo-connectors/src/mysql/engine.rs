@@ -898,9 +898,18 @@ impl MysqlEngine {
     }
 
     /// `EXPLAIN` the statement and require the key index, not a full scan.
-    async fn verify_index(&mut self, sql: &str, values: Vec<Value>, index: &str) -> Result<()> {
+    async fn verify_index(
+        &mut self,
+        sql: &str,
+        values: Vec<Value>,
+        index: &str,
+        table: &TableRef,
+    ) -> Result<()> {
         if self.family == EngineFamily::Tidb {
             return self.tidb_verify_index(sql, values, index).await;
+        }
+        if self.family == EngineFamily::Oceanbase {
+            return self.oceanbase_verify_index(sql, values, index, table).await;
         }
         let rows = self
             .exec(&format!("EXPLAIN FORMAT=TRADITIONAL {sql}"), values)
@@ -1216,7 +1225,7 @@ impl MysqlEngine {
                 hi.as_deref(),
                 1,
             )?;
-            self.verify_index(&sql, values, &index).await?;
+            self.verify_index(&sql, values, &index, table).await?;
         }
         Ok(plan)
     }
@@ -1390,7 +1399,8 @@ impl MysqlEngine {
             };
             let (sql, values) = self.page_statement(&chunk.table, lower, hi.as_deref(), limit)?;
             if first {
-                self.verify_index(&sql, values.clone(), &index).await?;
+                self.verify_index(&sql, values.clone(), &index, &chunk.table)
+                    .await?;
                 first = false;
             }
             let t = Instant::now();

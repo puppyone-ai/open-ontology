@@ -4,6 +4,40 @@ use crate::engine::{Capability, CapabilityState, Requirement, RequirementKind};
 use crate::mysql::{mariadb, oceanbase, tidb};
 
 impl MysqlEngine {
+    pub(super) async fn oceanbase_verify_index(
+        &mut self,
+        sql: &str,
+        values: Vec<Value>,
+        index: &str,
+        table: &TableRef,
+    ) -> Result<()> {
+        if index != "PRIMARY" {
+            return Err(SourceError::catalog(
+                "oceanbase_secondary_index_unvalidated",
+            ));
+        }
+        let columns = self
+            .meta_ref(table)?
+            .key
+            .columns
+            .iter()
+            .map(|c| c.name.clone())
+            .collect::<Vec<_>>();
+        let rows = self
+            .exec(&format!("EXPLAIN FORMAT=TRADITIONAL {sql}"), values)
+            .await?;
+        self.stats.explain_checks += 1;
+        let lines = rows
+            .iter()
+            .filter_map(|r| row_text(r, 0))
+            .collect::<Vec<_>>();
+        if oceanbase_primary_plan(&lines, &table.name, &columns, !sql.contains(" WHERE ")) {
+            Ok(())
+        } else {
+            Err(SourceError::catalog("chunk_index_unused"))
+        }
+    }
+
     pub(super) async fn compatible_load(&mut self) -> Result<Vec<Row>> {
         let grants = self.exec("SHOW GRANTS FOR CURRENT_USER()", vec![]).await?;
         if !grants
@@ -232,6 +266,38 @@ impl MysqlEngine {
     }
 }
 
+// CE 4.x renders a native plan even for FORMAT=TRADITIONAL. Require one
+// primary-table access and its exact ordered range key, not a MySQL key field.
+fn oceanbase_primary_plan(
+    lines: &[String],
+    table: &str,
+    columns: &[String],
+    unbounded: bool,
+) -> bool {
+    let operators = lines
+        .iter()
+        .filter(|line| line.starts_with('|'))
+        .map(|line| line.split('|').map(str::trim).collect::<Vec<_>>())
+        .filter(|cells| cells.get(1).is_some_and(|id| id.parse::<u32>().is_ok()))
+        .collect::<Vec<_>>();
+    let key = format!(
+        "range_key({}),",
+        columns
+            .iter()
+            .map(|name| format!("[{table}.{name}]"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    operators.len() == 1
+        && operators[0].get(3) == Some(&table)
+        && (matches!(
+            operators[0].get(2).copied(),
+            Some("TABLE RANGE SCAN" | "TABLE SCAN" | "TABLE GET")
+        ) || (unbounded && operators[0].get(2) == Some(&"TABLE FULL SCAN")))
+        && !columns.is_empty()
+        && lines.iter().any(|line| line.trim_start().starts_with(&key))
+}
+
 fn has_process(grant: &str) -> bool {
     let upper = grant.to_ascii_uppercase();
     let Some((privileges, _)) = upper
@@ -383,6 +449,67 @@ pub(crate) use family_engine;
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn oceanbase_plan_requires_exact_primary_access_and_key() {
+        let lines = vec![
+            "|ID|OPERATOR|NAME|EST.ROWS|".into(),
+            "|0 |TABLE RANGE SCAN|rows|2|".into(),
+            "      range_key([rows.id]), range[2 ; 5), ".into(),
+        ];
+        assert!(oceanbase_primary_plan(
+            &lines,
+            "rows",
+            &["id".into()],
+            false
+        ));
+        assert!(!oceanbase_primary_plan(
+            &lines,
+            "other",
+            &["id".into()],
+            false
+        ));
+        assert!(!oceanbase_primary_plan(
+            &lines,
+            "rows",
+            &["payload".into()],
+            false
+        ));
+        assert!(!oceanbase_primary_plan(&lines, "rows", &[], false));
+        let mut secondary = lines.clone();
+        secondary[1] = "|0|TABLE RANGE SCAN|rows(other_index)|2|".into();
+        assert!(!oceanbase_primary_plan(
+            &secondary,
+            "rows",
+            &["id".into()],
+            false
+        ));
+        let mut multiple = lines.clone();
+        multiple.push("|1|TABLE RANGE SCAN|rows|2|".into());
+        assert!(!oceanbase_primary_plan(
+            &multiple,
+            "rows",
+            &["id".into()],
+            false
+        ));
+        let mut full = lines.clone();
+        full[1] = "|0|TABLE FULL SCAN|rows|1|".into();
+        assert!(!oceanbase_primary_plan(
+            &full,
+            "rows",
+            &["id".into()],
+            false
+        ));
+        assert!(oceanbase_primary_plan(&full, "rows", &["id".into()], true));
+        let mut unknown = lines;
+        unknown[1] = "|0|UNKNOWN SCAN|rows|2|".into();
+        assert!(!oceanbase_primary_plan(
+            &unknown,
+            "rows",
+            &["id".into()],
+            false
+        ));
+    }
+
     #[test]
     fn process_requires_global_scope_and_exact_privilege() {
         assert!(has_process("GRANT PROCESS ON *.* TO 'reader'@'%'"));
