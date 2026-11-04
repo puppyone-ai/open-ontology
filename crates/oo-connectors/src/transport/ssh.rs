@@ -230,6 +230,10 @@ pub async fn connect(source: &Source, store: &SecretStore) -> Result<Option<Arc<
     let Some(ssh) = &source.ssh else {
         return Ok(None);
     };
+    // SQL Server does not yet separate its socket address from its TLS identity.
+    if source.engine.split('-').next() == Some("sqlserver") {
+        return Err("SQLSERVER_SSH_NOT_AVAILABLE");
+    }
     if !fingerprint(&ssh.host_key_sha256) {
         return Err("SSH_PIN_REQUIRED");
     }
@@ -296,6 +300,36 @@ pub async fn connect(source: &Source, store: &SecretStore) -> Result<Option<Arc<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn sqlserver_ssh_is_refused_before_secret_or_network_access() {
+        let mut source = oo_stack::parse(include_str!("../../../oo-stack/example.stack.json"))
+            .unwrap()
+            .sources
+            .remove(0);
+        let directory = std::env::current_dir()
+            .unwrap()
+            .join(format!(".ssh-refusal-test-{}", std::process::id()));
+        let store = SecretStore::create(&directory).unwrap();
+        for engine in ["sqlserver", "sqlserver-2022"] {
+            source.engine = engine.into();
+            source.ssh = None;
+            assert!(connect(&source, &store).await.unwrap().is_none());
+            source.ssh = Some(
+                serde_json::from_value(serde_json::json!({
+                    "host": "unused.invalid", "user": "unused",
+                    "key": {"secret_ref": "missing"},
+                    "host_key_sha256": ""
+                }))
+                .unwrap(),
+            );
+            assert!(matches!(
+                connect(&source, &store).await,
+                Err("SQLSERVER_SSH_NOT_AVAILABLE")
+            ));
+        }
+        std::fs::remove_dir(directory).unwrap();
+    }
 
     #[tokio::test]
     async fn cancelling_stalled_key_exchange_closes_the_socket() {

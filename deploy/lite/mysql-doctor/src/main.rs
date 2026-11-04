@@ -22,9 +22,6 @@ fn run() -> Result<Value, &'static str> {
         serde_json::from_value(value["source"].clone()).map_err(|_| "MYSQL_DOCTOR_INPUT")?;
     let tables: Vec<TableRef> =
         serde_json::from_value(value["tables"].clone()).map_err(|_| "MYSQL_DOCTOR_INPUT")?;
-    if source.ssh.is_some() {
-        return Err("SOURCE_SSH_NOT_AVAILABLE");
-    }
     let ca = source.tls_ca.as_ref().ok_or("SOURCE_TLS_CA_REQUIRED")?;
     let store = SecretStore::from_home()?;
     // Validate the file using the private-store rules before handing its path
@@ -32,10 +29,10 @@ fn run() -> Result<Value, &'static str> {
     store.read(&ca.secret_ref)?;
     let home = std::env::var_os("HOME").ok_or("SECRET_HOME")?;
     let config = MysqlConfig {
-        mysql_host: source.host,
+        mysql_host: source.host.clone(),
         mysql_port: source.port,
-        mysql_database: source.database,
-        mysql_user: source.user,
+        mysql_database: source.database.clone(),
+        mysql_user: source.user.clone(),
         mysql_ca_file: std::path::Path::new(&home)
             .join(".config/open-ontology/secrets")
             .join(&ca.secret_ref),
@@ -48,7 +45,7 @@ fn run() -> Result<Value, &'static str> {
         connect_timeout_ms: 10_000,
     };
     let options = EngineOptions {
-        source_id: source.id,
+        source_id: source.id.clone(),
         ..Default::default()
     };
     let mut engine = MysqlEngine::new(
@@ -60,10 +57,27 @@ fn run() -> Result<Value, &'static str> {
         .enable_all()
         .build()
         .map_err(|_| "MYSQL_DOCTOR_RUNTIME")?;
-    Ok(runtime.block_on(inspection::inspect(&mut engine, &tables, &source.sync.mode)))
+    runtime.block_on(async {
+        let tunnel = oo_connectors::transport::ssh::connect(&source, &store).await?;
+        if let Some(tunnel) = tunnel {
+            engine = engine.with_tunnel(tunnel).map_err(|_| "SSH_TARGET")?;
+        }
+        let mut report = inspection::inspect(&mut engine, &tables, &source.sync.mode).await;
+        if let Some(ssh) = &source.ssh {
+            report["tunnel"] = json!({"status":"ok","host_key_sha256":ssh.host_key_sha256,
+                "transport":"ssh-direct-tcpip"});
+        }
+        Ok(report)
+    })
 }
 
 fn main() {
-    let report = run().unwrap_or_else(|error| json!({"status":"blocked","error":error}));
+    let report = run().unwrap_or_else(|error| {
+        let mut report = json!({"status":"blocked","error":error});
+        if error.starts_with("SSH_") {
+            report["tunnel"] = json!({"status":"blocked","error":error});
+        }
+        report
+    });
     println!("{report}");
 }

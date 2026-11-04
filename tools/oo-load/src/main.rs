@@ -380,8 +380,12 @@ async fn execute() -> Result<(), String> {
     {
         return Err("sync_modes_conflict".into());
     }
-    if source.ssh.is_some() {
-        return Err("ssh_not_supported".into());
+    if source.ssh.is_some()
+        && ["--sync", "--c5", "--handoff"]
+            .iter()
+            .any(|key| opts.contains_key(*key))
+    {
+        return Err("ssh_incremental_control_not_integrated".into());
     }
     let tables = selected(source, opts.get("--tables"))?;
     let mut target: TargetConfig =
@@ -445,6 +449,7 @@ async fn execute() -> Result<(), String> {
         return Err("mysql_binlog_feature_required".into());
     }
     let password = store.read(&source.password.secret_ref)?;
+    let tunnel = oo_connectors::transport::ssh::connect(source, &store).await?;
     match source.engine.as_str() {
         "sqlserver" => sqlserver_load::run(source, &tables, &target, &store, &budget, &opts).await,
         "postgres" => {
@@ -483,6 +488,12 @@ async fn execute() -> Result<(), String> {
                 )
             })()
             .map_err(|e: oo_connectors::SourceError| e.to_string())?;
+            let config = match &tunnel {
+                Some(tunnel) => config
+                    .with_tunnel(tunnel.clone())
+                    .map_err(|e| e.to_string())?,
+                None => config,
+            };
             if let Some(path) = opts.get("--sync") {
                 return sync::run(
                     config,
@@ -525,6 +536,10 @@ async fn execute() -> Result<(), String> {
                 .ssl_mode(PgSslMode::VerifyFull)
                 .ssl_root_cert_from_pem(ca.into_bytes())
                 .disable_statement_logging();
+            let options = match &tunnel {
+                Some(tunnel) => options.tcp_address(tunnel.address()),
+                None => options,
+            };
             let mut owner = PgConnection::connect_with(&options)
                 .await
                 .map_err(|_| "snapshot_connect")?;
@@ -545,9 +560,16 @@ async fn execute() -> Result<(), String> {
         }
         "oracle" => {
             use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine};
+            if tunnel.is_some() && opts.contains_key("--oracle-worker") {
+                return Err("ssh_external_worker_not_integrated".into());
+            }
+            let (host, port) = tunnel
+                .as_ref()
+                .map(|t| (t.address().ip().to_string(), t.address().port()))
+                .unwrap_or_else(|| (source.host.clone(), source.port));
             let mut config = OracleConnectConfig::new(
-                &source.host,
-                source.port,
+                &host,
+                port,
                 &source.database,
                 &source.user,
                 zeroize::Zeroizing::new(password),
@@ -593,6 +615,9 @@ async fn execute() -> Result<(), String> {
                 mysql_sync_family(family)?;
             }
             let mut engine = mysql_engine(family, source, &store, &opts)?;
+            if let Some(tunnel) = tunnel {
+                engine = engine.with_tunnel(tunnel).map_err(|e| e.to_string())?;
+            }
             if let Some(_path) = opts.get("--sync") {
                 #[cfg(feature = "mysql-binlog")]
                 return log_sync::mysql(

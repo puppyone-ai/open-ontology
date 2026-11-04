@@ -94,6 +94,9 @@ fn oracle(
     config.scope = tables.to_vec();
     let engine = match std::env::var("OO_ORACLE_WORKER_IMAGE") {
         Ok(image) => {
+            if source.ssh.is_some() {
+                return Err("SSH_EXTERNAL_WORKER_NOT_AVAILABLE".into());
+            }
             if !pinned_worker(&image) {
                 return Err("ORACLE_WORKER_DIGEST_REQUIRED".into());
             }
@@ -184,6 +187,7 @@ fn postgres(
     source: &Source,
     tables: &[TableRef],
     store: &SecretStore,
+    tunnel: Option<std::sync::Arc<oo_connectors::transport::ssh::Tunnel>>,
 ) -> Result<PostgresEngine, String> {
     let ca = source.tls_ca.as_ref().ok_or("SOURCE_TLS_CA_REQUIRED")?;
     let password = store.read(&source.password.secret_ref)?;
@@ -211,6 +215,10 @@ fn postgres(
         )
     })()
     .map_err(|e: oo_connectors::SourceError| e.to_string())?;
+    let config = match tunnel {
+        Some(tunnel) => config.with_tunnel(tunnel).map_err(|e| e.to_string())?,
+        None => config,
+    };
     Ok(PostgresEngine::new(config))
 }
 
@@ -219,9 +227,6 @@ async fn sources(stack: &Stack) -> Vec<Value> {
     let mut results = Vec::new();
     for source in &stack.sources {
         let setup = (|| {
-            if source.ssh.is_some() {
-                return Err("SOURCE_SSH_NOT_AVAILABLE".into());
-            }
             let family = family(source)?;
             match registry.get(&family) {
                 Some(Adapter::Postgres | Adapter::Oracle | Adapter::Mysql | Adapter::Sqlserver) => {
@@ -236,46 +241,85 @@ async fn sources(stack: &Stack) -> Vec<Value> {
         })();
         let mut result = match setup {
             Ok((family, store, selected, scope_error)) => {
-                let mut report = match family {
-                    EngineFamily::Postgres => match postgres(source, &selected, &store) {
-                        Ok(mut engine) => inspect(&mut engine, &selected, &source.sync.mode).await,
-                        Err(error) => json!({"status":"blocked","error":error}),
-                    },
-                    EngineFamily::Oracle => match oracle(source, &selected, &store) {
-                        Ok(mut engine) => inspect(&mut engine, &selected, &source.sync.mode).await,
-                        Err(error) => json!({"status":"blocked","error":error}),
-                    },
-                    EngineFamily::Mysql => mysql(source, &selected),
-                    EngineFamily::Sqlserver => {
-                        let config = (|| {
-                            let ca = source.tls_ca.as_ref().ok_or("SQLSERVER_TLS_REQUIRED")?;
-                            Ok::<_, String>(oo_connectors::sqlserver::ConnectConfig {
-                                host: source.host.clone(),
-                                port: source.port,
-                                database: source.database.clone(),
-                                user: source.user.clone(),
-                                password: store.read(&source.password.secret_ref)?.into(),
-                                ca_pem: store.read(&ca.secret_ref)?.into_bytes(),
-                                tables: selected.clone(),
-                                mode: None,
-                            })
-                        })();
-                        match config {
-                            Ok(config) => match oo_connectors::sqlserver::SqlServerEngine::connect(
-                                config,
-                                oo_connectors::engine::ReadBudget::default(),
-                            )
-                            .await
-                            {
+                // MySQL's helper owns its runtime and tunnel. Never block this
+                // runtime waiting for a child that needs its forwarding tasks.
+                let tunnel = if family == EngineFamily::Mysql {
+                    Ok(None)
+                } else {
+                    oo_connectors::transport::ssh::connect(source, &store).await
+                };
+                let mut report = match tunnel {
+                    Err(error) => json!({"status":"blocked","error":error,
+                        "tunnel":{"status":"blocked","error":error}}),
+                    Ok(tunnel) => {
+                        let mut routed = source.clone();
+                        if let Some(tunnel) = &tunnel
+                            && family == EngineFamily::Oracle
+                        {
+                            routed.host = tunnel.address().ip().to_string();
+                            routed.port = tunnel.address().port();
+                        }
+                        let mut report = match family {
+                            EngineFamily::Postgres => {
+                                match postgres(source, &selected, &store, tunnel.clone()) {
+                                    Ok(mut engine) => {
+                                        inspect(&mut engine, &selected, &source.sync.mode).await
+                                    }
+                                    Err(error) => json!({"status":"blocked","error":error}),
+                                }
+                            }
+                            EngineFamily::Oracle => match oracle(&routed, &selected, &store) {
                                 Ok(mut engine) => {
                                     inspect(&mut engine, &selected, &source.sync.mode).await
                                 }
-                                Err(error) => json!({"status":"blocked","error":error.to_string()}),
+                                Err(error) => json!({"status":"blocked","error":error}),
                             },
-                            Err(error) => json!({"status":"blocked","error":error}),
+                            EngineFamily::Mysql => mysql(source, &selected),
+                            EngineFamily::Sqlserver => {
+                                let config = (|| {
+                                    let ca =
+                                        source.tls_ca.as_ref().ok_or("SQLSERVER_TLS_REQUIRED")?;
+                                    Ok::<_, String>(oo_connectors::sqlserver::ConnectConfig {
+                                        host: source.host.clone(),
+                                        port: source.port,
+                                        database: source.database.clone(),
+                                        user: source.user.clone(),
+                                        password: store.read(&source.password.secret_ref)?.into(),
+                                        ca_pem: store.read(&ca.secret_ref)?.into_bytes(),
+                                        tables: selected.clone(),
+                                        mode: None,
+                                    })
+                                })();
+                                match config {
+                                    Ok(config) => {
+                                        match oo_connectors::sqlserver::SqlServerEngine::connect(
+                                            config,
+                                            oo_connectors::engine::ReadBudget::default(),
+                                        )
+                                        .await
+                                        {
+                                            Ok(mut engine) => {
+                                                inspect(&mut engine, &selected, &source.sync.mode)
+                                                    .await
+                                            }
+                                            Err(error) => {
+                                                json!({"status":"blocked","error":error.to_string()})
+                                            }
+                                        }
+                                    }
+                                    Err(error) => json!({"status":"blocked","error":error}),
+                                }
+                            }
+                            _ => unreachable!("registry checked above"),
+                        };
+                        if let Some(ssh) = &source.ssh
+                            && family != EngineFamily::Mysql
+                        {
+                            report["tunnel"] = json!({"status":"ok","host_key_sha256":ssh.host_key_sha256,
+                            "transport":"ssh-direct-tcpip"});
                         }
+                        report
                     }
-                    _ => unreachable!("registry checked above"),
                 };
                 if let Some(error) = scope_error {
                     report["status"] = json!("blocked");
@@ -333,7 +377,8 @@ fn model(stack: &Stack) -> Value {
 }
 
 pub(super) fn run(stack: &Stack, json_output: bool) -> Result<Invocation, Failure> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
         .enable_all()
         .build()
         .map_err(|_| Failure::local("DOCTOR_RUNTIME"))?;
