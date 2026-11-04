@@ -644,14 +644,25 @@ impl SqlServerEngine {
             })
             .collect::<Result<Vec<_>, SourceError>>()?;
         let package = encode_cells(&t.columns, &cells).map_err(|_| err("sqlserver_arrow"))?;
-        let mut reader = StreamReader::try_new(Cursor::new(&package.ipc), None)
-            .map_err(|_| err("sqlserver_arrow"))?;
-        let batch = reader
-            .next()
-            .ok_or_else(|| err("sqlserver_arrow"))?
-            .map_err(|_| err("sqlserver_arrow"))?;
-        Ok((batch, package.ipc))
+        canonical_batch(&package.ipc)
     }
+}
+
+fn canonical_batch(ipc: &[u8]) -> Result<(RecordBatch, Vec<u8>), SourceError> {
+    let mut reader =
+        StreamReader::try_new(Cursor::new(ipc), None).map_err(|_| err("sqlserver_arrow"))?;
+    let batch = reader
+        .next()
+        .ok_or_else(|| err("sqlserver_arrow"))?
+        .map_err(|_| err("sqlserver_arrow"))?;
+    // Hash the exact delivered schema and the pipeline's default IPC options.
+    // Decoding rebuilds metadata maps; the preview's wire bytes are not canonical.
+    let mut writer = arrow_ipc::writer::StreamWriter::try_new(Vec::new(), &batch.schema())
+        .map_err(|_| err("sqlserver_arrow"))?;
+    writer.write(&batch).map_err(|_| err("sqlserver_arrow"))?;
+    writer.finish().map_err(|_| err("sqlserver_arrow"))?;
+    let ipc = writer.into_inner().map_err(|_| err("sqlserver_arrow"))?;
+    Ok((batch, ipc))
 }
 
 impl SourceEngine for SqlServerEngine {
@@ -1123,6 +1134,19 @@ mod tests {
                 .unwrap()
                 .contains("CAST(s.[name] AS nvarchar(max))")
         );
+    }
+    #[test]
+    fn receipt_bytes_match_the_delivered_batch_and_pipeline_options() {
+        let t = table();
+        for rows in [vec![], vec![vec![Cell::Text("key".into()), Cell::Int(1)]]] {
+            let package = encode_cells(&t.columns, &rows).unwrap();
+            let (batch, receipt_bytes) = canonical_batch(&package.ipc).unwrap();
+            let mut sink =
+                arrow_ipc::writer::StreamWriter::try_new(Vec::new(), &batch.schema()).unwrap();
+            sink.write(&batch).unwrap();
+            sink.finish().unwrap();
+            assert_eq!(receipt_bytes, sink.into_inner().unwrap());
+        }
     }
     #[test]
     fn position_preserves_epoch_and_mode() {
