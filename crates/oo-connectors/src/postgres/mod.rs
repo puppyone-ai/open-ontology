@@ -7,6 +7,7 @@
 
 pub mod changes;
 pub mod lsn;
+pub mod opengauss;
 mod plan;
 mod probe;
 mod read;

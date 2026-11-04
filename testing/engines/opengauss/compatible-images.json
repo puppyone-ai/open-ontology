@@ -1,0 +1,12 @@
+{
+  "5.0.3": {
+    "variant": "EE",
+    "platform": "linux/arm64",
+    "image": "enmotech/opengauss@sha256:083a530b83efe82a094d86e5e8edc4625cb08d4fd1931273032e30bd3f702312"
+  },
+  "6.0.0": {
+    "variant": "EE",
+    "platform": "linux/arm64",
+    "image": "enmotech/opengauss@sha256:803427c264b647b3caf0ab712f66567d892066624ca4a082a01dbc31053986c7"
+  }
+}

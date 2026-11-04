@@ -33,65 +33,76 @@ impl PostgresEngine {
         previous_source: &[RangeDigest],
         cycle: &C5Cycle,
     ) -> Result<C5Inspection, SourceError> {
-        if cycle.full_read_every == 0 || previous_source.iter().any(|d| d.table != *table) {
-            return Err(SourceError::config("c5_policy_or_source_scope"));
-        }
-        for (i, a) in previous_source.iter().enumerate() {
-            if previous_source[..i]
-                .iter()
-                .any(|b| a.lo == b.lo && a.hi == b.hi)
-            {
-                return Err(SourceError::config("c5_duplicate_source_range"));
-            }
-        }
-        let plan = &self
+        let plan = self
             .plans
             .get(table)
             .ok_or_else(|| SourceError::protocol("unknown_plan"))?
-            .plan;
-        if matches!(plan.strategy, ChunkStrategy::PhysicalRange { .. }) {
-            return Err(SourceError::protocol("c5_physical_ranges_not_durable"));
-        }
-        let mut chunks = plan.chunks.clone();
-        if cycle
-            .positive_hints
-            .union(&cycle.recent_chunks)
-            .any(|id| !chunks.iter().any(|c| c.chunk_id == *id))
-        {
-            return Err(SourceError::config("c5_unknown_hint_chunk"));
-        }
-        chunks.sort_by_key(|c| {
-            (
-                !cycle.positive_hints.contains(&c.chunk_id),
-                !cycle.recent_chunks.contains(&c.chunk_id),
-                c.chunk_id,
-            )
-        });
-        let full_read_due = cycle.cycle.is_multiple_of(cycle.full_read_every);
-        let mut inspection = C5Inspection {
-            source_digests: Vec::new(),
-            read_chunks: Vec::new(),
-            full_read_due,
-        };
-        for chunk in chunks {
-            let digest = self
-                .digest_range(table, chunk.lo.as_deref(), chunk.hi.as_deref())
-                .await?;
-            let previous = previous_source
-                .iter()
-                .find(|d| d.lo == digest.lo && d.hi == digest.hi);
-            if needs_read(
-                previous,
-                &digest,
-                cycle.positive_hints.contains(&chunk.chunk_id),
-                full_read_due,
-            ) {
-                inspection.read_chunks.push(chunk);
-            }
-            inspection.source_digests.push(digest);
-        }
-        Ok(inspection)
+            .plan
+            .clone();
+        inspect(self, &plan, previous_source, cycle).await
     }
+}
+
+pub(super) async fn inspect(
+    engine: &mut impl SourceEngine,
+    plan: &crate::engine::TableChunkPlan,
+    previous_source: &[RangeDigest],
+    cycle: &C5Cycle,
+) -> Result<C5Inspection, SourceError> {
+    let table = &plan.table;
+    if cycle.full_read_every == 0 || previous_source.iter().any(|d| d.table != *table) {
+        return Err(SourceError::config("c5_policy_or_source_scope"));
+    }
+    for (i, a) in previous_source.iter().enumerate() {
+        if previous_source[..i]
+            .iter()
+            .any(|b| a.lo == b.lo && a.hi == b.hi)
+        {
+            return Err(SourceError::config("c5_duplicate_source_range"));
+        }
+    }
+    if matches!(plan.strategy, ChunkStrategy::PhysicalRange { .. }) {
+        return Err(SourceError::protocol("c5_physical_ranges_not_durable"));
+    }
+    let mut chunks = plan.chunks.clone();
+    if cycle
+        .positive_hints
+        .union(&cycle.recent_chunks)
+        .any(|id| !chunks.iter().any(|c| c.chunk_id == *id))
+    {
+        return Err(SourceError::config("c5_unknown_hint_chunk"));
+    }
+    chunks.sort_by_key(|c| {
+        (
+            !cycle.positive_hints.contains(&c.chunk_id),
+            !cycle.recent_chunks.contains(&c.chunk_id),
+            c.chunk_id,
+        )
+    });
+    let full_read_due = cycle.cycle.is_multiple_of(cycle.full_read_every);
+    let mut inspection = C5Inspection {
+        source_digests: Vec::new(),
+        read_chunks: Vec::new(),
+        full_read_due,
+    };
+    for chunk in chunks {
+        let digest = engine
+            .digest_range(table, chunk.lo.as_deref(), chunk.hi.as_deref())
+            .await?;
+        let previous = previous_source
+            .iter()
+            .find(|d| d.lo == digest.lo && d.hi == digest.hi);
+        if needs_read(
+            previous,
+            &digest,
+            cycle.positive_hints.contains(&chunk.chunk_id),
+            full_read_due,
+        ) {
+            inspection.read_chunks.push(chunk);
+        }
+        inspection.source_digests.push(digest);
+    }
+    Ok(inspection)
 }
 
 fn needs_read(
