@@ -1,0 +1,26 @@
+{
+  "todo": "S4-A-01",
+  "scope": "owner self-review component; not publication acceptance",
+  "run_id": "a-s4-review-20261104",
+  "pty_run_id": "a-s4-review-pty-3",
+  "workspace_check": "passed",
+  "cli_tests_passed": 57,
+  "pty_cases": 13,
+  "live_model": false,
+  "published": false,
+  "sha256": {
+    "check-final.log": "4edaac13a006f04472216bc5220008eacc73a75472451ac9ef68080505904658",
+    "tests-final.log": "19997f103fbfe67af6ea3d362036f1a3b9ceea5b1edc50021287e4c6bb5eedbb",
+    "pty-3.log": "5e936302b8c3a387d34eecc4c0afcd84d1ff9f0e6f7d737f6142d5f0269c212e"
+  },
+  "failed_attempts": [
+    "check.log: unsafe code forbidden; replaced with safe std file locking",
+    "tests-1.log: test unwrap required Debug; corrected locally",
+    "pty-1 and pty-2: ANSI cursor sequences split labels; fixed transcript matching"
+  ],
+  "remaining": [
+    "bounded draft to community adapter",
+    "authenticated publisher consumption",
+    "full-chain and three-engine live acceptance"
+  ]
+}

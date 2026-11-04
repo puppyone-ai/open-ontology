@@ -3,6 +3,7 @@ mod doctor;
 mod lite;
 mod ontology;
 mod progress;
+mod review;
 mod wizard;
 use oo_stack::stack;
 
@@ -17,6 +18,7 @@ pub const HELP: &str = "\
 Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--yes] [--json]
+  oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
@@ -44,6 +46,9 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
     if command == "help" && rest.first().is_some_and(|c| c == "ontology") {
         return Some(Ok(Invocation::Help(ontology::HELP.into())));
     }
+    if command == "help" && rest.first().is_some_and(|c| c == "review") {
+        return Some(Ok(Invocation::Help(review::HELP.into())));
+    }
     if command == "help" && rest.first().is_some_and(|c| is_admin(c) && c != "status") {
         return Some(Ok(Invocation::Help(HELP.into())));
     }
@@ -65,6 +70,7 @@ fn is_admin(command: &str) -> bool {
             | "status"
             | "doctor"
             | "build"
+            | "review"
             | "ontology"
             | "token"
             | "share-prompt"
@@ -80,6 +86,9 @@ fn admin_status(args: &[String]) -> bool {
 }
 
 fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
+    if command == "review" {
+        return review::run(rest);
+    }
     if command == "ontology" {
         return ontology::run(rest)
             .map(Invocation::Help)
