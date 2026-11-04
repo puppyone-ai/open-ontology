@@ -263,3 +263,6 @@ evidence run-id.
 | E245 | 2026-11-04 | delivery | S5-E-03 | run `E-S5b-db2`; evidence `e-s5b-db2-20261104` | Lane E partial: preflight scoped to lane E with a memory check; Db2 11.5.9.0 image pulled; free disk then fell below the 25 GB start gate, so no connector code or runtime test |
 | E246 | 2026-11-04 | integrate | S5-E-03 | `ce892cc3f`, `2a1190ba5` | Test-only scaffolding integrated |
 | E247 | 2026-11-04 | deviation | S5-E-03 | — | Db2 (P2) parked until disk headroom returns: the L1/L2 critical path (lane M publication, lane A2 remote deploy) and S5 T3/T4 (lane N) take the disk first |
+| E248 | 2026-11-04 | delivery | S4-M-01 | run `M-S4d-activate`; evidence `m-s4d-step3-owned-2`, `m-s4d-live-16` | Lane M: D15 implemented — retained-generation shards admitted against the oo-load ledger (seven proof mismatches refused OO030, fences enforced); real mTLS Gateway over PostgreSQL 17.11: three source change → sync → publish cycles, 47 authenticated queries, zero errors, publication/vector headers match data, freshness advances. L2/L1 data path closes for PostgreSQL |
+| E249 | 2026-11-04 | integrate | S4-M-01 | `8cb940b23`, `81dac91cd`, `028f5ae2b` | Lane M activation integrated |
+| E250 | 2026-11-04 | dispatch | S4-M-01 | card `M-S4e-cycles-lite.md` on `v0.2/m-pipeline` | Lane M: MySQL/Oracle publish cycles, retention, lite seven healthy |
