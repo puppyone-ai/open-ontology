@@ -4,6 +4,31 @@ use serde_json::{Value, json};
 use sqlx::{Connection, Executor, PgConnection};
 
 #[tokio::test]
+#[ignore = "owned live Gateway fixture: tools/oo-load/test-gateway-cycles.py"]
+async fn retained_gateway_install() {
+    use sqlx::ConnectOptions;
+    use sqlx::postgres::{PgConnectOptions, PgSslMode};
+    let config: Value = serde_json::from_slice(
+        &std::fs::read(std::env::var("OO_LOAD_TEST_TARGET").unwrap()).unwrap(),
+    )
+    .unwrap();
+    let password = std::fs::read_to_string(config["password_file"].as_str().unwrap()).unwrap();
+    let options = PgConnectOptions::new()
+        .host("127.0.0.1")
+        .port(config["port"].as_u64().unwrap() as u16)
+        .username("postgres")
+        .database("postgres")
+        .password(password.trim())
+        .ssl_mode(PgSslMode::Disable)
+        .disable_statement_logging();
+    let mut db = PgConnection::connect_with(&options).await.unwrap();
+    install(&mut db).await;
+    db.execute(include_str!("../migrations/0089_native_library_c1.sql"))
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
 #[ignore = "owned PG fixture: tools/oo-load/test-publication.py"]
 async fn retained_engine_publication_candidate() {
     use oo_connectors::engine::*;
@@ -299,6 +324,53 @@ async fn retained_engine_publication_candidate() {
         .unwrap();
     assert!(ready);
     println!("retained activation and exact freshness: passed");
+    let activated = oo_pipeline::engine_publication::activate_generation(&mut db, &first)
+        .await
+        .unwrap();
+    assert_eq!(activated["state"], "ready");
+    assert!(activated["gateway_published"].as_bool().unwrap());
+    assert_eq!(
+        oo_pipeline::engine_publication::activate_generation(&mut db, &second)
+            .await
+            .unwrap_err(),
+        "publication_semantic_admission_required"
+    );
+    let head: String = sqlx::query_scalar(
+        "SELECT receipt_sha256 FROM _oo.native_library_head WHERE library_id='owned'",
+    )
+    .fetch_one(&mut db)
+    .await
+    .unwrap();
+    assert_eq!(
+        head,
+        first["receipt_sha256"].as_str().unwrap(),
+        "failed switch preserves serving cut"
+    );
+    let output = std::process::Command::new(cli)
+        .args([
+            "publish",
+            "--generation",
+            "first",
+            "--library",
+            "owned",
+            "--stack",
+            config["stack"].as_str().unwrap(),
+            "--source",
+            "owned",
+            "--target",
+            config["cli_target"].as_str().unwrap(),
+            "--secrets-dir",
+            config["secrets"].as_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let output: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(output["state"], "ready");
     request.generation = "missing".into();
     assert_eq!(
         publish_generation(&mut db, &request).await.unwrap_err(),

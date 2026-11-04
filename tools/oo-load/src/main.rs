@@ -406,13 +406,21 @@ async fn execute() -> Result<(), String> {
             tables,
         };
         let mut conn = target_connection(&target, &store).await?;
-        let result = oo_pipeline::engine_publication::publish_generation(&mut conn, &request).await;
-        let closed = conn.close().await.map_err(|_| "publication_target_close");
-        let result = result?;
-        closed?;
-        println!("{result}");
-        // A scheduler must not mistake a prepared candidate for activation.
-        return Err("publication_semantic_admission_required".into());
+        let candidate =
+            oo_pipeline::engine_publication::publish_generation(&mut conn, &request).await?;
+        let result =
+            oo_pipeline::engine_publication::activate_generation(&mut conn, &candidate).await;
+        conn.close().await.map_err(|_| "publication_target_close")?;
+        match result {
+            Ok(result) => {
+                println!("{result}");
+                return Ok(());
+            }
+            Err(error) => {
+                println!("{candidate}");
+                return Err(error.into());
+            }
+        }
     }
     let mut budget = ReadBudget::default();
     if let Some(rows) = opts.get("--chunk-rows") {

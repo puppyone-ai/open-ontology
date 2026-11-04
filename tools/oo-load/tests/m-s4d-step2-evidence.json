@@ -1,0 +1,21 @@
+{
+  "card": "M-S4d",
+  "step": 2,
+  "todo": "S4-M-01",
+  "status": "passed",
+  "engine": "PostgreSQL 17.11",
+  "checks": [
+    "retained_generation independent of ingestion unit test",
+    "oo-load publish calls mark_ready; pending exits nonzero; open fences exits ready",
+    "failed switch rolls back head",
+    "no grants added by oo-load"
+  ],
+  "evidence": {
+    "evidence/m-s4d-build/check-step2.log": "72cccd4b19ccc2a95702ac9ce1b654e0738c39a6444c74b0bd13a87f9287f2e7",
+    "evidence/m-s4d-build/tests-step2.log": "e5ede2accb2cbb9368b00c96ec529a0989d11641f7c3ffc2cd6c904dc5a4f250",
+    "evidence/m-s4d-build/load-step2.log": "bdb81cb9e95cf52a7842176320913ea2e98d9779bf1055ce701d3049982555f3",
+    "evidence/m-s4d-step2-owned-1/publication.log": "7c54c61a3fa04d49349dc2389e150e59338ce333a280121f015de4732d4b1ec3"
+  },
+  "cargo_lock_changes": false,
+  "live_gateway_acceptance": false
+}

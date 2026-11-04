@@ -48,7 +48,7 @@ pub(crate) async fn library_cut(tx: &Transaction<'_>, catalog: &Value) -> Result
     // C1 can mutate its storage in place; only C5/per-table retained cuts are
     // independent of ingestion. Do not relax C1's current-cut checks.
     for shard in cut["shards"].as_array().ok_or_else(drift)? {
-        if shard["receipt"]["consistency"] != "per_table" {
+        if !immutable_library_shard(shard) {
             let source = shard["source_id"].as_str().ok_or_else(drift)?;
             let receipt = shard["receipt_sha256"].as_str().ok_or_else(drift)?;
             if !tx
@@ -65,6 +65,27 @@ pub(crate) async fn library_cut(tx: &Transaction<'_>, catalog: &Value) -> Result
         }
     }
     Ok(cut)
+}
+
+fn immutable_library_shard(shard: &Value) -> bool {
+    matches!(
+        shard["receipt"]["consistency"].as_str(),
+        Some("per_table" | "retained_generation")
+    )
+}
+
+#[test]
+fn retained_generation_is_independent_of_ingestion() {
+    for consistency in ["per_table", "retained_generation"] {
+        assert!(immutable_library_shard(
+            &json!({"receipt":{"consistency":consistency}})
+        ));
+    }
+    for consistency in ["transactional", "unknown", ""] {
+        assert!(!immutable_library_shard(
+            &json!({"receipt":{"consistency":consistency}})
+        ));
+    }
 }
 
 pub(crate) fn library_table<'a>(

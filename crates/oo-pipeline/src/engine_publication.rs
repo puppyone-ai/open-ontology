@@ -621,6 +621,57 @@ pub async fn publish_generation(
     )
 }
 
+/// Atomically switch only to a fenced candidate. Failure preserves the old head.
+pub async fn activate_generation(conn: &mut PgConnection, candidate: &Value) -> Result<Value> {
+    let library = candidate["receipt"]["library"]["library_id"]
+        .as_str()
+        .ok_or("publication_identity")?;
+    let sha = candidate["receipt_sha256"]
+        .as_str()
+        .ok_or("publication_identity")?;
+    let mut tx = conn.begin().await.map_err(db)?;
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))")
+        .bind(format!("oo-load-library:{library}"))
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+    let newest: i64 = sqlx::query_scalar(
+        "SELECT coalesce(max(g.generation),0) FROM _oo_load.gateway_publications g
+         JOIN _oo.native_library_head h ON h.receipt_sha256=g.receipt_sha256
+         WHERE h.library_id=$1 AND h.state='ready'",
+    )
+    .bind(library)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(db)?;
+    if candidate["generation"]
+        .as_i64()
+        .ok_or("publication_identity")?
+        < newest
+    {
+        return Err("publication_superseded");
+    }
+    sqlx::query(
+        "UPDATE _oo.native_library_head SET receipt_sha256=$2,state='pending' WHERE library_id=$1",
+    )
+    .bind(library)
+    .bind(sha)
+    .execute(&mut *tx)
+    .await
+    .map_err(db)?;
+    sqlx::query("SELECT _oo.native_library_mark_ready($1,$2)")
+        .bind(library)
+        .bind(sha)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| "publication_semantic_admission_required")?;
+    tx.commit().await.map_err(db)?;
+    let mut result = candidate.clone();
+    result["state"] = json!("ready");
+    result["gateway_published"] = json!(true);
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
