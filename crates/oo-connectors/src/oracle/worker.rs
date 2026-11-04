@@ -147,6 +147,25 @@ impl Worker {
         binds: &[Bind],
         max_rows: usize,
     ) -> Result<WorkerRows<'_>, DriverError> {
+        self.request("query", sql, binds, max_rows)
+    }
+
+    pub(crate) fn logminer_call(&self, sql: &str, binds: &[Bind]) -> Result<(), DriverError> {
+        let mut rows = self.request("logminer", sql, binds, 1)?;
+        match rows.next() {
+            None => Ok(()),
+            Some(Err(error)) => Err(error),
+            Some(Ok(_)) => Err(invalid()),
+        }
+    }
+
+    fn request(
+        &self,
+        operation: &str,
+        sql: &str,
+        binds: &[Bind],
+        max_rows: usize,
+    ) -> Result<WorkerRows<'_>, DriverError> {
         let binds: Vec<Value> = binds
             .iter()
             .map(|b| match b {
@@ -156,7 +175,7 @@ impl Worker {
             .collect();
         self.send(
             &serde_json::to_vec(&json!({
-                "protocol": PROTOCOL, "sql": sql, "binds": binds,
+                "protocol": PROTOCOL, "operation": operation, "sql": sql, "binds": binds,
                 "timeout_ms": self.timeout.get().as_millis(), "max_rows": max_rows,
             }))
             .map_err(|_| invalid())?,

@@ -2,10 +2,30 @@ import io
 import json
 import unittest
 
-from worker import MAX_CONTROL, PROTOCOL, control, error_status
+from worker import MAX_CONTROL, PROTOCOL, LOGMINER_CALLS, control, error_status, validate_sql
 
 
 class ControlTests(unittest.TestCase):
+    def test_logminer_exact_calls_only(self):
+        for sql, kinds in LOGMINER_CALLS.items():
+            request = {"operation": "logminer", "sql": sql,
+                       "binds": [{kind: "100" if kind == "number" else "/redo/log"}
+                                 for kind in kinds]}
+            self.assertEqual(validate_sql(request), "logminer")
+            for bad in [sql + " DELETE FROM APP.T", sql.replace("DBMS_LOGMNR.", "OTHER."),
+                        sql.replace("ONLINE_CATALOG", "REDO_LOGS")]:
+                if bad != sql:
+                    with self.assertRaises(ValueError):
+                        validate_sql({**request, "sql": bad})
+            with self.assertRaises(ValueError):
+                validate_sql({**request, "operation": "query"})
+        for sql in ["DELETE FROM SYS.LOGMNR_GT_XID_INCLUDE$", "COMMIT",
+                    "BEGIN DBMS_LOGMNR_D.BUILD; END;", "CREATE TABLE T(ID NUMBER)",
+                    "SELECT 1 FROM DUAL; DELETE FROM T"]:
+            with self.assertRaises(ValueError):
+                validate_sql({"operation": "logminer", "sql": sql, "binds": []})
+        self.assertEqual(validate_sql({"sql": "SELECT * FROM V$LOGMNR_CONTENTS"}), "query")
+
     def test_nested_timeout_preserves_only_closed_codes(self):
         class Detail:
             code = 0

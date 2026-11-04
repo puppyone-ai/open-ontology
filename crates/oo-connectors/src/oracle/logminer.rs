@@ -98,9 +98,6 @@ impl OracleLogMiner {
         data: &mut OracleEngine,
         scope: &[TableRef],
     ) -> Result<Self, SourceError> {
-        if engine.worker.is_some() {
-            return Err(SourceError::config("logminer_thick_transport_unavailable"));
-        }
         let dialect = engine.ensure_version()?;
         data.ensure_version()?;
         let identity_sql = "SELECT TO_CHAR(dbid)||':'||TO_CHAR(resetlogs_change#) FROM v$database";
@@ -178,6 +175,12 @@ impl OracleLogMiner {
     }
 
     fn call(&mut self, sql: &str, binds: &[Bind]) -> Result<(), SourceError> {
+        if let Some(worker) = &self.engine.worker {
+            return worker.logminer_call(sql, binds).map_err(|error| {
+                self.engine.last_ora = ora_code(&error);
+                map_driver(&error)
+            });
+        }
         let values = bind_values(binds)?;
         let refs: Vec<&dyn ToDbValue> = values
             .iter()

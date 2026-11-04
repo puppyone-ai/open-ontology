@@ -9,6 +9,30 @@ import sys
 PROTOCOL = "oo.oracle.driver/v1"
 MAX_CONTROL = 1024 * 1024
 
+LOGMINER_CALLS = {
+    "BEGIN DBMS_LOGMNR.ADD_LOGFILE(LOGFILENAME=>:B1,OPTIONS=>DBMS_LOGMNR.NEW); END;": ("text",),
+    "BEGIN DBMS_LOGMNR.ADD_LOGFILE(LOGFILENAME=>:B1,OPTIONS=>DBMS_LOGMNR.ADDFILE); END;": ("text",),
+    "BEGIN DBMS_LOGMNR.START_LOGMNR(STARTSCN=>:B1,ENDSCN=>:B2,OPTIONS=>DBMS_LOGMNR.DICT_FROM_ONLINE_CATALOG+DBMS_LOGMNR.COMMITTED_DATA_ONLY); END;": ("number", "number"),
+    "BEGIN DBMS_LOGMNR.END_LOGMNR; END;": (),
+}
+
+def validate_sql(request):
+    sql = request["sql"].strip().upper()
+    if request.get("operation", "query") == "logminer":
+        signature = LOGMINER_CALLS.get(sql)
+        binds = request["binds"]
+        if signature is None or len(binds) != len(signature):
+            raise ValueError("logminer_allowlist")
+        for bind, kind in zip(binds, signature):
+            if set(bind) != {kind} or not isinstance(bind[kind], str):
+                raise ValueError("logminer_bind")
+            if kind == "number" and not re.fullmatch(r"[0-9]+", bind[kind]):
+                raise ValueError("logminer_scn")
+        return "logminer"
+    if request.get("operation", "query") != "query" or not sql.startswith("SELECT ") or ";" in sql:
+        raise ValueError("read_only")
+    return "query"
+
 
 def control(stream):
     line = stream.readline(MAX_CONTROL + 1)
@@ -59,10 +83,7 @@ def main():
     while (request := control(sys.stdin.buffer)) is not None:
         try:
             sql = request["sql"]
-            # The engine constructs SQL; the source account is SELECT-only.
-            # Reject arbitrary statements even if a caller supplies admin credentials.
-            if not sql.lstrip().upper().startswith("SELECT ") or ";" in sql:
-                raise ValueError("read_only")
+            operation = validate_sql(request)
             conn.call_timeout = request["timeout_ms"]
             maximum = request["max_rows"]
             if not 1 <= maximum <= 10_000_001:
@@ -73,6 +94,9 @@ def main():
                 cursor.arraysize = 512
                 cursor.prefetchrows = 0
                 cursor.execute(sql, binds)
+                if operation == "logminer":
+                    status(ok=True, rows=0)
+                    continue
                 schema = pa.schema([pa.field(str(i), pa.string())
                                     for i in range(len(cursor.description))])
                 fingerprint = hashlib.sha256("".join(
