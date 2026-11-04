@@ -1,0 +1,225 @@
+{
+ "protocol": "oo.lite-author-evidence/v1",
+ "card": "S4-A-04",
+ "status": "partial",
+ "scope": "oo up|status|down --target ssh: three lite foundation services (Agent DB, control DB, model-egress), pinned host key, systemd timer, idempotent re-run, complete removal",
+ "not_covered": [
+  "seven-service health: worker/scheduler/Builder/Gateway wiring is lane M (S2-A-02 still pending); Gateway /v1/health over the operator token reports unavailable because no Gateway runs in lite foundations",
+  "scheduled cycle body: timer fires oo-remote.py cycle, which reports not_configured until work/operator/schedule.json exists; no job completion is claimed",
+  "non-root remote user (systemd --user + docker group) is implemented but not live-tested",
+  "real cloud host: AT-ONB-03 still needs one run when the cloud host is ready"
+ ],
+ "runtime_images": {
+  "linux/arm64": "sha256:5664e4a30e65e03a6c8701d6f4fb8f0c3f06315edf82d1b487d886152c1e3439",
+  "linux/amd64": "sha256:80e9959d1789412a7c88d27ea20f0677d69fe39904924d5fe44c96fb5be4fabb (built a2-s4a04-amd64-image, removed after the run)"
+ },
+ "sources": {
+  "deploy/lite/remote.py": "4310a2acc2f049761b6104f68f29ebcf6630124e6b68da3a99cf968323b112f2",
+  "deploy/lite/lifecycle.py": "38440b10c7a7e3ab237278cee5d0f203ca218d2c544c15c4da8b51a2ba9073d5",
+  "deploy/lite/compose.yaml": "e9648895c0093e8cf340431b09363ac3389853c2619c2fadfaa196e84bc020eb",
+  "deploy/lite/postgres.sh": "b671045627249801e41faecd2baa00913721cf50d0baa6f4d5745596529ed043",
+  "deploy/lite/scheduler.py": "f03e5ea15f034af484b2851fb7dad3bfbf3b179f0ceb31dcd44a58e09d6ae3ff",
+  "deploy/lite/test_remote_ssh.py": "077afe0fcd1a3bf77250d146d8befb184190b0ac6e2cde1b0526789bbb75a251",
+  "crates/oo-cli/src/admin/remote.rs": "9346bd42c469cec19ff72dbe0ae8553dd336ed52f521c7b552154dd63bc25491"
+ },
+ "runs": {
+  "a2-s4a04-ssh-arm64-5": {
+   "platform": "linux/arm64",
+   "result": "passed",
+   "target": {
+    "os": "Ubuntu 22.04 (systemd 249, sshd, docker.io 29.1.3, compose 2.40.3+ds1-0ubuntu1~22.04.1, python 3.10.12)",
+    "user": "root",
+    "scope": "system"
+   },
+   "auth": [
+    "key",
+    "password (status)"
+   ],
+   "image_transfer": {
+    "runtime": "docker_save_load",
+    "postgres": "docker_save_load"
+   },
+   "host_key_mismatch": "refused before any remote write; offered key reported",
+   "status": {
+    "services": {
+     "agent-db": "healthy",
+     "control-db": "healthy",
+     "model-egress": "healthy"
+    },
+    "gateway_health": "unavailable",
+    "schedule_status": "not_configured",
+    "timer": {
+     "installed": true,
+     "enabled": true,
+     "active": true,
+     "next_elapse": "Wed 2026-11-04 14:11:02 UTC"
+    },
+    "last_cycle": "not_configured"
+   },
+   "rerun": "noop: no transfer, no file/unit/container change, credentials unchanged",
+   "down": {
+    "removed": {
+     "containers": 0,
+     "images": [
+      "open-ontology/lite-postgres:3aac91d19d5b-arm64",
+      "open-ontology/lite-runtime:5f7a2f25fa3d-arm64"
+     ],
+     "networks": 0,
+     "units": [
+      "/etc/systemd/system/open-ontology-lite-cycle.service",
+      "/etc/systemd/system/open-ontology-lite-cycle.timer"
+     ],
+     "volumes": 2
+    },
+    "remaining": {}
+   },
+   "secret_scan": [
+    "no secret in any oo stdout/stderr",
+    "journal, shell history and container config contain no secret"
+   ],
+   "docker_vm_kernel_state": "unchanged (binfmt amd64 emulation and global sysctls)",
+   "timings_s": {
+    "mismatch": 0.1,
+    "up": 15.8,
+    "up-again": 2.6,
+    "status": 0.6,
+    "status-password": 0.7,
+    "down": 10.9,
+    "down-again": 0.2
+   },
+   "files": {
+    "containers-after.txt": "bf88068ae8368ea06030c607e4a53030c8e72bc7a3340741cad29abd8d540052",
+    "containers-before.txt": "bf88068ae8368ea06030c607e4a53030c8e72bc7a3340741cad29abd8d540052",
+    "down-again.exit": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    "down-again.json": "9b5de1d7fff8372e079d44d9c94177f298cc4c989ff1b992c721f9d29382d5ca",
+    "down.exit": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    "down.json": "0375198910d775ce45ed462c969c791f46489f9ab56d56d8d25f56b1f9b9a341",
+    "mismatch.exit": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "mismatch.json": "a01603ff42da34845a329e1e1c44532bf6699d4b0621c56bc783bec6ed105e36",
+    "remote-after-down.txt": "fbdc4f3e568a34be2f1529fce4070f121b9d657fe2f4d56fe9bd948bfdd16887",
+    "remote-modes.txt": "c43de136437c4090b2adf1ba9304c0e7bcd1bf8b572272aa1b2dd7947878a0c1",
+    "remote-units.txt": "2729009692e35a9a647469de9b81175a532d65ba1cee9cd6ea4dd5b8e71c2b99",
+    "result.json": "e46827476c0497f69c57bacf9a16a991a4cf072d95af7c8220e736dfe9e3e5a5",
+    "stack-password.json": "ac5d98d81467f4fb68fd106ef2aa49b3e8cdeecf237b186ec7fd94fb48e38e52",
+    "stack-wrong-pin.json": "2a7e536687e3c3367245c2c58a36ebca3973b7d433961aaf1b8a9a2754fbdb8a",
+    "stack.json": "6c0d0ad0bf6248829d42f6df30a6bbadfe3f850b8fe7f0f2e9276b656410aed0",
+    "status-password.exit": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "status-password.json": "6b98674c498b2dfcef0fb274be1c3fc8bc84f56d4c79c75f51d3b0ef72a2139b",
+    "status.exit": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "status.json": "6b98674c498b2dfcef0fb274be1c3fc8bc84f56d4c79c75f51d3b0ef72a2139b",
+    "target-image-arm64.log": "b3bab609291fa9594107df0ce923201ae72730e1328805927246022571336ef5",
+    "up-again.exit": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "up-again.json": "234bf122bc605a47d7e607d059b4e1add603081b66d3665317c647372f60ab63",
+    "up.exit": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "up.json": "1bb1e655e936a6fbe26f8e94a053ff78c93ac646fa75b49a0bf1128817cf7358"
+   }
+  },
+  "a2-s4a04-ssh-amd64-3": {
+   "platform": "linux/amd64",
+   "result": "passed",
+   "target": {
+    "os": "Ubuntu 22.04 (systemd 249, sshd, docker.io 29.1.3, compose 2.40.3+ds1-0ubuntu1~22.04.1, python 3.10.12)",
+    "user": "root",
+    "scope": "system"
+   },
+   "auth": [
+    "key"
+   ],
+   "image_transfer": {
+    "runtime": "docker_save_load",
+    "postgres": "pulled_by_digest"
+   },
+   "host_key_mismatch": "refused before any remote write; offered key reported",
+   "status": {
+    "services": {
+     "agent-db": "healthy",
+     "control-db": "healthy",
+     "model-egress": "healthy"
+    },
+    "gateway_health": "unavailable",
+    "schedule_status": "not_configured",
+    "timer": {
+     "installed": true,
+     "enabled": true,
+     "active": true,
+     "next_elapse": "Wed 2026-11-04 14:07:10 UTC"
+    },
+    "last_cycle": "not_configured"
+   },
+   "rerun": "noop: no transfer, no file/unit/container change, credentials unchanged",
+   "down": {
+    "removed": {
+     "containers": 0,
+     "images": [
+      "docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f",
+      "open-ontology/lite-runtime:b8a325e28388-amd64"
+     ],
+     "networks": 0,
+     "units": [
+      "/etc/systemd/system/open-ontology-lite-cycle.service",
+      "/etc/systemd/system/open-ontology-lite-cycle.timer"
+     ],
+     "volumes": 2
+    },
+    "remaining": {}
+   },
+   "secret_scan": [
+    "no secret in any oo stdout/stderr",
+    "journal, shell history and container config contain no secret"
+   ],
+   "docker_vm_kernel_state": "unchanged (binfmt amd64 emulation and global sysctls)",
+   "timings_s": {
+    "mismatch": 0.2,
+    "up": 110.9,
+    "up-again": 12.2,
+    "status": 3.0,
+    "down": 16.7,
+    "down-again": 0.6
+   },
+   "files": {
+    "containers-after.txt": "914db60509ff9c4e5e01c32994e88095a5cbbe771adda9efa154c1263671ad86",
+    "containers-before.txt": "914db60509ff9c4e5e01c32994e88095a5cbbe771adda9efa154c1263671ad86",
+    "down-again.exit": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    "down-again.json": "f7f4b91be20e0a15544529545d8f90b2beaa4f6c426f1a310bad5aad12743d55",
+    "down.exit": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    "down.json": "67c902780c50677bf942cdceb6f45486242063507850268558177a8ff018e244",
+    "mismatch.exit": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "mismatch.json": "af578eb8fea3056b3bc70c9ea5a81ba35d2d063efb8d9c65d4e0f558f3896f1b",
+    "remote-after-down.txt": "fbdc4f3e568a34be2f1529fce4070f121b9d657fe2f4d56fe9bd948bfdd16887",
+    "remote-modes.txt": "c43de136437c4090b2adf1ba9304c0e7bcd1bf8b572272aa1b2dd7947878a0c1",
+    "remote-units.txt": "2729009692e35a9a647469de9b81175a532d65ba1cee9cd6ea4dd5b8e71c2b99",
+    "result.json": "eea7b9d9b2fcdd707c16e84a85bbc08e07f5ee5de50b9c60a01e1d4c42a1e2ee",
+    "stack-wrong-pin.json": "b9157e6772b41d8f3f921e49dbffb3e42b0893b48ede773ff9c8b2b118a5b84c",
+    "stack.json": "a36afda1094f092923389e3d1f78a73053c5f117d0f1294ca0b6b9cfc1bb7341",
+    "status.exit": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "status.json": "925def2242882e2a5509d7e216ad9948e6af42ed63fb4af7ac35d415cef74caa",
+    "target-image-amd64.log": "e9041262cd432db5453e099d99fa43228e88d6a7e086e00cacfb9bd08b34af8d",
+    "up-again.exit": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "up-again.json": "f98edc2fb9827920181d703e0ec1c060380821fc61ba91b457480c35a78d401b",
+    "up.exit": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "up.json": "32b439c373d95fc559ef883a95ceb769625baf5110417963a5f2657655dd3147"
+   }
+  }
+ },
+ "failed_runs": {
+  "a2-s4a04-ssh-arm64-1/2": "target fixture: Docker 29 containerd image store lived on the container overlay root (overlay-on-overlay mount failure); fixed by a /var/lib/containerd volume",
+  "a2-s4a04-ssh-arm64-3": "timer next elapse read NextElapseUSecRealtime, empty for monotonic timers; agent now reports list-timers wall time",
+  "a2-s4a04-ssh-arm64-4": "passed, superseded: target image did not yet mask kernel-global systemd units",
+  "a2-s4a04-ssh-amd64-1/2": "amd64 target build failed (exec format error): the earlier privileged Ubuntu target ran systemd-binfmt, which cleared the Docker VM Rosetta binfmt registration; restored and masked (see incident)"
+ },
+ "incident": "Between about 12:55 and 13:10 UTC the privileged arm64 target ran systemd-binfmt (and likely systemd-sysctl) against the shared Docker Desktop VM kernel, unregistering Rosetta amd64 emulation for every lane and registering python3.10. The Rosetta entry was re-registered with its standard magic/mask and POCF flags and the python3.10 entry removed; amd64 containers run again. Ubuntu sysctl hardening values may have been applied VM-wide (printk 4 4 1 7, sysrq 176, kptr_restrict 1, pid_max 4194304); their prior values are unknown and were not changed back; a Docker Desktop restart resets them. The fixture now masks these units and the runner asserts binfmt/sysctl state is unchanged before and after each target.",
+ "commands": [
+  "cargo test -p oo-stack -p oo-cli --locked",
+  "python3 -m unittest discover -s deploy/lite -p test_*.py",
+  "python3 deploy/lite/build_images.py --run-id <id> --platforms linux/amd64",
+  "cargo build -p oo-cli --locked",
+  "python3 deploy/lite/test_remote_ssh.py --run-id <id> --arch arm64 --offline --password-case --image-arm64 <arm64 digest> --image-amd64 <amd64 digest>",
+  "python3 deploy/lite/test_remote_ssh.py --run-id <id> --arch amd64 --image-arm64 <arm64 digest> --image-amd64 <amd64 digest>"
+ ],
+ "unit_tests": {
+  "oo_stack": 10,
+  "oo_cli_admin_remote": 4,
+  "lite_python_total": 31,
+  "remote_agent_python": 4
+ }
+}
