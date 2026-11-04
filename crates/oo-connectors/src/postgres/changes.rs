@@ -38,6 +38,16 @@ pub struct SlotStatus {
     pub publish_via_partition_root: bool,
 }
 
+/// Only a consumer confirms (moves `confirmed_flush_lsn`). Decoding itself,
+/// even a peek, may advance `restart_lsn` when it passes a running-xacts record
+/// at or before the confirmed point (LogicalIncreaseRestartDecodingForSlot), so
+/// a forward `restart_lsn` up to the unchanged confirmed point is not foreign.
+fn slot_unchanged_by_others(before: &SlotStatus, after: &SlotStatus) -> bool {
+    after.confirmed_flush_lsn == before.confirmed_flush_lsn
+        && after.restart_lsn >= before.restart_lsn
+        && after.restart_lsn <= after.confirmed_flush_lsn.max(before.restart_lsn)
+}
+
 impl SlotStatus {
     pub fn earliest(&self) -> u64 {
         self.restart_lsn.max(self.confirmed_flush_lsn)
@@ -387,9 +397,7 @@ impl PostgresChanges {
         }
         // A concurrent external consumer must not advance/invalidate our slot.
         let after = self.inspect(s).await?;
-        if after.confirmed_flush_lsn != status.confirmed_flush_lsn
-            || after.restart_lsn != status.restart_lsn
-        {
+        if !slot_unchanged_by_others(&status, &after) {
             return Err(SourceError::protocol("slot_changed_during_capture"));
         }
         Ok(Some(ChangeBatch {
@@ -538,6 +546,26 @@ impl ChangeSource for PostgresChanges {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn server_restart_advance_during_peek_is_not_a_foreign_consumer() {
+        let slot = |restart_lsn, confirmed_flush_lsn| SlotStatus {
+            protocol_version: 1,
+            restart_lsn,
+            confirmed_flush_lsn,
+            safe_wal_size: None,
+            publish_via_partition_root: true,
+        };
+        let before = slot(100, 200);
+        assert!(slot_unchanged_by_others(&before, &slot(100, 200)));
+        // Peek decoded a running-xacts record before the confirmed point.
+        assert!(slot_unchanged_by_others(&before, &slot(180, 200)));
+        assert!(slot_unchanged_by_others(&before, &slot(200, 200)));
+        // Another consumer confirmed, or the slot regressed/jumped past confirmation.
+        assert!(!slot_unchanged_by_others(&before, &slot(100, 250)));
+        assert!(!slot_unchanged_by_others(&before, &slot(90, 200)));
+        assert!(!slot_unchanged_by_others(&before, &slot(260, 200)));
+    }
 
     #[test]
     fn retained_wal_is_not_the_same_as_decodable_history() {
