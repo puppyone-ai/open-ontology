@@ -2,7 +2,7 @@
 import hashlib
 import json
 
-P0 = [("mysql", v) for v in ("5.7.44", "8.0", "8.4", "9.x")]
+P0 = [("mysql", v) for v in ("5.7", "8.0", "8.4", "9.x")]
 P0 += [("postgres", str(v)) for v in range(13, 19)]
 P0 += [("oracle", v) for v in ("19c", "23ai", "11g", "21c")]
 

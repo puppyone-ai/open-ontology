@@ -4,7 +4,7 @@ Python 3 standard library + Docker CLI. No root Cargo dependency/lock changes.
 Run from this checkout; the tool resolves paths relative to its own file.
 
 ```sh
-tools/oo-test/oo-test matrix --engine mysql --versions 5.7.44,8.0,8.4,9.x --suites T0
+tools/oo-test/oo-test matrix --engine mysql --versions 5.7,8.0,8.4,9.x --suites T0
 tools/oo-test/oo-test matrix --engine postgres --versions 13,14,15,16,17,18 --suites T0
 tools/oo-test/oo-test matrix --engine oracle --versions 23ai,21c,11g --suites T0
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/oo-test -v

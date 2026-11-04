@@ -117,6 +117,8 @@ class FixtureTests(unittest.TestCase):
         }
         import t1
         import t2
+        self.assertEqual([version for engine, version in runner.P0 if engine == "mysql"],
+                         list(expected["mysql"]))
         self.assertIs(t1.runner.resolve, runner.resolve)
         self.assertIs(t2.runner.resolve, runner.resolve)
         self.assertFalse(Path(t1.__file__).with_name("t1-images.json").exists())
