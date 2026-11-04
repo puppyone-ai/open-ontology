@@ -28,10 +28,12 @@ impl Lifecycle {
     }
 }
 fn peer_key(peer: &PublicPeer) -> String {
-    // shortcut: the listener discards TCP addresses; anonymous peers share one
-    // conservative bucket until the coordinator carries the address into TlsPeer.
     peer.as_ref()
-        .map(|Extension(ConnectInfo(p))| p.workload.clone())
+        .map(|Extension(ConnectInfo(p))| {
+            p.remote_ip
+                .map(|ip| ip.to_string())
+                .unwrap_or_else(|| p.workload.clone())
+        })
         .unwrap_or_default()
 }
 fn audit_actor(route: &str, peer: &PublicPeer) -> String {
@@ -42,7 +44,11 @@ fn audit_actor(route: &str, peer: &PublicPeer) -> String {
         .unwrap_or("");
     // Hash the verified workload, not headers or supplied redemption metadata.
     format!(
-        "{route};peer=unmeasured;workload_sha256={:x}",
+        "{route};peer={};workload_sha256={:x}",
+        peer.as_ref()
+            .and_then(|Extension(ConnectInfo(p))| p.remote_ip)
+            .map(|ip| ip.to_string())
+            .unwrap_or_else(|| "unmeasured".into()),
         Sha256::digest(workload.as_bytes())
     )
 }
@@ -477,7 +483,22 @@ mod tests {
     fn test_peer(workload: &str) -> PublicPeer {
         Some(Extension(ConnectInfo(TlsPeer {
             workload: workload.into(),
+            remote_ip: match workload {
+                "one" => Some("192.0.2.1".parse().unwrap()),
+                "two" => Some("192.0.2.2".parse().unwrap()),
+                "three" => Some("192.0.2.3".parse().unwrap()),
+                _ => None,
+            },
         })))
+    }
+    #[test]
+    fn peer_address_buckets_ignore_workload_changes() {
+        let mut peer = test_peer("one");
+        let key = peer_key(&peer);
+        peer.as_mut().unwrap().0.0.workload = "another-workload".into();
+        assert_eq!(peer_key(&peer), key);
+        assert!(audit_actor("device-code", &peer).contains("peer=192.0.2.1;"));
+        assert_ne!(peer_key(&test_peer("two")), key);
     }
     #[tokio::test]
     async fn route_and_peer_budgets_are_independent() {
@@ -637,6 +658,7 @@ mod tests {
                 State(state.clone()),
                 Some(Extension(ConnectInfo(TlsPeer {
                     workload: String::new(),
+                    remote_ip: None,
                 }))),
                 RawQuery(None),
                 headers,

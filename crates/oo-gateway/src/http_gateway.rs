@@ -1290,6 +1290,7 @@ fn u16_field(object: &JsonMap<String, Value>, key: &str) -> Result<u16, &'static
 #[derive(Clone, Debug)]
 pub(crate) struct TlsPeer {
     workload: String,
+    remote_ip: Option<IpAddr>,
 }
 
 struct TlsListener {
@@ -1304,7 +1305,7 @@ impl Listener for TlsListener {
 
     async fn accept(&mut self) -> (Self::Io, Self::Addr) {
         loop {
-            let (tcp, _remote) = match self.tcp.accept().await {
+            let (tcp, remote) = match self.tcp.accept().await {
                 Ok(pair) => pair,
                 Err(error) => {
                     if !is_connection_error(&error) {
@@ -1323,7 +1324,13 @@ impl Listener for TlsListener {
                 None if stream.get_ref().1.peer_certificates().is_none() => String::new(),
                 None => continue,
             };
-            return (stream, TlsPeer { workload });
+            return (
+                stream,
+                TlsPeer {
+                    workload,
+                    remote_ip: Some(remote.ip()),
+                },
+            );
         }
     }
 
@@ -1331,6 +1338,7 @@ impl Listener for TlsListener {
         self.tcp.local_addr()?;
         Ok(TlsPeer {
             workload: String::new(),
+            remote_ip: None,
         })
     }
 }
