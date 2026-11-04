@@ -56,6 +56,8 @@ pub struct Postgres {
     pub username: String,
     pub password_file: PathBuf,
     pub ca_file: PathBuf,
+    pub sslcert: Option<PathBuf>,
+    pub sslkey: Option<PathBuf>,
     pub catalog_bin: PathBuf,
     pub tables: Vec<(String, String)>,
 }
@@ -414,8 +416,21 @@ fn format_units(product: u128, scale: u32, _lexeme: &str) -> String {
 
 fn parse_postgres(value: &Value, max_tables: usize) -> Result<Postgres, PgBuilderError> {
     let map = object(value, "config.postgres")?;
+    let mut required = map.clone();
+    required.remove("sslcert");
+    required.remove("sslkey");
+    required.remove("sslrootcert");
+    if map.contains_key("sslrootcert") {
+        if map.contains_key("ca_file") {
+            return Err(PgBuilderError::new(
+                "config.postgres",
+                "ambiguous CA reference",
+            ));
+        }
+        required.insert("ca_file".to_owned(), Value::Null);
+    }
     require_exact(
-        map,
+        &required,
         &[
             "ca_file",
             "catalog_bin",
@@ -427,6 +442,37 @@ fn parse_postgres(value: &Value, max_tables: usize) -> Result<Postgres, PgBuilde
             "username",
         ],
     )?;
+    let secret_path = |name: &str| -> Result<Option<PathBuf>, PgBuilderError> {
+        map.get(name)
+            .map(|value| {
+                let reference = object(value, "config.postgres")?;
+                require_exact(reference, &["secret_ref"])?;
+                let path = string(reference, "secret_ref")?;
+                if path.is_empty() {
+                    return Err(PgBuilderError::new(
+                        "config.postgres",
+                        "empty TLS secret reference",
+                    ));
+                }
+                Ok(PathBuf::from(path))
+            })
+            .transpose()
+    };
+    let sslcert = secret_path("sslcert")?;
+    let sslkey = secret_path("sslkey")?;
+    if sslcert.is_some() != sslkey.is_some() {
+        return Err(PgBuilderError::new(
+            "config.postgres",
+            "client certificate and key must be paired",
+        ));
+    }
+    let ca_file = match secret_path("sslrootcert")? {
+        Some(path) => {
+            crate::profile::read_private_pem(&path)?;
+            path
+        }
+        None => PathBuf::from(string(map, "ca_file")?),
+    };
     let host = string(map, "host")?.to_owned();
     if !valid_host(&host) {
         return Err(PgBuilderError::new(
@@ -469,7 +515,9 @@ fn parse_postgres(value: &Value, max_tables: usize) -> Result<Postgres, PgBuilde
         database,
         username,
         password_file: PathBuf::from(string(map, "password_file")?),
-        ca_file: PathBuf::from(string(map, "ca_file")?),
+        ca_file,
+        sslcert,
+        sslkey,
         catalog_bin: PathBuf::from(string(map, "catalog_bin")?),
         tables,
     })

@@ -712,6 +712,8 @@ fn catalog_request_has_no_password_bytes() {
         username: "oo_a328_reader".to_owned(),
         password_file: dir.join("password"),
         ca_file: dir.join("ca.pem"),
+        sslcert: None,
+        sslkey: None,
         catalog_bin: dir.join("oo-pipeline"),
         tables: vec![("shop".to_owned(), "party".to_owned())],
     });
