@@ -59,9 +59,10 @@ calls; schema changes schedule affected communities, cut edges and merge items.
 `result.json` contains the registry, per-item candidates, unresolved IDs,
 semantic snapshot, work list and connectivity review. Review decisions must be
 provided independently and bind the returned `summary_sha256`; model responses
-cannot supply them. The CLI never publishes. `gate_g14` is available to the
-coordinator's publication path, but that external publisher is not wired by
-this lane. Pack compilation exports a visibility-filtered
+cannot supply them. The CLI never publishes. `gate_g14` is enforced by
+reviewed-community conversion and the Gateway publisher requires the bound
+review envelope whenever a producer carries a community-review marker.
+Pack compilation exports a visibility-filtered
 `relationships/graph.json` (with JSON pages when needed).
 That Pack graph is rendered from reviewed OOS entities/relationships, not
 automatically from the new candidate registry.
@@ -76,12 +77,55 @@ it does not authenticate the reviewer, grant access, or publish.
 Existing nonempty curated entities/relationships require reconciliation and
 are refused rather than overwritten.
 
-`PUBLISHER-INTEGRATION.patch` is the exact coordinator-owned
-`library_policy.rs` hook. It recompiles the supplied `community_review` command
+The `library_policy.rs` hook recompiles the supplied `community_review` command
 and compares the effective document, visibility and producer before admission.
 The envelope's ordinary `review` remains the separate classification review;
 existing publisher classification/authentication/receipt checks still apply.
-The patch passes `git apply --check` but is not applied in this lane.
+Missing, false or null markers cannot substitute for a valid review. A
+`community_review_sha256` marker without the required envelope also fails closed.
+
+## Hierarchical navigation and preflight
+
+Pack README and INDEX now link `summaries/index.json`. Deterministic extractive
+summaries flow from visible columns to table cards, visible graph communities
+and schema-domain groups. Upper levels consume child summaries, not raw facts.
+These are navigation groups, not inferred business domains or new certification.
+Unapproved descriptions follow the existing `include_unreviewed` policy and
+remain labelled. Hidden columns/tables are removed before repartitioning.
+Each level is paginated: follow every `next` link and filter children by the
+parent's `select` fields. Three-title previews do not replace complete children.
+
+Both dry-run and `--execute` write and print `preflight.json` before generation.
+The three-pass structural dry-run includes tables, columns, entities, internal
+relations, cut edges and merge work. Future semantic entity text is unknown:
+structural placeholders estimate its size, not a guaranteed upper bound.
+Every actual model dispatch prints and retains a refreshed estimate after
+registry growth, calibration or repair. Cache-only/data-only cycles make no
+model calls.
+
+Optional configuration (illustrative rates, not provider prices):
+
+```json
+{
+  "price_table": {
+    "example-model": {
+      "currency": "USD",
+      "input_per_million": 2,
+      "output_per_million": 8
+    }
+  },
+  "seconds_per_batch": [10, 30]
+}
+```
+
+The exact model ID selects the configured rate. Missing rates are explicitly
+`unknown`, never free. Estimated input includes configured system overhead;
+output uses the Rust output reserve. The cost range spans estimated input-only
+to input plus reserved output. It excludes repairs and may overstate cached work.
+Duration uses batch waves at the runner's current adaptive concurrency (1 or 2)
+and the configured latency range. Missing latency is `unknown`; the separately
+reported deadline is a timeout budget, not a throughput estimate. No price lookup
+or paid capability probe is performed by preflight.
 
 ## Retained evidence and remaining acceptance
 
@@ -152,3 +196,32 @@ admin seeds and applies T4 mutations. Listeners are ephemeral and closed.
   cross-engine acceptance. No live 1,000-table run was started.
 - No lane-owned containers/volumes or listeners remain. No lane-authored
   Cargo.lock changes. Shared publisher integration is still coordinator work.
+
+## G-S3b acceptance
+
+Run `g-s3b-20261104` supersedes the publisher, hierarchy and preflight gaps
+above. The lane rebased on `v0.2/product-loops` (already current); earlier
+S2/S3 commits remain intact. The publisher proposal was applied and removed.
+The SHA-indexed summary is `tests/selfbuild-s3b-evidence.json`.
+
+- Workspace check and all 182 builder tests pass. Gateway: 283 pass,
+  47 ignored (these are not passes).
+- Fourteen Python acceptance tests pass, including 660-table coverage,
+  300-column repair, 1,000-table graph planning, dry-run without provider
+  configuration, configured/unknown pricing and duration, before-call output,
+  current concurrency and zero-call data-only replay.
+- One synthetic single-table live run through an ephemeral model-egress:
+  two streamed calls, three candidates, zero unresolved; measured 4,832
+  prompt and 276 completion tokens. No live price or latency assumption was
+  supplied: both remain unknown in the initial preflight.
+- Standalone pg-builder: 43 library tests pass and three require absent
+  historical evidence; contract 15 pass; combined seven pass and two require
+  absent historical receipts. All five failures reproduce on archived base
+  `48e19f035`. No historical inputs or gold assertions were replaced.
+- The broader combined suite exposed bare unreviewed prose in the initial
+  summary implementation. The inline warning is now retained, with a
+  regression test; the original failing test passes unchanged.
+- No database engine was started or retested in this card. The earlier
+  PostgreSQL 17.10 T4/T5 evidence remains historical, not a new run. No public
+  publication, owner approval or business acceptance is claimed. The owned
+  ephemeral listener closed; no containers were created. No lockfiles changed.

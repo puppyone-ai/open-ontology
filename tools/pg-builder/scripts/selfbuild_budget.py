@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import copy
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -129,6 +130,40 @@ def capability_input(config):
     result.update(override)
     return result
 
+def preflight_estimate(config, batches, concurrency, system_overhead=0):
+    """Price the Rust split, not a second token allocator. Repairs are excluded."""
+    def number(value):
+        if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+            raise ValueError('selfbuild_preflight_config')
+        return value
+    input_tokens = sum(b['input_tokens'] for b in batches) + len(batches)*system_overhead
+    output_tokens = sum(b['output_reserve'] for b in batches)
+    price = config.get('price_table', {}).get(config['model'])
+    cost = dict(status='unknown', reason='no_configured_model_price')
+    if price is not None:
+        if not isinstance(price.get('currency'), str) or not price['currency'].strip():
+            raise ValueError('selfbuild_preflight_config')
+        lower = input_tokens * number(price['input_per_million']) / 1_000_000
+        upper = lower + output_tokens * number(price['output_per_million']) / 1_000_000
+        cost = dict(status='configured_estimate', currency=price['currency'],
+                    range=[lower, upper], basis='estimated input; output from zero to reserve')
+    waves = math.ceil(len(batches) / concurrency)
+    latency = config.get('seconds_per_batch')
+    duration = dict(status='unknown', reason='no_configured_batch_latency')
+    if latency is not None:
+        if not isinstance(latency, list) or len(latency) != 2:
+            raise ValueError('selfbuild_preflight_config')
+        low, high = map(number, latency)
+        if low > high:
+            raise ValueError('selfbuild_preflight_config')
+        duration = dict(status='configured_estimate', range_seconds=[waves*low, waves*high])
+    duration.update(concurrency=concurrency, waves=waves,
+                    deadline_seconds=waves*number(config.get('request_timeout_seconds', 600)))
+    return dict(batches=len(batches), estimated_input_tokens=input_tokens,
+                estimated_output_tokens=output_tokens, cost=cost, duration=duration,
+                note='Not a quote or upper bound: excludes repairs; cache hits may cost zero. '
+                     'Registry growth and usage calibration can change the split.')
+
 
 class Runner:
     def __init__(self, config, output, transport=None):
@@ -141,6 +176,58 @@ class Runner:
         self.stopped = False
         self.calls = 0
         self.receipts = []
+
+    @property
+    def concurrency(self):
+        return 2 if self.successes >= 2 else 1
+
+    def preflight(self, graph, work, inventory):
+        batches, passes = [], {}
+        # Future semantic text is unknown. Structural entity placeholders price
+        # every pass without fabricating candidates or making a probe call.
+        registry = {}
+        owner = {name:c['id'] for c in graph['communities']
+                 for rep in c['tables'] for name in graph['families'][rep]}
+        for community in graph['communities']:
+            if community['id'] not in work['communities']:
+                continue
+            items = [item for batch in community['batches'] for item in batch['items']]
+            items.extend(dict(id=stable_id('entity',name),kind='entity',input=inventory[name])
+                         for name in community['tables'])
+            items.extend(dict(id=e['id'],kind='relation',input=e) for e in graph['edges']
+                         if owner[e['from']] == owner[e['to']] == community['id'])
+            planned = self.plan(items, dict(pass_name='in_community',
+                hubs=community['hub_signatures'],registry=list(registry.values())))
+            batches.extend(planned)
+            passes['in_community'] = passes.get('in_community',0) + len(planned)
+            for name in community['tables']:
+                id_ = stable_id('entity',name)
+                registry[id_] = dict(id=id_,canonical_name=name,aliases=[],main_table=name,
+                                    related_tables=[],primary_key=inventory[name].get('primary_key',[]))
+        cuts = [dict(id=e['id'],kind='relation',input=dict(edge=e,endpoints=[
+            dict(dataset=name,primary_key=inventory[name].get('primary_key',[]),
+                 columns=[c for c in inventory[name]['columns'] if c['name'] in (e['columns'][side] or [])])
+            for side,name in [('from',e['from']),('to',e['to'])]]))
+            for e in graph['cut_edges'] if e['id'] in work['cut_edges']]
+        merges = [dict(id=id_,kind='entity',input=registry.get(id_,dict(id=id_)))
+                  for id_ in work['merge_items']]
+        for name, items, context in [
+            ('cut_edges',cuts,{}),
+            ('merge',merges,dict(registry=list(registry.values()),conflicts=[],
+                relationships=[dict(id=e['id'],**{'from':e['from'],'to':e['to']}) for e in graph['edges']])),
+        ]:
+            planned = self.plan(items,dict(context,pass_name=name)) if items else []
+            batches.extend(planned)
+            passes[name] = len(planned)
+        report = dict(preflight_estimate(self.config,batches,self.concurrency,
+                                        self.budget['capabilities']['system_overhead']),
+            protocol='oo.selfbuild.preflight/v1',passes=passes,model_calls=0,
+            capability_warning=None if self.budget['capabilities']['probed']
+                else 'unprobed_conservative_defaults',
+            scope='three-pass structural dry-run; future entity text is unknown')
+        write_private(self.output/'preflight.json',report)
+        print(canonical(report),flush=True)
+        return report
 
     def plan(self, items, context):
         return bridge('plan', budget=self.budget, items=items,
@@ -188,6 +275,12 @@ class Runner:
                         {'role':'user','content':canonical(dict(items=repair['items'], context=retry_context))}])
                 if request['stream']:
                     request['stream_options'] = {'include_usage':True}
+                estimate = dict(preflight_estimate(self.config,[repair],self.concurrency,
+                                                  self.budget['capabilities']['system_overhead']),
+                                protocol='oo.selfbuild.dispatch-preflight/v1',
+                                request_hash=digest(request))
+                write_private(self.output/'preflight'/ (digest(request)+'.json'),estimate)
+                print(canonical(estimate),flush=True)
                 try:
                     envelope = self.transport(request)
                 except Exception:
@@ -225,7 +318,7 @@ class Runner:
         accepted, unresolved = {}, []
         while pending:
             plans = self.plan(pending, context)
-            parallel = 2 if self.successes >= 2 else 1
+            parallel = self.concurrency
             wave = plans[:parallel]
             ids = {item['id'] for batch in wave for item in batch['items']}
             if self.stopped:
@@ -274,6 +367,7 @@ class Runner:
         accepted = copy.deepcopy(previous.get('accepted', {}))
         unresolved = set(previous.get('unresolved', []))
         inventory = {table['dataset']:table for table in tables}
+        self.preflight(graph,work,inventory)
         # Remove vanished semantic objects before presenting the registry to a model.
         for entity_id in work['removed_merge_items']:
             registry['entities'].pop(entity_id, None)
@@ -391,9 +485,12 @@ def main():
     runner = Runner(config,args.output)
     if not args.execute:
         graph = bridge('graph',budget=runner.budget,tables=tables,candidates=candidates)
-        write_private(Path(args.output)/'preflight.json',dict(graph=graph,model_calls=0,
-            capability_warning=None if runner.budget['capabilities']['probed'] else 'unprobed_conservative_defaults',
-            note='community table/column estimate only; registry, relations and merge are re-budgeted at dispatch'))
+        previous = json.loads(Path(args.resume).read_text()) if args.resume else {}
+        identity = dict(model=config['model'],prompt_hash=hashlib.sha256(PROMPT.encode()).hexdigest())
+        if previous.get('identity') != identity:
+            previous = {}
+        delta = bridge('incremental',tables=tables,graph=graph,previous=previous.get('snapshot',{}))
+        runner.preflight(graph,delta['work'],{t['dataset']:t for t in tables})
     else:
         previous = json.loads(Path(args.resume).read_text()) if args.resume else None
         runner.run(tables,candidates,previous=previous)

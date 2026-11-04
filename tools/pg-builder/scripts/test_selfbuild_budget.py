@@ -3,6 +3,8 @@ import copy
 import json
 from pathlib import Path
 import tempfile
+import subprocess
+import sys
 import unittest
 from unittest.mock import patch
 import io
@@ -49,6 +51,68 @@ class Model:
 
 
 class Acceptance(unittest.TestCase):
+    def test_cli_dry_run_has_all_passes_without_provider_configuration(self):
+        tables,edges = fixture(2,2)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            lib.write_private(root/'input.json',dict(tables=tables,relationship_candidates=edges))
+            lib.write_private(root/'config.json',self.config())
+            result = subprocess.run([sys.executable,str(Path(lib.__file__)),
+                '--input',str(root/'input.json'),'--config',str(root/'config.json'),
+                '--output',str(root/'output')],capture_output=True,text=True,check=True)
+            report = json.loads(result.stdout)
+            self.assertEqual(set(report['passes']),{'in_community','cut_edges','merge'})
+            self.assertGreater(report['batches'],0)
+            self.assertEqual(report['cost']['status'],'unknown')
+            self.assertEqual(report['model_calls'],0)
+            self.assertFalse((root/'output'/'receipts').exists())
+
+    def test_preflight_prices_rust_split_and_current_concurrency(self):
+        batches = [dict(input_tokens=100,output_reserve=200)]*3
+        config = dict(model='fixture',price_table={'fixture':dict(
+            currency='USD',input_per_million=2,output_per_million=8)},
+            seconds_per_batch=[10,30])
+        estimate = lib.preflight_estimate(config,batches,2,2500)
+        self.assertEqual(estimate['batches'],3)
+        self.assertEqual(estimate['estimated_input_tokens'],7800)
+        self.assertEqual(estimate['estimated_output_tokens'],600)
+        self.assertAlmostEqual(estimate['cost']['range'][0],.0156)
+        self.assertAlmostEqual(estimate['cost']['range'][1],.0204)
+        self.assertEqual(estimate['duration']['range_seconds'],[20,60])
+        unknown = lib.preflight_estimate(dict(config,model='unpriced'),batches,1)
+        self.assertEqual(unknown['cost']['status'],'unknown')
+        self.assertEqual(unknown['duration']['range_seconds'],[30,90])
+        self.assertEqual(lib.preflight_estimate({'model':'fixture'},[],1)['duration']['status'],'unknown')
+        for value in [-1,True,float('nan'),float('inf')]:
+            bad = copy.deepcopy(config)
+            bad['price_table']['fixture']['input_per_million'] = value
+            with self.assertRaises(ValueError):
+                lib.preflight_estimate(bad,batches,1)
+        with self.assertRaises(ValueError):
+            lib.preflight_estimate(dict(config,seconds_per_batch=[30,10]),batches,1)
+
+    def test_preflight_is_written_and_printed_before_any_call(self):
+        tables,edges = fixture(2,2)
+        with tempfile.TemporaryDirectory() as output:
+            model = Model()
+            stdout = io.StringIO()
+            def checked(request):
+                report = json.loads((Path(output)/'preflight.json').read_text())
+                self.assertGreater(report['passes']['in_community'],0)
+                self.assertGreater(report['passes']['merge'],0)
+                self.assertEqual(report['model_calls'],0)
+                path = Path(output)/'preflight'/(lib.digest(request)+'.json')
+                self.assertTrue(path.exists())
+                self.assertIn('oo.selfbuild.preflight/v1',stdout.getvalue())
+                self.assertIn(lib.digest(request),stdout.getvalue())
+                return model(request)
+            with patch('sys.stdout',stdout):
+                result = lib.Runner(self.config(),output,checked).run(tables,edges)
+                replay = lib.Runner(self.config(),output,checked).run(tables,edges,previous=result)
+            self.assertFalse(result['unresolved'])
+            self.assertEqual(replay['model_calls'],0)
+            self.assertEqual(json.loads((Path(output)/'preflight.json').read_text())['batches'],0)
+
     def test_probe_limits_and_credential_free_egress(self):
         probe = dict(protocol='oo.model-capabilities/v1', context_window=272000,
                      max_output_tokens=128000, proxy_injected_prompt_tokens=2490)
