@@ -901,6 +901,13 @@ impl ChangeSource for SqlServerEngine {
         validate_budget(b)?;
         self.budget = b.clone();
         let prior = Position::parse(from)?;
+        // Poll against a fresh snapshot, not the anchor of the preceding call.
+        // Issued snapshot chunks cannot be reused after crossing this boundary.
+        self.rows("ROLLBACK TRANSACTION", 0).await?;
+        self.tables.clear();
+        self.plans.clear();
+        self.anchor = None;
+        self.initialize().await?;
         let high = self
             .anchor
             .clone()
