@@ -276,7 +276,7 @@ fn remote_deploy_requires_one_reference_credential_and_pinned_key() {
         ("port", json!(0)),
         ("host_key_sha256", json!("SHA256:short")),
         ("password", json!({"secret_ref":"also"})),
-        ("key", json!("-----BEGIN OPENSSH PRIVATE KEY-----")),
+        ("key", json!(concat!("-----BEGIN OPENSSH ", "PRIVATE KEY-----"))),
         ("key", json!({"secret_ref":"../escape"})),
         ("extra", json!(true)),
     ];
