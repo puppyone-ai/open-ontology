@@ -5,10 +5,12 @@ use std::path::Path;
 
 use serde_json::{Value, json};
 
-use super::{Failure, Invocation, build_tail, progress, review};
+use super::{Failure, Invocation, build_retained, build_tail, progress, review};
 
-const STAGES: [&str; 6] = [
-    "pull_selfbuild",
+const STAGES: [&str; 8] = [
+    "load",
+    "candidate",
+    "builder",
     "self_review",
     "publish",
     "gateway",
@@ -54,16 +56,26 @@ fn validate(state: &Value, fingerprint: &str, root: &Path) -> Result<(), Failure
             return Err(Failure::local("BUILD_RESUME_ARTIFACT_CHANGED"));
         }
     }
-    if state["stages"][4]["status"] == "complete" {
-        build_tail::verify_token(root)?;
+    if state["stages"][6]["status"] == "complete" {
+        let token_root = if state["cycle"] == true {
+            root.parent()
+                .and_then(Path::parent)
+                .ok_or_else(|| Failure::local("BUILD_RESUME_PROTOCOL"))?
+        } else {
+            root
+        };
+        build_tail::verify_token(token_root)?;
     }
     Ok(())
 }
 
-/// Lane M integration seam. Never synthesize release gates or a Gateway pointer.
-fn publish_reviewed_registry(_registry: &Value) -> Result<Value, Failure> {
-    // shortcut: wire the authenticated lane-M entry when its lite contract lands.
-    Err(Failure::local("BUILD_PUBLICATION_NOT_INTEGRATED"))
+fn publish_reviewed_registry(
+    root: &Path,
+    runtime: &Value,
+    generation: &str,
+    registry: &Value,
+) -> Result<Value, Failure> {
+    build_retained::publish(root, runtime, generation, registry)
 }
 
 pub(super) fn status(root: &Path, json_output: bool) -> Result<Invocation, Failure> {
@@ -101,13 +113,44 @@ pub(super) fn run(
     agent_target: Option<&Path>,
     review_input: Option<&Path>,
     review_file: Option<&Path>,
+    runtime_config: Option<&Path>,
+    cycle: Option<&str>,
 ) -> Result<Invocation, Failure> {
     if agent_target.is_none() {
         return Err(Failure::usage(
             "BUILD_AGENT_TARGET_REQUIRED: full build loads an Agent DB; use --draft-only for metadata-only work",
         ));
     }
-    let root = progress::state_dir(config)?;
+    let runtime_path =
+        runtime_config.ok_or_else(|| Failure::usage("BUILD_RUNTIME_CONFIG_REQUIRED"))?;
+    let runtime = review::read(runtime_path)?;
+    if runtime["protocol"] != "oo.build-runtime/v1" {
+        return Err(Failure::local("BUILD_RUNTIME_CONFIG"));
+    }
+    let base = progress::state_dir(config)?;
+    let origin = if cycle.is_some() {
+        Some(base.as_path())
+    } else {
+        None
+    };
+    let root = if let Some(cycle) = cycle {
+        if !resume
+            || cycle.is_empty()
+            || cycle.len() > 100
+            || !cycle
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        {
+            return Err(Failure::usage("BUILD_CYCLE_REQUIRES_RESUME_AND_ID"));
+        }
+        let previous = review::read(&base.join("chain.json"))?;
+        if previous["status"] != "complete" {
+            return Err(Failure::local("BUILD_ORIGIN_INCOMPLETE"));
+        }
+        base.join("cycles").join(cycle)
+    } else {
+        base.clone()
+    };
     fs::DirBuilder::new()
         .mode(0o700)
         .recursive(true)
@@ -138,7 +181,12 @@ pub(super) fn run(
         return Err(Failure::local("BUILD_LOCK"));
     }
     let target = agent_target.map(review::read).transpose()?;
-    let fingerprint = review::hash(&json!({"stack":stack,"agent_target":target}));
+    let generation = cycle
+        .map(str::to_owned)
+        .unwrap_or(build_retained::text(target.as_ref().unwrap(), "run_id")?.to_owned());
+    let fingerprint = review::hash(
+        &json!({"stack":stack,"agent_target":target,"runtime":runtime,"generation":generation}),
+    );
     let mut state = if resume && root.join("chain.json").exists() {
         let state = review::read(&root.join("chain.json"))?;
         validate(&state, &fingerprint, &root)?;
@@ -147,7 +195,7 @@ pub(super) fn run(
         if root.join("chain.json").exists() {
             return Err(Failure::local("BUILD_EXISTS_USE_RESUME"));
         }
-        json!({"protocol":"oo.build-chain/v1","config_sha256":fingerprint,"status":"running",
+        json!({"protocol":"oo.build-chain/v1","config_sha256":fingerprint,"status":"running","cycle":cycle.is_some(),
             "publication":"not_published","gateway_health":"unmeasured",
             "stages":STAGES.map(|name| json!({"name":name,"status":"pending","attempts":0,
                 "completed":0,"total":1,"error":null})),
@@ -165,29 +213,54 @@ pub(super) fn run(
         persist(&root, &state)?;
         let result = (|| {
             match index {
-                0 => {
-                    // A killed draft runner owns its existing lower-level checkpoints.
-                    let draft_resume = root.join("run.json").exists();
-                    if draft_resume && !resume {
-                        return Err(Failure::local("BUILD_EXISTS_USE_RESUME"));
-                    }
-                    let invocation =
-                        progress::build(config, stack, draft_resume, true, agent_target)?;
-                    if !matches!(invocation, Invocation::AdminReport(_, 0)) {
-                        return Err(Failure::local("BUILD_DRAFT_FAILED"));
-                    }
-                    let draft_state = review::read(&root.join("run.json"))?;
-                    if draft_state["status"] != "draft"
-                        || draft_state["agent_db_load"] != "local_table_views"
-                    {
-                        return Err(Failure::local("BUILD_DRAFT_NOT_COMPLETE"));
-                    }
-                    // Preserve the full draft checkpoint; subsequent resumes never pay again.
-                    state["artifacts"]["run.json"] = json!(artifact(&root, "run.json")?);
-                    state["artifacts"]["draft.json"] = json!(artifact(&root, "draft.json")?);
-                    state["agent_db_load"] = draft_state["agent_db_load"].clone();
+                0 | 1 => {
+                    let value = build_retained::load(
+                        &root,
+                        &runtime,
+                        stack,
+                        agent_target.unwrap(),
+                        &generation,
+                        index == 1,
+                        cycle.is_some(),
+                    )?;
+                    let name = if index == 0 {
+                        "load.json"
+                    } else {
+                        "candidate.json"
+                    };
+                    build_retained::save(&root.join(name), &value)?;
+                    state["artifacts"][name] = json!(artifact(&root, name)?);
                 }
-                1 => {
+                2 => {
+                    let result =
+                        build_retained::builder(&root, &runtime, stack, &generation, origin)?;
+                    state["model_calls"] = result["model_calls"].clone();
+                    state["builder_stage"] = result["stage"].clone();
+                    if result["stage"] == "data_only" {
+                        let path =
+                            Path::new(build_retained::text(&result["reviewed_registry"], "path")?);
+                        build_retained::save(
+                            &root.join("reviewed-registry.json"),
+                            &review::read(path)?,
+                        )?;
+                        build_retained::save(
+                            &root.join("review-input.json"),
+                            &review::read(&origin.unwrap().join("review-input.json"))?,
+                        )?;
+                    } else if result["stage"] == "review_required" {
+                        build_retained::save(
+                            &root.join("review-input.json"),
+                            &review::read(&root.join("builder/review-input.json"))?,
+                        )?;
+                    } else {
+                        return Err(Failure::local("BUILD_BUILDER_RECEIPT"));
+                    }
+                    state["artifacts"]["builder-result.json"] =
+                        json!(artifact(&root, "builder-result.json")?);
+                    state["artifacts"]["review-input.json"] =
+                        json!(artifact(&root, "review-input.json")?);
+                }
+                3 => {
                     let pinned = root.join("review-input.json");
                     if let Some(path) = review_input {
                         let input = review::read(path)?;
@@ -203,7 +276,7 @@ pub(super) fn run(
                         return Err(Failure::local("BUILD_REVIEW_INPUT_REQUIRED"));
                     }
                     let input = review::read(&pinned)?;
-                    if input["source_draft_sha256"] != state["artifacts"]["draft.json"] {
+                    if input["source_draft_sha256"] != review::hash(&input["draft"]) {
                         return Err(Failure::local("BUILD_REVIEW_DRAFT_BINDING"));
                     }
                     state["artifacts"]["review-input.json"] =
@@ -228,28 +301,37 @@ pub(super) fn run(
                     state["artifacts"]["reviewed-registry.json"] =
                         json!(artifact(&root, "reviewed-registry.json")?);
                 }
-                2 => {
+                4 => {
                     let reviewed = review::read(&root.join("reviewed-registry.json"))?;
                     review::verify_handoff(
                         &review::read(&root.join("review-input.json"))?,
                         &reviewed,
                     )?;
-                    let publication = publish_reviewed_registry(&reviewed)?;
-                    review::save_new(&root.join("publication.json"), &publication)?;
+                    let publication =
+                        publish_reviewed_registry(&root, &runtime, &generation, &reviewed)?;
+                    build_retained::save(&root.join("publication.json"), &publication)?;
                     state["artifacts"]["publication.json"] =
                         json!(artifact(&root, "publication.json")?);
                     state["publication"] = json!("published");
                 }
-                3 => {
+                5 => {
                     let publication = review::read(&root.join("publication.json"))?;
                     let receipt = build_tail::gateway(&publication)?;
-                    review::save_new(&root.join("gateway.json"), &receipt)?;
+                    build_retained::save(&root.join("gateway.json"), &receipt)?;
                     state["artifacts"]["gateway.json"] = json!(artifact(&root, "gateway.json")?);
                     state["gateway_health"] = json!("verified");
                 }
-                4 | 5 => {
+                6 | 7 => {
                     let publication = review::read(&root.join("gateway.json"))?;
-                    build_tail::run(&root, STAGES[index], &publication)?;
+                    if cycle.is_some() {
+                        let name = format!("{}-receipt.json", STAGES[index]);
+                        build_retained::save(&root.join(&name), &review::read(&base.join(&name))?)?;
+                        if index == 6 {
+                            build_tail::verify_token(&base)?;
+                        }
+                    } else {
+                        build_tail::run(&root, STAGES[index], &publication)?;
+                    }
                     let name = format!("{}-receipt.json", STAGES[index]);
                     state["artifacts"][&name] = json!(artifact(&root, &name)?);
                 }
@@ -273,5 +355,15 @@ pub(super) fn run(
     }
     state["status"] = json!("complete");
     persist(&root, &state)?;
-    Ok(report(&state, json_output))
+    let mut result = report(&state, json_output);
+    if !json_output && let Invocation::AdminReport(text, _) = &mut result {
+        let prompt = review::read(&base.join("share_prompt-receipt.json"))?;
+        text.push_str("\n\n");
+        text.push_str(
+            prompt["result"]["prompt"]
+                .as_str()
+                .ok_or_else(|| Failure::local("BUILD_PROMPT_RECEIPT"))?,
+        );
+    }
+    Ok(result)
 }

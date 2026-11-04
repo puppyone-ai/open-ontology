@@ -122,9 +122,99 @@ fn lifecycle(root: &Path, publication: &Value, command: &[&str]) -> Result<Vec<u
     Ok(output.stdout)
 }
 
-pub(super) fn gateway(_publication: &Value) -> Result<Value> {
-    // shortcut: M's publication/start-reload receipt is not integrated yet.
-    Err(Failure::local("BUILD_GATEWAY_NOT_INTEGRATED"))
+pub(super) fn gateway(publication: &Value) -> Result<Value> {
+    use super::build_retained::{binary, text};
+    use std::time::{Duration, Instant};
+    if publication["protocol"] != "oo.build-publication/v1" || publication["published"] != true {
+        return Err(Failure::local("BUILD_PUBLICATION_RECEIPT"));
+    }
+    let root = Path::new(text(publication, "runtime_dir")?);
+    let document = review::read(&root.join("reviewed/library/library.json"))?;
+    if document["publication"]["receipt_sha256"] != publication["receipt_sha256"] {
+        return Err(Failure::local("BUILD_GATEWAY_PUBLICATION_BINDING"));
+    }
+    let url = reqwest::Url::parse(text(publication, "gateway_url")?)
+        .map_err(|_| Failure::local("BUILD_GATEWAY_URL"))?;
+    if url.scheme() != "https"
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || url.path() != "/v1"
+    {
+        return Err(Failure::local("BUILD_GATEWAY_URL"));
+    }
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|_| Failure::local("BUILD_GATEWAY_RUNTIME"))?;
+    let client = reqwest::Client::builder()
+        .https_only(true)
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .tls_certs_only(
+            reqwest::Certificate::from_pem_bundle(&crate::load::read_ca_file(text(
+                publication,
+                "ca_file",
+            )?)?)
+            .map_err(|_| Failure::local("BUILD_GATEWAY_TLS"))?,
+        )
+        .identity(
+            reqwest::Identity::from_pem(&crate::load::read_client_pem(text(
+                publication,
+                "client_pem",
+            )?)?)
+            .map_err(|_| Failure::local("BUILD_GATEWAY_TLS"))?,
+        )
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|_| Failure::local("BUILD_GATEWAY_TLS"))?;
+    let health = url
+        .join("/ready")
+        .map_err(|_| Failure::local("BUILD_GATEWAY_URL"))?;
+    let ready = || {
+        runtime.block_on(async {
+            client
+                .get(health.clone())
+                .send()
+                .await
+                .is_ok_and(|r| r.status().is_success())
+        })
+    };
+    // Reviewed files and Packs reload per request. An already healthy owned
+    // endpoint needs no restart and retains in-flight request snapshots.
+    if !ready() {
+        let mut child = Command::new(binary("oo-gateway")?)
+            .arg(root)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|_| Failure::local("BUILD_GATEWAY_START"))?;
+        let until = Instant::now() + Duration::from_secs(30);
+        loop {
+            if ready() {
+                break;
+            }
+            if child
+                .try_wait()
+                .map_err(|_| Failure::local("BUILD_GATEWAY_START"))?
+                .is_some()
+            {
+                return Err(Failure::local("BUILD_GATEWAY_START"));
+            }
+            if Instant::now() >= until {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(Failure::local("BUILD_GATEWAY_NOT_READY"));
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    }
+    let mut receipt = publication.clone();
+    receipt["gateway_verified"] = json!(true);
+    receipt["verification"] = json!("mtls_ready; data query not yet measured");
+    Ok(receipt)
 }
 
 pub(super) fn run(root: &Path, name: &str, publication: &Value) -> Result<Value> {
@@ -149,11 +239,20 @@ pub(super) fn run(root: &Path, name: &str, publication: &Value) -> Result<Value>
             // Lane B issues a separate short-lived enrollment code, not the
             // first user's long-lived token. Keep the entire prompt private.
             let raw = lifecycle(root, publication, &["share-prompt"])?;
-            let prompt =
+            let mut prompt =
                 String::from_utf8(raw).map_err(|_| Failure::local("BUILD_PROMPT_RECEIPT"))?;
             if !prompt.contains("--code-stdin") || prompt.contains("ooct_") {
                 return Err(Failure::local("BUILD_PROMPT_RECEIPT"));
             }
+            // share-prompt omits private-CA/mTLS flags; the printed login must
+            // carry those references, not their credential contents.
+            let shell = |s: &str| format!("'{}'", s.replace('\'', "'\\''"));
+            let flags = format!(
+                "--code-stdin --ca-file {} --client-pem {}",
+                shell(super::build_retained::text(publication, "ca_file")?),
+                shell(super::build_retained::text(publication, "client_pem")?)
+            );
+            prompt = prompt.replace("--code-stdin", &flags);
             Ok(json!({"prompt":prompt}))
         }),
         _ => Err(Failure::local("BUILD_TAIL_STAGE")),

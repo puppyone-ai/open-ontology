@@ -1,5 +1,6 @@
 //! Administrative commands; consumer credentials are never read here.
 mod build;
+mod build_retained;
 mod build_tail;
 mod build_token;
 mod doctor;
@@ -23,7 +24,7 @@ Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
-    [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
+    --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
@@ -34,8 +35,9 @@ The wizard can save or run a bounded PostgreSQL metadata-to-draft bridge.
 build requires pg-builder and oo-pipeline beside oo; --resume retains checkpoints.
 --agent-target uses oo-load to load explicit source tables before drafting.
 The target file is private oo-load JSON; TLS and secret_ref credentials are required.
-Full build checkpoints the draft, then requires an owner-reviewed community input.
-Missing review input or lane-M publication integration blocks with a nonzero exit.
+Full build requires private oo.build-runtime/v1 configuration for the retained Builder,
+publisher and Gateway. It checkpoints load/candidate/Builder/review/publication.
+--resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
 status reports saved build state; missing Gateway health fields stay unmeasured.
 up bootstraps private credentials and starts only lite foundations; exit 1
@@ -133,6 +135,8 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
                     | "--target"
                     | "--format"
                     | "--role"
+                    | "--runtime-config"
+                    | "--cycle"
                     | "--agent-target"
                     | "--review-input"
                     | "--review-file"
@@ -148,6 +152,8 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     let mut json = false;
     let mut resume = false;
     let mut agent_target = None;
+    let mut runtime_config = None;
+    let mut cycle = None;
     let mut review_input = None;
     let mut review_file = None;
     let mut draft_only = false;
@@ -166,7 +172,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
             "--resume" if command == "build" => resume = true,
             "--draft-only" if command == "build" => draft_only = true,
             "--config" | "--target" | "--format" | "--role" | "--agent-target"
-            | "--review-input" | "--review-file" => {
+            | "--runtime-config" | "--cycle" | "--review-input" | "--review-file" => {
                 index += 1;
                 let value = args
                     .get(index)
@@ -180,6 +186,10 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
                     {
                         target = Some(value.as_str())
                     }
+                    "--runtime-config" if command == "build" => {
+                        runtime_config = Some(Path::new(value))
+                    }
+                    "--cycle" if command == "build" => cycle = Some(value.as_str()),
                     "--agent-target" if command == "build" => agent_target = Some(Path::new(value)),
                     "--review-input" if command == "build" => review_input = Some(Path::new(value)),
                     "--review-file" if command == "build" => review_file = Some(Path::new(value)),
@@ -223,7 +233,11 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
         let path = Path::new(config.unwrap_or("stack.yaml"));
         let stack = read_stack(path)?;
         if draft_only {
-            if review_input.is_some() || review_file.is_some() {
+            if review_input.is_some()
+                || review_file.is_some()
+                || runtime_config.is_some()
+                || cycle.is_some()
+            {
                 return Err(Failure::usage(
                     "ADMIN_ARGUMENT: draft-only cannot accept review options",
                 ));
@@ -243,6 +257,8 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
             agent_target,
             review_input,
             review_file,
+            runtime_config,
+            cycle,
         );
     }
     if matches!(command, "up" | "down" | "status") {
