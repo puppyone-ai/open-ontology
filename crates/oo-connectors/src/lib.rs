@@ -41,6 +41,8 @@ mod key_plan;
 mod model;
 #[cfg(feature = "mysql")]
 pub mod mysql;
+#[cfg(feature = "mysql")]
+pub use mysql::{mariadb, oceanbase, tidb};
 #[cfg(feature = "oracle")]
 pub mod oracle;
 pub mod postgres;
