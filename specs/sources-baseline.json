@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 14,
-  "supersedes_revision": 13,
-  "supersedes_baseline_head": "455032af270b5cc2f7062fa152fb99a07ce8f753",
-  "supersedes_sha256": "f95060761029c75ffd40f89a717d69fbd34a8ffd621606470fdf7029d020c6fd",
-  "review_record": "specs/source-baseline-revision-14.md",
-  "baseline_head": "439f4d95ef29a9b838f8ff6135e7380e14742d52",
+  "revision": 15,
+  "supersedes_revision": 14,
+  "supersedes_baseline_head": "439f4d95ef29a9b838f8ff6135e7380e14742d52",
+  "supersedes_sha256": "53f52da7ba2bd0b10ff81c6f77b72e3db635b28b985f6bfd905ca5ebbc27894f",
+  "review_record": "specs/source-baseline-revision-15.md",
+  "baseline_head": "ac98f1c9c481eb4744d1ba4525e792c621cecd5a",
   "source_count": 26,
   "sources": [
     {
@@ -145,9 +145,9 @@
     },
     {
       "path": "docs/product/04-onboarding-and-gateway-binding.md",
-      "sha256": "17c50bf2fbed0aa9bee5e569697d65ddcb9b2ee75f26a18033657af292d30a56",
-      "bytes": 14850,
-      "lines": 192
+      "sha256": "6a0b86ab590590b8192c7b6099fb216a217dc57baacfa3874987ec1d8c1999af",
+      "bytes": 15177,
+      "lines": 194
     },
     {
       "path": "docs/product/05-version-matrix-and-testing.md",
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); thousand-table Self-build and SQL Server status"
+  "review_status": "owner self-review (D6); S4 self-review and build handoff boundary"
 }
