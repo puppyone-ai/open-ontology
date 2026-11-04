@@ -20,6 +20,7 @@ x-runtime: &runtime
 
 x-db: &db
   image: docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
+  pull_policy: ${OO_LITE_PULL_POLICY:-missing}
   labels: {oo.lane: "${OO_LITE_LANE:-a}"}
   entrypoint: [/bin/sh, /ops/postgres.sh]
   cap_drop: [ALL]

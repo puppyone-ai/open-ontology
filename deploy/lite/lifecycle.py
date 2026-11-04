@@ -534,6 +534,8 @@ def main(request):
     if not re.fullmatch('[a-z][a-z0-9]{0,7}',lane):raise ValueError('LITE_LANE')
     env.update(OO_LITE_STATE=str(root),OO_LITE_RUNTIME_IMAGE=image,OO_LITE_UID=str(os.getuid()),
                OO_LITE_GID=str(os.getgid()),OO_LITE_LANE=lane)
+    if os.environ.get('OO_LITE_POSTGRES_IMAGE'):
+        env['OO_LITE_PULL_POLICY']='never'
     network=saved.get('subnet')
     if not network:network=subnet(project,env)
     if not ipaddress.ip_network(network).is_private:raise ValueError('LITE_SUBNET')
@@ -580,11 +582,20 @@ def main(request):
             else:write(dest,data)
         for name in ('compose.yaml','postgres.sh','scheduler.py'):
             dest=root/('work' if name=='scheduler.py' else '')/name
-            write(dest,request['templates'][name].encode())
+            template=request['templates'][name]
+            # docker save/load retains config IDs, not registry RepoDigests.
+            postgres=os.environ.get('OO_LITE_POSTGRES_IMAGE')
+            if name=='compose.yaml' and postgres:
+                if not re.fullmatch(r'sha256:[0-9a-f]{64}',postgres):
+                    raise ValueError('LITE_IMAGE_DIGEST_REQUIRED')
+                template=re.sub(r'image: docker.io/library/postgres@sha256:[0-9a-f]{64}',
+                                'image: '+postgres,template)
+            write(dest,template.encode())
         write(root/'work/stack.json',json.dumps(request['stack']).encode())
         write(owner,json.dumps({'project':project,'image':image,'lane':lane,'subnet':network,
                                 'gateway_port':port}).encode())
-        docker(argv+['up','--detach','--wait','--wait-timeout','120'],env)
+        offline=['--pull','never','--no-build'] if os.environ.get('OO_LITE_POSTGRES_IMAGE') else []
+        docker(argv+['up',*offline,'--detach','--wait','--wait-timeout','120'],env)
         operator_bootstrap(root,argv,env,request['stack'],port)
         if request.get('retained'):
             provision_retained(root,argv,env,request,port)

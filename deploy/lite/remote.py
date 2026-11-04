@@ -100,14 +100,33 @@ def lock():
     return fd
 
 
-def image_info(ref):
-    p = run(['docker', 'image', 'inspect', '--format',
+def image_info(ref, platform=None):
+    select = ['--platform', platform] if platform else []
+    p = run(['docker', 'image', 'inspect', *select, '--format',
              '{{json .Id}} {{json .Os}} {{json .Architecture}} {{json .RootFS.Layers}}', ref])
     if p.returncode:
         return None
     ident, system, arch, layers = p.stdout.decode().split(' ', 3)
     return {'id': json.loads(ident), 'os': json.loads(system), 'arch': json.loads(arch),
             'layers': json.loads(layers)}
+
+def load_verified(stdin, expect):
+    """Shared remote/offline loader: config identity includes entrypoint and env."""
+    p = run(['docker', 'load'], 1800, stdin=stdin)
+    if p.returncode:
+        raise Refused('REMOTE_IMAGE_LOAD')
+    loaded = [line.split(':', 1)[1].strip() for line in p.stdout.decode().splitlines()
+              if line.startswith(('Loaded image ID:', 'Loaded image:'))]
+    if len(loaded) != 1:
+        raise Refused('REMOTE_IMAGE_LOAD_PROTOCOL')
+    info = image_info(loaded[0])
+    # Legacy SSH callers only know the sender's store-dependent ID. Bundles also
+    # supply the verified config digest, so they can enforce identity across stores.
+    if (not info or any(info[key] != expect[key] for key in ('os', 'arch', 'layers'))
+            or ('config_id' in expect and info['id'] not in
+                (expect['id'], expect['config_id'], expect.get('source_id')))):
+        raise Refused('REMOTE_IMAGE_CONTENT_MISMATCH')
+    return info, loaded[0]
 
 
 def systemctl(scope):
@@ -183,21 +202,11 @@ def load(request, stdin):
         raise Refused('REMOTE_IMAGE_TAG')
     with lock_held():
         manifest = load_manifest()
-        p = run(['docker', 'load'], 1800, stdin=stdin)
-        if p.returncode:
-            raise Refused('REMOTE_IMAGE_LOAD')
-        loaded = [line.split(':', 1)[1].strip() for line in p.stdout.decode().splitlines()
-                  if line.startswith(('Loaded image ID:', 'Loaded image:'))]
-        if len(loaded) != 1:
-            raise Refused('REMOTE_IMAGE_LOAD_PROTOCOL')
-        info = image_info(loaded[0])
-        if not info or (info['os'], info['arch'], info['layers']) != (
-                expect['os'], expect['arch'], expect['layers']):
-            raise Refused('REMOTE_IMAGE_CONTENT_MISMATCH')
+        info, loaded = load_verified(stdin, expect)
         ok(['docker', 'image', 'tag', info['id'], tag], 'REMOTE_IMAGE_TAG')
-        if loaded[0] != info['id'] and loaded[0] != tag:
+        if loaded != info['id'] and loaded != tag:
             # A tag carried inside the archive is ours too; never keep it silently.
-            manifest['images'].append(loaded[0])
+            manifest['images'].append(loaded)
         manifest['images'].append(tag)
         save_manifest(manifest)
     return {'image': info['id'], 'tag': tag}
