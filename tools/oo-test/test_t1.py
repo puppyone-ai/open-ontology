@@ -12,6 +12,33 @@ import recompare_t1
 
 
 class T1Tests(unittest.TestCase):
+    def test_readonly_exec_retries_only_predispatch_transport_refusal(self):
+        with tempfile.TemporaryDirectory(dir=t1.ROOT / "evidence") as temporary:
+            run = t1.LaneRun.__new__(t1.LaneRun)
+            run.path, run.seq = Path(temporary), 1
+            refusal = "Cannot connect to the Docker daemon at fixture. Is the docker daemon running?"
+            for query, error, output, expected in [
+                ("SELECT 1;", refusal, "", 2),
+                ("SELECT 1;", "ERROR: permission denied", "", 1),
+                ("SELECT 1;", refusal, "partial result", 1),
+                ("DELETE FROM growth_events;", refusal, "", 1),
+            ]:
+                (run.path / "0001.stderr").write_text(error)
+                (run.path / "0001.stdout").write_text(output)
+                with patch.object(t1.runner.Run, "command", side_effect=[RuntimeError("failed"), (0, "1")]) as call:
+                    with patch.object(t1.time, "sleep"):
+                        if expected == 2:
+                            self.assertEqual(run.command(["docker", "exec", "owned"], data=query), (0, "1"))
+                        else:
+                            with self.assertRaises(RuntimeError):
+                                run.command(["docker", "exec", "owned"], data=query)
+                self.assertEqual(call.call_count, expected)
+            (run.path / "0001.stdout").write_text("")
+            with patch.object(t1.runner.Run, "command", side_effect=RuntimeError("failed")) as call:
+                with patch.object(t1.time, "sleep"), self.assertRaises(RuntimeError):
+                    run.command(["docker", "exec", "owned"], data="SELECT 1;")
+            self.assertEqual(call.call_count, 3)
+
     def test_source_meter_fails_closed_and_enforces_aggregate_duty(self):
         class Run:
             engine = "mysql"

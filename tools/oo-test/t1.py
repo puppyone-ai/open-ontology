@@ -96,6 +96,24 @@ class LaneRun(runner.Run):
         if command[:2] == ["docker", "create"] and self.name in command:
             port = {"postgres": 5432, "mysql": 3306, "oracle": 1521}[self.engine]
             command[2:2] = ["-p", f"127.0.0.1::{port}"]
+        # A local Docker connection refusal happens before exec is dispatched.
+        # Retry only read-only comparison/observation queries, retaining every log.
+        data = (kwargs.get("data") or "").lstrip()
+        readonly = data.startswith(("SELECT ", "SET TIME ZONE 'UTC'; SELECT ",
+                                    "SET time_zone='+00:00'; SELECT "))
+        if command[:2] == ["docker", "exec"] and readonly:
+            for attempt in range(3):
+                try:
+                    return super().command(command, **kwargs)
+                except RuntimeError:
+                    prefix = self.path / f"{self.seq:04d}"
+                    err = prefix.with_suffix(".stderr").read_text()
+                    out = prefix.with_suffix(".stdout").read_text()
+                    if (attempt == 2 or out or
+                            not err.startswith("Cannot connect to the Docker daemon at ") or
+                            "Is the docker daemon running?" not in err):
+                        raise
+                    time.sleep(0.2)
         return super().command(command, **kwargs)
 
     def cleanup(self):
