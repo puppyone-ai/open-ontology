@@ -133,7 +133,33 @@ def subnet(project,env):
     raise ValueError('LITE_SUBNET_UNAVAILABLE')
 
 
-def health(root,stack,port=8443):
+# Run inside the Gateway container when the host Python's TLS library cannot
+# load the Ed25519 client identity (macOS LibreSSL). Material arrives on stdin
+# and only the two deadlines leave; nothing is written outside its /tmp.
+RUNTIME_HEALTH = r"""
+import http.client,json,os,ssl,sys,tempfile
+m=json.loads(sys.stdin.read())
+d=tempfile.mkdtemp()
+for n in ('cert','key'):
+    with open(os.path.join(d,n),'w',opener=lambda p,f:os.open(p,f,0o600)) as s:s.write(m[n])
+c=ssl.create_default_context(cadata=m['ca']);c.load_cert_chain(os.path.join(d,'cert'),os.path.join(d,'key'))
+h=http.client.HTTPSConnection('localhost',m['port'],context=c,timeout=5)
+h.request('GET','/v1/health',headers={'Authorization':'Bearer '+m['token']})
+r=h.getresponse();b=json.loads(r.read(65537)) if r.status==200 else {}
+print(json.dumps({'status':r.status,'deadlines':[(b.get(k) or {}).get('expires_at_ms') for k in ('token_expiry','internal_mtls_certificate_expiry')]}))
+"""
+
+def runtime_health(root,argv,env,config,port):
+    material={'port':port,**{name:read_private(root/'pki'/config[name]).decode().strip()+('\n' if name!='token' else '')
+                             for name in ('token','ca','cert','key')}}
+    p=subprocess.run(['docker',*argv,'exec','-T','gateway','python3','-c',RUNTIME_HEALTH],
+                     input=json.dumps(material).encode(),capture_output=True,env=env,timeout=30)
+    if p.returncode:raise ValueError('LITE_HEALTH_RUNTIME')
+    reply=json.loads(p.stdout)
+    if reply['status']!=200:raise ValueError('LITE_HEALTH_REFUSED')
+    return reply['deadlines']
+
+def health(root,stack,port=8443,argv=None,env=None):
     client=root/'health-client.json'
     if not client.exists():
         return {'status':'unmeasured','nearest_credential_expiry_ms':None}
@@ -154,26 +180,33 @@ def health(root,stack,port=8443):
     if not token or any(c.isspace() for c in token):
         raise ValueError('LITE_HEALTH_TOKEN')
     context=ssl.create_default_context(cadata=ca)
+    deadlines=None
     if 'cert' in config:
         for name in ('cert','key'):
             read_private(root/'pki'/config[name])
-        context.load_cert_chain(root/'pki'/config['cert'],root/'pki'/config['key'])
-    conn=http.client.HTTPSConnection(url.hostname,url.port or 443,context=context,timeout=5)
-    try:
-        conn.request('GET',url.path.rstrip('/')+'/v1/health',headers={'Authorization':'Bearer '+token})
-        response=conn.getresponse()
-        if response.status!=200:
-            raise ValueError('LITE_HEALTH_REFUSED')
-        data=json.loads(response.read(65537))
-        deadlines=[data[k].get('expires_at_ms') for k in ('token_expiry','internal_mtls_certificate_expiry')]
-        if any(d is not None and (isinstance(d,bool) or not isinstance(d,int)) for d in deadlines):
-            raise ValueError('LITE_HEALTH_PROTOCOL')
-        measured=[d for d in deadlines if d is not None]
-        safe={k:{'expires_at_ms':d} for k,d in zip(('token_expiry','internal_mtls_certificate_expiry'),deadlines)}
-        return {'status':'measured','nearest_credential_expiry_ms':min(measured) if measured else None,
-                'basis':'/v1/health',**safe}
-    finally:
-        conn.close()
+        try:
+            context.load_cert_chain(root/'pki'/config['cert'],root/'pki'/config['key'])
+        except ssl.SSLError:
+            if argv is None or url.hostname not in ('localhost','127.0.0.1'):
+                raise
+            deadlines=runtime_health(root,argv,env,config,url.port or 443)
+    if deadlines is None:
+        conn=http.client.HTTPSConnection(url.hostname,url.port or 443,context=context,timeout=5)
+        try:
+            conn.request('GET',url.path.rstrip('/')+'/v1/health',headers={'Authorization':'Bearer '+token})
+            response=conn.getresponse()
+            if response.status!=200:
+                raise ValueError('LITE_HEALTH_REFUSED')
+            data=json.loads(response.read(65537))
+            deadlines=[data[k].get('expires_at_ms') for k in ('token_expiry','internal_mtls_certificate_expiry')]
+        finally:
+            conn.close()
+    if any(d is not None and (isinstance(d,bool) or not isinstance(d,int)) for d in deadlines):
+        raise ValueError('LITE_HEALTH_PROTOCOL')
+    measured=[d for d in deadlines if d is not None]
+    safe={k:{'expires_at_ms':d} for k,d in zip(('token_expiry','internal_mtls_certificate_expiry'),deadlines)}
+    return {'status':'measured','nearest_credential_expiry_ms':min(measured) if measured else None,
+            'basis':'/v1/health',**safe}
 
 
 def retained_login_grant(login):
@@ -358,7 +391,7 @@ def provision_retained(root,argv,env,request,port):
     admin_password=read_private(pki/'lite-admin-password').decode().strip()
     if not re.fullmatch('[0-9a-f]{64}',admin_password):raise ValueError('LITE_PROVISION_PASSWORD')
     services=''.join(f'[{name}]\nhost={name}-db\nport=5432\ndbname=postgres\nuser=postgres\n'
-                     'sslmode=verify-full\nsslrootcert=/pki/lite-ca-cert\n'
+                     'sslmode=verify-full\nsslrootcert=/home/oo/.config/open-ontology/secrets/oo-lite-ca\n'
                      # tls-server-end-point binding has no digest for Ed25519 leaves.
                      'channel_binding=disable\n' for name in ('agent','control'))
     for path,data in [(home/'.pg_service.conf',services.encode()),
@@ -370,7 +403,9 @@ def provision_retained(root,argv,env,request,port):
         'password':{'secret_ref':'oo-lite-agent-db-password'},'tls_ca':{'secret_ref':'oo-lite-ca'},
         'run_id':'initial'})
     save_json(operator/'publisher.json',{'host':'agent-db','port':5432,'database':'postgres',
-        'user':'postgres','password_file':'/pki/lite-admin-password','ca_file':'/pki/lite-ca-cert'})
+        # Home-relative, so the scheduled worker (no /pki mount) can publish too.
+        'user':'postgres','password_file':'/home/oo/.config/open-ontology/secrets/oo-lite-agent-db-password',
+        'ca_file':'/home/oo/.config/open-ontology/secrets/oo-lite-ca'})
     save_json(operator/'model.json',{'model':stack['model']})
     save_json(operator/'build-runtime.json',{'protocol':'oo.build-runtime/v1','source_id':source,
         'library_id':'library','secrets_dir':'/home/oo/.config/open-ontology/secrets',
@@ -385,9 +420,91 @@ def provision_retained(root,argv,env,request,port):
                        'claims':{},'policy_version':'draft-v1','knowledge_version':'draft-v1',
                        'audience_url':public,'ttl_ms':7776000000,'purpose':'first build'}}})
     # Gateway needs a reviewed publication; the first `oo build` publishes it
-    # (verifying it inside the runtime) and then reconciles this deployment.
+    # (verifying it inside the runtime) and then reconciles this deployment,
+    # which arms the scheduled retained cycle and starts the remaining services.
     if (gateway/'reviewed/library/library.json').exists():
-        docker(argv+['--profile','integration','up','--detach','--no-deps','gateway'],env)
+        services=['gateway']
+        if provision_schedule(root,argv,env,request):
+            services+=['builder','worker','scheduler']
+        docker(argv+['--profile','integration','up','--detach','--no-deps',*services],env)
+
+JOBS=['0000_bootstrap_roles.sql','0001_jobs_control_expand.sql',
+      '0002_event_project_binding_expand.sql','0003_job_lease_operations_expand.sql']
+JOBS_VERSIONS=['jobs-bootstrap/1','jobs-control/1','jobs-event-project/1','jobs-lease-operations/1']
+
+def interval_seconds(text):
+    match=re.fullmatch(r'(\d+)([smhd])',text or '8h')
+    if not match:raise ValueError('LITE_SYNC_INTERVAL')
+    seconds=int(match.group(1))*{'s':1,'m':60,'h':3600,'d':86400}[match.group(2)]
+    if not 60<=seconds<=86400:raise ValueError('LITE_SYNC_INTERVAL')
+    return seconds
+
+def provision_schedule(root,argv,env,request):
+    """After the first build: jobs schema, schedule row and schedule.json.
+
+    The cycle reuses the build's owner-reviewed registry and facts; it never
+    creates review decisions. Returns False until the first build completed.
+    """
+    state=root/'work/build/.oo'
+    chain=state/'chain.json'
+    if not chain.exists() or json.loads(read_private(chain)).get('status')!='complete':
+        return False
+    templates=request.get('jobs') or {}
+    if sorted(templates)!=sorted(JOBS):raise ValueError('LITE_JOBS_TEMPLATES')
+    operator=root/'work/operator'
+    path=operator/'schedule.json'
+    saved=json.loads(read_private(path)) if path.exists() else {}
+    project=saved.get('project') or str(uuid.uuid4())
+    if str(uuid.UUID(project))!=project:raise ValueError('LITE_SCHEDULE_PROJECT')
+    installed=compose_input(argv,env,['exec','-T','control-db','psql','-X','-qAt','-U','postgres'],
+        b"SELECT to_regclass('jobs.schema_migrations') IS NOT NULL;",'LITE_JOBS_SCHEMA').strip()
+    if installed!=b't':
+        sql=['BEGIN; SELECT pg_advisory_xact_lock(6401202601);']
+        for i,name in enumerate(JOBS):
+            if i==1:sql.append('SET LOCAL ROLE oo_jobs_owner;')
+            sql.append(templates[name])
+        for version,name in zip(JOBS_VERSIONS,JOBS):
+            digest=hashlib.sha256(templates[name].encode()).hexdigest()
+            sql.append(f"INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) "
+                       f"VALUES('{version}','{digest}','expand','{name}');")
+        # jobs-bootstrap revokes PUBLIC's CONNECT on the control database; the
+        # token store shares it in lite and keeps its own explicit grant.
+        sql.append('RESET ROLE; GRANT CONNECT ON DATABASE postgres TO oo_token_admin, oo_token_runtime;')
+        sql.append('COMMIT;')
+        compose_input(argv,env,['exec','-T','control-db','psql','-X','-q','-v','ON_ERROR_STOP=1',
+                                '-U','postgres'],'\n'.join(sql).encode(),'LITE_JOBS_SCHEMA')
+    stack=request['stack']
+    source=stack['sources'][0]
+    origin={name:{'path':'/work/build/.oo/'+file,
+                  'sha256':hashlib.sha256(read_private(state/file)).hexdigest()}
+            for name,file in [('facts','facts.json'),('reviewed_registry','reviewed-registry.json')]}
+    copy_private(root/'consumer/ca.crt',operator/'probe-ca.crt')
+    copy_private(root/'pki/lite-consumer-cert',operator/'probe.crt')
+    copy_private(root/'pki/lite-consumer-key',operator/'probe.key')
+    port=json.loads(read_private(root/'owner.json'))['gateway_port']
+    config={'project':project,'interval_seconds':interval_seconds(source.get('sync',{}).get('interval')),
+        'control_psql_command':['psql','service=control'],'work_dir':'/work/cycles','cycle':{
+        'stack':'/work/build/stack.json','source':source['id'],'target':'/work/operator/target.json',
+        'secrets_dir':'/home/oo/.config/open-ontology/secrets','library':'library','login':DATA_LOGIN,
+        'publisher_config':'/work/operator/publisher.json','retain_seconds':86400,
+        'builder':{'protocol':'oo.builder.retained-build/v1','library_id':'library',
+                   'source_engine':source['engine'],'project':'lite',
+                   'psql_command':['psql','service=agent'],'origin':origin},
+        'document_path':'/work/operator/gateway/reviewed/library/library.json',
+        'pack_path':'/work/operator/gateway/packs/library.json',
+        'gateway_probe':{'url':f'https://gateway:{port}','ca':'/work/operator/probe-ca.crt',
+                         'cert':'/work/operator/probe.crt','key':'/work/operator/probe.key',
+                         # The owner's first token; the probe reads only freshness.
+                         'token_file':'/work/build/.oo/first-user.token'}}}
+    if saved and saved!=config:raise ValueError('LITE_SCHEDULE_CHANGE_REQUIRES_EXPLICIT_MIGRATION')
+    save_json(path,config)
+    compose_input(argv,env,['exec','-T','control-db','psql','-X','-q','-v','ON_ERROR_STOP=1','-U','postgres'],
+        ("SET ROLE oo_jobs_runtime;\n"
+         "INSERT INTO jobs.schedules(project_id,kind,config_version,artifact_digest,dedupe_prefix,next_run_at) "
+         f"SELECT '{project}','lite_retained','v1','{origin['reviewed_registry']['sha256']}','lite',clock_timestamp() "
+         f"WHERE NOT EXISTS(SELECT 1 FROM jobs.schedules WHERE project_id='{project}' AND kind='lite_retained');\n").encode(),
+        'LITE_SCHEDULE_ROW')
+    return True
 
 def retained_function_exists(argv,env):
     result=subprocess.run(['docker',*argv,'exec','-T','agent-db','psql','-X','-qAt','-U','postgres','-c',
@@ -419,8 +536,12 @@ def main(request):
     port=gateway_port(request['stack'],saved) if action=='up' else saved.get('gateway_port',8443)
     argv=['compose','--project-name',project,'--file',str(root/'compose.yaml')]
     if action=='up' and request.get('retained'):
+        # The Builder job replays the completed runtime build: its exit code
+        # measures that the reviewed chain still verifies, never a new draft.
         write(root/'compose.local.yaml',json.dumps({'services':{'gateway':{
-            'ports':[f'127.0.0.1:{port}:{port}']}}}).encode())
+            'ports':[f'127.0.0.1:{port}:{port}']},'builder':{'command':[
+            'build','--config','/work/build/stack.json','--agent-target','/work/operator/target.json',
+            '--runtime-config','/work/operator/build-runtime.json','--resume','--json']}}}).encode())
     if (root/'compose.local.yaml').exists():
         argv+=['--file',str(root/'compose.local.yaml')]
     ids=docker(['ps','-aq','--filter','label=com.docker.compose.project='+project],env).decode().split()
@@ -473,7 +594,7 @@ def main(request):
     services=[service_status(r) for r in rows]
     gateway={'status':'unmeasured','nearest_credential_expiry_ms':None}
     if action!='down':
-        try:gateway=health(root,request['stack'],port)
+        try:gateway=health(root,request['stack'],port,argv,env)
         except Exception:gateway={'status':'unavailable','nearest_credential_expiry_ms':None}
     history=({'last_success':None,'last_failure':None,'next_due':None,
               'schedule_basis':'control_db','schedule_status':'stopped'}

@@ -78,6 +78,13 @@ pub(super) fn run(
         "compose.yaml":include_str!("../../../../deploy/lite/compose.yaml"),
         "postgres.sh":include_str!("../../../../deploy/lite/postgres.sh"),
         "scheduler.py":include_str!("../../../../deploy/lite/scheduler.py"),
+    },
+    // Control-DB jobs schema for the scheduled cycle, armed after the first build.
+    "jobs":{
+        "0000_bootstrap_roles.sql":include_str!("../../../oo-jobs/migrations/0000_bootstrap_roles.sql"),
+        "0001_jobs_control_expand.sql":include_str!("../../../oo-jobs/migrations/0001_jobs_control_expand.sql"),
+        "0002_event_project_binding_expand.sql":include_str!("../../../oo-jobs/migrations/0002_event_project_binding_expand.sql"),
+        "0003_job_lease_operations_expand.sql":include_str!("../../../oo-jobs/migrations/0003_job_lease_operations_expand.sql"),
     }});
     let mut child = Command::new("python3")
         .args(["-c", include_str!("../../../../deploy/lite/lifecycle.py")])

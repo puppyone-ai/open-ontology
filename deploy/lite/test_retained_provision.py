@@ -78,6 +78,42 @@ class Tests(unittest.TestCase):
         # The Gateway waits for the first reviewed publication.
         self.assertFalse(any('gateway' in c[0] for c in calls if isinstance(c[0], list)))
 
+    def test_schedule_waits_for_the_first_build_and_reuses_its_review(self):
+        request = {'stack': stack(), 'jobs': {name: '-- ' + name for name in lifecycle.JOBS}}
+        self.assertFalse(lifecycle.provision_schedule(self.root, [], {}, request))
+        state = self.root / 'work/build/.oo'
+        state.mkdir(parents=True, mode=0o700)
+        (self.root / 'work/operator').mkdir(mode=0o700)
+        (self.root / 'consumer').mkdir(mode=0o700)
+        lifecycle.write(self.root / 'consumer/ca.crt', b'ca')
+        lifecycle.write(self.root / 'owner.json', json.dumps({'gateway_port': 4443}).encode())
+        for name in ('facts.json', 'reviewed-registry.json'):
+            lifecycle.write(state / name, name.encode())
+        lifecycle.write(state / 'chain.json', b'{"status":"blocked"}')
+        self.assertFalse(lifecycle.provision_schedule(self.root, [], {}, request))
+        lifecycle.write(state / 'chain.json', b'{"status":"complete"}')
+        sql = []
+        with patch.object(lifecycle, 'compose_input',
+                          side_effect=lambda argv, env, args, data, code, *a: sql.append(data) or b'f'):
+            self.assertTrue(lifecycle.provision_schedule(self.root, [], {}, request))
+        installed = sql[1].decode()
+        self.assertIn('RESET ROLE; GRANT CONNECT ON DATABASE postgres TO oo_token_admin', installed)
+        self.assertLess(installed.index('-- 0000_bootstrap_roles.sql'), installed.index('SET LOCAL ROLE oo_jobs_owner'))
+        config = json.loads(lifecycle.read_private(self.root / 'work/operator/schedule.json'))
+        self.assertEqual(config['interval_seconds'], 8 * 3600)
+        self.assertEqual(config['cycle']['gateway_probe']['url'], 'https://gateway:4443')
+        self.assertEqual(config['cycle']['builder']['origin']['reviewed_registry']['path'],
+                         '/work/build/.oo/reviewed-registry.json')
+        self.assertIn(config['project'], sql[2].decode())
+        with self.assertRaisesRegex(ValueError, 'LITE_JOBS_TEMPLATES'):
+            lifecycle.provision_schedule(self.root, [], {}, {'stack': stack()})
+
+    def test_sync_interval_bounds(self):
+        self.assertEqual(lifecycle.interval_seconds('30m'), 1800)
+        for value in ('10s', '2d', 'soon'):
+            with self.assertRaisesRegex(ValueError, 'LITE_SYNC_INTERVAL'):
+                lifecycle.interval_seconds(value)
+
     def test_more_than_one_source_is_refused(self):
         two = stack()
         two['sources'].append(dict(two['sources'][0], id='crm'))
