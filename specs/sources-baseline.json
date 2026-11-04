@@ -1,14 +1,14 @@
 {
   "schema_version": "oo-source-baseline/v1",
   "spec_id": "OO-SPEC-001",
-  "captured_date": "2026-11-04",
+  "captured_date": "2026-11-05",
   "timezone": "Asia/Shanghai",
-  "revision": 22,
-  "supersedes_revision": 21,
-  "supersedes_baseline_head": "c41bf74658bd90ce9b74d20753c6fa6a5465d37d",
-  "supersedes_sha256": "7ba178d3bd1dce5b338eb78628a7919ad83953eef9364df8298be67a3e6f3eca",
-  "review_record": "specs/source-baseline-revision-22.md",
-  "baseline_head": "f91aa7a0763885ee143da94f2c80d4a7d026958f",
+  "revision": 23,
+  "supersedes_revision": 22,
+  "supersedes_baseline_head": "f91aa7a0763885ee143da94f2c80d4a7d026958f",
+  "supersedes_sha256": "41ee9c00492c7e1b62319561c5a32e6acc3b8d74d61c8b19ab5409e3f23b6917",
+  "review_record": "specs/source-baseline-revision-23.md",
+  "baseline_head": "b3218352d74ffdc1fa28f645000e36e43a177b90",
   "source_count": 26,
   "sources": [
     {
@@ -145,9 +145,9 @@
     },
     {
       "path": "docs/product/04-onboarding-and-gateway-binding.md",
-      "sha256": "ed0069c8d6d3bb68b002ecbaf08399f50670ea5d62d00a2bba5e7990d6875d90",
-      "bytes": 16917,
-      "lines": 198
+      "sha256": "86c1772c1814920849be1444bbe7de7412206bb701087ec2eb6b6267c4efa54f",
+      "bytes": 17489,
+      "lines": 200
     },
     {
       "path": "docs/product/05-version-matrix-and-testing.md",
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); scheduled lite cycle"
+  "review_status": "owner self-review (D6); D16 lite provisioning"
 }
