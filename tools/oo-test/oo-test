@@ -4,6 +4,9 @@ sys.dont_write_bytecode = True
 if sys.argv[1:2] == ["t2"]:
     del sys.argv[1]
     from t2 import main
+elif sys.argv[1:2] == ["t3t4"]:
+    del sys.argv[1]
+    from t3t4 import main
 else:
     from runner import main
 

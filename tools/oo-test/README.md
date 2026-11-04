@@ -224,3 +224,53 @@ The command exits nonzero for missing/failed T2 or cleanup failures.
 This does not exercise C5-to-C1 handoff, full type/scale fixtures or T7. MySQL
 and Oracle T2 are not implemented by this entry; do not infer those engine
 exits from the PostgreSQL results or the separate synthetic-source target tests.
+
+## Lane N T3 fault injection and T4 schema change
+
+```sh
+tools/oo-test/oo-test t3t4 --engine mysql --versions 5.7,8.0,8.4,9 --run-id my-t3t4-mysql
+tools/oo-test/oo-test t3t4 --engine postgres --versions 13,14,15,16,17,18 --run-id my-t3t4-pg
+tools/oo-test/oo-test t3t4 --engine postgres --versions 18 --run-id x --cases slot_invalidation
+```
+
+Requires `target/debug/oo-load` built with `--features mysql-binlog`.
+Images resolve only through the v0.2 lock (`runner.resolve`). Per version it
+owns one source and one Agent DB container (`oo.lane=n`), both on fixed
+loopback ports (the binding identity includes the source port) and the
+Agent DB on a labelled volume so a restart keeps its data.
+
+T3 (each: fault, then resume or a named refusal with the published target
+unchanged, then zero divergence of columns and rows):
+
+- `source_restart_mid_chunk`: `docker restart` of the source after >=3
+  snapshot chunks committed; resume the same run ID.
+- `network_drop_mid_c1`, `network_drop_mid_c5`: `docker network disconnect`
+  for 20 s after the C1 position / C5 staging advanced.
+- `target_restart_mid_publish`: Agent DB restart mid snapshot, mid C5
+  replacement staging and mid C1 apply.
+- `sigkill_mid_cycle`: SIGKILL of oo-load mid snapshot, C5 and C1.
+- `retention_expiry`: MySQL binlog expiry (8.0+ `binlog_expire_logs_seconds`,
+  5.7 `PURGE ... BEFORE NOW()`); PostgreSQL slot dropped by the DBA.
+- `slot_invalidation` (PostgreSQL): `max_slot_wal_keep_size` WAL removal on
+  13-18, plus `idle_replication_slot_timeout` on 18.
+- `gtid_purge` (MySQL): GTID purge, and GTID/binlog reset until the durable
+  file name and offset exist again with different history.
+
+Refusals must be closed codes; a rebaseline is a new binding generation
+(snapshot + handoff on MySQL, new slot + snapshot on PostgreSQL), verified
+equal after further DML. Every C1 resume must keep durable positions
+monotonic; snapshot resumes must not duplicate chunk receipts.
+
+T4 (C5 and C1 bindings per case): add/drop/rename column, int->bigint,
+add table, drop table, drop then re-add a (different) primary key. After the
+DDL with no DML, and again after DML, each path must apply online with zero
+divergence or refuse by name with the target unchanged; refused paths are
+rebaselined and must reach zero divergence, except unsupported shapes
+(keyless C1/PG C5), which must refuse by name.
+
+Harness recoveries are recorded in `operator_recoveries`: after a
+reconnect MySQL's host cache is cleared without binlogging, and a Docker
+Desktop published port lost after reconnect is restored by a container
+restart. Evidence is `evidence/<run-id>/<engine>-<version>/t3t4.json` plus
+raw numbered commands. Compact fixture (bigint/int/varchar, 20,000-row bulk
+table), consistency `B`; not full type/scale or T7 proof.
