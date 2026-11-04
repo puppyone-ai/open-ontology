@@ -10,6 +10,14 @@ uses Node's trusted roots for authentication and version checks. Minimal Linux i
 provide a CA bundle, or the operator must configure an approved `--ca-file`.
 The CLI never disables certificate or hostname verification to make a query work.
 
+Release staging requires an `oo-lite-image` file next to each input native
+binary. It contains the pinned lite runtime reference for that target's Docker
+architecture (prefer `registry/repository@sha256:...`; a bare local image ID
+requires an offline image archive). Staging copies it beside the installed
+binary and refuses missing or unpinned sidecars. `NOTICE`,
+`THIRD_PARTY_NOTICES.txt`, and `dependencies.json` are included in the npm pack;
+source-notice collection is not legal clearance or a per-binary linkage audit.
+
 ## Install and configure
 
 After the package has been published:

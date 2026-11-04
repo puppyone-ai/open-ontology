@@ -17,6 +17,7 @@
     "native/manifest.json",
     "native/*/oo",
     "native/*/oo.exe",
+    "native/*/oo-lite-image",
     "README.md",
     "LICENSE",
     "NOTICE",

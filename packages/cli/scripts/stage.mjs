@@ -28,6 +28,14 @@ export function checkBinary(bytes, target) {
   }
 }
 
+export function checkImage(value) {
+  const image = value.trim();
+  if (!/^(?:[a-z0-9][a-z0-9./:_-]*@)?sha256:[0-9a-f]{64}$/.test(image)) {
+    throw new Error('lite image sidecar must contain a pinned content digest');
+  }
+  return image + '\n';
+}
+
 async function outsideRepository(output) {
   const parent = await realpath(dirname(resolve(output)));
   for (let current = parent; ; current = dirname(current)) {
@@ -59,7 +67,8 @@ export async function stage({ output, binaries, notices, root = packageRoot }) {
   for (const [target, path] of binaries) {
     const bytes = await readFile(path);
     checkBinary(bytes, target);
-    verified.push({ target, path, bytes });
+    const image = checkImage(await readFile(join(dirname(path), 'oo-lite-image'), 'utf8'));
+    verified.push({ target, path, bytes, image });
   }
   // Construct an allowlisted clean directory; never npm-pack the repository.
   await mkdir(output, { mode: 0o700 });
@@ -72,11 +81,12 @@ export async function stage({ output, binaries, notices, root = packageRoot }) {
   await writeFile(join(output, 'dependencies.json'), dependencies);
   await writeFile(join(output, 'SKILL.md'), skill);
   const manifest = { schema_version: 1, skill_sha256: sha256(skill), binaries: {} };
-  for (const { target, bytes } of verified) {
+  for (const { target, bytes, image } of verified) {
     const relative = `native/${target}/oo${target.startsWith('win32-') ? '.exe' : ''}`;
     await mkdir(dirname(join(output, relative)), { recursive: true });
     await writeFile(join(output, relative), bytes);
     await chmod(join(output, relative), 0o755);
+    await writeFile(join(dirname(join(output, relative)), 'oo-lite-image'), image);
     manifest.binaries[target] = { path: relative, sha256: sha256(bytes) };
   }
   await writeFile(join(output, 'native/manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
