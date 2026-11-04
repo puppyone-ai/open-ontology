@@ -83,6 +83,9 @@ pub enum Invocation {
 
 pub fn parse() -> Result<Invocation, Failure> {
     let args = os_args()?;
+    if let Some(result) = admin::askpass(&args) {
+        return result;
+    }
     let args = expand_long_options(&args);
     if let Some(result) = crate::lifecycle::dispatch(&args) {
         return result;

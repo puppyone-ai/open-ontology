@@ -5,6 +5,7 @@ mod doctor;
 mod lite;
 mod ontology;
 mod progress;
+mod remote;
 mod review;
 mod wizard;
 use oo_stack::stack;
@@ -19,6 +20,7 @@ use std::path::Path;
 pub const HELP: &str = "\
 Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
@@ -39,12 +41,21 @@ up bootstraps private credentials and starts only lite foundations; exit 1
 and foundations_only mean worker/scheduler/Gateway integration is still pending.
 up requires a repository-built OO_LITE_RUNTIME_IMAGE content digest.
 down stops this deployment only; database volumes and credentials are retained.
+--target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
+Linux host: pinned host key, Docker/compose/systemd checks, digest images,
+0600 secrets via stdin, a systemd timer for the scheduled cycle. Re-run is a
+no-op; down --target ssh removes everything it created, volumes included.
 doctor probes sources read-only and the model through model-egress.
 PostgreSQL/MySQL require tls_ca.secret_ref and explicit scope.include tables.
 MySQL requires oo-mysql-doctor beside oo.
 Unknown estimates remain null; blocked diagnostics exit nonzero.
 status <query_id> remains the consumer query-status command.
 Other admin operations are not yet implemented (ADMIN_NOT_IMPLEMENTED).";
+
+/// `SSH_ASKPASS` re-entry for `--target ssh` password authentication.
+pub fn askpass(args: &[String]) -> Option<Result<Invocation, Failure>> {
+    remote::askpass(args)
+}
 
 pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
     let (command, rest) = args.split_first()?;
@@ -84,9 +95,13 @@ fn is_admin(command: &str) -> bool {
 
 fn admin_status(args: &[String]) -> bool {
     args.is_empty()
-        || args
-            .iter()
-            .any(|s| s == "--config" || s.starts_with("--config=") || s == "--yes")
+        || args.iter().any(|s| {
+            s == "--config"
+                || s.starts_with("--config=")
+                || s == "--yes"
+                || s == "--target"
+                || s.starts_with("--target=")
+        })
         || args.iter().all(|s| s == "--json")
 }
 
@@ -114,6 +129,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
             && matches!(
                 flag,
                 "--config"
+                    | "--target"
                     | "--format"
                     | "--role"
                     | "--agent-target"
@@ -127,6 +143,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
         }
     }
     let mut config = None;
+    let mut target = None;
     let mut json = false;
     let mut resume = false;
     let mut agent_target = None;
@@ -147,8 +164,8 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
             "--yes" => (),
             "--resume" if command == "build" => resume = true,
             "--draft-only" if command == "build" => draft_only = true,
-            "--config" | "--format" | "--role" | "--agent-target" | "--review-input"
-            | "--review-file" => {
+            "--config" | "--target" | "--format" | "--role" | "--agent-target"
+            | "--review-input" | "--review-file" => {
                 index += 1;
                 let value = args
                     .get(index)
@@ -156,6 +173,12 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
                     .ok_or_else(|| Failure::usage("ADMIN_ARGUMENT: missing option value"))?;
                 match arg {
                     "--config" => config = Some(value.as_str()),
+                    "--target"
+                        if matches!(command, "up" | "down" | "status")
+                            && matches!(value.as_str(), "local" | "ssh") =>
+                    {
+                        target = Some(value.as_str())
+                    }
                     "--agent-target" if command == "build" => agent_target = Some(Path::new(value)),
                     "--review-input" if command == "build" => review_input = Some(Path::new(value)),
                     "--review-file" if command == "build" => review_file = Some(Path::new(value)),
@@ -221,6 +244,18 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
             review_file,
         );
     }
+    if matches!(command, "up" | "down" | "status") {
+        let path = Path::new(config.unwrap_or("stack.yaml"));
+        let mut stack = read_stack(path)?;
+        match target.unwrap_or(stack.deploy.target.as_str()) {
+            "ssh" => return remote::run(command, path, &stack),
+            _ if target == Some("local") => stack.deploy.target = "local".into(),
+            _ => (),
+        }
+        if command != "status" {
+            return lite::run(command, path, &stack);
+        }
+    }
     if command == "status" {
         let path = Path::new(config.unwrap_or("stack.yaml"));
         let stack = read_stack(path)?;
@@ -238,10 +273,6 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
             return lite::run("status", path, &stack);
         }
         return progress::status(path, json);
-    }
-    if matches!(command, "up" | "down") {
-        let path = Path::new(config.unwrap_or("stack.yaml"));
-        return lite::run(command, path, &read_stack(path)?);
     }
     if command != "init" {
         return Err(Failure::local(
