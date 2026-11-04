@@ -27,6 +27,21 @@ fn persist(root: &Path, state: &Value) -> Result<(), Failure> {
         .map_err(|_| Failure::local("BUILD_STATE_IO"))
 }
 
+#[cfg(debug_assertions)]
+fn pause_checkpoint_test(stage: &str) -> Result<(), Failure> {
+    // Live tests kill the real CLI after a durable checkpoint. Release builds
+    // have no failpoint, and no publication or review gate is bypassed.
+    if std::env::var("OO_BUILD_TEST_PAUSE_AFTER").as_deref() == Ok(stage)
+        && !std::process::Command::new("/bin/kill")
+            .args(["-STOP", &std::process::id().to_string()])
+            .status()
+            .is_ok_and(|s| s.success())
+    {
+        return Err(Failure::local("BUILD_TEST_PAUSE"));
+    }
+    Ok(())
+}
+
 fn artifact(root: &Path, name: &str) -> Result<String, Failure> {
     if name.contains('/') || name.contains('\\') || matches!(name, "" | "." | "..") {
         return Err(Failure::local("BUILD_ARTIFACT_PATH"));
@@ -360,6 +375,8 @@ pub(super) fn run(
         state["stages"][index]["status"] = json!("complete");
         state["stages"][index]["completed"] = json!(1);
         persist(&root, &state)?;
+        #[cfg(debug_assertions)]
+        pause_checkpoint_test(STAGES[index])?;
     }
     state["status"] = json!("complete");
     persist(&root, &state)?;

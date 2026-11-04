@@ -12,6 +12,7 @@ import signal
 import ssl
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -113,9 +114,12 @@ class Live(cycles.Live):
                             'role': 'oo_r_owner', 'claims': {}, 'policy_version': 'draft-v1', 'knowledge_version': 'draft-v1',
                             'audience_url': self.origin, 'ttl_ms': 86400000, 'purpose': 'build'}}}))
 
+    def build_args(self, extra):
+        return [str(BIN / 'oo'), 'build', '--config', str(self.stack), '--agent-target', str(self.target),
+                '--runtime-config', str(self.runtime_config), *extra]
+
     def build(self, extra, name):
-        result = subprocess.run([str(BIN / 'oo'), 'build', '--config', str(self.stack), '--agent-target', str(self.target),
-                                 '--runtime-config', str(self.runtime_config), *extra], capture_output=True, timeout=2000)
+        result = subprocess.run(self.build_args(extra), capture_output=True, timeout=2000)
         # Output includes one-use credentials. Keep it private, not in test logs.
         (self.root / (name + '.stdout')).write_bytes(result.stdout)
         (self.out / (name + '.stderr')).write_bytes(result.stderr)
@@ -124,13 +128,43 @@ class Live(cycles.Live):
         cycles.write_json(self.out / (name + '-state.json'), state)
         return result, state
 
+    def kill_checkpoint(self, stage, extra):
+        env = dict(os.environ, OO_BUILD_TEST_PAUSE_AFTER=stage)
+        with (self.root / ('kill-' + stage + '.stdout')).open('wb') as out, \
+                (self.out / ('kill-' + stage + '.stderr')).open('wb') as err:
+            child = subprocess.Popen(self.build_args(extra), stdout=out, stderr=err, env=env)
+            stopped = False
+            try:
+                deadline = time.monotonic() + 2000
+                while child.poll() is None and time.monotonic() < deadline:
+                    status = subprocess.run(['ps', '-o', 'stat=', '-p', str(child.pid)],
+                                            capture_output=True, text=True, check=False).stdout
+                    if 'T' in status:
+                        stopped = True
+                        break
+                    time.sleep(.05)
+            finally:
+                if child.poll() is None:
+                    child.kill()
+                child.wait()
+        assert stopped and child.returncode == -signal.SIGKILL, ('checkpoint not killed', stage)
+        state = json.loads((self.root / '.oo/chain.json').read_text())
+        assert next(s for s in state['stages'] if s['name'] == stage)['status'] == 'complete'
+        cycles.write_json(self.out / ('kill-' + stage + '.json'),
+                          {'stage': stage, 'signal': 'SIGKILL', 'checkpoint': 'complete',
+                           'state': state})
+
     def exercise(self):
-        first, state = self.build([], 'initial')
+        for index, stage in enumerate(['load', 'candidate', 'builder']):
+            self.kill_checkpoint(stage, [] if index == 0 else ['--resume'])
+        first, state = self.build(['--resume'], 'initial')
         assert first.returncode == 1 and state['stages'][3]['status'] == 'blocked', ('expected explicit owner review', state)
         self.db.sql('GRANT EXECUTE ON FUNCTION _oo.native_library_retained_table(text) TO oo_f22_login;')
         source = self.root / '.oo/review-input.json'
         decisions = self.root / 'decisions.json'
         cycles.private(decisions, json.dumps(retained_fixture.accept_all(json.loads(source.read_text()))))
+        for stage in ['self_review', 'publish', 'gateway', 'first_token', 'share_prompt']:
+            self.kill_checkpoint(stage, ['--resume', '--review-file', str(decisions)])
         second, state = self.build(['--resume', '--review-file', str(decisions)], 'reviewed')
         assert second.returncode == 0 and state['status'] == 'complete', ('build failed', state)
         prompt = second.stdout.decode()
@@ -154,6 +188,7 @@ class Live(cycles.Live):
         result = {'engine': self.engine, 'version': self.source_version, 'neutral_fixture_tables': 2,
                   'build': 'complete', 'printed_login': 'passed' if login_ok else 'blocked', 'whoami': 'passed' if login_ok else 'not_run', 'query': 'passed' if login_ok else 'not_run',
                   'model_calls': state['model_calls']}
+        result['sigkill_resumed'] = [s['name'] for s in state['stages']]
         # A direct mTLS query isolates publication/data correctness from consumer
         # CLI negotiation failures. It never counts as native CLI acceptance.
         result['explicit_native_query'] = self.native_query('explicit-query')
@@ -176,14 +211,15 @@ class Live(cycles.Live):
             result['data_only'] = {'model_calls': 0, 'unchanged_cut_snapshot_completion': True,
                                    'new_data_served': served,
                                    'direct_mtls_query': query,
-                                   'explicit_native_query': self.native_query('cycle-native-query')}
+                                   'explicit_native_query': self.native_query('cycle-native-query', '1001.1250')}
         cycles.write_json(self.out / 'acceptance.json', result)
         assert result['direct_mtls_query']['status'] == 200, 'baseline Gateway query failed'
         assert self.engine != 'postgres' or result['data_only']['new_data_served'], 'new data not served'
+        assert self.engine != 'postgres' or result['data_only']['explicit_native_query']['passed'], 'native cycle query failed'
         assert login_ok, 'consumer CLI login verification blocked; retained cycle evidence recorded separately'
         assert result['explicit_native_query']['passed'], 'native CLI query failed'
 
-    def native_query(self, name):
+    def native_query(self, name, expected=None):
         env = dict(os.environ, OO_CONFIG_DIR=str(self.root / 'unbound-consumer'))
         query = subprocess.run([str(BIN / 'oo'), 'query', '--json', '--auth', 'external',
             '--transport', 'production', '--gateway', self.origin,
@@ -192,6 +228,10 @@ class Live(cycles.Live):
             capture_output=True, env=env, timeout=40)
         (self.out / (name + '.stdout')).write_bytes(query.stdout)
         (self.out / (name + '.stderr')).write_bytes(query.stderr)
+        if query.returncode == 0:
+            value = json.loads(query.stdout)
+            expected = expected or ('1.125' if self.engine == 'oracle' else '1.1250')
+            assert value['rows'] == [[expected]] and value['truncated'] is False, name
         return {'exit': query.returncode, 'passed': query.returncode == 0}
 
     def direct_query(self, name):
