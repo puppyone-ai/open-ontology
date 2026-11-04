@@ -12,7 +12,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[3]
 IMAGES = {
-    "mariadb": ["mariadb:10.6", "mariadb:10.11", "mariadb:11.4", "mariadb:11.8"],
+    "mariadb": ["mariadb:10.6.28", "mariadb:10.11.19", "mariadb:11.4.13", "mariadb:11.8.9"],
     "tidb": ["pingcap/tidb:v7.5.0", "pingcap/tidb:v8.5.0"],
     "oceanbase": ["oceanbase/oceanbase-ce:4.3.5.4-104000042025090916"],
 }
@@ -22,7 +22,7 @@ def run(args, **kw):
     return subprocess.run(args, check=True, capture_output=True, **kw).stdout
 
 def preflight(family):
-    minimum = 16 if family == "oceanbase" else 3
+    minimum = 20
     if shutil.disk_usage(ROOT).free < minimum * 1024**3:
         raise RuntimeError(f"fixture requires at least {minimum} GiB free host disk")
     owned = run(["docker", "ps", "--filter", "label=oo.lane=c", "--format", "{{.Names}}"]).splitlines()
@@ -33,8 +33,17 @@ def private(path, text):
     path.write_text(text)
     path.chmod(0o600)
 
+def pinned_image(image, family, platform):
+    repository, version = image.rsplit(":", 1)
+    pin_id = family + "-" + version.split("-")[0].lstrip("v")
+    matches = [parts[2] for line in (ROOT / "testing/infra/images.pins").read_text().splitlines()
+               if len(parts := line.split()) == 3 and parts[:2] == [pin_id, platform]]
+    if len(matches) != 1 or not matches[0].startswith("sha256:") or len(matches[0]) != 71:
+        raise RuntimeError("missing or ambiguous platform image pin")
+    return repository + "@" + matches[0]
+
 def source_manifest():
-    files = [Path(__file__).resolve(), ROOT / "crates/oo-connectors/tests/mysql_families_live.rs"]
+    files = [Path(__file__).resolve(), Path(__file__).with_name("load.py"), ROOT / "crates/oo-connectors/tests/mysql_families_live.rs", ROOT / "testing/infra/images.pins"]
     for family in ["mysql", "mariadb", "tidb", "oceanbase"]:
         files.extend((ROOT / "crates/oo-connectors/src" / family).glob("*.rs"))
     return {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(files)}
@@ -50,6 +59,8 @@ def main():
     parser.add_argument("--family", choices=IMAGES, required=True)
     parser.add_argument("--image")
     parser.add_argument("--run-id", required=True)
+    parser.add_argument("--loader-snapshot", action="store_true",
+                        help="compare static oo-load snapshots against an owned Agent DB")
     args = parser.parse_args()
     if not args.run_id or not all(c.isascii() and (c.isalnum() or c in "-_") for c in args.run_id):
         parser.error("run-id must contain only ASCII letters, digits, dash or underscore")
@@ -73,13 +84,15 @@ def main():
                 private(directory / (user + "-password"), secrets.token_hex(24))
             private(directory / "admin.cnf", "[client]\nuser=root\npassword=" + (directory / "root-password").read_text() + "\n")
             platform = "linux/arm64" if args.family == "mariadb" else "linux/amd64"
-            pull = subprocess.run(["docker", "pull", "--platform", platform, image], capture_output=True, timeout=300)
+            digest = pinned_image(image, args.family, platform)
+            pull = subprocess.run(["docker", "pull", "--platform", platform, digest], capture_output=True, timeout=300)
             (directory / "pull.log").write_bytes(pull.stdout + pull.stderr)
             if pull.returncode:
                 raise RuntimeError("image pull failed")
-            inspected = json.loads(run(["docker", "image", "inspect", image]))[0]
-            digest = inspected["RepoDigests"][0]
+            inspected = json.loads(run(["docker", "image", "inspect", digest]))[0]
             (directory / "image.json").write_text(json.dumps({"tag": image, "digest": digest, "id": inspected["Id"], "platform": platform}, indent=2))
+            # Pulls consume disk too; enforce the reserve at container creation.
+            preflight(args.family)
             port = "2881" if args.family == "oceanbase" else "4000" if args.family == "tidb" else "3306"
             cmd = ["docker", "run", "-d", "--name", name, "--label", "oo.lane=c", "--label", f"oo.run_id={args.run_id}", "--platform", platform, "-p", f"127.0.0.1::{port}", "--mount", f"type=bind,source={directory},target=/fixture,readonly"]
             if args.family == "mariadb":
@@ -110,14 +123,22 @@ def main():
                 run(["docker", "exec", name, "bash", "-c", "mkdir -p /root/ob/observer/wallet; cp /fixture/ca.pem /fixture/server-cert.pem /fixture/server-key.pem /root/ob/observer/wallet/"])
                 run(["docker", "exec", name, "obclient", "--defaults-extra-file=/fixture/admin.cnf", "-h127.0.0.1", "-P2881", "-e", "ALTER SYSTEM SET ssl_client_authentication = true"])
             mapped = run(["docker", "port", name, port + "/tcp"]).decode().strip().rsplit(":", 1)[1]
-            config = dict(family=args.family, port=int(mapped), ca=str(directory / "ca.pem"), root_password=str(directory / "root-password"), reader_password=str(directory / "reader-password"), writer_password=str(directory / "writer-password"), out=str(directory), container=name)
+            config = dict(family=args.family, port=int(mapped), ca=str(directory / "ca.pem"), root_password=str(directory / "root-password"), reader_password=str(directory / "reader-password"), writer_password=str(directory / "writer-password"), out=str(directory), container=name, loader_snapshot=args.loader_snapshot)
             private(directory / "config.json", json.dumps(config))
             env = dict(os.environ, OO_FAMILY_FIXTURE=str(directory / "config.json"))
             test = subprocess.run(["cargo", "test", "-p", "oo-connectors", "--locked", "--features", "mysql-binlog", "--test", "mysql_families_live", "family_snapshot_c5", "--", "--ignored", "--nocapture"], capture_output=True, env=env, timeout=900)
             (directory / "test.log").write_bytes(test.stdout + test.stderr)
             results[image] = {"exit": test.returncode, "fixture": "unistore single-node" if args.family == "tidb" else "standalone", "digest": digest}
+            loader_result = directory / "loader/result.json"
+            if args.loader_snapshot and loader_result.exists():
+                loader = json.loads(loader_result.read_text())
+                results[image]["loader_status"] = loader["status"]
+                if loader["cleanup"] not in ("removed", "not_created"):
+                    results[image]["cleanup_required_target"] = loader["cleanup"]
         except Exception as error:
             results[image] = {"error": type(error).__name__, "detail": str(error) if isinstance(error, RuntimeError) else "fixture command failed; inspect private evidence"}
+            if isinstance(error, subprocess.CalledProcessError):
+                (directory / "command-failure.log").write_bytes((error.stdout or b"") + (error.stderr or b""))
         finally:
             if source_manifest() != source:
                 results[image]["source_changed"] = True
@@ -136,10 +157,10 @@ def main():
                 except subprocess.TimeoutExpired:
                     results[image]["cleanup_required"] = name
             (evidence / "results.json").write_text(json.dumps(results, indent=2))
-        if results[image].get("cleanup_required"):
+        if results[image].get("cleanup_required") or results[image].get("cleanup_required_target"):
             break
     print(json.dumps(results, indent=2))
-    return int(any(v.get("exit") != 0 or v.get("cleanup_required") or v.get("source_changed") for v in results.values()))
+    return int(any(v.get("exit") != 0 or v.get("cleanup_required") or v.get("cleanup_required_target") or v.get("source_changed") for v in results.values()))
 
 if __name__ == "__main__":
     raise SystemExit(main())

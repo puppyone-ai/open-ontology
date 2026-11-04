@@ -131,7 +131,23 @@ async fn exercise(engine: &mut impl SourceEngine, admin: &mut mysql_async::Conn,
         assert_eq!(rows, count, "{name}");
         receipts.push(json!({"table":name,"plan":plan,"receipts":chunks}));
     }
-    assert_eq!(engine.discover_tables(&budget).await.unwrap().len(), 5);
+    let mut discovered = engine.discover_tables(&budget).await.unwrap();
+    discovered.sort();
+    assert_eq!(
+        discovered,
+        [
+            "composite_rows",
+            "empty_rows",
+            "no_key",
+            "rows",
+            "text_rows",
+            "typed_rows"
+        ]
+        .map(|name| TableRef {
+            schema: "fixture".into(),
+            name: name.into(),
+        })
+    );
     save(v, "snapshot.json", json!(receipts));
     let table = TableRef {
         schema: "fixture".into(),
@@ -306,6 +322,24 @@ async fn family_snapshot_c5() {
             .await
             .unwrap();
     }
+    if v["loader_snapshot"] == true {
+        let output = std::process::Command::new("python3")
+            .current_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."))
+            .args([
+                "testing/engines/mariadb/load.py",
+                &std::env::var("OO_FAMILY_FIXTURE").unwrap(),
+            ])
+            .output()
+            .unwrap();
+        fs::write(
+            Path::new(v["out"].as_str().unwrap()).join("loader-driver.log"),
+            [output.stdout, output.stderr].concat(),
+        )
+        .unwrap();
+        admin.disconnect().await.unwrap();
+        assert!(output.status.success(), "static loader comparison failed");
+        return;
+    }
     let options = EngineOptions {
         protection: mysql::protect::Protection {
             max_pause: Duration::from_secs(2),
@@ -317,6 +351,35 @@ async fn family_snapshot_c5() {
         },
         ..Default::default()
     };
+    if v["family"] == "oceanbase" {
+        let plan: Vec<mysql_async::Row> = admin
+            .query("EXPLAIN FORMAT=TRADITIONAL SELECT id,payload FROM fixture.`rows` FORCE INDEX(PRIMARY) WHERE id>=2 AND id<5 ORDER BY id LIMIT 2")
+            .await
+            .unwrap();
+        save(
+            &v,
+            "explain.json",
+            json!(
+                plan.iter()
+                    .map(|r| r.get::<String, _>(0).unwrap())
+                    .collect::<Vec<_>>()
+            ),
+        );
+        let empty_plan: Vec<mysql_async::Row> = admin
+            .query("EXPLAIN FORMAT=TRADITIONAL SELECT id,payload FROM fixture.empty_rows FORCE INDEX(PRIMARY) ORDER BY id LIMIT 1")
+            .await
+            .unwrap();
+        save(
+            &v,
+            "explain-empty.json",
+            json!(
+                empty_plan
+                    .iter()
+                    .map(|r| r.get::<String, _>(0).unwrap())
+                    .collect::<Vec<_>>()
+            ),
+        );
+    }
     match v["family"].as_str().unwrap() {
         "mariadb" => {
             let mut e = MariadbEngine::new(config(&v, "reader"), secret, options);
@@ -557,7 +620,12 @@ async fn whole_table(admin: &mut mysql_async::Conn, name: &str) -> RecordBatch {
         _ => "id",
     };
     let rows: Vec<mysql_async::Row> = admin
-        .query(format!("SELECT * FROM fixture.`{name}` ORDER BY {order}"))
+        // decode_mapped consumes typed binary-protocol cells, not text-protocol
+        // numeric strings. Keep the oracle independent of bounded page SQL.
+        .exec(
+            format!("SELECT * FROM fixture.`{name}` ORDER BY {order}"),
+            (),
+        )
         .await
         .unwrap();
     let decoded = rows
