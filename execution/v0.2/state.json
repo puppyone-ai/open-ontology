@@ -1302,9 +1302,9 @@
       "sprint": "S6",
       "lane": "M",
       "title": "Quickstart（三分钟上手）、`oo --help` 全命令、故障排查、DBA 权限清单（按引擎版本）",
-      "status": "pending",
-      "owner": null,
-      "branch": null,
+      "status": "in_progress",
+      "owner": "lane-M",
+      "branch": "v0.2/m-pipeline",
       "commits": [],
       "evidence": []
     },

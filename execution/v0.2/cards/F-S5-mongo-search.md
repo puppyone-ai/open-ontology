@@ -13,3 +13,7 @@ unavoidable (then cargo deny + cargo audit).
 2. OpenSearch (one current 2.x/3.x) and Elasticsearch (one current 8.x/9.x, security on): point-in-time + search_after
    snapshots, C5 digests per index/shard range; no log CDC. T0, T1, T2 (C5), T8.
 Do not run privileged containers that run systemd or change binfmt/sysctl.
+Resume note (E314): your first run was stopped by the host disk guard (E269). The worktree keeps your committed
+c1172b1bf and uncommitted tools/oo-load changes — review them, commit what is correct, then rebase on
+v0.2/product-loops (it moved a lot: typed Oracle, negative-scale decimals, SQL Server/OLAP arms in tools/oo-load).
+Dispatch now deletes every Cargo target dir after a run: build what you need first.
