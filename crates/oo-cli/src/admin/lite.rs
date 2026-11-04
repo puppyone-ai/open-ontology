@@ -309,6 +309,11 @@ fn require_images(runtime: &str) -> Result<(), Failure> {
         .find(|image| image.contains("postgres@sha256:"))
         .filter(|image| digest(image))
         .ok_or_else(|| Failure::local("LITE_COMPOSE_TEMPLATE"))?;
+    let postgres_override = std::env::var("OO_LITE_POSTGRES_IMAGE").ok();
+    let postgres = postgres_override.as_deref().unwrap_or(postgres);
+    if !digest(postgres) {
+        return Err(Failure::local("LITE_IMAGE_DIGEST_REQUIRED"));
+    }
     let mut info = Command::new("docker");
     info.args(["info", "--format", "{{.OSType}}"]);
     let (exit, _, _) = super::build_retained::invoke(info, vec![], 30)
