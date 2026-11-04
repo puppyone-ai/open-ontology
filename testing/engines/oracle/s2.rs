@@ -8,7 +8,9 @@ use crate::SourceError;
 use crate::engine::*;
 use crate::oracle::engine::{OracleConnectConfig, OracleEngine, map_ora as thin_error};
 use crate::oracle::worker::{DriverError, Worker};
-use arrow_array::{Array, RecordBatch, StringArray};
+use arrow_array::{
+    Array, Decimal128Array, Int64Array, RecordBatch, StringArray, TimestampMicrosecondArray,
+};
 use arrow_ipc::writer::StreamWriter;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -189,8 +191,26 @@ impl ChunkSink for Sink {
                 .columns()
                 .iter()
                 .map(|col| {
-                    let col = col.as_any().downcast_ref::<StringArray>().unwrap();
-                    (!col.is_null(i)).then(|| col.value(i).to_owned())
+                    if col.is_null(i) {
+                        None
+                    } else if let Some(col) = col.as_any().downcast_ref::<Int64Array>() {
+                        Some(col.value(i).to_string())
+                    } else if let Some(col) = col.as_any().downcast_ref::<Decimal128Array>() {
+                        assert_eq!(col.scale(), 0);
+                        Some(col.value(i).to_string())
+                    } else if let Some(col) =
+                        col.as_any().downcast_ref::<TimestampMicrosecondArray>()
+                    {
+                        Some(col.value(i).to_string())
+                    } else {
+                        Some(
+                            col.as_any()
+                                .downcast_ref::<StringArray>()
+                                .unwrap()
+                                .value(i)
+                                .to_owned(),
+                        )
+                    }
                 })
                 .collect();
             assert!(
@@ -207,7 +227,9 @@ impl ChunkSink for Sink {
 fn reference(conn: &Connection, table: &str, scn: u64, keys: usize) -> Rows {
     let projection = match table {
         "NUMERIC_PK" => "TO_CHAR(ID,'TM9'), PAYLOAD, EMPTY_VALUE",
-        "C5_HINT" => "TO_CHAR(ID,'TM9'), PAYLOAD, TO_CHAR(UPDATED_AT,'YYYY-MM-DD\"T\"HH24:MI:SS')",
+        "C5_HINT" => {
+            "TO_CHAR(ID,'TM9'), PAYLOAD, TO_CHAR((UPDATED_AT-DATE '1970-01-01')*86400000000,'TM9')"
+        }
         "COMPOSITE_PK" => "TO_CHAR(ID,'TM9'), CODE, PAYLOAD",
         "HEAP" | "GROWING" => "TO_CHAR(ID,'TM9'), PAYLOAD",
         _ => "ID, PAYLOAD",

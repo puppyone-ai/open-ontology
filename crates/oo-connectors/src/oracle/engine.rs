@@ -20,7 +20,7 @@ use std::io::Write;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use arrow_array::{ArrayRef, RecordBatch, StringArray};
+use arrow_array::RecordBatch;
 use arrow_ipc::writer::StreamWriter;
 use arrow_schema::{DataType, Field, Schema};
 use oracledb::{Connection, ErrorKind, OracleNumber, ToDbValue};
@@ -312,7 +312,9 @@ fn canonical(kind: ColKind, v: String) -> Result<String, SourceError> {
         }
         ColKind::Raw | ColKind::Blob => Ok(v.to_ascii_lowercase()),
         ColKind::Date | ColKind::Timestamp | ColKind::TimestampTz => positive_era(&v),
-        ColKind::Char | ColKind::NChar | ColKind::Clob | ColKind::NClob => Ok(v),
+        ColKind::Char | ColKind::NChar | ColKind::Clob | ColKind::NClob | ColKind::BinaryFloat => {
+            Ok(v)
+        }
     }
 }
 
@@ -332,8 +334,8 @@ impl Write for HashWriter {
     }
 }
 
-/// Arrow schema of a chunk: canonical UTF-8 text per column with the Oracle
-/// type and `empty_string_is_null` semantics recorded as field metadata.
+/// Native Arrow types; unconstrained decimals remain exact DecimalUtf8 text.
+/// The Oracle type and empty-string semantics remain in field metadata.
 pub fn chunk_schema(table: &TableRef, columns: &[ColumnInfo]) -> Schema {
     let fields: Vec<Field> = columns
         .iter()
@@ -347,7 +349,12 @@ pub fn chunk_schema(table: &TableRef, columns: &[ColumnInfo]) -> Schema {
                     "true".to_owned(),
                 );
             }
-            Field::new(&c.name, DataType::Utf8, true).with_metadata(md)
+            let ty = super::typed::data_type(&c.data_type, c.precision, c.scale);
+            if ty == DataType::Utf8 && c.canonical == "decimal" {
+                md.insert("oo.oracle.decimal".into(), "exact".into());
+                md.insert("oo.oracle.mapping".into(), "DecimalUtf8".into());
+            }
+            Field::new(&c.name, ty, true).with_metadata(md)
         })
         .collect();
     let mut md = std::collections::HashMap::new();
@@ -363,6 +370,8 @@ pub struct ColumnInfo {
     pub data_type: String,
     pub canonical: &'static str,
     pub text: bool,
+    pub precision: Option<u8>,
+    pub scale: Option<i8>,
 }
 
 impl From<&Column> for ColumnInfo {
@@ -372,6 +381,8 @@ impl From<&Column> for ColumnInfo {
             data_type: c.data_type.clone(),
             canonical: c.kind.canonical(),
             text: c.kind.is_text(),
+            precision: c.precision,
+            scale: c.scale,
         }
     }
 }
@@ -759,7 +770,7 @@ impl OracleEngine {
         };
         let rows = self.query(
             &format!(
-                "SELECT column_name, data_type, nullable, TO_CHAR(data_length), TO_CHAR(data_scale), {collation}, virtual_column FROM all_tab_cols WHERE owner = :b1 AND table_name = :b2 AND hidden_column = 'NO' ORDER BY column_id"
+                "SELECT column_name, data_type, nullable, TO_CHAR(data_length), TO_CHAR(data_scale), {collation}, virtual_column, TO_CHAR(data_precision) FROM all_tab_cols WHERE owner = :b1 AND table_name = :b2 AND hidden_column = 'NO' ORDER BY column_id"
             ),
             &[owner.clone(), name.clone()],
             1001,
@@ -783,6 +794,8 @@ impl OracleEngine {
                 nullable: r[2].as_deref() != Some("N"),
                 data_length: r[3].as_deref().and_then(|v| v.parse().ok()).unwrap_or(4000),
                 collation: r[5].clone(),
+                precision: r[7].as_deref().and_then(|v| v.parse().ok()),
+                scale: r[4].as_deref().and_then(|v| v.parse().ok()),
             });
             scales.push(r[4].clone());
         }
@@ -1361,10 +1374,12 @@ impl OracleEngine {
                 return Ok(());
             }
             let rows = cols[0].len() as u64;
-            let arrays: Vec<ArrayRef> = cols
+            let arrays = cols
                 .iter_mut()
-                .map(|c| Arc::new(StringArray::from(std::mem::take(c))) as ArrayRef)
-                .collect();
+                .zip(schema.fields())
+                .map(|(c, field)| super::typed::array(field, std::mem::take(c)))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(PageError::Source)?;
             let batch = RecordBatch::try_new(schema.clone(), arrays)
                 .map_err(|_| PageError::Source(SourceError::protocol("arrow_batch")))?;
             ipc.write(&batch)
@@ -1826,7 +1841,10 @@ impl OracleEngine {
             "logminer.excluded_tablespaces".into(),
             d.logminer_excluded_tablespaces.join(","),
         );
-        settings.insert("digest.algorithm".into(), d.digest_algorithm().into());
+        settings.insert(
+            "digest.algorithm".into(),
+            format!("typed-v1:{}", d.digest_algorithm()),
+        );
         settings.insert(
             "chunk.page_limit".into(),
             if d.fetch_first {
@@ -2268,7 +2286,7 @@ impl OracleEngine {
             lo: lo.map(<[KeyValue]>::to_vec),
             hi: hi.map(<[KeyValue]>::to_vec),
             rows,
-            digest: format!("{}:{}", d.digest_algorithm(), lanes.join("-")),
+            digest: format!("typed-v1:{}:{}", d.digest_algorithm(), lanes.join("-")),
         })
     }
 }
@@ -2448,12 +2466,16 @@ mod tests {
                     data_type: "NUMBER".into(),
                     canonical: "decimal",
                     text: false,
+                    precision: None,
+                    scale: None,
                 },
                 ColumnInfo {
                     name: "NAME".into(),
                     data_type: "VARCHAR2".into(),
                     canonical: "text",
                     text: true,
+                    precision: None,
+                    scale: None,
                 },
             ],
         );
@@ -2480,9 +2502,18 @@ mod tests {
                     data_type: data_type.into(),
                     canonical: kind.canonical(),
                     text: kind.is_text(),
+                    precision: None,
+                    scale: None,
                 }],
             );
-            assert_eq!(s.field(0).data_type(), &DataType::Utf8);
+            assert_eq!(
+                s.field(0).data_type(),
+                &if kind == ColKind::Blob {
+                    DataType::Binary
+                } else {
+                    DataType::Utf8
+                }
+            );
             assert_eq!(s.field(0).metadata()["oo.oracle.type"], data_type);
             assert_eq!(s.field(0).metadata()["oo.oracle.canonical"], canonical);
             assert!(

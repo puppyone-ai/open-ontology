@@ -13,12 +13,30 @@ use std::{
     sync::Arc,
 };
 
-fn coefficient(value: &str, precision: u8, scale: i8) -> Result<i128> {
+pub(super) fn coefficient(value: &str, precision: u8, scale: i8) -> Result<i128> {
     let value = decimal(value)?;
     let negative = value.starts_with('-');
     let bare = value.trim_start_matches('-');
     let (whole, frac) = bare.split_once('.').unwrap_or((bare, ""));
-    if scale < 0 || frac.len() > scale as usize {
+    if scale < 0 {
+        let zeros = (-i16::from(scale)) as usize;
+        if !frac.is_empty()
+            || (whole != "0" && (whole.len() <= zeros || !whole.ends_with(&"0".repeat(zeros))))
+        {
+            return Err("decimal_scale_loss".into());
+        }
+        let reduced = if whole == "0" {
+            "0"
+        } else {
+            &whole[..whole.len() - zeros]
+        };
+        return coefficient(
+            &format!("{}{reduced}", if negative { "-" } else { "" }),
+            precision,
+            0,
+        );
+    }
+    if frac.len() > scale as usize {
         return Err("decimal_scale_loss".into());
     }
     let digits = format!("{whole}{frac}{}", "0".repeat(scale as usize - frac.len()));
@@ -29,7 +47,7 @@ fn coefficient(value: &str, precision: u8, scale: i8) -> Result<i128> {
     Ok(if negative { -n } else { n })
 }
 
-fn unhex(value: &str) -> Result<Vec<u8>> {
+pub(super) fn unhex(value: &str) -> Result<Vec<u8>> {
     if value.len() % 2 != 0 || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err("raw_hex".into());
     }

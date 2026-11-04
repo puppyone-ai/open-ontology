@@ -1,7 +1,9 @@
 //! Oracle-local C5 scheduling. Hints only reorder work, never exclude ranges.
 //! A cycle is staged in memory and its state advances only after all reads pass.
 use super::*;
-use arrow_array::{Array, RecordBatch, StringArray};
+use arrow_array::RecordBatch;
+#[cfg(test)]
+use arrow_array::{ArrayRef, StringArray};
 
 #[derive(Default, Serialize)]
 pub struct C5Metrics {
@@ -269,17 +271,7 @@ impl ChunkSink for Capture {
         for row in 0..batch.num_rows() {
             let mut digest = Sha256::new();
             for col in batch.columns() {
-                let col = col
-                    .as_any()
-                    .downcast_ref::<StringArray>()
-                    .ok_or(SourceError::protocol("c5_canonical_text"))?;
-                if col.is_null(row) {
-                    digest.update([0]);
-                } else {
-                    digest.update([1]);
-                    digest.update((col.value(row).len() as u64).to_be_bytes());
-                    digest.update(col.value(row).as_bytes());
-                }
+                super::super::typed::hash_cell(&mut digest, col, row)?;
             }
             self.hashes.push(digest.finalize().into());
         }

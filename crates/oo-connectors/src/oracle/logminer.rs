@@ -404,10 +404,11 @@ impl OracleLogMiner {
                 }
             };
             let cells = if operation == 2 { before } else { after };
-            let arrays: Vec<ArrayRef> = cells
+            let arrays = cells
                 .into_iter()
-                .map(|cell| Arc::new(StringArray::from(vec![cell])) as ArrayRef)
-                .collect();
+                .zip(schema.fields())
+                .map(|(cell, field)| super::super::typed::array(field, vec![cell]))
+                .collect::<Result<Vec<_>, _>>()?;
             let image = RecordBatch::try_new(schema.clone(), arrays)
                 .map_err(|_| SourceError::protocol("logminer_arrow"))?;
             output.push((

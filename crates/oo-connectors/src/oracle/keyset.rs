@@ -14,6 +14,7 @@ use super::rules::Dialect;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColKind {
     Number,
+    BinaryFloat,
     /// VARCHAR2 / CHAR: Oracle stores '' as NULL.
     Char,
     /// NVARCHAR2 / NCHAR: bound through AL32UTF8 bytes, never via the
@@ -32,6 +33,7 @@ impl ColKind {
     pub fn from_oracle(data_type: &str) -> Option<Self> {
         Some(match data_type {
             "NUMBER" | "FLOAT" | "INTEGER" => Self::Number,
+            "BINARY_FLOAT" | "BINARY_DOUBLE" => Self::BinaryFloat,
             "VARCHAR2" | "CHAR" => Self::Char,
             "NVARCHAR2" | "NCHAR" => Self::NChar,
             "RAW" => Self::Raw,
@@ -39,12 +41,7 @@ impl ColKind {
             "NCLOB" => Self::NClob,
             "BLOB" => Self::Blob,
             "DATE" => Self::Date,
-            t if t.starts_with("TIMESTAMP(") && t.ends_with("WITH TIME ZONE") => {
-                if t.contains("LOCAL") {
-                    return None;
-                }
-                Self::TimestampTz
-            }
+            t if t.starts_with("TIMESTAMP(") && t.ends_with("TIME ZONE") => Self::TimestampTz,
             t if t.starts_with("TIMESTAMP(") && t.ends_with(')') => Self::Timestamp,
             _ => return None,
         })
@@ -54,6 +51,7 @@ impl ColKind {
     pub fn canonical(self) -> &'static str {
         match self {
             Self::Number => "decimal",
+            Self::BinaryFloat => "ieee754_be",
             Self::Char | Self::NChar | Self::Clob | Self::NClob => "text",
             Self::Raw | Self::Blob => "hex",
             Self::Date | Self::Timestamp | Self::TimestampTz => "iso8601",
@@ -66,7 +64,7 @@ impl ColKind {
 
     /// Keys whose order Oracle defines and the client can bind losslessly.
     pub fn keyable(self) -> bool {
-        !matches!(self, Self::TimestampTz) && !self.is_lob()
+        !matches!(self, Self::TimestampTz | Self::BinaryFloat) && !self.is_lob()
     }
 
     pub fn is_lob(self) -> bool {
@@ -76,7 +74,7 @@ impl ColKind {
     /// Upper bound of the canonical text length in bytes.
     pub fn max_text(self, data_length: u32) -> u32 {
         match self {
-            Self::Number => 66,
+            Self::Number | Self::BinaryFloat => 66,
             Self::Char => data_length,
             Self::NChar => data_length.saturating_mul(4),
             Self::Raw => data_length.saturating_mul(2),
@@ -95,6 +93,8 @@ pub struct Column {
     pub kind: ColKind,
     pub nullable: bool,
     pub data_length: u32,
+    pub precision: Option<u8>,
+    pub scale: Option<i8>,
     /// `ALL_TAB_COLS.COLLATION` on 12.2+, `None` before.
     pub collation: Option<String>,
 }
@@ -117,12 +117,20 @@ pub fn projection(c: &Column) -> Result<String, SourceError> {
     let n = ident(&c.name)?;
     Ok(match c.kind {
         ColKind::Number => format!("TO_CHAR({n},'TM9','NLS_NUMERIC_CHARACTERS=''.,''')"),
+        ColKind::BinaryFloat => {
+            let function = if c.data_type == "BINARY_FLOAT" {
+                "CAST_FROM_BINARY_FLOAT"
+            } else {
+                "CAST_FROM_BINARY_DOUBLE"
+            };
+            format!("RAWTOHEX(UTL_RAW.{function}({n},1))")
+        }
         ColKind::Char | ColKind::NChar | ColKind::Clob | ColKind::NClob | ColKind::Blob => n,
         ColKind::Raw => format!("RAWTOHEX({n})"),
         ColKind::Date => format!("TO_CHAR({n},'SYYYY-MM-DD\"T\"HH24:MI:SS')"),
         ColKind::Timestamp => format!("TO_CHAR({n},'SYYYY-MM-DD\"T\"HH24:MI:SS.FF9')"),
         ColKind::TimestampTz => {
-            format!("TO_CHAR({n},'SYYYY-MM-DD\"T\"HH24:MI:SS.FF9 TZH:TZM')")
+            format!("TO_CHAR({n} AT TIME ZONE 'UTC','SYYYY-MM-DD\"T\"HH24:MI:SS.FF9 TZH:TZM')")
         }
     })
 }
@@ -590,6 +598,17 @@ mod tests {
     use super::*;
     use crate::engine::{EngineFamily, EngineVersion};
 
+    #[test]
+    fn local_timezone_is_projected_as_an_explicit_utc_instant() {
+        let c = col("TS", "TIMESTAMP(6) WITH LOCAL TIME ZONE");
+        assert_eq!(c.kind, ColKind::TimestampTz);
+        assert!(projection(&c).unwrap().contains("AT TIME ZONE 'UTC'"));
+        assert!(!c.kind.keyable());
+        for kind in ["BINARY_FLOAT", "BINARY_DOUBLE"] {
+            assert_eq!(ColKind::from_oracle(kind), Some(ColKind::BinaryFloat));
+        }
+    }
+
     fn col(name: &str, data_type: &str) -> Column {
         Column {
             name: name.into(),
@@ -597,6 +616,8 @@ mod tests {
             kind: ColKind::from_oracle(data_type).unwrap(),
             nullable: false,
             data_length: 100,
+            precision: None,
+            scale: None,
             collation: None,
         }
     }
@@ -677,7 +698,10 @@ mod tests {
             assert_eq!(projection(&col("L", name)).unwrap(), "\"L\"");
             assert!(digest_cell(&col("L", name)).is_err());
         }
-        assert!(ColKind::from_oracle("TIMESTAMP(6) WITH LOCAL TIME ZONE").is_none());
+        assert_eq!(
+            ColKind::from_oracle("TIMESTAMP(6) WITH LOCAL TIME ZONE"),
+            Some(ColKind::TimestampTz)
+        );
         assert!(
             !ColKind::from_oracle("TIMESTAMP(6) WITH TIME ZONE")
                 .unwrap()
