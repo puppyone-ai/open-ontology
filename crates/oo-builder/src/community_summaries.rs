@@ -96,7 +96,8 @@ pub(super) fn render(
                 let description =
                     description_text(model, c, model.unreviewed.contains("column_descriptions"));
                 json!({"name":c.name.as_str(), "title":title, "columns":1,
-                    "description":description.as_ref().map(|(_,text)|text),
+                    "description":description.as_ref().map(|(pending,text)|
+                        if *pending { format!("UNREVIEWED: {text}") } else { text.clone() }),
                     "unreviewed":description.as_ref().is_some_and(|(pending,_)|*pending)})
             })
             .collect();
@@ -275,6 +276,23 @@ mod tests {
                 assert!(!text.contains("Unreviewed note meaning"));
             }
         }
+        effective["ontology"]["publish"]["include_unreviewed"] = json!(["column_descriptions"]);
+        let pack = compile_role_pack(&effective.to_string(), visibility).unwrap();
+        let artifact: Value = serde_json::from_str(&pack.artifact).unwrap();
+        let text = artifact["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|f| f["text"].as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        let warning = "UNREVIEWED: Unreviewed note meaning.";
+        assert!(text.contains(warning));
+        assert!(
+            !text
+                .replace(warning, "")
+                .contains("Unreviewed note meaning.")
+        );
     }
 
     #[test]
