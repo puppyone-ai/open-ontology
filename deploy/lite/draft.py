@@ -81,7 +81,10 @@ def main(request):
 
 def build(request, root):
     stack = request['stack']
-    fingerprint = digest(json.dumps(stack, sort_keys=True).encode())
+    fingerprint_input = stack
+    if 'builder_postgres' in request:
+        fingerprint_input = {'stack': stack, 'builder_postgres': request['builder_postgres']}
+    fingerprint = digest(json.dumps(fingerprint_input, sort_keys=True).encode())
     path = root / 'run.json'
     if request['resume']:
         state = json.loads(read_private(path))
@@ -149,6 +152,9 @@ def build(request, root):
                                       'username':source['user'],'password_file':str(secret_root/source['password']['secret_ref']),
                                       'ca_file':str(secret_root/source['tls_ca']['secret_ref']),
                                       'catalog_bin':str(binaries/'oo-pipeline'),'tables':tables}}
+                # Caller supplies the Agent DB connection and explicit oo-load views.
+                if 'builder_postgres' in request:
+                    config['postgres'] = request['builder_postgres']
                 save(root/'builder.json', config)
                 artifacts = ['doctor.json']
             elif name == 'catalog':
