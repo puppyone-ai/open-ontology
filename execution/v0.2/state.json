@@ -967,10 +967,12 @@
       "sprint": "S4",
       "lane": "A",
       "title": "所有者自审 TUI：实体、关系、指标、敏感列分类的逐类确认；`review_decision` 记录 `mode=self`",
-      "status": "in_progress",
+      "status": "integrated",
       "owner": "lane-A",
       "branch": "v0.2/a-onboarding",
-      "commits": [],
+      "commits": [
+        "ae0ebaacb"
+      ],
       "evidence": []
     },
     {
@@ -981,7 +983,9 @@
       "status": "in_progress",
       "owner": "lane-A",
       "branch": "v0.2/a-onboarding",
-      "commits": [],
+      "commits": [
+        "621b9058a"
+      ],
       "evidence": []
     },
     {
