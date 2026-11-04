@@ -149,20 +149,26 @@ class T1Tests(unittest.TestCase):
             def wait(self, timeout):
                 self.stopped = True
         class Source:
-            name = "owned-fixture"
+            name, engine = "owned-fixture", "postgres"
         root = t1.ROOT / "evidence"
         root.mkdir(exist_ok=True)
-        for acknowledged in (True, False):
+        for engine, acknowledged in (("postgres", True), ("postgres", False),
+                                     ("mysql", True), ("mysql", False)):
             with tempfile.TemporaryDirectory(dir=root) as temporary:
                 source = Source()
+                source.engine = engine
                 source.path = Path(temporary)
                 child = Child("INSERT 0 1\nOO_CYCLE_0\n" if acknowledged else "")
                 result = {}
                 with patch.object(t1.subprocess, "Popen", return_value=child) as launch:
-                    t1.postgres_writer(source, Stop(), result)
+                    t1.writer(source, Stop(), result)
                 self.assertEqual(launch.call_count, 1)
+                if engine == "mysql":
+                    self.assertIn("--skip-reconnect", launch.call_args.args[0])
+                    self.assertIn("--unbuffered", launch.call_args.args[0])
                 self.assertIn("UPDATE growth_events SET id=", child.stdin.getvalue())
                 self.assertIn("DELETE FROM growth_events", child.stdin.getvalue())
+                self.assertIn("COMMIT;\nSELECT 'OO_CYCLE_0'", child.stdin.getvalue())
                 self.assertEqual(result["cycles"], int(acknowledged))
                 self.assertEqual("error" in result, not acknowledged)
 

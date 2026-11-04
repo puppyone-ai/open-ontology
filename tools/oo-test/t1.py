@@ -342,8 +342,8 @@ class SourceMeter:
 
 def writer(run, stop, result):
     """Every committed cycle includes insert/update/delete/primary-key update."""
-    if run.engine == "postgres":
-        return postgres_writer(run, stop, result)
+    if run.engine in ("postgres", "mysql"):
+        return persistent_writer(run, stop, result)
     run = copy.copy(run)
     run.seq = 1_000_000
     cycles = 0
@@ -365,12 +365,19 @@ def writer(run, stop, result):
         result.update(cycles=cycles, error=type(error).__name__)
 
 
-def postgres_writer(run, stop, result):
+def persistent_writer(run, stop, result):
     """One admin session, rather than thousands of Docker API exec requests."""
-    command = ["docker", "exec", "-i", "-u", "postgres", "-e",
-               "PGOPTIONS=-c statement_timeout=30000", run.name,
-               "psql", "-X", "-v", "ON_ERROR_STOP=1", "-A", "-t",
-               "-U", "postgres", "-d", "fixture"]
+    if run.engine == "mysql":
+        command = ["docker", "exec", "-i", run.name, "mysql",
+                   "--defaults-extra-file=/run/oo/admin.cnf",
+                   "--protocol=tcp", "--host=127.0.0.1", "--connect-timeout=5",
+                   "--batch", "--raw", "--skip-column-names", "--unbuffered",
+                   "--skip-reconnect", "--default-character-set=utf8mb4", "fixture"]
+    else:
+        command = ["docker", "exec", "-i", "-u", "postgres", "-e",
+                   "PGOPTIONS=-c statement_timeout=30000", run.name,
+                   "psql", "-X", "-v", "ON_ERROR_STOP=1", "-A", "-t",
+                   "-U", "postgres", "-d", "fixture"]
     cycles = 0
     child = None
     try:
@@ -385,7 +392,7 @@ def postgres_writer(run, stop, result):
                     f"UPDATE growth_events SET order_id=2 WHERE id={key};\n"
                     f"UPDATE growth_events SET id={key+1} WHERE id={key};\n"
                     f"DELETE FROM growth_events WHERE id={key+1};\n"
-                    f"INSERT INTO growth_events VALUES({20_000_000+cycles},3);\n"
+                    f"INSERT INTO growth_events VALUES({20_000_000+cycles},3);\nCOMMIT;\n"
                     f"SELECT '{marker}';\n")
                 child.stdin.flush()
                 while True:
