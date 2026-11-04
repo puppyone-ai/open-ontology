@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-03
+> Last reviewed: 2026-11-04
 > 依赖：[07 Gateway](../07-gateway.md)、[08 Agent 接口](../08-agent-interface.md)、[10 安全](../10-security.md)、[11 部署](../11-deployment-and-operations.md)
 
 ## 1. 目标与现状差距
@@ -95,7 +95,7 @@ gateway:
 
 ### 4.2 运行形态
 
-- **lite 档**（默认，开源上手）：首次 `oo up` 自动生成内部 CA、Gateway 与组件间 mTLS 证书（有效期 2 年，到期监控见 §5.2）和管理员凭据，全部写入 0600 秘密目录；单机 Docker Compose，组件为 Agent PostgreSQL、控制库、worker、Builder、Gateway、模型出口代理。不要求 runsc；内置 Pi 沙盒不启用。安全边界写在文档里：lite 档面向单所有者，不承诺多租户隔离。
+- **lite 档**（默认，开源上手）：首次 `oo up` 自动生成内部 CA、Gateway 与组件间 mTLS 证书（有效期 2 年，到期监控见 §5.2）和管理员凭据，全部写入 0600 秘密目录；单机 Docker Compose，组件为 Agent PostgreSQL、控制库、worker、Builder、Gateway、模型出口代理。不要求 runsc；内置 Pi 沙盒不启用。安全边界写在文档里：lite 档面向单所有者，不承诺多租户隔离。lite 档内 Agent DB 与控制库只在 compose 内部网络暴露，连接使用 TLS（校验服务端证书）+ SCRAM 口令，不要求客户端证书；Gateway 与内部服务之间的 mTLS 不变；standard 档仍要求客户端证书（Plan D14）。
 - **standard 档**：现有 `deploy/product-stack`，包含身份、审计、沙盒门。
 
 镜像由 CI 预构建为 `linux/amd64` 与 `linux/arm64` 多架构，用 digest 锁定；`oo up` 只拉取，不在用户机器编译。
