@@ -113,6 +113,8 @@ S4 实现（2026-11-04，S4-A-04）：`oo up --target ssh`（或 `deploy.target:
 
 lite 部署（D16）：`oo up` 还按 `stack.yaml` 与 `.oo/lite` 准备 retained 构建链（Agent DB 目录、Gateway 数据登录与运维目录、构建运行时配置、消费端客户端身份、本机回环 Gateway 端口），并报告 `retained_ready`。`oo build` 的每个阶段在固定 digest 运行时镜像的一次性容器内执行；所有者自审在宿主机上针对复制出的输入进行；审阅编译器、凭据所需 OpenSSL 与 MySQL doctor 也来自镜像。分享提示词指明 `.oo/lite/consumer` 下的消费端 CA 与客户端证书。
 
+首次 `oo build` 之后，再次执行 `oo up` 会安装控制库 jobs 结构，按本次构建事实与所有者已审注册表写出 `work/operator/schedule.json`，插入一条 `lite_retained` 计划，并启动 gateway、worker、scheduler 与 Builder 回放作业；七项健康与一次计划周期的验收见 `a4-l1-mac-final2`、`a4-l1-linux-final`。`--target ssh` 部署上的 `oo build` 经固定指纹的 SSH 连接在远端执行同样的运行时阶段，所有者自审与审阅编译调用留在本机；远端 Gateway 证书目前只覆盖 localhost，经 SSH 本地转发访问（`a4-ssh-dev-2`）。
+
 反向通道（把本地 Gateway 暴露到公网）不属于默认路径；远程部署本身就提供可达的 Gateway。
 
 ### 4.4 模型出口代理
