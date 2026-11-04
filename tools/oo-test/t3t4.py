@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lane N T3 fault injection and T4 schema change on owned MySQL/PostgreSQL fixtures.
+"""T3 fault injection and T4 schema change on owned MySQL/PostgreSQL/Oracle fixtures.
 
 Reuses lane M's LaneRun/AgentDB conventions (t1.py) and the real oo-load
 binary. One source container and one Agent DB container per version. A case
@@ -25,10 +25,11 @@ from t1 import AgentDB, LaneRun, configure_mysql, configure_pg, private
 
 ROOT = runner.ROOT
 MYSQL = ("5.7", "8.0", "8.4", "9")
+ORACLE = ("23", "21", "11")
 POSTGRES = ("13", "14", "15", "16", "17", "18")
 T3 = ("source_restart_mid_chunk", "network_drop_mid_c1", "network_drop_mid_c5",
       "target_restart_mid_publish", "sigkill_mid_cycle", "retention_expiry",
-      "slot_invalidation", "gtid_purge")
+      "slot_invalidation", "gtid_purge", "resetlogs_incarnation")
 T4 = ("add_column", "drop_column", "rename_column", "widen_type", "add_table",
       "drop_table", "pk_change")
 # Destructive log cases invalidate every earlier C1 binding; they run last.
@@ -75,21 +76,21 @@ def classify(code, error, equal, state_unchanged):
 
 
 class Source(LaneRun):
-    """Lane-N source with a fixed loopback port: the binding identity contains it."""
+    """Owned source with a fixed loopback port: the binding identity contains it."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.host_port = free_port()
 
     def command(self, command, **kwargs):
         if command[:2] == ["docker", "create"] and self.name in command:
-            command = ["oo.lane=n" if x == "oo.lane=h" else x for x in command]
-            inner = {"postgres": 5432, "mysql": 3306}[self.engine]
+            command = ["oo.lane=" + t1.LANE if x == "oo.lane=h" else x for x in command]
+            inner = {"postgres": 5432, "mysql": 3306, "oracle": 1521}[self.engine]
             command[2:2] = ["-p", f"127.0.0.1:{self.host_port}:{inner}"]
             if self.engine == "mysql":
                 command += ["--server-id=41", "--log-bin=oo-bin", "--binlog-format=ROW",
                             "--binlog-row-image=FULL", "--gtid-mode=ON",
                             "--enforce-gtid-consistency=ON"]
-            else:
+            elif self.engine == "postgres":
                 command += ["-c", "wal_level=logical", "-c", "max_replication_slots=64",
                             "-c", "max_wal_senders=64", "-c", "max_slot_wal_keep_size=256MB"]
             return runner.Run.command(self, command, **kwargs)
@@ -106,7 +107,7 @@ class DurableAgentDB(AgentDB):
         self.run.command(["docker", "pull", "--platform", platform, image], timeout=1200)
         self.port = free_port()
         self.volume = self.name + "-data"
-        labels = ["--label", "oo.lane=n", "--label", "oo.run_id=" + self.run.id]
+        labels = ["--label", "oo.lane=" + t1.LANE, "--label", "oo.run_id=" + self.run.id]
         self.run.command(["docker", "volume", "create", *labels, self.volume])
         self.created_volume = True
         self.run.command(["docker", "create", "--name", self.name, *labels, "--platform", platform,
@@ -144,7 +145,7 @@ class DurableAgentDB(AgentDB):
                 _, raw = self.run.command(["docker", "volume", "inspect", "--format", "{{json .Labels}}",
                                            self.volume])
                 labels = json.loads(raw)
-                if labels.get("oo.lane") != "n" or labels.get("oo.run_id") != self.run.id:
+                if labels.get("oo.lane") != t1.LANE or labels.get("oo.run_id") != self.run.id:
                     raise RuntimeError("target volume ownership")
                 self.run.command(["docker", "volume", "rm", self.volume])
 
@@ -166,6 +167,7 @@ class Harness:
         self.next_key = 100000
         self.disconnected = False
         self.recoveries = []
+        self.paths = ("c5", "c1")
 
     # Source/target access -------------------------------------------------
     def src(self, sql, required=True):
@@ -610,7 +612,7 @@ def first_ok(step, fault):
 
 def monotonic(positions):
     def order(p):
-        return (p["file"], p["position"]) if "file" in p else (p["lsn"],)
+        return (p["file"], p["position"]) if "file" in p else (p.get("lsn", p.get("scn")),)
     return all(order(a) <= order(b) for a, b in zip(positions, positions[1:]))
 
 
@@ -632,6 +634,8 @@ def snapshot_fault(h, sid, fault):
 
 def grow(h):
     """Ordinary growth past MAX(id) that keeps every range inside its row budget."""
+    if h.run.engine == "oracle":
+        return h.grow()
     _, top = h.src("SELECT MAX(id) FROM bulk;")
     top = int(top.strip())
     h.src(f"DELETE FROM bulk WHERE id > {top - 11};" + "INSERT INTO bulk VALUES" + ",".join(
@@ -640,7 +644,7 @@ def grow(h):
 
 def c5_fault(h, sid, fault):
     h.c5_binding(sid, ["bulk"], CHUNK_ROWS)
-    h.src("UPDATE bulk SET n=n+1 WHERE id % 37 = 0;")
+    h.src("UPDATE bulk SET n=n+1 WHERE MOD(id,37) = 0;")
     grow(h)
     before = h.chunks()
     cycle = h.sync[sid]["cycle"]
@@ -685,6 +689,8 @@ def t3_source_restart_mid_chunk(h):
 
 
 def t3_network_drop_mid_c1(h):
+    if "c1" not in h.paths:
+        return {"status": "not_applicable", "reason": "C5-only version; C1 not requested"}
     return case_result([dict(c1_fault(h, "t3nd_c1", "network_drop"), path="c1")])
 
 
@@ -695,13 +701,13 @@ def t3_network_drop_mid_c5(h):
 def t3_target_restart_mid_publish(h):
     return case_result([dict(snapshot_fault(h, "t3tr_snap", "target_restart"), path="snapshot"),
                         dict(c5_fault(h, "t3tr_c5", "target_restart"), path="c5"),
-                        dict(c1_fault(h, "t3tr_c1", "target_restart"), path="c1")])
+                        *([dict(c1_fault(h, "t3tr_c1", "target_restart"), path="c1")] if "c1" in h.paths else [])])
 
 
 def t3_sigkill_mid_cycle(h):
     return case_result([dict(snapshot_fault(h, "t3sk_snap", "sigkill"), path="snapshot"),
                         dict(c5_fault(h, "t3sk_c5", "sigkill"), path="c5"),
-                        dict(c1_fault(h, "t3sk_c1", "sigkill"), path="c1")])
+                        *([dict(c1_fault(h, "t3sk_c1", "sigkill"), path="c1")] if "c1" in h.paths else [])])
 
 
 def refused_then_rebaseline(h, sid, label, mutate, tables=("items", "other")):
@@ -743,6 +749,8 @@ def mysql_binlogs(h):
 
 
 def t3_retention_expiry(h):
+    if h.run.engine == "oracle":
+        return h.retention_expiry()
     if h.run.engine == "mysql":
         def expire():
             durable = h.sync["t3re_c1"]
@@ -860,6 +868,9 @@ def t3_gtid_purge(h):
 
 # T4 -------------------------------------------------------------------------
 def ddl(h, case):
+    if h.run.engine == "oracle":
+        from oracle_t3t4 import ddl as oracle_ddl
+        return oracle_ddl(case)
     my = h.run.engine == "mysql"
     t = "t4_" + case
     if case == "add_column":
@@ -911,7 +922,7 @@ def attempt(h, sid, path):
 
 def t4_case(h, case):
     paths = {}
-    for path in ("c5", "c1"):
+    for path in h.paths:
         sid = f"t4{T4.index(case)}{path}"
         tables = scope(case, 1)
         if path == "c5":
@@ -926,6 +937,11 @@ def t4_case(h, case):
         statements, columns = ddl(h, phase)
         for statement in statements:
             h.src(statement)
+        if case == "add_table" and h.run.engine == "oracle":
+            # An unrequested table is invisible to capture; exercise scope growth,
+            # not just a DDL on a table the comparison never looks at.
+            for item in paths.values():
+                h.add_source(item["sid"], scope(case, 2))
         live = [t for t in scope(case, 2 if case == "drop_table" else 1)]
         for stage in ("after_ddl", "after_dml"):
             if stage == "after_dml":
@@ -981,19 +997,32 @@ def t4_case(h, case):
     return case_result(steps)
 
 
+def t3_resetlogs_incarnation(h):
+    if h.run.engine != "oracle":
+        return {"status": "not_applicable", "reason": "Oracle incarnation only"}
+    return h.resetlogs_incarnation()
+
 CASES = {name: globals()["t3_" + name] for name in T3}
 CASES.update({name: (lambda case: lambda h: t4_case(h, case))(name) for name in T4})
 
 
 def run_version(run, binary, cases):
-    h = Harness(run, binary)
+    if run.engine == "oracle":
+        from oracle_t3t4 import OracleHarness
+        h = OracleHarness(run, binary)
+    else:
+        h = Harness(run, binary)
     report = {"engine": run.engine, "version": run.version, "run_id": run.id, "cases": {},
               "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
               "scope": "compact keyed bigint/int/varchar fixture; T3 faults and T4 DDL; not full type/scale",
               "consistency": "B"}
     try:
         h.prepare()
-        _, version = h.src("SELECT VERSION();")
+        version_sql = "SELECT VERSION();"
+        if run.engine == "oracle":
+            column = "version" if run.version == "11" else "version_full"
+            version_sql = f"SELECT {column} FROM product_component_version WHERE product LIKE 'Oracle Database%';"
+        _, version = h.src(version_sql)
         report["version_measured"] = version.strip().splitlines()[0][:120]
         report["operator_recoveries"] = h.recoveries
         for case in [c for c in ORDER if c in cases]:
@@ -1012,9 +1041,14 @@ def run_version(run, binary, cases):
         report["error"] = str(error) if isinstance(error, RuntimeError) else type(error).__name__
     finally:
         try:
-            h.heal() if run.created_container else None
+            h.heal() if run.created_container and run.engine != "oracle" else None
         except Exception:
             pass
+        if run.engine == "oracle":
+            try:
+                h.close_worker()
+            except Exception as error:
+                report["worker_cleanup_error"] = type(error).__name__
         try:
             h.target.close()
         except Exception as error:
@@ -1033,22 +1067,30 @@ def disk_ready(min_free_gb, wait_minutes):
     return True
 
 
+def accepted(result, cases):
+    return (not result.get("error") and not result.get("cleanup_failures")
+            and not result.get("target_cleanup_error")
+            and not result.get("worker_cleanup_error")
+            and set(result.get("cases", {})) == set(cases)
+            and all(r["status"] in ("passed", "not_applicable") for r in result["cases"].values()))
+
 def main(argv=None):
     def stop(signum, frame):
         raise KeyboardInterrupt(f"signal {signum}")
     signal.signal(signal.SIGTERM, stop)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--engine", choices=["mysql", "postgres"], required=True)
+    parser.add_argument("--engine", choices=["mysql", "postgres", "oracle"], required=True)
     parser.add_argument("--versions", required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--cases", default=",".join(ORDER))
     parser.add_argument("--binary", type=Path, default=ROOT / "target/debug/oo-load")
     parser.add_argument("--min-free-gb", type=float, default=20.0)
     parser.add_argument("--disk-wait-minutes", type=float, default=90.0)
+    parser.add_argument("--worker-image", help="digest-pinned 11g thick client image")
     args = parser.parse_args(argv)
-    t1.LANE = "n"  # lane-owned labels for LaneRun/AgentDB cleanup checks
+    t1.LANE = "e" if args.engine == "oracle" else "n"  # lane-owned labels for LaneRun/AgentDB cleanup checks
     versions = args.versions.split(",")
-    allowed = MYSQL if args.engine == "mysql" else POSTGRES
+    allowed = {"mysql": MYSQL, "postgres": POSTGRES, "oracle": ORACLE}[args.engine]
     cases = args.cases.split(",")
     if not re.fullmatch(r"[A-Za-z0-9_-]+", args.run_id):
         parser.error("invalid run ID")
@@ -1056,6 +1098,10 @@ def main(argv=None):
         parser.error("unsupported or duplicate versions")
     if len(set(cases)) != len(cases) or any(c not in ORDER for c in cases):
         parser.error("unknown or duplicate cases")
+    if not args.binary.is_file():
+        parser.error("build oo-load before starting database containers")
+    if args.engine == "oracle" and "11" in versions and not args.worker_image:
+        parser.error("Oracle 11 requires --worker-image (build the thick worker first)")
     root = ROOT / "evidence" / args.run_id
     root.mkdir(mode=0o700, exist_ok=False)
     results = {}
@@ -1065,12 +1111,14 @@ def main(argv=None):
         if not disk_ready(args.min_free_gb, args.disk_wait_minutes):
             # Shared host: never start containers below the free-space floor.
             results[version] = {"error": "host_disk_below_floor", "cases": {}, "cleanup_failures": [],
-                                "min_free_gb": args.min_free_gb}
+                                "min_free_gb": args.min_free_gb,
+                                "observed_free_bytes": shutil.disk_usage("/").free}
             runner.write_json(path / "t3t4.json", results[version])
             runner.write_json(root / "matrix.json", results)
             continue
         run = Source(path, args.engine, version,
-                     argparse.Namespace(platform=None, health_timeout=1200, scale=1, tables=0))
+                     argparse.Namespace(platform=None, health_timeout=1200, scale=1, tables=0,
+                                        worker_image=args.worker_image))
         try:
             results[version] = run_version(run, args.binary.resolve(), cases)
         finally:
@@ -1080,8 +1128,7 @@ def main(argv=None):
     runner.checksums(root)
     summary = {v: {c: r["status"] for c, r in res.get("cases", {}).items()} for v, res in results.items()}
     print(json.dumps({"run_id": args.run_id, "results": summary}))
-    failed = any(res.get("error") or res["cleanup_failures"] or len(res.get("cases", {})) != len(cases)
-                 or any(r["status"] == "failed" for r in res["cases"].values()) for res in results.values())
+    failed = any(not accepted(res, cases) for res in results.values())
     return 1 if failed else 0
 
 

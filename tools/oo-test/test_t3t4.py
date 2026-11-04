@@ -38,6 +38,63 @@ class T3T4(unittest.TestCase):
         self.assertFalse(t3t4.monotonic(mysql[::-1]))
         self.assertTrue(t3t4.monotonic([{"lsn": 1}, {"lsn": 1}, {"lsn": 7}]))
         self.assertFalse(t3t4.monotonic([{"lsn": 7}, {"lsn": 1}]))
+        self.assertTrue(t3t4.monotonic([{"scn": 1}, {"scn": 2}]))
+        self.assertFalse(t3t4.monotonic([{"scn": 2}, {"scn": 1}]))
+
+    def test_unrun_or_incomplete_cases_and_cleanup_errors_never_pass(self):
+        result = {"cases": {"resetlogs_incarnation": {"status": "not_run"}}}
+        self.assertFalse(t3t4.accepted(result, ["resetlogs_incarnation"]))
+        result["cases"]["resetlogs_incarnation"]["status"] = "passed"
+        self.assertTrue(t3t4.accepted(result, ["resetlogs_incarnation"]))
+        self.assertFalse(t3t4.accepted(result, ["resetlogs_incarnation", "retention_expiry"]))
+        result["target_cleanup_error"] = "ownership"
+        self.assertFalse(t3t4.accepted(result, ["resetlogs_incarnation"]))
+
+    def test_oracle_ddl_uses_portable_dialect_and_both_widenings(self):
+        from oracle_t3t4 import ddl
+        for case in (*t3t4.T4, "pk_drop", "pk_add"):
+            if case == "pk_change":
+                continue
+            statements, columns = ddl(case)
+            self.assertTrue(statements)
+            self.assertIn("id", columns)
+            self.assertNotIn("bigint", "\n".join(statements))
+        statement = ddl("widen_type")[0][0]
+        self.assertIn("NUMBER(18)", statement)
+        self.assertIn("VARCHAR2(160)", statement)
+
+    def test_oracle_11g_worker_uses_network_not_source_namespace(self):
+        from oracle_t3t4 import OracleHarness
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as directory:
+            run = types.SimpleNamespace(path=Path(directory), engine="oracle", version="11",
+                                        host_port=15210, id="unit")
+            h = OracleHarness(run, Path("oo-load"))
+            h.worker = "owned-worker"
+            h.add_source("unit", ["items"], 500)
+            source = h.stack["sources"][0]
+            self.assertEqual(source["host"], "host.docker.internal")
+            self.assertEqual(source["port"], 15210)
+            self.assertEqual(source["scope"]["include"], ["FIXTURE.ITEMS"])
+            self.assertEqual(h.paths, ("c5",))
+            self.assertNotIn("tls_ca", source)
+            self.assertEqual(h.tables("unit"), ["items"])
+
+    def test_resetlogs_uses_only_the_generated_controlfile_statement(self):
+        from oracle_t3t4 import controlfile_script
+        statement = "CREATE CONTROLFILE REUSE DATABASE \"XE\" RESETLOGS\nDATAFILE '/owned/system.dbf';"
+        self.assertEqual(controlfile_script("-- trace header\n" + statement + "\nSHUTDOWN;"), statement)
+        with self.assertRaisesRegex(RuntimeError, "resetlogs_controlfile_trace_missing"):
+            controlfile_script(statement.replace("RESETLOGS", "NORESETLOGS"))
+        with self.assertRaisesRegex(RuntimeError, "resetlogs_controlfile_trace_missing"):
+            controlfile_script("-- incomplete trace")
+
+    def test_oracle_readiness_checks_the_reader_not_sys_dual(self):
+        from oracle_t3t4 import OracleHarness
+        h = object.__new__(OracleHarness)
+        h.run = types.SimpleNamespace(sql=mock.Mock(return_value=(0, "1")))
+        h.wait_source()
+        h.run.sql.assert_called_once_with("SELECT id FROM FIXTURE.bulk WHERE id=1;", required=False)
 
     def test_schema_change_statements_follow_engine_version(self):
         def harness(engine, version):
@@ -52,7 +109,7 @@ class T3T4(unittest.TestCase):
     def test_every_required_case_is_registered_and_destructive_cases_run_last(self):
         self.assertEqual(set(t3t4.CASES), set(t3t4.T3) | set(t3t4.T4))
         order = list(t3t4.ORDER)
-        for case in ("retention_expiry", "slot_invalidation", "gtid_purge"):
+        for case in ("retention_expiry", "slot_invalidation", "gtid_purge", "resetlogs_incarnation"):
             self.assertGreater(order.index(case), max(order.index(c) for c in t3t4.T4))
 
     def test_containers_never_start_below_the_disk_floor(self):
