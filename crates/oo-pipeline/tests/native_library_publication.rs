@@ -32,6 +32,9 @@ async fn retained_engine_publication_candidate() {
         .disable_statement_logging();
     let mut db = PgConnection::connect_with(&options).await.unwrap();
     install(&mut db).await;
+    db.execute(include_str!("../migrations/0089_native_library_c1.sql"))
+        .await
+        .unwrap();
     let table = TableRef {
         schema: "app".into(),
         name: "items".into(),
@@ -158,7 +161,11 @@ async fn retained_engine_publication_candidate() {
         .bind(first["receipt_sha256"].as_str().unwrap())
         .execute(&mut db)
         .await
-        .expect_err("legacy admission must refuse non-legacy provenance");
+        .expect_err("missing semantic fences must refuse activation");
+    assert_eq!(
+        refusal.as_database_error().unwrap().code().as_deref(),
+        Some("OO030")
+    );
     println!(
         "native semantic admission refused candidate: sqlstate={}",
         refusal
@@ -215,6 +222,83 @@ async fn retained_engine_publication_candidate() {
         first["receipt_sha256"].as_str().unwrap(),
         "pending cut cannot displace a head"
     );
+    db.execute(include_str!(
+        "../../../tools/release-coordinator/migrations/oo_publish_target_v1.sql"
+    ))
+    .await
+    .unwrap();
+    db.execute("ALTER TABLE oo_publish_target.fence OWNER TO oo_target_owner; GRANT USAGE ON SCHEMA oo_publish_target TO oo_target_owner; CREATE ROLE oo_r_retained NOLOGIN; GRANT USAGE ON SCHEMA _oo TO oo_r_retained;").await.unwrap();
+    // Publisher semantics: grant only reviewed columns, then open the bound fence.
+    db.execute(sqlx::AssertSqlSafe(format!(
+        "GRANT SELECT (\"{column}\") ON _oo.\"{physical}\" TO oo_r_retained;
+         INSERT INTO oo_publish_target.fence(singleton,state,role_name,schema_name,relation_name,
+          opened_columns,opened_pack_digest,opened_version,streams_stopped)
+         VALUES(true,'closed','oo_r_retained','_oo','{physical}','{{}}',NULL,NULL,0)"
+    )))
+    .await
+    .unwrap();
+    for state in ["closed", "granted"] {
+        sqlx::query("UPDATE oo_publish_target.fence SET state=$1")
+            .bind(state)
+            .execute(&mut db)
+            .await
+            .unwrap();
+        let err = sqlx::query("SELECT _oo.native_library_mark_ready('owned',$1)")
+            .bind(first["receipt_sha256"].as_str().unwrap())
+            .execute(&mut db)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            err.as_database_error().unwrap().code().as_deref(),
+            Some("OO030")
+        );
+    }
+    sqlx::query("UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY[$1],opened_pack_digest=repeat('a',64),opened_version='reviewed-1',candidate_id='self-reviewed-1'")
+        .bind(&column).execute(&mut db).await.unwrap();
+    let storage = first["data_vector"][0]["storage_relation"]
+        .as_str()
+        .unwrap();
+    let mismatches = [
+        ("recipe", "UPDATE _oo_load.generations SET recipe=jsonb_set(recipe,'{parts,0,receipt,rows}','99') WHERE run='first'".into()),
+        ("candidate seal", "UPDATE _oo_load.gateway_publications SET sealed_at=NULL WHERE run='first'".into()),
+        ("shard", "UPDATE _oo_load.gateway_publications SET shard='{}' WHERE run='first'".into()),
+        ("data vector", "UPDATE _oo_load.gateway_publications SET data_vector='[]' WHERE run='first'".into()),
+        ("storage definition", format!("CREATE OR REPLACE VIEW _oo_load.\"{storage}\" AS SELECT 99::bigint AS id")),
+        ("mapped definition", format!("CREATE OR REPLACE VIEW _oo.\"{physical}\" AS SELECT 99::bigint AS \"{column}\"")),
+        ("columns", format!("ALTER VIEW _oo.\"{physical}\" RENAME COLUMN \"{column}\" TO changed")),
+    ];
+    for (name, change) in mismatches {
+        let mut tx = db.begin().await.unwrap();
+        tx.execute(sqlx::AssertSqlSafe(change)).await.unwrap();
+        let err = sqlx::query("SELECT _oo.native_library_mark_ready('owned',$1)")
+            .bind(first["receipt_sha256"].as_str().unwrap())
+            .execute(&mut *tx)
+            .await
+            .expect_err(name);
+        assert_eq!(
+            err.as_database_error().unwrap().code().as_deref(),
+            Some("OO030"),
+            "{name}: {err}"
+        );
+        tx.rollback().await.unwrap();
+        println!("retained activation mismatch refused: {name} OO030");
+    }
+    sqlx::query("SELECT _oo.native_library_mark_ready('owned',$1)")
+        .bind(first["receipt_sha256"].as_str().unwrap())
+        .execute(&mut db)
+        .await
+        .unwrap();
+    let ready: bool = sqlx::query_scalar("SELECT _oo.native_library_source_ready('owned',$1)")
+        .bind(
+            first["receipt"]["shards"][0]["receipt_sha256"]
+                .as_str()
+                .unwrap(),
+        )
+        .fetch_one(&mut db)
+        .await
+        .unwrap();
+    assert!(ready);
+    println!("retained activation and exact freshness: passed");
     request.generation = "missing".into();
     assert_eq!(
         publish_generation(&mut db, &request).await.unwrap_err(),

@@ -365,6 +365,10 @@ pub async fn publish_generation(
         .execute(&mut *tx)
         .await
         .map_err(db)?;
+    sqlx::raw_sql(include_str!("../migrations/0124_retained_generation.sql"))
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
     let config = hash(r.source_binding.as_bytes());
     let descriptor = json!({"source_id":r.source_id,"binding_sha256":config,
         "tables":r.tables,"recipes":verified.iter().map(|v| &v.recipe).collect::<Vec<_>>()});
@@ -394,6 +398,7 @@ pub async fn publish_generation(
     }
     let mut tables = Vec::new();
     let mut vector = Vec::new();
+    let mut proofs = Vec::<Value>::new();
     for (table, cut) in r.tables.iter().zip(&verified) {
         register(&mut tx, r, &config, generation, table, Level::Namespace, "").await?;
         let physical = register(&mut tx, r, &config, generation, table, Level::Table, "").await?;
@@ -444,6 +449,29 @@ pub async fn publish_generation(
             }
         }
         let recipe_sha = digest(&cut.recipe);
+        let mut relations = vec![
+            ("_oo", physical.clone()),
+            ("_oo_load", cut.relation.clone()),
+        ];
+        for part in cut.recipe["parts"].as_array().ok_or("publication_recipe")? {
+            relations.push((
+                "_oo_load",
+                part["stage"].as_str().ok_or("publication_recipe")?.into(),
+            ));
+        }
+        for (schema, relation) in relations {
+            let proof: String =
+                sqlx::query_scalar("SELECT _oo.native_library_relation_proof($1,$2)::text")
+                    .bind(schema)
+                    .bind(relation)
+                    .fetch_one(&mut *tx)
+                    .await
+                    .map_err(db)?;
+            let proof = serde_json::from_str(&proof).map_err(|_| "publication_proof")?;
+            if !proofs.contains(&proof) {
+                proofs.push(proof);
+            }
+        }
         tables.push(json!({"schema":table.schema,"table":table.name,
             "storage_schema":logical(&table.schema)?,"storage_table":logical(&table.name)?,
             "run_id":r.generation,"physical_name":physical,"accepted_rows":cut.rows,
@@ -504,7 +532,7 @@ pub async fn publish_generation(
         "source_id":r.source_id,"run_id":r.generation,"run_ids":[r.generation],
         "source_generation":generation,"target_generation":generation,
         "position_codec":"snapshot-zero/v1","position_lineage":"oo-load.retained",
-        "applied_pos":"0","consistency":"per_table","consistency_grade":"B",
+        "applied_pos":"0","consistency":"retained_generation","consistency_grade":"B",
         "cross_table_consistent":false,"tables":tables});
     let library = json!({"protocol":"oo.pipeline.native-library-publication/v1",
         "library_id":r.library_id,"manifest_sha256":digest(&manifest),"manifest":manifest,
@@ -569,13 +597,18 @@ pub async fn publish_generation(
         return Err("publication_membership_mismatch");
     }
     sqlx::query(
-        "UPDATE _oo_load.gateway_publications SET receipt_sha256=$4
+        "UPDATE _oo_load.gateway_publications SET receipt_sha256=$4,shard=$5::jsonb,
+         data_vector=$6::jsonb,data_vector_sha256=$7,relation_proofs=$8::jsonb,sealed_at=clock_timestamp()
          WHERE library_id=$1 AND source=$2 AND run=$3 AND receipt_sha256 IS NULL",
     )
     .bind(&r.library_id)
     .bind(&r.source_id)
     .bind(&r.generation)
     .bind(&sha)
+    .bind(shards[0].to_string())
+    .bind(json!(vector).to_string())
+    .bind(digest(&json!(vector)))
+    .bind(json!(proofs).to_string())
     .execute(&mut *tx)
     .await
     .map_err(db)?;
