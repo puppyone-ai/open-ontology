@@ -2,6 +2,7 @@ import unittest
 import datetime as dt
 from decimal import Decimal
 import struct
+import io
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -11,6 +12,46 @@ import recompare_t1
 
 
 class T1Tests(unittest.TestCase):
+    def test_persistent_writer_requires_a_commit_acknowledgement(self):
+        class Input(io.StringIO):
+            def close(self):
+                pass
+        class Child:
+            def __init__(self, output):
+                self.stdin, self.stdout = Input(), io.StringIO(output)
+                self.returncode = None
+            def wait(self, timeout=None):
+                if self.returncode is None:
+                    self.returncode = 0
+                return self.returncode
+            def poll(self):
+                return self.returncode
+            def kill(self):
+                self.returncode = -9
+        class Stop:
+            stopped = False
+            def is_set(self):
+                return self.stopped
+            def wait(self, timeout):
+                self.stopped = True
+        class Source:
+            name = "owned-fixture"
+        root = t1.ROOT / "evidence"
+        root.mkdir(exist_ok=True)
+        for acknowledged in (True, False):
+            with tempfile.TemporaryDirectory(dir=root) as temporary:
+                source = Source()
+                source.path = Path(temporary)
+                child = Child("INSERT 0 1\nOO_CYCLE_0\n" if acknowledged else "")
+                result = {}
+                with patch.object(t1.subprocess, "Popen", return_value=child) as launch:
+                    t1.postgres_writer(source, Stop(), result)
+                self.assertEqual(launch.call_count, 1)
+                self.assertIn("UPDATE growth_events SET id=", child.stdin.getvalue())
+                self.assertIn("DELETE FROM growth_events", child.stdin.getvalue())
+                self.assertEqual(result["cycles"], int(acknowledged))
+                self.assertEqual("error" in result, not acknowledged)
+
     def test_archive_reaudit_is_typed_and_append_only(self):
         root = t1.ROOT / "evidence"
         root.mkdir(exist_ok=True)
@@ -91,7 +132,7 @@ class T1Tests(unittest.TestCase):
     def test_failed_writer_is_reported_not_passed(self):
         class Source:
             seq = 0
-            engine = "postgres"
+            engine = "oracle"
             def sql(self, *args, **kwargs):
                 raise RuntimeError("synthetic")
         result = {}

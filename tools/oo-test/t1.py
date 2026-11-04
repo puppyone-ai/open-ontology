@@ -192,6 +192,8 @@ def configure_pg(run, store):
 
 def writer(run, stop, result):
     """Every committed cycle includes insert/update/delete/primary-key update."""
+    if run.engine == "postgres":
+        return postgres_writer(run, stop, result)
     run = copy.copy(run)
     run.seq = 1_000_000
     cycles = 0
@@ -211,6 +213,53 @@ def writer(run, stop, result):
         result["cycles"] = cycles
     except Exception as error:
         result.update(cycles=cycles, error=type(error).__name__)
+
+
+def postgres_writer(run, stop, result):
+    """One admin session, rather than thousands of Docker API exec requests."""
+    command = ["docker", "exec", "-i", "-u", "postgres", "-e",
+               "PGOPTIONS=-c statement_timeout=30000", run.name,
+               "psql", "-X", "-v", "ON_ERROR_STOP=1", "-A", "-t",
+               "-U", "postgres", "-d", "fixture"]
+    cycles = 0
+    child = None
+    try:
+        with (run.path / "writer.stdout").open("w") as output, (run.path / "writer.stderr").open("w") as errors:
+            child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     stderr=errors, text=True, bufsize=1)
+            while not stop.is_set():
+                key = 10_000_000 + cycles * 2
+                marker = f"OO_CYCLE_{cycles}"
+                child.stdin.write(
+                    f"INSERT INTO growth_events VALUES({key},1);\n"
+                    f"UPDATE growth_events SET order_id=2 WHERE id={key};\n"
+                    f"UPDATE growth_events SET id={key+1} WHERE id={key};\n"
+                    f"DELETE FROM growth_events WHERE id={key+1};\n"
+                    f"INSERT INTO growth_events VALUES({20_000_000+cycles},3);\n"
+                    f"SELECT '{marker}';\n")
+                child.stdin.flush()
+                while True:
+                    line = child.stdout.readline()
+                    if not line:
+                        raise RuntimeError("writer ended before commit acknowledgement")
+                    output.write(line)
+                    if line.strip() == marker:
+                        break
+                output.flush()
+                cycles += 1
+                stop.wait(0.15)
+            child.stdin.close()
+            if child.wait(timeout=60):
+                raise RuntimeError("writer process failed")
+            result["cycles"] = cycles
+    except Exception as error:
+        result.update(cycles=cycles, error=type(error).__name__)
+    finally:
+        if child and child.poll() is None:
+            child.kill()
+            child.wait()
+        runner.write_json(run.path / "writer-process.json",
+                          {"argv": command, "exit": child.returncode if child else None, **result})
 
 
 def compare_pg(run, target, receipt, table):
