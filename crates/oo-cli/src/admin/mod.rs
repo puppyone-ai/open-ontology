@@ -1,6 +1,7 @@
 //! Administrative commands; consumer credentials are never read here.
 mod doctor;
 mod lite;
+mod ontology;
 mod progress;
 mod wizard;
 use oo_stack::stack;
@@ -40,6 +41,9 @@ Other admin operations are not yet implemented (ADMIN_NOT_IMPLEMENTED).";
 
 pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
     let (command, rest) = args.split_first()?;
+    if command == "help" && rest.first().is_some_and(|c| c == "ontology") {
+        return Some(Ok(Invocation::Help(ontology::HELP.into())));
+    }
     if command == "help" && rest.first().is_some_and(|c| is_admin(c) && c != "status") {
         return Some(Ok(Invocation::Help(HELP.into())));
     }
@@ -76,6 +80,17 @@ fn admin_status(args: &[String]) -> bool {
 }
 
 fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
+    if command == "ontology" {
+        return ontology::run(rest)
+            .map(Invocation::Help)
+            .map_err(|message| {
+                if message == "ADMIN_ARGUMENT" {
+                    Failure::usage(message)
+                } else {
+                    Failure::local(message)
+                }
+            });
+    }
     if rest.iter().any(|s| s == "--help" || s == "-h") {
         return Ok(Invocation::Help(HELP.into()));
     }
