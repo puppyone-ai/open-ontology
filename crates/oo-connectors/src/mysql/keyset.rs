@@ -413,11 +413,15 @@ pub fn guard(sql: &str) -> Result<&'static str, SourceError> {
             return Err(SourceError::config("statement_not_read_only"));
         }
     }
-    let verbs: [(&str, &'static str); 10] = [
+    if upper == "START TRANSACTION WITH CONSISTENT SNAPSHOT" {
+        return Ok("START TRANSACTION");
+    }
+    let verbs: [(&str, &'static str); 11] = [
         ("SELECT ", "SELECT"),
         ("SHOW ", "SHOW"),
         ("EXPLAIN SELECT ", "EXPLAIN"),
         ("EXPLAIN FORMAT=TRADITIONAL SELECT ", "EXPLAIN"),
+        ("EXPLAIN FORMAT='BRIEF' SELECT ", "EXPLAIN"),
         ("SET SESSION ", "SET SESSION"),
         (
             "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY",

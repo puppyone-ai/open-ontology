@@ -37,6 +37,8 @@ use crate::{SourceError, SourceErrorKind};
 #[cfg(feature = "mysql-binlog")]
 #[path = "change.rs"]
 pub mod change;
+#[path = "family.rs"]
+pub(crate) mod family;
 #[cfg(feature = "mysql-binlog")]
 #[path = "repair.rs"]
 pub mod repair;
@@ -127,6 +129,7 @@ enum ExecError {
 }
 
 pub struct MysqlEngine {
+    family: EngineFamily,
     config: MysqlConfig,
     password: Zeroizing<String>,
     options: EngineOptions,
@@ -326,6 +329,7 @@ impl MysqlEngine {
     pub fn new(config: MysqlConfig, password: Zeroizing<String>, options: EngineOptions) -> Self {
         let duty = DutyCycle::new(options.budget.duty_cycle_percent);
         Self {
+            family: EngineFamily::Mysql,
             config,
             password,
             options,
@@ -410,29 +414,27 @@ impl MysqlEngine {
             "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ".to_owned(),
             "SET SESSION TRANSACTION READ ONLY".to_owned(),
         ];
-        // max_execution_time exists from 5.7.8; the version is unknown on the
-        // very first connect, so probe the variable before setting it.
-        let has_met: Option<Row> = tokio::time::timeout(
-            self.statement_timeout(),
-            conn.query_first("SELECT @@SESSION.max_execution_time"),
-        )
-        .await
-        .map_err(|_| SourceError::budget("session_setup_timeout"))?
-        .map_err(|_| SourceError::protocol("session_timeout_variable"))?;
-        self.stats.statements += 1;
-        if has_met.is_some() {
-            setup.push(format!(
-                "SET SESSION max_execution_time = {}",
-                self.options.budget.statement_timeout_ms.clamp(1, 600_000)
-            ));
+        if self.family == EngineFamily::Tidb {
+            // TiDB rejects READ ONLY unless no-op functions are enabled. Do
+            // not silently enable no-ops; SQL guard and SELECT grants protect it.
+            setup.retain(|sql| sql != "SET SESSION TRANSACTION READ ONLY");
         }
+        setup.push(self.timeout_setting());
         for sql in setup {
             keyset::guard(&sql)?;
             self.stats.statements += 1;
             tokio::time::timeout(Duration::from_secs(30), conn.query_drop(&sql))
                 .await
                 .map_err(|_| SourceError::budget("session_setup_timeout"))?
-                .map_err(|_| SourceError::protocol("session_setup"))?;
+                .map_err(|_| {
+                    SourceError::protocol(match sql.as_str() {
+                        "SET SESSION TRANSACTION READ ONLY" => "session_read_only",
+                        "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ" => {
+                            "session_isolation"
+                        }
+                        _ => "session_setup",
+                    })
+                })?;
         }
         self.conn = Some(conn);
         Ok(())
@@ -535,6 +537,9 @@ impl MysqlEngine {
         if self.basics.is_some() {
             return Ok(());
         }
+        if self.family != EngineFamily::Mysql {
+            return self.family_basics().await;
+        }
         let rows = self
             .exec(
                 "SELECT VERSION(), @@GLOBAL.log_bin, @@GLOBAL.gtid_mode, @@GLOBAL.max_connections",
@@ -571,12 +576,16 @@ impl MysqlEngine {
         self.rest().await;
         let mut paused = Duration::ZERO;
         loop {
-            let rows = self
+            let rows = if self.family == EngineFamily::Tidb {
+                self.tidb_load().await?
+            } else {
+                self
                 .exec(
                     "SHOW GLOBAL STATUS WHERE Variable_name IN ('Threads_running', 'Threads_connected')",
                     vec![],
                 )
-                .await?;
+                .await?
+            };
             let mut running = None;
             let mut connected = None;
             for row in &rows {
@@ -738,7 +747,16 @@ impl MysqlEngine {
                 vec![Value::from(table.schema.as_str()), Value::from(table.name.as_str())],
             )
             .await?;
-        if engine.first().and_then(|r| row_text(r, 0)).as_deref() != Some("InnoDB") {
+        let storage = engine.first().and_then(|r| row_text(r, 0));
+        let expected = if self.family == EngineFamily::Oceanbase {
+            "OceanBase"
+        } else {
+            "InnoDB"
+        };
+        if !storage
+            .as_deref()
+            .is_some_and(|s| s.eq_ignore_ascii_case(expected))
+        {
             return Err(SourceError::catalog("snapshot_requires_innodb"));
         }
         let rows = self
@@ -879,6 +897,9 @@ impl MysqlEngine {
 
     /// `EXPLAIN` the statement and require the key index, not a full scan.
     async fn verify_index(&mut self, sql: &str, values: Vec<Value>, index: &str) -> Result<()> {
+        if self.family == EngineFamily::Tidb {
+            return self.tidb_verify_index(sql, values, index).await;
+        }
         let rows = self
             .exec(&format!("EXPLAIN FORMAT=TRADITIONAL {sql}"), values)
             .await?;
@@ -1076,10 +1097,24 @@ impl MysqlEngine {
         self.gate().await?;
         let started = Instant::now();
         self.meta(table).await?;
-        let rows_est = self.estimate_rows(table).await?;
+        let rows_est = if self.family == EngineFamily::Mysql {
+            self.estimate_rows(table).await?
+        } else {
+            0
+        };
         let names = self.meta_ref(table)?.names.clone();
         let sql = keyset::row_bytes_sql(&table.schema, &table.name, &names, self.hint_ms())?;
         let sized = self.exec(&sql, vec![]).await?;
+        // The shared sizing scan already counts rows. Family EXPLAIN formats
+        // differ; a missing MySQL `rows` column must not imply an empty table.
+        let rows_est = if self.family == EngineFamily::Mysql {
+            rows_est
+        } else {
+            sized
+                .first()
+                .and_then(|r| row_u64(r, 0))
+                .ok_or_else(|| SourceError::protocol("family_row_count"))?
+        };
         let avg = sized.first().and_then(|r| {
             let n = row_u64(r, 0)?;
             let sum = row_u64(r, 1)?;
@@ -1279,7 +1314,11 @@ impl MysqlEngine {
     ) -> Result<(Option<Watermark>, Option<Watermark>, Vec<Row>, u64)> {
         let low = self.read_watermark().await?;
         self.exec(
-            "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY",
+            if self.family == EngineFamily::Tidb {
+                "START TRANSACTION WITH CONSISTENT SNAPSHOT"
+            } else {
+                "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY"
+            },
             vec![],
         )
         .await?;
@@ -1552,20 +1591,16 @@ impl MysqlEngine {
         self.options.budget = budget.clone();
         self.duty.set_percent(budget.duty_cycle_percent);
         if self.conn.is_some() {
-            self.exec(
-                &format!(
-                    "SET SESSION max_execution_time = {}",
-                    budget.statement_timeout_ms
-                ),
-                vec![],
-            )
-            .await?;
+            self.exec(&self.timeout_setting(), vec![]).await?;
         }
         Ok(())
     }
 
     async fn probe_inner(&mut self) -> Result<ProbeReport> {
         self.ensure_basics().await?;
+        if self.family != EngineFamily::Mysql {
+            return self.family_probe().await;
+        }
         self.gate().await?;
         let started = Instant::now();
         let result = self.observe().await;
@@ -1769,7 +1804,34 @@ impl MysqlEngine {
 
 impl SourceEngine for MysqlEngine {
     fn family(&self) -> EngineFamily {
-        EngineFamily::Mysql
+        self.family
+    }
+
+    async fn discover_tables(&mut self, budget: &ReadBudget) -> Result<Vec<TableRef>> {
+        self.apply_budget(budget).await?;
+        self.ensure_basics().await?;
+        self.gate().await?;
+        let started = Instant::now();
+        let rows = self.exec(
+            "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME LIMIT 10001",
+            vec![Value::from(self.config.mysql_database.as_str())],
+        ).await;
+        self.finish_op(started);
+        let rows = rows?;
+        if rows.len() > 10000 {
+            return Err(SourceError::budget("catalog_table_limit"));
+        }
+        rows.iter()
+            .map(|row| {
+                let name = row_text(row, 0)
+                    .filter(|n| mysql_ident(n))
+                    .ok_or_else(|| SourceError::identifier("table_ident"))?;
+                Ok(TableRef {
+                    schema: self.config.mysql_database.clone(),
+                    name,
+                })
+            })
+            .collect()
     }
 
     async fn probe(&mut self) -> Result<ProbeReport> {

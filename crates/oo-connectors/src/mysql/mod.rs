@@ -19,6 +19,13 @@ mod reader;
 mod source;
 pub mod values;
 pub mod version;
+// Root exports are coordinator-owned; these paths keep the lane deliverable usable.
+#[path = "../mariadb/mod.rs"]
+pub mod mariadb;
+#[path = "../oceanbase/mod.rs"]
+pub mod oceanbase;
+#[path = "../tidb/mod.rs"]
+pub mod tidb;
 
 pub use engine::{EngineOptions, MysqlEngine, RowFingerprint, WatermarkMode};
 pub use reader::{
