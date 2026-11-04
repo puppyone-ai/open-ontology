@@ -999,11 +999,23 @@
       "sprint": "S4",
       "lane": "A",
       "title": "`oo build` 全链：拉取→Self-build→自审→发布→Gateway→签发首个 token→生成提示词；`--resume`",
-      "status": "in_progress",
+      "status": "integrated",
       "owner": "lane-A",
       "branch": "v0.2/a-onboarding",
       "commits": [
-        "621b9058a"
+        "621b9058a",
+        "918dcc9c8",
+        "9bafbb478",
+        "427aad97e",
+        "f428c89c1",
+        "de8e4568f",
+        "1e5a1abc5",
+        "6e9a13272",
+        "cf8a3d887",
+        "010f824b7",
+        "5eed7c26b",
+        "47ee85114",
+        "03e58bbe7"
       ],
       "evidence": []
     },
@@ -1027,7 +1039,7 @@
       "sprint": "S4",
       "lane": "A",
       "title": "远程部署：`oo up --target ssh` 安装 compose 栈与 systemd timer",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-A2 (native Opus)",
       "branch": "v0.2/a-onboarding",
       "commits": [
