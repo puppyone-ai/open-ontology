@@ -690,7 +690,7 @@
       "sprint": "S2",
       "lane": "A",
       "title": "`deploy/lite` compose 与 `oo up/down/status`：Agent DB、控制库、worker、Builder、Gateway、model-egress、scheduler；镜像 digest 锁定",
-      "status": "in_progress",
+      "status": "author_complete",
       "owner": "lane-A",
       "branch": "v0.2/a-onboarding",
       "commits": [

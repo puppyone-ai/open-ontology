@@ -14,3 +14,7 @@ advancing each cycle; plus one MySQL and one Oracle cycle. Record evidence.
 Write scope: tools/release-coordinator/**, crates/oo-gateway/src/{pack_reload.rs,publication_binding.rs,query_executor.rs}
 and new files for generation pinning, crates/oo-pipeline publication glue, tools/oo-load publication step, tests.
 Lane B owns the auth files in oo-gateway — do not edit auth_lifecycle.rs.
+Added by E191: in deploy/lite, the scheduler/worker cycle must run `oo-load sync` for the configured stack instead of the
+legacy `job-worker native-fire` path (its parent admission lives in `jw_native`, which oo-load does not write), then the
+data-only Builder cycle and the publication step. Builder stays a one-shot job; `oo status` reports it as such. Exit adds:
+after one scheduled cycle, `oo status` reports all seven services/jobs healthy (deploy/lite/README.md "Status").

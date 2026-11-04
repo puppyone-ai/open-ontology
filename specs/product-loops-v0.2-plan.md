@@ -147,7 +147,7 @@ ID 格式 `S<sprint>-<车道>-<序号>`。“测试 / 退出”列末尾的 `AT-
 | S4-A-02 | A | `oo build` 全链：拉取→Self-build→自审→发布→Gateway→签发首个 token→生成提示词；`--resume` | admin | 中途中断各阶段均可续跑 |
 | S4-A-03 | A | `oo ontology open/export --format html|mermaid|yaml`：离线自包含 HTML（基于 `relationships/graph.json`） | admin、`oo-builder` | 无网络打开；上千实体可交互 |
 | S4-A-04 | A | 远程部署：`oo up --target ssh` 安装 compose 栈与 systemd timer | `oo-stack` | 本机起一个带 sshd 与 Docker 的干净 Linux 容器（amd64 与 arm64 各一）作为目标主机，部署成功；云主机就绪后补一次真机；AT-ONB-03 |
-| S4-M-01 | M | 发布跟随：每周期发布新数据代际，Gateway 原子切换指针，`/v1/freshness` 报告 | `release-coordinator`、`oo-gateway` | 连续 3 周期对话中途无错误；AT-TOK-03 |
+| S4-M-01 | M | 发布跟随：lite scheduler/worker 每周期执行 `oo-load sync`（取代旧 `native-fire` 准入路径），发布新数据代际，Gateway 原子切换指针，`/v1/freshness` 报告；Builder 为一次性作业，`oo status` 如实报告 | `release-coordinator`、`oo-gateway`、`deploy/lite` | 连续 3 周期对话中途无错误；一次计划周期后 `oo status` 七项服务/作业健康；AT-TOK-03 |
 | S4-M-02 | M | **L1 干净机器验收**：macOS arm64 与 Linux amd64 各一，MySQL/PG/Oracle 各一次 | 证据包 | [04 §7](../docs/product/04-onboarding-and-gateway-binding.md) 第 1–4 条；AT-ONB-01 |
 | S4-C-03 | C | P1：TiDB、OceanBase 快照 + C5 | 方言模块 | T0–T2 |
 | S4-D-02 | D | P1：openGauss 快照 + C5（认证与逻辑解码分叉单独处理） | `postgres/`（方言） | T0–T2 |
