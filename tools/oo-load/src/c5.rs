@@ -182,6 +182,7 @@ async fn run_cycle<E: epoch::Epoch>(
                 .await?;
         }
         let after = target.generations().await?;
+        let retained_run = target.c5_baseline().await?.run;
         let duty = u32::from(budget.duty_cycle_percent);
         if !(1..=100).contains(&duty) {
             return Err("c5_budget".into());
@@ -194,6 +195,7 @@ async fn run_cycle<E: epoch::Epoch>(
             serde_json::json!({
                 "protocol":"oo.sync/v1","source":source.id,"mode":"c5","table":table,
                 "run_id":config.run_id,
+                "retained_run":retained_run,
                 "target":target.relation(),"replay":replay,"ranges_replaced":receipts.len(),
                 "payload_bytes":payload_bytes,"source_read_bytes":source_read_bytes,
                 "target_write_bytes":if replay {0} else {target.write_bytes().await?},
