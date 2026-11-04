@@ -1,1278 +1,1278 @@
 {
- "schema": "oo.v02-state/v1",
- "as_of": "2026-11-04T00:00:00+08:00",
- "integration_branch": "v0.2/product-loops",
- "current_sprint": "S2",
- "active_executors_max": 6,
- "loops": {
-  "L1": {
-   "status": "open",
-   "accepted_level": null,
-   "review": null
+  "schema": "oo.v02-state/v1",
+  "as_of": "2026-11-04T00:00:00+08:00",
+  "integration_branch": "v0.2/product-loops",
+  "current_sprint": "S2",
+  "active_executors_max": 6,
+  "loops": {
+    "L1": {
+      "status": "open",
+      "accepted_level": null,
+      "review": null
+    },
+    "L2": {
+      "status": "open",
+      "accepted_level": null,
+      "review": null
+    },
+    "L3": {
+      "status": "open",
+      "accepted_level": null,
+      "review": null
+    },
+    "L4": {
+      "status": "open",
+      "accepted_level": null,
+      "review": null
+    },
+    "L5": {
+      "status": "open",
+      "accepted_level": null,
+      "review": null
+    }
   },
-  "L2": {
-   "status": "open",
-   "accepted_level": null,
-   "review": null
-  },
-  "L3": {
-   "status": "open",
-   "accepted_level": null,
-   "review": null
-  },
-  "L4": {
-   "status": "open",
-   "accepted_level": null,
-   "review": null
-  },
-  "L5": {
-   "status": "open",
-   "accepted_level": null,
-   "review": null
+  "tasks": [
+    {
+      "id": "S0-M-01",
+      "sprint": "S0",
+      "lane": "M",
+      "title": "建 `execution/v0.2/state.json` 与 `decisions.md`；从本 Plan 生成任务卡",
+      "status": "author_complete",
+      "owner": "coordinator",
+      "branch": "v0.2/product-loops",
+      "commits": [
+        "3d2c44f62",
+        "26f116101",
+        "a241fb04e",
+        "e1390d404",
+        "f905c3140",
+        "1a2493ac1"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-M-02",
+      "sprint": "S0",
+      "lane": "M",
+      "title": "定义 `SourceEngine` 公共接口：`probe/capabilities(version)/catalog/plan_chunks/read_chunk/watermark/change_stream/digest_range`",
+      "status": "author_complete",
+      "owner": "coordinator",
+      "branch": "v0.2/product-loops",
+      "commits": [
+        "cd78da1e1"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-M-03",
+      "sprint": "S0",
+      "lane": "M",
+      "title": "版本分派表格式与 `doctor` 输出契约（含 DBA GRANT 清单）",
+      "status": "author_complete",
+      "owner": "coordinator",
+      "branch": "v0.2/product-loops",
+      "commits": [
+        "cd78da1e1"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-M-04",
+      "sprint": "S0",
+      "lane": "M",
+      "title": "`stack.yaml`（`oo.stack/v1`）schema 与 secret_ref 规则",
+      "status": "integrated",
+      "owner": "lane-A",
+      "branch": "v0.2/a-onboarding",
+      "commits": [
+        "b59054b84",
+        "e5a532fc9",
+        "f97d41d39",
+        "660a74d01",
+        "da5808571",
+        "2319f2f75",
+        "26ae7237e",
+        "df178ab74",
+        "8ea763cd5",
+        "57e48301d"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-H-01",
+      "sprint": "S0",
+      "lane": "H",
+      "title": "中性合成夹具生成器（[05 §3](../docs/product/05-version-matrix-and-testing.md) 全部形状）+ 方言 DDL：MySQL、PG、Oracle",
+      "status": "integrated",
+      "owner": "lane-H",
+      "branch": "v0.2/h-test-infra",
+      "commits": [
+        "17a4447de",
+        "e54a5388d",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-H-02",
+      "sprint": "S0",
+      "lane": "H",
+      "title": "20 道金标准题与 gold 生成 SQL",
+      "status": "integrated",
+      "owner": "lane-H",
+      "branch": "v0.2/h-test-infra",
+      "commits": [
+        "17a4447de",
+        "e54a5388d",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-H-03",
+      "sprint": "S0",
+      "lane": "H",
+      "title": "`oo-test` 统一入口：起库（固定 digest）、灌数、跑套件、写证据包",
+      "status": "integrated",
+      "owner": "lane-H",
+      "branch": "v0.2/h-test-infra",
+      "commits": [
+        "17a4447de",
+        "e54a5388d",
+        "07520d7c3",
+        "6290dc05c"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-H-04",
+      "sprint": "S0",
+      "lane": "H",
+      "title": "P0 镜像 digest 锁定：MySQL 5.7/8.0/8.4/9、PG 12–18、Oracle 23ai/11g XE/21c XE（19c 待授权）",
+      "status": "integrated",
+      "owner": "lane-H",
+      "branch": "v0.2/h-test-infra",
+      "commits": [
+        "17a4447de",
+        "e54a5388d",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-H-05",
+      "sprint": "S0",
+      "lane": "H",
+      "title": "amd64 仿真 runner：`oo-test --platform linux/amd64` 在本机 Docker Desktop（Rosetta）运行 amd64-only 镜像；保留 `--runner remote` 接口供日后接入云主机",
+      "status": "integrated",
+      "owner": "lane-H",
+      "branch": "v0.2/h-test-infra",
+      "commits": [
+        "17a4447de",
+        "e54a5388d",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-C-01",
+      "sprint": "S0",
+      "lane": "C",
+      "title": "MySQL 适配 `SourceEngine`；`capabilities` 覆盖 5.7/8.0/8.4/9.x 差异（认证、`SHOW BINARY LOG STATUS`、tagged GTID、`expire_logs_days`）",
+      "status": "integrated",
+      "owner": "lane-C",
+      "branch": "v0.2/c-mysql-engine",
+      "commits": [
+        "684fa5170",
+        "12b320242",
+        "f3e596eb0",
+        "1d4fbb3dd",
+        "4d0236dd3",
+        "1f6affb12",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-D-01",
+      "sprint": "S0",
+      "lane": "D",
+      "title": "PG 连接器从 `tools/postgres-preview` 收敛到 `crates/oo-connectors/src/postgres/`，适配接口",
+      "status": "integrated",
+      "owner": "lane-D",
+      "branch": "v0.2/d-postgres-engine",
+      "commits": [
+        "ac947b531",
+        "90e88d366",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-E-01",
+      "sprint": "S0",
+      "lane": "E",
+      "title": "Oracle 适配接口；`capabilities` 覆盖 11g/12c+/19c/21c/23ai（CDB/PDB、common user、CONTINUOUS_MINE、字典策略）",
+      "status": "integrated",
+      "owner": "lane-E",
+      "branch": "v0.2/e-oracle-engine",
+      "commits": [
+        "a92b1fd48",
+        "9c718ecdf",
+        "1ec73defc",
+        "9d1e51825",
+        "09c211f11",
+        "01d289453",
+        "be4f8da2b",
+        "426c290c8",
+        "c93adb524",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-A-01",
+      "sprint": "S0",
+      "lane": "A",
+      "title": "管理端命令骨架：`oo init/up/down/status/doctor/build` 参数与 `--help`，非 TTY 全非交互",
+      "status": "integrated",
+      "owner": "lane-A",
+      "branch": "v0.2/a-onboarding",
+      "commits": [
+        "b59054b84",
+        "e5a532fc9",
+        "f97d41d39",
+        "660a74d01",
+        "da5808571",
+        "2319f2f75",
+        "26ae7237e",
+        "df178ab74",
+        "8ea763cd5",
+        "57e48301d"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S0-B-01",
+      "sprint": "S0",
+      "lane": "B",
+      "title": "token-store 迁移设计：renew/rotate/enroll 字段与审计事件",
+      "status": "integrated",
+      "owner": "lane-B",
+      "branch": "v0.2/b-token-lifecycle",
+      "commits": [
+        "5ec402635",
+        "d9f61691b",
+        "48878c28f",
+        "976b77e81",
+        "2ab36682e",
+        "4f564202d"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S1-C-01",
+      "sprint": "S1",
+      "lane": "C",
+      "title": "MySQL 分块：键形态识别、分布因子与抽样切分、字符串主键源端比较、复合主键改写、无键表策略、自适应块",
+      "status": "integrated",
+      "owner": "lane-C",
+      "branch": "v0.2/c-mysql-engine",
+      "commits": [
+        "8b2bd7bed",
+        "7bd58ced7",
+        "cc2d21e17",
+        "eb8b4133d",
+        "c9c2c5695",
+        "855114e5c",
+        "d5a9239e8",
+        "4d2e91ffb",
+        "fd4f001f6",
+        "f9f04a320",
+        "3af666411",
+        "a92fecccf",
+        "efbce797f",
+        "12b320242",
+        "f3e596eb0",
+        "1d4fbb3dd",
+        "4d0236dd3",
+        "1f6affb12",
+        "6290dc05c",
+        "17a4447de"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S1-C-02",
+      "sprint": "S1",
+      "lane": "C",
+      "title": "源库保护：占空比、`Threads_running` 暂停、语句超时双保险、`net_*_timeout`、连接余量限流",
+      "status": "integrated",
+      "owner": "lane-C",
+      "branch": "v0.2/c-mysql-engine",
+      "commits": [
+        "8b2bd7bed",
+        "7bd58ced7",
+        "cc2d21e17",
+        "eb8b4133d",
+        "c9c2c5695",
+        "855114e5c",
+        "d5a9239e8",
+        "4d2e91ffb",
+        "fd4f001f6",
+        "f9f04a320",
+        "3af666411",
+        "a92fecccf",
+        "efbce797f",
+        "12b320242",
+        "f3e596eb0",
+        "1d4fbb3dd",
+        "4d0236dd3",
+        "1f6affb12",
+        "6290dc05c",
+        "17a4447de"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S1-D-01",
+      "sprint": "S1",
+      "lane": "D",
+      "title": "PG 分块：keyset + 单快照内 ctid（14+）；`statement_timeout`；活跃会话保护",
+      "status": "integrated",
+      "owner": "lane-D",
+      "branch": "v0.2/d-postgres-engine",
+      "commits": [
+        "c9c2c5695",
+        "4fb7adb26",
+        "855114e5c",
+        "d5a9239e8",
+        "4d2e91ffb",
+        "fd4f001f6",
+        "e40e051b3",
+        "f9f04a320",
+        "40193e84e",
+        "13ad5b78e",
+        "e4fbc0551",
+        "1abf12ccf",
+        "3af666411",
+        "a92fecccf",
+        "d5cc01526",
+        "efbce797f",
+        "f97271d8c",
+        "ac947b531",
+        "90e88d366",
+        "6290dc05c",
+        "17a4447de"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S1-E-01",
+      "sprint": "S1",
+      "lane": "E",
+      "title": "Oracle 分块：keyset + extents 生成 ROWID 范围；`ORA-01555` 缩块重试；空串语义",
+      "status": "integrated",
+      "owner": "lane-E",
+      "branch": "v0.2/e-oracle-engine",
+      "commits": [
+        "edec9d377",
+        "af825e12b",
+        "419b0a911",
+        "6deff3647",
+        "aa43a95d9",
+        "580755f20",
+        "911331b2d",
+        "535729c9f",
+        "f183415ac",
+        "406045b86",
+        "0bb1b8a02",
+        "bfe6573e4",
+        "85eeebc23",
+        "92ef390ac",
+        "2000f5743",
+        "62ec9d4d8",
+        "c3ba15325",
+        "0f0769479",
+        "838cda556",
+        "cd9cce88e",
+        "a92b1fd48",
+        "9c718ecdf",
+        "1ec73defc",
+        "9d1e51825",
+        "09c211f11",
+        "01d289453",
+        "be4f8da2b",
+        "426c290c8",
+        "c93adb524",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S1-M-01",
+      "sprint": "S1",
+      "lane": "M",
+      "title": "统一暂存→原子替换→发布；不可变父存储 + 变化块组合；目标写入计量",
+      "status": "integrated",
+      "owner": "coordinator (Codex lane M)",
+      "branch": "v0.2/m-pipeline",
+      "commits": [
+        "7106fa2c6",
+        "8b2bd7bed",
+        "7bd58ced7",
+        "eb8b4133d",
+        "c9c2c5695",
+        "4fb7adb26",
+        "855114e5c",
+        "d5a9239e8",
+        "4d2e91ffb",
+        "fd4f001f6",
+        "e40e051b3",
+        "40193e84e",
+        "13ad5b78e",
+        "e4fbc0551",
+        "1abf12ccf",
+        "3af666411",
+        "a92fecccf",
+        "d5cc01526",
+        "efbce797f",
+        "f97271d8c",
+        "a036302a8",
+        "effdc19ba",
+        "b877c1885",
+        "6290dc05c",
+        "17a4447de"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S1-M-02",
+      "sprint": "S1",
+      "lane": "M",
+      "title": "有界滚动调度（并发 1–4）、失败即停派、周期预算文件",
+      "status": "integrated",
+      "owner": "coordinator (Codex lane M)",
+      "branch": "v0.2/m-pipeline",
+      "commits": [
+        "0e5420a5c"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S1-B-01",
+      "sprint": "S1",
+      "lane": "B",
+      "title": "Gateway 管理 API：issue/list/renew/rotate/revoke/enroll；自助 `POST /v1/auth/renew`（策略可关）",
+      "status": "integrated",
+      "owner": "lane-B",
+      "branch": "v0.2/b-token-lifecycle",
+      "commits": [
+        "2ab36682e",
+        "48878c28f",
+        "4f564202d",
+        "5ec402635",
+        "976b77e81",
+        "d9f61691b"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S1-B-02",
+      "sprint": "S1",
+      "lane": "B",
+      "title": "`GET /v1/meta`（协议版本、最低 CLI 版本、发布与新鲜度）；mTLS 证书与 token 到期纳入 `/v1/health`",
+      "status": "integrated",
+      "owner": "lane-B",
+      "branch": "v0.2/b-token-lifecycle",
+      "commits": [
+        "5ec402635",
+        "d9f61691b",
+        "48878c28f",
+        "976b77e81",
+        "2ab36682e",
+        "4f564202d"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S1-A-01",
+      "sprint": "S1",
+      "lane": "A",
+      "title": "`tools/model-egress`：loopback 监听、持 key、OpenAI 兼容/Anthropic 方言、限流、统一额度错误码、计量；能力探测（W、O_max、JSON 模式）",
+      "status": "integrated",
+      "owner": "lane-A",
+      "branch": "v0.2/a-onboarding",
+      "commits": [
+        "b59054b84",
+        "e5a532fc9",
+        "f97d41d39",
+        "660a74d01",
+        "da5808571",
+        "2319f2f75",
+        "26ae7237e",
+        "df178ab74",
+        "8ea763cd5",
+        "57e48301d"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S1-A-02",
+      "sprint": "S1",
+      "lane": "A",
+      "title": "`oo doctor` 接入三引擎 `probe/capabilities`，输出分块计划、行字节估算、DBA 清单",
+      "status": "integrated",
+      "owner": "lane-A",
+      "branch": "v0.2/a-onboarding",
+      "commits": [
+        "98976c1c1",
+        "0c9160cdb",
+        "8d5e056a2",
+        "d36a240e9",
+        "b59054b84",
+        "2319f2f75",
+        "26ae7237e",
+        "8ea763cd5"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S2-C-01",
+      "sprint": "S2",
+      "lane": "C",
+      "title": "MySQL 只读水位（GTID / file-pos）与块级日志修正；首次全量前记 L0 并持续消费",
+      "status": "author_complete",
+      "owner": "lane-C",
+      "branch": "v0.2/c-mysql-engine",
+      "commits": [
+        "b8da82247",
+        "ccf3b86dc",
+        "09e1fee6d",
+        "518eba4ed",
+        "5ad319bab",
+        "0b2f53858",
+        "99072ad00",
+        "cfff12528",
+        "cc2d21e17",
+        "c9c2c5695",
+        "f9f04a320",
+        "684fa5170",
+        "12b320242",
+        "f3e596eb0",
+        "1d4fbb3dd",
+        "4d0236dd3",
+        "1f6affb12",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S2-C-02",
+      "sprint": "S2",
+      "lane": "C",
+      "title": "MySQL C5 统一到接口；C5→C1 多来源多绑定交接屏障；保留期按实际最早日志预检",
+      "status": "author_complete",
+      "owner": "lane-C",
+      "branch": "v0.2/c-mysql-engine",
+      "commits": [
+        "b8da82247",
+        "ccf3b86dc",
+        "09e1fee6d",
+        "518eba4ed",
+        "5ad319bab",
+        "0b2f53858",
+        "99072ad00",
+        "cfff12528",
+        "cc2d21e17",
+        "c9c2c5695",
+        "f9f04a320",
+        "684fa5170",
+        "12b320242",
+        "f3e596eb0",
+        "1d4fbb3dd",
+        "4d0236dd3",
+        "1f6affb12",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S2-D-01",
+      "sprint": "S2",
+      "lane": "D",
+      "title": "PG 逻辑复制：slot/publication 预检、proto 版本协商、`publish_via_partition_root`、18 slot 作废检测与重基线",
+      "status": "author_complete",
+      "owner": "lane-D",
+      "branch": "v0.2/d-postgres-engine",
+      "commits": [
+        "e84f27a57",
+        "bd3845f96",
+        "e8fdb5216",
+        "f9f04a320",
+        "ac947b531",
+        "90e88d366",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S2-E-01",
+      "sprint": "S2",
+      "lane": "E",
+      "title": "Oracle LogMiner 位点：19c+ 自管日志列表、CDB/PDB、SCN 水位；C5 统一到接口",
+      "status": "author_complete",
+      "owner": "lane-E",
+      "branch": "v0.2/e-oracle-engine",
+      "commits": [
+        "edec9d377",
+        "af825e12b",
+        "419b0a911",
+        "6deff3647",
+        "aa43a95d9",
+        "580755f20",
+        "911331b2d",
+        "535729c9f",
+        "f183415ac",
+        "406045b86",
+        "0bb1b8a02",
+        "bfe6573e4",
+        "85eeebc23",
+        "92ef390ac",
+        "2000f5743",
+        "62ec9d4d8",
+        "c3ba15325",
+        "0f0769479",
+        "838cda556",
+        "cd9cce88e",
+        "a92b1fd48",
+        "9c718ecdf",
+        "1ec73defc",
+        "9d1e51825",
+        "09c211f11",
+        "01d289453",
+        "be4f8da2b",
+        "426c290c8",
+        "c93adb524",
+        "07520d7c3"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S2-A-01",
+      "sprint": "S2",
+      "lane": "A",
+      "title": "`oo init` TUI（ratatui）：7 步向导，结果写 `stack.yaml`；秘密写 0600 或 keychain",
+      "status": "author_complete",
+      "owner": "lane-A",
+      "branch": "v0.2/a-onboarding",
+      "commits": [
+        "158d80b0a",
+        "daa3c7e91",
+        "a8d6ddd53",
+        "0eff6c73d",
+        "98976c1c1",
+        "0c9160cdb",
+        "8d5e056a2",
+        "d36a240e9",
+        "86e81206e",
+        "b59054b84",
+        "da5808571",
+        "2319f2f75",
+        "26ae7237e",
+        "8ea763cd5",
+        "57e48301d"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S2-A-02",
+      "sprint": "S2",
+      "lane": "A",
+      "title": "`deploy/lite` compose 与 `oo up/down/status`：Agent DB、控制库、worker、Builder、Gateway、model-egress、scheduler；镜像 digest 锁定",
+      "status": "in_progress",
+      "owner": "lane-A",
+      "branch": "v0.2/a-onboarding",
+      "commits": [
+        "a1daa2104",
+        "9d41bc39e",
+        "d9bfdf796",
+        "05e678236",
+        "158d80b0a",
+        "daa3c7e91",
+        "a8d6ddd53",
+        "98976c1c1",
+        "86e81206e",
+        "b59054b84",
+        "da5808571",
+        "57e48301d"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S2-G-01",
+      "sprint": "S2",
+      "lane": "G",
+      "title": "预算器 v1：能力探测接入、双向预算、usage 校准、降级顺序、NDJSON 输出与缺失项重请求",
+      "status": "author_complete",
+      "owner": "lane-G",
+      "branch": "v0.2/g-selfbuild-budget",
+      "commits": [
+        "008987088",
+        "06041717f",
+        "0cfaabff7",
+        "0cfd2d3a9",
+        "129a13586",
+        "1f353c6ea",
+        "50d5ad471",
+        "564c644b1",
+        "8f0465b2e",
+        "9479defeb",
+        "95a1b490f",
+        "97b81b265",
+        "9a1cc88fc",
+        "a02c22a61",
+        "adab7e30b",
+        "e7de562c0",
+        "f3df0e39e",
+        "f9a3da579"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S2-G-02",
+      "sprint": "S2",
+      "lane": "G",
+      "title": "移除项目级 `MAX_TABLES=64`，改为批级预算；Python 与 Rust 路线统一到同一预算器",
+      "status": "author_complete",
+      "owner": "lane-G",
+      "branch": "v0.2/g-selfbuild-budget",
+      "commits": [
+        "008987088",
+        "06041717f",
+        "0cfaabff7",
+        "0cfd2d3a9",
+        "129a13586",
+        "1f353c6ea",
+        "50d5ad471",
+        "564c644b1",
+        "8f0465b2e",
+        "9479defeb",
+        "95a1b490f",
+        "97b81b265",
+        "9a1cc88fc",
+        "a02c22a61",
+        "adab7e30b",
+        "e7de562c0",
+        "f3df0e39e",
+        "f9a3da579"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S3-G-01",
+      "sprint": "S3",
+      "lane": "G",
+      "title": "关系图（声明 FK + 包含度候选 + 命名）、分表族折叠、社区划分、枢纽签名",
+      "status": "author_complete",
+      "owner": "lane-G",
+      "branch": "v0.2/g-selfbuild-budget",
+      "commits": [
+        "008987088",
+        "06041717f",
+        "0cfaabff7",
+        "0cfd2d3a9",
+        "129a13586",
+        "1f353c6ea",
+        "50d5ad471",
+        "564c644b1",
+        "8f0465b2e",
+        "9479defeb",
+        "95a1b490f",
+        "97b81b265",
+        "9a1cc88fc",
+        "a02c22a61",
+        "adab7e30b",
+        "e7de562c0",
+        "f3df0e39e",
+        "f9a3da579"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S3-G-02",
+      "sprint": "S3",
+      "lane": "G",
+      "title": "三遍生成与全局实体登记表；连通性门禁指标写入审核摘要",
+      "status": "author_complete",
+      "owner": "lane-G",
+      "branch": "v0.2/g-selfbuild-budget",
+      "commits": [
+        "008987088",
+        "06041717f",
+        "0cfaabff7",
+        "0cfd2d3a9",
+        "129a13586",
+        "1f353c6ea",
+        "50d5ad471",
+        "564c644b1",
+        "8f0465b2e",
+        "9479defeb",
+        "95a1b490f",
+        "97b81b265",
+        "9a1cc88fc",
+        "a02c22a61",
+        "adab7e30b",
+        "e7de562c0",
+        "f3df0e39e",
+        "f9a3da579"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S3-G-03",
+      "sprint": "S3",
+      "lane": "G",
+      "title": "语义依赖哈希按社区；数据-only 周期零模型调用",
+      "status": "author_complete",
+      "owner": "lane-G",
+      "branch": "v0.2/g-selfbuild-budget",
+      "commits": [
+        "008987088",
+        "06041717f",
+        "0cfaabff7",
+        "0cfd2d3a9",
+        "129a13586",
+        "1f353c6ea",
+        "50d5ad471",
+        "564c644b1",
+        "8f0465b2e",
+        "9479defeb",
+        "95a1b490f",
+        "97b81b265",
+        "9a1cc88fc",
+        "a02c22a61",
+        "adab7e30b",
+        "e7de562c0",
+        "f3df0e39e",
+        "f9a3da579"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S3-B-01",
+      "sprint": "S3",
+      "lane": "B",
+      "title": "`oo login`（绑定码 / 设备码）、`oo whoami`、到期预警、`/v1/meta` 版本协商与升级提示",
+      "status": "author_complete",
+      "owner": "lane-B",
+      "branch": "v0.2/b-token-lifecycle",
+      "commits": [
+        "480ba308d",
+        "5c1363ec6",
+        "6628e6e49",
+        "6b132e226",
+        "758a5380e",
+        "75c11cfbc",
+        "8854223e4",
+        "9e8a1a64b",
+        "bdfa6dd19",
+        "d876260db"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S3-B-02",
+      "sprint": "S3",
+      "lane": "B",
+      "title": "`oo share-prompt [--role] [--agent claude",
+      "status": "author_complete",
+      "owner": "lane-B",
+      "branch": "v0.2/b-token-lifecycle",
+      "commits": [
+        "d876260db",
+        "480ba308d",
+        "6628e6e49",
+        "6b132e226",
+        "9e8a1a64b",
+        "8854223e4"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S3-A-01",
+      "sprint": "S3",
+      "lane": "A",
+      "title": "SSH 跳板：`russh` direct-tcpip、主机指纹确认与固定、断线块级续读",
+      "status": "in_progress",
+      "owner": "lane-B (reassigned)",
+      "branch": "v0.2/b-token-lifecycle",
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S3-C-02",
+      "sprint": "S3",
+      "lane": "C",
+      "title": "P1：MariaDB 10.6/10.11/11.4/11.8 接口适配与 T0–T2（由 `tools/mariadb-preview` 收敛）",
+      "status": "in_progress",
+      "owner": "lane-C",
+      "branch": "v0.2/c-mysql-engine",
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S3-E-02",
+      "sprint": "S3",
+      "lane": "E",
+      "title": "P1：SQL Server 2019/2022/2025 快照 + CT/CDC（amd64 仿真）",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S3-M-01",
+      "sprint": "S3",
+      "lane": "M",
+      "title": "**L2 闭环独立审阅**（固定 SHA）",
+      "status": "author_complete",
+      "owner": "coordinator (native reviewer)",
+      "branch": "review @ d876260db",
+      "commits": [
+        "bdfa6dd19",
+        "d84d2aa43"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S4-A-01",
+      "sprint": "S4",
+      "lane": "A",
+      "title": "所有者自审 TUI：实体、关系、指标、敏感列分类的逐类确认；`review_decision` 记录 `mode=self`",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S4-A-02",
+      "sprint": "S4",
+      "lane": "A",
+      "title": "`oo build` 全链：拉取→Self-build→自审→发布→Gateway→签发首个 token→生成提示词；`--resume`",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S4-A-03",
+      "sprint": "S4",
+      "lane": "A",
+      "title": "`oo ontology open/export --format html",
+      "status": "in_progress",
+      "owner": "lane-G (reassigned)",
+      "branch": "v0.2/g-selfbuild-budget",
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S4-A-04",
+      "sprint": "S4",
+      "lane": "A",
+      "title": "远程部署：`oo up --target ssh` 安装 compose 栈与 systemd timer",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S4-M-01",
+      "sprint": "S4",
+      "lane": "M",
+      "title": "发布跟随：每周期发布新数据代际，Gateway 原子切换指针，`/v1/freshness` 报告",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S4-M-02",
+      "sprint": "S4",
+      "lane": "M",
+      "title": "**L1 干净机器验收**：macOS arm64 与 Linux amd64 各一，MySQL/PG/Oracle 各一次",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S4-C-03",
+      "sprint": "S4",
+      "lane": "C",
+      "title": "P1：TiDB、OceanBase 快照 + C5",
+      "status": "in_progress",
+      "owner": "lane-C",
+      "branch": "v0.2/c-mysql-engine",
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S4-D-02",
+      "sprint": "S4",
+      "lane": "D",
+      "title": "P1：openGauss 快照 + C5（认证与逻辑解码分叉单独处理）",
+      "status": "author_complete",
+      "owner": "lane-D",
+      "branch": "v0.2/d-postgres-engine",
+      "commits": [
+        "a4e705eab",
+        "505c89e3f",
+        "c4234cfc5"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S4-F-01",
+      "sprint": "S4",
+      "lane": "F",
+      "title": "P1：ClickHouse/Doris/StarRocks 快照 + 分区刷新（由 preview 收敛到接口）",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S5-C-04",
+      "sprint": "S5",
+      "lane": "C",
+      "title": "MySQL 5.7/8.0/8.4/9.x 的 T3 故障注入、T4 结构变化",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S5-D-03",
+      "sprint": "S5",
+      "lane": "D",
+      "title": "PG 13–18 的 T3、T4",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S5-E-04",
+      "sprint": "S5",
+      "lane": "E",
+      "title": "Oracle 23ai/11g/21c（及 19c 如 D2 就绪）的 T3、T4",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S5-H-01",
+      "sprint": "S5",
+      "lane": "H",
+      "title": "T7 只读证明自动化（general log / log_statement / 统一审计）",
+      "status": "author_complete",
+      "owner": "lane-H",
+      "branch": "v0.2/h-test-infra",
+      "commits": [
+        "ed4560449",
+        "4d76b8e1b",
+        "40992bba2",
+        "f1d99cb72"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S5-H-02",
+      "sprint": "S5",
+      "lane": "H",
+      "title": "夜间矩阵（本机原生 + amd64 仿真），失败自动降级并通知 owner",
+      "status": "author_complete",
+      "owner": "lane-H",
+      "branch": "v0.2/h-test-infra",
+      "commits": [
+        "ed4560449",
+        "4d76b8e1b",
+        "40992bba2",
+        "f1d99cb72"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S5-M-01",
+      "sprint": "S5",
+      "lane": "M",
+      "title": "证据包 → `support-matrix.yaml` 生成器；禁止手写 verified",
+      "status": "author_complete",
+      "owner": "coordinator",
+      "branch": "v0.2/product-loops",
+      "commits": [
+        "1d2c3966f"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "S5-G-01",
+      "sprint": "S5",
+      "lane": "G",
+      "title": "T5/T6 在 P0 全版本：20 道金标准题由真实模型 Agent 回答",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S5-F-02",
+      "sprint": "S5",
+      "lane": "F",
+      "title": "P1：MongoDB change stream、OpenSearch/ES 快照",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S5-E-03",
+      "sprint": "S5",
+      "lane": "E",
+      "title": "P2：Db2 快照；达梦/Kingbase 视镜像与许可",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S6-M-01",
+      "sprint": "S6",
+      "lane": "M",
+      "title": "多架构镜像 CI 构建与签名；lite 档离线安装包",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S6-M-02",
+      "sprint": "S6",
+      "lane": "M",
+      "title": "Quickstart（三分钟上手）、`oo --help` 全命令、故障排查、DBA 权限清单（按引擎版本）",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S6-M-03",
+      "sprint": "S6",
+      "lane": "M",
+      "title": "**L1、L3 闭环独立审阅**（固定 SHA）",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S6-B-01",
+      "sprint": "S6",
+      "lane": "B",
+      "title": "npm 发布 `@reduxxx888/ontology-cli@0.2.0`：`npm pack` → 空目录安装 → 全命令 → 同一 tarball 发布；报告精确版本与升级命令",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    },
+    {
+      "id": "S6-M-04",
+      "sprint": "S6",
+      "lane": "M",
+      "title": "核对本期所有设计变化均已当期回填原文档、Spec 与矩阵（D7）；来源基线升至最终 revision",
+      "status": "pending",
+      "owner": null,
+      "branch": null,
+      "commits": [],
+      "evidence": []
+    }
+  ],
+  "blocked": [
+    {
+      "what": "Oracle 19c EE image",
+      "needs": "human completes Oracle account registration and sign-in (Plan D2)"
+    },
+    {
+      "what": "mysql-binlog in the default artifact",
+      "needs": "zstd 0.13.4 / zstd-safe 7.4.0 past 2026-11-08T14:12:08Z and license files verified (D10)"
+    },
+    {
+      "what": "lane F dispatch (S4-F-01, S5-F-02)",
+      "needs": "free disk for OLAP/document images (~10 GB); waits for lane merges to reclaim targets"
+    },
+    {
+      "what": "final PR",
+      "needs": "redact the private model endpoint from v0.2 branch history after all lanes are integrated (ledger security row); owner decides on master history and credential/whitelist rotation"
+    }
+  ],
+  "lanes": {
+    "C": {
+      "branch": "v0.2/c-mysql-engine",
+      "base": "cd78da1e1",
+      "status": "running"
+    },
+    "D": {
+      "branch": "v0.2/d-postgres-engine",
+      "base": "cd78da1e1",
+      "status": "running"
+    },
+    "E": {
+      "branch": "v0.2/e-oracle-engine",
+      "base": "cd78da1e1",
+      "status": "running"
+    },
+    "H": {
+      "branch": "v0.2/h-test-infra",
+      "base": "cd78da1e1",
+      "status": "running"
+    },
+    "B": {
+      "branch": "v0.2/b-token-lifecycle",
+      "base": "cd78da1e1",
+      "status": "running"
+    },
+    "A": {
+      "branch": "v0.2/a-onboarding",
+      "base": "4113744a7",
+      "status": "waiting on oo-load"
+    },
+    "G": {
+      "branch": "v0.2/g-selfbuild-budget",
+      "base": "2bca1de16",
+      "status": "idle: S5-G-01 needs oo build + oo login integrated"
+    },
+    "M": {
+      "branch": "v0.2/m-pipeline",
+      "status": "running"
+    }
   }
- },
- "tasks": [
-  {
-   "id": "S0-M-01",
-   "sprint": "S0",
-   "lane": "M",
-   "title": "建 `execution/v0.2/state.json` 与 `decisions.md`；从本 Plan 生成任务卡",
-   "status": "author_complete",
-   "owner": "coordinator",
-   "branch": "v0.2/product-loops",
-   "commits": [
-    "3d2c44f62",
-    "26f116101",
-    "a241fb04e",
-    "e1390d404",
-    "f905c3140",
-    "1a2493ac1"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-M-02",
-   "sprint": "S0",
-   "lane": "M",
-   "title": "定义 `SourceEngine` 公共接口：`probe/capabilities(version)/catalog/plan_chunks/read_chunk/watermark/change_stream/digest_range`",
-   "status": "author_complete",
-   "owner": "coordinator",
-   "branch": "v0.2/product-loops",
-   "commits": [
-    "cd78da1e1"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-M-03",
-   "sprint": "S0",
-   "lane": "M",
-   "title": "版本分派表格式与 `doctor` 输出契约（含 DBA GRANT 清单）",
-   "status": "author_complete",
-   "owner": "coordinator",
-   "branch": "v0.2/product-loops",
-   "commits": [
-    "cd78da1e1"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-M-04",
-   "sprint": "S0",
-   "lane": "M",
-   "title": "`stack.yaml`（`oo.stack/v1`）schema 与 secret_ref 规则",
-   "status": "integrated",
-   "owner": "lane-A",
-   "branch": "v0.2/a-onboarding",
-   "commits": [
-    "b59054b84",
-    "e5a532fc9",
-    "f97d41d39",
-    "660a74d01",
-    "da5808571",
-    "2319f2f75",
-    "26ae7237e",
-    "df178ab74",
-    "8ea763cd5",
-    "57e48301d"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-H-01",
-   "sprint": "S0",
-   "lane": "H",
-   "title": "中性合成夹具生成器（[05 §3](../docs/product/05-version-matrix-and-testing.md) 全部形状）+ 方言 DDL：MySQL、PG、Oracle",
-   "status": "integrated",
-   "owner": "lane-H",
-   "branch": "v0.2/h-test-infra",
-   "commits": [
-    "17a4447de",
-    "e54a5388d",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-H-02",
-   "sprint": "S0",
-   "lane": "H",
-   "title": "20 道金标准题与 gold 生成 SQL",
-   "status": "integrated",
-   "owner": "lane-H",
-   "branch": "v0.2/h-test-infra",
-   "commits": [
-    "17a4447de",
-    "e54a5388d",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-H-03",
-   "sprint": "S0",
-   "lane": "H",
-   "title": "`oo-test` 统一入口：起库（固定 digest）、灌数、跑套件、写证据包",
-   "status": "integrated",
-   "owner": "lane-H",
-   "branch": "v0.2/h-test-infra",
-   "commits": [
-    "17a4447de",
-    "e54a5388d",
-    "07520d7c3",
-    "6290dc05c"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-H-04",
-   "sprint": "S0",
-   "lane": "H",
-   "title": "P0 镜像 digest 锁定：MySQL 5.7/8.0/8.4/9、PG 12–18、Oracle 23ai/11g XE/21c XE（19c 待授权）",
-   "status": "integrated",
-   "owner": "lane-H",
-   "branch": "v0.2/h-test-infra",
-   "commits": [
-    "17a4447de",
-    "e54a5388d",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-H-05",
-   "sprint": "S0",
-   "lane": "H",
-   "title": "amd64 仿真 runner：`oo-test --platform linux/amd64` 在本机 Docker Desktop（Rosetta）运行 amd64-only 镜像；保留 `--runner remote` 接口供日后接入云主机",
-   "status": "integrated",
-   "owner": "lane-H",
-   "branch": "v0.2/h-test-infra",
-   "commits": [
-    "17a4447de",
-    "e54a5388d",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-C-01",
-   "sprint": "S0",
-   "lane": "C",
-   "title": "MySQL 适配 `SourceEngine`；`capabilities` 覆盖 5.7/8.0/8.4/9.x 差异（认证、`SHOW BINARY LOG STATUS`、tagged GTID、`expire_logs_days`）",
-   "status": "integrated",
-   "owner": "lane-C",
-   "branch": "v0.2/c-mysql-engine",
-   "commits": [
-    "684fa5170",
-    "12b320242",
-    "f3e596eb0",
-    "1d4fbb3dd",
-    "4d0236dd3",
-    "1f6affb12",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-D-01",
-   "sprint": "S0",
-   "lane": "D",
-   "title": "PG 连接器从 `tools/postgres-preview` 收敛到 `crates/oo-connectors/src/postgres/`，适配接口",
-   "status": "integrated",
-   "owner": "lane-D",
-   "branch": "v0.2/d-postgres-engine",
-   "commits": [
-    "ac947b531",
-    "90e88d366",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-E-01",
-   "sprint": "S0",
-   "lane": "E",
-   "title": "Oracle 适配接口；`capabilities` 覆盖 11g/12c+/19c/21c/23ai（CDB/PDB、common user、CONTINUOUS_MINE、字典策略）",
-   "status": "integrated",
-   "owner": "lane-E",
-   "branch": "v0.2/e-oracle-engine",
-   "commits": [
-    "a92b1fd48",
-    "9c718ecdf",
-    "1ec73defc",
-    "9d1e51825",
-    "09c211f11",
-    "01d289453",
-    "be4f8da2b",
-    "426c290c8",
-    "c93adb524",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-A-01",
-   "sprint": "S0",
-   "lane": "A",
-   "title": "管理端命令骨架：`oo init/up/down/status/doctor/build` 参数与 `--help`，非 TTY 全非交互",
-   "status": "integrated",
-   "owner": "lane-A",
-   "branch": "v0.2/a-onboarding",
-   "commits": [
-    "b59054b84",
-    "e5a532fc9",
-    "f97d41d39",
-    "660a74d01",
-    "da5808571",
-    "2319f2f75",
-    "26ae7237e",
-    "df178ab74",
-    "8ea763cd5",
-    "57e48301d"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S0-B-01",
-   "sprint": "S0",
-   "lane": "B",
-   "title": "token-store 迁移设计：renew/rotate/enroll 字段与审计事件",
-   "status": "integrated",
-   "owner": "lane-B",
-   "branch": "v0.2/b-token-lifecycle",
-   "commits": [
-    "5ec402635",
-    "d9f61691b",
-    "48878c28f",
-    "976b77e81",
-    "2ab36682e",
-    "4f564202d"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S1-C-01",
-   "sprint": "S1",
-   "lane": "C",
-   "title": "MySQL 分块：键形态识别、分布因子与抽样切分、字符串主键源端比较、复合主键改写、无键表策略、自适应块",
-   "status": "integrated",
-   "owner": "lane-C",
-   "branch": "v0.2/c-mysql-engine",
-   "commits": [
-    "8b2bd7bed",
-    "7bd58ced7",
-    "cc2d21e17",
-    "eb8b4133d",
-    "c9c2c5695",
-    "855114e5c",
-    "d5a9239e8",
-    "4d2e91ffb",
-    "fd4f001f6",
-    "f9f04a320",
-    "3af666411",
-    "a92fecccf",
-    "efbce797f",
-    "12b320242",
-    "f3e596eb0",
-    "1d4fbb3dd",
-    "4d0236dd3",
-    "1f6affb12",
-    "6290dc05c",
-    "17a4447de"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S1-C-02",
-   "sprint": "S1",
-   "lane": "C",
-   "title": "源库保护：占空比、`Threads_running` 暂停、语句超时双保险、`net_*_timeout`、连接余量限流",
-   "status": "integrated",
-   "owner": "lane-C",
-   "branch": "v0.2/c-mysql-engine",
-   "commits": [
-    "8b2bd7bed",
-    "7bd58ced7",
-    "cc2d21e17",
-    "eb8b4133d",
-    "c9c2c5695",
-    "855114e5c",
-    "d5a9239e8",
-    "4d2e91ffb",
-    "fd4f001f6",
-    "f9f04a320",
-    "3af666411",
-    "a92fecccf",
-    "efbce797f",
-    "12b320242",
-    "f3e596eb0",
-    "1d4fbb3dd",
-    "4d0236dd3",
-    "1f6affb12",
-    "6290dc05c",
-    "17a4447de"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S1-D-01",
-   "sprint": "S1",
-   "lane": "D",
-   "title": "PG 分块：keyset + 单快照内 ctid（14+）；`statement_timeout`；活跃会话保护",
-   "status": "integrated",
-   "owner": "lane-D",
-   "branch": "v0.2/d-postgres-engine",
-   "commits": [
-    "c9c2c5695",
-    "4fb7adb26",
-    "855114e5c",
-    "d5a9239e8",
-    "4d2e91ffb",
-    "fd4f001f6",
-    "e40e051b3",
-    "f9f04a320",
-    "40193e84e",
-    "13ad5b78e",
-    "e4fbc0551",
-    "1abf12ccf",
-    "3af666411",
-    "a92fecccf",
-    "d5cc01526",
-    "efbce797f",
-    "f97271d8c",
-    "ac947b531",
-    "90e88d366",
-    "6290dc05c",
-    "17a4447de"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S1-E-01",
-   "sprint": "S1",
-   "lane": "E",
-   "title": "Oracle 分块：keyset + extents 生成 ROWID 范围；`ORA-01555` 缩块重试；空串语义",
-   "status": "integrated",
-   "owner": "lane-E",
-   "branch": "v0.2/e-oracle-engine",
-   "commits": [
-    "edec9d377",
-    "af825e12b",
-    "419b0a911",
-    "6deff3647",
-    "aa43a95d9",
-    "580755f20",
-    "911331b2d",
-    "535729c9f",
-    "f183415ac",
-    "406045b86",
-    "0bb1b8a02",
-    "bfe6573e4",
-    "85eeebc23",
-    "92ef390ac",
-    "2000f5743",
-    "62ec9d4d8",
-    "c3ba15325",
-    "0f0769479",
-    "838cda556",
-    "cd9cce88e",
-    "a92b1fd48",
-    "9c718ecdf",
-    "1ec73defc",
-    "9d1e51825",
-    "09c211f11",
-    "01d289453",
-    "be4f8da2b",
-    "426c290c8",
-    "c93adb524",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S1-M-01",
-   "sprint": "S1",
-   "lane": "M",
-   "title": "统一暂存→原子替换→发布；不可变父存储 + 变化块组合；目标写入计量",
-   "status": "integrated",
-   "owner": "coordinator (Codex lane M)",
-   "branch": "v0.2/m-pipeline",
-   "commits": [
-    "7106fa2c6",
-    "8b2bd7bed",
-    "7bd58ced7",
-    "eb8b4133d",
-    "c9c2c5695",
-    "4fb7adb26",
-    "855114e5c",
-    "d5a9239e8",
-    "4d2e91ffb",
-    "fd4f001f6",
-    "e40e051b3",
-    "40193e84e",
-    "13ad5b78e",
-    "e4fbc0551",
-    "1abf12ccf",
-    "3af666411",
-    "a92fecccf",
-    "d5cc01526",
-    "efbce797f",
-    "f97271d8c",
-    "a036302a8",
-    "effdc19ba",
-    "b877c1885",
-    "6290dc05c",
-    "17a4447de"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S1-M-02",
-   "sprint": "S1",
-   "lane": "M",
-   "title": "有界滚动调度（并发 1–4）、失败即停派、周期预算文件",
-   "status": "integrated",
-   "owner": "coordinator (Codex lane M)",
-   "branch": "v0.2/m-pipeline",
-   "commits": [
-    "0e5420a5c"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S1-B-01",
-   "sprint": "S1",
-   "lane": "B",
-   "title": "Gateway 管理 API：issue/list/renew/rotate/revoke/enroll；自助 `POST /v1/auth/renew`（策略可关）",
-   "status": "integrated",
-   "owner": "lane-B",
-   "branch": "v0.2/b-token-lifecycle",
-   "commits": [
-    "2ab36682e",
-    "48878c28f",
-    "4f564202d",
-    "5ec402635",
-    "976b77e81",
-    "d9f61691b"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S1-B-02",
-   "sprint": "S1",
-   "lane": "B",
-   "title": "`GET /v1/meta`（协议版本、最低 CLI 版本、发布与新鲜度）；mTLS 证书与 token 到期纳入 `/v1/health`",
-   "status": "integrated",
-   "owner": "lane-B",
-   "branch": "v0.2/b-token-lifecycle",
-   "commits": [
-    "5ec402635",
-    "d9f61691b",
-    "48878c28f",
-    "976b77e81",
-    "2ab36682e",
-    "4f564202d"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S1-A-01",
-   "sprint": "S1",
-   "lane": "A",
-   "title": "`tools/model-egress`：loopback 监听、持 key、OpenAI 兼容/Anthropic 方言、限流、统一额度错误码、计量；能力探测（W、O_max、JSON 模式）",
-   "status": "integrated",
-   "owner": "lane-A",
-   "branch": "v0.2/a-onboarding",
-   "commits": [
-    "b59054b84",
-    "e5a532fc9",
-    "f97d41d39",
-    "660a74d01",
-    "da5808571",
-    "2319f2f75",
-    "26ae7237e",
-    "df178ab74",
-    "8ea763cd5",
-    "57e48301d"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S1-A-02",
-   "sprint": "S1",
-   "lane": "A",
-   "title": "`oo doctor` 接入三引擎 `probe/capabilities`，输出分块计划、行字节估算、DBA 清单",
-   "status": "integrated",
-   "owner": "lane-A",
-   "branch": "v0.2/a-onboarding",
-   "commits": [
-    "98976c1c1",
-    "0c9160cdb",
-    "8d5e056a2",
-    "d36a240e9",
-    "b59054b84",
-    "2319f2f75",
-    "26ae7237e",
-    "8ea763cd5"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S2-C-01",
-   "sprint": "S2",
-   "lane": "C",
-   "title": "MySQL 只读水位（GTID / file-pos）与块级日志修正；首次全量前记 L0 并持续消费",
-   "status": "author_complete",
-   "owner": "lane-C",
-   "branch": "v0.2/c-mysql-engine",
-   "commits": [
-    "b8da82247",
-    "ccf3b86dc",
-    "09e1fee6d",
-    "518eba4ed",
-    "5ad319bab",
-    "0b2f53858",
-    "99072ad00",
-    "cfff12528",
-    "cc2d21e17",
-    "c9c2c5695",
-    "f9f04a320",
-    "684fa5170",
-    "12b320242",
-    "f3e596eb0",
-    "1d4fbb3dd",
-    "4d0236dd3",
-    "1f6affb12",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S2-C-02",
-   "sprint": "S2",
-   "lane": "C",
-   "title": "MySQL C5 统一到接口；C5→C1 多来源多绑定交接屏障；保留期按实际最早日志预检",
-   "status": "author_complete",
-   "owner": "lane-C",
-   "branch": "v0.2/c-mysql-engine",
-   "commits": [
-    "b8da82247",
-    "ccf3b86dc",
-    "09e1fee6d",
-    "518eba4ed",
-    "5ad319bab",
-    "0b2f53858",
-    "99072ad00",
-    "cfff12528",
-    "cc2d21e17",
-    "c9c2c5695",
-    "f9f04a320",
-    "684fa5170",
-    "12b320242",
-    "f3e596eb0",
-    "1d4fbb3dd",
-    "4d0236dd3",
-    "1f6affb12",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S2-D-01",
-   "sprint": "S2",
-   "lane": "D",
-   "title": "PG 逻辑复制：slot/publication 预检、proto 版本协商、`publish_via_partition_root`、18 slot 作废检测与重基线",
-   "status": "author_complete",
-   "owner": "lane-D",
-   "branch": "v0.2/d-postgres-engine",
-   "commits": [
-    "e84f27a57",
-    "bd3845f96",
-    "e8fdb5216",
-    "f9f04a320",
-    "ac947b531",
-    "90e88d366",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S2-E-01",
-   "sprint": "S2",
-   "lane": "E",
-   "title": "Oracle LogMiner 位点：19c+ 自管日志列表、CDB/PDB、SCN 水位；C5 统一到接口",
-   "status": "author_complete",
-   "owner": "lane-E",
-   "branch": "v0.2/e-oracle-engine",
-   "commits": [
-    "edec9d377",
-    "af825e12b",
-    "419b0a911",
-    "6deff3647",
-    "aa43a95d9",
-    "580755f20",
-    "911331b2d",
-    "535729c9f",
-    "f183415ac",
-    "406045b86",
-    "0bb1b8a02",
-    "bfe6573e4",
-    "85eeebc23",
-    "92ef390ac",
-    "2000f5743",
-    "62ec9d4d8",
-    "c3ba15325",
-    "0f0769479",
-    "838cda556",
-    "cd9cce88e",
-    "a92b1fd48",
-    "9c718ecdf",
-    "1ec73defc",
-    "9d1e51825",
-    "09c211f11",
-    "01d289453",
-    "be4f8da2b",
-    "426c290c8",
-    "c93adb524",
-    "07520d7c3"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S2-A-01",
-   "sprint": "S2",
-   "lane": "A",
-   "title": "`oo init` TUI（ratatui）：7 步向导，结果写 `stack.yaml`；秘密写 0600 或 keychain",
-   "status": "author_complete",
-   "owner": "lane-A",
-   "branch": "v0.2/a-onboarding",
-   "commits": [
-    "158d80b0a",
-    "daa3c7e91",
-    "a8d6ddd53",
-    "0eff6c73d",
-    "98976c1c1",
-    "0c9160cdb",
-    "8d5e056a2",
-    "d36a240e9",
-    "86e81206e",
-    "b59054b84",
-    "da5808571",
-    "2319f2f75",
-    "26ae7237e",
-    "8ea763cd5",
-    "57e48301d"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S2-A-02",
-   "sprint": "S2",
-   "lane": "A",
-   "title": "`deploy/lite` compose 与 `oo up/down/status`：Agent DB、控制库、worker、Builder、Gateway、model-egress、scheduler；镜像 digest 锁定",
-   "status": "in_progress",
-   "owner": "lane-A",
-   "branch": "v0.2/a-onboarding",
-   "commits": [
-    "a1daa2104",
-    "9d41bc39e",
-    "d9bfdf796",
-    "05e678236",
-    "158d80b0a",
-    "daa3c7e91",
-    "a8d6ddd53",
-    "98976c1c1",
-    "86e81206e",
-    "b59054b84",
-    "da5808571",
-    "57e48301d"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S2-G-01",
-   "sprint": "S2",
-   "lane": "G",
-   "title": "预算器 v1：能力探测接入、双向预算、usage 校准、降级顺序、NDJSON 输出与缺失项重请求",
-   "status": "author_complete",
-   "owner": "lane-G",
-   "branch": "v0.2/g-selfbuild-budget",
-   "commits": [
-    "008987088",
-    "06041717f",
-    "0cfaabff7",
-    "0cfd2d3a9",
-    "129a13586",
-    "1f353c6ea",
-    "50d5ad471",
-    "564c644b1",
-    "8f0465b2e",
-    "9479defeb",
-    "95a1b490f",
-    "97b81b265",
-    "9a1cc88fc",
-    "a02c22a61",
-    "adab7e30b",
-    "e7de562c0",
-    "f3df0e39e",
-    "f9a3da579"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S2-G-02",
-   "sprint": "S2",
-   "lane": "G",
-   "title": "移除项目级 `MAX_TABLES=64`，改为批级预算；Python 与 Rust 路线统一到同一预算器",
-   "status": "author_complete",
-   "owner": "lane-G",
-   "branch": "v0.2/g-selfbuild-budget",
-   "commits": [
-    "008987088",
-    "06041717f",
-    "0cfaabff7",
-    "0cfd2d3a9",
-    "129a13586",
-    "1f353c6ea",
-    "50d5ad471",
-    "564c644b1",
-    "8f0465b2e",
-    "9479defeb",
-    "95a1b490f",
-    "97b81b265",
-    "9a1cc88fc",
-    "a02c22a61",
-    "adab7e30b",
-    "e7de562c0",
-    "f3df0e39e",
-    "f9a3da579"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S3-G-01",
-   "sprint": "S3",
-   "lane": "G",
-   "title": "关系图（声明 FK + 包含度候选 + 命名）、分表族折叠、社区划分、枢纽签名",
-   "status": "author_complete",
-   "owner": "lane-G",
-   "branch": "v0.2/g-selfbuild-budget",
-   "commits": [
-    "008987088",
-    "06041717f",
-    "0cfaabff7",
-    "0cfd2d3a9",
-    "129a13586",
-    "1f353c6ea",
-    "50d5ad471",
-    "564c644b1",
-    "8f0465b2e",
-    "9479defeb",
-    "95a1b490f",
-    "97b81b265",
-    "9a1cc88fc",
-    "a02c22a61",
-    "adab7e30b",
-    "e7de562c0",
-    "f3df0e39e",
-    "f9a3da579"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S3-G-02",
-   "sprint": "S3",
-   "lane": "G",
-   "title": "三遍生成与全局实体登记表；连通性门禁指标写入审核摘要",
-   "status": "author_complete",
-   "owner": "lane-G",
-   "branch": "v0.2/g-selfbuild-budget",
-   "commits": [
-    "008987088",
-    "06041717f",
-    "0cfaabff7",
-    "0cfd2d3a9",
-    "129a13586",
-    "1f353c6ea",
-    "50d5ad471",
-    "564c644b1",
-    "8f0465b2e",
-    "9479defeb",
-    "95a1b490f",
-    "97b81b265",
-    "9a1cc88fc",
-    "a02c22a61",
-    "adab7e30b",
-    "e7de562c0",
-    "f3df0e39e",
-    "f9a3da579"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S3-G-03",
-   "sprint": "S3",
-   "lane": "G",
-   "title": "语义依赖哈希按社区；数据-only 周期零模型调用",
-   "status": "author_complete",
-   "owner": "lane-G",
-   "branch": "v0.2/g-selfbuild-budget",
-   "commits": [
-    "008987088",
-    "06041717f",
-    "0cfaabff7",
-    "0cfd2d3a9",
-    "129a13586",
-    "1f353c6ea",
-    "50d5ad471",
-    "564c644b1",
-    "8f0465b2e",
-    "9479defeb",
-    "95a1b490f",
-    "97b81b265",
-    "9a1cc88fc",
-    "a02c22a61",
-    "adab7e30b",
-    "e7de562c0",
-    "f3df0e39e",
-    "f9a3da579"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S3-B-01",
-   "sprint": "S3",
-   "lane": "B",
-   "title": "`oo login`（绑定码 / 设备码）、`oo whoami`、到期预警、`/v1/meta` 版本协商与升级提示",
-   "status": "author_complete",
-   "owner": "lane-B",
-   "branch": "v0.2/b-token-lifecycle",
-   "commits": [
-    "480ba308d",
-    "5c1363ec6",
-    "6628e6e49",
-    "6b132e226",
-    "758a5380e",
-    "75c11cfbc",
-    "8854223e4",
-    "9e8a1a64b",
-    "bdfa6dd19",
-    "d876260db"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S3-B-02",
-   "sprint": "S3",
-   "lane": "B",
-   "title": "`oo share-prompt [--role] [--agent claude",
-   "status": "author_complete",
-   "owner": "lane-B",
-   "branch": "v0.2/b-token-lifecycle",
-   "commits": [
-    "d876260db",
-    "480ba308d",
-    "6628e6e49",
-    "6b132e226",
-    "9e8a1a64b",
-    "8854223e4"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S3-A-01",
-   "sprint": "S3",
-   "lane": "A",
-   "title": "SSH 跳板：`russh` direct-tcpip、主机指纹确认与固定、断线块级续读",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S3-C-02",
-   "sprint": "S3",
-   "lane": "C",
-   "title": "P1：MariaDB 10.6/10.11/11.4/11.8 接口适配与 T0–T2（由 `tools/mariadb-preview` 收敛）",
-   "status": "in_progress",
-   "owner": "lane-C",
-   "branch": "v0.2/c-mysql-engine",
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S3-E-02",
-   "sprint": "S3",
-   "lane": "E",
-   "title": "P1：SQL Server 2019/2022/2025 快照 + CT/CDC（amd64 仿真）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S3-M-01",
-   "sprint": "S3",
-   "lane": "M",
-   "title": "**L2 闭环独立审阅**（固定 SHA）",
-   "status": "author_complete",
-   "owner": "coordinator (native reviewer)",
-   "branch": "review @ d876260db",
-   "commits": [
-    "bdfa6dd19",
-    "d84d2aa43"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S4-A-01",
-   "sprint": "S4",
-   "lane": "A",
-   "title": "所有者自审 TUI：实体、关系、指标、敏感列分类的逐类确认；`review_decision` 记录 `mode=self`",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S4-A-02",
-   "sprint": "S4",
-   "lane": "A",
-   "title": "`oo build` 全链：拉取→Self-build→自审→发布→Gateway→签发首个 token→生成提示词；`--resume`",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S4-A-03",
-   "sprint": "S4",
-   "lane": "A",
-   "title": "`oo ontology open/export --format html",
-   "status": "in_progress",
-   "owner": "lane-G (reassigned)",
-   "branch": "v0.2/g-selfbuild-budget",
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S4-A-04",
-   "sprint": "S4",
-   "lane": "A",
-   "title": "远程部署：`oo up --target ssh` 安装 compose 栈与 systemd timer",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S4-M-01",
-   "sprint": "S4",
-   "lane": "M",
-   "title": "发布跟随：每周期发布新数据代际，Gateway 原子切换指针，`/v1/freshness` 报告",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S4-M-02",
-   "sprint": "S4",
-   "lane": "M",
-   "title": "**L1 干净机器验收**：macOS arm64 与 Linux amd64 各一，MySQL/PG/Oracle 各一次",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S4-C-03",
-   "sprint": "S4",
-   "lane": "C",
-   "title": "P1：TiDB、OceanBase 快照 + C5",
-   "status": "in_progress",
-   "owner": "lane-C",
-   "branch": "v0.2/c-mysql-engine",
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S4-D-02",
-   "sprint": "S4",
-   "lane": "D",
-   "title": "P1：openGauss 快照 + C5（认证与逻辑解码分叉单独处理）",
-   "status": "author_complete",
-   "owner": "lane-D",
-   "branch": "v0.2/d-postgres-engine",
-   "commits": [
-    "a4e705eab",
-    "505c89e3f",
-    "c4234cfc5"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S4-F-01",
-   "sprint": "S4",
-   "lane": "F",
-   "title": "P1：ClickHouse/Doris/StarRocks 快照 + 分区刷新（由 preview 收敛到接口）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S5-C-04",
-   "sprint": "S5",
-   "lane": "C",
-   "title": "MySQL 5.7/8.0/8.4/9.x 的 T3 故障注入、T4 结构变化",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S5-D-03",
-   "sprint": "S5",
-   "lane": "D",
-   "title": "PG 13–18 的 T3、T4",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S5-E-04",
-   "sprint": "S5",
-   "lane": "E",
-   "title": "Oracle 23ai/11g/21c（及 19c 如 D2 就绪）的 T3、T4",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S5-H-01",
-   "sprint": "S5",
-   "lane": "H",
-   "title": "T7 只读证明自动化（general log / log_statement / 统一审计）",
-   "status": "author_complete",
-   "owner": "lane-H",
-   "branch": "v0.2/h-test-infra",
-   "commits": [
-    "ed4560449",
-    "4d76b8e1b",
-    "40992bba2",
-    "f1d99cb72"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S5-H-02",
-   "sprint": "S5",
-   "lane": "H",
-   "title": "夜间矩阵（本机原生 + amd64 仿真），失败自动降级并通知 owner",
-   "status": "author_complete",
-   "owner": "lane-H",
-   "branch": "v0.2/h-test-infra",
-   "commits": [
-    "ed4560449",
-    "4d76b8e1b",
-    "40992bba2",
-    "f1d99cb72"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S5-M-01",
-   "sprint": "S5",
-   "lane": "M",
-   "title": "证据包 → `support-matrix.yaml` 生成器；禁止手写 verified",
-   "status": "author_complete",
-   "owner": "coordinator",
-   "branch": "v0.2/product-loops",
-   "commits": [
-    "1d2c3966f"
-   ],
-   "evidence": []
-  },
-  {
-   "id": "S5-G-01",
-   "sprint": "S5",
-   "lane": "G",
-   "title": "T5/T6 在 P0 全版本：20 道金标准题由真实模型 Agent 回答",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S5-F-02",
-   "sprint": "S5",
-   "lane": "F",
-   "title": "P1：MongoDB change stream、OpenSearch/ES 快照",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S5-E-03",
-   "sprint": "S5",
-   "lane": "E",
-   "title": "P2：Db2 快照；达梦/Kingbase 视镜像与许可",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S6-M-01",
-   "sprint": "S6",
-   "lane": "M",
-   "title": "多架构镜像 CI 构建与签名；lite 档离线安装包",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S6-M-02",
-   "sprint": "S6",
-   "lane": "M",
-   "title": "Quickstart（三分钟上手）、`oo --help` 全命令、故障排查、DBA 权限清单（按引擎版本）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S6-M-03",
-   "sprint": "S6",
-   "lane": "M",
-   "title": "**L1、L3 闭环独立审阅**（固定 SHA）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S6-B-01",
-   "sprint": "S6",
-   "lane": "B",
-   "title": "npm 发布 `@reduxxx888/ontology-cli@0.2.0`：`npm pack` → 空目录安装 → 全命令 → 同一 tarball 发布；报告精确版本与升级命令",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  },
-  {
-   "id": "S6-M-04",
-   "sprint": "S6",
-   "lane": "M",
-   "title": "核对本期所有设计变化均已当期回填原文档、Spec 与矩阵（D7）；来源基线升至最终 revision",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
-  }
- ],
- "blocked": [
-  {
-   "what": "Oracle 19c EE image",
-   "needs": "human completes Oracle account registration and sign-in (Plan D2)"
-  },
-  {
-   "what": "mysql-binlog in the default artifact",
-   "needs": "zstd 0.13.4 / zstd-safe 7.4.0 past 2026-11-08T14:12:08Z and license files verified (D10)"
-  },
-  {
-   "what": "lane F dispatch (S4-F-01, S5-F-02)",
-   "needs": "free disk for OLAP/document images (~10 GB); waits for lane merges to reclaim targets"
-  },
-  {
-   "what": "final PR",
-   "needs": "redact the private model endpoint from v0.2 branch history after all lanes are integrated (ledger security row); owner decides on master history and credential/whitelist rotation"
-  }
- ],
- "lanes": {
-  "C": {
-   "branch": "v0.2/c-mysql-engine",
-   "base": "cd78da1e1",
-   "status": "running"
-  },
-  "D": {
-   "branch": "v0.2/d-postgres-engine",
-   "base": "cd78da1e1",
-   "status": "running"
-  },
-  "E": {
-   "branch": "v0.2/e-oracle-engine",
-   "base": "cd78da1e1",
-   "status": "running"
-  },
-  "H": {
-   "branch": "v0.2/h-test-infra",
-   "base": "cd78da1e1",
-   "status": "running"
-  },
-  "B": {
-   "branch": "v0.2/b-token-lifecycle",
-   "base": "cd78da1e1",
-   "status": "running"
-  },
-  "A": {
-   "branch": "v0.2/a-onboarding",
-   "base": "4113744a7",
-   "status": "waiting on oo-load"
-  },
-  "G": {
-   "branch": "v0.2/g-selfbuild-budget",
-   "base": "2bca1de16",
-   "status": "idle: S5-G-01 needs oo build + oo login integrated"
-  },
-  "M": {
-   "branch": "v0.2/m-pipeline",
-   "status": "running"
-  }
- }
 }
