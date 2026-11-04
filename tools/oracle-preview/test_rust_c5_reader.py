@@ -22,7 +22,7 @@ class RustC5ReaderTest(unittest.TestCase):
         self.ca = Path("/tmp/oo-oracle-reader-test/ca-ref")
 
     def test_customer_endpoint_is_rejected_before_secret_access(self):
-        self.cfg["host"] = "47.104.150.9"
+        self.cfg["host"] = "192.0.2.10"
         with self.assertRaisesRegex(ValueError, "authorized local fixture"):
             reader._checked_argv(self.cfg, self.selection, "12345", 0, None, None, None,
                                  Path("/tmp/oo-oracle-reader-test/out"), self.ca)

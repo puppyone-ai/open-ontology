@@ -26,7 +26,7 @@ Deliver:
    429 / usage_limit / cooldown; per-call usage metering to JSONL; capability probe (/v1/models when present
    + 1-token completion: context window, max output, JSON mode, proxy-injected system-prompt overhead =
    prompt_tokens of a minimal prompt). Point tools/pg-builder at it without breaking its loopback-only rule.
-   Live test: endpoint `https://9r-admin.REDACTED/workflow/v1`, model `gpt-6.1-sol`, key in the 0600 file
+   Live test: endpoint the OpenAI-compatible test endpoint whose base URL is in the 0600 file `~/.config/open-ontology/secrets/model-endpoint-9r`, model `gpt-6.1-sol`, key in the 0600 file
    `~/.config/open-ontology/secrets/model-key-9r-sol`. Only a few real calls (probe, short completions, one
    stream). Never print, log, commit or copy the key. Offline record/replay tests for both dialects.
 

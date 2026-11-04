@@ -21,7 +21,7 @@ native_publication.rs多run receipt当前硬编码mysql-gtid/transactional/T与m
 
 ## 完整输入/接口/测试/退出
 
-自备真实Oracle fixture及全部E2E前置条件，复用已有实例与原数据。客户47.104.150.9:1521/scm5保持零写，不再用户名或密码尝试。平台只读账号，所有新I/U/D只在自有fixture由分离fixture身份操作。六字段(type/host/port/database/user/secret_ref)经正式source-onboarding普通默认入口，一次真实链路，不能自带private recipe/out当用户输入。
+自备真实Oracle fixture及全部E2E前置条件，复用已有实例与原数据。客户192.0.2.10:1521/客户 Oracle 源保持零写，不再用户名或密码尝试。平台只读账号，所有新I/U/D只在自有fixture由分离fixture身份操作。六字段(type/host/port/database/user/secret_ref)经正式source-onboarding普通默认入口，一次真实链路，不能自带private recipe/out当用户输入。
 
 1. 按原Oracle C3/C5方法，通过实际官方scheduler+worker自动运行两组新唯一I/U/D及可配置周期、quiet无假进度、真实中断/恢复；证明Loader与CAS之后ACK，不仅enabledflag/定时读取/人工fire。全量typed独立源-目标oracle所有批准列/行0差异，删行不复活；源读账号无写，原精度/空串NULL/DATE caveat保真。
 2. 正常S0–S10、标准YAML/Ontology与真实表一致，合法复用原已正确S5禁止重付费；当前数据变化经真实官方maintain产current Ontology/role Pack，绑定真实C5/S0及current版本，LLM原身份/usage准确保留。确需新S5先真实工具+strictJSON代理最小预检，产品模型gpt-6.1-sol low；原URL/key不变，grok-4.7授权备选。不可复用失配输入或把旧receipt重写新身份。

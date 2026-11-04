@@ -50,7 +50,7 @@ class SealedBundleTest(unittest.TestCase):
     def test_other_source_is_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             catalog = Path(tmp) / "catalog.json"
-            catalog.write_text(json.dumps({**CATALOG, "source_id": "scm5"}))
+            catalog.write_text(json.dumps({**CATALOG, "source_id": "ORACLE_SRC"}))
             with self.assertRaisesRegex(ValueError, "owned oracle"):
                 sb.build(catalog, Path(tmp) / "out")
 

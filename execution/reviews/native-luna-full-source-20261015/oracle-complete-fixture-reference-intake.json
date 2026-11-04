@@ -45,7 +45,7 @@
     "manual_client_token": "new independent root token; original pinned token/recipe/proof unmodified; TTL1h and explicit CLI flag required; no auto renewal"
   },
   "limitations": [
-    "owned Oracle fixture reference only, not customer scm5 or production certification",
+    "owned Oracle fixture reference only, not customer 客户 Oracle 源 or production certification",
     "default installed recipe matches this fixture; arbitrary customer six-field connection is not full deployment acceptance",
     "all original failures kept; normal CLI summary published=false retained separately from actual active-release published=true",
     "formal source acceptance0/10; editions0; nightly/customer/release gates remain independent"

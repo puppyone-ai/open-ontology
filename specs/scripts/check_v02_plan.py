@@ -96,6 +96,14 @@ def inspect(plan: str, docs: dict[Path, str]) -> tuple[list[str], dict]:
             if hit and not (label == 'IP address' and hit.group(0).count('.') == 3 and hit.group(0).startswith(('0.', '127.'))):
                 errors.append(f'{path.relative_to(ROOT)}: forbidden {label}')
     stats['documents'] = len(docs)
+    # Customer terms must not appear anywhere in the tracked tree (not only these docs).
+    terms = Path(os.environ.get('OO_PRIVATE_TERMS_FILE', Path.home() / '.config/open-ontology/private-terms.txt'))
+    if terms.is_file():
+        import subprocess
+        hit = subprocess.run(['git', '-C', str(ROOT), 'grep', '-l', '-i', '-F', '-f', str(terms), '--', '.'],
+                             capture_output=True, text=True).stdout.split()
+        if hit:
+            errors.append(f'private terms in tracked files: {hit[:10]}')
     return errors, stats
 
 

@@ -26,7 +26,7 @@ Deliver:
 5. S3-G-03: per-table and per-community semantic dependency hashes; data-only cycles make zero model calls;
    schema changes re-run only affected communities, cut edges and merge items.
 Live model: via tools/model-egress (or directly the OpenAI-compatible endpoint
-`https://9r-admin.REDACTED/workflow/v1`, model `gpt-6.1-sol`, key file
+the OpenAI-compatible test endpoint whose base URL is in the 0600 file `~/.config/open-ontology/secrets/model-endpoint-9r`, model `gpt-6.1-sol`, key file
 `~/.config/open-ontology/secrets/model-key-9r-sol` referenced as a secret_ref — never print/log/commit it).
 Keep live usage bounded: one full ~660-table run and one ~1000-table run at most, plus small runs.
 Write scope: crates/oo-builder/src/** (new budget*/community* modules, incremental.rs, limits.rs, role_pack.rs

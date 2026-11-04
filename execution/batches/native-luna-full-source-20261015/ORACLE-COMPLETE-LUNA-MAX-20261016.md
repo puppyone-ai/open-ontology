@@ -14,7 +14,7 @@ Oracle前任completed并释放writer，commit827c6c7a63；完整交接 tools/ora
 
 仅 tools/oracle-preview/、testing/dl01-driver-preflight/oracle/probe/、tools/selfbuild-control-api/src/overlay.rs（真实Oracle运行观测/语义分离、认证C5维护验证/投影及必要原位tests）。其他共享代码只读，确需增加exactfile先给root因果。Doris唯一owner独占 native_publication.rs、target.rs、target_installer.rs、native_update.rs、native_schedule.rs/新0039等；不得触碰或采它的五个未验证WIP。Oracle已验证现有generic single-run发布足够；继续消费固定CLI/ELF，不为它改Doris multi-run实现。
 
-源码构建使用已核MySQL fixed archive或明确固定commit+仅自己的精确delta，不能从脏共享工作树整树构建。所有已安装迁移字节不变，不加无必要迁移。自有Oracle、target/standby、API/release/Gateway/private端口；可正常配方自备本源identity前置，不能改共享cookie/其他源数据库或服务。客户47.104.150.9/scm5保持零写且不再尝试用户名/密码；全部新I/U/D只用owned fixture分离DBA身份。Secrets私有0600、不进Git/argv/log。root管理正常registry安装，仅给root可复核命令/49式pins，不自行改其他engine rows。
+源码构建使用已核MySQL fixed archive或明确固定commit+仅自己的精确delta，不能从脏共享工作树整树构建。所有已安装迁移字节不变，不加无必要迁移。自有Oracle、target/standby、API/release/Gateway/private端口；可正常配方自备本源identity前置，不能改共享cookie/其他源数据库或服务。客户192.0.2.10/客户 Oracle 源保持零写且不再尝试用户名/密码；全部新I/U/D只用owned fixture分离DBA身份。Secrets私有0600、不进Git/argv/log。root管理正常registry安装，仅给root可复核命令/49式pins，不自行改其他engine rows。
 
 ## 完整一次出口
 
