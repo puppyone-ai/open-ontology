@@ -149,6 +149,11 @@ try:
     time.sleep(0.01)
     assert http("/v1/health", token=issued["token"])[1]["token_expiry"]["status"] == "warning"
     admin_op("revoke", project="http", hash=expiring["token_sha256"])
+    # Fixture-only colliding hashes; no live secret or business source is involved.
+    sql("INSERT INTO oo_token_control.token_record (token_sha256,token_kind,project_id,principal_id,role_name,claims_canonical,policy_version,knowledge_version,audience_url,issued_at_ms,absolute_deadline_ms,last_used_ms,revocation_floor) SELECT repeat('c',12)||repeat(suffix,52),token_kind,'prefix-collision',principal_id,role_name,claims_canonical,policy_version,knowledge_version,audience_url,issued_at_ms,absolute_deadline_ms,last_used_ms,revocation_floor FROM oo_token_control.token_record CROSS JOIN (VALUES ('a'),('b')) AS suffixes(suffix) WHERE token_sha256='" + issued["token_sha256"] + "';")
+    status, refusal, _ = http("/internal/v1/tokens", {"operation": "revoke", "project": "prefix-collision", "hash": "c" * 12}, admin=True)
+    assert status == 400 and refusal["error"]["message"] == "ambiguous_hash_prefix"
+    assert sql("SELECT count(*) FROM oo_token_control.revocation WHERE project_id='prefix-collision'").strip() == '0'
     enrolled, headers = admin_op("enroll", grant=g)
     status, bound, headers = http("/v1/auth/enroll", {"code": enrolled["code"]})
     assert status == 200 and headers["Cache-Control"] == "no-store"
@@ -164,9 +169,9 @@ try:
         "rotate_overlap_ms": 604800000, "enroll_ttl_ms": 86400000,
     })
     assert http("/v1/auth/renew", {}, token=bound["token"])[0] == 200
-    admin_op("renew", project="http", hash=issued["token_sha256"],
+    admin_op("renew", project="http", hash=issued["token_sha256"][:12],
              deadline_ms=issued["expires_at_ms"] + 1000)
-    rotated, _ = admin_op("rotate", project="http", hash=issued["token_sha256"])
+    rotated, _ = admin_op("rotate", project="http", hash=issued["token_sha256"][:12])
     assert rotated["token"] != issued["token"]
     listed, _ = admin_op("list", project="http")
     assert "ooct_" not in json.dumps(listed)

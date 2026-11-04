@@ -555,15 +555,42 @@ async fn live(
     }
     Ok(r)
 }
+fn unique_hash(mut hashes: impl Iterator<Item = String>) -> Result<String> {
+    let first = hashes.next().ok_or("not_found")?;
+    if hashes.next().is_some() {
+        return Err("ambiguous_hash_prefix");
+    }
+    Ok(first)
+}
+async fn resolve_hash(tx: &Transaction<'_>, project: &str, prefix: &str) -> Result<String> {
+    if !(12..=64).contains(&prefix.len())
+        || !prefix
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
+        return Err("hash_prefix");
+    }
+    let rows = tx.query("SELECT token_sha256 FROM oo_token_control.token_record WHERE project_id=$1 AND left(token_sha256,length($2))=$2 ORDER BY token_sha256 LIMIT 2", &[&project, &prefix]).await.map_err(|_| "database")?;
+    unique_hash(rows.into_iter().map(|r| r.get(0)))
+}
 async fn operate(
     tx: &Transaction<'_>,
-    op: Operation,
+    mut op: Operation,
     actor: &str,
     now: i64,
     project: &str,
 ) -> Result<Receipt> {
     if !project.is_empty() {
         ident(project, 128)?;
+    }
+    // Called under the project lock; ambiguous prefixes can never mutate a token.
+    match &mut op {
+        Operation::Renew { hash, .. }
+        | Operation::Rotate { hash, .. }
+        | Operation::Revoke { hash, .. } => {
+            *hash = resolve_hash(tx, project, hash).await?;
+        }
+        _ => (),
     }
     let p = policy(tx, project).await?;
     match op {
@@ -819,6 +846,21 @@ pub use legacy::{
 mod tests {
     use super::*;
 
+    #[test]
+    fn hash_prefix_resolution_refuses_missing_and_ambiguous_matches() {
+        assert_eq!(
+            unique_hash(Vec::<String>::new().into_iter()),
+            Err("not_found")
+        );
+        assert_eq!(
+            unique_hash(["a".repeat(64)].into_iter()),
+            Ok("a".repeat(64))
+        );
+        assert_eq!(
+            unique_hash(["a".repeat(64), "b".repeat(64)].into_iter()),
+            Err("ambiguous_hash_prefix")
+        );
+    }
     #[test]
     fn issued_audiences_remain_compatible_with_the_accepted_reader() {
         assert_eq!(

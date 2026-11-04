@@ -13,7 +13,7 @@ use std::{
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DAY: u64 = 86_400_000;
-pub(crate) const HELP: &str = "oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]\noo whoami [--json]\noo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]\nConnection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME\nAdmin issuance requires --client-pem FILE. Credentials are saved as private file references.\n";
+pub(crate) const HELP: &str = "oo token issue|enroll --grant-file FILE --output-file FILE [--role ROLE]\noo token list --project PROJECT\noo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]\noo token approve CODE --grant-file FILE [--role ROLE]\nToken commands accept --json; issue, enroll and rotate require a new --output-file (0600).\noo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]\noo whoami [--json]\noo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]\nConnection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME\nAdmin issuance requires --client-pem FILE. Credentials are saved as private file references.\n";
 type Result<T> = std::result::Result<T, Failure>;
 fn bad() -> Failure {
     Failure::usage("invalid lifecycle arguments or response")
@@ -218,6 +218,12 @@ fn options(args: &[String], command: &str) -> Result<BTreeMap<String, String>> {
             "--json",
         ],
         "whoami" => &["--json"],
+        "issue" | "enroll" => &["--grant-file", "--role", "--output-file", "--json"],
+        "approve" => &["--grant-file", "--role", "--json"],
+        "list" => &["--project", "--json"],
+        "renew" => &["--project", "--hash", "--deadline-ms", "--json"],
+        "rotate" => &["--project", "--hash", "--output-file", "--json"],
+        "revoke" => &["--project", "--hash", "--json"],
         _ => &["--grant-file", "--role", "--agent", "--raw-token"],
     };
     let mut out = BTreeMap::new();
@@ -754,15 +760,137 @@ async fn execute(command: &str, args: &[String]) -> Result<String> {
     let expires = issued["expires_at_ms"].as_u64().ok_or_else(protocol)?;
     Ok(prompt(&http.base, material, raw, agent, expires))
 }
+async fn token_command(args: &[String]) -> Result<String> {
+    let (command, mut rest) = args.split_first().ok_or_else(bad)?;
+    if ![
+        "issue", "list", "renew", "rotate", "revoke", "enroll", "approve",
+    ]
+    .contains(&command.as_str())
+    {
+        return Err(bad());
+    }
+    let user_code = if command == "approve" {
+        let (code, tail) = rest.split_first().ok_or_else(bad)?;
+        if code.len() != 9
+            || code.as_bytes()[4] != b'-'
+            || !code
+                .bytes()
+                .enumerate()
+                .all(|(i, b)| i == 4 || b.is_ascii_uppercase() || b.is_ascii_digit())
+        {
+            return Err(bad());
+        }
+        rest = tail;
+        Some(code)
+    } else {
+        None
+    };
+    let opts = options(rest, command)?;
+    let p = connection(saved(&directory()?)?, &opts)?;
+    let http = Http::new(&p, true)?;
+    let mut request =
+        json!({"operation": if command == "approve" { "device_approve" } else { command }});
+    if ["issue", "enroll", "approve"].contains(&command.as_str()) {
+        let mut grant = read_json(Path::new(opts.get("--grant-file").ok_or_else(bad)?), false)?;
+        if let Some(role) = opts.get("--role") {
+            grant["role"] = json!(role);
+        }
+        if !valid_id(text(&grant, "role")?)
+            || endpoint(text(&grant, "audience_url")?)?
+                .as_str()
+                .trim_end_matches('/')
+                != http.base
+        {
+            return Err(bad());
+        }
+        request["grant"] = grant;
+        if let Some(code) = user_code {
+            request["user_code"] = json!(code);
+        }
+    } else {
+        let project = opts
+            .get("--project")
+            .filter(|v| valid_id(v))
+            .ok_or_else(bad)?;
+        request["project"] = json!(project);
+        if command != "list" {
+            let hash = opts
+                .get("--hash")
+                .filter(|v| {
+                    (12..=64).contains(&v.len())
+                        && v.bytes()
+                            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                })
+                .ok_or_else(bad)?;
+            request["hash"] = json!(hash);
+        }
+        if command == "renew" {
+            let deadline = opts
+                .get("--deadline-ms")
+                .and_then(|v| v.parse::<i64>().ok())
+                .filter(|v| *v > 0)
+                .ok_or_else(bad)?;
+            request["deadline_ms"] = json!(deadline);
+        }
+    }
+    // Reserve the destination before consuming an issuance/rotation operation.
+    let output = if ["issue", "rotate", "enroll"].contains(&command.as_str()) {
+        let path = PathBuf::from(opts.get("--output-file").ok_or_else(bad)?);
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&path)
+            .map_err(|_| local())?;
+        Some((path, file))
+    } else {
+        None
+    };
+    let result = http
+        .call("/internal/v1/tokens", Some(request), None, false)
+        .await;
+    let mut value = match result.and_then(|reply| {
+        if reply.0 == 400 && reply.1["error"]["message"] == "ambiguous_hash_prefix" {
+            return Err(Failure::usage(
+                "ambiguous_hash_prefix: use a longer token hash prefix",
+            ));
+        }
+        success(reply)
+    }) {
+        Ok(v) => v,
+        Err(e) => {
+            if let Some((path, _)) = output {
+                let _ = fs::remove_file(path);
+            }
+            return Err(e);
+        }
+    };
+    if let Some((_path, mut file)) = output {
+        let key = if command == "enroll" { "code" } else { "token" };
+        let secret = text(&value, key)?;
+        if !(if key == "code" {
+            code_ok(secret)
+        } else {
+            token_ok(secret)
+        }) {
+            return Err(protocol());
+        }
+        file.write_all(secret.as_bytes()).and_then(|_| file.sync_all()).map_err(|_| Failure::local(
+            "Credential issued but private output write failed; ask the administrator to revoke it using the audit record"))?;
+        value.as_object_mut().ok_or_else(protocol)?.remove(key);
+        value["credential_saved"] = json!(true);
+    }
+    Ok(value.to_string())
+}
 pub fn dispatch(args: &[String]) -> Option<Result<Invocation>> {
     if args.first().is_some_and(|a| a == "help")
         && args.len() == 2
-        && ["login", "whoami", "share-prompt"].contains(&args[1].as_str())
+        && ["login", "whoami", "share-prompt", "token"].contains(&args[1].as_str())
     {
         return Some(Ok(Invocation::Help(HELP.into())));
     }
     let command = args.first()?.as_str();
-    if !["login", "whoami", "share-prompt"].contains(&command) {
+    if !["login", "whoami", "share-prompt", "token"].contains(&command) {
         return None;
     }
     if args.iter().any(|a| a == "--help" || a == "-h") {
@@ -770,7 +898,13 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation>> {
     }
     Some(
         runtime()
-            .and_then(|rt| rt.block_on(execute(command, &args[1..])))
+            .and_then(|rt| {
+                if command == "token" {
+                    rt.block_on(token_command(&args[1..]))
+                } else {
+                    rt.block_on(execute(command, &args[1..]))
+                }
+            })
             .map(|s| Invocation::AdminReport(s, 0)),
     )
 }

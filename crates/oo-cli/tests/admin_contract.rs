@@ -11,7 +11,7 @@ fn oo(args: &[&str]) -> Output {
 
 #[test]
 fn admin_help_is_offline_and_all_commands_have_common_options() {
-    for command in ["init", "up", "down", "doctor", "build", "ontology", "token"] {
+    for command in ["init", "up", "down", "doctor", "build", "ontology"] {
         let out = oo(&[command, "--help"]);
         assert!(out.status.success());
         let text = String::from_utf8(out.stdout).unwrap();
@@ -19,6 +19,26 @@ fn admin_help_is_offline_and_all_commands_have_common_options() {
             assert!(text.contains(required));
         }
         assert!(oo(&["help", command]).status.success());
+    }
+    for args in [["token", "--help"], ["help", "token"]] {
+        let out = oo(&args);
+        assert!(out.status.success());
+        let text = String::from_utf8(out.stdout).unwrap();
+        for required in [
+            "issue",
+            "list",
+            "renew",
+            "rotate",
+            "revoke",
+            "enroll",
+            "approve",
+            "--client-pem",
+            "--output-file",
+            "--json",
+        ] {
+            assert!(text.contains(required), "{text}");
+        }
+        assert!(!text.contains("ADMIN_NOT_IMPLEMENTED"));
     }
     assert!(
         oo(&["status", "--config", "missing", "--help"])
@@ -40,7 +60,6 @@ fn bad_arguments_never_echo_values_or_touch_stdin() {
         vec!["build", "--config", "a", "--config", "SYNTHETIC_PRIVATE"],
         vec!["ontology", "export", "--format", "SYNTHETIC_PRIVATE"],
         vec!["ontology", "open", "--format", "html"],
-        vec!["token", "SYNTHETIC_PRIVATE"],
         vec!["init", "--resume"],
     ] {
         let mut args = args;
@@ -52,6 +71,11 @@ fn bad_arguments_never_echo_values_or_touch_stdin() {
         assert!(text.contains("ADMIN_ARGUMENT"), "{text}");
         assert!(!text.contains("SYNTHETIC_PRIVATE"));
     }
+    let out = oo(&["token", "SYNTHETIC_PRIVATE", "--json"]);
+    assert!(!out.status.success());
+    let text = String::from_utf8([out.stdout, out.stderr].concat()).unwrap();
+    assert!(text.contains("invalid lifecycle arguments"));
+    assert!(!text.contains("SYNTHETIC_PRIVATE"));
     let out = oo(&["init", "--yes", "--json"]);
     assert!(!out.status.success());
     assert!(

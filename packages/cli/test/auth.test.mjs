@@ -135,8 +135,8 @@ async function fixture(t) {
   const seen = [];
   let redeemed = false;
   const state = { minimum: '0.2.0', protocol: '0.2', readStatus: 200, expiry: Date.now() + DAY,
-    identityExtra: token, direct: false, deviceErrors: [], polls: [], deviceExpiry: 60 };
-  const server = createServer({ key: readFileSync(key), cert: readFileSync(cert) }, async (req, res) => {
+    identityExtra: token, direct: false, deviceErrors: [], polls: [], deviceExpiry: 60, adminRequests: [] };
+  const server = createServer({ key: readFileSync(key), cert: readFileSync(cert), requestCert: true, rejectUnauthorized: false }, async (req, res) => {
     seen.push(req.url);
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
@@ -164,6 +164,19 @@ async function fixture(t) {
     if (req.url === '/v1/auth/enroll' && body.code === 'OO-0000-0000' && !redeemed) {
       redeemed = true;
       return res.end(JSON.stringify({ token }));
+    }
+    if (req.url === '/internal/v1/tokens') {
+      assert(req.socket.getPeerCertificate().raw, 'admin requests must present a client certificate');
+      assert.equal(req.headers.authorization, undefined);
+      state.adminRequests.push(body);
+      if (body.hash === 'badbadbadbad') {
+        res.statusCode = 400;
+        return res.end('{"error":{"code":"TOKEN_LIFECYCLE","message":"ambiguous_hash_prefix"}}');
+      }
+      return res.end(JSON.stringify(body.operation === 'issue' || body.operation === 'rotate'
+        ? { token, token_sha256: 'a'.repeat(64) } : body.operation === 'enroll'
+          ? { code: 'OO-0000-0000' } : body.operation === 'list'
+            ? { tokens: [{ hash_prefix: 'a'.repeat(12) }] } : { approved: true }));
     }
     if (req.headers.authorization !== `Bearer ${token}`) {
       res.statusCode = 401;
@@ -349,4 +362,40 @@ test('explicit connect-ip keeps TLS hostname validation and bypasses only DNS', 
     gateway: f.gateway.replace('localhost', 'wrong-name.invalid'), ca_file: f.cert, connect_ip: '127.0.0.1',
   }, '/v1/meta'), error => error.code === 'GATEWAY_TRANSPORT');
   assert.equal(f.seen.length, 1);
+});
+
+test('native and npm token commands use the admin API and private outputs', async t => {
+  for (const direct of [true, false]) {
+    const f = await fixture(t);
+    f.state.direct = direct;
+    const pem = join(f.root, 'admin.pem');
+    writeFileSync(pem, readFileSync(join(f.root, 'server.key')) + readFileSync(f.cert), { mode: 0o600 });
+    const grant = join(f.root, 'grant.json');
+    writeFileSync(grant, JSON.stringify({ project_id: 'fixture', principal_id: 'alice', role: 'reader',
+      policy_version: 'v1', knowledge_version: 'v1', audience_url: f.gateway + '/' }));
+    const connection = ['--gateway', f.gateway, '--ca-file', f.cert, '--client-pem', pem, '--json'];
+    for (const op of ['issue', 'list', 'renew', 'rotate', 'revoke', 'enroll', 'approve']) {
+      const output = join(f.root, op + '.secret');
+      const args = ['token', op, ...(op === 'approve' ? ['ABCD-EFGH'] : []), ...connection];
+      if (['issue', 'enroll', 'approve'].includes(op)) args.push('--grant-file', grant);
+      else args.push('--project', 'fixture');
+      if (['renew', 'rotate', 'revoke'].includes(op)) args.push('--hash', 'a'.repeat(12));
+      if (op === 'renew') args.push('--deadline-ms', '1800000000000');
+      if (['issue', 'rotate', 'enroll'].includes(op)) args.push('--output-file', output);
+      const result = await f.cli(args);
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      assert(!result.stdout.includes('OO-0000-0000'));
+      assert.equal(f.state.adminRequests.at(-1).operation, op === 'approve' ? 'device_approve' : op);
+      if (['issue', 'rotate', 'enroll'].includes(op)) {
+        assert.equal(statSync(output).mode & 0o777, 0o600);
+        assert.equal(readFileSync(output, 'utf8'), op === 'enroll' ? 'OO-0000-0000' : f.token);
+        const count = f.state.adminRequests.length;
+        assert.notEqual((await f.cli(args)).status, 0);
+        assert.equal(f.state.adminRequests.length, count, 'existing output must be rejected before issuance');
+      }
+    }
+    const ambiguous = await f.cli(['token', 'revoke', ...connection, '--project', 'fixture', '--hash', 'badbadbadbad']);
+    assert.notEqual(ambiguous.status, 0);
+    assert.match(ambiguous.stdout + ambiguous.stderr, /ambiguous_hash_prefix/);
+  }
 });

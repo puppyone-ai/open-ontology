@@ -10,7 +10,7 @@ import { isIP } from 'node:net';
 import { constants as osConstants, homedir } from 'node:os';
 import { dirname, isAbsolute, join, parse, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AuthError, approve } from './auth.mjs';
+import { AuthError } from './auth.mjs';
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const fields = {
@@ -362,26 +362,8 @@ async function main(args) {
       ? `${JSON.stringify({ name, version })}\n` : `${name} ${version}\n`);
     return 0;
   }
-  if (['login', 'whoami', 'share-prompt'].includes(args[0])) {
+  if (['login', 'whoami', 'share-prompt', 'token'].includes(args[0])) {
     return delegate(nativeBinary(), args);
-  }
-  const authCommand = args[0] === 'token' && args[1] === 'approve';
-  if (authCommand) {
-    if (args.includes('--help') || args.includes('-h')) {
-      process.stdout.write('Usage:\n'
-        + '  oo login --gateway URL (--code CODE | --code-stdin | --device)\n'
-        + '    [--profile NAME] [--business-timezone ZONE] [--json]\n'
-        + '  oo whoami [--json]\n'
-        + '  oo share-prompt --grant-file FILE [--role R] [--agent claude|cursor|codex] [--raw-token]\n'
-        + '  oo token approve CODE --grant-file FILE [--role R] [--json]\n'
-        + 'Connection options: --gateway URL --ca-file FILE --connect-ip IP --interface NAME\n'
-        + 'Admin operations require --client-pem FILE (approved mTLS identity).\n'
-        + 'Grant files contain reviewed project/principal/role/policy/knowledge/audience fields, never credentials.\n'
-        + 'TLS verification cannot be disabled. Prefer --code-stdin; raw tokens never go in argv.\n');
-      return 0;
-    }
-    const context = authContext();
-    return approve(context, args.slice(2));
   }
   if (args[0] === 'configure') {
     if (args.includes('--help') || args.includes('-h')) {

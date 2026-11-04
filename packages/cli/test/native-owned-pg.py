@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Reuse the owned PG runner unchanged, selecting the standalone CLI entrypoint.
 
-Only token approve remains on the npm surface; all enroll/device/login/query
-and prompt assertions are the existing runner's assertions and gold values.
+All lifecycle operations, including token approval, use the native binary.
+Assertions retain the existing runner's gold values.
 """
 from pathlib import Path
 import json
@@ -21,7 +21,7 @@ class NativePopen(original_popen):
         if (isinstance(args, list) and len(args) >= 3
                 and args[0] == "node"
                 and str(args[1]).endswith("npm-cli/bin/oo.mjs")
-                and args[2] in ("login", "whoami", "share-prompt", "query")):
+                and args[2] in ("login", "whoami", "share-prompt", "query", "token")):
             command = args[2]
             native_calls[command] = native_calls.get(command, 0) + 1
             args = [str(ROOT / "target/debug/oo"), *args[2:]]
@@ -35,7 +35,7 @@ try:
 finally:
     subprocess.Popen = original_popen
 assert all(native_calls.get(command, 0) > 0
-           for command in ("login", "whoami", "share-prompt", "query"))
+           for command in ("login", "whoami", "share-prompt", "query", "token"))
 (Path(sys.argv[1]) / "native-entrypoint-summary.json").write_text(
     json.dumps({"native_commands": native_calls, "assertions": "unchanged owned PG runner"}, indent=2)
 )
