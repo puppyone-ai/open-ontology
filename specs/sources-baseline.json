@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 12,
-  "supersedes_revision": 11,
-  "supersedes_baseline_head": "4ed15e7d65ddcc7b8c17619924aec462032e4686",
-  "supersedes_sha256": "0b2e43fcf5b6ca6094042a0aa1326f55b75a8473c32c3a09dc4e17ca7da20575",
-  "review_record": "specs/source-baseline-revision-12.md",
-  "baseline_head": "3a8d4f8f350eb3fac15e8cbdca1e48650f2d44c9",
+  "revision": 13,
+  "supersedes_revision": 12,
+  "supersedes_baseline_head": "3a8d4f8f350eb3fac15e8cbdca1e48650f2d44c9",
+  "supersedes_sha256": "50b96574a8843ef95636d44e172871a5feb52e8651690364de2f291ef038fdc8",
+  "review_record": "specs/source-baseline-revision-13.md",
+  "baseline_head": "455032af270b5cc2f7062fa152fb99a07ce8f753",
   "source_count": 26,
   "sources": [
     {
@@ -133,9 +133,9 @@
     },
     {
       "path": "docs/product/02-ingestion-playbook.md",
-      "sha256": "08c919f6b44b29548f126d803d0a853daa4bf3dcdd1a5d2491fdb5f8bc863c41",
-      "bytes": 13840,
-      "lines": 134
+      "sha256": "c89475b22caec9768d08991fcee115ffc067e7b137312cd24067022d6b9ecd20",
+      "bytes": 14304,
+      "lines": 136
     },
     {
       "path": "docs/product/03-selfbuild-context-budget.md",
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "Plan D7/D14: lite database connection security; reviewed by the coordinator; no independent review or product acceptance claimed"
+  "review_status": "owner self-review (D6); Oracle C1 transaction floor (02 §5.1)"
 }
