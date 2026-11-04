@@ -252,12 +252,14 @@ fn ora_code(e: &DriverError) -> Option<usize> {
             _ => None,
         },
         DriverError::Worker { code, .. } => (*code != 0).then_some(*code),
+        DriverError::Source(_) => None,
     }
 }
 
 fn map_driver(e: &DriverError) -> SourceError {
     match e {
         DriverError::Thin(e) => map_ora(e),
+        DriverError::Source(e) => e.clone(),
         DriverError::Worker { code, timeout } => {
             if *timeout {
                 return SourceError::budget("call_timeout");
@@ -308,9 +310,9 @@ fn canonical(kind: ColKind, v: String) -> Result<String, SourceError> {
         ColKind::Number => {
             super::chunk::decimal(&v).map_err(|_| SourceError::protocol("number_text"))
         }
-        ColKind::Raw => Ok(v.to_ascii_lowercase()),
+        ColKind::Raw | ColKind::Blob => Ok(v.to_ascii_lowercase()),
         ColKind::Date | ColKind::Timestamp | ColKind::TimestampTz => positive_era(&v),
-        ColKind::Char | ColKind::NChar => Ok(v),
+        ColKind::Char | ColKind::NChar | ColKind::Clob | ColKind::NClob => Ok(v),
     }
 }
 
@@ -553,7 +555,22 @@ impl OracleEngine {
         if let Some(worker) = &self.worker {
             return worker.query(text, binds, max_rows + 1)?.collect();
         }
-        self.query_thin(text, binds, max_rows).map_err(Into::into)
+        self.query_thin(text, binds, max_rows, false)
+            .map_err(Into::into)
+    }
+
+    fn sample_statement(&mut self, text: &str, binds: &[Bind]) -> Result<(), SourceError> {
+        let result = if let Some(worker) = &self.worker {
+            worker.probe(text, binds)
+        } else {
+            self.query_thin(text, binds, 1, true)
+                .map(|_| ())
+                .map_err(Into::into)
+        };
+        result.map_err(|e| {
+            self.last_ora = ora_code(&e);
+            map_driver(&e)
+        })
     }
 
     fn query_thin(
@@ -561,6 +578,7 @@ impl OracleEngine {
         text: &str,
         binds: &[Bind],
         max_rows: usize,
+        discard: bool,
     ) -> Result<Rows, oracledb::Error> {
         // Callers construct numeric binds from validated metadata or keys.
         let values = binds
@@ -577,6 +595,22 @@ impl OracleEngine {
                 BindValue::S(s) => s as &dyn ToDbValue,
             })
             .collect();
+        if discard {
+            // Inspect the actual query plan without materializing LOB contents.
+            let statement = self
+                .conn
+                .as_ref()
+                .unwrap()
+                .statement(text)?
+                .fetch_array_size(1)
+                .prefetch_rows(0)
+                .fetch_lobs()
+                .build()?;
+            for row in statement.query(&refs)?.take(1) {
+                row?;
+            }
+            return Ok(Vec::new());
+        }
         let cursor = self.conn.as_ref().unwrap().query(text, &refs)?;
         let width = cursor.columns().len();
         let mut out = Vec::new();
@@ -1038,7 +1072,12 @@ impl OracleEngine {
         )?;
         let mut retries = 0;
         loop {
-            match self.query(&sql.text, &sql.binds, 1) {
+            let sample = if meta.columns.iter().any(|c| c.kind.is_lob()) {
+                self.sample_statement(&sql.text, &sql.binds)
+            } else {
+                self.query(&sql.text, &sql.binds, 1).map(|_| ())
+            };
+            match sample {
                 Ok(_) => break,
                 Err(error)
                     if error.fact() == Some("ora_snapshot_unavailable")
@@ -1242,14 +1281,25 @@ impl OracleEngine {
         let stmt = self
             .conn
             .as_ref()
-            .map(|conn| conn.statement(&sql.text)?.fetch_array_size(512).build())
+            .map(|conn| {
+                conn.statement(&sql.text)?
+                    .fetch_array_size(if meta.columns.iter().any(|c| c.kind.is_lob()) {
+                        1
+                    } else {
+                        512
+                    })
+                    .prefetch_rows(0)
+                    .fetch_lobs()
+                    .build()
+            })
             .transpose()
             .map_err(|e| PageError::Driver(e.into()))?;
+        let mut remaining = budget_bytes.saturating_sub(progress.bytes);
         let cursor: Box<dyn Iterator<Item = Result<Vec<Option<String>>, DriverError>> + '_> =
             if let Some(worker) = &self.worker {
                 Box::new(
                     worker
-                        .query(&sql.text, &sql.binds, 100_001)
+                        .query_bounded(&sql.text, &sql.binds, 100_001, remaining.max(1))
                         .map_err(PageError::Driver)?,
                 )
             } else {
@@ -1259,9 +1309,27 @@ impl OracleEngine {
                     .map_err(|e| PageError::Driver(e.into()))?;
                 let width = meta.columns.len();
                 Box::new(cursor.map(move |row| {
-                    let row = row?;
+                    let mut row = row?;
                     (0..width)
-                        .map(|i| row.get::<Option<String>>(i).map_err(Into::into))
+                        .map(|i| {
+                            let value = if meta.columns[i].kind.is_lob() {
+                                let lob: Option<oracledb::Lob> = row.take(i)?;
+                                lob.map(|mut lob| {
+                                    super::lob::read_locator(
+                                        &mut lob,
+                                        meta.columns[i].kind == ColKind::Blob,
+                                        remaining,
+                                        deadline,
+                                    )
+                                })
+                                .transpose()?
+                            } else {
+                                row.get::<Option<String>>(i)?
+                            };
+                            remaining = remaining
+                                .saturating_sub(value.as_ref().map_or(1, |v| v.len() as u64 + 1));
+                            Ok(value)
+                        })
                         .collect()
                 }))
             };
@@ -2390,6 +2458,29 @@ mod tests {
             "true"
         );
         assert_eq!(s.metadata()["oo.table"], "APP.T");
+        for (data_type, kind, canonical) in [
+            ("CLOB", ColKind::Clob, "text"),
+            ("NCLOB", ColKind::NClob, "text"),
+            ("BLOB", ColKind::Blob, "hex"),
+        ] {
+            let s = chunk_schema(
+                &t,
+                &[ColumnInfo {
+                    name: "LOB".into(),
+                    data_type: data_type.into(),
+                    canonical: kind.canonical(),
+                    text: kind.is_text(),
+                }],
+            );
+            assert_eq!(s.field(0).data_type(), &DataType::Utf8);
+            assert_eq!(s.field(0).metadata()["oo.oracle.type"], data_type);
+            assert_eq!(s.field(0).metadata()["oo.oracle.canonical"], canonical);
+            assert!(
+                !s.field(0)
+                    .metadata()
+                    .contains_key("oo.oracle.empty_string_is_null")
+            );
+        }
     }
 
     #[test]

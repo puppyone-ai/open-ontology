@@ -303,3 +303,24 @@ non-LogMiner reader and audit.
 
 These are source component/T7 results, not durable Agent DB publication.
 19c remains untested; C1 still requires explicit opt-in.
+
+## Bounded LOB snapshots
+
+CLOB/NCLOB locators are read incrementally into canonical UTF-8; BLOB locators
+become lowercase hex, following the adapter's existing canonical Arrow
+`Utf8` contract. Fields retain their Oracle type and canonical-format metadata.
+Empty locators remain empty values, distinct from NULL. LOBs cannot be keys.
+
+Both thin and 11g thick transports use the remaining `ReadBudget` chunk bytes
+as their limit (including hex expansion), with bounded locator reads and a
+deadline. Over-limit values fail with `lob_value_over_budget`; no truncated
+value or successful receipt is returned. A caller must discard unpublished
+chunk staging on any error, as with other chunk failures. Source SQL digest
+of LOBs remains explicitly unsupported (`lob_source_digest_requires_streaming`);
+this does not disable snapshot Arrow IPC SHA-256 verification.
+
+Run the focused live test with `run.py --version <23|21|11> --run-id <id>
+--lob-only`, adding the pinned thick worker image for 11g. It checks multichunk
+CLOB/NCLOB/BLOB content, Unicode, empty/NULL values, receipt SHA-256 and a
+4096-byte overflow refusal. Fixtures use disposable tmpfs rather than host
+database bind directories.

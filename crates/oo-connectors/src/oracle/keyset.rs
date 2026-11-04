@@ -20,6 +20,9 @@ pub enum ColKind {
     /// database character set.
     NChar,
     Raw,
+    Clob,
+    NClob,
+    Blob,
     Date,
     Timestamp,
     TimestampTz,
@@ -32,6 +35,9 @@ impl ColKind {
             "VARCHAR2" | "CHAR" => Self::Char,
             "NVARCHAR2" | "NCHAR" => Self::NChar,
             "RAW" => Self::Raw,
+            "CLOB" => Self::Clob,
+            "NCLOB" => Self::NClob,
+            "BLOB" => Self::Blob,
             "DATE" => Self::Date,
             t if t.starts_with("TIMESTAMP(") && t.ends_with("WITH TIME ZONE") => {
                 if t.contains("LOCAL") {
@@ -48,8 +54,8 @@ impl ColKind {
     pub fn canonical(self) -> &'static str {
         match self {
             Self::Number => "decimal",
-            Self::Char | Self::NChar => "text",
-            Self::Raw => "hex",
+            Self::Char | Self::NChar | Self::Clob | Self::NClob => "text",
+            Self::Raw | Self::Blob => "hex",
             Self::Date | Self::Timestamp | Self::TimestampTz => "iso8601",
         }
     }
@@ -60,7 +66,11 @@ impl ColKind {
 
     /// Keys whose order Oracle defines and the client can bind losslessly.
     pub fn keyable(self) -> bool {
-        !matches!(self, Self::TimestampTz)
+        !matches!(self, Self::TimestampTz) && !self.is_lob()
+    }
+
+    pub fn is_lob(self) -> bool {
+        matches!(self, Self::Clob | Self::NClob | Self::Blob)
     }
 
     /// Upper bound of the canonical text length in bytes.
@@ -73,6 +83,7 @@ impl ColKind {
             Self::Date => 21,
             Self::Timestamp => 31,
             Self::TimestampTz => 38,
+            Self::Clob | Self::NClob | Self::Blob => u32::MAX,
         }
     }
 }
@@ -106,7 +117,7 @@ pub fn projection(c: &Column) -> Result<String, SourceError> {
     let n = ident(&c.name)?;
     Ok(match c.kind {
         ColKind::Number => format!("TO_CHAR({n},'TM9','NLS_NUMERIC_CHARACTERS=''.,''')"),
-        ColKind::Char | ColKind::NChar => n,
+        ColKind::Char | ColKind::NChar | ColKind::Clob | ColKind::NClob | ColKind::Blob => n,
         ColKind::Raw => format!("RAWTOHEX({n})"),
         ColKind::Date => format!("TO_CHAR({n},'SYYYY-MM-DD\"T\"HH24:MI:SS')"),
         ColKind::Timestamp => format!("TO_CHAR({n},'SYYYY-MM-DD\"T\"HH24:MI:SS.FF9')"),
@@ -119,6 +130,9 @@ pub fn projection(c: &Column) -> Result<String, SourceError> {
 /// Digest text of one column: a NULL flag plus canonical text. National
 /// text is hashed as AL32UTF8 bytes so the row text stays VARCHAR2.
 fn digest_cell(c: &Column) -> Result<String, SourceError> {
+    if c.kind.is_lob() {
+        return Err(SourceError::catalog("lob_source_digest_requires_streaming"));
+    }
     let n = ident(&c.name)?;
     let text = match c.kind {
         ColKind::NChar => format!("RAWTOHEX(UTL_I18N.STRING_TO_RAW({n},'AL32UTF8'))"),
@@ -655,7 +669,14 @@ mod tests {
             )
             .is_err()
         );
-        assert!(ColKind::from_oracle("CLOB").is_none());
+        for name in ["CLOB", "NCLOB", "BLOB"] {
+            let kind = ColKind::from_oracle(name).unwrap();
+            assert!(kind.is_lob());
+            assert!(!kind.keyable());
+            assert!(!kind.is_text(), "empty LOBs are not Oracle empty strings");
+            assert_eq!(projection(&col("L", name)).unwrap(), "\"L\"");
+            assert!(digest_cell(&col("L", name)).is_err());
+        }
         assert!(ColKind::from_oracle("TIMESTAMP(6) WITH LOCAL TIME ZONE").is_none());
         assert!(
             !ColKind::from_oracle("TIMESTAMP(6) WITH TIME ZONE")

@@ -243,6 +243,95 @@ impl Drop for StopWriter {
 }
 
 #[tokio::test]
+#[ignore = "requires the owned --lob-only fixture"]
+async fn oracle_lob_budget_and_hash() {
+    let path = std::env::var("OO_ORACLE_FIXTURE_CONFIG").unwrap();
+    let f: Fixture = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    let table = TableRef {
+        schema: "OO_FIXTURE".into(),
+        name: "LOB_EDGES".into(),
+    };
+    let mut config = OracleConnectConfig::new(
+        "127.0.0.1",
+        f.port,
+        &f.service,
+        "OO_READER",
+        Zeroizing::new(f.reader_password.clone()),
+    );
+    config.scope = vec![table.clone()];
+    let mut engine = engine_connect(&f, config).unwrap();
+    let probe = engine.probe().await.unwrap();
+    let budget = ReadBudget {
+        max_chunk_bytes: 1024 * 1024,
+        duty_cycle_percent: 100,
+        ..ReadBudget::default()
+    };
+    let plan = engine.plan_chunks(&table, &budget).await.unwrap();
+    let mut rows = Rows::new();
+    for chunk in &plan.chunks {
+        let mut sink = Sink {
+            keys: 1,
+            rows: Rows::new(),
+            ipc: None,
+        };
+        let receipt = engine.read_chunk(chunk, &budget, &mut sink).await.unwrap();
+        if let Some(mut ipc) = sink.ipc {
+            ipc.finish().unwrap();
+            let bytes = ipc.into_inner().unwrap();
+            assert_eq!(receipt.bytes, bytes.len() as u64);
+            assert_eq!(receipt.sha256, format!("{:x}", Sha256::digest(bytes)));
+        }
+        rows.extend(sink.rows);
+    }
+    let expected = [
+        vec![
+            Some("1".into()),
+            Some("x".repeat(24_000)),
+            Some("\u{4e2d}\u{1f600}".repeat(6000)),
+            Some("00ff".repeat(12_000)),
+        ],
+        vec![
+            Some("2".into()),
+            Some("".into()),
+            Some("".into()),
+            Some("".into()),
+        ],
+        vec![Some("3".into()), None, None, None],
+    ]
+    .into_iter()
+    .map(|row| (row_key(&row, 1), row_hash(&row)))
+    .collect::<Rows>();
+    assert_eq!(
+        rows, expected,
+        "all LOB bytes, empty locators and NULLs must survive"
+    );
+    let tiny = ReadBudget {
+        max_chunk_bytes: 4096,
+        ..budget
+    };
+    let mut sink = Sink {
+        keys: 1,
+        rows: Rows::new(),
+        ipc: None,
+    };
+    let error = engine
+        .read_chunk(&plan.chunks[0], &tiny, &mut sink)
+        .await
+        .unwrap_err();
+    assert_eq!(error.fact(), Some("lob_value_over_budget"));
+    assert!(sink.rows.is_empty(), "over-limit row must not be delivered");
+    std::fs::write(
+        f.out.join("lob-result.json"),
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "version": probe.version, "rows": rows.len(), "sha256_verified": true,
+            "empty_distinct_from_null": true, "oversize_error": error.fact(),
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+}
+
+#[tokio::test]
 #[ignore = "requires the owned fixture from testing/engines/oracle/run.py"]
 async fn oracle_engine_t0_t1_t8() {
     let path = std::env::var("OO_ORACLE_FIXTURE_CONFIG").expect("owned fixture config required");

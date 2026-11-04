@@ -24,6 +24,7 @@ const MAX_FRAME: usize = 32 * 1024 * 1024;
 pub enum DriverError {
     Thin(oracledb::Error),
     Worker { code: usize, timeout: bool },
+    Source(crate::SourceError),
 }
 
 impl From<oracledb::Error> for DriverError {
@@ -147,11 +148,30 @@ impl Worker {
         binds: &[Bind],
         max_rows: usize,
     ) -> Result<WorkerRows<'_>, DriverError> {
-        self.request("query", sql, binds, max_rows)
+        self.request("query", sql, binds, max_rows, None)
+    }
+
+    pub fn query_bounded(
+        &self,
+        sql: &str,
+        binds: &[Bind],
+        max_rows: usize,
+        max_bytes: u64,
+    ) -> Result<WorkerRows<'_>, DriverError> {
+        self.request("query", sql, binds, max_rows, Some(max_bytes))
+    }
+
+    pub fn probe(&self, sql: &str, binds: &[Bind]) -> Result<(), DriverError> {
+        let mut rows = self.request("probe", sql, binds, 1, None)?;
+        match rows.next() {
+            None => Ok(()),
+            Some(Err(error)) => Err(error),
+            Some(Ok(_)) => Err(invalid()),
+        }
     }
 
     pub(crate) fn logminer_call(&self, sql: &str, binds: &[Bind]) -> Result<(), DriverError> {
-        let mut rows = self.request("logminer", sql, binds, 1)?;
+        let mut rows = self.request("logminer", sql, binds, 1, None)?;
         match rows.next() {
             None => Ok(()),
             Some(Err(error)) => Err(error),
@@ -165,6 +185,7 @@ impl Worker {
         sql: &str,
         binds: &[Bind],
         max_rows: usize,
+        max_bytes: Option<u64>,
     ) -> Result<WorkerRows<'_>, DriverError> {
         let binds: Vec<Value> = binds
             .iter()
@@ -177,6 +198,7 @@ impl Worker {
             &serde_json::to_vec(&json!({
                 "protocol": PROTOCOL, "operation": operation, "sql": sql, "binds": binds,
                 "timeout_ms": self.timeout.get().as_millis(), "max_rows": max_rows,
+                "max_bytes": max_bytes,
             }))
             .map_err(|_| invalid())?,
         )?;
@@ -249,6 +271,11 @@ impl Iterator for WorkerRows<'_> {
                     return Err(invalid());
                 }
                 self.done = true;
+                if value["ok"] != true && value["fact"] == "lob_value_over_budget" {
+                    return Err(DriverError::Source(crate::SourceError::budget(
+                        "lob_value_over_budget",
+                    )));
+                }
                 return if value["ok"] == true {
                     Ok(())
                 } else {

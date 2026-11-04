@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 import secrets
-import shutil
 import subprocess
 import time
 
@@ -23,6 +22,7 @@ def main():
     parser.add_argument("--version", choices=IMAGES, required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--worker-image", help="local thick-worker image; required for 11g")
+    parser.add_argument("--lob-only", action="store_true", help="bounded locator/Arrow regression")
     parser.add_argument("--undo-stress", action="store_true",
                         help="shrink undo in this owned 23ai fixture; test lost-undo behavior")
     parser.add_argument("--incremental", action="store_true",
@@ -32,6 +32,8 @@ def main():
     args = parser.parse_args()
     if args.incremental and args.undo_stress:
         parser.error("run incremental and undo stress separately")
+    if args.lob_only and (args.incremental or args.undo_stress):
+        parser.error("run LOB regression separately")
     if args.c5_only and not args.incremental:
         parser.error("--c5-only requires --incremental")
     if args.undo_stress and (args.version != "23" or args.worker_image):
@@ -70,15 +72,11 @@ def main():
     name = "oo-e-" + args.run_id + "-" + args.version
     created = False
     worker_id = None
-    data_dirs = []
     try:
         mounts = []
-        for i, target in enumerate((image["Config"].get("Volumes") or {}).keys()):
-            data = out / f"data-{i}"
-            data.mkdir(mode=0o777)
-            data.chmod(0o777)
-            data_dirs.append(data)
-            mounts += ["--mount", f"type=bind,src={data},dst={target}"]
+        for target in (image["Config"].get("Volumes") or {}):
+            # Disposable fixture data must not fill the host's small free disk.
+            mounts += ["--tmpfs", f"{target}:rw,size=12g,mode=0777"]
         container_id = run(["docker", "create", "--name", name, "--label", "oo.lane=e",
              "--label", "oo.run_id=" + args.run_id, "--platform", platform,
              "--env-file", str(env_file), "-p", "127.0.0.1::1521",
@@ -172,12 +170,42 @@ BEGIN DBMS_STATS.GATHER_TABLE_STATS('OO_FIXTURE','{table}'); END;
 /
 """
         ddl += "EXIT\n"
-        if args.incremental:
+        if args.incremental or args.lob_only:
             # T2 uses GROWING; do not generate the unrelated two-million-row
             # T1 fixture's redo for every LogMiner test.
             ddl = ddl.replace("CONNECT BY LEVEL<=1000) a CROSS", "CONNECT BY LEVEL<=1) a CROSS")
         run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
             "fixture", input=ddl, timeout=600)
+        if args.lob_only:
+            run(["docker", "exec", "-i", name, "sqlplus", "-s", "/", "as", "sysdba"],
+                "lob-fixture", input=f"""
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+{switch}
+CREATE TABLE OO_FIXTURE.LOB_EDGES (ID NUMBER(9) PRIMARY KEY, C CLOB, N NCLOB, B BLOB);
+DECLARE
+ c CLOB; n NCLOB; b BLOB;
+ text VARCHAR2(4000) := RPAD('x',2000,'x');
+ national NVARCHAR2(2000);
+ raw_value RAW(2000) := HEXTORAW(RPAD('00FF',4000,'00FF'));
+BEGIN
+ FOR j IN 1..500 LOOP
+  national := national || UNISTR('\\4E2D\\D83D\\DE00');
+ END LOOP;
+ INSERT INTO OO_FIXTURE.LOB_EDGES VALUES (1,EMPTY_CLOB(),EMPTY_CLOB(),EMPTY_BLOB())
+ RETURNING C,N,B INTO c,n,b;
+ FOR i IN 1..12 LOOP
+  DBMS_LOB.WRITEAPPEND(c,LENGTH(text),text);
+  DBMS_LOB.WRITEAPPEND(n,LENGTH2(national),national);
+  DBMS_LOB.WRITEAPPEND(b,UTL_RAW.LENGTH(raw_value),raw_value);
+ END LOOP;
+ INSERT INTO OO_FIXTURE.LOB_EDGES VALUES (2,EMPTY_CLOB(),EMPTY_CLOB(),EMPTY_BLOB());
+ INSERT INTO OO_FIXTURE.LOB_EDGES VALUES (3,NULL,NULL,NULL);
+ COMMIT;
+END;
+/
+GRANT SELECT, FLASHBACK ON OO_FIXTURE.LOB_EDGES TO OO_READER;
+EXIT
+""")
         if args.incremental and not args.c5_only:
             miner_user = "OO_MINER" if args.version == "11" else "C##OO_MINER"
             mining = f"""
@@ -341,7 +369,7 @@ EXIT
         if args.incremental:
             command = ["cargo", "test", "-p", "oo-connectors", "--features", "oracle", "--locked", "--lib", "--", "s2::real_incremental_cycles"]
         elif not args.undo_stress:
-            command.append("oracle_engine_t0_t1_t8")
+            command.append("oracle_lob_budget_and_hash" if args.lob_only else "oracle_engine_t0_t1_t8")
         command += ["--ignored", "--nocapture"]
         p = subprocess.run(
             command,
@@ -383,8 +411,6 @@ EXIT
             run(["docker", "rm", "-f", "-v", worker_id], "worker-cleanup")
         if created:
             run(["docker", "rm", "-f", "-v", name], "cleanup")
-        for data in data_dirs:
-            shutil.rmtree(data)
         for path in [env_file, out / "config.json"]:
             path.unlink(missing_ok=True)
         sums = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
