@@ -42,7 +42,9 @@ First up creates a private `.oo/lite/pki` CA, component mTLS certificates and
 random admin password via `oo_stack::credentials::bootstrap`. Repeated up never
 rotates credentials. Source/model references are copied into the deployment's
 private home; changed credentials require explicit rotation, not replacement.
-PostgreSQL accepts TCP only with TLS, a trusted client certificate and password.
+Under D14, lite PostgreSQL accepts TCP only with TLS and a SCRAM password;
+clients must still verify the server certificate and hostname. Database client
+certificates are optional. Standard and Gateway/internal mTLS are unchanged.
 No database port, Docker socket or host network is exposed. Model-egress listens
 only on its container loopback. This is a single-owner boundary, not multitenant
 isolation. Oracle client runtime installation is not included.
@@ -103,8 +105,10 @@ catalog is installed by this delivery.
   presenting the fixture client certificate succeeds against that same DB.
   Reproduce with `cargo build -p oo-gateway --bin issue-token --locked`, then
   `python3 deploy/lite/test_operator_boundary.py --run-id <new-run-id>`.
-  The script succeeds only when it reproduces this blocker, not when operator
-  issuance works. Both fixture runners remove their own containers and secrets.
+  That result describes the pre-D14 policy. The current regression instead
+  requires TLS/SCRAM token issuance to succeed and rejects plaintext,
+  a mismatched server hostname and an untrusted CA.
+  Both fixture runners remove their own containers and secrets.
   Worker client-auth remains a source-inspected limitation, not a live worker
   test. Authenticated `/v1/meta` also delegates to published-data freshness;
   a pre-publication health/meta-only operator contract needs lane B integration.

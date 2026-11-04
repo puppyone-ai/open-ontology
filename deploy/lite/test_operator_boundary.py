@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproduce the shared token client's mTLS blocker on an owned lite DB."""
+"""Verify D14 TLS/SCRAM and real token issuance on an owned lite DB."""
 import argparse
 import json
 import os
@@ -69,18 +69,74 @@ exec psql -X -qAt -h localhost -U postgres -d postgres -c 'SELECT version();'
                                 capture_output=True,timeout=20)
         (out/'positive.log').write_bytes(positive.stdout+positive.stderr)
         assert positive.returncode==0
+        # Provision only fixture roles over the local admin socket. Passwords
+        # stay in files/stdin, never argv or database statement logs.
+        sql="""SET log_statement='none';
+SET log_min_error_statement='panic';
+SELECT format('CREATE ROLE oo_token_admin LOGIN PASSWORD %L',
+              pg_read_file('/tmp/admin-password')) \\gexec
+CREATE ROLE oo_token_runtime LOGIN;
+GRANT CREATE ON DATABASE postgres TO oo_token_admin;
+"""
+        provision=subprocess.run(['docker',*argv,'exec','-T','control-db','psql',
+                                  '-X','-q','-v','ON_ERROR_STOP=1','-U','postgres'],
+                                 input=sql.encode(),capture_output=True,timeout=20)
+        assert provision.returncode==0, 'fixture role provisioning failed'
         issue=subprocess.run([str(ROOT/'target/debug/issue-token'),'install',
                               str(out/'endpoint.json'),str(pki/'lite-admin-password'),
                               str(pki/'lite-ca-cert')],capture_output=True,timeout=30)
         (out/'issue-token.log').write_bytes(issue.stdout+issue.stderr)
         logs=lifecycle.docker(argv+['logs','--no-color','control-db'],env)
         (out/'database.log').write_bytes(logs.replace(password.encode(),b'[REDACTED]'))
-        assert issue.returncode!=0, 'shared client behavior changed; recheck integration'
-        assert b'valid client certificate' in logs, 'failure was not the expected mTLS refusal'
-        result={'status':'blocked','positive_mtls_connection':'passed',
+        assert issue.returncode==0, 'TLS/SCRAM token store install failed'
+        grant={'kind':'client','project_id':'lite-boundary','principal_id':'operator',
+               'role':'lite_operator','claims':[],'policy_version':'bootstrap',
+               'knowledge_version':'unpublished','audience_url':'https://localhost:8443',
+               'purpose':'owned D14 regression'}
+        lifecycle.write(out/'grant.json',json.dumps(grant).encode())
+        issued=subprocess.run([str(ROOT/'target/debug/issue-token'),'issue',
+                               str(out/'endpoint.json'),str(pki/'lite-admin-password'),
+                               str(pki/'lite-ca-cert'),str(out/'grant.json'),
+                               str(pki/'operator-token')],capture_output=True,timeout=30)
+        (out/'issued.log').write_bytes(issued.stdout+issued.stderr)
+        assert issued.returncode==0, 'real token issuance failed'
+        token=lifecycle.read_private(pki/'operator-token').strip()
+        assert token.startswith(b'ooct_')
+        openssl('req','-x509','-newkey','rsa:2048','-nodes','-days','1',
+                '-subj','/CN=untrusted-ca','-keyout','untrusted-key','-out','untrusted-cert')
+        untrusted=subprocess.run([str(ROOT/'target/debug/issue-token'),'install',
+                                  str(out/'endpoint.json'),str(pki/'lite-admin-password'),
+                                  str(pki/'untrusted-cert')],capture_output=True,timeout=30)
+        (out/'untrusted-ca.log').write_bytes(untrusted.stdout+untrusted.stderr)
+        assert untrusted.returncode!=0, 'token client accepted an untrusted server'
+        # A certificate-less verify-full connection succeeds, but neither
+        # plaintext nor a mismatched server identity is admitted.
+        for name,mode,host,expected in [
+                ('tls-scram','verify-full','localhost',0),
+                ('plaintext','disable','localhost',2),
+                ('hostname-mismatch','verify-full','wrong.invalid',2)]:
+            check='''export PGPASSWORD="$(cat /pki/lite-admin-password)"
+unset PGSSLCERT PGSSLKEY
+export PGSSLROOTCERT=/pki/lite-ca-cert
+exec psql -X -qAt "host=%s hostaddr=127.0.0.1 user=postgres dbname=postgres sslmode=%s" -c 'SELECT 1'
+'''%(host,mode)
+            checked=subprocess.run(['docker',*argv,'exec','-T','control-db','sh','-c',check],
+                                   capture_output=True,timeout=20)
+            (out/(name+'.log')).write_bytes(checked.stdout+checked.stderr)
+            assert checked.returncode==expected, name
+        logs=lifecycle.docker(argv+['logs','--no-color','control-db'],env)
+        assert token not in logs and password.encode() not in logs
+        (out/'database.log').write_bytes(logs)
+        version=lifecycle.docker(argv+['exec','-T','control-db','psql','-X','-qAt',
+                                      '-U','postgres','-c','SHOW server_version'],env).decode().strip()
+        result={'status':'passed','positive_mtls_connection':'passed',
+                'engine':'PostgreSQL','version':version,
                 'issue_token_install_exit':issue.returncode,
-                'reason':'token-store client provides no client certificate',
-                'tls_policy_weakened':False,'operator_token_issued':False}
+                'issue_token_exit':issued.returncode,
+                'server_identity_verified':True,'plaintext_refused':True,
+                'untrusted_ca_refused':True,
+                'client_certificate_required':False,'token_issued':True,
+                'health_meta_role_enforcement_tested':False}
         (out/'result.json').write_text(json.dumps(result,indent=2))
     finally:
         for cid in lifecycle.docker(argv+['ps','-aq'],env).decode().split():

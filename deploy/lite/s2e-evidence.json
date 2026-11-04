@@ -1,0 +1,28 @@
+{
+  "todo": "S2-A-02",
+  "status": "partial",
+  "d14": {
+    "run_id": "a-s2e-d14-live-final",
+    "result_sha256": "e26b21390d41404633d6db1ead5265f28773e40ee45368ea43fdfdfb54651585",
+    "status": "passed",
+    "positive_mtls_connection": "passed",
+    "engine": "PostgreSQL",
+    "version": "17.10 (Debian 17.10-1.pgdg12+1)",
+    "issue_token_install_exit": 0,
+    "issue_token_exit": 0,
+    "server_identity_verified": true,
+    "plaintext_refused": true,
+    "untrusted_ca_refused": true,
+    "client_certificate_required": false,
+    "token_issued": true,
+    "health_meta_role_enforcement_tested": false
+  },
+  "checks": {
+    "run_id": "a-s2e-d14",
+    "workspace_locked": "passed",
+    "lifecycle_unit_tests": 11
+  },
+  "first_up_operator_token": false,
+  "seven_service_acceptance": false,
+  "three_engine_drafts": false
+}
