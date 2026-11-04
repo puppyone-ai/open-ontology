@@ -1,0 +1,83 @@
+{
+  "status": "partial",
+  "card": "A3-S4c",
+  "todo_ids": [
+    "S4-A-01",
+    "S4-A-02"
+  ],
+  "run_ids": [
+    "a3-s4c-20261105",
+    "a3-s4c-wizard-20261105",
+    "a3-s4c-npm-smoke-20261105",
+    "a3-s4c-l1-clean-20261105"
+  ],
+  "changes": [
+    "Import source CA files into new private secrets; pinned SSH discovery with out-of-band confirmation and key/password imports.",
+    "Stage native lite image sidecars and verify NOTICE files in npm pack; report exact pinned pull or local archive instructions before deployment state writes.",
+    "Route wizard BUILD through retained CLI command and preserve failed preflight gate; successful text completion prints share prompt."
+  ],
+  "checks": [
+    {
+      "command": "cargo check --workspace --locked",
+      "result": "passed"
+    },
+    {
+      "command": "cargo test -p oo-cli --locked",
+      "result": "80 passed; 2 ignored; 0 failed"
+    },
+    {
+      "command": "cargo test -p oo-connectors --locked transport::ssh",
+      "result": "4 passed; remaining tests filtered; not full connector acceptance"
+    },
+    {
+      "command": "node --test packages/cli/scripts/stage.test.mjs packages/cli/test/*.test.mjs",
+      "result": "46 passed"
+    },
+    {
+      "command": "python3 crates/oo-cli/src/admin/test_wizard.py --run-id a3-s4c-wizard-20261105",
+      "result": "passed; synthetic CA/model replay; blocked source preflight; no live SSH claim"
+    },
+    {
+      "command": "python3 crates/oo-cli/src/admin/test_npm_lite.py --run-id a3-s4c-npm-smoke-20261105",
+      "result": "passed; native CLI from diagnostic npm pack; fake Docker; synthetic dependency notices"
+    },
+    {
+      "command": "python tools/oo-test/l1_clean.py --run-id a3-s4c-l1-clean-20261105 --binary target/debug/oo",
+      "result": "exit 1; blocker diagnostics only; no engine started or share prompt reached"
+    }
+  ],
+  "engine_results": {
+    "PostgreSQL 17.11": "not run; installed CLI configuration validated, full build blocked before engine access",
+    "MySQL 8.4.7": "not run; diagnostic CLI only",
+    "Oracle 23.5": "not run; diagnostic CLI only",
+    "Linux": "not run"
+  },
+  "remaining": [
+    "Card item 1 not implemented: stack-only retained target/runtime provisioning and installed chain execution remain absent; explicit flags still required.",
+    "Lane M bundle is not integrated at the observed ref. Rust --bundle support is not implemented; its Linux-only bundle launcher is not macOS acceptance.",
+    "The unchanged lane H diagnostic pack omits oo-lite-image, so its up still reports LITE_IMAGE_DIGEST_REQUIRED. Separate actual npm inventory/native smoke passes.",
+    "The unchanged lane H PTY detector matches the old CA secret_ref label; the new CA import prompt is not recognized. Separate import PTY passed.",
+    "No clean-install owner review, PostgreSQL live source, publication, Gateway or enrollment/share-prompt acceptance."
+  ],
+  "failures_preserved": [
+    "Initial CA import unit fixture used a noncanonical path; corrected fixture and reran.",
+    "Initial wizard dispatch check used i32 instead of the existing u8 exit type; corrected and reran."
+  ],
+  "cargo_lock_changes": false,
+  "containers_created": [],
+  "containers_left_running": [],
+  "evidence_sha256": {
+    "evidence/a3-s4c-20261105/precommit-check.log": "ef528b720101102bbea69fe369233dc89949c9ee3adeee2d41412edafbf52040",
+    "evidence/a3-s4c-20261105/precommit-tests.log": "6f27d681d7c79dca0b9328c410c9a71f27cdd51e75217a63dfa96497085192dd",
+    "evidence/a3-s4c-20261105/package-tests.log": "0df3edc61a9ea5db7985076fec760da7b65274be7dc6053876e6a9dbcd0a1b03",
+    "evidence/a3-s4c-20261105/build-action-check2.log": "b83f16cb50558386a85c84893cac58aebb5fb71affd50e9ae59396abf22b9381",
+    "evidence/a3-s4c-20261105/build-action-tests.log": "c4d7608d951363fb625c1858bf2c9a7330fc97c6d48c8bac7997e3f90725453e",
+    "evidence/a3-s4c-20261105/final-build.log": "a16685927daa0790a2b357e2b56df170e7bad259186d3c802d6d441422dfd0cf",
+    "evidence/a3-s4c-20261105/ssh-transport-tests.log": "e0ad9b6fdfcc6c9cbda9930d7fd1e12c4b3e072b23ad0737df76a2ddb554122c",
+    "evidence/a3-s4c-20261105/blocker-evidence.json": "84b10b3f3f1d40ab1fe4f6e07008fd7c6c9a0b59f22e69ae365c3b5d83d1ca7c",
+    "evidence/a3-s4c-wizard-20261105/result.json": "35b560e554307b264f0e0877cf9ee1db2cbbc501860b24631150a81aee23195e",
+    "evidence/a3-s4c-npm-smoke-20261105/result.json": "672f5d2eed0a7a02d8e433f029998c68c7e281adc61f13870569048463fe3dfa",
+    "evidence/a3-s4c-l1-clean-20261105/summary.json": "d1bcb230e22e389ffeccf232915ee02e4bfbdac63a3bfa06fb6c85d1e964b285",
+    "evidence/a3-s4c-l1-clean-20261105/macos-arm64-postgres/report.json": "baa1a297b8d567a79e9adcf79a430a670da6429238ba7d98146c0f87896ab5fe"
+  }
+}
