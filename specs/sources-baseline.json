@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 18,
-  "supersedes_revision": 17,
-  "supersedes_baseline_head": "fb89c773a768a1e0cbd8c11a95eba271fa7a91aa",
-  "supersedes_sha256": "a19a806f6f81ba2f8ceb37f3134b02a99b111879a329914e50dabe8f2206127a",
-  "review_record": "specs/source-baseline-revision-18.md",
-  "baseline_head": "6d8f908bc5b044ffcaaa21a3957c2eeffb08538f",
+  "revision": 19,
+  "supersedes_revision": 18,
+  "supersedes_baseline_head": "6d8f908bc5b044ffcaaa21a3957c2eeffb08538f",
+  "supersedes_sha256": "fe0afe4184e728184e40eb6e4e0903d665bff1ced5a8b9f886ca7cfb3b810e33",
+  "review_record": "specs/source-baseline-revision-19.md",
+  "baseline_head": "b82fc92baa1314b1323f6eaad8949987053cbabf",
   "source_count": 26,
   "sources": [
     {
@@ -145,9 +145,9 @@
     },
     {
       "path": "docs/product/04-onboarding-and-gateway-binding.md",
-      "sha256": "6a0b86ab590590b8192c7b6099fb216a217dc57baacfa3874987ec1d8c1999af",
-      "bytes": 15177,
-      "lines": 194
+      "sha256": "a4bc6616ee850e6f7ddaeb94ca3da59647455d36f1c556cbdc17458047850907",
+      "bytes": 15931,
+      "lines": 196
     },
     {
       "path": "docs/product/05-version-matrix-and-testing.md",
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); ClickHouse version token"
+  "review_status": "owner self-review (D6); remote deployment over SSH"
 }
