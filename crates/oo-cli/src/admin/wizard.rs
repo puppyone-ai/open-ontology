@@ -1,6 +1,6 @@
 //! Configuration wizard. A saved configuration is not a deployed/reviewed pack.
 use std::fs::{self, OpenOptions};
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 
@@ -180,6 +180,94 @@ fn list(value: &str) -> Vec<String> {
         .collect()
 }
 
+fn import_file(store: &SecretStore, name: &str, path: &Path, ca: bool) -> Result<Value, Failure> {
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(path)
+        .map_err(|_| Failure::local("TUI_IMPORT_FILE"))?;
+    if !file
+        .metadata()
+        .is_ok_and(|m| m.is_file() && m.len() <= 65_536)
+    {
+        return Err(Failure::local("TUI_IMPORT_FILE"));
+    }
+    let mut bytes = Vec::new();
+    file.take(65_537)
+        .read_to_end(&mut bytes)
+        .map_err(|_| Failure::local("TUI_IMPORT_FILE"))?;
+    if ca {
+        oo_connectors::PgTlsConfig::from_ca_pem(&bytes)
+            .map_err(|_| Failure::usage("TUI_CA_PEM_REQUIRED"))?;
+    }
+    if std::str::from_utf8(&bytes).is_err() || bytes.contains(&0) {
+        return Err(Failure::usage("TUI_IMPORT_UTF8"));
+    }
+    store.write_new(name, &bytes).map_err(Failure::local)?;
+    Ok(json!({"secret_ref":name}))
+}
+
+fn confirmed_pin(observed: &str, confirmation: &str) -> Result<String, Failure> {
+    if !oo_stack::stack::fingerprint(observed) || confirmation != observed {
+        return Err(Failure::usage("SSH_HOST_KEY_REJECTED"));
+    }
+    Ok(observed.to_owned())
+}
+
+fn source_ssh(screen: &mut Screen, store: &SecretStore) -> Result<Option<Value>, Failure> {
+    let host = screen.prompt(1, "SSH jump host (blank: direct)", "", false)?;
+    if host.is_empty() {
+        return Ok(None);
+    }
+    let port = screen
+        .prompt(1, "SSH port", "22", false)?
+        .parse::<u16>()
+        .map_err(|_| Failure::usage("STACK_SOURCE_SSH"))?;
+    let user = screen.prompt(1, "SSH user", "", false)?;
+    if !oo_stack::stack::ssh_host(&host) || port == 0 || !oo_stack::stack::login_name(&user) {
+        return Err(Failure::usage("STACK_SOURCE_SSH"));
+    }
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|_| Failure::local("SSH_RUNTIME"))?;
+    // Discovery does not authenticate. Credentials are collected only after the
+    // owner checks the key over a separate channel and explicitly pins it.
+    let observed = runtime
+        .block_on(oo_connectors::transport::ssh::discover(&host, port))
+        .map_err(Failure::local)?;
+    let answer = screen.prompt(
+        1,
+        &format!(
+            "Observed SSH key: {observed}\nVerify with the host administrator OUT OF BAND.\n\
+         Type the full independently verified SHA256 fingerprint to pin it; blank refuses."
+        ),
+        "",
+        false,
+    )?;
+    let pin = confirmed_pin(&observed, &answer)?;
+    let method = screen.prompt(1, "SSH authentication: key / password", "key", false)?;
+    let mut ssh = json!({"host":host,"port":port,"user":user,"host_key_sha256":pin});
+    match method.as_str() {
+        "key" => {
+            let path = screen.prompt(
+                1,
+                "SSH private key file path (unencrypted; imported, never displayed)",
+                "",
+                false,
+            )?;
+            let name =
+                screen.prompt(1, "SSH key secret name (new file)", "source-ssh-key", false)?;
+            ssh["key"] = import_file(store, &name, Path::new(&path), false)?;
+        }
+        "password" => {
+            ssh["password"] = secret(screen, store, 1, "SSH password", "source-ssh-password")?
+        }
+        _ => return Err(Failure::usage("STACK_SOURCE_SSH")),
+    }
+    Ok(Some(ssh))
+}
+
 fn save_new(stack: &oo_stack::Stack, path: &Path) -> Result<(), Failure> {
     // create_new refuses existing files and symlinks. An aborted wizard never
     // replaces a configuration or deletes credentials the user may have kept.
@@ -220,25 +308,18 @@ pub(super) fn run() -> Result<Invocation, Failure> {
     });
     let ca = screen.prompt(
         1,
-        "TLS CA secret_ref (existing store file; required for PostgreSQL/MySQL)",
+        "TLS CA PEM file path (imported into secret store; required for PostgreSQL/MySQL)",
         "",
         false,
     )?;
     if !ca.is_empty() {
-        source["tls_ca"] = json!({"secret_ref":ca});
+        let name = screen.prompt(1, "TLS CA secret name (new file)", "source-ca", false)?;
+        source["tls_ca"] = import_file(&store, &name, Path::new(&ca), true)?;
+    } else if matches!(engine.as_str(), "postgres" | "mysql") {
+        return Err(Failure::usage("TUI_CA_FILE_REQUIRED"));
     }
-    let ssh = screen.prompt(
-        1,
-        "SSH jump host (blank: direct; transport not yet available)",
-        "",
-        false,
-    )?;
-    if !ssh.is_empty() {
-        source["ssh"] = json!({
-            "host":ssh, "user":screen.prompt(1, "SSH user", "", false)?,
-            "key":{"secret_ref":screen.prompt(1, "SSH key secret_ref (existing file)", "", false)?},
-            "host_key_sha256":screen.prompt(1, "Verified SSH host key SHA256 fingerprint", "", false)?,
-        });
+    if let Some(ssh) = source_ssh(&mut screen, &store)? {
+        source["ssh"] = ssh;
     }
     source["scope"] = json!({
         "include":list(&screen.prompt(2, "Include schema.table entries, comma separated (wildcard discovery not yet available)", "*", false)?),
@@ -301,6 +382,49 @@ pub(super) fn run() -> Result<Invocation, Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn imports_bounded_ca_into_new_private_secret_without_overwriting() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evidence")
+            .join(format!("wizard-import-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let root = fs::canonicalize(root).unwrap();
+        let store = SecretStore::create(root.join("secrets")).unwrap();
+        let ca = root.join("ca.pem");
+        let pem = b"-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n";
+        fs::write(&ca, pem).unwrap();
+        assert!(import_file(&store, "source-ca", &ca, true).is_ok());
+        assert_eq!(store.read("source-ca").unwrap().as_bytes(), pem);
+        assert_eq!(
+            fs::metadata(root.join("secrets/source-ca"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o600
+        );
+        assert!(import_file(&store, "source-ca", &ca, true).is_err());
+        fs::write(&ca, b"not a certificate").unwrap();
+        assert!(import_file(&store, "invalid", &ca, true).is_err());
+        fs::write(&ca, vec![b'x'; 65_537]).unwrap();
+        assert!(import_file(&store, "oversized", &ca, false).is_err());
+        symlink(&ca, root.join("link")).unwrap();
+        assert!(import_file(&store, "link", &root.join("link"), false).is_err());
+        assert!(import_file(&store, "directory", &root, false).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn pin_requires_full_out_of_band_confirmation() {
+        let pin = format!("SHA256:{}", "A".repeat(43));
+        assert_eq!(confirmed_pin(&pin, &pin).ok(), Some(pin.clone()));
+        for answer in ["", "yes", "SHA256:changed"] {
+            assert!(confirmed_pin(&pin, answer).is_err());
+        }
+        assert!(confirmed_pin("bad", "bad").is_err());
+    }
 
     #[test]
     fn config_bytes_match_noninteractive_normalization_and_never_overwrite() {

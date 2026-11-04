@@ -37,6 +37,8 @@ def main():
     env = dict(os.environ, HOME=str(home), TERM="xterm-256color")
     binary = ROOT / "target/debug/oo"
     password, key = secrets.token_hex(24), secrets.token_hex(24)
+    ca = out / "source-ca.pem"
+    ca.write_text("-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n")
     process = subprocess.Popen([str(binary), "init"], cwd=out, env=env,
                                stdin=slave, stdout=slave, stderr=slave, close_fds=True)
     os.close(slave)
@@ -59,10 +61,10 @@ def main():
             drain()
         assert b"Engine:" in transcript and process.poll() is None
         drain()
-        # Missing MySQL TLS CA blocks before connection; saving never deploys.
+        # Synthetic PEM exercises import; it cannot authenticate a real server.
         values = [
             "mysql", "source", "localhost", "3306", "fixture", "reader",
-            "source-password", password, "", "", "fixture.events", "",
+            "source-password", password, str(ca), "source-ca", "", "fixture.events", "",
             "openai-compatible", f"http://127.0.0.1:{replay.httpd.server_port}/v1",
             "fixture-model", "model-key", key, "", "",
         ]
@@ -90,6 +92,7 @@ def main():
             "sources": [{"id": "source", "engine": "mysql", "host": "localhost",
                          "port": 3306, "database": "fixture", "user": "reader",
                          "password": {"secret_ref": "source-password"},
+                         "tls_ca": {"secret_ref": "source-ca"},
                          "scope": {"include": ["fixture.events"], "exclude": []}}],
             "model": {"provider": "openai-compatible",
                       "base_url": f"http://127.0.0.1:{replay.httpd.server_port}/v1",
@@ -103,7 +106,8 @@ def main():
         assert wizard == config.read_bytes()
         store = home / ".config/open-ontology/secrets"
         assert store.stat().st_mode & 0o777 == 0o700
-        for name, value in [("source-password", password), ("model-key", key)]:
+        for name, value in [("source-password", password), ("model-key", key),
+                            ("source-ca", ca.read_text())]:
             path = store / name
             assert path.stat().st_mode & 0o777 == 0o600 and path.read_text() == value
             assert value.encode() not in wizard
@@ -194,7 +198,7 @@ def main():
             handler.do_GET=original_get
         (out / "result.json").write_text(json.dumps({
             "pty": "passed", "byte_identical": True, "secret_scan": "passed",
-            "source": "missing MySQL TLS CA (blocked preflight, not source acceptance)",
+            "source": "synthetic CA and unavailable MySQL helper (blocked preflight, not source acceptance)",
             "model": "synthetic replay", "execution_failure_screen": "passed", "resume_retry": "passed",
             "status": "passed", "quit_checkpoint": "passed", "deployment": "not implemented",
         }, indent=2))
