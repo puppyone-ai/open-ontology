@@ -399,6 +399,16 @@ fn shrink_page(page: &mut u64, retries: &mut u32, limit: u32) -> bool {
 }
 
 impl OracleEngine {
+    /// Read DBID/resetlogs without starting LogMiner or changing source data.
+    pub fn source_epoch(&mut self) -> Result<String, SourceError> {
+        self.scalar(
+            "SELECT TO_CHAR(dbid)||':'||TO_CHAR(resetlogs_change#) FROM v$database",
+            &[],
+        )?
+        .filter(|epoch| !epoch.is_empty())
+        .ok_or(SourceError::catalog("source_epoch"))
+    }
+
     /// Open the one session this engine reads through.
     pub fn connect(cfg: OracleConnectConfig) -> Result<Self, SourceError> {
         Self::connect_driver(cfg, None)

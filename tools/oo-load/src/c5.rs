@@ -1,5 +1,5 @@
 use super::*;
-use oo_connectors::postgres::reconcile::C5Cycle;
+use oo_connectors::engine::{ChunkStrategy, RangeDigest, TableChunkPlan};
 use oo_pipeline::engine_load::{Capture, Target};
 use std::collections::BTreeSet;
 
@@ -14,8 +14,40 @@ pub(super) struct Config {
     recent_chunks: BTreeSet<u32>,
 }
 
-pub(super) async fn run(
-    mut engine: PostgresEngine,
+fn ordered_chunks(
+    plan: &TableChunkPlan,
+    policy: &Config,
+) -> Result<Vec<oo_connectors::engine::ChunkSpec>, &'static str> {
+    if policy.cycle == 0 || policy.full_read_every == 0 {
+        return Err("c5_policy");
+    }
+    if matches!(plan.strategy, ChunkStrategy::PhysicalRange { .. }) {
+        return Err("c5_physical_ranges_not_durable");
+    }
+    let mut chunks = plan.chunks.clone();
+    if policy
+        .positive_hints
+        .union(&policy.recent_chunks)
+        .any(|id| !chunks.iter().any(|c| c.chunk_id == *id))
+    {
+        return Err("c5_unknown_hint_chunk");
+    }
+    chunks.sort_by_key(|c| {
+        (
+            !policy.positive_hints.contains(&c.chunk_id),
+            !policy.recent_chunks.contains(&c.chunk_id),
+            c.chunk_id,
+        )
+    });
+    Ok(chunks)
+}
+
+fn needs_read(old: Option<&RangeDigest>, new: &RangeDigest, hint: bool, full: bool) -> bool {
+    hint || full || old != Some(new)
+}
+
+pub(super) async fn run<E: epoch::Epoch>(
+    mut engine: E,
     source: &Source,
     tables: &[TableRef],
     config: &TargetConfig,
@@ -23,13 +55,17 @@ pub(super) async fn run(
     budget: &ReadBudget,
     policy: Config,
 ) -> Result<(), String> {
-    if policy.cycle == 0 || policy.full_read_every == 0 {
+    if policy.cycle == 0
+        || policy.full_read_every == 0
+        || !(1..=100).contains(&budget.duty_cycle_percent)
+    {
         return Err("c5_policy".into());
     }
     for table in tables {
         let started = std::time::Instant::now();
-        let mut control = source_control_connection(source, store).await?;
-        let live_lineage = sync::lineage(&mut control, std::slice::from_ref(table)).await?;
+        let live_lineage = engine
+            .epoch(source, store, std::slice::from_ref(table))
+            .await?;
         let plan = engine
             .plan_chunks(table, budget)
             .await
@@ -53,31 +89,38 @@ pub(super) async fn run(
         let mut source_read_bytes = 0u64;
         let replay = target.completed().await?.is_some();
         if !replay {
-            let inspection = engine
-                .inspect_c5(
-                    table,
-                    &previous.source_digests,
-                    &C5Cycle {
-                        cycle: policy.cycle,
-                        full_read_every: policy.full_read_every,
-                        positive_hints: policy.positive_hints.clone(),
-                        recent_chunks: policy.recent_chunks.clone(),
-                    },
-                )
-                .await
-                .map_err(|e| e.to_string())?;
+            let mut source_digests = Vec::new();
+            let mut read_chunks = Vec::new();
+            for chunk in ordered_chunks(&plan, &policy)? {
+                let digest = engine
+                    .digest_range(table, chunk.lo.as_deref(), chunk.hi.as_deref())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                let old = previous
+                    .source_digests
+                    .iter()
+                    .find(|d| d.lo == digest.lo && d.hi == digest.hi);
+                if needs_read(
+                    old,
+                    &digest,
+                    policy.positive_hints.contains(&chunk.chunk_id),
+                    policy.cycle.is_multiple_of(policy.full_read_every),
+                ) {
+                    read_chunks.push(chunk);
+                }
+                source_digests.push(digest);
+            }
             let mut digests = Vec::new();
             for chunk in &plan.chunks {
                 digests.push(
-                    inspection
-                        .source_digests
+                    source_digests
                         .iter()
                         .find(|d| d.lo == chunk.lo && d.hi == chunk.hi)
                         .ok_or("c5_digest_missing")?
                         .clone(),
                 );
             }
-            for chunk in inspection.read_chunks {
+            for chunk in read_chunks {
                 let mut sink = oo_load::IpcSink::new(budget);
                 let receipt = engine
                     .read_chunk(&chunk, budget, &mut sink)
@@ -112,7 +155,11 @@ pub(super) async fn run(
                     receipts.push(receipt);
                 }
             }
-            if sync::lineage(&mut control, std::slice::from_ref(table)).await? != live_lineage {
+            if engine
+                .epoch(source, store, std::slice::from_ref(table))
+                .await?
+                != live_lineage
+            {
                 return Err("c5_rebaseline_required_lineage".into());
             }
             target
@@ -139,7 +186,31 @@ pub(super) async fn run(
         );
         drop(target);
         conn.close().await.map_err(|_| "c5_target_close")?;
-        control.close().await.map_err(|_| "c5_source_close")?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn hints_never_replace_digest_comparison_and_full_reads_detect_collisions() {
+        let old = RangeDigest {
+            table: TableRef {
+                schema: "fixture".into(),
+                name: "items".into(),
+            },
+            lo: None,
+            hi: None,
+            rows: 1,
+            digest: "old".into(),
+        };
+        let mut new = old.clone();
+        assert!(!needs_read(Some(&old), &new, false, false));
+        assert!(needs_read(Some(&old), &new, true, false));
+        assert!(needs_read(Some(&old), &new, false, true));
+        new.digest = "changed_same_count".into();
+        assert!(needs_read(Some(&old), &new, false, false));
+        assert!(needs_read(None, &new, false, false));
+    }
 }

@@ -14,6 +14,7 @@ use sqlx::{
 use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
 mod c5;
+mod epoch;
 mod sync;
 
 #[derive(Deserialize)]
@@ -211,7 +212,7 @@ async fn execute() -> Result<(), String> {
                 "oo-load --stack FILE --source ID [--tables schema.table,...] --target FILE\n\
                 [--secrets-dir DIR] [--chunk-rows N] [--oracle-worker EXECUTABLE]\n\
                 [--sync FILE] PostgreSQL C1 from an explicitly aligned baseline; see README.\n\
-                [--c5 FILE] PostgreSQL C5 range cycle over an existing snapshot.\n\
+                [--c5 FILE] PostgreSQL/MySQL/Oracle C5 range cycle over an existing snapshot.\n\
                 Target JSON requires run_id and password.secret_ref. Same run_id resumes; new run_id refreshes.\n\
                 Local table publication only; not Gateway publication. See tools/oo-load/README.md."
             );
@@ -247,7 +248,7 @@ async fn execute() -> Result<(), String> {
     if opts.contains_key("--sync") && opts.contains_key("--c5") {
         return Err("sync_modes_conflict".into());
     }
-    if (opts.contains_key("--sync") || opts.contains_key("--c5")) && source.engine != "postgres" {
+    if opts.contains_key("--sync") && source.engine != "postgres" {
         return Err("sync_engine_not_integrated".into());
     }
     if source.ssh.is_some() {
@@ -383,6 +384,18 @@ async fn execute() -> Result<(), String> {
                 None => OracleEngine::connect(config),
             }
             .map_err(|e| e.to_string())?;
+            if let Some(path) = opts.get("--c5") {
+                return c5::run(
+                    engine,
+                    source,
+                    &tables,
+                    &target,
+                    &store,
+                    &budget,
+                    serde_json::from_slice(&read(path)?).map_err(|_| "c5_config")?,
+                )
+                .await;
+            }
             run_engine(&mut engine, source, &tables, &target, &store, &budget).await
         }
         "mysql" => {
@@ -419,6 +432,18 @@ async fn execute() -> Result<(), String> {
                     ..Default::default()
                 },
             );
+            if let Some(path) = opts.get("--c5") {
+                return c5::run(
+                    engine,
+                    source,
+                    &tables,
+                    &target,
+                    &store,
+                    &budget,
+                    serde_json::from_slice(&read(path)?).map_err(|_| "c5_config")?,
+                )
+                .await;
+            }
             run_engine(&mut engine, source, &tables, &target, &store, &budget).await
         }
         _ => Err("explicit_supported_engine_required".into()),

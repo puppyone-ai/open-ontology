@@ -297,6 +297,15 @@ fn ipc_digest(batches: &[RecordBatch]) -> Result<(u64, String)> {
 }
 
 impl MysqlEngine {
+    /// Read the live instance identity, including on C5-only sources.
+    pub async fn source_epoch(&mut self) -> Result<String> {
+        let rows = self.exec("SELECT @@GLOBAL.server_uuid", vec![]).await?;
+        rows.first()
+            .and_then(|row| row_text(row, 0))
+            .filter(|epoch| !epoch.is_empty())
+            .ok_or_else(|| SourceError::protocol("server_uuid"))
+    }
+
     /// No connection is opened until the first operation.
     pub fn new(config: MysqlConfig, password: Zeroizing<String>, options: EngineOptions) -> Self {
         let duty = DutyCycle::new(options.budget.duty_cycle_percent);
