@@ -45,11 +45,11 @@ use serde_json::Value;
 use oo_core::config::{PiiLevel, SampleValues};
 use oo_core::diagnostic::DiagnosticList;
 use oo_core::oos::{
-    CalendarFile, ClassName, ClassState, DatasetColumn, DatasetFile, EntityFile, EnumFile,
-    EnumValueStatus, GlossaryFile, ItemStatus, Metric, MetricStatus, MetricsFile, OntologyFile,
-    RelationProvenance, Relationship, RelationshipsFile, ReviewState, SourceSemantics, Term,
-    TermStatus, VerifiedExample, validate_calendar, validate_dataset, validate_enum,
-    validate_glossary, validate_metrics, validate_relationships,
+    CalendarFile, ClassName, ClassState, DatasetColumn, DatasetFile, EntityFile, EntityKey,
+    EnumFile, EnumValueStatus, GlossaryFile, ItemStatus, Metric, MetricStatus, MetricsFile,
+    OntologyFile, RelationProvenance, Relationship, RelationshipsFile, ReviewState,
+    SourceSemantics, Term, TermStatus, VerifiedExample, validate_calendar, validate_dataset,
+    validate_enum, validate_glossary, validate_metrics, validate_relationships,
 };
 use oo_core::text::{BoundedText, Label, TableName};
 
@@ -868,20 +868,17 @@ fn bind(
                 "an entity name is repeated",
             ));
         }
-        require_known_column(
-            &datasets,
-            schema_of(entity.primary_dataset.as_str())?,
-            table_of(entity.primary_dataset.as_str())?,
-            entity.key.as_str(),
-            &format!("/entities/{name}/key"),
-        )?;
-        require_known_column(
-            &datasets,
-            schema_of(entity.primary_dataset.as_str())?,
-            table_of(entity.primary_dataset.as_str())?,
-            entity.display.as_str(),
-            &format!("/entities/{name}/display"),
-        )?;
+        for (field, columns) in [("key", &entity.key), ("display", &entity.display)] {
+            for column in columns.columns() {
+                require_known_column(
+                    &datasets,
+                    schema_of(entity.primary_dataset.as_str())?,
+                    table_of(entity.primary_dataset.as_str())?,
+                    column.as_str(),
+                    &format!("/entities/{name}/{field}"),
+                )?;
+            }
+        }
         for member in &entity.members {
             if !datasets.contains_key(member.dataset.as_str()) {
                 return Err(RolePackError::new(
@@ -1385,8 +1382,12 @@ fn entity_fully_visible(model: &Model, entity: &EntityFile) -> bool {
         return false;
     }
     let primary = entity.primary_dataset.as_str();
-    if !column_visible(model, primary, entity.key.as_str())
-        || !column_visible(model, primary, entity.display.as_str())
+    if !entity
+        .key
+        .columns()
+        .iter()
+        .chain(entity.display.columns())
+        .all(|column| column_visible(model, primary, column.as_str()))
     {
         return false;
     }
@@ -3480,6 +3481,15 @@ fn render_enum(model: &Model, enum_file: &EnumFile) -> Result<String, RolePackEr
     finish(text)
 }
 
+/// A scalar key renders as before; a composite renders its ordered columns.
+fn key_text(key: &EntityKey) -> String {
+    key.columns()
+        .iter()
+        .map(TableName::as_str)
+        .collect::<Vec<_>>()
+        .join("`, `")
+}
+
 fn render_entity(
     model: &Model,
     selected: &Selected,
@@ -3497,7 +3507,7 @@ fn render_entity(
         &mut text,
         &format!("primary dataset: `{}`", entity.primary_dataset.as_str()),
     );
-    line(&mut text, &format!("key: `{}`", entity.key.as_str()));
+    line(&mut text, &format!("key: `{}`", key_text(&entity.key)));
     for dataset in &entity.datasets {
         line(
             &mut text,
@@ -3506,7 +3516,7 @@ fn render_entity(
     }
     line(
         &mut text,
-        &format!("display: `{}`", entity.display.as_str()),
+        &format!("display: `{}`", key_text(&entity.display)),
     );
     let datasets: BTreeSet<_> = entity
         .datasets

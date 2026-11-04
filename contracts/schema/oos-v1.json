@@ -648,10 +648,7 @@
           ]
         },
         "display": {
-          "maxLength": 128,
-          "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
-          "type": "string"
+          "$ref": "#/$defs/EntityKey"
         },
         "entity": {
           "maxLength": 63,
@@ -660,10 +657,7 @@
           "type": "string"
         },
         "key": {
-          "maxLength": 128,
-          "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
-          "type": "string"
+          "$ref": "#/$defs/EntityKey"
         },
         "label": {
           "maxLength": 256,
@@ -719,6 +713,28 @@
       ],
       "title": "EntityFile",
       "type": "object"
+    },
+    "EntityKey": {
+      "description": "One identity column, or an ordered composite of at least two distinct columns.",
+      "oneOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "type": "string"
+        },
+        {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+            "type": "string"
+          },
+          "minItems": 2,
+          "type": "array",
+          "uniqueItems": true
+        }
+      ]
     },
     "EntityMember": {
       "additionalProperties": false,
