@@ -60,7 +60,8 @@ class Bundle(unittest.TestCase):
 
     def test_all_payloads_checked_before_load(self):
         for name in ('runtime.tar', 'postgres.tar', 'bin/oo', 'compose.yaml',
-                     'bin/oo-fixture-migrate', 'support/' + bundle.MIGRATIONS[0]):
+                     'bin/oo-fixture-migrate', 'bin/install-retained-target',
+                     'support/' + bundle.MIGRATIONS[0]):
             path = self.root / name
             original = path.read_bytes()
             path.write_bytes(b'tampered')

@@ -101,17 +101,22 @@ def foundation(root, path, trust, emulated=False):
     try:
         first = run('up')
         report = json.loads(first.stdout)
-        assert report['status'] == 'foundations_only' and first.returncode == 1, report
+        assert report['status'] == 'retained_ready' and first.returncode == 0, report
         assert len(report['services']) == 3 and all(row['Healthy'] for row in report['services'])
+        runtime = out / '.oo/lite/work/operator/build-runtime.json'
+        assert runtime.is_file() and report['build'] == 'not_started'
+        assert (path / 'bin/install-retained-target').is_file()
         private = out / '.oo/lite/pki'
         assert (private / 'operator-token').read_bytes().startswith(b'ooct_')
         assert json.loads((private / 'operator-grant.json').read_text())['role'] == 'lite_operator'
         assert (out / '.oo/lite/health-client.json').is_file()
         status = run('status')
-        assert status.returncode == 1 and not json.loads(status.stdout)['healthy']
+        assert status.returncode == 0 and not json.loads(status.stdout)['healthy']
+        assert json.loads(status.stdout)['status'] == 'retained_ready'
         (root / 'first-up.json').write_text(json.dumps({
             'offline_install': True, 'healthy_foundations': 3, 'healthy_stack': False,
             'bundle_operator_provisioned': True, 'operator_role': 'lite_operator',
+            'retained_chain_provisioned': True,
             'reason': 'owner-reviewed publication and scheduler configuration are not installed by oo up'}))
     finally:
         run('down')

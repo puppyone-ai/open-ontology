@@ -19,7 +19,8 @@ HERE = Path(__file__).resolve().parent
 PROTOCOL = 'oo.lite-bundle/v1'
 DIGEST = re.compile(r'sha256:[0-9a-f]{64}')
 BINARIES = ('oo', 'oo-builder', 'oo-fixture-migrate', 'oo-load', 'oo-pipeline', 'oo-mysql-doctor', 'pg-builder',
-            'selfbuild-budget', 'release-coordinator', 'job-worker', 'oo-gateway', 'issue-token')
+            'selfbuild-budget', 'release-coordinator', 'install-retained-target',
+            'job-worker', 'oo-gateway', 'issue-token')
 FILES = ('compose.yaml', 'postgres.sh', 'scheduler.py', 'bundle.py', 'remote.py', 'oo')
 MIGRATIONS = (
     'crates/oo-jobs/migrations/0000_bootstrap_roles.sql',
