@@ -973,9 +973,9 @@
    "sprint": "S4",
    "lane": "A",
    "title": "`oo ontology open/export --format html",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "lane-G (reassigned)",
+   "branch": "v0.2/g-selfbuild-budget",
    "commits": [],
    "evidence": []
   },
