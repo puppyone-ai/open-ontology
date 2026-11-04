@@ -660,6 +660,7 @@ async fn execute(command: &str, args: &[String]) -> Result<String> {
             p["business_timezone"] = json!(zone);
         }
         negotiate(&dir, &p, &http).await?;
+        mkdir(&dir.join("tokens"))?;
         let token = if opts.contains_key("--device") {
             device(&http).await?
         } else {
@@ -683,17 +684,26 @@ async fn execute(command: &str, args: &[String]) -> Result<String> {
         if !token_ok(&token) {
             return Err(protocol());
         }
-        let who = identity(&http, &token).await?;
-        success(http.call("/v1/tables", None, Some(&token), false).await?)?;
-        mkdir(&dir)?;
-        mkdir(&dir.join("tokens"))?;
+        // Redemption is single-use: persist the credential before any further IO.
+        write_new(&path, token.as_bytes())?;
+        let verification = async {
+            let who = identity(&http, &token).await?;
+            success(http.call("/v1/tables", None, Some(&token), false).await?)?;
+            Ok::<_, Failure>(who)
+        }
+        .await;
+        let who = verification.map_err(|error| {
+            let mut failure = Failure::local(format!(
+                "LOGIN_VERIFICATION_FAILED: credential saved in tokens/{name}.token (0600); active profile unchanged. Configure the saved token file to retry verification or ask the administrator to revoke it; do not redeem the code again."
+            ));
+            failure.exit = error.exit;
+            failure
+        })?;
         p["token_file"] = json!(path);
         p["identity"] = who.clone();
-        write_new(&path, token.as_bytes())?;
-        if let Err(e) = atomic(&dir.join("config.json"), &p) {
-            let _ = fs::remove_file(path);
-            return Err(e);
-        }
+        atomic(&dir.join("config.json"), &p).map_err(|_| Failure::local(format!(
+            "LOGIN_PROFILE_SAVE_FAILED: credential saved in tokens/{name}.token (0600); active profile unchanged. Configure the saved token file or ask the administrator to revoke it."
+        )))?;
         let mut report = who;
         report["read_check"] = json!("passed");
         report["profile"] = json!(name);

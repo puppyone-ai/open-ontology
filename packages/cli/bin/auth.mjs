@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { request } from 'node:https';
-import { readFileSync, statSync, existsSync, mkdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, statSync, existsSync, mkdirSync } from 'node:fs';
 import { isIP } from 'node:net';
 import { networkInterfaces } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -263,6 +263,9 @@ export async function login(context, args) {
   const path = join(tokens, `${name}.token`);
   if (existsSync(path)) refuse('PROFILE_EXISTS', 'This profile already has a token; choose a new --profile name. Existing credentials were not replaced.');
   await negotiate(context, profile);
+  mkdirSync(tokens, { recursive: true, mode: 0o700 });
+  context.privatePath(context.dir, true);
+  context.privatePath(tokens, true);
   let token;
   if (opts['--device']) {
     const device = success(await exchange(profile, '/v1/auth/device/code', { body: { client_id: CLIENT }, form: true }));
@@ -280,19 +283,22 @@ export async function login(context, args) {
   if (typeof token !== 'string' || !tokenPattern.test(token) || token.length > 4096) {
     refuse('GATEWAY_PROTOCOL', 'Enrollment returned an invalid client token.', 7);
   }
-  const who = await identity(context, profile, token);
-  // Validate real role-scoped read access before replacing the active profile.
-  success(await exchange(profile, '/v1/tables', { token }));
-  mkdirSync(tokens, { recursive: true, mode: 0o700 });
-  context.privatePath(context.dir, true);
-  context.privatePath(tokens, true);
+  // A redeemed code cannot be retried; retain its credential on verification failure.
+  context.createToken(path, token);
+  let who;
+  try {
+    who = await identity(context, profile, token);
+    success(await exchange(profile, '/v1/tables', { token }));
+  } catch (error) {
+    refuse('LOGIN_VERIFICATION_FAILED', `Credential saved in tokens/${name}.token (0600); active profile unchanged. Configure the saved token file to retry verification or ask the administrator to revoke it; do not redeem the code again.`, error.exit ?? 1);
+  }
   profile.token_file = path;
   profile.identity = who;
   context.validateProfile(profile);
-  // Exclusive creation preserves another login's credentials during a race.
-  context.createToken(path, token);
   try { context.atomicWrite(join(context.dir, 'config.json'), `${JSON.stringify(profile, null, 2)}\n`); }
-  catch (error) { unlinkSync(path); throw error; }
+  catch {
+    refuse('LOGIN_PROFILE_SAVE_FAILED', `Credential saved in tokens/${name}.token (0600); active profile unchanged. Configure the saved token file or ask the administrator to revoke it.`);
+  }
   process.stdout.write(opts['--json'] ? `${JSON.stringify({ ...who, read_check: 'passed', profile: name })}\n`
     : `Logged in as ${who.principal_id} (${who.role}); read check passed.\n`);
   return 0;

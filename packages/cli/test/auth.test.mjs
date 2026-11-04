@@ -331,7 +331,9 @@ test('failed read verification and a symlink token directory never replace an ac
   const result = await f.cli(['login', '--gateway', f.gateway, '--ca-file', f.cert, '--code-stdin'], 'OO-0000-0000');
   assert.equal(result.status, 4);
   assert.equal(readFileSync(join(f.dir, 'config.json'), 'utf8'), old);
-  assert(!existsSync(join(f.dir, 'tokens/default.token')));
+  assert.equal(readFileSync(join(f.dir, 'tokens/default.token'), 'utf8'), f.token);
+  assert.equal(statSync(join(f.dir, 'tokens/default.token')).mode & 0o777, 0o600);
+  assert.match(result.stdout + result.stderr, /credential saved.*active profile unchanged/i);
   const other = await fixture(t);
   mkdirSync(other.dir, { mode: 0o700 });
   const outside = join(other.root, 'other');
@@ -398,4 +400,16 @@ test('native and npm token commands use the admin API and private outputs', asyn
     assert.notEqual(ambiguous.status, 0);
     assert.match(ambiguous.stdout + ambiguous.stderr, /ambiguous_hash_prefix/);
   }
+});
+
+test('identity verification failure keeps the newly redeemed native credential', async t => {
+  const f = await fixture(t);
+  f.state.direct = true;
+  f.state.expiry = Date.now() - 1;
+  const result = await f.cli(['login', '--gateway', f.gateway, '--ca-file', f.cert, '--code-stdin'], 'OO-0000-0000');
+  assert.notEqual(result.status, 0);
+  assert.equal(readFileSync(join(f.dir, 'tokens/default.token'), 'utf8'), f.token);
+  assert.equal(statSync(join(f.dir, 'tokens/default.token')).mode & 0o777, 0o600);
+  assert(!existsSync(join(f.dir, 'config.json')));
+  assert.match(result.stdout + result.stderr, /credential saved.*active profile unchanged/i);
 });
