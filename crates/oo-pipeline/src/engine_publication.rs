@@ -361,20 +361,33 @@ pub async fn publish_generation(
     for table in &r.tables {
         verified.push(verify(&mut tx, r, table).await?);
     }
-    sqlx::raw_sql(include_str!("../migrations/0123_engine_publication.sql"))
-        .execute(&mut *tx)
-        .await
-        .map_err(db)?;
-    sqlx::raw_sql(include_str!("../migrations/0124_retained_generation.sql"))
-        .execute(&mut *tx)
-        .await
-        .map_err(db)?;
-    sqlx::raw_sql(include_str!(
-        "../migrations/0125_retained_generation_read.sql"
-    ))
-    .execute(&mut *tx)
-    .await
-    .map_err(db)?;
+    // Repeating ALTER TABLE, even ADD COLUMN IF NOT EXISTS, waits for every
+    // admitted query's proof reads. Install once, not during each head switch.
+    for (probe, migration) in [
+        (
+            "SELECT to_regclass('_oo_load.gateway_publications') IS NOT NULL",
+            include_str!("../migrations/0123_engine_publication.sql"),
+        ),
+        (
+            "SELECT to_regprocedure('_oo.native_library_check_retained(jsonb)') IS NOT NULL",
+            include_str!("../migrations/0124_retained_generation.sql"),
+        ),
+        (
+            "SELECT to_regprocedure('_oo.native_library_retained_table(text)') IS NOT NULL",
+            include_str!("../migrations/0125_retained_generation_read.sql"),
+        ),
+    ] {
+        let installed: bool = sqlx::query_scalar(AssertSqlSafe(probe.to_owned()))
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(db)?;
+        if !installed {
+            sqlx::raw_sql(migration)
+                .execute(&mut *tx)
+                .await
+                .map_err(db)?;
+        }
+    }
     let config = hash(r.source_binding.as_bytes());
     let descriptor = json!({"source_id":r.source_id,"binding_sha256":config,
         "tables":r.tables,"recipes":verified.iter().map(|v| &v.recipe).collect::<Vec<_>>()});
@@ -678,6 +691,51 @@ pub async fn activate_generation(conn: &mut PgConnection, candidate: &Value) -> 
     result["state"] = json!("ready");
     result["gateway_published"] = json!(true);
     Ok(result)
+}
+
+/// Owner-side retention, using the same relation locks held by Gateway queries.
+/// Historical receipts remain, while ready heads and Loader parents are pinned.
+pub async fn release_expired(
+    conn: &mut PgConnection,
+    library: &str,
+    age_seconds: u32,
+) -> Result<Value> {
+    if library.is_empty() || library.len() > 128 {
+        return Err("publication_identity");
+    }
+    let mut tx = conn.begin().await.map_err(db)?;
+    sqlx::query("SET LOCAL lock_timeout='5s'")
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+    let installed: bool = sqlx::query_scalar(
+        "SELECT to_regprocedure('_oo_load.release_expired(text,bigint)') IS NOT NULL",
+    )
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(db)?;
+    if !installed {
+        // Only bootstrap once: ALTER TABLE on every sweep would wait on queries
+        // before the NOWAIT retention checks could see their relation pins.
+        for migration in [
+            include_str!("../migrations/0120_engine_sync.sql"),
+            include_str!("../migrations/0121_engine_c5.sql"),
+            include_str!("../migrations/0126_retained_generation_release.sql"),
+        ] {
+            sqlx::raw_sql(migration)
+                .execute(&mut *tx)
+                .await
+                .map_err(db)?;
+        }
+    }
+    let result: String = sqlx::query_scalar("SELECT _oo_load.release_expired($1,$2)::text")
+        .bind(library)
+        .bind(i64::from(age_seconds))
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(db)?;
+    tx.commit().await.map_err(db)?;
+    serde_json::from_str(&result).map_err(|_| "publication_retention_result")
 }
 
 #[cfg(test)]
