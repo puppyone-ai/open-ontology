@@ -1,0 +1,164 @@
+{
+  "todo": "S4-A-02",
+  "status": "partial",
+  "run_id": "a-s4b-local",
+  "live": [
+    {
+      "run_id": "a-s4b-pg-5",
+      "status": "passed",
+      "engine": "postgres",
+      "version_requested": "17.11",
+      "publication": "blocked_not_integrated",
+      "review": "reviewed",
+      "engine_version": {
+        "family": "postgres",
+        "major": 17,
+        "minor": 11,
+        "patch": 0,
+        "raw": "17.11 (Debian 17.11-1.pgdg12+2)"
+      },
+      "agent_db_load": "local_table_views",
+      "consistency": "B",
+      "source_time": "unmeasured",
+      "max_generation_calls": 6,
+      "max_completion_tokens_per_call": 4000,
+      "source_to_draft_command": "oo build --agent-target",
+      "review_origin": "automated_fixture_file",
+      "cleanup_failures": [],
+      "image": "docker.io/library/postgres:17.11-bookworm@sha256:e692f23ba2393c8b13879dd4ee9f4f0d7bd146fbddceb4c8e10c4ce1fb53e737",
+      "platform": "linux/arm64",
+      "calls": 2,
+      "prompt_tokens": 1115,
+      "completion_tokens": 452,
+      "sha256": {
+        "result.json": "ea700b11684eefd24974b59c8233e83a71c1a4d9d2fce25a5132f664158047a7",
+        "resource-receipt.json": "d4a4e0fba822dbef3b223994ac291eddd1098deae518f5a01c373730a5d40c8a",
+        ".oo/draft.json": "7eedcd8374cb5955afe54f8dc896ac5cd23ebe8b26abca1268847cc9a1715ed0",
+        ".oo/review-input.json": "61c77a29eff7216a398a63a785793ce943f8a78c76f317df1f76c8415aaeef17",
+        ".oo/usage.jsonl": "88056a286a4ac9c6318dab1e1a5765aafe09633df2a521a3f88b2e7cd0e0e311",
+        ".oo/community/preflight.json": "d10c37f83fc096074487907ff5af3d40b7b7960a94fea5331554cc0182760715",
+        ".oo/reviewed-registry.json": "9bedb9845fe25d37df1614e41a68e95df7d676b68656a48d8b4fed60c9898170",
+        ".oo/chain.json": "119a6b48f2a17c8c1de9c854b9d894b92cc274c5f358359ed56230ceb8460437"
+      }
+    },
+    {
+      "run_id": "a-s4b-mysql-2",
+      "status": "passed",
+      "engine": "mysql",
+      "version_requested": "8.4.7",
+      "publication": "not_published",
+      "review": "unreviewed",
+      "engine_version": {
+        "family": "mysql",
+        "major": 8,
+        "minor": 4,
+        "patch": 7,
+        "raw": "8.4.7"
+      },
+      "agent_db_load": "local_table_views",
+      "consistency": "B",
+      "source_time": "unmeasured",
+      "max_generation_calls": 6,
+      "max_completion_tokens_per_call": 4000,
+      "source_to_draft_command": "oo build --agent-target",
+      "cleanup_failures": [],
+      "image": "docker.io/library/mysql:8.4.7@sha256:6f952b3897aca5d7ca620d3d9679845351641265b1dbc3012ea29253abb57e65",
+      "platform": "linux/arm64",
+      "calls": 2,
+      "prompt_tokens": 1108,
+      "completion_tokens": 446,
+      "sha256": {
+        "result.json": "fe3be3043aad0a7a48d2a1ea9e531a14e7ea3a13da0d73cb5aedcea99a8faab7",
+        "resource-receipt.json": "d3026ca8eef3b4e7ec31ee061cfa541e3a08fd88c2ab985e0fc0e0e166d8ac03",
+        ".oo/draft.json": "183eb57a610a82123351b27db8af20a0ad5cc548d5915c6638140242e9c14a12",
+        ".oo/review-input.json": "e77ae498269a30d0f4a4946ac321824a599a97eaebc51ba07d39557418ca7ce0",
+        ".oo/usage.jsonl": "bba9481dc6ada1b39fd3fc0bcf6f8cd081c210412987472389e0fa7993b4f8eb",
+        ".oo/community/preflight.json": "d10c37f83fc096074487907ff5af3d40b7b7960a94fea5331554cc0182760715"
+      }
+    },
+    {
+      "run_id": "a-s4b-oracle-1",
+      "status": "passed",
+      "engine": "oracle",
+      "version_requested": "23.5",
+      "publication": "not_published",
+      "review": "unreviewed",
+      "engine_version": {
+        "family": "oracle",
+        "major": 23,
+        "minor": 5,
+        "patch": 0,
+        "raw": "23.5.0.24.07"
+      },
+      "agent_db_load": "local_table_views",
+      "consistency": "B",
+      "source_time": "unmeasured",
+      "max_generation_calls": 6,
+      "max_completion_tokens_per_call": 4000,
+      "source_to_draft_command": "oo build --agent-target",
+      "cleanup_failures": [],
+      "image": "docker.io/gvenzl/oracle-free:23.5-slim@sha256:0b6d2a693d9f77c8cb5e756411f60a38b4f854cf2a6b0be2f002942a66582aeb",
+      "platform": "linux/arm64",
+      "calls": 2,
+      "prompt_tokens": 1117,
+      "completion_tokens": 450,
+      "sha256": {
+        "result.json": "d954360c1e30ada16e3002a3279835c5778b96541288d73869ebf517092033ad",
+        "resource-receipt.json": "12227b8dbd68dce6144d129ffaf49e6cf8fc7542b158a85a3467ede54b0a2aa4",
+        ".oo/draft.json": "addd3ebe2f80487baa7df0cd15147a6ce39bdce5e19f016554dd13771678eb4f",
+        ".oo/review-input.json": "f84109063baa429fbac617879f923019154109f5275743330793bbbd342ba66a",
+        ".oo/usage.jsonl": "6d012f13a3214bf93cf1b267c16248d275d00d9bdd16f142ae802f11385f974d",
+        ".oo/community/preflight.json": "d10c37f83fc096074487907ff5af3d40b7b7960a94fea5331554cc0182760715"
+      }
+    }
+  ],
+  "validation": {
+    "cargo_check_workspace_locked": "passed",
+    "cargo_test_oo_cli": "60 passed",
+    "cargo_fmt_oo_cli_check": "passed",
+    "community_adapter_tests": "3 passed",
+    "draft_tests": "5 passed",
+    "build_chain": "9 cases passed; a-s4b-chain-final",
+    "tail_receipts": "8 real SIGKILL cases with synthetic effects, not remote token calls",
+    "review_tui": "13 cases passed; a-s4b-review-pty"
+  },
+  "model_budget": {
+    "max_calls_per_run": 6,
+    "planned_batches_max": 4,
+    "accepted_live_calls": 6,
+    "total_calls_including_superseded_runs": 10,
+    "price": "unknown"
+  },
+  "retained_failures": {
+    "a-s4b-pg-1": "fixture bash entrypoint collided with shared server arguments; no model call",
+    "a-s4b-pg-2": "read-only secret mount lacked empty mountpoints; no model call",
+    "a-s4b-pg-3": "embedded module assumed deeper __file__ path; no model call",
+    "a-s4b-pg-4": "draft passed, review refused unknown PiiLevel; result.json status incorrectly says passed but contains error; NOT review acceptance",
+    "a-s4b-mysql-1": "passed with shared index digest; superseded by exact platform-pin run mysql-2"
+  },
+  "publication_seam": {
+    "integration_sha": "9e64e43dc88a9946ac2d4f0b46a37b4012621430",
+    "oo_load_publish_dispatch_present": false,
+    "scope": "source inspection only; publication seam remains fail-closed"
+  },
+  "gaps": [
+    "authenticated oo-load publish entry absent",
+    "Gateway start/reload and publication probe absent",
+    "token/share-prompt production stages not live-tested",
+    "lost remote issuance response requires audit reconciliation; no idempotency key in lane B",
+    "one synthetic regions table per engine; not full L1 or business acceptance",
+    "source_time unmeasured; consistency B"
+  ],
+  "containers_left_running": 0,
+  "cargo_lock_changes": false,
+  "runtime_image": "sha256:5664e4a30e65e03a6c8701d6f4fb8f0c3f06315edf82d1b487d886152c1e3439",
+  "validation_sha256": {
+    "check-signoff.log": "658632356d3becae36d19b43fc147b50203959c9f2a14b009970de21a9cb12b0",
+    "cli-tail-tests-5.log": "bbe05560f42df8f5644ff0f10e99e270e041caa12ec05f6e91bff34d389add9d",
+    "fmt-signoff.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "adapter-final.log": "c8d484487e5ddd056794ca22343005f4c4b1add4d9fb3d96823bd3a40fa00be7",
+    "draft-final.log": "db44fe5aaccd2a2429774b21132c86d841ad99c7d8bc543a1044827976fc0ed0",
+    "chain-final.log": "0a6e332c140b31ed229f603aaf64720f0eaacfa05275a4d244e0031861ed569b",
+    "review-pty.log": "d2c3a3496771fa3b80100382c28df5afc0ae7f8a93292b275e703ae2907b3918"
+  }
+}

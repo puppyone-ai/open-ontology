@@ -19,10 +19,14 @@ class Fixture(Run):
     def command(self, argv, **kwargs):
         argv = ['oo.lane=a' if s=='oo.lane=h' else s for s in argv]
         if argv[:2] == ['docker','create']:
+            image = next(i for i, value in enumerate(argv) if value.startswith('docker.io/library/postgres:'))
+            server_args = argv[image+1:]
+            argv = argv[:image+1]
             argv[2:2] = ['-p','127.0.0.1::5432','--entrypoint','bash']
             argv += ['-c', 'cp /run/oo/server.* /tmp/; chown postgres:postgres /tmp/server.*; '
                      'chmod 600 /tmp/server.key; exec docker-entrypoint.sh postgres -c ssl=on '
-                     '-c ssl_cert_file=/tmp/server.crt -c ssl_key_file=/tmp/server.key']
+                     '-c ssl_cert_file=/tmp/server.crt -c ssl_key_file=/tmp/server.key "$@"',
+                     'oo-fixture', *server_args]
         return super().command(argv,**kwargs)
 
 def main():

@@ -13,10 +13,14 @@ import time
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'crates/oo-cli/src/admin'))
 from test_live_draft import Fixture as PostgresFixture
-from test_mysql_doctor import Fixture as MysqlFixture
+from test_mysql_doctor import Fixture as MysqlFixture, shared_resolve
 from test_oracle_doctor import Fixture as OracleFixture
 from draft import read_private, write_private
 from runner import checksums
+import runner
+
+# Ignore the older doctor's local index overrides; use the shared platform pins.
+runner.resolve = shared_resolve
 
 PG='docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f'
 
@@ -26,13 +30,14 @@ def main():
     parser.add_argument('--engine',choices=['postgres','mysql','oracle'],required=True)
     parser.add_argument('--image',required=True)
     parser.add_argument('--live',action='store_true',required=True)
+    parser.add_argument('--review', action='store_true')
     args=parser.parse_args()
     if not re.fullmatch('[a-z0-9-]+',args.run_id) or not re.fullmatch('sha256:[0-9a-f]{64}',args.image):
         parser.error('invalid input')
     os.umask(0o077)
     out=ROOT/'evidence'/args.run_id
     out.mkdir(mode=0o700)
-    versions={'postgres':'17','mysql':'8.4','oracle':'23.5'}
+    versions={'postgres':'17.11','mysql':'8.4.7','oracle':'23.5'}
     classes={'postgres':PostgresFixture,'mysql':MysqlFixture,'oracle':OracleFixture}
     fixture=classes[args.engine](out,args.engine,versions[args.engine],
         argparse.Namespace(platform=None,scale=1000,tables=3,health_timeout=900))
@@ -78,6 +83,10 @@ def main():
              '-CAkey',str(private/'ca.key'),'-CAcreateserial','-out',str(private/'server.crt'),
              '-days','2','-extfile',str(private/'ext')],'sign')
         fixture.setup()
+        pins = {tuple(line.split()[1:]) for line in
+                (ROOT/'testing/infra/images.pins').read_text().splitlines()
+                if line and not line.startswith('#')}
+        assert (fixture.receipt['platform'],fixture.receipt['image'].split('@')[1]) in pins
         fixture.seed()
         fixture.verify_shapes()
         if args.engine=='postgres':
@@ -97,17 +106,17 @@ def main():
         store=home/'.config/open-ontology/secrets'
         store.mkdir(parents=True,mode=0o700)
         upstream=Path.home()/'.config/open-ontology/secrets'
-        key=read_private(upstream/'model-key-9r-sol')
-        endpoint=read_private(upstream/'model-endpoint-9r')
-        sensitive.extend([key.strip(),endpoint.strip()])
+        # Mount the authorized original files read-only; never copy model secrets.
         target_password=secrets.token_hex(32).encode()
         sensitive.append(target_password)
-        values={'reader':fixture.reader_secret.encode(),'model-key':key,'model-endpoint':endpoint,
+        values={'reader':fixture.reader_secret.encode(),
                 'target-password':target_password,'target-ca':(private/'ca.crt').read_bytes()}
         if args.engine!='oracle':
             values['source-ca']=(private/('ca.pem' if args.engine=='mysql' else 'ca.crt')).read_bytes()
         for name,value in values.items():
             write_private(store/name,value)
+        for name in ('model-key', 'model-endpoint'):
+            write_private(store/name,b'')
         write_private(private/'agent-password',target_password)
         # The target and CLI share the fixture's namespace, not any existing service.
         run(['docker','create','--name',target_name,'--label','oo.lane=a',
@@ -147,12 +156,20 @@ def main():
                 'run_id':args.run_id}
         write_private(out/'target.json',json.dumps(target).encode())
         created.append(runtime_name)
-        raw=run(['docker','run','--rm','--name',runtime_name,'--label','oo.lane=a',
+        runtime=['docker','run','--rm','--name',runtime_name,'--label','oo.lane=a',
                  '--label','oo.run_id='+fixture.id,'--network','container:'+fixture.name,
                  '--user',str(os.getuid())+':'+str(os.getgid()),'-e','HOME=/private/home',
-                 '-v',str(out)+':/work','-v',str(private)+':/private:ro',args.image,
-                 'build','--draft-only','--config','/work/stack.json','--agent-target','/work/target.json','--json'],
-                'build',timeout=900)
+                 '-v',str(out)+':/work','-v',str(private)+':/private:ro']
+        for original, name in [('model-key-9r-sol','model-key'), ('model-endpoint-9r','model-endpoint')]:
+            runtime += ['--mount','type=bind,src='+str(upstream/original)+
+                        ',dst=/private/home/.config/open-ontology/secrets/'+name+',readonly']
+        runtime += [args.image]
+        print(json.dumps(dict(protocol='oo.lane-a.live-preflight/v1',
+            engine=args.engine, version=versions[args.engine], tables=1,
+            max_model_calls=6, planned_batches_max=4, max_output_tokens=4000,
+            price='unknown', source_access='read_only', publication='blocked')), flush=True)
+        raw=run(runtime+['build','--draft-only','--config','/work/stack.json',
+                         '--agent-target','/work/target.json','--json'], 'build',timeout=900)
         report=json.loads(raw)
         assert report['status']=='draft' and report['agent_db_load']=='local_table_views'
         assert report['publication']=='not_published' and report['review']=='unreviewed'
@@ -162,11 +179,38 @@ def main():
         assert catalog['tables'] and all(t['schema']=='oo_load_data' for t in catalog['tables'])
         result.update(status='passed',engine_version=receipts[0]['version'],
                       agent_db_load='local_table_views',consistency=report['consistency'],
-                      source_time=report['source_time'],max_generation_calls=2,
-                      max_completion_tokens_per_call=8192,source_to_draft_command='oo build --agent-target')
+                      source_time=report['source_time'],max_generation_calls=6,
+                      max_completion_tokens_per_call=4000,source_to_draft_command='oo build --agent-target')
+        if args.review:
+            sys.path.insert(0,str(ROOT/'tools/pg-builder/scripts'))
+            import selfbuild_budget as community
+            command=json.loads((out/'.oo/review-input.json').read_text())
+            decisions={}
+            for id_ in command['draft']['registry']['entities']:
+                decisions['entity/'+id_]=dict(action='accept')
+            for id_, item in command['draft']['accepted'].items():
+                if item['kind']!='entity':
+                    decisions[('relationship/' if item['kind']=='relation' else 'description/')+id_]=dict(action='accept')
+            for table in command['effective']['datasets']:
+                for column in table['columns']:
+                    decisions['classification/'+table['dataset']+'/'+column['name']]=dict(action='accept')
+            decision=dict(protocol='oo.owner-review/v1',input_sha256=community.digest(command),
+                reviewed_at='2026-11-04',items=decisions,g14=dict(action='accept',
+                reason='Automated accept-all fixture run, not human business acceptance',
+                summary_sha256=command['draft']['review']['summary_sha256']))
+            write_private(out/'decisions.json',json.dumps(decision).encode())
+            argv=runtime+['build','--resume','--config','/work/stack.json',
+                '--agent-target','/work/target.json','--review-file','/work/decisions.json','--json']
+            proc=subprocess.run(argv,capture_output=True,timeout=180)
+            (out/'review-chain.log').write_bytes(proc.stdout+proc.stderr)
+            state=json.loads(proc.stdout)
+            assert proc.returncode==1 and state['stages'][1]['status']=='complete', state
+            assert state['stages'][2]['error']=='BUILD_PUBLICATION_NOT_INTEGRATED', state
+            result.update(review='reviewed',publication='blocked_not_integrated',
+                          review_origin='automated_fixture_file')
     except Exception as error:
         # Exception text can include subprocess argv; retain only its type.
-        result['error']=type(error).__name__
+        result.update(status='failed', error=type(error).__name__)
         raise
     finally:
         failures=[]
