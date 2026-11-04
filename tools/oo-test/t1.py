@@ -109,9 +109,14 @@ class LaneRun(runner.Run):
                     prefix = self.path / f"{self.seq:04d}"
                     err = prefix.with_suffix(".stderr").read_text()
                     out = prefix.with_suffix(".stdout").read_text()
-                    if (attempt == 2 or out or
-                            not err.startswith("Cannot connect to the Docker daemon at ") or
-                            "Is the docker daemon running?" not in err):
+                    refused = (
+                        err.startswith("Cannot connect to the Docker daemon at ")
+                        and "Is the docker daemon running?" in err
+                    ) or (
+                        err.startswith("cannot connect to the Docker daemon. ")
+                        and "dial unix " in err and err.rstrip().endswith("connect: connection refused")
+                    )
+                    if attempt == 2 or out or not refused:
                         raise
                     time.sleep(0.2)
         return super().command(command, **kwargs)

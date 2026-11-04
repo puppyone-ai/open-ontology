@@ -17,8 +17,14 @@ class T1Tests(unittest.TestCase):
             run = t1.LaneRun.__new__(t1.LaneRun)
             run.path, run.seq = Path(temporary), 1
             refusal = "Cannot connect to the Docker daemon at fixture. Is the docker daemon running?"
+            unix_refusal = ("cannot connect to the Docker daemon. Is 'docker daemon' running on this host?: "
+                            "dial unix /fixture/docker.sock: connect: connection refused\n")
             for query, error, output, expected in [
                 ("SELECT 1;", refusal, "", 2),
+                ("SELECT 1;", unix_refusal, "", 2),
+                ("SELECT 1;", unix_refusal, "partial result", 1),
+                ("DELETE FROM growth_events;", unix_refusal, "", 1),
+                ("SELECT 1;", unix_refusal.replace("connection refused", "permission denied"), "", 1),
                 ("SELECT 1;", "ERROR: permission denied", "", 1),
                 ("SELECT 1;", refusal, "partial result", 1),
                 ("DELETE FROM growth_events;", refusal, "", 1),
