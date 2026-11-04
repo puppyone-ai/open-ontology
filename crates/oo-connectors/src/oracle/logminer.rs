@@ -43,6 +43,15 @@ fn scn(position: &Watermark) -> Result<u64, SourceError> {
     }
 }
 
+fn validate_logging(mode: Option<&str>, minimal: Option<&str>) -> Result<(), SourceError> {
+    if mode != Some("ARCHIVELOG") || !matches!(minimal, Some("YES" | "IMPLICIT")) {
+        return Err(SourceError::catalog(
+            "logminer_logging_prerequisites_rebaseline",
+        ));
+    }
+    Ok(())
+}
+
 fn mine_identifier(name: &str) -> bool {
     !name.is_empty()
         && name.bytes().all(|c| {
@@ -168,6 +177,7 @@ impl OracleLogMiner {
             retained_floor: 0,
             admitted_scn: 0,
         };
+        reader.check_logging()?;
         let files = reader.inventory()?;
         let high = reader.engine.current_scn()?;
         reader.retained_floor = coverage(&files, high)?;
@@ -218,6 +228,21 @@ impl OracleLogMiner {
                 self.engine.last_ora = ora_code(&error);
                 map_driver(&error)
             })
+    }
+
+    fn check_logging(&mut self) -> Result<(), SourceError> {
+        // Recreating a controlfile can preserve the tables but clear logging.
+        // An empty LogMiner result in that state is not a no-change proof.
+        let rows = self.engine.query(
+            "SELECT log_mode, supplemental_log_data_min FROM v$database",
+            &[],
+            1,
+        )?;
+        let row = rows.first();
+        validate_logging(
+            row.and_then(|r| r.first()).and_then(Option::as_deref),
+            row.and_then(|r| r.get(1)).and_then(Option::as_deref),
+        )
     }
 
     fn inventory(&mut self) -> Result<Vec<LogFile>, SourceError> {
@@ -427,6 +452,7 @@ impl OracleLogMiner {
         let deadline = Instant::now() + Duration::from_millis(budget.statement_timeout_ms);
         self.engine
             .set_timeout(Duration::from_millis(budget.statement_timeout_ms))?;
+        self.check_logging()?;
         let current = self.engine.current_scn()?;
         if from > current {
             return Err(SourceError::config("logminer_future_watermark"));
@@ -557,6 +583,26 @@ fn validate_resume_floor(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn cleared_or_unknown_logging_requires_rebaseline() {
+        for minimal in [Some("YES"), Some("IMPLICIT")] {
+            assert!(validate_logging(Some("ARCHIVELOG"), minimal).is_ok());
+        }
+        for (mode, minimal) in [
+            (Some("NOARCHIVELOG"), Some("YES")),
+            (Some("ARCHIVELOG"), Some("NO")),
+            (Some("ARCHIVELOG"), None),
+            (None, Some("YES")),
+        ] {
+            assert!(
+                validate_logging(mode, minimal)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("logminer_logging_prerequisites_rebaseline")
+            );
+        }
+    }
+
     fn file(thread: u64, first: u64, next: u64) -> LogFile {
         LogFile {
             name: "fixture".into(),
