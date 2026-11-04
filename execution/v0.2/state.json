@@ -804,10 +804,14 @@
    "sprint": "S4",
    "lane": "D",
    "title": "P1：openGauss 快照 + C5（认证与逻辑解码分叉单独处理）",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "lane-D",
    "branch": "v0.2/d-postgres-engine",
-   "commits": [],
+   "commits": [
+    "a4e705eab",
+    "505c89e3f",
+    "c4234cfc5"
+   ],
    "evidence": []
   },
   {
@@ -996,6 +1000,10 @@
   {
    "what": "mysql-binlog in the default artifact",
    "needs": "zstd 0.13.4 / zstd-safe 7.4.0 past 2026-11-08T14:12:08Z and license files verified (D10)"
+  },
+  {
+   "what": "lane F dispatch (S4-F-01, S5-F-02)",
+   "needs": "free disk for OLAP/document images (~10 GB); waits for lane merges to reclaim targets"
   }
  ],
  "lanes": {
