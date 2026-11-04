@@ -1274,10 +1274,14 @@
       "sprint": "S6",
       "lane": "M",
       "title": "多架构镜像 CI 构建与签名；lite 档离线安装包",
-      "status": "in_progress",
+      "status": "author_complete",
       "owner": "lane-M",
       "branch": "v0.2/m-pipeline",
-      "commits": [],
+      "commits": [
+        "72e6509f2",
+        "a41aab6f9",
+        "b05c806b5"
+      ],
       "evidence": []
     },
     {
