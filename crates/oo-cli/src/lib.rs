@@ -14,6 +14,7 @@ pub(crate) const QUERY_MAX_ROWS: u32 = 2_000;
 pub(crate) const QUERY_TIMEOUT_MAX_MS: u32 = 120_000;
 
 mod args;
+mod lifecycle;
 mod load;
 mod outcome;
 mod render;

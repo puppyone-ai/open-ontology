@@ -2011,6 +2011,18 @@ async fn tls_oracle(cert_pem: &'static str, key_pem: &'static str, body: Vec<u8>
             let Ok(hit) = common::read_hit(&mut tls).await else {
                 continue;
             };
+            if hit.path == "/v1/meta" {
+                assert!(hit.one("authorization").is_none());
+                let meta = json_response(
+                    200,
+                    "OK",
+                    r#"{"minimum_cli_version":"0.2.0","protocol_version":"0.2"}"#,
+                    &[],
+                );
+                let _ = tls.write_all(&meta).await;
+                let _ = tls.flush().await;
+                continue;
+            }
             stored.lock().expect("hits").push(hit);
             let _ = tls.write_all(&body).await;
             let _ = tls.flush().await;

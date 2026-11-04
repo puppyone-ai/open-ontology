@@ -84,9 +84,13 @@ pub enum Invocation {
 pub fn parse() -> Result<Invocation, Failure> {
     let args = os_args()?;
     let args = expand_long_options(&args);
+    if let Some(result) = crate::lifecycle::dispatch(&args) {
+        return result;
+    }
     if let Some(result) = admin::dispatch(&args) {
         return result;
     }
+    let args = crate::lifecycle::prepare_data(args)?;
     parse_args(&args)
 }
 
@@ -116,6 +120,12 @@ fn expand_long_options(args: &[String]) -> Vec<String> {
                     | "--limit"
                     | "--expected-publication-id"
                     | "--expected-data-vector-sha256"
+                    | "--code"
+                    | "--profile"
+                    | "--business-timezone"
+                    | "--grant-file"
+                    | "--role"
+                    | "--agent"
             )
         {
             output.extend([flag.to_owned(), value.to_owned()]);
@@ -1027,8 +1037,9 @@ fn is_safe_flag(arg: &str) -> bool {
 
 pub fn top_help() -> String {
     format!(
-        "{TOP}\n\n{}\n\n{QUERY_FLAGS}\n\n{SEARCH_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\n{NOTES}",
-        admin::HELP
+        "{TOP}\n\n{}\n\n{}\n\n{QUERY_FLAGS}\n\n{SEARCH_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\n{NOTES}",
+        admin::HELP,
+        crate::lifecycle::HELP
     )
 }
 

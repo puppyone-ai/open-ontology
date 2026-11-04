@@ -11,16 +11,7 @@ fn oo(args: &[&str]) -> Output {
 
 #[test]
 fn admin_help_is_offline_and_all_commands_have_common_options() {
-    for command in [
-        "init",
-        "up",
-        "down",
-        "doctor",
-        "build",
-        "ontology",
-        "token",
-        "share-prompt",
-    ] {
+    for command in ["init", "up", "down", "doctor", "build", "ontology", "token"] {
         let out = oo(&[command, "--help"]);
         assert!(out.status.success());
         let text = String::from_utf8(out.stdout).unwrap();
@@ -50,7 +41,6 @@ fn bad_arguments_never_echo_values_or_touch_stdin() {
         vec!["ontology", "export", "--format", "SYNTHETIC_PRIVATE"],
         vec!["ontology", "open", "--format", "html"],
         vec!["token", "SYNTHETIC_PRIVATE"],
-        vec!["share-prompt", "--role", "SYNTHETIC_PRIVATE/invalid"],
         vec!["init", "--resume"],
     ] {
         let mut args = args;
@@ -69,15 +59,6 @@ fn bad_arguments_never_echo_values_or_touch_stdin() {
             .unwrap()
             .contains("ADMIN_CONFIG_REQUIRED")
     );
-    for command in ["share-prompt"] {
-        let out = oo(&[command, "--json", "--yes", "--config", "missing"]);
-        assert!(!out.status.success());
-        assert!(
-            String::from_utf8([out.stdout, out.stderr].concat())
-                .unwrap()
-                .contains("ADMIN_NOT_IMPLEMENTED")
-        );
-    }
     for command in ["up", "down", "status", "build"] {
         let out = oo(&[command, "--json", "--yes", "--config", "missing"]);
         assert!(!out.status.success());
@@ -135,4 +116,22 @@ fn init_normalizes_without_resolving_secret_references() {
             .contains("SYNTHETIC_PRIVATE")
     );
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn lifecycle_replaces_share_stub_and_rejects_secret_arguments() {
+    for command in ["login", "whoami", "share-prompt"] {
+        assert!(oo(&[command, "--help"]).status.success());
+        assert_eq!(
+            oo(&[command, "--help"]).stdout,
+            oo(&["help", command]).stdout
+        );
+        let out = oo(&[command, "--password", "SYNTHETIC_PRIVATE", "--json"]);
+        assert_eq!(out.status.code(), Some(2));
+        assert!(
+            !String::from_utf8([out.stdout, out.stderr].concat())
+                .unwrap()
+                .contains("SYNTHETIC_PRIVATE")
+        );
+    }
 }
