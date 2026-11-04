@@ -5,6 +5,7 @@ import tempfile
 import time
 import types
 import unittest
+from unittest.mock import Mock, patch
 
 import t6
 from t6_fixture import GoldFixture
@@ -12,6 +13,18 @@ from t6_reviewed import ReviewedGoldFixture
 
 
 class GoldDialogueTests(unittest.TestCase):
+    def test_agent_egress_timeout_keeps_existing_call_budget(self):
+        egress = Mock()
+        with tempfile.TemporaryDirectory() as root, patch.object(
+                t6, "load_module", return_value=egress):
+            model = t6.Model(Path(root))
+            egress.Egress.assert_called_once_with(
+                t6.MODEL, Path(root) / "usage.jsonl", rpm=120, timeout=300)
+            self.assertEqual(model.calls, 0)
+            self.assertEqual(t6.MAX_CALLS, 160)
+            model.close()
+            egress.Egress.return_value.close.assert_called_once_with()
+
     def test_numeric_comparison_is_lossless_and_ordered(self):
         value = "12345678901234567890123456789012345678.1200"
         self.assertEqual(t6.cell(value), value[:-2])

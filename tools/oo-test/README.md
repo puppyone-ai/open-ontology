@@ -321,7 +321,8 @@ operator-fixed. Enrollment codes and tokens are removed from evidence.
 `preflight.json` show limits: 160 total Agent calls (including binding), 12 model
 turns/question, 2,048 output tokens/call, 250,000 request bytes, 12M reserved
 tokens (request bytes + output + 10k proxy allowance), one-hour dispatch
-deadline, serial execution and no retries. Currency cost is unmeasured.
+deadline, 300-second Agent egress timeout, serial execution and no retries.
+Currency cost is unmeasured.
 The real Builder's derived call bound and separate preflight/usage receipts
 are printed before Builder dispatch, including the total bound across Builder
 and Agent (160 + three times the planned batch count). Limits outside the

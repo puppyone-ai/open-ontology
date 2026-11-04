@@ -28,6 +28,7 @@ MAX_TURNS = 12
 MAX_REQUEST_BYTES = 250000
 MAX_RESERVED_TOKENS = 12_000_000
 MAX_OUTPUT = 2048
+EGRESS_TIMEOUT = 300
 TOOLS = [{"type": "function", "function": {
     "name": "oo",
     "description": "Native read-only Open Ontology CLI. No shell or filesystem access.",
@@ -119,7 +120,7 @@ def cli_arguments(call):
 class Model:
     def __init__(self, out):
         self.module = load_module("t6_egress", ROOT / "tools/model-egress/model_egress.py")
-        self.egress = self.module.Egress(MODEL, out / "usage.jsonl", rpm=120, timeout=120)
+        self.egress = self.module.Egress(MODEL, out / "usage.jsonl", rpm=120, timeout=EGRESS_TIMEOUT)
         self.calls = self.reserved = 0
         self.deadline = time.monotonic() + 3600
         self.out = out
@@ -281,7 +282,8 @@ def main():
                  "questions": 20, "max_calls": MAX_CALLS, "max_output_per_call": MAX_OUTPUT,
                  "max_turns_per_question": MAX_TURNS,
                  "max_reserved_tokens": MAX_RESERVED_TOKENS, "max_request_bytes": MAX_REQUEST_BYTES,
-                 "deadline_seconds": 3600, "currency_cost": None, "retries": 0,
+                 "deadline_seconds": 3600, "egress_timeout_seconds": EGRESS_TIMEOUT,
+                 "currency_cost": None, "retries": 0,
                  "scale": args.scale, "publisher": args.publisher,
                  "builder_call_limit": None if args.publisher == "reviewed" else 0,
                  "max_total_model_calls": None if args.publisher == "reviewed" else MAX_CALLS,
