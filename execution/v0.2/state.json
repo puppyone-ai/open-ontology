@@ -309,12 +309,31 @@
    "sprint": "S1",
    "lane": "D",
    "title": "PG 分块：keyset + 单快照内 ctid（14+）；`statement_timeout`；活跃会话保护",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane-D",
    "branch": "v0.2/d-postgres-engine",
    "commits": [
+    "c9c2c5695",
+    "4fb7adb26",
+    "855114e5c",
+    "d5a9239e8",
+    "4d2e91ffb",
+    "fd4f001f6",
+    "e40e051b3",
+    "f9f04a320",
+    "40193e84e",
+    "13ad5b78e",
+    "e4fbc0551",
+    "1abf12ccf",
+    "3af666411",
+    "a92fecccf",
+    "d5cc01526",
+    "efbce797f",
+    "f97271d8c",
     "ac947b531",
-    "90e88d366"
+    "90e88d366",
+    "6290dc05c",
+    "17a4447de"
    ],
    "evidence": []
   },
@@ -400,12 +419,12 @@
    "owner": "lane-B",
    "branch": "v0.2/b-token-lifecycle",
    "commits": [
-    "5ec402635",
-    "d9f61691b",
-    "48878c28f",
-    "976b77e81",
     "2ab36682e",
-    "4f564202d"
+    "48878c28f",
+    "4f564202d",
+    "5ec402635",
+    "976b77e81",
+    "d9f61691b"
    ],
    "evidence": []
   },
@@ -738,12 +757,16 @@
    "owner": "lane-B",
    "branch": "v0.2/b-token-lifecycle",
    "commits": [
-    "d876260db",
     "480ba308d",
+    "5c1363ec6",
     "6628e6e49",
     "6b132e226",
+    "758a5380e",
+    "75c11cfbc",
+    "8854223e4",
     "9e8a1a64b",
-    "8854223e4"
+    "bdfa6dd19",
+    "d876260db"
    ],
    "evidence": []
   },
@@ -803,10 +826,13 @@
    "sprint": "S3",
    "lane": "M",
    "title": "**L2 闭环独立审阅**（固定 SHA）",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "coordinator (native reviewer)",
    "branch": "review @ d876260db",
-   "commits": [],
+   "commits": [
+    "bdfa6dd19",
+    "d84d2aa43"
+   ],
    "evidence": []
   },
   {
