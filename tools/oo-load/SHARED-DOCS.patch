@@ -1,7 +1,0 @@
---- a/docs/product/02-ingestion-playbook.md
-+++ b/docs/product/02-ingestion-playbook.md
-@@ -80,2 +80,4 @@
- 
-+Oracle C1 重启必须携带首次对齐基线前采集的事务低水位（不晚于当时最早活跃事务的起始 SCN），与 DBID/resetlogs 和已提交 SCN 一起持久化。重放从固定事务低水位开始，不能随提交位点推进它；缺少覆盖该低水位的 redo 时显式重基线。空 SCN 窗口不创建目标数据代际。当前 `oo-load` 实现不含持久化在途事务暂存，因此必须在这段历史被清理前重基线。
-+
- ### 5.2 C5 摘要差分
