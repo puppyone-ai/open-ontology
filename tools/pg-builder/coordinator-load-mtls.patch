@@ -1,7 +1,6 @@
 --- a/deploy/lite/draft.py
 +++ b/deploy/lite/draft.py
-@@ -81,7 +81,10 @@
- 
+@@ -82,6 +82,9 @@
  def build(request, root):
      stack = request['stack']
 -    fingerprint = digest(json.dumps(stack, sort_keys=True).encode())
