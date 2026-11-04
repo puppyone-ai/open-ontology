@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 20,
-  "supersedes_revision": 19,
-  "supersedes_baseline_head": "b82fc92baa1314b1323f6eaad8949987053cbabf",
-  "supersedes_sha256": "387673a8f43ce452f6d0789defdaddeb6252a9d0188e17a01934be76a2935b71",
-  "review_record": "specs/source-baseline-revision-20.md",
-  "baseline_head": "8d0d451c270b854d0d9133a9af29a29b709e7817",
+  "revision": 21,
+  "supersedes_revision": 20,
+  "supersedes_baseline_head": "8d0d451c270b854d0d9133a9af29a29b709e7817",
+  "supersedes_sha256": "fee9058a5daec9c02706378d9f3370f62f844722901986656192f7d0c059667e",
+  "review_record": "specs/source-baseline-revision-21.md",
+  "baseline_head": "c41bf74658bd90ce9b74d20753c6fa6a5465d37d",
   "source_count": 26,
   "sources": [
     {
@@ -133,9 +133,9 @@
     },
     {
       "path": "docs/product/02-ingestion-playbook.md",
-      "sha256": "10b6df9dfed32110d6f4e226614754d7bea8bef05f72712ac41adb1643385c63",
-      "bytes": 15059,
-      "lines": 148
+      "sha256": "20e2e0979328b345705af065ccb2ab12d93ed54e2f895f2673f9670306462e95",
+      "bytes": 15255,
+      "lines": 149
     },
     {
       "path": "docs/product/03-selfbuild-context-budget.md",
@@ -145,8 +145,8 @@
     },
     {
       "path": "docs/product/04-onboarding-and-gateway-binding.md",
-      "sha256": "fc5699d046c45ba7ecb3c737e9db8a2ba58c0e853968bf530348d2759fda6119",
-      "bytes": 16389,
+      "sha256": "2920fb3b007435d7c315dc42f7fb67f14110666c3c86d8ea7faf81673de6329d",
+      "bytes": 16678,
       "lines": 198
     },
     {
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); D15 mapping and lite cycle"
+  "review_status": "owner self-review (D6); retained-generation publisher"
 }
