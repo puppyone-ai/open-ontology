@@ -1,0 +1,192 @@
+{
+  "plan": "S3-A-01",
+  "scope": "Owned local fixtures, not customer or public Gateway acceptance",
+  "acceptance": [
+    {
+      "run_id": "b-s3-ssh-pg-full-02",
+      "engine": "postgres",
+      "version": "17.11",
+      "platform": "linux/arm64",
+      "ssh_auth": "key",
+      "T1": "passed",
+      "T8": "passed",
+      "compared_tables": 233,
+      "scale": 2000000,
+      "small_tables": 200,
+      "binary_sha256": "f7054ec6694f9e5522a7328f50e7102018cc31ea9760a9809d03048995bcd64a",
+      "host_direct_connect": "TimeoutError",
+      "interrupted_load_exit": 1,
+      "resumed_load_exit": 0,
+      "replay_additional_target_bytes": 0,
+      "reader_connections_peak": 2,
+      "sampled_duty_percent_peak": 1.3782785873766106,
+      "mysql_withheld_tls_bytes": null,
+      "artifact_sha256": {
+        "t1-t8.json": "2e9d3060b3b7822d5c8957be662cbec056cef718de3f5fa121c68e21a21fe04b",
+        "ssh-interruption.json": "f8a8ec265c5fa9f812df3135cf593042c02ea3dea24e1db7fc234143269eca40",
+        "ssh-topology.json": "a353611a3a153cd2a5422d6fb9791de36440718bab4aa686424fcb1ac25d48d7",
+        "ssh-mismatch.json": "9a801d7a7b61606c719c7648f74c87d0b8a432663007d5e1741d24cd58f535c5",
+        "ssh-tty.json": "b06db8cdd3d26fd840efb09db884dd4f0d917989ac9d4d572edb9b84b9608f64",
+        "ssh-doctor.json": "e9c83a3c02a1c40ae1a50797f5b6102169c727e9a83f23b48b1cfc4739729778",
+        "resource-receipt.json": "c37133467f876f8ffac3fb4da7b9f34ee3fefa4e864b8cadbdb3a8c88d074063",
+        "ssh-suite.json": "00ab33374b3478cf5c543037ec809d0eb415489339b94107f7efc272e3f6dff8",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "0046.stdout": "f9bbc4965316bd96b754731766a1839eaaac640de55f1d1bec6b071f290f6d67",
+        "0047.stdout": "2283b1d132cfc5d9e4e59891249f06fbef9ea989ff32119ed81397dc0f2afa07"
+      }
+    },
+    {
+      "run_id": "b-s3-ssh-mysql-full-02",
+      "engine": "mysql",
+      "version": "8.4.7",
+      "platform": "linux/arm64",
+      "ssh_auth": "password",
+      "T1": "passed",
+      "T8": "passed",
+      "compared_tables": 231,
+      "scale": 2000000,
+      "small_tables": 200,
+      "binary_sha256": "f7054ec6694f9e5522a7328f50e7102018cc31ea9760a9809d03048995bcd64a",
+      "host_direct_connect": "TimeoutError",
+      "interrupted_load_exit": 1,
+      "resumed_load_exit": 0,
+      "replay_additional_target_bytes": 0,
+      "reader_connections_peak": 1,
+      "sampled_duty_percent_peak": 20.065532624908776,
+      "mysql_withheld_tls_bytes": 16407,
+      "artifact_sha256": {
+        "t1-t8.json": "e4e6fe690d859c784293b2b27cad1d544a706ca3fc72ebf4b069964900e23c94",
+        "ssh-interruption.json": "1e0b9cadc978c6c1be44ef0106c39bc61d520863e75e2ab2db1d7e8e9fde67a8",
+        "ssh-topology.json": "52102fe44cb3e76388d7d92f518aa703118735bdec0eeead82bfff72824dde41",
+        "ssh-mismatch.json": "550d7ace9d3746e1061f9b9bd13023b3fec4d9db20447cd1cb448ed57ef74a66",
+        "ssh-tty.json": "b06db8cdd3d26fd840efb09db884dd4f0d917989ac9d4d572edb9b84b9608f64",
+        "ssh-doctor.json": "5cee74ede964295f071395ed787e42ea37fc64f24b4a34d38d2152cd725f2b53",
+        "resource-receipt.json": "2577b64f7044fb99b7e7b208598c81b703956d8b6085a898b980b1e202d5bbe8",
+        "ssh-suite.json": "e8f28e705497af1430e5a85ebe68ad9b58669b74b8365dc395df01c46b4c2dd8",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "0051.stdout": "35c0a3337fa942174dec712d60bf66b3100232f90fbe2559a9d617bc556082db",
+        "0052.stdout": "9e99bbdfae11dfb27bd926631a676cc59483a8d05c9eba1cf15b6000ed9ef631"
+      }
+    }
+  ],
+  "validation": {
+    "summary-check": {
+      "exit": 0,
+      "log_sha256": "9efc3cc456becf47da1baaade9e9b0470d81bddaa5a201314a46155e212c0a7d"
+    },
+    "fixture-tests": {
+      "exit": 0,
+      "log_sha256": "7698815304d45411765d33fff15af8898116130c21ca55b23347a661f222d190"
+    },
+    "final-cli-stack": {
+      "exit": 0,
+      "log_sha256": "0ec8a2b2b063a46831ab71c0a8989f170f27f38d8bd37945254a3f4754ecbdc1"
+    },
+    "loader-tests": {
+      "exit": 0,
+      "log_sha256": "bf01d5b779074e45bf5fc570d1c58451529f6e0b0376b3b3c5435b2c3f27ef0d"
+    },
+    "helper-tests": {
+      "exit": 0,
+      "log_sha256": "702ea5b9f4ae7be0b59bd1c3105b4b8df7507c97d7318e9ed3d0ade4541371bc"
+    },
+    "vendor-pg-final-tests": {
+      "exit": 0,
+      "log_sha256": "0f0095b02c524da6043cd15ac6f84ef638ca01008b296af5c16b36653bd8aa19"
+    },
+    "proxy-unit": {
+      "exit": 0,
+      "log_sha256": "1dce85386c40491a292edd4f2f827dc57e25ab900f0d9b7f5122e3df9e4a82cf"
+    },
+    "final-deny": {
+      "exit": 0,
+      "log_sha256": "a4945ed06bceab92b559e3002c6f97d4cb4a0b9d9f69e5594ad18406c2b82706"
+    },
+    "final-audit": {
+      "exit": 0,
+      "log_sha256": "c93d74b3227e89179920a9950f6aa4658aee67eede80cce0fd365c2d9009f3ff"
+    },
+    "loader-audit": {
+      "exit": 0,
+      "log_sha256": "2124444ea8042717a425930b704e0121e5820795c7fd348a721b534110641185"
+    },
+    "helper-audit": {
+      "exit": 0,
+      "log_sha256": "e53aa7a232ce03ab7ed6c3d7ae89b73e1e793852f2077157ee67f8aea3dd977a"
+    },
+    "loader-deny": {
+      "exit": 4,
+      "log_sha256": "0d42030a1214c922e0f1694c4102d753225e309456327aead19c8cafb4390ba7"
+    },
+    "helper-deny": {
+      "exit": 4,
+      "log_sha256": "8347ffc98e997424acce40234df2d7c727e66d0bda6d6ebd6c3d4c7378303248"
+    },
+    "base-loader-deny": {
+      "exit": 4,
+      "log_sha256": "fec3a871eb8dcc9c279f657197fab94b73c7ddea2d47a5ce82d542255c92b3d7"
+    },
+    "base-helper-deny": {
+      "exit": 4,
+      "log_sha256": "4a48dc44b9c7e2ee8b0302f1f1225e33b26c817eab229e3f919490294c4d2428"
+    },
+    "base-parse-file": {
+      "exit": 101,
+      "log_sha256": "05637410bb5b27211a900505a1e635a776e832457f5586bd56db1396dc0b1f85"
+    }
+  },
+  "pre_existing_failures": [
+    {
+      "test": "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes",
+      "base": "76b492b29",
+      "matching_failure": "group_signal rejected, expected sent",
+      "filtered_connector_command": "cargo test -p oo-connectors --features mysql --locked -- --skip parent_deadline_kills_the_worker_and_the_next_call_completes"
+    },
+    {
+      "checks": "standalone cargo deny for oo-load and oo-mysql-doctor",
+      "base": "76b492b29",
+      "matching_failure": "missing package license metadata; root deny passes"
+    }
+  ],
+  "retained_attempts": [
+    {
+      "run_id": "b-s3-ssh-pg-diagnostic-01",
+      "result": "failed: Docker default network address pool exhausted"
+    },
+    {
+      "run_id": "b-s3-ssh-pg-diagnostic-02",
+      "result": "failed: dynamically allocated jump port changed after restart"
+    },
+    {
+      "run_id": "b-s3-ssh-pg-diagnostic-03",
+      "result": "reduced-scale T1/T8 passed; not full-scale acceptance"
+    },
+    {
+      "run_id": "b-s3-ssh-pg-full-01",
+      "result": "T1 passed, T8 failed: overlapping manual doctor raised peak readers to three"
+    },
+    {
+      "run_id": "b-s3-ssh-mysql-full-01",
+      "result": "failed: processlist polling missed the required interruption; replaced with deterministic partial-record fixture"
+    }
+  ],
+  "limitations": [
+    "First-use confirmation/discovery hooks are implemented and PTY-tested; lane A owns oo init raw-mode wiring and pin persistence.",
+    "Snapshot/doctor paths are integrated; oo-load SSH incremental control and external Oracle worker paths remain explicitly blocked.",
+    "Resume uses existing receipt validation/replanning; it does not transparently replay broken DB bytes or promise skipping every previously read chunk.",
+    "Unencrypted Ed25519/ECDSA key files or password references; RSA, SSH agent and interactive key passphrases are not enabled.",
+    "All evidence is local; no production, customer, source-real-time or global consistency claim."
+  ],
+  "dependency_pins": {
+    "russh": "0.65.0",
+    "ctutils": "0.4.6",
+    "ml-kem": "0.3.3",
+    "module-lattice": "0.2.3",
+    "new_registry_packages_age_checked": 56,
+    "date_evidence_sha256": "55b78e0132836e2e8a305b9dbe209647a332e5005b0969d8f3f88d6c618426ce"
+  },
+  "cleanup": {
+    "owned_resources_remaining": 0,
+    "artifact_sha256": "9c5107a4f483eb4e76eb8f8711a0097e52673539ba0c6390bc3ad3750ad8e6c3"
+  }
+}

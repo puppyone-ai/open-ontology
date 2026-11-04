@@ -706,3 +706,17 @@ fn test_pg_write_escaped() {
     x.write_char('z').unwrap();
     assert_eq!(buf, r"x\\y\ \\\ z");
 }
+
+#[test]
+fn tcp_route_preserves_database_tls_identity() {
+    let address = "127.0.0.1:15432".parse().unwrap();
+    let options = PgConnectOptions::from_explicit()
+        .host("db.internal")
+        .port(5432)
+        .ssl_mode(PgSslMode::VerifyFull)
+        .tcp_address(address);
+    assert_eq!(options.tcp_address, Some(address));
+    assert_eq!(options.host, "db.internal");
+    assert_eq!(options.port, 5432);
+    assert!(matches!(options.ssl_mode, PgSslMode::VerifyFull));
+}
