@@ -124,9 +124,7 @@ pub(super) fn run(
     let runtime_path =
         runtime_config.ok_or_else(|| Failure::usage("BUILD_RUNTIME_CONFIG_REQUIRED"))?;
     let runtime = review::read(runtime_path)?;
-    if runtime["protocol"] != "oo.build-runtime/v1" {
-        return Err(Failure::local("BUILD_RUNTIME_CONFIG"));
-    }
+    let pinned_config = build_retained::configuration(&runtime)?;
     let base = progress::state_dir(config)?;
     let origin = if cycle.is_some() {
         Some(base.as_path())
@@ -144,6 +142,11 @@ pub(super) fn run(
             return Err(Failure::usage("BUILD_CYCLE_REQUIRES_RESUME_AND_ID"));
         }
         let previous = review::read(&base.join("chain.json"))?;
+        validate(
+            &previous,
+            build_retained::text(&previous, "config_sha256")?,
+            &base,
+        )?;
         if previous["status"] != "complete" {
             return Err(Failure::local("BUILD_ORIGIN_INCOMPLETE"));
         }
@@ -185,7 +188,7 @@ pub(super) fn run(
         .map(str::to_owned)
         .unwrap_or(build_retained::text(target.as_ref().unwrap(), "run_id")?.to_owned());
     let fingerprint = review::hash(
-        &json!({"stack":stack,"agent_target":target,"runtime":runtime,"generation":generation}),
+        &json!({"stack":stack,"agent_target":target,"runtime":pinned_config,"generation":generation}),
     );
     let mut state = if resume && root.join("chain.json").exists() {
         let state = review::read(&root.join("chain.json"))?;
@@ -236,6 +239,11 @@ pub(super) fn run(
                         build_retained::builder(&root, &runtime, stack, &generation, origin)?;
                     state["model_calls"] = result["model_calls"].clone();
                     state["builder_stage"] = result["stage"].clone();
+                    build_retained::save(
+                        &root.join("facts.json"),
+                        &review::read(&root.join("builder/facts.json"))?,
+                    )?;
+                    state["artifacts"]["facts.json"] = json!(artifact(&root, "facts.json")?);
                     if result["stage"] == "data_only" {
                         let path =
                             Path::new(build_retained::text(&result["reviewed_registry"], "path")?);
@@ -366,4 +374,71 @@ pub(super) fn run(
         );
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        process::{Command, Stdio},
+        time::{Duration, Instant},
+    };
+
+    #[test]
+    fn checkpoint_child() {
+        let Some(root) = std::env::var_os("OO_CHAIN_CHECKPOINT_TEST") else {
+            return;
+        };
+        let root = Path::new(&root);
+        let index: usize = std::env::var("OO_CHAIN_CHECKPOINT_STAGE")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let state = json!({"protocol":"oo.build-chain/v1","config_sha256":"fixture",
+            "stages":STAGES.iter().enumerate().map(|(i, name)| json!({
+                "name":name,"status":if i<=index {"complete"} else {"pending"}})).collect::<Vec<_>>(),
+            "artifacts":{"stage.json":review::hash(&json!({"completed":index}))}});
+        build_retained::save(&root.join("stage.json"), &json!({"completed":index}))
+            .ok()
+            .unwrap();
+        persist(root, &state).ok().unwrap();
+        loop {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    #[test]
+    fn sigkill_preserves_each_pre_token_checkpoint_and_detects_tampering() {
+        let base = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evidence")
+            .join(format!("retained-chain-kill-{}", std::process::id()));
+        fs::DirBuilder::new().mode(0o700).create(&base).unwrap();
+        for (index, stage) in STAGES.iter().enumerate().take(6) {
+            let root = base.join(stage);
+            fs::DirBuilder::new().mode(0o700).create(&root).unwrap();
+            let mut child = Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "args::admin::build::tests::checkpoint_child"])
+                .env("OO_CHAIN_CHECKPOINT_TEST", &root)
+                .env("OO_CHAIN_CHECKPOINT_STAGE", index.to_string())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap();
+            let until = Instant::now() + Duration::from_secs(10);
+            while review::read(&root.join("chain.json")).is_err() && Instant::now() < until {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            child.kill().unwrap();
+            child.wait().unwrap();
+            let state = review::read(&root.join("chain.json")).ok().unwrap();
+            assert!(validate(&state, "fixture", &root).is_ok());
+            assert_eq!(state["stages"][index]["status"], "complete");
+            assert!(validate(&state, "changed", &root).is_err());
+            build_retained::save(&root.join("stage.json"), &json!({"tampered":true}))
+                .ok()
+                .unwrap();
+            assert!(validate(&state, "fixture", &root).is_err());
+        }
+        fs::remove_dir_all(base).unwrap();
+    }
 }

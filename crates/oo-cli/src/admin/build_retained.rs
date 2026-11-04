@@ -14,6 +14,41 @@ use serde_json::{Value, json};
 use super::{Failure, review};
 type Result<T> = std::result::Result<T, Failure>;
 
+pub(super) fn configuration(runtime: &Value) -> Result<Value> {
+    if runtime["protocol"] != "oo.build-runtime/v1"
+        || !runtime["builder"].is_object()
+        || !runtime["gateway"].is_object()
+        || runtime["builder"]["model"]["call_limit"]
+            .as_u64()
+            .is_none_or(|n| !(1..=6).contains(&n))
+    {
+        return Err(Failure::local("BUILD_RUNTIME_CONFIG"));
+    }
+    for key in ["source_id", "library_id", "gateway_login"] {
+        let value = text(runtime, key)?;
+        if value.len() > 128
+            || !value
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+        {
+            return Err(Failure::local("BUILD_RUNTIME_CONFIG"));
+        }
+    }
+    let publisher = review::read(Path::new(text(runtime, "publisher_config")?))?;
+    let gateway =
+        review::read(&Path::new(text(&runtime["gateway"], "runtime_dir")?).join("config.json"))?;
+    let model = review::read(Path::new(text(&runtime["builder"]["model"], "stack")?))?;
+    if !model["model"]["key"].is_object()
+        || model["model"]["key"].as_object().unwrap().len() != 1
+        || model["model"]["key"]["secret_ref"].as_str().is_none()
+        || publisher.get("password").is_some()
+    {
+        return Err(Failure::local("BUILD_RUNTIME_SECRET_REF_REQUIRED"));
+    }
+    // Paths alone do not bind mutable operator config across a resume.
+    Ok(json!({"runtime":runtime,"publisher":publisher,"gateway":gateway,"model":model}))
+}
+
 pub(super) fn text<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
     value[key]
         .as_str()
@@ -186,7 +221,7 @@ pub(super) fn builder(
     if let Some(origin) = origin {
         let mut pins = json!({});
         for (name, file) in [
-            ("facts", "builder/facts.json"),
+            ("facts", "facts.json"),
             ("reviewed_registry", "reviewed-registry.json"),
         ] {
             let path = origin.join(file);
@@ -302,5 +337,47 @@ mod tests {
         let mut command = Command::new("python3");
         command.args(["-c", "import time; time.sleep(60)"]);
         assert!(invoke(command, vec![], 1).is_err());
+    }
+
+    #[test]
+    fn configuration_pins_referenced_settings_and_requires_bounded_secret_refs() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evidence")
+            .join(format!("retained-config-{}", std::process::id()));
+        fs::DirBuilder::new().mode(0o700).create(&root).unwrap();
+        let model = root.join("model.json");
+        save(
+            &model,
+            &json!({"model":{"key":{"secret_ref":"fixture-key"}}}),
+        )
+        .ok()
+        .unwrap();
+        save(&root.join("publisher.json"), &json!({"host":"localhost"}))
+            .ok()
+            .unwrap();
+        save(
+            &root.join("gateway/config.json"),
+            &json!({"listen":"localhost:1"}),
+        )
+        .ok()
+        .unwrap();
+        let mut runtime = json!({"protocol":"oo.build-runtime/v1", "source_id":"source",
+            "library_id":"library", "gateway_login":"reader",
+            "publisher_config":root.join("publisher.json"),
+            "gateway":{"runtime_dir":root.join("gateway")},
+            "builder":{"model":{"call_limit":6,"stack":model}}});
+        let first = configuration(&runtime).ok().unwrap();
+        save(&root.join("publisher.json"), &json!({"host":"changed"}))
+            .ok()
+            .unwrap();
+        assert_ne!(first, configuration(&runtime).ok().unwrap());
+        runtime["builder"]["model"]["call_limit"] = json!(7);
+        assert!(configuration(&runtime).is_err());
+        runtime["builder"]["model"]["call_limit"] = json!(6);
+        save(&model, &json!({"model":{"key":"inline-not-allowed"}}))
+            .ok()
+            .unwrap();
+        assert!(configuration(&runtime).is_err());
+        fs::remove_dir_all(root).unwrap();
     }
 }

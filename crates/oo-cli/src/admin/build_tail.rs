@@ -140,7 +140,7 @@ pub(super) fn gateway(publication: &Value) -> Result<Value> {
         || url.password().is_some()
         || url.query().is_some()
         || url.fragment().is_some()
-        || url.path() != "/v1"
+        || url.path() != "/"
     {
         return Err(Failure::local("BUILD_GATEWAY_URL"));
     }

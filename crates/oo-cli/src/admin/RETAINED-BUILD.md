@@ -29,13 +29,13 @@ files, never credential values:
   "gateway_login": "oo_data_login",
   "gateway": {
     "runtime_dir": "private/gateway",
-    "gateway_url": "https://localhost:8443/v1",
+    "gateway_url": "https://localhost:8443",
     "ca_file": "private/ca.crt",
     "client_pem": "private/admin.pem",
     "first_user_grant": {
       "project_id": "example", "principal_id": "owner", "role": "oo_r_owner",
       "claims": {}, "policy_version": "draft-v1", "knowledge_version": "draft-v1",
-      "audience_url": "https://localhost:8443/v1", "ttl_ms": 7776000000,
+      "audience_url": "https://localhost:8443", "ttl_ms": 7776000000,
       "purpose": "first build"
     }
   }
