@@ -256,6 +256,7 @@ pub fn expiry(deadline: Option<i64>, now: i64) -> Value {
         }
     }
 }
+const HEALTH_EXPIRY_SQL: &str = "SELECT min(t.absolute_deadline_ms) FROM oo_token_control.token_record t LEFT JOIN oo_token_lifecycle.token x USING(token_sha256) WHERE t.project_id=$1 AND t.audience_url=$2 AND t.issued_at_ms <= $3 AND t.absolute_deadline_ms > $3 AND (t.idle_deadline_ms IS NULL OR t.idle_deadline_ms > $3) AND (x.overlap_until_ms IS NULL OR x.overlap_until_ms > $3) AND NOT EXISTS (SELECT 1 FROM oo_token_control.revocation r WHERE r.project_id=t.project_id AND ((r.scope='token' AND r.token_sha256=t.token_sha256) OR (r.seq>t.revocation_floor AND (r.scope='project' OR (r.scope='principal' AND r.principal_id=t.principal_id) OR (r.scope='session' AND r.session_id=t.session_id)))))";
 async fn expiry_health(
     State(state): State<AppState>,
     peer: PublicPeer,
@@ -274,12 +275,17 @@ async fn expiry_health(
         Ok(c) => c,
         Err(_) => return failure("database"),
     };
-    let row=client.query_one("SELECT min(t.absolute_deadline_ms) FROM oo_token_control.token_record t WHERE t.project_id=$1 AND t.audience_url=$2 AND NOT EXISTS (SELECT 1 FROM oo_token_control.revocation r WHERE r.project_id=t.project_id AND ((r.scope='token' AND r.token_sha256=t.token_sha256) OR (r.seq>t.revocation_floor AND (r.scope='project' OR (r.scope='principal' AND r.principal_id=t.principal_id) OR (r.scope='session' AND r.session_id=t.session_id)))))",&[&caller.tuple.project_id,&state.inner.audience]).await;
-    let Ok(row) = row else {
-        return failure("database");
-    };
     let Ok(now) = token_lifecycle::now_ms() else {
         return failure("clock");
+    };
+    let row = client
+        .query_one(
+            HEALTH_EXPIRY_SQL,
+            &[&caller.tuple.project_id, &state.inner.audience, &now],
+        )
+        .await;
+    let Ok(row) = row else {
+        return failure("database");
     };
     json_value(
         200,
@@ -373,6 +379,14 @@ fn digits(bytes: &[u8]) -> Result<i64, &'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn health_query_excludes_dead_credentials() {
+        assert!(pg_query::parse(HEALTH_EXPIRY_SQL).is_ok());
+        assert!(HEALTH_EXPIRY_SQL.contains("t.absolute_deadline_ms > $3"));
+        assert!(HEALTH_EXPIRY_SQL.contains("t.idle_deadline_ms > $3"));
+        assert!(HEALTH_EXPIRY_SQL.contains("x.overlap_until_ms > $3"));
+        assert!(HEALTH_EXPIRY_SQL.contains("t.issued_at_ms <= $3"));
+    }
     #[test]
     fn warning_boundaries_and_certificate_dates() {
         assert_eq!(expiry(Some(14 * DAY), 0)["status"], "warning");

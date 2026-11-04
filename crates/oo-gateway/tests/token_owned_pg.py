@@ -147,7 +147,7 @@ try:
     assert http("/v1/health")[0] != 200
     expiring, _ = admin_op("issue", grant={**g, "ttl_ms": 1})
     time.sleep(0.01)
-    assert http("/v1/health", token=issued["token"])[1]["token_expiry"]["status"] == "expired"
+    assert http("/v1/health", token=issued["token"])[1]["token_expiry"]["status"] == "warning"
     admin_op("revoke", project="http", hash=expiring["token_sha256"])
     enrolled, headers = admin_op("enroll", grant=g)
     status, bound, headers = http("/v1/auth/enroll", {"code": enrolled["code"]})
