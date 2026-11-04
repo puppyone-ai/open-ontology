@@ -11,6 +11,49 @@ import stat
 import subprocess
 import sys
 import urllib.parse
+import uuid
+
+def control_status(root,argv,env):
+    empty={'last_success':None,'last_failure':None,'next_due':None}
+    path=root/'work/operator/schedule.json'
+    if not path.exists():
+        return {**empty,'schedule_basis':'control_db','schedule_status':'not_configured'}
+    try:
+        project=json.loads(read_private(path))['project']
+        if str(uuid.UUID(project))!=project:
+            raise ValueError('LITE_SCHEDULE_PROJECT')
+        # The socket is inside this owned control container, never a source DB.
+        # One read-only snapshot; enqueue/fire success is not job completion.
+        sql=f"""
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+SET LOCAL ROLE oo_jobs_runtime;
+SET LOCAL statement_timeout = '5s';
+SELECT json_build_object(
+ 'last_success', (SELECT to_char(max(e.occurred_at) AT TIME ZONE 'UTC',
+   'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') FROM jobs.task_events e
+   WHERE e.project_id = '{project}'::uuid AND e.to_state = 'succeeded'),
+ 'last_failure', (SELECT to_char(max(e.occurred_at) AT TIME ZONE 'UTC',
+   'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') FROM jobs.task_events e
+   WHERE e.project_id = '{project}'::uuid
+     AND (e.to_state = 'failed' OR
+          (e.from_state = 'running' AND e.to_state = 'queued' AND e.note IS NOT NULL))),
+ 'next_due', (SELECT to_char(min(next_run_at) AT TIME ZONE 'UTC',
+   'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') FROM jobs.schedules
+   WHERE project_id = '{project}'::uuid AND enabled));
+COMMIT;
+"""
+        raw=docker(argv+['exec','-T','control-db','psql','-X','-qAt',
+                       '-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres','-c',sql],env)
+        data=json.loads(raw)
+        if set(data)!=set(empty):
+            raise ValueError('LITE_CONTROL_PROTOCOL')
+        for value in data.values():
+            if value is not None and (not isinstance(value,str) or not re.fullmatch(
+                    r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z',value)):
+                raise ValueError('LITE_CONTROL_PROTOCOL')
+        return {**data,'schedule_basis':'control_db','schedule_status':'measured'}
+    except Exception:
+        return {**empty,'schedule_basis':'control_db','schedule_status':'unavailable'}
 
 
 def private_dir(path):
@@ -163,16 +206,12 @@ def main(request):
     if action!='down':
         try:gateway=health(root,request['stack'])
         except Exception:gateway={'status':'unavailable','nearest_credential_expiry_ms':None}
-    history={'last_success':None,'last_failure':None,'next_due':None}
-    if (root.parent/'run.json').exists():
-        build=json.loads(read_private(root.parent/'run.json'))
-        history.update({k:build.get(k) for k in ('last_success','last_failure')})
-    if (root/'work/scheduler-status.json').exists():
-        schedule=json.loads(read_private(root/'work/scheduler-status.json'))
-        history.update({k:schedule.get(k) for k in history})
+    history=({'last_success':None,'last_failure':None,'next_due':None,
+              'schedule_basis':'control_db','schedule_status':'stopped'}
+             if action=='down' else control_status(root,argv,env))
     return {'status':'stopped' if action=='down' else 'foundations_only',
             'services':services,'gateway_health':gateway,**history,
-            'schedule_basis':'not_integrated','pending':['worker admission/migrations','scheduler bindings',
+            'pending':['worker admission/migrations','scheduler bindings',
                 'Builder Agent DB load','reviewed Pack and Gateway operator config'],
             'publication':'not_published','healthy':False}
 

@@ -49,14 +49,48 @@ class Tests(unittest.TestCase):
         self.assertEqual(result['status'],'unmeasured')
         self.assertIsNone(result['nearest_credential_expiry_ms'])
 
-    def test_status_uses_saved_run_times_not_http_invention(self):
+    def test_status_never_uses_local_receipts_as_job_times(self):
         self.request['action']='status'
         lifecycle.write(self.root.parent/'run.json',b'{"last_success":"synthetic-time","last_failure":null}')
         with patch.object(lifecycle,'docker',return_value=b''):
             result=lifecycle.main(self.request)
-        self.assertEqual(result['last_success'],'synthetic-time')
+        self.assertIsNone(result['last_success'])
         self.assertIsNone(result['next_due'])
+        self.assertEqual(result['schedule_status'],'not_configured')
         self.assertEqual(result['gateway_health']['status'],'unmeasured')
+
+    def schedule(self,project='00000000-0000-0000-0000-000000000001'):
+        (self.root/'work/operator').mkdir(parents=True)
+        lifecycle.write(self.root/'work/operator/schedule.json',
+                        json.dumps({'project':project}).encode())
+
+    def test_control_status_queries_owned_db_read_only(self):
+        self.schedule()
+        times={'last_success':'2026-11-04T01:02:03.000Z','last_failure':None,
+               'next_due':'2026-11-04T01:02:33.000Z'}
+        with patch.object(lifecycle,'docker',return_value=json.dumps(times).encode()) as call:
+            result=lifecycle.control_status(self.root,['compose'],{})
+        self.assertEqual(result,{**times,'schedule_basis':'control_db','schedule_status':'measured'})
+        args=call.call_args.args[0]
+        self.assertEqual(args[1:5],['exec','-T','control-db','psql'])
+        self.assertIn('READ ONLY',args[-1])
+        self.assertIn('SET LOCAL ROLE oo_jobs_runtime',args[-1])
+
+    def test_control_errors_do_not_fall_back_to_saved_success(self):
+        self.schedule()
+        for raw in (b'',b'{}',b'{"last_success":"invented","last_failure":null,"next_due":null}'):
+            with patch.object(lifecycle,'docker',return_value=raw):
+                result=lifecycle.control_status(self.root,[],{})
+            self.assertEqual(result['schedule_status'],'unavailable')
+            self.assertIsNone(result['last_success'])
+        with patch.object(lifecycle,'docker',side_effect=ValueError('private error')):
+            self.assertNotIn('private error',json.dumps(lifecycle.control_status(self.root,[],{})))
+
+    def test_schedule_project_is_validated_before_sql(self):
+        self.schedule("x'; SELECT 1; --")
+        with patch.object(lifecycle,'docker') as call:
+            self.assertEqual(lifecycle.control_status(self.root,[],{})['schedule_status'],'unavailable')
+        call.assert_not_called()
 
     def test_subnet_avoids_existing_networks_without_deletion(self):
         with patch.object(lifecycle,'docker',return_value=b''):

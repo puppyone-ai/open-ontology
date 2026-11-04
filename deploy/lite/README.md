@@ -57,19 +57,27 @@ fixture volumes after teardown. No prune or unrelated-container cleanup occurs.
 
 ## Status and pending integration
 
-Status exposes actual compose service states and saved build/scheduler times.
-Absent times stay null. With a deployment-local `health-client.json` containing
+Status exposes actual compose service states. Job success/failure timestamps
+come from `jobs.task_events` and next due from enabled `jobs.schedules`, filtered
+by the project in `work/operator/schedule.json`. It uses one read-only snapshot
+as `oo_jobs_runtime` over the owned control container's local socket. It never
+uses local build receipts, dispatch exit codes, or a computed polling deadline
+as evidence of completed work. Missing configuration is `not_configured`;
+missing schema, database errors or malformed results are `unavailable`, with
+null timestamps rather than stale fallback data. Down does not query the DB.
+With a deployment-local `health-client.json` containing
 `token` and `ca` filenames under `pki/`, it calls the configured HTTPS Gateway's
 `/v1/health` using a private bearer file and verified CA. The minimum of the
 API's token/certificate deadlines is reported; arbitrary response fields are
 not relayed. Without an enrolled credential/Gateway it says `unmeasured`, not
 healthy. Local bootstrap certificate expiry is a separate measurement.
 
-The current health API does not expose success/failure/next-due timestamps;
-local scheduler/build receipts are explicitly a different evidence basis.
-It also authenticates `/v1/health` with a Gateway token, while card S2c defers
-token issuance to S4. Lane A cannot meet that API exit by substituting local
-timestamps or an unauthenticated health wrapper.
+Card S2d authorizes a separate internal health/meta-only operator token on first
+up; the user's first token remains S4. The current implementation does not yet
+issue that operator token. In addition to operator setup, the shared
+token-store and job-worker TCP clients currently use `with_no_client_auth()`,
+which cannot connect to lite's `clientcert=verify-ca` database. This is not
+resolved by the Builder-only TLS fix. No TLS exception is installed here.
 The opt-in scheduler invokes the existing `job-worker native-fire` operation.
 It needs installed control schemas, worker configuration and a project UUID in
 `work/operator/schedule.json`. Gateway needs its existing reviewed operator
@@ -83,6 +91,12 @@ catalog is installed by this delivery.
 
 ## Evidence
 
+- `a-s2d-control-live-2`: PostgreSQL 17.10, real control migrations and
+  fixture-driven scheduled no-op success/failure transitions; measured DB
+  timestamps, missing-schema failure, empty DB and project/disabled-schedule
+  filtering. This does not test the production scheduler or seven services.
+- `a-s2d-control`: lifecycle regressions, workspace check and CLI/stack tests.
+  Failed live attempt 1 is retained (fixture used a non-allowlisted error kind).
 - `a-s2c-endpoint`: endpoint-reference parsing/egress/lifecycle regressions,
   workspace check, CLI/stack tests and source-boundary inspection.
 - `a-s2c-runtime`: native arm64 runtime build and real `oo-load --help` launch.

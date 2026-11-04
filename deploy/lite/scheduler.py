@@ -16,9 +16,10 @@ while True:
     result = subprocess.run(['job-worker','--config','/work/operator/worker.json',
                              'native-fire','--project',project],capture_output=True)
     path = Path('/work/scheduler-status.json')
-    previous = json.loads(path.read_text()) if path.exists() else {'last_success':None,'last_failure':None}
-    previous['last_success' if result.returncode==0 else 'last_failure'] = time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())
-    previous['next_due'] = time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(time.time()+30))
+    # Dispatch returning zero proves neither a task nor a completed cycle.
+    # Authoritative job times and next_run_at live in the control database.
+    previous = {'last_dispatch_at':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),
+                'dispatch_exit_code':result.returncode}
     temp = path.with_suffix('.tmp')
     temp.write_text(json.dumps(previous))
     temp.replace(path)
