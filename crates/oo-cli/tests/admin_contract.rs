@@ -69,13 +69,22 @@ fn bad_arguments_never_echo_values_or_touch_stdin() {
             .unwrap()
             .contains("ADMIN_CONFIG_REQUIRED")
     );
-    for command in ["up", "down", "status", "build", "share-prompt"] {
+    for command in ["up", "down", "share-prompt"] {
         let out = oo(&[command, "--json", "--yes", "--config", "missing"]);
         assert!(!out.status.success());
         assert!(
             String::from_utf8([out.stdout, out.stderr].concat())
                 .unwrap()
                 .contains("ADMIN_NOT_IMPLEMENTED")
+        );
+    }
+    for command in ["status", "build"] {
+        let out = oo(&[command, "--json", "--yes", "--config", "missing"]);
+        assert!(!out.status.success());
+        assert!(
+            String::from_utf8([out.stdout, out.stderr].concat())
+                .unwrap()
+                .contains("ADMIN_CONFIG_IO")
         );
     }
     let out = oo(&["doctor", "--json", "--config", "missing"]);

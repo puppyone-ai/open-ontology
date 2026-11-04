@@ -1,5 +1,6 @@
 //! Administrative commands; consumer credentials are never read here.
 mod doctor;
+mod progress;
 mod wizard;
 use oo_stack::stack;
 
@@ -11,7 +12,7 @@ use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::Path;
 
 pub const HELP: &str = "\
-Admin commands (no deployment or source writes):
+Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
   oo build [--resume] [--config stack.yaml] [--yes] [--json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
@@ -20,9 +21,13 @@ Admin commands (no deployment or source writes):
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
 TTY init collects configuration and runs preflight; non-TTY never prompts.
-The wizard saves configuration only; draft/build/publication are not yet wired.
+The wizard can save or run a bounded PostgreSQL metadata-to-draft bridge.
+build requires pg-builder and oo-pipeline beside oo; --resume retains checkpoints.
+Agent DB loading, review and publication are pending integration.
+status reports saved build state; missing Gateway health fields stay unmeasured.
 doctor probes sources read-only and the model through model-egress.
-PostgreSQL requires tls_ca.secret_ref and explicit scope.include tables.
+PostgreSQL/MySQL require tls_ca.secret_ref and explicit scope.include tables.
+MySQL requires oo-mysql-doctor beside oo.
 Unknown estimates remain null; blocked diagnostics exit nonzero.
 status <query_id> remains the consumer query-status command.
 Other admin operations are not yet implemented (ADMIN_NOT_IMPLEMENTED).";
@@ -80,6 +85,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     }
     let mut config = None;
     let mut json = false;
+    let mut resume = false;
     let mut seen = std::collections::HashSet::new();
     let mut positionals = Vec::new();
     let mut format = false;
@@ -92,7 +98,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
         match arg {
             "--json" => json = true,
             "--yes" => (),
-            "--resume" if command == "build" => (),
+            "--resume" if command == "build" => resume = true,
             "--config" | "--format" | "--role" => {
                 index += 1;
                 let value = args
@@ -136,6 +142,15 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
         let path = Path::new(config.unwrap_or("stack.yaml"));
         let stack = read_stack(path)?;
         return doctor::run(&stack, json);
+    }
+    if command == "build" {
+        let path = Path::new(config.unwrap_or("stack.yaml"));
+        return progress::build(path, &read_stack(path)?, resume, json);
+    }
+    if command == "status" {
+        let path = Path::new(config.unwrap_or("stack.yaml"));
+        read_stack(path)?;
+        return progress::status(path, json);
     }
     if command != "init" {
         return Err(Failure::local(

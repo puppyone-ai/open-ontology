@@ -1,0 +1,25 @@
+{
+  "pty_run": "a-s2b-pty-5",
+  "result": "passed: save byte equivalence, completion, execution failure, secret scan, retries, status, q cancellation checkpoint",
+  "live_run": "a-s2b-live-draft-2",
+  "result_live": "PostgreSQL 17 one-table metadata-to-unreviewed-draft through model-egress, not Agent DB load or full lite acceptance",
+  "live_model": "gpt-6.1-sol",
+  "generation_calls": 1,
+  "prompt_tokens": 960,
+  "completion_tokens": 532,
+  "probe_calls": 2,
+  "limitations": [
+    "native generation refuses occupied 8317; isolated container used without touching host service",
+    "Pack, export, Gateway, enroll and share-prompt remain explicitly pending",
+    "Row throughput unmeasured; progress measures completed operations/second"
+  ],
+  "failed_runs": [
+    "a-s2b-live-draft-1: existing host listener refused",
+    "a-s2b-pty-1: ANSI cell-diff assertion; a-s2b-pty-2/3: harness did not drain PTY while waiting"
+  ],
+  "sha256": {
+    "evidence/a-s2b-pty-5/result.json": "dfea779f235d9f512a92ba6136856f33e3161512f96de5bee461bd673ec4e1d8",
+    "evidence/a-s2b-live-draft-2/result.json": "f166e709051f87e0a435725bebf8e24e7f7dc1a1f45773416f74b5cfa6812752",
+    "evidence/a-s2b-live-draft-2/.oo/usage.jsonl": "84e43842fe770b9245fa58ebd49fd9d862b5ac8d018bec7df7ee2587c49405c8"
+  }
+}

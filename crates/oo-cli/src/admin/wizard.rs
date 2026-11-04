@@ -17,12 +17,12 @@ use serde_json::{Value, json};
 
 use super::{Failure, Invocation, doctor};
 
-struct Screen {
+pub(super) struct Screen {
     terminal: Terminal<CrosstermBackend<io::Stdout>>,
 }
 
 impl Screen {
-    fn open() -> Result<Self, Failure> {
+    pub(super) fn open() -> Result<Self, Failure> {
         enable_raw_mode().map_err(|_| Failure::local("TUI_TERMINAL"))?;
         if execute!(io::stdout(), EnterAlternateScreen).is_err() {
             let _ = disable_raw_mode();
@@ -38,7 +38,7 @@ impl Screen {
         }
     }
 
-    fn prompt(
+    pub(super) fn prompt(
         &mut self,
         step: u8,
         label: &str,
@@ -112,6 +112,28 @@ impl Screen {
             }
         }
     }
+
+    pub(super) fn progress(&mut self, text: &str) -> Result<bool, Failure> {
+        self.terminal
+            .draw(|frame| {
+                frame.render_widget(
+                    Paragraph::new(text)
+                        .wrap(Wrap { trim: false })
+                        .block(Block::bordered().title("Open Ontology / execution")),
+                    frame.area(),
+                );
+            })
+            .map_err(|_| Failure::local("TUI_RENDER"))?;
+        if event::poll(std::time::Duration::ZERO).map_err(|_| Failure::local("TUI_INPUT"))?
+            && let Event::Key(key) = event::read().map_err(|_| Failure::local("TUI_INPUT"))?
+        {
+            return Ok(key.kind == KeyEventKind::Press
+                && (matches!(key.code, KeyCode::Esc | KeyCode::Char('q'))
+                    || (key.code == KeyCode::Char('c')
+                        && key.modifiers.contains(KeyModifiers::CONTROL))));
+        }
+        Ok(false)
+    }
 }
 
 impl Drop for Screen {
@@ -184,12 +206,7 @@ pub(super) fn run() -> Result<Invocation, Failure> {
     fs::create_dir_all(&parent).map_err(|_| Failure::local("SECRET_DIRECTORY"))?;
     let store = SecretStore::create(parent.join("secrets")).map_err(Failure::local)?;
     let mut screen = Screen::open()?;
-    let engine = screen.prompt(
-        1,
-        "Engine: postgres / oracle / mysql (unavailable)",
-        "postgres",
-        false,
-    )?;
+    let engine = screen.prompt(1, "Engine: postgres / oracle / mysql", "postgres", false)?;
     let mut source = json!({
         "id": screen.prompt(1, "Source ID", "source", false)?,
         "engine": engine,
@@ -203,7 +220,7 @@ pub(super) fn run() -> Result<Invocation, Failure> {
     });
     let ca = screen.prompt(
         1,
-        "TLS CA secret_ref (existing store file; required for PostgreSQL)",
+        "TLS CA secret_ref (existing store file; required for PostgreSQL/MySQL)",
         "",
         false,
     )?;
@@ -257,15 +274,25 @@ pub(super) fn run() -> Result<Invocation, Failure> {
     };
     screen.prompt(5, &format!("Preflight (exit {exit}):\n{report}\n\nEnter to continue. Blocked preflight never deploys."), "", false)?;
     let confirm = screen.prompt(6,
-        "Save stack.yaml? Type SAVE. This saves configuration ONLY; pull/build/review/publication are not yet wired. Credentials already saved remain on cancellation.",
+        "Type SAVE for configuration only, or BUILD for the bounded PostgreSQL metadata-to-draft bridge. Agent DB loading/review/publication are pending. Credentials remain saved on cancellation.",
         "", false)?;
-    if confirm != "SAVE" {
+    if confirm != "SAVE" && confirm != "BUILD" {
         return Err(Failure::local("TUI_CANCELLED"));
     }
     save_new(&stack, Path::new("stack.yaml"))?;
-    screen.prompt(7,
-        "Configuration saved (0600). No services started. No draft, Pack, Gateway URL or token issued. Enter to exit.",
-        "", false)?;
+    if confirm == "BUILD" {
+        drop(screen);
+        return super::progress::build(Path::new("stack.yaml"), &stack, false, false);
+    }
+    screen.prompt(
+        7,
+        &format!(
+            "Configuration saved (0600).\n{}\nEnter to exit.",
+            super::progress::completion(&json!({"status":"not_started"}))
+        ),
+        "",
+        false,
+    )?;
     Ok(Invocation::Help(
         "Stack saved; no services started or publication performed.".into(),
     ))
