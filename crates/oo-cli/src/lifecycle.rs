@@ -63,6 +63,25 @@ fn token_ok(s: &str) -> bool {
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
 }
+fn stdin_code() -> Result<String> {
+    if std::io::stdin().is_terminal() {
+        return Err(bad());
+    }
+    read_code(std::io::stdin())
+}
+fn read_code(input: impl Read) -> Result<String> {
+    let mut reader = input.take(15);
+    let mut input = String::new();
+    reader.read_to_string(&mut input).map_err(|_| bad())?;
+    let code = input
+        .strip_suffix("\r\n")
+        .or_else(|| input.strip_suffix('\n'))
+        .unwrap_or(&input);
+    if !code_ok(code) {
+        return Err(bad());
+    }
+    Ok(code.to_owned())
+}
 fn runtime() -> Result<tokio::runtime::Runtime> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -641,10 +660,7 @@ async fn execute(command: &str, args: &[String]) -> Result<String> {
             let code = if let Some(c) = opts.get("--code") {
                 c.clone()
             } else {
-                if std::io::stdin().is_terminal() {
-                    return Err(bad());
-                }
-                load::read_token_stdin()?
+                stdin_code()?
             };
             if !code_ok(&code) {
                 return Err(bad());
@@ -843,6 +859,24 @@ pub fn preflight(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn code_input_is_bounded_and_accepts_only_one_line() {
+        for input in ["OO-0000-0000", "OO-0000-0000\n", "OO-0000-0000\r\n"] {
+            assert_eq!(
+                read_code(input.as_bytes()).ok().as_deref(),
+                Some("OO-0000-0000")
+            );
+        }
+        for input in [
+            "",
+            "OO-0000-0000\n\n",
+            "OO-0000-0000\r\nextra",
+            "OO-0000-00000",
+            "OO-IIII-0000",
+        ] {
+            assert!(read_code(input.as_bytes()).is_err());
+        }
+    }
     #[test]
     fn version_and_expiry_boundaries() {
         assert!(
