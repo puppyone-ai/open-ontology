@@ -43,6 +43,7 @@ pub(crate) fn column(field: &DecodedField) -> Result<(i64, &'static str)> {
         "float64" => (701, "double precision"),
         "decimal128" if field.scale.is_some_and(|s| s >= 0) => (1700, "numeric"),
         "date32" => (1082, "date"),
+        "duration_micros" => (1186, "interval"),
         "timestamp_micros" if field.timezone.is_none() => (1114, "timestamp"),
         "timestamp_micros_utc" if field.timezone.as_deref() == Some("UTC") => (1184, "timestamptz"),
         _ => return Err("load_unsupported_type"),
@@ -387,5 +388,35 @@ impl Target for PgTarget<'_> {
         sqlx::query("INSERT INTO _oo_load.current VALUES($1,$2) ON CONFLICT(identity) DO UPDATE SET run=EXCLUDED.run")
             .bind(&self.identity).bind(&self.run).execute(&mut *tx).await.map_err(db)?;
         tx.commit().await.map_err(db)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn duration_loads_as_interval_microseconds() {
+        let field = DecodedField {
+            name: "elapsed".into(),
+            nullable: true,
+            arrow_type: "duration_micros".into(),
+            precision: None,
+            scale: None,
+            timezone: None,
+        };
+        assert_eq!(column(&field), Ok((1186, "interval")));
+        let mut out = Vec::new();
+        cell_text(
+            &mut out,
+            1186,
+            -1,
+            &NativeCell::Int {
+                bit_width: 64,
+                value: -3_723_000_001,
+            },
+        )
+        .unwrap();
+        assert_eq!(out, b"-3723000001 microseconds");
     }
 }
