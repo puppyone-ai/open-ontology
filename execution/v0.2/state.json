@@ -1207,9 +1207,9 @@
       "sprint": "S5",
       "lane": "E",
       "title": "Oracle 23ai/11g/21c（及 19c 如 D2 就绪）的 T3、T4",
-      "status": "pending",
-      "owner": null,
-      "branch": null,
+      "status": "in_progress",
+      "owner": "lane-E",
+      "branch": "v0.2/e-oracle-engine",
       "commits": [],
       "evidence": []
     },

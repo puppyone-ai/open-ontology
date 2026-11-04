@@ -338,3 +338,4 @@ evidence run-id.
 | E320 | 2026-11-05 | deviation | S5-C-04, S5-D-03 | `a5a530fc2`…`23c7982d2` | Integrated before the S4 exit: the fixes include a silent-divergence defect on the P0 path |
 | E321 | 2026-11-05 | integrate | S5-C-04, S5-D-03 | `…23c7982d2`, docs 02 §5.2, source baseline revision 24 | Lane N integrated |
 | E322 | 2026-11-05 | review | S6-M-02, S6-M-01 | `3046734ec`…`83f668c60` on `v0.2/m-pipeline` | Lane M's Quickstart work was left uncommitted because new docs/*.md entered the hashed source baseline; coordinator moved the guides to docs/guide/ (outside the baseline), fixed generated link depth, applied M's preflight and CI patches, and committed in four commits. Held on M's branch (S6). Newcomer L1 from the published npm package blocks on S6-B-01 (0.2.0 not yet published) |
+| E323 | 2026-11-05 | dispatch | S5-E-04 | card `E-S5d-oracle-t3t4.md` on `v0.2/e-oracle-engine` | Lane E: Oracle T3/T4 on 23.5/21.3/11.2 in lane N's suite |
