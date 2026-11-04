@@ -99,9 +99,10 @@ Never store that output in public logs. Agent variants (`claude`, `cursor`,
 That existing bridge is loopback-HTTP-only: the prompt explicitly requires an
 administrator-approved local endpoint and does not claim direct HTTPS support.
 
-These lifecycle commands currently run in the npm launcher. The standalone
-Rust binary does not yet expose them or perform version negotiation. Native
-SDK/dependency wiring and the HTTPS MCP bridge remain integration follow-ups.
+The launcher delegates `login`, `whoami` and `share-prompt` to the packaged
+Rust binary, which also performs cached version negotiation for data commands.
+`token approve` remains in the npm launcher. The HTTPS MCP bridge remains an
+integration follow-up.
 
 ## Profile updates
 
@@ -260,9 +261,16 @@ then inspect the tarball before publishing. The dependency inventory records sou
 license evidence; it is not a legal clearance or an exact linked-symbol SBOM.
 
 ```sh
-npm test
+cargo build --locked -p oo-cli
+npm test --prefix packages/cli
+# Owned PostgreSQL 17 integration, from the repository root:
+cargo build --locked -p oo-gateway --bins
+python3 packages/cli/test/native-owned-pg.py evidence/<run-id>
 ```
 
-Tests use temporary fake executables and profiles. Passing them does not prove
-real Gateway connectivity, supported native-platform execution, or complete
-business-answer acceptance.
+Launcher tests use temporary fake executables and profiles; lifecycle tests
+also exercise the built native binary against an owned HTTPS fixture. The
+PostgreSQL runner reuses the Gateway lifecycle assertions with native
+login/whoami/share-prompt/query invocations and records their counts. It creates
+and stops its own PostgreSQL cluster and Gateway. These tests do not prove
+cross-platform support, a real Agent session, or business-answer acceptance.

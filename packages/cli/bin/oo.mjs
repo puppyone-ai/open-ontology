@@ -10,7 +10,7 @@ import { isIP } from 'node:net';
 import { constants as osConstants, homedir } from 'node:os';
 import { dirname, isAbsolute, join, parse, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AuthError, login, whoami, sharePrompt, approve, negotiate } from './auth.mjs';
+import { AuthError, approve } from './auth.mjs';
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const fields = {
@@ -362,8 +362,10 @@ async function main(args) {
       ? `${JSON.stringify({ name, version })}\n` : `${name} ${version}\n`);
     return 0;
   }
-  const authCommand = ['login', 'whoami', 'share-prompt'].includes(args[0])
-    || (args[0] === 'token' && args[1] === 'approve');
+  if (['login', 'whoami', 'share-prompt'].includes(args[0])) {
+    return delegate(nativeBinary(), args);
+  }
+  const authCommand = args[0] === 'token' && args[1] === 'approve';
   if (authCommand) {
     if (args.includes('--help') || args.includes('-h')) {
       process.stdout.write('Usage:\n'
@@ -379,9 +381,6 @@ async function main(args) {
       return 0;
     }
     const context = authContext();
-    if (args[0] === 'login') return login(context, args.slice(1));
-    if (args[0] === 'whoami') return whoami(context, args.slice(1));
-    if (args[0] === 'share-prompt') return sharePrompt(context, args.slice(1));
     return approve(context, args.slice(2));
   }
   if (args[0] === 'configure') {
@@ -490,16 +489,6 @@ async function main(args) {
   const forwarded = nativeArgs(args, profile);
   const head = forwarded.includes('--') ? forwarded.slice(0, forwarded.indexOf('--')) : forwarded;
   const gatewayIndex = head.indexOf('--gateway');
-  if (!offline && !adminStatus && connectedCommands.has(args[0]) && gatewayIndex >= 0
-      && head[head.indexOf('--transport') + 1] !== 'local-development') {
-    const selected = {};
-    for (const [key, flag] of Object.entries(fields)) {
-      const index = head.indexOf(flag);
-      if (index >= 0) selected[key] = head[index + 1];
-    }
-    if (!endpointKey(selected.gateway)) fail('GATEWAY_INVALID', 'A valid HTTPS Gateway is required.');
-    await negotiate(authContext(), selected);
-  }
   const timezone = profile && gatewayIndex >= 0
     && endpointKey(head[gatewayIndex + 1], true) === endpointKey(profile.gateway)
     ? profile.business_timezone : undefined;

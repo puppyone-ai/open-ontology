@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:https';
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, statSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, statSync, symlinkSync, cpSync, linkSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { AuthError, checkVersion, expiryWarning, pollDevice, prompt, negotiate, cachePath, exchange } from '../bin/auth.mjs';
@@ -115,15 +115,27 @@ test('default prompts contain only single-use enrollment material and honest age
 
 async function fixture(t) {
   const root = temporary(t);
+  const installed = join(root, 'package');
+  cpSync(resolve(import.meta.dirname, '../bin'), join(installed, 'bin'), { recursive: true });
+  cpSync(resolve(import.meta.dirname, '../package.json'), join(installed, 'package.json'));
+  const target = `${process.platform}-${process.arch}`;
+  const native = resolve(import.meta.dirname, '../../../target/debug/oo');
+  const relative = `native/${target}/oo`;
+  mkdirSync(join(installed, 'native', target), { recursive: true });
+  linkSync(native, join(installed, relative));
+  writeFileSync(join(installed, 'native/manifest.json'), JSON.stringify({ schema_version: 1,
+    binaries: { [target]: { path: relative, sha256: createHash('sha256').update(readFileSync(native)).digest('hex') } } }));
   const key = join(root, 'server.key'), cert = join(root, 'server.crt');
   const created = spawnSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes',
     '-keyout', key, '-out', cert, '-days', '2', '-subj', '/CN=localhost',
-    '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1'], { stdio: 'ignore' });
+    '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1',
+    '-addext', 'basicConstraints=critical,CA:FALSE', '-addext', 'extendedKeyUsage=serverAuth'], { stdio: 'ignore' });
   assert.equal(created.status, 0);
   const token = `ooct_${randomBytes(32).toString('base64url')}`;
   const seen = [];
   let redeemed = false;
-  const state = { minimum: '0.2.0', readStatus: 200, expiry: Date.now() + DAY, identityExtra: token };
+  const state = { minimum: '0.2.0', protocol: '0.2', readStatus: 200, expiry: Date.now() + DAY,
+    identityExtra: token, direct: false, deviceErrors: [], polls: [], deviceExpiry: 60 };
   const server = createServer({ key: readFileSync(key), cert: readFileSync(cert) }, async (req, res) => {
     seen.push(req.url);
     const chunks = [];
@@ -131,7 +143,24 @@ async function fixture(t) {
     let body = {};
     try { body = JSON.parse(Buffer.concat(chunks).toString() || '{}'); } catch { /* form is not used here */ }
     res.setHeader('content-type', 'application/json');
-    if (req.url === '/v1/meta') return res.end(JSON.stringify({ minimum_cli_version: state.minimum, protocol_version: '0.2' }));
+    if (req.url === '/v1/meta') {
+      assert.equal(req.headers.authorization, undefined);
+      return res.end(JSON.stringify({ minimum_cli_version: state.minimum, protocol_version: state.protocol }));
+    }
+    if (req.url === '/v1/auth/device/code') return res.end(JSON.stringify({
+      device_code: 'a'.repeat(64), user_code: 'ABCD-EFGH',
+      verification_uri: `${gateway}/v1/auth/device`, interval: 1, expires_in: state.deviceExpiry,
+    }));
+    if (req.url === '/v1/auth/device/token') {
+      const form = new URLSearchParams(Buffer.concat(chunks).toString());
+      assert.equal(form.get('device_code'), 'a'.repeat(64));
+      assert.equal(form.get('client_id'), 'oo-cli');
+      assert.equal(form.get('grant_type'), 'urn:ietf:params:oauth:grant-type:device_code');
+      state.polls.push(performance.now());
+      const error = state.deviceErrors.shift();
+      res.statusCode = error ? 400 : 200;
+      return res.end(JSON.stringify(error ? { error } : { access_token: token }));
+    }
     if (req.url === '/v1/auth/enroll' && body.code === 'OO-0000-0000' && !redeemed) {
       redeemed = true;
       return res.end(JSON.stringify({ token }));
@@ -154,7 +183,8 @@ async function fixture(t) {
   const gateway = `https://localhost:${server.address().port}`;
   const dir = join(root, 'config');
   async function cli(args, input = '', env = {}) {
-    const child = spawn(process.execPath, [wrapper, ...args], {
+    const child = spawn(state.direct ? native : process.execPath,
+      state.direct ? args : [join(installed, 'bin/oo.mjs'), ...args], {
       env: { ...process.env, OO_CONFIG_DIR: dir, ...env }, stdio: ['pipe', 'pipe', 'pipe'],
     });
     let stdout = '', stderr = '';
@@ -194,6 +224,75 @@ test('HTTPS enrollment stores a 0600 reference-only profile after identity and r
   const expired = await f.cli(['whoami']);
   assert.equal(expired.status, 4);
   assert.match(expired.stderr, /renew.*login/);
+});
+
+test('standalone native cache expires, rejects clock rollback, and checks data commands before sending credentials', async t => {
+  const f = await fixture(t);
+  f.state.direct = true;
+  assert.equal(JSON.parse((await f.cli(['--version', '--json'])).stdout).version, '0.2.0');
+  const logged = await f.cli(['login', '--gateway', f.gateway, '--ca-file', f.cert, '--code-stdin', '--json'], 'OO-0000-0000\r\n');
+  assert.equal(logged.status, 0, logged.stderr);
+  const cache = join(f.dir, readdirSync(f.dir).find(name => name.startsWith('native-meta-')));
+  const cached = JSON.parse(readFileSync(cache, 'utf8'));
+  assert(!readFileSync(cache, 'utf8').includes(f.token));
+  f.state.minimum = '0.3.0';
+  assert.equal((await f.cli(['whoami', '--json'])).status, 0);
+  writeFileSync(cache, JSON.stringify({ ...cached, checked_at_ms: Date.now() - DAY }), { mode: 0o600 });
+  f.seen.length = 0;
+  assert.equal((await f.cli(['query', '--json', 'SELECT 1'])).status, 9);
+  assert.deepEqual(f.seen, ['/v1/meta']);
+  f.state.minimum = '0.2.0';
+  f.state.protocol = '9';
+  writeFileSync(cache, JSON.stringify({ ...cached, checked_at_ms: Date.now() + DAY }), { mode: 0o600 });
+  assert.equal((await f.cli(['tables', '--json'])).status, 10);
+  f.state.protocol = '0.2';
+  assert.equal((await f.cli(['tables', '--json'])).status, 0);
+  f.state.expiry = Date.now() - 1;
+  const expired = await f.cli(['whoami', '--json']);
+  assert.equal(expired.status, 4);
+  assert.match(expired.stdout, /renew.*login/);
+});
+
+test('standalone native device polling obeys cumulative slow_down, denial and expiry', async t => {
+  const f = await fixture(t);
+  f.state.direct = true;
+  f.state.deviceErrors = ['slow_down', 'slow_down'];
+  const args = ['login', '--gateway', f.gateway, '--ca-file', f.cert, '--device', '--json'];
+  const logged = await f.cli(args);
+  assert.equal(logged.status, 0, logged.stderr);
+  assert.equal(f.state.polls.length, 3);
+  assert(f.state.polls[1] - f.state.polls[0] >= 5900);
+  assert(f.state.polls[2] - f.state.polls[1] >= 10900);
+  f.state.deviceErrors = ['access_denied'];
+  const denied = await f.cli([...args, '--profile', 'denied']);
+  assert.notEqual(denied.status, 0);
+  assert.equal(f.state.polls.length, 4);
+  f.state.deviceExpiry = 1;
+  const expired = await f.cli([...args, '--profile', 'expired']);
+  assert.equal(expired.status, 4);
+  assert.equal(f.state.polls.length, 4, 'no poll at or after expiry');
+});
+
+test('standalone native enroll-code option and timezone validation match the wrapper', async t => {
+  const f = await fixture(t);
+  f.state.direct = true;
+  const args = ['login', '--gateway', f.gateway, '--ca-file', f.cert, '--code=OO-0000-0000', '--json'];
+  assert.equal((await f.cli([...args, '--business-timezone', 'Unknown/Nowhere'])).status, 2);
+  assert.deepEqual(f.seen, []);
+  const logged = await f.cli(args);
+  assert.equal(logged.status, 0, logged.stderr);
+  assert.equal(JSON.parse(logged.stdout).read_check, 'passed');
+});
+
+test('native code-stdin rejects extra lines and oversized input before redemption', async t => {
+  const f = await fixture(t);
+  f.state.direct = true;
+  const args = ['login', '--gateway', f.gateway, '--ca-file', f.cert, '--code-stdin'];
+  for (const input of ['OO-0000-0000\n\n', 'OO-0000-0000\r\nextra', 'x'.repeat(100)]) {
+    assert.equal((await f.cli(args, input)).status, 2);
+  }
+  assert.deepEqual(f.seen, ['/v1/meta']);
+  assert(!existsSync(join(f.dir, 'tokens/default.token')));
 });
 
 test('TLS cannot be disabled and minimum-version rejection happens before code redemption', async t => {

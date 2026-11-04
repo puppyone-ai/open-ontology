@@ -11,7 +11,6 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nativeArgs, nativeBinary, timeContext, expandLongOptions } from '../bin/oo.mjs';
-import { cachePath } from '../bin/auth.mjs';
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const digest = data => createHash('sha256').update(data).digest('hex');
@@ -146,25 +145,6 @@ if (process.argv[2] === 'wait') {
   delete env.FAKE_EXIT;
   delete env.FAKE_STDERR;
   function run(args, options = {}) {
-    // These tests isolate native argument forwarding; negotiation has its own HTTPS tests.
-    if (['query', 'tables', 'describe', 'validate', 'sql', 'freshness', 'knowledge', 'cancel', 'status', 'operations'].includes(args[0])
-        && !args.includes('--help')) {
-      try {
-        const profile = existsSync(join(dir, 'config.json')) ? JSON.parse(readFileSync(join(dir, 'config.json'))) : null;
-        const forwarded = nativeArgs(args, profile);
-        const selected = {};
-        for (const key of ['gateway', 'ca_file', 'connect_ip', 'interface']) {
-          const index = forwarded.indexOf(`--${key.replaceAll('_', '-')}`);
-          if (index >= 0) selected[key] = forwarded[index + 1];
-        }
-        if (selected.gateway?.startsWith('https:')) {
-          const path = cachePath(dir, selected);
-          mkdirSync(dir, { recursive: true, mode: 0o700 });
-          writeFileSync(path, JSON.stringify({ checked_at_ms: Date.now(),
-            meta: { minimum_cli_version: '0.2.0', protocol_version: '0.2' } }), { mode: 0o600 });
-        }
-      } catch { /* Invalid profiles and arguments must still be refused by the wrapper. */ }
-    }
     return spawnSync(process.execPath, [wrapper, ...args], {
       cwd: root, env, encoding: 'utf8', input: '', timeout: 10000, ...options,
     });
