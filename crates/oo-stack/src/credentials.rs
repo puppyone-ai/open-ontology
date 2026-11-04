@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 
@@ -33,8 +34,40 @@ pub struct CredentialStatus {
     pub token_expiry_measured: bool,
 }
 
+static OPENSSL: OnceLock<Vec<String>> = OnceLock::new();
+
+/// Run every OpenSSL operation through `argv` instead of the host `openssl`,
+/// for example a runtime container that sees the credential directory at the
+/// same absolute path. Ed25519 keys need OpenSSL 1.1.1+; macOS LibreSSL lacks
+/// it. Set once per process, before the first bootstrap or status call.
+pub fn use_openssl(argv: Vec<String>) -> bool {
+    !argv.is_empty() && OPENSSL.set(argv).is_ok()
+}
+
+fn openssl_command() -> Command {
+    match OPENSSL.get() {
+        Some(argv) => {
+            let mut command = Command::new(&argv[0]);
+            command.args(&argv[1..]);
+            command
+        }
+        None => Command::new("openssl"),
+    }
+}
+
+/// Whether the host `openssl` can create the Ed25519 keys used here.
+pub fn host_openssl_supports_ed25519() -> bool {
+    Command::new("openssl")
+        .args(["genpkey", "-algorithm", "ED25519"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|s| s.success())
+}
+
 fn openssl(args: &[&str], input: &[u8]) -> Result<Vec<u8>, &'static str> {
-    let mut child = Command::new("openssl")
+    let mut child = openssl_command()
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -75,7 +108,7 @@ fn location(root: &Path, name: &str) -> Result<String, &'static str> {
 
 fn checkend(root: &Path, name: &str, seconds: &str) -> Result<bool, &'static str> {
     let path = location(root, name)?;
-    let out = Command::new("openssl")
+    let out = openssl_command()
         .args(["x509", "-in", &path, "-noout", "-checkend", seconds])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -183,6 +216,91 @@ pub fn status(root: &Path) -> Result<CredentialStatus, &'static str> {
     })
 }
 
+fn leaf(
+    store: &SecretStore,
+    root: &Path,
+    service: &str,
+    ca_cert: &str,
+    ca_key: &str,
+) -> Result<(), &'static str> {
+    let key = format!("lite-{service}-key");
+    store.write_new(&key, &openssl(&["genpkey", "-algorithm", "ED25519"], b"")?)?;
+    let csr = openssl(
+        &[
+            "req",
+            "-new",
+            "-key",
+            &location(root, &key)?,
+            "-subj",
+            &format!("/CN={service}"),
+        ],
+        b"",
+    )?;
+    // Gateway workload authentication requires exactly one URI SAN.
+    let san = if matches!(service, "agent-db" | "control-db" | "gateway") {
+        format!("DNS:{service},DNS:localhost,IP:127.0.0.1")
+    } else {
+        format!("URI:urn:oo:workload:{service}")
+    };
+    let extensions = format!(
+        "basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\n\
+         subjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid,issuer\n\
+         extendedKeyUsage=serverAuth,clientAuth\n\
+         subjectAltName={san}\n"
+    );
+    let ext = format!("lite-{service}-extensions");
+    store.write_new(&ext, extensions.as_bytes())?;
+    let cert = openssl(
+        &[
+            "x509",
+            "-req",
+            "-CA",
+            ca_cert,
+            "-CAkey",
+            ca_key,
+            "-set_serial",
+            &format!("0x{}", &random_hex()?[..32]),
+            "-days",
+            "730",
+            "-extfile",
+            &location(root, &ext)?,
+        ],
+        &csr,
+    )?;
+    store.write_new(&format!("lite-{service}-cert"), &cert)?;
+    Ok(())
+}
+
+/// Adds one extra client identity (`URI:urn:oo:workload:<name>`) signed by an
+/// existing bootstrap CA, for example the owner's own consumer CLI. Existing
+/// identities are kept, never re-issued.
+pub fn workload_identity(root: &Path, name: &str) -> Result<(), &'static str> {
+    if SERVICES.contains(&name)
+        || name.is_empty()
+        || name.len() > 32
+        || !name.bytes().all(|b| b.is_ascii_lowercase() || b == b'-')
+    {
+        return Err("LITE_WORKLOAD_NAME");
+    }
+    status(root)?;
+    let store = SecretStore::open(root)?;
+    if root
+        .join(format!("lite-{name}-cert"))
+        .symlink_metadata()
+        .is_ok()
+    {
+        store.read(&format!("lite-{name}-cert"))?;
+        return Ok(());
+    }
+    leaf(
+        &store,
+        root,
+        name,
+        &location(root, "lite-ca-cert")?,
+        &location(root, "lite-ca-key")?,
+    )
+}
+
 /// Creates a private CA, distinct mTLS identities and random admin password.
 /// A failed partial bootstrap deliberately requires operator recovery; retry
 /// never rotates a CA underneath any component that may already trust it.
@@ -225,51 +343,7 @@ pub fn bootstrap(root: &Path) -> Result<CredentialStatus, &'static str> {
         )?,
     )?;
     for service in SERVICES {
-        let key = format!("lite-{service}-key");
-        store.write_new(&key, &openssl(&["genpkey", "-algorithm", "ED25519"], b"")?)?;
-        let csr = openssl(
-            &[
-                "req",
-                "-new",
-                "-key",
-                &location(root, &key)?,
-                "-subj",
-                &format!("/CN={service}"),
-            ],
-            b"",
-        )?;
-        // Gateway workload authentication requires exactly one URI SAN.
-        let san = if matches!(service, "agent-db" | "control-db" | "gateway") {
-            format!("DNS:{service},DNS:localhost,IP:127.0.0.1")
-        } else {
-            format!("URI:urn:oo:workload:{service}")
-        };
-        let extensions = format!(
-            "basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\n\
-             subjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid,issuer\n\
-             extendedKeyUsage=serverAuth,clientAuth\n\
-             subjectAltName={san}\n"
-        );
-        let ext = format!("lite-{service}-extensions");
-        store.write_new(&ext, extensions.as_bytes())?;
-        let cert = openssl(
-            &[
-                "x509",
-                "-req",
-                "-CA",
-                &ca_cert,
-                "-CAkey",
-                &ca_key,
-                "-set_serial",
-                &format!("0x{}", &random_hex()?[..32]),
-                "-days",
-                "730",
-                "-extfile",
-                &location(root, &ext)?,
-            ],
-            &csr,
-        )?;
-        store.write_new(&format!("lite-{service}-cert"), &cert)?;
+        leaf(&store, root, service, &ca_cert, &ca_key)?;
     }
     store.write_new("lite-admin-password", random_hex()?.as_bytes())?;
     store.write_new(
@@ -449,6 +523,63 @@ mod tests {
             "existing-private-material"
         );
         assert!(status(&root).is_err());
+        fs::remove_dir_all(parent).unwrap();
+    }
+
+    #[test]
+    fn extra_workload_identity_is_signed_once_and_never_replaces_services() {
+        let parent = std::env::temp_dir().join(format!("oo-lite-workload-{}", std::process::id()));
+        fs::create_dir(&parent).unwrap();
+        let root = parent.join("secrets");
+        assert!(workload_identity(&root, "consumer").is_err());
+        bootstrap(&root).unwrap();
+        for name in ["admin", "gateway", "", "Upper", "a/b"] {
+            assert_eq!(
+                workload_identity(&root, name).unwrap_err(),
+                "LITE_WORKLOAD_NAME"
+            );
+        }
+        workload_identity(&root, "consumer").unwrap();
+        let store = SecretStore::open(&root).unwrap();
+        let cert = store.read("lite-consumer-cert").unwrap();
+        workload_identity(&root, "consumer").unwrap();
+        assert_eq!(store.read("lite-consumer-cert").unwrap(), cert);
+        let san = openssl(
+            &[
+                "x509",
+                "-in",
+                &location(&root, "lite-consumer-cert").unwrap(),
+                "-noout",
+                "-ext",
+                "subjectAltName",
+            ],
+            b"",
+        )
+        .unwrap();
+        assert_eq!(
+            String::from_utf8(san)
+                .unwrap()
+                .lines()
+                .last()
+                .unwrap()
+                .trim(),
+            "URI:urn:oo:workload:consumer"
+        );
+        assert!(
+            openssl(
+                &[
+                    "verify",
+                    "-x509_strict",
+                    "-CAfile",
+                    &location(&root, "lite-ca-cert").unwrap(),
+                    "-purpose",
+                    "sslclient",
+                    &location(&root, "lite-consumer-cert").unwrap(),
+                ],
+                b"",
+            )
+            .is_ok()
+        );
         fs::remove_dir_all(parent).unwrap();
     }
 }
