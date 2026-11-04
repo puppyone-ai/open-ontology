@@ -10,8 +10,12 @@ import re
 import secrets
 import signal
 import subprocess
+import sys
 import time
 import uuid
+
+# Sibling modules resolve even when this file is loaded by path from another tool.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from audit import Audit
 from datetime import datetime, timezone
 from matrix import P0, downgrade_report, index_rows
