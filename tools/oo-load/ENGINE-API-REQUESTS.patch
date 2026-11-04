@@ -1,9 +1,7 @@
 diff --git a/crates/oo-connectors/src/mysql/change.rs b/crates/oo-connectors/src/mysql/change.rs
 --- a/crates/oo-connectors/src/mysql/change.rs
 +++ b/crates/oo-connectors/src/mysql/change.rs
-@@ -258,6 +258,11 @@
- }
- 
+@@ -260,2 +260,7 @@
  impl MysqlChanges {
 +    /// Persist with the durable cursor; compare on reconstruction before replay.
 +    pub fn source_epoch(&self) -> &str {
@@ -11,14 +9,10 @@ diff --git a/crates/oo-connectors/src/mysql/change.rs b/crates/oo-connectors/src
 +    }
 +
      pub async fn close(&mut self) {
-         self.engine.close().await;
-     }
 diff --git a/crates/oo-connectors/src/oracle/logminer.rs b/crates/oo-connectors/src/oracle/logminer.rs
 --- a/crates/oo-connectors/src/oracle/logminer.rs
 +++ b/crates/oo-connectors/src/oracle/logminer.rs
-@@ -93,6 +93,11 @@
- }
- 
+@@ -95,2 +95,7 @@
  impl OracleLogMiner {
 +    /// Persist DBID/resetlogs identity with the SCN and compare on reconstruction.
 +    pub fn source_epoch(&self) -> &str {
@@ -26,5 +20,3 @@ diff --git a/crates/oo-connectors/src/oracle/logminer.rs b/crates/oo-connectors/
 +    }
 +
      pub fn new(
-         mut engine: OracleEngine,
-         data: &mut OracleEngine,
