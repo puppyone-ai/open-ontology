@@ -2,6 +2,7 @@
 name = "oo-mysql-doctor"
 version = "0.2.0"
 edition = "2024"
+license = "Apache-2.0"
 publish = false
 
 # Lane-local feature boundary until the coordinator enables mysql in oo-cli.
