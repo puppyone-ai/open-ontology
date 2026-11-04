@@ -17,6 +17,8 @@ oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json] 
 Input: oo.builder.reviewed-community/v1 command, without review.
 Non-TTY requires explicit hash-bound oo.owner-review/v1 decisions for every item.
 TTY offers accept / edit JSON / reject, then a separate G14 confirmation.
+Entity key/display default to the declared primary key: one column as a string,
+a composite as its ordered column array. Keyless entities are refused.
 Rejection records the decision but blocks the whole candidate; no partial publication.
 Interrupted TTY reviews retain decisions beside --out; rerun the same command.
 Output is private reviewed registry + compiled Pack, not authenticated publication.
@@ -133,6 +135,31 @@ fn text(value: &Value) -> Result<&str> {
         .ok_or_else(|| Failure::local("REVIEW_INPUT_SHAPE"))
 }
 
+/// Declared identity offered to the owner: one column as a string, a composite
+/// primary key as its ordered column array, and no key (JSON null) otherwise.
+fn declared_key(table: &Value) -> Value {
+    match table["primary_key"].as_array() {
+        Some(keys) if keys.len() == 1 => keys[0].clone(),
+        Some(keys) if keys.len() > 1 => Value::Array(keys.clone()),
+        _ => Value::Null,
+    }
+}
+
+/// Entity key/display: a nonempty column, or at least two distinct nonempty columns.
+/// Keyless entities stay refused; the compiler re-checks against the catalog.
+fn entity_key(value: &Value) -> Result<()> {
+    if value.is_string() {
+        return text(value).map(|_| ());
+    }
+    let columns = array(value)?;
+    let distinct: std::collections::BTreeSet<_> =
+        columns.iter().map(text).collect::<Result<_>>()?;
+    if columns.len() < 2 || distinct.len() != columns.len() {
+        return Err(Failure::local("REVIEW_INPUT_SHAPE"));
+    }
+    Ok(())
+}
+
 fn escape(value: &str) -> String {
     value.replace('~', "~0").replace('/', "~1")
 }
@@ -152,10 +179,7 @@ fn items(input: &Value) -> Result<Vec<Item>> {
             .iter()
             .find(|d| d["dataset"] == entity["main_table"])
             .ok_or_else(|| Failure::local("REVIEW_ENTITY_TABLE"))?;
-        let key = match table["primary_key"].as_array() {
-            Some(keys) if keys.len() == 1 => keys[0].clone(),
-            _ => Value::Null,
-        };
+        let key = declared_key(table);
         value["key"] = key.clone();
         value["display"] = key;
         items.push(Item {
@@ -237,6 +261,9 @@ fn apply(item: &Item, decision: &Decision) -> Result<Value> {
             }
             let mut value = item.value.clone();
             for (key, replacement) in patch {
+                if matches!(key.as_str(), "key" | "display") {
+                    entity_key(replacement)?;
+                }
                 value[key] = replacement.clone();
             }
             Ok(value)
@@ -335,16 +362,14 @@ fn prepare(input: &Value, items: &[Item], session: &Session) -> Result<Value> {
                 .iter()
                 .find(|d| d["dataset"] == value["main_table"])
                 .ok_or_else(|| Failure::local("REVIEW_ENTITY_TABLE"))?;
-            // A single declared key may be offered; composite/display guesses need an edit.
-            let key = value.get("key").cloned().unwrap_or_else(|| {
-                match table["primary_key"].as_array() {
-                    Some(keys) if keys.len() == 1 => keys[0].clone(),
-                    _ => Value::Null,
-                }
-            });
+            // The declared key (scalar or ordered composite) is offered; no guess is made.
+            let key = value
+                .get("key")
+                .cloned()
+                .unwrap_or_else(|| declared_key(table));
             let display = value.get("display").cloned().unwrap_or_else(|| key.clone());
-            text(&key)?;
-            text(&display)?;
+            entity_key(&key)?;
+            entity_key(&display)?;
             selections.insert(
                 text(&value["id"])?.to_owned(),
                 json!({"key":key,"display":display}),
@@ -647,6 +672,116 @@ pub(super) fn run(args: &[String]) -> Result<Invocation> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Real Builder (replay model) inputs and `oo review` outputs; see retained_fixture.py.
+    const SCALAR_INPUT: &str = include_str!(concat!(
+        "../../../../tools/release-coordinator/tests/fixtures/",
+        "retained_review_input.json"
+    ));
+    const COMPOSITE_INPUT: &str = include_str!(concat!(
+        "../../../../tools/release-coordinator/tests/fixtures/",
+        "retained_review_input_composite.json"
+    ));
+    const COMPOSITE_REVIEWED: &str = include_str!(concat!(
+        "../../../../tools/release-coordinator/tests/fixtures/",
+        "retained_reviewed_composite.json"
+    ));
+
+    fn accept_all(input: &Value, items: &[Item]) -> Session {
+        Session {
+            protocol: "oo.owner-review/v1".into(),
+            input_sha256: hash(input),
+            reviewed_at: "2026-11-04".into(),
+            items: items
+                .iter()
+                .map(|i| {
+                    let decision = Decision {
+                        action: "accept".into(),
+                        replacement: None,
+                        reason: String::new(),
+                    };
+                    (i.id.clone(), decision)
+                })
+                .collect(),
+            g14: None,
+        }
+    }
+
+    fn entity_item(items: &[Item]) -> &Item {
+        items.iter().find(|i| i.id.starts_with("entity/")).unwrap()
+    }
+
+    #[test]
+    fn declared_scalar_and_composite_keys_are_offered_and_accepted() {
+        let scalar: Value = serde_json::from_str(SCALAR_INPUT).unwrap();
+        let found = items(&scalar).ok().unwrap();
+        assert_eq!(entity_item(&found).value["key"], json!("amount"));
+        let command = prepare(&scalar, &found, &accept_all(&scalar, &found))
+            .ok()
+            .unwrap();
+        let selection = command["review"]["entities"].as_object().unwrap();
+        assert_eq!(
+            selection.values().next().unwrap(),
+            &json!({"key":"amount","display":"amount"})
+        );
+
+        let composite: Value = serde_json::from_str(COMPOSITE_INPUT).unwrap();
+        let found = items(&composite).ok().unwrap();
+        let entity = entity_item(&found);
+        assert_eq!(entity.value["key"], json!(["order_id", "line_no"]));
+        assert_eq!(entity.value["display"], json!(["order_id", "line_no"]));
+        let command = prepare(&composite, &found, &accept_all(&composite, &found))
+            .ok()
+            .unwrap();
+        let reviewed: Value = serde_json::from_str(COMPOSITE_REVIEWED).unwrap();
+        // Everything the compiler hashes later matches the real `oo review` output.
+        for key in ["draft", "effective", "classification_review"] {
+            assert_eq!(command[key], reviewed["command"][key], "{key}");
+        }
+        assert_eq!(
+            command["review"]["entities"],
+            reviewed["command"]["review"]["entities"]
+        );
+    }
+
+    #[test]
+    fn keyless_entities_and_malformed_composite_edits_stay_refused() {
+        let mut keyless: Value = serde_json::from_str(COMPOSITE_INPUT).unwrap();
+        keyless["effective"]["datasets"][0]["primary_key"] = json!([]);
+        let found = items(&keyless).ok().unwrap();
+        assert_eq!(entity_item(&found).value["key"], Value::Null);
+        let refused = prepare(&keyless, &found, &accept_all(&keyless, &found))
+            .err()
+            .unwrap();
+        assert!(String::from_utf8_lossy(&refused.json_bytes()).contains("REVIEW_INPUT_SHAPE"));
+
+        let composite: Value = serde_json::from_str(COMPOSITE_INPUT).unwrap();
+        let found = items(&composite).ok().unwrap();
+        let entity = entity_item(&found);
+        for bad in [
+            json!(["order_id"]),
+            json!(["order_id", "order_id"]),
+            json!(["order_id", ""]),
+            json!([]),
+            json!(""),
+            json!(7),
+        ] {
+            let decision = Decision {
+                action: "edit".into(),
+                replacement: Some(json!({ "key": bad })),
+                reason: "owner".into(),
+            };
+            assert!(apply(entity, &decision).is_err(), "{bad}");
+        }
+        let decision = Decision {
+            action: "edit".into(),
+            replacement: Some(json!({"display":"order_id"})),
+            reason: "owner label".into(),
+        };
+        let edited = apply(entity, &decision).ok().unwrap();
+        assert_eq!(edited["key"], json!(["order_id", "line_no"]));
+        assert_eq!(edited["display"], json!("order_id"));
+    }
 
     #[test]
     fn edits_cannot_change_physical_identity_or_accept_without_a_decision() {

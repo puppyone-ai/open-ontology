@@ -16,8 +16,9 @@ fn hash(value: &Value) -> String {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct EntitySelection {
-    key: String,
-    display: String,
+    /// One column (string) or the ordered composite the catalog declares (array).
+    key: oo_core::oos::EntityKey,
+    display: oo_core::oos::EntityKey,
 }
 
 #[derive(Deserialize)]
@@ -160,6 +161,23 @@ pub fn compile_reviewed_community(input: &Value) -> Result<Value, String> {
     }
     let oos_id =
         |prefix: &str, id: &str| format!("{prefix}_{}", &payload_sha256(id.as_bytes())[..60]);
+    // A composite identity is accepted only as the declared primary key, in order;
+    // an invented column tuple has no uniqueness evidence.
+    for entity in checked.entities.values() {
+        let key = &review.entities[&entity.id].key;
+        if key.is_composite() {
+            let declared = input["effective"]["datasets"]
+                .as_array()
+                .and_then(|d| {
+                    d.iter()
+                        .find(|d| d["dataset"] == entity.main_table.as_str())
+                })
+                .map(|d| &d["primary_key"]);
+            if declared != Some(&json!(key)) {
+                return Err("community_review_composite_key".into());
+            }
+        }
+    }
     let entities: Vec<_> = checked
         .entities
         .values()
@@ -206,4 +224,107 @@ pub fn compile_reviewed_community(input: &Value) -> Result<Value, String> {
             "community_review_sha256":hash(&input["review"]),
             "community_review_required":true,"published":false,"business_owner_signed":false},
         "published":false,"authentication":"not_claimed"}))
+}
+
+#[cfg(test)]
+mod composite_key_tests {
+    use super::*;
+
+    // Real `oo review` outputs over the same replay model; see retained_fixture.py.
+    const SCALAR: &str =
+        include_str!("../../../tools/release-coordinator/tests/fixtures/retained_reviewed.json");
+    const COMPOSITE: &str = include_str!(
+        "../../../tools/release-coordinator/tests/fixtures/retained_reviewed_composite.json"
+    );
+
+    fn command(text: &str) -> Value {
+        serde_json::from_str::<Value>(text).unwrap()["command"].clone()
+    }
+
+    fn selection(command: &mut Value) -> &mut Value {
+        command["review"]["entities"]
+            .as_object_mut()
+            .unwrap()
+            .values_mut()
+            .next()
+            .unwrap()
+    }
+
+    fn pack_text(compiled: &Value) -> String {
+        compiled["producer"]["artifact"]["files"].to_string()
+    }
+
+    #[test]
+    fn scalar_and_composite_reviews_compile_to_their_declared_keys() {
+        let scalar = compile_reviewed_community(&command(SCALAR)).unwrap();
+        let fixture: Value = serde_json::from_str(SCALAR).unwrap();
+        assert_eq!(scalar, fixture["compiled"], "scalar output is unchanged");
+        assert_eq!(scalar["effective"]["entities"][0]["key"], json!("amount"));
+        assert!(pack_text(&scalar).contains("key: `amount`"));
+
+        let composite = compile_reviewed_community(&command(COMPOSITE)).unwrap();
+        let fixture: Value = serde_json::from_str(COMPOSITE).unwrap();
+        assert_eq!(composite, fixture["compiled"]);
+        let entity = &composite["effective"]["entities"][0];
+        assert_eq!(entity["key"], json!(["order_id", "line_no"]));
+        assert_eq!(entity["display"], json!(["order_id", "line_no"]));
+        assert!(pack_text(&composite).contains("key: `order_id`, `line_no`"));
+    }
+
+    #[test]
+    fn composite_selection_must_be_the_declared_primary_key_in_order() {
+        for (key, code) in [
+            (
+                json!(["line_no", "order_id"]),
+                "community_review_composite_key",
+            ),
+            (json!(["order_id", "order_id"]), "community_review_shape"),
+            (json!(["order_id"]), "community_review_shape"),
+            (json!([]), "community_review_shape"),
+            (json!(null), "community_review_shape"),
+        ] {
+            let mut bad = command(COMPOSITE);
+            selection(&mut bad)["key"] = key.clone();
+            assert_eq!(
+                compile_reviewed_community(&bad).err().as_deref(),
+                Some(code),
+                "{key}"
+            );
+        }
+        // An owner may still pick one declared column as a scalar key and display.
+        let mut scalar = command(COMPOSITE);
+        selection(&mut scalar)["key"] = json!("order_id");
+        selection(&mut scalar)["display"] = json!("line_no");
+        let compiled = compile_reviewed_community(&scalar).unwrap();
+        assert_eq!(
+            compiled["effective"]["entities"][0]["key"],
+            json!("order_id")
+        );
+    }
+
+    #[test]
+    fn composite_key_columns_are_checked_and_hidden_columns_hide_the_entity() {
+        let compiled = compile_reviewed_community(&command(COMPOSITE)).unwrap();
+        let input = command(COMPOSITE);
+        let ceilings: RolePackCeilings = serde_json::from_value(input["ceilings"].clone()).unwrap();
+        let mut unknown = compiled["effective"].clone();
+        unknown["entities"][0]["display"] = json!(["order_id", "missing"]);
+        let error = compile_role_pack_with_ceilings(
+            &unknown.to_string(),
+            &input["visibility"].to_string(),
+            &ceilings,
+        )
+        .err()
+        .unwrap();
+        assert!(error.code.ends_with("oos.unknown_column"), "{}", error.code);
+        let mut visibility = input["visibility"].clone();
+        visibility["datasets"][0]["columns"] = json!(["order_id"]);
+        let pack = compile_role_pack_with_ceilings(
+            &compiled["effective"].to_string(),
+            &visibility.to_string(),
+            &ceilings,
+        )
+        .unwrap();
+        assert!(!pack.artifact.contains("entities/"), "{}", pack.artifact);
+    }
 }

@@ -3,8 +3,10 @@
 
     python3 tools/release-coordinator/tests/retained_fixture.py OUT_DIR
 
-Regenerates tests/fixtures/retained_reviewed.json from a replay model (no
-network), the real community runner/bridge and the real `oo review` compiler.
+Regenerates tests/fixtures/retained_reviewed.json (scalar key) and
+retained_reviewed_composite.json (ordered composite key, no unique scalar
+column), plus each `oo review` input, from a replay model (no network), the real community runner/bridge
+and the real `oo review` compiler.
 """
 import json
 import os
@@ -57,18 +59,39 @@ def owner_review(input_path, out_path):
     return Path(out_path).read_bytes()
 
 
-def main():
+CONTROLS = {
+    'retained_reviewed.json': [dict(dataset='app.items', primary_key=['amount'], comment=None, foreign_keys=[],
+                                    columns=[dict(name='amount', data_type='bigint', nullable=False, comment=None)])],
+    'retained_reviewed_composite.json': [dict(
+        dataset='app.lines', primary_key=['order_id', 'line_no'], comment=None, foreign_keys=[],
+        columns=[dict(name=name, data_type='bigint', nullable=False, comment=None) for name in ('order_id', 'line_no')])],
+}
+
+
+def control(out, tables):
     import retained_build
     from test_selfbuild_budget import Acceptance, Model
-    out = Path(sys.argv[1])
     out.mkdir(mode=0o700)
-    os.environ['OO_SELFBUILD_BUDGET_BIN'] = str(BIN / 'selfbuild-budget')
-    tables = [dict(dataset='app.items', primary_key=['amount'], comment=None, foreign_keys=[],
-                   columns=[dict(name='amount', data_type='bigint', nullable=False, comment=None)])]
     draft = selfbuild_budget.Runner(Acceptance().config(), out / 'model-replay', Model()).run(tables, [])
     selfbuild_budget.write_private(out / 'input.json', retained_build.review_input(tables, draft, 'owned'))
-    raw = owner_review(out / 'input.json', out / 'reviewed.json')
-    (ROOT / 'tools/release-coordinator/tests/fixtures/retained_reviewed.json').write_bytes(raw)
+    return owner_review(out / 'input.json', out / 'reviewed.json')
+
+
+def generate(out):
+    """Fixture name -> bytes for every control: real Builder runner, replay model, real `oo review`."""
+    out.mkdir(mode=0o700)
+    os.environ['OO_SELFBUILD_BUDGET_BIN'] = str(BIN / 'selfbuild-budget')
+    files = {}
+    for name, tables in CONTROLS.items():
+        files[name] = control(out / name.removesuffix('.json'), tables)
+        # The unreviewed `oo review --input` beside it, for the owner-review unit tests.
+        files[name.replace('_reviewed', '_review_input')] = (out / name.removesuffix('.json') / 'input.json').read_bytes()
+    return files
+
+
+def main():
+    for name, raw in generate(Path(sys.argv[1])).items():
+        (ROOT / 'tools/release-coordinator/tests/fixtures' / name).write_bytes(raw)
 
 
 if __name__ == '__main__':
