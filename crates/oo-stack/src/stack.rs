@@ -46,8 +46,13 @@ pub struct Source {
 #[serde(deny_unknown_fields)]
 pub struct Ssh {
     pub host: String,
+    #[serde(default = "ssh_port")]
+    pub port: u16,
     pub user: String,
-    pub key: SecretRef,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<SecretRef>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub password: Option<SecretRef>,
     pub host_key_sha256: String,
 }
 
@@ -384,8 +389,14 @@ pub fn validate(stack: &Stack) -> Result<()> {
         }
         if let Some(ssh) = &s.ssh
             && (!host(&ssh.host)
+                || ssh.port == 0
                 || !text(&ssh.user)
-                || !secret_name(&ssh.key.secret_ref)
+                || ssh.key.is_some() == ssh.password.is_some()
+                || ssh
+                    .key
+                    .iter()
+                    .chain(ssh.password.iter())
+                    .any(|r| !secret_name(&r.secret_ref))
                 || !fingerprint(&ssh.host_key_sha256))
         {
             return Err("STACK_SSH");

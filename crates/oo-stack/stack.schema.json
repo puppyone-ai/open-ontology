@@ -65,13 +65,43 @@
         "host_key_sha256": {
           "type": "string",
           "pattern": "^SHA256:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]$"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 22
+        },
+        "password": {
+          "$ref": "#/$defs/secret"
         }
       },
       "required": [
         "host",
         "user",
-        "key",
         "host_key_sha256"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "key"
+          ],
+          "not": {
+            "required": [
+              "password"
+            ]
+          }
+        },
+        {
+          "required": [
+            "password"
+          ],
+          "not": {
+            "required": [
+              "key"
+            ]
+          }
+        }
       ]
     },
     "scope": {
@@ -199,7 +229,9 @@
               "minLength": 1,
               "maxLength": 2048
             },
-            {"$ref": "#/$defs/secret"}
+            {
+              "$ref": "#/$defs/secret"
+            }
           ],
           "description": "URL or owner-private secret_ref. Resolved URLs require HTTPS, or HTTP only on loopback; no credentials/query/fragment."
         },

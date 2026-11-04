@@ -276,7 +276,10 @@ fn remote_deploy_requires_one_reference_credential_and_pinned_key() {
         ("port", json!(0)),
         ("host_key_sha256", json!("SHA256:short")),
         ("password", json!({"secret_ref":"also"})),
-        ("key", json!(concat!("-----BEGIN OPENSSH ", "PRIVATE KEY-----"))),
+        (
+            "key",
+            json!(concat!("-----BEGIN OPENSSH ", "PRIVATE KEY-----")),
+        ),
         ("key", json!({"secret_ref":"../escape"})),
         ("extra", json!(true)),
     ];
@@ -295,4 +298,38 @@ fn remote_deploy_requires_one_reference_credential_and_pinned_key() {
     let mut missing = stack;
     missing["deploy"].as_object_mut().unwrap().remove("ssh");
     assert_eq!(parse(&missing.to_string()).err(), Some("STACK_DEPLOY_SSH"));
+}
+
+#[test]
+fn ssh_auth_is_exactly_one_secret_reference_and_port_is_bounded() {
+    let mut value: serde_json::Value =
+        serde_json::from_str(include_str!("../example.stack.json")).unwrap();
+    value["sources"][0]["ssh"] = serde_json::json!({
+        "host":"bastion", "user":"ops", "password":{"secret_ref":"jump-password"},
+        "host_key_sha256":format!("SHA256:{}", "A".repeat(43))
+    });
+    let parse = |value: &serde_json::Value| oo_stack::parse(&value.to_string());
+    assert_eq!(
+        parse(&value).unwrap().sources[0].ssh.as_ref().unwrap().port,
+        22
+    );
+    value["sources"][0]["ssh"]["port"] = serde_json::json!(0);
+    assert!(parse(&value).is_err());
+    value["sources"][0]["ssh"]["port"] = serde_json::json!(2222);
+    assert!(parse(&value).is_ok());
+    value["sources"][0]["ssh"]["password"] = serde_json::json!("inline");
+    assert!(parse(&value).is_err());
+    value["sources"][0]["ssh"]["password"] = serde_json::json!({"secret_ref":"jump-password"});
+    value["sources"][0]["ssh"]["key"] = serde_json::json!({"secret_ref":"jump-key"});
+    assert!(parse(&value).is_err());
+    value["sources"][0]["ssh"]
+        .as_object_mut()
+        .unwrap()
+        .remove("password");
+    assert!(parse(&value).is_ok());
+    value["sources"][0]["ssh"]
+        .as_object_mut()
+        .unwrap()
+        .remove("key");
+    assert!(parse(&value).is_err());
 }
