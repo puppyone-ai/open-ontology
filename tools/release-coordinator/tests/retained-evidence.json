@@ -1,0 +1,319 @@
+{
+  "todo": [
+    "S4-M-01",
+    "S4-A-02"
+  ],
+  "decision": "D15 with D6 owner self-review (mode=self)",
+  "harness": "tools/release-coordinator/tests/retained_cycle_live.py",
+  "chain": [
+    "oo-load sync",
+    "oo-load publish (pending, semantic admission refused)",
+    "tools/pg-builder/scripts/retained_build.py (bounded live model via model-egress)",
+    "oo review --review-file (accept-all, mode=self)",
+    "release-coordinator publish-retained (fences closed->granted->open + mark_ready, one transaction)",
+    "mTLS Gateway query",
+    "data-only source change",
+    "oo-load sync --c5",
+    "retained_build.py data-only (0 model calls)",
+    "publish-retained same reviewed registry",
+    "Gateway query serves new generation"
+  ],
+  "model": "gpt-6.1-sol via secret_ref files only",
+  "runs": {
+    "p-retained-pg-1": {
+      "status": "passed",
+      "engine": "postgres",
+      "version": "17.11 (Debian 17.11-1.pgdg12+2)",
+      "cycles": [
+        {
+          "generation": "baseline",
+          "builder_stage": "review_required",
+          "model_calls": 2,
+          "data_only_digest": "c01dfe516a88975d49a97a94d96a24d0f5734111f0fd57caa8f1e01550a56040",
+          "receipt_sha256": "9d4501e19d9e1616bbba32c7f776cad1787137b3830cc4867d36c504f15fc6c3",
+          "pack_digest": "3c25e222b3e27f71a7eef0235c7e0990e39204e875a0ba8c3f3a8860179667ae",
+          "fences": [
+            "opened"
+          ],
+          "replay": "replay"
+        },
+        {
+          "generation": "cycle-1",
+          "builder_stage": "data_only",
+          "model_calls": 0,
+          "data_only_digest": "c01dfe516a88975d49a97a94d96a24d0f5734111f0fd57caa8f1e01550a56040",
+          "receipt_sha256": "d4019b19ca50a615570a8dc4898762d7233c3495af20ca89c4e46999ce419766",
+          "pack_digest": "3c25e222b3e27f71a7eef0235c7e0990e39204e875a0ba8c3f3a8860179667ae",
+          "fences": [
+            "opened"
+          ],
+          "replay": "replay"
+        }
+      ],
+      "gateway_rows": [
+        [
+          [
+            "10"
+          ]
+        ],
+        [
+          [
+            "11"
+          ]
+        ]
+      ],
+      "gateway_status": [
+        200,
+        200
+      ],
+      "publication_headers_distinct": true,
+      "data_vector_headers_distinct": true,
+      "refusals_state_unchanged": {
+        "review_mode": "review_mode_self_required",
+        "compiled_pack": "review_compiled_mismatch",
+        "rejected_item": "review_rejected_item",
+        "unknown_generation": "retained_candidate_missing",
+        "login": "retained_login_binding",
+        "relation_drift": "semantic_admission_refused",
+        "superseded": "publication_superseded"
+      },
+      "legacy_imports": 0,
+      "legacy_acks": 0,
+      "freshness_source_generation": 2,
+      "containers_left": 0,
+      "sha256": {
+        "live-result.json": "7adb2809c2e5f88c99e6f68c83feb442b41c5abebb76b2b1c58877a58294a048",
+        "result.json": "93ef573cfc03b8723f8b6bd641adc6893269c03d624fafbeee139d08cbd8e550",
+        "builder-baseline.stdout": "85e4e4491f9766e30aa570391611c1cb9cf5d03ccd0361f1ce74187f2f1b7b47",
+        "builder-cycle-1.stdout": "7ff04fb980a531bfd0e3892ce4ea9a21faa27eb6e90ecba8e95cef51d20de74f",
+        "publisher-publish-baseline.stdout": "64d6ecb6176e8d7ebc247f9f72f39940f9c0c72498d53e16f5290419fb7bd6ed",
+        "publisher-publish-cycle-1.stdout": "efbffcf46300d700440a99bff1883215fbf14f9fba91ec76c916bbf748dcf4f7",
+        "queries.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "builder-cycle-1/data-only-reuse.json": "67c80e5d788b5049f6a287f9758c76a97d466b6be39fc7ee2cea502e97eac8ae",
+        "builder-baseline/reviewed-registry.json": "7e8f0a86990461606f91ee86792030b0fc7467c9f92f97218e32b6e3974317e5"
+      }
+    },
+    "p-retained-mysql-1": {
+      "status": "passed",
+      "engine": "mysql",
+      "version": "8.4.7",
+      "cycles": [
+        {
+          "generation": "baseline",
+          "builder_stage": "review_required",
+          "model_calls": 2,
+          "data_only_digest": "cfa1414524bcb8b5839573a65fb8042ddabec078213b7c64e1c6eb1dc30bc32b",
+          "receipt_sha256": "34120aafc42e7cb8837f01edcead427d0ffa0d529f4df1292e4d30ab56bb159b",
+          "pack_digest": "b56654c6e48a8f627243ebba1458e7ccf1e9c42557aafa454c54041c05347893",
+          "fences": [
+            "opened"
+          ],
+          "replay": "replay"
+        },
+        {
+          "generation": "cycle-1",
+          "builder_stage": "data_only",
+          "model_calls": 0,
+          "data_only_digest": "cfa1414524bcb8b5839573a65fb8042ddabec078213b7c64e1c6eb1dc30bc32b",
+          "receipt_sha256": "ca3d796202fbdd413750ce94bf48b47fb5e61291db5cb7044154d0fa66c2e6a5",
+          "pack_digest": "b56654c6e48a8f627243ebba1458e7ccf1e9c42557aafa454c54041c05347893",
+          "fences": [
+            "opened"
+          ],
+          "replay": "replay"
+        }
+      ],
+      "gateway_rows": [
+        [
+          [
+            "10"
+          ]
+        ],
+        [
+          [
+            "11"
+          ]
+        ]
+      ],
+      "gateway_status": [
+        200,
+        200
+      ],
+      "publication_headers_distinct": true,
+      "data_vector_headers_distinct": true,
+      "refusals_state_unchanged": {
+        "review_mode": "review_mode_self_required",
+        "compiled_pack": "review_compiled_mismatch",
+        "rejected_item": "review_rejected_item",
+        "unknown_generation": "retained_candidate_missing",
+        "login": "retained_login_binding",
+        "relation_drift": "semantic_admission_refused",
+        "superseded": "publication_superseded"
+      },
+      "legacy_imports": 0,
+      "legacy_acks": 0,
+      "freshness_source_generation": 2,
+      "containers_left": 0,
+      "sha256": {
+        "live-result.json": "f3acf3fc5147f143e20fc69cc39c86e8971e3a5dbe99b78052712c9aabdcffa7",
+        "result.json": "93ef573cfc03b8723f8b6bd641adc6893269c03d624fafbeee139d08cbd8e550",
+        "builder-baseline.stdout": "76b602ca745ade4c2d4a73cb48d71ce396e8cad3f5943ca9b31b4f305333857e",
+        "builder-cycle-1.stdout": "e0e8b42c5c93db8686d533bf2c3d25fdf165efc0a012dc3b6c6e4c1498d7955f",
+        "publisher-publish-baseline.stdout": "92219e04d001f64c30ed997801637eef314897ad8e04a627e1b21e310214a48c",
+        "publisher-publish-cycle-1.stdout": "a32f73bc44a6877993000ed39193efff0dccc06f1afd8c3a9e183be12059e348",
+        "queries.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "builder-cycle-1/data-only-reuse.json": "73f2c75e57ffba26c501e8f18a6850527c3b678400da375050a0b57899780c08",
+        "builder-baseline/reviewed-registry.json": "128b4ed4fa87a868eb346837effb71454c1d40aafefbab9992feffce3a28fa30"
+      }
+    },
+    "p-retained-oracle-1": {
+      "status": "passed",
+      "engine": "oracle",
+      "version": "23.5.0.24.07",
+      "cycles": [
+        {
+          "generation": "baseline",
+          "builder_stage": "review_required",
+          "model_calls": 2,
+          "data_only_digest": "627588d21093cc8c442d6680e931c53d10324bbb479f9d7cbd12b59cc6e15291",
+          "receipt_sha256": "4048c090acfe10f40534653b6c1d9e531525844c9cfe6f23cd4ff52f00ace7e9",
+          "pack_digest": "8ecfc1aaf042fef1b88453e4bd37bbef418d1c85ce3a6fb27d972b7e0d5e8c6d",
+          "fences": [
+            "opened"
+          ],
+          "replay": "replay"
+        },
+        {
+          "generation": "cycle-1",
+          "builder_stage": "data_only",
+          "model_calls": 0,
+          "data_only_digest": "627588d21093cc8c442d6680e931c53d10324bbb479f9d7cbd12b59cc6e15291",
+          "receipt_sha256": "b3a7c3471d5e1b947c8d319d7923fa632a86fafc60d8f30c0cc69abae921d5ec",
+          "pack_digest": "8ecfc1aaf042fef1b88453e4bd37bbef418d1c85ce3a6fb27d972b7e0d5e8c6d",
+          "fences": [
+            "opened"
+          ],
+          "replay": "replay"
+        }
+      ],
+      "gateway_rows": [
+        [
+          [
+            "10"
+          ]
+        ],
+        [
+          [
+            "11"
+          ]
+        ]
+      ],
+      "gateway_status": [
+        200,
+        200
+      ],
+      "publication_headers_distinct": true,
+      "data_vector_headers_distinct": true,
+      "refusals_state_unchanged": {
+        "review_mode": "review_mode_self_required",
+        "compiled_pack": "review_compiled_mismatch",
+        "rejected_item": "review_rejected_item",
+        "unknown_generation": "retained_candidate_missing",
+        "login": "retained_login_binding",
+        "relation_drift": "semantic_admission_refused",
+        "superseded": "publication_superseded"
+      },
+      "legacy_imports": 0,
+      "legacy_acks": 0,
+      "freshness_source_generation": 2,
+      "containers_left": 0,
+      "sha256": {
+        "live-result.json": "c0a3fb08eea6810f53af3a0d1402fb01dcc53e4c1a466adf05d366f706533949",
+        "result.json": "93ef573cfc03b8723f8b6bd641adc6893269c03d624fafbeee139d08cbd8e550",
+        "builder-baseline.stdout": "c714b026259a75d441557ee87d5bede9d420baef128676a536efabebe9765a44",
+        "builder-cycle-1.stdout": "f8ee3bd5cf989bbf2659a09f14af6862057c6a5628346331ce4e82cc544bbee8",
+        "publisher-publish-baseline.stdout": "ea127ccb29bcf1025b2203b6547118dabc56e55b187d3af567557bfbf9c55d2a",
+        "publisher-publish-cycle-1.stdout": "406fa4cff390aef1b242df69400f5cbc9975ebb35e9e9e64be9e13d775ce07a1",
+        "queries.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "builder-cycle-1/data-only-reuse.json": "77b461d0fccaa946ec630eb023fa44b6616117f1f431a82cd62944a496216454",
+        "builder-baseline/reviewed-registry.json": "9aad6e2563d6819a358d50e2fada508c75f5afe0300310034b96db2cc17a1c6c"
+      }
+    },
+    "p-retained-pg-2": {
+      "status": "passed",
+      "engine": "postgres",
+      "version": "17.11 (Debian 17.11-1.pgdg12+2)",
+      "cycles": [
+        {
+          "generation": "baseline",
+          "builder_stage": "review_required",
+          "model_calls": 2,
+          "data_only_digest": "134fb4fc66d9cf610a8d0ac498c4a0ac55386c90d06ef112ed36879a1ebb81c4",
+          "receipt_sha256": "472f705faf51cc54edf9221fe3cfd5d22e5ff35c8c7de2707e72a7c7e187ba06",
+          "pack_digest": "47de7e6697f57f6f66aee12af5d04703767cebc86c3c1e6a5cb6cd6907dacead",
+          "fences": [
+            "opened"
+          ],
+          "replay": "replay"
+        },
+        {
+          "generation": "cycle-1",
+          "builder_stage": "data_only",
+          "model_calls": 0,
+          "data_only_digest": "134fb4fc66d9cf610a8d0ac498c4a0ac55386c90d06ef112ed36879a1ebb81c4",
+          "receipt_sha256": "540e08ecedf7826e76dbfd8fa7f7f6c43a7896fc240b2adaf8ed1a3597a717f8",
+          "pack_digest": "47de7e6697f57f6f66aee12af5d04703767cebc86c3c1e6a5cb6cd6907dacead",
+          "fences": [
+            "opened"
+          ],
+          "replay": "replay"
+        }
+      ],
+      "gateway_rows": [
+        [
+          [
+            "10"
+          ]
+        ],
+        [
+          [
+            "11"
+          ]
+        ]
+      ],
+      "gateway_status": [
+        200,
+        200
+      ],
+      "publication_headers_distinct": true,
+      "data_vector_headers_distinct": true,
+      "refusals_state_unchanged": {
+        "review_mode": "review_mode_self_required",
+        "compiled_pack": "review_compiled_mismatch",
+        "rejected_item": "review_rejected_item",
+        "unknown_generation": "retained_candidate_missing",
+        "login": "retained_login_binding",
+        "relation_drift": "semantic_admission_refused",
+        "superseded": "publication_superseded"
+      },
+      "legacy_imports": 0,
+      "legacy_acks": 0,
+      "freshness_source_generation": 2,
+      "containers_left": 0,
+      "sha256": {
+        "live-result.json": "6fd6198b16143c10d37f9226ae864a7d10e247d998f1b4cc369db01b16f3ab8c",
+        "result.json": "93ef573cfc03b8723f8b6bd641adc6893269c03d624fafbeee139d08cbd8e550",
+        "builder-baseline.stdout": "6c466d6047772adf17e28016fa2d8d1fa72f35a09987359c40f7604a1d0c831f",
+        "builder-cycle-1.stdout": "da417fb04f99d6a7ae36073626baed202669d1678259e91c93b3c0587c0ce422",
+        "publisher-publish-baseline.stdout": "a7b98c96240674ff74ff18be6dba79050a15af9634fdb009283092ab9559626d",
+        "publisher-publish-cycle-1.stdout": "51427040fe7884e32c5b6f96a9e3e2f5103beedc280839cf3839eea5189aa424",
+        "queries.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "builder-cycle-1/data-only-reuse.json": "e8e073046e860bdcafb7089b14ee9e128fab02a043b1e63a2acf16c3ceb88966",
+        "builder-baseline/reviewed-registry.json": "4bef33f3032a467a3d4a60b32395f802df5ca21cfc80db4fb9b4072b5989c82f"
+      }
+    }
+  },
+  "raw_log_secret_scan": "passed (Bearer/sk-/Authorization/private-key patterns, all three runs)",
+  "containers_left": 0,
+  "harness_revision_note": "p-retained-pg-2 ran the committed harness; the -1 runs ran the same steps with an inline copy of retained_fixture.accept_all"
+}
