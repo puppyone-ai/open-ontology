@@ -123,8 +123,7 @@ Current limitations (do not upgrade the support matrix from these tests):
   cancellation cannot preempt a driver call before its client timeout.
 - Planning/digest/read calls are paced; the synchronous `split_chunk` and
   `changed_keys` helpers have call timeouts but no independent duty-cycle
-  wrapper. Retention-based admission, sampling above 1000 chunks, T7 audit,
-  and production CDC correction remain follow-up work.
+  wrapper. Retention-based admission, sampling above 1000 chunks, production CDC correction remain follow-up work.
 
 Raw logs, image identity, plans, probe, test exit status, and SHA256SUMS are
 under `evidence/<run-id>/<version>/`. Failed attempts remain evidence.
@@ -166,27 +165,65 @@ Multiple redo threads/RAC are refused: admission currently observes this
 instance's V$TRANSACTION, not a cluster-wide active-transaction inventory.
 Dictionary failures identify the affected tables and stop watermark advancement.
 
-The fixture compares a real snapshot corrected with LogMiner in-window
-insert/update/delete/key-move events, a transaction spanning polls, and an empty
-cycle. DDL must request rebaseline. C5 uses `digest_range` for three cycles and
-checks zero capture payload, zero staging rewrites and no new in-memory generation
-on the unchanged cycle. This is **digest-layer component evidence**, not the
-four-layer scheduler or native Agent DB acceptance. Hints, recent-window
-acceleration, low-frequency full-read fallback, and native-loader integration
-remain coordinator follow-up; the test's independent full reference is an oracle,
-not a production fallback.
+The scoped S2 harness is `s2.rs`, compiled under the Oracle engine library's
+ignored tests. The runner selects `s2::real_incremental_cycles`; no shared
+integration-test file or workspace manifest is changed. It compares a real
+snapshot corrected with LogMiner in-window insert/update/delete/key-move events,
+a transaction spanning polls, and an empty cycle. DDL must request rebaseline.
 
-The strict T7 runner intentionally fails if its unfiltered unified audit contains
-anything except SELECT, session connect/disconnect, and LogMiner package calls.
-On the tested 23ai path the audit includes driver `ALTER SESSION SET TIME_ZONE`
-and package-recursive operations on `SYS.LOGMNR_GT_*`, including DELETE/COMMIT.
-Do not suppress these records or label this R1 verified. Functional test results
-and the failing audit have separate artifacts and exit statuses. `--c5-only`
-omits C1 and T7 entirely and makes no claim about either.
+`OracleC5` provides an Oracle-local, in-memory four-layer scheduler for keyed
+tables: optional per-range time hints reorder work; recent Flashback Versions
+windows prioritize changed ranges; every range is digested regardless of hints;
+a configurable periodic full read checks canonical content independently of the
+digest. NULL/stale time hints never exclude rows or deletes. Physical plans are
+rejected because their pinned snapshot cannot track new changes. Ordinary
+unchanged cycles transfer no row payload, rewrite nothing, and keep generation.
+Periodic verification full reads incur source read cost even when unchanged;
+they do not rewrite or create a generation. This is component evidence, not
+native Agent DB loading, durable recovery, or production publication.
 
-11g C1 is not implemented: the current thick-worker protocol deliberately accepts
-only SELECT. It remains C5-only rather than permitting arbitrary PL/SQL in that
-worker. 19c remains blocked by D2. No support-matrix promotion is justified.
+The thick worker supports a separate `logminer` operation with exactly four
+bound package statements (NEW/ADDFILE, START with online catalog + committed
+only, END). It does not accept arbitrary PL/SQL, DML, DDL, dictionary builds or
+redo execution. The fixture mounts the current `worker.py` read-only into the
+existing pinned local worker image; the image's OCI/Python dependencies remain
+unchanged and recorded. Fixture writes still use the separate admin script.
+
+D11 is disclosed as an unconditional Feature requirement on LogCdc: explicit
+opt-in and version-specific T7 acceptance remain necessary; auto must remain C5.
+The fixture collects source audits plus SQL trace recursion and retains every
+classification. Missing depth is not inferred from an object name. The original
+41 exceptional 23-family audit rows are retained in `fixtures/d11-original-41.json`;
+they lack depth/owner, so only the driver setting can be admitted without new
+trace evidence. Tests separately exercise explicit recursive-depth cases and
+reject top-level or foreign-object writes. Historical failures are not replaced.
+
+21c XE starts with mixed auditing (`Unified Auditing=FALSE`, `audit_trail=NONE`).
+The owned fixture sets `AUDIT_TRAIL='DB','EXTENDED'` in its SPFILE and restarts it,
+then enables a unified policy for the miner. Both audit views are collected;
+an empty audit never passes. 11g uses conventional extended auditing. The
+23-family pure-unified image rejects new conventional AUDIT configuration, so
+only a unified policy is created there. SQL trace is enabled only inside the
+new disposable database, after all credential-bearing fixture DDL.
+
+11.2 C1 now passes functional cycles, but its recursive deletes target
+`SYSTEM.LOGMNR_GT_*`, outside D11's explicit `SYS.LOGMNR_GT_*` category.
+21c also uses the SYSTEM-owned temporary objects and executes an update of
+`SYSTEM.LOGMNR_SESSION$`. These are real T7 failures under the supplied D11
+allowlist, not permission to widen it. Conventional
+auditing also produces recursive `SYS.AUD$` writes in the session trace; these
+are retained and not granted an undocumented exemption. The version evidence
+summary separates function success from T7 and remaining unsupported cases.
+19c remains blocked by D2. No support-matrix promotion is justified.
+
+An extra probe-first 23-family attempt fails planning with
+`ora_snapshot_unavailable` (both `e-s2b-final23` and its retry). The component
+harness records `probe()` after the functional cycles; it does not establish
+probe-then-snapshot/onboarding acceptance. This remains a separate follow-up,
+not a passing rerun of that order. Full trace additionally reveals database
+maintenance/auditing writes; these are not reader-issued application DML, but
+are retained as failures under the card's no-other-object rule. Objectless
+COMMIT records are not assigned a fictitious temporary-table scope.
 
 Version qualification: the local `gvenzl/oracle-free:23-slim` digest used by
 these S2 runs reports `23.26.3.0.0` and an Oracle AI Database **26ai** banner.
