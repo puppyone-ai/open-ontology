@@ -67,13 +67,32 @@ pub fn host_openssl_supports_ed25519() -> bool {
 }
 
 fn openssl(args: &[&str], input: &[u8]) -> Result<Vec<u8>, &'static str> {
+    // A runtime command can fail before OpenSSL starts (container runtime exit
+    // 125-127, e.g. a transient `docker exec` error). Retry only those; an
+    // OpenSSL failure itself is never retried.
+    let mut attempt = 0;
+    loop {
+        match openssl_run(args, input) {
+            Err(("LITE_OPENSSL_FAILED", Some(code)))
+                if OPENSSL.get().is_some() && (125..=127).contains(&code) && attempt < 3 =>
+            {
+                attempt += 1;
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+            Err((code, _)) => return Err(code),
+            Ok(out) => return Ok(out),
+        }
+    }
+}
+
+fn openssl_run(args: &[&str], input: &[u8]) -> Result<Vec<u8>, (&'static str, Option<i32>)> {
     let mut child = openssl_command()
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|_| "LITE_OPENSSL_START")?;
+        .map_err(|_| ("LITE_OPENSSL_START", None))?;
     let written = child
         .stdin
         .take()
@@ -82,11 +101,13 @@ fn openssl(args: &[&str], input: &[u8]) -> Result<Vec<u8>, &'static str> {
     if written.is_err() {
         let _ = child.kill();
         let _ = child.wait();
-        return Err("LITE_OPENSSL_STDIN");
+        return Err(("LITE_OPENSSL_STDIN", None));
     }
-    let out = child.wait_with_output().map_err(|_| "LITE_OPENSSL_WAIT")?;
+    let out = child
+        .wait_with_output()
+        .map_err(|_| ("LITE_OPENSSL_WAIT", None))?;
     if !out.status.success() {
-        return Err("LITE_OPENSSL_FAILED");
+        return Err(("LITE_OPENSSL_FAILED", out.status.code()));
     }
     Ok(out.stdout)
 }

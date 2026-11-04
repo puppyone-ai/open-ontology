@@ -212,7 +212,22 @@ impl OpensslHelper {
             .args(["--volume", &format!("{path}:{path}")])
             .args(["--entrypoint", "sleep", image, "900"]);
         let (exit, _, _) = super::build_retained::invoke(command, vec![], 120)?;
-        if exit != 0
+        // Wait until the helper accepts exec before the first credential call.
+        let ready = exit == 0
+            && (0..40).any(|_| {
+                let ok = Command::new("docker")
+                    .args(["exec", &name, "openssl", "version"])
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status()
+                    .is_ok_and(|s| s.success());
+                if !ok {
+                    std::thread::sleep(std::time::Duration::from_millis(250));
+                }
+                ok
+            });
+        if !ready
             || !oo_stack::credentials::use_openssl(
                 ["docker", "exec", "-i", &name, "openssl"]
                     .map(str::to_owned)
