@@ -904,10 +904,19 @@
       "sprint": "S3",
       "lane": "A",
       "title": "SSH 跳板：`russh` direct-tcpip、主机指纹确认与固定、断线块级续读",
-      "status": "in_progress",
+      "status": "integrated",
       "owner": "lane-B (reassigned)",
       "branch": "v0.2/b-token-lifecycle",
-      "commits": [],
+      "commits": [
+        "5913c91c8",
+        "1e05dcabf",
+        "b73da9a64",
+        "b14176016",
+        "0fbc7d67f",
+        "82effca10",
+        "9d954f390",
+        "531be586f"
+      ],
       "evidence": []
     },
     {
