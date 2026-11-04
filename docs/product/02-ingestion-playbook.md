@@ -113,7 +113,7 @@ C5 的四层：时间列只作正向提示（NULL 视为未知）→ 近窗口�
 | MySQL 9.x | 同上 | 同上 | `mysql_native_password` 移除，只能 sha2 |
 | PostgreSQL 12–18 | keyset；无键表在单快照内按 ctid 范围（14+） | 逻辑复制 slot + `pgoutput`；或 C5 | slot 未消费堆积 WAL；13+ `publish_via_partition_root`；proto v2 大事务流式（14+）、v3 两阶段（15+）、v4 并行流式（16+），按服务端版本协商；16 支持备库逻辑解码；17 failover slot；18 `idle_replication_slot_timeout` 会作废闲置 slot、VIRTUAL 生成列不可复制 |
 | Oracle 11g | keyset；无键表按 ROWID 范围（读 extents 生成，不在源端建任务） | LogMiner（可用 CONTINUOUS_MINE）/ 归档日志；SCN | 非 CDB；无 identity 列；空串即 NULL |
-| Oracle 12c–19c | 同上 | LogMiner，CDB 下以 `c##` common user 连接 CDB$ROOT；只用 `online_catalog` 字典策略：读取账号零 DML/DDL，但 LogMiner 会话由 Oracle 递归写 SYS 会话级临时表 `SYS.LOGMNR_GT_*`（T7 实测），归类“R1，含 Oracle 内部递归临时写”，C1 需显式选用（Plan D11）；需要 `DBMS_LOGMNR_D.BUILD` 的 `redo_log_catalog` 属 R1w，默认禁用 | 19c 起无 `CONTINUOUS_MINE`，须自己维护日志文件列表；字典策略 `online_catalog` / `redo_log_catalog` 二选一 |
+| Oracle 12c–19c | 同上 | LogMiner，CDB 下以 `c##` common user 连接 CDB$ROOT；只用 `online_catalog` 字典策略：读取账号零 DML/DDL，但 LogMiner 会话由 Oracle 写其自有对象（23ai 为 `SYS.LOGMNR_GT_*`，11g/21c 为 `SYSTEM.LOGMNR_GT_*`、`SYSTEM.LOGMNR_SESSION$`；T7 实测），归类“R1，含 Oracle 内部递归临时写”，C1 需显式选用；默认 C5 须单独零写通过 T7（Plan D11/D11a）；需要 `DBMS_LOGMNR_D.BUILD` 的 `redo_log_catalog` 属 R1w，默认禁用 | 19c 起无 `CONTINUOUS_MINE`，须自己维护日志文件列表；字典策略 `online_catalog` / `redo_log_catalog` 二选一 |
 | Oracle 21c / 23ai | 同上 | 同上 | 不再支持非 CDB，一律 PDB；23ai 新系统表空间（如 vector）需从 LogMiner 排除；`ORA-01555` 限制单块快照时长 |
 
 所有引擎实现 `capabilities(version)` 探测，用版本分派表代替散落的 if 判断；`oo doctor` 据此输出缺失的权限与参数，并给出可直接复制给 DBA 的 GRANT 与参数语句。

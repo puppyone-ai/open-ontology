@@ -78,9 +78,9 @@ def inspect(plan: str, docs: dict[Path, str]) -> tuple[list[str], dict]:
         missing_at = v02_ats - set(re.findall(r'AT-(?:ONB|TOK|BLD|ENG)-\d{2}', plan))
         if missing_at:
             errors.append(f'Spec 7B acceptance cases without a v0.2 TODO: {sorted(missing_at)}')
-    decisions = set(re.findall(r'^\| (D\d+) \|', plan, re.M))
+    decisions = set(re.findall(r'^\| (D\d+)a? \|', plan, re.M))
     if decisions != {f'D{i}' for i in range(1, 12)}:
-        errors.append(f'Decisions must be D1–D11, found {sorted(decisions)}')
+        errors.append(f'Decisions must be D1–D11 (+D11a), found {sorted(decisions)}')
     for heading in ('### 10.1 ', '### 10.2 ', '### 10.3 ', '### 10.4 '):
         if heading not in plan:
             errors.append(f'Missing commit-standard section {heading.strip()}')
