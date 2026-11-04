@@ -75,8 +75,8 @@ services:
   worker:
     <<: *runtime
     profiles: [integration]
-    entrypoint: [job-worker]
-    command: [--config, /work/operator/worker.json, serve, --workers, '1', --barrier-prefix, lite, --barrier-target, '1']
+    entrypoint: [python3, /work/scheduler.py]
+    command: [--worker]
     depends_on: {control-db: {condition: service_healthy}}
   scheduler:
     <<: *runtime

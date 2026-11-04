@@ -272,7 +272,7 @@ def main(request):
     return {'status':'stopped' if action=='down' else 'foundations_only',
             'services':services,'gateway_health':gateway,**history,
             'pending':['worker admission/migrations','scheduler bindings',
-                'Builder Agent DB load','reviewed Pack and Gateway operator config'],
+                'Builder service lifecycle and target binding','Gateway operator configuration'],
             'publication':'not_published','healthy':False}
 
 if __name__=='__main__':

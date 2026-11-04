@@ -124,5 +124,13 @@
     "run_id": "a-s2f-boundary",
     "basis": "source inspection, not live acceptance",
     "sha256": "68eddb96f805e96c704c0f19d7a8bf7aa7953fb6d1f1248f0e7fedf8543adeaa"
+  },
+  "worker_dispatch": {
+    "implementation": "native-step in the scheduler project instead of proof-only serve",
+    "unit_tests": "21 passed",
+    "run_id": "a-s2f-boundary",
+    "test_log": "native-dispatch-tests.log",
+    "test_log_sha256": "c89785e7f5a6bca3c60edf9b43e053522fcd5b200232a52727c747e95c776245",
+    "scheduled_cycle_verified": false
   }
 }
