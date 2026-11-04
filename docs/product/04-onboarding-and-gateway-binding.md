@@ -121,6 +121,8 @@ Builder 的 loopback-only 约束保留（安全设计：Builder 不持有外网�
 
 `oo up` 默认安装周期任务（compose 内 scheduler；远程用 systemd timer）。每个周期：增量（C1 或 C5）→ 发布新数据代际 → Gateway 原子切换发布指针。只有结构或语义依赖变化时才触发定向 Self-build。这就是“实时匹配”的含义：Gateway 始终服务最近一次已验证的发布，并通过 `/v1/freshness` 告诉调用者数据截至何时；Gateway 不直连源库。
 
+lite 的目标周期为 `oo-load sync` → data-only Builder → `oo-load publish` → 按策略回收。Gateway 数据登录须获 `_oo.native_library_retained_table(text)` 的 EXECUTE。Builder 是完成后退出的一次性作业；七项健康必须来自一次真实计划周期与 `oo status`，不能以进程存在或 dispatch 成功代替。M-S4e 已验证该授权；retained-generation Builder 路由、调度接线与七项健康仍待验收。
+
 ## 5. Token 生命周期（闭环 L2）
 
 ### 5.1 现有基础

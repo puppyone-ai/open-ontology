@@ -92,6 +92,18 @@ C5 的四层：时间列只作正向提示（NULL 视为未知）→ 近窗口�
 
 ## 6. 故障与恢复
 
+D15：保留代际按以下映射进入 Gateway，不伪造旧导入或 ACK。
+
+| oo-load 对象 | Gateway 合约 |
+|---|---|
+| `generations.recipe` / `relation_name` | 候选 `request.recipes`、`data_vector.recipe_sha256/storage_relation` |
+| 候选 `shard` / `receipt_sha256` | `_oo.native_library_publication.shards/receipt_sha256` |
+| 代际视图与列 | `_oo.physical_mappings` 按 source/config/generation 映射 |
+| `relation_proofs`、封存配方 | `native_library_check_retained` 核对定义、列与摘要 |
+| 已打开的语义 fence | `native_library_mark_ready` 后原子更新 `native_library_head` |
+
+`oo-load prune` 默认保留 24 小时；ready 引用、Loader 父代际与查询锁均阻止回收。源时间仍为 `unmeasured`。
+
 | 现象 | 处理 |
 |---|---|
 | 容器或 Docker 引擎退出 | 执行容器 `restart: unless-stopped`；恢复后同周期断点重试，复用已成功项 |
