@@ -56,6 +56,8 @@ use oo_core::text::{BoundedText, Label, TableName};
 use crate::canonical::{canonical_json, sha256_hex};
 use crate::nfc::nfc;
 
+#[path = "community_summaries.rs"]
+mod community_summaries;
 #[path = "role_pack_pages.rs"]
 mod pages;
 
@@ -2321,6 +2323,7 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
     for (path, text) in &files {
         check_file_budget(path, text, &model.limits)?;
     }
+    community_summaries::render(&mut files, model, selected)?;
     pages::metrics(&mut files, model, selected)?;
     add_file(
         &mut files,
