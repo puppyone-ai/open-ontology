@@ -1,5 +1,10 @@
 # S5-G-01: harness delivered, acceptance blocked
 
+Historical G-S5 results. See `T6-RERUN-VALIDATION.md` for the G-S5b reruns
+after the coordinator's fixes. The two patch files described below were
+removed by G-S5b because the shared implementations superseded them; the
+historical failed runs and their hashes remain unchanged.
+
 Status: partial. No engine/version receives T6 or T5 acceptance from this work.
 Work started on integration `6080fbb2f` and rebased onto `3ee1ec34e` after
 the retained publisher landed. Only `tools/oo-test/` is changed.
