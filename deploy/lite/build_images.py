@@ -32,6 +32,10 @@ def main():
         info=json.loads(subprocess.check_output(['docker','image','inspect',image]))[0]
         assert info['Config']['Labels']['oo.lane']=='a'
         assert info['Os']+'/'+info['Architecture']==target
+        with (out/(arch+'-oo-load-help.log')).open('wb') as log:
+            subprocess.run(['docker','run','--rm','--platform',target,
+                '--label','oo.lane=a','--entrypoint','oo-load',image,'--help'],
+                stdout=log,stderr=subprocess.STDOUT,check=True)
         images[target]={'image':image,'tag':tag,'dockerfile_sha256':hashlib.sha256((ROOT/'deploy/lite/Dockerfile').read_bytes()).hexdigest()}
         (out/'images.json').write_text(json.dumps(images,indent=2)+'\n')
         native='linux/'+('arm64' if platform.machine() in ['arm64','aarch64'] else 'amd64')

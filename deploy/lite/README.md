@@ -29,6 +29,15 @@ Builds are serial and refuse to start with less than 8 GiB of host space free.
 Builder and helper locks reuse existing dependency versions; root Cargo.lock is
 unchanged. The first draft path is described in [DRAFT.md](DRAFT.md).
 
+`model.base_url` also accepts `{"secret_ref":"model-endpoint"}`. The endpoint
+stays a reference in normalized configuration; model-egress reads and validates
+the private file at use time. Lite copies it with the same ownership, permission
+and explicit-rotation rules as the model key.
+
+The S2c native arm64 image includes `oo-load`; the image build checks its
+`--help` entrypoint. This is packaging, not source-to-draft integration.
+The retained amd64 lock is historical and does not include this change.
+
 First up creates a private `.oo/lite/pki` CA, component mTLS certificates and
 random admin password via `oo_stack::credentials::bootstrap`. Repeated up never
 rotates credentials. Source/model references are copied into the deployment's
@@ -58,14 +67,28 @@ healthy. Local bootstrap certificate expiry is a separate measurement.
 
 The current health API does not expose success/failure/next-due timestamps;
 local scheduler/build receipts are explicitly a different evidence basis.
+It also authenticates `/v1/health` with a Gateway token, while card S2c defers
+token issuance to S4. Lane A cannot meet that API exit by substituting local
+timestamps or an unauthenticated health wrapper.
 The opt-in scheduler invokes the existing `job-worker native-fire` operation.
 It needs installed control schemas, worker configuration and a project UUID in
 `work/operator/schedule.json`. Gateway needs its existing reviewed operator
 directory. The builder remains a one-shot unreviewed metadata draft, not an
 Agent DB loader. These prerequisites are why full S2-A-02 is still **not done**.
+Additionally, `oo-load` publishes views in `oo_load_data`, while the Builder's
+existing PostgreSQL catalog selects physical tables only. Builder profiling uses
+TLS without a client certificate, while lite's database requires mTLS. A direct
+connection switch is therefore insufficient; no TLS exception or invented
+catalog is installed by this delivery.
 
 ## Evidence
 
+- `a-s2c-endpoint`: endpoint-reference parsing/egress/lifecycle regressions,
+  workspace check, CLI/stack tests and source-boundary inspection.
+- `a-s2c-runtime`: native arm64 runtime build and real `oo-load --help` launch.
+- `a-s2c-foundations`: three healthy foundation services with an endpoint
+  reference, idempotent credentials, truthful partial status and owned cleanup.
+  No paid model calls, three-engine drafts or seven-service acceptance occurred.
 - `a-s2b-mysql-2`: four requested MySQL versions; synthetic model replay.
 - `a-s2b-pty-5`: real PTY save/equivalence, completion, failed execution,
   explicit retry, status and q cancellation; secret scans pass.

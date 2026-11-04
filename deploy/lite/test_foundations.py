@@ -17,11 +17,11 @@ def main():
     out=ROOT/'evidence'/a.run_id;out.mkdir(mode=0o700)
     home=out/'home';store=home/'.config/open-ontology/secrets';store.mkdir(parents=True,mode=0o700)
     password,key=(secrets.token_hex(24) for _ in range(2))
-    for name,value in [('source',password),('model',key)]:
+    for name,value in [('source',password),('model',key),('endpoint','http://127.0.0.1:9/v1')]:
         (store/name).touch(mode=0o600);(store/name).write_text(value)
     config={'version':'oo.stack/v1','sources':[{'id':'fixture','engine':'mysql','host':'localhost','port':3306,
             'database':'fixture','user':'reader','password':{'secret_ref':'source'},'scope':{'include':['fixture.events']}}],
-            'model':{'provider':'openai-compatible','base_url':'http://127.0.0.1:9/v1','model':'fixture-model','key':{'secret_ref':'model'}}}
+            'model':{'provider':'openai-compatible','base_url':{'secret_ref':'endpoint'},'model':'fixture-model','key':{'secret_ref':'model'}}}
     path=out/'stack.json';path.write_text(json.dumps(config));path.chmod(0o600)
     env=dict(os.environ,HOME=str(home),OO_LITE_RUNTIME_IMAGE=a.image,
              DOCKER_CONFIG=os.environ.get('DOCKER_CONFIG',str(Path.home()/'.docker')))

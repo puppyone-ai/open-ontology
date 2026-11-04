@@ -1,7 +1,6 @@
 {
   "protocol": "oo.lite-images/v1",
   "local_only": true,
-  "run_id": "a-s2b-images-protoc",
   "base_indexes": {
     "rust": "sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f",
     "python": "sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f",
@@ -11,12 +10,16 @@
     "linux/amd64": {
       "image": "sha256:fb1e40a123bde62af2781af5c8c3c4fd9a2f081b5f828f4b2712a4b64feda8fa",
       "tag": "oo-lane-a-lite:a-s2b-images-protoc-amd64",
-      "dockerfile_sha256": "e9c36255855782e7c67e0236b189b2c36fbdd17c055261335ace707267aa9044"
+      "dockerfile_sha256": "e9c36255855782e7c67e0236b189b2c36fbdd17c055261335ace707267aa9044",
+      "run_id": "a-s2b-images-protoc",
+      "build_matches_current_dockerfile": false
     },
     "linux/arm64": {
-      "image": "sha256:7e62f7f7ba419e0826ccf9182ca9a8f480b3053e4877f837b61ec7cc26f47c05",
-      "tag": "oo-lane-a-lite:a-s2b-images-protoc-arm64",
-      "dockerfile_sha256": "e9c36255855782e7c67e0236b189b2c36fbdd17c055261335ace707267aa9044"
+      "image": "sha256:456da58dbf199b8dd91f42d50deb06d661ddbab28fba8bef1369016dec108516",
+      "tag": "oo-lane-a-lite:a-s2c-runtime-arm64",
+      "dockerfile_sha256": "092a5abab12326d6500ce097f253f354ce2ad08b024f4e0e835e2d40c07988b7",
+      "run_id": "a-s2c-runtime",
+      "build_matches_current_dockerfile": true
     }
   }
 }
