@@ -82,6 +82,10 @@ impl Epoch for oo_connectors::mysql::engine::MysqlEngine {
 }
 
 impl Epoch for oo_connectors::oracle::engine::OracleEngine {
+    async fn shape(&mut self, table: &TableRef) -> Result<Option<String>, String> {
+        self.table_shape(table).map(Some).map_err(|e| e.to_string())
+    }
+
     async fn epoch(
         &mut self,
         _: &Source,
