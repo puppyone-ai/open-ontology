@@ -5,7 +5,7 @@ use std::path::Path;
 
 use serde_json::{Value, json};
 
-use super::{Failure, Invocation, progress, review};
+use super::{Failure, Invocation, build_tail, progress, review};
 
 const STAGES: [&str; 6] = [
     "pull_selfbuild",
@@ -54,6 +54,9 @@ fn validate(state: &Value, fingerprint: &str, root: &Path) -> Result<(), Failure
             return Err(Failure::local("BUILD_RESUME_ARTIFACT_CHANGED"));
         }
     }
+    if state["stages"][4]["status"] == "complete" {
+        build_tail::verify_token(root)?;
+    }
     Ok(())
 }
 
@@ -78,12 +81,15 @@ fn report(state: &Value, json_output: bool) -> Invocation {
             state.to_string()
         } else {
             format!(
-                "{}\nPublication: not published. Gateway/token/share prompt: pending.\n\
-                Use the same oo build --resume command after resolving the blocker.",
-                progress::display(state)
+                "{}\nPublication: {}. Gateway: {}.\n\
+                Credentials and prompt stay in private files, never this report.\n\
+                Use the same oo build --resume command after resolving any blocker.",
+                progress::display(state),
+                state["publication"],
+                state["gateway_health"]
             )
         },
-        1,
+        if state["status"] == "complete" { 0 } else { 1 },
     )
 }
 
@@ -147,7 +153,7 @@ pub(super) fn run(
                 "completed":0,"total":1,"error":null})),
             "artifacts":{},"last_success":null,"last_failure":null})
     };
-    for index in 0..3 {
+    for index in 0..STAGES.len() {
         if state["stages"][index]["status"] == "complete" {
             continue;
         }
@@ -228,7 +234,24 @@ pub(super) fn run(
                         &review::read(&root.join("review-input.json"))?,
                         &reviewed,
                     )?;
-                    publish_reviewed_registry(&reviewed)?;
+                    let publication = publish_reviewed_registry(&reviewed)?;
+                    review::save_new(&root.join("publication.json"), &publication)?;
+                    state["artifacts"]["publication.json"] =
+                        json!(artifact(&root, "publication.json")?);
+                    state["publication"] = json!("published");
+                }
+                3 => {
+                    let publication = review::read(&root.join("publication.json"))?;
+                    let receipt = build_tail::gateway(&publication)?;
+                    review::save_new(&root.join("gateway.json"), &receipt)?;
+                    state["artifacts"]["gateway.json"] = json!(artifact(&root, "gateway.json")?);
+                    state["gateway_health"] = json!("verified");
+                }
+                4 | 5 => {
+                    let publication = review::read(&root.join("gateway.json"))?;
+                    build_tail::run(&root, STAGES[index], &publication)?;
+                    let name = format!("{}-receipt.json", STAGES[index]);
+                    state["artifacts"][&name] = json!(artifact(&root, &name)?);
                 }
                 _ => unreachable!(),
             }
@@ -248,6 +271,7 @@ pub(super) fn run(
         state["stages"][index]["completed"] = json!(1);
         persist(&root, &state)?;
     }
-    // Remaining stages cannot run before authenticated publication is integrated.
-    Err(Failure::local("BUILD_POST_PUBLICATION_NOT_INTEGRATED"))
+    state["status"] = json!("complete");
+    persist(&root, &state)?;
+    Ok(report(&state, json_output))
 }

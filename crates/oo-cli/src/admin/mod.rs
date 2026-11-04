@@ -1,5 +1,6 @@
 //! Administrative commands; consumer credentials are never read here.
 mod build;
+mod build_tail;
 mod doctor;
 mod lite;
 mod ontology;
