@@ -101,6 +101,7 @@ D15：保留代际按以下映射进入 Gateway，不伪造旧导入或 ACK。
 | 代际视图与列 | `_oo.physical_mappings` 按 source/config/generation 映射 |
 | `relation_proofs`、封存配方 | `native_library_check_retained` 核对定义、列与摘要 |
 | 已打开的语义 fence | `native_library_mark_ready` 后原子更新 `native_library_head` |
+| 所有者自审 → `release-coordinator publish-retained` | 复核代际哈希、自行重编译已审 Pack、在一个事务内打开已审 fence 并激活 head；不写任何导入/ACK 行 |
 
 `oo-load prune` 默认保留 24 小时；ready 引用、Loader 父代际与查询锁均阻止回收。源时间仍为 `unmeasured`。
 
