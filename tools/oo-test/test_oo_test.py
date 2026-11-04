@@ -109,6 +109,33 @@ class FixtureTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             runner.resolve("mysql", "10")
 
+    def test_acceptance_patches_exclude_legacy_pins(self):
+        expected = {
+            "mysql": {"5.7": "5.7.44", "8.0": "8.0.44", "8.4": "8.4.7", "9.x": "9.5.0"},
+            "postgres": {"12": "12.22", "13": "13.23", "14": "14.24",
+                         "15": "15.19", "16": "16.15", "17": "17.11", "18": "18.6"},
+        }
+        import t1
+        import t2
+        self.assertIs(t1.runner.resolve, runner.resolve)
+        self.assertIs(t2.runner.resolve, runner.resolve)
+        self.assertFalse(Path(t1.__file__).with_name("t1-images.json").exists())
+        for engine, versions in expected.items():
+            locked = json.loads((runner.ROOT / "testing/infra/images.lock.json").read_text())
+            suffix = "-bookworm" if engine == "postgres" else ""
+            self.assertEqual(
+                sorted(item["id"] for item in locked["images"]
+                       if item.get("engine_matrix") == "v0.2" and item["id"].startswith(engine + "-")),
+                sorted(engine + "-" + version + suffix for version in versions.values()))
+            for major, patch_version in versions.items():
+                item = runner.resolve(engine, major)
+                self.assertEqual(item["id"], engine + "-" + patch_version + suffix)
+                self.assertEqual(item["engine_matrix"], "v0.2")
+                self.assertEqual(runner.resolve(engine, patch_version), item)
+        for engine, version in [("mysql", "8.4.10"), ("postgres", "17.10")]:
+            with self.assertRaises(ValueError):
+                runner.resolve(engine, version)
+
     def test_suite_range(self):
         self.assertEqual(runner.suites("T0-T2,T1,T8"), ["T0", "T1", "T2", "T8"])
         with self.assertRaises(ValueError):

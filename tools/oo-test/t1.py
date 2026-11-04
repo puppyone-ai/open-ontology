@@ -27,22 +27,6 @@ ROOT = runner.ROOT
 LANE = os.environ.get("OO_TEST_LANE", "m")
 if LANE not in ("m", "e"):
     raise ValueError("unsupported T1 lane")
-_resolve = runner.resolve
-
-
-def resolve(engine, version):
-    # Exact card versions supplement H's newer pins without changing shared files.
-    pins = Path(__file__).with_name("t1-images.json")
-    if engine == "mysql" and pins.exists():
-        for item in json.loads(pins.read_text()):
-            if item["id"] == "mysql-" + version:
-                return item
-    return _resolve(engine, version)
-
-
-runner.resolve = resolve
-
-
 class Relay:
     """Loopback transport to an owned fixture with no published port."""
     def __init__(self, container, port):
@@ -701,7 +685,8 @@ def run_t1(run, binary, worker_image=None):
             if any(r["read_budget"]["duty_cycle_percent"] != meter.duty for r in receipts):
                 raise RuntimeError("sampled budget does not match product ReadBudget")
             if run.engine == "mysql" and any(
-                    ".".join(str(r["version"][key]) for key in ("major", "minor", "patch")) != run.version
+                    ".".join(str(r["version"][key]) for key in ("major", "minor", "patch")) !=
+                    re.search(r"\d+(?:\.\d+)*", runner.resolve("mysql", run.version)["id"]).group()
                     for r in receipts):
                 raise RuntimeError("MySQL version does not match exact card version")
             return receipts

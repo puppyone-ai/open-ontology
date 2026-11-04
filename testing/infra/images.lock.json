@@ -166,65 +166,65 @@
       }
     },
     {
-      "id": "mysql-8.0.46",
-      "ref": "docker.io/library/mysql:8.0.46",
-      "index_digest": "sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b",
+      "id": "mysql-8.0.44",
+      "ref": "docker.io/library/mysql:8.0.44",
+      "index_digest": "sha256:9c3380eac945af0736031b200027f581925927c81e010056214a4bd6b6693714",
       "hub_tag_digest_matches_index": true,
-      "hub_tag_last_updated": "2026-05-05T02:02:28Z",
+      "hub_tag_last_updated": "2026-01-17T01:02:36.889005Z",
       "license": "GPL-2.0 with additional permissions",
-      "license_note": "MySQL 8.0 reached EOL in April 2026; 8.0.46 is the last 8.0 tag on Docker Hub (2026-05-05). Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "license_note": "MySQL Community Server, GPL-2.0 with additional permissions. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
       "source": "https://github.com/docker-library/mysql",
       "engine_matrix": "v0.2",
       "platforms": {
         "linux/amd64": {
-          "digest": "sha256:62fb722c78b24245ddff1796a0fcee4a49cc5b87e0aaaf20c92d1da9e0a2497b",
-          "created": "2026-05-04T23:01:20Z"
+          "digest": "sha256:f7878bec832c6be5e61c39d3949651be8aa977daf875089b4560ae1434d2cb9c",
+          "created": "2026-01-16T23:29:15.874862956Z"
         },
         "linux/arm64": {
-          "digest": "sha256:213bbfaf699693a40a20a12bb4342d2589a15a3dc7153db698eaed252a92458e",
-          "created": "2026-05-04T21:11:12Z"
+          "digest": "sha256:2c4989e05aa3ceb8cb6eb8a1b1f38ffa361eac2fec96ec67705d1b21c6390527",
+          "created": "2026-01-16T23:31:32.401062257Z"
         }
       }
     },
     {
-      "id": "mysql-8.4.11",
-      "ref": "docker.io/library/mysql:8.4.11",
-      "index_digest": "sha256:0f51e63e537a1f176423fa03ef559aabe6fa4372a53160a44bc7e75da7d15364",
+      "id": "mysql-8.4.7",
+      "ref": "docker.io/library/mysql:8.4.7",
+      "index_digest": "sha256:0426ec38c7a10aa45ba383887df7878f74ee70e2fd589c7b69207f3577901903",
       "hub_tag_digest_matches_index": true,
-      "hub_tag_last_updated": "2026-10-19T23:02:53Z",
+      "hub_tag_last_updated": "2026-01-17T01:02:48.969206Z",
       "license": "GPL-2.0 with additional permissions",
-      "license_note": "8.4 LTS. 8.4.13 was tagged 2026-11-03, inside seven days, so it is not pinned. The older mysql-8.4.10 pin stays for existing SP00 recipes. Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "license_note": "MySQL Community Server, GPL-2.0 with additional permissions. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
       "source": "https://github.com/docker-library/mysql",
       "engine_matrix": "v0.2",
       "platforms": {
         "linux/amd64": {
-          "digest": "sha256:6f3a50835c54d61ffdcf78d71381ba268c27804cd96755231d2fd6f180f822f0",
-          "created": "2026-10-19T22:12:55Z"
+          "digest": "sha256:6c6706ec58d3ac9e925d5f0435c6a923117f68232551b9c8271a294ea72ee331",
+          "created": "2026-01-16T23:27:23.407495408Z"
         },
         "linux/arm64": {
-          "digest": "sha256:4452d4257b94692c09df0f6011a3275744746001150f3cdbdc9278bacfa385bb",
-          "created": "2026-10-19T22:12:55Z"
+          "digest": "sha256:6f952b3897aca5d7ca620d3d9679845351641265b1dbc3012ea29253abb57e65",
+          "created": "2026-01-16T23:31:05.719552733Z"
         }
       }
     },
     {
-      "id": "mysql-9.7.2",
-      "ref": "docker.io/library/mysql:9.7.2",
-      "index_digest": "sha256:e2fa358a74ac81148e7e27d9433e4c0ab62133de8ea4428b4f39a51a4ba7d07f",
+      "id": "mysql-9.5.0",
+      "ref": "docker.io/library/mysql:9.5.0",
+      "index_digest": "sha256:57c892ddeb17e6c7dddf219914db017b2cf3e2797806a75424444b83622cc8ef",
       "hub_tag_digest_matches_index": true,
-      "hub_tag_last_updated": "2026-10-19T23:03:18Z",
+      "hub_tag_last_updated": "2026-01-17T01:03:13.560104Z",
       "license": "GPL-2.0 with additional permissions",
-      "license_note": "Latest 9.x line. 9.7.4 was tagged 2026-11-03, inside seven days, so it is not pinned. Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "license_note": "MySQL Community Server, GPL-2.0 with additional permissions. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
       "source": "https://github.com/docker-library/mysql",
       "engine_matrix": "v0.2",
       "platforms": {
         "linux/amd64": {
-          "digest": "sha256:79b171dd2361300260ebceb30bb1c669fa8f70183ae250773b56b62d9031338b",
-          "created": "2026-10-19T22:12:14Z"
+          "digest": "sha256:00f711aeca86bf8a3e0e6dfd44f2a2b76014fc5fb59eda6c16cca3d692078d6e",
+          "created": "2026-01-16T23:19:09.454305014Z"
         },
         "linux/arm64": {
-          "digest": "sha256:ebaa6b336278200e9c5530e16e4949f548fa4a36ac34f9ce286027fe8427a395",
-          "created": "2026-10-19T22:12:32Z"
+          "digest": "sha256:3427e5b50d1eaf469e858e1ac026d643b87b2dde1037c59d87bceb1751fd1fa4",
+          "created": "2026-01-16T23:30:41.867097353Z"
         }
       }
     },
@@ -271,86 +271,86 @@
       }
     },
     {
-      "id": "postgres-14.23-bookworm",
-      "ref": "docker.io/library/postgres:14.23-bookworm",
-      "index_digest": "sha256:f819dd96de74db3de87d13f0a4fbcdfbdc4f4ca37ed6e0807bf73848170eae3d",
+      "id": "postgres-14.24-bookworm",
+      "ref": "docker.io/library/postgres:14.24-bookworm",
+      "index_digest": "sha256:a389ed49344afc8f4444efd4eb512965df07aaa6ed84b239b54a23246e9fe347",
       "hub_tag_digest_matches_index": true,
-      "hub_tag_last_updated": "2026-08-05T04:08:15Z",
+      "hub_tag_last_updated": "2026-10-28T07:08:12.642899Z",
       "license": "PostgreSQL",
-      "license_note": "14.24-bookworm was updated 2026-10-28, on the seven-day boundary, so it is not pinned. Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "license_note": "PostgreSQL License, https://www.postgresql.org/about/licence/. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
       "source": "https://github.com/docker-library/postgres",
       "engine_matrix": "v0.2",
       "platforms": {
         "linux/amd64": {
-          "digest": "sha256:64913aa7cc176c9735f5be9fc69ac1bba938c7547e3a4f832dec42b6d9c7df84",
-          "created": "2026-08-05T00:37:16Z"
+          "digest": "sha256:819fe383d809a6fb33fbb0c3ea49da673c3b00c62b3f63f4a0c63928a204e2c5",
+          "created": "2026-10-28T01:31:48.383508521Z"
         },
         "linux/arm64": {
-          "digest": "sha256:8d9f8d8b12f2de8c0c840e583dd8b7ba3309d95b785c9a4aa8106b3dc24f2052",
-          "created": "2026-08-05T00:39:43Z"
+          "digest": "sha256:019ca8f65034a7dd36a7e46e855d441c61098051c47d77bf048803b8b48ecd62",
+          "created": "2026-10-28T01:34:58.549374313Z"
         }
       }
     },
     {
-      "id": "postgres-15.18-bookworm",
-      "ref": "docker.io/library/postgres:15.18-bookworm",
-      "index_digest": "sha256:e8db9bd3e9e1751eb639fb17be53cc6d1b62a322adf75b99e791767a7a16ce69",
+      "id": "postgres-15.19-bookworm",
+      "ref": "docker.io/library/postgres:15.19-bookworm",
+      "index_digest": "sha256:daeac543477e189e334f159133f4be6dae739b005cec2dfb9d482509fed05465",
       "hub_tag_digest_matches_index": true,
-      "hub_tag_last_updated": "2026-08-05T04:09:12Z",
+      "hub_tag_last_updated": "2026-10-28T07:08:56.102307Z",
       "license": "PostgreSQL",
-      "license_note": "15.19-bookworm was updated 2026-10-28, on the seven-day boundary, so it is not pinned. Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "license_note": "PostgreSQL License, https://www.postgresql.org/about/licence/. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
       "source": "https://github.com/docker-library/postgres",
       "engine_matrix": "v0.2",
       "platforms": {
         "linux/amd64": {
-          "digest": "sha256:752791ad6ccfc6fbfcf4d9b43413c8642901f1c2008ebdc1423ea32fd66fd4f1",
-          "created": "2026-08-05T00:37:20Z"
+          "digest": "sha256:e8dc73ea5af67c3f10ddf83e556c920c295f0d54252b95cc40bb159c1dd1c582",
+          "created": "2026-10-28T01:31:41.933927369Z"
         },
         "linux/arm64": {
-          "digest": "sha256:a38537c57af74ffb68a99c51a69ee4faad6426befc4724b061172f99fabbb219",
-          "created": "2026-08-05T00:39:31Z"
+          "digest": "sha256:836186263463698145f0ed1b784854190dcf9392c1550d275ae1e656a28007d5",
+          "created": "2026-10-28T01:34:53.043087714Z"
         }
       }
     },
     {
-      "id": "postgres-16.14-bookworm",
-      "ref": "docker.io/library/postgres:16.14-bookworm",
-      "index_digest": "sha256:64154d0babcb1741988719e703419af0382b19953706149f9872fbd0f438efa8",
+      "id": "postgres-16.15-bookworm",
+      "ref": "docker.io/library/postgres:16.15-bookworm",
+      "index_digest": "sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938",
       "hub_tag_digest_matches_index": true,
-      "hub_tag_last_updated": "2026-08-05T04:10:08Z",
+      "hub_tag_last_updated": "2026-10-28T07:09:37.452364Z",
       "license": "PostgreSQL",
-      "license_note": "16.15-bookworm was updated 2026-10-28, on the seven-day boundary, so it is not pinned. Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "license_note": "PostgreSQL License, https://www.postgresql.org/about/licence/. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
       "source": "https://github.com/docker-library/postgres",
       "engine_matrix": "v0.2",
       "platforms": {
         "linux/amd64": {
-          "digest": "sha256:714b08dd70c05160db032e4321033ac4e5b6328935b2d03ed419c3a898aa8219",
-          "created": "2026-08-05T00:37:08Z"
+          "digest": "sha256:cf5d353f55240ecc2f811827a15c7d1f2d562f08019b49dca12b5a59f4ab5962",
+          "created": "2026-10-28T01:31:27.096067881Z"
         },
         "linux/arm64": {
-          "digest": "sha256:e84240fdc0f11ac4cff65865db840555aa09c02ae532eb4c95822881164da0e4",
-          "created": "2026-08-05T00:39:27Z"
+          "digest": "sha256:c7d8cf162cb365b478761fa957ff4e58c2cd0ee748c6084056955de0dda9abf4",
+          "created": "2026-10-28T01:34:19.430369901Z"
         }
       }
     },
     {
-      "id": "postgres-18.4-bookworm",
-      "ref": "docker.io/library/postgres:18.4-bookworm",
-      "index_digest": "sha256:882236b897e39051d2368c5ccc6cda944904723506b2dfc97f2a8f5bc9afa382",
+      "id": "postgres-18.6-bookworm",
+      "ref": "docker.io/library/postgres:18.6-bookworm",
+      "index_digest": "sha256:5c4783a8cc3f0074912164f94dfa1be4e043438f0f707cf968d7af9a0d31a2c8",
       "hub_tag_digest_matches_index": true,
-      "hub_tag_last_updated": "2026-08-05T07:09:42Z",
+      "hub_tag_last_updated": "2026-10-28T07:10:59.869689Z",
       "license": "PostgreSQL",
-      "license_note": "18.6-bookworm was updated 2026-10-28, on the seven-day boundary, so it is not pinned. From 18 the image declares VOLUME /var/lib/postgresql and PGDATA moves under it. Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "license_note": "PostgreSQL License, https://www.postgresql.org/about/licence/. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
       "source": "https://github.com/docker-library/postgres",
       "engine_matrix": "v0.2",
       "platforms": {
         "linux/amd64": {
-          "digest": "sha256:7e6103cf85f88f7a0eddb3ec0b1ba8940eba098ed118ade25a729ca9daee5568",
-          "created": "2026-08-05T00:36:43Z"
+          "digest": "sha256:41a369edc91d9bdd7a58be6bc71ea0f8f7a3f49e82818a9f0829021ea7840b7c",
+          "created": "2026-10-28T01:31:12.129346901Z"
         },
         "linux/arm64": {
-          "digest": "sha256:83b9631dbb4121d9235ef910018272798b7d3041ef5b716aa481122d4c49353f",
-          "created": "2026-08-05T00:38:27Z"
+          "digest": "sha256:a1ece8fa15f7b526a51ef47a22fb1f373d33de794dc26bf7bff99e61dcb52690",
+          "created": "2026-10-28T01:33:36.210679937Z"
         }
       }
     },
@@ -406,12 +406,33 @@
           "created": "2024-09-30T00:18:52Z"
         }
       }
+    },
+    {
+      "id": "postgres-17.11-bookworm",
+      "ref": "docker.io/library/postgres:17.11-bookworm",
+      "index_digest": "sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-10-28T07:10:19.445515Z",
+      "license": "PostgreSQL",
+      "license_note": "PostgreSQL License, https://www.postgresql.org/about/licence/. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
+      "source": "https://github.com/docker-library/postgres",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:2cd2c0f809604aaeff6f0ec8f40aecbd025613107561015c69369a1a7f1d3416",
+          "created": "2026-10-28T01:31:24.32855846Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:e692f23ba2393c8b13879dd4ee9f4f0d7bd146fbddceb4c8e10c4ce1fb53e737",
+          "created": "2026-10-28T01:34:14.812684623Z"
+        }
+      }
     }
   ],
   "engine_matrix_v02": {
     "resolved_on": "2026-11-04",
     "resolution": "docker buildx imagetools inspect --raw for the index and platform manifests, docker buildx imagetools inspect --format '{{json .Image}}' for created times, Docker Hub tag API for the tag digest and last_updated. Oracle XE tags are single amd64 manifests, so manifest_digest is the pin and index_digest is null.",
-    "age_gate": "Newest patch of each line whose Hub tag was last updated more than seven days before resolution. Newer tags refused by the gate are named in each license_note.",
+    "age_gate": "MySQL and PostgreSQL use the exact T1/T8 acceptance patches designated by coordinator H-S2-pins, not latest-patch selection. Oracle pins retain their existing selection. Legacy SP00 pins are excluded from v0.2 resolution.",
     "run_policy": "tools/oo-test runs ref@platform_digest from images.pins with an explicit --platform; Docker server native architecture when available, else linux/amd64 under emulation. Oracle Free is deliberately pinned to 23.5 for 23ai coverage rather than the newer 26ai line."
   }
 }

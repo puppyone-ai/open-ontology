@@ -12,7 +12,8 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/oo-test -v
 
 Default seed: 2,000,000 events, 200 small tables, 300-column wide table.
 `--scale 1000 --tables 3` is a **reduced smoke test**, not scale acceptance.
-Versions resolve to the newest matching **locked** patch, never a registry tag.
+Versions resolve only to matching **locked v0.2** patches, never a registry tag
+or a legacy SP00 pin. T1 and T2 share this resolver.
 PostgreSQL 12 is selectable but experimental. Oracle `23ai` resolves to 23.5,
 not the later 26ai releases that also start with 23.
 

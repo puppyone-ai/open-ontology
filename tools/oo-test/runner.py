@@ -47,11 +47,13 @@ def checksums(path):
 
 
 def resolve(engine, version):
-    aliases = {"5.7": "5.7.44", "9.x": "9", "23ai": "23.5", "23": "23.5",
+    aliases = {"9.x": "9", "23ai": "23",
                "21c": "21", "11g": "11"}
     version = aliases.get(version, version)
     candidates = []
     for item in json.loads((ROOT / "testing/infra/images.lock.json").read_text())["images"]:
+        if item.get("engine_matrix") != "v0.2":
+            continue
         name = item["id"]
         prefix = "oracle-" if engine == "oracle" else engine + "-"
         if not name.startswith(prefix):
