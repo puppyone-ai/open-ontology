@@ -173,6 +173,7 @@ async function fixture(t) {
         res.statusCode = 400;
         return res.end('{"error":{"code":"TOKEN_LIFECYCLE","message":"ambiguous_hash_prefix"}}');
       }
+      if (state.adminReply) return res.end(JSON.stringify(state.adminReply));
       return res.end(JSON.stringify(body.operation === 'issue' || body.operation === 'rotate'
         ? { token, token_sha256: 'a'.repeat(64) } : body.operation === 'enroll'
           ? { code: 'OO-0000-0000' } : body.operation === 'list'
@@ -412,4 +413,37 @@ test('identity verification failure keeps the newly redeemed native credential',
   assert.equal(statSync(join(f.dir, 'tokens/default.token')).mode & 0o777, 0o600);
   assert(!existsSync(join(f.dir, 'config.json')));
   assert.match(result.stdout + result.stderr, /credential saved.*active profile unchanged/i);
+});
+
+
+test('invalid issued secrets remove reservations and report only recovery hashes', async t => {
+  for (const direct of [true, false]) {
+    const f = await fixture(t);
+    f.state.direct = direct;
+    const pem = join(f.root, 'admin.pem');
+    writeFileSync(pem, readFileSync(join(f.root, 'server.key')) + readFileSync(f.cert), { mode: 0o600 });
+    const grant = join(f.root, 'grant.json');
+    writeFileSync(grant, JSON.stringify({ role: 'reader', audience_url: f.gateway + '/' }));
+    for (const op of ['issue', 'enroll', 'rotate']) {
+      const key = op === 'enroll' ? 'code' : 'token';
+      const hashKey = op === 'enroll' ? 'code_sha256' : 'token_sha256';
+      const output = join(f.root, op + '.secret');
+      const args = ['token', op, '--gateway', f.gateway, '--ca-file', f.cert,
+        '--client-pem', pem, '--output-file', output, '--json',
+        ...(op === 'rotate' ? ['--project', 'fixture', '--hash', 'a'.repeat(12)] : ['--grant-file', grant])];
+      for (const secret of [undefined, null, 42, 'invalid-secret-marker']) {
+        f.state.adminReply = { [key]: secret, [hashKey]: 'a'.repeat(64) };
+        const result = await f.cli(args);
+        assert.notEqual(result.status, 0);
+        assert.equal(existsSync(output), false, `${op} must remove its empty reservation`);
+        assert.match(result.stdout + result.stderr, new RegExp(`${hashKey}=${'a'.repeat(64)}`));
+        assert(!(result.stdout + result.stderr).includes('invalid-secret-marker'));
+      }
+      f.state.adminReply = { [hashKey]: f.token };
+      const result = await f.cli(args);
+      assert.notEqual(result.status, 0);
+      assert.equal(existsSync(output), false);
+      assert.match(result.stdout + result.stderr, /hash unavailable/);
+    }
+  }
 });

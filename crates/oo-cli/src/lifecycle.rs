@@ -875,16 +875,43 @@ async fn token_command(args: &[String]) -> Result<String> {
             return Err(e);
         }
     };
-    if let Some((_path, mut file)) = output {
+    if let Some((path, mut file)) = output {
         let key = if command == "enroll" { "code" } else { "token" };
-        let secret = text(&value, key)?;
-        if !(if key == "code" {
-            code_ok(secret)
-        } else {
-            token_ok(secret)
-        }) {
-            return Err(protocol());
-        }
+        let secret = value[key].as_str().filter(|secret| {
+            if key == "code" {
+                code_ok(secret)
+            } else {
+                token_ok(secret)
+            }
+        });
+        let Some(secret) = secret else {
+            drop(file);
+            let cleanup = if fs::remove_file(path).is_ok() {
+                "empty output removed"
+            } else {
+                "empty output cleanup failed"
+            };
+            let hash_key = if key == "code" {
+                "code_sha256"
+            } else {
+                "token_sha256"
+            };
+            // Remote fields are untrusted: only a canonical digest may reach diagnostics.
+            let recovery = value[hash_key]
+                .as_str()
+                .filter(|s| {
+                    s.len() == 64
+                        && s.bytes()
+                            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                })
+                .map(|hash| format!("{hash_key}={hash}"))
+                .unwrap_or_else(|| "hash unavailable; use the administrator audit record".into());
+            let mut failure = Failure::local(format!(
+                "Credential issued but secret missing or invalid; {cleanup}; {recovery}. Ask the administrator to revoke the issued credential."
+            ));
+            failure.exit = 7;
+            return Err(failure);
+        };
         file.write_all(secret.as_bytes()).and_then(|_| file.sync_all()).map_err(|_| Failure::local(
             "Credential issued but private output write failed; ask the administrator to revoke it using the audit record"))?;
         value.as_object_mut().ok_or_else(protocol)?.remove(key);
