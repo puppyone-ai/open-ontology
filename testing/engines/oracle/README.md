@@ -229,3 +229,58 @@ Version qualification: the local `gvenzl/oracle-free:23-slim` digest used by
 these S2 runs reports `23.26.3.0.0` and an Oracle AI Database **26ai** banner.
 The run name `23` denotes the version-family/image target, not proof against an
 older 23ai-branded build. Consult the pinned image and raw startup/probe output.
+
+## S2c: D11a and strict C5 (2026-11-04)
+
+`--incremental --c5-only` now configures a separate OO_READER audit without
+creating a miner or enabling LogMiner. It records both audit modes and traces
+inside the reader's PDB (root-only tracing misses PDB sessions). Read-only
+capability checks against inaccessible LogMiner views are still SELECTs, not
+LogMiner invocations. Audit collection is mandatory and empty evidence fails.
+
+D11a admits DML only on SYS/SYSTEM LOGMNR-prefixed objects, and COMMIT only
+when every observed execution is enclosed by a LogMiner call/query in the
+same traced session. The fixture records conventional and unified audit
+session IDs alongside SID/serial for correlation; SQL equality alone cannot
+establish session identity. Known top-level writes, driver ALTER SESSION,
+foreign-object writes and unproven recursive blocks remain failures. The
+original 41-row fixture and prior failed reports are preserved.
+
+The component harness now calls probe before planning and reading. On the
+pinned 23.26.3 image, immediate index-plan flashback can fail with ORA-01466.
+The index-only sample retries at a fresh SCN, at most `snapshot_retries` times,
+with a one-second delay. No sample rows reach a sink; actual chunk snapshot
+semantics are unchanged. The pinned thin driver's statement cache is disabled:
+the retry-only experiment produced ORA-01003, whereas the uncached bounded
+retry completed with a verified index and zero-diff cycles. The final 23 C1
+run exercised one retry. Earlier unsuccessful experiments remain evidence.
+
+This is not T7 acceptance. The thin driver emits ALTER SESSION during login;
+the thick 11g path also shows session settings in trace. Strict C5 additionally
+observes recursive audit/maintenance writes. These are not silently exempted
+or attributed to the audit facility merely from their object names. The
+S2c summary records every rejected SQL text and its audit/trace attribution.
+Neither C1 nor C5 is promoted to verified zero-write status.
+
+Final live run IDs are `e-s2c-{c1,c5}-{23,21,11}-final`. All six component
+runs pass; their T7 verdicts fail. A separate `e-s2c-adjudication` report
+reclassifies the preserved records with two evidence-backed distinctions:
+unified SELECT labels on trace-correlated recursive DELETE, and 11g LOGOFF
+BY CLEANUP lifecycle records. It never overwrites a live report. Final
+rejected record counts (audit and trace records, not unique operations) are:
+
+| Version | C5 strict T7 | C1 D11a T7 |
+| --- | --- | --- |
+| 23.26.3 | FAIL: 14 records | FAIL: 51 records |
+| 21.3 | FAIL: 15 records | FAIL: 36 records |
+| 11.2 | FAIL: 18 records | FAIL: 23 records |
+
+`s2c-evidence-summary.json` contains the exact
+remaining SQL, session/user/owner/depth fields where available, raw record
+indices, source hashes and artifact hashes. For reproduction, the ignored
+`evidence/e-s2c-adjudication/reclassify.py` records the read-only adjudication.
+The full connector suite has one unrelated macOS failure:
+`parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes`
+reports `group_signal=rejected` rather than `sent`. The same test fails on
+archived base `f27d1a2c0`; with that one test filtered, 253 pass and 22 are
+ignored. Ignored database tests are not counted as real engine passes.

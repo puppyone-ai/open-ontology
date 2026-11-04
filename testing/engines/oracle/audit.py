@@ -32,7 +32,7 @@ def logminer_query(sql):
 def classify(record, mode="c1"):
     sql = normalized(record.get("sql"))
     action = record.get("action")
-    if action in ("LOGON", "LOGOFF") and not sql:
+    if action in ("LOGON", "LOGOFF", "LOGOFF BY CLEANUP") and not sql:
         return "read_session"
     if sql.startswith("SELECT ") and action in ("SELECT", "EXECUTE PROCEDURE"):
         return "read"
@@ -42,7 +42,11 @@ def classify(record, mode="c1"):
         return "logminer_call"
     if record.get("depth") == 0:
         return "rejected_top_level_non_select"
-    if action in ("DELETE", "INSERT", "UPDATE", "MERGE"):
+    # Unified auditing can label a recursive DELETE as SELECT. Require
+    # same-session trace correlation before overriding that audit label.
+    traced_dml = (action == "SELECT" and record.get("trace_sources")
+                  and isinstance(record.get("depth"), int) and record["depth"] > 0)
+    if action in ("DELETE", "INSERT", "UPDATE", "MERGE") or traced_dml:
         obj = logminer_dml(sql)
         if obj and record.get("objects") == [obj]:
             return "d11a_logminer_object_dml"

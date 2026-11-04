@@ -41,6 +41,16 @@ class D11aTests(unittest.TestCase):
             self.assertTrue(classify({'action': sql.split()[0], 'sql': sql, 'depth': 1,
                                      'objects': ['SYS.LOGMNR_GT_X']}).startswith('rejected'))
 
+    def test_unified_select_label_needs_correlated_recursive_dml(self):
+        record = {'action': 'SELECT', 'sql': 'DELETE FROM SYS.LOGMNR_GT_X',
+                  'objects': ['SYS.LOGMNR_GT_X']}
+        self.assertTrue(classify(record).startswith('rejected'))
+        record.update(depth=2, trace_sources=['trace-001'])
+        self.assertEqual(classify(record), 'd11a_logminer_object_dml')
+        self.assertTrue(classify({**record, 'depth': 0}).startswith('rejected'))
+        self.assertTrue(classify({**record, 'objects': ['SYS.AUD$']}).startswith('rejected'))
+        self.assertTrue(classify(record, 'c5').startswith('rejected'))
+
     def test_commit_requires_enclosing_call_in_same_session(self):
         call = 'BEGIN DBMS_LOGMNR.END_LOGMNR; END;'
         trace = ('*** SESSION ID:(1.2) now\n' + statement(1, call, 0, 100, 300, 99)
@@ -64,6 +74,7 @@ class D11aTests(unittest.TestCase):
     def test_c5_only_reads_and_session_lifecycle(self):
         self.assertEqual(classify({'action': 'SELECT', 'sql': 'SELECT X FROM APP.T'}, 'c5'), 'read')
         self.assertEqual(classify({'action': 'LOGON'}, 'c5'), 'read_session')
+        self.assertEqual(classify({'action': 'LOGOFF BY CLEANUP'}, 'c5'), 'read_session')
         for sql, action in [('COMMIT', 'COMMIT'),
                             ('BEGIN DBMS_LOGMNR.END_LOGMNR; END;', 'EXECUTE')]:
             self.assertTrue(classify({'sql': sql, 'action': action}, 'c5').startswith('rejected'))
