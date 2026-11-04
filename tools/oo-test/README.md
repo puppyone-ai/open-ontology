@@ -121,3 +121,28 @@ compact separators, sorted object keys, plus one LF. It is intentionally
 (order-independent C5). Do not compare these hash domains directly.
 `TableRef`, watermarks and plan revision remain engine-owned metadata; attach
 this oracle's report to them without changing their serialization.
+## Lane M incremental T2
+
+```sh
+tools/oo-test/oo-test t2 --versions 13,14,15,16,17,18 --run-id pg-t2-local
+```
+
+This entry owns one labelled PostgreSQL container at a time, with distinct
+source/Agent databases and separate reader/admin connections. It runs the real
+`oo-load` binary against a compact two-table fixture: three C1 and three C5
+cycles, concurrent admin writes, exact row comparison after each cycle,
+monotonic durable C1 positions, T8 sampling and a no-change cycle with zero
+logical target writes/new generations and unchanged total target relation size.
+C5 additionally requires zero delivered payload on its no-change cycle.
+
+It retains concurrent-range retry failures and requires a successful repaired
+cycle; it does not mask unexpected source failures. Negative checks recreate a
+replication slot and a source table, requiring explicit rebaseline errors.
+
+Raw per-version commands, receipts, comparison hashes, resource/image receipts,
+T8 samples, failures and cleanup results live under `evidence/<run-id>/`.
+The command exits nonzero for missing/failed T2 or cleanup failures.
+
+This does not exercise C5-to-C1 handoff, full type/scale fixtures or T7. MySQL
+and Oracle T2 are not implemented by this entry; do not infer those engine
+exits from the PostgreSQL results or the separate synthetic-source target tests.
