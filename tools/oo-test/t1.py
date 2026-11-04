@@ -272,19 +272,26 @@ class SourceMeter:
                 "username='FIXTURE_READER'", "username IN ('FIXTURE_READER','C##OO_MINER')")
         stderr = None
         try:
-            if self.run.engine == "postgres":
-                # Keep observation off the Docker exec hot path, like the writer.
-                command = ["docker", "exec", "-i", "-u", "postgres", self.run.name,
-                           "psql", "-X", "-q", "-v", "ON_ERROR_STOP=1", "-A", "-t", "-F", "|",
-                           "-U", "postgres", "-d", "fixture"]
+            if self.run.engine in ("postgres", "mysql"):
+                # Keep observation off the Docker exec hot path, like the writer:
+                # one exec per sample (5/s) exhausts the Docker socket on long loads.
+                if self.run.engine == "postgres":
+                    command = ["docker", "exec", "-i", "-u", "postgres", self.run.name,
+                               "psql", "-X", "-q", "-v", "ON_ERROR_STOP=1", "-A", "-t", "-F", "|",
+                               "-U", "postgres", "-d", "fixture"]
+                else:
+                    command = ["docker", "exec", "-i", self.run.name, "mysql",
+                               "--defaults-extra-file=/run/oo/admin.cnf", "--protocol=tcp",
+                               "--host=127.0.0.1", "--connect-timeout=5", "--batch", "--raw",
+                               "--skip-column-names", "--unbuffered", "fixture"]
                 runner.write_json(self.run.path / f"source-meter-{self.label}-command.json",
-                                  {"argv": command, "query": queries["postgres"]})
+                                  {"argv": command, "query": queries[self.run.engine]})
                 stderr = (self.run.path / f"source-meter-{self.label}.stderr").open("w")
                 self.child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                               stderr=stderr, text=True, bufsize=1)
             while not self.stop.is_set():
                 if self.child:
-                    self.child.stdin.write(queries["postgres"] + "\n")
+                    self.child.stdin.write(queries[self.run.engine] + "\n")
                     self.child.stdin.flush()
                     text = self.child.stdout.readline()
                     if not text:
