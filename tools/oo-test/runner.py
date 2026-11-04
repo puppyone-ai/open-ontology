@@ -51,6 +51,12 @@ def checksums(path):
 
 
 def resolve(engine, version):
+    if engine == "sqlserver":
+        items = json.loads((ENGINES / "sqlserver/images.lock.json").read_text())["images"]
+        matches = [item for item in items if item["id"].startswith("sqlserver-" + version + "-")]
+        if len(matches) != 1:
+            raise ValueError(f"no unique locked image for sqlserver {version}")
+        return matches[0]
     aliases = {"9.x": "9", "23ai": "23",
                "21c": "21", "11g": "11"}
     version = aliases.get(version, version)
@@ -480,7 +486,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     matrix = sub.add_parser("matrix")
     selection = matrix.add_mutually_exclusive_group(required=True)
-    selection.add_argument("--engine", choices=["mysql", "postgres", "oracle"])
+    selection.add_argument("--engine", choices=["mysql", "postgres", "oracle", "sqlserver"])
     selection.add_argument("--all", action="store_true", help="all P0 targets, including blocked Oracle 19c")
     matrix.add_argument("--versions")
     matrix.add_argument("--suites", type=suites, default=["T0"])
@@ -494,6 +500,8 @@ def main():
     matrix.add_argument("--hook", action="append", default=[], metavar="T1=PATH",
                         help="executable hook; receives owned-container context via OO_TEST_CONTEXT")
     args = parser.parse_args()
+    if args.engine == "sqlserver" and args.hook:
+        parser.error("SQL Server uses built-in product suites; external hooks are not supported")
     if "T7" in args.suites:
         args.suites = sorted(set(args.suites) | {"T1", "T2"})
     if args.runner == "remote":
@@ -536,7 +544,11 @@ def main():
     for engine, version in targets:
         path = root / f"{engine}-{version}"
         path.mkdir()
-        run = Run(path, engine, version, args)
+        if engine == "sqlserver":
+            from sqlserver_runner import SqlServerRun
+            run = SqlServerRun(path, engine, version, args)
+        else:
+            run = Run(path, engine, version, args)
         result = {"engine": engine, "version": version, "status": "failed", "suites": {},
                   "product_t0": "T0" in hooks, "variant": args.variant}
         try:
@@ -561,13 +573,20 @@ def main():
                     raise RuntimeError("gold mismatch")
             if "T0" in args.suites:
                 result["suites"]["T0"] = "passed"
-            result["suites"].update(execute_suites(run, args.suites, hooks))
+            if engine == "sqlserver":
+                result["suites"].update(run.execute(args.suites))
+                result["product_t0"] = result["suites"].get("T0") == "passed"
+            else:
+                result["suites"].update(execute_suites(run, args.suites, hooks))
             if any(value != "passed" for value in result["suites"].values()):
                 raise RuntimeError("requested suite failed or is not implemented")
             result["status"] = "passed"
         except (Exception, KeyboardInterrupt) as error:
             result["error"] = redact(str(error), run.secret, run.reader_secret)
             interrupted_run = isinstance(error, KeyboardInterrupt)
+            if engine == "sqlserver" and (path / "product-suites.json").exists():
+                result["suites"].update(json.loads((path / "product-suites.json").read_text()))
+                result["product_t0"] = result["suites"].get("T0") == "passed"
         finally:
             # A second interrupt must not strand resources during normal cleanup.
             previous = {sig: signal.signal(sig, signal.SIG_IGN) for sig in (signal.SIGINT, signal.SIGTERM)}

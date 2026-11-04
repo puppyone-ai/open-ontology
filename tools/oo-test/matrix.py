@@ -8,6 +8,8 @@ P0 += [("oracle", v) for v in ("19c", "23ai", "11g", "21c")]
 
 
 def target_id(engine, version):
+    if engine == "sqlserver":
+        return "sqlserver-selfmanaged"
     if engine == "postgres":
         return "postgres-selfmanaged"
     if engine == "mysql":
@@ -48,6 +50,12 @@ def index_rows(root, report, requested):
                 "emulated": receipt.get("execution") == "emulated",
                 "detail": status, "error": result.get("error"),
             })
+            if engine == "sqlserver" and outcome == "pass" and suite in ("T2", "T7"):
+                row = rows.pop()
+                # The built-in SQL Server suite explicitly runs both T2 paths;
+                # its separate T7 audit covers CDC, not C5.
+                variants = ("c1", "c5") if suite == "T2" else ("c1",)
+                rows.extend(dict(row, variant=v) for v in variants)
             # Missing hooks must invalidate both paths, not leave old CDC/digest
             # passes authoritative merely because no variant was supplied.
             if suite in ("T2", "T3", "T7") and outcome != "pass" and not result.get("variant"):

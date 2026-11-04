@@ -19,6 +19,11 @@ struct Input {
     prior: Option<PathBuf>,
     #[serde(default)]
     barrier: bool,
+    table: Option<String>,
+    database: Option<String>,
+    user: Option<String>,
+    #[serde(default)]
+    position_only: bool,
 }
 struct Sink(Vec<RecordBatch>);
 impl ChunkSink for Sink {
@@ -41,7 +46,7 @@ async fn run() -> Result<(), String> {
     .map_err(|_| "config_decode")?;
     let table = TableRef {
         schema: "dbo".into(),
-        name: "fixture".into(),
+        name: input.table.unwrap_or_else(|| "fixture".into()),
     };
     let budget = ReadBudget {
         max_chunk_rows: 4,
@@ -51,8 +56,8 @@ async fn run() -> Result<(), String> {
     let config = ConnectConfig {
         host: "localhost".into(),
         port: input.port,
-        database: "oo_fixture".into(),
-        user: "oo_reader".into(),
+        database: input.database.unwrap_or_else(|| "oo_fixture".into()),
+        user: input.user.unwrap_or_else(|| "oo_reader".into()),
         password: zeroize::Zeroizing::new(
             fs::read_to_string(input.password_file).map_err(|_| "secret_read")?,
         ),
@@ -71,6 +76,10 @@ async fn run() -> Result<(), String> {
         serde_json::to_vec(&position).unwrap(),
     )
     .map_err(|_| "output_write")?;
+    if input.position_only {
+        println!("{}", serde_json::json!({"probe":probe,"position":position}));
+        return Ok(());
+    }
     if let Some(prior) = input.prior {
         let from: Watermark =
             serde_json::from_slice(&fs::read(prior).map_err(|_| "position_read")?)
