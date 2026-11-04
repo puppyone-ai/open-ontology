@@ -71,6 +71,25 @@ ROWS, COLS = 200, 250
 # An empty input line of a wizard/review prompt (secrets always show [hidden]).
 FRESH = re.compile(r">(?:\[hidden\])?Enter:accept")
 REVIEWED_AT = "2026-11-05"
+AGENT = True
+# macOS runs the CLI on this host; linux-x64 runs it in a clean amd64 client
+# container (CLIENT) that drives the host's Docker daemon via its socket.
+TARGET = "darwin-arm64"
+CLIENT = None
+CLIENT_ENV = ("HOME", "PATH", "TERM", "LANG", "TMPDIR", "npm_config_cache", "npm_config_update_notifier",
+              "OO_LITE_LANE")
+
+
+def launch(argv, cwd, env, tty=False):
+    """argv/env to run one CLI-side command on the machine under test."""
+    argv = [str(a) for a in argv]
+    if CLIENT is None:
+        return argv, env
+    wrapped = ["docker", "exec", "-i", *(["-t"] if tty else []), "-w", str(cwd)]
+    for key in CLIENT_ENV:
+        if key in env:
+            wrapped += ["-e", f"{key}={env[key]}"]
+    return wrapped + [CLIENT, *argv], dict(os.environ)
 
 
 def write_json(path, value):
@@ -154,6 +173,7 @@ class Tty:
     def __init__(self, argv, cwd, env, log):
         self.master, slave = pty.openpty()
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", ROWS, COLS, 0, 0))
+        argv, env = launch(argv, cwd, env, tty=True)
         self.child = subprocess.Popen(argv, cwd=cwd, env=env, stdin=slave, stdout=slave,
                                       stderr=slave, start_new_session=True)
         os.close(slave)
@@ -278,6 +298,9 @@ class Source:
             self.database, self.scope = "fixture", ["public.customers", "public.orders"]
             self.query = "SELECT amount FROM public.orders WHERE id=1"
             self.expected = "1.1250"
+            self.changes = ["UPDATE public.orders SET amount=2.5 WHERE id=1;",
+                            "UPDATE public.customers SET note='changed by L1' WHERE id=1;"]
+            self.changed = "2.5000"
             actual = run.sql("SHOW server_version;", admin=True)[1].strip().split()[0]
         elif self.engine == "mysql":
             self.configure_tls()
@@ -298,6 +321,9 @@ class Source:
             self.database, self.scope = "fixture", ["fixture.customers", "fixture.orders"]
             self.query = "SELECT amount FROM fixture.orders WHERE id=1"
             self.expected = "1.1250"
+            self.changes = ["UPDATE fixture.orders SET amount=2.5 WHERE id=1;",
+                            "UPDATE fixture.customers SET note='changed by L1' WHERE id=1;"]
+            self.changed = "2.5000"
             actual = run.sql("SELECT VERSION();", admin=True)[1].strip()
         else:
             run.sql("GRANT FLASHBACK ON fixture.orders TO fixture_reader;\n"
@@ -308,8 +334,11 @@ class Source:
                     "GRANT SELECT ON SYS.DBA_EXTENTS TO fixture_reader;\n"
                     "GRANT EXECUTE ON SYS.DBMS_ROWID TO fixture_reader;\n", admin=True)
             self.database, self.scope = "FREEPDB1", ["FIXTURE.CUSTOMERS", "FIXTURE.ORDERS"]
-            self.query = "SELECT q_414d4f554e54 FROM q_46495854555245.q_4f5244455253 WHERE q_4944 = '1'"
+            self.query = "SELECT q_414d4f554e54 FROM q_46495854555245.q_4f5244455253 WHERE q_4944 = 1"
             self.expected = "1.125"
+            self.changes = ["UPDATE fixture.orders SET amount=2.5 WHERE id=1;",
+                            "UPDATE fixture.customers SET note='changed by L1' WHERE id=1;", "COMMIT;"]
+            self.changed = "2.5"
             actual = run.sql("SELECT version_full FROM product_component_version "
                              "WHERE product LIKE 'Oracle Database%';", admin=True)[1].strip()
         if not actual.startswith(self.version):
@@ -324,6 +353,10 @@ class Source:
         # Fixture CA; the server name covers the host and the runtime's view of it.
         store = self.tls
         store.mkdir(mode=0o700)
+        # Remote (SSH) runtimes reach the source by its bridge address.
+        _, address = self.run.command(["docker", "inspect", "--format", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+                                       self.run.name])
+        self.ip = address.strip()
         for cmd in [
             ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", str(store / "ca-key"),
              "-out", str(store / "source-ca"), "-days", "2", "-subj", "/CN=oo-a4-fixture-ca",
@@ -334,7 +367,7 @@ class Source:
             self.run.command(cmd)
         (store / "extensions").write_text(
             "basicConstraints=critical,CA:FALSE\n"
-            "subjectAltName=DNS:localhost,DNS:host.docker.internal,IP:127.0.0.1\n"
+            f"subjectAltName=DNS:localhost,DNS:host.docker.internal,IP:127.0.0.1,IP:{self.ip}\n"
             "keyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n")
         self.run.command(["openssl", "x509", "-req", "-in", str(store / "server-csr"),
                           "-CA", str(store / "source-ca"), "-CAkey", str(store / "ca-key"),
@@ -342,6 +375,10 @@ class Source:
                           "-extfile", str(store / "extensions")])
         for name in ("source-ca", "server-cert", "server-key"):
             (store / name).chmod(0o644 if name != "server-key" else 0o600)
+
+    def change(self):
+        # Both loaded tables change: one retained run per published cut.
+        self.run.sql("\n".join(self.changes) + "\n", admin=True)
 
     def close(self):
         failures = self.run.cleanup()
@@ -363,11 +400,16 @@ def clean_env(home, tools, prefix):
     # Docker Desktop's own per-user CLI configuration (plugin directory); not
     # part of this product and holding no credentials.
     env["DOCKER_CONFIG"] = str(tools / "docker-config")
+    if CLIENT:
+        # The Linux machine's own system tools (node, npm, docker, python3).
+        env["PATH"] = f"{prefix}/bin:/usr/local/bin:/usr/bin:/bin"
     return env
 
 
-def command(argv, cwd, env, output, name, timeout=600, data=None):
+def command(argv, cwd, env, output, name, timeout=600, data=None, client=True):
     started = time.monotonic()
+    if client:
+        argv, env = launch(argv, cwd, env)
     result = subprocess.run([str(a) for a in argv], cwd=cwd, env=env, capture_output=True,
                             timeout=timeout, input=data)
     (output / f"{name}.stdout").write_bytes(result.stdout)
@@ -392,26 +434,26 @@ def diagnostic_pack(binary, output, tools):
         shutil.copy2(ROOT / name, package / name)
     skill = (ROOT / "tools/agent-contract/business-answer-policy.md").read_bytes()
     (package / "SKILL.md").write_bytes(skill)
-    native = package / "native/darwin-arm64/oo"
+    native = package / f"native/{TARGET}/oo"
     native.parent.mkdir(parents=True)
     shutil.copy2(binary, native)
     native.chmod(0o755)
     (native.parent / "oo-lite-image").write_text(image + "\n")
     write_json(package / "native/manifest.json", {
         "schema_version": 1, "skill_sha256": hashlib.sha256(skill).hexdigest(),
-        "binaries": {"darwin-arm64": {"path": "native/darwin-arm64/oo",
+        "binaries": {TARGET: {"path": f"native/{TARGET}/oo",
                      "sha256": hashlib.sha256(native.read_bytes()).hexdigest()}}})
     home = output / "pack-home"
     home.mkdir()
     result = command([tools / "npm", "pack", "--json", "--ignore-scripts", "--pack-destination", output],
-                     package, clean_env(home, tools, home / "prefix"), output, "npm-pack")
+                     package, clean_env(home, tools, home / "prefix"), output, "npm-pack", client=False)
     if result.returncode:
         raise RuntimeError("npm pack failed; see raw evidence")
     metadata = json.loads(result.stdout)[0]
     write_json(output / "pack-inventory.json", metadata)
     files = {entry["path"] for entry in metadata["files"]}
     natives = sorted(f for f in files if f.startswith("native/"))
-    if natives != ["native/darwin-arm64/oo", "native/darwin-arm64/oo-lite-image", "native/manifest.json"]:
+    if natives != [f"native/{TARGET}/oo", f"native/{TARGET}/oo-lite-image", "native/manifest.json"]:
         raise RuntimeError("package must carry only the native CLI and its image pin")
     return output / metadata["filename"], image
 
@@ -419,13 +461,14 @@ def diagnostic_pack(binary, output, tools):
 def install(output, tools, archive, home):
     prefix = home / "npm"
     env = clean_env(home, tools, prefix)
-    result = command([tools / "npm", "install", "--global", "--prefix", prefix, "--ignore-scripts",
+    npm = "npm" if CLIENT else tools / "npm"
+    result = command([npm, "install", "--global", "--prefix", prefix, "--ignore-scripts",
                       "--no-audit", "--no-fund", archive], home, env, output, "npm-install")
     if result.returncode:
         raise RuntimeError("local npm installation failed")
     cli = prefix / "bin/oo"
     package = json.loads((ROOT / "packages/cli/package.json").read_text())["name"]
-    beside = sorted(p.name for p in (prefix / "lib/node_modules" / package / "native/darwin-arm64").iterdir())
+    beside = sorted(p.name for p in (prefix / "lib/node_modules" / package / f"native/{TARGET}").iterdir())
     if beside != ["oo", "oo-lite-image"]:
         raise RuntimeError("helpers present beside the installed oo")
     return cli, env, beside
@@ -515,17 +558,31 @@ def accept_all(command_input, binary):
                     "reason": "Owner accepted every item of the retained draft (self-review)"}}
 
 
-def consumer(cli, env, prompt, output, source, name):
-    """Execute the printed prompt's own CLI steps, then one native query."""
+def same_number(rows, expected):
+    from decimal import Decimal
+    try:
+        return len(rows) == 1 and len(rows[0]) == 1 and Decimal(str(rows[0][0])) == Decimal(expected)
+    except Exception:
+        return False
+
+
+def bind_step(prompt):
     bind = next(line.split("2. Bind: ", 1)[1] for line in prompt.splitlines() if line.startswith("2. Bind: "))
     prefix, login = bind.split(" | ", 1)
     code = shlex.split(prefix)[2]
     argv = shlex.split(login)
     if argv[:2] != ["oo", "login"] or "--code-stdin" not in argv:
         raise RuntimeError("unexpected bind step")
+    return code, argv
+
+
+def consumer(cli, env, prompt, output, source, name, login=True):
+    """Execute the printed prompt's own CLI steps, then one native query."""
+    code, argv = bind_step(prompt)
     results = {}
-    steps = [("login", argv[1:], code.encode() + b"\n"), ("whoami", ["whoami", "--json"], None),
-             ("tables", ["tables", "--json"], None), ("query", ["query", "--json", source.query], None)]
+    steps = [("login", argv[1:], code.encode() + b"\n")] if login else []
+    steps += [("whoami", ["whoami", "--json"], None),
+              ("tables", ["tables", "--json"], None), ("query", ["query", "--json", source.query], None)]
     for step, args, data in steps:
         result = command([cli, *args], output, env, output, f"{name}-{step}", 120, data)
         results[step] = {"exit": result.returncode}
@@ -536,14 +593,151 @@ def consumer(cli, env, prompt, output, source, name):
             results[step]["value"] = json.loads(result.stdout)
     rows = results["query"]["value"].get("rows")
     results["query"]["rows"] = rows
-    results["status"] = "passed" if rows == [[source.expected]] else "wrong_data"
+    results["status"] = "passed" if same_number(rows, source.expected) else "wrong_data"
     return results
+
+
+LANE_G_T6 = "f206d6424"  # v0.2/g-selfbuild-budget tools/oo-test/t6.py
+LOADED = {"orders", "customers"}
+
+
+def gold_questions(source):
+    """Gold questions whose SQL reads only the tables this fixture loads."""
+    text = (ROOT / "testing/engines/gold" / f"{source.engine}.sql").read_text()
+    chosen = []
+    for qid, statement in re.findall(r"-- (Q\d+):[^\n]*\n(.*?);", text, re.S):
+        tables = {name.lower() for name in re.findall(r"(?:FROM|JOIN)\s+(?:\w+\.)?(\w+)", statement, re.I)}
+        if tables and tables <= LOADED:
+            chosen.append(qid)
+    return chosen
+
+
+def lane_g_t6(output):
+    """Lane G's real-model dialogue logic at a pinned commit (called, not copied)."""
+    path = output / "t6.py"
+    path.write_bytes(subprocess.check_output(["git", "show", f"{LANE_G_T6}:tools/oo-test/t6.py"], cwd=ROOT))
+    spec = __import__("importlib.util").util.spec_from_file_location("lane_g_t6", path)
+    module = __import__("importlib.util").util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def agent(cli, env, prompt, output, source):
+    """An Agent given only the printed prompt binds and answers gold questions."""
+    output.mkdir()
+    t6 = lane_g_t6(output)
+    _, argv = bind_step(prompt)
+    flags = argv[2:]
+    flags.remove("--code-stdin")
+    seq = [0]
+
+    def run(args):
+        if args[0] == "login":
+            command, stdin = [cli, "login", *flags[:2], "--code-stdin", *flags[2:], "--json"], args[1] + "\n"
+        else:
+            command, stdin = [cli, *args] + ([] if args[0] == "agent-skill" else ["--json"]), None
+        result = subprocess.run([str(c) for c in command], input=stdin, text=True, capture_output=True,
+                                timeout=150, env=env)
+        try:
+            body = json.loads(t6.redact_material(result.stdout))
+        except ValueError:
+            body = t6.redact_material(result.stdout)
+        out = {"exit": result.returncode, "body": body, "stderr": t6.redact_material(result.stderr)}
+        seq[0] += 1
+        write_json(output / f"cli-{seq[0]:03d}.json", {"args": [t6.redact_material(a) for a in args], **out})
+        return out
+
+    gold = source.run.gold()
+    chosen = gold_questions(source)
+    questions = [q for q in json.loads(t6.QUESTIONS.read_text()) if q["id"] in chosen]
+    report = {"model": t6.MODEL["model"], "harness": f"lane G t6.py @ {LANE_G_T6}",
+              "budget": {"max_calls": t6.MAX_CALLS, "max_turns": t6.MAX_TURNS,
+                         "max_output_per_call": t6.MAX_OUTPUT, "max_request_bytes": t6.MAX_REQUEST_BYTES},
+              "questions_scope": "gold questions reading only " + ",".join(sorted(LOADED)),
+              "questions": []}
+    write_json(output / "preflight.json", report)
+    model = t6.Model(output)
+    try:
+        bound = t6.bind_agent(model, run, prompt, output)
+        report["binding"] = "verified"
+        for question in questions:
+            row = t6.dialogue(model, run, bound, question, gold[question["id"]], output)
+            entry = {k: row[k] for k in ("id", "status", "equal", "null", "truncated", "refused",
+                                          "error", "tool_failures")}
+            report["questions"].append(entry)
+    except Exception as error:
+        report["error"] = t6.error_code(error) or type(error).__name__
+    finally:
+        report["agent_model_calls"] = model.calls
+        model.close()
+        report["correct"] = sum(q["equal"] for q in report["questions"])
+        report["asked"] = len(report["questions"])
+        write_json(output / "result.json", report)
+    return report
+
+
+def control_sql(work, sql):
+    project = json.loads((work / ".oo/lite/owner.json").read_text())["project"]
+    cid = subprocess.run(["docker", "ps", "-q", "--filter", "label=com.docker.compose.project=" + project,
+                          "--filter", "label=com.docker.compose.service=control-db"],
+                         capture_output=True, text=True).stdout.strip()
+    result = subprocess.run(["docker", "exec", "-i", cid, "psql", "-X", "-qAt", "-v", "ON_ERROR_STOP=1",
+                             "-U", "postgres"], input=sql, text=True, capture_output=True, timeout=30)
+    if result.returncode:
+        raise RuntimeError("control SQL failed: " + (result.stderr.strip().splitlines() or ["?"])[-1][:160]
+                           + f" (container {cid[:12] or 'none'})")
+    return result.stdout.strip()
+
+
+def wait_status(cli, work, env, output, name, timeout=420):
+    deadline = time.monotonic() + timeout
+    report = {}
+    while time.monotonic() < deadline:
+        result = command([cli, "status", "--config", work / "stack.yaml", "--json"], work, env, output, name)
+        report = json.loads(result.stdout or b"{}")
+        if report.get("healthy"):
+            break
+        time.sleep(5)
+    return {"status": report.get("status"), "healthy": report.get("healthy"),
+            "services": {r["Service"]: r["Status"] for r in report.get("services", [])},
+            "last_success": report.get("last_success"), "next_due": report.get("next_due"),
+            "gateway_health": (report.get("gateway_health") or {}).get("status")}
+
+
+def scheduled_cycle(cli, work, env, agent_env, output, source):
+    """Seven healthy, then one scheduled data-change cycle serves new data."""
+    result = {"before": wait_status(cli, work, env, output, "status-scheduled-1")}
+    if not result["before"]["healthy"]:
+        raise RuntimeError("deployment did not reach seven healthy services")
+    succeeded = int(control_sql(work, "SELECT count(*) FROM jobs.tasks WHERE state='succeeded';"))
+    source.change()
+    control_sql(work, "UPDATE jobs.schedules SET next_run_at=clock_timestamp();")
+    deadline = time.monotonic() + 900
+    while time.monotonic() < deadline:
+        done = int(control_sql(work, "SELECT count(*) FROM jobs.tasks WHERE state='succeeded';"))
+        failed = int(control_sql(work, "SELECT count(*) FROM jobs.tasks WHERE state='failed';"))
+        if failed:
+            raise RuntimeError("scheduled cycle failed")
+        if done > succeeded:
+            break
+        time.sleep(3)
+    else:
+        raise RuntimeError("scheduled cycle timeout")
+    query = command([cli, "query", "--json", source.query], work, agent_env, output, "query-after-cycle")
+    rows = json.loads(query.stdout or b"{}").get("rows")
+    result.update(tasks_succeeded=done, query_rows=rows, expected=[[source.changed]],
+                  after=wait_status(cli, work, env, output, "status-scheduled-2"))
+    usage = work / ".oo/lite/work/usage.jsonl"
+    result["scheduled_model_calls"] = len(usage.read_bytes().splitlines()) if usage.exists() else 0
+    result["result"] = ("passed" if same_number(rows, source.changed) and result["after"]["healthy"]
+                        and result["scheduled_model_calls"] == 0 else "failed")
+    return result
 
 
 def kill_after_load(cli, work, env, output, stack_path):
     with (output / "build-killed.stdout").open("wb") as out, (output / "build-killed.stderr").open("wb") as err:
-        child = subprocess.Popen([str(cli), "build", "--config", str(stack_path), "--json"], cwd=work, env=env,
-                                 stdout=out, stderr=err)
+        argv, run_env = launch([cli, "build", "--config", stack_path, "--json"], work, env)
+        child = subprocess.Popen(argv, cwd=work, env=run_env, stdout=out, stderr=err)
         deadline = time.monotonic() + 1800
         stage = None
         while time.monotonic() < deadline and child.poll() is None:
@@ -555,6 +749,13 @@ def kill_after_load(cli, work, env, output, stack_path):
         killed = child.poll() is None
         if killed:
             child.kill()
+            if CLIENT:
+                # docker exec does not forward SIGKILL; kill the CLI inside.
+                subprocess.run(["docker", "exec", CLIENT, "python3", "-c",
+                                "import os\nfor p in filter(str.isdigit, os.listdir('/proc')):\n"
+                                " c=open('/proc/'+p+'/cmdline','rb').read()\n"
+                                " if b'build' in c and b'--config' in c: os.kill(int(p),9)"],
+                               capture_output=True, timeout=30)
         child.wait()
     if not killed or stage != "load":
         raise RuntimeError("host build not killed after the load checkpoint")
@@ -722,7 +923,16 @@ def flow(mode, cli, env, home, output, source, endpoint_file, key_file, image):
         agent_home = output / "agent-home"
         agent_home.mkdir(mode=0o700)
         agent_env = dict(env, HOME=str(agent_home))
-        report["consumer"] = consumer(cli, agent_env, text, output, source, "consumer")
+        if mode == "stack" and AGENT:
+            # Another Agent, given only the printed prompt, binds and answers.
+            report["agent"] = agent(cli, agent_env, text, output / "agent", source)
+            report["consumer"] = consumer(cli, agent_env, text, output, source, "consumer", login=False)
+        else:
+            report["consumer"] = consumer(cli, agent_env, text, output, source, "consumer")
+        if mode == "stack" and report["consumer"]["status"] == "passed":
+            report["scheduled"] = scheduled_cycle(cli, work, env, agent_env, output, source)
+            if report["scheduled"]["result"] != "passed":
+                raise RuntimeError("scheduled data-change cycle did not serve new data")
         status = command([cli, "status", "--config", stack_path, "--json"], work, env, output, "status")
         report["status"] = json.loads(status.stdout or b"{}").get("status")
         report["result"] = report["consumer"]["status"]
@@ -738,7 +948,7 @@ def flow(mode, cli, env, home, output, source, endpoint_file, key_file, image):
         except Exception:
             pass
         files = [*output.glob("*.stdout"), *output.glob("*.stderr"), *output.glob("*.raw"), argv,
-                 output / "services.log",
+                 output / "services.log", *(output / "agent").glob("*.json"),
                  stack_path, output / "completion.txt",
                  *(work / ".oo/lite/work/operator/gateway/packs").glob("*.json"),
                  *(work / ".oo/lite/work/operator/gateway/reviewed").rglob("*.json")]
@@ -754,6 +964,38 @@ def flow(mode, cli, env, home, output, source, endpoint_file, key_file, image):
             report["teardown"] = {"error": str(error)[:200]}
         write_json(output / "report.json", report)
     return report
+
+
+def start_client(output, args, image):
+    """A clean amd64 machine: fresh image, no repository, host daemon socket."""
+    client_image = "oo-a4-l1-client:linux-amd64"
+    if subprocess.run(["docker", "image", "inspect", client_image], capture_output=True).returncode:
+        with (output / "client-image.log").open("wb") as log:
+            subprocess.run(["docker", "build", "--platform", "linux/amd64", "--label", "oo.lane=" + LANE,
+                            "-t", client_image, "-f", ROOT / "tools/oo-test/linux-amd64/client.Dockerfile",
+                            ROOT / "tools/oo-test/linux-amd64"], stdout=log, stderr=subprocess.STDOUT, check=True)
+    name = f"oo-a4-{args.run_id}-client"
+    mounts = ["-v", f"{output}:{output}", "-v", "/var/run/docker.sock:/var/run/docker.sock"]
+    for path in (args.model_endpoint, args.model_key):
+        # Only for the wizard's import by path; never read by this harness.
+        mounts += ["-v", f"{path.resolve()}:{path.resolve()}:ro"]
+    subprocess.run(["docker", "run", "-d", "--name", name, "--label", "oo.lane=" + LANE,
+                    "--platform", "linux/amd64", "--network", "host", "--user", f"{os.getuid()}:{os.getgid()}",
+                    "--group-add", "0", *mounts, "--entrypoint", "sleep", client_image, "infinity"],
+                   capture_output=True, check=True)
+    probe = lambda *argv: subprocess.run(["docker", "exec", name, *argv], capture_output=True,
+                                         text=True).stdout.strip()
+    daemon = subprocess.run(["docker", "info", "--format", "{{.Architecture}} {{.OperatingSystem}}"],
+                            capture_output=True, text=True).stdout.strip()
+    machine = {"platform": "linux-x64", "client_uname": probe("uname", "-sm"),
+               "client_image": client_image, "network": "host (Docker VM namespace)",
+               "daemon": daemon + " (the host's arm64 Docker Desktop, via the mounted socket)",
+               "client_tools": {"node": probe("node", "--version"), "python3": probe("python3", "--version"),
+                                "docker": probe("docker", "version", "--format", "{{.Client.Version}}"),
+                                "cargo": probe("sh", "-c", "command -v cargo || echo absent")},
+               "runtime_image_platform": "linux/arm64 (pinned for the arm64 daemon)"}
+    write_json(output / "machine.json", machine)
+    return name, machine
 
 
 def same(tty, stack):
@@ -775,6 +1017,9 @@ def main():
     parser.add_argument("--model-key", type=Path, required=True)
     parser.add_argument("--engines", default="postgres,mysql,oracle")
     parser.add_argument("--modes", default="tty,stack")
+    parser.add_argument("--no-agent", action="store_true", help="skip the real-model Agent questions")
+    parser.add_argument("--platform", choices=["darwin-arm64", "linux-x64"], default="darwin-arm64",
+                        help="linux-x64: CLI in a clean amd64 client container on the host daemon")
     args = parser.parse_args()
     if not re.fullmatch(r"[a-z0-9-]+", args.run_id):
         parser.error("run-id must contain only lowercase letters, numbers, hyphens")
@@ -783,11 +1028,15 @@ def main():
     binary = args.binary.resolve()
     if not binary.is_relative_to(ROOT) or not binary.is_file():
         parser.error("binary must be a local worktree build")
+    global TARGET, CLIENT
+    TARGET = args.platform
     for path in (args.model_endpoint, args.model_key):
         if not path.is_file() or path.stat().st_mode & 0o777 != 0o600:
             parser.error("model files must be private 0600 files")
     if shutil.disk_usage("/").free < 20 * 1024 ** 3:
         parser.error("less than 20 GB free; refusing to start containers")
+    global AGENT
+    AGENT = not args.no_agent
     engines = args.engines.split(",")
     modes = args.modes.split(",")
     os.umask(0o077)
@@ -805,14 +1054,17 @@ def main():
     write_json(tools / "docker-config/config.json", {"cliPluginsExtraDirs": [
         "/Applications/Docker.app/Contents/Resources/cli-plugins"]})
     archive, image = diagnostic_pack(binary, output, tools)
+    machine = {"platform": TARGET}
+    if TARGET == "linux-x64":
+        CLIENT, machine = start_client(output, args, image)
     summary = {"base_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
                "dirty": bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=no"],
                                                      cwd=ROOT, text=True).strip()),
                "runtime_image": image, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
                "engines": {}, "gold_question_ids": GOLD, "gold_answers": "not_run", "linux": "not_run",
-               "item_3_ssh": "not_run"}
+               "item_3_ssh": "tools/oo-test/l1_ssh.py", "machine": machine}
     for engine in engines:
-        case = output / f"macos-arm64-{engine}"
+        case = output / f"{'macos-arm64' if TARGET == 'darwin-arm64' else 'linux-amd64'}-{engine}"
         case.mkdir()
         home = case / "home"
         home.mkdir(mode=0o700)
@@ -834,7 +1086,7 @@ def main():
             shutil.rmtree(home, ignore_errors=True)  # imported credential copies
         result = {"version": getattr(source, "actual_version", None), "installed_beside_oo":
                   locals().get("beside"), "source_cleanup_failures": failures, **{
-                      m: {k: r.get(k) for k in ("result", "error", "chain", "review_items", "review_decision", "sigkill_resume", "secret_scan",
+                      m: {k: r.get(k) for k in ("result", "error", "chain", "review_items", "review_decision", "sigkill_resume", "agent", "scheduled", "secret_scan",
                                                  "consumer", "status", "seconds", "teardown", "up")}
                       for m, r in reports.items() if isinstance(r, dict)}}
         if "setup_error" in reports:
@@ -843,6 +1095,8 @@ def main():
             result["same_result"] = same(reports["tty"], reports["stack"])[0]
         summary["engines"][engine] = result
         write_json(output / "summary.json", summary)
+    if CLIENT:
+        subprocess.run(["docker", "rm", "-f", CLIENT], capture_output=True)
     left = subprocess.run(["docker", "ps", "-aq", "--filter", "label=oo.lane=" + LANE],
                           capture_output=True, text=True).stdout.split()
     summary["containers_left"] = len(left)
