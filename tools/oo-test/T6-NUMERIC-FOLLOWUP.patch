@@ -1,0 +1,80 @@
+--- a/crates/oo-pipeline/src/engine_load_pg.rs
++++ b/crates/oo-pipeline/src/engine_load_pg.rs
+@@ -31,25 +31,36 @@
+ }
+ 
+ /// Closed, lossless target types. Unsupported types fail before COPY.
+-pub(crate) fn column(field: &DecodedField) -> Result<(i64, &'static str)> {
+-    Ok(match field.arrow_type.as_str() {
++pub(crate) fn column(field: &DecodedField) -> Result<(i64, String)> {
++    let (oid, sql) = match field.arrow_type.as_str() {
+         "int8" | "int16" => (21, "smallint"),
+         "int32" => (23, "integer"),
+         "int64" => (20, "bigint"),
+         "uint8" => (21, "smallint"),
+-        "uint64" => (1700, "numeric"),
++        "uint64" => (1700, "numeric(20,0)"),
+         "bool" => (16, "boolean"),
+         "utf8" => (25, "text"),
+         "list(utf8)" => (114, "json"),
+         "binary" => (17, "bytea"),
+         "float64" => (701, "double precision"),
+-        "decimal128" if field.scale.is_some_and(|s| s >= 0) => (1700, "numeric"),
++        "decimal128" if field.scale.is_some_and(|s| s >= 0) => {
++            let precision = field
++                .precision
++                .filter(|p| (1..=38).contains(p))
++                .ok_or("load_unsupported_type")?;
++            let scale = field
++                .scale
++                .filter(|s| *s <= precision)
++                .ok_or("load_unsupported_type")?;
++            return Ok((1700, format!("numeric({precision},{scale})")));
++        }
+         "date32" => (1082, "date"),
+         "duration_micros" => (1186, "interval"),
+         "timestamp_micros" if field.timezone.is_none() => (1114, "timestamp"),
+         "timestamp_micros_utc" if field.timezone.as_deref() == Some("UTC") => (1184, "timestamptz"),
+         _ => return Err("load_unsupported_type"),
+-    })
++    };
++    Ok((oid, sql.to_owned()))
+ }
+ 
+ pub struct PgTarget<'a> {
+@@ -427,6 +438,26 @@
+     use super::*;
+ 
+     #[test]
++    fn exact_numbers_keep_bounded_target_typmods() {
++        let mut field = DecodedField {
++            name: "amount".into(),
++            nullable: true,
++            arrow_type: "decimal128".into(),
++            precision: Some(18),
++            scale: Some(4),
++            timezone: None,
++        };
++        assert_eq!(column(&field), Ok((1700, "numeric(18,4)".into())));
++        field.precision = Some(38);
++        field.scale = Some(0);
++        assert_eq!(column(&field), Ok((1700, "numeric(38,0)".into())));
++        field.precision = None;
++        assert!(column(&field).is_err());
++        field.arrow_type = "uint64".into();
++        assert_eq!(column(&field), Ok((1700, "numeric(20,0)".into())));
++    }
++
++    #[test]
+     fn duration_loads_as_interval_microseconds() {
+         let field = DecodedField {
+             name: "elapsed".into(),
+@@ -436,7 +467,7 @@
+             scale: None,
+             timezone: None,
+         };
+-        assert_eq!(column(&field), Ok((1186, "interval")));
++        assert_eq!(column(&field), Ok((1186, "interval".to_owned())));
+         let mut out = Vec::new();
+         cell_text(
+             &mut out,
