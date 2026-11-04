@@ -324,3 +324,45 @@ Run the focused live test with `run.py --version <23|21|11> --run-id <id>
 CLOB/NCLOB/BLOB content, Unicode, empty/NULL values, receipt SHA-256 and a
 4096-byte overflow refusal. Fixtures use disposable tmpfs rather than host
 database bind directories.
+
+## Oracle T1 against Agent DB
+
+`tools/oo-test/oracle_t1.py` supplies full LOB reference reads and delegates
+scalar comparisons to the shared typed comparator. Wide SQL*Plus queries are
+wrapped at expression boundaries, not shortened. The two-million-row EVENTS
+reference uses a smaller SQL*Plus line buffer; all rows are still compared.
+
+The generic `tools/oo-test/t1.py` remains coordinator-owned. Its exact proposed
+integration diff is `t1-hook-integration.patch` in this directory. It selects
+the Oracle hook, supports lane-E resource labels, and mounts the current
+read-only worker script for 11g. Until integrated, reproduce without editing
+the shared file:
+
+```sh
+mkdir -p evidence/oracle-t1-hook
+patch -o evidence/oracle-t1-hook/t1.py tools/oo-test/t1.py \
+  < testing/engines/oracle/t1-hook-integration.patch
+cargo build --manifest-path tools/oo-load/Cargo.toml --target-dir target --locked
+PYTHONPATH=tools/oo-test OO_TEST_LANE=e \
+  python3 evidence/oracle-t1-hook/t1.py --engine oracle --versions 23,21,11 \
+  --run-id oracle-t1-full --worker-image oo-e-oracle-worker:e-fix-worker-v4
+```
+
+Defaults are two million scale rows and 200 small tables (231 total).
+The shared suite performs concurrent writes, quiesces the writer, rereads all
+tables, resumes the corrected run without rewriting, and compares every table.
+It uses consistency B, not a single cross-table snapshot. T8 remains partial:
+target write bytes are measured, but source connection peak and duty cycle are
+not available in this hook. No model is called.
+
+The shared image lock resolves T1 family `23` to **23.5.0.24.07**, unlike the
+focused lane-E D12/LOB runner's **23.26.3.0.0**. These results must not be
+presented as the same exact Oracle version.
+
+`t1-agent-db-evidence-summary.json` records full-scale passing results for
+23.5 and 11.2 in `e-s2d-r5-t1`, and 21.3 in `e-s2d-r6-t1`, using the same
+oo-load binary. Each compares all 231 tables, including exactly two million
+EVENTS rows per side, and verifies no-rewrite resume. The first 21.3 attempt
+failed when Docker briefly became unreachable after 68 equal comparisons;
+that failed result remains intact. The rerun repeats the complete fixture,
+all three product loads and every comparison, not just the failed tables.

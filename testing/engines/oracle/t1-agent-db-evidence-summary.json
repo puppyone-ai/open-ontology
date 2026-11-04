@@ -1,0 +1,123 @@
+{
+  "todo": "S1-E-01",
+  "status": "T1_passed_per_version",
+  "scope": "Local Agent DB snapshot publication; consistency B, source_time unmeasured, not Gateway acceptance",
+  "shared_runner_modified": false,
+  "shared_patch": "testing/engines/oracle/t1-hook-integration.patch",
+  "runner_copy": "evidence/e-s2d-resume/t1-proposed.py",
+  "runner_copy_sha256": "77f6f126df6e0568973d063738e9cbc617a9cccf81704a294c568420fb3e3be3",
+  "patch_sha256": "91a37fafa5a0d2316e35c430d4ab7657f5acb6dc295b519e52c019d7f310ef78",
+  "oracle_hook_sha256": "1cb395f72a0d7c3afac47ece21fb157d4600f0478cd977de9067a42c0cfa8c49",
+  "versions": [
+    {
+      "version_family": "23",
+      "version_actual": "23.5.0.24.07",
+      "run_id": "e-s2d-r5-t1",
+      "command": "python3 evidence/e-s2d-resume/run-oracle-t1.py --engine oracle --versions 23,21,11 --run-id e-s2d-r5-t1 --worker-image oo-e-oracle-worker:e-fix-worker-v4",
+      "image": "docker.io/gvenzl/oracle-free:23.5-slim@sha256:0b6d2a693d9f77c8cb5e756411f60a38b4f854cf2a6b0be2f002942a66582aeb",
+      "platform": "linux/arm64",
+      "execution": "native",
+      "binary_sha256": "bf9202123bdd9d88c84b553ce7a5a362dd904b666a04f3f9d41eb5784b756064",
+      "tables_compared": 231,
+      "scale_table_source_target_rows": [
+        2000000,
+        2000000
+      ],
+      "writer_cycles": 470,
+      "correction": "quiesce_writer_then_reread_all_tables",
+      "no_rewrite_resume": true,
+      "target_write_bytes": 177348106,
+      "target_write_basis": "committed_logical_stage_tuples_including_replaced_plans",
+      "cleanup_failures": [],
+      "artifacts_sha256": {
+        "t1-t8.json": "1fefb3a162a436e1bc91498b87f286c663295ed5cab1097b8d6766585050d00e",
+        "resource-receipt.json": "1abdba8f8102ec39b8f196065eb0863c03311cdba2b3dc238d5c45685696464e",
+        "seed.json": "739f79aed99fc138c419273f9d5bccd765472fb3e5f1ab5dd8d1fce32e1dd2f4",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "SHA256SUMS": "7e3b26f1018904b873d90a48882ef9b42043bc0306e2920d8c9e80a730f26fcd",
+        "compare-EVENTS.json": "223510347aed015409d078e6377ba742627ac9ad5d5e06e260b4ebef5cfaddac",
+        "compare-TYPE_EDGES.json": "28cb8b72f54a4afca0579e2d7793141b3a12b753b95e5783dbe0d20d893c9e34",
+        "compare-WIDE_ROWS.json": "333d97a6e709c2159f06d74038b714b998618f406c585d3bafdd9966b1482aff",
+        "concurrent-receipts.json": "a2e25ee59f82d47eeb7c192e3862fab49c3f2f135552cb69766bbb257a53d464",
+        "corrected-receipts.json": "2301c5f5c396454c1344e8e71662a86ef6370372d7ba8cd0caba5317395bb131"
+      }
+    },
+    {
+      "version_family": "21",
+      "version_actual": "21.3.0.0.0",
+      "run_id": "e-s2d-r6-t1",
+      "command": "python3 evidence/e-s2d-resume/run-oracle-t1.py --engine oracle --versions 21 --run-id e-s2d-r6-t1 --worker-image oo-e-oracle-worker:e-fix-worker-v4",
+      "image": "docker.io/gvenzl/oracle-xe:21.3.0-slim@sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d2b6d551aa79b2346f1ab8f792",
+      "platform": "linux/amd64",
+      "execution": "emulated",
+      "binary_sha256": "bf9202123bdd9d88c84b553ce7a5a362dd904b666a04f3f9d41eb5784b756064",
+      "tables_compared": 231,
+      "scale_table_source_target_rows": [
+        2000000,
+        2000000
+      ],
+      "writer_cycles": 149,
+      "correction": "quiesce_writer_then_reread_all_tables",
+      "no_rewrite_resume": true,
+      "target_write_bytes": 175008934,
+      "target_write_basis": "committed_logical_stage_tuples_including_replaced_plans",
+      "cleanup_failures": [],
+      "artifacts_sha256": {
+        "t1-t8.json": "18939bceed986fc129c299a323b589c41d9d549acc9d3a95144975ffb5efa7c6",
+        "resource-receipt.json": "ac7c39b97aef6aaf8e2861d4e55900866df0b33c925ea84911cacecd11a3fcf4",
+        "seed.json": "739f79aed99fc138c419273f9d5bccd765472fb3e5f1ab5dd8d1fce32e1dd2f4",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "SHA256SUMS": "51ed529e37f7a1f16b90207b86c10f72af074b2418bda8482b6783f5fb1b3c07",
+        "compare-EVENTS.json": "223510347aed015409d078e6377ba742627ac9ad5d5e06e260b4ebef5cfaddac",
+        "compare-TYPE_EDGES.json": "28cb8b72f54a4afca0579e2d7793141b3a12b753b95e5783dbe0d20d893c9e34",
+        "compare-WIDE_ROWS.json": "333d97a6e709c2159f06d74038b714b998618f406c585d3bafdd9966b1482aff",
+        "concurrent-receipts.json": "93f02aefdfdedf6f112facfad78495f55f486b40f6dd795d70a4b0c40dc97a08",
+        "corrected-receipts.json": "8a295790f8fd4714d8421200a3788ad48b539bfdeb108f2972ba4641360801b3"
+      }
+    },
+    {
+      "version_family": "11",
+      "version_actual": "11.2.0.2.0",
+      "run_id": "e-s2d-r5-t1",
+      "command": "python3 evidence/e-s2d-resume/run-oracle-t1.py --engine oracle --versions 23,21,11 --run-id e-s2d-r5-t1 --worker-image oo-e-oracle-worker:e-fix-worker-v4",
+      "image": "docker.io/gvenzl/oracle-xe:11.2.0.2@sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8",
+      "platform": "linux/amd64",
+      "execution": "emulated",
+      "binary_sha256": "bf9202123bdd9d88c84b553ce7a5a362dd904b666a04f3f9d41eb5784b756064",
+      "tables_compared": 231,
+      "scale_table_source_target_rows": [
+        2000000,
+        2000000
+      ],
+      "writer_cycles": 179,
+      "correction": "quiesce_writer_then_reread_all_tables",
+      "no_rewrite_resume": true,
+      "target_write_bytes": 176303870,
+      "target_write_basis": "committed_logical_stage_tuples_including_replaced_plans",
+      "cleanup_failures": [],
+      "artifacts_sha256": {
+        "t1-t8.json": "2ff1def931e8c23c57a0ecf7b503c74ba1b6d06823c8e26b5d0befea7e4e1ff9",
+        "resource-receipt.json": "32d47f799fcb325bffb0da45ef673c3c37fc4338f6a1aa3db4395625824288b2",
+        "seed.json": "936d116ba5a12dc31a0a5e7f374f4f4609f15fdd8b074753b0eeaedef38e2749",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "SHA256SUMS": "44600e01c61c9fef9acc8638ce7263a0c21e348d10455f63bdbeddec13babe5c",
+        "compare-EVENTS.json": "223510347aed015409d078e6377ba742627ac9ad5d5e06e260b4ebef5cfaddac",
+        "compare-TYPE_EDGES.json": "28cb8b72f54a4afca0579e2d7793141b3a12b753b95e5783dbe0d20d893c9e34",
+        "compare-WIDE_ROWS.json": "333d97a6e709c2159f06d74038b714b998618f406c585d3bafdd9966b1482aff",
+        "concurrent-receipts.json": "2a3ad7b29e65ebc4f038601d97132b171b42944eb4071f98d67ca5ad7dd31682",
+        "corrected-receipts.json": "1a87fbbc6e56e429636897b40726c7129e4b6ae2659a4592449b503de4dd70bb"
+      }
+    }
+  ],
+  "T8": "partial: target write bytes and zero model calls only; source connections peak and duty cycle unavailable",
+  "retained_failures": {
+    "e-s2d-t1": "Previous executor: Docker Desktop unavailable before fixture setup.",
+    "e-s2d-r3-t1": "23.5 matched 230 tables, then SQL*Plus rejected WIDE_ROWS input lines above 4999 characters. 21 run interrupted to fix Oracle-only query wrapping; 11 not run in this attempt.",
+    "e-s2d-r5-t1/oracle-21": "All three product loads completed; 68 table comparisons matched before Docker daemon became briefly unreachable during reference SELECT. Full 21.3 rerun is recorded separately, without modifying this failed result."
+  },
+  "validation": {
+    "workspace_check": "cargo check --workspace --locked: passed",
+    "python": "python3 -m unittest discover -s tools/oo-test: 26 passed",
+    "run_id": "e-s2d-resume"
+  }
+}
