@@ -6,6 +6,13 @@ Use `PgSourceConfig::with_tunnel` / `MysqlEngine::with_tunnel` to retain the
 guard and preserve the original database TLS identity. Never substitute
 the loopback address for the database's certificate name.
 
+SQL Server SSH is explicitly refused with `SQLSERVER_SSH_NOT_AVAILABLE`
+until its driver separates the socket address from its TLS identity. Direct
+SQL Server connections remain available. MySQL-family constructors retain
+their family when attaching a tunnel. `oo-load` keeps its direct sync/publish
+paths, but SSH with `--sync`, `--c5` or `--handoff` is still refused because
+incremental control connections are not integrated with the tunnel.
+
 The listener is IPv4 loopback-only, accepts at most four active forwarding
 tasks, and forwards only to the configured database host and port. Each DB
 connection gets a direct-tcpip channel. New connections retry transport
