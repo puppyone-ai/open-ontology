@@ -31,6 +31,20 @@ spec.loader.exec_module(generator)
 def write_json(path, value):
     path.write_text(json.dumps(value, indent=2, ensure_ascii=True) + "\n")
 
+def disk_gate(path, minimum=20, wait_seconds=1800):
+    deadline = time.monotonic() + wait_seconds
+    observations = []
+    while True:
+        free = shutil.disk_usage(ROOT).free
+        observations.append({"free_bytes": free, "observed_at": datetime.now(timezone.utc).isoformat()})
+        write_json(path / "disk-gate.json", {"minimum_gib": minimum, "observations": observations})
+        if free >= minimum * 1024 ** 3:
+            return
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError("host_disk_below_floor")
+        time.sleep(min(60, remaining))
+
 
 def redact(text, *passwords):
     for password in passwords:
@@ -110,6 +124,13 @@ class Run:
         self.started = time.monotonic()
 
     def command(self, command, *, data=None, stdin=None, timeout=300, required=True):
+        if command[:2] == ["docker", "pull"]:
+            image = command[-1]
+            code, out = self.command(["docker", "image", "inspect", image], required=False)
+            if code == 0:
+                return 0, out
+            if shutil.disk_usage(ROOT).free < 25 * 1024 ** 3:
+                raise RuntimeError("host_disk_below_image_pull_floor")
         self.seq += 1
         prefix = self.path / f"{self.seq:04d}"
         try:
@@ -175,10 +196,7 @@ class Run:
         return self.command(command, data=text, timeout=1800, required=required)
 
     def setup(self):
-        free = shutil.disk_usage(ROOT).free
-        write_json(self.path / "disk-gate.json", {"free_bytes": free, "minimum_gib": 20})
-        if free < 20 * 1024 ** 3:
-            raise RuntimeError("host_disk_below_floor")
+        disk_gate(self.path)
         item = resolve(self.engine, self.version)
         _, arch = self.command(["docker", "info", "--format", "{{.Architecture}}"])
         native = "linux/arm64" if arch.strip() in ("aarch64", "arm64") else "linux/amd64"
@@ -508,6 +526,8 @@ def main():
     selection = matrix.add_mutually_exclusive_group(required=True)
     selection.add_argument("--engine", choices=["mysql", "postgres", "oracle", "sqlserver"])
     selection.add_argument("--all", action="store_true", help="all P0 targets, including blocked Oracle 19c")
+    selection.add_argument("--merge-only", action="store_true",
+                           help="validate and merge existing runs without starting targets")
     matrix.add_argument("--versions")
     matrix.add_argument("--suites", type=suites, default=["T0"])
     matrix.add_argument("--scale", type=int, default=2_000_000)
@@ -528,6 +548,21 @@ def main():
     for path in args.merge_evidence:
         if not path.resolve().is_relative_to((ROOT / "evidence").resolve()) or not path.is_dir():
             parser.error("--merge-evidence must be an existing worktree evidence directory")
+    if args.merge_only:
+        if not args.merge_evidence or args.versions or args.hook:
+            parser.error("--merge-only requires evidence and forbids versions/hooks")
+        from verdicts import merge
+        root = ROOT / "evidence" / ("h-merged-" + str(uuid.uuid4()))
+        root.mkdir()
+        rows = []
+        for path in args.merge_evidence:
+            rows.extend(dict(row, evidence=str((path / row["evidence"]).resolve().relative_to(ROOT.resolve())))
+                        for row in merge(path))
+        write_json(root / "evidence-index.json", rows)
+        write_json(root / "downgrade-report.json", downgrade_report(rows))
+        checksums(root)
+        print(root.relative_to(ROOT))
+        return 1 if any(row["result"] == "fail" for row in rows) else 0
     if args.engine == "sqlserver" and args.hook:
         parser.error("SQL Server uses built-in product suites; external hooks are not supported")
     if "T7" in args.suites:
@@ -582,10 +617,7 @@ def main():
         try:
             item = resolve(engine, version)
             result["version_locked"] = re.search(r"\d+(?:\.\d+)*", item["id"]).group()
-            free = shutil.disk_usage(ROOT).free
-            write_json(path / "disk-gate.json", {"free_bytes": free, "minimum_gib": args.min_free_gb})
-            if free < args.min_free_gb * 1024 ** 3:
-                raise RuntimeError("host_disk_below_floor")
+            disk_gate(path, args.min_free_gb)
             if args.all:
                 missing = [s for s in args.suites if s not in ("T0", "T7") and s not in hooks]
                 if missing:

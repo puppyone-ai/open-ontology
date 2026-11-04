@@ -13,6 +13,28 @@ from verdicts import incremental, merge, write_rows
 
 
 class VerdictTests(unittest.TestCase):
+    def test_merge_only_preserves_verdict_without_starting_containers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "evidence" / "source"
+            source.mkdir(parents=True)
+            raw = source / "result.json"
+            raw.write_text("{}")
+            run = SimpleNamespace(engine="postgres", version="17", id="r",
+                                  receipt={"version_actual": "17.11"})
+            expected = write_rows(run, raw, [("T1", "snapshot", "pass")])[0]
+            with patch.object(runner, "ROOT", root), \
+                 patch("sys.argv", ["oo-test", "matrix", "--merge-only",
+                                   "--merge-evidence", str(source)]), \
+                 patch.object(runner.Run, "setup") as setup:
+                self.assertEqual(runner.main(), 0)
+                setup.assert_not_called()
+            outputs = list(root.glob("evidence/h-merged-*/evidence-index.json"))
+            self.assertEqual(len(outputs), 1)
+            actual = json.loads(outputs[0].read_text())
+            expected["evidence"] = "evidence/source/result.json"
+            self.assertEqual(actual, [expected])
+
     def test_rows_bind_raw_results_and_round_trip(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)

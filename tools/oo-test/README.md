@@ -159,8 +159,17 @@ This merges observations; it does not supply missing product hooks, turn a
 fixture precheck into `oo doctor`, or make separate fixtures one audited T7
 session. Missing hooks remain failures. T5/T6 are never implied by these rows.
 Every matrix target and standalone source setup checks at least 20 GiB free
-before starting containers; disk blocks are recorded as non-passes. There is no
+before starting containers, waiting up to 30 minutes for space to recover;
+disk blocks are recorded as non-passes. Cached pinned images are reused without
+pulling; a missing image requires at least 25 GiB free before a pull. There is no
 automatic deletion of images, volumes, Cargo artifacts or unrelated data.
+
+For a consolidated run assembled from sequential standalone suites, use
+`oo-test matrix --merge-only --merge-evidence evidence/<run-id>` (repeat the
+evidence option for every run). This validates raw hashes without starting
+new targets or replacing observations with a fresh missing-hook failure.
+It preserves every explicit verdict, including failures, and creates no
+verdict for a suite that did not run.
 
 Use `--variant c1` or `--variant c5` to identify the hook path, also exposed
 in `OO_TEST_CONTEXT`. Run each path separately; a generic incremental hook
