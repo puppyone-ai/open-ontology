@@ -32,7 +32,7 @@ Status: pending 21, in_progress 11, author_complete 17, integrated 15.
 | [ ] S1-C-02 | C | 源库保护：占空比、`Threads_running` 暂停、语句超时双保险、`net_*_timeout`、连接余量限流 | in_progress | lane-C | v0.2/c-mysql-engine | `12b320242`, `f3e596eb0`, `1d4fbb3dd`, `4d0236dd3`, `1f6affb12` |
 | [ ] S1-D-01 | D | PG 分块：keyset + 单快照内 ctid（14+）；`statement_timeout`；活跃会话保护 | in_progress | lane-D | v0.2/d-postgres-engine | `ac947b531`, `90e88d366` |
 | [ ] S1-E-01 | E | Oracle 分块：keyset + extents 生成 ROWID 范围；`ORA-01555` 缩块重试；空串语义 | in_progress | lane-E | v0.2/e-oracle-engine | `9d1e51825`, `09c211f11`, `be4f8da2b`, `426c290c8`, `c93adb524` |
-| [ ] S1-M-01 | M | 统一暂存→原子替换→发布；不可变父存储 + 变化块组合；目标写入计量 | in_progress | coordinator (Codex lane M) | v0.2/m-pipeline | `effdc19ba`, `b877c1885`, `0e5420a5c` |
+| [ ] S1-M-01 | M | 统一暂存→原子替换→发布；不可变父存储 + 变化块组合；目标写入计量 | in_progress | coordinator (Codex lane M) | v0.2/m-pipeline | `40193e84e`, `13ad5b78e`, `e4fbc0551`, `1abf12ccf`, `3af666411`, `a92fecccf`, `d5cc01526`, `efbce797f`, `f97271d8c`, `a036302a8`, `effdc19ba`, `b877c1885`, `6290dc05c`, `17a4447de` |
 | [ ] S1-M-02 | M | 有界滚动调度（并发 1–4）、失败即停派、周期预算文件 | author_complete | coordinator (Codex lane M) | v0.2/m-pipeline | `effdc19ba`, `b877c1885`, `0e5420a5c` |
 | [x] S1-B-01 | B | Gateway 管理 API：issue/list/renew/rotate/revoke/enroll；自助 `POST /v1/auth/renew`（策略可关） | integrated | lane-B | v0.2/b-token-lifecycle | `5ec402635`, `d9f61691b`, `48878c28f`, `976b77e81`, `2ab36682e`, `4f564202d` |
 | [x] S1-B-02 | B | `GET /v1/meta`（协议版本、最低 CLI 版本、发布与新鲜度）；mTLS 证书与 token 到期纳入 `/v1/health` | integrated | lane-B | v0.2/b-token-lifecycle | `5ec402635`, `d9f61691b`, `48878c28f`, `976b77e81`, `2ab36682e`, `4f564202d` |
