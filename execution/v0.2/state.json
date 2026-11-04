@@ -1189,7 +1189,7 @@
       "sprint": "S5",
       "lane": "C",
       "title": "MySQL 5.7/8.0/8.4/9.x 的 T3 故障注入、T4 结构变化",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-N (native Opus)",
       "branch": "v0.2/c-mysql-engine",
       "commits": [
@@ -1211,7 +1211,7 @@
       "sprint": "S5",
       "lane": "D",
       "title": "PG 13–18 的 T3、T4",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-N (native Opus)",
       "branch": "v0.2/c-mysql-engine",
       "commits": [
@@ -1233,7 +1233,7 @@
       "sprint": "S5",
       "lane": "E",
       "title": "Oracle 23ai/11g/21c（及 19c 如 D2 就绪）的 T3、T4",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-E",
       "branch": "v0.2/e-oracle-engine",
       "commits": [
@@ -1295,20 +1295,20 @@
       "sprint": "S5",
       "lane": "G",
       "title": "T5/T6 在 P0 全版本：20 道金标准题由真实模型 Agent 回答",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-G",
       "branch": "v0.2/g-selfbuild-budget",
       "commits": [
-        "83bb07d69",
-        "a7f595279",
-        "aeefb2a71",
-        "30960c6bf",
-        "f4f2ca677",
-        "fca9fc047",
-        "b5d06d033",
-        "d02b9eb22",
-        "a32e74a35",
-        "50f7de96e"
+        "cab5fbbd2",
+        "7914671a3",
+        "888560076",
+        "27bb18607",
+        "22ff5ca88",
+        "5bdba180d",
+        "6333a3a64",
+        "0ba79284d",
+        "1157b46b2",
+        "d775bf688"
       ],
       "evidence": []
     },
