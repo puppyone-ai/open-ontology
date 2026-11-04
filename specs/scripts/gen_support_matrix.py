@@ -2,8 +2,10 @@
 """Derive support levels from evidence; the only way a cell becomes verified (S5-M-01).
 
 Input: execution/v0.2/evidence-index.json, rows
-  {"target", "version", "suite", "variant", "result": "pass|fail|skip", "run_id", "sha256", "emulated"}
-where `variant` names the capability path a suite exercised (e.g. "c1", "c5", "snapshot").
+  {"target", "version", "suite", "variant", "result": "pass|fail|skip", "run_id", "sha256", "emulated",
+   "observed_at"}
+where `variant` names the capability path a suite exercised (e.g. "c1", "c5", "snapshot") and the
+optional `observed_at` (ISO 8601 UTC) orders runs; run ids are opaque and only break ties.
 
 Output: docs/database-support/support-matrix.generated.json (valid YAML), one entry per target/version
 with a level per capability, and the suites and run ids behind it. The hand-written
@@ -63,7 +65,7 @@ def derive(rows: list[dict]) -> list[dict]:
                 if not match:
                     missing = True
                     continue
-                latest = max(match, key=lambda r: r['run_id'])
+                latest = max(match, key=lambda r: (r.get('observed_at') or '', r['run_id']))
                 hits.append(latest)
                 failed |= latest['result'] != 'pass'
             if not hits:
@@ -109,13 +111,17 @@ def self_test() -> list[str]:
     newer = base + [dict(base[0], run_id='r2', result='fail')]
     if derive(newer)[0]['caps']['full']['level'] == 'verified':
         failures.append('latest failing run did not override an older pass')
+    timed = [dict(r, observed_at='2026-11-05T00:00:00Z') for r in base] + [
+        dict(base[0], run_id='z-older', result='fail', observed_at='2026-11-01T00:00:00Z')]
+    if derive(timed)[0]['caps']['full']['level'] != 'verified':
+        failures.append('an older run with a later-sorting id overrode a newer pass')
     partial = [r for r in base if r['suite'] != 'T7']
     if derive(partial)[0]['caps']['full']['level'] != 'experimental':
         failures.append('missing suite did not downgrade to experimental')
     if not validate([{'target': 'x'}]):
         failures.append('invalid row accepted')
     if not failures:
-        print('Self-test: 6 derivation cases correct.')
+        print('Self-test: 7 derivation cases correct.')
     return failures
 
 
