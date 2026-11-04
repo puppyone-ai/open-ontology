@@ -16,12 +16,14 @@ from t1 import configure_tls
 class Fixture(LaneRun):
     def command(self, argv, **kwargs):
         if argv[:2] == ["docker", "create"]:
-            argv = argv[:2] + ["-p", "127.0.0.1::5432", "--entrypoint", "bash"] + argv[2:]
+            image = next(i for i, arg in enumerate(argv) if arg.startswith("docker.io/library/postgres:"))
+            server_args = argv[image + 1:]
+            argv = argv[:2] + ["-p", "127.0.0.1::5432", "--entrypoint", "bash"] + argv[2:image + 1]
             argv += ["-c", "cp /run/oo/server-* /tmp/; cp /run/oo/source-ca /tmp/; "
                      "chown postgres:postgres /tmp/server-*; chmod 600 /tmp/server-key; "
                      "exec docker-entrypoint.sh postgres -c ssl=on "
                      "-c ssl_cert_file=/tmp/server-cert -c ssl_key_file=/tmp/server-key "
-                     "-c ssl_ca_file=/tmp/source-ca"]
+                     '-c ssl_ca_file=/tmp/source-ca "$@"', "oo-postgres", *server_args]
         return super().command(argv, **kwargs)
 
 
