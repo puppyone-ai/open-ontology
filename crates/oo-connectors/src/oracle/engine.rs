@@ -431,6 +431,7 @@ impl OracleEngine {
             )
         } else {
             let config = oracledb::Config::default()
+                .set_stmtcachesize(0)
                 .set_credentials(&cfg.user, cfg.password.as_str())
                 .set_connect_string(&format!("{}:{}/{}", cfg.host, cfg.port, cfg.service))
                 .map_err(|e| map_ora(&e))?;
@@ -1016,7 +1017,7 @@ impl OracleEngine {
             [only] => (Some(only.as_slice()), None),
             [a, b, ..] => (Some(a.as_slice()), Some(b.as_slice())),
         };
-        let sql = page_sql(
+        let mut sql = page_sql(
             &d,
             &t.schema,
             &t.name,
@@ -1035,7 +1036,22 @@ impl OracleEngine {
             scn,
             1,
         )?;
-        self.query(&sql.text, &sql.binds, 1)?;
+        let mut retries = 0;
+        loop {
+            match self.query(&sql.text, &sql.binds, 1) {
+                Ok(_) => break,
+                Err(error)
+                    if error.fact() == Some("ora_snapshot_unavailable")
+                        && retries < self.cfg.snapshot_retries =>
+                {
+                    retries += 1;
+                    self.stats.fresh_scn_retries += 1;
+                    std::thread::sleep(Duration::from_secs(1));
+                    sql.binds[0] = Bind::Number(self.current_scn()?.to_string());
+                }
+                Err(error) => return Err(error),
+            }
+        }
         let cursor = self.query(
             "SELECT prev_sql_id, TO_CHAR(prev_child_number) FROM v$session WHERE sid = TO_NUMBER(SYS_CONTEXT('USERENV','SID'))",
             &[],

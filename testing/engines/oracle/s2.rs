@@ -303,7 +303,33 @@ async fn real_incremental_cycles() {
         duty_cycle_percent: 50,
         ..ReadBudget::default()
     };
-    let plan = engine.plan_chunks(&table, &budget).await.unwrap();
+    let probe = engine.probe().await.unwrap();
+    assert!(matches!(
+        &probe.capabilities[&Capability::LogCdc],
+        CapabilityState::NeedsSetup { requirements }
+            if requirements.iter().any(|r| r.kind == RequirementKind::Feature
+                && r.required.contains("Explicit Oracle C1 opt-in"))
+    ));
+    std::fs::write(
+        f.out.join("probe.json"),
+        serde_json::to_vec_pretty(&probe).unwrap(),
+    )
+    .unwrap();
+    let plan = engine
+        .plan_chunks(&table, &budget)
+        .await
+        .unwrap_or_else(|e| panic!("probe-first plan: {e:?}; ORA={:?}", engine.last_ora_code()));
+    std::fs::write(
+        f.out.join("probe-first-plan.json"),
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "order": ["probe", "plan", "read"],
+            "plan": plan,
+            "facts": engine.plan_facts(&table),
+            "stats": engine.stats(),
+        }))
+        .unwrap(),
+    )
+    .unwrap();
     let mut miner = f.miner_password.as_ref().map(|password| {
         let cfg = OracleConnectConfig::new(
             "127.0.0.1",
@@ -316,12 +342,32 @@ async fn real_incremental_cycles() {
             },
             Zeroizing::new(password.clone()),
         );
-        OracleLogMiner::new(
-            engine_connect(&f, cfg).unwrap(),
-            &mut engine,
-            &[table.clone()],
+        let mut connection = engine_connect(&f, cfg).unwrap();
+        let session_sql = if f.version == 11 {
+            "SELECT SYS_CONTEXT('USERENV','SESSIONID'), TO_CHAR(sid)||'.'||TO_CHAR(serial#), NULL FROM v$session WHERE sid=TO_NUMBER(SYS_CONTEXT('USERENV','SID'))"
+        } else {
+            "SELECT SYS_CONTEXT('USERENV','SESSIONID'), TO_CHAR(sid)||'.'||TO_CHAR(serial#), SYS_CONTEXT('USERENV','UNIFIED_AUDIT_SESSIONID') FROM v$session WHERE sid=TO_NUMBER(SYS_CONTEXT('USERENV','SID'))"
+        };
+        let session = connection
+            .query(
+                session_sql,
+                &[],
+                1,
+            )
+            .unwrap();
+        let mut sessions = BTreeMap::from([(
+            session[0][0].clone().unwrap(),
+            session[0][1].clone().unwrap(),
+        )]);
+        if let Some(unified_id) = &session[0][2] {
+            sessions.insert(unified_id.clone(), session[0][1].clone().unwrap());
+        }
+        std::fs::write(
+            f.out.join("miner-session.json"),
+            serde_json::to_vec_pretty(&sessions).unwrap(),
         )
-        .unwrap()
+        .unwrap();
+        OracleLogMiner::new(connection, &mut engine, &[table.clone()]).unwrap()
     });
     let mut watermark = engine.watermark().await.unwrap().unwrap();
     if let Some(miner) = &mut miner {
@@ -556,18 +602,6 @@ async fn real_incremental_cycles() {
     std::fs::write(
         f.out.join("c5-hints.json"),
         serde_json::to_vec_pretty(&hint_results).unwrap(),
-    )
-    .unwrap();
-    let probe = engine.probe().await.unwrap();
-    assert!(matches!(
-        &probe.capabilities[&Capability::LogCdc],
-        CapabilityState::NeedsSetup { requirements }
-            if requirements.iter().any(|r| r.kind == RequirementKind::Feature
-                && r.required.contains("Explicit Oracle C1 opt-in"))
-    ));
-    std::fs::write(
-        f.out.join("probe.json"),
-        serde_json::to_vec_pretty(&probe).unwrap(),
     )
     .unwrap();
 }
