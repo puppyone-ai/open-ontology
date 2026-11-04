@@ -11,6 +11,7 @@ use zeroize::{Zeroize, Zeroizing};
 
 pub const DAY: i64 = 86_400_000;
 const SQL: &str = include_str!("../migrations/oo_token_control_v2.sql");
+const RETRY_SQL: &str = include_str!("../migrations/oo_token_issue_retry_v1.sql");
 type Result<T> = std::result::Result<T, &'static str>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -205,6 +206,11 @@ impl Grant {
 // Requests containing enrollment material deliberately do not implement Debug.
 pub enum Operation {
     Issue(Grant),
+    IssueRetry {
+        grant: Grant,
+        key: String,
+        token: Zeroizing<String>,
+    },
     List {
         project: String,
     },
@@ -238,7 +244,7 @@ pub enum Operation {
 impl Operation {
     fn name(&self) -> &'static str {
         match self {
-            Self::Issue(_) => "issue",
+            Self::Issue(_) | Self::IssueRetry { .. } => "issue",
             Self::List { .. } => "list",
             Self::Renew { .. } => "renew",
             Self::SelfRenew { .. } => "self_renew",
@@ -347,6 +353,25 @@ impl Control {
             tx.execute(
                 "INSERT INTO oo_token_lifecycle.migration VALUES (2,$1)",
                 &[&hash],
+            )
+            .await
+            .map_err(|_| "database")?;
+        }
+        let installed: bool = tx
+            .query_one(
+                "SELECT to_regclass('oo_token_lifecycle.issue_retry_manifest') IS NOT NULL",
+                &[],
+            )
+            .await
+            .map_err(|_| "database")?
+            .get(0);
+        if installed {
+            verify_retry(&tx).await?;
+        } else {
+            tx.batch_execute(RETRY_SQL).await.map_err(|_| "migration")?;
+            tx.execute(
+                "INSERT INTO oo_token_lifecycle.issue_retry_manifest VALUES (true,$1)",
+                &[&digest(RETRY_SQL.as_bytes())],
             )
             .await
             .map_err(|_| "database")?;
@@ -473,6 +498,77 @@ async fn verify(tx: &Transaction<'_>) -> Result<()> {
     }
     Ok(())
 }
+async fn verify_retry(tx: &Transaction<'_>) -> Result<()> {
+    let row = tx
+        .query_opt(
+            "SELECT sql_sha256 FROM oo_token_lifecycle.issue_retry_manifest WHERE singleton",
+            &[],
+        )
+        .await
+        .map_err(|_| "install_drift")?
+        .ok_or("install_drift")?;
+    if row.get::<_, String>(0) != digest(RETRY_SQL.as_bytes()) {
+        return Err("install_drift");
+    }
+    Ok(())
+}
+
+/// The authenticated caller durably reserves random token material before its
+/// first request. Lost responses can then be retried without storing plaintext.
+async fn issue_retry(
+    tx: &Transaction<'_>,
+    mut grant: Grant,
+    key: &str,
+    token: Zeroizing<String>,
+    actor: &str,
+    now: i64,
+    policy: &Policy,
+) -> Result<Receipt> {
+    ident(key, 128)?;
+    grant.validate()?;
+    let (kind, hash) = legacy::token_hash(&token).map_err(|_| "input")?;
+    if kind != TokenKind::Client {
+        return Err("input");
+    }
+    verify_retry(tx).await?;
+    let key_hash = digest(key.as_bytes());
+    let request_hash =
+        digest(&serde_json::to_vec(&json!({"grant":grant,"actor":actor})).map_err(|_| "input")?);
+    let existing = tx
+        .query_opt(
+            "SELECT request_sha256,token_sha256 FROM oo_token_lifecycle.issue_retry WHERE project_id=$1 AND key_sha256=$2",
+            &[&grant.project_id, &key_hash],
+        )
+        .await
+        .map_err(|_| "database")?;
+    if let Some(row) = existing {
+        if row.get::<_, String>(0) != request_hash || row.get::<_, String>(1) != hash {
+            return Err("idempotency_conflict");
+        }
+        let row = live(tx, &grant.project_id, &hash, now).await?;
+        if row.get::<_, Option<i64>>("overlap_until_ms").is_some() {
+            return Err("already_rotated");
+        }
+        return Ok(Receipt {
+            metadata: json!({"token_sha256":hash,
+                "first_issued_at_ms":row.get::<_,i64>("first_ms"),
+                "expires_at_ms":row.get::<_,i64>("absolute_deadline_ms"),
+                "role":grant.role,"audience":grant.audience_url,"rotated_from":null}),
+            secret: Some(token),
+        });
+    }
+    // The caller holds the existing project transaction lock. Both records and
+    // the audit commit together; a failed insertion rolls back the credential.
+    let project = grant.project_id.clone();
+    let receipt = issue(tx, grant, actor, now, policy, None, None, Some(token)).await?;
+    tx.execute(
+        "INSERT INTO oo_token_lifecycle.issue_retry VALUES ($1,$2,$3,$4)",
+        &[&project, &key_hash, &request_hash, &hash],
+    )
+    .await
+    .map_err(|_| "database")?;
+    Ok(receipt)
+}
 fn audit_related(m: &Value) -> Option<&str> {
     m["code_sha256"]
         .as_str()
@@ -496,7 +592,9 @@ async fn audit(
 }
 async fn project_for(tx: &Transaction<'_>, op: &Operation) -> Result<String> {
     Ok(match op {
-        Operation::Issue(g) | Operation::Enroll(g) => g.project_id.clone(),
+        Operation::Issue(g) | Operation::Enroll(g) | Operation::IssueRetry { grant: g, .. } => {
+            g.project_id.clone()
+        }
         Operation::List { project }
         | Operation::Renew { project, .. }
         | Operation::Rotate { project, .. }
@@ -548,6 +646,7 @@ async fn issue(
     p: &Policy,
     from: Option<&str>,
     first: Option<i64>,
+    material: Option<Zeroizing<String>>,
 ) -> Result<Receipt> {
     g.validate()?;
     let ttl = g.ttl_ms.unwrap_or(p.default_ttl_ms);
@@ -559,16 +658,24 @@ async fn issue(
     if deadline > first.checked_add(p.max_lifetime_ms).ok_or("max_lifetime")? {
         return Err("max_lifetime");
     }
-    let mut raw = legacy::draw_32().map_err(|_| "randomness")?;
-    let token = legacy::PlainToken::issue(TokenKind::Client, &raw);
-    raw.zeroize();
-    let hash = token.sha256_hex().map_err(|_| "hash")?;
+    let token = if let Some(token) = material {
+        token
+    } else {
+        let mut raw = legacy::draw_32().map_err(|_| "randomness")?;
+        let token = legacy::PlainToken::issue(TokenKind::Client, &raw);
+        raw.zeroize();
+        Zeroizing::new(token.reveal_once())
+    };
+    let (kind, hash) = legacy::token_hash(&token).map_err(|_| "input")?;
+    if kind != TokenKind::Client {
+        return Err("input");
+    }
     let claims = serde_json::to_string(&g.claims).map_err(|_| "claims")?;
     tx.execute("INSERT INTO oo_token_control.token_record (token_sha256,token_kind,project_id,principal_id,role_name,claims_canonical,policy_version,knowledge_version,audience_url,issued_at_ms,absolute_deadline_ms,last_used_ms,revocation_floor) VALUES ($1,'client',$2,$3,$4,$5,$6,$7,$8,$9,$10,$9,(SELECT COALESCE(MAX(seq),0) FROM oo_token_control.revocation WHERE project_id=$2 AND (scope='project' OR (scope='principal' AND principal_id=$3))))",&[&hash,&g.project_id,&g.principal_id,&g.role,&claims,&g.policy_version,&g.knowledge_version,&g.audience_url,&now,&deadline]).await.map_err(|_|"database")?;
     tx.execute("INSERT INTO oo_token_lifecycle.token (token_sha256,first_issued_at_ms,rotated_from,issued_by,purpose) VALUES ($1,$2,$3,$4,$5)",&[&hash,&first,&from,&actor,&g.purpose]).await.map_err(|_|"database")?;
     Ok(Receipt {
         metadata: json!({"token_sha256":hash,"first_issued_at_ms":first,"expires_at_ms":deadline,"role":g.role,"audience":g.audience_url,"rotated_from":from}),
-        secret: Some(Zeroizing::new(token.reveal_once())),
+        secret: Some(token),
     })
 }
 const LIVE: &str = "SELECT t.*, COALESCE(x.first_issued_at_ms,t.issued_at_ms) AS first_ms,x.overlap_until_ms FROM oo_token_control.token_record t LEFT JOIN oo_token_lifecycle.token x USING(token_sha256) WHERE t.project_id=$1 AND t.token_sha256=$2";
@@ -636,7 +743,10 @@ async fn operate(
     }
     let p = policy(tx, project).await?;
     match op {
-        Operation::Issue(g) => issue(tx, g, actor, now, &p, None, None).await,
+        Operation::Issue(g) => issue(tx, g, actor, now, &p, None, None, None).await,
+        Operation::IssueRetry { grant, key, token } => {
+            issue_retry(tx, grant, &key, token, actor, now, &p).await
+        }
         Operation::Policy { policy: p, .. } => {
             ident(project, 128)?;
             p.validate()?;
@@ -702,7 +812,7 @@ async fn operate(
                 purpose: "rotation".into(),
             };
             tx.execute("INSERT INTO oo_token_lifecycle.token (token_sha256,first_issued_at_ms,issued_by,purpose) VALUES ($1,$2,$3,'v1') ON CONFLICT DO NOTHING",&[&hash,&first,&actor]).await.map_err(|_|"database")?;
-            let mut receipt = issue(tx, g, actor, now, &p, Some(&hash), Some(first)).await?;
+            let mut receipt = issue(tx, g, actor, now, &p, Some(&hash), Some(first), None).await?;
             // Never lengthen the old credential. Zero overlap means immediate revocation.
             let overlap = now
                 .checked_add(p.rotate_overlap_ms)
@@ -767,7 +877,7 @@ async fn operate(
             if g.audience_url != audience(&aud)? {
                 return Err("audience");
             }
-            let mut receipt = issue(tx, g, actor, now, &p, None, None).await?;
+            let mut receipt = issue(tx, g, actor, now, &p, None, None, None).await?;
             receipt.metadata["code_sha256"] = json!(hash);
             tx.execute("UPDATE oo_token_lifecycle.enrollment SET redeemed_at_ms=$1,redeemed_by=$2 WHERE code_sha256=$3",&[&now,&actor,&hash]).await.map_err(|_|"database")?;
             Ok(receipt)
@@ -832,6 +942,8 @@ async fn revoke(tx: &Transaction<'_>, project: &str, hash: &str, now: i64) -> Re
 pub enum AdminRequest {
     Issue {
         grant: Grant,
+        #[serde(default)]
+        retry: Option<IssueRetry>,
     },
     List {
         project: String,
@@ -857,10 +969,24 @@ pub enum AdminRequest {
         policy: Policy,
     },
 }
+/// Not Debug: token material is a credential, including before first dispatch.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IssueRetry {
+    key: String,
+    token: String,
+}
 impl From<AdminRequest> for Operation {
     fn from(r: AdminRequest) -> Self {
         match r {
-            AdminRequest::Issue { grant } => Self::Issue(grant),
+            AdminRequest::Issue { grant, retry } => match retry {
+                Some(retry) => Self::IssueRetry {
+                    grant,
+                    key: retry.key,
+                    token: Zeroizing::new(retry.token),
+                },
+                None => Self::Issue(grant),
+            },
             AdminRequest::List { project } => Self::List { project },
             AdminRequest::Renew {
                 project,
@@ -935,3 +1061,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "lifecycle_retry_tests.rs"]
+mod retry_tests;
