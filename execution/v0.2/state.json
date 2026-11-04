@@ -2,7 +2,7 @@
   "schema": "oo.v02-state/v1",
   "as_of": "2026-11-04T00:00:00+08:00",
   "integration_branch": "v0.2/product-loops",
-  "current_sprint": "S3",
+  "current_sprint": "S4",
   "active_executors_max": 6,
   "loops": {
     "L1": {
@@ -774,7 +774,7 @@
       "sprint": "S3",
       "lane": "G",
       "title": "关系图（声明 FK + 包含度候选 + 命名）、分表族折叠、社区划分、枢纽签名",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-G",
       "branch": "v0.2/g-selfbuild-budget",
       "commits": [
@@ -804,7 +804,7 @@
       "sprint": "S3",
       "lane": "G",
       "title": "三遍生成与全局实体登记表；连通性门禁指标写入审核摘要",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-G",
       "branch": "v0.2/g-selfbuild-budget",
       "commits": [
@@ -834,7 +834,7 @@
       "sprint": "S3",
       "lane": "G",
       "title": "语义依赖哈希按社区；数据-only 周期零模型调用",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-G",
       "branch": "v0.2/g-selfbuild-budget",
       "commits": [
@@ -864,20 +864,20 @@
       "sprint": "S3",
       "lane": "B",
       "title": "`oo login`（绑定码 / 设备码）、`oo whoami`、到期预警、`/v1/meta` 版本协商与升级提示",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-B",
       "branch": "v0.2/b-token-lifecycle",
       "commits": [
-        "480ba308d",
-        "5c1363ec6",
-        "6628e6e49",
-        "6b132e226",
-        "758a5380e",
-        "75c11cfbc",
-        "8854223e4",
-        "9e8a1a64b",
-        "bdfa6dd19",
-        "d876260db"
+        "e91c2dbbb",
+        "fbb81712a",
+        "f8028a4d2",
+        "b03906233",
+        "5bef9e54c",
+        "2406268d6",
+        "ffffd2f57",
+        "faf1f002f",
+        "f4a8ec15a",
+        "3d1244fa4"
       ],
       "evidence": []
     },
@@ -886,16 +886,16 @@
       "sprint": "S3",
       "lane": "B",
       "title": "`oo share-prompt [--role] [--agent claude",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-B",
       "branch": "v0.2/b-token-lifecycle",
       "commits": [
-        "d876260db",
-        "480ba308d",
-        "6628e6e49",
-        "6b132e226",
-        "9e8a1a64b",
-        "8854223e4"
+        "3d1244fa4",
+        "e91c2dbbb",
+        "f8028a4d2",
+        "b03906233",
+        "faf1f002f",
+        "ffffd2f57"
       ],
       "evidence": []
     },
@@ -937,12 +937,12 @@
       "sprint": "S3",
       "lane": "M",
       "title": "**L2 闭环独立审阅**（固定 SHA）",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "coordinator (native reviewer)",
       "branch": "review @ d876260db",
       "commits": [
-        "bdfa6dd19",
-        "d84d2aa43"
+        "f4a8ec15a",
+        "891af2551"
       ],
       "evidence": []
     },
@@ -1091,10 +1091,10 @@
       "owner": "lane-H",
       "branch": "v0.2/h-test-infra",
       "commits": [
-        "ed4560449",
-        "4d76b8e1b",
-        "40992bba2",
-        "f1d99cb72"
+        "cb22e4d65",
+        "1f0697974",
+        "9c32c0d49",
+        "04887dbc0"
       ],
       "evidence": []
     },
@@ -1107,10 +1107,10 @@
       "owner": "lane-H",
       "branch": "v0.2/h-test-infra",
       "commits": [
-        "ed4560449",
-        "4d76b8e1b",
-        "40992bba2",
-        "f1d99cb72"
+        "cb22e4d65",
+        "1f0697974",
+        "9c32c0d49",
+        "04887dbc0"
       ],
       "evidence": []
     },
