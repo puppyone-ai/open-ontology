@@ -303,3 +303,5 @@ evidence run-id.
 | E285 | 2026-11-04 | integrate | S4-M-02 | `0dd131b55` | Probe harness integrated |
 | E286 | 2026-11-04 | dispatch | S4-A-01, S4-A-02 | card `A3-S4c-onboarding-gaps.md` on `v0.2/a-chain` | Lane A3: fix the four clean-install blockers plus the SSH step in `oo init`, rerun the probe |
 | E287 | 2026-11-04 | dispatch | S5-G-01 | card `G-S5c-gold.md` on `v0.2/g-selfbuild-budget` | Lane G: T6 rerun on three engines with composite keys |
+| E288 | 2026-11-05 | delivery | S6-M-01 | run `M-S6-images`; evidence `m-s6-20261104`, `m-s6-dind-arm64-final3`, `m-s6-dind-amd64-1` | Lane M partial (held on its branch, S6): multi-arch buildx with SBOM/provenance, local cosign verify, verified offline bundle; arm64 isolated DinD loads the bundle, three foundations healthy, operator provisioning and migration helper missing; amd64 nested DinD fails under Rosetta (host limitation, D1) |
+| E289 | 2026-11-05 | dispatch | S6-M-01 | card `M-S6b-images.md` on `v0.2/m-pipeline` | Lane M: bundle-only first-up and scheduled cycle on arm64; amd64 via an amd64 client container on the host daemon |
