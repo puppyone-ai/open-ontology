@@ -17,6 +17,8 @@ mysql = ["dep:mysql_async", "tokio/sync", "tokio/macros"]
 # default artifact only after the seven-day rule (supply-chain/mysql-binlog-audit.json).
 mysql-binlog = ["mysql", "mysql_async/binlog", "dep:futures-util"]
 oracle = ["dep:oracledb"]
+# ClickHouse, Doris and StarRocks over the MySQL wire protocol; no new driver.
+olap = ["mysql"]
 sqlserver = ["dep:tiberius", "dep:tokio-util", "dep:futures-util", "tokio/net", "tokio/io-util"]
 
 [[bin]]

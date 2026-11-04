@@ -43,6 +43,8 @@ mod model;
 pub mod mysql;
 #[cfg(feature = "mysql")]
 pub use mysql::{mariadb, oceanbase, tidb};
+#[cfg(feature = "olap")]
+pub mod olap;
 #[cfg(feature = "oracle")]
 pub mod oracle;
 pub mod postgres;
