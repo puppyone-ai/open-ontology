@@ -302,3 +302,4 @@ evidence run-id.
 | E284 | 2026-11-04 | delivery | S4-M-02 | run `H-S4-l1-clean`; evidence `h-s4-l1-probe2-20261104` | Lane H blocked: clean-HOME npm install finds four product blockers — `oo build` needs `--agent-target`, npm pack lacks the lite image sidecar, TTY onboarding needs a pre-existing source CA secret, wizard BUILD runs the old draft flow. Linux amd64 not run |
 | E285 | 2026-11-04 | integrate | S4-M-02 | `0dd131b55` | Probe harness integrated |
 | E286 | 2026-11-04 | dispatch | S4-A-01, S4-A-02 | card `A3-S4c-onboarding-gaps.md` on `v0.2/a-chain` | Lane A3: fix the four clean-install blockers plus the SSH step in `oo init`, rerun the probe |
+| E287 | 2026-11-04 | dispatch | S5-G-01 | card `G-S5c-gold.md` on `v0.2/g-selfbuild-budget` | Lane G: T6 rerun on three engines with composite keys |
