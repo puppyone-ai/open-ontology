@@ -1,0 +1,208 @@
+{
+  "todo": "S3-E-02",
+  "status": "author_complete",
+  "matrix": [
+    {
+      "version": "2019",
+      "product_version": "15.0.4430.1",
+      "platform": "linux/amd64",
+      "execution": "emulated",
+      "T0_T1_T2_T8_full_run": "h-s5-20261104T110027508904Z-113387a9-3026-4c2d-a8b4-81bc3355cfb7",
+      "T7_run": "h-s5-20261104T111630531947Z-2c00f4cb-f200-4085-9e43-dadb2ecfe5a4",
+      "tables": 231,
+      "events": 2000000,
+      "wide_columns": 300,
+      "compared_rows": 2000848,
+      "writer_commits": 131,
+      "target_logical_write_bytes": 112050165,
+      "sampled_connections_peak": 1,
+      "cycles": {
+        "c5": 3,
+        "ct": 3,
+        "cdc": 3
+      },
+      "idle_logical_writes": 0,
+      "idle_new_generations": 0,
+      "audit_classes": {
+        "select": 29,
+        "snapshot_session": 8
+      },
+      "attributed_cdc_objects": [
+        "captured_columns",
+        "change_tables",
+        "dbo_growth_events_CT",
+        "ddl_history",
+        "index_columns",
+        "lsn_time_mapping"
+      ],
+      "internal_write_classes": {
+        "unchanged_cdc_objects": 6
+      },
+      "artifacts": {
+        "evidence/h-s5-20261104T110027508904Z-113387a9-3026-4c2d-a8b4-81bc3355cfb7/sqlserver-2019/product-suites.json": "dfaa39dfd20299a8ebdf18923e9b0ba850143688a713aad9cf4358e831a2c3be",
+        "evidence/h-s5-20261104T110027508904Z-113387a9-3026-4c2d-a8b4-81bc3355cfb7/sqlserver-2019/fixture-shapes.json": "ddcb166431f4d997bcfb71e287df75cd72bff6ccf8b3fa3251dee824cd212830",
+        "evidence/h-s5-20261104T110027508904Z-113387a9-3026-4c2d-a8b4-81bc3355cfb7/sqlserver-2019/target-comparison.json": "7d7fbb36d37c49a1596fd2f8b0d47e98bedc3fc5bdcfa4440d39952f8bd8f84a",
+        "evidence/h-s5-20261104T110027508904Z-113387a9-3026-4c2d-a8b4-81bc3355cfb7/sqlserver-2019/writer.json": "635b61cd7a8e00ad1742c7836acf9d934b731cf92ccda06decf7207d64fef809",
+        "evidence/h-s5-20261104T110027508904Z-113387a9-3026-4c2d-a8b4-81bc3355cfb7/sqlserver-2019/product-resources.json": "4ae001ded15fd9c6a255e3b3215a19a7e23e071f62e33a8f90a7a6a140903baa",
+        "evidence/h-s5-20261104T110027508904Z-113387a9-3026-4c2d-a8b4-81bc3355cfb7/sqlserver-2019/durable-cycles.json": "a1ba9aa66d6af06b59060084ede1128882116b09888c42686750d2255735ef31",
+        "evidence/h-s5-20261104T110027508904Z-113387a9-3026-4c2d-a8b4-81bc3355cfb7/sqlserver-2019/resource-receipt.json": "1db8718c5e997b806028a68ac3418923b287e77387ec5b150fb16aa4dc92e391",
+        "evidence/h-s5-20261104T111630531947Z-2c00f4cb-f200-4085-9e43-dadb2ecfe5a4/sqlserver-2019/audit-report.json": "60613884d6e47c8d012651584c3ba337541ae44e334a61c6f6a837066e6d9c03",
+        "evidence/h-s5-20261104T111630531947Z-2c00f4cb-f200-4085-9e43-dadb2ecfe5a4/sqlserver-2019/reader-audit.xml": "c8f389f1df87cc3217c89aaafc883eee328108d8600b115e25125b5c5789f736",
+        "evidence/h-s5-20261104T111630531947Z-2c00f4cb-f200-4085-9e43-dadb2ecfe5a4/sqlserver-2019/ct-epoch-rejection.json": "3e15e57e96bf39a2247979120708787f49e67f6f4307f26fd1bee3675c4369b1",
+        "evidence/h-s5-20261104T111630531947Z-2c00f4cb-f200-4085-9e43-dadb2ecfe5a4/sqlserver-2019/cdc-epoch-rejection.json": "3e15e57e96bf39a2247979120708787f49e67f6f4307f26fd1bee3675c4369b1"
+      }
+    },
+    {
+      "version": "2022",
+      "product_version": "16.0.4205.1",
+      "platform": "linux/amd64",
+      "execution": "emulated",
+      "T0_T1_T2_T8_full_run": "h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4",
+      "T7_run": "h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4",
+      "tables": 231,
+      "events": 2000000,
+      "wide_columns": 300,
+      "compared_rows": 2000848,
+      "writer_commits": 125,
+      "target_logical_write_bytes": 112050279,
+      "sampled_connections_peak": 1,
+      "cycles": {
+        "c5": 3,
+        "ct": 3,
+        "cdc": 3
+      },
+      "idle_logical_writes": 0,
+      "idle_new_generations": 0,
+      "audit_classes": {
+        "select": 29,
+        "snapshot_session": 8
+      },
+      "attributed_cdc_objects": [
+        "captured_columns",
+        "change_tables",
+        "dbo_growth_events_CT",
+        "ddl_history",
+        "index_columns",
+        "lsn_time_mapping"
+      ],
+      "internal_write_classes": {
+        "unchanged_cdc_objects": 6
+      },
+      "artifacts": {
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2022/product-suites.json": "d454526829b7b885758b87abaa5fd305d07f17d270d32fe1f3717d96ea555376",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2022/fixture-shapes.json": "ddcb166431f4d997bcfb71e287df75cd72bff6ccf8b3fa3251dee824cd212830",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2022/target-comparison.json": "7d7fbb36d37c49a1596fd2f8b0d47e98bedc3fc5bdcfa4440d39952f8bd8f84a",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2022/writer.json": "75b97f3bb74e8c2029baa12a6c549e3c2ec811c6d86c60d367aeaa9406b178e2",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2022/product-resources.json": "20e25150920cdb39057bd176663ba46413a22e08fe8d2b586312afde43a207f3",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2022/durable-cycles.json": "351c9161a9a0656ec78fe144312b3f5272f371afcd815efa079d9e3b12f7438b",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2022/resource-receipt.json": "dd3880ed07dcd1e952f00059b83d8cbaccaba4a60813b11250ed6ff260be1850",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2022/audit-report.json": "a213625c9f9e96a4cef5199777a6b54eef9cd7d9f5ccfdc76443256f2e1c73f8",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2022/reader-audit.xml": "089711d7788beab187a35542a9e4b6eac700ea1a1d98c2824988b1d88d736f48",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2022/ct-epoch-rejection.json": "3e15e57e96bf39a2247979120708787f49e67f6f4307f26fd1bee3675c4369b1",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2022/cdc-epoch-rejection.json": "3e15e57e96bf39a2247979120708787f49e67f6f4307f26fd1bee3675c4369b1"
+      }
+    },
+    {
+      "version": "2025",
+      "product_version": "17.0.4006.2",
+      "platform": "linux/amd64",
+      "execution": "emulated",
+      "T0_T1_T2_T8_full_run": "h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4",
+      "T7_run": "h-s5-20261104T115934108048Z-3f2cd793-d2e2-46df-8011-7098fe2c3313",
+      "tables": 231,
+      "events": 2000000,
+      "wide_columns": 300,
+      "compared_rows": 2000848,
+      "writer_commits": 123,
+      "target_logical_write_bytes": 111066045,
+      "sampled_connections_peak": 1,
+      "cycles": {
+        "c5": 3,
+        "ct": 3,
+        "cdc": 3
+      },
+      "idle_logical_writes": 0,
+      "idle_new_generations": 0,
+      "audit_classes": {
+        "select": 29,
+        "snapshot_session": 8
+      },
+      "attributed_cdc_objects": [
+        "captured_columns",
+        "change_tables",
+        "dbo_growth_events_CT",
+        "ddl_history",
+        "index_columns",
+        "lsn_time_mapping"
+      ],
+      "internal_write_classes": {
+        "cdc_idle_scan_mapping_append": 1
+      },
+      "artifacts": {
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2025/product-suites.json": "593db64de3a1922da67f764ace5ef4cb70441ebdba8942c93d7c2828218504ff",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2025/fixture-shapes.json": "ddcb166431f4d997bcfb71e287df75cd72bff6ccf8b3fa3251dee824cd212830",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2025/target-comparison.json": "7d7fbb36d37c49a1596fd2f8b0d47e98bedc3fc5bdcfa4440d39952f8bd8f84a",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2025/writer.json": "36edb4646b3d431b9453721aa8fd5064e906bf5b843371b9499b58fc0c4f967d",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2025/product-resources.json": "bad4dcb2ad103a4c37932bc018dfaba319017edf2492ffb14aeb1d34d849c133",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2025/durable-cycles.json": "39d9a5b6e1b61bd029c87f2d6212aea789847c2e05df7a9757ebaed217fa07a6",
+        "evidence/h-s5-20261104T112000431525Z-e9dcef45-c031-4f3a-a0b3-da8e9dace4e4/sqlserver-2025/resource-receipt.json": "57e1faf23e6f41ca0988d92062d939052b62eb7ba29402dd65131028ef23502a",
+        "evidence/h-s5-20261104T115934108048Z-3f2cd793-d2e2-46df-8011-7098fe2c3313/sqlserver-2025/audit-report.json": "45602fe6a0d6ea7c7e315baa909a1a92c868856ec00b64b77fe6f2c03fdd7f26",
+        "evidence/h-s5-20261104T115934108048Z-3f2cd793-d2e2-46df-8011-7098fe2c3313/sqlserver-2025/reader-audit.xml": "3473e1db30bb5ffdc6d75a8419f4c6f1504dad115418e83a2e90306186d69bc1",
+        "evidence/h-s5-20261104T115934108048Z-3f2cd793-d2e2-46df-8011-7098fe2c3313/sqlserver-2025/ct-epoch-rejection.json": "3e15e57e96bf39a2247979120708787f49e67f6f4307f26fd1bee3675c4369b1",
+        "evidence/h-s5-20261104T115934108048Z-3f2cd793-d2e2-46df-8011-7098fe2c3313/sqlserver-2025/cdc-epoch-rejection.json": "3e15e57e96bf39a2247979120708787f49e67f6f4307f26fd1bee3675c4369b1"
+      }
+    }
+  ],
+  "boundaries": [
+    "Source doctor passes; aggregate doctor intentionally blocked by absent model secret.",
+    "Local Agent DB acceptance, not Gateway or production/business acceptance.",
+    "2019 full attempt retained its failed T7 transport; corrected T7 passed separately on reduced fixture.",
+    "T7 is quiescent CDC read proof; 2025 additionally observes and attributes native idle-scan metadata appends. No active business writer during audit.",
+    "T2 cycles exercise the keyed growth table; T1 compares all 231 tables.",
+    "Connections are sampled; target byte counters exclude WAL/index/metadata writes."
+  ],
+  "tests": {
+    "evidence_run": "e-s3b-dev",
+    "workspace_check": "passed",
+    "oo_load": {
+      "passed": 27,
+      "ignored": 6
+    },
+    "connector_unit": {
+      "passed": 125
+    },
+    "connector_full": {
+      "passed": 235,
+      "failed": 1,
+      "ignored": 21
+    },
+    "fixture_unit": {
+      "passed": 13
+    },
+    "python": {
+      "passed": 57
+    },
+    "base_commit": "a84d043a5c9a127bbd3ea84e9276e9e4359a7eb0",
+    "preexisting_failure": "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes",
+    "base_proof": "evidence/e-s3b-dev/parse-cli-base.log",
+    "reason": "group_signal rejected rather than sent; identical on archived branch base and current retry"
+  },
+  "shared_patches": [],
+  "cargo_lock_changes": false,
+  "source_sha256": {
+    "crates/oo-connectors/src/sqlserver/mod.rs": "9acf9eb2dca6a3ce1b17fddda8b8725b2a3291ab61a2febe1763817419219a34",
+    "testing/engines/sqlserver/images.lock.json": "d3f18f23108d8a4644cdc4d00280b76ec3addaab29418bc10a6bf3e171005809",
+    "testing/engines/sqlserver/seed/preamble.sql": "dab1246d34b25e6f807f47bd2c8637d79a7a59e79f9080fa682a3ecba2a0abfb",
+    "testing/engines/sqlserver/src/main.rs": "06b825a65137b8a1fc360ce68fef27be3147daaae6c3cfff462eb12fd0344d7c",
+    "tools/oo-load/src/main.rs": "d66a40d9854f45d5d93098b35b9af14a0c336754ed6008ab94bf3f35ff49466d",
+    "tools/oo-load/src/sqlserver_load.rs": "64871380f3ec4c5913d646bf07db987a477aeb777d8b853438bb0ede63ddea58",
+    "tools/oo-test/matrix.py": "0a6760371274912d355bf89f4942ceb80d10000e8dfca54c28994fce332bf8da",
+    "tools/oo-test/runner.py": "ccb3376d6afbe1232d42bf6cdb65877b0584de9b05967ffa6478f56091c95ab0",
+    "tools/oo-test/sqlserver_acceptance.py": "195b9bf044484d34ab372d3851e68dbfa7d23c5252ab358fa48697f07cfcb7b2",
+    "tools/oo-test/sqlserver_audit.py": "5543791db67d71c373507b2f8c36e835ab8c377c7d0203d5a8f8784c838c3432",
+    "tools/oo-test/sqlserver_cycles.py": "8f3cb5bed73f427805134d5f030fb4118dee371f0646fcae938e5cbc3083dd8e",
+    "tools/oo-test/sqlserver_runner.py": "13173d065977db7fab657defc7db66e5323f4517f6a6a4861dfdb044a4988f25",
+    "tools/oo-test/sqlserver_seed.py": "032d3b5b4a7526c916c1fe98e9a9246213560b2199b96d6837231a857399af41",
+    "tools/oo-test/test_sqlserver.py": "34eb62463f2aba74ec71189fa927cc5398e757aa4ee1343bb6fda19bd5a9d09b"
+  }
+}
