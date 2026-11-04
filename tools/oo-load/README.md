@@ -78,6 +78,8 @@ otherwise, output is `consistency:B` and `source_time:unmeasured`.
 Supported Arrow physical types are closed in `engine_load_pg::column`;
 unsupported types fail, never stringify silently. Oracle's canonical text
 columns remain text, as declared by its engine; receipt hashes retain metadata.
+Unsigned 64-bit values widen to PostgreSQL numeric without signed overflow or
+floating-point conversion; the dedicated target regression includes `u64::MAX`.
 
 Tests:
 

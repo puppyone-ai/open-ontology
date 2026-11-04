@@ -90,6 +90,7 @@ mod tests {
         fail_once: bool,
         corrupt: bool,
         empty: bool,
+        unsigned: bool,
     }
     impl Fake {
         fn new() -> Self {
@@ -98,6 +99,7 @@ mod tests {
                 fail_once: false,
                 corrupt: false,
                 empty: false,
+                unsigned: false,
             }
         }
     }
@@ -109,7 +111,11 @@ mod tests {
     }
     impl SourceEngine for Fake {
         fn family(&self) -> EngineFamily {
-            EngineFamily::Postgres
+            if self.unsigned {
+                EngineFamily::Mysql
+            } else {
+                EngineFamily::Postgres
+            }
         }
         async fn probe(&mut self) -> std::result::Result<ProbeReport, SourceError> {
             Err(SourceError::protocol("unused"))
@@ -160,7 +166,16 @@ mod tests {
                 "../../../crates/oo-pipeline/tests/fixtures/c1_parts/fill-00000001.arrow"
             );
             let mut reader = arrow_ipc::reader::StreamReader::try_new(&bytes[..], None).unwrap();
-            let batch = reader.next().unwrap().unwrap();
+            let batch = if self.unsigned {
+                RecordBatch::try_from_iter(vec![(
+                    "id",
+                    std::sync::Arc::new(arrow_array::UInt64Array::from(vec![u64::MAX]))
+                        as arrow_array::ArrayRef,
+                )])
+                .unwrap()
+            } else {
+                reader.next().unwrap().unwrap()
+            };
             let batch = if self.empty {
                 batch.slice(0, 0)
             } else if self.revision > 1 {
@@ -191,8 +206,22 @@ mod tests {
                 } else {
                     format!("{:x}", Sha256::digest(ipc))
                 },
-                low: Some(Watermark::PgLsn { lsn: 1 }),
-                high: Some(Watermark::PgLsn { lsn: 2 }),
+                low: Some(if self.unsigned {
+                    Watermark::MysqlFilePos {
+                        file: "binlog.000001".into(),
+                        position: 4,
+                    }
+                } else {
+                    Watermark::PgLsn { lsn: 1 }
+                }),
+                high: Some(if self.unsigned {
+                    Watermark::MysqlFilePos {
+                        file: "binlog.000001".into(),
+                        position: 8,
+                    }
+                } else {
+                    Watermark::PgLsn { lsn: 2 }
+                }),
             })
         }
         async fn watermark(&mut self) -> std::result::Result<Option<Watermark>, SourceError> {
@@ -390,6 +419,42 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(old.completed().await.unwrap_err(), "load_run_superseded");
+        drop(old);
+        conn.close().await.unwrap();
+        let mut conn = PgConnection::connect_with(&options).await.unwrap();
+        let mut unsigned = oo_pipeline::engine_load_pg::PgTarget::new(
+            &mut conn,
+            "unsigned",
+            "unsigned-1",
+            &table(),
+        )
+        .await
+        .unwrap();
+        load(
+            &mut Fake {
+                unsigned: true,
+                ..Fake::new()
+            },
+            &table(),
+            &ReadBudget::default(),
+            IpcSink::new,
+            &mut unsigned,
+        )
+        .await
+        .unwrap();
+        assert!(matches!(
+            unsigned.completed().await.unwrap().unwrap()[0].low,
+            Some(Watermark::MysqlFilePos { position: 4, .. })
+        ));
+        let relation = unsigned.relation();
+        drop(unsigned);
+        let value: String = sqlx::query_scalar(sqlx_core::sql_str::AssertSqlSafe(format!(
+            "SELECT id::text FROM {relation}"
+        )))
+        .fetch_one(&mut conn)
+        .await
+        .unwrap();
+        assert_eq!(value, u64::MAX.to_string());
     }
 
     struct PauseAfterStage<'a, T> {

@@ -3,7 +3,7 @@
 //! replacement. Published storage is immutable. This is NOT Gateway publication.
 use crate::{
     engine_load::{Result, Target},
-    native_arrow::{DecodedField, DecodedStream},
+    native_arrow::{DecodedField, DecodedStream, NativeCell},
     native_c1_apply::cell_text,
 };
 use oo_connectors::engine::{ChunkReceipt, TableChunkPlan};
@@ -31,6 +31,7 @@ fn column(field: &DecodedField) -> Result<(i64, &'static str)> {
         "int32" => (23, "integer"),
         "int64" => (20, "bigint"),
         "uint8" => (21, "smallint"),
+        "uint64" => (1700, "numeric"),
         "bool" => (16, "boolean"),
         "utf8" => (25, "text"),
         "list(utf8)" => (114, "json"),
@@ -265,7 +266,22 @@ impl Target for PgTarget<'_> {
                         .get(index)
                         .and_then(|c| c.get(row))
                         .ok_or("load_schema")?;
-                    cell_text(&mut buffer, *oid, -1, cell)?;
+                    // PostgreSQL has no unsigned bigint. Widen without passing
+                    // through signed i64 or floating point.
+                    if let NativeCell::UInt64(value) = cell {
+                        cell_text(
+                            &mut buffer,
+                            *oid,
+                            -1,
+                            &NativeCell::Decimal {
+                                precision: 20,
+                                scale: 0,
+                                coefficient: i128::from(*value),
+                            },
+                        )?;
+                    } else {
+                        cell_text(&mut buffer, *oid, -1, cell)?;
+                    }
                 }
                 buffer.push(b'\n');
                 if buffer.len() >= 65_536 {
