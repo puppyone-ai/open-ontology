@@ -1,23 +1,23 @@
 {
   "status": "complete",
-  "card": "A4",
+  "card": "A4 (continuation)",
   "todo_ids": [
     "S4-A-02",
     "S4-M-02"
   ],
   "decision": "D16",
   "run_ids": [
-    "a4-l1-20261105",
-    "a4-image-1",
-    "a4-wizard-1",
-    "a4-dev-6",
-    "a4-dev-8",
-    "a4-dev-9"
+    "a4-l1-mac-final2",
+    "a4-l1-mac-final",
+    "a4-l1-linux-final",
+    "a4-ssh-dev-2",
+    "a4-image-3"
   ],
   "changes": [
-    "oo up provisions the retained chain inside the lite deployment (Agent DB catalog via the runtime's install-retained-target, Gateway data login, Gateway operator directory, build runtime configuration, consumer workload identity, host loopback Gateway port).",
-    "oo build without developer overrides runs every stage in one-shot containers of the pinned runtime image; owner review stays on the host on the copied-out input, with the compiler run from the image.",
-    "Credential OpenSSL and the MySQL doctor run from the runtime image when the host lacks them; the wizard imports model endpoint/key files by path and BUILD deploys first."
+    "After the first oo build the reconciling oo up arms the scheduled retained cycle (control-DB jobs schema, schedule.json, schedule row) and starts gateway, worker, scheduler and the Builder replay job; oo status reaches seven healthy services.",
+    "oo build --target ssh runs the runtime phases on the remote host over the pinned SSH connection; owner review stays local.",
+    "Linux amd64 clean machine: CLI from the npm pack inside an amd64 client container on the host daemon.",
+    "An Agent given only the printed prompt binds and answers the gold questions over the loaded tables (lane G t6 logic)."
   ],
   "checks": [
     {
@@ -26,195 +26,449 @@
     },
     {
       "command": "cargo test -p oo-cli --locked",
-      "result": "83 passed; 2 ignored; 0 failed (includes build.rs/build_tail.rs SIGKILL checkpoint tests)"
+      "result": "83 passed; 2 ignored; 0 failed"
     },
     {
       "command": "cargo test -p oo-stack --locked",
       "result": "14 passed; 0 failed"
     },
     {
-      "command": "python3 -m unittest test_retained_provision test_lifecycle test_retained_grant (deploy/lite)",
-      "result": "26 passed"
+      "command": "python3 -m unittest test_retained_provision test_lifecycle test_retained_grant test_remote test_remote_build (deploy/lite)",
+      "result": "35 passed"
     },
     {
-      "command": "python3 crates/oo-cli/src/admin/test_wizard.py --run-id a4-wizard-1",
+      "command": "python3 tools/oo-test/l1_clean.py --run-id a4-l1-mac-final2 ...",
+      "result": "passed; containers left 0"
+    },
+    {
+      "command": "python3 tools/oo-test/l1_clean.py --run-id a4-l1-linux-final --platform linux-x64 --no-agent ...",
+      "result": "passed; containers left 0"
+    },
+    {
+      "command": "python3 tools/oo-test/l1_ssh.py --run-id a4-ssh-dev-2 ...",
       "result": "passed"
-    },
-    {
-      "command": "python3 tools/oo-test/l1_clean.py --run-id a4-l1-20261105 --binary target/debug/oo --model-endpoint <owner file> --model-key <owner file>",
-      "result": "passed; 3 engines x (TTY, stack.yaml)"
     }
   ],
   "runtime_image": {
     "platform": "linux/arm64",
-    "id": "sha256:8937f6aeb263ea3fb9c99045621e11c2c276a4b44fec7efb64eb1d4a6cdd46bd",
-    "dockerfile": "deploy/lite/Dockerfile",
-    "build_run": "a4-image-1"
+    "id": "sha256:7983847f1eb97a259e8c6cc126e6065bd13df85eca80abbf098b46f63313e8b0",
+    "build_run": "a4-image-3"
   },
-  "cli_binary_sha256": "a18bd1e3ad374b2c3ad676a300205ee2ac8f8aae8dba6f8ce4f5b0ff34d63433",
-  "base_commit": "479b47c54bef1aa4f8b07d261a53cba9ce22ef42",
-  "harness_sha256": "21c107cc97846d392bc581924de6091edeb50395f42888e6f38f31fcec5d2978",
-  "engine_results": {
-    "PostgreSQL 17.11": {
-      "tty": {
-        "result": "passed",
-        "model_calls": 3,
-        "review": {
-          "reviewer": "owner",
-          "mode": "self",
-          "items": 29
+  "macos_arm64": {
+    "base_commit": "9335e349d84e67fccd93b04104d2b66b16edba12",
+    "cli_sha256": "2d1d1bf1ec0238636db9b4dd7d071c937d86159b5ffafcf77175f30cbe986109",
+    "engines": {
+      "PostgreSQL 17.11": {
+        "observed_version": "17.11",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
         },
-        "query_rows": [
-          [
-            "1.1250"
-          ]
-        ],
-        "secret_scan": "passed",
-        "seconds": 105.5
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
+        }
       },
-      "stack": {
-        "result": "passed",
-        "model_calls": 3,
-        "review": {
-          "reviewer": "owner",
-          "mode": "self",
-          "items": 29
+      "MySQL 8.4.7": {
+        "observed_version": "8.4.7",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
         },
-        "query_rows": [
-          [
-            "1.1250"
-          ]
-        ],
-        "secret_scan": "passed",
-        "seconds": 69.6
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
+        }
       },
-      "observed_version": "17.11",
-      "same_result": true,
-      "stack_sigkill_resume": {
-        "signal": "SIGKILL",
-        "after": "load",
-        "attempts_after_resume": {
-          "builder": 1,
-          "candidate": 1,
-          "first_token": 0,
-          "gateway": 0,
-          "load": 1,
-          "publish": 0,
-          "self_review": 2,
-          "share_prompt": 0
+      "Oracle 23.5": {
+        "observed_version": "23.5.0.24.07",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
+        },
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
         }
       }
+    }
+  },
+  "linux_amd64": {
+    "base_commit": "6f9e26866d674a2a668d03e35eb6ea76bc37cc3a",
+    "cli_sha256": "dd75c9806a196f91198add4d1ffc66e5b531cf671f4a6dd37a04d351f66916d3",
+    "machine": {
+      "client_image": "oo-a4-l1-client:linux-amd64",
+      "client_tools": {
+        "cargo": "absent",
+        "docker": "27.5.1",
+        "node": "v24.22.2",
+        "python3": "Python 3.13.5"
+      },
+      "client_uname": "Linux x86_64",
+      "daemon": "aarch64 Docker Desktop (the host's arm64 Docker Desktop, via the mounted socket)",
+      "network": "host (Docker VM namespace)",
+      "platform": "linux-x64",
+      "runtime_image_platform": "linux/arm64 (pinned for the arm64 daemon)"
     },
-    "MySQL 8.4.7": {
-      "tty": {
-        "result": "passed",
-        "model_calls": 3,
-        "review": {
-          "reviewer": "owner",
-          "mode": "self",
-          "items": 29
+    "cli_built_from": "commit 8e6e946 tree (pre OpenSSL-helper fixes, which only run on hosts without Ed25519 OpenSSL)",
+    "engines": {
+      "PostgreSQL 17.11": {
+        "observed_version": "17.11",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
         },
-        "query_rows": [
-          [
-            "1.1250"
-          ]
-        ],
-        "secret_scan": "passed",
-        "seconds": 102.3
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
+        }
       },
-      "stack": {
-        "result": "passed",
-        "model_calls": 3,
-        "review": {
-          "reviewer": "owner",
-          "mode": "self",
-          "items": 29
+      "MySQL 8.4.7": {
+        "observed_version": "8.4.7",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
         },
-        "query_rows": [
-          [
-            "1.1250"
-          ]
-        ],
-        "secret_scan": "passed",
-        "seconds": 67.6
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
+        }
       },
-      "observed_version": "8.4.7",
-      "same_result": true,
-      "stack_sigkill_resume": {
-        "signal": "SIGKILL",
-        "after": "load",
-        "attempts_after_resume": {
-          "builder": 1,
-          "candidate": 1,
-          "first_token": 0,
-          "gateway": 0,
-          "load": 1,
-          "publish": 0,
-          "self_review": 2,
-          "share_prompt": 0
+      "Oracle 23.5": {
+        "observed_version": "23.5.0.24.07",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
+        },
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
         }
       }
+    }
+  },
+  "ssh_target": {
+    "engine": "PostgreSQL 17.11",
+    "target": "lane A2 masked systemd+sshd+Docker image, linux/arm64, privileged",
+    "up": {
+      "exit": 0,
+      "status": "retained_ready"
     },
-    "Oracle 23.5": {
-      "tty": {
-        "result": "passed",
-        "model_calls": 3,
-        "review": {
-          "reviewer": "owner",
-          "mode": "self",
-          "items": 28
+    "chain": "complete",
+    "model_calls": 3,
+    "consumer_query_rows": [
+      [
+        "1.1250"
+      ]
+    ],
+    "seven_healthy": true,
+    "scheduled_cycle": {
+      "expected": "2.5000",
+      "query_rows": [
+        [
+          "2.5000"
+        ]
+      ],
+      "result": "passed"
+    },
+    "docker_vm_kernel_state": "unchanged",
+    "secret_scan": "passed",
+    "containers_left": 0
+  },
+  "agent_gold": {
+    "harness": "lane G tools/oo-test/t6.py @ f206d6424",
+    "questions": "gold questions reading only orders/customers",
+    "results": {
+      "PostgreSQL 17.11": {
+        "a4-l1-mac-final": {
+          "agent_model_calls": 57,
+          "error": null,
+          "questions": {
+            "Q01": "correct",
+            "Q02": "correct",
+            "Q03": "correct",
+            "Q07": "correct",
+            "Q08": "correct",
+            "Q09": "correct",
+            "Q10": "correct",
+            "Q12": "failed/UPSTREAM_TIMEOUT",
+            "Q15": "failed/CLI_TOOL_ARGUMENT",
+            "Q19": "correct"
+          }
         },
-        "query_rows": [
-          [
-            "1.125"
-          ]
-        ],
-        "secret_scan": "passed",
-        "seconds": 107.1
+        "a4-l1-mac-final2": {
+          "agent_model_calls": 60,
+          "error": null,
+          "questions": {
+            "Q01": "correct",
+            "Q02": "correct",
+            "Q03": "correct",
+            "Q07": "correct",
+            "Q08": "correct",
+            "Q09": "failed/UPSTREAM_TIMEOUT",
+            "Q10": "correct",
+            "Q12": "correct",
+            "Q15": "refused",
+            "Q19": "correct"
+          }
+        }
       },
-      "stack": {
-        "result": "passed",
-        "model_calls": 3,
-        "review": {
-          "reviewer": "owner",
-          "mode": "self",
-          "items": 28
+      "MySQL 8.4.7": {
+        "a4-l1-mac-final": {
+          "agent_model_calls": 63,
+          "error": null,
+          "questions": {
+            "Q01": "correct",
+            "Q02": "correct",
+            "Q03": "correct",
+            "Q07": "correct",
+            "Q08": "correct",
+            "Q09": "correct",
+            "Q10": "correct",
+            "Q12": "correct",
+            "Q15": "failed/CLI_TOOL_ARGUMENT",
+            "Q19": "correct"
+          }
         },
-        "query_rows": [
-          [
-            "1.125"
-          ]
-        ],
-        "secret_scan": "passed",
-        "seconds": 67.8
+        "a4-l1-mac-final2": {
+          "agent_model_calls": 2,
+          "error": "UPSTREAM_TIMEOUT",
+          "questions": {}
+        }
       },
-      "observed_version": "23.5.0.24.07",
-      "same_result": true,
-      "stack_sigkill_resume": {
-        "signal": "SIGKILL",
-        "after": "load",
-        "attempts_after_resume": {
-          "builder": 1,
-          "candidate": 1,
-          "first_token": 0,
-          "gateway": 0,
-          "load": 1,
-          "publish": 0,
-          "self_review": 2,
-          "share_prompt": 0
+      "Oracle 23.5": {
+        "a4-l1-mac-final": {
+          "agent_model_calls": 58,
+          "error": null,
+          "questions": {
+            "Q01": "correct",
+            "Q02": "correct",
+            "Q03": "correct",
+            "Q07": "correct",
+            "Q08": "correct",
+            "Q09": "correct",
+            "Q10": "correct",
+            "Q12": "correct",
+            "Q15": "failed/CLI_TOOL_ARGUMENT",
+            "Q19": "failed/UPSTREAM_TIMEOUT"
+          }
+        },
+        "a4-l1-mac-final2": {
+          "agent_model_calls": 2,
+          "error": "UPSTREAM_TIMEOUT",
+          "questions": {}
         }
       }
     }
   },
   "not_run": [
-    "Linux amd64 clean install",
-    "--target ssh runtime build",
-    "gold question answers",
-    "scheduled retained cycle after first build"
+    "gold questions over tables not loaded by this fixture",
+    "SSH for MySQL/Oracle",
+    "remote public Gateway names"
   ],
   "containers_left_running": [],
   "evidence_sha256": {
-    "evidence/a4-l1-20261105/summary.json": "a2a3e3765ba0c041a05a965477915a5f407e0921e066f083094d601f8f17af95",
-    "evidence/a4-l1-20261105/SHA256SUMS": "e543451c9a085aed49fba733cce0476a6ba545ea747cc9807198edfcc29e8058"
+    "evidence/a4-l1-mac-final2/summary.json": "ae4e5488c0340aeccfa3944d2d53c55c3a75044f410e21ccf35ca49c775cbf12",
+    "evidence/a4-l1-mac-final/summary.json": "2fa5172ba9e5407e765ba6cad05477293ed0bb48985fa72a1337373d9948d3f7",
+    "evidence/a4-l1-linux-final/summary.json": "ce9b73b520fde5c9974986c12d8cc0448d5d268d8217ce8216f3ba45cd21ebc6",
+    "evidence/a4-ssh-dev-2/report.json": "5d0102847682b360c5dd1176f696c11a3ae4ef867e63200ed4811fe97c053bed"
   }
 }

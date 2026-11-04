@@ -29,11 +29,26 @@ consumer CA and client certificate under `.oo/lite/consumer`; the admin
 identity stays inside the runtime. A host killed during a phase leaves the
 container running; the next `oo build --resume` waits for it.
 
-Limits: one source per deployment; `--target ssh` builds report
-`BUILD_REMOTE_RUNTIME_NOT_IMPLEMENTED`; a TLS source on loopback must present
-a certificate valid for `host.docker.internal`; the scheduled cycle
-(`work/operator/schedule.json`, control-DB jobs migrations) is not yet
-provisioned by the first build.
+After the first build completes, the reconciling `oo up` arms the scheduled
+retained cycle: it installs the control-DB jobs migrations (and restores the
+token store's CONNECT grant that jobs-bootstrap revokes from PUBLIC), writes
+`work/operator/schedule.json` from the build's facts and owner-reviewed
+registry digests, inserts one enabled `lite_retained` schedule, and starts
+gateway, worker, scheduler and the Builder job (a replay of the completed
+runtime build). `oo status` then reports seven healthy services once a
+scheduled cycle has succeeded; data-only cycles make no model calls.
+
+`--target ssh` deployments run the same phases on the remote host through the
+pinned SSH connection (`remote.py` build and handoff actions); review and the
+review compiler's caller stay local, the compiler itself runs in the remote
+runtime image, and the consumer CA and client certificate are kept under
+`.oo/ssh/consumer`. The remote Gateway listens on the remote loopback port of
+its URL; reach it there (for example an SSH local forward of that port).
+
+Limits: one source per deployment; a TLS source on loopback must present a
+certificate valid for `host.docker.internal`; Linux clean installs need glibc
+2.39 or newer for the current Linux CLI build; remote Gateway public names
+(certificate SANs beyond localhost) are not yet configurable.
 
 ## Developer overrides
 
