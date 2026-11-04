@@ -234,6 +234,8 @@ class SourceMeter:
         self.stop = threading.Event()
         self.samples = []
         self.error = None
+        self.child = None
+        self.label = label
         self.connections, self.duty = connections, duty
         self.thread = threading.Thread(target=self.sample, daemon=True)
 
@@ -243,15 +245,44 @@ class SourceMeter:
             "mysql": "SELECT count(*),COALESCE(sum(COMMAND<>'Sleep'),0) FROM information_schema.PROCESSLIST WHERE USER='fixture_reader';",
             "oracle": "SELECT count(*),count(CASE WHEN status='ACTIVE' THEN 1 END) FROM v$session WHERE username='FIXTURE_READER';",
         }
+        stderr = None
         try:
+            if self.run.engine == "postgres":
+                # Keep observation off the Docker exec hot path, like the writer.
+                command = ["docker", "exec", "-i", "-u", "postgres", self.run.name,
+                           "psql", "-X", "-q", "-v", "ON_ERROR_STOP=1", "-A", "-t", "-F", "|",
+                           "-U", "postgres", "-d", "fixture"]
+                runner.write_json(self.run.path / f"source-meter-{self.label}-command.json",
+                                  {"argv": command, "query": queries["postgres"]})
+                stderr = (self.run.path / f"source-meter-{self.label}.stderr").open("w")
+                self.child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                              stderr=stderr, text=True, bufsize=1)
             while not self.stop.is_set():
-                _, text = self.run.sql(queries[self.run.engine], admin=True)
+                if self.child:
+                    self.child.stdin.write(queries["postgres"] + "\n")
+                    self.child.stdin.flush()
+                    text = self.child.stdout.readline()
+                    if not text:
+                        raise RuntimeError("sampler connection closed")
+                else:
+                    _, text = self.run.sql(queries[self.run.engine], admin=True)
                 values = re.split(r"[|\s]+", text.strip())
                 connections, active = map(int, values)
                 self.samples.append((time.monotonic(), connections, active))
                 self.stop.wait(0.2)
         except Exception as error:
             self.error = type(error).__name__
+        finally:
+            if self.child:
+                self.child.stdin.close()
+                try:
+                    self.child.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self.child.kill()
+                    self.child.wait()
+                self.child.stdout.close()
+            if stderr:
+                stderr.close()
 
     def __enter__(self):
         self.started = time.monotonic()
@@ -264,6 +295,9 @@ class SourceMeter:
         self.thread.join(timeout=60)
         if self.thread.is_alive():
             self.error = "sampler_timeout"
+            if self.child:
+                self.child.kill()
+                self.thread.join(timeout=5)
 
     def result(self):
         elapsed = self.ended - self.started
@@ -547,6 +581,8 @@ def run_t1(run, binary, worker_image=None):
             schema, service, source_port = "fixture", "fixture", 3306
             _, table_text = run.sql("SELECT table_name FROM information_schema.tables WHERE table_schema='fixture' AND table_type='BASE TABLE' ORDER BY table_name;")
             tables = table_text.split()
+            # Reject unsupported required types before copying the scale table.
+            tables.sort(key=lambda t: (t != "type_edges", t))
         else:
             schema = "FIXTURE"
             service = "XE" if run.version.startswith("11") else ("XEPDB1" if run.version.startswith("21") else "FREEPDB1")

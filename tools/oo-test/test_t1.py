@@ -42,6 +42,33 @@ class T1Tests(unittest.TestCase):
         self.assertEqual(result["connections_peak"], 1)
         self.assertEqual(result["aggregate_duty_percent"], 0)
 
+    def test_postgres_meter_uses_one_session_and_fails_on_disconnect(self):
+        class Child:
+            def __init__(self, text):
+                self.stdin = io.StringIO()
+                self.stdout = io.StringIO(text)
+            def wait(self, timeout=None):
+                return 0
+        class Stop:
+            stopped = False
+            def is_set(self):
+                return self.stopped
+            def wait(self, timeout):
+                self.stopped = True
+        class Run:
+            engine, name = "postgres", "owned-fixture"
+        with tempfile.TemporaryDirectory(dir=t1.ROOT / "evidence") as temporary:
+            run = Run()
+            run.path = Path(temporary)
+            for text in ("2|1\n", ""):
+                meter = t1.SourceMeter(run, 0, 2)
+                meter.stop = Stop()
+                with patch.object(t1.subprocess, "Popen", return_value=Child(text)) as launch:
+                    meter.sample()
+                self.assertEqual(launch.call_count, 1)
+                self.assertEqual(len(meter.samples), int(bool(text)))
+                self.assertEqual(meter.error is not None, not bool(text))
+
     def test_mysql_cells_preserve_unsigned_decimal_binary_and_utc(self):
         self.assertEqual(t1.mysql_cell("18446744073709551615", "bigint"), Decimal(2**64-1))
         self.assertEqual(t1.mysql_cell("12345678901234567890.1234567890", "decimal"),
