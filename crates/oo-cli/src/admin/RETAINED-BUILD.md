@@ -65,6 +65,11 @@ it contains a one-use enrollment code. `--json` and `oo status` do not print it.
 reuses the baseline facts and reviewed registry when the semantic digest matches,
 and retains the first token and prompt. A semantic change requires new review.
 Repeat the same cycle ID to resume it, never to start another source refresh.
+If C5 leaves unchanged tables in an older run, candidate preparation refuses
+`publication_unverified`. Build then runs snapshot resume under the cycle's
+same run ID: completed tables are skipped and missing cuts are loaded before
+one candidate retry. This costs a bounded source reread of unchanged tables;
+it does not claim a zero-read cycle or a cross-table consistent snapshot.
 
 Recovery limits: the shared retained Builder refuses an incomplete output
 directory; an interrupted model run needs reconciliation rather than an automatic

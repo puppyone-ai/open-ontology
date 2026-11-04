@@ -185,9 +185,16 @@ pub(super) fn load(
     }
     let (code, out, err) = invoke(command, vec![], 1800)?;
     if candidate {
+        let refusal: Value = serde_json::from_slice(&err).unwrap_or(Value::Null);
+        if cycle && code != 0 && refusal["error"] == "publication_unverified" {
+            // C5 does not seal unchanged tables under the new run. Snapshot
+            // resume skips completed tables and fills only the missing cuts.
+            let completed = load(root, runtime, stack, target, generation, false, false)?;
+            save(&root.join("c5-snapshot-completion.json"), &completed)?;
+            return load(root, runtime, stack, target, generation, true, false);
+        }
         let value: Value =
             serde_json::from_slice(&out).map_err(|_| Failure::local("BUILD_CANDIDATE_RECEIPT"))?;
-        let refusal: Value = serde_json::from_slice(&err).unwrap_or(Value::Null);
         if (code != 0 && refusal["error"] != "publication_semantic_admission_required")
             || !matches!(value["state"].as_str(), Some("pending" | "ready"))
         {
