@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Owned PostgreSQL 17.11 source cycles through the actual mTLS Gateway."""
+"""Owned source cycles through the actual mTLS Gateway."""
 import argparse
 import importlib.util
 import json
@@ -15,7 +15,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools/oo-test'))
-from t1 import AgentDB, LaneRun, private
+from t1 import AgentDB, LaneRun, configure_tls, private
 from runner import checksums, write_json
 
 
@@ -29,8 +29,11 @@ def load_fixture():
 
 
 class Live:
-    def __init__(self, out):
+    def __init__(self, out, engine='postgres'):
         self.out = out
+        self.engine = engine
+        self.source = None
+        self.cycle_count = 3 if engine == 'postgres' else 1
         self.run = LaneRun(out, 'postgres', '17', argparse.Namespace())
         self.db = AgentDB(self.run)
         self.root = self.run.private
@@ -45,7 +48,77 @@ class Live:
         self.baselines = {}
         self.fixture = load_fixture()
 
+    def external_source(self):
+        path = self.out / 'source'
+        path.mkdir()
+        version = {'mysql': '8.4', 'oracle': '23'}[self.engine]
+        self.source = LaneRun(path, self.engine, version, argparse.Namespace(
+            platform=None, health_timeout=None, scale=1, tables=1))
+        self.source.setup()
+        private(self.db.directory / 'source-password', self.source.reader_secret)
+        if self.engine == 'mysql':
+            tls = self.root / 'source-tls'
+            tls.mkdir()
+            configure_tls(self.source, tls)
+            for src, dst in [('source-ca', 'ca.pem'), ('server-cert', 'server-cert.pem'),
+                             ('server-key', 'server-key.pem')]:
+                self.source.command(['docker', 'cp', str(tls / src),
+                                     self.source.name + ':/var/lib/mysql/' + dst])
+            self.source.command(['docker', 'exec', '-u', 'root', self.source.name, 'sh', '-c',
+                'chown mysql:mysql /var/lib/mysql/*.pem; chmod 600 /var/lib/mysql/*key.pem'])
+            self.source.sql("CREATE DATABASE app; CREATE TABLE app.items(amount bigint PRIMARY KEY); "
+                "INSERT INTO app.items VALUES(10); "
+                f"CREATE USER 'reader'@'%' IDENTIFIED BY '{self.source.reader_secret}' REQUIRE SSL; "
+                "GRANT SELECT,SHOW VIEW ON app.* TO 'reader'@'%';", admin=True)
+            self.source.command(['docker', 'restart', self.source.name])
+            for _ in range(90):
+                if self.source.sql('SELECT 1;', admin=True, required=False)[0] == 0:
+                    break
+                time.sleep(1)
+            else:
+                raise RuntimeError('source TLS startup')
+            private(self.db.directory / 'mysql-ca', (tls / 'source-ca').read_text())
+            port, database = 3306, 'app'
+            actual = self.source.sql('SELECT VERSION();', admin=True)[1].strip()
+            assert actual == '8.4.7', actual
+        else:
+            self.source_sql(f"""
+CREATE USER "app" IDENTIFIED BY "{self.source.secret}";
+GRANT CREATE SESSION, RESOURCE, UNLIMITED TABLESPACE TO "app";
+CREATE TABLE "app"."items"("amount" NUMBER(18,0) PRIMARY KEY);
+INSERT INTO "app"."items" VALUES(10);
+CREATE USER reader IDENTIFIED BY "{self.source.reader_secret}";
+GRANT CREATE SESSION TO reader;
+GRANT SELECT, FLASHBACK ON "app"."items" TO reader;
+GRANT SELECT ON SYS.V_$DATABASE TO reader;
+GRANT SELECT ON SYS.V_$SESSION TO reader;
+GRANT SELECT ON SYS.V_$SQL_PLAN TO reader;
+GRANT SELECT ON SYS.DBA_EXTENTS TO reader;
+GRANT EXECUTE ON SYS.DBMS_ROWID TO reader;
+COMMIT;
+""")
+            port, database = 1521, 'FREEPDB1'
+            actual = self.source_sql("SELECT version_full FROM product_component_version "
+                                     "WHERE product LIKE 'Oracle Database%';").strip()
+            assert actual.startswith('23.5.'), actual
+        _, endpoint = self.source.command(['docker', 'port', self.source.name, f'{port}/tcp'])
+        source = {'id': 'owned', 'engine': self.engine, 'host': '127.0.0.1',
+                  'port': int(endpoint.strip().rsplit(':', 1)[1]), 'database': database,
+                  'user': 'reader', 'password': {'secret_ref': 'source-password'},
+                  'scope': {'include': ['app.items']}}
+        if self.engine == 'mysql':
+            source['tls_ca'] = {'secret_ref': 'mysql-ca'}
+        self.source_version = actual
+        write_json(self.out / 'source-version.json', {'engine': self.engine, 'version': actual})
+        return source
+
     def command(self, argv, label, data=None):
+        if label == 'fixture-pack' and self.engine == 'oracle':
+            request = json.loads(data)
+            # Oracle NUMBER is losslessly projected as text by the connector.
+            request['effective_oos']['datasets'][0]['columns'][0]['data_type'] = 'text'
+            self.pack_effective = request['effective_oos']
+            data = self.fixture.encode(request)
         result = subprocess.run([str(a) for a in argv], input=data, capture_output=True,
                                 env=dict(os.environ, CARGO_TARGET_DIR=str(ROOT / 'target')))
         (self.out / (label + '.stdout')).write_bytes(result.stdout)
@@ -111,17 +184,35 @@ GRANT USAGE ON SCHEMA app TO reader; GRANT SELECT ON app.items TO reader;
             'tls_ca': {'secret_ref': 'source-ca'}, 'scope': {'include': ['app.items']}}],
             'model': {'provider': 'openai-compatible', 'base_url': 'http://127.0.0.1:1',
                       'model': 'unused', 'key': {'secret_ref': 'absent-model-key'}}}))
+        if self.engine != 'postgres':
+            stack = json.loads(self.stack.read_text())
+            stack['sources'] = [self.external_source()]
+            self.stack.write_text(json.dumps(stack))
         self.target = self.root / 'target.json'
         self.target.write_text(json.dumps({'host': '127.0.0.1', 'port': self.db.port,
             'database': 'postgres', 'user': 'postgres', 'password': {'secret_ref': 'password'},
             'local_fixture': True, 'run_id': 'baseline'}))
         self.args = argparse.Namespace(builder=str(ROOT / 'target/debug/oo-builder'))
         self.fixture.Fixture.pack(self)
+        if self.engine == 'oracle':
+            self.base_catalog['effective'] = self.pack_effective
+            envelope = self.base_catalog['envelope']
+            envelope['producer']['effective_sha256'] = self.fixture.sha(self.pack_effective)
+            envelope['output_sha256'] = self.fixture.sha(envelope['producer'])
         self.load([], 'baseline')
         self.publish('baseline')
         self.start_gateway()
 
     def source_sql(self, sql):
+        if self.source is not None:
+            if self.engine == 'mysql':
+                return self.source.sql(sql, admin=True)[1]
+            sql = sql.replace('app.items', '"app"."items"').replace('SET amount=', 'SET "amount"=')
+            return self.source.command(['docker', 'exec', '-i', self.source.name,
+                'sqlplus', '-s', '/nolog'], data='whenever sqlerror exit failure rollback\n'
+                'set heading off feedback off pagesize 0\n'
+                'connect / as sysdba\nALTER SESSION SET CONTAINER=FREEPDB1;\n'
+                + sql + '\nCOMMIT;\nexit\n')[1]
         return self.run.command(['docker', 'exec', '-i', self.db.name, 'psql', '-X', '-U', 'postgres',
                                  '-d', 'source', '-v', 'ON_ERROR_STOP=1', '-A', '-t'], data=sql)[1]
 
@@ -260,7 +351,9 @@ UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY['{column}']
         original = self.db.sql(f"SELECT pg_get_viewdef('_oo.\"{physical}\"'::regclass,false)").strip()
         column = self.db.sql("SELECT physical_name FROM _oo.physical_mappings WHERE source='owned' "
                              f"AND run_generation={self.cuts[0]['generation']} AND level='c'").strip()
-        self.db.sql(f'CREATE OR REPLACE VIEW _oo."{physical}" AS SELECT 999::bigint AS "{column}";')
+        column_type = self.db.sql("SELECT format_type(atttypid,atttypmod) FROM pg_attribute "
+                                 f"WHERE attrelid='_oo.\"{physical}\"'::regclass AND attnum=1").strip()
+        self.db.sql(f'CREATE OR REPLACE VIEW _oo."{physical}" AS SELECT \'999\'::{column_type} AS "{column}";')
         negative['changed_view'] = self.http()
         self.db.sql(f'CREATE OR REPLACE VIEW _oo."{physical}" AS {original}')
         self.db.sql(f"UPDATE oo_publish_target.fence SET state='closed',opened_pack_digest=NULL,opened_version=NULL WHERE relation_name='{physical}'")
@@ -279,7 +372,7 @@ UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY['{column}']
         self.worker = threading.Thread(target=read)
         self.worker.start()
         freshness = [self.http('/v1/freshness')]
-        for cycle in range(1, 4):
+        for cycle in range(1, self.cycle_count + 1):
             self.source_sql(f'UPDATE app.items SET amount={10+cycle};')
             policy = self.root / 'c5.json'
             policy.write_text(json.dumps({'cycle': cycle, 'full_read_every': 1}))
@@ -295,13 +388,13 @@ UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY['{column}']
         write_json(self.out / 'queries.json', self.reads)
         write_json(self.out / 'freshness.json', freshness)
         errors = [r for r in self.reads if r['status'] != 200]
-        write_json(self.out / 'live-result.json', {'cycles': 3, 'queries': len(self.reads), 'errors': len(errors),
+        write_json(self.out / 'live-result.json', {'cycles': self.cycle_count, 'queries': len(self.reads), 'errors': len(errors),
                    'freshness_statuses': [r['status'] for r in freshness]})
         assert not errors, 'continuous authenticated queries failed; see queries.json'
         assert all(r['status'] == 200 for r in freshness)
-        assert len(set(self.baselines.values())) == 4
-        assert len({p for p, _ in self.baselines.values()}) == 4
-        assert len({v for _, v in self.baselines.values()}) == 4
+        assert len(set(self.baselines.values())) == self.cycle_count + 1
+        assert len({p for p, _ in self.baselines.values()}) == self.cycle_count + 1
+        assert len({v for _, v in self.baselines.values()}) == self.cycle_count + 1
         for query in self.reads:
             rows = query['body']['rows']
             assert len(rows) == 1 and len(rows[0]) == 1
@@ -327,11 +420,12 @@ UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY['{column}']
         assert replay.returncode != 0
         assert json.loads(replay.stderr)['error'] == 'publication_superseded'
         assert self.db.sql("SELECT receipt_sha256 FROM _oo.native_library_head WHERE library_id='owned'").strip() == self.cuts[-1]['receipt_sha256']
-        write_json(self.out / 'live-result.json', {'cycles': 3, 'queries': len(self.reads), 'errors': 0,
+        write_json(self.out / 'live-result.json', {'cycles': self.cycle_count, 'queries': len(self.reads), 'errors': 0,
             'header_vector_rows_consistent': True, 'freshness_advancing': True,
             'source_time': 'unmeasured', 'legacy_imports': 0, 'legacy_acks': 0,
             'negative_cases': list(negative) + ['superseded_replay'], 'handoff_delay_ms': 250,
-            'engine': self.db.sql('SHOW server_version').strip()})
+            'engine': self.engine, 'version': self.db.sql('SHOW server_version').strip()
+            if self.engine == 'postgres' else self.source_version})
 
     def close(self):
         self.stop.set()
@@ -349,18 +443,21 @@ UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY['{column}']
         if self.db.created:
             self.run.command(['docker', 'logs', self.db.name], required=False)
         self.db.close()
+        if self.source:
+            self.source.cleanup()
         self.run.cleanup()
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run-id', required=True)
+    parser.add_argument('--engine', choices=['postgres', 'mysql', 'oracle'], default='postgres')
     args = parser.parse_args()
     assert args.run_id and all(c.isalnum() or c == '-' for c in args.run_id)
     os.umask(0o077)
     out = ROOT / 'evidence' / args.run_id
     out.mkdir(exist_ok=False)
-    live = Live(out)
+    live = Live(out, args.engine)
     status = 'failed'
     try:
         live.start()
