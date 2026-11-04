@@ -287,6 +287,10 @@ def main():
     args = ap.parse_args()
     if not args.run_id.replace('-', '').isalnum():
         ap.error('invalid run ID')
+    active = subprocess.check_output(
+        ['docker', 'ps', '-q', '--filter', 'label=oo.lane=b'], text=True).strip()
+    if active:
+        raise RuntimeError('another lane B fixture is active; refusing parallel database fixtures')
     path = ROOT / 'evidence' / args.run_id
     path.mkdir(mode=0o700)
     options = argparse.Namespace(scale=args.scale, tables=args.tables, platform=None, health_timeout=None)
