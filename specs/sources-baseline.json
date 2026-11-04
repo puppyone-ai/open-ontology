@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-04",
   "timezone": "Asia/Shanghai",
-  "revision": 9,
-  "supersedes_revision": 8,
-  "supersedes_baseline_head": "b56c43d551e98c37d568c62479c026ff9afff391",
-  "supersedes_sha256": "5489044534c4a7d69748d1320b86954b485205b41bdef29802bfbbf8818d7144",
-  "review_record": "specs/source-baseline-revision-9.md",
-  "baseline_head": "7ba80230556b7fb6230832d5623e499bbb7ded22",
+  "revision": 10,
+  "supersedes_revision": 9,
+  "supersedes_baseline_head": "7ba80230556b7fb6230832d5623e499bbb7ded22",
+  "supersedes_sha256": "4312b78e97ac4f809fddc2a2033dfc029f82372f21c2019f96bd2c4747f5dc00",
+  "review_record": "specs/source-baseline-revision-10.md",
+  "baseline_head": "a34c383bb47e846e35be2cade0faf2d736235a35",
   "source_count": 26,
   "sources": [
     {
@@ -133,8 +133,8 @@
     },
     {
       "path": "docs/product/02-ingestion-playbook.md",
-      "sha256": "909165d683bb82e6cfa24a3587b43ed8c8d9f9e7f504aa89a5bb4a5479c8cbef",
-      "bytes": 13739,
+      "sha256": "08c919f6b44b29548f126d803d0a853daa4bf3dcdd1a5d2491fdb5f8bc863c41",
+      "bytes": 13840,
       "lines": 134
     },
     {
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "Plan D7/D11: Oracle LogMiner recursive temporary-table writes found by strict T7 classified and disclosed; reviewed by the coordinator; no independent review or product acceptance claimed"
+  "review_status": "Plan D7/D11a: Oracle LogMiner internal objects in SYS or SYSTEM per version; reviewed by the coordinator; no independent review or product acceptance claimed"
 }
