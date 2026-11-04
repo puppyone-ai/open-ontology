@@ -46,6 +46,13 @@ use super::worker::{DriverError, Worker};
 #[path = "logminer.rs"]
 pub mod logminer;
 
+#[path = "c5.rs"]
+pub mod c5;
+
+#[cfg(test)]
+#[path = "../../../../testing/engines/oracle/s2.rs"]
+mod s2;
+
 /// Connection settings. The password comes from the caller's secret
 /// reference and is never logged, echoed or put on a command line.
 pub struct OracleConnectConfig {
