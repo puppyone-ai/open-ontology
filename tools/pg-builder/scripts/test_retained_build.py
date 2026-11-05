@@ -8,7 +8,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import library_semantics as semantics
 import retained_build as build
@@ -144,6 +144,22 @@ class RetainedBuild(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
+
+    def test_model_egress_and_client_use_300_second_timeout(self):
+        import selfbuild_budget
+        stack = self.root / 'stack.json'
+        stack.write_text(json.dumps({'model': {'model': 'test-model'}}))
+        config = {'model': {'stack': str(stack), 'egress': 'unused', 'call_limit': 3}}
+        process = Mock()
+        process.poll.return_value = None
+        with patch.object(build.subprocess, 'Popen', return_value=process) as spawn, patch.object(
+                build.socket, 'create_connection'), patch.object(selfbuild_budget, 'Runner') as runner:
+            runner.return_value.run.return_value = {'unresolved': [], 'published': False}
+            build.draft({'tables': []}, config, self.root)
+        argv = spawn.call_args.args[0]
+        self.assertEqual(argv[argv.index('--timeout') + 1], '300')
+        self.assertEqual(runner.call_args.args[0]['request_timeout_seconds'], 300)
+        process.terminate.assert_called_once()
 
     def pin(self, name, value):
         path = self.root / name

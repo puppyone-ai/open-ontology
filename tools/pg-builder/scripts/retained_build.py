@@ -119,7 +119,8 @@ def draft(facts, config, output):
     port = free_port()
     # Credentials stay in owner-private secret_ref files read only by model-egress.
     egress = subprocess.Popen([sys.executable, '-I', model['egress'], '--config', model['stack'],
-                               '--meter', str(output / 'usage.jsonl'), '--port', str(port)],
+                               '--meter', str(output / 'usage.jsonl'), '--port', str(port),
+                               '--timeout', '300'],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         for _ in range(200):
@@ -133,7 +134,7 @@ def draft(facts, config, output):
         else:
             raise ValueError('retained_egress_start')
         settings = dict(model=stack['model']['model'], endpoint=f'http://127.0.0.1:{port}/v1',
-                        transport='model-egress', stream=False, request_timeout_seconds=180)
+                        transport='model-egress', stream=False, request_timeout_seconds=300)
         lock, calls = threading.Lock(), [0]
 
         def transport(request):
