@@ -7,7 +7,7 @@ S5-G-01 is **not complete**: only MySQL 5.7.44, Oracle 21.3 and Oracle 11.2 pass
 - Rebased onto `v0.2/product-loops` at `14dc87974` before resuming. Resumed runs tested `5cf2d117df78fc28368eef227693357d8b203641` with a clean tracked tree.
 - Recovered runs do not contain a product SHA in their verdict rows; none was invented. Their raw hashes were validated before merging.
 - T5 passes only describe completeness of the 12 retained gold-question tables and their columns, including owner self-review. They are **not full-fixture T5 acceptance**.
-- Ten historical T5 rows lacked the later scope metadata. The committed index annotates their scope from the existing raw `result.json` T5 scope; raw files, verdicts, hashes and timestamps remain unchanged.
+- The historical MySQL 5.7.44 T5 row lacked the later scope metadata. The committed index annotates its scope from the existing raw `result.json` T5 scope; raw files, verdicts, hashes and timestamps remain unchanged.
 - Same model references and budgets; default 2,000,000-event scale; 300-second model egress timeout. One independent retry only after a timeout-only failure. The interrupted PostgreSQL 16.15 run was restarted as authorized by the resume card.
 - At most two owned database containers simultaneously, plus the Oracle 11g thick worker where needed. All cleanup receipts report zero remaining containers; final lane-label inventory is empty. No other containers were stopped or removed.
 
