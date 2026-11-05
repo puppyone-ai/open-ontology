@@ -27,6 +27,8 @@ oracle-xe-21.3.0-slim linux/amd64 sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d
 oracle-xe-11.2.0.2 linux/amd64 sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8
 oracle-free-23.5-slim linux/amd64 sha256:51e82abdffb69eeffaf26a9beef265c9fc62966ff69b228240281edcf4ec2444
 oracle-free-23.5-slim linux/arm64 sha256:0b6d2a693d9f77c8cb5e756411f60a38b4f854cf2a6b0be2f002942a66582aeb
+# E19: owner accepted the Oracle registry license (E365); inspected 2026-11-05.
+oracle-enterprise-19.19.0.0 linux/arm64 sha256:3843234f6fd1ed084b1dd7ad42eeeaa95ad13f12c790810cb368bb58f8ad42ba
 mysql-8.0.44 linux/amd64 sha256:f7878bec832c6be5e61c39d3949651be8aa977daf875089b4560ae1434d2cb9c
 mysql-8.0.44 linux/arm64 sha256:2c4989e05aa3ceb8cb6eb8a1b1f38ffa361eac2fec96ec67705d1b21c6390527
 mysql-8.4.7 linux/amd64 sha256:6c6706ec58d3ac9e925d5f0435c6a923117f68232551b9c8271a294ea72ee331

@@ -14,7 +14,7 @@ class P0Cycles(unittest.TestCase):
 
     def test_invalid_scope_exits_before_creating_resources(self):
         entry = str(Path(__file__).with_name("t2_p0.py"))
-        for engine, versions in [("mysql", "5.7,5.7"), ("oracle", "19"), ("mysql", "17")]:
+        for engine, versions in [("mysql", "5.7,5.7"), ("oracle", "18"), ("mysql", "17")]:
             result = subprocess.run(
                 [sys.executable, entry, "--engine", engine, "--versions", versions,
                  "--run-id", "invalid-unit"], capture_output=True, text=True)

@@ -27,7 +27,7 @@ from t1 import AgentDB, LaneRun, configure_mysql, configure_pg, private
 
 ROOT = runner.ROOT
 MYSQL = ("5.7", "8.0", "8.4", "9")
-ORACLE = ("23", "21", "11")
+ORACLE = ("19", "23", "21", "11")
 POSTGRES = ("13", "14", "15", "16", "17", "18")
 T3 = ("source_restart_mid_chunk", "network_drop_mid_c1", "network_drop_mid_c5",
       "target_restart_mid_publish", "sigkill_mid_cycle", "retention_expiry",
@@ -1123,7 +1123,9 @@ def main(argv=None):
     root = ROOT / "evidence" / args.run_id
     root.mkdir(mode=0o700, exist_ok=False)
     results = {}
+    lane = t1.LANE
     for version in versions:
+        t1.LANE = "E19" if args.engine == "oracle" and version == "19" else lane
         path = root / f"{args.engine}-{version}"
         path.mkdir()
         if not disk_ready(args.min_free_gb, args.disk_wait_minutes):

@@ -276,7 +276,7 @@ def run_cycles(run, binary, worker_image):
             if not code or error != "oracle_logminer_explicit_opt_in_required":
                 raise RuntimeError("Oracle implicit LogMiner admitted")
             report["opt_in_negative"] = {"error": error}
-            if run.version == "23":
+            if run.version in ("19", "23"):
                 # Separate DBA fixture connection prepares archived redo and minimal miner grants.
                 sql = ("whenever sqlerror exit failure rollback\nconnect / as sysdba\n"
                        "SHUTDOWN IMMEDIATE;\nSTARTUP MOUNT;\nALTER DATABASE ARCHIVELOG;\n"
@@ -716,12 +716,14 @@ def main():
     versions = args.versions.split(",")
     if not args.run_id or not all(c.isalnum() or c in "-_" for c in args.run_id):
         parser.error("invalid run ID")
-    if len(set(versions)) != len(versions) or any(v not in (MYSQL if args.engine == "mysql" else ["23", "21", "11"]) for v in versions):
+    if len(set(versions)) != len(versions) or any(v not in (MYSQL if args.engine == "mysql" else ["19", "23", "21", "11"]) for v in versions):
         parser.error("unsupported or duplicate versions")
     path = ROOT / "evidence" / args.run_id
     path.mkdir(mode=0o700, exist_ok=False)
     results = {}
+    lane = t1.LANE
     for version in versions:
+        t1.LANE = "E19" if args.engine == "oracle" and version == "19" else lane
         directory = path / (args.engine+"-"+version)
         directory.mkdir()
         run = SyncRun(directory, args.engine, version,
@@ -747,7 +749,7 @@ def main():
     runner.checksums(path)
     print(json.dumps({v: {k: r.get(k) for k in ("C1", "C5", "T2", "error", "cleanup_failures")} for v, r in results.items()}))
     if any(r.get("T2") != "passed" or r.get("version_error") or r.get("C5") != "passed"
-           or r["cleanup_failures"] or ((args.engine == "mysql" or v == "23") and r.get("C1") != "passed")
+           or r["cleanup_failures"] or ((args.engine == "mysql" or v in ("19", "23")) and r.get("C1") != "passed")
            for v, r in results.items()):
         raise SystemExit(1)
 

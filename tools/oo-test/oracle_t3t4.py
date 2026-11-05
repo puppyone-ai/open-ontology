@@ -47,8 +47,8 @@ class OracleHarness(t3t4.Harness):
     def __init__(self, run, binary):
         super().__init__(run, binary)
         self.schema = "FIXTURE"
-        self.service = {"23": "FREEPDB1", "21": "XEPDB1", "11": "XE"}[run.version]
-        self.paths = ("c5", "c1") if run.version == "23" else ("c5",)
+        self.service = {"19": "FREEPDB1", "23": "FREEPDB1", "21": "XEPDB1", "11": "XE"}[run.version]
+        self.paths = ("c5", "c1") if run.version in ("19", "23") else ("c5",)
         self.worker = None
         self.worker_args = []
 
@@ -97,7 +97,7 @@ class OracleHarness(t3t4.Harness):
                      f"INSERT INTO {table} SELECT level,'base-'||TO_CHAR(level),level FROM dual "
                      f"CONNECT BY level <= {t3t4.BULK_ROWS if table == 'bulk' else 20};"
                      f"GRANT SELECT,FLASHBACK ON {table} TO fixture_reader;")
-        if run.version == "23":
+        if run.version in ("19", "23"):
             self.root_sql("SHUTDOWN IMMEDIATE;\nSTARTUP MOUNT;\nALTER DATABASE ARCHIVELOG;\n"
                           "ALTER DATABASE OPEN;\nALTER PLUGGABLE DATABASE ALL OPEN;\n"
                           "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA;\n"

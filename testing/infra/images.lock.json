@@ -4,6 +4,22 @@
   "not_product_baseline": "These pins are test-fixture and builder images. They are not an admission that P14 driver behavior, Debezium protocol behavior, or gVisor is proven.",
   "images": [
     {
+      "id": "oracle-enterprise-19.19.0.0",
+      "ref": "container-registry.oracle.com/database/enterprise:19.19.0.0",
+      "index_digest": "sha256:3843234f6fd1ed084b1dd7ad42eeeaa95ad13f12c790810cb368bb58f8ad42ba",
+      "engine_matrix": "v0.2",
+      "resolved_on": "2026-11-05",
+      "license": "Oracle registry terms",
+      "license_note": "Owner-done: Oracle account, registry license acceptance and Docker login (E365). No credentials are stored here. Runtime acceptance is separate.",
+      "source": "container-registry.oracle.com/database/enterprise:19.19.0.0",
+      "platforms": {
+        "linux/arm64": {
+          "digest": "sha256:3843234f6fd1ed084b1dd7ad42eeeaa95ad13f12c790810cb368bb58f8ad42ba",
+          "created": "2024-12-11T17:29:21.440952974Z"
+        }
+      }
+    },
+    {
       "id": "rust-1.98.1",
       "ref": "docker.io/library/rust:1.98.1",
       "index_digest": "sha256:a8a5f0a1e5fe7dfe1d352591e4a1c7dd2c08fd70475cae872cf3458ba0df0546",

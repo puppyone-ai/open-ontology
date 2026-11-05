@@ -24,7 +24,7 @@ class MatrixTests(unittest.TestCase):
         self.assertFalse(any(row["result"] == "pass" for row in rows))
         self.assertEqual({row["variant"] for row in rows if row["suite"] == "T2"}, {"c1", "c5"})
         self.assertTrue(all(len(row["sha256"]) == 64 for row in rows))
-        self.assertTrue(any("no locked image" in (row["error"] or "") for row in rows))
+        self.assertTrue(all("missing product hooks" in (row["error"] or "") for row in rows))
         self.assertFalse(list(root.glob("*/[0-9]*.json")))
         spec = runner.importlib.util.spec_from_file_location(
             "support_generator", runner.ROOT / "specs/scripts/gen_support_matrix.py")

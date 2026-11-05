@@ -72,7 +72,7 @@ def resolve(engine, version):
         if len(matches) != 1:
             raise ValueError(f"no unique locked image for sqlserver {version}")
         return matches[0]
-    aliases = {"9.x": "9", "23ai": "23",
+    aliases = {"9.x": "9", "23ai": "23", "19c": "19",
                "21c": "21", "11g": "11"}
     version = aliases.get(version, version)
     candidates = []
@@ -89,6 +89,10 @@ def resolve(engine, version):
     if not candidates:
         raise ValueError(f"no locked image for {engine} {version}")
     return max(candidates, key=lambda pair: pair[0])[1]
+
+def oracle_pdb(version):
+    # Enterprise 19c uses the same fixture service names as Free, not XE.
+    return "FREEPDB1" if version.startswith(("19", "23")) else "XEPDB1"
 
 
 def suites(value):
@@ -178,10 +182,10 @@ class Run:
                 header += f"connect fixture_reader/{self.reader_secret}\n"
             if not self.version.startswith("11"):
                 if admin:
-                    header += f"ALTER SESSION SET CONTAINER={'FREEPDB1' if self.version.startswith('23') else 'XEPDB1'};\n"
+                    header += f"ALTER SESSION SET CONTAINER={oracle_pdb(self.version)};\n"
                 else:
                     header = header.replace(f"connect fixture_reader/{self.reader_secret}",
-                                            f"connect fixture_reader/{self.reader_secret}@localhost/{'FREEPDB1' if self.version.startswith('23') else 'XEPDB1'}")
+                                            f"connect fixture_reader/{self.reader_secret}@localhost/{oracle_pdb(self.version)}")
             if admin:
                 header += "ALTER SESSION SET CURRENT_SCHEMA=fixture;\n"
             if file:
@@ -242,6 +246,9 @@ class Run:
         else:
             destination = "/u01/app/oracle/oradata" if self.version.startswith("11") else "/opt/oracle/oradata"
             env = ["-e", "ORACLE_PASSWORD_FILE=/run/oo/password"]
+            if self.version.startswith("19"):
+                env = ["-e", "ORACLE_SID=FREE", "-e", "ORACLE_PDB=FREEPDB1",
+                       "-e", "INIT_SGA_SIZE=1536", "-e", "INIT_PGA_SIZE=512"]
         (self.private / "password").write_text(self.secret)
         (self.private / "reader-password").write_text(self.reader_secret)
         # Bind directory is private on the host; clients run as image-specific users.
@@ -252,6 +259,11 @@ class Run:
         server_args = (["-c", "logging_collector=on", "-c", "log_destination=csvlog",
                         "-c", "log_filename=oo-audit.csv", "-c", "log_rotation_age=0",
                         "-c", "log_rotation_size=0"] if self.engine == "postgres" else [])
+        if self.engine == "oracle" and self.version.startswith("19"):
+            # The enterprise image has no PASSWORD_FILE contract. Read inside
+            # the container, never put the generated password in Docker argv.
+            server_args = ["/bin/bash", "-c",
+                           'export ORACLE_PWD="$(cat /run/oo/password)"; exec "$ORACLE_BASE/$RUN_FILE"']
         self.command(["docker", "create", "--name", self.name, *labels, "--platform", platform,
                       "--mount", f"type=volume,src={self.volume},dst={destination}",
                       "--mount", f"type=bind,src={self.private},dst=/run/oo,readonly",
@@ -266,7 +278,9 @@ class Run:
                 if "DATABASE IS READY TO USE" not in startup:
                     code = 1
                 else:
-                    code, _ = self.command(["docker", "exec", self.name, "healthcheck.sh"],
+                    healthcheck = ("/opt/oracle/checkDBStatus.sh" if self.version.startswith("19")
+                                   else "healthcheck.sh")
+                    code, _ = self.command(["docker", "exec", self.name, healthcheck],
                                            required=False, timeout=30)
             elif self.engine == "postgres":
                 code, _ = self.command(["docker", "exec", self.name, "pg_isready",
@@ -286,7 +300,7 @@ class Run:
 
     def seed(self):
         if self.engine == "oracle":
-            if "T7" in getattr(self.args, "suites", []) and self.version.startswith(("11", "21")):
+            if "T7" in getattr(self.args, "suites", []) and self.version.startswith(("11", "19", "21")):
                 # Standard audit configuration is static, before any fixture activity.
                 _, unified = self.command(
                     ["docker", "exec", "-i", self.name, "sqlplus", "-s", "/nolog"],
@@ -300,7 +314,7 @@ class Run:
                                       "SHUTDOWN IMMEDIATE;\nSTARTUP;\nexit\n")
             # Bootstrap schema before sql() starts using CURRENT_SCHEMA.
             pdb = "" if self.version.startswith("11") else (
-                "ALTER SESSION SET CONTAINER=" + ("FREEPDB1" if self.version.startswith("23") else "XEPDB1") + ";\n")
+                "ALTER SESSION SET CONTAINER=" + oracle_pdb(self.version) + ";\n")
             bootstrap = ("whenever sqlerror exit failure\nconnect / as sysdba\n" + pdb +
                          f"CREATE USER fixture IDENTIFIED BY \"{self.secret}\";\n"
                          "GRANT CREATE SESSION,RESOURCE,UNLIMITED TABLESPACE,CREATE VIEW TO fixture;\nexit\n")
@@ -615,11 +629,11 @@ def main():
         if engine == "sqlserver":
             from sqlserver_runner import SqlServerRun
             run = SqlServerRun(path, engine, version, args)
-        elif hooks:
+        elif hooks or engine == "oracle" and version.startswith("19"):
             # Use the standalone runner's loopback transport, not an exec relay
             # whose teardown can terminate PostgreSQL backend processes.
             import t1
-            t1.LANE = "h"
+            t1.LANE = "E19" if engine == "oracle" and version.startswith("19") else "h"
             run = t1.LaneRun(path, engine, version, args)
         else:
             run = Run(path, engine, version, args)
