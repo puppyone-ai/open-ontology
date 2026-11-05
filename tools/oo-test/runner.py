@@ -455,6 +455,11 @@ class Run:
                 continue
             if kind == "container":
                 self.command(["docker", "logs", name], required=False)
+                if self.engine == "postgres":
+                    # SQL collection can fail while a crashed backend recovers.
+                    # Preserve collector diagnostics before deleting our volume.
+                    self.command(["docker", "exec", name, "sh", "-c",
+                                  'cat "$PGDATA"/log/oo-audit.csv*'], required=False)
                 self.command(["docker", "stats", "--no-stream", "--format", "{{json .}}", name], required=False)
             command = ["docker", kind, "rm"] + (["-f"] if kind == "container" else []) + [name]
             if self.command(command, required=False)[0]:

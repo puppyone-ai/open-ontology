@@ -2,11 +2,21 @@ import csv
 import io
 import unittest
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import audit
 
 
 class AuditTests(unittest.TestCase):
+    def test_postgres_audit_does_not_change_role_startup_settings(self):
+        run = SimpleNamespace(engine="postgres", sql=Mock())
+        audit.Audit(run).enable()
+        sql = run.sql.call_args.args[0]
+        self.assertIn("ALTER SYSTEM SET log_statement='all'", sql)
+        self.assertIn("pg_reload_conf()", sql)
+        self.assertNotIn("ALTER ROLE", sql)
+        self.assertTrue(run.sql.call_args.kwargs["admin"])
+
     def test_read_policy(self):
         for sql in ("SELECT COUNT(*) FROM orders", "SHOW TABLES", "DESCRIBE orders",
                     "SELECT 'DELETE FROM orders;'", "START TRANSACTION READ ONLY",

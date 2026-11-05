@@ -90,8 +90,10 @@ record, or unrecognized statement fails T7. Raw source output and the parsed
 - MySQL: general log to TABLE; exact authenticated reader identity selected
   by the admin collector. General log cannot be enabled per account, so the
   fixture logs globally but only reader rows enter the proof.
-- PostgreSQL: CSV collector, reader-only role `log_statement=all` and error
-  statement logging. CSV parsing retains multiline/extended-protocol queries.
+- PostgreSQL: CSV collector, fixture-global `log_statement=all` and error
+  statement logging, filtered to the authenticated reader. Role startup GUCs
+  are not changed (the product rejects them). CSV parsing retains
+  multiline/extended-protocol queries.
 - Oracle 23ai: reader-only unified audit policy. Oracle XE 11g/21c in mixed
   mode: standard `DB,EXTENDED` auditing, configured before seed via an owned
   instance restart. SQL is exported explicitly as UTF-8 hexadecimal.

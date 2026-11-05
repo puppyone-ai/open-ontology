@@ -133,8 +133,11 @@ class Audit:
             # General log has no per-user switch; collect only the reader rows.
             run.sql("SET GLOBAL log_output='TABLE';\nSET GLOBAL general_log=ON;", admin=True)
         elif run.engine == "postgres":
-            run.sql("ALTER ROLE fixture_reader SET log_statement='all';\n"
-                    "ALTER ROLE fixture_reader SET log_min_error_statement='error';", admin=True)
+            # The product rejects role startup GUCs. Configure the owned fixture
+            # globally, then filter the CSV by authenticated reader identity.
+            run.sql("ALTER SYSTEM SET log_statement='all';\n"
+                    "ALTER SYSTEM SET log_min_error_statement='error';\n"
+                    "SELECT pg_reload_conf();", admin=True)
         else:
             _, unified = run.sql("SELECT value FROM v$option WHERE parameter='Unified Auditing';", admin=True)
             if unified.strip() == "TRUE" or run.version.startswith("23"):
