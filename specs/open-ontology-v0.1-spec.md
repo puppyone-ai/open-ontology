@@ -6,7 +6,7 @@
 | 版本 | 1.0.1 |
 | 状态 | Proposed / Ready for implementation review |
 | 创建日期 | 2026-10-01，Asia/Shanghai |
-| 输入基线 | `docs/` 与 `docs/product/` 共 26 份文档；来源 revision 29，Git HEAD `477641bfb8a98864aa218d43344a504b2f0f754b`；[revision 29 记录](source-baseline-revision-29.md)；保留 [revision 28 原清单](sources-baseline-revision-28.json)、更早的 sources-baseline-revision-*.json 与[revision 4 历史记录](../execution/decisions/source-baseline-revision-4.md)保留。扩展设计目录 `docs/database-support/` 不在哈希基线内；不宣称独立审阅或产品验收。 |
+| 输入基线 | `docs/` 与 `docs/product/` 共 26 份文档；来源 revision 30，Git HEAD `bd82dd0297682e5d84f01038d0a8ce5229393acc`；[revision 30 记录](source-baseline-revision-30.md)；保留 [revision 29 原清单](sources-baseline-revision-29.json)、更早的 sources-baseline-revision-*.json 与[revision 4 历史记录](../execution/decisions/source-baseline-revision-4.md)保留。扩展设计目录 `docs/database-support/` 不在哈希基线内；不宣称独立审阅或产品验收。 |
 | 实施语言 | 第一方后端、连接器、CLI、SDK、Builder、评测器：Rust；控制台与 TS SDK：TypeScript |
 | 产品许可证 | Apache-2.0；依赖与数据集分别审计 |
 | 交付方式 | 私有化部署；Linux Docker Compose 为首个完整路径 |
@@ -462,11 +462,11 @@ REQ-SRC-08、REQ-SRC-09、REQ-SRC-15 的框架部分由 SP03 的连接器与 cat
 
 ### 7B.1 开源接入（闭环 L1）
 
-REQ-ONB-01：同一分发包提供管理端命令 `oo init|up|down|status|doctor|build|ontology|token|share-prompt` 与既有消费端命令。管理端在 TTY 下可交互（`oo init` 为 TUI 向导），任何交互均有等价的非交互形式（`--config stack.yaml`、`--yes`、`--json`）；消费端命令保持非交互与可管道。错误参数返回清晰且不含秘密的指引。见 [04 §2–3](../docs/product/04-onboarding-and-gateway-binding.md)。
+REQ-ONB-01：同一分发包提供管理端命令 `oo init|up|down|status|doctor|build|review|ontology|token|share-prompt`、消费端凭据命令 `oo login|whoami` 与既有消费端命令。管理端在 TTY 下可交互（`oo init` 为 TUI 向导），任何交互均有等价的非交互形式（`--config stack.yaml`、`--yes`、`--json`）；消费端命令保持非交互与可管道。错误参数返回清晰且不含秘密的指引。见 [04 §2–3](../docs/product/04-onboarding-and-gateway-binding.md)。
 
 REQ-ONB-02：部署配置为 `oo.stack/v1`（`stack.yaml`），连接口令、模型 key、SSH 私钥只以 `secret_ref` 出现；向导读入的秘密直接写入 0600 文件（目录 0700）或系统 keychain。校验器拒绝内联秘密。见 [04 §4.1](../docs/product/04-onboarding-and-gateway-binding.md)。
 
-REQ-ONB-03：`lite` 部署档为开源默认：单机 Compose，组件含 Agent DB、控制库、worker、Builder、Gateway、模型出口代理与调度；镜像由 CI 预构建为 amd64/arm64 并以 digest 锁定，用户机器不编译。lite 档的安全定位为单所有者，不承诺多租户隔离；standard 档要求不变。
+REQ-ONB-03：`lite` 部署档为开源默认：单机 Compose，组件含 Agent DB、控制库、worker、Builder、Gateway、模型出口代理与调度；镜像由 CI 预构建为 amd64/arm64 并以 digest 锁定，用户机器不编译。lite 档的安全定位为单所有者，不承诺多租户隔离；standard 档要求不变。lite 与远程部署上 `oo build` 的各阶段在已部署的固定 digest 运行时镜像内执行，配置由 `stack.yaml` 与部署状态推导；分发包只含 CLI 与镜像 pin，不带本地辅助程序（Plan D16）。
 
 REQ-ONB-04：SSH 有两种用途且互不混用：数据库跳板（worker 内 direct-tcpip 通道，首次确认并固定主机指纹，不匹配即失败，断线按块续读）与远程部署（经 SSH 安装 Compose 栈与定时单元，只写约定目录，不静默提权）。不修改全局 SSH 或网络配置。
 
@@ -480,7 +480,7 @@ REQ-TOK-01：token-store 支持 `issue|list|renew|rotate|revoke|enroll`，均经
 
 REQ-TOK-02：策略允许时，持有 token 的客户端可在到期前窗口内自助续期（`POST /v1/auth/renew`），上限为首次签发时间加最大寿命；管理员可关闭。服务账号 token 的生命周期按本节；MCP 外部客户端的 OAuth 2.1 仍按第 11–12 章。
 
-REQ-TOK-03：`oo login` 以绑定码（默认）或设备码（RFC 8628）换取 client token，写入 0600 文件并在 profile 中只存引用，随后自动执行一次身份与读取验证；`oo whoami` 显示身份、角色、到期与协议版本，到期 ≤ 7 天在 stderr 警告。TLS 校验不可关闭。
+REQ-TOK-03：`oo login` 以绑定码（默认）或设备码（RFC 8628）换取 client token，写入 0600 文件并在 profile 中只存引用，随后自动执行一次身份与读取验证；绑定码只经 stdin 或 TTY 提示读入，出现在 argv 时拒绝；`oo whoami` 显示身份、角色、到期与协议版本，到期 ≤ 7 天在 stderr 警告。TLS 校验不可关闭。
 
 REQ-TOK-04：Gateway 提供 `GET /v1/meta`（Gateway/协议版本、最低兼容 CLI 版本、当前发布与新鲜度）；CLI 低于最低版本时以明确错误码退出并给出升级命令。token 与内部 mTLS 证书的最近到期项纳入 `/v1/health` 与 `oo status`，≤ 14 天告警。
 
@@ -1760,6 +1760,42 @@ M1 MVP、M2完整v0.x、M3扩展分别验收，不能把M3探索当M1未完成�
 ### 24.1 全量来源阅读记录
 
 本规范依据以下26份文档（`docs/` 19 份与 `docs/product/` 7 份，revision 6 起）全文编制；[来源基线](sources-baseline.json)记录每文件sha256、字节数、行数和输入Git HEAD。摘要/候选版本以这些已给定设计为依据，未将参考链接的当前内容或未实现制品假称已验证。之后docs变化必须重新检查本规范受影响需求，更新基线需review，不能自动接受漂移。
+
+revision 30（2026-11-06）：S6-M-04 回填核对——当前等级只由生成矩阵决定、默认制品不含 MySQL binlog C1（Plan D10）、P1/P2 实测现状、命令面与 `oo --help` 一致、绑定码不进 argv、D4/D9/D13/D15/D16/D18 补入原文档：[变更记录](source-baseline-revision-30.md)。
+
+revision 29（2026-11-05）：无键表以整表为 C5 比较单位：[变更记录](source-baseline-revision-29.md)。
+
+revision 28（2026-11-05）：构建状态与 `oo share-prompt --grant-file` 用法：[变更记录](source-baseline-revision-28.md)。
+
+revision 27（2026-11-05）：T7 只读证明方法与 PostgreSQL 槽位推进归类（Plan D12a）：[变更记录](source-baseline-revision-27.md)。
+
+revision 26（2026-11-05）：带时区时间戳落为瞬时点（Plan D17）：[变更记录](source-baseline-revision-26.md)。
+
+revision 25（2026-11-05）：首次构建后启用计划周期；`--target ssh` 上的 `oo build`：[变更记录](source-baseline-revision-25.md)。
+
+revision 24（2026-11-05）：C5 沿用基线 key 范围，谱系变化显式重基线：[变更记录](source-baseline-revision-24.md)。
+
+revision 23（2026-11-05）：lite 构建链准备与镜像内执行（Plan D16）：[变更记录](source-baseline-revision-23.md)。
+
+revision 22（2026-11-04）：lite 计划周期：[变更记录](source-baseline-revision-22.md)。
+
+revision 21（2026-11-04）：保留代际发布器 `publish-retained`：[变更记录](source-baseline-revision-21.md)。
+
+revision 20（2026-11-04）：保留代际的 Gateway 发布映射与 lite 周期（Plan D15）：[变更记录](source-baseline-revision-20.md)。
+
+revision 19（2026-11-04）：经 SSH 远程部署：[变更记录](source-baseline-revision-19.md)。
+
+revision 18（2026-11-04）：ClickHouse 版本写法：[变更记录](source-baseline-revision-18.md)。
+
+revision 17（2026-11-04）：OLAP 引擎现状：[变更记录](source-baseline-revision-17.md)。
+
+revision 16（2026-11-04）：SQL Server 验收现状：[变更记录](source-baseline-revision-16.md)。
+
+revision 15（2026-11-04）：S4 所有者自审与构建交接边界：[变更记录](source-baseline-revision-15.md)。
+
+revision 14（2026-11-04）：千表 Self-build 实测与 SQL Server 现状：[变更记录](source-baseline-revision-14.md)。
+
+revision 13（2026-11-04）：Oracle C1 事务低水位：[变更记录](source-baseline-revision-13.md)。
 
 revision 12（2026-11-04）：lite 档数据库连接改为 TLS + SCRAM、不要求客户端证书，standard 不变（Plan D14）：[变更记录](source-baseline-revision-12.md)。
 
