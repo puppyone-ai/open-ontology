@@ -1,6 +1,6 @@
 //! Selected-table catalog snapshot. Comments and expressions are hashed and dropped.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::error::SourceError;
 use crate::ident::{assign_idents, reserved_covers_server, reserved_set};
@@ -26,15 +26,29 @@ struct TableSeed {
     comment: Option<UntrustedEvidence>,
 }
 
+fn reserved_for_server(words: &[String], kingbase: bool) -> Result<BTreeSet<String>, SourceError> {
+    let mut reserved = reserved_set();
+    if kingbase {
+        // V9R1C10 PG mode adds ENCKEY. Keep PostgreSQL mappings unchanged.
+        reserved.insert("enckey".into());
+    }
+    let covered = if kingbase {
+        words.iter().all(|word| reserved.contains(word))
+    } else {
+        reserved_covers_server(words)
+    };
+    if !covered {
+        return Err(SourceError::identifier("keyword_list"));
+    }
+    Ok(reserved)
+}
+
 impl PgSession {
     pub(crate) async fn collect_catalog(&mut self) -> Result<SourceCatalog, SourceError> {
         let mut used = 0_u64;
         let max_bytes = self.budget.max_bytes();
         let words = self.keyword_rows().await?;
-        if !reserved_covers_server(&words) {
-            return Err(SourceError::identifier("keyword_list"));
-        }
-        let reserved = reserved_set();
+        let reserved = reserved_for_server(&words, self.kingbase)?;
         let seeds = self.table_seeds(&mut used, max_bytes).await?;
         let oids: Vec<i64> = seeds.iter().map(|seed| seed.oid).collect();
         let columns = if oids.is_empty() {
@@ -167,7 +181,7 @@ impl PgSession {
 
     async fn keyword_rows(&mut self) -> Result<Vec<String>, SourceError> {
         let admitted = self.admit_rows(session::Admit::Exact {
-            wanted: session::reserved_keyword_limit(),
+            wanted: session::reserved_keyword_limit() + u32::from(self.kingbase),
             natural: false,
         })?;
         let limit = session::limit_arg(admitted.limit);
@@ -184,8 +198,14 @@ impl PgSession {
     }
 
     async fn server_database(&mut self) -> Result<String, SourceError> {
-        let row = session::fetch_one(self, sqlx::query(sql::FACTS)).await?;
-        session::cell_string(&row, 2)
+        // Catalog identity does not require replication settings (notably
+        // max_slot_wal_keep_size, absent on PostgreSQL 12-derived servers).
+        let row = session::fetch_one(
+            self,
+            sqlx::query("SELECT pg_catalog.current_database()::text LIMIT 1"),
+        )
+        .await?;
+        session::cell_string(&row, 0)
     }
 
     async fn table_seeds(
@@ -647,5 +667,28 @@ impl OptI32 for sqlx::postgres::PgRow {
             .try_get(index)
             .map_err(|_| SourceError::catalog("decode"))?;
         value.ok_or_else(|| SourceError::catalog("expression_key"))
+    }
+}
+
+#[cfg(test)]
+mod kingbase_tests {
+    use super::*;
+    use crate::ident::stable_ident;
+
+    #[test]
+    fn additional_keyword_is_scoped_and_unknown_keywords_still_fail() {
+        let words = vec!["select".into(), "enckey".into()];
+        let reserved = reserved_for_server(&words, true).unwrap();
+        assert_ne!(stable_ident("enckey", &reserved).unwrap(), "enckey");
+        assert!(reserved_for_server(&words, false).is_err());
+        assert_eq!(
+            stable_ident(
+                "enckey",
+                &reserved_for_server(&["select".into()], false).unwrap()
+            )
+            .unwrap(),
+            "enckey"
+        );
+        assert!(reserved_for_server(&["unreviewed_keyword".into()], true).is_err());
     }
 }

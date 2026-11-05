@@ -6,6 +6,7 @@
 //! Plans belong to this engine instance, not a durable/cross-cycle checkpoint.
 
 pub mod changes;
+mod kingbase;
 pub mod lsn;
 pub mod opengauss;
 mod plan;
@@ -55,6 +56,8 @@ pub struct ReadTiming {
 }
 
 pub struct PostgresEngine {
+    family: EngineFamily,
+    product_version: Option<EngineVersion>,
     connector: PgConnector,
     session: Option<PgSession>,
     protection: Protection,
@@ -69,6 +72,8 @@ pub struct PostgresEngine {
 impl PostgresEngine {
     pub fn new(config: PgSourceConfig) -> Self {
         Self {
+            family: EngineFamily::Postgres,
+            product_version: None,
             connector: PgConnector::new(config),
             session: None,
             protection: Protection::default(),
@@ -77,6 +82,15 @@ impl PostgresEngine {
             revision: 0,
             explains: BTreeMap::new(),
             last_read_timing: None,
+        }
+    }
+
+    /// Kingbase PG mode shares the PostgreSQL transport and read algorithms.
+    /// Product identity is checked on connection, not inferred from its port.
+    pub fn new_kingbase(config: PgSourceConfig) -> Self {
+        Self {
+            family: EngineFamily::Kingbase,
+            ..Self::new(config)
         }
     }
 
@@ -128,6 +142,19 @@ impl PostgresEngine {
         }
         if !(12..=18).contains(&s.major) {
             return Err(SourceError::version("version_untested"));
+        }
+        if self.family == EngineFamily::Kingbase {
+            let row = session::fetch_one(
+                &mut s,
+                sqlx::query("SELECT version(), current_setting('database_mode')"),
+            )
+            .await?;
+            self.product_version = Some(kingbase::identity(
+                &cell_string(&row, 0)?,
+                &cell_string(&row, 1)?,
+                s.major,
+            )?);
+            s.kingbase = true;
         }
         session::fetch_control(&mut s, sqlx::query(
             "SELECT set_config('search_path','pg_catalog',false), set_config('TimeZone','UTC',false), set_config('DateStyle','ISO, YMD',false), \
@@ -182,6 +209,7 @@ impl PostgresEngine {
     /// live `plan_chunks` of the same table, key and strategy. Keyset bounds are
     /// key values, not snapshot-bound locators, so any durable partition of the
     /// key space stays readable; physical or changed-key plans are refused.
+    /// An unchanged SingleRead plan needs no range remapping and is also safe.
     pub fn adopt_keyset_plan(&mut self, durable: &TableChunkPlan) -> Result<(), SourceError> {
         let planned = self
             .plans
@@ -440,7 +468,8 @@ impl PostgresEngine {
 }
 
 fn adoptable(live: &TableChunkPlan, durable: &TableChunkPlan) -> bool {
-    matches!(durable.strategy, ChunkStrategy::Keyset { .. })
+    (matches!(durable.strategy, ChunkStrategy::Keyset { .. })
+        || (matches!(durable.strategy, ChunkStrategy::SingleRead) && live == durable))
         && live.protocol == durable.protocol
         && live.table == durable.table
         && live.key == durable.key
@@ -517,11 +546,30 @@ async fn duty(start: Instant, percent: u8) -> ReadTiming {
 
 impl SourceEngine for PostgresEngine {
     fn family(&self) -> EngineFamily {
-        EngineFamily::Postgres
+        self.family
     }
     async fn probe(&mut self) -> Result<ProbeReport, SourceError> {
         let mut s = self.connect().await?;
-        let result = probe::observe(&mut s).await;
+        let result = probe::observe(&mut s).await.map(|mut report| {
+            if let Some(version) = &self.product_version {
+                report.settings.insert(
+                    "postgres_compatibility_version".into(),
+                    report.version.raw.clone(),
+                );
+                report.settings.insert("database_mode".into(), "pg".into());
+                report.family = self.family;
+                report.version = version.clone();
+                report.capabilities.insert(
+                    Capability::LogCdc,
+                    CapabilityState::Unsupported {
+                        reason: "V9R1C10 image has no pgoutput plugin; syslogical_output and \
+                                 decoderbufs are not the PostgreSQL C1 protocol"
+                            .into(),
+                    },
+                );
+            }
+            report
+        });
         if result.is_ok() {
             self.session = Some(s);
         }
@@ -799,6 +847,13 @@ mod tests {
         let mut physical = durable.clone();
         physical.strategy = ChunkStrategy::SingleRead;
         assert!(!adoptable(&live, &physical));
+        let mut single = live.clone();
+        single.strategy = ChunkStrategy::SingleRead;
+        single.key = KeyShape::NoKey;
+        assert!(adoptable(&single, &single));
+        let mut changed_single = single.clone();
+        changed_single.chunks[0].plan_revision += 1;
+        assert!(!adoptable(&single, &changed_single));
         let mut empty = durable;
         empty.chunks.clear();
         assert!(!adoptable(&live, &empty));
