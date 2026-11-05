@@ -1000,10 +1000,27 @@ class Audit:
                 " FROM information_schema.triggers WHERE trigger_schema NOT IN " + system +
                 " UNION ALL SELECT CONCAT_WS('|','E',event_schema,event_name,status) FROM information_schema.events"
                 " ORDER BY 1;")
-            tables = [line.split("\t") for line in self._admin(
-                "SELECT table_schema,table_name FROM information_schema.tables WHERE table_type='BASE TABLE'"
-                " AND table_schema NOT IN " + system + " ORDER BY 1,2;").splitlines() if line.strip()]
-            rows = self._admin("CHECKSUM TABLE " + ",".join(f"`{a}`.`{b}`" for a, b in tables) + ";") if tables else ""
+            columns = {}
+            for line in self._admin(
+                    "SELECT c.table_schema,c.table_name,c.column_name FROM information_schema.columns c JOIN "
+                    "information_schema.tables t ON t.table_schema=c.table_schema AND t.table_name=c.table_name "
+                    "WHERE t.table_type='BASE TABLE' AND c.table_schema NOT IN " + system +
+                    " ORDER BY 1,2,c.ordinal_position;").splitlines():
+                if line.count("\t") == 2:
+                    schema, table, column = line.split("\t")
+                    columns.setdefault((schema, table), []).append(column)
+            if any("`" in "".join([a, b, *c]) for (a, b), c in columns.items()):
+                raise RuntimeError("unexpected MySQL identifier in fingerprint")
+            # CHECKSUM TABLE is not deterministic on 5.7 for some column types,
+            # so hash the binary form of every value plus its NULL flags.
+            parts = []
+            for (schema, table), cols in sorted(columns.items()):
+                row = ("MD5(CONCAT_WS(0x1f,CONCAT(" + ",".join(f"ISNULL(`{c}`)" for c in cols) + ")," +
+                       ",".join(f"CAST(`{c}` AS BINARY)" for c in cols) + "))")
+                parts.append(f"SELECT '{schema}.{table}',COUNT(*),COALESCE(SUM(CAST(CONV(SUBSTRING({row},1,15),16,10)"
+                             f" AS UNSIGNED)),0),COALESCE(SUM(CAST(CONV(SUBSTRING({row},16,15),16,10) AS UNSIGNED)),0)"
+                             f" FROM `{schema}`.`{table}`")
+            rows = self._admin("\nUNION ALL\n".join(parts) + ";") if parts else ""
         elif engine == "postgres":
             user_ns = ("n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' "
                        "AND n.nspname NOT LIKE 'pg\\_temp%'")

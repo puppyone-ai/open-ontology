@@ -209,6 +209,9 @@ def run_fixture(engine, version, kind, root, args):
             workload = t2.run_postgres(run, args.binary)
         else:
             workload = t2_p0.run_cycles(run, args.binary, worker)
+    except KeyboardInterrupt:
+        run.cleanup()
+        raise
     except Exception as error:
         report["workload_error"] = f"{type(error).__name__}: {runner.redact(str(error), run.secret, run.reader_secret)}"
         partial = work / ("t1-t8.json" if kind == "snapshot" else "t2.json")
