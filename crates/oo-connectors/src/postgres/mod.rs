@@ -23,7 +23,7 @@ use crate::engine::*;
 use crate::session::{self, cell_bool, cell_i64, cell_opt_string, cell_string};
 use crate::{PgConnector, PgSession, PgSourceConfig, SourceCatalog, SourceError};
 use sqltext::{CompareForm, KeyCol};
-use sqlx::Row;
+use sqlx::{Connection, Row};
 
 #[derive(Clone, Debug)]
 pub struct Protection {
@@ -161,6 +161,15 @@ impl PostgresEngine {
              set_config('IntervalStyle','postgres',false), set_config('bytea_output','hex',false)"
         )).await?;
         Ok(s)
+    }
+
+    /// Release the cached reader before a separate control connection is used.
+    /// The caller-owned snapshot exporter remains alive.
+    pub async fn close_idle_session(&mut self) -> Result<(), SourceError> {
+        if let Some(session) = self.session.take() {
+            session.conn.close().await.map_err(crate::error::map_sqlx)?;
+        }
+        Ok(())
     }
 
     async fn transaction(&self, s: &mut PgSession) -> Result<(), SourceError> {

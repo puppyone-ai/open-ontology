@@ -2277,7 +2277,9 @@ impl OracleEngine {
                 }),
             }
         };
-        let snapshot = if is_locator(lo) || is_locator(hi) {
+        // The unbounded keyless digest covers the same snapshot as every ROWID
+        // chunk, including a SingleRead plan with no locator bounds.
+        let snapshot = if keys.is_empty() || is_locator(lo) || is_locator(hi) {
             Some(
                 self.tables
                     .get(table)
