@@ -1,8 +1,8 @@
 --- a/tools/oo-test/matrix.py
 +++ b/tools/oo-test/matrix.py
 @@ -9,6 +9,8 @@
- 
- 
+
+
  def target_id(engine, version):
 +    if engine == "db2":
 +        return "db2-luw-11_5"
@@ -13,7 +13,7 @@
 +++ b/crates/oo-cli/Cargo.toml
 @@ -11,7 +11,7 @@
  workspace = true
- 
+
  [dependencies]
 -oo-connectors = { path = "../oo-connectors", features = ["oracle", "sqlserver"] }
 +oo-connectors = { path = "../oo-connectors", features = ["oracle", "sqlserver", "db2"] }
@@ -28,7 +28,7 @@
      Sqlserver,
 +    Db2,
  }
- 
+
  fn registry() -> BTreeMap<EngineFamily, Adapter> {
 @@ -33,6 +34,7 @@
          (EngineFamily::Mysql, Adapter::Mysql),
@@ -37,7 +37,7 @@
 +        (EngineFamily::Db2, Adapter::Db2),
      ])
  }
- 
+
 @@ -124,6 +126,30 @@
          ))
          .args(["--entrypoint", "oo-mysql-doctor", &image]);
@@ -67,7 +67,7 @@
 +    oo_connectors::db2::Db2Engine::connect(&mut Command::new(executable), &config)
 +        .map_err(|e| e.to_string())
  }
- 
+
  fn oracle(
 @@ -189,6 +215,7 @@
          "mysql" => Ok(EngineFamily::Mysql),
