@@ -132,8 +132,8 @@ targets:
   - { id: dm8, family: native-cn, product: "达梦 DM8", variant: self-managed, wave: 2,
       driver: { path: P2 }, grade: { inc: B },
       caps: { cat: candidate, full: candidate, inc: candidate, cdc: excluded },
-      limits: ["兼容模式建库时固定，须体检读取", "标准驱动不可用"],
-      v02_tier: P2, v02_target: "快照 experimental（依赖官方镜像获取与许可，由人类决定）" }
+      limits: ["兼容模式建库时固定，须体检读取", "Native arm64 server boot verified locally; SourceEngine and product T0/T1/T8 not implemented"],
+      versions: ["8"], v02_tier: P2, v02_target: "快照 experimental（许可已接受；原生镜像可启动，产品接入待实现）" }
   - { id: oscar, family: native-cn, product: "神通 OSCAR", variant: self-managed, wave: 2,
       driver: { path: P2 }, grade: { inc: B },
       caps: { cat: candidate, full: candidate, inc: candidate } }
