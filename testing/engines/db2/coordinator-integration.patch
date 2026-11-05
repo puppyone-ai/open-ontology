@@ -1,0 +1,90 @@
+--- a/tools/oo-test/matrix.py
++++ b/tools/oo-test/matrix.py
+@@ -9,6 +9,8 @@
+ 
+ 
+ def target_id(engine, version):
++    if engine == "db2":
++        return "db2-luw-11_5"
+     if engine == "sqlserver":
+         return "sqlserver-selfmanaged"
+     if engine == "postgres":
+--- a/crates/oo-cli/Cargo.toml
++++ b/crates/oo-cli/Cargo.toml
+@@ -11,7 +11,7 @@
+ workspace = true
+ 
+ [dependencies]
+-oo-connectors = { path = "../oo-connectors", features = ["oracle", "sqlserver"] }
++oo-connectors = { path = "../oo-connectors", features = ["oracle", "sqlserver", "db2"] }
+ oo-stack = { path = "../oo-stack" }
+ oo-core = { path = "../oo-core" }
+ oo-sdk = { path = "../oo-sdk" }
+--- a/crates/oo-cli/src/admin/doctor.rs
++++ b/crates/oo-cli/src/admin/doctor.rs
+@@ -25,6 +25,7 @@
+     Oracle,
+     Mysql,
+     Sqlserver,
++    Db2,
+ }
+ 
+ fn registry() -> BTreeMap<EngineFamily, Adapter> {
+@@ -33,6 +34,7 @@
+         (EngineFamily::Mysql, Adapter::Mysql),
+         (EngineFamily::Oracle, Adapter::Oracle),
+         (EngineFamily::Sqlserver, Adapter::Sqlserver),
++        (EngineFamily::Db2, Adapter::Db2),
+     ])
+ }
+ 
+@@ -124,6 +126,30 @@
+         ))
+         .args(["--entrypoint", "oo-mysql-doctor", &image]);
+     Ok(command)
++}
++
++fn db2(
++    source: &Source,
++    tables: &[TableRef],
++    store: &SecretStore,
++) -> Result<oo_connectors::db2::Db2Engine, String> {
++    if source.ssh.is_some() {
++        return Err("SSH_EXTERNAL_WORKER_NOT_AVAILABLE".into());
++    }
++    // Operator-controlled executable, like oo-load --db2-worker. Its wrapper
++    // owns the pinned image and the source-only network/CA mount.
++    let executable = std::env::var_os("OO_DB2_WORKER")
++        .ok_or("DB2_WORKER_REQUIRED")?;
++    let mut config = oo_connectors::db2::ConnectConfig::new(
++        &source.host, source.port, &source.database, &source.user,
++        store.read(&source.password.secret_ref)?.into(),
++    );
++    config.scope = tables.to_vec();
++    if source.tls_ca.is_some() {
++        config.tls_ca = Some("/run/oo-source/ca.pem".into());
++    }
++    oo_connectors::db2::Db2Engine::connect(&mut Command::new(executable), &config)
++        .map_err(|e| e.to_string())
+ }
+ 
+ fn oracle(
+@@ -189,6 +215,7 @@
+         "mysql" => Ok(EngineFamily::Mysql),
+         "oracle" => Ok(EngineFamily::Oracle),
+         "sqlserver" => Ok(EngineFamily::Sqlserver),
++        "db2" => Ok(EngineFamily::Db2),
+         // Port selects a candidate only. The adapter must verify server identity.
+         "auto" => match source.port {
+             5432 => Ok(EngineFamily::Postgres),
+@@ -324,6 +351,10 @@
+                                 Ok(mut engine) => {
+                                     inspect(&mut engine, &selected, &source.sync.mode).await
+                                 }
++                                Err(error) => json!({"status":"blocked","error":error}),
++                            },
++                            EngineFamily::Db2 => match db2(source, &selected, &store) {
++                                Ok(mut engine) => inspect(&mut engine, &selected, &source.sync.mode).await,
+                                 Err(error) => json!({"status":"blocked","error":error}),
+                             },
+                             EngineFamily::Mysql => mysql(source, &selected),

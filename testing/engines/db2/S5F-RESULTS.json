@@ -1,0 +1,48 @@
+{
+  "todo": "S5-E-03",
+  "status": "partial",
+  "run_id": "e-s5f-20261105",
+  "db2_version": "11.5.9.0",
+  "db2_execution": "linux/amd64 emulated",
+  "verdicts": {
+    "T0": "skip: shared product doctor integration required",
+    "T1": "pass",
+    "T8": "pass"
+  },
+  "tables_compared": 231,
+  "events_compared": 2000000,
+  "wide_columns": 300,
+  "writer_cycles": 33,
+  "reader_peak": 1,
+  "target_write_bytes": 198197828,
+  "source_consistency": "B; quiesce writer then reread full cut",
+  "source_time": "unmeasured",
+  "resume_no_rewrite": true,
+  "model_calls": 0,
+  "native_default_linkage": false,
+  "cargo_lock_changed": false,
+  "dm8": {
+    "architecture": "arm64",
+    "package": "dm8_20260710_HWarm920_uos20_64.zip",
+    "build_exit": 0,
+    "disql_help_exit": 0,
+    "product_suites": "not run"
+  },
+  "cleanup": {
+    "source_remove_exit": 0,
+    "remaining_run_containers": []
+  },
+  "evidence_sha256": {
+    "full-v4/target-acceptance.json": "458a326dde0aff39d20dc447e1885eeebd3ea83116a21c4210a79eccdd5f5781",
+    "full-v4/index-rows.json": "f39663c974f38e00f0b40720735f0f8ca3cdc999175a2163c62914b8a619b43a",
+    "t0-c5-acceptance.json": "bbc7cd6ae210b995c37ef65a0f74aa4d82b0b8e04c7a7152255759519d922104",
+    "t0-c5-overflow-regression.log": "e6d021800e85f418ad3f7dd0e9526ac9827623a5ec73d50aea2e6f32b4365ca6",
+    "base-parse-file.log": "2410fa6c5c7272b5e983686a01f70422953ef3d633ba9f277f310e9202cdb740",
+    "dm-arm-build/receipt.json": "a3157202cabb7fef6ddb2a919d5bfb6c88abf71c5fe9e3faf51881010ef1d7f0",
+    "cleanup.json": "9297aeccbb4e37bf6fb82ab8c11b9e3d9dd77e7ec223fe711984b5712606b5da"
+  },
+  "integration_patch": "testing/engines/db2/coordinator-integration.patch",
+  "integration_patch_applied": false,
+  "full_run_after_final_overflow_only_fix": false,
+  "final_overflow_fix_validation": "live Db2 regression plus crate tests"
+}

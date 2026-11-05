@@ -45,6 +45,32 @@ cargo test -p oo-connectors --features db2 --lib --locked
 python3 -m unittest discover -s testing/engines/db2 -v
 ```
 
+Real fixture sequence (a new run-id each time):
+
+```sh
+python3 testing/engines/db2/preflight.py
+python3 testing/engines/db2/fixture.py --run-id RUN
+python3 testing/engines/db2/seed.py --run-id RUN --full
+# Create evidence/RUN/worker using the pinned wrapper contract above.
+cargo build --manifest-path tools/oo-load/Cargo.toml --locked
+python3 testing/engines/db2/target_acceptance.py --run-id RUN --full
+```
+
+The full seed is 231 tables, 2M events and 300 columns in the wide table.
+The separate admin writer performs insert/update/delete/primary-key moves.
+The harness quiesces that writer, rereads the full B-consistency cut, compares
+every source/Agent DB row, then checks no-rewrite resume. The target's psql
+uses `FETCH_COUNT=1000` so its comparison oracle does not buffer 2M rows in
+the 512 MiB target container. All failures and retries have separate paths.
+The caller must clean up only its recorded source container in a `finally`
+block; the target runner cleans up its own target even on failure.
+
+`coordinator-integration.patch` is an unapplied, context-checked proposal for
+`oo doctor` registration and the shared Db2 target mapping. These files are
+outside this card's write scope. The unmodified shared mapper otherwise
+mislabels Db2 11.5 as Oracle 11g. `verdict_rows.py` writes the correct target
+and keeps product T0 skipped even when the connector-level probe passes.
+
 The fixture admin uses a separate local instance-owner connection. Reader
 credentials are generated into ignored mode-0600 files. Delete only the
 container recorded in this run's `fixture-owned.json` after testing.
