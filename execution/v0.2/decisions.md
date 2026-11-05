@@ -19,3 +19,5 @@ Current task state lives in [state.json](state.json); the plan is
 | 2026-11-04 | Coordinator | oo-load generations publish through a new shard consistency `retained_generation`, verified against the oo-load candidate ledger at activation; semantic fences unchanged; no fabricated legacy ACKs | Plan D15 |
 | 2026-11-05 | Coordinator | On lite/remote deployments `oo build` runs its stages inside the deployed lite runtime image with configuration derived from stack.yaml and deployment state; the npm package ships only the CLI and image pins | Plan D16 |
 | 2026-11-05 | Coordinator | Zoned timestamps land as timestamptz instants (source offset not kept); comparison canonical form is the UTC instant | Plan D17 |
+| 2026-11-05 | Coordinator (owner granted full authority) | CC0-1.0 exception scoped to tiny-keccak for the opt-in MongoDB source | Plan D18 |
+| 2026-11-05 | Human | Owner accepts the DM8 license for testing; Oracle account created by the owner; Docker cleanup authorised for volumes/containers with no further use or production meaning | E340 |

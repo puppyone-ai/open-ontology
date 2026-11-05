@@ -239,6 +239,7 @@ Web UI；短期 access + refresh 轮换 token（v0.3 评估）；云数仓（Sno
 | D15 | oo-load 代际如何进入 Gateway 发布 | Gateway 的库发布激活（`native_library_mark_ready`→`check_shard`）只认旧管线的导入/ACK 证明，oo-load 的保留代际无法激活。新增分片一致性类型 `retained_generation`：激活时由迁移内函数核对 oo-load 候选台账（配方哈希、封存、视图定义与列）而非旧导入记录；Gateway 把它与 `per_table` 同样视为独立于摄取的不可变切面；语义闸门（`oo_publish_target.fence` 经自审后由发布器打开）不变；不伪造旧 ACK。旧管线路径保留 | S4-M-01、S4-A-02；docs/product/02 §6 |
 | D16 | 干净安装上 `oo build` 的执行位置 | 干净安装只有 npm 包（`oo` 原生 CLI + 镜像 pin），没有 oo-load、Builder、release-coordinator 等本地辅助程序与其配置。lite/远程部署下，`oo build` 的各阶段在已部署的 lite 运行时镜像内执行（该镜像已包含全部辅助程序），阶段配置由 `stack.yaml` 与部署状态（`work/operator`）推导，`--agent-target`/`--runtime-config` 仅作开发覆盖；npm 包不携带辅助程序 | S4-A-02、S4-M-02；docs/product/04 §3–4；本地 lite 已在 A4 实现（`a4-l1-20261105`），`--target ssh` 待实现 |
 | D17 | 带时区时间戳的目标表示 | Oracle `TIMESTAMP WITH (LOCAL) TIME ZONE` 进入 Agent DB 为 `timestamptz`，与 PostgreSQL 语义一致：保留瞬时点，不保留源偏移；比对规范形为 UTC 瞬时点。需要原始偏移的业务字段由源端单独列承载（夹具 `ORIGINAL_ZONE` 即如此）。所有引擎同一规则 | S5-H-01、S5-E-04；docs/product/02 类型映射 |
+| D18 | tiny-keccak 的许可证 | MongoDB 驱动（仅 opt-in 的 document 源，P1）依赖 `tiny-keccak`（CC0-1.0，公共领域贡献，宽松但不在 OSI 列表）。所有者授权由协调者决定：仅对该 crate 例外，范围限于 opt-in 特性，不进入默认制品；最终 PR 标注供所有者复核 | S5-F-02；ci/deny.toml |
 
 ## 10. 提交规范
 
