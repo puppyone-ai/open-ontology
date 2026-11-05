@@ -40,6 +40,8 @@ BASELINE = ROOT / 'execution/v0.2/matrix-baseline.json'
 
 def canonical(version: str) -> tuple[int, ...] | None:
     """Numeric components without trailing zeros: 21.3.0 and 21.3.0.0.0 are one version."""
+    # Marketing suffixes name the same release: 19c, 23ai, 11g.
+    version = re.sub(r'(?<=\d)(c|g|ai|i)$', '', version)
     parts = version.split('.')
     if not all(p.isdigit() for p in parts):
         return None
