@@ -100,6 +100,11 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(audit.classify(miner, "oracle", "c1", True)[0], "d11a_logminer_object_dml")
         self.assertEqual(audit.classify(miner, "oracle", "c5", True)[0], "rejected")
         self.assertEqual(audit.classify(dict(miner, user=audit.READER), "oracle", "c1", True)[0], "rejected")
+        package = {"kind": "statement", "action": "EXECUTE PROCEDURE", "object": "SYS.DBMS_ROWID",
+                   "sql": "SELECT ROWIDTOCHAR(DBMS_ROWID.ROWID_CREATE(1, TO_NUMBER(:b1), 0, 0, 0)) FROM dual"}
+        self.assertEqual(audit.classify(package, "oracle", "snapshot")[0], "catalog_read")
+        self.assertEqual(audit.classify(dict(package, sql="BEGIN SYS.EVIL; END;"), "oracle", "snapshot"),
+                         ("rejected", "plsql_block_outside_c1_miner"))
         commit = {"kind": "statement", "action": "COMMIT", "sql": ""}
         self.assertEqual(audit.classify(commit, "oracle", "c5")[0], "txn_control")
         self.assertEqual(audit.classify({"kind": "statement", "action": "SELECT", "sql": "SELECT 1 FROM dual",

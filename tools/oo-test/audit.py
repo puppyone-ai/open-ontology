@@ -500,8 +500,10 @@ def classify(record, engine, variant, privileges_read_only=False, slots=()):
         owner = obj.split(".")[0] if "." in obj else ""
         if not sql and action in ("COMMIT", "ROLLBACK"):
             return "txn_control", "end_transaction"
+        # Standard audit adds an "EXECUTE PROCEDURE" row (object = package) for
+        # each routine a statement calls; that row is judged by its SQL text.
         if action in ("INSERT", "UPDATE", "DELETE", "MERGE") or (
-                owner in ORACLE_SYSTEM_SCHEMAS and action not in ("SELECT", "EXECUTE")):
+                owner in ORACLE_SYSTEM_SCHEMAS and action not in ("SELECT", "EXECUTE", "EXECUTE PROCEDURE")):
             if not privileges_read_only:
                 return rejected("system_dml_without_privilege_proof")
             if (obj, action) in ORACLE_D12:
