@@ -37,6 +37,13 @@ pub(super) fn validate_engine(
     engine: &str,
     opts: &BTreeMap<String, String>,
 ) -> Result<(), &'static str> {
+    if matches!(engine, "mongodb" | "opensearch" | "elasticsearch")
+        && opts.contains_key("--c5")
+        && !opts.contains_key("--sync")
+        && !opts.contains_key("--handoff")
+    {
+        return Ok(());
+    }
     if (opts.contains_key("--handoff") && engine != "mysql")
         || (["--c5", "--sync"]
             .iter()
@@ -51,6 +58,19 @@ pub(super) fn validate_engine(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn documents_accept_only_explicit_c5() {
+        for engine in ["mongodb", "opensearch", "elasticsearch"] {
+            let mut opts = BTreeMap::from([("--c5".into(), "cycle.json".into())]);
+            assert!(validate_engine(engine, &opts).is_ok());
+            opts.insert("--sync".into(), "sync.json".into());
+            assert!(validate_engine(engine, &opts).is_err());
+            opts.remove("--sync");
+            opts.insert("--handoff".into(), "handoff.json".into());
+            assert!(validate_engine(engine, &opts).is_err());
+        }
+    }
 
     #[test]
     fn only_the_leading_subcommand_is_consumed() {

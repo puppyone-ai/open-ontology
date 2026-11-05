@@ -113,6 +113,7 @@ async fn run_cycle<E: epoch::Epoch>(
             .map_err(|e| e.to_string())?;
         let mut conn = target_connection(config, store).await?;
         let mut target = PgTarget::new(&mut conn, &binding(source)?, &config.run_id, table).await?;
+        target = documents::target(target, source)?;
         let previous = target.c5_baseline().await?;
         if previous
             .lineage

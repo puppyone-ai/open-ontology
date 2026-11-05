@@ -10,7 +10,7 @@ resolver = "3"
 
 [features]
 mysql-binlog = ["oo-connectors/mysql-binlog"]
-document-sources = ["oo-connectors/opensearch"]
+document-sources = ["oo-connectors/opensearch", "oo-connectors/mongodb"]
 
 [dependencies]
 oo-pipeline = { path = "../../crates/oo-pipeline" }

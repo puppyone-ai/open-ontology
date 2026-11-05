@@ -234,6 +234,7 @@ async fn run_engine<E: SourceEngine>(
         // Bind resume to the endpoint, not just a user-reusable display ID.
         let binding = binding(source)?;
         let mut sink = PgTarget::new(&mut conn, &binding, &target.run_id, table).await?;
+        sink = documents::target(sink, source)?;
         let (receipts, replay) = match sink.completed().await? {
             Some(receipts) => (receipts, true),
             None => (
