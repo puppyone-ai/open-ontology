@@ -13,6 +13,7 @@ remaining reader records are harness reads and are held to snapshot rules.
 Any rejected record anywhere in a fixture fails every variant of the fixture.
 """
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -31,6 +32,9 @@ from audit import Audit  # noqa: E402
 from verdicts import write_rows  # noqa: E402
 
 LANE = "t"
+# Digests of the code this process loaded (the classifier is part of the proof).
+SOURCES = {name: hashlib.sha256((Path(__file__).with_name(name)).read_bytes()).hexdigest()
+           for name in ("t7.py", "audit.py", "t1.py", "t2.py", "t2_p0.py", "verdicts.py")}
 ROOT = runner.ROOT
 VERSIONS = {"mysql": ["5.7", "8.0", "8.4", "9"],
             "postgres": ["13", "14", "15", "16", "17", "18"],
@@ -140,7 +144,8 @@ def run_fixture(engine, version, kind, root, args):
     run = audited(base)(work, engine, version, options, args.binary, kind)
     worker = args.worker_image if engine == "oracle" and version == "11" else None
     report = {"engine": engine, "version": version, "kind": kind, "run_id": run.id,
-              "scale": options.scale, "tables": options.tables, "lane": LANE}
+              "scale": options.scale, "tables": options.tables, "lane": LANE,
+              "source_sha256": SOURCES}
     workload = {}
     try:
         runner.disk_gate(work, 20, args.disk_wait_minutes * 60)

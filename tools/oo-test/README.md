@@ -90,26 +90,60 @@ boundary marker, hook without observed reader activity, malformed/truncated
 record, or unrecognized statement fails T7. Raw source output and the parsed
 `audit-report.json` stay in the evidence directory.
 
-- MySQL: general log to TABLE; exact authenticated reader identity selected
-  by the admin collector. General log cannot be enabled per account, so the
-  fixture logs globally but only reader rows enter the proof.
-- PostgreSQL: CSV collector, fixture-global `log_statement=all` and error
-  statement logging, filtered to the authenticated reader. Role startup GUCs
-  are not changed (the product rejects them). CSV parsing retains
-  multiline/extended-protocol queries.
-- Oracle 23ai: reader-only unified audit policy. Oracle XE 11g/21c in mixed
-  mode: standard `DB,EXTENDED` auditing, configured before seed via an owned
-  instance restart. SQL is exported explicitly as UTF-8 hexadecimal.
+- MySQL: general log to TABLE, started as `mysqld --general-log=1
+  --log-output=TABLE` so fixture restarts (TLS, binlog) cannot reset it; only
+  reader rows (and their `Connect` rows) enter the proof.
+- PostgreSQL: CSV collector (UTC), fixture-global `log_statement=all`,
+  `log_replication_commands`, connection/disconnection logging and error
+  statement logging (`ALTER SYSTEM`, so restarts keep it), filtered to the
+  authenticated reader. Role startup GUCs are not changed (the product rejects
+  them). Logged bind parameters are kept for slot-feedback attribution.
+- Oracle 23ai: reader-only unified audit policy, plus a CDB$ROOT policy on the
+  `C##OO_MINER` account for opt-in C1. Oracle XE 11g/21c in mixed mode:
+  standard `DB,EXTENDED` auditing configured before seed via an owned restart,
+  read from `SYS.AUD$` (full CLOB SQL; `DBA_AUDIT_TRAIL` truncates). Rows are
+  exported as JSON CLOBs; truncated SQL is a rejection.
 
-The conservative classifier allows reads, reviewed metadata/session setup,
-transaction boundaries and explicit log-reader operations. It rejects
-unknown routines, executable comments, write CTEs, SELECT INTO/OUTFILE and
-LogMiner dictionary building. LogMiner startup requires online_catalog.
-SQL*Plus NLS/session instrumentation is not source-table writing and is
-explicitly allowlisted. This is a fixture-specific audit policy, not a SQL
-firewall or a complete parser; new connector syntax requires reviewed rules
-and regression tests. Native audit coverage has engine limitations (for
-example Oracle standard audit can omit parse-time errors).
+`audit.classify` assigns every record exactly one reviewed category or
+rejects it with the named rule miss (`write_keyword:*`,
+`unreviewed_function:*`, `unreviewed_setting:*`, `unreviewed_optimizer_hint`,
+`replication_command_outside_c1`, `write:<ACTION>:<OBJECT>`, ...):
+
+| Category | Admits |
+|---|---|
+| `read`, `catalog_read`, `c5_digest`, `logminer_read` | SELECT/WITH with only reviewed side-effect-free functions; no INTO, row locks, sequences or data-modifying CTEs |
+| `read_cursor`, `read_explain`, `read_show` | PG DECLARE...FOR <read>/FETCH/CLOSE; EXPLAIN without ANALYZE; SHOW/DESCRIBE |
+| `txn_control` | BEGIN/START TRANSACTION (never READ WRITE), SET TRANSACTION isolation/READ ONLY/SNAPSHOT, COMMIT/ROLLBACK, `pg_export_snapshot()` |
+| `d12_session_state` | reviewed session settings only (`SET`, `set_config(name,..,false)`, MySQL user variables, `ALTER SESSION SET NLS_*/TIME_ZONE/...`, DBMS_APPLICATION_INFO/DBMS_OUTPUT) |
+| `replication_protocol` (C1 windows only) | MySQL Binlog Dump/Register Slave; PG walsender reads; `pg_replication_slot_advance($1,$2)` progress feedback when `$1` is a pre-existing fixture slot |
+| `logminer_call`, `d11a_*` (Oracle C1 miner only) | DBMS_LOGMNR ADD_LOGFILE/START_LOGMNR(online catalog)/END_LOGMNR; Oracle-internal DML on SYS/SYSTEM `LOGMNR*` objects and the following COMMIT |
+| `d12_logon_bookkeeping`, `d12_dictionary_bookkeeping`, `d12_audit_trail` | exact SYS/AUDSYS (object, action) pairs, only with a privilege proof that reader accounts hold no DML/DDL privileges |
+
+Any rejected record anywhere in a fixture, including harness reads outside
+product windows, fails every variant of that fixture.
+
+### Product T7 driver
+
+`t7.py` runs the existing T1 (`t1.run_t1`) and T2 (`t2.run_postgres`,
+`t2_p0.run_cycles`) workloads on owned `oo.lane=t` fixtures with the audit
+enabled before the reader exists, records each product invocation as a
+window (database clock before/after; variant from `--c5`, `--sync`,
+`--handoff` or the source id), and writes `t7/<engine>-<version>/t7-<kind>.json`,
+`t7-<kind>-records.json` (every record with category and rule) and explicit
+`T7` `snapshot`/`c1`/`c5` rows via `verdicts.write_rows`. A variant passes only
+if its workload completed, its windows hold audited product statements and
+the fixture has no rejected record. Oracle XE C1 rows are `skip` (not run).
+
+```sh
+python3 tools/oo-test/t7.py --engine mysql --versions 5.7,8.0,8.4,9 --run-id t7-run
+python3 tools/oo-test/t7.py --engine oracle --versions 23,21,11 --run-id t7-run \
+  --worker-image <thick-worker-image>
+tools/oo-test/oo-test matrix --merge-only --merge-evidence evidence/t7-run/t7
+```
+
+Only `evidence/<run>/t7` is merged; T1/T2 rows written by the wrapped
+workloads under `workloads/` use reduced fixtures and are not admission
+evidence.
 
 ```sh
 tools/oo-test/oo-test matrix --engine postgres --versions 17 \
