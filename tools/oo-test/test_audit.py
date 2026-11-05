@@ -153,6 +153,11 @@ class AuditTests(unittest.TestCase):
         records = audit.oracle_records(json.dumps(row) + "\n" + json.dumps(dict(row, action="LOGON", sql=None)))
         self.assertEqual([r["kind"] for r in records], ["statement", "session"])
         self.assertTrue(audit.oracle_records(json.dumps(dict(row, sql_length="4000")))[0]["truncated"])
+        # SQL*Plus statements end in NUL; the collector escapes it as \u0000.
+        nul = audit.oracle_records('{"action":"SELECT","user":"U","time":"t","sql_length":"22",'
+                                   '"sql":"SELECT USER FROM DUAL\\u0000"}')[0]
+        self.assertFalse(nul.get("truncated"))
+        self.assertEqual(audit.classify(nul, "oracle", "snapshot")[0], "catalog_read")
         with self.assertRaises(ValueError):
             audit.oracle_records("SELECT|41")
 

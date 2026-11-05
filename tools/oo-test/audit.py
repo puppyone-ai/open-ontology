@@ -755,8 +755,11 @@ class Audit:
         run = self.run
 
         def quote(expr):
-            return ("'\"'||REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(" + expr +
-                    ",'\\','\\\\'),'\"','\\\"'),CHR(10),'\\n'),CHR(13),'\\r'),CHR(9),'\\t')||'\"'")
+            # SQL*Plus ends an output line at NUL (SQL*Plus' own statements
+            # carry a trailing CHR(0)), so it is escaped like other controls.
+            return ("'\"'||REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(" + expr +
+                    ",'\\','\\\\'),'\"','\\\"'),CHR(10),'\\n'),CHR(13),'\\r'),CHR(9),'\\t'),"
+                    "CHR(0),'\\u0000')||'\"'")
         if self.mode == "oracle-unified":
             fields = [("action", "action_name"), ("user", "dbusername"),
                       ("session", "TO_CHAR(sessionid)"), ("program", "client_program_name"),
