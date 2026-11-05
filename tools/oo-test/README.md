@@ -238,8 +238,8 @@ tables. The reader has snapshot grants but lacks C1 setup: a correctly
 diagnosed C1 block passes this diagnostic case, **not C1 acceptance**.
 The model endpoint is a loopback synthetic replay; no paid calls or user
 secrets are used. Admin-only TLS and Oracle FLASHBACK setup precede probing.
-Do not combine this hook with T1 on MySQL: both independently configure the
-host reader; use separate matrix invocations.
+This hook can be combined with T1 on MySQL: both configure the owned host
+reader idempotently, retaining SSL and read-only grants.
 
 Doctor currently hardcodes lane A for its Oracle worker. A private exact-argv
 Docker shim changes only that invocation's resource labels/name to lane H

@@ -99,7 +99,7 @@ def main():
     labels = json.loads(subprocess.check_output(
         ["docker", "inspect", "--format", "{{json .Config.Labels}}", context["container"]],
         text=True))
-    lane = "E19" if context["engine"] == "oracle" and context["version"].startswith("19") else "h"
+    lane = runner.fixture_lane(context["engine"], context["version"])
     if labels.get("oo.lane") != lane or labels.get("oo.run_id") != context["run_id"]:
         raise ValueError("T0 fixture ownership")
     run = LaneRun.__new__(LaneRun)

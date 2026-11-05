@@ -27,6 +27,10 @@ spec = importlib.util.spec_from_file_location("fixture_generate", ENGINES / "see
 generator = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(generator)
 
+def fixture_lane(engine, version):
+    return os.environ.get("OO_TEST_LANE") or (
+        "E19" if engine == "oracle" and version.startswith("19") else "h")
+
 
 def write_json(path, value):
     path.write_text(json.dumps(value, indent=2, ensure_ascii=True) + "\n")
@@ -637,7 +641,7 @@ def main():
             # Use the standalone runner's loopback transport, not an exec relay
             # whose teardown can terminate PostgreSQL backend processes.
             import t1
-            t1.LANE = "E19" if engine == "oracle" and version.startswith("19") else "h"
+            t1.LANE = fixture_lane(engine, version)
             run = t1.LaneRun(path, engine, version, args)
         else:
             run = Run(path, engine, version, args)

@@ -13,6 +13,21 @@ import recompare_t1
 
 
 class T1Tests(unittest.TestCase):
+    def test_mysql_reader_setup_can_follow_doctor(self):
+        run = MagicMock(reader_secret="fixture-only")
+        run.sql.return_value = (0, "1")
+        with patch.object(t1, "configure_tls"):
+            for _ in range(2):
+                t1.configure_mysql(run, Path("fixture-secrets"))
+        statements = [call.args[0] for call in run.sql.call_args_list
+                      if call.args[0] != "SELECT 1;"]
+        self.assertEqual(len(statements), 2)
+        for sql in statements:
+            self.assertIn("CREATE USER IF NOT EXISTS 'fixture_reader'@'%'", sql)
+            self.assertIn("ALTER USER 'fixture_reader'@'%'", sql)
+            self.assertEqual(sql.count("REQUIRE SSL"), 2)
+            self.assertIn("GRANT SELECT,SHOW VIEW ON fixture.*", sql)
+
     def test_concurrent_snapshot_verdict_uses_one_c5_cycle_without_reload(self):
         root = t1.ROOT / "evidence"
         root.mkdir(exist_ok=True)

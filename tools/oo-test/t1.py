@@ -243,7 +243,9 @@ def configure_mysql(run, store):
         run.command(["docker", "cp", str(store / source), run.name + ":/var/lib/mysql/" + dest])
     run.command(["docker", "exec", "-u", "root", run.name, "bash", "-c",
                  "chown mysql:mysql /var/lib/mysql/*.pem; chmod 600 /var/lib/mysql/*key.pem"])
-    run.sql(f"CREATE USER 'fixture_reader'@'%' IDENTIFIED BY '{run.reader_secret}' REQUIRE SSL;\n"
+    # T0 and T1 may configure the same owned fixture in one matrix invocation.
+    run.sql(f"CREATE USER IF NOT EXISTS 'fixture_reader'@'%' IDENTIFIED BY '{run.reader_secret}' REQUIRE SSL;\n"
+            f"ALTER USER 'fixture_reader'@'%' IDENTIFIED BY '{run.reader_secret}' REQUIRE SSL;\n"
             "GRANT SELECT,SHOW VIEW ON fixture.* TO 'fixture_reader'@'%';\n", admin=True)
     run.command(["docker", "restart", run.name])
     for _ in range(90):

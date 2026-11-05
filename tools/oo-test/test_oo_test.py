@@ -19,6 +19,13 @@ def evidence_root():
     return path
 
 class ComparisonTests(unittest.TestCase):
+    def test_explicit_lane_overrides_oracle19_default(self):
+        with patch.dict(runner.os.environ, {}, clear=True):
+            self.assertEqual(runner.fixture_lane("oracle", "19c"), "E19")
+            self.assertEqual(runner.fixture_lane("postgres", "17"), "h")
+        with patch.dict(runner.os.environ, {"OO_TEST_LANE": "h"}):
+            self.assertEqual(runner.fixture_lane("oracle", "19c"), "h")
+
     def test_decimal_lossless_and_typed(self):
         number = Decimal("12345678901234567890.1234567890")
         self.assertEqual(comparison.canonical(number), ["decimal", "12345678901234567890.123456789"])

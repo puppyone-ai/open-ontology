@@ -21,6 +21,7 @@ class VerdictTests(unittest.TestCase):
             hook.write_text("#!/bin/sh\nexit 1\n")
             hook.chmod(0o700)
             with patch.object(runner, "ROOT", root), patch.object(t1, "LANE", "m"), \
+                 patch.dict(runner.os.environ, {"OO_TEST_LANE": "h"}), \
                  patch("sys.argv", ["oo-test", "matrix", "--engine", "postgres",
                                    "--versions", "17", "--suites", "T1",
                                    "--hook", "T1=" + str(hook)]), \
