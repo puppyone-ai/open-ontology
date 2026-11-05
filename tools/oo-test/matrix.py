@@ -13,6 +13,8 @@ def target_id(engine, version):
         return "kingbase-pg-mode"
     if engine == "db2":
         return "db2-luw-11_5"
+    if engine in ("dm8", "dameng"):
+        return "dm8"
     if engine == "mongodb":
         return "mongodb"
     if engine in ("opensearch", "elasticsearch"):
