@@ -37,6 +37,8 @@ The project license is Apache-2.0. [docs/02](../docs/02-technology-stack.md) req
 
 That review names the reviewer role, the obligation (for example source offer or relinking), and where the evidence is. It is not implied by this policy.
 
+Two crate-scoped exceptions exist, each listed in `ci/deny.toml` `exceptions` with its own audit record. They are not a general admission of either license. `webpki-roots` (CDLA-Permissive-2.0, Mozilla CA certificate data) is required by the default Oracle driver; its record is `webpki-roots-audit.json` and NOTICE carries the license text (v0.2 Plan D13). `tiny-keccak` (CC0-1.0) is admitted only for the opt-in MongoDB source and stays out of the default artifact (v0.2 Plan D18). Both are flagged for owner review in the v0.2 final PR.
+
 AGPL, BSL, ELv2, and SSPL do not enter the default package. They may be a user-selected external service, audited at a specific version, and they are not copied into the default image.
 
 The design already keeps these out of the core image: Grafana and similar observation stacks as external options; Redis 8, MinIO, Vault, and Arize Phoenix as non-default. Vault's BSL terms are noted in [docs/10](../docs/10-security.md). Adding any of them later is a new audit.
