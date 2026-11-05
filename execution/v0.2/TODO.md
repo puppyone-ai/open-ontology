@@ -103,9 +103,3 @@ Status: pending 3, in_progress 4, author_complete 5, integrated 52.
 | [ ] S6-M-03 | M | **L1、L3 闭环独立审阅**（固定 SHA） | pending | — | — | — |
 | [ ] S6-B-01 | B | npm 发布 `@reduxxx888/ontology-cli@0.2.0`：`npm pack` → 空目录安装 → 全命令 → 同一 tarball 发布；报告精确版本与升级命令 | pending | — | — | — |
 | [ ] S6-M-04 | M | 核对本期所有设计变化均已当期回填原文档、Spec 与矩阵（D7）；来源基线升至最终 revision | pending | — | — | — |
-
-## Blocked
-
-- mysql-binlog in the default artifact: zstd 0.13.4 / zstd-safe 7.4.0 past 2026-11-08T14:12:08Z and license files verified (D10)
-- lane F dispatch (S4-F-01, S5-F-02): free disk for OLAP/document images (~10 GB); waits for lane merges to reclaim targets
-- final PR: redact the private model endpoint from v0.2 branch history after all lanes are integrated (ledger security row); owner decides on master history and credential/whitelist rotation

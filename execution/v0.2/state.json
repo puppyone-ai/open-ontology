@@ -1415,20 +1415,7 @@
       "evidence": []
     }
   ],
-  "blocked": [
-    {
-      "what": "mysql-binlog in the default artifact",
-      "needs": "zstd 0.13.4 / zstd-safe 7.4.0 past 2026-11-08T14:12:08Z and license files verified (D10)"
-    },
-    {
-      "what": "lane F dispatch (S4-F-01, S5-F-02)",
-      "needs": "free disk for OLAP/document images (~10 GB); waits for lane merges to reclaim targets"
-    },
-    {
-      "what": "final PR",
-      "needs": "redact the private model endpoint from v0.2 branch history after all lanes are integrated (ledger security row); owner decides on master history and credential/whitelist rotation"
-    }
-  ],
+  "blocked": [],
   "lanes": {
     "C": {
       "branch": "v0.2/c-mysql-engine",
