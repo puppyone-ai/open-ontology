@@ -80,6 +80,8 @@ DBLog / Debezium 增量快照的思路：按块读取，每块前后各记一个
 
 Oracle C1 重启必须携带首次对齐基线前采集的事务低水位（不晚于当时最早活跃事务的起始 SCN），与 DBID/resetlogs 和已提交 SCN 一起持久化。重放从固定事务低水位开始，不能随提交位点推进它；缺少覆盖该低水位的 redo 时显式重基线。空 SCN 窗口不创建目标数据代际。当前 `oo-load` 实现不含持久化在途事务暂存，因此必须在这段历史被清理前重基线。
 
+带时区时间戳（D17）：Oracle `TIMESTAMP WITH (LOCAL) TIME ZONE` 与 PostgreSQL `timestamptz` 一样进入 Agent DB 为瞬时点，不保留源偏移；比对以 UTC 瞬时点为准。需要原始偏移时由源端单独列承载。
+
 ### 5.2 C5 摘要差分
 
 C5 沿用基线的 key 范围（键形态不变时），表增长或估计漂移不触发重基线；列名、类型、可空性或主键变化（包括仅元数据的改名、加宽）进入显式重基线 `c5_rebaseline_required_lineage`，不发布旧列。
