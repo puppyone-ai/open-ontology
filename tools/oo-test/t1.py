@@ -133,6 +133,9 @@ class LaneRun(runner.Run):
                     raise RuntimeError("cleanup ownership")
                 if kind == "container":
                     self.command(["docker", "logs", name], required=False)
+                    if self.engine == "postgres":
+                        self.command(["docker", "exec", name, "sh", "-c",
+                                      'cat "$PGDATA"/log/oo-audit.csv*'], required=False)
                 code, _ = self.command(["docker", kind, "rm"] + (["-f", "-v"] if kind == "container" else []) + [name],
                                        required=False)
                 if code:

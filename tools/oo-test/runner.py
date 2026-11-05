@@ -615,6 +615,12 @@ def main():
         if engine == "sqlserver":
             from sqlserver_runner import SqlServerRun
             run = SqlServerRun(path, engine, version, args)
+        elif hooks:
+            # Use the standalone runner's loopback transport, not an exec relay
+            # whose teardown can terminate PostgreSQL backend processes.
+            import t1
+            t1.LANE = "h"
+            run = t1.LaneRun(path, engine, version, args)
         else:
             run = Run(path, engine, version, args)
         result = {"engine": engine, "version": version, "status": "failed", "suites": {},

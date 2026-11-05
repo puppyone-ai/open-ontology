@@ -13,6 +13,25 @@ from verdicts import incremental, merge, write_rows
 
 
 class VerdictTests(unittest.TestCase):
+    def test_hook_matrix_uses_owned_loopback_source(self):
+        import t1
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            hook = root / "hook"
+            hook.write_text("#!/bin/sh\nexit 1\n")
+            hook.chmod(0o700)
+            with patch.object(runner, "ROOT", root), patch.object(t1, "LANE", "m"), \
+                 patch("sys.argv", ["oo-test", "matrix", "--engine", "postgres",
+                                   "--versions", "17", "--suites", "T1",
+                                   "--hook", "T1=" + str(hook)]), \
+                 patch.object(runner, "disk_gate"), \
+                 patch.object(runner, "resolve", return_value={"id": "postgres-17.11"}), \
+                 patch.object(t1.LaneRun, "setup", side_effect=RuntimeError("test stop")) as setup, \
+                 patch.object(t1.LaneRun, "cleanup", return_value=[]):
+                self.assertEqual(runner.main(), 1)
+                setup.assert_called_once()
+                self.assertEqual(t1.LANE, "h")
+
     def test_merge_only_preserves_verdict_without_starting_containers(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

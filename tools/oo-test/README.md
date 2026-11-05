@@ -17,8 +17,11 @@ or a legacy SP00 pin. T1 and T2 share this resolver.
 PostgreSQL 12 is selectable but experimental. Oracle `23ai` resolves to 23.5,
 not the later 26ai releases that also start with 23.
 
-The runner executes one database at a time, publishes no host ports, creates
+The runner executes one source database at a time, creates
 an explicitly labelled data volume, and uses platform manifest digests.
+Fixture-only runs publish no host ports. Runs with product hooks reuse the
+standalone runner's ephemeral loopback ports instead of the Docker exec relay;
+hook teardown must not terminate source backend processes.
 Missing native architecture selects `linux/amd64`; resource receipts say
 `emulated` when this differs from the Docker server architecture.
 `--platform linux/amd64` overrides selection. Native readiness timeout is
