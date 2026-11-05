@@ -14,8 +14,8 @@ name = "local-analysis"
 path = "src/main.rs"
 
 [dependencies]
-arrow = { version = "=60.0.0", default-features = false, features = ["ipc"] }
-parquet = { version = "=60.0.0", default-features = false, features = ["arrow", "snap"] }
+arrow = { version = "=60.1.0", default-features = false, features = ["ipc"] }
+parquet = { version = "=60.1.0", default-features = false, features = ["arrow", "snap"] }
 rust_xlsxwriter = { version = "=0.99.1", default-features = false }
 
 [dev-dependencies]

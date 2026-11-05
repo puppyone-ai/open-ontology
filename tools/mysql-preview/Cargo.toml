@@ -11,7 +11,7 @@ description = "MySQL 5.7/8.x owned-fixture C1 adapter using oo-connectors. Not a
 resolver = "3"
 
 [dependencies]
-arrow-ipc = { version = "=60.0.0", default-features = false }
+arrow-ipc = { version = "=60.1.0", default-features = false }
 oo-connectors = { path = "../../crates/oo-connectors", features = ["mysql-binlog"] }
 oo-core = { path = "../../crates/oo-core" }
 oo-pipeline = { path = "../../crates/oo-pipeline" }

@@ -11,9 +11,9 @@ description = "Operator CLI for one native PostgreSQL 17.10 controlled preview. 
 resolver = "3"
 
 [dependencies]
-arrow-array = "=60.0.0"
-arrow-ipc = "=60.0.0"
-arrow-schema = "=60.0.0"
+arrow-array = "=60.1.0"
+arrow-ipc = "=60.1.0"
+arrow-schema = "=60.1.0"
 bytes = "=1.12.1"
 futures-util = { version = "=0.3.34", default-features = false, features = ["sink"] }
 rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "aws-lc-rs"] }

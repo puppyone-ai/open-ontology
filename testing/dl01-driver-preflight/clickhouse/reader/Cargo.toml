@@ -13,9 +13,9 @@ workspace = true
 [dependencies]
 # Pins copied from base 577160c22de63adb9b38e0147f3bc2da893c4d9d.
 # reqwest stays on cleartext HTTP/1. The official clickhouse crate is not in that lock.
-arrow-array = { version = "=60.0.0", default-features = false }
-arrow-ipc = { version = "=60.0.0", default-features = false }
-arrow-schema = { version = "=60.0.0", default-features = false }
+arrow-array = { version = "=60.1.0", default-features = false }
+arrow-ipc = { version = "=60.1.0", default-features = false }
+arrow-schema = { version = "=60.1.0", default-features = false }
 cc = "=1.4.7"
 find-msvc-tools = "=0.1.13"
 hyper-util = { version = "=0.1.20", default-features = false }

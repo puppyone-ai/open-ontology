@@ -9,9 +9,9 @@ resolver = "3"
 
 [dependencies]
 oo-connectors = { path = "../../../crates/oo-connectors", features = ["sqlserver"] }
-arrow-array = { version = "=60.0.0", default-features = false }
-arrow-ipc = { version = "=60.0.0", default-features = false }
-arrow-schema = { version = "=60.0.0", default-features = false }
+arrow-array = { version = "=60.1.0", default-features = false }
+arrow-ipc = { version = "=60.1.0", default-features = false }
+arrow-schema = { version = "=60.1.0", default-features = false }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 sha2 = "=0.10.9"
