@@ -401,3 +401,4 @@ evidence run-id.
 | E383 | 2026-11-05 | integrate | S5-E-03, S6-M-01 | `bd8883181`…`3b918ad31`; coordinator arrow 60.1.0 bump | DM8 integrated. New advisory RUSTSEC-2026-0442 (arrow-data 60.0.0) found by lane D8; coordinator moved every arrow pin to 60.1.0; audit and deny pass |
 | E384 | 2026-11-05 | delivery | S5-E-04, S5-H-01 | run `C-S5-oracle-lob-c5`; evidence `c-s5l-t1-full-20261105`, `c-s5l-lob-20261105` | Lane C: Oracle C5 digests over LOB columns streamed client-side within read budgets (no DBMS_CRYPTO grant); corrected full-scale T1/T8 PASS on Oracle 23.5, 21.3, 11.2 (231 tables, 2M rows); idle cycles zero writes. Audit-parser patch for wrapped SQL*Plus JSON handed to lane T |
 | E385 | 2026-11-05 | integrate | S5-E-04 | `a5840c219`, `99bbc4a73` | Lane C integrated |
+| E386 | 2026-11-05 | dispatch | S5-H-01 | card `H-S5d-t1-full.md` on `v0.2/h-test-infra` | Lane H: corrected T0/T1/T8 at full scale on all 14 P0 versions after the keyless and LOB fixes |
