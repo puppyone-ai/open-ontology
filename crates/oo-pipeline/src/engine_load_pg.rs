@@ -239,17 +239,18 @@ impl Target for PgTarget<'_> {
         {
             return Err("load_document_missing");
         }
-        if self.fields.as_ref().is_some_and(|f| f != &decoded.fields) {
+        let fields = target_fields(&decoded.fields, self.document_column.as_deref())?;
+        if self.fields.as_ref().is_some_and(|f| f != &fields) {
             return Err("load_schema_drift");
         }
         let mut names = std::collections::BTreeSet::new();
         let mut definitions = Vec::new();
         let mut types = Vec::new();
-        for f in &decoded.fields {
+        for f in &fields {
             if !names.insert(&f.name) || f.name == "__oo_chunk" {
                 return Err("load_schema");
             }
-            let (oid, sql) = target_column(f, self.document_column.as_deref())?;
+            let (oid, sql) = column(f)?;
             types.push(oid);
             definitions.push(format!(
                 "{} {sql}{}",
@@ -383,7 +384,7 @@ impl Target for PgTarget<'_> {
             .map_err(db)?;
         }
         tx.commit().await.map_err(db)?;
-        self.fields = Some(decoded.fields.clone());
+        self.fields = Some(fields);
         Ok(())
     }
 
@@ -469,6 +470,17 @@ fn target_column(field: &DecodedField, document: Option<&str>) -> Result<(i64, S
     }
 }
 
+fn target_fields(fields: &[DecodedField], document: Option<&str>) -> Result<Vec<DecodedField>> {
+    let mut fields = fields.to_vec();
+    for field in &mut fields {
+        target_column(field, document)?;
+        if document == Some(field.name.as_str()) {
+            field.arrow_type = "utf8_document".into();
+        }
+    }
+    Ok(fields)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -488,6 +500,9 @@ mod tests {
             target_column(&field, Some("_document")),
             Ok((3802, "jsonb".into()))
         );
+        let retained = target_fields(&[field.clone()], Some("_document")).unwrap();
+        assert_eq!(column(&retained[0]), Ok((3802, "jsonb".into())));
+        assert_eq!(field.arrow_type, "utf8");
         assert_eq!(
             target_column(&field, Some("other")),
             Ok((25, "text".into()))
