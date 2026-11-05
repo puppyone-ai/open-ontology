@@ -1295,7 +1295,7 @@
       "sprint": "S5",
       "lane": "G",
       "title": "T5/T6 在 P0 全版本：20 道金标准题由真实模型 Agent 回答",
-      "status": "in_progress",
+      "status": "integrated",
       "owner": "lane-G",
       "branch": "v0.2/g-selfbuild-budget",
       "commits": [
