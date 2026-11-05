@@ -454,7 +454,7 @@ async function main(args) {
       + '  oo time --timezone Asia/Shanghai [--at RFC3339] [--json]\n'
       + '  oo --version [--json]\n'
       + '  oo agent-skill [--json]\n\n'
-      + '  oo login --gateway URL (--code-stdin | --device)\n'
+      + '  oo login --gateway URL [--code-stdin | --code - | --device]  (code on stdin or prompted, never argv)\n'
       + '  oo whoami [--json]\n'
       + '  oo share-prompt --grant-file FILE [--agent claude|cursor|codex]\n\n'
       + 'Quick start (no Skill, model, database driver or repository required):\n'

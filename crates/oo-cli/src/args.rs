@@ -1082,6 +1082,15 @@ Commands:
   oo operations [options]
   oo agent-skill [--json]        Optional offline business guidance
 
+Credential commands:
+  oo login --gateway <url> [--code-stdin | --code - | --device]
+                                 Bind with a one-time code (stdin or prompt, never argv)
+  oo whoami [--json]             Identity, role and credential expiry
+  oo share-prompt --grant-file <file> [--role <role>]
+                                 Agent setup prompt with a one-time code (admin)
+  oo token issue|list|renew|rotate|revoke|enroll|approve   (oo help token)
+Administration: oo init|up|down|status|doctor|build|review|ontology (oo help init)
+
 Use -h or --help on any command; help never reads credentials or connects.
 Flags follow the command. Use -- before a positional argument beginning with '-'.
 Long value options accept --name value or --name=value; boolean flags take no value.

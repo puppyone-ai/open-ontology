@@ -196,7 +196,8 @@ function options(args, allowed, switches = []) {
     if (!allowed.includes(flag) || Object.hasOwn(result, flag)) refuse('AUTH_ARGUMENTS', 'Unknown or repeated option.', 2);
     result[flag] = switches.includes(flag) ? true : args[++i];
     if (result[flag] !== true && (typeof result[flag] !== 'string'
-        || !result[flag] || result[flag].startsWith('-') || /[\x00-\x1f\x7f]/.test(result[flag]))) {
+        || !result[flag] || (result[flag].startsWith('-') && !(flag === '--code' && result[flag] === '-'))
+        || /[\x00-\x1f\x7f]/.test(result[flag]))) {
       refuse('AUTH_ARGUMENTS', 'Missing or invalid option value.', 2);
     }
   }
@@ -249,8 +250,11 @@ async function identity(context, profile, token) {
 export async function login(context, args) {
   const opts = options(args, [...connectionFlags, '--code', '--code-stdin', '--device', '--profile', '--business-timezone', '--json'],
     ['--code-stdin', '--device', '--json']);
-  if (!opts['--gateway'] || ['--code', '--code-stdin', '--device'].filter(k => opts[k]).length !== 1) {
-    refuse('AUTH_ARGUMENTS', 'Use --gateway and exactly one of --code, --code-stdin or --device.', 2);
+  if (opts['--code'] !== undefined && opts['--code'] !== '-') {
+    refuse('LOGIN_CODE_ARGV', 'Pass the one-time code on stdin (--code-stdin or --code -), never in argv.', 2);
+  }
+  if (!opts['--gateway'] || (opts['--device'] && (opts['--code'] || opts['--code-stdin']))) {
+    refuse('AUTH_ARGUMENTS', 'Use --gateway with --code-stdin, --code - or --device.', 2);
   }
   const name = opts['--profile'] ?? 'default';
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(name)) refuse('AUTH_ARGUMENTS', 'Invalid profile name.', 2);
@@ -276,7 +280,7 @@ export async function login(context, args) {
     process.stderr.write(`Visit ${device.verification_uri}\nDevice code: ${device.user_code}\nAsk your administrator to approve this code and confirm the role.\n`);
     token = await pollDevice(profile, device);
   } else {
-    const code = opts['--code'] ?? await context.stdinToken();
+    const code = await context.stdinToken();
     if (!codePattern.test(code)) refuse('AUTH_ARGUMENTS', 'Invalid one-time enrollment code.', 2);
     token = success(await exchange(profile, '/v1/auth/enroll', { body: { code } })).token;
   }

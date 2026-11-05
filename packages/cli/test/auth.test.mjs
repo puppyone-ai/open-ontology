@@ -290,10 +290,14 @@ test('standalone native device polling obeys cumulative slow_down, denial and ex
 test('standalone native enroll-code option and timezone validation match the wrapper', async t => {
   const f = await fixture(t);
   f.state.direct = true;
-  const args = ['login', '--gateway', f.gateway, '--ca-file', f.cert, '--code=OO-0000-0000', '--json'];
-  assert.equal((await f.cli([...args, '--business-timezone', 'Unknown/Nowhere'])).status, 2);
+  // A one-time code in argv is refused before any request; `--code -` reads stdin.
+  const inArgv = await f.cli(['login', '--gateway', f.gateway, '--ca-file', f.cert, '--code=OO-0000-0000', '--json']);
+  assert.equal(inArgv.status, 2);
+  assert.match(inArgv.stdout + inArgv.stderr, /LOGIN_CODE_ARGV/);
+  const args = ['login', '--gateway', f.gateway, '--ca-file', f.cert, '--code', '-', '--json'];
+  assert.equal((await f.cli([...args, '--business-timezone', 'Unknown/Nowhere'], 'OO-0000-0000\n')).status, 2);
   assert.deepEqual(f.seen, []);
-  const logged = await f.cli(args);
+  const logged = await f.cli(args, 'OO-0000-0000\n');
   assert.equal(logged.status, 0, logged.stderr);
   assert.equal(JSON.parse(logged.stdout).read_check, 'passed');
 });

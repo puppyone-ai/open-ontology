@@ -13,7 +13,7 @@ use std::{
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DAY: u64 = 86_400_000;
-pub(crate) const HELP: &str = "oo token issue|enroll --grant-file FILE --output-file FILE [--role ROLE]\noo token list --project PROJECT\noo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]\noo token approve CODE --grant-file FILE [--role ROLE]\nToken commands accept --json; issue, enroll and rotate require a new --output-file (0600).\noo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]\noo whoami [--json]\noo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]\nConnection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME\nAdmin issuance requires --client-pem FILE. Credentials are saved as private file references.\n";
+pub(crate) const HELP: &str = "oo token issue|enroll --grant-file FILE --output-file FILE [--role ROLE]\noo token list --project PROJECT\noo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]\noo token approve CODE --grant-file FILE [--role ROLE]\nToken commands accept --json; issue, enroll and rotate require a new --output-file (0600).\noo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]\noo whoami [--json]\noo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]\nConnection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME\nAdmin issuance requires --client-pem FILE. Credentials are saved as private file references.\n";
 type Result<T> = std::result::Result<T, Failure>;
 fn bad() -> Failure {
     Failure::usage("invalid lifecycle arguments or response")
@@ -63,9 +63,18 @@ fn token_ok(s: &str) -> bool {
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
 }
+/// The one-time code never travels in argv: read it from stdin, or prompt for
+/// it on a terminal (stderr carries the prompt; stdout stays machine output).
 fn stdin_code() -> Result<String> {
     if std::io::stdin().is_terminal() {
-        return Err(bad());
+        eprint!("Enrollment code (OO-XXXX-XXXX): ");
+        let _ = std::io::stderr().flush();
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line).map_err(|_| bad())?;
+        if line.len() > 15 {
+            return Err(bad());
+        }
+        return read_code(line.as_bytes());
     }
     read_code(std::io::stdin())
 }
@@ -231,6 +240,17 @@ fn options(args: &[String], command: &str) -> Result<BTreeMap<String, String>> {
     while let Some(flag) = it.next() {
         if !CONNECTION.iter().any(|(f, _)| f == flag) && !allowed.contains(&flag.as_str()) {
             return Err(bad());
+        }
+        if flag == "--code" {
+            // Only `--code -` (stdin) is accepted; a code in argv is visible to
+            // other local users and shell history.
+            if it.next().map(String::as_str) != Some("-") {
+                return Err(Failure::usage(
+                    "LOGIN_CODE_ARGV: pass the code on stdin (--code-stdin or --code -) or at the prompt",
+                ));
+            }
+            out.insert("--code-stdin".to_owned(), "true".to_owned());
+            continue;
         }
         let value =
             if ["--code-stdin", "--device", "--json", "--raw-token"].contains(&flag.as_str()) {
@@ -609,11 +629,7 @@ async fn execute(command: &str, args: &[String]) -> Result<String> {
     let http = Http::new(&p, false)?;
     if command == "login" {
         if !opts.contains_key("--gateway")
-            || ["--code", "--code-stdin", "--device"]
-                .iter()
-                .filter(|k| opts.contains_key(**k))
-                .count()
-                != 1
+            || opts.contains_key("--code-stdin") && opts.contains_key("--device")
         {
             return Err(bad());
         }
@@ -664,11 +680,7 @@ async fn execute(command: &str, args: &[String]) -> Result<String> {
         let token = if opts.contains_key("--device") {
             device(&http).await?
         } else {
-            let code = if let Some(c) = opts.get("--code") {
-                c.clone()
-            } else {
-                stdin_code()?
-            };
+            let code = stdin_code()?;
             if !code_ok(&code) {
                 return Err(bad());
             }
