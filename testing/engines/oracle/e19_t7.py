@@ -11,6 +11,27 @@ import t7
 from audit import Audit, ORACLE_MINER
 
 
+def unwrap_audit_rows(text):
+    """Undo SQLPlus's 32767-column wrapping, rejecting any lost SQL text."""
+    rows, pending = [], ""
+    for line in text.split("\n"):
+        if not line and not pending:
+            continue
+        pending += line
+        try:
+            row = json.loads(pending, strict=False)
+        except json.JSONDecodeError:
+            continue
+        if row.get("sql_length") is not None:
+            if int(row["sql_length"]) != len(row.get("sql") or ""):
+                raise ValueError("Oracle audit SQL length mismatch")
+        rows.append(pending)
+        pending = ""
+    if pending:
+        raise ValueError("incomplete Oracle audit JSON")
+    return "\n".join(rows)
+
+
 class EnterpriseAudit(Audit):
     def raw(self):
         if self.run.version != "19" or self.mode != "oracle-standard":
@@ -19,12 +40,14 @@ class EnterpriseAudit(Audit):
 
         def standard_query(argv, **kwargs):
             text = kwargs.get("data", "")
-            if "FROM sys.aud$ a LEFT JOIN audit_actions" in text:
+            standard_audit = "FROM sys.aud$ a LEFT JOIN audit_actions" in text
+            if standard_audit:
                 # The shared common-user query currently assumes unified audit.
                 kwargs["data"] = text.replace(
                     f"WHERE dbusername='{ORACLE_MINER}'",
                     f"WHERE a.userid='{ORACLE_MINER}'")
-            return command(argv, **kwargs)
+            code, output = command(argv, **kwargs)
+            return code, unwrap_audit_rows(output) if standard_audit and code == 0 else output
 
         self.run.command = standard_query
         try:

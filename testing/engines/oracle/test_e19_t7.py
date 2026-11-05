@@ -34,6 +34,7 @@ class EnterpriseAuditTests(unittest.TestCase):
     def test_common_standard_query_uses_userid_and_restores_command(self):
         run = Mock(engine="oracle", version="19", name="owned-fixture")
         command = run.command
+        command.return_value = (0, "")
         audit = adapter.EnterpriseAudit(run)
         audit.mode = "oracle-standard"
 
@@ -50,6 +51,17 @@ class EnterpriseAuditTests(unittest.TestCase):
         text = command.call_args.kwargs["data"]
         self.assertIn("WHERE a.userid='C##OO_MINER'", text)
         self.assertNotIn("dbusername", text)
+
+    def test_sqlplus_wrapping_is_lossless_or_rejected(self):
+        sql = "SELECT " + "x" * 35000 + " FROM dual"
+        row = json.dumps({"sql": sql, "sql_length": str(len(sql))})
+        wrapped = row[:32767] + "\n" + row[32767:] + "\n"
+        self.assertEqual(adapter.unwrap_audit_rows(wrapped), row)
+        with self.assertRaisesRegex(ValueError, "length mismatch"):
+            adapter.unwrap_audit_rows(json.dumps({"sql": sql[:-1],
+                                                  "sql_length": str(len(sql))}))
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            adapter.unwrap_audit_rows(row[:-1])
 
     def test_metadata_correction_preserves_failed_verdicts_and_hashes(self):
         with tempfile.TemporaryDirectory() as directory:
