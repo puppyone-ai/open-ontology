@@ -1,6 +1,9 @@
 //! Opt-in Db2 LUW reads through a source-only IBM CLI worker.
 //! C5 is reconciliation, not log CDC. Timestamps are observation fences,
 //! never a cross-table snapshot or a recoverable log position.
+#[cfg(test)]
+#[path = "../../../../testing/engines/db2/acceptance.rs"]
+mod acceptance;
 mod worker;
 
 use crate::{SourceError, SourceErrorKind, engine::*};
@@ -24,6 +27,7 @@ pub struct ConnectConfig {
     pub password: Zeroizing<String>,
     /// Path inside the trusted worker, not inside the host.
     pub tls_ca: Option<String>,
+    pub scope: Vec<TableRef>,
 }
 
 impl ConnectConfig {
@@ -41,6 +45,7 @@ impl ConnectConfig {
             user: user.into(),
             password,
             tls_ca: None,
+            scope: Vec::new(),
         }
     }
 }
@@ -80,6 +85,8 @@ pub struct Db2Engine {
     revision: u32,
     stats: Stats,
     budget: ReadBudget,
+    scope: Vec<TableRef>,
+    user: String,
 }
 
 fn error(fact: &'static str) -> SourceError {
@@ -162,6 +169,10 @@ fn bound(
 impl Db2Engine {
     /// The command must identify a trusted, pinned source-only worker.
     pub fn connect(command: &mut Command, config: &ConnectConfig) -> Result<Self, SourceError> {
+        ident(&config.user)?;
+        for table in &config.scope {
+            relation(table)?;
+        }
         if config.tls_ca.is_none() && !matches!(config.host.as_str(), "127.0.0.1" | "::1") {
             return Err(error("db2_tls_required"));
         }
@@ -174,6 +185,8 @@ impl Db2Engine {
                 ..Stats::default()
             },
             budget: ReadBudget::default(),
+            scope: config.scope.clone(),
+            user: config.user.clone(),
         })
     }
 
@@ -195,6 +208,8 @@ impl Db2Engine {
         let result = (|| {
             let mut rows = Vec::new();
             let mut bytes = 0u64;
+            let mut over_budget = false;
+            let mut received = 0u64;
             for row in self
                 .worker
                 .query_bounded(sql, binds, (limit + 1) as usize, budget.max_chunk_bytes)
@@ -204,18 +219,34 @@ impl Db2Engine {
                     return Err(SourceError::budget("db2_statement_timeout"));
                 }
                 let row = row.map_err(driver)?;
+                received += 1;
+                if received > limit + 1 {
+                    return Err(error("db2_worker_row_limit"));
+                }
                 bytes += row
                     .iter()
                     .map(|v| v.as_ref().map_or(1, |s| s.len() as u64 + 1))
                     .sum::<u64>();
                 if rows.len() as u64 >= limit || bytes > budget.max_chunk_bytes {
-                    return Err(SourceError::budget("db2_chunk_over_budget"));
+                    // Consume the bounded overflow sentinel and completion so
+                    // the shared loader can replan on this same source session.
+                    over_budget = true;
+                } else {
+                    rows.push(row);
                 }
-                rows.push(row);
             }
-            Ok(rows)
+            if over_budget {
+                Err(SourceError::budget("db2_chunk_over_budget"))
+            } else {
+                Ok(rows)
+            }
         })();
         let elapsed = started.elapsed();
+        let result = if elapsed > Duration::from_millis(budget.statement_timeout_ms) {
+            Err(SourceError::budget("db2_statement_timeout"))
+        } else {
+            result
+        };
         let sleep = elapsed * (100 - u32::from(budget.duty_cycle_percent))
             / u32::from(budget.duty_cycle_percent);
         self.stats.queries += 1;
@@ -232,11 +263,16 @@ impl Db2Engine {
     ) -> Result<(Vec<Column>, Vec<usize>), SourceError> {
         relation(t)?;
         let binds = || vec![Bind::Text(t.schema.clone()), Bind::Text(t.name.clone())];
-        let rows = self.query("SELECT COLNAME,TYPENAME,NULLS FROM SYSCAT.COLUMNS WHERE TABSCHEMA=? AND TABNAME=? ORDER BY COLNO", &binds(), 1024, b).await?;
+        let rows = self.query("SELECT COLNAME,TYPENAME,NULLS,CODEPAGE,TYPESCHEMA FROM SYSCAT.COLUMNS WHERE TABSCHEMA=? AND TABNAME=? ORDER BY COLNO", &binds(), 1024, b).await?;
         let mut columns = Vec::new();
         for row in rows {
             let name = cell(&row, 0)?.trim_end().to_owned();
             let kind = cell(&row, 1)?.trim_end().to_owned();
+            if cell(&row, 4)?.trim_end() != "SYSIBM"
+                || (matches!(kind.as_str(), "CHAR" | "VARCHAR") && cell(&row, 3)?.trim() == "0")
+            {
+                return Err(error("db2_type_not_admitted"));
+            }
             if !matches!(
                 kind.as_str(),
                 "SMALLINT"
@@ -373,6 +409,9 @@ fn batch(plan: &Plan, rows: &[Vec<Option<String>>]) -> Result<RecordBatch, Sourc
     let mut fields = Vec::new();
     let mut arrays: Vec<ArrayRef> = Vec::new();
     for (i, c) in plan.columns.iter().enumerate() {
+        if !c.nullable && rows.iter().any(|row| row[i].is_none()) {
+            return Err(error("db2_null_in_required_column"));
+        }
         let integer = matches!(c.kind.as_str(), "SMALLINT" | "INTEGER" | "BIGINT");
         // Exact decimal and sub-microsecond temporal values remain lossless text.
         fields.push(Field::new(
@@ -411,19 +450,22 @@ impl SourceEngine for Db2Engine {
     async fn probe(&mut self) -> Result<ProbeReport, SourceError> {
         let rows = self
             .query(
-                "SELECT SERVICE_LEVEL FROM TABLE(SYSPROC.ENV_GET_INST_INFO()) AS T",
+                "SELECT SERVICE_LEVEL,CURRENT USER FROM TABLE(SYSPROC.ENV_GET_INST_INFO()) AS T",
                 &[],
                 1,
                 &ReadBudget::default(),
             )
             .await?;
         let raw = cell(rows.first().ok_or_else(|| error("db2_version"))?, 0)?;
+        self.user = cell(rows.first().ok_or_else(|| error("db2_user"))?, 1)?
+            .trim_end()
+            .into();
         let version =
             EngineVersion::parse(EngineFamily::Db2, raw.strip_prefix("DB2 v").unwrap_or(raw))?;
         if version.major != 11 || version.minor != 5 {
             return Err(error("db2_version_not_admitted"));
         }
-        let capabilities = [
+        let mut capabilities: BTreeMap<_, _> = [
             Capability::Catalog,
             Capability::ChunkedSnapshot,
             Capability::DigestDiff,
@@ -449,6 +491,39 @@ impl SourceEngine for Db2Engine {
             }),
         )
         .collect();
+        let mut requirements = Vec::new();
+        for table in self.scope.clone() {
+            let sql = format!("SELECT 1 FROM {} WHERE 1=0", relation(&table)?);
+            if self
+                .query(&sql, &[], 1, &ReadBudget::default())
+                .await
+                .is_err()
+            {
+                requirements.push(Requirement {
+                    kind: RequirementKind::Privilege,
+                    name: format!("select:{table}"),
+                    observed: Some(
+                        "read probe failed; verify object existence and SELECT grant".into(),
+                    ),
+                    required: "SELECT".into(),
+                    dba_statement: Some(format!(
+                        "GRANT SELECT ON {} TO USER {}",
+                        relation(&table)?,
+                        ident(&self.user)?
+                    )),
+                });
+            }
+        }
+        if !requirements.is_empty() {
+            for capability in [Capability::ChunkedSnapshot, Capability::DigestDiff] {
+                capabilities.insert(
+                    capability,
+                    CapabilityState::NeedsSetup {
+                        requirements: requirements.clone(),
+                    },
+                );
+            }
+        }
         Ok(ProbeReport {
             protocol: ENGINE_PROTOCOL.into(),
             family: self.family(),
@@ -724,5 +799,59 @@ mod tests {
             Zeroizing::new(String::new()),
         );
         assert!(Db2Engine::connect(&mut Command::new("must-not-run"), &cfg).is_err());
+    }
+
+    #[test]
+    fn typed_batch_preserves_exact_text_and_rejects_bad_integer_and_null() {
+        let plan = Plan {
+            public: TableChunkPlan {
+                protocol: ENGINE_PROTOCOL.into(),
+                table: TableRef {
+                    schema: "FIXTURE".into(),
+                    name: "T".into(),
+                },
+                key: KeyShape::NoKey,
+                strategy: ChunkStrategy::SingleRead,
+                estimated_rows: None,
+                chunks: Vec::new(),
+            },
+            columns: vec![
+                Column {
+                    name: "ID".into(),
+                    kind: "BIGINT".into(),
+                    nullable: false,
+                },
+                Column {
+                    name: "AMOUNT".into(),
+                    kind: "DECIMAL".into(),
+                    nullable: true,
+                },
+                Column {
+                    name: "INSTANT".into(),
+                    kind: "TIMESTAMP".into(),
+                    nullable: true,
+                },
+            ],
+            keys: Vec::new(),
+            budget: ReadBudget::default(),
+        };
+        let row = vec![
+            Some(i64::MIN.to_string()),
+            Some("-99999999999999999999999.12345678".into()),
+            Some("2026-11-05-01.02.03.123456789012".into()),
+        ];
+        let result = batch(&plan, &[row.clone()]).unwrap();
+        let text = result
+            .column(2)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+        assert_eq!(text.value(0), row[2].as_deref().unwrap());
+        let mut invalid = row;
+        invalid[0] = Some("9223372036854775808".into());
+        assert!(batch(&plan, &[invalid.clone()]).is_err());
+        invalid[0] = None;
+        assert!(batch(&plan, &[invalid]).is_err());
+        assert_eq!(batch(&plan, &[]).unwrap().num_columns(), 3);
     }
 }

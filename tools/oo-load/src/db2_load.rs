@@ -24,6 +24,7 @@ pub(super) async fn run(
         &source.user,
         zeroize::Zeroizing::new(store.read(&source.password.secret_ref)?),
     );
+    config.scope = tables.to_vec();
     if source.tls_ca.is_some() {
         // The trusted wrapper mounts this source's caller-supplied CA read-only.
         config.tls_ca = Some("/run/oo-source/ca.pem".into());
