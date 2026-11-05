@@ -323,11 +323,53 @@ async fn oracle_lob_budget_and_hash() {
         .unwrap_err();
     assert_eq!(error.fact(), Some("lob_value_over_budget"));
     assert!(sink.rows.is_empty(), "over-limit row must not be delivered");
+    let mut cycle = oo_connectors::oracle::engine::c5::OracleC5::new(plan, None, 3).unwrap();
+    let first = cycle
+        .cycle(&mut engine, &ReadBudget::default())
+        .await
+        .unwrap();
+    assert!(first.metrics.rewrites > 0);
+    let idle = cycle
+        .cycle(&mut engine, &ReadBudget::default())
+        .await
+        .unwrap();
+    assert_eq!(idle.metrics.rewrites, 0);
+    assert_eq!(idle.metrics.payload_bytes, 0);
+    let admin = connect(&f, true);
+    let mut previous = engine.digest_range(&table, None, None).await.unwrap();
+    for sql in [
+        "UPDATE LOB_EDGES SET C=C||'tail' WHERE ID=1",
+        "UPDATE LOB_EDGES SET N=N||TO_NCLOB('tail') WHERE ID=1",
+        "DECLARE v BLOB; BEGIN SELECT B INTO v FROM LOB_EDGES WHERE ID=1 FOR UPDATE; \
+         DBMS_LOB.WRITEAPPEND(v,1,HEXTORAW('42')); END;",
+    ] {
+        execute(&admin, sql);
+        admin.commit().unwrap();
+        let changed = engine.digest_range(&table, None, None).await.unwrap();
+        assert_ne!(
+            previous.digest, changed.digest,
+            "LOB suffix must affect digest"
+        );
+        assert_eq!(changed.rows, 3);
+        previous = changed;
+        let changed = cycle
+            .cycle(&mut engine, &ReadBudget::default())
+            .await
+            .unwrap();
+        assert!(changed.metrics.rewrites > 0);
+        let idle = cycle
+            .cycle(&mut engine, &ReadBudget::default())
+            .await
+            .unwrap();
+        assert_eq!(idle.metrics.rewrites, 0);
+        assert_eq!(idle.metrics.payload_bytes, 0);
+    }
     std::fs::write(
         f.out.join("lob-result.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
             "version": probe.version, "rows": rows.len(), "sha256_verified": true,
             "empty_distinct_from_null": true, "oversize_error": error.fact(),
+            "lob_suffix_changes_detected": 3, "idle_c5_rewrites": 0,
         }))
         .unwrap(),
     )

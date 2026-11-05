@@ -21,6 +21,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", choices=IMAGES, required=True)
     parser.add_argument("--run-id", required=True)
+    parser.add_argument("--lane", choices=("c", "e"), default="e")
     parser.add_argument("--worker-image", help="local thick-worker image; required for 11g")
     parser.add_argument("--lob-only", action="store_true", help="bounded locator/Arrow regression")
     parser.add_argument("--undo-stress", action="store_true",
@@ -77,7 +78,7 @@ def main():
         for target in (image["Config"].get("Volumes") or {}):
             # Disposable fixture data must not fill the host's small free disk.
             mounts += ["--tmpfs", f"{target}:rw,size=12g,mode=0777"]
-        container_id = run(["docker", "create", "--name", name, "--label", "oo.lane=e",
+        container_id = run(["docker", "create", "--name", name, "--label", "oo.lane=" + args.lane,
              "--label", "oo.run_id=" + args.run_id, "--platform", platform,
              "--env-file", str(env_file), "-p", "127.0.0.1::1521",
              *mounts, pinned], "create").strip()
@@ -113,7 +114,7 @@ def main():
             }, indent=2) + "\n")
             admin_script = Path(__file__).resolve().with_name("fixture_admin.py")
             worker_id = run(["docker", "create", "--platform", "linux/amd64",
-                "--label", "oo.lane=e", "--label", "oo.run_id=" + args.run_id,
+                "--label", "oo.lane=" + args.lane, "--label", "oo.run_id=" + args.run_id,
                 "--mount", f"type=bind,src={admin_script},dst=/fixture_admin.py,readonly",
                 "--mount", f"type=bind,src={admin_script.parent / 'worker/worker.py'},dst=/worker.py,readonly",
                 "--entrypoint", "sleep", worker_digest, "infinity"], "worker-create").strip()

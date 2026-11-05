@@ -2304,6 +2304,58 @@ impl OracleEngine {
         } else {
             None
         };
+        if meta.columns.iter().any(|c| c.kind.is_lob()) {
+            // Reuse the bounded locator reader on both thin and thick transports.
+            // One SCN keeps all locator pieces in the same range snapshot.
+            let budget = ReadBudget::default();
+            let scn = match snapshot {
+                Some(scn) => scn,
+                None => self.current_scn()?,
+            };
+            let sql = page_sql(
+                &d,
+                &table.schema,
+                &table.name,
+                &meta.columns,
+                range,
+                scn,
+                budget.max_chunk_rows + 1,
+            )?;
+            let infos: Vec<ColumnInfo> = meta.columns.iter().map(ColumnInfo::from).collect();
+            let schema = Arc::new(chunk_schema(table, &infos));
+            let mut sink = c5::DigestSink::default();
+            let mut writer = HashWriter {
+                hasher: Sha256::new(),
+                bytes: 0,
+            };
+            let mut ipc = StreamWriter::try_new(&mut writer, &schema)
+                .map_err(|_| SourceError::protocol("arrow_ipc"))?;
+            let mut progress = Progress::default();
+            self.run_page(
+                &sql,
+                &meta,
+                &schema,
+                &mut sink,
+                &mut ipc,
+                Instant::now() + Duration::from_millis(budget.statement_timeout_ms),
+                budget.max_chunk_bytes,
+                &mut progress,
+            )
+            .map_err(|e| match e {
+                PageError::Source(e) => e,
+                PageError::Driver(e) => map_driver(&e),
+            })?;
+            if progress.rows > budget.max_chunk_rows {
+                return Err(SourceError::budget("digest_over_budget_split"));
+            }
+            return Ok(RangeDigest {
+                table: table.clone(),
+                lo: lo.map(<[KeyValue]>::to_vec),
+                hi: hi.map(<[KeyValue]>::to_vec),
+                rows: progress.rows,
+                digest: sink.digest(),
+            });
+        }
         let sql = digest_sql(
             &d,
             &table.schema,

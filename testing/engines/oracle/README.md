@@ -318,15 +318,24 @@ Both thin and 11g thick transports use the remaining `ReadBudget` chunk bytes
 as their limit (including hex expansion), with bounded locator reads and a
 deadline. Over-limit values fail with `lob_value_over_budget`; no truncated
 value or successful receipt is returned. A caller must discard unpublished
-chunk staging on any error, as with other chunk failures. Source SQL digest
-of LOBs remains explicitly unsupported (`lob_source_digest_requires_streaming`);
-this does not disable snapshot Arrow IPC SHA-256 verification.
+chunk staging on any error, as with other chunk failures. C5 ranges containing
+LOBs use the same bounded locator reader at one SCN, then hash typed cells on
+the client. Four wrapping SHA-256 lanes preserve row multiplicity without
+depending on fetch order or retaining the range in memory. No DBMS_CRYPTO
+grant is required. Scalar-only ranges retain their SQL digest path.
+
+The digest API has no caller budget argument, so LOB digests use its existing
+default ReadBudget: 100,000 rows, 32 MiB canonical bytes and a 30-second
+deadline, with the normal source protection and pacing. An extra-row probe
+rejects oversized ranges rather than hashing a truncated prefix. A changed
+digest algorithm conservatively invalidates previously saved range digests.
 
 Run the focused live test with `run.py --version <23|21|11> --run-id <id>
 --lob-only`, adding the pinned thick worker image for 11g. It checks multichunk
 CLOB/NCLOB/BLOB content, Unicode, empty/NULL values, receipt SHA-256 and a
-4096-byte overflow refusal. Fixtures use disposable tmpfs rather than host
-database bind directories.
+4096-byte overflow refusal, suffix-only changes to each LOB type, and idle C5
+cycles with no replacements or payload. Fixtures use disposable tmpfs rather
+than host database bind directories. Pass `--lane c` for lane-C ownership.
 
 ## Oracle T1 against Agent DB
 

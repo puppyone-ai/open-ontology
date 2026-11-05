@@ -822,6 +822,55 @@ mod tests {
     }
 
     #[test]
+    fn lob_digest_pages_keep_locators_snapshot_bounds_and_overflow_probe() {
+        let cols = vec![
+            col("ID", "NUMBER"),
+            col("C", "CLOB"),
+            col("N", "NCLOB"),
+            col("B", "BLOB"),
+        ];
+        let keys = [&cols[0]];
+        let lo = [KeyValue::Int(10)];
+        let hi = [KeyValue::Int(20)];
+        for version in ["11.2.0.2.0", "21.3.0.0.0", "23.5.0.24.07"] {
+            let sql = page_sql(
+                &dialect(version),
+                "APP",
+                "T",
+                &cols,
+                PageRange::Keyset {
+                    keys: &keys,
+                    lower: Some(Bound {
+                        values: &lo,
+                        inclusive: true,
+                    }),
+                    upper: Some(Bound {
+                        values: &hi,
+                        inclusive: false,
+                    }),
+                },
+                42,
+                100_001,
+            )
+            .unwrap();
+            assert!(sql.text.contains(",\"C\",\"N\",\"B\" FROM"));
+            assert!(sql.text.contains("AS OF SCN :b1"));
+            assert!(sql.text.contains("\"ID\" >= :b2"));
+            assert!(sql.text.contains("\"ID\" < :b3"));
+            assert!(sql.text.contains("100001"));
+            assert!(!sql.text.contains("HASH"));
+            assert_eq!(
+                sql.binds,
+                [
+                    Bind::Number("42".into()),
+                    Bind::Number("10".into()),
+                    Bind::Number("20".into()),
+                ]
+            );
+        }
+    }
+
+    #[test]
     fn extents_group_and_bigfile_rowid_parts() {
         let e = |block_id, blocks| Extent {
             data_object_id: 7,

@@ -25,6 +25,36 @@ pub struct C5Cycle {
     pub replacements: Vec<(ChunkSpec, Vec<RecordBatch>)>,
 }
 
+/// Constant-memory, order-independent and duplicate-sensitive range digest.
+#[derive(Default)]
+pub(super) struct DigestSink {
+    lanes: [u64; 4],
+}
+
+impl DigestSink {
+    pub(super) fn digest(&self) -> String {
+        format!(
+            "typed-v1:client-sha256-sum:{:016x}-{:016x}-{:016x}-{:016x}",
+            self.lanes[0], self.lanes[1], self.lanes[2], self.lanes[3]
+        )
+    }
+}
+
+impl ChunkSink for DigestSink {
+    fn push(&mut self, batch: RecordBatch) -> Result<(), SourceError> {
+        for row in 0..batch.num_rows() {
+            let mut hash = Sha256::new();
+            for col in batch.columns() {
+                super::super::typed::hash_cell(&mut hash, col, row)?;
+            }
+            for (lane, bytes) in self.lanes.iter_mut().zip(hash.finalize().chunks_exact(8)) {
+                *lane = lane.wrapping_add(u64::from_be_bytes(bytes.try_into().unwrap()));
+            }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone)]
 struct SavedRange {
     digest: RangeDigest,
@@ -283,6 +313,37 @@ impl ChunkSink for Capture {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn streaming_digest_preserves_lob_content_nulls_and_duplicates() {
+        fn digest(rows: &[Option<&str>], batch_size: usize) -> String {
+            let mut sink = DigestSink::default();
+            for rows in rows.chunks(batch_size) {
+                let batch = RecordBatch::try_from_iter(vec![(
+                    "lob",
+                    Arc::new(StringArray::from(rows.to_vec())) as ArrayRef,
+                )])
+                .unwrap();
+                sink.push(batch).unwrap();
+            }
+            sink.digest()
+        }
+        let text = "\u{4e2d}\u{1f600}\0".repeat(5000);
+        let changed = format!("{text}x");
+        let rows = [Some(text.as_str()), None, Some("")];
+        assert_eq!(digest(&rows, 1), digest(&rows, 3));
+        assert_eq!(digest(&rows, 1), digest(&[Some(""), Some(&text), None], 2));
+        assert_ne!(
+            digest(&rows, 3),
+            digest(&[Some(&changed), None, Some("")], 3)
+        );
+        assert_ne!(digest(&[None], 1), digest(&[Some("")], 1));
+        assert_ne!(
+            digest(&rows, 3),
+            digest(&[Some(&text), None, Some(""), None], 4)
+        );
+        assert_ne!(digest(&[Some("00ff")], 1), digest(&[Some("00fe")], 1));
+    }
 
     #[test]
     fn content_is_order_independent_and_preserves_multiplicity() {
