@@ -17,3 +17,8 @@ Resume note (E314): your first run was stopped by the host disk guard (E269). Th
 c1172b1bf and uncommitted tools/oo-load changes — review them, commit what is correct, then rebase on
 v0.2/product-loops (it moved a lot: typed Oracle, negative-scale decimals, SQL Server/OLAP arms in tools/oo-load).
 Dispatch now deletes every Cargo target dir after a run: build what you need first.
+Resume note 2 (E342): disk is no longer a constraint (≈490 GB free). D18 allows CC0-1.0 for tiny-keccak (ci/deny.toml).
+Rebase, apply your `testing/engines/document/coordinator.patch` items you need to your own files only where they are
+yours; shared ones (pipeline jsonb mapping, comparator hook) — implement them now as separate commits with tests (granted
+for this card: crates/oo-pipeline/src/engine_load_pg.rs jsonb mapping and tools/oo-test comparator hook). Then finish
+T0/T1/T2/T8 for MongoDB, OpenSearch and Elasticsearch with explicit verdict rows (tools/oo-test/verdicts.py).
