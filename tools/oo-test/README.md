@@ -183,6 +183,39 @@ rows for both variants to prevent an old CDC/digest pass surviving omission.
 Bare fixture T0 exports `skip`, not a product-doctor pass; install a real
 `--hook T0=PATH` to produce product T0 evidence.
 
+### Product T0 hook
+
+```sh
+cargo build --locked -p oo-cli
+CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path deploy/lite/mysql-doctor/Cargo.toml
+OO_TEST_LANE=h tools/oo-test/oo-test matrix --all --suites T0 --hook T0=tools/oo-test/t0.py
+```
+
+For Oracle 11g, also set `OO_TEST_ORACLE_WORKER_IMAGE` to the content ID of
+the trusted, locally built thick-worker image. Oracle 19c remains an explicit
+failure until its licensed image is locked.
+
+The hook runs the real `oo doctor --json` with an isolated temporary HOME
+and generated fixture-only secrets. It checks the measured version, capability
+states, missing-privilege DBA advice, chunk plans/unknown byte estimates and
+the agreement of JSON readiness with process status in `auto`, `C5` and `C1`.
+Planning covers `events` and `order_lines` on the seeded fixture, not all
+tables. The reader has snapshot grants but lacks C1 setup: a correctly
+diagnosed C1 block passes this diagnostic case, **not C1 acceptance**.
+The model endpoint is a loopback synthetic replay; no paid calls or user
+secrets are used. Admin-only TLS and Oracle FLASHBACK setup precede probing.
+Do not combine this hook with T1 on MySQL: both independently configure the
+host reader; use separate matrix invocations.
+
+Doctor currently hardcodes lane A for its Oracle worker. A private exact-argv
+Docker shim changes only that invocation's resource labels/name to lane H
+and this run ID, forwards IO unchanged, and rejects all other invocations.
+The hook checks ownership before cleaning up a stranded worker. This is test
+resource isolation, not a replacement doctor or a changed capability verdict.
+Raw JSON/exit records and hash-bound `index-rows.json` remain under
+`product-t0/`; malformed reports, wrong versions, missing fields, readiness
+disagreement, planning errors and cleanup failures cannot pass.
+
 `downgrade-report.json` lists all non-passes and never edits shared matrix
 files. The coordinator must ingest the index and apply its generator;
 capability promotion still requires review of the hooked tests. A zero
