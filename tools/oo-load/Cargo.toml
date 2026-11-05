@@ -14,7 +14,7 @@ document-sources = ["oo-connectors/opensearch", "oo-connectors/mongodb"]
 
 [dependencies]
 oo-pipeline = { path = "../../crates/oo-pipeline" }
-oo-connectors = { path = "../../crates/oo-connectors", features = ["oracle", "mysql", "sqlserver", "olap", "db2"] }
+oo-connectors = { path = "../../crates/oo-connectors", features = ["oracle", "mysql", "sqlserver", "olap", "db2", "dm8"] }
 oo-stack = { path = "../../crates/oo-stack" }
 arrow-array = { version = "=60.0.0", default-features = false }
 arrow-ipc = { version = "=60.0.0", default-features = false }

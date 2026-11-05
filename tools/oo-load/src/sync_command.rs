@@ -48,6 +48,7 @@ pub(super) fn validate_engine(
             | "mariadb"
             | "tidb"
             | "oceanbase"
+            | "dm8"
     ) && opts.contains_key("--c5")
         && !opts.contains_key("--sync")
         && !opts.contains_key("--handoff")
@@ -81,6 +82,7 @@ mod tests {
             "mariadb",
             "tidb",
             "oceanbase",
+            "dm8",
         ] {
             let mut opts = BTreeMap::from([("--c5".into(), "cycle.json".into())]);
             assert!(validate_engine(engine, &opts).is_ok());

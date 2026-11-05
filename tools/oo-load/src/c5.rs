@@ -87,7 +87,7 @@ pub(super) async fn run<E: epoch::Epoch>(
     result
 }
 
-async fn run_cycle<E: epoch::Epoch>(
+pub(super) async fn run_cycle<E: epoch::Epoch>(
     engine: &mut E,
     source: &Source,
     tables: &[TableRef],

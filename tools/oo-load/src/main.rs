@@ -16,6 +16,7 @@ use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
 mod c5;
 mod db2_load;
+mod dm8_load;
 mod documents;
 mod epoch;
 #[cfg(feature = "mysql-binlog")]
@@ -339,6 +340,7 @@ async fn execute() -> Result<(), String> {
             println!(
                 "oo-load --stack FILE --source ID [--tables schema.table,...] --target FILE\n\
                 [--secrets-dir DIR] [--chunk-rows N] [--oracle-worker EXECUTABLE] [--db2-worker EXECUTABLE]\n\
+                [--dm8-worker EXECUTABLE]\n\
                 [--sync FILE] Explicit epoch-bound C1; MySQL requires mysql-binlog; Oracle requires opt-in.\n\
                 [--c5 FILE] PostgreSQL/MySQL/Oracle C5 range cycle over an existing snapshot.\n\
                 [--handoff FILE] Atomic MySQL multi-source C5-to-C1 repair (mysql-binlog feature).\n\
@@ -361,6 +363,7 @@ async fn execute() -> Result<(), String> {
             "--chunk-rows",
             "--oracle-worker",
             "--db2-worker",
+            "--dm8-worker",
             "--sync",
             "--c5",
             "--handoff",
@@ -386,6 +389,7 @@ async fn execute() -> Result<(), String> {
             "--chunk-rows",
             "--oracle-worker",
             "--db2-worker",
+            "--dm8-worker",
         ]
         .iter()
         .any(|k| opts.contains_key(*k))
@@ -510,6 +514,7 @@ async fn execute() -> Result<(), String> {
     let tunnel = oo_connectors::transport::ssh::connect(source, &store).await?;
     match source.engine.as_str() {
         "db2" => db2_load::run(source, &tables, &target, &store, &budget, &opts).await,
+        "dm8" => dm8_load::run(source, &tables, &target, &store, &budget, &opts).await,
         "sqlserver" => sqlserver_load::run(source, &tables, &target, &store, &budget, &opts).await,
         "postgres" | "kingbase" => {
             let config = (|| {
