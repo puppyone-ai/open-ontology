@@ -1,0 +1,184 @@
+{
+  "plan": [
+    "S6-M-01",
+    "S6-M-02"
+  ],
+  "status": "partial",
+  "run_id": "m-s6d-20261105",
+  "source_base": "8ecf59fa90dd64318f9965441c3c688a9dcbcf76",
+  "rebased_onto": "f98b4238cd4ecf1015d4ab145dc55282f1fcefd8",
+  "rebase": "already up to date; inherited S5/S6 commits retained",
+  "release_builds": {
+    "linux-arm64": {
+      "status": "passed",
+      "binary_sha256": "136f6ebe1b85b28b5a5837ac8e350eb58e04ec2c17d143de5f2b92c8b0e3b3a6",
+      "build_log_sha256": "05fdc4774c9f50ea2a6058f18ea7b5c815e9027d4db42050fa957496f69ba04f",
+      "smoke_log_sha256": "2ac3d8cfc46d796d3952e4ebd7e51dd9b6746c703a8de1a122149d56de4468b7",
+      "checks": [
+        "oo --version",
+        "oo doctor --help"
+      ],
+      "tested_distributions": [
+        "Debian 11, glibc 2.31",
+        "Ubuntu 22.04.5, glibc 2.35"
+      ],
+      "max_required_glibc": "2.30",
+      "compiler": "Rust 1.98.1",
+      "linker": "Zig 0.14.1 via cargo-zigbuild 0.23.2; glibc 2.31 sysroot"
+    },
+    "linux-x64": {
+      "status": "passed",
+      "binary_sha256": "c50cd5b560d2592854a9878c5d3e0611ecce6089679c85e3b34e9b3786c340c9",
+      "build_log_sha256": "a19261b44d09de01727a71e2d7c88c0fbebbad93bc2ce978e32a7e2cc70197ea",
+      "smoke_log_sha256": "2ac3d8cfc46d796d3952e4ebd7e51dd9b6746c703a8de1a122149d56de4468b7",
+      "checks": [
+        "oo --version",
+        "oo doctor --help"
+      ],
+      "tested_distributions": [
+        "Debian 11, glibc 2.31",
+        "Ubuntu 22.04.5, glibc 2.35"
+      ],
+      "max_required_glibc": "2.30",
+      "compiler": "Rust 1.98.1",
+      "linker": "Zig 0.14.1 via cargo-zigbuild 0.23.2; glibc 2.31 sysroot"
+    },
+    "darwin-arm64": {
+      "status": "passed",
+      "binary_sha256": "085ceef62785189a7b8e5242a3c27069553747632434e24cbc392e0fbe6b0a9b",
+      "build_log_sha256": "5d2aa28c8f09b70b5b147b954f8d4ab5c72f27d76399125401c2e77d795df467",
+      "smoke_log_sha256": "a6577383e71e1137bfb7db432194a8a8fcb03e4cf9c7bab77f41aee1148d6132",
+      "checks": [
+        "oo --version",
+        "oo doctor --help"
+      ],
+      "minimum_macos": "11.0 (otool LC_BUILD_VERSION)"
+    },
+    "darwin-x64": {
+      "status": "CI-only, not_run",
+      "target": "x86_64-apple-darwin",
+      "recipe": "cross-build in cli-binaries.yml; not present in a local release tarball"
+    }
+  },
+  "release_pack": {
+    "status": "blocked",
+    "command": "node packages/cli/scripts/stage.mjs --output <ignored-package-dir> --notices <inventory-dir> --partial true --binary darwin-arm64=<release-binary>",
+    "exit": 1,
+    "reason": "dependency source notice collection is incomplete",
+    "missing_notices": [
+      {
+        "name": "delegate",
+        "version": "0.13.5",
+        "unresolved": [
+          "license_text_missing"
+        ]
+      },
+      {
+        "name": "flatbuffers",
+        "version": "25.12.19",
+        "unresolved": [
+          "license_text_missing"
+        ]
+      },
+      {
+        "name": "objc2-core-foundation",
+        "version": "0.3.2",
+        "unresolved": [
+          "license_text_missing"
+        ]
+      },
+      {
+        "name": "objc2-system-configuration",
+        "version": "0.3.2",
+        "unresolved": [
+          "license_text_missing"
+        ]
+      },
+      {
+        "name": "russh",
+        "version": "0.65.0",
+        "unresolved": [
+          "license_text_missing"
+        ]
+      },
+      {
+        "name": "russh-cryptovec",
+        "version": "0.62.0",
+        "unresolved": [
+          "license_text_missing"
+        ]
+      },
+      {
+        "name": "russh-util",
+        "version": "0.52.0",
+        "unresolved": [
+          "license_text_missing"
+        ]
+      },
+      {
+        "name": "tiberius-macros",
+        "version": "0.1.0",
+        "unresolved": [
+          "license_text_missing"
+        ]
+      }
+    ],
+    "baseline": "The base collector reproduces the same eight gaps. No guard was weakened.",
+    "synthetic_pack_test": "All four declared binaries and image sidecars are asserted inside the test tarball; this is not a real four-platform release artifact."
+  },
+  "quickstart": {
+    "status": "not_done",
+    "fresh_home_install": "not_run: release staging refused before producing the tarball",
+    "postgres_17_11_init_build_agent": "not_run",
+    "model_credentials": "No authorized in-worktree endpoint/key files were supplied; existing external token/secret files were not accessed.",
+    "doc_fixes": [
+      "Remove temporary registry-status prose.",
+      "Verify installed executable before initialization.",
+      "Correct RETAINED-BUILD.md relative link.",
+      "Stop describing implemented remote dispatch as an unimplemented feature; no remote acceptance claimed."
+    ],
+    "registry": "Per task card, 0.2.0 is not published; no registry install or publication attempted in this run."
+  },
+  "bundle_evidence": "deploy/lite/s6d-bundle-evidence.json",
+  "validation": {
+    "cargo_check_workspace_locked": "passed",
+    "cargo_test_cli_stack": {
+      "passed": 97,
+      "ignored": 2
+    },
+    "cargo_fmt_cli_stack_check": "passed",
+    "node_tests": 47,
+    "license_inventory_tests": 5,
+    "lite_tests": 79,
+    "generated_doc_tests": 8,
+    "generated_doc_checks": "passed",
+    "spec_plan_v02_checks": "passed",
+    "workflow_yaml_and_shell_syntax": "passed"
+  },
+  "preexisting_failure": {
+    "test": "gen_error_reference.py --check",
+    "base_result": "Generated documentation differs: docs/guide/troubleshooting.md",
+    "resolution": "Regenerated from the rebased source; current checks pass."
+  },
+  "shared_file_patches": [],
+  "cargo_lock_changes": false,
+  "ci_execution": "not_run; no push or PR",
+  "containers_left_running": 0,
+  "evidence_sha256": {
+    "rebase.log": "a66ff24cd9fdf7fc889f1a0bf9b46d29a74df764e3813d03ac0df388824fc44f",
+    "precommit-build.log": "3f6067be8bb4a1a7dade104174d23a1a141f5d9cfdb52849e05536644739d2fe",
+    "precommit2-build.log": "c732ea293821351a061b5d215d6ce9f236a6df8b4413b3e7affd947702a05639",
+    "cli-stack-tests.log": "412b1e67e4aedcc07d18bc0bbef6812b44cb1c272d4c9f1000b3ab78b0cd5077",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "npm-tests-final.log": "4dcbd0547f851cb6cf69fce2b036462a7fb01e9db90b4cd1f3c3713f3fc6bd12",
+    "license-tests-final.log": "1df0dc843fbde79fd29b1d33831815ffd9089eb1b69f6ce31856db5fb25a1765",
+    "lite-tests.log": "35ab7242b394f4b393a6e462574c121bb82d462b33c15d17799cccfd95e586f2",
+    "generated-docs-accepted.log": "6b6d21a4161c4324f2d054ec7c98da65301a3d74510ab9a70d753085996b7d90",
+    "base-error-doc-check.log": "debf94deb0dfcf7cbaf0a4941c885d0cf6d95857ce98906ae2c0c8227ce3188e",
+    "base-license-gaps.json": "c34bfc3d63042ee30b5011a3b80926d9e0233199eff281792a5a4e0dd9311291",
+    "quickstart-staging.log": "f38e2b7112e96db84f42250405cdd90d7f5130de5e047ebd45c1d76dfd4900f1",
+    "glibc-versions.json": "92b0196a2eae533051747fe32f96fccd28e00b0ddf86999b3c44707c078ae84c",
+    "cleanup.json": "6e071b565cf448aa9be6c97de71b32c8d5f40df86c39964b59ba8132e04b9777",
+    "workflow-yaml.log": "647e3742b03815f592fdd1ef489d6e257638e9f0c54f19ec600909046bcca59e"
+  }
+}

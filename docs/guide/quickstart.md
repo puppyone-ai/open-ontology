@@ -5,11 +5,6 @@ give the resulting share prompt to your Agent. Allow about three minutes for
 a small, already-prepared source after installation; image downloads, source
 size, model latency and careful owner review can take longer.
 
-**Release gate (2026-11-05):** the fresh-HOME check for this document received
-npm `ETARGET` for `@reduxxx888/ontology-cli@0.2.0`. The public-install path is
-therefore blocked at step 1. Do not substitute an older version. The flow below
-matches the locally packaged A4 L1 run, not a claim of public release readiness.
-
 ## Before starting
 
 - Use Node.js 22 or later, npm, a terminal, and running Docker with Compose.
@@ -37,9 +32,8 @@ matches the locally packaged A4 L1 run, not a claim of public release readiness.
 npm install --global @reduxxx888/ontology-cli@0.2.0
 ```
 
-Stop if npm reports `ETARGET`/`E404`; the remainder cannot work from that
-installation. A release owner may provide a verified locally packaged 0.2.0
-archive for testing, but that is not the public npm-install acceptance.
+Stop if installation fails; the remainder requires a working `oo` executable.
+Check `oo --version` and `oo doctor --help` before continuing.
 
 ## 2. Initialize in a new private working directory
 
@@ -161,8 +155,9 @@ oo status --target ssh --config stack.yaml --json
 ```
 
 Credentials travel on stdin into owner-private files; image identity and the
-host key remain pinned. Remote retained `oo build` is an open product gap in
-A4's evidence. Do not claim that remote up/status completes L1.
+host key remain pinned. The CLI also dispatches remote builds, but this guide
+does not provide a new remote build acceptance run. Do not claim that remote
+up/status completes L1.
 Unlike local down, remote down removes the deployment's owned volumes too;
 review that destructive difference before choosing it.
 
@@ -176,13 +171,8 @@ TTY and stack-file modes, locally packaged npm CLI. Raw A4 evidence is not
 present in this worktree; this document does not claim to have rerun it.
 Remote forms come from `deploy/lite/test_remote_ssh.py`, not a new remote run.
 
-The fresh-HOME docs-only attempt is `m-s6c-20261105`: public install failed
-with `ETARGET`; init/up/build/login/query on PostgreSQL 17.11 were therefore
-**not run**. No live model credentials were supplied to this card.
-The separate arm64 bundle test stopped at image preflight; see troubleshooting.
-
 For every current command's captured help, see the
 [generated CLI reference](../reference/cli.md). For developer-only explicit
 runtime overrides, see
-[`RETAINED-BUILD.md`](../crates/oo-cli/src/admin/RETAINED-BUILD.md);
+[`RETAINED-BUILD.md`](../../crates/oo-cli/src/admin/RETAINED-BUILD.md);
 those overrides are not needed for local lite.
