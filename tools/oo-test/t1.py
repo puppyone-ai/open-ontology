@@ -87,7 +87,7 @@ class LaneRun(runner.Run):
             port = {"postgres": 5432, "mysql": 3306, "oracle": 1521}[self.engine]
             command[2:2] = ["-p", f"127.0.0.1::{port}"]
         # A local Docker connection refusal happens before exec is dispatched.
-        # Retry only read-only comparison/observation queries, retaining every log.
+        # Retry read-only queries and cleanup ownership inspections, retaining every log.
         data = (kwargs.get("data") or "").lstrip()
         readonly = data.startswith(("SELECT ", "SET TIME ZONE 'UTC'; SELECT ",
                                     "SET time_zone='+00:00'; SELECT "))
@@ -99,7 +99,10 @@ class LaneRun(runner.Run):
                 r"CURRENT_SCHEMA=fixture);|SET ARRAYSIZE 1000|SET LINESIZE 1024)\n)*",
                 "", body)
             readonly = body.startswith("SELECT ")
-        if command[:2] == ["docker", "exec"] and readonly:
+        inspection = (command[:2] == ["docker", "inspect"] or
+                      command[:3] in (["docker", "container", "inspect"],
+                                      ["docker", "volume", "inspect"]))
+        if inspection or command[:2] == ["docker", "exec"] and readonly:
             for attempt in range(3):
                 try:
                     return super().command(command, **kwargs)

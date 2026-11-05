@@ -122,6 +122,35 @@ class T1Tests(unittest.TestCase):
                     run.command(["docker", "exec", "owned"], data="SELECT 1;")
             self.assertEqual(call.call_count, 3)
 
+    def test_cleanup_inspection_retries_only_transport_refusal(self):
+        with tempfile.TemporaryDirectory(dir=t1.ROOT / "evidence") as temporary:
+            run = t1.LaneRun.__new__(t1.LaneRun)
+            run.path, run.seq = Path(temporary), 1
+            refusal = "Cannot connect to the Docker daemon at fixture. Is the docker daemon running?"
+            for command in (["docker", "inspect", "owned"],
+                            ["docker", "container", "inspect", "owned"],
+                            ["docker", "volume", "inspect", "owned"],
+                            ["docker", "rm", "-f", "owned"]):
+                for error, output in ((refusal, ""), (refusal, "partial"),
+                                      ("permission denied", ""), ("No such object", "")):
+                    retry = "inspect" in command and error == refusal and not output
+                    (run.path / "0001.stderr").write_text(error)
+                    (run.path / "0001.stdout").write_text(output)
+                    with patch.object(t1.runner.Run, "command",
+                                      side_effect=[RuntimeError("failed"), (0, "{}")]) as call:
+                        with patch.object(t1.time, "sleep"):
+                            if retry:
+                                self.assertEqual(run.command(command), (0, "{}"))
+                            else:
+                                with self.assertRaises(RuntimeError):
+                                    run.command(command)
+                    self.assertEqual(call.call_count, 2 if retry else 1)
+            (run.path / "0001.stderr").write_text(refusal)
+            with patch.object(t1.runner.Run, "command", side_effect=RuntimeError("failed")) as call:
+                with patch.object(t1.time, "sleep"), self.assertRaises(RuntimeError):
+                    run.command(["docker", "inspect", "owned"])
+            self.assertEqual(call.call_count, 3)
+
     def test_source_meter_fails_closed_and_enforces_aggregate_duty(self):
         class Run:
             engine = "mysql"
