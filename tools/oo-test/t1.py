@@ -614,7 +614,7 @@ def run_t1(run, binary, worker_image=None):
     relay = None
     measurements = []
     report = {"T1": "failed", "T8": "not_measured", "tables": [], "writer": {},
-              "correction": "quiesce_writer_then_reread_all_tables", "consistency": "B"}
+              "correction": "quiesce_writer_then_one_product_c5_cycle", "consistency": "B"}
     try:
         report["binary_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
         private(store / "source-password", run.reader_secret)
@@ -685,10 +685,14 @@ def run_t1(run, binary, worker_image=None):
                          "user": "postgres", "password": {"secret_ref": "target-password"}, "local_fixture": True}
         thread = threading.Thread(target=writer, args=(run, stop, report["writer"]))
         thread.start()
-        def load(run_id):
+        def load(run_id, *, correction=False):
             runner.write_json(store / "target.json", dict(target_config, run_id=run_id))
+            mode = []
+            if correction:
+                runner.write_json(store / "c5.json", {"cycle": 1, "full_read_every": 2})
+                mode = ["sync", "--run-id", run_id, "--c5", str(store / "c5.json")]
             with SourceMeter(run, len(measurements), 2 if run.engine == "postgres" else 1) as meter:
-                code, out = run.command([str(binary), "--stack", str(store / "stack.json"),
+                code, out = run.command([str(binary), *mode, "--stack", str(store / "stack.json"),
                                         "--source", "fixture", "--target", str(store / "target.json"),
                                         "--secrets-dir", str(store), "--chunk-rows", "10000", *worker_args],
                                        timeout=7200, required=False)
@@ -701,9 +705,12 @@ def run_t1(run, binary, worker_image=None):
                 raise RuntimeError(f"{run_id} product load failed")
             if len(receipts) != len(tables):
                 raise RuntimeError("incomplete table receipts")
-            if any(r["read_budget"]["duty_cycle_percent"] != meter.duty for r in receipts):
+            if correction and any(r.get("protocol") != "oo.sync/v1" or r.get("mode") != "c5"
+                                  for r in receipts):
+                raise RuntimeError("correction did not use product C5")
+            if not correction and any(r["read_budget"]["duty_cycle_percent"] != meter.duty for r in receipts):
                 raise RuntimeError("sampled budget does not match product ReadBudget")
-            if run.engine == "mysql" and any(
+            if not correction and run.engine == "mysql" and any(
                     ".".join(str(r["version"][key]) for key in ("major", "minor", "patch")) !=
                     re.search(r"\d+(?:\.\d+)*", runner.resolve("mysql", run.version)["id"]).group()
                     for r in receipts):
@@ -714,10 +721,13 @@ def run_t1(run, binary, worker_image=None):
         thread.join(timeout=1800)
         if thread.is_alive() or report["writer"].get("error") or report["writer"].get("cycles", 0) < 1:
             raise RuntimeError("concurrent writer failed")
-        corrected = load("corrected")
-        replay = load("corrected")
-        if [r["target_write_bytes"] for r in replay] != [r["target_write_bytes"] for r in corrected] or not all(r["replay"] for r in replay):
+        replay = load("concurrent")
+        if [r["target_write_bytes"] for r in replay] != [r["target_write_bytes"] for r in first] or not all(r["replay"] for r in replay):
             raise RuntimeError("resume rewrote target")
+        corrected = load("corrected", correction=True)
+        if {(r["table"]["name"], r["target"]) for r in corrected} != {
+                (r["table"]["name"], r["target"]) for r in first}:
+            raise RuntimeError("correction changed loaded table scope or target")
         report["target_write_bytes"] = sum(r["target_write_bytes"] for r in first + corrected)
         for receipt in corrected:
             table = receipt["table"]["name"]

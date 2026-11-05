@@ -3,15 +3,92 @@ import datetime as dt
 from decimal import Decimal
 import struct
 import io
+import json
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import t1
 import recompare_t1
 
 
 class T1Tests(unittest.TestCase):
+    def test_concurrent_snapshot_verdict_uses_one_c5_cycle_without_reload(self):
+        root = t1.ROOT / "evidence"
+        root.mkdir(exist_ok=True)
+        for correction_fails in (False, True):
+            with self.subTest(correction_fails=correction_fails), tempfile.TemporaryDirectory(dir=root) as tmp:
+                run = MagicMock(engine="postgres", reader_secret="fixture-only")
+                run.path = Path(tmp)
+                binary = run.path / "oo-load"
+                binary.write_bytes(b"test binary")
+                run.sql.return_value = (0, "events\n")
+                first = {"table": {"name": "events"}, "target": "oo_load_data.loaded",
+                         "read_budget": {"duty_cycle_percent": 25},
+                         "target_write_bytes": 100, "replay": False}
+                corrected = dict(first, protocol="oo.sync/v1", mode="c5", target_write_bytes=10)
+                calls = []
+                def command(argv, **kwargs):
+                    if argv[:2] == ["docker", "port"]:
+                        return 0, "127.0.0.1:5432"
+                    calls.append(argv)
+                    config = json.loads((run.path / ".load-private/target.json").read_text())
+                    if len(calls) == 1:
+                        self.assertEqual(config["run_id"], "concurrent")
+                        return 0, json.dumps(first)
+                    if len(calls) == 2:
+                        self.assertEqual(config["run_id"], "concurrent")
+                        return 0, json.dumps(dict(first, replay=True))
+                    self.assertEqual(argv[1], "sync")
+                    self.assertEqual(argv[argv.index("--run-id")+1], "corrected")
+                    self.assertEqual(json.loads(Path(argv[argv.index("--c5")+1]).read_text()),
+                                     {"cycle": 1, "full_read_every": 2})
+                    return (1, "") if correction_fails else (0, json.dumps(corrected))
+                run.command.side_effect = command
+                target = MagicMock(created=False, port=5433, password="fixture-only")
+                meter = MagicMock(duty=25)
+                meter.__enter__.return_value = meter
+                meter.result.return_value = {"status": "passed"}
+                def writer(source, stop, result):
+                    result["cycles"] = 1
+                with patch.object(t1, "AgentDB", return_value=target), \
+                     patch.object(t1, "configure_pg"), patch.object(t1, "writer", writer), \
+                     patch.object(t1, "SourceMeter", return_value=meter), \
+                     patch.object(t1, "write_rows"), \
+                     patch.object(t1, "compare_pg", return_value={"equal": True}) as comparator:
+                    report = t1.run_t1(run, binary)
+                self.assertEqual(len(calls), 3)
+                self.assertNotIn("sync", calls[0])
+                self.assertNotIn("sync", calls[1])
+                self.assertEqual(report["T1"], "failed" if correction_fails else "passed")
+                if correction_fails:
+                    comparator.assert_not_called()
+                else:
+                    comparator.assert_called_once_with(run, target, corrected, "events")
+
+    def test_loaded_chunk_drop_and_duplicate_fail_comparison(self):
+        class Source:
+            def sql(self, query):
+                if "information_schema" in query:
+                    return 0, "id|bigint\namount|numeric\n"
+                return 0, "\n".join(json.dumps(row) for row in original)
+        class LoadedChunk:
+            def __init__(self, rows):
+                self.rows = rows
+            def sql(self, query):
+                return "\n".join(json.dumps(row) for row in self.rows)
+        original = [{"id": n, "amount": n} for n in range(1, 5)]
+        receipt = {"target": "oo_load_data.loaded_chunk"}
+        self.assertTrue(t1.compare_pg(Source(), LoadedChunk(original), receipt, "events")["equal"])
+        # Include a count-preserving corruption: row counts alone cannot catch it.
+        for rows in (original[:-1], original + [original[-1]],
+                     original[:2] + [original[1]] + original[3:]):
+            with self.subTest(rows=rows):
+                result = t1.compare_pg(Source(), LoadedChunk(rows), receipt, "events")
+                self.assertFalse(result["equal"])
+                self.assertIsNotNone(result["first_difference"])
+                self.assertNotEqual(*result["chunks"][0]["sha256"])
+
     def test_readonly_exec_retries_only_predispatch_transport_refusal(self):
         with tempfile.TemporaryDirectory(dir=t1.ROOT / "evidence") as temporary:
             run = t1.LaneRun.__new__(t1.LaneRun)
