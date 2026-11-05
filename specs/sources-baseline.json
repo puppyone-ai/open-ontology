@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-05",
   "timezone": "Asia/Shanghai",
-  "revision": 27,
-  "supersedes_revision": 26,
-  "supersedes_baseline_head": "8aa4094d5936f37859123150d20dc0f81fee1f32",
-  "supersedes_sha256": "883b30e90f66152dbe7cd34ad69b79f8ab315f65f67bad9024fe1ef660b9846c",
-  "review_record": "specs/source-baseline-revision-27.md",
-  "baseline_head": "70ad7fc9edd4db43851aaca55b7354dea362d674",
+  "revision": 28,
+  "supersedes_revision": 27,
+  "supersedes_baseline_head": "70ad7fc9edd4db43851aaca55b7354dea362d674",
+  "supersedes_sha256": "6418c5e8f184169017301952b1aef659db5e2f80f53c02a32e0d4d3548cb64a4",
+  "review_record": "specs/source-baseline-revision-28.md",
+  "baseline_head": "14f0472527134e49465ab94d9bcd0ed762b1a63d",
   "source_count": 26,
   "sources": [
     {
@@ -145,8 +145,8 @@
     },
     {
       "path": "docs/product/04-onboarding-and-gateway-binding.md",
-      "sha256": "34d5f143f4e612f70cca94cbbf2a7d0a273f703b768cbf6bc2eaebbe26df6c8e",
-      "bytes": 18111,
+      "sha256": "c570645286613949bc861d793cda91b613229a5c13d46448dc86d7376ebaeb45",
+      "bytes": 18169,
       "lines": 202
     },
     {
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); T7 method and D12a"
+  "review_status": "owner self-review (D6); review M5 doc corrections"
 }
