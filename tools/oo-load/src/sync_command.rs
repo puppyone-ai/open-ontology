@@ -39,7 +39,15 @@ pub(super) fn validate_engine(
 ) -> Result<(), &'static str> {
     if matches!(
         engine,
-        "mongodb" | "opensearch" | "elasticsearch" | "db2" | "kingbase"
+        "mongodb"
+            | "opensearch"
+            | "elasticsearch"
+            | "db2"
+            | "kingbase"
+            | "sqlserver"
+            | "mariadb"
+            | "tidb"
+            | "oceanbase"
     ) && opts.contains_key("--c5")
         && !opts.contains_key("--sync")
         && !opts.contains_key("--handoff")
@@ -63,7 +71,17 @@ mod tests {
 
     #[test]
     fn reconciliation_engines_accept_only_explicit_c5() {
-        for engine in ["mongodb", "opensearch", "elasticsearch", "db2", "kingbase"] {
+        for engine in [
+            "mongodb",
+            "opensearch",
+            "elasticsearch",
+            "db2",
+            "kingbase",
+            "sqlserver",
+            "mariadb",
+            "tidb",
+            "oceanbase",
+        ] {
             let mut opts = BTreeMap::from([("--c5".into(), "cycle.json".into())]);
             assert!(validate_engine(engine, &opts).is_ok());
             opts.insert("--sync".into(), "sync.json".into());
@@ -119,7 +137,7 @@ mod tests {
     fn snapshot_only_engines_cannot_silently_accept_sync_flags() {
         for mode in ["--c5", "--sync", "--handoff"] {
             let opts = BTreeMap::from([(mode.into(), "mode.json".into())]);
-            for engine in ["sqlserver", "auto", "unknown"] {
+            for engine in ["auto", "unknown"] {
                 assert_eq!(
                     validate_engine(engine, &opts),
                     Err("sync_engine_not_supported")

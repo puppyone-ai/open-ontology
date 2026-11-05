@@ -50,6 +50,7 @@ impl Epoch for PostgresEngine {
         store: &SecretStore,
         tables: &[TableRef],
     ) -> Result<String, String> {
+        self.close_idle_session().await.map_err(|e| e.to_string())?;
         let mut control = source_control_connection(source, store).await?;
         let result = sync::lineage(&mut control, tables)
             .await

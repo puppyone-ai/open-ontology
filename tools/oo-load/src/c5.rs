@@ -1,7 +1,10 @@
 use super::*;
-use oo_connectors::engine::{ChunkStrategy, RangeDigest, TableChunkPlan};
+use oo_connectors::engine::{ChunkStrategy, KeyShape, RangeDigest, TableChunkPlan};
 use oo_pipeline::engine_load::{Capture, Target};
 use std::collections::BTreeSet;
+
+#[path = "c5_keyless.rs"]
+mod keyless;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -123,16 +126,37 @@ async fn run_cycle<E: epoch::Epoch>(
             return Err("c5_rebaseline_required_lineage".into());
         }
         let plan = durable_ranges(&previous.plan, live_plan);
-        if !oo_pipeline::engine_load_pg::same_ranges(&previous.plan, &plan) {
+        let keyless = previous.plan.key == KeyShape::NoKey && plan.key == KeyShape::NoKey;
+        if !keyless && !oo_pipeline::engine_load_pg::same_ranges(&previous.plan, &plan) {
             return Err("c5_rebaseline_required_plan".into());
         }
-        engine.adopt_plan(&plan)?;
+        if !keyless {
+            engine.adopt_plan(&plan)?;
+        }
         let before = target.generations().await?;
         let mut receipts = Vec::new();
         let mut payload_bytes = 0u64;
         let mut source_read_bytes = 0u64;
         let replay = target.completed().await?.is_some();
-        if !replay {
+        if !replay && keyless {
+            let (digest, replacements, read_bytes) =
+                keyless::read(engine, &plan, &previous, budget, &mut target, &policy).await?;
+            receipts = replacements;
+            source_read_bytes = read_bytes;
+            payload_bytes = receipts.iter().map(|receipt| receipt.bytes).sum();
+            if epoch::c5_lineage(
+                engine
+                    .epoch(source, store, std::slice::from_ref(table))
+                    .await?,
+                engine.shape(table).await?,
+            ) != live_lineage
+            {
+                return Err("c5_rebaseline_required_lineage".into());
+            }
+            target
+                .publish_c5(&previous, &plan, vec![digest], &receipts, &live_lineage)
+                .await?;
+        } else if !replay {
             let mut source_digests = Vec::new();
             let mut read_chunks = Vec::new();
             for chunk in ordered_chunks(&plan, &policy)? {

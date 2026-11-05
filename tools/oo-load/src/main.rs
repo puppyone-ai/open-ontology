@@ -568,22 +568,6 @@ async fn execute() -> Result<(), String> {
                 )
                 .await;
             }
-            if let Some(path) = opts.get("--c5") {
-                return c5::run(
-                    if source.engine == "kingbase" {
-                        PostgresEngine::new_kingbase(config)
-                    } else {
-                        PostgresEngine::new(config)
-                    },
-                    source,
-                    &tables,
-                    &target,
-                    &store,
-                    &budget,
-                    serde_json::from_slice(&read(path)?).map_err(|_| "c5_config")?,
-                )
-                .await;
-            }
             // Physical ctid plans require a live exported snapshot. Keep its
             // read-only owner alive until every table has finished or failed.
             let ca = store.read(
@@ -624,7 +608,20 @@ async fn execute() -> Result<(), String> {
             }
             .with_snapshot(snapshot)
             .map_err(|e| e.to_string())?;
-            let result = run_engine(&mut engine, source, &tables, &target, &store, &budget).await;
+            let result = if let Some(path) = opts.get("--c5") {
+                c5::run(
+                    engine,
+                    source,
+                    &tables,
+                    &target,
+                    &store,
+                    &budget,
+                    serde_json::from_slice(&read(path)?).map_err(|_| "c5_config")?,
+                )
+                .await
+            } else {
+                run_engine(&mut engine, source, &tables, &target, &store, &budget).await
+            };
             owner.close().await.map_err(|_| "snapshot_close")?;
             result
         }
