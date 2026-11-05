@@ -31,6 +31,26 @@ class EnterpriseAuditTests(unittest.TestCase):
         self.assertNotIn("CREATE AUDIT POLICY", sql)
         self.assertIn("C##OO_MINER", audit.users)
 
+    def test_common_standard_query_uses_userid_and_restores_command(self):
+        run = Mock(engine="oracle", version="19", name="owned-fixture")
+        command = run.command
+        audit = adapter.EnterpriseAudit(run)
+        audit.mode = "oracle-standard"
+
+        def collect(_):
+            run.command(["docker", "exec"], data="SELECT a.sqltext FROM sys.aud$ a "
+                        "LEFT JOIN audit_actions m ON m.action=a.action# "
+                        "WHERE dbusername='C##OO_MINER' ORDER BY a.ntimestamp#;")
+            raise RuntimeError("collection failure")
+
+        with patch.object(adapter.Audit, "raw", collect):
+            with self.assertRaisesRegex(RuntimeError, "collection failure"):
+                audit.raw()
+        self.assertIs(run.command, command)
+        text = command.call_args.kwargs["data"]
+        self.assertIn("WHERE a.userid='C##OO_MINER'", text)
+        self.assertNotIn("dbusername", text)
+
     def test_metadata_correction_preserves_failed_verdicts_and_hashes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

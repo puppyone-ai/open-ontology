@@ -12,6 +12,26 @@ from audit import Audit, ORACLE_MINER
 
 
 class EnterpriseAudit(Audit):
+    def raw(self):
+        if self.run.version != "19" or self.mode != "oracle-standard":
+            return super().raw()
+        command = self.run.command
+
+        def standard_query(argv, **kwargs):
+            text = kwargs.get("data", "")
+            if "FROM sys.aud$ a LEFT JOIN audit_actions" in text:
+                # The shared common-user query currently assumes unified audit.
+                kwargs["data"] = text.replace(
+                    f"WHERE dbusername='{ORACLE_MINER}'",
+                    f"WHERE a.userid='{ORACLE_MINER}'")
+            return command(argv, **kwargs)
+
+        self.run.command = standard_query
+        try:
+            return super().raw()
+        finally:
+            self.run.command = command
+
     def enable_miner(self):
         if self.run.version != "19" or self.mode != "oracle-standard":
             return super().enable_miner()
