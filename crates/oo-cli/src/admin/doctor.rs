@@ -31,6 +31,7 @@ enum Adapter {
 fn registry() -> BTreeMap<EngineFamily, Adapter> {
     BTreeMap::from([
         (EngineFamily::Postgres, Adapter::Postgres),
+        (EngineFamily::Kingbase, Adapter::Postgres),
         (EngineFamily::Mysql, Adapter::Mysql),
         (EngineFamily::Oracle, Adapter::Oracle),
         (EngineFamily::Sqlserver, Adapter::Sqlserver),
@@ -218,6 +219,7 @@ fn family(source: &Source) -> Result<EngineFamily, &'static str> {
         "oracle" => Ok(EngineFamily::Oracle),
         "sqlserver" => Ok(EngineFamily::Sqlserver),
         "db2" => Ok(EngineFamily::Db2),
+        "kingbase" => Ok(EngineFamily::Kingbase),
         // Port selects a candidate only. The adapter must verify server identity.
         "auto" => match source.port {
             5432 => Ok(EngineFamily::Postgres),
@@ -300,7 +302,11 @@ fn postgres(
         Some(tunnel) => config.with_tunnel(tunnel).map_err(|e| e.to_string())?,
         None => config,
     };
-    Ok(PostgresEngine::new(config))
+    Ok(if family(source) == Ok(EngineFamily::Kingbase) {
+        PostgresEngine::new_kingbase(config)
+    } else {
+        PostgresEngine::new(config)
+    })
 }
 
 async fn sources(stack: &Stack) -> Vec<Value> {
@@ -345,7 +351,7 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                             routed.port = tunnel.address().port();
                         }
                         let mut report = match family {
-                            EngineFamily::Postgres => {
+                            EngineFamily::Postgres | EngineFamily::Kingbase => {
                                 match postgres(source, &selected, &store, tunnel.clone()) {
                                     Ok(mut engine) => {
                                         inspect(&mut engine, &selected, &source.sync.mode).await
@@ -507,6 +513,12 @@ mod tests {
         assert_eq!(family(&s).unwrap(), EngineFamily::Postgres);
         s.engine = "opengauss".into();
         assert!(family(&s).is_err());
+        s.engine = "kingbase".into();
+        assert_eq!(family(&s).unwrap(), EngineFamily::Kingbase);
+        assert!(matches!(
+            registry()[&EngineFamily::Kingbase],
+            Adapter::Postgres
+        ));
         assert!(matches!(registry()[&EngineFamily::Mysql], Adapter::Mysql));
         assert!(matches!(registry()[&EngineFamily::Oracle], Adapter::Oracle));
     }

@@ -511,7 +511,7 @@ async fn execute() -> Result<(), String> {
     match source.engine.as_str() {
         "db2" => db2_load::run(source, &tables, &target, &store, &budget, &opts).await,
         "sqlserver" => sqlserver_load::run(source, &tables, &target, &store, &budget, &opts).await,
-        "postgres" => {
+        "postgres" | "kingbase" => {
             let config = (|| {
                 PgSourceConfig::try_new(
                     SourceId::new(&source.id)?,
@@ -554,6 +554,9 @@ async fn execute() -> Result<(), String> {
                 None => config,
             };
             if let Some(path) = opts.get("--sync") {
+                if source.engine == "kingbase" {
+                    return Err("kingbase_pgoutput_not_available".into());
+                }
                 return sync::run(
                     config,
                     source,
@@ -567,7 +570,11 @@ async fn execute() -> Result<(), String> {
             }
             if let Some(path) = opts.get("--c5") {
                 return c5::run(
-                    PostgresEngine::new(config),
+                    if source.engine == "kingbase" {
+                        PostgresEngine::new_kingbase(config)
+                    } else {
+                        PostgresEngine::new(config)
+                    },
                     source,
                     &tables,
                     &target,
@@ -610,9 +617,13 @@ async fn execute() -> Result<(), String> {
                 .fetch_one(&mut owner)
                 .await
                 .map_err(|_| "snapshot_export")?;
-            let mut engine = PostgresEngine::new(config)
-                .with_snapshot(snapshot)
-                .map_err(|e| e.to_string())?;
+            let mut engine = if source.engine == "kingbase" {
+                PostgresEngine::new_kingbase(config)
+            } else {
+                PostgresEngine::new(config)
+            }
+            .with_snapshot(snapshot)
+            .map_err(|e| e.to_string())?;
             let result = run_engine(&mut engine, source, &tables, &target, &store, &budget).await;
             owner.close().await.map_err(|_| "snapshot_close")?;
             result
