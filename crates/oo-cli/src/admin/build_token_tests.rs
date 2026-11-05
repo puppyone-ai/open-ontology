@@ -6,8 +6,8 @@ use std::{
 };
 
 fn root(name: &str) -> std::path::PathBuf {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../evidence")
+    let path = // A private temp dir, not the repository evidence tree.
+        std::fs::canonicalize(std::env::temp_dir()).unwrap()
         .join(format!("build-token-{name}-{}", std::process::id()));
     fs::DirBuilder::new().mode(0o700).create(&path).unwrap();
     path

@@ -476,8 +476,8 @@ mod tests {
     #[test]
     fn imports_bounded_ca_into_new_private_secret_without_overwriting() {
         use std::os::unix::fs::{PermissionsExt, symlink};
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../evidence")
+        let root = // A private temp dir, not the repository evidence tree.
+        std::fs::canonicalize(std::env::temp_dir()).unwrap()
             .join(format!("wizard-import-{}", std::process::id()));
         fs::create_dir_all(&root).unwrap();
         let root = fs::canonicalize(root).unwrap();

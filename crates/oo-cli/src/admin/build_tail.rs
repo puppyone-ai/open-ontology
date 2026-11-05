@@ -296,8 +296,8 @@ mod tests {
 
     #[test]
     fn sigkill_at_each_tail_receipt_boundary_never_duplicates_dispatch() {
-        let base = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../evidence")
+        let base = // A private temp dir, not the repository evidence tree.
+        std::fs::canonicalize(std::env::temp_dir()).unwrap()
             .join(format!("oo-tail-kill-{}", std::process::id()));
         fs::DirBuilder::new().mode(0o700).create(&base).unwrap();
         for name in ["publish", "gateway", "first_token", "share_prompt"] {
@@ -347,8 +347,8 @@ mod tests {
 
     #[test]
     fn resumes_each_tail_boundary_without_reissuing_and_refuses_ambiguous_calls() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../evidence")
+        let root = // A private temp dir, not the repository evidence tree.
+        std::fs::canonicalize(std::env::temp_dir()).unwrap()
             .join(format!("oo-tail-{}", std::process::id()));
         fs::DirBuilder::new().mode(0o700).create(&root).unwrap();
         let binding = json!({"fixture":"not_a_publication"});

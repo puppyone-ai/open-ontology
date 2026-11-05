@@ -427,8 +427,8 @@ mod tests {
 
     #[test]
     fn completion_prints_share_prompt_only_for_successful_text_output() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../evidence")
+        let root = // A private temp dir, not the repository evidence tree.
+        std::fs::canonicalize(std::env::temp_dir()).unwrap()
             .join(format!("chain-completion-{}", std::process::id()));
         fs::DirBuilder::new().mode(0o700).create(&root).unwrap();
         build_retained::save(
@@ -488,8 +488,8 @@ mod tests {
 
     #[test]
     fn sigkill_preserves_each_pre_token_checkpoint_and_detects_tampering() {
-        let base = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../evidence")
+        let base = // A private temp dir, not the repository evidence tree.
+        std::fs::canonicalize(std::env::temp_dir()).unwrap()
             .join(format!("retained-chain-kill-{}", std::process::id()));
         fs::DirBuilder::new().mode(0o700).create(&base).unwrap();
         for (index, stage) in STAGES.iter().enumerate().take(6) {

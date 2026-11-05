@@ -326,8 +326,8 @@ mod tests {
         command.args(["-c", "import sys; assert sys.stdin.read()=='request'; print('receipt'); sys.stderr.write('refused'); sys.exit(2)"]);
         let result = invoke(command, b"request".to_vec(), 10).ok().unwrap();
         assert_eq!(result, (2, b"receipt\n".to_vec(), b"refused".to_vec()));
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../evidence")
+        let root = // A private temp dir, not the repository evidence tree.
+        std::fs::canonicalize(std::env::temp_dir()).unwrap()
             .join(format!("retained-save-{}", std::process::id()));
         fs::DirBuilder::new().mode(0o700).create(&root).unwrap();
         let path = root.join("receipt.json");
@@ -348,8 +348,8 @@ mod tests {
 
     #[test]
     fn configuration_pins_referenced_settings_and_requires_bounded_secret_refs() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../evidence")
+        let root = // A private temp dir, not the repository evidence tree.
+        std::fs::canonicalize(std::env::temp_dir()).unwrap()
             .join(format!("retained-config-{}", std::process::id()));
         fs::DirBuilder::new().mode(0o700).create(&root).unwrap();
         let model = root.join("model.json");
