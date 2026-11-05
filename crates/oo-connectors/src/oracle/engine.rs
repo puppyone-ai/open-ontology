@@ -15,6 +15,7 @@
 //! calls inline and await only between chunks (duty cycle, pause), so the
 //! engine belongs on a blocking-capable worker, one task per session.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::sync::Arc;
@@ -42,6 +43,15 @@ use super::keyset::{
 };
 use super::rules::{self, Dialect, Multitenant};
 use super::worker::{DriverError, Worker};
+
+fn serial_query(sql: &str) -> Cow<'_, str> {
+    // Enterprise can spawn PX sessions behind a single connection. Keep the
+    // source's one-session budget without changing database/session settings.
+    match sql.strip_prefix("SELECT ") {
+        Some(rest) => Cow::Owned(format!("SELECT /*+ NO_PARALLEL */ {rest}")),
+        None => Cow::Borrowed(sql),
+    }
+}
 
 #[path = "logminer.rs"]
 pub mod logminer;
@@ -601,7 +611,9 @@ impl OracleEngine {
 
     fn query_raw(&self, text: &str, binds: &[Bind], max_rows: usize) -> Result<Rows, DriverError> {
         if let Some(worker) = &self.worker {
-            return worker.query(text, binds, max_rows + 1)?.collect();
+            return worker
+                .query(&serial_query(text), binds, max_rows + 1)?
+                .collect();
         }
         self.query_thin(text, binds, max_rows, false)
             .map_err(Into::into)
@@ -609,7 +621,7 @@ impl OracleEngine {
 
     fn sample_statement(&mut self, text: &str, binds: &[Bind]) -> Result<(), SourceError> {
         let result = if let Some(worker) = &self.worker {
-            worker.probe(text, binds)
+            worker.probe(&serial_query(text), binds)
         } else {
             self.query_thin(text, binds, 1, true)
                 .map(|_| ())
@@ -628,6 +640,8 @@ impl OracleEngine {
         max_rows: usize,
         discard: bool,
     ) -> Result<Rows, oracledb::Error> {
+        let text = serial_query(text);
+        let text = text.as_ref();
         // Callers construct numeric binds from validated metadata or keys.
         let values = binds
             .iter()
@@ -1320,6 +1334,7 @@ impl OracleEngine {
         budget_bytes: u64,
         progress: &mut Progress,
     ) -> Result<u64, PageError> {
+        let text = serial_query(&sql.text);
         let values = bind_values(&sql.binds).map_err(PageError::Source)?;
         let refs: Vec<&dyn ToDbValue> = values
             .iter()
@@ -1332,7 +1347,7 @@ impl OracleEngine {
             .conn
             .as_ref()
             .map(|conn| {
-                conn.statement(&sql.text)?
+                conn.statement(&text)?
                     .fetch_array_size(if meta.columns.iter().any(|c| c.kind.is_lob()) {
                         1
                     } else {
@@ -1349,7 +1364,7 @@ impl OracleEngine {
             if let Some(worker) = &self.worker {
                 Box::new(
                     worker
-                        .query_bounded(&sql.text, &sql.binds, 100_001, remaining.max(1))
+                        .query_bounded(&text, &sql.binds, 100_001, remaining.max(1))
                         .map_err(PageError::Driver)?,
                 )
             } else {
@@ -2425,6 +2440,22 @@ impl SourceEngine for OracleEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn serial_reads_preserve_sql_and_bind_positions() {
+        let sql = "SELECT name FROM all_tables WHERE owner = :b1";
+        assert_eq!(
+            serial_query(sql),
+            "SELECT /*+ NO_PARALLEL */ name FROM all_tables WHERE owner = :b1"
+        );
+        let page = "SELECT id FROM (SELECT id FROM fixture AS OF SCN :b1) WHERE id > :b2";
+        assert_eq!(
+            serial_query(page),
+            "SELECT /*+ NO_PARALLEL */ id FROM (SELECT id FROM fixture AS OF SCN :b1) WHERE id > :b2"
+        );
+        let miner = "BEGIN DBMS_LOGMNR.END_LOGMNR; END;";
+        assert!(matches!(serial_query(miner), Cow::Borrowed(value) if value == miner));
+    }
 
     #[test]
     fn table_shape_tracks_metadata_not_optimizer_statistics() {
