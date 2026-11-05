@@ -9,6 +9,10 @@ P0 += [("oracle", v) for v in ("19c", "23ai", "11g", "21c")]
 
 
 def target_id(engine, version):
+    if engine == "mongodb":
+        return "mongodb"
+    if engine in ("opensearch", "elasticsearch"):
+        return "elasticsearch-opensearch"
     if engine == "sqlserver":
         return "sqlserver-selfmanaged"
     if engine == "postgres":

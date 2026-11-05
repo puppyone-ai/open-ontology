@@ -1,125 +1,83 @@
 # Lane F document sources (S5-F-02)
 
-This is a **partial delivery**, not T0-T2/T8 acceptance or a verified support
-matrix entry. Source engines and their isolated live tests exist; the MongoDB
-Agent DB boundary still needs coordinator changes.
+Partial delivery: not full T0-T2/T8 acceptance. All sources remain opt-in.
 
 ## Product surface
 
-- `oo-connectors/mongodb`: `MongoEngine` implements `SourceEngine` and
-  `ChangeSource`. Replica-set ID, collection UUIDs and explicit projections
-  bind the source epoch. Snapshots use one majority-committed `atClusterTime`,
-  simple-collation `_id` bounds and bounded cursor pages. Mixed `_id` BSON types
-  are rejected, not silently skipped by MongoDB's type-bracketed comparisons.
-- Change streams request **required** post-images, never `updateLookup` images
-  from a later time. Positions retain the opaque Extended JSON resume token,
-  cluster timestamp and sequence. They are serialized for caller persistence;
-  the library does not claim an atomic Agent DB commit. Expired history,
-  changed epochs and DDL fail closed. Same-timestamp events retain stream order.
-- `oo-connectors/opensearch`: explicit OpenSearch/Elasticsearch dialects,
-  verified TLS, exact concrete index scope, PIT renewal/cleanup, `search_after`,
-  partial-shard/timeout rejection and no log CDC. The shared family enum calls
-  both products `Opensearch`; the probe always names the actual product.
-- Scalar projections are explicit `int64`, `float64`, `bool` or `text`.
-  Missing and null both project to SQL NULL; `_document` distinguishes them and
-  preserves full BSON Extended JSON for MongoDB. Arrow marks that column with
-  `oo.document=jsonb`.
-- Search C5 ranges require a pre-existing, unnormalized, single-valued keyword
-  field and caller-specified fixed boundaries. The reader creates no field or
-  index. Null/missing/multivalued range keys are rejected inside the PIT.
-  Digests scan bounded full documents on the client; this is not a source-side
-  zero-payload digest optimization. Oversized ranges fail rather than truncate.
+- MongoDB: bounded `_id` snapshots pinned to a majority-committed cluster time,
+  explicit scalar projections plus a BSON Extended JSON document. The source
+  change-stream implementation retains opaque resume tokens, source epoch and
+  same-timestamp ordering, and requires exact post-images. Product C1 remains
+  rejected: `PgSync` needs the comparator extension in `coordinator.patch`.
+- MongoDB C5 reuses persisted key ranges, validates their shape and continuity,
+  and rejects over-budget growth rather than truncating it. Growth splitting
+  of a persisted range is not implemented.
+- OpenSearch/Elasticsearch: verified HTTPS, explicit concrete index scope,
+  PIT/search_after snapshots, PIT cleanup and partial-shard/timeout rejection.
+  No log CDC. C5 uses fixed ranges of an existing single-valued keyword field.
+- All three CLI snapshot/C5 paths store `_document` as PostgreSQL jsonb through
+  an explicit target opt-in. Ordinary text remains text. Scalar projections
+  support int64/float64/bool/text; missing and null project to SQL NULL, while
+  the full document preserves their distinction.
+- Digests scan bounded full documents on the client. Idle C5 has zero chunk
+  payload and target rewriting, **not zero source network traffic**.
 
-`oo-load --features document-sources` dispatches search snapshots and `--c5`
-through the existing target. Set `OO_SEARCH_INDEX_CONFIG` to a JSON file:
-
-```json
-{
-  "events": {
-    "range_field": "key",
-    "boundaries": ["0050", "0100", "0150"],
-    "columns": [{"name": "value", "kind": "int64"}]
-  }
-}
-```
-
-The source scope must exactly match those indices; its database is the logical
-schema name. Credentials still come exclusively from stack `secret_ref`s.
-Until the shared patch is reviewed, search `_document` is stored as **text**.
-MongoDB CLI dispatch refuses before connecting rather than silently substituting
-text for jsonb or dropping the durable resume token.
-
-## Reproduction
+Build before starting any fixtures:
 
 ```sh
-cargo test -p oo-connectors --locked --features mongodb,opensearch --lib
-python3 testing/engines/document/run.py --engine mongodb --run-id f-doc-mongo
-python3 testing/engines/document/run.py --engine opensearch --run-id f-doc-os
-python3 testing/engines/document/run.py --engine elasticsearch --run-id f-doc-es
-tools/oo-test/oo-test matrix --engine mongodb --versions 8.0.34 --suites T0-T2
+cargo build --manifest-path tools/oo-load/Cargo.toml --locked --features document-sources
+cargo test -p oo-connectors --locked --features mongodb,opensearch --test document_live --no-run
 ```
 
-Each direct runner uses one fresh `oo.lane=f` container, runtime-generated
-credentials in an ignored private directory, a separate admin identity and
-cleanup restricted to its own run labels. Search fixtures enable security and
-verified HTTPS. No privileged containers, sysctl or binfmt changes are used.
-The matrix command deliberately exits nonzero even after passing source checks:
-source-only success must not be promoted into product acceptance.
+Set `OO_MONGO_COLLECTION_CONFIG` to a JSON file mapping collection names to
+scalar declarations, e.g. `{"events":[{"name":"value","kind":"int64"}]}`.
+Authentication database is currently `admin`. Set `OO_SEARCH_INDEX_CONFIG` to:
 
-Pins use lane H's `images.pins`/`images.lock.json` shape. The OpenSearch arm64
-pin is a registry-verified, locally cached 3.9.0 build; it is intentionally not
-the subsequently rebuilt mutable tag's arm64 digest. Only arm64 was executed.
+```json
+{"events":{"range_field":"key","boundaries":["0050","0100","0150"],"columns":[{"name":"value","kind":"int64"}]}}
+```
 
-## Remaining integration
+Scope must match exactly. Credentials remain stack `secret_ref`s, never argv.
 
-`coordinator.patch` is an exact, unapplied proposal (passes `git apply --check`):
-preserve the document annotation in decoding, map it to PostgreSQL jsonb, and
-allow `PgSync` to use a caller-supplied epoch-bound comparator while retaining
-its atomic position update. It does not by itself finish MongoDB CLI sync,
-initial C1 alignment, or C5 persisted range reuse.
+## Reproduction and evidence
 
-Required follow-ups:
+```sh
+python3 testing/engines/document/run.py --engine mongodb --run-id UNIQUE_RUN_ID
+python3 testing/engines/document/run.py --engine opensearch --run-id UNIQUE_RUN_ID
+python3 testing/engines/document/run.py --engine elasticsearch --run-id UNIQUE_RUN_ID
+tools/oo-test/oo-test matrix --engine mongodb --versions 8.0.34 --suites T0-T2
+python3 -m unittest discover -s tools/oo-test
+```
 
-- Review the shared patch and test it against snapshots, C5 and transactional
-  C1 (including crash/replay); then replace the explicit MongoDB CLI refusal.
-- Persist and reuse MongoDB C5 boundaries across processes, including growth
-  splits. Fresh key sampling after insert/delete can change the plan.
-- Run full Agent DB comparisons, larger/heterogeneous fixtures and measured
-  source connection peaks/target write counts. Driver monitoring adds MongoDB
-  connections beyond its application pool of one.
-- Exercise actual oplog eviction of a valid resume token. The current test
-  rejects a position below the measured retained floor, not forced eviction.
-- Resolve the feature-only `cargo deny` CC0-1.0 rejection for transitive
-  `tiny-keccak` through the coordinator's supply-chain process or a driver
-  replacement. No license policy was relaxed and MongoDB is not default-enabled.
+The runner creates at most two owned `oo.lane=f` containers (source + Agent DB),
+uses runtime-generated credentials and separate fixture-admin/read-only users,
+and removes only resources it owns. Search security and certificate validation
+are enabled. No privileged containers, sysctl or binfmt changes are used.
+Only linux/arm64 has been executed. Pins retain lane H's format.
 
-## Resume validation (2026-11-05)
+`product.py` compares typed scalar values and exact JSON documents against a
+separate admin export. A writer starts after the first committed target chunk,
+while the source snapshot remains pinned. Three C5 cycles include update,
+insert, delete, idle, and a subsequent update. The idle cycle asserts zero
+chunk payload, target write bytes and new generations. This is a small
+200-document fixture, not the full 2M-row/300-column conformance dataset.
 
-The retained CLI and fixture changes were committed, then rebased onto
-`9af453c7e` (`v0.2/product-loops`). The proposed patch was refreshed for the
-new `numeric(20,0)` mapping without changing any shared target source file.
-Raw validation output is in `evidence/f-s5-resume-20261105/`.
+Raw outputs and explicit `verdicts.py` rows live under ignored `evidence/`.
+The matrix command still returns nonzero: product `oo doctor` (T0), measured
+source connection peaks (T8), transactional MongoDB C1 and actual eviction of
+a valid resume token are **not accepted**. Source-only checks must not promote
+those rows. The source retained-floor negative test is not token eviction.
 
-- Rebased workspace locked check passed.
-- Document-enabled `oo-load` tests passed: 35 passed, 7 live tests ignored.
-- Document-enabled connector library tests passed: 124 passed.
-- Full connector tests reproduce the pre-existing macOS failure
-  `parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes`
-  (`group_signal=rejected`, expected `sent`). A serial run on archived base
-  `9af453c7e` fails identically. With only that test excluded, 234 pass,
-  25 are ignored, and one is filtered out. The earlier overlapping base run
-  encountered executable-hash replacement; its output is retained separately.
-- Both lockfiles passed `cargo audit`. The search-enabled tool passed
-  `cargo deny`; the MongoDB-enabled workspace still fails the `tiny-keccak`
-  CC0-1.0 gate. No supply-chain policy was weakened.
-- Archived source-only results were inspected: `f-s5-mongo-08` (8.0.34),
-  `f-s5-os-04` (3.9.0), and `f-s5-es-04` (9.2.0). All explicitly mark
-  T0/T1/T2/T8 as not accepted and report successful container cleanup.
-- No fresh database fixtures were started: after builds, available host
-  space was below the repository's 20 GiB dispatch floor. This is not a
-  fresh live-engine pass. No containers were created during this resume.
+## Shared boundary
 
-S5-F-02 remains incomplete. In particular, applying `coordinator.patch`
-alone is not acceptance: MongoDB CLI baseline alignment, durable C5 range
-reuse, actual history eviction, Agent DB comparisons and measured T8 resource
-limits still require implementation and live verification.
+`coordinator.patch` now contains only the exact, unapplied `PgSync` comparator
+extension. `engine_sync_pg.rs` remains outside this card's explicit shared-file
+grant. The jsonb path was implemented without modifying the shared Arrow
+parser. The remaining C1 work requires transaction/replay tests plus snapshot
+alignment and durable-token integration; applying the patch alone is not C1
+acceptance. The Python comparator hook is implemented in
+`tools/oo-test/document_compare.py`.
+
+The standalone `tools/oo-load/Cargo.lock` adds the optional MongoDB graph;
+root Cargo.lock is unchanged. D18's existing tiny-keccak exception permits
+cargo deny; no license or security policy was weakened.

@@ -200,6 +200,7 @@ def main():
     args = parser.parse_args()
     if not args.run_id or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-_" for c in args.run_id):
         parser.error("run-id must be a safe lowercase slug")
+    olap.preflight()
     run = Run(args.engine, args.run_id, 64)
     outcome = {"engine": args.engine, "status": "failed", "acceptance": "source_only",
                "T0": "not_accepted", "T1": "not_accepted", "T2": "not_accepted", "T8": "not_accepted"}
@@ -237,6 +238,11 @@ def main():
             raise RuntimeError("observed version does not match locked product version")
         outcome["version_actual"] = expected
         outcome["status"] = "passed"
+        outcome["source_checks"] = "passed"
+        from product import acceptance
+        outcome["product"] = acceptance(run, port, ca, olap)
+        if outcome["product"].get("failure"):
+            outcome["status"] = "failed"
     except Exception as error:
         outcome["failure"] = str(error) if isinstance(error, RuntimeError) else type(error).__name__
     finally:
@@ -244,6 +250,23 @@ def main():
         if outcome["cleanup_failed"]:
             outcome["status"] = "failed"
         olap.write_json(run.path / "summary.json", outcome)
+        import sys
+        from types import SimpleNamespace
+        sys.path.insert(0, str(ROOT / "tools/oo-test"))
+        from verdicts import write_rows
+        product = outcome.get("product", {})
+        receipt = {"version_actual": outcome.get("version_actual"), "execution": "native"}
+        identity = SimpleNamespace(engine=args.engine, version={
+            "mongodb": "8.0.34", "opensearch": "3.9.0", "elasticsearch": "9.2.0"
+        }[args.engine], id=args.run_id, receipt=receipt)
+        rows = [("T0", "snapshot", "skip"),
+                ("T1", "snapshot", "pass" if product.get("T1") == "passed" else "fail"),
+                ("T2", "c5", "pass" if product.get("C5") == "passed" else "fail"),
+                ("T8", "snapshot", "skip"), ("T8", "c5", "skip")]
+        if args.engine == "mongodb":
+            rows += [("T2", "c1", "skip"), ("T8", "c1", "skip")]
+        write_rows(identity, run.path / "summary.json", rows,
+                   cleanup_failed=bool(outcome["cleanup_failed"]))
     print(json.dumps(outcome))
     return 0 if outcome["status"] == "passed" else 1
 

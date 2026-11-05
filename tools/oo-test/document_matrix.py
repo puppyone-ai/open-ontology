@@ -10,11 +10,16 @@ ROOT = Path(__file__).resolve().parents[2]
 VERSIONS = {"mongodb": "8.0.34", "opensearch": "3.9.0", "elasticsearch": "9.2.0"}
 
 
-def result(engine, returncode):
+def result(engine, returncode, product=None):
+    product = product or {}
+    suites = {suite: product.get(suite, "not_accepted")
+              for suite in ("T0", "T1", "T2", "T8")}
+    if engine == "mongodb" and product.get("C1") != "passed":
+        suites["T2"] = "not_accepted"
     return {"engine": engine, "version": VERSIONS[engine],
             "source_checks": "passed" if returncode == 0 else "failed",
             "product_t0": False,
-            "suites": {suite: "not_accepted" for suite in ("T0", "T1", "T2", "T8")},
+            "suites": suites,
             "error": "document_agent_db_acceptance_missing"}
 
 
@@ -34,8 +39,10 @@ def main():
         parser.error("only T0/T1/T2/T8 source checks are implemented; product acceptance is blocked")
     completed = subprocess.run([sys.executable, str(ROOT / "testing/engines/document/run.py"),
                                 "--engine", args.engine, "--run-id", args.run_id], cwd=ROOT)
-    report = result(args.engine, completed.returncode)
+    raw = ROOT / "evidence" / args.run_id / args.engine / "summary.json"
+    summary = json.loads(raw.read_text()) if raw.exists() else {}
+    report = result(args.engine, completed.returncode, summary.get("product"))
     print(json.dumps(report))
-    # No T1 Agent DB comparison, no transactional MongoDB token target, no T8
-    # connection measurement: even a passing source check cannot promote a row.
+    # Product doctor, transactional MongoDB C1 and connection measurement remain
+    # missing. Explicit per-suite verdicts are written beside the raw summary.
     return 1

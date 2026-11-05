@@ -14,6 +14,8 @@ def write_rows(run, raw, verdicts, *, cleanup_failed=False):
            or r not in ("pass", "fail", "skip") for s, v, r in verdicts):
         raise ValueError("invalid suite verdict")
     version = receipt.get("version_actual")
+    if not version and run.engine in ("mongodb", "opensearch", "elasticsearch"):
+        version = run.version
     if not version:
         import runner
         version = re.search(r"\d+(?:\.\d+)*", runner.resolve(run.engine, run.version)["id"]).group()
