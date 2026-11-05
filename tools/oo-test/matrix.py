@@ -9,6 +9,8 @@ P0 += [("oracle", v) for v in ("19c", "23ai", "11g", "21c")]
 
 
 def target_id(engine, version):
+    if engine == "kingbase":
+        return "kingbase-pg-mode"
     if engine == "db2":
         return "db2-luw-11_5"
     if engine == "mongodb":

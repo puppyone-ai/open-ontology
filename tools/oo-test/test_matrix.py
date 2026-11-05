@@ -10,6 +10,9 @@ import runner
 
 
 class MatrixTests(unittest.TestCase):
+    def test_kingbase_has_its_own_support_target(self):
+        self.assertEqual(matrix.target_id("kingbase", "9.1.10"), "kingbase-pg-mode")
+
     def test_all_reports_every_missing_suite_without_docker(self):
         result = subprocess.run(
             [str(runner.ROOT / "tools/oo-test/oo-test"), "matrix", "--all",

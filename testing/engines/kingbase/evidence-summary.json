@@ -1,0 +1,165 @@
+{
+  "todo": "S5-E-03 (KingbaseES part)",
+  "scope": "experimental PG-mode T0-T1; not full common-fixture or public Gateway acceptance",
+  "run_id": "kb-full-20261105",
+  "date": "2026-11-05",
+  "platform": "linux/arm64 native",
+  "product_banner": "KingbaseES V009R001C010",
+  "postgres_compatibility": "12.1",
+  "image_lock": "images.lock.json",
+  "product_revision_at_run": "85cdd47153810fd7c2f7476e5b32cad68df35b92-dirty",
+  "matching_product_commits": [
+    "5127a69d3",
+    "f512ac599"
+  ],
+  "product_inputs": "All product source and binary hashes still match inputs-sha256.json after commits.",
+  "verdicts": {
+    "T0": "pass",
+    "T1": "pass",
+    "C5": "pass",
+    "T8": "pass",
+    "C1": "skip"
+  },
+  "C1_reason": "image lacks pgoutput; bundled syslogical_output/decoderbufs need a different decoder",
+  "fixture": {
+    "tables": 7,
+    "large_table_rows": 2000000,
+    "wide_table_columns": 300,
+    "writer_transactions": 1370,
+    "writer_mutations": [
+      "insert",
+      "update",
+      "delete",
+      "primary-key update"
+    ],
+    "growth_rows": [
+      1000,
+      12000
+    ]
+  },
+  "comparison": {
+    "cycles": 3,
+    "tables_per_cycle": 7,
+    "zero_differences": true,
+    "chunk_rows": 10000,
+    "oracle": "shared tools/oo-test/comparison.py typed canonical JSON + SHA256",
+    "recheck": "typed-recomparison.json uses final comparator against every retained source/target row output; original runner-executed.py matches its recorded input hash"
+  },
+  "idle_cycle_totals": {
+    "payload_bytes": 0,
+    "source_read_bytes": 0,
+    "target_write_bytes": 0,
+    "new_generations": 0
+  },
+  "resources": {
+    "c5-1-resources.json": {
+      "pass": true,
+      "error": null,
+      "connections_peak": 2,
+      "duty_percent": 1.0250624520545284,
+      "connection_budget": 2,
+      "duty_budget_percent": 25,
+      "elapsed_seconds": 660.3227680419805,
+      "model_tokens": 0,
+      "model_basis": "no model used by oo-load"
+    },
+    "c5-3-resources.json": {
+      "pass": true,
+      "error": null,
+      "connections_peak": 2,
+      "duty_percent": 3.890454596593642,
+      "connection_budget": 2,
+      "duty_budget_percent": 25,
+      "elapsed_seconds": 72.66912350000348,
+      "model_tokens": 0,
+      "model_basis": "no model used by oo-load"
+    },
+    "c5-2-resources.json": {
+      "pass": true,
+      "error": null,
+      "connections_peak": 2,
+      "duty_percent": 4.327459070656732,
+      "connection_budget": 2,
+      "duty_budget_percent": 25,
+      "elapsed_seconds": 66.48801091697533,
+      "model_tokens": 0,
+      "model_basis": "no model used by oo-load"
+    },
+    "snapshot-resources.json": {
+      "pass": true,
+      "error": null,
+      "connections_peak": 2,
+      "duty_percent": 1.3214942093312034,
+      "connection_budget": 2,
+      "duty_budget_percent": 25,
+      "elapsed_seconds": 145.52987254201435,
+      "model_tokens": 0,
+      "model_basis": "no model used by oo-load"
+    }
+  },
+  "logical_target_write_bytes": {
+    "snapshot": 102362754,
+    "c5": [
+      5209504,
+      0,
+      566890
+    ]
+  },
+  "raw_sha256": {
+    "report.json": "e362b0e8fdb6dbf4d3dc82028b2dde054852f217c59312751a841a1ebb41b415",
+    "index-rows.json": "c941485e82cd18024cdfeb689e5f33e9878d0075060c964b44d7c603926edfa8",
+    "inputs-sha256.json": "9079f994bc9d6987d36bd8ea1bf05c0a14dbe0b52abaf28087246cbd14019998",
+    "typed-recomparison.json": "38f61c02cd73228d5425c3a4ac522c399a79c8c8fea9d2c66e9e2ffd898209fc",
+    "runner-executed.py": "83a8d99d1f962cce0650a5d0703ebcb49696ed9c936e9cb27c1530d5166e5270",
+    "c1-plugin.stderr": "b22e646ca1d59a8a48a269b31dce444c616b41dfdfff304e9549b0891b0a14cf",
+    "doctor-C5.json": "a99531eb17e680c1df1383f603f5237339a206db4e77246a2cef61c8e2dda64b",
+    "doctor-C1.json": "01d856de8ab2c9d6a5371ba2a8506dc35140a50126d1b67fbbdcf73f68c8618e",
+    "doctor-denied.json": "830b68e02b3ee327ed79b70fdcd17fc5636a908d92bb924e61b00c340b40ef7b"
+  },
+  "tests": {
+    "connectors": {
+      "passed": 230,
+      "ignored": 23,
+      "excluded_baseline_failure": "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes"
+    },
+    "cli": {
+      "passed": 84,
+      "ignored": 2
+    },
+    "oo-load": {
+      "passed": 39,
+      "ignored": 7
+    },
+    "python_kingbase": 5,
+    "python_matrix_verdicts": 15,
+    "workspace_check": "pass",
+    "document_checks": [
+      "check_spec.py passed",
+      "check_plan.py passed",
+      "check_v02_plan.py passed"
+    ]
+  },
+  "base_failure": {
+    "base": "85cdd47153810fd7c2f7476e5b32cad68df35b92",
+    "run_id": "kb-20261105",
+    "log": "base-parse-file.log",
+    "sha256": "7890a8cc2108798a2369d3607a00f7089053d52ecd61bfaca9ec67b73b3d6787",
+    "same_failure": "group_signal rejected instead of sent on macOS; no test or expected value changed"
+  },
+  "preserved_attempts": {
+    "kb-20261105": "TLS setup failure, reserved-keyword and PG12 catalog-setting failures retained in distinct logs",
+    "kb-smoke-20261105": "C5 dispatch refusal",
+    "kb-smoke2-20261105": "unchanged no-key C5 plan refused",
+    "kb-smoke3-20261105": "10000-row product smoke passes T0/T1/C5/T8"
+  },
+  "known_gaps": [
+    "C1 requires a separately implemented and validated vendor decoding protocol; pgoutput is absent",
+    "Other releases and non-PG modes fail closed and are untested",
+    "No hundreds-of-tables, comprehensive type/collation fixture, or growth beyond the chunk row limit",
+    "No T3-T7, public Gateway, live-model or production-license acceptance",
+    "T8 is sampled activity and logical tuple bytes, not physical IO or WAL accounting"
+  ],
+  "shared_file_patches": [],
+  "cargo_lock_changes": false,
+  "containers_left_running": []
+}
