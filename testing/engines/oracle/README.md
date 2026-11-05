@@ -57,7 +57,10 @@ client archive; no redistribution authorization is implied. The runner resolves
 the worker image to its content ID and records the runtime client version.
 No Agent DB credentials enter the worker. `fixture_admin.py` is mounted
 separately for fixture writes and is not included in the source worker image.
-19c remains blocked by D2; this runner has no 19c database target.
+This legacy runner has no 19c database target. The owner completed registry
+license acceptance (E365); 19c now uses the digest-pinned shared `oo-test`
+runner and E19 hooks. See [E19-VALIDATION.md](E19-VALIDATION.md) for commands,
+version-specific verdicts and retained failure evidence.
 
 ## Coverage and boundaries
 
