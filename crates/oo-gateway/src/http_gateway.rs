@@ -511,10 +511,15 @@ async fn operator_scope(State(state): State<AppState>, request: Request, next: N
     let allowed = request.method() == axum::http::Method::GET
         && matches!(request.uri().path(), "/v1/health" | "/v1/meta");
     if !allowed && request.headers().contains_key(header::AUTHORIZATION) {
-        if let Ok(identity) = authenticate(&state, request.headers()).await {
-            if identity.tuple.role == "lite_operator" {
+        match authenticate(&state, request.headers()).await {
+            Ok(identity) if identity.tuple.role == "lite_operator" => {
                 return json_error(ApiError::new(ApiCode::Forbidden));
             }
+            Ok(_) => {}
+            // Not a token (e.g. an enrolment code): the route authenticates it.
+            Err(error) if error == ApiError::new(ApiCode::Unauthenticated) => {}
+            // Fail closed: a transient error must not skip the operator check.
+            Err(error) => return json_error(error),
         }
     }
     next.run(request).await
