@@ -330,6 +330,11 @@ fn connect(ssh: &DeploySsh, state: &Path) -> Result<Remote, Failure> {
     })
 }
 
+/// Bootstrap files the remote deployment needs (the CA key is not one).
+fn remote_credential(name: &str) -> bool {
+    name != "lite-ca-key"
+}
+
 fn local_image(reference: &str, arch: &str) -> Result<Value, Failure> {
     let out = Command::new("docker")
         .args([
@@ -758,6 +763,12 @@ fn up(
             .file_name()
             .into_string()
             .map_err(|_| fail("SSH_STATE_PKI"))?;
+        // Certificates are issued here, never on the remote: the CA private
+        // key stays local; the remote gets only certificates, its own leaf
+        // keys and generated passwords.
+        if !remote_credential(&name) {
+            continue;
+        }
         let value = bootstrap.read(&name).map_err(Failure::local)?;
         files.insert(name, json!(hex(value.as_bytes())));
     }
@@ -809,6 +820,19 @@ mod tests {
                 .len(),
             64
         );
+    }
+
+    #[test]
+    fn ca_private_key_never_leaves_this_host() {
+        assert!(!remote_credential("lite-ca-key"));
+        for name in [
+            "lite-ca-cert",
+            "lite-gateway-key",
+            "lite-admin-password",
+            "lite-consumer-cert",
+        ] {
+            assert!(remote_credential(name));
+        }
     }
 
     #[test]
