@@ -102,15 +102,18 @@ class T7Tests(unittest.TestCase):
         self.assertEqual(oracle.calls[-1], ["enable"])
 
     def test_coverage_requires_workload_and_never_infers(self):
-        loads = [{"variant": "snapshot", "exit": 0}] * 3
-        self.assertTrue(t7.coverage("snapshot", "mysql", "8.4", {"T1": "passed"}, loads)["snapshot"][0])
-        self.assertTrue(t7.coverage("snapshot", "oracle", "23",
-                                    {"T1": "failed", "failure": "source target difference"}, loads)["snapshot"][0])
-        self.assertFalse(t7.coverage("snapshot", "oracle", "23",
-                                     {"T1": "failed", "failure": "corrected product load failed"},
-                                     loads)["snapshot"][0])
+        loads = [{"variant": "snapshot", "exit": 0}] * 2 + [{"variant": "c5", "exit": 0}] * 3
+        ok = t7.coverage("snapshot", "mysql", "8.4", {"T1": "passed"}, loads)
+        self.assertEqual({k: v[0] for k, v in ok.items()}, {"snapshot": True, "c5": True})
+        # T1 must pass: a comparison failure is no longer accepted as coverage.
+        self.assertFalse(any(v[0] for v in t7.coverage(
+            "snapshot", "oracle", "23", {"T1": "failed", "failure": "source target difference"},
+            loads).values()))
+        # Old three-load T1 without correction/idle C5 cycles is incomplete.
         self.assertFalse(t7.coverage("snapshot", "mysql", "8.4", {"T1": "passed"},
-                                     loads[:2] + [{"variant": "snapshot", "exit": 1}])["snapshot"][0])
+                                     [{"variant": "snapshot", "exit": 0}] * 3)["snapshot"][0])
+        self.assertFalse(t7.coverage("snapshot", "mysql", "8.4", {"T1": "passed"},
+                                     loads[:4] + [{"variant": "c5", "exit": 1}])["c5"][0])
         incremental = t7.coverage("incremental", "oracle", "23", {"C1": "passed", "C5": "failed"}, [])
         self.assertEqual({k: v[0] for k, v in incremental.items()}, {"c1": True, "c5": False})
         self.assertEqual(set(t7.coverage("incremental", "oracle", "21", {"C5": "passed"}, [])), {"c5"})

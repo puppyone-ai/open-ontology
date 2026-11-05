@@ -624,26 +624,24 @@ def postgres_records(text, users=(READER,)):
 
 
 def oracle_records(text):
-    """JSON lines produced by the collector query (one audit row per line).
+    """JSON objects produced by the collector query (one audit row each).
 
-    SQL*Plus wraps rows longer than LINESIZE; the JSON has no raw newlines, so
-    continuation lines are joined back. The SQL length check still fails a row
-    whose text was altered or cut.
+    SQL*Plus wraps rows longer than LINESIZE (32,767). Source newlines and
+    spaces are JSON-escaped, so every physical line break is a wrap and is
+    removed; each object must then decode completely. The SQL length check
+    still fails a row whose text was altered or cut.
     """
     records = []
-    lines = []
-    for line in text.splitlines():
-        if line.startswith("{\"action\":") or not lines:
-            lines.append(line)
-        else:
-            lines[-1] += line
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        if not line.startswith("{"):
+    text = "".join(text.splitlines())
+    decoder = json.JSONDecoder(strict=False)
+    while text.strip():
+        text = text.lstrip()
+        if not text.startswith("{"):
             raise ValueError("malformed Oracle audit row")
-        row = json.loads(line, strict=False)
+        row, end = decoder.raw_decode(text)
+        text = text[end:]
+        if not isinstance(row, dict):
+            raise ValueError("malformed Oracle audit row")
         action = row["action"]
         record = {"time": row["time"], "session": row.get("session"), "action": action,
                   "user": row["user"], "program": row.get("program"),

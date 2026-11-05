@@ -146,14 +146,15 @@ def audited(base):
 def coverage(kind, engine, version, workload, windows):
     """Return {variant: (covered, reason)} from the workload's own verdicts."""
     if kind == "snapshot":
+        # T1: baseline + concurrent replay loads, then one product C5
+        # correction and two keyless idle C5 cycles, all inside T1's pass.
         loads = [w for w in windows if w["variant"] == "snapshot"]
-        complete = len(loads) >= 3 and all(w["exit"] == 0 for w in loads)
-        if workload.get("T1") == "passed" and complete:
-            return {"snapshot": (True, "T1 passed")}
-        if complete and workload.get("failure") == "source target difference":
-            # Product reads completed; the comparison contract (D17) is T1's verdict.
-            return {"snapshot": (True, "all product loads completed; T1 comparison failed")}
-        return {"snapshot": (False, "product snapshot loads incomplete: " + str(workload.get("failure")))}
+        cycles = [w for w in windows if w["variant"] == "c5"]
+        complete = (len(loads) >= 2 and len(cycles) >= 3
+                    and all(w["exit"] == 0 for w in loads + cycles)
+                    and workload.get("T1") == "passed")
+        return {v: (complete, "corrected T1 baseline/replay/correction/idle coverage")
+                for v in ("snapshot", "c5")}
     result = {}
     for variant in INCREMENTAL_VARIANTS[engine] + (("c1",) if engine == "oracle" and version == "23" else ()):
         status = workload.get(variant.upper())

@@ -164,6 +164,17 @@ class AuditTests(unittest.TestCase):
         self.assertFalse(joined[0].get("truncated"))
         with self.assertRaises(ValueError):
             audit.oracle_records("SELECT|41")
+        # 32,767-character SQL*Plus wraps across two rows, including at a row edge.
+        sql = "SELECT '" + "y" * 40000 + "' FROM dual"
+        wide = json.dumps(dict(row, sql=sql, sql_length=str(len(sql))))
+        stream = wide + "\n" + wide
+        lines = [stream[i:i + 32767] for i in range(0, len(stream), 32767)]
+        rows = audit.oracle_records("\n".join(lines))
+        self.assertEqual(len(rows), 2)
+        self.assertFalse(any(r.get("truncated") for r in rows))
+        for bad in (wide[:-1], wide + "\n" + wide[:100], "41", wide + " 7"):
+            with self.assertRaises(ValueError):
+                audit.oracle_records(bad)
 
     def test_windows_attribute_variants_and_harness(self):
         records = [{"time": "2026-01-01 00:00:01", "kind": "statement", "sql": "SELECT 1"},
