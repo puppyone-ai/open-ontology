@@ -165,7 +165,7 @@ class Run:
             raise RuntimeError(f"command {self.seq:04d} exited {code}, sqlplus_error={sqlplus_error}")
         return code or int(sqlplus_error), out
 
-    def sql(self, text=None, file=None, admin=False, required=True):
+    def sql(self, text=None, file=None, admin=False, required=True, timeout=1800):
         if self.engine == "mysql":
             command = ["docker", "exec", "-i", self.name, "mysql",
                        "--defaults-extra-file=/run/oo/" + ("admin.cnf" if admin else "reader.cnf"),
@@ -200,8 +200,8 @@ class Run:
                 text = header + (text or "") + "\nexit\n"
         if file:
             with file.open() as stream:
-                return self.command(command, stdin=stream, timeout=1800, required=required)
-        return self.command(command, data=text, timeout=1800, required=required)
+                return self.command(command, stdin=stream, timeout=timeout, required=required)
+        return self.command(command, data=text, timeout=timeout, required=required)
 
     def setup(self):
         disk_gate(self.path)

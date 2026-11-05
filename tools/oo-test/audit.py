@@ -17,6 +17,7 @@ from pathlib import Path
 
 READER = "fixture_reader"
 ORACLE_MINER = "C##OO_MINER"
+ORACLE_TRAIL_TIMEOUT = 4 * 3600  # seconds; one audit-trail dump
 
 # Reviewed D11a recursive LogMiner blocks, owned by the Oracle engine lane.
 _spec = importlib.util.spec_from_file_location(
@@ -862,7 +863,9 @@ class Audit:
         query = ("set long 20000000 longchunksize 20000000\n"
                  f"SELECT {expression} FROM {source} WHERE {where} ORDER BY {order};")
         records = []
-        _, text = run.sql(query, admin=True)
+        # A full-scale snapshot trail is >100k CLOB rows; under amd64 emulation
+        # (21c/11g XE) SQL*Plus needs well over the default 30 minutes.
+        _, text = run.sql(query, admin=True, timeout=ORACLE_TRAIL_TIMEOUT)
         records.extend(oracle_records(text))
         if ORACLE_MINER in self.users:
             # The common miner account connects to CDB$ROOT, not the PDB.
@@ -870,7 +873,8 @@ class Audit:
                       "set echo off verify off feedback off heading off pagesize 0 "
                       "linesize 32767 trimout on tab off\n")
             _, text = run.command(["docker", "exec", "-i", run.name, "sqlplus", "-s", "/nolog"],
-                                  data=header + query.replace(where, f"dbusername='{ORACLE_MINER}'") + "\nexit\n")
+                                  data=header + query.replace(where, f"dbusername='{ORACLE_MINER}'") + "\nexit\n",
+                                  timeout=ORACLE_TRAIL_TIMEOUT)
             records.extend(oracle_records(text))
         records.sort(key=lambda r: r["time"])
         return records

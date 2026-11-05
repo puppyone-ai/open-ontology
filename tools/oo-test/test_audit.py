@@ -266,6 +266,29 @@ class AuditTests(unittest.TestCase):
             collector.allow_replication = True
             self.assertFalse(collector.privileges()["read_only"], value)
 
+    def test_oracle_trail_dump_outlives_default_sql_timeout(self):
+        # Full-scale emulated 21c timed out at 1800 s mid-dump (t7-s5h01-20261105-full2).
+        calls = []
+
+        def sql(statement, admin=False, required=True, timeout=1800):
+            calls.append((statement, timeout))
+            return 0, ""
+
+        def command(argv, data=None, timeout=300, required=True):
+            calls.append((data, timeout))
+            return 0, ""
+        for version in ("21.3.0", "11.2.0"):
+            calls.clear()
+            run = SimpleNamespace(engine="oracle", version=version, sql=sql, command=command,
+                                  name="oo-t-x", seq=0)
+            collector = audit.Audit(run)
+            collector.mode = "oracle-unified" if version.startswith("21") else "oracle-standard"
+            collector.users = ["fixture_reader", audit.ORACLE_MINER]
+            collector.oracle_raw()
+            dumps = [t for text, t in calls if text and "SELECT TO_CLOB" in text]
+            self.assertEqual(len(dumps), 2, version)
+            self.assertTrue(all(t >= audit.ORACLE_TRAIL_TIMEOUT > 1800 for t in dumps), version)
+
     def test_markers_alone_do_not_prove_hook_activity(self):
         markers = ["oo_audit_start_x", "oo_audit_T1_start_x", "oo_audit_T1_end_x", "oo_audit_end_x"]
         text = "\n".join(mysql_row("Query", "SELECT '" + m + "'") for m in markers)
