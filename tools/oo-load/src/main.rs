@@ -15,8 +15,8 @@ use sqlx::{
 use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
 mod c5;
-mod documents;
 mod db2_load;
+mod documents;
 mod epoch;
 #[cfg(feature = "mysql-binlog")]
 mod handoff;

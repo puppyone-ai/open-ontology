@@ -194,6 +194,46 @@ impl Db2Engine {
         &self.stats
     }
 
+    /// Bind C5 to the catalog incarnation and complete column/key definitions.
+    /// This is a DDL fence, not a recoverable database log position.
+    pub async fn table_lineage(&mut self, table: &TableRef) -> Result<String, SourceError> {
+        relation(table)?;
+        let budget = self.budget.clone();
+        let binds = [
+            Bind::Text(table.schema.clone()),
+            Bind::Text(table.name.clone()),
+        ];
+        let incarnation = self.query(
+            "SELECT VARCHAR(CREATE_TIME),VARCHAR(TABLEID),VARCHAR(TBSPACEID) FROM SYSCAT.TABLES WHERE TABSCHEMA=? AND TABNAME=?",
+            &binds, 1, &budget,
+        ).await?;
+        if incarnation.len() != 1 {
+            return Err(error("db2_table_not_visible"));
+        }
+        let columns = self.query(
+            "SELECT COLNAME,TYPENAME,VARCHAR(LENGTH),VARCHAR(SCALE),NULLS,VARCHAR(CODEPAGE),TYPESCHEMA FROM SYSCAT.COLUMNS WHERE TABSCHEMA=? AND TABNAME=? ORDER BY COLNO",
+            &binds, 1024, &budget,
+        ).await?;
+        let keys = self.query(
+            "SELECT K.COLNAME FROM SYSCAT.KEYCOLUSE K JOIN SYSCAT.TABCONST C ON K.TABSCHEMA=C.TABSCHEMA AND K.TABNAME=C.TABNAME AND K.CONSTNAME=C.CONSTNAME WHERE C.TYPE='P' AND K.TABSCHEMA=? AND K.TABNAME=? ORDER BY K.COLSEQ",
+            &binds, 64, &budget,
+        ).await?;
+        let bytes = serde_json::to_vec(&(table, incarnation, columns, keys))
+            .map_err(|_| error("db2_lineage"))?;
+        Ok(format!("db2-catalog:{:x}", Sha256::digest(bytes)))
+    }
+
+    /// Keep the baseline partition when source growth moves live boundaries.
+    pub fn adopt_keyset_plan(&mut self, durable: &TableChunkPlan) -> Result<(), SourceError> {
+        let live = self
+            .plans
+            .get_mut(&durable.table)
+            .ok_or_else(|| error("db2_plan_required"))?;
+        validate_durable_plan(&live.public, durable)?;
+        live.public.chunks = durable.chunks.clone();
+        Ok(())
+    }
+
     async fn query(
         &mut self,
         sql: &str,
@@ -379,6 +419,41 @@ fn cell(row: &[Option<String>], i: usize) -> Result<&str, SourceError> {
     row.get(i)
         .and_then(Option::as_deref)
         .ok_or_else(|| error("db2_metadata"))
+}
+fn validate_durable_plan(
+    live: &TableChunkPlan,
+    durable: &TableChunkPlan,
+) -> Result<(), SourceError> {
+    if live.protocol != durable.protocol
+        || live.table != durable.table
+        || live.key != durable.key
+        || live.strategy != durable.strategy
+        || durable.chunks.is_empty()
+        || durable.chunks.first().is_none_or(|c| c.lo.is_some())
+        || durable.chunks.last().is_none_or(|c| c.hi.is_some())
+        || durable.chunks.iter().enumerate().any(|(i, c)| {
+            c.table != durable.table
+                || c.chunk_id as usize != i
+                || (i > 0 && (c.lo.is_none() || durable.chunks[i - 1].hi != c.lo))
+        })
+        || (matches!(live.strategy, ChunkStrategy::SingleRead) && durable.chunks.len() != 1)
+    {
+        return Err(error("db2_stale_plan"));
+    }
+    let names = match &durable.strategy {
+        ChunkStrategy::Keyset { columns } => columns.as_slice(),
+        ChunkStrategy::SingleRead => &[],
+        _ => return Err(error("db2_stale_plan")),
+    };
+    for chunk in &durable.chunks {
+        for values in [chunk.lo.as_deref(), chunk.hi.as_deref()]
+            .into_iter()
+            .flatten()
+        {
+            bound(names, values, true, false, &mut Vec::new())?;
+        }
+    }
+    Ok(())
 }
 fn key_names(p: &Plan) -> Vec<String> {
     p.keys.iter().map(|&i| p.columns[i].name.clone()).collect()
@@ -753,6 +828,51 @@ impl SourceEngine for Db2Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn durable_ranges_allow_growth_but_refuse_gaps_and_changed_keys() {
+        let table = TableRef {
+            schema: "FIXTURE".into(),
+            name: "EVENTS".into(),
+        };
+        let chunk = ChunkSpec {
+            table: table.clone(),
+            plan_revision: 1,
+            chunk_id: 0,
+            lo: None,
+            hi: None,
+            estimated_rows: None,
+        };
+        let live = TableChunkPlan {
+            protocol: ENGINE_PROTOCOL.into(),
+            table,
+            key: KeyShape::IntegerPrimaryKey {
+                column: "ID".into(),
+            },
+            strategy: ChunkStrategy::Keyset {
+                columns: vec!["ID".into()],
+            },
+            estimated_rows: None,
+            chunks: vec![chunk],
+        };
+        let mut old = live.clone();
+        old.chunks[0].hi = Some(vec![KeyValue::Int(100)]);
+        old.chunks.push(ChunkSpec {
+            chunk_id: 1,
+            lo: old.chunks[0].hi.clone(),
+            hi: None,
+            ..live.chunks[0].clone()
+        });
+        assert!(validate_durable_plan(&live, &old).is_ok());
+        old.chunks[1].lo = None;
+        assert!(validate_durable_plan(&live, &old).is_err());
+        old = live.clone();
+        old.key = KeyShape::NoKey;
+        assert!(validate_durable_plan(&live, &old).is_err());
+        old = live.clone();
+        old.chunks[0].table.name = "OTHER".into();
+        assert!(validate_durable_plan(&live, &old).is_err());
+    }
+
     #[test]
     fn source_compares_composite_bounds_and_values_are_bound() {
         let keys = vec!["odd\"key".into(), "ID".into()];

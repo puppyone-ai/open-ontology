@@ -37,7 +37,7 @@ pub(super) fn validate_engine(
     engine: &str,
     opts: &BTreeMap<String, String>,
 ) -> Result<(), &'static str> {
-    if matches!(engine, "mongodb" | "opensearch" | "elasticsearch")
+    if matches!(engine, "mongodb" | "opensearch" | "elasticsearch" | "db2")
         && opts.contains_key("--c5")
         && !opts.contains_key("--sync")
         && !opts.contains_key("--handoff")
@@ -60,8 +60,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn documents_accept_only_explicit_c5() {
-        for engine in ["mongodb", "opensearch", "elasticsearch"] {
+    fn reconciliation_engines_accept_only_explicit_c5() {
+        for engine in ["mongodb", "opensearch", "elasticsearch", "db2"] {
             let mut opts = BTreeMap::from([("--c5".into(), "cycle.json".into())]);
             assert!(validate_engine(engine, &opts).is_ok());
             opts.insert("--sync".into(), "sync.json".into());

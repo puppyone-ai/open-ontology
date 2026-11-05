@@ -16,12 +16,29 @@ import time
 
 ROOT = Path(__file__).resolve().parents[3]
 
+def validate_cycle(receipts, tables, cycle):
+    if (len(receipts) != len(tables)
+            or {r["table"]["name"] for r in receipts} != set(tables)
+            or any(r.get("mode") != "c5" or r.get("protocol") != "oo.sync/v1"
+                   or r.get("replay") is not False for r in receipts)):
+        raise ValueError("c5_missing_receipts")
+    writes = sum(r["target_write_bytes"] for r in receipts)
+    generations = sum(r["new_generations"] for r in receipts)
+    if cycle in (1, 3) and (writes or generations or any(r["payload_bytes"] for r in receipts)):
+        raise ValueError("idle_c5_rewrote")
+    if cycle == 2 and (writes <= 0 or generations != 1):
+        raise ValueError("changed_c5_not_published")
+    if cycle == 3 and any(r["source_read_bytes"] for r in receipts):
+        raise ValueError("idle_c5_payload_read")
+    return writes, generations
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--attempt", default="target")
     parser.add_argument("--full", action="store_true")
+    parser.add_argument("--c5", action="store_true")
     args = parser.parse_args()
     if not all(re.fullmatch(r"[a-z0-9-]{1,64}", s) for s in (args.run_id, args.attempt)):
         parser.error("run-id")
@@ -176,13 +193,12 @@ FROM SYSIBM.SYSDUMMY1 WHERE NOT EXISTS (SELECT 1 FROM FIXTURE.EVENTS WHERE ID=1)
         if not receipts or any(r.get("version", {}).get("raw") != "11.5.9.0" for r in receipts):
             raise RuntimeError("server_version_not_measured")
         (out / "target-receipts.json").write_text(json.dumps(receipts, indent=2))
-        comparisons = {}
-        for receipt in receipts:
+        def compare(receipt, label="baseline"):
             table = receipt["table"]["name"]
             print("compare " + table, flush=True)
             expressions = ["COALESCE(HEX(" + c + "),'-')" for c in columns[table]]
             source_raw = admin("SELECT " + "||'|'||".join(expressions) + " FROM FIXTURE." + table + ";")
-            (out / ("source-" + table + ".txt")).write_text(source_raw)
+            (out / (label + "-source-" + table + ".txt")).write_text(source_raw)
             rows = []
             for line in source_raw.splitlines():
                 line = line.strip()
@@ -190,15 +206,16 @@ FROM SYSIBM.SYSDUMMY1 WHERE NOT EXISTS (SELECT 1 FROM FIXTURE.EVENTS WHERE ID=1)
                     rows.append([None if c == "-" else bytes.fromhex(c).decode("utf-8")
                                  for c in line.split("|")])
             target_raw = pg("SELECT row_to_json(t) FROM " + receipt["target"] + " t;")
-            (out / ("target-" + table + ".jsonl")).write_text(target_raw)
+            (out / (label + "-target-" + table + ".jsonl")).write_text(target_raw)
             target_rows = [[None if v is None else str(v) for v in json.loads(line).values()]
                            for line in target_raw.splitlines()]
             canonical = lambda values: sorted(json.dumps(r, ensure_ascii=True) for r in values)
             left, right = canonical(rows), canonical(target_rows)
             if left != right:
                 raise RuntimeError("source_target_mismatch:" + table)
-            comparisons[table] = {"rows": len(rows), "sha256": hashlib.sha256("\n".join(left).encode()).hexdigest(),
+            return {"rows": len(rows), "sha256": hashlib.sha256("\n".join(left).encode()).hexdigest(),
                                   "equal": True}
+        comparisons = {r["table"]["name"]: compare(r) for r in receipts}
         if set(comparisons) != set(tables):
             raise RuntimeError("missing_target_table")
         expected = 2_000_000 if args.full else 2000
@@ -219,6 +236,25 @@ FROM SYSIBM.SYSDUMMY1 WHERE NOT EXISTS (SELECT 1 FROM FIXTURE.EVENTS WHERE ID=1)
             raise RuntimeError("resource_budget")
         if report["reader_connection_peak"] != 1 or report["reader_connection_samples"] == 0:
             raise RuntimeError("reader_connection_budget")
+        if args.c5:
+            report["T2"] = "fail"
+            report["c5_cycles"] = []
+            for cycle in range(1, 4):
+                if cycle == 2:
+                    admin("UPDATE FIXTURE.EVENTS SET VALUE='c5-changed' WHERE ID=2;")
+                target["run_id"] = f"db2-c5-{cycle}"
+                (out / "target.json").write_text(json.dumps(target))
+                policy = out / "c5.json"
+                policy.write_text(json.dumps({"cycle": cycle, "full_read_every": 100}))
+                output = run(command + ["--c5", str(policy)], timeout=1800,
+                             log=f"c5-{cycle}.log")
+                sync = [json.loads(line) for line in output.splitlines() if line.startswith("{")]
+                writes, generations = validate_cycle(sync, tables, cycle)
+                compared = {r["table"]["name"]: compare(r, f"c5-{cycle}") for r in sync}
+                report["c5_cycles"].append({"cycle": cycle, "equal": True,
+                    "comparisons": compared, "receipts": sync, "target_write_bytes": writes,
+                    "new_generations": generations})
+            report["T2"] = "pass"
         report.update(T1="pass", T8="pass", comparisons=comparisons, resources=resources,
                       target_write_bytes=sum(r["target_write_bytes"] for r in receipts),
                       model_tokens=0, model_calls=0, correction="quiesce_then_full_reread",
@@ -238,6 +274,17 @@ FROM SYSIBM.SYSDUMMY1 WHERE NOT EXISTS (SELECT 1 FROM FIXTURE.EVENTS WHERE ID=1)
             report["target_cleanup_exit"] = cleanup.returncode
         report["writer_errors"] = errors
         (out / "target-acceptance.json").write_text(json.dumps(report, indent=2))
+        if args.c5:
+            import sys
+            from types import SimpleNamespace
+            sys.path.insert(0, str(ROOT / "tools/oo-test"))
+            from verdicts import write_rows
+            run_info = SimpleNamespace(engine="db2", version="11.5", id=args.run_id,
+                receipt={"version_actual": report.get("version_actual"), "execution": "emulated"})
+            write_rows(run_info, out / "target-acceptance.json",
+                       [("T2", "c5", report.get("T2", "fail"))],
+                       cleanup_failed=report.get("target_cleanup_exit") != 0)
+
 
 
 if __name__ == "__main__":

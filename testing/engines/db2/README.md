@@ -18,10 +18,12 @@ Build the worker with `docker build --platform linux/amd64 --label oo.lane=e
 trusted wrapper executable that runs that exact image with `--rm -i`,
 `oo.lane=e`, an owned run label and bounded CPU/memory. The wrapper must not
 receive Agent DB credentials. Source credentials travel only on stdin.
-`oo-load --db2-worker WRAPPER` supports snapshot publication. Remote
+`oo-load --db2-worker WRAPPER` supports snapshot publication and `--c5 FILE`. Remote
 connections require a caller-provided CA mounted read-only inside the worker
 at `/run/oo-source/ca.pem`; plaintext is restricted to literal loopback.
-SSH and scheduled C5 dispatch are not yet integrated in oo-load.
+SSH and log CDC are not integrated. C5 uses the shared durable range loader,
+binds the table incarnation and full column/key catalog to its lineage, and
+retains the baseline key ranges when live row boundaries move.
 
 The connector plans primary/composite keys using source-ordered probes,
 never a client collation. No-key tables use a single bounded read. Plans are
@@ -65,11 +67,18 @@ the 512 MiB target container. All failures and retries have separate paths.
 The caller must clean up only its recorded source container in a `finally`
 block; the target runner cleans up its own target even on failure.
 
-`coordinator-integration.patch` is an unapplied, context-checked proposal for
-`oo doctor` registration and the shared Db2 target mapping. These files are
-outside this card's write scope. The unmodified shared mapper otherwise
-mislabels Db2 11.5 as Oracle 11g. `verdict_rows.py` writes the correct target
-and keeps product T0 skipped even when the connector-level probe passes.
+The coordinator registered Db2 in `oo doctor` and the shared target mapper.
+`product_t0.py --run-id RUN --binary target/debug/oo` runs the real doctor
+with H's `tools/oo-test/t0.py` validator and a local model replay. It does not
+promote connector probes to product T0. The current doctor pre-dispatch
+allowlist still excludes Db2; E-S5g records this as a failed T0, with an
+exact coordinator patch in its summary.
+
+`target_acceptance.py --run-id RUN --attempt c5 --c5` adds three real
+`oo-load --c5` cycles: digest baseline, changed range, idle cycle. Each
+compares every row with Agent DB; idle cycles must have zero target writes
+and new generations, and the last must read no payload. Without `--full`,
+this is a focused four-table fixture, not full-scale matrix acceptance.
 
 The fixture admin uses a separate local instance-owner connection. Reader
 credentials are generated into ignored mode-0600 files. Delete only the
