@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-05",
   "timezone": "Asia/Shanghai",
-  "revision": 26,
-  "supersedes_revision": 25,
-  "supersedes_baseline_head": "7eb8874474fec0fde5c40ef3a62ca6f041722262",
-  "supersedes_sha256": "ed76f7992289aece9d45b806c0b5c1de07a8054921f5fa8744ab56b7cdf591a7",
-  "review_record": "specs/source-baseline-revision-26.md",
-  "baseline_head": "8aa4094d5936f37859123150d20dc0f81fee1f32",
+  "revision": 27,
+  "supersedes_revision": 26,
+  "supersedes_baseline_head": "8aa4094d5936f37859123150d20dc0f81fee1f32",
+  "supersedes_sha256": "883b30e90f66152dbe7cd34ad69b79f8ab315f65f67bad9024fe1ef660b9846c",
+  "review_record": "specs/source-baseline-revision-27.md",
+  "baseline_head": "70ad7fc9edd4db43851aaca55b7354dea362d674",
   "source_count": 26,
   "sources": [
     {
@@ -151,9 +151,9 @@
     },
     {
       "path": "docs/product/05-version-matrix-and-testing.md",
-      "sha256": "34714e7d3415baee826a8045233446edecdbdcbd77fa32f9f0fc5f0703dd152a",
-      "bytes": 11432,
-      "lines": 121
+      "sha256": "919228ba8ca04cec1a59b4cb0f71b607364254972562c59dae980f7d79f851a0",
+      "bytes": 12266,
+      "lines": 123
     },
     {
       "path": "docs/product/README.md",
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); D17 zoned timestamps"
+  "review_status": "owner self-review (D6); T7 method and D12a"
 }
