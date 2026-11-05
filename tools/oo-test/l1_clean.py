@@ -77,7 +77,8 @@ AGENT = True
 TARGET = "darwin-arm64"
 CLIENT = None
 CLIENT_ENV = ("HOME", "PATH", "TERM", "LANG", "TMPDIR", "npm_config_cache", "npm_config_update_notifier",
-              "OO_LITE_LANE")
+              "OO_LITE_LANE", "OO_SHARE_NPM_REGISTRY")
+REGISTRY = None  # the staged local npm registry URL
 
 
 def launch(argv, cwd, env, tty=False):
@@ -268,6 +269,40 @@ class ArgvMonitor:
         return path
 
 
+class ContainerMonitor:
+    """Samples every run container: `docker inspect` Env/Cmd/Args/Entrypoint
+    and, inside it, every /proc/*/cmdline and /proc/*/environ."""
+
+    PROC = ("for p in /proc/[0-9]*; do cat $p/cmdline $p/environ 2>/dev/null; "
+            "printf '\\n'; done")
+
+    def __init__(self, path):
+        self.path = path
+        self.seen = set()
+        self.stop = threading.Event()
+        self.thread = threading.Thread(target=self.run, daemon=True)
+        self.thread.start()
+
+    def run(self):
+        with self.path.open("ab") as out:
+            while not self.stop.wait(1.0):
+                ids = subprocess.run(["docker", "ps", "-q", "--filter", "label=oo.lane=" + LANE],
+                                     capture_output=True, text=True).stdout.split()
+                for cid in ids:
+                    self.seen.add(cid)
+                    meta = subprocess.run(["docker", "inspect", "--format",
+                                           "{{json .Config.Env}} {{json .Config.Cmd}} {{json .Args}} "
+                                           "{{json .Config.Entrypoint}}", cid], capture_output=True)
+                    procs = subprocess.run(["docker", "exec", "-u", "0", cid, "sh", "-c", self.PROC],
+                                           capture_output=True, timeout=20)
+                    out.write(b"== " + cid.encode() + b"\n" + meta.stdout + procs.stdout + b"\n")
+
+    def close(self):
+        self.stop.set()
+        self.thread.join(timeout=60)
+        return self.path
+
+
 class Source:
     """Owned source fixture (seed via the fixture admin only; product reads)."""
 
@@ -394,6 +429,8 @@ def clean_env(home, tools, prefix):
            "TERM": "xterm-256color", "LANG": "en_US.UTF-8", "TMPDIR": str(tmp),
            "npm_config_cache": str(home / "npm-cache"), "npm_config_update_notifier": "false",
            "OO_LITE_LANE": LANE}
+    if REGISTRY:
+        env["OO_SHARE_NPM_REGISTRY"] = REGISTRY
     for name in ("DOCKER_HOST", "DOCKER_CONTEXT"):
         if os.environ.get(name):
             env[name] = os.environ[name]
@@ -419,7 +456,7 @@ def command(argv, cwd, env, output, name, timeout=600, data=None, client=True):
     return result
 
 
-def diagnostic_pack(binary, output, tools):
+def diagnostic_pack(binary, output, tools, extra=None):
     """Mirror runtime inputs of stage.mjs: native oo plus its image pin only."""
     image = binary.with_name("oo-lite-image").read_text().strip()
     if not re.fullmatch(r"(?:[a-z0-9][a-z0-9./:_-]*@)?sha256:[0-9a-f]{64}", image):
@@ -439,10 +476,19 @@ def diagnostic_pack(binary, output, tools):
     shutil.copy2(binary, native)
     native.chmod(0o755)
     (native.parent / "oo-lite-image").write_text(image + "\n")
+    binaries = {TARGET: {"path": f"native/{TARGET}/oo",
+                         "sha256": hashlib.sha256(native.read_bytes()).hexdigest()}}
+    for key, path in (extra or {}).items():
+        if key == TARGET:
+            continue
+        other = package / f"native/{key}/oo"
+        other.parent.mkdir(parents=True)
+        shutil.copy2(path, other)
+        other.chmod(0o755)
+        (other.parent / "oo-lite-image").write_text(image + "\n")
+        binaries[key] = {"path": f"native/{key}/oo", "sha256": hashlib.sha256(other.read_bytes()).hexdigest()}
     write_json(package / "native/manifest.json", {
-        "schema_version": 1, "skill_sha256": hashlib.sha256(skill).hexdigest(),
-        "binaries": {TARGET: {"path": f"native/{TARGET}/oo",
-                     "sha256": hashlib.sha256(native.read_bytes()).hexdigest()}}})
+        "schema_version": 1, "skill_sha256": hashlib.sha256(skill).hexdigest(), "binaries": binaries})
     home = output / "pack-home"
     home.mkdir()
     result = command([tools / "npm", "pack", "--json", "--ignore-scripts", "--pack-destination", output],
@@ -453,7 +499,9 @@ def diagnostic_pack(binary, output, tools):
     write_json(output / "pack-inventory.json", metadata)
     files = {entry["path"] for entry in metadata["files"]}
     natives = sorted(f for f in files if f.startswith("native/"))
-    if natives != [f"native/{TARGET}/oo", f"native/{TARGET}/oo-lite-image", "native/manifest.json"]:
+    expected = sorted({f"native/{k}/{n}" for k in [TARGET, *(extra or {})] for n in ("oo", "oo-lite-image")}
+                      | {"native/manifest.json"})
+    if natives != expected:
         raise RuntimeError("package must carry only the native CLI and its image pin")
     return output / metadata["filename"], image
 
@@ -622,49 +670,143 @@ def lane_g_t6(output):
     return module
 
 
-def agent(cli, env, prompt, output, source):
-    """An Agent given only the printed prompt binds and answers gold questions."""
-    output.mkdir()
-    t6 = lane_g_t6(output)
-    _, argv = bind_step(prompt)
-    flags = argv[2:]
-    flags.remove("--code-stdin")
-    seq = [0]
+SHELL_TOOL = [{"type": "function", "function": {
+    "name": "shell",
+    "description": "Run one POSIX sh command on your own Linux machine (no root). Returns exit code, "
+                   "stdout and stderr (truncated). Nothing is preinstalled except node, npm and python3.",
+    "parameters": {"type": "object", "properties": {"command": {"type": "string"}},
+                   "required": ["command"], "additionalProperties": False}}}]
+AGENT_IMAGE = "oo-a4-l1-client:linux-amd64"
 
-    def run(args):
-        if args[0] == "login":
-            command, stdin = [cli, "login", *flags[:2], "--code-stdin", *flags[2:], "--json"], args[1] + "\n"
-        else:
-            command, stdin = [cli, *args] + ([] if args[0] == "agent-skill" else ["--json"]), None
-        result = subprocess.run([str(c) for c in command], input=stdin, text=True, capture_output=True,
-                                timeout=150, env=env)
+
+class AgentMachine:
+    """The Agent's own clean amd64 Linux machine (no Docker socket, no
+    repository, no product files): the printed prompt is its only input.
+    Only the consumer CA/client files the prompt names are visible, read-only
+    at the same path, and the host loopback (registry, Gateway) is reachable."""
+
+    def __init__(self, name, home, mounts, output):
+        self.name, self.home, self.output = name, home, output
+        home.mkdir(mode=0o700)
+        args = []
+        for path in mounts:
+            args += ["-v", f"{path}:{path}:ro"]
+        subprocess.run(["docker", "run", "-d", "--name", name, "--label", "oo.lane=" + LANE,
+                        "--platform", "linux/amd64", "--network", "host",
+                        "--user", f"{os.getuid()}:{os.getgid()}", "-v", f"{home}:{home}", *args,
+                        "--entrypoint", "sleep", AGENT_IMAGE, "infinity"], capture_output=True, check=True)
+        self.env = {"HOME": str(home), "npm_config_prefix": str(home / "npm"),
+                    "npm_config_cache": str(home / "npm-cache"), "npm_config_update_notifier": "false",
+                    "PATH": f"{home}/npm/bin:/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"}
+        self.seq = 0
+
+    def sh(self, command, record=True, timeout=300):
+        argv = ["docker", "exec", "-i", "-w", str(self.home)]
+        for key, value in self.env.items():
+            argv += ["-e", f"{key}={value}"]
         try:
-            body = json.loads(t6.redact_material(result.stdout))
-        except ValueError:
-            body = t6.redact_material(result.stdout)
-        out = {"exit": result.returncode, "body": body, "stderr": t6.redact_material(result.stderr)}
-        seq[0] += 1
-        write_json(output / f"cli-{seq[0]:03d}.json", {"args": [t6.redact_material(a) for a in args], **out})
+            result = subprocess.run([*argv, self.name, "sh", "-c", command], capture_output=True,
+                                    timeout=timeout)
+            out = {"exit": result.returncode,
+                   "stdout": result.stdout.decode(errors="replace")[-16000:],
+                   "stderr": result.stderr.decode(errors="replace")[-4000:]}
+        except subprocess.TimeoutExpired:
+            out = {"exit": 124, "stdout": "", "stderr": "timeout"}
+        if record:
+            self.seq += 1
+            write_json(self.output / f"shell-{self.seq:03d}.json", {"command": command, **out})
         return out
 
-    gold = source.run.gold()
-    chosen = gold_questions(source)
-    questions = [q for q in json.loads(t6.QUESTIONS.read_text()) if q["id"] in chosen]
-    report = {"model": t6.MODEL["model"], "harness": f"lane G t6.py @ {LANE_G_T6}",
+    def close(self):
+        subprocess.run(["docker", "rm", "-f", self.name], capture_output=True)
+
+
+def agent_turns(model, t6, machine, messages, limit):
+    """Tool loop; every command is the Agent's own. Returns final text and
+    the tool transcript."""
+    transcript = []
+    for _ in range(limit):
+        response = model.call(messages)
+        choice = response["choices"][0]
+        message = choice["message"]
+        if choice.get("finish_reason") == "length" or message.get("refusal"):
+            return None, transcript, "truncated_or_refused"
+        messages.append(message)
+        calls = message.get("tool_calls", [])
+        if not calls:
+            return message.get("content") or "", transcript, None
+        for call in calls[:8]:
+            if call["function"]["name"] != "shell":
+                raise ValueError("AGENT_TOOL")
+            command = json.loads(call["function"]["arguments"]).get("command", "")
+            if not isinstance(command, str) or not command or len(command) > 65536:
+                raise ValueError("AGENT_TOOL_ARGUMENT")
+            result = machine.sh(command)
+            redacted = {k: t6.redact_material(v) if isinstance(v, str) else v for k, v in result.items()}
+            transcript.append({"command": t6.redact_material(command), **redacted})
+            messages.append({"role": "tool", "tool_call_id": call["id"], "content": json.dumps(result)})
+    return None, transcript, "turn_limit"
+
+
+def agent(prompt, output, source, machine, questions_too):
+    """Another Agent gets only the printed prompt and runs every step itself
+    (npm install from the staged registry, login, verify); the harness never
+    rebuilds its commands. Then, optionally, the gold questions."""
+    output.mkdir(exist_ok=True)
+    t6 = lane_g_t6(output)
+    t6.TOOLS = SHELL_TOOL  # lane G's bounded model client and scoring, with a shell
+    report = {"model": t6.MODEL["model"], "harness": f"lane G t6.py @ {LANE_G_T6} (model client, scoring)",
+              "input": "printed share prompt only", "machine": machine.name,
               "budget": {"max_calls": t6.MAX_CALLS, "max_turns": t6.MAX_TURNS,
                          "max_output_per_call": t6.MAX_OUTPUT, "max_request_bytes": t6.MAX_REQUEST_BYTES},
-              "questions_scope": "gold questions reading only " + ",".join(sorted(LOADED)),
               "questions": []}
     write_json(output / "preflight.json", report)
     model = t6.Model(output)
     try:
-        bound = t6.bind_agent(model, run, prompt, output)
-        report["binding"] = "verified"
-        for question in questions:
-            row = t6.dialogue(model, run, bound, question, gold[question["id"]], output)
-            entry = {k: row[k] for k in ("id", "status", "equal", "null", "truncated", "refused",
-                                          "error", "tool_failures")}
-            report["questions"].append(entry)
+        messages = [
+            {"role": "system", "content": "You are an AI agent on your own clean Linux machine. A user pasted "
+             "setup instructions. Carry out every step yourself with the shell tool, exactly as written, "
+             "and report honestly whether each step succeeded. Never print secrets back."},
+            {"role": "user", "content": prompt}]
+        text, transcript, stop = agent_turns(model, t6, machine, messages, t6.MAX_TURNS)
+        report["setup"] = {"commands": [c["command"] for c in transcript],
+                           "exits": [c["exit"] for c in transcript], "stop": stop,
+                           "summary": t6.redact_material(text or "")[:2000]}
+        # Verification of the outcome, not of the commands: the Agent's own
+        # installed oo, profile and token must work.
+        check = machine.sh("oo whoami --json", record=True)
+        report["binding"] = "verified" if check["exit"] == 0 else "failed"
+        report["installed"] = machine.sh("npm ls -g --depth 0 --json", record=True)["stdout"][:2000]
+        if questions_too and report["binding"] == "verified":
+            gold = source.run.gold()
+            chosen = gold_questions(source)
+            setup = t6.redact_material(prompt)
+            for question in [q for q in json.loads(t6.QUESTIONS.read_text()) if q["id"] in chosen]:
+                messages = [
+                    {"role": "system", "content": "Answer using only the oo CLI already installed and bound on "
+                     "your machine (use the shell tool). Never invent values or replace NULL by zero. Return "
+                     'only JSON {"rows":[["cell",null]]} preserving query row/column order and exact numeric '
+                     'strings; if refused return {"refused":true}.'},
+                    {"role": "user", "content": setup + "\nQuestion: " + question["question"]}]
+                error = None
+                try:
+                    text, transcript, stop = agent_turns(model, t6, machine, messages, t6.MAX_TURNS)
+                    answer = json.loads(text) if text else {}
+                except Exception as exc:
+                    text, transcript, stop, answer = None, [], None, {}
+                    error = t6.error_code(exc) or type(exc).__name__
+                queried = any("oo query" in c["command"] and c["exit"] == 0 for c in transcript)
+                row = t6.classify(answer if isinstance(answer, dict) else {}, gold[question["id"]],
+                                  truncated=stop == "truncated_or_refused",
+                                  refused=isinstance(answer, dict) and answer.get("refused") is True,
+                                  queried=queried)
+                if error or stop == "turn_limit":
+                    row.update(status="failed", equal=False)
+                entry = {"id": question["id"], **{k: row[k] for k in ("status", "equal", "null", "truncated",
+                                                                        "refused")}, "error": error or stop}
+                write_json(output / f"{question['id']}.json", {**entry, "answer": answer,
+                           "gold": gold[question["id"]], "tools": transcript})
+                report["questions"].append(entry)
     except Exception as error:
         report["error"] = t6.error_code(error) or type(error).__name__
     finally:
@@ -674,6 +816,23 @@ def agent(cli, env, prompt, output, source):
         report["asked"] = len(report["questions"])
         write_json(output / "result.json", report)
     return report
+
+
+def verify_consumer(machine, source, output):
+    """Fixed checks on the Agent's machine after it bound itself."""
+    results = {}
+    for step, command in [("whoami", "oo whoami --json"), ("tables", "oo tables --json"),
+                          ("query", "oo query --json " + shlex.quote(source.query))]:
+        result = machine.sh(command)
+        results[step] = {"exit": result["exit"]}
+        if result["exit"]:
+            results["status"] = "failed"
+            return results
+        results[step]["value"] = json.loads(result["stdout"])
+    rows = results["query"]["value"].get("rows")
+    results["query"]["rows"] = rows
+    results["status"] = "passed" if same_number(rows, source.expected) else "wrong_data"
+    return results
 
 
 def control_sql(work, sql):
@@ -704,7 +863,7 @@ def wait_status(cli, work, env, output, name, timeout=420):
             "gateway_health": (report.get("gateway_health") or {}).get("status")}
 
 
-def scheduled_cycle(cli, work, env, agent_env, output, source):
+def scheduled_cycle(cli, work, env, machine, output, source):
     """Seven healthy, then one scheduled data-change cycle serves new data."""
     result = {"before": wait_status(cli, work, env, output, "status-scheduled-1")}
     if not result["before"]["healthy"]:
@@ -723,8 +882,8 @@ def scheduled_cycle(cli, work, env, agent_env, output, source):
         time.sleep(3)
     else:
         raise RuntimeError("scheduled cycle timeout")
-    query = command([cli, "query", "--json", source.query], work, agent_env, output, "query-after-cycle")
-    rows = json.loads(query.stdout or b"{}").get("rows")
+    query = machine.sh("oo query --json " + shlex.quote(source.query))
+    rows = json.loads(query["stdout"] or "{}").get("rows")
     result.update(tasks_succeeded=done, query_rows=rows, expected=[[source.changed]],
                   after=wait_status(cli, work, env, output, "status-scheduled-2"))
     usage = work / ".oo/lite/work/usage.jsonl"
@@ -783,18 +942,39 @@ def generated_secrets(work, source):
     return [v for v in values if len(v) >= 8]
 
 
-def secret_scan(files, values):
+OWNER_FILES = []  # the model endpoint and key files; read only inside secret_scan
+
+
+def secret_scan(files, values, raw=()):
+    """Exact secret values (generated ones, plus the owner model endpoint and
+    key read here and never stored or printed) and key/token patterns. Raw
+    sample files that hit are emptied so evidence never retains a secret."""
+    owner = []
+    for path in OWNER_FILES:
+        data = Path(path).read_bytes()
+        owner += [data, data.strip()]
     hits = []
     for path in files:
         if not path.is_file():
             continue
         data = path.read_bytes()
+        hit = False
         for value in values:
             if value in data:
                 hits.append({"file": path.name, "kind": "generated_secret"})
+                hit = True
+        for value in owner:
+            if value and value in data:
+                hits.append({"file": path.name, "kind": "owner_model_file"})
+                hit = True
+                break
         for pattern in PATTERNS:
             if pattern.search(data):
                 hits.append({"file": path.name, "kind": "pattern:" + pattern.pattern.decode()[:12]})
+                hit = True
+        if hit and path in raw:
+            path.write_bytes(b"[removed: secret-scan hit]\n")
+    owner.clear()
     return hits
 
 
@@ -851,6 +1031,8 @@ def flow(mode, cli, env, home, output, source, endpoint_file, key_file, image):
     stack_path = work / "stack.yaml"
     report = {"mode": mode, "engine": source.engine, "version": source.actual_version}
     monitor = ArgvMonitor()
+    containers = ContainerMonitor(output / "containers.samples")
+    machines = []
     started = time.monotonic()
     try:
         if mode == "tty":
@@ -920,17 +1102,15 @@ def flow(mode, cli, env, home, output, source, endpoint_file, key_file, image):
                 "Owner accepted every item of the retained draft (self-review)"):
             raise RuntimeError("owner review decisions differ from the answers given")
         # The prompt is for another agent: a separate, empty consumer HOME.
-        agent_home = output / "agent-home"
-        agent_home.mkdir(mode=0o700)
-        agent_env = dict(env, HOME=str(agent_home))
-        if mode == "stack" and AGENT:
-            # Another Agent, given only the printed prompt, binds and answers.
-            report["agent"] = agent(cli, agent_env, text, output / "agent", source)
-            report["consumer"] = consumer(cli, agent_env, text, output, source, "consumer", login=False)
-        else:
-            report["consumer"] = consumer(cli, agent_env, text, output, source, "consumer")
+        # The prompt goes to another Agent on its own machine; it performs
+        # every printed step (npm install from the staged registry included).
+        machine = AgentMachine(f"oo-a4-agent-{output.parent.name}-{mode}", output / "agent-home",
+                               [work / ".oo/lite/consumer"], output / "agent")
+        machines.append(machine)
+        report["agent"] = agent(text, output / "agent", source, machine, mode == "stack" and AGENT)
+        report["consumer"] = verify_consumer(machine, source, output)
         if mode == "stack" and report["consumer"]["status"] == "passed":
-            report["scheduled"] = scheduled_cycle(cli, work, env, agent_env, output, source)
+            report["scheduled"] = scheduled_cycle(cli, work, env, machine, output, source)
             if report["scheduled"]["result"] != "passed":
                 raise RuntimeError("scheduled data-change cycle did not serve new data")
         status = command([cli, "status", "--config", stack_path, "--json"], work, env, output, "status")
@@ -947,17 +1127,26 @@ def flow(mode, cli, env, home, output, source, endpoint_file, key_file, image):
             service_logs(work, output)
         except Exception:
             pass
+        container_samples = containers.close()
         files = [*output.glob("*.stdout"), *output.glob("*.stderr"), *output.glob("*.raw"), argv,
-                 output / "services.log", *(output / "agent").glob("*.json"),
+                 container_samples, output / "services.log", *(output / "agent").glob("*.json"),
                  stack_path, output / "completion.txt",
                  *(work / ".oo/lite/work/operator/gateway/packs").glob("*.json"),
                  *(work / ".oo/lite/work/operator/gateway/reviewed").rglob("*.json")]
         prompt_hits = [h for h in secret_scan([output / "completion.txt"], generated_secrets(work, source))]
-        hits = secret_scan([f for f in files if f.name != "completion.txt"], generated_secrets(work, source))
-        report["secret_scan"] = {"scope": "argv samples, logs, terminal transcripts, stack.yaml, Packs, "
-                                          "reviewed documents, printed prompt",
+        hits = secret_scan([f for f in files if f.name != "completion.txt"], generated_secrets(work, source),
+                           raw=(argv, container_samples))
+        report["secret_scan"] = {"scope": "host argv samples; docker inspect Env/Cmd/Args/Entrypoint and in-container "
+                                          "/proc/*/cmdline and /proc/*/environ of every oo.lane=" + LANE + " container "
+                                          f"({len(containers.seen)} seen); logs, terminal transcripts, stack.yaml, "
+                                          "Packs, reviewed documents, Agent transcripts, printed prompt",
                                  "hits": hits + prompt_hits, "status": "passed" if not hits + prompt_hits else "failed",
-                                 "owner_model_files": "never read by the harness; pattern scan only"}
+                                 "owner_model_files": "exact bytes compared inside the scanner only; never stored "
+                                                      "or printed",
+                                 "containers_sampled": len(containers.seen)}
+        for machine in machines:
+            machine.close()
+        shutil.rmtree(output / "agent-home", ignore_errors=True)  # Agent's token and profile
         try:
             report["teardown"] = teardown(cli, work, env, output, "teardown")
         except Exception as error:
@@ -966,14 +1155,63 @@ def flow(mode, cli, env, home, output, source, endpoint_file, key_file, image):
     return report
 
 
-def start_client(output, args, image):
-    """A clean amd64 machine: fresh image, no repository, host daemon socket."""
-    client_image = "oo-a4-l1-client:linux-amd64"
-    if subprocess.run(["docker", "image", "inspect", client_image], capture_output=True).returncode:
+def stage_registry(output, archive):
+    """A minimal static npm registry (packument + tarball) in an owned
+    container on host loopback, serving exactly the staged package."""
+    root = output / "registry"
+    package = json.loads((ROOT / "packages/cli/package.json").read_text())
+    name, version = package["name"], package["version"]
+    data = archive.read_bytes()
+    tarball = f"{name.split('/')[-1]}-{version}.tgz"
+    (root / "-").mkdir(parents=True)
+    shutil.copy2(archive, root / "-" / tarball)
+    import base64
+    port = free_port()
+    url = f"http://localhost:{port}/"
+    manifest = json.loads(subprocess.check_output(["tar", "-xzOf", str(archive), "package/package.json"]))
+    manifest.update(_id=f"{name}@{version}", dist={
+        "tarball": f"{url}-/{tarball}", "shasum": hashlib.sha1(data).hexdigest(),
+        "integrity": "sha512-" + base64.b64encode(hashlib.sha512(data).digest()).decode()})
+    scope, short = name.split("/")
+    (root / scope).mkdir()
+    (root / scope / short).write_text(json.dumps({
+        "name": name, "dist-tags": {"latest": version}, "versions": {version: manifest}}))
+    container = f"oo-a4-{output.name}-registry"
+    subprocess.run(["docker", "run", "-d", "--name", container, "--label", "oo.lane=" + LANE,
+                    "-p", f"127.0.0.1:{port}:8000", "-v", f"{root}:/srv:ro", "-w", "/srv",
+                    "--entrypoint", "python3", "docker.io/library/python@sha256:"
+                    "2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a", "-m", "http.server",
+                    "8000"], capture_output=True, check=True)
+    for _ in range(50):
+        try:
+            import urllib.request
+            urllib.request.urlopen(url + "-/" + tarball, timeout=2).read(1)
+            break
+        except Exception:
+            time.sleep(0.2)
+    return url, container, {"package": f"{name}@{version}", "tarball_sha512": manifest["dist"]["integrity"]}
+
+
+def free_port():
+    import socket
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def ensure_client_image(output):
+    """The clean amd64 Linux machine image (owner client and Agent machine)."""
+    if subprocess.run(["docker", "image", "inspect", AGENT_IMAGE], capture_output=True).returncode:
         with (output / "client-image.log").open("wb") as log:
             subprocess.run(["docker", "build", "--platform", "linux/amd64", "--label", "oo.lane=" + LANE,
-                            "-t", client_image, "-f", ROOT / "tools/oo-test/linux-amd64/client.Dockerfile",
+                            "-t", AGENT_IMAGE, "-f", ROOT / "tools/oo-test/linux-amd64/client.Dockerfile",
                             ROOT / "tools/oo-test/linux-amd64"], stdout=log, stderr=subprocess.STDOUT, check=True)
+    return AGENT_IMAGE
+
+
+def start_client(output, args, image):
+    """A clean amd64 machine: fresh image, no repository, host daemon socket."""
+    client_image = ensure_client_image(output)
     name = f"oo-a4-{args.run_id}-client"
     mounts = ["-v", f"{output}:{output}", "-v", "/var/run/docker.sock:/var/run/docker.sock"]
     for path in (args.model_endpoint, args.model_key):
@@ -1018,6 +1256,8 @@ def main():
     parser.add_argument("--engines", default="postgres,mysql,oracle")
     parser.add_argument("--modes", default="tty,stack")
     parser.add_argument("--no-agent", action="store_true", help="skip the real-model Agent questions")
+    parser.add_argument("--agent-binary", type=Path, default=ROOT / "target/linux-x64/oo",
+                        help="Linux amd64 oo packaged for the Agent's machine")
     parser.add_argument("--platform", choices=["darwin-arm64", "linux-x64"], default="darwin-arm64",
                         help="linux-x64: CLI in a clean amd64 client container on the host daemon")
     args = parser.parse_args()
@@ -1037,6 +1277,7 @@ def main():
         parser.error("less than 20 GB free; refusing to start containers")
     global AGENT
     AGENT = not args.no_agent
+    OWNER_FILES[:] = [args.model_endpoint, args.model_key]
     engines = args.engines.split(",")
     modes = args.modes.split(",")
     os.umask(0o077)
@@ -1053,10 +1294,18 @@ def main():
     (tools / "docker-config").mkdir()
     write_json(tools / "docker-config/config.json", {"cliPluginsExtraDirs": [
         "/Applications/Docker.app/Contents/Resources/cli-plugins"]})
-    archive, image = diagnostic_pack(binary, output, tools)
-    machine = {"platform": TARGET}
+    global REGISTRY
+    agent_binary = args.agent_binary.resolve()
+    if not agent_binary.is_file():
+        parser.error("--agent-binary must be a Linux amd64 oo build")
+    archive, image = diagnostic_pack(binary, output, tools, {"linux-x64": agent_binary})
+    ensure_client_image(output)
+    REGISTRY, registry_container, staged = stage_registry(output, archive)
+    machine = {"platform": TARGET, "npm_registry": {"url": REGISTRY, **staged,
+               "server": "static packument + tarball, python http.server container (oo.lane=a4)"}}
     if TARGET == "linux-x64":
-        CLIENT, machine = start_client(output, args, image)
+        CLIENT, client = start_client(output, args, image)
+        machine.update(client)
     summary = {"base_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
                "dirty": bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=no"],
                                                      cwd=ROOT, text=True).strip()),
@@ -1097,6 +1346,7 @@ def main():
         write_json(output / "summary.json", summary)
     if CLIENT:
         subprocess.run(["docker", "rm", "-f", CLIENT], capture_output=True)
+    subprocess.run(["docker", "rm", "-f", registry_container], capture_output=True)
     left = subprocess.run(["docker", "ps", "-aq", "--filter", "label=oo.lane=" + LANE],
                           capture_output=True, text=True).stdout.split()
     summary["containers_left"] = len(left)
