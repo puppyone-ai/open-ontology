@@ -197,6 +197,10 @@ impl ChunkSink for Sink {
                     if let Some(col) = col.as_any().downcast_ref::<arrow_array::Int64Array>() {
                         return (!col.is_null(i)).then(|| col.value(i).to_string());
                     }
+                    if let Some(col) = col.as_any().downcast_ref::<arrow_array::BinaryArray>() {
+                        return (!col.is_null(i))
+                            .then(|| col.value(i).iter().map(|b| format!("{b:02x}")).collect());
+                    }
                     let col = col.as_any().downcast_ref::<StringArray>().unwrap();
                     (!col.is_null(i)).then(|| col.value(i).to_owned())
                 })
