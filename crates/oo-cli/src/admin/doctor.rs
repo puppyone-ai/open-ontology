@@ -26,6 +26,7 @@ enum Adapter {
     Mysql,
     Sqlserver,
     Db2,
+    Dm8,
 }
 
 fn registry() -> BTreeMap<EngineFamily, Adapter> {
@@ -36,6 +37,7 @@ fn registry() -> BTreeMap<EngineFamily, Adapter> {
         (EngineFamily::Oracle, Adapter::Oracle),
         (EngineFamily::Sqlserver, Adapter::Sqlserver),
         (EngineFamily::Db2, Adapter::Db2),
+        (EngineFamily::Dameng, Adapter::Dm8),
     ])
 }
 
@@ -155,6 +157,32 @@ fn db2(
         .map_err(|e| e.to_string())
 }
 
+fn dm8(
+    source: &Source,
+    tables: &[TableRef],
+    store: &SecretStore,
+) -> Result<oo_connectors::dm8::Dm8Engine, String> {
+    if source.ssh.is_some() {
+        return Err("SSH_EXTERNAL_WORKER_NOT_AVAILABLE".into());
+    }
+    // The DM worker has no TLS yet; never silently drop a trust anchor.
+    if source.tls_ca.is_some() {
+        return Err("DM8_TLS_NOT_AVAILABLE".into());
+    }
+    // Operator-controlled executable, like oo-load --dm8-worker. Its wrapper
+    // owns the pinned image and the source-only network namespace.
+    let executable = std::env::var_os("OO_DM8_WORKER").ok_or("DM8_WORKER_REQUIRED")?;
+    let mut config = oo_connectors::dm8::ConnectConfig::new(
+        &source.host,
+        source.port,
+        &source.user,
+        store.read(&source.password.secret_ref)?.into(),
+    );
+    config.scope = tables.to_vec();
+    oo_connectors::dm8::Dm8Engine::connect(&mut Command::new(executable), &config)
+        .map_err(|e| e.to_string())
+}
+
 fn oracle(
     source: &Source,
     tables: &[TableRef],
@@ -220,6 +248,7 @@ fn family(source: &Source) -> Result<EngineFamily, &'static str> {
         "sqlserver" => Ok(EngineFamily::Sqlserver),
         "db2" => Ok(EngineFamily::Db2),
         "kingbase" => Ok(EngineFamily::Kingbase),
+        "dm8" | "dameng" => Ok(EngineFamily::Dameng),
         // Port selects a candidate only. The adapter must verify server identity.
         "auto" => match source.port {
             5432 => Ok(EngineFamily::Postgres),
@@ -321,7 +350,8 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                     | Adapter::Oracle
                     | Adapter::Mysql
                     | Adapter::Sqlserver
-                    | Adapter::Db2,
+                    | Adapter::Db2
+                    | Adapter::Dm8,
                 ) => (),
                 _ => return Err("engine not available in this build".into()),
             }
@@ -366,6 +396,12 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                                 Err(error) => json!({"status":"blocked","error":error}),
                             },
                             EngineFamily::Db2 => match db2(source, &selected, &store) {
+                                Ok(mut engine) => {
+                                    inspect(&mut engine, &selected, &source.sync.mode).await
+                                }
+                                Err(error) => json!({"status":"blocked","error":error}),
+                            },
+                            EngineFamily::Dameng => match dm8(source, &selected, &store) {
                                 Ok(mut engine) => {
                                     inspect(&mut engine, &selected, &source.sync.mode).await
                                 }
@@ -521,6 +557,9 @@ mod tests {
         ));
         assert!(matches!(registry()[&EngineFamily::Mysql], Adapter::Mysql));
         assert!(matches!(registry()[&EngineFamily::Oracle], Adapter::Oracle));
+        s.engine = "dm8".into();
+        assert_eq!(family(&s).unwrap(), EngineFamily::Dameng);
+        assert!(matches!(registry()[&EngineFamily::Dameng], Adapter::Dm8));
     }
 
     #[test]
