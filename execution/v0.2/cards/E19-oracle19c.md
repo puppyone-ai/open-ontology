@@ -11,3 +11,5 @@ concurrently — add 19c through resolver/pins and hooks, not by editing their f
    C1 opt-in LogMiner under D11a three cycles, T3/T4 via `oo-test t3t4` (archivelog expiry: inject with RMAN — the
    enterprise image has it), T7 via `tools/oo-test/t7.py` (snapshot, c5, c1). Merge rows (`oo-test matrix --merge-only`).
 Report the 19c version × suite table.
+
+Resume note (E368): the coordinator session restarted and your previous run was cut off mid-way. Your worktree keeps your commits and any uncommitted work: review it, commit what is correct, rebase on v0.2/product-loops, and continue the card to its exit. Build prerequisites first. Commit trailers: `Plan:` only, no Co-Authored-By.

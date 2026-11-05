@@ -10,3 +10,5 @@ Fix: after the concurrent snapshot, stop the writer and run ONE incremental corr
 result to the source. Also add a negative test that injects a dropped and a duplicated row into a loaded chunk and must
 fail the comparison. Keep the full-reload path only as an explicitly named diagnostic, never as the verdict.
 Rerun T1/T8 on all 13 P0 versions at full scale (2M events, 200 tables) with explicit rows, merge, regenerate the matrix.
+
+Resume note (E368): the coordinator session restarted and your previous run was cut off mid-way. Your worktree keeps your commits and any uncommitted work: review it, commit what is correct, rebase on v0.2/product-loops, and continue the card to its exit. Build prerequisites first. Commit trailers: `Plan:` only, no Co-Authored-By.

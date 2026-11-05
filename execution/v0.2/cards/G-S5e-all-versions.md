@@ -12,3 +12,5 @@ Oracle 23.5 20/20, MySQL 8.4.7 19/20. Disk is no longer a constraint (≈450 GB 
    stands on its own (never merge answers across runs); record both.
 3. Commit the merged evidence rows (granted: `execution/v0.2/evidence-index.json`) and regenerate the matrix
    (`specs/scripts/gen_support_matrix.py`, `--check`, `--self-test`).
+
+Resume note (E368): the coordinator session restarted and your previous run was cut off mid-way. Your worktree keeps your commits and any uncommitted work: review it, commit what is correct, rebase on v0.2/product-loops, and continue the card to its exit. Build prerequisites first. Commit trailers: `Plan:` only, no Co-Authored-By.
