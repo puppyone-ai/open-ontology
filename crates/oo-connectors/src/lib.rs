@@ -31,6 +31,8 @@ mod bounded_read;
 mod budget_report;
 mod catalog;
 mod config;
+#[cfg(feature = "db2")]
+pub mod db2;
 mod delimited;
 #[cfg(any(feature = "mongodb", feature = "opensearch"))]
 pub mod document;
