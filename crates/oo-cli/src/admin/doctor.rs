@@ -138,10 +138,12 @@ fn db2(
     }
     // Operator-controlled executable, like oo-load --db2-worker. Its wrapper
     // owns the pinned image and the source-only network/CA mount.
-    let executable = std::env::var_os("OO_DB2_WORKER")
-        .ok_or("DB2_WORKER_REQUIRED")?;
+    let executable = std::env::var_os("OO_DB2_WORKER").ok_or("DB2_WORKER_REQUIRED")?;
     let mut config = oo_connectors::db2::ConnectConfig::new(
-        &source.host, source.port, &source.database, &source.user,
+        &source.host,
+        source.port,
+        &source.database,
+        &source.user,
         store.read(&source.password.secret_ref)?.into(),
     );
     config.scope = tables.to_vec();
@@ -308,9 +310,13 @@ async fn sources(stack: &Stack) -> Vec<Value> {
         let setup = (|| {
             let family = family(source)?;
             match registry.get(&family) {
-                Some(Adapter::Postgres | Adapter::Oracle | Adapter::Mysql | Adapter::Sqlserver) => {
-                    ()
-                }
+                Some(
+                    Adapter::Postgres
+                    | Adapter::Oracle
+                    | Adapter::Mysql
+                    | Adapter::Sqlserver
+                    | Adapter::Db2,
+                ) => (),
                 _ => return Err("engine not available in this build".into()),
             }
             let selection = tables(source);
@@ -354,7 +360,9 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                                 Err(error) => json!({"status":"blocked","error":error}),
                             },
                             EngineFamily::Db2 => match db2(source, &selected, &store) {
-                                Ok(mut engine) => inspect(&mut engine, &selected, &source.sync.mode).await,
+                                Ok(mut engine) => {
+                                    inspect(&mut engine, &selected, &source.sync.mode).await
+                                }
                                 Err(error) => json!({"status":"blocked","error":error}),
                             },
                             EngineFamily::Mysql => mysql(source, &selected),
