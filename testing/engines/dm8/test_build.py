@@ -9,13 +9,13 @@ import build
 
 class BuildTests(unittest.TestCase):
     def test_checksum_match(self):
-        with tempfile.TemporaryDirectory(dir=build.ROOT / "evidence") as tmp:
+        with tempfile.TemporaryDirectory(dir=build.ROOT) as tmp:
             path = Path(tmp) / "package"
             path.write_bytes(b"fixture")
             build.verify(path, hashlib.sha256(b"fixture").hexdigest())
 
     def test_wrong_package_never_creates_context(self):
-        with tempfile.TemporaryDirectory(dir=build.ROOT / "evidence") as tmp:
+        with tempfile.TemporaryDirectory(dir=build.ROOT) as tmp:
             archive = Path(tmp) / "wrong.zip"
             archive.write_bytes(b"wrong package")
             out = Path(tmp) / "build"
