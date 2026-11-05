@@ -397,3 +397,5 @@ evidence run-id.
 | E379 | 2026-11-05 | integrate | S0-H-04, S5-E-04 | `3d2052471`…`0305d55e8`, 19 evidence rows, matrix regenerated (727 rows) | Lane E19 integrated |
 | E380 | 2026-11-05 | unblocked | — | E014 | Oracle 19c no longer blocked |
 | E381 | 2026-11-05 | dispatch | S5-G-01 | card `G-S5f-dialogue-rerun.md` on `v0.2/g-selfbuild-budget` | Lane G: T6 reruns on versions without 20/20, with model-health probes; rows for the earlier 20/20 runs; Oracle 19.19 |
+| E382 | 2026-11-05 | delivery | S5-E-03 | native lane D8; evidence `d8-s5h-r2` | DM8 V8 native arm64 through an isolated DPI worker: T0 (product doctor), T1 under a 1,377-commit concurrent writer judged after one C5 correction (2,000,466 rows match), T8 (one reader, 25% duty), three C5 cycles (idle zero I/O). No new Rust dependency; Dameng client only in the local worker image |
+| E383 | 2026-11-05 | integrate | S5-E-03, S6-M-01 | `bd8883181`…`3b918ad31`; coordinator arrow 60.1.0 bump | DM8 integrated. New advisory RUSTSEC-2026-0442 (arrow-data 60.0.0) found by lane D8; coordinator moved every arrow pin to 60.1.0; audit and deny pass |
