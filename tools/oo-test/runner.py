@@ -527,7 +527,8 @@ def execute_suites(run, requested, hooks):
                 continue
             if audit:
                 audit.marker(suite + "_start")
-            code, _ = run.command([hooks[suite]], timeout=3600, required=False)
+            # Full-scale T1 includes multiple bounded loads and C5 duty pauses.
+            code, _ = run.command([hooks[suite]], timeout=14400, required=False)
             results[suite] = "passed" if code == 0 and explicit(suite) else "failed"
             if audit:
                 audit.marker(suite + "_end")

@@ -126,8 +126,9 @@ class VerdictTests(unittest.TestCase):
     def test_zero_hook_exit_without_verdict_does_not_pass(self):
         with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
             run = runner.Run(Path(directory), "postgres", "17", None)
-            with patch.object(run, "command", return_value=(0, "")):
+            with patch.object(run, "command", return_value=(0, "")) as command:
                 self.assertEqual(runner.execute_suites(run, ["T1"], {"T1": "/true"}), {"T1": "failed"})
+                command.assert_called_once_with(["/true"], timeout=14400, required=False)
             run.cleanup()
 
     def test_naive_timestamp_is_rejected(self):
