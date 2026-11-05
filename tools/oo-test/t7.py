@@ -213,9 +213,8 @@ def run_fixture(engine, version, kind, root, args):
             report.setdefault("verdicts", {})[variant] = {"result": "fail", "coverage": reason,
                                                           "reasons": ["audit collection failed"]}
     if kind == "incremental" and engine == "oracle" and version != "23":
-        verdicts.append(("T7", "c1", "skip"))
-        report.setdefault("verdicts", {})["c1"] = {
-            "result": "skip", "reasons": ["Oracle XE C1 (LogMiner) is not implemented by the T2 runner"]}
+        # No row: XE C1 is not run by the T2 runner, so T7 has nothing to prove.
+        report["not_run"] = {"c1": "Oracle XE C1 (LogMiner) is not implemented by the T2 runner"}
     path = out / f"t7-{kind}.json"
     runner.write_json(path, report)
     write_rows(run, path, verdicts, cleanup_failed=bool(failures))
