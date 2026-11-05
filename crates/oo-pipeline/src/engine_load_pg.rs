@@ -40,6 +40,7 @@ pub(crate) fn column(field: &DecodedField) -> Result<(i64, String)> {
         "uint64" => (1700, "numeric(20,0)"),
         "bool" => (16, "boolean"),
         "utf8" => (25, "text"),
+        "utf8_document" => (3802, "jsonb"),
         "list(utf8)" => (114, "json"),
         "binary" => (17, "bytea"),
         "float64" => (701, "double precision"),
@@ -76,9 +77,18 @@ pub struct PgTarget<'a> {
     view: String,
     plan: String,
     fields: Option<Vec<DecodedField>>,
+    document_column: Option<String>,
 }
 
 impl<'a> PgTarget<'a> {
+    /// Opt in only for a source adapter's declared full-document column.
+    /// Ordinary text, including text named `_document`, remains text by default.
+    pub fn with_jsonb_document(mut self, name: &str) -> Result<Self> {
+        quote(name)?;
+        self.document_column = Some(name.into());
+        Ok(self)
+    }
+
     /// Caller must use a dedicated connection and close it after the load. The
     /// session advisory lock fences concurrent writers including process death.
     pub async fn new(
@@ -131,6 +141,7 @@ impl<'a> PgTarget<'a> {
             stage: String::new(),
             plan: String::new(),
             fields: None,
+            document_column: None,
         })
     }
 
@@ -221,6 +232,13 @@ impl Target for PgTarget<'_> {
     }
 
     async fn stage(&mut self, receipt: &ChunkReceipt, decoded: &DecodedStream) -> Result<()> {
+        if self
+            .document_column
+            .as_ref()
+            .is_some_and(|name| !decoded.fields.iter().any(|field| &field.name == name))
+        {
+            return Err("load_document_missing");
+        }
         if self.fields.as_ref().is_some_and(|f| f != &decoded.fields) {
             return Err("load_schema_drift");
         }
@@ -231,7 +249,7 @@ impl Target for PgTarget<'_> {
             if !names.insert(&f.name) || f.name == "__oo_chunk" {
                 return Err("load_schema");
             }
-            let (oid, sql) = column(f)?;
+            let (oid, sql) = target_column(f, self.document_column.as_deref())?;
             types.push(oid);
             definitions.push(format!(
                 "{} {sql}{}",
@@ -438,9 +456,54 @@ impl Target for PgTarget<'_> {
     }
 }
 
+fn target_column(field: &DecodedField, document: Option<&str>) -> Result<(i64, String)> {
+    if document == Some(field.name.as_str()) {
+        if field.arrow_type != "utf8" || field.nullable {
+            return Err("load_document_type");
+        }
+        let mut field = field.clone();
+        field.arrow_type = "utf8_document".into();
+        column(&field)
+    } else {
+        column(field)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn document_mapping_is_explicit_and_does_not_change_other_text() {
+        let mut field = DecodedField {
+            name: "_document".into(),
+            nullable: false,
+            arrow_type: "utf8".into(),
+            precision: None,
+            scale: None,
+            timezone: None,
+        };
+        assert_eq!(target_column(&field, None), Ok((25, "text".into())));
+        assert_eq!(
+            target_column(&field, Some("_document")),
+            Ok((3802, "jsonb".into()))
+        );
+        assert_eq!(
+            target_column(&field, Some("other")),
+            Ok((25, "text".into()))
+        );
+        field.arrow_type = "int64".into();
+        assert_eq!(
+            target_column(&field, Some("_document")),
+            Err("load_document_type")
+        );
+        field.arrow_type = "utf8".into();
+        field.nullable = true;
+        assert_eq!(
+            target_column(&field, Some("_document")),
+            Err("load_document_type")
+        );
+    }
 
     #[test]
     fn exact_numbers_keep_bounded_target_typmods() {
