@@ -48,12 +48,17 @@ build`. The pre-dispatch allowlist omits Db2 although registry and dispatch
 already contain it. Exact requested coordinator patch (not applied):
 
 ```diff
-diff --git a/crates/oo-cli/src/admin/doctor.rs b/crates/oo-cli/src/admin/doctor.rs
 --- a/crates/oo-cli/src/admin/doctor.rs
 +++ b/crates/oo-cli/src/admin/doctor.rs
-@@ -311,1 +311,1 @@
+@@ -308,7 +308,7 @@
+         let setup = (|| {
+             let family = family(source)?;
+             match registry.get(&family) {
 -                Some(Adapter::Postgres | Adapter::Oracle | Adapter::Mysql | Adapter::Sqlserver) => {
 +                Some(Adapter::Postgres | Adapter::Oracle | Adapter::Mysql | Adapter::Sqlserver | Adapter::Db2) => {
+                     ()
+                 }
+                 _ => return Err("engine not available in this build".into()),
 ```
 
 After applying, rerun T0; its remaining mode/missing-grant checks have not
