@@ -97,7 +97,7 @@ def compare_oracle(run, target, receipt, table, scalar_compare):
                 if kind in ("NUMBER", "FLOAT", "INTEGER"):
                     value = Decimal(value)
                 elif kind in ("RAW", "BLOB") and not isinstance(value, bytes):
-                    value = bytes.fromhex(value)
+                    value = bytes.fromhex(value.removeprefix("\\x"))
                 elif kind == "DATE" or kind.startswith("TIMESTAMP"):
                     fraction = re.search(r"\.(\d+)", value)
                     if fraction and any(c != "0" for c in fraction[1][6:]):
@@ -106,7 +106,7 @@ def compare_oracle(run, target, receipt, table, scalar_compare):
             result.append(value)
         return result
 
-    right_rows = ([json.loads(line)[name] for name in names]
+    right_rows = ([json.loads(line, parse_float=Decimal)[name] for name in names]
                   for line in right.splitlines() if line.startswith("{"))
     # Oracle scalar empty strings are already NULL; empty locators are not NULL.
     return compare_rows(map(normalize, left), map(normalize, right_rows),

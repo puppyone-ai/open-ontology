@@ -44,6 +44,29 @@ class Target:
 
 
 class OracleLobComparisonTests(unittest.TestCase):
+    def test_pg_bytea_prefix_and_decimal_json_are_lossless(self):
+        class ExactSource(Source):
+            def sql(self, sql):
+                if "all_tab_columns" in sql:
+                    return 0, "ID|NUMBER\nC|CLOB\nN|NCLOB\nB|BLOB\nEXACT|NUMBER\n"
+                if "GETLENGTH" not in sql and "SUBSTR" not in sql:
+                    number = "12345678901234567890.1234567890".encode().hex()
+                    return 0, "\n".join(f"{n}|-|-|-|{number}" for n in ("31", "32", "33"))
+                return super().sql(sql)
+        class ExactTarget(Target):
+            def sql(self, sql):
+                rows = super().sql(sql).splitlines()
+                output = []
+                for line in rows:
+                    row = json.loads(line)
+                    if row["B"] is not None:
+                        row["B"] = "\\x" + row["B"]
+                    output.append(json.dumps(row)[:-1] + ',"EXACT":12345678901234567890.1234567890}')
+                return "\n".join(output)
+        source = ExactSource()
+        self.assertTrue(compare_oracle(source, ExactTarget(source), {"target": "fixture"},
+                                       "TYPE_EDGES", None)["equal"])
+
     def test_scalar_wide_query_wraps_without_changing_projection(self):
         class ScalarSource:
             def sql(self, sql):

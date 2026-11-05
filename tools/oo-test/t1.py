@@ -574,7 +574,7 @@ def compare_oracle(run, target, receipt, table):
             elif kind in ("NUMBER", "FLOAT", "INTEGER"):
                 out.append(Decimal(value))
             elif kind == "RAW":
-                out.append(bytes.fromhex(value))
+                out.append(bytes.fromhex(value.removeprefix("\\x")))
             elif kind == "DATE" or kind.startswith("TIMESTAMP"):
                 fraction = re.search(r"\.(\d+)", value)
                 if fraction and any(c != "0" for c in fraction[1][6:]):
@@ -594,7 +594,7 @@ def compare_oracle(run, target, receipt, table):
     def target_rows():
         for line in right.splitlines():
             if line.startswith("{"):
-                row = json.loads(line)
+                row = json.loads(line, parse_float=Decimal)
                 yield normalize([row[n] for n in names])
     return compare(source_rows(), target_rows(), key_columns=[names.index(k) for k in keys],
                    consistency="B", oracle_empty=True)
