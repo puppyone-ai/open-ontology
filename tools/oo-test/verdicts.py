@@ -2,9 +2,19 @@
 from datetime import datetime, timezone
 import hashlib
 import json
+from pathlib import Path
 import re
+import subprocess
 
 from matrix import target_id
+
+
+def product_sha():
+    """The tested tree: HEAD, marked dirty when tracked files differ from it."""
+    root = Path(__file__).resolve().parents[2]
+    git = lambda *a: subprocess.run(["git", "-C", str(root), *a], capture_output=True, text=True).stdout.strip()
+    head = git("rev-parse", "HEAD")
+    return head + ("-dirty" if git("status", "--porcelain", "--untracked-files=no") else "")
 
 
 def write_rows(run, raw, verdicts, *, cleanup_failed=False):
@@ -20,6 +30,7 @@ def write_rows(run, raw, verdicts, *, cleanup_failed=False):
         import runner
         version = re.search(r"\d+(?:\.\d+)*", runner.resolve(run.engine, run.version)["id"]).group()
     digest = hashlib.sha256(raw.read_bytes()).hexdigest()
+    tested = product_sha()
     rows = [{
         "target": target_id(run.engine, run.version), "version": version,
         "suite": suite, "variant": variant,
@@ -28,6 +39,7 @@ def write_rows(run, raw, verdicts, *, cleanup_failed=False):
         "emulated": receipt.get("execution") == "emulated",
         "version_measured": bool(receipt.get("version_actual")),
         "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "product_sha": tested,
     } for suite, variant, result in verdicts]
     path = raw.parent / "index-rows.json"
     old = json.loads(path.read_text()) if path.exists() else []

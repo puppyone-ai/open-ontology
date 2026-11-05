@@ -26,14 +26,55 @@ OUT = ROOT / 'docs/database-support/support-matrix.generated.json'
 HAND = ROOT / 'docs/database-support/support-matrix.yaml'
 
 # Capability -> suites that must all pass (with the variant, when given) for `verified`.
+# Every requirement names its variant: a row of another variant never satisfies it.
 REQUIRED = {
-    'full': [('T0', None), ('T1', None), ('T7', 'snapshot'), ('T8', None)],
+    'full': [('T0', 'snapshot'), ('T1', 'snapshot'), ('T7', 'snapshot'), ('T8', 'snapshot')],
     'cdc': [('T2', 'c1'), ('T3', 'c1'), ('T7', 'c1')],
     'digest': [('T2', 'c5'), ('T3', 'c5'), ('T7', 'c5')],
-    'schema_change': [('T4', None)],
-    'selfbuild': [('T5', None)],
-    'dialogue': [('T6', None)],
+    'schema_change': [('T4', 'c5')],
+    'selfbuild': [('T5', 'snapshot')],
+    'dialogue': [('T6', 'snapshot')],
 }
+BASELINE = ROOT / 'execution/v0.2/matrix-baseline.json'
+
+
+def canonical(version: str) -> tuple[int, ...] | None:
+    """Numeric components without trailing zeros: 21.3.0 and 21.3.0.0.0 are one version."""
+    parts = version.split('.')
+    if not all(p.isdigit() for p in parts):
+        return None
+    nums = [int(p) for p in parts]
+    while len(nums) > 1 and nums[-1] == 0:
+        nums.pop()
+    return tuple(nums)
+
+
+def unify_versions(rows: list[dict]) -> list[dict]:
+    """Fold image identifiers into the measured version they prefix (23.5 -> 23.5.0.24.07)."""
+    by_target = defaultdict(set)
+    for r in rows:
+        by_target[r['target']].add(r['version'])
+    alias = {}
+    for target, versions in by_target.items():
+        keyed = {v: canonical(v) for v in versions}
+        for v, k in keyed.items():
+            if k is None:
+                continue
+            longer = [w for w, kw in keyed.items() if kw and kw != k and kw[:len(k)] == k]
+            same = sorted((w for w, kw in keyed.items() if kw == k), key=len, reverse=True)
+            if len(longer) == 1:
+                alias[(target, v)] = longer[0]
+            elif same and same[0] != v:
+                alias[(target, v)] = same[0]
+    return [dict(r, version=alias.get((r['target'], r['version']), r['version'])) for r in rows]
+
+
+def baseline_filter(rows: list[dict]) -> list[dict]:
+    """With a baseline, only rows measured on that exact product tree count."""
+    if not BASELINE.exists():
+        return rows
+    sha = json.loads(BASELINE.read_text())['product_sha']
+    return [r for r in rows if r.get('product_sha') == sha]
 RESULTS = {'pass', 'fail', 'skip'}
 SHA = re.compile(r'^[0-9a-f]{64}$')
 
@@ -52,6 +93,7 @@ def validate(rows: list[dict]) -> list[str]:
 
 
 def derive(rows: list[dict]) -> list[dict]:
+    rows = unify_versions(rows)
     by = defaultdict(list)
     for r in rows:
         by[(r['target'], r['version'])].append(r)
@@ -61,7 +103,7 @@ def derive(rows: list[dict]) -> list[dict]:
         for cap, needs in REQUIRED.items():
             hits, failed, missing = [], False, False
             for suite, variant in needs:
-                match = [r for r in rs if r['suite'] == suite and (variant is None or r.get('variant') == variant)]
+                match = [r for r in rs if r['suite'] == suite and r.get('variant') == variant]
                 if not match:
                     missing = True
                     continue
@@ -118,10 +160,16 @@ def self_test() -> list[str]:
     partial = [r for r in base if r['suite'] != 'T7']
     if derive(partial)[0]['caps']['full']['level'] != 'experimental':
         failures.append('missing suite did not downgrade to experimental')
+    other_variant = [dict(r, variant='c5') if r['suite'] == 'T1' else r for r in base]
+    if derive(other_variant)[0]['caps']['full']['level'] == 'verified':
+        failures.append('a row of another variant satisfied a requirement')
+    split = [dict(r, version='8.4.0') if r['suite'] == 'T7' else r for r in base]
+    if len(derive(split)) != 1:
+        failures.append('equivalent version strings were not unified')
     if not validate([{'target': 'x'}]):
         failures.append('invalid row accepted')
     if not failures:
-        print('Self-test: 7 derivation cases correct.')
+        print('Self-test: 9 derivation cases correct.')
     return failures
 
 
@@ -132,6 +180,7 @@ def main() -> int:
     args = parser.parse_args()
     rows = json.loads(INDEX.read_text()) if INDEX.exists() else []
     errors = validate(rows) + hand_errors()
+    rows = baseline_filter(rows)
     if args.self_test:
         errors += self_test()
     text = render(rows)
