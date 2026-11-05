@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-05",
   "timezone": "Asia/Shanghai",
-  "revision": 25,
-  "supersedes_revision": 24,
-  "supersedes_baseline_head": "d5bf1dd7fdadc052fd922e18399c5ae838e3b91a",
-  "supersedes_sha256": "1c24ac26924f1be27be2fc697cef38784668e791a64d67c11fa7af3338ff136b",
-  "review_record": "specs/source-baseline-revision-25.md",
-  "baseline_head": "7eb8874474fec0fde5c40ef3a62ca6f041722262",
+  "revision": 26,
+  "supersedes_revision": 25,
+  "supersedes_baseline_head": "7eb8874474fec0fde5c40ef3a62ca6f041722262",
+  "supersedes_sha256": "ed76f7992289aece9d45b806c0b5c1de07a8054921f5fa8744ab56b7cdf591a7",
+  "review_record": "specs/source-baseline-revision-26.md",
+  "baseline_head": "8aa4094d5936f37859123150d20dc0f81fee1f32",
   "source_count": 26,
   "sources": [
     {
@@ -133,9 +133,9 @@
     },
     {
       "path": "docs/product/02-ingestion-playbook.md",
-      "sha256": "d1bee5a55cb7394eb3ecb98271d6eb4a64f1108537313b232e126d9584364f44",
-      "bytes": 15517,
-      "lines": 151
+      "sha256": "1cc643a5c7198bbd75e8c290f86af7f72ae30fb498a6f5829e4fa178c9203777",
+      "bytes": 15758,
+      "lines": 153
     },
     {
       "path": "docs/product/03-selfbuild-context-budget.md",
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); scheduled cycle and SSH builds"
+  "review_status": "owner self-review (D6); D17 zoned timestamps"
 }

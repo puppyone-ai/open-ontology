@@ -114,7 +114,7 @@ Mongo28f27730c整源作者预览已核：实际14行/精确SUM/更新1删除0插
 | 状态 | Implementation in progress；实际任务状态以开发台账和固定提交证据为准 |
 | 日期 | 2026-10-02，Asia/Shanghai |
 | 规范基线 | [OO-SPEC-001 v1.0.1](open-ontology-v0.1-spec.md)；[19 份来源的哈希基线 revision 5，纠正记录见 source-baseline-revision-5.md](sources-baseline.json) |
-| Spec SHA-256 | `1f763eb53ff90ddebcabd680128a1a639bf36b44c38838db5f81da77ae6fc825` |
+| Spec SHA-256 | `d8fbca58f4602ca0bf72997322faf801b5a25b5acd5a52cbdc16ed50f2ca7d86` |
 | 使用对象 | 工程师、编程 Agent、组件 reviewer、安全 reviewer、数据与客户业务 owner |
 | 覆盖 | SP00–SP15，保留全部 87 个工作项、P1–P16，以及原 REQ / AT / G / I 编号；第 4A 章另列数据库扩展轨道 DBX-W01–W14 与原型 DBP1–DBP8（独立分母，不计入 87） |
 | 实现边界 | 第一方产品与工程运行器使用 Rust；控制台和 TS SDK 使用 TypeScript；不重新定义为知识图谱 |
