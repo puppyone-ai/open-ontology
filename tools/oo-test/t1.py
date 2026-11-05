@@ -579,7 +579,9 @@ def compare_oracle(run, target, receipt, table):
                 fraction = re.search(r"\.(\d+)", value)
                 if fraction and any(c != "0" for c in fraction[1][6:]):
                     raise RuntimeError("submicrosecond Oracle comparison unavailable")
-                out.append(dt.datetime.fromisoformat(value.lstrip(" +").replace(" ", "")))
+                stamp = dt.datetime.fromisoformat(value.lstrip(" +").replace(" ", ""))
+                # D17: the Agent DB keeps the instant of a zoned timestamp, not its offset.
+                out.append(stamp.astimezone(dt.timezone.utc) if "TIME ZONE" in kind else stamp)
             else:
                 out.append(value)
         return out
