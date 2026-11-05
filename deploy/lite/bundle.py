@@ -51,7 +51,7 @@ def immutable(ref):
 
 
 def single_image_index(path, expected):
-    """Exclude separately exported referrers; registry attestations stay in CI."""
+    """Export one untagged descriptor; registry metadata/attestations stay in CI."""
     temporary = path.with_suffix('.tmp')
     try:
         with tarfile.open(path, 'r') as source:
@@ -59,14 +59,16 @@ def single_image_index(path, expected):
                 return
             index = json.load(source.extractfile('index.json'))
             rows = index['manifests']
-            if len(rows) == 1:
-                return
             selected = [row for row in rows if row['digest'] == expected['id']]
             require(len(selected) == 1, 'BUNDLE_ARCHIVE_MANIFEST')
             require(all(row in selected or row.get('annotations', {}).get(
                 'io.containerd.manifest.subject') == expected['id'] for row in rows),
                 'BUNDLE_ARCHIVE_MANIFEST')
             index['manifests'] = selected
+            # Docker carries upstream annotations even when saving by digest.
+            # Strip them at creation, not verification: consumers still reject
+            # archives capable of assigning names in their daemon.
+            selected[0].pop('annotations', None)
             raw = json.dumps(index).encode()
             with tarfile.open(temporary, 'w') as target:
                 for member in source:

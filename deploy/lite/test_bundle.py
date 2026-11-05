@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -124,6 +125,22 @@ class Bundle(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'ARCHIVE_MANIFEST'):
                     bundle.single_image_index(path, self.info)
 
+    def test_single_descriptor_export_strips_registry_annotations(self):
+        path = self.root / 'runtime.tar'
+        with tarfile.open(path, 'a') as archive:
+            raw = json.dumps({'manifests': [{
+                'digest': self.info['id'], 'annotations': {
+                    'org.opencontainers.image.ref.name': 'existing-user-image:latest',
+                    'org.opencontainers.image.version': '17.11-bookworm',
+                }}]}).encode()
+            member = tarfile.TarInfo('index.json')
+            member.size = len(raw)
+            archive.addfile(member, io.BytesIO(raw))
+        with self.assertRaisesRegex(ValueError, 'ARCHIVE_TAGS'):
+            bundle.archive_identity(path, self.info)
+        bundle.single_image_index(path, self.info)
+        bundle.archive_identity(path, self.info)
+
     def test_config_identity_is_not_just_layer_identity(self):
         config = json.loads(self.config)
         config['config'] = {'Entrypoint': ['wrong']}
@@ -226,6 +243,11 @@ class Bundle(unittest.TestCase):
         self.assertFalse(list(harness.rglob('*.rs')))
         self.assertFalse((harness / '.git').exists())
         self.assertEqual((harness / 'target/debug').readlink(), self.root / 'bin')
+        probe = subprocess.run(
+            [sys.executable, '-I', '-c',
+             'import sys; sys.path.insert(0, sys.argv[1]); import t1',
+             str(harness / 'tools/oo-test')], capture_output=True, text=True)
+        self.assertEqual(probe.returncode, 0, probe.stderr)
         for name in bundle.MIGRATIONS:
             self.assertEqual((harness / name).readlink(), self.root / 'support' / name)
 
