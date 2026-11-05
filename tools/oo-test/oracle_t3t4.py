@@ -237,11 +237,12 @@ class OracleHarness(t3t4.Harness):
             return {"method": "four log switches then RMAN DELETE FORCE ARCHIVELOG ALL"}
         step = t3t4.refused_then_rebaseline(self, "t3re_c1", "archivelog_expiry", expire)
         # History-loss cases may not pass by merely surviving the attempted fault.
+        error = (step["error"] or "").removeprefix("source error: catalog fact=")
         step["passed"] = bool(step["passed"] and step["outcome"] == "named_refusal"
-                              and step["error"] in ("sync_rebaseline_required_retention",
-                                                    "logminer_resume_floor_rebaseline",
-                                                    "logminer_position_expired_rebaseline",
-                                                    "logminer_log_gap_rebaseline"))
+                              and error in ("sync_rebaseline_required_retention",
+                                            "logminer_resume_floor_rebaseline",
+                                            "logminer_position_expired_rebaseline",
+                                            "logminer_log_gap_rebaseline"))
         return t3t4.case_result([step])
 
     def resetlogs_incarnation(self):

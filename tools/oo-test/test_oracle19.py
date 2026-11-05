@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import runner
 import t1
@@ -71,6 +71,31 @@ class Oracle19Tests(unittest.TestCase):
             harness = oracle_t3t4.OracleHarness(SimpleNamespace(version="19"), None)
         self.assertEqual(harness.service, "FREEPDB1")
         self.assertEqual(harness.paths, ("c5", "c1"))
+
+    def test_retention_accepts_only_closed_history_loss_refusals(self):
+        from types import SimpleNamespace
+        import oracle_t3t4
+        import t3t4
+        harness = SimpleNamespace(paths=("c5", "c1"),
+                                  run=Mock(command=Mock(return_value=(0, ""))))
+        for error, passed in (
+            ("source error: catalog fact=logminer_resume_floor_rebaseline", True),
+            ("logminer_log_gap_rebaseline", True),
+            ("source error: catalog fact=logminer_no_retained_logs", False),
+            ("source error: catalog fact=logminer_resume_floor_rebaseline extra", False),
+            (None, False),
+        ):
+            with self.subTest(error=error):
+                step = {"error": error, "passed": True, "outcome": "named_refusal"}
+                with patch.object(t3t4, "refused_then_rebaseline", return_value=step):
+                    result = oracle_t3t4.OracleHarness.retention_expiry(harness)
+                self.assertEqual(result["status"], "passed" if passed else "failed")
+                self.assertEqual(result["steps"][0]["error"], error)
+        step = {"error": "logminer_log_gap_rebaseline", "passed": False,
+                "outcome": "named_refusal"}
+        with patch.object(t3t4, "refused_then_rebaseline", return_value=step):
+            result = oracle_t3t4.OracleHarness.retention_expiry(harness)
+        self.assertEqual(result["status"], "failed")
 
 
 if __name__ == "__main__":
