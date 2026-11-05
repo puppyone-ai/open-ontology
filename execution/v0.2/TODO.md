@@ -106,7 +106,6 @@ Status: pending 3, in_progress 4, author_complete 5, integrated 52.
 
 ## Blocked
 
-- Oracle 19c EE image: human completes Oracle account registration and sign-in (Plan D2)
 - mysql-binlog in the default artifact: zstd 0.13.4 / zstd-safe 7.4.0 past 2026-11-08T14:12:08Z and license files verified (D10)
 - lane F dispatch (S4-F-01, S5-F-02): free disk for OLAP/document images (~10 GB); waits for lane merges to reclaim targets
 - final PR: redact the private model endpoint from v0.2 branch history after all lanes are integrated (ledger security row); owner decides on master history and credential/whitelist rotation

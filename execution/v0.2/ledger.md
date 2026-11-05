@@ -380,3 +380,5 @@ evidence run-id.
 | E362 | 2026-11-05 | integrate | S6-M-03, S4-M-02 | `b5d8e447a`…`de5b6b4bd` | Lane A4 review fixes integrated |
 | E363 | 2026-11-05 | delivery | S5-E-03 | run `E-S5g-dm8-db2`; evidence `e-s5g-20261105` | Lane E: Db2 three C5 cycles through oo-load PASS (independent Agent DB comparisons; idle cycles zero writes); Db2 T0 failed on the doctor allowlist (coordinator fixed); DM8 native arm64 server runs (V8) — SourceEngine still not written |
 | E364 | 2026-11-05 | integrate | S5-E-03 | `e6df4ec6d`…`8a7658c27`, coordinator doctor allowlist | Lane E integrated |
+| E365 | 2026-11-05 | unblocked | S0-H-04, S5-E-03 | owner message | Owner: Oracle account created, registry terms accepted and Docker logged in to container-registry.oracle.com (E014 unblocked); KingbaseES V9R1C10 aarch64 Docker image downloaded by the owner; fork session to be closed |
+| E366 | 2026-11-05 | dispatch | S0-H-04, S5-E-04, S5-E-03 | cards `E19-oracle19c.md` on new `v0.2/e19-oracle`, `KB-kingbase.md` on new `v0.2/k-kingbase` | Codex lanes E19 (Oracle 19c full P0 suite T0–T4/T7/T8) and KB (KingbaseES T0/T1/T8/C5) |

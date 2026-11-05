@@ -1417,10 +1417,6 @@
   ],
   "blocked": [
     {
-      "what": "Oracle 19c EE image",
-      "needs": "human completes Oracle account registration and sign-in (Plan D2)"
-    },
-    {
       "what": "mysql-binlog in the default artifact",
       "needs": "zstd 0.13.4 / zstd-safe 7.4.0 past 2026-11-08T14:12:08Z and license files verified (D10)"
     },
