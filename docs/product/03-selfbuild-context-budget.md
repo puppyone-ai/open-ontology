@@ -2,7 +2,7 @@
 
 > Status: Proposed（§2 现状为已实现事实）
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-03
+> Last reviewed: 2026-11-06
 > 依赖：[06 Ontology 层](../06-ontology-layer.md)、[04 onboarding](04-onboarding-and-gateway-binding.md) §4.4
 
 ## 1. 问题
@@ -30,6 +30,8 @@ Python 路线已经能跑通几百表规模；Rust 路线还受 64 表限制。v
 ### 3.1 模型能力探测
 
 首次调用时探测并记录：上下文窗口 `W`、最大输出 `O_max`、是否支持 JSON 模式/结构化输出、是否返回 usage。用户可在 `stack.yaml` 覆盖。探测失败时用保守默认值（`W=32k`、`O_max=4k`）并在预检中提示。
+
+v0.2 测试模型的实测（Plan D4）：经 OpenAI 兼容代理时每次调用被注入约 2.5k token 的系统提示（最小提示的 usage 为 2,490 个输入 token），计入 `P_sys`；同名模型存在 272k 与 1.05M 两种上下文路由，最大输出 128k。因此 `W` 默认按 272k，并用首次调用探测与实际 usage 校准，不按模型名推断。
 
 ### 3.2 每次调用的分配
 

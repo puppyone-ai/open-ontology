@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-03
+> Last reviewed: 2026-11-06
 > 依赖：[07 Gateway](07-gateway.md)、[06 Ontology](06-ontology-layer.md)
 > 绑定与接入命令细则：[product/04 §2、§5、§6](product/04-onboarding-and-gateway-binding.md)
 > 被依赖：[09 沙盒与运行时](09-sandbox-and-agent-runtime.md)
@@ -111,12 +111,12 @@ hint: 加上时间范围条件，例如 WHERE fhrq >= date '2026-09-01'；该表
 
 | 命令 | 角色 | 契约 |
 |---|---|---|
-| `oo login --gateway URL --code CODE` / `--code-stdin` | 消费端 | 调用 `POST /v1/auth/enroll` 用一次性绑定码换取 client token（TLS 校验不可关闭）；token 写入 `~/.config/open-ontology/tokens/<profile>.token`（0600），profile 记录 gateway、token 文件引用、角色、到期与业务时区；随后自动运行 `oo whoami` 与 `oo tables --limit 1` 作为绑定验证 |
+| `oo login --gateway URL --code-stdin` / `--code -` | 消费端 | 绑定码只从 stdin 或 TTY 提示读入，出现在 argv 时以 `LOGIN_CODE_ARGV` 拒绝；调用 `POST /v1/auth/enroll` 用一次性绑定码换取 client token（TLS 校验不可关闭）；token 写入 `~/.config/open-ontology/tokens/<profile>.token`（0600），profile 记录 gateway、token 文件引用、角色、到期与业务时区；随后自动运行 `oo whoami` 与 `oo tables --limit 1` 作为绑定验证 |
 | `oo login --gateway URL --device` | 消费端 | 设备码方式（RFC 8628）：打印验证地址与一次性码，管理员 `oo token approve <code>` 后取得 token |
 | `oo whoami` | 消费端 | 显示身份、角色、到期时间、Gateway 协议版本；到期 ≤ 7 天时在 stderr 警告，过期后给出续期指引 |
 | `oo share-prompt [--role R] [--agent claude\|cursor\|codex] [--raw-token]` | 管理端 | 输出一段可复制给用户 Agent 的纯文本：安装精确版本的 CLI → `oo login` 绑定 → `oo whoami && oo tables` 验证 → `oo agent-skill` 读取用法，以及“NULL/截断/失败如实说明、不当成 0”的回答规则。默认嵌入一次性绑定码而不是长期 token；`--raw-token` 改为嵌入长期 token，并在顶部加风险说明；包名与版本由发布流程填入，不写 `latest` |
 | `oo token issue\|list\|renew\|rotate\|revoke\|enroll\|approve` | 管理端 | token 生命周期（[07 §3.4](07-gateway.md)） |
-| `oo init`、`oo up\|down\|status`、`oo doctor`、`oo build [--resume]`、`oo ontology open\|export` | 管理端 | 接入与部署（[11 §1](11-deployment-and-operations.md)、[12 §9](12-configuration-reference.md)） |
+| `oo init`、`oo up\|down\|status [--target ssh]`、`oo doctor`、`oo build [--resume]`、`oo review`、`oo ontology open\|export` | 管理端 | 接入与部署（[11 §1](11-deployment-and-operations.md)、[12 §9](12-configuration-reference.md)） |
 
 既有的 `configure --token-file` 路径保留，供离线或运维直配。CLI 启动时按 `GET /v1/meta` 做版本协商（每 24 小时缓存一次），低于最低兼容版本时给出升级命令并以明确错误码退出，而不是在查询中途出现语义错误。
 

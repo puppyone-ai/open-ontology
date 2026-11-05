@@ -2,7 +2,7 @@
 
 > Status: Proposed（字段在实现时以 `oo-core` 导出的 JSON Schema 为准）
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-03
+> Last reviewed: 2026-11-06
 
 ## 1. 配置仓库结构
 
@@ -235,6 +235,7 @@ sources:
     database: erp
     user: oo_reader
     password: { secret_ref: erp-password }
+    tls_ca: { secret_ref: erp-ca }
     ssh: { host: bastion.example.com, user: ops, key: { secret_ref: bastion-key }, host_key_sha256: "..." }
     scope: { include: ["*"], exclude: [] }
     sync: { mode: auto, interval: 8h }   # auto = 有日志条件用 C1，否则 C5
@@ -256,13 +257,15 @@ gateway:
 | `version` | — | 固定 `oo.stack/v1`；未知版本拒绝 |
 | `sources[].engine` | `auto` | `auto` 时由 `oo doctor` 识别引擎与版本，并按版本分派能力（[database-support/04](database-support/04-database-profiles.md)） |
 | `sources[].password` / `ssh.key` | — | 只接受 `secret_ref`；秘密文件 0600，或系统 keychain |
-| `sources[].ssh` | 无 | 数据库跳板；`host_key_sha256` 在首次连接确认后写入，之后不匹配即失败 |
-| `sources[].scope` | 全部 | 选择 schema / 排除表 |
-| `sources[].sync.mode` | `auto` | `auto`：日志条件与保留期预检通过则 C1，否则 C5（[database-support/03 §2](database-support/03-change-capture-and-consistency.md)） |
+| `sources[].tls_ca` | 无 | 源库 TLS 信任锚（`secret_ref`）；连接总是校验服务端主机名；PostgreSQL/MySQL 的 `oo doctor` 要求提供 |
+| `sources[].ssh` | 无 | 数据库跳板 `{host, port(22), user, key\|password, host_key_sha256}`，`key` 与 `password` 只接受 `secret_ref`、二选一；`host_key_sha256` 在首次连接确认后写入，之后不匹配即失败 |
+| `sources[].scope` | 全部 | 选择 schema / 排除表；PostgreSQL/MySQL 的 `oo doctor` 要求 `include` 显式列出表 |
+| `sources[].sync.mode` | `auto` | `auto`、`C1` 或 `C5`；`auto`：日志条件与保留期预检通过则 C1，否则 C5（[database-support/03 §2](database-support/03-change-capture-and-consistency.md)） |
 | `sources[].sync.interval` | `8h` | 周期间隔；C1 的日志保留须覆盖“最长周期间隔 + 最长故障恢复时间” |
-| `model.provider` / `base_url` / `model` / `key` | — | 任意 OpenAI 兼容或 Anthropic 端点，经 `model-egress` 转发（[11 §1.1](11-deployment-and-operations.md)） |
+| `model.provider` / `base_url` / `model` / `key` | — | `key` 只接受 `secret_ref`；`base_url` 可写 URL 或 `secret_ref`（端点不公开时）；任意 OpenAI 兼容或 Anthropic 端点，经 `model-egress` 转发（[11 §1.1](11-deployment-and-operations.md)） |
 | `model.context_window` | `auto` | 首次调用探测上下文窗口与最大输出，供 Self-build 预算器使用（[06 §4.11](06-ontology-layer.md)）；可手工覆盖 |
 | `deploy.target` | `local` | `local`（本机 Docker）或 `ssh`（远程主机安装 compose 栈与 systemd 单元） |
+| `deploy.ssh` | 无 | `target: ssh` 时必填：`{host, port(22), user, key\|password, host_key_sha256}`，凭据只接受 `secret_ref`（[product/04 §4.3](product/04-onboarding-and-gateway-binding.md)） |
 | `deploy.profile` | `lite` | `lite` 或 `standard`（[11 §1](11-deployment-and-operations.md)） |
 | `gateway.public_url` | `auto` | 写入 Agent 提示词与 CLI profile 的 Gateway 地址 |
 

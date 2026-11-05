@@ -2,7 +2,7 @@
 
 > Status: Accepted（规则来自参考生产部署的实际运行；跨引擎推广部分为 Proposed）
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-04
+> Last reviewed: 2026-11-06
 > 依赖：[03 数据源](../03-sources-and-ingestion.md)、[04 管线](../04-pipeline.md)、[database-support/03](../database-support/03-change-capture-and-consistency.md)
 
 参考生产部署是一套 MySQL 5.7 源（约 670 张表、1.6 万列、百万行级大表若干），每 8 小时一个周期，经 SSH 转发读取，持续发布到 Gateway。下面的规则都在那里出过问题并修过。引擎无关的部分适用于所有源；引擎相关的部分见 §7。
@@ -86,6 +86,8 @@ Oracle C1 重启必须携带首次对齐基线前采集的事务低水位（不�
 
 无唯一键表的 C5 持久比较单位是整表：只保存一个无边界的整表摘要。物理分块仅属于当前快照和代际，不能跨周期复用；发生变化时，在同一源快照内重读整表并原子替换全部分块。旧基线缺少整表摘要时，首次周期保守刷新。已建立摘要的空闲周期不写目标、不创建代际。
 
+Oracle 的 LOB 列在客户端流式计算摘要，受同一读取预算约束；不要求 `DBMS_CRYPTO` 授权。
+
 C5 沿用基线的 key 范围（键形态不变时），表增长或估计漂移不触发重基线；列名、类型、可空性或主键变化（包括仅元数据的改名、加宽）进入显式重基线 `c5_rebaseline_required_lineage`，不发布旧列。
 
 C5 的四层：时间列只作正向提示（NULL 视为未知）→ 近窗口扫描加速 → 分块摘要比较 → 低频全读兜底。`update_time`、`MAX(id)`、业务日期都不能当可靠游标。无变化周期的标准是零载荷、零目标改写、零新代际；`COUNT` 相等不代表没变。
@@ -98,7 +100,7 @@ C5 的四层：时间列只作正向提示（NULL 视为未知）→ 近窗口�
 
 ## 6. 故障与恢复
 
-D15：保留代际按以下映射进入 Gateway，不伪造旧导入或 ACK。
+D15：保留代际以分片一致性类型 `retained_generation` 按以下映射进入 Gateway，不伪造旧导入或 ACK；Gateway 把它与 `per_table` 一样视为独立于摄取的不可变切面，语义 fence 不变。
 
 | oo-load 对象 | Gateway 合约 |
 |---|---|
@@ -128,7 +130,7 @@ D15：保留代际按以下映射进入 Gateway，不伪造旧导入或 ACK。
 
 | 引擎 | 分块 | 增量 | 需要注意 |
 |---|---|---|---|
-| MySQL 5.7 | keyset；排序规则在源端比较 | binlog ROW + FULL；GTID 可选 | binlog 默认关闭；无 `LOCK INSTANCE FOR BACKUP`；默认认证 `mysql_native_password`；`max_execution_time`（5.7.8+）仅对只读 SELECT 生效 |
+| MySQL 5.7 | keyset；排序规则在源端比较 | binlog ROW + FULL；GTID 可选。进程内 binlog 读取在非默认 feature `mysql-binlog` 后，满足 Plan D10 的条件前默认制品只走 C5 | binlog 默认关闭；无 `LOCK INSTANCE FOR BACKUP`；默认认证 `mysql_native_password`；`max_execution_time`（5.7.8+）仅对只读 SELECT 生效 |
 | MySQL 8.0 | 同上 | 同上 | 默认认证 `caching_sha2_password`（需 TLS 或 RSA 公钥交换）；binlog 默认开启；`information_schema` 统计默认缓存 24 小时 |
 | MySQL 8.4 LTS | 同上 | 同上 | `SHOW MASTER STATUS` 删除，改 `SHOW BINARY LOG STATUS`；`expire_logs_days` 删除；tagged GTID `UUID:TAG:N`；`mysql_native_password` 默认禁用 |
 | MySQL 9.x | 同上 | 同上 | `mysql_native_password` 移除，只能 sha2 |

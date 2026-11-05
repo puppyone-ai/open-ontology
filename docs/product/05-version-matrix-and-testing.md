@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-04
+> Last reviewed: 2026-11-06
 > 依赖：[database-support/05 一致性套件](../database-support/05-conformance-and-evidence.md)、[support-matrix.yaml](../database-support/support-matrix.yaml)、[02 拉取手册](02-ingestion-playbook.md)
 
 ## 1. 本期引擎范围
@@ -30,6 +30,8 @@
 
 合计 16 个数据库引擎（P0 3、P1 10、P2 3）+ 文件。P0 是本期退出条件；P1 在同一日程内并行推进，未达目标的如实留在较低等级；P2 视镜像与许可条件推进，不阻塞退出。Oracle 12c 没有可公开获取的镜像，除非取得官方镜像或真实实例，否则不进矩阵。
 
+**当前等级（2026-11-06）。** 上表是目标，不是当前等级。当前等级只来自由证据生成的 [support-matrix.generated.json](../database-support/support-matrix.generated.json)（`specs/scripts/gen_support_matrix.py`），本文不复述其单元格；不在生成矩阵中的 引擎×版本×能力 一律不得称 `verified`。截至本日生成矩阵只有 P0 的 14 个版本（MySQL 5.7.44/8.0.44/8.4.7/9.5.0、PostgreSQL 13.23–18.6、Oracle 11.2/19.19/21.3/23.5），其中 Self-build（T5）在任何版本都未达 `verified`，各 P0 目标尚未全部达成。默认制品（npm 包与 lite 镜像）不含 MySQL 进程内 binlog C1：它仍在非默认 feature `mysql-binlog` 后（Plan D10），所以按默认制品安装时 MySQL 走 C5；生成矩阵中 MySQL 的 C1 证据来自启用该 feature 的构建。P1、P2 引擎都已有实现并在真实容器上跑过部分套件（见 §2 各“现状”段），但没有生成矩阵行，手写矩阵中的能力等级保持 `designed`/`candidate`。
+
 ## 2. 镜像与运行位置
 
 镜像全部用 digest 锁定，记录在 `testing/infra/images.pins` 与 `images.lock.json`（沿用现有格式）。架构信息为 2026-11-03 查询 registry 所得：
@@ -40,7 +42,7 @@
 | MySQL 8.0 / 8.4 / 9.x | `mysql:8.0`、`8.4`、`9.x` 具体补丁号 | 是 | 本机原生 |
 | PostgreSQL 12–18 | `postgres:<major>.<minor>-bookworm` | 是 | 本机原生 |
 | Oracle 23ai Free | `gvenzl/oracle-free:23-slim` | 是（23.5 起） | 本机原生 |
-| Oracle 19c EE | `container-registry.oracle.com/database/enterprise:19.x` | 有 ARM 版 | 需 Oracle 账户签入并接受许可后拉取（Plan D2） |
+| Oracle 19c EE | `container-registry.oracle.com/database/enterprise`（19.19 EE 标签） | 是 | 本机原生；所有者已签入 registry 并接受许可（Plan D2） |
 | Oracle 11g / 21c XE | `gvenzl/oracle-xe:11`、`21` | 否 | 本机 amd64 仿真 |
 | MariaDB | `mariadb:<ver>` | 是 | 本机原生 |
 | SQL Server | `mcr.microsoft.com/mssql/server:2019/2022/2025-<CU>` | 否 | 本机 amd64 仿真（2025 用 CU1 及以后） |
@@ -51,11 +53,17 @@
 | Doris | `apache/doris:fe-<ver>` / `be-<ver>` | 是（4.1.5 起） | 本机原生 |
 | StarRocks | `starrocks/allin1-ubuntu` | 是 | 本机原生 |
 | Db2 | `icr.io/db2_community/db2` | 否 | 本机 amd64 仿真 |
-| 达梦 / KingbaseES | 官方下载 tar 后 `docker load` | 视包而定 | 需人类下载并确认许可 |
+| 达梦 DM8 V8 / KingbaseES V9R1C10 | 官方安装包构建或 `docker load` 的本地镜像（不分发） | 是（arm64 包） | 本机原生；许可由所有者接受（Plan D5） |
 
 **SQL Server 现状（2026-11-04，S3-E-02）。** 2019 CU32、2022 CU20、2025 CU1 在 `oo-test matrix --engine sqlserver` 上通过完整夹具 T0/T1/T2/T8（231 表、2M 事件、300 列宽表，并发写入下 Agent DB 零差异；C5、Change Tracking、CDC 各三周期，空闲周期零写入、零新代际；错误 epoch 拒绝且不改持久状态）与 T7（只读审计归因；CDC 空闲映射追加按 D12 归因）。T3/T4 未做，级别仍由生成矩阵决定。
 
 **OLAP 现状（2026-11-04，S4-F-01）。** ClickHouse v26.8.21.10、Doris 3.1.4、StarRocks 3.5.21 经 MySQL 线协议读取（ClickHouse 端口 9004、`readonly` profile，不引入 HTTP crate），在 `oo-load` 上通过 T0/T1/T2/T8：快照按分区切块（超预算分区按大小档哈希分桶，计划跨周期稳定），分区刷新只重读摘要变化的范围，空闲周期零读写，结构变化拒绝且不改目标；读端连接峰值 1，占空比 ≤25%。夹具规模小（最大表 3 万行），Doris/StarRocks 夹具未启用 TLS，ClickHouse 24.x、Doris 4.x、StarRocks 4.x 未测；新增分区或分区跨档会触发重基线。
+
+**MySQL / PostgreSQL 兼容引擎现状（2026-11-05）。** MariaDB 10.6.28/10.11.19/11.4.13/11.8.9 经 `oo-load` 通过 T0、T1（含并发写入）、T2（三次仅主库 C1 + 三次 C5，GTID 域变化拒绝）与 T8；TiDB 7.5.0/8.5.0（amd64 仿真）与 OceanBase CE v4.3.5.4 通过 T0/T1/T2-C5/T8，C1 按名称拒绝。openGauss EE 5.0.3/6.0.0 作为独立家族通过快照（每版本 2,007,008 行）与三次 C5 零差异；只允许 sha256/sm3 认证的实例需按 DBA 指引开启 md5 兼容认证；逻辑解码经实测判为不支持。KingbaseES V9R1C10（PG 模式）以 kingbase 家族走 PostgreSQL 引擎，通过 T0、并发写入 T1、三次 C5 与 T8（200 万行、300 列宽表）；镜像不带 pgoutput，C1 未测。
+
+**文档与搜索引擎现状（2026-11-05，S5-F-02）。** MongoDB 8.0.34、OpenSearch 3.9.0、Elasticsearch 9.2.0 是 opt-in 源，默认制品不含（MongoDB 驱动的许可例外见 Plan D18）：并发写入下的 T1 与三次 C5 进入 Agent DB 的 `jsonb`/标量列零差异，空闲周期零写入。产品 T0、MongoDB change stream C1 与 resume token 失效处理未实现或未接受。
+
+**P2 现状（2026-11-05，S5-E-03）。** Db2 v11.5.9.0（amd64 仿真）经隔离的 IBM CLI worker 读取（默认制品不含原生驱动），通过全规模 T1/T8 与三次 C5；DM8 V8（原生 arm64）经隔离的 DPI worker 读取，通过 T0（产品 doctor）、一次 C5 修正后判定的并发写入 T1、T8 与三次 C5，达梦客户端只在本地 worker 镜像中，不新增 Rust 依赖。两者都没有 C1。
 
 **amd64 镜像怎么跑。** 开发机是 Apple Silicon。MySQL 5.7、Oracle XE 11g/21c、SQL Server、Db2 只有 amd64 镜像，本期在本机 Docker Desktop 用 `--platform linux/amd64`（Rosetta）运行，已实测可用（Plan D1）。仿真比原生慢，套件的超时与吞吐预期对这些目标单独放宽并在证据中注明“仿真”。macOS 27 是最后一个完整支持 Rosetta 2 的版本，`oo-test` 因此保留 `--runner remote` 接口，必要时接入一台 x86 Linux 主机，无需改测试本身。
 

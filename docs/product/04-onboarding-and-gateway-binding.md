@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-04
+> Last reviewed: 2026-11-06
 > 依赖：[07 Gateway](../07-gateway.md)、[08 Agent 接口](../08-agent-interface.md)、[10 安全](../10-security.md)、[11 部署](../11-deployment-and-operations.md)
 
 ## 1. 目标与现状差距
@@ -30,13 +30,14 @@
 | 命令 | 角色 | 说明 |
 |---|---|---|
 | `oo init` | 管理端 | TTY 下进入 TUI 向导；非 TTY 或 `--config stack.yaml` 时完全非交互（CI、Agent 均可用） |
-| `oo up` / `oo down` / `oo status` | 管理端 | 按 `stack.yaml` 启停本地或远程栈，显示每个阶段状态、最近成功、下次到期 |
+| `oo up` / `oo down` / `oo status` `[--target ssh]` | 管理端 | 按 `stack.yaml` 启停本地或远程栈（§4.3），显示每个阶段状态、最近成功、下次到期 |
 | `oo doctor` | 管理端 | 只读预检：网络、版本识别、权限、日志/归档条件、预算估算，不写源库 |
-| `oo build [--resume]` | 管理端 | 首次全量、Self-build、发布；可断点续跑 |
+| `oo build [--resume]` | 管理端 | 首次全量、Self-build、所有者自审、发布、Gateway、首个 token 与分享提示词；可断点续跑（§3、§4.3） |
+| `oo review --input FILE --out FILE [--review-file FILE]` | 管理端 | 所有者逐项自审 Self-build 草稿；非 TTY 时用 `--review-file` 重放决定（§3） |
 | `oo ontology open` / `export --format html|mermaid|yaml` | 管理端 | 打开或导出可视化 Ontology |
-| `oo token issue|list|renew|rotate|revoke` | 管理端 | token 生命周期（§5） |
+| `oo token issue|list|renew|rotate|revoke|enroll|approve` | 管理端 | token 生命周期与设备码批准（§5） |
 | `oo share-prompt --grant-file FILE [--role R]` | 管理端 | 生成给 Agent 的安装提示词（§6） |
-| `oo login` | 消费端 | 用一次性绑定码换取长期 token，写入 0600 文件（§5.3） |
+| `oo login` | 消费端 | 用一次性绑定码（stdin 或提示输入，不接受 argv）或设备码换取长期 token，写入 0600 文件（§5.3） |
 | `oo whoami` | 消费端 | 显示身份、角色、到期时间、Gateway 协议版本；到期 ≤7 天时 stderr 警告 |
 | 现有 `query/tables/describe/...` | 消费端 | 不变 |
 
@@ -79,6 +80,7 @@ sources:
     database: erp
     user: oo_reader
     password: { secret_ref: erp-password }
+    tls_ca: { secret_ref: erp-ca }      # 源库 TLS 信任锚；PostgreSQL/MySQL 的 doctor 要求
     ssh: { host: bastion.example.com, user: ops, key: { secret_ref: bastion-key }, host_key_sha256: "..." }
     scope: { include: ["*"], exclude: [] }
     sync: { mode: auto, interval: 8h }   # auto = 有日志条件用 C1, 否则 C5
@@ -151,7 +153,7 @@ Gateway 内部 mTLS 证书与 token 一起纳入到期监控：`oo status` 和 `
 ### 5.3 CLI 绑定
 
 ```text
-oo login --gateway https://gw.example.com --code OO-7F3K-Q9XM
+oo login --gateway https://gw.example.com --code-stdin   # 绑定码 OO-7F3K-Q9XM 从 stdin 读入
   → POST /v1/auth/enroll {code}         (TLS 校验, 不允许关闭)
   → 返回 client token + 元数据
   → 写 ~/.config/open-ontology/tokens/<profile>.token (0600)
@@ -159,7 +161,7 @@ oo login --gateway https://gw.example.com --code OO-7F3K-Q9XM
   → 自动跑一次 oo whoami 与 oo tables --limit 1 作为绑定验证
 ```
 
-非交互：`oo login --gateway URL --code-stdin`。已有 `configure --token-file` 路径保留，供离线或运维直配。
+非交互：`oo login --gateway URL --code-stdin`（或 `--code -`）；TTY 下不给 `--code-stdin` 时提示输入。绑定码出现在 argv 时以 `LOGIN_CODE_ARGV` 拒绝，避免进入进程列表与 shell 历史。已有 `configure --token-file` 路径保留，供离线或运维直配。
 
 **设备码方式**（RFC 8628，与 `gh auth login` 相同）：`oo login --gateway URL --device` 打印验证地址和一次性码，管理员在 `oo token approve <code>`（或远程部署主机的 TUI）确认角色后，CLI 轮询拿到 token；轮询遵守 `slow_down` 加 5 秒的规定。适合用户与管理员不是同一人、或不方便传递绑定码的场合。绑定码方式仍是默认，因为单人开源场景下用户本人就是管理员。
 

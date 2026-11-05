@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-03
+> Last reviewed: 2026-11-06
 > 依赖：[01 架构](01-architecture.md)、[02 技术栈](02-technology-stack.md)
 > 接入向导与 lite 档细则：[product/04 §3、§4](product/04-onboarding-and-gateway-binding.md)
 
@@ -19,7 +19,7 @@
 
 1. **接入向导：** `oo init` 在 TTY 下进入 TUI，依次填写数据源（引擎自动识别版本，可选 SSH 跳板）、范围、大模型（provider 预设或自定义 base URL，填后立即做一次最小调用并显示探测到的上下文窗口与输出上限）、部署位置（本机 Docker 或远程 SSH 主机），然后展示预检结果（版本、权限、行数与字节估算、分块计划、模型 token 与费用估算、预计耗时；有阻断项时停下并给出 DBA 清单），确认后运行。每一步对应 `stack.yaml` 的一个字段（[12 §9](12-configuration-reference.md)）；非 TTY 或 `--config stack.yaml` 时完全非交互，两条路径结果一致。
 2. **秘密：** 向导读入的密码与 key 写入 `~/.config/open-ontology/secrets/<name>`（0600，目录 0700）或系统 keychain，`stack.yaml` 只存 `secret_ref`；不出现在 argv、环境变量导出、日志或进度面板。
-3. **一条命令跑完整链：** `oo build [--resume]` 依次完成全量拉取、Self-build、审核、发布、启动 Gateway、签发首个 token 并生成 Agent 提示词（`oo share-prompt`，[08 §3.5](08-agent-interface.md)）；每个阶段可中断后续跑。完成页给出 Ontology 可视化路径（`oo ontology open|export --format html|mermaid|yaml`，离线自包含）、Pack 路径、Gateway URL 与提示词。
+3. **一条命令跑完整链：** `oo build [--resume]` 依次完成全量拉取、Self-build、审核、发布、启动 Gateway、签发首个 token 并生成 Agent 提示词（`oo share-prompt`，[08 §3.5](08-agent-interface.md)）；每个阶段可中断后续跑。lite 与远程部署上，这些阶段在 `oo up` 部署的固定 digest 运行时镜像内执行，阶段配置由 `stack.yaml` 与部署状态推导；npm 包只含 `oo` 与镜像 pin，不带本地辅助程序，只有所有者自审在本机运行（Plan D16）。完成页给出 Ontology 可视化路径（`oo ontology open|export --format html|mermaid|yaml`，离线自包含）、Pack 路径、Gateway URL 与提示词。
 4. **审核不可跳过：** 单人场景提供“所有者自审”：TUI 展示待审项摘要（实体、关系、指标、敏感列分类），所有者逐类确认或批量接受，记录为 `review_decision`（`reviewer=owner, mode=self`）。不允许跳过审核直接发布，也不把自动接受伪装成人工审核。
 5. **镜像：** 由 CI 预构建 `linux/amd64` 与 `linux/arm64` 多架构镜像并以 digest 锁定；`oo up` 只拉取，不在用户机器编译。
 6. **远程部署：** `deploy.target: ssh` 时，`oo up` 经 SSH 在目标机安装 compose 栈与 systemd 单元，日志与状态经 SSH 读取；只写约定目录，需要 Docker 时检测并给出安装指引，不静默 `sudo`。数据库 SSH 跳板在 worker 内用 direct-tcpip 通道实现，首次连接确认并固定主机指纹，不改全局 SSH 配置。
@@ -147,6 +147,7 @@ oo init [--config stack.yaml]   # 接入向导；非 TTY 时非交互（§1.1）
 oo up|down [--target local|ssh] # 按 stack.yaml 启停本地或远程栈
 oo doctor                   # 只读预检：网络、版本、权限、日志/归档条件、分块计划、预算估算；不写源库
 oo build [--resume]         # 全量拉取 → Self-build → 审核 → 发布 → Gateway → 首个 token
+oo review --input F --out F [--review-file F]   # 所有者逐项自审；非 TTY 用决定文件重放
 oo ontology open|export --format html|mermaid|yaml
 oo backup|restore
 oo emergency-stop

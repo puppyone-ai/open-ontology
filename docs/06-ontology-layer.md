@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-11-03
+> Last reviewed: 2026-11-06
 > 依赖：[03 数据源](03-sources-and-ingestion.md)、[05 Agent DB](05-agent-db.md)
 > 大 schema 细则：[product/03 Self-build 上下文预算](product/03-selfbuild-context-budget.md)
 > 被依赖：[07 Gateway](07-gateway.md)、[08 Agent 接口](08-agent-interface.md)、[09 沙盒](09-sandbox-and-agent-runtime.md)、[13 评测](13-evaluation-and-benchmarks.md)
@@ -187,6 +187,8 @@ members:                                   # 哪些源表的行属于这个实�
 resolution: customer_resolution            # 解析规则，见 §3.10
 datasets: [logistics.shipment, logistics.receipt]   # 以 entity_key 关联本实体的其他表
 ```
+
+`members[].key` 是有序列名列表。复合键（如 `[order_id, line_no]`）必须与该数据集声明的主键逐列一致，审核与发布器按同一顺序绑定；单列键的序列化不变。
 
 ### 3.5 Relationship
 
