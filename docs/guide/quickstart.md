@@ -20,6 +20,13 @@ size, model latency and careful owner review can take longer.
   shell arguments. The wizard imports them into
   `~/.config/open-ontology/secrets/` and stores only `secret_ref` references.
   Source CA and source password are also imported/stored privately.
+  **Copy permission is required:** `oo init` imports the file contents, and
+  `oo up` copies referenced secrets into the deployment's private runtime
+  store. `secret_ref` keeps values out of configuration; it does not mean
+  that credentials are never copied. If your authorization permits only
+  reading existing secret references and forbids copying, stop here: this
+  Quickstart has no supported no-copy path. A fresh HOME cannot resolve
+  references in another HOME, and symlink/hardlink workarounds are rejected.
 - Obtain the matching immutable lite runtime image and PostgreSQL image.
   The npm CLI carries an image pin, not the runtime or native helper binaries.
   If images are absent, `oo up` prints the exact pull/load instruction.
@@ -31,6 +38,20 @@ size, model latency and careful owner review can take longer.
 ```sh
 npm install --global @reduxxx888/ontology-cli@0.2.0
 ```
+
+This registry command requires the release to have been published. For an
+unpublished release candidate, obtain the staged npm tarball from the release
+owner and install that exact artifact instead:
+
+```sh
+npm install --global /path/to/reduxxx888-ontology-cli-0.2.0.tgz
+```
+
+Replace the placeholder with the supplied local tarball path. Do not pack the
+repository directory: the release staging step adds the native executables,
+runtime image pins and third-party notices. A partial local pack supports
+only the platforms listed in its `ooPlatforms`; Darwin x64 remains CI-only
+in the M-S6e local run.
 
 Stop if installation fails; the remainder requires a working `oo` executable.
 Check `oo --version` and `oo doctor --help` before continuing.
@@ -170,6 +191,16 @@ The local command sequence and seven prompts were checked against
 TTY and stack-file modes, locally packaged npm CLI. Raw A4 evidence is not
 present in this worktree; this document does not claim to have rerun it.
 Remote forms come from `deploy/lite/test_remote_ssh.py`, not a new remote run.
+
+The M-S6e rerun (`m-s6e-20261105`) staged a three-platform npm tarball and
+installed it into fresh HOMEs on macOS arm64 and Linux arm64/x64. PostgreSQL
+17.11 passed the source-only doctor probe (snapshot/digest-diff available;
+logical CDC still needed DBA setup). It did **not** complete L1: the authorized
+model files were restricted to no-copy reference reads, which the wizard and
+runtime provisioning cannot support. A dummy endpoint confirmed wizard
+copying; the real model files were not accessed. Model preflight was blocked,
+`oo up` returned `SECRET_OPEN`, and build, binding and Agent query were not
+run. This is not new model or Gateway acceptance.
 
 For every current command's captured help, see the
 [generated CLI reference](../reference/cli.md). For developer-only explicit
