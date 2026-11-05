@@ -26,7 +26,7 @@ from verdicts import status, write_rows
 
 ROOT = runner.ROOT
 LANE = os.environ.get("OO_TEST_LANE", "m")
-if LANE not in ("h", "m", "e", "p", "g"):
+if LANE not in ("h", "m", "e", "p", "g", "c"):
     raise ValueError("unsupported T1 lane")
 class Relay:
     """Loopback transport to an owned fixture with no published port."""
@@ -354,6 +354,15 @@ class SourceMeter:
                 "samples": [[t-self.started, c, a] for t,c,a in self.samples]}
 
 
+def keyless_writes(cycle):
+    key = 30_000_000 + cycle
+    return (f"INSERT INTO no_key VALUES ({key},'before');\n"
+            f"UPDATE no_key SET note='after' WHERE value_no={key};\n"
+            f"DELETE FROM no_key WHERE value_no={key};\n"
+            f"INSERT INTO no_key VALUES ({key},'duplicate');\n"
+            f"INSERT INTO no_key VALUES ({key},'duplicate');\n")
+
+
 def writer(run, stop, result):
     """Every committed cycle includes insert/update/delete/primary-key update."""
     if run.engine in ("postgres", "mysql"):
@@ -368,7 +377,8 @@ def writer(run, stop, result):
                    f"UPDATE growth_events SET order_id=2 WHERE id={key};\n"
                    f"UPDATE growth_events SET id={key+1} WHERE id={key};\n"
                    f"DELETE FROM growth_events WHERE id={key+1};\n"
-                   f"INSERT INTO growth_events VALUES({20_000_000+cycles},3);\nCOMMIT;\n")
+                   f"INSERT INTO growth_events VALUES({20_000_000+cycles},3);\n"
+                   + keyless_writes(cycles) + "COMMIT;\n")
             if run.engine == "oracle":
                 sql = sql.replace(";\n", ";\nCOMMIT;\n")
             run.sql(sql, admin=True)
@@ -406,8 +416,9 @@ def persistent_writer(run, stop, result):
                     f"UPDATE growth_events SET order_id=2 WHERE id={key};\n"
                     f"UPDATE growth_events SET id={key+1} WHERE id={key};\n"
                     f"DELETE FROM growth_events WHERE id={key+1};\n"
-                    f"INSERT INTO growth_events VALUES({20_000_000+cycles},3);\nCOMMIT;\n"
-                    f"SELECT '{marker}';\n")
+                    f"INSERT INTO growth_events VALUES({20_000_000+cycles},3);\n"
+                    + keyless_writes(cycles) + "COMMIT;\n"
+                    + f"SELECT '{marker}';\n")
                 child.stdin.flush()
                 while True:
                     line = child.stdout.readline()
@@ -685,12 +696,14 @@ def run_t1(run, binary, worker_image=None):
                          "user": "postgres", "password": {"secret_ref": "target-password"}, "local_fixture": True}
         thread = threading.Thread(target=writer, args=(run, stop, report["writer"]))
         thread.start()
-        def load(run_id, *, correction=False):
+        def load(run_id, *, correction=False, only=None, cycle=1):
             runner.write_json(store / "target.json", dict(target_config, run_id=run_id))
             mode = []
             if correction:
-                runner.write_json(store / "c5.json", {"cycle": 1, "full_read_every": 2})
+                runner.write_json(store / "c5.json", {"cycle": cycle, "full_read_every": 2})
                 mode = ["sync", "--run-id", run_id, "--c5", str(store / "c5.json")]
+            if only:
+                mode += ["--tables", f"{schema}.{only}"]
             with SourceMeter(run, len(measurements), 2 if run.engine == "postgres" else 1) as meter:
                 code, out = run.command([str(binary), *mode, "--stack", str(store / "stack.json"),
                                         "--source", "fixture", "--target", str(store / "target.json"),
@@ -703,7 +716,7 @@ def run_t1(run, binary, worker_image=None):
             runner.write_json(run.path / f"{run_id}-receipts.json", receipts)
             if code:
                 raise RuntimeError(f"{run_id} product load failed")
-            if len(receipts) != len(tables):
+            if len(receipts) != (1 if only else len(tables)):
                 raise RuntimeError("incomplete table receipts")
             if correction and any(r.get("protocol") != "oo.sync/v1" or r.get("mode") != "c5"
                                   for r in receipts):
@@ -736,6 +749,17 @@ def run_t1(run, binary, worker_image=None):
             report["tables"].append({"table": table, "equal": comparison["equal"]})
             if not comparison["equal"]:
                 raise RuntimeError("source target difference")
+        keyless = next((t for t in tables if t.lower() == "no_key"), None)
+        if keyless:
+            for cycle in (3, 4):
+                idle = load(f"keyless-idle-{cycle}", correction=True, only=keyless, cycle=cycle)
+                if any(r.get(field) != 0 for r in idle
+                       for field in ("target_write_bytes", "payload_bytes", "new_generations",
+                                     "ranges_replaced")):
+                    raise RuntimeError("idle keyless C5 rewrote target")
+                if cycle == 3 and idle[0].get("source_read_bytes") != 0:
+                    raise RuntimeError("idle keyless C5 read payload without a full-read cycle")
+            report["keyless_idle"] = "digest-only and periodic full-read: zero writes/generations"
         report["T1"] = "passed"
         # Enforce every invocation, including the no-rewrite resume.
         report["T8"] = "passed" if all(m["status"] == "passed" for m in measurements) else "failed"
