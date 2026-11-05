@@ -134,6 +134,18 @@ fn cursor(reply: &Document, batch: &str) -> Result<(i64, Vec<Document>)> {
 }
 
 impl MongoEngine {
+    /// Reuse persisted C5 ranges after planning the same collection/key shape.
+    /// Inserts and deletes must not move range identities between cycles.
+    pub fn adopt_keyset_plan(&mut self, plan: &TableChunkPlan) -> Result<()> {
+        let live = self
+            .plans
+            .get(&plan.table)
+            .ok_or_else(|| SourceError::config("mongodb_unknown_plan"))?;
+        validate_adoption(live, plan)?;
+        self.plans.insert(plan.table.clone(), plan.clone());
+        Ok(())
+    }
+
     pub fn new(
         config: MongoConfig,
         password: Zeroizing<String>,
@@ -356,9 +368,36 @@ impl MongoEngine {
         result
     }
 
-    pub async fn close(self) {
-        self.client.shutdown().await;
+    pub async fn close(&mut self) {
+        self.client.clone().shutdown().await;
     }
+}
+
+fn validate_adoption(live: &TableChunkPlan, plan: &TableChunkPlan) -> Result<()> {
+    let mut ids = std::collections::BTreeSet::new();
+    if plan.protocol != ENGINE_PROTOCOL
+        || live.table != plan.table
+        || live.key != plan.key
+        || live.strategy != plan.strategy
+        || plan.chunks.is_empty()
+        || plan.chunks.first().unwrap().lo.is_some()
+        || plan.chunks.last().unwrap().hi.is_some()
+        || plan.chunks.iter().any(|c| {
+            c.table != plan.table || !ids.insert(c.chunk_id) || (c.lo.is_some() && c.lo == c.hi)
+        })
+        || plan
+            .chunks
+            .windows(2)
+            .any(|c| c[0].hi.is_none() || c[0].hi != c[1].lo)
+    {
+        return Err(SourceError::config("mongodb_rebaseline_required_plan"));
+    }
+    for chunk in &plan.chunks {
+        for edge in [&chunk.lo, &chunk.hi].into_iter().flatten() {
+            bound(edge)?;
+        }
+    }
+    Ok(())
 }
 
 impl SourceEngine for MongoEngine {
@@ -781,6 +820,51 @@ impl ChangeSource for MongoEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn persisted_ranges_allow_growth_but_reject_gaps_and_changed_keys() {
+        let table = TableRef {
+            schema: "fixture".into(),
+            name: "events".into(),
+        };
+        let plan = TableChunkPlan {
+            protocol: ENGINE_PROTOCOL.into(),
+            table: table.clone(),
+            key: KeyShape::StringPrimaryKey {
+                column: "_id".into(),
+                collation: Some("BSON simple".into()),
+            },
+            strategy: ChunkStrategy::Keyset {
+                columns: vec!["_id".into()],
+            },
+            estimated_rows: None,
+            chunks: vec![ChunkSpec {
+                table,
+                plan_revision: 1,
+                chunk_id: 0,
+                lo: None,
+                hi: None,
+                estimated_rows: None,
+            }],
+        };
+        let mut live = plan.clone();
+        live.estimated_rows = Some(1000);
+        assert!(validate_adoption(&live, &plan).is_ok());
+        let mut bad = plan.clone();
+        bad.chunks[0].hi = Some(vec![key(&Bson::Int32(5))]);
+        assert!(validate_adoption(&live, &bad).is_err());
+        let mut bad = plan.clone();
+        bad.chunks.push(bad.chunks[0].clone());
+        assert!(validate_adoption(&live, &bad).is_err());
+        let mut bad = plan.clone();
+        bad.protocol = "unknown".into();
+        assert!(validate_adoption(&live, &bad).is_err());
+        let mut bad = plan;
+        bad.strategy = ChunkStrategy::Keyset {
+            columns: vec!["other".into()],
+        };
+        assert!(validate_adoption(&live, &bad).is_err());
+    }
+
     #[test]
     fn position_roundtrip_epoch_and_same_cluster_time_order() {
         let mut p = Position {
