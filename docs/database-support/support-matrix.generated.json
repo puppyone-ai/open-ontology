@@ -106,6 +106,32 @@
        "sha256": "0b69f65d7db88d508e005e8773f255136ac914c6a4c30f899dc8c3dc1958dbe0"
       }
      ]
+    },
+    "selfbuild": {
+     "level": "verified",
+     "emulated": true,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-mysql-5-7-44-20261105",
+       "sha256": "bc666adc3cb2e7be45b053273de3e282fff68976762b73db2bcf764e6faa7ddf"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "verified",
+     "emulated": true,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-mysql-5-7-44-20261105",
+       "sha256": "bc666adc3cb2e7be45b053273de3e282fff68976762b73db2bcf764e6faa7ddf"
+      }
+     ]
     }
    }
   },
@@ -211,6 +237,32 @@
        "result": "pass",
        "run_id": "0390ce2f-e0d9-4cb3-bb90-f474e7a56a85",
        "sha256": "94c222b3b7899e237bd9e3a5c77c79de689110c15611268a1053f7981fb87e8a"
+      }
+     ]
+    },
+    "selfbuild": {
+     "level": "verified",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-mysql-8-0-44-20261105-retry",
+       "sha256": "a81a27205600f5dd5adbd511be3b304003f3782870a70b123e690e724cde6c20"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "designed",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "fail",
+       "run_id": "g-s5e-mysql-8-0-44-20261105-retry",
+       "sha256": "a81a27205600f5dd5adbd511be3b304003f3782870a70b123e690e724cde6c20"
       }
      ]
     }
@@ -427,6 +479,32 @@
        "sha256": "56d360d642fda0526b591e1bb198de37698984f42903addc2c18347b8e84b90e"
       }
      ]
+    },
+    "selfbuild": {
+     "level": "verified",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-mysql-9-5-0-20261105-retry",
+       "sha256": "7165a6b76565d9df76745de2f10f797129d17b42a54e11451237013f8fa082c4"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "designed",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "fail",
+       "run_id": "g-s5e-mysql-9-5-0-20261105-retry",
+       "sha256": "7165a6b76565d9df76745de2f10f797129d17b42a54e11451237013f8fa082c4"
+      }
+     ]
     }
    }
   },
@@ -532,6 +610,32 @@
        "result": "pass",
        "run_id": "5fd84033-f665-49da-8974-915d1b08e244",
        "sha256": "98ea8887acf1bc69124d0180fc1e9a2adccd24c9ddb6e32fdeb25b540ca9ecce"
+      }
+     ]
+    },
+    "selfbuild": {
+     "level": "verified",
+     "emulated": true,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-oracle-11-2-20261105",
+       "sha256": "cbc2bbc71648cbab055b4a496ea4d6e8fbdff67fb0e74ca1a1d79979a25a4272"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "verified",
+     "emulated": true,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-oracle-11-2-20261105",
+       "sha256": "cbc2bbc71648cbab055b4a496ea4d6e8fbdff67fb0e74ca1a1d79979a25a4272"
       }
      ]
     }
@@ -726,6 +830,32 @@
        "result": "pass",
        "run_id": "d0c82028-580c-4620-9a3b-f3041edd2fa2",
        "sha256": "6e49f502d1b0dae610afe92f3c4cb91aa9b0609be118a3dc068275c9305e21ab"
+      }
+     ]
+    },
+    "selfbuild": {
+     "level": "verified",
+     "emulated": true,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-oracle-21-3-20261105",
+       "sha256": "f31021db1ede9dca1057db0d0862e824f284de425c683bba243d899fcaf7007d"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "verified",
+     "emulated": true,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-oracle-21-3-20261105",
+       "sha256": "f31021db1ede9dca1057db0d0862e824f284de425c683bba243d899fcaf7007d"
       }
      ]
     }
@@ -942,6 +1072,32 @@
        "sha256": "a736259a5ee8d48dd78b82c94c5883e2d22a9330e8495685c6f717cc12969f46"
       }
      ]
+    },
+    "selfbuild": {
+     "level": "verified",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-postgres-13-23-20261105-retry",
+       "sha256": "a151d1fff3596c67bcbaf87f56ea2c3ccb1f2498cffa1faa5148596e256707da"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "designed",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "fail",
+       "run_id": "g-s5e-postgres-13-23-20261105-retry",
+       "sha256": "a151d1fff3596c67bcbaf87f56ea2c3ccb1f2498cffa1faa5148596e256707da"
+      }
+     ]
     }
    }
   },
@@ -1047,6 +1203,32 @@
        "result": "pass",
        "run_id": "72f8bac9-e56b-4760-82eb-3b67d038754a",
        "sha256": "814d6d67bea74bac605bfbdedaefa00a52ef98fa5d54d4f8a7d795efe8268a29"
+      }
+     ]
+    },
+    "selfbuild": {
+     "level": "verified",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-postgres-14-24-20261105-retry",
+       "sha256": "a40bddf13ab7bce4472fa3410fe807971eb2b1b8eb96885ba77a0f6407a6ed88"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "designed",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "fail",
+       "run_id": "g-s5e-postgres-14-24-20261105-retry",
+       "sha256": "a40bddf13ab7bce4472fa3410fe807971eb2b1b8eb96885ba77a0f6407a6ed88"
       }
      ]
     }
@@ -1156,6 +1338,32 @@
        "sha256": "3fda1fe94f5add61a628c56c658014b83a226ca4db64597d4e46e5b453f17309"
       }
      ]
+    },
+    "selfbuild": {
+     "level": "verified",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-postgres-15-19-20261105",
+       "sha256": "2bcbc5ad7db0706d09d9ba6e23f53f1065e28c87e8332e1ed99c034077d42864"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "designed",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "fail",
+       "run_id": "g-s5e-postgres-15-19-20261105",
+       "sha256": "2bcbc5ad7db0706d09d9ba6e23f53f1065e28c87e8332e1ed99c034077d42864"
+      }
+     ]
     }
    }
   },
@@ -1261,6 +1469,32 @@
        "result": "pass",
        "run_id": "cd761668-52fa-4559-ab01-63584d2362b8",
        "sha256": "592e5b39687d86c24a820775885aa11e770cf8562acce1c26c94eceafd608688"
+      }
+     ]
+    },
+    "selfbuild": {
+     "level": "verified",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-postgres-16-15-20261105-restart",
+       "sha256": "05f721eab09bc0b79a85642bfb926d4db6c6507eacecca070297916c224f6e5c"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "designed",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "fail",
+       "run_id": "g-s5e-postgres-16-15-20261105-restart",
+       "sha256": "05f721eab09bc0b79a85642bfb926d4db6c6507eacecca070297916c224f6e5c"
       }
      ]
     }
@@ -1475,6 +1709,32 @@
        "result": "pass",
        "run_id": "22194674-e6b9-4648-b6c3-2f0ec4bdadf5",
        "sha256": "21acee22ad4e0ea415d5e78df318840b0bfb484f5e20f8df7262b305e471e63b"
+      }
+     ]
+    },
+    "selfbuild": {
+     "level": "verified",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5e-postgres-18-6-20261105-retry",
+       "sha256": "501e78b212f25831976faee439f23696c89ef3c93dedc425bf54f40302e5b682"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "designed",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "fail",
+       "run_id": "g-s5e-postgres-18-6-20261105-retry",
+       "sha256": "501e78b212f25831976faee439f23696c89ef3c93dedc425bf54f40302e5b682"
       }
      ]
     }
