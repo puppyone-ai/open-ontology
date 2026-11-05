@@ -372,6 +372,32 @@
        "sha256": "00a778f542a85f5acd24abcdb85a75b1f8a77e00be96d348cebd708607f5e092"
       }
      ]
+    },
+    "selfbuild": {
+     "level": "experimental",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5d-e312-mysql-20261105",
+       "sha256": "a44e4bedf25c13e12582832b770cc4c105c3294459b0533ad22a82fedb1b4bf9"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "designed",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "fail",
+       "run_id": "g-s5d-e312-mysql-20261105",
+       "sha256": "a44e4bedf25c13e12582832b770cc4c105c3294459b0533ad22a82fedb1b4bf9"
+      }
+     ]
     }
    }
   },
@@ -983,6 +1009,32 @@
        "result": "pass",
        "run_id": "542fc3f8-4482-48f8-9d5b-a8f21cb0ac2a",
        "sha256": "07210b13084a98b307c3aaa9d9f41cf026b80170c09a1a29cb124ae50ef7047b"
+      }
+     ]
+    },
+    "selfbuild": {
+     "level": "designed",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "fail",
+       "run_id": "g-s5c-e309-oracle-20261105",
+       "sha256": "b6f0fa0ee80a1eb6e0ae617f01402d0bdf96fde55d0ebd8755b61f018d0315d1"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "designed",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "fail",
+       "run_id": "g-s5c-e309-oracle-20261105",
+       "sha256": "b6f0fa0ee80a1eb6e0ae617f01402d0bdf96fde55d0ebd8755b61f018d0315d1"
       }
      ]
     }
@@ -1622,6 +1674,32 @@
        "result": "pass",
        "run_id": "597021f8-f845-487e-bb6d-312fe988390a",
        "sha256": "2a78d0fa55d1b73e5493e22b576336140162e1adf785d8b93ae8eebb741c26a8"
+      }
+     ]
+    },
+    "selfbuild": {
+     "level": "experimental",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T5",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5c-e309-pg-20261105",
+       "sha256": "f8fcc0a5864e328acff208525479ca3cbcf556217feb578cd6ca5023122bcae0"
+      }
+     ]
+    },
+    "dialogue": {
+     "level": "verified",
+     "emulated": false,
+     "evidence": [
+      {
+       "suite": "T6",
+       "variant": "snapshot",
+       "result": "pass",
+       "run_id": "g-s5c-e309-pg-20261105",
+       "sha256": "f8fcc0a5864e328acff208525479ca3cbcf556217feb578cd6ca5023122bcae0"
       }
      ]
     }
