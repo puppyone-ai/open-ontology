@@ -238,7 +238,12 @@ pub(super) fn run(root: &Path, name: &str, publication: &Value) -> Result<Value>
         "share_prompt" => once(root, name, publication, || {
             // Lane B issues a separate short-lived enrollment code, not the
             // first user's long-lived token. Keep the entire prompt private.
-            let raw = lifecycle(root, publication, &["share-prompt"])?;
+            let registry = publication["prompt_npm_registry"].as_str();
+            let mut args = vec!["share-prompt"];
+            if let Some(registry) = registry {
+                args.extend(["--npm-registry", registry]);
+            }
+            let raw = lifecycle(root, publication, &args)?;
             let mut prompt =
                 String::from_utf8(raw).map_err(|_| Failure::local("BUILD_PROMPT_RECEIPT"))?;
             if !prompt.contains("--code-stdin") || prompt.contains("ooct_") {

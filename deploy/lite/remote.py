@@ -311,7 +311,7 @@ def install(request, _stdin):
         before = project_containers(project) if project else {}
         body = {'stack': request['stack'], 'image': request['image'], 'templates': request['templates']}
         # D16: the CLI asks for the retained build chain; prompt paths are its own.
-        for key in ('retained', 'jobs', 'prompt'):
+        for key in ('retained', 'jobs', 'prompt', 'prompt_npm_registry'):
             if key in request:
                 body[key] = request[key]
         report, code = lifecycle('up', body)

@@ -786,6 +786,7 @@ fn up(
         json!({"stack":remote_stack,"image":runtime,"pki":files,"secrets":secrets,
             "templates":{"compose.yaml":compose,"postgres.sh":POSTGRES_SH,"scheduler.py":SCHEDULER},
             "retained":true,"jobs":super::lite::jobs(),
+            "prompt_npm_registry":std::env::var("OO_SHARE_NPM_REGISTRY").ok(),
             "prompt":{"ca_file":text(consumer.join("ca.crt")),"client_pem":text(consumer.join("client.pem"))},
             "lifecycle":LIFECYCLE,"agent":AGENT,"scope":probe["scope"],"python3":probe["python3"],
             "interval_seconds":interval}),

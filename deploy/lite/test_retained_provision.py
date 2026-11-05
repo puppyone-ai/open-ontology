@@ -114,6 +114,14 @@ class Tests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'LITE_SYNC_INTERVAL'):
                 lifecycle.interval_seconds(value)
 
+    def test_staged_npm_registry_reaches_the_share_prompt_configuration(self):
+        request = {'stack': stack(), 'prompt_npm_registry': 'http://localhost:4873/'}
+        with patch.object(lifecycle, 'compose_input', return_value=b''), \
+                patch.object(lifecycle, 'docker', return_value=b''):
+            lifecycle.provision_retained(self.root, ['compose'], {}, request, 4443)
+        runtime = json.loads(lifecycle.read_private(self.root / 'work/operator/build-runtime.json'))
+        self.assertEqual(runtime['gateway']['prompt_npm_registry'], 'http://localhost:4873/')
+
     def test_more_than_one_source_is_refused(self):
         two = stack()
         two['sources'].append(dict(two['sources'][0], id='crm'))

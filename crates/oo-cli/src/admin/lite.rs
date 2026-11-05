@@ -73,7 +73,11 @@ pub(super) fn run(
             .map_err(Failure::local)?;
     }
     // D16: deployments provision the retained build chain for runtime builds.
+    // OO_SHARE_NPM_REGISTRY: a registry that carries this exact CLI version,
+    // named in the share prompt's install step (validated by share-prompt).
+    let registry = std::env::var("OO_SHARE_NPM_REGISTRY").ok();
     let request = json!({"action":action,"root":root,"stack":stack,"image":image,"retained":true,
+    "prompt_npm_registry":registry,
     "templates":{
         "compose.yaml":include_str!("../../../../deploy/lite/compose.yaml"),
         "postgres.sh":include_str!("../../../../deploy/lite/postgres.sh"),

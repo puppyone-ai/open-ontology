@@ -233,7 +233,13 @@ fn options(args: &[String], command: &str) -> Result<BTreeMap<String, String>> {
         "renew" => &["--project", "--hash", "--deadline-ms", "--json"],
         "rotate" => &["--project", "--hash", "--output-file", "--json"],
         "revoke" => &["--project", "--hash", "--json"],
-        _ => &["--grant-file", "--role", "--agent", "--raw-token"],
+        _ => &[
+            "--grant-file",
+            "--role",
+            "--agent",
+            "--raw-token",
+            "--npm-registry",
+        ],
     };
     let mut out = BTreeMap::new();
     let mut it = args.iter();
@@ -599,12 +605,35 @@ async fn device(http: &Http) -> Result<String> {
 fn shell(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
-fn prompt(gateway: &str, material: &str, raw: bool, agent: Option<&str>, expires: u64) -> String {
+/// An npm registry for the install step (a staged or private registry that
+/// carries this exact version): http(s) origin and path only, no credentials.
+fn registry(value: Option<&String>) -> Result<Option<String>> {
+    let Some(value) = value else { return Ok(None) };
+    let url = Url::parse(value).map_err(|_| bad())?;
+    if !matches!(url.scheme(), "https" | "http")
+        || url.host_str().is_none()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return Err(bad());
+    }
+    Ok(Some(url.as_str().to_owned()))
+}
+fn prompt(
+    gateway: &str,
+    material: &str,
+    raw: bool,
+    agent: Option<&str>,
+    expires: u64,
+    npm_registry: Option<&str>,
+) -> String {
     let mut s = String::new();
     if raw {
         s.push_str("RISK: This prompt contains a long-lived bearer token. Anyone with the chat history can use its granted access. Do not share or log it.\n");
     }
-    s.push_str(&format!("Configure Open Ontology read-only data access:\n1. Install: npm install -g @reduxxx888/ontology-cli@{VERSION}\n2. Bind: printf '%s\\n' {} | oo {} --gateway {} --{}-stdin\n",shell(material),if raw {"configure"} else {"login"},shell(gateway),if raw {"token"} else {"code"}));
+    s.push_str(&format!("Configure Open Ontology read-only data access:\n1. Install: npm install -g {}@reduxxx888/ontology-cli@{VERSION}\n2. Bind: printf '%s\\n' {} | oo {} --gateway {} --{}-stdin\n",npm_registry.map(|r| format!("--registry {} ", shell(r))).unwrap_or_default(),shell(material),if raw {"configure"} else {"login"},shell(gateway),if raw {"token"} else {"code"}));
     if !raw {
         s.push_str(&format!("   This code is single-use; expires at Unix milliseconds {expires}. Do not put it in argv.\n"));
     }
@@ -748,6 +777,8 @@ async fn execute(command: &str, args: &[String]) -> Result<String> {
     if agent.is_some_and(|a| !["claude", "cursor", "codex"].contains(&a)) {
         return Err(bad());
     }
+    // Validated before any code is issued.
+    let npm_registry = registry(opts.get("--npm-registry"))?;
     let mut grant = read_json(Path::new(opts.get("--grant-file").ok_or_else(bad)?), false)?;
     if let Some(role) = opts.get("--role") {
         grant["role"] = json!(role);
@@ -780,7 +811,14 @@ async fn execute(command: &str, args: &[String]) -> Result<String> {
         return Err(protocol());
     }
     let expires = issued["expires_at_ms"].as_u64().ok_or_else(protocol)?;
-    Ok(prompt(&http.base, material, raw, agent, expires))
+    Ok(prompt(
+        &http.base,
+        material,
+        raw,
+        agent,
+        expires,
+        npm_registry.as_deref(),
+    ))
 }
 async fn token_command(args: &[String]) -> Result<String> {
     let (command, mut rest) = args.split_first().ok_or_else(bad)?;
@@ -1109,15 +1147,38 @@ mod tests {
                 false,
                 Some(agent),
                 1000,
+                None,
             );
             assert!(!p.contains("ooct_"));
             assert!(p.contains("--code-stdin"));
             assert!(p.contains(agent));
         }
         assert!(
-            prompt("https://gateway.example", "test-material", true, None, 1000)
-                .starts_with("RISK:")
+            prompt(
+                "https://gateway.example",
+                "test-material",
+                true,
+                None,
+                1000,
+                None
+            )
+            .starts_with("RISK:")
         );
+        let staged = prompt(
+            "https://g.example",
+            "OO-0000-0000",
+            false,
+            None,
+            1,
+            Some("http://localhost:4873/"),
+        );
+        assert!(staged.contains(&format!(
+            "npm install -g --registry 'http://localhost:4873/' @reduxxx888/ontology-cli@{VERSION}"
+        )));
+        for value in ["ftp://x", "https://u:p@x/", "https://x/?a=1", "not a url"] {
+            assert!(registry(Some(&value.to_owned())).is_err());
+        }
+        assert_eq!(registry(None).ok().flatten(), None);
         assert!(!code_ok("OO-IIII-0000"));
         assert!(code_ok("OO-0000-0000"));
     }

@@ -418,6 +418,9 @@ def provision_retained(root,argv,env,request,port):
                    # Remote deployments name the owner's local copies instead.
                    'prompt_ca_file':(request.get('prompt') or {}).get('ca_file',str(consumer/'ca.crt')),
                    'prompt_client_pem':(request.get('prompt') or {}).get('client_pem',str(consumer/'client.pem')),
+                   # Optional registry that carries this exact CLI version (share prompt step 1).
+                   **({'prompt_npm_registry':request['prompt_npm_registry']}
+                      if request.get('prompt_npm_registry') else {}),
                    'first_user_grant':{'project_id':'lite','principal_id':'owner','role':'oo_r_owner',
                        'claims':{},'policy_version':'draft-v1','knowledge_version':'draft-v1',
                        'audience_url':public,'ttl_ms':7776000000,'purpose':'first build'}}})
