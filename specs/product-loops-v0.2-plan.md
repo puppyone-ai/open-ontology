@@ -267,7 +267,7 @@ Web UI；短期 access + refresh 轮换 token（v0.3 评估）；云数仓（Sno
 1. **一个提交一个逻辑变化**，能单独审阅、单独回退。重构与行为变化分开提交；格式化不与功能混合。
 2. **提交信息**用 Conventional Commits：`<type>(<scope>): <摘要>`，type 取 `feat|fix|refactor|style|test|docs|build|ci|chore|perf`（`style` 仅用于不改行为的格式化），scope 取 crate 或目录（如 `connectors/mysql`、`gateway`、`cli`、`builder`、`docs`、`specs`）。摘要用英文祈使句，≤ 72 字符。
 3. **正文**写清：为什么改、改了什么行为、怎么验证（命令与结果摘要）；有失败模式或已知限制时写明。
-4. **尾注**：`Plan: <TODO ID>`（可多个）；证据有对应运行时加 `Evidence: <run-id>`；按仓库约定加 `Co-Authored-By`。
+4. **尾注**：`Plan: <TODO ID>`（可多个）；证据有对应运行时加 `Evidence: <run-id>`；不加 `Co-Authored-By` 或任何智能体身份：所有提交以仓库所有者的 GitHub 身份提交（所有者 2026-11-05 指示；本分支已有的此类尾注在最终 PR 前随历史整理一并去除）。
 5. **每个提交都可构建**：`cargo check --workspace --locked` 通过；改动涉及的 crate 的单元测试通过；改文档时三个检查脚本通过。不允许“下一个提交再修”的中间坏状态进入集成分支。
 6. **提交前扫描**：`git diff --cached` 过一遍秘密与客户信息扫描（沿用 `docs/product/source-sync.md` 的扫描规则）和大文件检查。
 7. 不使用 `--no-verify`，不改写已合入集成分支的历史。

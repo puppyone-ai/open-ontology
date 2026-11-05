@@ -52,8 +52,8 @@ every exit on the card holds or you can prove it cannot; never ask questions.
 - Split by concern: migration, store/library, API surface, CLI, tests may go
   with the code they test. A card that lists several deliverables normally
   yields several commits.
-- Trailers: `Plan: <TODO IDs>` and
-  `Co-Authored-By: GPT-6 Astra (Codex) <noreply@openai.com>`.
+- Trailer: `Plan: <TODO IDs>` only. No `Co-Authored-By` or any other agent
+  identity: every commit is the repository owner's (owner instruction, 2026-11-05).
 - Every commit builds: `cargo check --workspace --locked` (state in the body
   if a commit must change `Cargo.lock` and the card allows it) and the tests
   of crates you touched pass. Run `cargo fmt` on touched crates.
