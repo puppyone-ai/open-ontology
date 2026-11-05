@@ -8,12 +8,39 @@ from t6 import MAX_CALLS, MODEL, load_module
 from t6_fixture import GoldFixture
 
 
+def completeness(facts, draft, reviewed):
+    """Check every retained table/column, including inherited family members."""
+    import selfbuild_budget
+
+    items = []
+    for table in facts["tables"]:
+        for kind, column in [("table", None)] + [("column", c["name"]) for c in table["columns"]]:
+            key = selfbuild_budget.stable_id(kind, table["dataset"], column)
+            value = draft.get("accepted", {}).get(key, {})
+            resolved = (value.get("id") == key and value.get("kind") == kind and
+                        all(isinstance(value.get(k), str) and value[k].strip()
+                            for k in ("label", "description")))
+            items.append({"id": key, "dataset": table["dataset"], "column": column,
+                          "resolved": bool(resolved), "inherited_from": value.get("inherited_from")})
+    expected = {t["dataset"]: {c["name"] for c in t["columns"]} for t in facts["tables"]}
+    actual = {t["dataset"]: {c["name"] for c in t["columns"]}
+              for t in reviewed.get("compiled", {}).get("effective", {}).get("datasets", [])}
+    review_ok = (reviewed.get("status") == "reviewed" and
+                 reviewed.get("review_decision", {}).get("mode") == "self" and actual == expected)
+    return {"status": "passed" if items and all(i["resolved"] for i in items)
+            and not draft.get("unresolved", [True]) and review_ok else "failed",
+            "scope": "retained gold-question tables, not full source fixture",
+            "tables": len(expected), "columns": sum(map(len, expected.values())),
+            "items": items, "unresolved": draft.get("unresolved"),
+            "reviewed_shape_matches": review_ok, "connectivity": draft.get("review")}
+
+
 class ReviewedGoldFixture(GoldFixture):
-    def __init__(self, out, engine, scale):
+    def __init__(self, out, engine, scale, version=None, worker_image=None):
         sys.path.insert(0, str(ROOT / "tools/release-coordinator/tests"))
         product = load_module(
             "t6_retained_product", ROOT / "tools/release-coordinator/tests/retained_cycle_live.py")
-        super().__init__(out, engine, scale)
+        super().__init__(out, engine, scale, version, worker_image)
         self.product = product
         self.model_stack = self.root / "model-stack.json"
         # References only: no endpoint/key material is copied into this file.
@@ -29,7 +56,7 @@ class ReviewedGoldFixture(GoldFixture):
             "library_id": "owned", "generation": run, "source_engine": self.engine})
         tables = retained_build.inventory(facts)
         runner = selfbuild_budget.Runner(
-            {"model": MODEL["model"], "request_timeout_seconds": 180},
+            {"model": MODEL["model"], "request_timeout_seconds": 300},
             self.out / "builder-preflight")
         graph = selfbuild_budget.bridge("graph", budget=runner.budget, tables=tables, candidates=[])
         delta = selfbuild_budget.bridge("incremental", tables=tables, graph=graph, previous={})
@@ -63,6 +90,12 @@ class ReviewedGoldFixture(GoldFixture):
         if report["stage"] != "review_required" or not 1 <= report["model_calls"] <= self.builder_call_limit:
             raise ValueError("BUILDER_NOT_REVIEWABLE")
         reviewed = self.product.Retained.review(self, output)
+        t5 = completeness(
+            json.loads((output / "facts.json").read_text()),
+            json.loads((output / "draft.json").read_text()), json.loads(reviewed))
+        write_json(self.out / "t5-result.json", t5)
+        if t5["status"] != "passed":
+            raise ValueError("BUILDER_INCOMPLETE")
         code, receipt = self.product.Retained.publisher(self, run, reviewed, "gold")
         if code or receipt["outcome"] != "activated" or receipt["state"] != "ready":
             raise ValueError("REVIEWED_PUBLICATION_FAILED")

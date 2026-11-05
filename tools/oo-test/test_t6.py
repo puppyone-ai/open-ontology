@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import time
 import types
@@ -9,7 +10,7 @@ from unittest.mock import Mock, patch
 
 import t6
 from t6_fixture import GoldFixture
-from t6_reviewed import ReviewedGoldFixture
+from t6_reviewed import ReviewedGoldFixture, completeness
 
 
 class GoldDialogueTests(unittest.TestCase):
@@ -168,7 +169,11 @@ class GoldDialogueTests(unittest.TestCase):
                 builder=lambda self, run: ({"stage": "review_required", "model_calls": 2}, Path(root)),
                 review=lambda self, output: b"reviewed",
                 publisher=lambda *args: (0, receipt)))
-            self.assertEqual(fixture.publish("baseline"), receipt)
+            (Path(root) / "facts.json").write_text("{}")
+            (Path(root) / "draft.json").write_text("{}")
+            fixture.product.Retained.review = lambda self, output: b"{}"
+            with patch("t6_reviewed.completeness", return_value={"status": "passed"}):
+                self.assertEqual(fixture.publish("baseline"), receipt)
             self.assertEqual(fixture.identity["role"], "oo_r_owner")
             self.assertFalse(any("fence" in s for s in sql))
             self.assertEqual(json.loads(
@@ -189,6 +194,74 @@ class GoldDialogueTests(unittest.TestCase):
             for batches in (0, -1, 1366, True, 1.5, None, "7"):
                 with self.assertRaisesRegex(ValueError, "BUILDER_PREFLIGHT_BUDGET"):
                     fixture.set_builder_budget({"batches": batches})
+
+    def test_t6_verdict_requires_all_twenty_distinct_correct_answers(self):
+        report = {"publisher": "reviewed", "status": "passed", "questions": [
+            {"id": f"Q{i:02}", "equal": True, "status": "correct"} for i in range(1, 21)]}
+        t5 = {"status": "passed"}
+        self.assertEqual(t6.suite_verdicts(report, t5)[1][2], "pass")
+        for field, value in (("equal", False), ("truncated", True), ("refused", True),
+                             ("error", "UPSTREAM_TIMEOUT"), ("id", "Q02")):
+            bad = dict(report, questions=[dict(report["questions"][0], **{field: value}),
+                                         *report["questions"][1:]])
+            self.assertEqual(t6.suite_verdicts(bad, t5)[1][2], "fail")
+        self.assertEqual(t6.suite_verdicts(dict(report, questions=[]), t5)[1][2], "fail")
+        self.assertEqual(t6.suite_verdicts(dict(report, publisher="fixture"), t5)[0][2], "skip")
+        self.assertEqual(t6.suite_verdicts(report, {})[0][2], "fail")
+
+    def test_t5_rechecks_inventory_not_only_empty_unresolved(self):
+        sys.path.insert(0, str(t6.ROOT / "tools/pg-builder/scripts"))
+        import selfbuild_budget
+        facts = {"tables": [{"dataset": "app.items", "columns": [{"name": "id"}]}]}
+        accepted = {}
+        for kind, column in (("table", None), ("column", "id")):
+            key = selfbuild_budget.stable_id(kind, "app.items", column)
+            accepted[key] = {"id": key, "kind": kind, "label": "item",
+                             "description": "Meaning unknown"}
+        draft = {"accepted": accepted, "unresolved": [], "review": {}}
+        reviewed = {"status": "reviewed", "review_decision": {"mode": "self"},
+                    "compiled": {"effective": {"datasets": facts["tables"]}}}
+        self.assertEqual(completeness(facts, draft, reviewed)["status"], "passed")
+        self.assertEqual(completeness(facts, draft, {})["status"], "failed")
+        accepted.pop(key)
+        self.assertEqual(completeness(facts, draft, reviewed)["status"], "failed")
+
+    def test_versioned_sources_use_the_requested_pin_and_service(self):
+        for engine, version, service, schema in (
+            ("mysql", "5.7.44", "fixture", "fixture"),
+            ("postgres", "13.23", "fixture", "public"),
+            ("oracle", "21.3", "XEPDB1", "FIXTURE"),
+            ("oracle", "11.2", "XE", "FIXTURE"),
+        ):
+            with self.subTest(engine=engine, version=version), tempfile.TemporaryDirectory() as root:
+                fixture = GoldFixture.__new__(GoldFixture)
+                fixture.out = fixture.root = Path(root)
+                fixture.db = types.SimpleNamespace(directory=Path(root))
+                fixture.engine, fixture.version, fixture.schema = engine, version, schema
+                fixture.scale, fixture.names = 2000000, ["items"]
+                fixture.worker_image = "owned-worker"
+                source = Mock(id="run", name="source", reader_secret="fixture-only")
+                source.name = "source"
+                source.receipt = {"version_actual": version}
+                source.gold.return_value = {}
+                source.command.return_value = (0, "127.0.0.1:12345")
+                def tls(run, store):
+                    (store / "source-ca").write_text("fixture-ca")
+                with patch("t6_fixture.LaneRun", return_value=source) as factory, patch(
+                    "t6_fixture.configure_mysql", side_effect=tls), patch(
+                    "t6_fixture.configure_pg", side_effect=tls):
+                    config = fixture.external_source()
+                self.assertEqual(factory.call_args.args[1:3], (engine, version))
+                self.assertEqual(config["database"], service)
+                self.assertEqual(config["scope"]["include"], [schema + ".items"])
+                self.assertEqual(config["user"], "fixture_reader")
+                if version == "11.2":
+                    self.assertEqual(config["port"], 1521)
+                    self.assertEqual(fixture.worker_args[0], "--oracle-worker")
+                    commands = [c.args[0] for c in source.command.call_args_list]
+                    create = next(c for c in commands if c[:2] == ["docker", "create"])
+                    self.assertIn("oo.lane=g", create)
+                    self.assertIn("linux/amd64", create)
 
 
 if __name__ == "__main__":

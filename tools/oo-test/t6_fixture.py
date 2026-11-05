@@ -1,11 +1,12 @@
 """Extend the owned live Gateway fixture with lane H's neutral gold data."""
+import argparse
 import json
 import os
 import re
 import subprocess
 
 from runner import ROOT, generator, write_json
-from t1 import private
+from t1 import LaneRun, configure_mysql, configure_pg, private
 from t6 import cell, load_module, redact_material
 
 cycles = load_module("t6_gateway_cycles", ROOT / "tools/oo-load/test-gateway-cycles.py")
@@ -20,11 +21,18 @@ def ident(value):
 
 
 class GoldFixture(cycles.Live):
-    def __init__(self, out, engine, scale):
+    def __init__(self, out, engine, scale, version=None, worker_image=None):
         super().__init__(out, engine)
+        self.version = version or {"postgres": "17", "mysql": "8.4", "oracle": "23"}[engine]
+        self.worker_image = worker_image
+        self.oracle_worker = None
+        self.worker_args = []
+        self.separate_postgres = engine == "postgres" and not self.version.startswith("17")
         self.scale = scale
         self.seeded = False
         self.schema = {"postgres": "app", "mysql": "fixture", "oracle": "FIXTURE"}[engine]
+        if self.separate_postgres:
+            self.schema = "public"
         self.names = [t.upper() if engine == "oracle" else t for t in TABLES]
         self.run.secret = self.db.password  # Shared logger redacts the fixture DB password.
         self.command_seq = 0
@@ -33,6 +41,8 @@ class GoldFixture(cycles.Live):
                          "policy_version": "pv1", "knowledge_version": "kv1"}
 
     def source_sql(self, sql):
+        if self.separate_postgres and "CREATE SCHEMA app" in sql:
+            return ""  # The independently versioned source is seeded before fixture-pack.
         result = super().source_sql(sql)
         if self.engine == "postgres" and not self.seeded and "CREATE SCHEMA app" in sql:
             self.seeded = True
@@ -44,20 +54,60 @@ class GoldFixture(cycles.Live):
         return result
 
     def external_source(self):
-        config = super().external_source()
-        self.source.args.scale = self.scale
-        self.source.args.tables = 200
+        path = self.out / "source"
+        path.mkdir()
+        self.source = LaneRun(path, self.engine, self.version, argparse.Namespace(
+            platform=None, health_timeout=None, scale=self.scale, tables=200))
+        self.source.setup()
         self.source.seed()
+        private(self.db.directory / "source-password", self.source.reader_secret)
+        if self.engine in ("postgres", "mysql"):
+            tls = self.root / "source-tls"
+            tls.mkdir()
+            (configure_pg if self.engine == "postgres" else configure_mysql)(self.source, tls)
+            private(self.db.directory / "source-tls-ca", (tls / "source-ca").read_text())
+        else:
+            self.source.sql(
+                "GRANT SELECT ON SYS.V_$DATABASE TO fixture_reader;\n"
+                "GRANT SELECT ON SYS.V_$SESSION TO fixture_reader;\n"
+                "GRANT SELECT ON SYS.V_$SQL_PLAN TO fixture_reader;\n"
+                "GRANT SELECT ON SYS.DBA_EXTENTS TO fixture_reader;\n"
+                "GRANT EXECUTE ON SYS.DBMS_ROWID TO fixture_reader;\n" +
+                "\n".join(f'GRANT FLASHBACK ON fixture.{ident(t)} TO fixture_reader;'
+                          for t in self.names), admin=True)
         self.gold = self.source.gold()
         write_json(self.out / "gold-answers.json", self.gold)
-        if self.engine == "mysql":
-            self.source.sql("GRANT SELECT,SHOW VIEW ON fixture.* TO 'reader'@'%';", admin=True)
-        else:
-            for table in self.names:
-                self.source.sql(f'GRANT SELECT, FLASHBACK ON fixture.{ident(table)} TO reader;',
-                                admin=True)
-        config["database"] = "fixture" if self.engine == "mysql" else "FREEPDB1"
-        config["scope"]["include"] = [self.schema + "." + t for t in self.names]
+        port = {"postgres": 5432, "mysql": 3306, "oracle": 1521}[self.engine]
+        _, endpoint = self.source.command(["docker", "port", self.source.name, f"{port}/tcp"])
+        database = "fixture"
+        if self.engine == "oracle":
+            database = ("XE" if self.version.startswith("11") else
+                        "XEPDB1" if self.version.startswith("21") else "FREEPDB1")
+        config = {"id": "owned", "engine": self.engine, "host": "127.0.0.1",
+                  "port": int(endpoint.strip().rsplit(":", 1)[1]), "database": database,
+                  "user": "fixture_reader", "password": {"secret_ref": "source-password"},
+                  "scope": {"include": [self.schema + "." + t for t in self.names]}}
+        if self.engine in ("postgres", "mysql"):
+            config["tls_ca"] = {"secret_ref": "source-tls-ca"}
+        if self.engine == "oracle" and self.version.startswith("11"):
+            if not self.worker_image:
+                raise ValueError("ORACLE_WORKER_REQUIRED")
+            name = "oo-g-worker-" + self.source.id
+            self.source.command([
+                "docker", "create", "--name", name, "--platform", "linux/amd64",
+                "--label", "oo.lane=g", "--label", "oo.run_id=" + self.source.id,
+                "--network", "container:" + self.source.name, "--mount",
+                f"type=bind,src={ROOT / 'testing/engines/oracle/worker/worker.py'},dst=/worker.py,readonly",
+                "--entrypoint", "sleep", self.worker_image, "infinity"])
+            self.oracle_worker = name
+            self.source.command(["docker", "start", name])
+            worker = self.root / "oracle-worker"
+            private(worker, f"#!/bin/sh\nexec docker exec -i {name} python /worker.py\n")
+            worker.chmod(0o700)
+            self.worker_args = ["--oracle-worker", str(worker)]
+            config["port"] = 1521
+        write_json(self.out / "source-version.json", {
+            "engine": self.engine, "version": self.source.receipt["version_actual"]})
         return config
 
     def read_source(self, sql):
@@ -102,7 +152,7 @@ class GoldFixture(cycles.Live):
         if set(tables) != set(self.names):
             raise ValueError("FIXTURE_INVENTORY")
         self.columns = tables
-        if self.engine == "postgres":
+        if self.engine == "postgres" and not self.source:
             self.gold = {}
             text = (ROOT / "testing/engines/gold/postgres.sql").read_text()
             for question, statement in re.findall(r"-- (Q\d+):[^\n]*\n(.*?);", text, re.S):
@@ -120,6 +170,10 @@ class GoldFixture(cycles.Live):
 
     def command(self, argv, label, data=None):
         if label == "fixture-pack":
+            if self.separate_postgres:
+                stack = json.loads(self.stack.read_text())
+                stack["sources"] = [self.external_source()]
+                self.stack.write_text(json.dumps(stack))
             self.inventory()
             request = json.loads(data)
             # Bootstrap the inherited fixture only. The published Pack is built
@@ -146,7 +200,7 @@ class GoldFixture(cycles.Live):
         stack = json.loads(self.stack.read_text())
         stack["sources"][0]["scope"]["include"] = [self.schema + "." + t for t in self.names]
         self.stack.write_text(json.dumps(stack))
-        result = super().load(prefix, run)
+        result = super().load([*prefix, *self.worker_args], run)
         write_json(self.out / "source-column-types.json", self.columns)
         # Gateway binds exact Agent DB format_type values, not source type
         # spellings (Oracle NUMBER, for example, can be projected as text).
@@ -386,7 +440,20 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA oo_token_control,oo_token_lifecycle TO oo_t
                 write_json(self.out / "final-publication-state.json", json.loads(state))
             except Exception:
                 write_json(self.out / "final-publication-state.json", {"status": "unmeasured"})
+        worker_error = None
+        if self.oracle_worker:
+            try:
+                _, labels = self.source.command([
+                    "docker", "inspect", "--format", "{{json .Config.Labels}}", self.oracle_worker])
+                labels = json.loads(labels)
+                if labels.get("oo.lane") != "g" or labels.get("oo.run_id") != self.source.id:
+                    raise RuntimeError("WORKER_CLEANUP_OWNERSHIP")
+                self.source.command(["docker", "rm", "-f", "-v", self.oracle_worker])
+            except Exception as exc:
+                worker_error = exc
         super().close()
+        if worker_error:
+            raise RuntimeError("WORKER_CLEANUP_FAILED") from worker_error
         paths = [self.out / "cleanup.json"]
         if self.source:
             paths.append(self.source.path / "cleanup.json")

@@ -11,8 +11,10 @@ import signal
 import subprocess
 import time
 import traceback
+from types import SimpleNamespace
 
-from runner import ROOT, checksums, write_json
+from runner import ROOT, checksums, resolve, write_json
+from verdicts import write_rows
 
 MODEL = {
     "provider": "openai-compatible",
@@ -263,14 +265,36 @@ def dialogue(model, cli, prompt, question, gold, out):
     return report
 
 
+def suite_verdicts(report, t5):
+    questions = report.get("questions", [])
+    expected = {q["id"] for q in json.loads(QUESTIONS.read_text())}
+    passed = (report.get("status") == "passed" and len(questions) == 20 and
+              {q["id"] for q in questions} == expected and
+              all(q.get("equal") is True and q.get("status") == "correct"
+                  and not q.get("error") and not q.get("truncated") and not q.get("refused")
+                  for q in questions))
+    return [("T5", "snapshot", "skip" if report.get("publisher") == "fixture" else
+             "pass" if t5.get("status") == "passed" else "fail"),
+            ("T6", "snapshot", "pass" if passed else "fail")]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--engine", choices=["postgres", "mysql", "oracle"], default="postgres")
+    parser.add_argument("--version", help="locked source version (Agent DB remains PostgreSQL 17)")
+    parser.add_argument("--worker-image", help="local amd64 thick-worker image for Oracle 11g")
     parser.add_argument("--scale", type=int, default=2_000_000)
     parser.add_argument("--publisher", choices=["reviewed", "fixture"], default="reviewed")
     parser.add_argument("--execute", action="store_true", help="authorize bounded paid model calls")
     args = parser.parse_args()
+    args.version = args.version or {"postgres": "17", "mysql": "8.4", "oracle": "23"}[args.engine]
+    try:
+        resolve(args.engine, args.version)
+    except ValueError as exc:
+        parser.error(str(exc))
+    if args.engine == "oracle" and args.version.startswith("11") and not args.worker_image:
+        parser.error("--worker-image is required for Oracle 11g")
     if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9-]{0,100}", args.run_id):
         parser.error("invalid run id")
     if not args.execute or not 1 <= args.scale <= 10_000_000:
@@ -278,7 +302,7 @@ def main():
     os.umask(0o077)
     out = ROOT / "evidence" / args.run_id
     out.mkdir(mode=0o700, parents=True, exist_ok=False)
-    preflight = {"model": MODEL["model"], "engine": args.engine,
+    preflight = {"model": MODEL["model"], "engine": args.engine, "version": args.version,
                  "questions": 20, "max_calls": MAX_CALLS, "max_output_per_call": MAX_OUTPUT,
                  "max_turns_per_question": MAX_TURNS,
                  "max_reserved_tokens": MAX_RESERVED_TOKENS, "max_request_bytes": MAX_REQUEST_BYTES,
@@ -309,7 +333,7 @@ def main():
             from t6_reviewed import ReviewedGoldFixture as Fixture
         else:
             from t6_fixture import GoldFixture as Fixture
-        fixture = Fixture(out, args.engine, args.scale)
+        fixture = Fixture(out, args.engine, args.scale, args.version, args.worker_image)
         fixture.start()
         stage = "dialogue"
         prompt = bind_agent(model, fixture.cli, fixture.share_prompt(), out)
@@ -352,7 +376,24 @@ def main():
             for q in json.loads(QUESTIONS.read_text())
             if q["id"] not in answered)
         report["status_counts"] = dict(Counter(q["status"] for q in report["questions"]))
+        t5_path = out / "t5-result.json"
+        t5 = json.loads(t5_path.read_text()) if t5_path.exists() else {"status": "not_run"}
+        report["T5"] = t5
         write_json(out / "result.json", report)
+        receipt = {}
+        if fixture:
+            if fixture.source:
+                receipt = getattr(fixture.source, "receipt", {})
+            elif (out / "source-version.json").exists():
+                receipt = {"version_actual": json.loads(
+                    (out / "source-version.json").read_text())["version"], "execution": "native"}
+        run = SimpleNamespace(engine=args.engine, version=args.version, id=args.run_id, receipt=receipt)
+        rows = write_rows(run, out / "result.json", suite_verdicts(report, t5),
+                          cleanup_failed=report["containers_left"] != 0)
+        for row in rows:
+            row["scope"] = ("retained gold-table Builder completeness; not full-fixture T5"
+                            if row["suite"] == "T5" else "20 gold questions in one model run")
+        write_json(out / "index-rows.json", rows)
         checksums(out)
     print(json.dumps(report), flush=True)
     return 0 if report["status"] == "passed" else 1

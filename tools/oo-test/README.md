@@ -383,18 +383,24 @@ table), consistency `B`; not full type/scale or T7 proof.
 ## Lane G gold dialogue (T6)
 
 ```sh
-cargo build --locked -p oo-cli -p oo-builder -p oo-gateway
+cargo build --locked -p oo-cli -p oo-builder --bins -p oo-gateway
 CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path tools/oo-load/Cargo.toml
 CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path tools/release-coordinator/Cargo.toml
 tools/oo-test/oo-test t6 --engine postgres --run-id g-t6-pg --execute
 tools/oo-test/oo-test t6 --engine mysql --run-id g-t6-mysql --execute
 tools/oo-test/oo-test t6 --engine oracle --run-id g-t6-oracle --execute
+tools/oo-test/oo-test t6 --engine postgres --version 13.23 --run-id g-t6-pg13 --execute
+tools/oo-test/oo-test t6 --engine oracle --version 11.2 --worker-image LOCAL_THICK_IMAGE --run-id g-t6-ora11 --execute
 ```
 
 Run engines serially: PostgreSQL uses one owned container; MySQL/Oracle use
 one source plus one PostgreSQL Agent DB. All carry `oo.lane=g` and cleanup
-checks ownership. Patches are pinned to PostgreSQL 17.11, MySQL 8.4.7 and Oracle
-23.5. `--scale 1000` is only a reduced diagnostic, not the default 2M-event run.
+checks ownership. Defaults remain PostgreSQL 17.11, MySQL 8.4.7 and Oracle
+23.5; `--version` selects another locked source pin. PostgreSQL versions other
+than 17 use a separate source and a PostgreSQL 17 Agent DB. Oracle 11g needs
+an existing amd64 thick-worker image, started with lane/run ownership labels
+and removed after the run. At most two database containers run concurrently.
+`--scale 1000` is only a reduced diagnostic, not the default 2M-event run.
 
 The harness extends `test-gateway-cycles.py`, seeds lane H's neutral fixture
 with a separate admin connection, computes all 20 gold answers using a
@@ -444,3 +450,21 @@ order remain distinct. Truncated, refused, invalid, unverified, failed and
 not-run answers cannot pass. A correct answer must follow a successful native
 query; structured errors and nonzero exits remain visible. Setup/binding
 failure records all 20 questions as not run, never as zero or passed.
+
+Each run writes explicit snapshot verdicts through `verdicts.write_rows`.
+T5 checks every table/column item in the retained Builder input against its
+accepted draft and the reviewed output, including family inheritance; it is
+scoped to the 12 gold tables, not full-fixture T5. Missing items or missing
+review fail; the synthetic publisher skips T5. T6 passes only with all 20
+distinct question IDs correct in that one run. Unmeasured source versions or
+failed cleanup cannot pass. Both Builder egress and Agent egress use a
+300-second timeout. No call or token limit is increased.
+
+Merge runs without rerunning them:
+
+```sh
+tools/oo-test/oo-test matrix --merge-only --merge-evidence evidence/RUN
+```
+
+A timeout-only failed dialogue may be rerun once when authorized, with a new
+run ID and its own Builder and all 20 answers. Never combine answers.
