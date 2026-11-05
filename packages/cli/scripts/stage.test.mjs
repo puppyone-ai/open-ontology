@@ -54,7 +54,8 @@ test('stage is allowlisted, self-contained, hashed, and refuses existing output'
     const native = join(dir, 'oo');
     await writeFile(native, binary('linux-x64'));
     const output = join(dir, 'stage');
-    const args = { root, output, notices, binaries: new Map([['linux-x64', native]]) };
+    const args = { root, output, notices, binaries: new Map([['linux-x64', native]]), partial: true };
+    await assert.rejects(stage({ ...args, partial: false }), /every declared platform/);
     await assert.rejects(stage({ ...args, notices: undefined }), /dependency notices required/);
     await writeFile(join(notices, 'dependencies.json'),
       '{"schema_version":1,"dependencies":[{"unresolved":["license_text_missing"]}]}');
@@ -64,6 +65,9 @@ test('stage is allowlisted, self-contained, hashed, and refuses existing output'
     const image = `registry.example/oo@sha256:${'a'.repeat(64)}\n`;
     await writeFile(join(dir, 'oo-lite-image'), image);
     await stage(args);
+    const metadata = JSON.parse(await readFile(join(output, 'package.json'), 'utf8'));
+    assert.equal(metadata.private, true);
+    assert.deepEqual(metadata.ooPlatforms, ['linux-x64']);
     assert.deepEqual((await readdir(output)).sort(), [
       'LICENSE', 'NOTICE', 'README.md', 'SKILL.md', 'THIRD_PARTY_NOTICES.txt',
       'bin', 'dependencies.json', 'native', 'package.json',
@@ -83,6 +87,43 @@ test('stage is allowlisted, self-contained, hashed, and refuses existing output'
     await assert.rejects(stage(args), /EEXIST/);
     await mkdir(join(dir, '.git'));
     await assert.rejects(stage({ ...args, output: join(dir, 'second') }), /outside Git/);
+    execFileSync('git', ['init', '--quiet', dir]);
+    await writeFile(join(dir, '.gitignore'), '/ignored/\n');
+    await mkdir(join(dir, 'ignored'));
+    await stage({ ...args, output: join(dir, 'ignored', 'package') });
+    await assert.rejects(stage({ ...args, output: join(dir, 'tracked') }), /outside Git/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('release tarball contains every declared native binary and sidecar', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'oo-release-stage-'));
+  try {
+    const metadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url)));
+    const notices = join(dir, 'notices');
+    await mkdir(notices);
+    await writeFile(join(notices, 'THIRD_PARTY_NOTICES.txt'), 'Synthetic fixture.');
+    await writeFile(join(notices, 'dependencies.json'), '{"schema_version":1,"dependencies":[]}');
+    const binaries = new Map();
+    for (const target of metadata.ooPlatforms) {
+      const parent = join(dir, target);
+      await mkdir(parent);
+      await writeFile(join(parent, 'oo'), binary(target));
+      await writeFile(join(parent, 'oo-lite-image'), `sha256:${'a'.repeat(64)}\n`);
+      binaries.set(target, join(parent, 'oo'));
+    }
+    const output = join(dir, 'stage');
+    await stage({ output, notices, binaries });
+    const packed = JSON.parse(execFileSync('npm', ['pack', '--json', '--ignore-scripts',
+      '--pack-destination', dir], { cwd: output, encoding: 'utf8',
+      env: { ...process.env, npm_config_cache: join(dir, 'npm-cache') } }))[0];
+    const paths = new Set(packed.files.map(file => file.path));
+    for (const target of metadata.ooPlatforms) {
+      assert.ok(paths.has(`native/${target}/oo`));
+      assert.ok(paths.has(`native/${target}/oo-lite-image`));
+    }
+    assert.ok(!JSON.parse(await readFile(join(output, 'package.json'))).private);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

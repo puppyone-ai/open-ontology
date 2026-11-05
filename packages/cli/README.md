@@ -231,11 +231,17 @@ Repeated `--gateway` options are rejected before a configured credential is atta
 
 ## Packaged platforms and release boundary
 
-Version 0.1.1 packages macOS Apple Silicon (`darwin-arm64`, Mach-O minimum 11.0)
-and Linux x64 with glibc 2.34 or newer (`linux-x64`). It does not include Windows,
-Intel macOS, Linux ARM64 or musl/Alpine executables. Node.js 22 or newer is required
-on both packaged platforms. The libc/Mach-O versions are executable requirements,
-not claims that every OS release has been tested.
+The 0.2.0 release workflow builds `darwin-arm64`, `darwin-x64`, `linux-arm64`
+and `linux-x64`. Linux uses a glibc 2.31 sysroot and runs smoke checks on
+Debian 11 and Ubuntu 22.04; Darwin targets macOS 11 or newer. Darwin x64 is
+cross-built in CI. Windows and musl/Alpine are not declared. Node.js 22 or
+newer is required. These are build targets, not a publication or L1 acceptance claim.
+
+Release staging requires all four targets declared in `package.json`.
+For a local diagnostic install only, `stage.mjs --partial true` limits that
+declaration to supplied binaries and marks the package private. Dependency
+notice and binary checks still apply. Stage output must be outside Git or
+inside a Git-ignored artifact directory such as `evidence/`.
 
 The authoritative list is the keys of **this installed package's**
 `native/manifest.json` under `binaries`. Do not infer platform support from

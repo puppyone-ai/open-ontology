@@ -17,6 +17,8 @@ import tomllib
 
 TARGETS = (
     "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
     "x86_64-unknown-linux-gnu",
 )
 NOTICE_NAME = re.compile(r"^(?:licen[cs]e|copying|notice|copyright)", re.I)
@@ -262,8 +264,15 @@ def toolchain_inventory(targets):
 
 def outside_git(path):
     resolved = path.expanduser().resolve()
-    if any((parent / ".git").exists() for parent in (resolved, *resolved.parents)):
-        raise RuntimeError("Output must be outside Git repositories")
+    for parent in (resolved, *resolved.parents):
+        if (parent / ".git").exists():
+            top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=parent,
+                                 capture_output=True, text=True)
+            if (top.returncode or top.stdout.strip() != str(parent)
+                    or subprocess.run(["git", "check-ignore", "--quiet", str(resolved)], cwd=parent,
+                                      capture_output=True).returncode):
+                raise RuntimeError("Output must be outside Git repositories or git-ignored")
+            break
     if resolved.exists():
         raise RuntimeError("Output directory must not already exist")
     return resolved

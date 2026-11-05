@@ -1,5 +1,6 @@
 import copy
 import json
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
@@ -8,6 +9,15 @@ from licenses import TARGETS, load_supplements, outside_git, package_inventory, 
 
 
 class LicenseInventoryTests(unittest.TestCase):
+    def test_ignored_artifacts_allowed_but_tracked_source_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            subprocess.run(["git", "init", "--quiet", str(root)], check=True)
+            (root / ".gitignore").write_text("/evidence/\n")
+            self.assertEqual(outside_git(root / "evidence/notices"), root / "evidence/notices")
+            with self.assertRaisesRegex(RuntimeError, "outside Git"):
+                outside_git(root / "src/notices")
+
     def supplement_fixture(self, root):
         crate, directory = root / "crate", root / "supplements"
         crate.mkdir()
@@ -48,7 +58,8 @@ class LicenseInventoryTests(unittest.TestCase):
             self.assertEqual(file["provenance"]["vcs_commit"], "a" * 40)
             self.assertIn(file["provenance"]["upstream_url"], body)
             self.assertNotIn(str(root), json.dumps(record) + body)
-            self.assertEqual(set(TARGETS), {"aarch64-apple-darwin", "x86_64-unknown-linux-gnu"})
+            self.assertEqual(set(TARGETS), {"aarch64-apple-darwin", "x86_64-apple-darwin",
+                                          "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"})
             for change in ({"version": "1.0.1"}, {"repository": "https://github.com/other/project"},
                            {"license": "Apache-2.0"}, {"source": None}):
                 with self.subTest(change=change):

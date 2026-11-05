@@ -1,5 +1,6 @@
 import { chmod, mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -39,19 +40,44 @@ export function checkImage(value) {
 async function outsideRepository(output) {
   const parent = await realpath(dirname(resolve(output)));
   for (let current = parent; ; current = dirname(current)) {
-    try { await stat(join(current, '.git')); throw new Error('stage output must be outside Git'); }
+    try {
+      await stat(join(current, '.git'));
+      // An ignored artifact directory is also safe; never pack tracked source.
+      try {
+        const top = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: current, encoding: 'utf8' }).trim();
+        if (top !== current) throw new Error('not a repository');
+        execFileSync('git', ['check-ignore', '--quiet', resolve(output)], { cwd: current });
+        return;
+      }
+      catch { throw new Error('stage output must be outside Git or in a git-ignored directory'); }
+    }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
     if (dirname(current) === current) break;
   }
 }
 
-export async function stage({ output, binaries, notices, root = packageRoot }) {
+export async function stage({ output, binaries, notices, root = packageRoot, partial = false }) {
   if (!isAbsolute(output) || !binaries.size || !notices) {
     throw new Error('absolute output, native binaries, and dependency notices required');
   }
   await outsideRepository(output);
   const files = ['package.json', 'README.md', 'bin/oo.mjs', 'bin/auth.mjs'];
   const sources = await Promise.all(files.map(file => readFile(join(root, file))));
+  const metadata = JSON.parse(sources[0]);
+  const declared = metadata.ooPlatforms;
+  if (!Array.isArray(declared) || !declared.length || new Set(declared).size !== declared.length
+      || declared.some(target => !targets.has(target))
+      || [...binaries.keys()].some(target => !declared.includes(target))) {
+    throw new Error('invalid declared platform set');
+  }
+  if (!partial && declared.some(target => !binaries.has(target))) {
+    throw new Error('release staging requires every declared platform');
+  }
+  if (partial) {
+    metadata.private = true;
+    metadata.ooPlatforms = [...binaries.keys()].sort();
+  }
+  sources[0] = Buffer.from(JSON.stringify(metadata, null, 2) + '\n');
   const license = await readFile(join(productRoot, 'LICENSE'));
   const notice = await readFile(join(productRoot, 'NOTICE'));
   const skill = await readFile(join(productRoot, 'tools/agent-contract/business-answer-policy.md'));
@@ -95,12 +121,13 @@ export async function stage({ output, binaries, notices, root = packageRoot }) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    let output, notices;
+    let output, notices, partial = false;
     const binaries = new Map();
     for (let i = 2; i < process.argv.length; i += 2) {
       const [flag, value] = process.argv.slice(i, i + 2);
       if (flag === '--output' && value && !output) output = value;
       else if (flag === '--notices' && value && !notices) notices = value;
+      else if (flag === '--partial' && value === 'true') partial = true;
       else if (flag === '--binary' && value?.includes('=')) {
         const equal = value.indexOf('=');
         const target = value.slice(0, equal);
@@ -108,7 +135,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         binaries.set(target, value.slice(equal + 1));
       } else throw new Error('usage: stage.mjs --output /absolute/new-directory --notices /path/to/notices --binary platform-arch=/path/to/oo');
     }
-    console.log(JSON.stringify(await stage({ output, binaries, notices })));
+    console.log(JSON.stringify(await stage({ output, binaries, notices, partial })));
   } catch (error) {
     console.error(`CLI package staging failed: ${error.message}`);
     process.exitCode = 1;
