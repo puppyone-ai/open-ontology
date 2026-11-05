@@ -103,6 +103,9 @@ def compare_oracle(run, target, receipt, table, scalar_compare):
                     if fraction and any(c != "0" for c in fraction[1][6:]):
                         raise RuntimeError("submicrosecond Oracle comparison unavailable")
                     value = dt.datetime.fromisoformat(value.lstrip(" +").replace(" ", ""))
+                    # D17 also applies when zoned columns share a table with LOBs.
+                    if "TIME ZONE" in kind:
+                        value = value.astimezone(dt.timezone.utc)
             result.append(value)
         return result
 

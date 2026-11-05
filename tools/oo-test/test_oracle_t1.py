@@ -44,6 +44,50 @@ class Target:
 
 
 class OracleLobComparisonTests(unittest.TestCase):
+    def test_d17_zoned_instants_on_lob_tables(self):
+        class ZonedSource(Source):
+            def sql(self, sql):
+                if "all_tab_columns" in sql:
+                    return 0, ("ID|NUMBER\nC|CLOB\nN|NCLOB\nB|BLOB\n"
+                               "Z|TIMESTAMP(6) WITH TIME ZONE\n"
+                               "L|TIMESTAMP(6) WITH LOCAL TIME ZONE\n"
+                               "PLAIN|TIMESTAMP(6)\nORIGINAL_ZONE|VARCHAR2\n")
+                if "GETLENGTH" not in sql and "SUBSTR" not in sql:
+                    values = ["+2024-01-02T08:00:00.123456000 +08:00"] * 2
+                    values += ["+2024-01-02T08:00:00.123456000", "+08:00"]
+                    suffix = "|".join(v.encode().hex() for v in values)
+                    return 0, "\n".join(f"{n}|-|-|-|{suffix}" for n in ("31", "32", "33"))
+                return super().sql(sql)
+
+        class ZonedTarget(Target):
+            def __init__(self, source, change=None):
+                super().__init__(source)
+                self.change = change or {}
+
+            def sql(self, sql):
+                rows = [dict(json.loads(line), Z="2024-01-02T00:00:00.123456+00:00",
+                             L="2024-01-02T00:00:00.123456+00:00",
+                             PLAIN="2024-01-02T08:00:00.123456", ORIGINAL_ZONE="+08:00")
+                        for line in super().sql(sql).splitlines()]
+                rows[0].update(self.change)
+                return "\n".join(json.dumps(row) for row in rows)
+
+        source = ZonedSource()
+        self.assertTrue(compare_oracle(source, ZonedTarget(source), {"target": "fixture"},
+                                       "TYPE_EDGES", None)["equal"])
+        for change in [
+            {"Z": "2024-01-02T00:00:00.123457+00:00"},
+            {"L": "2024-01-02T00:00:01.123456+00:00"},
+            {"PLAIN": "2024-01-02T00:00:00.123456"},
+            {"ORIGINAL_ZONE": "+00:00"},
+        ]:
+            with self.subTest(change=change):
+                self.assertFalse(compare_oracle(source, ZonedTarget(source, change),
+                                                {"target": "fixture"}, "TYPE_EDGES", None)["equal"])
+        with self.assertRaisesRegex(RuntimeError, "submicrosecond"):
+            compare_oracle(source, ZonedTarget(source, {"Z": "2024-01-02T00:00:00.123456001+00:00"}),
+                           {"target": "fixture"}, "TYPE_EDGES", None)
+
     def test_pg_bytea_prefix_and_decimal_json_are_lossless(self):
         class ExactSource(Source):
             def sql(self, sql):
