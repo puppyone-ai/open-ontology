@@ -1,5 +1,5 @@
 use super::*;
-use oo_connectors::engine::RangeDigest;
+use oo_connectors::engine::{KeyShape, RangeDigest};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -16,6 +16,53 @@ pub struct C5Baseline {
     pub source_digests: Vec<RangeDigest>,
     #[serde(default)]
     pub lineage: Option<String>,
+}
+
+/// Bounded, order-independent payload evidence. Addition, rather than XOR,
+/// preserves duplicate multiplicity even when physical chunk boundaries move.
+#[derive(Default)]
+pub struct TableContentDigest([u8; 32]);
+
+impl TableContentDigest {
+    pub fn add(&mut self, decoded: &DecodedStream) -> Result<()> {
+        for row in 0..decoded.rows {
+            let mut hash = Sha256::new();
+            for (field, cells) in decoded.fields.iter().zip(&decoded.columns) {
+                let (oid, ty) = column(field)?;
+                let mut value = Vec::new();
+                if let NativeCell::UInt64(value_u64) = &cells[row] {
+                    cell_text(
+                        &mut value,
+                        oid,
+                        -1,
+                        &NativeCell::Decimal {
+                            precision: 20,
+                            scale: 0,
+                            coefficient: i128::from(*value_u64),
+                        },
+                    )?;
+                } else {
+                    cell_text(&mut value, oid, -1, &cells[row])?;
+                }
+                for bytes in [field.name.as_bytes(), ty.as_bytes(), value.as_slice()] {
+                    hash.update((bytes.len() as u64).to_be_bytes());
+                    hash.update(bytes);
+                }
+            }
+            let row_hash = hash.finalize();
+            let mut carry = 0u16;
+            for (sum, byte) in self.0.iter_mut().rev().zip(row_hash.iter().rev()) {
+                carry += u16::from(*sum) + u16::from(*byte);
+                *sum = carry as u8;
+                carry >>= 8;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn finish(self) -> String {
+        self.0.iter().map(|b| format!("{b:02x}")).collect()
+    }
 }
 
 impl PgTarget<'_> {
@@ -95,12 +142,8 @@ impl PgTarget<'_> {
         lineage: &str,
     ) -> Result<()> {
         crate::engine_load::validate_plan(plan, &plan.table)?;
-        if !same_ranges(&previous.plan, plan)
-            || previous.parts.len() != plan.chunks.len()
-            || digests.len() != plan.chunks.len()
-        {
-            return Err("c5_rebaseline_required_plan");
-        }
+        let whole_table = keyless_transition(&previous.plan, plan);
+        validate_c5_replacement(previous, plan, &digests, replacements)?;
         let mut next = previous.clone();
         if lineage.is_empty()
             || previous
@@ -111,11 +154,22 @@ impl PgTarget<'_> {
             return Err("c5_rebaseline_required_lineage");
         }
         next.lineage = Some(lineage.into());
-        next.plan = plan.clone();
-        for (chunk, digest) in plan.chunks.iter().zip(&digests) {
+        if !whole_table || !replacements.is_empty() {
+            next.plan = plan.clone();
+        }
+        for (chunk, digest) in plan.chunks.iter().zip(&digests).filter(|_| !whole_table) {
             if digest.table != chunk.table || digest.lo != chunk.lo || digest.hi != chunk.hi {
                 return Err("c5_digest_scope");
             }
+        }
+        if whole_table && !replacements.is_empty() {
+            next.parts = replacements
+                .iter()
+                .map(|receipt| C5Part {
+                    receipt: receipt.clone(),
+                    stage: self.stage.clone(),
+                })
+                .collect();
         }
         let mut ids = std::collections::BTreeSet::new();
         for receipt in replacements {
@@ -218,6 +272,61 @@ impl PgTarget<'_> {
     }
 }
 
+fn keyless_transition(previous: &TableChunkPlan, plan: &TableChunkPlan) -> bool {
+    previous.protocol == plan.protocol
+        && previous.table == plan.table
+        && previous.key == KeyShape::NoKey
+        && plan.key == KeyShape::NoKey
+}
+
+fn validate_c5_replacement(
+    previous: &C5Baseline,
+    plan: &TableChunkPlan,
+    digests: &[RangeDigest],
+    replacements: &[ChunkReceipt],
+) -> Result<()> {
+    if keyless_transition(&previous.plan, plan) {
+        // Physical chunks are a generation's private storage layout, never
+        // durable ranges. The only durable source evidence is the whole table.
+        if digests.len() != 1
+            || digests[0].table != plan.table
+            || digests[0].lo.is_some()
+            || digests[0].hi.is_some()
+        {
+            return Err("c5_digest_scope");
+        }
+        if replacements.is_empty() && digests != previous.source_digests {
+            return Err("c5_incomplete_table_replacement");
+        }
+        if !replacements.is_empty()
+            && (replacements.len() != plan.chunks.len()
+                || plan.chunks.iter().any(|chunk| {
+                    replacements
+                        .iter()
+                        .filter(|r| {
+                            r.table == chunk.table
+                                && r.chunk_id == chunk.chunk_id
+                                && r.plan_revision == chunk.plan_revision
+                        })
+                        .count()
+                        != 1
+                })
+                || replacements
+                    .iter()
+                    .try_fold(0u64, |n, r| n.checked_add(r.rows))
+                    != Some(digests[0].rows))
+        {
+            return Err("c5_incomplete_table_replacement");
+        }
+    } else if !same_ranges(&previous.plan, plan)
+        || previous.parts.len() != plan.chunks.len()
+        || digests.len() != plan.chunks.len()
+    {
+        return Err("c5_rebaseline_required_plan");
+    }
+    Ok(())
+}
+
 pub fn same_ranges(a: &TableChunkPlan, b: &TableChunkPlan) -> bool {
     a.protocol == b.protocol
         && a.table == b.table
@@ -231,4 +340,178 @@ pub fn same_ranges(a: &TableChunkPlan, b: &TableChunkPlan) -> bool {
                 && a.lo == b.lo
                 && a.hi == b.hi
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use oo_connectors::engine::{
+        ChunkSpec, ChunkStrategy, ENGINE_PROTOCOL, KeyValue, PhysicalRangeKind, TableRef,
+    };
+
+    #[test]
+    fn table_payload_digest_ignores_layout_but_preserves_duplicates() {
+        let stream = |values: &[i64]| DecodedStream {
+            rows: values.len(),
+            fields: vec![DecodedField {
+                name: "value".into(),
+                nullable: true,
+                arrow_type: "int64".into(),
+                precision: None,
+                scale: None,
+                timezone: None,
+            }],
+            columns: vec![
+                values
+                    .iter()
+                    .map(|value| NativeCell::Int {
+                        bit_width: 64,
+                        value: *value,
+                    })
+                    .collect(),
+            ],
+        };
+        let digest = |parts: &[&[i64]]| {
+            let mut digest = TableContentDigest::default();
+            for part in parts {
+                digest.add(&stream(part)).unwrap();
+            }
+            digest.finish()
+        };
+        let baseline = digest(&[&[1, 2, 2, 3]]);
+        assert_eq!(baseline, digest(&[&[2, 3], &[1, 2]]));
+        assert_ne!(baseline, digest(&[&[1, 2, 3]]));
+        assert_ne!(baseline, digest(&[&[1, 2, 2, 2]]));
+        assert_ne!(digest(&[&[]]), digest(&[&[1, 1]]));
+    }
+
+    fn plan(strategy: ChunkStrategy, revision: u32, split: bool) -> TableChunkPlan {
+        let table = TableRef {
+            schema: "fixture".into(),
+            name: "no_key".into(),
+        };
+        let edge = Some(vec![KeyValue::Locator("(10,0)".into())]);
+        let chunk = ChunkSpec {
+            table: table.clone(),
+            plan_revision: revision,
+            chunk_id: 0,
+            lo: None,
+            hi: if split { edge.clone() } else { None },
+            estimated_rows: None,
+        };
+        let mut chunks = vec![chunk.clone()];
+        if split {
+            chunks.push(ChunkSpec {
+                chunk_id: 1,
+                lo: edge,
+                hi: None,
+                ..chunk
+            });
+        }
+        TableChunkPlan {
+            protocol: ENGINE_PROTOCOL.into(),
+            table,
+            key: KeyShape::NoKey,
+            strategy,
+            estimated_rows: None,
+            chunks,
+        }
+    }
+
+    #[test]
+    fn keyless_engines_replace_all_parts_without_reusing_physical_ranges() {
+        for (engine, strategy) in [
+            ("postgres13", ChunkStrategy::SingleRead),
+            (
+                "postgres14-18",
+                ChunkStrategy::PhysicalRange {
+                    kind: PhysicalRangeKind::Ctid,
+                },
+            ),
+            (
+                "oracle",
+                ChunkStrategy::PhysicalRange {
+                    kind: PhysicalRangeKind::Rowid,
+                },
+            ),
+            ("mysql", ChunkStrategy::SingleRead),
+            ("sqlserver", ChunkStrategy::SingleRead),
+            ("mariadb", ChunkStrategy::SingleRead),
+            ("tidb", ChunkStrategy::SingleRead),
+            ("oceanbase", ChunkStrategy::SingleRead),
+            ("db2", ChunkStrategy::SingleRead),
+            ("kingbase", ChunkStrategy::SingleRead),
+        ] {
+            let physical = matches!(strategy, ChunkStrategy::PhysicalRange { .. });
+            let old_plan = plan(strategy.clone(), 1, physical);
+            let live = plan(strategy, 19, false);
+            let digest = RangeDigest {
+                table: live.table.clone(),
+                lo: None,
+                hi: None,
+                rows: 2,
+                digest: "whole".into(),
+            };
+            let mut previous = C5Baseline {
+                run: "baseline".into(),
+                plan: old_plan,
+                parts: vec![],
+                source_digests: vec![],
+                lineage: None,
+            };
+            let receipt = ChunkReceipt {
+                table: live.table.clone(),
+                plan_revision: 19,
+                chunk_id: 0,
+                rows: 2,
+                bytes: 10,
+                sha256: "payload".into(),
+                low: None,
+                high: None,
+            };
+            assert!(!same_ranges(&previous.plan, &live), "{engine}");
+            assert_eq!(
+                validate_c5_replacement(&previous, &live, &[digest.clone()], &[receipt.clone()]),
+                Ok(()),
+                "{engine}"
+            );
+            assert!(
+                validate_c5_replacement(&previous, &live, &[digest.clone()], &[]).is_err(),
+                "{engine}"
+            );
+            let mut stale = receipt.clone();
+            stale.plan_revision = 1;
+            assert!(
+                validate_c5_replacement(&previous, &live, &[digest.clone()], &[stale]).is_err()
+            );
+            let mut missing = receipt.clone();
+            missing.rows = 1;
+            assert!(
+                validate_c5_replacement(&previous, &live, &[digest.clone()], &[missing]).is_err()
+            );
+            assert!(
+                validate_c5_replacement(
+                    &previous,
+                    &live,
+                    &[digest.clone()],
+                    &[receipt.clone(), receipt]
+                )
+                .is_err()
+            );
+            previous.source_digests = vec![digest.clone()];
+            assert_eq!(
+                validate_c5_replacement(&previous, &live, &[digest.clone()], &[]),
+                Ok(()),
+                "{engine}"
+            );
+            let mut bounded = digest;
+            bounded.lo = Some(vec![KeyValue::Locator("old".into())]);
+            assert!(validate_c5_replacement(&previous, &live, &[bounded], &[]).is_err());
+            let mut keyed = live.clone();
+            keyed.key = KeyShape::IntegerPrimaryKey {
+                column: "id".into(),
+            };
+            assert!(!keyless_transition(&previous.plan, &keyed));
+        }
+    }
 }
