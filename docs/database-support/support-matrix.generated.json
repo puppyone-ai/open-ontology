@@ -108,7 +108,7 @@
      ]
     },
     "selfbuild": {
-     "level": "verified",
+     "level": "experimental",
      "emulated": true,
      "evidence": [
       {
@@ -241,7 +241,7 @@
      ]
     },
     "selfbuild": {
-     "level": "verified",
+     "level": "experimental",
      "emulated": false,
      "evidence": [
       {
@@ -481,7 +481,7 @@
      ]
     },
     "selfbuild": {
-     "level": "verified",
+     "level": "experimental",
      "emulated": false,
      "evidence": [
       {
@@ -614,7 +614,7 @@
      ]
     },
     "selfbuild": {
-     "level": "verified",
+     "level": "experimental",
      "emulated": true,
      "evidence": [
       {
@@ -834,7 +834,7 @@
      ]
     },
     "selfbuild": {
-     "level": "verified",
+     "level": "experimental",
      "emulated": true,
      "evidence": [
       {
@@ -1074,7 +1074,7 @@
      ]
     },
     "selfbuild": {
-     "level": "verified",
+     "level": "experimental",
      "emulated": false,
      "evidence": [
       {
@@ -1207,7 +1207,7 @@
      ]
     },
     "selfbuild": {
-     "level": "verified",
+     "level": "experimental",
      "emulated": false,
      "evidence": [
       {
@@ -1340,7 +1340,7 @@
      ]
     },
     "selfbuild": {
-     "level": "verified",
+     "level": "experimental",
      "emulated": false,
      "evidence": [
       {
@@ -1473,7 +1473,7 @@
      ]
     },
     "selfbuild": {
-     "level": "verified",
+     "level": "experimental",
      "emulated": false,
      "evidence": [
       {
@@ -1713,7 +1713,7 @@
      ]
     },
     "selfbuild": {
-     "level": "verified",
+     "level": "experimental",
      "emulated": false,
      "evidence": [
       {
