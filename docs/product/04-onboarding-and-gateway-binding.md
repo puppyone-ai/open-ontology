@@ -35,7 +35,7 @@
 | `oo build [--resume]` | 管理端 | 首次全量、Self-build、发布；可断点续跑 |
 | `oo ontology open` / `export --format html|mermaid|yaml` | 管理端 | 打开或导出可视化 Ontology |
 | `oo token issue|list|renew|rotate|revoke` | 管理端 | token 生命周期（§5） |
-| `oo share-prompt [--role R]` | 管理端 | 生成给 Agent 的安装提示词（§6） |
+| `oo share-prompt --grant-file FILE [--role R]` | 管理端 | 生成给 Agent 的安装提示词（§6） |
 | `oo login` | 消费端 | 用一次性绑定码换取长期 token，写入 0600 文件（§5.3） |
 | `oo whoami` | 消费端 | 显示身份、角色、到期时间、Gateway 协议版本；到期 ≤7 天时 stderr 警告 |
 | 现有 `query/tables/describe/...` | 消费端 | 不变 |
@@ -63,7 +63,7 @@ TUI 用 Rust `ratatui` + `crossterm` 实现（与 `oo` 同语言、同二进制�
 
 **审核门。** 产品发布门禁要求审核。开源单人场景下，向导提供“所有者自审”模式：Self-build 产出后在 TUI 展示待审项摘要（实体、关系、指标、敏感列分类），所有者逐类确认或批量接受；接受记录写成 `review_decision`，标注 `reviewer=owner, mode=self`。不允许跳过审核直接发布，也不把自动接受伪装成人工审核。
 
-S4 实现边界：`oo review` 支持所有者逐项自审、G14 重算和 `--review-file` 重放。`oo build` 的 draft/review 交接可恢复，但旧草稿到 community 输入的适配及发布后的 Gateway/token/prompt 阶段仍未完成；`--draft-only` 保留仅生成草稿的路径，不能作为完整上线验收。
+S4 实现：`oo review` 支持所有者逐项自审、G14 重算和 `--review-file` 重放；`oo build` 从拉取、Self-build、自审、发布、Gateway、签发首个 token 到打印分享提示词全链可恢复（D15、D16；L1 证据见 `crates/oo-cli/src/admin/clean-install-evidence.json`）。`--draft-only` 仍可只生成草稿。
 
 ## 4. 编排与部署
 
@@ -171,7 +171,7 @@ oo login --gateway https://gw.example.com --code OO-7F3K-Q9XM
 
 ## 6. Agent 提示词
 
-`oo share-prompt --role analyst` 输出一段纯文本，用户整段复制给 Agent。另提供 `oo share-prompt --agent claude|cursor|codex`，在提示词中加入对应 Agent 的 MCP 配置步骤（参考 `neonctl init` 一条命令配齐 Agent 的做法；MCP 网关已有 `tools/mcp-gateway`）。
+`oo share-prompt --grant-file grant.json --role analyst` 输出一段纯文本，用户整段复制给 Agent。另提供 `oo share-prompt --agent claude|cursor|codex`，在提示词中加入对应 Agent 的 MCP 配置步骤（参考 `neonctl init` 一条命令配齐 Agent 的做法；MCP 网关已有 `tools/mcp-gateway`）。
 
 ```text
 请帮我配置 Open Ontology 数据访问:
