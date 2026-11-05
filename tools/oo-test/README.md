@@ -120,7 +120,31 @@ rejects it with the named rule miss (`write_keyword:*`,
 | `d12_logon_bookkeeping`, `d12_dictionary_bookkeeping`, `d12_audit_trail` | exact SYS/AUDSYS (object, action) pairs, only with a privilege proof that reader accounts hold no DML/DDL privileges |
 
 Any rejected record anywhere in a fixture, including harness reads outside
-product windows, fails every variant of that fixture.
+product windows, fails every variant of that fixture. Further rule misses:
+`change_user_unjudged` (MySQL COM_CHANGE_USER), `search_path_ahead_of_pg_catalog`
+/`unjudged_search_path`, `c1_function_outside_c1` (logical slot peeks),
+`reader_session_outside_fixture_database`, and `slot_feedback_unknown_slot`
+(slot list captured by the admin before the first product connection, void
+if any reader record precedes it).
+
+Besides the statement audit, every fixture must pass:
+
+- Measured privileges: MySQL `SHOW GRANTS` for every reader host (only
+  USAGE/SELECT/SHOW VIEW, plus REPLICATION SLAVE/CLIENT on C1 fixtures);
+  PostgreSQL role attributes (no superuser/createrole/createdb/bypassrls,
+  replication only on C1 fixtures), memberships (`pg_read_all_stats` only),
+  no INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER on any user relation,
+  no sequence USAGE/UPDATE, no schema CREATE, no executable user function, no
+  database CREATE and no TEMP on the fixture database; Oracle system/object
+  privileges as before.
+- A source fingerprint (catalog DDL, ACLs, sequences, plus a per-table
+  content digest: MySQL `CHECKSUM TABLE`, PostgreSQL row and ctid hashes,
+  Oracle `DBMS_SQLHASH` with BLOBs via `DBMS_CRYPTO`) taken by the admin
+  before and after every product window that runs with no fixture writer
+  thread alive. Any difference fails T7, so a write by anyone, including
+  inside routines that statement logs miss, is caught. Each variant needs at
+  least one such window, and a positive control (admin DDL plus row insert
+  after the workload) must change the fingerprint.
 
 ### Product T7 driver
 
@@ -135,6 +159,7 @@ if its workload completed, its windows hold audited product statements and
 the fixture has no rejected record. Oracle XE C1 rows are `skip` (not run).
 
 ```sh
+# Snapshot defaults to the T1 fixture (2,000,000 events, 200 tables).
 python3 tools/oo-test/t7.py --engine mysql --versions 5.7,8.0,8.4,9 --run-id t7-run
 python3 tools/oo-test/t7.py --engine oracle --versions 23,21,11 --run-id t7-run \
   --worker-image <thick-worker-image>
@@ -142,8 +167,8 @@ tools/oo-test/oo-test matrix --merge-only --merge-evidence evidence/t7-run/t7
 ```
 
 Only `evidence/<run>/t7` is merged; T1/T2 rows written by the wrapped
-workloads under `workloads/` use reduced fixtures and are not admission
-evidence.
+workloads under `workloads/` are not admission evidence (the incremental
+fixtures are T2's compact ones).
 
 ```sh
 tools/oo-test/oo-test matrix --engine postgres --versions 17 \

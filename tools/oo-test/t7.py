@@ -20,6 +20,7 @@ from pathlib import Path
 import shutil
 import signal
 import sys
+import threading
 import traceback
 
 if os.environ.get("OO_TEST_LANE") not in ("h", "m", "e", "p", "g"):
@@ -53,6 +54,12 @@ def variant_of(command, kind):
     return "c5" if "c5" in source else "c1"
 
 
+def quiesced():
+    """No fixture writer is running: every runner writer is a non-daemon thread."""
+    return not any(t.is_alive() and not t.daemon and t is not threading.main_thread()
+                   for t in threading.enumerate())
+
+
 def audited(base):
     class AuditedRun(base):
         def __init__(self, path, engine, version, args, binary, kind):
@@ -61,6 +68,7 @@ def audited(base):
             self.volume = self.name + "-data"
             self.binary, self.kind = str(binary), kind
             self.audit = Audit(self)
+            self.audit.allow_replication = kind == "incremental"
             self.windows = []
             self.audit_enabled = False
 
@@ -76,10 +84,20 @@ def audited(base):
                         and self.audit_enabled):
                     self.audit.enable_miner()
                 return result
+            self.audit.capture_slots()
+            quiet = quiesced()
             window = {"seq": len(self.windows) + 1, "variant": variant_of(command, self.kind),
                       "args": [a for a in command[1:] if a.startswith("--")],
                       "source": command[command.index("--source") + 1],
-                      "start": self.audit.clock(), "exit": None}
+                      "quiesced": quiet, "exit": None}
+            before = None
+            if quiet:
+                try:
+                    before = self.audit.fingerprint()
+                except RuntimeError as error:
+                    # Never block the workload; an unmeasured window fails T7.
+                    before = {"error": str(error)[:500]}
+            window["start"] = self.audit.clock()
             self.windows.append(window)
             try:
                 code, out = super().command(command, **kwargs)
@@ -91,6 +109,24 @@ def audited(base):
             finally:
                 window["end"] = self.audit.clock()
                 window["command_seq"] = self.seq
+                still = quiet and quiesced()
+                if still:
+                    try:
+                        after = self.audit.fingerprint()
+                    except RuntimeError as error:
+                        after = {"error": str(error)[:500]}
+                if still and ("error" in before or "error" in after):
+                    window["fingerprint"] = {"equal": False, "error": before.get("error") or after.get("error")}
+                elif still:
+                    changed = sorted(t for t in set(before["tables"]) | set(after["tables"])
+                                     if before["tables"].get(t) != after["tables"].get(t))
+                    window["fingerprint"] = {
+                        "catalog_equal": before["catalog_sha256"] == after["catalog_sha256"],
+                        "catalog_sha256": after["catalog_sha256"], "tables": len(after["tables"]),
+                        "changed_tables": changed,
+                        "equal": before["catalog_sha256"] == after["catalog_sha256"] and not changed}
+                elif quiet:
+                    window["quiesced"] = False
 
         def setup(self):
             super().setup()
@@ -124,6 +160,22 @@ def coverage(kind, engine, version, workload, windows):
         result[variant] = ((True, variant.upper() + " passed") if status == "passed"
                            else (False, f"{variant.upper()} workload {status}"))
     return result
+
+
+def fingerprint_control(run):
+    """Positive control after the workload: an admin DDL and a row write must
+    both change the fingerprint, or the fingerprint proves nothing."""
+    table = "public.oo_t7_control" if run.engine == "postgres" else "fixture.oo_t7_control"
+    column = "NUMBER" if run.engine == "oracle" else "INT"
+    first = run.audit.fingerprint()
+    run.audit._admin(f"CREATE TABLE {table}(id {column});")
+    second = run.audit.fingerprint()
+    run.audit._admin(f"INSERT INTO {table} VALUES(1);" + ("\nCOMMIT;" if run.engine == "oracle" else ""))
+    third = run.audit.fingerprint()
+    row = sorted(t for t in third["tables"] if second["tables"].get(t) != third["tables"][t])
+    return {"catalog_detected": first["catalog_sha256"] != second["catalog_sha256"],
+            "row_detected": bool(row) and second["catalog_sha256"] == third["catalog_sha256"],
+            "changed_tables": row}
 
 
 def run_fixture(engine, version, kind, root, args):
@@ -171,6 +223,7 @@ def run_fixture(engine, version, kind, root, args):
             raise RuntimeError("audit never enabled")
         audit = run.audit.collect(run.windows)
         report["audit_error"] = None
+        report["fingerprint_control"] = fingerprint_control(run)
     except Exception as error:
         report["audit_error"] = f"{type(error).__name__}: {runner.redact(str(error), run.secret, run.reader_secret)}"
         (work / "audit-traceback.txt").write_text(traceback.format_exc())
@@ -184,7 +237,8 @@ def run_fixture(engine, version, kind, root, args):
     verdicts = []
     if audit:
         report.update(mode=audit["mode"], users=audit["users"], privileges=audit["privileges"],
-                      statements=audit["statements"], summary=audit["summary"])
+                      statements=audit["statements"], summary=audit["summary"],
+                      slots_before_reader=audit["slots_before_reader"])
         records = audit["records"]
         all_rejected = [r for r in records if r["category"] == "rejected"]
         report["rejected"] = [{k: r.get(k) for k in ("time", "variant", "window", "user", "action",
@@ -202,6 +256,15 @@ def run_fixture(engine, version, kind, root, args):
                 reasons.append("reader privileges are not read-only")
             if failures or report.get("version_error"):
                 reasons.append("cleanup or version measurement failed")
+            scoped_windows = [w for w in run.windows if w["variant"] == variant]
+            changed = [w["seq"] for w in run.windows if w.get("fingerprint") and not w["fingerprint"]["equal"]]
+            if changed:
+                reasons.append("source fingerprint changed in quiesced window(s) " + ",".join(map(str, changed)))
+            control = report.get("fingerprint_control") or {}
+            if not (control.get("catalog_detected") and control.get("row_detected")):
+                reasons.append("fingerprint positive control did not detect the admin write")
+            if not any(w.get("fingerprint") for w in scoped_windows):
+                reasons.append("no quiesced fingerprinted " + variant + " window")
             verdicts.append(("T7", variant, "fail" if reasons else "pass"))
             report.setdefault("verdicts", {})[variant] = {"result": "fail" if reasons else "pass",
                                                           "coverage": reason, "reasons": reasons}
@@ -235,8 +298,9 @@ def main():
     parser.add_argument("--kinds", default="snapshot,incremental")
     parser.add_argument("--binary", type=Path, default=ROOT / "target/debug/oo-load")
     parser.add_argument("--worker-image", default=os.environ.get("OO_TEST_ORACLE_WORKER_IMAGE"))
-    parser.add_argument("--scale", type=int, default=50_000)
-    parser.add_argument("--tables", type=int, default=20)
+    # T1 scale (m5): the snapshot proof runs on the full T1 fixture by default.
+    parser.add_argument("--scale", type=int, default=2_000_000)
+    parser.add_argument("--tables", type=int, default=200)
     parser.add_argument("--disk-wait-minutes", type=int, default=30)
     args = parser.parse_args()
     versions = args.versions.split(",")

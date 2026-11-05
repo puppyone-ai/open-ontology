@@ -40,6 +40,8 @@ class T7Tests(unittest.TestCase):
         stamps = iter(f"2026-11-05 00:00:{i:02d}" for i in range(60))
         run.audit.clock = lambda: next(stamps)
         run.audit.enable = lambda: run.calls.append(["enable"])
+        self.prints = iter([])
+        run.audit.fingerprint = lambda: next(self.prints, {"catalog_sha256": "c", "tables": {"t": "1"}})
         return run
 
     def test_variant_attribution_from_product_flags(self):
@@ -62,6 +64,26 @@ class T7Tests(unittest.TestCase):
             run.command(["/bin/oo-load", "--source", "fixture_c1", "--sync", "x", "--fail"])
         self.assertEqual([(w["variant"], w["exit"]) for w in run.windows], [("c5", 0), ("c1", "raised")])
         self.assertTrue(all(w["start"] < w["end"] for w in run.windows))
+
+    def test_quiesced_windows_are_fingerprinted_and_changes_reported(self):
+        run = self.make()
+        self.prints = iter([{"catalog_sha256": "c", "tables": {"a": "1", "b": "1"}},
+                            {"catalog_sha256": "c", "tables": {"a": "1", "b": "2"}}])
+        run.command(["/bin/oo-load", "--source", "fixture_c5", "--c5", "c.json"])
+        self.assertEqual(run.windows[0]["fingerprint"]["changed_tables"], ["b"])
+        self.assertFalse(run.windows[0]["fingerprint"]["equal"])
+        # A live fixture writer (non-daemon thread) makes the window non-quiesced.
+        import threading
+        stop = threading.Event()
+        writer = threading.Thread(target=stop.wait)
+        writer.start()
+        try:
+            run.command(["/bin/oo-load", "--source", "fixture_c5", "--c5", "c.json"])
+        finally:
+            stop.set()
+            writer.join()
+        self.assertFalse(run.windows[1]["quiesced"])
+        self.assertNotIn("fingerprint", run.windows[1])
 
     def test_mysql_logging_is_a_server_option(self):
         run = self.make()
@@ -104,12 +126,15 @@ class T7Tests(unittest.TestCase):
             run.receipt = {"version_actual": "8.4.7"}
             run.record_version = lambda: None
             run.cleanup = lambda: []
-            run.windows = [{"seq": 1, "variant": "c1"}, {"seq": 2, "variant": "c5"}]
+            equal = {"equal": True}
+            run.windows = [{"seq": 1, "variant": "c1", "fingerprint": equal},
+                           {"seq": 2, "variant": "c5", "fingerprint": equal}]
             records = [{"category": "rejected", "rule": "write_keyword:INSERT", "variant": "harness",
                         "sql": "INSERT INTO t VALUES(1)"}]
+            run.audit._admin = lambda statement: ""
             run.audit.collect = lambda windows: {
                 "mode": "mysql", "users": ["fixture_reader"], "privileges": {"read_only": True},
-                "statements": 3, "records": records,
+                "statements": 3, "records": records, "slots_before_reader": {},
                 "summary": {"c1": {"statements": 1, "rejected": 0}, "c5": {"statements": 1, "rejected": 0}}}
             args = argparse.Namespace(binary="/bin/oo-load", worker_image=None, scale=1, tables=0,
                                       disk_wait_minutes=0)
@@ -122,6 +147,34 @@ class T7Tests(unittest.TestCase):
             self.assertEqual(sorted((r["suite"], r["variant"], r["result"]) for r in rows),
                              [("T7", "c1", "fail"), ("T7", "c5", "fail")])
             self.assertEqual(report["rejected"][0]["rule"], "write_keyword:INSERT")
+
+    def test_fingerprint_change_or_missing_quiesced_window_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = self.make()
+            run.path = root / "work"
+            run.path.mkdir()
+            run.created_container, run.audit_enabled = True, True
+            run.secret = run.reader_secret = "s"
+            run.receipt = {"version_actual": "8.4.7"}
+            run.record_version = lambda: None
+            run.cleanup = lambda: []
+            run.windows = [{"seq": 1, "variant": "c1", "fingerprint": {"equal": False}},
+                           {"seq": 2, "variant": "c5", "quiesced": False}]
+            run.audit._admin = lambda statement: ""
+            run.audit.collect = lambda windows: {
+                "mode": "mysql", "users": ["fixture_reader"], "privileges": {"read_only": True},
+                "statements": 3, "records": [], "slots_before_reader": {},
+                "summary": {"c1": {"statements": 1, "rejected": 0}, "c5": {"statements": 1, "rejected": 0}}}
+            args = argparse.Namespace(binary="/bin/oo-load", worker_image=None, scale=1, tables=0,
+                                      disk_wait_minutes=0)
+            with patch("t7.audited", return_value=lambda *a: run), patch("t7.runner.disk_gate"), \
+                    patch("t7.t2_p0.run_cycles", return_value={"C1": "passed", "C5": "passed"}):
+                report = t7.run_fixture("mysql", "8.4", "incremental", root, args)
+            self.assertIn("source fingerprint changed in quiesced window(s) 1", report["verdicts"]["c1"]["reasons"])
+            self.assertIn("no quiesced fingerprinted c5 window", report["verdicts"]["c5"]["reasons"])
+            self.assertIn("fingerprint positive control did not detect the admin write",
+                          report["verdicts"]["c1"]["reasons"])
 
 
 if __name__ == "__main__":

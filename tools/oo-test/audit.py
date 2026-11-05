@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import re
+import hashlib
 import importlib.util
 import time
 from pathlib import Path
@@ -76,9 +77,6 @@ FUNCTIONS = {
         "PG_GET_REPLICATION_SLOTS", "PG_TYPEOF", "OBJ_DESCRIPTION", "COL_DESCRIPTION",
         "PG_GET_PARTKEYDEF", "PG_PARTITION_ROOT", "PG_PARTITION_TREE", "PG_PARTITION_ANCESTORS",
         "ACLDEFAULT", "ACLEXPLODE", "SHOBJ_DESCRIPTION", "PG_GET_FUNCTION_IDENTITY_ARGUMENTS",
-        # Replication reads used by the product's C1/C5 position probes. The
-        # logical slot readers are only meaningful over the fixture's slot.
-        "PG_LOGICAL_SLOT_PEEK_CHANGES", "PG_LOGICAL_SLOT_PEEK_BINARY_CHANGES",
     },
     "mysql": {
         "COUNT", "SUM", "MIN", "MAX", "AVG", "COALESCE", "IFNULL", "NULLIF", "IF", "GREATEST",
@@ -116,6 +114,9 @@ FUNCTIONS = {
 HINTS = {"MAX_EXECUTION_TIME", "FULL", "INDEX", "NO_INDEX", "PARALLEL", "NO_PARALLEL",
          "FIRST_ROWS", "ALL_ROWS", "ORDERED", "LEADING", "USE_NL", "USE_HASH", "NO_MERGE",
          "QB_NAME", "INDEX_ASC", "INDEX_DESC", "NO_INDEX_FFS"}
+
+# Logical slot peeks read decoded WAL; they belong to the C1 path only.
+C1_FUNCTIONS = {"postgres": {"PG_LOGICAL_SLOT_PEEK_CHANGES", "PG_LOGICAL_SLOT_PEEK_BINARY_CHANGES"}}
 
 # D12 session state the drivers and product issue; values are not judged.
 PG_SETTINGS = {"TIME ZONE", "TIMEZONE", "DATESTYLE", "INTERVALSTYLE", "EXTRA_FLOAT_DIGITS",
@@ -200,7 +201,7 @@ def functions(sql, engine):
     return calls
 
 
-def read_query(sql, engine):
+def read_query(sql, engine, variant="snapshot"):
     """sql is masked and upper-cased; returns (category, rule)."""
     if re.search(WRITE_WORDS, sql):
         return rejected("write_keyword:" + re.search(WRITE_WORDS, sql)[1])
@@ -209,8 +210,11 @@ def read_query(sql, engine):
         return rejected("not_a_query")
     if re.search(ROW_LOCKS, sql):
         return rejected("row_lock_clause")
-    unknown = sorted({f for f in functions(sql, engine) if f not in FUNCTIONS[engine]})
+    allowed = FUNCTIONS[engine] | (C1_FUNCTIONS.get(engine, set()) if variant == "c1" else set())
+    unknown = sorted({f for f in functions(sql, engine) if f not in allowed})
     if unknown:
+        if variant != "c1" and set(unknown) <= C1_FUNCTIONS.get(engine, set()):
+            return rejected("c1_function_outside_c1:" + ",".join(unknown))
         return rejected("unreviewed_function:" + ",".join(unknown))
     if engine == "oracle" and re.search(r"\bV\$LOGMNR_CONTENTS\b", sql):
         return "logminer_read", "select_v$logmnr_contents"
@@ -225,7 +229,15 @@ def read_query(sql, engine):
     return "read", "select"
 
 
-def pg_statement(sql, variant):
+def search_path_ok(value):
+    """No schema may precede pg_catalog; unparsable values fail closed."""
+    schemas = [part.strip().strip('"').lower() for part in value.split(",")]
+    if not value.strip() or any(not re.fullmatch(r"\$?[a-z_][a-z0-9_$]*", s) for s in schemas):
+        return False
+    return "pg_catalog" not in schemas or schemas[0] == "pg_catalog"
+
+
+def pg_statement(sql, variant, literals=()):
     if re.fullmatch(r"(?:BEGIN|START TRANSACTION)(?: (?:TRANSACTION|WORK))?"
                     r"(?:,? (?:ISOLATION LEVEL (?:SERIALIZABLE|REPEATABLE READ|READ COMMITTED)"
                     r"|READ ONLY|DEFERRABLE|NOT DEFERRABLE))*", sql):
@@ -238,6 +250,16 @@ def pg_statement(sql, variant):
         return "txn_control", "set_transaction_read_only_or_snapshot"
     setting = re.fullmatch(r"(?:SET|RESET)(?: SESSION)? (TIME ZONE|[A-Z_]+)(?:(?: TO| =|=)? ?(.*))?", sql)
     if setting and not sql.startswith(("SET ROLE", "SET SESSION AUTHORIZATION", "SET LOCAL")):
+        if setting[1] == "SEARCH_PATH" and sql.startswith("SET"):
+            # Literals are judged by value; bare identifiers are already upper-cased.
+            value = setting[2] or ""
+            if "IDENT" in value.split() or value.count("LITERAL") > len(literals):
+                return rejected("unjudged_search_path")
+            for literal in literals:
+                value = value.replace("LITERAL", literal, 1)
+            if not search_path_ok(value.lower()):
+                return rejected("search_path_ahead_of_pg_catalog")
+            return "d12_session_state", "set_search_path"
         if setting[1] in PG_SETTINGS:
             return "d12_session_state", "set_" + setting[1].lower().replace(" ", "_")
         return rejected("unreviewed_setting:" + setting[1])
@@ -246,7 +268,7 @@ def pg_statement(sql, variant):
     cursor = re.fullmatch(r"DECLARE [A-Z_][A-Z0-9_]* (?:BINARY )?(?:ASENSITIVE |INSENSITIVE )?"
                           r"(?:NO SCROLL |SCROLL )?CURSOR (?:WITHOUT HOLD |WITH HOLD )?FOR (.*)", sql)
     if cursor:
-        category, rule = read_query(cursor[1], "postgres")
+        category, rule = read_query(cursor[1], "postgres", variant)
         return ("read_cursor", "declare_" + rule) if category != "rejected" else (category, rule)
     if re.fullmatch(r"(?:FETCH|MOVE)(?: (?:NEXT|PRIOR|FIRST|LAST|ALL|FORWARD|BACKWARD|"
                     r"FORWARD ALL|FORWARD \d+|BACKWARD \d+|ABSOLUTE -?\d+|RELATIVE -?\d+|\d+))?"
@@ -260,12 +282,12 @@ def pg_statement(sql, variant):
     if explain:
         if explain[1] and re.search(r"\bANALY[SZ]E\b", explain[1]):
             return rejected("explain_analyze_executes")
-        category, rule = read_query(explain[2], "postgres")
+        category, rule = read_query(explain[2], "postgres", variant)
         return ("read_explain", "explain_" + rule) if category != "rejected" else (category, rule)
-    return read_query(sql, "postgres")
+    return read_query(sql, "postgres", variant)
 
 
-def pg_set_config(sql, literals, category, rule):
+def pg_set_config(sql, literals, category, rule, params=None):
     """SELECT set_config(name, value, false)[, ...] [LIMIT 1] is session SET; judge names."""
     call = r"(?:PG_CATALOG\.)?SET_CONFIG\(\s*LITERAL\s*,\s*(LITERAL|\$\d+)\s*,\s*FALSE\s*\)"
     if not re.fullmatch(r"SELECT " + call + r"(?:\s*,\s*" + call + r")*(?: LIMIT 1)?", sql):
@@ -275,8 +297,16 @@ def pg_set_config(sql, literals, category, rule):
         return category, rule
     names, index = [], 0
     for value in re.findall(call, sql):
-        names.append(" ".join(literals[index].split()).upper() if index < len(literals) else "")
+        name = " ".join(literals[index].split()).upper() if index < len(literals) else ""
+        if value == "LITERAL":
+            setting = literals[index + 1] if index + 1 < len(literals) else None
+        else:
+            setting = (params or {}).get(value[1:])
+        names.append(name)
         index += 2 if value == "LITERAL" else 1
+        if name == "SEARCH_PATH" and (setting is None or not search_path_ok(setting)):
+            return rejected("search_path_ahead_of_pg_catalog" if setting is not None
+                            else "unjudged_search_path")
     bad = [name for name in names if name not in PG_SETTINGS]
     if bad:
         return rejected("unreviewed_setting:" + bad[0])
@@ -319,9 +349,12 @@ def mysql_statement(sql, variant):
             if scope in ("GLOBAL", "PERSIST", "PERSIST_ONLY"):
                 return rejected("server_scope_set")
             value = assignment[5]
-            if not re.fullmatch(r"LITERAL|-?\d+(?:\.\d+)?|[A-Z_]+|@@[A-Z_.]+|DEFAULT|NULL|"
-                                r"CONCAT\(.*\)|CAST\(.*\)", value) or re.search(WRITE_WORDS, value):
+            # The value is an expression: same keyword and function rules as a read.
+            if re.search(WRITE_WORDS, value) or re.search(r"\bSELECT\b|:=", value):
                 return rejected("unreviewed_set_value")
+            unknown = sorted({f for f in functions(value, "mysql") if f not in FUNCTIONS["mysql"]})
+            if unknown:
+                return rejected("unreviewed_function:" + ",".join(unknown))
             if assignment[3]:
                 rules.append("user_variable")
             elif assignment[4] in MYSQL_SETTINGS:
@@ -400,7 +433,7 @@ def oracle_statement(raw, sql, variant, user):
     return read_query(sql, "oracle")
 
 
-def classify_sql(sql, engine, variant="snapshot", user=READER):
+def classify_sql(sql, engine, variant="snapshot", user=READER, params=None):
     """Classify one statement text (possibly several ';'-separated statements)."""
     sql = (sql or "").rstrip("\0")
     masked, literals = mask(sql, engine)
@@ -417,9 +450,9 @@ def classify_sql(sql, engine, variant="snapshot", user=READER):
         own_literals = literals[seen_literals:seen_literals + part.split().count("LITERAL")]
         seen_literals += part.split().count("LITERAL")
         if engine == "postgres":
-            category, rule = pg_statement(part, variant)
+            category, rule = pg_statement(part, variant, own_literals)
             if category == "rejected":
-                category, rule = pg_set_config(part, own_literals, category, rule)
+                category, rule = pg_set_config(part, own_literals, category, rule, params)
         elif engine == "mysql":
             category, rule = mysql_statement(part, variant)
         else:
@@ -435,7 +468,7 @@ def classify_sql(sql, engine, variant="snapshot", user=READER):
 def read_statement(sql):
     """Legacy engine-agnostic predicate kept for lane H's runner T7 path."""
     for engine in ("postgres", "mysql", "oracle"):
-        for variant, user in (("snapshot", READER), ("c1", ORACLE_MINER)):
+        for variant, user in (("snapshot", READER), ("c1", READER), ("c1", ORACLE_MINER)):
             if engine != "oracle" and user != READER:
                 continue
             if classify_sql(sql, engine, variant, user)[0] != "rejected":
@@ -474,6 +507,9 @@ def classify(record, engine, variant, privileges_read_only=False, slots=()):
         if feedback:
             return feedback
     user = record.get("user", READER)
+    if engine == "postgres" and record.get("database") and record["database"] != "fixture":
+        # Other databases keep PUBLIC defaults (CONNECT/TEMP); the reader must not use them.
+        return rejected("reader_session_outside_fixture_database")
     if kind == "session":
         return "session", record.get("action", "connect").lower()
     if kind == "replication":
@@ -490,7 +526,10 @@ def classify(record, engine, variant, privileges_read_only=False, slots=()):
             return "d12_session_state", "init_db"
         if action in ("Field List", "Statistics"):
             return "read_show", action.lower().replace(" ", "_")
-        if action in ("Close stmt", "Reset stmt", "Reset Connection", "Set option", "Change user"):
+        if action == "Change user":
+            # Later statements would run under another identity this audit filters out.
+            return rejected("change_user_unjudged")
+        if action in ("Close stmt", "Reset stmt", "Reset Connection", "Set option"):
             return "d12_session_state", action.lower().replace(" ", "_")
         return rejected("unreviewed_mysql_command:" + action)
     if engine == "oracle":
@@ -516,7 +555,11 @@ def classify(record, engine, variant, privileges_read_only=False, slots=()):
             return rejected("missing_sql_text:" + action)
         if record.get("truncated"):
             return rejected("truncated_sql_text")
-    return classify_sql(record.get("sql"), engine, variant, user)
+    params = None
+    if engine == "postgres":
+        params = {m[0]: m[1][1:-1].replace("''", "'") for m in
+                  re.findall(r"\$(\d+) = ('(?:''|[^'])*')", record.get("detail") or "")}
+    return classify_sql(record.get("sql"), engine, variant, user, params)
 
 
 # --------------------------------------------------------------------------
@@ -558,7 +601,8 @@ def postgres_records(text, users=(READER,)):
         if not row[0].endswith(" UTC"):
             raise ValueError("PostgreSQL log_timezone must be UTC for window attribution")
         base = {"time": row[0][:23], "session": row[5], "user": row[1], "origin": row[4],
-                "application": row[22], "severity": row[11], "detail": row[14]}
+                "application": row[22], "severity": row[11], "detail": row[14],
+                "database": row[2]}
         if message.startswith("statement: "):
             records.append(dict(base, kind="statement", sql=message[len("statement: "):]))
         elif re.match(r"execute [^:]+: ", message):
@@ -579,9 +623,20 @@ def postgres_records(text, users=(READER,)):
 
 
 def oracle_records(text):
-    """JSON lines produced by the collector query (one audit row per line)."""
+    """JSON lines produced by the collector query (one audit row per line).
+
+    SQL*Plus wraps rows longer than LINESIZE; the JSON has no raw newlines, so
+    continuation lines are joined back. The SQL length check still fails a row
+    whose text was altered or cut.
+    """
     records = []
+    lines = []
     for line in text.splitlines():
+        if line.startswith("{\"action\":") or not lines:
+            lines.append(line)
+        else:
+            lines[-1] += line
+    for line in lines:
         line = line.strip()
         if not line:
             continue
@@ -649,6 +704,20 @@ class Audit:
         self.mode = run.engine
         self.markers = []
         self.users = [READER]
+        self.allow_replication = False
+        self.slots, self.slots_time = None, None
+
+    def capture_slots(self):
+        """D12a: slots that exist before the reader's first connection (PostgreSQL)."""
+        if self.run.engine != "postgres" or self.slots is not None:
+            return
+        saved = self.run.seq
+        try:
+            _, text = self.run.sql("SELECT slot_name FROM pg_replication_slots ORDER BY 1;", admin=True)
+        finally:
+            self.run.seq = saved
+        self.slots = tuple(line.strip() for line in text.splitlines() if line.strip())
+        self.slots_time = self.clock()
 
     def enable(self):
         run = self.run
@@ -757,9 +826,11 @@ class Audit:
         def quote(expr):
             # SQL*Plus ends an output line at NUL (SQL*Plus' own statements
             # carry a trailing CHR(0)), so it is escaped like other controls.
-            return ("'\"'||REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(" + expr +
+            # Spaces are escaped too: a row wider than LINESIZE is wrapped and
+            # TRIMOUT would drop a space at a wrap point.
+            return ("'\"'||REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(" + expr +
                     ",'\\','\\\\'),'\"','\\\"'),CHR(10),'\\n'),CHR(13),'\\r'),CHR(9),'\\t'),"
-                    "CHR(0),'\\u0000')||'\"'")
+                    "CHR(0),'\\u0000'),' ','\\u0020')||'\"'")
         if self.mode == "oracle-unified":
             fields = [("action", "action_name"), ("user", "dbusername"),
                       ("session", "TO_CHAR(sessionid)"), ("program", "client_program_name"),
@@ -804,19 +875,213 @@ class Audit:
         records.sort(key=lambda r: r["time"])
         return records
 
+    def _admin(self, statement):
+        """Admin query that does not consume the runner's command sequence number."""
+        saved = self.run.seq
+        try:
+            return self.run.sql(statement, admin=True)[1]
+        except RuntimeError as error:
+            # The output files are overwritten by the next command; keep the cause.
+            path = getattr(self.run, "path", None)
+            detail = ""
+            for suffix in ("stderr", "stdout"):
+                output = (path / f"{self.run.seq:04d}.{suffix}") if path else None
+                if output and output.exists():
+                    detail += " ".join(re.findall(r"(?:ORA-|SP2-|ERROR)[^\n]*", output.read_text())[:3]
+                                       or [output.read_text()[-300:]]) + " "
+            raise RuntimeError(f"{error}: {detail.strip()}") from None
+        finally:
+            self.run.seq = saved
+
     def privileges(self):
+        """Measure that reader identities hold no write-capable privilege (M3, D12)."""
+        engine = self.run.engine
+        if engine == "mysql":
+            return self.mysql_privileges()
+        if engine == "postgres":
+            return self.postgres_privileges()
+        return self.oracle_privileges()
+
+    def mysql_privileges(self):
+        allowed = {"USAGE", "SELECT", "SHOW VIEW"}
+        if self.allow_replication:
+            allowed |= {"REPLICATION SLAVE", "REPLICATION CLIENT"}
+        hosts = [h.strip() for h in self._admin(
+            "SELECT host FROM mysql.user WHERE user='fixture_reader' ORDER BY host;").splitlines() if h.strip()]
+        grants, bad = [], []
+        if not hosts:
+            bad.append("reader account not found")
+        for host in hosts:
+            if not re.fullmatch(r"[A-Za-z0-9.%_:-]+", host):
+                bad.append("unparsable host " + host)
+                continue
+            for line in self._admin(f"SHOW GRANTS FOR 'fixture_reader'@'{host}';").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                grants.append(line)
+                match = re.fullmatch(r"GRANT (.+?) ON (\S+) TO \S+(?: REQUIRE SSL)?", line)
+                privileges = {p.strip().upper() for p in match[1].split(",")} if match else None
+                if not match or not privileges <= allowed or match[2].upper().startswith(("`MYSQL`", "MYSQL.")):
+                    bad.append(line)
+        return {"read_only": not bad, "grants": grants, "allowed": sorted(allowed), "violations": bad}
+
+    def postgres_privileges(self):
+        user_ns = ("n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' "
+                   "AND n.nspname NOT LIKE 'pg\\_temp%'")
+        checks = {
+            "role": "SELECT 'role|'||rolsuper||','||rolcreaterole||','||rolcreatedb||','||rolreplication||','"
+                    "||rolbypassrls FROM pg_roles WHERE rolname='fixture_reader';",
+            "member": "SELECT 'member|'||b.rolname FROM pg_auth_members m JOIN pg_roles r ON r.oid=m.member "
+                      "JOIN pg_roles b ON b.oid=m.roleid WHERE r.rolname='fixture_reader' ORDER BY 1;",
+            "table": "SELECT 'table|'||n.nspname||'.'||c.relname FROM pg_class c JOIN pg_namespace n ON "
+                     "n.oid=c.relnamespace WHERE c.relkind IN ('r','p','v','m','f') AND " + user_ns +
+                     " AND has_table_privilege('fixture_reader',c.oid,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') ORDER BY 1;",
+            "sequence": "SELECT 'sequence|'||n.nspname||'.'||c.relname FROM pg_class c JOIN pg_namespace n ON "
+                        "n.oid=c.relnamespace WHERE c.relkind='S' AND " + user_ns +
+                        " AND CASE WHEN c.relkind='S' THEN has_sequence_privilege('fixture_reader',c.oid,'USAGE,UPDATE')"
+                        " ELSE false END ORDER BY 1;",
+            "schema": "SELECT 'schema|'||n.nspname FROM pg_namespace n WHERE " + user_ns +
+                      " AND has_schema_privilege('fixture_reader',n.oid,'CREATE') ORDER BY 1;",
+            "function": "SELECT 'function|'||p.oid::regprocedure::text FROM pg_proc p JOIN pg_namespace n ON "
+                        "n.oid=p.pronamespace WHERE " + user_ns +
+                        " AND has_function_privilege('fixture_reader',p.oid,'EXECUTE') ORDER BY 1;",
+            "database": "SELECT 'database|'||datname||'|'||has_database_privilege('fixture_reader',oid,'CREATE')"
+                        "||','||has_database_privilege('fixture_reader',oid,'TEMP') FROM pg_database "
+                        "WHERE NOT datistemplate ORDER BY 1;",
+        }
+        rows = []
+        for statement in checks.values():
+            rows += [line.strip() for line in self._admin(statement).splitlines() if line.strip()]
+        bad = []
+        role = [r for r in rows if r.startswith("role|")]
+        if len(role) != 1:
+            bad.append("reader role not found")
+        else:
+            # psql renders bool||text as "true"/"false".
+            superuser, createrole, createdb, replication, bypassrls = (
+                v in ("t", "true") for v in role[0][5:].split(","))
+            if superuser or createrole or createdb or bypassrls:
+                bad.append(role[0])
+            if replication and not self.allow_replication:
+                bad.append("replication attribute outside C1 fixture")
+        bad += [r for r in rows if r.startswith("member|") and r[7:] not in ("pg_read_all_stats",)]
+        bad += [r for r in rows if r.split("|")[0] in ("table", "sequence", "schema", "function")]
+        for row in (r for r in rows if r.startswith("database|")):
+            _, name, flags = row.split("|")
+            create, temp = (v in ("t", "true") for v in flags.split(","))
+            # Other databases keep PUBLIC TEMP; reader sessions there are rejected records.
+            if create or (name == "fixture" and temp):
+                bad.append(row)
+        return {"read_only": not bad, "measured": rows, "violations": bad,
+                "note": "PUBLIC CONNECT/TEMP on non-fixture databases is unused: reader records there are rejected"}
+
+    def fingerprint(self):
+        """Catalog DDL plus per-table content digests of every non-system object.
+
+        Taken by the admin before and after quiesced product windows (no fixture
+        writer running), so any change, by anyone and including writes inside
+        routines that statement logs do not show, is detected (M3).
+        """
+        engine = self.run.engine
+        if engine == "mysql":
+            system = "('mysql','information_schema','performance_schema','sys')"
+            catalog = self._admin(
+                "SELECT CONCAT_WS('|','T',table_schema,table_name,table_type,IFNULL(engine,''),"
+                "IFNULL(table_collation,'')) FROM information_schema.tables WHERE table_schema NOT IN " + system +
+                " UNION ALL SELECT CONCAT_WS('|','C',table_schema,table_name,column_name,ordinal_position,"
+                "column_type,is_nullable,IFNULL(column_default,'<null>'),extra) FROM information_schema.columns"
+                " WHERE table_schema NOT IN " + system +
+                " UNION ALL SELECT CONCAT_WS('|','I',table_schema,table_name,index_name,seq_in_index,"
+                "IFNULL(column_name,''),non_unique) FROM information_schema.statistics WHERE table_schema NOT IN " + system +
+                " UNION ALL SELECT CONCAT_WS('|','R',routine_schema,routine_name,routine_type,"
+                "MD5(IFNULL(routine_definition,''))) FROM information_schema.routines WHERE routine_schema NOT IN " + system +
+                " UNION ALL SELECT CONCAT_WS('|','G',trigger_schema,trigger_name,MD5(action_statement))"
+                " FROM information_schema.triggers WHERE trigger_schema NOT IN " + system +
+                " UNION ALL SELECT CONCAT_WS('|','E',event_schema,event_name,status) FROM information_schema.events"
+                " ORDER BY 1;")
+            tables = [line.split("\t") for line in self._admin(
+                "SELECT table_schema,table_name FROM information_schema.tables WHERE table_type='BASE TABLE'"
+                " AND table_schema NOT IN " + system + " ORDER BY 1,2;").splitlines() if line.strip()]
+            rows = self._admin("CHECKSUM TABLE " + ",".join(f"`{a}`.`{b}`" for a, b in tables) + ";") if tables else ""
+        elif engine == "postgres":
+            user_ns = ("n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' "
+                       "AND n.nspname NOT LIKE 'pg\\_temp%'")
+            catalog = self._admin(
+                "SELECT x FROM (SELECT 'rel|'||n.nspname||'.'||c.relname||'|'||c.relkind::text||'|'||"
+                "COALESCE(c.relacl::text,'')||'|'||COALESCE((SELECT string_agg(a.attname||' '||"
+                "format_type(a.atttypid,a.atttypmod)||' '||a.attnotnull||' '||COALESCE(pg_get_expr(d.adbin,"
+                "d.adrelid),''),',' ORDER BY a.attnum) FROM pg_attribute a LEFT JOIN pg_attrdef d ON "
+                "d.adrelid=a.attrelid AND d.adnum=a.attnum WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT "
+                "a.attisdropped),'')||'|'||CASE WHEN c.relkind IN ('v','m') THEN md5(pg_get_viewdef(c.oid)) "
+                "ELSE '' END AS x FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE " + user_ns +
+                " UNION ALL SELECT 'idx|'||i.indexrelid::regclass::text||'|'||md5(pg_get_indexdef(i.indexrelid))"
+                " FROM pg_index i JOIN pg_class c ON c.oid=i.indrelid JOIN pg_namespace n ON n.oid=c.relnamespace"
+                " WHERE " + user_ns +
+                " UNION ALL SELECT 'fn|'||p.oid::regprocedure::text||'|'||md5(p.prosrc)||'|'||"
+                "COALESCE(p.proacl::text,'') FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE " + user_ns +
+                " UNION ALL SELECT 'trg|'||tgrelid::regclass::text||'|'||tgname||'|'||tgenabled::text FROM pg_trigger"
+                " WHERE NOT tgisinternal"
+                " UNION ALL SELECT 'seq|'||schemaname||'.'||sequencename||'|'||COALESCE(last_value::text,'')"
+                " FROM pg_sequences"
+                " UNION ALL SELECT 'ns|'||n.nspname||'|'||COALESCE(n.nspacl::text,'') FROM pg_namespace n WHERE " + user_ns +
+                " UNION ALL SELECT 'db|'||datname||'|'||COALESCE(datacl::text,'') FROM pg_database"
+                " UNION ALL SELECT 'role|'||rolname||'|'||rolsuper::text||rolcreaterole::text||rolcreatedb::text||rolreplication::text"
+                " FROM pg_roles WHERE rolname !~ '^pg_') q ORDER BY 1;")
+            tables = [line.strip() for line in self._admin(
+                "SELECT quote_ident(n.nspname)||'.'||quote_ident(c.relname) FROM pg_class c JOIN pg_namespace n"
+                " ON n.oid=c.relnamespace WHERE c.relkind IN ('r','m') AND " + user_ns + " ORDER BY 1;"
+            ).splitlines() if line.strip()]
+            # Content and tuple identity: a rewrite (even to equal values) moves ctid.
+            rows = self._admin("\nUNION ALL\n".join(
+                f"SELECT '{t}'||'|'||count(*)||'|'||COALESCE(sum(hashtextextended(oo_fp_row::text,0)::numeric),0)"
+                f"||'|'||COALESCE(sum(hashtextextended(oo_fp_row.ctid::text,0)::numeric),0) FROM {t} oo_fp_row"
+                for t in tables) + ";") if tables else ""
+        else:
+            catalog = self._admin(
+                "SELECT 'O|'||owner||'|'||object_name||'|'||object_type||'|'||status||'|'||"
+                "TO_CHAR(last_ddl_time,'YYYYMMDDHH24MISS') FROM dba_objects WHERE owner IN "
+                "('FIXTURE','FIXTURE_READER') UNION ALL SELECT 'P|'||grantee||'|'||owner||'.'||table_name||'|'||"
+                "privilege FROM dba_tab_privs WHERE owner='FIXTURE' UNION ALL SELECT 'S|'||sequence_name||'|'||"
+                "TO_CHAR(last_number) FROM dba_sequences WHERE sequence_owner='FIXTURE' ORDER BY 1;")
+            columns = {}
+            for line in self._admin(
+                    "SELECT c.table_name||'|'||c.column_name||'|'||c.data_type FROM dba_tab_columns c JOIN "
+                    "dba_tables t ON t.owner=c.owner AND t.table_name=c.table_name WHERE c.owner='FIXTURE' "
+                    "AND t.temporary='N' ORDER BY c.table_name,c.column_id;").splitlines():
+                if line.count("|") == 2:
+                    table, column, kind = line.strip().split("|")
+                    # DBMS_SQLHASH rejects BLOB (11g); hash those through DBMS_CRYPTO.
+                    columns.setdefault(table, []).append(
+                        f'CASE WHEN DBMS_LOB.GETLENGTH("{column}")>0 THEN DBMS_CRYPTO.HASH("{column}",3) '
+                        f'ELSE NULL END,DBMS_LOB.GETLENGTH("{column}")' if kind == "BLOB" else f'"{column}"')
+            if any(not re.fullmatch(r"[A-Z0-9_$#]+", t) for t in columns):
+                raise RuntimeError("unexpected Oracle table name in fingerprint")
+            rows = self._admin("\nUNION ALL\n".join(
+                f"SELECT '{t}|'||RAWTOHEX(DBMS_SQLHASH.GETHASH('SELECT "
+                + (",".join(c.replace("'", "''") for c in cols) if any("DBMS_CRYPTO" in c for c in cols) else "*")
+                + f" FROM FIXTURE.\"{t}\" ORDER BY ROWID',2)) FROM dual"
+                for t, cols in sorted(columns.items())) + ";") if columns else ""
+        table_digests = dict(line.strip().replace("\t", "|").split("|", 1)
+                             for line in rows.splitlines() if line.strip() and "|" in line.replace("\t", "|"))
+        if not table_digests:
+            raise RuntimeError("fingerprint found no fixture tables")
+        return {"catalog_sha256": hashlib.sha256(catalog.encode()).hexdigest(),
+                "catalog_entries": len([line for line in catalog.splitlines() if line.strip()]),
+                "tables": table_digests}
+
+    def oracle_privileges(self):
         """Oracle: prove reader identities cannot issue DML/DDL themselves (D12)."""
         run = self.run
-        if run.engine != "oracle":
-            return {"read_only": True}
         users = ",".join("'" + u.upper() + "'" for u in self.users)
-        _, sys_privs = run.sql(
+        sys_privs = self._admin(
             "SELECT grantee||'|'||privilege FROM dba_sys_privs WHERE grantee IN (" + users + ") "
             "UNION ALL SELECT grantee||'|ROLE:'||granted_role FROM dba_role_privs WHERE grantee IN (" + users + ") "
-            "ORDER BY 1;", admin=True)
-        _, tab_privs = run.sql(
+            "ORDER BY 1;")
+        tab_privs = self._admin(
             "SELECT grantee||'|'||privilege||'|'||owner||'.'||table_name FROM dba_tab_privs "
-            "WHERE grantee IN (" + users + ") ORDER BY 1;", admin=True)
+            "WHERE grantee IN (" + users + ") ORDER BY 1;")
+        del run
         sys_list = [line.strip() for line in sys_privs.splitlines() if line.strip()]
         tab_list = [line.strip() for line in tab_privs.splitlines() if line.strip()]
         allowed_sys = {"CREATE SESSION", "LOGMINING", "SELECT ANY TRANSACTION", "SET CONTAINER"}
@@ -834,10 +1099,9 @@ class Audit:
         records = self.raw()
         privileges = self.privileges()
         window_list = windows or []
-        slots = ()
-        if self.run.engine == "postgres":
-            _, text = self.run.sql("SELECT slot_name FROM pg_replication_slots;", admin=True)
-            slots = tuple(line.strip() for line in text.splitlines() if line.strip())
+        slots = self.slots or ()
+        if self.slots_time is not None and any(r["time"] < self.slots_time for r in records):
+            slots = ()  # captured after the reader connected: no slot is pre-existing
         summary = summarize(records, self.run.engine, window_list, privileges["read_only"], slots)
         violations = [r.get("sql") or r.get("action") for r in records if r["category"] == "rejected"]
         texts = [r.get("sql", "") for r in records]
@@ -862,6 +1126,7 @@ class Audit:
             activity[suite] = count
         return {"mode": self.mode, "reader": READER, "users": self.users,
                 "statements": sum(r.get("kind") != "session" for r in records),
+                "slots_before_reader": {"slots": list(slots), "captured_at": self.slots_time},
                 "suite_activity": activity, "summary": summary, "privileges": privileges,
                 "violations": violations, "missing_markers": missing, "records": records,
                 "passed": bool(records) and (len(self.markers) >= 2 or bool(window_list))

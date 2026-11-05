@@ -158,6 +158,10 @@ class AuditTests(unittest.TestCase):
                                    '"sql":"SELECT USER FROM DUAL\\u0000"}')[0]
         self.assertFalse(nul.get("truncated"))
         self.assertEqual(audit.classify(nul, "oracle", "snapshot")[0], "catalog_read")
+        wrapped = json.dumps(dict(row, sql="SELECT " + "x" * 50 + " FROM dual", sql_length="62"))
+        joined = audit.oracle_records(wrapped[:40] + "\n" + wrapped[40:])
+        self.assertEqual(joined[0]["sql"], "SELECT " + "x" * 50 + " FROM dual")
+        self.assertFalse(joined[0].get("truncated"))
         with self.assertRaises(ValueError):
             audit.oracle_records("SELECT|41")
 
@@ -174,17 +178,106 @@ class AuditTests(unittest.TestCase):
         summary = audit.summarize(records, "postgres", [dict(windows[0], variant="c5")])
         self.assertEqual(summary["c5"]["rejected"], 1)
 
+    def test_review_m1_regressions(self):
+        # (a) SET values are expressions: routine calls are judged like reads.
+        self.assertEqual(audit.classify_sql("SET @a = CONCAT(fixture.evil_write())", "mysql"),
+                         ("rejected", "unreviewed_function:FIXTURE.EVIL_WRITE"))
+        self.assertEqual(audit.classify_sql("SET @a = (SELECT 1)", "mysql"), ("rejected", "unreviewed_set_value"))
+        self.assertEqual(audit.classify_sql("SET @master_binlog_checksum= @@global.binlog_checksum", "mysql")[0],
+                         "d12_session_state")
+        # (b) COM_CHANGE_USER would switch identity away from the audited reader.
+        self.assertEqual(audit.classify({"kind": "mysql_command", "action": "Change user", "sql": ""},
+                                        "mysql", "snapshot"), ("rejected", "change_user_unjudged"))
+        # (c) search_path values are judged, inline and bound.
+        self.assertEqual(audit.classify_sql("SET search_path TO evil, pg_catalog", "postgres"),
+                         ("rejected", "search_path_ahead_of_pg_catalog"))
+        self.assertEqual(audit.classify_sql("SET search_path = 'pg_catalog, public'", "postgres")[0],
+                         "d12_session_state")
+        self.assertEqual(audit.classify_sql("SELECT set_config('search_path','evil,pg_catalog',false)",
+                                            "postgres"), ("rejected", "search_path_ahead_of_pg_catalog"))
+        bound = {"kind": "statement", "sql": "SELECT set_config('search_path',$1,false)",
+                 "detail": "parameters: $1 = 'pg_catalog'"}
+        self.assertEqual(audit.classify(bound, "postgres", "snapshot")[0], "d12_session_state")
+        self.assertEqual(audit.classify(dict(bound, detail="parameters: $1 = 'evil, pg_catalog'"),
+                                        "postgres", "snapshot")[1], "search_path_ahead_of_pg_catalog")
+        self.assertEqual(audit.classify(dict(bound, detail=""), "postgres", "snapshot")[1], "unjudged_search_path")
+        # (e) logical slot peeks only on the C1 path.
+        peek = "SELECT data FROM pg_logical_slot_peek_binary_changes($1,$2::text::pg_lsn,NULL)"
+        self.assertNotEqual(audit.classify_sql(peek, "postgres", "c1")[0], "rejected")
+        self.assertEqual(audit.classify_sql(peek, "postgres", "c5")[0], "rejected")
+
+    def test_slot_list_must_precede_the_reader(self):
+        records = [{"time": "2026-01-01 00:00:02", "kind": "statement", "user": "fixture_reader",
+                    "sql": "SELECT end_lsn::text FROM pg_replication_slot_advance($1,$2::pg_lsn)",
+                    "detail": "parameters: $1 = 'oo_slot', $2 = '0/1'"}]
+        windows = [{"seq": 1, "variant": "c1", "start": "2026-01-01 00:00:01", "end": "2026-01-01 00:00:03"}]
+        self.assertEqual(audit.summarize(records, "postgres", windows, slots=("oo_slot",))["c1"]["rejected"], 0)
+        self.assertEqual(audit.summarize(records, "postgres", windows, slots=("other",))["c1"]["rejected"], 1)
+        run = SimpleNamespace(engine="postgres", seq=0, id="x")
+        collector = audit.Audit(run)
+        collector.slots, collector.slots_time = ("oo_slot",), "2026-01-01 00:00:05"
+        collector.raw = lambda: [dict(r) for r in records]
+        collector.privileges = lambda: {"read_only": True}
+        result = collector.collect(windows)
+        self.assertEqual(result["slots_before_reader"]["slots"], [])
+        self.assertEqual(result["summary"]["c1"]["rejected"], 1)
+
+    def test_pg_reader_outside_fixture_database_rejected(self):
+        record = {"kind": "statement", "sql": "SELECT 1", "database": "agent"}
+        self.assertEqual(audit.classify(record, "postgres", "snapshot"),
+                         ("rejected", "reader_session_outside_fixture_database"))
+
+    def test_mysql_and_postgres_privileges_are_measured(self):
+        def runner(responses):
+            def sql(statement, **kwargs):
+                for prefix, value in responses.items():
+                    if prefix in statement:
+                        return 0, value
+                return 0, ""
+            return SimpleNamespace(engine="mysql", sql=sql, seq=0)
+        ok = runner({"FROM mysql.user": "%\n127.0.0.1",
+                     "SHOW GRANTS": "GRANT USAGE ON *.* TO `fixture_reader`@`%`\n"
+                                    "GRANT SELECT, SHOW VIEW ON `fixture`.* TO `fixture_reader`@`%`"})
+        self.assertTrue(audit.Audit(ok).privileges()["read_only"])
+        bad = runner({"FROM mysql.user": "%", "SHOW GRANTS": "GRANT SELECT, INSERT ON `fixture`.* TO `fixture_reader`@`%`"})
+        self.assertFalse(audit.Audit(bad).privileges()["read_only"])
+        replication = runner({"FROM mysql.user": "%",
+                              "SHOW GRANTS": "GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO `fixture_reader`@`%`"})
+        collector = audit.Audit(replication)
+        self.assertFalse(collector.privileges()["read_only"])
+        collector.allow_replication = True
+        self.assertTrue(collector.privileges()["read_only"])
+        self.assertFalse(audit.Audit(runner({"FROM mysql.user": ""})).privileges()["read_only"])
+
+        pg = {"'role|'": "role|f,f,f,t,f", "'member|'": "member|pg_read_all_stats",
+              "'database|'": "database|fixture|false,false\ndatabase|agent|false,true"}
+        run = runner(pg)
+        run.engine = "postgres"
+        collector = audit.Audit(run)
+        self.assertFalse(collector.privileges()["read_only"])  # replication outside C1
+        collector.allow_replication = True
+        self.assertTrue(collector.privileges()["read_only"])
+        for key, value in (("'table|'", "table|public.orders"), ("'schema|'", "schema|public"),
+                           ("'function|'", "function|public.evil()"), ("'database|'", "database|fixture|f,t"),
+                           ("'role|'", "role|true,false,false,true,false")):
+            run = runner(dict(pg, **{key: value}))
+            run.engine = "postgres"
+            collector = audit.Audit(run)
+            collector.allow_replication = True
+            self.assertFalse(collector.privileges()["read_only"], value)
+
     def test_markers_alone_do_not_prove_hook_activity(self):
         markers = ["oo_audit_start_x", "oo_audit_T1_start_x", "oo_audit_T1_end_x", "oo_audit_end_x"]
         text = "\n".join(mysql_row("Query", "SELECT '" + m + "'") for m in markers)
-        responses = {"SELECT @@GLOBAL": (0, "1\tTABLE")}
+        responses = {"SELECT @@GLOBAL": (0, "1\tTABLE"), "SELECT host": (0, "%"),
+                     "SHOW GRANTS": (0, "GRANT USAGE ON *.* TO `fixture_reader`@`%`")}
 
         def sql(statement, **kwargs):
             for prefix, value in responses.items():
                 if statement.startswith(prefix):
                     return value
             return 0, text
-        run = SimpleNamespace(engine="mysql", sql=sql)
+        run = SimpleNamespace(engine="mysql", sql=sql, seq=0)
         collector = audit.Audit(run)
         collector.markers = markers
         result = collector.collect()
