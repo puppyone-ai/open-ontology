@@ -151,6 +151,13 @@ class LaneRun(runner.Run):
         return failures
 
 
+def ready_probes(name):
+    """Target readiness probes; both go over TCP so the init-phase server never answers."""
+    tcp = ["-h", "127.0.0.1", "-U", "postgres"]
+    return [(["docker", "exec", name, "pg_isready", *tcp], None),
+            (["docker", "exec", "-i", name, "psql", "-X", *tcp, "-A", "-t"], "SELECT 1;")]
+
+
 class AgentDB:
     def __init__(self, run):
         self.run = run
@@ -176,16 +183,21 @@ class AgentDB:
                           "chmod 600 /tmp/pw; exec docker-entrypoint.sh postgres"])
         self.created = True
         self.run.command(["docker", "start", self.name])
-        for _ in range(90):
-            if self.run.command(["docker", "exec", self.name, "pg_isready", "-U", "postgres"],
-                                required=False)[0] == 0:
-                break
-            time.sleep(1)
-        else:
-            raise RuntimeError("target health timeout")
+        self.ready()
         _, out = self.run.command(["docker", "port", self.name, "5432/tcp"])
         self.port = int(out.strip().rsplit(":", 1)[1])
         self.sql("CREATE COLLATION fixture_ci (provider=icu,locale='und-u-ks-level1',deterministic=false);")
+
+    def ready(self, attempts=120):
+        # TCP only: docker-entrypoint's temporary init server listens on the
+        # unix socket alone (listen_addresses=''), then shuts down. A socket
+        # probe can pass against it and the next psql hits "shutting down".
+        for _ in range(attempts):
+            if all(self.run.command(argv, data=data, required=False)[0] == 0
+                   for argv, data in ready_probes(self.name)):
+                return
+            time.sleep(1)
+        raise RuntimeError("target health timeout")
 
     def sql(self, sql):
         return self.run.command(["docker", "exec", "-i", self.name, "psql", "-X", "-U", "postgres",

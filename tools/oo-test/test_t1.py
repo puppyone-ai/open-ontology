@@ -103,6 +103,31 @@ class T1Tests(unittest.TestCase):
                 self.assertFalse(result["equal"])
                 self.assertIsNotNone(result["first_difference"])
                 self.assertNotEqual(*result["chunks"][0]["sha256"])
+    def test_target_readiness_never_probes_the_init_socket(self):
+        # The entrypoint's temporary init server answers only on the unix socket.
+        probes = t1.ready_probes("oo-m-target-x")
+        self.assertEqual([next(a for a in argv if a in ("pg_isready", "psql")) for argv, _ in probes],
+                         ["pg_isready", "psql"])
+        for argv, _ in probes:
+            self.assertEqual(argv[argv.index("-h") + 1], "127.0.0.1")
+
+    def test_target_ready_waits_through_init_server_shutdown(self):
+        target = t1.AgentDB.__new__(t1.AgentDB)
+        target.name = "oo-m-target-x"
+        codes = iter([2, 0, 2, 0, 0])  # tcp refused, ok+query fails (restart), ok+ok
+        calls = []
+
+        class Run:
+            def command(self, argv, data=None, required=True):
+                calls.append(argv)
+                return next(codes), ""
+        target.run = Run()
+        with patch.object(t1.time, "sleep"):
+            target.ready(attempts=5)
+        self.assertEqual(len(calls), 5)
+        with patch.object(t1.time, "sleep"), self.assertRaises(RuntimeError):
+            target.run = type("R", (), {"command": lambda self, argv, data=None, required=True: (2, "")})()
+            target.ready(attempts=2)
 
     def test_readonly_exec_retries_only_predispatch_transport_refusal(self):
         with tempfile.TemporaryDirectory(dir=t1.ROOT / "evidence") as temporary:

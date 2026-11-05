@@ -124,16 +124,6 @@ class DurableAgentDB(AgentDB):
         self.ready()
         self.sql("CREATE COLLATION fixture_ci (provider=icu,locale='und-u-ks-level1',deterministic=false);")
 
-    def ready(self):
-        for _ in range(120):
-            if self.run.command(["docker", "exec", self.name, "pg_isready", "-U", "postgres"],
-                                required=False)[0] == 0 and self.run.command(
-                    ["docker", "exec", "-i", self.name, "psql", "-X", "-U", "postgres", "-A", "-t"],
-                    data="SELECT 1;", required=False)[0] == 0:
-                return
-            time.sleep(1)
-        raise RuntimeError("target health timeout")
-
     def query(self, sql, required=True):
         return self.run.command(["docker", "exec", "-i", self.name, "psql", "-X", "-q", "-U", "postgres",
                                  "-v", "ON_ERROR_STOP=1", "-A", "-t", "-F", "\t", "-P", "null=NULL"],
