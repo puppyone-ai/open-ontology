@@ -27,9 +27,9 @@ HAND = ROOT / 'docs/database-support/support-matrix.yaml'
 
 # Capability -> suites that must all pass (with the variant, when given) for `verified`.
 REQUIRED = {
-    'full': [('T0', None), ('T1', None), ('T7', None), ('T8', None)],
+    'full': [('T0', None), ('T1', None), ('T7', 'snapshot'), ('T8', None)],
     'cdc': [('T2', 'c1'), ('T3', 'c1'), ('T7', 'c1')],
-    'digest': [('T2', 'c5'), ('T3', 'c5')],
+    'digest': [('T2', 'c5'), ('T3', 'c5'), ('T7', 'c5')],
     'schema_change': [('T4', None)],
     'selfbuild': [('T5', None)],
     'dialogue': [('T6', None)],

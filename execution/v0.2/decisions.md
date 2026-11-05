@@ -21,3 +21,4 @@ Current task state lives in [state.json](state.json); the plan is
 | 2026-11-05 | Coordinator | Zoned timestamps land as timestamptz instants (source offset not kept); comparison canonical form is the UTC instant | Plan D17 |
 | 2026-11-05 | Coordinator (owner granted full authority) | CC0-1.0 exception scoped to tiny-keccak for the opt-in MongoDB source | Plan D18 |
 | 2026-11-05 | Human | Owner accepts the DM8 license for testing; Oracle account created by the owner; Docker cleanup authorised for volumes/containers with no further use or production meaning | E340 |
+| 2026-11-05 | Coordinator | PostgreSQL C1 `pg_replication_slot_advance` on a pre-existing slot is replication progress feedback under D12 | Plan D12a |

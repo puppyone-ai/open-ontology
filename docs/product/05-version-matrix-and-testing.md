@@ -94,6 +94,8 @@
 
 T1–T4 是引擎 owner 每次提交前必跑的；T5–T6 在每个 sprint 末对 P0 全版本跑一次；T7、T8 随 T1–T4 自动收集。
 
+**T7 实现（2026-11-05，S5-H-01）。** `tools/oo-test/t7.py` 包住 T1 与 T2 工作负载（全部版本 C5；MySQL binlog、PostgreSQL pgoutput、Oracle 23 opt-in LogMiner 的 C1），审计从读取账号首次连接之前到最后断开之后：MySQL general log 作为服务器启动参数，PostgreSQL `log_statement=all` 并记录复制命令，Oracle 23 统一审计、11g/21c 标准 `DB,EXTENDED` 审计。每条读取账号记录归入一个已审类别或带未命中规则被拒；任何被拒记录使该夹具全部变体失败。D12a：PostgreSQL C1 对预先存在槽位的 `pg_replication_slot_advance` 视为复制进度反馈。Oracle 系统 schema DML 仅在权限证明后归因。2026-11-05 全部 13 个已测 P0 版本的 snapshot/C5（及 MySQL、PostgreSQL、Oracle 23 的 C1）零被拒记录通过。
+
 ## 5. 比对口径
 
 - **值规范化**：数值按精度转十进制字符串；时间统一到 UTC 微秒并保留原时区标注；Oracle 空串与 NULL 按源语义记录；浮点按位比较而非四舍五入。
