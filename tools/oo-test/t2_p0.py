@@ -302,11 +302,14 @@ def run_cycles(run, binary, worker_image):
                 writer_run = copy.copy(run)
                 writer_run.seq = 6000000
                 writer_errors = []
+                # 19c's first post-restart catalog load exceeds eight seconds.
+                # Keep the absence assertion below: a missed overlap still fails.
+                hold_seconds = 60 if run.version == "19" else 8
                 def long_transaction():
                     try:
                         writer_run.sql("INSERT INTO FIXTURE.ITEMS VALUES(7000,'long-tx');\n"
                                        "INSERT INTO FIXTURE.OTHER VALUES(7000,'long-tx');\n"
-                                       "BEGIN DBMS_SESSION.SLEEP(8); END;\n/\nCOMMIT;", admin=True)
+                                       f"BEGIN DBMS_SESSION.SLEEP({hold_seconds}); END;\n/\nCOMMIT;", admin=True)
                     except Exception as error:
                         writer_errors.append(type(error).__name__)
                 writer = threading.Thread(target=long_transaction)
