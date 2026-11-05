@@ -13,6 +13,8 @@ workspace = true
 [features]
 default = []
 db2 = []
+# DM8 through a caller-supplied isolated DPI worker; no Rust dependency or native link.
+dm8 = []
 mysql = ["dep:mysql_async", "tokio/sync", "tokio/macros"]
 # In-process MySQL binlog C1. Not default: its zstd stack is admitted for the
 # default artifact only after the seven-day rule (supply-chain/mysql-binlog-audit.json).

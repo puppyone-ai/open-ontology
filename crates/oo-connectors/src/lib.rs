@@ -34,6 +34,8 @@ mod config;
 #[cfg(feature = "db2")]
 pub mod db2;
 mod delimited;
+#[cfg(feature = "dm8")]
+pub mod dm8;
 #[cfg(any(feature = "mongodb", feature = "opensearch"))]
 pub mod document;
 pub mod engine;
