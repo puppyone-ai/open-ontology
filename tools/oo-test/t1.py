@@ -813,7 +813,8 @@ def main():
         context = json.loads(Path(os.environ["OO_TEST_CONTEXT"]).read_text())
         labels = json.loads(subprocess.check_output(
             ["docker", "inspect", "--format", "{{json .Config.Labels}}", context["container"]], text=True))
-        if labels.get("oo.lane") not in ("h", LANE) or labels.get("oo.run_id") != context["run_id"]:
+        # runner.py labels Oracle 19 enterprise fixtures E19.
+        if labels.get("oo.lane") not in ("h", "E19", LANE) or labels.get("oo.run_id") != context["run_id"]:
             raise RuntimeError("hook fixture ownership")
         LANE = labels["oo.lane"]
         if context["engine"] not in ("postgres", "mysql", "oracle"):
