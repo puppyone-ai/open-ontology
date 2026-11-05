@@ -1,7 +1,7 @@
 # 04 逐库画像：体检、最小权限、捕获路径、类型与限制
 
 > Status: Proposed
-> Last reviewed: 2026-11-04
+> Last reviewed: 2026-11-06
 > 依赖：[02](02-connector-architecture.md)、[03](03-change-capture-and-consistency.md)、[product/02 §7](../product/02-ingestion-playbook.md)、[product/05 §1](../product/05-version-matrix-and-testing.md)；事实来源与“未核实”清单见 [06 §3](06-risks-open-questions-and-sources.md)
 > 约定：本文所有 SQL/GRANT 是**DBA 清单草案**，由 DBA 执行，平台不执行；凡标“待验证”者，对应 Plan 4A 的 DBP 原型，验证前不得写入 `verified`。等级见 [support-matrix.yaml](support-matrix.yaml)，当前**没有任何目标是 verified**。
 
@@ -15,7 +15,7 @@
 | PostgreSQL 12–18 自建 | 0 | P1 sqlx/tokio-postgres | C1 逻辑解码；无条件时 C5 | T | publication/槽由 DBA；12 已 EOL 仅 experimental 目标；见 §3.1 |
 | RDS/Aurora/Cloud SQL/AlloyDB PG | 1 | P1 | C1 | T | 各云参数不同；failover 槽（DBP3） |
 | SQL Server 2019/2022（含 Azure SQL MI、RDS） | 1 | P1 tiberius | C1 内置 CDC；C2 Change Tracking | T / S1 | CDC 需 DBA 启用；datetime2(7) 精度 |
-| Oracle 11g / 19c / 21c / 23ai | 2（v0.2 列为 P0 目标） | P2（ODPI-C 或官方纯 Rust，DBP1） | 快照 + C5 起步；C1 为平台自有 LogMiner 读取器（online_catalog，设计为 R1，待 T7 审计证明，§5.3） | S1（`AS OF SCN`）/ B | 许可、驱动、空串=NULL、AWR 许可；CDB/PDB 随版本变化，见 §5.6 |
+| Oracle 11g / 19c / 21c / 23ai | 2（v0.2 列为 P0 目标） | `oracledb` 纯 Rust 驱动；11g 经隔离的 Instant Client thick worker | 快照 + C5 起步；C1 为平台自有 LogMiner 读取器（online_catalog，R1 含 Oracle 内部递归临时写，T7 已按 D11a/D12 归因通过，须显式选用，§5.3） | S1（`AS OF SCN`）/ B | 许可、驱动、空串=NULL、AWR 许可；CDB/PDB 随版本变化，见 §5.6 |
 | Db2 LUW 11.5 | 2 | P2 ODBC/JDBC | C3/C5 | B | ASN 需 IIDR 许可且要写控制对象，默认不用 |
 | SAP HANA 2.0 | 2 | P2 ODBC/JDBC | C3/C5 | B | 无只读日志 CDC；触发器方案排除 |
 | 达梦 DM8、神通 | 2（实验） | P2 | C3/C5 | B | 兼容模式在建库时固定；无标准驱动 |
@@ -194,7 +194,7 @@ GRANT EXECUTE ON sys.dbms_flashback TO oo_reader;        -- 读取当前 SCN
 | `FLOAT/BINARY_FLOAT/BINARY_DOUBLE` | `double precision/real/double precision` | NaN/Inf 保留 |
 | `DATE` | `timestamp(0)` | **含时分秒**；`DATE` 并非纯日期 |
 | `TIMESTAMP(n)` | `timestamp(min(n,6))` | n 7–9 → `precision_loss` |
-| `TIMESTAMP WITH TIME ZONE` / `WITH LOCAL TIME ZONE` | `timestamptz` | 偏移丢失；LTZ 依赖会话/库时区，需显式时区设置 |
+| `TIMESTAMP WITH TIME ZONE` / `WITH LOCAL TIME ZONE` | `timestamptz` | 保留瞬时点、不保留源偏移，比对以 UTC 瞬时点为准（v0.2 Plan D17）；需要原偏移时由源端另列承载；LTZ 依赖会话/库时区，需显式时区设置 |
 | `INTERVAL YEAR TO MONTH / DAY TO SECOND` | `interval` | — |
 | `VARCHAR2/NVARCHAR2/CHAR/NCHAR/CLOB/NCLOB/LONG` | `text` | **空串即 NULL** → `empty_string_is_null`；CHAR 补空格保留；LONG/大对象默认排除；字节/字符长度语义记录 |
 | `RAW/BLOB/LONG RAW/BFILE` | `bytea`/排除 | 默认排除 |
@@ -227,6 +227,7 @@ GRANT EXECUTE ON sys.dbms_flashback TO oo_reader;        -- 读取当前 SCN
 - 增量：`GENERATED ALWAYS … ROW CHANGE TIMESTAMP` 类列仅当表已有；否则 C3 依赖业务时间列；无可靠只读 CDC。Debezium Db2 连接器依赖 ASN SQL Replication：需在源库创建 ASN 对象与变更数据表、服务器端运行 capture 程序，且使用 SQL Replication 需要 IBM InfoSphere Data Replication 许可，连接器也需调用控制接口 → 属 R1w/R2，**默认 `excluded`**；DBA 自行搭建 ASN 并由平台仅轮询变更表的**纯读取实现**列为 `candidate`（非 Debezium）。
 - 类型：`TIMESTAMP(p)` 最大 12 位 → `precision_loss`；`DECFLOAT` 的 NaN/Infinity 写 reject；`FOR BIT DATA` → `bytea`；`CLOB/DBCLOB/BLOB` 默认排除；`XML` → `text`（捕获路径对 XML 不完整，仅批量）；代码页转换严格解码。
 - 一致性：C3/C5，B（或单语句 S0）；无通用 as-of 读取。
+- v0.2 实现（2026-11-05）：SourceEngine 经隔离的 IBM CLI worker 读取，默认制品不含原生驱动；v11.5.9.0（amd64 仿真）全规模 T1/T8 与三次 C5 通过；无 C1。
 
 ### 6.2 SAP HANA 2.0
 
@@ -242,6 +243,7 @@ GRANT EXECUTE ON sys.dbms_flashback TO oo_reader;        -- 读取当前 SCN
 - DM8 兼容模式在建库时固定（Oracle/MySQL 等），体检**必须读取并记录兼容模式与字符集/长度语义**，未知 → `COMPAT_MODE_UNKNOWN` block；官方承认其 MySQL 兼容度不高，Oracle 兼容为主；因此 DM 的 Oracle 模式不继承 Oracle 目标的任何结论。
 - CDC：达梦 DMHS 为官方实时同步产品（日志解析），属商业组件；Debezium 无连接器；网上有 canal/Flink CDC 集成实践但未核实。**不规划 CDC**，仅批量（C3/C5）。神通 CDC 手段未核实。
 - 等级：两者最高暂定 `experimental`，需真实实例与官方文档核对类型与权限后再评估 `verified`。
+- v0.2 实现（2026-11-05）：DM8 经隔离的 DPI worker 读取（达梦客户端只在本地 worker 镜像中，不新增 Rust 依赖），V8 原生 arm64 通过 T0、并发写入 T1、T8 与三次 C5；神通未实现。
 
 ## 8. 兼容层国产库（MySQL/PG 协议兼容 ≠ CDC 兼容）
 
@@ -255,8 +257,8 @@ GRANT EXECUTE ON sys.dbms_flashback TO oo_reader;        -- 读取当前 SCN
 | **PolarDB PG** | PG 协议 | C3/C5 | 逻辑复制槽（宣称兼容 PG） | 归入 §3 作为独立目标，需 DBP3 同类验证 |
 | **GoldenDB** | MySQL 协议（计算节点） | C3/C5 | 自带 CDC 组件输出 MySQL binlog 格式流 | 同 OceanBase：批量先行 |
 | **TDSQL** | 按形态：TDSQL-C MySQL/PG、分布式 MySQL、TDSQL-PG | C3/C5 | TDSQL-C 提供 binlog 订阅；分布式版要求 ROW binlog | 每个形态独立目标，不互相推导 |
-| **openGauss / GaussDB** | PG 协议；**认证（SHA256）与标准驱动可能不兼容**，官方提供自有 JDBC | C3/C5；若认证不兼容走 P2 | 逻辑解码弱于 PG，社区有 wal2json 适配；GaussDB 另有 MySQL 兼容形态 | 批量先行；认证兼容在 DBP7 验证 |
-| **KingbaseES** | PG 驱动（PG 兼容模式，第三方实践）+ 自有驱动 | C3/C5 | 逻辑复制存在，Debezium 适配版为社区实现，官方地位未核实 | PG 兼容模式单独成目标；Oracle/MySQL 模式 `candidate` |
+| **openGauss / GaussDB** | PG 协议；**认证（SHA256）与标准驱动可能不兼容**，官方提供自有 JDBC | C3/C5；若认证不兼容走 P2 | 逻辑解码弱于 PG，社区有 wal2json 适配；GaussDB 另有 MySQL 兼容形态 | 批量先行。v0.2：openGauss EE 5.0.3/6.0.0 独立家族，快照与 C5 实测通过；仅 sha256/sm3 认证的实例需 DBA 开启 md5 兼容；逻辑解码实测不支持 |
+| **KingbaseES** | PG 驱动（PG 兼容模式，第三方实践）+ 自有驱动 | C3/C5 | 逻辑复制存在，Debezium 适配版为社区实现，官方地位未核实 | PG 兼容模式单独成目标（v0.2：kingbase 家族走 PostgreSQL 引擎，V9R1C10 快照与 C5 实测通过，C1 未测）；Oracle/MySQL 模式 `candidate` |
 | **瀚高 HighGo** | PG 驱动（一般可用） | C3/C5 | 未核实 | **三权分立**安全版：平台账号可能无法读目录，体检不确定即 block |
 
 共通规则：
@@ -318,9 +320,9 @@ GRANT EXECUTE ON sys.dbms_flashback TO oo_reader;        -- 读取当前 SCN
 
 | 目标 | 捕获 | 权限与前置 | 要点 |
 |---|---|---|---|
-| **MongoDB** | C1 change stream（需副本集或分片集群，WiredTiger）；Debezium MongoDB 稳定连接器 | 内置 `read` 角色足以开启 change stream；pre/post-image（6.0+）需集合启用 `changeStreamPreAndPostImages`（DBA，R1） | oplog 是 capped collection，resume token 过期即失效 → `POSITION_EXPIRED`；删除事件默认只含 `_id`；映射见 [02 §6.4](02-connector-architecture.md)；标准单机实例（standalone）不支持 change stream → 只能 C5 |
+| **MongoDB** | C1 change stream（需副本集或分片集群，WiredTiger）；Debezium MongoDB 稳定连接器 | 内置 `read` 角色足以开启 change stream；pre/post-image（6.0+）需集合启用 `changeStreamPreAndPostImages`（DBA，R1） | oplog 是 capped collection，resume token 过期即失效 → `POSITION_EXPIRED`；删除事件默认只含 `_id`；映射见 [02 §6.4](02-connector-architecture.md)；标准单机实例（standalone）不支持 change stream → 只能 C5。v0.2 实现为 opt-in 特性：快照与 C5 进入 `jsonb`/标量列（8.0.34 实测），change stream 未实现 |
 | **DynamoDB** | Streams（24 小时）+ 并行 Scan；PITR 增量导出到 S3 | `DescribeStream`、`GetShardIterator`、`GetRecords`、`ListStreams` + 表读取；导出需客户指定桶的写权限（R1，写客户桶） | 记录序仅分区键内有序（`PerPartition`）；滞后须 < 12 小时告警；读容量预算（RCU） |
-| **Elasticsearch/OpenSearch** | C5 或按时间戳字段 C3；PIT + `search_after` 取得稳定视图 | 索引只读 | 无变更流、无事务；删除靠对账；mapping 即 schema；一致性 B |
+| **Elasticsearch/OpenSearch** | C5 或按时间戳字段 C3；PIT + `search_after` 取得稳定视图 | 索引只读 | 无变更流、无事务；删除靠对账；mapping 即 schema；一致性 B。v0.2 实现为 opt-in 特性：OpenSearch 3.9.0、Elasticsearch 9.2.0 快照与 C5 实测通过 |
 | **ScyllaDB** | CDC 日志表（CQL 可查，行 TTL 默认 24 小时），表级启用 CDC 属性（DBA，R1） | 日志表 `SELECT` | 读取日志表的 CL 需匹配基表写 CL 才可得强一致 |
 | **Cassandra** | 官方 CDC 需**每节点本地 agent 解析 commitlog**（主机级） | — | 默认 `excluded`；用 C3/C5（CQL 强类型） |
 | **Kafka 主题** | 消费 offset；compaction；tombstone=删除 | 主题只读 ACL | 仅经 SP15-W03 的 buffer 适配器，v0.x 不承诺 |
