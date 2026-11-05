@@ -110,6 +110,9 @@ def derive(rows: list[dict]) -> list[dict]:
                 latest = max(match, key=lambda r: (r.get('observed_at') or '', r['run_id']))
                 hits.append(latest)
                 failed |= latest['result'] != 'pass'
+                # T5 over a gold-table subset is not full-fixture Self-build.
+                if cap == 'selfbuild' and 'not full-fixture T5' in latest.get('scope', ''):
+                    missing = True
             if not hits:
                 continue
             level = 'verified' if not failed and not missing else ('experimental' if any(h['result'] == 'pass' for h in hits) else 'designed')
