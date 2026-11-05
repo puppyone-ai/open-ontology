@@ -264,10 +264,14 @@ class Run:
             # the container, never put the generated password in Docker argv.
             server_args = ["/bin/bash", "-c",
                            'export ORACLE_PWD="$(cat /run/oo/password)"; exec "$ORACLE_BASE/$RUN_FILE"']
+        # Enterprise's background check kills the alert-log tail (and PID 1)
+        # during an intentional SQL restart. Use our explicit readiness probes.
+        health_args = (["--no-healthcheck"] if self.engine == "oracle"
+                       and self.version.startswith("19") else [])
         self.command(["docker", "create", "--name", self.name, *labels, "--platform", platform,
                       "--mount", f"type=volume,src={self.volume},dst={destination}",
                       "--mount", f"type=bind,src={self.private},dst=/run/oo,readonly",
-                      "--shm-size", "1g", *env, image, *server_args])
+                      "--shm-size", "1g", *health_args, *env, image, *server_args])
         self.command(["docker", "start", self.name])
         timeout = self.args.health_timeout or (1200 if platform != native or self.engine == "oracle" else 300)
         deadline = time.monotonic() + timeout

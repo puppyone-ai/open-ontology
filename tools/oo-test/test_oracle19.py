@@ -56,6 +56,7 @@ class Oracle19Tests(unittest.TestCase):
             self.assertIn("oo.lane=E19", create)
             self.assertIn("ORACLE_PDB=FREEPDB1", create)
             self.assertIn("ORACLE_SID=FREE", create)
+            self.assertIn("--no-healthcheck", create)
             self.assertNotIn(run.secret, json.dumps(calls))
             self.assertIn('export ORACLE_PWD="$(cat /run/oo/password)"', create[-1])
             self.assertIn(["docker", "exec", run.name, "/opt/oracle/checkDBStatus.sh"], calls)
