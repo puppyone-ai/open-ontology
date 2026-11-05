@@ -25,6 +25,7 @@ enum Adapter {
     Oracle,
     Mysql,
     Sqlserver,
+    Db2,
 }
 
 fn registry() -> BTreeMap<EngineFamily, Adapter> {
@@ -33,6 +34,7 @@ fn registry() -> BTreeMap<EngineFamily, Adapter> {
         (EngineFamily::Mysql, Adapter::Mysql),
         (EngineFamily::Oracle, Adapter::Oracle),
         (EngineFamily::Sqlserver, Adapter::Sqlserver),
+        (EngineFamily::Db2, Adapter::Db2),
     ])
 }
 
@@ -126,6 +128,30 @@ fn runtime_mysql_doctor(source: &mut Value) -> Result<Command, &'static str> {
     Ok(command)
 }
 
+fn db2(
+    source: &Source,
+    tables: &[TableRef],
+    store: &SecretStore,
+) -> Result<oo_connectors::db2::Db2Engine, String> {
+    if source.ssh.is_some() {
+        return Err("SSH_EXTERNAL_WORKER_NOT_AVAILABLE".into());
+    }
+    // Operator-controlled executable, like oo-load --db2-worker. Its wrapper
+    // owns the pinned image and the source-only network/CA mount.
+    let executable = std::env::var_os("OO_DB2_WORKER")
+        .ok_or("DB2_WORKER_REQUIRED")?;
+    let mut config = oo_connectors::db2::ConnectConfig::new(
+        &source.host, source.port, &source.database, &source.user,
+        store.read(&source.password.secret_ref)?.into(),
+    );
+    config.scope = tables.to_vec();
+    if source.tls_ca.is_some() {
+        config.tls_ca = Some("/run/oo-source/ca.pem".into());
+    }
+    oo_connectors::db2::Db2Engine::connect(&mut Command::new(executable), &config)
+        .map_err(|e| e.to_string())
+}
+
 fn oracle(
     source: &Source,
     tables: &[TableRef],
@@ -189,6 +215,7 @@ fn family(source: &Source) -> Result<EngineFamily, &'static str> {
         "mysql" => Ok(EngineFamily::Mysql),
         "oracle" => Ok(EngineFamily::Oracle),
         "sqlserver" => Ok(EngineFamily::Sqlserver),
+        "db2" => Ok(EngineFamily::Db2),
         // Port selects a candidate only. The adapter must verify server identity.
         "auto" => match source.port {
             5432 => Ok(EngineFamily::Postgres),
@@ -324,6 +351,10 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                                 Ok(mut engine) => {
                                     inspect(&mut engine, &selected, &source.sync.mode).await
                                 }
+                                Err(error) => json!({"status":"blocked","error":error}),
+                            },
+                            EngineFamily::Db2 => match db2(source, &selected, &store) {
+                                Ok(mut engine) => inspect(&mut engine, &selected, &source.sync.mode).await,
                                 Err(error) => json!({"status":"blocked","error":error}),
                             },
                             EngineFamily::Mysql => mysql(source, &selected),
