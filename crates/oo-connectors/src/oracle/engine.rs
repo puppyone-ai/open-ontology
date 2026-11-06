@@ -47,6 +47,9 @@ use super::worker::{DriverError, Worker};
 /// Integer-key chunk boundaries plus the observed row count.
 type IntegerBoundaries = (Vec<Vec<KeyValue>>, u64);
 
+#[path = "declared.rs"]
+mod declared;
+
 fn serial_query(sql: &str) -> Cow<'_, str> {
     // Enterprise can spawn PX sessions behind a single connection. Keep the
     // source's one-session budget without changing database/session settings.
@@ -2428,6 +2431,14 @@ enum PageError {
 }
 
 impl SourceEngine for OracleEngine {
+    async fn declared_catalog(
+        &mut self,
+        tables: &[TableRef],
+        budget: &ReadBudget,
+    ) -> Result<Option<crate::engine::DeclaredSourceCatalog>, SourceError> {
+        self.export_declared(tables, budget).await
+    }
+
     fn family(&self) -> EngineFamily {
         EngineFamily::Oracle
     }

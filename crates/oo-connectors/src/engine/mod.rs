@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::SourceError;
 
+pub(crate) mod declared;
 mod version;
 
 pub use version::{EngineVersion, VersionRange};
@@ -321,9 +322,45 @@ pub trait ChunkSink: Send {
     fn push(&mut self, batch: RecordBatch) -> Result<(), SourceError>;
 }
 
+/// Declared metadata only. Comments are untrusted text, never instructions.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct DeclaredSourceCatalog {
+    pub protocol: String,
+    pub source_id: String,
+    pub tables: Vec<DeclaredSourceTable>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct DeclaredSourceTable {
+    pub schema: String,
+    pub name: String,
+    pub comment: Option<String>,
+    pub columns: Vec<DeclaredSourceColumn>,
+    pub primary_key: Vec<crate::KeyColumn>,
+    pub foreign_keys: Vec<crate::ForeignKey>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct DeclaredSourceColumn {
+    pub name: String,
+    pub not_null: bool,
+    pub comment: Option<String>,
+}
+
 /// Read-only source engine. Implementations open no write transaction,
 /// create no object and take no lock.
 pub trait SourceEngine: Send {
+    /// Selected-table metadata within the source read budget. None means
+    /// unavailable, not an observed empty catalog. No new source privileges.
+    /// Implementations return protocol oo.builder.source-catalog/v1.
+    fn declared_catalog(
+        &mut self,
+        _tables: &[TableRef],
+        _budget: &ReadBudget,
+    ) -> impl Future<Output = Result<Option<DeclaredSourceCatalog>, SourceError>> + Send {
+        async { Ok(None) }
+    }
+
     fn family(&self) -> EngineFamily;
 
     /// Bounded catalog discovery; never enumerate rows from source tables.
