@@ -71,12 +71,14 @@ def unify_versions(rows: list[dict]) -> list[dict]:
     return [dict(r, version=alias.get((r['target'], r['version']), r['version'])) for r in rows]
 
 
-def baseline_filter(rows: list[dict]) -> list[dict]:
-    """With a baseline, only rows measured on that exact product tree count."""
-    if not BASELINE.exists():
-        return rows
-    sha = json.loads(BASELINE.read_text())['product_sha']
-    return [r for r in rows if r.get('product_sha') == sha]
+def baseline_filter(rows: list[dict], base: dict | None = None) -> list[dict]:
+    """With a baseline, rows of its suites count only when measured on that exact tree."""
+    if base is None:
+        if not BASELINE.exists():
+            return rows
+        base = json.loads(BASELINE.read_text())
+    covered = set(base['suites'])
+    return [r for r in rows if r['suite'] not in covered or r.get('product_sha') == base['product_sha']]
 RESULTS = {'pass', 'fail', 'skip'}
 SHA = re.compile(r'^[0-9a-f]{64}$')
 
@@ -171,10 +173,17 @@ def self_test() -> list[str]:
     split = [dict(r, version='8.4.0') if r['suite'] == 'T7' else r for r in base]
     if len(derive(split)) != 1:
         failures.append('equivalent version strings were not unified')
+    pinned = {'product_sha': 'a' * 40, 'suites': ['T1']}
+    mixed = [dict(r, product_sha='a' * 40) for r in base] + [
+        dict(base[0], suite='T1', run_id='r9', result='fail', product_sha='b' * 40)]
+    if derive(baseline_filter(mixed, pinned))[0]['caps']['full']['level'] != 'verified':
+        failures.append('a row from another product tree was counted under a baseline')
+    if derive(baseline_filter([dict(r, product_sha='b' * 40) if r['suite'] == 'T1' else r for r in base], pinned))[0]['caps']['full']['level'] == 'verified':
+        failures.append('a baseline suite verified without a row from the pinned tree')
     if not validate([{'target': 'x'}]):
         failures.append('invalid row accepted')
     if not failures:
-        print('Self-test: 9 derivation cases correct.')
+        print('Self-test: 11 derivation cases correct.')
     return failures
 
 
