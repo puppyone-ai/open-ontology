@@ -247,7 +247,7 @@ mod tests {
     fn refuses_malformed_members() {
         for bad in [
             "nope:1",
-            &format!("{A}"),
+            A,
             &format!("{A}:0"),
             &format!("{A}:5-3"),
             &format!("{A}:9tag:1"),

@@ -240,14 +240,13 @@ pub fn capture_expression(column: &MappedColumn) -> String {
         .metadata
         .iter()
         .find(|(k, _)| k == "mysql_source_charset")
+        && matches!(charset.as_str(), "latin1" | "gbk" | "ucs2")
     {
-        if matches!(charset.as_str(), "latin1" | "gbk" | "ucs2") {
-            // Readers decode by ordinal. A same-name alias would make ORDER BY
-            // sort the converted expression instead of the indexed source key.
-            return format!(
-                "CASE WHEN {name} IS NULL THEN NULL WHEN CAST(CONVERT(CONVERT({name} USING utf8mb4) USING {charset}) AS BINARY) = CAST({name} AS BINARY) THEN CONVERT({name} USING utf8mb4) ELSE REPEAT(CAST(0xFF AS BINARY),OCTET_LENGTH({name})) END"
-            );
-        }
+        // Readers decode by ordinal. A same-name alias would make ORDER BY
+        // sort the converted expression instead of the indexed source key.
+        return format!(
+            "CASE WHEN {name} IS NULL THEN NULL WHEN CAST(CONVERT(CONVERT({name} USING utf8mb4) USING {charset}) AS BINARY) = CAST({name} AS BINARY) THEN CONVERT({name} USING utf8mb4) ELSE REPEAT(CAST(0xFF AS BINARY),OCTET_LENGTH({name})) END"
+        );
     }
     name
 }

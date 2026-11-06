@@ -716,15 +716,15 @@ impl MysqlEngine {
 
     async fn read_watermark(&mut self) -> Result<Option<Watermark>> {
         self.ensure_basics().await?;
-        if self.basics.as_ref().expect("basics").watermark != WatermarkMode::None {
-            if let Err(error) = self.check_replica_commit_order().await {
-                if error.kind() == SourceErrorKind::Privilege {
-                    // Snapshot/C5 remains usable, but unknown topology cannot
-                    // authorize a log-corrected read.
-                    return Ok(None);
-                }
-                return Err(error);
+        if self.basics.as_ref().expect("basics").watermark != WatermarkMode::None
+            && let Err(error) = self.check_replica_commit_order().await
+        {
+            if error.kind() == SourceErrorKind::Privilege {
+                // Snapshot/C5 remains usable, but unknown topology cannot
+                // authorize a log-corrected read.
+                return Ok(None);
             }
+            return Err(error);
         }
         let basics = self.basics.as_ref().expect("basics");
         match basics.watermark {

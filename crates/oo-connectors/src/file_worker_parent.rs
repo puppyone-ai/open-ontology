@@ -737,7 +737,16 @@ impl ParentPull {
                 .status()
             {
                 Ok(status) if status.success() => GroupSignal::Sent,
-                _ => GroupSignal::Rejected,
+                // Darwin refuses to signal a group whose only member is the
+                // exited, unreaped leader; Linux accepts it. A child that
+                // exited in that window needed no signal.
+                _ => match child.try_wait() {
+                    Ok(Some(status)) => {
+                        self.exit_status = Some(status);
+                        return GroupSignal::NotNeeded;
+                    }
+                    _ => GroupSignal::Rejected,
+                },
             }
         } else {
             GroupSignal::SkippedIdentity

@@ -282,7 +282,7 @@ async fn family_snapshot_c5() {
         .query_drop(
             Zeroizing::new(format!(
                 "CREATE USER 'reader'@'%' IDENTIFIED BY '{}'",
-                &*secret
+                *secret
             ))
             .as_str(),
         )
@@ -506,7 +506,10 @@ async fn mariadb_c1(engine: &mut MariadbEngine, admin: &mut mysql_async::Conn, v
         duty_cycle_percent: 100,
         ..Default::default()
     };
-    let mut changes = engine.changes(&[table.clone()], 733).await.unwrap();
+    let mut changes = engine
+        .changes(std::slice::from_ref(&table), 733)
+        .await
+        .unwrap();
     let retained = changes.retention(0, 0).await.unwrap();
     assert!(retained.oldest_event_unix.is_some());
     let mut cursor = engine.watermark().await.unwrap().unwrap();
