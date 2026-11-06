@@ -805,8 +805,21 @@ impl SourceEngine for PostgresEngine {
         self.protect(&mut s).await?;
         let start = Instant::now();
         self.transaction(&mut s).await?;
-        let result = read::digest(&mut s, &planned, lo, hi).await;
-        let result = s.finish(result).await;
+        // A dropped network must end the digest, not hang it: bound it like read_chunk.
+        let result = tokio::time::timeout(
+            s.budget.statement_timeout(),
+            read::digest(&mut s, &planned, lo, hi),
+        )
+        .await
+        .map_err(|_| SourceError::budget("client_timeout"))
+        .and_then(|v| v);
+        let result = match result {
+            Ok(value) => tokio::time::timeout(Duration::from_secs(1), s.finish(Ok(value)))
+                .await
+                .map_err(|_| SourceError::protocol("cleanup_unconfirmed"))
+                .and_then(|v| v),
+            Err(error) => Err(error),
+        };
         if result.is_ok() {
             self.session = Some(s);
         } else {
