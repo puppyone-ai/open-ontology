@@ -15,7 +15,7 @@ match the requested operation.
 | npm `ETARGET` / `E404` for 0.2.0 | The release is unavailable from that registry. Stop; do not silently install 0.1.x and claim L1. Ask the release owner for a verified 0.2.0 package and runtime image. |
 | `NATIVE_MANIFEST_INVALID`, `NATIVE_BINARY_MISSING`, `NATIVE_DIGEST_MISMATCH`, `NATIVE_NOT_EXECUTABLE`, `UNSUPPORTED_PLATFORM` | Reinstall the verified package for the host architecture. Never bypass the digest check or fall back to an unrelated global binary. |
 | `LITE_IMAGE_DIGEST_REQUIRED` | The CLI needs its release's immutable runtime pin. Install the matching package/image, not an arbitrary tag. |
-| `LITE_IMAGES_MISSING` | Follow the exact digest-specific pull/load instruction in the error. A local image ID must be loaded, not pulled. No services were started. |
+| `LITE_IMAGES_MISSING` | `oo up` pulls digest-pinned registry images itself; this error means the pull failed (network, registry access) or the pin is a local image ID. Follow the exact pull/load instruction in the error. A local image ID must be loaded, not pulled. No services were started. |
 | `LITE_DOCKER_UNAVAILABLE` | Start Docker and check access using the same user/context. |
 | `BUILD_LITE_NOT_PROVISIONED`, `BUILD_LITE_SERVICE_NOT_RUNNING` | Run `oo up --config stack.yaml` before build. |
 | `BUILD_LITE_STACK_CHANGED` | Re-run up with the changed configuration, then resume build; do not edit checkpoints. |
@@ -335,11 +335,11 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LITE_CERTIFICATE` | [connectivity](#connectivity) | [`credentials.rs:191`](../../crates/oo-stack/src/credentials.rs#L191) |
 | `LITE_CERTIFICATE_DATE` | [connectivity](#connectivity) | [`credentials.rs:149`](../../crates/oo-stack/src/credentials.rs#L149) |
 | `LITE_CERTIFICATE_KEY_MISMATCH` | [connectivity](#connectivity) | [`credentials.rs:203`](../../crates/oo-stack/src/credentials.rs#L203) |
-| `LITE_COMPOSE_TEMPLATE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:311`](../../crates/oo-cli/src/admin/lite.rs#L311) |
+| `LITE_COMPOSE_TEMPLATE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:328`](../../crates/oo-cli/src/admin/lite.rs#L328) |
 | `LITE_CONTROL_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:76`](../../deploy/lite/lifecycle.py#L76) |
 | `LITE_CREDENTIAL_MARKER` | [credentials](#credentials) | [`credentials.rs:169`](../../crates/oo-stack/src/credentials.rs#L169) |
 | `LITE_DOCKER_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:115`](../../deploy/lite/lifecycle.py#L115) |
-| `LITE_DOCKER_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:320`](../../crates/oo-cli/src/admin/lite.rs#L320) |
+| `LITE_DOCKER_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:337`](../../crates/oo-cli/src/admin/lite.rs#L337) |
 | `LITE_GATEWAY_DATA_LOGIN` | [credentials](#credentials) | [`lifecycle.py:215`](../../deploy/lite/lifecycle.py#L215) |
 | `LITE_GATEWAY_RETAINED_GRANT` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:231`](../../deploy/lite/lifecycle.py#L231) |
 | `LITE_HEALTH_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:205`](../../deploy/lite/lifecycle.py#L205) |
@@ -348,7 +348,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LITE_HEALTH_RUNTIME` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:157`](../../deploy/lite/lifecycle.py#L157) |
 | `LITE_HEALTH_TOKEN` | [credentials](#credentials) | [`lifecycle.py:181`](../../deploy/lite/lifecycle.py#L181) |
 | `LITE_HEALTH_URL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:170`](../../deploy/lite/lifecycle.py#L170) |
-| `LITE_IMAGES_MISSING` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:337`](../../crates/oo-cli/src/admin/lite.rs#L337) |
+| `LITE_IMAGES_MISSING` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:354`](../../crates/oo-cli/src/admin/lite.rs#L354) |
 | `LITE_IMAGE_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:565`](../../deploy/lite/lifecycle.py#L565) |
 | `LITE_IMAGE_DIGEST_REQUIRED` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:27`](../../crates/oo-cli/src/admin/lite.rs#L27) |
 | `LITE_JOBS_SCHEMA` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:465`](../../deploy/lite/lifecycle.py#L465) |
@@ -467,7 +467,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `OO_F22_OWNED_FIXTURE` | [configuration-and-source](#configuration-and-source) | [`f22_owned_pg_tests.rs:36`](../../crates/oo-gateway/src/f22_owned_pg_tests.rs#L36) |
 | `OO_GATE_PREFLIGHT_LIVE` | [configuration-and-source](#configuration-and-source) | [`w73.rs:2439`](../../tools/release-coordinator/src/w73.rs#L2439) |
 | `OO_LITE_LANE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:155`](../../crates/oo-cli/src/admin/lite.rs#L155) |
-| `OO_LITE_POSTGRES_IMAGE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:312`](../../crates/oo-cli/src/admin/lite.rs#L312) |
+| `OO_LITE_POSTGRES_IMAGE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:329`](../../crates/oo-cli/src/admin/lite.rs#L329) |
 | `OO_LITE_PULL_POLICY` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:538`](../../deploy/lite/lifecycle.py#L538) |
 | `OO_LITE_RUNTIME_IMAGE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:134`](../../crates/oo-cli/src/admin/lite.rs#L134) |
 | `OO_LITE_SUBNET` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:542`](../../deploy/lite/lifecycle.py#L542) |

@@ -302,6 +302,23 @@ fn image_help(image: &str) -> String {
     }
 }
 
+/// Pull a registry image pinned by digest; the content cannot differ from the
+/// pin, so a fresh machine needs no manual step. Local image IDs are never
+/// pulled.
+fn pull(image: &str) -> Result<bool, Failure> {
+    eprintln!("oo up: pulling {image}");
+    let mut pull = Command::new("docker");
+    pull.args(["pull", "--quiet", image]);
+    let (exit, _, _) = super::build_retained::invoke(pull, vec![], 1800)?;
+    if exit != 0 {
+        return Ok(false);
+    }
+    let mut inspect = Command::new("docker");
+    inspect.args(["image", "inspect", image]);
+    let (exit, _, _) = super::build_retained::invoke(inspect, vec![], 30)?;
+    Ok(exit == 0)
+}
+
 fn require_images(runtime: &str) -> Result<(), Failure> {
     let postgres = include_str!("../../../../deploy/lite/compose.yaml")
         .lines()
@@ -328,7 +345,7 @@ fn require_images(runtime: &str) -> Result<(), Failure> {
         let mut inspect = Command::new("docker");
         inspect.args(["image", "inspect", image]);
         let (exit, _, _) = super::build_retained::invoke(inspect, vec![], 30)?;
-        if exit != 0 {
+        if exit != 0 && !(image.contains('@') && pull(image)?) {
             missing.push(image_help(image));
         }
     }
