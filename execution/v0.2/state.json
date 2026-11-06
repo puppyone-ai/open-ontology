@@ -1280,13 +1280,11 @@
       "sprint": "S5",
       "lane": "M",
       "title": "证据包 → `support-matrix.yaml` 生成器；禁止手写 verified",
-      "status": "author_complete",
+      "status": "integrated",
       "owner": "lane-M",
       "branch": "v0.2/m-pipeline",
       "commits": [
-        "1d2c3966f",
-        "32e787ba9",
-        "4e8004698"
+        "1d2c3966f"
       ],
       "evidence": []
     },
@@ -1364,9 +1362,11 @@
       "owner": "lane-M",
       "branch": "v0.2/m-pipeline",
       "commits": [
-        "e1754fef2",
-        "4b25daa65",
-        "7bceacc5e"
+        "486c426eb",
+        "809093827",
+        "fbdafc462",
+        "0e78def16",
+        "4f216f3db"
       ],
       "evidence": []
     },
@@ -1375,10 +1375,16 @@
       "sprint": "S6",
       "lane": "M",
       "title": "Quickstart（三分钟上手）、`oo --help` 全命令、故障排查、DBA 权限清单（按引擎版本）",
-      "status": "in_progress",
+      "status": "author_complete",
       "owner": "lane-M",
       "branch": "v0.2/m-pipeline",
-      "commits": [],
+      "commits": [
+        "486c426eb",
+        "809093827",
+        "fbdafc462",
+        "0e78def16",
+        "4f216f3db"
+      ],
       "evidence": []
     },
     {
