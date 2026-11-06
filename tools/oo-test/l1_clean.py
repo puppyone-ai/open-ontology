@@ -649,13 +649,18 @@ LANE_G_T6 = "f206d6424"  # v0.2/g-selfbuild-budget tools/oo-test/t6.py
 LOADED = {"orders", "customers"}
 
 
+MEANING_OUTSIDE_FIXTURE = {"Q15"}
+
+
 def gold_questions(source):
     """Gold questions whose SQL reads only the tables this fixture loads."""
     text = (ROOT / "testing/engines/gold" / f"{source.engine}.sql").read_text()
     chosen = []
     for qid, statement in re.findall(r"-- (Q\d+):[^\n]*\n(.*?);", text, re.S):
         tables = {name.lower() for name in re.findall(r"(?:FROM|JOIN)\s+(?:\w+\.)?(\w+)", statement, re.I)}
-        if tables and tables <= LOADED:
+        # Q15's "shipped" is a status label held in `codes`, which this fixture does not
+        # load; the SQL reads only `orders`, so the table test alone would admit it.
+        if tables and tables <= LOADED and qid not in MEANING_OUTSIDE_FIXTURE:
             chosen.append(qid)
     return chosen
 
