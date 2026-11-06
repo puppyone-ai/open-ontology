@@ -955,15 +955,17 @@ async fn load_tuple(
     if let Some(hit) = (!fresh).then(|| fresh_tuple(state, hash)).flatten() {
         return Ok((hit.0, hit.1, true));
     }
+    // Token-store faults are not authentication outcomes: report them as internal so
+    // callers (e.g. the operator scope) fail closed instead of treating them as "no token".
     let endpoint = read_endpoint(&state.inner.endpoint_path)
-        .map_err(|_| ApiError::new(ApiCode::Unauthenticated))?;
+        .map_err(|_| ApiError::new(ApiCode::Internal))?;
     let client = connect(state, &endpoint)
         .await
-        .map_err(|_| ApiError::new(ApiCode::Unauthenticated))?;
+        .map_err(|_| ApiError::new(ApiCode::Internal))?;
     let row = client
         .query_opt(READ_TOKEN, &[&hash])
         .await
-        .map_err(|_| ApiError::new(ApiCode::Unauthenticated))?;
+        .map_err(|_| ApiError::new(ApiCode::Internal))?;
     let Some(row) = row else {
         return Err(ApiError::new(ApiCode::Unauthenticated));
     };
