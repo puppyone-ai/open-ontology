@@ -1,6 +1,6 @@
 ## Card M-S1c — lane M: oo-load and the real T1 suite (blockers cleared)
 
-Both blockers from your M-S1b run are cleared on the integration branch (cd9cce88e): SourceError::budget and
+Both blockers from your M-S1b run are cleared on the integration branch (52f965813): SourceError::budget and
 ::protocol are public, and SourceEngine::read_chunk now requires an empty chunk to push one schema-bearing
 empty batch (Oracle fixed; PostgreSQL already did; MySQL — if its adapter does not, add a contract test and a
 minimal fix in crates/oo-connectors/src/mysql/engine.rs, which this card grants you, and report it).
@@ -11,7 +11,7 @@ your own write scope, write the proposed shared patch into your report, and KEEP
 `blocked` only if no workaround exists at all. Commit as you go.
 
 TODO: S1-M-01 (remaining exit), enabling AT-ENG-01 T1 for S1-C-01 / S1-D-01 / S1-E-01. Lane label: `m`.
-Context: your previous run (integrated as effdc19ba) added C5 write metering, the receipt→typed adapter and
+Context: your previous run (integrated as c39bcb920) added C5 write metering, the receipt→typed adapter and
 the SIGKILL recovery harness, but "engine-neutral admission and an actual fake-SourceEngine-to-target test
 remain incomplete". Integrated engines now: PostgreSQL (crates/oo-connectors/src/postgres), Oracle
 (crates/oo-connectors/src/oracle incl. the 11g thick worker). MySQL lands soon on the same interface.

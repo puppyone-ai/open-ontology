@@ -4,7 +4,7 @@ Step 0 (S0-C-01, S1-C-01, S1-C-02): your previous run left uncommitted, signed-o
 capability rules, GTID, keyset, protection, live tests; evidence c-s0s1-20261104-live08/09). Commit it now
 in logical commits (rules/capability; GTID codec; keyset planner; protection; engine adapter; live test
 runner and fixtures). Common rule 9 applies: the file_worker_parent failures were fixed on the integration
-branch by your Darwin patch (65fe11714); parse_file_cli
+branch by your Darwin patch (546dd985e); parse_file_cli
 parent_deadline_kills_the_worker_and_the_next_call_completes is pre-existing. Then rebase onto
 v0.2/product-loops (your branch has no commits yet beyond the base, so commit first, then
 `git rebase v0.2/product-loops`). The shared fixture generator, gold questions and oo-test runner are now on

@@ -1,6 +1,6 @@
 ## Card M-S4b — lane M: publish oo-load generations under the Gateway's contract
 
-TODO: S4-M-01. Rebase on v0.2/product-loops first (your 33300eb16…043ebc3e3 are integrated as …f5ca7b5a8).
+TODO: S4-M-01. Rebase on v0.2/product-loops first (your 33300eb16…043ebc3e3 are integrated as …0e19bb65c).
 Your report found the blocker: `_oo_load` views/receipts do not satisfy the Gateway's `_oo` publication and policy
 contracts (`_oo.native_library_publication`/`native_library_head`, `native_library_source_ready`, `physical_mappings`,
 `table_freshness`, `source_watermark`, policy catalog/public surface). This card grants what you need to close it.

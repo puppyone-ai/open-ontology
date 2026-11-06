@@ -1,6 +1,6 @@
 ## Card G-S2c — lane G: Builder seams for oo-load views and mTLS profiling
 
-TODO: S2-A-02 (enables), S2-G-02. Your branch is integrated (fa49b9881). Rebase on v0.2/product-loops first.
+TODO: S2-A-02 (enables), S2-G-02. Your branch is integrated (62d064323). Rebase on v0.2/product-loops first.
 Lane A found two seams blocking `oo build` from reaching a draft on the lite stack:
 1. oo-load publishes each loaded table as a VIEW (local atomic publication); the Builder catalog (tools/pg-builder,
    crates/oo-builder catalog path) selects physical tables only. Make the catalog include the published views as

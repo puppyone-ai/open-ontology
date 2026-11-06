@@ -10982,7 +10982,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T15:27:46.343736Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -10997,7 +10997,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T15:27:46.343764Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11012,7 +11012,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T15:50:06.347169Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11027,7 +11027,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T15:50:06.347203Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11042,7 +11042,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T16:12:21.204783Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11057,7 +11057,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T16:12:21.204816Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11072,7 +11072,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T16:27:07.832236Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11087,7 +11087,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T16:27:07.832273Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11102,7 +11102,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T16:42:54.207706Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11117,7 +11117,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T16:42:54.207739Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11132,7 +11132,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T19:51:52.391368Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11147,7 +11147,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T19:51:52.391410Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11162,7 +11162,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T16:54:19.931121Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11177,7 +11177,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T16:54:19.931156Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11192,7 +11192,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T17:15:12.736343Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11207,7 +11207,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T17:15:12.736375Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11222,7 +11222,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T17:40:43.489520Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11237,7 +11237,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T17:40:43.489550Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11252,7 +11252,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T17:44:21.441519Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11267,7 +11267,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T17:44:21.441548Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11282,7 +11282,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T18:06:40.942043Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11297,7 +11297,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T18:06:40.942070Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11312,7 +11312,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T18:22:15.648652Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11327,7 +11327,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T18:22:15.648728Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11342,7 +11342,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T18:33:56.184640Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11357,7 +11357,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T18:33:56.184670Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11372,7 +11372,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T18:48:18.286855Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11387,7 +11387,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T18:48:18.286889Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11402,7 +11402,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T19:16:54.658839Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11417,7 +11417,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T19:16:54.658868Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11432,7 +11432,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T19:31:25.246497Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "retained gold-table Builder completeness; not full-fixture T5"
  },
  {
@@ -11447,7 +11447,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T19:31:25.246527Z",
-  "product_sha": "50b625c713dd38669ab903b972932bdd88d8446d",
+  "product_sha": "a720509c4eb424754bf249848e4ff9e8d0879f98",
   "scope": "20 gold questions in one model run"
  },
  {
@@ -11750,7 +11750,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-05T23:20:59.497389Z",
-  "product_sha": "1cbfc5a3c9ad4a0308d4e92c34d2342c690ba50e"
+  "product_sha": "341f4bbdfd1b64dd25200577c65ffc45e9b805e5"
  },
  {
   "target": "oracle-11g-xe",
@@ -11764,7 +11764,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-05T23:20:59.497564Z",
-  "product_sha": "1cbfc5a3c9ad4a0308d4e92c34d2342c690ba50e"
+  "product_sha": "341f4bbdfd1b64dd25200577c65ffc45e9b805e5"
  },
  {
   "target": "oracle-11g-xe",
@@ -11778,7 +11778,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-05T23:20:57.302673Z",
-  "product_sha": "1cbfc5a3c9ad4a0308d4e92c34d2342c690ba50e"
+  "product_sha": "341f4bbdfd1b64dd25200577c65ffc45e9b805e5"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -11840,7 +11840,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T22:46:54.490745Z",
-  "product_sha": "1cbfc5a3c9ad4a0308d4e92c34d2342c690ba50e"
+  "product_sha": "341f4bbdfd1b64dd25200577c65ffc45e9b805e5"
  },
  {
   "target": "oracle-21c-xe",
@@ -11902,7 +11902,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-05T23:19:49.919957Z",
-  "product_sha": "1cbfc5a3c9ad4a0308d4e92c34d2342c690ba50e"
+  "product_sha": "341f4bbdfd1b64dd25200577c65ffc45e9b805e5"
  },
  {
   "target": "oracle-21c-xe",
@@ -11916,7 +11916,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-05T23:19:49.920142Z",
-  "product_sha": "1cbfc5a3c9ad4a0308d4e92c34d2342c690ba50e"
+  "product_sha": "341f4bbdfd1b64dd25200577c65ffc45e9b805e5"
  },
  {
   "target": "oracle-21c-xe",
@@ -11930,7 +11930,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-05T22:48:38.155208Z",
-  "product_sha": "1cbfc5a3c9ad4a0308d4e92c34d2342c690ba50e"
+  "product_sha": "341f4bbdfd1b64dd25200577c65ffc45e9b805e5"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -11992,7 +11992,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T22:39:38.791514Z",
-  "product_sha": "1cbfc5a3c9ad4a0308d4e92c34d2342c690ba50e"
+  "product_sha": "341f4bbdfd1b64dd25200577c65ffc45e9b805e5"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -12006,7 +12006,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T22:39:38.791749Z",
-  "product_sha": "1cbfc5a3c9ad4a0308d4e92c34d2342c690ba50e"
+  "product_sha": "341f4bbdfd1b64dd25200577c65ffc45e9b805e5"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -12020,7 +12020,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T22:19:31.142521Z",
-  "product_sha": "1cbfc5a3c9ad4a0308d4e92c34d2342c690ba50e"
+  "product_sha": "341f4bbdfd1b64dd25200577c65ffc45e9b805e5"
  },
  {
   "target": "oracle-11g-xe",
@@ -12082,7 +12082,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T00:22:51.210391Z",
-  "product_sha": "bdbd3d945a6512909689f130237eb42a1d0a894f"
+  "product_sha": "9c7f6e1615642a9dd2107c3b902d90f46ecf493a"
  },
  {
   "target": "oracle-11g-xe",
@@ -12096,7 +12096,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T00:22:51.210561Z",
-  "product_sha": "bdbd3d945a6512909689f130237eb42a1d0a894f"
+  "product_sha": "9c7f6e1615642a9dd2107c3b902d90f46ecf493a"
  },
  {
   "target": "oracle-11g-xe",
@@ -12110,7 +12110,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-05T23:52:44.862866Z",
-  "product_sha": "bdbd3d945a6512909689f130237eb42a1d0a894f"
+  "product_sha": "9c7f6e1615642a9dd2107c3b902d90f46ecf493a"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -12172,7 +12172,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T23:51:34.808393Z",
-  "product_sha": "bdbd3d945a6512909689f130237eb42a1d0a894f"
+  "product_sha": "9c7f6e1615642a9dd2107c3b902d90f46ecf493a"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -12186,7 +12186,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T23:51:34.808616Z",
-  "product_sha": "bdbd3d945a6512909689f130237eb42a1d0a894f"
+  "product_sha": "9c7f6e1615642a9dd2107c3b902d90f46ecf493a"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -12200,7 +12200,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-05T23:30:32.563075Z",
-  "product_sha": "bdbd3d945a6512909689f130237eb42a1d0a894f"
+  "product_sha": "9c7f6e1615642a9dd2107c3b902d90f46ecf493a"
  },
  {
   "target": "oracle-11g-xe",
@@ -12230,7 +12230,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T00:25:07.400117Z",
-  "product_sha": "bdbd3d945a6512909689f130237eb42a1d0a894f"
+  "product_sha": "9c7f6e1615642a9dd2107c3b902d90f46ecf493a"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -13569,7 +13569,7 @@
   "emulated": true,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13587,7 +13587,7 @@
   "emulated": true,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13605,7 +13605,7 @@
   "emulated": true,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13620,7 +13620,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T05:40:13.498842Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -13634,7 +13634,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T05:40:13.499204Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -13648,7 +13648,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T04:57:19.840672Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -13665,7 +13665,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13683,7 +13683,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13701,7 +13701,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13716,7 +13716,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:16:13.276355Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -13730,7 +13730,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:16:13.276593Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -13744,7 +13744,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T05:40:55.524072Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -13761,7 +13761,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13779,7 +13779,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13797,7 +13797,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13812,7 +13812,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:31:30.818295Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -13826,7 +13826,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:31:30.818657Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -13840,7 +13840,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:17:18.777249Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -13857,7 +13857,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13875,7 +13875,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13893,7 +13893,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -13908,7 +13908,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:49:30.308286Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -13922,7 +13922,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:49:30.308489Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -13936,7 +13936,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:32:35.450913Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -13950,7 +13950,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T08:50:26.033977Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -13964,7 +13964,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T08:50:26.034009Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -13978,7 +13978,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T08:50:26.034013Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -13992,7 +13992,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T08:50:26.034016Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14006,7 +14006,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:51:05.523125Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14020,7 +14020,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:51:05.523154Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14034,7 +14034,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:51:05.523159Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14048,7 +14048,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:51:05.523161Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14062,7 +14062,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:51:45.483731Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14076,7 +14076,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:51:45.483759Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14090,7 +14090,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:51:45.483762Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14104,7 +14104,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:51:45.483767Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -14118,7 +14118,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:52:24.782931Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -14132,7 +14132,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:52:24.782964Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -14146,7 +14146,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:52:24.782968Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -14160,7 +14160,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:52:24.782970Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -14174,7 +14174,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T09:04:48.946786Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -14188,7 +14188,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T09:04:48.946823Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -14202,7 +14202,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T09:04:48.946826Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -14216,7 +14216,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T09:04:48.946828Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14230,7 +14230,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:16:03.684513Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14244,7 +14244,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:16:03.684543Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14258,7 +14258,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:16:03.684547Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14272,7 +14272,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:16:03.684550Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14286,7 +14286,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:27:21.826976Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14300,7 +14300,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:27:21.827004Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14314,7 +14314,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:27:21.827008Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14328,7 +14328,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:27:21.827010Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -14342,7 +14342,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:39:31.285403Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -14356,7 +14356,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:39:31.285432Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -14370,7 +14370,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:39:31.285437Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -14384,7 +14384,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:39:31.285439Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -14398,7 +14398,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T10:41:44.216515Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -14412,7 +14412,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T10:44:42.534637Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql57-selfmanaged",
@@ -14426,7 +14426,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T10:44:42.534683Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14440,7 +14440,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:38:20.152817Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14454,7 +14454,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:39:05.520300Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14468,7 +14468,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:39:05.520365Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14482,7 +14482,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:54:13.071012Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14496,7 +14496,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:54:59.724873Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -14510,7 +14510,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:54:59.724934Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -14524,7 +14524,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:06:49.767939Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -14538,7 +14538,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:07:37.759455Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -14552,7 +14552,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:07:37.759521Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -14566,7 +14566,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:49:05.782011Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -14580,7 +14580,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:49:05.782047Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -14594,7 +14594,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:49:05.782054Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -14608,7 +14608,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:49:05.782057Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -14625,7 +14625,7 @@
   "emulated": true,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14643,7 +14643,7 @@
   "emulated": true,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14661,7 +14661,7 @@
   "emulated": true,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14676,7 +14676,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T06:19:25.497313Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -14690,7 +14690,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T06:19:25.497482Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -14704,7 +14704,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T05:49:38.500690Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -14721,7 +14721,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14739,7 +14739,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14757,7 +14757,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14772,7 +14772,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:46:40.083475Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -14786,7 +14786,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:46:40.083674Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -14800,7 +14800,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:26:27.148416Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -14817,7 +14817,7 @@
   "emulated": true,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14835,7 +14835,7 @@
   "emulated": true,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14853,7 +14853,7 @@
   "emulated": true,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14868,7 +14868,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T05:48:22.920626Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -14882,7 +14882,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T05:48:22.920812Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -14896,7 +14896,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T05:16:59.933338Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -14913,7 +14913,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14931,7 +14931,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14949,7 +14949,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -14964,7 +14964,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T05:15:17.243036Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -14978,7 +14978,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T05:15:17.243313Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -14992,7 +14992,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T04:55:59.691556Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15006,7 +15006,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T06:49:28.574798Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15020,7 +15020,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T06:49:28.574826Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15034,7 +15034,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T06:49:28.574829Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15048,7 +15048,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T06:49:28.574832Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15062,7 +15062,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:59:10.925765Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15076,7 +15076,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:59:10.925790Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15090,7 +15090,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:59:10.925794Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15104,7 +15104,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:59:10.925796Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15118,7 +15118,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T06:48:40.945879Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15132,7 +15132,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T06:48:40.945908Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15146,7 +15146,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T06:48:40.945912Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15160,7 +15160,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T06:48:40.945914Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15174,7 +15174,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:47:44.539990Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15188,7 +15188,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:47:44.540019Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15202,7 +15202,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:47:44.540026Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15216,7 +15216,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:47:44.540029Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15230,7 +15230,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T07:30:53.028224Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15244,7 +15244,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T07:30:53.028249Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15258,7 +15258,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T07:30:53.028251Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15272,7 +15272,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T07:30:53.028254Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15286,7 +15286,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:53:15.370189Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15300,7 +15300,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:53:15.370302Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15314,7 +15314,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:53:15.370305Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15328,7 +15328,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:53:15.370307Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15342,7 +15342,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T07:20:37.846190Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15356,7 +15356,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T07:20:37.846210Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15370,7 +15370,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T07:20:37.846213Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15384,7 +15384,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T07:20:37.846215Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15398,7 +15398,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:09:57.154876Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15412,7 +15412,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:09:57.154907Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15426,7 +15426,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:09:57.154911Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15440,7 +15440,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:09:57.154913Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15454,7 +15454,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:15:42.945728Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15468,7 +15468,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:27:28.596424Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15482,7 +15482,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:27:28.596463Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15496,7 +15496,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:08:24.898857Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -15510,7 +15510,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:08:24.898903Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15524,7 +15524,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T14:31:42.531451Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15538,7 +15538,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T14:33:20.668517Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15552,7 +15552,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T10:34:39.874902Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15566,7 +15566,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T10:41:11.669393Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15580,7 +15580,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:26:38.278729Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15594,7 +15594,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:28:01.212395Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15608,7 +15608,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:28:01.212418Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15622,7 +15622,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T11:31:07.743751Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-11g-xe",
@@ -15636,7 +15636,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T11:31:07.743778Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15650,7 +15650,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T09:18:59.352131Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-21c-xe",
@@ -15664,7 +15664,7 @@
   "emulated": true,
   "version_measured": true,
   "observed_at": "2026-11-06T09:18:59.352165Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15678,7 +15678,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:18:48.424942Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-23ai-selfmanaged",
@@ -15692,7 +15692,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:18:48.424975Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -15709,7 +15709,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -15727,7 +15727,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -15745,7 +15745,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -15760,7 +15760,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T05:50:19.337334Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -15774,7 +15774,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T05:50:19.337566Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -15788,7 +15788,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T04:56:55.966293Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -15805,7 +15805,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -15823,7 +15823,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -15841,7 +15841,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -15856,7 +15856,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:46:44.427552Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -15870,7 +15870,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:46:44.427772Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -15884,7 +15884,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T05:50:46.748204Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -15901,7 +15901,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -15919,7 +15919,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -15937,7 +15937,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -15952,7 +15952,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:48:06.751143Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -15966,7 +15966,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:48:06.751358Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -15980,7 +15980,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T06:47:12.279025Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -15997,7 +15997,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -16015,7 +16015,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -16033,7 +16033,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -16048,7 +16048,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:41:36.580344Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16062,7 +16062,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:41:36.580575Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16076,7 +16076,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T07:48:32.546624Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16093,7 +16093,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -16111,7 +16111,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -16129,7 +16129,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -16144,7 +16144,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:35:43.442378Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16158,7 +16158,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:35:43.442860Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16172,7 +16172,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T08:42:04.638045Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16189,7 +16189,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -16207,7 +16207,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -16225,7 +16225,7 @@
   "emulated": false,
   "detail": "passed",
   "error": null,
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6",
   "product_sha_source": "pinned-worktree-head-clean"
  },
  {
@@ -16240,7 +16240,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:56:39.982167Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16254,7 +16254,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:56:39.982608Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16268,7 +16268,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T09:36:17.315191Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16282,7 +16282,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:57:57.305588Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16296,7 +16296,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:57:57.305736Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16310,7 +16310,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:57:57.305761Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16324,7 +16324,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:57:57.305767Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16338,7 +16338,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:59:16.027100Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16352,7 +16352,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:59:16.027151Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16366,7 +16366,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:59:16.027155Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16380,7 +16380,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:59:16.027157Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16394,7 +16394,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:00:23.809436Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16408,7 +16408,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:00:23.809469Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16422,7 +16422,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:00:23.809472Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16436,7 +16436,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:00:23.809475Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16450,7 +16450,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:01:29.375935Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16464,7 +16464,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:01:29.375962Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16478,7 +16478,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:01:29.375966Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16492,7 +16492,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:01:29.375969Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16506,7 +16506,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:02:36.919057Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16520,7 +16520,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:02:36.919087Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16534,7 +16534,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:02:36.919092Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16548,7 +16548,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:02:36.919097Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16562,7 +16562,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:03:41.161671Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16576,7 +16576,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:03:41.161703Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16590,7 +16590,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:03:41.161707Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16604,7 +16604,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:03:41.161712Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16618,7 +16618,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:23:41.525249Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16632,7 +16632,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:23:41.525284Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16646,7 +16646,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:23:41.525288Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16660,7 +16660,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:23:41.525292Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16674,7 +16674,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:45:22.228091Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16688,7 +16688,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:45:22.228126Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16702,7 +16702,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:45:22.228130Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16716,7 +16716,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:45:22.228133Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16730,7 +16730,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:02:14.386362Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16744,7 +16744,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:02:14.386389Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16758,7 +16758,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:02:14.386391Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16772,7 +16772,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:02:14.386395Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16786,7 +16786,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:25:18.991884Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16800,7 +16800,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:25:18.991942Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16814,7 +16814,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:25:18.991947Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16828,7 +16828,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:25:18.991948Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16842,7 +16842,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:41:11.770247Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16856,7 +16856,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:41:11.770273Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16870,7 +16870,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:41:11.770277Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16884,7 +16884,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:41:11.770280Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16898,7 +16898,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:15:45.924358Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16912,7 +16912,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:15:45.924389Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16926,7 +16926,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:15:45.924393Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16940,7 +16940,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:15:45.924395Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16954,7 +16954,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:07:05.007200Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16968,7 +16968,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:08:12.068684Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16982,7 +16982,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:08:12.068729Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -16996,7 +16996,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:06:54.248584Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17010,7 +17010,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:06:54.248634Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17024,7 +17024,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:13:14.754649Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17038,7 +17038,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:13:14.754700Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17052,7 +17052,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:35:48.014583Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17066,7 +17066,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:35:48.014643Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17080,7 +17080,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:35:48.014651Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17094,7 +17094,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:35:48.014655Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17108,7 +17108,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:39:11.164077Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17122,7 +17122,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:39:11.164147Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17136,7 +17136,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:39:11.164155Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17150,7 +17150,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:39:11.164158Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17164,7 +17164,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:42:41.404198Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17178,7 +17178,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:42:41.404251Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17192,7 +17192,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:42:41.404258Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17206,7 +17206,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:42:41.404263Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17220,7 +17220,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:46:59.249818Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17234,7 +17234,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:46:59.249889Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17248,7 +17248,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:46:59.249894Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17262,7 +17262,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:46:59.249897Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17276,7 +17276,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:49:32.486516Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17290,7 +17290,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:49:32.486575Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17304,7 +17304,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:49:32.486582Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17318,7 +17318,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:49:32.486592Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17332,7 +17332,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:51:39.106609Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17346,7 +17346,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:51:39.106653Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17360,7 +17360,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:51:39.106659Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17374,7 +17374,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T10:51:39.106665Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17388,7 +17388,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:12:39.675430Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17402,7 +17402,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:12:39.675489Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17416,7 +17416,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:12:39.675498Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17430,7 +17430,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:12:39.675504Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17444,7 +17444,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:35:40.074040Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17458,7 +17458,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:35:40.074068Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17472,7 +17472,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:35:40.074070Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17486,7 +17486,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:35:40.074073Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17500,7 +17500,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:56:40.334290Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17514,7 +17514,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:56:40.334317Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17528,7 +17528,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:56:40.334321Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17542,7 +17542,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:56:40.334325Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17556,7 +17556,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:14:57.880174Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17570,7 +17570,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:14:57.880201Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17584,7 +17584,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:14:57.880205Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17598,7 +17598,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:14:57.880208Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17612,7 +17612,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:30:33.354336Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17626,7 +17626,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:30:33.354367Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17640,7 +17640,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:30:33.354370Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17654,7 +17654,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:30:33.354371Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17668,7 +17668,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:49:25.544143Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17682,7 +17682,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:49:25.544172Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17696,7 +17696,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:49:25.544176Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17710,7 +17710,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:49:25.544178Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17724,7 +17724,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:30:25.860989Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17738,7 +17738,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:31:28.490496Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17752,7 +17752,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:31:28.490537Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17766,7 +17766,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:22:14.883185Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17780,7 +17780,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:23:29.408019Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17794,7 +17794,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:23:29.408048Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17808,7 +17808,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:14:58.770958Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17822,7 +17822,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:16:14.459932Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17836,7 +17836,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:16:14.459961Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17850,7 +17850,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:30:17.346783Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17864,7 +17864,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:30:17.346815Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17878,7 +17878,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:22:03.949422Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17892,7 +17892,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:22:03.949456Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17906,7 +17906,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:14:48.137892Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17920,7 +17920,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:14:48.137925Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17934,7 +17934,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:49:15.577945Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17948,7 +17948,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:50:30.388139Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17962,7 +17962,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:50:30.388168Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17976,7 +17976,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:41:18.969281Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -17990,7 +17990,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:42:34.136127Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18004,7 +18004,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:42:34.136160Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18018,7 +18018,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:34:14.198751Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18032,7 +18032,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:35:28.380053Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18046,7 +18046,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:35:28.380084Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18060,7 +18060,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:49:04.437879Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18074,7 +18074,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T11:49:04.437930Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18088,7 +18088,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:41:08.097669Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18102,7 +18102,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:41:08.097703Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18116,7 +18116,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:34:03.595666Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18130,7 +18130,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:34:03.595745Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -18144,7 +18144,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:22:03.813878Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -18158,7 +18158,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:22:51.795423Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -18172,7 +18172,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:22:51.795449Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -18186,7 +18186,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:40:44.653524Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -18200,7 +18200,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:41:31.646735Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -18214,7 +18214,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:41:31.646803Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -18228,7 +18228,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:21:50.735028Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql8-selfmanaged",
@@ -18242,7 +18242,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T12:21:50.735076Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -18256,7 +18256,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:40:35.192000Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "mysql9-selfmanaged",
@@ -18270,7 +18270,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T13:40:35.192030Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -18284,7 +18284,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:55:20.768620Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -18298,7 +18298,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:55:20.768644Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -18312,7 +18312,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:47:52.926527Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -18326,7 +18326,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T14:47:52.926575Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -18340,7 +18340,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:07:25.823037Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "oracle-19c-selfmanaged",
@@ -18354,7 +18354,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:07:25.823066Z",
-  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69"
+  "product_sha": "d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18366,7 +18366,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b",
   "sha256": "7c8a17bf48d409c99749508d268dc89edb2fdd9d2102de85fcaebd7a33680e05",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b/postgres-13/comparison-report.json",
   "observed_at": "2026-11-06T17:20:36.274327Z",
   "emulated": false,
@@ -18383,7 +18383,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b",
   "sha256": "7c8a17bf48d409c99749508d268dc89edb2fdd9d2102de85fcaebd7a33680e05",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b/postgres-13/comparison-report.json",
   "observed_at": "2026-11-06T17:20:36.274354Z",
   "emulated": false,
@@ -18400,7 +18400,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b",
   "sha256": "7c8a17bf48d409c99749508d268dc89edb2fdd9d2102de85fcaebd7a33680e05",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b/postgres-13/comparison-report.json",
   "observed_at": "2026-11-06T17:20:36.274361Z",
   "emulated": false,
@@ -18419,7 +18419,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:28:18.911577Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18433,7 +18433,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:28:18.911772Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18447,7 +18447,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:38:46.453660Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18459,7 +18459,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b",
   "sha256": "0943c672706efb42af33b7d702202ade5be5415f2389b5bc4f58c796ae441d97",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b/postgres-14/comparison-report.json",
   "observed_at": "2026-11-06T17:20:36.274612Z",
   "emulated": false,
@@ -18476,7 +18476,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b",
   "sha256": "0943c672706efb42af33b7d702202ade5be5415f2389b5bc4f58c796ae441d97",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b/postgres-14/comparison-report.json",
   "observed_at": "2026-11-06T17:20:36.274617Z",
   "emulated": false,
@@ -18493,7 +18493,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b",
   "sha256": "0943c672706efb42af33b7d702202ade5be5415f2389b5bc4f58c796ae441d97",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817705755Z-b3e575a0-bb88-4de1-8bf7-ffd413c9e51b/postgres-14/comparison-report.json",
   "observed_at": "2026-11-06T17:20:36.274621Z",
   "emulated": false,
@@ -18512,7 +18512,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:20:35.548421Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18526,7 +18526,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:20:35.548644Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18540,7 +18540,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:28:45.309017Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18552,7 +18552,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9",
   "sha256": "706e3b220e373098fd695d9c3262ab1f3508124b4e74f47ffc48be6bf3fa284b",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9/postgres-15/comparison-report.json",
   "observed_at": "2026-11-06T17:23:26.708036Z",
   "emulated": false,
@@ -18569,7 +18569,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9",
   "sha256": "706e3b220e373098fd695d9c3262ab1f3508124b4e74f47ffc48be6bf3fa284b",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9/postgres-15/comparison-report.json",
   "observed_at": "2026-11-06T17:23:26.708060Z",
   "emulated": false,
@@ -18586,7 +18586,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9",
   "sha256": "706e3b220e373098fd695d9c3262ab1f3508124b4e74f47ffc48be6bf3fa284b",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9/postgres-15/comparison-report.json",
   "observed_at": "2026-11-06T17:23:26.708066Z",
   "emulated": false,
@@ -18605,7 +18605,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:30:24.580348Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18619,7 +18619,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:30:24.580587Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18633,7 +18633,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:38:47.121417Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18645,7 +18645,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9",
   "sha256": "c65a5db551a42aeb5f9894bc69f769d08b3a710ae6be1db6cbb4d43f2130fe4e",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9/postgres-16/comparison-report.json",
   "observed_at": "2026-11-06T17:23:26.708304Z",
   "emulated": false,
@@ -18662,7 +18662,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9",
   "sha256": "c65a5db551a42aeb5f9894bc69f769d08b3a710ae6be1db6cbb4d43f2130fe4e",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9/postgres-16/comparison-report.json",
   "observed_at": "2026-11-06T17:23:26.708308Z",
   "emulated": false,
@@ -18679,7 +18679,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9",
   "sha256": "c65a5db551a42aeb5f9894bc69f769d08b3a710ae6be1db6cbb4d43f2130fe4e",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817713897Z-96901d3c-b20b-46ab-a8ca-098ee667e3e9/postgres-16/comparison-report.json",
   "observed_at": "2026-11-06T17:23:26.708312Z",
   "emulated": false,
@@ -18698,7 +18698,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:23:25.950000Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18712,7 +18712,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:23:25.950216Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18726,7 +18726,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:30:48.482079Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18738,7 +18738,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb",
   "sha256": "0a4d1bba7650f3123df778fe8892097fbcb9dd62ada81894afc9aee4c1dcf45c",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb/postgres-17/comparison-report.json",
   "observed_at": "2026-11-06T17:23:17.356757Z",
   "emulated": false,
@@ -18755,7 +18755,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb",
   "sha256": "0a4d1bba7650f3123df778fe8892097fbcb9dd62ada81894afc9aee4c1dcf45c",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb/postgres-17/comparison-report.json",
   "observed_at": "2026-11-06T17:23:17.356789Z",
   "emulated": false,
@@ -18772,7 +18772,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb",
   "sha256": "0a4d1bba7650f3123df778fe8892097fbcb9dd62ada81894afc9aee4c1dcf45c",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb/postgres-17/comparison-report.json",
   "observed_at": "2026-11-06T17:23:17.356796Z",
   "emulated": false,
@@ -18791,7 +18791,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:30:20.253572Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18805,7 +18805,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:30:20.253788Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18819,7 +18819,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:38:47.045109Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18831,7 +18831,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb",
   "sha256": "c9da4fed5bfa9b9718872ecd757457633ce2ad6dc28404e581a3a0dc18cf4825",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb/postgres-18/comparison-report.json",
   "observed_at": "2026-11-06T17:23:17.357044Z",
   "emulated": false,
@@ -18848,7 +18848,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb",
   "sha256": "c9da4fed5bfa9b9718872ecd757457633ce2ad6dc28404e581a3a0dc18cf4825",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb/postgres-18/comparison-report.json",
   "observed_at": "2026-11-06T17:23:17.357050Z",
   "emulated": false,
@@ -18865,7 +18865,7 @@
   "result": "pass",
   "run_id": "h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb",
   "sha256": "c9da4fed5bfa9b9718872ecd757457633ce2ad6dc28404e581a3a0dc18cf4825",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "evidence": "evidence/h-s5-20261106T153817706001Z-71b88935-3470-4dd5-a62f-cf7712a5adeb/postgres-18/comparison-report.json",
   "observed_at": "2026-11-06T17:23:17.357053Z",
   "emulated": false,
@@ -18884,7 +18884,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:23:16.513540Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18898,7 +18898,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:23:16.513767Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18912,7 +18912,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:30:44.791770Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18926,7 +18926,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:39:17.769571Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18940,7 +18940,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:39:17.769613Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18954,7 +18954,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:39:17.769629Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18968,7 +18968,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:39:17.769632Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18982,7 +18982,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:40:22.009407Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -18996,7 +18996,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:40:22.009442Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19010,7 +19010,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:40:22.009446Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19024,7 +19024,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:40:22.009449Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19038,7 +19038,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:41:26.874517Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19052,7 +19052,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:41:26.874548Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19066,7 +19066,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:41:26.874552Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19080,7 +19080,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:41:26.874555Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19094,7 +19094,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:42:32.337292Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19108,7 +19108,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:42:32.337336Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19122,7 +19122,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:42:32.337340Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19136,7 +19136,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:42:32.337343Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19150,7 +19150,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:43:34.747242Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19164,7 +19164,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:43:34.747274Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19178,7 +19178,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:43:34.747279Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19192,7 +19192,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:43:34.747284Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19206,7 +19206,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:37.702337Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19220,7 +19220,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:37.702373Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19234,7 +19234,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:37.702375Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19248,7 +19248,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:37.702377Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19262,7 +19262,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:41:24.499217Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
@@ -19277,7 +19277,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:41:24.499250Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
@@ -19292,7 +19292,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:41:24.499253Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19306,7 +19306,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:41:24.499255Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19320,7 +19320,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:45.627426Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
@@ -19335,7 +19335,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:45.627457Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
@@ -19350,7 +19350,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:45.627461Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19364,7 +19364,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:45.627463Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19378,7 +19378,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:48:06.327614Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
@@ -19393,7 +19393,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:48:06.327640Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
@@ -19408,7 +19408,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:48:06.327642Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19422,7 +19422,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:48:06.327646Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19436,7 +19436,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:57:34.082278Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19450,7 +19450,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:57:34.082305Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19464,7 +19464,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:57:34.082308Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19478,7 +19478,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:57:34.082313Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19492,7 +19492,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T19:19:08.856758Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19506,7 +19506,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T19:19:08.856786Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19520,7 +19520,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T19:19:08.856789Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19534,7 +19534,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T19:19:08.856791Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19548,7 +19548,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T19:39:51.735386Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19562,7 +19562,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T19:39:51.735413Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19576,7 +19576,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T19:39:51.735417Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19590,7 +19590,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T19:39:51.735419Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19604,7 +19604,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T20:00:59.500314Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19618,7 +19618,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T20:00:59.500340Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19632,7 +19632,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T20:00:59.500343Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19646,7 +19646,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T20:00:59.500344Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19660,7 +19660,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T20:22:03.081181Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19674,7 +19674,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T20:22:03.081207Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19688,7 +19688,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T20:22:03.081212Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19702,7 +19702,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T20:22:03.081215Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19716,7 +19716,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:34.844777Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "note": "environment cascade in the parallel run pg2-t3b (run with pg2-t3a): after a network_drop case the source network was not restored, so later cases failed snapshot_connect; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
@@ -19731,7 +19731,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:34.844804Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "note": "environment cascade in the parallel run pg2-t3b (run with pg2-t3a): after a network_drop case the source network was not restored, so later cases failed snapshot_connect; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
@@ -19746,7 +19746,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:34.844809Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19760,7 +19760,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:34.844812Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19774,7 +19774,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:47:55.503336Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "note": "environment cascade in the parallel run pg2-t3b (run with pg2-t3a): after a network_drop case the source network was not restored, so later cases failed snapshot_connect; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
@@ -19789,7 +19789,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:47:55.503363Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22",
   "note": "environment cascade in the parallel run pg2-t3b (run with pg2-t3a): after a network_drop case the source network was not restored, so later cases failed snapshot_connect; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
@@ -19804,7 +19804,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:47:55.503367Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19818,7 +19818,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:47:55.503369Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19832,7 +19832,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:13:22.790727Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19846,7 +19846,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:13:22.790754Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19860,7 +19860,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:13:22.790758Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19874,7 +19874,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:13:22.790760Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19888,7 +19888,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:28:41.476363Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19902,7 +19902,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:29:44.346923Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19916,7 +19916,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:29:44.346951Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19930,7 +19930,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:22:53.779588Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19944,7 +19944,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:24:14.354485Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19958,7 +19958,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:24:14.354513Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19972,7 +19972,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:24:17.910280Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19986,7 +19986,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:25:40.413531Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20000,7 +20000,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:25:40.413558Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20014,7 +20014,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:28:31.014885Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20028,7 +20028,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:28:31.014938Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20042,7 +20042,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:22:42.911251Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20056,7 +20056,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:22:42.911286Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20070,7 +20070,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:24:07.830018Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20084,7 +20084,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:24:07.830061Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20098,7 +20098,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:30:30.085131Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20112,7 +20112,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:31:42.696533Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20126,7 +20126,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:31:42.696573Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20140,7 +20140,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:27:25.918159Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20154,7 +20154,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:28:40.383601Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20168,7 +20168,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:28:40.383627Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20182,7 +20182,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:31:27.233323Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20196,7 +20196,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:32:49.670127Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20210,7 +20210,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:32:49.670172Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20224,7 +20224,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:30:19.534092Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20238,7 +20238,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T16:30:19.534120Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20252,7 +20252,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:27:15.804702Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20266,7 +20266,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T17:27:15.804730Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20280,7 +20280,7 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:31:17.223327Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  },
  {
   "target": "postgres-selfmanaged",
@@ -20294,6 +20294,6 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T18:31:17.223352Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "8bff1f53d8d8223e31ad147b360052ac4d6ccb22"
  }
 ]

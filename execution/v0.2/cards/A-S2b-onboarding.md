@@ -1,7 +1,7 @@
 ## Card A-S2b — lane A: MySQL doctor, rest of the TUI, lite compose and oo up/down/status
 
 TODO: S1-A-02 (MySQL part), S2-A-01, S2-A-02. Rebase on v0.2/product-loops first. Integrated now: MySQL,
-PostgreSQL and Oracle SourceEngine adapters; your Oracle doctor commit (0c9160cdb). Your TUI and lite
+PostgreSQL and Oracle SourceEngine adapters; your Oracle doctor commit (4f81d94d1). Your TUI and lite
 bootstrap commits stay on your branch until the S1 exit. Lane M is building `oo-load` (engine-neutral load
 into the Agent DB); until it is integrated, the draft step may call the existing PostgreSQL path, and must
 switch to `oo-load` when it lands (the coordinator will tell you via a follow-up card if needed).

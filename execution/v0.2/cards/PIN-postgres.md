@@ -1,7 +1,7 @@
 ## Card PIN-postgres — pinned P0 re-measurement: postgres
 
 TODO: S5-H-01 (closes re-review M2/N1/m5). Your worktree is a DETACHED-equivalent branch `v0.2/pin-postgres` at commit
-923173ca0790edd241934b1f120b3667e26c5f69. Do NOT commit, rebase, or edit any tracked file: every evidence row records
+d5e9653c9ff96fe6e3d37dc4b6bc89d98162a8c6. Do NOT commit, rebase, or edit any tracked file: every evidence row records
 `product_sha` from HEAD (with `-dirty` if tracked files differ) and must equal that commit exactly. If a harness or
 product defect blocks a suite, stop that suite, record the failure, and report it — do not fix it here.
 Build first (dispatch deletes Cargo targets): `cargo build -p oo-cli --locked`;

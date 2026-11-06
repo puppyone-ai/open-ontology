@@ -1,6 +1,6 @@
 ## Card E-S5b — lane E: Db2 implementation (clarified run condition)
 
-TODO: S5-E-03. Rebase on v0.2/product-loops first (your preflight 08e661722 is integrated). Correction from the
+TODO: S5-E-03. Rebase on v0.2/product-loops first (your preflight a4fd2794c is integrated). Correction from the
 coordinator: "run alone" on card E-S5 meant *no other container of yours* at the same time — not an idle host. Other
 lanes' and unrelated long-running containers always exist on this host; leave them alone and do not wait for them.
 Required instead: `df -h /` ≥ 25 GB free and Docker reporting ≥ 6 GB memory available, then run Db2 by itself among

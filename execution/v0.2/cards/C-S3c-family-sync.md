@@ -2,7 +2,7 @@
 
 TODO: S3-C-02, S4-C-03. S2 has exited (ledger E197); S3 items now integrate. Integrated since your last run: lane M's
 oo-load sync (`log_sync::{mysql,oracle}`, `c5::run`, a `mysql_engine()` constructor, durable source epochs) and the
-coordinator's `duration_micros → interval` load mapping (a342d058c), which fixes your `load_unsupported_type`.
+coordinator's `duration_micros → interval` load mapping (89efe65fc), which fixes your `load_unsupported_type`.
 1. Rebase on v0.2/product-loops. `tools/oo-load/src/main.rs` conflicts with your 6444b4c83: keep M's structure and
    make the family the constructor argument (`mysql_engine(family, …)`), so mysql/mariadb/tidb/oceanbase share one arm
    with M's `--sync`/`--c5` paths. Keep each commit building.

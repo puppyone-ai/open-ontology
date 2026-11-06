@@ -1,7 +1,7 @@
 ## Card C-S2b — lane C: finish S2 on the mysql-binlog feature
 
-TODO: S2-C-01, S2-C-02. Lane label: `c`. Your S0/S1 commits are integrated (684fa5170); your two S2 commits are
-rebased on top. The coordinator applied your dependency request differently (decision D10, commit 3e4bd799a):
+TODO: S2-C-01, S2-C-02. Lane label: `c`. Your S0/S1 commits are integrated (3a72b8612); your two S2 commits are
+rebased on top. The coordinator applied your dependency request differently (decision D10, commit 6ced8c3f2):
 `oo-connectors` has a NON-default feature `mysql-binlog = ["mysql", "mysql_async/binlog"]` with patched zstd
 pinned (cargo audit clean). Build and test C1 with `--features mysql-binlog`; never make it default. Remove
 testing/engines/mysql/S2-prerequisites.patch from the tree. Align tools/mysql-preview and

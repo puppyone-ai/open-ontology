@@ -1,6 +1,6 @@
 ## Card E-S2d — lane E: D12 attribution, Oracle LOB support, Oracle T1 via oo-load
 
-TODO: S2-E-01, S1-E-01. Rebase on v0.2/product-loops first (D12 at 4ed15e7d6/d72df6ff0; oo-load and the T1 suite
+TODO: S2-E-01, S1-E-01. Rebase on v0.2/product-loops first (D12 at 6f9fa1149/f676468bd; oo-load and the T1 suite
 are integrated under tools/oo-load and tools/oo-test). Work rule: smallest local workaround and keep going; commit as you go.
 1. D12 in your T7 classifier (plan §9 D12, docs/product/05 T7): fail on any reader top-level DML/DDL/DCL or
    non-allowlisted call, any change to a non-system-schema object, any unattributable record. Attribute and list per

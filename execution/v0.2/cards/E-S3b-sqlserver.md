@@ -1,7 +1,7 @@
 ## Card E-S3b — lane E: SQL Server full-fixture acceptance and durable cycles
 
 TODO: S3-E-02 (plan exit T0–T1). Rebase on v0.2/product-loops first: your adapter and the coordinator's doctor/export
-wiring are integrated (bb8ecc2f3). Deliver (keep going; commit as you go):
+wiring are integrated (942df0fc2). Deliver (keep going; commit as you go):
 1. Add SQL Server to lane H's `tools/oo-test` runner/matrix (neutral generator shapes, 2M events, 200 tables, 300-column
    table; dialect DDL under testing/engines/sqlserver/seed) and pins (one patch per major, lane H's format).
 2. T0 and T1 (Agent DB comparison with concurrent writer, through oo-load) and T8 on 2019 / 2022 / 2025, sequentially.

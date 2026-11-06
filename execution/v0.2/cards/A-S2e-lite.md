@@ -1,6 +1,6 @@
 ## Card A-S2e — lane A: lite under D14, operator token, seven healthy services, drafts
 
-TODO: S2-A-02. Rebase on v0.2/product-loops first (your S2d commits are integrated; D14 at 3a8d4f8f3).
+TODO: S2-A-02. Rebase on v0.2/product-loops first (your S2d commits are integrated; D14 at 773588538).
 Decision D14: in the lite profile the Agent DB and control DB accept server-verified TLS + SCRAM passwords on the compose
 network without client certificates (pg_hba `hostssl … scram-sha-256`); Gateway ↔ internal service mTLS is unchanged;
 standard still requires client certificates. Update the lite compose/bootstrap accordingly (keep the 0600 secret store,

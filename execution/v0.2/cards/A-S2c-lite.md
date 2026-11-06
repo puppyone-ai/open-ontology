@@ -1,7 +1,7 @@
 ## Card A-S2c — lane A: full lite stack and one command to a draft through oo-load
 
 TODO: S2-A-02 (and the S2 exit "本地 lite 一条命令跑到 draft"). Rebase on v0.2/product-loops first: integrated now —
-your TUI/lite foundations (158d80b0a), oo-load (engine-neutral load into the Agent DB), the MySQL/PostgreSQL/Oracle
+your TUI/lite foundations (bfb36755d), oo-load (engine-neutral load into the Agent DB), the MySQL/PostgreSQL/Oracle
 engines with S2 change capture, lane B token API. Work rule: smallest local workaround and keep going; commit as you go.
 1. Bring the full lite compose stack up: Agent DB, control DB, worker, Builder, Gateway, model-egress, scheduler —
    all seven healthy in `oo status` (last success / last failure / next due / nearest credential expiry from /v1/health).

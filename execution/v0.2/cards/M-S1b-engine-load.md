@@ -1,7 +1,7 @@
 ## Card M-S1b — lane M: engine-neutral load into the Agent DB and the real T1 suite
 
 TODO: S1-M-01 (remaining exit), enabling AT-ENG-01 T1 for S1-C-01 / S1-D-01 / S1-E-01. Lane label: `m`.
-Context: your previous run (integrated as effdc19ba) added C5 write metering, the receipt→typed adapter and
+Context: your previous run (integrated as c39bcb920) added C5 write metering, the receipt→typed adapter and
 the SIGKILL recovery harness, but "engine-neutral admission and an actual fake-SourceEngine-to-target test
 remain incomplete". Integrated engines now: PostgreSQL (crates/oo-connectors/src/postgres), Oracle
 (crates/oo-connectors/src/oracle incl. the 11g thick worker). MySQL lands soon on the same interface.

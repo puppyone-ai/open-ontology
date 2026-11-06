@@ -1,7 +1,7 @@
 ## Card C-S2c — lane C: MySQL ChangeSource (C1) and the remaining S2 exits
 
 TODO: S2-C-01, S2-C-02. Rebase on v0.2/product-loops first: your futures-util request is applied
-(f11b78824, optional edge under the non-default `mysql-binlog` feature, already-locked 0.3.34).
+(7bfa559f4, optional edge under the non-default `mysql-binlog` feature, already-locked 0.3.34).
 Your S2b commits stay on your branch (not integrated until the S1 exit).
 
 Deliver, committing as you go (work rule: smallest local workaround and keep going; `blocked` only if none):
@@ -12,7 +12,7 @@ Deliver, committing as you go (work rule: smallest local workaround and keep goi
    tombstones prevent resurrection; L0 recorded before the first full read and the log consumed during it.
 3. Handoff barrier C5→C1 over multiple sources/bindings (L0 → bounded repair → log-first with tombstones →
    switch at L_end), GTID lineage break or purged logs → explicit new-generation rebaseline error.
-4. Empty-chunk contract (cd9cce88e): an empty chunk must push one schema-bearing empty batch included in the
+4. Empty-chunk contract (52f965813): an empty chunk must push one schema-bearing empty batch included in the
    IPC hash — add a test and fix the MySQL adapter if needed.
 5. Real-engine tests on 5.7.44 / 8.0.44 / 8.4.7 / 9.5.0 with binlog enabled in the fixture container: T2 C1
    three cycles incl. no-change; window correction under a concurrent writer; handoff; purge → rebaseline.

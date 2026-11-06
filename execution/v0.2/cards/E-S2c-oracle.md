@@ -1,6 +1,6 @@
 ## Card E-S2c — lane E: Oracle T7 under D11a, strict C5 T7, probe-first fix
 
-TODO: S2-E-01. Rebase on v0.2/product-loops (decision D11a, commit a34c383bb and baseline revision 10).
+TODO: S2-E-01. Rebase on v0.2/product-loops (decision D11a, commit cf2bd58ab and baseline revision 10).
 D11a category: DML on LogMiner-owned objects whose name starts with LOGMNR in schema SYS or SYSTEM, plus
 COMMITs in the same session while a DBMS_LOGMNR call or LogMiner query is in progress. The reader account's
 top-level statements must be only SELECT and DBMS_LOGMNR calls. Anything else fails — including the
