@@ -1400,10 +1400,12 @@
    "sprint": "S6",
    "lane": "M",
    "title": "**L1、L3 闭环独立审阅**（固定 SHA）",
-   "status": "author_complete",
+   "status": "integrated",
    "owner": "native reviewer (independent)",
    "branch": "v0.2/product-loops",
-   "commits": [],
+   "commits": [
+    "707d37ffe"
+   ],
    "evidence": []
   },
   {
