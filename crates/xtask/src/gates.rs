@@ -1651,6 +1651,13 @@ fn scan_workflows(repo: &Path) -> (Vec<Issue>, BTreeMap<String, String>) {
                 commands.insert(id, command);
             }
         }
+        // S6-M-01: keyless signing of the lite runtime image needs an OIDC
+        // token. Only lite-images.yml, only when dispatched by hand, and only
+        // once; every other workflow keeps the ban.
+        let signing_exception = name == "lite-images.yml"
+            && dispatch_only(&text)
+            && text.matches("id-token:").count() == 1
+            && text.contains("id-token: write");
         for token in [
             "pull_request_target",
             "self-hosted",
@@ -1658,6 +1665,9 @@ fn scan_workflows(repo: &Path) -> (Vec<Issue>, BTreeMap<String, String>) {
             "contents: write",
             "secrets.",
         ] {
+            if token == "id-token:" && signing_exception {
+                continue;
+            }
             if text.contains(token) {
                 issues.push(Issue::new(
                     "gate.workflow",
@@ -3975,4 +3985,35 @@ fn rewrite_producer(dir: &Path, producer: &str) -> Result<(), String> {
     };
     object.insert("producer".to_owned(), Value::String(producer.to_owned()));
     fs::write(path, value.to_string()).map_err(|error| error.to_string())
+}
+
+/// True when the workflow's only trigger is `workflow_dispatch`.
+fn dispatch_only(text: &str) -> bool {
+    let mut lines = text.lines().skip_while(|line| line.trim_end() != "on:");
+    if lines.next().is_none() {
+        return false;
+    }
+    let triggers: Vec<&str> = lines
+        .take_while(|line| line.is_empty() || line.starts_with(' '))
+        .filter(|line| {
+            line.starts_with("  ") && !line.starts_with("   ") && line.trim().ends_with(':')
+        })
+        .map(str::trim)
+        .collect();
+    triggers == ["workflow_dispatch:"]
+}
+
+#[cfg(test)]
+mod workflow_tests {
+    #[test]
+    fn oidc_exception_needs_a_dispatch_only_trigger() {
+        let manual = "name: x\non:\n  workflow_dispatch:\n    inputs:\n      a:\npermissions:\n  contents: read\n";
+        assert!(super::dispatch_only(manual));
+        let pushed =
+            "name: x\non:\n  workflow_dispatch:\n  push:\npermissions:\n  contents: read\n";
+        assert!(!super::dispatch_only(pushed));
+        assert!(!super::dispatch_only(
+            "name: x\npermissions:\n  contents: read\n"
+        ));
+    }
 }

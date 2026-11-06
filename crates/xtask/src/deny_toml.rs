@@ -472,11 +472,34 @@ pub fn deny_policy_issues(text: &str) -> Vec<Issue> {
             "an unreviewed clarify block is not allowed",
         ));
     }
-    if find_key(&value, "exceptions").is_some() {
+    // Plan D13 and D18: exactly these crate-scoped exceptions are reviewed.
+    // Any other exception table, anywhere, still fails.
+    let reviewed_exceptions = serde_json::json!([
+        { "name": "webpki-roots", "allow": ["CDLA-Permissive-2.0"] },
+        { "name": "tiny-keccak", "allow": ["CC0-1.0"] }
+    ]);
+    let licensed = value.pointer("/licenses/exceptions");
+    let elsewhere = value
+        .as_object()
+        .map(|root| {
+            root.iter().any(|(key, child)| {
+                if key == "licenses" {
+                    child.as_object().is_some_and(|licenses| {
+                        licenses
+                            .iter()
+                            .any(|(k, v)| k != "exceptions" && find_key(v, "exceptions").is_some())
+                    })
+                } else {
+                    key == "exceptions" || find_key(child, "exceptions").is_some()
+                }
+            })
+        })
+        .unwrap_or(false);
+    if elsewhere || licensed.is_some_and(|table| table != &reviewed_exceptions) {
         issues.push(Issue::new(
             "supply.exception",
             "ci/deny.toml",
-            "a license exception table is not allowed",
+            "a license exception table other than the reviewed D13/D18 exceptions is not allowed",
         ));
     }
     match value.pointer("/advisories/ignore") {
@@ -615,7 +638,12 @@ fn reviewed_shape_issues(value: &Value) -> Vec<Issue> {
     if let Some(licenses) = object_at(root, "licenses", &mut issues) {
         unknown_keys(
             licenses,
-            &["confidence-threshold", "allow", "unused-allowed-license"],
+            &[
+                "confidence-threshold",
+                "allow",
+                "unused-allowed-license",
+                "exceptions",
+            ],
             &mut issues,
         );
         expect_str(licenses, "unused-allowed-license", "warn", &mut issues);
