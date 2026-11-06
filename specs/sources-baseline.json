@@ -3,12 +3,12 @@
   "spec_id": "OO-SPEC-001",
   "captured_date": "2026-11-06",
   "timezone": "Asia/Shanghai",
-  "revision": 30,
-  "supersedes_revision": 29,
-  "supersedes_baseline_head": "477641bfb8a98864aa218d43344a504b2f0f754b",
-  "supersedes_sha256": "d28efc6a5587229fd58f4e5b1ae099935bc4800d34ed3c41554fac0449a553c0",
-  "review_record": "specs/source-baseline-revision-30.md",
-  "baseline_head": "bd82dd0297682e5d84f01038d0a8ce5229393acc",
+  "revision": 31,
+  "supersedes_revision": 30,
+  "supersedes_baseline_head": "bd82dd0297682e5d84f01038d0a8ce5229393acc",
+  "supersedes_sha256": "3f6660475165b506c7527ca893b46d60df5e69fb8f954f7c6a5213185e95538a",
+  "review_record": "specs/source-baseline-revision-31.md",
+  "baseline_head": "42ae5ba17e517fa888106534bb37c6f11548aa7d",
   "source_count": 26,
   "sources": [
     {
@@ -61,8 +61,8 @@
     },
     {
       "path": "docs/08-agent-interface.md",
-      "sha256": "69eadf2eed8f1a2f4452df41601506e295ebba9731cd678a640a6734cc9c4f3b",
-      "bytes": 16854,
+      "sha256": "0004140b1bf7374d9c7978a12cd3f8f87ade8b7b449a5f10097d8ab4b9733f50",
+      "bytes": 16872,
       "lines": 250
     },
     {
@@ -79,8 +79,8 @@
     },
     {
       "path": "docs/11-deployment-and-operations.md",
-      "sha256": "0bad9636282ad939a954e99336210927d90ebf561b957a27e295e30df0e16284",
-      "bytes": 19096,
+      "sha256": "2d09f5f6e74e9323a7be40795efda3596caca1c4474143fcb9b9127b48dab24a",
+      "bytes": 19114,
       "lines": 233
     },
     {
@@ -145,8 +145,8 @@
     },
     {
       "path": "docs/product/04-onboarding-and-gateway-binding.md",
-      "sha256": "932e03c1ea5e183cb483ef7034f1644e421d7b95bb2d5a9fc8447f99c9653ae3",
-      "bytes": 18840,
+      "sha256": "4e1baa80df88e2776d136f5a5bece04cd2552298a086acad0a6d8005c3fd44d6",
+      "bytes": 18862,
       "lines": 204
     },
     {
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); S6-M-04 D7 backfill audit"
+  "review_status": "owner self-review (D6); re-review M5 doc corrections"
 }
