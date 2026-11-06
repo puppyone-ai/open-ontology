@@ -17,7 +17,7 @@ Open Ontology npm wrapper (oo and ontology are aliases):
   oo --version [--json]
   oo agent-skill [--json]
 
-  oo login --gateway URL (--code-stdin | --device)
+  oo login --gateway URL [--code-stdin | --code - | --device]  (code on stdin or prompted, never argv)
   oo whoami [--json]
   oo share-prompt --grant-file FILE [--agent claude|cursor|codex]
 
@@ -53,6 +53,15 @@ Commands:
   oo status [options] <query_id>
   oo operations [options]
   oo agent-skill [--json]        Optional offline business guidance
+
+Credential commands:
+  oo login --gateway <url> [--code-stdin | --code - | --device]
+                                 Bind with a one-time code (stdin or prompt, never argv)
+  oo whoami [--json]             Identity, role and credential expiry
+  oo share-prompt --grant-file <file> [--role <role>]
+                                 Agent setup prompt with a one-time code (admin)
+  oo token issue|list|renew|rotate|revoke|enroll|approve   (oo help token)
+Administration: oo init|up|down|status|doctor|build|review|ontology (oo help init)
 
 Use -h or --help on any command; help never reads credentials or connects.
 Flags follow the command. Use -- before a positional argument beginning with '-'.
@@ -102,7 +111,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
@@ -657,7 +666,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
@@ -839,7 +848,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
@@ -1029,7 +1038,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
@@ -1044,7 +1053,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
@@ -1059,7 +1068,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
@@ -1074,7 +1083,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
@@ -1089,7 +1098,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
@@ -1104,7 +1113,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
@@ -1119,7 +1128,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
@@ -1134,7 +1143,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
@@ -1233,7 +1242,7 @@ oo token list --project PROJECT
 oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
 oo token approve CODE --grant-file FILE [--role ROLE]
 Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
-oo login --gateway URL (--code CODE | --code-stdin | --device) [--profile NAME] [--business-timezone ZONE] [--json]
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
 oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
