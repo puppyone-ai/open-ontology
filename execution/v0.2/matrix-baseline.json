@@ -1,5 +1,16 @@
 {
  "product_sha": "923173ca0790edd241934b1f120b3667e26c5f69",
- "suites": ["T0", "T1", "T2", "T3", "T4", "T7", "T8"],
- "note": "Release-candidate tree re-measured for every P0 version (ledger E401-E403). Rows of these suites count only when measured on this tree; T5/T6 (model-backed) are not pinned."
+ "suites": [
+  "T0",
+  "T1",
+  "T2",
+  "T3",
+  "T4",
+  "T7",
+  "T8"
+ ],
+ "note": "Release-candidate tree re-measured for every P0 version (ledger E401-E403). Rows of these suites count only when measured on this tree; T5/T6 (model-backed) are not pinned. PostgreSQL re-measured at 389be07b0: the only product change between the pins is crates/oo-connectors/src/postgres/mod.rs (C5 digest client timeout, ledger E403).",
+ "target_overrides": {
+  "postgres-selfmanaged": "389be07b0bde261fabd67a9224d00122e23bcd23"
+ }
 }
