@@ -2,7 +2,9 @@
 
     python3 retained_build.py --config build.json --output NEW_DIR
 
-The retained cut is the data source: no source connection. With a pinned
+The retained cut is the data source: no source connection. An optional
+source_catalog pin supplies declared metadata in retained_catalog.PROTOCOL.
+With a pinned
 `origin` (previous facts plus the owner-reviewed registry), an unchanged
 data-only digest reuses the reviewed registry with zero model calls (AT-BLD-02)
 and hands it to the publisher for the new generation. Otherwise the bounded
@@ -26,7 +28,8 @@ import retained_observation
 
 PROTOCOL = 'oo.builder.retained-build/v1'
 KEYS = {'protocol', 'psql_command', 'library_id', 'generation', 'source_engine', 'project'}
-OPTIONAL = {'origin', 'model', 'statement_timeout_ms', 'max_relationship_checks', 'min_enum_containment'}
+OPTIONAL = {'origin', 'model', 'statement_timeout_ms', 'max_relationship_checks', 'min_enum_containment',
+            'source_catalog'}
 
 
 def save(path, value):
@@ -49,8 +52,9 @@ def pinned(reference, limit=64_000_000):
 
 
 def facts_for(db, config):
+    catalog = json.loads(pinned(config['source_catalog'])) if 'source_catalog' in config else None
     tables, provenance = retained_observation.observe(
-        db, config['library_id'], config['generation'], config['source_engine'])
+        db, config['library_id'], config['generation'], config['source_engine'], catalog)
     facts = lib.build_facts(tables, lib.database_containment(db, config.get('max_relationship_checks', 65536)),
                             lib.database_enums(db, config.get('min_enum_containment', .5)))
     lib.require_complete_relationship_observations(facts)
@@ -70,9 +74,11 @@ def reviewed_shape(reviewed, facts):
 
 
 def inventory(facts):
-    return [dict(dataset=t['dataset'], primary_key=t['primary_key'], comment=None,
-                 columns=[dict(name=c['name'], data_type=c['data_type'], nullable=c['nullable'], comment=None)
-                          for c in t['columns']], foreign_keys=[]) for t in facts['tables']]
+    return [dict(dataset=t['dataset'], primary_key=t['primary_key'], comment=t.get('table_comment') or None,
+                 columns=[dict(name=c['name'], data_type=c['data_type'], nullable=c['nullable'],
+                               comment=c.get('comment') or None)
+                          for c in t['columns']], foreign_keys=t.get('foreign_keys', []))
+            for t in facts['tables']]
 
 
 def review_input(tables, draft, project):
@@ -195,7 +201,15 @@ def run(config_path, output):
         report['semantic_change'] = True
     result, calls = draft(facts, config, output)
     save(output / 'draft.json', result)
-    save(output / 'review-input.json', review_input(inventory(facts), result, config['project']))
+    command = review_input(inventory(facts), result, config['project'])
+    if 'source_catalog' in config:
+        # Evidence is visible and pinned by the owner's input digest, not approval.
+        command['source_inventory'] = inventory(facts)
+        command['source_relationships'] = facts['relationship_candidates']
+        command['excluded_foreign_keys'] = [
+            dict(dataset=t['dataset'], **fk)
+            for t in facts['tables'] for fk in t.get('excluded_foreign_keys', [])]
+    save(output / 'review-input.json', command)
     return dict(report, stage='review_required', model_calls=calls, review_input='review-input.json')
 
 
