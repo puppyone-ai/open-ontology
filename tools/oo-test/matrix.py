@@ -32,6 +32,8 @@ def target_id(engine, version):
 
 
 def index_rows(root, report, requested):
+    from verdicts import product_sha
+    tested = product_sha()
     rows = []
     for result in report["results"]:
         first = len(rows)
@@ -61,6 +63,7 @@ def index_rows(root, report, requested):
                 "suite": suite, "variant": (result.get("variant") or "snapshot") if suite in ("T2", "T3", "T7") else "snapshot",
                 "result": outcome,
                 "run_id": report["run_id"], "sha256": digest,
+                "product_sha": tested,
                 "evidence": raw.name if raw.exists() else "SHA256SUMS",
                 "observed_at": result.get("observed_at") or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 "emulated": receipt.get("execution") == "emulated",
