@@ -78,7 +78,11 @@ def baseline_filter(rows: list[dict], base: dict | None = None) -> list[dict]:
             return rows
         base = json.loads(BASELINE.read_text())
     covered = set(base['suites'])
-    return [r for r in rows if r['suite'] not in covered or r.get('product_sha') == base['product_sha']]
+    # Per-target pins are allowed only where the product diff between pins is confined to that
+    # target's connector (recorded with the baseline); every other target uses product_sha.
+    pins = base.get('target_overrides', {})
+    return [r for r in rows if r['suite'] not in covered
+            or r.get('product_sha') == pins.get(r['target'], base['product_sha'])]
 RESULTS = {'pass', 'fail', 'skip'}
 SHA = re.compile(r'^[0-9a-f]{64}$')
 
@@ -180,10 +184,13 @@ def self_test() -> list[str]:
         failures.append('a row from another product tree was counted under a baseline')
     if derive(baseline_filter([dict(r, product_sha='b' * 40) if r['suite'] == 'T1' else r for r in base], pinned))[0]['caps']['full']['level'] == 'verified':
         failures.append('a baseline suite verified without a row from the pinned tree')
+    split = dict(pinned, target_overrides={'mysql8': 'c' * 40})
+    if derive(baseline_filter(mixed, split))[0]['caps']['full']['level'] == 'verified':
+        failures.append('a target override still admitted rows from the default tree')
     if not validate([{'target': 'x'}]):
         failures.append('invalid row accepted')
     if not failures:
-        print('Self-test: 11 derivation cases correct.')
+        print('Self-test: 12 derivation cases correct.')
     return failures
 
 
