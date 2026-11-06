@@ -241,6 +241,7 @@ Web UI；短期 access + refresh 轮换 token（v0.3 评估）；云数仓（Sno
 | D16 | 干净安装上 `oo build` 的执行位置 | 干净安装只有 npm 包（`oo` 原生 CLI + 镜像 pin），没有 oo-load、Builder、release-coordinator 等本地辅助程序与其配置。lite/远程部署下，`oo build` 的各阶段在已部署的 lite 运行时镜像内执行（该镜像已包含全部辅助程序），阶段配置由 `stack.yaml` 与部署状态（`work/operator`）推导，`--agent-target`/`--runtime-config` 仅作开发覆盖；npm 包不携带辅助程序 | S4-A-02、S4-M-02；docs/product/04 §3–4；本地 lite 已在 A4 实现（`a4-l1-20261105`），`--target ssh` 上的 `oo build` 亦已实现（`a4-ssh-dev-2`，docs/product/04 §4.3） |
 | D17 | 带时区时间戳的目标表示 | Oracle `TIMESTAMP WITH (LOCAL) TIME ZONE` 进入 Agent DB 为 `timestamptz`，与 PostgreSQL 语义一致：保留瞬时点，不保留源偏移；比对规范形为 UTC 瞬时点。需要原始偏移的业务字段由源端单独列承载（夹具 `ORIGINAL_ZONE` 即如此）。所有引擎同一规则 | S5-H-01、S5-E-04；docs/product/02 类型映射 |
 | D18 | tiny-keccak 的许可证 | MongoDB 驱动（仅 opt-in 的 document 源，P1）依赖 `tiny-keccak`（CC0-1.0，公共领域贡献，宽松但不在 OSI 列表）。所有者授权由协调者决定：仅对该 crate 例外，范围限于 opt-in 特性，不进入默认制品；最终 PR 标注供所有者复核 | S5-F-02；ci/deny.toml |
+| D19 | 所有者 CLI 链接源连接器 | `oo` 同时是 Agent 客户端和所有者部署 CLI：`doctor`/`oo init` 的只读源探测需要源驱动。v0.1 架构门 `R-CLIENT-DB-DRIVER` 禁止 oo-cli 触达数据库驱动，S0 起即被违反而未被车道门发现（最终门 E408 发现）。协调者决定：oo-cli 只能经 `oo-connectors` 触达驱动（直接依赖仍违规），oo-sdk/oo-mcp 规则不变；新增成员 `oo-stack` 与边 oo-cli→oo-connectors、oo-cli→oo-stack、oo-connectors→oo-stack；docs/17 回填，来源基线 revision 32。最终 PR 标注供所有者复核 | S6-M-04；crates/oo-arch-check |
 
 ## 10. 提交规范
 
