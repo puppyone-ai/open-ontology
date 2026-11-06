@@ -1,14 +1,14 @@
 {
   "schema_version": "oo-source-baseline/v1",
   "spec_id": "OO-SPEC-001",
-  "captured_date": "2026-11-06",
+  "captured_date": "2026-11-07",
   "timezone": "Asia/Shanghai",
-  "revision": 31,
-  "supersedes_revision": 30,
-  "supersedes_baseline_head": "bd82dd0297682e5d84f01038d0a8ce5229393acc",
-  "supersedes_sha256": "3f6660475165b506c7527ca893b46d60df5e69fb8f954f7c6a5213185e95538a",
-  "review_record": "specs/source-baseline-revision-31.md",
-  "baseline_head": "42ae5ba17e517fa888106534bb37c6f11548aa7d",
+  "revision": 32,
+  "supersedes_revision": 31,
+  "supersedes_baseline_head": "214d177a444caeb1f3139f53708cdeed448230c8",
+  "supersedes_sha256": "4c5cc3197961e512c7456330446417ab966fe4d05c0b837bde3c88a5619daf85",
+  "review_record": "specs/source-baseline-revision-32.md",
+  "baseline_head": "0b59c1740f20da17188bd4b02c3eafc3e6077726",
   "source_count": 26,
   "sources": [
     {
@@ -115,8 +115,8 @@
     },
     {
       "path": "docs/17-rust-implementation.md",
-      "sha256": "f16f770e29dc02537a71c734b9355e21812ef65a2fc60880e22543a95bf29534",
-      "bytes": 18962,
+      "sha256": "482712c26b32fc498dfc3402b4cf62650faa417b54525b9424964747993e5d77",
+      "bytes": 19253,
       "lines": 124
     },
     {
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); re-review M5 doc corrections"
+  "review_status": "owner self-review (D6); D19 architecture backfill"
 }

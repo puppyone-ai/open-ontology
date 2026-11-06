@@ -1,0 +1,172 @@
+{
+  "schema_version": "oo-source-baseline/v1",
+  "spec_id": "OO-SPEC-001",
+  "captured_date": "2026-11-06",
+  "timezone": "Asia/Shanghai",
+  "revision": 31,
+  "supersedes_revision": 30,
+  "supersedes_baseline_head": "bd82dd0297682e5d84f01038d0a8ce5229393acc",
+  "supersedes_sha256": "3f6660475165b506c7527ca893b46d60df5e69fb8f954f7c6a5213185e95538a",
+  "review_record": "specs/source-baseline-revision-31.md",
+  "baseline_head": "42ae5ba17e517fa888106534bb37c6f11548aa7d",
+  "source_count": 26,
+  "sources": [
+    {
+      "path": "docs/00-vision-and-scope.md",
+      "sha256": "c0bdd6ec9067b777dfafab3ac3e53e4eae0750c7495bf1f22c9badfd87988b33",
+      "bytes": 12038,
+      "lines": 148
+    },
+    {
+      "path": "docs/01-architecture.md",
+      "sha256": "f6be485343493b21925c23cce0db122f32dfd27b183e43a340e822b3fce7713f",
+      "bytes": 18069,
+      "lines": 236
+    },
+    {
+      "path": "docs/02-technology-stack.md",
+      "sha256": "11dc403fc88c1a29c46b6bb2bf18d4bfd8f6cbcaef12f0db45715bfdeb837d23",
+      "bytes": 23144,
+      "lines": 209
+    },
+    {
+      "path": "docs/03-sources-and-ingestion.md",
+      "sha256": "d22665a938a9c9fb594da854f46e9bdf7c95365651838fc8ea4213cb81029247",
+      "bytes": 24721,
+      "lines": 288
+    },
+    {
+      "path": "docs/04-pipeline.md",
+      "sha256": "52e47b67c1af0d61e73c474405518de225a83838197ab4e7200b6e401718d3ff",
+      "bytes": 35319,
+      "lines": 354
+    },
+    {
+      "path": "docs/05-agent-db.md",
+      "sha256": "efcf0797e31fb30cb7c8e4773fbf982cf25e824030a3e428211d6ec4e4ced3c6",
+      "bytes": 23644,
+      "lines": 357
+    },
+    {
+      "path": "docs/06-ontology-layer.md",
+      "sha256": "9a8cacd5e5dc94ab2089548e4315c24ffdda117210dea6977de314a27f762e3c",
+      "bytes": 54103,
+      "lines": 729
+    },
+    {
+      "path": "docs/07-gateway.md",
+      "sha256": "00366172c4c45409c002708bb31c150f172e25de47c9730529e15b0c726153e5",
+      "bytes": 31093,
+      "lines": 320
+    },
+    {
+      "path": "docs/08-agent-interface.md",
+      "sha256": "0004140b1bf7374d9c7978a12cd3f8f87ade8b7b449a5f10097d8ab4b9733f50",
+      "bytes": 16872,
+      "lines": 250
+    },
+    {
+      "path": "docs/09-sandbox-and-agent-runtime.md",
+      "sha256": "1b812e22589922a840272621f33b1ddade4a9569c2031b081ce52943c52261bd",
+      "bytes": 19605,
+      "lines": 307
+    },
+    {
+      "path": "docs/10-security.md",
+      "sha256": "6caa82b5c72eae8dd76145f9cf03a9b639a619702f38e13fc4a56c3c283d97db",
+      "bytes": 14544,
+      "lines": 181
+    },
+    {
+      "path": "docs/11-deployment-and-operations.md",
+      "sha256": "2d09f5f6e74e9323a7be40795efda3596caca1c4474143fcb9b9127b48dab24a",
+      "bytes": 19114,
+      "lines": 233
+    },
+    {
+      "path": "docs/12-configuration-reference.md",
+      "sha256": "31eb2dd77c9c3f6ce12f5dc2b35aafeaebe59e1c37d071bb36a1ed6749e521e4",
+      "bytes": 13798,
+      "lines": 272
+    },
+    {
+      "path": "docs/13-evaluation-and-benchmarks.md",
+      "sha256": "e517334fd77c6a8db9ae1399ca61a645c4d3e156b70a3d2120bf69c3c0595ab0",
+      "bytes": 29390,
+      "lines": 352
+    },
+    {
+      "path": "docs/14-roadmap-and-risks.md",
+      "sha256": "342f832086ee87eb6958e3222b1e7d374382a1b5dc69ab0087f1cf5f1548f1b0",
+      "bytes": 13536,
+      "lines": 142
+    },
+    {
+      "path": "docs/15-glossary.md",
+      "sha256": "328e3efbcdf4fc2824ac68acc9620469015ef24b54952736fe641f539b769c06",
+      "bytes": 6442,
+      "lines": 67
+    },
+    {
+      "path": "docs/16-references.md",
+      "sha256": "dbf3b8f06d04a510a6aa0a065b7606f58d16fac9b7d89168af671b46236cf54c",
+      "bytes": 20933,
+      "lines": 164
+    },
+    {
+      "path": "docs/17-rust-implementation.md",
+      "sha256": "f16f770e29dc02537a71c734b9355e21812ef65a2fc60880e22543a95bf29534",
+      "bytes": 18962,
+      "lines": 124
+    },
+    {
+      "path": "docs/README.md",
+      "sha256": "d2ced6dad87fecef25fb84854ffd58624bd2113776b59d94e88dd0d7591d5da7",
+      "bytes": 5975,
+      "lines": 44
+    },
+    {
+      "path": "docs/product/01-working-model.md",
+      "sha256": "249abe9ce628127d6ba1e04d3be925846614603418444fd1d3b80f4bfec0b4c5",
+      "bytes": 6065,
+      "lines": 76
+    },
+    {
+      "path": "docs/product/02-ingestion-playbook.md",
+      "sha256": "4302904fc9823e3eee5166d8a238108b5d874c2507c3597fee829663adc2b2fe",
+      "bytes": 16507,
+      "lines": 157
+    },
+    {
+      "path": "docs/product/03-selfbuild-context-budget.md",
+      "sha256": "d1c4bf4cb1ce5a6ea8e0abca1e8cd3e0d4cffbdee4c36a3a826923d160d957da",
+      "bytes": 9508,
+      "lines": 130
+    },
+    {
+      "path": "docs/product/04-onboarding-and-gateway-binding.md",
+      "sha256": "4e1baa80df88e2776d136f5a5bece04cd2552298a086acad0a6d8005c3fd44d6",
+      "bytes": 18862,
+      "lines": 204
+    },
+    {
+      "path": "docs/product/05-version-matrix-and-testing.md",
+      "sha256": "af22b4e0b25509afcb5bbf540fcb6e038d6a4c1bc8a93e8dfac11f2f70b3b614",
+      "bytes": 14986,
+      "lines": 131
+    },
+    {
+      "path": "docs/product/README.md",
+      "sha256": "1660989ea656ce6af19ec29040f8aeaf6449dbb5e24d4dc50d045b047dbac622",
+      "bytes": 3669,
+      "lines": 31
+    },
+    {
+      "path": "docs/product/source-sync.md",
+      "sha256": "ab3199ba91ca9af4277f24b1ce3ba941369b022aa6703dfb4c194f5d5e3e68ac",
+      "bytes": 1816,
+      "lines": 41
+    }
+  ],
+  "review_status": "owner self-review (D6); re-review M5 doc corrections"
+}
