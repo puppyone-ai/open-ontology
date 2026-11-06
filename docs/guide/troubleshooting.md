@@ -391,7 +391,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LIVE_HTTP_FAILURE` | [configuration-and-source](#configuration-and-source) | [`live_check.py:41`](../../tools/model-egress/live_check.py#L41) |
 | `LIVE_STREAM_FAILURE` | [configuration-and-source](#configuration-and-source) | [`live_check.py:44`](../../tools/model-egress/live_check.py#L44) |
 | `LIVE_TRANSPORT` | [configuration-and-source](#configuration-and-source) | [`live_check.py:55`](../../tools/model-egress/live_check.py#L55) |
-| `LOCAL_FAILURE` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:498`](../../packages/cli/bin/oo.mjs#L498) |
+| `LOCAL_FAILURE` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:500`](../../packages/cli/bin/oo.mjs#L500) |
 | `LOGIN_CODE_ARGV` | [credentials](#credentials) | [`lifecycle.rs:255`](../../crates/oo-cli/src/lifecycle.rs#L255) |
 | `LOGIN_PROFILE_SAVE_FAILED` | [credentials](#credentials) | [`lifecycle.rs:745`](../../crates/oo-cli/src/lifecycle.rs#L745) |
 | `LOGIN_VERIFICATION_FAILED` | [credentials](#credentials) | [`lifecycle.rs:737`](../../crates/oo-cli/src/lifecycle.rs#L737) |
@@ -664,7 +664,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `TEST_UNREACHABLE` | [configuration-and-source](#configuration-and-source) | [`build_token_tests.rs:159`](../../crates/oo-cli/src/admin/build_token_tests.rs#L159) |
 | `TIMEZONE_INVALID` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:51`](../../packages/cli/bin/oo.mjs#L51) |
 | `TIMEZONE_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:34`](../../packages/cli/bin/oo.mjs#L34) |
-| `TIME_ARGUMENTS` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:393`](../../packages/cli/bin/oo.mjs#L393) |
+| `TIME_ARGUMENTS` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:395`](../../packages/cli/bin/oo.mjs#L395) |
 | `TIME_INVALID` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:37`](../../packages/cli/bin/oo.mjs#L37) |
 | `TOKEN_FILE` | [credentials](#credentials) | [`w73.rs:2113`](../../tools/release-coordinator/src/w73.rs#L2113) |
 | `TOKEN_INPUT_INVALID` | [credentials](#credentials) | [`oo.mjs:193`](../../packages/cli/bin/oo.mjs#L193) |

@@ -337,6 +337,8 @@ integration('help aliases and config help work without profiles or credentials',
   const f = fixture(t);
   f.env.OO_CONFIG_DIR = '';
   assert.equal(f.run(['help']).stdout, f.run(['--help']).stdout);
+  assert.equal(f.run(['help', '--help']).stdout, f.run(['--help']).stdout);
+  assert.equal(f.run(['help', '-h']).status, 0);
   for (const topic of [['query'], ['knowledge', 'search']]) {
     assert.deepEqual(output(f.run(['help', ...topic])).argv, [...topic, '--help']);
   }

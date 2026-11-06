@@ -491,9 +491,176 @@ The wire format is JSON. Markdown is rendered locally from that response.
 ## `oo help --help`
 
 ```text
-Exit 2
-oo: CONFIG_ARGUMENTS: Use oo help [command [subcommand]].
-hint: Run oo configure --help or oo config show --json. Keep credentials in a private file or stdin, never in a command argument.
+Open Ontology npm wrapper (oo and ontology are aliases):
+  oo configure --gateway https://host (--token-stdin | --token-file FILE)
+  oo config show --json
+  oo config set --business-timezone Asia/Shanghai
+  oo time --timezone Asia/Shanghai [--at RFC3339] [--json]
+  oo --version [--json]
+  oo agent-skill [--json]
+
+  oo login --gateway URL [--code-stdin | --code - | --device]  (code on stdin or prompted, never argv)
+  oo whoami [--json]
+  oo share-prompt --grant-file FILE [--agent claude|cursor|codex]
+
+Quick start (no Skill, model, database driver or repository required):
+  oo configure --gateway https://gateway.example --token-file /absolute/path/to/token
+  oo tables
+  oo describe app.orders
+  oo validate "SELECT COUNT(*) FROM app.orders"
+  oo query "SELECT COUNT(*) FROM app.orders"
+  oo freshness --summary
+
+Use oo help <command> or oo <command> --help for details.
+OO_CONFIG_DIR selects a private profile; explicit connection flags override saved values.
+configure and config show are supplied by this package. Data commands below use the saved profile.
+
+oo - read-only Gateway data CLI
+
+Usage: oo <command> [options] [arguments]
+       oo help [command [subcommand]]
+       oo --version [--json]
+
+Commands:
+  oo query [options] "<sql>"
+  oo query [options] -f <file.sql>
+  oo tables [options]
+  oo describe [options] <schema.table>
+  oo validate [options] "<sql>"
+  oo sql validate [options] "<sql>"
+  oo freshness [options] [--summary]
+  oo knowledge cat [options] <path>
+  oo knowledge search [options] <literal>
+  oo cancel [options] <query_id>
+  oo status [options] <query_id>
+  oo operations [options]
+  oo agent-skill [--json]        Optional offline business guidance
+
+Credential commands:
+  oo login --gateway <url> [--code-stdin | --code - | --device]
+                                 Bind with a one-time code (stdin or prompt, never argv)
+  oo whoami [--json]             Identity, role and credential expiry
+  oo share-prompt --grant-file <file> [--role <role>]
+                                 Agent setup prompt with a one-time code (admin)
+  oo token issue|list|renew|rotate|revoke|enroll|approve   (oo help token)
+Administration: oo init|up|down|status|doctor|build|review|ontology (oo help init)
+
+Use -h or --help on any command; help never reads credentials or connects.
+Flags follow the command. Use -- before a positional argument beginning with '-'.
+Long value options accept --name value or --name=value; boolean flags take no value.
+The npm distribution also provides configure, config show and time; see its top-level help.
+This native executable has no saved profile; supply explicit connection flags.
+
+Admin commands (source connections remain read-only):
+  oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo up|down|status --target ssh [--config stack.yaml] [--json]
+  oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
+    --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
+  oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
+  oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
+init --config validates and atomically normalizes that file as JSON.
+YAML and JSON are accepted. The filename does not select the parser.
+TTY init collects configuration and runs preflight; non-TTY never prompts.
+The wizard can save or run the retained build chain after passing preflight.
+On a local lite deployment, build runs every stage (load, Self-build, publication,
+Gateway, first token, share prompt) inside the pinned runtime image that oo up
+started; only owner review runs here, on the review input copied out of it.
+--resume retains checkpoints; without a TTY add --review-file DECISIONS.json.
+Developer overrides: --agent-target (private oo-load target JSON) and
+--runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
+--resume --cycle ID starts a data-only cycle against the initial reviewed registry.
+--draft-only explicitly stops at the old bounded, unreviewed draft bridge.
+status reports saved build state; missing Gateway health fields stay unmeasured.
+up bootstraps private credentials, starts the lite foundations and Gateway, and
+provisions the retained build chain (retained_ready); healthy needs a measured
+scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+or OO_LITE_RUNTIME_IMAGE, a content digest).
+down stops this deployment only; database volumes and credentials are retained.
+--target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
+Linux host: pinned host key, Docker/compose/systemd checks, digest images,
+0600 secrets via stdin, a systemd timer for the scheduled cycle. Re-run is a
+no-op; down --target ssh removes everything it created, volumes included.
+doctor probes sources read-only and the model through model-egress.
+PostgreSQL/MySQL require tls_ca.secret_ref and explicit scope.include tables.
+MySQL requires oo-mysql-doctor beside oo.
+Unknown estimates remain null; blocked diagnostics exit nonzero.
+status <query_id> remains the consumer query-status command.
+Other admin operations are not yet implemented (ADMIN_NOT_IMPLEMENTED).
+
+oo token issue|enroll --grant-file FILE --output-file FILE [--role ROLE]
+oo token list --project PROJECT
+oo token renew|rotate|revoke --project PROJECT --hash HASH_PREFIX [--deadline-ms MS] [--output-file FILE]
+oo token approve CODE --grant-file FILE [--role ROLE]
+Token commands accept --json; issue, enroll and rotate require a new --output-file (0600).
+oo login --gateway URL [--code-stdin | --code - | --device] (code on stdin, else prompted; never argv) [--profile NAME] [--business-timezone ZONE] [--json]
+oo whoami [--json]
+oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
+Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
+Admin issuance requires --client-pem FILE. Credentials are saved as private file references.
+
+
+Connection/output options (apply to every online command):
+  --json                 typed JSON on stdout, one trailing newline
+  --gateway <url>        origin only; the client appends /v1/query
+  --transport <mode>     production or local-development
+  --auth <mode>          external or sandbox
+  --token-file <file>    external token, mode 0600, not a symlink
+  --token-stdin          external token from stdin, not from the SQL
+  --ca-file <file>       PEM roots for this process only
+  --client-pem <file>    client certificate and key, this process only
+
+Query-only options (not accepted by freshness or other metadata commands):
+  --max-rows <n>         1..=2000
+  --timeout-ms <n>       1..=120000; total server-work budget, capped by Gateway
+  -f <file.sql>          exact UTF-8 SQL, at most 65536 bytes
+
+Knowledge search options:
+  --path-prefix <path>   restrict to a relative path prefix, e.g. tables/
+  --offset <n>           0..=1048576, default 0
+  --limit <n>            1..=100, default 20
+Search is a literal substring, not a regular expression. Follow next_offset
+while has_more is true; the first page is not the entire catalog.
+Freshness option:
+  --summary             omit evidence arrays, never warnings or source-time status
+
+Operator-only routing (never supplied by SQL/model input; no environment fallback):
+  --connect-ip <IPv4/IPv6>  override only the gateway DNS hostname's address, not its port
+  --interface <interface>  bind sockets to this interface (e.g. en0)
+The URL Host, TLS SNI, hostname verification and token/audience stay unchanged.
+Proxies remain disabled. Defaults use normal DNS and routing.
+connect-ip requires a DNS hostname; plaintext overrides must stay loopback.
+Interface binding supports Linux/Android/Fuchsia, Apple OSes and Solaris/illumos.
+Unsupported platforms fail explicitly; a missing interface fails without fallback.
+
+  --expected-publication-id current|pub1_<sha256>
+  --expected-data-vector-sha256 <sha256>
+Acquire current once, then reuse the returned binding for the whole question.
+PUBLICATION_DRIFT requires discarding intermediate results and recomputing the whole question.
+
+Examples:
+  oo query --auth external --token-file ./token --gateway https://gateway.example --transport production "SELECT 1"
+  oo query --json --auth external --token-stdin --gateway http://127.0.0.1:9 --transport local-development -f query.sql
+
+SQL time filters (Gateway capability must still be validated):
+  Match literals to the column type reported by describe:
+  date:        DATE '2026-01-01'
+  timestamp:   TIMESTAMP '2026-01-01 00:00:00'
+  timestamptz: TIMESTAMPTZ '2026-01-01 00:00:00+00:00'
+  Use >= lower AND < upper for a half-open range.
+  Bare strings and DATE-to-timestamp comparisons are not implicit casts.
+  Relative times, named zones and general casts are not supported.
+  FUNCTION_NOT_ALLOWED can mean unsupported syntax, not denied column access.
+Numeric and bigint query cells are exact JSON strings, not floating-point numbers.
+No cast is needed to preserve SUM/COUNT precision. Unsupported SQL is refused,
+not an empty result. Use describe for current capabilities and validate for SQL checks.
+
+Sandbox mode stops before a token, OO_TOKEN, or home read. External mode reads
+only the named token source. Exit 0 is success, including an explicit truncated
+result. Exit 2 is usage or a non-retryable Gateway refusal. Exit 3 is a
+retryable RATE_LIMITED or OVERLOADED result after the SDK admission policy.
+Exit 4 is authentication or network. Exit 1 is everything else.
+The wire format is JSON. Markdown is rendered locally from that response.
 ```
 
 ## `oo init --help`

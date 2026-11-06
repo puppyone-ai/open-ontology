@@ -348,6 +348,8 @@ function delegate(binary, args, businessTimezone = null) {
 async function main(args) {
   args = expandLongOptions(args);
   if (args[0] === 'help') {
+    // `oo help --help` asks for help about help: show the top-level help.
+    if (args.length === 2 && (args[1] === '--help' || args[1] === '-h')) args = ['help'];
     if (args.length > 3 || args.slice(1).some(arg => !/^[a-z][a-z0-9-]*$/.test(arg))) {
       fail('CONFIG_ARGUMENTS', 'Use oo help [command [subcommand]].');
     }
