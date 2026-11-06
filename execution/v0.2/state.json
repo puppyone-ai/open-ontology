@@ -1413,11 +1413,12 @@
    "sprint": "S6",
    "lane": "B",
    "title": "npm 发布 `@reduxxx888/ontology-cli@0.2.0`：`npm pack` → 空目录安装 → 全命令 → 同一 tarball 发布；报告精确版本与升级命令",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "in_progress",
+   "owner": "coordinator + lane REL (Codex)",
+   "branch": "v0.2/product-loops",
    "commits": [],
-   "evidence": []
+   "evidence": [],
+   "note": "Rehearsal complete (E413/E416); waits on the owner decision for public runtime-image publication, then npm publish via the owner link"
   },
   {
    "id": "S6-M-04",
