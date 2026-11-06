@@ -64,7 +64,7 @@ TUI 用 Rust `ratatui` + `crossterm` 实现（与 `oo` 同语言、同二进制�
 
 **审核门。** 产品发布门禁要求审核。开源单人场景下，向导提供“所有者自审”模式：Self-build 产出后在 TUI 展示待审项摘要（实体、关系、指标、敏感列分类），所有者逐类确认或批量接受；接受记录写成 `review_decision`，标注 `reviewer=owner, mode=self`。不允许跳过审核直接发布，也不把自动接受伪装成人工审核。
 
-S4 实现：`oo review` 支持所有者逐项自审、G14 重算和 `--review-file` 重放；`oo build` 从拉取、Self-build、自审、发布、Gateway、签发首个 token 到打印分享提示词全链可恢复（D15、D16；L1 证据见 `crates/oo-cli/src/admin/clean-install-evidence.json`）。`--draft-only` 仍可只生成草稿。
+S4 实现：`oo review` 支持所有者逐项自审、G14 重算和 `--review-file` 重放；`oo build` 从拉取、Self-build、自审、发布、Gateway、签发首个 token 到打印分享提示词全链可恢复（D15、D16；L1 证据见 `crates/oo-cli/src/admin/l1-final-evidence.json`（发布候选 c5aa077d））。`--draft-only` 仍可只生成草稿。
 
 ## 4. 编排与部署
 

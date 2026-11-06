@@ -142,7 +142,7 @@ oo ontology build|lint|diff|publish|rollback
 oo eval run <suite> [--compare <run_id>]
 oo session list|kill <id>|kill --user <u>
 oo token issue|list|renew|rotate|revoke|enroll|approve   # 生命周期见 07 §3.4
-oo share-prompt [--role R] [--agent claude|cursor|codex] [--raw-token]
+oo share-prompt --grant-file FILE [--role R] [--agent claude|cursor|codex] [--raw-token]
 oo init [--config stack.yaml]   # 接入向导；非 TTY 时非交互（§1.1）
 oo up|down [--target local|ssh] # 按 stack.yaml 启停本地或远程栈
 oo doctor                   # 只读预检：网络、版本、权限、日志/归档条件、分块计划、预算估算；不写源库

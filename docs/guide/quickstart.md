@@ -184,12 +184,7 @@ review that destructive difference before choosing it.
 
 ## Command and acceptance provenance
 
-The local command sequence and seven prompts were checked against
-`tools/oo-test/l1_clean.py`, `crates/oo-cli/src/admin/wizard.rs` and the committed
-`crates/oo-cli/src/admin/clean-install-evidence.json` summary for
-`a4-l1-20261105`: PostgreSQL 17.11, MySQL 8.4.7 and Oracle 23.5,
-TTY and stack-file modes, locally packaged npm CLI. Raw A4 evidence is not
-present in this worktree; this document does not claim to have rerun it.
+The command sequence and seven prompts match `tools/oo-test/l1_clean.py`, `crates/oo-cli/src/admin/wizard.rs` and the final L1 run recorded in `crates/oo-cli/src/admin/l1-final-evidence.json` (release candidate c5aa077d): PostgreSQL 17.11, MySQL 8.4.7 and Oracle 23.5 on macOS arm64 and Linux amd64, TTY and stack-file modes, with an Agent that ran every printed step from a staged npm registry.
 Remote forms come from `deploy/lite/test_remote_ssh.py`, not a new remote run.
 
 The M-S6e rerun (`m-s6e-20261105`) staged a three-platform npm tarball and
