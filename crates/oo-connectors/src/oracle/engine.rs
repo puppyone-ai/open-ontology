@@ -236,6 +236,8 @@ pub struct OracleEngine {
     next_read_at: Option<Instant>,
     stats: EngineStats,
     last_ora: Option<usize>,
+    /// Operator budget for C5 digests, which the trait call does not carry.
+    digest_budget: Option<ReadBudget>,
 }
 
 type Rows = Vec<Vec<Option<String>>>;
@@ -442,6 +444,11 @@ fn shrink_page(page: &mut u64, retries: &mut u32, limit: u32) -> bool {
 }
 
 impl OracleEngine {
+    /// Apply the operator's read budget to C5 range digests (timeout, pacing).
+    pub fn set_digest_budget(&mut self, budget: ReadBudget) {
+        self.digest_budget = Some(budget);
+    }
+
     /// Fresh column/key fingerprint, independent of cached plans and row counts.
     pub fn table_shape(&mut self, table: &TableRef) -> Result<String, SourceError> {
         self.load_meta(table)?.shape()
@@ -519,6 +526,7 @@ impl OracleEngine {
                 ..EngineStats::default()
             },
             last_ora: None,
+            digest_budget: None,
         };
         engine.set_timeout(Duration::from_secs(10))?;
         engine.session_user = engine
@@ -2478,7 +2486,7 @@ impl SourceEngine for OracleEngine {
         lo: Option<&[KeyValue]>,
         hi: Option<&[KeyValue]>,
     ) -> Result<RangeDigest, SourceError> {
-        let budget = ReadBudget::default();
+        let budget = self.digest_budget.clone().unwrap_or_default();
         self.set_timeout(Duration::from_millis(budget.statement_timeout_ms))?;
         self.protect().await?;
         let started = Instant::now();

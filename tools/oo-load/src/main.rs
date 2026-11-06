@@ -654,6 +654,7 @@ async fn execute() -> Result<(), String> {
                 None => OracleEngine::connect(config),
             }
             .map_err(|e| e.to_string())?;
+            engine.set_digest_budget(budget.clone());
             if let Some(path) = opts.get("--sync") {
                 return log_sync::oracle(
                     engine,
