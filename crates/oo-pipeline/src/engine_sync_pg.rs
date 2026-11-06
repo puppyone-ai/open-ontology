@@ -242,7 +242,8 @@ impl<'a> PgSync<'a> {
         batch: &ChangeBatch,
         images: &[DecodedStream],
     ) -> Result<()> {
-        self.apply_with_comparator(from, batch, images, crate::engine_sync::at_or_after).await
+        self.apply_with_comparator(from, batch, images, crate::engine_sync::at_or_after)
+            .await
     }
 
     /// The caller supplies an epoch-bound comparator for opaque source positions.
@@ -256,8 +257,7 @@ impl<'a> PgSync<'a> {
         if images.len() != batch.changes.len() || self.bindings.is_empty() {
             return Err("sync_batch_shape");
         }
-        if !compare(&batch.position, from)? || compare(from, &batch.position)?
-        {
+        if !compare(&batch.position, from)? || compare(from, &batch.position)? {
             return Err("sync_position_not_advanced");
         }
         let mut tx = self.conn.begin().await.map_err(db)?;

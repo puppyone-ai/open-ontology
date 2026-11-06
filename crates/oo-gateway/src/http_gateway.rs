@@ -957,8 +957,8 @@ async fn load_tuple(
     }
     // Token-store faults are not authentication outcomes: report them as internal so
     // callers (e.g. the operator scope) fail closed instead of treating them as "no token".
-    let endpoint = read_endpoint(&state.inner.endpoint_path)
-        .map_err(|_| ApiError::new(ApiCode::Internal))?;
+    let endpoint =
+        read_endpoint(&state.inner.endpoint_path).map_err(|_| ApiError::new(ApiCode::Internal))?;
     let client = connect(state, &endpoint)
         .await
         .map_err(|_| ApiError::new(ApiCode::Internal))?;
