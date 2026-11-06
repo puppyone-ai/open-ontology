@@ -1366,7 +1366,7 @@
    "sprint": "S6",
    "lane": "M",
    "title": "多架构镜像 CI 构建与签名；lite 档离线安装包",
-   "status": "author_complete",
+   "status": "integrated",
    "owner": "lane-M",
    "branch": "v0.2/m-pipeline",
    "commits": [
@@ -1383,7 +1383,7 @@
    "sprint": "S6",
    "lane": "M",
    "title": "Quickstart（三分钟上手）、`oo --help` 全命令、故障排查、DBA 权限清单（按引擎版本）",
-   "status": "author_complete",
+   "status": "integrated",
    "owner": "lane-M",
    "branch": "v0.2/m-pipeline",
    "commits": [
@@ -1400,9 +1400,9 @@
    "sprint": "S6",
    "lane": "M",
    "title": "**L1、L3 闭环独立审阅**（固定 SHA）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
+   "status": "author_complete",
+   "owner": "native reviewer (independent)",
+   "branch": "v0.2/product-loops",
    "commits": [],
    "evidence": []
   },
@@ -1422,14 +1422,14 @@
    "sprint": "S6",
    "lane": "M",
    "title": "核对本期所有设计变化均已当期回填原文档、Spec 与矩阵（D7）；来源基线升至最终 revision",
-   "status": "author_complete",
+   "status": "integrated",
    "owner": "coordinator (native audit)",
    "branch": "v0.2/product-loops",
    "commits": [
-    "eede5d86a",
-    "816831a04",
-    "75df6c675",
-    "bd82dd029",
+    "fdc21d7e8",
+    "4042b4b74",
+    "086437b96",
+    "7425b2213",
     "a5b0e077b"
    ],
    "evidence": []

@@ -19262,7 +19262,8 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:41:24.499217Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19276,7 +19277,8 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:41:24.499250Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19318,7 +19320,8 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:45.627426Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19332,7 +19335,8 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:45.627457Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19374,7 +19378,8 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:48:06.327614Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19388,7 +19393,8 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:48:06.327640Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "note": "environment cascade in the parallel run pg2-t3a: after network_drop_mid_c1 the source container network was not restored (resume sync_source_connect), so every later case failed snapshot_connect within 0.7 s; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19710,7 +19716,8 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:34.844777Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "note": "environment cascade in the parallel run pg2-t3b (run with pg2-t3a): after a network_drop case the source network was not restored, so later cases failed snapshot_connect; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19724,7 +19731,8 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:44:34.844804Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "note": "environment cascade in the parallel run pg2-t3b (run with pg2-t3a): after a network_drop case the source network was not restored, so later cases failed snapshot_connect; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19766,7 +19774,8 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:47:55.503336Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "note": "environment cascade in the parallel run pg2-t3b (run with pg2-t3a): after a network_drop case the source network was not restored, so later cases failed snapshot_connect; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
   "target": "postgres-selfmanaged",
@@ -19780,7 +19789,8 @@
   "emulated": false,
   "version_measured": true,
   "observed_at": "2026-11-06T15:47:55.503363Z",
-  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23"
+  "product_sha": "389be07b0bde261fabd67a9224d00122e23bcd23",
+  "note": "environment cascade in the parallel run pg2-t3b (run with pg2-t3a): after a network_drop case the source network was not restored, so later cases failed snapshot_connect; the sequential rerun pg2-t3-seq on the same tree passed every case"
  },
  {
   "target": "postgres-selfmanaged",
