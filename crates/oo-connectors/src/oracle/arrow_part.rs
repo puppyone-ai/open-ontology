@@ -48,7 +48,7 @@ pub(super) fn coefficient(value: &str, precision: u8, scale: i8) -> Result<i128>
 }
 
 pub(super) fn unhex(value: &str) -> Result<Vec<u8>> {
-    if value.len() % 2 != 0 || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
+    if !value.len().is_multiple_of(2) || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err("raw_hex".into());
     }
     (0..value.len())

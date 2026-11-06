@@ -120,6 +120,7 @@ pub(super) fn report(state: &Value, json_output: bool) -> Invocation {
     )
 }
 
+#[allow(clippy::too_many_arguments)] // mirrors the CLI flag set one-to-one
 pub(super) fn run(
     config: &Path,
     stack: &oo_stack::Stack,
@@ -401,7 +402,7 @@ pub(super) fn completion(
     base: &Path,
     json_output: bool,
 ) -> Result<Invocation, Failure> {
-    let mut result = report(&state, json_output);
+    let mut result = report(state, json_output);
     if state["status"] == "complete"
         && !json_output
         && let Invocation::AdminReport(text, _) = &mut result

@@ -101,16 +101,15 @@ pub fn micros(value: &str, kind: &str) -> Result<i64> {
             return Err("temporal_fraction".into());
         }
         let fraction = &civil[20..];
-        let n = digits(fraction)? * 10_i64.pow(9 - fraction.len() as u32);
-        n
+        digits(fraction)? * 10_i64.pow(9 - fraction.len() as u32)
     };
     if precision.is_none() && civil.len() != 19 {
         return Err("date_fraction".into());
     }
-    if let Some(p) = precision {
-        if nanos % 10_i64.pow(9 - p) != 0 {
-            return Err("source_temporal_precision".into());
-        }
+    if let Some(p) = precision
+        && nanos % 10_i64.pow(9 - p) != 0
+    {
+        return Err("source_temporal_precision".into());
     }
     if nanos % 1000 != 0 {
         return Err("submicrosecond_target_contract_required".into());

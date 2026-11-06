@@ -47,8 +47,12 @@ impl ChunkSink for DigestSink {
             for col in batch.columns() {
                 super::super::typed::hash_cell(&mut hash, col, row)?;
             }
-            for (lane, bytes) in self.lanes.iter_mut().zip(hash.finalize().chunks_exact(8)) {
-                *lane = lane.wrapping_add(u64::from_be_bytes(bytes.try_into().unwrap()));
+            for (lane, bytes) in self
+                .lanes
+                .iter_mut()
+                .zip(hash.finalize().as_chunks::<8>().0)
+            {
+                *lane = lane.wrapping_add(u64::from_be_bytes(*bytes));
             }
         }
         Ok(())
@@ -234,7 +238,7 @@ impl OracleC5 {
         ordered.sort_by_key(|(not_hinted, not_recent, chunk)| {
             (*not_hinted, *not_recent, chunk.chunk_id)
         });
-        let full = self.cycles > 0 && self.cycles % self.full_every == 0;
+        let full = self.cycles > 0 && self.cycles.is_multiple_of(self.full_every);
         let mut saved = self.saved.clone();
         let mut replacements = Vec::new();
         for (_, _, chunk) in ordered {

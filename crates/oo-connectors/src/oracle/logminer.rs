@@ -21,6 +21,9 @@ FROM v$log l JOIN v$logfile f ON f.group#=l.group#
 WHERE l.status IN ('CURRENT','ACTIVE','INACTIVE')
   AND (f.status IS NULL OR f.status='STALE')";
 
+/// One mined change: (commit SCN, SCN, RS_ID, SSN, change, row batch).
+type MinedRow = (u64, u64, String, u64, RowChange, RecordBatch);
+
 #[derive(Clone, Debug)]
 struct LogFile {
     name: String,
@@ -296,7 +299,7 @@ impl OracleLogMiner {
         from: u64,
         floor: u64,
         budget: &ReadBudget,
-    ) -> Result<Vec<(u64, u64, String, u64, RowChange, RecordBatch)>, SourceError> {
+    ) -> Result<Vec<MinedRow>, SourceError> {
         let mut projections = vec![
             "TO_CHAR(NVL(COMMIT_SCN,SCN))".to_owned(),
             "TO_CHAR(SCN)".into(),

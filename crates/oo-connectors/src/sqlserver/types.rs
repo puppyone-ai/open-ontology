@@ -385,7 +385,7 @@ mod tests {
             "datetime2_scale"
         );
         let end = days_since_year_one(9999, 12, 31).unwrap();
-        assert!(datetime2_ticks(end, 999_999_9, 7).is_ok());
+        assert!(datetime2_ticks(end, 9_999_999, 7).is_ok());
     }
 
     #[test]

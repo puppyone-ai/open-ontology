@@ -652,6 +652,7 @@ async fn policy(tx: &Transaction<'_>, project: &str) -> Result<Policy> {
         },
     })
 }
+#[allow(clippy::too_many_arguments)] // internal helper; each arg is a distinct issuance input
 async fn issue(
     tx: &Transaction<'_>,
     mut g: Grant,

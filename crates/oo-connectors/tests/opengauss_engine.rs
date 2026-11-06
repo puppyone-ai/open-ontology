@@ -451,7 +451,7 @@ async fn types_budgets_and_periodic_full_read() {
             .downcast_ref::<Decimal128Array>()
             .unwrap()
             .value(0),
-        1_234_567_890_123_456_789_012_123_456_78
+        123_456_789_012_345_678_901_212_345_678
     );
     assert_eq!(
         b.column(2)

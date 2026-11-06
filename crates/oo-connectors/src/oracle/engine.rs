@@ -44,6 +44,9 @@ use super::keyset::{
 use super::rules::{self, Dialect, Multitenant};
 use super::worker::{DriverError, Worker};
 
+/// Integer-key chunk boundaries plus the observed row count.
+type IntegerBoundaries = (Vec<Vec<KeyValue>>, u64);
+
 fn serial_query(sql: &str) -> Cow<'_, str> {
     // Enterprise can spawn PX sessions behind a single connection. Keep the
     // source's one-session budget without changing database/session settings.
@@ -1047,7 +1050,7 @@ impl OracleEngine {
         t: &TableRef,
         meta: &TableMeta,
         chunk_rows: u64,
-    ) -> Result<Option<(Vec<Vec<KeyValue>>, u64)>, SourceError> {
+    ) -> Result<Option<IntegerBoundaries>, SourceError> {
         let col = keyset::ident(&meta.keys()[0].name)?;
         let row = self.query(
             &format!(
@@ -1517,7 +1520,7 @@ impl OracleEngine {
             hasher: Sha256::new(),
             bytes: 0,
         };
-        let max_rows = budget.max_chunk_rows.min(100_000).max(1);
+        let max_rows = budget.max_chunk_rows.clamp(1, 100_000);
         let mut progress = Progress::default();
         let low;
         {

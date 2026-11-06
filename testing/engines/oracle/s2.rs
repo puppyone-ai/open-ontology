@@ -389,7 +389,7 @@ async fn real_incremental_cycles() {
             serde_json::to_vec_pretty(&sessions).unwrap(),
         )
         .unwrap();
-        OracleLogMiner::new(connection, &mut engine, &[table.clone()]).unwrap()
+        OracleLogMiner::new(connection, &mut engine, std::slice::from_ref(&table)).unwrap()
     });
     let mut watermark = engine.watermark().await.unwrap().unwrap();
     if let Some(miner) = &mut miner {

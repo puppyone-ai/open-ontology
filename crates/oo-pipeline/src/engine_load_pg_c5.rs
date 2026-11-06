@@ -471,36 +471,49 @@ mod tests {
             };
             assert!(!same_ranges(&previous.plan, &live), "{engine}");
             assert_eq!(
-                validate_c5_replacement(&previous, &live, &[digest.clone()], &[receipt.clone()]),
+                validate_c5_replacement(
+                    &previous,
+                    &live,
+                    std::slice::from_ref(&digest),
+                    std::slice::from_ref(&receipt)
+                ),
                 Ok(()),
                 "{engine}"
             );
             assert!(
-                validate_c5_replacement(&previous, &live, &[digest.clone()], &[]).is_err(),
+                validate_c5_replacement(&previous, &live, std::slice::from_ref(&digest), &[])
+                    .is_err(),
                 "{engine}"
             );
             let mut stale = receipt.clone();
             stale.plan_revision = 1;
             assert!(
-                validate_c5_replacement(&previous, &live, &[digest.clone()], &[stale]).is_err()
+                validate_c5_replacement(&previous, &live, std::slice::from_ref(&digest), &[stale])
+                    .is_err()
             );
             let mut missing = receipt.clone();
             missing.rows = 1;
             assert!(
-                validate_c5_replacement(&previous, &live, &[digest.clone()], &[missing]).is_err()
+                validate_c5_replacement(
+                    &previous,
+                    &live,
+                    std::slice::from_ref(&digest),
+                    &[missing]
+                )
+                .is_err()
             );
             assert!(
                 validate_c5_replacement(
                     &previous,
                     &live,
-                    &[digest.clone()],
+                    std::slice::from_ref(&digest),
                     &[receipt.clone(), receipt]
                 )
                 .is_err()
             );
             previous.source_digests = vec![digest.clone()];
             assert_eq!(
-                validate_c5_replacement(&previous, &live, &[digest.clone()], &[]),
+                validate_c5_replacement(&previous, &live, std::slice::from_ref(&digest), &[]),
                 Ok(()),
                 "{engine}"
             );

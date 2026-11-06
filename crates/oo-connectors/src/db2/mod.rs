@@ -960,7 +960,7 @@ mod tests {
             Some("-99999999999999999999999.12345678".into()),
             Some("2026-11-05-01.02.03.123456789012".into()),
         ];
-        let result = batch(&plan, &[row.clone()]).unwrap();
+        let result = batch(&plan, std::slice::from_ref(&row)).unwrap();
         let text = result
             .column(2)
             .as_any()

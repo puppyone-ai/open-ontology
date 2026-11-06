@@ -292,20 +292,19 @@ fn endpoint(gateway: &str) -> Result<Url> {
     Ok(u)
 }
 fn connection(mut profile: Value, opts: &BTreeMap<String, String>) -> Result<Value> {
-    if let Some(gateway) = opts.get("--gateway") {
-        if profile["gateway"]
+    if let Some(gateway) = opts.get("--gateway")
+        && profile["gateway"]
             .as_str()
             .is_some_and(|old| old.trim_end_matches('/') != gateway.trim_end_matches('/'))
-        {
-            for key in [
-                "token_file",
-                "ca_file",
-                "client_pem",
-                "connect_ip",
-                "interface",
-            ] {
-                profile.as_object_mut().ok_or_else(local)?.remove(key);
-            }
+    {
+        for key in [
+            "token_file",
+            "ca_file",
+            "client_pem",
+            "connect_ip",
+            "interface",
+        ] {
+            profile.as_object_mut().ok_or_else(local)?.remove(key);
         }
     }
     for (flag, key) in CONNECTION {
@@ -1043,10 +1042,9 @@ pub fn prepare_data(mut args: Vec<String>) -> Result<Vec<String>> {
     {
         if !args[..end].iter().any(|a| a == flag)
             && !(key == "token_file" && args[..end].iter().any(|a| a == "--token-stdin"))
+            && let Some(v) = selected[key].as_str()
         {
-            if let Some(v) = selected[key].as_str() {
-                extra.extend([flag.into(), v.into()]);
-            }
+            extra.extend([flag.into(), v.into()]);
         }
     }
     for (flag, value) in [("--transport", "production"), ("--auth", "external")] {

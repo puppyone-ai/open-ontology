@@ -345,7 +345,7 @@ fn required_u64(value: &Value, name: &str) -> Result<u64, Fail> {
 
 #[cfg(test)]
 fn decode_hex(value: &str) -> Result<Vec<u8>, Fail> {
-    if value.len() % 2 != 0 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+    if !value.len().is_multiple_of(2) || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
         return Err(Fail::new("binary_type", "hex payload is not even hex"));
     }
     let mut out = Vec::with_capacity(value.len() / 2);

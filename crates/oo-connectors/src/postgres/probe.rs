@@ -408,6 +408,59 @@ pub fn grade(facts: &ProbeFacts) -> ProbeReport {
     }
 }
 
+pub(super) async fn observe(s: &mut crate::PgSession) -> Result<ProbeReport, crate::SourceError> {
+    use crate::session::{self, cell_bool, cell_i64, cell_opt_string, cell_string};
+    let r = session::fetch_control(s, sqlx::query(
+        "SELECT quote_ident(current_user), pg_is_in_recovery(), current_setting('wal_level'), \
+         current_setting('max_replication_slots')::int8, current_setting('max_wal_senders')::int8, \
+         rolreplication, rolsuper, pg_has_role(current_user,'pg_read_all_stats','MEMBER'), \
+         current_setting('hot_standby_feedback',true), current_setting('sync_replication_slots',true), \
+         current_setting('idle_replication_slot_timeout',true), current_setting('max_connections')::int8, \
+         current_setting('block_size')::int8, (SELECT count(*) FROM pg_publication) \
+         FROM pg_roles WHERE rolname=current_user"
+    )).await?;
+    let mut f = ProbeFacts {
+        version: EngineVersion::parse(EngineFamily::Postgres, &s.version_raw)?,
+        user: cell_string(&r, 0)?,
+        in_recovery: cell_bool(&r, 1)?,
+        wal_level: cell_string(&r, 2)?,
+        max_replication_slots: cell_i64(&r, 3)?,
+        max_wal_senders: cell_i64(&r, 4)?,
+        rolreplication: cell_bool(&r, 5)?,
+        rolsuper: cell_bool(&r, 6)?,
+        read_all_stats: cell_bool(&r, 7)?,
+        hot_standby_feedback: cell_opt_string(&r, 8)?,
+        sync_replication_slots: cell_opt_string(&r, 9)?,
+        idle_replication_slot_timeout: cell_opt_string(&r, 10)?,
+        max_connections: cell_i64(&r, 11)?,
+        block_size: cell_i64(&r, 12)?,
+        publications: cell_i64(&r, 13)?,
+        tables: Vec::new(),
+    };
+    for t in s.selection.clone().tables() {
+        let r = session::fetch_control(s, sqlx::query(
+            "SELECT quote_ident($1)||'.'||quote_ident($2), c.oid IS NOT NULL, \
+             COALESCE(has_schema_privilege(n.oid,'USAGE'),false), COALESCE(has_table_privilege(c.oid,'SELECT'),false), \
+             EXISTS(SELECT 1 FROM pg_publication_tables p WHERE p.schemaname=$1 AND p.tablename=$2), \
+             EXISTS(SELECT 1 FROM pg_index i WHERE i.indrelid=c.oid AND i.indisprimary), \
+             COALESCE(c.relreplident::text,'n'), COALESCE(c.relkind='p',false) \
+             FROM (SELECT 1) dummy LEFT JOIN pg_namespace n ON n.nspname=$1 \
+             LEFT JOIN pg_class c ON c.relnamespace=n.oid AND c.relname=$2"
+        ).bind(t.schema()).bind(t.table())).await?;
+        f.tables.push(TableFacts {
+            qualified: cell_string(&r, 0)?,
+            exists: cell_bool(&r, 1)?,
+            schema_usage: cell_bool(&r, 2)?,
+            select: cell_bool(&r, 3)?,
+            published: cell_bool(&r, 4)?,
+            has_primary_key: cell_bool(&r, 5)?,
+            replica_identity: cell_string(&r, 6)?,
+            partitioned: cell_bool(&r, 7)?,
+        });
+    }
+    Ok(grade(&f))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -594,57 +647,4 @@ mod tests {
                 == Some("GRANT USAGE ON SCHEMA \"a.b\" TO oo_reader;"))
         );
     }
-}
-
-pub(super) async fn observe(s: &mut crate::PgSession) -> Result<ProbeReport, crate::SourceError> {
-    use crate::session::{self, cell_bool, cell_i64, cell_opt_string, cell_string};
-    let r = session::fetch_control(s, sqlx::query(
-        "SELECT quote_ident(current_user), pg_is_in_recovery(), current_setting('wal_level'), \
-         current_setting('max_replication_slots')::int8, current_setting('max_wal_senders')::int8, \
-         rolreplication, rolsuper, pg_has_role(current_user,'pg_read_all_stats','MEMBER'), \
-         current_setting('hot_standby_feedback',true), current_setting('sync_replication_slots',true), \
-         current_setting('idle_replication_slot_timeout',true), current_setting('max_connections')::int8, \
-         current_setting('block_size')::int8, (SELECT count(*) FROM pg_publication) \
-         FROM pg_roles WHERE rolname=current_user"
-    )).await?;
-    let mut f = ProbeFacts {
-        version: EngineVersion::parse(EngineFamily::Postgres, &s.version_raw)?,
-        user: cell_string(&r, 0)?,
-        in_recovery: cell_bool(&r, 1)?,
-        wal_level: cell_string(&r, 2)?,
-        max_replication_slots: cell_i64(&r, 3)?,
-        max_wal_senders: cell_i64(&r, 4)?,
-        rolreplication: cell_bool(&r, 5)?,
-        rolsuper: cell_bool(&r, 6)?,
-        read_all_stats: cell_bool(&r, 7)?,
-        hot_standby_feedback: cell_opt_string(&r, 8)?,
-        sync_replication_slots: cell_opt_string(&r, 9)?,
-        idle_replication_slot_timeout: cell_opt_string(&r, 10)?,
-        max_connections: cell_i64(&r, 11)?,
-        block_size: cell_i64(&r, 12)?,
-        publications: cell_i64(&r, 13)?,
-        tables: Vec::new(),
-    };
-    for t in s.selection.clone().tables() {
-        let r = session::fetch_control(s, sqlx::query(
-            "SELECT quote_ident($1)||'.'||quote_ident($2), c.oid IS NOT NULL, \
-             COALESCE(has_schema_privilege(n.oid,'USAGE'),false), COALESCE(has_table_privilege(c.oid,'SELECT'),false), \
-             EXISTS(SELECT 1 FROM pg_publication_tables p WHERE p.schemaname=$1 AND p.tablename=$2), \
-             EXISTS(SELECT 1 FROM pg_index i WHERE i.indrelid=c.oid AND i.indisprimary), \
-             COALESCE(c.relreplident::text,'n'), COALESCE(c.relkind='p',false) \
-             FROM (SELECT 1) dummy LEFT JOIN pg_namespace n ON n.nspname=$1 \
-             LEFT JOIN pg_class c ON c.relnamespace=n.oid AND c.relname=$2"
-        ).bind(t.schema()).bind(t.table())).await?;
-        f.tables.push(TableFacts {
-            qualified: cell_string(&r, 0)?,
-            exists: cell_bool(&r, 1)?,
-            schema_usage: cell_bool(&r, 2)?,
-            select: cell_bool(&r, 3)?,
-            published: cell_bool(&r, 4)?,
-            has_primary_key: cell_bool(&r, 5)?,
-            replica_identity: cell_string(&r, 6)?,
-            partitioned: cell_bool(&r, 7)?,
-        });
-    }
-    Ok(grade(&f))
 }

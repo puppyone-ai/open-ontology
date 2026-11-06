@@ -82,7 +82,7 @@ async fn real_incremental_cycles() {
         OracleLogMiner::new(
             OracleEngine::connect(cfg).unwrap(),
             &mut engine,
-            &[table.clone()],
+            std::slice::from_ref(&table),
         )
         .unwrap()
     });
