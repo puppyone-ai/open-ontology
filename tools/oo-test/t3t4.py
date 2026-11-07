@@ -32,7 +32,7 @@ POSTGRES = ("13", "14", "15", "16", "17", "18")
 T3 = ("source_restart_mid_chunk", "network_drop_mid_c1", "network_drop_mid_c5",
       "target_restart_mid_publish", "sigkill_mid_cycle", "retention_expiry",
       "slot_invalidation", "gtid_purge", "resetlogs_incarnation")
-T4 = ("add_column", "drop_column", "rename_column", "widen_type", "add_table",
+T4 = ("add_column", "drop_column", "rename_column", "widen_type", "widen_string", "add_table",
       "drop_table", "pk_change")
 # Destructive log cases invalidate every earlier C1 binding; they run last.
 ORDER = T4 + T3
@@ -860,6 +860,12 @@ def t3_gtid_purge(h):
 
 # T4 -------------------------------------------------------------------------
 def ddl(h, case):
+    if case == "widen_string":
+        table = "t4_widen_string"
+        statement = (f"ALTER TABLE {table} MODIFY (payload VARCHAR2(160));" if h.run.engine == "oracle" else
+                     f"ALTER TABLE {table} MODIFY payload varchar(160) NOT NULL;" if h.run.engine == "mysql" else
+                     f"ALTER TABLE {table} ALTER COLUMN payload TYPE varchar(160);")
+        return [statement], ("id", "payload", "n")
     if h.run.engine == "oracle":
         from oracle_t3t4 import ddl as oracle_ddl
         return oracle_ddl(case)
@@ -909,10 +915,23 @@ def attempt(h, sid, path):
     comparison = h.compare(sid) if code == 0 else None
     unchanged = before == h.state()
     return {"exit": code, "error": error, "comparison": comparison, "target_state_unchanged": unchanged,
+            "table_results": results if path == "c5" else [],
             "outcome": classify(code, error, code == 0 and h.equal(comparison), unchanged)}
 
 
 def t4_case(h, case):
+    strict = case in ("add_column", "drop_column", "rename_column", "widen_type", "widen_string")
+    if strict:
+        from t9_isolation import schema_case
+        steps = []
+        for path in h.paths:
+            sid = "t4_isolation_" + case + "_" + path
+            try:
+                result = schema_case(h, case, tag=sid, mode=path)
+                steps.append(dict(result, stage="published_projection", passed=result["status"] == "passed"))
+            finally:
+                h.retire(sid)
+        return case_result(steps)
     paths = {}
     for path in h.paths:
         sid = f"t4{T4.index(case)}{path}"
@@ -992,7 +1011,17 @@ def t4_case(h, case):
 def t3_resetlogs_incarnation(h):
     if h.run.engine != "oracle":
         return {"status": "not_applicable", "reason": "Oracle incarnation only"}
-    return h.resetlogs_incarnation()
+    result = h.resetlogs_incarnation()
+    for step in result["steps"]:
+        if step.get("path") == "c5" and step.get("error") == "sync_all_stale":
+            tables = step.get("table_results", [])
+            step["passed"] = bool(
+                step.get("exit") == 4 and step.get("target_state_unchanged")
+                and step.get("epoch_before") != step.get("epoch_after") and tables
+                and all(t.get("status") == "stale"
+                        and t.get("stale_reason") == "rebaseline_required" for t in tables)
+                and step.get("rebaseline", {}).get("outcome") == "online_apply")
+    return case_result(result["steps"])
 
 CASES = {name: globals()["t3_" + name] for name in T3}
 CASES.update({name: (lambda case: lambda h: t4_case(h, case))(name) for name in T4})
