@@ -735,8 +735,15 @@ async fn execute() -> Result<(), String> {
 #[tokio::main]
 async fn main() {
     if let Err(error) = execute().await {
-        eprintln!("{}", serde_json::json!({"status":"failed","error":error}));
-        std::process::exit(1);
+        let exit = sync_command::exit_code(&error);
+        eprintln!(
+            "{}",
+            serde_json::json!({
+                "status":if exit == 3 {"partial"} else {"failed"},
+                "error":error
+            })
+        );
+        std::process::exit(exit);
     }
 }
 

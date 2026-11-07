@@ -102,167 +102,238 @@ pub(super) async fn run_cycle<E: epoch::Epoch>(
     {
         return Err("c5_policy".into());
     }
-    for table in tables {
-        let started = std::time::Instant::now();
-        let live_lineage = epoch::c5_lineage(
+    use oo_pipeline::engine_isolation;
+    let source_binding = binding(source)?;
+    let mut cycle_conn = target_connection(config, store).await?;
+    let pending =
+        engine_isolation::begin(&mut cycle_conn, &source_binding, &config.run_id, tables).await?;
+    // Probe failures are source-wide, even when their error kind is privilege.
+    engine.probe().await.map_err(|e| e.to_string())?;
+    if !pending {
+        for mut output in
+            engine_isolation::replay(&mut cycle_conn, &source_binding, &config.run_id).await?
+        {
+            output["protocol"] = "oo.sync/v1".into();
+            output["source"] = source.id.clone().into();
+            output["mode"] = "c5".into();
+            output["run_id"] = config.run_id.clone().into();
+            output["gateway_published"] = false.into();
+            println!("{output}");
+        }
+    }
+    for table in tables.iter().filter(|_| pending) {
+        let mut attempt = 0;
+        let output = loop {
+            attempt += 1;
+            let mut conn = target_connection(config, store).await?;
+            let result = run_table(
+                engine, source, table, config, store, budget, &policy, &mut conn,
+            )
+            .await;
+            // Release the table lock before retry, including after failed reads.
+            conn.close().await.map_err(|_| "c5_target_close")?;
+            match result {
+                Ok(output) => break output,
+                Err(error) => match engine_isolation::stale_reason(&error) {
+                    None => return Err(error),
+                    Some(_) if attempt == 1 => continue,
+                    Some(reason) => {
+                        break serde_json::json!({
+                            "protocol":"oo.sync/v1", "source":source.id,"mode":"c5","table":table,
+                            "run_id":config.run_id,"status":"stale","stale_reason":reason,
+                            "stale_detail":"Table failed twice; previous retained generation preserved.",
+                            "attempts":attempt,"gateway_published":false
+                        });
+                    }
+                },
+            }
+        };
+        engine_isolation::record(
+            &mut cycle_conn,
+            &source_binding,
+            &config.run_id,
+            table,
+            output["status"].as_str().ok_or("sync_table_state")?,
+            output["stale_reason"].as_str(),
+        )
+        .await?;
+        println!("{output}");
+    }
+    let code = engine_isolation::finish(&mut cycle_conn, &source_binding, &config.run_id).await?;
+    cycle_conn.close().await.map_err(|_| "c5_target_close")?;
+    match code {
+        0 => Ok(()),
+        3 => Err("sync_partial".into()),
+        _ => Err("sync_all_stale".into()),
+    }
+}
+
+async fn run_table<E: epoch::Epoch>(
+    engine: &mut E,
+    source: &Source,
+    table: &TableRef,
+    config: &TargetConfig,
+    store: &SecretStore,
+    budget: &ReadBudget,
+    policy: &Config,
+    conn: &mut PgConnection,
+) -> Result<serde_json::Value, String> {
+    let started = std::time::Instant::now();
+    let live_lineage = epoch::c5_lineage(
+        engine
+            .epoch(source, store, std::slice::from_ref(table))
+            .await
+            .map_err(|_| "c5_source_epoch")?,
+        engine.shape(table).await?,
+    );
+    let live_plan = engine
+        .plan_chunks(table, budget)
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut target = PgTarget::new(conn, &binding(source)?, &config.run_id, table).await?;
+    target = documents::target(target, source)?;
+    let previous = target.c5_baseline().await?;
+    if previous
+        .lineage
+        .as_ref()
+        .is_some_and(|old| old != &live_lineage)
+    {
+        return Err("c5_rebaseline_required_lineage".into());
+    }
+    let plan = durable_ranges(&previous.plan, live_plan);
+    let keyless = previous.plan.key == KeyShape::NoKey && plan.key == KeyShape::NoKey;
+    if !keyless && !oo_pipeline::engine_load_pg::same_ranges(&previous.plan, &plan) {
+        return Err("c5_rebaseline_required_plan".into());
+    }
+    if !keyless {
+        engine.adopt_plan(&plan)?;
+    }
+    let before = target.generations().await?;
+    let mut receipts = Vec::new();
+    let mut payload_bytes = 0u64;
+    let mut source_read_bytes = 0u64;
+    let replay = target.completed().await?.is_some();
+    if !replay && keyless {
+        let (digest, replacements, read_bytes) =
+            keyless::read(engine, &plan, &previous, budget, &mut target, policy).await?;
+        receipts = replacements;
+        source_read_bytes = read_bytes;
+        payload_bytes = receipts.iter().map(|receipt| receipt.bytes).sum();
+        if epoch::c5_lineage(
             engine
                 .epoch(source, store, std::slice::from_ref(table))
-                .await?,
+                .await
+                .map_err(|_| "c5_source_epoch")?,
             engine.shape(table).await?,
-        );
-        let live_plan = engine
-            .plan_chunks(table, budget)
-            .await
-            .map_err(|e| e.to_string())?;
-        let mut conn = target_connection(config, store).await?;
-        let mut target = PgTarget::new(&mut conn, &binding(source)?, &config.run_id, table).await?;
-        target = documents::target(target, source)?;
-        let previous = target.c5_baseline().await?;
-        if previous
-            .lineage
-            .as_ref()
-            .is_some_and(|old| old != &live_lineage)
+        ) != live_lineage
         {
             return Err("c5_rebaseline_required_lineage".into());
         }
-        let plan = durable_ranges(&previous.plan, live_plan);
-        let keyless = previous.plan.key == KeyShape::NoKey && plan.key == KeyShape::NoKey;
-        if !keyless && !oo_pipeline::engine_load_pg::same_ranges(&previous.plan, &plan) {
-            return Err("c5_rebaseline_required_plan".into());
+        target
+            .publish_c5(&previous, &plan, vec![digest], &receipts, &live_lineage)
+            .await?;
+    } else if !replay {
+        let mut source_digests = Vec::new();
+        let mut read_chunks = Vec::new();
+        for chunk in ordered_chunks(&plan, policy)? {
+            let digest = engine
+                .digest_range(table, chunk.lo.as_deref(), chunk.hi.as_deref())
+                .await
+                .map_err(|e| e.to_string())?;
+            let old = previous
+                .source_digests
+                .iter()
+                .find(|d| d.lo == digest.lo && d.hi == digest.hi);
+            if needs_read(
+                old,
+                &digest,
+                policy.positive_hints.contains(&chunk.chunk_id),
+                policy.cycle.is_multiple_of(policy.full_read_every),
+            ) {
+                read_chunks.push(chunk);
+            }
+            source_digests.push(digest);
         }
-        if !keyless {
-            engine.adopt_plan(&plan)?;
-        }
-        let before = target.generations().await?;
-        let mut receipts = Vec::new();
-        let mut payload_bytes = 0u64;
-        let mut source_read_bytes = 0u64;
-        let replay = target.completed().await?.is_some();
-        if !replay && keyless {
-            let (digest, replacements, read_bytes) =
-                keyless::read(engine, &plan, &previous, budget, &mut target, &policy).await?;
-            receipts = replacements;
-            source_read_bytes = read_bytes;
-            payload_bytes = receipts.iter().map(|receipt| receipt.bytes).sum();
-            if epoch::c5_lineage(
-                engine
-                    .epoch(source, store, std::slice::from_ref(table))
-                    .await?,
-                engine.shape(table).await?,
-            ) != live_lineage
-            {
-                return Err("c5_rebaseline_required_lineage".into());
-            }
-            target
-                .publish_c5(&previous, &plan, vec![digest], &receipts, &live_lineage)
-                .await?;
-        } else if !replay {
-            let mut source_digests = Vec::new();
-            let mut read_chunks = Vec::new();
-            for chunk in ordered_chunks(&plan, &policy)? {
-                let digest = engine
-                    .digest_range(table, chunk.lo.as_deref(), chunk.hi.as_deref())
-                    .await
-                    .map_err(|e| e.to_string())?;
-                let old = previous
-                    .source_digests
-                    .iter()
-                    .find(|d| d.lo == digest.lo && d.hi == digest.hi);
-                if needs_read(
-                    old,
-                    &digest,
-                    policy.positive_hints.contains(&chunk.chunk_id),
-                    policy.cycle.is_multiple_of(policy.full_read_every),
-                ) {
-                    read_chunks.push(chunk);
-                }
-                source_digests.push(digest);
-            }
-            let mut digests = Vec::new();
-            for chunk in &plan.chunks {
-                digests.push(
-                    source_digests
-                        .iter()
-                        .find(|d| d.lo == chunk.lo && d.hi == chunk.hi)
-                        .ok_or("c5_digest_missing")?
-                        .clone(),
-                );
-            }
-            for chunk in read_chunks {
-                let mut sink = oo_load::IpcSink::new(budget);
-                let receipt = engine
-                    .read_chunk(&chunk, budget, &mut sink)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                let ipc = sink.finish()?;
-                source_read_bytes += ipc.len() as u64;
-                let decoded =
-                    oo_pipeline::engine_chunk::decode_chunk(&chunk, &receipt, &ipc, budget)?;
-                let after = engine
-                    .digest_range(table, chunk.lo.as_deref(), chunk.hi.as_deref())
-                    .await
-                    .map_err(|e| e.to_string())?;
-                let before_digest = digests
+        let mut digests = Vec::new();
+        for chunk in &plan.chunks {
+            digests.push(
+                source_digests
                     .iter()
                     .find(|d| d.lo == chunk.lo && d.hi == chunk.hi)
-                    .ok_or("c5_digest_missing")?;
-                if &after != before_digest || after.rows != receipt.rows {
-                    return Err("c5_range_changed_retry".into());
-                }
-                let old = previous
-                    .parts
-                    .iter()
-                    .find(|p| p.receipt.chunk_id == receipt.chunk_id)
-                    .ok_or("c5_parent_missing")?;
-                if old.receipt.sha256 != receipt.sha256 || old.receipt.rows != receipt.rows {
-                    if receipts.is_empty() {
-                        target.begin(&plan).await?;
-                    }
-                    target.stage(&receipt, &decoded).await?;
-                    payload_bytes += receipt.bytes;
-                    receipts.push(receipt);
-                }
-            }
-            if epoch::c5_lineage(
-                engine
-                    .epoch(source, store, std::slice::from_ref(table))
-                    .await?,
-                engine.shape(table).await?,
-            ) != live_lineage
-            {
-                return Err("c5_rebaseline_required_lineage".into());
-            }
-            target
-                .publish_c5(&previous, &plan, digests, &receipts, &live_lineage)
-                .await?;
+                    .ok_or("c5_digest_missing")?
+                    .clone(),
+            );
         }
-        let after = target.generations().await?;
-        let retained_run = target.c5_baseline().await?.run;
-        let duty = u32::from(budget.duty_cycle_percent);
-        if !(1..=100).contains(&duty) {
-            return Err("c5_budget".into());
+        for chunk in read_chunks {
+            let mut sink = oo_load::IpcSink::new(budget);
+            let receipt = engine
+                .read_chunk(&chunk, budget, &mut sink)
+                .await
+                .map_err(|e| e.to_string())?;
+            let ipc = sink.finish()?;
+            source_read_bytes += ipc.len() as u64;
+            let decoded = oo_pipeline::engine_chunk::decode_chunk(&chunk, &receipt, &ipc, budget)?;
+            let after = engine
+                .digest_range(table, chunk.lo.as_deref(), chunk.hi.as_deref())
+                .await
+                .map_err(|e| e.to_string())?;
+            let before_digest = digests
+                .iter()
+                .find(|d| d.lo == chunk.lo && d.hi == chunk.hi)
+                .ok_or("c5_digest_missing")?;
+            if &after != before_digest || after.rows != receipt.rows {
+                return Err("c5_range_changed_retry".into());
+            }
+            let old = previous
+                .parts
+                .iter()
+                .find(|p| p.receipt.chunk_id == receipt.chunk_id)
+                .ok_or("c5_parent_missing")?;
+            if old.receipt.sha256 != receipt.sha256 || old.receipt.rows != receipt.rows {
+                if receipts.is_empty() {
+                    target.begin(&plan).await?;
+                }
+                target.stage(&receipt, &decoded).await?;
+                payload_bytes += receipt.bytes;
+                receipts.push(receipt);
+            }
         }
-        tokio::time::sleep(started.elapsed() * (100 - duty) / duty).await;
-        // Small changed ranges also need a floor between metadata bursts.
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        println!(
-            "{}",
-            serde_json::json!({
-                "protocol":"oo.sync/v1","source":source.id,"mode":"c5","table":table,
-                "run_id":config.run_id,
-                "retained_run":retained_run,
-                "target":target.relation(),"replay":replay,"ranges_replaced":receipts.len(),
-                "payload_bytes":payload_bytes,"source_read_bytes":source_read_bytes,
-                "target_write_bytes":if replay {0} else {target.write_bytes().await?},
-                "generation":after,"new_generations":after-before,
-                "write_basis":"committed_logical_stage_tuples_excluding_indexes_wal_metadata",
-                "publication":"local_table_view","gateway_published":false,"consistency":"B","source_time":"unmeasured"
-            })
-        );
-        drop(target);
-        conn.close().await.map_err(|_| "c5_target_close")?;
+        if epoch::c5_lineage(
+            engine
+                .epoch(source, store, std::slice::from_ref(table))
+                .await
+                .map_err(|_| "c5_source_epoch")?,
+            engine.shape(table).await?,
+        ) != live_lineage
+        {
+            return Err("c5_rebaseline_required_lineage".into());
+        }
+        target
+            .publish_c5(&previous, &plan, digests, &receipts, &live_lineage)
+            .await?;
     }
-    Ok(())
+    let after = target.generations().await?;
+    let retained_run = target.c5_baseline().await?.run;
+    let duty = u32::from(budget.duty_cycle_percent);
+    if !(1..=100).contains(&duty) {
+        return Err("c5_budget".into());
+    }
+    tokio::time::sleep(started.elapsed() * (100 - duty) / duty).await;
+    // Small changed ranges also need a floor between metadata bursts.
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let output = serde_json::json!({
+        "protocol":"oo.sync/v1","source":source.id,"mode":"c5","table":table,
+        "status":if replay || after == before {"noop"} else {"fresh"},
+        "run_id":config.run_id,
+        "retained_run":retained_run,
+        "target":target.relation(),"replay":replay,"ranges_replaced":receipts.len(),
+        "payload_bytes":payload_bytes,"source_read_bytes":source_read_bytes,
+        "target_write_bytes":if replay {0} else {target.write_bytes().await?},
+        "generation":after,"new_generations":after-before,
+        "write_basis":"committed_logical_stage_tuples_excluding_indexes_wal_metadata",
+        "publication":"local_table_view","gateway_published":false,"consistency":"B","source_time":"unmeasured"
+    });
+    Ok(output)
 }
 
 #[cfg(test)]
