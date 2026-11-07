@@ -200,6 +200,11 @@ def main(argv=None):
             text = redact(raw.read_text(errors="replace"), secrets)
             Path(record["log"]).write_text(text)
             record["log_sha256"] = hashlib.sha256(text.encode()).hexdigest()
+            if record["exit_code"] or record["timed_out"]:
+                # The receipt directory is not uploaded; show the redacted tail
+                # so a CI failure names its cause.
+                tail = "\n".join(text.splitlines()[-80:])
+                print(f"--- {record['id']} log tail (redacted) ---\n{tail}", file=sys.stderr)
         receipt["fixture_evidence"] = []
         for fixture in scratch.glob("f22-owned-*"):
             for name in ("setup.log", "cli-build.log", "test.log", "result.json", "cli-binary.json"):
