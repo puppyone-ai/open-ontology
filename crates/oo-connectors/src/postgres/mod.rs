@@ -6,6 +6,7 @@
 //! Plans belong to this engine instance, not a durable/cross-cycle checkpoint.
 
 pub mod changes;
+mod declared;
 mod kingbase;
 pub mod lsn;
 pub mod opengauss;
@@ -554,6 +555,14 @@ async fn duty(start: Instant, percent: u8) -> ReadTiming {
 }
 
 impl SourceEngine for PostgresEngine {
+    async fn declared_catalog(
+        &mut self,
+        tables: &[TableRef],
+        budget: &ReadBudget,
+    ) -> Result<Option<DeclaredSourceCatalog>, SourceError> {
+        self.export_declared(tables, budget).await
+    }
+
     fn family(&self) -> EngineFamily {
         self.family
     }

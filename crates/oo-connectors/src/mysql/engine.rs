@@ -45,6 +45,9 @@ pub mod repair;
 
 type Result<T> = std::result::Result<T, SourceError>;
 
+#[path = "declared.rs"]
+mod declared;
+
 /// Server error: maximum statement execution time exceeded.
 const ER_QUERY_TIMEOUT: u16 = 3024;
 /// Raw bytes per Arrow batch inside one chunk; deterministic grouping keeps
@@ -1894,6 +1897,14 @@ impl MysqlEngine {
 }
 
 impl SourceEngine for MysqlEngine {
+    async fn declared_catalog(
+        &mut self,
+        tables: &[TableRef],
+        budget: &ReadBudget,
+    ) -> Result<Option<crate::engine::DeclaredSourceCatalog>> {
+        self.export_declared(tables, budget).await
+    }
+
     fn family(&self) -> EngineFamily {
         self.family
     }

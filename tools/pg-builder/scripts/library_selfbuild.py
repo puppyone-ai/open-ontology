@@ -153,9 +153,51 @@ def build_facts(tables, containment, enum_match=None, declared=None, reports=Non
             key = next((c for c in table['columns'] if c['name'] == table['primary_key'][0]), None)
             if key:
                 keys.append((table, key))
+    inventory = {t['dataset']: t for t in tables}
+    declared_edges = set()
+    for table in tables:
+        for fk in table.get('foreign_keys', []):
+            try:
+                parent = inventory[fk['referenced_dataset']]
+                columns = [next(c for c in table['columns'] if c['name'] == name) for name in fk['columns']]
+                parent_keys = [next(c for c in parent['columns'] if c['name'] == name)
+                               for name in fk['referenced_columns']]
+            except (KeyError, StopIteration):
+                raise ValueError('declared_fk_mapping') from None
+            if not columns or len(columns) != len(parent_keys):
+                raise ValueError('declared_fk_mapping')
+            endpoint = (table['dataset'], tuple(fk['columns']),
+                        parent['dataset'], tuple(fk['referenced_columns']))
+            if endpoint in declared_edges:
+                continue
+            declared_edges.add(endpoint)
+            try:
+                observed = containment(table, columns[0] if len(columns) == 1 else columns,
+                                       parent, parent_keys[0] if len(parent_keys) == 1 else parent_keys)
+                validate_containment(observed)
+            except RuntimeError as error:
+                observed = dict(non_null=0, matched=0, parent_unique=False,
+                                observation_error=observation.error_code(error))
+            ratio = observed['matched'] / observed['non_null'] if observed['non_null'] else None
+            row_ratio = (observed.get('matched_rows', 0) / observed['non_null_rows']
+                         if observed.get('non_null_rows') else ratio)
+            relation = dict(name='rel_' + digest(endpoint)[:20],
+                cardinality='many_to_one', join_hint='left', provenance='declared',
+                confidence='1.00', status='candidate',
+                evidence=dict(observed, constraint=fk['name'],
+                    containment=None if ratio is None else f'{ratio:.6f}',
+                    row_containment=None if row_ratio is None else f'{row_ratio:.6f}'),
+                **{'from': dict(dataset=table['dataset'], columns=fk['columns']),
+                   'to': dict(dataset=parent['dataset'], columns=fk['referenced_columns'])})
+            candidates.append(relation)
+            # A violated declaration is still declared; retain the failed
+            # containment for review instead of silently replacing source DDL.
+            relationships.append(relation)
     for table in tables:
         for column in table['columns']:
             for parent, key in keys:
+                if (table['dataset'], (column['name'],), parent['dataset'], (key['name'],)) in declared_edges:
+                    continue
                 if table['dataset'] == parent['dataset'] or not compatible(column['data_type'], key['data_type']):
                     continue
                 signal = candidate_signal(table, column, parent, key)
@@ -493,6 +535,31 @@ def database_containment(db, max_checks=65536):
     checked = 0
     def run(child, column, parent, key):
         nonlocal checked
+        if isinstance(column, list):
+            if not isinstance(key, list) or not column or len(column) != len(key):
+                raise ValueError('declared_fk_mapping')
+            if checked >= max_checks:
+                raise ValueError('relationship_check_budget_exhausted')
+            checked += 1
+            child_names = [quote(c['physical_name']) for c in column]
+            parent_names = [quote(c['physical_name']) for c in key]
+            child_key = 'ROW(' + ','.join(child_names) + ')'
+            parent_key = 'ROW(' + ','.join(parent_names) + ')'
+            child_where = ' and '.join(n + ' is not null' for n in child_names)
+            parent_where = ' and '.join(n + ' is not null' for n in parent_names)
+            unique = db.query("select json_build_object('unique',count(*)=count(distinct "
+                              + parent_key + ')) from ' + parent['physical'] + ' where ' + parent_where)
+            result = db.query(
+                "select json_build_object('non_null',count(*),'matched',count(p.key),"
+                "'non_null_rows',coalesce(sum(c.n),0),'matched_rows',"
+                "coalesce(sum(c.n) filter(where p.key is not null),0)) from "
+                '(select ' + child_key + ' as key,count(*) as n from ' + child['physical']
+                + ' where ' + child_where + ' group by ' + ','.join(child_names) + ') c left join '
+                + '(select distinct ' + parent_key + ' as key from ' + parent['physical']
+                + ' where ' + parent_where + ') p on p.key=c.key')
+            result['parent_unique'] = unique['unique']
+            result['method'] = 'exact_composite_containment'
+            return result
         if column.get('profile', {}).get('rows') == 0 or key.get('profile', {}).get('rows') == 0:
             return {'non_null': 0, 'matched': 0, 'parent_unique': False, 'method': 'empty_table'}
         if checked >= max_checks:

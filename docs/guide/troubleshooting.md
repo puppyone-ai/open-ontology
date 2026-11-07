@@ -697,7 +697,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `VERSION_UNSUPPORTED` | [configuration-and-source](#configuration-and-source) | [`outcome.rs:412`](../../crates/oo-cli/src/outcome.rs#L412) |
 | `W73_RAW` | [configuration-and-source](#configuration-and-source) | [`w73.rs:509`](../../tools/release-coordinator/src/w73.rs#L509) |
 | `access_denied` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:97`](../../crates/oo-gateway/src/auth_device.rs#L97) |
-| `budget_unmeasured` | [model](#model) | [`library_selfbuild.py:526`](../../tools/pg-builder/scripts/library_selfbuild.py#L526) |
+| `budget_unmeasured` | [model](#model) | [`library_selfbuild.py:593`](../../tools/pg-builder/scripts/library_selfbuild.py#L593) |
 | `expired_token` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:230`](../../crates/oo-gateway/src/auth_device.rs#L230) |
 | `invalid_grant` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:215`](../../crates/oo-gateway/src/auth_device.rs#L215) |
 | `invalid_request` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:94`](../../crates/oo-gateway/src/auth_device.rs#L94) |

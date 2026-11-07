@@ -183,7 +183,7 @@ fn dm8(
         .map_err(|e| e.to_string())
 }
 
-fn oracle(
+pub(super) fn oracle(
     source: &Source,
     tables: &[TableRef],
     store: &SecretStore,
@@ -239,7 +239,7 @@ fn pinned_worker(image: &str) -> bool {
         .is_some_and(|digest| digest.len() == 64 && digest.bytes().all(|b| b.is_ascii_hexdigit()))
 }
 
-fn family(source: &Source) -> Result<EngineFamily, &'static str> {
+pub(super) fn family(source: &Source) -> Result<EngineFamily, &'static str> {
     let name = source.engine.split('-').next().unwrap_or("");
     match name {
         "postgres" | "postgresql" => Ok(EngineFamily::Postgres),
@@ -260,7 +260,7 @@ fn family(source: &Source) -> Result<EngineFamily, &'static str> {
     }
 }
 
-fn tables(source: &Source) -> Result<Vec<TableRef>, &'static str> {
+pub(super) fn tables(source: &Source) -> Result<Vec<TableRef>, &'static str> {
     if source.scope.exclude.iter().any(|s| {
         s.contains('?')
             || (s.contains('*') && s != "*" && !(s.ends_with(".*") && s.matches('*').count() == 1))
@@ -295,7 +295,7 @@ fn tables(source: &Source) -> Result<Vec<TableRef>, &'static str> {
     Ok(out)
 }
 
-fn postgres(
+pub(super) fn postgres(
     source: &Source,
     tables: &[TableRef],
     store: &SecretStore,

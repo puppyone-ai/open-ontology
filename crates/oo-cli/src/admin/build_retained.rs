@@ -250,6 +250,12 @@ pub(super) fn builder(
         ));
     }
     let config_path = root.join("builder-config.json");
+    pin_source_catalog(
+        root,
+        &mut config,
+        &source.id,
+        source_catalog(source, Path::new(text(runtime, "secrets_dir")?))?,
+    )?;
     save(&config_path, &config)?;
     let mut command = Command::new("python3");
     // Save the result in the child before returning, including on parent SIGKILL.
@@ -315,10 +321,189 @@ pub(super) fn publish(
     Ok(publication)
 }
 
+fn source_catalog(
+    source: &oo_stack::stack::Source,
+    secrets_dir: &Path,
+) -> Result<Option<oo_connectors::engine::DeclaredSourceCatalog>> {
+    use super::doctor;
+    use oo_connectors::engine::{EngineFamily, ReadBudget, SourceEngine};
+    let family = match doctor::family(source) {
+        Ok(family) => family,
+        Err("ENGINE_NOT_AVAILABLE") => return Ok(None),
+        Err(error) => return Err(Failure::local(error)),
+    };
+    if !matches!(
+        family,
+        EngineFamily::Postgres | EngineFamily::Mysql | EngineFamily::Oracle
+    ) {
+        return Ok(None);
+    }
+    let tables = doctor::tables(source).map_err(Failure::local)?;
+    // The helper isolates MySQL's TLS dependencies, as it does for doctor.
+    if family == EngineFamily::Mysql {
+        let command = Command::new(binary("oo-mysql-doctor")?);
+        let request = json!({"operation":"declared_catalog", "source":source,
+            "tables":tables,"secrets_dir":secrets_dir});
+        let (code, out, _) = invoke(command, request.to_string().into_bytes(), 300)?;
+        let response: Value = serde_json::from_slice(&out)
+            .map_err(|_| Failure::local("BUILD_SOURCE_CATALOG_PROTOCOL"))?;
+        if code != 0 || response["status"] != "ok" {
+            let error = match response["error"].as_str() {
+                Some("declared_catalog_byte_limit") => "declared_catalog_byte_limit",
+                Some("declared_catalog_row_limit") => "declared_catalog_row_limit",
+                _ => "BUILD_SOURCE_CATALOG_FAILED",
+            };
+            return Err(Failure::local(error));
+        }
+        return serde_json::from_value(response["catalog"].clone())
+            .map_err(|_| Failure::local("BUILD_SOURCE_CATALOG_PROTOCOL"));
+    }
+    let store = oo_stack::secret::SecretStore::open(secrets_dir).map_err(Failure::local)?;
+    // Oracle's blocking driver must not starve SSH forwarding tasks.
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .map_err(|_| Failure::local("BUILD_SOURCE_RUNTIME"))?;
+    runtime.block_on(async {
+        let tunnel = oo_connectors::transport::ssh::connect(source, &store)
+            .await
+            .map_err(Failure::local)?;
+        let result = if family == EngineFamily::Postgres {
+            doctor::postgres(source, &tables, &store, tunnel.clone())
+                .map_err(|_| Failure::local("BUILD_SOURCE_CONNECTION"))?
+                .declared_catalog(&tables, &ReadBudget::default())
+                .await
+        } else {
+            let mut routed = source.clone();
+            if let Some(tunnel) = &tunnel {
+                routed.host = tunnel.address().ip().to_string();
+                routed.port = tunnel.address().port();
+            }
+            doctor::oracle(&routed, &tables, &store)
+                .map_err(|_| Failure::local("BUILD_SOURCE_CONNECTION"))?
+                .declared_catalog(&tables, &ReadBudget::default())
+                .await
+        };
+        result
+            .map_err(|error| Failure::local(error.fact().unwrap_or("BUILD_SOURCE_CATALOG_FAILED")))
+    })
+}
+
+fn pin_source_catalog(
+    root: &Path,
+    config: &mut Value,
+    source_id: &str,
+    catalog: Option<oo_connectors::engine::DeclaredSourceCatalog>,
+) -> Result<()> {
+    // Never retain an operator-supplied stale pin when the engine has no export.
+    config
+        .as_object_mut()
+        .ok_or_else(|| Failure::local("BUILD_RUNTIME_CONFIG"))?
+        .remove("source_catalog");
+    if let Some(mut catalog) = catalog {
+        // Oracle's engine has no stack ID; the connection owner supplies it.
+        catalog.source_id = source_id.to_owned();
+        let path = root.join("source-catalog.json");
+        save(&path, &json!(catalog))?;
+        let bytes = fs::read(&path).map_err(|_| Failure::local("BUILD_STATE_IO"))?;
+        config["source_catalog"] =
+            json!({"path":path,"sha256":oo_core::api::payload_sha256(&bytes)});
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::os::unix::fs::symlink;
+
+    #[test]
+    fn unsupported_source_omits_catalog_without_reading_secrets() {
+        let source = serde_json::from_value(json!({
+            "id":"source", "engine":"opengauss", "host":"localhost",
+            "port":5432,"database":"fixture","user":"reader",
+            "password":{"secret_ref":"unavailable"}
+        }))
+        .unwrap();
+        assert!(
+            source_catalog(&source, Path::new("nonexistent-secrets"))
+                .ok()
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    #[ignore = "requires a separately administered, read-only source fixture"]
+    fn live_declared_catalog_export() {
+        let path = std::env::var_os("OO_TEST_DECLARED_CATALOG").expect("fixture request");
+        let request = review::read(Path::new(&path)).ok().unwrap();
+        let source: oo_stack::stack::Source =
+            serde_json::from_value(request["source"].clone()).unwrap();
+        let catalog = source_catalog(&source, Path::new(request["secrets_dir"].as_str().unwrap()))
+            .unwrap_or_else(|error| panic!("{}", String::from_utf8_lossy(&error.json_bytes())))
+            .expect("supported engine");
+        assert_eq!(catalog.tables.len(), 3);
+        assert_eq!(
+            catalog
+                .tables
+                .iter()
+                .map(|t| t.foreign_keys.len())
+                .sum::<usize>(),
+            2
+        );
+        for table in &catalog.tables {
+            assert!(table.comment.as_ref().is_some_and(|s| !s.is_empty()));
+            assert!(!table.primary_key.is_empty());
+            for column in &table.columns {
+                assert!(column.comment.as_ref().is_some_and(|s| !s.is_empty()));
+                if table.primary_key.iter().any(|key| key.name == column.name) {
+                    assert!(column.not_null);
+                }
+            }
+        }
+        let root = Path::new(request["output"].as_str().unwrap());
+        let mut config = json!({});
+        pin_source_catalog(root, &mut config, &source.id, Some(catalog))
+            .ok()
+            .unwrap();
+        save(&root.join("builder-config.json"), &config)
+            .ok()
+            .unwrap();
+    }
+
+    #[test]
+    fn source_catalog_pin_is_private_and_binds_exact_file_bytes() {
+        use std::os::unix::fs::MetadataExt;
+        let root = std::fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!("retained-catalog-{}", std::process::id()));
+        fs::DirBuilder::new().mode(0o700).create(&root).unwrap();
+        let mut config = json!({"source_catalog":{"path":"stale"}});
+        pin_source_catalog(&root, &mut config, "source", None)
+            .ok()
+            .unwrap();
+        assert!(config.get("source_catalog").is_none());
+        assert!(!root.join("source-catalog.json").exists());
+        let catalog = oo_connectors::engine::DeclaredSourceCatalog {
+            protocol: "oo.builder.source-catalog/v1".into(),
+            source_id: "oracle".into(),
+            tables: vec![],
+        };
+        pin_source_catalog(&root, &mut config, "source", Some(catalog))
+            .ok()
+            .unwrap();
+        let path = root.join("source-catalog.json");
+        assert_eq!(fs::metadata(&path).unwrap().mode() & 0o777, 0o600);
+        let bytes = fs::read(&path).unwrap();
+        assert_eq!(
+            config["source_catalog"]["sha256"],
+            oo_core::api::payload_sha256(&bytes)
+        );
+        assert_eq!(review::read(&path).ok().unwrap()["source_id"], "source");
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn subprocess_exit_codes_and_private_atomic_replacement() {
