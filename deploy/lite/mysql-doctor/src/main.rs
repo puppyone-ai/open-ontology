@@ -1,5 +1,5 @@
 //! Feature-isolated helper: references on stdin, never credential values in argv.
-use oo_connectors::engine::TableRef;
+use oo_connectors::engine::{ReadBudget, SourceEngine, TableRef};
 use oo_connectors::mysql::{EngineOptions, MysqlConfig, MysqlEngine};
 use oo_stack::{secret::SecretStore, stack::Source};
 use serde_json::{Value, json};
@@ -23,19 +23,19 @@ fn run() -> Result<Value, &'static str> {
     let tables: Vec<TableRef> =
         serde_json::from_value(value["tables"].clone()).map_err(|_| "MYSQL_DOCTOR_INPUT")?;
     let ca = source.tls_ca.as_ref().ok_or("SOURCE_TLS_CA_REQUIRED")?;
-    let store = SecretStore::from_home()?;
+    let store = match value["secrets_dir"].as_str() {
+        Some(path) => SecretStore::open(path)?,
+        None => SecretStore::from_home()?,
+    };
     // Validate the file using the private-store rules before handing its path
     // to the existing connector, whose TLS client verifies the hostname.
     store.read(&ca.secret_ref)?;
-    let home = std::env::var_os("HOME").ok_or("SECRET_HOME")?;
     let config = MysqlConfig {
         mysql_host: source.host.clone(),
         mysql_port: source.port,
         mysql_database: source.database.clone(),
         mysql_user: source.user.clone(),
-        mysql_ca_file: std::path::Path::new(&home)
-            .join(".config/open-ontology/secrets")
-            .join(&ca.secret_ref),
+        mysql_ca_file: store.path(&ca.secret_ref)?,
         mysql_tls_server_name: None,
         secret_ref: oo_connectors::SecretRef::new(format!(
             "secret://{}",
@@ -61,6 +61,13 @@ fn run() -> Result<Value, &'static str> {
         let tunnel = oo_connectors::transport::ssh::connect(&source, &store).await?;
         if let Some(tunnel) = tunnel {
             engine = engine.with_tunnel(tunnel).map_err(|_| "SSH_TARGET")?;
+        }
+        if value["operation"] == "declared_catalog" {
+            let catalog = engine
+                .declared_catalog(&tables, &ReadBudget::default())
+                .await
+                .map_err(|error| error.fact().unwrap_or("SOURCE_CATALOG_FAILED"))?;
+            return Ok(json!({"status":"ok","catalog":catalog}));
         }
         let mut report = inspection::inspect(&mut engine, &tables, &source.sync.mode).await;
         if let Some(ssh) = &source.ssh {
