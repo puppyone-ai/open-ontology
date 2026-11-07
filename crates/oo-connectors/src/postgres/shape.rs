@@ -36,7 +36,24 @@ impl PostgresEngine {
                     .find(|t| t.schema == table.schema && t.name == table.name)
                     .ok_or_else(|| SourceError::catalog("selected_table_missing"))?;
                 let graph = s.load_type_graph(&source.columns).await?;
-                s.arm_rows(budget.max_chunk_rows.min(100_000) as u32);
+                let complex_key: bool = session::fetch_control(
+                    &mut s,
+                    sqlx::query(
+                        "SELECT EXISTS(SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid=i.indrelid
+                 JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=$1 AND c.relname=$2
+                 AND i.indisunique AND (i.indpred IS NOT NULL OR i.indexprs IS NOT NULL
+                 OR NOT i.indisvalid OR NOT i.indisready))",
+                    )
+                    .bind(&table.schema)
+                    .bind(&table.name),
+                )
+                .await?
+                .try_get(0)
+                .map_err(|_| SourceError::catalog("column_shape"))?;
+                if complex_key {
+                    return Ok(None);
+                }
+                s.arm_rows(2048);
                 let rows = session::fetch_all(&mut s, sqlx::query(
                 "SELECT a.attname::text,a.attnum::bigint,format_type(a.atttypid,a.atttypmod),
                  current_setting('server_encoding'),co.collname::text
@@ -44,7 +61,7 @@ impl PostgresEngine {
                  JOIN pg_namespace n ON n.oid=c.relnamespace
                  LEFT JOIN pg_collation co ON co.oid=a.attcollation
                  WHERE n.nspname=$1 AND c.relname=$2 AND a.attnum>0 AND NOT a.attisdropped
-                 ORDER BY a.attnum"
+                 ORDER BY a.attnum LIMIT 2048"
             ).bind(&table.schema).bind(&table.name)).await?;
                 let keys = session::fetch_all(
                     &mut s,
@@ -57,12 +74,15 @@ impl PostgresEngine {
                  JOIN pg_attribute a ON a.attrelid=c.oid AND a.attnum=k.attnum
                  WHERE n.nspname=$1 AND c.relname=$2 AND i.indisunique
                  AND i.indisvalid AND i.indisready AND k.ord<=i.indnkeyatts
-                 ORDER BY ic.relname,k.ord",
+                 ORDER BY ic.relname,k.ord LIMIT 2048",
                     )
                     .bind(&table.schema)
                     .bind(&table.name),
                 )
                 .await?;
+                if rows.len() >= 2048 || keys.len() >= 2048 {
+                    return Err(SourceError::budget("column_count"));
+                }
                 let mut out = Vec::new();
                 for row in rows {
                     let name = cell_string(&row, 0)?;
@@ -79,7 +99,20 @@ impl PostgresEngine {
                         name,
                         ordinal: u32::try_from(cell_i64(&row, 1)?)
                             .map_err(|_| SourceError::catalog("column_ordinal"))?,
-                        source_type: cell_string(&row, 2)?,
+                        source_type: if matches!(c.typtype.as_str(), "e" | "d") {
+                            format!(
+                                "{}#catalog:{}",
+                                cell_string(&row, 2)?,
+                                serde_json::to_string(&(
+                                    &c.enum_labels,
+                                    &c.domain_checks,
+                                    c.base_type_oid
+                                ))
+                                .map_err(|_| SourceError::catalog("column_shape"))?
+                            )
+                        } else {
+                            cell_string(&row, 2)?
+                        },
                         target_type: crate::engine::shape::target_type(
                             plan.arrow
                                 .as_ref()

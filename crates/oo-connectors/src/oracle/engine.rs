@@ -613,6 +613,60 @@ impl OracleEngine {
             .map_err(|e| map_ora(&e))
     }
 
+    /// A timed-out thin call may also lose its cancellation connection.
+    /// Reconnect before returning the timeout so the next table is isolated.
+    /// Arbitrary disconnects are still source-wide failures.
+    fn recover_timed_out_call(
+        &mut self,
+        error: SourceError,
+        started: Instant,
+        budget: &ReadBudget,
+    ) -> SourceError {
+        let lost = error.fact() == Some("connection_recovery_failed")
+            && started.elapsed() >= Duration::from_millis(budget.statement_timeout_ms);
+        let timeout = lost
+            || matches!(
+                error.fact(),
+                Some("call_timeout" | "ora_01013_call_cancelled" | "timeout_connection_closed")
+            );
+        if !timeout {
+            return error;
+        }
+        if lost && self.worker.is_none() {
+            // UnableToRecover has already closed the socket. Keep its handle
+            // until reconnect succeeds so a failed reconnect cannot leave an
+            // engine whose next operation panics on a missing connection.
+            let replacement = (|| {
+                let config = oracledb::Config::default()
+                    .set_stmtcachesize(0)
+                    .set_credentials(&self.cfg.user, self.cfg.password.as_str())
+                    .set_connect_string(&format!(
+                        "{}:{}/{}",
+                        self.cfg.host, self.cfg.port, self.cfg.service
+                    ))
+                    .map_err(|e| map_ora(&e))?;
+                let conn = oracledb::connect(config).map_err(|e| map_ora(&e))?;
+                conn.set_module("oo-source-engine")
+                    .map_err(|e| map_ora(&e))?;
+                conn.set_call_timeout(Some(Duration::from_millis(budget.statement_timeout_ms)))
+                    .map_err(|e| map_ora(&e))?;
+                Ok::<_, SourceError>(conn)
+            })();
+            match replacement {
+                Ok(conn) => self.conn = Some(conn),
+                Err(error) => return error,
+            }
+            self.tables.clear();
+            self.nls = None;
+            self.stats.sessions += 1;
+        }
+        if lost {
+            SourceError::budget("timeout_connection_closed")
+        } else {
+            error
+        }
+    }
+
     /// Run a query and return up to `max_rows` rows of nullable text.
     fn query(&mut self, text: &str, binds: &[Bind], max_rows: usize) -> Result<Rows, SourceError> {
         let rows = self.query_raw(text, binds, max_rows).map_err(|e| {
@@ -2466,7 +2520,9 @@ impl SourceEngine for OracleEngine {
         validate_budget(budget)?;
         self.protect().await?;
         let started = Instant::now();
-        let result = self.plan_sync(table, budget);
+        let result = self
+            .plan_sync(table, budget)
+            .map_err(|e| self.recover_timed_out_call(e, started, budget));
         self.schedule_next(started.elapsed(), budget);
         self.pace().await;
         result
@@ -2481,18 +2537,9 @@ impl SourceEngine for OracleEngine {
         validate_budget(budget)?;
         self.protect().await?;
         let started = Instant::now();
-        let result = self.read_chunk_sync(chunk, budget, sink).map_err(|e| {
-            // The thin driver can close the socket when timeout cancellation
-            // itself times out. Keep that budget failure distinct from a
-            // protocol failure, without treating arbitrary disconnects as timeouts.
-            if e.fact() == Some("connection_recovery_failed")
-                && started.elapsed() >= Duration::from_millis(budget.statement_timeout_ms)
-            {
-                SourceError::budget("timeout_connection_closed")
-            } else {
-                e
-            }
-        });
+        let result = self
+            .read_chunk_sync(chunk, budget, sink)
+            .map_err(|e| self.recover_timed_out_call(e, started, budget));
         self.schedule_next(started.elapsed(), budget);
         self.pace().await;
         result
@@ -2514,7 +2561,9 @@ impl SourceEngine for OracleEngine {
         self.set_timeout(Duration::from_millis(budget.statement_timeout_ms))?;
         self.protect().await?;
         let started = Instant::now();
-        let result = self.digest_sync(table, lo, hi);
+        let result = self
+            .digest_sync(table, lo, hi)
+            .map_err(|e| self.recover_timed_out_call(e, started, &budget));
         self.schedule_next(started.elapsed(), &budget);
         self.pace().await;
         result

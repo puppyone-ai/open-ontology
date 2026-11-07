@@ -16,7 +16,9 @@ impl OracleEngine {
         self.ensure_version()?;
         self.protect().await?;
         let started = Instant::now();
-        let result = self.shape_inner(table, budget);
+        let result = self
+            .shape_inner(table, budget)
+            .map_err(|e| self.recover_timed_out_call(e, started, budget));
         self.schedule_next(started.elapsed(), budget);
         self.pace().await;
         result.map(Some)
