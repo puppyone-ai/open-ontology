@@ -3,7 +3,7 @@
 @@ -347,9 +347,36 @@
      pub comment: Option<String>,
  }
- 
+
 +/// Fresh source catalog facts, before hashing or target projection.
 +#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 +pub struct SourceColumnShape {
