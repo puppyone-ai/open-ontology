@@ -84,7 +84,7 @@ pub(super) fn run(
         "scheduler.py":include_str!("../../../../deploy/lite/scheduler.py"),
     },
     // Control-DB jobs schema for the scheduled cycle, armed after the first build.
-    "jobs":jobs()});
+    "jobs":jobs(),"cycle_events":include_str!("../../../../deploy/lite/cycle_events.sql")});
     let mut child = Command::new("python3")
         .args(["-c", include_str!("../../../../deploy/lite/lifecycle.py")])
         .stdin(Stdio::piped())

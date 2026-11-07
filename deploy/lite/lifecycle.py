@@ -14,6 +14,43 @@ import subprocess
 import sys
 import urllib.parse
 import uuid
+from datetime import datetime, timezone
+
+def publication_health(history, services_up, now=None):
+    published=history.get('data_published_at')
+    try:
+        age=((now or datetime.now(timezone.utc))-datetime.fromisoformat(
+            published.replace('Z','+00:00'))).total_seconds()
+        fresh=0 <= age <= 2*history.get('interval_seconds',3600)+history.get('grace_seconds',60)
+    except (AttributeError,TypeError,ValueError):
+        age=None
+        fresh=False
+    degraded=(history.get('cycle') or {}).get('result')=='partial' or any(
+        (history.get('tables') or {}).get(key) for key in ('stale','review_pending'))
+    status='healthy' if services_up and fresh else 'unhealthy'
+    if status=='healthy' and degraded:status='degraded'
+    return {'status':status,'healthy':status=='healthy','data_age_seconds':age,
+            'alert':None if fresh else 'data_publication_overdue' if published else 'data_publication_unmeasured'}
+
+def active_publication(root,argv,env):
+    """Initial builds predate the first scheduled event; consult the DB head."""
+    try:
+        config=json.loads(read_private(root/'work/operator/schedule.json'))
+        library=config['cycle']['library'].replace("'","''")
+        query=f"""BEGIN TRANSACTION READ ONLY;
+SET LOCAL statement_timeout='5s';
+SELECT to_char(p.published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+FROM _oo.native_library_publication p JOIN _oo.native_library_head h
+ON h.library_id=p.library_id AND h.receipt_sha256=p.receipt_sha256
+WHERE h.library_id='{library}' AND h.state='ready';
+COMMIT;"""
+        raw=docker(argv+['exec','-T','agent-db','psql','-X','-qAt','-v','ON_ERROR_STOP=1',
+                        '-U','postgres','-d','postgres','-c',query],env).decode().strip()
+        if re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z',raw):
+            return raw
+    except Exception:
+        pass
+    return None
 
 def service_status(row):
     result={key:row.get(key) for key in ('Service','State','Health','ExitCode')}
@@ -38,9 +75,10 @@ def service_status(row):
 
 def control_status(root,argv,env):
     empty={'last_success':None,'last_failure':None,'next_due':None}
+    split={'data_published_at':None,'cycle':None,'tables':{'stale':[],'review_pending':[]}}
     path=root/'work/operator/schedule.json'
     if not path.exists():
-        return {**empty,'schedule_basis':'control_db','schedule_status':'not_configured'}
+        return {**empty,**split,'schedule_basis':'control_db','schedule_status':'not_configured'}
     try:
         config=json.loads(read_private(path))
         project=config['project']
@@ -49,6 +87,17 @@ def control_status(root,argv,env):
         task_kind=(" AND e.task_id IN (SELECT id FROM jobs.tasks WHERE kind='lite_retained')"
                    if 'cycle' in config else '')
         schedule_kind=" AND kind='lite_retained'" if 'cycle' in config else ''
+        event_fields=("""
+ 'cycle', (SELECT jsonb_build_object('result',payload->'result','reason',payload->'reason',
+   'at',occurred_at) FROM jobs.lite_cycle_events WHERE project_id='%s'
+   ORDER BY event_id DESC LIMIT 1),
+ 'data_published_at', (SELECT payload->'data_published_at' FROM jobs.lite_cycle_events
+   WHERE project_id='%s' AND payload->>'data_published_at' IS NOT NULL ORDER BY event_id DESC LIMIT 1),
+ 'tables', coalesce((SELECT jsonb_build_object('stale',payload->'stale_tables',
+   'review_pending',payload->'review_pending') FROM jobs.lite_cycle_events
+   WHERE project_id='%s' ORDER BY event_id DESC LIMIT 1),
+   '{"stale":[],"review_pending":[]}'::jsonb),
+""" % (project,project,project)) if 'cycle' in config else ''
         # The socket is inside this owned control container, never a source DB.
         # One read-only snapshot; enqueue/fire success is not job completion.
         sql=f"""
@@ -56,6 +105,7 @@ BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
 SET LOCAL ROLE oo_jobs_runtime;
 SET LOCAL statement_timeout = '5s';
 SELECT json_build_object(
+ {event_fields}
  'last_success', (SELECT to_char(max(e.occurred_at) AT TIME ZONE 'UTC',
    'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') FROM jobs.task_events e
    WHERE e.project_id = '{project}'::uuid AND e.to_state = 'succeeded'{task_kind}),
@@ -72,15 +122,17 @@ COMMIT;
         raw=docker(argv+['exec','-T','control-db','psql','-X','-qAt',
                        '-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres','-c',sql],env)
         data=json.loads(raw)
-        if set(data)!=set(empty):
+        if set(data)!=set(empty) | (set(split) if 'cycle' in config else set()):
             raise ValueError('LITE_CONTROL_PROTOCOL')
-        for value in data.values():
+        for value in (data[key] for key in empty):
             if value is not None and (not isinstance(value,str) or not re.fullmatch(
                     r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z',value)):
                 raise ValueError('LITE_CONTROL_PROTOCOL')
-        return {**data,'schedule_basis':'control_db','schedule_status':'measured'}
+        return {**split,**data,'interval_seconds':config.get('interval_seconds',3600),
+                'grace_seconds':config.get('grace_seconds',60),
+                'schedule_basis':'control_db','schedule_status':'measured'}
     except Exception:
-        return {**empty,'schedule_basis':'control_db','schedule_status':'unavailable'}
+        return {**empty,**split,'schedule_basis':'control_db','schedule_status':'unavailable'}
 
 
 def private_dir(path):
@@ -478,6 +530,8 @@ def provision_schedule(root,argv,env,request):
         sql.append('COMMIT;')
         compose_input(argv,env,['exec','-T','control-db','psql','-X','-q','-v','ON_ERROR_STOP=1',
                                 '-U','postgres'],'\n'.join(sql).encode(),'LITE_JOBS_SCHEMA')
+    compose_input(argv,env,['exec','-T','control-db','psql','-X','-q','-v','ON_ERROR_STOP=1',
+                            '-U','postgres'],request['cycle_events'].encode(),'LITE_CYCLE_SCHEMA')
     stack=request['stack']
     source=stack['sources'][0]
     origin={name:{'path':'/work/build/.oo/'+file,
@@ -531,7 +585,8 @@ def main(request):
     project='oo-a-lite-'+hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:16]
     owner=root/'owner.json'
     if action!='up' and not owner.exists():
-        return {'status':'not_started','gateway_health':{'status':'unmeasured'},'services':[]}
+        return {'status':'not_started','gateway_health':{'status':'unmeasured'},'services':[],
+                'data_published_at':None,'cycle':None,'tables':{'stale':[],'review_pending':[]}}
     image=request['image'] if action=='up' else json.loads(read_private(owner))['image']
     if not re.fullmatch(r'(?:[a-zA-Z0-9./:_-]+@)?sha256:[0-9a-f]{64}',image):
         raise ValueError('LITE_IMAGE_DIGEST_REQUIRED')
@@ -619,17 +674,20 @@ def main(request):
         try:gateway=health(root,request['stack'],port,argv,env)
         except Exception:gateway={'status':'unavailable','nearest_credential_expiry_ms':None}
     history=({'last_success':None,'last_failure':None,'next_due':None,
+              'data_published_at':None,'cycle':None,'tables':{'stale':[],'review_pending':[]},
               'schedule_basis':'control_db','schedule_status':'stopped'}
              if action=='down' else control_status(root,argv,env))
+    if action!='down' and not history.get('data_published_at'):
+        history['data_published_at']=active_publication(root,argv,env)
     expected={'agent-db','control-db','model-egress','worker','scheduler','builder','gateway'}
     measured={row['Service']:row for row in services if row['Service'] in expected}
-    healthy=(action!='down' and set(measured)==expected
+    services_up=(action!='down' and set(measured)==expected
              and all(row['Healthy'] for row in measured.values())
-             and gateway['status']=='measured' and history['schedule_status']=='measured'
-             and history['last_success'] is not None and history['next_due'] is not None
-             and (history['last_failure'] is None or history['last_failure']<history['last_success']))
-    status='stopped' if action=='down' else 'healthy' if healthy else 'foundations_only'
-    pending=[] if healthy else ['worker admission/migrations','scheduler bindings',
+             and gateway['status']=='measured')
+    health_report=publication_health(history,services_up)
+    healthy=health_report['healthy']
+    status='stopped' if action=='down' else health_report['status'] if history.get('data_published_at') else 'foundations_only'
+    pending=[] if status in ('healthy','degraded') else ['worker admission/migrations','scheduler bindings',
         'Builder target binding and publication','Gateway operator configuration']
     build=None
     if status=='foundations_only' and (root/'work/operator/build-runtime.json').exists():
@@ -640,16 +698,16 @@ def main(request):
         except Exception:build='unavailable'
         status='retained_ready'
         pending=['oo build' if build!='complete' else 'scheduled retained cycle']
-    return {'status':status,'services':services,'gateway_health':gateway,**history,
+    return {**health_report,'status':status,'services':services,'gateway_health':gateway,**history,
             'pending':pending,'build':build,'gateway_url':f'https://localhost:{port}' if build else None,
-            'publication':'live' if healthy else 'unmeasured','healthy':healthy}
+            'publication':'live' if services_up and history.get('data_published_at') else 'unmeasured','healthy':healthy}
 
 if __name__=='__main__':
     os.umask(0o077)
     try:
         report=main(json.loads(sys.stdin.buffer.read(2097153)))
         print(json.dumps(report))
-        raise SystemExit(1 if report.get('status')=='foundations_only' else 0)
+        raise SystemExit(1 if report.get('status') in ('foundations_only','unhealthy') else 0)
     except Exception:
         print(json.dumps({'status':'failed','error':'LITE_LIFECYCLE_FAILED','healthy':False}))
         raise SystemExit(1)

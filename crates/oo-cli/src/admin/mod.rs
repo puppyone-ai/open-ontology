@@ -41,10 +41,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -272,7 +275,15 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
         let path = Path::new(config.unwrap_or("stack.yaml"));
         let mut stack = read_stack(path)?;
         match target.unwrap_or(stack.deploy.target.as_str()) {
-            "ssh" => return remote::run(command, path, &stack),
+            "ssh" => {
+                return remote::run(command, path, &stack).map(|report| match report {
+                    Invocation::AdminReport(body, code) if command == "status" && !json => {
+                        let state = serde_json::from_str(&body).unwrap_or_default();
+                        Invocation::AdminReport(progress::display_status(&state), code)
+                    }
+                    other => other,
+                });
+            }
             _ if target == Some("local") => stack.deploy.target = "local".into(),
             _ => (),
         }
@@ -294,7 +305,13 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
             .parent()
             .is_some_and(|p| p.join(".oo/lite/owner.json").exists())
         {
-            return lite::run("status", path, &stack);
+            return lite::run("status", path, &stack).map(|report| match report {
+                Invocation::AdminReport(body, code) if !json => {
+                    let state = serde_json::from_str(&body).unwrap_or_default();
+                    Invocation::AdminReport(progress::display_status(&state), code)
+                }
+                other => other,
+            });
         }
         return progress::status(path, json);
     }

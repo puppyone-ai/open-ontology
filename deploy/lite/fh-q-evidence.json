@@ -1,0 +1,120 @@
+{
+  "card": "FH-Q",
+  "status": "partial",
+  "base": "1f267b6f5b95180139196fbb90c5b2e716d14699",
+  "plan": [
+    "S6-A-01",
+    "S6-G-01"
+  ],
+  "run_id": "fh-q-20261107",
+  "fields": [
+    "data_published_at",
+    "cycle.result",
+    "cycle.at",
+    "cycle.reason",
+    "tables.stale",
+    "tables.review_pending"
+  ],
+  "tests": {
+    "lite": {
+      "command": "python3 -m unittest discover -s deploy/lite",
+      "passed": 88
+    },
+    "cli": {
+      "command": "cargo test --locked -p oo-cli",
+      "passed": 89,
+      "ignored": 3
+    },
+    "builder": {
+      "command": "OO_LIBRARY_BUILDER_BIN=<workspace>/target/debug/oo-builder python3 -m unittest discover -s tools/pg-builder/scripts",
+      "discovered": 346,
+      "passed": 333,
+      "skipped": 13
+    },
+    "generated_docs": {
+      "command": "python3 ci/check_generated_docs.py",
+      "passed": 8
+    },
+    "workspace_check": "passed",
+    "clippy_all_cli_targets": "passed",
+    "fmt_cli": "passed",
+    "spec_plan_v02_checks": "passed"
+  },
+  "control_live": {
+    "run_id": "fh-q-t9-pg17-20261107",
+    "scope": "control DB only; not full T9-08/T9-09 lite acceptance",
+    "T9-08": "not_run",
+    "T9-09": "partial",
+    "status": "passed",
+    "secret_scan_scope": "generated fixture password; no model credentials accessed",
+    "version": "17.11 (Debian 17.11-1.pgdg12+2)",
+    "cycles": 7,
+    "replay_refusals": 7,
+    "wrong_owner_refusals": 7,
+    "migration_runs": 2,
+    "containers_left": 0,
+    "exact_byte_secret_matches": 0
+  },
+  "full_lite_T9_08_09": "not_run",
+  "gaps": [
+    "Lane P sync status/stale_reason and partial publication are absent from the fixed base. Fake-loader unit tests exercise the promised contract.",
+    "Full isolated-HOME, real-model PostgreSQL 17 lite acceptance is outstanding; no model credentials were accessed. The control-only secret scan is not a model-secret scan.",
+    "No live MySQL or Oracle run on this card. Existing ignored/skipped tests were not counted as passes.",
+    "Independent secret-review approval is needed for changed hash-bound files; no approval record was altered."
+  ],
+  "secret_review_bound_changed": [
+    "crates/oo-cli/src/admin/lite.rs",
+    "crates/oo-cli/src/admin/progress.rs",
+    "crates/oo-cli/src/admin/remote.rs",
+    "deploy/lite/lifecycle.py",
+    "deploy/lite/scheduler.py",
+    "deploy/lite/test_lifecycle.py",
+    "deploy/lite/test_scheduled_compose.py",
+    "tools/pg-builder/scripts/retained_observation.py"
+  ],
+  "shared_file_patches": [],
+  "cargo_lock_changed": false,
+  "containers_left": 0,
+  "raw_logs": {
+    "status-check": {
+      "path": "evidence/fh-q-20261107/status-check.log",
+      "sha256": "21d3e470dd5f3d18b9accd9c0e4e15777155125c6ebb16590881dc3a2ab28131"
+    },
+    "status-cli": {
+      "path": "evidence/fh-q-20261107/status-cli.log",
+      "sha256": "1a571427821c31553672be5fd87ebd83b61073b9a736509009f665ab7131a7be"
+    },
+    "status-clippy": {
+      "path": "evidence/fh-q-20261107/status-clippy.log",
+      "sha256": "0c4134de2cf17310cbaf7d4256e3754fc3fc18318aaf3a6e562d119c541cab4f"
+    },
+    "status-fmt": {
+      "path": "evidence/fh-q-20261107/status-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "status-lite": {
+      "path": "evidence/fh-q-20261107/status-lite.log",
+      "sha256": "f13b8d6dd0c44fbbaa844c29686062b9bbfe3dd475ae1625e7140d021c8aa25b"
+    },
+    "status-docs": {
+      "path": "evidence/fh-q-20261107/status-docs.log",
+      "sha256": "659783e626c0661e6cb52fb201df1dbd642c9b875315a66cc6d6441f81cc872b"
+    },
+    "builder-commit-tests": {
+      "path": "evidence/fh-q-20261107/builder-commit-tests.log",
+      "sha256": "936605c82fa23b4b23bb6945aa97c52232ec8db3462ddb1c1b8faffe8e22b4f7"
+    },
+    "check_spec": {
+      "path": "evidence/fh-q-20261107/check_spec.log",
+      "sha256": "af54958073c118133c9f966f679b9dfc9d2e2df0bd57996976852893699dd28e"
+    },
+    "check_plan": {
+      "path": "evidence/fh-q-20261107/check_plan.log",
+      "sha256": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9"
+    },
+    "check_v02_plan": {
+      "path": "evidence/fh-q-20261107/check_v02_plan.log",
+      "sha256": "502afdc7f2df67931d7b7553d106619ed42eec5f82a37c1e072b3d22d9bf82d5"
+    }
+  }
+}
