@@ -51,10 +51,11 @@ def pinned(reference, limit=64_000_000):
     return raw
 
 
-def facts_for(db, config):
+def facts_for(db, config, previous=None, stale_tables=()):
     catalog = json.loads(pinned(config['source_catalog'])) if 'source_catalog' in config else None
     tables, provenance = retained_observation.observe(
-        db, config['library_id'], config['generation'], config['source_engine'], catalog)
+        db, config['library_id'], config['generation'], config['source_engine'], catalog,
+        previous=previous, stale_tables=stale_tables)
     facts = lib.build_facts(tables, lib.database_containment(db, config.get('max_relationship_checks', 65536)),
                             lib.database_enums(db, config.get('min_enum_containment', .5)))
     lib.require_complete_relationship_observations(facts)
@@ -69,7 +70,9 @@ def reviewed_shape(reviewed, facts):
     effective = {d['dataset']: {c['name']: c.get('data_type') for c in d['columns']}
                  for d in reviewed['compiled']['effective']['datasets']}
     current = {t['dataset']: {c['name']: c['data_type'] for c in t['columns']} for t in facts['tables']}
-    if effective != current:
+    if not effective or any(not columns or name not in current or any(current[name].get(column) != kind
+                                                                     for column, kind in columns.items())
+           for name, columns in effective.items()):
         raise ValueError('retained_origin_shape_drift')
 
 
@@ -180,7 +183,8 @@ def run(config_path, output):
     save(output / 'facts.json', facts)
     report = dict(protocol=PROTOCOL, library_id=config['library_id'], generation=config['generation'],
                   source_engine=config['source_engine'], receipt_sha256=provenance['receipt_sha256'],
-                  facts_sha256=facts['facts_sha256'], data_only_digest=current, published=False)
+                  facts_sha256=facts['facts_sha256'], data_only_digest=current,
+                  table_data_only_digests=semantics.table_data_only_digests(facts), published=False)
     origin = config.get('origin')
     if origin is not None:
         if not isinstance(origin, dict) or set(origin) != {'facts', 'reviewed_registry'}:
@@ -199,9 +203,12 @@ def run(config_path, output):
             return dict(report, stage='data_only', model_calls=0,
                         reviewed_registry=origin['reviewed_registry'])
         report['semantic_change'] = True
+        report['review_pending'] = semantics.table_review_pending(old, facts)
     result, calls = draft(facts, config, output)
     save(output / 'draft.json', result)
     command = review_input(inventory(facts), result, config['project'])
+    if 'review_pending' in report:
+        command['review_pending'] = report['review_pending']
     if 'source_catalog' in config:
         # Evidence is visible and pinned by the owner's input digest, not approval.
         command['source_inventory'] = inventory(facts)

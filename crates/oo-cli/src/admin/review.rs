@@ -14,6 +14,8 @@ use super::{Failure, Invocation, wizard::Screen};
 
 pub(super) const HELP: &str = "\
 oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json] [--json]
+oo review --input PENDING.json --json
+Pending tables list their semantic changes; inspection never approves them.
 Input: oo.builder.reviewed-community/v1 command, without review.
 Non-TTY requires explicit hash-bound oo.owner-review/v1 decisions for every item.
 TTY offers accept / edit JSON / reject, then a separate G14 confirmation.
@@ -675,6 +677,16 @@ pub(super) fn run(args: &[String]) -> Result<Invocation> {
         opts.get("--input")
             .ok_or_else(|| Failure::usage("ADMIN_ARGUMENT"))?,
     ))?;
+    if !opts.contains_key("--out") {
+        let pending = input
+            .get("review_pending")
+            .and_then(Value::as_array)
+            .ok_or_else(|| Failure::usage("REVIEW_PENDING_REQUIRED"))?;
+        return Ok(Invocation::AdminReport(
+            json!({"review_pending":pending,"published":false}).to_string(),
+            0,
+        ));
+    }
     let out = Path::new(
         opts.get("--out")
             .ok_or_else(|| Failure::usage("ADMIN_ARGUMENT"))?,
@@ -682,6 +694,7 @@ pub(super) fn run(args: &[String]) -> Result<Invocation> {
     let result = review(&input, opts.get("--review-file").map(Path::new), out)?;
     Ok(Invocation::AdminReport(
         json!({"protocol":"oo.owner-review-report/v1","status":result["status"],
+            "review_pending":input.get("review_pending").cloned().unwrap_or_else(|| json!([])),
             "published":false,"authentication":"not_claimed"})
         .to_string(),
         if result["status"] == "reviewed" { 0 } else { 1 },
@@ -691,6 +704,36 @@ pub(super) fn run(args: &[String]) -> Result<Invocation> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn pending_inspection_never_creates_approval() {
+        let root = std::env::temp_dir().join(format!("oo-review-pending-{}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("builder.json");
+        save_new(
+            &path,
+            &json!({"stage":"data_only","review_pending":[
+            {"table":"app.items","changes":["comment","unreviewed_column:new"]}]}),
+        )
+        .ok()
+        .unwrap();
+        let result = run(&[
+            "--input".into(),
+            path.to_string_lossy().into_owned(),
+            "--json".into(),
+        ])
+        .ok()
+        .unwrap();
+        let Invocation::AdminReport(body, code) = result else {
+            panic!("report")
+        };
+        let report: Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(code, 0);
+        assert_eq!(report["published"], false);
+        assert_eq!(report["review_pending"][0]["table"], "app.items");
+        assert!(report.get("review_decision").is_none());
+        std::fs::remove_file(path).unwrap();
+        std::fs::remove_dir(root).unwrap();
+    }
 
     // Real Builder (replay model) inputs and `oo review` outputs; see retained_fixture.py.
     const SCALAR_INPUT: &str = include_str!(concat!(

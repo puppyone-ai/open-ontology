@@ -325,3 +325,55 @@ def data_only_digest(facts, *, mysql_ddl=False):
         'dependencies': batch['dependency_manifest'],
         'reports': facts.get('report_definitions_observation'),
     })
+
+def table_data_only_digests(facts):
+    """Table-local review boundaries; leave the legacy v1 library hash unchanged."""
+    result = {}
+    for item in facts['tables']:
+        name = item['dataset']
+        local = dict(facts)
+        local['tables'] = [item]
+        local['all_tables'] = local['tables']
+        # Cross-table inferred edges are redrafted at review, not a reason to
+        # mark neighbors pending when a local comment changes. Declared FKs
+        # remain bound in the declaring table itself.
+        local['relationship_candidates'] = []
+        local['enum_candidates'] = [
+            enum(e) for e in facts['enum_candidates'] if e['enum'].rsplit('.', 1)[0] == name]
+        local['table_enums'] = copy.deepcopy(local['enum_candidates'])
+        for candidate in local['enum_candidates']:
+            candidate['dictionary_candidates'] = []
+            candidate.pop('declared_binding', None)
+        result[name] = data_only_digest(local)
+    return result
+
+def table_review_pending(old, facts):
+    before, after = table_data_only_digests(old), table_data_only_digests(facts)
+    previous = {t['dataset']: t for t in old['tables']}
+    current = {t['dataset']: t for t in facts['tables']}
+    pending = []
+    for name in sorted(before.keys() | after.keys()):
+        if before.get(name) == after.get(name):
+            continue
+        changes = []
+        if name not in before or name not in after:
+            changes.append('table_added' if name in after else 'table_removed')
+        else:
+            a, b = previous[name], current[name]
+            for key, label in (('table_comment', 'comment'), ('foreign_keys', 'foreign_keys'),
+                               ('excluded_foreign_keys', 'foreign_keys'),
+                               ('primary_key', 'primary_key')):
+                if a.get(key) != b.get(key) and label not in changes:
+                    changes.append(label)
+            if a.get('unpublished_columns') != b.get('unpublished_columns'):
+                changes.extend('unreviewed_column:' + c['name'] for c in b.get('unpublished_columns', []))
+            ac = {c['name']: c for c in a['columns']}
+            bc = {c['name']: c for c in b['columns']}
+            for column in sorted(ac.keys() | bc.keys()):
+                if column not in ac or column not in bc:
+                    changes.append('column_' + ('added:' if column in bc else 'removed:') + column)
+                elif any(ac[column].get(k) != bc[column].get(k)
+                         for k in ('comment', 'data_type', 'nullable')):
+                    changes.append('column_metadata:' + column)
+        pending.append({'table': name, 'changes': changes or ['semantic_inputs']})
+    return pending
