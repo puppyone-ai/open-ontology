@@ -341,7 +341,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `EGRESS_START_TIMEOUT` | [model](#model) | [`draft.py:261`](../../deploy/lite/draft.py#L261) |
 | `ENGINE_NOT_AVAILABLE` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:368`](../../crates/oo-cli/src/admin/build_retained.rs#L368) |
 | `ENGINE_REQUIRED_FOR_NONSTANDARD_PORT` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:257`](../../crates/oo-cli/src/admin/doctor.rs#L257) |
-| `ENTITY_CHECK_FAILED` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3616`](../../crates/oo-gateway/src/public_surface.rs#L3616) |
+| `ENTITY_CHECK_FAILED` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3642`](../../crates/oo-gateway/src/public_surface.rs#L3642) |
 | `ENUMERATION_REFUSED` | [configuration-and-source](#configuration-and-source) | [`outcome.rs:405`](../../crates/oo-cli/src/outcome.rs#L405) |
 | `F22_USER_ROW_READ` | [configuration-and-source](#configuration-and-source) | [`f22_owned_pg_tests.rs:89`](../../crates/oo-gateway/src/f22_owned_pg_tests.rs#L89) |
 | `FUNCTION_NOT_ALLOWED` | [configuration-and-source](#configuration-and-source) | [`outcome.rs:397`](../../crates/oo-cli/src/outcome.rs#L397) |
@@ -472,7 +472,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `OO020` | [database-proof](#database-proof) | [`0001_target_fence_expand.sql:323`](../../crates/oo-pipeline/migrations/0001_target_fence_expand.sql#L323) |
 | `OO021` | [database-proof](#database-proof) | [`0002_target_segment_null_expand.sql:53`](../../crates/oo-pipeline/migrations/0002_target_segment_null_expand.sql#L53) |
 | `OO022` | [database-proof](#database-proof) | [`0004_physical_mapping.sql:642`](../../crates/oo-pipeline/migrations/0004_physical_mapping.sql#L642) |
-| `OO024` | [database-proof](#database-proof) | [`mapping_reader_access.rs:693`](../../crates/oo-gateway/src/mapping_reader_access.rs#L693) |
+| `OO024` | [database-proof](#database-proof) | [`mapping_reader_access.rs:695`](../../crates/oo-gateway/src/mapping_reader_access.rs#L695) |
 | `OO030` | [database-proof](#database-proof) | [`0005_full_import_expand.sql:818`](../../crates/oo-pipeline/migrations/0005_full_import_expand.sql#L818) |
 | `OO031` | [database-proof](#database-proof) | [`0005_full_import_expand.sql:346`](../../crates/oo-pipeline/migrations/0005_full_import_expand.sql#L346) |
 | `OO_A359_CA_FILE` | [connectivity](#connectivity) | [`live.rs:60`](../../tools/release-coordinator/src/live.rs#L60) |
@@ -542,7 +542,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `ORACLE_TLS_NOT_AVAILABLE` | [connectivity](#connectivity) | [`doctor.rs:194`](../../crates/oo-cli/src/admin/doctor.rs#L194) |
 | `ORACLE_WORKER_DIGEST_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:210`](../../crates/oo-cli/src/admin/doctor.rs#L210) |
 | `OUT_DIR` | [configuration-and-source](#configuration-and-source) | [`lib.rs:16`](../../crates/oo-gateway/src/lib.rs#L16) |
-| `PARTIAL_TRANSACTION` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3615`](../../crates/oo-gateway/src/public_surface.rs#L3615) |
+| `PARTIAL_TRANSACTION` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3641`](../../crates/oo-gateway/src/public_surface.rs#L3641) |
 | `PREFLIGHT_BLOCKED` | [configuration-and-source](#configuration-and-source) | [`draft.py:170`](../../deploy/lite/draft.py#L170) |
 | `PRIVATE_FILE` | [configuration-and-source](#configuration-and-source) | [`draft.py:36`](../../deploy/lite/draft.py#L36) |
 | `PROFILE_EXISTS` | [credentials](#credentials) | [`lifecycle.rs:679`](../../crates/oo-cli/src/lifecycle.rs#L679) |
@@ -551,8 +551,8 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `QUERY_TOO_SHORT` | [configuration-and-source](#configuration-and-source) | [`outcome.rs:404`](../../crates/oo-cli/src/outcome.rs#L404) |
 | `RATE_LIMITED` | [query-budget](#query-budget) | [`outcome.rs:406`](../../crates/oo-cli/src/outcome.rs#L406) |
 | `RECOMPUTE_WHOLE_QUESTION` | [configuration-and-source](#configuration-and-source) | [`f22_owned_pg_tests.rs:533`](../../crates/oo-gateway/src/f22_owned_pg_tests.rs#L533) |
-| `RECONCILE_MISMATCH` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3612`](../../crates/oo-gateway/src/public_surface.rs#L3612) |
-| `RECONCILE_STALE` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3613`](../../crates/oo-gateway/src/public_surface.rs#L3613) |
+| `RECONCILE_MISMATCH` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3638`](../../crates/oo-gateway/src/public_surface.rs#L3638) |
+| `RECONCILE_STALE` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3639`](../../crates/oo-gateway/src/public_surface.rs#L3639) |
 | `RELATION_NOT_FOUND` | [configuration-and-source](#configuration-and-source) | [`outcome.rs:398`](../../crates/oo-cli/src/outcome.rs#L398) |
 | `REMOTE_AGENT_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`remote.py:596`](../../deploy/lite/remote.py#L596) |
 | `REMOTE_BUILD_CYCLE` | [installation-and-runtime](#installation-and-runtime) | [`remote.py:496`](../../deploy/lite/remote.py#L496) |
@@ -609,6 +609,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `REVIEW_PRIVATE_FILE_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:50`](../../crates/oo-cli/src/admin/review.rs#L50) |
 | `REVIEW_SEMANTIC_TYPE_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:405`](../../crates/oo-cli/src/admin/review.rs#L405) |
 | `REVIEW_UNRESOLVED_OR_PROTOCOL` | [review-and-publication](#review-and-publication) | [`review.rs:175`](../../crates/oo-cli/src/admin/review.rs#L175) |
+| `SCHEMA_CHANGED` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3578`](../../crates/oo-gateway/src/public_surface.rs#L3578) |
 | `SCHEMA_INVALID` | [configuration-and-source](#configuration-and-source) | [`outcome.rs:413`](../../crates/oo-cli/src/outcome.rs#L413) |
 | `SCOPE_DISCOVERY_NOT_AVAILABLE` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:273`](../../crates/oo-cli/src/admin/doctor.rs#L273) |
 | `SCOPE_PATTERN_NOT_AVAILABLE` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:268`](../../crates/oo-cli/src/admin/doctor.rs#L268) |
@@ -686,7 +687,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `STACK_SOURCE_SSH` | [installation-and-runtime](#installation-and-runtime) | [`wizard.rs:255`](../../crates/oo-cli/src/admin/wizard.rs#L255) |
 | `STACK_SSH` | [installation-and-runtime](#installation-and-runtime) | [`stack.rs:402`](../../crates/oo-stack/src/stack.rs#L402) |
 | `STAGE_COMMAND_FAILED` | [configuration-and-source](#configuration-and-source) | [`draft.py:154`](../../deploy/lite/draft.py#L154) |
-| `STALE_DATA` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3617`](../../crates/oo-gateway/src/public_surface.rs#L3617) |
+| `STALE_DATA` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3562`](../../crates/oo-gateway/src/public_surface.rs#L3562) |
 | `STATEMENT_NOT_ALLOWED` | [configuration-and-source](#configuration-and-source) | [`outcome.rs:396`](../../crates/oo-cli/src/outcome.rs#L396) |
 | `STATE_DIRECTORY` | [configuration-and-source](#configuration-and-source) | [`draft.py:108`](../../deploy/lite/draft.py#L108) |
 | `STATE_LOCK` | [configuration-and-source](#configuration-and-source) | [`draft.py:112`](../../deploy/lite/draft.py#L112) |
@@ -715,7 +716,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `TUI_PREFLIGHT_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`wizard.rs:427`](../../crates/oo-cli/src/admin/wizard.rs#L427) |
 | `TUI_RENDER` | [configuration-and-source](#configuration-and-source) | [`wizard.rs:75`](../../crates/oo-cli/src/admin/wizard.rs#L75) |
 | `TUI_TERMINAL` | [configuration-and-source](#configuration-and-source) | [`wizard.rs:26`](../../crates/oo-cli/src/admin/wizard.rs#L26) |
-| `UNEXPLAINED_CODES` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3614`](../../crates/oo-gateway/src/public_surface.rs#L3614) |
+| `UNEXPLAINED_CODES` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3640`](../../crates/oo-gateway/src/public_surface.rs#L3640) |
 | `UNQUALIFIED_RELATION` | [configuration-and-source](#configuration-and-source) | [`outcome.rs:400`](../../crates/oo-cli/src/outcome.rs#L400) |
 | `UNSUPPORTED_MESSAGE` | [configuration-and-source](#configuration-and-source) | [`model_egress.py:135`](../../tools/model-egress/model_egress.py#L135) |
 | `UNSUPPORTED_PARAMETER` | [configuration-and-source](#configuration-and-source) | [`model_egress.py:128`](../../tools/model-egress/model_egress.py#L128) |
