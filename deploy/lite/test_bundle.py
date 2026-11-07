@@ -230,7 +230,8 @@ class Bundle(unittest.TestCase):
         self.assertIn('pull_policy: never', compose)
         for service in bundle.SERVICES:
             self.assertIn('  ' + service + ':', compose)
-        self.assertIn('/build/target/debug/oo-builder', dockerfile)
+        self.assertIn('/build/target/release/oo-builder', dockerfile)
+        self.assertIn('CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS=true', dockerfile)
         self.assertIn('--test native_library_publication --no-run', dockerfile)
         self.assertIn('/out/oo-fixture-migrate', dockerfile)
         self.assertIn('oo-fixture-migrate', bundle.BINARIES)
