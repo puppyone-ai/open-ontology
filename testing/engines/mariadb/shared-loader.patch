@@ -1,0 +1,11 @@
+diff --git a/crates/oo-pipeline/src/engine_load_pg.rs b/crates/oo-pipeline/src/engine_load_pg.rs
+--- a/crates/oo-pipeline/src/engine_load_pg.rs
++++ b/crates/oo-pipeline/src/engine_load_pg.rs
+@@ -46,6 +46,7 @@ pub(crate) fn column(field: &DecodedField) -> Result<(i64, &'static str)> {
+         "float64" => (701, "double precision"),
+         "decimal128" if field.scale.is_some_and(|s| s >= 0) => (1700, "numeric"),
+         "date32" => (1082, "date"),
++        "duration_micros" => (1186, "interval"),
+         "timestamp_micros" if field.timezone.is_none() => (1114, "timestamp"),
+         "timestamp_micros_utc" if field.timezone.as_deref() == Some("UTC") => (1184, "timestamptz"),
+         _ => return Err("load_unsupported_type"),

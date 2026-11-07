@@ -1,0 +1,117 @@
+{
+  "run_id": "g-s3b-20261104",
+  "status": "complete_for_G-S3b_card",
+  "base_commit": "48e19f035adefc4dd1fbb81ec39cb028525f78b2",
+  "todo": {
+    "S3-G-02": "done_for_card",
+    "S2-G-01": "preflight_followups_done"
+  },
+  "scope": [
+    "publisher community-review binding",
+    "role-visible extractive hierarchy",
+    "three-pass and per-call preflight"
+  ],
+  "tests": {
+    "workspace_check": "passed",
+    "builder": {
+      "passed": 182,
+      "failed": 0,
+      "ignored": 0
+    },
+    "gateway": {
+      "passed": 283,
+      "failed": 0,
+      "ignored": 47
+    },
+    "python_selfbuild": {
+      "passed": 14,
+      "failed": 0
+    },
+    "pg_builder_lib": {
+      "passed": 43,
+      "base_reproduced_failures": [
+        "document_profile::tests::shipment_catalog_keeps_weight_and_the_nineteen_approved_columns",
+        "source_contract::tests::derived_source_bound_projects_native_notes_without_a_forged_grade",
+        "source_contract::tests::oracle_batch_and_ts_keep_real_caveats_and_omit_grade"
+      ]
+    },
+    "pg_builder_contract": {
+      "passed": 15,
+      "failed": 0
+    },
+    "pg_builder_combined": {
+      "passed": 7,
+      "base_reproduced_failures": [
+        "fixture_and_stored_generations_are_mixed_scope",
+        "stored_receipts_keep_party_and_account_in_one_pack"
+      ]
+    },
+    "spec_plan_v02_and_todo_checks": "passed"
+  },
+  "live": {
+    "candidate_count": 3,
+    "connectivity": {
+      "connected_components": 1,
+      "core_entities": [],
+      "declared_fk_count": 0,
+      "fk_mapping_rate": 1.0,
+      "mapped_fk_count": 0,
+      "model_certified": false,
+      "naming_conflict_count": 0,
+      "naming_conflicts": [],
+      "orphan_entity_ratio": 1.0,
+      "orphan_review_required": false,
+      "rejection_reasons": {},
+      "three_hop_table_ratio": 0.0,
+      "unassigned_tables": [],
+      "unmapped_without_reason": []
+    },
+    "containers_created": 0,
+    "elapsed_seconds": 25.246,
+    "listener_closed": true,
+    "max_calls": 4,
+    "max_output_per_call": 1000,
+    "model_calls": 2,
+    "published": false,
+    "source": "synthetic in-memory schema",
+    "status": "passed",
+    "unresolved": [],
+    "configured_model": "gpt-6.1-sol",
+    "metered_calls": 2,
+    "measured_prompt_tokens": 4832,
+    "measured_completion_tokens": 276,
+    "price": "unknown_no_configured_rate",
+    "duration_estimate": "unknown_no_configured_latency"
+  },
+  "database_engines_tested": [],
+  "shared_file_patches_requested": [],
+  "lockfile_changes": [],
+  "gaps": [
+    "No public publication or business acceptance claimed.",
+    "Schema-domain summaries are extractive navigation, not inferred business domains.",
+    "Preflight is an estimate, not a quote or upper bound; future semantic text and repairs are unknown.",
+    "Previous PostgreSQL 17.10 T4/T5 evidence was not rerun.",
+    "Ignored tests and absent historical-evidence tests are not passes."
+  ],
+  "raw_sha256": {
+    "04-builder.log": "fdadfea213448fe21378a563731b4d1d88789a21f0995effd84f80f2c65a1c98",
+    "04-gateway.log": "a6c77aa28da557a8b54c870317dc2d2f612d64a7a5220710ad74090ba4e72a3b",
+    "05-check.log": "4f27ac380b22e1d975eee20ce727fa8cbc09061177f6253af0777fd4de7b7506",
+    "05-python.log": "cfd4a21bbc82352a24ba64c21c142643576c2c7026f88511ba18a10059495648",
+    "05-pg-lib.log": "1aa720af00c0e4c4758145eb0f9891173b74d8c15b8df2a9de2fbb293ebf4271",
+    "04-pg-contract.log": "391b9440d874942a704bfe440e2541df8b9d353f1835d391cd89004332dfde68",
+    "04-pg-combined.log": "add6f322f63e0c95f788548712431ce7afda55cbe9c23c3ae54b2e6caa5e918e",
+    "03-pg-builder-base.log": "d319017b94620588ac482c14a09f94db2e986ed5dd107c973c84bc909e736d90",
+    "04-pg-combined-base.log": "b0d85ad2c67cd2c25a5069e6b65ce095036f3ebadfa81a2300c4dd98cfd18203",
+    "base-failure-proof.json": "8999a41d1185314745b969fc7cc51b1ccf8497f64b46c0f5d9375504fcbe5487",
+    "05-check-spec.log": "0286ae23217cd03c82630a6f49bfa4c2dfae3e44177af8c3d411f5d4d1114368",
+    "05-check-plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+    "05-check-v02.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135",
+    "05-todo.log": "56cae338bd9d567d2eff6cb861e26b2f72845bb6734606901d141784d241ab47",
+    "03-live.log": "f21815efe0aa488c94299ac7e557518c4c07eee2ec4ab24a9250cd128645311c",
+    "live-smoke/report.json": "0f8466a1fc8dd336ea1b4ca3d0b0f93758a940ed99194685b20f2c4e797ebdae",
+    "live-smoke/usage.jsonl": "f135cc0588af9d2eebf5ff296f27d7585433215e72b5ff486aa367ff4ff3a6ac",
+    "live-smoke/draft/preflight.json": "6d22546f81927ac22d401c351c2e4108ffcf5dbf939d5803e71c36f6cf84bab5",
+    "live-smoke/draft/result.json": "af55818d8987e189191beef92b92c324e17cb3ba65b30671ba7aeb4b6788cc5c"
+  }
+}

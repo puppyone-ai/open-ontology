@@ -1,0 +1,53 @@
+{
+  "todo": "S2-A-02",
+  "status": "partial",
+  "integration_base": "474369dd74e2636b66d6b786709c235227d46707",
+  "control_status": "real read-only DB snapshot; no local-receipt fallback",
+  "postgres_version": "17.10",
+  "production_scheduler_tested": false,
+  "seven_service_health": "not_met",
+  "operator_token_issued": false,
+  "postgres_mysql84_oracle23_drafts": "not_run; G catalog/view and client-certificate seams not integrated at rebase",
+  "blockers": [
+    "issue-token install fails lite clientcert=verify-ca; live positive client-certificate control passes",
+    "job-worker TLS also uses with_no_client_auth (source inspection only)",
+    "health/meta-only prepublication operator contract is not yet integrated; authenticated meta enters freshness"
+  ],
+  "failed_runs": {
+    "a-s2d-control-live-1": "fixture selected non-allowlisted failure code; fixed fixture, not production policy"
+  },
+  "live_model_calls": 0,
+  "cargo_lock_changes": false,
+  "shared_file_changes": false,
+  "containers_left": 0,
+  "runs": {
+    "a-s2d-control": {
+      "check-rebased.log": "18e3f40714fb4d0b6f15f59aeb53ac7be71e6e04523cadd0b3947d66b372f5a5",
+      "crate-tests-rebased.log": "d5afef8715c8e56fd391f40b7d29f8db01818b08c69a7329e9d3eb756e2e2f6a",
+      "fmt-rebased.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "python-tests-rebased.log": "13085b3308804559be4ca303b0005d4e12674f2df40e6499cf1eabf48202025d",
+      "check_spec.log": "0d077fe3f335131fb91eb77569ef5882ac2d9cdc44f81cec26929959585d4475",
+      "check_plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+      "check_v02_plan.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135"
+    },
+    "a-s2d-control-live-1": {
+      "sql.log": "4c9789a52fb457978f7b9dc79f7d33fcc55e07d869ba76f5594125a050f0dcd2"
+    },
+    "a-s2d-control-live-2": {
+      "result.json": "f4046ce061df2d65dca556d2ee4cc10034d7d1113382027f75dba7f7c8dcaff1",
+      "empty.json": "176474b9a7d4cc29266987f2ad731be914738019358e5a73d8106bd4d2d43b8f",
+      "missing-schema.json": "6a5dd76af7227eac897e3a3533fa1d80d840a47bb0724aed33e6dcef1f9b4af6",
+      "scheduled.json": "d450636282838be9fd0901279db286b5ace67036cad3a59a29b0be582eef3918",
+      "success.json": "95290a71485233cb59978ec624106bd4208813ede13676a82e1adae4d52ddef0",
+      "failure.json": "fded3d2af73622a749ef04fc93950f4607816cdb646590e0caace2b1f3d62078",
+      "disabled.json": "fb249beafec9a16f10852bccdd335e96bc18eb774e7708a9af0cc4045cfd33bb",
+      "sql.log": "c3aa1f4589c0c86f162d164456c5f5e429a0d79c3170e70900ac3a932687e1fb"
+    },
+    "a-s2d-operator-boundary-1": {
+      "result.json": "1c678e2403c230faa331665890cbb5c2d038866588d2aa3efb14fc8a2f67f8ac",
+      "issue-token.log": "1265c11788cfb9121a5b4604dcfcfd4af371dcc1febaddc4522ec42ec076ccb1",
+      "positive.log": "56304ff7cd8a24ef6199ca2de7d9dd170f51e0de29d05ba5822245d5b924d835",
+      "database.log": "1da6f09fadd72ef82eeec4fde034683fca8cc7ceb78c7d42428613f3090a947f"
+    }
+  }
+}

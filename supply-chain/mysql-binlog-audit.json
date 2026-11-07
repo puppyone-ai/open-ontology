@@ -1,0 +1,108 @@
+{
+ "schema_version": 1,
+ "template": false,
+ "audited": false,
+ "record_status": "non-default feature; default-artifact admission pending the seven-day rule",
+ "feature": "oo-connectors/mysql-binlog (not in default features)",
+ "reason": "mysql_async 0.37.1 binlog support (MySQL C1) requires mysql_common binlog, which pulls bitvec and the zstd stack. zstd 0.13.3 / zstd-safe 7.3.0 / zstd-sys 2.1.0 carry RUSTSEC-2026-0391, -0398, -0403, -0410; the patched versions were published 2026-11-01 and the seven-day security exception is unavailable while no security owner is appointed (policy §4).",
+ "adoption_date": "2026-11-04T00:00:00Z",
+ "packages": [
+  {
+   "name": "bitvec",
+   "version": "1.1.1",
+   "license_spdx": "MIT",
+   "publication_date": "2026-06-18T19:47:24Z",
+   "checksum_sha256": "ddcec3d12c579d40898fe0a9a358a803c23e9c52ca3c425707f81c9436211837",
+   "age_days_at_adoption": 138,
+   "seven_day_rule": "pass",
+   "admissible_from": "2026-06-25T19:47:25Z",
+   "native_build": false
+  },
+  {
+   "name": "funty",
+   "version": "2.0.0",
+   "license_spdx": "MIT",
+   "publication_date": "2021-11-28T08:56:54Z",
+   "checksum_sha256": "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c",
+   "age_days_at_adoption": 1801,
+   "seven_day_rule": "pass",
+   "admissible_from": "2021-12-05T08:56:55Z",
+   "native_build": false
+  },
+  {
+   "name": "radium",
+   "version": "0.7.0",
+   "license_spdx": "MIT",
+   "publication_date": "2021-11-10T20:29:10Z",
+   "checksum_sha256": "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09",
+   "age_days_at_adoption": 1819,
+   "seven_day_rule": "pass",
+   "admissible_from": "2021-11-17T20:29:11Z",
+   "native_build": false
+  },
+  {
+   "name": "tap",
+   "version": "1.0.1",
+   "license_spdx": "MIT",
+   "publication_date": "2021-02-13T02:43:25Z",
+   "checksum_sha256": "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369",
+   "age_days_at_adoption": 2089,
+   "seven_day_rule": "pass",
+   "admissible_from": "2021-02-20T02:43:26Z",
+   "native_build": false
+  },
+  {
+   "name": "wyz",
+   "version": "0.5.1",
+   "license_spdx": "MIT",
+   "publication_date": "2022-11-16T04:53:04Z",
+   "checksum_sha256": "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed",
+   "age_days_at_adoption": 1448,
+   "seven_day_rule": "pass",
+   "admissible_from": "2022-11-23T04:53:05Z",
+   "native_build": false
+  },
+  {
+   "name": "zstd",
+   "version": "0.13.4",
+   "license_spdx": "BSD-3-Clause",
+   "publication_date": "2026-11-01T14:12:07Z",
+   "checksum_sha256": "cdb02c3132d251ab1606e9fc913a7da6c6ed08cc263df15edf082e1dc497d157",
+   "age_days_at_adoption": 2,
+   "seven_day_rule": "pending",
+   "admissible_from": "2026-11-08T14:12:08Z",
+   "native_build": false
+  },
+  {
+   "name": "zstd-safe",
+   "version": "7.4.0",
+   "license_spdx": "BSD-3-Clause",
+   "publication_date": "2026-11-01T14:11:59Z",
+   "checksum_sha256": "1c8ea04668f5de8d8d51051714ba560c9536519cadcdb8829bba4fe2ad159b03",
+   "age_days_at_adoption": 2,
+   "seven_day_rule": "pending",
+   "admissible_from": "2026-11-08T14:12:00Z",
+   "native_build": false
+  },
+  {
+   "name": "zstd-sys",
+   "version": "2.1.2+zstd.1.5.7",
+   "license_spdx": "BSD-3-Clause",
+   "publication_date": "2026-10-16T16:59:08Z",
+   "checksum_sha256": "481ada9c543b2323cbb7bbdbb5249177fbf0188ed959ed2c15e4b22421c84ed3",
+   "age_days_at_adoption": 18,
+   "seven_day_rule": "pass",
+   "admissible_from": "2026-10-23T16:59:09Z",
+   "native_build": true
+  }
+ ],
+ "advisory": {
+  "scan_recorded": true,
+  "scanner": "cargo-audit (RustSec DB fetched 2026-11-04) and cargo-deny 0.20.2 with ci/deny.toml",
+  "disposition": "resolved-before-adoption",
+  "known_exploitable_high_severity": false,
+  "evidence": "cargo audit: 0 vulnerabilities with the pinned versions; 4 (RUSTSEC-2026-0391/0398/0403/0410) with zstd 0.13.3 / zstd-safe 7.3.0 / zstd-sys 2.1.0"
+ },
+ "licenses_note": "zstd, zstd-safe, zstd-sys BSD-3-Clause per crates.io metadata at these versions; bitvec, funty, radium, tap, wyz MIT. License files are to be read and digested before default admission (policy §1 item 9); not yet done.",
+ "default_admission_gate": "Enable mysql-binlog in the default artifact only after every package shows seven_day_rule=pass, license files are verified and a fresh cargo audit is clean (Plan S6-M-04)."
+}

@@ -87,6 +87,10 @@ pub fn tables(receipt: &Value) -> Result<Vec<Value>, StoreError> {
 }
 
 pub fn validate(receipt: &Value, anchor: &str) -> Result<(), StoreError> {
+    // D15 cuts have no legacy import/ACK proof; only `retained` may publish them.
+    if crate::retained::is_retained(receipt) {
+        return Err(StoreError::Input);
+    }
     let object = receipt.as_object().ok_or(StoreError::Input)?;
     let library = &receipt["library"];
     let metadata = library.as_object().ok_or(StoreError::Input)?;

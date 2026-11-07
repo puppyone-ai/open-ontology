@@ -1,0 +1,431 @@
+//! Administrative commands; consumer credentials are never read here.
+mod build;
+mod build_lite;
+mod build_retained;
+mod build_tail;
+mod build_token;
+mod doctor;
+mod lite;
+mod ontology;
+mod progress;
+mod remote;
+mod review;
+mod wizard;
+use oo_stack::stack;
+
+use super::Invocation;
+use crate::outcome::Failure;
+use std::fs::{self, OpenOptions};
+use std::io::{IsTerminal, Read, Write};
+use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+use std::path::Path;
+
+pub const HELP: &str = "\
+Admin commands (source connections remain read-only):
+  oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo up|down|status --target ssh [--config stack.yaml] [--json]
+  oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
+    --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
+  oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
+  oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
+init --config validates and atomically normalizes that file as JSON.
+YAML and JSON are accepted. The filename does not select the parser.
+TTY init collects configuration and runs preflight; non-TTY never prompts.
+The wizard can save or run the retained build chain after passing preflight.
+On a local lite deployment, build runs every stage (load, Self-build, publication,
+Gateway, first token, share prompt) inside the pinned runtime image that oo up
+started; only owner review runs here, on the review input copied out of it.
+--resume retains checkpoints; without a TTY add --review-file DECISIONS.json.
+Developer overrides: --agent-target (private oo-load target JSON) and
+--runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
+--resume --cycle ID starts a data-only cycle against the initial reviewed registry.
+--draft-only explicitly stops at the old bounded, unreviewed draft bridge.
+status reports saved build state; missing Gateway health fields stay unmeasured.
+up bootstraps private credentials, starts the lite foundations and Gateway, and
+provisions the retained build chain (retained_ready); healthy needs a measured
+scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+or OO_LITE_RUNTIME_IMAGE, a content digest).
+down stops this deployment only; database volumes and credentials are retained.
+--target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
+Linux host: pinned host key, Docker/compose/systemd checks, digest images,
+0600 secrets via stdin, a systemd timer for the scheduled cycle. Re-run is a
+no-op; down --target ssh removes everything it created, volumes included.
+doctor probes sources read-only and the model through model-egress.
+PostgreSQL/MySQL require tls_ca.secret_ref and explicit scope.include tables.
+MySQL requires oo-mysql-doctor beside oo.
+Unknown estimates remain null; blocked diagnostics exit nonzero.
+status <query_id> remains the consumer query-status command.
+Other admin operations are not yet implemented (ADMIN_NOT_IMPLEMENTED).";
+
+/// `SSH_ASKPASS` re-entry for `--target ssh` password authentication.
+pub fn askpass(args: &[String]) -> Option<Result<Invocation, Failure>> {
+    remote::askpass(args)
+}
+
+pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
+    let (command, rest) = args.split_first()?;
+    // Internal runtime entry point; deliberately absent from public help.
+    if command == "admin" && rest.first().is_some_and(|s| s == "source-catalog") {
+        return Some(build_retained::export_catalog(&rest[1..]));
+    }
+    if command == "help" && rest.first().is_some_and(|c| c == "ontology") {
+        return Some(Ok(Invocation::Help(ontology::HELP.into())));
+    }
+    if command == "help" && rest.first().is_some_and(|c| c == "review") {
+        return Some(Ok(Invocation::Help(review::HELP.into())));
+    }
+    if command == "help" && rest.first().is_some_and(|c| is_admin(c) && c != "status") {
+        return Some(Ok(Invocation::Help(HELP.into())));
+    }
+    if !is_admin(command) {
+        return None;
+    }
+    if command == "status" && !admin_status(rest) {
+        return None;
+    }
+    Some(execute(command, rest))
+}
+
+fn is_admin(command: &str) -> bool {
+    matches!(
+        command,
+        "init"
+            | "up"
+            | "down"
+            | "status"
+            | "doctor"
+            | "build"
+            | "review"
+            | "ontology"
+            | "token"
+            | "share-prompt"
+    )
+}
+
+fn admin_status(args: &[String]) -> bool {
+    args.is_empty()
+        || args.iter().any(|s| {
+            s == "--config"
+                || s.starts_with("--config=")
+                || s == "--yes"
+                || s == "--target"
+                || s.starts_with("--target=")
+        })
+        || args.iter().all(|s| s == "--json")
+}
+
+fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
+    if command == "review" {
+        return review::run(rest);
+    }
+    if command == "ontology" {
+        return ontology::run(rest)
+            .map(Invocation::Help)
+            .map_err(|message| {
+                if message == "ADMIN_ARGUMENT" {
+                    Failure::usage(message)
+                } else {
+                    Failure::local(message)
+                }
+            });
+    }
+    if rest.iter().any(|s| s == "--help" || s == "-h") {
+        return Ok(Invocation::Help(HELP.into()));
+    }
+    let mut args = Vec::new();
+    for arg in rest {
+        if let Some((flag, value)) = arg.split_once('=')
+            && matches!(
+                flag,
+                "--config"
+                    | "--target"
+                    | "--format"
+                    | "--role"
+                    | "--runtime-config"
+                    | "--cycle"
+                    | "--agent-target"
+                    | "--review-input"
+                    | "--review-file"
+            )
+        {
+            args.extend([flag.to_owned(), value.to_owned()]);
+        } else {
+            args.push(arg.clone());
+        }
+    }
+    let mut config = None;
+    let mut target = None;
+    let mut json = false;
+    let mut resume = false;
+    let mut agent_target = None;
+    let mut runtime_config = None;
+    let mut cycle = None;
+    let mut review_input = None;
+    let mut review_file = None;
+    let mut draft_only = false;
+    let mut seen = std::collections::HashSet::new();
+    let mut positionals = Vec::new();
+    let mut format = false;
+    let mut index = 0;
+    while index < args.len() {
+        let arg = args[index].as_str();
+        if arg.starts_with('-') && !seen.insert(arg) {
+            return Err(Failure::usage("ADMIN_ARGUMENT: duplicate option"));
+        }
+        match arg {
+            "--json" => json = true,
+            "--yes" => (),
+            "--resume" if command == "build" => resume = true,
+            "--draft-only" if command == "build" => draft_only = true,
+            "--config" | "--target" | "--format" | "--role" | "--agent-target"
+            | "--runtime-config" | "--cycle" | "--review-input" | "--review-file" => {
+                index += 1;
+                let value = args
+                    .get(index)
+                    .filter(|s| !s.is_empty() && !s.starts_with('-'))
+                    .ok_or_else(|| Failure::usage("ADMIN_ARGUMENT: missing option value"))?;
+                match arg {
+                    "--config" => config = Some(value.as_str()),
+                    "--target"
+                        if matches!(command, "up" | "down" | "status")
+                            && matches!(value.as_str(), "local" | "ssh") =>
+                    {
+                        target = Some(value.as_str())
+                    }
+                    "--runtime-config" if command == "build" => {
+                        runtime_config = Some(Path::new(value))
+                    }
+                    "--cycle" if command == "build" => cycle = Some(value.as_str()),
+                    "--agent-target" if command == "build" => agent_target = Some(Path::new(value)),
+                    "--review-input" if command == "build" => review_input = Some(Path::new(value)),
+                    "--review-file" if command == "build" => review_file = Some(Path::new(value)),
+                    "--format"
+                        if command == "ontology"
+                            && matches!(value.as_str(), "html" | "mermaid" | "yaml") =>
+                    {
+                        format = true
+                    }
+                    "--role" if command == "share-prompt" && stack::secret_name(value) => (),
+                    _ => return Err(Failure::usage("ADMIN_ARGUMENT: invalid option")),
+                }
+            }
+            _ if !arg.starts_with('-') => positionals.push(arg),
+            _ => return Err(Failure::usage("ADMIN_ARGUMENT: unknown option")),
+        }
+        index += 1;
+    }
+    let valid = match command {
+        "ontology" => {
+            matches!(positionals.as_slice(), ["open"] | ["export"])
+                && (!format || positionals == ["export"])
+        }
+        "token" => matches!(
+            positionals.as_slice(),
+            ["issue"] | ["list"] | ["renew"] | ["rotate"] | ["revoke"]
+        ),
+        _ => positionals.is_empty(),
+    };
+    if !valid {
+        return Err(Failure::usage(
+            "ADMIN_ARGUMENT: missing or invalid subcommand/argument",
+        ));
+    }
+    if command == "doctor" {
+        let path = Path::new(config.unwrap_or("stack.yaml"));
+        let stack = read_stack(path)?;
+        return doctor::run(&stack, json);
+    }
+    if command == "build" {
+        let path = Path::new(config.unwrap_or("stack.yaml"));
+        let stack = read_stack(path)?;
+        if draft_only {
+            if review_input.is_some()
+                || review_file.is_some()
+                || runtime_config.is_some()
+                || cycle.is_some()
+            {
+                return Err(Failure::usage(
+                    "ADMIN_ARGUMENT: draft-only cannot accept review options",
+                ));
+            }
+            if progress::state_dir(path)?.join("chain.json").exists() {
+                return Err(Failure::usage(
+                    "BUILD_CHAIN_EXISTS: resume without --draft-only",
+                ));
+            }
+            return progress::build(path, &stack, resume, json, agent_target);
+        }
+        return build::run(
+            path,
+            &stack,
+            resume,
+            json,
+            agent_target,
+            review_input,
+            review_file,
+            runtime_config,
+            cycle,
+        );
+    }
+    if matches!(command, "up" | "down" | "status") {
+        let path = Path::new(config.unwrap_or("stack.yaml"));
+        let mut stack = read_stack(path)?;
+        match target.unwrap_or(stack.deploy.target.as_str()) {
+            "ssh" => return remote::run(command, path, &stack),
+            _ if target == Some("local") => stack.deploy.target = "local".into(),
+            _ => (),
+        }
+        if command != "status" {
+            return lite::run(command, path, &stack);
+        }
+    }
+    if command == "status" {
+        let path = Path::new(config.unwrap_or("stack.yaml"));
+        let stack = read_stack(path)?;
+        let root = std::fs::canonicalize(path).map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+        if root
+            .parent()
+            .is_some_and(|p| p.join(".oo/chain.json").exists())
+        {
+            return progress::status(path, json);
+        }
+        if root
+            .parent()
+            .is_some_and(|p| p.join(".oo/lite/owner.json").exists())
+        {
+            return lite::run("status", path, &stack);
+        }
+        return progress::status(path, json);
+    }
+    if command != "init" {
+        return Err(Failure::local(
+            "ADMIN_NOT_IMPLEMENTED: administrative operation is not yet available",
+        ));
+    }
+    let Some(config) = config else {
+        if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() && !json {
+            return wizard::run();
+        }
+        return Err(Failure::usage(
+            "ADMIN_CONFIG_REQUIRED: use --config for non-interactive init",
+        ));
+    };
+    normalize(Path::new(config))?;
+    Ok(Invocation::Help(if json {
+        serde_json::json!({"protocol":"oo.admin/v1","command":"init","status":"validated",
+            "format":"json","normalized":true,"deployed":false})
+        .to_string()
+    } else {
+        "Stack validated and normalized as JSON; no services started.".into()
+    }))
+}
+
+fn read_stack(path: &Path) -> Result<stack::Stack, Failure> {
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(path)
+        .map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+    let meta = file
+        .metadata()
+        .map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+    if !meta.is_file() || meta.len() > 1_048_576 || meta.nlink() != 1 {
+        return Err(Failure::local("ADMIN_CONFIG_IO"));
+    }
+    let mut text = String::new();
+    file.take(1_048_577)
+        .read_to_string(&mut text)
+        .map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+    stack::parse(&text).map_err(Failure::usage)
+}
+
+fn normalize(path: &Path) -> Result<(), Failure> {
+    let io_error = || Failure::local("ADMIN_CONFIG_IO: config must be a writable regular file");
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(path)
+        .map_err(|_| io_error())?;
+    let meta = file.metadata().map_err(|_| io_error())?;
+    if !meta.is_file() || meta.len() > 1_048_576 || meta.nlink() != 1 {
+        return Err(io_error());
+    }
+    let mut text = String::new();
+    file.take(1_048_577)
+        .read_to_string(&mut text)
+        .map_err(|_| io_error())?;
+    let config = stack::parse(&text).map_err(Failure::usage)?;
+    let mut bytes = serde_json::to_vec_pretty(&config).map_err(|_| io_error())?;
+    bytes.push(b'\n');
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let temp = parent.join(format!(".oo-stack-{}.tmp", std::process::id()));
+    let mut out = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(&temp)
+        .map_err(|_| io_error())?;
+    let result = (|| {
+        out.write_all(&bytes)
+            .and_then(|_| out.sync_all())
+            .map_err(|_| io_error())?;
+        let current = fs::symlink_metadata(path).map_err(|_| io_error())?;
+        if !current.is_file() || current.ino() != meta.ino() || current.dev() != meta.dev() {
+            return Err(io_error());
+        }
+        fs::rename(&temp, path).map_err(|_| io_error())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(temp);
+    }
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn agent_target_is_build_only_and_requires_one_value() {
+        for values in [
+            vec!["build", "--agent-target"],
+            vec!["up", "--agent-target", "target.json"],
+            vec!["build", "--agent-target", "a", "--agent-target=b"],
+        ] {
+            let args = values.into_iter().map(str::to_owned).collect::<Vec<_>>();
+            assert!(dispatch(&args).unwrap().is_err());
+        }
+    }
+
+    #[test]
+    fn init_normalizes_yaml_for_json_consumers() {
+        let dir = std::env::temp_dir().join(format!("oo-admin-yaml-{}", std::process::id()));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("stack.yaml");
+        // Flow YAML deliberately uses an unquoted key, so this is not JSON.
+        let yaml = include_str!("../../../oo-stack/example.stack.json").replacen(
+            "\"version\":",
+            "version:",
+            1,
+        );
+        fs::write(&path, yaml).unwrap();
+        let args = vec![
+            "init".into(),
+            "--config".into(),
+            path.to_str().unwrap().into(),
+            "--yes".into(),
+            "--json".into(),
+        ];
+        assert!(dispatch(&args).unwrap().is_ok());
+        let value: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(value["model"]["key"]["secret_ref"], "model-key");
+        assert_eq!(fs::metadata(&path).unwrap().mode() & 0o777, 0o600);
+        fs::remove_dir_all(dir).unwrap();
+    }
+}

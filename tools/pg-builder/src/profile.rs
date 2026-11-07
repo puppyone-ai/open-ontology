@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use rustls::pki_types::pem::PemObject;
-use rustls::pki_types::CertificateDer;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::ClientConfig;
 use serde_json::{json, Value};
 use tokio_postgres_rustls::MakeRustlsConnect;
@@ -82,6 +82,23 @@ pub fn run_catalog(
     stderr_path: Option<&Path>,
 ) -> Result<Vec<u8>, PgBuilderError> {
     let pg = postgres(config)?;
+    if pg.tables.iter().any(|(schema, _)| schema == "_oo_load") {
+        return Err(PgBuilderError::new(
+            "catalog.scope",
+            "private loader storage is not a dataset",
+        ));
+    }
+    if pg.tables.iter().any(|(schema, _)| schema == "oo_load_data") {
+        check_source_id(source_id)?;
+        check_secret_ref(secret_ref)?;
+        return runtime()?.block_on(crate::publication_catalog::capture(pg, source_id));
+    }
+    if pg.sslcert.is_some() {
+        return Err(PgBuilderError::new(
+            "catalog.scope",
+            "client-auth catalog requires published Agent DB views",
+        ));
+    }
     let request = catalog_request(pg, source_id, secret_ref)?;
     let bytes = serde_json::to_vec(&request)
         .map_err(|_| PgBuilderError::new("catalog.schema", "the catalog request could not be encoded"))?;
@@ -238,13 +255,17 @@ async fn comment_task(config: &Config) -> Result<Value, PgBuilderError> {
     }))
 }
 
-async fn connect(pg: &Postgres) -> Result<tokio_postgres::Client, PgBuilderError> {
+pub(crate) async fn connect(pg: &Postgres) -> Result<tokio_postgres::Client, PgBuilderError> {
     let password = read_password(&pg.password_file)?;
-    let ca = fs::read(&pg.ca_file).map_err(|_| PgBuilderError::new("profile.tls", "the caller CA could not be read"))?;
+    let ca = fs::read(&pg.ca_file)
+        .map_err(|_| PgBuilderError::new("profile.tls", "the caller CA could not be read"))?;
     if ca.len() > 65536 {
-        return Err(PgBuilderError::new("profile.tls", "the caller CA could not be read"));
+        return Err(PgBuilderError::new(
+            "profile.tls",
+            "the caller CA could not be read",
+        ));
     }
-    let connector = rustls_connector(&ca)?;
+    let connector = rustls_connector(&ca, pg)?;
     let mut cfg = tokio_postgres::Config::new();
     cfg.host(&pg.host);
     cfg.port(pg.port);
@@ -254,34 +275,91 @@ async fn connect(pg: &Postgres) -> Result<tokio_postgres::Client, PgBuilderError
     cfg.ssl_mode(tokio_postgres::config::SslMode::Require);
     cfg.application_name("pg-builder");
     cfg.connect_timeout(Duration::from_secs(30));
-    let (client, connection) = cfg
-        .connect(connector)
-        .await
-        .map_err(|_| PgBuilderError::new("profile.connect", "the profile connection was refused"))?;
+    let (client, connection) = cfg.connect(connector).await.map_err(|_| {
+        PgBuilderError::new("profile.connect", "the profile connection was refused")
+    })?;
     tokio::spawn(async move {
         let _ = connection.await;
     });
     client
-        .batch_execute("SET statement_timeout = '10s'")
+        .batch_execute("SET default_transaction_read_only = on; SET statement_timeout = '10s'")
         .await
         .map_err(|_| PgBuilderError::new("profile.timeout", "the statement timeout was refused"))?;
     Ok(client)
 }
 
-fn rustls_connector(ca_pem: &[u8]) -> Result<MakeRustlsConnect, PgBuilderError> {
-    let certificate = CertificateDer::from_pem_slice(ca_pem)
-        .map_err(|_| PgBuilderError::new("profile.tls", "the caller CA could not be read"))?;
+fn rustls_connector(ca_pem: &[u8], pg: &Postgres) -> Result<MakeRustlsConnect, PgBuilderError> {
     let mut roots = rustls::RootCertStore::empty();
-    roots
-        .add(certificate)
-        .map_err(|_| PgBuilderError::new("profile.tls", "the caller CA could not be read"))?;
+    for certificate in CertificateDer::pem_slice_iter(ca_pem) {
+        roots
+            .add(certificate.map_err(|_| {
+                PgBuilderError::new("profile.tls", "the caller CA could not be read")
+            })?)
+            .map_err(|_| PgBuilderError::new("profile.tls", "the caller CA could not be read"))?;
+    }
+    if roots.is_empty() {
+        return Err(PgBuilderError::new(
+            "profile.tls",
+            "the caller CA could not be read",
+        ));
+    }
     let provider = rustls::crypto::aws_lc_rs::default_provider();
-    let config = ClientConfig::builder_with_provider(provider.into())
+    let builder = ClientConfig::builder_with_provider(provider.into())
         .with_safe_default_protocol_versions()
         .map_err(|_| PgBuilderError::new("profile.tls", "the caller CA could not be read"))?
-        .with_root_certificates(roots)
-        .with_no_client_auth();
+        .with_root_certificates(roots);
+    let config = match (&pg.sslcert, &pg.sslkey) {
+        (Some(cert), Some(key)) => {
+            let cert = read_private_pem(cert)?;
+            let key = read_private_pem(key)?;
+            let chain = CertificateDer::pem_slice_iter(&cert)
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| PgBuilderError::new("profile.tls", "invalid client certificate"))?;
+            let key = PrivateKeyDer::from_pem_slice(&key)
+                .map_err(|_| PgBuilderError::new("profile.tls", "invalid client key"))?;
+            builder
+                .with_client_auth_cert(chain, key)
+                .map_err(|_| PgBuilderError::new("profile.tls", "invalid client identity"))?
+        }
+        (None, None) => builder.with_no_client_auth(),
+        _ => {
+            return Err(PgBuilderError::new(
+                "profile.tls",
+                "incomplete client identity",
+            ));
+        }
+    };
     Ok(MakeRustlsConnect::new(config))
+}
+
+pub(crate) fn read_private_pem(path: &Path) -> Result<Vec<u8>, PgBuilderError> {
+    let refused =
+        || PgBuilderError::new("profile.tls", "TLS secret must be a private regular file");
+    let meta = fs::symlink_metadata(path).map_err(|_| refused())?;
+    if !meta.file_type().is_file() || meta.len() == 0 || meta.len() > 65536 {
+        return Err(refused());
+    }
+    let file = fs::File::open(path).map_err(|_| refused())?;
+    let opened = file.metadata().map_err(|_| refused())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if opened.mode() & 0o7777 != 0o600
+            || opened.nlink() != 1
+            || meta.dev() != opened.dev()
+            || meta.ino() != opened.ino()
+        {
+            return Err(refused());
+        }
+    }
+    let mut bytes = Vec::new();
+    file.take(65537)
+        .read_to_end(&mut bytes)
+        .map_err(|_| refused())?;
+    if bytes.is_empty() || bytes.len() > 65536 {
+        return Err(refused());
+    }
+    Ok(bytes)
 }
 
 fn runtime() -> Result<tokio::runtime::Runtime, PgBuilderError> {
@@ -378,5 +456,37 @@ pub(crate) fn wait_child(child: &mut std::process::Child, limit: Duration) -> Re
             Ok(None) => std::thread::sleep(Duration::from_millis(50)),
             Err(_) => return Err(PgBuilderError::new("catalog.spawn", "the catalog command could not start")),
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tls_tests {
+    use super::*;
+    use std::os::unix::fs::{PermissionsExt, symlink};
+
+    #[test]
+    fn tls_files_require_private_regular_single_link_files() {
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join(format!("tls-files-{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        let file = directory.join("pem");
+        fs::write(&file, b"synthetic-test-content").unwrap();
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
+        assert!(read_private_pem(&file).is_ok());
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(read_private_pem(&file).is_err());
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
+        let link = directory.join("symlink");
+        symlink(&file, &link).unwrap();
+        assert!(read_private_pem(&link).is_err());
+        fs::remove_file(link).unwrap();
+        let link = directory.join("hardlink");
+        fs::hard_link(&file, &link).unwrap();
+        assert!(read_private_pem(&file).is_err());
+        fs::remove_file(link).unwrap();
+        fs::write(&file, vec![0u8; 65537]).unwrap();
+        assert!(read_private_pem(&file).is_err());
+        fs::remove_dir_all(directory).unwrap();
     }
 }

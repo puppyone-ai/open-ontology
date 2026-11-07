@@ -18,7 +18,7 @@
 | oo-builder | oo-core + oo-jobs；元数据、画像、LLM 草稿与编译 | 画像只读账号；源逻辑由管线采集，不持源库密码；专用 Builder 模型凭证 |
 | oo-control | oo-core + oo-jobs；Git、计划、apply、发布；独立 audit-collector binary 使用专用 audit_ingest 角色 | 管理权限只在控制区；DDL 经授权 apply 执行 |
 | oo-gateway | oo-core + pg_query + tokio-postgres + Arrow；认证、门禁、RLS 查询、审计 | 不链接连接器或管线写入模块；只持只读角色；审计走受限内部接收接口 |
-| oo-sdk / oo-cli / oo-mcp | oo-core HTTP 契约；SDK 用 reqwest；CLI 用 clap；MCP 用 rmcp | 不连接数据库、不执行平台管理 DDL；CLI 管理子命令调用 Control API，须单独认证 |
+| oo-sdk / oo-cli / oo-mcp | oo-core HTTP 契约；SDK 用 reqwest；CLI 用 clap；MCP 用 rmcp | 不执行平台管理 DDL；CLI 管理子命令调用 Control API，须单独认证。SDK 与 MCP 不链接数据库驱动。v0.2 起 `oo` 也是所有者的部署 CLI（D19）：`doctor` 与 `oo init` 的只读源探测经 `oo-connectors` 链接源驱动，凭据只来自所有者本机 0600 部署目录；CLI 不得直接依赖数据库驱动，Agent 用的数据命令仍只走 Gateway HTTP |
 | oo-proxy | oo-core + Axum/Hyper + reqwest/rustls | 仅固定上游，持会话 token 与模型 Key；不向沙盒返回它们 |
 | oo-sandbox / oo-entry | oo-core；bollard / 后续 kube；harness 通过 stdio JSON 对接 | 编排权限只在控制区；会话运行状态在控制库 |
 | oo-eval / bench/datagen | oo-core 契约、SDK、评分器；固定种子 Rust 生成器 | 客户私有集仅在客户部署；评测 token 只连冻结副本 |

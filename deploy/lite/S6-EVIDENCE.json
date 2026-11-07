@@ -1,0 +1,73 @@
+{
+  "plan": "S6-M-01",
+  "status": "partial",
+  "exit_met": false,
+  "run_id": "m-s6-20261104",
+  "unit_tests": {
+    "command": "PYTHONPATH=deploy/lite python3 -m unittest test_bundle test_remote test_lifecycle test_scheduler",
+    "passed": 45
+  },
+  "architectures": {
+    "linux/arm64": {
+      "run_id": "m-s6-dind-arm64-final3",
+      "postgres": "17.11 (measured in scheduled fixture startup log)",
+      "bundle_load": "passed on empty isolated daemon",
+      "first_up": "three healthy foundation services; exit 1, healthy false",
+      "scheduled_cycle": "not run; fixture requires cargo retained_gateway_install, absent from runtime",
+      "command": "python3 deploy/lite/test_bundle_dind.py --bundle BUNDLE --manifest-sha256 TRUSTED_SHA --run-id m-s6-dind-arm64-final3",
+      "exit": 1
+    },
+    "linux/amd64": {
+      "run_id": "m-s6-dind-amd64-1",
+      "postgres": "17.11 image pinned and loaded; database startup failed",
+      "bundle_load": "passed on empty isolated daemon",
+      "first_up": "failed; Rosetta prestart hook cannot open ELF at -exec-root=/var/run/docker",
+      "scheduled_cycle": "not run",
+      "command": "python3 deploy/lite/test_bundle_dind.py --bundle BUNDLE --manifest-sha256 TRUSTED_SHA --run-id m-s6-dind-amd64-1",
+      "exit": 1
+    }
+  },
+  "isolation": {
+    "outer_network": "none",
+    "systemd": false,
+    "binfmt_or_sysctl_changes": false,
+    "database_containers_at_once": 2
+  },
+  "cli_surface": "bundle-local oo launcher; Rust admin parser not edited",
+  "shared_file_patches": [],
+  "cargo_lock_changed": false,
+  "cleanup": {
+    "run_containers_left": 0,
+    "run_volumes_left": 0,
+    "built_images_and_archives_removed": true,
+    "shared_buildkit_cache": "untouched"
+  },
+  "gaps": [
+    "first-up operator/control provisioning remains outside this packaging card",
+    "scheduled fixture needs a prebuilt administrator migration helper instead of cargo on the runtime",
+    "amd64 fresh-install acceptance needs a working nested container runtime; no emulator/kernel settings changed",
+    "keyless CI and registry manifest merge not executed locally"
+  ],
+  "evidence_sha256": {
+    "m-s6-20261104/bundle-arm64-final3-create.log": "597241c4d3a102cbcd767b526314af916fcf0fbb2248ea5e53683fb7765d9bb1",
+    "m-s6-20261104/bundle-arm64-final3/manifest.json": "887388ece8a7e129827c749408edc8e52994c0a0807e82403c26959d53dc8130",
+    "m-s6-20261104/bundle-amd64-v4-create.log": "1da01f5207dd968f41a7e0453dd8d5ce9f15f75cd9516f2f1010ffd5b9211709",
+    "m-s6-20261104/bundle-amd64-v4/manifest.json": "17bbd0f62f46bc10a6b2eae749a86d252928b1dcd2e9e42deae4393a422b498c",
+    "m-s6-20261104/signing-final3/result.json": "636b70954f74c951f56f89abfdad828bc5097a26d8007a8b85eeb5e26e2439a2",
+    "m-s6-20261104/check-spec.log": "341d87269554bd330947a8570481e4c360ca59bafd8bb2f5ee3a36eb444899f7",
+    "m-s6-20261104/check-plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+    "m-s6-20261104/check-v02-plan.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135",
+    "m-s6-20261104/cleanup.json": "a400dbb813a48d180fd55f736c2ca5e6efa56df8cea8f2b0a95d8e070ad3060f",
+    "m-s6-dind-arm64-final3/first-up.json": "d9fcf31f4aec26f0fb3c61b1776ad888a0d152c133fb53516ad25b55a9665216",
+    "m-s6-dind-arm64-final3/foundation/up.json": "6d6ff89687dc8068da85f8b4295ad189c06618a0f8f3a4d42f19fc545f6fe142",
+    "m-s6-dind-arm64-final3/foundation/status.json": "6d6ff89687dc8068da85f8b4295ad189c06618a0f8f3a4d42f19fc545f6fe142",
+    "m-s6-dind-arm64-final3/docker.log": "1a3f2dc89bcef2970dd324dba186d1d994e159c3cc7c35ab984937cdea66ace3",
+    "m-s6-dind-amd64-1/foundation/up.json": "3dd1431e4fade1f081d936bb2899ab47546d10baca97976d0d5e248c1f8dbb5b",
+    "m-s6-dind-amd64-1/foundation/docker-errors.log": "f225885ab93b9912ce0ca082991a25bbbb4735273d01e36a8f38cd2ffcb6fef3",
+    "m-s6-dind-amd64-1/docker.log": "3a076632ab8ab60623755e77c903b01d14220c93fda88d7af96748a92e7bb14e",
+    "m-s6-20261104/unit-tests-final.log": "94e45c705bb63cf7b66c5fb41ff67acdcdf3b2dd386a364af4b010ddeefb3b2f",
+    "m-s6-20261104/cargo-check-commit2.log": "29162d76fb109d9c6005d8544d63a4a438d15235d4f9b8e73d51adc9ba6e95d7",
+    "m-s6-20261104/cargo-tests-commit2.log": "f4a1ae09b40037e8bba7626d4f9e9f208139914d800b4772eb8e5c92162ec27e",
+    "m-s6-20261104/cargo-fmt-commit2.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

@@ -1,4 +1,7 @@
-//! Command flags. Parsing does not open files, sockets, or environment credentials.
+//! Consumer flags are pure. Admin dispatch validates arguments before local IO.
+
+#[path = "admin/mod.rs"]
+mod admin;
 
 use std::net::IpAddr;
 
@@ -62,6 +65,7 @@ pub struct SearchArgs {
 }
 
 pub enum Invocation {
+    AdminReport(String, u8),
     Help(String),
     AgentSkill(bool),
     Unsupported,
@@ -79,7 +83,17 @@ pub enum Invocation {
 
 pub fn parse() -> Result<Invocation, Failure> {
     let args = os_args()?;
+    if let Some(result) = admin::askpass(&args) {
+        return result;
+    }
     let args = expand_long_options(&args);
+    if let Some(result) = crate::lifecycle::dispatch(&args) {
+        return result;
+    }
+    if let Some(result) = admin::dispatch(&args) {
+        return result;
+    }
+    let args = crate::lifecycle::prepare_data(args)?;
     parse_args(&args)
 }
 
@@ -109,6 +123,12 @@ fn expand_long_options(args: &[String]) -> Vec<String> {
                     | "--limit"
                     | "--expected-publication-id"
                     | "--expected-data-vector-sha256"
+                    | "--code"
+                    | "--profile"
+                    | "--business-timezone"
+                    | "--grant-file"
+                    | "--role"
+                    | "--agent"
             )
         {
             output.extend([flag.to_owned(), value.to_owned()]);
@@ -1020,7 +1040,9 @@ fn is_safe_flag(arg: &str) -> bool {
 
 pub fn top_help() -> String {
     format!(
-        "{TOP}\n\n{QUERY_FLAGS}\n\n{SEARCH_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\n{NOTES}"
+        "{TOP}\n\n{}\n\n{}\n\n{QUERY_FLAGS}\n\n{SEARCH_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\n{NOTES}",
+        admin::HELP,
+        crate::lifecycle::HELP
     )
 }
 
@@ -1059,6 +1081,15 @@ Commands:
   oo status [options] <query_id>
   oo operations [options]
   oo agent-skill [--json]        Optional offline business guidance
+
+Credential commands:
+  oo login --gateway <url> [--code-stdin | --code - | --device]
+                                 Bind with a one-time code (stdin or prompt, never argv)
+  oo whoami [--json]             Identity, role and credential expiry
+  oo share-prompt --grant-file <file> [--role <role>]
+                                 Agent setup prompt with a one-time code (admin)
+  oo token issue|list|renew|rotate|revoke|enroll|approve   (oo help token)
+Administration: oo init|up|down|status|doctor|build|review|ontology (oo help init)
 
 Use -h or --help on any command; help never reads credentials or connects.
 Flags follow the command. Use -- before a positional argument beginning with '-'.

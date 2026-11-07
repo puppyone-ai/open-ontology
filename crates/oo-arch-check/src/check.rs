@@ -300,6 +300,38 @@ pub fn check(metadata: &Metadata) -> Report {
             }
         }
         apply_package_rules(name, &reached, &externals, &mut violations);
+        if name == "oo-cli" {
+            // Plan D19: the owner CLI reaches source drivers only through
+            // oo-connectors (read-only doctor and init probes). A driver it or
+            // any other reached member names directly, or one oo-connectors does
+            // not already carry, is still a violation.
+            let mut via_connectors = resolve_external_names(
+                package_id(&members, "oo-connectors"),
+                &nodes,
+                &by_id,
+                &member_ids,
+            );
+            if let Some(names) = direct_external.get("oo-connectors") {
+                via_connectors.extend(names.iter().cloned());
+            }
+            let mut direct = BTreeSet::new();
+            for reached_name in std::iter::once(name).chain(reached.iter()) {
+                if reached_name != "oo-connectors"
+                    && let Some(names) = direct_external.get(reached_name)
+                {
+                    direct.extend(names.iter().cloned());
+                }
+            }
+            for driver in externals.iter().filter(|n| is_client_database_driver(n)) {
+                if direct.contains(driver) || !via_connectors.contains(driver) {
+                    violations.insert(violation(
+                        R_CLIENT_DB_DRIVER,
+                        name,
+                        format!("{name} reaches database crate {driver}"),
+                    ));
+                }
+            }
+        }
     }
 
     finish(violations)
@@ -683,7 +715,7 @@ fn apply_package_rules(
         }
     }
 
-    if matches!(package, "oo-sdk" | "oo-cli" | "oo-mcp") {
+    if matches!(package, "oo-sdk" | "oo-mcp") {
         for name in externals {
             if is_client_database_driver(name) {
                 violations.insert(violation(
@@ -1738,12 +1770,24 @@ mod tests {
     }
 
     #[test]
-    fn required_membership_is_seventeen_including_xtask() {
-        assert_eq!(REQUIRED_MEMBERS.len(), 17);
+    fn required_membership_is_eighteen_including_xtask() {
+        assert_eq!(REQUIRED_MEMBERS.len(), 18);
+        assert!(REQUIRED_MEMBERS.contains(&"oo-stack"));
         assert!(REQUIRED_MEMBERS.contains(&"xtask"));
         assert!(is_required_edge("xtask", "oo-core"));
         assert!(is_required_edge("xtask", "oo-arch-check"));
         assert!(!is_required_edge("oo-arch-check", "xtask"));
+    }
+
+    #[test]
+    fn owner_cli_reaches_drivers_only_through_connectors() {
+        // Plan D19: the baseline passes with oo-cli -> oo-connectors, but a
+        // driver oo-cli names itself is still a client violation.
+        assert!(check(metadata()).violations.is_empty());
+        let direct = inject_external_crate(metadata(), "oo-cli", "sqlx");
+        assert_package_rule(&check(&direct), R_CLIENT_DB_DRIVER, "oo-cli", "sqlx");
+        let sdk = inject_external_crate(metadata(), "oo-sdk", "tokio-postgres");
+        assert_package_rule(&check(&sdk), R_CLIENT_DB_DRIVER, "oo-sdk", "tokio-postgres");
     }
 
     #[test]

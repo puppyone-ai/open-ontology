@@ -7,7 +7,7 @@ def main():
     cfg=json.loads(Path('/tmp/oo-customer-oracle-20261012/target.json').read_text())
     creds=json.loads(Path(cfg['credential_file']).read_text())
     user=creds['username']; password=creds['password']
-    if user != 'aiagenttest': raise ValueError('only supplied test identity allowed')
+    if user != 'source_reader': raise ValueError('only supplied test identity allowed')
     private=Path('/tmp/oo-customer-oracle-20261012/probe'); private.mkdir(mode=0o700,exist_ok=True)
     evidence=Path('evidence/992aa5d3-6848-4dd9-aff1-d4d31a099983/DL01/oracle-product/native-real-20261012'); evidence.mkdir(parents=True,exist_ok=True)
     descriptor=f"(DESCRIPTION=(CONNECT_TIMEOUT=10)(TRANSPORT_CONNECT_TIMEOUT=10)(ADDRESS=(PROTOCOL=TCP)(HOST={cfg['host']})(PORT={cfg['port']}))(CONNECT_DATA=(SERVICE_NAME={cfg['database_identifier']})))"
@@ -32,7 +32,7 @@ EXIT
         errors=re.findall(rb'(?:ORA|TNS|SP2)-\d+[^\r\n]*',raw)
         errors=[e.decode('utf-8','replace').replace(password,'[redacted]') for e in errors]
         connected=b'CONNECTED|' in raw
-        result={'protocol':'oo.oracle.real-probe/v1','endpoint':f"{cfg['host']}:{cfg['port']}/{cfg['database_identifier']}",'identity':'aiagenttest','connect_data':'SERVICE_NAME','exit':p.returncode,'connected':connected,'errors':errors,'elapsed_seconds':round(time.time()-started,3),'prepared_readonly_statements':['SELECT dual session identity','SELECT all_tables metadata ROWNUM <= 1'],'metadata_attempted':connected,'sample_completed':connected and p.returncode==0,'source_dml_ddl':0,'source_sample_rows':None if connected else 0,'sample_hard_limit':5,'raw_customer_data':'private only','private_raw_path':str(dest)}
+        result={'protocol':'oo.oracle.real-probe/v1','endpoint':f"{cfg['host']}:{cfg['port']}/{cfg['database_identifier']}",'identity':'source_reader','connect_data':'SERVICE_NAME','exit':p.returncode,'connected':connected,'errors':errors,'elapsed_seconds':round(time.time()-started,3),'prepared_readonly_statements':['SELECT dual session identity','SELECT all_tables metadata ROWNUM <= 1'],'metadata_attempted':connected,'sample_completed':connected and p.returncode==0,'source_dml_ddl':0,'source_sample_rows':None if connected else 0,'sample_hard_limit':5,'raw_customer_data':'private only','private_raw_path':str(dest)}
     except subprocess.TimeoutExpired:
         result={'endpoint':f"{cfg['host']}:{cfg['port']}/{cfg['database_identifier']}",'connected':False,'error':'client timeout after 35s','source_dml_ddl':0,'source_sample_rows':0}
     (evidence/('connection-'+str(time.time_ns())+'.json')).write_text(json.dumps(result,indent=2)+'\n')

@@ -1,13 +1,33 @@
 //! MySQL 5.7/8 source-only catalog, shared batch/CDC mapping and bounded Arrow pulls.
 //! No COPY, target credentials, Loader or tool dependencies live here.
+//! [`engine::MysqlEngine`] implements the v0.2 `SourceEngine` for 5.7, 8.0,
+//! 8.4 and 9.x; [`capability`] holds its version dispatch table.
 
+pub mod c5;
+#[cfg(feature = "mysql-binlog")]
+pub use engine::change::{BinlogRetention, MysqlChanges};
+#[cfg(feature = "mysql-binlog")]
+pub use engine::repair::{HandoffBarrier, RepairBinding, RepairBudget, SourceRepair};
+pub mod capability;
 pub mod chunk;
+pub mod engine;
+pub mod gtid;
+pub mod keyset;
 pub mod map;
+pub mod protect;
 mod reader;
 mod source;
 pub mod values;
 pub mod version;
+// Root exports are coordinator-owned; these paths keep the lane deliverable usable.
+#[path = "../mariadb/mod.rs"]
+pub mod mariadb;
+#[path = "../oceanbase/mod.rs"]
+pub mod oceanbase;
+#[path = "../tidb/mod.rs"]
+pub mod tidb;
 
+pub use engine::{EngineOptions, MysqlEngine, RowFingerprint, WatermarkMode};
 pub use reader::{
     Batch, CHUNK_DEADLINE_MS, CHUNK_MAX_BYTES, CHUNK_MAX_ROWS, CHUNK_STATEMENT_MS, Cancel,
     ChunkBatch, ChunkCursor, ChunkReader, FullReader, ReadConnection, TableReader,

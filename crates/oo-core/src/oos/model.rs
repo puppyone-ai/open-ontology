@@ -536,6 +536,93 @@ pub struct EntityMember {
     pub phone: Option<TableName>,
 }
 
+/// Entity identity columns on the primary dataset, in declared order.
+///
+/// One column is spelled as a string, so scalar documents and their digests
+/// are unchanged. A composite identity is an array of at least two distinct
+/// columns; a one-element array is refused so each key has one spelling.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EntityKey(Vec<TableName>);
+
+impl EntityKey {
+    pub fn new(columns: Vec<TableName>) -> Result<Self, String> {
+        let distinct: std::collections::BTreeSet<_> = columns.iter().collect();
+        if columns.is_empty() || distinct.len() != columns.len() {
+            return Err("entity key needs distinct columns".to_owned());
+        }
+        Ok(Self(columns))
+    }
+
+    pub fn columns(&self) -> &[TableName] {
+        &self.0
+    }
+
+    pub fn is_composite(&self) -> bool {
+        self.0.len() > 1
+    }
+}
+
+impl Serialize for EntityKey {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self.0.as_slice() {
+            [one] => one.serialize(serializer),
+            many => many.serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for EntityKey {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Spelling {
+            One(TableName),
+            Many(Vec<TableName>),
+        }
+        match Spelling::deserialize(deserializer)? {
+            Spelling::One(one) => Ok(Self(vec![one])),
+            Spelling::Many(many) if many.len() >= 2 => {
+                Self::new(many).map_err(serde::de::Error::custom)
+            }
+            Spelling::Many(_) => Err(serde::de::Error::custom(
+                "a composite entity key needs at least two columns; spell one column as a string",
+            )),
+        }
+    }
+}
+
+impl JsonSchema for EntityKey {
+    fn schema_name() -> Cow<'static, str> {
+        Cow::Borrowed("EntityKey")
+    }
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        let column = generator.subschema_for::<TableName>().to_value();
+        crate::schema_util::schema_object(serde_json::json!({
+            "description": "One identity column, or an ordered composite of at least two distinct columns.",
+            "oneOf": [column, {"type": "array", "items": column, "minItems": 2, "uniqueItems": true}]
+        }))
+    }
+}
+
+impl PartialSchema for EntityKey {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        let composite = utoipa::openapi::schema::ArrayBuilder::new()
+            .items(TableName::schema())
+            .min_items(Some(2))
+            .unique_items(true)
+            .build();
+        utoipa::openapi::schema::OneOfBuilder::new()
+            .item(TableName::schema())
+            .item(composite)
+            .description(Some(
+                "One identity column, or an ordered composite of at least two distinct columns.",
+            ))
+            .into()
+    }
+}
+
+impl ToSchema for EntityKey {}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EntityFile {
@@ -547,8 +634,8 @@ pub struct EntityFile {
     #[serde(default)]
     pub description: Option<BoundedText<4000>>,
     pub primary_dataset: QualifiedTable,
-    pub key: TableName,
-    pub display: TableName,
+    pub key: EntityKey,
+    pub display: EntityKey,
     #[serde(default)]
     pub members: Vec<EntityMember>,
     #[serde(default)]
@@ -1611,5 +1698,66 @@ mod source_semantics_contract {
                 .iter()
                 .any(|item| item.path.contains("/source_semantics/columns/"))
         );
+    }
+}
+
+#[cfg(test)]
+mod entity_key_contract {
+    use super::{EntityFile, EntityKey};
+    use crate::oos::parse_entity_yaml;
+    use serde_json::json;
+
+    fn entity(key: serde_json::Value) -> serde_json::Value {
+        json!({"schema_version":"oos/v1","entity":"order_line","label":"Order line",
+            "primary_dataset":"app.order_lines","key":key,"display":key})
+    }
+
+    #[test]
+    fn scalar_key_keeps_its_string_spelling() {
+        let document = entity(json!("id"));
+        let file: EntityFile = serde_json::from_value(document.clone()).unwrap();
+        assert!(!file.key.is_composite());
+        assert_eq!(file.key.columns().len(), 1);
+        assert_eq!(serde_json::to_value(&file).unwrap()["key"], json!("id"));
+        assert_eq!(
+            serde_json::to_string(&file.key).unwrap(),
+            serde_json::to_string(&json!("id")).unwrap()
+        );
+    }
+
+    #[test]
+    fn composite_key_is_ordered_and_round_trips() {
+        let file: EntityFile =
+            serde_json::from_value(entity(json!(["order_id", "line_no"]))).unwrap();
+        assert!(file.key.is_composite());
+        let names: Vec<_> = file.key.columns().iter().map(|c| c.as_str()).collect();
+        assert_eq!(names, ["order_id", "line_no"]);
+        let encoded = serde_json::to_value(&file).unwrap();
+        assert_eq!(encoded["key"], json!(["order_id", "line_no"]));
+        assert_eq!(encoded["display"], json!(["order_id", "line_no"]));
+        let yaml = "schema_version: oos/v1\nentity: order_line\nlabel: Order line\n\
+            primary_dataset: app.order_lines\nkey: [order_id, line_no]\ndisplay: order_id\n";
+        let parsed = parse_entity_yaml(yaml).expect("composite entity yaml");
+        assert_eq!(parsed.key, file.key);
+        assert!(!parsed.display.is_composite());
+    }
+
+    #[test]
+    fn keyless_single_element_and_repeated_composites_are_refused() {
+        for bad in [
+            json!(null),
+            json!(""),
+            json!([]),
+            json!(["order_id"]),
+            json!(["order_id", "order_id"]),
+            json!(["order_id", ""]),
+            json!([["order_id"], "line_no"]),
+        ] {
+            assert!(
+                serde_json::from_value::<EntityFile>(entity(bad.clone())).is_err(),
+                "{bad}"
+            );
+        }
+        assert!(EntityKey::new(Vec::new()).is_err());
     }
 }

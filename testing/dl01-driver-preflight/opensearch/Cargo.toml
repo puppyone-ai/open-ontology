@@ -22,10 +22,10 @@ unimplemented = "deny"
 # reqwest matches oo-sdk: default features off, rustls + http2.
 # arrow-* 60.0.0 is already in that lock. No cargo update of the root lock.
 [workspace.dependencies]
-arrow-array = { version = "=60.0.0", default-features = false }
-arrow-buffer = { version = "=60.0.0", default-features = false }
-arrow-ipc = { version = "=60.0.0", default-features = false }
-arrow-schema = { version = "=60.0.0", default-features = false }
+arrow-array = { version = "=60.1.0", default-features = false }
+arrow-buffer = { version = "=60.1.0", default-features = false }
+arrow-ipc = { version = "=60.1.0", default-features = false }
+arrow-schema = { version = "=60.1.0", default-features = false }
 base64 = "=0.23.1"
 cc = "=1.4.7"
 find-msvc-tools = "=0.1.13"

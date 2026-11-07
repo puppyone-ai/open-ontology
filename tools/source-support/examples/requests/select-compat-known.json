@@ -3,7 +3,7 @@
   "detected": {
     "family": "native-cn",
     "product": "达梦 DM8",
-    "version": "",
+    "version": "8",
     "variant": "self-managed",
     "driver": {"path": "P2"},
     "profile": "production",

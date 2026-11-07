@@ -10,6 +10,7 @@ mod c1;
 mod c1_chunked;
 mod c1_materialize;
 mod c1_replica;
+pub mod c1_retention;
 pub mod c1_model;
 mod config;
 mod capture;

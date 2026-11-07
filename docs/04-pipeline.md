@@ -2,8 +2,9 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-11-03
 > 依赖：[03 数据源](03-sources-and-ingestion.md)、[05 Agent DB](05-agent-db.md)
+> 实战细则：[product/02 数据拉取手册](product/02-ingestion-playbook.md)（水位、C5/C1 交接、故障恢复）
 > 被依赖：[06 Ontology](06-ontology-layer.md)、[13 评测](13-evaluation-and-benchmarks.md) 轨道 A
 
 ## 1. 职责与不变量
@@ -101,7 +102,19 @@
 
 ### 4.3 块的进度与续传
 
-控制库 `sync.chunks(table_id, chunk_no, key_lo, key_hi, state, rows, started_at, finished_at, attempt)`。worker 崩溃后，未完成的块重新执行；由于插入是 `DO NOTHING` 语义，重复执行同一块无副作用。
+控制库 `sync.chunks(table_id, plan_revision, chunk_no, key_lo, key_hi, state, rows, bytes, sha256, started_at, finished_at, attempt)`。分块策略与块大小见 [03 §4.1](03-sources-and-ingestion.md)。worker 崩溃后，未完成的块整块重新执行；由于插入是 `DO NOTHING` 语义，重复执行同一块无副作用。周期间增长到超出单块预算的范围被拆分并生成新的 `plan_revision`，新块完整读取，不截断、不退回全量。
+
+### 4.4 只读水位对齐（块级修正）
+
+§4.2 要求日志在快照前就开始被消费。当日志先写入暂存区、而不是由流式 Loader 直接应用到目标时（原生日志读取器、C5→C1 交接、块修复），采用 DBLog / Debezium 增量快照的水位思路，但**不向源端 signal 表写水位**（I-SRC-1），而是读取引擎只读可见的位点：
+
+| 引擎 | 低/高水位 |
+|---|---|
+| MySQL | 已执行 GTID 集合；未开 GTID 时用 binlog file/pos（只在同一实例内有效；从多线程复制的副本读需 `replica_preserve_commit_order=ON`） |
+| PostgreSQL | `pg_current_wal_lsn()`；副本上用 `pg_last_wal_replay_lsn()` |
+| Oracle | `CURRENT_SCN` |
+
+每块读取前后各记一次水位，记录 `(low, high, 范围, 行哈希)`；之后用日志中 `(low, high]` 窗口内、键落在该块范围的变更覆盖快照缓冲中的同键行，墓碑防止复活。首次全量开始前记录 `L0` 并持续消费日志，避免大表全量耗时超过日志保留期后只能重来。MySQL 部分有 Debezium `read.only=true` 的先例；PG、Oracle 部分是推导设计，须经原型实证后才能在[支持矩阵](database-support/support-matrix.yaml)中提升等级。
 
 ## 5. 流式应用（CDC）
 
@@ -234,11 +247,12 @@ COMMIT;
 
 ## 7. 批量路径
 
-- **首次全量：** 与 §4 的分块读取相同，但没有 CDC 流，所以直接 COPY 进影子表，完成后换表。
-- **增量：** 每表在控制库记水位 `W`（上次成功同步到的 `updated_at`）。读取 `updated_at > W - overlap` 的行（默认重叠 5 分钟，兜住晚提交的长事务），以 upsert 写入；**全部写入成功后才推进水位**，与任务完成标记在同一个控制库事务中。
-- **前提：** 源表要有“每次修改都会更新”的 `updated_at` 列（画像可以检验：抽样对比）。没有的表只能 `full`，或请客户加列。
-- **删除：** 批量路径看不到删除，依赖每日对账（§8）删除源库已不存在的行；源表用软删除时不需要。
-- **限速：** 每个源库的并发连接数与每秒行数上限（令牌桶），优先读从库；执行窗口可配置（例如只在 20:00–08:00 做全量）。
+- **首次全量：** 与 §4 的分块读取相同，但没有 CDC 流，所以直接写入影子表，完成后换表。
+- **暂存与装载：** 每个范围先写私有暂存，完整范围就绪后原子替换，然后发布。长事务内分段续租（COPY 每 512 行一段，租约 30 秒不变），避免大批量装载期间租约过期被他人接手。变化块不复制整张父表：采用“不可变父存储 + 变化块组合”的代际模型，并计量每周期的目标写入字节。
+- **增量（C5 范围摘要差分）：** 拿不到日志时的默认方式，分四层：时间列只作正向提示（NULL 视为未知）→ 近窗口扫描加速 → 按块 `COUNT` + 按列摘要（含 NULL 标志）比较 → 低频全读兜底。只与上一轮的源摘要比较；`update_time`、`MAX(id)`、业务日期都不当可靠游标，`COUNT` 相等也不代表未变化。无变化周期必须零载荷、零目标改写、零新代际。变化块按块重读并替换，删除在块摘要比较中直接收敛。
+- **游标增量（C3）：** 只在表的游标通过 `cursor_safety` 分类（[database-support/03 §6](database-support/03-change-capture-and-consistency.md)）且被显式配置时使用：读取 `cursor > W - overlap` 的行以 upsert 写入，**全部写入成功后才推进水位**；看不到删除，依赖对账（§8）。
+- **C5 → C1 交接：** 源后来具备日志条件时，按 [database-support/03 §7](database-support/03-change-capture-and-consistency.md) 的交接屏障切换，不在两种方式之间静默补洞。
+- **限速：** 并发、占空比、负载暂停与语句超时按 [03 §4.2](03-sources-and-ingestion.md)；执行窗口可配置（例如只在 20:00–08:00 做全量）。
 
 ## 8. 对账
 
@@ -295,6 +309,8 @@ registered → snapshotting → catching_up → awaiting_publish → live ⇄ pa
 
 `awaiting_publish`：数据已同步追平，但列尚未全部分类或 Ontology 尚未发布，对 Agent 不可见。控制台在这里提示“还差 N 列待分类”。
 
+- **周期与调度状态：** 首次运行把周期预算写入不可变预算文件，重试不能延长 deadline，进程停机时间也计入。调度器区分未到期、重试未到期、超出截止、子进程超过截止仍存活。**定时器存在不等于同步成功**：`oo status` 同时显示最近成功周期、最近失败原因与下次到期。
+
 - **控制库主要表：** `sources`、`tables`（状态、模式、配置指纹）、`sync.runs`、`sync.chunks`、`sync.watermarks`、`sync.freshness`（`_oo.table_freshness` 的镜像）、`sync.schema_changes`、`sync.unmapped_columns`、`sync.rejects`、`sync.reconcile_results`、`sync.quarantine`、`jobs.tasks`、`jobs.schedules`、`jobs.leases`。
 
 ## 11. 保护源库与监控
@@ -323,7 +339,8 @@ registered → snapshotting → catching_up → awaiting_publish → live ⇄ pa
 | Debezium 崩溃 | 延迟上升 | 从控制库中的位点继续 |
 | Valkey 重启 / 缓冲丢失 | `always` 降低丢失窗口，但不能保证磁盘故障、异步复制切换时零丢失；Debezium 位点可能已经前进 | 检测位点缺口，隐藏受影响表并重做快照；对账不能替代恢复完整 CDC 历史 |
 | Agent DB 主库不可用 | Loader 重试、stream 积压，最终 Debezium 暂停 | 主库恢复后自动追平 |
-| MySQL binlog 被清理 / PG 复制槽失效 | 流中断，无法续读 | 告警，对受影响的表自动重做快照（需管理员确认，因为会带来源库读取压力） |
+| MySQL binlog 被清理 / PG 复制槽失效（含 PG 18 `idle_replication_slot_timeout` 作废闲置槽） | 流中断，无法续读 | 告警，进入显式新代际重基线（需管理员确认，因为会带来源库读取压力）；不从最近位置静默续读 |
+| 部分表客户端/服务端超时、SSH 跳板断线 | 该周期部分表失败 | 按块断点重试；不放宽源库超时、不改全局网络；连续失败的表单独报告。更多故障见 [product/02 §6](product/02-ingestion-playbook.md) |
 | 源库主从切换 | MySQL（GTID）：Debezium 继续，`_oo_pos` 进入新 epoch；PG：复制槽不随切换迁移（除非 PG17 failover slot 且托管库支持） | PG 需重建复制槽并重做快照 |
 
 ## 12. 性能目标（初始，待压测确认）

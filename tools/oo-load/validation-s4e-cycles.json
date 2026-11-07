@@ -1,0 +1,54 @@
+{
+  "todo": "S4-M-01",
+  "scope": "MySQL/Oracle live Gateway cycles only; retention and lite pending",
+  "runs": [
+    {
+      "cycles": 1,
+      "queries": 12,
+      "errors": 0,
+      "header_vector_rows_consistent": true,
+      "freshness_advancing": true,
+      "source_time": "unmeasured",
+      "legacy_imports": 0,
+      "legacy_acks": 0,
+      "negative_cases": [
+        "changed_view",
+        "closed_fence",
+        "superseded_replay"
+      ],
+      "handoff_delay_ms": 250,
+      "engine": "mysql",
+      "version": "8.4.7",
+      "run_id": "m-s4e-mysql-2",
+      "result_sha256": "9c1c05475c2b287e4382791dfc17573cdb493cdda92c997472900c0e3a68865e",
+      "cleanup_failures": []
+    },
+    {
+      "cycles": 1,
+      "queries": 12,
+      "errors": 0,
+      "header_vector_rows_consistent": true,
+      "freshness_advancing": true,
+      "source_time": "unmeasured",
+      "legacy_imports": 0,
+      "legacy_acks": 0,
+      "negative_cases": [
+        "changed_view",
+        "closed_fence",
+        "superseded_replay"
+      ],
+      "handoff_delay_ms": 250,
+      "engine": "oracle",
+      "version": "23.5.0.24.07",
+      "run_id": "m-s4e-oracle-4",
+      "result_sha256": "4b2a90f3c1b1a73ceb47a6dd28ae24dd53516f22b6718cf002782a1e4ad2d2a5",
+      "cleanup_failures": []
+    }
+  ],
+  "failed_attempts": {
+    "m-s4e-mysql-1": "missing locally built oo-builder",
+    "m-s4e-oracle-1": "SQLPlus startup text in version probe",
+    "m-s4e-oracle-2": "tamper probe assumed bigint",
+    "m-s4e-oracle-3": "Pack assumed bigint instead of Oracle NUMBER text projection"
+  }
+}

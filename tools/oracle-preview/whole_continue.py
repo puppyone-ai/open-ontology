@@ -12,6 +12,8 @@ import re
 import subprocess
 import sys
 
+import os
+
 import c5_capture
 import c5_live
 import configured_native
@@ -21,8 +23,19 @@ OWNED = {"host": "oo-dl01w1-04-p2-oracle", "port": 1521, "database": "FREEPDB1",
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z")
 
 
+def private_terms():
+    """Customer endpoints live outside the repository, one term per line."""
+    path = os.environ.get("OO_PRIVATE_TERMS_FILE", os.path.expanduser("~/.config/open-ontology/private-terms.txt"))
+    try:
+        with open(path) as fh:
+            return {t.strip().lower() for t in fh if t.strip() and not t.startswith("#")}
+    except OSError:
+        return set()
+
+
 def owned(cfg):
-    if cfg.get("host") == "47.104.150.9" or cfg.get("database") == "scm5":
+    terms = private_terms()
+    if any(str(cfg.get(k, "")).lower() in terms for k in ("host", "database", "user")):
         raise ValueError("customer endpoint is metadata-only")
     for key, value in OWNED.items():
         if cfg.get(key) != value:

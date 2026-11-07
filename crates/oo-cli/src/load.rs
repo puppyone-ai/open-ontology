@@ -157,7 +157,7 @@ fn inspect(file: &File, cap: u64, token_policy: bool) -> Result<(), ReadError> {
 /// uid on the new inode is the effective uid. The probe is unlinked before
 /// the token bytes are read. A temp directory that rejects the create fails
 /// the token read.
-fn process_owner() -> Result<u32, ReadError> {
+pub(crate) fn process_owner() -> Result<u32, ReadError> {
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let n = NEXT.fetch_add(1, Ordering::Relaxed);
     let path = std::env::temp_dir().join(format!(".oo-cli-owner-{}-{n}", std::process::id()));

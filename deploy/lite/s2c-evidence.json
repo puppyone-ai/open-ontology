@@ -1,0 +1,52 @@
+{
+  "todo": "S2-A-02",
+  "status": "partial",
+  "base": "a7036475d",
+  "runs": {
+    "a-s2c-endpoint": {
+      "check-final.log": "6a981e4e2a0c9af6dead9afee0224555ade213f42082f62ec9b38c4d1fc0dd36",
+      "tests.log": "7e857dd10d29abd1bdfa34f15d41275927373bc0cca621bf821a672efcdb7bde",
+      "egress.log": "5aa9db5573154090cc868d63b4cac714ccfaaa0e43ff1a50e4c3d09898847720",
+      "lifecycle.log": "8511476ade8de90f5517cc722fe4e78a712af4c32884f34c51335fc83e873772",
+      "boundary-inspection.json": "891a10a3b4cfa3ed90f962ab3f6d9d2ea61be02aad1fbe85e40c77af2fb1053c"
+    },
+    "a-s2c-runtime": {
+      "arm64.log": "0bbfa1753f703d395740c6f506323e349b56f21f1c2f74c7d32c08992fb00bf5",
+      "arm64-oo-load-help.log": "39778f1df9c61a1e16d54c4cd68d61db28b231f80549baedbe957657a93fcb41",
+      "images.json": "02ec400689a3da296f88bc868993b3123846bfd3153d1c69774db11f0e2aa004"
+    },
+    "a-s2c-foundations": {
+      "result.json": "b88084f51d6cb3f6dd78f6fb6f27895f60c61ca31fa172de0b39e6273f9cdc39",
+      "up.json": "ed59d4a06a6d42479635cecc795c6f62dbdf9e5b7532a1f8c7430084dbfcf5c7",
+      "status.json": "ed59d4a06a6d42479635cecc795c6f62dbdf9e5b7532a1f8c7430084dbfcf5c7",
+      "down.json": "bf7bf87cd2cb617daa032397e9bf25781c6c69417cbe4af7fdaf4b3f1fc56d10"
+    }
+  },
+  "native_image": {
+    "digest": "sha256:456da58dbf199b8dd91f42d50deb06d661ddbab28fba8bef1369016dec108516",
+    "size_bytes": 541844641,
+    "platform": "linux/arm64",
+    "loader_help": "passed"
+  },
+  "foundations": {
+    "result": "passed",
+    "scope": "three-service foundations ONLY",
+    "full_stack_acceptance": false,
+    "installed_pointer": true,
+    "healthy_foundation_services": 3,
+    "credential_reuse": "unchanged",
+    "gateway_health": "unmeasured",
+    "containers_left": 0
+  },
+  "live_model_calls": 0,
+  "three_engine_drafts": "not_run",
+  "seven_service_health": "not_met",
+  "cargo_lock_changes": false,
+  "shared_file_changes": false,
+  "blockers": [
+    "Authenticated /v1/health needs a token deferred to S4 and does not report scheduler/build timestamps.",
+    "Builder PostgreSQL catalog selects physical tables, but oo-load publishes views.",
+    "Builder profile TLS has no client authentication; lite requires client certificates."
+  ],
+  "amd64": "historical image; not rebuilt on this card"
+}

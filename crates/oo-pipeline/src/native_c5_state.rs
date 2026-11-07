@@ -242,370 +242,215 @@ pub async fn execute(document: &Value) -> Result<Value, &'static str> {
         }
         return Ok(value);
     }
-    let mut tx = conn.begin().await.map_err(|_| "c5_state")?;
-    crate::native_update::lease_hold(
-        &mut tx,
-        text(document, "lease_id")?,
-        Some(
-            document["lease_generation"]
-                .as_i64()
-                .filter(|generation| *generation > 0)
-                .ok_or("lease_required")?,
-        ),
-    )
-    .await?;
-    let shard = text(&document["target"], "shard")?;
-    let owner = text(&document["target"], "owner")?;
-    let fence: i64 = sqlx::query_scalar("SELECT _oo.adopt_target_generation($1,$2::uuid)")
-        .bind(shard)
-        .bind(owner)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|_| "fence")?;
-    sqlx::query("SELECT _oo.full_import_bind_session($1,$2::uuid,$3)")
-        .bind(shard)
-        .bind(owner)
-        .bind(fence)
-        .execute(&mut *tx)
-        .await
-        .map_err(|_| "fence")?;
-    let result = match operation {
-        "initialize_empty_if_absent" => {
-            require_empty_schema(&mut tx).await?;
-            let raw: String = sqlx::query_scalar(
-                "SELECT _oo.c5_initialize_empty_if_absent($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::uuid,$10)::text",
-            )
+    // Run the transaction, then always release the session-level shard fence
+    // that adopt_target_generation took and close the connection gracefully.
+    // Leaving both to the connection drop let the next call race the old
+    // backend's exit and fail pg_try_advisory_lock as "fence".
+    let outcome: Result<Value, &'static str> = async {
+        let mut tx = conn.begin().await.map_err(|_| "c5_state")?;
+        crate::native_update::lease_hold(
+            &mut tx,
+            text(document, "lease_id")?,
+            Some(
+                document["lease_generation"]
+                    .as_i64()
+                    .filter(|generation| *generation > 0)
+                    .ok_or("lease_required")?,
+            ),
+        )
+        .await?;
+        let shard = text(&document["target"], "shard")?;
+        let owner = text(&document["target"], "owner")?;
+        let fence: i64 = sqlx::query_scalar("SELECT _oo.adopt_target_generation($1,$2::uuid)")
+            .bind(shard)
+            .bind(owner)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|_| "fence")?;
+        sqlx::query("SELECT _oo.full_import_bind_session($1,$2::uuid,$3)")
             .bind(shard)
             .bind(owner)
             .bind(fence)
-            .bind(source)
-            .bind(schema)
-            .bind(table)
-            .bind(text(document, "schema_fingerprint")?)
-            .bind(document["expected_source_generation"].as_i64().ok_or("c5_state_scope")?)
-            .bind(text(document, "lease_id")?)
-            .bind(document["lease_generation"].as_i64().ok_or("lease_required")?)
-            .fetch_one(&mut *tx)
+            .execute(&mut *tx)
             .await
-            .map_err(|_| "c5_empty_initialize")?;
-            serde_json::from_str(&raw).map_err(|_| "c5_state")?
-        }
-        "initialize_multipart_if_absent" | "initialize_published_if_absent" => {
-            let type_preimages = widening_type_preimages(document)?;
-            let adaptation = if operation == "initialize_published_if_absent" {
-                let installed: Option<String> = sqlx::query_scalar(
-                    "SELECT checksum FROM _oo.schema_migrations WHERE version=$1",
+            .map_err(|_| "fence")?;
+        let result = match operation {
+            "initialize_empty_if_absent" => {
+                require_empty_schema(&mut tx).await?;
+                let raw: String = sqlx::query_scalar(
+                    "SELECT _oo.c5_initialize_empty_if_absent($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::uuid,$10)::text",
                 )
-                .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_REBASE)
-                .fetch_optional(&mut *tx)
+                .bind(shard)
+                .bind(owner)
+                .bind(fence)
+                .bind(source)
+                .bind(schema)
+                .bind(table)
+                .bind(text(document, "schema_fingerprint")?)
+                .bind(document["expected_source_generation"].as_i64().ok_or("c5_state_scope")?)
+                .bind(text(document, "lease_id")?)
+                .bind(document["lease_generation"].as_i64().ok_or("lease_required")?)
+                .fetch_one(&mut *tx)
                 .await
-                .map_err(|_| "c5_widening_schema")?;
-                if let Some(installed) = installed {
-                    if installed
-                        != crate::target_installer::compiled_native_c5_widening_rebase_digest()
-                    {
-                        return Err("c5_widening_schema");
-                    }
-                    let type_receipt: Option<String> = sqlx::query_scalar(
+                .map_err(|_| "c5_empty_initialize")?;
+                serde_json::from_str(&raw).map_err(|_| "c5_state")?
+            }
+            "initialize_multipart_if_absent" | "initialize_published_if_absent" => {
+                let type_preimages = widening_type_preimages(document)?;
+                let adaptation = if operation == "initialize_published_if_absent" {
+                    let installed: Option<String> = sqlx::query_scalar(
                         "SELECT checksum FROM _oo.schema_migrations WHERE version=$1",
                     )
-                    .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_TYPE_RECEIPT)
+                    .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_REBASE)
                     .fetch_optional(&mut *tx)
                     .await
                     .map_err(|_| "c5_widening_schema")?;
-                    if type_receipt.as_deref() != Some(
-                        crate::target_installer::compiled_native_c5_widening_type_receipt_digest().as_str()) {
-                        return Err("c5_widening_schema");
-                    }
-                    let statement = if type_preimages.is_some() {
-                        let installed: Option<String> = sqlx::query_scalar(
+                    if let Some(installed) = installed {
+                        if installed
+                            != crate::target_installer::compiled_native_c5_widening_rebase_digest()
+                        {
+                            return Err("c5_widening_schema");
+                        }
+                        let type_receipt: Option<String> = sqlx::query_scalar(
                             "SELECT checksum FROM _oo.schema_migrations WHERE version=$1",
                         )
-                        .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_SOURCE_TYPES)
+                        .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_TYPE_RECEIPT)
                         .fetch_optional(&mut *tx)
                         .await
                         .map_err(|_| "c5_widening_schema")?;
-                        if installed.as_deref() != Some(
-                            crate::target_installer::compiled_native_c5_widening_source_types_digest().as_str()) {
+                        if type_receipt.as_deref() != Some(
+                            crate::target_installer::compiled_native_c5_widening_type_receipt_digest().as_str()) {
                             return Err("c5_widening_schema");
                         }
-                        "SELECT _oo.c5_rebase_widening_if_needed($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::text[],$10::uuid,$11,$12,$13)::text"
+                        let statement = if type_preimages.is_some() {
+                            let installed: Option<String> = sqlx::query_scalar(
+                                "SELECT checksum FROM _oo.schema_migrations WHERE version=$1",
+                            )
+                            .bind(crate::target_installer::VERSION_NATIVE_C5_WIDENING_SOURCE_TYPES)
+                            .fetch_optional(&mut *tx)
+                            .await
+                            .map_err(|_| "c5_widening_schema")?;
+                            if installed.as_deref() != Some(
+                                crate::target_installer::compiled_native_c5_widening_source_types_digest().as_str()) {
+                                return Err("c5_widening_schema");
+                            }
+                            "SELECT _oo.c5_rebase_widening_if_needed($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::text[],$10::uuid,$11,$12,$13)::text"
+                        } else {
+                            "SELECT _oo.c5_rebase_widening_if_needed($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::text[],$10::uuid,$11)::text"
+                        };
+                        let mut query = sqlx::query_scalar::<_, String>(statement)
+                            .bind(shard)
+                            .bind(owner)
+                            .bind(fence)
+                            .bind(source)
+                            .bind(schema)
+                            .bind(table)
+                            .bind(text(document, "schema_fingerprint")?)
+                            .bind(
+                                document["expected_source_generation"]
+                                    .as_i64()
+                                    .ok_or("c5_state_scope")?,
+                            )
+                            .bind(
+                                document["key_columns"]
+                                    .as_array()
+                                    .ok_or("c5_keys")?
+                                    .iter()
+                                    .map(|key| key.as_str().ok_or("c5_keys"))
+                                    .collect::<Result<Vec<_>, _>>()?,
+                            )
+                            .bind(text(document, "lease_id")?)
+                            .bind(
+                                document["lease_generation"]
+                                    .as_i64()
+                                    .ok_or("lease_required")?,
+                            );
+                        if let Some((old, new)) = &type_preimages {
+                            query = query.bind(old).bind(new);
+                        }
+                        let value = query
+                            .fetch_one(&mut *tx)
+                            .await
+                            .map_err(|_| "c5_widening_rebase")?;
+                        let value: Value =
+                            serde_json::from_str(&value).map_err(|_| "c5_widening_rebase")?;
+                        if !value["rebased"].is_boolean()
+                            || (value["rebased"] == true
+                                && (value["published"] != false || value["acknowledged"] != false))
+                        {
+                            return Err("c5_widening_rebase");
+                        }
+                        Some(value)
                     } else {
-                        "SELECT _oo.c5_rebase_widening_if_needed($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::text[],$10::uuid,$11)::text"
-                    };
-                    let mut query = sqlx::query_scalar::<_, String>(statement)
-                        .bind(shard)
-                        .bind(owner)
-                        .bind(fence)
-                        .bind(source)
-                        .bind(schema)
-                        .bind(table)
-                        .bind(text(document, "schema_fingerprint")?)
-                        .bind(
-                            document["expected_source_generation"]
-                                .as_i64()
-                                .ok_or("c5_state_scope")?,
-                        )
-                        .bind(
-                            document["key_columns"]
-                                .as_array()
-                                .ok_or("c5_keys")?
-                                .iter()
-                                .map(|key| key.as_str().ok_or("c5_keys"))
-                                .collect::<Result<Vec<_>, _>>()?,
-                        )
-                        .bind(text(document, "lease_id")?)
-                        .bind(
-                            document["lease_generation"]
-                                .as_i64()
-                                .ok_or("lease_required")?,
-                        );
-                    if let Some((old, new)) = &type_preimages {
-                        query = query.bind(old).bind(new);
+                        if type_preimages.is_some() {
+                            return Err("c5_widening_schema");
+                        }
+                        None
                     }
-                    let value = query
-                        .fetch_one(&mut *tx)
-                        .await
-                        .map_err(|_| "c5_widening_rebase")?;
-                    let value: Value =
-                        serde_json::from_str(&value).map_err(|_| "c5_widening_rebase")?;
-                    if !value["rebased"].is_boolean()
-                        || (value["rebased"] == true
-                            && (value["published"] != false || value["acknowledged"] != false))
-                    {
-                        return Err("c5_widening_rebase");
-                    }
-                    Some(value)
                 } else {
-                    if type_preimages.is_some() {
-                        return Err("c5_widening_schema");
-                    }
                     None
-                }
-            } else {
-                None
-            };
-            let statement = if operation == "initialize_published_if_absent" {
-                require_published_schema(&mut tx).await?;
-                "SELECT _oo.c5_initialize_published_if_absent($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::text[],$10)::text"
-            } else {
-                require_multipart_schema(&mut tx).await?;
-                "SELECT _oo.c5_initialize_multipart_if_absent($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::text[],$10)::text"
-            };
-            let result: String = sqlx::query_scalar(statement)
-                .bind(shard)
-                .bind(owner)
-                .bind(fence)
-                .bind(source)
-                .bind(schema)
-                .bind(table)
-                .bind(text(document, "schema_fingerprint")?)
-                .bind(
-                    document["chunk_topology_revision"]
-                        .as_i64()
-                        .ok_or("c5_topology")?,
-                )
-                .bind(
-                    document["key_columns"]
-                        .as_array()
-                        .ok_or("c5_keys")?
-                        .iter()
-                        .map(|v| v.as_str().ok_or("c5_keys"))
-                        .collect::<Result<Vec<_>, _>>()?,
-                )
-                .bind(
-                    document["expected_source_generation"]
-                        .as_i64()
-                        .ok_or("c5_state_scope")?,
-                )
-                .fetch_one(&mut *tx)
-                .await
-                .map_err(|error| {
-                    if error
-                        .as_database_error()
-                        .is_some_and(|e| e.code().as_deref() == Some("OO010"))
-                    {
-                        "c5_state_scope"
-                    } else if operation == "initialize_published_if_absent" {
-                        "c5_published_initialize"
-                    } else {
-                        "c5_multipart_initialize"
-                    }
-                })?;
-            let mut result: Value = serde_json::from_str(&result).map_err(|_| "c5_state")?;
-            if let Some(adaptation) = adaptation.filter(|value| value["rebased"] == true) {
-                result["schema_adaptation"] = adaptation;
-            }
-            result
-        }
-        "hydrate_multipart" => {
-            require_multipart_schema(&mut tx).await?;
-            let chunk = text(document, "chunk_id")?;
-            let generation = document["expected_source_generation"]
-                .as_i64()
-                .ok_or("c5_state_scope")?;
-            let raw: String = sqlx::query_scalar(
-                "SELECT _oo.c5_multipart_hydration_manifest($1,$2::uuid,$3,$4,$5,$6,$7,$8)::text",
-            )
-            .bind(shard)
-            .bind(owner)
-            .bind(fence)
-            .bind(source)
-            .bind(schema)
-            .bind(table)
-            .bind(chunk)
-            .bind(generation)
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(|_| "c5_hydration_baseline")?;
-            let authority: Value =
-                serde_json::from_str(&raw).map_err(|_| "c5_hydration_baseline")?;
-            if authority["baseline_protocol"] == "oo.c5.published-baseline/v1" {
-                require_published_schema(&mut tx).await?;
-            }
-            let bytes = read_private_part(text(document, "arrow_path")?)?;
-            let members = hydration_members(&authority, &bytes)?;
-            let seed = archive_digest(&authority, &bytes)?;
-            let result: String = sqlx::query_scalar(
-                "SELECT _oo.c5_hydrate_multipart($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)::text",
-            )
-            .bind(shard)
-            .bind(owner)
-            .bind(fence)
-            .bind(source)
-            .bind(schema)
-            .bind(table)
-            .bind(chunk)
-            .bind(generation)
-            .bind(text(&authority, "arrow_sha256")?)
-            .bind(serde_json::to_string(&members).map_err(|_| "c5_hydration_keys")?)
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(|_| "c5_hydration_membership")?;
-            if let Some(digest) = &seed {
-                sqlx::query("SELECT _oo.c5_seed_multipart_digest($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)")
-                    .bind(shard).bind(owner).bind(fence).bind(source).bind(schema).bind(table)
-                    .bind(chunk).bind(generation).bind(text(&authority, "arrow_sha256")?)
-                    .bind(text(&authority["baseline"], "projection_sha256")?).bind(digest.to_string())
-                    .execute(&mut *tx).await.map_err(|_| "c5_archive_digest")?;
-            }
-            let mut result: Value = serde_json::from_str(&result).map_err(|_| "c5_state")?;
-            result["archive_digest_seeded"] = json!(seed.is_some());
-            result
-        }
-        "observe_partial" => {
-            require_multipart_schema(&mut tx).await?;
-            if document.get("loader_receipt").is_some() {
-                let scope = partial_range_scope(&document["range_scope"])?;
-                let guard = if scope["protocol"] == crate::native_c5_parts::RANGE_PROTOCOL {
-                    "SELECT _oo.c5_parts_observation_receipt_guard($1,$2::uuid,$3,$4::jsonb,$5::jsonb)"
-                } else {
-                    "SELECT _oo.c5_observation_receipt_guard($1,$2::uuid,$3,$4::jsonb,$5::jsonb)"
                 };
-                sqlx::query(guard)
+                let statement = if operation == "initialize_published_if_absent" {
+                    require_published_schema(&mut tx).await?;
+                    "SELECT _oo.c5_initialize_published_if_absent($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::text[],$10)::text"
+                } else {
+                    require_multipart_schema(&mut tx).await?;
+                    "SELECT _oo.c5_initialize_multipart_if_absent($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::text[],$10)::text"
+                };
+                let result: String = sqlx::query_scalar(statement)
                     .bind(shard)
                     .bind(owner)
                     .bind(fence)
-                    .bind(scope.to_string())
-                    .bind(document["loader_receipt"].to_string())
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|_| "c5_observation_receipt")?;
-            }
-            let observation = &document["observation"];
-            let chunks = observation["chunks"]
-                .as_array()
-                .cloned()
-                .unwrap_or_else(|| vec![observation["chunk"].clone()]);
-            let mut result = Value::Null;
-            for chunk in chunks {
-                let mut part = observation.clone();
-                part["chunk"] = chunk;
-                let raw: String = sqlx::query_scalar(
-                    "SELECT _oo.c5_observe_partial($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb)::text",
-                )
-                .bind(shard)
-                .bind(owner)
-                .bind(fence)
-                .bind(source)
-                .bind(schema)
-                .bind(table)
-                .bind(
-                    document["expected_source_generation"]
-                        .as_i64()
-                        .ok_or("c5_state_scope")?,
-                )
-                .bind(part.to_string())
-                .fetch_one(&mut *tx)
-                .await
-                .map_err(|_| "c5_partial_observation")?;
-                result = serde_json::from_str(&raw).map_err(|_| "c5_state")?;
-            }
-            if result.is_null() {
-                return Err("c5_partial_observation");
-            }
-            result
-        }
-        "record_rejects" => {
-            let masked =
-                crate::masked_rejects::project(source, schema, table, &document["rejects"])?;
-            let observation = text(document, "observation_sha256")?;
-            let stored: Option<String> =
-                sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version=$1")
-                    .bind(crate::target_installer::VERSION_MASKED_REJECTS)
-                    .fetch_optional(&mut *tx)
-                    .await
-                    .map_err(|_| "reject_schema")?;
-            if stored.as_deref()
-                != Some(crate::target_installer::compiled_masked_rejects_digest().as_str())
-            {
-                return Err("reject_schema");
-            }
-            let written: i64 = sqlx::query_scalar(
-                "SELECT _oo.record_masked_rejects($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb)",
-            )
-            .bind(shard)
-            .bind(owner)
-            .bind(fence)
-            .bind(source)
-            .bind(schema)
-            .bind(table)
-            .bind(observation)
-            .bind(serde_json::to_string(&masked).map_err(|_| "reject_records")?)
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(|_| "reject_write")?;
-            json!({"rejects_written":written,"data_gen":false,"apply":false,"ack":false,"receipt":null})
-        }
-        "initialize_full" | "initialize_full_if_absent" => {
-            let existing: Option<String> =
-                sqlx::query_scalar("SELECT _oo.c5_authority_export($1,$2,$3)::text")
                     .bind(source)
                     .bind(schema)
                     .bind(table)
+                    .bind(text(document, "schema_fingerprint")?)
+                    .bind(
+                        document["chunk_topology_revision"]
+                            .as_i64()
+                            .ok_or("c5_topology")?,
+                    )
+                    .bind(
+                        document["key_columns"]
+                            .as_array()
+                            .ok_or("c5_keys")?
+                            .iter()
+                            .map(|v| v.as_str().ok_or("c5_keys"))
+                            .collect::<Result<Vec<_>, _>>()?,
+                    )
+                    .bind(
+                        document["expected_source_generation"]
+                            .as_i64()
+                            .ok_or("c5_state_scope")?,
+                    )
                     .fetch_one(&mut *tx)
                     .await
-                    .map_err(|_| "c5_state")?;
-            let existing: Option<Value> = existing
-                .map(|v| serde_json::from_str(&v))
-                .transpose()
-                .map_err(|_| "c5_state")?;
-            let initialized = operation == "initialize_full_if_absent" && existing.is_some();
-            if initialized {
-                let state = existing.as_ref().ok_or("c5_state")?;
-                let chunks = state["chunks"].as_array().ok_or("c5_state")?;
-                if chunks.len() != 1 || !chunks[0]["lo"].is_null() || !chunks[0]["hi"].is_null() {
-                    return Err("c5_bounded_baseline_unsupported");
+                    .map_err(|error| {
+                        if error
+                            .as_database_error()
+                            .is_some_and(|e| e.code().as_deref() == Some("OO010"))
+                        {
+                            "c5_state_scope"
+                        } else if operation == "initialize_published_if_absent" {
+                            "c5_published_initialize"
+                        } else {
+                            "c5_multipart_initialize"
+                        }
+                    })?;
+                let mut result: Value = serde_json::from_str(&result).map_err(|_| "c5_state")?;
+                if let Some(adaptation) = adaptation.filter(|value| value["rebased"] == true) {
+                    result["schema_adaptation"] = adaptation;
                 }
-                if state["schema_fingerprint"] != document["schema_fingerprint"]
-                    || state["chunk_topology_revision"] != document["chunk_topology_revision"]
-                    || state["source_generation"] != document["expected_source_generation"]
-                {
-                    return Err("c5_state_scope");
-                }
-            } else {
-                sqlx::query(
-                    "SELECT _oo.c5_initialize_full($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10::text[])",
+                result
+            }
+            "hydrate_multipart" => {
+                require_multipart_schema(&mut tx).await?;
+                let chunk = text(document, "chunk_id")?;
+                let generation = document["expected_source_generation"]
+                    .as_i64()
+                    .ok_or("c5_state_scope")?;
+                let raw: String = sqlx::query_scalar(
+                    "SELECT _oo.c5_multipart_hydration_manifest($1,$2::uuid,$3,$4,$5,$6,$7,$8)::text",
                 )
                 .bind(shard)
                 .bind(owner)
@@ -613,56 +458,198 @@ pub async fn execute(document: &Value) -> Result<Value, &'static str> {
                 .bind(source)
                 .bind(schema)
                 .bind(table)
-                .bind(text(document, "schema_fingerprint")?)
-                .bind(
-                    document["chunk_topology_revision"]
-                        .as_i64()
-                        .ok_or("c5_topology")?,
-                )
-                .bind(text(document, "chunk_id")?)
-                .bind(
-                    document["key_columns"]
-                        .as_array()
-                        .ok_or("c5_keys")?
-                        .iter()
-                        .map(|v| v.as_str().ok_or("c5_keys"))
-                        .collect::<Result<Vec<_>, _>>()?,
-                )
-                .execute(&mut *tx)
+                .bind(chunk)
+                .bind(generation)
+                .fetch_one(&mut *tx)
                 .await
-                .map_err(|error| {
-                    if error.as_database_error().is_some_and(|e| {
-                        e.message().starts_with("C5 multipart baseline unsupported")
-                    }) {
-                        "c5_multipart_baseline_unsupported"
-                    } else {
-                        "c5_initialize"
-                    }
-                })?;
+                .map_err(|_| "c5_hydration_baseline")?;
+                let authority: Value =
+                    serde_json::from_str(&raw).map_err(|_| "c5_hydration_baseline")?;
+                if authority["baseline_protocol"] == "oo.c5.published-baseline/v1" {
+                    require_published_schema(&mut tx).await?;
+                }
+                let bytes = read_private_part(text(document, "arrow_path")?)?;
+                let members = hydration_members(&authority, &bytes)?;
+                let seed = archive_digest(&authority, &bytes)?;
+                let result: String = sqlx::query_scalar(
+                    "SELECT _oo.c5_hydrate_multipart($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)::text",
+                )
+                .bind(shard)
+                .bind(owner)
+                .bind(fence)
+                .bind(source)
+                .bind(schema)
+                .bind(table)
+                .bind(chunk)
+                .bind(generation)
+                .bind(text(&authority, "arrow_sha256")?)
+                .bind(serde_json::to_string(&members).map_err(|_| "c5_hydration_keys")?)
+                .fetch_one(&mut *tx)
+                .await
+                .map_err(|_| "c5_hydration_membership")?;
+                if let Some(digest) = &seed {
+                    sqlx::query("SELECT _oo.c5_seed_multipart_digest($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)")
+                        .bind(shard).bind(owner).bind(fence).bind(source).bind(schema).bind(table)
+                        .bind(chunk).bind(generation).bind(text(&authority, "arrow_sha256")?)
+                        .bind(text(&authority["baseline"], "projection_sha256")?).bind(digest.to_string())
+                        .execute(&mut *tx).await.map_err(|_| "c5_archive_digest")?;
+                }
+                let mut result: Value = serde_json::from_str(&result).map_err(|_| "c5_state")?;
+                result["archive_digest_seeded"] = json!(seed.is_some());
+                result
             }
-            json!({"initialized":true,"receipt":null})
-        }
-        "begin_scan" => {
-            let next: i64 = sqlx::query_scalar(
-                "SELECT _oo.c5_scan_begin($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb)",
-            )
-            .bind(shard)
-            .bind(owner)
-            .bind(fence)
-            .bind(source)
-            .bind(schema)
-            .bind(table)
-            .bind(text(document, "scan_id")?)
-            .bind(document["expected_chunks"].to_string())
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(|_| "c5_scan")?;
-            if document.get("scan_layers").is_some()
-                || document.get("scan_observed_at_ms").is_some()
-            {
+            "observe_partial" => {
                 require_multipart_schema(&mut tx).await?;
-                sqlx::query(
-                    "SELECT _oo.c5_scan_context($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)",
+                if document.get("loader_receipt").is_some() {
+                    let scope = partial_range_scope(&document["range_scope"])?;
+                    let guard = if scope["protocol"] == crate::native_c5_parts::RANGE_PROTOCOL {
+                        "SELECT _oo.c5_parts_observation_receipt_guard($1,$2::uuid,$3,$4::jsonb,$5::jsonb)"
+                    } else {
+                        "SELECT _oo.c5_observation_receipt_guard($1,$2::uuid,$3,$4::jsonb,$5::jsonb)"
+                    };
+                    sqlx::query(guard)
+                        .bind(shard)
+                        .bind(owner)
+                        .bind(fence)
+                        .bind(scope.to_string())
+                        .bind(document["loader_receipt"].to_string())
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(|_| "c5_observation_receipt")?;
+                }
+                let observation = &document["observation"];
+                let chunks = observation["chunks"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_else(|| vec![observation["chunk"].clone()]);
+                let mut result = Value::Null;
+                for chunk in chunks {
+                    let mut part = observation.clone();
+                    part["chunk"] = chunk;
+                    let raw: String = sqlx::query_scalar(
+                        "SELECT _oo.c5_observe_partial($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb)::text",
+                    )
+                    .bind(shard)
+                    .bind(owner)
+                    .bind(fence)
+                    .bind(source)
+                    .bind(schema)
+                    .bind(table)
+                    .bind(
+                        document["expected_source_generation"]
+                            .as_i64()
+                            .ok_or("c5_state_scope")?,
+                    )
+                    .bind(part.to_string())
+                    .fetch_one(&mut *tx)
+                    .await
+                    .map_err(|_| "c5_partial_observation")?;
+                    result = serde_json::from_str(&raw).map_err(|_| "c5_state")?;
+                }
+                if result.is_null() {
+                    return Err("c5_partial_observation");
+                }
+                result
+            }
+            "record_rejects" => {
+                let masked =
+                    crate::masked_rejects::project(source, schema, table, &document["rejects"])?;
+                let observation = text(document, "observation_sha256")?;
+                let stored: Option<String> =
+                    sqlx::query_scalar("SELECT checksum FROM _oo.schema_migrations WHERE version=$1")
+                        .bind(crate::target_installer::VERSION_MASKED_REJECTS)
+                        .fetch_optional(&mut *tx)
+                        .await
+                        .map_err(|_| "reject_schema")?;
+                if stored.as_deref()
+                    != Some(crate::target_installer::compiled_masked_rejects_digest().as_str())
+                {
+                    return Err("reject_schema");
+                }
+                let written: i64 = sqlx::query_scalar(
+                    "SELECT _oo.record_masked_rejects($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb)",
+                )
+                .bind(shard)
+                .bind(owner)
+                .bind(fence)
+                .bind(source)
+                .bind(schema)
+                .bind(table)
+                .bind(observation)
+                .bind(serde_json::to_string(&masked).map_err(|_| "reject_records")?)
+                .fetch_one(&mut *tx)
+                .await
+                .map_err(|_| "reject_write")?;
+                json!({"rejects_written":written,"data_gen":false,"apply":false,"ack":false,"receipt":null})
+            }
+            "initialize_full" | "initialize_full_if_absent" => {
+                let existing: Option<String> =
+                    sqlx::query_scalar("SELECT _oo.c5_authority_export($1,$2,$3)::text")
+                        .bind(source)
+                        .bind(schema)
+                        .bind(table)
+                        .fetch_one(&mut *tx)
+                        .await
+                        .map_err(|_| "c5_state")?;
+                let existing: Option<Value> = existing
+                    .map(|v| serde_json::from_str(&v))
+                    .transpose()
+                    .map_err(|_| "c5_state")?;
+                let initialized = operation == "initialize_full_if_absent" && existing.is_some();
+                if initialized {
+                    let state = existing.as_ref().ok_or("c5_state")?;
+                    let chunks = state["chunks"].as_array().ok_or("c5_state")?;
+                    if chunks.len() != 1 || !chunks[0]["lo"].is_null() || !chunks[0]["hi"].is_null() {
+                        return Err("c5_bounded_baseline_unsupported");
+                    }
+                    if state["schema_fingerprint"] != document["schema_fingerprint"]
+                        || state["chunk_topology_revision"] != document["chunk_topology_revision"]
+                        || state["source_generation"] != document["expected_source_generation"]
+                    {
+                        return Err("c5_state_scope");
+                    }
+                } else {
+                    sqlx::query(
+                        "SELECT _oo.c5_initialize_full($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10::text[])",
+                    )
+                    .bind(shard)
+                    .bind(owner)
+                    .bind(fence)
+                    .bind(source)
+                    .bind(schema)
+                    .bind(table)
+                    .bind(text(document, "schema_fingerprint")?)
+                    .bind(
+                        document["chunk_topology_revision"]
+                            .as_i64()
+                            .ok_or("c5_topology")?,
+                    )
+                    .bind(text(document, "chunk_id")?)
+                    .bind(
+                        document["key_columns"]
+                            .as_array()
+                            .ok_or("c5_keys")?
+                            .iter()
+                            .map(|v| v.as_str().ok_or("c5_keys"))
+                            .collect::<Result<Vec<_>, _>>()?,
+                    )
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(|error| {
+                        if error.as_database_error().is_some_and(|e| {
+                            e.message().starts_with("C5 multipart baseline unsupported")
+                        }) {
+                            "c5_multipart_baseline_unsupported"
+                        } else {
+                            "c5_initialize"
+                        }
+                    })?;
+                }
+                json!({"initialized":true,"receipt":null})
+            }
+            "begin_scan" => {
+                let next: i64 = sqlx::query_scalar(
+                    "SELECT _oo.c5_scan_begin($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb)",
                 )
                 .bind(shard)
                 .bind(owner)
@@ -671,92 +658,120 @@ pub async fn execute(document: &Value) -> Result<Value, &'static str> {
                 .bind(schema)
                 .bind(table)
                 .bind(text(document, "scan_id")?)
-                .bind(
-                    document["expected_source_generation"]
-                        .as_i64()
-                        .ok_or("c5_scan")?,
-                )
-                .bind(document["scan_layers"].to_string())
-                .bind(document["scan_observed_at_ms"].as_i64().ok_or("c5_scan")?)
-                .execute(&mut *tx)
-                .await
-                .map_err(|_| "c5_scan_context")?;
-            }
-            json!({"next_chunk_index":next})
-        }
-        "observe" => {
-            let nochange = &document["nochange"];
-            if nochange["protocol"] != "oo.jobs.native-c5-nochange/v1"
-                || nochange["data_gen"] != false
-                || nochange["apply"] != false
-                || nochange["ack"] != false
-                || nochange["source_id"] != source
-                || nochange["source_generation"] != nochange["acknowledged_source_generation"]
-            {
-                return Err("c5_nochange");
-            }
-            if nochange["c5_observation"]["protocol"] == "oo.c5.empty-observation/v1" {
-                require_empty_schema(&mut tx).await?;
-                let raw: String = sqlx::query_scalar(
-                    "SELECT _oo.c5_observe_empty($1,$2::uuid,$3,$4,$5,$6,$7,$8::uuid,$9,$10::jsonb)::text",
-                )
-                .bind(shard)
-                .bind(owner)
-                .bind(fence)
-                .bind(source)
-                .bind(schema)
-                .bind(table)
-                .bind(nochange["source_generation"].as_i64().ok_or("c5_nochange")?)
-                .bind(text(document, "lease_id")?)
-                .bind(document["lease_generation"].as_i64().ok_or("lease_required")?)
-                .bind(nochange.to_string())
+                .bind(document["expected_chunks"].to_string())
                 .fetch_one(&mut *tx)
                 .await
-                .map_err(|_| "c5_empty_observation")?;
-                let result = serde_json::from_str(&raw).map_err(|_| "c5_state")?;
-                tx.commit().await.map_err(|_| "c5_state")?;
-                return Ok(result);
+                .map_err(|_| "c5_scan")?;
+                if document.get("scan_layers").is_some()
+                    || document.get("scan_observed_at_ms").is_some()
+                {
+                    require_multipart_schema(&mut tx).await?;
+                    sqlx::query(
+                        "SELECT _oo.c5_scan_context($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)",
+                    )
+                    .bind(shard)
+                    .bind(owner)
+                    .bind(fence)
+                    .bind(source)
+                    .bind(schema)
+                    .bind(table)
+                    .bind(text(document, "scan_id")?)
+                    .bind(
+                        document["expected_source_generation"]
+                            .as_i64()
+                            .ok_or("c5_scan")?,
+                    )
+                    .bind(document["scan_layers"].to_string())
+                    .bind(document["scan_observed_at_ms"].as_i64().ok_or("c5_scan")?)
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(|_| "c5_scan_context")?;
+                }
+                json!({"next_chunk_index":next})
             }
-            if nochange["c5_observation"]["work"]["payload_mode"] == "metadata_only" {
-                let raw: String =
-                    sqlx::query_scalar("SELECT _oo.c5_authority_export($1,$2,$3)::text")
-                        .bind(source)
-                        .bind(schema)
-                        .bind(table)
-                        .fetch_one(&mut *tx)
-                        .await
-                        .map_err(|_| "c5_state")?;
-                let authority: Value = serde_json::from_str(&raw).map_err(|_| "c5_state")?;
-                validate_metadata_observation(document, &authority)?;
-                // A hints-only poll must not rewrite chunk scan times or complete L3/L4.
-                tx.commit().await.map_err(|_| "c5_state")?;
-                return Ok(
-                    json!({"metadata_only":true,"full_digest_scan_completed":false,
-                    "data_gen":false,"apply":false,"ack":false,"receipt":null}),
-                );
+            "observe" => {
+                let nochange = &document["nochange"];
+                if nochange["protocol"] != "oo.jobs.native-c5-nochange/v1"
+                    || nochange["data_gen"] != false
+                    || nochange["apply"] != false
+                    || nochange["ack"] != false
+                    || nochange["source_id"] != source
+                    || nochange["source_generation"] != nochange["acknowledged_source_generation"]
+                {
+                    return Err("c5_nochange");
+                }
+                if nochange["c5_observation"]["protocol"] == "oo.c5.empty-observation/v1" {
+                    require_empty_schema(&mut tx).await?;
+                    let raw: String = sqlx::query_scalar(
+                        "SELECT _oo.c5_observe_empty($1,$2::uuid,$3,$4,$5,$6,$7,$8::uuid,$9,$10::jsonb)::text",
+                    )
+                    .bind(shard)
+                    .bind(owner)
+                    .bind(fence)
+                    .bind(source)
+                    .bind(schema)
+                    .bind(table)
+                    .bind(nochange["source_generation"].as_i64().ok_or("c5_nochange")?)
+                    .bind(text(document, "lease_id")?)
+                    .bind(document["lease_generation"].as_i64().ok_or("lease_required")?)
+                    .bind(nochange.to_string())
+                    .fetch_one(&mut *tx)
+                    .await
+                    .map_err(|_| "c5_empty_observation")?;
+                    let result = serde_json::from_str(&raw).map_err(|_| "c5_state")?;
+                    tx.commit().await.map_err(|_| "c5_state")?;
+                    return Ok(result);
+                }
+                if nochange["c5_observation"]["work"]["payload_mode"] == "metadata_only" {
+                    let raw: String =
+                        sqlx::query_scalar("SELECT _oo.c5_authority_export($1,$2,$3)::text")
+                            .bind(source)
+                            .bind(schema)
+                            .bind(table)
+                            .fetch_one(&mut *tx)
+                            .await
+                            .map_err(|_| "c5_state")?;
+                    let authority: Value = serde_json::from_str(&raw).map_err(|_| "c5_state")?;
+                    validate_metadata_observation(document, &authority)?;
+                    // A hints-only poll must not rewrite chunk scan times or complete L3/L4.
+                    tx.commit().await.map_err(|_| "c5_state")?;
+                    return Ok(
+                        json!({"metadata_only":true,"full_digest_scan_completed":false,
+                        "data_gen":false,"apply":false,"ack":false,"receipt":null}),
+                    );
+                }
+                sqlx::query("SELECT _oo.c5_observe($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb)")
+                    .bind(shard)
+                    .bind(owner)
+                    .bind(fence)
+                    .bind(source)
+                    .bind(schema)
+                    .bind(table)
+                    .bind(
+                        nochange["source_generation"]
+                            .as_i64()
+                            .ok_or("c5_nochange")?,
+                    )
+                    .bind(nochange["c5_observation"].to_string())
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(|_| "c5_observation")?;
+                json!({"data_gen":false,"apply":false,"ack":false,"receipt":null})
             }
-            sqlx::query("SELECT _oo.c5_observe($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb)")
-                .bind(shard)
-                .bind(owner)
-                .bind(fence)
-                .bind(source)
-                .bind(schema)
-                .bind(table)
-                .bind(
-                    nochange["source_generation"]
-                        .as_i64()
-                        .ok_or("c5_nochange")?,
-                )
-                .bind(nochange["c5_observation"].to_string())
-                .execute(&mut *tx)
-                .await
-                .map_err(|_| "c5_observation")?;
-            json!({"data_gen":false,"apply":false,"ack":false,"receipt":null})
-        }
-        _ => return Err("c5_operation"),
-    };
-    tx.commit().await.map_err(|_| "c5_state")?;
-    Ok(result)
+            _ => return Err("c5_operation"),
+        };
+        tx.commit().await.map_err(|_| "c5_state")?;
+        Ok(result)
+    }
+    .await;
+    if let Ok(shard) = text(&document["target"], "shard") {
+        let _ = sqlx::query("SELECT _oo.native_update_release_fence($1)")
+            .bind(shard)
+            .execute(&mut conn)
+            .await;
+    }
+    let _ = conn.close().await;
+    outcome
 }
 
 #[cfg(test)]

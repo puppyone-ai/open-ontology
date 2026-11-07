@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+"""Bundle-local oo; the Rust admin parser remains owned by lane A3."""
+import sys
+import bundle
+
+try:
+    raise SystemExit(bundle.launch(sys.argv[1:]))
+except Exception:
+    print('offline bundle refused; no installation success claimed', file=sys.stderr)
+    raise SystemExit(1)

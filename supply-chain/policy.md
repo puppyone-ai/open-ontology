@@ -37,6 +37,8 @@ The project license is Apache-2.0. [docs/02](../docs/02-technology-stack.md) req
 
 That review names the reviewer role, the obligation (for example source offer or relinking), and where the evidence is. It is not implied by this policy.
 
+Two crate-scoped exceptions exist, each listed in `ci/deny.toml` `exceptions` with its own audit record. They are not a general admission of either license. `webpki-roots` (CDLA-Permissive-2.0, Mozilla CA certificate data) is required by the default Oracle driver; its record is `webpki-roots-audit.json` and NOTICE carries the license text (v0.2 Plan D13). `tiny-keccak` (CC0-1.0) is admitted only for the opt-in MongoDB source and stays out of the default artifact (v0.2 Plan D18). Both are flagged for owner review in the v0.2 final PR.
+
 AGPL, BSL, ELv2, and SSPL do not enter the default package. They may be a user-selected external service, audited at a specific version, and they are not copied into the default image.
 
 The design already keeps these out of the core image: Grafana and similar observation stacks as external options; Redis 8, MinIO, Vault, and Arize Phoenix as non-default. Vault's BSL terms are noted in [docs/10](../docs/10-security.md). Adding any of them later is a new audit.
@@ -94,6 +96,8 @@ The only exception is a security fix adopted early. The record then includes:
 `supply-chain/dependency-baseline.json` is a different document. Rows there may store a fractional `age_days_at_adoption`, for example `7.142`. That float is historic baseline metadata. It is not the canonical age of an audit record governed by this section, and copying the float into the audit record does not satisfy it. A baseline publication timestamp can be represented on an audit record when it is a real RFC3339 UTC instant and the stored age is recomputed as the floor above. The baseline `thiserror` 2.0.21 row was published at `2026-09-23T20:24:07.771104Z` and adopted at `2026-09-30T23:48:21Z`. That elapsed time is greater than `7 * 86400` seconds, and the floor is 7, not `7.142`. This policy does not edit the baseline.
 
 Nobody is appointed while `.github/CODEOWNERS` still says `OWNER_PENDING` and SECURITY.md still says the security owner is not appointed. Until that changes, a seven-day security exception is not valid.
+
+Recorded exception: [zstd-security-fix-seven-day.json](zstd-security-fix-seven-day.json) (zstd 0.13.4, zstd-safe 7.4.0), authorized by the repository owner directly on 2026-11-07 (plan D20), who acts as the owner for that record. It is enforced by exact name, version and publication time in `crates/xtask/src/supply.rs` and is removed once both versions clear the floor.
 
 `waive` stays empty because this exception does not waive:
 

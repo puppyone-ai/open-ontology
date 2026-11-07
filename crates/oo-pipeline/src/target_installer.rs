@@ -4488,6 +4488,27 @@ pub async fn install_native_c5_range_parts(conn: &mut PgConnection) -> Result<()
         exec_script(&mut tx, SCRIPT).await?;
         insert_markers(&mut tx, &[marker(version, &digest, FILE)]).await?;
     }
+    const METER_VERSION: &str = "native-c5-write-meter/v1";
+    const METER_FILE: &str = "0119_native_c5_write_meter.sql";
+    const METER_SCRIPT: &str = include_str!("../migrations/0119_native_c5_write_meter.sql");
+    let meter_digest = sha256_hex(METER_SCRIPT.as_bytes());
+    if let Some(row) = find_row(&rows, METER_VERSION) {
+        if !row_exact(row, METER_VERSION, &meter_digest, METER_FILE) {
+            return mismatch(
+                tx,
+                Mismatch {
+                    version: METER_VERSION.into(),
+                    stored: row.checksum.clone(),
+                },
+            )
+            .await
+            .map(|_| ());
+        }
+    } else {
+        exec_static(&mut tx, "SET LOCAL ROLE oo_target_owner").await?;
+        exec_script(&mut tx, METER_SCRIPT).await?;
+        insert_markers(&mut tx, &[marker(METER_VERSION, &meter_digest, METER_FILE)]).await?;
+    }
     tx.commit().await.map_err(database_error)
 }
 

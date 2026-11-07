@@ -11,8 +11,8 @@ use crate::canonical::{push_string, sha256_hex};
 use crate::error::DraftError;
 use crate::ident::{assign_idents, stable_ident};
 use crate::limits::{
-    MAX_COLUMNS, MAX_DOMAIN_CHECKS, MAX_ENUM_LABELS, MAX_KEY_COLUMNS, MAX_KEYS, MAX_NAME_BYTES,
-    MAX_POLICIES, MAX_PRIVILEGES, MAX_TABLES, MAX_UNTRUSTED_BYTES,
+    MAX_DOMAIN_CHECKS, MAX_ENUM_LABELS, MAX_KEY_COLUMNS, MAX_KEYS, MAX_NAME_BYTES, MAX_POLICIES,
+    MAX_PRIVILEGES, MAX_UNTRUSTED_BYTES,
 };
 
 pub const PROTOCOL: &str = "oo.source.pgsql/v1";
@@ -164,6 +164,49 @@ pub fn load(value: &Value) -> Result<Catalog, DraftError> {
         ));
     }
     Ok(catalog)
+}
+
+/// Finalize freshly collected PostgreSQL metadata, not an existing sealed catalog.
+/// Comments remain untrusted evidence; this does not infer keys for views.
+pub fn finalize_pg_capture(mut value: Value) -> Result<Value, DraftError> {
+    if let Some(tables) = value.get_mut("tables").and_then(Value::as_array_mut) {
+        for table in tables {
+            for name in ["schema", "name"] {
+                let text = table[name].as_str().unwrap_or("");
+                table[format!("{name}_ident")] =
+                    Value::String(stable_ident(text, "/catalog/tables")?);
+            }
+            if let Some(columns) = table["columns"].as_array_mut() {
+                for column in columns {
+                    column["name_ident"] = Value::String(stable_ident(
+                        column["name"].as_str().unwrap_or(""),
+                        "/catalog/tables/columns",
+                    )?);
+                    let typmod = column["typmod"].as_i64().unwrap_or(-1);
+                    let typmod = i32::try_from(typmod).map_err(|_| {
+                        DraftError::new(
+                            "field.invalid",
+                            "/catalog/tables/columns",
+                            "invalid typmod",
+                        )
+                    })?;
+                    let name = column["type_name"].as_str().unwrap_or("");
+                    let parts = (name == "numeric").then(|| numeric_parts(typmod)).flatten();
+                    let reason = classify(column["typtype"].as_str().unwrap_or(""), name, typmod);
+                    column["numeric_precision"] = serde_json::json!(parts.map(|p| p.0));
+                    column["numeric_scale"] = serde_json::json!(parts.map(|p| p.1));
+                    column["type_support"] =
+                        serde_json::json!({"converted": false, "reason": reason.as_str()});
+                }
+            }
+        }
+    }
+    normalize_captured_arrays(&mut value);
+    value["schema_hash"] = Value::String(EMPTY_SCHEMA_HASH.to_owned());
+    let catalog = parse_catalog(&value)?;
+    value["schema_hash"] = Value::String(catalog.schema_hash);
+    load(&value)?;
+    Ok(value)
 }
 
 pub(crate) fn parse_catalog(value: &Value) -> Result<Catalog, DraftError> {
@@ -576,13 +619,6 @@ fn validate(input: CatalogIn) -> Result<Catalog, DraftError> {
     }
     check_token(&input.source_id, "/catalog/source_id")?;
     check_pg_name(&input.database, "/catalog/database")?;
-    if input.tables.len() > MAX_TABLES {
-        return Err(DraftError::new(
-            "budget.tables",
-            "/catalog/tables",
-            "table count exceeds the draft budget",
-        ));
-    }
     if input.tables.iter().any(|table| {
         input
             .tables
@@ -649,13 +685,6 @@ fn validate_table(input: TableIn) -> Result<Table, DraftError> {
     check_mark(&input.relkind, "/catalog/tables/relkind")?;
     check_mark(&input.replica_identity, "/catalog/tables/replica_identity")?;
     check_pg_name(&input.owner, "/catalog/tables/owner")?;
-    if input.columns.len() > MAX_COLUMNS {
-        return Err(DraftError::new(
-            "budget.columns",
-            "/catalog/tables/columns",
-            "column count exceeds the draft budget",
-        ));
-    }
     let key_count = input.unique_keys.len()
         + input.foreign_keys.len()
         + usize::from(!input.primary_key.is_empty());

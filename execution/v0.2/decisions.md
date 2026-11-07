@@ -1,0 +1,26 @@
+# v0.2 decision log
+
+Append-only. One line per human instruction or scope change, with its effect.
+Current task state lives in [state.json](state.json); the plan is
+[product-loops-v0.2-plan.md](../../specs/product-loops-v0.2-plan.md).
+
+| Date | Source | Decision | Effect |
+|---|---|---|---|
+| 2026-11-03 | Human | Product side proceeds separately from customer delivery; three loops: open-source onboarding (CLI/TUI, no Web UI), Gateway↔CLI token binding, MySQL/Oracle/PostgreSQL multi-version first with 10–20 engines in the same schedule | Plan §0, §4 |
+| 2026-11-03 | Human | Docs, check scripts and source baseline may be changed directly; design changes are backfilled in the same period, not deferred | Plan D7; baseline revision 6 |
+| 2026-11-03 | Human | Do not buy the cloud test server yet | Plan D1: amd64-only engines run under local Docker Desktop emulation |
+| 2026-11-03 | Human | Full authority for database prerequisites via the browser; no more questions | Plan D2/D5; account creation and password entry remain the human's own action |
+| 2026-11-03 | Human | Test model `gpt-6.1-sol` on the provided OpenAI-compatible endpoint; key kept outside the repository | Plan D4 |
+| 2026-11-03 | Human | Keep npm package name, bump version | Plan D3: `@reduxxx888/ontology-cli@0.2.0` |
+| 2026-11-03 | Human | Commit directly with clear history; plan states commit scope and standard; one final PR for review after all loops converge | Plan §10, §11 |
+| 2026-11-03 | Coordinator | Owner self-review accepted as the publication gate for single-owner deployments, recorded as `mode=self` | Plan D6 |
+| 2026-11-04 | Coordinator | Lane A (onboarding: stack schema, admin CLI skeleton, model egress) starts in S0 instead of waiting for a free slot; S0–S1 concurrency is 6 | Plan §2.1; L1 critical path |
+| 2026-11-04 | Human | Resume: drive the whole plan to convergence and testing this round; at most 2 native subagents; local Codex (`cx/gpt-6-astra[1m]`, reasoning medium, dangerously-bypass mode) as executors via long task cards and sign-off; main thread owns shared parts | `execution/v0.2/dispatch.sh` and `cards/`; ledger E021 |
+| 2026-11-04 | Coordinator | oo-load generations publish through a new shard consistency `retained_generation`, verified against the oo-load candidate ledger at activation; semantic fences unchanged; no fabricated legacy ACKs | Plan D15 |
+| 2026-11-05 | Coordinator | On lite/remote deployments `oo build` runs its stages inside the deployed lite runtime image with configuration derived from stack.yaml and deployment state; the npm package ships only the CLI and image pins | Plan D16 |
+| 2026-11-05 | Coordinator | Zoned timestamps land as timestamptz instants (source offset not kept); comparison canonical form is the UTC instant | Plan D17 |
+| 2026-11-05 | Coordinator (owner granted full authority) | CC0-1.0 exception scoped to tiny-keccak for the opt-in MongoDB source | Plan D18 |
+| 2026-11-05 | Human | Owner accepts the DM8 license for testing; Oracle account created by the owner; Docker cleanup authorised for volumes/containers with no further use or production meaning | E340 |
+| 2026-11-05 | Coordinator | PostgreSQL C1 `pg_replication_slot_advance` on a pre-existing slot is replication progress feedback under D12 | Plan D12a |
+| 2026-11-07 | Coordinator (owner granted full authority) | The owner CLI may reach source drivers only through oo-connectors (read-only doctor/init probes); oo-sdk and oo-mcp stay driver-free; architecture policy gains oo-stack and three edges | Plan D19 |
+| 2026-11-07 | Human | Waive the 7-day publication age floor only for zstd 0.13.4 and zstd-safe 7.4.0 (RUSTSEC fixes, exact version and publication time) so the release can proceed now; remove once they clear 2026-11-08T14:12Z | Plan D20 |

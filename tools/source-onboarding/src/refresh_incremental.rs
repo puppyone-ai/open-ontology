@@ -833,6 +833,9 @@ mod tests {
         let datasets = vec![json!({"source":"a"}),json!({"source":"b"}),json!({"source":"a"})];
         let schedules = vec![json!({"c5_state":{"target":{"database":"db"}}});3];
         assert_eq!(source_groups(&datasets,&schedules).unwrap(),vec![vec![0,2],vec![1]]);
+        let mut split_targets = schedules.clone();
+        split_targets[2]["c5_state"]["target"]["database"] = json!("other");
+        assert_eq!(source_groups(&datasets,&split_targets).unwrap(),vec![vec![0],vec![1],vec![2]]);
         let f=Fixture::new();
         let path=f.0.join("config.json");let mut c=load(&path).unwrap();
         c["concurrency"]=json!(2);fs::write(&path,bytes(&c).unwrap()).unwrap();

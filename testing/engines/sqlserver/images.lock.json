@@ -1,0 +1,37 @@
+{
+  "images": [
+    {
+      "id": "sqlserver-2019-CU32-ubuntu-20.04",
+      "ref": "mcr.microsoft.com/mssql/server:2019-CU32-ubuntu-20.04",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:7a879e9af3557e81a3b3ad14acd071e3638788387f394d27a9d3404b28e954ce"
+        }
+      },
+      "product_version": "15.0.4430.1"
+    },
+    {
+      "id": "sqlserver-2022-CU20-ubuntu-22.04",
+      "ref": "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:7c29dfbac885ad7519e219c7fe4aee0e67283e21a10e9c252d13b0fbde1866f8"
+        }
+      },
+      "product_version": "16.0.4205.1"
+    },
+    {
+      "id": "sqlserver-2025-CU1-ubuntu-24.04",
+      "ref": "mcr.microsoft.com/mssql/server:2025-CU1-ubuntu-24.04",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:698682bab57c02c42bc0aa274b158aeb242d8e9104149a7489628d5535805816"
+        }
+      },
+      "product_version": "17.0.4006.2"
+    }
+  ]
+}

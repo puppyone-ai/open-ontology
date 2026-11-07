@@ -1,0 +1,234 @@
+{
+  "run_id": "g-commit-cont-20261104",
+  "status": "partial",
+  "base_failure_proof_commit": "2bca1de16",
+  "todo": {
+    "S2-G-01": "done",
+    "S2-G-02": "done",
+    "S3-G-01": "done",
+    "S3-G-02": "not_done_publisher_hook_requires_coordinator",
+    "S3-G-03": "done"
+  },
+  "engine": {
+    "image": "docker.io/library/postgres:17.10-bookworm@sha256:3aac91d19d5b7aff4c650dddfacc1a26c436459aafd4eb51ab0bf1748e990dbb",
+    "platform": "linux/arm64",
+    "execution": "native",
+    "engine": "postgres",
+    "scale": 1000,
+    "tables": 660,
+    "consistency": "B",
+    "version_actual": "17.10"
+  },
+  "T5": {
+    "columns": 1713,
+    "components": 16,
+    "declared_fk": 7,
+    "items": 2407,
+    "mapped_fk": 7,
+    "metered_calls": 4,
+    "model_calls": 4,
+    "orphan_ratio": 0.6521739130434783,
+    "reused_receipts": 19,
+    "tables": 694
+  },
+  "T4": {
+    "add_column": {
+      "calls": 5,
+      "communities": 1,
+      "cut_edges": 2,
+      "merge_items": 1
+    },
+    "data_only": {
+      "calls": 0,
+      "communities": 0,
+      "cut_edges": 0,
+      "merge_items": 0
+    },
+    "new_table": {
+      "calls": 2,
+      "communities": 1,
+      "cut_edges": 0,
+      "merge_items": 1
+    },
+    "type_change": {
+      "calls": 5,
+      "communities": 1,
+      "cut_edges": 2,
+      "merge_items": 1
+    }
+  },
+  "replay": {
+    "replay": {
+      "T5": {
+        "calls": 0,
+        "receipt_hits": 21
+      },
+      "add_column": {
+        "calls": 0,
+        "receipt_hits": 3
+      },
+      "data_only": {
+        "calls": 0,
+        "receipt_hits": 0
+      },
+      "new_table": {
+        "calls": 0,
+        "receipt_hits": 2
+      },
+      "type_change": {
+        "calls": 0,
+        "receipt_hits": 3
+      }
+    },
+    "status": "passed"
+  },
+  "tests": {
+    "workspace_check": "passed",
+    "builder": {
+      "passed": 180,
+      "failed": 0
+    },
+    "pg_builder_lib": {
+      "passed": 43,
+      "failed": 3
+    },
+    "pg_builder_contract": {
+      "passed": 15,
+      "failed": 0
+    },
+    "pg_builder_combined": {
+      "passed": 7,
+      "failed": 2
+    },
+    "python": {
+      "passed": 296,
+      "skipped": 13,
+      "failed": 0
+    },
+    "builder_fmt": "passed",
+    "spec_plan_v02_and_render_todo": "passed",
+    "publisher_patch_apply_check": "passed_not_applied"
+  },
+  "preexisting_failures": [
+    "document_profile::tests::shipment_catalog_keeps_weight_and_the_nineteen_approved_columns",
+    "source_contract::tests::derived_source_bound_projects_native_notes_without_a_forged_grade",
+    "source_contract::tests::oracle_batch_and_ts_keep_real_caveats_and_omit_grade",
+    "fixture_and_stored_generations_are_mixed_scope",
+    "stored_receipts_keep_party_and_account_in_one_pack"
+  ],
+  "failed_attempts_preserved": {
+    "live-t4-t5": "three invalid cardinalities remained unresolved; not a T5 pass",
+    "13-semantics.log": "implicit legacy fixture capacity conflicted with conservative fallback; explicit fixture probe added with gold assertions unchanged",
+    "final-all-python.log": "OO_TEST_PG_BIN was incorrectly set to an executable rather than a PostgreSQL binary directory; no host database started",
+    "final-portable-python.log": "old blanket subprocess mock blocked the new trusted Rust planner; replaced with exact command and no-shell guard"
+  },
+  "publisher_patch": "tools/pg-builder/PUBLISHER-INTEGRATION.patch",
+  "lane_authored_lock_changes": false,
+  "remaining": [
+    "Coordinator must apply and accept the publisher G14 hook; it is outside this lane write scope.",
+    "Live candidates remain unreviewed; G14 is blocked, not certified.",
+    "Existing curated entities/relationships require explicit reconciliation; conversion refuses replacement.",
+    "Hierarchical domain summaries and provider price/time preflight estimates remain follow-ups.",
+    "Legacy JSON adapters share budgets but do not become the NDJSON three-pass runner."
+  ],
+  "cleanup": {
+    "live-t4-t5": [],
+    "live-resumed": [],
+    "live-connected-t4": []
+  },
+  "containers_left_running": 0,
+  "live_1000_table_runs": 0,
+  "evidence": [
+    {
+      "file": "base-pg-tests.log",
+      "sha256": "0d9266768349a2fee7d15f849e9767b8fed0942a658111f3d8075a170dfcc4e9"
+    },
+    {
+      "file": "base-pg-combined.log",
+      "sha256": "815769b08d0d986d7bd45da16d0ea43c44a6c8832f5740c59933230c066af8dc"
+    },
+    {
+      "file": "final-workspace.log",
+      "sha256": "9a30d54c8b16d7e49510b182028079bca120aeebb7d662e88f8566e6196a49f6"
+    },
+    {
+      "file": "final-builder.log",
+      "sha256": "ddecfaf943ebbdaaf556b1188c3c5fc29569033a09a0ec4f1c377a206914f02d"
+    },
+    {
+      "file": "final-pg-lib.log",
+      "sha256": "a373cff0a53a5cf768051016d3d16fd7eaa0b0b2be517ac56df53b713e26b1ff"
+    },
+    {
+      "file": "final-pg-contract.log",
+      "sha256": "a00580232b90455962342953c3a7eac3010e9de568fcaea7e7053402482316d1"
+    },
+    {
+      "file": "final-pg-combined.log",
+      "sha256": "63640ab1fc8f33ed702c0c21f459ccb7f4df9d77620d180e0c07ac6fd67c4f0a"
+    },
+    {
+      "file": "final-portable-python-2.log",
+      "sha256": "6d17e6910f257f1c4eff1f4d1289ef95c0e107fbe730a541227d09f5e2d4ab48"
+    },
+    {
+      "file": "final-builder-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "check-spec.log",
+      "sha256": "91438c4bad343285ee0f15cff61ed30187b7e826bf927a1b1156bc48d4ace78f"
+    },
+    {
+      "file": "check-plan.log",
+      "sha256": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9"
+    },
+    {
+      "file": "check-v02-plan.log",
+      "sha256": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135"
+    },
+    {
+      "file": "render-todo.log",
+      "sha256": "56cae338bd9d567d2eff6cb861e26b2f72845bb6734606901d141784d241ab47"
+    },
+    {
+      "file": "replay.log",
+      "sha256": "c5f9e7b8c2f4c309f1f6a3a33b35184bdbaa2e6dcf9ecefa55696829ad3b5c2d"
+    },
+    {
+      "file": "live-t4-t5/result.json",
+      "sha256": "ee9c3548a10ba306274be404f28501321521e5f045f0391b7cf50ac6f8e0b51e"
+    },
+    {
+      "file": "live-resumed/result.json",
+      "sha256": "6a9f75b047547e2c743f3bcc6088dbc0d2ea77fe4281569bc43432af2f834dcd"
+    },
+    {
+      "file": "live-connected-t4/result.json",
+      "sha256": "a75e5ad9bc28a793c9f26fb4d58dce7ca2c1bc6cfc8638bf843894ee21b922dc"
+    },
+    {
+      "file": "live-resumed/probe.json",
+      "sha256": "c8cb56662d5b837f78bcda272046b54b759499c154e5e579768527280dade5a0"
+    },
+    {
+      "file": "live-t4-t5/usage.jsonl",
+      "sha256": "ae6dcee382c6d1705e71a620ad9c280e60cce50b903db9ac1da53b3148396db5"
+    },
+    {
+      "file": "live-resumed/usage.jsonl",
+      "sha256": "3d21d0acb873401382b8e62eaa7a767d98e1401eadb5730950f51a4bad0a4fa8"
+    },
+    {
+      "file": "live-connected-t4/usage.jsonl",
+      "sha256": "5a0e194b6b074e0028f82096ac8287f50fa6619d683cbb6112bd34753f19200f"
+    }
+  ],
+  "continuation_usage": {
+    "metered_calls_including_probes": 53,
+    "prompt_tokens": 225491,
+    "completion_tokens": 37830,
+    "all_measured": true
+  },
+  "retained_receipt_boundary": "Original g-s2s3 neutral-fixture receipts were retained but do not match lane H inputs. The 19 hits are bound receipts from the failed lane-H attempt, not cross-schema reuse."
+}

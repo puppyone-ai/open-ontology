@@ -1,0 +1,540 @@
+//! Configuration wizard. A saved configuration is not a deployed/reviewed pack.
+use std::fs::{self, OpenOptions};
+use std::io::{self, Read, Write};
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::Path;
+
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::execute;
+use crossterm::terminal::{
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+};
+use oo_stack::secret::SecretStore;
+use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
+use ratatui::widgets::{Block, Paragraph, Wrap};
+use serde_json::{Value, json};
+
+use super::{Failure, Invocation, doctor};
+
+pub(super) struct Screen {
+    terminal: Terminal<CrosstermBackend<io::Stdout>>,
+}
+
+impl Screen {
+    pub(super) fn open() -> Result<Self, Failure> {
+        enable_raw_mode().map_err(|_| Failure::local("TUI_TERMINAL"))?;
+        if execute!(io::stdout(), EnterAlternateScreen).is_err() {
+            let _ = disable_raw_mode();
+            return Err(Failure::local("TUI_TERMINAL"));
+        }
+        match Terminal::new(CrosstermBackend::new(io::stdout())) {
+            Ok(terminal) => Ok(Self { terminal }),
+            Err(_) => {
+                let _ = execute!(io::stdout(), LeaveAlternateScreen);
+                let _ = disable_raw_mode();
+                Err(Failure::local("TUI_TERMINAL"))
+            }
+        }
+    }
+
+    pub(super) fn prompt(
+        &mut self,
+        step: u8,
+        label: &str,
+        default: &str,
+        secret: bool,
+    ) -> Result<String, Failure> {
+        let mut value = String::new();
+        let mut scroll = 0u16;
+        loop {
+            // Secret contents and lengths never enter a render buffer.
+            let shown = if secret { "[hidden]" } else { value.as_str() };
+            let hint = if secret || default.is_empty() {
+                String::new()
+            } else {
+                format!("\nDefault: {default}")
+            };
+            let text = format!(
+                "{label}{hint}\n\n> {shown}\n\nEnter: accept   Esc / Ctrl-C: cancel   Up/Down: scroll\n\
+                 Credentials already entered remain saved on cancellation."
+            );
+            self.terminal
+                .draw(|frame| {
+                    frame.render_widget(
+                        Paragraph::new(text)
+                            .wrap(Wrap { trim: false })
+                            .scroll((scroll, 0))
+                            .block(
+                                Block::bordered()
+                                    .title(format!("Open Ontology / step {step} of 7")),
+                            ),
+                        frame.area(),
+                    );
+                })
+                .map_err(|_| Failure::local("TUI_RENDER"))?;
+            match event::read().map_err(|_| Failure::local("TUI_INPUT"))? {
+                Event::Key(key) if key.kind == KeyEventKind::Press => {
+                    if key.code == KeyCode::Esc
+                        || (key.code == KeyCode::Char('c')
+                            && key.modifiers.contains(KeyModifiers::CONTROL))
+                    {
+                        return Err(Failure::local("TUI_CANCELLED"));
+                    }
+                    match key.code {
+                        KeyCode::Up => scroll = scroll.saturating_sub(1),
+                        KeyCode::Down => scroll = scroll.saturating_add(1),
+                        KeyCode::PageUp => scroll = scroll.saturating_sub(10),
+                        KeyCode::PageDown => scroll = scroll.saturating_add(10),
+                        KeyCode::Enter => {
+                            return Ok(if value.is_empty() {
+                                default.into()
+                            } else {
+                                value
+                            });
+                        }
+                        KeyCode::Backspace => {
+                            value.pop();
+                        }
+                        KeyCode::Char(c)
+                            if !c.is_control()
+                                && value.len() + c.len_utf8() <= 4096
+                                && !key
+                                    .modifiers
+                                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                        {
+                            value.push(c);
+                        }
+                        _ => (),
+                    }
+                }
+                _ => (),
+            }
+        }
+    }
+
+    pub(super) fn progress(&mut self, text: &str) -> Result<bool, Failure> {
+        self.terminal
+            .draw(|frame| {
+                frame.render_widget(
+                    Paragraph::new(text)
+                        .wrap(Wrap { trim: false })
+                        .block(Block::bordered().title("Open Ontology / execution")),
+                    frame.area(),
+                );
+            })
+            .map_err(|_| Failure::local("TUI_RENDER"))?;
+        if event::poll(std::time::Duration::ZERO).map_err(|_| Failure::local("TUI_INPUT"))?
+            && let Event::Key(key) = event::read().map_err(|_| Failure::local("TUI_INPUT"))?
+        {
+            return Ok(key.kind == KeyEventKind::Press
+                && (matches!(key.code, KeyCode::Esc | KeyCode::Char('q'))
+                    || (key.code == KeyCode::Char('c')
+                        && key.modifiers.contains(KeyModifiers::CONTROL))));
+        }
+        Ok(false)
+    }
+}
+
+impl Drop for Screen {
+    fn drop(&mut self) {
+        let _ = execute!(self.terminal.backend_mut(), LeaveAlternateScreen);
+        let _ = disable_raw_mode();
+    }
+}
+
+fn secret(
+    screen: &mut Screen,
+    store: &SecretStore,
+    step: u8,
+    label: &str,
+    default: &str,
+) -> Result<Value, Failure> {
+    let name = screen.prompt(
+        step,
+        &format!("{label} secret name (new file; never overwritten)"),
+        default,
+        false,
+    )?;
+    if !oo_stack::stack::secret_name(&name) {
+        return Err(Failure::usage("SECRET_NAME"));
+    }
+    let value = screen.prompt(
+        step,
+        &format!("{label} (stored immediately, never displayed)"),
+        "",
+        true,
+    )?;
+    store
+        .write_new(&name, value.as_bytes())
+        .map_err(Failure::local)?;
+    Ok(json!({"secret_ref":name}))
+}
+
+/// Like `secret`, but an owner who already keeps the value in a private file
+/// can import it by path instead of typing it.
+fn secret_or_import(
+    screen: &mut Screen,
+    store: &SecretStore,
+    step: u8,
+    label: &str,
+    default: &str,
+) -> Result<Value, Failure> {
+    let path = screen.prompt(
+        step,
+        &format!("{label}: private file to import (blank: type the value next)"),
+        "",
+        false,
+    )?;
+    if path.is_empty() {
+        return secret(screen, store, step, label, default);
+    }
+    let name = screen.prompt(
+        step,
+        &format!("{label} secret name (new file; never overwritten)"),
+        default,
+        false,
+    )?;
+    if !oo_stack::stack::secret_name(&name) {
+        return Err(Failure::usage("SECRET_NAME"));
+    }
+    import_file(store, &name, Path::new(&path), false)
+}
+
+fn list(value: &str) -> Vec<String> {
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+fn import_file(store: &SecretStore, name: &str, path: &Path, ca: bool) -> Result<Value, Failure> {
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(path)
+        .map_err(|_| Failure::local("TUI_IMPORT_FILE"))?;
+    if !file
+        .metadata()
+        .is_ok_and(|m| m.is_file() && m.len() <= 65_536)
+    {
+        return Err(Failure::local("TUI_IMPORT_FILE"));
+    }
+    let mut bytes = Vec::new();
+    file.take(65_537)
+        .read_to_end(&mut bytes)
+        .map_err(|_| Failure::local("TUI_IMPORT_FILE"))?;
+    if ca {
+        oo_connectors::PgTlsConfig::from_ca_pem(&bytes)
+            .map_err(|_| Failure::usage("TUI_CA_PEM_REQUIRED"))?;
+    }
+    if std::str::from_utf8(&bytes).is_err() || bytes.contains(&0) {
+        return Err(Failure::usage("TUI_IMPORT_UTF8"));
+    }
+    store.write_new(name, &bytes).map_err(Failure::local)?;
+    Ok(json!({"secret_ref":name}))
+}
+
+fn confirmed_pin(observed: &str, confirmation: &str) -> Result<String, Failure> {
+    if !oo_stack::stack::fingerprint(observed) || confirmation != observed {
+        return Err(Failure::usage("SSH_HOST_KEY_REJECTED"));
+    }
+    Ok(observed.to_owned())
+}
+
+fn source_ssh(screen: &mut Screen, store: &SecretStore) -> Result<Option<Value>, Failure> {
+    let host = screen.prompt(1, "SSH jump host (blank: direct)", "", false)?;
+    if host.is_empty() {
+        return Ok(None);
+    }
+    let port = screen
+        .prompt(1, "SSH port", "22", false)?
+        .parse::<u16>()
+        .map_err(|_| Failure::usage("STACK_SOURCE_SSH"))?;
+    let user = screen.prompt(1, "SSH user", "", false)?;
+    if !oo_stack::stack::ssh_host(&host) || port == 0 || !oo_stack::stack::login_name(&user) {
+        return Err(Failure::usage("STACK_SOURCE_SSH"));
+    }
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|_| Failure::local("SSH_RUNTIME"))?;
+    // Discovery does not authenticate. Credentials are collected only after the
+    // owner checks the key over a separate channel and explicitly pins it.
+    let observed = runtime
+        .block_on(oo_connectors::transport::ssh::discover(&host, port))
+        .map_err(Failure::local)?;
+    let answer = screen.prompt(
+        1,
+        &format!(
+            "Observed SSH key: {observed}\nVerify with the host administrator OUT OF BAND.\n\
+         Type the full independently verified SHA256 fingerprint to pin it; blank refuses."
+        ),
+        "",
+        false,
+    )?;
+    let pin = confirmed_pin(&observed, &answer)?;
+    let method = screen.prompt(1, "SSH authentication: key / password", "key", false)?;
+    let mut ssh = json!({"host":host,"port":port,"user":user,"host_key_sha256":pin});
+    match method.as_str() {
+        "key" => {
+            let path = screen.prompt(
+                1,
+                "SSH private key file path (unencrypted; imported, never displayed)",
+                "",
+                false,
+            )?;
+            let name =
+                screen.prompt(1, "SSH key secret name (new file)", "source-ssh-key", false)?;
+            ssh["key"] = import_file(store, &name, Path::new(&path), false)?;
+        }
+        "password" => {
+            ssh["password"] = secret(screen, store, 1, "SSH password", "source-ssh-password")?
+        }
+        _ => return Err(Failure::usage("STACK_SOURCE_SSH")),
+    }
+    Ok(Some(ssh))
+}
+
+fn save_new(stack: &oo_stack::Stack, path: &Path) -> Result<(), Failure> {
+    // create_new refuses existing files and symlinks. An aborted wizard never
+    // replaces a configuration or deletes credentials the user may have kept.
+    let mut bytes = serde_json::to_vec_pretty(stack).map_err(|_| Failure::local("TUI_CONFIG"))?;
+    bytes.push(b'\n');
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(path)
+        .map_err(|_| Failure::local("TUI_CONFIG_EXISTS_OR_IO"))?;
+    file.write_all(&bytes)
+        .and_then(|_| file.sync_all())
+        .map_err(|_| Failure::local("TUI_CONFIG_IO"))
+}
+
+fn build_saved(path: &str, preflight_exit: u8) -> Result<Invocation, Failure> {
+    if preflight_exit != 0 {
+        return Err(Failure::local(
+            "TUI_PREFLIGHT_BLOCKED: configuration saved; resolve oo doctor failures before oo build",
+        ));
+    }
+    // Use the same entry points as the shell: deploy (idempotent), then the
+    // runtime build with retained checkpoints, owner review and share prompt.
+    let args = ["--config".into(), path.into()];
+    let up = super::execute("up", &args)?;
+    if matches!(up, Invocation::AdminReport(_, exit) if exit != 0) {
+        return Ok(up);
+    }
+    super::execute("build", &args)
+}
+
+pub(super) fn run() -> Result<Invocation, Failure> {
+    if Path::new("stack.yaml").symlink_metadata().is_ok() {
+        return Err(Failure::local("TUI_CONFIG_EXISTS_OR_IO"));
+    }
+    let home = std::env::var_os("HOME").ok_or_else(|| Failure::local("SECRET_HOME"))?;
+    let parent = Path::new(&home).join(".config/open-ontology");
+    fs::create_dir_all(&parent).map_err(|_| Failure::local("SECRET_DIRECTORY"))?;
+    let store = SecretStore::create(parent.join("secrets")).map_err(Failure::local)?;
+    let mut screen = Screen::open()?;
+    let engine = screen.prompt(1, "Engine: postgres / oracle / mysql", "postgres", false)?;
+    let mut source = json!({
+        "id": screen.prompt(1, "Source ID", "source", false)?,
+        "engine": engine,
+        "host": screen.prompt(1, "Source host", "localhost", false)?,
+        "port": screen.prompt(1, "Source port", match engine.as_str() {
+            "oracle" => "1521", "mysql" => "3306", _ => "5432"
+        }, false)?.parse::<u16>().map_err(|_| Failure::usage("STACK_SOURCE_PORT"))?,
+        "database": screen.prompt(1, "Database or Oracle service", "", false)?,
+        "user": screen.prompt(1, "Read-only user", "", false)?,
+        "password": secret(&mut screen, &store, 1, "Source password", "source-password")?,
+    });
+    let ca = screen.prompt(
+        1,
+        "TLS CA PEM file path (imported into secret store; required for PostgreSQL/MySQL)",
+        "",
+        false,
+    )?;
+    if !ca.is_empty() {
+        let name = screen.prompt(1, "TLS CA secret name (new file)", "source-ca", false)?;
+        source["tls_ca"] = import_file(&store, &name, Path::new(&ca), true)?;
+    } else if matches!(engine.as_str(), "postgres" | "mysql") {
+        return Err(Failure::usage("TUI_CA_FILE_REQUIRED"));
+    }
+    if let Some(ssh) = source_ssh(&mut screen, &store)? {
+        source["ssh"] = ssh;
+    }
+    source["scope"] = json!({
+        "include":list(&screen.prompt(2, "Include schema.table entries, comma separated (wildcard discovery not yet available)", "*", false)?),
+        "exclude":list(&screen.prompt(2, "Exclude tables or schema.*, comma separated", "", false)?),
+    });
+    let provider = screen.prompt(
+        3,
+        "Provider: openai-compatible / anthropic",
+        "openai-compatible",
+        false,
+    )?;
+    let url = screen.prompt(
+        3,
+        "Model base URL, or @PATH to import a private endpoint file",
+        "",
+        false,
+    )?;
+    let base_url = match url.strip_prefix('@') {
+        Some(path) => {
+            let name = screen.prompt(
+                3,
+                "Endpoint secret name (new file)",
+                "model-endpoint",
+                false,
+            )?;
+            if !oo_stack::stack::secret_name(&name) {
+                return Err(Failure::usage("SECRET_NAME"));
+            }
+            import_file(&store, &name, Path::new(path), false)?
+        }
+        None => json!(url),
+    };
+    let model = json!({
+        "provider":provider,
+        "base_url":base_url,
+        "model":screen.prompt(3, "Model ID", "", false)?,
+        "key":secret_or_import(&mut screen, &store, 3, "Model key", "model-key")?,
+        "context_window":"auto",
+    });
+    screen.prompt(4, "Deployment: local Docker / lite. Remote SSH deployment is not yet available. Enter to continue.", "", false)?;
+    let stack = oo_stack::parse(
+        &json!({
+            "version":"oo.stack/v1", "sources":[source], "model":model,
+            "deploy":{"target":"local","profile":"lite"},
+            "gateway":{"public_url":"auto"},
+        })
+        .to_string(),
+    )
+    .map_err(Failure::usage)?;
+    screen.prompt(
+        5,
+        "Run read-only doctor and bounded model probe (two minimal completions). Enter to run.",
+        "",
+        false,
+    )?;
+    let preflight = doctor::run(&stack, true)?;
+    let (report, exit) = match preflight {
+        Invocation::AdminReport(report, exit) => (report, exit),
+        _ => return Err(Failure::local("TUI_PREFLIGHT_PROTOCOL")),
+    };
+    screen.prompt(5, &format!("Preflight (exit {exit}):\n{report}\n\nEnter to continue. Blocked preflight never deploys."), "", false)?;
+    let confirm = screen.prompt(6,
+        "Type SAVE for configuration only, or BUILD to run oo up and oo build: deploy, load, Self-build, owner review, publication, Gateway and share prompt. BUILD requires passing preflight. Credentials remain saved on cancellation.",
+        "", false)?;
+    if confirm != "SAVE" && confirm != "BUILD" {
+        return Err(Failure::local("TUI_CANCELLED"));
+    }
+    save_new(&stack, Path::new("stack.yaml"))?;
+    if confirm == "BUILD" {
+        drop(screen);
+        return build_saved("stack.yaml", exit);
+    }
+    screen.prompt(
+        7,
+        &format!(
+            "Configuration saved (0600).\n{}\nEnter to exit.",
+            super::progress::completion(&json!({"status":"not_started"}))
+        ),
+        "",
+        false,
+    )?;
+    Ok(Invocation::Help(
+        "Stack saved; no services started or publication performed.".into(),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_action_uses_the_cli_entry_point_and_refuses_failed_preflight() {
+        let path = "nonexistent-wizard-stack.yaml";
+        let wizard = build_saved(path, 0).err().unwrap().json_bytes();
+        let cli = super::super::execute("build", &["--config".into(), path.into()])
+            .err()
+            .unwrap()
+            .json_bytes();
+        assert_eq!(wizard, cli);
+        let blocked = build_saved(path, 1).err().unwrap().json_bytes();
+        assert!(
+            String::from_utf8(blocked)
+                .unwrap()
+                .contains("TUI_PREFLIGHT_BLOCKED")
+        );
+    }
+
+    #[test]
+    fn imports_bounded_ca_into_new_private_secret_without_overwriting() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+        let root = // A private temp dir, not the repository evidence tree.
+        std::fs::canonicalize(std::env::temp_dir()).unwrap()
+            .join(format!("wizard-import-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let root = fs::canonicalize(root).unwrap();
+        let store = SecretStore::create(root.join("secrets")).unwrap();
+        let ca = root.join("ca.pem");
+        let pem = b"-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n";
+        fs::write(&ca, pem).unwrap();
+        assert!(import_file(&store, "source-ca", &ca, true).is_ok());
+        assert_eq!(store.read("source-ca").unwrap().as_bytes(), pem);
+        assert_eq!(
+            fs::metadata(root.join("secrets/source-ca"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o600
+        );
+        assert!(import_file(&store, "source-ca", &ca, true).is_err());
+        fs::write(&ca, b"not a certificate").unwrap();
+        assert!(import_file(&store, "invalid", &ca, true).is_err());
+        fs::write(&ca, vec![b'x'; 65_537]).unwrap();
+        assert!(import_file(&store, "oversized", &ca, false).is_err());
+        symlink(&ca, root.join("link")).unwrap();
+        assert!(import_file(&store, "link", &root.join("link"), false).is_err());
+        assert!(import_file(&store, "directory", &root, false).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn pin_requires_full_out_of_band_confirmation() {
+        let pin = format!("SHA256:{}", "A".repeat(43));
+        assert_eq!(confirmed_pin(&pin, &pin).ok(), Some(pin.clone()));
+        for answer in ["", "yes", "SHA256:changed"] {
+            assert!(confirmed_pin(&pin, answer).is_err());
+        }
+        assert!(confirmed_pin("bad", "bad").is_err());
+    }
+
+    #[test]
+    fn config_bytes_match_noninteractive_normalization_and_never_overwrite() {
+        let dir = std::env::temp_dir().join(format!("oo-wizard-{}", std::process::id()));
+        fs::create_dir(&dir).unwrap();
+        let config = oo_stack::parse(include_str!("../../../oo-stack/example.stack.json")).unwrap();
+        let wizard = dir.join("wizard");
+        let noninteractive = dir.join("noninteractive");
+        assert!(save_new(&config, &wizard).is_ok());
+        fs::write(
+            &noninteractive,
+            include_str!("../../../oo-stack/example.stack.json"),
+        )
+        .unwrap();
+        assert!(super::super::normalize(&noninteractive).is_ok());
+        assert_eq!(
+            fs::read(&wizard).unwrap(),
+            fs::read(&noninteractive).unwrap()
+        );
+        assert!(save_new(&config, &wizard).is_err());
+        fs::remove_dir_all(dir).unwrap();
+    }
+}

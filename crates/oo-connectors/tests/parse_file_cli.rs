@@ -1096,12 +1096,18 @@ fn parent_deadline_kills_the_worker_and_the_next_call_completes() {
     );
     let doc = assert_error(&run, 7, "deadline", "timed_out");
     assert_eq!(doc["reaped"], true, "doc={doc}");
-    assert_eq!(doc["group_signal"], "sent", "doc={doc}");
     assert!(doc["worker_token"].is_null(), "doc={doc}");
     let signal = doc["term_signal"].as_i64();
     let child_exit = doc["exit_code"].as_i64();
     let killed_by_signal = signal == Some(9) && child_exit.is_none();
     let exited_on_closed_pipe = signal.is_none() && child_exit == Some(7);
+    // A worker that exits on the closed pipe before the group kill needs no
+    // signal (Darwin refuses to signal an exited leader's group).
+    assert!(
+        doc["group_signal"] == "sent"
+            || (exited_on_closed_pipe && doc["group_signal"] == "not_needed"),
+        "doc={doc}"
+    );
     assert!(
         killed_by_signal || exited_on_closed_pipe,
         "empty_ms={} busy_ms={} kill_ms={kill_ms} kill_elapsed_ms={} doc={doc}",

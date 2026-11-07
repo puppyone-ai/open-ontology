@@ -3,6 +3,462 @@ use oo_pipeline::target_installer as ti;
 use serde_json::{Value, json};
 use sqlx::{Connection, Executor, PgConnection};
 
+#[tokio::test]
+#[ignore = "owned live Gateway fixture: tools/oo-load/test-gateway-cycles.py"]
+async fn retained_gateway_install() {
+    use sqlx::ConnectOptions;
+    use sqlx::postgres::{PgConnectOptions, PgSslMode};
+    let config: Value = serde_json::from_slice(
+        &std::fs::read(std::env::var("OO_LOAD_TEST_TARGET").unwrap()).unwrap(),
+    )
+    .unwrap();
+    let password = std::fs::read_to_string(config["password_file"].as_str().unwrap()).unwrap();
+    let options = PgConnectOptions::new()
+        .host("127.0.0.1")
+        .port(config["port"].as_u64().unwrap() as u16)
+        .username("postgres")
+        .database("postgres")
+        .password(password.trim())
+        .ssl_mode(PgSslMode::Disable)
+        .disable_statement_logging();
+    let mut db = PgConnection::connect_with(&options).await.unwrap();
+    install(&mut db).await;
+    db.execute(include_str!("../migrations/0089_native_library_c1.sql"))
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+#[ignore = "owned PG fixture: tools/oo-load/test-publication.py"]
+async fn retained_engine_publication_candidate() {
+    use oo_connectors::engine::*;
+    use oo_pipeline::engine_load::Target;
+    use oo_pipeline::engine_load_pg::PgTarget;
+    use oo_pipeline::engine_publication::{PublicationRequest, publish_generation};
+    use oo_pipeline::native_arrow::{DecodedField, DecodedStream, NativeCell};
+    use sqlx::{
+        ConnectOptions,
+        postgres::{PgConnectOptions, PgSslMode},
+    };
+
+    let config: Value = serde_json::from_slice(
+        &std::fs::read(std::env::var("OO_LOAD_TEST_TARGET").expect("owned fixture config"))
+            .unwrap(),
+    )
+    .unwrap();
+    let password = std::fs::read_to_string(config["password_file"].as_str().unwrap()).unwrap();
+    let options = PgConnectOptions::new()
+        .host("127.0.0.1")
+        .port(config["port"].as_u64().unwrap() as u16)
+        .username("postgres")
+        .database("postgres")
+        .password(password.trim())
+        .ssl_mode(PgSslMode::Disable)
+        .disable_statement_logging();
+    let mut db = PgConnection::connect_with(&options).await.unwrap();
+    install(&mut db).await;
+    db.execute(include_str!("../migrations/0089_native_library_c1.sql"))
+        .await
+        .unwrap();
+    let table = TableRef {
+        schema: "app".into(),
+        name: "items".into(),
+    };
+    let plan = TableChunkPlan {
+        protocol: ENGINE_PROTOCOL.into(),
+        table: table.clone(),
+        key: KeyShape::IntegerPrimaryKey {
+            column: "id".into(),
+        },
+        strategy: ChunkStrategy::Keyset {
+            columns: vec!["id".into()],
+        },
+        estimated_rows: None,
+        chunks: vec![ChunkSpec {
+            table: table.clone(),
+            plan_revision: 1,
+            chunk_id: 0,
+            lo: None,
+            hi: None,
+            estimated_rows: None,
+        }],
+    };
+    let stream = DecodedStream {
+        rows: 1,
+        fields: vec![DecodedField {
+            name: "id".into(),
+            nullable: false,
+            arrow_type: "int64".into(),
+            precision: Some(64),
+            scale: None,
+            timezone: None,
+        }],
+        columns: vec![vec![NativeCell::Int {
+            bit_width: 64,
+            value: 42,
+        }]],
+    };
+    let mut request = PublicationRequest {
+        library_id: "owned".into(),
+        source_id: "owned".into(),
+        source_binding: serde_json::to_string(&(
+            "owned",
+            "postgres",
+            "127.0.0.1",
+            1_u16,
+            "unused",
+            "reader",
+        ))
+        .unwrap(),
+        generation: "first".into(),
+        tables: vec![table.clone()],
+    };
+    for run in ["first", "second"] {
+        let mut target = PgTarget::new(&mut db, &request.source_binding, run, &table)
+            .await
+            .unwrap();
+        target.begin(&plan).await.unwrap();
+        // Synthetic source receipt; this test covers target transactions, not T2.
+        target
+            .stage(
+                &ChunkReceipt {
+                    table: table.clone(),
+                    plan_revision: 1,
+                    chunk_id: 0,
+                    rows: 1,
+                    bytes: 8,
+                    sha256: "a".repeat(64),
+                    low: None,
+                    high: None,
+                },
+                &stream,
+            )
+            .await
+            .unwrap();
+        target.publish(&plan).await.unwrap();
+    }
+    // Release Loader session locks and prove the adapter can publish an older cut.
+    db.close().await.unwrap();
+    let mut db = PgConnection::connect_with(&options).await.unwrap();
+    let first = publish_generation(&mut db, &request).await.unwrap();
+    assert_eq!(first["state"], "pending");
+    assert_eq!(first["gateway_published"], false);
+    assert!(first["data_vector"][0]["source_committed_at"].is_null());
+    assert_eq!(publish_generation(&mut db, &request).await.unwrap(), first);
+    let cli = config["cli"].as_str().expect("owned CLI binary");
+    let output = std::process::Command::new(cli)
+        .args([
+            "publish",
+            "--generation",
+            "first",
+            "--library",
+            "owned",
+            "--stack",
+            config["stack"].as_str().unwrap(),
+            "--source",
+            "owned",
+            "--target",
+            config["cli_target"].as_str().unwrap(),
+            "--secrets-dir",
+            config["secrets"].as_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        !output.status.success(),
+        "pending must not become scheduler success"
+    );
+    let error: Value = serde_json::from_slice(&output.stderr).unwrap();
+    assert_eq!(error["error"], "publication_semantic_admission_required");
+    let replay: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(replay, first);
+    let ready: bool = sqlx::query_scalar("SELECT _oo.native_library_source_ready('owned',$1)")
+        .bind(
+            first["receipt"]["shards"][0]["receipt_sha256"]
+                .as_str()
+                .unwrap(),
+        )
+        .fetch_one(&mut db)
+        .await
+        .unwrap();
+    assert!(!ready, "storage cuts must not bypass semantic admission");
+    let refusal = sqlx::query("SELECT _oo.native_library_mark_ready('owned',$1)")
+        .bind(first["receipt_sha256"].as_str().unwrap())
+        .execute(&mut db)
+        .await
+        .expect_err("missing semantic fences must refuse activation");
+    assert_eq!(
+        refusal.as_database_error().unwrap().code().as_deref(),
+        Some("OO030")
+    );
+    println!(
+        "native semantic admission refused candidate: sqlstate={}",
+        refusal
+            .as_database_error()
+            .and_then(|e| e.code())
+            .unwrap_or_default()
+    );
+    let mut wrong_library = request.clone();
+    wrong_library.library_id = "different_library".into();
+    assert_eq!(
+        publish_generation(&mut db, &wrong_library)
+            .await
+            .unwrap_err(),
+        "publication_membership_mismatch"
+    );
+    let absent: bool=sqlx::query_scalar(
+        "SELECT NOT EXISTS(SELECT 1 FROM _oo.native_library_head WHERE library_id='different_library')
+         AND NOT EXISTS(SELECT 1 FROM _oo_load.gateway_publications WHERE library_id='different_library')")
+        .fetch_one(&mut db).await.unwrap();
+    assert!(
+        absent,
+        "late membership failure rolls back all candidate metadata"
+    );
+    let physical = first["data_vector"][0]["physical_name"].as_str().unwrap();
+    let column: String = sqlx::query_scalar(
+        "SELECT physical_name FROM _oo.physical_mappings WHERE source='owned' AND run_generation=$1 AND level='c'")
+        .bind(first["generation"].as_i64().unwrap()).fetch_one(&mut db).await.unwrap();
+    let value: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT \"{column}\" FROM _oo.\"{physical}\""
+    )))
+    .fetch_one(&mut db)
+    .await
+    .unwrap();
+    assert_eq!(value, 42);
+    let metadata: (bool,bool,String,String) = sqlx::query_as(
+        "SELECT f.source_committed_at IS NULL,w.source_committed_at IS NULL,f.state,w.state
+         FROM _oo.table_freshness f JOIN _oo.source_watermark w USING(source) WHERE f.source='owned'")
+        .fetch_one(&mut db).await.unwrap();
+    assert_eq!(
+        metadata,
+        (true, true, "awaiting_publish".into(), "lagging".into())
+    );
+    request.generation = "second".into();
+    let second = publish_generation(&mut db, &request).await.unwrap();
+    assert_ne!(first["receipt_sha256"], second["receipt_sha256"]);
+    let head: String = sqlx::query_scalar(
+        "SELECT receipt_sha256 FROM _oo.native_library_head WHERE library_id='owned'",
+    )
+    .fetch_one(&mut db)
+    .await
+    .unwrap();
+    assert_eq!(
+        head,
+        first["receipt_sha256"].as_str().unwrap(),
+        "pending cut cannot displace a head"
+    );
+    db.execute(include_str!(
+        "../../../tools/release-coordinator/migrations/oo_publish_target_v1.sql"
+    ))
+    .await
+    .unwrap();
+    db.execute("ALTER TABLE oo_publish_target.fence OWNER TO oo_target_owner; GRANT USAGE ON SCHEMA oo_publish_target TO oo_target_owner; CREATE ROLE oo_r_retained NOLOGIN; GRANT USAGE ON SCHEMA _oo TO oo_r_retained;").await.unwrap();
+    // Publisher semantics: grant only reviewed columns, then open the bound fence.
+    db.execute(sqlx::AssertSqlSafe(format!(
+        "GRANT SELECT (\"{column}\") ON _oo.\"{physical}\" TO oo_r_retained;
+         INSERT INTO oo_publish_target.fence(singleton,state,role_name,schema_name,relation_name,
+          opened_columns,opened_pack_digest,opened_version,streams_stopped)
+         VALUES(true,'closed','oo_r_retained','_oo','{physical}','{{}}',NULL,NULL,0)"
+    )))
+    .await
+    .unwrap();
+    for state in ["closed", "granted"] {
+        sqlx::query("UPDATE oo_publish_target.fence SET state=$1")
+            .bind(state)
+            .execute(&mut db)
+            .await
+            .unwrap();
+        let err = sqlx::query("SELECT _oo.native_library_mark_ready('owned',$1)")
+            .bind(first["receipt_sha256"].as_str().unwrap())
+            .execute(&mut db)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            err.as_database_error().unwrap().code().as_deref(),
+            Some("OO030")
+        );
+    }
+    sqlx::query("UPDATE oo_publish_target.fence SET state='open',opened_columns=ARRAY[$1],opened_pack_digest=repeat('a',64),opened_version='reviewed-1',candidate_id='self-reviewed-1'")
+        .bind(&column).execute(&mut db).await.unwrap();
+    let storage = first["data_vector"][0]["storage_relation"]
+        .as_str()
+        .unwrap();
+    let mismatches = [
+        ("recipe", "UPDATE _oo_load.generations SET recipe=jsonb_set(recipe,'{parts,0,receipt,rows}','99') WHERE run='first'".into()),
+        ("candidate seal", "UPDATE _oo_load.gateway_publications SET sealed_at=NULL WHERE run='first'".into()),
+        ("shard", "UPDATE _oo_load.gateway_publications SET shard='{}' WHERE run='first'".into()),
+        ("data vector", "UPDATE _oo_load.gateway_publications SET data_vector='[]' WHERE run='first'".into()),
+        ("storage definition", format!("CREATE OR REPLACE VIEW _oo_load.\"{storage}\" AS SELECT 99::bigint AS id")),
+        ("mapped definition", format!("CREATE OR REPLACE VIEW _oo.\"{physical}\" AS SELECT 99::bigint AS \"{column}\"")),
+        ("columns", format!("ALTER VIEW _oo.\"{physical}\" RENAME COLUMN \"{column}\" TO changed")),
+    ];
+    for (name, change) in mismatches {
+        let mut tx = db.begin().await.unwrap();
+        tx.execute(sqlx::AssertSqlSafe(change)).await.unwrap();
+        let err = sqlx::query("SELECT _oo.native_library_mark_ready('owned',$1)")
+            .bind(first["receipt_sha256"].as_str().unwrap())
+            .execute(&mut *tx)
+            .await
+            .expect_err(name);
+        assert_eq!(
+            err.as_database_error().unwrap().code().as_deref(),
+            Some("OO030"),
+            "{name}: {err}"
+        );
+        tx.rollback().await.unwrap();
+        println!("retained activation mismatch refused: {name} OO030");
+    }
+    sqlx::query("SELECT _oo.native_library_mark_ready('owned',$1)")
+        .bind(first["receipt_sha256"].as_str().unwrap())
+        .execute(&mut db)
+        .await
+        .unwrap();
+    let ready: bool = sqlx::query_scalar("SELECT _oo.native_library_source_ready('owned',$1)")
+        .bind(
+            first["receipt"]["shards"][0]["receipt_sha256"]
+                .as_str()
+                .unwrap(),
+        )
+        .fetch_one(&mut db)
+        .await
+        .unwrap();
+    assert!(ready);
+    println!("retained activation and exact freshness: passed");
+    for change in [
+        "UPDATE _oo.source_watermark SET source_committed_at=clock_timestamp() WHERE source='owned'",
+        "UPDATE _oo.source_watermark SET position_lineage='oo-load.other' WHERE source='owned'",
+        "UPDATE _oo.table_freshness SET last_pos=1 WHERE source='owned'",
+        "UPDATE _oo.table_freshness SET source_committed_at=clock_timestamp() WHERE source='owned'",
+    ] {
+        let mut tx = db.begin().await.unwrap();
+        tx.execute(change).await.unwrap();
+        let ready: bool = sqlx::query_scalar("SELECT _oo.native_library_source_ready('owned',$1)")
+            .bind(
+                first["receipt"]["shards"][0]["receipt_sha256"]
+                    .as_str()
+                    .unwrap(),
+            )
+            .fetch_one(&mut *tx)
+            .await
+            .unwrap();
+        assert!(!ready, "readiness accepted mismatched immutable metadata");
+        tx.rollback().await.unwrap();
+    }
+    let activated = oo_pipeline::engine_publication::activate_generation(&mut db, &first)
+        .await
+        .unwrap();
+    assert_eq!(activated["state"], "ready");
+    assert!(activated["gateway_published"].as_bool().unwrap());
+    assert_eq!(
+        oo_pipeline::engine_publication::activate_generation(&mut db, &second)
+            .await
+            .unwrap_err(),
+        "publication_semantic_admission_required"
+    );
+    let head: String = sqlx::query_scalar(
+        "SELECT receipt_sha256 FROM _oo.native_library_head WHERE library_id='owned'",
+    )
+    .fetch_one(&mut db)
+    .await
+    .unwrap();
+    assert_eq!(
+        head,
+        first["receipt_sha256"].as_str().unwrap(),
+        "failed switch preserves serving cut"
+    );
+    let output = std::process::Command::new(cli)
+        .args([
+            "publish",
+            "--generation",
+            "first",
+            "--library",
+            "owned",
+            "--stack",
+            config["stack"].as_str().unwrap(),
+            "--source",
+            "owned",
+            "--target",
+            config["cli_target"].as_str().unwrap(),
+            "--secrets-dir",
+            config["secrets"].as_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let output: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(output["state"], "ready");
+    request.generation = "missing".into();
+    assert_eq!(
+        publish_generation(&mut db, &request).await.unwrap_err(),
+        "publication_unverified"
+    );
+    request.generation = "first".into();
+    let stage: String = sqlx::query_scalar(
+        "SELECT recipe#>>'{parts,0,stage}' FROM _oo_load.generations WHERE run='first'",
+    )
+    .fetch_one(&mut db)
+    .await
+    .unwrap();
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "ALTER TABLE _oo_load.\"{stage}\" ALTER COLUMN id DROP NOT NULL"
+    )))
+    .execute(&mut db)
+    .await
+    .unwrap();
+    assert_eq!(
+        publish_generation(&mut db, &request).await.unwrap_err(),
+        "publication_schema_mismatch"
+    );
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "ALTER TABLE _oo_load.\"{stage}\" ALTER COLUMN id SET NOT NULL"
+    )))
+    .execute(&mut db)
+    .await
+    .unwrap();
+    let before: i64 = sqlx::query_scalar("SELECT count(*) FROM _oo.native_library_publication")
+        .fetch_one(&mut db)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE _oo_load.generations SET recipe=jsonb_set(recipe,'{parts,0,receipt,rows}','99') WHERE run='first'")
+        .execute(&mut db).await.unwrap();
+    assert_eq!(
+        publish_generation(&mut db, &request).await.unwrap_err(),
+        "publication_seal_mismatch"
+    );
+    sqlx::query("UPDATE _oo_load.generations SET recipe=jsonb_set(recipe,'{parts,0,receipt,rows}','1') WHERE run='first'")
+        .execute(&mut db).await.unwrap();
+    let relation = first["data_vector"][0]["storage_relation"]
+        .as_str()
+        .unwrap();
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "CREATE OR REPLACE VIEW _oo_load.\"{relation}\" AS SELECT 99::bigint AS id"
+    )))
+    .execute(&mut db)
+    .await
+    .unwrap();
+    assert_eq!(
+        publish_generation(&mut db, &request).await.unwrap_err(),
+        "publication_view_mismatch"
+    );
+    let after: i64 = sqlx::query_scalar("SELECT count(*) FROM _oo.native_library_publication")
+        .fetch_one(&mut db)
+        .await
+        .unwrap();
+    assert_eq!(before, after, "refusals cannot leave a receipt");
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _oo.full_import_run")
+            .fetch_one(&mut db)
+            .await
+            .unwrap(),
+        0,
+        "no fabricated legacy provenance"
+    );
+}
+
 async fn connect(database: &str) -> PgConnection {
     let port = std::env::var("OO_LIBRARY_PG_PORT").expect("owned OO_LIBRARY_PG_PORT");
     PgConnection::connect(&format!("postgres://postgres@127.0.0.1:{port}/{database}"))

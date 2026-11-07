@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-09
+> Last reviewed: 2026-11-03
 
 里程碑按“依赖与验收”划分，不按日历。每个里程碑的退出条件都是可验证的评测结果（[13](13-evaluation-and-benchmarks.md)）。
 
@@ -79,6 +79,20 @@
 - 多租户部署形态；
 - Oracle CDC；MongoDB。
 
+### v0.2 产品闭环（不改变 M0–M4 的定义）
+
+v0.2 按 sprint 推进三个产品闭环与两个支撑闭环，任务、sprint、测试与退出条件见 [v0.2 Plan](../specs/product-loops-v0.2-plan.md)，设计输入见 [product/](product/README.md)：
+
+| 闭环 | 内容 | 收敛标志 |
+|---|---|---|
+| L1 开源易用 | `oo init` → 全量拉取 → Ontology 可视化与 Pack → Gateway 与 token → 给用户 Agent 的提示词（lite 档，[11 §1.1](11-deployment-and-operations.md)） | 干净机器上不改任何文件，3 个 P0 引擎各跑通一次 |
+| L2 Gateway ↔ CLI | token issue/renew/rotate/revoke/enroll、自助续期、到期监控、`/v1/meta`、`oo login`（[07 §3.4](07-gateway.md)） | 每项操作有成功与失败用例，无需手工改表 |
+| L3 数据库矩阵 | MySQL/PG/Oracle 多版本为 P0，另 13 个引擎（P1 10 个、P2 3 个）（[support-matrix.yaml](database-support/support-matrix.yaml) 的 `v02_*` 字段） | P0 全版本 T0–T8 证据包通过，矩阵由证据生成 |
+| L4 拉取鲁棒性 | 分块、并行、只读水位、C5/C1 交接、故障恢复（[03 §4](03-sources-and-ingestion.md)、[04](04-pipeline.md)） | P0 全版本 T1–T4 零差异 |
+| L5 Self-build 规模化 | 上下文预算器、社区切批、实体登记、连通性门禁（[06 §4.11](06-ontology-layer.md)） | 上千表夹具一次跑通，连通性指标进入审核 |
+
+v0.2 把部分原属 M4 的能力提前为**目标**（Oracle C1、MongoDB change stream 均为 `experimental` 目标，C1 仍须先通过源端审计与最小权限 ADR）；里程碑的验收口径不变，达成与否只看证据。
+
 ## 2. 风险登记
 
 | # | 风险 | 可能性 | 影响 | 缓解 | 触发信号 |
@@ -99,6 +113,8 @@
 | R14 | Harness 上游变化（Pi 所有权变更后的路线） | 中 | 中 | 版本锁定、适配器契约测试、多 harness 支持 | 上游发布 |
 | R15 | MCP 规范快速演进 | 高 | 低 | 跟随官方 SDK；兼容上一个规范版本 | 规范发布 |
 | R16 | 按源事务消费吞吐不足或事务路由假设不成立 | 中 | 高 | M0 P11/P12 验证；优化组提交/磁盘溢出；per_table 须显式降级并持续告知跨表偏差 | stream 积压、事务计数不齐、端到端延迟 |
+| R17 | 只有 amd64 镜像的引擎版本（MySQL 5.7、Oracle 11g/21c XE、SQL Server、Db2）在 Apple Silicon 上仿真不稳，且 Rosetta 支持收缩 | 高 | 中 | 远程 x86 Linux runner 作为这些版本的权威运行位置，本地仿真仅作补充 | 夜间矩阵不稳定 |
+| R18 | lite 档无 `runsc`，安全边界弱于 standard | 中 | 中 | 文档与向导明确“单所有者、不承诺多租户隔离”；standard 档保留 | 多用户误用 lite |
 
 ## 3. 需要与首个客户确认的问题
 

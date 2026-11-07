@@ -1,0 +1,63 @@
+{
+  "status": "partial",
+  "live_model_call": "not_run_no_authorized_credentials",
+  "engine": "PostgreSQL",
+  "version": "17.10 (Debian 17.10-1.pgdg12+1)",
+  "datasets": 1,
+  "retained_generations": 2,
+  "load_receipts": 1,
+  "negative_cases": {
+    "catalog_without_cert": "refused",
+    "profile_without_cert": "refused",
+    "comments_without_cert": "refused",
+    "public_key_file": "refused",
+    "wrong_ca": "refused",
+    "wrong_hostname": "refused",
+    "missing_key": "refused",
+    "inline_key": "refused",
+    "private_storage_selection": "refused",
+    "private_storage_only": "refused"
+  },
+  "keys": "primary_key_preserved_from_active_plan",
+  "draft_replay": "not_run",
+  "cleanup_failures": [],
+  "card": "G-S2c",
+  "base_commit": "ab973bd15a42e586558dfeab3de8ac78c1a6723a",
+  "run_id": "g-s2c-mtls-06",
+  "checks_run_id": "g-s2c-20261104",
+  "workspace_check": "passed",
+  "oo_builder_tests_passed": 184,
+  "pg_builder_tests_passed": 67,
+  "python_budget_tests_passed": 14,
+  "shared_patch": "coordinator-load-mtls.patch (unapplied; git apply --check passed)",
+  "cargo_lock_changes": false,
+  "known_base_failures": [
+    "document_profile::tests::shipment_catalog_keeps_weight_and_the_nineteen_approved_columns",
+    "source_contract::tests::derived_source_bound_projects_native_notes_without_a_forged_grade",
+    "source_contract::tests::oracle_batch_and_ts_keep_real_caveats_and_omit_grade",
+    "fixture_and_stored_generations_are_mixed_scope",
+    "stored_receipts_keep_party_and_account_in_one_pack"
+  ],
+  "limitations": [
+    "No live model call: existing token files are outside permitted scope.",
+    "Draft replay attempt g-s2c-mtls-04 failed to bind occupied port 8317; existing listener untouched.",
+    "Lite bridge still needs coordinator target-connection wiring.",
+    "Unique-index-only plans fail closed: loader does not retain null semantics.",
+    "Loader does not publish foreign-key metadata; no relationships invented.",
+    "General mTLS source catalog remains outside the local publication adapter."
+  ],
+  "evidence_sha256": {
+    "evidence/g-s2c-20261104/base-all.log": "e2de8c94cefd101d2c8045f9d002202041a25d46ee5659d97269cfb587cb8524",
+    "evidence/g-s2c-20261104/builder-final-all.log": "3dc8598800a1500516c663c8c4faa31c9735a54e109ffae25a94bfabd705275a",
+    "evidence/g-s2c-20261104/library-tests-final.log": "7481177fb92579dc417decbd91bd391fb7518aceee52b5dce373c4470fdbb060",
+    "evidence/g-s2c-20261104/final-workspace-check.log": "732186322402325172940531d8d6d7cfac85dc902585b2bef6715ad6839dacfd",
+    "evidence/g-s2c-20261104/python-budget-tests.log": "c59aa38fdaf0ebfbd1a34e5beae2890a87f018c6b5452b4cc45713588ca1e23c",
+    "evidence/g-s2c-20261104/check-spec.log": "0d077fe3f335131fb91eb77569ef5882ac2d9cdc44f81cec26929959585d4475",
+    "evidence/g-s2c-20261104/check-plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+    "evidence/g-s2c-20261104/check-v02-plan.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135",
+    "evidence/g-s2c-20261104/builder-fmt.log": "599f321d4d4d52af521ac0ba9a8d846c7fe1db8addb3f10d5bf6d5a4bce8905d",
+    "evidence/g-s2c-mtls-06/summary.json": "59386b2bc4d92d96793725714556397657993491d18ea36626a0af5012ddcc25",
+    "evidence/g-s2c-mtls-06/catalog.json": "52ea2b735875310b07d89762ac5589dc28eb4ad7bdaff85e04bfb8329328e3ad",
+    "evidence/g-s2c-mtls-06/cards.json": "c5f14a77ebc22efdfafe92bc216ce64ce20d92d92f37b75931471814141bc7d8"
+  }
+}

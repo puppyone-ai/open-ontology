@@ -91,7 +91,7 @@ fn write_config(dir: &Path, purpose: &str, port: u16, price: &str, bearer_name: 
             "endpoint": {{
                 "origin": "http://127.0.0.1:{port}",
                 "path": "/v1/chat/completions",
-                "model_id": "grok-4.7"
+                "model_id": "gpt-6.1-sol"
             }},
             "secret": {{"bearer_file": "{}"}},
             "declared_price": {price},
@@ -712,6 +712,8 @@ fn catalog_request_has_no_password_bytes() {
         username: "oo_a328_reader".to_owned(),
         password_file: dir.join("password"),
         ca_file: dir.join("ca.pem"),
+        sslcert: None,
+        sslkey: None,
         catalog_bin: dir.join("oo-pipeline"),
         tables: vec![("shop".to_owned(), "party".to_owned())],
     });
@@ -725,11 +727,35 @@ fn catalog_request_has_no_password_bytes() {
 }
 
 #[test]
-fn column_batches_are_eight() {
+fn column_batches_follow_output_budget_without_truncating_wide_tables() {
     assert!(column_batch_ranges(0).is_empty());
     assert_eq!(column_batch_ranges(5), vec![(0, 5)]);
     assert_eq!(column_batch_ranges(8), vec![(0, 8)]);
-    assert_eq!(column_batch_ranges(9), vec![(0, 8), (8, 9)]);
+    assert_eq!(column_batch_ranges(9), vec![(0, 9)]);
+    let ranges = column_batch_ranges(300);
+    assert_eq!(ranges.first().unwrap().0, 0);
+    assert_eq!(ranges.last().unwrap().1, 300);
+    assert!(ranges.windows(2).all(|w| w[0].1 == w[1].0));
+    assert!(ranges.iter().all(|(a,b)| 128 + (b-a)*70 <= 4000));
+}
+
+#[test]
+fn egress_probe_budget_reaches_the_rust_adapter() {
+    let dir = temp_dir();
+    let text = write_config(&dir, "generate", 8317, r#"{"status":"unknown"}"#, "bearer");
+    let mut value: Value = serde_json::from_str(&text).unwrap();
+    value["capability_probe"] = json!({
+        "protocol":"oo.model-capabilities/v1","context_window":272000,
+        "max_output_tokens":128000,"proxy_injected_prompt_tokens":2490
+    });
+    value["budget"]["max_completion_tokens"] = json!(128000);
+    value["budget"]["max_total_tokens"] = json!(272000);
+    let config = load_config(&value.to_string()).unwrap();
+    let caps = config.capabilities.unwrap();
+    assert_eq!((caps.window, caps.max_output, caps.system_overhead), (272000, 128000, 2490));
+    value["capability_probe"]["context_window"] = json!(0);
+    assert!(load_config(&value.to_string()).is_err());
+    fs::remove_dir_all(dir).unwrap();
 }
 
 #[test]
@@ -822,7 +848,7 @@ fn configured_namespaced_model_is_preserved_in_config_and_seal() {
     let model = "devin/claude-opus-5-5";
     assert!(pg_builder::model_id_ok(model));
     let dir = temp_dir();
-    let config = write_config(&dir, "generate", 8317, r#"{"status":"unknown"}"#, "bearer").replace("grok-4.7", model);
+    let config = write_config(&dir, "generate", 8317, r#"{"status":"unknown"}"#, "bearer").replace("gpt-6.1-sol", model);
     assert_eq!(load_config(&config).unwrap().model_id, model);
     fs::remove_dir_all(dir).unwrap();
     for bad in ["", "model\nheader", "model?x=1", "model name"] {

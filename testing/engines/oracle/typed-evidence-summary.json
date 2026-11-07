@@ -1,0 +1,227 @@
+{
+  "card": "E-S5c",
+  "status": "partial",
+  "base": "51a4d05090d463fcf83a46309811ca17d073801b",
+  "product_commit": "bf3f75ca9",
+  "test_commit": "cea434718",
+  "binary": {
+    "path": "target/debug/oo-load",
+    "sha256": "10f3925f6802ac0b2f487d7c12c817920a43da203a11e5e00bda630501b30b31"
+  },
+  "versions": {
+    "23.5.0.24.07": {
+      "T1": "passed",
+      "T8": "passed",
+      "tables": 231,
+      "scale_events": 2000000,
+      "binary_sha256": "10f3925f6802ac0b2f487d7c12c817920a43da203a11e5e00bda630501b30b31",
+      "t1": {
+        "path": "evidence/e-s5c-t1-final23-20261105/oracle-23/t1-t8.json",
+        "sha256": "79f7707ed512ecdec536c81a3f1dd0f6cab47ce5c12757650a3f8d550ebd0056"
+      },
+      "orders_numeric_sql": {
+        "path": "evidence/e-s5c-t1-final23-20261105/oracle-23/compare-ORDERS.json",
+        "sha256": "5f449646c0fa5481a26223928c0bd7ec362ca41e9e93e39fb6e7c53794992d43"
+      },
+      "T2": "passed",
+      "C5": "passed",
+      "C1": "passed",
+      "cycles": [
+        {
+          "mode": "C5",
+          "cycle": 1
+        },
+        {
+          "mode": "C5",
+          "cycle": 2
+        },
+        {
+          "mode": "C5",
+          "cycle": 3
+        },
+        {
+          "mode": "C1",
+          "cycle": 1
+        },
+        {
+          "mode": "C1",
+          "cycle": 2
+        },
+        {
+          "mode": "C1",
+          "cycle": 3
+        }
+      ],
+      "t2": {
+        "path": "evidence/e-s5c-t2-20261105/oracle-23/t2.json",
+        "sha256": "e1a64d91e771707f844d63a640a886fca8a5b2da32ba675bc0d00a7cacc85eb0"
+      },
+      "cleanup": {
+        "path": "evidence/e-s5c-t1-final23-20261105/oracle-23/cleanup.json",
+        "sha256": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0"
+      }
+    },
+    "21.3.0.0.0": {
+      "T1": "passed",
+      "T8": "passed",
+      "tables": 231,
+      "scale_events": 2000000,
+      "binary_sha256": "10f3925f6802ac0b2f487d7c12c817920a43da203a11e5e00bda630501b30b31",
+      "t1": {
+        "path": "evidence/e-s5c-t1-utc-20261105/oracle-21/t1-t8.json",
+        "sha256": "41d4b67f6282cd9dfbb0cce74e2c467d02be16655b480f8d0c44921d4348f145"
+      },
+      "orders_numeric_sql": {
+        "path": "evidence/e-s5c-t1-utc-20261105/oracle-21/compare-ORDERS.json",
+        "sha256": "5f449646c0fa5481a26223928c0bd7ec362ca41e9e93e39fb6e7c53794992d43"
+      },
+      "T2": "passed",
+      "C5": "passed",
+      "C1": "not_run",
+      "cycles": [
+        {
+          "mode": "C5",
+          "cycle": 1
+        },
+        {
+          "mode": "C5",
+          "cycle": 2
+        },
+        {
+          "mode": "C5",
+          "cycle": 3
+        }
+      ],
+      "t2": {
+        "path": "evidence/e-s5c-t2-20261105/oracle-21/t2.json",
+        "sha256": "bdaecd1da3320d8951d4343545b153729d22b736ce690ea6fb79b902ff6a96ed"
+      },
+      "cleanup": {
+        "path": "evidence/e-s5c-t1-utc-20261105/oracle-21/cleanup.json",
+        "sha256": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0"
+      }
+    },
+    "11.2.0.2.0": {
+      "T1": "passed",
+      "T8": "passed",
+      "tables": 231,
+      "scale_events": 2000000,
+      "binary_sha256": "10f3925f6802ac0b2f487d7c12c817920a43da203a11e5e00bda630501b30b31",
+      "t1": {
+        "path": "evidence/e-s5c-t1-utc-20261105/oracle-11/t1-t8.json",
+        "sha256": "e3ef36fac207d14b36593fcb90521d0d9586cbb3527e0764483029349027555d"
+      },
+      "orders_numeric_sql": {
+        "path": "evidence/e-s5c-t1-utc-20261105/oracle-11/compare-ORDERS.json",
+        "sha256": "5f449646c0fa5481a26223928c0bd7ec362ca41e9e93e39fb6e7c53794992d43"
+      },
+      "T2": "passed",
+      "C5": "passed",
+      "C1": "not_run",
+      "cycles": [
+        {
+          "mode": "C5",
+          "cycle": 1
+        },
+        {
+          "mode": "C5",
+          "cycle": 2
+        },
+        {
+          "mode": "C5",
+          "cycle": 3
+        }
+      ],
+      "t2": {
+        "path": "evidence/e-s5c-t2-20261105/oracle-11/t2.json",
+        "sha256": "927b6a314ac55c3e70197554dac929b2f4a9b1bf15e69e0c7360baf628557add"
+      },
+      "cleanup": {
+        "path": "evidence/e-s5c-t1-utc-20261105/oracle-11/cleanup.json",
+        "sha256": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0"
+      }
+    }
+  },
+  "shared_patch": {
+    "path": "testing/engines/oracle/E-S5c-shared.patch",
+    "sha256": "2587117033be0d66d0bf00e071f1e48a051dcafd19f2b179f7ca58bfa5c8dcba"
+  },
+  "limitations": [
+    "Negative-scale Arrow is exact; shared PostgreSQL loader/COPY still rejects it; proposed patch unapplied and untested.",
+    "NUMBER declarations outside Arrow decimal128 precision/scale rules remain marked lossless DecimalUtf8.",
+    "S5-E-04 whole-plan T3/T4 not rerun; S5-G-01 whole-plan all-P0 real-model dialogue not run.",
+    "Gateway acceptance uses an owned fixture publisher, not reviewed Self-build.",
+    "Legacy ignored oracle_engine_real/oracle_undo_real sinks outside scope require the included patch."
+  ],
+  "containers_left": 0,
+  "cargo_lock_changed": false,
+  "gateway": {
+    "result": {
+      "path": "evidence/e-s5c-gateway-20261105/result.json",
+      "sha256": "07c4d4af07b143b8d3d0bf9acef60049a0b5a9fd1fd85c55b0e219e74582beff"
+    },
+    "status": "passed",
+    "source_gold": [
+      "7275",
+      "1.125",
+      "120.125"
+    ],
+    "target": [
+      "7275.000",
+      "1.125",
+      "120.125"
+    ],
+    "ordered_rows": 120,
+    "publisher": "owned fixture fence; not reviewed Self-build"
+  },
+  "checks": [
+    {
+      "path": "evidence/e-s5c-typed-20261105/check-release.log",
+      "sha256": "cf850a8861015c2cc8d5b47985f1b1bf438507f0b1d4f594dee79ee6b193ccfc"
+    },
+    {
+      "path": "evidence/e-s5c-typed-20261105/tests-release.log",
+      "sha256": "14af7209db430bf343bbfd20d63fd1119ba6e0e2437e0e3fbdfa2945f65e7a38"
+    },
+    {
+      "path": "evidence/e-s5c-typed-20261105/base-failure.log",
+      "sha256": "e81c023a5ae4fa531a2bc36f51953f3461f9b2fa5fcd92ca4a252fd6b6e4709a"
+    },
+    {
+      "path": "evidence/e-s5c-typed-20261105/python-typed-final.log",
+      "sha256": "a6707d4eff38012da33ddc34bc6dc076a3b17151cfc9aef223c8790cbe64c3da"
+    },
+    {
+      "path": "evidence/e-s5c-typed-20261105/python-hook-final.log",
+      "sha256": "edb4e2159c923ea45a32656078835cdf531c3d7b414c670dd786978875cb0678"
+    },
+    {
+      "path": "evidence/e-s5c-typed-20261105/python-audit-final.log",
+      "sha256": "3af354abd6afd2f4f662a367159a8b8107385935ded6c8a2b929734becedb43c"
+    },
+    {
+      "path": "evidence/e-s5c-typed-20261105/base-python-discovery.log",
+      "sha256": "690b70441e15797ce813b8f7a943e893c57c3485ecaaf4dd152cde752bae9185"
+    },
+    {
+      "path": "evidence/e-s5c-typed-20261105/check-spec.log",
+      "sha256": "341d87269554bd330947a8570481e4c360ca59bafd8bb2f5ee3a36eb444899f7"
+    },
+    {
+      "path": "evidence/e-s5c-typed-20261105/check-plan.log",
+      "sha256": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9"
+    },
+    {
+      "path": "evidence/e-s5c-typed-20261105/check-v02.log",
+      "sha256": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135"
+    },
+    {
+      "path": "evidence/e-s5c-typed-20261105/float-source-23.log",
+      "sha256": "31bd39d783324be11b1eb0b1984e2555048e2f1a5cd435a5c8815868f47b8495"
+    }
+  ],
+  "known_base_failures": [
+    "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes: group_signal rejected vs sent",
+    "Combined Python discovery: test_t1_hook import Audit collision; standalone scripts pass"
+  ]
+}

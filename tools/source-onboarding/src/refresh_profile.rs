@@ -638,6 +638,42 @@ mod tests {
     }
 
     #[test]
+    fn capture_pool_supports_every_allowed_width_and_rejects_others() {
+        use std::sync::Barrier;
+        for width in 1..=4 {
+            let barrier = Barrier::new(width);
+            let items = vec![Value::Null; width * 2];
+            let mut receipts = 0;
+            parallel_capture(
+                &items,
+                width,
+                &|_| {
+                    barrier.wait();
+                    Ok(Value::Null)
+                },
+                |_, _, outcome| {
+                    assert!(outcome.is_ok());
+                    receipts += 1;
+                    Ok(())
+                },
+            )
+            .unwrap();
+            assert_eq!(receipts, items.len());
+        }
+        for width in [0, 5] {
+            assert!(
+                parallel_capture(
+                    &[Value::Null],
+                    width,
+                    &|_| panic!("dispatched"),
+                    |_, _, _| { panic!("recorded") }
+                )
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
     fn capture_failure_drains_inflight_and_stops_new_dispatch() {
         let (tx, rx) = std::sync::mpsc::channel();
         let rx = std::sync::Mutex::new(rx);

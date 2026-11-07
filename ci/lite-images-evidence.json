@@ -1,0 +1,36 @@
+{
+  "plan": "S6-M-01",
+  "status": "partial",
+  "run_id": "m-s6-20261104",
+  "base_sha": "412c522c15bcf203ed927e3376d6c75b60a05a46",
+  "local_builds": {
+    "linux/amd64": "sha256:99d35344d44709cbb409dfca30bb398c97e2bdfb5e08c324a0f4b18f764a6f8c",
+    "linux/arm64": "sha256:e6d1839cb506ac6e98240568f73e1ae669380bccbf3e3f979e82a0f8c097d175"
+  },
+  "artifact_basis": "local dirty worktree builds, not a release or fixed-commit acceptance",
+  "attestations": "SPDX and SLSA provenance extracted on both architectures",
+  "ci_keyless_signing": "not_run",
+  "registry_push": false,
+  "local_signing": "ephemeral key; offline verify passed; modified manifest rejected",
+  "workspace_check": "passed",
+  "cli_stack_tests": "81 passed; 2 ignored (not run)",
+  "rustfmt_check": "passed",
+  "evidence_sha256": {
+    "bake.json": "fdb6c52aee49896281de5830604072a931e2c9154011fd7e37497c0468742de0",
+    "build-amd64.log": "220efb08466f581635709a010b45c0ca9def4a32b0ad48ec8216cb60cd3cfda1",
+    "build-arm64-final.log": "b5d5ebc69066c635882c5cdaf05f01a90d33b49c324002e9458b066e8d0b3849",
+    "amd64-build.json": "d8bf71ea2d3fd5caa18d645086e0772fadfde04897fa087e49fe9803c1ad6ebd",
+    "arm64-final-build.json": "52304f750b4f61076510ac62bd66c4f8ec3108c352684d162bce023a14294bfd",
+    "amd64-attestations.json": "8c65ca9610bf4f8e8ba9ca01a3a342305fcf8a66cb0702b2acfb2f00112b5714",
+    "arm64-attestations.json": "562ff1c37cdf565e7f801543e5591935a241ccbc4c9f76bda6074a72724a647a",
+    "amd64-sbom.json": "7da87a6fd2762f4ecc88b8f3305518a4e9a7fac2777810285c8b746c0dfd333c",
+    "arm64-sbom.json": "4df00501a9171e06ff4b74170be48bfae6e5be9669dcb7ef4754ea4a3b3141dd",
+    "amd64-provenance.json": "389e125074799bbfc2188e19338f7706d3a0f9da0f9a58bbb0160805e594eafb",
+    "arm64-provenance.json": "31d0ce87bb8459314664a566c271dbcf246b2155113277786b2bddd33c64ec2f",
+    "workflow-yaml.log": "a8c346505cf9decaeb1b92d129330f9dd948857593b8215de655c47ea545a5a9",
+    "signing-final/result.json": "636b70954f74c951f56f89abfdad828bc5097a26d8007a8b85eeb5e26e2439a2",
+    "cargo-check-precommit.log": "bd3d52d8206a27591215c369b66040ba8164728ff9cbca3ecc13617c97259091",
+    "cargo-tests-precommit.log": "48eeae9aaa4f42db68f7f5d80e68ddbeecbb4258fa0983cd5a994e2c1700bbf7",
+    "cargo-fmt-precommit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

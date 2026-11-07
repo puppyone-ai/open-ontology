@@ -19,6 +19,10 @@ use crate::render::{self, RenderError};
 pub fn run() -> u8 {
     let json = command_json_mode();
     match parse() {
+        Ok(Invocation::AdminReport(text, exit)) => {
+            let written = write_text(&text);
+            if written == 0 { exit } else { written }
+        }
         Err(failure) => emit(&failure, json),
         Ok(Invocation::Help(text)) => write_text(&text),
         Ok(Invocation::AgentSkill(json)) => {
@@ -177,6 +181,15 @@ fn execute(query: QueryArgs) -> u8 {
             );
         }
     };
+    if let Err(failure) = crate::lifecycle::preflight(
+        gateway,
+        query.ca_file.as_deref(),
+        query.connect_ip,
+        query.interface.as_deref(),
+        query.transport,
+    ) {
+        return outcome::emit_guarded(&failure, json, &token, &sql, gateway);
+    }
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -258,6 +271,15 @@ fn execute_public(conn: ConnArgs, call: PublicCall) -> u8 {
     };
     if !json {
         let _ = write_stderr(b"oo: calling gateway\n");
+    }
+    if let Err(failure) = crate::lifecycle::preflight(
+        &ready.gateway,
+        conn.ca_file.as_deref(),
+        conn.connect_ip,
+        conn.interface.as_deref(),
+        conn.transport,
+    ) {
+        return outcome::emit_guarded(&failure, json, &ready.token, "", &ready.gateway);
     }
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()

@@ -1,0 +1,353 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:oo:stack:v1",
+  "$comment": "Run oo_stack::validate after structural validation for URL, inline-secret, interval overflow and duplicate source-id checks.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "oo.stack/v1"
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "model": {
+      "$ref": "#/$defs/model"
+    },
+    "deploy": {
+      "$ref": "#/$defs/deploy"
+    },
+    "gateway": {
+      "$ref": "#/$defs/gateway"
+    }
+  },
+  "required": [
+    "version",
+    "sources",
+    "model"
+  ],
+  "$defs": {
+    "secret": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "secret_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+        }
+      },
+      "required": [
+        "secret_ref"
+      ]
+    },
+    "ssh": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "user": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "key": {
+          "$ref": "#/$defs/secret"
+        },
+        "host_key_sha256": {
+          "type": "string",
+          "pattern": "^SHA256:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]$"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 22
+        },
+        "password": {
+          "$ref": "#/$defs/secret"
+        }
+      },
+      "required": [
+        "host",
+        "user",
+        "host_key_sha256"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "key"
+          ],
+          "not": {
+            "required": [
+              "password"
+            ]
+          }
+        },
+        {
+          "required": [
+            "password"
+          ],
+          "not": {
+            "required": [
+              "key"
+            ]
+          }
+        }
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "default": [
+            "*"
+          ]
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "default": []
+        }
+      },
+      "required": []
+    },
+    "sync": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "auto",
+            "C1",
+            "C5"
+          ],
+          "default": "auto"
+        },
+        "interval": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*[smhd]$",
+          "default": "8h"
+        }
+      },
+      "required": []
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+        },
+        "engine": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9._-]+$",
+          "default": "auto"
+        },
+        "host": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "database": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "user": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "password": {
+          "$ref": "#/$defs/secret"
+        },
+        "tls_ca": {
+          "$ref": "#/$defs/secret"
+        },
+        "ssh": {
+          "$ref": "#/$defs/ssh"
+        },
+        "scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "sync": {
+          "$ref": "#/$defs/sync"
+        }
+      },
+      "required": [
+        "id",
+        "host",
+        "port",
+        "database",
+        "user",
+        "password"
+      ]
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "enum": [
+            "openai-compatible",
+            "anthropic"
+          ]
+        },
+        "base_url": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            {
+              "$ref": "#/$defs/secret"
+            }
+          ],
+          "description": "URL or owner-private secret_ref. Resolved URLs require HTTPS, or HTTP only on loopback; no credentials/query/fragment."
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "key": {
+          "$ref": "#/$defs/secret"
+        },
+        "context_window": {
+          "oneOf": [
+            {
+              "const": "auto"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 18446744073709551615
+            }
+          ],
+          "default": "auto"
+        }
+      },
+      "required": [
+        "provider",
+        "base_url",
+        "model",
+        "key"
+      ]
+    },
+    "deploy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "enum": [
+            "local",
+            "ssh"
+          ],
+          "default": "local"
+        },
+        "profile": {
+          "enum": [
+            "lite",
+            "standard"
+          ],
+          "default": "lite"
+        },
+        "ssh": {
+          "$ref": "#/$defs/deploy_ssh"
+        }
+      },
+      "required": []
+    },
+    "deploy_ssh": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 22
+        },
+        "user": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]{0,31}$"
+        },
+        "key": {
+          "$ref": "#/$defs/secret"
+        },
+        "password": {
+          "$ref": "#/$defs/secret"
+        },
+        "host_key_sha256": {
+          "type": "string",
+          "pattern": "^SHA256:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]$"
+        }
+      },
+      "required": [
+        "host",
+        "user",
+        "host_key_sha256"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "key"
+          ]
+        },
+        {
+          "required": [
+            "password"
+          ]
+        }
+      ]
+    },
+    "gateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "public_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "default": "auto"
+        }
+      },
+      "required": []
+    }
+  }
+}

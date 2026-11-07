@@ -1,0 +1,15 @@
+{
+  "images": [
+    {
+      "id": "db2-11.5.9.0",
+      "ref": "icr.io/db2_community/db2:11.5.9.0",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:652e99aef2898fe85fa76b61a9a0ac1b2466cc68a8e3e9ea9f089a3421f25272"
+        }
+      },
+      "product_version": "11.5.9.0"
+    }
+  ]
+}

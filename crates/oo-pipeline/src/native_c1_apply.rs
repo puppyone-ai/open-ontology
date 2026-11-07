@@ -336,6 +336,17 @@ fn numeric_text(
     scale: i8,
     coefficient: i128,
 ) -> Result<(), &'static str> {
+    if scale < 0 {
+        // Negative-scale sources load into numeric(p+s,0): only scale 0 typmods fit.
+        if typmod >= 4 && (typmod - 4) & 0xffff != 0 {
+            return Err("precision");
+        }
+        out.extend_from_slice(coefficient.to_string().as_bytes());
+        if coefficient != 0 {
+            out.extend(std::iter::repeat_n(b'0', (-i16::from(scale)) as usize));
+        }
+        return Ok(());
+    }
     let scale = usize::try_from(scale).map_err(|_| "precision")?;
     if typmod >= 4 && usize::try_from((typmod - 4) & 0xffff).ok() != Some(scale) {
         return Err("precision");

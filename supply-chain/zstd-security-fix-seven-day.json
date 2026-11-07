@@ -1,0 +1,21 @@
+{
+ "schema_version": 1,
+ "kind": "security-fix-seven-day",
+ "owner_name": "Redux0223",
+ "owner_role": "repository owner (explicit authorization in the owner session, 2026-11-07; plan D20)",
+ "reason": "mysql_common 0.37.3 binlog decoding (MySQL C1, plan D10) requires the zstd stack. The previous admissible releases zstd 0.13.3 / zstd-safe 7.2.4 carry RUSTSEC-2026-0391, -0395, -0398, -0403 and one more advisory found by cargo audit on 2026-11-07; zstd 0.13.4 / zstd-safe 7.4.0 are the fixed releases. The owner asked for the release now rather than after the floor clears at 2026-11-08T14:12Z.",
+ "packages": [
+  {"name": "zstd", "version": "0.13.4", "publication_date": "2026-11-01T14:12:07Z"},
+  {"name": "zstd-safe", "version": "7.4.0", "publication_date": "2026-11-01T14:11:59Z"}
+ ],
+ "adoption_date": "2026-11-07T17:00:00Z",
+ "age_days_at_adoption": 6,
+ "regression_evidence": {
+  "command": "cargo audit && cargo test --workspace --locked && python3 tools/oo-test/t2_p0.py (MySQL C1, ledger E402)",
+  "exit_code": 0,
+  "artifact": "execution/v0.2/evidence-index.json"
+ },
+ "waive": "",
+ "enforced_by": "crates/xtask/src/supply.rs AGE_FLOOR_WAIVERS (exact name, version and publication time)",
+ "expires": "2026-11-08T14:12:07Z; remove the code waiver after that instant"
+}

@@ -25,7 +25,10 @@ pub async fn post_loopback(
     max_response: usize,
 ) -> Result<HttpReply, PgBuilderError> {
     if !addr.ip().is_loopback() || path != "/v1/chat/completions" {
-        return Err(PgBuilderError::new("config.endpoint", "the origin is not the loopback builder endpoint"));
+        return Err(PgBuilderError::new(
+            "config.endpoint",
+            "the origin is not the loopback builder endpoint",
+        ));
     }
     let started = Instant::now();
     let exchange = timeout(deadline, exchange(addr, path, token, body, max_response)).await;
@@ -58,12 +61,20 @@ async fn exchange(
     max_response: usize,
 ) -> Result<HttpReply, &'static str> {
     let mut stream = TcpStream::connect(addr).await.map_err(|_| "unavailable")?;
+    let authorization = if token.is_empty() {
+        String::new()
+    } else {
+        format!("Authorization: Bearer {token}\r\n")
+    };
     let header = format!(
-        "POST {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: {len}\r\nAuthorization: Bearer {token}\r\nConnection: close\r\n\r\n",
+        "POST {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: {len}\r\n{authorization}Connection: close\r\n\r\n",
         port = addr.port(),
         len = body.len(),
     );
-    stream.write_all(header.as_bytes()).await.map_err(|_| "unavailable")?;
+    stream
+        .write_all(header.as_bytes())
+        .await
+        .map_err(|_| "unavailable")?;
     stream.write_all(body).await.map_err(|_| "unavailable")?;
     let mut collected = Vec::new();
     let mut chunk = [0u8; 8192];
@@ -115,9 +126,16 @@ fn split_response(bytes: &[u8], max_response: usize) -> Result<HttpReply, &'stat
             continue;
         };
         if name.eq_ignore_ascii_case("content-length") {
-            content_length = Some(value.trim().parse::<usize>().map_err(|_| "malformed_envelope")?);
+            content_length = Some(
+                value
+                    .trim()
+                    .parse::<usize>()
+                    .map_err(|_| "malformed_envelope")?,
+            );
         }
-        if name.eq_ignore_ascii_case("transfer-encoding") && value.to_ascii_lowercase().contains("chunked") {
+        if name.eq_ignore_ascii_case("transfer-encoding")
+            && value.to_ascii_lowercase().contains("chunked")
+        {
             chunked = true;
         }
         if name.eq_ignore_ascii_case("location") {
@@ -191,7 +209,10 @@ fn split_response(bytes: &[u8], max_response: usize) -> Result<HttpReply, &'stat
 fn decode_chunked(mut rest: &[u8], max_response: usize) -> Result<Vec<u8>, &'static str> {
     let mut out = Vec::new();
     loop {
-        let line_end = rest.windows(2).position(|window| window == b"\r\n").ok_or("partial")?;
+        let line_end = rest
+            .windows(2)
+            .position(|window| window == b"\r\n")
+            .ok_or("partial")?;
         let line = std::str::from_utf8(&rest[..line_end]).map_err(|_| "malformed_envelope")?;
         let size_hex = line.split(';').next().unwrap_or("").trim();
         if size_hex.is_empty() {
@@ -214,5 +235,56 @@ fn decode_chunked(mut rest: &[u8], max_response: usize) -> Result<Vec<u8>, &'sta
             return Err("malformed_envelope");
         }
         rest = &rest[data_end + 2..];
+    }
+}
+
+#[cfg(test)]
+mod egress_tests {
+    use super::*;
+    use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn no_bearer_mode_sends_no_authorization_header() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("address");
+        let peer = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut bytes = Vec::new();
+            let mut buf = [0; 1024];
+            while !bytes.windows(4).any(|b| b == b"\r\n\r\n") {
+                let n = socket.read(&mut buf).await.expect("read");
+                assert!(n > 0);
+                bytes.extend_from_slice(&buf[..n]);
+            }
+            assert!(!String::from_utf8_lossy(&bytes).contains("Authorization:"));
+            socket
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}")
+                .await
+                .expect("reply");
+        });
+        let reply = post_loopback(
+            addr,
+            "/v1/chat/completions",
+            "",
+            b"{}",
+            Duration::from_secs(2),
+            4096,
+        )
+        .await
+        .expect("call");
+        peer.await.expect("peer");
+        assert_eq!(reply.http_status, 200);
+        assert!(
+            post_loopback(
+                "192.0.2.1:80".parse().expect("address"),
+                "/v1/chat/completions",
+                "",
+                b"{}",
+                Duration::from_secs(1),
+                4096
+            )
+            .await
+            .is_err()
+        );
     }
 }

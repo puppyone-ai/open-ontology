@@ -17,6 +17,8 @@ import tomllib
 
 TARGETS = (
     "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
     "x86_64-unknown-linux-gnu",
 )
 NOTICE_NAME = re.compile(r"^(?:licen[cs]e|copying|notice|copyright)", re.I)
@@ -124,7 +126,8 @@ def load_supplements(directory=None):
         for entry in data["supplements"]:
             required = ("name", "version", "repository", "vcs_commit", "path_in_vcs",
                         "license", "file", "upstream_path", "upstream_url", "sha256")
-            if any(not isinstance(entry.get(key), str) or not entry[key] for key in required):
+            if any(not isinstance(entry.get(key), str) or (not entry[key] and key != "path_in_vcs")
+                   for key in required):
                 raise ValueError()
             if (entry.get("source") != "crates.io"
                     or not re.fullmatch(r"[A-Za-z0-9_-]+", entry["name"])
@@ -133,24 +136,43 @@ def load_supplements(directory=None):
                                         entry["repository"])
                     or not re.fullmatch(r"[a-f0-9]{40}", entry["vcs_commit"])
                     or not re.fullmatch(r"[a-f0-9]{64}", entry["sha256"])
-                    or not re.fullmatch(r"[A-Za-z0-9_-][A-Za-z0-9_.-]*", entry["file"])
                     or public_text(entry["license"]) != entry["license"]):
                 raise ValueError()
-            for key in ("path_in_vcs", "upstream_path"):
+            for key in ("path_in_vcs",):
+                if not entry[key]:
+                    continue
                 path = PurePosixPath(entry[key])
                 if (path.is_absolute() or ".." in path.parts or path.as_posix() != entry[key]
                         or not re.fullmatch(r"[A-Za-z0-9_./-]+", entry[key])):
                     raise ValueError()
             prefix = (entry["repository"].replace("https://github.com/", "https://raw.githubusercontent.com/")
                       + "/" + entry["vcs_commit"] + "/")
-            if entry["upstream_url"] != prefix + entry["upstream_path"]:
+            additional = entry.get("additional_files", [])
+            if not isinstance(additional, list):
                 raise ValueError()
+            seen = set()
+            for notice in [entry, *additional]:
+                for key in ("file", "upstream_path"):
+                    path = PurePosixPath(notice[key])
+                    if (path.is_absolute() or ".." in path.parts or path.as_posix() != notice[key]
+                            or not re.fullmatch(r"[A-Za-z0-9_-][A-Za-z0-9_./-]*", notice[key])):
+                        raise ValueError()
+                if (notice["file"] in seen
+                        or not re.fullmatch(r"[a-f0-9]{64}", notice["sha256"])
+                        or notice["upstream_url"] != prefix + notice["upstream_path"]):
+                    raise ValueError()
+                seen.add(notice["file"])
             provenance = entry["provenance"]
             expected = {"crate_manifest_url", "crate_manifest_sha256", "registry_vcs_info_sha256"}
+            if "vcs_dirty" in entry:
+                if entry["vcs_dirty"] is not True:
+                    raise ValueError()
+                expected.add("registry_manifest_sha256")
             if "workspace_manifest_url" in provenance or "workspace_manifest_sha256" in provenance:
                 expected.update({"workspace_manifest_url", "workspace_manifest_sha256"})
             if (set(provenance) != expected
-                    or provenance["crate_manifest_url"] != prefix + entry["path_in_vcs"] + "/Cargo.toml"
+                    or provenance["crate_manifest_url"] != prefix + (
+                        entry["path_in_vcs"] + "/" if entry["path_in_vcs"] else "") + "Cargo.toml"
                     or ("workspace_manifest_url" in provenance and provenance["workspace_manifest_url"] != prefix + "Cargo.toml")
                     or any(not isinstance(value, str) or not re.fullmatch(r"[a-f0-9]{64}", value)
                            for key, value in provenance.items() if key.endswith("_sha256"))):
@@ -176,24 +198,32 @@ def supplemental_notices(package, root, members, supplements):
     try:
         vcs_raw = (root / ".cargo_vcs_info.json").read_bytes()
         vcs = json.loads(vcs_raw)
-        if (vcs["git"]["sha1"] != entry["vcs_commit"] or vcs["git"].get("dirty", False) is not False
+        if (vcs["git"]["sha1"] != entry["vcs_commit"]
+                or vcs["git"].get("dirty", False) is not entry.get("vcs_dirty", False)
                 or vcs["path_in_vcs"] != entry["path_in_vcs"]
                 or sha256(vcs_raw) != entry["provenance"]["registry_vcs_info_sha256"]):
             return [], "", ["license_supplement_vcs_mismatch"]
+        # A published dirty VCS record also pins the packaged manifest, never a blanket bypass.
+        if entry.get("vcs_dirty") and sha256((root / "Cargo.toml.orig").read_bytes()) != entry["provenance"]["registry_manifest_sha256"]:
+            return [], "", ["license_supplement_package_mismatch"]
     except (OSError, ValueError, KeyError, TypeError):
         return [], "", ["license_supplement_vcs_unavailable"]
-    files, body, gaps = read_notices([
-        ("supplements/" + entry["file"], directory / entry["file"], directory)])
-    if not files:
-        return [], "", gaps or ["license_supplement_text_missing"]
-    if files[0]["sha256"] != entry["sha256"]:
-        return [], "", ["license_supplement_digest_mismatch"]
-    files[0]["provenance"] = {
-        "kind": "pinned_upstream_supplement", "repository": entry["repository"],
-        "vcs_commit": entry["vcs_commit"], "path_in_vcs": entry["path_in_vcs"],
-        "upstream_url": entry["upstream_url"], **entry["provenance"],
-    }
-    return files, f"Pinned upstream: {entry['upstream_url']}\nVCS commit: {entry['vcs_commit']}\n{body}", gaps
+    files, sections = [], []
+    for notice in [entry, *entry.get("additional_files", [])]:
+        found, body, gaps = read_notices([
+            ("supplements/" + notice["file"], directory / notice["file"], directory)])
+        if not found or gaps:
+            return [], "", gaps or ["license_supplement_text_missing"]
+        if found[0]["sha256"] != notice["sha256"]:
+            return [], "", ["license_supplement_digest_mismatch"]
+        found[0]["provenance"] = {
+            "kind": "pinned_upstream_supplement", "repository": entry["repository"],
+            "vcs_commit": entry["vcs_commit"], "path_in_vcs": entry["path_in_vcs"],
+            "upstream_url": notice["upstream_url"], **entry["provenance"],
+        }
+        files.extend(found)
+        sections.append(f"Pinned upstream: {notice['upstream_url']}\nVCS commit: {entry['vcs_commit']}\n{body}")
+    return files, "\n".join(sections), []
 
 
 def package_inventory(package, targets, workspace, members, supplements=None):
@@ -262,8 +292,15 @@ def toolchain_inventory(targets):
 
 def outside_git(path):
     resolved = path.expanduser().resolve()
-    if any((parent / ".git").exists() for parent in (resolved, *resolved.parents)):
-        raise RuntimeError("Output must be outside Git repositories")
+    for parent in (resolved, *resolved.parents):
+        if (parent / ".git").exists():
+            top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=parent,
+                                 capture_output=True, text=True)
+            if (top.returncode or top.stdout.strip() != str(parent)
+                    or subprocess.run(["git", "check-ignore", "--quiet", str(resolved)], cwd=parent,
+                                      capture_output=True).returncode):
+                raise RuntimeError("Output must be outside Git repositories or git-ignored")
+            break
     if resolved.exists():
         raise RuntimeError("Output directory must not already exist")
     return resolved

@@ -3807,9 +3807,22 @@ async fn quality_library_cut(
     }) {
         return Err(crate::publication_binding::drift());
     }
-    crate::publication_binding::library_cut(tx, catalog)
-        .await
-        .map(Some)
+    let mut cut = crate::publication_binding::library_cut(tx, catalog).await?;
+    if cut["shards"].as_array().is_some_and(|shards| {
+        shards
+            .iter()
+            .any(|s| s["receipt"]["consistency"] == "retained_generation")
+    }) {
+        let sha = catalog["receipt_sha256"]
+            .as_str()
+            .ok_or_else(crate::publication_binding::drift)?;
+        let row = tx.query_one(
+            "SELECT to_char(published_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')
+             FROM _oo.native_library_publication WHERE receipt_sha256=$1", &[&sha],
+        ).await.map_err(|_| crate::publication_binding::drift())?;
+        cut["_retained_applied_at"] = serde_json::json!(row.get::<_, String>(0));
+    }
+    Ok(Some(cut))
 }
 
 fn quality_probe_tables<'a>(
@@ -3817,12 +3830,7 @@ fn quality_probe_tables<'a>(
     tables: &'a [QualityTable],
     cut: Option<&serde_json::Value>,
 ) -> Result<std::borrow::Cow<'a, [QualityTable]>, StopKind> {
-    let Some(cut) = cut.filter(|_| {
-        matches!(
-            name,
-            "table_freshness" | "source_watermark" | "table_quality"
-        )
-    }) else {
+    let Some(cut) = cut else {
         return Ok(std::borrow::Cow::Borrowed(tables));
     };
     let mut scoped = Vec::new();
@@ -3834,7 +3842,13 @@ fn quality_probe_tables<'a>(
             &table.name,
         )
         .map_err(StopKind::synced)?;
-        if receipt["consistency"] == "per_table" {
+        if (receipt["consistency"] == "retained_generation" && name != "physical_mappings")
+            || (receipt["consistency"] == "per_table"
+                && matches!(
+                    name,
+                    "table_freshness" | "source_watermark" | "table_quality"
+                ))
+        {
             continue;
         }
         scoped.push(table.clone());
@@ -3869,25 +3883,30 @@ fn project_library_cut(
                 ready: true,
             });
         }
-        if receipt["consistency"] != "per_table" {
+        let retained = receipt["consistency"] == "retained_generation";
+        if receipt["consistency"] != "per_table" && !retained {
             continue;
         }
         // This is an immutable target apply time. Never manufacture source time
         // or copy the pending generation's freshness/quality/watermark.
-        let applied_at = snapshot
-            .receipts
-            .iter()
-            .filter(|r| {
-                r.source == source
-                    && r.schema == table.schema
-                    && r.table == table.name
-                    && Some(r.run_generation) == entry["source_generation"].as_i64()
-                    && !r.partial_txn
-            })
-            .map(|r| &r.target_commit_at)
-            .max()
-            .cloned()
-            .ok_or_else(drift)?;
+        let applied_at = if retained {
+            text(cut, "_retained_applied_at")?
+        } else {
+            snapshot
+                .receipts
+                .iter()
+                .filter(|r| {
+                    r.source == source
+                        && r.schema == table.schema
+                        && r.table == table.name
+                        && Some(r.run_generation) == entry["source_generation"].as_i64()
+                        && !r.partial_txn
+                })
+                .map(|r| &r.target_commit_at)
+                .max()
+                .cloned()
+                .ok_or_else(drift)?
+        };
         snapshot.freshness.push(FreshnessObserved {
             schema: table.schema.clone(),
             table: table.name.clone(),
@@ -3911,7 +3930,11 @@ fn project_library_cut(
         if !snapshot.watermarks.iter().any(|w| w.source == source) {
             snapshot.watermarks.push(WatermarkObserved {
                 source: source.into(),
-                consistency: text(receipt, "consistency")?,
+                consistency: if retained {
+                    "per_table".into()
+                } else {
+                    text(receipt, "consistency")?
+                },
                 consistency_grade: text(receipt, "consistency_grade")?,
                 cross_table_consistent: receipt["cross_table_consistent"]
                     .as_bool()

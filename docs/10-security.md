@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering（安全负责人需在 M0 指定）
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-11-06
 > 依赖：[01](01-architecture.md)、[05](05-agent-db.md)、[07](07-gateway.md)、[09](09-sandbox-and-agent-runtime.md)
 
 ## 1. 安全目标
@@ -103,7 +103,7 @@ OO 的 Agent 天然具备（a）和（b）——业务数据里的备注、上�
 | 模型 Key | Secret Store | 出口代理 | 按提供方策略 |
 | Gateway mTLS 证书 | 内置 CA（或企业 CA） | 代理 ↔ Gateway、入口 ↔ Gateway | 30 天，自动 |
 | 会话 token | Gateway 存哈希 | 代理 | 随会话 |
-| 外部客户端 token | Gateway 存哈希 | 外部客户端 | ≤ 90 天，可随时吊销 |
+| 外部客户端 token | Gateway 存哈希 | 外部客户端 | 默认 90 天；项目策略可把最大寿命放宽到 365 天（[07 §3.4](07-gateway.md)）；可随时吊销 |
 
 - 日志、审计、会话记录、错误信息都经过凭证模式脱敏（高熵字符串、已知前缀 `oost_`/`ooct_`、`sk-` 等）。
 - Secret Store 后端可插拔：内置、OpenBao、Vault（注意其 BSL 许可证对“竞争性托管服务”的限制）、云 KMS、Infisical。

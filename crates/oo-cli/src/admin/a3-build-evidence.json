@@ -1,0 +1,98 @@
+{
+  "todo": "S4-A-02",
+  "status": "partial",
+  "base": "29a1662cb",
+  "implemented": [
+    "hash-only issuance retry ledger and authenticated issue API",
+    "durable first-token request and receipt",
+    "production clock sampled after project lock"
+  ],
+  "commands": {
+    "workspace": "cargo check --workspace --locked",
+    "cli": "cargo test --locked -p oo-cli",
+    "gateway": "cargo test --locked -p oo-gateway",
+    "owned_mtls": "python3 tools/gateway-token-store/test_issue_retry.py --run-id a3-s4-token-mtls-kill-2 --cli",
+    "legacy_lifecycle": "python3 crates/oo-gateway/tests/token_owned_pg.py evidence/a3-s4-token-regression"
+  },
+  "engine": "PostgreSQL 17.11 native macOS arm64",
+  "live_gateway": "mTLS token lifecycle only; no published query",
+  "kill_boundaries": {
+    "synthetic_remote": [
+      "request_reserved",
+      "remote_committed",
+      "receipt_persisted"
+    ],
+    "real_gateway": [
+      "remote_committed_before_local_receipt"
+    ]
+  },
+  "live_credentials_after_retry": 1,
+  "source_builds": {
+    "postgres_17_11": "not_run",
+    "mysql_8_4_7": "not_run",
+    "oracle_23_5": "not_run"
+  },
+  "publisher_probe": {
+    "run_id": "a3-s4-publisher-contract",
+    "legacy_control": "accepted",
+    "retained_contract_fields_rejected": [
+      "consistency",
+      "protocol",
+      "non_uuid_generation"
+    ],
+    "scope": "actual release-coordinator library; synthetic contract mutations; no database"
+  },
+  "incomplete": [
+    "reviewed-fence publisher adapter",
+    "oo-load activation from build",
+    "Gateway start/reload from build",
+    "replay-safe enrollment/share-prompt",
+    "printed prompt and CLI login/whoami/query",
+    "three-engine full build"
+  ],
+  "failures_preserved": [
+    "a3-s4-token-mtls-kill-1: injected race clock could precede winning issuance; production clock moved after lock and concurrency test now uses real clock",
+    "a3-s4-preflight/cli-tests.log: test unwrap required Debug; fixed without changing product failure type"
+  ],
+  "standalone_store_baseline": {
+    "passed": 8,
+    "failed": 10,
+    "reason": "absent historical live fixture",
+    "base_reproduction": "git archive 29a1662cb tools/gateway-token-store; cargo test --manifest-path ARCHIVE/tools/gateway-token-store/Cargo.toml --locked",
+    "tests": [
+      "live::cache_bounds_revocation_and_fails_closed_when_the_database_is_down",
+      "live::concurrent_issue_and_revoke_cannot_resurrect",
+      "live::forged_claims_and_role_merge_never_issue",
+      "live::injected_expiry_does_not_certify_the_production_clock",
+      "live::install_replay_and_drift_fail_closed",
+      "live::issue_stores_the_hash_only_and_samples_randomness",
+      "live::production_issue_reads_the_system_clock",
+      "live::revoke_scopes_are_idempotent_and_do_not_resurrect",
+      "live::runtime_grants_and_wrong_callers_are_refused",
+      "live::stale_audience_role_claims_and_binding_are_refused"
+    ]
+  },
+  "raw_log_secret_scan": "passed",
+  "cargo_lock_changed": false,
+  "containers_created": 0,
+  "containers_left": 0,
+  "sha256": {
+    "a3-s4-preflight/check-final.log": "fd3e2cecb5cf5c10ec853dfcc9e58dceee103f5a6916c3826102f4f95af0592e",
+    "a3-s4-preflight/cli-final.log": "b261d4798206e871befff3eb0b712cdce75e94737bcd7477adf1b73dad258404",
+    "a3-s4-preflight/gateway-final.log": "20bf8e6866b906b9ca84ea307a95a8a27bd1c6b9bd1ad64d3cb4f92992b5267e",
+    "a3-s4-preflight/store-tests.log": "c28ef71599c999aaff565b6e824a8b1f6a9a981bc6e260c254e9d661e50850ae",
+    "a3-s4-preflight/store-base-tests.log": "7a83656d50bceab61c8b7b7f54b8e7c2ad0a0f68a684ae275dba8c1a8e853e6f",
+    "a3-s4-token-mtls-kill-2/result.json": "4336c9cf0fa6ff8aed7fb0167980f49e388fa8c4d33575908325796316452877",
+    "a3-s4-token-mtls-kill-2/test.log": "f737fc684121073d4512951882312bdf25cba715576f11ae53922f418880b585",
+    "a3-s4-token-mtls-kill-2/cli.log": "f455b71759d471f40ed84e7e2cfdc8af40c855f443d839fbaefda015f376de6a",
+    "a3-s4-token-mtls-kill-2/gateway.log": "ad853016e8dd8a4ca3356f0841fdcb5fe52efbbe84a25ce46ff88ac76312d669",
+    "a3-s4-token-regression/real-pg.log": "f927c188e02a687f2f200803fc5fb5dc89c3d03715606c0298359f998308ab0d",
+    "a3-s4-token-regression/meta-pg.log": "27a58aab2ce260b805b549c9c2c431a3e93207c78730fff55fd199f68ced729a",
+    "a3-s4-publisher-contract/probe-2.log": "0355642ffe91951c82ed38fd5b099f349df19298283ffd00892413dfec506702",
+    "a3-s4-preflight/spec-check.log": "341d87269554bd330947a8570481e4c360ca59bafd8bb2f5ee3a36eb444899f7",
+    "a3-s4-preflight/plan-check.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+    "a3-s4-preflight/v02-check.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135",
+    "a3-s4-preflight/check-cli-commit.log": "b2c020f27a01faabb96e5d55c11fd219cf7c484c9cf34b3342bfc8444d934c89"
+  },
+  "documentation_checks": "check_spec.py, check_plan.py, check_v02_plan.py passed"
+}

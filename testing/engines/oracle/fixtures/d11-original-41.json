@@ -1,0 +1,252 @@
+{
+  "source_run": "e-s2-accept23-20261104",
+  "note": "Original records lack depth and owner; classification must fail closed until correlated with trace.",
+  "records": [
+    {
+      "action": "ALTER SESSION",
+      "object": null,
+      "return_code": 0,
+      "sql": "ALTER SESSION SET TIME_ZONE='+08:00'\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_TAB_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_TAB_INCLUDE$ T WHERE (T.SCHEMA_NAME = :B3 AND T.TABLE_NAME = :B2 AND T.PDB_NAME = :B4 ) OR (T.PDB_NAME = :B4 AND :B3 = :B1 AND :B2 = :B1 ) OR (:B4 = :B1 AND :B3 = :B1 AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "SELECT",
+      "object": "LOGMNR_GT_TAB_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_TAB_INCLUDE$ T WHERE (T.SCHEMA_NAME = :B3 AND T.TABLE_NAME = :B2 AND T.PDB_NAME = :B4 ) OR (T.PDB_NAME = :B4 AND :B3 = :B1 AND :B2 = :B1 ) OR (:B4 = :B1 AND :B3 = :B1 AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_USER_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_USER_INCLUDE$ U WHERE (U.USER_NAME = :B4 AND U.USER_TYPE = :B3 AND U.PDB_NAME = :B2 ) OR (U.PDB_NAME = :B2 AND :B4 = :B1 AND :B3 IS NULL) OR (:B4 = :B1 AND :B3 IS NULL AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "SELECT",
+      "object": "LOGMNR_GT_USER_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_USER_INCLUDE$ U WHERE (U.USER_NAME = :B4 AND U.USER_TYPE = :B3 AND U.PDB_NAME = :B2 ) OR (U.PDB_NAME = :B2 AND :B4 = :B1 AND :B3 IS NULL) OR (:B4 = :B1 AND :B3 IS NULL AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_XID_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_XID_INCLUDE$\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_TAB_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_TAB_INCLUDE$ T WHERE (T.SCHEMA_NAME = :B3 AND T.TABLE_NAME = :B2 AND T.PDB_NAME = :B4 ) OR (T.PDB_NAME = :B4 AND :B3 = :B1 AND :B2 = :B1 ) OR (:B4 = :B1 AND :B3 = :B1 AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "SELECT",
+      "object": "LOGMNR_GT_TAB_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_TAB_INCLUDE$ T WHERE (T.SCHEMA_NAME = :B3 AND T.TABLE_NAME = :B2 AND T.PDB_NAME = :B4 ) OR (T.PDB_NAME = :B4 AND :B3 = :B1 AND :B2 = :B1 ) OR (:B4 = :B1 AND :B3 = :B1 AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_USER_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_USER_INCLUDE$ U WHERE (U.USER_NAME = :B4 AND U.USER_TYPE = :B3 AND U.PDB_NAME = :B2 ) OR (U.PDB_NAME = :B2 AND :B4 = :B1 AND :B3 IS NULL) OR (:B4 = :B1 AND :B3 IS NULL AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "SELECT",
+      "object": "LOGMNR_GT_USER_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_USER_INCLUDE$ U WHERE (U.USER_NAME = :B4 AND U.USER_TYPE = :B3 AND U.PDB_NAME = :B2 ) OR (U.PDB_NAME = :B2 AND :B4 = :B1 AND :B3 IS NULL) OR (:B4 = :B1 AND :B3 IS NULL AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_XID_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_XID_INCLUDE$\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_TAB_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_TAB_INCLUDE$ T WHERE (T.SCHEMA_NAME = :B3 AND T.TABLE_NAME = :B2 AND T.PDB_NAME = :B4 ) OR (T.PDB_NAME = :B4 AND :B3 = :B1 AND :B2 = :B1 ) OR (:B4 = :B1 AND :B3 = :B1 AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "SELECT",
+      "object": "LOGMNR_GT_TAB_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_TAB_INCLUDE$ T WHERE (T.SCHEMA_NAME = :B3 AND T.TABLE_NAME = :B2 AND T.PDB_NAME = :B4 ) OR (T.PDB_NAME = :B4 AND :B3 = :B1 AND :B2 = :B1 ) OR (:B4 = :B1 AND :B3 = :B1 AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_USER_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_USER_INCLUDE$ U WHERE (U.USER_NAME = :B4 AND U.USER_TYPE = :B3 AND U.PDB_NAME = :B2 ) OR (U.PDB_NAME = :B2 AND :B4 = :B1 AND :B3 IS NULL) OR (:B4 = :B1 AND :B3 IS NULL AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "SELECT",
+      "object": "LOGMNR_GT_USER_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_USER_INCLUDE$ U WHERE (U.USER_NAME = :B4 AND U.USER_TYPE = :B3 AND U.PDB_NAME = :B2 ) OR (U.PDB_NAME = :B2 AND :B4 = :B1 AND :B3 IS NULL) OR (:B4 = :B1 AND :B3 IS NULL AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_XID_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_XID_INCLUDE$\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_TAB_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_TAB_INCLUDE$ T WHERE (T.SCHEMA_NAME = :B3 AND T.TABLE_NAME = :B2 AND T.PDB_NAME = :B4 ) OR (T.PDB_NAME = :B4 AND :B3 = :B1 AND :B2 = :B1 ) OR (:B4 = :B1 AND :B3 = :B1 AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "SELECT",
+      "object": "LOGMNR_GT_TAB_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_TAB_INCLUDE$ T WHERE (T.SCHEMA_NAME = :B3 AND T.TABLE_NAME = :B2 AND T.PDB_NAME = :B4 ) OR (T.PDB_NAME = :B4 AND :B3 = :B1 AND :B2 = :B1 ) OR (:B4 = :B1 AND :B3 = :B1 AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_USER_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_USER_INCLUDE$ U WHERE (U.USER_NAME = :B4 AND U.USER_TYPE = :B3 AND U.PDB_NAME = :B2 ) OR (U.PDB_NAME = :B2 AND :B4 = :B1 AND :B3 IS NULL) OR (:B4 = :B1 AND :B3 IS NULL AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "SELECT",
+      "object": "LOGMNR_GT_USER_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_USER_INCLUDE$ U WHERE (U.USER_NAME = :B4 AND U.USER_TYPE = :B3 AND U.PDB_NAME = :B2 ) OR (U.PDB_NAME = :B2 AND :B4 = :B1 AND :B3 IS NULL) OR (:B4 = :B1 AND :B3 IS NULL AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_XID_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_XID_INCLUDE$\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_TAB_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_TAB_INCLUDE$ T WHERE (T.SCHEMA_NAME = :B3 AND T.TABLE_NAME = :B2 AND T.PDB_NAME = :B4 ) OR (T.PDB_NAME = :B4 AND :B3 = :B1 AND :B2 = :B1 ) OR (:B4 = :B1 AND :B3 = :B1 AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "SELECT",
+      "object": "LOGMNR_GT_TAB_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_TAB_INCLUDE$ T WHERE (T.SCHEMA_NAME = :B3 AND T.TABLE_NAME = :B2 AND T.PDB_NAME = :B4 ) OR (T.PDB_NAME = :B4 AND :B3 = :B1 AND :B2 = :B1 ) OR (:B4 = :B1 AND :B3 = :B1 AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_USER_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_USER_INCLUDE$ U WHERE (U.USER_NAME = :B4 AND U.USER_TYPE = :B3 AND U.PDB_NAME = :B2 ) OR (U.PDB_NAME = :B2 AND :B4 = :B1 AND :B3 IS NULL) OR (:B4 = :B1 AND :B3 IS NULL AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "SELECT",
+      "object": "LOGMNR_GT_USER_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_USER_INCLUDE$ U WHERE (U.USER_NAME = :B4 AND U.USER_TYPE = :B3 AND U.PDB_NAME = :B2 ) OR (U.PDB_NAME = :B2 AND :B4 = :B1 AND :B3 IS NULL) OR (:B4 = :B1 AND :B3 IS NULL AND :B2 = :B1 )\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    },
+    {
+      "action": "DELETE",
+      "object": "LOGMNR_GT_XID_INCLUDE$",
+      "return_code": 0,
+      "sql": "DELETE FROM SYS.LOGMNR_GT_XID_INCLUDE$\u0000"
+    },
+    {
+      "action": "COMMIT",
+      "object": null,
+      "return_code": 0,
+      "sql": "COMMIT\u0000"
+    }
+  ]
+}

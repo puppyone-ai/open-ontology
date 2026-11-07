@@ -1,0 +1,118 @@
+name: lite-images
+
+# Publication is CI-only, manual and protected by the lite-release environment.
+# This is not the S5/S6 acceptance gate or a release promotion.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lite-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/v0.2/product-loops'
+    environment: lite-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.22.0
+          driver-opts: image=moby/buildkit@sha256:c457984bd29f04d6acc90c8d9e717afe3922ae14665f3187e0096976fe37b1c8
+      - name: Build native image with SBOM and provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          repository="ghcr.io/${GITHUB_REPOSITORY,,}/lite"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          export IMAGE="$repository:sha-$GITHUB_SHA-$ARCH"
+          docker buildx bake -f deploy/lite/docker-bake.hcl \
+            --set "runtime.platform=linux/$ARCH" --push \
+            --metadata-file "$RUNNER_TEMP/build.json"
+          python3 - "$RUNNER_TEMP/build.json" "$RUNNER_TEMP/digest-$ARCH" <<'PY'
+          import json, pathlib, re, sys
+          digest = json.load(open(sys.argv[1]))["runtime"]["containerimage.digest"]
+          assert re.fullmatch(r"sha256:[0-9a-f]{64}", digest)
+          pathlib.Path(sys.argv[2]).write_text(digest)
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: lite-digest-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/digest-${{ matrix.arch }}
+            ${{ runner.temp }}/build.json
+          if-no-files-found: error
+      - name: Logout
+        if: always()
+        run: docker logout ghcr.io
+  sign:
+    needs: build
+    environment: lite-release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+      id-token: write
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.22.0
+          driver-opts: image=moby/buildkit@sha256:c457984bd29f04d6acc90c8d9e717afe3922ae14665f3187e0096976fe37b1c8
+      - name: Merge exact digests and sign keylessly
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repository="ghcr.io/${GITHUB_REPOSITORY,,}/lite"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          gh run download "$GITHUB_RUN_ID" --pattern 'lite-digest-*' --dir "$RUNNER_TEMP/digests"
+          amd64=$(cat "$RUNNER_TEMP/digests/lite-digest-amd64/digest-amd64")
+          arm64=$(cat "$RUNNER_TEMP/digests/lite-digest-arm64/digest-arm64")
+          [[ "$amd64" =~ ^sha256:[0-9a-f]{64}$ && "$arm64" =~ ^sha256:[0-9a-f]{64}$ ]]
+          docker buildx imagetools create -t "$repository:sha-$GITHUB_SHA" \
+            "$repository@$amd64" "$repository@$arm64"
+          digest=$(docker buildx imagetools inspect "$repository:sha-$GITHUB_SHA" --format '{{json .Manifest}}' |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["digest"])')
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          bash ci/lite-cosign.sh "$RUNNER_TEMP"
+          identity="https://github.com/$GITHUB_WORKFLOW_REF"
+          for value in "$amd64" "$arm64" "$digest"; do
+            "$RUNNER_TEMP/cosign" sign --yes "$repository@$value"
+            "$RUNNER_TEMP/cosign" verify "$repository@$value" \
+              --certificate-identity "$identity" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          done
+          printf '%s@%s\n' "$repository" "$digest" > "$RUNNER_TEMP/signed-image.txt"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: lite-signed-index
+          path: ${{ runner.temp }}/signed-image.txt
+          if-no-files-found: error
+      - name: Logout
+        if: always()
+        run: docker logout ghcr.io

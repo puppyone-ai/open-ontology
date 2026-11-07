@@ -1,0 +1,29 @@
+{
+  "8.0.44": {
+    "id": "mysql-8.0.44",
+    "ref": "docker.io/library/mysql:8.0.44",
+    "platforms": {
+      "linux/arm64": {
+        "digest": "sha256:9c3380eac945af0736031b200027f581925927c81e010056214a4bd6b6693714"
+      }
+    }
+  },
+  "8.4.7": {
+    "id": "mysql-8.4.7",
+    "ref": "docker.io/library/mysql:8.4.7",
+    "platforms": {
+      "linux/arm64": {
+        "digest": "sha256:0426ec38c7a10aa45ba383887df7878f74ee70e2fd589c7b69207f3577901903"
+      }
+    }
+  },
+  "9.5.0": {
+    "id": "mysql-9.5.0",
+    "ref": "docker.io/library/mysql:9.5.0",
+    "platforms": {
+      "linux/arm64": {
+        "digest": "sha256:57c892ddeb17e6c7dddf219914db017b2cf3e2797806a75424444b83622cc8ef"
+      }
+    }
+  }
+}

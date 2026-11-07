@@ -15,8 +15,10 @@
 
 #![forbid(unsafe_code)]
 
+pub mod budget;
 mod canonical;
 mod captured_pg;
+pub mod community;
 mod description_candidate;
 mod draft;
 mod error;
@@ -29,12 +31,16 @@ mod nfc;
 mod oos_tree;
 mod pack_index;
 mod pgsql;
+mod reviewed_community;
 mod reviewed_effective;
+pub use reviewed_community::compile_reviewed_community;
 mod role_pack;
 mod role_pack_cli;
 mod sealed_import;
 
-pub use incremental::compile_library_incremental;
+pub use incremental::{
+    SemanticSnapshot, SemanticWork, compile_library_incremental, semantic_snapshot, semantic_work,
+};
 
 pub use captured_pg::{
     CAPTURED_COMPILER, CAPTURED_PROTOCOL, CapturedPgDraft, compile_captured_pg_catalog,
@@ -55,7 +61,7 @@ pub use knowledge_budget::unicode_word_tokens;
 pub use nfc::nfc;
 pub use oos_tree::{OosTreeCompilation, compile_oos_tree};
 pub use pack_index::manifest_file_records;
-pub use pgsql::EMPTY_SCHEMA_HASH;
+pub use pgsql::{EMPTY_SCHEMA_HASH, finalize_pg_capture};
 pub use reviewed_effective::{
     REVIEWED_EFFECTIVE_COMMAND_PROTOCOL, REVIEWED_EFFECTIVE_COMPILER, REVIEWED_EFFECTIVE_PROTOCOL,
     ReviewedEffectiveError, compile_reviewed_effective, compile_reviewed_sealed_import,

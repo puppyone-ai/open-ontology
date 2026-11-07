@@ -1,0 +1,215 @@
+{
+  "todo": "S5-E-04",
+  "status": "partial",
+  "shared_patch_required": "testing/engines/oracle/E-S5d-shared.patch",
+  "downgrade": "23.5 archive retention expiry not injected: RMAN absent in pinned slim image",
+  "runs": {
+    "e-s5d-oracle-01": {
+      "sha256sums_sha256": "cdbf79d51bf34170b5982a77efab3061f53175ea6d78e0c69dce6950dc2abbfa",
+      "versions": {
+        "23": {
+          "binary_sha256": "0385828b7d6c8d9df5a058b802fb009a8274651ada8069874790d788942a1fea",
+          "error": null,
+          "cases": {
+            "add_column": "passed",
+            "drop_column": "passed",
+            "rename_column": "passed",
+            "widen_type": "passed",
+            "add_table": "passed",
+            "drop_table": "passed",
+            "pk_change": "passed",
+            "source_restart_mid_chunk": "passed",
+            "network_drop_mid_c1": "passed",
+            "network_drop_mid_c5": "passed",
+            "target_restart_mid_publish": "passed",
+            "sigkill_mid_cycle": "passed",
+            "retention_expiry": "failed",
+            "slot_invalidation": "not_applicable",
+            "gtid_purge": "not_applicable",
+            "resetlogs_incarnation": "not_run"
+          },
+          "cleanup_failures": [],
+          "target_cleanup_error": null,
+          "worker_cleanup_error": null
+        },
+        "21": {
+          "binary_sha256": null,
+          "error": "host_disk_below_floor",
+          "cases": {},
+          "cleanup_failures": [],
+          "target_cleanup_error": null,
+          "worker_cleanup_error": null
+        },
+        "11": {
+          "binary_sha256": null,
+          "error": "host_disk_below_floor",
+          "cases": {},
+          "cleanup_failures": [],
+          "target_cleanup_error": null,
+          "worker_cleanup_error": null
+        }
+      }
+    },
+    "e-s5d-oracle-02": {
+      "sha256sums_sha256": "b50e1262535d0a9abc74006c89972627a327e1e36960b6cc9077d1306e88aac2",
+      "versions": {
+        "23": {
+          "binary_sha256": "0385828b7d6c8d9df5a058b802fb009a8274651ada8069874790d788942a1fea",
+          "error": null,
+          "cases": {
+            "add_column": "passed",
+            "drop_column": "passed",
+            "rename_column": "passed",
+            "widen_type": "passed",
+            "add_table": "passed",
+            "drop_table": "passed",
+            "pk_change": "passed",
+            "source_restart_mid_chunk": "passed",
+            "network_drop_mid_c1": "passed",
+            "network_drop_mid_c5": "passed",
+            "target_restart_mid_publish": "passed",
+            "sigkill_mid_cycle": "passed",
+            "retention_expiry": "not_run",
+            "slot_invalidation": "not_applicable",
+            "gtid_purge": "not_applicable",
+            "resetlogs_incarnation": "failed"
+          },
+          "cleanup_failures": [],
+          "target_cleanup_error": null,
+          "worker_cleanup_error": null
+        },
+        "21": {
+          "binary_sha256": "0385828b7d6c8d9df5a058b802fb009a8274651ada8069874790d788942a1fea",
+          "error": null,
+          "cases": {
+            "add_column": "passed",
+            "drop_column": "passed",
+            "rename_column": "passed",
+            "widen_type": "passed",
+            "add_table": "passed",
+            "drop_table": "passed",
+            "pk_change": "passed",
+            "source_restart_mid_chunk": "passed",
+            "network_drop_mid_c1": "not_applicable",
+            "network_drop_mid_c5": "passed",
+            "target_restart_mid_publish": "passed",
+            "sigkill_mid_cycle": "passed",
+            "retention_expiry": "not_applicable",
+            "slot_invalidation": "not_applicable",
+            "gtid_purge": "not_applicable",
+            "resetlogs_incarnation": "passed"
+          },
+          "cleanup_failures": [],
+          "target_cleanup_error": null,
+          "worker_cleanup_error": null
+        },
+        "11": {
+          "binary_sha256": "0385828b7d6c8d9df5a058b802fb009a8274651ada8069874790d788942a1fea",
+          "error": null,
+          "cases": {
+            "add_column": "passed",
+            "drop_column": "passed",
+            "rename_column": "passed",
+            "widen_type": "passed",
+            "add_table": "passed",
+            "drop_table": "passed",
+            "pk_change": "passed",
+            "source_restart_mid_chunk": "passed",
+            "network_drop_mid_c1": "not_applicable",
+            "network_drop_mid_c5": "passed",
+            "target_restart_mid_publish": "passed",
+            "sigkill_mid_cycle": "passed",
+            "retention_expiry": "not_applicable",
+            "slot_invalidation": "not_applicable",
+            "gtid_purge": "not_applicable",
+            "resetlogs_incarnation": "passed"
+          },
+          "cleanup_failures": [],
+          "target_cleanup_error": null,
+          "worker_cleanup_error": null
+        }
+      }
+    },
+    "e-s5d-oracle-03": {
+      "sha256sums_sha256": "542b0b03b467116235c8b410c4d41e6a88d3540cb129ec63f2eb0f5e224e3d5f",
+      "versions": {
+        "23": {
+          "binary_sha256": "b1d78878dc7d834a9d51e4b53ded18bbd6d78890423afd5bfc2dc385b3602a2c",
+          "error": null,
+          "cases": {
+            "add_column": "passed",
+            "drop_column": "passed",
+            "rename_column": "passed",
+            "widen_type": "passed",
+            "add_table": "passed",
+            "drop_table": "passed",
+            "pk_change": "passed",
+            "source_restart_mid_chunk": "failed",
+            "network_drop_mid_c1": "passed",
+            "network_drop_mid_c5": "passed",
+            "target_restart_mid_publish": "passed",
+            "sigkill_mid_cycle": "passed",
+            "retention_expiry": "not_run",
+            "slot_invalidation": "not_applicable",
+            "gtid_purge": "not_applicable",
+            "resetlogs_incarnation": "failed"
+          },
+          "cleanup_failures": [],
+          "target_cleanup_error": null,
+          "worker_cleanup_error": null
+        }
+      }
+    },
+    "e-s5d-oracle-04": {
+      "sha256sums_sha256": "d85ec984e8e2382cf95b84271f45de58fa7f1bb40dd20acf739836a31ce4c658",
+      "versions": {
+        "23": {
+          "binary_sha256": "b1d78878dc7d834a9d51e4b53ded18bbd6d78890423afd5bfc2dc385b3602a2c",
+          "error": null,
+          "cases": {
+            "source_restart_mid_chunk": "failed",
+            "retention_expiry": "not_run",
+            "resetlogs_incarnation": "passed"
+          },
+          "cleanup_failures": [],
+          "target_cleanup_error": null,
+          "worker_cleanup_error": null
+        }
+      }
+    },
+    "e-s5d-oracle-05": {
+      "sha256sums_sha256": "087bc6f0603f97d9c237dbfb069eac7fae10d590f42be2a6ac0c6fe869851859",
+      "versions": {
+        "23": {
+          "binary_sha256": "b1d78878dc7d834a9d51e4b53ded18bbd6d78890423afd5bfc2dc385b3602a2c",
+          "error": null,
+          "cases": {
+            "source_restart_mid_chunk": "passed"
+          },
+          "cleanup_failures": [],
+          "target_cleanup_error": null,
+          "worker_cleanup_error": null
+        }
+      }
+    }
+  },
+  "validation": {
+    "run_id": "e-s5d-build-20261105",
+    "base_commit": "04b550e257204ea16fb59b01cec636da3eda57c8",
+    "workspace_check": "passed",
+    "connector_library": "167 passed, 1 ignored",
+    "preexisting_failure": "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes",
+    "python_tests": "13 passed",
+    "spec_plan_checks": "all 3 passed",
+    "files": {
+      "check-harness.log": "25f210bbf2f072d5d31ab62172e6541420550943a5fb8509cd4d059b68365a58",
+      "logging-tests.log": "694de4313cd2b18d605bae8cd6c727693a5ae6b8125c3d83d968fb3e4b1b161a",
+      "base-test.log": "809591e187b0c1891f03b79fbdc43fb7dff0109b82a28ff2683b55a8930396af",
+      "python-final.log": "eaa2a7752835205e160888baa8431ad212cd8d772357cb1dee5ee8748a8abef7",
+      "final-resources.json": "e64e9b7eb297b36b67851ea362887c64460a790988882ec29bb25a1214c71297",
+      "check-spec.log": "341d87269554bd330947a8570481e4c360ca59bafd8bb2f5ee3a36eb444899f7",
+      "check-plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+      "check-v02.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135"
+    }
+  }
+}

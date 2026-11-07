@@ -2,7 +2,7 @@
 
 > Status: Proposed（原型跑通后逐条改为 Accepted）
 > Owner: Open Ontology Engineering
-> Last reviewed: 2026-10-01
+> Last reviewed: 2026-11-06
 > 依赖：[01 架构](01-architecture.md)。事实与出处见 [16 参考资料](16-references.md)。
 
 ## 1. 选型原则
@@ -186,6 +186,8 @@
 | Valkey / PostgreSQL / Pi | BSD-3-Clause / PostgreSQL / MIT |
 | Grafana、Loki、Langfuse 等观测服务 | 外部可选组件，分别核对 OSS/企业目录许可，不打进 OO 核心镜像 |
 | Redis 8、MinIO、Vault、Arize Phoenix | 不默认分发；用户自选外部服务时核对其版本与许可 |
+| `webpki-roots`（Oracle 驱动 `oracledb` 的必选依赖，Mozilla CA 证书数据） | CDLA-Permissive-2.0，不在 OSI 列表；仅对该 crate 例外准入（`ci/deny.toml` exceptions、`supply-chain/webpki-roots-audit.json`、NOTICE 附许可文本），不是对该许可证的一般放行（v0.2 Plan D13） |
+| `tiny-keccak`（MongoDB 驱动依赖） | CC0-1.0，不在 OSI 列表；仅对该 crate、仅在 opt-in 的 document 源特性中例外，不进默认制品（v0.2 Plan D18） |
 
 ## 6. 版本基线（候选，待 M0 锁定）
 

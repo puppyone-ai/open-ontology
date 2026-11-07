@@ -1,0 +1,725 @@
+{
+  "todo": "S2-E-01",
+  "status": "partial",
+  "scope": "Oracle SourceEngine/ChangeSource and in-memory C5 component; not native loader, onboarding, or publication acceptance",
+  "deliverables": {
+    "d11_classifier": "Implemented fail-closed; original 41 records retained. Missing depth is not inferred. Tests include explicit synthetic positive depth/objects and negative foreign/top-level cases.",
+    "disclosure": "LogCdc unconditionally NeedsSetup with a Feature requiring explicit opt-in and disclosing recursive temporary writes; auto must remain C5. No CLI changes.",
+    "xe21_audit": "Collected records after AUDIT_TRAIL=DB,EXTENDED SPFILE setting and fixture restart; Unified Auditing FALSE. Unified policy enabled; both audit views retained.",
+    "thick11": "Four exact bound LogMiner package statements allowed through separate operation. No arbitrary PL/SQL, DML, DDL or dictionary build.",
+    "c5": "Per-range time hints, bounded recent Flashback Versions checks, digest of every range, periodic full content verification. NULL/stale hints never exclude rows. No-change ordinary cycle source row bytes=0, emitted payload=0, rewrites=0, generation unchanged. Full verification incurs separately measured source bytes."
+  },
+  "build": {
+    "run_id": "e-s2b-local",
+    "check_command": "cargo check --workspace --locked",
+    "check_exit": 0,
+    "test_command": "cargo test -p oo-connectors --features oracle --locked --tests --no-fail-fast",
+    "test_exit": 101,
+    "passed": 253,
+    "failed": 1,
+    "ignored": 22,
+    "library": "145 passed; 1 ignored (real fixture run separately)",
+    "python_tests": {
+      "audit": 3,
+      "worker": 4,
+      "failed": 0
+    },
+    "preexisting_failure": {
+      "base": "0d0de62356ec8f230a31e36caf47465dd48cc3c0",
+      "test": "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes",
+      "base_exit": 101,
+      "fact": "group_signal rejected, expected sent",
+      "evidence": "base-parse.log"
+    },
+    "sha256": {
+      "check-delivery.log": "1f5852af1ed7025b5728e842e3c3c2f5d2f720d25557d84c38f1ffda99719c59",
+      "tests-delivery.log": "45bc209d5305282863f12d3b0ebe8f9438ca0001d31a3cbe9be118f101ef02b4",
+      "base-parse.log": "9506eeb4335e28c4c8cae229fbcc3cad77bf9ea4223008b9037d1a129d5a02a0",
+      "audit-final.log": "921b60a7fd52e978fbb551cacd29df2d6708879400278e1fcc70fceeb0c6f8e0",
+      "worker-final.log": "e6ec182765cd965f2837d8eeaef5a64af48a104f245cd1a0b7281559194c57c1",
+      "check_spec.log": "88640ce02328ebbd046dcddfec31211767c3b84a995adbe33edc485bede25826",
+      "check_plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+      "check_v02_plan.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135",
+      "fmt-delivery.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "audit-delivery.log": "921b60a7fd52e978fbb551cacd29df2d6708879400278e1fcc70fceeb0c6f8e0",
+      "worker-delivery.log": "e6ec182765cd965f2837d8eeaef5a64af48a104f245cd1a0b7281559194c57c1"
+    },
+    "documentation_checks": {
+      "check_spec": 0,
+      "check_plan": 0,
+      "check_v02_plan": 0
+    },
+    "format_check_exit": 0
+  },
+  "versions": [
+    {
+      "run_id": "e-s2b-final23-components",
+      "version": "23.26.3.0.0",
+      "test_exit": 0,
+      "runner_exit": 1,
+      "c1_exercised": true,
+      "cycles": [
+        {
+          "c1_events": 4,
+          "c1_generation": 1,
+          "c1_payload_bytes": 9216,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2149220
+          },
+          "c5_generation": 1,
+          "c5_layers": {
+            "digests": 1,
+            "full_reads": 0,
+            "generation": 1,
+            "payload_bytes": 173384,
+            "recent_ranges": 0,
+            "recent_unknown": 1,
+            "rewrites": 1,
+            "source_read_bytes": 173384,
+            "time_hints": 0
+          },
+          "c5_payload_bytes": 173384,
+          "c5_rewrites": 1,
+          "chunk_window_correction": true,
+          "cycle": 0,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2149553
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 5,
+          "c1_generation": 2,
+          "c1_payload_bytes": 11520,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2149583
+          },
+          "c5_generation": 2,
+          "c5_layers": {
+            "digests": 1,
+            "full_reads": 0,
+            "generation": 2,
+            "payload_bytes": 173384,
+            "recent_ranges": 1,
+            "recent_unknown": 0,
+            "rewrites": 1,
+            "source_read_bytes": 173384,
+            "time_hints": 0
+          },
+          "c5_payload_bytes": 173384,
+          "c5_rewrites": 1,
+          "chunk_window_correction": false,
+          "cycle": 1,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2149889
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 0,
+          "c1_generation": 2,
+          "c1_payload_bytes": 0,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2149918
+          },
+          "c5_generation": 2,
+          "c5_layers": {
+            "digests": 1,
+            "full_reads": 0,
+            "generation": 2,
+            "payload_bytes": 0,
+            "recent_ranges": 0,
+            "recent_unknown": 0,
+            "rewrites": 0,
+            "source_read_bytes": 0,
+            "time_hints": 0
+          },
+          "c5_payload_bytes": 0,
+          "c5_rewrites": 0,
+          "chunk_window_correction": false,
+          "cycle": 2,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2150259
+          },
+          "rows": 10000
+        }
+      ],
+      "c5_full_read": {
+        "time_hints": 0,
+        "recent_ranges": 0,
+        "recent_unknown": 0,
+        "digests": 1,
+        "full_reads": 1,
+        "source_read_bytes": 173384,
+        "payload_bytes": 0,
+        "rewrites": 0,
+        "generation": 2
+      },
+      "c5_hint_cycles": [
+        {
+          "time_hints": 4,
+          "recent_ranges": 0,
+          "recent_unknown": 4,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 8480,
+          "payload_bytes": 8480,
+          "rewrites": 4,
+          "generation": 1
+        },
+        {
+          "time_hints": 0,
+          "recent_ranges": 1,
+          "recent_unknown": 0,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 2248,
+          "payload_bytes": 2248,
+          "rewrites": 1,
+          "generation": 2
+        },
+        {
+          "time_hints": 1,
+          "recent_ranges": 1,
+          "recent_unknown": 0,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 1736,
+          "payload_bytes": 1736,
+          "rewrites": 1,
+          "generation": 3
+        },
+        {
+          "time_hints": 0,
+          "recent_ranges": 0,
+          "recent_unknown": 0,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 0,
+          "payload_bytes": 0,
+          "rewrites": 0,
+          "generation": 3
+        }
+      ],
+      "audit": {
+        "passed": false,
+        "audit_records": 595,
+        "trace_records": 367,
+        "rejected_total": 57,
+        "audit_classifications": {
+          "read_session": 2,
+          "d11_driver_session_setting": 1,
+          "read": 537,
+          "logminer_call": 15,
+          "d11_recursive_temporary_write": 25,
+          "rejected_operation_or_object": 15
+        },
+        "trace_classifications": {
+          "read": 305,
+          "rejected_operation_or_object": 42,
+          "d11_driver_session_setting": 1,
+          "logminer_call": 4,
+          "d11_recursive_temporary_write": 15
+        },
+        "executed_violation_examples": [
+          {
+            "sql_prefix": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, ",
+            "depth": 1,
+            "executions": 2,
+            "source": "trace-089",
+            "classification": "rejected_operation_or_object"
+          }
+        ]
+      },
+      "source_hashes_match_current": true,
+      "sha256": {
+        "probe.json": "e14f858953978c9e877a1edb05d380ca215611312ae732b8558ffaef448eb89e",
+        "incremental-result.json": "6280d92e083676f593a7ea3aa04a9e59adae2e1b7f461388a95624424882c05c",
+        "c5-hints.json": "31b1369104f0a014238ba118dce884ab8a52cd9a21d7d8a2e8bd109936ace93b",
+        "c5-full-read.json": "0ed2d49ac4d767d00dc7efe29fc4e53ba37386679d3c0b91e24043be66654150",
+        "audit-result.json": "79ad1fd532d7ed1ec080ee5ee2089ae1c9ccca20e836781b9f102b1cbc7c2240",
+        "test.log": "1e16c641ceb76c22f10920adf3123a0579626567358dd3be4acb20d801d5274b",
+        "source-hashes.json": "bd55087a2dedfdaf0449c4abc1d1b84f3b6c363ffe9608e23dec908407d44eef",
+        "source-hashes-after.json": "bd55087a2dedfdaf0449c4abc1d1b84f3b6c363ffe9608e23dec908407d44eef",
+        "image.json": "b6d8d46b3acc69e68761ead20b14b9eb914c47f30f24686dcae3b14f8bbddb47",
+        "SHA256SUMS.json": "7f6c2da63cf9b3b989edab5b2d349cb42e3e47a276f2edaa5cb23178cb727695"
+      }
+    },
+    {
+      "run_id": "e-s2b-final21-components",
+      "version": "21.3.0.0.0",
+      "test_exit": 0,
+      "runner_exit": 1,
+      "c1_exercised": true,
+      "cycles": [
+        {
+          "c1_events": 4,
+          "c1_generation": 1,
+          "c1_payload_bytes": 9216,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2982740
+          },
+          "c5_generation": 1,
+          "c5_layers": {
+            "digests": 1,
+            "full_reads": 0,
+            "generation": 1,
+            "payload_bytes": 173384,
+            "recent_ranges": 0,
+            "recent_unknown": 1,
+            "rewrites": 1,
+            "source_read_bytes": 173384,
+            "time_hints": 0
+          },
+          "c5_payload_bytes": 173384,
+          "c5_rewrites": 1,
+          "chunk_window_correction": true,
+          "cycle": 0,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2983131
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 5,
+          "c1_generation": 2,
+          "c1_payload_bytes": 11520,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2983164
+          },
+          "c5_generation": 2,
+          "c5_layers": {
+            "digests": 1,
+            "full_reads": 0,
+            "generation": 2,
+            "payload_bytes": 173384,
+            "recent_ranges": 1,
+            "recent_unknown": 0,
+            "rewrites": 1,
+            "source_read_bytes": 173384,
+            "time_hints": 0
+          },
+          "c5_payload_bytes": 173384,
+          "c5_rewrites": 1,
+          "chunk_window_correction": false,
+          "cycle": 1,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2983605
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 0,
+          "c1_generation": 2,
+          "c1_payload_bytes": 0,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2983638
+          },
+          "c5_generation": 2,
+          "c5_layers": {
+            "digests": 1,
+            "full_reads": 0,
+            "generation": 2,
+            "payload_bytes": 0,
+            "recent_ranges": 0,
+            "recent_unknown": 0,
+            "rewrites": 0,
+            "source_read_bytes": 0,
+            "time_hints": 0
+          },
+          "c5_payload_bytes": 0,
+          "c5_rewrites": 0,
+          "chunk_window_correction": false,
+          "cycle": 2,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2984063
+          },
+          "rows": 10000
+        }
+      ],
+      "c5_full_read": {
+        "time_hints": 0,
+        "recent_ranges": 0,
+        "recent_unknown": 0,
+        "digests": 1,
+        "full_reads": 1,
+        "source_read_bytes": 173384,
+        "payload_bytes": 0,
+        "rewrites": 0,
+        "generation": 2
+      },
+      "c5_hint_cycles": [
+        {
+          "time_hints": 4,
+          "recent_ranges": 0,
+          "recent_unknown": 4,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 8480,
+          "payload_bytes": 8480,
+          "rewrites": 4,
+          "generation": 1
+        },
+        {
+          "time_hints": 0,
+          "recent_ranges": 1,
+          "recent_unknown": 0,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 2248,
+          "payload_bytes": 2248,
+          "rewrites": 1,
+          "generation": 2
+        },
+        {
+          "time_hints": 1,
+          "recent_ranges": 1,
+          "recent_unknown": 0,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 1736,
+          "payload_bytes": 1736,
+          "rewrites": 1,
+          "generation": 3
+        },
+        {
+          "time_hints": 0,
+          "recent_ranges": 0,
+          "recent_unknown": 0,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 0,
+          "payload_bytes": 0,
+          "rewrites": 0,
+          "generation": 3
+        }
+      ],
+      "audit": {
+        "passed": false,
+        "audit_records": 661,
+        "trace_records": 346,
+        "rejected_total": 86,
+        "audit_classifications": {
+          "read_session": 2,
+          "d11_driver_session_setting": 1,
+          "read": 614,
+          "logminer_call": 14,
+          "rejected_operation_or_object": 30
+        },
+        "trace_classifications": {
+          "read": 285,
+          "rejected_operation_or_object": 56,
+          "d11_driver_session_setting": 1,
+          "logminer_call": 4
+        },
+        "executed_violation_examples": [
+          {
+            "sql_prefix": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, ",
+            "depth": 1,
+            "executions": 2,
+            "source": "trace-049",
+            "classification": "rejected_operation_or_object"
+          },
+          {
+            "sql_prefix": "DELETE FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$ T WHERE (T.SCHEMA_NAME = :B3 AND T.TABLE_NAME = :B2 AND T.PDB_NAME = :B4 ) OR (T.PDB_NAME = :B4 AND :B3 = :B",
+            "depth": 2,
+            "executions": 1,
+            "source": "trace-049",
+            "classification": "rejected_operation_or_object"
+          },
+          {
+            "sql_prefix": "DELETE FROM SYSTEM.LOGMNR_GT_USER_INCLUDE$ U WHERE (U.USER_NAME = :B4 AND U.USER_TYPE = :B3 AND U.PDB_NAME = :B2 ) OR (U.PDB_NAME = :B2 AND :B4 = :B1 ",
+            "depth": 2,
+            "executions": 1,
+            "source": "trace-049",
+            "classification": "rejected_operation_or_object"
+          },
+          {
+            "sql_prefix": "DELETE FROM SYSTEM.LOGMNR_GT_XID_INCLUDE$",
+            "depth": 2,
+            "executions": 1,
+            "source": "trace-049",
+            "classification": "rejected_operation_or_object"
+          },
+          {
+            "sql_prefix": "UPDATE SYSTEM.LOGMNR_SESSION$ SET SPARE1 = :1 WHERE SESSION# = :2",
+            "depth": 1,
+            "executions": 1,
+            "source": "trace-049",
+            "classification": "rejected_operation_or_object"
+          }
+        ]
+      },
+      "source_hashes_match_current": true,
+      "sha256": {
+        "probe.json": "115fdfcb847e1750ecb5cf01e5e995f5fe7a12e3a00315d793bf0bc8eb1d7448",
+        "incremental-result.json": "06fd6f8610eed117f84f95ce5b2f142014b6dfff960024859237e7ca6ee185c3",
+        "c5-hints.json": "31b1369104f0a014238ba118dce884ab8a52cd9a21d7d8a2e8bd109936ace93b",
+        "c5-full-read.json": "0ed2d49ac4d767d00dc7efe29fc4e53ba37386679d3c0b91e24043be66654150",
+        "audit-result.json": "47c68cf72ba921cebb20f6f0ad37e474af6d197103db69c4f7b063058b26a0c7",
+        "test.log": "34541726462f78fea37e23eaba02811071a7e05d474a0b8770f0dfe4b2b36fb2",
+        "source-hashes.json": "bd55087a2dedfdaf0449c4abc1d1b84f3b6c363ffe9608e23dec908407d44eef",
+        "source-hashes-after.json": "bd55087a2dedfdaf0449c4abc1d1b84f3b6c363ffe9608e23dec908407d44eef",
+        "image.json": "8a3e121af6ec6f11d1e8a1510f50fc4b33eb93a38bad4aec84fccd8a05f89e2c",
+        "SHA256SUMS.json": "76a8dbd3beac150fc8bf0aecbf133ab023b7b381f299b05e44a09e1cd84c5862"
+      }
+    },
+    {
+      "run_id": "e-s2b-final11-components",
+      "version": "11.2.0.2.0",
+      "test_exit": 0,
+      "runner_exit": 1,
+      "c1_exercised": true,
+      "cycles": [
+        {
+          "c1_events": 4,
+          "c1_generation": 1,
+          "c1_payload_bytes": 9216,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 407780
+          },
+          "c5_generation": 1,
+          "c5_layers": {
+            "digests": 1,
+            "full_reads": 0,
+            "generation": 1,
+            "payload_bytes": 173384,
+            "recent_ranges": 0,
+            "recent_unknown": 1,
+            "rewrites": 1,
+            "source_read_bytes": 173384,
+            "time_hints": 0
+          },
+          "c5_payload_bytes": 173384,
+          "c5_rewrites": 1,
+          "chunk_window_correction": true,
+          "cycle": 0,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 407815
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 5,
+          "c1_generation": 2,
+          "c1_payload_bytes": 11520,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 407822
+          },
+          "c5_generation": 2,
+          "c5_layers": {
+            "digests": 1,
+            "full_reads": 0,
+            "generation": 2,
+            "payload_bytes": 173384,
+            "recent_ranges": 1,
+            "recent_unknown": 0,
+            "rewrites": 1,
+            "source_read_bytes": 173384,
+            "time_hints": 0
+          },
+          "c5_payload_bytes": 173384,
+          "c5_rewrites": 1,
+          "chunk_window_correction": false,
+          "cycle": 1,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 407855
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 0,
+          "c1_generation": 2,
+          "c1_payload_bytes": 0,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 407859
+          },
+          "c5_generation": 2,
+          "c5_layers": {
+            "digests": 1,
+            "full_reads": 0,
+            "generation": 2,
+            "payload_bytes": 0,
+            "recent_ranges": 0,
+            "recent_unknown": 0,
+            "rewrites": 0,
+            "source_read_bytes": 0,
+            "time_hints": 0
+          },
+          "c5_payload_bytes": 0,
+          "c5_rewrites": 0,
+          "chunk_window_correction": false,
+          "cycle": 2,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 407886
+          },
+          "rows": 10000
+        }
+      ],
+      "c5_full_read": {
+        "time_hints": 0,
+        "recent_ranges": 0,
+        "recent_unknown": 0,
+        "digests": 1,
+        "full_reads": 1,
+        "source_read_bytes": 173384,
+        "payload_bytes": 0,
+        "rewrites": 0,
+        "generation": 2
+      },
+      "c5_hint_cycles": [
+        {
+          "time_hints": 4,
+          "recent_ranges": 0,
+          "recent_unknown": 4,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 8480,
+          "payload_bytes": 8480,
+          "rewrites": 4,
+          "generation": 1
+        },
+        {
+          "time_hints": 0,
+          "recent_ranges": 1,
+          "recent_unknown": 0,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 2248,
+          "payload_bytes": 2248,
+          "rewrites": 1,
+          "generation": 2
+        },
+        {
+          "time_hints": 1,
+          "recent_ranges": 1,
+          "recent_unknown": 0,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 1736,
+          "payload_bytes": 1736,
+          "rewrites": 1,
+          "generation": 3
+        },
+        {
+          "time_hints": 0,
+          "recent_ranges": 0,
+          "recent_unknown": 0,
+          "digests": 4,
+          "full_reads": 0,
+          "source_read_bytes": 0,
+          "payload_bytes": 0,
+          "rewrites": 0,
+          "generation": 3
+        }
+      ],
+      "audit": {
+        "passed": false,
+        "audit_records": 304,
+        "trace_records": 257,
+        "rejected_total": 39,
+        "audit_classifications": {
+          "read_session": 2,
+          "read": 274,
+          "logminer_call": 28
+        },
+        "trace_classifications": {
+          "read": 213,
+          "rejected_operation_or_object": 39,
+          "d11_driver_session_setting": 1,
+          "logminer_call": 4
+        },
+        "executed_violation_examples": [
+          {
+            "sql_prefix": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, OBJ$CREATOR,OBJ$NAME,AUTH$PRIVILEGES,AUTH$",
+            "depth": 1,
+            "executions": 303,
+            "source": "trace-022",
+            "classification": "rejected_operation_or_object"
+          },
+          {
+            "sql_prefix": "DELETE FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$",
+            "depth": 2,
+            "executions": 1,
+            "source": "trace-022",
+            "classification": "rejected_operation_or_object"
+          },
+          {
+            "sql_prefix": "DELETE FROM SYSTEM.LOGMNR_GT_USER_INCLUDE$",
+            "depth": 2,
+            "executions": 1,
+            "source": "trace-022",
+            "classification": "rejected_operation_or_object"
+          },
+          {
+            "sql_prefix": "DELETE FROM SYSTEM.LOGMNR_GT_XID_INCLUDE$",
+            "depth": 2,
+            "executions": 1,
+            "source": "trace-022",
+            "classification": "rejected_operation_or_object"
+          },
+          {
+            "sql_prefix": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, LOGOFF$LREAD,LOGOFF$PREAD,LOGOFF$LWRITE,LO",
+            "depth": 1,
+            "executions": 1,
+            "source": "trace-022",
+            "classification": "rejected_operation_or_object"
+          }
+        ]
+      },
+      "source_hashes_match_current": true,
+      "sha256": {
+        "probe.json": "c7b871ac6b4b1df6545acc6e845ae64bcbfdc03810cbede897114227f6a31bf7",
+        "incremental-result.json": "e51619ccb9111c5dcca8b1d6c5bf0454465fb5deb600e1ecd840e30f7f5affd5",
+        "c5-hints.json": "31b1369104f0a014238ba118dce884ab8a52cd9a21d7d8a2e8bd109936ace93b",
+        "c5-full-read.json": "0ed2d49ac4d767d00dc7efe29fc4e53ba37386679d3c0b91e24043be66654150",
+        "audit-result.json": "92ea719ddbf58108ea06a11b2e04b3f81b6577151255c89a9e3d3b7f0a6d26ae",
+        "test.log": "4ff85216bfe2f9e47e9f20abb328d730748834ef2b20fa71fb4e864d14f8283e",
+        "source-hashes.json": "bd55087a2dedfdaf0449c4abc1d1b84f3b6c363ffe9608e23dec908407d44eef",
+        "source-hashes-after.json": "bd55087a2dedfdaf0449c4abc1d1b84f3b6c363ffe9608e23dec908407d44eef",
+        "image.json": "4658f191a02a0e2961c55c2d1ef748e5182f1e812841525c93137da0e481c46c",
+        "SHA256SUMS.json": "a0c6424653663bfd9e131141caf7e0d71b1eda124e5143ae36f12dba56b7608f"
+      }
+    }
+  ],
+  "blockers": [
+    "11.2 and 21.3 execute recursive DELETE on SYSTEM.LOGMNR_GT_*; D11 permits SYS.LOGMNR_GT_* only. No allowlist broadening performed.",
+    "21.3 trace additionally executes UPDATE SYSTEM.LOGMNR_SESSION$.",
+    "Trace includes database-maintenance/auditing writes such as SYS.AUD$ or AUDSYS.AUD$UNIFIED, SEQ$, SEG$, USER$. These are not reader-issued application DML but the supplied D11 rule does not grant them an exemption.",
+    "Objectless recursive COMMIT is not given fictitious SYS-temporary-only provenance when the observed session also writes other objects; unresolved/foreign contexts fail.",
+    "23.26.3 probe-first then plan fails ora_snapshot_unavailable in e-s2b-final23 and e-s2b-final23-retry. Functional harness probes after cycles; no probe-first acceptance is claimed.",
+    "Available 23-slim image reports 23.26.3.0.0 and a 26ai banner, not an older 23ai-branded build.",
+    "T7 collection is focused on the C1 miner session, not a separate C5 reader-account audit. No T7 pass is claimed for any version.",
+    "Native Agent DB loading/publication, durable C5 checkpointing, physical-keyless C5 and 19c are outside this component delivery."
+  ],
+  "shared_file_patches": [],
+  "cargo_lock_changed": false,
+  "containers_left_running": []
+}

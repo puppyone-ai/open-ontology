@@ -1,0 +1,130 @@
+{
+  "run_id": "g-s2s3-20261104",
+  "status": "partial",
+  "logs": [
+    {
+      "file": "builder-signoff.log",
+      "sha256": "2fbc7654ad7d5c6f2efbb112bec2df17282e58370d43fccd3de8771202fc7547",
+      "rust_passed": 177,
+      "rust_failed": 0
+    },
+    {
+      "file": "workspace-signoff.log",
+      "sha256": "5fc7e76fa4c3ad88d0ff1493a2e0a600878c4719f93699a7320e4ec2191a87fe",
+      "rust_passed": 0,
+      "rust_failed": 0
+    },
+    {
+      "file": "selfbuild-final.log",
+      "sha256": "b28f108650fec0734ff09e02e07869b7f0324e880cb666517d188483d114a72c",
+      "rust_passed": 0,
+      "rust_failed": 0
+    },
+    {
+      "file": "legacy-selfbuild-2.log",
+      "sha256": "2e63035de832a4db102d1ae69525d98a2aca308cfe3f817464b87694c3ce14bf",
+      "rust_passed": 0,
+      "rust_failed": 0
+    },
+    {
+      "file": "legacy-semantics-3.log",
+      "sha256": "3cae4005d5c6abc91e1d36ce58cff91e5c6de6a4113fb687eace2a2287984096",
+      "rust_passed": 0,
+      "rust_failed": 0
+    },
+    {
+      "file": "provider-2.log",
+      "sha256": "6b2f39ad0b5bb0723710a818e6e3efa9b6088e468d9ce27a4f83ee6032e6f7cb",
+      "rust_passed": 0,
+      "rust_failed": 0
+    },
+    {
+      "file": "pg-lib-final.log",
+      "sha256": "cc2b9c3ccb7a630a3933c1d481c9f25b4ff2364799ae2b808f3f1284bb085b37",
+      "rust_passed": 41,
+      "rust_failed": 3
+    },
+    {
+      "file": "pg-contract-final.log",
+      "sha256": "40b41f62d33a7be66f44bdda0735621f71809c784882d2532fcab9f5634bb474",
+      "rust_passed": 14,
+      "rust_failed": 0
+    },
+    {
+      "file": "pg-combined-final.log",
+      "sha256": "0f162752f85a7ead27736f2d4ce84455bfc5ecf26bb72456e7b3c3c94c170878",
+      "rust_passed": 7,
+      "rust_failed": 2
+    },
+    {
+      "file": "fmt-builder.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rust_passed": 0,
+      "rust_failed": 0
+    },
+    {
+      "file": "fmt-pg-builder.log",
+      "sha256": "e98e108e2900116b83df6e8829b4c459d987f30150e4d75f9e19506b02a1d894",
+      "rust_passed": 0,
+      "rust_failed": 0
+    },
+    {
+      "file": "builder-acceptance.log",
+      "sha256": "da732ee5307fa311c836150fdd364681832663097bf4755e3453f3c1c12512b4",
+      "rust_passed": 177,
+      "rust_failed": 0
+    },
+    {
+      "file": "selfbuild-acceptance.log",
+      "sha256": "0e9bd10307a39bc4568f6d04563324f393e8751215d267b42e77ccbb53edef0d",
+      "rust_passed": 0,
+      "rust_failed": 0
+    },
+    {
+      "file": "workspace-acceptance.log",
+      "sha256": "17a68268712bed418bbd848b2ea8062a5fd97cc51706e9b97c02fbb16d88dfe8",
+      "rust_passed": 0,
+      "rust_failed": 0
+    },
+    {
+      "file": "pg-check-signoff.log",
+      "sha256": "8cc91a340cb25a15f5e3c05a117c5912bf93faab33d1a21094d02140d319a5b6",
+      "rust_passed": 0,
+      "rust_failed": 0
+    }
+  ],
+  "live_small": {
+    "model_calls": 2,
+    "unresolved": 0,
+    "g14": "blocked"
+  },
+  "live_660": {
+    "status": "interrupted_not_T5_pass",
+    "completed_receipts": 10,
+    "accepted_receipt_items": 501,
+    "completed_model_calls": 10,
+    "interrupted_in_flight_calls": 1,
+    "interrupted_usage": "unmeasured",
+    "completed_usage": {
+      "prompt_tokens": 75616,
+      "completion_tokens": 34129
+    }
+  },
+  "containers_created": 0,
+  "lockfiles_changed": false,
+  "commit_gate": "blocked: five historical evidence-dependent pg-builder tests fail; originals preserved",
+  "offline_acceptance": {
+    "python_tests_passed": 8,
+    "tables": 660,
+    "columns": 2640,
+    "declared_fks_mapped": 659,
+    "data_only_model_calls": 0,
+    "type_change_communities": 1,
+    "type_change_merge_items": 1,
+    "added_column_communities": 1,
+    "new_table_communities": 1,
+    "graph_scale_tables": 1000,
+    "lane_H_fixture": false,
+    "formal_T4_T5": "not_run"
+  }
+}

@@ -8,6 +8,8 @@
 
 状态为 **Proposed / Ready for implementation review**。规范中的产品命令、测试入口和交付物是实现的验收要求；已有代码的完成状态须由执行台账及实际验证证据确认，不能据此声称产品已经构建、测试或交付。
 
+v0.2 产品闭环计划：[product-loops-v0.2-plan.md](product-loops-v0.2-plan.md)（开源易用、Gateway↔CLI 绑定、数据库多版本矩阵三个闭环，S0–S6 sprint、完整 TODO 与测试校验方案；设计输入见 [docs/product](../docs/product/README.md)）。
+
 数据库支持扩展：Spec 第 7A 章（统一准入路线、支持矩阵、能力与写入分类、一致性等级、驱动与套件）与 Plan 第 4A 章（DBX 数据库扩展轨道，独立分母）；完整设计与逐库画像见 [docs/database-support](../docs/database-support/README.md)。
 
 建议阅读顺序：主规范第 1–5 章（含第 7A 章） → 第 17 章 Sprint Phase → 对应组件契约 → 第 18–21 章测试、审阅与发布 → 第 22–24 章追踪矩阵、风险与来源。

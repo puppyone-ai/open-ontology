@@ -1,0 +1,110 @@
+name: cli-binaries
+
+# Produce the complete tarball; publishing remains a separate owner gate.
+on:
+  workflow_dispatch:
+    inputs:
+      lite_image:
+        description: "Signed multi-architecture lite registry reference with @sha256 digest"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            runner: ubuntu-24.04
+            arch: amd64
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+          - platform: darwin-arm64
+            runner: macos-15
+            target: aarch64-apple-darwin
+          - platform: darwin-x64
+            runner: macos-15
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        if: runner.os == 'macOS'
+        with:
+          toolchain: "1.98.1"
+          targets: ${{ matrix.target }}
+      - name: Build and test Linux on Debian 11 and Ubuntu 22.04
+        if: runner.os == 'Linux'
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          bash ci/build-cli-linux.sh "$ARCH" "$RUNNER_TEMP/native"
+          bash ci/test-cli-linux.sh "$ARCH" "$RUNNER_TEMP/native/oo"
+      - name: Build Darwin (x64 is cross-built in CI)
+        if: runner.os == 'macOS'
+        env:
+          TARGET: ${{ matrix.target }}
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: |
+          cargo build --release --locked -p oo-cli --bin oo --target "$TARGET"
+          mkdir -p "$RUNNER_TEMP/native"
+          cp "target/$TARGET/release/oo" "$RUNNER_TEMP/native/oo"
+      - name: Attach validated runtime pin
+        env:
+          LITE_IMAGE: ${{ inputs.lite_image }}
+        run: |
+          node --input-type=module -e '
+            import { checkImage } from "./packages/cli/scripts/stage.mjs";
+            import { writeFileSync } from "node:fs";
+            if (!process.env.LITE_IMAGE.includes("@sha256:")) throw new Error("registry digest required");
+            writeFileSync(process.env.RUNNER_TEMP + "/native/oo-lite-image", checkImage(process.env.LITE_IMAGE));
+          '
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: cli-${{ matrix.platform }}
+          path: ${{ runner.temp }}/native/
+          if-no-files-found: error
+  pack:
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: Assemble every declared platform
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download "$GITHUB_RUN_ID" --pattern 'cli-*' --dir "$RUNNER_TEMP/binaries"
+          cargo fetch --locked
+          python3 packages/cli/scripts/licenses.py --output "$RUNNER_TEMP/notices"
+          args=()
+          for platform in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
+            args+=(--binary "$platform=$RUNNER_TEMP/binaries/cli-$platform/oo")
+          done
+          node packages/cli/scripts/stage.mjs --output "$RUNNER_TEMP/package" \
+            --notices "$RUNNER_TEMP/notices" "${args[@]}"
+          node --test packages/cli/scripts/stage.test.mjs packages/cli/test/*.test.mjs
+          mkdir "$RUNNER_TEMP/packed"
+          cd "$RUNNER_TEMP/package"
+          npm pack --ignore-scripts --json --pack-destination "$RUNNER_TEMP/packed"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: cli-npm-tarball
+          path: ${{ runner.temp }}/packed/
+          if-no-files-found: error

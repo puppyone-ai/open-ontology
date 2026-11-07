@@ -1,0 +1,88 @@
+{
+  "task": "S4-M-01",
+  "card": "M-S4c",
+  "status": "partial",
+  "base": "9e3f86aab71861eea95e4e6c5ffd9fb516ab86d1",
+  "library_entry": "oo_pipeline::engine_publication::publish_generation",
+  "cli": "oo-load publish --generation ID --library ID --stack FILE --source ID --target FILE",
+  "implemented": [
+    "One transaction verifies complete retained recipes, stored chunk receipts, actual stage schemas and view definitions.",
+    "Generation-specific physical mapping views; immutable pending library receipt, membership, data vector; initial freshness/watermark source times NULL.",
+    "Replay verifies storage and returns identical candidate without moving the existing head.",
+    "CLI opens only target; missing source/model secrets and unreachable source endpoint tested; pending exits nonzero."
+  ],
+  "validation": {
+    "workspace_check_locked": "passed",
+    "pipeline": {
+      "passed": 351,
+      "failed": 0,
+      "ignored": 54
+    },
+    "oo_load": {
+      "passed": 31,
+      "failed": 0,
+      "ignored": 7
+    },
+    "owned_pg": {
+      "version": "17.11",
+      "candidate_test": "passed",
+      "gateway_acceptance": false
+    },
+    "mysql_8_4_7": "not_run",
+    "oracle_23_5": "not_run",
+    "three_source_cycles": "not_run",
+    "lite_seven_services": "not_run"
+  },
+  "failure_history": [
+    {
+      "run": "m-s4c-owned-publication-3",
+      "reason": "Fixture used version 0.2 instead of required oo.stack/v1; assertion failed; evidence retained; corrected fixture passed in runs 4 and 5."
+    }
+  ],
+  "remaining": [
+    "Candidate receipt is explicitly oo.load.per-table-receipt/v1, not legacy import provenance. Native semantic admission refuses it (observed SQLSTATE 22P02 for textual run id).",
+    "Gateway library proof still requires UUID full_import_run/full_import_table/apply_receipts, reviewed grants and open fences. Those records are not fabricated. A verified native-load proof branch and semantic activation are unfinished, not proven impossible.",
+    "No ready publication head advancement, live watermark/freshness advancement, HTTP query/header continuity or retention reclamation is delivered.",
+    "Scheduler and worker wiring unchanged. No seven-service acceptance."
+  ],
+  "mapping": [
+    [
+      "generations(identity,run,recipe)",
+      "native_library_publication.library/shards and pending head",
+      "Recipe hash is explicitly recipe_sha256, not canonical row digest."
+    ],
+    [
+      "generation view and schema",
+      "physical_mappings and _oo.pt_* mapped views",
+      "Existing mapping registrar; logical identifier normalization; no grants."
+    ],
+    [
+      "verified parts and schema",
+      "data_vector and oo.load.per-table-receipt/v1",
+      "Retained storage proof only; not full_import_run or ACK proof."
+    ],
+    [
+      "source capture time",
+      "table_freshness/source_watermark.source_committed_at",
+      "NULL because no measured source time exists; initial states awaiting_publish/lagging; existing rows unchanged."
+    ]
+  ],
+  "shared_file_patches": [],
+  "cargo_lock_changes": false,
+  "containers_left": 0,
+  "evidence": {
+    "m-s4c-publication-20261104": {
+      "check-final.log": "816a2a36ddbb66e54be238d912958d1e7004fa310ea2d67ff929d4e032816333",
+      "pipeline-tests-final.log": "9112e857664fc82b70924a307749ca875a579501147fd0edf7b0ca5fba292982",
+      "load-tests-final.log": "5bf4cc7722ae9e933ec97c53645d549c42c40e07b053ca1993dec17996676b82"
+    },
+    "m-s4c-owned-publication-3": {
+      "result.json": "bcee7790902371af6439b0d3f1ea89a66607292b8288b2bed0df055310621eee",
+      "publication.log": "a265604abc38bb9c11c938ddc1f6c1194f6b24ec95c71d66f6fbd9bb4d893c66"
+    },
+    "m-s4c-owned-publication-5": {
+      "result.json": "df05d5d35f04e673b327c1be27530edcb0bf3cd5073b85330e58b0bc74590aeb",
+      "publication.log": "0dfc6e2584ee42c6af702dbbe805ee0f2f5ffd5d0a19ef5667f82cfa280e3151"
+    }
+  }
+}

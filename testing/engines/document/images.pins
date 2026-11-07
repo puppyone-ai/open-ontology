@@ -1,0 +1,7 @@
+# id platform manifest_digest; registry verification in evidence/f-s5-20261104
+mongo-8.0.34 linux/amd64 sha256:1d7a2d487c6465ea022474b90b65d6c91bb600b421b65880d8c6e141d6122200
+mongo-8.0.34 linux/arm64 sha256:ec4aeabb7db10f2fb3cde7e1982becef96779646c34c220a7fbcfe2f880b2846
+opensearch-3.9.0 linux/amd64 sha256:5c20af6b5cb472a74ba99f663bee3dd03afbeced14b3897b220a87fc75278445
+opensearch-3.9.0 linux/arm64 sha256:cf05462a958be93fe2172aea2c6757debc7d3a1e4a6838d39e56af591a3dcdbb
+elasticsearch-9.2.0 linux/amd64 sha256:9e31370ee96864d618ec1ffe97acc2d1b64e8c014b30c214dbf955374b0a4a66
+elasticsearch-9.2.0 linux/arm64 sha256:89c24194a89195aa5a869fb22cc47f888966c3070815714df7917b24883bcb70

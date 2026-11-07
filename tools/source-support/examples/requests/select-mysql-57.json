@@ -5,7 +5,7 @@
     "product": "MySQL",
     "version": "5.7",
     "variant": "self-managed",
-    "driver": {"path": "P1", "impl": "sqlx"},
+    "driver": {"path": "P1", "impl": "mysql_async"},
     "profile": "production",
     "sync": "catalog",
     "driver_present": true

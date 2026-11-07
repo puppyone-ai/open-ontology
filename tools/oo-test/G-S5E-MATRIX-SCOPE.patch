@@ -1,0 +1,11 @@
+--- a/specs/scripts/gen_support_matrix.py
++++ b/specs/scripts/gen_support_matrix.py
+@@ -110,6 +110,8 @@
+                 latest = max(match, key=lambda r: (r.get('observed_at') or '', r['run_id']))
+                 hits.append(latest)
+                 failed |= latest['result'] != 'pass'
++                if cap == 'selfbuild' and 'not full-fixture T5' in latest.get('scope', ''):
++                    missing = True
+             if not hits:
+                 continue
+             level = 'verified' if not failed and not missing else ('experimental' if any(h['result'] == 'pass' for h in hits) else 'designed')

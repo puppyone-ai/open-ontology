@@ -1,0 +1,1167 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "name": "serde-saphyr",
+    "version": "1.3.0",
+    "license_spdx": "MIT OR Apache-2.0",
+    "dual_license_choice": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "Apache-2.0",
+        "source": "evidence/a-s0s1-fix-20261104/licenses/serde-saphyr-1.3.0/LICENSE-APACHE",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      {
+        "spdx": "MIT",
+        "source": "evidence/a-s0s1-fix-20261104/licenses/serde-saphyr-1.3.0/LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      }
+    ],
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain copyright and permission notices in copies or substantial portions."
+        ]
+      }
+    ],
+    "weak_copyleft_review": null,
+    "digest": "sha256:b8050abb251097357e24aff63ba2c52a6309ecb7d23a5474023df960a02694d8",
+    "features_enabled": [
+      "deserialize",
+      "serialize"
+    ],
+    "msrv": "1.89; below workspace 1.94.0. Validated on current toolchain, not recompiled with minimum toolchain.",
+    "repository": "https://github.com/bourumir-wyngs/serde-saphyr",
+    "native_build": false,
+    "ecosystem": "crates.io",
+    "official_source": "https://crates.io/crates/serde-saphyr/1.3.0",
+    "manifests": [
+      "crates/oo-stack/Cargo.toml",
+      "crates/oo-core/Cargo.toml"
+    ],
+    "publication_date": "2026-09-16T16:41:36Z",
+    "adoption_date": "2026-11-03T21:30:30Z",
+    "age_days_at_adoption": 48,
+    "seven_day_rule": "pass",
+    "default_features_disabled": true,
+    "prohibited_license": false,
+    "native_transitive": [
+      {
+        "name": "annotate-snippets",
+        "version": "0.12.16",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/annotate-snippets-0.12.16/LICENSE-APACHE",
+            "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/annotate-snippets-0.12.16/LICENSE-MIT",
+            "sha256": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:f211a51805bc641f3ad5b7664c77d2547af685cc33b4cd8d31964027a46f13f1",
+        "features_enabled": [
+          "default",
+          "std"
+        ],
+        "msrv": "1.85.0",
+        "repository": "https://github.com/rust-lang/annotate-snippets-rs",
+        "native_build": false
+      },
+      {
+        "name": "anstyle",
+        "version": "1.0.14",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/anstyle-1.0.14/LICENSE-APACHE",
+            "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/anstyle-1.0.14/LICENSE-MIT",
+            "sha256": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000",
+        "features_enabled": [
+          "std"
+        ],
+        "msrv": "1.66.0",
+        "repository": "https://github.com/rust-cli/anstyle.git",
+        "native_build": false
+      },
+      {
+        "name": "arraydeque",
+        "version": "0.5.1",
+        "license_spdx": "MIT",
+        "dual_license_choice": null,
+        "license_evidence": [
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/arraydeque-0.5.1/LICENSE",
+            "sha256": "0aab2eeeaa27c8e946c235e5e605c6d52cb0a56d254c660bdcf618d6f7faf4af"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236",
+        "features_enabled": [],
+        "msrv": "not declared",
+        "repository": "https://github.com/andylokandy/arraydeque",
+        "native_build": false,
+        "license_note": "Archive LICENSE grants MIT only; manifest alternative is not relied upon."
+      },
+      {
+        "name": "autocfg",
+        "version": "1.5.1",
+        "license_spdx": "Apache-2.0 OR MIT",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/autocfg-1.5.1/LICENSE-APACHE",
+            "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/autocfg-1.5.1/LICENSE-MIT",
+            "sha256": "27995d58ad5c1145c1a8cd86244ce844886958a35eb2b78c6b772748669999ac"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53",
+        "features_enabled": [],
+        "msrv": "1.0",
+        "repository": "https://github.com/cuviper/autocfg",
+        "native_build": false
+      },
+      {
+        "name": "base64",
+        "version": "0.23.1",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/base64-0.23.1/LICENSE-APACHE",
+            "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/base64-0.23.1/LICENSE-MIT",
+            "sha256": "ab499c75a0f0da8e0fe83bf9ba3a27e5c39705310f07107c6c66b69958d2401c"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5",
+        "features_enabled": [
+          "alloc",
+          "default",
+          "simd-unsafe",
+          "std"
+        ],
+        "msrv": "1.71.0",
+        "repository": "https://github.com/marshallpierce/rust-base64",
+        "native_build": false
+      },
+      {
+        "name": "cfg-if",
+        "version": "1.0.5",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/cfg-if-1.0.5/LICENSE-APACHE",
+            "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/cfg-if-1.0.5/LICENSE-MIT",
+            "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600",
+        "features_enabled": [],
+        "msrv": "1.32",
+        "repository": "https://github.com/rust-lang/cfg-if",
+        "native_build": false
+      },
+      {
+        "name": "core_detect",
+        "version": "1.0.0",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/core_detect-1.0.0/LICENSE-APACHE",
+            "sha256": "769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/core_detect-1.0.0/LICENSE-MIT",
+            "sha256": "8569ebf6bf52937b961d9c9c934d8400a2bb6b09651a9afacbb3fc18fe5c09b1"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:7f8f80099a98041a3d1622845c271458a2d73e688351bf3cb999266764b81d48",
+        "features_enabled": [
+          "default"
+        ],
+        "msrv": "not declared",
+        "repository": "https://github.com/thomcc/core_detect",
+        "native_build": false
+      },
+      {
+        "name": "encoding_rs",
+        "version": "0.8.41",
+        "license_spdx": "(Apache-2.0 OR MIT) AND BSD-3-Clause",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/encoding_rs-0.8.41/LICENSE-APACHE",
+            "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+          },
+          {
+            "spdx": "BSD-3-Clause",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/encoding_rs-0.8.41/LICENSE-WHATWG",
+            "sha256": "838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/encoding_rs-0.8.41/LICENSE-MIT",
+            "sha256": "3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "BSD-3-Clause",
+            "obligations": [
+              "Retain copyright, conditions and disclaimers in source and binary documentation; do not use contributor names for endorsement."
+            ]
+          },
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:7b5ef0006ac9ab233c38522f5ae99cae3625151de8f706cacee1cba4b8e2832a",
+        "features_enabled": [
+          "alloc",
+          "default"
+        ],
+        "msrv": "1.88",
+        "repository": "https://github.com/hsivonen/encoding_rs",
+        "native_build": true
+      },
+      {
+        "name": "encoding_rs_io",
+        "version": "0.1.8",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/encoding_rs_io-0.1.8/LICENSE-APACHE",
+            "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+          },
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/encoding_rs_io-0.1.8/COPYING",
+            "sha256": "13361f93b3db60ddb43f8fdc97ba469461019bbf7589f6bde833eb3d995d2497"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/encoding_rs_io-0.1.8/LICENSE-MIT",
+            "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:fba3fe847045ecff794b9c138293a80db914678c453ad63fbf0c6a9eb6e00b22",
+        "features_enabled": [],
+        "msrv": "not declared",
+        "repository": "https://github.com/BurntSushi/encoding_rs_io",
+        "native_build": false
+      },
+      {
+        "name": "granit-parser",
+        "version": "1.3.0",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/granit-parser-1.3.0/LICENSE",
+            "sha256": "1af262e6647807eecaec988ecf2b783fb8fdbdecba396d582c1aab90615f6845"
+          },
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/granit-parser-1.3.0/LICENSE-Ethiraric-Apache",
+            "sha256": "e0f2efbe68fb02db5485f2bef61d8b49e788def182d3262af2df50e87c0d19f8"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/granit-parser-1.3.0/LICENSE-Ethiraric-MIT",
+            "sha256": "90f4ea53f408858ba4886f57b8e3ceac876eefbb59c20f0844f0abbfa59e2749"
+          },
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/granit-parser-1.3.0/LICENSE-ChenYuheng-Apache",
+            "sha256": "b2174e5bfaba26c7a78172221e190e57897b643ee21ed8ce582cf72c9b381589"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/granit-parser-1.3.0/LICENSE-ChenYuheng-MIT",
+            "sha256": "70480dc70c2fe1d9bbb64dab9a0abce266332905ffef9cabeae26dd027716ecb"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/granit-parser-1.3.0/LICENSE",
+            "sha256": "1af262e6647807eecaec988ecf2b783fb8fdbdecba396d582c1aab90615f6845",
+            "note": "Inherited and new modification notices; full inherited license texts are recorded separately."
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions.",
+              "Retain inherited Chen Yuheng and Ethiraric notices and the Bourumir Wyngs modification notice."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:e20f99e46474f56bd905c56e817ebddcf377a611f94c53ac4649e4d3fa3c0cd0",
+        "features_enabled": [
+          "default",
+          "error_messages",
+          "std"
+        ],
+        "msrv": "1.81.0",
+        "repository": "https://github.com/bourumir-wyngs/granit-parser",
+        "native_build": false
+      },
+      {
+        "name": "libm",
+        "version": "0.2.16",
+        "license_spdx": "MIT",
+        "dual_license_choice": null,
+        "license_evidence": [
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/libm-0.2.16/LICENSE.txt",
+            "sha256": "3823dda7cf046602f4b4e77ec8e227863dc4736037cc85bb33d9f19febe16bb7"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981",
+        "features_enabled": [
+          "arch",
+          "default"
+        ],
+        "msrv": "1.63",
+        "repository": "https://github.com/rust-lang/compiler-builtins",
+        "native_build": true
+      },
+      {
+        "name": "memchr",
+        "version": "2.8.3",
+        "license_spdx": "Unlicense OR MIT",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Unlicense",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/memchr-2.8.3/LICENSE-UNLICENSE",
+            "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/memchr-2.8.3/LICENSE-MIT",
+            "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98",
+        "features_enabled": [
+          "alloc",
+          "default",
+          "std"
+        ],
+        "msrv": "1.61",
+        "repository": "https://github.com/BurntSushi/memchr",
+        "native_build": false
+      },
+      {
+        "name": "multiversion-macros",
+        "version": "0.9.0",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/multiversion-macros-0.9.0/LICENSE-APACHE",
+            "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/multiversion-macros-0.9.0/LICENSE-MIT",
+            "sha256": "3c92a19e541755a97e51b4c963aa4335bbf93b64574dfbc36a5636c2899f3ab9"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:0d416831a7317ef4b08bee00b69cbbb9c8763da7959a7026244d6266869f9c83",
+        "features_enabled": [],
+        "msrv": "1.86",
+        "repository": "https://github.com/calebzulawski/multiversion",
+        "native_build": false
+      },
+      {
+        "name": "multiversion",
+        "version": "0.9.0",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/multiversion-0.9.0/LICENSE-APACHE",
+            "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/multiversion-0.9.0/LICENSE-MIT",
+            "sha256": "3c92a19e541755a97e51b4c963aa4335bbf93b64574dfbc36a5636c2899f3ab9"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:b4ca4bea16ffc3f443cf7d866912118196bfef4c6a1556ca00f9f9b00bb43f7c",
+        "features_enabled": [],
+        "msrv": "1.86",
+        "repository": "https://github.com/calebzulawski/multiversion",
+        "native_build": false
+      },
+      {
+        "name": "multiversion_no_op",
+        "version": "1.0.0",
+        "license_spdx": "Apache-2.0 OR MIT",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/multiversion_no_op-1.0.0/LICENSE-APACHE",
+            "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/multiversion_no_op-1.0.0/LICENSE-MIT",
+            "sha256": "3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d",
+        "features_enabled": [],
+        "msrv": "1.56",
+        "repository": "https://github.com/hsivonen/multiversion_no_op",
+        "native_build": false
+      },
+      {
+        "name": "nohash-hasher",
+        "version": "0.2.0",
+        "license_spdx": "Apache-2.0 OR MIT",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/nohash-hasher-0.2.0/LICENSE-APACHE",
+            "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/nohash-hasher-0.2.0/LICENSE-MIT",
+            "sha256": "ec353d4fecf7963b4c054384557e5dbc3c7a717997eb4a3815b315721a6aa75a"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451",
+        "features_enabled": [
+          "default",
+          "std"
+        ],
+        "msrv": "not declared",
+        "repository": "https://github.com/paritytech/nohash-hasher",
+        "native_build": false
+      },
+      {
+        "name": "num-traits",
+        "version": "0.2.19",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/num-traits-0.2.19/LICENSE-APACHE",
+            "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/num-traits-0.2.19/LICENSE-MIT",
+            "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841",
+        "features_enabled": [
+          "default",
+          "i128",
+          "libm",
+          "std"
+        ],
+        "msrv": "1.60",
+        "repository": "https://github.com/rust-num/num-traits",
+        "native_build": true
+      },
+      {
+        "name": "proc-macro2",
+        "version": "1.0.107",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/proc-macro2-1.0.107/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/proc-macro2-1.0.107/LICENSE-MIT",
+            "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9",
+        "features_enabled": [
+          "default",
+          "proc-macro"
+        ],
+        "msrv": "1.71",
+        "repository": "https://github.com/dtolnay/proc-macro2",
+        "native_build": true
+      },
+      {
+        "name": "quote",
+        "version": "1.0.47",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/quote-1.0.47/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/quote-1.0.47/LICENSE-MIT",
+            "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001",
+        "features_enabled": [
+          "default",
+          "proc-macro"
+        ],
+        "msrv": "1.71",
+        "repository": "https://github.com/dtolnay/quote",
+        "native_build": true
+      },
+      {
+        "name": "rustversion",
+        "version": "1.0.23",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/rustversion-1.0.23/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/rustversion-1.0.23/LICENSE-MIT",
+            "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f",
+        "features_enabled": [],
+        "msrv": "1.31",
+        "repository": "https://github.com/dtolnay/rustversion",
+        "native_build": true
+      },
+      {
+        "name": "scopeguard",
+        "version": "1.2.0",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/scopeguard-1.2.0/LICENSE-APACHE",
+            "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/scopeguard-1.2.0/LICENSE-MIT",
+            "sha256": "fb77f0a9c53e473abe5103c8632ef9f0f2874d4fb3f17cb2d8c661aab9cee9d7"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49",
+        "features_enabled": [],
+        "msrv": "not declared",
+        "repository": "https://github.com/bluss/scopeguard",
+        "native_build": false
+      },
+      {
+        "name": "serde",
+        "version": "1.0.229",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/serde-1.0.229/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/serde-1.0.229/LICENSE-MIT",
+            "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba",
+        "features_enabled": [
+          "alloc",
+          "default",
+          "derive",
+          "rc",
+          "serde_derive",
+          "std"
+        ],
+        "msrv": "1.56",
+        "repository": "https://github.com/serde-rs/serde",
+        "native_build": true
+      },
+      {
+        "name": "serde_core",
+        "version": "1.0.229",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/serde_core-1.0.229/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/serde_core-1.0.229/LICENSE-MIT",
+            "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48",
+        "features_enabled": [
+          "alloc",
+          "default",
+          "rc",
+          "result",
+          "std"
+        ],
+        "msrv": "1.56",
+        "repository": "https://github.com/serde-rs/serde",
+        "native_build": true
+      },
+      {
+        "name": "serde_derive",
+        "version": "1.0.229",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/serde_derive-1.0.229/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/serde_derive-1.0.229/LICENSE-MIT",
+            "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348",
+        "features_enabled": [
+          "default"
+        ],
+        "msrv": "1.71",
+        "repository": "https://github.com/serde-rs/serde",
+        "native_build": false
+      },
+      {
+        "name": "simdutf8",
+        "version": "0.1.5",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/simdutf8-0.1.5/LICENSE-Apache",
+            "sha256": "0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/simdutf8-0.1.5/LICENSE-MIT",
+            "sha256": "1847e0e0698142ed4347c1441a9fa81c8fbddd44b1d8bbcd5e3647f991759d7f"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e",
+        "features_enabled": [
+          "aarch64_neon",
+          "public_imp",
+          "std"
+        ],
+        "msrv": "not declared",
+        "repository": "https://github.com/rusticstuff/simdutf8",
+        "native_build": false
+      },
+      {
+        "name": "smallvec",
+        "version": "1.16.1",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/smallvec-1.16.1/LICENSE-APACHE",
+            "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/smallvec-1.16.1/LICENSE-MIT",
+            "sha256": "0b28172679e0009b655da42797c03fd163a3379d5cfa67ba1f1655e974a2a1a9"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891",
+        "features_enabled": [
+          "const_generics",
+          "const_new",
+          "serde"
+        ],
+        "msrv": "not declared",
+        "repository": "https://github.com/servo/rust-smallvec",
+        "native_build": false
+      },
+      {
+        "name": "syn",
+        "version": "3.0.6",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/syn-3.0.6/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/syn-3.0.6/LICENSE-MIT",
+            "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee",
+        "features_enabled": [
+          "clone-impls",
+          "default",
+          "derive",
+          "extra-traits",
+          "fold",
+          "full",
+          "parsing",
+          "printing",
+          "proc-macro",
+          "visit",
+          "visit-mut"
+        ],
+        "msrv": "1.71",
+        "repository": "https://github.com/dtolnay/syn",
+        "native_build": false
+      },
+      {
+        "name": "unicode-ident",
+        "version": "1.0.26",
+        "license_spdx": "(MIT OR Apache-2.0) AND Unicode-3.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/unicode-ident-1.0.26/LICENSE-UNICODE",
+            "sha256": "f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1"
+          },
+          {
+            "spdx": "Unicode-3.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/unicode-ident-1.0.26/LICENSE-UNICODE",
+            "sha256": "f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1"
+          },
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/unicode-ident-1.0.26/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/unicode-ident-1.0.26/LICENSE-MIT",
+            "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          },
+          {
+            "spdx": "Unicode-3.0",
+            "obligations": [
+              "Retain copyright and permission notices with software or documentation; do not use copyright-holder names for promotion without authorization."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954",
+        "features_enabled": [],
+        "msrv": "1.71",
+        "repository": "https://github.com/dtolnay/unicode-ident",
+        "native_build": false
+      },
+      {
+        "name": "unicode-width",
+        "version": "0.2.2",
+        "license_spdx": "MIT OR Apache-2.0",
+        "dual_license_choice": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/unicode-width-0.2.2/LICENSE-APACHE",
+            "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+          },
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/unicode-width-0.2.2/LICENSE-MIT",
+            "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254",
+        "features_enabled": [
+          "cjk",
+          "default"
+        ],
+        "msrv": "1.66",
+        "repository": "https://github.com/unicode-rs/unicode-width",
+        "native_build": false
+      },
+      {
+        "name": "zmij",
+        "version": "1.0.23",
+        "license_spdx": "MIT",
+        "dual_license_choice": null,
+        "license_evidence": [
+          {
+            "spdx": "MIT",
+            "source": "evidence/a-s0s1-fix-20261104/licenses/zmij-1.0.23/LICENSE-MIT",
+            "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain copyright and permission notices in copies or substantial portions."
+            ]
+          }
+        ],
+        "weak_copyleft_review": null,
+        "digest": "sha256:29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b",
+        "features_enabled": [],
+        "msrv": "1.71",
+        "repository": "https://github.com/dtolnay/zmij",
+        "native_build": true
+      }
+    ],
+    "selected_edge_features": [
+      "deserialize"
+    ],
+    "feature_note": "serialize is already unified through oo-core; include, include_fs and properties remain disabled."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "cargo-audit 0.22.2; cargo-deny 0.20.2",
+    "evidence": "evidence/a-s0s1-fix-20261104/cargo-audit-final.txt; evidence/a-s0s1-fix-20261104/cargo-deny-final.txt",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "Rust reviewer",
+    "security / supply-chain reviewer"
+  ],
+  "reviewers_assigned": [
+    "Codex executor (self-review); coordinator acceptance pending"
+  ],
+  "evidence_scope": "Existing resolved normal/build dependency closure including feature unification. No new registry packages. License bytes checked against checksum-verified crate archives. No C/C++ library linked by this YAML closure; custom-build flags include Rust build scripts. Complete workspace/container/SBOM acceptance is outside this record.",
+  "publication_evidence": {
+    "source": "evidence/a-s0s1-fix-20261104/yaml-index.json",
+    "sha256": "f828bbc759337eb661170feda5fc5ea0301fb4bcd202baa908bfba2ad7231656",
+    "method": "Freshly read official Cargo sparse-index cache pubtime and checksum; registry HTTP API returned 403."
+  },
+  "scan_digests": {
+    "cargo-audit-final.txt": "109366eaed1a6ecc741e217739f6c1adad0f31eedeb4dd80bc3e498463746ae7",
+    "cargo-deny-final.txt": "bf7521abd50709197910a2137cc4ff6db7495f708ab5ca4619bf2ea54dd0017c"
+  },
+  "scan_commands": [
+    "cargo audit",
+    "cargo deny --config ci/deny.toml check advisories licenses"
+  ],
+  "supersedes": "supply-chain/stack-yaml-admission-blocked.md (historical note retained unchanged)"
+}

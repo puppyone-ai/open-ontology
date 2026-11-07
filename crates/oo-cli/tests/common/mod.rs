@@ -344,6 +344,8 @@ fn run_blocking(spec: Spec) -> Outcome {
         .env_clear()
         .env("OO_TOKEN", CANARY)
         .env("HOME", &spec.home)
+        .env("OO_CONFIG_DIR", spec.home.with_extension("config"))
+        .env("TMPDIR", &spec.dir)
         .current_dir(&spec.dir)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())

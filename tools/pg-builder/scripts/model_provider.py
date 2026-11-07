@@ -58,10 +58,11 @@ def http_failure(status, body):
         tokens = [error.get('type'), error.get('code')] if isinstance(error, dict) else []
     except (ValueError, TypeError):
         tokens = []
+    for token in ('usage_limit_reached', 'insufficient_quota', 'model_cooldown', 'cooldown'):
+        if token in tokens:
+            return ProviderFailure('s5_provider_' + token, False, True)
     if status == 429:
-        for token in ('usage_limit_reached', 'insufficient_quota', 'model_cooldown'):
-            if token in tokens:
-                return ProviderFailure('s5_provider_' + token, False, True)
+        return ProviderFailure('s5_provider_http_429', False, True)
     return ProviderFailure('s5_provider_http_' + str(status),
                            status in (408, 429) or status >= 500, status in (401, 403))
 
@@ -98,7 +99,7 @@ def read_completion_stream(response, max_bytes=8_388_608, timeout=600):
             try:
                 payload = json.loads(data)
                 if isinstance(payload, dict) and payload.get('error'):
-                    failure = http_failure(429, data)
+                    failure = http_failure(400, data)
                     if not failure.retryable and failure.stops_run:
                         refused = CompletionStreamError(str(failure), raw)
                         refused.retryable = False

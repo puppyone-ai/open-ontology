@@ -1,5 +1,6 @@
 import copy
 import json
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
@@ -8,6 +9,15 @@ from licenses import TARGETS, load_supplements, outside_git, package_inventory, 
 
 
 class LicenseInventoryTests(unittest.TestCase):
+    def test_ignored_artifacts_allowed_but_tracked_source_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            subprocess.run(["git", "init", "--quiet", str(root)], check=True)
+            (root / ".gitignore").write_text("/evidence/\n")
+            self.assertEqual(outside_git(root / "evidence/notices"), root / "evidence/notices")
+            with self.assertRaisesRegex(RuntimeError, "outside Git"):
+                outside_git(root / "src/notices")
+
     def supplement_fixture(self, root):
         crate, directory = root / "crate", root / "supplements"
         crate.mkdir()
@@ -48,7 +58,8 @@ class LicenseInventoryTests(unittest.TestCase):
             self.assertEqual(file["provenance"]["vcs_commit"], "a" * 40)
             self.assertIn(file["provenance"]["upstream_url"], body)
             self.assertNotIn(str(root), json.dumps(record) + body)
-            self.assertEqual(set(TARGETS), {"aarch64-apple-darwin", "x86_64-unknown-linux-gnu"})
+            self.assertEqual(set(TARGETS), {"aarch64-apple-darwin", "x86_64-apple-darwin",
+                                          "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"})
             for change in ({"version": "1.0.1"}, {"repository": "https://github.com/other/project"},
                            {"license": "Apache-2.0"}, {"source": None}):
                 with self.subTest(change=change):
@@ -111,6 +122,52 @@ class LicenseInventoryTests(unittest.TestCase):
                 (directory / "manifest.json").write_text(json.dumps(data))
                 with self.assertRaisesRegex(RuntimeError, "supplement manifest is invalid"):
                     load_supplements(directory)
+
+    def test_nested_multiple_notices_root_crate_and_pinned_dirty_manifest(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            crate, directory, package, manifest, _ = self.supplement_fixture(root)
+            entry = manifest["supplements"][0]
+            nested = directory / "third-party/example-1.0.0"
+            nested.mkdir(parents=True)
+            (directory / "LICENSE.txt").rename(nested / "LICENSE.txt")
+            entry["file"] = "third-party/example-1.0.0/LICENSE.txt"
+            second = b"Second upstream license.\n"
+            (nested / "LICENSE-OTHER").write_bytes(second)
+            prefix = entry["upstream_url"].removesuffix("LICENSE")
+            entry["additional_files"] = [{
+                "file": "third-party/example-1.0.0/LICENSE-OTHER",
+                "upstream_path": "LICENSE-OTHER", "upstream_url": prefix + "LICENSE-OTHER",
+                "sha256": sha256(second),
+            }]
+            vcs_raw = json.dumps({"git": {"sha1": "a" * 40, "dirty": True},
+                                  "path_in_vcs": ""}).encode()
+            (crate / ".cargo_vcs_info.json").write_bytes(vcs_raw)
+            packaged = b'[package]\nname="example"\nversion="1.0.0"\n'
+            (crate / "Cargo.toml.orig").write_bytes(packaged)
+            entry.update(path_in_vcs="", vcs_dirty=True)
+            entry["provenance"].update(crate_manifest_url=prefix + "Cargo.toml",
+                                       registry_vcs_info_sha256=sha256(vcs_raw),
+                                       registry_manifest_sha256=sha256(packaged))
+            (directory / "manifest.json").write_text(json.dumps(manifest))
+            supplements = load_supplements(directory)
+            record, text = package_inventory(package, TARGETS, root, set(), supplements)
+            self.assertEqual(record["unresolved"], [])
+            self.assertEqual(len(record["license_files"]), 2)
+            self.assertIn("Second upstream license.", text)
+            (crate / "Cargo.toml.orig").write_bytes(packaged + b"# changed\n")
+            record, text = package_inventory(package, TARGETS, root, set(), supplements)
+            self.assertIn("license_supplement_package_mismatch", record["unresolved"])
+            self.assertEqual(text, "")
+            (crate / "Cargo.toml.orig").write_bytes(packaged)
+            (nested / "LICENSE-OTHER").unlink()
+            record, text = package_inventory(package, TARGETS, root, set(), supplements)
+            self.assertIn("license_text_missing", record["unresolved"])
+            self.assertEqual(text, "")
+            entry["additional_files"][0]["file"] = "third-party/../../private"
+            (directory / "manifest.json").write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(RuntimeError, "supplement manifest is invalid"):
+                load_supplements(directory)
 
     def test_normal_build_closure_excludes_dev_and_unrelated_packages_and_redacts_private_paths(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -297,7 +297,7 @@ LEFT JOIN pg_catalog.pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.a
 ORDER BY c.oid, a.attnum LIMIT $2::int8";
 
 pub(crate) const PRIMARY_KEYS: &str = "\
-SELECT c.oid::int8, ic.relname::text, i.indisunique, i.indnullsnotdistinct, \
+SELECT c.oid::int8, ic.relname::text, i.indisunique, COALESCE((to_jsonb(i)->>'indnullsnotdistinct')::boolean, false), \
 a.attnum::int4, a.attname::text, u.ord::int8 \
 FROM unnest($1::int8[]) AS ids(oid) \
 JOIN pg_catalog.pg_class c ON c.oid = ids.oid \
@@ -308,7 +308,7 @@ LEFT JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum = u.attnu
 ORDER BY c.oid, u.ord LIMIT $2::int8";
 
 pub(crate) const UNIQUE_KEYS: &str = "\
-SELECT c.oid::int8, ic.relname::text, i.indnullsnotdistinct, \
+SELECT c.oid::int8, ic.relname::text, COALESCE((to_jsonb(i)->>'indnullsnotdistinct')::boolean, false), \
 a.attnum::int4, a.attname::text, u.ord::int8 \
 FROM unnest($1::int8[]) AS ids(oid) \
 JOIN pg_catalog.pg_class c ON c.oid = ids.oid \

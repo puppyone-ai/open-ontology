@@ -45,17 +45,19 @@ use serde_json::Value;
 use oo_core::config::{PiiLevel, SampleValues};
 use oo_core::diagnostic::DiagnosticList;
 use oo_core::oos::{
-    CalendarFile, ClassName, ClassState, DatasetColumn, DatasetFile, EntityFile, EnumFile,
-    EnumValueStatus, GlossaryFile, ItemStatus, Metric, MetricStatus, MetricsFile, OntologyFile,
-    RelationProvenance, Relationship, RelationshipsFile, ReviewState, SourceSemantics, Term,
-    TermStatus, VerifiedExample, validate_calendar, validate_dataset, validate_enum,
-    validate_glossary, validate_metrics, validate_relationships,
+    CalendarFile, ClassName, ClassState, DatasetColumn, DatasetFile, EntityFile, EntityKey,
+    EnumFile, EnumValueStatus, GlossaryFile, ItemStatus, Metric, MetricStatus, MetricsFile,
+    OntologyFile, RelationProvenance, Relationship, RelationshipsFile, ReviewState,
+    SourceSemantics, Term, TermStatus, VerifiedExample, validate_calendar, validate_dataset,
+    validate_enum, validate_glossary, validate_metrics, validate_relationships,
 };
 use oo_core::text::{BoundedText, Label, TableName};
 
 use crate::canonical::{canonical_json, sha256_hex};
 use crate::nfc::nfc;
 
+#[path = "community_summaries.rs"]
+mod community_summaries;
 #[path = "role_pack_pages.rs"]
 mod pages;
 
@@ -866,20 +868,17 @@ fn bind(
                 "an entity name is repeated",
             ));
         }
-        require_known_column(
-            &datasets,
-            schema_of(entity.primary_dataset.as_str())?,
-            table_of(entity.primary_dataset.as_str())?,
-            entity.key.as_str(),
-            &format!("/entities/{name}/key"),
-        )?;
-        require_known_column(
-            &datasets,
-            schema_of(entity.primary_dataset.as_str())?,
-            table_of(entity.primary_dataset.as_str())?,
-            entity.display.as_str(),
-            &format!("/entities/{name}/display"),
-        )?;
+        for (field, columns) in [("key", &entity.key), ("display", &entity.display)] {
+            for column in columns.columns() {
+                require_known_column(
+                    &datasets,
+                    schema_of(entity.primary_dataset.as_str())?,
+                    table_of(entity.primary_dataset.as_str())?,
+                    column.as_str(),
+                    &format!("/entities/{name}/{field}"),
+                )?;
+            }
+        }
         for member in &entity.members {
             if !datasets.contains_key(member.dataset.as_str()) {
                 return Err(RolePackError::new(
@@ -1383,8 +1382,12 @@ fn entity_fully_visible(model: &Model, entity: &EntityFile) -> bool {
         return false;
     }
     let primary = entity.primary_dataset.as_str();
-    if !column_visible(model, primary, entity.key.as_str())
-        || !column_visible(model, primary, entity.display.as_str())
+    if !entity
+        .key
+        .columns()
+        .iter()
+        .chain(entity.display.columns())
+        .all(|column| column_visible(model, primary, column.as_str()))
     {
         return false;
     }
@@ -2321,6 +2324,7 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
     for (path, text) in &files {
         check_file_budget(path, text, &model.limits)?;
     }
+    community_summaries::render(&mut files, model, selected)?;
     pages::metrics(&mut files, model, selected)?;
     add_file(
         &mut files,
@@ -2369,6 +2373,82 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
     )?;
     add_file(&mut files, "calendar.md", render_calendar(model)?)?;
     add_file(&mut files, "glossary.md", render_glossary(model, selected)?)?;
+    // Use the visibility-closed selection, never the unfiltered effective graph.
+    let graph = serde_json::json!({
+        "protocol":"oo.knowledge.relationship-graph/v1",
+        "entities":selected.entities.iter().map(|entity| serde_json::json!({
+            "id":entity.entity.as_str(),
+            "canonical_name":if visible_prose(model,entity.label.as_str()) {
+                entity.label.as_str()
+            } else { entity.entity.as_str() },
+            "aliases":entity.synonyms.iter().filter(|s|visible_prose(model,s.as_str()))
+                .map(|s|s.as_str()).collect::<Vec<_>>(),
+            "main_table":entity.primary_dataset.as_str(),
+            "related_tables":entity.datasets.iter().map(|t|t.as_str()).collect::<Vec<_>>(),
+            "members":entity.members.iter().map(|m|m.dataset.as_str()).collect::<Vec<_>>()
+        })).collect::<Vec<_>>(),
+        "relationships":selected.relationships.iter().map(|r| serde_json::json!({
+            "id":r.name.as_str(),"from":r.from,"to":r.to,
+            "cardinality":r.cardinality,"join_hint":r.join_hint,"provenance":r.provenance,
+            "confidence":r.confidence
+        })).collect::<Vec<_>>()
+    });
+    let graph_budget = model.limits.max_file_bytes.min(
+        model
+            .ontology
+            .compile
+            .budgets
+            .readme_tokens
+            .min(model.ontology.compile.budgets.table_file_tokens)
+            .into(),
+    );
+    let graph_text = canonical_json(&graph);
+    if graph_text.len() as u64 <= graph_budget {
+        add_file(&mut files, "relationships/graph.json", graph_text)?;
+    } else {
+        // Page on item boundaries; the graph index is still machine readable.
+        let mut pages = Vec::new();
+        for category in ["entities", "relationships"] {
+            let rows = graph[category].as_array().expect("graph arrays");
+            let mut page = Vec::new();
+            let mut number = 0;
+            for row in rows {
+                page.push(row.clone());
+                if canonical_json(&serde_json::json!({category:&page})).len() as u64 > graph_budget
+                {
+                    page.pop();
+                    if page.is_empty() {
+                        return Err(object_budget("/relationships/graph"));
+                    }
+                    let path = format!("relationships/graph-{category}-{number:04}.json");
+                    add_file(
+                        &mut files,
+                        &path,
+                        canonical_json(&serde_json::json!({category:page})),
+                    )?;
+                    pages.push(path);
+                    number += 1;
+                    page = vec![row.clone()];
+                }
+            }
+            if !page.is_empty() {
+                let path = format!("relationships/graph-{category}-{number:04}.json");
+                add_file(
+                    &mut files,
+                    &path,
+                    canonical_json(&serde_json::json!({category:page})),
+                )?;
+                pages.push(path);
+            }
+        }
+        add_file(
+            &mut files,
+            "relationships/graph.json",
+            canonical_json(&serde_json::json!({
+                "protocol":"oo.knowledge.relationship-graph/v1","pages":pages
+            })),
+        )?;
+    }
     let relationships = render_relationships(model, selected)?;
     let page_bytes = model
         .ontology
@@ -2406,6 +2486,15 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
         }
         add_file(&mut files, "relationships.md", navigation)?;
     }
+    let graph_links: String = files
+        .keys()
+        .filter(|p| p.starts_with("relationships/graph"))
+        .map(|path| format!("- [{path}]({path})\n"))
+        .collect();
+    if let Some(page) = files.get_mut("relationships.md") {
+        page.push_str("\n## Machine-readable graph\n\n");
+        page.push_str(&graph_links);
+    }
     add_file(
         &mut files,
         "examples/verified.sql",
@@ -2417,7 +2506,7 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
     }
     for entity in &selected.entities {
         let path = normalize_pack_path(&format!("entities/{}.md", entity.entity.as_str()))?;
-        add_file(&mut files, &path, render_entity(model, entity)?)?;
+        add_file(&mut files, &path, render_entity(model, selected, entity)?)?;
     }
     Ok(files)
 }
@@ -3392,7 +3481,20 @@ fn render_enum(model: &Model, enum_file: &EnumFile) -> Result<String, RolePackEr
     finish(text)
 }
 
-fn render_entity(model: &Model, entity: &EntityFile) -> Result<String, RolePackError> {
+/// A scalar key renders as before; a composite renders its ordered columns.
+fn key_text(key: &EntityKey) -> String {
+    key.columns()
+        .iter()
+        .map(TableName::as_str)
+        .collect::<Vec<_>>()
+        .join("`, `")
+}
+
+fn render_entity(
+    model: &Model,
+    selected: &Selected,
+    entity: &EntityFile,
+) -> Result<String, RolePackError> {
     let mut text = String::new();
     text.push_str("# ");
     text.push_str(entity.entity.as_str());
@@ -3405,11 +3507,39 @@ fn render_entity(model: &Model, entity: &EntityFile) -> Result<String, RolePackE
         &mut text,
         &format!("primary dataset: `{}`", entity.primary_dataset.as_str()),
     );
-    line(&mut text, &format!("key: `{}`", entity.key.as_str()));
+    line(&mut text, &format!("key: `{}`", key_text(&entity.key)));
+    for dataset in &entity.datasets {
+        line(
+            &mut text,
+            &format!("related dataset: `{}`", dataset.as_str()),
+        );
+    }
     line(
         &mut text,
-        &format!("display: `{}`", entity.display.as_str()),
+        &format!("display: `{}`", key_text(&entity.display)),
     );
+    let datasets: BTreeSet<_> = entity
+        .datasets
+        .iter()
+        .map(|d| d.as_str())
+        .chain(entity.members.iter().map(|m| m.dataset.as_str()))
+        .chain(std::iter::once(entity.primary_dataset.as_str()))
+        .collect();
+    for relation in &selected.relationships {
+        if datasets.contains(relation.from.dataset.as_str())
+            || datasets.contains(relation.to.dataset.as_str())
+        {
+            line(
+                &mut text,
+                &format!(
+                    "relationship: `{}` ({} -> {}); see relationships.md",
+                    relation.name.as_str(),
+                    relation.from.dataset.as_str(),
+                    relation.to.dataset.as_str()
+                ),
+            );
+        }
+    }
     text.push_str("\nThe member list is every member in the effective document. This compiler does not emit an entity when any member is hidden.\n\n");
     if entity.members.is_empty() {
         text.push_str("Members: none.\n");
@@ -3451,8 +3581,8 @@ fn seal(model: &Model, mut files: BTreeMap<String, String>) -> Result<RolePack, 
         "compiler": ROLE_PACK_COMPILER,
         "domains": "unsupported",
         "file_splitting": if files.keys().any(|p| p.starts_with("metrics/") && p != "metrics/availability.json") {
-            if files.keys().any(|p| p.starts_with("relationships/")) { "relationship_and_metric_pages" } else { "metric_pages" }
-        } else if files.keys().any(|p| p.starts_with("relationships/")) { "relationship_pages" } else { "unsupported" },
+            if files.keys().any(|p| p.starts_with("relationships/page-")) { "relationship_and_metric_pages" } else { "metric_pages" }
+        } else if files.keys().any(|p| p.starts_with("relationships/page-")) { "relationship_pages" } else { "unsupported" },
         "files": listed,
         "knowledge": {"id": model.knowledge_id, "version": model.knowledge_version},
         "mount": "not_performed",

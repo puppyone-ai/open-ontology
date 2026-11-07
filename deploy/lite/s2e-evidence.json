@@ -1,0 +1,86 @@
+{
+  "todo": "S2-A-02",
+  "status": "partial",
+  "d14": {
+    "run_id": "a-s2e-d14-live-final",
+    "result_sha256": "e26b21390d41404633d6db1ead5265f28773e40ee45368ea43fdfdfb54651585",
+    "status": "passed",
+    "positive_mtls_connection": "passed",
+    "engine": "PostgreSQL",
+    "version": "17.10 (Debian 17.10-1.pgdg12+1)",
+    "issue_token_install_exit": 0,
+    "issue_token_exit": 0,
+    "server_identity_verified": true,
+    "plaintext_refused": true,
+    "untrusted_ca_refused": true,
+    "client_certificate_required": false,
+    "token_issued": true,
+    "health_meta_role_enforcement_tested": false
+  },
+  "checks": {
+    "run_id": "a-s2e-operator",
+    "workspace_locked": "passed",
+    "lifecycle_unit_tests": 12,
+    "oo_cli_tests": 48,
+    "oo_stack_tests": 11,
+    "format": "cargo fmt -p oo-stack"
+  },
+  "first_up_operator_token": false,
+  "seven_service_acceptance": false,
+  "three_engine_drafts": false,
+  "operator_boundary": {
+    "run_id": "a-s2e-operator-final",
+    "result_sha256": "a6cf314184792f37744c9154c9ace2c20788cbe60410e1081b670420ce90b27c",
+    "status": "passed",
+    "positive_mtls_connection": "passed",
+    "engine": "PostgreSQL",
+    "version": "17.10 (Debian 17.10-1.pgdg12+1)",
+    "issue_token_install_exit": 0,
+    "issue_token_exit": 0,
+    "server_identity_verified": true,
+    "plaintext_refused": true,
+    "untrusted_ca_refused": true,
+    "client_certificate_required": false,
+    "token_issued": true,
+    "health_meta_role_enforcement_tested": true,
+    "gateway_boundary": {
+      "status": "blocked",
+      "http_statuses": {
+        "/v1/health": 200,
+        "/v1/meta": 409,
+        "/v1/session/current": 200,
+        "/v1/tables": 400
+      },
+      "reason": "authenticated meta requires a publication; role is not health/meta-only",
+      "gateway_internal_mtls": true,
+      "fake_publication_created": false
+    }
+  },
+  "control_db": {
+    "run_id": "a-s2e-control-live",
+    "result_sha256": "f4046ce061df2d65dca556d2ee4cc10034d7d1113382027f75dba7f7c8dcaff1",
+    "result": "passed",
+    "engine": "PostgreSQL",
+    "version": "17.10 (Debian 17.10-1.pgdg12+1)",
+    "scope": "real control DB queries and fixture-driven scheduled no-op job transitions",
+    "seven_service_acceptance": false,
+    "production_scheduler_tested": false
+  },
+  "draft_dependency": {
+    "integration_commit": "15d1ec0c8",
+    "status": "pending_lane_G",
+    "reason": "catalog-pg TABLES query excludes published views",
+    "live_model_calls": 0
+  },
+  "shared_patch": {
+    "path": "deploy/lite/operator-contract-request.patch",
+    "applied": false,
+    "validated": "git apply --check only; coordinator must add API tests"
+  },
+  "failed_attempts_preserved": [
+    "a-s2e-gateway-boundary",
+    "a-s2e-gateway-boundary-2",
+    "a-s2e-gateway-boundary-3"
+  ],
+  "containers_left": 0
+}

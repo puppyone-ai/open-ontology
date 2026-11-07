@@ -2,7 +2,7 @@
 
 Read COMMON.md in this directory fully, then task-specific original Plan/docs and latest local reports.
 
-Oracle complete source,重点。既有真实Free fixture及原C5周期/删除等证据d55d63，wide/ts admitted，DATEbatch Arrow未过02；SCN/emptyString/NUMBER/nano真实语义必须整个Pack与freshness传递。新增real省际47.104.150.9:1521/scm5，password同MySQL私有file。用户要求自行解析用户名/连接标识：以给定测试账号aiagenttest候选、已有合法任务配置/监听返回识别service/SID，单次合理连接不枚举身份/密码，不做source写。成功后任选一表≤5行真实只读补整链输入；账号或service拒绝真实记录精确错误转root，不假成功。不得以fixture成功代新endpoint实际验证。
+Oracle complete source,重点。既有真实Free fixture及原C5周期/删除等证据d55d63，wide/ts admitted，DATEbatch Arrow未过02；SCN/emptyString/NUMBER/nano真实语义必须整个Pack与freshness传递。新增real省际192.0.2.10:1521/客户 Oracle 源，password同MySQL私有file。用户要求自行解析用户名/连接标识：以给定测试账号source_reader候选、已有合法任务配置/监听返回识别service/SID，单次合理连接不枚举身份/密码，不做source写。成功后任选一表≤5行真实只读补整链输入；账号或service拒绝真实记录精确错误转root，不假成功。不得以fixture成功代新endpoint实际验证。
 
 Exclusive writable paths:
 - `tools/source-driver-worker`

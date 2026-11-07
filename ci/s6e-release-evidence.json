@@ -1,0 +1,129 @@
+{
+  "base_commit": "5fb5966af2953eb5bc08859a0d11157ad3c1ad23",
+  "cargo_lock_changes": false,
+  "ci_execution": "not_run; no push or PR",
+  "containers_left_running": 0,
+  "evidence_sha256": {
+    "build-darwin.log": "a763d9843d6f62ba0f874c617b918be5d774271bd4f7c81cd318fe69edf1a44b",
+    "build-linux-arm64.log": "a66e31c5a4f18e5b1cca97db513b5927c855f252bf580f5c488eb8a6cc4c425e",
+    "build-linux-x64.log": "4b6c95b9eb82e212e55863b5c5b911bc42296676bb6fe9b8866150240432e0f6",
+    "cleanup.json": "23107176d17fc7903ace7e2e1317e67d147daabfbe66c875ab1a9424a8ae7ed5",
+    "cli-stack-tests.log": "37812866606f70b0bc34d4eb5a33b5e4098b1e32f1e9b81d429d5d6168f46702",
+    "doctor-no-copy.stdout": "6a3a586bcfb2d646f377e39d6bc419c2da1648d3fef86af672472a5c4851d5cc",
+    "final-plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+    "final-spec.log": "341d87269554bd330947a8570481e4c360ca59bafd8bb2f5ee3a36eb444899f7",
+    "final-v02-plan.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "install-linux-amd64.log": "58e92283af5d252331cadb7c3030bcb12338f12b46927a2fe6acb5030ffad829",
+    "install-linux-arm64.log": "d19efa3030a8e171e7bcf3cf477dfcc73747a8ee42fd624ee218e80c85f62f91",
+    "inventory.log": "6c0239ffdcddc6803cdc34809fe331138a486810441da978bce5fd98e5636862",
+    "license-tests-final.log": "f8d9067bd3074725849d891299e4ea2dbf17b12a857c6cc617dc31e6623a909d",
+    "lifecycle-tests.log": "502ae3e0ddeccf80e35d851da10c563e90c99f65c5592ee750f32648500762a6",
+    "node-tests-final.log": "94b24b21d71f713598258326709e8a3e1f94a23193deb342013eb45f1c6ad306",
+    "node-tests.log": "bb56247cc95401292271f7c1402befa8b4047b6d4ec20e21abd55e8d6acfea7c",
+    "precommit1-check.log": "a91935aa13f6caa69b6dfa4c5b395fafedd1962cb43c2920d84af19cd182282b",
+    "quickstart-attempt2/doctor-no-copy.stdout": "9e702abe24be45bf8ea2b054951eceec0daaf6c6fa6a125c6e978a79f1172a29",
+    "quickstart-attempt2/fresh-install.stdout": "c75c65461154622956c4fcb2fad4e6102a02035b409d3bde2baccfa029726d8b",
+    "quickstart-attempt2/pg-fixture-gold.stdout": "ad1568795046d558d4fb2399ee36f81fb4617172df7dc96e568b70239f62b652",
+    "quickstart-attempt2/pg-stop.stdout": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+    "quickstart-attempt2/quickstart-result.json": "3ae300d3da4ef53a738a95eac1606b976b5b64068e55d372ae0e3baaff26c988",
+    "quickstart-attempt2/up-no-copy.stdout": "ae8042a2ada46d0343ced0ce5c3b619b0e80ea51cb66e48255cd3bf88a22e746",
+    "quickstart-driver.log": "079b31c9d5ea6893f75eff6e454a0a0a85fc0feac9c1bb34818104d2a0548241",
+    "rebase.log": "a66ff24cd9fdf7fc889f1a0bf9b46d29a74df764e3813d03ac0df388824fc44f",
+    "secret-scan.log": "a191eb2373b57e930e104c915a3dfb27d9deac5b3c6595619317610d84452346",
+    "smoke-linux-arm64.log": "2ac3d8cfc46d796d3952e4ebd7e51dd9b6746c703a8de1a122149d56de4468b7",
+    "smoke-linux-x64.log": "2ac3d8cfc46d796d3952e4ebd7e51dd9b6746c703a8de1a122149d56de4468b7"
+  },
+  "licenses": {
+    "canonical_spdx_fallbacks": 0,
+    "dependency_notice_gaps": 0,
+    "dependency_records": 371,
+    "missing_crates_resolved": 8,
+    "objc2": "Upstream LICENSE.md retained verbatim, including license links and Apple SDK caveat. Not legal clearance.",
+    "russh_util": "Published dirty VCS metadata and packaged manifest pinned; license identical at VCS commit and v0.52.0 tag. Not a clean source-tree attestation.",
+    "sources_and_hashes": "packages/cli/licenses/manifest.json",
+    "status": "done",
+    "upstream_tags": "packages/cli/licenses/README.md"
+  },
+  "owned_postgres_processes_left_running": 0,
+  "plan": [
+    "S6-M-01",
+    "S6-M-02"
+  ],
+  "quickstart": {
+    "agent_query": "not_run",
+    "authorized_model_files_accessed": false,
+    "build": "not_run",
+    "dummy_endpoint_import": "copied bytes into fresh HOME",
+    "install": "passed",
+    "model": "blocked: authorized references cannot resolve in fresh HOME without copying",
+    "runtime_containers_created": 0,
+    "source_doctor": "passed",
+    "source_version": "PostgreSQL 17.11 (Homebrew)",
+    "up_exit": 1
+  },
+  "quickstart_blocker": {
+    "agent_query": "not_run; no L1 acceptance",
+    "follow_up": "Coordinator must provide a supported no-copy secret resolver/runtime mount path, or explicitly authorize product-managed copies. Do not silently bypass the restriction.",
+    "observed": [
+      "Wizard imported a non-secret sentinel endpoint into the fresh HOME.",
+      "Existing lifecycle unit test proves up copies model references into the runtime store.",
+      "Fresh-HOME doctor could probe PostgreSQL but could not resolve authorized model references.",
+      "Installed oo up returned SECRET_OPEN before runtime creation."
+    ],
+    "product_locations": [
+      "crates/oo-cli/src/admin/wizard.rs:213",
+      "crates/oo-stack/src/secret.rs:18",
+      "deploy/lite/lifecycle.py:564"
+    ],
+    "restriction": "Model files may only be read via secret_ref, never copied."
+  },
+  "rebase": "already up to date; inherited commits preserved",
+  "release_pack": {
+    "binary_manifest_hashes": "passed",
+    "darwin_x64": "CI-only; not built or included",
+    "dependencies": 371,
+    "dependency_notice_gaps": 0,
+    "fresh_home_installs": {
+      "darwin-arm64": "passed",
+      "linux-arm64": "passed in arm64 Node 24 container",
+      "linux-x64": "passed in amd64 Node 24 container via emulation"
+    },
+    "image_sidecars": "passed",
+    "platforms": [
+      "darwin-arm64",
+      "linux-arm64",
+      "linux-x64"
+    ],
+    "private": true,
+    "published": false,
+    "runtime_pins": "Existing S6d immutable arm64/amd64 image IDs reused, not rebuilt or certified by this run.",
+    "sha256": "4fc9258d82c5e6abef5c8d130967eeb634d919b8b23f2258d10cde5259e3ad17",
+    "status": "passed_partial_local_pack"
+  },
+  "run_id": "m-s6e-20261105",
+  "shared_file_patches": [],
+  "source_acceptance": "PostgreSQL 17.11 snapshot/digest-diff source preflight only; log CDC needs setup. No sync, publication, binding or Agent answer tested.",
+  "status": "partial",
+  "validation": {
+    "cargo_check_workspace_locked": "passed",
+    "cargo_fmt_cli_stack_check": "passed",
+    "cargo_test_cli_stack": {
+      "ignored": 2,
+      "passed": 97
+    },
+    "first_pg_fixture_attempt": "Failed TLS handshake: fixture used a CA certificate as server leaf. Preserved failure; second fresh attempt used a separate signed leaf and source doctor passed.",
+    "license_inventory_tests": 6,
+    "linux_smoke": {
+      "amd64": "passed: Debian 11 and Ubuntu 22.04 via emulation",
+      "arm64": "passed: Debian 11 and Ubuntu 22.04"
+    },
+    "lite_lifecycle_unit_tests": 19,
+    "node_tests": {
+      "initial_run": "Failed: target/debug/oo absent; built prerequisite and reran successfully. Original log retained.",
+      "passed": 47
+    },
+    "secret_scan": "passed: reports/transcripts; authorized model files not read",
+    "spec_plan_v02_plan": "passed"
+  }
+}

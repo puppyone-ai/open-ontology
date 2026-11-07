@@ -172,6 +172,13 @@ pub async fn dispatch(args: &[String], stdin: &[u8]) -> CommandExit {
         | ("target-revoke", "oo.release-coordinator/target-revoke/v1") => {
             &["protocol", "schema_name", "relation_name", "role_name"]
         }
+        ("publish-retained", "oo.release-coordinator/publish-retained/v1") => &[
+            "protocol",
+            "library_id",
+            "generation",
+            "login",
+            "reviewed_registry",
+        ],
         ("target-grant", "oo.release-coordinator/target-grant/v1")
         | ("target-observe", "oo.release-coordinator/target-observe/v1") => &[
             "protocol",
@@ -329,6 +336,9 @@ pub async fn dispatch(args: &[String], stdin: &[u8]) -> CommandExit {
         ("target-status", "oo.release-coordinator/target-status/v1") => {
             target_status_cmd(&config, map).await
         }
+        ("publish-retained", "oo.release-coordinator/publish-retained/v1") => {
+            publish_retained_cmd(&config, map).await
+        }
         _ => return malformed("protocol"),
     };
     match result {
@@ -386,6 +396,7 @@ fn known_command(command: &str) -> bool {
             | "target-open"
             | "target-revoke"
             | "target-status"
+            | "publish-retained"
     )
 }
 
@@ -514,6 +525,8 @@ fn read_config(path: &Path, command: &str) -> Result<Config, &'static str> {
         if user != TARGET_ROLE {
             return Err("login_role");
         }
+    } else if kind == "retained" {
+        // D15 runs as the Agent DB owner that sealed the cut; the database checks ownership.
     } else if user != ADMIN_ROLE && command != "business-review" {
         return Err("login_role");
     }
@@ -740,6 +753,7 @@ fn config_kind(command: &str) -> &'static str {
         "maintain-activate" | "maintain-recover" | "maintain-data-only" => "maintain",
         "target-install" | "target-close" | "target-grant" | "target-observe" | "target-open"
         | "target-revoke" | "target-status" => "target",
+        "publish-retained" => "retained",
         _ => "control",
     }
 }
@@ -1246,6 +1260,21 @@ async fn target_open_cmd(
         text(map, "candidate_id").map_err(|_| StoreError::Input)?,
     )
     .await
+}
+
+async fn publish_retained_cmd(
+    config: &Config,
+    map: &Map<String, Value>,
+) -> Result<store::Receipt, StoreError> {
+    let endpoint = endpoint_of(config);
+    let conn = target_conn(config, &endpoint);
+    let request = crate::RetainedRequest {
+        library_id: text(map, "library_id").map_err(|_| StoreError::Input)?,
+        generation: text(map, "generation").map_err(|_| StoreError::Input)?,
+        login: text(map, "login").map_err(|_| StoreError::Input)?,
+        reviewed: map.get("reviewed_registry").ok_or(StoreError::Input)?,
+    };
+    crate::publish_reviewed_registry(&conn, &request).await
 }
 
 async fn target_status_cmd(

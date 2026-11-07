@@ -737,7 +737,16 @@ impl ParentPull {
                 .status()
             {
                 Ok(status) if status.success() => GroupSignal::Sent,
-                _ => GroupSignal::Rejected,
+                // Darwin refuses to signal a group whose only member is the
+                // exited, unreaped leader; Linux accepts it. A child that
+                // exited in that window needed no signal.
+                _ => match child.try_wait() {
+                    Ok(Some(status)) => {
+                        self.exit_status = Some(status);
+                        return GroupSignal::NotNeeded;
+                    }
+                    _ => GroupSignal::Rejected,
+                },
             }
         } else {
             GroupSignal::SkippedIdentity
@@ -1558,9 +1567,13 @@ fn arm_read(stream: &std::os::unix::net::UnixStream, deadline: Instant) -> Resul
     let Some(budget) = slice_budget(deadline) else {
         return Err(FailureKind::TimedOut);
     };
-    stream
-        .set_read_timeout(Some(budget))
-        .map_err(|_| FailureKind::Io)
+    match stream.set_read_timeout(Some(budget)) {
+        Ok(()) => Ok(()),
+        // Darwin 27 returns EINVAL after the peer closes, even while
+        // buffered bytes remain. Reading those bytes/EOF does not block.
+        Err(error) if cfg!(target_os = "macos") && error.raw_os_error() == Some(22) => Ok(()),
+        Err(_) => Err(FailureKind::Io),
+    }
 }
 
 fn arm_write(

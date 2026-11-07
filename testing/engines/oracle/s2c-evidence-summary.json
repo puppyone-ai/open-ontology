@@ -1,0 +1,3276 @@
+{
+  "todo": "S2-E-01",
+  "status": "partial",
+  "baseline": "f27d1a2c0",
+  "integration_rebase": "already up to date; a34c383bb is ancestor",
+  "classification_run_id": "e-s2c-adjudication",
+  "classifier_sha256": "c53391f81a245d2c60a0d68397fed192516642c46bb957e4b919de2a953b861a",
+  "method": "Reclassify preserved final live records without modifying source evidence. Correlated recursive DELETE may have unified action SELECT; LOGOFF BY CLEANUP is lifecycle, not a write.",
+  "versions": [
+    {
+      "version_family": "23",
+      "version": {
+        "family": "oracle",
+        "major": 23,
+        "minor": 26,
+        "patch": 3,
+        "raw": "23.26.3.0.0"
+      },
+      "mode": "c5",
+      "run_id": "e-s2c-c5-23-final",
+      "command": "python3 testing/engines/oracle/run.py --version 23 --run-id e-s2c-c5-23-final --incremental --c5-only",
+      "image": {
+        "tag": "gvenzl/oracle-free:23-slim",
+        "digest": "gvenzl/oracle-free@sha256:6d61d267a3b978c24c5ac1790e62e927416a0aec446bd86e4b3a1527562757bd",
+        "platform": "linux/arm64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": false,
+      "audit_rows": 1338,
+      "trace_records": 202,
+      "rejected_count": 14,
+      "classifications": {
+        "read_session": 4,
+        "rejected_c5_non_select": 14,
+        "read": 1522
+      },
+      "remaining_records": [
+        {
+          "record_list": "records",
+          "record_index": 1,
+          "action": "ALTER SESSION",
+          "object": "",
+          "owner": "",
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00' ",
+          "db_user": "OO_READER",
+          "session_id": "610582201590997877",
+          "timestamp": "2026-11-04 01:01:33",
+          "return_code": 0,
+          "source": "unified",
+          "objects": [],
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "records",
+          "record_index": 4,
+          "action": "ALTER SESSION",
+          "object": "",
+          "owner": "",
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00' ",
+          "db_user": "OO_READER",
+          "session_id": "610582596727933128",
+          "timestamp": "2026-11-04 01:01:33",
+          "return_code": 0,
+          "source": "unified",
+          "objects": [],
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 17,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, AUDIT_FLAGS, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO, SCHEMA) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, :AUDIT_FLAGS, :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO, :SCHEMA)",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.23504",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 2,
+          "cursor": "281472788834064",
+          "action": "INSERT",
+          "source": "trace-044",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 19,
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00'",
+          "depth": 1,
+          "uid": 137,
+          "session": "50.23504",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281472786848864",
+          "action": "ALTER SESSION",
+          "source": "trace-044",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 20,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, AUDIT_FLAGS, SQL_TEXT, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO, SCHEMA) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, :AUDIT_FLAGS, EMPTY_CLOB(), :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO, :SCHEMA) RETURNING SQL_TEXT INTO :SQL_TEXT",
+          "depth": 2,
+          "uid": 0,
+          "session": "50.23504",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 914,
+          "cursor": "281472788776640",
+          "action": "INSERT",
+          "source": "trace-044",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 22,
+          "sql": "UPDATE SYS.USER$ SET SPARE1=SPARE1-BITAND(SPARE1, 1048576), SPARE6=DECODE(TO_CHAR(:2, 'YYYY-MM-DD'), '0000-00-00', TO_DATE(NULL), :2) WHERE USER#=:1",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.23504",
+          "objects": [
+            "SYS.USER$"
+          ],
+          "executions": 1,
+          "cursor": "281472789151240",
+          "action": "UPDATE",
+          "source": "trace-044",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 70,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, AUDIT_FLAGS, SQL_TEXT, SQL_BINDS, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO, SCHEMA) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, :AUDIT_FLAGS, EMPTY_CLOB(), EMPTY_CLOB(), :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO, :SCHEMA) RETURNING SQL_TEXT, SQL_BINDS INTO :SQL_TEXT, :SQL_BINDS",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.23504",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 412,
+          "cursor": "281472776244192",
+          "action": "INSERT",
+          "source": "trace-044",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 71,
+          "sql": "UPDATE SEG$ SET TYPE#=:4,BLOCKS=:5,EXTENTS=:6,MINEXTS=:7,MAXEXTS=:8,EXTSIZE=:9,EXTPCT=:10,USER#=:11,INIEXTS=:12,LISTS=DECODE(:13, 65535, NULL, :13),GROUPS=DECODE(:14, 65535, NULL, :14), CACHEHINT=:15, HWMINCR=:16, SPARE1=DECODE(:17,0,NULL,:17),SCANHINT=:18, BITMAPRANGES=:19 WHERE TS#=:1 AND FILE#=:2 AND BLOCK#=:3",
+          "depth": 2,
+          "uid": 0,
+          "session": "50.23504",
+          "objects": [
+            "SEG$"
+          ],
+          "executions": 1,
+          "cursor": "281472778240512",
+          "action": "UPDATE",
+          "source": "trace-044",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 121,
+          "sql": "INSERT /* QOSD */ INTO EXP_HEAD$ (EXP_ID, OBJN, SUB_ID, FIXED_COST, TEXT, COL_LIST, FLAGS, CTIME) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.23504",
+          "objects": [],
+          "executions": 4,
+          "cursor": "281472786171000",
+          "action": "INSERT",
+          "source": "trace-044",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 185,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, AUDIT_FLAGS, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO, SCHEMA) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, :AUDIT_FLAGS, :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO, :SCHEMA)",
+          "depth": 1,
+          "uid": 0,
+          "session": "52.22428",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 2,
+          "cursor": "281473616979120",
+          "action": "INSERT",
+          "source": "trace-046",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 187,
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00'",
+          "depth": 1,
+          "uid": 137,
+          "session": "52.22428",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473616982256",
+          "action": "ALTER SESSION",
+          "source": "trace-046",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 188,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, AUDIT_FLAGS, SQL_TEXT, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO, SCHEMA) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, :AUDIT_FLAGS, EMPTY_CLOB(), :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO, :SCHEMA) RETURNING SQL_TEXT INTO :SQL_TEXT",
+          "depth": 2,
+          "uid": 0,
+          "session": "52.22428",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 8,
+          "cursor": "281473610291752",
+          "action": "INSERT",
+          "source": "trace-046",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 189,
+          "sql": "UPDATE SYS.USER$ SET SPARE1=SPARE1-BITAND(SPARE1, 1048576), SPARE6=DECODE(TO_CHAR(:2, 'YYYY-MM-DD'), '0000-00-00', TO_DATE(NULL), :2) WHERE USER#=:1",
+          "depth": 1,
+          "uid": 0,
+          "session": "52.22428",
+          "objects": [
+            "SYS.USER$"
+          ],
+          "executions": 1,
+          "cursor": "281473610945696",
+          "action": "UPDATE",
+          "source": "trace-046",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 197,
+          "sql": "INSERT /* QOSD */ INTO EXP_HEAD$ (EXP_ID, OBJN, SUB_ID, FIXED_COST, TEXT, COL_LIST, FLAGS, CTIME) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)",
+          "depth": 1,
+          "uid": 0,
+          "session": "52.22428",
+          "objects": [],
+          "executions": 3,
+          "cursor": "281473609318088",
+          "action": "INSERT",
+          "source": "trace-046",
+          "classification": "rejected_c5_non_select"
+        }
+      ],
+      "probe_first_index_check": {
+        "index": "SYS_C008721",
+        "operations": [
+          "SELECT STATEMENT - -",
+          "COUNT STOPKEY -",
+          "VIEW - -",
+          "TABLE ACCESS BY INDEX ROWID GROWING",
+          "INDEX FULL SCAN SYS_C008721"
+        ],
+        "state": "verified"
+      },
+      "plan_fresh_scn_retries": 0,
+      "cycles": {
+        "c1_exercised": false,
+        "c5_layers": "OracleC5: optional time hint, recent undo window, chunk digest, periodic full read",
+        "cycles": [
+          {
+            "c1_events": 0,
+            "c1_generation": 0,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2147514
+            },
+            "c5_generation": 1,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 1,
+              "payload_bytes": 173320,
+              "recent_ranges": 0,
+              "recent_unknown": 1,
+              "rewrites": 1,
+              "source_read_bytes": 173320,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173320,
+            "c5_rewrites": 1,
+            "chunk_window_correction": false,
+            "cycle": 0,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2147701
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 0,
+            "c1_generation": 0,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2147514
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 173384,
+              "recent_ranges": 1,
+              "recent_unknown": 0,
+              "rewrites": 1,
+              "source_read_bytes": 173384,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173384,
+            "c5_rewrites": 1,
+            "chunk_window_correction": false,
+            "cycle": 1,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2148135
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 0,
+            "c1_generation": 0,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2147514
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 0,
+              "recent_ranges": 0,
+              "recent_unknown": 0,
+              "rewrites": 0,
+              "source_read_bytes": 0,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 0,
+            "c5_rewrites": 0,
+            "chunk_window_correction": false,
+            "cycle": 2,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2148204
+            },
+            "rows": 10000
+          }
+        ],
+        "target": "in-memory row hashes, not Agent DB",
+        "version": 23
+      },
+      "source_hashes_match": true,
+      "cleanup_exit": 0,
+      "evidence_sha256": {
+        "audit-result.json": "4419f21e555297d9b2790b0fa68f6d70b45cafa436711decc1ae7767755959c8",
+        "test.log": "3482289f0cef13adf4dbcf6235c4873211f4eb14a4874f8cfcf6e1c5adbac6ab",
+        "probe-first-plan.json": "87774128ebdf747b851b9612bd3f2a6b739035c3fab88831744db53c8fc585ca",
+        "incremental-result.json": "857a0bafb739dce8b9dc72d70aa99899f62fe79b32074224456ab3030d27ea25",
+        "source-hashes.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "source-hashes-after.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "SHA256SUMS.json": "7beae0cb582b0a44724123f2acf46d3099d7e6684b335f095aafc17ff1a68cb9"
+      },
+      "adjudicated_artifact": "evidence/e-s2c-adjudication/23-c5-audit-result.json",
+      "adjudicated_sha256": "e73fbc3dbc97c899c6eb89afb7d1a50732114d64fba532c2e6fdee68005d9687"
+    },
+    {
+      "version_family": "23",
+      "version": {
+        "family": "oracle",
+        "major": 23,
+        "minor": 26,
+        "patch": 3,
+        "raw": "23.26.3.0.0"
+      },
+      "mode": "c1",
+      "run_id": "e-s2c-c1-23-final",
+      "command": "python3 testing/engines/oracle/run.py --version 23 --run-id e-s2c-c1-23-final --incremental",
+      "image": {
+        "tag": "gvenzl/oracle-free:23-slim",
+        "digest": "gvenzl/oracle-free@sha256:6d61d267a3b978c24c5ac1790e62e927416a0aec446bd86e4b3a1527562757bd",
+        "platform": "linux/arm64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": false,
+      "audit_rows": 1297,
+      "trace_records": 437,
+      "rejected_count": 51,
+      "classifications": {
+        "read_session": 2,
+        "rejected_operation_or_unproven_context": 51,
+        "read": 1587,
+        "logminer_call": 34,
+        "d11a_logminer_object_dml": 40,
+        "d11a_logminer_commit": 20
+      },
+      "remaining_records": [
+        {
+          "record_list": "records",
+          "record_index": 1,
+          "action": "ALTER SESSION",
+          "object": "",
+          "owner": "",
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00' ",
+          "db_user": "C##OO_MINER",
+          "session_id": "610488824707019572",
+          "timestamp": "2026-11-04 01:01:11",
+          "return_code": 0,
+          "source": "unified",
+          "objects": [],
+          "depth": 1,
+          "logminer_context": false,
+          "trace_sources": [
+            "trace-090"
+          ],
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 19,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, AUDIT_FLAGS, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO, SCHEMA) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, :AUDIT_FLAGS, :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO, :SCHEMA)",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 2,
+          "cursor": "281473827069896",
+          "action": "INSERT",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 21,
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00'",
+          "depth": 1,
+          "uid": 137,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473824930848",
+          "action": "ALTER SESSION",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 22,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, AUDIT_FLAGS, SQL_TEXT, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO, SCHEMA) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, :AUDIT_FLAGS, EMPTY_CLOB(), :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO, :SCHEMA) RETURNING SQL_TEXT INTO :SQL_TEXT",
+          "depth": 2,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 276,
+          "cursor": "281473824961280",
+          "action": "INSERT",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 25,
+          "sql": "UPDATE SYS.USER$ SET SPARE1=SPARE1-BITAND(SPARE1, 1048576), SPARE6=DECODE(TO_CHAR(:2, 'YYYY-MM-DD'), '0000-00-00', TO_DATE(NULL), :2) WHERE USER#=:1",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [
+            "SYS.USER$"
+          ],
+          "executions": 1,
+          "cursor": "281473824093552",
+          "action": "UPDATE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 59,
+          "sql": "UPDATE SEG$ SET TYPE#=:4,BLOCKS=:5,EXTENTS=:6,MINEXTS=:7,MAXEXTS=:8,EXTSIZE=:9,EXTPCT=:10,USER#=:11,INIEXTS=:12,LISTS=DECODE(:13, 65535, NULL, :13),GROUPS=DECODE(:14, 65535, NULL, :14), CACHEHINT=:15, HWMINCR=:16, SPARE1=DECODE(:17,0,NULL,:17),SCANHINT=:18, BITMAPRANGES=:19 WHERE TS#=:1 AND FILE#=:2 AND BLOCK#=:3",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [
+            "SEG$"
+          ],
+          "executions": 1,
+          "cursor": "281473824205976",
+          "action": "UPDATE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 74,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, AUDIT_FLAGS, SQL_TEXT, SQL_BINDS, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO, SCHEMA) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, :AUDIT_FLAGS, EMPTY_CLOB(), EMPTY_CLOB(), :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO, :SCHEMA) RETURNING SQL_TEXT, SQL_BINDS INTO :SQL_TEXT, :SQL_BINDS",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 1019,
+          "cursor": "281473826665528",
+          "action": "INSERT",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 80,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473826701968",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 93,
+          "sql": "DECLARE OPSTRING_IN VARCHAR2(31) := :1; SESSION_NUM_IN NUMBER := :2; LOGMNR_DID_INOUT NUMBER := :3; LOGMNR_UID_INOUT NUMBER := :4; ASOFSCNBAS NUMBER := :5; ASOFSCNWRP NUMBER := :6; NUM_UIDS_IN NUMBER := :7; KRVRDLUID3_FLAGS NUMBER := :8;BEGIN SYS.LOGMNR_KRVRDLUID3(OPSTRING_IN, SESSION_NUM_IN, LOGMNR_DID_INOUT, LOGMNR_UID_INOUT, NULL, ASOFSCNBAS, ASOFSCNWRP, NUM_UIDS_IN, KRVRDLUID3_FLAGS); IF ASOFSCNBAS = 0 THEN :3 := LOGMNR_DID_INOUT; :4 := LOGMNR_UID_INOUT; END IF;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473827955376",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 103,
+          "sql": "DECLARE FOUND NUMBER;BEGIN SELECT COUNT(*) INTO FOUND FROM SYS.COL$ WHERE OBJ# = (SELECT OBJ# FROM SYS.OBJ$ WHERE NAME = 'LOGMNR_DICTIONARY$' AND TYPE#=2 AND OWNER# = 0 AND REMOTEOWNER IS NULL AND LINKNAME IS NULL) AND NAME = 'OSTIMEZONE'; :1 := FOUND;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473827247152",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 125,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYS.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473825112904",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 132,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYS.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473825112904",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 135,
+          "sql": "DECLARE P1 NUMBER := :1; P2 NUMBER := :2; P3 NUMBER := :3; P35 NUMBER:= :4; P36 NUMBER := :5; P37 NUMBER := :6; P4 NUMBER; P5 NUMBER; P6 NUMBER; P7 NUMBER; P8 NUMBER; P9 NUMBER; P10 NUMBER; P11 NUMBER; P12 VARCHAR2(384); P13 VARCHAR2(384); P14 VARCHAR2(384); P15 VARCHAR2(384); P16 NUMBER; P17 NUMBER; P18 NUMBER; P19 NUMBER; P20 NUMBER; P21 NUMBER; P22 NUMBER; P23 NUMBER; P24 VARCHAR2(90); P25 NUMBER; P26 NUMBER; P27 VARCHAR2(128); P28 NUMBER; P29 NUMBER; P30 NUMBER; P31 NUMBER; P32 NUMBER; P33 NUMBER; P34 NUMBER; P38 NUMBER; P39 NUMBER; P40 NUMBER; P41 NUMBER; BEGIN SYS.LOGMNR_GTLO3_23_10(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34, P35, P36, P37, P38, P39, P40, P41); :3 := P3; :7 := P4; :8 := P5; :9 := P6; :10 := P7; :11 := P8; :12 := P9; :13 := P10; :14 := P11; :15 := P12; :16 := P13; :17 := P14; :18 := P15; :19 := P16; :20 := P17; :21 := P18; :22 := P19; :23 := P20; :24 := P21; :25 := P22; :26 := P23; :27 := P24; :28 := NVL(P25,0); :29 := P26; :30 := P27; :31 := P28; :32 := P29; :33 := P30; :34 := P31; :35 := P32; :36 := P33; :37 := P34; :38 := P38; :39 := P39; :40 := P40; :41 := P41; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473825112904",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 147,
+          "sql": "DECLARE LOCAL_CON_ID NUMBER := :BND_PDBID; LOCAL_PDB_NAME VARCHAR2(384) := NULL; LOCAL_GLOBAL_NAME VARCHAR2(384) := NULL; LOCAL_FEDROOT_PDBID NUMBER := 0; CNT NUMBER := 0; BEGIN SELECT COUNT(1) INTO CNT FROM V$CONTAINERS WHERE CON_ID = LOCAL_CON_ID; IF CNT = 1 THEN SELECT C.NAME, CASE APPLICATION_ROOT WHEN 'YES' THEN CON_ID ELSE APPLICATION_ROOT_CON_ID END INTO LOCAL_PDB_NAME, LOCAL_FEDROOT_PDBID FROM V$CONTAINERS C WHERE C.CON_ID = LOCAL_CON_ID; SELECT SUBSTR(P.PROPERTY_VALUE, 1, 384) INTO LOCAL_GLOBAL_NAME FROM CDB_PROPERTIES P WHERE P.PROPERTY_NAME = 'GLOBAL_DB_NAME' AND P.CON_ID = LOCAL_CON_ID; END IF; :BND_PDB_NAME := LOCAL_PDB_NAME; :BND_GLOBAL_NAME := LOCAL_GLOBAL_NAME; :BND_ROW_COUNT := CNT; :BND_FEDROOT := LOCAL_FEDROOT_PDBID; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473825112904",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 169,
+          "sql": "DECLARE PDB_NAME_IN VARCHAR2(384) := :1; SCHEMA_NAME_IN VARCHAR2(384) := :2; TABLE_NAME_IN VARCHAR2(384) := :3; CLIENT_INFO_OUT NUMBER := 0; BEGIN SYS.DBMS_LOGMNR_INTERNAL.RESOLVE_TABLE_INCLUSION_RULE( SCHEMA_NAME_IN, TABLE_NAME_IN, PDB_NAME_IN, CLIENT_INFO_OUT ); :4 := CLIENT_INFO_OUT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473825112904",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 170,
+          "sql": "DECLARE P1 NUMBER := :1; P2 NUMBER := :2; P3 NUMBER := :3; P35 NUMBER:= :4; P36 NUMBER := :5; P37 NUMBER := :6; P4 NUMBER; P5 NUMBER; P6 NUMBER; P7 NUMBER; P8 NUMBER; P9 NUMBER; P10 NUMBER; P11 NUMBER; P12 VARCHAR2(384); P13 VARCHAR2(384); P14 VARCHAR2(384); P15 VARCHAR2(384); P16 NUMBER; P17 NUMBER; P18 NUMBER; P19 NUMBER; P20 NUMBER; P21 NUMBER; P22 NUMBER; P23 NUMBER; P24 VARCHAR2(90); P25 NUMBER; P26 NUMBER; P27 VARCHAR2(128); P28 NUMBER; P29 NUMBER; P30 NUMBER; P31 NUMBER; P32 NUMBER; P33 NUMBER; P34 NUMBER; P38 NUMBER; P39 NUMBER; P40 NUMBER; P41 NUMBER; BEGIN SYS.LOGMNR_GTLO3_23_10(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34, P35, P36, P37, P38, P39, P40, P41); :3 := P3; :7 := P4; :8 := P5; :9 := P6; :10 := P7; :11 := P8; :12 := P9; :13 := P10; :14 := P11; :15 := P12; :16 := P13; :17 := P14; :18 := P15; :19 := P16; :20 := P17; :21 := P18; :22 := P19; :23 := P20; :24 := P21; :25 := P22; :26 := P23; :27 := P24; :28 := NVL(P25,0); :29 := P26; :30 := P27; :31 := P28; :32 := P29; :33 := P30; :34 := P31; :35 := P32; :36 := P33; :37 := P34; :38 := P38; :39 := P39; :40 := P40; :41 := P41; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473825112904",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 172,
+          "sql": "DECLARE PDB_NAME_IN VARCHAR2(384) := :1; SCHEMA_NAME_IN VARCHAR2(384) := :2; TABLE_NAME_IN VARCHAR2(384) := :3; CLIENT_INFO_OUT NUMBER := 0; BEGIN SYS.DBMS_LOGMNR_INTERNAL.RESOLVE_TABLE_INCLUSION_RULE( SCHEMA_NAME_IN, TABLE_NAME_IN, PDB_NAME_IN, CLIENT_INFO_OUT ); :4 := CLIENT_INFO_OUT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473825112904",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 173,
+          "sql": "DECLARE P1 NUMBER := :1; P2 NUMBER := :2; P3 NUMBER := :3; P35 NUMBER:= :4; P36 NUMBER := :5; P37 NUMBER := :6; P4 NUMBER; P5 NUMBER; P6 NUMBER; P7 NUMBER; P8 NUMBER; P9 NUMBER; P10 NUMBER; P11 NUMBER; P12 VARCHAR2(384); P13 VARCHAR2(384); P14 VARCHAR2(384); P15 VARCHAR2(384); P16 NUMBER; P17 NUMBER; P18 NUMBER; P19 NUMBER; P20 NUMBER; P21 NUMBER; P22 NUMBER; P23 NUMBER; P24 VARCHAR2(90); P25 NUMBER; P26 NUMBER; P27 VARCHAR2(128); P28 NUMBER; P29 NUMBER; P30 NUMBER; P31 NUMBER; P32 NUMBER; P33 NUMBER; P34 NUMBER; P38 NUMBER; P39 NUMBER; P40 NUMBER; P41 NUMBER; BEGIN SYS.LOGMNR_GTLO3_23_10(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34, P35, P36, P37, P38, P39, P40, P41); :3 := P3; :7 := P4; :8 := P5; :9 := P6; :10 := P7; :11 := P8; :12 := P9; :13 := P10; :14 := P11; :15 := P12; :16 := P13; :17 := P14; :18 := P15; :19 := P16; :20 := P17; :21 := P18; :22 := P19; :23 := P20; :24 := P21; :25 := P22; :26 := P23; :27 := P24; :28 := NVL(P25,0); :29 := P26; :30 := P27; :31 := P28; :32 := P29; :33 := P30; :34 := P31; :35 := P32; :36 := P33; :37 := P34; :38 := P38; :39 := P39; :40 := P40; :41 := P41; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 85,
+          "cursor": "281473825112904",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 174,
+          "sql": "DECLARE PDB_NAME_IN VARCHAR2(384) := :1; SCHEMA_NAME_IN VARCHAR2(384) := :2; TABLE_NAME_IN VARCHAR2(384) := :3; CLIENT_INFO_OUT NUMBER := 0; BEGIN SYS.DBMS_LOGMNR_INTERNAL.RESOLVE_TABLE_INCLUSION_RULE( SCHEMA_NAME_IN, TABLE_NAME_IN, PDB_NAME_IN, CLIENT_INFO_OUT ); :4 := CLIENT_INFO_OUT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 117,
+          "cursor": "281473827443760",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 179,
+          "sql": "DECLARE LOC_OBJN NUMBER := :OBJNUM; LOC_OBJV NUMBER; BEGIN SELECT NVL(MAX(OBJV#), 0) INTO LOC_OBJV FROM ( SELECT O.SPARE2 AS OBJV#, O.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O WHERE O.TYPE# = 2 UNION SELECT O.SPARE2 AS OBJV#, TP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABPART$ TP WHERE O.OBJ# = TP.BO# UNION SELECT O.SPARE2 AS OBJV#, TSP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABCOMPART$ TCP, SYS.TABSUBPART$ TSP WHERE O.OBJ# = TCP.BO# AND TCP.OBJ# = TSP.POBJ# ) X WHERE X.KEYOBJ# = LOC_OBJN; :OBJVERSION := LOC_OBJV; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473827506368",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 182,
+          "sql": "DECLARE LOC_OBJN NUMBER := :OBJNUM; LOC_OBJV NUMBER; BEGIN SELECT NVL(MAX(OBJV#), 0) INTO LOC_OBJV FROM ( SELECT O.SPARE2 AS OBJV#, O.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O WHERE O.TYPE# = 2 UNION SELECT O.SPARE2 AS OBJV#, TP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABPART$ TP WHERE O.OBJ# = TP.BO# UNION SELECT O.SPARE2 AS OBJV#, TSP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABCOMPART$ TCP, SYS.TABSUBPART$ TSP WHERE O.OBJ# = TCP.BO# AND TCP.OBJ# = TSP.POBJ# ) X WHERE X.KEYOBJ# = LOC_OBJN; :OBJVERSION := LOC_OBJV; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473824519312",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 184,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYS.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473817466104",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 189,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYS.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473817121576",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 200,
+          "sql": "DECLARE LOC_OBJN NUMBER := :OBJNUM; LOC_OBJV NUMBER; BEGIN SELECT NVL(MAX(OBJV#), 0) INTO LOC_OBJV FROM ( SELECT O.SPARE2 AS OBJV#, O.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O WHERE O.TYPE# = 2 UNION SELECT O.SPARE2 AS OBJV#, TP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABPART$ TP WHERE O.OBJ# = TP.BO# UNION SELECT O.SPARE2 AS OBJV#, TSP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABCOMPART$ TCP, SYS.TABSUBPART$ TSP WHERE O.OBJ# = TCP.BO# AND TCP.OBJ# = TSP.POBJ# ) X WHERE X.KEYOBJ# = LOC_OBJN; :OBJVERSION := LOC_OBJV; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 2,
+          "cursor": "281473817228032",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 205,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYS.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473827097712",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 209,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYS.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473817158808",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 236,
+          "sql": "DECLARE LOC_OBJN NUMBER := :OBJNUM; LOC_OBJV NUMBER; BEGIN SELECT NVL(MAX(OBJV#), 0) INTO LOC_OBJV FROM ( SELECT O.SPARE2 AS OBJV#, O.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O WHERE O.TYPE# = 2 UNION SELECT O.SPARE2 AS OBJV#, TP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABPART$ TP WHERE O.OBJ# = TP.BO# UNION SELECT O.SPARE2 AS OBJV#, TSP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABCOMPART$ TCP, SYS.TABSUBPART$ TSP WHERE O.OBJ# = TCP.BO# AND TCP.OBJ# = TSP.POBJ# ) X WHERE X.KEYOBJ# = LOC_OBJN; :OBJVERSION := LOC_OBJV; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 8,
+          "cursor": "281473824850160",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 240,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473817223808",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 252,
+          "sql": "DECLARE OPSTRING_IN VARCHAR2(31) := :1; SESSION_NUM_IN NUMBER := :2; LOGMNR_DID_INOUT NUMBER := :3; LOGMNR_UID_INOUT NUMBER := :4; ASOFSCNBAS NUMBER := :5; ASOFSCNWRP NUMBER := :6; NUM_UIDS_IN NUMBER := :7; KRVRDLUID3_FLAGS NUMBER := :8;BEGIN SYS.LOGMNR_KRVRDLUID3(OPSTRING_IN, SESSION_NUM_IN, LOGMNR_DID_INOUT, LOGMNR_UID_INOUT, NULL, ASOFSCNBAS, ASOFSCNWRP, NUM_UIDS_IN, KRVRDLUID3_FLAGS); IF ASOFSCNBAS = 0 THEN :3 := LOGMNR_DID_INOUT; :4 := LOGMNR_UID_INOUT; END IF;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473817530000",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 257,
+          "sql": "DECLARE FOUND NUMBER;BEGIN SELECT COUNT(*) INTO FOUND FROM SYS.COL$ WHERE OBJ# = (SELECT OBJ# FROM SYS.OBJ$ WHERE NAME = 'LOGMNR_DICTIONARY$' AND TYPE#=2 AND OWNER# = 0 AND REMOTEOWNER IS NULL AND LINKNAME IS NULL) AND NAME = 'OSTIMEZONE'; :1 := FOUND;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473824001952",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 263,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYS.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 3,
+          "cursor": "281473824001952",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 268,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYS.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 3,
+          "cursor": "281473817121576",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 276,
+          "sql": "DECLARE LOCAL_CON_ID NUMBER := :BND_PDBID; LOCAL_PDB_NAME VARCHAR2(384) := NULL; LOCAL_GLOBAL_NAME VARCHAR2(384) := NULL; LOCAL_FEDROOT_PDBID NUMBER := 0; CNT NUMBER := 0; BEGIN SELECT COUNT(1) INTO CNT FROM V$CONTAINERS WHERE CON_ID = LOCAL_CON_ID; IF CNT = 1 THEN SELECT C.NAME, CASE APPLICATION_ROOT WHEN 'YES' THEN CON_ID ELSE APPLICATION_ROOT_CON_ID END INTO LOCAL_PDB_NAME, LOCAL_FEDROOT_PDBID FROM V$CONTAINERS C WHERE C.CON_ID = LOCAL_CON_ID; SELECT SUBSTR(P.PROPERTY_VALUE, 1, 384) INTO LOCAL_GLOBAL_NAME FROM CDB_PROPERTIES P WHERE P.PROPERTY_NAME = 'GLOBAL_DB_NAME' AND P.CON_ID = LOCAL_CON_ID; END IF; :BND_PDB_NAME := LOCAL_PDB_NAME; :BND_GLOBAL_NAME := LOCAL_GLOBAL_NAME; :BND_ROW_COUNT := CNT; :BND_FEDROOT := LOCAL_FEDROOT_PDBID; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473828236816",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 302,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473824199096",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 314,
+          "sql": "DECLARE OPSTRING_IN VARCHAR2(31) := :1; SESSION_NUM_IN NUMBER := :2; LOGMNR_DID_INOUT NUMBER := :3; LOGMNR_UID_INOUT NUMBER := :4; ASOFSCNBAS NUMBER := :5; ASOFSCNWRP NUMBER := :6; NUM_UIDS_IN NUMBER := :7; KRVRDLUID3_FLAGS NUMBER := :8;BEGIN SYS.LOGMNR_KRVRDLUID3(OPSTRING_IN, SESSION_NUM_IN, LOGMNR_DID_INOUT, LOGMNR_UID_INOUT, NULL, ASOFSCNBAS, ASOFSCNWRP, NUM_UIDS_IN, KRVRDLUID3_FLAGS); IF ASOFSCNBAS = 0 THEN :3 := LOGMNR_DID_INOUT; :4 := LOGMNR_UID_INOUT; END IF;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473826652744",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 318,
+          "sql": "DECLARE FOUND NUMBER;BEGIN SELECT COUNT(*) INTO FOUND FROM SYS.COL$ WHERE OBJ# = (SELECT OBJ# FROM SYS.OBJ$ WHERE NAME = 'LOGMNR_DICTIONARY$' AND TYPE#=2 AND OWNER# = 0 AND REMOTEOWNER IS NULL AND LINKNAME IS NULL) AND NAME = 'OSTIMEZONE'; :1 := FOUND;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473815085328",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 324,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYS.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 3,
+          "cursor": "281473824001952",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 329,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYS.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 3,
+          "cursor": "281473834432192",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 337,
+          "sql": "DECLARE LOCAL_CON_ID NUMBER := :BND_PDBID; LOCAL_PDB_NAME VARCHAR2(384) := NULL; LOCAL_GLOBAL_NAME VARCHAR2(384) := NULL; LOCAL_FEDROOT_PDBID NUMBER := 0; CNT NUMBER := 0; BEGIN SELECT COUNT(1) INTO CNT FROM V$CONTAINERS WHERE CON_ID = LOCAL_CON_ID; IF CNT = 1 THEN SELECT C.NAME, CASE APPLICATION_ROOT WHEN 'YES' THEN CON_ID ELSE APPLICATION_ROOT_CON_ID END INTO LOCAL_PDB_NAME, LOCAL_FEDROOT_PDBID FROM V$CONTAINERS C WHERE C.CON_ID = LOCAL_CON_ID; SELECT SUBSTR(P.PROPERTY_VALUE, 1, 384) INTO LOCAL_GLOBAL_NAME FROM CDB_PROPERTIES P WHERE P.PROPERTY_NAME = 'GLOBAL_DB_NAME' AND P.CON_ID = LOCAL_CON_ID; END IF; :BND_PDB_NAME := LOCAL_PDB_NAME; :BND_GLOBAL_NAME := LOCAL_GLOBAL_NAME; :BND_ROW_COUNT := CNT; :BND_FEDROOT := LOCAL_FEDROOT_PDBID; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473817121576",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 343,
+          "sql": "DECLARE LOC_OBJN NUMBER := :OBJNUM; LOC_OBJV NUMBER; BEGIN SELECT NVL(MAX(OBJV#), 0) INTO LOC_OBJV FROM ( SELECT O.SPARE2 AS OBJV#, O.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O WHERE O.TYPE# = 2 UNION SELECT O.SPARE2 AS OBJV#, TP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABPART$ TP WHERE O.OBJ# = TP.BO# UNION SELECT O.SPARE2 AS OBJV#, TSP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABCOMPART$ TCP, SYS.TABSUBPART$ TSP WHERE O.OBJ# = TCP.BO# AND TCP.OBJ# = TSP.POBJ# ) X WHERE X.KEYOBJ# = LOC_OBJN; :OBJVERSION := LOC_OBJV; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 6,
+          "cursor": "281473824202696",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 365,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473817446536",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 377,
+          "sql": "DECLARE OPSTRING_IN VARCHAR2(31) := :1; SESSION_NUM_IN NUMBER := :2; LOGMNR_DID_INOUT NUMBER := :3; LOGMNR_UID_INOUT NUMBER := :4; ASOFSCNBAS NUMBER := :5; ASOFSCNWRP NUMBER := :6; NUM_UIDS_IN NUMBER := :7; KRVRDLUID3_FLAGS NUMBER := :8;BEGIN SYS.LOGMNR_KRVRDLUID3(OPSTRING_IN, SESSION_NUM_IN, LOGMNR_DID_INOUT, LOGMNR_UID_INOUT, NULL, ASOFSCNBAS, ASOFSCNWRP, NUM_UIDS_IN, KRVRDLUID3_FLAGS); IF ASOFSCNBAS = 0 THEN :3 := LOGMNR_DID_INOUT; :4 := LOGMNR_UID_INOUT; END IF;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473826631680",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 381,
+          "sql": "DECLARE FOUND NUMBER;BEGIN SELECT COUNT(*) INTO FOUND FROM SYS.COL$ WHERE OBJ# = (SELECT OBJ# FROM SYS.OBJ$ WHERE NAME = 'LOGMNR_DICTIONARY$' AND TYPE#=2 AND OWNER# = 0 AND REMOTEOWNER IS NULL AND LINKNAME IS NULL) AND NAME = 'OSTIMEZONE'; :1 := FOUND;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473827243872",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 387,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYS.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473826652744",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 392,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYS.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473828233280",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 400,
+          "sql": "DECLARE LOCAL_CON_ID NUMBER := :BND_PDBID; LOCAL_PDB_NAME VARCHAR2(384) := NULL; LOCAL_GLOBAL_NAME VARCHAR2(384) := NULL; LOCAL_FEDROOT_PDBID NUMBER := 0; CNT NUMBER := 0; BEGIN SELECT COUNT(1) INTO CNT FROM V$CONTAINERS WHERE CON_ID = LOCAL_CON_ID; IF CNT = 1 THEN SELECT C.NAME, CASE APPLICATION_ROOT WHEN 'YES' THEN CON_ID ELSE APPLICATION_ROOT_CON_ID END INTO LOCAL_PDB_NAME, LOCAL_FEDROOT_PDBID FROM V$CONTAINERS C WHERE C.CON_ID = LOCAL_CON_ID; SELECT SUBSTR(P.PROPERTY_VALUE, 1, 384) INTO LOCAL_GLOBAL_NAME FROM CDB_PROPERTIES P WHERE P.PROPERTY_NAME = 'GLOBAL_DB_NAME' AND P.CON_ID = LOCAL_CON_ID; END IF; :BND_PDB_NAME := LOCAL_PDB_NAME; :BND_GLOBAL_NAME := LOCAL_GLOBAL_NAME; :BND_ROW_COUNT := CNT; :BND_FEDROOT := LOCAL_FEDROOT_PDBID; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473824202696",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 406,
+          "sql": "DECLARE LOC_OBJN NUMBER := :OBJNUM; LOC_OBJV NUMBER; BEGIN SELECT NVL(MAX(OBJV#), 0) INTO LOC_OBJV FROM ( SELECT O.SPARE2 AS OBJV#, O.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O WHERE O.TYPE# = 2 UNION SELECT O.SPARE2 AS OBJV#, TP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABPART$ TP WHERE O.OBJ# = TP.BO# UNION SELECT O.SPARE2 AS OBJV#, TSP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABCOMPART$ TCP, SYS.TABSUBPART$ TSP WHERE O.OBJ# = TCP.BO# AND TCP.OBJ# = TSP.POBJ# ) X WHERE X.KEYOBJ# = LOC_OBJN; :OBJVERSION := LOC_OBJV; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 2,
+          "cursor": "281473818768152",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 413,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYS.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473826973168",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 419,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYS.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473827955376",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 428,
+          "sql": "DECLARE LOC_OBJN NUMBER := :OBJNUM; LOC_OBJV NUMBER; BEGIN SELECT NVL(MAX(OBJV#), 0) INTO LOC_OBJV FROM ( SELECT O.SPARE2 AS OBJV#, O.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O WHERE O.TYPE# = 2 UNION SELECT O.SPARE2 AS OBJV#, TP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABPART$ TP WHERE O.OBJ# = TP.BO# UNION SELECT O.SPARE2 AS OBJV#, TSP.OBJ# AS KEYOBJ# FROM SYS.OBJ$ O, SYS.TABCOMPART$ TCP, SYS.TABSUBPART$ TSP WHERE O.OBJ# = TCP.BO# AND TCP.OBJ# = TSP.POBJ# ) X WHERE X.KEYOBJ# = LOC_OBJN; :OBJVERSION := LOC_OBJV; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 2,
+          "cursor": "281473826590128",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 432,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "50.10316",
+          "objects": [],
+          "executions": 1,
+          "cursor": "281473824001656",
+          "action": "DECLARE",
+          "source": "trace-090",
+          "classification": "rejected_operation_or_unproven_context"
+        }
+      ],
+      "probe_first_index_check": {
+        "index": "SYS_C008721",
+        "operations": [
+          "SELECT STATEMENT - -",
+          "COUNT STOPKEY -",
+          "VIEW - -",
+          "TABLE ACCESS BY INDEX ROWID GROWING",
+          "INDEX FULL SCAN SYS_C008721"
+        ],
+        "state": "verified"
+      },
+      "plan_fresh_scn_retries": 1,
+      "cycles": {
+        "c1_exercised": true,
+        "c5_layers": "OracleC5: optional time hint, recent undo window, chunk digest, periodic full read",
+        "cycles": [
+          {
+            "c1_events": 4,
+            "c1_generation": 1,
+            "c1_payload_bytes": 9216,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2148968
+            },
+            "c5_generation": 1,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 1,
+              "payload_bytes": 173384,
+              "recent_ranges": 0,
+              "recent_unknown": 1,
+              "rewrites": 1,
+              "source_read_bytes": 173384,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173384,
+            "c5_rewrites": 1,
+            "chunk_window_correction": true,
+            "cycle": 0,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2149976
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 5,
+            "c1_generation": 2,
+            "c1_payload_bytes": 11520,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2150012
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 173384,
+              "recent_ranges": 1,
+              "recent_unknown": 0,
+              "rewrites": 1,
+              "source_read_bytes": 173384,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173384,
+            "c5_rewrites": 1,
+            "chunk_window_correction": false,
+            "cycle": 1,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2150875
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 0,
+            "c1_generation": 2,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2150906
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 0,
+              "recent_ranges": 0,
+              "recent_unknown": 0,
+              "rewrites": 0,
+              "source_read_bytes": 0,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 0,
+            "c5_rewrites": 0,
+            "chunk_window_correction": false,
+            "cycle": 2,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2151920
+            },
+            "rows": 10000
+          }
+        ],
+        "target": "in-memory row hashes, not Agent DB",
+        "version": 23
+      },
+      "source_hashes_match": true,
+      "cleanup_exit": 0,
+      "evidence_sha256": {
+        "audit-result.json": "9c22abe4a9a75e608e397a5519acf578c566cc75e210e4baeca190f675f3b36f",
+        "test.log": "20ec8420517a652393ad1fe790fedfe6b88ae6d8dc345aacdd48f710df60bc93",
+        "probe-first-plan.json": "4bed737cd07a8503f84ef8d1416f75d70a5c43b340a7546480ed1d0bc99949c1",
+        "incremental-result.json": "3c8e57aaa5216e0c2e0c423f4f94a04307c4ee5a92eb92c87b85b637e7e27894",
+        "source-hashes.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "source-hashes-after.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "SHA256SUMS.json": "0b8b84c2f18c5a60ca4017137f2eb37d9c916ff49be4e92a420655dd9be2d584"
+      },
+      "adjudicated_artifact": "evidence/e-s2c-adjudication/23-c1-audit-result.json",
+      "adjudicated_sha256": "cabd47f32bcdec7acae59283787db25bba6ccf17d3842397225e4da2542e0210"
+    },
+    {
+      "version_family": "21",
+      "version": {
+        "family": "oracle",
+        "major": 21,
+        "minor": 3,
+        "patch": 0,
+        "raw": "21.3.0.0.0"
+      },
+      "mode": "c5",
+      "run_id": "e-s2c-c5-21-final",
+      "command": "python3 testing/engines/oracle/run.py --version 21 --run-id e-s2c-c5-21-final --incremental --c5-only",
+      "image": {
+        "tag": "gvenzl/oracle-xe:21-slim",
+        "digest": "gvenzl/oracle-xe@sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d2b6d551aa79b2346f1ab8f792",
+        "platform": "linux/amd64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": false,
+      "audit_rows": 1316,
+      "trace_records": 323,
+      "rejected_count": 15,
+      "classifications": {
+        "read_session": 4,
+        "rejected_c5_non_select": 15,
+        "read": 1620
+      },
+      "remaining_records": [
+        {
+          "record_list": "records",
+          "record_index": 1,
+          "action": "ALTER SESSION",
+          "object": "",
+          "owner": "",
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00' ",
+          "db_user": "OO_READER",
+          "session_id": "389482072",
+          "timestamp": "2026-11-04 01:02:19",
+          "return_code": 0,
+          "source": "unified",
+          "objects": [],
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "records",
+          "record_index": 4,
+          "action": "ALTER SESSION",
+          "object": "",
+          "owner": "",
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00' ",
+          "db_user": "OO_READER",
+          "session_id": "3293766148",
+          "timestamp": "2026-11-04 01:02:20",
+          "return_code": 0,
+          "source": "unified",
+          "objects": [],
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 16,
+          "sql": "UPDATE SEQ$ SET INCREMENT$=:2,MINVALUE=:3,MAXVALUE=:4,CYCLE#=:5,ORDER$=:6,CACHE=:7,HIGHWATER=:8,AUDIT$=:9,FLAGS=:10 WHERE OBJ#=:1",
+          "depth": 1,
+          "uid": 0,
+          "session": "43.18886",
+          "objects": [
+            "SEQ$"
+          ],
+          "executions": 1,
+          "cursor": "140737388394688",
+          "action": "UPDATE",
+          "source": "trace-049",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 23,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO)",
+          "depth": 1,
+          "uid": 0,
+          "session": "43.18886",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 2,
+          "cursor": "140737388866032",
+          "action": "INSERT",
+          "source": "trace-049",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 25,
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00'",
+          "depth": 1,
+          "uid": 111,
+          "session": "43.18886",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737388854472",
+          "action": "ALTER SESSION",
+          "source": "trace-049",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 26,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, SQL_TEXT, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, EMPTY_CLOB(), :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO) RETURNING SQL_TEXT INTO :SQL_TEXT",
+          "depth": 2,
+          "uid": 0,
+          "session": "43.18886",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 911,
+          "cursor": "140737387071632",
+          "action": "INSERT",
+          "source": "trace-049",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 28,
+          "sql": "UPDATE SYS.USER$ SET SPARE1=SPARE1-BITAND(SPARE1, 1048576), SPARE6=DECODE(TO_CHAR(:2, 'YYYY-MM-DD'), '0000-00-00', TO_DATE(NULL), :2) WHERE USER#=:1",
+          "depth": 1,
+          "uid": 0,
+          "session": "43.18886",
+          "objects": [
+            "SYS.USER$"
+          ],
+          "executions": 1,
+          "cursor": "140737386377360",
+          "action": "UPDATE",
+          "source": "trace-049",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 99,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, SQL_TEXT, SQL_BINDS, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, EMPTY_CLOB(), EMPTY_CLOB(), :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO) RETURNING SQL_TEXT, SQL_BINDS INTO :SQL_TEXT, :SQL_BINDS",
+          "depth": 1,
+          "uid": 0,
+          "session": "43.18886",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 412,
+          "cursor": "140737375442400",
+          "action": "INSERT",
+          "source": "trace-049",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 100,
+          "sql": "UPDATE SEG$ SET TYPE#=:4,BLOCKS=:5,EXTENTS=:6,MINEXTS=:7,MAXEXTS=:8,EXTSIZE=:9,EXTPCT=:10,USER#=:11,INIEXTS=:12,LISTS=DECODE(:13, 65535, NULL, :13),GROUPS=DECODE(:14, 65535, NULL, :14), CACHEHINT=:15, HWMINCR=:16, SPARE1=DECODE(:17,0,NULL,:17),SCANHINT=:18, BITMAPRANGES=:19 WHERE TS#=:1 AND FILE#=:2 AND BLOCK#=:3",
+          "depth": 2,
+          "uid": 0,
+          "session": "43.18886",
+          "objects": [
+            "SEG$"
+          ],
+          "executions": 1,
+          "cursor": "140737377593760",
+          "action": "UPDATE",
+          "source": "trace-049",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 242,
+          "sql": "INSERT /* QOSD */ INTO EXP_HEAD$ (EXP_ID, OBJN, SUB_ID, FIXED_COST, TEXT, COL_LIST, FLAGS, CTIME) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)",
+          "depth": 1,
+          "uid": 0,
+          "session": "43.18886",
+          "objects": [],
+          "executions": 6,
+          "cursor": "140737386179176",
+          "action": "INSERT",
+          "source": "trace-049",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 306,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO)",
+          "depth": 1,
+          "uid": 0,
+          "session": "286.28869",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 2,
+          "cursor": "140737389426752",
+          "action": "INSERT",
+          "source": "trace-051",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 308,
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00'",
+          "depth": 1,
+          "uid": 111,
+          "session": "286.28869",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737387999616",
+          "action": "ALTER SESSION",
+          "source": "trace-051",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 309,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, SQL_TEXT, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, EMPTY_CLOB(), :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO) RETURNING SQL_TEXT INTO :SQL_TEXT",
+          "depth": 2,
+          "uid": 0,
+          "session": "286.28869",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 8,
+          "cursor": "140737388147872",
+          "action": "INSERT",
+          "source": "trace-051",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 310,
+          "sql": "UPDATE SYS.USER$ SET SPARE1=SPARE1-BITAND(SPARE1, 1048576), SPARE6=DECODE(TO_CHAR(:2, 'YYYY-MM-DD'), '0000-00-00', TO_DATE(NULL), :2) WHERE USER#=:1",
+          "depth": 1,
+          "uid": 0,
+          "session": "286.28869",
+          "objects": [
+            "SYS.USER$"
+          ],
+          "executions": 1,
+          "cursor": "140737388796568",
+          "action": "UPDATE",
+          "source": "trace-051",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 318,
+          "sql": "INSERT /* QOSD */ INTO EXP_HEAD$ (EXP_ID, OBJN, SUB_ID, FIXED_COST, TEXT, COL_LIST, FLAGS, CTIME) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)",
+          "depth": 1,
+          "uid": 0,
+          "session": "286.28869",
+          "objects": [],
+          "executions": 3,
+          "cursor": "140737388917632",
+          "action": "INSERT",
+          "source": "trace-051",
+          "classification": "rejected_c5_non_select"
+        }
+      ],
+      "probe_first_index_check": {
+        "index": "SYS_C008305",
+        "operations": [
+          "SELECT STATEMENT - -",
+          "VIEW - -",
+          "WINDOW NOSORT STOPKEY -",
+          "TABLE ACCESS BY INDEX ROWID GROWING",
+          "INDEX FULL SCAN SYS_C008305"
+        ],
+        "state": "verified"
+      },
+      "plan_fresh_scn_retries": 0,
+      "cycles": {
+        "c1_exercised": false,
+        "c5_layers": "OracleC5: optional time hint, recent undo window, chunk digest, periodic full read",
+        "cycles": [
+          {
+            "c1_events": 0,
+            "c1_generation": 0,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2983945
+            },
+            "c5_generation": 1,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 1,
+              "payload_bytes": 173320,
+              "recent_ranges": 0,
+              "recent_unknown": 1,
+              "rewrites": 1,
+              "source_read_bytes": 173320,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173320,
+            "c5_rewrites": 1,
+            "chunk_window_correction": false,
+            "cycle": 0,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2984131
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 0,
+            "c1_generation": 0,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2983945
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 173384,
+              "recent_ranges": 1,
+              "recent_unknown": 0,
+              "rewrites": 1,
+              "source_read_bytes": 173384,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173384,
+            "c5_rewrites": 1,
+            "chunk_window_correction": false,
+            "cycle": 1,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2984292
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 0,
+            "c1_generation": 0,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2983945
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 0,
+              "recent_ranges": 0,
+              "recent_unknown": 0,
+              "rewrites": 0,
+              "source_read_bytes": 0,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 0,
+            "c5_rewrites": 0,
+            "chunk_window_correction": false,
+            "cycle": 2,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2984369
+            },
+            "rows": 10000
+          }
+        ],
+        "target": "in-memory row hashes, not Agent DB",
+        "version": 21
+      },
+      "source_hashes_match": true,
+      "cleanup_exit": 0,
+      "evidence_sha256": {
+        "audit-result.json": "9493431f39d5de8ee3adc10a6f8279928c88d03d9f5fdee4bc5d74fcf0e3c3c1",
+        "test.log": "2cdc64a903f3a03dcd69e455837b8e9526df8853ab4a9656e6bea89327b224a8",
+        "probe-first-plan.json": "5bd578d8f55c902f14eabb222608f16de00752743514410c8d43896207c23d18",
+        "incremental-result.json": "950285252ed11d248b1f2e15c78711180988d42168891b935388e750cb0b3474",
+        "source-hashes.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "source-hashes-after.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "SHA256SUMS.json": "39e818575910b429085eab4335f08205962ce85c2e7ab34c7321f32e439c1a52"
+      },
+      "adjudicated_artifact": "evidence/e-s2c-adjudication/21-c5-audit-result.json",
+      "adjudicated_sha256": "db139ad403c4b87ff39b6438a98422b5c504636dc3abcd727ccfaf0820ac1fcb"
+    },
+    {
+      "version_family": "21",
+      "version": {
+        "family": "oracle",
+        "major": 21,
+        "minor": 3,
+        "patch": 0,
+        "raw": "21.3.0.0.0"
+      },
+      "mode": "c1",
+      "run_id": "e-s2c-c1-21-final",
+      "command": "python3 testing/engines/oracle/run.py --version 21 --run-id e-s2c-c1-21-final --incremental",
+      "image": {
+        "tag": "gvenzl/oracle-xe:21-slim",
+        "digest": "gvenzl/oracle-xe@sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d2b6d551aa79b2346f1ab8f792",
+        "platform": "linux/amd64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": false,
+      "audit_rows": 667,
+      "trace_records": 393,
+      "rejected_count": 36,
+      "classifications": {
+        "read_session": 2,
+        "rejected_operation_or_unproven_context": 36,
+        "read": 940,
+        "logminer_call": 28,
+        "d11a_logminer_object_dml": 34,
+        "d11a_logminer_commit": 20
+      },
+      "remaining_records": [
+        {
+          "record_list": "records",
+          "record_index": 1,
+          "action": "ALTER SESSION",
+          "object": "",
+          "owner": "",
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00' ",
+          "db_user": "C##OO_MINER",
+          "session_id": "1644682261",
+          "timestamp": "2026-11-04 01:03:14",
+          "return_code": 0,
+          "source": "unified",
+          "objects": [],
+          "depth": 1,
+          "logminer_context": false,
+          "trace_sources": [
+            "trace-054"
+          ],
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 4,
+          "sql": "UPDATE SEQ$ SET INCREMENT$=:2,MINVALUE=:3,MAXVALUE=:4,CYCLE#=:5,ORDER$=:6,CACHE=:7,HIGHWATER=:8,AUDIT$=:9,FLAGS=:10 WHERE OBJ#=:1",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [
+            "SEQ$"
+          ],
+          "executions": 1,
+          "cursor": "140737389418352",
+          "action": "UPDATE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 18,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO)",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 2,
+          "cursor": "140737387247776",
+          "action": "INSERT",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 20,
+          "sql": "ALTER SESSION SET TIME_ZONE='+08:00'",
+          "depth": 1,
+          "uid": 110,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737387237272",
+          "action": "ALTER SESSION",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 21,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, SQL_TEXT, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, EMPTY_CLOB(), :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO) RETURNING SQL_TEXT INTO :SQL_TEXT",
+          "depth": 2,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 273,
+          "cursor": "140737388416632",
+          "action": "INSERT",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 24,
+          "sql": "UPDATE SYS.USER$ SET SPARE1=SPARE1-BITAND(SPARE1, 1048576), SPARE6=DECODE(TO_CHAR(:2, 'YYYY-MM-DD'), '0000-00-00', TO_DATE(NULL), :2) WHERE USER#=:1",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [
+            "SYS.USER$"
+          ],
+          "executions": 1,
+          "cursor": "140737386578000",
+          "action": "UPDATE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 56,
+          "sql": "UPDATE SEG$ SET TYPE#=:4,BLOCKS=:5,EXTENTS=:6,MINEXTS=:7,MAXEXTS=:8,EXTSIZE=:9,EXTPCT=:10,USER#=:11,INIEXTS=:12,LISTS=DECODE(:13, 65535, NULL, :13),GROUPS=DECODE(:14, 65535, NULL, :14), CACHEHINT=:15, HWMINCR=:16, SPARE1=DECODE(:17,0,NULL,:17),SCANHINT=:18, BITMAPRANGES=:19 WHERE TS#=:1 AND FILE#=:2 AND BLOCK#=:3",
+          "depth": 2,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [
+            "SEG$"
+          ],
+          "executions": 1,
+          "cursor": "140737379689912",
+          "action": "UPDATE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 71,
+          "sql": "INSERT INTO AUDSYS.AUD$UNIFIED (AUDIT_TYPE, SESSIONID, PROXY_SESSIONID, OS_USER, HOST_NAME, TERMINAL, INSTANCE_ID, DBID, AUTHENTICATION_TYPE, USERID, PROXY_USERID, EXTERNAL_USERID, GLOBAL_USERID, CLIENT_PROGRAM_NAME, DBLINK_INFO, XS_USER_NAME, XS_SESSIONID, DB_UNIQUE_NAME , ENTRY_ID, STATEMENT_ID, EVENT_TIMESTAMP, ACTION, RETURN_CODE, OS_PROCESS, TRANSACTION_ID, SCN, EXECUTION_ID, OBJ_OWNER, OBJ_NAME, OBJECT_EDITION, CURRENT_USER, OBJECT_TYPE, CLIENT_IDENTIFIER, UNIFIED_AUDIT_POLICIES, SQL_TEXT, SQL_BINDS, NEW_OWNER, NEW_NAME, SYSTEM_PRIVILEGE_USED, SYSTEM_PRIVILEGE, AUDIT_OPTION, OBJECT_PRIVILEGES, ROLE, TARGET_USER, EXCLUDED_USER, EXCLUDED_SCHEMA, EXCLUDED_OBJECT, ADDITIONAL_INFO) VALUES (:AUDIT_TYPE, :SESSIONID, :PROXY_SESSIONID, :OS_USER, :HOST_NAME, :TERMINAL, :INSTANCE_ID, :DBID, :AUTHENTICATION_TYPE, :USERID, :PROXY_USERID, :EXTERNAL_USERID, :GLOBAL_USERID, :CLIENT_PROGRAM_NAME, :DBLINK_INFO, :XS_USER_NAME, :XS_SESSIONID, :DB_UNIQUE_NAME , :ENTRY_ID, :STATEMENT_ID, :EVENT_TIMESTAMP, :ACTION, :RETURN_CODE, :OS_PROCESS, :TRANSACTION_ID, :SCN, :EXECUTION_ID, :OBJ_OWNER, :OBJ_NAME, :OBJECT_EDITION, :CURRENT_USER, :OBJECT_TYPE, :CLIENT_IDENTIFIER, :UNIFIED_AUDIT_POLICIES, EMPTY_CLOB(), EMPTY_CLOB(), :NEW_OWNER, :NEW_NAME, :SYSTEM_PRIVILEGE_USED, :SYSTEM_PRIVILEGE, :AUDIT_OPTION, :OBJECT_PRIVILEGES, :ROLE, :TARGET_USER, :EXCLUDED_USER, :EXCLUDED_SCHEMA, :EXCLUDED_OBJECT, :ADDITIONAL_INFO) RETURNING SQL_TEXT, SQL_BINDS INTO :SQL_TEXT, :SQL_BINDS",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [
+            "AUDSYS.AUD$UNIFIED"
+          ],
+          "executions": 392,
+          "cursor": "140737386390384",
+          "action": "INSERT",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 77,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737386416568",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 91,
+          "sql": "DECLARE OPSTRING_IN VARCHAR2(31) := :1; SESSION_NUM_IN NUMBER := :2; LOGMNR_DID_INOUT NUMBER := :3; LOGMNR_UID_INOUT NUMBER := :4; ASOFSCNBAS NUMBER := :5; ASOFSCNWRP NUMBER := :6; NUM_UIDS_IN NUMBER := :7; KRVRDLUID3_FLAGS NUMBER := :8;BEGIN SYS.LOGMNR_KRVRDLUID3(OPSTRING_IN, SESSION_NUM_IN, LOGMNR_DID_INOUT, LOGMNR_UID_INOUT, NULL, ASOFSCNBAS, ASOFSCNWRP, NUM_UIDS_IN, KRVRDLUID3_FLAGS); IF ASOFSCNBAS = 0 THEN :3 := LOGMNR_DID_INOUT; :4 := LOGMNR_UID_INOUT; END IF;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737378569112",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 94,
+          "sql": "INSERT /* QOSD */ INTO EXP_HEAD$ (EXP_ID, OBJN, SUB_ID, FIXED_COST, TEXT, COL_LIST, FLAGS, CTIME) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)",
+          "depth": 3,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 4,
+          "cursor": "140737388262256",
+          "action": "INSERT",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 115,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737378644672",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 121,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYSTEM.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737379690520",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 124,
+          "sql": "DECLARE P1 NUMBER := :1; P2 NUMBER := :2; P3 NUMBER := :3; P35 NUMBER:= :4; P36 NUMBER := :5; P37 NUMBER := :6; P4 NUMBER; P5 NUMBER; P6 NUMBER; P7 NUMBER; P8 NUMBER; P9 NUMBER; P10 NUMBER; P11 NUMBER; P12 VARCHAR2(384); P13 VARCHAR2(384); P14 VARCHAR2(384); P15 VARCHAR2(384); P16 NUMBER; P17 NUMBER; P18 NUMBER; P19 NUMBER; P20 NUMBER; P21 NUMBER; P22 NUMBER; P23 NUMBER; P24 VARCHAR2(90); P25 NUMBER; P26 NUMBER; P27 VARCHAR2(128); P28 NUMBER; P29 NUMBER; P30 NUMBER; P31 NUMBER; P32 NUMBER; P33 NUMBER; P34 NUMBER; P38 NUMBER; P39 NUMBER; P40 NUMBER; BEGIN SYS.LOGMNR_GTLO3(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34, P35, P36, P37, P38, P39, P40); :3 := P3; :7 := P4; :8 := P5; :9 := P6; :10 := P7; :11 := P8; :12 := P9; :13 := P10; :14 := P11; :15 := P12; :16 := P13; :17 := P14; :18 := P15; :19 := P16; :20 := P17; :21 := P18; :22 := P19; :23 := P20; :24 := P21; :25 := P22; :26 := P23; :27 := P24; :28 := NVL(P25,0); :29 := P26; :30 := P27; :31 := P28; :32 := P29; :33 := P30; :34 := P31; :35 := P32; :36 := P33; :37 := P34; :38 := P38; :39 := P39; :40 := P40; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737379690520",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 131,
+          "sql": "DECLARE LOCAL_CON_ID NUMBER := :BND_PDBID; LOCAL_PDB_NAME VARCHAR2(384) := NULL; LOCAL_GLOBAL_NAME VARCHAR2(384) := NULL; LOCAL_FEDROOT_PDBID NUMBER := 0; CNT NUMBER := 0; BEGIN SELECT COUNT(1) INTO CNT FROM V$CONTAINERS WHERE CON_ID = LOCAL_CON_ID; IF CNT = 1 THEN SELECT C.NAME, CASE APPLICATION_ROOT WHEN 'YES' THEN CON_ID ELSE APPLICATION_ROOT_CON_ID END INTO LOCAL_PDB_NAME, LOCAL_FEDROOT_PDBID FROM V$CONTAINERS C WHERE C.CON_ID = LOCAL_CON_ID; SELECT SUBSTR(P.PROPERTY_VALUE, 1, 384) INTO LOCAL_GLOBAL_NAME FROM CDB_PROPERTIES P WHERE P.PROPERTY_NAME = 'GLOBAL_DB_NAME' AND P.CON_ID = LOCAL_CON_ID; END IF; :BND_PDB_NAME := LOCAL_PDB_NAME; :BND_GLOBAL_NAME := LOCAL_GLOBAL_NAME; :BND_ROW_COUNT := CNT; :BND_FEDROOT := LOCAL_FEDROOT_PDBID; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737379690520",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 149,
+          "sql": "DECLARE PDB_NAME_IN VARCHAR2(384) := :1; SCHEMA_NAME_IN VARCHAR2(384) := :2; TABLE_NAME_IN VARCHAR2(384) := :3; CLIENT_INFO_OUT NUMBER := 0; BEGIN SYS.DBMS_LOGMNR_INTERNAL.RESOLVE_TABLE_INCLUSION_RULE( SCHEMA_NAME_IN, TABLE_NAME_IN, PDB_NAME_IN, CLIENT_INFO_OUT ); :4 := CLIENT_INFO_OUT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737379690520",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 152,
+          "sql": "DECLARE P1 NUMBER := :1; P2 NUMBER := :2; P3 NUMBER := :3; P35 NUMBER:= :4; P36 NUMBER := :5; P37 NUMBER := :6; P4 NUMBER; P5 NUMBER; P6 NUMBER; P7 NUMBER; P8 NUMBER; P9 NUMBER; P10 NUMBER; P11 NUMBER; P12 VARCHAR2(384); P13 VARCHAR2(384); P14 VARCHAR2(384); P15 VARCHAR2(384); P16 NUMBER; P17 NUMBER; P18 NUMBER; P19 NUMBER; P20 NUMBER; P21 NUMBER; P22 NUMBER; P23 NUMBER; P24 VARCHAR2(90); P25 NUMBER; P26 NUMBER; P27 VARCHAR2(128); P28 NUMBER; P29 NUMBER; P30 NUMBER; P31 NUMBER; P32 NUMBER; P33 NUMBER; P34 NUMBER; P38 NUMBER; P39 NUMBER; P40 NUMBER; BEGIN SYS.LOGMNR_GTLO3(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34, P35, P36, P37, P38, P39, P40); :3 := P3; :7 := P4; :8 := P5; :9 := P6; :10 := P7; :11 := P8; :12 := P9; :13 := P10; :14 := P11; :15 := P12; :16 := P13; :17 := P14; :18 := P15; :19 := P16; :20 := P17; :21 := P18; :22 := P19; :23 := P20; :24 := P21; :25 := P22; :26 := P23; :27 := P24; :28 := NVL(P25,0); :29 := P26; :30 := P27; :31 := P28; :32 := P29; :33 := P30; :34 := P31; :35 := P32; :36 := P33; :37 := P34; :38 := P38; :39 := P39; :40 := P40; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737379690520",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 154,
+          "sql": "DECLARE PDB_NAME_IN VARCHAR2(384) := :1; SCHEMA_NAME_IN VARCHAR2(384) := :2; TABLE_NAME_IN VARCHAR2(384) := :3; CLIENT_INFO_OUT NUMBER := 0; BEGIN SYS.DBMS_LOGMNR_INTERNAL.RESOLVE_TABLE_INCLUSION_RULE( SCHEMA_NAME_IN, TABLE_NAME_IN, PDB_NAME_IN, CLIENT_INFO_OUT ); :4 := CLIENT_INFO_OUT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737379690520",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 157,
+          "sql": "DECLARE PDB_NAME_IN VARCHAR2(384) := :1; SCHEMA_NAME_IN VARCHAR2(384) := :2; TABLE_NAME_IN VARCHAR2(384) := :3; CLIENT_INFO_OUT NUMBER := 0; BEGIN SYS.DBMS_LOGMNR_INTERNAL.RESOLVE_TABLE_INCLUSION_RULE( SCHEMA_NAME_IN, TABLE_NAME_IN, PDB_NAME_IN, CLIENT_INFO_OUT ); :4 := CLIENT_INFO_OUT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 58,
+          "cursor": "140737385591632",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 159,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737388334128",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 164,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYSTEM.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737389103064",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 166,
+          "sql": "DECLARE P1 NUMBER := :1; P2 NUMBER := :2; P3 NUMBER := :3; P35 NUMBER:= :4; P36 NUMBER := :5; P37 NUMBER := :6; P4 NUMBER; P5 NUMBER; P6 NUMBER; P7 NUMBER; P8 NUMBER; P9 NUMBER; P10 NUMBER; P11 NUMBER; P12 VARCHAR2(384); P13 VARCHAR2(384); P14 VARCHAR2(384); P15 VARCHAR2(384); P16 NUMBER; P17 NUMBER; P18 NUMBER; P19 NUMBER; P20 NUMBER; P21 NUMBER; P22 NUMBER; P23 NUMBER; P24 VARCHAR2(90); P25 NUMBER; P26 NUMBER; P27 VARCHAR2(128); P28 NUMBER; P29 NUMBER; P30 NUMBER; P31 NUMBER; P32 NUMBER; P33 NUMBER; P34 NUMBER; P38 NUMBER; P39 NUMBER; P40 NUMBER; BEGIN SYS.LOGMNR_GTLO3(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34, P35, P36, P37, P38, P39, P40); :3 := P3; :7 := P4; :8 := P5; :9 := P6; :10 := P7; :11 := P8; :12 := P9; :13 := P10; :14 := P11; :15 := P12; :16 := P13; :17 := P14; :18 := P15; :19 := P16; :20 := P17; :21 := P18; :22 := P19; :23 := P20; :24 := P21; :25 := P22; :26 := P23; :27 := P24; :28 := NVL(P25,0); :29 := P26; :30 := P27; :31 := P28; :32 := P29; :33 := P30; :34 := P31; :35 := P32; :36 := P33; :37 := P34; :38 := P38; :39 := P39; :40 := P40; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 28,
+          "cursor": "140737389103064",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 176,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737388335520",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 180,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYSTEM.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737379939216",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 205,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737379936944",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 217,
+          "sql": "DECLARE OPSTRING_IN VARCHAR2(31) := :1; SESSION_NUM_IN NUMBER := :2; LOGMNR_DID_INOUT NUMBER := :3; LOGMNR_UID_INOUT NUMBER := :4; ASOFSCNBAS NUMBER := :5; ASOFSCNWRP NUMBER := :6; NUM_UIDS_IN NUMBER := :7; KRVRDLUID3_FLAGS NUMBER := :8;BEGIN SYS.LOGMNR_KRVRDLUID3(OPSTRING_IN, SESSION_NUM_IN, LOGMNR_DID_INOUT, LOGMNR_UID_INOUT, NULL, ASOFSCNBAS, ASOFSCNWRP, NUM_UIDS_IN, KRVRDLUID3_FLAGS); IF ASOFSCNBAS = 0 THEN :3 := LOGMNR_DID_INOUT; :4 := LOGMNR_UID_INOUT; END IF;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737388263256",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 227,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 8,
+          "cursor": "140737389524336",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 231,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYSTEM.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 8,
+          "cursor": "140737388331392",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 239,
+          "sql": "DECLARE LOCAL_CON_ID NUMBER := :BND_PDBID; LOCAL_PDB_NAME VARCHAR2(384) := NULL; LOCAL_GLOBAL_NAME VARCHAR2(384) := NULL; LOCAL_FEDROOT_PDBID NUMBER := 0; CNT NUMBER := 0; BEGIN SELECT COUNT(1) INTO CNT FROM V$CONTAINERS WHERE CON_ID = LOCAL_CON_ID; IF CNT = 1 THEN SELECT C.NAME, CASE APPLICATION_ROOT WHEN 'YES' THEN CON_ID ELSE APPLICATION_ROOT_CON_ID END INTO LOCAL_PDB_NAME, LOCAL_FEDROOT_PDBID FROM V$CONTAINERS C WHERE C.CON_ID = LOCAL_CON_ID; SELECT SUBSTR(P.PROPERTY_VALUE, 1, 384) INTO LOCAL_GLOBAL_NAME FROM CDB_PROPERTIES P WHERE P.PROPERTY_NAME = 'GLOBAL_DB_NAME' AND P.CON_ID = LOCAL_CON_ID; END IF; :BND_PDB_NAME := LOCAL_PDB_NAME; :BND_GLOBAL_NAME := LOCAL_GLOBAL_NAME; :BND_ROW_COUNT := CNT; :BND_FEDROOT := LOCAL_FEDROOT_PDBID; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737386501704",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 281,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737379682368",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 292,
+          "sql": "DECLARE OPSTRING_IN VARCHAR2(31) := :1; SESSION_NUM_IN NUMBER := :2; LOGMNR_DID_INOUT NUMBER := :3; LOGMNR_UID_INOUT NUMBER := :4; ASOFSCNBAS NUMBER := :5; ASOFSCNWRP NUMBER := :6; NUM_UIDS_IN NUMBER := :7; KRVRDLUID3_FLAGS NUMBER := :8;BEGIN SYS.LOGMNR_KRVRDLUID3(OPSTRING_IN, SESSION_NUM_IN, LOGMNR_DID_INOUT, LOGMNR_UID_INOUT, NULL, ASOFSCNBAS, ASOFSCNWRP, NUM_UIDS_IN, KRVRDLUID3_FLAGS); IF ASOFSCNBAS = 0 THEN :3 := LOGMNR_DID_INOUT; :4 := LOGMNR_UID_INOUT; END IF;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737389410712",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 309,
+          "sql": "DECLARE LOCAL_CON_ID NUMBER := :BND_PDBID; LOCAL_PDB_NAME VARCHAR2(384) := NULL; LOCAL_GLOBAL_NAME VARCHAR2(384) := NULL; LOCAL_FEDROOT_PDBID NUMBER := 0; CNT NUMBER := 0; BEGIN SELECT COUNT(1) INTO CNT FROM V$CONTAINERS WHERE CON_ID = LOCAL_CON_ID; IF CNT = 1 THEN SELECT C.NAME, CASE APPLICATION_ROOT WHEN 'YES' THEN CON_ID ELSE APPLICATION_ROOT_CON_ID END INTO LOCAL_PDB_NAME, LOCAL_FEDROOT_PDBID FROM V$CONTAINERS C WHERE C.CON_ID = LOCAL_CON_ID; SELECT SUBSTR(P.PROPERTY_VALUE, 1, 384) INTO LOCAL_GLOBAL_NAME FROM CDB_PROPERTIES P WHERE P.PROPERTY_NAME = 'GLOBAL_DB_NAME' AND P.CON_ID = LOCAL_CON_ID; END IF; :BND_PDB_NAME := LOCAL_PDB_NAME; :BND_GLOBAL_NAME := LOCAL_GLOBAL_NAME; :BND_ROW_COUNT := CNT; :BND_FEDROOT := LOCAL_FEDROOT_PDBID; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737378644672",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 340,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737387237272",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 351,
+          "sql": "DECLARE OPSTRING_IN VARCHAR2(31) := :1; SESSION_NUM_IN NUMBER := :2; LOGMNR_DID_INOUT NUMBER := :3; LOGMNR_UID_INOUT NUMBER := :4; ASOFSCNBAS NUMBER := :5; ASOFSCNWRP NUMBER := :6; NUM_UIDS_IN NUMBER := :7; KRVRDLUID3_FLAGS NUMBER := :8;BEGIN SYS.LOGMNR_KRVRDLUID3(OPSTRING_IN, SESSION_NUM_IN, LOGMNR_DID_INOUT, LOGMNR_UID_INOUT, NULL, ASOFSCNBAS, ASOFSCNWRP, NUM_UIDS_IN, KRVRDLUID3_FLAGS); IF ASOFSCNBAS = 0 THEN :3 := LOGMNR_DID_INOUT; :4 := LOGMNR_UID_INOUT; END IF;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737389003600",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 368,
+          "sql": "DECLARE LOCAL_CON_ID NUMBER := :BND_PDBID; LOCAL_PDB_NAME VARCHAR2(384) := NULL; LOCAL_GLOBAL_NAME VARCHAR2(384) := NULL; LOCAL_FEDROOT_PDBID NUMBER := 0; CNT NUMBER := 0; BEGIN SELECT COUNT(1) INTO CNT FROM V$CONTAINERS WHERE CON_ID = LOCAL_CON_ID; IF CNT = 1 THEN SELECT C.NAME, CASE APPLICATION_ROOT WHEN 'YES' THEN CON_ID ELSE APPLICATION_ROOT_CON_ID END INTO LOCAL_PDB_NAME, LOCAL_FEDROOT_PDBID FROM V$CONTAINERS C WHERE C.CON_ID = LOCAL_CON_ID; SELECT SUBSTR(P.PROPERTY_VALUE, 1, 384) INTO LOCAL_GLOBAL_NAME FROM CDB_PROPERTIES P WHERE P.PROPERTY_NAME = 'GLOBAL_DB_NAME' AND P.CON_ID = LOCAL_CON_ID; END IF; :BND_PDB_NAME := LOCAL_PDB_NAME; :BND_GLOBAL_NAME := LOCAL_GLOBAL_NAME; :BND_ROW_COUNT := CNT; :BND_FEDROOT := LOCAL_FEDROOT_PDBID; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737389521552",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 388,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "36.5828",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737388398792",
+          "action": "DECLARE",
+          "source": "trace-054",
+          "classification": "rejected_operation_or_unproven_context"
+        }
+      ],
+      "probe_first_index_check": {
+        "index": "SYS_C008305",
+        "operations": [
+          "SELECT STATEMENT - -",
+          "VIEW - -",
+          "WINDOW NOSORT STOPKEY -",
+          "TABLE ACCESS BY INDEX ROWID GROWING",
+          "INDEX FULL SCAN SYS_C008305"
+        ],
+        "state": "verified"
+      },
+      "plan_fresh_scn_retries": 0,
+      "cycles": {
+        "c1_exercised": true,
+        "c5_layers": "OracleC5: optional time hint, recent undo window, chunk digest, periodic full read",
+        "cycles": [
+          {
+            "c1_events": 4,
+            "c1_generation": 1,
+            "c1_payload_bytes": 9216,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2983726
+            },
+            "c5_generation": 1,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 1,
+              "payload_bytes": 173384,
+              "recent_ranges": 0,
+              "recent_unknown": 1,
+              "rewrites": 1,
+              "source_read_bytes": 173384,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173384,
+            "c5_rewrites": 1,
+            "chunk_window_correction": true,
+            "cycle": 0,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2984119
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 5,
+            "c1_generation": 2,
+            "c1_payload_bytes": 11520,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2984156
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 173384,
+              "recent_ranges": 1,
+              "recent_unknown": 0,
+              "rewrites": 1,
+              "source_read_bytes": 173384,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173384,
+            "c5_rewrites": 1,
+            "chunk_window_correction": false,
+            "cycle": 1,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2984608
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 0,
+            "c1_generation": 2,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 2984641
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 0,
+              "recent_ranges": 0,
+              "recent_unknown": 0,
+              "rewrites": 0,
+              "source_read_bytes": 0,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 0,
+            "c5_rewrites": 0,
+            "chunk_window_correction": false,
+            "cycle": 2,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 2985092
+            },
+            "rows": 10000
+          }
+        ],
+        "target": "in-memory row hashes, not Agent DB",
+        "version": 21
+      },
+      "source_hashes_match": true,
+      "cleanup_exit": 0,
+      "evidence_sha256": {
+        "audit-result.json": "afcb4d3b5cd68d8df3a67937bb07c8a37b9ed9207154571cef6a42375da6dcfb",
+        "test.log": "a700212ca30f7e8bd254deada9739221d9ef2c424c9673e64741ee7de4e944fe",
+        "probe-first-plan.json": "c8537112c424f6030fd102a89e8204a3b98d6ccb52a2174b13cbd0eb7a713e7d",
+        "incremental-result.json": "d34e1627306b31af1e745577119944dbef90c2e83b394a23e6e5811ebe30cc1f",
+        "source-hashes.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "source-hashes-after.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "SHA256SUMS.json": "39e8a5933de8dc61f87e5138598bdc6e8cb60e4be27caa908dc1fe3c67aaae10"
+      },
+      "adjudicated_artifact": "evidence/e-s2c-adjudication/21-c1-audit-result.json",
+      "adjudicated_sha256": "446c825a9645ee0ccf3a8a61f483da9ef8b14b7298a87b8a5acbf10b5b1fb6c3"
+    },
+    {
+      "version_family": "11",
+      "version": {
+        "family": "oracle",
+        "major": 11,
+        "minor": 2,
+        "patch": 0,
+        "raw": "11.2.0.2.0"
+      },
+      "mode": "c5",
+      "run_id": "e-s2c-c5-11-final",
+      "command": "python3 testing/engines/oracle/run.py --version 11 --run-id e-s2c-c5-11-final --incremental --c5-only --worker-image oo-e-oracle-worker:e-fix-worker-v4",
+      "image": {
+        "tag": "gvenzl/oracle-xe:11",
+        "digest": "gvenzl/oracle-xe@sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8",
+        "platform": "linux/amd64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": false,
+      "audit_rows": 1185,
+      "trace_records": 484,
+      "rejected_count": 18,
+      "classifications": {
+        "read_session": 10,
+        "read": 1641,
+        "rejected_c5_non_select": 18
+      },
+      "remaining_records": [
+        {
+          "record_list": "trace_records",
+          "record_index": 2,
+          "sql": "UPDATE SEQ$ SET INCREMENT$=:2,MINVALUE=:3,MAXVALUE=:4,CYCLE#=:5,ORDER$=:6,CACHE=:7,HIGHWATER=:8,AUDIT$=:9,FLAGS=:10 WHERE OBJ#=:1",
+          "depth": 1,
+          "uid": 0,
+          "session": "27.3",
+          "objects": [
+            "SEQ$"
+          ],
+          "executions": 1,
+          "cursor": "140737429067312",
+          "action": "UPDATE",
+          "source": "trace-014",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 35,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, OBJ$CREATOR,OBJ$NAME,AUTH$PRIVILEGES,AUTH$GRANTEE, NEW$OWNER,NEW$NAME,SES$ACTIONS,SES$TID,LOGOFF$PREAD, LOGOFF$LWRITE,LOGOFF$DEAD,COMMENT$TEXT,SPARE1,SPARE2, PRIV$USED,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,XID,SCN,AUDITID, SQLBIND,SQLTEXT,OBJ$EDITION,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, :13,:14,:15,:16,:17, :18,:19,:20,:21,:22, :23,:24,:25,:26,:27, :28,:29,:30,:31,:32, :33,:34,:35,:36)",
+          "depth": 1,
+          "uid": 0,
+          "session": "27.3",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 2,
+          "cursor": "140737427342840",
+          "action": "INSERT",
+          "source": "trace-014",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 36,
+          "sql": "ALTER SESSION SET TIME_ZONE='+00:00'",
+          "depth": 1,
+          "uid": 50,
+          "session": "27.3",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737426216944",
+          "action": "ALTER SESSION",
+          "source": "trace-014",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 56,
+          "sql": "UPDATE SEQ$ SET INCREMENT$=:2,MINVALUE=:3,MAXVALUE=:4,CYCLE#=:5,ORDER$=:6,CACHE=:7,HIGHWATER=:8,AUDIT$=:9,FLAGS=:10 WHERE OBJ#=:1",
+          "depth": 2,
+          "uid": 0,
+          "session": "27.3",
+          "objects": [
+            "SEQ$"
+          ],
+          "executions": 1,
+          "cursor": "140737426549200",
+          "action": "UPDATE",
+          "source": "trace-014",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 57,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, LOGOFF$LREAD,LOGOFF$PREAD,LOGOFF$LWRITE,LOGOFF$DEAD, LOGOFF$TIME,COMMENT$TEXT,SPARE1,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,AUDITID,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS DATE),:13,:14,:15,:16,:17,:18, :19,:20,:21,:22)",
+          "depth": 1,
+          "uid": 0,
+          "session": "27.3",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 1,
+          "cursor": "140737426284504",
+          "action": "INSERT",
+          "source": "trace-014",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 59,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, OBJ$CREATOR,OBJ$NAME,AUTH$PRIVILEGES,AUTH$GRANTEE, NEW$OWNER,NEW$NAME,SES$ACTIONS,SES$TID,LOGOFF$PREAD, LOGOFF$LWRITE,LOGOFF$DEAD,COMMENT$TEXT,SPARE1,SPARE2, PRIV$USED,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,XID,SCN,AUDITID, SQLBIND,SQLTEXT,OBJ$EDITION,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, :13,:14,:15,:16,:17, :18,:19,:20,:21,:22, :23,:24,:25,:26,:27, :28,:29,:30,:31,:32, :33,:34,:35,:36)",
+          "depth": 1,
+          "uid": 0,
+          "session": "27.5",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 2,
+          "cursor": "140737429095400",
+          "action": "INSERT",
+          "source": "trace-015",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 60,
+          "sql": "ALTER SESSION SET TIME_ZONE='+00:00'",
+          "depth": 1,
+          "uid": 50,
+          "session": "27.5",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737429047616",
+          "action": "ALTER SESSION",
+          "source": "trace-015",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 65,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, LOGOFF$LREAD,LOGOFF$PREAD,LOGOFF$LWRITE,LOGOFF$DEAD, LOGOFF$TIME,COMMENT$TEXT,SPARE1,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,AUDITID,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS DATE),:13,:14,:15,:16,:17,:18, :19,:20,:21,:22)",
+          "depth": 1,
+          "uid": 0,
+          "session": "27.5",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 1,
+          "cursor": "140737427137488",
+          "action": "INSERT",
+          "source": "trace-015",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 67,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, OBJ$CREATOR,OBJ$NAME,AUTH$PRIVILEGES,AUTH$GRANTEE, NEW$OWNER,NEW$NAME,SES$ACTIONS,SES$TID,LOGOFF$PREAD, LOGOFF$LWRITE,LOGOFF$DEAD,COMMENT$TEXT,SPARE1,SPARE2, PRIV$USED,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,XID,SCN,AUDITID, SQLBIND,SQLTEXT,OBJ$EDITION,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, :13,:14,:15,:16,:17, :18,:19,:20,:21,:22, :23,:24,:25,:26,:27, :28,:29,:30,:31,:32, :33,:34,:35,:36)",
+          "depth": 1,
+          "uid": 0,
+          "session": "27.7",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 2,
+          "cursor": "140737429094232",
+          "action": "INSERT",
+          "source": "trace-016",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 68,
+          "sql": "ALTER SESSION SET TIME_ZONE='+00:00'",
+          "depth": 1,
+          "uid": 50,
+          "session": "27.7",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737429092320",
+          "action": "ALTER SESSION",
+          "source": "trace-016",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 73,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, LOGOFF$LREAD,LOGOFF$PREAD,LOGOFF$LWRITE,LOGOFF$DEAD, LOGOFF$TIME,COMMENT$TEXT,SPARE1,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,AUDITID,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS DATE),:13,:14,:15,:16,:17,:18, :19,:20,:21,:22)",
+          "depth": 1,
+          "uid": 0,
+          "session": "27.7",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 1,
+          "cursor": "140737427136144",
+          "action": "INSERT",
+          "source": "trace-016",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 75,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, OBJ$CREATOR,OBJ$NAME,AUTH$PRIVILEGES,AUTH$GRANTEE, NEW$OWNER,NEW$NAME,SES$ACTIONS,SES$TID,LOGOFF$PREAD, LOGOFF$LWRITE,LOGOFF$DEAD,COMMENT$TEXT,SPARE1,SPARE2, PRIV$USED,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,XID,SCN,AUDITID, SQLBIND,SQLTEXT,OBJ$EDITION,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, :13,:14,:15,:16,:17, :18,:19,:20,:21,:22, :23,:24,:25,:26,:27, :28,:29,:30,:31,:32, :33,:34,:35,:36)",
+          "depth": 1,
+          "uid": 0,
+          "session": "27.9",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 1173,
+          "cursor": "140737429094232",
+          "action": "INSERT",
+          "source": "trace-017",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 76,
+          "sql": "ALTER SESSION SET TIME_ZONE='+00:00'",
+          "depth": 1,
+          "uid": 50,
+          "session": "27.9",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737429092320",
+          "action": "ALTER SESSION",
+          "source": "trace-017",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 223,
+          "sql": "UPDATE SEG$ SET TYPE#=:4,BLOCKS=:5,EXTENTS=:6,MINEXTS=:7,MAXEXTS=:8,EXTSIZE=:9,EXTPCT=:10,USER#=:11,INIEXTS=:12,LISTS=DECODE(:13, 65535, NULL, :13),GROUPS=DECODE(:14, 65535, NULL, :14), CACHEHINT=:15, HWMINCR=:16, SPARE1=DECODE(:17,0,NULL,:17),SCANHINT=:18, BITMAPRANGES=:19 WHERE TS#=:1 AND FILE#=:2 AND BLOCK#=:3",
+          "depth": 2,
+          "uid": 0,
+          "session": "27.9",
+          "objects": [
+            "SEG$"
+          ],
+          "executions": 1,
+          "cursor": "140737427543216",
+          "action": "UPDATE",
+          "source": "trace-017",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 468,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, LOGOFF$LREAD,LOGOFF$PREAD,LOGOFF$LWRITE,LOGOFF$DEAD, LOGOFF$TIME,COMMENT$TEXT,SPARE1,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,AUDITID,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS DATE),:13,:14,:15,:16,:17,:18, :19,:20,:21,:22)",
+          "depth": 1,
+          "uid": 0,
+          "session": "27.9",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 1,
+          "cursor": "140737429155064",
+          "action": "INSERT",
+          "source": "trace-017",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 471,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, OBJ$CREATOR,OBJ$NAME,AUTH$PRIVILEGES,AUTH$GRANTEE, NEW$OWNER,NEW$NAME,SES$ACTIONS,SES$TID,LOGOFF$PREAD, LOGOFF$LWRITE,LOGOFF$DEAD,COMMENT$TEXT,SPARE1,SPARE2, PRIV$USED,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,XID,SCN,AUDITID, SQLBIND,SQLTEXT,OBJ$EDITION,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, :13,:14,:15,:16,:17, :18,:19,:20,:21,:22, :23,:24,:25,:26,:27, :28,:29,:30,:31,:32, :33,:34,:35,:36)",
+          "depth": 1,
+          "uid": 0,
+          "session": "25.7",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 1,
+          "cursor": "140737429094232",
+          "action": "INSERT",
+          "source": "trace-019",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 472,
+          "sql": "ALTER SESSION SET TIME_ZONE='+00:00'",
+          "depth": 1,
+          "uid": 50,
+          "session": "25.7",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737429092320",
+          "action": "ALTER SESSION",
+          "source": "trace-019",
+          "classification": "rejected_c5_non_select"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 483,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, LOGOFF$LREAD,LOGOFF$PREAD,LOGOFF$LWRITE,LOGOFF$DEAD, LOGOFF$TIME,COMMENT$TEXT,SPARE1,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,AUDITID,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS DATE),:13,:14,:15,:16,:17,:18, :19,:20,:21,:22)",
+          "depth": 1,
+          "uid": 0,
+          "session": "25.7",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 1,
+          "cursor": "140737429133640",
+          "action": "INSERT",
+          "source": "trace-019",
+          "classification": "rejected_c5_non_select"
+        }
+      ],
+      "probe_first_index_check": {
+        "operations": [
+          "INSERT STATEMENT - -",
+          "LOAD TABLE CONVENTIONAL - -"
+        ],
+        "state": "not_used"
+      },
+      "plan_fresh_scn_retries": 0,
+      "cycles": {
+        "c1_exercised": false,
+        "c5_layers": "OracleC5: optional time hint, recent undo window, chunk digest, periodic full read",
+        "cycles": [
+          {
+            "c1_events": 0,
+            "c1_generation": 0,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 407733
+            },
+            "c5_generation": 1,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 1,
+              "payload_bytes": 173320,
+              "recent_ranges": 0,
+              "recent_unknown": 1,
+              "rewrites": 1,
+              "source_read_bytes": 173320,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173320,
+            "c5_rewrites": 1,
+            "chunk_window_correction": false,
+            "cycle": 0,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 407767
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 0,
+            "c1_generation": 0,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 407733
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 173384,
+              "recent_ranges": 1,
+              "recent_unknown": 0,
+              "rewrites": 1,
+              "source_read_bytes": 173384,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173384,
+            "c5_rewrites": 1,
+            "chunk_window_correction": false,
+            "cycle": 1,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 407805
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 0,
+            "c1_generation": 0,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 407733
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 0,
+              "recent_ranges": 0,
+              "recent_unknown": 0,
+              "rewrites": 0,
+              "source_read_bytes": 0,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 0,
+            "c5_rewrites": 0,
+            "chunk_window_correction": false,
+            "cycle": 2,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 407819
+            },
+            "rows": 10000
+          }
+        ],
+        "target": "in-memory row hashes, not Agent DB",
+        "version": 11
+      },
+      "source_hashes_match": true,
+      "cleanup_exit": 0,
+      "evidence_sha256": {
+        "audit-result.json": "8079b67248165374f74adc1681b43f33ba60e5cdc5e011f596aa1a354eb5b529",
+        "test.log": "bbdb10c4e078f7772c53eea74f6810a7a9cd2f35d004f04861fd0fe1ff5721bc",
+        "probe-first-plan.json": "d8f6f405dc21ccdf18c1d766da6fe6089e9e8d8ca84ea15a7aa8821e1f45cf16",
+        "incremental-result.json": "17aa12c3a980be10bbc1798bdb3262060d045b9c342bb6a121f1f68f9f8cf9ea",
+        "source-hashes.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "source-hashes-after.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "SHA256SUMS.json": "01c28e1507ab195ab4f1404b699731864fcfe6de90821a92cad1c344718da7cd"
+      },
+      "adjudicated_artifact": "evidence/e-s2c-adjudication/11-c5-audit-result.json",
+      "adjudicated_sha256": "4f44aab71e66abc915a609cbf1df5ed4446364145eb481dd4f2dec51c427f412"
+    },
+    {
+      "version_family": "11",
+      "version": {
+        "family": "oracle",
+        "major": 11,
+        "minor": 2,
+        "patch": 0,
+        "raw": "11.2.0.2.0"
+      },
+      "mode": "c1",
+      "run_id": "e-s2c-c1-11-final",
+      "command": "python3 testing/engines/oracle/run.py --version 11 --run-id e-s2c-c1-11-final --incremental --worker-image oo-e-oracle-worker:e-fix-worker-v4",
+      "image": {
+        "tag": "gvenzl/oracle-xe:11",
+        "digest": "gvenzl/oracle-xe@sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8",
+        "platform": "linux/amd64"
+      },
+      "component_test_exit": 0,
+      "t7_pass": false,
+      "audit_rows": 310,
+      "trace_records": 256,
+      "rejected_count": 23,
+      "classifications": {
+        "read_session": 2,
+        "read": 492,
+        "logminer_call": 32,
+        "rejected_operation_or_unproven_context": 23,
+        "d11a_logminer_object_dml": 15,
+        "d11a_logminer_commit": 2
+      },
+      "remaining_records": [
+        {
+          "record_list": "trace_records",
+          "record_index": 4,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, OBJ$CREATOR,OBJ$NAME,AUTH$PRIVILEGES,AUTH$GRANTEE, NEW$OWNER,NEW$NAME,SES$ACTIONS,SES$TID,LOGOFF$PREAD, LOGOFF$LWRITE,LOGOFF$DEAD,COMMENT$TEXT,SPARE1,SPARE2, PRIV$USED,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,XID,SCN,AUDITID, SQLBIND,SQLTEXT,OBJ$EDITION,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, :13,:14,:15,:16,:17, :18,:19,:20,:21,:22, :23,:24,:25,:26,:27, :28,:29,:30,:31,:32, :33,:34,:35,:36)",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 309,
+          "cursor": "140737429077888",
+          "action": "INSERT",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 5,
+          "sql": "ALTER SESSION SET TIME_ZONE='+00:00'",
+          "depth": 1,
+          "uid": 51,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737429158872",
+          "action": "ALTER SESSION",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 13,
+          "sql": "UPDATE SEQ$ SET INCREMENT$=:2,MINVALUE=:3,MAXVALUE=:4,CYCLE#=:5,ORDER$=:6,CACHE=:7,HIGHWATER=:8,AUDIT$=:9,FLAGS=:10 WHERE OBJ#=:1",
+          "depth": 2,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [
+            "SEQ$"
+          ],
+          "executions": 1,
+          "cursor": "140737427112744",
+          "action": "UPDATE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 36,
+          "sql": "UPDATE SEG$ SET TYPE#=:4,BLOCKS=:5,EXTENTS=:6,MINEXTS=:7,MAXEXTS=:8,EXTSIZE=:9,EXTPCT=:10,USER#=:11,INIEXTS=:12,LISTS=DECODE(:13, 65535, NULL, :13),GROUPS=DECODE(:14, 65535, NULL, :14), CACHEHINT=:15, HWMINCR=:16, SPARE1=DECODE(:17,0,NULL,:17),SCANHINT=:18, BITMAPRANGES=:19 WHERE TS#=:1 AND FILE#=:2 AND BLOCK#=:3",
+          "depth": 2,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [
+            "SEG$"
+          ],
+          "executions": 1,
+          "cursor": "140737426087384",
+          "action": "UPDATE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 53,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737427193912",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 68,
+          "sql": "DECLARE OPSTRING_IN VARCHAR2(31) := :1; SESSION_NUM_IN NUMBER := :2; LOGMNR_UID_INOUT NUMBER := :3; BEGIN SYS.LOGMNR_KRVRDLUID3(OPSTRING_IN, SESSION_NUM_IN, LOGMNR_UID_INOUT); :3 := LOGMNR_UID_INOUT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737427197024",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 88,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737427583416",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 91,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYSTEM.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737427572240",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 93,
+          "sql": "DECLARE P1 NUMBER := :1; P2 NUMBER := :2; P3 NUMBER := :3; P4 NUMBER; P5 NUMBER; P6 NUMBER; P7 NUMBER; P8 NUMBER; P9 NUMBER; P10 NUMBER; P11 NUMBER; P12 VARCHAR2(31); P13 VARCHAR2(31); P14 VARCHAR2(31); P15 VARCHAR2(31); P16 NUMBER; P17 NUMBER; P18 NUMBER; P19 NUMBER; P20 NUMBER; P21 NUMBER; P22 NUMBER; P23 NUMBER; P24 VARCHAR2(31); P25 NUMBER; P26 NUMBER; P27 VARCHAR2(30); P28 NUMBER; P29 NUMBER; P30 NUMBER; P31 NUMBER; P32 NUMBER; P33 NUMBER; P34 NUMBER; BEGIN SYS.LOGMNR_GTLO3(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34); :3 := P3; :4 := P4; :5 := P5; :6 := P6; :7 := P7; :8 := P8; :9 := P9; :10 := P10; :11 := P11; :12 := P12; :13 := P13; :14 := P14; :15 := P15; :16 := P16; :17 := P17; :18 := P18; :19 := P19; :20 := P20; :21 := P21; :22 := P22; :23 := P23; :24 := P24; :25 := P25; :26 := P26; :27 := P27; :28 := P28; :29 := P29; :30 := P30; :31 := P31; :32 := P32; :33 := P33; :34 := P34; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737427572240",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 99,
+          "sql": "DECLARE SCHEMA_NAME_IN VARCHAR2(32) := DBMS_ASSERT.ENQUOTE_NAME(:1); TABLE_NAME_IN VARCHAR2(32) := DBMS_ASSERT.ENQUOTE_NAME(:2); TABLE_ROW_COUNT NUMBER := 0; SCHEMA_RULE_COUNT NUMBER := 0; TABLE_RULE_COUNT NUMBER := 0; CLIENT_INFO_OUT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_ROW_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$; IF (TABLE_ROW_COUNT <> 0) THEN CLIENT_INFO_OUT := 1; SELECT COUNT(1) INTO SCHEMA_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$ WHERE SCHEMA_NAME = SCHEMA_NAME_IN AND TABLE_NAME IS NULL; IF (SCHEMA_RULE_COUNT <> 0) THEN CLIENT_INFO_OUT := 0; ELSE SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$ WHERE SCHEMA_NAME = SCHEMA_NAME_IN AND TABLE_NAME = TABLE_NAME_IN; IF (TABLE_RULE_COUNT <> 0) THEN CLIENT_INFO_OUT := 0; END IF; END IF; END IF; EXCEPTION WHEN OTHERS THEN CLIENT_INFO_OUT := 0; END; :3 := CLIENT_INFO_OUT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737427572240",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 106,
+          "sql": "DECLARE P1 NUMBER := :1; P2 NUMBER := :2; P3 NUMBER := :3; P4 NUMBER; P5 NUMBER; P6 NUMBER; P7 NUMBER; P8 NUMBER; P9 NUMBER; P10 NUMBER; P11 NUMBER; P12 VARCHAR2(31); P13 VARCHAR2(31); P14 VARCHAR2(31); P15 VARCHAR2(31); P16 NUMBER; P17 NUMBER; P18 NUMBER; P19 NUMBER; P20 NUMBER; P21 NUMBER; P22 NUMBER; P23 NUMBER; P24 VARCHAR2(31); P25 NUMBER; P26 NUMBER; P27 VARCHAR2(30); P28 NUMBER; P29 NUMBER; P30 NUMBER; P31 NUMBER; P32 NUMBER; P33 NUMBER; P34 NUMBER; BEGIN SYS.LOGMNR_GTLO3(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34); :3 := P3; :4 := P4; :5 := P5; :6 := P6; :7 := P7; :8 := P8; :9 := P9; :10 := P10; :11 := P11; :12 := P12; :13 := P13; :14 := P14; :15 := P15; :16 := P16; :17 := P17; :18 := P18; :19 := P19; :20 := P20; :21 := P21; :22 := P22; :23 := P23; :24 := P24; :25 := P25; :26 := P26; :27 := P27; :28 := P28; :29 := P29; :30 := P30; :31 := P31; :32 := P32; :33 := P33; :34 := P34; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737427572240",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 107,
+          "sql": "DECLARE SCHEMA_NAME_IN VARCHAR2(32) := DBMS_ASSERT.ENQUOTE_NAME(:1); TABLE_NAME_IN VARCHAR2(32) := DBMS_ASSERT.ENQUOTE_NAME(:2); TABLE_ROW_COUNT NUMBER := 0; SCHEMA_RULE_COUNT NUMBER := 0; TABLE_RULE_COUNT NUMBER := 0; CLIENT_INFO_OUT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_ROW_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$; IF (TABLE_ROW_COUNT <> 0) THEN CLIENT_INFO_OUT := 1; SELECT COUNT(1) INTO SCHEMA_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$ WHERE SCHEMA_NAME = SCHEMA_NAME_IN AND TABLE_NAME IS NULL; IF (SCHEMA_RULE_COUNT <> 0) THEN CLIENT_INFO_OUT := 0; ELSE SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$ WHERE SCHEMA_NAME = SCHEMA_NAME_IN AND TABLE_NAME = TABLE_NAME_IN; IF (TABLE_RULE_COUNT <> 0) THEN CLIENT_INFO_OUT := 0; END IF; END IF; END IF; EXCEPTION WHEN OTHERS THEN CLIENT_INFO_OUT := 0; END; :3 := CLIENT_INFO_OUT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737427572240",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 109,
+          "sql": "DECLARE P1 NUMBER := :1; P2 NUMBER := :2; P3 NUMBER := :3; P4 NUMBER; P5 NUMBER; P6 NUMBER; P7 NUMBER; P8 NUMBER; P9 NUMBER; P10 NUMBER; P11 NUMBER; P12 VARCHAR2(31); P13 VARCHAR2(31); P14 VARCHAR2(31); P15 VARCHAR2(31); P16 NUMBER; P17 NUMBER; P18 NUMBER; P19 NUMBER; P20 NUMBER; P21 NUMBER; P22 NUMBER; P23 NUMBER; P24 VARCHAR2(31); P25 NUMBER; P26 NUMBER; P27 VARCHAR2(30); P28 NUMBER; P29 NUMBER; P30 NUMBER; P31 NUMBER; P32 NUMBER; P33 NUMBER; P34 NUMBER; BEGIN SYS.LOGMNR_GTLO3(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34); :3 := P3; :4 := P4; :5 := P5; :6 := P6; :7 := P7; :8 := P8; :9 := P9; :10 := P10; :11 := P11; :12 := P12; :13 := P13; :14 := P14; :15 := P15; :16 := P16; :17 := P17; :18 := P18; :19 := P19; :20 := P20; :21 := P21; :22 := P22; :23 := P23; :24 := P24; :25 := P25; :26 := P26; :27 := P27; :28 := P28; :29 := P29; :30 := P30; :31 := P31; :32 := P32; :33 := P33; :34 := P34; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 38,
+          "cursor": "140737427572240",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 110,
+          "sql": "DECLARE SCHEMA_NAME_IN VARCHAR2(32) := DBMS_ASSERT.ENQUOTE_NAME(:1); TABLE_NAME_IN VARCHAR2(32) := DBMS_ASSERT.ENQUOTE_NAME(:2); TABLE_ROW_COUNT NUMBER := 0; SCHEMA_RULE_COUNT NUMBER := 0; TABLE_RULE_COUNT NUMBER := 0; CLIENT_INFO_OUT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_ROW_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$; IF (TABLE_ROW_COUNT <> 0) THEN CLIENT_INFO_OUT := 1; SELECT COUNT(1) INTO SCHEMA_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$ WHERE SCHEMA_NAME = SCHEMA_NAME_IN AND TABLE_NAME IS NULL; IF (SCHEMA_RULE_COUNT <> 0) THEN CLIENT_INFO_OUT := 0; ELSE SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$ WHERE SCHEMA_NAME = SCHEMA_NAME_IN AND TABLE_NAME = TABLE_NAME_IN; IF (TABLE_RULE_COUNT <> 0) THEN CLIENT_INFO_OUT := 0; END IF; END IF; END IF; EXCEPTION WHEN OTHERS THEN CLIENT_INFO_OUT := 0; END; :3 := CLIENT_INFO_OUT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 36,
+          "cursor": "140737426045584",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 114,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737425058456",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 117,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYSTEM.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737427193088",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 131,
+          "sql": "DECLARE TABLE_RULE_COUNT NUMBER := 0; BEGIN BEGIN SELECT COUNT(1) INTO TABLE_RULE_COUNT FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$; EXCEPTION WHEN OTHERS THEN TABLE_RULE_COUNT := 0; END; :1 := TABLE_RULE_COUNT;END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 9,
+          "cursor": "140737427463536",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 134,
+          "sql": "DECLARE L_COUNT INTEGER := 0;BEGIN SELECT COUNT(1) INTO L_COUNT FROM SYSTEM.LOGMNR_GT_XID_INCLUDE$; :1 := L_COUNT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 9,
+          "cursor": "140737429158872",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 155,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737427239072",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 160,
+          "sql": "DECLARE OPSTRING_IN VARCHAR2(31) := :1; SESSION_NUM_IN NUMBER := :2; LOGMNR_UID_INOUT NUMBER := :3; BEGIN SYS.LOGMNR_KRVRDLUID3(OPSTRING_IN, SESSION_NUM_IN, LOGMNR_UID_INOUT); :3 := LOGMNR_UID_INOUT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 1,
+          "cursor": "140737427239072",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 191,
+          "sql": "DECLARE BEGIN SYS.DBMS_LOGMNR_INTERNAL.DELETE_TABLE_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_USER_INCLUSION_RULE(); SYS.DBMS_LOGMNR_INTERNAL.DELETE_XID_INCLUSION_RULE(); END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 3,
+          "cursor": "140737427468152",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 196,
+          "sql": "DECLARE OPSTRING_IN VARCHAR2(31) := :1; SESSION_NUM_IN NUMBER := :2; LOGMNR_UID_INOUT NUMBER := :3; BEGIN SYS.LOGMNR_KRVRDLUID3(OPSTRING_IN, SESSION_NUM_IN, LOGMNR_UID_INOUT); :3 := LOGMNR_UID_INOUT; END;",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [],
+          "executions": 2,
+          "cursor": "140737429093064",
+          "action": "DECLARE",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        },
+        {
+          "record_list": "trace_records",
+          "record_index": 255,
+          "sql": "INSERT INTO SYS.AUD$( SESSIONID,ENTRYID,STATEMENT,NTIMESTAMP#, USERID,USERHOST,TERMINAL,ACTION#,RETURNCODE, LOGOFF$LREAD,LOGOFF$PREAD,LOGOFF$LWRITE,LOGOFF$DEAD, LOGOFF$TIME,COMMENT$TEXT,SPARE1,CLIENTID,SESSIONCPU,PROXY$SID,USER$GUID, INSTANCE#,PROCESS#,AUDITID,DBID) VALUES(:1,:2,:3,SYS_EXTRACT_UTC(SYSTIMESTAMP), :4,:5,:6,:7,:8, :9,:10,:11,:12, CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS DATE),:13,:14,:15,:16,:17,:18, :19,:20,:21,:22)",
+          "depth": 1,
+          "uid": 0,
+          "session": "33.59",
+          "objects": [
+            "SYS.AUD$"
+          ],
+          "executions": 1,
+          "cursor": "140737427242576",
+          "action": "INSERT",
+          "source": "trace-023",
+          "classification": "rejected_operation_or_unproven_context"
+        }
+      ],
+      "probe_first_index_check": {
+        "index": "SYS_C006991",
+        "operations": [
+          "SELECT STATEMENT - -",
+          "COUNT STOPKEY -",
+          "VIEW - -",
+          "TABLE ACCESS BY INDEX ROWID GROWING",
+          "INDEX FULL SCAN SYS_C006991"
+        ],
+        "state": "verified"
+      },
+      "plan_fresh_scn_retries": 0,
+      "cycles": {
+        "c1_exercised": true,
+        "c5_layers": "OracleC5: optional time hint, recent undo window, chunk digest, periodic full read",
+        "cycles": [
+          {
+            "c1_events": 4,
+            "c1_generation": 1,
+            "c1_payload_bytes": 9216,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 407714
+            },
+            "c5_generation": 1,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 1,
+              "payload_bytes": 173384,
+              "recent_ranges": 0,
+              "recent_unknown": 1,
+              "rewrites": 1,
+              "source_read_bytes": 173384,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173384,
+            "c5_rewrites": 1,
+            "chunk_window_correction": true,
+            "cycle": 0,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 407749
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 5,
+            "c1_generation": 2,
+            "c1_payload_bytes": 11520,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 407756
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 173384,
+              "recent_ranges": 1,
+              "recent_unknown": 0,
+              "rewrites": 1,
+              "source_read_bytes": 173384,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 173384,
+            "c5_rewrites": 1,
+            "chunk_window_correction": false,
+            "cycle": 1,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 407789
+            },
+            "rows": 10000
+          },
+          {
+            "c1_events": 0,
+            "c1_generation": 2,
+            "c1_payload_bytes": 0,
+            "c1_position": {
+              "kind": "oracle_scn",
+              "scn": 407793
+            },
+            "c5_generation": 2,
+            "c5_layers": {
+              "digests": 1,
+              "full_reads": 0,
+              "generation": 2,
+              "payload_bytes": 0,
+              "recent_ranges": 0,
+              "recent_unknown": 0,
+              "rewrites": 0,
+              "source_read_bytes": 0,
+              "time_hints": 0
+            },
+            "c5_payload_bytes": 0,
+            "c5_rewrites": 0,
+            "chunk_window_correction": false,
+            "cycle": 2,
+            "diff": 0,
+            "position": {
+              "kind": "oracle_scn",
+              "scn": 407820
+            },
+            "rows": 10000
+          }
+        ],
+        "target": "in-memory row hashes, not Agent DB",
+        "version": 11
+      },
+      "source_hashes_match": true,
+      "cleanup_exit": 0,
+      "evidence_sha256": {
+        "audit-result.json": "1382ba6273b68df92d7272861dcd53afec739577920cba518672bd563f2ce46d",
+        "test.log": "ef4fff1ec97a6cf39b2b57c76aa99e90dcff5913caa4683e330ac38ae06348f0",
+        "probe-first-plan.json": "1ba772872a5a13f68abb1c30b8e47fbacbd80785f6f1ce1f5b2b9ad513fa689f",
+        "incremental-result.json": "62a3553b50da60a17460ebc69190f254bc48cdcbfd30f4e039a9200144d3194e",
+        "source-hashes.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "source-hashes-after.json": "163d49342709b834379cf18e13e0d5bbceab772a5ee46d5adb00c4c5081c0640",
+        "SHA256SUMS.json": "c29ef7dc619aa116aceb2e6eb0fd2493605c5757b2d572ad14b260b5d68895c1"
+      },
+      "adjudicated_artifact": "evidence/e-s2c-adjudication/11-c1-audit-result.json",
+      "adjudicated_sha256": "ebb393bb6685615d0dd39eb0f1774dc7afd1a73852f67a0272bf6ea168a6e404"
+    }
+  ],
+  "acceptance": {
+    "c5_t7": "FAIL on every version; zero-write exit not met",
+    "c1_t7": "FAIL; all remaining records listed with provenance; no infrastructure exemption",
+    "probe_first": "PASS on 23.26.3; C1 exercised one bounded fresh-SCN index-sample retry"
+  },
+  "tests": {
+    "workspace_check": "cargo check --workspace --locked: PASS",
+    "crate": "cargo test -p oo-connectors --features oracle --locked -- --skip parent_deadline_kills_the_worker_and_the_next_call_completes: 253 passed, 22 ignored, 1 filtered",
+    "preexisting_failure": "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes: group_signal rejected != sent, reproduced on archived f27d1a2c0 in this worktree",
+    "python": "python3 -m unittest discover -s testing/engines/oracle -p test_*.py: 7 passed",
+    "format": "cargo fmt -p oo-connectors --check: PASS"
+  },
+  "gaps": [
+    "C5 strict zero-write not accepted; driver session statements and recursive audit/maintenance writes remain.",
+    "C1 keeps non-LOGMNR writes and opaque recursive PL/SQL as failures; audit columns do not prove a separate infrastructure actor.",
+    "23 image is Oracle AI Database 26ai Free 23.26.3.0.0, not proof of an older 23ai build.",
+    "No 19c run; no support-matrix promotion, Agent DB or public acceptance.",
+    "Thin statement cache disabled as a local workaround; no driver dependency patch or Cargo.lock change."
+  ],
+  "containers_left_running": 0
+}

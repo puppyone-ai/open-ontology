@@ -59,12 +59,12 @@ fn text_of(outcome: &Outcome) -> String {
 }
 
 #[test]
-fn real_matrix_parses_forty_nine_targets() {
+fn real_matrix_parses_fifty_three_targets() {
     let text = fs::read_to_string(public_matrix()).unwrap();
     match source_support::matrix::load(&text) {
         Ok(matrix) => {
             assert_eq!(matrix.schema, "oo-support-matrix/v1");
-            assert_eq!(matrix.targets.len(), 49);
+            assert_eq!(matrix.targets.len(), 53);
             assert!(matrix.targets.iter().all(|target| {
                 target.caps.values().all(|level| level != "verified" && level != "certified" && level != "experimental")
             }));
@@ -84,7 +84,7 @@ fn real_matrix_check_and_supported_are_empty() {
     let doc = public_doc();
     let check = go(&["check", "--matrix", &matrix, "--doc", &doc]);
     expect(&check, 0, "CHECKED", "ok");
-    assert_eq!(extra(&check, "target_count").int(), Some(49));
+    assert_eq!(extra(&check, "target_count").int(), Some(53));
     assert_eq!(extra(&check, "verified_count").int(), Some(0));
     let supported = go(&["supported", "--matrix", &matrix]);
     expect(&supported, 0, "SUPPORTED", "listed");
@@ -131,8 +131,8 @@ fn real_matrix_rejections_are_exact() {
     expect(
         &go(&["select", "--matrix", &matrix, "--request", &path("examples/requests/select-mysql-57.json")]),
         2,
-        "TARGET_VERSION_UNVERIFIED",
-        "version",
+        "CAPABILITY_UNVERIFIED",
+        "designed",
     );
     expect(
         &go(&["select", "--matrix", &matrix, "--request", &path("examples/requests/select-mysql-8036.json")]),

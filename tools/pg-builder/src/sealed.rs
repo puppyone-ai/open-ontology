@@ -1301,6 +1301,7 @@ mod tests {
 
     fn config(price: Price) -> Config {
         Config {
+            capabilities: None,
             project_max_tables: 4096,
             purpose: Purpose::Generate,
             origin: "http://127.0.0.1:8317".to_owned(),
