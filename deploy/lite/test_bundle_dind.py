@@ -245,6 +245,8 @@ def stage_harness(dest, path, out, run_id):
         'tools/oo-load/test-gateway-cycles.py',
         'tools/source-onboarding/tests/refresh_live_catalog_owned_pg.py',
         'testing/engines/seed-common/generate.py',
+        # tools/oo-test/audit.py loads the Oracle recursive-SQL allowlist by path.
+        'testing/engines/oracle/recursive_sql.py',
     ]
     files += ['tools/oo-test/' + name + '.py' for name in
               ('t1', 'runner', 'comparison', 'oracle_t1', 'audit', 'matrix', 'verdicts')]
