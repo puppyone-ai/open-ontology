@@ -340,7 +340,11 @@ class LibraryControlTest(unittest.TestCase):
             429, b'{"error":{"code":"model_cooldown"}}')
         with tempfile.TemporaryDirectory() as root, \
                 patch.object(control.lib, 'call_model', side_effect=failure) as provider, \
-                patch.object(control.lib.time, 'sleep') as sleeper:
+                patch.object(control.lib, 'time', wraps=control.lib.time) as module_time:
+            # Patch only the module's own time binding: patching the global
+            # time.sleep also counted unrelated sleeps (stdlib waits, other
+            # threads) and made this check flaky on loaded CI runners.
+            sleeper = module_time.sleep
             with self.assertRaisesRegex(RuntimeError, 's5_provider_model_cooldown'):
                 control.lib.run_drafts(facts, config, Path(root))
             with self.assertRaisesRegex(RuntimeError, 's5_provider_retry_requires_operator'):

@@ -99,6 +99,8 @@ jobs:
           done
           node packages/cli/scripts/stage.mjs --output "$RUNNER_TEMP/package" \
             --notices "$RUNNER_TEMP/notices" "${args[@]}"
+          # The package tests run the native CLI from target/debug/oo.
+          cargo build --locked -p oo-cli --bin oo
           node --test packages/cli/scripts/stage.test.mjs packages/cli/test/*.test.mjs
           mkdir "$RUNNER_TEMP/packed"
           cd "$RUNNER_TEMP/package"
