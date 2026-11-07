@@ -3541,7 +3541,9 @@ fn freshness_row(observed: &crate::query_executor::FreshnessObserved) -> Option<
     let state = match observed.state.as_str() {
         "live" => FreshnessState::Live,
         "paused" => FreshnessState::Paused,
-        "snapshotting" | "catching_up" | "awaiting_publish" | "error" => FreshnessState::Stale,
+        "stale" | "snapshotting" | "catching_up" | "awaiting_publish" | "error" => {
+            FreshnessState::Stale
+        }
         _ => return None,
     };
     let table = QualifiedTable::new(format!("{}.{}", observed.schema, observed.table)).ok()?;
@@ -3551,6 +3553,30 @@ fn freshness_row(observed: &crate::query_executor::FreshnessObserved) -> Option<
         lag_ms,
         state,
     })
+}
+
+#[test]
+fn stale_reason_survives_without_a_measured_source_time() {
+    let mut snapshot = QualitySnapshot::blank("read");
+    snapshot.warnings.push(QualityWarning {
+        code: "STALE_DATA",
+        schema: "app".into(),
+        table: "items".into(),
+        message: "Table is stale; last published data retained. Reason: SCHEMA_CHANGED".into(),
+    });
+    let document = freshness_document(&snapshot, "knowledge", "policy");
+    assert_eq!(document["source_time"], "unmeasured");
+    assert_eq!(document["freshness"], serde_json::json!([]));
+    let warnings = serde_json::to_value(project_quality(&snapshot).warnings).unwrap();
+    assert_eq!(document["warnings"], warnings);
+    assert_eq!(warnings[0]["code"], "STALE_DATA");
+    assert_eq!(warnings[0]["table"], "app.items");
+    assert!(
+        warnings[0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("SCHEMA_CHANGED")
+    );
 }
 
 fn lag_between(source: &str, applied: &str) -> Option<u64> {
