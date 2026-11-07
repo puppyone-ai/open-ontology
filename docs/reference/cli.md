@@ -89,10 +89,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -210,10 +213,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -389,10 +395,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -430,10 +439,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -571,10 +583,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -686,10 +701,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -996,6 +1014,8 @@ The wire format is JSON. Markdown is rendered locally from that response.
 
 ```text
 oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json] [--json]
+oo review --input PENDING.json --json
+Pending tables list their semantic changes; inspection never approves them.
 Input: oo.builder.reviewed-community/v1 command, without review.
 Non-TTY requires explicit hash-bound oo.owner-review/v1 decisions for every item.
 TTY offers accept / edit JSON / reject, then a separate G14 confirmation.
@@ -1340,10 +1360,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's

@@ -33,6 +33,30 @@ exists. `foundations_only` is also not full health. Seven healthy services,
 measured scheduled-cycle timestamps and a successful data query are separate
 checks. Missing health/source-time measurements remain unknown.
 
+## Scheduled data status
+
+Check `data_published_at` separately from `cycle.result`. `partial` means the
+fresh tables were published while `tables.stale` retained older data; use each
+table's reason and `since` to diagnose it. An all-stale sync or a global source
+failure does not publish. Failed cycles do not reset the publication clock.
+`data_publication_overdue` means its age exceeds twice the interval plus
+60 seconds, even if the latest attempt was a no-op.
+
+Comment/FK changes and new columns mark only the affected table
+`review_pending`. Scheduling continues with the last reviewed registry and
+new columns remain unpublished. Inspect the private cycle `builder.json`
+with `oo review --input <builder.json> --json` for pending tables and changes.
+This is inspection, not approval; a new semantic draft still requires the
+normal explicit owner review.
+
+After upgrading the CLI/runtime, run `oo up` for the owned deployment to
+install the additive lite cycle journal. Existing schedule configuration and
+reviewed-registry hashes remain unchanged. The old library-wide data-only
+digest is retained; table digests are derived from pinned facts. Without the
+journal, cycle status remains unmeasured rather than inventing success from a
+local receipt. The initial publication time can be read from the ready Agent
+DB head before the first scheduled event.
+
 ## Credentials
 
 Cause: a required private reference is missing, inaccessible, unsafe, expired
@@ -146,11 +170,11 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 
 | Code | Cause and fix | First source location |
 | --- | --- | --- |
-| `ADMIN_ARGUMENT` | [configuration-and-source](#configuration-and-source) | [`build.rs:140`](../../crates/oo-cli/src/admin/build.rs#L140) |
+| `ADMIN_ARGUMENT` | [configuration-and-source](#configuration-and-source) | [`build.rs:141`](../../crates/oo-cli/src/admin/build.rs#L141) |
 | `ADMIN_CONFIG_IO` | [configuration-and-source](#configuration-and-source) | [`lite.rs:18`](../../crates/oo-cli/src/admin/lite.rs#L18) |
-| `ADMIN_CONFIG_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`mod.rs:311`](../../crates/oo-cli/src/admin/mod.rs#L311) |
+| `ADMIN_CONFIG_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`mod.rs:328`](../../crates/oo-cli/src/admin/mod.rs#L328) |
 | `ADMIN_IDENTITY_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`auth.mjs:47`](../../packages/cli/bin/auth.mjs#L47) |
-| `ADMIN_NOT_IMPLEMENTED` | [configuration-and-source](#configuration-and-source) | [`mod.rs:303`](../../crates/oo-cli/src/admin/mod.rs#L303) |
+| `ADMIN_NOT_IMPLEMENTED` | [configuration-and-source](#configuration-and-source) | [`mod.rs:320`](../../crates/oo-cli/src/admin/mod.rs#L320) |
 | `ALL_IN_ONE_CLI` | [configuration-and-source](#configuration-and-source) | [`w73.rs:2680`](../../tools/release-coordinator/src/w73.rs#L2680) |
 | `ALL_IN_ONE_FAILURE` | [configuration-and-source](#configuration-and-source) | [`w73.rs:2745`](../../tools/release-coordinator/src/w73.rs#L2745) |
 | `ALL_IN_ONE_MAPPING` | [configuration-and-source](#configuration-and-source) | [`w73.rs:2719`](../../tools/release-coordinator/src/w73.rs#L2719) |
@@ -164,23 +188,23 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `AUTH_REQUIRED` | [credentials](#credentials) | [`auth.mjs:228`](../../packages/cli/bin/auth.mjs#L228) |
 | `AUTO_INCREMENT` | [configuration-and-source](#configuration-and-source) | [`library_observation.py:117`](../../tools/pg-builder/scripts/library_observation.py#L117) |
 | `A_B` | [configuration-and-source](#configuration-and-source) | [`policy_catalog_capabilities_pg_tests.rs:755`](../../crates/oo-gateway/src/policy_catalog_capabilities_pg_tests.rs#L755) |
-| `BUILD_AGENT_TARGET_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`build.rs:150`](../../crates/oo-cli/src/admin/build.rs#L150) |
+| `BUILD_AGENT_TARGET_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`build.rs:151`](../../crates/oo-cli/src/admin/build.rs#L151) |
 | `BUILD_ARTIFACT_PATH` | [configuration-and-source](#configuration-and-source) | [`build.rs:47`](../../crates/oo-cli/src/admin/build.rs#L47) |
 | `BUILD_BUILDER_FAILED` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:303`](../../crates/oo-cli/src/admin/build_retained.rs#L303) |
 | `BUILD_BUILDER_INTERRUPTED_REQUIRES_RECONCILIATION` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:285`](../../crates/oo-cli/src/admin/build_retained.rs#L285) |
-| `BUILD_BUILDER_RECEIPT` | [configuration-and-source](#configuration-and-source) | [`build.rs:293`](../../crates/oo-cli/src/admin/build.rs#L293) |
+| `BUILD_BUILDER_RECEIPT` | [configuration-and-source](#configuration-and-source) | [`build.rs:294`](../../crates/oo-cli/src/admin/build.rs#L294) |
 | `BUILD_CANDIDATE_RECEIPT` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:233`](../../crates/oo-cli/src/admin/build_retained.rs#L233) |
 | `BUILD_CANDIDATE_REFUSED` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:237`](../../crates/oo-cli/src/admin/build_retained.rs#L237) |
-| `BUILD_CHAIN_EXISTS` | [configuration-and-source](#configuration-and-source) | [`mod.rs:254`](../../crates/oo-cli/src/admin/mod.rs#L254) |
+| `BUILD_CHAIN_EXISTS` | [configuration-and-source](#configuration-and-source) | [`mod.rs:257`](../../crates/oo-cli/src/admin/mod.rs#L257) |
 | `BUILD_CLIENT_DIRECTORY` | [configuration-and-source](#configuration-and-source) | [`build_tail.rs:90`](../../crates/oo-cli/src/admin/build_tail.rs#L90) |
 | `BUILD_COMMAND_OUTPUT_LIMIT` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:153`](../../crates/oo-cli/src/admin/build_retained.rs#L153) |
 | `BUILD_COMMAND_PIPE` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:119`](../../crates/oo-cli/src/admin/build_retained.rs#L119) |
 | `BUILD_COMMAND_START` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:114`](../../crates/oo-cli/src/admin/build_retained.rs#L114) |
 | `BUILD_COMMAND_TIMEOUT_OR_IO` | [query-budget](#query-budget) | [`build_retained.rs:150`](../../crates/oo-cli/src/admin/build_retained.rs#L150) |
-| `BUILD_CYCLE_REQUIRES_RESUME_AND_ID` | [configuration-and-source](#configuration-and-source) | [`build.rs:171`](../../crates/oo-cli/src/admin/build.rs#L171) |
-| `BUILD_ERROR_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`build.rs:384`](../../crates/oo-cli/src/admin/build.rs#L384) |
+| `BUILD_CYCLE_REQUIRES_RESUME_AND_ID` | [configuration-and-source](#configuration-and-source) | [`build.rs:172`](../../crates/oo-cli/src/admin/build.rs#L172) |
+| `BUILD_ERROR_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`build.rs:385`](../../crates/oo-cli/src/admin/build.rs#L385) |
 | `BUILD_EXECUTION_FAILED` | [configuration-and-source](#configuration-and-source) | [`draft.py:287`](../../deploy/lite/draft.py#L287) |
-| `BUILD_EXISTS_USE_RESUME` | [configuration-and-source](#configuration-and-source) | [`build.rs:228`](../../crates/oo-cli/src/admin/build.rs#L228) |
+| `BUILD_EXISTS_USE_RESUME` | [configuration-and-source](#configuration-and-source) | [`build.rs:229`](../../crates/oo-cli/src/admin/build.rs#L229) |
 | `BUILD_GATEWAY_NOT_READY` | [configuration-and-source](#configuration-and-source) | [`build_tail.rs:209`](../../crates/oo-cli/src/admin/build_tail.rs#L209) |
 | `BUILD_GATEWAY_PUBLICATION_BINDING` | [review-and-publication](#review-and-publication) | [`build_tail.rs:134`](../../crates/oo-cli/src/admin/build_tail.rs#L134) |
 | `BUILD_GATEWAY_RUNTIME` | [configuration-and-source](#configuration-and-source) | [`build_tail.rs:150`](../../crates/oo-cli/src/admin/build_tail.rs#L150) |
@@ -188,7 +212,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUILD_GATEWAY_TLS` | [connectivity](#connectivity) | [`build_tail.rs:160`](../../crates/oo-cli/src/admin/build_tail.rs#L160) |
 | `BUILD_GATEWAY_URL` | [configuration-and-source](#configuration-and-source) | [`build_tail.rs:137`](../../crates/oo-cli/src/admin/build_tail.rs#L137) |
 | `BUILD_INSTALL` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:97`](../../crates/oo-cli/src/admin/build_retained.rs#L97) |
-| `BUILD_INTERRUPTED` | [configuration-and-source](#configuration-and-source) | [`progress.rs:204`](../../crates/oo-cli/src/admin/progress.rs#L204) |
+| `BUILD_INTERRUPTED` | [configuration-and-source](#configuration-and-source) | [`progress.rs:257`](../../crates/oo-cli/src/admin/progress.rs#L257) |
 | `BUILD_ISSUANCE_UNCERTAIN_RECONCILE_AUDIT` | [connectivity](#connectivity) | [`build_tail.rs:33`](../../crates/oo-cli/src/admin/build_tail.rs#L33) |
 | `BUILD_LIFECYCLE_FAILED_RECONCILE_AUDIT` | [configuration-and-source](#configuration-and-source) | [`build_tail.rs:120`](../../crates/oo-cli/src/admin/build_tail.rs#L120) |
 | `BUILD_LIFECYCLE_START` | [configuration-and-source](#configuration-and-source) | [`build_tail.rs:118`](../../crates/oo-cli/src/admin/build_tail.rs#L118) |
@@ -202,22 +226,22 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUILD_LITE_STACK` | [installation-and-runtime](#installation-and-runtime) | [`build_lite.rs:129`](../../crates/oo-cli/src/admin/build_lite.rs#L129) |
 | `BUILD_LITE_STACK_CHANGED` | [installation-and-runtime](#installation-and-runtime) | [`build_lite.rs:338`](../../crates/oo-cli/src/admin/build_lite.rs#L338) |
 | `BUILD_LOAD_FAILED` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:243`](../../crates/oo-cli/src/admin/build_retained.rs#L243) |
-| `BUILD_LOCK` | [configuration-and-source](#configuration-and-source) | [`build.rs:207`](../../crates/oo-cli/src/admin/build.rs#L207) |
-| `BUILD_ORIGIN_INCOMPLETE` | [configuration-and-source](#configuration-and-source) | [`build.rs:180`](../../crates/oo-cli/src/admin/build.rs#L180) |
+| `BUILD_LOCK` | [configuration-and-source](#configuration-and-source) | [`build.rs:208`](../../crates/oo-cli/src/admin/build.rs#L208) |
+| `BUILD_ORIGIN_INCOMPLETE` | [configuration-and-source](#configuration-and-source) | [`build.rs:181`](../../crates/oo-cli/src/admin/build.rs#L181) |
 | `BUILD_ORIGIN_MISSING` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:271`](../../crates/oo-cli/src/admin/build_retained.rs#L271) |
-| `BUILD_PROMPT_RECEIPT` | [configuration-and-source](#configuration-and-source) | [`build.rs:415`](../../crates/oo-cli/src/admin/build.rs#L415) |
+| `BUILD_PROMPT_RECEIPT` | [configuration-and-source](#configuration-and-source) | [`build.rs:416`](../../crates/oo-cli/src/admin/build.rs#L416) |
 | `BUILD_PUBLICATION_FAILED` | [review-and-publication](#review-and-publication) | [`build_retained.rs:328`](../../crates/oo-cli/src/admin/build_retained.rs#L328) |
 | `BUILD_PUBLICATION_RECEIPT` | [review-and-publication](#review-and-publication) | [`build_retained.rs:332`](../../crates/oo-cli/src/admin/build_retained.rs#L332) |
 | `BUILD_PUBLICATION_REFUSED_UNCHANGED` | [review-and-publication](#review-and-publication) | [`build_retained.rs:326`](../../crates/oo-cli/src/admin/build_retained.rs#L326) |
 | `BUILD_RESUME_ARTIFACT_CHANGED` | [configuration-and-source](#configuration-and-source) | [`build.rs:71`](../../crates/oo-cli/src/admin/build.rs#L71) |
 | `BUILD_RESUME_CONFIG_CHANGED` | [configuration-and-source](#configuration-and-source) | [`build.rs:59`](../../crates/oo-cli/src/admin/build.rs#L59) |
 | `BUILD_RESUME_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`build.rs:63`](../../crates/oo-cli/src/admin/build.rs#L63) |
-| `BUILD_REVIEW_DRAFT_BINDING` | [review-and-publication](#review-and-publication) | [`build.rs:317`](../../crates/oo-cli/src/admin/build.rs#L317) |
-| `BUILD_REVIEW_INPUT_CHANGED` | [review-and-publication](#review-and-publication) | [`build.rs:306`](../../crates/oo-cli/src/admin/build.rs#L306) |
-| `BUILD_REVIEW_INPUT_REQUIRED` | [review-and-publication](#review-and-publication) | [`build.rs:313`](../../crates/oo-cli/src/admin/build.rs#L313) |
-| `BUILD_REVIEW_REJECTED` | [review-and-publication](#review-and-publication) | [`build.rs:335`](../../crates/oo-cli/src/admin/build.rs#L335) |
+| `BUILD_REVIEW_DRAFT_BINDING` | [review-and-publication](#review-and-publication) | [`build.rs:318`](../../crates/oo-cli/src/admin/build.rs#L318) |
+| `BUILD_REVIEW_INPUT_CHANGED` | [review-and-publication](#review-and-publication) | [`build.rs:307`](../../crates/oo-cli/src/admin/build.rs#L307) |
+| `BUILD_REVIEW_INPUT_REQUIRED` | [review-and-publication](#review-and-publication) | [`build.rs:314`](../../crates/oo-cli/src/admin/build.rs#L314) |
+| `BUILD_REVIEW_REJECTED` | [review-and-publication](#review-and-publication) | [`build.rs:336`](../../crates/oo-cli/src/admin/build.rs#L336) |
 | `BUILD_RUNTIME_CONFIG` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:61`](../../crates/oo-cli/src/admin/build_retained.rs#L61) |
-| `BUILD_RUNTIME_CONFIG_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`build.rs:154`](../../crates/oo-cli/src/admin/build.rs#L154) |
+| `BUILD_RUNTIME_CONFIG_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`build.rs:155`](../../crates/oo-cli/src/admin/build.rs#L155) |
 | `BUILD_RUNTIME_FAILED` | [configuration-and-source](#configuration-and-source) | [`build_lite.rs:213`](../../crates/oo-cli/src/admin/build_lite.rs#L213) |
 | `BUILD_RUNTIME_SECRET_REF_REQUIRED` | [credentials](#credentials) | [`build_retained.rs:82`](../../crates/oo-cli/src/admin/build_retained.rs#L82) |
 | `BUILD_RUNTIME_SOURCE` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:40`](../../crates/oo-cli/src/admin/build_retained.rs#L40) |
@@ -225,16 +249,16 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUILD_SOURCE_CATALOG_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:385`](../../crates/oo-cli/src/admin/build_retained.rs#L385) |
 | `BUILD_SOURCE_CONNECTION` | [connectivity](#connectivity) | [`build_retained.rs:410`](../../crates/oo-cli/src/admin/build_retained.rs#L410) |
 | `BUILD_SOURCE_RUNTIME` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:403`](../../crates/oo-cli/src/admin/build_retained.rs#L403) |
-| `BUILD_START` | [configuration-and-source](#configuration-and-source) | [`progress.rs:163`](../../crates/oo-cli/src/admin/progress.rs#L163) |
-| `BUILD_STATE_DIRECTORY` | [configuration-and-source](#configuration-and-source) | [`build.rs:190`](../../crates/oo-cli/src/admin/build.rs#L190) |
+| `BUILD_START` | [configuration-and-source](#configuration-and-source) | [`progress.rs:216`](../../crates/oo-cli/src/admin/progress.rs#L216) |
+| `BUILD_STATE_DIRECTORY` | [configuration-and-source](#configuration-and-source) | [`build.rs:191`](../../crates/oo-cli/src/admin/build.rs#L191) |
 | `BUILD_STATE_IO` | [configuration-and-source](#configuration-and-source) | [`build.rs:24`](../../crates/oo-cli/src/admin/build.rs#L24) |
 | `BUILD_STATE_OR_CONFIGURATION` | [configuration-and-source](#configuration-and-source) | [`draft.py:312`](../../deploy/lite/draft.py#L312) |
-| `BUILD_STATE_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`progress.rs:67`](../../crates/oo-cli/src/admin/progress.rs#L67) |
-| `BUILD_STDIN` | [configuration-and-source](#configuration-and-source) | [`progress.rs:168`](../../crates/oo-cli/src/admin/progress.rs#L168) |
-| `BUILD_STDOUT` | [configuration-and-source](#configuration-and-source) | [`progress.rs:174`](../../crates/oo-cli/src/admin/progress.rs#L174) |
+| `BUILD_STATE_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`progress.rs:68`](../../crates/oo-cli/src/admin/progress.rs#L68) |
+| `BUILD_STDIN` | [configuration-and-source](#configuration-and-source) | [`progress.rs:221`](../../crates/oo-cli/src/admin/progress.rs#L221) |
+| `BUILD_STDOUT` | [configuration-and-source](#configuration-and-source) | [`progress.rs:227`](../../crates/oo-cli/src/admin/progress.rs#L227) |
 | `BUILD_TAIL_RECEIPT_BINDING` | [configuration-and-source](#configuration-and-source) | [`build_tail.rs:25`](../../crates/oo-cli/src/admin/build_tail.rs#L25) |
 | `BUILD_TAIL_STAGE` | [configuration-and-source](#configuration-and-source) | [`build_tail.rs:272`](../../crates/oo-cli/src/admin/build_tail.rs#L272) |
-| `BUILD_TARGET_IO` | [configuration-and-source](#configuration-and-source) | [`progress.rs:154`](../../crates/oo-cli/src/admin/progress.rs#L154) |
+| `BUILD_TARGET_IO` | [configuration-and-source](#configuration-and-source) | [`progress.rs:207`](../../crates/oo-cli/src/admin/progress.rs#L207) |
 | `BUILD_TEST_PAUSE` | [configuration-and-source](#configuration-and-source) | [`build.rs:40`](../../crates/oo-cli/src/admin/build.rs#L40) |
 | `BUILD_TOKEN_FILE` | [credentials](#credentials) | [`build_tail.rs:55`](../../crates/oo-cli/src/admin/build_tail.rs#L55) |
 | `BUILD_TOKEN_ISSUANCE_REFUSED` | [credentials](#credentials) | [`build_token.rs:102`](../../crates/oo-cli/src/admin/build_token.rs#L102) |
@@ -246,7 +270,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUILD_TOKEN_RUNTIME` | [credentials](#credentials) | [`build_token.rs:79`](../../crates/oo-cli/src/admin/build_token.rs#L79) |
 | `BUILD_TOKEN_TLS` | [credentials](#credentials) | [`build_token.rs:70`](../../crates/oo-cli/src/admin/build_token.rs#L70) |
 | `BUILD_TOKEN_WRITE` | [credentials](#credentials) | [`build_token.rs:22`](../../crates/oo-cli/src/admin/build_token.rs#L22) |
-| `BUILD_WAIT` | [configuration-and-source](#configuration-and-source) | [`progress.rs:207`](../../crates/oo-cli/src/admin/progress.rs#L207) |
+| `BUILD_WAIT` | [configuration-and-source](#configuration-and-source) | [`progress.rs:260`](../../crates/oo-cli/src/admin/progress.rs#L260) |
 | `BUNDLE_ARCHIVE_CONFIG` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:109`](../../deploy/lite/bundle.py#L109) |
 | `BUNDLE_ARCHIVE_CONFIG_SIZE` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:111`](../../deploy/lite/bundle.py#L111) |
 | `BUNDLE_ARCHIVE_DUPLICATE` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:91`](../../deploy/lite/bundle.py#L91) |
@@ -298,10 +322,10 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `DEVICE_EXPIRED` | [configuration-and-source](#configuration-and-source) | [`auth.mjs:189`](../../packages/cli/bin/auth.mjs#L189) |
 | `DM8_TLS_NOT_AVAILABLE` | [connectivity](#connectivity) | [`doctor.rs:170`](../../crates/oo-cli/src/admin/doctor.rs#L170) |
 | `DM8_WORKER_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:174`](../../crates/oo-cli/src/admin/doctor.rs#L174) |
-| `DOCKER_CONFIG` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:530`](../../deploy/lite/lifecycle.py#L530) |
-| `DOCKER_CONTEXT` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:530`](../../deploy/lite/lifecycle.py#L530) |
-| `DOCKER_DEFAULT_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:530`](../../deploy/lite/lifecycle.py#L530) |
-| `DOCKER_HOST` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:530`](../../deploy/lite/lifecycle.py#L530) |
+| `DOCKER_CONFIG` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:584`](../../deploy/lite/lifecycle.py#L584) |
+| `DOCKER_CONTEXT` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:584`](../../deploy/lite/lifecycle.py#L584) |
+| `DOCKER_DEFAULT_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:584`](../../deploy/lite/lifecycle.py#L584) |
+| `DOCKER_HOST` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:584`](../../deploy/lite/lifecycle.py#L584) |
 | `DOCTOR_REPORT` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:528`](../../crates/oo-cli/src/admin/doctor.rs#L528) |
 | `DOCTOR_RUNTIME` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:517`](../../crates/oo-cli/src/admin/doctor.rs#L517) |
 | `DRAFT_AGENT_TLS_REQUIRED` | [connectivity](#connectivity) | [`draft.py:124`](../../deploy/lite/draft.py#L124) |
@@ -333,32 +357,33 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `INTERFACE_INVALID` | [configuration-and-source](#configuration-and-source) | [`auth.mjs:59`](../../packages/cli/bin/auth.mjs#L59) |
 | `IP_BLOCKED` | [configuration-and-source](#configuration-and-source) | [`model_provider.py:223`](../../tools/pg-builder/scripts/model_provider.py#L223) |
 | `LISTEN_NOT_LOOPBACK` | [configuration-and-source](#configuration-and-source) | [`model_egress.py:468`](../../tools/model-egress/model_egress.py#L468) |
-| `LITE_ACTION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:613`](../../deploy/lite/lifecycle.py#L613) |
-| `LITE_AGENT_DB_INSTALL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:346`](../../deploy/lite/lifecycle.py#L346) |
-| `LITE_BUILD_ONE_SOURCE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:334`](../../deploy/lite/lifecycle.py#L334) |
+| `LITE_ACTION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:668`](../../deploy/lite/lifecycle.py#L668) |
+| `LITE_AGENT_DB_INSTALL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:398`](../../deploy/lite/lifecycle.py#L398) |
+| `LITE_BUILD_ONE_SOURCE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:386`](../../deploy/lite/lifecycle.py#L386) |
 | `LITE_CERTIFICATE` | [connectivity](#connectivity) | [`credentials.rs:191`](../../crates/oo-stack/src/credentials.rs#L191) |
 | `LITE_CERTIFICATE_DATE` | [connectivity](#connectivity) | [`credentials.rs:149`](../../crates/oo-stack/src/credentials.rs#L149) |
 | `LITE_CERTIFICATE_KEY_MISMATCH` | [connectivity](#connectivity) | [`credentials.rs:203`](../../crates/oo-stack/src/credentials.rs#L203) |
 | `LITE_COMPOSE_TEMPLATE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:328`](../../crates/oo-cli/src/admin/lite.rs#L328) |
-| `LITE_CONTROL_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:76`](../../deploy/lite/lifecycle.py#L76) |
+| `LITE_CONTROL_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:126`](../../deploy/lite/lifecycle.py#L126) |
 | `LITE_CREDENTIAL_MARKER` | [credentials](#credentials) | [`credentials.rs:169`](../../crates/oo-stack/src/credentials.rs#L169) |
-| `LITE_DOCKER_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:115`](../../deploy/lite/lifecycle.py#L115) |
+| `LITE_CYCLE_SCHEMA` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:534`](../../deploy/lite/lifecycle.py#L534) |
+| `LITE_DOCKER_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:167`](../../deploy/lite/lifecycle.py#L167) |
 | `LITE_DOCKER_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:337`](../../crates/oo-cli/src/admin/lite.rs#L337) |
-| `LITE_GATEWAY_DATA_LOGIN` | [credentials](#credentials) | [`lifecycle.py:215`](../../deploy/lite/lifecycle.py#L215) |
-| `LITE_GATEWAY_RETAINED_GRANT` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:231`](../../deploy/lite/lifecycle.py#L231) |
-| `LITE_HEALTH_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:205`](../../deploy/lite/lifecycle.py#L205) |
-| `LITE_HEALTH_REFERENCE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:177`](../../deploy/lite/lifecycle.py#L177) |
-| `LITE_HEALTH_REFUSED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:159`](../../deploy/lite/lifecycle.py#L159) |
-| `LITE_HEALTH_RUNTIME` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:157`](../../deploy/lite/lifecycle.py#L157) |
-| `LITE_HEALTH_TOKEN` | [credentials](#credentials) | [`lifecycle.py:181`](../../deploy/lite/lifecycle.py#L181) |
-| `LITE_HEALTH_URL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:170`](../../deploy/lite/lifecycle.py#L170) |
+| `LITE_GATEWAY_DATA_LOGIN` | [credentials](#credentials) | [`lifecycle.py:267`](../../deploy/lite/lifecycle.py#L267) |
+| `LITE_GATEWAY_RETAINED_GRANT` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:283`](../../deploy/lite/lifecycle.py#L283) |
+| `LITE_HEALTH_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:257`](../../deploy/lite/lifecycle.py#L257) |
+| `LITE_HEALTH_REFERENCE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:229`](../../deploy/lite/lifecycle.py#L229) |
+| `LITE_HEALTH_REFUSED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:211`](../../deploy/lite/lifecycle.py#L211) |
+| `LITE_HEALTH_RUNTIME` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:209`](../../deploy/lite/lifecycle.py#L209) |
+| `LITE_HEALTH_TOKEN` | [credentials](#credentials) | [`lifecycle.py:233`](../../deploy/lite/lifecycle.py#L233) |
+| `LITE_HEALTH_URL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:222`](../../deploy/lite/lifecycle.py#L222) |
 | `LITE_IMAGES_MISSING` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:354`](../../crates/oo-cli/src/admin/lite.rs#L354) |
-| `LITE_IMAGE_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:571`](../../deploy/lite/lifecycle.py#L571) |
+| `LITE_IMAGE_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:626`](../../deploy/lite/lifecycle.py#L626) |
 | `LITE_IMAGE_DIGEST_REQUIRED` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:27`](../../crates/oo-cli/src/admin/lite.rs#L27) |
-| `LITE_JOBS_SCHEMA` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:465`](../../deploy/lite/lifecycle.py#L465) |
-| `LITE_JOBS_TEMPLATES` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:458`](../../deploy/lite/lifecycle.py#L458) |
-| `LITE_LANE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:540`](../../deploy/lite/lifecycle.py#L540) |
-| `LITE_LIFECYCLE_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:654`](../../deploy/lite/lifecycle.py#L654) |
+| `LITE_JOBS_SCHEMA` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:517`](../../deploy/lite/lifecycle.py#L517) |
+| `LITE_JOBS_TEMPLATES` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:510`](../../deploy/lite/lifecycle.py#L510) |
+| `LITE_LANE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:595`](../../deploy/lite/lifecycle.py#L595) |
+| `LITE_LIFECYCLE_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:712`](../../deploy/lite/lifecycle.py#L712) |
 | `LITE_LIFECYCLE_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`remote.py:267`](../../deploy/lite/remote.py#L267) |
 | `LITE_LOCAL_ONLY` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:16`](../../crates/oo-cli/src/admin/lite.rs#L16) |
 | `LITE_OPENSSL_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:76`](../../crates/oo-stack/src/credentials.rs#L76) |
@@ -366,29 +391,29 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LITE_OPENSSL_START` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:95`](../../crates/oo-stack/src/credentials.rs#L95) |
 | `LITE_OPENSSL_STDIN` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:99`](../../crates/oo-stack/src/credentials.rs#L99) |
 | `LITE_OPENSSL_WAIT` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:108`](../../crates/oo-stack/src/credentials.rs#L108) |
-| `LITE_OPERATOR_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:265`](../../deploy/lite/lifecycle.py#L265) |
-| `LITE_OPERATOR_PASSWORD` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:273`](../../deploy/lite/lifecycle.py#L273) |
-| `LITE_OPERATOR_ROLES` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:285`](../../deploy/lite/lifecycle.py#L285) |
-| `LITE_OPERATOR_TOKEN` | [credentials](#credentials) | [`lifecycle.py:295`](../../deploy/lite/lifecycle.py#L295) |
-| `LITE_OWNERSHIP` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:563`](../../deploy/lite/lifecycle.py#L563) |
-| `LITE_PRIVATE_DIRECTORY` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:90`](../../deploy/lite/lifecycle.py#L90) |
-| `LITE_PRIVATE_FILE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:98`](../../deploy/lite/lifecycle.py#L98) |
+| `LITE_OPERATOR_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:317`](../../deploy/lite/lifecycle.py#L317) |
+| `LITE_OPERATOR_PASSWORD` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:325`](../../deploy/lite/lifecycle.py#L325) |
+| `LITE_OPERATOR_ROLES` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:337`](../../deploy/lite/lifecycle.py#L337) |
+| `LITE_OPERATOR_TOKEN` | [credentials](#credentials) | [`lifecycle.py:347`](../../deploy/lite/lifecycle.py#L347) |
+| `LITE_OWNERSHIP` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:618`](../../deploy/lite/lifecycle.py#L618) |
+| `LITE_PRIVATE_DIRECTORY` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:142`](../../deploy/lite/lifecycle.py#L142) |
+| `LITE_PRIVATE_FILE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:150`](../../deploy/lite/lifecycle.py#L150) |
 | `LITE_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:109`](../../crates/oo-cli/src/admin/lite.rs#L109) |
-| `LITE_PROVISION_CHANGED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:306`](../../deploy/lite/lifecycle.py#L306) |
-| `LITE_PROVISION_PASSWORD` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:350`](../../deploy/lite/lifecycle.py#L350) |
-| `LITE_PUBLIC_URL_LOCAL_HTTPS` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:239`](../../deploy/lite/lifecycle.py#L239) |
+| `LITE_PROVISION_CHANGED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:358`](../../deploy/lite/lifecycle.py#L358) |
+| `LITE_PROVISION_PASSWORD` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:402`](../../deploy/lite/lifecycle.py#L402) |
+| `LITE_PUBLIC_URL_LOCAL_HTTPS` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:291`](../../deploy/lite/lifecycle.py#L291) |
 | `LITE_RANDOM` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:119`](../../crates/oo-stack/src/credentials.rs#L119) |
-| `LITE_SCHEDULE_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:510`](../../deploy/lite/lifecycle.py#L510) |
-| `LITE_SCHEDULE_PROJECT` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:48`](../../deploy/lite/lifecycle.py#L48) |
-| `LITE_SCHEDULE_ROW` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:517`](../../deploy/lite/lifecycle.py#L517) |
-| `LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION` | [credentials](#credentials) | [`lifecycle.py:587`](../../deploy/lite/lifecycle.py#L587) |
+| `LITE_SCHEDULE_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:564`](../../deploy/lite/lifecycle.py#L564) |
+| `LITE_SCHEDULE_PROJECT` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:86`](../../deploy/lite/lifecycle.py#L86) |
+| `LITE_SCHEDULE_ROW` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:571`](../../deploy/lite/lifecycle.py#L571) |
+| `LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION` | [credentials](#credentials) | [`lifecycle.py:642`](../../deploy/lite/lifecycle.py#L642) |
 | `LITE_SECRET_PATH` | [credentials](#credentials) | [`credentials.rs:127`](../../crates/oo-stack/src/credentials.rs#L127) |
 | `LITE_START` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:94`](../../crates/oo-cli/src/admin/lite.rs#L94) |
 | `LITE_STATE_DIRECTORY` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:51`](../../crates/oo-cli/src/admin/lite.rs#L51) |
 | `LITE_STDIN` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:98`](../../crates/oo-cli/src/admin/lite.rs#L98) |
-| `LITE_SUBNET` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:547`](../../deploy/lite/lifecycle.py#L547) |
-| `LITE_SUBNET_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:133`](../../deploy/lite/lifecycle.py#L133) |
-| `LITE_SYNC_INTERVAL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:442`](../../deploy/lite/lifecycle.py#L442) |
+| `LITE_SUBNET` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:602`](../../deploy/lite/lifecycle.py#L602) |
+| `LITE_SUBNET_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:185`](../../deploy/lite/lifecycle.py#L185) |
+| `LITE_SYNC_INTERVAL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:494`](../../deploy/lite/lifecycle.py#L494) |
 | `LITE_WAIT` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:107`](../../crates/oo-cli/src/admin/lite.rs#L107) |
 | `LITE_WORKLOAD_NAME` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:304`](../../crates/oo-stack/src/credentials.rs#L304) |
 | `LIVE_COMPLETION_FAILURE` | [configuration-and-source](#configuration-and-source) | [`live_check.py:46`](../../tools/model-egress/live_check.py#L46) |
@@ -472,9 +497,9 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `OO_GATE_PREFLIGHT_LIVE` | [configuration-and-source](#configuration-and-source) | [`w73.rs:2439`](../../tools/release-coordinator/src/w73.rs#L2439) |
 | `OO_LITE_LANE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:155`](../../crates/oo-cli/src/admin/lite.rs#L155) |
 | `OO_LITE_POSTGRES_IMAGE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:329`](../../crates/oo-cli/src/admin/lite.rs#L329) |
-| `OO_LITE_PULL_POLICY` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:544`](../../deploy/lite/lifecycle.py#L544) |
+| `OO_LITE_PULL_POLICY` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:599`](../../deploy/lite/lifecycle.py#L599) |
 | `OO_LITE_RUNTIME_IMAGE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:134`](../../crates/oo-cli/src/admin/lite.rs#L134) |
-| `OO_LITE_SUBNET` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:548`](../../deploy/lite/lifecycle.py#L548) |
+| `OO_LITE_SUBNET` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:603`](../../deploy/lite/lifecycle.py#L603) |
 | `OO_MONGO_COLLECTION_CONFIG` | [configuration-and-source](#configuration-and-source) | [`documents.rs:181`](../../tools/oo-load/src/documents.rs#L181) |
 | `OO_NATIVE_ADMISSION_BIN` | [installation-and-runtime](#installation-and-runtime) | [`export_native_collection.py:64`](../../tools/pg-builder/scripts/export_native_collection.py#L64) |
 | `OO_NATIVE_BINDING_REGISTRY` | [review-and-publication](#review-and-publication) | [`export_native_collection.py:65`](../../tools/pg-builder/scripts/export_native_collection.py#L65) |
@@ -554,35 +579,36 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `RESUME_ARTIFACT_CHANGED` | [configuration-and-source](#configuration-and-source) | [`draft.py:76`](../../deploy/lite/draft.py#L76) |
 | `RESUME_CONFIG_CHANGED` | [configuration-and-source](#configuration-and-source) | [`draft.py:70`](../../deploy/lite/draft.py#L70) |
 | `RESUME_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`draft.py:72`](../../deploy/lite/draft.py#L72) |
-| `REVIEW_BINDING` | [review-and-publication](#review-and-publication) | [`review.rs:368`](../../crates/oo-cli/src/admin/review.rs#L368) |
-| `REVIEW_COMPILER_INSTALL` | [review-and-publication](#review-and-publication) | [`review.rs:334`](../../crates/oo-cli/src/admin/review.rs#L334) |
-| `REVIEW_COMPILER_IO` | [review-and-publication](#review-and-publication) | [`review.rs:347`](../../crates/oo-cli/src/admin/review.rs#L347) |
-| `REVIEW_COMPILER_PROTOCOL` | [review-and-publication](#review-and-publication) | [`review.rs:359`](../../crates/oo-cli/src/admin/review.rs#L359) |
-| `REVIEW_COMPILER_REJECTED` | [review-and-publication](#review-and-publication) | [`review.rs:357`](../../crates/oo-cli/src/admin/review.rs#L357) |
-| `REVIEW_DECISION_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:271`](../../crates/oo-cli/src/admin/review.rs#L271) |
-| `REVIEW_DUPLICATE_OR_EMPTY` | [review-and-publication](#review-and-publication) | [`review.rs:237`](../../crates/oo-cli/src/admin/review.rs#L237) |
-| `REVIEW_EDGE_DECISION` | [review-and-publication](#review-and-publication) | [`review.rs:438`](../../crates/oo-cli/src/admin/review.rs#L438) |
-| `REVIEW_EDIT_IMMUTABLE_FIELD` | [review-and-publication](#review-and-publication) | [`review.rs:260`](../../crates/oo-cli/src/admin/review.rs#L260) |
-| `REVIEW_EDIT_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:253`](../../crates/oo-cli/src/admin/review.rs#L253) |
-| `REVIEW_ENTITY_TABLE` | [review-and-publication](#review-and-publication) | [`review.rs:181`](../../crates/oo-cli/src/admin/review.rs#L181) |
-| `REVIEW_FILE_IO` | [review-and-publication](#review-and-publication) | [`review.rs:39`](../../crates/oo-cli/src/admin/review.rs#L39) |
-| `REVIEW_FILE_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:526`](../../crates/oo-cli/src/admin/review.rs#L526) |
-| `REVIEW_FILE_SHAPE` | [review-and-publication](#review-and-publication) | [`review.rs:522`](../../crates/oo-cli/src/admin/review.rs#L522) |
-| `REVIEW_G14_BINDING` | [review-and-publication](#review-and-publication) | [`review.rs:474`](../../crates/oo-cli/src/admin/review.rs#L474) |
-| `REVIEW_G14_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:468`](../../crates/oo-cli/src/admin/review.rs#L468) |
-| `REVIEW_HANDOFF_BINDING` | [review-and-publication](#review-and-publication) | [`review.rs:461`](../../crates/oo-cli/src/admin/review.rs#L461) |
-| `REVIEW_HANDOFF_SHAPE` | [review-and-publication](#review-and-publication) | [`review.rs:452`](../../crates/oo-cli/src/admin/review.rs#L452) |
-| `REVIEW_INPUT_SHAPE` | [review-and-publication](#review-and-publication) | [`review.rs:122`](../../crates/oo-cli/src/admin/review.rs#L122) |
-| `REVIEW_ITEM_KIND` | [review-and-publication](#review-and-publication) | [`review.rs:200`](../../crates/oo-cli/src/admin/review.rs#L200) |
-| `REVIEW_ITEM_POINTER` | [review-and-publication](#review-and-publication) | [`review.rs:416`](../../crates/oo-cli/src/admin/review.rs#L416) |
-| `REVIEW_JSON` | [review-and-publication](#review-and-publication) | [`review.rs:54`](../../crates/oo-cli/src/admin/review.rs#L54) |
-| `REVIEW_LOCK` | [review-and-publication](#review-and-publication) | [`review.rs:512`](../../crates/oo-cli/src/admin/review.rs#L512) |
-| `REVIEW_MISSING_ITEM` | [review-and-publication](#review-and-publication) | [`review.rs:377`](../../crates/oo-cli/src/admin/review.rs#L377) |
-| `REVIEW_OUTPUT_EXISTS_OR_IO` | [review-and-publication](#review-and-publication) | [`review.rs:64`](../../crates/oo-cli/src/admin/review.rs#L64) |
-| `REVIEW_PII_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:401`](../../crates/oo-cli/src/admin/review.rs#L401) |
-| `REVIEW_PRIVATE_FILE_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:48`](../../crates/oo-cli/src/admin/review.rs#L48) |
-| `REVIEW_SEMANTIC_TYPE_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:403`](../../crates/oo-cli/src/admin/review.rs#L403) |
-| `REVIEW_UNRESOLVED_OR_PROTOCOL` | [review-and-publication](#review-and-publication) | [`review.rs:173`](../../crates/oo-cli/src/admin/review.rs#L173) |
+| `REVIEW_BINDING` | [review-and-publication](#review-and-publication) | [`review.rs:370`](../../crates/oo-cli/src/admin/review.rs#L370) |
+| `REVIEW_COMPILER_INSTALL` | [review-and-publication](#review-and-publication) | [`review.rs:336`](../../crates/oo-cli/src/admin/review.rs#L336) |
+| `REVIEW_COMPILER_IO` | [review-and-publication](#review-and-publication) | [`review.rs:349`](../../crates/oo-cli/src/admin/review.rs#L349) |
+| `REVIEW_COMPILER_PROTOCOL` | [review-and-publication](#review-and-publication) | [`review.rs:361`](../../crates/oo-cli/src/admin/review.rs#L361) |
+| `REVIEW_COMPILER_REJECTED` | [review-and-publication](#review-and-publication) | [`review.rs:359`](../../crates/oo-cli/src/admin/review.rs#L359) |
+| `REVIEW_DECISION_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:273`](../../crates/oo-cli/src/admin/review.rs#L273) |
+| `REVIEW_DUPLICATE_OR_EMPTY` | [review-and-publication](#review-and-publication) | [`review.rs:239`](../../crates/oo-cli/src/admin/review.rs#L239) |
+| `REVIEW_EDGE_DECISION` | [review-and-publication](#review-and-publication) | [`review.rs:440`](../../crates/oo-cli/src/admin/review.rs#L440) |
+| `REVIEW_EDIT_IMMUTABLE_FIELD` | [review-and-publication](#review-and-publication) | [`review.rs:262`](../../crates/oo-cli/src/admin/review.rs#L262) |
+| `REVIEW_EDIT_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:255`](../../crates/oo-cli/src/admin/review.rs#L255) |
+| `REVIEW_ENTITY_TABLE` | [review-and-publication](#review-and-publication) | [`review.rs:183`](../../crates/oo-cli/src/admin/review.rs#L183) |
+| `REVIEW_FILE_IO` | [review-and-publication](#review-and-publication) | [`review.rs:41`](../../crates/oo-cli/src/admin/review.rs#L41) |
+| `REVIEW_FILE_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:528`](../../crates/oo-cli/src/admin/review.rs#L528) |
+| `REVIEW_FILE_SHAPE` | [review-and-publication](#review-and-publication) | [`review.rs:524`](../../crates/oo-cli/src/admin/review.rs#L524) |
+| `REVIEW_G14_BINDING` | [review-and-publication](#review-and-publication) | [`review.rs:476`](../../crates/oo-cli/src/admin/review.rs#L476) |
+| `REVIEW_G14_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:470`](../../crates/oo-cli/src/admin/review.rs#L470) |
+| `REVIEW_HANDOFF_BINDING` | [review-and-publication](#review-and-publication) | [`review.rs:463`](../../crates/oo-cli/src/admin/review.rs#L463) |
+| `REVIEW_HANDOFF_SHAPE` | [review-and-publication](#review-and-publication) | [`review.rs:454`](../../crates/oo-cli/src/admin/review.rs#L454) |
+| `REVIEW_INPUT_SHAPE` | [review-and-publication](#review-and-publication) | [`review.rs:124`](../../crates/oo-cli/src/admin/review.rs#L124) |
+| `REVIEW_ITEM_KIND` | [review-and-publication](#review-and-publication) | [`review.rs:202`](../../crates/oo-cli/src/admin/review.rs#L202) |
+| `REVIEW_ITEM_POINTER` | [review-and-publication](#review-and-publication) | [`review.rs:418`](../../crates/oo-cli/src/admin/review.rs#L418) |
+| `REVIEW_JSON` | [review-and-publication](#review-and-publication) | [`review.rs:56`](../../crates/oo-cli/src/admin/review.rs#L56) |
+| `REVIEW_LOCK` | [review-and-publication](#review-and-publication) | [`review.rs:514`](../../crates/oo-cli/src/admin/review.rs#L514) |
+| `REVIEW_MISSING_ITEM` | [review-and-publication](#review-and-publication) | [`review.rs:379`](../../crates/oo-cli/src/admin/review.rs#L379) |
+| `REVIEW_OUTPUT_EXISTS_OR_IO` | [review-and-publication](#review-and-publication) | [`review.rs:66`](../../crates/oo-cli/src/admin/review.rs#L66) |
+| `REVIEW_PENDING_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:684`](../../crates/oo-cli/src/admin/review.rs#L684) |
+| `REVIEW_PII_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:403`](../../crates/oo-cli/src/admin/review.rs#L403) |
+| `REVIEW_PRIVATE_FILE_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:50`](../../crates/oo-cli/src/admin/review.rs#L50) |
+| `REVIEW_SEMANTIC_TYPE_REQUIRED` | [review-and-publication](#review-and-publication) | [`review.rs:405`](../../crates/oo-cli/src/admin/review.rs#L405) |
+| `REVIEW_UNRESOLVED_OR_PROTOCOL` | [review-and-publication](#review-and-publication) | [`review.rs:175`](../../crates/oo-cli/src/admin/review.rs#L175) |
 | `SCHEMA_INVALID` | [configuration-and-source](#configuration-and-source) | [`outcome.rs:413`](../../crates/oo-cli/src/outcome.rs#L413) |
 | `SCOPE_DISCOVERY_NOT_AVAILABLE` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:273`](../../crates/oo-cli/src/admin/doctor.rs#L273) |
 | `SCOPE_PATTERN_NOT_AVAILABLE` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:268`](../../crates/oo-cli/src/admin/doctor.rs#L268) |
@@ -629,13 +655,13 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `SSH_LOCAL_IMAGE_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:356`](../../crates/oo-cli/src/admin/remote.rs#L356) |
 | `SSH_REMOTE_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:432`](../../crates/oo-cli/src/admin/remote.rs#L432) |
 | `SSH_REMOTE_LIFECYCLE` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:661`](../../crates/oo-cli/src/admin/remote.rs#L661) |
-| `SSH_REMOTE_PREREQUISITES` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:714`](../../crates/oo-cli/src/admin/remote.rs#L714) |
+| `SSH_REMOTE_PREREQUISITES` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:716`](../../crates/oo-cli/src/admin/remote.rs#L716) |
 | `SSH_REMOTE_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:155`](../../crates/oo-cli/src/admin/remote.rs#L155) |
 | `SSH_REMOTE_PYTHON_REQUIRED` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:153`](../../crates/oo-cli/src/admin/remote.rs#L153) |
 | `SSH_RUNTIME` | [installation-and-runtime](#installation-and-runtime) | [`wizard.rs:263`](../../crates/oo-cli/src/admin/wizard.rs#L263) |
 | `SSH_RUNTIME_IMAGE_DIGEST_REQUIRED` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:407`](../../crates/oo-cli/src/admin/remote.rs#L407) |
 | `SSH_STATE_DIRECTORY` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:183`](../../crates/oo-cli/src/admin/remote.rs#L183) |
-| `SSH_STATE_PKI` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:760`](../../crates/oo-cli/src/admin/remote.rs#L760) |
+| `SSH_STATE_PKI` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:762`](../../crates/oo-cli/src/admin/remote.rs#L762) |
 | `SSH_STATE_REMOVE` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:554`](../../crates/oo-cli/src/admin/remote.rs#L554) |
 | `SSH_STATE_WRITE` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:200`](../../crates/oo-cli/src/admin/remote.rs#L200) |
 | `SSH_STDERR` | [installation-and-runtime](#installation-and-runtime) | [`remote.rs:130`](../../crates/oo-cli/src/admin/remote.rs#L130) |
@@ -709,7 +735,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `invalid_grant` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:215`](../../crates/oo-gateway/src/auth_device.rs#L215) |
 | `invalid_request` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:94`](../../crates/oo-gateway/src/auth_device.rs#L94) |
 | `publication_unverified` | [review-and-publication](#review-and-publication) | [`build_retained.rs:225`](../../crates/oo-cli/src/admin/build_retained.rs#L225) |
-| `review_required` | [review-and-publication](#review-and-publication) | [`build.rs:287`](../../crates/oo-cli/src/admin/build.rs#L287) |
+| `review_required` | [review-and-publication](#review-and-publication) | [`build.rs:288`](../../crates/oo-cli/src/admin/build.rs#L288) |
 | `server_error` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:107`](../../crates/oo-gateway/src/auth_device.rs#L107) |
 | `sink_bytes` | [configuration-and-source](#configuration-and-source) | [`lib.rs:62`](../../tools/oo-load/src/lib.rs#L62) |
 | `sink_rows` | [configuration-and-source](#configuration-and-source) | [`lib.rs:49`](../../tools/oo-load/src/lib.rs#L49) |
