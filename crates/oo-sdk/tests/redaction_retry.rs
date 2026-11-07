@@ -771,7 +771,8 @@ async fn note_retry(
     }
     let elapsed_ms = attempt.elapsed.as_millis();
     let immediate = label.starts_with("zeros_");
-    if immediate && elapsed_ms >= 140 {
+    // Below the 150 ms backoff floor checked next; 140 ms flaked on loaded CI runners (141 ms).
+    if immediate && elapsed_ms >= 150 {
         bad = true;
     }
     let backoff = matches!(label, "missing" | "duplicate" | "fraction" | "http_date");
