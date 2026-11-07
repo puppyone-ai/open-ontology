@@ -501,6 +501,12 @@ def provision_schedule(root,argv,env,request):
                          'cert':'/work/operator/probe.crt','key':'/work/operator/probe.key',
                          # The owner's first token; the probe reads only freshness.
                          'token_file':'/work/build/.oo/first-user.token'}}}
+    first_config=state/'builder-config.json'
+    if first_config.exists() and 'source_catalog' in json.loads(read_private(first_config)):
+        config['cycle']['source_catalog']='export'
+        # Only this additive migration is safe; all other config changes still refuse.
+        if saved and 'source_catalog' not in saved.get('cycle',{}):
+            saved['cycle']['source_catalog']='export'
     if saved and saved!=config:raise ValueError('LITE_SCHEDULE_CHANGE_REQUIRES_EXPLICIT_MIGRATION')
     save_json(path,config)
     compose_input(argv,env,['exec','-T','control-db','psql','-X','-q','-v','ON_ERROR_STOP=1','-U','postgres'],

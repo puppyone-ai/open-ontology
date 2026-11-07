@@ -65,6 +65,10 @@ pub fn askpass(args: &[String]) -> Option<Result<Invocation, Failure>> {
 
 pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
     let (command, rest) = args.split_first()?;
+    // Internal runtime entry point; deliberately absent from public help.
+    if command == "admin" && rest.first().is_some_and(|s| s == "source-catalog") {
+        return Some(build_retained::export_catalog(&rest[1..]));
+    }
     if command == "help" && rest.first().is_some_and(|c| c == "ontology") {
         return Some(Ok(Invocation::Help(ontology::HELP.into())));
     }

@@ -14,6 +14,42 @@ use serde_json::{Value, json};
 use super::{Failure, review};
 type Result<T> = std::result::Result<T, Failure>;
 
+pub(super) fn export_catalog(args: &[String]) -> Result<super::Invocation> {
+    let mut options = std::collections::HashMap::new();
+    for pair in args.chunks(2) {
+        if pair.len() != 2
+            || !matches!(
+                pair[0].as_str(),
+                "--stack" | "--source" | "--secrets-dir" | "--output"
+            )
+            || pair[1].is_empty()
+            || pair[1].starts_with('-')
+            || options.insert(pair[0].as_str(), pair[1].as_str()).is_some()
+        {
+            return Err(Failure::usage("SOURCE_CATALOG_ARGUMENT"));
+        }
+    }
+    if options.len() != 4 {
+        return Err(Failure::usage("SOURCE_CATALOG_ARGUMENT"));
+    }
+    let stack = super::read_stack(Path::new(options["--stack"]))?;
+    let source = stack
+        .sources
+        .iter()
+        .find(|s| s.id == options["--source"])
+        .ok_or_else(|| Failure::local("BUILD_RUNTIME_SOURCE"))?;
+    let mut catalog = source_catalog(source, Path::new(options["--secrets-dir"]))?
+        .ok_or_else(|| Failure::local("SOURCE_CATALOG_UNSUPPORTED"))?;
+    catalog.source_id.clone_from(&source.id);
+    let output = Path::new(options["--output"]);
+    save(output, &json!(catalog))?;
+    let bytes = fs::read(output).map_err(|_| Failure::local("BUILD_STATE_IO"))?;
+    Ok(super::Invocation::AdminReport(
+        json!({"path":output,"sha256":oo_core::api::payload_sha256(&bytes)}).to_string(),
+        0,
+    ))
+}
+
 pub(super) fn configuration(runtime: &Value) -> Result<Value> {
     if runtime["protocol"] != "oo.build-runtime/v1"
         || !runtime["builder"].is_object()
@@ -417,6 +453,27 @@ fn pin_source_catalog(
 mod tests {
     use super::*;
     use std::os::unix::fs::symlink;
+
+    #[test]
+    fn hidden_catalog_command_rejects_bad_arguments_before_io() {
+        for args in [
+            vec![],
+            vec!["--stack"],
+            vec!["--stack", "missing", "--stack", "duplicate"],
+            vec!["--unknown", "value"],
+        ] {
+            let mut command = vec!["admin".to_owned(), "source-catalog".to_owned()];
+            command.extend(args.into_iter().map(str::to_owned));
+            let result = super::super::dispatch(&command).expect("hidden admin route");
+            let Err(error) = result else {
+                panic!("invalid arguments accepted")
+            };
+            assert!(
+                String::from_utf8_lossy(&error.json_bytes()).contains("SOURCE_CATALOG_ARGUMENT")
+            );
+        }
+        assert!(!super::super::HELP.contains("source-catalog"));
+    }
 
     #[test]
     fn unsupported_source_omits_catalog_without_reading_secrets() {
