@@ -1418,7 +1418,7 @@
    "branch": "v0.2/product-loops",
    "commits": [],
    "evidence": [],
-   "note": "Rehearsal complete (E411, E413); waits on the owner decision for public runtime-image publication, then npm publish via the owner link"
+   "note": "Final rehearsal complete (E427); waits only on the owner decision for public runtime-image publication, then npm publish via the owner link"
   },
   {
    "id": "S6-M-04",
