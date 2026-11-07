@@ -1,6 +1,7 @@
 """Single-owner retained cycles, queued and timed by the control database."""
 import argparse
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -93,6 +94,23 @@ def data_only(config, generation, output):
     old = json.loads(builder.pinned(origin['facts']))
     reviewed = builder.pinned(origin['reviewed_registry'])
     db = builder.lib.ReadOnlyPostgres(build['psql_command'], build.get('statement_timeout_ms', 30000))
+    if config.get('source_catalog') == 'export':
+        path = output / 'source-catalog.json'
+        try:
+            exported = command(['/usr/local/bin/oo', 'admin', 'source-catalog',
+                                '--stack', config['stack'], '--source', config['source'],
+                                '--secrets-dir', config['secrets_dir'], '--output', path],
+                               output, 'source-catalog')
+            if exported.returncode:
+                raise ValueError('source_catalog_export_failed')
+            pin = json.loads(exported.stdout)
+            if (pin['path'] != str(path) or path.is_symlink()
+                    or path.stat().st_mode & 0o777 != 0o600
+                    or hashlib.sha256(path.read_bytes()).hexdigest() != pin['sha256']):
+                raise ValueError('source_catalog_export_failed')
+            build['source_catalog'] = pin
+        except Exception:
+            raise ValueError('source_catalog_export_failed') from None
     facts, provenance = builder.facts_for(db, build)
     builder.save(output / 'facts.json', facts)
     digest = builder.semantics.data_only_digest(facts)
@@ -236,8 +254,10 @@ def work(config):
                 done = sql(config, f'SELECT status FROM jobs.complete_success({binding});')
             if done not in ('succeeded', 'failed'):
                 raise ValueError('completion_refused')
-        except Exception:
-            result = {'stage': 'failed', 'reason': 'retained_cycle_failed'}
+        except Exception as error:
+            reason = ('source_catalog_export_failed' if str(error) == 'source_catalog_export_failed'
+                      else 'retained_cycle_failed')
+            result = {'stage': 'failed', 'reason': reason}
             try:
                 sql(config, f"SELECT status FROM jobs.complete_failure({binding},'dependency_unavailable');")
             except Exception:

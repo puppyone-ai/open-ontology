@@ -12,6 +12,36 @@ lifecycle=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lifecycle)
 
 class Tests(unittest.TestCase):
+    def test_schedule_catalog_migration_is_additive_and_idempotent(self):
+        state=self.root/'work/build/.oo'
+        state.mkdir(parents=True,mode=0o700)
+        for name,value in [('chain.json',{'status':'complete'}),('facts.json',{}),
+                           ('reviewed-registry.json',{})]:
+            lifecycle.save_json(state/name,value)
+        for name in ('consumer/ca.crt','pki/lite-consumer-cert','pki/lite-consumer-key'):
+            path=self.root/name
+            path.parent.mkdir(exist_ok=True,mode=0o700)
+            lifecycle.write(path,b'synthetic')
+        (self.root/'work/operator').mkdir(mode=0o700)
+        lifecycle.save_json(self.root/'owner.json',{'gateway_port':8443})
+        request=dict(jobs={name:'synthetic' for name in lifecycle.JOBS},
+                     stack={'sources':[{'id':'source','engine':'postgres'}]})
+        path=self.root/'work/operator/schedule.json'
+        with patch.object(lifecycle,'compose_input',return_value=b't'):
+            self.assertTrue(lifecycle.provision_schedule(self.root,[],{},request))
+            old=json.loads(path.read_text())
+            self.assertNotIn('source_catalog',old['cycle'])
+            lifecycle.save_json(state/'builder-config.json',{'source_catalog':{'path':'old','sha256':'old'}})
+            self.assertTrue(lifecycle.provision_schedule(self.root,[],{},request))
+            upgraded=json.loads(path.read_text())
+            self.assertEqual(upgraded['cycle'].pop('source_catalog'),'export')
+            self.assertEqual(upgraded,old)
+            self.assertTrue(lifecycle.provision_schedule(self.root,[],{},request))
+            old['interval_seconds']+=1
+            lifecycle.save_json(path,old)
+            with self.assertRaisesRegex(ValueError,'LITE_SCHEDULE_CHANGE_REQUIRES_EXPLICIT_MIGRATION'):
+                lifecycle.provision_schedule(self.root,[],{},request)
+
     def test_builder_success_is_a_completed_job_not_a_running_daemon(self):
         for code in (0,'0'):
             status=lifecycle.service_status({'Service':'builder','State':'exited','ExitCode':code})
