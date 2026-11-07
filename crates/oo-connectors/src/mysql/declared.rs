@@ -15,7 +15,7 @@ fn ordinal(row: &Row, index: usize) -> Result<i32> {
 }
 
 impl MysqlEngine {
-    async fn declared_rows(
+    pub(super) async fn declared_rows(
         &mut self,
         sql: &str,
         table: &TableRef,

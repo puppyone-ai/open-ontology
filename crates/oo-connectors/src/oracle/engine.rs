@@ -49,6 +49,8 @@ type IntegerBoundaries = (Vec<Vec<KeyValue>>, u64);
 
 #[path = "declared.rs"]
 mod declared;
+#[path = "shape.rs"]
+mod shape;
 
 fn serial_query(sql: &str) -> Cow<'_, str> {
     // Enterprise can spawn PX sessions behind a single connection. Keep the
@@ -2431,6 +2433,14 @@ enum PageError {
 }
 
 impl SourceEngine for OracleEngine {
+    async fn column_shape(
+        &mut self,
+        table: &TableRef,
+        budget: &ReadBudget,
+    ) -> std::result::Result<Option<Vec<crate::engine::SourceColumnShape>>, SourceError> {
+        self.export_shape(table, budget).await
+    }
+
     async fn declared_catalog(
         &mut self,
         tables: &[TableRef],

@@ -14,6 +14,7 @@ mod plan;
 mod probe;
 mod read;
 pub mod reconcile;
+mod shape;
 mod sqltext;
 pub mod version;
 
@@ -555,6 +556,14 @@ async fn duty(start: Instant, percent: u8) -> ReadTiming {
 }
 
 impl SourceEngine for PostgresEngine {
+    async fn column_shape(
+        &mut self,
+        table: &TableRef,
+        budget: &ReadBudget,
+    ) -> std::result::Result<Option<Vec<crate::engine::SourceColumnShape>>, SourceError> {
+        self.export_shape(table, budget).await
+    }
+
     async fn declared_catalog(
         &mut self,
         tables: &[TableRef],
