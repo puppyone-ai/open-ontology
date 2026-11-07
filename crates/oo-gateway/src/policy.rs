@@ -1664,6 +1664,7 @@ const METADATA_SELECT_TABLES: &[&str] = &[
     "full_import_run",
     "full_import_table",
     "physical_mappings",
+    "publication_identity",
     "source_watermark",
     "table_freshness",
     "table_quality",

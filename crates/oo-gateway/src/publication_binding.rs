@@ -19,6 +19,10 @@ use crate::sql_guard::{PolicyCatalog, PolicyIdentity};
 #[path = "publication_binding_reference_tests.rs"]
 mod reference_tests;
 
+#[cfg(test)]
+#[path = "publication_identity_pg_tests.rs"]
+mod identity_tests;
+
 pub(crate) const EXPECTED: &str = "x-oo-expected-publication-id";
 pub(crate) const EXPECTED_VECTOR: &str = "x-oo-expected-data-vector-sha256";
 pub(crate) const ACTUAL: &str = "x-oo-publication-id";
@@ -375,7 +379,39 @@ impl BindingCheck {
             physical_schemas.push(relation.physical_schema.clone());
             physical_names.push(relation.physical_name.clone());
         }
-        let rows=tx.query(
+        // Migration 0135 is an explicit, publisher-controlled upgrade. Never
+        // manufacture identities on a read path or fall back after installation.
+        let installation = tx
+            .query_one(
+                "SELECT to_regclass('_oo.publication_identity') IS NOT NULL
+                    OR to_regprocedure('_oo.publication_relation_digest(text,text)') IS NOT NULL,
+                    (SELECT count(*)=2 FROM pg_catalog.pg_event_trigger
+                     WHERE evtname IN ('oo_publication_identity_ddl','oo_publication_identity_drop')
+                     AND evtenabled='O'
+                     AND evtfoid=to_regprocedure('_oo.publication_identity_invalidate()'))",
+                &[],
+            )
+            .await
+            .map_err(database)?;
+        let logical: bool = installation.get(0);
+        if logical && !installation.get::<_, bool>(1) {
+            return Err(drift());
+        }
+        let sql = if logical {
+            "SELECT w.ordinality::int8,to_jsonb(f)::text,to_jsonb(pf)::text,
+                jsonb_build_array(i.publication_id,i.generation,i.relation_identity_sha256)::text
+             FROM unnest($1::text[],$2::text[],$3::text[],$4::text[],$5::text[]) WITH ORDINALITY
+                w(source,schema_name,table_name,physical_schema,physical_name,ordinality)
+             LEFT JOIN _oo.table_freshness f ON NOT $8 AND f.source=w.source AND f.schema_name=w.schema_name
+                AND f.table_name=w.table_name AND f.physical_name=w.physical_name
+             JOIN oo_publish_target.fence pf ON pf.role_name=$6 AND pf.schema_name=w.physical_schema
+                AND pf.relation_name=w.physical_name AND pf.state='open' AND pf.opened_pack_digest=$7
+             JOIN _oo.publication_identity i ON i.role_name=pf.role_name
+                AND i.schema_name=pf.schema_name AND i.relation_name=pf.relation_name
+                AND i.valid AND i.publication_id=pf.opened_pack_digest AND i.generation=pf.opened_version
+                AND i.relation_identity_sha256=_oo.publication_relation_digest(i.schema_name,i.relation_name)
+             WHERE $8 OR f.source IS NOT NULL"
+        } else {
             "SELECT w.ordinality::int8,to_jsonb(f)::text,to_jsonb(pf)::text,
                 jsonb_build_array(c.oid,c.relacl,c.relrowsecurity,c.relforcerowsecurity,c.relkind,c.reloptions,
                  CASE WHEN c.relkind='v' THEN pg_catalog.pg_get_viewdef(c.oid,true) ELSE c.relfilenode::text END,
@@ -393,9 +429,24 @@ impl BindingCheck {
              JOIN pg_catalog.pg_class c ON c.relnamespace=n.oid AND c.relname=w.physical_name
                 AND c.oid=pg_catalog.to_regclass(pg_catalog.quote_ident(w.physical_schema)||'.'||pg_catalog.quote_ident(w.physical_name))
                 AND (c.relkind='v' OR c.relfilenode=pg_catalog.pg_relation_filenode(c.oid))
-             WHERE $8 OR f.source IS NOT NULL",
-            &[&sources,&schemas,&names,&physical_schemas,&physical_names,&self.identity.role,&self.pack_digest,&cut.is_some()],
-        ).await.map_err(database)?;
+             WHERE $8 OR f.source IS NOT NULL"
+        };
+        let rows = tx
+            .query(
+                sql,
+                &[
+                    &sources,
+                    &schemas,
+                    &names,
+                    &physical_schemas,
+                    &physical_names,
+                    &self.identity.role,
+                    &self.pack_digest,
+                    &cut.is_some(),
+                ],
+            )
+            .await
+            .map_err(database)?;
         let mut seen = BTreeSet::new();
         for row in rows {
             let idx = usize::try_from(row.get::<_, i64>(0))
@@ -447,7 +498,7 @@ impl BindingCheck {
         }
         data.sort_by_key(Value::to_string);
         permissions.sort();
-        let schema = json!({
+        let mut schema = json!({
             "relations": current.relations.iter().map(|r| json!([
                 r.schema, r.name, r.physical_schema, r.physical_name,
                 r.columns.iter().map(|c| json!([c.name, c.physical_name, c.type_oid])).collect::<Vec<_>>()
@@ -461,6 +512,42 @@ impl BindingCheck {
             "literal_types": [current.literal_types.integer, current.literal_types.text, current.literal_types.boolean],
             "null_test_allowed": current.null_test_allowed,
         });
+        if logical {
+            // Parser/catalog OIDs are transaction-local handles, not receipt identity.
+            // Use PostgreSQL's qualified symbolic signatures for the allowed surface.
+            let types: Vec<u32> = current
+                .relations
+                .iter()
+                .flat_map(|r| r.columns.iter().map(|c| c.type_oid))
+                .collect();
+            let functions: Vec<u32> = current.functions.iter().map(|f| f.oid).collect();
+            let operators: Vec<u32> = current.operators.iter().map(|o| o.oid).collect();
+            let literals = vec![
+                current.literal_types.integer,
+                current.literal_types.text,
+                current.literal_types.boolean,
+            ];
+            let symbols: String = tx.query_one(
+                "SELECT jsonb_build_array(
+                  (SELECT jsonb_agg(format_type(t,NULL) ORDER BY ord) FROM unnest($1::oid[]) WITH ORDINALITY w(t,ord)),
+                  (SELECT jsonb_agg(p::regprocedure::text ORDER BY ord) FROM unnest($2::oid[]) WITH ORDINALITY w(p,ord)),
+                  (SELECT jsonb_agg(jsonb_build_array(o::regoperator::text,
+                    op.oprcode::regprocedure::text,format_type(op.oprresult,NULL)) ORDER BY ord)
+                   FROM unnest($3::oid[]) WITH ORDINALITY w(o,ord) JOIN pg_catalog.pg_operator op ON op.oid=w.o),
+                  (SELECT jsonb_agg(format_type(t,NULL) ORDER BY ord) FROM unnest($4::oid[]) WITH ORDINALITY w(t,ord)))::text",
+                &[&types,&functions,&operators,&literals],
+            ).await.map_err(database)?.get(0);
+            schema = json!({
+                "protocol":"oo.logical-publication/v1",
+                "relations":current.relations.iter().map(|r| json!([
+                    r.schema,r.name,r.physical_schema,r.physical_name,
+                    r.columns.iter().map(|c| json!([c.name,c.physical_name])).collect::<Vec<_>>()
+                ])).collect::<Vec<_>>(),
+                "symbols":symbols,
+                "aggregate_star":current.functions.iter().map(|f|f.aggregate_star).collect::<Vec<_>>(),
+                "null_test_allowed":current.null_test_allowed,
+            });
+        }
         let receipt = receipt(
             &json!([
                 self.identity.project,

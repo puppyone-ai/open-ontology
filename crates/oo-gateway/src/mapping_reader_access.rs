@@ -222,7 +222,8 @@ fn native_read_metadata(schema: &str, table: &str) -> bool {
         && (NATIVE_METADATA.contains(&table)
             || matches!(
                 table,
-                "native_library_source_status"
+                "publication_identity"
+                    | "native_library_source_status"
                     | "native_library_head"
                     | "native_library_publication"
             ))
@@ -371,6 +372,7 @@ async fn provision_native_in_transaction(
     // F22 observes the actual library head and fence, never a caller-supplied
     // "ready" flag. These fixed metadata reads add no business-column grants.
     for (schema, table) in [
+        ("_oo", "publication_identity"),
         ("_oo", "native_library_source_status"),
         ("_oo", "native_library_head"),
         ("_oo", "native_library_publication"),
@@ -1165,6 +1167,7 @@ mod tests {
         assert!(native_read_metadata("_oo", "native_library_head"));
         assert!(native_read_metadata("_oo", "native_library_source_status"));
         assert!(native_read_metadata("_oo", "native_library_publication"));
+        assert!(native_read_metadata("_oo", "publication_identity"));
         assert!(native_read_metadata("oo_publish_target", "fence"));
         for (schema, table) in [
             ("_oo", "pt_business"),
