@@ -185,6 +185,7 @@ class Runner:
                 # the test's own failure lines so CI names the cause.
                 lines = [line for line in text.splitlines()
                          if not line.lstrip().startswith(("Compiling", "Downloaded", "Fresh"))]
+                result["failure_tail"] = lines[-60:]
                 print(f"--- {exact} output tail ---\n" + "\n".join(lines[-60:]), file=sys.stderr)
                 raise SuiteFailure(f"exact test {exact} failed; see private log")
             verify_test_output(text, exact)
