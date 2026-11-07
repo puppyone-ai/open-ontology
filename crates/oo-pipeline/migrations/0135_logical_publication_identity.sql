@@ -20,7 +20,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON _oo.publication_identity TO oo_target_ad
 -- Names, not catalog addresses. Deparse under a fixed search_path so types,
 -- expressions and view references cannot depend on the caller's search_path.
 CREATE FUNCTION _oo.publication_relation_identity(p_schema text, p_name text)
-RETURNS jsonb LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
+RETURNS jsonb LANGUAGE sql STABLE SET search_path = pg_catalog, pg_temp AS $$
 WITH RECURSIVE relations(oid) AS (
     SELECT c.oid FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
     WHERE n.nspname=p_schema AND c.relname=p_name AND c.relkind IN ('r','p','v')
@@ -77,13 +77,13 @@ SELECT jsonb_agg(definition ORDER BY nspname,relname) FROM definitions
 $$;
 
 CREATE FUNCTION _oo.publication_relation_digest(p_schema text, p_name text)
-RETURNS text LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
+RETURNS text LANGUAGE sql STABLE SET search_path = pg_catalog, pg_temp AS $$
 SELECT encode(sha256(convert_to(
     _oo.publication_relation_identity(p_schema,p_name)::text,'UTF8')),'hex')
 $$;
 
 CREATE FUNCTION _oo.publication_identity_truncate()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     UPDATE _oo.publication_identity i SET valid=false WHERE i.valid AND EXISTS (
         SELECT 1 FROM jsonb_array_elements(
@@ -98,7 +98,7 @@ GRANT EXECUTE ON FUNCTION _oo.publication_identity_truncate() TO oo_target_admin
 -- Runs with the fence writer's privileges. Merely owning a business relation
 -- never grants permission to mint or repair an identity record.
 CREATE FUNCTION _oo.publication_identity_publish()
-RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 DECLARE fingerprint text; dependency jsonb;
 BEGIN
     IF NEW.state='open' THEN
@@ -144,7 +144,7 @@ FOR EACH ROW EXECUTE FUNCTION _oo.publication_identity_publish();
 -- restoring the old name/definition later does not restore publisher approval.
 -- pg_dump emits event triggers in post-data, after restoring these records.
 CREATE FUNCTION _oo.publication_identity_invalidate()
-RETURNS event_trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $$
+RETURNS event_trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     IF to_regclass('_oo.publication_identity') IS NULL THEN
         RETURN;
