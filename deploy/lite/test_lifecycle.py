@@ -24,7 +24,7 @@ class Tests(unittest.TestCase):
             lifecycle.write(path,b'synthetic')
         (self.root/'work/operator').mkdir(mode=0o700)
         lifecycle.save_json(self.root/'owner.json',{'gateway_port':8443})
-        request=dict(jobs={name:'synthetic' for name in lifecycle.JOBS},
+        request=dict(cycle_events='synthetic',jobs={name:'synthetic' for name in lifecycle.JOBS},
                      stack={'sources':[{'id':'source','engine':'postgres'}]})
         path=self.root/'work/operator/schedule.json'
         with patch.object(lifecycle,'compose_input',return_value=b't'):
@@ -91,18 +91,20 @@ class Tests(unittest.TestCase):
         def docker(args,env):
             return json.dumps(rows).encode() if '--format' in args and 'ps' in args else b''
         history={'schedule_status':'measured','last_success':'2026-11-04T01:00:00.000Z',
-                 'last_failure':None,'next_due':'2026-11-04T02:00:00.000Z'}
+                 'last_failure':None,'next_due':'2026-11-04T02:00:00.000Z',
+                 'data_published_at':lifecycle.datetime.now(lifecycle.timezone.utc).isoformat()}
         with patch.object(lifecycle,'docker',side_effect=docker), patch.object(
                 lifecycle,'health',return_value={'status':'measured'}), patch.object(
                 lifecycle,'control_status',return_value=history):
             self.assertTrue(lifecycle.main(self.request)['healthy'])
-            for key,value in [('next_due',None),('last_success',None),
-                              ('last_failure','2026-11-04T01:30:00.000Z'),
-                              ('schedule_status','unavailable')]:
+            for key,value in [('data_published_at',None),
+                              ('data_published_at','2026-01-01T00:00:00Z')]:
                 old=history[key]
                 history[key]=value
                 self.assertFalse(lifecycle.main(self.request)['healthy'])
                 history[key]=old
+            history['last_failure']='2099-01-01T00:00:00Z'
+            self.assertTrue(lifecycle.main(self.request)['healthy'])
             rows[-1]['State']='running'
             self.assertFalse(lifecycle.main(self.request)['healthy'])
 
@@ -164,7 +166,9 @@ class Tests(unittest.TestCase):
                'next_due':'2026-11-04T01:02:33.000Z'}
         with patch.object(lifecycle,'docker',return_value=json.dumps(times).encode()) as call:
             result=lifecycle.control_status(self.root,['compose'],{})
-        self.assertEqual(result,{**times,'schedule_basis':'control_db','schedule_status':'measured'})
+        self.assertEqual({k:result[k] for k in times},times)
+        self.assertEqual(result['schedule_status'],'measured')
+        self.assertIsNone(result['data_published_at'])
         args=call.call_args.args[0]
         self.assertEqual(args[1:5],['exec','-T','control-db','psql'])
         self.assertIn('READ ONLY',args[-1])
@@ -180,6 +184,23 @@ class Tests(unittest.TestCase):
             lifecycle.control_status(self.root,['compose'],{})
         sql=call.call_args.args[0][-1]
         self.assertEqual(sql.count("kind='lite_retained'"),3)
+
+    def test_initial_publication_requires_the_ready_database_head(self):
+        self.schedule()
+        path=self.root/'work/operator/schedule.json'
+        config=json.loads(path.read_text())
+        config['cycle']={'library':'owned'}
+        lifecycle.write(path,json.dumps(config).encode())
+        stamp='2026-11-07T12:00:00.000Z'
+        with patch.object(lifecycle,'docker',return_value=stamp.encode()) as call:
+            self.assertEqual(lifecycle.active_publication(self.root,[],{}),stamp)
+        sql=call.call_args.args[0][-1]
+        self.assertIn('READ ONLY',sql)
+        self.assertIn("h.state='ready'",sql)
+        self.assertIn('h.receipt_sha256=p.receipt_sha256',sql)
+        for raw in (b'',b'invalid',b'private error'):
+            with patch.object(lifecycle,'docker',return_value=raw):
+                self.assertIsNone(lifecycle.active_publication(self.root,[],{}))
 
     def test_control_errors_do_not_fall_back_to_saved_success(self):
         self.schedule()

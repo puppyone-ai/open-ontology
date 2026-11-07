@@ -94,11 +94,12 @@ fn publish_reviewed_registry(
 }
 
 pub(super) fn status(root: &Path, json_output: bool) -> Result<Invocation, Failure> {
-    let state = review::read(&root.join("chain.json"))?;
+    let mut state = review::read(&root.join("chain.json"))?;
     let fingerprint = state["config_sha256"]
         .as_str()
         .ok_or_else(|| Failure::local("BUILD_RESUME_PROTOCOL"))?;
     validate(&state, fingerprint, root)?;
+    progress::unmeasured_publication(&mut state);
     Ok(report(&state, json_output))
 }
 

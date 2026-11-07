@@ -675,7 +675,9 @@ fn report(reply: Value, summary: Value, state: &Path) -> Result<Invocation, Fail
         0
     } else {
         u8::from(
-            !(out["healthy"] == true || out["status"] == "retained_ready")
+            !(out["healthy"] == true
+                || out["status"] == "degraded"
+                || out["status"] == "retained_ready")
                 || reply["lifecycle_exit"] != 0,
         )
     };
@@ -786,6 +788,7 @@ fn up(
         json!({"stack":remote_stack,"image":runtime,"pki":files,"secrets":secrets,
             "templates":{"compose.yaml":compose,"postgres.sh":POSTGRES_SH,"scheduler.py":SCHEDULER},
             "retained":true,"jobs":super::lite::jobs(),
+            "cycle_events":include_str!("../../../../deploy/lite/cycle_events.sql"),
             "prompt_npm_registry":std::env::var("OO_SHARE_NPM_REGISTRY").ok(),
             "prompt":{"ca_file":text(consumer.join("ca.crt")),"client_pem":text(consumer.join("client.pem"))},
             "lifecycle":LIFECYCLE,"agent":AGENT,"scope":probe["scope"],"python3":probe["python3"],

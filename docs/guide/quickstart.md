@@ -147,8 +147,22 @@ oo status --config stack.yaml --json
 ```
 
 Status distinguishes saved build state, services and Gateway/scheduler
-measurements. `retained_ready` is provisioning readiness; after first build,
-the remaining requirement may be a measured scheduled retained cycle.
+measurements. For a deployed lite stack it reports:
+
+- `data_published_at`: last activated data publication, not the last attempted sync.
+- `cycle`: the latest `result` (`succeeded`, `partial`, `review_required` or
+  `failed`), `at` and `reason`; null until a measured cycle exists.
+- `tables.stale`: table, reason and the start of its consecutive stale period.
+- `tables.review_pending`: table and semantic changes awaiting owner review.
+
+Health requires all services/jobs to be healthy and the data publication to be
+no older than twice the schedule interval plus 60 seconds of grace.
+Fresh data with stale or review-pending tables is `degraded`, not failed.
+A failed cycle alone does not make fresh, served data unhealthy. Alerts use
+publication age, not the last failure timestamp. A no-op/replayed publication
+does not advance the activation timestamp.
+
+`retained_ready` is provisioning readiness, not publication acceptance.
 `healthy` is not inferred from three healthy foundations. Null/unmeasured
 timestamps stay unknown, and `publication: live` is not source-real-time or
 cross-table consistency. A4's first-build L1 did not certify subsequent

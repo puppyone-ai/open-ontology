@@ -1,6 +1,7 @@
 import json
 import copy
 import hashlib
+import os
 import sys
 from pathlib import Path
 import tempfile
@@ -16,8 +17,79 @@ from test_retained_catalog import fixture, RelatedDb
 
 
 class Tests(unittest.TestCase):
+    def test_service_liveness_is_not_last_cycle_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = root / 'schedule.json'
+            scheduler.save(config, {'work_dir': str(root)})
+            status = root / 'worker-status.json'
+            scheduler.save(status, {'stage': 'failed'})
+            with patch.object(sys, 'argv', ['scheduler', '--worker', '--health', '--config', str(config)]):
+                scheduler.main()
+                os.utime(status, (1, 1))
+                with self.assertRaises(SystemExit) as error:
+                    scheduler.main()
+                self.assertEqual(error.exception.code, 1)
+
+    def test_loader_exit_contract_and_post_activation_failures(self):
+        for code, failure, outcome in [(0, None, 'activated'), (3, None, 'activated'),
+                                      (0, None, 'replay'), (4, 'all_tables_stale', None),
+                                      (1, 'sync_failed', None), (2, 'sync_failed', None),
+                                      (0, 'publish_failed', None), (0, 'prune_failed', 'activated'),
+                                      (0, 'gateway_reload_failed', 'activated')]:
+            with self.subTest(code=code, failure=failure), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                config = dict(stack='s', source='s', target='t', secrets_dir='p', library='owned',
+                              login='owner', publisher_config='p',
+                              builder={'origin': {'reviewed_registry': {}}},
+                              pack_path=str(root / 'pack'), document_path=str(root / 'document'))
+                commands = []
+                def fake(argv, output, label, data=None):
+                    commands.append(label)
+                    if label == 'sync':
+                        rows = [{'status': 'noop' if outcome == 'replay' else 'fresh',
+                                 'retained_run': 'run', 'table': 'app.a'}]
+                        if outcome != 'replay':
+                            rows.append({'status': 'noop', 'retained_run': 'older', 'table': 'app.c'})
+                        if code in (3, 4):
+                            rows.append({'status': 'stale', 'table': {'schema': 'app', 'name': 'b'},
+                                         'stale_reason': 'source_timeout', 'stale_detail': 'timeout'})
+                        return Mock(returncode=code, stdout=b'\n'.join(json.dumps(r).encode() for r in rows))
+                    if label == 'candidate':
+                        return Mock(returncode=1, stdout=b'{"state":"pending"}',
+                                    stderr=b'{"error":"publication_semantic_admission_required"}')
+                    if label == 'publisher':
+                        return Mock(returncode=int(failure == 'publish_failed'), stdout=json.dumps({
+                            'state': 'ready', 'outcome': outcome, 'receipt_sha256': 'receipt',
+                            'gateway_document': {'envelope': {'producer': {'artifact': {}}}}
+                        }).encode())
+                    return Mock(returncode=int(failure == 'prune_failed'))
+                with patch.object(scheduler, 'command', side_effect=fake), patch.object(
+                        scheduler, 'data_only', return_value={'stage': 'data_only', 'review_pending': [
+                            {'table': 'app.a', 'changes': ['comment']}]}), patch.object(
+                        builder, 'pinned', return_value=b'{}'), patch.object(
+                        scheduler, 'gateway_probe', side_effect=ValueError('pending') if
+                        failure == 'gateway_reload_failed' else None,
+                        return_value={'receipt_sha256': 'receipt'}), patch.object(scheduler.time, 'sleep'):
+                    out = root / 'cycle'
+                    if failure:
+                        with self.assertRaisesRegex(ValueError, failure):
+                            scheduler.cycle(config, 'run', out)
+                        result = json.loads((out / 'result.json').read_text())
+                        self.assertEqual(result['result'], 'failed')
+                    else:
+                        result = scheduler.cycle(config, 'run', out)
+                        self.assertEqual(result['result'], 'partial' if code == 3 else 'succeeded')
+                        self.assertEqual(len(result['review_pending']), 1)
+                    activated = outcome == 'activated'
+                    self.assertEqual(result['data_published_at'] is not None, activated)
+                    if code in (1, 2, 4):
+                        self.assertEqual(commands, ['sync'])
+                    if code in (3, 4):
+                        self.assertEqual(result['stale_tables'][0]['table'], 'app.b')
+
     def test_fresh_catalog_controls_data_only_admission(self):
-        for change in ('unchanged', 'fk_removed', 'comment', 'column_comment', 'legacy'):
+        for change in ('unchanged', 'fk_removed', 'comment', 'column_comment', 'new_column', 'legacy'):
             with self.subTest(change=change), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 metadata, source = fixture()
@@ -48,15 +120,19 @@ class Tests(unittest.TestCase):
                     current['tables'][0]['comment'] = 'Edited source comment'
                 if change == 'column_comment':
                     current['tables'][0]['columns'][0]['comment'] = 'Edited column comment'
+                if change == 'new_column':
+                    current['tables'][0]['columns'].append(dict(name='unreviewed', not_null=False, comment='new'))
                 def export(argv, output, label):
                     self.assertEqual(argv[:3], ['/usr/local/bin/oo', 'admin', 'source-catalog'])
                     return Mock(returncode=0, stdout=json.dumps(pin('source-catalog.json', current)).encode())
                 with patch.object(scheduler, 'command', side_effect=export) as command, patch.object(
                         builder.lib, 'ReadOnlyPostgres', return_value=RelatedDb(metadata)):
                     result = scheduler.data_only(config, 'cycle-1', root)
-                expected = 'data_only' if change in ('unchanged', 'legacy') else 'review_required'
-                self.assertEqual(result['stage'], expected)
-                if expected == 'data_only':
+                self.assertEqual(result['stage'], 'data_only')
+                expected = [] if change in ('unchanged', 'legacy') else [
+                    'app.invoices' if change == 'fk_removed' else 'app.accounts']
+                self.assertEqual([r['table'] for r in result['review_pending']], expected)
+                if not expected:
                     self.assertEqual(result['data_only_digest'], builder.semantics.data_only_digest(facts))
                 self.assertEqual(command.call_count, int(change != 'legacy'))
                 self.assertNotIn('source_catalog', config['builder'])
@@ -134,19 +210,20 @@ class Tests(unittest.TestCase):
                     scheduler.cycle(config, 'run', Path(tmp) / 'cycle', Mock(side_effect=ValueError('lost')))
                 command.assert_not_called()
 
-    def test_worker_records_review_failure_and_disables_schedule(self):
+    def test_worker_records_review_failure_without_disabling_schedule(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = dict(project=PROJECT, work_dir=tmp, cycle={})
             def cycle(config, generation, output, guard):
                 output.mkdir()
                 return {'stage': 'review_required', 'model_calls': 0}
-            responses = [json.dumps({'status': 'claimed', 'task_id': PROJECT, 'generation': 1}), '', 'failed']
+            responses = [json.dumps({'status': 'claimed', 'task_id': PROJECT, 'generation': 1}), 'failed']
             with patch.object(scheduler, 'sql', side_effect=responses) as sql, patch.object(scheduler, 'cycle', side_effect=cycle):
                 result = scheduler.work(config)
             self.assertEqual(result['stage'], 'review_required')
             statements = [call.args[1] for call in sql.call_args_list]
-            self.assertIn('enabled=false', statements[1])
-            self.assertIn('complete_failure', statements[2])
+            self.assertNotIn('enabled=false', ' '.join(statements))
+            self.assertIn('complete_lite_cycle', statements[1])
+            self.assertIn('review_required', statements[1])
             self.assertTrue((Path(tmp) / PROJECT / 'result.json').exists())
 
     def test_expired_completion_never_claims_success(self):

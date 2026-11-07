@@ -105,7 +105,7 @@ def validate_candidate(candidate, library_id, generation, engine):
         raise ValueError('retained_relation_proof_drift')
 
 
-def observe(db, library_id, generation, engine, source_catalog=None):
+def observe(db, library_id, generation, engine, source_catalog=None, *, previous=None, stale_tables=()):
     """Return (tables, provenance) for build_facts. Raises fixed ValueError codes."""
     metadata = db.query(candidate_sql(library_id, generation))
     candidate = metadata['candidate']
@@ -176,7 +176,7 @@ def observe(db, library_id, generation, engine, source_catalog=None):
         tables.append(item)
     if source_catalog is not None:
         import retained_catalog
-        retained_catalog.apply(tables, source_catalog, receipt)
+        retained_catalog.apply(tables, source_catalog, receipt, previous=previous, stale_tables=stale_tables)
     observation.require_complete_columns(tables)
     provenance = dict(protocol=PROTOCOL, library_id=library_id, generation=generation,
                       receipt_sha256=candidate['receipt_sha256'],

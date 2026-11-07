@@ -135,6 +135,7 @@ class ComposeScheduled(Scheduled):
             sql.append(f"INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) VALUES('{version}','{digest}','expand','{name}');")
         sql.append('COMMIT;')
         self.control_sql('\n'.join(sql))
+        self.control_sql((ROOT / 'deploy/lite/cycle_events.sql').read_text())
         self.control_sql(f"SET ROLE oo_jobs_runtime; INSERT INTO jobs.schedules(project_id,kind,config_version,artifact_digest,dedupe_prefix,next_run_at) VALUES('{PROJECT}','lite_retained','v1',repeat('a',64),'lite',clock_timestamp());")
 
     def prepare_runtime(self):

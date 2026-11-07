@@ -81,7 +81,7 @@ def command(argv, output, label, data=None):
     return result
 
 
-def data_only(config, generation, output):
+def data_only(config, generation, output, stale_tables=()):
     # Reuse the retained Builder's observation, digest and review binding, but
     # never enter its model drafting branch from an unattended schedule.
     scripts = Path(__file__).resolve().parent / '../../tools/pg-builder/scripts'
@@ -111,13 +111,14 @@ def data_only(config, generation, output):
             build['source_catalog'] = pin
         except Exception:
             raise ValueError('source_catalog_export_failed') from None
-    facts, provenance = builder.facts_for(db, build)
+    facts, provenance = builder.facts_for(db, build, previous=old, stale_tables=stale_tables)
     builder.save(output / 'facts.json', facts)
     digest = builder.semantics.data_only_digest(facts)
-    if builder.semantics.data_only_digest(old) != digest:
-        return {'stage': 'review_required', 'model_calls': 0, 'published': False}
     builder.reviewed_shape(json.loads(reviewed), facts)
+    pending = builder.semantics.table_review_pending(old, facts)
     return {'stage': 'data_only', 'model_calls': 0, 'published': False,
+            'review_pending': pending,
+            'table_data_only_digests': builder.semantics.table_data_only_digests(facts),
             'receipt_sha256': provenance['receipt_sha256'], 'data_only_digest': digest}
 
 
@@ -138,6 +139,21 @@ def gateway_probe(config, receipt):
 
 
 def cycle(config, generation, output, guard=lambda: None):
+    result = {'stage': 'failed', 'result': 'failed', 'reason': None,
+              'stale_tables': [], 'review_pending': [], 'data_published_at': None}
+    try:
+        return run_cycle(config, generation, output, guard, result)
+    except Exception as error:
+        # Carry activation evidence even when a later Gateway probe/prune fails.
+        allowed = {'sync_failed', 'all_tables_stale', 'candidate_failed', 'publish_failed',
+                   'gateway_reload_failed', 'prune_failed', 'source_catalog_export_failed',
+                   'retained_origin_shape_drift', 'lease_lost', 'mixed_retained_runs'}
+        result['stage'] = result['result'] = 'failed'
+        result['reason'] = str(error) if str(error) in allowed else 'retained_cycle_failed'
+        save(output / 'result.json', result)
+        raise
+
+def run_cycle(config, generation, output, guard, result):
     output.mkdir(mode=0o700)
     common = ['--stack', config['stack'], '--source', config['source'], '--target', config['target'],
               '--secrets-dir', config['secrets_dir']]
@@ -147,10 +163,22 @@ def cycle(config, generation, output, guard=lambda: None):
     # Full-read reconciliation is deliberate for lite; no guessed CDC position.
     save(c5, {'cycle': 1, 'full_read_every': 1})
     sync = command([loader, 'sync', *common, '--run-id', generation, '--c5', c5], output, 'sync')
-    if sync.returncode:
+    if sync.returncode not in (0, 3, 4):
         raise ValueError('sync_failed')
     reports = [json.loads(line) for line in sync.stdout.splitlines() if line.strip()]
-    retained_runs = {row['retained_run'] for row in reports}
+    result['stale_tables'] = [
+        {'table': (row['table']['schema'] + '.' + row['table']['name']
+                   if isinstance(row['table'], dict) else row['table']),
+         'reason': row.get('stale_reason', 'unknown'),
+         'detail': row.get('stale_detail'), 'since': timestamp()}
+        for row in reports if row.get('status') == 'stale']
+    if sync.returncode == 4:
+        raise ValueError('all_tables_stale')
+    retained_runs = {row['retained_run'] for row in reports if row.get('status') != 'stale'}
+    fresh_runs = {row['retained_run'] for row in reports if row.get('status') == 'fresh'}
+    if len(fresh_runs) == 1:
+        # No-op and stale tables may keep older cuts in a partial candidate.
+        retained_runs = fresh_runs
     if len(retained_runs) != 1:
         raise ValueError('mixed_retained_runs')
     # C5 no-ops retain the sealed parent, not a fictitious new run.
@@ -163,10 +191,12 @@ def cycle(config, generation, output, guard=lambda: None):
                                 'publication_semantic_admission_required' or candidate.get('state') != 'pending'):
         raise ValueError('candidate_failed')
     guard()
-    build = data_only(config, generation, output)
+    build = data_only(config, generation, output, [t['table'] for t in result['stale_tables']])
+    result['review_pending'] = build.get('review_pending', [])
     save(output / 'builder.json', build)
     if build['stage'] == 'review_required':
-        return build
+        return dict(result, stage='review_required', result='review_required',
+                    reason='semantic_review_required', model_calls=0)
     guard()
     # Preserve reviewed bytes: the publisher verifies the exact reviewed compiler output.
     import retained_build as builder
@@ -179,6 +209,8 @@ def cycle(config, generation, output, guard=lambda: None):
     receipt = json.loads(published.stdout)
     if published.returncode or receipt.get('state') != 'ready' or receipt.get('outcome') not in ('activated', 'replay'):
         raise ValueError('publish_failed')
+    if receipt['outcome'] == 'activated':
+        result['data_published_at'] = timestamp()
     guard()
     document = receipt['gateway_document']
     # Data-only cycles have an identical Pack. Avoid needless replacements while
@@ -203,7 +235,15 @@ def cycle(config, generation, output, guard=lambda: None):
                       '--retain-seconds', str(config.get('retain_seconds', 86400))], output, 'prune')
     if pruned.returncode:
         raise ValueError('prune_failed')
-    return {'stage': 'succeeded', 'model_calls': 0, **measured}
+    stage = 'partial' if sync.returncode == 3 else 'succeeded'
+    return dict(result, stage=stage, result=stage, reason='stale_tables' if stage == 'partial' else None,
+                model_calls=0, **measured)
+
+def complete(config, binding, result):
+    payload = dict(reason=None, stale_tables=[], review_pending=[], data_published_at=None)
+    payload.update(result, result=result['stage'])
+    encoded = json.dumps(payload, separators=(',', ':')).replace("'", "''")
+    return sql(config, f"SELECT jobs.complete_lite_cycle({binding},'{encoded}'::jsonb);")
 
 
 def timestamp():
@@ -247,19 +287,18 @@ def work(config):
         try:
             result = cycle(config['cycle'], 'scheduled-' + task, root / task, guard)
             guard()
-            if result['stage'] == 'review_required':
-                sql(config, f"UPDATE jobs.schedules SET enabled=false WHERE project_id='{owner}' AND kind='{KIND}';")
-                done = sql(config, f"SELECT status FROM jobs.complete_failure({binding},'dependency_unavailable');")
-            else:
-                done = sql(config, f'SELECT status FROM jobs.complete_success({binding});')
+            done = complete(config, binding, result)
             if done not in ('succeeded', 'failed'):
                 raise ValueError('completion_refused')
         except Exception as error:
             reason = ('source_catalog_export_failed' if str(error) == 'source_catalog_export_failed'
                       else 'retained_cycle_failed')
             result = {'stage': 'failed', 'reason': reason}
+            recorded = root / task / 'result.json'
+            if recorded.exists():
+                result = json.loads(recorded.read_bytes())
             try:
-                sql(config, f"SELECT status FROM jobs.complete_failure({binding},'dependency_unavailable');")
+                complete(config, binding, result)
             except Exception:
                 pass  # Lease expiry records failure; never synthesize a success.
         finally:
@@ -286,7 +325,7 @@ def main():
     path = Path(config['work_dir']) / ('worker-status.json' if args.worker else 'scheduler-status.json')
     if args.health:
         report = json.loads(path.read_text())
-        if time.time() - path.stat().st_mtime > 45 or report['stage'] in ('failed', 'review_required'):
+        if time.time() - path.stat().st_mtime > 45:
             raise SystemExit(1)
         return
     while True:
