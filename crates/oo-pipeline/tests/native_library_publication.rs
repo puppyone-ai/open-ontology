@@ -391,6 +391,241 @@ async fn retained_engine_publication_candidate() {
     );
     let output: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(output["state"], "ready");
+    // A cycle receipt, not a guessed latest run, authorizes carrying old cuts.
+    let mut partial = request.clone();
+    partial.source_id = "partial".into();
+    partial.library_id = "partial".into();
+    partial.source_binding = serde_json::to_string(&(
+        "partial",
+        "postgres",
+        "127.0.0.1",
+        1_u16,
+        "unused",
+        "reader",
+    ))
+    .unwrap();
+    partial.tables = ["a", "b"]
+        .iter()
+        .map(|name| TableRef {
+            schema: "app".into(),
+            name: (*name).into(),
+        })
+        .collect();
+    partial.generation = "base".into();
+    for table in &partial.tables {
+        let mut plan = plan.clone();
+        plan.table = table.clone();
+        plan.chunks[0].table = table.clone();
+        let mut target = PgTarget::new(&mut db, &partial.source_binding, "base", table)
+            .await
+            .unwrap();
+        target.begin(&plan).await.unwrap();
+        target
+            .stage(
+                &ChunkReceipt {
+                    table: table.clone(),
+                    plan_revision: 1,
+                    chunk_id: 0,
+                    rows: 1,
+                    bytes: 8,
+                    sha256: "a".repeat(64),
+                    low: None,
+                    high: None,
+                },
+                &stream,
+            )
+            .await
+            .unwrap();
+        target.publish(&plan).await.unwrap();
+    }
+    db.close().await.unwrap();
+    let mut db = PgConnection::connect_with(&options).await.unwrap();
+    let base = publish_generation(&mut db, &partial).await.unwrap();
+    use oo_pipeline::engine_isolation as isolation;
+    for (run, states, exit) in [
+        ("partial-1", ["stale", "noop"], 3),
+        ("partial-2", ["stale", "noop"], 3),
+        ("all-stale", ["stale", "stale"], 4),
+        ("recovered", ["noop", "noop"], 0),
+    ] {
+        isolation::begin(&mut db, &partial.source_binding, run, &partial.tables)
+            .await
+            .unwrap();
+        for (table, state) in partial.tables.iter().zip(states) {
+            isolation::record(
+                &mut db,
+                &partial.source_binding,
+                run,
+                table,
+                state,
+                (state == "stale").then_some("source_permission"),
+            )
+            .await
+            .unwrap();
+        }
+        assert_eq!(
+            isolation::finish(&mut db, &partial.source_binding, run)
+                .await
+                .unwrap(),
+            exit
+        );
+        assert!(
+            !isolation::begin(&mut db, &partial.source_binding, run, &partial.tables)
+                .await
+                .unwrap()
+        );
+        let replay = isolation::replay(&mut db, &partial.source_binding, run)
+            .await
+            .unwrap();
+        assert_eq!(replay.len(), 2);
+        assert!(
+            replay
+                .iter()
+                .all(|r| r["replay"] == true && r["new_generations"] == 0)
+        );
+        partial.generation = run.into();
+        if exit == 4 {
+            assert_eq!(
+                publish_generation(&mut db, &partial).await.unwrap_err(),
+                "publication_cycle_incomplete"
+            );
+            continue;
+        }
+        let candidate = publish_generation(&mut db, &partial).await.unwrap();
+        assert_eq!(
+            candidate["stale_tables"].as_array().unwrap().len(),
+            usize::from(exit == 3)
+        );
+        assert_eq!(
+            candidate["data_vector"][0]["storage_relation"],
+            base["data_vector"][0]["storage_relation"]
+        );
+        assert_eq!(
+            publish_generation(&mut db, &partial).await.unwrap(),
+            candidate
+        );
+        // The fixture owner explicitly admits these synthetic columns. Partial
+        // publication must still refuse until every table has an open fence.
+        assert_eq!(
+            oo_pipeline::engine_publication::activate_generation(&mut db, &candidate)
+                .await
+                .unwrap_err(),
+            "publication_semantic_admission_required"
+        );
+        for entry in candidate["data_vector"].as_array().unwrap() {
+            let relation = entry["physical_name"].as_str().unwrap();
+            let column: String = sqlx::query_scalar(
+                "SELECT attname::text FROM pg_attribute
+                 WHERE attrelid=to_regclass($1) AND attnum>0 AND NOT attisdropped",
+            )
+            .bind(format!("_oo.{relation}"))
+            .fetch_one(&mut db)
+            .await
+            .unwrap();
+            db.execute(sqlx::AssertSqlSafe(format!(
+                "GRANT SELECT (\"{column}\") ON _oo.\"{relation}\" TO oo_r_retained"
+            )))
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO oo_publish_target.fence(singleton,state,role_name,schema_name,
+                 relation_name,opened_columns,opened_pack_digest,opened_version,streams_stopped)
+                 VALUES(true,'open','oo_r_retained','_oo',$1,ARRAY[$2],repeat('a',64),'fixture-review',0)",
+            ).bind(relation).bind(&column).execute(&mut db).await.unwrap();
+            let value: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+                "SELECT \"{column}\" FROM _oo.\"{relation}\""
+            )))
+            .fetch_one(&mut db)
+            .await
+            .unwrap();
+            assert_eq!(value, 42, "carried generation retains its exact payload");
+        }
+        let activated = oo_pipeline::engine_publication::activate_generation(&mut db, &candidate)
+            .await
+            .unwrap();
+        assert_eq!(activated["state"], "ready");
+        let ready: bool =
+            sqlx::query_scalar("SELECT _oo.native_library_source_ready('partial',$1)")
+                .bind(
+                    candidate["receipt"]["shards"][0]["receipt_sha256"]
+                        .as_str()
+                        .unwrap(),
+                )
+                .fetch_one(&mut db)
+                .await
+                .unwrap();
+        assert!(
+            ready,
+            "stale health must not invalidate admitted immutable data"
+        );
+        let proof: String =
+            sqlx::query_scalar("SELECT _oo.native_library_retained_table($1)::text")
+                .bind(
+                    candidate["data_vector"][0]["physical_name"]
+                        .as_str()
+                        .unwrap(),
+                )
+                .fetch_one(&mut db)
+                .await
+                .unwrap();
+        let proof: Value = serde_json::from_str(&proof).unwrap();
+        assert_eq!(proof["status"], states[0]);
+        assert_eq!(
+            proof["stale_reason"].as_str(),
+            (exit == 3).then_some("source_permission")
+        );
+        let health: (String, Option<String>, bool) = sqlx::query_as(
+            "SELECT sync_state,stale_reason,stale_since IS NOT NULL FROM _oo.table_freshness
+             WHERE source='partial' AND table_name='a'",
+        )
+        .fetch_one(&mut db)
+        .await
+        .unwrap();
+        assert_eq!(health.0, states[0]);
+        assert_eq!(
+            health.1.as_deref(),
+            (exit == 3).then_some("source_permission")
+        );
+        assert_eq!(health.2, exit == 3);
+        if run == "partial-2" {
+            let stable: bool = sqlx::query_scalar(
+                "SELECT (SELECT stale_tables->0->>'since' FROM _oo_load.gateway_publications
+                 WHERE source='partial' AND run='partial-1') =
+                 (SELECT stale_tables->0->>'since' FROM _oo_load.gateway_publications
+                 WHERE source='partial' AND run='partial-2')",
+            )
+            .fetch_one(&mut db)
+            .await
+            .unwrap();
+            assert!(stable);
+        }
+    }
+    isolation::begin(
+        &mut db,
+        &partial.source_binding,
+        "interrupted",
+        &partial.tables,
+    )
+    .await
+    .unwrap();
+    isolation::record(
+        &mut db,
+        &partial.source_binding,
+        "interrupted",
+        &partial.tables[0],
+        "noop",
+        None,
+    )
+    .await
+    .unwrap();
+    partial.generation = "interrupted".into();
+    assert_eq!(
+        publish_generation(&mut db, &partial).await.unwrap_err(),
+        "publication_cycle_incomplete"
+    );
+    println!(
+        "partial publication: retained recipes, all-stale/global refusal, stale interval and recovery passed"
+    );
     request.generation = "missing".into();
     assert_eq!(
         publish_generation(&mut db, &request).await.unwrap_err(),

@@ -40,6 +40,7 @@ pub mod catalog_import;
 pub mod copy_encoder;
 pub mod copy_sink;
 pub mod engine_chunk;
+pub mod engine_isolation;
 pub mod engine_load;
 pub mod engine_load_pg;
 pub mod engine_publication;
