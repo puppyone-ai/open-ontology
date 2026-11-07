@@ -108,10 +108,28 @@ async fn execute() -> Result<&'static str, &'static str> {
             .await
             .map_err(|_| "database")?;
     if installed {
+        install_logical_identity(&mut db).await?;
         return Ok("already_installed");
     }
     install(&mut db).await?;
+    install_logical_identity(&mut db).await?;
     Ok("installed")
+}
+
+async fn install_logical_identity(db: &mut PgConnection) -> Result<(), &'static str> {
+    let installed: bool =
+        sqlx::query_scalar("SELECT to_regclass('_oo.publication_identity') IS NOT NULL")
+            .fetch_one(&mut *db)
+            .await
+            .map_err(|_| "logical_publication")?;
+    if !installed {
+        db.execute(include_str!(
+            "../../migrations/0135_logical_publication_identity.sql"
+        ))
+        .await
+        .map_err(|_| "logical_publication")?;
+    }
+    Ok(())
 }
 
 async fn install(db: &mut PgConnection) -> Result<(), &'static str> {
