@@ -1442,10 +1442,13 @@
    "sprint": "S6",
    "lane": "M",
    "title": "现场加固 1：lite 镜像优化构建（D21）",
-   "status": "in_progress",
+   "status": "author_complete",
    "owner": "coordinator",
-   "branch": "perf/lite-release-build",
-   "commits": [],
+   "branch": "v0.2/field-hardening",
+   "commits": [
+    "a9139c9eb",
+    "7f3912790"
+   ],
    "evidence": []
   },
   {
