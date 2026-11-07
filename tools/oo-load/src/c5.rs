@@ -179,19 +179,35 @@ async fn run_table<E: epoch::Epoch>(
     conn: &mut PgConnection,
 ) -> Result<serde_json::Value, String> {
     let started = std::time::Instant::now();
-    let live_lineage = epoch::c5_lineage(
-        engine
-            .epoch(source, store, std::slice::from_ref(table))
-            .await
-            .map_err(|_| "c5_source_epoch")?,
-        engine.shape(table).await?,
+    let mut target = PgTarget::new(conn, &binding(source)?, &config.run_id, table).await?;
+    target = documents::target(target, source)?;
+    let sealed = target.sealed_columns().await?;
+    let live_columns = engine
+        .column_shape(table, budget)
+        .await
+        .map_err(|e| e.to_string())?;
+    let classification = oo_load::schema::classify(
+        sealed.as_ref().map(|s| s.columns.as_slice()),
+        live_columns.as_deref(),
+        sealed
+            .as_ref()
+            .map(|s| s.projection.as_slice())
+            .unwrap_or(&[]),
     );
+    if let Some(reason) = classification.stale_reason() {
+        return Err(reason);
+    }
+    let projection = sealed.as_ref().ok_or("schema_unproven")?.projection.clone();
+    target.published_projection(projection);
+    target.source_columns(live_columns.clone());
+    let live_lineage = engine
+        .epoch(source, store, std::slice::from_ref(table))
+        .await
+        .map_err(|_| "c5_source_epoch")?;
     let live_plan = engine
         .plan_chunks(table, budget)
         .await
         .map_err(|e| e.to_string())?;
-    let mut target = PgTarget::new(conn, &binding(source)?, &config.run_id, table).await?;
-    target = documents::target(target, source)?;
     let previous = target.c5_baseline().await?;
     if previous
         .lineage
@@ -199,6 +215,19 @@ async fn run_table<E: epoch::Epoch>(
         .is_some_and(|old| old != &live_lineage)
     {
         return Err("c5_rebaseline_required_lineage".into());
+    }
+    if classification == oo_load::schema::Classification::Rebuild {
+        let before = target.generations().await?;
+        target.source_columns(live_columns);
+        engine_load::load(engine, table, budget, oo_load::IpcSink::new, &mut target).await?;
+        let after = target.generations().await?;
+        return Ok(serde_json::json!({
+            "protocol":"oo.sync/v1", "source":source.id, "mode":"c5", "table":table,
+            "run_id":config.run_id, "status":"fresh", "schema_class":"rebuild",
+            "retained_run":config.run_id, "new_generations":after-before,
+            "generation":after, "gateway_published":false,
+            "target_write_bytes":target.write_bytes().await?
+        }));
     }
     let plan = durable_ranges(&previous.plan, live_plan);
     let keyless = previous.plan.key == KeyShape::NoKey && plan.key == KeyShape::NoKey;
@@ -219,13 +248,16 @@ async fn run_table<E: epoch::Epoch>(
         receipts = replacements;
         source_read_bytes = read_bytes;
         payload_bytes = receipts.iter().map(|receipt| receipt.bytes).sum();
-        if epoch::c5_lineage(
-            engine
-                .epoch(source, store, std::slice::from_ref(table))
+        if engine
+            .epoch(source, store, std::slice::from_ref(table))
+            .await
+            .map_err(|_| "c5_source_epoch")?
+            != live_lineage
+            || engine
+                .column_shape(table, budget)
                 .await
-                .map_err(|_| "c5_source_epoch")?,
-            engine.shape(table).await?,
-        ) != live_lineage
+                .map_err(|e| e.to_string())?
+                != live_columns
         {
             return Err("c5_rebaseline_required_lineage".into());
         }
@@ -295,16 +327,23 @@ async fn run_table<E: epoch::Epoch>(
                 }
                 target.stage(&receipt, &decoded).await?;
                 payload_bytes += receipt.bytes;
-                receipts.push(receipt);
+                if classification == oo_load::schema::Classification::Unchanged
+                    || !target.staged_matches(old, receipt.chunk_id).await?
+                {
+                    receipts.push(receipt);
+                }
             }
         }
-        if epoch::c5_lineage(
-            engine
-                .epoch(source, store, std::slice::from_ref(table))
+        if engine
+            .epoch(source, store, std::slice::from_ref(table))
+            .await
+            .map_err(|_| "c5_source_epoch")?
+            != live_lineage
+            || engine
+                .column_shape(table, budget)
                 .await
-                .map_err(|_| "c5_source_epoch")?,
-            engine.shape(table).await?,
-        ) != live_lineage
+                .map_err(|e| e.to_string())?
+                != live_columns
         {
             return Err("c5_rebaseline_required_lineage".into());
         }
@@ -326,6 +365,7 @@ async fn run_table<E: epoch::Epoch>(
         "status":if replay || after == before {"noop"} else {"fresh"},
         "run_id":config.run_id,
         "retained_run":retained_run,
+        "schema_class":classification.as_str(),
         "target":target.relation(),"replay":replay,"ranges_replaced":receipts.len(),
         "payload_bytes":payload_bytes,"source_read_bytes":source_read_bytes,
         "target_write_bytes":if replay {0} else {target.write_bytes().await?},
