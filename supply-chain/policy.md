@@ -97,6 +97,8 @@ The only exception is a security fix adopted early. The record then includes:
 
 Nobody is appointed while `.github/CODEOWNERS` still says `OWNER_PENDING` and SECURITY.md still says the security owner is not appointed. Until that changes, a seven-day security exception is not valid.
 
+Recorded exception: [zstd-security-fix-seven-day.json](zstd-security-fix-seven-day.json) (zstd 0.13.4, zstd-safe 7.4.0), authorized by the repository owner directly on 2026-11-07 (plan D20), who acts as the owner for that record. It is enforced by exact name, version and publication time in `crates/xtask/src/supply.rs` and is removed once both versions clear the floor.
+
 `waive` stays empty because this exception does not waive:
 
 - a prohibited license

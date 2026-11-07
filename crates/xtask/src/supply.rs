@@ -186,6 +186,23 @@ fn config_issues(repo: &Path) -> Vec<Issue> {
 
 const AGE_FLOOR_SECONDS: i64 = 604_800;
 
+/// Owner-approved age-floor waivers (plan D20, 2026-11-07). Each binds the
+/// exact crate, version and crates.io publication time; a different version,
+/// or the same version with a different recorded time, still fails. These are
+/// RUSTSEC fixes that mysql_common's binlog decoding (D10) requires; the older
+/// releases carry five advisories. Each waiver is moot once its crate clears
+/// the floor (2026-11-08T14:12Z) and must be removed then.
+const AGE_FLOOR_WAIVERS: &[(&str, &str, &str)] = &[
+    ("zstd", "0.13.4", "2026-11-01T14:12:07"),
+    ("zstd-safe", "7.4.0", "2026-11-01T14:11:59"),
+];
+
+fn age_floor_waived(name: &str, version: &str, pubtime: &str) -> bool {
+    AGE_FLOOR_WAIVERS
+        .iter()
+        .any(|(n, v, t)| *n == name && *v == version && pubtime.starts_with(t))
+}
+
 const SHIPPING_LOCKS: &[&str] = &["Cargo.lock", "bench/datagen/Cargo.lock"];
 
 struct LockAge {
@@ -400,7 +417,9 @@ fn age_lock_file(repo: &Path, relative: &str) -> AgeReport {
         match crate::util::parse_rfc3339_utc(&record.pubtime) {
             Ok(published) => {
                 let elapsed = now.unix_seconds - published.unix_seconds;
-                if elapsed < AGE_FLOOR_SECONDS {
+                if elapsed < AGE_FLOOR_SECONDS
+                    && !age_floor_waived(&package.name, &package.version, &record.pubtime)
+                {
                     report.young += 1;
                     report.issues.push(Issue::new(
                         "supply.young",
@@ -1979,5 +1998,27 @@ mod tests {
         assert!(pins_match_delta(&value));
         assert_eq!(sample_digest(b"xtask"), sha256_hex(b"xtask"));
         assert_ne!(hash_config(&repo_root()), "missing");
+    }
+}
+
+#[cfg(test)]
+mod age_waiver_tests {
+    use super::age_floor_waived;
+
+    #[test]
+    fn waiver_binds_exact_version_and_publication_time() {
+        assert!(age_floor_waived(
+            "zstd",
+            "0.13.4",
+            "2026-11-01T14:12:07.123456Z"
+        ));
+        assert!(age_floor_waived(
+            "zstd-safe",
+            "7.4.0",
+            "2026-11-01T14:11:59Z"
+        ));
+        assert!(!age_floor_waived("zstd", "0.13.5", "2026-11-01T14:12:07Z"));
+        assert!(!age_floor_waived("zstd", "0.13.4", "2026-11-05T00:00:00Z"));
+        assert!(!age_floor_waived("jiff", "0.2.39", "2026-11-02T17:04:37Z"));
     }
 }

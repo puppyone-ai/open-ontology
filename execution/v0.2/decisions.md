@@ -23,3 +23,4 @@ Current task state lives in [state.json](state.json); the plan is
 | 2026-11-05 | Human | Owner accepts the DM8 license for testing; Oracle account created by the owner; Docker cleanup authorised for volumes/containers with no further use or production meaning | E340 |
 | 2026-11-05 | Coordinator | PostgreSQL C1 `pg_replication_slot_advance` on a pre-existing slot is replication progress feedback under D12 | Plan D12a |
 | 2026-11-07 | Coordinator (owner granted full authority) | The owner CLI may reach source drivers only through oo-connectors (read-only doctor/init probes); oo-sdk and oo-mcp stay driver-free; architecture policy gains oo-stack and three edges | Plan D19 |
+| 2026-11-07 | Human | Waive the 7-day publication age floor only for zstd 0.13.4 and zstd-safe 7.4.0 (RUSTSEC fixes, exact version and publication time) so the release can proceed now; remove once they clear 2026-11-08T14:12Z | Plan D20 |
