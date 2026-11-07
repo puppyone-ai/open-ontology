@@ -77,6 +77,172 @@
       "upstream_url": "https://raw.githubusercontent.com/Nugine/simd/d74c030d9dc4f3cae02146d1f497ff62726ef09a/LICENSE",
       "vcs_commit": "d74c030d9dc4f3cae02146d1f497ff62726ef09a",
       "version": "0.8.0"
+    },
+    {
+      "additional_files": [
+        {
+          "file": "third-party/delegate-0.13.5/LICENSE-MIT",
+          "sha256": "be7ee8aa49dc586023669a0c600a0536fce6a9f61264a53a67cdd842564ed899",
+          "upstream_path": "LICENSE-MIT",
+          "upstream_url": "https://raw.githubusercontent.com/kobzol/rust-delegate/b129d4cbf4cc499eff7743365dcb0fe5d8d2e820/LICENSE-MIT"
+        }
+      ],
+      "file": "third-party/delegate-0.13.5/LICENSE-APACHE",
+      "license": "MIT OR Apache-2.0",
+      "name": "delegate",
+      "path_in_vcs": "",
+      "provenance": {
+        "crate_manifest_sha256": "42d8d439b03ca6b4340c03c86c96e21ca91c7eb64167dc5cfbeaffea10a4af46",
+        "crate_manifest_url": "https://raw.githubusercontent.com/kobzol/rust-delegate/b129d4cbf4cc499eff7743365dcb0fe5d8d2e820/Cargo.toml",
+        "registry_vcs_info_sha256": "b3600d1ea4f6b24905e1c720c2dcee3af059ed2af45ed1e2a836124bb0bd3db2"
+      },
+      "repository": "https://github.com/kobzol/rust-delegate",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+      "source": "crates.io",
+      "upstream_path": "LICENSE-APACHE",
+      "upstream_url": "https://raw.githubusercontent.com/kobzol/rust-delegate/b129d4cbf4cc499eff7743365dcb0fe5d8d2e820/LICENSE-APACHE",
+      "vcs_commit": "b129d4cbf4cc499eff7743365dcb0fe5d8d2e820",
+      "version": "0.13.5"
+    },
+    {
+      "file": "third-party/flatbuffers-25.12.19/LICENSE",
+      "license": "Apache-2.0",
+      "name": "flatbuffers",
+      "path_in_vcs": "rust/flatbuffers",
+      "provenance": {
+        "crate_manifest_sha256": "4ee36c27a6a8dd8a4d06d3d501cdbfc8008cba3eed40bcf6fdf54a019506817e",
+        "crate_manifest_url": "https://raw.githubusercontent.com/google/flatbuffers/7e163021e59cca4f8e1e35a7c828b5c6b7915953/rust/flatbuffers/Cargo.toml",
+        "registry_vcs_info_sha256": "1db0f51ece68daeee7ee9e460509639772a51fab1c17f400adf406b744449724"
+      },
+      "repository": "https://github.com/google/flatbuffers",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "source": "crates.io",
+      "upstream_path": "LICENSE",
+      "upstream_url": "https://raw.githubusercontent.com/google/flatbuffers/7e163021e59cca4f8e1e35a7c828b5c6b7915953/LICENSE",
+      "vcs_commit": "7e163021e59cca4f8e1e35a7c828b5c6b7915953",
+      "version": "25.12.19"
+    },
+    {
+      "file": "third-party/objc2-core-foundation-0.3.2/LICENSE.md",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "name": "objc2-core-foundation",
+      "path_in_vcs": "framework-crates/objc2-core-foundation",
+      "provenance": {
+        "crate_manifest_sha256": "44cd6a4440c3ea1ba85df240ab9b9e7a95da3a5873ce623ac426ac5acfbe507f",
+        "crate_manifest_url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/framework-crates/objc2-core-foundation/Cargo.toml",
+        "registry_vcs_info_sha256": "1c1a87985a2bd25015f5e2413f4041379bea0172b2fce88dae3e6482b50aab26",
+        "workspace_manifest_sha256": "2a5d4807cb132ce1d3f5b591a760643db49ca835dedefddcbd3087ad962360cd",
+        "workspace_manifest_url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/Cargo.toml"
+      },
+      "repository": "https://github.com/madsmtm/objc2",
+      "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+      "source": "crates.io",
+      "upstream_path": "LICENSE.md",
+      "upstream_url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+      "vcs_commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+      "version": "0.3.2"
+    },
+    {
+      "file": "third-party/objc2-system-configuration-0.3.2/LICENSE.md",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "name": "objc2-system-configuration",
+      "path_in_vcs": "framework-crates/objc2-system-configuration",
+      "provenance": {
+        "crate_manifest_sha256": "d94de2049b727014440700e0ad8480541d17ea4100bb8acfc2e3cb55d6cfea1d",
+        "crate_manifest_url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/framework-crates/objc2-system-configuration/Cargo.toml",
+        "registry_vcs_info_sha256": "f8f8f78e238dfd8ed90725133dceae0196e7887c026e7fe93908f26e433c1336",
+        "workspace_manifest_sha256": "2a5d4807cb132ce1d3f5b591a760643db49ca835dedefddcbd3087ad962360cd",
+        "workspace_manifest_url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/Cargo.toml"
+      },
+      "repository": "https://github.com/madsmtm/objc2",
+      "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+      "source": "crates.io",
+      "upstream_path": "LICENSE.md",
+      "upstream_url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+      "vcs_commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+      "version": "0.3.2"
+    },
+    {
+      "file": "third-party/russh-0.65.0/LICENSE.txt",
+      "license": "Apache-2.0",
+      "name": "russh",
+      "path_in_vcs": "russh",
+      "provenance": {
+        "crate_manifest_sha256": "647de62232e4fe4e8c5edf31ee21a1ad7a398a21aaf62aadf8fa45d758d75ecd",
+        "crate_manifest_url": "https://raw.githubusercontent.com/warp-tech/russh/183a22e8f8f490fa09b6eb7bd044ef99d8c4414f/russh/Cargo.toml",
+        "registry_vcs_info_sha256": "5f84c655864d9952151d2f3b022db705c6b2d5b26b41ddc8750630aaadae9602"
+      },
+      "repository": "https://github.com/warp-tech/russh",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "source": "crates.io",
+      "upstream_path": "LICENSE.txt",
+      "upstream_url": "https://raw.githubusercontent.com/warp-tech/russh/183a22e8f8f490fa09b6eb7bd044ef99d8c4414f/LICENSE.txt",
+      "vcs_commit": "183a22e8f8f490fa09b6eb7bd044ef99d8c4414f",
+      "version": "0.65.0"
+    },
+    {
+      "file": "third-party/russh-cryptovec-0.62.0/LICENSE.txt",
+      "license": "Apache-2.0",
+      "name": "russh-cryptovec",
+      "path_in_vcs": "cryptovec",
+      "provenance": {
+        "crate_manifest_sha256": "cc529134ed3240dadfac0b5ace682fcbdf654ced9417880f7e3c5af675540e84",
+        "crate_manifest_url": "https://raw.githubusercontent.com/warp-tech/russh/907c732562c5732aad6c140dba958eafddc41ba0/cryptovec/Cargo.toml",
+        "registry_vcs_info_sha256": "82d38c488803ec0bcf277dfce8d7771c902f6931247d3f8d4040efb33d1c5350"
+      },
+      "repository": "https://github.com/warp-tech/russh",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "source": "crates.io",
+      "upstream_path": "LICENSE.txt",
+      "upstream_url": "https://raw.githubusercontent.com/warp-tech/russh/907c732562c5732aad6c140dba958eafddc41ba0/LICENSE.txt",
+      "vcs_commit": "907c732562c5732aad6c140dba958eafddc41ba0",
+      "version": "0.62.0"
+    },
+    {
+      "file": "third-party/russh-util-0.52.0/LICENSE-2.0.txt",
+      "license": "Apache-2.0",
+      "name": "russh-util",
+      "path_in_vcs": "russh-util",
+      "provenance": {
+        "crate_manifest_sha256": "c8c92d6019967339af30c3d048baa79ab97568c332fba43e644efe4c99dc8c19",
+        "crate_manifest_url": "https://raw.githubusercontent.com/warp-tech/russh/3d09c20c52a542ffa327723d3a44cb1edd9b0ca4/russh-util/Cargo.toml",
+        "registry_manifest_sha256": "4bb59fc5468939da7a73e8c7356da3632b7686d08b08d43eb5d0a3c63447849f",
+        "registry_vcs_info_sha256": "9bbeb373423fbca22bfa4967ae8c327bc0567a5934ffcf2e4c07716d85ecc17f"
+      },
+      "repository": "https://github.com/warp-tech/russh",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "source": "crates.io",
+      "upstream_path": "LICENSE-2.0.txt",
+      "upstream_url": "https://raw.githubusercontent.com/warp-tech/russh/3d09c20c52a542ffa327723d3a44cb1edd9b0ca4/LICENSE-2.0.txt",
+      "vcs_commit": "3d09c20c52a542ffa327723d3a44cb1edd9b0ca4",
+      "vcs_dirty": true,
+      "version": "0.52.0"
+    },
+    {
+      "additional_files": [
+        {
+          "file": "third-party/tiberius-macros-0.1.0/LICENSE-MIT.txt",
+          "sha256": "2e9c4e8b1bb2e73696358b5b1d74d3d56403d33da333e70aa504c9b1d7b4bdd0",
+          "upstream_path": "LICENSE-MIT.txt",
+          "upstream_url": "https://raw.githubusercontent.com/tiberius-rs/tiberius/7fd75bb7070fe6ea41374698abf78928bb983bda/LICENSE-MIT.txt"
+        }
+      ],
+      "file": "third-party/tiberius-macros-0.1.0/LICENSE-APACHE.txt",
+      "license": "MIT OR Apache-2.0",
+      "name": "tiberius-macros",
+      "path_in_vcs": "tiberius-macros",
+      "provenance": {
+        "crate_manifest_sha256": "0c89a2f3eae85d0da51f5335cbbe378d6a2ad869d61bd139106aeabc08a7e9d9",
+        "crate_manifest_url": "https://raw.githubusercontent.com/tiberius-rs/tiberius/7fd75bb7070fe6ea41374698abf78928bb983bda/tiberius-macros/Cargo.toml",
+        "registry_vcs_info_sha256": "462eadec3d06c9e01bccb2ff0115d03900d2a1de3883be09074c787a7a182647"
+      },
+      "repository": "https://github.com/tiberius-rs/tiberius",
+      "sha256": "c2a9e81ba38cb9f123fc04c71bb8bc55d8736fb26f393254396164399ed6faa7",
+      "source": "crates.io",
+      "upstream_path": "LICENSE-APACHE.txt",
+      "upstream_url": "https://raw.githubusercontent.com/tiberius-rs/tiberius/7fd75bb7070fe6ea41374698abf78928bb983bda/LICENSE-APACHE.txt",
+      "vcs_commit": "7fd75bb7070fe6ea41374698abf78928bb983bda",
+      "version": "0.1.0"
     }
   ],
   "verification": "Original license bytes fetched from exact upstream commits. Crate version, repository, declared license and Cargo VCS commit/path checked against installed registry sources and pinned upstream Cargo manifests. No legal approval."

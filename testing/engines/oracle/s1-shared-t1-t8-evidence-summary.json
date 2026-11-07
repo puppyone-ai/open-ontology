@@ -1,0 +1,525 @@
+{
+  "todo": "S1-E-01",
+  "scope": "shared T1/T8 full-scale local Agent DB acceptance; not Gateway or source-real-time acceptance",
+  "command": "OO_TEST_LANE=e python3 tools/oo-test/t1.py --engine oracle --versions 23,21,11 --run-id e-s1-shared-t1-t8-r2-20261104 --worker-image <worker_image_id>",
+  "provenance": {
+    "commit": "eb03eec51",
+    "integration_base": "e40db543f24667a40c37f19ebb54515484c3facb",
+    "command": "OO_TEST_LANE=e python3 tools/oo-test/t1.py --engine oracle --versions 23,21,11 --run-id e-s1-shared-t1-t8-r2-20261104 --worker-image <worker_image_id>",
+    "worker_image_id": "sha256:08950b00fe2cf4b085c4eeb5ad4c4d339e8c6cefadef5613f31725d2f9bf422f",
+    "sha256": {
+      "tools/oo-test/t1.py": "c0d233fa962d6db99db6d34db5a9e05e772f6f95175b5ca45f0915c83395dbba",
+      "tools/oo-test/oracle_t1.py": "1cb395f72a0d7c3afac47ece21fb157d4600f0478cd977de9067a42c0cfa8c49",
+      "testing/engines/oracle/worker/worker.py": "ffbefa3bf61887775f1a3dabc47a46c2fce8c968c2a49e29c5abeff0882b6148",
+      "target/debug/oo-load": "344ca07209c86c468e70b637071547dabac432146b791ed8707fab5aac49ad52"
+    }
+  },
+  "tests": {
+    "shared_python_tests": 32,
+    "oracle_hook_tests": 3,
+    "cargo_check_workspace_locked": "passed",
+    "cargo_build_oo_load_locked": "passed"
+  },
+  "runs": [
+    {
+      "run_id": "e-s1-shared-t1-t8-20261104",
+      "version_family": "23",
+      "version_actual": "23.5.0.24.07",
+      "T1": "failed",
+      "T8": "partial",
+      "failure": "command 0209 exited 1, sqlplus_error=False",
+      "image": "docker.io/gvenzl/oracle-free:23.5-slim@sha256:0b6d2a693d9f77c8cb5e756411f60a38b4f854cf2a6b0be2f002942a66582aeb",
+      "platform": "linux/arm64",
+      "execution": "native",
+      "scale_rows": [
+        2000000,
+        2000000
+      ],
+      "small_tables": 200,
+      "tables_compared": 39,
+      "writer_cycles": 474,
+      "correction": "quiesce_writer_then_reread_all_tables",
+      "no_rewrite_resume": true,
+      "target_write_bytes": 175820949,
+      "target_write_basis": "committed_logical_stage_tuples_including_replaced_plans",
+      "model_tokens": null,
+      "source_metrics": [
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 6.373082953519117,
+          "elapsed_seconds": 101.56591604196001,
+          "sample_count": 391,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 5.38641290193679,
+          "elapsed_seconds": 96.23322779207956,
+          "sample_count": 371,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 8.78882280800612,
+          "elapsed_seconds": 5.801962084020488,
+          "sample_count": 22,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        }
+      ],
+      "cleanup_failures": [],
+      "artifacts_sha256": {
+        "t1-t8.json": "b95f5af0299f4abab16ead0b7661e8ff39037b4d350afce492edc14241a7937b",
+        "resource-receipt.json": "94b9a2e2a3bd6b4c9e33b2a2f05bb01ea130b59cb3e8ad0ebe564501181179b0",
+        "seed.json": "739f79aed99fc138c419273f9d5bccd765472fb3e5f1ab5dd8d1fce32e1dd2f4",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "SHA256SUMS": "637eaf7bb448e4393568a3c2c2e56292b140052b7536591a85a3023b1089af40",
+        "compare-EVENTS.json": "223510347aed015409d078e6377ba742627ac9ad5d5e06e260b4ebef5cfaddac",
+        "compare-TYPE_EDGES.json": "28cb8b72f54a4afca0579e2d7793141b3a12b753b95e5783dbe0d20d893c9e34",
+        "concurrent-receipts.json": "115d60d2e26fece35e6158ba188252e45c500be6c4213ac7c5ec00ab1fcb8080",
+        "corrected-receipts.json": "300c7cb2013be2d835e4ec671be18d37a4e3a6538b282be8a79abe89c8429b62",
+        "source-meter-1.json": "0d0e69fe0de8432866c2ea49a2b73d40c88e5593a4ded4afa429aaa524632a94",
+        "source-meter-2.json": "07f1b8e7f55e5d22d6f554d493885f1ad5bd68992385e937ad5a58f4392e44a1",
+        "source-meter-3.json": "7df03f4ac328eebb65819c8a950b9e29119ae53d4b1abc3daee7c2071a7ee452"
+      }
+    },
+    {
+      "run_id": "e-s1-shared-t1-t8-20261104",
+      "version_family": "21",
+      "version_actual": "21.3.0.0.0",
+      "T1": "passed",
+      "T8": "failed",
+      "failure": null,
+      "image": "docker.io/gvenzl/oracle-xe:21.3.0-slim@sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d2b6d551aa79b2346f1ab8f792",
+      "platform": "linux/amd64",
+      "execution": "emulated",
+      "scale_rows": [
+        2000000,
+        2000000
+      ],
+      "small_tables": 200,
+      "tables_compared": 231,
+      "writer_cycles": 151,
+      "correction": "quiesce_writer_then_reread_all_tables",
+      "no_rewrite_resume": true,
+      "target_write_bytes": 173526052,
+      "target_write_basis": "committed_logical_stage_tuples_including_replaced_plans",
+      "model_tokens": 0,
+      "source_metrics": [
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 10.752833304628673,
+          "elapsed_seconds": 117.55803425004706,
+          "sample_count": 178,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "failed",
+          "error": "RuntimeError",
+          "connections_peak": 1,
+          "aggregate_duty_percent": 1.8487707957928408,
+          "elapsed_seconds": 107.3516862919787,
+          "sample_count": 13,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 0.0,
+          "elapsed_seconds": 6.773732082918286,
+          "sample_count": 10,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        }
+      ],
+      "cleanup_failures": [],
+      "artifacts_sha256": {
+        "t1-t8.json": "c6cb1b35f3abee05ffb8f444109522960b1df7d9af5126150535ee0883fc3c89",
+        "resource-receipt.json": "5452860707a6f9771e76a9bc49be29c49ce232ed71d0b5a46b1d3924aa5b2ec5",
+        "seed.json": "739f79aed99fc138c419273f9d5bccd765472fb3e5f1ab5dd8d1fce32e1dd2f4",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "SHA256SUMS": "7cda1d9b2acc2e2da1dfebfaa26b59984dec85a41bb63406cd6a42e61fe94814",
+        "compare-EVENTS.json": "223510347aed015409d078e6377ba742627ac9ad5d5e06e260b4ebef5cfaddac",
+        "compare-TYPE_EDGES.json": "28cb8b72f54a4afca0579e2d7793141b3a12b753b95e5783dbe0d20d893c9e34",
+        "compare-WIDE_ROWS.json": "333d97a6e709c2159f06d74038b714b998618f406c585d3bafdd9966b1482aff",
+        "concurrent-receipts.json": "7553ca27b682d563a8c3303fdc3590831ebc37d5f55f15f69b8dc35ec929bbff",
+        "corrected-receipts.json": "24e7e3dbb2ba19fe1181a17174facbe72af1e356f1fd3f1cff58934f997d3b56",
+        "source-meter-1.json": "6d70deb295a6d1679fd15fd773c47b7971b29db0fbc8ec69c1b3e7d3c8f69c4d",
+        "source-meter-2.json": "a640b5af384b9926ea5deb567a9d77e527e54627168726e35bf1798f87d7b538",
+        "source-meter-3.json": "10f7db5bd8b2afad27436de69d443f0599598462462d82e64afa82e5533a6680"
+      }
+    },
+    {
+      "run_id": "e-s1-shared-t1-t8-20261104",
+      "version_family": "11",
+      "version_actual": "11.2.0.2.0",
+      "T1": "passed",
+      "T8": "passed",
+      "failure": null,
+      "image": "docker.io/gvenzl/oracle-xe:11.2.0.2@sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8",
+      "platform": "linux/amd64",
+      "execution": "emulated",
+      "scale_rows": [
+        2000000,
+        2000000
+      ],
+      "small_tables": 200,
+      "tables_compared": 231,
+      "writer_cycles": 187,
+      "correction": "quiesce_writer_then_reread_all_tables",
+      "no_rewrite_resume": true,
+      "target_write_bytes": 176361924,
+      "target_write_basis": "committed_logical_stage_tuples_including_replaced_plans",
+      "model_tokens": 0,
+      "source_metrics": [
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 7.801708337451605,
+          "elapsed_seconds": 115.49968645791523,
+          "sample_count": 203,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 13.219087647641913,
+          "elapsed_seconds": 104.34439033304807,
+          "sample_count": 189,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 24.69171743525187,
+          "elapsed_seconds": 7.120266832993366,
+          "sample_count": 13,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        }
+      ],
+      "cleanup_failures": [],
+      "artifacts_sha256": {
+        "t1-t8.json": "c01b3b5ae35338727b7bd81b21a13303dbbae98accf5b40e9f0b8944a20b924e",
+        "resource-receipt.json": "1904c8e9c8c03a8c066a5088f44b91c09226af10a9019d771a317b89d8852b2f",
+        "seed.json": "936d116ba5a12dc31a0a5e7f374f4f4609f15fdd8b074753b0eeaedef38e2749",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "SHA256SUMS": "3cb0addb1bc4fc1959ebe8af979067617a9df97a1b89bcc50966f617d538c74d",
+        "compare-EVENTS.json": "223510347aed015409d078e6377ba742627ac9ad5d5e06e260b4ebef5cfaddac",
+        "compare-TYPE_EDGES.json": "28cb8b72f54a4afca0579e2d7793141b3a12b753b95e5783dbe0d20d893c9e34",
+        "compare-WIDE_ROWS.json": "333d97a6e709c2159f06d74038b714b998618f406c585d3bafdd9966b1482aff",
+        "concurrent-receipts.json": "032fc2cf93d5bb5ae2cc9becd249e8872766ab85831d7d85212510be2a54a318",
+        "corrected-receipts.json": "e818dbb8cb4fa9bb782845317b1517e8f2e0d5607584384e4f304678f0743c42",
+        "source-meter-1.json": "fbd4edd9fb2a7aeec03917a6742cfcd23894f158d65122eed7440b0e7fa0bead",
+        "source-meter-2.json": "ac6f18b9d426dec49435b9e2d99735800a8f66dca76d6e4c190e3e93aca5893a",
+        "source-meter-3.json": "f544c0be5bec54c411b6241ab712b66a64c95b4b14436db9a15981dbeede82fb"
+      }
+    },
+    {
+      "run_id": "e-s1-shared-t1-t8-r2-20261104",
+      "version_family": "23",
+      "version_actual": "23.5.0.24.07",
+      "T1": "passed",
+      "T8": "passed",
+      "failure": null,
+      "image": "docker.io/gvenzl/oracle-free:23.5-slim@sha256:0b6d2a693d9f77c8cb5e756411f60a38b4f854cf2a6b0be2f002942a66582aeb",
+      "platform": "linux/arm64",
+      "execution": "native",
+      "scale_rows": [
+        2000000,
+        2000000
+      ],
+      "small_tables": 200,
+      "tables_compared": 231,
+      "writer_cycles": 469,
+      "correction": "quiesce_writer_then_reread_all_tables",
+      "no_rewrite_resume": true,
+      "target_write_bytes": 177324402,
+      "target_write_basis": "committed_logical_stage_tuples_including_replaced_plans",
+      "model_tokens": 0,
+      "source_metrics": [
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 7.7370614764657555,
+          "elapsed_seconds": 100.52595791697968,
+          "sample_count": 387,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 4.061985777688081,
+          "elapsed_seconds": 97.56612204108387,
+          "sample_count": 375,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 14.075403814941422,
+          "elapsed_seconds": 5.479787125019357,
+          "sample_count": 22,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        }
+      ],
+      "cleanup_failures": [],
+      "artifacts_sha256": {
+        "t1-t8.json": "278a13226ad6cd3c38a78a3c9d463e03c73a54d8866248e195954edb3ad1f690",
+        "resource-receipt.json": "6d5b41bd0a8d16a036ff00cbfe67a6a988c46aa4084e24d9830f98440a3bb8cc",
+        "seed.json": "739f79aed99fc138c419273f9d5bccd765472fb3e5f1ab5dd8d1fce32e1dd2f4",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "SHA256SUMS": "4e655ef0551a1c0efb768a2d55e150245e4928eb16cb21d8a599e98f8fd981e6",
+        "compare-EVENTS.json": "223510347aed015409d078e6377ba742627ac9ad5d5e06e260b4ebef5cfaddac",
+        "compare-TYPE_EDGES.json": "28cb8b72f54a4afca0579e2d7793141b3a12b753b95e5783dbe0d20d893c9e34",
+        "compare-WIDE_ROWS.json": "333d97a6e709c2159f06d74038b714b998618f406c585d3bafdd9966b1482aff",
+        "concurrent-receipts.json": "4509ec0bc2ff5990c01ac790fccebb73ebb70f03d2d36947db670f52cc567f54",
+        "corrected-receipts.json": "a7262f0631d731df0638a62b7d1d030d04c8bf8c0c0ab3e7aec381888e5ab4b2",
+        "source-meter-1.json": "ae7407a8e65ed62de10ede41dc300ccd353a95200f5ca70a27ac06820233f9f9",
+        "source-meter-2.json": "b2ec2cb9682d8373cbd65a7c73f30978b1090813def4c7cfe6e940183d376af1",
+        "source-meter-3.json": "e8e8b13f36048b2bf2b6d0b316317a67b69300f51ab99ff7886de770ce71a1f9"
+      }
+    },
+    {
+      "run_id": "e-s1-shared-t1-t8-r2-20261104",
+      "version_family": "21",
+      "version_actual": "21.3.0.0.0",
+      "T1": "passed",
+      "T8": "failed",
+      "failure": null,
+      "image": "docker.io/gvenzl/oracle-xe:21.3.0-slim@sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d2b6d551aa79b2346f1ab8f792",
+      "platform": "linux/amd64",
+      "execution": "emulated",
+      "scale_rows": [
+        2000000,
+        2000000
+      ],
+      "small_tables": 200,
+      "tables_compared": 231,
+      "writer_cycles": 153,
+      "correction": "quiesce_writer_then_reread_all_tables",
+      "no_rewrite_resume": true,
+      "target_write_bytes": 175079202,
+      "target_write_basis": "committed_logical_stage_tuples_including_replaced_plans",
+      "model_tokens": 0,
+      "source_metrics": [
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 9.479099287984623,
+          "elapsed_seconds": 118.32762216695119,
+          "sample_count": 179,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 8.919897474475329,
+          "elapsed_seconds": 110.15447566693183,
+          "sample_count": 166,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "failed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 30.711351154949593,
+          "elapsed_seconds": 6.519776374916546,
+          "sample_count": 10,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        }
+      ],
+      "cleanup_failures": [],
+      "artifacts_sha256": {
+        "t1-t8.json": "99823350b94de92edf22a9a167fcff54d9406d5151042525c255c92e7f3cc495",
+        "resource-receipt.json": "fba6578b9294ae25fa0517918dec771a6f710a41f20dfbc2c911a37893ae0f37",
+        "seed.json": "739f79aed99fc138c419273f9d5bccd765472fb3e5f1ab5dd8d1fce32e1dd2f4",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "SHA256SUMS": "fe3c475c5fd80126a76e61d847761049b1a81050c55c8044ce24414f56663dad",
+        "compare-EVENTS.json": "223510347aed015409d078e6377ba742627ac9ad5d5e06e260b4ebef5cfaddac",
+        "compare-TYPE_EDGES.json": "28cb8b72f54a4afca0579e2d7793141b3a12b753b95e5783dbe0d20d893c9e34",
+        "compare-WIDE_ROWS.json": "333d97a6e709c2159f06d74038b714b998618f406c585d3bafdd9966b1482aff",
+        "concurrent-receipts.json": "b950ea2aee8918451f84126ea2975c77eb29e6d238d2a97ecef16f219dcfda1a",
+        "corrected-receipts.json": "d9dd5d8b54b2100d391b3b5e42b26c5b7c64e3b9ecdad00b2092060c55dd6a5f",
+        "source-meter-1.json": "3053fe86e82e983b22f6724df8d24aa7dd454861ee9696d22f450472fbffb19d",
+        "source-meter-2.json": "9e4bdeba87a1c76d3a8a27fda1d0486651858ade1035e82fc880c216f504c03c",
+        "source-meter-3.json": "b90e9af7ad66940564eec7f2835d1cb13ae9da9f702a3d04ba23119480a218e2"
+      }
+    },
+    {
+      "run_id": "e-s1-shared-t1-t8-r2-20261104",
+      "version_family": "11",
+      "version_actual": "11.2.0.2.0",
+      "T1": "passed",
+      "T8": "passed",
+      "failure": null,
+      "image": "docker.io/gvenzl/oracle-xe:11.2.0.2@sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8",
+      "platform": "linux/amd64",
+      "execution": "emulated",
+      "scale_rows": [
+        2000000,
+        2000000
+      ],
+      "small_tables": 200,
+      "tables_compared": 231,
+      "writer_cycles": 186,
+      "correction": "quiesce_writer_then_reread_all_tables",
+      "no_rewrite_resume": true,
+      "target_write_bytes": 176415998,
+      "target_write_basis": "committed_logical_stage_tuples_including_replaced_plans",
+      "model_tokens": 0,
+      "source_metrics": [
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 4.8319379998206555,
+          "elapsed_seconds": 114.83627104188781,
+          "sample_count": 201,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 8.724353587078062,
+          "elapsed_seconds": 105.20651512499899,
+          "sample_count": 187,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "connections_peak": 1,
+          "aggregate_duty_percent": 0.0,
+          "elapsed_seconds": 7.11318275006488,
+          "sample_count": 13,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        }
+      ],
+      "cleanup_failures": [],
+      "artifacts_sha256": {
+        "t1-t8.json": "d7bfd01e2c6bb0308e059d89e5b464b5c0cbc69e4409a31d72664928db0dc3d0",
+        "resource-receipt.json": "623955856a3302587a8e83f50ab5b6d6b3f2283ff47c68f5bd8e9b13965669c6",
+        "seed.json": "936d116ba5a12dc31a0a5e7f374f4f4609f15fdd8b074753b0eeaedef38e2749",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "SHA256SUMS": "d079ea0993d921b7f09120d3ece1b9c4c1c6cbe06de31daa3552d67deb90f498",
+        "compare-EVENTS.json": "223510347aed015409d078e6377ba742627ac9ad5d5e06e260b4ebef5cfaddac",
+        "compare-TYPE_EDGES.json": "28cb8b72f54a4afca0579e2d7793141b3a12b753b95e5783dbe0d20d893c9e34",
+        "compare-WIDE_ROWS.json": "333d97a6e709c2159f06d74038b714b998618f406c585d3bafdd9966b1482aff",
+        "concurrent-receipts.json": "e2319793a8b81979d7e8cb847486f85830c146d4342e96294c9eb111f8f327fa",
+        "corrected-receipts.json": "6f8391785e16216d0eb7ad3fee9b767f7e5fc12aa75937be1ae70957fce75835",
+        "source-meter-1.json": "fd7f584e3f1310f002ee369dc933703bc4f45359f274e8ff4b56abd7ff4eb741",
+        "source-meter-2.json": "0691b35582f777d1b509e9e476891e999c758de986cf954ab7a83d36ac5f236a",
+        "source-meter-3.json": "b78562a833b9d355e11dd021075b55f142b036a9b810d3882fc5d55f07c9b4d7"
+      }
+    }
+  ],
+  "status": "partial",
+  "limitations": [
+    "The rerun 21c no-rewrite resume exceeds the unchanged 25 percent sampled read-duty budget.",
+    "The shared oo-load run_engine calls probe without ReadBudget pacing; this is a suspected contributor, not isolated causal proof.",
+    "The initial 23 run failed during comparison on a predispatch Docker socket refusal.",
+    "The initial 21 run passed T1 but failed T8 because a sampler query hit that same refusal.",
+    "Original failed evidence is retained; the rerun uses bounded read-only retries without changing budgets.",
+    "Read duty and peak are sampled from v$session, not continuous observation.",
+    "Target write bytes count committed logical stage tuples, not physical disk writes.",
+    "This hook requires the existing oracle_t1.py comparator from commit 327ecbe85; full LOB loading requires 7eae366ec."
+  ],
+  "requested_shared_patch": {
+    "path": "tools/oo-load/src/main.rs",
+    "status": "suggested_not_applied_or_runtime_tested",
+    "diff": "--- a/tools/oo-load/src/main.rs\n+++ b/tools/oo-load/src/main.rs\n@@ -90,7 +90,14 @@\n     store: &SecretStore,\n     budget: &ReadBudget,\n ) -> Result<(), String> {\n+    let duty = u32::from(budget.duty_cycle_percent);\n+    if !(1..=100).contains(&duty) {\n+        return Err(\"invalid_probe_duty_cycle\".into());\n+    }\n+    let probe_started = std::time::Instant::now();\n     let probe = engine.probe().await.map_err(|e| e.to_string())?;\n+    // Metadata reads also consume source budget on no-rewrite resumes.\n+    tokio::time::sleep(probe_started.elapsed() * (100 - duty) / duty).await;\n     for table in tables {\n         let password = store.read(&target.password.secret_ref)?;\n         let mut options = PgConnectOptions::new()\n"
+  },
+  "final_verification": {
+    "verified_manifest_files": 30396,
+    "owned_resources_remaining": 0,
+    "all_version_cleanup_failures": []
+  }
+}

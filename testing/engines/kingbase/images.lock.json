@@ -1,0 +1,14 @@
+{
+  "images": [
+    {
+      "id": "kingbase-v9r1c10-b0004",
+      "archive": "KingbaseES_V009R001C010B0004_aarch64_Docker.tar",
+      "archive_sha256": "3d08f5a99f5659723c34315b71d49f783847cba19c7a0c61c2628bf9f131c8ee",
+      "image_id": "sha256:6cb9dd8112e40dd4677790f682426959e849cd8f9a04c63ad34c1d1eb1b7303c",
+      "platform": "linux/arm64",
+      "mode": "pg",
+      "license": "bundled developer license, unmodified",
+      "target_id": "kingbase-pg-mode"
+    }
+  ]
+}

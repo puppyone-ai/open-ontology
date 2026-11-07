@@ -11,8 +11,8 @@ description = "Replace-only CSV, TSV, and JSONL import into an unpublished Postg
 resolver = "3"
 
 [dependencies]
-arrow-array = { version = "=60.0.0", default-features = false }
-arrow-schema = { version = "=60.0.0", default-features = false }
+arrow-array = { version = "=60.1.0", default-features = false }
+arrow-schema = { version = "=60.1.0", default-features = false }
 oo-connectors = { path = "../../crates/oo-connectors" }
 oo-core = { path = "../../crates/oo-core" }
 oo-pipeline = { path = "../../crates/oo-pipeline" }
@@ -24,8 +24,8 @@ sqlx-core = { version = "=0.9.0", default-features = false, features = ["_rt-tok
 tokio = { version = "=1.53.1", default-features = false, features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
-arrow-array = { version = "=60.0.0", default-features = false }
-arrow-schema = { version = "=60.0.0", default-features = false }
+arrow-array = { version = "=60.1.0", default-features = false }
+arrow-schema = { version = "=60.1.0", default-features = false }
 oo-connectors = { path = "../../crates/oo-connectors" }
 oo-core = { path = "../../crates/oo-core" }
 oo-pipeline = { path = "../../crates/oo-pipeline" }

@@ -4,6 +4,22 @@
   "not_product_baseline": "These pins are test-fixture and builder images. They are not an admission that P14 driver behavior, Debezium protocol behavior, or gVisor is proven.",
   "images": [
     {
+      "id": "oracle-enterprise-19.19.0.0",
+      "ref": "container-registry.oracle.com/database/enterprise:19.19.0.0",
+      "index_digest": "sha256:3843234f6fd1ed084b1dd7ad42eeeaa95ad13f12c790810cb368bb58f8ad42ba",
+      "engine_matrix": "v0.2",
+      "resolved_on": "2026-11-05",
+      "license": "Oracle registry terms",
+      "license_note": "Owner-done: Oracle account, registry license acceptance and Docker login (E365). No credentials are stored here. Runtime acceptance is separate.",
+      "source": "container-registry.oracle.com/database/enterprise:19.19.0.0",
+      "platforms": {
+        "linux/arm64": {
+          "digest": "sha256:3843234f6fd1ed084b1dd7ad42eeeaa95ad13f12c790810cb368bb58f8ad42ba",
+          "created": "2024-12-11T17:29:21.440952974Z"
+        }
+      }
+    },
+    {
       "id": "rust-1.98.1",
       "ref": "docker.io/library/rust:1.98.1",
       "index_digest": "sha256:a8a5f0a1e5fe7dfe1d352591e4a1c7dd2c08fd70475cae872cf3458ba0df0546",
@@ -147,6 +163,292 @@
           "digest": "sha256:5ab4b4e8f476fd5452eb9584a608dd7cf8c11135878a8f7953722a9fcb9b3d87"
         }
       }
+    },
+    {
+      "id": "mysql-5.7.44",
+      "ref": "docker.io/library/mysql:5.7.44",
+      "index_digest": "sha256:4bc6bc963e6d8443453676cae56536f4b8156d78bae03c0145cbe47c2aad73bb",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2023-12-15T01:02:40Z",
+      "license": "GPL-2.0 with additional permissions",
+      "license_note": "Final MySQL 5.7 release (EOL 2023-10). The tag publishes linux/amd64 only; on Apple Silicon it runs under Rosetta emulation (Plan D1). Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "source": "https://github.com/docker-library/mysql",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:dab0a802b44617303694fb17d166501de279c3031ddeb28c56ecf7fcab5ef0da",
+          "created": "Z"
+        }
+      }
+    },
+    {
+      "id": "mysql-8.0.44",
+      "ref": "docker.io/library/mysql:8.0.44",
+      "index_digest": "sha256:9c3380eac945af0736031b200027f581925927c81e010056214a4bd6b6693714",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-01-17T01:02:36.889005Z",
+      "license": "GPL-2.0 with additional permissions",
+      "license_note": "MySQL Community Server, GPL-2.0 with additional permissions. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
+      "source": "https://github.com/docker-library/mysql",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:f7878bec832c6be5e61c39d3949651be8aa977daf875089b4560ae1434d2cb9c",
+          "created": "2026-01-16T23:29:15.874862956Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:2c4989e05aa3ceb8cb6eb8a1b1f38ffa361eac2fec96ec67705d1b21c6390527",
+          "created": "2026-01-16T23:31:32.401062257Z"
+        }
+      }
+    },
+    {
+      "id": "mysql-8.4.7",
+      "ref": "docker.io/library/mysql:8.4.7",
+      "index_digest": "sha256:0426ec38c7a10aa45ba383887df7878f74ee70e2fd589c7b69207f3577901903",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-01-17T01:02:48.969206Z",
+      "license": "GPL-2.0 with additional permissions",
+      "license_note": "MySQL Community Server, GPL-2.0 with additional permissions. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
+      "source": "https://github.com/docker-library/mysql",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:6c6706ec58d3ac9e925d5f0435c6a923117f68232551b9c8271a294ea72ee331",
+          "created": "2026-01-16T23:27:23.407495408Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:6f952b3897aca5d7ca620d3d9679845351641265b1dbc3012ea29253abb57e65",
+          "created": "2026-01-16T23:31:05.719552733Z"
+        }
+      }
+    },
+    {
+      "id": "mysql-9.5.0",
+      "ref": "docker.io/library/mysql:9.5.0",
+      "index_digest": "sha256:57c892ddeb17e6c7dddf219914db017b2cf3e2797806a75424444b83622cc8ef",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-01-17T01:03:13.560104Z",
+      "license": "GPL-2.0 with additional permissions",
+      "license_note": "MySQL Community Server, GPL-2.0 with additional permissions. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
+      "source": "https://github.com/docker-library/mysql",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:00f711aeca86bf8a3e0e6dfd44f2a2b76014fc5fb59eda6c16cca3d692078d6e",
+          "created": "2026-01-16T23:19:09.454305014Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:3427e5b50d1eaf469e858e1ac026d643b87b2dde1037c59d87bceb1751fd1fa4",
+          "created": "2026-01-16T23:30:41.867097353Z"
+        }
+      }
+    },
+    {
+      "id": "postgres-12.22-bookworm",
+      "ref": "docker.io/library/postgres:12.22-bookworm",
+      "index_digest": "sha256:2f2a8c2a7d10862e7fba2602e304523554f9df8244c632dafe2628ccb398fb5c",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2025-01-14T21:07:49Z",
+      "license": "PostgreSQL",
+      "license_note": "PostgreSQL 12 is EOL; 12.22 is final. experimental only (docs/product/05 section 1). Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "source": "https://github.com/docker-library/postgres",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:4bf4eb8e5932534db5fb9d3d91a212a91406aecf1fa626a60df4a9e2781d73ae",
+          "created": "2024-11-21T20:05:42Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:9fc57848f07313edb7e40e2f659b5e7ac7f59fe70885dff51f0c0b4e7b16d4d7",
+          "created": "2024-11-21T20:05:42Z"
+        }
+      }
+    },
+    {
+      "id": "postgres-13.23-bookworm",
+      "ref": "docker.io/library/postgres:13.23-bookworm",
+      "index_digest": "sha256:f0cffcc050a9f1f3c78a9968e221badc1cdd02e2ae15b1de9b12bee1ba5ea2db",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2025-11-14T06:08:11Z",
+      "license": "PostgreSQL",
+      "license_note": "PostgreSQL 13 reached EOL in November 2025; 13.23 is the final bookworm tag. Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "source": "https://github.com/docker-library/postgres",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:2e78713a29d695a6ea8faf96bb9267946e89c6199c9310158af765dc61394009",
+          "created": "2025-11-13T21:09:23Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:fb7d1e42340aa01689ea2ce654dfa140ab260a9e26796e63d545860942a34c71",
+          "created": "2025-11-13T21:09:19Z"
+        }
+      }
+    },
+    {
+      "id": "postgres-14.24-bookworm",
+      "ref": "docker.io/library/postgres:14.24-bookworm",
+      "index_digest": "sha256:a389ed49344afc8f4444efd4eb512965df07aaa6ed84b239b54a23246e9fe347",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-10-28T07:08:12.642899Z",
+      "license": "PostgreSQL",
+      "license_note": "PostgreSQL License, https://www.postgresql.org/about/licence/. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
+      "source": "https://github.com/docker-library/postgres",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:819fe383d809a6fb33fbb0c3ea49da673c3b00c62b3f63f4a0c63928a204e2c5",
+          "created": "2026-10-28T01:31:48.383508521Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:019ca8f65034a7dd36a7e46e855d441c61098051c47d77bf048803b8b48ecd62",
+          "created": "2026-10-28T01:34:58.549374313Z"
+        }
+      }
+    },
+    {
+      "id": "postgres-15.19-bookworm",
+      "ref": "docker.io/library/postgres:15.19-bookworm",
+      "index_digest": "sha256:daeac543477e189e334f159133f4be6dae739b005cec2dfb9d482509fed05465",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-10-28T07:08:56.102307Z",
+      "license": "PostgreSQL",
+      "license_note": "PostgreSQL License, https://www.postgresql.org/about/licence/. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
+      "source": "https://github.com/docker-library/postgres",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:e8dc73ea5af67c3f10ddf83e556c920c295f0d54252b95cc40bb159c1dd1c582",
+          "created": "2026-10-28T01:31:41.933927369Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:836186263463698145f0ed1b784854190dcf9392c1550d275ae1e656a28007d5",
+          "created": "2026-10-28T01:34:53.043087714Z"
+        }
+      }
+    },
+    {
+      "id": "postgres-16.15-bookworm",
+      "ref": "docker.io/library/postgres:16.15-bookworm",
+      "index_digest": "sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-10-28T07:09:37.452364Z",
+      "license": "PostgreSQL",
+      "license_note": "PostgreSQL License, https://www.postgresql.org/about/licence/. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
+      "source": "https://github.com/docker-library/postgres",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:cf5d353f55240ecc2f811827a15c7d1f2d562f08019b49dca12b5a59f4ab5962",
+          "created": "2026-10-28T01:31:27.096067881Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:c7d8cf162cb365b478761fa957ff4e58c2cd0ee748c6084056955de0dda9abf4",
+          "created": "2026-10-28T01:34:19.430369901Z"
+        }
+      }
+    },
+    {
+      "id": "postgres-18.6-bookworm",
+      "ref": "docker.io/library/postgres:18.6-bookworm",
+      "index_digest": "sha256:5c4783a8cc3f0074912164f94dfa1be4e043438f0f707cf968d7af9a0d31a2c8",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-10-28T07:10:59.869689Z",
+      "license": "PostgreSQL",
+      "license_note": "PostgreSQL License, https://www.postgresql.org/about/licence/. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
+      "source": "https://github.com/docker-library/postgres",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:41a369edc91d9bdd7a58be6bc71ea0f8f7a3f49e82818a9f0829021ea7840b7c",
+          "created": "2026-10-28T01:31:12.129346901Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:a1ece8fa15f7b526a51ef47a22fb1f373d33de794dc26bf7bff99e61dcb52690",
+          "created": "2026-10-28T01:33:36.210679937Z"
+        }
+      }
+    },
+    {
+      "id": "oracle-free-23.5-slim",
+      "ref": "docker.io/gvenzl/oracle-free:23.5-slim",
+      "index_digest": "sha256:93f68828039fd15fcd9fb58090535c13df8f38ea2afc63feb2010d8ca3cd947c",
+      "license": "Oracle Free Use Terms and Conditions (database); MIT (gvenzl image build files)",
+      "license_note": "Oracle Database 23ai Free 23.5. Explicitly selected instead of the 26ai 23.26 line to test the card target. Local synthetic fixtures only.",
+      "source": "https://github.com/gvenzl/oci-oracle-free",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:51e82abdffb69eeffaf26a9beef265c9fc62966ff69b228240281edcf4ec2444"
+        },
+        "linux/arm64": {
+          "digest": "sha256:0b6d2a693d9f77c8cb5e756411f60a38b4f854cf2a6b0be2f002942a66582aeb"
+        }
+      }
+    },
+    {
+      "id": "oracle-xe-21.3.0-slim",
+      "ref": "docker.io/gvenzl/oracle-xe:21.3.0-slim",
+      "manifest_digest": "sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d2b6d551aa79b2346f1ab8f792",
+      "index_digest": null,
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2024-10-01T03:38:06Z",
+      "license": "Oracle Free Use Terms and Conditions (database); MIT (gvenzl image build files)",
+      "license_note": "Oracle Database 21c XE slim by gvenzl. Single linux/amd64 manifest, no index; runs under Rosetta emulation on Apple Silicon (Plan D1). Local test fixture only. Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "source": "https://github.com/gvenzl/oci-oracle-xe",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d2b6d551aa79b2346f1ab8f792",
+          "created": "2024-09-30T02:19:40Z"
+        }
+      }
+    },
+    {
+      "id": "oracle-xe-11.2.0.2",
+      "ref": "docker.io/gvenzl/oracle-xe:11.2.0.2",
+      "manifest_digest": "sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8",
+      "index_digest": null,
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2024-10-01T03:20:50Z",
+      "license": "Oracle Technology Network License for Oracle Database Express Edition (database); MIT (gvenzl image build files)",
+      "license_note": "Oracle Database 11g R2 XE (11.2.0.2) by gvenzl, full variant. Single linux/amd64 manifest, no index; runs under Rosetta emulation (Plan D1). XE 11g has no partitioning option and no PDB. Local test fixture only. Selected on 2026-11-04 under the repository seven-day age gate (a tag updated on or after 2026-10-28 is not pinned).",
+      "source": "https://github.com/gvenzl/oci-oracle-xe",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8",
+          "created": "2024-09-30T00:18:52Z"
+        }
+      }
+    },
+    {
+      "id": "postgres-17.11-bookworm",
+      "ref": "docker.io/library/postgres:17.11-bookworm",
+      "index_digest": "sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
+      "hub_tag_digest_matches_index": true,
+      "hub_tag_last_updated": "2026-10-28T07:10:19.445515Z",
+      "license": "PostgreSQL",
+      "license_note": "PostgreSQL License, https://www.postgresql.org/about/licence/. Exact T1/T8 acceptance version selected by coordinator for H-S2-pins; not the newest available patch. Registry and both platform manifests verified on 2026-11-04.",
+      "source": "https://github.com/docker-library/postgres",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:2cd2c0f809604aaeff6f0ec8f40aecbd025613107561015c69369a1a7f1d3416",
+          "created": "2026-10-28T01:31:24.32855846Z"
+        },
+        "linux/arm64": {
+          "digest": "sha256:e692f23ba2393c8b13879dd4ee9f4f0d7bd146fbddceb4c8e10c4ce1fb53e737",
+          "created": "2026-10-28T01:34:14.812684623Z"
+        }
+      }
     }
-  ]
+  ],
+  "engine_matrix_v02": {
+    "resolved_on": "2026-11-04",
+    "resolution": "docker buildx imagetools inspect --raw for the index and platform manifests, docker buildx imagetools inspect --format '{{json .Image}}' for created times, Docker Hub tag API for the tag digest and last_updated. Oracle XE tags are single amd64 manifests, so manifest_digest is the pin and index_digest is null.",
+    "age_gate": "MySQL and PostgreSQL use the exact T1/T8 acceptance patches designated by coordinator H-S2-pins, not latest-patch selection. Oracle pins retain their existing selection. Legacy SP00 pins are excluded from v0.2 resolution.",
+    "run_policy": "tools/oo-test runs ref@platform_digest from images.pins with an explicit --platform; Docker server native architecture when available, else linux/amd64 under emulation. Oracle Free is deliberately pinned to 23.5 for 23ai coverage rather than the newer 26ai line."
+  }
 }

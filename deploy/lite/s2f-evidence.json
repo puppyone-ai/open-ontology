@@ -1,0 +1,136 @@
+{
+  "todo": "S2-A-02",
+  "status": "partial",
+  "run_id": "a-s2f-operator-1",
+  "engine": "PostgreSQL",
+  "version": "17.10 (Debian 17.10-1.pgdg12+1)",
+  "operator_boundary": "passed",
+  "http_cases": 189,
+  "canonical_audience_expiry_verified": true,
+  "certificate_expiry_verified": true,
+  "seven_service_acceptance": false,
+  "three_engine_drafts": true,
+  "sha256": {
+    "result.json": "ce24adeb5022086c96e5f31f2e72571a952cd98bd7c2ba3d056914090b9cf674",
+    "http-statuses.json": "0b0e5ba5124958849359c5a1a7e3a9cccc59e8132cd57fa31cd82bda0d8454a3",
+    "health.json": "6396530f9043014a65ae1d3c50ae42cdb13a827545c410c13bfc888893aed2af"
+  },
+  "first_up": {
+    "run_id": "a-s2f-first-up",
+    "result": "passed",
+    "scope": "three-service foundations ONLY",
+    "full_stack_acceptance": false,
+    "installed_pointer": false,
+    "healthy_foundation_services": 3,
+    "credential_reuse": "unchanged",
+    "operator_issued_automatically": true,
+    "operator_role": "lite_operator",
+    "gateway_health": "unavailable",
+    "containers_left": 0,
+    "result_sha256": "0ae821750e0e830bcd723d0fa4f780d856990cd583e83a5050d7a3188117bb84"
+  },
+  "drafts": [
+    {
+      "run_id": "a-s2f-pg-draft-3",
+      "status": "passed",
+      "engine": "postgres",
+      "version_requested": "17",
+      "publication": "not_published",
+      "review": "unreviewed",
+      "engine_version": {
+        "family": "postgres",
+        "major": 17,
+        "minor": 10,
+        "patch": 0,
+        "raw": "17.10 (Debian 17.10-1.pgdg12+1)"
+      },
+      "agent_db_load": "local_table_views",
+      "consistency": "B",
+      "source_time": "unmeasured",
+      "max_generation_calls": 2,
+      "max_completion_tokens_per_call": 8192,
+      "source_to_draft_command": "oo build --agent-target",
+      "cleanup_failures": [],
+      "generation_calls": 1,
+      "prompt_tokens": 1007,
+      "completion_tokens": 620,
+      "result_sha256": "fe09a0dae89338f8ae1012deb75355dc9de9f1fb3a443882399408d8939ddbbe",
+      "draft_sha256": "34f553ded8a90815d45ab0e6c42b2a950b32c63d922fafe3a3aae03bcf6eb5b8",
+      "receipts_sha256": "b4755cd8e1e022b9346596c47a24eab8c7d9a326ee07f2b2d91ba4f612b2ad81"
+    },
+    {
+      "run_id": "a-s2f-mysql-draft-1",
+      "status": "passed",
+      "engine": "mysql",
+      "version_requested": "8.4",
+      "publication": "not_published",
+      "review": "unreviewed",
+      "engine_version": {
+        "family": "mysql",
+        "major": 8,
+        "minor": 4,
+        "patch": 11,
+        "raw": "8.4.11"
+      },
+      "agent_db_load": "local_table_views",
+      "consistency": "B",
+      "source_time": "unmeasured",
+      "max_generation_calls": 2,
+      "max_completion_tokens_per_call": 8192,
+      "source_to_draft_command": "oo build --agent-target",
+      "cleanup_failures": [],
+      "generation_calls": 1,
+      "prompt_tokens": 990,
+      "completion_tokens": 591,
+      "result_sha256": "28f122a088327aa81b0303ec446dc910436c281f000e70d738feac54bd603398",
+      "draft_sha256": "c92338946dc3185a322a3b9c6099c6ea586df699a8559c1996827aeef5de7086",
+      "receipts_sha256": "cd137d07af248b011a071347544d0a5f0d95c1ea4133053bc25904e3835c66b2"
+    },
+    {
+      "run_id": "a-s2f-oracle-draft-2",
+      "status": "passed",
+      "engine": "oracle",
+      "version_requested": "23.5",
+      "publication": "not_published",
+      "review": "unreviewed",
+      "engine_version": {
+        "family": "oracle",
+        "major": 23,
+        "minor": 5,
+        "patch": 0,
+        "raw": "23.5.0.24.07"
+      },
+      "agent_db_load": "local_table_views",
+      "consistency": "B",
+      "source_time": "unmeasured",
+      "max_generation_calls": 2,
+      "max_completion_tokens_per_call": 8192,
+      "source_to_draft_command": "oo build --agent-target",
+      "cleanup_failures": [],
+      "generation_calls": 1,
+      "prompt_tokens": 999,
+      "completion_tokens": 602,
+      "result_sha256": "7f2284d402152d7326f686ade9bc8ef67fc5eaf031fa9760c3ec1fca020aa68c",
+      "draft_sha256": "1e3ab9c821b7462f9b92672f8993946f3f2ea8ac068ee3f25470d7439ef0468a",
+      "receipts_sha256": "0af116736e2e8f181c56062283b9138d6fff8c3ba0574af085e16a2661b79d4d"
+    }
+  ],
+  "retained_failures": {
+    "a-s2f-pg-draft-1": "fixture startup settings refused by connector",
+    "a-s2f-pg-draft-2": "diagnostic confirmed session_identity; SELECT-only fixture reset to clean startup",
+    "a-s2f-oracle-draft-1": "fixture lacked CURRENT_SCN read privilege; added SELECT on V_$DATABASE using fixture admin"
+  },
+  "integration_seams": {
+    "run_id": "a-s2f-boundary",
+    "basis": "source inspection, not live acceptance",
+    "sha256": "68eddb96f805e96c704c0f19d7a8bf7aa7953fb6d1f1248f0e7fedf8543adeaa"
+  },
+  "worker_dispatch": {
+    "implementation": "native-step in the scheduler project instead of proof-only serve",
+    "unit_tests": "21 passed",
+    "run_id": "a-s2f-boundary",
+    "test_log": "native-dispatch-tests.log",
+    "test_log_sha256": "c89785e7f5a6bca3c60edf9b43e053522fcd5b200232a52727c747e95c776245",
+    "scheduled_cycle_verified": false
+  }
+}

@@ -15,6 +15,8 @@ sys.dont_write_bytecode = True
 from check_spec import BASELINE, SPEC, inspect as inspect_spec
 
 PLAN = SPEC.with_name('open-ontology-v0.1-plan.md')
+# v0.2 product-loop ATs (spec chapter 7B) are executed by the v0.2 plan.
+V02_PLAN = SPEC.with_name('product-loops-v0.2-plan.md')
 TASK = r'SP\d{2}-W\d{2}'
 
 
@@ -54,7 +56,10 @@ def inspect(text: str, spec: str) -> tuple[list[str], dict]:
     unknown_at = acceptance_ids(text) - all_acceptance
     if unknown_at:
         errors.append(f'Undefined AT references: {sorted(unknown_at)}')
-    missing_at = all_acceptance - acceptance_ids(text)
+    v02 = V02_PLAN.read_text() if V02_PLAN.exists() else ''
+    if acceptance_ids(v02) - all_acceptance:
+        errors.append(f'Undefined AT references in v0.2 plan: {sorted(acceptance_ids(v02) - all_acceptance)}')
+    missing_at = all_acceptance - acceptance_ids(text) - acceptance_ids(v02)
     if missing_at:
         errors.append(f'Acceptance execution coverage missing: {sorted(missing_at)}')
     stats['acceptance_references'] = len(acceptance_ids(text))

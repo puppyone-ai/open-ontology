@@ -133,11 +133,15 @@ impl ChatTransport for ScriptedTransport {
 }
 
 pub fn column_batch_ranges(column_count: usize) -> Vec<(usize, usize)> {
-    const BATCH: usize = 8;
+    let budget = oo_builder::budget::Budgeter::default();
+    let items: Vec<_> = (0..column_count).map(|i| oo_builder::budget::Item {
+        id: format!("column:{i}"), kind: oo_builder::budget::Kind::Column,
+        input: json!({"name":format!("column_{i}")}),
+    }).collect();
     let mut ranges = Vec::new();
     let mut start = 0;
-    while start < column_count {
-        let end = (start + BATCH).min(column_count);
+    for batch in budget.plan(&items, &json!({})).expect("default column budget") {
+        let end = start + batch.items.len();
         ranges.push((start, end));
         start = end;
     }
@@ -158,12 +162,10 @@ pub fn generate(mut input: GenerateIn<'_>) -> Result<Value, PgBuilderError> {
     if tables.is_empty() {
         return Err(PgBuilderError::new("approval.schema", "the cards have no tables"));
     }
-    if tables.len() > input.config.max_tables {
-        return Err(PgBuilderError::new("config.budget", "the card list is above the table budget"));
-    }
     let mut docs = Vec::new();
+    let mut budget = generation_budget(input.config);
     for table in &tables {
-        docs.extend(generate_table(&mut input, table)?);
+        docs.extend(generate_table(&mut input, table, &mut budget)?);
     }
     if docs.len() == 1 {
         return Ok(docs.remove(0));
@@ -171,10 +173,26 @@ pub fn generate(mut input: GenerateIn<'_>) -> Result<Value, PgBuilderError> {
     Ok(aggregate(input.config, &docs))
 }
 
-fn generate_table(input: &mut GenerateIn<'_>, table: &Value) -> Result<Vec<Value>, PgBuilderError> {
+fn generate_table(input: &mut GenerateIn<'_>, table: &Value,
+    calibrated: &mut oo_builder::budget::Budgeter) -> Result<Vec<Value>, PgBuilderError> {
     let dataset = table.get("dataset").and_then(Value::as_str).unwrap_or("");
     let column_count = table.get("columns").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
-    let ranges = column_batch_ranges(column_count);
+    let columns = table.get("columns").and_then(Value::as_array)
+        .ok_or_else(|| PgBuilderError::new("compiler.columns", "a selected table has no columns"))?;
+    let mut budget = calibrated.clone();
+    // Leave room for the first shard's table-level candidate.
+    let table_reserve = budget.table_output.ceil() as u64;
+    budget.capabilities.max_output = budget.capabilities.max_output.saturating_sub(table_reserve);
+    budget.capabilities.system_overhead = budget.capabilities.system_overhead.saturating_add(table_reserve);
+    let items: Vec<_> = columns.iter().enumerate().map(|(i,c)|oo_builder::budget::Item {
+        id:format!("column:{i}"),kind:oo_builder::budget::Kind::Column,input:c.clone()
+    }).collect();
+    let batches = budget.plan(&items, &json!({"instructions":PROMPT}))
+        .map_err(|_|PgBuilderError::new("config.budget", "the column or prompt cannot fit the model budget"))?;
+    let mut offset = 0;
+    let ranges: Vec<_> = batches.iter().map(|b| {
+        let start=offset; offset+=b.items.len(); (start,offset)
+    }).collect();
     if ranges.is_empty() {
         return Err(PgBuilderError::new("compiler.columns", "a selected table has no columns"));
     }
@@ -207,7 +225,7 @@ fn generate_table(input: &mut GenerateIn<'_>, table: &Value) -> Result<Vec<Value
     let mut docs = Vec::new();
     for (batch_index, (column_from, column_to)) in ranges.into_iter().enumerate() {
         let scope = BatchScope { table, column_from, column_to, batch_index, batch_count, dataset };
-        docs.push(generate_batch(input, &command_text, &request_text, &request, &scope)?);
+        docs.push(generate_batch(input, &command_text, &request_text, &request, &scope, calibrated)?);
     }
     Ok(docs)
 }
@@ -218,18 +236,39 @@ fn generate_batch(
     request_text: &str,
     request: &Value,
     scope: &BatchScope<'_>,
+    budget: &mut oo_builder::budget::Budgeter,
 ) -> Result<Value, PgBuilderError> {
     let model_input = model_input(input.config, request, scope)?;
     let model_input_text = canonical_json(&model_input);
+    let mut items: Vec<_> = scope.table["columns"].as_array().into_iter().flatten()
+        .skip(scope.column_from).take(scope.column_to-scope.column_from).enumerate()
+        .map(|(i,_)|oo_builder::budget::Item {id:i.to_string(),
+            kind:oo_builder::budget::Kind::Column,input:Value::Null}).collect();
+    if scope.batch_index == 0 {
+        items.push(oo_builder::budget::Item {id:"table".into(),
+            kind:oo_builder::budget::Kind::Table,input:Value::Null});
+    }
+    let allocation = budget.allocation(&items,
+        &json!({"instructions":PROMPT,"request":model_input}));
+    if allocation.is_none() {
+        return Ok(failure_document(input, "", request_text, "budget_failure",
+            Some("context"), "not_opened", scope));
+    }
     if contains_secret(model_input_text.as_bytes(), input.token) {
         return Err(PgBuilderError::new("config.secret", "the bearer is present outside its file"));
     }
     let input_sha = input_hash(input.config, input.cards, request, scope)?;
     let evidence_hash = input.cards.get("evidence_hash").and_then(Value::as_str).unwrap_or("");
     if let Some(cached) = read_validated(input.cache_dir, &input_sha, evidence_hash)? {
+        let usage = &cached["transport"]["usage"];
+        if let (Some(prompt), Some(completion)) =
+            (usage["prompt_tokens"].as_u64(), usage["completion_tokens"].as_u64()) {
+            budget.calibrate(&items, allocation.expect("checked allocation").0, prompt, completion);
+        }
         return Ok(mark_hit(cached));
     }
-    let chat = chat_body(input.config, &model_input_text)?;
+    let mut chat = chat_body(input.config, &model_input_text)?;
+    chat["max_completion_tokens"] = json!(allocation.expect("checked allocation").1);
     let chat_bytes = serde_json::to_vec(&chat)
         .map_err(|_| PgBuilderError::new("budget.request_bytes", "the chat body could not be encoded"))?;
     if chat_bytes.len() > input.config.max_request_bytes {
@@ -245,7 +284,26 @@ fn generate_batch(
     }
     let reply = input.transport.post(&chat_bytes)?;
     let parsed = parse_completion(input.config, input.token, &reply)?;
+    if reply.http_status == 429 || parsed.refusal.is_some_and(|s|
+        s.contains("usage_limit") || s.contains("cooldown")) {
+        return Err(PgBuilderError::new("provider.quota", "quota stopped new batch dispatch; completed cache receipts are retained"));
+    }
+    if parsed.status == "complete" {
+        if let Some((prompt, completion, _)) = parsed.usage {
+            budget.calibrate(&items, allocation.expect("checked allocation").0, prompt, completion);
+        }
+    }
     finish_generation(input, &input_sha, command_text, &model_input_text, parsed, scope)
+}
+
+fn generation_budget(config: &Config) -> oo_builder::budget::Budgeter {
+    let mut capabilities = config.capabilities.clone().unwrap_or_default();
+    capabilities.window = capabilities.window.min(config.max_total_tokens);
+    capabilities.max_output = capabilities.max_output.min(config.max_completion_tokens);
+    oo_builder::budget::Budgeter {
+        capabilities,
+        ..Default::default()
+    }
 }
 
 fn mark_hit(mut hit: Value) -> Value {

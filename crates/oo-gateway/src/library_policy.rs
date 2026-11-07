@@ -328,6 +328,29 @@ fn local_operator_review(document: &Value) -> Result<bool, &'static str> {
     Ok(true)
 }
 
+fn community_review(
+    envelope: &Value,
+    effective: &Value,
+    visibility: &Value,
+) -> Result<(), &'static str> {
+    let producer = &envelope["producer"];
+    if producer.get("community_review_required").is_some()
+        || producer.get("community_review_sha256").is_some()
+        || envelope.get("community_review").is_some()
+    {
+        let reviewed = oo_builder::compile_reviewed_community(&envelope["community_review"])
+            .map_err(|_| "library_community_review")?;
+        if producer["community_review_required"] != true
+            || reviewed["effective"] != *effective
+            || reviewed["producer"] != *producer
+            || envelope["community_review"]["visibility"] != *visibility
+        {
+            return Err("library_community_review");
+        }
+    }
+    Ok(())
+}
+
 pub fn compile_library(document: &Value) -> Result<LibraryPolicy, &'static str> {
     let object = document.as_object().ok_or("library_shape")?;
     let keys = [
@@ -379,6 +402,7 @@ pub fn compile_library(document: &Value) -> Result<LibraryPolicy, &'static str> 
     {
         return Err("library_review");
     }
+    community_review(envelope, effective, visibility)?;
     let ceilings: oo_builder::RolePackCeilings =
         serde_json::from_value(document["ceilings"].clone()).map_err(|_| "library_limits")?;
     if ceilings.max_datasets == 0
@@ -643,6 +667,98 @@ pub fn compile_library(document: &Value) -> Result<LibraryPolicy, &'static str> 
 #[cfg(test)]
 mod operator_review_tests {
     use super::*;
+    use oo_builder::community::{GraphPlan, Registry, connectivity};
+
+    #[test]
+    fn community_review_requires_bound_envelope_for_every_marker() {
+        let mut effective: Value = serde_json::from_str(include_str!(
+            "../../../testing/real-db/gateway-compiled-pack/fixtures/effective.json"
+        ))
+        .unwrap();
+        let mut visibility: Value = serde_json::from_str(include_str!(
+            "../../../testing/real-db/gateway-compiled-pack/fixtures/visibility-picker.json"
+        ))
+        .unwrap();
+        for field in [
+            "datasets",
+            "relationships",
+            "entities",
+            "enums",
+            "metrics",
+            "examples",
+            "glossary",
+        ] {
+            effective[field] = json!([]);
+        }
+        visibility["datasets"] = json!([]);
+        let graph: GraphPlan = serde_json::from_value(json!({
+            "families":{}, "edges":[], "hubs":[], "communities":[], "cut_edges":[]
+        }))
+        .unwrap();
+        let summary = connectivity(
+            &graph,
+            &Registry::default(),
+            &Default::default(),
+            &Default::default(),
+            &Default::default(),
+            0.2,
+        )
+        .unwrap();
+        let draft = json!({"protocol":"oo.selfbuild.community-draft/v1",
+            "unresolved":[], "graph":graph, "registry":{"entities":{}}, "accepted":{},
+            "review":{"summary":summary}});
+        let command = json!({"protocol":"oo.builder.reviewed-community/v1",
+            "draft":draft, "effective":effective, "visibility":visibility, "ceilings":{},
+            "orphan_threshold":0.2,
+            "classification_review":{"review_origin":"operator_pinned_file",
+                "project":effective["project"], "role":visibility["role"],
+                "principal":visibility["principal"]},
+            "review":{"reviewer":"fixture.reviewer", "reviewed_at":"2026-11-04",
+                "mode":"self", "review_origin":"operator_pinned_file",
+                "draft_sha256":sha(&draft).unwrap(), "effective_sha256":sha(&effective).unwrap(),
+                "summary_sha256":sha(&summary).unwrap(), "entities":{}, "decisions":{}}});
+        let compiled = oo_builder::compile_reviewed_community(&command).unwrap();
+        let envelope = json!({"producer":compiled["producer"], "community_review":command});
+        let effective = &compiled["effective"];
+        assert_eq!(community_review(&envelope, effective, &visibility), Ok(()));
+        assert_eq!(
+            community_review(&json!({"producer":{}}), effective, &visibility),
+            Ok(())
+        );
+        for marker in [
+            json!({"community_review_required":true}),
+            json!({"community_review_required":false}),
+            json!({"community_review_required":null}),
+            json!({"community_review_sha256":"marked"}),
+        ] {
+            assert_eq!(
+                community_review(&json!({"producer":marker}), effective, &visibility),
+                Err("library_community_review")
+            );
+        }
+        for path in [
+            "/producer/community_review_required",
+            "/producer/community_review_sha256",
+            "/community_review/review/draft_sha256",
+            "/community_review/visibility/role",
+        ] {
+            let mut bad = envelope.clone();
+            *bad.pointer_mut(path).unwrap() = Value::Null;
+            assert_eq!(
+                community_review(&bad, effective, &visibility),
+                Err("library_community_review"),
+                "{path}"
+            );
+        }
+        assert_eq!(
+            community_review(&envelope, &json!({}), &visibility),
+            Err("library_community_review")
+        );
+        assert_eq!(
+            community_review(&envelope, effective, &json!({})),
+            Err("library_community_review")
+        );
+    }
 
     fn input() -> Value {
         let review = json!({"project":"shop","role":"oo_r_admin","principal":"admin",

@@ -1,4 +1,4 @@
-Oracle同一完整源职责接续。原18ce30182已OS terminal且资源/代码/客户只读失败/所有模型cost/raw保留；新execution精简陈旧长上下文，降低重复调用，不新功能分母。Grok4.7/xhigh/max1000/no子派/ponytail，写域只有tools/oracle-preview。私有自有Oracle fixture/API/Gateway/normalconfig/token签发归你，sharedregistry/productflow/verifier、SQLscheduler等只读。客户47.104:1521/scm5零写/LogMineroff，不再用户名/密码尝试。
+Oracle同一完整源职责接续。原18ce30182已OS terminal且资源/代码/客户只读失败/所有模型cost/raw保留；新execution精简陈旧长上下文，降低重复调用，不新功能分母。Grok4.7/xhigh/max1000/no子派/ponytail，写域只有tools/oracle-preview。私有自有Oracle fixture/API/Gateway/normalconfig/token签发归你，sharedregistry/productflow/verifier、SQLscheduler等只读。客户47.104:1521/客户 Oracle 源零写/LogMineroff，不再用户名/密码尝试。
 
 最直接剩余：普通六字段新run4779b334a4694cb59a344bfa4a6a682b已经source选卡→合法原成功S0–S10复用→samebuild当前officialmaintenance/currentrolePack→gold4rows20cells0→recovery拒无副作用；cancel_table调用Gateway tables UNAUTHENTICATED因此对话未跑。这不是产品失败需要新S5：先用原official issue-token+既有grant/client角色续发sameScope token，新文件保留过期原文件/失败journal；输入仍六个连接字段无private recipe/out，通过registerednative卡正确resume/新run合法stage复用，不重放已成功S5/review/confirm/原DML，不复制私有verdict。
 

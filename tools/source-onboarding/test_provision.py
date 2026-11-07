@@ -33,7 +33,7 @@ def private_tmp():
 def site_for(secret_root):
     return {'protocol': 'oo.source-onboarding.site/v1', 'secret_root': str(secret_root),
             'pg_identity_container': 'no-such-container-test', 'egress': {
-                'ssh_host': '114.55.226.49', 'ssh_user': 'oo', 'ssh_identity': '/nonexistent/key',
+                'ssh_host': '192.0.2.20', 'ssh_user': 'oo', 'ssh_identity': '/nonexistent/key',
                 'producer_tls_server_name': False}, 'binaries': {}}
 
 
@@ -604,7 +604,7 @@ class EgressTests(unittest.TestCase):
         self.assertNotIn('-L', master)
         self.assertIn('ClearAllForwardings=yes', master)
         self.assertIn('ExitOnForwardFailure=yes', master)
-        self.assertEqual(master[-1], 'oo@114.55.226.49')
+        self.assertEqual(master[-1], 'oo@192.0.2.20')
         self.assertTrue(kwargs['start_new_session'])
         control = master[master.index('-S') + 1]
         self.assertTrue(control.startswith(str(self.out / 'private')))
@@ -616,7 +616,7 @@ class EgressTests(unittest.TestCase):
         self.assertNotIn(PASSWORD.decode(), ' '.join(master + add))
 
     def test_forward_uses_the_trusted_site_proxy_not_a_source_field(self):
-        proxy = 'ssh -S /operator/master.sock -W 127.0.0.1:22 oo@114.55.226.49'
+        proxy = 'ssh -S /operator/master.sock -W 127.0.0.1:22 oo@192.0.2.20'
         self.site['egress']['ssh_proxy_command'] = proxy
 
         def fake_popen(argv, **kwargs):
@@ -628,7 +628,7 @@ class EgressTests(unittest.TestCase):
                 mock.patch.object(P, 'free_port', return_value=40123):
             P.open_forward(self.ctx, dict(GOOD_SIX, ssh_proxy_command='untrusted-source-command'))
         argv = popen.call_args.args[0]
-        self.assertEqual(argv[-3:], ['-o', 'ProxyCommand=' + proxy, 'oo@114.55.226.49'])
+        self.assertEqual(argv[-3:], ['-o', 'ProxyCommand=' + proxy, 'oo@192.0.2.20'])
         self.assertNotIn('untrusted-source-command', ' '.join(argv))
 
     def test_forward_add_failure_is_refused_and_master_closed(self):

@@ -1,0 +1,113 @@
+{
+  "todo": "S1-E-01",
+  "scope": "Bounded Oracle CLOB/NCLOB/BLOB snapshot reads and canonical Arrow IPC SHA256",
+  "versions": [
+    {
+      "version_family": "23",
+      "run_id": "e-s2d-r5-lob-23",
+      "command": "python3 testing/engines/oracle/run.py --version 23 --run-id e-s2d-r5-lob-23 --lob-only",
+      "image": {
+        "tag": "gvenzl/oracle-free:23-slim",
+        "digest": "gvenzl/oracle-free@sha256:6d61d267a3b978c24c5ac1790e62e927416a0aec446bd86e4b3a1527562757bd",
+        "platform": "linux/arm64"
+      },
+      "result": {
+        "empty_distinct_from_null": true,
+        "oversize_error": "lob_value_over_budget",
+        "rows": 3,
+        "sha256_verified": true,
+        "version": {
+          "family": "oracle",
+          "major": 23,
+          "minor": 26,
+          "patch": 3,
+          "raw": "23.26.3.0.0"
+        }
+      },
+      "sha256": {
+        "test.log": "2f09990b84ecb7ee94616a61cc8338ef10c26f38b12ec2e43dbffb260c6dc9d8",
+        "image.json": "b6d8d46b3acc69e68761ead20b14b9eb914c47f30f24686dcae3b14f8bbddb47",
+        "lob-result.json": "afa452aea0190f9615eb48b5025588e2b4910aa990217ab96585315be1ab9a19",
+        "source-hashes.json": "8d92133d7a4423afd1d7eb2b3f3ef79cb48cf22118c9cad9034044d947b63abf",
+        "source-hashes-match.json": "a16b5f6fc9cdba8371dccadf4b77791219b0871f5dfd05b113ef374bd9a51b3c"
+      }
+    },
+    {
+      "version_family": "21",
+      "run_id": "e-s2d-r5-lob-21",
+      "command": "python3 testing/engines/oracle/run.py --version 21 --run-id e-s2d-r5-lob-21 --lob-only",
+      "image": {
+        "tag": "gvenzl/oracle-xe:21-slim",
+        "digest": "gvenzl/oracle-xe@sha256:ecdf4302ac3d134e1bac5ef6e0c223c2d0f4d4d2b6d551aa79b2346f1ab8f792",
+        "platform": "linux/amd64"
+      },
+      "result": {
+        "empty_distinct_from_null": true,
+        "oversize_error": "lob_value_over_budget",
+        "rows": 3,
+        "sha256_verified": true,
+        "version": {
+          "family": "oracle",
+          "major": 21,
+          "minor": 3,
+          "patch": 0,
+          "raw": "21.3.0.0.0"
+        }
+      },
+      "sha256": {
+        "test.log": "2eb2b484b82aff8a1844f395c403ad8d98e83884a85616db7a6bbf017147e313",
+        "image.json": "8a3e121af6ec6f11d1e8a1510f50fc4b33eb93a38bad4aec84fccd8a05f89e2c",
+        "lob-result.json": "f72a9a6648578680975c64e510016b81da7b18a71b9c1bc8999160b855110d45",
+        "source-hashes.json": "8d92133d7a4423afd1d7eb2b3f3ef79cb48cf22118c9cad9034044d947b63abf",
+        "source-hashes-match.json": "a16b5f6fc9cdba8371dccadf4b77791219b0871f5dfd05b113ef374bd9a51b3c"
+      }
+    },
+    {
+      "version_family": "11",
+      "run_id": "e-s2d-r5-lob-11",
+      "command": "python3 testing/engines/oracle/run.py --version 11 --run-id e-s2d-r5-lob-11 --lob-only --worker-image oo-e-oracle-worker:e-fix-worker-v4",
+      "image": {
+        "tag": "gvenzl/oracle-xe:11",
+        "digest": "gvenzl/oracle-xe@sha256:d473674de2145270fcf6749aba6145898880f7ff09025584fcc37704e130b5b8",
+        "platform": "linux/amd64"
+      },
+      "result": {
+        "empty_distinct_from_null": true,
+        "oversize_error": "lob_value_over_budget",
+        "rows": 3,
+        "sha256_verified": true,
+        "version": {
+          "family": "oracle",
+          "major": 11,
+          "minor": 2,
+          "patch": 0,
+          "raw": "11.2.0.2.0"
+        }
+      },
+      "sha256": {
+        "test.log": "3a79ad7dcb4196d07fb0700cf97dc05c6dce793c0ca7f9a442557ad3b2e23eaf",
+        "image.json": "4658f191a02a0e2961c55c2d1ef748e5182f1e812841525c93137da0e481c46c",
+        "lob-result.json": "d19ed6c550bfc9065a50c87faedd3eb08015ae2014eacf07ae5e5d0fd263a254",
+        "source-hashes.json": "8d92133d7a4423afd1d7eb2b3f3ef79cb48cf22118c9cad9034044d947b63abf",
+        "source-hashes-match.json": "a16b5f6fc9cdba8371dccadf4b77791219b0871f5dfd05b113ef374bd9a51b3c"
+      }
+    }
+  ],
+  "validation": {
+    "workspace_check": "cargo check --workspace --locked: passed",
+    "connectors": "cargo test -p oo-connectors --features oracle --locked -- --skip parent_deadline_kills_the_worker_and_the_next_call_completes: 254 passed, 23 ignored",
+    "worker": "python3 testing/engines/oracle/worker/test_worker.py: 6 passed",
+    "run_id": "e-s2d-resume",
+    "baseline_failure": "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes fails identically on integration base 0ac7ec034 (group_signal rejected, expected sent)"
+  },
+  "limitations": [
+    "Arrow mapping follows the existing canonical Utf8 contract: text for CLOB/NCLOB, lowercase hex for BLOB.",
+    "LOB source SQL digest/C5 requires streaming digest work and fails admission explicitly.",
+    "19c was not run."
+  ],
+  "retained_attempts": {
+    "e-s2d-r2-lob-23": "Failed fixed-content comparison; RPAD display-length semantics did not create the intended Unicode fixture. Fixture now concatenates exact characters; expected hashes were not relaxed.",
+    "e-s2d-r3-lob-23,21,11": "Compile failed after baseline archive test reused the local target directory. Rebuilt local connector before retry; no source workaround for these artifact failures.",
+    "e-s2d-r4-lob-11": "Worker refused an unbudgeted LOB planning read. Fixed both transports to execute the actual sample query with locators but discard values before materialization."
+  }
+}

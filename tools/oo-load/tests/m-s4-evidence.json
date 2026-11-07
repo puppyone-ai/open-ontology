@@ -1,0 +1,73 @@
+{
+  "task": "S4-M-01",
+  "status": "partial",
+  "gateway_acceptance": "not_run",
+  "seven_service_acceptance": "not_run",
+  "completed": [
+    "Explicit oo-load sync intake with cycle IDs and unsupported-engine refusal",
+    "Three local target view replacements preserve in-flight repeatable-read transactions",
+    "Builder status distinguishes one-shot completion from daemon health"
+  ],
+  "source_fixture_results": {
+    "postgres-17.11": {
+      "C1": "passed",
+      "C5": "passed"
+    },
+    "mysql-8.0.44": {
+      "C1": "passed (mysql-binlog feature)",
+      "C5": "passed"
+    },
+    "oracle-23.5.0.24.07": {
+      "C1": "passed",
+      "C5": "passed"
+    }
+  },
+  "test_counts": {
+    "oo_load_default": 27,
+    "oo_load_mysql_binlog": 28,
+    "oo_load_ignored_per_suite": 7,
+    "oo_cli": 56,
+    "lite_python": 24
+  },
+  "limits": [
+    "Source tests invoke the existing T2 fixtures through a wrapper that adds sync and --run-id; the fixture binary_sha256 fields hash this wrapper, not the Rust binary. feature-binary.sha256 records the MySQL/Oracle Rust binary separately.",
+    "Engine fixture runs preceded the unsupported-engine guard commit; final default and feature unit suites include that guard.",
+    "Gateway publication, active-generation freshness, retention-policy reclamation and continuous authenticated Gateway queries are not implemented or verified.",
+    "Scheduler remains on native-fire/native-step; no scheduled load -> data-only Builder -> publication chain is claimed.",
+    "No change to authentication, existing migrations, shared workspace files or locks."
+  ],
+  "cleanup_failures": [],
+  "evidence": {
+    "m-s4-prerequisites-20261104": {
+      "base.txt": "415a378dcb7ac3d0c1564029b884713a36e44fc6b8c10adf6478597e132f4bb3",
+      "workspace-check-final.log": "a16685927daa0790a2b357e2b56df170e7bad259186d3c802d6d441422dfd0cf",
+      "oo-load-tests-final.log": "7fcaa0e01a3827949b4a2f4b5b5a94443a6359319396c64ae5bc4a2ec1812518",
+      "oo-load-feature-tests.log": "fee37c8899f9fc31d769b4d107b1f8fa1a898b2331f780c8fb5a9f2761b74d8e",
+      "oo-cli-tests.log": "9c2b84ac7587dab704dd8e0ddce9e05f805c173ec1e54c645b2d537213ec8d73",
+      "lite-tests.log": "3a3e2f0460f348bd051f33e4f126c53ff72e6f92fd3826d884ff8015b6994b2f",
+      "integration-boundary.log": "73c66771282511d7f0715d006440369723598b905efce26905cf1598d3bfaaf0",
+      "check_spec.log": "341d87269554bd330947a8570481e4c360ca59bafd8bb2f5ee3a36eb444899f7",
+      "check_plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+      "check_v02_plan.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135",
+      "render-todo.log": "56cae338bd9d567d2eff6cb861e26b2f72845bb6734606901d141784d241ab47",
+      "oo-load-sync": "7b563eb8541bfa2c64ed4e13755d17851d2535671159227f450add157bada75e",
+      "feature-binary.sha256": "e1da97c1ab8796aa6ca5de24ac47d4cc52a458ca5a9160eea7091a80982a8073"
+    },
+    "m-s4-target-three-cycles-20261104": {
+      "result.json": "7f07379cef9807a2c955595c52d952324a8cabd496c75f94890f8837d9001dad",
+      "publication-snapshots.log": "ff82018da00efe22dca1643e5bfc311f612f23261a57b84e76345b1d1a81d7d6",
+      "atomic.log": "863c7e22171c172a52154b72a50d02d679c2e3a464ee2500aad91249405f4180",
+      "c5.log": "b773a507fab98b13cd0869c81a42923d24bfa01ff36db2e1ae02a78f1272b5eb",
+      "resume.log": "e4f246a9e00505a5d77608ebd9b3387299519c39be661ef25acfe5891420c83f"
+    },
+    "m-s4-pg17-sync-command-20261104": {
+      "matrix.json": "3c7e61e3e913902dfb705fb944567b3d0ff3438b1524f37d073c0996eeae8651"
+    },
+    "m-s4-mysql8-sync-command-20261104": {
+      "matrix.json": "f89683b877f6c842a0bcdf3a15f609d86599e2781e3d4a2db4279433637cdd7e"
+    },
+    "m-s4-oracle23-sync-command-20261104": {
+      "matrix.json": "c4df29e8d780805f3d3f7c13ba783488e91185357e12e426e8fa35cf40acbf4d"
+    }
+  }
+}

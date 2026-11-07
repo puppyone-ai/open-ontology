@@ -1,0 +1,53 @@
+{
+ "schema_version": 1,
+ "template": false,
+ "audited": true,
+ "record_status": "coordinator-audit; owner review requested in the final PR (plan D13)",
+ "package": {
+  "name": "webpki-roots",
+  "version": "1.0.10",
+  "ecosystem": "crates.io",
+  "official_source": "https://crates.io/crates/webpki-roots/1.0.10",
+  "repository": "https://github.com/rustls/webpki-roots",
+  "manifests": [
+   "crates/oo-connectors/Cargo.toml (via oracledb 26.0.0-beta.4, feature oracle)",
+   "crates/oo-cli/Cargo.toml (oo-connectors features = [oracle])"
+  ],
+  "publication_date": "2026-10-19T20:11:32Z",
+  "adoption_date": "2026-11-04T00:00:00Z",
+  "age_days_at_adoption": 15,
+  "license_spdx": "CDLA-Permissive-2.0",
+  "dual_license_choice": null,
+  "license_evidence": [
+   {
+    "spdx": "CDLA-Permissive-2.0",
+    "source": "https://github.com/rustls/webpki-roots/blob/main/LICENSE",
+    "sha256": "e271993808fec50ab29350b39539cdec611a9103f827e0aa26d61da70e2d33f8"
+   }
+  ],
+  "license_obligations": [
+   {
+    "spdx": "CDLA-Permissive-2.0",
+    "obligations": [
+     "Make the agreement text available with distributed data (included in NOTICE)."
+    ]
+   }
+  ],
+  "weak_copyleft_review": null,
+  "digest": "sha256:1c1c8e20c8a38fc7d65abfe74eb7280e4aa667e8eec8bc84996d2874810748d9",
+  "features_enabled": [
+   "default"
+  ],
+  "default_features_disabled": false,
+  "native_build": false,
+  "msrv": "not raised for the workspace (compiles on 1.94 workspace toolchain)"
+ },
+ "reason": "oracledb (the Oracle driver for a P0 engine) depends on webpki-roots unconditionally; there is no feature to drop it. The crate ships Mozilla's CA certificate bundle as data under CDLA-Permissive-2.0, a permissive data license that is not OSI-approved, so policy \u00a72 does not cover it by default. Admitted by a crate-scoped exception only.",
+ "advisory": {
+  "scan_recorded": true,
+  "scanner": "cargo-audit and cargo-deny 0.20.2 (ci/deny.toml)",
+  "evidence": "cargo audit: no advisory for webpki-roots 1.0.10",
+  "disposition": "no-known-advisories",
+  "known_exploitable_high_severity": false
+ }
+}

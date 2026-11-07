@@ -2357,6 +2357,12 @@ fn civil_timestamp(text: &str, zoned: bool) -> bool {
     if suffix == b"Z" {
         return true;
     }
+    // PostgreSQL also reads `+HH`; Agents commonly write `+00`.
+    if suffix.len() == 3 {
+        return matches!(suffix[0], b'+' | b'-')
+            && suffix[1..].iter().all(u8::is_ascii_digit)
+            && (suffix[1] - b'0') * 10 + suffix[2] - b'0' <= 15;
+    }
     suffix.len() == 6
         && matches!(suffix[0], b'+' | b'-')
         && suffix[3] == b':'
@@ -8093,4 +8099,30 @@ fn descend_xml_serialize(
         descend_type_name(item, depth.saturating_add(1), scan)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod civil_timestamp_tests {
+    use super::civil_timestamp;
+
+    #[test]
+    fn zoned_literals_accept_hour_only_offsets() {
+        for ok in [
+            "2026-01-02 03:04:05Z",
+            "2026-01-02 03:04:05+00:00",
+            "2026-01-02T03:04:05.5+00",
+            "2026-01-02 03:04:05-08",
+        ] {
+            assert!(civil_timestamp(ok, true), "{ok}");
+        }
+        for bad in [
+            "2026-01-02 03:04:05+0",
+            "2026-01-02 03:04:05+16",
+            "2026-01-02 03:04:05+0a",
+            "2026-01-02 03:04:05+00:0",
+        ] {
+            assert!(!civil_timestamp(bad, true), "{bad}");
+        }
+        assert!(!civil_timestamp("2026-01-02 03:04:05+00", false));
+    }
 }

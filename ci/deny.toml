@@ -25,6 +25,13 @@ allow = [
     "MIT-0",
 ]
 unused-allowed-license = "warn"
+# Plan D13: CDLA-Permissive-2.0 only for webpki-roots (Mozilla CA certificate data),
+# which oracledb depends on unconditionally. Not a general allowance.
+exceptions = [
+    { name = "webpki-roots", allow = ["CDLA-Permissive-2.0"] },
+    # Plan D18: CC0-1.0 only for tiny-keccak (MongoDB driver, opt-in document sources).
+    { name = "tiny-keccak", allow = ["CC0-1.0"] },
+]
 
 [bans]
 multiple-versions = "warn"

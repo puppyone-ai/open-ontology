@@ -47,6 +47,8 @@ jobs:
         with:
           toolchain: "1.98.1"
           components: rustfmt, clippy
+      - name: generated operator references
+        run: python3 ci/check_generated_docs.py
       - name: docs
         id: record
         shell: bash

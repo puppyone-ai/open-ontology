@@ -1,0 +1,42 @@
+{
+  "version": "oo.stack/v1",
+  "sources": [
+    {
+      "id": "erp",
+      "engine": "auto",
+      "host": "db.internal",
+      "port": 3306,
+      "database": "erp",
+      "user": "oo_reader",
+      "password": {
+        "secret_ref": "erp-password"
+      },
+      "scope": {
+        "include": [
+          "*"
+        ],
+        "exclude": []
+      },
+      "sync": {
+        "mode": "auto",
+        "interval": "8h"
+      }
+    }
+  ],
+  "model": {
+    "provider": "openai-compatible",
+    "base_url": "https://api.example.com/v1",
+    "model": "example-model",
+    "key": {
+      "secret_ref": "model-key"
+    },
+    "context_window": "auto"
+  },
+  "deploy": {
+    "target": "local",
+    "profile": "lite"
+  },
+  "gateway": {
+    "public_url": "auto"
+  }
+}

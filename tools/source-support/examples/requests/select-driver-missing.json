@@ -5,7 +5,10 @@
     "product": "Oracle Database",
     "version": "19c",
     "variant": "self-managed",
-    "driver": {"path": "P2", "impl": "待 DBP1 选定"},
+    "driver": {
+      "path": "P2",
+      "impl": "oracledb 纯 Rust 驱动；11g 用隔离的 Instant Client thick worker"
+    },
     "profile": "production",
     "sync": "catalog",
     "driver_present": false

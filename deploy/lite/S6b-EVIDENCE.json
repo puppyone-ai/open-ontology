@@ -1,0 +1,192 @@
+{
+  "plan": "S6-M-01",
+  "card": "M-S6b",
+  "status": "complete",
+  "local_bundle_exit_met": true,
+  "run_id": "m-s6b-20261105",
+  "architectures": {
+    "linux/arm64": {
+      "run_id": "m-s6b-arm64-final2",
+      "command": "python3 deploy/lite/test_bundle_dind.py --bundle BUNDLE --manifest-sha256 TRUSTED_SHA --run-id m-s6b-arm64-final2",
+      "exit": 0,
+      "postgres": "17.11 (Debian 17.11-1.pgdg12+2)",
+      "isolation": {
+        "client_platform": "linux/arm64",
+        "daemon_platform": "linux/arm64",
+        "daemon": "isolated DinD",
+        "outer_network": "none",
+        "checkout_mounted": false,
+        "fixture_harness": "staged Python test drivers only",
+        "cargo_available": false,
+        "product_binaries": "bundle only"
+      },
+      "first_up": {
+        "offline_install": true,
+        "healthy_foundations": 3,
+        "healthy_stack": false,
+        "bundle_operator_provisioned": true,
+        "operator_role": "lite_operator",
+        "reason": "owner-reviewed publication and scheduler configuration are not installed by oo up"
+      },
+      "migration_helper": "bundled precompiled retained_gateway_install; passed",
+      "scheduled_cycles": 2,
+      "seven_healthy": true,
+      "continuous_queries": 41,
+      "query_errors": 0,
+      "rows": [
+        [
+          [
+            "10"
+          ]
+        ],
+        [
+          [
+            "11"
+          ]
+        ]
+      ],
+      "scheduled_model_calls": 0,
+      "initial_model_basis": "deterministic_test_transport",
+      "runtime_image": "sha256:688ecc3b49ee9f4c9c9310c6fb9e740ea06bf617797f90705b9545dd5e0124ff",
+      "bootstrap_credentials": "scheduled fixture uses its own credential layout; stock status reports invalid, Gateway expiry is independently measured"
+    },
+    "linux/amd64": {
+      "run_id": "m-s6b-amd64-3",
+      "command": "python3 deploy/lite/test_bundle_dind.py --bundle BUNDLE --manifest-sha256 TRUSTED_SHA --run-id m-s6b-amd64-3 --host-daemon",
+      "exit": 0,
+      "postgres": "17.11 (Debian 17.11-1.pgdg12+2)",
+      "isolation": {
+        "client_platform": "linux/amd64",
+        "daemon_platform": "linux/arm64",
+        "daemon": "host Docker Desktop",
+        "outer_network": "bridge; client joins owned fixture network",
+        "checkout_mounted": false,
+        "fixture_harness": "staged Python test drivers only",
+        "cargo_available": false,
+        "product_binaries": "bundle only"
+      },
+      "first_up": {
+        "offline_install": true,
+        "healthy_foundations": 3,
+        "healthy_stack": false,
+        "bundle_operator_provisioned": true,
+        "operator_role": "lite_operator",
+        "reason": "owner-reviewed publication and scheduler configuration are not installed by oo up"
+      },
+      "migration_helper": "bundled precompiled retained_gateway_install; passed",
+      "scheduled_cycles": 2,
+      "seven_healthy": true,
+      "continuous_queries": 18,
+      "query_errors": 0,
+      "rows": [
+        [
+          [
+            "10"
+          ]
+        ],
+        [
+          [
+            "11"
+          ]
+        ]
+      ],
+      "scheduled_model_calls": 0,
+      "initial_model_basis": "deterministic_test_transport",
+      "runtime_image": "sha256:38b43e48144c0001a54122b441abd817935cbc6de8298858ee6169a9004a2c25",
+      "bootstrap_credentials": "scheduled fixture uses its own credential layout; stock status reports invalid, Gateway expiry is independently measured"
+    }
+  },
+  "validation": {
+    "python_command": "PYTHONPATH=deploy/lite python3 -m unittest test_bundle test_remote test_lifecycle test_scheduler",
+    "python_passed": 49,
+    "cargo_check": "cargo check --workspace --locked: passed",
+    "cargo_tests": "cargo test --locked -p oo-cli -p oo-stack: 88 passed, 2 ignored",
+    "cargo_fmt": "cargo fmt --check -p oo-cli -p oo-stack: passed",
+    "spec_checks": "check_spec.py, check_plan.py, check_v02_plan.py: passed"
+  },
+  "launcher_contract": "bundle.launch(argv) -> CLI exit; up|status|down --bundle PATH --manifest-sha256 SHA [--emulated-client]; executable BUNDLE/oo",
+  "shared_file_patches": [],
+  "cargo_lock_changed": false,
+  "ci_signing": "workflow unchanged; OIDC keyless signing is verified by CI only when dispatched; CI not run here",
+  "preserved_failures": [
+    "bundle-arm64-create.log: registry index annotations refused; exact platform digest succeeded",
+    "bundle-amd64-create.log: unregistered platform reference refused; explicit dependency pull then export succeeded",
+    "m-s6b-amd64-2: helper connection refused at Docker Desktop published loopback; owned-network client TCP forwarding fixed transport, assertions unchanged"
+  ],
+  "limits": [
+    "Local unsigned builds, not a signed release or CI publication",
+    "First up provisions reserved operator credentials but correctly remains foundations_only until reviewed publication and scheduling",
+    "Full seven-state acceptance uses synthetic initial model/review and fixture credentials, not L1 no-edit onboarding",
+    "oo-fixture-migrate is the packaged fixture-only test helper, not a general production migration CLI",
+    "amd64 uses Rosetta client/siblings and the existing arm64 host daemon; no nested amd64 daemon or x86 host claimed"
+  ],
+  "cleanup": {
+    "containers_left": 0,
+    "volumes_left": 0,
+    "networks_left": 0,
+    "generated_credentials_left": 0,
+    "removed_image_references": [
+      "oo-lane-m-lite:m-s6b-arm64",
+      "oo-lane-m-lite:m-s6b-amd64",
+      "docker.io/library/docker@sha256:ad9e28ccfdf76cf44248258090e07d8353b9628725d8a716bab176bd71200d7d",
+      "docker.io/library/docker@sha256:f649ef046008ca7f926a2571c32b0ac22e5c59eb61b959617f9acc2a4c638cf5",
+      "docker.io/library/postgres@sha256:2cd2c0f809604aaeff6f0ec8f40aecbd025613107561015c69369a1a7f1d3416",
+      "sha256:38b43e48144c0001a54122b441abd817935cbc6de8298858ee6169a9004a2c25"
+    ],
+    "removed_artifact_bytes": 1917159112,
+    "shared_build_cache": "untouched",
+    "unrelated_resources": "untouched"
+  },
+  "evidence_sha256": {
+    "m-s6b-arm64-final2/first-up.json": "742db7416af66f017fea524c1cc5940a055439d9bb46d68abf5a9f6063960200",
+    "m-s6b-arm64-final2/migration-helper.json": "4e842bf61b65402365c713508a706120213cb245317eea4ee6d0853ca267a5fa",
+    "m-s6b-arm64-final2/isolation.json": "769f27fb7af331858ba56cab988ec13add97d78a8820ad349cb6485f0eced9ab",
+    "m-s6b-arm64-final2/loaded.json": "d641847f1062f467dedad63ef9cb117c6d2b76625e345cca1bdca37b47e0ea57",
+    "m-s6b-arm64-final2/docker.log": "9cee3d47236669475eedb2abfcf52ba7d37ed286db78ad82a51a62edaf57b6a0",
+    "m-s6b-arm64-final2/foundation/up.json": "7a1354e3480a17037e1a801790005b7416c71e6d14d200afaba3cdb8ef7dc91b",
+    "m-s6b-arm64-final2/foundation/status.json": "7a1354e3480a17037e1a801790005b7416c71e6d14d200afaba3cdb8ef7dc91b",
+    "m-s6b-arm64-final2/scheduled/compose-result.json": "10f384aeb3be98264700f30e4ff78ee3455aaac135f96c12cfb1b02b9bd28e27",
+    "m-s6b-arm64-final2/scheduled/install.log": "7fdf38110eb8aed80d39d9a4e1969fedec9d33556c73bc5336176678417757b5",
+    "m-s6b-arm64-final2/scheduled/noop-status.json": "5e3fb33c83288170cb4703e309f793056f4ca2f3957edff57900e942bc621e6c",
+    "m-s6b-arm64-final2/scheduled/data-change-status.json": "9b03ebb69e5ab1c12fed4b4d0bf70fa1fec191871f5fea7a328074c25b3a7ef8",
+    "m-s6b-amd64-3/first-up.json": "742db7416af66f017fea524c1cc5940a055439d9bb46d68abf5a9f6063960200",
+    "m-s6b-amd64-3/migration-helper.json": "4e842bf61b65402365c713508a706120213cb245317eea4ee6d0853ca267a5fa",
+    "m-s6b-amd64-3/isolation.json": "46c6c6d2b8978f8972d5b255efc18344862b2552c2c008247332e1567e5910fc",
+    "m-s6b-amd64-3/loaded.json": "5aec8196fce912451d1ed19c60035a82e8363ef71609a4eeb5a034b5cc4f5746",
+    "m-s6b-amd64-3/docker.log": "ced0026b06f13d7336ae42d9c45cc477ad46ce2e855d39b4efd13b4480f8415e",
+    "m-s6b-amd64-3/foundation/up.json": "696dc35f34add3d312110e8704088d2aa0767ee5cb00c396e02a0bcacb05770f",
+    "m-s6b-amd64-3/foundation/status.json": "696dc35f34add3d312110e8704088d2aa0767ee5cb00c396e02a0bcacb05770f",
+    "m-s6b-amd64-3/scheduled/compose-result.json": "97ad2c03ebc72bd188a82b5d4d0c74189fb4746526dcd2c18302b6c2eba91658",
+    "m-s6b-amd64-3/scheduled/install.log": "8beb496f5e44b2dbebd569658cfd9915b34d28f9f6c3da381d05534b50ee7431",
+    "m-s6b-amd64-3/scheduled/noop-status.json": "af2e756efa13809ddf02451195dcc541e7453599240fe36d5a41fd24644617fa",
+    "m-s6b-amd64-3/scheduled/data-change-status.json": "e33abf33f4e94485a53882596f77572700faa9b3d9aa0c4639b3bdc82c31f4f9",
+    "m-s6b-20261105/arm64-build.json": "4e8237f2491939f90f4e0fe68d5d4535065b6c6f1a04e98c1feca812cc85fe8e",
+    "m-s6b-20261105/amd64-build.json": "80679a7fa4fe1e0ff0775036823f875dc3982891787206410d611a82a3c9aace",
+    "m-s6b-20261105/bundle-arm64-2/manifest.json": "2dbcad22e79fbc5e49c913a04e4410b340556e0ce0dea55de26bc0e9b184ab54",
+    "m-s6b-20261105/bundle-amd64/manifest.json": "99916f7c1caed37f3e212f7d5c32c26cd086021a611ec5f1afecafe3d2490a19",
+    "m-s6b-20261105/unit-tests-final.log": "5c6441efa1fe673ebf0b4039d45a71f2acbcb84dea18382c4edc38da6a756ec2",
+    "m-s6b-20261105/cargo-check-final.log": "d8e7be27693f18bdd0bb2bc7fac7ff672e29e0751c2e6f3e6d114e7550864c9f",
+    "m-s6b-20261105/cargo-tests-final.log": "b0902a9bf53e912581edf32880818252c3f6474cedf7226d094f2afae87762cb",
+    "m-s6b-20261105/cargo-fmt-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "m-s6b-20261105/check-spec.log": "341d87269554bd330947a8570481e4c360ca59bafd8bb2f5ee3a36eb444899f7",
+    "m-s6b-20261105/check-plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+    "m-s6b-20261105/check-v02-plan.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135",
+    "m-s6b-20261105/cleanup.json": "5dd303804fc138da68d2911a7f25fc66cb2cf22da94664596f2695358ab3a162",
+    "m-s6b-20261105/bundle-arm64-create.log": "1ae4ee1f38ec5636c1e5b120a76d6145feab241d29649f368b9e1b8af0704bee",
+    "m-s6b-20261105/bundle-amd64-create.log": "47adc8d207657508c824ae3772eb624166718997ec3d4b4078a131e4a6e472ba",
+    "m-s6b-20261105/amd64-2.log": "d18e733fd8315645dfb51374cd0e6b4f4b4d9b0d94db1f1e86eedb607120a7b1",
+    "m-s6b-20261105/amd64-3.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "m-s6b-20261105/arm64-final2.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "base_commit": "a41aab6f96f8079b89d5eec0e9c9a8429c1686b6",
+  "source_sha256": {
+    "deploy/lite/Dockerfile": "8bec1a826513a4859c77c4b335a8472b5bf20cc677bae2f517994015f426308d",
+    "deploy/lite/bundle.py": "89dccdb986d72992b72362d7219d3e65009bd32676db23ab39552c6183c7993f",
+    "deploy/lite/lifecycle.py": "9c7cc59eb76bbfab1365546b0ac623c34a2b6e0f67830d001005bb334139b4d1",
+    "deploy/lite/test_bundle.py": "0920444c09078b8710e39bf534d274281910910b9be4b8250a9a5c108a172622",
+    "deploy/lite/test_bundle_dind.py": "c3eabdfe5ab23109900c8f7dbf8a30f7022b72ebe439744dfc5a43de97297db9",
+    "deploy/lite/BUNDLE.md": "546f4d8a0b7df47767df245936dc5f723389c8fc6369f4ac661fdbe6a33a2151",
+    ".github/workflows/lite-images.yml": "66bb2af6e4634a9601607981796ee1ba976565e8861c319d440dd88c3c40dcdf"
+  },
+  "build_basis": "Local worktree artifacts; runtime/CLI source unchanged after builds; CI signing and publication not run"
+}

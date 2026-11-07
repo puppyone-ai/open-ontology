@@ -2,7 +2,7 @@
 
 > Status: Proposed
 > Owner: Open Ontology Engineering（数据 / DBA / 安全 reviewer 联合审阅）
-> Last reviewed: 2026-10-09
+> Last reviewed: 2026-11-06
 > 性质：对 [03 数据源](../03-sources-and-ingestion.md) §2、§8 数据库路线的**扩展设计**；数据库范围与准入以本目录和 Spec 第 7A 章为准。基线文档 03/04/05/06/07/12/02/14/README/16 已于来源基线 revision 3 按本设计回填（见 [06 §4](06-risks-open-questions-and-sources.md)）。
 > 依赖：[03](../03-sources-and-ingestion.md)、[04](../04-pipeline.md)、[05](../05-agent-db.md)、[06 Ontology](../06-ontology-layer.md)、[07 Gateway](../07-gateway.md)、[17](../17-rust-implementation.md)
 
@@ -41,7 +41,10 @@
 | [04 逐库画像](04-database-profiles.md) | 各家族的体检、最小权限与 DBA 清单、捕获路径、类型映射与陷阱、成本与限制 |
 | [05 一致性套件与证据](05-conformance-and-evidence.md) | 套件、夹具与许可、版本矩阵、真实云证据、夜间回归与自动降级 |
 | [06 风险、开放问题与来源](06-risks-open-questions-and-sources.md) | DBX 风险登记、需客户/法务确认的问题、本次检索事实与来源、未核实清单 |
-| [support-matrix.yaml](support-matrix.yaml) | 机器可读矩阵初稿（当前**无任何目标处于 verified**） |
+| [support-matrix.yaml](support-matrix.yaml) | 手写矩阵：目标、限制与 v0.2 现状说明；**不含任何 verified/certified** |
+| [support-matrix.generated.json](support-matrix.generated.json) | 由证据包生成的等级（`specs/scripts/gen_support_matrix.py`），`verified` 的唯一来源；两者冲突时以生成矩阵为准 |
+
+v0.2 版本目标、测试镜像与 T0–T8 套件见 [product/05](../product/05-version-matrix-and-testing.md)；分块与水位的实战规则见 [product/02](../product/02-ingestion-playbook.md)。
 
 规范与计划：[Spec 第 7A 章](../../specs/open-ontology-v0.1-spec.md)、[Plan 第 4A 章](../../specs/open-ontology-v0.1-plan.md)。
 

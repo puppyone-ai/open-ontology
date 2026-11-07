@@ -29,6 +29,7 @@ mod error;
 mod maintain;
 mod native_publication;
 mod native_library;
+mod retained;
 mod seal;
 mod sha256;
 mod sql;
@@ -55,6 +56,7 @@ pub use store::{
 pub use target::{column_types, close_target, grant_target, install_target, observe_target, open_native_target, open_target, revoke_target, status_target, FenceRef, TargetConn};
 pub use tls::rustls_connector;
 pub use native_publication::{Publication, from_context as native_publication_context};
+pub use retained::{publish_reviewed_registry, validate_cut as validate_retained_cut, RetainedRequest};
 
 pub const CONTRACT: &str = "oo.release-coordinator/v1";
 pub const PRODUCTION_READY_CERTIFICATE: bool = false;

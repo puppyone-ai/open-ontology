@@ -54,6 +54,7 @@ pub const REQUIRED_MEMBERS: &[&str] = &[
     "oo-proxy",
     "oo-sandbox",
     "oo-sdk",
+    "oo-stack",
     "xtask",
 ];
 
@@ -62,9 +63,12 @@ pub const REQUIRED_EDGES: &[(&str, &str)] = &[
     ("oo-analysis", "oo-core"),
     ("oo-builder", "oo-core"),
     ("oo-builder", "oo-jobs"),
+    ("oo-cli", "oo-connectors"),
     ("oo-cli", "oo-core"),
     ("oo-cli", "oo-sdk"),
+    ("oo-cli", "oo-stack"),
     ("oo-connectors", "oo-core"),
+    ("oo-connectors", "oo-stack"),
     ("oo-control", "oo-core"),
     ("oo-control", "oo-jobs"),
     ("oo-entry", "oo-core"),

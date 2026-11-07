@@ -1,0 +1,44 @@
+{
+  "run_id": "a-s2-lite",
+  "status": "component-tests-passed; S2-A-02 incomplete",
+  "commands": {
+    "cargo check --workspace --locked": "passed",
+    "cargo test -p oo-stack -p oo-cli --locked": "passed",
+    "cargo fmt -p oo-stack": "applied",
+    "python3 specs/scripts/check_spec.py": "passed",
+    "python3 specs/scripts/check_plan.py": "passed",
+    "python3 specs/scripts/check_v02_plan.py": "passed"
+  },
+  "credential_tests": [
+    "0700 directory and 0600 files",
+    "730-day validity for eight distinct identities",
+    "CA verification for client and server purposes",
+    "idempotence without credential rotation",
+    "partial-bootstrap rejection",
+    "nearest leaf/CA expiry and 14-day warning",
+    "expired leaf report",
+    "certificate/key mismatch rejection",
+    "symlink rejection"
+  ],
+  "not_run": [
+    "compose build or runtime",
+    "amd64/arm64 deployment",
+    "PostgreSQL to draft",
+    "Oracle 23ai to draft",
+    "live model usage"
+  ],
+  "blocking_prerequisite": "coordinator-owned M-S1b engine-neutral admission and oo-load entry point",
+  "raw_sha256": {
+    "check-commit.log": "94a21c776992fb9f20b950d0041630b626d7e1ef1054f8b78b93acfbf26257d7",
+    "tests-commit.log": "d7e3c5f7bee3ffd15f270fea28ff57f65c3cd62f0e7b08bc9f9f68ab1c689a64",
+    "loader-blocker.txt": "a4b542242edba16964db58a970d36c6c95ed4b5824addcf07bbeff679b818f74",
+    "check-spec.log": "91438c4bad343285ee0f15cff61ed30187b7e826bf927a1b1156bc48d4ace78f",
+    "check-plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+    "check-v02-plan.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135"
+  },
+  "failed_attempts_preserved": [
+    "tests-final.log: OpenSSL rejects x509 -days 0",
+    "tests-accepted.log: ca invocation lacked explicit stdin input"
+  ],
+  "containers_created_for_component_tests": 0
+}

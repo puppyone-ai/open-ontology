@@ -130,7 +130,7 @@ fn write_config(dir: &Path) -> String {
             "endpoint": {{
                 "origin": "http://127.0.0.1:8317",
                 "path": "/v1/chat/completions",
-                "model_id": "grok-4.7"
+                "model_id": "gpt-6.1-sol"
             }},
             "secret": {{"bearer_file": "{}"}},
             "declared_price": {{"status": "unknown"}},

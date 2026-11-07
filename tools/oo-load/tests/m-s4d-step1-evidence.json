@@ -1,0 +1,20 @@
+{
+  "card": "M-S4d",
+  "step": 1,
+  "todo": "S4-M-01",
+  "status": "passed",
+  "engine": "PostgreSQL 17.11",
+  "checks": [
+    "activation with open semantic fences",
+    "closed and granted fences refused OO030",
+    "recipe, candidate seal, shard, data vector, storage and mapped view definitions, columns mismatches refused OO030",
+    "no legacy imports or ACKs fabricated"
+  ],
+  "evidence": {
+    "evidence/m-s4d-build/check-step1.log": "b771c3c4126126008f1be31b0340f0b4a776238f00bf193cbe07bc2491ec1e07",
+    "evidence/m-s4d-build/pipeline-step1.log": "b6e76d22739ae059697084cd6ee72722dac3a4d8269b9d0b0a9c5f9371489610",
+    "evidence/m-s4d-step1-owned-1/publication.log": "c454a78c03ac550fc6adea649eca7e87ceaf4d8e5f8b6434731503649434a171",
+    "evidence/m-s4d-step1-owned-1/result.json": "df05d5d35f04e673b327c1be27530edcb0bf3cd5073b85330e58b0bc74590aeb"
+  },
+  "cargo_lock_changes": false
+}

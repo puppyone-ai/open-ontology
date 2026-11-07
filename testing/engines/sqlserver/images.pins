@@ -1,0 +1,4 @@
+# Lane E; registry manifests resolved 2026-11-04. linux/amd64 only.
+mssql-2019-CU32-ubuntu-20.04 linux/amd64 sha256:7a879e9af3557e81a3b3ad14acd071e3638788387f394d27a9d3404b28e954ce
+mssql-2022-CU20-ubuntu-22.04 linux/amd64 sha256:7c29dfbac885ad7519e219c7fe4aee0e67283e21a10e9c252d13b0fbde1866f8
+mssql-2025-CU1-ubuntu-24.04 linux/amd64 sha256:698682bab57c02c42bc0aa274b158aeb242d8e9104149a7489628d5535805816

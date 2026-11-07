@@ -475,23 +475,16 @@ pub fn schedule_tick(now_ms: u64, last_ms: Option<u64>, period_ms: u64, in_fligh
     }
 }
 
+// Shared product codec; this independent tool keeps its existing error API.
+#[path = "../../../crates/oo-connectors/src/postgres/lsn_codec.rs"]
+mod lsn_codec;
+
 pub fn parse_lsn(text: &str) -> Result<u64, Fail> {
-    let Some((hi, lo)) = text.split_once('/') else {
-        return Err(Fail::new("capture.protocol", 4));
-    };
-    if hi.is_empty() || lo.is_empty() || !hi.bytes().all(|byte| byte.is_ascii_hexdigit()) || !lo.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err(Fail::new("capture.protocol", 4));
-    }
-    let hi = u64::from_str_radix(hi, 16).map_err(|_| Fail::new("capture.protocol", 4))?;
-    let lo = u64::from_str_radix(lo, 16).map_err(|_| Fail::new("capture.protocol", 4))?;
-    if hi > u64::from(u32::MAX) || lo > u64::from(u32::MAX) {
-        return Err(Fail::new("capture.protocol", 4));
-    }
-    Ok((hi << 32) | lo)
+    lsn_codec::parse(text).ok_or_else(|| Fail::new("capture.protocol", 4))
 }
 
 pub fn format_lsn(value: u64) -> String {
-    format!("{:X}/{:X}", value >> 32, value & 0xFFFF_FFFF)
+    lsn_codec::format(value)
 }
 
 pub fn lsn_advance(current: u64, next: u64) -> Option<u64> {
@@ -2658,6 +2651,8 @@ mod tests {
     #[test]
     fn lsn_text_round_trip_and_schedule_overlap() {
         assert_eq!(format_lsn(parse_lsn("16/B3748").expect("lsn")), "16/B3748");
+        assert!(parse_lsn("000000000/0").is_err());
+        assert!(parse_lsn("100000000/0").is_err());
         assert_eq!(schedule_tick(5_000, Some(0), 2_000, true), Tick::SkipOverlap);
         assert_eq!(schedule_tick(5_000, Some(4_000), 2_000, false), Tick::Wait);
         assert_eq!(schedule_tick(5_000, Some(1_000), 2_000, false), Tick::Fire);

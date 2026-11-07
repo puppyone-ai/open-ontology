@@ -1,0 +1,1796 @@
+{
+ "status": "passed",
+ "plan_item": "S4-M-02",
+ "closes": "S6-M-03 B1 (independent review at a07ebfa01)",
+ "decision": "D16",
+ "commit": "c5aa077d276d83972165840ffadaf634087a67d3",
+ "worktree_tracked_changes_during_runs": false,
+ "date": "2026-11-06",
+ "artifacts": {
+  "npm_tarball": {
+   "file": "reduxxx888-ontology-cli-0.2.0.tgz",
+   "sha256": "673c1dc318cc6593f133aba7f5e06e2318a991703abf65db65b0255faf8cbb7d",
+   "bytes": 32415600,
+   "staging": "packages/cli/scripts/stage.mjs --partial true (darwin-x64 is CI-only) + /opt/homebrew/bin/npm pack --ignore-scripts; notices from packages/cli/scripts/licenses.py (offline, 371 dependencies)",
+   "platforms": {
+    "darwin-arm64": {
+     "path": "native/darwin-arm64/oo",
+     "sha256": "7a9f7b9065ad49bc49a74049bb892afc532208558b025d174166487a3e229fec"
+    },
+    "linux-x64": {
+     "path": "native/linux-x64/oo",
+     "sha256": "b7ee7faab6e92f30a0cb46c7ff5c681d4406f7407cbdf950e29591d878fbadfb"
+    },
+    "linux-arm64": {
+     "path": "native/linux-arm64/oo",
+     "sha256": "744fb9d40466677e256f4bfe6b6774b8b8f7deb7a994710f6c7751c460523572"
+    }
+   },
+   "skill_sha256": "fc6fc983b1dabe4cd0b599d051a4828a57ccf97dba345377790a9c217c4106c7",
+   "published": false
+  },
+  "runtime_image": {
+   "id": "sha256:c5b37496cc44c9bdcfefcbc75838e383863689bfa59a2b52b795b3ab6f14c180",
+   "platform": "linux/arm64",
+   "label": "oo.lane=l1",
+   "build": "git archive HEAD | docker build --platform linux/arm64 --build-arg OO_LANE=l1 -f deploy/lite/Dockerfile -",
+   "tag": "oo-l1-lite-runtime:c5aa077"
+  },
+  "cli_builds": {
+   "darwin-arm64": "MACOSX_DEPLOYMENT_TARGET=11.0 cargo build --release --locked -p oo-cli --bin oo (rustc 1.98.1)",
+   "linux-x64": "git archive HEAD | docker buildx build --platform linux/amd64 -f ci/cli.Dockerfile (lane M cargo-zigbuild, target *.2.31); max GLIBC symbol GLIBC_2.30",
+   "linux-arm64": "same recipe, --platform linux/arm64; max GLIBC symbol GLIBC_2.30",
+   "portability": "Debian 11 (glibc 2.31) and Ubuntu 22.04 (glibc 2.35): oo --version + oo doctor --help pass on amd64 and arm64 (evidence/l1-final-build/linux-portability.txt)"
+  }
+ },
+ "harness": {
+  "l1_clean": "tools/oo-test/l1_clean.py at the commit, unmodified; driven by an untracked runner (evidence/l1-final-tools/l1_final.py) that only substitutes: lane label l1 (harness default a4), the stage.mjs tarball for the harness's diagnostic pack, gold questions in both flows (harness default: stack only), and a one-token model health probe (3 consecutive successes, <=30 min) before every Agent run",
+  "registry": "the harness's own static npm registry (python http.server container, oo.lane=l1) serving the staged tarball on host loopback; the printed prompt's `npm install -g --registry ...` ran literally",
+  "agent": "real model gpt-6.1-sol via secret_ref model-endpoint-9r / model-key-9r-sol; lane G t6.py @ f206d6424 model client and scoring; the Agent got only the printed share prompt on its own clean linux/amd64 machine (no Docker socket, no repository) and executed every step itself",
+  "agent_machine": "always a clean linux/amd64 container (oo-l1-client:linux-amd64, Debian 13 node image); on the macOS rows the owner-side CLI ran natively on macOS arm64",
+  "linux_amd64_daemon": "linux-amd64 rows: the owner CLI ran in a clean amd64 client container (no repository, no Rust) driving the HOST's arm64 Docker Desktop daemon through the mounted socket; the lite runtime image is linux/arm64. An amd64 runtime/daemon remains a D1 residual."
+ },
+ "results": {
+  "macos-arm64/postgres/tty": {
+   "result": "passed",
+   "init": "PTY oo init wizard (SAVE)",
+   "init_exit": 0,
+   "preflight_exit": 0,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 29,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:64840/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:65068' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 57,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 410.7,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   }
+  },
+  "macos-arm64/postgres/stack": {
+   "result": "passed",
+   "init": "oo init --config stack.yaml --json (non-interactive)",
+   "init_exit": 0,
+   "preflight_exit": null,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 29,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:64840/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:50954' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 60,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 413.2,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   },
+   "scheduled_cycle": {
+    "result": "passed",
+    "query_rows_after": [
+     [
+      "2.5000"
+     ]
+    ],
+    "expected": [
+     [
+      "2.5000"
+     ]
+    ],
+    "scheduled_model_calls": 0,
+    "services_before": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "services_after": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "healthy_services_after": 7,
+    "gateway_health": "measured"
+   },
+   "sigkill_resume": {
+    "builder": 1,
+    "candidate": 1,
+    "first_token": 0,
+    "gateway": 0,
+    "load": 1,
+    "publish": 0,
+    "self_review": 2,
+    "share_prompt": 0
+   }
+  },
+  "macos-arm64/mysql/tty": {
+   "result": "passed",
+   "init": "PTY oo init wizard (SAVE)",
+   "init_exit": 0,
+   "preflight_exit": 0,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 29,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:53450/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:53651' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 58,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 420.5,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   }
+  },
+  "macos-arm64/mysql/stack": {
+   "result": "passed",
+   "init": "oo init --config stack.yaml --json (non-interactive)",
+   "init_exit": 0,
+   "preflight_exit": null,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 29,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:53450/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:55940' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 57,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 410.1,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   },
+   "scheduled_cycle": {
+    "result": "passed",
+    "query_rows_after": [
+     [
+      "2.5000"
+     ]
+    ],
+    "expected": [
+     [
+      "2.5000"
+     ]
+    ],
+    "scheduled_model_calls": 0,
+    "services_before": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "services_after": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "healthy_services_after": 7,
+    "gateway_health": "measured"
+   },
+   "sigkill_resume": {
+    "builder": 1,
+    "candidate": 1,
+    "first_token": 0,
+    "gateway": 0,
+    "load": 1,
+    "publish": 0,
+    "self_review": 2,
+    "share_prompt": 0
+   }
+  },
+  "macos-arm64/oracle/tty": {
+   "result": "passed",
+   "init": "PTY oo init wizard (SAVE)",
+   "init_exit": 0,
+   "preflight_exit": 0,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 28,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:58474/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:58727' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 58,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 441.4,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   }
+  },
+  "macos-arm64/oracle/stack": {
+   "result": "passed",
+   "init": "oo init --config stack.yaml --json (non-interactive)",
+   "init_exit": 0,
+   "preflight_exit": null,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 28,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:58474/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:60916' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 61,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 435.9,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   },
+   "scheduled_cycle": {
+    "result": "passed",
+    "query_rows_after": [
+     [
+      "2.5000"
+     ]
+    ],
+    "expected": [
+     [
+      "2.5"
+     ]
+    ],
+    "scheduled_model_calls": 0,
+    "services_before": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "services_after": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "healthy_services_after": 7,
+    "gateway_health": "measured"
+   },
+   "sigkill_resume": {
+    "builder": 1,
+    "candidate": 1,
+    "first_token": 0,
+    "gateway": 0,
+    "load": 1,
+    "publish": 0,
+    "self_review": 2,
+    "share_prompt": 0
+   }
+  },
+  "linux-amd64/postgres/tty": {
+   "result": "passed",
+   "init": "PTY oo init wizard (SAVE)",
+   "init_exit": 0,
+   "preflight_exit": 1,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 29,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:63479/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:59553' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 59,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 447.7,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   }
+  },
+  "linux-amd64/postgres/stack": {
+   "result": "passed",
+   "init": "oo init --config stack.yaml --json (non-interactive)",
+   "init_exit": 0,
+   "preflight_exit": null,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 29,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:63479/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:60007' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 60,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 447.2,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   },
+   "scheduled_cycle": {
+    "result": "passed",
+    "query_rows_after": [
+     [
+      "2.5000"
+     ]
+    ],
+    "expected": [
+     [
+      "2.5000"
+     ]
+    ],
+    "scheduled_model_calls": 0,
+    "services_before": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "services_after": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "healthy_services_after": 7,
+    "gateway_health": "measured"
+   },
+   "sigkill_resume": {
+    "builder": 1,
+    "candidate": 1,
+    "first_token": 0,
+    "gateway": 0,
+    "load": 1,
+    "publish": 0,
+    "self_review": 2,
+    "share_prompt": 0
+   }
+  },
+  "linux-amd64/mysql/tty": {
+   "result": "passed",
+   "init": "PTY oo init wizard (SAVE)",
+   "init_exit": 0,
+   "preflight_exit": 0,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 29,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:52158/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:58255' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 57,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 436.7,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   }
+  },
+  "linux-amd64/mysql/stack": {
+   "result": "passed",
+   "init": "oo init --config stack.yaml --json (non-interactive)",
+   "init_exit": 0,
+   "preflight_exit": null,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 29,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:52158/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:57717' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 60,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 424.4,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   },
+   "scheduled_cycle": {
+    "result": "passed",
+    "query_rows_after": [
+     [
+      "2.5000"
+     ]
+    ],
+    "expected": [
+     [
+      "2.5000"
+     ]
+    ],
+    "scheduled_model_calls": 0,
+    "services_before": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "services_after": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "healthy_services_after": 7,
+    "gateway_health": "measured"
+   },
+   "sigkill_resume": {
+    "builder": 1,
+    "candidate": 1,
+    "first_token": 0,
+    "gateway": 0,
+    "load": 1,
+    "publish": 0,
+    "self_review": 2,
+    "share_prompt": 0
+   }
+  },
+  "linux-amd64/oracle/tty": {
+   "result": "passed",
+   "init": "PTY oo init wizard (SAVE)",
+   "init_exit": 0,
+   "preflight_exit": 1,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 28,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:57726/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:64363' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 59,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 439.1,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   }
+  },
+  "linux-amd64/oracle/stack": {
+   "result": "passed",
+   "init": "oo init --config stack.yaml --json (non-interactive)",
+   "init_exit": 0,
+   "preflight_exit": null,
+   "up_exit": 0,
+   "chain": "complete",
+   "build_model_calls": 3,
+   "review_items": 28,
+   "review_mode": "self",
+   "agent_steps": [
+    {
+     "command": "npm install -g --registry 'http://localhost:57726/' @reduxxx888/ontology-cli@0.2.0",
+     "exit": 0
+    },
+    {
+     "command": "printf '%s\\n' '[ENROLLMENT_REDACTED]' | oo login --gateway 'https://localhost:55677' --code-stdin",
+     "exit": 0
+    },
+    {
+     "command": "oo whoami && oo tables",
+     "exit": 0
+    },
+    {
+     "command": "oo agent-skill",
+     "exit": 0
+    }
+   ],
+   "agent_binding": "verified",
+   "agent_model_calls": 64,
+   "consumer_check": {
+    "whoami_role": "oo_r_owner",
+    "tables": 2,
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ],
+    "status": "passed"
+   },
+   "seconds": 487.4,
+   "teardown": {
+    "down_exit": 0,
+    "private_files_removed": true,
+    "volumes_removed": 2
+   },
+   "scheduled_cycle": {
+    "result": "passed",
+    "query_rows_after": [
+     [
+      "2.5000"
+     ]
+    ],
+    "expected": [
+     [
+      "2.5"
+     ]
+    ],
+    "scheduled_model_calls": 0,
+    "services_before": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "services_after": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "healthy_services_after": 7,
+    "gateway_health": "measured"
+   },
+   "sigkill_resume": {
+    "builder": 1,
+    "candidate": 1,
+    "first_token": 0,
+    "gateway": 0,
+    "load": 1,
+    "publish": 0,
+    "self_review": 2,
+    "share_prompt": 0
+   }
+  },
+  "ssh-target/postgres": {
+   "run_id": "l1f-ssh-pg",
+   "source_version": "17.11",
+   "target": "lane A2 masked systemd+sshd+Docker image, linux/arm64, privileged",
+   "pinned_host_key": "SHA256:AxH0cdUIoFLRr5taITdE7X/Uvi+bubxGpAwGBcMMcQY",
+   "up": {
+    "exit": 0,
+    "status": "retained_ready"
+   },
+   "build_exit": 0,
+   "chain": {
+    "model_calls": 3,
+    "stages": [
+     [
+      "load",
+      "complete"
+     ],
+     [
+      "candidate",
+      "complete"
+     ],
+     [
+      "builder",
+      "complete"
+     ],
+     [
+      "self_review",
+      "complete"
+     ],
+     [
+      "publish",
+      "complete"
+     ],
+     [
+      "gateway",
+      "complete"
+     ],
+     [
+      "first_token",
+      "complete"
+     ],
+     [
+      "share_prompt",
+      "complete"
+     ]
+    ],
+    "status": "complete"
+   },
+   "consumer": {
+    "status": "passed",
+    "query_rows": [
+     [
+      "1.1250"
+     ]
+    ]
+   },
+   "status_before": {
+    "gateway_health": "measured",
+    "healthy": true,
+    "services": {
+     "agent-db": "healthy",
+     "builder": "succeeded",
+     "control-db": "healthy",
+     "gateway": "healthy",
+     "model-egress": "healthy",
+     "scheduler": "healthy",
+     "worker": "healthy"
+    },
+    "status": "healthy",
+    "timer": {
+     "active": true,
+     "enabled": true,
+     "installed": true,
+     "last_cycle": null,
+     "last_trigger": null,
+     "next_elapse": "Fri 2026-11-06 12:08:29 UTC",
+     "next_elapse_monotonic": "2d 10h 28min 46.943041s",
+     "scope": "system",
+     "unit": "open-ontology-lite-cycle.timer"
+    }
+   },
+   "scheduled": {
+    "expected": "2.5000",
+    "query_rows": [
+     [
+      "2.5000"
+     ]
+    ],
+    "result": "passed"
+   },
+   "down": "removed",
+   "remote_after_down": [
+    "0",
+    "0"
+   ],
+   "docker_vm_kernel_state": "unchanged",
+   "result": "passed",
+   "error": null,
+   "containers_left": 0,
+   "note": "l1_ssh.py consumer steps are run by the harness with the host CLI over an SSH tunnel (no Agent in this harness)"
+  }
+ },
+ "gold": {
+  "macos-arm64/postgres/tty": {
+   "asked": 10,
+   "correct": 9,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  },
+  "macos-arm64/postgres/stack": {
+   "asked": 10,
+   "correct": 9,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  },
+  "macos-arm64/mysql/tty": {
+   "asked": 10,
+   "correct": 9,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  },
+  "macos-arm64/mysql/stack": {
+   "asked": 10,
+   "correct": 9,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  },
+  "macos-arm64/oracle/tty": {
+   "asked": 10,
+   "correct": 9,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  },
+  "macos-arm64/oracle/stack": {
+   "asked": 10,
+   "correct": 9,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  },
+  "linux-amd64/postgres/tty": {
+   "asked": 10,
+   "correct": 9,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  },
+  "linux-amd64/postgres/stack": {
+   "asked": 10,
+   "correct": 8,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "mismatch",
+     "equal": false,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  },
+  "linux-amd64/mysql/tty": {
+   "asked": 10,
+   "correct": 9,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  },
+  "linux-amd64/mysql/stack": {
+   "asked": 10,
+   "correct": 9,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  },
+  "linux-amd64/oracle/tty": {
+   "asked": 10,
+   "correct": 9,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  },
+  "linux-amd64/oracle/stack": {
+   "asked": 10,
+   "correct": 9,
+   "questions": {
+    "Q01": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q02": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q03": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q07": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q08": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q09": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q10": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q12": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    },
+    "Q15": {
+     "status": "refused",
+     "equal": false,
+     "error": null
+    },
+    "Q19": {
+     "status": "correct",
+     "equal": true,
+     "error": null
+    }
+   }
+  }
+ },
+ "secret_scan": {
+  "macos-arm64/postgres/tty": {
+   "hits": 0,
+   "containers_sampled": 15,
+   "argv_sample_lines": 67,
+   "status": "passed"
+  },
+  "macos-arm64/postgres/stack": {
+   "hits": 0,
+   "containers_sampled": 15,
+   "argv_sample_lines": 80,
+   "status": "passed"
+  },
+  "macos-arm64/mysql/tty": {
+   "hits": 0,
+   "containers_sampled": 17,
+   "argv_sample_lines": 73,
+   "status": "passed"
+  },
+  "macos-arm64/mysql/stack": {
+   "hits": 0,
+   "containers_sampled": 16,
+   "argv_sample_lines": 76,
+   "status": "passed"
+  },
+  "macos-arm64/oracle/tty": {
+   "hits": 0,
+   "containers_sampled": 16,
+   "argv_sample_lines": 79,
+   "status": "passed"
+  },
+  "macos-arm64/oracle/stack": {
+   "hits": 0,
+   "containers_sampled": 17,
+   "argv_sample_lines": 80,
+   "status": "passed"
+  },
+  "linux-amd64/postgres/tty": {
+   "hits": 0,
+   "containers_sampled": 12,
+   "argv_sample_lines": 41,
+   "status": "passed"
+  },
+  "linux-amd64/postgres/stack": {
+   "hits": 0,
+   "containers_sampled": 14,
+   "argv_sample_lines": 44,
+   "status": "passed"
+  },
+  "linux-amd64/mysql/tty": {
+   "hits": 0,
+   "containers_sampled": 11,
+   "argv_sample_lines": 44,
+   "status": "passed"
+  },
+  "linux-amd64/mysql/stack": {
+   "hits": 0,
+   "containers_sampled": 11,
+   "argv_sample_lines": 47,
+   "status": "passed"
+  },
+  "linux-amd64/oracle/tty": {
+   "hits": 0,
+   "containers_sampled": 13,
+   "argv_sample_lines": 43,
+   "status": "passed"
+  },
+  "linux-amd64/oracle/stack": {
+   "hits": 0,
+   "containers_sampled": 14,
+   "argv_sample_lines": 47,
+   "status": "passed"
+  },
+  "ssh-target/postgres": {
+   "hits": 0,
+   "status": "passed"
+  }
+ },
+ "model_health_probes": {
+  "macos-arm64/postgres/tty": {
+   "healthy": true,
+   "attempts": 3
+  },
+  "macos-arm64/postgres/stack": {
+   "healthy": true,
+   "attempts": 3
+  },
+  "macos-arm64/mysql/tty": {
+   "healthy": true,
+   "attempts": 3
+  },
+  "macos-arm64/mysql/stack": {
+   "healthy": true,
+   "attempts": 3
+  },
+  "macos-arm64/oracle/tty": {
+   "healthy": true,
+   "attempts": 3
+  },
+  "macos-arm64/oracle/stack": {
+   "healthy": true,
+   "attempts": 3
+  },
+  "linux-amd64/postgres/tty": {
+   "healthy": true,
+   "attempts": 3
+  },
+  "linux-amd64/postgres/stack": {
+   "healthy": true,
+   "attempts": 3
+  },
+  "linux-amd64/mysql/tty": {
+   "healthy": true,
+   "attempts": 3
+  },
+  "linux-amd64/mysql/stack": {
+   "healthy": true,
+   "attempts": 3
+  },
+  "linux-amd64/oracle/tty": {
+   "healthy": true,
+   "attempts": 3
+  },
+  "linux-amd64/oracle/stack": {
+   "healthy": true,
+   "attempts": 3
+  }
+ },
+ "run_ids": [
+  "l1f-mac-pg",
+  "l1f-mac-my",
+  "l1f-mac-ora",
+  "l1f-lnx-pg",
+  "l1f-lnx-my",
+  "l1f-lnx-ora",
+  "l1f-ssh-pg"
+ ],
+ "secret_scan_total_hits": 0
+}

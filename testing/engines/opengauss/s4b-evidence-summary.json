@@ -1,0 +1,184 @@
+{
+  "run_id": "d-s4b-ee-final3",
+  "base_commit": "a4e705eabcc5a83ad5f8984316ecee460e9a65ae",
+  "status": "author_complete",
+  "todo": {
+    "S4-D-02": "done: engine-level T0-T2; coordinator acceptance pending"
+  },
+  "support_level": "experimental",
+  "environment": "ARM64 pinned EE images on uniform-memory Docker VM; fixture-only synthetic NUMA view and ENOSYS interleave-hint shim, not stock-kernel certification",
+  "target": "in-memory range replacement; not Agent DB publication or Gateway acceptance",
+  "engine_results": {
+    "5.0.3": {
+      "command": "python3 testing/engines/opengauss/run.py --run-id d-s4b-ee-final3 --version 5.0.3 --uniform-vm",
+      "T0": "passed",
+      "T1": "passed (engine oracle)",
+      "T2": "passed (C5, 3 cycles)",
+      "live_tests_passed": 2,
+      "image": {
+        "variant": "EE",
+        "platform": "linux/arm64",
+        "image": "enmotech/opengauss@sha256:083a530b83efe82a094d86e5e8edc4625cb08d4fd1931273032e30bd3f702312"
+      },
+      "snapshot_rows": 2007008,
+      "snapshot_tables": 8,
+      "changed_payload_ranges": [
+        3,
+        0,
+        4
+      ],
+      "log_cdc": {
+        "state": "unsupported",
+        "reason": "openGauss decoding requires a separate consumer, not pgoutput; observed wal_level=logical, max_replication_slots=8, create_slot=true, get_changes=true"
+      },
+      "fixture_hint_forwarding_test": "passed"
+    },
+    "6.0.0": {
+      "command": "python3 testing/engines/opengauss/run.py --run-id d-s4b-ee-final3 --version 6.0.0 --uniform-vm",
+      "T0": "passed",
+      "T1": "passed (engine oracle)",
+      "T2": "passed (C5, 3 cycles)",
+      "live_tests_passed": 2,
+      "image": {
+        "variant": "EE",
+        "platform": "linux/arm64",
+        "image": "enmotech/opengauss@sha256:803427c264b647b3caf0ab712f66567d892066624ca4a082a01dbc31053986c7"
+      },
+      "snapshot_rows": 2007008,
+      "snapshot_tables": 8,
+      "changed_payload_ranges": [
+        3,
+        0,
+        4
+      ],
+      "log_cdc": {
+        "state": "unsupported",
+        "reason": "openGauss decoding requires a separate consumer, not pgoutput; observed wal_level=logical, max_replication_slots=8, create_slot=true, get_changes=true"
+      },
+      "fixture_hint_forwarding_test": "passed"
+    }
+  },
+  "validation": {
+    "check-commit1": {
+      "command": "cargo check --workspace --locked",
+      "exit": 0
+    },
+    "test-commit1": {
+      "command": "cargo test -p oo-connectors --locked --no-fail-fast",
+      "exit": 101
+    },
+    "fmt-commit1": {
+      "command": "cargo fmt -p oo-connectors -- --check",
+      "exit": 0
+    },
+    "check-spec": {
+      "command": "python3 specs/scripts/check_spec.py",
+      "exit": 0
+    },
+    "check-plan": {
+      "command": "python3 specs/scripts/check_plan.py",
+      "exit": 0
+    },
+    "check-v02-plan": {
+      "command": "python3 specs/scripts/check_v02_plan.py",
+      "exit": 0
+    },
+    "connector_counts": {
+      "passed": 221,
+      "failed_preexisting": 1,
+      "ignored": 21
+    },
+    "documentation_commit": "cargo check --workspace --locked and all three documentation checks passed"
+  },
+  "preexisting_failure": {
+    "test": "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes",
+    "base_command": "cargo test -p oo-connectors --locked --no-fail-fast",
+    "base_evidence": "d-s4b-20261104/test-base.log",
+    "same_failure": "group_signal rejected, expected sent"
+  },
+  "prior_evidence": [
+    "d-s4-opengauss-20261104",
+    "d-s4b-20261104",
+    "d-s4b-live1",
+    "d-s4b-live2",
+    "d-s4b-live3",
+    "d-s4b-live4",
+    "d-s4b-dev",
+    "d-s4b-ee-final1",
+    "d-s4b-ee-final2"
+  ],
+  "shared_file_patches": [],
+  "cargo_lock_changed": false,
+  "owned_containers_remaining": 0,
+  "sha256": {
+    "d-s4b-ee-final3/5.0.3/sha-config.log": "ec258ef109f8a9b1e18408a1cce03dc9250d92f23af76dccf687a746f0823282",
+    "d-s4b-ee-final3/5.0.3/T0.json": "73fbd455017e64fb64c4dcb6df6f03ea4ca5626acd80e3c7e4156239a4ee9c86",
+    "d-s4b-ee-final3/5.0.3/T1-T2.json": "29816391384a1414746c1aafaae7013f8cdc17b39d4539c6b233bd127080047e",
+    "d-s4b-ee-final3/5.0.3/result.json": "e599a5227e91e2abcb11e82318192c6632124c560d87fc2050b32ad036d1a536",
+    "d-s4b-ee-final3/5.0.3/test.log": "387b718ea46aa6134b1b2156a122a9691501142c464164d3b96d9eed068b5052",
+    "d-s4b-ee-final3/5.0.3/sha-user.log": "19fe28eff61cdf76665a6150a5ac36e4df175fef2e4679f03b08878f6d8c93d5",
+    "d-s4b-ee-final3/5.0.3/container.id": "b5424a68fe1d8c9759ca70c94cde44697456042965678394204dd3d874520b10",
+    "d-s4b-ee-final3/5.0.3/tls-ca.log": "ab60bacadec510a8b0fd85f50de9c0c14675b6c9357cd4b9a08b13a74c511faf",
+    "d-s4b-ee-final3/5.0.3/T0-shaonly.json": "01c69b2ed696f8aeecbedf43088fcb9685aa8c25f9e2ba2d84d1a72ae7b57c5e",
+    "d-s4b-ee-final3/5.0.3/fixture.log": "81bb66a0f249e2780c9e09aa8e1a433db266a087b03d92313e53d9eb9525c7b4",
+    "d-s4b-ee-final3/5.0.3/source-sha256.json": "07fc736175c330dd846eb20bfb41a7b0a6feb4d81cec1cf76e76aab988d05ba0",
+    "d-s4b-ee-final3/5.0.3/startup.log": "bd56e049d46d47395dfe17a237c8f5d2e499066b234a4f2b4dceab961b828a0f",
+    "d-s4b-ee-final3/5.0.3/cleanup.log": "fee843e2eb1e448a1b3366e986efa3a81f0e0b5017099221dcfdb6371a25a7f8",
+    "d-s4b-ee-final3/5.0.3/restart.log": "fee843e2eb1e448a1b3366e986efa3a81f0e0b5017099221dcfdb6371a25a7f8",
+    "d-s4b-ee-final3/5.0.3/tls-request.log": "b4e714d4e47ad46955ff227b7c4fb3d877d9b0793a05ace677122a34a5e7c930",
+    "d-s4b-ee-final3/5.0.3/compatible-config.log": "ec258ef109f8a9b1e18408a1cce03dc9250d92f23af76dccf687a746f0823282",
+    "d-s4b-ee-final3/5.0.3/tls-sign.log": "0867f8872496fcdb52d0a23ce7dca874dd26d943e1a01d4cf66e273954c88544",
+    "d-s4b-ee-final3/5.0.3/uniform-vm-build.log": "1e16cb00d588f41a94c6ff9b42d365c635cbabfee6b93bccad282d65678b86bf",
+    "d-s4b-ee-final3/5.0.3/T0-missing.json": "aa6169173ff8685a237731606e9267adae41f79562d0da05b8a8e9cb58936984",
+    "d-s4b-ee-final3/6.0.0/sha-config.log": "d31f34335881d8e0703807805a707f25ba124ce7aebcf52a4a6d5d0a2e313b33",
+    "d-s4b-ee-final3/6.0.0/T0.json": "e1a32dfd75bc483af578641a0c94d7dab032ded7755b48adfc2e4f139e81864e",
+    "d-s4b-ee-final3/6.0.0/T1-T2.json": "29816391384a1414746c1aafaae7013f8cdc17b39d4539c6b233bd127080047e",
+    "d-s4b-ee-final3/6.0.0/result.json": "50e7dc0564b4aa2580945e6ed5edbf7fc69fe5c66921c0386cdf1e37405f2a20",
+    "d-s4b-ee-final3/6.0.0/test.log": "6b3ff27be184e8d87e18bd8229b51b94f3e0091e32da8f7cf2d8671229e24f22",
+    "d-s4b-ee-final3/6.0.0/sha-user.log": "19fe28eff61cdf76665a6150a5ac36e4df175fef2e4679f03b08878f6d8c93d5",
+    "d-s4b-ee-final3/6.0.0/container.id": "af99f6bd349f3c90480d9e2baa32382e91585b7a13312e12f6b188c0701adc7e",
+    "d-s4b-ee-final3/6.0.0/tls-ca.log": "cbd269594ae530c29288d3a9806d3ed0174037149f630ac5b79a536bfa625293",
+    "d-s4b-ee-final3/6.0.0/T0-shaonly.json": "01c69b2ed696f8aeecbedf43088fcb9685aa8c25f9e2ba2d84d1a72ae7b57c5e",
+    "d-s4b-ee-final3/6.0.0/fixture.log": "81bb66a0f249e2780c9e09aa8e1a433db266a087b03d92313e53d9eb9525c7b4",
+    "d-s4b-ee-final3/6.0.0/source-sha256.json": "07fc736175c330dd846eb20bfb41a7b0a6feb4d81cec1cf76e76aab988d05ba0",
+    "d-s4b-ee-final3/6.0.0/startup.log": "5edb937aff025a20171ada564f41f5c499f2ac39282e7ddc944e9035438098e7",
+    "d-s4b-ee-final3/6.0.0/cleanup.log": "e7a677b534c9fe86409a7c6ae2da3734bdba5044b83f6ec064900a34d2abbd47",
+    "d-s4b-ee-final3/6.0.0/restart.log": "e7a677b534c9fe86409a7c6ae2da3734bdba5044b83f6ec064900a34d2abbd47",
+    "d-s4b-ee-final3/6.0.0/tls-request.log": "f1a8691926401357c6327aea222003be7e66a08134390ebf9a3be37b11f62696",
+    "d-s4b-ee-final3/6.0.0/compatible-config.log": "d31f34335881d8e0703807805a707f25ba124ce7aebcf52a4a6d5d0a2e313b33",
+    "d-s4b-ee-final3/6.0.0/tls-sign.log": "0867f8872496fcdb52d0a23ce7dca874dd26d943e1a01d4cf66e273954c88544",
+    "d-s4b-ee-final3/6.0.0/uniform-vm-build.log": "1e16cb00d588f41a94c6ff9b42d365c635cbabfee6b93bccad282d65678b86bf",
+    "d-s4b-ee-final3/6.0.0/T0-missing.json": "d251a861cf8ba44e149433e407664aa47c5cbd77d7f94b5f0e8322052d6729e3",
+    "d-s4b-20261104/check-commit1.log": "07d61cbc8422a4e2d039fe7d784e2c0a09a3e868788d60234748cfe030ac2c20",
+    "d-s4b-20261104/check-commit1.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "d-s4b-20261104/test-commit1.log": "6b69d6791c63803940b5caa4daa119ce43d6e93b9e63060aaae84f40686f585f",
+    "d-s4b-20261104/test-commit1.exit": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+    "d-s4b-20261104/fmt-commit1.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "d-s4b-20261104/fmt-commit1.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "d-s4b-20261104/check-spec.log": "91438c4bad343285ee0f15cff61ed30187b7e826bf927a1b1156bc48d4ace78f",
+    "d-s4b-20261104/check-spec.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "d-s4b-20261104/check-plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+    "d-s4b-20261104/check-plan.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "d-s4b-20261104/check-v02-plan.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135",
+    "d-s4b-20261104/check-v02-plan.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "d-s4b-20261104/test-base.log": "799568fd7f837fb3e585d78ef683fa028de5a26a1a46bd67b65e9f617d5f91c1",
+    "d-s4b-20261104/test-base.exit": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+    "d-s4b-20261104/base.txt": "8dc974f30d31df6bc4982b32d5826491ea859e8595084b9e1634dbfab3f3aa67",
+    "d-s4b-20261104/check-commit2.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "d-s4b-20261104/check-commit2.log": "41bce595497be54e0479f7d7e6e025fdd4827c63044c2616e66e325d583ece69",
+    "d-s4b-20261104/docs2-spec.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "d-s4b-20261104/docs2-spec.log": "91438c4bad343285ee0f15cff61ed30187b7e826bf927a1b1156bc48d4ace78f",
+    "d-s4b-20261104/docs2-plan.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "d-s4b-20261104/docs2-plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+    "d-s4b-20261104/docs2-v02_plan.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "d-s4b-20261104/docs2-v02_plan.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135"
+  },
+  "gaps": [
+    "SHA256/SM3 authentication not implemented; compatible MD5 only",
+    "C5 uses MD5 sum128 hints plus periodic full reads, not cryptographic integrity",
+    "No C1 decoder",
+    "No production/stock-kernel validation",
+    "No full neutral-table matrix, case-insensitive collation, partitioned parents, domain/enum coverage, T3-T8 or Agent DB/Gateway acceptance"
+  ],
+  "source_commit": "505c89e3f65d0f8a62cd934b34c8c43637c3d71c"
+}

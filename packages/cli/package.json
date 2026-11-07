@@ -1,9 +1,10 @@
 {
   "name": "@reduxxx888/ontology-cli",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Standalone Open Ontology CLI with a verified packaged native executable.",
   "type": "module",
   "license": "Apache-2.0",
+  "ooPlatforms": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64"],
   "bin": {
     "oo": "bin/oo.mjs",
     "ontology": "bin/oo.mjs"
@@ -13,9 +14,11 @@
   },
   "files": [
     "bin/oo.mjs",
+    "bin/auth.mjs",
     "native/manifest.json",
     "native/*/oo",
     "native/*/oo.exe",
+    "native/*/oo-lite-image",
     "README.md",
     "LICENSE",
     "NOTICE",

@@ -1,0 +1,323 @@
+import csv
+import io
+import json
+import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock
+
+import audit
+
+
+def mysql_row(kind, sql, user="fixture_reader[fixture_reader] @  [172.17.0.1]", stamp="2026-11-05 01:00:00.000001"):
+    return "\t".join([stamp, "7", kind, sql.encode().hex(), user])
+
+
+class AuditTests(unittest.TestCase):
+    def test_postgres_audit_does_not_change_role_startup_settings(self):
+        run = SimpleNamespace(engine="postgres", sql=Mock())
+        audit.Audit(run).enable()
+        sql = run.sql.call_args.args[0]
+        self.assertIn("ALTER SYSTEM SET log_statement='all'", sql)
+        self.assertIn("log_replication_commands=on", sql)
+        self.assertIn("pg_reload_conf()", sql)
+        self.assertNotIn("ALTER ROLE", sql)
+        self.assertTrue(run.sql.call_args.kwargs["admin"])
+
+    def test_read_policy(self):
+        for sql in ("SELECT COUNT(*) FROM orders", "SHOW TABLES", "DESCRIBE orders",
+                    "SELECT 'DELETE FROM orders;'", "START TRANSACTION READ ONLY",
+                    "ALTER SESSION SET NLS_LANGUAGE='AMERICAN' TIME_ZONE='+00:00'",
+                    "SELECT DECODE(USER, 'XS$NULL', XS_SYS_CONTEXT('XS$SESSION','USERNAME'), USER) FROM SYS.DUAL",
+                    "SELECT * FROM v$logmnr_contents",
+                    "BEGIN DBMS_LOGMNR.START_LOGMNR(STARTSCN=>:1, OPTIONS=>DBMS_LOGMNR.DICT_FROM_ONLINE_CATALOG); END;",
+                    "SELECT * FROM pg_logical_slot_peek_changes('slot', NULL, NULL)"):
+            self.assertTrue(audit.read_statement(sql), sql)
+        for sql in ("DELETE FROM orders", "SELECT 1; DELETE FROM orders",
+                    "WITH gone AS (DELETE FROM orders RETURNING *) SELECT * FROM gone",
+                    "SELECT * INTO copy FROM orders", "SELECT nextval('s')",
+                    "SELECT evil()", "SELECT schema.evil()", "SET log_statement=none",
+                    "SELECT 1 /*! INTO OUTFILE '/tmp/x' */", "CALL write()",
+                    "BEGIN DBMS_LOGMNR_D.BUILD; END;", "SELECT * FROM t FOR UPDATE",
+                    "ALTER SESSION SET SQL_TRACE=TRUE", "SELECT $$evil$$",
+                    "SELECT '--'; DELETE FROM t", "SELECT '/*'; DROP TABLE t",
+                    "SELECT 'unterminated", "SELECT 1 /* unclosed",
+                    "SELECT * FROM pg_logical_slot_get_changes('slot', NULL, NULL)",
+                    "BEGIN DBMS_LOGMNR.START_LOGMNR(OPTIONS=>DBMS_LOGMNR.DICT_FROM_REDO_LOGS); END;"):
+            self.assertFalse(audit.read_statement(sql), sql)
+
+    def test_engine_rules_name_the_rule_miss(self):
+        cases = [
+            ("postgres", "snapshot", "START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY", "txn_control"),
+            ("postgres", "snapshot", "SET TRANSACTION SNAPSHOT '00000003-1'", "txn_control"),
+            ("postgres", "snapshot", "DECLARE oo_chunk NO SCROLL CURSOR FOR SELECT id FROM public.t "
+                                     "WHERE id >= CAST($1 AS bigint) ORDER BY id", "read_cursor"),
+            ("postgres", "snapshot", "FETCH FORWARD 10000 FROM oo_chunk", "read_cursor"),
+            ("postgres", "snapshot", "EXPLAIN (FORMAT JSON) SELECT * FROM public.t", "read_explain"),
+            ("postgres", "snapshot", "SELECT pg_catalog.set_config('statement_timeout', $1, false), "
+                                     "pg_catalog.set_config('default_transaction_read_only', 'on', false) LIMIT 1",
+             "d12_session_state"),
+            ("postgres", "snapshot", "SELECT pg_export_snapshot()", "txn_control"),
+            ("mysql", "c1", "SET @master_binlog_checksum= @@global.binlog_checksum", "d12_session_state"),
+            ("mysql", "c5", "SELECT COUNT(*),BIT_XOR(CRC32(CONCAT_WS('#',`id`,`payload`))) FROM `fixture`.`items`",
+             "c5_digest"),
+            ("oracle", "c5", "SELECT TO_CHAR(current_scn) FROM v$database", "catalog_read"),
+        ]
+        for engine, variant, sql, category in cases:
+            self.assertEqual(audit.classify_sql(sql, engine, variant)[0], category, sql)
+        rejections = [
+            ("postgres", "EXPLAIN (ANALYZE) SELECT 1", "explain_analyze_executes"),
+            ("postgres", "SELECT set_config('log_statement', 'none', false)", "unreviewed_setting:LOG_STATEMENT"),
+            ("postgres", "BEGIN READ WRITE", "not_a_query"),
+            ("postgres", "CREATE TEMP TABLE x(i int)", "write_keyword:CREATE"),
+            ("mysql", "SET GLOBAL general_log=0", "server_scope_set"),
+            ("mysql", "SET PERSIST sql_mode=''", "server_scope_set"),
+            ("mysql", "SELECT 1 LOCK IN SHARE MODE", "write_keyword:LOCK"),
+            ("mysql", "EXPLAIN ANALYZE SELECT 1", "explain_analyze_executes"),
+            ("oracle", "SELECT f(1) FROM dual", "unreviewed_function:F"),
+        ]
+        for engine, sql, rule in rejections:
+            self.assertEqual(audit.classify_sql(sql, engine), ("rejected", rule), sql)
+
+    def test_replication_only_in_c1(self):
+        record = {"kind": "replication", "sql": "START_REPLICATION SLOT \"oo\" LOGICAL 0/16B3748 (proto_version '1')"}
+        self.assertEqual(audit.classify(record, "postgres", "c1")[0], "replication_protocol")
+        self.assertEqual(audit.classify(record, "postgres", "c5"),
+                         ("rejected", "replication_command_outside_c1"))
+        self.assertEqual(audit.classify({"kind": "replication", "sql": "CREATE_REPLICATION_SLOT x LOGICAL pgoutput"},
+                                        "postgres", "c1")[1], "unreviewed_replication_command:CREATE_REPLICATION_SLOT")
+        dump = {"kind": "replication", "action": "Binlog Dump", "sql": ""}
+        self.assertEqual(audit.classify(dump, "mysql", "c1")[0], "replication_protocol")
+        self.assertEqual(audit.classify(dump, "mysql", "snapshot")[0], "rejected")
+
+    def test_oracle_system_writes_need_privilege_proof_and_exact_objects(self):
+        logon = {"kind": "statement", "action": "UPDATE", "object": "SYS.USER$", "sql": "update user$ set spare6=..."}
+        self.assertEqual(audit.classify(logon, "oracle", "c5")[1], "system_dml_without_privilege_proof")
+        self.assertEqual(audit.classify(logon, "oracle", "c5", True)[0], "d12_logon_bookkeeping")
+        user_table = dict(logon, object="FIXTURE.ITEMS")
+        self.assertEqual(audit.classify(user_table, "oracle", "c5", True), ("rejected", "write:UPDATE:FIXTURE.ITEMS"))
+        miner = {"kind": "statement", "action": "DELETE", "object": "SYSTEM.LOGMNR_GT_TAB_INCLUDE$",
+                 "sql": "DELETE FROM SYSTEM.LOGMNR_GT_TAB_INCLUDE$", "user": audit.ORACLE_MINER}
+        self.assertEqual(audit.classify(miner, "oracle", "c1", True)[0], "d11a_logminer_object_dml")
+        self.assertEqual(audit.classify(miner, "oracle", "c5", True)[0], "rejected")
+        self.assertEqual(audit.classify(dict(miner, user=audit.READER), "oracle", "c1", True)[0], "rejected")
+        package = {"kind": "statement", "action": "EXECUTE PROCEDURE", "object": "SYS.DBMS_ROWID",
+                   "sql": "SELECT ROWIDTOCHAR(DBMS_ROWID.ROWID_CREATE(1, TO_NUMBER(:b1), 0, 0, 0)) FROM dual"}
+        self.assertEqual(audit.classify(package, "oracle", "snapshot")[0], "catalog_read")
+        self.assertEqual(audit.classify(dict(package, sql="BEGIN SYS.EVIL; END;"), "oracle", "snapshot"),
+                         ("rejected", "plsql_block_outside_c1_miner"))
+        commit = {"kind": "statement", "action": "COMMIT", "sql": ""}
+        self.assertEqual(audit.classify(commit, "oracle", "c5")[0], "txn_control")
+        self.assertEqual(audit.classify({"kind": "statement", "action": "SELECT", "sql": "SELECT 1 FROM dual",
+                                         "truncated": True}, "oracle", "c5")[1], "truncated_sql_text")
+
+    def test_mysql_records_and_commands(self):
+        text = "\n".join([mysql_row("Connect", "fixture_reader@x on fixture"),
+                          mysql_row("Query", "SELECT\n1"), mysql_row("Binlog Dump", ""),
+                          mysql_row("Init DB", "fixture")])
+        records = audit.mysql_records(text)
+        self.assertEqual([r["kind"] for r in records], ["session", "statement", "replication", "mysql_command"])
+        self.assertEqual(records[1]["sql"], "SELECT\n1")
+        self.assertEqual(audit.classify(records[3], "mysql", "snapshot")[0], "d12_session_state")
+        self.assertEqual(audit.classify(dict(records[3], action="Debug"), "mysql", "snapshot")[0], "rejected")
+        for text in ("bad", "x\t1\tQuery\txyz\tu"):
+            with self.assertRaises(ValueError):
+                audit.mysql_records(text)
+
+    def test_pg_identity_error_replication_and_csv(self):
+        stream = io.StringIO()
+        writer = csv.writer(stream)
+        for user, message, error, statement in (
+            ("postgres", "statement: INSERT INTO t VALUES(1)", "", ""),
+            ("fixture_reader", "statement: SELECT\n1", "", ""),
+            ("fixture_reader", "execute <unnamed>: SELECT 2", "", ""),
+            ("fixture_reader", "received replication command: IDENTIFY_SYSTEM", "LOG", ""),
+            ("fixture_reader", "denied", "ERROR", "DELETE FROM t"),
+        ):
+            row = [""] * 23
+            row[0] = "2026-11-05 01:02:03.456 UTC"
+            row[1], row[13], row[11], row[19] = user, message, error, statement
+            writer.writerow(row)
+        records = audit.postgres_records(stream.getvalue())
+        self.assertEqual([r["sql"] for r in records], ["SELECT\n1", "SELECT 2", "IDENTIFY_SYSTEM", "DELETE FROM t"])
+        self.assertEqual(records[2]["kind"], "replication")
+        self.assertEqual(records[0]["time"], "2026-11-05 01:02:03.456")
+        self.assertEqual(audit.classify(records[3], "postgres", "snapshot")[0], "rejected")
+        with self.assertRaises(ValueError):
+            audit.postgres_records("malformed")
+        with self.assertRaises(ValueError):
+            audit.postgres_records(stream.getvalue().replace(" UTC", " CET"))
+
+    def test_oracle_rows_and_truncation(self):
+        row = {"action": "SELECT", "user": "FIXTURE_READER", "time": "2026-11-05 01:00:00.000000",
+               "owner": None, "object": None, "sql": "SELECT 1 FROM dual", "sql_length": "18"}
+        records = audit.oracle_records(json.dumps(row) + "\n" + json.dumps(dict(row, action="LOGON", sql=None)))
+        self.assertEqual([r["kind"] for r in records], ["statement", "session"])
+        self.assertTrue(audit.oracle_records(json.dumps(dict(row, sql_length="4000")))[0]["truncated"])
+        # SQL*Plus statements end in NUL; the collector escapes it as \u0000.
+        nul = audit.oracle_records('{"action":"SELECT","user":"U","time":"t","sql_length":"22",'
+                                   '"sql":"SELECT USER FROM DUAL\\u0000"}')[0]
+        self.assertFalse(nul.get("truncated"))
+        self.assertEqual(audit.classify(nul, "oracle", "snapshot")[0], "catalog_read")
+        wrapped = json.dumps(dict(row, sql="SELECT " + "x" * 50 + " FROM dual", sql_length="62"))
+        joined = audit.oracle_records(wrapped[:40] + "\n" + wrapped[40:])
+        self.assertEqual(joined[0]["sql"], "SELECT " + "x" * 50 + " FROM dual")
+        self.assertFalse(joined[0].get("truncated"))
+        with self.assertRaises(ValueError):
+            audit.oracle_records("SELECT|41")
+        # 32,767-character SQL*Plus wraps across two rows, including at a row edge.
+        sql = "SELECT '" + "y" * 40000 + "' FROM dual"
+        wide = json.dumps(dict(row, sql=sql, sql_length=str(len(sql))))
+        stream = wide + "\n" + wide
+        lines = [stream[i:i + 32767] for i in range(0, len(stream), 32767)]
+        rows = audit.oracle_records("\n".join(lines))
+        self.assertEqual(len(rows), 2)
+        self.assertFalse(any(r.get("truncated") for r in rows))
+        for bad in (wide[:-1], wide + "\n" + wide[:100], "41", wide + " 7"):
+            with self.assertRaises(ValueError):
+                audit.oracle_records(bad)
+
+    def test_windows_attribute_variants_and_harness(self):
+        records = [{"time": "2026-01-01 00:00:01", "kind": "statement", "sql": "SELECT 1"},
+                   {"time": "2026-01-01 00:00:05", "kind": "replication", "sql": "IDENTIFY_SYSTEM"},
+                   {"time": "2026-01-01 00:00:09", "kind": "statement", "sql": "SELECT 2"}]
+        windows = [{"seq": 1, "variant": "c1", "start": "2026-01-01 00:00:04", "end": "2026-01-01 00:00:06"}]
+        summary = audit.summarize(records, "postgres", windows)
+        self.assertEqual(summary["c1"]["statements"], 1)
+        self.assertEqual(summary["harness"]["statements"], 2)
+        self.assertEqual(summary["c1"]["rejected"], 0)
+        # The same replication command outside a C1 window is rejected.
+        summary = audit.summarize(records, "postgres", [dict(windows[0], variant="c5")])
+        self.assertEqual(summary["c5"]["rejected"], 1)
+
+    def test_review_m1_regressions(self):
+        # (a) SET values are expressions: routine calls are judged like reads.
+        self.assertEqual(audit.classify_sql("SET @a = CONCAT(fixture.evil_write())", "mysql"),
+                         ("rejected", "unreviewed_function:FIXTURE.EVIL_WRITE"))
+        self.assertEqual(audit.classify_sql("SET @a = (SELECT 1)", "mysql"), ("rejected", "unreviewed_set_value"))
+        self.assertEqual(audit.classify_sql("SET @master_binlog_checksum= @@global.binlog_checksum", "mysql")[0],
+                         "d12_session_state")
+        # (b) COM_CHANGE_USER would switch identity away from the audited reader.
+        self.assertEqual(audit.classify({"kind": "mysql_command", "action": "Change user", "sql": ""},
+                                        "mysql", "snapshot"), ("rejected", "change_user_unjudged"))
+        # (c) search_path values are judged, inline and bound.
+        self.assertEqual(audit.classify_sql("SET search_path TO evil, pg_catalog", "postgres"),
+                         ("rejected", "search_path_ahead_of_pg_catalog"))
+        self.assertEqual(audit.classify_sql("SET search_path = 'pg_catalog, public'", "postgres")[0],
+                         "d12_session_state")
+        self.assertEqual(audit.classify_sql("SELECT set_config('search_path','evil,pg_catalog',false)",
+                                            "postgres"), ("rejected", "search_path_ahead_of_pg_catalog"))
+        bound = {"kind": "statement", "sql": "SELECT set_config('search_path',$1,false)",
+                 "detail": "parameters: $1 = 'pg_catalog'"}
+        self.assertEqual(audit.classify(bound, "postgres", "snapshot")[0], "d12_session_state")
+        self.assertEqual(audit.classify(dict(bound, detail="parameters: $1 = 'evil, pg_catalog'"),
+                                        "postgres", "snapshot")[1], "search_path_ahead_of_pg_catalog")
+        self.assertEqual(audit.classify(dict(bound, detail=""), "postgres", "snapshot")[1], "unjudged_search_path")
+        # (e) logical slot peeks only on the C1 path.
+        peek = "SELECT data FROM pg_logical_slot_peek_binary_changes($1,$2::text::pg_lsn,NULL)"
+        self.assertNotEqual(audit.classify_sql(peek, "postgres", "c1")[0], "rejected")
+        self.assertEqual(audit.classify_sql(peek, "postgres", "c5")[0], "rejected")
+
+    def test_slot_list_must_precede_the_reader(self):
+        records = [{"time": "2026-01-01 00:00:02", "kind": "statement", "user": "fixture_reader",
+                    "sql": "SELECT end_lsn::text FROM pg_replication_slot_advance($1,$2::pg_lsn)",
+                    "detail": "parameters: $1 = 'oo_slot', $2 = '0/1'"}]
+        windows = [{"seq": 1, "variant": "c1", "start": "2026-01-01 00:00:01", "end": "2026-01-01 00:00:03"}]
+        self.assertEqual(audit.summarize(records, "postgres", windows, slots=("oo_slot",))["c1"]["rejected"], 0)
+        self.assertEqual(audit.summarize(records, "postgres", windows, slots=("other",))["c1"]["rejected"], 1)
+        run = SimpleNamespace(engine="postgres", seq=0, id="x")
+        collector = audit.Audit(run)
+        collector.slots, collector.slots_time = ("oo_slot",), "2026-01-01 00:00:05"
+        collector.raw = lambda: [dict(r) for r in records]
+        collector.privileges = lambda: {"read_only": True}
+        result = collector.collect(windows)
+        self.assertEqual(result["slots_before_reader"]["slots"], [])
+        self.assertEqual(result["summary"]["c1"]["rejected"], 1)
+
+    def test_pg_reader_outside_fixture_database_rejected(self):
+        record = {"kind": "statement", "sql": "SELECT 1", "database": "agent"}
+        self.assertEqual(audit.classify(record, "postgres", "snapshot"),
+                         ("rejected", "reader_session_outside_fixture_database"))
+
+    def test_mysql_and_postgres_privileges_are_measured(self):
+        def runner(responses):
+            def sql(statement, **kwargs):
+                for prefix, value in responses.items():
+                    if prefix in statement:
+                        return 0, value
+                return 0, ""
+            return SimpleNamespace(engine="mysql", sql=sql, seq=0)
+        ok = runner({"FROM mysql.user": "%\n127.0.0.1",
+                     "SHOW GRANTS": "GRANT USAGE ON *.* TO `fixture_reader`@`%`\n"
+                                    "GRANT SELECT, SHOW VIEW ON `fixture`.* TO `fixture_reader`@`%`"})
+        self.assertTrue(audit.Audit(ok).privileges()["read_only"])
+        bad = runner({"FROM mysql.user": "%", "SHOW GRANTS": "GRANT SELECT, INSERT ON `fixture`.* TO `fixture_reader`@`%`"})
+        self.assertFalse(audit.Audit(bad).privileges()["read_only"])
+        replication = runner({"FROM mysql.user": "%",
+                              "SHOW GRANTS": "GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO `fixture_reader`@`%`"})
+        collector = audit.Audit(replication)
+        self.assertFalse(collector.privileges()["read_only"])
+        collector.allow_replication = True
+        self.assertTrue(collector.privileges()["read_only"])
+        self.assertFalse(audit.Audit(runner({"FROM mysql.user": ""})).privileges()["read_only"])
+
+        pg = {"'role|'": "role|f,f,f,t,f", "'member|'": "member|pg_read_all_stats",
+              "'database|'": "database|fixture|false,false\ndatabase|agent|false,true"}
+        run = runner(pg)
+        run.engine = "postgres"
+        collector = audit.Audit(run)
+        self.assertFalse(collector.privileges()["read_only"])  # replication outside C1
+        collector.allow_replication = True
+        self.assertTrue(collector.privileges()["read_only"])
+        for key, value in (("'table|'", "table|public.orders"), ("'schema|'", "schema|public"),
+                           ("'function|'", "function|public.evil()"), ("'database|'", "database|fixture|f,t"),
+                           ("'role|'", "role|true,false,false,true,false")):
+            run = runner(dict(pg, **{key: value}))
+            run.engine = "postgres"
+            collector = audit.Audit(run)
+            collector.allow_replication = True
+            self.assertFalse(collector.privileges()["read_only"], value)
+
+    def test_oracle_trail_dump_outlives_default_sql_timeout(self):
+        # Full-scale emulated 21c timed out at 1800 s mid-dump (t7-s5h01-20261105-full2).
+        calls = []
+
+        def sql(statement, admin=False, required=True, timeout=1800):
+            calls.append((statement, timeout))
+            return 0, ""
+
+        def command(argv, data=None, timeout=300, required=True):
+            calls.append((data, timeout))
+            return 0, ""
+        for version in ("21.3.0", "11.2.0"):
+            calls.clear()
+            run = SimpleNamespace(engine="oracle", version=version, sql=sql, command=command,
+                                  name="oo-t-x", seq=0)
+            collector = audit.Audit(run)
+            collector.mode = "oracle-unified" if version.startswith("21") else "oracle-standard"
+            collector.users = ["fixture_reader", audit.ORACLE_MINER]
+            collector.oracle_raw()
+            dumps = [t for text, t in calls if text and "SELECT TO_CLOB" in text]
+            self.assertEqual(len(dumps), 2, version)
+            self.assertTrue(all(t >= audit.ORACLE_TRAIL_TIMEOUT > 1800 for t in dumps), version)
+
+    def test_markers_alone_do_not_prove_hook_activity(self):
+        markers = ["oo_audit_start_x", "oo_audit_T1_start_x", "oo_audit_T1_end_x", "oo_audit_end_x"]
+        text = "\n".join(mysql_row("Query", "SELECT '" + m + "'") for m in markers)
+        responses = {"SELECT @@GLOBAL": (0, "1\tTABLE"), "SELECT host": (0, "%"),
+                     "SHOW GRANTS": (0, "GRANT USAGE ON *.* TO `fixture_reader`@`%`")}
+
+        def sql(statement, **kwargs):
+            for prefix, value in responses.items():
+                if statement.startswith(prefix):
+                    return value
+            return 0, text
+        run = SimpleNamespace(engine="mysql", sql=sql, seq=0)
+        collector = audit.Audit(run)
+        collector.markers = markers
+        result = collector.collect()
+        self.assertFalse(result["passed"])
+        self.assertEqual(result["suite_activity"], {"T1": 0})
+
+
+if __name__ == "__main__":
+    unittest.main()

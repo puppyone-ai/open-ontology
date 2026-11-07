@@ -32,10 +32,10 @@ resolver = "3"
 members = [".", "isolate", "semantics-bin"]
 
 [dependencies]
-arrow-array = { version = "=60.0.0", default-features = false }
-arrow-buffer = { version = "=60.0.0", default-features = false }
-arrow-ipc = { version = "=60.0.0", default-features = false }
-arrow-schema = { version = "=60.0.0", default-features = false }
+arrow-array = { version = "=60.1.0", default-features = false }
+arrow-buffer = { version = "=60.1.0", default-features = false }
+arrow-ipc = { version = "=60.1.0", default-features = false }
+arrow-schema = { version = "=60.1.0", default-features = false }
 serde_json = "=1.0.151"
 sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
 source-driver-isolate = { path = "isolate" }

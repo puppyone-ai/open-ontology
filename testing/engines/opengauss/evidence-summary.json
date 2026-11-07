@@ -1,0 +1,58 @@
+{
+  "run_id": "d-s4-opengauss-20261104",
+  "base_commit": "0c5de20842cff7a65deef13ef2ec0291fe41101d",
+  "status": "blocked",
+  "s4_d_02": "not_done",
+  "driver_refusal_tests": {
+    "passed": 2,
+    "live": false
+  },
+  "connector_tests": {
+    "passed": 220,
+    "failed": 1,
+    "ignored": 19,
+    "preexisting_failure": "parent_deadline_kills_the_worker_and_the_next_call_completes"
+  },
+  "engine_results": {
+    "5.0.3": {
+      "T0": "blocked_startup",
+      "T1": "not_run",
+      "T2": "not_run",
+      "logical_decoding": "unmeasured"
+    },
+    "6.0.0": {
+      "T0": "blocked_startup",
+      "T1": "not_run",
+      "T2": "not_run",
+      "logical_decoding": "unmeasured"
+    }
+  },
+  "owned_containers_remaining": 0,
+  "sha256": {
+    "base.txt": "9ee90bb10a18313b419e7c81e9c14a0d44ac7a8448fee33d57dcc78cbe0cefb7",
+    "image-5.txt": "0842dbba8d1facd558fb930edd83b7b17f3a34bfcb48b02947c409028c23abae",
+    "image-6.txt": "f0b1d13e5021bc1967014374277f46c3ed67603142bdb2b9e2e03368fd56544b",
+    "pull-5.log": "7f79027d98ee822104938d3692f2953a792a27a39aa29085f1b20f1c21103b81",
+    "pull-6.log": "b86d09916840766943cbd0792da31c2a2487f75c5a731d37a7210a3c9fecaeff",
+    "pull-6-retry.log": "823f89492bf20a76d6a747dd37e20fdb6a8a9ae14d2ee86e9d5b922f6adfc89a",
+    "pull-6-retry2.log": "ad77e71b306f9c1256ee73263a8f5a170063c0b01582ba4b4e633be95cce4810",
+    "startup-5.log": "5b04727d5d5ddcebd717dfa11fdefad115a04ad0b8aa90597587c61b055a5c29",
+    "startup-5-retry.log": "a8c09449810fde760f074ed0d8cd41dfa923ac28b2d0665ceefc990c44bf1c2b",
+    "startup-6.log": "10403026e4d31f8ca98e8e30792038fa009f19094825fa7ad102d8a3c25fe2ce",
+    "binary-version-5.txt": "d7d2c08c0bb5b32c9f4742d6f7fdfe6dd2cd8aa86b5cf7af61b7c4e88e58ce56",
+    "binary-version-6.txt": "d7d2c08c0bb5b32c9f4742d6f7fdfe6dd2cd8aa86b5cf7af61b7c4e88e58ce56",
+    "binary-version-5-retry.txt": "99b9f066afa588346ad0d2d482333f2e9d707282462c1df0d7da055052de995f",
+    "binary-version-6-retry.txt": "8c37d7477fdfba8de31081e8ae3ed389acbf0be40a1d0b0c0ba39f88d059fc1e",
+    "check-base.log": "22659276356e17f90b0193525c1c2b6cef53ed50b76397a106c9c0ac2ed42d74",
+    "check.log": "9d892c5778d0c975f64a671e66ea5a753502353da3addd1dfdf3825225e406a2",
+    "test-base.log": "8150b5000328855a7aa8b11fa2347535f1b8e2a281ca0f96e3e7769a71e9e30b",
+    "test.log": "e6496d8adf9a7a48f64aa541cea2e53fe79cd5bb836be5c3a722188e7ef40883",
+    "auth-boundary.log": "84287be7fb243a54d8d1f31883ebbc9abca7961cdd2d8b40749315059dada0c9",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pqcomm.h": "f2d5197f5412d62c4f82dba3c3cc21b2e0acd143d668b439d336f80a7aa4073a",
+    "pqcomm-5.h": "90a7a764274b03ff955bfb6a84a5033452375ff876c809b4d3099f2e96390f31",
+    "auth.cpp": "06a0b5ac32acc30af04dfc5930851d7ee6a8e3c8a9a09fcab7d168afc1bd3a32",
+    "cleanup.log": "68a63b289975338328e28173304e9d0f2293c7ee48fc163ef825c7bbed86a6ba",
+    "cleanup-check.txt": "2ce9fabc29ec794502a3ded404d1ba73aadf717aea568eff7dd30513e65cbb39"
+  }
+}

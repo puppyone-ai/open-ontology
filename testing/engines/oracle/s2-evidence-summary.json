@@ -1,0 +1,320 @@
+{
+  "todo": "S2-E-01",
+  "status": "partial",
+  "verified_scope": "SourceEngine/ChangeSource component fixtures with in-memory targets; not Agent DB or product acceptance",
+  "build": {
+    "run_id": "e-s2-20261104-local",
+    "workspace_check_exit": 0,
+    "connector_tests": {
+      "passed": 249,
+      "failed": 1,
+      "ignored": 20,
+      "unit_passed": 142
+    },
+    "preexisting_failure": {
+      "base": "9a378b86c",
+      "test": "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes",
+      "result": "group_signal rejected instead of sent",
+      "proof": "base-parse-cli.log",
+      "base_exit": 101
+    },
+    "validation_logs": [
+      "check-accept.log",
+      "tests-accept.log",
+      "fmt-accept.log"
+    ],
+    "base_setup_note": "Initial relative-target file-worker run failed with worker_path; absolute-target correction passed all 8 tests. Only the parse_file_cli failure is reproduced identically.",
+    "sha256": {
+      "check-accept.log": "29162d76fb109d9c6005d8544d63a4a438d15235d4f9b8e73d51adc9ba6e95d7",
+      "tests-accept.log": "440bbdd0cd448d79e0ee1850bc20b48f61f42d7c2d83bf225d29e14fbc3f4eac",
+      "fmt-accept.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "base-parse-cli.log": "29c24c01358371953533bcf50608a7f93bf0dcd6eddd22ba251d470c0c08985a",
+      "base-file-worker-absolute.log": "72e2bdba0623c8b874c811c68fab3f3b791ff4bd5e66ac8a00d166c68ae93a01"
+    }
+  },
+  "versions": [
+    {
+      "run_id": "e-s2-accept23-20261104",
+      "version": "23.26.3.0.0 (26ai banner)",
+      "test_exit": 0,
+      "c1_exercised": true,
+      "cycles": [
+        {
+          "c1_events": 4,
+          "c1_generation": 1,
+          "c1_payload_bytes": 9216,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2149328
+          },
+          "c5_generation": 1,
+          "c5_payload_bytes": 173384,
+          "c5_rewrites": 1,
+          "chunk_window_correction": true,
+          "cycle": 0,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2149697
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 5,
+          "c1_generation": 2,
+          "c1_payload_bytes": 11520,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2149731
+          },
+          "c5_generation": 2,
+          "c5_payload_bytes": 173384,
+          "c5_rewrites": 1,
+          "chunk_window_correction": false,
+          "cycle": 1,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2150080
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 0,
+          "c1_generation": 2,
+          "c1_payload_bytes": 0,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2150108
+          },
+          "c5_generation": 2,
+          "c5_payload_bytes": 0,
+          "c5_rewrites": 0,
+          "chunk_window_correction": false,
+          "cycle": 2,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2150455
+          },
+          "rows": 10000
+        }
+      ],
+      "c5_layers": "digest only; shared four-layer scheduler integration pending",
+      "audit": {
+        "status": "failed",
+        "records": 595,
+        "unexpected_records": 41,
+        "actions": [
+          "ALTER SESSION",
+          "COMMIT",
+          "DELETE",
+          "EXECUTE",
+          "LOGOFF",
+          "LOGON",
+          "SELECT"
+        ]
+      },
+      "source_hashes_match": true,
+      "sha256": {
+        "incremental-result.json": "02c24c59558ef9f4f84d6d1afe767bd443f6797b6bb762279911501697fd7eab",
+        "test.log": "1fc97e8777b9b4ca3549a23efb52e88b67957e110084109dd87f476261d27c6c",
+        "source-hashes.json": "54508ec9d540c5bb553ad55dec2e41e051c4282a13bf5a050f3ac65224ed8fa9",
+        "image.json": "b6d8d46b3acc69e68761ead20b14b9eb914c47f30f24686dcae3b14f8bbddb47",
+        "SHA256SUMS.json": "5fb0b41d5b3ffa0f46e8b69c824be18d2c37c13c4a144d2664c9bad4f4bb0294",
+        "dictionary-rebaseline.json": "7b06a823b3c7f11cfd072601b06265d60013d2d2d3e895a2b7c3a682b41f8c8d",
+        "miner-audit.log": "762017b46770ec384c4de5c0b53a42b7a21a55c619f6373afece7183ad56cb5d",
+        "audit-result.json": "d8b9d5ec34f4a61cc98a34b0fb41a22adc7a0f424851a5d823e2e6c6eda7bb5b"
+      }
+    },
+    {
+      "run_id": "e-s2-accept21-20261104",
+      "version": "21c XE",
+      "test_exit": 0,
+      "c1_exercised": true,
+      "cycles": [
+        {
+          "c1_events": 4,
+          "c1_generation": 1,
+          "c1_payload_bytes": 9216,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2982867
+          },
+          "c5_generation": 1,
+          "c5_payload_bytes": 173384,
+          "c5_rewrites": 1,
+          "chunk_window_correction": true,
+          "cycle": 0,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2982890
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 5,
+          "c1_generation": 2,
+          "c1_payload_bytes": 11520,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2982894
+          },
+          "c5_generation": 2,
+          "c5_payload_bytes": 173384,
+          "c5_rewrites": 1,
+          "chunk_window_correction": false,
+          "cycle": 1,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2982899
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 0,
+          "c1_generation": 2,
+          "c1_payload_bytes": 0,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 2982899
+          },
+          "c5_generation": 2,
+          "c5_payload_bytes": 0,
+          "c5_rewrites": 0,
+          "chunk_window_correction": false,
+          "cycle": 2,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 2982902
+          },
+          "rows": 10000
+        }
+      ],
+      "c5_layers": "digest only; shared four-layer scheduler integration pending",
+      "audit": {
+        "status": "failed: missing audit records"
+      },
+      "source_hashes_match": true,
+      "sha256": {
+        "incremental-result.json": "daa09af85519cf7e48e700859b48d5675a44f13d0477ba559a261c1df6c4ba9a",
+        "test.log": "ec1df054328ec0668745ad12f096e0e63d7afe7956cb719fe47bd7fca5dea756",
+        "source-hashes.json": "54508ec9d540c5bb553ad55dec2e41e051c4282a13bf5a050f3ac65224ed8fa9",
+        "image.json": "8a3e121af6ec6f11d1e8a1510f50fc4b33eb93a38bad4aec84fccd8a05f89e2c",
+        "SHA256SUMS.json": "dbb13eba6cf09391160654cdf8f3fb7cca1ff31ea0fddf67d583139c99eba798",
+        "dictionary-rebaseline.json": "f8c57576736cc3f919f8813e87c38fd61009e9199d7881e622e9ab03861a267d",
+        "miner-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "run_id": "e-s2-accept11-20261104",
+      "version": "11g XE",
+      "test_exit": 0,
+      "c1_exercised": false,
+      "cycles": [
+        {
+          "c1_events": 0,
+          "c1_generation": 0,
+          "c1_payload_bytes": 0,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 407040
+          },
+          "c5_generation": 1,
+          "c5_payload_bytes": 173320,
+          "c5_rewrites": 1,
+          "chunk_window_correction": false,
+          "cycle": 0,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 407048
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 0,
+          "c1_generation": 0,
+          "c1_payload_bytes": 0,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 407040
+          },
+          "c5_generation": 2,
+          "c5_payload_bytes": 173384,
+          "c5_rewrites": 1,
+          "chunk_window_correction": false,
+          "cycle": 1,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 407055
+          },
+          "rows": 10000
+        },
+        {
+          "c1_events": 0,
+          "c1_generation": 0,
+          "c1_payload_bytes": 0,
+          "c1_position": {
+            "kind": "oracle_scn",
+            "scn": 407040
+          },
+          "c5_generation": 2,
+          "c5_payload_bytes": 0,
+          "c5_rewrites": 0,
+          "chunk_window_correction": false,
+          "cycle": 2,
+          "diff": 0,
+          "position": {
+            "kind": "oracle_scn",
+            "scn": 407056
+          },
+          "rows": 10000
+        }
+      ],
+      "c5_layers": "digest only; shared four-layer scheduler integration pending",
+      "audit": {
+        "status": "not run"
+      },
+      "source_hashes_match": true,
+      "sha256": {
+        "incremental-result.json": "c139c9ab2d50d8b31107ca55b4b772336a0a9d0ec20ca6bf9068d8862eb18be6",
+        "test.log": "05aabdd6ef21c57d708117dbb006e6beb2d6873ec4df6c254e77c812e9acdcc0",
+        "source-hashes.json": "54508ec9d540c5bb553ad55dec2e41e051c4282a13bf5a050f3ac65224ed8fa9",
+        "image.json": "4658f191a02a0e2961c55c2d1ef748e5182f1e812841525c93137da0e481c46c",
+        "SHA256SUMS.json": "8f45ac2e180962dc103523693536117ec5ede06640ed3fbb2a262398290cec03"
+      }
+    }
+  ],
+  "gaps": [
+    "Strict T7 audit is not accepted; do not upgrade LogCdc or R1 capability.",
+    "Four-layer C5 scheduler and native Agent DB loader integration are not delivered.",
+    "11g C1 is unavailable on the SELECT-only thick worker.",
+    "19c remains blocked by D2.",
+    "The 23-tag image reports 26ai 23.26.3.0.0, not an older 23ai-branded build.",
+    "C1 currently admits keyed NUMBER/CHAR/VARCHAR2 with conventional uppercase identifiers.",
+    "C1 requires rebaseline after process restart or loss of its pinned transaction start logs.",
+    "No automatic affected-table rebaseline orchestration or long-term transaction spool.",
+    "RAC/multiple redo threads are explicitly unsupported."
+  ],
+  "failed_runs_preserved": [
+    "e-s2-inc23-20261104-a",
+    "e-s2-inc23-20261104-b",
+    "e-s2-inc23-20261104-c",
+    "e-s2-inc23-20261104-d",
+    "e-s2-inc23-20261104-diag"
+  ],
+  "t1_regression": {
+    "passed_run": "e-s2-t1-23-20261104-retry",
+    "numeric_rows": 2000000,
+    "table_diffs": 0,
+    "failed_attempt": "e-s2-t1-23-20261104",
+    "failure": "ORA-01466 while planning TEXT_PK; unchanged rerun passed",
+    "base_run": "e-s2-20261104-local/base-src/evidence/e-s2-base-t1-23-20261104",
+    "base_result": "passed; this does not establish the transient T1 failure as a reproduced base failure"
+  }
+}

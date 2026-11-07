@@ -84,20 +84,21 @@ pub fn decode_with_policy(
     key: bool,
     policy: TypePolicy,
 ) -> Result<(DecodedCell, Option<RejectNote>), PreviewError> {
-    if !key && policy.strip_text_nul && matches!(store, StoreKind::Text { .. }) {
-        if let RawCell::Bytes(bytes) = raw {
-            if bytes.contains(&0) {
-                let cleaned = RawCell::Bytes(bytes.iter().copied().filter(|b| *b != 0).collect());
-                let (cell, _) = decode_cell(store, &cleaned, nullable)?;
-                return Ok((
-                    cell,
-                    Some(RejectNote {
-                        reason: "nul_byte",
-                        value_len: bytes.len() as u64,
-                    }),
-                ));
-            }
-        }
+    if !key
+        && policy.strip_text_nul
+        && matches!(store, StoreKind::Text { .. })
+        && let RawCell::Bytes(bytes) = raw
+        && bytes.contains(&0)
+    {
+        let cleaned = RawCell::Bytes(bytes.iter().copied().filter(|b| *b != 0).collect());
+        let (cell, _) = decode_cell(store, &cleaned, nullable)?;
+        return Ok((
+            cell,
+            Some(RejectNote {
+                reason: "nul_byte",
+                value_len: bytes.len() as u64,
+            }),
+        ));
     }
     if key {
         return decode_present(store, raw)

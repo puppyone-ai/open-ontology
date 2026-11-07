@@ -20,6 +20,8 @@
 //! [`FILE_WORKER_PARENT_PROTOCOL`] supervises one trusted file-parser worker and
 //! returns [`ParentParseComplete`] only after a verified IPC end. That receipt
 //! does not admit an import.
+//! [`engine`] is the engine-neutral v0.2 interface (`oo.source-engine/v1`)
+//! that every database connector implements.
 //! Gateway crates do not depend on this crate.
 
 #![forbid(unsafe_code)]
@@ -29,21 +31,40 @@ mod bounded_read;
 mod budget_report;
 mod catalog;
 mod config;
+#[cfg(feature = "db2")]
+pub mod db2;
 mod delimited;
+#[cfg(feature = "dm8")]
+pub mod dm8;
+#[cfg(any(feature = "mongodb", feature = "opensearch"))]
+pub mod document;
+pub mod engine;
 mod error;
 mod file_worker_parent;
 mod ident;
 mod jsonl;
 mod key_plan;
 mod model;
+#[cfg(feature = "mongodb")]
+pub mod mongodb;
 #[cfg(feature = "mysql")]
 pub mod mysql;
+#[cfg(feature = "opensearch")]
+pub mod opensearch;
+#[cfg(feature = "mysql")]
+pub use mysql::{mariadb, oceanbase, tidb};
+#[cfg(feature = "olap")]
+pub mod olap;
 #[cfg(feature = "oracle")]
 pub mod oracle;
+pub mod postgres;
 mod session;
 mod snapshot;
 mod sql;
+#[cfg(feature = "sqlserver")]
+pub mod sqlserver;
 mod stream;
+pub mod transport;
 pub mod types;
 
 pub use bounded_read::{WINDOW_PAGE_ROWS_MAX, WINDOW_PROTOCOL, WindowReceipt, WindowRequest};

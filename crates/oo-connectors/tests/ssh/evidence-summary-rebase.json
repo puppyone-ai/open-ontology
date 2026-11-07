@@ -1,0 +1,383 @@
+{
+  "plan": "S3-A-01",
+  "card": "B-S3b",
+  "scope": "Owned local SSH fixtures, not customer or public Gateway acceptance",
+  "integration_base": "9e64e43dc88a9946ac2d4f0b46a37b4012621430",
+  "tested_code_commit": "02cdcdf87",
+  "resolution": {
+    "mysql": "Keep family constructors and lifetime-managed tunnel together",
+    "sqlserver": "Preserve direct doctor/loader arms; refuse SSH explicitly with SQLSERVER_SSH_NOT_AVAILABLE before SSH secret resolution or networking",
+    "loader": "Preserve family, SQL Server, sync and publication arms; refuse SSH incremental control (--sync, --c5, --handoff)"
+  },
+  "acceptance": [
+    {
+      "run_id": "b-s3b-ssh-pg-full-01",
+      "command": "python3 crates/oo-connectors/tests/ssh/run.py --engine postgres --run-id b-s3b-ssh-pg-full-01",
+      "engine": "postgres",
+      "version": "17.11",
+      "platform": "linux/arm64",
+      "observed_version": {
+        "family": "postgres",
+        "major": 17,
+        "minor": 11,
+        "patch": 0,
+        "raw": "17.11 (Debian 17.11-1.pgdg12+2)"
+      },
+      "binary_sha256": "c13617302b1046d6ae2c521e805e7aac3ad192059edeacdc40faff007736b740",
+      "image": "docker.io/library/postgres:17.11-bookworm@sha256:e692f23ba2393c8b13879dd4ee9f4f0d7bd146fbddceb4c8e10c4ce1fb53e737",
+      "T1": "passed",
+      "T8": "passed",
+      "source_metrics": [
+        {
+          "status": "passed",
+          "error": null,
+          "session_scope": "fixture_reader",
+          "connections_peak": 2,
+          "aggregate_duty_percent": 1.1991622676793543,
+          "elapsed_seconds": 1368.4500723339152,
+          "sample_count": 6616,
+          "budget": {
+            "reader_connections": 2,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "session_scope": "fixture_reader",
+          "connections_peak": 2,
+          "aggregate_duty_percent": 0.8402277134695084,
+          "elapsed_seconds": 1313.2409660000121,
+          "sample_count": 6374,
+          "budget": {
+            "reader_connections": 2,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "session_scope": "fixture_reader",
+          "connections_peak": 2,
+          "aggregate_duty_percent": 0.0,
+          "elapsed_seconds": 13.625652209040709,
+          "sample_count": 64,
+          "budget": {
+            "reader_connections": 2,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        }
+      ],
+      "compared_tables": 233,
+      "scale": 2000000,
+      "small_tables": 200,
+      "interrupted_load_exit": 1,
+      "resumed_load_exit": 0,
+      "replay_additional_target_bytes": 0,
+      "artifact_sha256": {
+        "t1-t8.json": "fa15e88c10afe1014e2e3f3843655aea5324bdab50461675a1388810c8f3c7b2",
+        "ssh-interruption.json": "72f3763a22273d6f7831364bd23066158fcc8405604b6b24bccb1177ecab8098",
+        "ssh-topology.json": "fd424ae454ec831729bad148d98b0d14769aa22e8a0555eddc039928058548a8",
+        "ssh-mismatch.json": "9a801d7a7b61606c719c7648f74c87d0b8a432663007d5e1741d24cd58f535c5",
+        "ssh-tty.json": "b06db8cdd3d26fd840efb09db884dd4f0d917989ac9d4d572edb9b84b9608f64",
+        "ssh-doctor.json": "6de6a3a6ad4c3f72398b1df2df2d4732181ec452abdb4cae3a222980f4068ead",
+        "resource-receipt.json": "8edd643f5f1504b7d5f614fa07ae2666dd5d978ac2e133b018e7edd6baeda98d",
+        "ssh-suite.json": "6b38bc59fa8095d3b4afaeb2b7ac3553cd3b9e195b6093c06c88f2b1922078db",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "corrected-receipts.json": "e98b5298572bb9abf072b5b5cdb3869248f13a6ffc7b7cecc5c961c9e43a63a5"
+      }
+    },
+    {
+      "run_id": "b-s3b-ssh-mysql-full-03",
+      "command": "python3 crates/oo-connectors/tests/ssh/run.py --engine mysql --run-id b-s3b-ssh-mysql-full-03",
+      "engine": "mysql",
+      "version": "8.4.7",
+      "platform": "linux/arm64",
+      "observed_version": {
+        "family": "mysql",
+        "major": 8,
+        "minor": 4,
+        "patch": 7,
+        "raw": "8.4.7"
+      },
+      "binary_sha256": "c13617302b1046d6ae2c521e805e7aac3ad192059edeacdc40faff007736b740",
+      "image": "docker.io/library/mysql:8.4.7@sha256:6f952b3897aca5d7ca620d3d9679845351641265b1dbc3012ea29253abb57e65",
+      "T1": "passed",
+      "T8": "failed",
+      "source_metrics": [
+        {
+          "status": "passed",
+          "error": null,
+          "session_scope": "fixture_reader",
+          "connections_peak": 1,
+          "aggregate_duty_percent": 15.40310519232314,
+          "elapsed_seconds": 252.86097820906434,
+          "sample_count": 972,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "failed",
+          "error": "RuntimeError",
+          "session_scope": "fixture_reader",
+          "connections_peak": 1,
+          "aggregate_duty_percent": 17.525582212890754,
+          "elapsed_seconds": 433.91465025010984,
+          "sample_count": 1188,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        },
+        {
+          "status": "passed",
+          "error": null,
+          "session_scope": "fixture_reader",
+          "connections_peak": 1,
+          "aggregate_duty_percent": 0.0,
+          "elapsed_seconds": 5.68836199992802,
+          "sample_count": 22,
+          "budget": {
+            "reader_connections": 1,
+            "duty_cycle_percent": 25
+          },
+          "basis": "sampled_active_reader_sessions_time_weighted_over_load_wall_time"
+        }
+      ],
+      "compared_tables": 231,
+      "scale": 2000000,
+      "small_tables": 200,
+      "interrupted_load_exit": 1,
+      "resumed_load_exit": 0,
+      "replay_additional_target_bytes": 0,
+      "artifact_sha256": {
+        "t1-t8.json": "8038305beb6f62fbaba7e71d889de0b40d9e8193ce144e52ee9e91e05a3ab77f",
+        "ssh-interruption.json": "354fc5a76fcbcd0a47b385c7c6ce7035ef406087a45fc69f017945a287f13e90",
+        "ssh-topology.json": "a81bce8cf616f0f7c0c165fa494b15b637b7619ac14ff8fc974d8587e0a76e15",
+        "ssh-mismatch.json": "48971ea8766a651c9c41668a4595b58cb9d5114edd10f118034e6ad60b543803",
+        "ssh-tty.json": "b06db8cdd3d26fd840efb09db884dd4f0d917989ac9d4d572edb9b84b9608f64",
+        "ssh-doctor.json": "ecf7231bcc04dc0a761ca75d2c4195897c5be70461193d96ba4da9bcbe2da3c6",
+        "resource-receipt.json": "1d3c892952ab8e29514e3eb8ff55efaa3186f6cb8438a2cb67c388ac27d6f2a3",
+        "ssh-suite.json": "6b38bc59fa8095d3b4afaeb2b7ac3553cd3b9e195b6093c06c88f2b1922078db",
+        "cleanup.json": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0",
+        "corrected-receipts.json": "b47251d3b7792238f7b907a023072f6039e0940e7e20cba29996cb47b6b8c67c"
+      }
+    }
+  ],
+  "retained_attempts": [
+    {
+      "run_id": "b-s3b-ssh-mysql-full-01",
+      "T1": "passed",
+      "T8": "failed",
+      "reason": "SourceMeter admin sample failed: Docker daemon socket unavailable; unchanged full suite rerun, no daemon or sampler changes",
+      "failed_command": "2000427",
+      "failure_command_sha256": "d94f16ceea9f0c698753cfc275f5f27dc9bec82fd475ed283daf0ae7a2b8c38a",
+      "failure_stderr_sha256": "448a568690ad35ce36ac2dfe151c40e87b0fa0c1852c33c314ee14aea038fadb",
+      "report_sha256": "b526e58e37777141a2792d247950c6c661c9d4b574e6f5df0308a69851c50430",
+      "cleanup_sha256": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0"
+    },
+    {
+      "run_id": "b-s3b-ssh-mysql-full-02",
+      "T1": "passed",
+      "T8": "failed",
+      "reason": "SourceMeter admin sample failed: Docker daemon socket unavailable; unchanged full suite rerun, no daemon or sampler changes",
+      "failed_command": "2100666",
+      "failure_command_sha256": "87b7460f20224c783a7d07b8395f3234dcd21a3eb1f6fab63a17aec28c6dbc16",
+      "failure_stderr_sha256": "7e8c3b4a69441eb95f775d66ff37085ebfa7759950c9c40be5051d6d6fce271a",
+      "report_sha256": "c7e37bbc4d2a773476b330eec4b84d9bd7738484fd2e89c30a92aa0d5052844b",
+      "cleanup_sha256": "796c4c14e96a550c0a864f3ea98bceabdd5dec430e60f965354d02a6da03fcd0"
+    }
+  ],
+  "history_checks": [
+    {
+      "commit": "8889fb8cf7c83a10b059a6531b2638df14f97492",
+      "command": "cargo check --workspace --locked",
+      "exit": 0
+    },
+    {
+      "commit": "2bd7dd8b3f02e41aa606e8de477b84c5a1d6e97a",
+      "command": "cargo check --workspace --locked",
+      "exit": 0
+    },
+    {
+      "commit": "1bfa2c023369970ca2cdb5bf0c0fd394b6404a2c",
+      "command": "cargo check --workspace --locked",
+      "exit": 0
+    },
+    {
+      "commit": "a071fc63bf19a38dbeeef7a29d426b9ed55739da",
+      "command": "cargo check --workspace --locked",
+      "exit": 0
+    },
+    {
+      "commit": "d44986060ba7f9909323a351f19937e74c1f50e5",
+      "command": "cargo check --workspace --locked",
+      "exit": 0
+    },
+    {
+      "commit": "0b5b452b8c3fd99af72c5fc6b15c9d6ea535c040",
+      "command": "cargo check --workspace --locked",
+      "exit": 0
+    },
+    {
+      "commit": "1636cb1e67d058ede05542c0df090203d086790f",
+      "command": "cargo check --workspace --locked",
+      "exit": 0
+    }
+  ],
+  "validation": {
+    "connectors-full": {
+      "passed": 383,
+      "failed": 1,
+      "ignored": 38,
+      "log_sha256": "a47dc7f5f19275e6dbb7eaef7761b99425818a05052a8d2c67a45a36b20f4f06"
+    },
+    "cli-stack": {
+      "passed": 69,
+      "failed": 0,
+      "ignored": 0,
+      "log_sha256": "b6117bc671eeb539907721b2c8e16b1990ba538072407ef59ea1bdb1d3b7dc18"
+    },
+    "load-test": {
+      "passed": 29,
+      "failed": 0,
+      "ignored": 7,
+      "log_sha256": "bb1b777228262ed39f5abacb894e44ffa8c30b0282ca6177bc1bf35aa9da8086"
+    },
+    "mysql-doctor-test": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log_sha256": "addcb2abd71816fd315c00ea8c1adc13970fac2c9ad73a1e23208475a1ac38ac"
+    },
+    "final-check": {
+      "exit": 0,
+      "log_sha256": "a5b55ec499a0a7396b143bd81a2d5860c4fee8b31b9d38c2ff4b29b609d1d956"
+    },
+    "deny-root": {
+      "exit": 0,
+      "log_sha256": "5053032132e4a096e7e34fbff2e349cfdcf93ffd309cb84f3c69e8a871323fc0"
+    },
+    "audit-root": {
+      "exit": 0,
+      "log_sha256": "9263504f5e94924f10621291f1749c094bb0267b22afaf3b646b47658a3fcc2b"
+    },
+    "deny-oo-load": {
+      "exit": 0,
+      "log_sha256": "0848acfd28441ce1251d10af3250522a45f00b75d56c0ef9b352fd22cee19bd7"
+    },
+    "audit-oo-load": {
+      "exit": 0,
+      "log_sha256": "2f571fbcb8d7616dda57520c7a281db4727a3333a36c940c8730ee89703aaa31"
+    },
+    "deny-mysql-doctor": {
+      "exit": 0,
+      "log_sha256": "d32a52d3ca21e836555bf2c3f4af55568df01f34c3f4a4259b63c5334f02b72d"
+    },
+    "audit-mysql-doctor": {
+      "exit": 0,
+      "log_sha256": "e53aa7a232ce03ab7ed6c3d7ae89b73e1e793852f2077157ee67f8aea3dd977a"
+    },
+    "proxy-tests": {
+      "exit": 0,
+      "log_sha256": "cc4ce8d54ec0f6a2d972abf34157488e5e132e9d71efaebb422979f2bf3356f8"
+    },
+    "check-spec": {
+      "exit": 0,
+      "log_sha256": "341d87269554bd330947a8570481e4c360ca59bafd8bb2f5ee3a36eb444899f7"
+    },
+    "check-plan": {
+      "exit": 0,
+      "log_sha256": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9"
+    },
+    "check-v02-plan": {
+      "exit": 0,
+      "log_sha256": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135"
+    },
+    "render-todo": {
+      "exit": 0,
+      "log_sha256": "56cae338bd9d567d2eff6cb861e26b2f72845bb6734606901d141784d241ab47"
+    },
+    "prepare-final": {
+      "exit": 0,
+      "log_sha256": "24d2dd5570111f45e5d06e04413a65504aaf7ebea2bb8c045d1b2722e9e23600"
+    },
+    "accept-pg": {
+      "exit": 0,
+      "log_sha256": "2434f645c77762e7c05d63ff818faae2d56dd8a3b25793242ee8265dff1bab0f"
+    },
+    "accept-mysql-third": {
+      "exit": 1,
+      "log_sha256": "224d4bb76f7141331b090663f60d4eb8d4d095e8fb3c0ad6e170c72fc3eb46a6"
+    },
+    "vendor-pg-tests": {
+      "exit": 0,
+      "log_sha256": "24bfe460aece506b09098c8bfb8d8a291445eafb1e7706d9fbb49e987e989208"
+    },
+    "final-check-after-acceptance": {
+      "exit": 0,
+      "log_sha256": "476faa0803a3d21bdf6ca96d76e7b29830b489c7be58da0921deeebf39066650"
+    },
+    "sqlserver-doctor-regression": {
+      "exit": 0,
+      "log_sha256": "720ea013a1aea5e18f0e05c52ec3824b829dfbaeedc64570d15436396c541cde"
+    },
+    "incremental-mode-regression": {
+      "exit": 0,
+      "log_sha256": "fc9035e5c178583481985cb658b32a5d87d770fdffe4b8264f3cfde8da046b25"
+    },
+    "signoff-check": {
+      "exit": 0,
+      "log_sha256": "3819f5a7ceecd9222e0fbd258fbc5b3461b920ebd412d521eff393866d195f71"
+    }
+  },
+  "pre_existing_failure": {
+    "test": "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes",
+    "base_commit": "9e64e43dc88a9946ac2d4f0b46a37b4012621430",
+    "base_exit": 101,
+    "failure": "group_signal rejected instead of sent at parse_file_cli.rs:1099",
+    "base_log_sha256": "c9b9a071b400146ee3269d07823fb0dfb2f99eed1f159b3cce7848c09cf92d72"
+  },
+  "dependency_pins": {
+    "russh": "0.65.0",
+    "ctutils": "0.4.6",
+    "ml-kem": "0.3.3",
+    "module-lattice": "0.2.3"
+  },
+  "lockfiles": {
+    "integration_versions_preserved_except": "ctutils 0.4.4 -> audited 0.4.6 for the SSH closure",
+    "delta_sha256": "0cb1dac0f9f61542afa23eca4fb92905fe4ab829f015c5aae9f18f7afca8e471",
+    "paths": [
+      "Cargo.lock",
+      "tools/oo-load/Cargo.lock",
+      "deploy/lite/mysql-doctor/Cargo.lock"
+    ]
+  },
+  "limitations": [
+    "SQL Server SSH is deliberately refused; only SQL Server unit tests were rerun, not a live SQL Server fixture.",
+    "MySQL-family unit tests were rerun; no new live MariaDB, TiDB or OceanBase acceptance.",
+    "SSH incremental control and external Oracle worker routing remain unsupported.",
+    "Safe same-run restart/replan is proven, not transparent continuation of an interrupted transaction or skipping every previously read chunk.",
+    "Lane A still owns oo init TUI wiring."
+  ],
+  "status": "partial",
+  "blocker": {
+    "scope": "MySQL T8 acceptance on the rebased tree",
+    "reason": "Three unchanged full runs lost a SourceMeter admin call because the Docker daemon socket was unavailable; all T1 comparisons passed. No sampler, threshold, gold or daemon changes were made.",
+    "latest_failure_command": "2101189",
+    "latest_failure_stderr_sha256": "7e8c3b4a69441eb95f775d66ff37085ebfa7759950c9c40be5051d6d6fce271a",
+    "follow_up": "Rerun the unchanged full MySQL SSH suite after Docker socket availability is stable."
+  },
+  "cleanup": {
+    "containers_left_running": [],
+    "shared_file_patches_requested": [],
+    "ownership_scan_sha256": "d886dd2066b9a212337b76d785ec8833b3340a4ac11089137035b0e331989c23"
+  }
+}

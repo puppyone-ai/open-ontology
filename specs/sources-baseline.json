@@ -1,14 +1,15 @@
 {
   "schema_version": "oo-source-baseline/v1",
   "spec_id": "OO-SPEC-001",
-  "captured_date": "2026-11-02",
+  "captured_date": "2026-11-07",
   "timezone": "Asia/Shanghai",
-  "revision": 5,
-  "supersedes_baseline_head": "12cfdc48260636032429449d4e66253d54c1e3cd",
-  "supersedes_sha256": "0d99205cae69754d0c3a7152cec6db3695a2db06107c90160a6aa6059d76dab7",
-  "review_record": "specs/source-baseline-revision-5.md",
-  "baseline_head": "b495c9e0a1e51e9d707e60e795fd2d58f70430d9",
-  "source_count": 19,
+  "revision": 32,
+  "supersedes_revision": 31,
+  "supersedes_baseline_head": "214d177a444caeb1f3139f53708cdeed448230c8",
+  "supersedes_sha256": "4c5cc3197961e512c7456330446417ab966fe4d05c0b837bde3c88a5619daf85",
+  "review_record": "specs/source-baseline-revision-32.md",
+  "baseline_head": "0b59c1740f20da17188bd4b02c3eafc3e6077726",
+  "source_count": 26,
   "sources": [
     {
       "path": "docs/00-vision-and-scope.md",
@@ -24,21 +25,21 @@
     },
     {
       "path": "docs/02-technology-stack.md",
-      "sha256": "c66adb152459ef6dd6b7b74d5a6737fe83fc3e47cc1bf5dee981e5dd70e1932a",
-      "bytes": 22645,
-      "lines": 207
+      "sha256": "11dc403fc88c1a29c46b6bb2bf18d4bfd8f6cbcaef12f0db45715bfdeb837d23",
+      "bytes": 23144,
+      "lines": 209
     },
     {
       "path": "docs/03-sources-and-ingestion.md",
-      "sha256": "1e956178320bf0495b86eaeedb3c58801b69fe73d84dd64add24914656752315",
-      "bytes": 19907,
-      "lines": 262
+      "sha256": "d22665a938a9c9fb594da854f46e9bdf7c95365651838fc8ea4213cb81029247",
+      "bytes": 24721,
+      "lines": 288
     },
     {
       "path": "docs/04-pipeline.md",
-      "sha256": "61e157eccd1a168d17b5808fd9c104c943bb794c2de93acc071fc83ee1ae8088",
-      "bytes": 32159,
-      "lines": 337
+      "sha256": "52e47b67c1af0d61e73c474405518de225a83838197ab4e7200b6e401718d3ff",
+      "bytes": 35319,
+      "lines": 354
     },
     {
       "path": "docs/05-agent-db.md",
@@ -48,21 +49,21 @@
     },
     {
       "path": "docs/06-ontology-layer.md",
-      "sha256": "871e4ef4ba0e0d444a002668e6e5df11a85358b1f827acc1eb4b3ead5a0b18e1",
-      "bytes": 47394,
-      "lines": 677
+      "sha256": "9a8cacd5e5dc94ab2089548e4315c24ffdda117210dea6977de314a27f762e3c",
+      "bytes": 54103,
+      "lines": 729
     },
     {
       "path": "docs/07-gateway.md",
-      "sha256": "f30ae1ca056106ca64a47da4d87425cc1f225afe12548b987609ba786c8b151a",
-      "bytes": 28138,
-      "lines": 296
+      "sha256": "00366172c4c45409c002708bb31c150f172e25de47c9730529e15b0c726153e5",
+      "bytes": 31093,
+      "lines": 320
     },
     {
       "path": "docs/08-agent-interface.md",
-      "sha256": "25f953ded8657e7c6b2d3930f54329e19f07d2df55e76f200439461cffbac106",
-      "bytes": 14221,
-      "lines": 233
+      "sha256": "0004140b1bf7374d9c7978a12cd3f8f87ade8b7b449a5f10097d8ab4b9733f50",
+      "bytes": 16872,
+      "lines": 250
     },
     {
       "path": "docs/09-sandbox-and-agent-runtime.md",
@@ -72,33 +73,33 @@
     },
     {
       "path": "docs/10-security.md",
-      "sha256": "d1ba15810020f620a59806aa36f165c28caad2eb3d66d26be44b87695d3a0a8d",
-      "bytes": 14460,
+      "sha256": "6caa82b5c72eae8dd76145f9cf03a9b639a619702f38e13fc4a56c3c283d97db",
+      "bytes": 14544,
       "lines": 181
     },
     {
       "path": "docs/11-deployment-and-operations.md",
-      "sha256": "1a60e23394e46db6e7dde4fff98022c331bb9a337f16c58e0ec588ef71a58f8f",
-      "bytes": 14272,
-      "lines": 205
+      "sha256": "2d09f5f6e74e9323a7be40795efda3596caca1c4474143fcb9b9127b48dab24a",
+      "bytes": 19114,
+      "lines": 233
     },
     {
       "path": "docs/12-configuration-reference.md",
-      "sha256": "4e487dc83ac2bca84ecf261522ac008e7d97740ec0ac248089b63d8e01154a35",
-      "bytes": 9930,
-      "lines": 220
+      "sha256": "31eb2dd77c9c3f6ce12f5dc2b35aafeaebe59e1c37d071bb36a1ed6749e521e4",
+      "bytes": 13798,
+      "lines": 272
     },
     {
       "path": "docs/13-evaluation-and-benchmarks.md",
-      "sha256": "7ebe6d408c24c9b0918fc1819f06ce1a8ad28458831f98026213198abf997813",
-      "bytes": 26789,
-      "lines": 335
+      "sha256": "e517334fd77c6a8db9ae1399ca61a645c4d3e156b70a3d2120bf69c3c0595ab0",
+      "bytes": 29390,
+      "lines": 352
     },
     {
       "path": "docs/14-roadmap-and-risks.md",
-      "sha256": "ee83e925c457e6236af94c7d3667aae078c68af09eeee8b790d955a7c6dc2893",
-      "bytes": 11407,
-      "lines": 126
+      "sha256": "342f832086ee87eb6958e3222b1e7d374382a1b5dc69ab0087f1cf5f1548f1b0",
+      "bytes": 13536,
+      "lines": 142
     },
     {
       "path": "docs/15-glossary.md",
@@ -114,18 +115,58 @@
     },
     {
       "path": "docs/17-rust-implementation.md",
-      "sha256": "f16f770e29dc02537a71c734b9355e21812ef65a2fc60880e22543a95bf29534",
-      "bytes": 18962,
+      "sha256": "482712c26b32fc498dfc3402b4cf62650faa417b54525b9424964747993e5d77",
+      "bytes": 19253,
       "lines": 124
     },
     {
       "path": "docs/README.md",
-      "sha256": "a856c5678d2d1d1e1e36f84d6609076a949a6f52b471a2e515effdd93e9de8fd",
-      "bytes": 5404,
-      "lines": 43
+      "sha256": "d2ced6dad87fecef25fb84854ffd58624bd2113776b59d94e88dd0d7591d5da7",
+      "bytes": 5975,
+      "lines": 44
+    },
+    {
+      "path": "docs/product/01-working-model.md",
+      "sha256": "249abe9ce628127d6ba1e04d3be925846614603418444fd1d3b80f4bfec0b4c5",
+      "bytes": 6065,
+      "lines": 76
+    },
+    {
+      "path": "docs/product/02-ingestion-playbook.md",
+      "sha256": "4302904fc9823e3eee5166d8a238108b5d874c2507c3597fee829663adc2b2fe",
+      "bytes": 16507,
+      "lines": 157
+    },
+    {
+      "path": "docs/product/03-selfbuild-context-budget.md",
+      "sha256": "d1c4bf4cb1ce5a6ea8e0abca1e8cd3e0d4cffbdee4c36a3a826923d160d957da",
+      "bytes": 9508,
+      "lines": 130
+    },
+    {
+      "path": "docs/product/04-onboarding-and-gateway-binding.md",
+      "sha256": "4e1baa80df88e2776d136f5a5bece04cd2552298a086acad0a6d8005c3fd44d6",
+      "bytes": 18862,
+      "lines": 204
+    },
+    {
+      "path": "docs/product/05-version-matrix-and-testing.md",
+      "sha256": "af22b4e0b25509afcb5bbf540fcb6e038d6a4c1bc8a93e8dfac11f2f70b3b614",
+      "bytes": 14986,
+      "lines": 131
+    },
+    {
+      "path": "docs/product/README.md",
+      "sha256": "1660989ea656ce6af19ec29040f8aeaf6449dbb5e24d4dc50d045b047dbac622",
+      "bytes": 3669,
+      "lines": 31
+    },
+    {
+      "path": "docs/product/source-sync.md",
+      "sha256": "ab3199ba91ca9af4277f24b1ce3ba941369b022aa6703dfb4c194f5d5e3e68ac",
+      "bytes": 1816,
+      "lines": 41
     }
   ],
-  "supersedes_revision": 4,
-  "supersedes_sha256_rev2": "9638d1857397321be9bacc9f6e09e8be47045a9944ed83e65b299f9b8b98f3f6",
-  "review_status": "User-authorized gate-docs correction; source impact reviewed locally on 2026-11-02; no independent review or product acceptance claimed"
+  "review_status": "owner self-review (D6); D19 architecture backfill"
 }

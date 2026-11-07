@@ -1,0 +1,18 @@
+{
+  "todo": "S2-E-01",
+  "run_id": "e-s2-undo-20261104-a",
+  "engine": "Oracle Free 23.26.3.0.0 (26ai banner; 23 image family)",
+  "test": "real_ora_01555_restarts_whole_chunk_at_fresh_scn_with_zero_diff",
+  "rows": 12000,
+  "diff": 0,
+  "same_scn_retries": 4,
+  "fresh_scn_retries": 1,
+  "verified_artifact": "23/undo-verified.json",
+  "sha256": "60e35e8a982b0acc6e4b03a10410e48478c972c0a7eda6906fb40bbebba614cd",
+  "target": "in-memory staging; not Agent DB",
+  "integration": "Oracle-specific resettable sink API; generic SourceEngine remains fail-closed",
+  "limits": [
+    "physical ROWID ranges require replan",
+    "caller must correct chunk SCN window or verify C5 before publish"
+  ]
+}

@@ -1,0 +1,23 @@
+-- Admin-only synthetic fixture. The product reader never executes this file.
+CREATE SCHEMA fixture;
+CREATE COLLATION fixture.edge (provider = icu, locale = 'und-u-ks-level2', deterministic = false);
+CREATE TABLE fixture.integer_pk (id bigint PRIMARY KEY, payload text);
+INSERT INTO fixture.integer_pk SELECT i, CASE WHEN i%17=0 THEN NULL ELSE 'row-'||i END FROM generate_series(1,2000000) i;
+CREATE TABLE fixture.text_pk (code text COLLATE fixture.edge PRIMARY KEY, payload text);
+INSERT INTO fixture.text_pk SELECT 'code-'||i, 'text-'||i FROM generate_series(1,15000) i;
+INSERT INTO fixture.text_pk VALUES ('é','accent'), ('Z','upper'), ('a','lower'), ('ß','eszett'), ('中','unicode'), ('','empty');
+CREATE TABLE fixture.composite (region bigint, code text COLLATE fixture.edge, payload text, PRIMARY KEY(region,code));
+INSERT INTO fixture.composite SELECT i%11, 'code-'||i, 'composite-'||i FROM generate_series(1,20000) i;
+CREATE TABLE fixture.unique_only (id bigint NOT NULL UNIQUE, payload text);
+INSERT INTO fixture.unique_only SELECT i, 'unique-'||i FROM generate_series(1,15000) i;
+CREATE TABLE fixture.no_key (id bigint, payload text);
+INSERT INTO fixture.no_key SELECT i, 'no-key-'||i FROM generate_series(1,15000) i;
+CREATE TABLE fixture.growing (id bigint PRIMARY KEY, payload text);
+INSERT INTO fixture.growing SELECT i, 'growing-'||i FROM generate_series(1,5000) i;
+GRANT USAGE ON SCHEMA fixture TO oo_reader;
+GRANT SELECT ON ALL TABLES IN SCHEMA fixture TO oo_reader;
+GRANT pg_read_all_stats TO oo_reader;
+CREATE PUBLICATION oo_fixture FOR ALL TABLES;
+ALTER TABLE fixture.no_key REPLICA IDENTITY FULL;
+ALTER TABLE fixture.unique_only REPLICA IDENTITY FULL;
+ANALYZE;

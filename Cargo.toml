@@ -10,6 +10,7 @@ members = [
     "crates/oo-gateway",
     "crates/oo-sdk",
     "crates/oo-cli",
+    "crates/oo-stack",
     "crates/oo-mcp",
     "crates/oo-proxy",
     "crates/oo-sandbox",

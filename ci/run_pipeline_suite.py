@@ -8,6 +8,7 @@ The fixtures require synthetic postgres/fixture roles with trust authentication;
 no inherited database credentials or customer endpoints are passed to them.
 """
 
+import sys
 import argparse
 import hashlib
 import json
@@ -180,6 +181,12 @@ class Runner:
                 result["tests_executed"] = sum(map(int, counts[0]))
             command = self.receipt["commands"][-1]
             if command["exit_code"] != 0 or command["timeout"]:
+                # Owned trust-auth loopback clusters carry no credentials; show
+                # the test's own failure lines so CI names the cause.
+                lines = [line for line in text.splitlines()
+                         if not line.lstrip().startswith(("Compiling", "Downloaded", "Fresh"))]
+                result["failure_tail"] = lines[-60:]
+                print(f"--- {exact} output tail ---\n" + "\n".join(lines[-60:]), file=sys.stderr)
                 raise SuiteFailure(f"exact test {exact} failed; see private log")
             verify_test_output(text, exact)
             result.update(status="passed", tests_passed=1)

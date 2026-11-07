@@ -6,7 +6,7 @@
 | 版本 | 1.0.1 |
 | 状态 | Proposed / Ready for implementation review |
 | 创建日期 | 2026-10-01，Asia/Shanghai |
-| 输入基线 | `docs/` 全部 19 份文档；来源 revision 5，Git HEAD `b495c9e0a1e51e9d707e60e795fd2d58f70430d9`；[本次 ACL 文档漂移纠正](source-baseline-revision-5.md)保留 [revision 4 原清单](sources-baseline-revision-4.json)及[历史记录](../execution/decisions/source-baseline-revision-4.md)。扩展设计目录 `docs/database-support/` 不在哈希基线内；不宣称独立审阅或产品验收。 |
+| 输入基线 | `docs/` 与 `docs/product/` 共 26 份文档；来源 revision 32，Git HEAD `0b59c1740f20da17188bd4b02c3eafc3e6077726`；[revision 32 记录](source-baseline-revision-32.md)；保留 [revision 31 原清单](sources-baseline-revision-31.json)、更早的 sources-baseline-revision-*.json 与[revision 4 历史记录](../execution/decisions/source-baseline-revision-4.md)保留。扩展设计目录 `docs/database-support/` 不在哈希基线内；不宣称独立审阅或产品验收。 |
 | 实施语言 | 第一方后端、连接器、CLI、SDK、Builder、评测器：Rust；控制台与 TS SDK：TypeScript |
 | 产品许可证 | Apache-2.0；依赖与数据集分别审计 |
 | 交付方式 | 私有化部署；Linux Docker Compose 为首个完整路径 |
@@ -405,7 +405,7 @@ REQ-SRC-12：连接器把各家 catalog 归一为 `SourceCatalog`（对象、列
 1. 声明约束 `declared_only` 的关系不得作为确定外键，S3 必须做包含依赖检验。
 2. 源方言 SQL 只能作为 Evidence 与翻译提示（`translated_unverified`），不得用于授权，不得出现在 Agent 可执行示例；S8 示例仅经 Gateway 在 Agent DB 验证。
 3. caveats 与 `consistency_grade`、`delete_detection`、`capture_method` 必须出现在 Knowledge Pack 的表页与 `get_freshness`；Pack 顶层固定声明所有 SQL 为 PG 方言。
-4. 字符串/二进制主键分块必须强制二进制排序（`chunk_key_order`），否则改用哈希分块或 `read_keys`。
+4. 字符串/复合主键分块的边界比较只在源库内以该列自身排序规则完成（`chunk_key_order: source_collation`），客户端不比较字符串；不得用 `COLLATE …_bin`/`NLSSORT` 强制二进制排序（会失去索引并触发整表排序），每个分块查询须经执行计划确认走键索引（Oracle 读本会话游标的 `V$SQL_PLAN`，不得用会写 `PLAN_TABLE` 的 `EXPLAIN PLAN`；缺视图权限时报告未验证）；排序规则写入 `semantic_caveats`（`source_collation_ci` 等）。无法满足时改用单次整表读取或 `read_keys`。见 [product/02 §2](../docs/product/02-ingestion-playbook.md)。
 5. OOS 生成层可追加可选字段 `datasets[].source_semantics`，属 `oos/v1` 追加式契约变更，须由 F0 契约 owner 先合入。
 
 ### 7A.7 读取预算与计量源
@@ -441,13 +441,13 @@ REQ-SRC-15：所有目标运行同一黑盒套件（CC-01 至 CC-13：声明诚�
 | DBX-W13 | MongoDB、DynamoDB、ES/OpenSearch、Cassandra/Scylla | DBX-W03/W05、DBP6 | REQ-SRC-14；AT-SRC-13 |
 | DBX-W14 | 套件、版本矩阵、夜间回归、自动降级 | DBX-W01 | REQ-SRC-15；AT-SRC-14 |
 
-原型（DBP1–DBP8，出口：证据或安全替代；失败则相关能力保持 `candidate`/`designed`）：DBP1 Oracle LogMiner 的源端写入面与 OpenLogReplicator 可行性；DBP2 SQL Server CDC 事务边界、LSN 与副本读取；DBP3 Aurora/RDS/Cloud SQL 故障转移后位点与槽、读副本回放屏障；DBP4 Snowflake/BigQuery 变更读取窗口、dry-run 与成本；DBP5 ODBC/JDBC 桥的流式、取消与背压（Db2、HANA、达梦）；DBP6 MongoDB change stream 的事务/resume 与文档映射阈值；DBP7 TiDB/OceanBase/GaussDB 的兼容层位点与认证；DBP8 各引擎二进制排序分块。
+原型（DBP1–DBP8，出口：证据或安全替代；失败则相关能力保持 `candidate`/`designed`）：DBP1 Oracle LogMiner 的源端写入面与 OpenLogReplicator 可行性；DBP2 SQL Server CDC 事务边界、LSN 与副本读取；DBP3 Aurora/RDS/Cloud SQL 故障转移后位点与槽、读副本回放屏障；DBP4 Snowflake/BigQuery 变更读取窗口、dry-run 与成本；DBP5 ODBC/JDBC 桥的流式、取消与背压（Db2、HANA、达梦）；DBP6 MongoDB change stream 的事务/resume 与文档映射阈值；DBP7 TiDB/OceanBase/GaussDB 的兼容层位点与认证；DBP8 各引擎按源端排序规则分块（不强制二进制排序）的无漏无重与走索引验证。
 
 实施决策：
 
 - **DEC-19（采用）** 准入单位为目标×能力，等级逐能力；矩阵为唯一真相源，`verified` 单元格只由证据生成。
 - **DEC-20（采用）** 捕获方法所需源端写入分类须 ≤ R1；R1w 默认禁用并需 ADR；Debezium 不使用增量快照/信号表/心跳写入；Snowflake 使用 `CHANGES` 而非 Stream。
-- **DEC-21（原型门禁 DBP1–DBP8）** 外部产品行为（Oracle 辅助表写入、SQL Server 副本读取、Aurora 位点保留、ODBC 取消、兼容层认证与位点、二进制排序）在原型证实前不得写成已验证。
+- **DEC-21（原型门禁 DBP1–DBP8）** 外部产品行为（Oracle 辅助表写入、SQL Server 副本读取、Aurora 位点保留、ODBC 取消、兼容层认证与位点、源端排序规则分块）在原型证实前不得写成已验证。
 - **DEC-22（采用）** `consistency: transactional` 只对 T 级源有效，其他源必须显式选择等级并披露，不得静默降级。
 - **DEC-23（采用）** 专有驱动默认由客户提供，再分发须逐项法务确认；不因“能连接”而放宽 7A.2 的准入。
 - **DEC-24（采用）** 基线文档按来源基线 revision 3 回填：I-SRC-1 例外收窄为“DBA 创建且平台只读”，连接器写入型辅助对象默认禁用；`consistency: transactional` 只对 T 级源有效。其余 REQ/AT/不变量语义不变。
@@ -455,6 +455,56 @@ REQ-SRC-15：所有目标运行同一黑盒套件（CC-01 至 CC-13：声明诚�
 ### 7A.11 与既有 Phase 的关系
 
 REQ-SRC-08、REQ-SRC-09、REQ-SRC-15 的框架部分由 SP03 的连接器与 catalog 契约承载，REQ-SRC-10 由 SP04 的 Loader 与恢复契约承载，REQ-SRC-12 由 SP07 的 Builder/Pack 承载；这些要求对已纳入 v0.1 的 PG/MySQL 目标的追加验收，须由数据 owner 与规范 owner 确认后登记到开发台账，**不得在未经确认时改变 SP03/SP04 现有的 Phase 退出条件和已记录的验收计数**。适用于其他数据库的部分（驱动 worker、各家族目标、云预算、文档映射）归 SP15 的 SP15-W02 扩展包，默认关闭，不阻塞 M1/M2。
+
+## 7B. v0.2 产品闭环：开源接入、凭据生命周期、规模化 Self-build 与多版本引擎
+
+本章把 [v0.2 产品侧设计](../docs/product/README.md) 定为规范；执行顺序与任务见 [v0.2 Plan](product-loops-v0.2-plan.md)。本章不放宽第 3–7A 章的任何不变量：源端只读零写、秘密不进 argv/日志/Git、能力不可推导、verified 只由证据生成。
+
+### 7B.1 开源接入（闭环 L1）
+
+REQ-ONB-01：同一分发包提供管理端命令 `oo init|up|down|status|doctor|build|review|ontology|token|share-prompt`、消费端凭据命令 `oo login|whoami` 与既有消费端命令。管理端在 TTY 下可交互（`oo init` 为 TUI 向导），任何交互均有等价的非交互形式（`--config stack.yaml`、`--yes`、`--json`）；消费端命令保持非交互与可管道。错误参数返回清晰且不含秘密的指引。见 [04 §2–3](../docs/product/04-onboarding-and-gateway-binding.md)。
+
+REQ-ONB-02：部署配置为 `oo.stack/v1`（`stack.yaml`），连接口令、模型 key、SSH 私钥只以 `secret_ref` 出现；向导读入的秘密直接写入 0600 文件（目录 0700）或系统 keychain。校验器拒绝内联秘密。见 [04 §4.1](../docs/product/04-onboarding-and-gateway-binding.md)。
+
+REQ-ONB-03：`lite` 部署档为开源默认：单机 Compose，组件含 Agent DB、控制库、worker、Builder、Gateway、模型出口代理与调度；镜像由 CI 预构建为 amd64/arm64 并以 digest 锁定，用户机器不编译。lite 档的安全定位为单所有者，不承诺多租户隔离；standard 档要求不变。lite 与远程部署上 `oo build` 的各阶段在已部署的固定 digest 运行时镜像内执行，配置由 `stack.yaml` 与部署状态推导；分发包只含 CLI 与镜像 pin，不带本地辅助程序（Plan D16）。
+
+REQ-ONB-04：SSH 有两种用途且互不混用：数据库跳板（worker 内 direct-tcpip 通道，首次确认并固定主机指纹，不匹配即失败，断线按块续读）与远程部署（经 SSH 安装 Compose 栈与定时单元，只写约定目录，不静默提权）。不修改全局 SSH 或网络配置。
+
+REQ-ONB-05：Builder 只连 loopback 上的模型出口代理；代理持有 key、转发到用户配置的 OpenAI 兼容或 Anthropic 端点、做方言转换、限流、计量，并把额度/冷却/429 统一为 fail-fast 错误码。首次调用探测上下文窗口、最大输出与结构化输出能力并记入运行记录。模型不设白名单，能力由探测与配置决定。
+
+REQ-ONB-06：发布前必须审核。单所有者场景提供“所有者自审”：TUI 展示实体、关系、指标、敏感列分类的待审摘要，逐类确认后写 `review_decision`（`mode=self`）；不得跳过审核或把自动接受记为人工审核。完成后可导出离线自包含的 Ontology 可视化（HTML/Mermaid/YAML），并生成给外部 Agent 的安装提示词。
+
+### 7B.2 Gateway 与 CLI 凭据生命周期（闭环 L2）
+
+REQ-TOK-01：token-store 支持 `issue|list|renew|rotate|revoke|enroll`，均经管理 API 与审计：`renew` 在同一 token 值上延长 absolute deadline 且不超过项目策略的最大寿命，已过期或已吊销不可 renew；`rotate` 签发新值并给旧值有界重叠窗口；`enroll` 签发一次性、有时限的绑定码；`list` 不输出明文。不得以直接改表替代这些操作。见 [04 §5](../docs/product/04-onboarding-and-gateway-binding.md)。
+
+REQ-TOK-02：策略允许时，持有 token 的客户端可在到期前窗口内自助续期（`POST /v1/auth/renew`），上限为首次签发时间加最大寿命；管理员可关闭。服务账号 token 的生命周期按本节；MCP 外部客户端的 OAuth 2.1 仍按第 11–12 章。
+
+REQ-TOK-03：`oo login` 以绑定码（默认）或设备码（RFC 8628）换取 client token，写入 0600 文件并在 profile 中只存引用，随后自动执行一次身份与读取验证；绑定码只经 stdin 或 TTY 提示读入，出现在 argv 时拒绝；`oo whoami` 显示身份、角色、到期与协议版本，到期 ≤ 7 天在 stderr 警告。TLS 校验不可关闭。
+
+REQ-TOK-04：Gateway 提供 `GET /v1/meta`（Gateway/协议版本、最低兼容 CLI 版本、当前发布与新鲜度）；CLI 低于最低版本时以明确错误码退出并给出升级命令。token 与内部 mTLS 证书的最近到期项纳入 `/v1/health` 与 `oo status`，≤ 14 天告警。
+
+REQ-TOK-05：Gateway 始终服务最近一次已验证发布；每个同步周期发布新数据代际后原子切换指针，切换期间进行中的对话不出错；`/v1/freshness` 报告数据截至时间。Gateway 不直连源库。`oo share-prompt` 默认嵌入一次性绑定码，`--raw-token` 嵌入长期 token 时提示词须带风险说明。
+
+### 7B.3 规模化 Self-build（闭环 L5）
+
+REQ-BLD-01：Self-build 由预算器分配每次模型调用：可用输入 = 上下文窗口 − 输出预留 − 系统提示（含代理注入开销）− 安全余量；输出预留按待产出条目估算并用实际 usage 校准；输入与输出双向约束。超预算按“减样本 → 压缩列 → 按列分片 → 递归切社区”降级，不丢表、不丢列。不设项目级表数上限。见 [03 §3](../docs/product/03-selfbuild-context-budget.md)。
+
+REQ-BLD-02：模型输出按条目 NDJSON 返回并带稳定 ID；截断或校验失败时只重新请求缺失条目并附有界校验反馈，程序不代补语义；补不齐的条目标 `unresolved` 进入审核。并发从 1 起按流完整性调整；额度错误 fail-fast 并保留批次回执，回执键为 `(model_id, prompt_template_hash, input_hash)`。
+
+REQ-BLD-03：生成前先建表关系图（声明外键、包含度候选、命名约定），折叠分表族与审计/备份表，按社区切批；枢纽表以紧凑签名附加到引用它的批次。三遍生成（社区内、跨社区边、合并）并维护全局实体登记表，后续批次复用已登记实体。见 [03 §4](../docs/product/03-selfbuild-context-budget.md)。
+
+REQ-BLD-04：发布前计算并写入审核摘要：外键映射率（未映射须有理由）、孤立实体比例、实体图连通分量、核心实体 3 跳可达表比例、命名冲突及裁决状态。语义依赖哈希按表与社区计算：数据-only 周期零模型调用，结构变化只重算受影响社区及其跨社区边与合并项。
+
+### 7B.4 引擎接口、拉取与多版本矩阵（闭环 L3/L4）
+
+REQ-ENG-01：所有数据库连接器实现统一 `SourceEngine` 接口（probe、capabilities(version)、catalog、plan_chunks、read_chunk、watermark、change_stream、digest_range），版本差异由版本分派表声明；`oo doctor` 输出识别版本、缺失权限与参数，以及可直接交给 DBA 的 GRANT/参数清单。
+
+REQ-ENG-02：分块按键形态选择策略（整数/字符串/复合主键 keyset、唯一索引、无键表的单次读或单快照内物理范围），字符串边界在源端按列排序规则比较；块大小自适应且只是内部资源预算；增长块拆分为新 revision 后完整读取；源库保护（单连接、占空比、负载暂停、服务端与客户端双超时、不加锁不建对象）默认开启。见 [02 §1–4](../docs/product/02-ingestion-playbook.md)。
+
+REQ-ENG-03：首次全量用只读水位（MySQL GTID/binlog 位置、PG LSN、Oracle SCN）对齐日志并在全量开始前记录 L0；C5 摘要差分按四层执行且不称 CDC；C5→C1 交接覆盖多来源多绑定的完整范围并经 L0/L_end 屏障；日志保留按实际最早可见位点预检，不足时显式重基线。见 [02 §5](../docs/product/02-ingestion-playbook.md)。
+
+REQ-ENG-04：v0.2 版本目标见 [05 §1](../docs/product/05-version-matrix-and-testing.md)：MySQL 5.7/8.0/8.4/9.x、PostgreSQL 13–18、Oracle 19c/23ai 全链，Oracle 11g/21c 快照+C5，另 13 个引擎按证据定级。每个 引擎×版本 以固定 digest 的真实引擎容器运行 T0–T8 套件，结果写证据包，支持矩阵的 verified 由证据生成，禁止手写。
 
 ## 8. 同步管线、正确性与恢复
 
@@ -1202,14 +1252,14 @@ Phase按接口和验收拆分，不按日历承诺；每Phase的工作项可以�
 | AT-SRC-01 | PG/MySQL只读/写/superuser/继承角色、CDC前提不足/no_data启动 | 默认block写账号；平台源审计写/DDL0；完整AccessReport/DBA清单 |
 | AT-SRC-02 | 快照/对账/重试同时读取，再取消/断源 | 不超过连接/速率预算（标突发容量），后端退出；源审计/速率图 |
 | AT-SRC-03 | 所有类型边界分别CDC与批量、文件与loader读取 | schema与规范值/hash一致，金额无损；逐类型diff |
-| AT-SRC-04 | sparse/composite/string/quoted长标识符/碰撞/无PK，中文/大小写/重音/尾空格/二进制键跨库排序 | canonical键集合覆盖不漏不重，map唯一稳定，无PK只full；键集合与映射 |
+| AT-SRC-04 | sparse/composite/string/quoted长标识符/碰撞/无PK，中文/大小写/重音/尾空格/二进制键在源端排序规则下分块 | canonical键集合覆盖不漏不重，map唯一稳定，无PK只full；键集合与映射 |
 | AT-SRC-05 | 脏值/修正/同事件重放、PII未分类raw value | 保留所有行，reject去重/解决正确且raw掩码；reject与quality对照 |
 | AT-SRC-06 | 注册矩阵外家族、未验证版本/变体/能力、experimental于生产profile、伪造证据引用、矩阵与文档漂移、verified目标夜间连续失败 | 分别返回CONNECTOR_UNSUPPORTED/TARGET_VERSION_UNVERIFIED/CAPABILITY_UNVERIFIED；experimental拒绝生产；无证据的verified单元格CI失败；降级写入发布说明且已有源继续同步并显示警告；矩阵/证据/错误响应 |
 | AT-SRC-07 | 对每个目标运行启动、体检、读取、重连、no_data、取消、对账；尝试启用信号表/心跳写入/Stream创建/触发器及无ADR的R1w | 源端语句级审计中平台身份无DML/DDL（R1w仅限已批准辅助对象）；R2/R3选项被validate/plan拒绝；DBA清单含回滚；各引擎审计原文 |
 | AT-SRC-08 | 位点过期、托管故障转移/槽丢失、窗口临界滞后、不可比位点；T/S1/S0/B混合的跨表JOIN | 过期进入POSITION_EXPIRED并经新generation重快照后原子换表，旧位点不推进；STALE_RISK按阈值告警；不可比位点禁止修复与一致性宣称；freshness返回grade/capture_method，低于T的多表JOIN返回CROSS_TABLE_SKEW；transactional对非T源被拒绝；位点与窗口记录 |
 | AT-SRC-09 | 无原生删除的表：源删除/更新、语句时间赋值的长事务晚提交、相等游标、亚微秒精度游标列；对账周期 | 对账周期内删除收敛并返回DELETES_LAGGED；overlap与对账检出漏读并修复；cursor_safety分类正确；精度截断列不可作游标/PK；差异报告 |
 | AT-SRC-10 | 外部驱动worker：缺驱动、驱动digest变更、worker崩溃、越权访问Agent DB/Secret/其他源网络、厂商库崩溃 | DRIVER_MISSING阻止且不回退通用驱动；digest入AccessReport与审计；worker无Agent DB凭证且网络仅到该源；崩溃不影响已发布数据、租约恢复；镜像digest与网络测试 |
-| AT-SRC-11 | 源语义夹具（Oracle空串、CI排序/尾空格、datetime2(7)与TIMESTAMP(9)精度、列式引擎缺失默认值、declared_only约束、字符串键二进制排序）经catalog、Builder、Pack、freshness全链 | caveats逐项出现在catalog/Pack/表质量；精度损失列作PK/游标被block；declared_only关系须包含依赖检验才入候选；源方言SQL不出现在可执行示例；分块无漏无重；caveat对照 |
+| AT-SRC-11 | 源语义夹具（Oracle空串、CI排序/尾空格、datetime2(7)与TIMESTAMP(9)精度、列式引擎缺失默认值、declared_only约束、字符串键按源端排序规则分块）经catalog、Builder、Pack、freshness全链 | caveats逐项出现在catalog/Pack/表质量；精度损失列作PK/游标被block；declared_only关系须包含依赖检验才入候选；源方言SQL不出现在可执行示例；分块无漏无重；caveat对照 |
 | AT-SRC-12 | 云仓/计量源读取：dry-run估算、预算上限、预算耗尽、取消、长时间空闲 | 估算先于读取；超预算block；SOURCE_BUDGET_EXHAUSTED暂停且不静默重试；取消后云端作业无残留；不保持空闲会话；计费与作业日志 |
 | AT-SRC-13 | 文档/半结构化源：混合类型字段、新增字段、嵌套数组、Decimal128/Int64/ObjectId、仅主键的删除事件、不满足拓扑的实例 | 稳定字段投影与doc列保真且无精度损失；新字段进入未分类队列且默认不可见；混合类型仅留doc；删除按主键收敛；不支持拓扑明确拒绝CDC；映射diff |
 | AT-SRC-14 | 目标声明能力集；删除一个用例或新增未映射声明；请求未声明能力；套件同跑PG/MySQL与至少一个新家族目标 | CI因声明无测试而失败；未声明能力返回CAPABILITY_UNVERIFIED且不降级；声明与用例映射报告；证据类型分别标注 |
@@ -1314,6 +1364,23 @@ Phase按接口和验收拆分，不按日历承诺；每Phase的工作项可以�
 | AT-PERF-01 | 50m首快照+1000–5000events/s CDC | 吞吐/索引/副本延迟达第14章；否则诚实报告差距 |
 | AT-PERF-02 | Goose query/export混合20会话、RLS/审计/解析IPC | p99自身<30ms、静态<10ms、并发质量下降≤2百分点 |
 | AT-PERF-03 | 5倍突发、慢客户端/backpressure、24h持续创建释放 | 1min恢复、RSS/FD/pool/backend/卷无持续泄漏；资源图 |
+
+#### 18.2.6 v0.2 产品闭环
+
+| AT ID | 输入与动作 | 成功判定 / 必存证据 |
+|---|---|---|
+| AT-ONB-01 | 干净 macOS arm64 与 Linux amd64 各一；MySQL、PG、Oracle 夹具各一次；`oo init` → 自审 → 发布 → 提示词 → 另一 Agent 绑定并答 20 道金标准题 | 全程不手工编辑文件；答案与 gold 一致；终端记录与证据包 |
+| AT-ONB-02 | 同一部署以 `stack.yaml` 非交互复现；内联密码配置；argv/日志/stack/Pack/提示词秘密扫描 | 结果与 TTY 路径一致；内联秘密被拒；扫描零命中（`--raw-token` 提示词除外且带风险说明） |
+| AT-ONB-03 | 经 SSH 跳板读取；跳板断线；主机指纹不匹配；远程部署到 sshd 目标主机 | 块级续读无重复；指纹不匹配拒绝；部署成功且只写约定目录 |
+| AT-ONB-04 | 出口代理对 OpenAI 兼容与 Anthropic 方言录制回放；429/额度/冷却；能力探测 | 方言正确；额度错误 fail-fast 且回执保留；key 不出现在日志；探测值写入运行记录 |
+| AT-TOK-01 | issue/list/renew/rotate/revoke/enroll 成功路径；过期、已吊销、重复兑换、超最大寿命、错误 audience | 成功与拒绝均符合 REQ-TOK-01/02；每次操作有审计；list 无明文 |
+| AT-TOK-02 | `oo login`（绑定码、设备码含 slow_down）、`oo whoami`、到期前 7 天、过期后、CLI 低于最低版本 | token 文件 0600；预警与升级提示出现；错误码明确 |
+| AT-TOK-03 | 连续 3 个同步周期中持续对话；mTLS 证书与 token 临近到期 | 切换期间对话无错误；freshness 正确；`/v1/health` 与 `oo status` 告警 |
+| AT-BLD-01 | 上千表夹具（含 300 列宽表、分表族、隐式关系）在 272k 窗口模型下全库 Self-build；人为截断输出 | 覆盖 100%、无静默丢列；只重请求缺失条目；连通性指标写入审核摘要 |
+| AT-BLD-02 | 数据-only 周期；加列、改类型、新建表 | 数据-only 零模型调用；结构变化只重算受影响社区；调用计量证据 |
+| AT-ENG-01 | P0 全版本 T0–T2：预检、并发写入下全量、C1/C5 三周期含无变化周期 | 逐块比对零差异；无变化周期零载荷零改写；位点单调；DBA 清单与权限一致 |
+| AT-ENG-02 | P0 全版本 T3/T4：块内与提交后杀 worker、源重启、断网限速、日志超保留、PG 18 slot 作废、结构变化 | 续跑不重复应用；超保留显式重基线；全部失败有回执 |
+| AT-ENG-03 | P0 全版本 T6–T8：金标准对话、源端审计、资源计量；矩阵生成 | 答案与 gold 一致；读取账号只发出读取且非系统对象无变化，系统 schema 上的会话设置、登录/字典记账、审计轨迹与 LogMiner 自有对象写入逐类归因、不可归因即失败（Plan D12）；资源不超预算；矩阵与证据一致 |
 
 ### 18.3 目标测试入口（当前尚未实现）
 
@@ -1624,6 +1691,25 @@ Release candidate:
 | REQ-EVAL-04 | SP12 | AT-EVAL-04 | [13-evaluation-and-benchmarks.md](../docs/13-evaluation-and-benchmarks.md) |
 | REQ-EVAL-05 | SP12 | AT-OOS-02、AT-EVAL-04 | [13-evaluation-and-benchmarks.md](../docs/13-evaluation-and-benchmarks.md) |
 | REQ-EVAL-06 | SP12 | AT-EVAL-05、AT-EVAL-06 | [13-evaluation-and-benchmarks.md](../docs/13-evaluation-and-benchmarks.md) |
+| REQ-ONB-01 | SP14 · V2-S0/S2 | AT-ONB-01、AT-ONB-02 | [04-onboarding-and-gateway-binding.md](../docs/product/04-onboarding-and-gateway-binding.md) |
+| REQ-ONB-02 | SP02 · V2-S0/S2 | AT-ONB-02 | [04-onboarding-and-gateway-binding.md](../docs/product/04-onboarding-and-gateway-binding.md) |
+| REQ-ONB-03 | SP14 · V2-S2/S6 | AT-ONB-01 | [04-onboarding-and-gateway-binding.md](../docs/product/04-onboarding-and-gateway-binding.md) |
+| REQ-ONB-04 | SP03 · V2-S3/S4 | AT-ONB-03 | [04-onboarding-and-gateway-binding.md](../docs/product/04-onboarding-and-gateway-binding.md) |
+| REQ-ONB-05 | SP07 · V2-S1 | AT-ONB-04 | [04-onboarding-and-gateway-binding.md](../docs/product/04-onboarding-and-gateway-binding.md) |
+| REQ-ONB-06 | SP08 · V2-S4 | AT-ONB-01 | [04-onboarding-and-gateway-binding.md](../docs/product/04-onboarding-and-gateway-binding.md) |
+| REQ-TOK-01 | SP09 · V2-S0/S1 | AT-TOK-01 | [04-onboarding-and-gateway-binding.md](../docs/product/04-onboarding-and-gateway-binding.md) |
+| REQ-TOK-02 | SP09 · V2-S1 | AT-TOK-01 | [04-onboarding-and-gateway-binding.md](../docs/product/04-onboarding-and-gateway-binding.md) |
+| REQ-TOK-03 | SP10 · V2-S3 | AT-TOK-02 | [04-onboarding-and-gateway-binding.md](../docs/product/04-onboarding-and-gateway-binding.md) |
+| REQ-TOK-04 | SP09 · V2-S1/S3 | AT-TOK-02、AT-TOK-03 | [04-onboarding-and-gateway-binding.md](../docs/product/04-onboarding-and-gateway-binding.md) |
+| REQ-TOK-05 | SP09 · V2-S3/S4 | AT-TOK-03、AT-ONB-01 | [04-onboarding-and-gateway-binding.md](../docs/product/04-onboarding-and-gateway-binding.md) |
+| REQ-BLD-01 | SP07 · V2-S2 | AT-BLD-01 | [03-selfbuild-context-budget.md](../docs/product/03-selfbuild-context-budget.md) |
+| REQ-BLD-02 | SP07 · V2-S2 | AT-BLD-01 | [03-selfbuild-context-budget.md](../docs/product/03-selfbuild-context-budget.md) |
+| REQ-BLD-03 | SP07 · V2-S3 | AT-BLD-01 | [03-selfbuild-context-budget.md](../docs/product/03-selfbuild-context-budget.md) |
+| REQ-BLD-04 | SP08 · V2-S3 | AT-BLD-01、AT-BLD-02 | [03-selfbuild-context-budget.md](../docs/product/03-selfbuild-context-budget.md) |
+| REQ-ENG-01 | SP03 · V2-S0/S1 | AT-ENG-01 | [05-version-matrix-and-testing.md](../docs/product/05-version-matrix-and-testing.md) |
+| REQ-ENG-02 | SP03 · V2-S1 | AT-ENG-01、AT-ENG-02 | [02-ingestion-playbook.md](../docs/product/02-ingestion-playbook.md) |
+| REQ-ENG-03 | SP04 · V2-S2 | AT-ENG-01、AT-ENG-02 | [02-ingestion-playbook.md](../docs/product/02-ingestion-playbook.md) |
+| REQ-ENG-04 | SP15 · V2-S0/S5 | AT-ENG-01、AT-ENG-02、AT-ENG-03 | [05-version-matrix-and-testing.md](../docs/product/05-version-matrix-and-testing.md) |
 
 ## 23. 风险、开放问题与决策责任
 
@@ -1673,7 +1759,57 @@ M1 MVP、M2完整v0.x、M3扩展分别验收，不能把M3探索当M1未完成�
 
 ### 24.1 全量来源阅读记录
 
-本规范依据以下19份文档全文编制；[来源基线](sources-baseline.json)记录每文件sha256、字节数、行数和输入Git HEAD。摘要/候选版本以这些已给定设计为依据，未将参考链接的当前内容或未实现制品假称已验证。之后docs变化必须重新检查本规范受影响需求，更新基线需review，不能自动接受漂移。
+本规范依据以下26份文档（`docs/` 19 份与 `docs/product/` 7 份，revision 6 起）全文编制；[来源基线](sources-baseline.json)记录每文件sha256、字节数、行数和输入Git HEAD。摘要/候选版本以这些已给定设计为依据，未将参考链接的当前内容或未实现制品假称已验证。之后docs变化必须重新检查本规范受影响需求，更新基线需review，不能自动接受漂移。
+
+revision 30（2026-11-06）：S6-M-04 回填核对——当前等级只由生成矩阵决定、默认制品不含 MySQL binlog C1（Plan D10）、P1/P2 实测现状、命令面与 `oo --help` 一致、绑定码不进 argv、D4/D9/D13/D15/D16/D18 补入原文档：[变更记录](source-baseline-revision-30.md)。
+
+revision 29（2026-11-05）：无键表以整表为 C5 比较单位：[变更记录](source-baseline-revision-29.md)。
+
+revision 28（2026-11-05）：构建状态与 `oo share-prompt --grant-file` 用法：[变更记录](source-baseline-revision-28.md)。
+
+revision 27（2026-11-05）：T7 只读证明方法与 PostgreSQL 槽位推进归类（Plan D12a）：[变更记录](source-baseline-revision-27.md)。
+
+revision 26（2026-11-05）：带时区时间戳落为瞬时点（Plan D17）：[变更记录](source-baseline-revision-26.md)。
+
+revision 25（2026-11-05）：首次构建后启用计划周期；`--target ssh` 上的 `oo build`：[变更记录](source-baseline-revision-25.md)。
+
+revision 24（2026-11-05）：C5 沿用基线 key 范围，谱系变化显式重基线：[变更记录](source-baseline-revision-24.md)。
+
+revision 23（2026-11-05）：lite 构建链准备与镜像内执行（Plan D16）：[变更记录](source-baseline-revision-23.md)。
+
+revision 22（2026-11-04）：lite 计划周期：[变更记录](source-baseline-revision-22.md)。
+
+revision 21（2026-11-04）：保留代际发布器 `publish-retained`：[变更记录](source-baseline-revision-21.md)。
+
+revision 20（2026-11-04）：保留代际的 Gateway 发布映射与 lite 周期（Plan D15）：[变更记录](source-baseline-revision-20.md)。
+
+revision 19（2026-11-04）：经 SSH 远程部署：[变更记录](source-baseline-revision-19.md)。
+
+revision 18（2026-11-04）：ClickHouse 版本写法：[变更记录](source-baseline-revision-18.md)。
+
+revision 17（2026-11-04）：OLAP 引擎现状：[变更记录](source-baseline-revision-17.md)。
+
+revision 16（2026-11-04）：SQL Server 验收现状：[变更记录](source-baseline-revision-16.md)。
+
+revision 15（2026-11-04）：S4 所有者自审与构建交接边界：[变更记录](source-baseline-revision-15.md)。
+
+revision 14（2026-11-04）：千表 Self-build 实测与 SQL Server 现状：[变更记录](source-baseline-revision-14.md)。
+
+revision 13（2026-11-04）：Oracle C1 事务低水位：[变更记录](source-baseline-revision-13.md)。
+
+revision 12（2026-11-04）：lite 档数据库连接改为 TLS + SCRAM、不要求客户端证书，standard 不变（Plan D14）：[变更记录](source-baseline-revision-12.md)。
+
+revision 11（2026-11-04）：T7 只读证明中“写入”的定义（Plan D12），AT-ENG-03 成功判定同步：[变更记录](source-baseline-revision-11.md)。
+
+revision 10（2026-11-04）：Oracle LogMiner 自有对象按版本位于 SYS 或 SYSTEM，T7 放行类别据此修正，默认 C5 须单独零写通过（Plan D11a）：[变更记录](source-baseline-revision-10.md)。
+
+revision 9（2026-11-04）：Oracle LogMiner 的 SYS 会话级临时表递归写入经 T7 实测后定级为“R1，含 Oracle 内部递归临时写”，C1 需显式选用（Plan D11）：[变更记录](source-baseline-revision-9.md)。
+
+revision 8（2026-11-04）：Oracle 分块的索引检查改读 `V$SQL_PLAN`，不用会写 `PLAN_TABLE` 的 `EXPLAIN PLAN`（REQ-SRC-12 第 4 条同步）：[变更记录](source-baseline-revision-8.md)。
+
+revision 7（2026-11-04）：仅 docs/product/01 增加 v0.2 台账与 TODO 生成规则，不影响需求与验收：[变更记录](source-baseline-revision-7.md)。
+
+revision 6（2026-11-04，用户授权）：按 [v0.2 产品侧设计](../docs/product/README.md) 当期回填 docs/README、03、04、06、07、08、11、12、13、14 与 database-support，新增第 7B 章 REQ-ONB/TOK/BLD/ENG 共 19 项与 AT-ONB/TOK/BLD/ENG 共 12 项，并把 `docs/product/` 纳入哈希基线；字符串键分块规则改为源端排序规则比较（REQ-SRC-12 第 4 条）：[变更记录](source-baseline-revision-6.md)。
 
 revision 3（项目负责人 2026-10-09 批准）按[数据库支持扩展设计](../docs/database-support/README.md)回填 docs/README、02、03、04、05、06、07、12、14、16：收窄 I-SRC-1 的 DBA 对象例外、`consistency: transactional` 仅对 T 级源有效、追加质量状态/配置字段/OOS 可选字段/ADR-014；不新增或删除 REQ-SRC-01 至 07、不变量或 Phase，新增的 REQ-SRC-08 至 15 与 AT-SRC-06 至 14 见第 7A 章：[变更记录](../execution/decisions/source-baseline-revision-3.md)。
 
@@ -1700,6 +1836,13 @@ revision 3（项目负责人 2026-10-09 批准）按[数据库支持扩展设计
 | [15 glossary](../docs/15-glossary.md) | 术语定义与边界；全文一致性 |
 | [16 references](../docs/16-references.md) | 主来源线索/待核实能力/native版本与许可；第4/5/23章 |
 | [17 Rust contract](../docs/17-rust-implementation.md) | crate依赖/取消/跨库/fence/FFI/plugins/精度/审计/平台验收；第4–20章 |
+| [product README](../docs/product/README.md) | v0.2 产品侧文档索引与对既有文档的修订清单；第7B章 |
+| [product 01 working model](../docs/product/01-working-model.md) | 协调者/执行者分工、单一状态文件、验收层级与硬规则；第7B章、v0.2 Plan §2 |
+| [product 02 ingestion](../docs/product/02-ingestion-playbook.md) | 键形态分块、源库保护、只读水位、C5/C1 交接、版本差异；REQ-ENG-02/03 |
+| [product 03 Self-build budget](../docs/product/03-selfbuild-context-budget.md) | 预算器、NDJSON 修复、社区切批、实体登记、连通性门禁；REQ-BLD-01–04 |
+| [product 04 onboarding](../docs/product/04-onboarding-and-gateway-binding.md) | `oo init`/lite/SSH/模型出口/token 生命周期/`oo login`/提示词；REQ-ONB、REQ-TOK |
+| [product 05 version matrix](../docs/product/05-version-matrix-and-testing.md) | 16 引擎版本目标、镜像、夹具、T0–T8；REQ-ENG-04 |
+| [product source sync](../docs/product/source-sync.md) | 交付仓库向产品仓库同步的允许与禁止内容；第20章供应链与发布 |
 
 ### 24.2 当前可执行的文档验证
 

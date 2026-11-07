@@ -11,18 +11,18 @@ description = "MySQL 5.7/8.x owned-fixture C1 adapter using oo-connectors. Not a
 resolver = "3"
 
 [dependencies]
-arrow-ipc = { version = "=60.0.0", default-features = false }
-oo-connectors = { path = "../../crates/oo-connectors", features = ["mysql"] }
+arrow-ipc = { version = "=60.1.0", default-features = false }
+oo-connectors = { path = "../../crates/oo-connectors", features = ["mysql-binlog"] }
 oo-core = { path = "../../crates/oo-core" }
 oo-pipeline = { path = "../../crates/oo-pipeline" }
 cdc-spool = { path = "../cdc-spool" }
 cdc-transaction = { path = "../cdc-transaction" }
 futures-util = { version = "=0.3.34", default-features = false, features = ["alloc", "std"] }
-mysql_async = { version = "=0.36.1", default-features = false, features = ["binlog", "minimal", "native-tls-tls"] }
+mysql_async = { version = "=0.37.1", default-features = false, features = ["binlog", "minimal-rust", "native-tls-tls"] }
 serde_json = "=1.0.151"
 sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }
 sqlx-core = { version = "=0.9.0", default-features = false, features = ["_rt-tokio", "_tls-rustls-ring-no-roots"] }
-tokio = { version = "=1.53.1", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+tokio = { version = "=1.53.3", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
 zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
 cc = { version = "=1.4.7", default-features = false }
 crypto-common = { version = "=0.1.6", default-features = false }

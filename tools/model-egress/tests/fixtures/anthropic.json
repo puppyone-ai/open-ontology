@@ -1,0 +1,1 @@
+{"id":"fixture-anthropic","type":"message","role":"assistant","model":"fixture-model","content":[{"type":"text","text":"OK"}],"stop_reason":"end_turn","usage":{"input_tokens":17,"output_tokens":1}}

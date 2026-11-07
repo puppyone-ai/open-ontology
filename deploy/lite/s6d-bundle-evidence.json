@@ -1,0 +1,61 @@
+{
+  "plan": "S6-M-01",
+  "run_id": "m-s6d-20261105",
+  "source_base": "8ecf59fa90dd64318f9965441c3c688a9dcbcf76",
+  "status": "passed",
+  "scope": "offline bundle provisioning and scheduled retained cycles, not a live-model Quickstart",
+  "changes": [
+    "Strip export-only OCI descriptor annotations before signing/checksumming; verification still rejects named archives.",
+    "Include verdicts.py in the isolated fixture import closure."
+  ],
+  "engines": {
+    "arm64": {
+      "run_id": "m-s6d-dind-arm64-2",
+      "version": "17.11 (Debian 17.11-1.pgdg12+2)",
+      "status": "passed",
+      "daemon": "isolated DinD",
+      "model_basis": "deterministic_test_transport",
+      "continuous_queries": 36,
+      "query_errors": 0,
+      "scheduled_model_calls": 0,
+      "seven_healthy": true,
+      "cycles": [
+        "noop",
+        "data-change"
+      ],
+      "evidence_sha256": {
+        "scheduled/compose-result.json": "192451cfdd0306e9aff02c41d25bf345160c52f6193ba00d569a3536fbc2e1bc",
+        "first-up.json": "e241396a2fc870193060248aee42ab62d30b3a7d3556776828ffa3d599128c40",
+        "isolation.json": "769f27fb7af331858ba56cab988ec13add97d78a8820ad349cb6485f0eced9ab"
+      }
+    },
+    "amd64": {
+      "run_id": "m-s6d-dind-amd64",
+      "version": "17.11 (Debian 17.11-1.pgdg12+2)",
+      "status": "passed",
+      "daemon": "host Docker Desktop; emulated amd64 client",
+      "model_basis": "deterministic_test_transport",
+      "continuous_queries": 30,
+      "query_errors": 0,
+      "scheduled_model_calls": 0,
+      "seven_healthy": true,
+      "cycles": [
+        "noop",
+        "data-change"
+      ],
+      "evidence_sha256": {
+        "scheduled/compose-result.json": "7322857a15d9ab86c2216dff4113a7732763081f5859b6848fdb8e5cd4a70c53",
+        "first-up.json": "e241396a2fc870193060248aee42ab62d30b3a7d3556776828ffa3d599128c40",
+        "isolation.json": "46c6c6d2b8978f8972d5b255efc18344862b2552c2c008247332e1567e5910fc"
+      }
+    }
+  },
+  "unit_tests": {
+    "command": "python3 -m unittest discover -s deploy/lite",
+    "passed": 79
+  },
+  "failed_attempts": {
+    "m-s6d-dind-arm64": "Missing verdicts.py after successful foundation provisioning; preserved, fixed, rerun."
+  },
+  "containers_left_running": 0
+}

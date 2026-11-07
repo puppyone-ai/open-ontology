@@ -1,0 +1,474 @@
+{
+  "status": "complete",
+  "card": "A4 (continuation)",
+  "todo_ids": [
+    "S4-A-02",
+    "S4-M-02"
+  ],
+  "decision": "D16",
+  "run_ids": [
+    "a4-l1-mac-final2",
+    "a4-l1-mac-final",
+    "a4-l1-linux-final",
+    "a4-ssh-dev-2",
+    "a4-image-3"
+  ],
+  "changes": [
+    "After the first oo build the reconciling oo up arms the scheduled retained cycle (control-DB jobs schema, schedule.json, schedule row) and starts gateway, worker, scheduler and the Builder replay job; oo status reaches seven healthy services.",
+    "oo build --target ssh runs the runtime phases on the remote host over the pinned SSH connection; owner review stays local.",
+    "Linux amd64 clean machine: CLI from the npm pack inside an amd64 client container on the host daemon.",
+    "An Agent given only the printed prompt binds and answers the gold questions over the loaded tables (lane G t6 logic)."
+  ],
+  "checks": [
+    {
+      "command": "cargo check --workspace --locked",
+      "result": "passed on every commit"
+    },
+    {
+      "command": "cargo test -p oo-cli --locked",
+      "result": "83 passed; 2 ignored; 0 failed"
+    },
+    {
+      "command": "cargo test -p oo-stack --locked",
+      "result": "14 passed; 0 failed"
+    },
+    {
+      "command": "python3 -m unittest test_retained_provision test_lifecycle test_retained_grant test_remote test_remote_build (deploy/lite)",
+      "result": "35 passed"
+    },
+    {
+      "command": "python3 tools/oo-test/l1_clean.py --run-id a4-l1-mac-final2 ...",
+      "result": "passed; containers left 0"
+    },
+    {
+      "command": "python3 tools/oo-test/l1_clean.py --run-id a4-l1-linux-final --platform linux-x64 --no-agent ...",
+      "result": "passed; containers left 0"
+    },
+    {
+      "command": "python3 tools/oo-test/l1_ssh.py --run-id a4-ssh-dev-2 ...",
+      "result": "passed"
+    }
+  ],
+  "runtime_image": {
+    "platform": "linux/arm64",
+    "id": "sha256:7983847f1eb97a259e8c6cc126e6065bd13df85eca80abbf098b46f63313e8b0",
+    "build_run": "a4-image-3"
+  },
+  "macos_arm64": {
+    "base_commit": "9335e349d84e67fccd93b04104d2b66b16edba12",
+    "cli_sha256": "2d1d1bf1ec0238636db9b4dd7d071c937d86159b5ffafcf77175f30cbe986109",
+    "engines": {
+      "PostgreSQL 17.11": {
+        "observed_version": "17.11",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
+        },
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
+        }
+      },
+      "MySQL 8.4.7": {
+        "observed_version": "8.4.7",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
+        },
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
+        }
+      },
+      "Oracle 23.5": {
+        "observed_version": "23.5.0.24.07",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
+        },
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
+        }
+      }
+    }
+  },
+  "linux_amd64": {
+    "base_commit": "6f9e26866d674a2a668d03e35eb6ea76bc37cc3a",
+    "cli_sha256": "dd75c9806a196f91198add4d1ffc66e5b531cf671f4a6dd37a04d351f66916d3",
+    "machine": {
+      "client_image": "oo-a4-l1-client:linux-amd64",
+      "client_tools": {
+        "cargo": "absent",
+        "docker": "27.5.1",
+        "node": "v24.22.2",
+        "python3": "Python 3.13.5"
+      },
+      "client_uname": "Linux x86_64",
+      "daemon": "aarch64 Docker Desktop (the host's arm64 Docker Desktop, via the mounted socket)",
+      "network": "host (Docker VM namespace)",
+      "platform": "linux-x64",
+      "runtime_image_platform": "linux/arm64 (pinned for the arm64 daemon)"
+    },
+    "cli_built_from": "commit 8e6e946 tree (pre OpenSSL-helper fixes, which only run on hosts without Ed25519 OpenSSL)",
+    "engines": {
+      "PostgreSQL 17.11": {
+        "observed_version": "17.11",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
+        },
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
+        }
+      },
+      "MySQL 8.4.7": {
+        "observed_version": "8.4.7",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
+        },
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
+        }
+      },
+      "Oracle 23.5": {
+        "observed_version": "23.5.0.24.07",
+        "same_result": true,
+        "tty": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed"
+        },
+        "stack": {
+          "result": "passed",
+          "model_calls": 3,
+          "query_rows": [
+            [
+              "1.1250"
+            ]
+          ],
+          "secret_scan": "passed",
+          "scheduled_cycle": {
+            "result": "passed",
+            "query_rows": [
+              [
+                "2.5000"
+              ]
+            ],
+            "scheduled_model_calls": 0,
+            "seven_healthy": true
+          },
+          "sigkill_resume_attempts": {
+            "builder": 1,
+            "candidate": 1,
+            "first_token": 0,
+            "gateway": 0,
+            "load": 1,
+            "publish": 0,
+            "self_review": 2,
+            "share_prompt": 0
+          }
+        }
+      }
+    }
+  },
+  "ssh_target": {
+    "engine": "PostgreSQL 17.11",
+    "target": "lane A2 masked systemd+sshd+Docker image, linux/arm64, privileged",
+    "up": {
+      "exit": 0,
+      "status": "retained_ready"
+    },
+    "chain": "complete",
+    "model_calls": 3,
+    "consumer_query_rows": [
+      [
+        "1.1250"
+      ]
+    ],
+    "seven_healthy": true,
+    "scheduled_cycle": {
+      "expected": "2.5000",
+      "query_rows": [
+        [
+          "2.5000"
+        ]
+      ],
+      "result": "passed"
+    },
+    "docker_vm_kernel_state": "unchanged",
+    "secret_scan": "passed",
+    "containers_left": 0
+  },
+  "agent_gold": {
+    "harness": "lane G tools/oo-test/t6.py @ f206d6424",
+    "questions": "gold questions reading only orders/customers",
+    "results": {
+      "PostgreSQL 17.11": {
+        "a4-l1-mac-final": {
+          "agent_model_calls": 57,
+          "error": null,
+          "questions": {
+            "Q01": "correct",
+            "Q02": "correct",
+            "Q03": "correct",
+            "Q07": "correct",
+            "Q08": "correct",
+            "Q09": "correct",
+            "Q10": "correct",
+            "Q12": "failed/UPSTREAM_TIMEOUT",
+            "Q15": "failed/CLI_TOOL_ARGUMENT",
+            "Q19": "correct"
+          }
+        },
+        "a4-l1-mac-final2": {
+          "agent_model_calls": 60,
+          "error": null,
+          "questions": {
+            "Q01": "correct",
+            "Q02": "correct",
+            "Q03": "correct",
+            "Q07": "correct",
+            "Q08": "correct",
+            "Q09": "failed/UPSTREAM_TIMEOUT",
+            "Q10": "correct",
+            "Q12": "correct",
+            "Q15": "refused",
+            "Q19": "correct"
+          }
+        }
+      },
+      "MySQL 8.4.7": {
+        "a4-l1-mac-final": {
+          "agent_model_calls": 63,
+          "error": null,
+          "questions": {
+            "Q01": "correct",
+            "Q02": "correct",
+            "Q03": "correct",
+            "Q07": "correct",
+            "Q08": "correct",
+            "Q09": "correct",
+            "Q10": "correct",
+            "Q12": "correct",
+            "Q15": "failed/CLI_TOOL_ARGUMENT",
+            "Q19": "correct"
+          }
+        },
+        "a4-l1-mac-final2": {
+          "agent_model_calls": 2,
+          "error": "UPSTREAM_TIMEOUT",
+          "questions": {}
+        }
+      },
+      "Oracle 23.5": {
+        "a4-l1-mac-final": {
+          "agent_model_calls": 58,
+          "error": null,
+          "questions": {
+            "Q01": "correct",
+            "Q02": "correct",
+            "Q03": "correct",
+            "Q07": "correct",
+            "Q08": "correct",
+            "Q09": "correct",
+            "Q10": "correct",
+            "Q12": "correct",
+            "Q15": "failed/CLI_TOOL_ARGUMENT",
+            "Q19": "failed/UPSTREAM_TIMEOUT"
+          }
+        },
+        "a4-l1-mac-final2": {
+          "agent_model_calls": 2,
+          "error": "UPSTREAM_TIMEOUT",
+          "questions": {}
+        }
+      }
+    }
+  },
+  "not_run": [
+    "gold questions over tables not loaded by this fixture",
+    "SSH for MySQL/Oracle",
+    "remote public Gateway names"
+  ],
+  "containers_left_running": [],
+  "evidence_sha256": {
+    "evidence/a4-l1-mac-final2/summary.json": "ae4e5488c0340aeccfa3944d2d53c55c3a75044f410e21ccf35ca49c775cbf12",
+    "evidence/a4-l1-mac-final/summary.json": "2fa5172ba9e5407e765ba6cad05477293ed0bb48985fa72a1337373d9948d3f7",
+    "evidence/a4-l1-linux-final/summary.json": "ce9b73b520fde5c9974986c12d8cc0448d5d268d8217ce8216f3ba45cd21ebc6",
+    "evidence/a4-ssh-dev-2/report.json": "5d0102847682b360c5dd1176f696c11a3ae4ef867e63200ed4811fe97c053bed"
+  }
+}

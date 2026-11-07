@@ -1,12 +1,6 @@
-//! Budgets for one structure-draft compilation.
-//!
-//! These bounds are part of `oo.builder.catalog-evidence/v1`. A larger catalog
-//! is refused. This slice does not sample rows and does not read a database.
+//! Non-size validation bounds for catalog evidence.
+//! Table and column inventories are not model batches; see `budget`.
 
-/// Tables in one evidence envelope.
-pub const MAX_TABLES: usize = 64;
-/// Columns on one table.
-pub const MAX_COLUMNS: usize = 256;
 /// Primary, unique, and foreign keys on one table, plus the selection key list.
 pub const MAX_KEYS: usize = 32;
 /// Columns in one key or foreign key.

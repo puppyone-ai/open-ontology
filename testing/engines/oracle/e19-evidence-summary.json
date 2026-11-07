@@ -1,0 +1,518 @@
+{
+  "schema": "oo.oracle-e19-acceptance/v1",
+  "integration_base": "14dc87974",
+  "implementation_commit": "dd46b501f50c16dc5c920230b4427c5c482c7869",
+  "version_actual": "19.19.0.0.0",
+  "platform": "linux/arm64",
+  "emulated": false,
+  "image": "container-registry.oracle.com/database/enterprise:19.19.0.0@sha256:3843234f6fd1ed084b1dd7ad42eeeaa95ad13f12c790810cb368bb58f8ad42ba",
+  "license_acceptance": "owner-done E365",
+  "todos": {
+    "S0-H-04": "done for 19c",
+    "S1-E-01": "done for 19c",
+    "S2-E-01": "done for 19c",
+    "S5-E-04": "done for 19c"
+  },
+  "merge_run_id": "h-merged-07c7e204-8141-463f-8430-4c74bdd0079a",
+  "merge_exit": 0,
+  "merged_rows": 19,
+  "latest_verdicts": [
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "version_measured": true,
+      "capability": "fixture",
+      "suite": "T0",
+      "variant": "snapshot",
+      "result": "pass",
+      "run_id": "h-s5-20261105T123929358107Z-9b3590c1-9176-47c4-a281-4e90e20a2b50",
+      "sha256": "3016feeb1017248328464ac3e7930c2ee7eda8aaa022d08b02e933fd1ef73c8c",
+      "evidence": "evidence/h-s5-20261105T123929358107Z-9b3590c1-9176-47c4-a281-4e90e20a2b50/oracle-19/comparison-report.json",
+      "observed_at": "2026-11-05T12:53:25.233864Z",
+      "emulated": false,
+      "detail": "passed",
+      "error": null
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T1",
+      "variant": "snapshot",
+      "result": "pass",
+      "run_id": "4adedff9-ec88-4a9d-b503-0b960e3381f9",
+      "sha256": "790a321c0c4b80e90f81e3c7c4e42da9da0232274ceb3cd435ff6422ae17a008",
+      "evidence": "evidence/e19-t7-snapshot-final-20261105/workloads/oracle-19-snapshot/t1-t8.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:35:08.758361Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T2",
+      "variant": "c1",
+      "result": "pass",
+      "run_id": "c3e438b6-03b2-498a-81e0-ce82b2f95118",
+      "sha256": "d2e2f17ab517e230dd24ad911ee55310079c904aa11eddb00b9b19967c4bd9d2",
+      "evidence": "evidence/e19-t2-final-20261105/oracle-19/t2.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:02:35.288015Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T2",
+      "variant": "c5",
+      "result": "pass",
+      "run_id": "c3e438b6-03b2-498a-81e0-ce82b2f95118",
+      "sha256": "d2e2f17ab517e230dd24ad911ee55310079c904aa11eddb00b9b19967c4bd9d2",
+      "evidence": "evidence/e19-t2-final-20261105/oracle-19/t2.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:02:35.288063Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T3",
+      "variant": "c1",
+      "result": "pass",
+      "run_id": "cfb0e6a8-7de4-4663-b6f2-cbd610f55948",
+      "sha256": "c935d6a71252a7cb239da3d621a72f51687a9db1d3dcd65699dfb34bbd643c97",
+      "evidence": "evidence/e19-t3t4-final-20261105/oracle-19/t3t4.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:25:14.141350Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T3",
+      "variant": "c5",
+      "result": "pass",
+      "run_id": "cfb0e6a8-7de4-4663-b6f2-cbd610f55948",
+      "sha256": "c935d6a71252a7cb239da3d621a72f51687a9db1d3dcd65699dfb34bbd643c97",
+      "evidence": "evidence/e19-t3t4-final-20261105/oracle-19/t3t4.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:25:14.141396Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T4",
+      "variant": "c1",
+      "result": "pass",
+      "run_id": "cfb0e6a8-7de4-4663-b6f2-cbd610f55948",
+      "sha256": "c935d6a71252a7cb239da3d621a72f51687a9db1d3dcd65699dfb34bbd643c97",
+      "evidence": "evidence/e19-t3t4-final-20261105/oracle-19/t3t4.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:25:14.141407Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T4",
+      "variant": "c5",
+      "result": "pass",
+      "run_id": "cfb0e6a8-7de4-4663-b6f2-cbd610f55948",
+      "sha256": "c935d6a71252a7cb239da3d621a72f51687a9db1d3dcd65699dfb34bbd643c97",
+      "evidence": "evidence/e19-t3t4-final-20261105/oracle-19/t3t4.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:25:14.141410Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T7",
+      "variant": "c1",
+      "result": "pass",
+      "run_id": "85b19183-45a2-4fd7-b7b3-50312b34aefc",
+      "sha256": "f07af5b3320e6eacc80d8c07951ff452224e435624851d3b322c3b6cd2e26f6c",
+      "evidence": "evidence/e19-t7-incremental-final-20261105/t7/oracle-19/t7-incremental.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:48:39.431015Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869-dirty"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T7",
+      "variant": "c5",
+      "result": "pass",
+      "run_id": "85b19183-45a2-4fd7-b7b3-50312b34aefc",
+      "sha256": "f07af5b3320e6eacc80d8c07951ff452224e435624851d3b322c3b6cd2e26f6c",
+      "evidence": "evidence/e19-t7-incremental-final-20261105/t7/oracle-19/t7-incremental.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:48:39.430960Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869-dirty"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T7",
+      "variant": "snapshot",
+      "result": "pass",
+      "run_id": "4adedff9-ec88-4a9d-b503-0b960e3381f9",
+      "sha256": "9eb3f7b5d1ffbe414717b65e454da23b72a32cdc84abc3f7f8f19365a6c4df85",
+      "evidence": "evidence/e19-t7-snapshot-final-20261105/t7/oracle-19/t7-snapshot.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:35:55.713583Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T8",
+      "variant": "c1",
+      "result": "pass",
+      "run_id": "c3e438b6-03b2-498a-81e0-ce82b2f95118",
+      "sha256": "d2e2f17ab517e230dd24ad911ee55310079c904aa11eddb00b9b19967c4bd9d2",
+      "evidence": "evidence/e19-t2-final-20261105/oracle-19/t2.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:02:35.288058Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T8",
+      "variant": "c5",
+      "result": "pass",
+      "run_id": "c3e438b6-03b2-498a-81e0-ce82b2f95118",
+      "sha256": "d2e2f17ab517e230dd24ad911ee55310079c904aa11eddb00b9b19967c4bd9d2",
+      "evidence": "evidence/e19-t2-final-20261105/oracle-19/t2.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:02:35.288065Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869"
+    },
+    {
+      "target": "oracle-19c-selfmanaged",
+      "version": "19.19.0.0.0",
+      "suite": "T8",
+      "variant": "snapshot",
+      "result": "pass",
+      "run_id": "4adedff9-ec88-4a9d-b503-0b960e3381f9",
+      "sha256": "790a321c0c4b80e90f81e3c7c4e42da9da0232274ceb3cd435ff6422ae17a008",
+      "evidence": "evidence/e19-t7-snapshot-final-20261105/workloads/oracle-19-snapshot/t1-t8.json",
+      "emulated": false,
+      "version_measured": true,
+      "observed_at": "2026-11-05T14:35:08.758397Z",
+      "product_sha": "dd46b501f50c16dc5c920230b4427c5c482c7869"
+    }
+  ],
+  "binary_sha256": "7ad8a4f36b72e7b30b24b4096ac39b1c7ae8f596d4c86add3032e09bc4296c60",
+  "snapshot_scale": {
+    "events": 2000000,
+    "small_tables": 200,
+    "compared_tables": 231
+  },
+  "t2": {
+    "T2": "passed",
+    "C1": "passed",
+    "C5": "passed",
+    "long_transaction": {
+      "floor": 1182484,
+      "initial_scn": 1182850,
+      "absent_from_baseline": true
+    },
+    "opt_in_negative": {
+      "error": "oracle_logminer_explicit_opt_in_required"
+    },
+    "floor_negative": {
+      "error": "sync_rebaseline_required_lineage_or_scope",
+      "target_unchanged": true
+    },
+    "cleanup_failures": []
+  },
+  "t3t4": {
+    "add_column": "passed",
+    "drop_column": "passed",
+    "rename_column": "passed",
+    "widen_type": "passed",
+    "add_table": "passed",
+    "drop_table": "passed",
+    "pk_change": "passed",
+    "source_restart_mid_chunk": "passed",
+    "network_drop_mid_c1": "passed",
+    "network_drop_mid_c5": "passed",
+    "target_restart_mid_publish": "passed",
+    "sigkill_mid_cycle": "passed",
+    "retention_expiry": "passed",
+    "slot_invalidation": "not_applicable",
+    "gtid_purge": "not_applicable",
+    "resetlogs_incarnation": "passed"
+  },
+  "t7": {
+    "snapshot": {
+      "statements": 48547,
+      "verdicts": {
+        "snapshot": {
+          "result": "pass",
+          "coverage": "T1 passed",
+          "reasons": []
+        }
+      },
+      "summary": {
+        "harness": {
+          "records": 4474,
+          "statements": 4118,
+          "rejected": 0,
+          "categories": {
+            "session": 356,
+            "read": 347,
+            "d12_session_state": 356,
+            "txn_control": 356,
+            "catalog_read": 3059
+          },
+          "rules": {
+            "session:logon": 178,
+            "read:select": 347,
+            "d12_session_state:dbms_application_info": 356,
+            "txn_control:end_transaction": 356,
+            "catalog_read:select_catalog_only": 3059,
+            "session:logoff": 178
+          },
+          "windows": []
+        },
+        "snapshot": {
+          "records": 44435,
+          "statements": 44429,
+          "rejected": 0,
+          "categories": {
+            "session": 6,
+            "catalog_read": 25958,
+            "read": 18459,
+            "logminer_read": 12
+          },
+          "rules": {
+            "session:logon": 3,
+            "catalog_read:select_catalog_only": 25958,
+            "read:select": 18459,
+            "logminer_read:select_v$logmnr_contents": 12,
+            "session:logoff": 3
+          },
+          "windows": [
+            1,
+            2,
+            3
+          ]
+        }
+      },
+      "source_sha256": {
+        "t7.py": "f4310812e25b1b8b10c8aa4e481039401bdab44d6bee96574a2688e47329278f",
+        "audit.py": "15f65bfa6b9e8a881b2cb6a014f85c0482629e15b4edea0df82dc1bbc15626d3",
+        "t1.py": "169f464380fbec8de6f42ee65a8b396c03a92f726904e1ddffc2c60d3a936411",
+        "t2.py": "59c7e38c52bf4aa35daf778a066a7593905f0e253ccb43d05c616240a2a07b34",
+        "t2_p0.py": "8d4a46f6aaae8b7f3333b88d80148a72cefd6122747dfdd7058bd4df9b2313f7",
+        "verdicts.py": "299b9eed93cdc7a3865309ea7c93fb51bdd8e324bea3201cb894f6b062df4574",
+        "e19_t7.py": "4035470fdcf476a0927362b5b8625a1d2b76ad7ea3f18f6b13540a0ede8f91e4"
+      }
+    },
+    "incremental": {
+      "statements": 8969,
+      "verdicts": {
+        "c5": {
+          "result": "pass",
+          "coverage": "C5 passed",
+          "reasons": []
+        },
+        "c1": {
+          "result": "pass",
+          "coverage": "C1 passed",
+          "reasons": []
+        }
+      },
+      "summary": {
+        "c1": {
+          "records": 6281,
+          "statements": 6261,
+          "rejected": 0,
+          "categories": {
+            "session": 20,
+            "catalog_read": 1934,
+            "read": 4139,
+            "logminer_read": 108,
+            "logminer_call": 50,
+            "d11a_logminer_object_dml": 30
+          },
+          "rules": {
+            "session:logon": 10,
+            "catalog_read:select_catalog_only": 1934,
+            "session:logoff": 10,
+            "read:select": 4139,
+            "logminer_read:select_v$logmnr_contents": 108,
+            "logminer_call:add_logfile": 30,
+            "d11a_logminer_object_dml:logminer_owned_object": 30,
+            "logminer_call:start_logmnr": 10,
+            "logminer_call:end_logmnr": 10
+          },
+          "windows": [
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        "c5": {
+          "records": 2644,
+          "statements": 2636,
+          "rejected": 0,
+          "categories": {
+            "session": 8,
+            "catalog_read": 2247,
+            "read": 375,
+            "logminer_read": 4,
+            "c5_digest": 10
+          },
+          "rules": {
+            "session:logon": 4,
+            "catalog_read:select_catalog_only": 2247,
+            "read:select": 375,
+            "logminer_read:select_v$logmnr_contents": 4,
+            "session:logoff": 4,
+            "c5_digest:select_hash_aggregate": 10
+          },
+          "windows": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "harness": {
+          "records": 96,
+          "statements": 72,
+          "rejected": 0,
+          "categories": {
+            "session": 24,
+            "read": 24,
+            "d12_session_state": 24,
+            "txn_control": 24
+          },
+          "rules": {
+            "session:logon": 12,
+            "read:select": 24,
+            "d12_session_state:dbms_application_info": 24,
+            "txn_control:end_transaction": 24,
+            "session:logoff": 12
+          },
+          "windows": []
+        }
+      },
+      "source_sha256": {
+        "t7.py": "f4310812e25b1b8b10c8aa4e481039401bdab44d6bee96574a2688e47329278f",
+        "audit.py": "15f65bfa6b9e8a881b2cb6a014f85c0482629e15b4edea0df82dc1bbc15626d3",
+        "t1.py": "169f464380fbec8de6f42ee65a8b396c03a92f726904e1ddffc2c60d3a936411",
+        "t2.py": "59c7e38c52bf4aa35daf778a066a7593905f0e253ccb43d05c616240a2a07b34",
+        "t2_p0.py": "8d4a46f6aaae8b7f3333b88d80148a72cefd6122747dfdd7058bd4df9b2313f7",
+        "verdicts.py": "299b9eed93cdc7a3865309ea7c93fb51bdd8e324bea3201cb894f6b062df4574",
+        "e19_t7.py": "4035470fdcf476a0927362b5b8625a1d2b76ad7ea3f18f6b13540a0ede8f91e4"
+      }
+    }
+  },
+  "checks": {
+    "workspace_locked": "pass",
+    "cli_locked_build": "pass",
+    "oo_load_locked_build": "pass",
+    "shared_python_tests": 126,
+    "e19_adapter_tests": 5,
+    "spec_plan_checkers": "all three pass",
+    "connectors": "all executed tests pass except the reproduced base parse_file_cli deadline failure"
+  },
+  "known_base_failure": {
+    "test": "parse_file_cli::parent_deadline_kills_the_worker_and_the_next_call_completes",
+    "base": "85cdd47153810fd7c2f7476e5b32cad68df35b92",
+    "evidence": "evidence/e19-20261105/parse-file-base.stdout"
+  },
+  "historical_failures_retained": [
+    "e19-20261105",
+    "e19-t2-resume-20261105",
+    "e19-t3t4-resume-20261105",
+    "e19-t7-resume-20261105",
+    "h-merged-306c9899-bf53-4ebd-b5dc-1198a74859b9"
+  ],
+  "shared_file_patches": [],
+  "cargo_lock_changed": false,
+  "containers_remaining": [],
+  "volumes_remaining": [],
+  "limits": [
+    "T5/T6 outside card; no full-matrix promotion",
+    "T2/T3/T4 use compact keyed fixtures; T7 snapshot scale 50000 and 20 small tables",
+    "D11a C1 is explicit opt-in and attributes internal LogMiner DML",
+    "product_sha is written at verdict time; source_sha256 and binary_sha256 bind executed code",
+    "final incremental product_sha dirty marker reflects only evidence-document edits",
+    "integration advanced after resume rebase; coordinator must integrate and revalidate"
+  ],
+  "artifacts": [
+    {
+      "path": "evidence/e19-resume-20261105/manifest.txt",
+      "sha256": "b1042180d882ebecb8496a6bcb0959bd4313c4b87d742c52613eddad3229b175"
+    },
+    {
+      "path": "evidence/e19-resume-20261105/remaining-containers.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/e19-resume-20261105/remaining-volumes.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/e19-t2-final-20261105/oracle-19/t2.json",
+      "sha256": "d2e2f17ab517e230dd24ad911ee55310079c904aa11eddb00b9b19967c4bd9d2"
+    },
+    {
+      "path": "evidence/e19-t3t4-final-20261105/oracle-19/t3t4.json",
+      "sha256": "c935d6a71252a7cb239da3d621a72f51687a9db1d3dcd65699dfb34bbd643c97"
+    },
+    {
+      "path": "evidence/e19-t7-incremental-final-20261105/t7/oracle-19/t7-incremental.json",
+      "sha256": "f07af5b3320e6eacc80d8c07951ff452224e435624851d3b322c3b6cd2e26f6c"
+    },
+    {
+      "path": "evidence/e19-t7-snapshot-final-20261105/t7/oracle-19/t7-snapshot.json",
+      "sha256": "9eb3f7b5d1ffbe414717b65e454da23b72a32cdc84abc3f7f8f19365a6c4df85"
+    },
+    {
+      "path": "evidence/e19-t7-snapshot-final-20261105/workloads/oracle-19-snapshot/t1-t8.json",
+      "sha256": "790a321c0c4b80e90f81e3c7c4e42da9da0232274ceb3cd435ff6422ae17a008"
+    },
+    {
+      "path": "evidence/h-merged-07c7e204-8141-463f-8430-4c74bdd0079a/downgrade-report.json",
+      "sha256": "58c36a1cc658621f81ca48f8ee6ed55414998ae67208b564b1d5a61f4937235e"
+    },
+    {
+      "path": "evidence/h-merged-07c7e204-8141-463f-8430-4c74bdd0079a/evidence-index.json",
+      "sha256": "efb0f03e8d70c5e3c2e7b899273710cab6957ca840bd26d171266b6741638d62"
+    },
+    {
+      "path": "evidence/h-s5-20261105T123929358107Z-9b3590c1-9176-47c4-a281-4e90e20a2b50/oracle-19/comparison-report.json",
+      "sha256": "3016feeb1017248328464ac3e7930c2ee7eda8aaa022d08b02e933fd1ef73c8c"
+    },
+    {
+      "path": "evidence/h-s5-20261105T123929358107Z-9b3590c1-9176-47c4-a281-4e90e20a2b50/oracle-19/m-t1/t1-t8.json",
+      "sha256": "35e77e16984c65efbdc4b83b7d3ae5411418a3d7a4c853450b742613e4d74059"
+    },
+    {
+      "path": "evidence/h-s5-20261105T123929358107Z-9b3590c1-9176-47c4-a281-4e90e20a2b50/oracle-19/product-t0/doctor-report.json",
+      "sha256": "47177f82b3e1a6baf793d16f35096c17c1dfd9630caec36514d8bf8d5950cd49"
+    }
+  ]
+}

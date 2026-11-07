@@ -22,6 +22,7 @@ mod source_contract;
 mod native_import;
 mod native_catalog;
 mod profile;
+mod publication_catalog;
 mod sealed;
 
 pub use bridge::{

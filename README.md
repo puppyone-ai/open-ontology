@@ -313,69 +313,22 @@ Configure the client’s transport, authentication mode, and protocol version ag
 
 ## Getting started
 
-### 1. Build the CLI
+Follow the [local lite quickstart](docs/guide/quickstart.md): install the npm CLI,
+answer the seven-step `oo init` wizard, run `oo up` and `oo build`, review the
+ontology, then give the generated share prompt to your Agent for `oo login`.
 
-```bash
-git clone https://github.com/puppyone-ai/open-ontology.git
-cd open-ontology
+**Release gate:** the 2026-11-05 fresh-HOME check could not install version
+0.2.0 from npm (`ETARGET`). The recorded L1 success uses a locally packaged
+CLI; public installation and remote SSH retained build are not yet accepted.
 
-# Build with the minimum supported Rust version.
-rustup toolchain install 1.94.0 --profile minimal
-cargo +1.94.0 build --locked -p oo-cli --bin oo
-./target/debug/oo --help
-```
+- [Generated command reference](docs/reference/cli.md): actual native/npm help.
+- [Troubleshooting](docs/guide/troubleshooting.md): named errors, causes and recovery.
+- [Generated DBA prerequisites](docs/database-support/dba-grants.md):
+  connector doctor statement templates, separated by engine/version.
 
-The project uses a Cargo workspace. Native components may also require a C/C++ toolchain and their documented build dependencies; see the [Rust implementation contract](docs/17-rust-implementation.md). The console and TypeScript SDK live in the [web workspace](apps/web/package.json).
-
-### 2. Connect to your Gateway
-
-Prerequisites: a populated Agent DB, published semantic assets, a role-bound Gateway endpoint, and an authorized client token. Set the endpoint, token file, CA file, and dataset names for your installation.
-
-```bash
-OO=./target/debug/oo
-OO_GATEWAY=https://oo.example.com
-OO_TOKEN_FILE="$HOME/.config/open-ontology/client.token"
-OO_CA_FILE="$HOME/.config/open-ontology/ca.pem"
-
-# The existing token file must be private and owner-readable only.
-chmod 600 "$OO_TOKEN_FILE"
-
-"$OO" tables --json --gateway "$OO_GATEWAY" --transport production \
-  --auth external --token-file "$OO_TOKEN_FILE" --ca-file "$OO_CA_FILE"
-
-"$OO" knowledge cat README.md --json --gateway "$OO_GATEWAY" \
-  --transport production --auth external --token-file "$OO_TOKEN_FILE" \
-  --ca-file "$OO_CA_FILE"
-
-"$OO" describe logistics.shipments --json --gateway "$OO_GATEWAY" \
-  --transport production --auth external --token-file "$OO_TOKEN_FILE" \
-  --ca-file "$OO_CA_FILE"
-
-"$OO" validate 'SELECT COUNT(*) FROM logistics.shipments' --json \
-  --gateway "$OO_GATEWAY" --transport production --auth external \
-  --token-file "$OO_TOKEN_FILE" --ca-file "$OO_CA_FILE"
-
-"$OO" query 'SELECT COUNT(*) AS shipments FROM logistics.shipments' --json \
-  --gateway "$OO_GATEWAY" --transport production --auth external \
-  --token-file "$OO_TOKEN_FILE" --ca-file "$OO_CA_FILE"
-
-"$OO" freshness --json --gateway "$OO_GATEWAY" --transport production \
-  --auth external --token-file "$OO_TOKEN_FILE" --ca-file "$OO_CA_FILE"
-```
-
-Keep tokens in private files. Dataset visibility follows the caller’s role and published classifications.
-
-### 3. Choose a setup workflow
-
-| What you want to explore | Entry point | Scope |
-| --- | --- | --- |
-| Data CLI and Gateway contracts | [CLI](crates/oo-cli), [Gateway](crates/oo-gateway), [SDK](crates/oo-sdk) | Configured Gateway and authorized client identity |
-| Source-bound Self-build and management | [native caller recipe](tools/selfbuild-control-api/recipes/NATIVE-CALLERS.md) | Source-specific inputs, identity, configuration, and review |
-| A local PostgreSQL environment | [minimal product loop](deploy/minimal-product-loop/README.md) | Source, replica, and operator setup |
-| Pinned Pi tooling | [Pi runtime kit](deploy/pi-runtime-kit/README.md) | Pinned runtime and session configuration |
-| Browser integration | [web deployment notes](apps/web/deploy/README.md) | TLS, service bindings, and authorized identities |
-
-Each recipe lists its required images, archives, configuration, and runtime files. Keep credentials and runtime output outside the source tree.
+Sources stay read-only. Keep model keys, source passwords, Gateway credentials
+and generated runtime state private and out of git. A successful login or a
+live publication alone does not prove source freshness or a correct answer.
 
 ## Deployment
 

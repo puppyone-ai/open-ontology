@@ -146,3 +146,18 @@ shared loader refusals, without installing SQL, making leases or faking receipts
 
 The independent Python oracle is test-only, not a second product ingest/target.
 Its in-memory replay result is never passed to the worker as an apply receipt.
+
+## v0.2 product adapter boundary
+
+`crates/oo-connectors/src/postgres/` now owns the engine-neutral snapshot,
+keyset/TID planning, prerequisite/version grading and watermark adapter. Its
+LSN codec is shared by source inclusion with this standalone preview, so build
+the preview from a repository checkout (the codec is no longer duplicated).
+The preview's existing error API and frozen capture/admission contracts remain
+unchanged. Its pgoutput decoding and source/target ACK workflow have not moved;
+they belong to the later C1 card, not S0/S1 snapshot acceptance.
+
+The owned multi-version adapter entry is `testing/engines/postgres/run.py`.
+Its README distinguishes Arrow/source-oracle evidence from Agent DB or normal
+worker acceptance. Neither adapter tests nor capability prerequisites promote
+the legacy preview's broad consistency or public-delivery claims.

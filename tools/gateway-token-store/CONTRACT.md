@@ -221,3 +221,190 @@ Public HTTP authentication, IdP, OAuth, PKCE, refresh rotation, RFC 8693
 token exchange, mTLS handshake, Redis or any pub/sub, audit WAL, agent SQL,
 session-lease certification, and cancellation of an active query. This
 contract does not close SP06-W01, GW-D01's parent, or a release.
+
+## v0.2 lifecycle extension (D9)
+
+The preceding sections describe the immutable, checksum-pinned v1 reader.
+The v0.2 service-account entry point is `src/lifecycle.rs`, compiled directly
+by `oo-gateway::http_gateway::token_lifecycle`. It uses the Gateway's already
+locked dependencies, not a second copy of the v1 crate. The standalone v1
+library and session issuance remain unchanged. New CLI and HTTP client-token
+issuance use `Control`, not the legacy one-hour issuance default.
+
+### Install and storage
+
+`Control::install` first calls the v1 installer (including its exact schema,
+privilege and checksum verification). It then applies
+`migrations/oo_token_control_v2.sql` transactionally under the installation
+advisory lock. The new schema is **oo_token_lifecycle**, not an alteration of
+v1: the pinned reader rejects additional columns or tables in its schema.
+The v1 file SHA-256 remains
+`501d52c0f1f8de46470fc3192fca7de3d59dfd1a3b990dc70daef97341b85597`.
+The extension records its own digest; exact replay verifies it and does not
+execute DDL again. Apply through `install`, not by blindly rerunning SQL.
+An interrupted extension transaction rolls back; the installed v1 remains
+usable and a subsequent install can retry. This works on empty and v1 DBs.
+
+- `policy`: per-project max lifetime and default TTL both default to 90 days;
+  max lifetime must be positive and at most 365 days. Default TTL cannot
+  exceed it. Self-renew defaults disabled, with a 14-day window; overlap is
+  7 days; enrollment expiry is 24 hours. Policy replacement is audited.
+- `token`: first issuance, rotation predecessor, overlap end, issuer and
+  purpose; v1 rows are backfilled without changing their original deadlines.
+  Legacy rows issued after migration use their v1 issuance time as fallback.
+- `enrollment`: SHA-256 of the complete `OO-XXXX-XXXX` code, frozen grant,
+  expiry, redeemed time and trusted redemption origin. Codes contain 40
+  random bits (eight uniform Crockford base32 symbols); never plaintext in DB.
+- `audit`: exactly one row for each dispatched operation, including list,
+  replay and semantic refusal. Operation changes and the success audit commit
+  together; a savepoint rolls back refused changes before recording refusal.
+  Hashes, actor and old/new deadlines only; no token or code values. Malformed
+  HTTP, unauthenticated requests and unavailable-DB failures cannot promise a
+  database audit row. A commit acknowledgement failure is `commit_unknown`;
+  do not automatically retry secret-producing operations.
+
+All operations use the v1 project advisory lock, a TLS-verified
+`oo_token_admin` connection and fixed parameterized SQL. Runtime credentials
+cannot read enrollment grants or mutate lifecycle policy/audit. Revocation
+and overlap shortening update the same v1 records consumed by the unchanged
+five-second positive cache. No pub/sub or immediate warm-cache revocation is
+claimed. A previously cached deadline can survive its original <=5s TTL;
+new reads enforce `now < deadline`, including the exact overlap boundary.
+
+`renew` never returns or changes the token value, never resurrects expired
+or revoked material, and requires a strictly later deadline no later than
+`first_issued_at_ms + max_lifetime_ms`. Self-renew verifies token and Gateway
+canonical audience directly against live state, requires the policy flag and
+`deadline - now <= self_renew_window_ms`, and clamps the requested extension
+to the lifetime ceiling. An already maximal deadline cannot be extended.
+
+`rotate` preserves first issuance and the frozen tuple. New expiry is bounded
+by the same lifetime ceiling. Old expiry is the earlier of its existing
+expiry and `now + rotate_overlap_ms`; zero overlap immediately invalidates
+it. Rotated predecessors cannot be renewed or rotated again. An explicit
+new admin issue is a new grant, unlike renewal/rotation.
+
+### Admin and public HTTP
+
+Operator config may add `token_admin_password_file` (one filename, mode 0600)
+and `token_admin_workload` (an exact trusted certificate workload URI).
+Lifecycle HTTP is disabled without this configuration and requires TLS.
+This opt-in permits ordinary verified-server TLS clients without client
+certificates; it does not make their requests mTLS-authenticated. Existing
+mTLS-only deployments without the opt-in retain their handshake policy.
+
+`POST /internal/v1/tokens` accepts an `operation` discriminator and requires
+an actual verified client certificate matching `token_admin_workload`.
+A bearer token or certificate-looking header is not admin authority. Other
+`/internal/**` routes remain denied. Accepted request shapes:
+
+```json
+{"operation":"issue","grant":{"project_id":"demo","principal_id":"alice","role":"reader","claims":{},"policy_version":"v1","knowledge_version":"v1","audience_url":"https://gateway.example/","ttl_ms":3600000,"purpose":"automation"}}
+{"operation":"list","project":"demo"}
+{"operation":"renew","project":"demo","hash":"<unique 12-64 lowercase hex prefix>","deadline_ms":1800000000000}
+{"operation":"rotate","project":"demo","hash":"<unique 12-64 lowercase hex prefix>"}
+{"operation":"revoke","project":"demo","hash":"<unique 12-64 lowercase hex prefix>"}
+{"operation":"enroll","grant":{"project_id":"demo","principal_id":"alice","role":"reader","policy_version":"v1","knowledge_version":"v1","audience_url":"https://gateway.example/"}}
+{"operation":"policy","project":"demo","policy":{"max_lifetime_ms":7776000000,"default_ttl_ms":7776000000,"self_renew_enabled":false,"self_renew_window_ms":1209600000,"rotate_overlap_ms":604800000,"enroll_ttl_ms":86400000}}
+```
+
+`POST /v1/auth/enroll {"code":"OO-XXXX-XXXX"}` atomically consumes the code
+and returns `token`, `token_sha256`, role, audience, first issuance and expiry.
+Audience comes from server configuration, not request JSON. A wrong-audience
+attempt does not consume the code. Simultaneous redemptions have one winner.
+Process-local minute budgets are separate for enrollment and device-code
+issuance (10 per route, 5 per TCP peer), under an aggregate cap of 90
+(at least the sum of route caps). Device polling is independent of these
+aggregate/route budgets: 30 per TCP peer and 12 per device-code SHA-256 per
+minute. Different devices on different peers do not consume each other's
+poll budgets; devices sharing a peer still share its anti-abuse limit.
+Self-renewal is limited to 10 per authenticated token SHA-256 per minute,
+after fresh authentication, independently of public route/peer budgets.
+The bucket table is bounded at 4096 entries per minute; new identities fail
+closed when full. Restart resets these process-local limits.
+Behind a load balancer, all clients share the balancer's TCP peer bucket.
+There is no trusted forwarded-for configuration: request forwarding headers
+are not used as client identities. Distributed deployments need a shared
+edge limit; these counters are not a distributed quota.
+
+Device-code issuance and polls for known grants require durable audit first.
+Unknown device-code hashes are rejected before any admin connection. Instead
+of durable database audit, a process-local atomic counter counts every unknown
+poll admitted by the peer budget; only the count is logged on the first and
+every 128th subsequent rejection. No device code, hash or peer is logged by
+this sampled path. Restart resets the counter.
+These observations use the existing `enroll` / `redeem` audit categories,
+with `device_code_issued` / `device_poll_requested` outcomes and device-code
+SHA-256 in `related_sha256`. Redemption audits link the enrollment-code
+SHA-256 (including semantic refusals); actors contain verified workload
+SHA-256, and device redemption also carries the device digest. Peer addresses
+come from the TCP listener (or are `unmeasured` when unavailable). Malformed and
+rate-limited requests are rejected before privileged DB access.
+
+`POST /v1/auth/renew` accepts an empty body or `{}` and the bearer token;
+a fresh runtime-role lookup authenticates it before any admin connection or
+audit write. It returns deadline metadata, never the token. Responses use
+`Cache-Control: no-store`. Token/code values occur only once in a secret-
+producing response. Errors expose stable reason codes, not database errors.
+Admin renew/rotate/revoke resolve a unique 12-64 character lowercase hex
+prefix under the project lock; ambiguous matches return `ambiguous_hash_prefix`.
+List returns hash prefixes, role, expiry, first issuance, last-use observation
+and overlap; it never returns plaintext. The retained v1 client's last-use
+column is not a per-request activity counter (cache hits do not write).
+
+### CLI
+
+Existing `issue-token install ENDPOINT PASSWORD_FILE CA`, `issue ... GRANT
+OUTPUT`, and `revoke ... PROJECT HASH` argument order remains supported.
+The issue grant retains `kind=client` and optional `client_ttl_ms`; it also
+accepts `purpose`. Client TTL now defaults to 90 days.
+
+New commands: `list|renew|policy ENDPOINT PASSWORD_FILE CA REQUEST_JSON` and
+`rotate|enroll ENDPOINT PASSWORD_FILE CA REQUEST_JSON OUTPUT`. Request JSON
+is the admin request without `operation`. Plaintext goes only to a newly
+created 0600 output file; stdout contains metadata. Existing output files
+are never replaced. Failure to write a file after issuance does not roll
+back a committed credential: revoke it by its audited hash and issue again.
+Passwords, enrollment codes and bearer values are never argv arguments.
+
+The native `oo token issue|list|renew|rotate|revoke|enroll|approve` commands
+use the HTTPS admin API with `--client-pem`, plus the usual `--gateway`,
+`--ca-file`, `--connect-ip` and `--interface` options. `oo help token` lists
+operation-specific flags. Issue/enroll/rotate require `--output-file`: the
+file is reserved exclusively before issuance, mode 0600, and stdout contains
+only metadata. The npm wrapper delegates these commands to the native binary.
+`oo login` saves a redeemed credential before identity/read verification;
+on verification failure the file stays private, the active profile is not
+replaced, and the error explains recovery. A failed profile save likewise
+retains the already-issued credential.
+
+### Metadata and monitoring
+
+`GET /v1/meta` anonymously returns `gateway_version` (compiled crate version),
+`protocol_version=0.2`, `minimum_cli_version=0.2.0`, with null publication and
+freshness: role-scoped publication details are not public. Authenticated calls
+read the current publication fence and freshness in the existing repeatable-
+read binding path. Explicit publication pins remain honored; drift fails
+closed. The publication id matches the response binding header, and freshness
+preserves `source_time=unmeasured` when the source cannot be measured.
+
+Authenticated `GET /v1/health` returns `token_expiry` (nearest live non-revoked token
+in the caller's project and configured audience) and
+`internal_mtls_certificate_expiry` (nearest notAfter in the loaded server
+chain and internal client CA). Each reports `expires_at_ms`, `remaining_ms`,
+and `ok|warning|expired|unmeasured`; <=14 days warns, <=now is expired.
+Expired absolute/idle deadlines, future-issued records, and rotated-out
+credentials past overlap are excluded; an empty live set is unmeasured. This does not
+inventory certificates on other machines or claim to monitor their private
+keys. `/health` retains its existing unauthenticated liveness behavior.
+
+### Reproducible validation
+
+`python3 crates/oo-gateway/tests/token_owned_pg.py evidence/<run-id>` creates
+an isolated PostgreSQL 17 cluster in this worktree, generated 0600 credentials,
+a temporary TLS Gateway, and fixtures through a separate admin connection.
+It runs real-store refusal/concurrency/cache tests, v1 upgrade/replay tests,
+a real publication/freshness meta test, HTTPS admin/public lifecycle checks,
+TLS trust rejection, expiry warnings, enrollment rate limiting and CLI file
+permissions. It shuts down only its own Gateway and PG processes. It never
+uses a pre-existing database, Gateway, LaunchAgent or customer token file.

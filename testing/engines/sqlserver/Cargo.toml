@@ -1,0 +1,26 @@
+[package]
+name = "oo-sqlserver-conformance"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+resolver = "3"
+
+[dependencies]
+oo-connectors = { path = "../../../crates/oo-connectors", features = ["sqlserver"] }
+arrow-array = { version = "=60.1.0", default-features = false }
+arrow-ipc = { version = "=60.1.0", default-features = false }
+arrow-schema = { version = "=60.1.0", default-features = false }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+sha2 = "=0.10.9"
+tiberius = { version = "=0.13.0", default-features = false, features = ["tds73", "rustls"] }
+tokio-util = { version = "=0.7.19", default-features = false, features = ["compat"] }
+tokio = { version = "=1.53.3", features = ["macros", "rt-multi-thread", "net", "time"] }
+futures-util = { version = "=0.3.34", default-features = false, features = ["std"] }
+zeroize = "=1.9.0"
+
+[patch.crates-io]
+sqlx-core = { path = "../../../crates/oo-connectors/vendor/sqlx-core" }
+sqlx-postgres = { path = "../../../crates/oo-connectors/vendor/sqlx-postgres" }

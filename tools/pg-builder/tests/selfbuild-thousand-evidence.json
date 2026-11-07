@@ -1,0 +1,251 @@
+{
+  "protocol": "oo.selfbuild.thousand-acceptance/v1",
+  "run_id": "g-s3-thousand-20261104",
+  "status": "passed",
+  "base_commit": "c1d944b366fa8a3cc725bf82aeb9e26f12117a8c",
+  "todos": {
+    "S3-G-01": "done",
+    "S3-G-02": "done",
+    "S3-G-03": "done"
+  },
+  "command": "PYTHONPATH=tools/oo-test:tools/pg-builder/scripts CARGO_TARGET_DIR=evidence/target OO_SELFBUILD_BUDGET_BIN=evidence/target/debug/selfbuild-budget python3 tools/pg-builder/scripts/live_thousand_acceptance.py --config evidence/g-commit-cont-20261104/live-config.json --output evidence/g-s3-thousand-20261104/live-04 --execute",
+  "engine": {
+    "version": "17.11 (Debian 17.11-1.pgdg12+2)",
+    "platform": "linux/arm64",
+    "layout": "one owned container; separate fixture source and agent target databases",
+    "source_principal": "SELECT-only; SourceEngine establishes read-only transactions"
+  },
+  "fixture": {
+    "generator": "testing/engines/seed-common/generate.py",
+    "small_tables": 1000,
+    "source_view_excluded": "public.order_totals (oo-load admits physical tables)",
+    "load": {
+      "all_match": true,
+      "rows": 2650,
+      "tables": 1033
+    },
+    "columns": 2391,
+    "wide_columns": 300,
+    "inventory_basis": "Agent DB physical columns; source PK/FK metadata joined through verified oo-load table receipts",
+    "graph": {
+      "all_within_budget": true,
+      "batches": 19,
+      "columns": 2391,
+      "communities": 19,
+      "cut_edges": 25,
+      "edges": 30,
+      "families": 22,
+      "folded_tables": 1011,
+      "hub_signatures": 7,
+      "max_input_tokens": 18770,
+      "max_output_reserve": 21378,
+      "tables": 1033
+    }
+  },
+  "T5": {
+    "all_within_budget": true,
+    "batches": 19,
+    "columns": 2391,
+    "communities": 19,
+    "components": 15,
+    "declared_fk": 7,
+    "items": 3424,
+    "mapped_fk": 7,
+    "max_input_tokens": 18770,
+    "max_output_reserve": 21378,
+    "metered_calls": 24,
+    "model_calls": 24,
+    "orphan_ratio": 0.6363636363636364,
+    "tables": 1033
+  },
+  "review": {
+    "g14": "blocked",
+    "reason": "g14_review_required",
+    "summary_sha256": "c9171cca54ad2d76a2517a24bc89a567ab5ab011e4fe295eb05fb1dea453c3c3",
+    "rejected_candidates_with_reasons": 22,
+    "unresolved": 0
+  },
+  "T4": {
+    "columns": 2391,
+    "components": 15,
+    "declared_fk": 7,
+    "items": 3424,
+    "mapped_fk": 7,
+    "metered_calls": 0,
+    "model_calls": 0,
+    "orphan_ratio": 0.6363636363636364,
+    "refreshed_value": 2,
+    "tables": 1033,
+    "work": {
+      "communities": [],
+      "cut_edges": [],
+      "merge_items": [],
+      "removed_communities": [],
+      "removed_edges": [],
+      "removed_merge_items": []
+    }
+  },
+  "model": {
+    "configured": "gpt-6.1-sol",
+    "config_mode": "0600",
+    "price": "unknown: private config supplies no price table",
+    "initial_preflight": {
+      "batches": 24,
+      "capability_warning": null,
+      "cost": {
+        "reason": "no_configured_model_price",
+        "status": "unknown"
+      },
+      "duration": {
+        "concurrency": 1,
+        "deadline_seconds": 7920,
+        "range_seconds": [
+          24,
+          7200
+        ],
+        "status": "configured_estimate",
+        "waves": 24
+      },
+      "estimated_input_tokens": 197368,
+      "estimated_output_tokens": 299882,
+      "model_calls": 0,
+      "note": "Not a quote or upper bound: excludes repairs; cache hits may cost zero. Registry growth and usage calibration can change the split.",
+      "passes": {
+        "cut_edges": 1,
+        "in_community": 19,
+        "merge": 4
+      },
+      "protocol": "oo.selfbuild.preflight/v1",
+      "scope": "three-pass structural dry-run; future entity text is unknown"
+    },
+    "limits": {
+      "calls": 80,
+      "currency_cost": "unknown; no provider price configured",
+      "dispatch_seconds": 3600,
+      "per_request_timeout_seconds": 300,
+      "reserved_tokens": 2000000
+    },
+    "reservations": {
+      "admissions": 26,
+      "reserved_tokens": 530874
+    },
+    "usage": {
+      "status": "passed",
+      "calls": 26,
+      "prompt_tokens": 126445,
+      "completion_tokens": 30383,
+      "all_measured_within_provider_metadata_limits": true,
+      "max_measured_total_tokens": 46276,
+      "output_reserve_overruns": 5,
+      "repaired_attempts": 3,
+      "max_call_seconds": 369.788
+    },
+    "elapsed_seconds": 895.512,
+    "duration_note": "Configured batch latency range is an estimate, not a hard deadline. HTTP timeouts are inactivity limits. Token reservation includes a 10000-token proxy allowance, not a currency guarantee."
+  },
+  "tests": {
+    "workspace_check": "passed",
+    "rustfmt": "passed; no Rust source changes",
+    "oo_builder_passed": 184,
+    "python_passed": 22,
+    "pg_builder_library_passed": 45,
+    "pg_builder_contract_passed": 15,
+    "pg_builder_combined_passed": 7,
+    "preexisting_failures": {
+      "base": "c1d944b366fa8a3cc725bf82aeb9e26f12117a8c",
+      "identical_missing_evidence_failures": [
+        "document_profile::tests::shipment_catalog_keeps_weight_and_the_nineteen_approved_columns",
+        "source_contract::tests::derived_source_bound_projects_native_notes_without_a_forged_grade",
+        "source_contract::tests::oracle_batch_and_ts_keep_real_caveats_and_omit_grade",
+        "fixture_and_stored_generations_are_mixed_scope",
+        "stored_receipts_keep_party_and_account_in_one_pack"
+      ]
+    },
+    "exact_receipt_replay": "passed; zero calls; accepted, registry, review, work, snapshot, graph and unresolved identical",
+    "mtls": {
+      "status": "cards_ready",
+      "live_model_call": "not_run_no_authorized_credentials",
+      "engine": "PostgreSQL",
+      "version": "17.11 (Debian 17.11-1.pgdg12+2)",
+      "datasets": 1,
+      "retained_generations": 2,
+      "load_receipts": 1,
+      "negative_cases": {
+        "catalog_without_cert": "refused",
+        "profile_without_cert": "refused",
+        "comments_without_cert": "refused",
+        "public_key_file": "refused",
+        "wrong_ca": "refused",
+        "wrong_hostname": "refused",
+        "missing_key": "refused",
+        "inline_key": "refused",
+        "private_storage_selection": "refused",
+        "private_storage_only": "refused"
+      },
+      "keys": "primary_key_preserved_from_active_plan",
+      "draft_replay": "not_run",
+      "cleanup_failures": []
+    },
+    "documentation_checks": "check_spec, check_plan, check_v02_plan, render_todo --check: passed"
+  },
+  "failed_attempts": {
+    "live-01": "TLS bash entrypoint treated new fixture server arguments as shell code; fixed forwarding",
+    "live-02": "SourceEngine refused role startup GUC; reset GUC, retained SELECT-only grants",
+    "live-03": "source view selected_table_missing; explicitly excluded source view from physical-table fixture"
+  },
+  "boundaries": [
+    "candidate generation only; G14 not approved",
+    "local oo-load publication only; no Gateway/business acceptance",
+    "source_time unmeasured; consistency B",
+    "no other engine or large-row throughput acceptance",
+    "S4 ontology-export commits remain held on top"
+  ],
+  "cargo_lock_changes": false,
+  "cleanup_failures": [],
+  "sha256": {
+    "workspace-final-check.log": "8b1fd2394f7b6f177ede882431154a419bd9f404f00add314c912e91a7fc0ec0",
+    "builder-tests.log": "56d2ac3cc08013186bc215bd3297b494629dc187966e7c29f6df7dcf9516424b",
+    "python-final-tests.log": "9b63b36e7b2587ede6eba20cdd08b6449aef6c2c97050ca47de7bdd285bf5083",
+    "pg-builder-tests.log": "10d7e4c39ff1432a8f2de2dd367985f8ffa459ebde184f4069eaf19f8b9e43f4",
+    "contract-tests.log": "07444f95953ec19c8306fce6af7661bf38bf7129e317ee8c1a707590af48d754",
+    "combined-tests.log": "a02e021a8d7d8a77946ba4c128d1fe2ca17f8a7288ee7673605fabee51b6ac63",
+    "base-lib-tests.log": "b54ad1a62b675ca8f3caf5ed19da6441287b2f6820981a1bba95a650733f2e70",
+    "base-combined-tests.log": "8743dcbf513301e8fb37bd4606cd8a7593ee8ae6e9df1f39d2e9c7c0823b762b",
+    "base-comparison.json": "cf614d6a200d3548536f844485c9f923520048ffe2a5963acea07e2246361726",
+    "mtls-regression.log": "02a3f63a7ecae8f175f5e2241dbf4d2ea2dd46a57e37767abbb735d1e54a7f22",
+    "replay/verification.json": "47f29d2a38c1fc0ed6e0e5d15e0c75b668411f5b3928fd6d416716cd92bf0df8",
+    "live-01/result.json": "4bfb548dd79c0e95b100912d6b29fca5bb99fbfc1a13cddd4ee49df057df5542",
+    "live-02/result.json": "142d30c98008d41b94a4c2d340ad4ff5e66b1c70501591f47b585d437c484e1e",
+    "live-03/result.json": "142d30c98008d41b94a4c2d340ad4ff5e66b1c70501591f47b585d437c484e1e",
+    "live-04/result.json": "6e006a27e3cf1fb4d01ee08963af05b4cb2c6bf0657fda9db8fdfce7dca9cf28",
+    "live-04/SHA256SUMS": "f38c6661011a6dfe37bb5b318dd2060a800079af85ae315fd775fc87e4e0b0cd",
+    "live-04/initial-receipts.json": "78008f59386e9f0c52cd44c7a5fd1055879a0f4d39168891632af0393c88861e",
+    "live-04/data-only-receipts.json": "8f9af68049e60a5fcbd11b1d3ce1a08940134d835b67a302b10e2247788d909d",
+    "live-04/source.json": "333b224963a7637e1db8d6f0ab23b279ddaa02ac65cbe95776a61f386cf34995",
+    "live-04/agent.json": "618a0e9c6759fe49432fd1f18e87f715ae50909e1893adf2e0a9947f2a8403e5",
+    "live-04/agent-physical.json": "9306a93b4346cbdcb2fef7b8a730ee83fbc3d32adeab39e513823828dd16d6b7",
+    "live-04/load-row-counts.json": "69d55d5140b2e3e39f3aa1ffb4e68db7ea5d7a43e9485d5e5c1e5c2209ab66c6",
+    "live-04/probe.json": "01b877dc00d864233b3355ea57baa21f532871a2be827ae6afc8141e3bb58625",
+    "live-04/usage.jsonl": "10cb3bb2ca542db93d4c91e9c2ed87a02f9dd695c3c689bec1ecea98c9db9d07",
+    "live-04/usage-check.json": "feaf7610372e989660207c4fe2e383a961de4b621ef9120afca8c5a42e1c146f",
+    "live-04/draft/result.json": "a58f10dcc2203b9439a1eab44afe0aa3eccce7d342fc691ebd0d8e1808630c54",
+    "live-04/draft/preflight.json": "1e5687c059b3a2bfc23944ec22ab5043c4d7ac2acbf8bf9cbb6aa52cec4e0876",
+    "live-04/data-only/result.json": "13e749ab8cdf502eaf6ff3322e1fff0cbb740274fbb83ae741aa530348fa96a1",
+    "live-04/independent-graph-check.json": "b53a25cc58d6ab76ccb575b5617426d7fbba2a1c803b21bf56ffbd51d9ca207f",
+    "live-04/postgres-17/resource-receipt.json": "9dbb930b4b5ad0bc8f6c68e89a620d0675ccdf132d5d028e468122f013e0f284",
+    "summary-workspace-check.log": "bcb74884a78099501f6bfc31de29d15aae4eb48dcd18d5c99bdde44d75b90089",
+    "check_spec.log": "341d87269554bd330947a8570481e4c360ca59bafd8bb2f5ee3a36eb444899f7",
+    "check_plan.log": "631e03bef559c06c6a8240263dc1ed71051710eb7fc987abc83a75ddc85e6de9",
+    "check_v02_plan.log": "41b25b5bf398a8ad7ebc178e82d52af11229e8aa6a2625f44dc25a235c9a7135",
+    "render-todo-check.log": "56cae338bd9d567d2eff6cb861e26b2f72845bb6734606901d141784d241ab47",
+    "cleanup-check.json": "735dcbc8fef84d71e4f03000cbc1f5ec3c7eda41c0a66d58792e1cea5bd25e24"
+  },
+  "source_sha256": {
+    "tools/pg-builder/scripts/live_thousand_acceptance.py": "e8455946ee600d68beb51d939461033afa596346233953131ebb4e9343e32dda",
+    "tools/pg-builder/scripts/test_thousand_acceptance.py": "b8cc0a3e8a5eb905c1b64f0dd15791fe63356c5aab599cb9a3f8f654a68e192f",
+    "tools/pg-builder/scripts/test_load_mtls.py": "4a640e277cd628a64d11cb7b196c86904e1cc3a24b1172bc4988e33c4a3f5586",
+    "tools/pg-builder/scripts/selfbuild_budget.py": "8a73ce7928aa06284f54f73ebd50dae5170f9b55d9fbe4e39cccf6f13135415c",
+    "crates/oo-builder/src/community.rs": "1a143b889e8ed364761a79c2affb6d209f9ec2d3397e13c6e96f05b1e45abfde",
+    "crates/oo-builder/src/incremental.rs": "300a0f4f068fcfddfa23eac0cb30de26541e358c325571dd37db60d1af045d84"
+  }
+}

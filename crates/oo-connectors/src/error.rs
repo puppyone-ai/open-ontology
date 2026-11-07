@@ -94,7 +94,7 @@ impl SourceError {
         Self::new(SourceErrorKind::Tls, Some(fact), None)
     }
 
-    pub(crate) fn budget(fact: &'static str) -> Self {
+    pub fn budget(fact: &'static str) -> Self {
         Self::new(SourceErrorKind::Budget, Some(fact), None)
     }
 
@@ -110,7 +110,7 @@ impl SourceError {
         Self::new(SourceErrorKind::Version, Some(fact), None)
     }
 
-    pub(crate) fn protocol(fact: &'static str) -> Self {
+    pub fn protocol(fact: &'static str) -> Self {
         Self::new(SourceErrorKind::Protocol, Some(fact), None)
     }
 

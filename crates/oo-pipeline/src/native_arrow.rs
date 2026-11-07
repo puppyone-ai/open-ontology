@@ -2272,6 +2272,129 @@ pub fn arrow_schema_sha256(bytes: &[u8]) -> Result<String, &'static str> {
     Err("schema")
 }
 
+/// Top-level field metadata in schema order. Callers must still validate the
+/// complete stream; metadata alone is not a schema or source admission.
+pub fn arrow_field_metadata(bytes: &[u8]) -> Result<Vec<BTreeMap<String, String>>, ArrowFault> {
+    let (frames, _) = frame_container(bytes)?;
+    let mut result = None;
+    for frame in &frames {
+        if frame.eos {
+            continue;
+        }
+        let cursor = Cursor { data: frame.meta };
+        let root = root_table(&cursor)?;
+        if root.u8_field(1)? != Some(1) {
+            continue;
+        }
+        if result.is_some() {
+            return Err(ArrowFault::Shape);
+        }
+        let schema = root.table_field(2)?.ok_or(ArrowFault::Shape)?;
+        let (data, len) = schema.vector(1)?.ok_or(ArrowFault::Shape)?;
+        let mut fields = Vec::new();
+        for index in 0..len {
+            fields.push(read_field_metadata(&table_from_vector(
+                schema.cursor,
+                data,
+                index,
+            )?)?);
+        }
+        result = Some(fields);
+    }
+    result.ok_or(ArrowFault::Shape)
+}
+
+fn read_field_metadata(field: &Table<'_>) -> Result<BTreeMap<String, String>, ArrowFault> {
+    let mut result = BTreeMap::new();
+    if let Some((data, len)) = field.vector(6)? {
+        for index in 0..len {
+            let entry = table_from_vector(field.cursor, data, index)?;
+            let key = entry.string(0)?.ok_or(ArrowFault::Shape)?;
+            let value = entry.string(1)?.ok_or(ArrowFault::Shape)?;
+            if result.insert(key, value).is_some() {
+                return Err(ArrowFault::Shape);
+            }
+        }
+    }
+    Ok(result)
+}
+
+#[cfg(test)]
+mod field_metadata_tests {
+    use super::*;
+
+    fn field_bytes(entries: &[(&str, Option<&str>)]) -> Vec<u8> {
+        // FlatBuffers field vtable, table, then vector of KeyValue tables.
+        let mut bytes = vec![0; 32 + entries.len() * 4];
+        bytes[0..2].copy_from_slice(&18u16.to_le_bytes());
+        bytes[2..4].copy_from_slice(&8u16.to_le_bytes());
+        bytes[16..18].copy_from_slice(&4u16.to_le_bytes());
+        bytes[20..24].copy_from_slice(&20i32.to_le_bytes());
+        bytes[24..28].copy_from_slice(&4u32.to_le_bytes());
+        bytes[28..32].copy_from_slice(&(entries.len() as u32).to_le_bytes());
+        for (index, (key, value)) in entries.iter().enumerate() {
+            while !bytes.len().is_multiple_of(4) {
+                bytes.push(0);
+            }
+            let vtable = bytes.len();
+            bytes.extend_from_slice(&[8, 0, 12, 0, 4, 0, 0, 0]);
+            if value.is_some() {
+                bytes[vtable + 6] = 8;
+            }
+            let table = bytes.len();
+            bytes.extend_from_slice(&[8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+            let slot = 32 + index * 4;
+            bytes[slot..slot + 4].copy_from_slice(&((table - slot) as u32).to_le_bytes());
+            for (field, text) in [Some(*key), *value].into_iter().enumerate() {
+                if let Some(text) = text {
+                    while !bytes.len().is_multiple_of(4) {
+                        bytes.push(0);
+                    }
+                    let slot = table + 4 + field * 4;
+                    let offset = (bytes.len() - slot) as u32;
+                    bytes[slot..slot + 4].copy_from_slice(&offset.to_le_bytes());
+                    bytes.extend_from_slice(&(text.len() as u32).to_le_bytes());
+                    bytes.extend_from_slice(text.as_bytes());
+                    bytes.push(0);
+                }
+            }
+        }
+        bytes
+    }
+
+    fn parse(bytes: &[u8]) -> Result<BTreeMap<String, String>, ArrowFault> {
+        let cursor = Cursor { data: bytes };
+        read_field_metadata(&Table::open(&cursor, 20)?)
+    }
+
+    #[test]
+    fn field_metadata_preserves_flags_and_refuses_ambiguous_values() {
+        let flag = "oo.oracle.empty_string_is_null";
+        let bytes = field_bytes(&[(flag, Some("true")), ("oo.oracle.type", Some("VARCHAR2"))]);
+        assert_eq!(parse(&bytes).unwrap()[flag], "true");
+        assert_eq!(parse(&bytes).unwrap()["oo.oracle.type"], "VARCHAR2");
+        assert_eq!(
+            parse(&field_bytes(&[(flag, Some("true")), (flag, Some("false"))])),
+            Err(ArrowFault::Shape)
+        );
+        assert_eq!(parse(&field_bytes(&[(flag, None)])), Err(ArrowFault::Shape));
+        assert!(parse(&bytes[..bytes.len() - 2]).is_err());
+        assert!(parse(&field_bytes(&[])).unwrap().is_empty());
+    }
+
+    #[test]
+    fn existing_streams_keep_field_order_without_semantics_flags() {
+        let bytes = include_bytes!("../tests/fixtures/c1_parts/fill-00000001.arrow");
+        let fields = arrow_field_metadata(bytes).unwrap();
+        assert_eq!(
+            fields.len(),
+            decode_arrow_stream(bytes).unwrap().fields.len()
+        );
+        assert!(fields.iter().all(BTreeMap::is_empty));
+        assert!(arrow_field_metadata(b"bad").is_err());
+    }
+}
+
 /// Source-bound plans must name that schema message. Historical plans do not call this.
 /// The sealed catalog `schema_digest` stays the column preimage and is a different field.
 pub fn require_arrow_schema_digest(bytes: &[u8], schema_digest: &str) -> Result<(), &'static str> {

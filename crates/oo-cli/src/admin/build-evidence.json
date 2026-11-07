@@ -1,0 +1,43 @@
+{
+  "todo": "S4-A-02",
+  "status": "partial",
+  "run_id": "a-s4-chain-20261104",
+  "base": "a84d043a5",
+  "workspace_check": "passed",
+  "cli_tests_passed": 57,
+  "draft_regression_tests_passed": 5,
+  "review_pty_run": "a-s4-review-pty-4",
+  "review_cases_passed": 13,
+  "chain_run": "a-s4-chain-kill-3",
+  "chain_cases_passed": 9,
+  "wizard_run": "a-s4-wizard-regression",
+  "draft_driver": "synthetic only in chain tests",
+  "kill_boundaries_tested": [
+    "draft_to_review",
+    "review_to_publish"
+  ],
+  "live_model": false,
+  "new_engine_runs": [],
+  "publication": "blocked_not_integrated",
+  "remaining": [
+    "bounded description draft to community input adapter",
+    "authenticated lane-M publication",
+    "Gateway validation, first-user token and share-prompt stages",
+    "post-publication kill/resume boundaries",
+    "pinned three-engine live drafts and PostgreSQL full-chain acceptance"
+  ],
+  "sha256": {
+    "check-final.log": "d4cd7186b876cf37cfdb2818f2272b0ab0c456312bf5191ba2f64ddcdf40adfe",
+    "tests-final.log": "0325dc88343191cccf6be57ac7a31dcd3fb2aa4da94456660bc94df2ee406332",
+    "kill-3.log": "d6443c9a9cee965c8f782a568c0108963a0e416719e1848e3f9b01b6a634e9b2",
+    "draft-tests.log": "b151a075894376a6d8e43e93bcc771f3212510eef6f2ebeeace84c7243364bda",
+    "review.log": "dfd22ec751f971b64e77e3f71658f38e42949f84c94cb63a53d998f5a80b7698",
+    "wizard.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "live-preflight.json": "df065977866da5b7508bf0308f3774439694f9137ce6affb44858b138c159d74",
+    "publication-blocker.txt": "16776317956a44e0be97f7a79e882f03e6e1a9d024c8baff9a7674019ff9b53a"
+  },
+  "failed_attempts": [
+    "kill-1: test incorrectly expected JSON-mode error on stderr; fixed to inspect both output channels"
+  ],
+  "containers_created": 0
+}

@@ -23,7 +23,10 @@ class ModelProviderTest(unittest.TestCase):
             error = provider.http_failure(status, b'private credential details')
             self.assertFalse(error.retryable)
             self.assertTrue(error.stops_run)
-        for status in [408, 429, 500, 503]:
+        rate_limit = provider.http_failure(429, b'{"error":{"type":"temporary"}}')
+        self.assertFalse(rate_limit.retryable)
+        self.assertTrue(rate_limit.stops_run)
+        for status in [408, 500, 503]:
             error = provider.http_failure(status, b'{"error":{"type":"temporary"}}')
             self.assertTrue(error.retryable)
         for body in [b'[]', b'{"error":[]}', b'{"error":{"code":[]}}', b'not-json']:

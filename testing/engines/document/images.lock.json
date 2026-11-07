@@ -1,0 +1,46 @@
+{
+  "images": [
+    {
+      "id": "mongo-8.0.34",
+      "ref": "mongo:8.0",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:1d7a2d487c6465ea022474b90b65d6c91bb600b421b65880d8c6e141d6122200"
+        },
+        "linux/arm64": {
+          "digest": "sha256:ec4aeabb7db10f2fb3cde7e1982becef96779646c34c220a7fbcfe2f880b2846"
+        }
+      },
+      "product_version": "8.0.34"
+    },
+    {
+      "id": "opensearch-3.9.0",
+      "ref": "opensearchproject/opensearch:3.9.0",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:5c20af6b5cb472a74ba99f663bee3dd03afbeced14b3897b220a87fc75278445"
+        },
+        "linux/arm64": {
+          "digest": "sha256:cf05462a958be93fe2172aea2c6757debc7d3a1e4a6838d39e56af591a3dcdbb"
+        }
+      },
+      "product_version": "3.9.0"
+    },
+    {
+      "id": "elasticsearch-9.2.0",
+      "ref": "docker.elastic.co/elasticsearch/elasticsearch:9.2.0",
+      "engine_matrix": "v0.2",
+      "platforms": {
+        "linux/amd64": {
+          "digest": "sha256:9e31370ee96864d618ec1ffe97acc2d1b64e8c014b30c214dbf955374b0a4a66"
+        },
+        "linux/arm64": {
+          "digest": "sha256:89c24194a89195aa5a869fb22cc47f888966c3070815714df7917b24883bcb70"
+        }
+      },
+      "product_version": "9.2.0"
+    }
+  ]
+}

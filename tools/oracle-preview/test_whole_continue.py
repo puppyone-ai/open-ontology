@@ -1,3 +1,6 @@
+from unittest import mock
+import tempfile
+import os
 import unittest
 import whole_continue as wc
 
@@ -8,7 +11,11 @@ OWNED = {"host": "oo-dl01w1-04-p2-oracle", "port": 1521, "database": "FREEPDB1",
 class WholeContinueTest(unittest.TestCase):
     def test_customer_endpoint_refused_before_sql(self):
         with self.assertRaisesRegex(ValueError, "metadata-only"):
-            wc.owned({"host": "47.104.150.9", "port": 1521, "database": "scm5", "user": "aiagenttest", "secret_ref": "secret://customer"})
+            with tempfile.NamedTemporaryFile("w", suffix=".txt") as terms:
+                terms.write("192.0.2.10\n")
+                terms.flush()
+                with mock.patch.dict(os.environ, {"OO_PRIVATE_TERMS_FILE": terms.name}):
+                    wc.owned({"host": "192.0.2.10", "port": 1521, "database": "ORACLE_SRC", "user": "source_reader", "secret_ref": "secret://customer"})
 
     def test_recorded_load_is_not_fired_again(self):
         wc.owned(OWNED)

@@ -211,11 +211,18 @@ pub fn map_capture_column(
     reserved: &BTreeSet<String>,
 ) -> Result<MappedColumn, PreviewError> {
     let mut normalized = column.clone();
-    let transcode = matches!(column.charset.as_deref(), Some("gbk" | "ucs2"));
+    let set_as_text = column.data_type.eq_ignore_ascii_case("set");
+    if set_as_text {
+        normalized.data_type = "text".into();
+    }
+    let transcode = matches!(column.charset.as_deref(), Some("latin1" | "gbk" | "ucs2"));
     if transcode {
         normalized.charset = Some("utf8mb4".into());
     }
     let mut mapped = map_column(&normalized, boolean_tinyint1, session_utc, reserved)?;
+    if set_as_text {
+        mapped.caveat = Some("set_as_text");
+    }
     if transcode {
         mapped.plan.mapping.metadata.push((
             "mysql_source_charset".into(),
@@ -233,12 +240,13 @@ pub fn capture_expression(column: &MappedColumn) -> String {
         .metadata
         .iter()
         .find(|(k, _)| k == "mysql_source_charset")
+        && matches!(charset.as_str(), "latin1" | "gbk" | "ucs2")
     {
-        if matches!(charset.as_str(), "gbk" | "ucs2") {
-            return format!(
-                "CASE WHEN {name} IS NULL THEN NULL WHEN CAST(CONVERT(CONVERT({name} USING utf8mb4) USING {charset}) AS BINARY) = CAST({name} AS BINARY) THEN CONVERT({name} USING utf8mb4) ELSE REPEAT(CAST(0xFF AS BINARY),OCTET_LENGTH({name})) END AS {name}"
-            );
-        }
+        // Readers decode by ordinal. A same-name alias would make ORDER BY
+        // sort the converted expression instead of the indexed source key.
+        return format!(
+            "CASE WHEN {name} IS NULL THEN NULL WHEN CAST(CONVERT(CONVERT({name} USING utf8mb4) USING {charset}) AS BINARY) = CAST({name} AS BINARY) THEN CONVERT({name} USING utf8mb4) ELSE REPEAT(CAST(0xFF AS BINARY),OCTET_LENGTH({name})) END"
+        );
     }
     name
 }
@@ -730,6 +738,36 @@ mod tests {
         assert_eq!(mapped.plan.arrow, Some(ArrowPhysical::DurationMicros));
         assert_eq!(mapped.plan.mapping.pg_type, "interval");
         assert_eq!(mapped.caveat, None);
+    }
+
+    #[test]
+    fn capture_set_preserves_declared_type_and_text_semantics() {
+        let mut col = column("set", "set('a','b')", "");
+        col.charset = Some("utf8mb4".into());
+        let mapped = map_capture_column(&col, false, true, &reserved()).unwrap();
+        assert_eq!(mapped.plan.mapping.source_type, "set('a','b')");
+        assert_eq!(mapped.plan.arrow, Some(ArrowPhysical::Utf8));
+        assert_eq!(mapped.caveat, Some("set_as_text"));
+        assert_eq!(capture_expression(&mapped), "`amount`");
+    }
+
+    #[test]
+    fn transcoded_capture_does_not_shadow_the_source_order_key() {
+        for charset in ["latin1", "gbk", "ucs2"] {
+            let mut col = column("varchar", "varchar(32)", "PRI");
+            col.charset = Some(charset.into());
+            col.char_len = Some(32);
+            let mapped = map_capture_column(&col, false, true, &reserved()).unwrap();
+            let expression = capture_expression(&mapped);
+            assert!(expression.ends_with(" END"));
+            assert!(!expression.contains(" AS `amount`"));
+            assert!(expression.contains(&format!(
+                "CONVERT(CONVERT(`amount` USING utf8mb4) USING {charset})"
+            )));
+            assert!(expression.contains("ELSE REPEAT(CAST(0xFF AS BINARY)"));
+            assert_eq!(mapped.plan.name, "amount");
+            assert!(mapped.key);
+        }
     }
 
     #[test]

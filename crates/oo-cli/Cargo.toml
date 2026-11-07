@@ -5,16 +5,21 @@ edition.workspace = true
 license.workspace = true
 publish.workspace = true
 rust-version.workspace = true
-version.workspace = true
+version = "0.2.0"
 
 [lints]
 workspace = true
 
 [dependencies]
+oo-connectors = { path = "../oo-connectors", features = ["oracle", "sqlserver", "db2", "dm8"] }
+oo-stack = { path = "../oo-stack" }
 oo-core = { path = "../oo-core" }
 oo-sdk = { path = "../oo-sdk" }
+reqwest = { version = "=0.13.5", default-features = false, features = ["rustls", "http2"] }
 # Already locked by oo-sdk. No new registry version.
 libc = "=0.2.189"
+ratatui = { version = "=0.30.2", default-features = false, features = ["crossterm"] }
+crossterm = { version = "=0.29.0", default-features = false, features = ["events"] }
 serde = "=1.0.229"
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 tokio = { version = "=1.53.3", default-features = false, features = ["macros", "net", "rt-multi-thread", "time"] }

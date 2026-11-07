@@ -1,20 +1,29 @@
 # Open Ontology CLI
 
-Standalone package `@reduxxx888/ontology-cli`, version `0.1.2`. Requires Node.js
+Standalone package `@reduxxx888/ontology-cli`, version `0.2.0`. Requires Node.js
 22 or newer. The Node launcher verifies and executes the packaged Rust `oo`;
 it does not download executables, install dependencies, or require a repository,
 Rust toolchain, model API key, or direct database access.
 
-HTTPS uses the operating system's trusted CA store. Minimal Linux images must
+Native query HTTPS uses the operating system's trusted CA store; the launcher
+uses Node's trusted roots for authentication and version checks. Minimal Linux images must
 provide a CA bundle, or the operator must configure an approved `--ca-file`.
 The CLI never disables certificate or hostname verification to make a query work.
+
+Release staging requires an `oo-lite-image` file next to each input native
+binary. It contains the pinned lite runtime reference for that target's Docker
+architecture (prefer `registry/repository@sha256:...`; a bare local image ID
+requires an offline image archive). Staging copies it beside the installed
+binary and refuses missing or unpinned sidecars. `NOTICE`,
+`THIRD_PARTY_NOTICES.txt`, and `dependencies.json` are included in the npm pack;
+source-notice collection is not legal clearance or a per-binary linkage audit.
 
 ## Install and configure
 
 After the package has been published:
 
 ```sh
-npm install --global @reduxxx888/ontology-cli@0.1.2
+npm install --global @reduxxx888/ontology-cli@0.2.0
 ontology --version
 ontology configure --gateway https://gateway.example --token-stdin \
   --business-timezone Asia/Shanghai < /secure/gateway-token
@@ -44,6 +53,66 @@ token files and the profile are `0600`. Keep the directory protected by the
 current user's ACL on Windows; POSIX modes do not replace Windows ACLs.
 The profile stores file references, never token contents. `config show` omits
 credential/certificate paths and contents.
+
+## Login, identity and sharing
+
+```sh
+oo login --gateway https://gateway.example --code-stdin \
+  --business-timezone Asia/Shanghai < /secure/one-time-code
+oo whoami --json
+oo tables
+```
+
+Alternatively use `--code CODE` (visible in process arguments), or `--device`.
+Prefer stdin for enrollment codes. Device login prints the verification address
+and user code to stderr and polls until approval or expiry. Each `slow_down`
+adds five seconds to all subsequent poll intervals; network errors back off.
+TLS and hostname verification remain enabled, even when Node's TLS environment
+variable asks to disable them. Redirects are never followed.
+
+Login verifies identity and one real tables read before activating the profile.
+It writes `tokens/default.token` with mode `0600` and saves only its reference
+and identity metadata in `config.json`. Use `--profile NAME` for a different
+token filename; login refuses to overwrite an existing name. The active
+profile remains `config.json`, not a separate named-profile registry.
+An unsuccessful read check leaves the active profile unchanged. A code may
+already have been consumed when a later verification fails; request a new one.
+`whoami` shows identity, role, expiry and protocol, warns on stderr at seven
+days or less, and gives renewal/login guidance for expired or refused access.
+
+Connected commands check anonymous `/v1/meta` before sending credentials.
+Only protocol/minimum-version metadata is cached, for 24 hours, separately by
+Gateway, routing and CA content. Exit `9` means the CLI is below the Gateway
+minimum and includes a pinned npm upgrade command; exit `10` means an
+unsupported protocol. Offline help, version and `agent-skill` stay offline.
+
+Administrator operations require the already-approved mTLS identity and a
+reviewed grant file with `project_id`, `principal_id`, `role`, `claims`,
+`policy_version`, `knowledge_version`, `audience_url`, and optional `ttl_ms`
+and `purpose`. The Gateway, not the launcher, validates grant authority.
+
+```sh
+oo token approve ABCD-1234 --gateway https://gateway.example \
+  --client-pem /secure/admin.pem --grant-file /secure/reviewed-grant.json
+oo share-prompt --gateway https://gateway.example \
+  --client-pem /secure/admin.pem --grant-file /secure/reviewed-grant.json \
+  --role analyst --agent codex
+```
+
+The default prompt contains a single-use enrollment code, its expiry, an exact
+package version, verification commands and honest-query rules. `--raw-token`
+instead issues a long-lived credential and adds a prominent risk warning.
+Never store that output in public logs. Agent variants (`claude`, `cursor`,
+`codex`) add setup instructions for the separate `tools/mcp-gateway` binary.
+That existing bridge is loopback-HTTP-only: the prompt explicitly requires an
+administrator-approved local endpoint and does not claim direct HTTPS support.
+
+The launcher delegates `login`, `whoami` and `share-prompt` to the packaged
+Rust binary, which also performs cached version negotiation for data commands.
+`token approve` remains in the npm launcher. The HTTPS MCP bridge remains an
+integration follow-up.
+
+## Profile updates
 
 Each configure operation replaces the profile rather than merging old settings.
 Files are written atomically; a newly written token is referenced only after the
@@ -162,11 +231,17 @@ Repeated `--gateway` options are rejected before a configured credential is atta
 
 ## Packaged platforms and release boundary
 
-Version 0.1.1 packages macOS Apple Silicon (`darwin-arm64`, Mach-O minimum 11.0)
-and Linux x64 with glibc 2.34 or newer (`linux-x64`). It does not include Windows,
-Intel macOS, Linux ARM64 or musl/Alpine executables. Node.js 22 or newer is required
-on both packaged platforms. The libc/Mach-O versions are executable requirements,
-not claims that every OS release has been tested.
+The 0.2.0 release workflow builds `darwin-arm64`, `darwin-x64`, `linux-arm64`
+and `linux-x64`. Linux uses a glibc 2.31 sysroot and runs smoke checks on
+Debian 11 and Ubuntu 22.04; Darwin targets macOS 11 or newer. Darwin x64 is
+cross-built in CI. Windows and musl/Alpine are not declared. Node.js 22 or
+newer is required. These are build targets, not a publication or L1 acceptance claim.
+
+Release staging requires all four targets declared in `package.json`.
+For a local diagnostic install only, `stage.mjs --partial true` limits that
+declaration to supplied binaries and marks the package private. Dependency
+notice and binary checks still apply. Stage output must be outside Git or
+inside a Git-ignored artifact directory such as `evidence/`.
 
 The authoritative list is the keys of **this installed package's**
 `native/manifest.json` under `binaries`. Do not infer platform support from
@@ -200,9 +275,16 @@ then inspect the tarball before publishing. The dependency inventory records sou
 license evidence; it is not a legal clearance or an exact linked-symbol SBOM.
 
 ```sh
-npm test
+cargo build --locked -p oo-cli
+npm test --prefix packages/cli
+# Owned PostgreSQL 17 integration, from the repository root:
+cargo build --locked -p oo-gateway --bins
+python3 packages/cli/test/native-owned-pg.py evidence/<run-id>
 ```
 
-Tests use temporary fake executables and profiles. Passing them does not prove
-real Gateway connectivity, supported native-platform execution, or complete
-business-answer acceptance.
+Launcher tests use temporary fake executables and profiles; lifecycle tests
+also exercise the built native binary against an owned HTTPS fixture. The
+PostgreSQL runner reuses the Gateway lifecycle assertions with native
+login/whoami/share-prompt/query invocations and records their counts. It creates
+and stops its own PostgreSQL cluster and Gateway. These tests do not prove
+cross-platform support, a real Agent session, or business-answer acceptance.

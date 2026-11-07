@@ -1,0 +1,107 @@
+{
+  "card": "M-S4d",
+  "todo": "S4-M-01",
+  "scope": "steps 1-3 only",
+  "status": "complete",
+  "base": "eed75e681",
+  "base_rebase": "already up to date",
+  "live": {
+    "cycles": 3,
+    "queries": 47,
+    "errors": 0,
+    "header_vector_rows_consistent": true,
+    "freshness_advancing": true,
+    "source_time": "unmeasured",
+    "legacy_imports": 0,
+    "legacy_acks": 0,
+    "negative_cases": [
+      "changed_view",
+      "closed_fence",
+      "superseded_replay"
+    ],
+    "handoff_delay_ms": 250,
+    "engine": "17.11 (Debian 17.11-1.pgdg12+2)"
+  },
+  "fixture": {
+    "databases": "separate source and Agent DB databases in one owned PostgreSQL 17.11 container",
+    "source_changes": "separate fixture-admin connection; Loader source role has SELECT grants",
+    "gateway": "real oo-gateway binary; generated mTLS CA and client certificate; fixture token in real token store",
+    "semantic_admission": "oo-builder compiles the fixture reviewed pack; admin grants only reviewed columns and transitions actual oo_publish_target.fence closed -> granted -> open; oo-load never grants",
+    "not_claimed": "full Builder/release-coordinator workflow, customer runtime or source-real-time acceptance"
+  },
+  "extra_gateway_changes_justified_by": {
+    "m-s4d-live-9": "Three cycles ran; all 50 queries and four freshness requests returned 409. Old overlay and import/ACK catalog proof excluded retained views.",
+    "m-s4d-live-12": "Three cycles ran; two of 43 queries drifted during DB-head/reviewed-file handoff.",
+    "fix": "Read-only sealed-ledger proof, retained-view admission, immutable freshness projection, and serving already activated retained cuts while fences remain open. No fake import/ACK rows."
+  },
+  "validation": {
+    "cargo check --workspace --locked": "passed",
+    "cargo test -p oo-pipeline --locked": {
+      "passed": 351,
+      "failed": 0,
+      "ignored": 55
+    },
+    "cargo test -p oo-gateway --locked --no-fail-fast": {
+      "passed": 297,
+      "failed": 0,
+      "ignored": 47
+    },
+    "cargo test --manifest-path tools/oo-load/Cargo.toml --locked": {
+      "passed": 31,
+      "failed": 0,
+      "ignored": 7
+    },
+    "owned_pg_activation": "passed; seven OO030 proof mismatches; closed/granted fence refusals; four mismatched watermark/freshness readiness refusals",
+    "python3 tools/oo-load/test-gateway-cycles.py --run-id m-s4d-live-16": "passed; three live cycles, 47 queries, zero errors; vectors match row values; freshness advances; forced 250ms handoff; missing mTLS certificate refused",
+    "cargo_fmt": "touched crates formatted; diff check passed"
+  },
+  "preexisting_flaky_tests": {
+    "file": "crates/oo-gateway/tests/parser_worker.rs",
+    "base_run": "git archive eed75e681 into ignored evidence/m-s4d-base; cargo test --manifest-path evidence/m-s4d-base/Cargo.toml -p oo-gateway --locked --test parser_worker",
+    "failure": "Malformed ProcessReport with missing macOS start_ticks; intermittent on both base and lane",
+    "reproduced_on_base": [
+      "alias_and_literals_match_the_guard",
+      "identity_mismatch_is_the_guard_error",
+      "star_expansion_and_count_bindings_match_the_guard",
+      "static_refusals_match_the_guard_and_hide_the_sql"
+    ],
+    "earlier_lane_only_failure": "legal_select_matches_the_guard_including_hash_and_physical_names also failed once; not reproduced on base in 20 isolated runs; final full suite passed",
+    "policy": "No tests changed, disabled or skipped to obtain a pass. Original failures retained."
+  },
+  "fixture_failure_history": {
+    "m-s4d-live-1 through m-s4d-live-7": "TLS fixture setup, isolated source database and required reader privileges corrected; raw failures preserved.",
+    "m-s4d-live-8": "Missing fixture lookup-function execute grant.",
+    "m-s4d-live-11": "Fixture issued two concurrent same-role queries and hit the existing admission limit; serialized the single authenticated client, not source cycles."
+  },
+  "operator_requirement": "GRANT EXECUTE ON FUNCTION _oo.native_library_retained_table(text) to the configured Gateway database login; no PUBLIC grant. Harness provisions this explicitly.",
+  "followups": [
+    "MySQL/Oracle live cycles",
+    "retention and reclamation",
+    "lite seven healthy and broader S4-M-01 scheduler acceptance"
+  ],
+  "shared_file_patches": [],
+  "cargo_lock_changes": false,
+  "containers_left": 0,
+  "evidence": {
+    "evidence/m-s4d-build/check-signoff.log": "8a2b68c74f1ed3d3c75cb1b81e1c0bb049da62b04271b9c10b5042830e9e28b1",
+    "evidence/m-s4d-build/gateway-all-signoff.log": "b5d23aceb4c5c7404019c452fdf37a534fec6b4a48df9a0f112e97466f1b6176",
+    "evidence/m-s4d-build/pipeline-final-tests.log": "ff34aeea901d3877a42480688ee7117097798bfcb0ddc8e359f09df496d93bbf",
+    "evidence/m-s4d-build/load-final.log": "1971cc7019171fdf210fe37f8f5ce323db8347a467b1eff6505aaa356ffc0127",
+    "evidence/m-s4d-build/gateway-signoff-tests.log": "610d1bc2db09a03f2e96c5942866e6bf6963709a35df01cdfb29b67899807d3c",
+    "evidence/m-s4d-build/parser-base.log": "dc5da216e1e9aaa0e3a64a8c1de8d5d93961b42a3cd9f6978c9d0f32efcf9dde",
+    "evidence/m-s4d-build/parser-base-4.log": "259221468cf4061a6c00bb24411a52ed08eb20e2ca86b55842a8738783d38a86",
+    "evidence/m-s4d-build/parser-base-8.log": "afa4e2e6deceec86400eec0dbc52aabc3610a1ee47c15cdd03d7cc734ac4b6c7",
+    "evidence/m-s4d-step3-owned-2/publication.log": "ea49ed789da1743f50bcc73a176e0de5211659d42c5a29f272266e876734a42a",
+    "evidence/m-s4d-step3-owned-2/result.json": "df05d5d35f04e673b327c1be27530edcb0bf3cd5073b85330e58b0bc74590aeb",
+    "evidence/m-s4d-live-9/live-result.json": "88aecbca430de7f317db7011297e404136fd935c61fad0cc070f9aa6e0330253",
+    "evidence/m-s4d-live-12/queries.json": "c80f5221502666ee5dbe65de9f176989a471158eb57bd9f113cbd25ad664d31f",
+    "evidence/m-s4d-live-15/live-result.json": "663d536ceafba281c4cc2ed484711c5974d801b8fca405579b4f8dce0a2fb01f",
+    "evidence/m-s4d-live-16/live-result.json": "258a400dc0164a9808296899f994d1247268dd4560c97451f6015ada70f09e4f",
+    "evidence/m-s4d-live-16/queries.json": "6b8cd3547cea2e1f18a85e4adec80214289c765e4cabde2c60ce81a55c3fd573",
+    "evidence/m-s4d-live-16/freshness.json": "22b303552288d2298e4a2c60c8e3c076fc91b69be49dec3eab0164f1913d8185",
+    "evidence/m-s4d-live-16/negative-queries.json": "683a56c69d0f4913c69bdf6a24a771e337e4c053a304236e14658a20dbf967b6",
+    "evidence/m-s4d-live-16/mtls.json": "d3c1660921bd5b421983b597503f0e397a1a8915f1bd5a9d3aaedb228a6eca0f",
+    "evidence/m-s4d-live-16/superseded-replay.stderr": "deef9e9c523c1df5632ec7b8a671c12f1f35066a676a6f79f576e59240488e95",
+    "evidence/m-s4d-live-16/result.json": "93ef573cfc03b8723f8b6bd641adc6893269c03d624fafbeee139d08cbd8e550"
+  }
+}
