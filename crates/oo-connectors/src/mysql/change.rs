@@ -772,13 +772,14 @@ impl MysqlChanges {
 /// other statement is not admitted.
 fn account_statement(sql: &str) -> bool {
     let words: Vec<_> = sql.split_whitespace().take(3).collect();
-    match words.as_slice() {
-        ["GRANT" | "REVOKE", ..] => true,
-        ["CREATE" | "ALTER" | "DROP" | "RENAME", "USER" | "ROLE", ..] => true,
-        ["SET", "PASSWORD", ..] | ["SET", "DEFAULT", "ROLE"] => true,
-        ["FLUSH", "PRIVILEGES", ..] => true,
-        _ => false,
-    }
+    matches!(
+        words.as_slice(),
+        ["GRANT" | "REVOKE", ..]
+            | ["CREATE" | "ALTER" | "DROP" | "RENAME", "USER" | "ROLE", ..]
+            | ["SET", "PASSWORD", ..]
+            | ["SET", "DEFAULT", "ROLE"]
+            | ["FLUSH", "PRIVILEGES", ..]
+    )
 }
 
 fn alter_table(sql: &str, database: &str) -> Option<TableRef> {
