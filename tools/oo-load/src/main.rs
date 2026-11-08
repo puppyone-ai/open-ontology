@@ -14,6 +14,8 @@ use sqlx::{
 };
 use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
+mod c1;
+mod c1_repair;
 mod c5;
 mod db2_load;
 mod dm8_load;
