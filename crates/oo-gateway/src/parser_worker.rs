@@ -1079,9 +1079,14 @@ fn arm_read(stdout: &OutPipe, deadline: Instant) -> Result<(), IoOutcome> {
     };
     #[cfg(unix)]
     {
-        stdout
-            .set_read_timeout(Some(budget))
-            .map_err(|_| IoOutcome::Io)?;
+        match stdout.set_read_timeout(Some(budget)) {
+            Ok(()) => {}
+            // Darwin returns EINVAL once the worker has closed its end, even
+            // while the frame is still buffered; reading it (or EOF) does not
+            // block. Same rule as the file worker parent.
+            Err(error) if cfg!(target_os = "macos") && error.raw_os_error() == Some(22) => {}
+            Err(_) => return Err(IoOutcome::Io),
+        }
     }
     #[cfg(not(unix))]
     {
