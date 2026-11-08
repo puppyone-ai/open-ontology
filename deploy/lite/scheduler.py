@@ -116,9 +116,13 @@ def data_only(config, generation, output, stale_tables=()):
     digest = builder.semantics.data_only_digest(facts)
     builder.reviewed_shape(json.loads(reviewed), facts)
     pending = builder.semantics.table_review_pending(old, facts)
-    return {'stage': 'data_only', 'model_calls': 0, 'published': False,
-            'review_pending': pending,
+    # Table-scoped changes keep the rest of the library publishing; changes in
+    # the library-wide remainder (inferred edges, reports, ...) stop the cycle.
+    library = builder.semantics.library_review_pending(old, facts, config['library'])
+    return {'stage': 'review_required' if library else 'data_only', 'model_calls': 0,
+            'published': False, 'review_pending': library + pending,
             'table_data_only_digests': builder.semantics.table_data_only_digests(facts),
+            'library_data_only_digest': builder.semantics.library_data_only_digest(facts),
             'receipt_sha256': provenance['receipt_sha256'], 'data_only_digest': digest}
 
 

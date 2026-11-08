@@ -49,6 +49,16 @@ with `oo review --input <builder.json> --json` for pending tables and changes.
 This is inspection, not approval; a new semantic draft still requires the
 normal explicit owner review.
 
+Changes that are not scoped to one table stop the whole cycle instead:
+inferred cross-table relationship candidates, cross-table enum dictionary
+bindings, report definitions and other library-wide semantic inputs. The
+cycle result is `review_required` with reason `semantic_review_required`,
+`tables.review_pending` has an entry `library:<library>` with `scope:
+library` and the changed inputs, and `alert` is `library_review_required`.
+Nothing is published until the owner reviews a new draft; the last reviewed
+publication keeps serving. Unchanged sources keep the same library digest
+across generations, because row counts and ratios are normalized.
+
 After upgrading the CLI/runtime, run `oo up` for the owned deployment to
 install the additive lite cycle journal. Existing schedule configuration and
 reviewed-registry hashes remain unchanged. The old library-wide data-only
@@ -322,10 +332,10 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `DEVICE_EXPIRED` | [configuration-and-source](#configuration-and-source) | [`auth.mjs:189`](../../packages/cli/bin/auth.mjs#L189) |
 | `DM8_TLS_NOT_AVAILABLE` | [connectivity](#connectivity) | [`doctor.rs:170`](../../crates/oo-cli/src/admin/doctor.rs#L170) |
 | `DM8_WORKER_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:174`](../../crates/oo-cli/src/admin/doctor.rs#L174) |
-| `DOCKER_CONFIG` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:595`](../../deploy/lite/lifecycle.py#L595) |
-| `DOCKER_CONTEXT` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:595`](../../deploy/lite/lifecycle.py#L595) |
-| `DOCKER_DEFAULT_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:595`](../../deploy/lite/lifecycle.py#L595) |
-| `DOCKER_HOST` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:595`](../../deploy/lite/lifecycle.py#L595) |
+| `DOCKER_CONFIG` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:600`](../../deploy/lite/lifecycle.py#L600) |
+| `DOCKER_CONTEXT` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:600`](../../deploy/lite/lifecycle.py#L600) |
+| `DOCKER_DEFAULT_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:600`](../../deploy/lite/lifecycle.py#L600) |
+| `DOCKER_HOST` | [configuration-and-source](#configuration-and-source) | [`lifecycle.py:600`](../../deploy/lite/lifecycle.py#L600) |
 | `DOCTOR_REPORT` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:528`](../../crates/oo-cli/src/admin/doctor.rs#L528) |
 | `DOCTOR_RUNTIME` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:517`](../../crates/oo-cli/src/admin/doctor.rs#L517) |
 | `DRAFT_AGENT_TLS_REQUIRED` | [connectivity](#connectivity) | [`draft.py:124`](../../deploy/lite/draft.py#L124) |
@@ -357,33 +367,33 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `INTERFACE_INVALID` | [configuration-and-source](#configuration-and-source) | [`auth.mjs:59`](../../packages/cli/bin/auth.mjs#L59) |
 | `IP_BLOCKED` | [configuration-and-source](#configuration-and-source) | [`model_provider.py:223`](../../tools/pg-builder/scripts/model_provider.py#L223) |
 | `LISTEN_NOT_LOOPBACK` | [configuration-and-source](#configuration-and-source) | [`model_egress.py:468`](../../tools/model-egress/model_egress.py#L468) |
-| `LITE_ACTION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:679`](../../deploy/lite/lifecycle.py#L679) |
-| `LITE_AGENT_DB_INSTALL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:404`](../../deploy/lite/lifecycle.py#L404) |
-| `LITE_BUILD_ONE_SOURCE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:392`](../../deploy/lite/lifecycle.py#L392) |
+| `LITE_ACTION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:684`](../../deploy/lite/lifecycle.py#L684) |
+| `LITE_AGENT_DB_INSTALL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:409`](../../deploy/lite/lifecycle.py#L409) |
+| `LITE_BUILD_ONE_SOURCE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:397`](../../deploy/lite/lifecycle.py#L397) |
 | `LITE_CERTIFICATE` | [connectivity](#connectivity) | [`credentials.rs:191`](../../crates/oo-stack/src/credentials.rs#L191) |
 | `LITE_CERTIFICATE_DATE` | [connectivity](#connectivity) | [`credentials.rs:149`](../../crates/oo-stack/src/credentials.rs#L149) |
 | `LITE_CERTIFICATE_KEY_MISMATCH` | [connectivity](#connectivity) | [`credentials.rs:203`](../../crates/oo-stack/src/credentials.rs#L203) |
 | `LITE_COMPOSE_TEMPLATE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:328`](../../crates/oo-cli/src/admin/lite.rs#L328) |
-| `LITE_CONTROL_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:132`](../../deploy/lite/lifecycle.py#L132) |
+| `LITE_CONTROL_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:137`](../../deploy/lite/lifecycle.py#L137) |
 | `LITE_CREDENTIAL_MARKER` | [credentials](#credentials) | [`credentials.rs:169`](../../crates/oo-stack/src/credentials.rs#L169) |
-| `LITE_CYCLE_SCHEMA` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:545`](../../deploy/lite/lifecycle.py#L545) |
-| `LITE_DOCKER_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:173`](../../deploy/lite/lifecycle.py#L173) |
+| `LITE_CYCLE_SCHEMA` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:550`](../../deploy/lite/lifecycle.py#L550) |
+| `LITE_DOCKER_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:178`](../../deploy/lite/lifecycle.py#L178) |
 | `LITE_DOCKER_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:337`](../../crates/oo-cli/src/admin/lite.rs#L337) |
-| `LITE_GATEWAY_DATA_LOGIN` | [credentials](#credentials) | [`lifecycle.py:273`](../../deploy/lite/lifecycle.py#L273) |
-| `LITE_GATEWAY_RETAINED_GRANT` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:289`](../../deploy/lite/lifecycle.py#L289) |
-| `LITE_HEALTH_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:263`](../../deploy/lite/lifecycle.py#L263) |
-| `LITE_HEALTH_REFERENCE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:235`](../../deploy/lite/lifecycle.py#L235) |
-| `LITE_HEALTH_REFUSED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:217`](../../deploy/lite/lifecycle.py#L217) |
-| `LITE_HEALTH_RUNTIME` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:215`](../../deploy/lite/lifecycle.py#L215) |
-| `LITE_HEALTH_TOKEN` | [credentials](#credentials) | [`lifecycle.py:239`](../../deploy/lite/lifecycle.py#L239) |
-| `LITE_HEALTH_URL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:228`](../../deploy/lite/lifecycle.py#L228) |
+| `LITE_GATEWAY_DATA_LOGIN` | [credentials](#credentials) | [`lifecycle.py:278`](../../deploy/lite/lifecycle.py#L278) |
+| `LITE_GATEWAY_RETAINED_GRANT` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:294`](../../deploy/lite/lifecycle.py#L294) |
+| `LITE_HEALTH_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:268`](../../deploy/lite/lifecycle.py#L268) |
+| `LITE_HEALTH_REFERENCE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:240`](../../deploy/lite/lifecycle.py#L240) |
+| `LITE_HEALTH_REFUSED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:222`](../../deploy/lite/lifecycle.py#L222) |
+| `LITE_HEALTH_RUNTIME` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:220`](../../deploy/lite/lifecycle.py#L220) |
+| `LITE_HEALTH_TOKEN` | [credentials](#credentials) | [`lifecycle.py:244`](../../deploy/lite/lifecycle.py#L244) |
+| `LITE_HEALTH_URL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:233`](../../deploy/lite/lifecycle.py#L233) |
 | `LITE_IMAGES_MISSING` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:354`](../../crates/oo-cli/src/admin/lite.rs#L354) |
-| `LITE_IMAGE_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:637`](../../deploy/lite/lifecycle.py#L637) |
+| `LITE_IMAGE_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:642`](../../deploy/lite/lifecycle.py#L642) |
 | `LITE_IMAGE_DIGEST_REQUIRED` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:27`](../../crates/oo-cli/src/admin/lite.rs#L27) |
-| `LITE_JOBS_SCHEMA` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:528`](../../deploy/lite/lifecycle.py#L528) |
-| `LITE_JOBS_TEMPLATES` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:521`](../../deploy/lite/lifecycle.py#L521) |
-| `LITE_LANE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:606`](../../deploy/lite/lifecycle.py#L606) |
-| `LITE_LIFECYCLE_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:727`](../../deploy/lite/lifecycle.py#L727) |
+| `LITE_JOBS_SCHEMA` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:533`](../../deploy/lite/lifecycle.py#L533) |
+| `LITE_JOBS_TEMPLATES` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:526`](../../deploy/lite/lifecycle.py#L526) |
+| `LITE_LANE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:611`](../../deploy/lite/lifecycle.py#L611) |
+| `LITE_LIFECYCLE_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:732`](../../deploy/lite/lifecycle.py#L732) |
 | `LITE_LIFECYCLE_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`remote.py:267`](../../deploy/lite/remote.py#L267) |
 | `LITE_LOCAL_ONLY` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:16`](../../crates/oo-cli/src/admin/lite.rs#L16) |
 | `LITE_OPENSSL_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:76`](../../crates/oo-stack/src/credentials.rs#L76) |
@@ -391,29 +401,29 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LITE_OPENSSL_START` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:95`](../../crates/oo-stack/src/credentials.rs#L95) |
 | `LITE_OPENSSL_STDIN` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:99`](../../crates/oo-stack/src/credentials.rs#L99) |
 | `LITE_OPENSSL_WAIT` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:108`](../../crates/oo-stack/src/credentials.rs#L108) |
-| `LITE_OPERATOR_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:323`](../../deploy/lite/lifecycle.py#L323) |
-| `LITE_OPERATOR_PASSWORD` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:331`](../../deploy/lite/lifecycle.py#L331) |
-| `LITE_OPERATOR_ROLES` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:343`](../../deploy/lite/lifecycle.py#L343) |
-| `LITE_OPERATOR_TOKEN` | [credentials](#credentials) | [`lifecycle.py:353`](../../deploy/lite/lifecycle.py#L353) |
-| `LITE_OWNERSHIP` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:629`](../../deploy/lite/lifecycle.py#L629) |
-| `LITE_PRIVATE_DIRECTORY` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:148`](../../deploy/lite/lifecycle.py#L148) |
-| `LITE_PRIVATE_FILE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:156`](../../deploy/lite/lifecycle.py#L156) |
+| `LITE_OPERATOR_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:328`](../../deploy/lite/lifecycle.py#L328) |
+| `LITE_OPERATOR_PASSWORD` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:336`](../../deploy/lite/lifecycle.py#L336) |
+| `LITE_OPERATOR_ROLES` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:348`](../../deploy/lite/lifecycle.py#L348) |
+| `LITE_OPERATOR_TOKEN` | [credentials](#credentials) | [`lifecycle.py:358`](../../deploy/lite/lifecycle.py#L358) |
+| `LITE_OWNERSHIP` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:634`](../../deploy/lite/lifecycle.py#L634) |
+| `LITE_PRIVATE_DIRECTORY` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:153`](../../deploy/lite/lifecycle.py#L153) |
+| `LITE_PRIVATE_FILE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:161`](../../deploy/lite/lifecycle.py#L161) |
 | `LITE_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:109`](../../crates/oo-cli/src/admin/lite.rs#L109) |
-| `LITE_PROVISION_CHANGED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:364`](../../deploy/lite/lifecycle.py#L364) |
-| `LITE_PROVISION_PASSWORD` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:408`](../../deploy/lite/lifecycle.py#L408) |
-| `LITE_PUBLIC_URL_LOCAL_HTTPS` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:297`](../../deploy/lite/lifecycle.py#L297) |
+| `LITE_PROVISION_CHANGED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:369`](../../deploy/lite/lifecycle.py#L369) |
+| `LITE_PROVISION_PASSWORD` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:413`](../../deploy/lite/lifecycle.py#L413) |
+| `LITE_PUBLIC_URL_LOCAL_HTTPS` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:302`](../../deploy/lite/lifecycle.py#L302) |
 | `LITE_RANDOM` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:119`](../../crates/oo-stack/src/credentials.rs#L119) |
-| `LITE_SCHEDULE_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:575`](../../deploy/lite/lifecycle.py#L575) |
-| `LITE_SCHEDULE_PROJECT` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:90`](../../deploy/lite/lifecycle.py#L90) |
-| `LITE_SCHEDULE_ROW` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:582`](../../deploy/lite/lifecycle.py#L582) |
-| `LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION` | [credentials](#credentials) | [`lifecycle.py:653`](../../deploy/lite/lifecycle.py#L653) |
+| `LITE_SCHEDULE_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:580`](../../deploy/lite/lifecycle.py#L580) |
+| `LITE_SCHEDULE_PROJECT` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:95`](../../deploy/lite/lifecycle.py#L95) |
+| `LITE_SCHEDULE_ROW` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:587`](../../deploy/lite/lifecycle.py#L587) |
+| `LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION` | [credentials](#credentials) | [`lifecycle.py:658`](../../deploy/lite/lifecycle.py#L658) |
 | `LITE_SECRET_PATH` | [credentials](#credentials) | [`credentials.rs:127`](../../crates/oo-stack/src/credentials.rs#L127) |
 | `LITE_START` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:94`](../../crates/oo-cli/src/admin/lite.rs#L94) |
 | `LITE_STATE_DIRECTORY` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:51`](../../crates/oo-cli/src/admin/lite.rs#L51) |
 | `LITE_STDIN` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:98`](../../crates/oo-cli/src/admin/lite.rs#L98) |
-| `LITE_SUBNET` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:613`](../../deploy/lite/lifecycle.py#L613) |
-| `LITE_SUBNET_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:191`](../../deploy/lite/lifecycle.py#L191) |
-| `LITE_SYNC_INTERVAL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:505`](../../deploy/lite/lifecycle.py#L505) |
+| `LITE_SUBNET` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:618`](../../deploy/lite/lifecycle.py#L618) |
+| `LITE_SUBNET_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:196`](../../deploy/lite/lifecycle.py#L196) |
+| `LITE_SYNC_INTERVAL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:510`](../../deploy/lite/lifecycle.py#L510) |
 | `LITE_WAIT` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:107`](../../crates/oo-cli/src/admin/lite.rs#L107) |
 | `LITE_WORKLOAD_NAME` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:304`](../../crates/oo-stack/src/credentials.rs#L304) |
 | `LIVE_COMPLETION_FAILURE` | [configuration-and-source](#configuration-and-source) | [`live_check.py:46`](../../tools/model-egress/live_check.py#L46) |
@@ -497,9 +507,9 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `OO_GATE_PREFLIGHT_LIVE` | [configuration-and-source](#configuration-and-source) | [`w73.rs:2439`](../../tools/release-coordinator/src/w73.rs#L2439) |
 | `OO_LITE_LANE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:155`](../../crates/oo-cli/src/admin/lite.rs#L155) |
 | `OO_LITE_POSTGRES_IMAGE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:329`](../../crates/oo-cli/src/admin/lite.rs#L329) |
-| `OO_LITE_PULL_POLICY` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:610`](../../deploy/lite/lifecycle.py#L610) |
+| `OO_LITE_PULL_POLICY` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:615`](../../deploy/lite/lifecycle.py#L615) |
 | `OO_LITE_RUNTIME_IMAGE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:134`](../../crates/oo-cli/src/admin/lite.rs#L134) |
-| `OO_LITE_SUBNET` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:614`](../../deploy/lite/lifecycle.py#L614) |
+| `OO_LITE_SUBNET` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:619`](../../deploy/lite/lifecycle.py#L619) |
 | `OO_MONGO_COLLECTION_CONFIG` | [configuration-and-source](#configuration-and-source) | [`documents.rs:181`](../../tools/oo-load/src/documents.rs#L181) |
 | `OO_NATIVE_ADMISSION_BIN` | [installation-and-runtime](#installation-and-runtime) | [`export_native_collection.py:64`](../../tools/pg-builder/scripts/export_native_collection.py#L64) |
 | `OO_NATIVE_BINDING_REGISTRY` | [review-and-publication](#review-and-publication) | [`export_native_collection.py:65`](../../tools/pg-builder/scripts/export_native_collection.py#L65) |

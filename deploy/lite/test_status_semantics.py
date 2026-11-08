@@ -21,6 +21,11 @@ class StatusTests(unittest.TestCase):
             changed = copy.deepcopy(history)
             changed['tables'][key] = [{'table': 'app.items'}]
             self.assertEqual(lifecycle.publication_health(changed, True, now)['status'], 'degraded')
+        library = copy.deepcopy(history)
+        library['tables']['review_pending'] = [
+            {'table': 'library:owned', 'scope': 'library', 'changes': ['relationship_candidates']}]
+        report = lifecycle.publication_health(library, True, now)
+        self.assertEqual((report['status'], report['alert']), ('degraded', 'library_review_required'))
         self.assertEqual(lifecycle.publication_health(history, False, now)['status'], 'unhealthy')
         for stamp in ('2026-11-07T11:57:59Z', None, 'invalid', '2099-01-01T00:00:00Z'):
             history['data_published_at'] = stamp

@@ -108,6 +108,17 @@ def enum(value):
     return result
 
 
+BOUND_FACTS = frozenset({
+    'protocol', 'tables', 'all_tables', 'binding_vector', 'generation_semantics',
+    'relationships', 'relationship_candidates', 'enum_candidates',
+    'provenance', 'business_owner_signed', 'facts_sha256', 'parent_facts_sha256',
+    'declared_enum_observation', 'report_definitions_observation', 'dictionary_evidence'})
+
+
+def extensions(facts):
+    return {k: v for k, v in facts.items() if k not in BOUND_FACTS}
+
+
 def bind_batch(batch, facts):
     names = {t['dataset'] for t in batch['tables']}
     inventory = {t['dataset']: t for t in facts.get('all_tables', facts['tables'])}
@@ -149,11 +160,7 @@ def bind_batch(batch, facts):
                                     for c in t['columns']
                                     if t['dataset'] + '.' + c['name'] not in {e['enum'] for e in enums}),
         },
-        'extensions': {k: v for k, v in facts.items() if k not in {
-            'protocol', 'tables', 'all_tables', 'binding_vector', 'generation_semantics',
-            'relationships', 'relationship_candidates', 'enum_candidates',
-            'provenance', 'business_owner_signed', 'facts_sha256', 'parent_facts_sha256',
-            'declared_enum_observation', 'report_definitions_observation', 'dictionary_evidence'}},
+        'extensions': extensions(facts),
     }
     # Stored report proposals are consumed deterministically after S5, not by the
     # model. Their fresh facts/review/Pack bindings are intentionally not reused.
@@ -336,8 +343,11 @@ def table_data_only_digests(facts):
         local['all_tables'] = local['tables']
         # Cross-table inferred edges are redrafted at review, not a reason to
         # mark neighbors pending when a local comment changes. Declared FKs
-        # remain bound in the declaring table itself.
+        # remain bound in the declaring table itself. Library-level inputs
+        # (inferred edges, cross-table enum bindings, reports) are compared by
+        # library_data_only_digest instead of marking every table pending.
         local['relationship_candidates'] = []
+        local.pop('report_definitions_observation', None)
         local['enum_candidates'] = [
             enum(e) for e in facts['enum_candidates'] if e['enum'].rsplit('.', 1)[0] == name]
         local['table_enums'] = copy.deepcopy(local['enum_candidates'])
@@ -346,6 +356,55 @@ def table_data_only_digests(facts):
             candidate.pop('declared_binding', None)
         result[name] = data_only_digest(local)
     return result
+
+def library_remainder(facts):
+    """The non-table remainder of the semantic inputs, compared library-wide.
+
+    Table digests drop inferred cross-table edges, cross-table enum dictionary
+    bindings and report definitions. Those still feed semantic drafts, so a
+    change here stops publication for owner review. Declared FK edges and
+    column comments stay bound in their tables' digests; counts are
+    normalized exactly as in the table digests, so unchanged sources are
+    stable across generations.
+    """
+    relationships = []
+    for item in facts['relationship_candidates']:
+        if item.get('provenance') == 'declared':
+            continue
+        projected = overlap(item)
+        for key in ('from_comment', 'to_comment'):
+            projected.get('evidence', {}).pop(key, None)
+        relationships.append(projected)
+    bindings = []
+    for item in facts['enum_candidates']:
+        normalized = enum(item)
+        if normalized['dictionary_candidates'] or 'declared_binding' in item:
+            bindings.append({'enum': item['enum'],
+                             'dictionary_candidates': normalized['dictionary_candidates'],
+                             'declared_binding': item.get('declared_binding')})
+    declared = facts.get('declared_enum_observation')
+    dictionary = facts.get('dictionary_evidence')
+    return {
+        'relationship_candidates': ordered(relationships),
+        'enum_bindings': ordered(bindings),
+        'reports': facts.get('report_definitions_observation'),
+        'declared_enum_config': declared.get('config_sha256') if declared else None,
+        'dictionary': ({'input': dictionary['input'], 'document': dictionary['document']}
+                       if dictionary else None),
+        'extensions': extensions(facts),
+    }
+
+
+def library_data_only_digest(facts):
+    return digest({'protocol': 'oo.library.data-only-remainder/v1', **library_remainder(facts)})
+
+
+def library_review_pending(old, facts, library):
+    """A library-scoped pending entry; it blocks the whole cycle, not one table."""
+    before, after = library_remainder(old), library_remainder(facts)
+    changes = [key for key in before if before[key] != after[key]]
+    return [{'table': 'library:' + library, 'scope': 'library', 'changes': changes}] if changes else []
+
 
 def table_review_pending(old, facts):
     before, after = table_data_only_digests(old), table_data_only_digests(facts)

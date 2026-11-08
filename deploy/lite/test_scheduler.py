@@ -148,7 +148,8 @@ class Tests(unittest.TestCase):
             scheduler.last_published_generation(top['cycle'])
 
     def test_fresh_catalog_controls_data_only_admission(self):
-        for change in ('unchanged', 'fk_removed', 'comment', 'column_comment', 'new_column', 'legacy'):
+        for change in ('unchanged', 'fk_removed', 'comment', 'column_comment', 'new_column', 'legacy',
+                       'inferred_edge', 'report'):
             with self.subTest(change=change), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 metadata, source = fixture()
@@ -170,7 +171,10 @@ class Tests(unittest.TestCase):
                                 review_decision={'mode': 'self'},
                                 compiled={'effective': {'datasets': [
                                     dict(dataset=t['dataset'], columns=t['columns']) for t in facts['tables']]}})
-                config['builder']['origin'] = dict(facts=pin('origin.json', facts),
+                origin = copy.deepcopy(facts)
+                if change == 'report':
+                    origin['report_definitions_observation'] = {'dataset': 'app.accounts', 'definitions': []}
+                config['builder']['origin'] = dict(facts=pin('origin.json', origin),
                                                    reviewed_registry=pin('reviewed.json', reviewed))
                 current = copy.deepcopy(source)
                 if change == 'fk_removed':
@@ -178,6 +182,9 @@ class Tests(unittest.TestCase):
                 if change == 'comment':
                     current['tables'][0]['comment'] = 'Edited source comment'
                 if change == 'column_comment':
+                    current['tables'][1]['columns'][1]['comment'] = 'Edited column comment'
+                if change == 'inferred_edge':
+                    # The key comment drives inferred cross-table edges.
                     current['tables'][0]['columns'][0]['comment'] = 'Edited column comment'
                 if change == 'new_column':
                     current['tables'][0]['columns'].append(dict(name='unreviewed', not_null=False, comment='new'))
@@ -187,9 +194,17 @@ class Tests(unittest.TestCase):
                 with patch.object(scheduler, 'command', side_effect=export) as command, patch.object(
                         builder.lib, 'ReadOnlyPostgres', return_value=RelatedDb(metadata)):
                     result = scheduler.data_only(config, 'cycle-1', root)
-                self.assertEqual(result['stage'], 'data_only')
-                expected = [] if change in ('unchanged', 'legacy') else [
-                    'app.invoices' if change == 'fk_removed' else 'app.accounts']
+                library = change in ('inferred_edge', 'report')
+                self.assertEqual(result['stage'], 'review_required' if library else 'data_only')
+                self.assertEqual(result['library_data_only_digest'] ==
+                                 builder.semantics.library_data_only_digest(origin), not library)
+                expected = [] if change in ('unchanged', 'legacy', 'report') else [
+                    'app.invoices' if change in ('fk_removed', 'column_comment') else 'app.accounts']
+                if library:
+                    head = result['review_pending'].pop(0)
+                    self.assertEqual((head['table'], head['scope']), ('library:owned', 'library'))
+                    self.assertEqual(head['changes'], ['relationship_candidates' if change == 'inferred_edge'
+                                                       else 'reports'])
                 self.assertEqual([r['table'] for r in result['review_pending']], expected)
                 if not expected:
                     self.assertEqual(result['data_only_digest'], builder.semantics.data_only_digest(facts))
@@ -243,12 +258,16 @@ class Tests(unittest.TestCase):
     def test_review_required_stops_before_publisher_and_prune(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / 'cycle'
+            library = {'table': 'library:owned', 'scope': 'library', 'changes': ['reports']}
             config = dict(stack='stack', source='source', target='target', secrets_dir='secrets', library='owned')
             responses = [Mock(returncode=0, stdout=b'{"retained_run":"baseline"}'), Mock(returncode=1, stdout=b'{"state":"pending"}',
                 stderr=b'{"error":"publication_semantic_admission_required"}')]
             with patch.object(scheduler, 'command', side_effect=responses) as command, patch.object(
-                    scheduler, 'data_only', return_value={'stage': 'review_required', 'model_calls': 0}):
-                self.assertEqual(scheduler.cycle(config, 'run', out)['stage'], 'review_required')
+                    scheduler, 'data_only', return_value={'stage': 'review_required', 'model_calls': 0,
+                                                          'review_pending': [library]}):
+                result = scheduler.cycle(config, 'run', out)
+                self.assertEqual(result['stage'], 'review_required')
+                self.assertEqual(result['review_pending'], [library])
                 self.assertEqual([c.args[0][1] for c in command.call_args_list], ['sync', 'publish'])
 
     def test_unexpected_candidate_failure_cannot_publish(self):
