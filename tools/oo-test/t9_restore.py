@@ -108,19 +108,28 @@ def main():
             sql("SET ROLE oo_target_admin; UPDATE oo_publish_target.fence SET state='open'; RESET ROLE;")
 
         publish()
+        # 0135 alone cannot see a replaced view routine; the Gateway requires 0136.
+        check("routine_identity_required", "drift")
+        sql((ROOT / "crates/oo-pipeline/migrations/0136_publication_routine_identity.sql").read_text())
+        # The fixture's row-security policy calls a non-built-in routine: 0136
+        # binds it, so installing tombstones the record until the publisher reopens.
+        assert "f22_read_probe" in sql(f"SELECT _oo.publication_relation_identity('_oo','{physical}')::text")
+        check("routine_identity_installed", "drift")
+        publish()
         check("old_receipt_refused", "drift", old_id)
         fingerprint = sql(f"SELECT _oo.publication_relation_digest('_oo','{physical}')")
         assert sql(f"CREATE TEMP TABLE pg_class(spoof integer); "
                    f"SELECT _oo.publication_relation_digest('_oo','{physical}')") == fingerprint
         results["temporary_catalog_lookalike_ignored"] = True
         view_test = ["cargo", "test", "--locked", "-p", "oo-gateway", "--lib",
-                     "publication_binding::identity_tests::logical_view_binding_refuses_redefinition_and_dependency_swap",
-                     "--", "--exact", "--ignored", "--nocapture"]
+                     "publication_binding::identity_tests::logical_view_binding_refuses_",
+                     "--", "--ignored", "--nocapture", "--test-threads=1"]
         view_result = run(view_test, env=dict(os.environ, OO_F22_OWNED_FIXTURE=runtime["fixture"]),
                           text=True, stdout=subprocess.PIPE).stdout
         (evidence / "view-test.log").write_text(view_result)
-        assert "1 passed; 0 failed; 0 ignored" in view_result
+        assert "2 passed; 0 failed; 0 ignored" in view_result
         results["view_receipt_redefinition_dependency_swap_recreate"] = True
+        results["view_receipt_replaced_routine"] = True
         baseline = check("logical_binding", "ok")
         publication = baseline["publication_binding"]["publication_id"]
         oid = sql("SELECT '_oo." + physical + "'::regclass::oid")
@@ -178,6 +187,10 @@ def main():
         results["user_type_oid_changed"] = True
         assert sql("SELECT bool_and(valid AND relation_identity_sha256=_oo.publication_relation_digest(schema_name,relation_name)) FROM _oo.publication_identity") == "t"
         results["restored_view_identity_valid"] = True
+        # The routine-bound view identity survives the logical restore too.
+        assert "t9_scale" in sql("SELECT _oo.publication_relation_identity('_oo','t9_fview')::text")
+        assert sql("SELECT count(*) FROM _oo.publication_identity WHERE relation_name='t9_fview' AND valid") == "1"
+        results["restored_routine_identity_valid"] = True
         restored = check("pg_dump_pg_restore", "ok", publication)
         assert restored["publication_binding"] == baseline["publication_binding"]
         sql("ALTER EVENT TRIGGER oo_publication_identity_drop DISABLE")
