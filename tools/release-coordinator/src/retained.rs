@@ -732,9 +732,12 @@ async fn identity_current(
     Ok(Some(current))
 }
 
-/// On a replayed (already open, same Pack) fence, mint a missing or invalid
-/// identity with the publisher's own fence write: the 0135 trigger recomputes
-/// the relation digest exactly as on a normal open. `None`: still not current.
+/// On a replayed (already open, same Pack) fence, mint a MISSING identity
+/// (a fence opened before migration 0135) with the publisher's own fence
+/// write: the 0135 trigger recomputes the relation digest exactly as on a
+/// normal open. An existing but invalid record is a detected change (view,
+/// relation or routine) and is never re-approved by a replay: it refuses
+/// until the owner reviews and publishes again (review N1). `None`: refuse.
 async fn replay_identity(
     tx: &Transaction<'_>,
     role: &str,
@@ -744,6 +747,18 @@ async fn replay_identity(
         None => return Ok(Some("not_installed")),
         Some(true) => return Ok(Some("current")),
         Some(false) => {}
+    }
+    let recorded: bool = tx
+        .query_one(
+            "SELECT EXISTS(SELECT 1 FROM _oo.publication_identity \
+             WHERE role_name=$1 AND schema_name='_oo' AND relation_name=$2)",
+            p!(role, relation),
+        )
+        .await
+        .map_err(query_error)?
+        .get(0);
+    if recorded {
+        return Ok(None);
     }
     tx.execute(
         "UPDATE oo_publish_target.fence SET state='open'          WHERE role_name=$1 AND schema_name='_oo' AND relation_name=$2 AND state='open'",
@@ -919,7 +934,7 @@ async fn body(
             // current identity record; re-mint it through the fence trigger.
             let identity = match replay_identity(tx, role, &b.physical).await? {
                 Some(identity) => identity,
-                None => return Ok(refusal("publication_identity_unavailable")),
+                None => return Ok(refusal("publication_identity_invalid")),
             };
             fences.push(json!({"dataset":b.dataset,"relation":b.physical,"fence_state":"open","outcome":"replay",
                 "identity":identity}));

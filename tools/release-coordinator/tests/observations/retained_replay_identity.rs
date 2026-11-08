@@ -1,5 +1,7 @@
-//! Replay of an already-open fence re-mints a missing or invalid logical
-//! publication identity (0135/0136) through the publisher's fence write.
+//! Replay of an already-open fence mints a MISSING logical publication
+//! identity (0135) through the publisher's fence write; an invalid record is
+//! refused, never re-approved (review N1). Installing 0136 re-mints records
+//! that were current under 0135 in the same trusted transaction.
 //! Owned scratch PostgreSQL 17 only:
 //! `OO_RETAINED_IDENTITY_PG='host=... port=... user=postgres dbname=...'`.
 use super::*;
@@ -30,7 +32,7 @@ async fn replay(client: &mut tokio_postgres::Client, relation: &str) -> Option<&
 
 #[tokio::test]
 #[ignore = "owned scratch PostgreSQL 17; set OO_RETAINED_IDENTITY_PG"]
-async fn replay_remints_missing_or_invalid_identity() {
+async fn replay_mints_missing_and_refuses_invalid_identity() {
     let conninfo = std::env::var("OO_RETAINED_IDENTITY_PG").expect("owned scratch PG");
     let (mut client, connection) = tokio_postgres::connect(&conninfo, tokio_postgres::NoTls)
         .await
@@ -59,13 +61,20 @@ async fn replay_remints_missing_or_invalid_identity() {
         Some("not_installed")
     );
     client.batch_execute(IDENTITY).await.unwrap();
-    client.batch_execute(ROUTINES).await.unwrap();
-    // Installing the migrations mints nothing: the open fences have no record.
+    // Installing 0135 mints nothing: the open fences have no record yet, so
+    // the publisher's replay mints them.
     for relation in ["replay_base", "replay_view"] {
         assert_eq!(replay(&mut client, relation).await, Some("reminted"));
         assert_eq!(replay(&mut client, relation).await, Some("current"));
     }
-    // Tombstoned by DDL on a routine the view depends on: re-minted on replay.
+    // Installing 0136 extends the digest and re-mints the records that were
+    // current under 0135 in the same trusted transaction.
+    client.batch_execute(ROUTINES).await.unwrap();
+    for relation in ["replay_base", "replay_view"] {
+        assert_eq!(replay(&mut client, relation).await, Some("current"));
+    }
+    // Tombstoned by DDL on a routine the view depends on: a replay must not
+    // approve it again; only a new review and publication can.
     client
         .batch_execute(
             "CREATE OR REPLACE FUNCTION _oo.replay_scale(x bigint) RETURNS bigint LANGUAGE sql IMMUTABLE RETURN x+1",
@@ -82,7 +91,8 @@ async fn replay_remints_missing_or_invalid_identity() {
         .get(0);
     assert!(!valid);
     assert_eq!(replay(&mut client, "replay_base").await, Some("current"));
-    assert_eq!(replay(&mut client, "replay_view").await, Some("reminted"));
+    assert_eq!(replay(&mut client, "replay_view").await, None);
+    assert_eq!(replay(&mut client, "replay_view").await, None);
     // Never weaker than the Gateway predicate: a record for another Pack is
     // not current, and the publisher cannot mint one without TRIGGER/SELECT.
     client
@@ -102,10 +112,11 @@ async fn replay_remints_missing_or_invalid_identity() {
             .unwrap(),
         Some(false)
     );
-    assert!(
+    assert_eq!(
         replay_identity(&tx, "oo_r_replay", "replay_base")
             .await
-            .is_err()
+            .unwrap(),
+        None
     );
     tx.rollback().await.unwrap();
     drop(client);

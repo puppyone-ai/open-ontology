@@ -9,10 +9,17 @@
 -- Each routine is bound by name, identity arguments, owner, kind, volatility,
 -- security, configuration and pg_get_functiondef, without catalog OIDs.
 -- Built-in (pinned) routines have no pg_depend rows and are not listed.
--- Replacing this function fires the DDL guard: any record whose identity now
--- includes routines is tombstoned and is re-minted by the next publisher
--- open/replay. Records without routine dependencies keep their digest.
+-- Upgrade: records that are current under the 0135 digest when this runs are
+-- trusted at that instant (the installer runs as the trusted administrator) and
+-- are re-minted under the extended digest in the same transaction. Records that
+-- were already invalid stay invalid. Publisher replays never re-mint an invalid
+-- record (plan D23; review N1).
 BEGIN;
+
+-- Records current under the 0135 rules before the digest is extended.
+CREATE TEMP TABLE oo_0136_current ON COMMIT DROP AS
+SELECT role_name, schema_name, relation_name FROM _oo.publication_identity
+WHERE valid AND relation_identity_sha256 = _oo.publication_relation_digest(schema_name, relation_name);
 
 CREATE OR REPLACE FUNCTION _oo.publication_routine_identity(p_relations oid[])
 RETURNS jsonb LANGUAGE sql STABLE SET search_path = pg_catalog, pg_temp AS $$
@@ -121,5 +128,11 @@ SELECT jsonb_agg(CASE WHEN d.nspname=p_schema AND d.relname=p_name AND r.routine
     ELSE d.definition END ORDER BY d.nspname,d.relname)
 FROM definitions d CROSS JOIN routines r
 $$;
+
+-- One-time trusted re-mint of the records captured above (see header).
+UPDATE _oo.publication_identity i
+SET relation_identity_sha256 = _oo.publication_relation_digest(i.schema_name, i.relation_name), valid = true
+FROM oo_0136_current c
+WHERE i.role_name = c.role_name AND i.schema_name = c.schema_name AND i.relation_name = c.relation_name;
 
 COMMIT;
