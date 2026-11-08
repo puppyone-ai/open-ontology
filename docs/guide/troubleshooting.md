@@ -59,7 +59,8 @@ cycle result is `review_required` with reason `semantic_review_required`,
 `tables.review_pending` has an entry `library:<library>` with `scope:
 library` and the changed inputs, and `alert` is `library_review_required`.
 Nothing is published until the owner reviews a new draft; the last reviewed
-publication keeps serving. Unchanged sources keep the same library digest
+publication keeps serving. Agents are not told that newer data is held; only
+`oo status` shows it, so act on `library_review_required` promptly. Unchanged sources keep the same library digest
 across generations, because row counts and ratios are normalized.
 
 Agents see a stale table's reason without column names (for example
@@ -224,7 +225,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `A_B` | [configuration-and-source](#configuration-and-source) | [`policy_catalog_capabilities_pg_tests.rs:755`](../../crates/oo-gateway/src/policy_catalog_capabilities_pg_tests.rs#L755) |
 | `BUILD_AGENT_TARGET_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`build.rs:151`](../../crates/oo-cli/src/admin/build.rs#L151) |
 | `BUILD_ARTIFACT_PATH` | [configuration-and-source](#configuration-and-source) | [`build.rs:47`](../../crates/oo-cli/src/admin/build.rs#L47) |
-| `BUILD_BUILDER_FAILED` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:303`](../../crates/oo-cli/src/admin/build_retained.rs#L303) |
+| `BUILD_BUILDER_FAILED` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:309`](../../crates/oo-cli/src/admin/build_retained.rs#L309) |
 | `BUILD_BUILDER_INTERRUPTED_REQUIRES_RECONCILIATION` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:285`](../../crates/oo-cli/src/admin/build_retained.rs#L285) |
 | `BUILD_BUILDER_RECEIPT` | [configuration-and-source](#configuration-and-source) | [`build.rs:294`](../../crates/oo-cli/src/admin/build.rs#L294) |
 | `BUILD_CANDIDATE_RECEIPT` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:233`](../../crates/oo-cli/src/admin/build_retained.rs#L233) |
@@ -264,9 +265,9 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUILD_ORIGIN_INCOMPLETE` | [configuration-and-source](#configuration-and-source) | [`build.rs:181`](../../crates/oo-cli/src/admin/build.rs#L181) |
 | `BUILD_ORIGIN_MISSING` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:271`](../../crates/oo-cli/src/admin/build_retained.rs#L271) |
 | `BUILD_PROMPT_RECEIPT` | [configuration-and-source](#configuration-and-source) | [`build.rs:416`](../../crates/oo-cli/src/admin/build.rs#L416) |
-| `BUILD_PUBLICATION_FAILED` | [review-and-publication](#review-and-publication) | [`build_retained.rs:328`](../../crates/oo-cli/src/admin/build_retained.rs#L328) |
-| `BUILD_PUBLICATION_RECEIPT` | [review-and-publication](#review-and-publication) | [`build_retained.rs:332`](../../crates/oo-cli/src/admin/build_retained.rs#L332) |
-| `BUILD_PUBLICATION_REFUSED_UNCHANGED` | [review-and-publication](#review-and-publication) | [`build_retained.rs:326`](../../crates/oo-cli/src/admin/build_retained.rs#L326) |
+| `BUILD_PUBLICATION_FAILED` | [review-and-publication](#review-and-publication) | [`build_retained.rs:349`](../../crates/oo-cli/src/admin/build_retained.rs#L349) |
+| `BUILD_PUBLICATION_RECEIPT` | [review-and-publication](#review-and-publication) | [`build_retained.rs:353`](../../crates/oo-cli/src/admin/build_retained.rs#L353) |
+| `BUILD_PUBLICATION_REFUSED_UNCHANGED` | [review-and-publication](#review-and-publication) | [`build_retained.rs:347`](../../crates/oo-cli/src/admin/build_retained.rs#L347) |
 | `BUILD_RESUME_ARTIFACT_CHANGED` | [configuration-and-source](#configuration-and-source) | [`build.rs:71`](../../crates/oo-cli/src/admin/build.rs#L71) |
 | `BUILD_RESUME_CONFIG_CHANGED` | [configuration-and-source](#configuration-and-source) | [`build.rs:59`](../../crates/oo-cli/src/admin/build.rs#L59) |
 | `BUILD_RESUME_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`build.rs:63`](../../crates/oo-cli/src/admin/build.rs#L63) |
@@ -279,10 +280,10 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUILD_RUNTIME_FAILED` | [configuration-and-source](#configuration-and-source) | [`build_lite.rs:213`](../../crates/oo-cli/src/admin/build_lite.rs#L213) |
 | `BUILD_RUNTIME_SECRET_REF_REQUIRED` | [credentials](#credentials) | [`build_retained.rs:82`](../../crates/oo-cli/src/admin/build_retained.rs#L82) |
 | `BUILD_RUNTIME_SOURCE` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:40`](../../crates/oo-cli/src/admin/build_retained.rs#L40) |
-| `BUILD_SOURCE_CATALOG_FAILED` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:390`](../../crates/oo-cli/src/admin/build_retained.rs#L390) |
-| `BUILD_SOURCE_CATALOG_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:385`](../../crates/oo-cli/src/admin/build_retained.rs#L385) |
-| `BUILD_SOURCE_CONNECTION` | [connectivity](#connectivity) | [`build_retained.rs:410`](../../crates/oo-cli/src/admin/build_retained.rs#L410) |
-| `BUILD_SOURCE_RUNTIME` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:403`](../../crates/oo-cli/src/admin/build_retained.rs#L403) |
+| `BUILD_SOURCE_CATALOG_FAILED` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:411`](../../crates/oo-cli/src/admin/build_retained.rs#L411) |
+| `BUILD_SOURCE_CATALOG_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:406`](../../crates/oo-cli/src/admin/build_retained.rs#L406) |
+| `BUILD_SOURCE_CONNECTION` | [connectivity](#connectivity) | [`build_retained.rs:431`](../../crates/oo-cli/src/admin/build_retained.rs#L431) |
+| `BUILD_SOURCE_RUNTIME` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:424`](../../crates/oo-cli/src/admin/build_retained.rs#L424) |
 | `BUILD_START` | [configuration-and-source](#configuration-and-source) | [`progress.rs:222`](../../crates/oo-cli/src/admin/progress.rs#L222) |
 | `BUILD_STATE_DIRECTORY` | [configuration-and-source](#configuration-and-source) | [`build.rs:191`](../../crates/oo-cli/src/admin/build.rs#L191) |
 | `BUILD_STATE_IO` | [configuration-and-source](#configuration-and-source) | [`build.rs:24`](../../crates/oo-cli/src/admin/build.rs#L24) |
@@ -373,7 +374,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `EGRESS_PORT_IN_USE_USE_LITE_NETWORK_NAMESPACE` | [model](#model) | [`draft.py:247`](../../deploy/lite/draft.py#L247) |
 | `EGRESS_START_FAILED` | [model](#model) | [`draft.py:254`](../../deploy/lite/draft.py#L254) |
 | `EGRESS_START_TIMEOUT` | [model](#model) | [`draft.py:261`](../../deploy/lite/draft.py#L261) |
-| `ENGINE_NOT_AVAILABLE` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:368`](../../crates/oo-cli/src/admin/build_retained.rs#L368) |
+| `ENGINE_NOT_AVAILABLE` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:389`](../../crates/oo-cli/src/admin/build_retained.rs#L389) |
 | `ENGINE_REQUIRED_FOR_NONSTANDARD_PORT` | [configuration-and-source](#configuration-and-source) | [`doctor.rs:257`](../../crates/oo-cli/src/admin/doctor.rs#L257) |
 | `ENTITY_CHECK_FAILED` | [configuration-and-source](#configuration-and-source) | [`public_surface.rs:3642`](../../crates/oo-gateway/src/public_surface.rs#L3642) |
 | `ENUMERATION_REFUSED` | [configuration-and-source](#configuration-and-source) | [`outcome.rs:405`](../../crates/oo-cli/src/outcome.rs#L405) |
